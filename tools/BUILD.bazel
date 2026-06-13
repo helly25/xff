@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""helly25_xff/tools (mirrors helly25/mbo)."""
+
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
+package(default_visibility = ["//visibility:private"])
+
+_SYMBOLIZER = "@llvm_toolchain_llvm//:llvm-symbolizer"
+
+# Bake the hermetic llvm-symbolizer path into the run-under wrapper under
+# --config=clang; otherwise fall back to autodetection ("auto").
+genrule(
+    name = "generate_run_under_script",
+    srcs = [":run_under_symbolizer.sh.in"],
+    outs = ["run_under_symbolizer.sh"],
+    cmd = select({
+        "//:is_clang": """
+            LLVM_SYMBOLIZER_PATH="$$(readlink -f $${{PWD}}/$(location {SYMBOLIZER}))"
+            sed "s,%%LLVM_SYMBOLIZER_PATH%%,$${{LLVM_SYMBOLIZER_PATH}}," $< > $@
+        """.format(
+            SYMBOLIZER = _SYMBOLIZER,
+        ),
+        "//conditions:default": """
+            sed "s,%%LLVM_SYMBOLIZER_PATH%%,auto," $< > $@
+        """,
+    }),
+    executable = True,
+    tags = ["manual"],
+    tools = select({
+        "//:is_clang": [_SYMBOLIZER],
+        "//conditions:default": [],
+    }),
+)
+
+sh_binary(
+    name = "run_under_symbolizer",
+    srcs = ["run_under_symbolizer.sh"],
+    data = select({
+        "//:is_clang": [_SYMBOLIZER],
+        "//conditions:default": [],
+    }),
+    tags = ["manual"],
+)

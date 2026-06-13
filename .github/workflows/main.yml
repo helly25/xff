@@ -1,0 +1,25 @@
+name: Test
+
+on: [push, pull_request]
+
+permissions: read-all
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / ${{ matrix.config.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        config:
+          - name: default
+            flags: ""
+          - name: clang-asan
+            flags: "--config=clang --config=asan"
+    steps:
+      - uses: actions/checkout@v6
+      # bazelisk launches the Bazel release pinned in .bazelversion (9.1.1).
+      - uses: bazelbuild/setup-bazelisk@v3
+      - name: bazel test
+        run: bazel test //... ${{ matrix.config.flags }}

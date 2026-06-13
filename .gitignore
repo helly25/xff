@@ -1,0 +1,16 @@
+/__pycache__
+
+# Symlink added by bazel-compile-commands-extractor (no trailing slash: it's a symlink).
+/external
+# Bazel output symlinks.
+/bazel-*
+# Generated clangd compile DB.
+/compile_commands.json
+# clangd local index.
+/.cache/
+/.vscode/
+
+/.bazelrc.user
+/.bazelrc.user.end
+/MODULE.bazel.lock
+.DS_Store

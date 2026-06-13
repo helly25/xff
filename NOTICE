@@ -1,0 +1,8 @@
+xff — eXtended File Find
+Copyright 2026 Marcus Börger / helly25
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product links third-party libraries fetched via Bazel modules; their
+licenses (all permissive) are reproduced in THIRD_PARTY (to be added):
+RE2, PCRE2, libarchive, Abseil, GoogleTest, zlib, zstd, bzip2, xz.

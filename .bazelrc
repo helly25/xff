@@ -1,0 +1,76 @@
+# To debug bazel options, uncomment next line.
+# common --announce_rc
+
+# Allow platform specific control and add the missing 'CoreFoundation' lib.
+common --enable_platform_specific_config
+
+# Define the Apple OS (flags mirror helly25/mbo).
+common --apple_platform_type=macos
+common:macos --features=-macos_default_link_flags
+common:macos --features=-supports_dynamic_linker
+common:macos --linkopt=-framework --linkopt=CoreFoundation --host_linkopt=-framework --host_linkopt=CoreFoundation
+common:macos --linkopt=-Wl,-undefined,dynamic_lookup --host_linkopt=-Wl,-undefined,dynamic_lookup
+# Apple Silicon: 11.0 is the earliest arm64 macOS and clears libc++'s
+# std::filesystem availability gate.
+common:macos --cxxopt=-mmacosx-version-min=11.0 --host_cxxopt=-mmacosx-version-min=11.0
+common:macos --linkopt=-mmacosx-version-min=11.0 --host_linkopt=-mmacosx-version-min=11.0
+
+try-import %workspace%/.bazelrc.user
+
+common --consistent_labels
+common --enable_bzlmod --noenable_workspace
+common --incompatible_disallow_empty_glob
+common --nolegacy_external_runfiles
+common --features=layering_check,parse_headers
+
+# Define absl=1 to tell googletest to use absl for backtrace.
+common --define absl=1
+
+# xff is a C++23 project.
+common --cxxopt=-std=c++23 --host_cxxopt=-std=c++23 --cxxopt=-Werror
+
+# Keep -Werror strict for our code but not third-party (external) code:
+#  - external_include_paths: external repo headers become -isystem.
+#  - per_file_copt on external/*: downgrades -Werror when compiling external sources.
+common --features=external_include_paths
+common --per_file_copt=external/.*@-Wno-error
+
+test --test_output=errors
+
+common --copt=-fdiagnostics-color=always
+common --copt=-fno-exceptions
+
+# Register the hermetic LLVM/clang toolchain ONLY for `--config=clang`. Bazel 9
+# always resolves C++ toolchains, so `--extra_toolchains` (higher priority than
+# the autodetected local toolchain) keeps gcc/native builds on the local compiler.
+common:clang --extra_toolchains=@llvm_toolchain_llvm//:all
+common:clang --cxxopt=-gmlt --host_cxxopt=-gmlt
+common:clang --linkopt=-fuse-ld=lld --host_linkopt=-fuse-ld=lld
+common:clang --define is_clang=true
+# Some newer Clang versions do not like '-c': https://github.com/llvm/llvm-project/issues/100909
+common:clang --cxxopt=-Wno-unused-command-line-argument
+
+common:symbolizer --strip=never
+common:symbolizer --run_under=//tools:run_under_symbolizer
+
+# --config=asan : run with `--config=clang --config=asan` (macOS + clang-22 works
+# via toolchains_llvm 1.8.0 / #769). 1.8.0 also drives sanitizers via the `asan`
+# feature (#765); the explicit -fsanitize copts/linkopts keep it working elsewhere too.
+common:asan --config=symbolizer
+common:asan --copt=-g
+common:asan --copt=-fsanitize=address
+common:asan --copt=-fno-sanitize=vptr
+common:asan --copt=-fno-omit-frame-pointer
+common:asan --copt=-DADDRESS_SANITIZER
+common:asan --linkopt=-fsanitize=address
+common:asan --linkopt=-fno-sanitize=vptr
+common:asan --linkopt=-ldl
+common:asan --build_tag_filters=-no_san  # skip targets tagged no_san
+common:asan --test_tag_filters=-no_san
+common:asan --features=asan  # https://github.com/bazelbuild/bazel/issues/6932
+common:asan --action_env=ASAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1:color=always
+common:asan --action_env=UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1:color=always
+common:asan --test_env=ASAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1:color=always
+common:asan --test_env=UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1:color=always
+
+try-import %workspace%/.bazelrc.user.end
