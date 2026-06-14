@@ -15,11 +15,14 @@
 
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "xff/engine/run.h"
 #include "xff/parser/parser.h"
+#include "xff/vfs/local_fs.h"
 
 int main(int argc, char** argv) {
   const std::vector<std::string> args(argv + 1, argv + argc);
@@ -36,15 +39,22 @@ int main(int argc, char** argv) {
     }
   }
 
-  // Skeleton behaviour: parse and echo the search roots. Errors -> exit 2
-  // (the xff exit-code model; design.md "Exit-code model").
-  const absl::StatusOr<xff::parser::Command> cmd = xff::parser::Parse(args);
-  if (!cmd.ok()) {
-    std::cerr << "xff: " << cmd.status().message() << "\n";
+  const absl::StatusOr<xff::parser::Command> command = xff::parser::Parse(args);
+  if (!command.ok()) {
+    std::cerr << "xff: " << command.status().message() << "\n";
     return 2;
   }
-  for (const std::string& root : cmd->roots) {
-    std::cout << root << "\n";
-  }
-  return 0;
+
+  // Walk the roots and evaluate the expression, printing matches. Per-path
+  // errors -> exit 2 (the xff exit-code model; design.md "Exit-code model").
+  const xff::vfs::LocalFs fs;
+  const int errors = xff::engine::RunFind(
+      *command, fs,
+      [](std::string_view record) {
+        std::cout.write(record.data(), static_cast<std::streamsize>(record.size()));
+      },
+      [](std::string_view path, const absl::Status& status) {
+        std::cerr << "xff: " << path << ": " << status.message() << "\n";
+      });
+  return errors == 0 ? 0 : 2;
 }
