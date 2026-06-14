@@ -13,10 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 cc_library(
     name = "registry_cc",
-    hdrs = ["descriptor.h"],
+    srcs = ["registry.cc"],
+    hdrs = [
+        "descriptor.h",
+        "registry.h",
+    ],
     visibility = ["//xff:__subpackages__"],
+)
+
+cc_test(
+    name = "registry_test",
+    srcs = ["registry_test.cc"],
+    deps = [
+        ":registry_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
 )
