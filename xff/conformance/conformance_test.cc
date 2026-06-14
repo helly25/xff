@@ -182,6 +182,10 @@ TEST_F(ConformanceTest, PermExact) { ExpectMatchesFind({"-perm", "644"}); }
 TEST_F(ConformanceTest, PermExactOther) { ExpectMatchesFind({"-perm", "600"}); }
 TEST_F(ConformanceTest, PermAllBitsOwnerWrite) { ExpectMatchesFind({"-perm", "-200"}); }
 TEST_F(ConformanceTest, PermAllBitsReadable) { ExpectMatchesFind({"-perm", "-044"}); }
+TEST_F(ConformanceTest, MaxDepthOne) { ExpectMatchesFind({"-maxdepth", "1"}); }
+TEST_F(ConformanceTest, MaxDepthTwo) { ExpectMatchesFind({"-maxdepth", "2"}); }
+TEST_F(ConformanceTest, MinDepthOne) { ExpectMatchesFind({"-mindepth", "1"}); }
+TEST_F(ConformanceTest, MaxDepthWithType) { ExpectMatchesFind({"-maxdepth", "1", "-type", "f"}); }
 
 }  // namespace
 }  // namespace xff
