@@ -16,20 +16,32 @@
 #ifndef XFF_ENGINE_EVALUATE_H_
 #define XFF_ENGINE_EVALUATE_H_
 
+#include <string_view>
+
+#include "absl/functional/function_ref.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/ast.h"
 
 namespace xff::engine {
 
-// Evaluates a parsed find expression against a single visited entry and returns
-// its overall truth value, mirroring find:
+// Output sink for actions: receives one fully-formed record per action firing
+// (path plus terminator -- "p\n" for -print, "p\0" for -print0).
+using EmitFn = absl::FunctionRef<void(std::string_view)>;
+
+// Evaluates a parsed find expression against one visited entry and returns its
+// overall truth value, mirroring find:
 //   - tests: -name/-iname/-path/-ipath/-type/-true/-false against the entry;
 //   - operators: !/-not, -a/-and, -o/-or, with short-circuit;
-//   - actions (-print, ...): currently evaluate to `true` with no side effect;
-//     their output is wired in a follow-up.
+//   - actions: -print/-print0 write a record via `emit` and evaluate to true.
 // -name/-iname glob the basename, -path/-ipath glob the whole path; the `i`
-// variants fold case (fnmatch, matching GNU find).
-bool Evaluate(const parser::Expr& expr, const Visit& visit);
+// variants fold case (fnmatch, matching GNU find). Short-circuit means actions
+// to the right of a failed -a (or in the unused branch of -o) do not fire.
+bool Evaluate(const parser::Expr& expr, const Visit& visit, EmitFn emit);
+
+// True if `expr` contains any action node (-print, ...). The driver uses this
+// to decide whether an implicit -print applies: find adds -print only when the
+// expression has no action of its own.
+bool ContainsAction(const parser::Expr& expr);
 
 }  // namespace xff::engine
 

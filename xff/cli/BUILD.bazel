@@ -20,7 +20,9 @@ cc_binary(
     srcs = ["main.cc"],
     visibility = ["//visibility:public"],
     deps = [
+        "//xff/engine:run_cc",
         "//xff/parser:parser_cc",
+        "//xff/vfs:local_fs_cc",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
     ],

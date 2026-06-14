@@ -31,10 +31,14 @@ namespace xff::engine {
 namespace {
 
 using ::mbo::testing::IsOk;
+using ::testing::Eq;
+using ::testing::IsEmpty;
 
 struct EvaluateTest : ::testing::Test {
-  // Parses `. <expr...>` and evaluates the resulting expression against `visit`.
+  // Parses `. <expr...>` and evaluates the expression against `visit`, capturing
+  // any action output in `emitted_`.
   bool Match(const std::vector<std::string>& expr, const Visit& visit) {
+    emitted_.clear();
     std::vector<std::string> argv;
     argv.reserve(expr.size() + 1);
     argv.emplace_back(".");
@@ -44,7 +48,7 @@ struct EvaluateTest : ::testing::Test {
     if (!command.ok() || command->expression == nullptr) {
       return false;
     }
-    return Evaluate(*command->expression, visit);
+    return Evaluate(*command->expression, visit, [this](std::string_view record) { emitted_ += record; });
   }
 
   // A Visit of `type`, with `path`/`name` backed by the caller and metadata by
@@ -53,6 +57,8 @@ struct EvaluateTest : ::testing::Test {
     storage.type = type;
     return Visit{.path = path, .name = name, .depth = 1, .metadata = storage};
   }
+
+  std::string emitted_;
 };
 
 TEST_F(EvaluateTest, TrueAndFalse) {
@@ -108,12 +114,22 @@ TEST_F(EvaluateTest, AndOrNotShortCircuit) {
   EXPECT_FALSE(Match({"!", "-name", "*.txt"}, txt));
 }
 
-TEST_F(EvaluateTest, ActionsEvaluateTrue) {
+TEST_F(EvaluateTest, PrintActionsEmit) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("dir/foo.txt", "foo.txt", vfs::FileType::kRegular, md);
   EXPECT_TRUE(Match({"-print"}, visit));
+  EXPECT_THAT(emitted_, Eq("dir/foo.txt\n"));
+  EXPECT_TRUE(Match({"-print0"}, visit));
+  EXPECT_THAT(emitted_, Eq(std::string("dir/foo.txt\0", 12)));
+}
+
+TEST_F(EvaluateTest, ShortCircuitSkipsAction) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/foo.txt", "foo.txt", vfs::FileType::kRegular, md);
   EXPECT_TRUE(Match({"-type", "f", "-print"}, visit));
+  EXPECT_THAT(emitted_, Eq("dir/foo.txt\n"));
   EXPECT_FALSE(Match({"-type", "d", "-print"}, visit)) << "-type d fails; -a short-circuits before -print";
+  EXPECT_THAT(emitted_, IsEmpty());
 }
 
 }  // namespace

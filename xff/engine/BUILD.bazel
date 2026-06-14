@@ -45,7 +45,8 @@ cc_test(
     ],
 )
 
-# Evaluates a parsed find expression (tests + operators) against a visited entry.
+# Evaluates a parsed find expression (tests + operators + -print/-print0
+# actions) against a visited entry.
 cc_library(
     name = "evaluate_cc",
     srcs = ["evaluate.cc"],
@@ -56,6 +57,8 @@ cc_library(
         "//xff/parser:parser_cc",
         "//xff/registry:registry_cc",
         "//xff/vfs:vfs_cc",
+        "@abseil-cpp//absl/functional:function_ref",
+        "@abseil-cpp//absl/strings",
     ],
 )
 
@@ -68,6 +71,37 @@ cc_test(
         ":walk_cc",
         "//xff/parser:parser_cc",
         "//xff/vfs:vfs_cc",
+        "@com_helly25_mbo//mbo/testing:status_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# Drives one find run: walk the roots, evaluate the expression, (implicit) print.
+cc_library(
+    name = "run_cc",
+    srcs = ["run.cc"],
+    hdrs = ["run.h"],
+    visibility = ["//xff:__subpackages__"],
+    deps = [
+        ":evaluate_cc",
+        ":walk_cc",
+        "//xff/parser:parser_cc",
+        "//xff/vfs:vfs_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "run_test",
+    size = "small",
+    srcs = ["run_test.cc"],
+    deps = [
+        ":run_cc",
+        "//xff/parser:parser_cc",
+        "//xff/vfs:local_fs_cc",
+        "@abseil-cpp//absl/status",
         "@com_helly25_mbo//mbo/testing:status_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

@@ -26,6 +26,7 @@
 #include <string>
 #include <string_view>
 
+#include "absl/strings/str_cat.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/ast.h"
 #include "xff/registry/descriptor.h"
@@ -54,7 +55,7 @@ bool MatchesType(std::string_view arg, vfs::FileType type) {
   }
 }
 
-bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit) {
+bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit, EmitFn emit) {
   const std::string_view name = expr.descriptor->name;
   const bool has_arg = !expr.args.empty();
   if (name == "-true") return true;
@@ -64,21 +65,40 @@ bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit) {
   if (name == "-path") return has_arg && Fnmatch(expr.args.front(), visit.path, 0);
   if (name == "-ipath") return has_arg && Fnmatch(expr.args.front(), visit.path, FNM_CASEFOLD);
   if (name == "-type") return has_arg && MatchesType(expr.args.front(), visit.metadata.type);
-  // Actions (-print/-print0) and predicates not yet implemented evaluate to
-  // true; their side effects (output) are wired in a follow-up.
+  if (name == "-print") {
+    emit(absl::StrCat(visit.path, "\n"));
+    return true;
+  }
+  if (name == "-print0") {
+    std::string record(visit.path);
+    record.push_back('\0');
+    emit(record);
+    return true;
+  }
+  // Predicates not yet implemented evaluate to true (no-op); wired in follow-ups.
   return true;
 }
 
 }  // namespace
 
-bool Evaluate(const parser::Expr& expr, const Visit& visit) {
+bool Evaluate(const parser::Expr& expr, const Visit& visit, EmitFn emit) {
   switch (expr.kind) {
-    case parser::Expr::Kind::kPredicate: return EvaluatePredicate(expr, visit);
-    case parser::Expr::Kind::kNot: return !Evaluate(*expr.lhs, visit);
-    case parser::Expr::Kind::kAnd: return Evaluate(*expr.lhs, visit) && Evaluate(*expr.rhs, visit);
-    case parser::Expr::Kind::kOr: return Evaluate(*expr.lhs, visit) || Evaluate(*expr.rhs, visit);
+    case parser::Expr::Kind::kPredicate: return EvaluatePredicate(expr, visit, emit);
+    case parser::Expr::Kind::kNot: return !Evaluate(*expr.lhs, visit, emit);
+    case parser::Expr::Kind::kAnd: return Evaluate(*expr.lhs, visit, emit) && Evaluate(*expr.rhs, visit, emit);
+    case parser::Expr::Kind::kOr: return Evaluate(*expr.lhs, visit, emit) || Evaluate(*expr.rhs, visit, emit);
   }
   return true;  // Unreachable: every Expr::Kind returns above.
+}
+
+bool ContainsAction(const parser::Expr& expr) {
+  switch (expr.kind) {
+    case parser::Expr::Kind::kPredicate: return expr.descriptor->kind == registry::Kind::kAction;
+    case parser::Expr::Kind::kNot: return ContainsAction(*expr.lhs);
+    case parser::Expr::Kind::kAnd:
+    case parser::Expr::Kind::kOr: return ContainsAction(*expr.lhs) || ContainsAction(*expr.rhs);
+  }
+  return false;  // Unreachable: every Expr::Kind returns above.
 }
 
 }  // namespace xff::engine
