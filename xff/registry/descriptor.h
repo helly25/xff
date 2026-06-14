@@ -16,12 +16,15 @@
 #ifndef XFF_REGISTRY_DESCRIPTOR_H_
 #define XFF_REGISTRY_DESCRIPTOR_H_
 
-#include <string>
+#include <string_view>
 
 namespace xff::registry {
 
 // Where a token lives on the command line (design.md "CLI grammar & parser").
 enum class Region { kGlobal, kExpression };
+
+// What an expression token is.
+enum class Kind { kTest, kAction, kOperator };
 
 // Safety classification, surfaced in --help / --explain (design.md "Security & safety").
 enum class Safety { kNone, kSafety, kSecurity };
@@ -33,7 +36,8 @@ enum class Cost { kCheap, kMeta, kExpensive };
 // source of truth from which the parser, --help, completions, --explain, and
 // the cost-warning are all derived.
 struct Descriptor {
-  std::string name;
+  std::string_view name;
+  Kind kind = Kind::kTest;
   Region region = Region::kExpression;
   int arity = 0;  // tokens consumed as arguments
   Safety safety = Safety::kNone;
