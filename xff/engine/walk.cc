@@ -1,0 +1,107 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "xff/engine/walk.h"
+
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "absl/types/span.h"
+#include "xff/vfs/entry.h"
+#include "xff/vfs/filesystem.h"
+
+namespace xff::engine {
+namespace {
+
+// Final path component, tolerating a single trailing '/' (but not a lone "/").
+std::string_view Basename(std::string_view path) {
+  if (path.size() > 1 && path.back() == '/') {
+    path.remove_suffix(1);
+  }
+  const std::string_view::size_type slash = path.rfind('/');
+  return slash == std::string_view::npos ? path : path.substr(slash + 1);
+}
+
+class Walker {
+ public:
+  Walker(const vfs::FileSystem& fs, const WalkOptions& options, Visitor visit, WalkErrorFn on_error)
+      : fs_(fs), options_(options), visit_(visit), on_error_(on_error) {}
+
+  void VisitNode(const std::string& path, int depth) {
+    if (stopped_) {
+      return;
+    }
+    const absl::StatusOr<vfs::Metadata> metadata = fs_.Stat(path, /*follow_symlinks=*/false);
+    if (!metadata.ok()) {
+      on_error_(path, metadata.status());
+      return;
+    }
+
+    WalkAction action = WalkAction::kContinue;
+    if (depth >= options_.min_depth) {
+      action = visit_(Visit{.path = path, .name = Basename(path), .depth = depth, .metadata = *metadata});
+    }
+    if (action == WalkAction::kStop) {
+      stopped_ = true;
+      return;
+    }
+
+    const bool within_depth = options_.max_depth < 0 || depth < options_.max_depth;
+    if (metadata->type == vfs::FileType::kDirectory && action != WalkAction::kPrune && within_depth) {
+      Descend(path, depth);
+    }
+  }
+
+ private:
+  void Descend(const std::string& dir, int depth) {
+    const absl::StatusOr<std::vector<vfs::Entry>> children = fs_.ReadDir(dir);
+    if (!children.ok()) {
+      on_error_(dir, children.status());
+      return;
+    }
+    for (const vfs::Entry& child : *children) {
+      if (stopped_) {
+        return;
+      }
+      VisitNode(child.path, depth + 1);
+    }
+  }
+
+  const vfs::FileSystem& fs_;
+  const WalkOptions& options_;
+  Visitor visit_;
+  WalkErrorFn on_error_;
+  bool stopped_ = false;
+};
+
+}  // namespace
+
+absl::Status Walk(
+    const vfs::FileSystem& fs,
+    absl::Span<const std::string> roots,
+    const WalkOptions& options,
+    Visitor visit,
+    WalkErrorFn on_error) {
+  Walker walker(fs, options, visit, on_error);
+  for (const std::string& root : roots) {
+    walker.VisitNode(root, 0);
+  }
+  return absl::OkStatus();
+}
+
+}  // namespace xff::engine
