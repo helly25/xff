@@ -97,6 +97,8 @@ struct ConformanceTest : ::testing::Test {
     fs::permissions(root_ / "a.txt", static_cast<fs::perms>(0644));
     fs::permissions(root_ / "b.md", static_cast<fs::perms>(0640));
     fs::permissions(root_ / "sub" / "c.txt", static_cast<fs::perms>(0600));
+    { std::ofstream(root_ / "empty.txt"); }  // 0 bytes, for -empty
+    fs::create_directory(root_ / "emptydir", ec);
   }
 
   void TearDown() override {
@@ -186,6 +188,7 @@ TEST_F(ConformanceTest, MaxDepthOne) { ExpectMatchesFind({"-maxdepth", "1"}); }
 TEST_F(ConformanceTest, MaxDepthTwo) { ExpectMatchesFind({"-maxdepth", "2"}); }
 TEST_F(ConformanceTest, MinDepthOne) { ExpectMatchesFind({"-mindepth", "1"}); }
 TEST_F(ConformanceTest, MaxDepthWithType) { ExpectMatchesFind({"-maxdepth", "1", "-type", "f"}); }
+TEST_F(ConformanceTest, Empty) { ExpectMatchesFind({"-empty"}); }
 
 }  // namespace
 }  // namespace xff

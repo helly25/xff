@@ -26,12 +26,15 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <vector>
 
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/ast.h"
 #include "xff/registry/descriptor.h"
 #include "xff/vfs/entry.h"
+#include "xff/vfs/filesystem.h"
 
 namespace xff::engine {
 namespace {
@@ -130,7 +133,19 @@ bool MatchesPerm(std::string_view arg, std::uint32_t mode) {
   return bits == want;  // exact
 }
 
-bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit, EmitFn emit) {
+// find's -empty: an empty regular file (size 0) or a directory with no entries.
+bool IsEmpty(const Visit& visit, const vfs::FileSystem& fs) {
+  if (visit.metadata.type == vfs::FileType::kRegular) {
+    return visit.metadata.size == 0;
+  }
+  if (visit.metadata.type == vfs::FileType::kDirectory) {
+    const absl::StatusOr<std::vector<vfs::Entry>> children = fs.ReadDir(visit.path);
+    return children.ok() && children->empty();
+  }
+  return false;  // find -empty matches only empty regular files and directories
+}
+
+bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs) {
   const std::string_view name = expr.descriptor->name;
   const bool has_arg = !expr.args.empty();
   if (name == "-true") return true;
@@ -142,6 +157,7 @@ bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit, EmitFn emit
   if (name == "-type") return has_arg && MatchesType(expr.args.front(), visit.metadata.type);
   if (name == "-size") return has_arg && MatchesSize(expr.args.front(), visit.metadata.size);
   if (name == "-perm") return has_arg && MatchesPerm(expr.args.front(), visit.metadata.mode);
+  if (name == "-empty") return IsEmpty(visit, fs);
   if (name == "-print") {
     emit(absl::StrCat(visit.path, "\n"));
     return true;
@@ -158,12 +174,12 @@ bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit, EmitFn emit
 
 }  // namespace
 
-bool Evaluate(const parser::Expr& expr, const Visit& visit, EmitFn emit) {
+bool Evaluate(const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs) {
   switch (expr.kind) {
-    case parser::Expr::Kind::kPredicate: return EvaluatePredicate(expr, visit, emit);
-    case parser::Expr::Kind::kNot: return !Evaluate(*expr.lhs, visit, emit);
-    case parser::Expr::Kind::kAnd: return Evaluate(*expr.lhs, visit, emit) && Evaluate(*expr.rhs, visit, emit);
-    case parser::Expr::Kind::kOr: return Evaluate(*expr.lhs, visit, emit) || Evaluate(*expr.rhs, visit, emit);
+    case parser::Expr::Kind::kPredicate: return EvaluatePredicate(expr, visit, emit, fs);
+    case parser::Expr::Kind::kNot: return !Evaluate(*expr.lhs, visit, emit, fs);
+    case parser::Expr::Kind::kAnd: return Evaluate(*expr.lhs, visit, emit, fs) && Evaluate(*expr.rhs, visit, emit, fs);
+    case parser::Expr::Kind::kOr: return Evaluate(*expr.lhs, visit, emit, fs) || Evaluate(*expr.rhs, visit, emit, fs);
   }
   return true;  // Unreachable: every Expr::Kind returns above.
 }
