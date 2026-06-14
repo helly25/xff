@@ -19,15 +19,18 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/statusor.h"
 #include "xff/parser/ast.h"
 
 namespace xff::parser {
 
-// Splits argv into [globals] [roots] [expression] per the xff grammar:
-// order-independent global flags (leading '-'/'+' tokens) up to the first
-// directory or an explicit '--' boundary; one or more roots; then the
-// position-dependent find expression (parsed in full in a later phase).
-Command Parse(const std::vector<std::string>& args);
+// Parses argv into [globals] [roots] [expression] per the xff grammar:
+// leading '-'/'+' global flags up to the first directory or an explicit '--',
+// one or more roots, then the position-dependent find expression
+// (precedence ! > -a > -o, implicit -a between adjacent predicates, ( )
+// grouping). Returns an error for an unknown predicate, a predicate missing
+// arguments, an unexpected operator, or unbalanced parentheses.
+absl::StatusOr<Command> Parse(const std::vector<std::string>& args);
 
 }  // namespace xff::parser
 

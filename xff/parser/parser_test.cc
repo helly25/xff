@@ -15,46 +15,76 @@
 
 #include "xff/parser/parser.h"
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+
+#include "absl/status/status.h"
+#include "mbo/testing/status.h"
+#include "xff/parser/ast.h"
+#include "xff/registry/descriptor.h"
 
 namespace xff::parser {
 namespace {
 
-TEST(ParserTest, SingleRoot) {
-  const Command cmd = Parse({"."});
-  EXPECT_TRUE(cmd.globals.empty());
-  ASSERT_EQ(cmd.roots.size(), 1U);
-  EXPECT_EQ(cmd.roots[0], ".");
-  EXPECT_TRUE(cmd.expression.empty());
+using ::mbo::testing::StatusIs;
+using ::testing::ElementsAre;
+using ::testing::Eq;
+using ::testing::IsNull;
+using ::testing::NotNull;
+
+struct ParserTest : ::testing::Test {};
+
+TEST_F(ParserTest, GlobalsRootsExpression) {
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({"--color", ".", "-type", "f"}));
+  EXPECT_THAT(cmd.globals, ElementsAre("--color"));
+  EXPECT_THAT(cmd.roots, ElementsAre("."));
+  ASSERT_THAT(cmd.expression, NotNull());
+  EXPECT_THAT(cmd.expression->kind, Eq(Expr::Kind::kPredicate));
+  ASSERT_THAT(cmd.expression->descriptor, NotNull());
+  EXPECT_THAT(cmd.expression->descriptor->name, Eq("-type"));
+  EXPECT_THAT(cmd.expression->args, ElementsAre("f"));
 }
 
-TEST(ParserTest, GlobalsRootsExpression) {
-  const Command cmd = Parse({"--color", ".", "-type", "f"});
-  ASSERT_EQ(cmd.globals.size(), 1U);
-  EXPECT_EQ(cmd.globals[0], "--color");
-  ASSERT_EQ(cmd.roots.size(), 1U);
-  EXPECT_EQ(cmd.roots[0], ".");
-  ASSERT_EQ(cmd.expression.size(), 2U);
-  EXPECT_EQ(cmd.expression[0], "-type");
-  EXPECT_EQ(cmd.expression[1], "f");
+TEST_F(ParserTest, NoExpressionIsNull) {
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({"."}));
+  EXPECT_THAT(cmd.roots, ElementsAre("."));
+  EXPECT_THAT(cmd.expression, IsNull());
 }
 
-TEST(ParserTest, DoubleDashEndsGlobals) {
-  const Command cmd = Parse({"--color", "--", "src", "-name", "x"});
-  ASSERT_EQ(cmd.globals.size(), 1U);
-  EXPECT_EQ(cmd.globals[0], "--color");
-  ASSERT_EQ(cmd.roots.size(), 1U);
-  EXPECT_EQ(cmd.roots[0], "src");
-  ASSERT_EQ(cmd.expression.size(), 2U);
-  EXPECT_EQ(cmd.expression[0], "-name");
+TEST_F(ParserTest, OrIsLowerThanImplicitAnd) {
+  // `-type f -name x -o -name y` => Or( And(-type f, -name x), -name y )
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-type", "f", "-name", "x", "-o", "-name", "y"}));
+  const Expr& root = *cmd.expression;
+  ASSERT_THAT(root.kind, Eq(Expr::Kind::kOr));
+  EXPECT_THAT(root.lhs->kind, Eq(Expr::Kind::kAnd));
+  ASSERT_THAT(root.rhs->kind, Eq(Expr::Kind::kPredicate));
+  EXPECT_THAT(root.rhs->descriptor->name, Eq("-name"));
 }
 
-TEST(ParserTest, PlusTokenIsGlobalNotRoot) {
-  const Command cmd = Parse({"-g+", "."});
-  ASSERT_EQ(cmd.globals.size(), 1U);
-  EXPECT_EQ(cmd.globals[0], "-g+");
-  ASSERT_EQ(cmd.roots.size(), 1U);
-  EXPECT_EQ(cmd.roots[0], ".");
+TEST_F(ParserTest, NotBindsTightest) {
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "!", "-type", "d"}));
+  const Expr& root = *cmd.expression;
+  ASSERT_THAT(root.kind, Eq(Expr::Kind::kNot));
+  ASSERT_THAT(root.lhs->kind, Eq(Expr::Kind::kPredicate));
+  EXPECT_THAT(root.lhs->descriptor->name, Eq("-type"));
+}
+
+TEST_F(ParserTest, ParensGroup) {
+  // `( -type f -o -type d ) -print` => And( Or(...), -print )
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "(", "-type", "f", "-o", "-type", "d", ")", "-print"}));
+  const Expr& root = *cmd.expression;
+  ASSERT_THAT(root.kind, Eq(Expr::Kind::kAnd));
+  EXPECT_THAT(root.lhs->kind, Eq(Expr::Kind::kOr));
+  ASSERT_THAT(root.rhs->kind, Eq(Expr::Kind::kPredicate));
+  EXPECT_THAT(root.rhs->descriptor->name, Eq("-print"));
+}
+
+TEST_F(ParserTest, Errors) {
+  using ::absl::StatusCode;
+  EXPECT_THAT(Parse({".", "-bogus"}), StatusIs(StatusCode::kInvalidArgument));            // unknown predicate
+  EXPECT_THAT(Parse({".", "-name"}), StatusIs(StatusCode::kInvalidArgument));             // missing argument
+  EXPECT_THAT(Parse({".", "(", "-type", "f"}), StatusIs(StatusCode::kInvalidArgument));   // unbalanced '('
+  EXPECT_THAT(Parse({".", "-o", "-type", "f"}), StatusIs(StatusCode::kInvalidArgument));  // leading operator
 }
 
 }  // namespace

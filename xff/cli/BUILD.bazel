@@ -19,5 +19,9 @@ cc_binary(
     name = "xff",
     srcs = ["main.cc"],
     visibility = ["//visibility:public"],
-    deps = ["//xff/parser:parser_cc"],
+    deps = [
+        "//xff/parser:parser_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+    ],
 )

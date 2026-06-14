@@ -16,20 +16,38 @@
 #ifndef XFF_PARSER_AST_H_
 #define XFF_PARSER_AST_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "xff/registry/descriptor.h"
+
 namespace xff::parser {
 
-// Result of splitting argv per the xff grammar (design.md "CLI grammar &
-// parser"): order-independent globals, one or more search roots, then the
-// position-dependent find expression. Skeleton: globals and expression are
-// raw tokens for now; the declarative registry + recursive-descent expression
-// parser come next.
+struct Expr;
+using ExprPtr = std::unique_ptr<Expr>;
+
+// A node in the parsed find expression tree (design.md "CLI grammar & parser").
+// Predicates (tests and actions) are leaves; `!`/`-a`/`-o` are interior nodes.
+// `( )` grouping is reflected in tree shape, not as a node.
+struct Expr {
+  enum class Kind { kPredicate, kNot, kAnd, kOr };
+
+  Kind kind;
+  // kPredicate: the matched descriptor and its consumed arguments.
+  const registry::Descriptor* descriptor = nullptr;
+  std::vector<std::string> args;
+  // kNot: operand in `lhs`. kAnd / kOr: operands in `lhs` and `rhs`.
+  ExprPtr lhs;
+  ExprPtr rhs;
+};
+
+// A parsed command line: order-independent globals, search roots, and the
+// position-dependent expression tree (null when no expression was given).
 struct Command {
   std::vector<std::string> globals;
   std::vector<std::string> roots;
-  std::vector<std::string> expression;
+  ExprPtr expression;
 };
 
 }  // namespace xff::parser
