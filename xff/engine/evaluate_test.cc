@@ -132,5 +132,19 @@ TEST_F(EvaluateTest, ShortCircuitSkipsAction) {
   EXPECT_THAT(emitted_, IsEmpty());
 }
 
+TEST_F(EvaluateTest, SizeMatchesBytesAndUnits) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.size = 5;  // bytes
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-size", "5c"}, visit));
+  EXPECT_FALSE(Match({"-size", "4c"}, visit));
+  EXPECT_TRUE(Match({"-size", "+4c"}, visit));
+  EXPECT_TRUE(Match({"-size", "-6c"}, visit));
+  EXPECT_FALSE(Match({"-size", "+5c"}, visit));
+  EXPECT_TRUE(Match({"-size", "1"}, visit)) << "5 bytes rounds up to one 512-byte block";
+  EXPECT_TRUE(Match({"-size", "1k"}, visit)) << "5 bytes rounds up to one 1k unit";
+}
+
 }  // namespace
 }  // namespace xff::engine
