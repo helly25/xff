@@ -33,6 +33,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-ipath", .kind = Kind::kTest, .arity = 1},
     {.name = "-type", .kind = Kind::kTest, .arity = 1},
     {.name = "-size", .kind = Kind::kTest, .arity = 1},
+    {.name = "-perm", .kind = Kind::kTest, .arity = 1},
     {.name = "-true", .kind = Kind::kTest, .arity = 0},
     {.name = "-false", .kind = Kind::kTest, .arity = 0},
     {.name = "-print", .kind = Kind::kAction, .arity = 0},
