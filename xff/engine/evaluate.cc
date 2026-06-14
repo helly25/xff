@@ -101,6 +101,35 @@ bool MatchesSize(std::string_view arg, std::uint64_t size_bytes) {
   return size_in_units == want;
 }
 
+// Matches find's `-perm` over the permission bits (incl. setuid/setgid/sticky):
+//   MODE   exact match;  -MODE  all of MODE's bits set;  /MODE  any of them set.
+// Octal MODE only for now (symbolic `u+w`,... is deferred).
+bool MatchesPerm(std::string_view arg, std::uint32_t mode) {
+  char op = '=';
+  if (!arg.empty() && (arg.front() == '-' || arg.front() == '/')) {
+    op = arg.front();
+    arg.remove_prefix(1);
+  }
+  if (arg.empty()) {
+    return false;
+  }
+  std::uint32_t want = 0;
+  for (const char digit : arg) {
+    if (digit < '0' || digit > '7') {
+      return false;  // octal digits only
+    }
+    want = want * 8 + static_cast<std::uint32_t>(digit - '0');
+  }
+  const std::uint32_t bits = mode & 07777U;  // permission + setuid/setgid/sticky bits
+  if (op == '-') {
+    return (bits & want) == want;  // all requested bits set
+  }
+  if (op == '/') {
+    return want == 0 || (bits & want) != 0;  // any requested bit set
+  }
+  return bits == want;  // exact
+}
+
 bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit, EmitFn emit) {
   const std::string_view name = expr.descriptor->name;
   const bool has_arg = !expr.args.empty();
@@ -112,6 +141,7 @@ bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit, EmitFn emit
   if (name == "-ipath") return has_arg && Fnmatch(expr.args.front(), visit.path, FNM_CASEFOLD);
   if (name == "-type") return has_arg && MatchesType(expr.args.front(), visit.metadata.type);
   if (name == "-size") return has_arg && MatchesSize(expr.args.front(), visit.metadata.size);
+  if (name == "-perm") return has_arg && MatchesPerm(expr.args.front(), visit.metadata.mode);
   if (name == "-print") {
     emit(absl::StrCat(visit.path, "\n"));
     return true;

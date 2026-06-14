@@ -146,5 +146,19 @@ TEST_F(EvaluateTest, SizeMatchesBytesAndUnits) {
   EXPECT_TRUE(Match({"-size", "1k"}, visit)) << "5 bytes rounds up to one 1k unit";
 }
 
+TEST_F(EvaluateTest, PermMatchesOctalModes) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.mode = 0644;  // rw-r--r--
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-perm", "644"}, visit));    // exact
+  EXPECT_FALSE(Match({"-perm", "640"}, visit));
+  EXPECT_TRUE(Match({"-perm", "-200"}, visit));   // -MODE: owner-write bit set
+  EXPECT_TRUE(Match({"-perm", "-044"}, visit));   // group + other read set
+  EXPECT_FALSE(Match({"-perm", "-022"}, visit));  // group/other write NOT set
+  EXPECT_TRUE(Match({"-perm", "/040"}, visit));   // /MODE: any bit (group read) set
+  EXPECT_FALSE(Match({"-perm", "/022"}, visit));  // none of group/other write set
+}
+
 }  // namespace
 }  // namespace xff::engine

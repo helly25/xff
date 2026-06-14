@@ -93,6 +93,10 @@ struct ConformanceTest : ::testing::Test {
     { std::ofstream(root_ / "b.md") << "bb"; }
     { std::ofstream(root_ / "sub" / "c.txt") << "ccc"; }
     fs::create_symlink("a.txt", root_ / "link");
+    // Known modes so -perm cases are meaningful (find and xff both lstat these).
+    fs::permissions(root_ / "a.txt", static_cast<fs::perms>(0644));
+    fs::permissions(root_ / "b.md", static_cast<fs::perms>(0640));
+    fs::permissions(root_ / "sub" / "c.txt", static_cast<fs::perms>(0600));
   }
 
   void TearDown() override {
@@ -174,6 +178,10 @@ TEST_F(ConformanceTest, AndChain) { ExpectMatchesFind({"-type", "f", "-name", "*
 TEST_F(ConformanceTest, SizeExactBytes) { ExpectMatchesFind({"-size", "1c"}); }
 TEST_F(ConformanceTest, SizeGreaterBytes) { ExpectMatchesFind({"-size", "+1c"}); }
 TEST_F(ConformanceTest, SizeLessBytes) { ExpectMatchesFind({"-size", "-3c"}); }
+TEST_F(ConformanceTest, PermExact) { ExpectMatchesFind({"-perm", "644"}); }
+TEST_F(ConformanceTest, PermExactOther) { ExpectMatchesFind({"-perm", "600"}); }
+TEST_F(ConformanceTest, PermAllBitsOwnerWrite) { ExpectMatchesFind({"-perm", "-200"}); }
+TEST_F(ConformanceTest, PermAllBitsReadable) { ExpectMatchesFind({"-perm", "-044"}); }
 
 }  // namespace
 }  // namespace xff
