@@ -113,6 +113,20 @@ TEST_F(RunTest, Print0EmitsNulTerminatedRecords) {
   EXPECT_THAT(RunExpr({"-name", "a.txt", "-print0"}), UnorderedElementsAre(Path("a.txt")));
 }
 
+TEST_F(RunTest, MaxDepthLimitsDescent) {
+  // -maxdepth 1: root + its direct children, but not sub/c.txt (depth 2).
+  EXPECT_THAT(
+      RunExpr({"-maxdepth", "1"}),
+      UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub")));
+}
+
+TEST_F(RunTest, MinDepthSkipsRoot) {
+  // -mindepth 1: everything except the root operand itself.
+  EXPECT_THAT(
+      RunExpr({"-mindepth", "1"}),
+      UnorderedElementsAre(Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
+}
+
 TEST_F(RunTest, MissingRootCountsError) {
   std::vector<std::string> argv = {(root_ / "absent").string(), "-print"};
   const auto command = parser::Parse(argv);
