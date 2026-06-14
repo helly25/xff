@@ -23,6 +23,12 @@ cc_library(
         "parser.h",
     ],
     visibility = ["//xff:__subpackages__"],
+    deps = [
+        "//xff/registry:registry_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+    ],
 )
 
 cc_test(
@@ -30,6 +36,9 @@ cc_test(
     srcs = ["parser_test.cc"],
     deps = [
         ":parser_cc",
+        "//xff/registry:registry_cc",
+        "@abseil-cpp//absl/status",
+        "@com_helly25_mbo//mbo/testing:status_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

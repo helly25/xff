@@ -16,14 +16,23 @@
 #include "xff/parser/parser.h"
 
 #include <cstddef>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
+
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
+#include "xff/parser/ast.h"
+#include "xff/registry/descriptor.h"
+#include "xff/registry/registry.h"
 
 namespace xff::parser {
 namespace {
 
-// An expression begins at the first find operator/predicate token: a
-// single-dash word, or one of '(' ')' '!' ','.
+// A token begins the find expression if it is a single-dash word, or one of
+// the operator/grouping tokens.
 bool StartsExpression(const std::string& arg) {
   if (arg.empty()) {
     return false;
@@ -34,14 +43,145 @@ bool StartsExpression(const std::string& arg) {
   return arg == "(" || arg == ")" || arg == "!" || arg == ",";
 }
 
+bool IsOr(const std::string& t) { return t == "-o" || t == "-or"; }
+bool IsAnd(const std::string& t) { return t == "-a" || t == "-and"; }
+bool IsNot(const std::string& t) { return t == "!" || t == "-not"; }
+
+ExprPtr MakePredicate(const registry::Descriptor* descriptor, std::vector<std::string> args) {
+  auto expr = std::make_unique<Expr>();
+  expr->kind = Expr::Kind::kPredicate;
+  expr->descriptor = descriptor;
+  expr->args = std::move(args);
+  return expr;
+}
+
+ExprPtr MakeNot(ExprPtr operand) {
+  auto expr = std::make_unique<Expr>();
+  expr->kind = Expr::Kind::kNot;
+  expr->lhs = std::move(operand);
+  return expr;
+}
+
+ExprPtr MakeBinary(Expr::Kind kind, ExprPtr lhs, ExprPtr rhs) {
+  auto expr = std::make_unique<Expr>();
+  expr->kind = kind;
+  expr->lhs = std::move(lhs);
+  expr->rhs = std::move(rhs);
+  return expr;
+}
+
+// Recursive-descent parser over the find expression tokens. Errors are
+// accumulated in `status_`; node-returning methods return nullptr once failed.
+//   or   := and ( ('-o'|'-or') and )*
+//   and  := unary ( ('-a'|'-and')? unary )*      // implicit -a
+//   unary:= ('!'|'-not') unary | primary
+//   prim := '(' or ')' | PREDICATE arg{arity}
+class ExprParser {
+ public:
+  explicit ExprParser(const std::vector<std::string>& tokens) : tokens_(tokens) {}
+
+  absl::StatusOr<ExprPtr> Parse() {
+    ExprPtr expr = ParseOr();
+    if (!status_.ok()) {
+      return status_;
+    }
+    if (pos_ != tokens_.size()) {
+      return absl::InvalidArgumentError(absl::StrCat("unexpected token: '", tokens_[pos_], "'"));
+    }
+    return expr;
+  }
+
+ private:
+  bool AtEnd() const { return pos_ >= tokens_.size(); }
+  const std::string& Peek() const { return tokens_[pos_]; }
+  void Fail(std::string message) {
+    if (status_.ok()) {
+      status_ = absl::InvalidArgumentError(std::move(message));
+    }
+  }
+
+  ExprPtr ParseOr() {
+    ExprPtr lhs = ParseAnd();
+    while (status_.ok() && !AtEnd() && IsOr(Peek())) {
+      ++pos_;
+      ExprPtr rhs = ParseAnd();
+      lhs = MakeBinary(Expr::Kind::kOr, std::move(lhs), std::move(rhs));
+    }
+    return lhs;
+  }
+
+  ExprPtr ParseAnd() {
+    ExprPtr lhs = ParseUnary();
+    while (status_.ok() && !AtEnd() && !IsOr(Peek()) && Peek() != ")") {
+      if (IsAnd(Peek())) {
+        ++pos_;  // optional explicit -a
+      }
+      ExprPtr rhs = ParseUnary();
+      lhs = MakeBinary(Expr::Kind::kAnd, std::move(lhs), std::move(rhs));
+    }
+    return lhs;
+  }
+
+  ExprPtr ParseUnary() {
+    if (!AtEnd() && IsNot(Peek())) {
+      ++pos_;
+      return MakeNot(ParseUnary());
+    }
+    return ParsePrimary();
+  }
+
+  ExprPtr ParsePrimary() {
+    if (AtEnd()) {
+      Fail("expected a predicate or '('");
+      return nullptr;
+    }
+    const std::string& token = Peek();
+    if (token == "(") {
+      ++pos_;
+      ExprPtr inner = ParseOr();
+      if (!status_.ok()) {
+        return nullptr;
+      }
+      if (AtEnd() || Peek() != ")") {
+        Fail("missing ')'");
+        return nullptr;
+      }
+      ++pos_;
+      return inner;
+    }
+    const registry::Descriptor* descriptor = registry::Lookup(token);
+    if (descriptor == nullptr) {
+      Fail(absl::StrCat("unknown predicate: '", token, "'"));
+      return nullptr;
+    }
+    if (descriptor->kind == registry::Kind::kOperator) {
+      Fail(absl::StrCat("unexpected operator: '", token, "'"));
+      return nullptr;
+    }
+    ++pos_;
+    std::vector<std::string> args;
+    for (int i = 0; i < descriptor->arity; ++i) {
+      if (AtEnd()) {
+        Fail(absl::StrCat("predicate '", token, "' is missing an argument"));
+        return nullptr;
+      }
+      args.push_back(tokens_[pos_++]);
+    }
+    return MakePredicate(descriptor, std::move(args));
+  }
+
+  const std::vector<std::string>& tokens_;
+  std::size_t pos_ = 0;
+  absl::Status status_ = absl::OkStatus();
+};
+
 }  // namespace
 
-Command Parse(const std::vector<std::string>& args) {
+absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
   Command cmd;
   std::size_t i = 0;
 
-  // Globals: leading '-'/'+' tokens before the first root; '--' ends the
-  // global region explicitly.
+  // Globals: leading '-'/'+' tokens before the first root; '--' ends them.
   for (; i < args.size(); ++i) {
     const std::string& arg = args[i];
     if (arg == "--") {
@@ -63,11 +203,16 @@ Command Parse(const std::vector<std::string>& args) {
     cmd.roots.push_back(args[i]);
   }
 
-  // Remainder: the find expression (full parse comes later).
-  for (; i < args.size(); ++i) {
-    cmd.expression.push_back(args[i]);
+  // Expression: the remaining tokens, parsed to a tree.
+  std::vector<std::string> expr_tokens(args.begin() + static_cast<std::ptrdiff_t>(i), args.end());
+  if (!expr_tokens.empty()) {
+    ExprParser parser(expr_tokens);
+    absl::StatusOr<ExprPtr> expr = parser.Parse();
+    if (!expr.ok()) {
+      return expr.status();
+    }
+    cmd.expression = *std::move(expr);
   }
-
   return cmd;
 }
 

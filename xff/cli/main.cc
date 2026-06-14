@@ -17,6 +17,8 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "xff/parser/parser.h"
 
 int main(int argc, char** argv) {
@@ -34,9 +36,14 @@ int main(int argc, char** argv) {
     }
   }
 
-  // Skeleton behaviour: split argv and echo the search roots.
-  const xff::parser::Command cmd = xff::parser::Parse(args);
-  for (const std::string& root : cmd.roots) {
+  // Skeleton behaviour: parse and echo the search roots. Errors -> exit 2
+  // (the xff exit-code model; design.md "Exit-code model").
+  const absl::StatusOr<xff::parser::Command> cmd = xff::parser::Parse(args);
+  if (!cmd.ok()) {
+    std::cerr << "xff: " << cmd.status().message() << "\n";
+    return 2;
+  }
+  for (const std::string& root : cmd->roots) {
     std::cout << root << "\n";
   }
   return 0;

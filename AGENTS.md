@@ -20,3 +20,16 @@ Toolchain: clang-22 minimum (hermetic LLVM under `--config=clang`).
 5. **Typed and parameterized tests supply names from the types/values** (name
    generators for `TYPED_TEST_SUITE` / `INSTANTIATE_TEST_SUITE_P`), so the
    output never shows numbered tests (`Suite/0`, `Suite/1`).
+6. **Test `absl::Status` / `absl::StatusOr<T>` with status matchers — never raw
+   `.ok()`.** Raw `EXPECT_TRUE(s.ok())` / `EXPECT_FALSE(s.ok())` throws away the
+   code and message on failure. Use `mbo::testing`
+   (`@com_helly25_mbo//mbo/testing:status_cc`):
+   - `EXPECT_THAT(s, IsOk())`
+   - `EXPECT_THAT(s, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("…")))`
+   - `EXPECT_THAT(so, IsOkAndHolds(Eq(42)))`
+   - `ASSERT_OK_AND_ASSIGN(const auto value, MakeThing());` to unwrap a `StatusOr`.
+
+   mbo's set is the helly25-canonical superset: it works on both `Status` and
+   `StatusOr`, and adds payload matchers (`StatusHasPayload`) plus the
+   `EXPECT_OK` / `ASSERT_OK` / `ASSERT_OK_AND_ASSIGN` macros over abseil's
+   `absl_testing`.
