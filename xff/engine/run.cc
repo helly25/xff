@@ -85,7 +85,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   const absl::Status status = Walk(
       fs, command.roots, options,
       [&](const Visit& visit) {
-        const bool matched = expression == nullptr || Evaluate(*expression, visit, emit);
+        const bool matched = expression == nullptr || Evaluate(*expression, visit, emit, fs);
         if (matched && !has_action) {
           emit(absl::StrCat(visit.path, "\n"));  // implicit -print
         }

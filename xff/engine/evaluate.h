@@ -21,6 +21,7 @@
 #include "absl/functional/function_ref.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/ast.h"
+#include "xff/vfs/filesystem.h"
 
 namespace xff::engine {
 
@@ -36,7 +37,8 @@ using EmitFn = absl::FunctionRef<void(std::string_view)>;
 // -name/-iname glob the basename, -path/-ipath glob the whole path; the `i`
 // variants fold case (fnmatch, matching GNU find). Short-circuit means actions
 // to the right of a failed -a (or in the unused branch of -o) do not fire.
-bool Evaluate(const parser::Expr& expr, const Visit& visit, EmitFn emit);
+// `fs` backs predicates that must read the source (e.g. -empty on a directory).
+bool Evaluate(const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs);
 
 // True if `expr` contains any action node (-print, ...). The driver uses this
 // to decide whether an implicit -print applies: find adds -print only when the

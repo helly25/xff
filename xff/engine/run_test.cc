@@ -127,6 +127,15 @@ TEST_F(RunTest, MinDepthSkipsRoot) {
       UnorderedElementsAre(Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
 }
 
+TEST_F(RunTest, EmptyMatchesEmptyFileAndDir) {
+  std::error_code ec;
+  { std::ofstream(root_ / "empty.txt"); }  // 0 bytes
+  fs::create_directory(root_ / "emptydir", ec);
+  // -empty: the zero-byte file and the childless directory only (a.txt/b.md/
+  // sub/c.txt are non-empty; root and sub have children).
+  EXPECT_THAT(RunExpr({"-empty"}), UnorderedElementsAre(Path("empty.txt"), Path("emptydir")));
+}
+
 TEST_F(RunTest, MissingRootCountsError) {
   std::vector<std::string> argv = {(root_ / "absent").string(), "-print"};
   const auto command = parser::Parse(argv);

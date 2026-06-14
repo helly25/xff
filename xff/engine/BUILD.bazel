@@ -58,6 +58,7 @@ cc_library(
         "//xff/registry:registry_cc",
         "//xff/vfs:vfs_cc",
         "@abseil-cpp//absl/functional:function_ref",
+        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
     ],
 )
@@ -70,6 +71,7 @@ cc_test(
         ":evaluate_cc",
         ":walk_cc",
         "//xff/parser:parser_cc",
+        "//xff/vfs:local_fs_cc",
         "//xff/vfs:vfs_cc",
         "@com_helly25_mbo//mbo/testing:status_cc",
         "@googletest//:gtest",

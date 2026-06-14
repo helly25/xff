@@ -26,6 +26,7 @@
 #include "xff/engine/walk.h"
 #include "xff/parser/parser.h"
 #include "xff/vfs/entry.h"
+#include "xff/vfs/local_fs.h"
 
 namespace xff::engine {
 namespace {
@@ -48,7 +49,7 @@ struct EvaluateTest : ::testing::Test {
     if (!command.ok() || command->expression == nullptr) {
       return false;
     }
-    return Evaluate(*command->expression, visit, [this](std::string_view record) { emitted_ += record; });
+    return Evaluate(*command->expression, visit, [this](std::string_view record) { emitted_ += record; }, fs_);
   }
 
   // A Visit of `type`, with `path`/`name` backed by the caller and metadata by
@@ -59,6 +60,7 @@ struct EvaluateTest : ::testing::Test {
   }
 
   std::string emitted_;
+  vfs::LocalFs fs_;
 };
 
 TEST_F(EvaluateTest, TrueAndFalse) {
@@ -158,6 +160,23 @@ TEST_F(EvaluateTest, PermMatchesOctalModes) {
   EXPECT_FALSE(Match({"-perm", "-022"}, visit));  // group/other write NOT set
   EXPECT_TRUE(Match({"-perm", "/040"}, visit));   // /MODE: any bit (group read) set
   EXPECT_FALSE(Match({"-perm", "/022"}, visit));  // none of group/other write set
+}
+
+TEST_F(EvaluateTest, EmptyMatchesZeroByteFilesNotOthers) {
+  vfs::Metadata empty_file;
+  empty_file.type = vfs::FileType::kRegular;
+  empty_file.size = 0;
+  EXPECT_TRUE(Match({"-empty"}, Visit{.path = "f", .name = "f", .depth = 1, .metadata = empty_file}));
+
+  vfs::Metadata nonempty_file;
+  nonempty_file.type = vfs::FileType::kRegular;
+  nonempty_file.size = 5;
+  EXPECT_FALSE(Match({"-empty"}, Visit{.path = "f", .name = "f", .depth = 1, .metadata = nonempty_file}));
+
+  vfs::Metadata link;
+  link.type = vfs::FileType::kSymlink;
+  EXPECT_FALSE(Match({"-empty"}, Visit{.path = "l", .name = "l", .depth = 1, .metadata = link}))
+      << "-empty matches only regular files and directories";
 }
 
 }  // namespace
