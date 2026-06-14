@@ -34,11 +34,13 @@ bazel_dep(name = "abseil-cpp", version = "20250814.2")
 bazel_dep(name = "re2", version = "2025-11-05.bcr.1")
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 
-# helly25/mbo -- utility library and conventions reference, pinned to the commit
-# that builds with clang 20/21/22 and Bazel 7.2.1+ on Linux and macOS (PR #185).
+# helly25/mbo -- utility library and conventions reference, pinned to a main
+# commit that builds with clang 20/21/22 and Bazel 7.2.1+ on Linux and macOS,
+# and carries the macOS clang+asan verification (#188) and the StatusIs
+# code-matcher support (#190) our test conventions rely on.
 bazel_dep(name = "helly25_mbo", version = "0.11.0", repo_name = "com_helly25_mbo")
 git_override(
     module_name = "helly25_mbo",
-    commit = "1d17cc9433ea7f94a4f1fd6c295517a0693c9528",
+    commit = "5b0e36b2103bbbb6e08f6585edcf7c4dc65e00b7",
     remote = "https://github.com/helly25/mbo.git",
 )
