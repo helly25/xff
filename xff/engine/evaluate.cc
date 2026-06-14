@@ -23,6 +23,7 @@
 
 #include <fnmatch.h>
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -55,6 +56,51 @@ bool MatchesType(std::string_view arg, vfs::FileType type) {
   }
 }
 
+// Matches find's `-size N[bcwkMG]` with an optional +/- prefix. The file size
+// is rounded UP to the chosen unit (default 512-byte blocks), as find does.
+bool MatchesSize(std::string_view arg, std::uint64_t size_bytes) {
+  char compare = '=';
+  if (!arg.empty() && (arg.front() == '+' || arg.front() == '-')) {
+    compare = arg.front();
+    arg.remove_prefix(1);
+  }
+  if (arg.empty()) {
+    return false;
+  }
+  std::uint64_t unit = 512;  // find default: 512-byte blocks
+  const char suffix = arg.back();
+  if (suffix < '0' || suffix > '9') {
+    switch (suffix) {
+      case 'b': unit = 512; break;
+      case 'c': unit = 1; break;
+      case 'w': unit = 2; break;
+      case 'k': unit = 1024; break;
+      case 'M': unit = 1024ULL * 1024; break;
+      case 'G': unit = 1024ULL * 1024 * 1024; break;
+      default: return false;  // unknown unit
+    }
+    arg.remove_suffix(1);
+  }
+  if (arg.empty()) {
+    return false;
+  }
+  std::uint64_t want = 0;
+  for (const char digit : arg) {
+    if (digit < '0' || digit > '9') {
+      return false;
+    }
+    want = want * 10 + static_cast<std::uint64_t>(digit - '0');
+  }
+  const std::uint64_t size_in_units = (size_bytes + unit - 1) / unit;
+  if (compare == '+') {
+    return size_in_units > want;
+  }
+  if (compare == '-') {
+    return size_in_units < want;
+  }
+  return size_in_units == want;
+}
+
 bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit, EmitFn emit) {
   const std::string_view name = expr.descriptor->name;
   const bool has_arg = !expr.args.empty();
@@ -65,6 +111,7 @@ bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit, EmitFn emit
   if (name == "-path") return has_arg && Fnmatch(expr.args.front(), visit.path, 0);
   if (name == "-ipath") return has_arg && Fnmatch(expr.args.front(), visit.path, FNM_CASEFOLD);
   if (name == "-type") return has_arg && MatchesType(expr.args.front(), visit.metadata.type);
+  if (name == "-size") return has_arg && MatchesSize(expr.args.front(), visit.metadata.size);
   if (name == "-print") {
     emit(absl::StrCat(visit.path, "\n"));
     return true;

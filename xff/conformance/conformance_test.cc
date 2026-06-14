@@ -171,6 +171,9 @@ TEST_F(ConformanceTest, NotTypeDirectory) { ExpectMatchesFind({"!", "-type", "d"
 TEST_F(ConformanceTest, OrExpression) { ExpectMatchesFind({"-name", "*.txt", "-o", "-type", "d"}); }
 TEST_F(ConformanceTest, PathGlob) { ExpectMatchesFind({"-path", "*/sub/*"}); }
 TEST_F(ConformanceTest, AndChain) { ExpectMatchesFind({"-type", "f", "-name", "*.md"}); }
+TEST_F(ConformanceTest, SizeExactBytes) { ExpectMatchesFind({"-size", "1c"}); }
+TEST_F(ConformanceTest, SizeGreaterBytes) { ExpectMatchesFind({"-size", "+1c"}); }
+TEST_F(ConformanceTest, SizeLessBytes) { ExpectMatchesFind({"-size", "-3c"}); }
 
 }  // namespace
 }  // namespace xff
