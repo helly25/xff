@@ -1,0 +1,53 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef XFF_VFS_FILESYSTEM_H_
+#define XFF_VFS_FILESYSTEM_H_
+
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "absl/status/statusor.h"
+#include "xff/vfs/entry.h"
+
+namespace xff::vfs {
+
+// Abstraction over a source of files. `LocalFs` (the real filesystem) is the
+// only backend today; archive and remote backends slot in behind this same
+// interface as read-only virtual entries (design.md "Virtual entries").
+//
+// Implementations must be safe to call concurrently from multiple threads, as
+// the engine traverses in parallel (design.md "Determinism" / "Parallel exec").
+class FileSystem {
+ public:
+  virtual ~FileSystem() = default;
+
+  // Lists the direct children of `dir`: no recursion, and excluding `.`/`..`.
+  // Order is unspecified (the engine imposes `--sort` when determinism is
+  // requested). A per-directory failure (not a directory, permission denied,
+  // ...) is returned as an error; the engine continues traversal and reflects
+  // it in the exit code (design.md "Exit-code model"), rather than aborting.
+  virtual absl::StatusOr<std::vector<Entry>> ReadDir(std::string_view dir) const = 0;
+
+  // Returns metadata for `path`. When `path` is a symlink, `follow_symlinks`
+  // selects `stat` (follow the link, like `-L`) vs `lstat` (the link itself,
+  // like the default `-P`).
+  virtual absl::StatusOr<Metadata> Stat(std::string_view path, bool follow_symlinks) const = 0;
+};
+
+}  // namespace xff::vfs
+
+#endif  // XFF_VFS_FILESYSTEM_H_
