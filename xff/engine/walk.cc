@@ -52,17 +52,33 @@ class Walker {
       return;
     }
 
+    const Visit visit{.path = path, .name = Basename(path), .depth = depth, .metadata = *metadata};
+    const bool is_dir = metadata->type == vfs::FileType::kDirectory;
+    const bool within_depth = options_.max_depth < 0 || depth < options_.max_depth;
+    const bool visible = depth >= options_.min_depth;
+
+    if (options_.post_order) {
+      // find -depth: descend first, then visit. -prune cannot un-visit the
+      // already-walked children, so it has no effect here (matching find).
+      if (is_dir && within_depth) {
+        Descend(path, depth);
+      }
+      if (!stopped_ && visible && visit_(visit) == WalkAction::kStop) {
+        stopped_ = true;
+      }
+      return;
+    }
+
+    // Pre-order (default): visit first; the visitor may prune the descent or stop.
     WalkAction action = WalkAction::kContinue;
-    if (depth >= options_.min_depth) {
-      action = visit_(Visit{.path = path, .name = Basename(path), .depth = depth, .metadata = *metadata});
+    if (visible) {
+      action = visit_(visit);
     }
     if (action == WalkAction::kStop) {
       stopped_ = true;
       return;
     }
-
-    const bool within_depth = options_.max_depth < 0 || depth < options_.max_depth;
-    if (metadata->type == vfs::FileType::kDirectory && action != WalkAction::kPrune && within_depth) {
+    if (is_dir && action != WalkAction::kPrune && within_depth) {
       Descend(path, depth);
     }
   }
