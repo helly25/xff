@@ -45,14 +45,18 @@ bool ParseNonNegInt(std::string_view text, int* out) {
   return true;
 }
 
-// find treats -maxdepth/-mindepth/-depth as global positional options (they
-// apply regardless of where they sit in the expression); collect them into the
-// walk limits. Last occurrence wins, as in find.
+// find treats -maxdepth/-mindepth/-depth/-xdev as global positional options
+// (they apply regardless of where they sit in the expression); collect them into
+// the walk limits. Last occurrence wins, as in find.
 void ScanDepthOptions(const parser::Expr& expr, WalkOptions* options) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate: {
       if (expr.descriptor->name == "-depth") {
         options->post_order = true;
+        break;
+      }
+      if (expr.descriptor->name == "-xdev") {
+        options->single_filesystem = true;
         break;
       }
       int value = 0;
