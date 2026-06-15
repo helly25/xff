@@ -40,6 +40,10 @@ struct WalkOptions {
   // When true, a directory is visited after its contents instead of before
   // (find `-depth`); `-prune` then has no effect, matching find.
   bool post_order = false;
+  // When true, do not descend into a directory on a different device than the
+  // walk root it was reached from (find `-xdev`): the mount point is visited but
+  // its contents are not.
+  bool single_filesystem = false;
 };
 
 // One visited entry handed to the `Visitor`. `path`/`name` reference storage

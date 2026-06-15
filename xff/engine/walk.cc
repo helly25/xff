@@ -15,6 +15,7 @@
 
 #include "xff/engine/walk.h"
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -52,15 +53,20 @@ class Walker {
       return;
     }
 
+    if (depth == 0) {
+      root_dev_ = metadata->dev;  // device of the root this subtree started from (-xdev)
+    }
     const Visit visit{.path = path, .name = Basename(path), .depth = depth, .metadata = *metadata};
     const bool is_dir = metadata->type == vfs::FileType::kDirectory;
     const bool within_depth = options_.max_depth < 0 || depth < options_.max_depth;
     const bool visible = depth >= options_.min_depth;
+    const bool on_root_fs = !options_.single_filesystem || metadata->dev == root_dev_;
+    const bool can_descend = is_dir && within_depth && on_root_fs;
 
     if (options_.post_order) {
       // find -depth: descend first, then visit. -prune cannot un-visit the
       // already-walked children, so it has no effect here (matching find).
-      if (is_dir && within_depth) {
+      if (can_descend) {
         Descend(path, depth);
       }
       if (!stopped_ && visible && visit_(visit) == WalkAction::kStop) {
@@ -78,7 +84,7 @@ class Walker {
       stopped_ = true;
       return;
     }
-    if (is_dir && action != WalkAction::kPrune && within_depth) {
+    if (can_descend && action != WalkAction::kPrune) {
       Descend(path, depth);
     }
   }
@@ -103,6 +109,7 @@ class Walker {
   Visitor visit_;
   WalkErrorFn on_error_;
   bool stopped_ = false;
+  std::uint64_t root_dev_ = 0;  // device of the current root subtree (for -xdev)
 };
 
 }  // namespace

@@ -217,6 +217,9 @@ TEST_F(ConformanceTest, PruneSkipsDirectory) { ExpectMatchesFind({"-name", "sub"
 // the set is unaffected (xff's post-order property is unit-tested in walk/run).
 TEST_F(ConformanceTest, DepthSameSet) { ExpectMatchesFind({"-depth"}); }
 TEST_F(ConformanceTest, DepthWithTypeFile) { ExpectMatchesFind({"-depth", "-type", "f"}); }
+// The fixture is single-device, so -xdev prunes nothing here; this confirms the
+// option is accepted and the set is unchanged (cross-device pruning is unit-tested).
+TEST_F(ConformanceTest, XdevSameSetOnSingleDevice) { ExpectMatchesFind({"-xdev"}); }
 
 }  // namespace
 }  // namespace xff

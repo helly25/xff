@@ -15,8 +15,10 @@
 
 #include "xff/engine/walk.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -28,7 +30,10 @@
 
 #include "absl/functional/function_ref.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "mbo/testing/status.h"
+#include "xff/vfs/entry.h"
+#include "xff/vfs/filesystem.h"
 #include "xff/vfs/local_fs.h"
 
 namespace xff::engine {
@@ -42,6 +47,45 @@ using ::testing::Eq;
 using ::testing::IsEmpty;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
+
+// In-memory FileSystem for tests that need metadata the real filesystem won't
+// reproduce locally (here: device ids for -xdev). Nodes are added explicitly.
+class FakeFs : public vfs::FileSystem {
+ public:
+  void AddDir(const std::string& path, std::uint64_t dev, std::vector<vfs::Entry> children) {
+    nodes_[path] = Meta(vfs::FileType::kDirectory, dev);
+    dirs_[path] = std::move(children);
+  }
+  void AddFile(const std::string& path, std::uint64_t dev) { nodes_[path] = Meta(vfs::FileType::kRegular, dev); }
+
+  absl::StatusOr<std::vector<vfs::Entry>> ReadDir(std::string_view dir) const override {
+    const auto it = dirs_.find(std::string(dir));
+    if (it == dirs_.end()) return absl::NotFoundError("FakeFs: no such directory");
+    return it->second;
+  }
+  absl::StatusOr<vfs::Metadata> Stat(std::string_view path, bool /*follow_symlinks*/) const override {
+    const auto it = nodes_.find(std::string(path));
+    if (it == nodes_.end()) return absl::NotFoundError("FakeFs: no such path");
+    return it->second;
+  }
+
+ private:
+  static vfs::Metadata Meta(vfs::FileType type, std::uint64_t dev) {
+    vfs::Metadata md;
+    md.type = type;
+    md.dev = dev;
+    return md;
+  }
+  std::map<std::string, vfs::Metadata> nodes_;
+  std::map<std::string, std::vector<vfs::Entry>> dirs_;
+};
+
+vfs::Entry DirEntry(const std::string& path, const std::string& name) {
+  return vfs::Entry{.path = path, .name = name, .type = vfs::FileType::kDirectory};
+}
+vfs::Entry FileEntry(const std::string& path, const std::string& name) {
+  return vfs::Entry{.path = path, .name = name, .type = vfs::FileType::kRegular};
+}
 
 // Fixture tree:
 //   <root>/a.txt
@@ -180,6 +224,35 @@ TEST_F(WalkTest, DepthVisitsPostOrder) {
     return -1;
   };
   EXPECT_LT(index_of(Path("sub/b.txt")), index_of(Path("sub")));
+}
+
+struct WalkFakeFsTest : ::testing::Test {
+  std::vector<std::string> Seen(const WalkOptions& options) {
+    std::vector<std::string> out;
+    const absl::Status status = Walk(
+        fs_, {"/r"}, options,
+        [&](const Visit& visit) {
+          out.push_back(std::string(visit.path));
+          return WalkAction::kContinue;
+        },
+        [](std::string_view, const absl::Status&) {});
+    EXPECT_THAT(status, IsOk());
+    return out;
+  }
+
+  FakeFs fs_;
+};
+
+TEST_F(WalkFakeFsTest, XdevStopsAtDeviceBoundary) {
+  // /r (dev 1) holds a.txt (dev 1) and the mount point mnt (dev 2), whose child
+  // x.txt (dev 2) lives on the other filesystem.
+  fs_.AddDir("/r", 1, {FileEntry("/r/a.txt", "a.txt"), DirEntry("/r/mnt", "mnt")});
+  fs_.AddFile("/r/a.txt", 1);
+  fs_.AddDir("/r/mnt", 2, {FileEntry("/r/mnt/x.txt", "x.txt")});
+  fs_.AddFile("/r/mnt/x.txt", 2);
+  // Default crosses the boundary; -xdev visits the mount point but not its contents.
+  EXPECT_THAT(Seen(WalkOptions{}), UnorderedElementsAre("/r", "/r/a.txt", "/r/mnt", "/r/mnt/x.txt"));
+  EXPECT_THAT(Seen(WalkOptions{.single_filesystem = true}), UnorderedElementsAre("/r", "/r/a.txt", "/r/mnt"));
 }
 
 }  // namespace
