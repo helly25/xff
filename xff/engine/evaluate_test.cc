@@ -257,5 +257,20 @@ TEST_F(EvaluateTest, AccessAndChangeTimeFamily) {
   EXPECT_FALSE(Match({"-cmin", "+150"}, visit));
 }
 
+TEST_F(EvaluateTest, UserGroupNumericFallback) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.uid = 501;
+  md.gid = 20;
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  // A token that is not a known user/group but is all-digits is taken as a
+  // literal id (matching find); real-name resolution is covered by the
+  // conformance test against the current user/group.
+  EXPECT_TRUE(Match({"-user", "501"}, visit));
+  EXPECT_FALSE(Match({"-user", "500"}, visit));
+  EXPECT_TRUE(Match({"-group", "20"}, visit));
+  EXPECT_FALSE(Match({"-group", "21"}, visit));
+}
+
 }  // namespace
 }  // namespace xff::engine

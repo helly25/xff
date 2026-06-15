@@ -18,7 +18,9 @@
 #define _GNU_SOURCE 1
 #endif
 
-#include <unistd.h>  // geteuid()/getegid() for the -uid/-gid oracle
+#include <grp.h>      // getgrgid()/struct group for the -group oracle
+#include <pwd.h>      // getpwuid()/struct passwd for the -user oracle
+#include <unistd.h>   // geteuid()/getegid() for the -uid/-gid and -user/-group oracles
 
 #include <algorithm>
 #include <cstddef>
@@ -196,6 +198,16 @@ TEST_F(ConformanceTest, LinksMoreThanOne) { ExpectMatchesFind({"-links", "+1"});
 TEST_F(ConformanceTest, NewerThanReferenceFile) { ExpectMatchesFind({"-newer", (root_ / "b.md").string()}); }
 TEST_F(ConformanceTest, UidMatchesCurrentUser) { ExpectMatchesFind({"-uid", std::to_string(::geteuid())}); }
 TEST_F(ConformanceTest, GidMatchesCurrentGroup) { ExpectMatchesFind({"-gid", std::to_string(::getegid())}); }
+TEST_F(ConformanceTest, UserMatchesCurrentUser) {
+  const struct passwd* const pw = ::getpwuid(::geteuid());
+  if (pw == nullptr) GTEST_SKIP() << "no passwd entry for euid";
+  ExpectMatchesFind({"-user", pw->pw_name});
+}
+TEST_F(ConformanceTest, GroupMatchesCurrentGroup) {
+  const struct group* const gr = ::getgrgid(::getegid());
+  if (gr == nullptr) GTEST_SKIP() << "no group entry for egid";
+  ExpectMatchesFind({"-group", gr->gr_name});
+}
 
 }  // namespace
 }  // namespace xff
