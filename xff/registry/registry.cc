@@ -48,6 +48,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-perm", .kind = Kind::kTest, .arity = 1},
     {.name = "-maxdepth", .kind = Kind::kTest, .arity = 1},
     {.name = "-mindepth", .kind = Kind::kTest, .arity = 1},
+    {.name = "-depth", .kind = Kind::kTest, .arity = 0},
     {.name = "-empty", .kind = Kind::kTest, .arity = 0},
     {.name = "-true", .kind = Kind::kTest, .arity = 0},
     {.name = "-false", .kind = Kind::kTest, .arity = 0},

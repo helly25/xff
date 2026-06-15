@@ -213,6 +213,10 @@ TEST_F(ConformanceTest, ParenGrouping) { ExpectMatchesFind({"(", "-type", "f", "
 TEST_F(ConformanceTest, CommaListImplicitPrint) { ExpectMatchesFind({"-name", "*.txt", ",", "-name", "*.md"}); }
 TEST_F(ConformanceTest, CommaWithExplicitAction) { ExpectMatchesFind({"-type", "f", ",", "-print"}); }
 TEST_F(ConformanceTest, PruneSkipsDirectory) { ExpectMatchesFind({"-name", "sub", "-prune", "-o", "-print"}); }
+// -depth changes visit order only; the conformance harness sorts, so this checks
+// the set is unaffected (xff's post-order property is unit-tested in walk/run).
+TEST_F(ConformanceTest, DepthSameSet) { ExpectMatchesFind({"-depth"}); }
+TEST_F(ConformanceTest, DepthWithTypeFile) { ExpectMatchesFind({"-depth", "-type", "f"}); }
 
 }  // namespace
 }  // namespace xff

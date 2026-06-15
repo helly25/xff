@@ -28,9 +28,8 @@
 namespace xff::engine {
 
 // Traversal limits. This sequential walk does not follow symlinks (find's
-// default `-P`); symlink-following (`-L`/`-H`), `-xdev`, `-depth` (post-order),
-// and parallelism are layered on in follow-ups (design.md "Evaluation",
-// "Determinism").
+// default `-P`); symlink-following (`-L`/`-H`), `-xdev`, and parallelism are
+// layered on in follow-ups (design.md "Evaluation", "Determinism").
 struct WalkOptions {
   // Entries shallower than `min_depth` are traversed but not visited (find
   // `-mindepth`). A root operand is depth 0.
@@ -38,6 +37,9 @@ struct WalkOptions {
   // Directories at depth `max_depth` are visited but not descended into; `-1`
   // means unlimited (find `-maxdepth`).
   int max_depth = -1;
+  // When true, a directory is visited after its contents instead of before
+  // (find `-depth`); `-prune` then has no effect, matching find.
+  bool post_order = false;
 };
 
 // One visited entry handed to the `Visitor`. `path`/`name` reference storage
@@ -60,11 +62,12 @@ using Visitor = absl::FunctionRef<WalkAction(const Visit&)>;
 // "Exit-code model").
 using WalkErrorFn = absl::FunctionRef<void(std::string_view path, const absl::Status& status)>;
 
-// Walks `roots` depth-first in pre-order over `fs`: each entry at depth
-// >= `options.min_depth` is passed to `visit`, and directories are descended
-// into while `options.max_depth` allows and the visitor did not `kPrune`/`kStop`
-// them. Per-path failures are reported to `on_error` and do not abort. Returns
-// `OkStatus` once the walk completes (including a visitor-requested `kStop`).
+// Walks `roots` depth-first over `fs` -- pre-order by default, post-order when
+// `options.post_order` is set: each entry at depth >= `options.min_depth` is
+// passed to `visit`, and directories are descended into while `options.max_depth`
+// allows and the visitor did not `kPrune`/`kStop` them (`kPrune` has no effect in
+// post-order, as in find). Per-path failures are reported to `on_error` and do
+// not abort. Returns `OkStatus` once the walk completes (including a `kStop`).
 absl::Status Walk(
     const vfs::FileSystem& fs,
     absl::Span<const std::string> roots,

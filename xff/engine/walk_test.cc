@@ -156,5 +156,31 @@ TEST_F(WalkTest, MissingRootReportsErrorAndContinues) {
   EXPECT_THAT(result.errors, Eq(1));
 }
 
+TEST_F(WalkTest, DepthVisitsPostOrder) {
+  const Result result = Run(WalkOptions{.post_order = true}, Continue);
+  EXPECT_THAT(result.status, IsOk());
+  // Post-order visits the same set as pre-order...
+  EXPECT_THAT(
+      result.seen,
+      UnorderedElementsAre(
+          Pair(root_.string(), 0),
+          Pair(Path("a.txt"), 1),
+          Pair(Path("sub"), 1),
+          Pair(Path("sub/b.txt"), 2),
+          Pair(Path("link"), 1)));
+  // ...but a directory comes after its contents: the root is visited last, and
+  // sub/b.txt precedes sub. Sibling order is filesystem-defined, so only the
+  // parent-after-child relationship is asserted.
+  ASSERT_FALSE(result.seen.empty());
+  EXPECT_THAT(result.seen.back(), Pair(root_.string(), 0));
+  const auto index_of = [&](std::string_view path) -> int {
+    for (int i = 0; i < static_cast<int>(result.seen.size()); ++i) {
+      if (result.seen[i].first == path) return i;
+    }
+    return -1;
+  };
+  EXPECT_LT(index_of(Path("sub/b.txt")), index_of(Path("sub")));
+}
+
 }  // namespace
 }  // namespace xff::engine

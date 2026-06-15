@@ -167,5 +167,14 @@ TEST_F(RunTest, QuitStopsTraversal) {
   EXPECT_THAT(RunExpr({"-quit"}), IsEmpty());
 }
 
+TEST_F(RunTest, DepthVisitsPostOrder) {
+  const std::vector<std::string> out = RunExpr({"-depth"});
+  // -depth lists the same set but post-order, so the root operand prints last.
+  EXPECT_THAT(
+      out, UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
+  ASSERT_FALSE(out.empty());
+  EXPECT_THAT(out.back(), Eq(root_.string()));
+}
+
 }  // namespace
 }  // namespace xff::engine
