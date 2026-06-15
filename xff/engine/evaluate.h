@@ -19,6 +19,7 @@
 #include <string_view>
 
 #include "absl/functional/function_ref.h"
+#include "absl/time/time.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/ast.h"
 #include "xff/vfs/filesystem.h"
@@ -38,7 +39,9 @@ using EmitFn = absl::FunctionRef<void(std::string_view)>;
 // variants fold case (fnmatch, matching GNU find). Short-circuit means actions
 // to the right of a failed -a (or in the unused branch of -o) do not fire.
 // `fs` backs predicates that must read the source (e.g. -empty on a directory).
-bool Evaluate(const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs);
+// `now` is the single reference instant for age tests (-mtime/-mmin); the driver
+// captures it once so every entry is compared against the same clock, like find.
+bool Evaluate(const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs, absl::Time now);
 
 // True if `expr` contains any action node (-print, ...). The driver uses this
 // to decide whether an implicit -print applies: find adds -print only when the

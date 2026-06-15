@@ -19,6 +19,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "absl/time/time.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/ast.h"
@@ -80,12 +81,15 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   if (expression != nullptr) {
     ScanDepthOptions(*expression, &options);
   }
+  // Capture one reference instant so every entry's age test (-mtime/-mmin) is
+  // measured against the same clock, matching find's start-time semantics.
+  const absl::Time now = absl::Now();
   int errors = 0;
 
   const absl::Status status = Walk(
       fs, command.roots, options,
       [&](const Visit& visit) {
-        const bool matched = expression == nullptr || Evaluate(*expression, visit, emit, fs);
+        const bool matched = expression == nullptr || Evaluate(*expression, visit, emit, fs, now);
         if (matched && !has_action) {
           emit(absl::StrCat(visit.path, "\n"));  // implicit -print
         }

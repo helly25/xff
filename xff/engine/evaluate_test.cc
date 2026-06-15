@@ -22,6 +22,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+#include "absl/time/time.h"
 #include "mbo/testing/status.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/parser.h"
@@ -49,7 +50,8 @@ struct EvaluateTest : ::testing::Test {
     if (!command.ok() || command->expression == nullptr) {
       return false;
     }
-    return Evaluate(*command->expression, visit, [this](std::string_view record) { emitted_ += record; }, fs_);
+    return Evaluate(
+        *command->expression, visit, [this](std::string_view record) { emitted_ += record; }, fs_, now_);
   }
 
   // A Visit of `type`, with `path`/`name` backed by the caller and metadata by
@@ -61,6 +63,9 @@ struct EvaluateTest : ::testing::Test {
 
   std::string emitted_;
   vfs::LocalFs fs_;
+  // A fixed reference instant for age-test (-mtime/-mmin) cases; the entry's
+  // mtime is set relative to this so the assertions are clock-independent.
+  const absl::Time now_ = absl::FromUnixSeconds(1700000000);
 };
 
 TEST_F(EvaluateTest, TrueAndFalse) {
@@ -198,6 +203,29 @@ TEST_F(EvaluateTest, NewerFalseWhenReferenceMissing) {
   // The reference cannot be stat'd, so -newer is false (real comparisons are
   // covered by the conformance test against actual files).
   EXPECT_FALSE(Match({"-newer", "/no/such/reference/file"}, visit));
+}
+
+TEST_F(EvaluateTest, MTimeMatchesWholeDaysAgo) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.mtime = now_ - absl::Hours(60);  // 2.5 days ago -> floor to 2 whole days
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-mtime", "2"}, visit));    // floor(2.5) == 2
+  EXPECT_FALSE(Match({"-mtime", "3"}, visit));
+  EXPECT_TRUE(Match({"-mtime", "+1"}, visit));   // strictly older than 1 day
+  EXPECT_FALSE(Match({"-mtime", "+2"}, visit));  // not strictly older than 2
+  EXPECT_TRUE(Match({"-mtime", "-3"}, visit));   // strictly younger than 3 days
+}
+
+TEST_F(EvaluateTest, MMinMatchesWholeMinutesAgo) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.mtime = now_ - absl::Minutes(150);  // 150 minutes ago
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-mmin", "150"}, visit));
+  EXPECT_TRUE(Match({"-mmin", "+100"}, visit));
+  EXPECT_FALSE(Match({"-mmin", "+150"}, visit));
+  EXPECT_TRUE(Match({"-mmin", "-200"}, visit));
 }
 
 }  // namespace
