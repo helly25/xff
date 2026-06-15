@@ -242,5 +242,20 @@ TEST_F(EvaluateTest, UidAndGidMatchNumericOwner) {
   EXPECT_TRUE(Match({"-gid", "-21"}, visit));   // gid strictly less than 21
 }
 
+TEST_F(EvaluateTest, AccessAndChangeTimeFamily) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.atime = now_ - absl::Hours(60);     // 2.5 days / 3600 minutes ago
+  md.ctime = now_ - absl::Minutes(150);  // 2.5 hours / 150 minutes ago
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-atime", "2"}, visit));   // -atime/-amin read atime: floor(2.5 days) == 2
+  EXPECT_TRUE(Match({"-atime", "+1"}, visit));
+  EXPECT_TRUE(Match({"-amin", "3600"}, visit));
+  EXPECT_TRUE(Match({"-amin", "+3000"}, visit));
+  EXPECT_TRUE(Match({"-ctime", "0"}, visit));   // -ctime/-cmin read ctime: 2.5 hours floors to 0 days
+  EXPECT_TRUE(Match({"-cmin", "150"}, visit));
+  EXPECT_FALSE(Match({"-cmin", "+150"}, visit));
+}
+
 }  // namespace
 }  // namespace xff::engine

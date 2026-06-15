@@ -230,6 +230,10 @@ bool EvaluatePredicate(
   if (name == "-newer") return has_arg && IsNewerThan(visit, expr.args.front(), fs);
   if (name == "-mtime") return has_arg && MatchesTime(expr.args.front(), visit.metadata.mtime, now, absl::Hours(24));
   if (name == "-mmin") return has_arg && MatchesTime(expr.args.front(), visit.metadata.mtime, now, absl::Minutes(1));
+  if (name == "-atime") return has_arg && MatchesTime(expr.args.front(), visit.metadata.atime, now, absl::Hours(24));
+  if (name == "-amin") return has_arg && MatchesTime(expr.args.front(), visit.metadata.atime, now, absl::Minutes(1));
+  if (name == "-ctime") return has_arg && MatchesTime(expr.args.front(), visit.metadata.ctime, now, absl::Hours(24));
+  if (name == "-cmin") return has_arg && MatchesTime(expr.args.front(), visit.metadata.ctime, now, absl::Minutes(1));
   if (name == "-print") {
     emit(absl::StrCat(visit.path, "\n"));
     return true;
