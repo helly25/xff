@@ -191,6 +191,7 @@ TEST_F(ConformanceTest, MaxDepthWithType) { ExpectMatchesFind({"-maxdepth", "1",
 TEST_F(ConformanceTest, Empty) { ExpectMatchesFind({"-empty"}); }
 TEST_F(ConformanceTest, LinksOne) { ExpectMatchesFind({"-links", "1"}); }
 TEST_F(ConformanceTest, LinksMoreThanOne) { ExpectMatchesFind({"-links", "+1"}); }
+TEST_F(ConformanceTest, NewerThanReferenceFile) { ExpectMatchesFind({"-newer", (root_ / "b.md").string()}); }
 
 }  // namespace
 }  // namespace xff

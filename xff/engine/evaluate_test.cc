@@ -191,5 +191,14 @@ TEST_F(EvaluateTest, LinksMatchesHardLinkCount) {
   EXPECT_FALSE(Match({"-links", "+1"}, visit));
 }
 
+TEST_F(EvaluateTest, NewerFalseWhenReferenceMissing) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  // The reference cannot be stat'd, so -newer is false (real comparisons are
+  // covered by the conformance test against actual files).
+  EXPECT_FALSE(Match({"-newer", "/no/such/reference/file"}, visit));
+}
+
 }  // namespace
 }  // namespace xff::engine
