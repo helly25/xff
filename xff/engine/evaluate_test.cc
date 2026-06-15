@@ -272,5 +272,17 @@ TEST_F(EvaluateTest, UserGroupNumericFallback) {
   EXPECT_FALSE(Match({"-group", "21"}, visit));
 }
 
+TEST_F(EvaluateTest, CommaEvaluatesBothValueIsRight) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  // The comma list evaluates both operands; its value is the right operand's.
+  EXPECT_FALSE(Match({"-true", ",", "-false"}, visit));
+  EXPECT_TRUE(Match({"-false", ",", "-true"}, visit));
+  // Side effects on both sides still occur: two -print actions emit two records.
+  EXPECT_TRUE(Match({"-print", ",", "-print"}, visit));
+  EXPECT_THAT(emitted_, Eq("f\nf\n"));
+}
+
 }  // namespace
 }  // namespace xff::engine

@@ -28,16 +28,16 @@ struct Expr;
 using ExprPtr = std::unique_ptr<Expr>;
 
 // A node in the parsed find expression tree (design.md "CLI grammar & parser").
-// Predicates (tests and actions) are leaves; `!`/`-a`/`-o` are interior nodes.
+// Predicates (tests and actions) are leaves; `!`/`-a`/`-o`/`,` are interior nodes.
 // `( )` grouping is reflected in tree shape, not as a node.
 struct Expr {
-  enum class Kind { kPredicate, kNot, kAnd, kOr };
+  enum class Kind { kPredicate, kNot, kAnd, kOr, kComma };
 
   Kind kind;
   // kPredicate: the matched descriptor and its consumed arguments.
   const registry::Descriptor* descriptor = nullptr;
   std::vector<std::string> args;
-  // kNot: operand in `lhs`. kAnd / kOr: operands in `lhs` and `rhs`.
+  // kNot: operand in `lhs`. kAnd / kOr / kComma: operands in `lhs` and `rhs`.
   ExprPtr lhs;
   ExprPtr rhs;
 };
