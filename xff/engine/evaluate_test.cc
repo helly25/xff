@@ -228,5 +228,19 @@ TEST_F(EvaluateTest, MMinMatchesWholeMinutesAgo) {
   EXPECT_TRUE(Match({"-mmin", "-200"}, visit));
 }
 
+TEST_F(EvaluateTest, UidAndGidMatchNumericOwner) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.uid = 501;
+  md.gid = 20;
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-uid", "501"}, visit));
+  EXPECT_FALSE(Match({"-uid", "500"}, visit));
+  EXPECT_TRUE(Match({"-uid", "+500"}, visit));  // uid strictly greater than 500
+  EXPECT_TRUE(Match({"-gid", "20"}, visit));
+  EXPECT_FALSE(Match({"-gid", "21"}, visit));
+  EXPECT_TRUE(Match({"-gid", "-21"}, visit));   // gid strictly less than 21
+}
+
 }  // namespace
 }  // namespace xff::engine

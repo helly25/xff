@@ -18,6 +18,8 @@
 #define _GNU_SOURCE 1
 #endif
 
+#include <unistd.h>  // geteuid()/getegid() for the -uid/-gid oracle
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdio>
@@ -192,6 +194,8 @@ TEST_F(ConformanceTest, Empty) { ExpectMatchesFind({"-empty"}); }
 TEST_F(ConformanceTest, LinksOne) { ExpectMatchesFind({"-links", "1"}); }
 TEST_F(ConformanceTest, LinksMoreThanOne) { ExpectMatchesFind({"-links", "+1"}); }
 TEST_F(ConformanceTest, NewerThanReferenceFile) { ExpectMatchesFind({"-newer", (root_ / "b.md").string()}); }
+TEST_F(ConformanceTest, UidMatchesCurrentUser) { ExpectMatchesFind({"-uid", std::to_string(::geteuid())}); }
+TEST_F(ConformanceTest, GidMatchesCurrentGroup) { ExpectMatchesFind({"-gid", std::to_string(::getegid())}); }
 
 }  // namespace
 }  // namespace xff
