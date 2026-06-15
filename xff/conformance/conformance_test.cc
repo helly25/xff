@@ -212,6 +212,7 @@ TEST_F(ConformanceTest, ParenGrouping) { ExpectMatchesFind({"(", "-type", "f", "
 // The comma operator is a GNU extension; BSD find rejects it, so these skip on macOS.
 TEST_F(ConformanceTest, CommaListImplicitPrint) { ExpectMatchesFind({"-name", "*.txt", ",", "-name", "*.md"}); }
 TEST_F(ConformanceTest, CommaWithExplicitAction) { ExpectMatchesFind({"-type", "f", ",", "-print"}); }
+TEST_F(ConformanceTest, PruneSkipsDirectory) { ExpectMatchesFind({"-name", "sub", "-prune", "-o", "-print"}); }
 
 }  // namespace
 }  // namespace xff

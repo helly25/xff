@@ -247,7 +247,8 @@ std::optional<std::uint32_t> ResolveGid(std::string_view name) {
 }
 
 bool EvaluatePredicate(
-    const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs, absl::Time now) {
+    const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs, absl::Time now,
+    Control& control) {
   const std::string_view name = expr.descriptor->name;
   const bool has_arg = !expr.args.empty();
   if (name == "-true") return true;
@@ -290,30 +291,43 @@ bool EvaluatePredicate(
     emit(record);
     return true;
   }
+  if (name == "-prune") {
+    control.prune = true;  // do not descend into this directory; -prune is always true
+    return true;
+  }
+  if (name == "-quit") {
+    control.quit = true;  // stop the whole traversal after this entry
+    return true;
+  }
   // Predicates not yet implemented evaluate to true (no-op); wired in follow-ups.
   return true;
 }
 
 }  // namespace
 
-bool Evaluate(const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs, absl::Time now) {
+bool Evaluate(
+    const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs, absl::Time now,
+    Control& control) {
   switch (expr.kind) {
-    case parser::Expr::Kind::kPredicate: return EvaluatePredicate(expr, visit, emit, fs, now);
-    case parser::Expr::Kind::kNot: return !Evaluate(*expr.lhs, visit, emit, fs, now);
+    case parser::Expr::Kind::kPredicate: return EvaluatePredicate(expr, visit, emit, fs, now, control);
+    case parser::Expr::Kind::kNot: return !Evaluate(*expr.lhs, visit, emit, fs, now, control);
     case parser::Expr::Kind::kAnd:
-      return Evaluate(*expr.lhs, visit, emit, fs, now) && Evaluate(*expr.rhs, visit, emit, fs, now);
+      return Evaluate(*expr.lhs, visit, emit, fs, now, control) && Evaluate(*expr.rhs, visit, emit, fs, now, control);
     case parser::Expr::Kind::kOr:
-      return Evaluate(*expr.lhs, visit, emit, fs, now) || Evaluate(*expr.rhs, visit, emit, fs, now);
+      return Evaluate(*expr.lhs, visit, emit, fs, now, control) || Evaluate(*expr.rhs, visit, emit, fs, now, control);
     case parser::Expr::Kind::kComma:
-      Evaluate(*expr.lhs, visit, emit, fs, now);  // left operand: evaluated for side effects only
-      return Evaluate(*expr.rhs, visit, emit, fs, now);  // the list's value is the right operand's
+      Evaluate(*expr.lhs, visit, emit, fs, now, control);  // left operand: evaluated for side effects only
+      return Evaluate(*expr.rhs, visit, emit, fs, now, control);  // the list's value is the right operand's
   }
   return true;  // Unreachable: every Expr::Kind returns above.
 }
 
 bool ContainsAction(const parser::Expr& expr) {
   switch (expr.kind) {
-    case parser::Expr::Kind::kPredicate: return expr.descriptor->kind == registry::Kind::kAction;
+    // -prune is an action but does NOT suppress the implicit -print (find's "no
+    // actions other than -prune" rule); -quit and the print actions do.
+    case parser::Expr::Kind::kPredicate:
+      return expr.descriptor->kind == registry::Kind::kAction && expr.descriptor->name != "-prune";
     case parser::Expr::Kind::kNot: return ContainsAction(*expr.lhs);
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:

@@ -90,10 +90,13 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   const absl::Status status = Walk(
       fs, command.roots, options,
       [&](const Visit& visit) {
-        const bool matched = expression == nullptr || Evaluate(*expression, visit, emit, fs, now);
+        Control control;
+        const bool matched = expression == nullptr || Evaluate(*expression, visit, emit, fs, now, control);
         if (matched && !has_action) {
           emit(absl::StrCat(visit.path, "\n"));  // implicit -print
         }
+        if (control.quit) return WalkAction::kStop;
+        if (control.prune) return WalkAction::kPrune;
         return WalkAction::kContinue;
       },
       [&](std::string_view path, const absl::Status& error_status) {
