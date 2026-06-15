@@ -22,8 +22,11 @@
 #include "xff/engine/evaluate.h"
 
 #include <fnmatch.h>
+#include <grp.h>
+#include <pwd.h>
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -210,6 +213,39 @@ bool MatchesTime(std::string_view arg, absl::Time mtime, absl::Time now, absl::D
   return units == want;
 }
 
+// Parses an all-digits string as an unsigned id, or nullopt otherwise.
+std::optional<std::uint32_t> ParseId(std::string_view text) {
+  if (text.empty()) {
+    return std::nullopt;
+  }
+  std::uint32_t id = 0;
+  for (const char c : text) {
+    if (c < '0' || c > '9') {
+      return std::nullopt;
+    }
+    id = id * 10 + static_cast<std::uint32_t>(c - '0');
+  }
+  return id;
+}
+
+// find's -user/-group NAME: resolve NAME via the user/group database and compare
+// to the entry's owner. If NAME is not a known user/group but is all-digits it is
+// taken as a literal id (GNU find behaviour); an unknown non-numeric name yields
+// no match here (failing the run on it is deferred to the exit-code work).
+std::optional<std::uint32_t> ResolveUid(std::string_view name) {
+  if (const struct passwd* const pw = ::getpwnam(std::string(name).c_str()); pw != nullptr) {
+    return static_cast<std::uint32_t>(pw->pw_uid);
+  }
+  return ParseId(name);
+}
+
+std::optional<std::uint32_t> ResolveGid(std::string_view name) {
+  if (const struct group* const gr = ::getgrnam(std::string(name).c_str()); gr != nullptr) {
+    return static_cast<std::uint32_t>(gr->gr_gid);
+  }
+  return ParseId(name);
+}
+
 bool EvaluatePredicate(
     const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs, absl::Time now) {
   const std::string_view name = expr.descriptor->name;
@@ -225,6 +261,16 @@ bool EvaluatePredicate(
   if (name == "-links") return has_arg && MatchesNumeric(expr.args.front(), visit.metadata.nlink);
   if (name == "-uid") return has_arg && MatchesNumeric(expr.args.front(), visit.metadata.uid);
   if (name == "-gid") return has_arg && MatchesNumeric(expr.args.front(), visit.metadata.gid);
+  if (name == "-user") {
+    if (!has_arg) return false;
+    const std::optional<std::uint32_t> uid = ResolveUid(expr.args.front());
+    return uid.has_value() && visit.metadata.uid == *uid;
+  }
+  if (name == "-group") {
+    if (!has_arg) return false;
+    const std::optional<std::uint32_t> gid = ResolveGid(expr.args.front());
+    return gid.has_value() && visit.metadata.gid == *gid;
+  }
   if (name == "-perm") return has_arg && MatchesPerm(expr.args.front(), visit.metadata.mode);
   if (name == "-empty") return IsEmpty(visit, fs);
   if (name == "-newer") return has_arg && IsNewerThan(visit, expr.args.front(), fs);
