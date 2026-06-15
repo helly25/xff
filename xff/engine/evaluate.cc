@@ -30,6 +30,7 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/time/time.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/ast.h"
 #include "xff/registry/descriptor.h"
@@ -172,6 +173,14 @@ bool IsEmpty(const Visit& visit, const vfs::FileSystem& fs) {
   return false;  // find -empty matches only empty regular files and directories
 }
 
+// find's -newer FILE: the entry was modified more recently than FILE. FILE is
+// stat'd (following symlinks); a missing/unreadable reference makes it false.
+// (FILE is re-stat'd per entry for now; resolving it once is a later optimization.)
+bool IsNewerThan(const Visit& visit, std::string_view reference, const vfs::FileSystem& fs) {
+  const absl::StatusOr<vfs::Metadata> ref = fs.Stat(reference, /*follow_symlinks=*/true);
+  return ref.ok() && visit.metadata.mtime > ref->mtime;
+}
+
 bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs) {
   const std::string_view name = expr.descriptor->name;
   const bool has_arg = !expr.args.empty();
@@ -186,6 +195,7 @@ bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit, EmitFn emit
   if (name == "-links") return has_arg && MatchesNumeric(expr.args.front(), visit.metadata.nlink);
   if (name == "-perm") return has_arg && MatchesPerm(expr.args.front(), visit.metadata.mode);
   if (name == "-empty") return IsEmpty(visit, fs);
+  if (name == "-newer") return has_arg && IsNewerThan(visit, expr.args.front(), fs);
   if (name == "-print") {
     emit(absl::StrCat(visit.path, "\n"));
     return true;
