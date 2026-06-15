@@ -208,6 +208,10 @@ TEST_F(ConformanceTest, GroupMatchesCurrentGroup) {
   if (gr == nullptr) GTEST_SKIP() << "no group entry for egid";
   ExpectMatchesFind({"-group", gr->gr_name});
 }
+TEST_F(ConformanceTest, ParenGrouping) { ExpectMatchesFind({"(", "-type", "f", "-o", "-type", "d", ")"}); }
+// The comma operator is a GNU extension; BSD find rejects it, so these skip on macOS.
+TEST_F(ConformanceTest, CommaListImplicitPrint) { ExpectMatchesFind({"-name", "*.txt", ",", "-name", "*.md"}); }
+TEST_F(ConformanceTest, CommaWithExplicitAction) { ExpectMatchesFind({"-type", "f", ",", "-print"}); }
 
 }  // namespace
 }  // namespace xff

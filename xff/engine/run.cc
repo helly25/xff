@@ -66,6 +66,7 @@ void ScanDepthOptions(const parser::Expr& expr, WalkOptions* options) {
       break;
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kComma:
       ScanDepthOptions(*expr.lhs, options);
       ScanDepthOptions(*expr.rhs, options);
       break;

@@ -72,16 +72,17 @@ ExprPtr MakeBinary(Expr::Kind kind, ExprPtr lhs, ExprPtr rhs) {
 
 // Recursive-descent parser over the find expression tokens. Errors are
 // accumulated in `status_`; node-returning methods return nullptr once failed.
+//   list := or ( ',' or )*                       // comma: lowest precedence
 //   or   := and ( ('-o'|'-or') and )*
 //   and  := unary ( ('-a'|'-and')? unary )*      // implicit -a
 //   unary:= ('!'|'-not') unary | primary
-//   prim := '(' or ')' | PREDICATE arg{arity}
+//   prim := '(' list ')' | PREDICATE arg{arity}
 class ExprParser {
  public:
   explicit ExprParser(const std::vector<std::string>& tokens) : tokens_(tokens) {}
 
   absl::StatusOr<ExprPtr> Parse() {
-    ExprPtr expr = ParseOr();
+    ExprPtr expr = ParseComma();
     if (!status_.ok()) {
       return status_;
     }
@@ -100,6 +101,18 @@ class ExprParser {
     }
   }
 
+  // Comma has the lowest precedence: a list of OR-expressions. Both sides are
+  // always evaluated; the list's value is the right operand's (handled in eval).
+  ExprPtr ParseComma() {
+    ExprPtr lhs = ParseOr();
+    while (status_.ok() && !AtEnd() && Peek() == ",") {
+      ++pos_;
+      ExprPtr rhs = ParseOr();
+      lhs = MakeBinary(Expr::Kind::kComma, std::move(lhs), std::move(rhs));
+    }
+    return lhs;
+  }
+
   ExprPtr ParseOr() {
     ExprPtr lhs = ParseAnd();
     while (status_.ok() && !AtEnd() && IsOr(Peek())) {
@@ -112,7 +125,7 @@ class ExprParser {
 
   ExprPtr ParseAnd() {
     ExprPtr lhs = ParseUnary();
-    while (status_.ok() && !AtEnd() && !IsOr(Peek()) && Peek() != ")") {
+    while (status_.ok() && !AtEnd() && !IsOr(Peek()) && Peek() != ")" && Peek() != ",") {
       if (IsAnd(Peek())) {
         ++pos_;  // optional explicit -a
       }
@@ -138,7 +151,7 @@ class ExprParser {
     const std::string& token = Peek();
     if (token == "(") {
       ++pos_;
-      ExprPtr inner = ParseOr();
+      ExprPtr inner = ParseComma();
       if (!status_.ok()) {
         return nullptr;
       }

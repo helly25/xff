@@ -79,6 +79,16 @@ TEST_F(ParserTest, ParensGroup) {
   EXPECT_THAT(root.rhs->descriptor->name, Eq("-print"));
 }
 
+TEST_F(ParserTest, CommaIsLowestPrecedence) {
+  // `-type f -o -type d , -name x` => Comma( Or(-type f, -type d), -name x )
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-type", "f", "-o", "-type", "d", ",", "-name", "x"}));
+  const Expr& root = *cmd.expression;
+  ASSERT_THAT(root.kind, Eq(Expr::Kind::kComma));
+  EXPECT_THAT(root.lhs->kind, Eq(Expr::Kind::kOr));
+  ASSERT_THAT(root.rhs->kind, Eq(Expr::Kind::kPredicate));
+  EXPECT_THAT(root.rhs->descriptor->name, Eq("-name"));
+}
+
 TEST_F(ParserTest, Errors) {
   using ::absl::StatusCode;
   EXPECT_THAT(Parse({".", "-bogus"}), StatusIs(StatusCode::kInvalidArgument));            // unknown predicate

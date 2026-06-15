@@ -304,6 +304,9 @@ bool Evaluate(const parser::Expr& expr, const Visit& visit, EmitFn emit, const v
       return Evaluate(*expr.lhs, visit, emit, fs, now) && Evaluate(*expr.rhs, visit, emit, fs, now);
     case parser::Expr::Kind::kOr:
       return Evaluate(*expr.lhs, visit, emit, fs, now) || Evaluate(*expr.rhs, visit, emit, fs, now);
+    case parser::Expr::Kind::kComma:
+      Evaluate(*expr.lhs, visit, emit, fs, now);  // left operand: evaluated for side effects only
+      return Evaluate(*expr.rhs, visit, emit, fs, now);  // the list's value is the right operand's
   }
   return true;  // Unreachable: every Expr::Kind returns above.
 }
@@ -313,7 +316,8 @@ bool ContainsAction(const parser::Expr& expr) {
     case parser::Expr::Kind::kPredicate: return expr.descriptor->kind == registry::Kind::kAction;
     case parser::Expr::Kind::kNot: return ContainsAction(*expr.lhs);
     case parser::Expr::Kind::kAnd:
-    case parser::Expr::Kind::kOr: return ContainsAction(*expr.lhs) || ContainsAction(*expr.rhs);
+    case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kComma: return ContainsAction(*expr.lhs) || ContainsAction(*expr.rhs);
   }
   return false;  // Unreachable: every Expr::Kind returns above.
 }
