@@ -136,6 +136,13 @@ TEST_F(RunTest, EmptyMatchesEmptyFileAndDir) {
   EXPECT_THAT(RunExpr({"-empty"}), UnorderedElementsAre(Path("empty.txt"), Path("emptydir")));
 }
 
+TEST_F(RunTest, LinksOneMatchesRegularFiles) {
+  // Regular files have one hard link; directories have >= 2.
+  EXPECT_THAT(
+      RunExpr({"-links", "1"}),
+      UnorderedElementsAre(Path("a.txt"), Path("b.md"), Path("sub/c.txt")));
+}
+
 TEST_F(RunTest, MissingRootCountsError) {
   std::vector<std::string> argv = {(root_ / "absent").string(), "-print"};
   const auto command = parser::Parse(argv);
