@@ -155,5 +155,17 @@ TEST_F(RunTest, MissingRootCountsError) {
   EXPECT_THAT(errors, Eq(1));
 }
 
+TEST_F(RunTest, PruneSkipsDirectoryDescent) {
+  // `-name sub -prune -o -print`: prints everything except `sub` and its contents.
+  EXPECT_THAT(
+      RunExpr({"-name", "sub", "-prune", "-o", "-print"}),
+      UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md")));
+}
+
+TEST_F(RunTest, QuitStopsTraversal) {
+  // `-quit` is an action (so no implicit -print) that stops after the first entry.
+  EXPECT_THAT(RunExpr({"-quit"}), IsEmpty());
+}
+
 }  // namespace
 }  // namespace xff::engine

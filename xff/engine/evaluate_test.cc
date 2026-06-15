@@ -41,6 +41,7 @@ struct EvaluateTest : ::testing::Test {
   // any action output in `emitted_`.
   bool Match(const std::vector<std::string>& expr, const Visit& visit) {
     emitted_.clear();
+    control_ = {};
     std::vector<std::string> argv;
     argv.reserve(expr.size() + 1);
     argv.emplace_back(".");
@@ -51,7 +52,8 @@ struct EvaluateTest : ::testing::Test {
       return false;
     }
     return Evaluate(
-        *command->expression, visit, [this](std::string_view record) { emitted_ += record; }, fs_, now_);
+        *command->expression, visit, [this](std::string_view record) { emitted_ += record; }, fs_, now_,
+        control_);
   }
 
   // A Visit of `type`, with `path`/`name` backed by the caller and metadata by
@@ -66,6 +68,7 @@ struct EvaluateTest : ::testing::Test {
   // A fixed reference instant for age-test (-mtime/-mmin) cases; the entry's
   // mtime is set relative to this so the assertions are clock-independent.
   const absl::Time now_ = absl::FromUnixSeconds(1700000000);
+  Control control_;  // set by Match from the most recent evaluation (-prune/-quit)
 };
 
 TEST_F(EvaluateTest, TrueAndFalse) {
@@ -282,6 +285,21 @@ TEST_F(EvaluateTest, CommaEvaluatesBothValueIsRight) {
   // Side effects on both sides still occur: two -print actions emit two records.
   EXPECT_TRUE(Match({"-print", ",", "-print"}, visit));
   EXPECT_THAT(emitted_, Eq("f\nf\n"));
+}
+
+TEST_F(EvaluateTest, PruneAndQuitSetControl) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kDirectory;
+  const Visit visit{.path = "d", .name = "d", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-prune"}, visit));
+  EXPECT_TRUE(control_.prune);
+  EXPECT_FALSE(control_.quit);
+  EXPECT_TRUE(Match({"-quit"}, visit));
+  EXPECT_TRUE(control_.quit);
+  EXPECT_FALSE(control_.prune);  // control is reset per Match
+  // A short-circuited -prune does not fire: `-type f -prune` on a directory.
+  EXPECT_FALSE(Match({"-type", "f", "-prune"}, visit));
+  EXPECT_FALSE(control_.prune);
 }
 
 }  // namespace
