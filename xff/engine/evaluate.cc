@@ -223,6 +223,8 @@ bool EvaluatePredicate(
   if (name == "-type") return has_arg && MatchesType(expr.args.front(), visit.metadata.type);
   if (name == "-size") return has_arg && MatchesSize(expr.args.front(), visit.metadata.size);
   if (name == "-links") return has_arg && MatchesNumeric(expr.args.front(), visit.metadata.nlink);
+  if (name == "-uid") return has_arg && MatchesNumeric(expr.args.front(), visit.metadata.uid);
+  if (name == "-gid") return has_arg && MatchesNumeric(expr.args.front(), visit.metadata.gid);
   if (name == "-perm") return has_arg && MatchesPerm(expr.args.front(), visit.metadata.mode);
   if (name == "-empty") return IsEmpty(visit, fs);
   if (name == "-newer") return has_arg && IsNewerThan(visit, expr.args.front(), fs);
