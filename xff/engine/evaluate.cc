@@ -181,7 +181,37 @@ bool IsNewerThan(const Visit& visit, std::string_view reference, const vfs::File
   return ref.ok() && visit.metadata.mtime > ref->mtime;
 }
 
-bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs) {
+// find's -mtime/-mmin: the entry was modified N units ago -- 24h for -mtime, one
+// minute for -mmin -- with any fractional unit discarded (floor), so a 2.9-day
+// file is "2 days". +N means strictly more than N units ago, -N strictly fewer.
+bool MatchesTime(std::string_view arg, absl::Time mtime, absl::Time now, absl::Duration unit) {
+  char compare = '=';
+  if (!arg.empty() && (arg.front() == '+' || arg.front() == '-')) {
+    compare = arg.front();
+    arg.remove_prefix(1);
+  }
+  if (arg.empty()) {
+    return false;
+  }
+  std::int64_t want = 0;
+  for (const char digit : arg) {
+    if (digit < '0' || digit > '9') {
+      return false;
+    }
+    want = want * 10 + (digit - '0');
+  }
+  const std::int64_t units = static_cast<std::int64_t>((now - mtime) / unit);
+  if (compare == '+') {
+    return units > want;
+  }
+  if (compare == '-') {
+    return units < want;
+  }
+  return units == want;
+}
+
+bool EvaluatePredicate(
+    const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs, absl::Time now) {
   const std::string_view name = expr.descriptor->name;
   const bool has_arg = !expr.args.empty();
   if (name == "-true") return true;
@@ -196,6 +226,8 @@ bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit, EmitFn emit
   if (name == "-perm") return has_arg && MatchesPerm(expr.args.front(), visit.metadata.mode);
   if (name == "-empty") return IsEmpty(visit, fs);
   if (name == "-newer") return has_arg && IsNewerThan(visit, expr.args.front(), fs);
+  if (name == "-mtime") return has_arg && MatchesTime(expr.args.front(), visit.metadata.mtime, now, absl::Hours(24));
+  if (name == "-mmin") return has_arg && MatchesTime(expr.args.front(), visit.metadata.mtime, now, absl::Minutes(1));
   if (name == "-print") {
     emit(absl::StrCat(visit.path, "\n"));
     return true;
@@ -212,12 +244,14 @@ bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit, EmitFn emit
 
 }  // namespace
 
-bool Evaluate(const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs) {
+bool Evaluate(const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs, absl::Time now) {
   switch (expr.kind) {
-    case parser::Expr::Kind::kPredicate: return EvaluatePredicate(expr, visit, emit, fs);
-    case parser::Expr::Kind::kNot: return !Evaluate(*expr.lhs, visit, emit, fs);
-    case parser::Expr::Kind::kAnd: return Evaluate(*expr.lhs, visit, emit, fs) && Evaluate(*expr.rhs, visit, emit, fs);
-    case parser::Expr::Kind::kOr: return Evaluate(*expr.lhs, visit, emit, fs) || Evaluate(*expr.rhs, visit, emit, fs);
+    case parser::Expr::Kind::kPredicate: return EvaluatePredicate(expr, visit, emit, fs, now);
+    case parser::Expr::Kind::kNot: return !Evaluate(*expr.lhs, visit, emit, fs, now);
+    case parser::Expr::Kind::kAnd:
+      return Evaluate(*expr.lhs, visit, emit, fs, now) && Evaluate(*expr.rhs, visit, emit, fs, now);
+    case parser::Expr::Kind::kOr:
+      return Evaluate(*expr.lhs, visit, emit, fs, now) || Evaluate(*expr.rhs, visit, emit, fs, now);
   }
   return true;  // Unreachable: every Expr::Kind returns above.
 }

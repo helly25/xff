@@ -35,6 +35,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-size", .kind = Kind::kTest, .arity = 1},
     {.name = "-links", .kind = Kind::kTest, .arity = 1},
     {.name = "-newer", .kind = Kind::kTest, .arity = 1},
+    {.name = "-mtime", .kind = Kind::kTest, .arity = 1},
+    {.name = "-mmin", .kind = Kind::kTest, .arity = 1},
     {.name = "-perm", .kind = Kind::kTest, .arity = 1},
     {.name = "-maxdepth", .kind = Kind::kTest, .arity = 1},
     {.name = "-mindepth", .kind = Kind::kTest, .arity = 1},
