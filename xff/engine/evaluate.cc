@@ -104,6 +104,33 @@ bool MatchesSize(std::string_view arg, std::uint64_t size_bytes) {
   return size_in_units == want;
 }
 
+// Matches a plain integer metadata field (e.g. -links) with an optional +/-
+// prefix: `+N` greater than N, `-N` less than N, `N` exactly.
+bool MatchesNumeric(std::string_view arg, std::uint64_t value) {
+  char compare = '=';
+  if (!arg.empty() && (arg.front() == '+' || arg.front() == '-')) {
+    compare = arg.front();
+    arg.remove_prefix(1);
+  }
+  if (arg.empty()) {
+    return false;
+  }
+  std::uint64_t want = 0;
+  for (const char digit : arg) {
+    if (digit < '0' || digit > '9') {
+      return false;
+    }
+    want = want * 10 + static_cast<std::uint64_t>(digit - '0');
+  }
+  if (compare == '+') {
+    return value > want;
+  }
+  if (compare == '-') {
+    return value < want;
+  }
+  return value == want;
+}
+
 // Matches find's `-perm` over the permission bits (incl. setuid/setgid/sticky):
 //   MODE   exact match;  -MODE  all of MODE's bits set;  /MODE  any of them set.
 // Octal MODE only for now (symbolic `u+w`,... is deferred).
@@ -156,6 +183,7 @@ bool EvaluatePredicate(const parser::Expr& expr, const Visit& visit, EmitFn emit
   if (name == "-ipath") return has_arg && Fnmatch(expr.args.front(), visit.path, FNM_CASEFOLD);
   if (name == "-type") return has_arg && MatchesType(expr.args.front(), visit.metadata.type);
   if (name == "-size") return has_arg && MatchesSize(expr.args.front(), visit.metadata.size);
+  if (name == "-links") return has_arg && MatchesNumeric(expr.args.front(), visit.metadata.nlink);
   if (name == "-perm") return has_arg && MatchesPerm(expr.args.front(), visit.metadata.mode);
   if (name == "-empty") return IsEmpty(visit, fs);
   if (name == "-print") {

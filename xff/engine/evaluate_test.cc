@@ -179,5 +179,17 @@ TEST_F(EvaluateTest, EmptyMatchesZeroByteFilesNotOthers) {
       << "-empty matches only regular files and directories";
 }
 
+TEST_F(EvaluateTest, LinksMatchesHardLinkCount) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.nlink = 1;
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-links", "1"}, visit));
+  EXPECT_FALSE(Match({"-links", "2"}, visit));
+  EXPECT_TRUE(Match({"-links", "-2"}, visit));
+  EXPECT_TRUE(Match({"-links", "+0"}, visit));
+  EXPECT_FALSE(Match({"-links", "+1"}, visit));
+}
+
 }  // namespace
 }  // namespace xff::engine
