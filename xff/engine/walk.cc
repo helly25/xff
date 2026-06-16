@@ -16,8 +16,10 @@
 #include "xff/engine/walk.h"
 
 #include <cstdint>
+#include <set>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -47,7 +49,14 @@ class Walker {
     if (stopped_) {
       return;
     }
-    const absl::StatusOr<vfs::Metadata> metadata = fs_.Stat(path, /*follow_symlinks=*/false);
+    // -P: never follow; -H: follow only command-line operands (depth 0); -L:
+    // follow all. A dangling symlink (target missing) falls back to the link.
+    const bool follow = options_.symlinks == SymlinkMode::kAll ||
+                        (options_.symlinks == SymlinkMode::kRoots && depth == 0);
+    absl::StatusOr<vfs::Metadata> metadata = fs_.Stat(path, follow);
+    if (!metadata.ok() && follow) {
+      metadata = fs_.Stat(path, /*follow_symlinks=*/false);
+    }
     if (!metadata.ok()) {
       on_error_(path, metadata.status());
       return;
@@ -67,7 +76,7 @@ class Walker {
       // find -depth: descend first, then visit. -prune cannot un-visit the
       // already-walked children, so it has no effect here (matching find).
       if (can_descend) {
-        Descend(path, depth);
+        MaybeDescend(path, depth, metadata->dev, metadata->ino);
       }
       if (!stopped_ && visible && visit_(visit) == WalkAction::kStop) {
         stopped_ = true;
@@ -85,11 +94,23 @@ class Walker {
       return;
     }
     if (can_descend && action != WalkAction::kPrune) {
-      Descend(path, depth);
+      MaybeDescend(path, depth, metadata->dev, metadata->ino);
     }
   }
 
  private:
+  // Descends into `path` (a directory we've decided to enter), guarding against
+  // filesystem loops: if its (dev, ino) is already on the current descent path --
+  // only possible when following symlinks -- report it and do not recurse.
+  void MaybeDescend(const std::string& path, int depth, std::uint64_t dev, std::uint64_t ino) {
+    if (!ancestors_.insert({dev, ino}).second) {
+      on_error_(path, absl::FailedPreconditionError("filesystem loop detected"));
+      return;
+    }
+    Descend(path, depth);
+    ancestors_.erase({dev, ino});
+  }
+
   void Descend(const std::string& dir, int depth) {
     const absl::StatusOr<std::vector<vfs::Entry>> children = fs_.ReadDir(dir);
     if (!children.ok()) {
@@ -110,6 +131,7 @@ class Walker {
   WalkErrorFn on_error_;
   bool stopped_ = false;
   std::uint64_t root_dev_ = 0;  // device of the current root subtree (for -xdev)
+  std::set<std::pair<std::uint64_t, std::uint64_t>> ancestors_;  // (dev,ino) on the descent path (loops)
 };
 
 }  // namespace
