@@ -110,10 +110,15 @@ struct ConformanceTest : ::testing::Test {
     fs::remove_all(root_, ec);
   }
 
-  // Runs `find <root> <expr...>`, returning its sorted output lines, or nullopt
-  // if `find` could not be run (so the test skips rather than fails).
-  std::optional<std::vector<std::string>> SystemFind(const std::vector<std::string>& expr) {
-    std::string command = absl::StrCat("find ", ShellQuote(root_.string()));
+  // Runs `find <globals...> <root> <expr...>`, returning its sorted output lines,
+  // or nullopt if `find` could not be run (so the test skips rather than fails).
+  std::optional<std::vector<std::string>> SystemFind(
+      const std::vector<std::string>& globals, const std::vector<std::string>& expr) {
+    std::string command = "find";
+    for (const std::string& global : globals) {
+      absl::StrAppend(&command, " ", ShellQuote(global));
+    }
+    absl::StrAppend(&command, " ", ShellQuote(root_.string()));
     for (const std::string& token : expr) {
       absl::StrAppend(&command, " ", ShellQuote(token));
     }
@@ -136,9 +141,10 @@ struct ConformanceTest : ::testing::Test {
     return lines;
   }
 
-  // Runs xff's engine over the same root + expression, returning sorted output.
-  std::vector<std::string> Xff(const std::vector<std::string>& expr) {
-    std::vector<std::string> argv = {root_.string()};
+  // Runs xff's engine over the same globals + root + expression, sorted.
+  std::vector<std::string> Xff(const std::vector<std::string>& globals, const std::vector<std::string>& expr) {
+    std::vector<std::string> argv = globals;
+    argv.push_back(root_.string());
     argv.insert(argv.end(), expr.begin(), expr.end());
     const auto command = parser::Parse(argv);
     EXPECT_THAT(command, IsOk());
@@ -159,12 +165,14 @@ struct ConformanceTest : ::testing::Test {
     return lines;
   }
 
-  void ExpectMatchesFind(const std::vector<std::string>& expr) {
-    const std::optional<std::vector<std::string>> expected = SystemFind(expr);
+  void ExpectMatchesFind(const std::vector<std::string>& expr) { ExpectMatchesFind({}, expr); }
+
+  void ExpectMatchesFind(const std::vector<std::string>& globals, const std::vector<std::string>& expr) {
+    const std::optional<std::vector<std::string>> expected = SystemFind(globals, expr);
     if (!expected.has_value()) {
       GTEST_SKIP() << "system `find` unavailable";
     }
-    EXPECT_THAT(Xff(expr), ElementsAreArray(*expected));
+    EXPECT_THAT(Xff(globals, expr), ElementsAreArray(*expected));
   }
 
   vfs::LocalFs fs_;
@@ -220,6 +228,10 @@ TEST_F(ConformanceTest, DepthWithTypeFile) { ExpectMatchesFind({"-depth", "-type
 // The fixture is single-device, so -xdev prunes nothing here; this confirms the
 // option is accepted and the set is unchanged (cross-device pruning is unit-tested).
 TEST_F(ConformanceTest, XdevSameSetOnSingleDevice) { ExpectMatchesFind({"-xdev"}); }
+// -H/-L/-P are leading globals; the fixture's `link -> a.txt` makes them observable.
+TEST_F(ConformanceTest, FollowAllTypeFileIncludesSymlink) { ExpectMatchesFind({"-L"}, {"-type", "f"}); }
+TEST_F(ConformanceTest, FollowAllLeavesNoSymlinkType) { ExpectMatchesFind({"-L"}, {"-type", "l"}); }
+TEST_F(ConformanceTest, PhysicalKeepsSymlinkType) { ExpectMatchesFind({"-P"}, {"-type", "l"}); }
 
 }  // namespace
 }  // namespace xff

@@ -15,7 +15,9 @@
 
 #include "xff/engine/run.h"
 
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
@@ -81,12 +83,29 @@ void ScanDepthOptions(const parser::Expr& expr, WalkOptions* options) {
   }
 }
 
+// find's -H/-L/-P select symlink handling; they are leading global options and
+// the last one wins (default -P). The parser collects them in command.globals.
+SymlinkMode ResolveSymlinkMode(const std::vector<std::string>& globals) {
+  SymlinkMode mode = SymlinkMode::kNever;
+  for (const std::string& global : globals) {
+    if (global == "-P") {
+      mode = SymlinkMode::kNever;
+    } else if (global == "-L") {
+      mode = SymlinkMode::kAll;
+    } else if (global == "-H") {
+      mode = SymlinkMode::kRoots;
+    }
+  }
+  return mode;
+}
+
 }  // namespace
 
 int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn emit, WalkErrorFn on_error) {
   const parser::Expr* const expression = command.expression.get();
   const bool has_action = expression != nullptr && ContainsAction(*expression);
   WalkOptions options;
+  options.symlinks = ResolveSymlinkMode(command.globals);
   if (expression != nullptr) {
     ScanDepthOptions(*expression, &options);
   }
