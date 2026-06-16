@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <map>
 #include <string>
 #include <string_view>
@@ -49,35 +50,48 @@ using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 
 // In-memory FileSystem for tests that need metadata the real filesystem won't
-// reproduce locally (here: device ids for -xdev). Nodes are added explicitly.
+// reproduce locally (device ids for -xdev, symlink targets / loops for -L/-H).
+// Nodes are added explicitly; each path gets a distinct inode for loop detection.
 class FakeFs : public vfs::FileSystem {
  public:
   void AddDir(const std::string& path, std::uint64_t dev, std::vector<vfs::Entry> children) {
-    nodes_[path] = Meta(vfs::FileType::kDirectory, dev);
+    nodes_[path] = Meta(vfs::FileType::kDirectory, dev, path);
     dirs_[path] = std::move(children);
   }
-  void AddFile(const std::string& path, std::uint64_t dev) { nodes_[path] = Meta(vfs::FileType::kRegular, dev); }
+  void AddFile(const std::string& path, std::uint64_t dev) { nodes_[path] = Meta(vfs::FileType::kRegular, dev, path); }
+  // A symlink with its own (link) metadata that resolves to `target` when followed.
+  void AddSymlink(const std::string& path, std::uint64_t dev, const std::string& target) {
+    nodes_[path] = Meta(vfs::FileType::kSymlink, dev, path);
+    targets_[path] = target;
+  }
 
   absl::StatusOr<std::vector<vfs::Entry>> ReadDir(std::string_view dir) const override {
-    const auto it = dirs_.find(std::string(dir));
+    const auto it = dirs_.find(Resolve(std::string(dir)));
     if (it == dirs_.end()) return absl::NotFoundError("FakeFs: no such directory");
     return it->second;
   }
-  absl::StatusOr<vfs::Metadata> Stat(std::string_view path, bool /*follow_symlinks*/) const override {
-    const auto it = nodes_.find(std::string(path));
+  absl::StatusOr<vfs::Metadata> Stat(std::string_view path, bool follow_symlinks) const override {
+    const auto it = nodes_.find(follow_symlinks ? Resolve(std::string(path)) : std::string(path));
     if (it == nodes_.end()) return absl::NotFoundError("FakeFs: no such path");
     return it->second;
   }
 
  private:
-  static vfs::Metadata Meta(vfs::FileType type, std::uint64_t dev) {
+  static vfs::Metadata Meta(vfs::FileType type, std::uint64_t dev, const std::string& path) {
     vfs::Metadata md;
     md.type = type;
     md.dev = dev;
+    md.ino = std::hash<std::string>{}(path);  // distinct per path, for loop detection
     return md;
+  }
+  // Resolves one symlink level (sufficient for these tests).
+  std::string Resolve(std::string path) const {
+    const auto it = targets_.find(path);
+    return it == targets_.end() ? path : it->second;
   }
   std::map<std::string, vfs::Metadata> nodes_;
   std::map<std::string, std::vector<vfs::Entry>> dirs_;
+  std::map<std::string, std::string> targets_;
 };
 
 vfs::Entry DirEntry(const std::string& path, const std::string& name) {
@@ -85,6 +99,9 @@ vfs::Entry DirEntry(const std::string& path, const std::string& name) {
 }
 vfs::Entry FileEntry(const std::string& path, const std::string& name) {
   return vfs::Entry{.path = path, .name = name, .type = vfs::FileType::kRegular};
+}
+vfs::Entry SymlinkEntry(const std::string& path, const std::string& name) {
+  return vfs::Entry{.path = path, .name = name, .type = vfs::FileType::kSymlink};
 }
 
 // Fixture tree:
@@ -229,18 +246,20 @@ TEST_F(WalkTest, DepthVisitsPostOrder) {
 struct WalkFakeFsTest : ::testing::Test {
   std::vector<std::string> Seen(const WalkOptions& options) {
     std::vector<std::string> out;
+    errors_ = 0;
     const absl::Status status = Walk(
         fs_, {"/r"}, options,
         [&](const Visit& visit) {
           out.push_back(std::string(visit.path));
           return WalkAction::kContinue;
         },
-        [](std::string_view, const absl::Status&) {});
+        [&](std::string_view, const absl::Status&) { ++errors_; });
     EXPECT_THAT(status, IsOk());
     return out;
   }
 
   FakeFs fs_;
+  int errors_ = 0;
 };
 
 TEST_F(WalkFakeFsTest, XdevStopsAtDeviceBoundary) {
@@ -253,6 +272,43 @@ TEST_F(WalkFakeFsTest, XdevStopsAtDeviceBoundary) {
   // Default crosses the boundary; -xdev visits the mount point but not its contents.
   EXPECT_THAT(Seen(WalkOptions{}), UnorderedElementsAre("/r", "/r/a.txt", "/r/mnt", "/r/mnt/x.txt"));
   EXPECT_THAT(Seen(WalkOptions{.single_filesystem = true}), UnorderedElementsAre("/r", "/r/a.txt", "/r/mnt"));
+}
+
+TEST_F(WalkFakeFsTest, FollowAllDescendsSymlinkedDirectory) {
+  // /r holds a regular file and lnk -> /t (an out-of-tree directory holding g).
+  fs_.AddDir("/r", 1, {FileEntry("/r/a", "a"), SymlinkEntry("/r/lnk", "lnk")});
+  fs_.AddFile("/r/a", 1);
+  fs_.AddSymlink("/r/lnk", 1, "/t");
+  fs_.AddDir("/t", 1, {FileEntry("/t/g", "g")});
+  fs_.AddFile("/t/g", 1);
+  // -P (default): lnk is a leaf symlink; its target is not entered.
+  EXPECT_THAT(Seen(WalkOptions{}), UnorderedElementsAre("/r", "/r/a", "/r/lnk"));
+  // -L: lnk resolves to the directory /t and is descended into.
+  EXPECT_THAT(
+      Seen(WalkOptions{.symlinks = SymlinkMode::kAll}),
+      UnorderedElementsAre("/r", "/r/a", "/r/lnk", "/t/g"));
+}
+
+TEST_F(WalkFakeFsTest, FollowRootsOnlyFollowsTheOperand) {
+  // The root operand /r is a symlink to /real; -H follows it, but not the symlink
+  // /real/lnk encountered during descent.
+  fs_.AddSymlink("/r", 1, "/real");
+  fs_.AddDir("/real", 1, {FileEntry("/real/a", "a"), SymlinkEntry("/real/lnk", "lnk")});
+  fs_.AddFile("/real/a", 1);
+  fs_.AddSymlink("/real/lnk", 1, "/other");
+  fs_.AddDir("/other", 1, {FileEntry("/other/z", "z")});
+  fs_.AddFile("/other/z", 1);
+  EXPECT_THAT(
+      Seen(WalkOptions{.symlinks = SymlinkMode::kRoots}),
+      UnorderedElementsAre("/r", "/real/a", "/real/lnk"));
+}
+
+TEST_F(WalkFakeFsTest, FollowAllDetectsFilesystemLoop) {
+  // /r/loop is a symlink back to /r; following it under -L re-enters an ancestor.
+  fs_.AddDir("/r", 1, {SymlinkEntry("/r/loop", "loop")});
+  fs_.AddSymlink("/r/loop", 1, "/r");
+  EXPECT_THAT(Seen(WalkOptions{.symlinks = SymlinkMode::kAll}), UnorderedElementsAre("/r", "/r/loop"));
+  EXPECT_THAT(errors_, Eq(1));  // the loop was reported, and the walk did not recurse forever
 }
 
 }  // namespace

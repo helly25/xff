@@ -27,9 +27,13 @@
 
 namespace xff::engine {
 
-// Traversal limits. This sequential walk does not follow symlinks (find's
-// default `-P`); symlink-following (`-L`/`-H`), `-xdev`, and parallelism are
-// layered on in follow-ups (design.md "Evaluation", "Determinism").
+// Which symlinks the walk resolves (stats the target) before testing/descending:
+// none (find `-P`, the default), only command-line operands (`-H`), or all
+// (`-L`). Following enables filesystem-loop detection.
+enum class SymlinkMode { kNever, kRoots, kAll };
+
+// Traversal limits. Parallelism is layered on in a follow-up (design.md
+// "Determinism").
 struct WalkOptions {
   // Entries shallower than `min_depth` are traversed but not visited (find
   // `-mindepth`). A root operand is depth 0.
@@ -44,6 +48,10 @@ struct WalkOptions {
   // walk root it was reached from (find `-xdev`): the mount point is visited but
   // its contents are not.
   bool single_filesystem = false;
+  // Which symlinks to resolve before stat/descend (find `-P`/`-H`/`-L`). When a
+  // symlink is followed, its target's metadata is reported and a directory target
+  // is descended into, with loop detection.
+  SymlinkMode symlinks = SymlinkMode::kNever;
 };
 
 // One visited entry handed to the `Visitor`. `path`/`name` reference storage
