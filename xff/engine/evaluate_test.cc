@@ -302,5 +302,15 @@ TEST_F(EvaluateTest, PruneAndQuitSetControl) {
   EXPECT_FALSE(control_.prune);
 }
 
+TEST_F(EvaluateTest, RegexMatchesWholePath) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("a/b/c.txt", "c.txt", vfs::FileType::kRegular, md);
+  // -regex matches the whole path (not just the basename); -iregex folds case.
+  EXPECT_TRUE(Match({"-regex", ".*\\.txt"}, visit));
+  EXPECT_FALSE(Match({"-regex", ".*\\.md"}, visit));
+  EXPECT_FALSE(Match({"-regex", "c\\.txt"}, visit));  // must match the whole path, not the basename
+  EXPECT_TRUE(Match({"-iregex", ".*\\.TXT"}, visit));
+}
+
 }  // namespace
 }  // namespace xff::engine

@@ -232,6 +232,9 @@ TEST_F(ConformanceTest, XdevSameSetOnSingleDevice) { ExpectMatchesFind({"-xdev"}
 TEST_F(ConformanceTest, FollowAllTypeFileIncludesSymlink) { ExpectMatchesFind({"-L"}, {"-type", "f"}); }
 TEST_F(ConformanceTest, FollowAllLeavesNoSymlinkType) { ExpectMatchesFind({"-L"}, {"-type", "l"}); }
 TEST_F(ConformanceTest, PhysicalKeepsSymlinkType) { ExpectMatchesFind({"-P"}, {"-type", "l"}); }
+// -regex matches the whole path; `.*\.txt` is grammar-agnostic (basic/emacs/RE2 agree).
+TEST_F(ConformanceTest, RegexWholePathTxt) { ExpectMatchesFind({"-regex", ".*\\.txt"}); }
+TEST_F(ConformanceTest, IRegexWholePathTxt) { ExpectMatchesFind({"-iregex", ".*\\.TXT"}); }
 
 }  // namespace
 }  // namespace xff
