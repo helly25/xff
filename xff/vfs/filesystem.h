@@ -20,6 +20,7 @@
 #include <string_view>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "xff/vfs/entry.h"
 
@@ -46,6 +47,11 @@ class FileSystem {
   // selects `stat` (follow the link, like `-L`) vs `lstat` (the link itself,
   // like the default `-P`).
   virtual absl::StatusOr<Metadata> Stat(std::string_view path, bool follow_symlinks) const = 0;
+
+  // Removes `path` (a file, symlink, or empty directory; find's -delete relies
+  // on -depth to empty directories first). Read-only backends (archive/remote)
+  // return an error. The object is not mutated, only the underlying source.
+  virtual absl::Status Remove(std::string_view path) const = 0;
 };
 
 }  // namespace xff::vfs

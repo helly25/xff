@@ -36,6 +36,7 @@ class LocalFs final : public FileSystem {
  public:
   absl::StatusOr<std::vector<Entry>> ReadDir(std::string_view dir) const override;
   absl::StatusOr<Metadata> Stat(std::string_view path, bool follow_symlinks) const override;
+  absl::Status Remove(std::string_view path) const override;
 };
 
 }  // namespace xff::vfs

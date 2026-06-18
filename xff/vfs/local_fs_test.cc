@@ -127,5 +127,16 @@ TEST_F(LocalFsTest, StatMissingPathIsNotFound) {
   EXPECT_THAT(local_fs_.Stat(Path("nope"), /*follow_symlinks=*/false), StatusIs(absl::StatusCode::kNotFound));
 }
 
+TEST_F(LocalFsTest, RemoveDeletesFileAndEmptyDirectory) {
+  EXPECT_THAT(local_fs_.Remove(Path("file.txt")), IsOk());
+  EXPECT_THAT(local_fs_.Stat(Path("file.txt"), /*follow_symlinks=*/false), StatusIs(absl::StatusCode::kNotFound));
+  EXPECT_THAT(local_fs_.Remove(Path("sub")), IsOk());  // sub is an empty directory
+  EXPECT_THAT(local_fs_.Stat(Path("sub"), /*follow_symlinks=*/false), StatusIs(absl::StatusCode::kNotFound));
+}
+
+TEST_F(LocalFsTest, RemoveMissingPathErrors) {
+  EXPECT_THAT(local_fs_.Remove(Path("nope")), StatusIs(absl::StatusCode::kNotFound));
+}
+
 }  // namespace
 }  // namespace xff::vfs
