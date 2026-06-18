@@ -198,5 +198,25 @@ TEST_F(RunTest, SymlinkLModeFollowsDirectorySymlink) {
   EXPECT_THAT(out, UnorderedElementsAre(Path("sub/c.txt"), Path("lnk/c.txt")));
 }
 
+TEST_F(RunTest, FormatJsonlRendersImplicitPrintAsJson) {
+  const auto command = parser::Parse({"--format=jsonl", root_.string(), "-name", "a.txt"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  RunFind(
+      *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
+      [](std::string_view, const absl::Status&) {});
+  EXPECT_THAT(records, UnorderedElementsAre(Eq(std::string("{\"path\":\"") + Path("a.txt") + "\"}\n")));
+}
+
+TEST_F(RunTest, FormatNulViaDashZero) {
+  const auto command = parser::Parse({"-0", root_.string(), "-name", "a.txt"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  RunFind(
+      *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
+      [](std::string_view, const absl::Status&) {});
+  EXPECT_THAT(records, UnorderedElementsAre(Eq(Path("a.txt") + std::string("\0", 1))));
+}
+
 }  // namespace
 }  // namespace xff::engine
