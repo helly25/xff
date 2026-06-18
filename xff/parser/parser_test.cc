@@ -89,6 +89,21 @@ TEST_F(ParserTest, CommaIsLowestPrecedence) {
   EXPECT_THAT(root.rhs->descriptor->name, Eq("-name"));
 }
 
+TEST_F(ParserTest, ExecCollectsCommandUntilSemicolon) {
+  // `-exec echo {} ; -print` => And( -exec[echo, {}], -print ); the ';' is consumed.
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-exec", "echo", "{}", ";", "-print"}));
+  const Expr& root = *cmd.expression;
+  ASSERT_THAT(root.kind, Eq(Expr::Kind::kAnd));
+  ASSERT_THAT(root.lhs->kind, Eq(Expr::Kind::kPredicate));
+  EXPECT_THAT(root.lhs->descriptor->name, Eq("-exec"));
+  EXPECT_THAT(root.lhs->args, ElementsAre("echo", "{}"));
+  EXPECT_THAT(root.rhs->descriptor->name, Eq("-print"));
+}
+
+TEST_F(ParserTest, ExecWithoutTerminatorErrors) {
+  EXPECT_THAT(Parse({".", "-exec", "echo", "{}"}), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
 TEST_F(ParserTest, Errors) {
   using ::absl::StatusCode;
   EXPECT_THAT(Parse({".", "-bogus"}), StatusIs(StatusCode::kInvalidArgument));            // unknown predicate

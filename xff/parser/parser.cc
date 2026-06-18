@@ -172,6 +172,27 @@ class ExprParser {
       return nullptr;
     }
     ++pos_;
+    // -exec/-execdir take a variable-length command terminated by ';'.
+    if (descriptor->arity < 0) {
+      std::vector<std::string> command;
+      while (!AtEnd() && Peek() != ";" && Peek() != "+") {
+        command.push_back(tokens_[pos_++]);
+      }
+      if (AtEnd()) {
+        Fail(absl::StrCat("'", token, "' is missing a ';' terminator"));
+        return nullptr;
+      }
+      if (Peek() == "+") {
+        Fail("the '-exec/-execdir ... +' batch form is not yet supported");
+        return nullptr;
+      }
+      if (command.empty()) {
+        Fail(absl::StrCat("'", token, "' needs a command before ';'"));
+        return nullptr;
+      }
+      ++pos_;  // consume ';'
+      return MakePredicate(descriptor, std::move(command));
+    }
     std::vector<std::string> args;
     for (int i = 0; i < descriptor->arity; ++i) {
       if (AtEnd()) {

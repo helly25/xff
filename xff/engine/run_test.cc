@@ -252,5 +252,21 @@ TEST_F(RunTest, SafeRefusesDelete) {
   EXPECT_TRUE(fs::exists(root_ / "a.txt"));  // refused: nothing deleted
 }
 
+TEST_F(RunTest, ExecRunsCommandPerMatch) {
+  // -exec /bin/sh -c 'echo > "{}.ran"' ; creates a marker beside each matched file.
+  RunExpr({"-name", "a.txt", "-exec", "/bin/sh", "-c", "echo > \"{}.ran\"", ";"});
+  EXPECT_TRUE(fs::exists(root_ / "a.txt.ran"));
+}
+
+TEST_F(RunTest, SafeRefusesExec) {
+  const auto command =
+      parser::Parse({"--safe", root_.string(), "-exec", "/bin/sh", "-c", "echo > \"{}.ran\"", ";"});
+  ASSERT_THAT(command, IsOk());
+  const int errors =
+      RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, const absl::Status&) {});
+  EXPECT_THAT(errors, Eq(2));
+  EXPECT_FALSE(fs::exists(root_ / "a.txt.ran"));  // refused: command not run
+}
+
 }  // namespace
 }  // namespace xff::engine

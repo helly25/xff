@@ -35,6 +35,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "xff/engine/walk.h"
+#include "xff/exec/exec.h"
 #include "xff/parser/ast.h"
 #include "xff/regex/regex.h"
 #include "xff/registry/descriptor.h"
@@ -407,6 +408,9 @@ bool EvaluatePredicate(
   if (name == "-delete") {
     static_cast<void>(fs.Remove(visit.path));  // failures set a nonzero exit; wired in the exit-code work
     return true;
+  }
+  if (name == "-exec") {
+    return exec::Execute(expr.args, visit.path);  // true iff the child exits 0 (find's -exec ... ;)
   }
   if (name == "-prune") {
     control.prune = true;  // do not descend into this directory; -prune is always true
