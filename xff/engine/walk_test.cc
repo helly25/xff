@@ -75,6 +75,7 @@ class FakeFs : public vfs::FileSystem {
     if (it == nodes_.end()) return absl::NotFoundError("FakeFs: no such path");
     return it->second;
   }
+  absl::Status Remove(std::string_view) const override { return absl::OkStatus(); }  // unused by walk tests
 
  private:
   static vfs::Metadata Meta(vfs::FileType type, std::uint64_t dev, const std::string& path) {

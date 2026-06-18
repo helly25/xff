@@ -29,6 +29,7 @@
 
 #include <cerrno>
 #include <cstdint>
+#include <cstdio>
 #include <ctime>
 #include <optional>
 #include <string>
@@ -162,6 +163,14 @@ absl::StatusOr<Metadata> LocalFs::Stat(std::string_view path, bool follow_symlin
     return absl::ErrnoToStatus(errno, absl::StrCat(follow_symlinks ? "stat('" : "lstat('", path, "')"));
   }
   return MetadataFromStat(st, BirthTime(st, path_str, follow_symlinks));
+}
+
+absl::Status LocalFs::Remove(std::string_view path) const {
+  const std::string path_str(path);
+  if (::remove(path_str.c_str()) != 0) {  // unlink for files/symlinks, rmdir for empty dirs
+    return absl::ErrnoToStatus(errno, absl::StrCat("remove('", path, "')"));
+  }
+  return absl::OkStatus();
 }
 
 }  // namespace xff::vfs
