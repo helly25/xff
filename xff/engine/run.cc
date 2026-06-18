@@ -15,6 +15,7 @@
 
 #include "xff/engine/run.h"
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -24,6 +25,7 @@
 #include "absl/time/time.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/walk.h"
+#include "xff/fields/fields.h"
 #include "xff/parser/ast.h"
 #include "xff/registry/descriptor.h"
 #include "xff/render/render.h"
@@ -117,6 +119,20 @@ render::Format ResolveFormat(const std::vector<std::string>& globals) {
   return format;
 }
 
+// --template=TMPL renders each match through the field vocabulary (xff-native),
+// overriding --format for the implicit print. Last occurrence wins; nullopt when
+// absent.
+std::optional<std::string> ResolveTemplate(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--template=";
+  std::optional<std::string> tmpl;
+  for (const std::string& global : globals) {
+    if (global.starts_with(kPrefix)) {
+      tmpl = global.substr(kPrefix.size());
+    }
+  }
+  return tmpl;
+}
+
 // Wraps a FileSystem so Remove previews (emits the path) instead of deleting:
 // backs --dry-run for -delete. ReadDir/Stat pass through unchanged.
 class DryRunFileSystem : public vfs::FileSystem {
@@ -172,6 +188,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   WalkOptions options;
   options.symlinks = ResolveSymlinkMode(command.globals);
   const render::Format format = ResolveFormat(command.globals);
+  const std::optional<std::string> tmpl = ResolveTemplate(command.globals);
   if (expression != nullptr) {
     ScanDepthOptions(*expression, &options);
   }
@@ -191,7 +208,8 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
         Control control;
         const bool matched = expression == nullptr || Evaluate(*expression, visit, emit, walk_fs, now, control);
         if (matched && !has_action) {
-          emit(render::Renderer(format).Record(visit.path));  // implicit print, per --format
+          emit(tmpl.has_value() ? fields::Render(*tmpl, visit.path, visit.metadata, visit.depth) + "\n"
+                                : render::Renderer(format).Record(visit.path));  // --template overrides --format
         }
         if (control.quit) return WalkAction::kStop;
         if (control.prune) return WalkAction::kPrune;

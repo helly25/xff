@@ -268,5 +268,22 @@ TEST_F(RunTest, SafeRefusesExec) {
   EXPECT_FALSE(fs::exists(root_ / "a.txt.ran"));  // refused: command not run
 }
 
+TEST_F(RunTest, TemplateRendersImplicitPrint) {
+  const auto command = parser::Parse({"--template={name}:{type}", root_.string(), "-name", "a.txt"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  RunFind(
+      *command, fs_,
+      [&](std::string_view record) {
+        std::string text(record);
+        if (!text.empty() && text.back() == '\n') {
+          text.pop_back();
+        }
+        records.push_back(std::move(text));
+      },
+      [](std::string_view, const absl::Status&) {});
+  EXPECT_THAT(records, UnorderedElementsAre("a.txt:f"));  // {name}:{type} for a regular file
+}
+
 }  // namespace
 }  // namespace xff::engine
