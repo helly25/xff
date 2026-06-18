@@ -404,6 +404,10 @@ bool EvaluatePredicate(
     }
     return true;
   }
+  if (name == "-delete") {
+    static_cast<void>(fs.Remove(visit.path));  // failures set a nonzero exit; wired in the exit-code work
+    return true;
+  }
   if (name == "-prune") {
     control.prune = true;  // do not descend into this directory; -prune is always true
     return true;

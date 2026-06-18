@@ -68,6 +68,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-print", .kind = Kind::kAction, .arity = 0},
     {.name = "-print0", .kind = Kind::kAction, .arity = 0},
     {.name = "-printf", .kind = Kind::kAction, .arity = 1},
+    {.name = "-delete", .kind = Kind::kAction, .arity = 0},
     {.name = "-prune", .kind = Kind::kAction, .arity = 0},
     {.name = "-quit", .kind = Kind::kAction, .arity = 0},
     {.name = "-a", .kind = Kind::kOperator, .arity = 0},

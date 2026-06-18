@@ -218,5 +218,39 @@ TEST_F(RunTest, FormatNulViaDashZero) {
   EXPECT_THAT(records, UnorderedElementsAre(Eq(Path("a.txt") + std::string("\0", 1))));
 }
 
+TEST_F(RunTest, DeleteRemovesMatchedFiles) {
+  RunExpr({"-name", "*.txt", "-delete"});  // -delete implies -depth, so children go first
+  EXPECT_FALSE(fs::exists(root_ / "a.txt"));
+  EXPECT_FALSE(fs::exists(root_ / "sub" / "c.txt"));
+  EXPECT_TRUE(fs::exists(root_ / "b.md"));  // not matched
+}
+
+TEST_F(RunTest, DeleteDryRunPreviewsWithoutDeleting) {
+  const auto command = parser::Parse({"--dry-run", root_.string(), "-name", "a.txt", "-delete"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  RunFind(
+      *command, fs_,
+      [&](std::string_view record) {
+        std::string text(record);
+        if (!text.empty() && text.back() == '\n') {
+          text.pop_back();
+        }
+        records.push_back(std::move(text));
+      },
+      [](std::string_view, const absl::Status&) {});
+  EXPECT_TRUE(fs::exists(root_ / "a.txt"));  // --dry-run: nothing deleted
+  EXPECT_THAT(records, UnorderedElementsAre(Path("a.txt")));  // but previewed
+}
+
+TEST_F(RunTest, SafeRefusesDelete) {
+  const auto command = parser::Parse({"--safe", root_.string(), "-delete"});
+  ASSERT_THAT(command, IsOk());
+  const int errors =
+      RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, const absl::Status&) {});
+  EXPECT_THAT(errors, Eq(2));
+  EXPECT_TRUE(fs::exists(root_ / "a.txt"));  // refused: nothing deleted
+}
+
 }  // namespace
 }  // namespace xff::engine
