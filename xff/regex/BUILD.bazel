@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
+# Regular-expression matching for find's -regex/-iregex, backed by RE2.
+cc_library(
+    name = "regex_cc",
+    srcs = ["regex.cc"],
+    hdrs = ["regex.h"],
+    visibility = ["//xff:__subpackages__"],
+    deps = [
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@re2//:re2",
+    ],
+)
+
+cc_test(
+    name = "regex_test",
+    size = "small",
+    srcs = ["regex_test.cc"],
+    deps = [
+        ":regex_cc",
+        "@abseil-cpp//absl/status",
+        "@com_helly25_mbo//mbo/testing:status_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
