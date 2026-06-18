@@ -136,15 +136,17 @@ class DryRunFileSystem : public vfs::FileSystem {
   EmitFn preview_;
 };
 
-// True if the expression contains a -delete action: find makes -delete imply
-// -depth, and --safe refuses it.
-bool ContainsDelete(const parser::Expr& expr) {
+// True if the expression contains an armed (effectful) action -- -delete or
+// -exec. --safe refuses these. (-delete additionally implies -depth, applied
+// in ScanDepthOptions.)
+bool ContainsArmedAction(const parser::Expr& expr) {
   switch (expr.kind) {
-    case parser::Expr::Kind::kPredicate: return expr.descriptor->name == "-delete";
-    case parser::Expr::Kind::kNot: return ContainsDelete(*expr.lhs);
+    case parser::Expr::Kind::kPredicate:
+      return expr.descriptor->name == "-delete" || expr.descriptor->name == "-exec";
+    case parser::Expr::Kind::kNot: return ContainsArmedAction(*expr.lhs);
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
-    case parser::Expr::Kind::kComma: return ContainsDelete(*expr.lhs) || ContainsDelete(*expr.rhs);
+    case parser::Expr::Kind::kComma: return ContainsArmedAction(*expr.lhs) || ContainsArmedAction(*expr.rhs);
   }
   return false;
 }
@@ -163,7 +165,7 @@ bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
 int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn emit, WalkErrorFn on_error) {
   const parser::Expr* const expression = command.expression.get();
   const bool has_action = expression != nullptr && ContainsAction(*expression);
-  if (HasGlobal(command.globals, "--safe") && expression != nullptr && ContainsDelete(*expression)) {
+  if (HasGlobal(command.globals, "--safe") && expression != nullptr && ContainsArmedAction(*expression)) {
     on_error("-delete", absl::FailedPreconditionError("refused: --safe forbids destructive actions"));
     return 2;  // do not traverse
   }
