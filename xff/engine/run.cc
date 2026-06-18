@@ -54,8 +54,8 @@ bool ParseNonNegInt(std::string_view text, int* out) {
 void ScanDepthOptions(const parser::Expr& expr, WalkOptions* options) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate: {
-      if (expr.descriptor->name == "-depth") {
-        options->post_order = true;
+      if (expr.descriptor->name == "-depth" || expr.descriptor->name == "-delete") {
+        options->post_order = true;  // -delete implies -depth
         break;
       }
       if (expr.descriptor->name == "-xdev") {
@@ -117,11 +117,56 @@ render::Format ResolveFormat(const std::vector<std::string>& globals) {
   return format;
 }
 
+// Wraps a FileSystem so Remove previews (emits the path) instead of deleting:
+// backs --dry-run for -delete. ReadDir/Stat pass through unchanged.
+class DryRunFileSystem : public vfs::FileSystem {
+ public:
+  DryRunFileSystem(const vfs::FileSystem& fs, EmitFn preview) : fs_(fs), preview_(preview) {}
+  absl::StatusOr<std::vector<vfs::Entry>> ReadDir(std::string_view dir) const override { return fs_.ReadDir(dir); }
+  absl::StatusOr<vfs::Metadata> Stat(std::string_view path, bool follow) const override {
+    return fs_.Stat(path, follow);
+  }
+  absl::Status Remove(std::string_view path) const override {
+    preview_(absl::StrCat(path, "\n"));  // would-delete preview; nothing is removed
+    return absl::OkStatus();
+  }
+
+ private:
+  const vfs::FileSystem& fs_;
+  EmitFn preview_;
+};
+
+// True if the expression contains a -delete action: find makes -delete imply
+// -depth, and --safe refuses it.
+bool ContainsDelete(const parser::Expr& expr) {
+  switch (expr.kind) {
+    case parser::Expr::Kind::kPredicate: return expr.descriptor->name == "-delete";
+    case parser::Expr::Kind::kNot: return ContainsDelete(*expr.lhs);
+    case parser::Expr::Kind::kAnd:
+    case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kComma: return ContainsDelete(*expr.lhs) || ContainsDelete(*expr.rhs);
+  }
+  return false;
+}
+
+bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
+  for (const std::string& global : globals) {
+    if (global == flag) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn emit, WalkErrorFn on_error) {
   const parser::Expr* const expression = command.expression.get();
   const bool has_action = expression != nullptr && ContainsAction(*expression);
+  if (HasGlobal(command.globals, "--safe") && expression != nullptr && ContainsDelete(*expression)) {
+    on_error("-delete", absl::FailedPreconditionError("refused: --safe forbids destructive actions"));
+    return 2;  // do not traverse
+  }
   WalkOptions options;
   options.symlinks = ResolveSymlinkMode(command.globals);
   const render::Format format = ResolveFormat(command.globals);
@@ -133,11 +178,16 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   const absl::Time now = absl::Now();
   int errors = 0;
 
+  // --dry-run: route deletions through a previewing wrapper, so -delete reports
+  // what it would remove without touching the filesystem.
+  DryRunFileSystem dry_run_fs(fs, emit);
+  const vfs::FileSystem& walk_fs = HasGlobal(command.globals, "--dry-run") ? dry_run_fs : fs;
+
   const absl::Status status = Walk(
-      fs, command.roots, options,
+      walk_fs, command.roots, options,
       [&](const Visit& visit) {
         Control control;
-        const bool matched = expression == nullptr || Evaluate(*expression, visit, emit, fs, now, control);
+        const bool matched = expression == nullptr || Evaluate(*expression, visit, emit, walk_fs, now, control);
         if (matched && !has_action) {
           emit(render::Renderer(format).Record(visit.path));  // implicit print, per --format
         }
