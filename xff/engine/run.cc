@@ -26,6 +26,7 @@
 #include "xff/engine/walk.h"
 #include "xff/parser/ast.h"
 #include "xff/registry/descriptor.h"
+#include "xff/render/render.h"
 #include "xff/vfs/filesystem.h"
 
 namespace xff::engine {
@@ -99,6 +100,23 @@ SymlinkMode ResolveSymlinkMode(const std::vector<std::string>& globals) {
   return mode;
 }
 
+// xff's modern output selector (leading globals, last wins, default plain):
+// --format=plain|nul|jsonl, with -0 a shorthand for NUL. find's -print/-print0
+// keep their fixed formats; this drives only the implicit (default) print.
+render::Format ResolveFormat(const std::vector<std::string>& globals) {
+  render::Format format = render::Format::kPlain;
+  for (const std::string& global : globals) {
+    if (global == "-0" || global == "--format=nul") {
+      format = render::Format::kNul;
+    } else if (global == "--format=plain") {
+      format = render::Format::kPlain;
+    } else if (global == "--format=jsonl") {
+      format = render::Format::kJsonl;
+    }
+  }
+  return format;
+}
+
 }  // namespace
 
 int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn emit, WalkErrorFn on_error) {
@@ -106,6 +124,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   const bool has_action = expression != nullptr && ContainsAction(*expression);
   WalkOptions options;
   options.symlinks = ResolveSymlinkMode(command.globals);
+  const render::Format format = ResolveFormat(command.globals);
   if (expression != nullptr) {
     ScanDepthOptions(*expression, &options);
   }
@@ -120,7 +139,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
         Control control;
         const bool matched = expression == nullptr || Evaluate(*expression, visit, emit, fs, now, control);
         if (matched && !has_action) {
-          emit(absl::StrCat(visit.path, "\n"));  // implicit -print
+          emit(render::Renderer(format).Record(visit.path));  // implicit print, per --format
         }
         if (control.quit) return WalkAction::kStop;
         if (control.prune) return WalkAction::kPrune;
