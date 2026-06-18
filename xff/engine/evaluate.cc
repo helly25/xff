@@ -64,6 +64,81 @@ bool MatchesType(std::string_view arg, vfs::FileType type) {
   }
 }
 
+// find's %y type letter: the inverse of MatchesType's mapping.
+char TypeLetter(vfs::FileType type) {
+  switch (type) {
+    case vfs::FileType::kRegular: return 'f';
+    case vfs::FileType::kDirectory: return 'd';
+    case vfs::FileType::kSymlink: return 'l';
+    case vfs::FileType::kBlockDevice: return 'b';
+    case vfs::FileType::kCharDevice: return 'c';
+    case vfs::FileType::kFifo: return 'p';
+    case vfs::FileType::kSocket: return 's';
+    case vfs::FileType::kUnknown: return 'U';
+  }
+  return 'U';
+}
+
+// The directory component of `path` (find's %h): everything before the last
+// '/', "/" for a root-level child, or "." when there is no '/'.
+std::string_view Dirname(std::string_view path) {
+  const std::string_view::size_type slash = path.rfind('/');
+  if (slash == std::string_view::npos) return ".";
+  if (slash == 0) return "/";
+  return path.substr(0, slash);
+}
+
+// Permission bits as octal without leading zeros (find's %m): %o of mode & 07777.
+std::string OctalPerm(std::uint32_t mode) {
+  const unsigned bits = mode & 07777U;
+  std::string out;
+  for (int shift = 9; shift >= 0; shift -= 3) {
+    const unsigned digit = (bits >> shift) & 7U;
+    if (!out.empty() || digit != 0) {
+      out.push_back(static_cast<char>('0' + digit));
+    }
+  }
+  return out.empty() ? "0" : out;
+}
+
+// find's -printf FORMAT: expands % directives and \ escapes against the entry.
+// Supported: %p path, %f name, %h dir, %s size, %m octal perm, %d depth, %y
+// type, %i inode, %n links, %% literal; \n \t \r \\ \0 escapes. Unknown
+// directives are emitted literally. (%u/%g/%t and friends are a follow-up.)
+std::string FormatPrintf(std::string_view format, const Visit& visit) {
+  std::string out;
+  for (std::string_view::size_type i = 0; i < format.size(); ++i) {
+    const char ch = format[i];
+    if (ch == '\\' && i + 1 < format.size()) {
+      switch (format[++i]) {
+        case 'n': out.push_back('\n'); break;
+        case 't': out.push_back('\t'); break;
+        case 'r': out.push_back('\r'); break;
+        case '0': out.push_back('\0'); break;
+        case '\\': out.push_back('\\'); break;
+        default: out.push_back('\\'); out.push_back(format[i]); break;
+      }
+    } else if (ch == '%' && i + 1 < format.size()) {
+      switch (format[++i]) {
+        case 'p': out.append(visit.path); break;
+        case 'f': out.append(visit.name); break;
+        case 'h': out.append(Dirname(visit.path)); break;
+        case 's': absl::StrAppend(&out, visit.metadata.size); break;
+        case 'm': out.append(OctalPerm(visit.metadata.mode)); break;
+        case 'd': absl::StrAppend(&out, visit.depth); break;
+        case 'y': out.push_back(TypeLetter(visit.metadata.type)); break;
+        case 'i': absl::StrAppend(&out, visit.metadata.ino); break;
+        case 'n': absl::StrAppend(&out, visit.metadata.nlink); break;
+        case '%': out.push_back('%'); break;
+        default: out.push_back('%'); out.push_back(format[i]); break;
+      }
+    } else {
+      out.push_back(ch);
+    }
+  }
+  return out;
+}
+
 // Matches find's `-size N[bcwkMG]` with an optional +/- prefix. The file size
 // is rounded UP to the chosen unit (default 512-byte blocks), as find does.
 bool MatchesSize(std::string_view arg, std::uint64_t size_bytes) {
@@ -321,6 +396,12 @@ bool EvaluatePredicate(
     std::string record(visit.path);
     record.push_back('\0');
     emit(record);
+    return true;
+  }
+  if (name == "-printf") {
+    if (has_arg) {
+      emit(FormatPrintf(expr.args.front(), visit));  // no implicit newline; the format owns it
+    }
     return true;
   }
   if (name == "-prune") {

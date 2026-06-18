@@ -241,6 +241,9 @@ TEST_F(ConformanceTest, IRegexWholePathTxt) { ExpectMatchesFind({"-iregex", ".*\
 TEST_F(ConformanceTest, NewerMtimeVsRefMtime) { ExpectMatchesFind({"-newermm", (root_ / "b.md").string()}); }
 TEST_F(ConformanceTest, NewerCtimeVsRefMtime) { ExpectMatchesFind({"-newercm", (root_ / "b.md").string()}); }
 TEST_F(ConformanceTest, NewerMtimeVsRefCtime) { ExpectMatchesFind({"-newermc", (root_ / "b.md").string()}); }
+// -printf is a GNU extension; BSD find lacks it, so these skip on macOS.
+TEST_F(ConformanceTest, PrintfPathAndSize) { ExpectMatchesFind({"-printf", "%p %s\\n"}); }
+TEST_F(ConformanceTest, PrintfNameTypeDepth) { ExpectMatchesFind({"-printf", "%f %y %d\\n"}); }
 
 }  // namespace
 }  // namespace xff

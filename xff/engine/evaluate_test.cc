@@ -321,5 +321,18 @@ TEST_F(EvaluateTest, NewerXYFalseWhenReferenceMissing) {
   EXPECT_FALSE(Match({"-newerac", "/no/such/reference"}, visit));
 }
 
+TEST_F(EvaluateTest, PrintfExpandsDirectivesAndEscapes) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.size = 42;
+  md.mode = 0644;
+  md.nlink = 3;
+  const Visit visit{.path = "a/b/c.txt", .name = "c.txt", .depth = 2, .metadata = md};
+  EXPECT_TRUE(Match({"-printf", "%p|%f|%h|%s|%m|%d|%y\\n"}, visit));
+  EXPECT_THAT(emitted_, Eq("a/b/c.txt|c.txt|a/b|42|644|2|f\n"));
+  EXPECT_TRUE(Match({"-printf", "%%\\t%n"}, visit));  // literal %, tab escape, link count
+  EXPECT_THAT(emitted_, Eq("%\t3"));
+}
+
 }  // namespace
 }  // namespace xff::engine
