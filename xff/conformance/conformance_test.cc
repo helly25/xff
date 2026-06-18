@@ -235,6 +235,12 @@ TEST_F(ConformanceTest, PhysicalKeepsSymlinkType) { ExpectMatchesFind({"-P"}, {"
 // -regex matches the whole path; `.*\.txt` is grammar-agnostic (basic/emacs/RE2 agree).
 TEST_F(ConformanceTest, RegexWholePathTxt) { ExpectMatchesFind({"-regex", ".*\\.txt"}); }
 TEST_F(ConformanceTest, IRegexWholePathTxt) { ExpectMatchesFind({"-iregex", ".*\\.TXT"}); }
+// -newerXY compares two files' timestamps; mtime/ctime are stable between the
+// find and xff runs (atime is not, so it is avoided here). The fixture chmods
+// some files, so ctime != mtime, which distinguishes the X/Y field selection.
+TEST_F(ConformanceTest, NewerMtimeVsRefMtime) { ExpectMatchesFind({"-newermm", (root_ / "b.md").string()}); }
+TEST_F(ConformanceTest, NewerCtimeVsRefMtime) { ExpectMatchesFind({"-newercm", (root_ / "b.md").string()}); }
+TEST_F(ConformanceTest, NewerMtimeVsRefCtime) { ExpectMatchesFind({"-newermc", (root_ / "b.md").string()}); }
 
 }  // namespace
 }  // namespace xff

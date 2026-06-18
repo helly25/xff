@@ -185,6 +185,23 @@ bool IsNewerThan(const Visit& visit, std::string_view reference, const vfs::File
   return ref.ok() && visit.metadata.mtime > ref->mtime;
 }
 
+// Selects a timestamp by find's X/Y letter: a=access, c=inode-change, m=modify.
+absl::Time TimeField(const vfs::Metadata& metadata, char field) {
+  switch (field) {
+    case 'a': return metadata.atime;
+    case 'c': return metadata.ctime;
+    default: return metadata.mtime;  // 'm'
+  }
+}
+
+// find's -newerXY (X,Y in {a,c,m}): the entry's X-time is more recent than the
+// reference FILE's Y-time. The reference is stat'd following symlinks; a missing
+// reference makes it false. (The Y=t time-string form is a later addition.)
+bool IsNewerXY(const Visit& visit, char x, char y, std::string_view reference, const vfs::FileSystem& fs) {
+  const absl::StatusOr<vfs::Metadata> ref = fs.Stat(reference, /*follow_symlinks=*/true);
+  return ref.ok() && TimeField(visit.metadata, x) > TimeField(*ref, y);
+}
+
 // find's -mtime/-mmin: the entry was modified N units ago -- 24h for -mtime, one
 // minute for -mmin -- with any fractional unit discarded (floor), so a 2.9-day
 // file is "2 days". +N means strictly more than N units ago, -N strictly fewer.
@@ -286,6 +303,10 @@ bool EvaluatePredicate(
   if (name == "-perm") return has_arg && MatchesPerm(expr.args.front(), visit.metadata.mode);
   if (name == "-empty") return IsEmpty(visit, fs);
   if (name == "-newer") return has_arg && IsNewerThan(visit, expr.args.front(), fs);
+  // -newerXY with X,Y in {a,c,m}: the registry only admits those 8-char names.
+  if (name.size() == 8 && name.starts_with("-newer")) {
+    return has_arg && IsNewerXY(visit, name[6], name[7], expr.args.front(), fs);
+  }
   if (name == "-mtime") return has_arg && MatchesTime(expr.args.front(), visit.metadata.mtime, now, absl::Hours(24));
   if (name == "-mmin") return has_arg && MatchesTime(expr.args.front(), visit.metadata.mtime, now, absl::Minutes(1));
   if (name == "-atime") return has_arg && MatchesTime(expr.args.front(), visit.metadata.atime, now, absl::Hours(24));

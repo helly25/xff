@@ -312,5 +312,14 @@ TEST_F(EvaluateTest, RegexMatchesWholePath) {
   EXPECT_TRUE(Match({"-iregex", ".*\\.TXT"}, visit));
 }
 
+TEST_F(EvaluateTest, NewerXYFalseWhenReferenceMissing) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("f", "f", vfs::FileType::kRegular, md);
+  // -newerXY with an unreadable reference is false; real field comparisons are
+  // covered by the conformance test against actual files.
+  EXPECT_FALSE(Match({"-newermm", "/no/such/reference"}, visit));
+  EXPECT_FALSE(Match({"-newerac", "/no/such/reference"}, visit));
+}
+
 }  // namespace
 }  // namespace xff::engine
