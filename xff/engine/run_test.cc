@@ -176,5 +176,27 @@ TEST_F(RunTest, DepthVisitsPostOrder) {
   EXPECT_THAT(out.back(), Eq(root_.string()));
 }
 
+TEST_F(RunTest, SymlinkLModeFollowsDirectorySymlink) {
+  std::error_code ec;
+  fs::create_directory_symlink(root_ / "sub", root_ / "lnk", ec);
+  ASSERT_FALSE(ec);
+  // `find -L <root> -name c.txt`: -L follows the directory symlink lnk -> sub, so
+  // c.txt is reachable both directly (sub/c.txt) and through the link (lnk/c.txt).
+  const auto command = parser::Parse({"-L", root_.string(), "-name", "c.txt"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> out;
+  RunFind(
+      *command, fs_,
+      [&](std::string_view record) {
+        std::string text(record);
+        if (!text.empty() && (text.back() == '\n' || text.back() == '\0')) {
+          text.pop_back();
+        }
+        out.push_back(std::move(text));
+      },
+      [](std::string_view, const absl::Status&) {});
+  EXPECT_THAT(out, UnorderedElementsAre(Path("sub/c.txt"), Path("lnk/c.txt")));
+}
+
 }  // namespace
 }  // namespace xff::engine
