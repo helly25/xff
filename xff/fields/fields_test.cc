@@ -67,5 +67,13 @@ TEST_F(FieldsTest, TimeFieldQualifiers) {
   EXPECT_THAT(Render("{mtime}", "f", md, 0), HasSubstr("2023"));  // default ISO-8601
 }
 
+TEST_F(FieldsTest, ModeAndOwnerFields) {
+  vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  md.mode = 0644;
+  md.uid = 1234567;  // unlikely to have a passwd/group entry -> numeric fallback (find's %u/%g)
+  md.gid = 1234567;
+  EXPECT_THAT(Render("{mode} {user}:{group}", "f", md, 0), Eq("644 1234567:1234567"));
+}
+
 }  // namespace
 }  // namespace xff::fields
