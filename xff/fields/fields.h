@@ -33,8 +33,9 @@ namespace xff::fields {
 // {depth} {size} ({size:h} human-readable) {type} {inode} {links} {mode}/{perm}
 // (octal) {user} {group}, and time fields {atime} {mtime} {ctime} {btime} with
 // an optional qualifier {field:QUAL} -- a strftime format ({mtime:%Y-%m-%d}) or
-// preset ({mtime:iso|epoch}); local time, default ISO-8601. The quoted-string
-// qualifier and {root} layer on later.
+// preset ({mtime:iso|epoch}); local time, default ISO-8601. A qualifier may be
+// written as a "C-quoted string" ({mtime:"{\"t\":\"%H:%M\"}"}) so it can hold a
+// literal '}' or ':' (\" and \\ are escapes). {root} layers on later.
 std::string Render(std::string_view tmpl, std::string_view path, const vfs::Metadata& metadata, int depth);
 
 }  // namespace xff::fields

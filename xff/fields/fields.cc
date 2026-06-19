@@ -145,7 +145,54 @@ std::string ResolveField(
   if (name == "mode" || name == "perm") return OctalPerm(metadata.mode);
   if (name == "user") return OwnerName(metadata.uid);
   if (name == "group") return GroupName(metadata.gid);
-  return "";  // unknown field ({size:h} human size, {root}/{suffixes}, quoted qualifiers are follow-ups)
+  return "";  // unknown field -> empty ({root} is the remaining follow-up)
+}
+
+// Scans a "{name[:qualifier]}" placeholder beginning at tmpl[start] == '{'. On
+// success returns the index just past the closing '}', with `name` pointing into
+// `tmpl` and `qualifier` holding the (dequoted) qualifier. A qualifier may be a
+// "C-quoted string" so it can carry a literal '}' or ':' (\" and \\ are escapes).
+// Returns npos when there is no well-formed placeholder (the '{' stays literal).
+std::string_view::size_type ParseField(
+    std::string_view tmpl, std::string_view::size_type start, std::string_view& name, std::string& qualifier) {
+  std::string_view::size_type pos = start + 1;
+  const std::string_view::size_type name_begin = pos;
+  while (pos < tmpl.size() && tmpl[pos] != ':' && tmpl[pos] != '}') {
+    ++pos;
+  }
+  if (pos >= tmpl.size()) {
+    return std::string_view::npos;  // no terminator
+  }
+  name = tmpl.substr(name_begin, pos - name_begin);
+  if (tmpl[pos] == '}') {  // no qualifier
+    qualifier.clear();
+    return pos + 1;
+  }
+  ++pos;  // consume ':'
+  if (pos < tmpl.size() && tmpl[pos] == '"') {  // quoted qualifier
+    ++pos;  // consume opening '"'
+    std::string value;
+    while (pos < tmpl.size() && tmpl[pos] != '"') {
+      if (tmpl[pos] == '\\' && pos + 1 < tmpl.size() && (tmpl[pos + 1] == '"' || tmpl[pos + 1] == '\\')) {
+        value.push_back(tmpl[pos + 1]);
+        pos += 2;
+      } else {
+        value.push_back(tmpl[pos]);
+        ++pos;
+      }
+    }
+    if (pos >= tmpl.size() || pos + 1 >= tmpl.size() || tmpl[pos + 1] != '}') {
+      return std::string_view::npos;  // unterminated quote, or no '}' right after -> literal
+    }
+    qualifier = std::move(value);
+    return pos + 2;  // past closing '"' and '}'
+  }
+  const std::string_view::size_type end = tmpl.find('}', pos);  // unquoted qualifier
+  if (end == std::string_view::npos) {
+    return std::string_view::npos;
+  }
+  qualifier.assign(tmpl.substr(pos, end - pos));
+  return end + 1;
 }
 
 }  // namespace
@@ -161,19 +208,16 @@ std::string Render(std::string_view tmpl, std::string_view path, const vfs::Meta
       out.push_back('}');
       i += 2;
     } else if (ch == '{') {
-      const std::string_view::size_type end = tmpl.find('}', i + 1);
-      if (end == std::string_view::npos) {  // unterminated '{' -> literal
+      std::string_view name;
+      std::string qualifier;
+      const std::string_view::size_type next = ParseField(tmpl, i, name, qualifier);
+      if (next == std::string_view::npos) {  // not a well-formed placeholder -> literal '{'
         out.push_back(ch);
         ++i;
         continue;
       }
-      const std::string_view content = tmpl.substr(i + 1, end - i - 1);
-      const std::string_view::size_type colon = content.find(':');
-      const std::string_view name = colon == std::string_view::npos ? content : content.substr(0, colon);
-      const std::string_view qualifier =
-          colon == std::string_view::npos ? std::string_view{} : content.substr(colon + 1);
       out.append(ResolveField(name, qualifier, path, metadata, depth));
-      i = end + 1;
+      i = next;
     } else {
       out.push_back(ch);
       ++i;
