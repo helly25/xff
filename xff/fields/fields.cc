@@ -19,6 +19,7 @@
 #include <string>
 #include <string_view>
 
+#include "absl/time/time.h"
 #include "xff/vfs/entry.h"
 
 namespace xff::fields {
@@ -40,8 +41,22 @@ char TypeLetter(vfs::FileType type) {
   return 'U';
 }
 
-// Resolves a bare field name to its value for the entry; unknown -> empty.
-std::string ResolveField(std::string_view name, std::string_view path, const vfs::Metadata& metadata, int depth) {
+// Formats a timestamp for a time field: "epoch" -> Unix seconds; "iso" or an
+// empty qualifier -> ISO-8601 local time; otherwise a strftime format string.
+// find/xff render times in local time (like find's %t).
+std::string FormatTimeField(absl::Time time, std::string_view qualifier) {
+  if (qualifier == "epoch") {
+    return std::to_string(absl::ToUnixSeconds(time));
+  }
+  const std::string format =
+      (qualifier.empty() || qualifier == "iso") ? "%Y-%m-%dT%H:%M:%S%z" : std::string(qualifier);
+  return absl::FormatTime(format, time, absl::LocalTimeZone());
+}
+
+// Resolves a field name + optional qualifier to its value; unknown -> empty.
+std::string ResolveField(
+    std::string_view name, std::string_view qualifier, std::string_view path, const vfs::Metadata& metadata,
+    int depth) {
   const stdfs::path fs_path{std::string(path)};
   if (name == "path") return std::string(path);
   if (name == "dir") {
@@ -59,7 +74,11 @@ std::string ResolveField(std::string_view name, std::string_view path, const vfs
   if (name == "type") return std::string(1, TypeLetter(metadata.type));
   if (name == "inode") return std::to_string(metadata.ino);
   if (name == "links") return std::to_string(metadata.nlink);
-  return "";  // unknown field (qualifiers + more fields are follow-ups)
+  if (name == "mtime") return FormatTimeField(metadata.mtime, qualifier);
+  if (name == "atime") return FormatTimeField(metadata.atime, qualifier);
+  if (name == "ctime") return FormatTimeField(metadata.ctime, qualifier);
+  if (name == "btime") return metadata.btime.has_value() ? FormatTimeField(*metadata.btime, qualifier) : "";
+  return "";  // unknown field (size/mode/owner qualifiers + {root}/{suffixes} are follow-ups)
 }
 
 }  // namespace
@@ -81,7 +100,12 @@ std::string Render(std::string_view tmpl, std::string_view path, const vfs::Meta
         ++i;
         continue;
       }
-      out.append(ResolveField(tmpl.substr(i + 1, end - i - 1), path, metadata, depth));
+      const std::string_view content = tmpl.substr(i + 1, end - i - 1);
+      const std::string_view::size_type colon = content.find(':');
+      const std::string_view name = colon == std::string_view::npos ? content : content.substr(0, colon);
+      const std::string_view qualifier =
+          colon == std::string_view::npos ? std::string_view{} : content.substr(colon + 1);
+      out.append(ResolveField(name, qualifier, path, metadata, depth));
       i = end + 1;
     } else {
       out.push_back(ch);
