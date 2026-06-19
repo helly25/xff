@@ -13,8 +13,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// getpwuid()/getgrgid() are POSIX, hidden by glibc under the strict -std=c++23
+// build; request them explicitly. No effect on macOS.
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE 1
+#endif
+
 #include "xff/fields/fields.h"
 
+#include <grp.h>
+#include <pwd.h>
+
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -39,6 +49,35 @@ char TypeLetter(vfs::FileType type) {
     case vfs::FileType::kUnknown: return 'U';
   }
   return 'U';
+}
+
+// Permission bits as octal without leading zeros (find's %m): %o of mode & 07777.
+std::string OctalPerm(std::uint32_t mode) {
+  const unsigned bits = mode & 07777U;
+  std::string out;
+  for (int shift = 9; shift >= 0; shift -= 3) {
+    const unsigned digit = (bits >> shift) & 7U;
+    if (!out.empty() || digit != 0) {
+      out.push_back(static_cast<char>('0' + digit));
+    }
+  }
+  return out.empty() ? "0" : out;
+}
+
+// Owner / group name from the password / group database, falling back to the
+// numeric id when there is no entry (matching find's %u/%g).
+std::string OwnerName(std::uint32_t uid) {
+  if (const struct passwd* const pw = ::getpwuid(uid); pw != nullptr) {
+    return pw->pw_name;
+  }
+  return std::to_string(uid);
+}
+
+std::string GroupName(std::uint32_t gid) {
+  if (const struct group* const gr = ::getgrgid(gid); gr != nullptr) {
+    return gr->gr_name;
+  }
+  return std::to_string(gid);
 }
 
 // Formats a timestamp for a time field: "epoch" -> Unix seconds; "iso" or an
@@ -78,7 +117,10 @@ std::string ResolveField(
   if (name == "atime") return FormatTimeField(metadata.atime, qualifier);
   if (name == "ctime") return FormatTimeField(metadata.ctime, qualifier);
   if (name == "btime") return metadata.btime.has_value() ? FormatTimeField(*metadata.btime, qualifier) : "";
-  return "";  // unknown field (size/mode/owner qualifiers + {root}/{suffixes} are follow-ups)
+  if (name == "mode" || name == "perm") return OctalPerm(metadata.mode);
+  if (name == "user") return OwnerName(metadata.uid);
+  if (name == "group") return GroupName(metadata.gid);
+  return "";  // unknown field ({size:h} human size, {root}/{suffixes}, quoted qualifiers are follow-ups)
 }
 
 }  // namespace

@@ -30,10 +30,11 @@ namespace xff::fields {
 // substitution.
 //
 // Supported: {path} {dir} {name}/{file} {stem} {ext}/{extension} {depth} {size}
-// {type} {inode} {links}, and time fields {atime} {mtime} {ctime} {btime} with
-// an optional qualifier {field:QUAL} -- a strftime format ({mtime:%Y-%m-%d}) or
-// preset ({mtime:iso|epoch}); local time, default ISO-8601. The quoted-string
-// qualifier, owner/mode fields, {root}, and {suffixes} layer on later.
+// {type} {inode} {links} {mode}/{perm} (octal) {user} {group}, and time fields
+// {atime} {mtime} {ctime} {btime} with an optional qualifier {field:QUAL} -- a
+// strftime format ({mtime:%Y-%m-%d}) or preset ({mtime:iso|epoch}); local time,
+// default ISO-8601. The quoted-string qualifier, {size:h}, {root}, and
+// {suffixes} layer on later.
 std::string Render(std::string_view tmpl, std::string_view path, const vfs::Metadata& metadata, int depth);
 
 }  // namespace xff::fields
