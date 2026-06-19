@@ -75,5 +75,13 @@ TEST_F(FieldsTest, ModeAndOwnerFields) {
   EXPECT_THAT(Render("{mode} {user}:{group}", "f", md, 0), Eq("644 1234567:1234567"));
 }
 
+TEST_F(FieldsTest, HumanSizeAndSuffixes) {
+  EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 1536), 0), Eq("1.5K"));
+  EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 500), 0), Eq("500"));  // < 1 KiB: plain
+  EXPECT_THAT(Render("{size}", "f", Meta(vfs::FileType::kRegular, 1536), 0), Eq("1536"));  // no qualifier
+  EXPECT_THAT(Render("{suffixes}", "a/b/file.tar.gz", Meta(vfs::FileType::kRegular, 0), 0), Eq(".tar.gz"));
+  EXPECT_THAT(Render("{suffixes}", "a/b/file", Meta(vfs::FileType::kRegular, 0), 0), Eq(""));
+}
+
 }  // namespace
 }  // namespace xff::fields
