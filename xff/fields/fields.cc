@@ -92,6 +92,26 @@ std::string FormatTimeField(absl::Time time, std::string_view qualifier) {
   return absl::FormatTime(format, time, absl::LocalTimeZone());
 }
 
+// Human-readable size ({size:h}): bytes under 1 KiB as a plain count, otherwise
+// a 1024-based unit with one (truncated) decimal, e.g. 1536 -> "1.5K".
+std::string HumanSize(std::uint64_t bytes) {
+  if (bytes < 1024) {
+    return std::to_string(bytes);
+  }
+  static constexpr char kUnits[] = "KMGTPE";
+  std::uint64_t scale = 1024;
+  int unit = 0;
+  while (bytes >= scale * 1024 && unit + 1 < 6) {
+    scale *= 1024;
+    ++unit;
+  }
+  std::string out = std::to_string(bytes / scale);
+  out.push_back('.');
+  out.push_back(static_cast<char>('0' + (bytes % scale) * 10 / scale));
+  out.push_back(kUnits[unit]);
+  return out;
+}
+
 // Resolves a field name + optional qualifier to its value; unknown -> empty.
 std::string ResolveField(
     std::string_view name, std::string_view qualifier, std::string_view path, const vfs::Metadata& metadata,
@@ -108,8 +128,13 @@ std::string ResolveField(
     const std::string ext = fs_path.extension().string();  // includes the leading '.'
     return ext.empty() ? ext : ext.substr(1);
   }
+  if (name == "suffixes") {  // all extensions, e.g. ".tar.gz"; a leading dot is not one
+    const std::string filename = fs_path.filename().string();
+    const std::string::size_type dot = filename.find('.', 1);
+    return dot == std::string::npos ? "" : filename.substr(dot);
+  }
   if (name == "depth") return std::to_string(depth);
-  if (name == "size") return std::to_string(metadata.size);
+  if (name == "size") return qualifier == "h" ? HumanSize(metadata.size) : std::to_string(metadata.size);
   if (name == "type") return std::string(1, TypeLetter(metadata.type));
   if (name == "inode") return std::to_string(metadata.ino);
   if (name == "links") return std::to_string(metadata.nlink);
