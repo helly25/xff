@@ -23,6 +23,7 @@ cc_library(
     visibility = ["//xff:__subpackages__"],
     deps = [
         "//xff/vfs:vfs_cc",
+        "@abseil-cpp//absl/time",
     ],
 )
 
@@ -33,6 +34,7 @@ cc_test(
     deps = [
         ":fields_cc",
         "//xff/vfs:vfs_cc",
+        "@abseil-cpp//absl/time",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

@@ -20,12 +20,14 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+#include "absl/time/time.h"
 #include "xff/vfs/entry.h"
 
 namespace xff::fields {
 namespace {
 
 using ::testing::Eq;
+using ::testing::HasSubstr;
 
 struct FieldsTest : ::testing::Test {
   static vfs::Metadata Meta(vfs::FileType type, std::uint64_t size) {
@@ -54,6 +56,15 @@ TEST_F(FieldsTest, DoubledBracesAreLiteral) {
 
 TEST_F(FieldsTest, UnknownFieldRendersEmpty) {
   EXPECT_THAT(Render("[{bogus}]", "p", Meta(vfs::FileType::kRegular, 0), 0), Eq("[]"));
+}
+
+TEST_F(FieldsTest, TimeFieldQualifiers) {
+  vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  md.mtime = absl::FromUnixSeconds(1700000000);  // 2023-11-14, mid-month: the year is timezone-stable
+  EXPECT_THAT(Render("{mtime:epoch}", "f", md, 0), Eq("1700000000"));
+  EXPECT_THAT(Render("{mtime:%Y}", "f", md, 0), Eq("2023"));
+  EXPECT_THAT(Render("{mtime:iso}", "f", md, 0), HasSubstr("2023"));
+  EXPECT_THAT(Render("{mtime}", "f", md, 0), HasSubstr("2023"));  // default ISO-8601
 }
 
 }  // namespace
