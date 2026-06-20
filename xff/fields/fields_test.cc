@@ -94,5 +94,11 @@ TEST_F(FieldsTest, QuotedQualifierCarriesBracesColonsAndQuotes) {
   EXPECT_THAT(Render(R"({mtime:"%Y)", "f", md, 0), Eq(R"({mtime:"%Y)"));
 }
 
+TEST_F(FieldsTest, CompiledTemplateRendersManyEntries) {
+  const Template compiled = Template::Compile("{name}={size:h}");  // parsed once, reused below
+  EXPECT_THAT(compiled.Render("a/x", Meta(vfs::FileType::kRegular, 1), 0), Eq("x=1"));
+  EXPECT_THAT(compiled.Render("b/big", Meta(vfs::FileType::kRegular, 1536), 0), Eq("big=1.5K"));
+}
+
 }  // namespace
 }  // namespace xff::fields

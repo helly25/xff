@@ -18,16 +18,17 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "xff/vfs/entry.h"
 
 namespace xff::fields {
 
-// Renders `tmpl` against one entry, substituting {field} placeholders with
-// values derived from `path`, `metadata`, and `depth`. `{{` and `}}` emit
-// literal braces; an unterminated `{` is literal and an unknown field renders
-// empty. This is the foundation for the --format template and (gated) -exec
-// substitution.
+// Renders {field} placeholder templates against a visited entry, substituting
+// values derived from its `path`, `metadata`, and `depth`. `{{` and `}}` emit
+// literal braces; an unterminated or malformed `{` stays literal; an unknown
+// field renders empty. This backs the --format/--template output and (gated)
+// -exec substitution.
 //
 // Supported: {path} {dir} {name}/{file} {stem} {ext}/{extension} {suffixes}
 // {depth} {size} ({size:h} human-readable) {type} {inode} {links} {mode}/{perm}
@@ -36,6 +37,28 @@ namespace xff::fields {
 // preset ({mtime:iso|epoch}); local time, default ISO-8601. A qualifier may be
 // written as a "C-quoted string" ({mtime:"{\"t\":\"%H:%M\"}"}) so it can hold a
 // literal '}' or ':' (\" and \\ are escapes). {root} layers on later.
+//
+// Compile parses the template once into literal/field segments; the resulting
+// Template renders against many entries without re-scanning -- the hot path for
+// --template (and -exec), which render every match.
+class Template {
+ public:
+  static Template Compile(std::string_view tmpl);
+
+  std::string Render(std::string_view path, const vfs::Metadata& metadata, int depth) const;
+
+ private:
+  struct Segment {
+    bool is_field = false;   // false: emit `text` verbatim; true: resolve field `text`
+    std::string text;        // literal run, or field name when is_field
+    std::string qualifier;   // field qualifier, when is_field
+  };
+
+  std::vector<Segment> segments_;
+};
+
+// Convenience wrapper: Compile(tmpl).Render(...). Prefer Compile once + Render
+// per entry on hot paths.
 std::string Render(std::string_view tmpl, std::string_view path, const vfs::Metadata& metadata, int depth);
 
 }  // namespace xff::fields
