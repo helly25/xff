@@ -28,6 +28,8 @@
 #include <filesystem>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include "absl/time/time.h"
 #include "xff/vfs/entry.h"
@@ -197,33 +199,58 @@ std::string_view::size_type ParseField(
 
 }  // namespace
 
-std::string Render(std::string_view tmpl, std::string_view path, const vfs::Metadata& metadata, int depth) {
-  std::string out;
+Template Template::Compile(std::string_view tmpl) {
+  Template compiled;
+  std::string literal;
+  const auto flush_literal = [&] {
+    if (!literal.empty()) {
+      compiled.segments_.push_back({/*is_field=*/false, std::move(literal), {}});
+      literal.clear();  // restore the moved-from buffer to a known-empty state
+    }
+  };
   for (std::string_view::size_type i = 0; i < tmpl.size();) {
     const char ch = tmpl[i];
     if (ch == '{' && i + 1 < tmpl.size() && tmpl[i + 1] == '{') {
-      out.push_back('{');
+      literal.push_back('{');
       i += 2;
     } else if (ch == '}' && i + 1 < tmpl.size() && tmpl[i + 1] == '}') {
-      out.push_back('}');
+      literal.push_back('}');
       i += 2;
     } else if (ch == '{') {
       std::string_view name;
       std::string qualifier;
       const std::string_view::size_type next = ParseField(tmpl, i, name, qualifier);
       if (next == std::string_view::npos) {  // not a well-formed placeholder -> literal '{'
-        out.push_back(ch);
+        literal.push_back(ch);
         ++i;
         continue;
       }
-      out.append(ResolveField(name, qualifier, path, metadata, depth));
+      flush_literal();
+      compiled.segments_.push_back({/*is_field=*/true, std::string(name), std::move(qualifier)});
       i = next;
     } else {
-      out.push_back(ch);
+      literal.push_back(ch);
       ++i;
     }
   }
+  flush_literal();
+  return compiled;
+}
+
+std::string Template::Render(std::string_view path, const vfs::Metadata& metadata, int depth) const {
+  std::string out;
+  for (const Segment& segment : segments_) {
+    if (segment.is_field) {
+      out.append(ResolveField(segment.text, segment.qualifier, path, metadata, depth));
+    } else {
+      out.append(segment.text);
+    }
+  }
   return out;
+}
+
+std::string Render(std::string_view tmpl, std::string_view path, const vfs::Metadata& metadata, int depth) {
+  return Template::Compile(tmpl).Render(path, metadata, depth);
 }
 
 }  // namespace xff::fields

@@ -189,6 +189,9 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   options.symlinks = ResolveSymlinkMode(command.globals);
   const render::Format format = ResolveFormat(command.globals);
   const std::optional<std::string> tmpl = ResolveTemplate(command.globals);
+  // Precompile the --template once; rendering each match then skips re-scanning.
+  const std::optional<fields::Template> compiled_tmpl =
+      tmpl.has_value() ? std::optional<fields::Template>(fields::Template::Compile(*tmpl)) : std::nullopt;
   if (expression != nullptr) {
     ScanDepthOptions(*expression, &options);
   }
@@ -208,8 +211,9 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
         Control control;
         const bool matched = expression == nullptr || Evaluate(*expression, visit, emit, walk_fs, now, control);
         if (matched && !has_action) {
-          emit(tmpl.has_value() ? fields::Render(*tmpl, visit.path, visit.metadata, visit.depth) + "\n"
-                                : render::Renderer(format).Record(visit.path));  // --template overrides --format
+          emit(compiled_tmpl.has_value()
+                   ? compiled_tmpl->Render(visit.path, visit.metadata, visit.depth) + "\n"
+                   : render::Renderer(format).Record(visit.path));  // --template overrides --format
         }
         if (control.quit) return WalkAction::kStop;
         if (control.prune) return WalkAction::kPrune;
