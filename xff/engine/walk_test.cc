@@ -312,5 +312,31 @@ TEST_F(WalkFakeFsTest, FollowAllDetectsFilesystemLoop) {
   EXPECT_THAT(errors_, Eq(1));  // the loop was reported, and the walk did not recurse forever
 }
 
+TEST_F(WalkFakeFsTest, CarriesOriginatingRootPerEntry) {
+  // Two command-line roots; every visited entry reports the root it descends from
+  // (find %H): a root operand reports itself, and descendants inherit it.
+  fs_.AddDir("/r", 1, {FileEntry("/r/a", "a"), DirEntry("/r/sub", "sub")});
+  fs_.AddFile("/r/a", 1);
+  fs_.AddDir("/r/sub", 1, {FileEntry("/r/sub/b", "b")});
+  fs_.AddFile("/r/sub/b", 1);
+  fs_.AddDir("/s", 1, {FileEntry("/s/c", "c")});
+  fs_.AddFile("/s/c", 1);
+
+  std::vector<std::pair<std::string, std::string>> seen;  // (path, root)
+  const absl::Status status = Walk(
+      fs_, {"/r", "/s"}, WalkOptions{},
+      [&](const Visit& visit) {
+        seen.emplace_back(std::string(visit.path), std::string(visit.root));
+        return WalkAction::kContinue;
+      },
+      [&](std::string_view, const absl::Status&) {});
+  EXPECT_THAT(status, IsOk());
+  EXPECT_THAT(
+      seen,
+      UnorderedElementsAre(
+          Pair("/r", "/r"), Pair("/r/a", "/r"), Pair("/r/sub", "/r"), Pair("/r/sub/b", "/r"), Pair("/s", "/s"),
+          Pair("/s/c", "/s")));
+}
+
 }  // namespace
 }  // namespace xff::engine
