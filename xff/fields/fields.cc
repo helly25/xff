@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "absl/time/time.h"
+#include "mbo/container/limited_map.h"
 #include "xff/vfs/entry.h"
 
 namespace xff::fields {
@@ -114,40 +115,87 @@ std::string HumanSize(std::uint64_t bytes) {
   return out;
 }
 
-// Resolves a field name + optional qualifier to its value; unknown -> empty.
-std::string ResolveField(
-    std::string_view name, std::string_view qualifier, std::string_view path, const vfs::Metadata& metadata,
-    int depth) {
-  const stdfs::path fs_path{std::string(path)};
-  if (name == "path") return std::string(path);
-  if (name == "dir") {
-    const std::string parent = fs_path.parent_path().string();
-    return parent.empty() ? "." : parent;  // find's %h is "." when there is no directory part
-  }
-  if (name == "name" || name == "file") return fs_path.filename().string();
-  if (name == "stem") return fs_path.stem().string();
-  if (name == "ext" || name == "extension") {
-    const std::string ext = fs_path.extension().string();  // includes the leading '.'
-    return ext.empty() ? ext : ext.substr(1);
-  }
-  if (name == "suffixes") {  // all extensions, e.g. ".tar.gz"; a leading dot is not one
-    const std::string filename = fs_path.filename().string();
-    const std::string::size_type dot = filename.find('.', 1);
-    return dot == std::string::npos ? "" : filename.substr(dot);
-  }
-  if (name == "depth") return std::to_string(depth);
-  if (name == "size") return qualifier == "h" ? HumanSize(metadata.size) : std::to_string(metadata.size);
-  if (name == "type") return std::string(1, TypeLetter(metadata.type));
-  if (name == "inode") return std::to_string(metadata.ino);
-  if (name == "links") return std::to_string(metadata.nlink);
-  if (name == "mtime") return FormatTimeField(metadata.mtime, qualifier);
-  if (name == "atime") return FormatTimeField(metadata.atime, qualifier);
-  if (name == "ctime") return FormatTimeField(metadata.ctime, qualifier);
-  if (name == "btime") return metadata.btime.has_value() ? FormatTimeField(*metadata.btime, qualifier) : "";
-  if (name == "mode" || name == "perm") return OctalPerm(metadata.mode);
-  if (name == "user") return OwnerName(metadata.uid);
-  if (name == "group") return GroupName(metadata.gid);
+// Per-field renderers. The signature is uniform so they can share one dispatch
+// table; unused parameters are left unnamed. `path`-derived fields build their
+// own std::filesystem::path -- a template rarely uses more than one of them.
+std::string PathField(std::string_view, std::string_view path, const vfs::Metadata&, int) {
+  return std::string(path);
+}
+std::string DirField(std::string_view, std::string_view path, const vfs::Metadata&, int) {
+  const std::string parent = stdfs::path(std::string(path)).parent_path().string();
+  return parent.empty() ? "." : parent;  // find's %h is "." when there is no directory part
+}
+std::string NameField(std::string_view, std::string_view path, const vfs::Metadata&, int) {
+  return stdfs::path(std::string(path)).filename().string();
+}
+std::string StemField(std::string_view, std::string_view path, const vfs::Metadata&, int) {
+  return stdfs::path(std::string(path)).stem().string();
+}
+std::string ExtField(std::string_view, std::string_view path, const vfs::Metadata&, int) {
+  const std::string ext = stdfs::path(std::string(path)).extension().string();  // includes the leading '.'
+  return ext.empty() ? ext : ext.substr(1);
+}
+std::string SuffixesField(std::string_view, std::string_view path, const vfs::Metadata&, int) {
+  const std::string filename = stdfs::path(std::string(path)).filename().string();
+  const std::string::size_type dot = filename.find('.', 1);  // all extensions; a leading dot is not one
+  return dot == std::string::npos ? "" : filename.substr(dot);
+}
+std::string DepthField(std::string_view, std::string_view, const vfs::Metadata&, int depth) {
+  return std::to_string(depth);
+}
+std::string SizeField(std::string_view qualifier, std::string_view, const vfs::Metadata& metadata, int) {
+  return qualifier == "h" ? HumanSize(metadata.size) : std::to_string(metadata.size);
+}
+std::string TypeField(std::string_view, std::string_view, const vfs::Metadata& metadata, int) {
+  return std::string(1, TypeLetter(metadata.type));
+}
+std::string InodeField(std::string_view, std::string_view, const vfs::Metadata& metadata, int) {
+  return std::to_string(metadata.ino);
+}
+std::string LinksField(std::string_view, std::string_view, const vfs::Metadata& metadata, int) {
+  return std::to_string(metadata.nlink);
+}
+std::string MtimeField(std::string_view qualifier, std::string_view, const vfs::Metadata& metadata, int) {
+  return FormatTimeField(metadata.mtime, qualifier);
+}
+std::string AtimeField(std::string_view qualifier, std::string_view, const vfs::Metadata& metadata, int) {
+  return FormatTimeField(metadata.atime, qualifier);
+}
+std::string CtimeField(std::string_view qualifier, std::string_view, const vfs::Metadata& metadata, int) {
+  return FormatTimeField(metadata.ctime, qualifier);
+}
+std::string BtimeField(std::string_view qualifier, std::string_view, const vfs::Metadata& metadata, int) {
+  return metadata.btime.has_value() ? FormatTimeField(*metadata.btime, qualifier) : "";
+}
+std::string ModeField(std::string_view, std::string_view, const vfs::Metadata& metadata, int) {
+  return OctalPerm(metadata.mode);
+}
+std::string UserField(std::string_view, std::string_view, const vfs::Metadata& metadata, int) {
+  return OwnerName(metadata.uid);
+}
+std::string GroupField(std::string_view, std::string_view, const vfs::Metadata& metadata, int) {
+  return GroupName(metadata.gid);
+}
+std::string EmptyField(std::string_view, std::string_view, const vfs::Metadata&, int) {
   return "";  // unknown field -> empty ({root} is the remaining follow-up)
+}
+
+// Constexpr field-name -> renderer table, built once at compile time via mbo's
+// LimitedMap. Aliases (file/name, ext/extension, mode/perm) share a renderer.
+using FieldEntry = std::pair<std::string_view, detail::FieldFn>;
+constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
+    FieldEntry{"atime", &AtimeField}, FieldEntry{"btime", &BtimeField}, FieldEntry{"ctime", &CtimeField},
+    FieldEntry{"depth", &DepthField}, FieldEntry{"dir", &DirField}, FieldEntry{"ext", &ExtField},
+    FieldEntry{"extension", &ExtField}, FieldEntry{"file", &NameField}, FieldEntry{"group", &GroupField},
+    FieldEntry{"inode", &InodeField}, FieldEntry{"links", &LinksField}, FieldEntry{"mode", &ModeField},
+    FieldEntry{"mtime", &MtimeField}, FieldEntry{"name", &NameField}, FieldEntry{"path", &PathField},
+    FieldEntry{"perm", &ModeField}, FieldEntry{"size", &SizeField}, FieldEntry{"stem", &StemField},
+    FieldEntry{"suffixes", &SuffixesField}, FieldEntry{"type", &TypeField}, FieldEntry{"user", &UserField});
+
+// Resolves a field name to its renderer; an unknown name renders empty.
+detail::FieldFn LookupField(std::string_view name) {
+  const auto it = kFieldTable.find(name);
+  return it == kFieldTable.end() ? &EmptyField : it->second;
 }
 
 // Scans a "{name[:qualifier]}" placeholder beginning at tmpl[start] == '{'. On
@@ -204,7 +252,7 @@ Template Template::Compile(std::string_view tmpl) {
   std::string literal;
   const auto flush_literal = [&] {
     if (!literal.empty()) {
-      compiled.segments_.push_back({/*is_field=*/false, std::move(literal), {}});
+      compiled.segments_.push_back({std::move(literal), nullptr, {}});
       literal.clear();  // restore the moved-from buffer to a known-empty state
     }
   };
@@ -226,7 +274,7 @@ Template Template::Compile(std::string_view tmpl) {
         continue;
       }
       flush_literal();
-      compiled.segments_.push_back({/*is_field=*/true, std::string(name), std::move(qualifier)});
+      compiled.segments_.push_back({{}, LookupField(name), std::move(qualifier)});
       i = next;
     } else {
       literal.push_back(ch);
@@ -240,10 +288,10 @@ Template Template::Compile(std::string_view tmpl) {
 std::string Template::Render(std::string_view path, const vfs::Metadata& metadata, int depth) const {
   std::string out;
   for (const Segment& segment : segments_) {
-    if (segment.is_field) {
-      out.append(ResolveField(segment.text, segment.qualifier, path, metadata, depth));
+    if (segment.fn != nullptr) {
+      out.append(segment.fn(segment.qualifier, path, metadata, depth));
     } else {
-      out.append(segment.text);
+      out.append(segment.literal);
     }
   }
   return out;
