@@ -59,6 +59,7 @@ struct WalkOptions {
 struct Visit {
   std::string_view path;          // path as traversed (root prefix preserved, like find)
   std::string_view name;          // final path component
+  std::string_view root;          // command-line search root this entry was reached from (find %H)
   int depth;                      // 0 for a root operand, +1 per directory level
   const vfs::Metadata& metadata;  // lstat of `path`
 };

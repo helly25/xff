@@ -64,8 +64,10 @@ class Walker {
 
     if (depth == 0) {
       root_dev_ = metadata->dev;  // device of the root this subtree started from (-xdev)
+      current_root_ = path;       // command-line operand this subtree descends from (find %H)
     }
-    const Visit visit{.path = path, .name = Basename(path), .depth = depth, .metadata = *metadata};
+    const Visit visit{
+        .path = path, .name = Basename(path), .root = current_root_, .depth = depth, .metadata = *metadata};
     const bool is_dir = metadata->type == vfs::FileType::kDirectory;
     const bool within_depth = options_.max_depth < 0 || depth < options_.max_depth;
     const bool visible = depth >= options_.min_depth;
@@ -131,6 +133,7 @@ class Walker {
   WalkErrorFn on_error_;
   bool stopped_ = false;
   std::uint64_t root_dev_ = 0;  // device of the current root subtree (for -xdev)
+  std::string_view current_root_;  // command-line operand the current subtree descends from (find %H)
   std::set<std::pair<std::uint64_t, std::uint64_t>> ancestors_;  // (dev,ino) on the descent path (loops)
 };
 
