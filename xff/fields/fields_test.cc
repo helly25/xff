@@ -83,5 +83,16 @@ TEST_F(FieldsTest, HumanSizeAndSuffixes) {
   EXPECT_THAT(Render("{suffixes}", "a/b/file", Meta(vfs::FileType::kRegular, 0), 0), Eq(""));
 }
 
+TEST_F(FieldsTest, QuotedQualifierCarriesBracesColonsAndQuotes) {
+  vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  md.mtime = absl::FromUnixSeconds(1700000000);  // 2023-11-14, mid-month: the year is timezone-stable
+  // Escaped quotes/braces survive into the strftime format; the inner '}' does not end the field.
+  EXPECT_THAT(Render(R"({mtime:"{\"y\":\"%Y\"}"})", "f", md, 0), Eq(R"({"y":"2023"})"));
+  // A quoted qualifier is dequoted before matching, so {size:"h"} still selects human-readable size.
+  EXPECT_THAT(Render(R"({size:"h"})", "f", Meta(vfs::FileType::kRegular, 1536), 0), Eq("1.5K"));
+  // An unterminated quoted qualifier leaves the '{' and the remaining text literal.
+  EXPECT_THAT(Render(R"({mtime:"%Y)", "f", md, 0), Eq(R"({mtime:"%Y)"));
+}
+
 }  // namespace
 }  // namespace xff::fields
