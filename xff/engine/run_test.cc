@@ -285,5 +285,25 @@ TEST_F(RunTest, TemplateRendersImplicitPrint) {
   EXPECT_THAT(records, UnorderedElementsAre("a.txt:f"));  // {name}:{type} for a regular file
 }
 
+TEST_F(RunTest, TemplateRootFieldReportsTheSearchOperand) {
+  // {root} is the command-line operand a match descends from (find %H); a nested
+  // match (sub/c.txt) still reports the operand, exercising run.cc's wiring of
+  // Visit::root into the render context.
+  const auto command = parser::Parse({"--template={root}|{name}", root_.string(), "-name", "c.txt"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  RunFind(
+      *command, fs_,
+      [&](std::string_view record) {
+        std::string text(record);
+        if (!text.empty() && text.back() == '\n') {
+          text.pop_back();
+        }
+        records.push_back(std::move(text));
+      },
+      [](std::string_view, const absl::Status&) {});
+  EXPECT_THAT(records, UnorderedElementsAre(root_.string() + "|c.txt"));
+}
+
 }  // namespace
 }  // namespace xff::engine

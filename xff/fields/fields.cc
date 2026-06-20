@@ -118,66 +118,69 @@ std::string HumanSize(std::uint64_t bytes) {
 // Per-field renderers. The signature is uniform so they can share one dispatch
 // table; unused parameters are left unnamed. `path`-derived fields build their
 // own std::filesystem::path -- a template rarely uses more than one of them.
-std::string PathField(std::string_view, std::string_view path, const vfs::Metadata&, int) {
-  return std::string(path);
+std::string PathField(std::string_view, const RenderContext& ctx) {
+  return std::string(ctx.path);
 }
-std::string DirField(std::string_view, std::string_view path, const vfs::Metadata&, int) {
-  const std::string parent = stdfs::path(std::string(path)).parent_path().string();
+std::string RootField(std::string_view, const RenderContext& ctx) {
+  return std::string(ctx.root);  // command-line search root (find %H); empty when unset
+}
+std::string DirField(std::string_view, const RenderContext& ctx) {
+  const std::string parent = stdfs::path(std::string(ctx.path)).parent_path().string();
   return parent.empty() ? "." : parent;  // find's %h is "." when there is no directory part
 }
-std::string NameField(std::string_view, std::string_view path, const vfs::Metadata&, int) {
-  return stdfs::path(std::string(path)).filename().string();
+std::string NameField(std::string_view, const RenderContext& ctx) {
+  return stdfs::path(std::string(ctx.path)).filename().string();
 }
-std::string StemField(std::string_view, std::string_view path, const vfs::Metadata&, int) {
-  return stdfs::path(std::string(path)).stem().string();
+std::string StemField(std::string_view, const RenderContext& ctx) {
+  return stdfs::path(std::string(ctx.path)).stem().string();
 }
-std::string ExtField(std::string_view, std::string_view path, const vfs::Metadata&, int) {
-  const std::string ext = stdfs::path(std::string(path)).extension().string();  // includes the leading '.'
+std::string ExtField(std::string_view, const RenderContext& ctx) {
+  const std::string ext = stdfs::path(std::string(ctx.path)).extension().string();  // includes the leading '.'
   return ext.empty() ? ext : ext.substr(1);
 }
-std::string SuffixesField(std::string_view, std::string_view path, const vfs::Metadata&, int) {
-  const std::string filename = stdfs::path(std::string(path)).filename().string();
+std::string SuffixesField(std::string_view, const RenderContext& ctx) {
+  const std::string filename = stdfs::path(std::string(ctx.path)).filename().string();
   const std::string::size_type dot = filename.find('.', 1);  // all extensions; a leading dot is not one
   return dot == std::string::npos ? "" : filename.substr(dot);
 }
-std::string DepthField(std::string_view, std::string_view, const vfs::Metadata&, int depth) {
-  return std::to_string(depth);
+std::string DepthField(std::string_view, const RenderContext& ctx) {
+  return std::to_string(ctx.depth);
 }
-std::string SizeField(std::string_view qualifier, std::string_view, const vfs::Metadata& metadata, int) {
-  return qualifier == "h" ? HumanSize(metadata.size) : std::to_string(metadata.size);
+std::string SizeField(std::string_view qualifier, const RenderContext& ctx) {
+  return qualifier == "h" ? HumanSize(ctx.metadata.size) : std::to_string(ctx.metadata.size);
 }
-std::string TypeField(std::string_view, std::string_view, const vfs::Metadata& metadata, int) {
-  return std::string(1, TypeLetter(metadata.type));
+std::string TypeField(std::string_view, const RenderContext& ctx) {
+  return std::string(1, TypeLetter(ctx.metadata.type));
 }
-std::string InodeField(std::string_view, std::string_view, const vfs::Metadata& metadata, int) {
-  return std::to_string(metadata.ino);
+std::string InodeField(std::string_view, const RenderContext& ctx) {
+  return std::to_string(ctx.metadata.ino);
 }
-std::string LinksField(std::string_view, std::string_view, const vfs::Metadata& metadata, int) {
-  return std::to_string(metadata.nlink);
+std::string LinksField(std::string_view, const RenderContext& ctx) {
+  return std::to_string(ctx.metadata.nlink);
 }
-std::string MtimeField(std::string_view qualifier, std::string_view, const vfs::Metadata& metadata, int) {
-  return FormatTimeField(metadata.mtime, qualifier);
+std::string MtimeField(std::string_view qualifier, const RenderContext& ctx) {
+  return FormatTimeField(ctx.metadata.mtime, qualifier);
 }
-std::string AtimeField(std::string_view qualifier, std::string_view, const vfs::Metadata& metadata, int) {
-  return FormatTimeField(metadata.atime, qualifier);
+std::string AtimeField(std::string_view qualifier, const RenderContext& ctx) {
+  return FormatTimeField(ctx.metadata.atime, qualifier);
 }
-std::string CtimeField(std::string_view qualifier, std::string_view, const vfs::Metadata& metadata, int) {
-  return FormatTimeField(metadata.ctime, qualifier);
+std::string CtimeField(std::string_view qualifier, const RenderContext& ctx) {
+  return FormatTimeField(ctx.metadata.ctime, qualifier);
 }
-std::string BtimeField(std::string_view qualifier, std::string_view, const vfs::Metadata& metadata, int) {
-  return metadata.btime.has_value() ? FormatTimeField(*metadata.btime, qualifier) : "";
+std::string BtimeField(std::string_view qualifier, const RenderContext& ctx) {
+  return ctx.metadata.btime.has_value() ? FormatTimeField(*ctx.metadata.btime, qualifier) : "";
 }
-std::string ModeField(std::string_view, std::string_view, const vfs::Metadata& metadata, int) {
-  return OctalPerm(metadata.mode);
+std::string ModeField(std::string_view, const RenderContext& ctx) {
+  return OctalPerm(ctx.metadata.mode);
 }
-std::string UserField(std::string_view, std::string_view, const vfs::Metadata& metadata, int) {
-  return OwnerName(metadata.uid);
+std::string UserField(std::string_view, const RenderContext& ctx) {
+  return OwnerName(ctx.metadata.uid);
 }
-std::string GroupField(std::string_view, std::string_view, const vfs::Metadata& metadata, int) {
-  return GroupName(metadata.gid);
+std::string GroupField(std::string_view, const RenderContext& ctx) {
+  return GroupName(ctx.metadata.gid);
 }
-std::string EmptyField(std::string_view, std::string_view, const vfs::Metadata&, int) {
-  return "";  // unknown field -> empty ({root} is the remaining follow-up)
+std::string EmptyField(std::string_view, const RenderContext&) {
+  return "";  // unknown field -> empty
 }
 
 // Constexpr field-name -> renderer table, built once at compile time via mbo's
@@ -189,8 +192,9 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"extension", &ExtField}, FieldEntry{"file", &NameField}, FieldEntry{"group", &GroupField},
     FieldEntry{"inode", &InodeField}, FieldEntry{"links", &LinksField}, FieldEntry{"mode", &ModeField},
     FieldEntry{"mtime", &MtimeField}, FieldEntry{"name", &NameField}, FieldEntry{"path", &PathField},
-    FieldEntry{"perm", &ModeField}, FieldEntry{"size", &SizeField}, FieldEntry{"stem", &StemField},
-    FieldEntry{"suffixes", &SuffixesField}, FieldEntry{"type", &TypeField}, FieldEntry{"user", &UserField});
+    FieldEntry{"perm", &ModeField}, FieldEntry{"root", &RootField}, FieldEntry{"size", &SizeField},
+    FieldEntry{"stem", &StemField}, FieldEntry{"suffixes", &SuffixesField}, FieldEntry{"type", &TypeField},
+    FieldEntry{"user", &UserField});
 
 // Resolves a field name to its renderer; an unknown name renders empty.
 detail::FieldFn LookupField(std::string_view name) {
@@ -285,11 +289,11 @@ Template Template::Compile(std::string_view tmpl) {
   return compiled;
 }
 
-std::string Template::Render(std::string_view path, const vfs::Metadata& metadata, int depth) const {
+std::string Template::Render(const RenderContext& context) const {
   std::string out;
   for (const Segment& segment : segments_) {
     if (segment.fn != nullptr) {
-      out.append(segment.fn(segment.qualifier, path, metadata, depth));
+      out.append(segment.fn(segment.qualifier, context));
     } else {
       out.append(segment.literal);
     }
@@ -298,7 +302,7 @@ std::string Template::Render(std::string_view path, const vfs::Metadata& metadat
 }
 
 std::string Render(std::string_view tmpl, std::string_view path, const vfs::Metadata& metadata, int depth) {
-  return Template::Compile(tmpl).Render(path, metadata, depth);
+  return Template::Compile(tmpl).Render(RenderContext{.path = path, .metadata = metadata, .depth = depth});
 }
 
 }  // namespace xff::fields

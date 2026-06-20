@@ -24,27 +24,36 @@
 
 namespace xff::fields {
 
+// The per-entry inputs a field renderer reads. Bundled into a context so new
+// fields can draw on more inputs without changing every renderer's signature.
+struct RenderContext {
+  std::string_view path;          // path as traversed
+  std::string_view root;          // command-line search root it was reached from (find %H); may be empty
+  const vfs::Metadata& metadata;  // the entry's metadata
+  int depth = 0;                  // 0 for a root operand, +1 per directory level
+};
+
 namespace detail {
 // A resolved field renderer: produces one field's value for an entry. Compile
 // resolves each {field} name to one of these once (constexpr dispatch table in
 // fields.cc), so Render does a direct call per entry instead of name matching.
-using FieldFn = std::string (*)(
-    std::string_view qualifier, std::string_view path, const vfs::Metadata& metadata, int depth);
+using FieldFn = std::string (*)(std::string_view qualifier, const RenderContext& context);
 }  // namespace detail
 
 // Renders {field} placeholder templates against a visited entry, substituting
-// values derived from its `path`, `metadata`, and `depth`. `{{` and `}}` emit
+// values from a RenderContext (path, root, metadata, depth). `{{` and `}}` emit
 // literal braces; an unterminated or malformed `{` stays literal; an unknown
 // field renders empty. This backs the --format/--template output and (gated)
 // -exec substitution.
 //
-// Supported: {path} {dir} {name}/{file} {stem} {ext}/{extension} {suffixes}
-// {depth} {size} ({size:h} human-readable) {type} {inode} {links} {mode}/{perm}
-// (octal) {user} {group}, and time fields {atime} {mtime} {ctime} {btime} with
-// an optional qualifier {field:QUAL} -- a strftime format ({mtime:%Y-%m-%d}) or
-// preset ({mtime:iso|epoch}); local time, default ISO-8601. A qualifier may be
-// written as a "C-quoted string" ({mtime:"{\"t\":\"%H:%M\"}"}) so it can hold a
-// literal '}' or ':' (\" and \\ are escapes). {root} layers on later.
+// Supported: {path} {root} {dir} {name}/{file} {stem} {ext}/{extension}
+// {suffixes} {depth} {size} ({size:h} human-readable) {type} {inode} {links}
+// {mode}/{perm} (octal) {user} {group}, and time fields {atime} {mtime} {ctime}
+// {btime} with an optional qualifier {field:QUAL} -- a strftime format
+// ({mtime:%Y-%m-%d}) or preset ({mtime:iso|epoch}); local time, default
+// ISO-8601. A qualifier may also be a "C-quoted string"
+// ({mtime:"{\"t\":\"%H:%M\"}"}) so it can hold a literal '}' or ':'; inside it
+// \" and \\ are escapes.
 //
 // Compile parses the template once into literal/field segments; the resulting
 // Template renders against many entries without re-scanning -- the hot path for
@@ -53,7 +62,7 @@ class Template {
  public:
   static Template Compile(std::string_view tmpl);
 
-  std::string Render(std::string_view path, const vfs::Metadata& metadata, int depth) const;
+  std::string Render(const RenderContext& context) const;
 
  private:
   // A literal run (fn == nullptr -> emit `literal`) or a field reference (-> fn).
@@ -66,8 +75,8 @@ class Template {
   std::vector<Segment> segments_;
 };
 
-// Convenience wrapper: Compile(tmpl).Render(...). Prefer Compile once + Render
-// per entry on hot paths.
+// Convenience wrapper: Compile(tmpl).Render({path, metadata, depth}) with an
+// empty root. Prefer Compile once + Render per entry on hot paths.
 std::string Render(std::string_view tmpl, std::string_view path, const vfs::Metadata& metadata, int depth);
 
 }  // namespace xff::fields

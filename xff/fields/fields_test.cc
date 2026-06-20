@@ -96,8 +96,10 @@ TEST_F(FieldsTest, QuotedQualifierCarriesBracesColonsAndQuotes) {
 
 TEST_F(FieldsTest, CompiledTemplateRendersManyEntries) {
   const Template compiled = Template::Compile("{name}={size:h}");  // parsed once, reused below
-  EXPECT_THAT(compiled.Render("a/x", Meta(vfs::FileType::kRegular, 1), 0), Eq("x=1"));
-  EXPECT_THAT(compiled.Render("b/big", Meta(vfs::FileType::kRegular, 1536), 0), Eq("big=1.5K"));
+  const vfs::Metadata small = Meta(vfs::FileType::kRegular, 1);
+  const vfs::Metadata big = Meta(vfs::FileType::kRegular, 1536);
+  EXPECT_THAT(compiled.Render(RenderContext{.path = "a/x", .metadata = small, .depth = 0}), Eq("x=1"));
+  EXPECT_THAT(compiled.Render(RenderContext{.path = "b/big", .metadata = big, .depth = 0}), Eq("big=1.5K"));
 }
 
 TEST_F(FieldsTest, FieldNameAliasesResolveToTheSameRenderer) {
@@ -106,6 +108,15 @@ TEST_F(FieldsTest, FieldNameAliasesResolveToTheSameRenderer) {
   EXPECT_THAT(Render("{file}|{name}", "a/b.txt", md, 0), Eq("b.txt|b.txt"));
   EXPECT_THAT(Render("{extension}|{ext}", "a/b.txt", md, 0), Eq("txt|txt"));
   EXPECT_THAT(Render("{perm}|{mode}", "a/b.txt", md, 0), Eq("700|700"));
+}
+
+TEST_F(FieldsTest, RootFieldReportsTheSearchRoot) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const Template compiled = Template::Compile("{root}|{path}");
+  EXPECT_THAT(
+      compiled.Render(RenderContext{.path = "r/sub/f", .root = "r", .metadata = md, .depth = 2}), Eq("r|r/sub/f"));
+  // An empty root (e.g. via the rootless convenience overload) renders empty.
+  EXPECT_THAT(compiled.Render(RenderContext{.path = "x", .metadata = md, .depth = 0}), Eq("|x"));
 }
 
 }  // namespace

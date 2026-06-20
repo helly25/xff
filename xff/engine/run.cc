@@ -211,9 +211,13 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
         Control control;
         const bool matched = expression == nullptr || Evaluate(*expression, visit, emit, walk_fs, now, control);
         if (matched && !has_action) {
-          emit(compiled_tmpl.has_value()
-                   ? compiled_tmpl->Render(visit.path, visit.metadata, visit.depth) + "\n"
-                   : render::Renderer(format).Record(visit.path));  // --template overrides --format
+          if (compiled_tmpl.has_value()) {  // --template overrides --format
+            emit(compiled_tmpl->Render(fields::RenderContext{
+                     .path = visit.path, .root = visit.root, .metadata = visit.metadata, .depth = visit.depth}) +
+                 "\n");
+          } else {
+            emit(render::Renderer(format).Record(visit.path));
+          }
         }
         if (control.quit) return WalkAction::kStop;
         if (control.prune) return WalkAction::kPrune;
