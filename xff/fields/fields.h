@@ -24,6 +24,14 @@
 
 namespace xff::fields {
 
+namespace detail {
+// A resolved field renderer: produces one field's value for an entry. Compile
+// resolves each {field} name to one of these once (constexpr dispatch table in
+// fields.cc), so Render does a direct call per entry instead of name matching.
+using FieldFn = std::string (*)(
+    std::string_view qualifier, std::string_view path, const vfs::Metadata& metadata, int depth);
+}  // namespace detail
+
 // Renders {field} placeholder templates against a visited entry, substituting
 // values derived from its `path`, `metadata`, and `depth`. `{{` and `}}` emit
 // literal braces; an unterminated or malformed `{` stays literal; an unknown
@@ -48,10 +56,11 @@ class Template {
   std::string Render(std::string_view path, const vfs::Metadata& metadata, int depth) const;
 
  private:
+  // A literal run (fn == nullptr -> emit `literal`) or a field reference (-> fn).
   struct Segment {
-    bool is_field = false;   // false: emit `text` verbatim; true: resolve field `text`
-    std::string text;        // literal run, or field name when is_field
-    std::string qualifier;   // field qualifier, when is_field
+    std::string literal;
+    detail::FieldFn fn = nullptr;
+    std::string qualifier;
   };
 
   std::vector<Segment> segments_;

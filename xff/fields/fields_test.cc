@@ -100,5 +100,13 @@ TEST_F(FieldsTest, CompiledTemplateRendersManyEntries) {
   EXPECT_THAT(compiled.Render("b/big", Meta(vfs::FileType::kRegular, 1536), 0), Eq("big=1.5K"));
 }
 
+TEST_F(FieldsTest, FieldNameAliasesResolveToTheSameRenderer) {
+  vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  md.mode = 0700;
+  EXPECT_THAT(Render("{file}|{name}", "a/b.txt", md, 0), Eq("b.txt|b.txt"));
+  EXPECT_THAT(Render("{extension}|{ext}", "a/b.txt", md, 0), Eq("txt|txt"));
+  EXPECT_THAT(Render("{perm}|{mode}", "a/b.txt", md, 0), Eq("700|700"));
+}
+
 }  // namespace
 }  // namespace xff::fields
