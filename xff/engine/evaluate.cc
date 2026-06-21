@@ -348,9 +348,14 @@ bool MatchesRegex(std::string_view pattern, std::string_view path, bool case_ins
   return matcher.ok() && matcher->FullMatch(path);
 }
 
-bool EvaluatePredicate(
-    const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs, absl::Time now,
-    Control& control) {
+bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
+  // Alias the context members so the predicate/action body below reads them
+  // directly (the body predates EvalContext and is left untouched).
+  const Visit& visit = ctx.visit;
+  const EmitFn emit = ctx.emit;
+  const vfs::FileSystem& fs = ctx.fs;
+  const absl::Time now = ctx.now;
+  Control& control = ctx.control;
   const std::string_view name = expr.descriptor->name;
   const bool has_arg = !expr.args.empty();
   if (name == "-true") return true;
@@ -426,19 +431,15 @@ bool EvaluatePredicate(
 
 }  // namespace
 
-bool Evaluate(
-    const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs, absl::Time now,
-    Control& control) {
+bool Evaluate(const parser::Expr& expr, EvalContext& context) {
   switch (expr.kind) {
-    case parser::Expr::Kind::kPredicate: return EvaluatePredicate(expr, visit, emit, fs, now, control);
-    case parser::Expr::Kind::kNot: return !Evaluate(*expr.lhs, visit, emit, fs, now, control);
-    case parser::Expr::Kind::kAnd:
-      return Evaluate(*expr.lhs, visit, emit, fs, now, control) && Evaluate(*expr.rhs, visit, emit, fs, now, control);
-    case parser::Expr::Kind::kOr:
-      return Evaluate(*expr.lhs, visit, emit, fs, now, control) || Evaluate(*expr.rhs, visit, emit, fs, now, control);
+    case parser::Expr::Kind::kPredicate: return EvaluatePredicate(expr, context);
+    case parser::Expr::Kind::kNot: return !Evaluate(*expr.lhs, context);
+    case parser::Expr::Kind::kAnd: return Evaluate(*expr.lhs, context) && Evaluate(*expr.rhs, context);
+    case parser::Expr::Kind::kOr: return Evaluate(*expr.lhs, context) || Evaluate(*expr.rhs, context);
     case parser::Expr::Kind::kComma:
-      Evaluate(*expr.lhs, visit, emit, fs, now, control);  // left operand: evaluated for side effects only
-      return Evaluate(*expr.rhs, visit, emit, fs, now, control);  // the list's value is the right operand's
+      Evaluate(*expr.lhs, context);         // left operand: evaluated for side effects only
+      return Evaluate(*expr.rhs, context);  // the list's value is the right operand's
   }
   return true;  // Unreachable: every Expr::Kind returns above.
 }

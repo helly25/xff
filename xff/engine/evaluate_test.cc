@@ -51,9 +51,9 @@ struct EvaluateTest : ::testing::Test {
     if (!command.ok() || command->expression == nullptr) {
       return false;
     }
-    return Evaluate(
-        *command->expression, visit, [this](std::string_view record) { emitted_ += record; }, fs_, now_,
-        control_);
+    const auto sink = [this](std::string_view record) { emitted_ += record; };
+    EvalContext context{.visit = visit, .emit = sink, .fs = fs_, .now = now_, .control = control_};
+    return Evaluate(*command->expression, context);
   }
 
   // A Visit of `type`, with `path`/`name` backed by the caller and metadata by

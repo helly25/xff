@@ -209,7 +209,8 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
       walk_fs, command.roots, options,
       [&](const Visit& visit) {
         Control control;
-        const bool matched = expression == nullptr || Evaluate(*expression, visit, emit, walk_fs, now, control);
+        EvalContext eval_context{.visit = visit, .emit = emit, .fs = walk_fs, .now = now, .control = control};
+        const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
         if (matched && !has_action) {
           if (compiled_tmpl.has_value()) {  // --template overrides --format
             emit(compiled_tmpl->Render(fields::RenderContext{
