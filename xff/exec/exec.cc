@@ -54,19 +54,14 @@ std::string SubstitutePlaceholder(std::string_view token, std::string_view path)
 
 }  // namespace
 
-bool Execute(const std::vector<std::string>& command, std::string_view path) {
-  if (command.empty()) {
+bool ExecuteArgs(const std::vector<std::string>& args) {
+  if (args.empty()) {
     return false;
-  }
-  std::vector<std::string> args;
-  args.reserve(command.size());
-  for (const std::string& token : command) {
-    args.push_back(SubstitutePlaceholder(token, path));
   }
   std::vector<char*> argv;
   argv.reserve(args.size() + 1);
-  for (std::string& arg : args) {
-    argv.push_back(arg.data());
+  for (const std::string& arg : args) {
+    argv.push_back(const_cast<char*>(arg.c_str()));  // posix_spawnp wants char* const*; it does not modify argv
   }
   argv.push_back(nullptr);
 
@@ -79,6 +74,15 @@ bool Execute(const std::vector<std::string>& command, std::string_view path) {
     return false;
   }
   return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+}
+
+bool Execute(const std::vector<std::string>& command, std::string_view path) {
+  std::vector<std::string> args;
+  args.reserve(command.size());
+  for (const std::string& token : command) {
+    args.push_back(SubstitutePlaceholder(token, path));
+  }
+  return ExecuteArgs(args);  // empty command -> empty args -> false
 }
 
 }  // namespace xff::exec

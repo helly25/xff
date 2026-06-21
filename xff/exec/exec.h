@@ -29,6 +29,12 @@ namespace xff::exec {
 // batch form, -execdir, and -j parallelism are layered on separately.
 bool Execute(const std::vector<std::string>& command, std::string_view path);
 
+// Spawns `args` verbatim (args[0] PATH-searched via posix_spawnp) and waits,
+// returning true iff the child ran and exited 0. Unlike Execute it performs no
+// "{}" substitution -- the caller has already produced the final argv (e.g. via
+// the field vocabulary under --exec-fields). Empty `args` returns false.
+bool ExecuteArgs(const std::vector<std::string>& args);
+
 }  // namespace xff::exec
 
 #endif  // XFF_EXEC_EXEC_H_
