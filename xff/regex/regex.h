@@ -47,6 +47,12 @@ class Matcher {
   // {1}..{N} -exec placeholders.
   std::optional<std::vector<std::string>> FullMatchCaptures(std::string_view text) const;
 
+  // Substitutes matches of the pattern within `text` with `replacement` (RE2
+  // rewrite syntax: \1..\9 backrefs, \\ a literal backslash) -- the first match,
+  // or every match when `global`. Returns the rewritten string. Backs the
+  // {field:s/PAT/REPL/} rewrite qualifier.
+  std::string Rewrite(std::string_view text, std::string_view replacement, bool global) const;
+
   Matcher(Matcher&&) = default;
   Matcher& operator=(Matcher&&) = default;
 
