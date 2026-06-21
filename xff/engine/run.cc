@@ -15,6 +15,7 @@
 
 #include "xff/engine/run.h"
 
+#include <algorithm>
 #include <map>
 #include <optional>
 #include <string>
@@ -198,6 +199,50 @@ std::map<std::string, std::string> ResolveDefines(const std::vector<std::string>
   return defines;
 }
 
+// Whether --capture-override permits re-binding a --capture NAME. Strict by
+// default (a duplicate name is an error); --capture-override (== =yes) allows it,
+// --capture-override=no restores strict. Last occurrence wins.
+bool CaptureOverride(const std::vector<std::string>& globals) {
+  bool allow = false;
+  for (const std::string& global : globals) {
+    if (global == "--capture-override" || global == "--capture-override=yes") {
+      allow = true;
+    } else if (global == "--capture-override=no") {
+      allow = false;
+    }
+  }
+  return allow;
+}
+
+// Collects the NAME of every --capture action in the expression (its args[0]).
+void CollectCaptureNames(const parser::Expr& expr, std::vector<std::string>* names) {
+  switch (expr.kind) {
+    case parser::Expr::Kind::kPredicate:
+      if (expr.descriptor->name == "--capture" && !expr.args.empty()) {
+        names->push_back(expr.args.front());
+      }
+      break;
+    case parser::Expr::Kind::kNot:
+      CollectCaptureNames(*expr.lhs, names);
+      break;
+    case parser::Expr::Kind::kAnd:
+    case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kComma:
+      CollectCaptureNames(*expr.lhs, names);
+      CollectCaptureNames(*expr.rhs, names);
+      break;
+  }
+}
+
+// Returns a --capture NAME bound more than once, or nullopt when all are unique.
+std::optional<std::string> DuplicateCaptureName(const parser::Expr& expr) {
+  std::vector<std::string> names;
+  CollectCaptureNames(expr, &names);
+  std::sort(names.begin(), names.end());
+  const auto dup = std::adjacent_find(names.begin(), names.end());
+  return dup == names.end() ? std::nullopt : std::optional<std::string>(*dup);
+}
+
 }  // namespace
 
 int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn emit, WalkErrorFn on_error) {
@@ -206,6 +251,15 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   if (HasGlobal(command.globals, "--safe") && expression != nullptr && ContainsArmedAction(*expression)) {
     on_error("-delete", absl::FailedPreconditionError("refused: --safe forbids destructive actions"));
     return 2;  // do not traverse
+  }
+  // A --capture NAME bound twice is an error by default (silent clobbering would
+  // mean silently-wrong data); --capture-override opts into last-wins.
+  if (expression != nullptr && !CaptureOverride(command.globals)) {
+    if (const std::optional<std::string> dup = DuplicateCaptureName(*expression); dup.has_value()) {
+      on_error("--capture", absl::FailedPreconditionError(
+                                absl::StrCat("duplicate --capture name '", *dup, "'; use --capture-override")));
+      return 2;  // do not traverse
+    }
   }
   WalkOptions options;
   options.symlinks = ResolveSymlinkMode(command.globals);
