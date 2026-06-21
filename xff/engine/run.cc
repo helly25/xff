@@ -178,6 +178,21 @@ bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
   return false;
 }
 
+// --implicit-print=yes|no forces the default (implicit) print on or off,
+// overriding find's "an action suppresses it" rule. Last occurrence wins;
+// nullopt means no override (use the find default). Bare --implicit-print == =yes.
+std::optional<bool> ResolveImplicitPrint(const std::vector<std::string>& globals) {
+  std::optional<bool> result;
+  for (const std::string& global : globals) {
+    if (global == "--implicit-print" || global == "--implicit-print=yes") {
+      result = true;
+    } else if (global == "--implicit-print=no") {
+      result = false;
+    }
+  }
+  return result;
+}
+
 // Collects --define=NAME=VALUE globals into a name->value map (last wins). The
 // text after the prefix is NAME=VALUE; NAME runs to the first '=', VALUE (which
 // may itself contain '=') is the rest. --define=NAME with no '=' binds empty.
@@ -298,6 +313,8 @@ std::optional<std::string> UnusedCaptureName(const parser::Expr& expr, const std
 int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn emit, WalkErrorFn on_error) {
   const parser::Expr* const expression = command.expression.get();
   const bool has_action = expression != nullptr && ContainsAction(*expression);
+  // --implicit-print=yes|no overrides find's default-print rule (otherwise !has_action).
+  const bool implicit_print = ResolveImplicitPrint(command.globals).value_or(!has_action);
   if (HasGlobal(command.globals, "--safe") && expression != nullptr && ContainsArmedAction(*expression)) {
     on_error("-delete", absl::FailedPreconditionError("refused: --safe forbids destructive actions"));
     return 2;  // do not traverse
@@ -353,7 +370,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
             .exec_fields = exec_fields, .captures = exec_fields ? &captures : nullptr, .defines = &defines,
             .outputs = &outputs};
         const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
-        if (matched && !has_action) {
+        if (matched && implicit_print) {
           if (compiled_tmpl.has_value()) {  // --template overrides --format
             emit(compiled_tmpl->Render(fields::RenderContext{
                      .path = visit.path, .root = visit.root, .metadata = visit.metadata, .depth = visit.depth,
