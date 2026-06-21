@@ -426,5 +426,30 @@ TEST_F(RunTest, CaptureOverrideAllowsDuplicateNameLastWins) {
   EXPECT_THAT(records, UnorderedElementsAre("b"));  // last --capture wins under --capture-override
 }
 
+TEST_F(RunTest, UnusedCaptureIsError) {
+  // --capture=x but {capture.x} is referenced nowhere -> exit 2 before traversal.
+  const auto command =
+      parser::Parse({root_.string(), "-name", "a.txt", "--capture=x", "/bin/sh", "-c", "printf a", ";"});
+  ASSERT_THAT(command, IsOk());
+  int errors = 0;
+  const int code =
+      RunFind(*command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
+  EXPECT_THAT(code, Eq(2));
+  EXPECT_THAT(errors, Eq(1));
+}
+
+TEST_F(RunTest, CaptureUsedByLaterExecIsNotFlagged) {
+  // {capture.x} referenced in a later -exec counts as used -> no unused error.
+  const auto command = parser::Parse(
+      {"--exec-fields", root_.string(), "-name", "a.txt", "--capture=x", "/bin/sh", "-c", "printf a", ";", "-exec",
+       "/bin/sh", "-c", "test \"{capture.x}\" = a", ";"});
+  ASSERT_THAT(command, IsOk());
+  int errors = 0;
+  const int code =
+      RunFind(*command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
+  EXPECT_THAT(code, Eq(0));  // used by the -exec, so not flagged
+  EXPECT_THAT(errors, Eq(0));
+}
+
 }  // namespace
 }  // namespace xff::engine
