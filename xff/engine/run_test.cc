@@ -393,5 +393,38 @@ TEST_F(RunTest, CaptureChainsPriorOutputs) {
   EXPECT_THAT(records, UnorderedElementsAre("XY"));  // b = {capture.a}("X") + "Y"
 }
 
+TEST_F(RunTest, DuplicateCaptureNameIsErrorByDefault) {
+  // Two --capture actions binding the same NAME, no --capture-override -> exit 2,
+  // reported before traversal (silent clobbering would mean wrong data).
+  const auto command = parser::Parse(
+      {root_.string(), "--capture=x", "/bin/sh", "-c", "printf a", ";", "--capture=x", "/bin/sh", "-c", "printf b",
+       ";"});
+  ASSERT_THAT(command, IsOk());
+  int errors = 0;
+  const int code =
+      RunFind(*command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
+  EXPECT_THAT(code, Eq(2));
+  EXPECT_THAT(errors, Eq(1));
+}
+
+TEST_F(RunTest, CaptureOverrideAllowsDuplicateNameLastWins) {
+  const auto command = parser::Parse(
+      {"--capture-override", "--template={capture.x}", root_.string(), "-name", "a.txt", "--capture=x", "/bin/sh",
+       "-c", "printf a", ";", "--capture=x", "/bin/sh", "-c", "printf b", ";"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  RunFind(
+      *command, fs_,
+      [&](std::string_view record) {
+        std::string text(record);
+        if (!text.empty() && text.back() == '\n') {
+          text.pop_back();
+        }
+        records.push_back(std::move(text));
+      },
+      [](std::string_view, absl::Status) {});
+  EXPECT_THAT(records, UnorderedElementsAre("b"));  // last --capture wins under --capture-override
+}
+
 }  // namespace
 }  // namespace xff::engine
