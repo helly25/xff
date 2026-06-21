@@ -176,5 +176,13 @@ TEST_F(FieldsTest, OutputNamespaceReadsCaptureResults) {
   EXPECT_THAT(Render("[{capture.lines}]", "p", md, 0), Eq("[]"));  // no outputs map -> empty
 }
 
+TEST_F(FieldsTest, RewriteQualifierTransformsTheValue) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  EXPECT_THAT(Render("{name:s/\\.txt$/.md/}", "a/b/c.txt", md, 0), Eq("c.md"));   // first match
+  EXPECT_THAT(Render("{name:s/[aeiou]//g}", "a/b/foo.txt", md, 0), Eq("f.txt"));  // g = all matches
+  EXPECT_THAT(Render("{path:s#/#_#g}", "a/b/c", md, 0), Eq("a_b_c"));             // alternate delimiter
+  EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 1536), 0), Eq("1.5K"));  // non-rewrite intact
+}
+
 }  // namespace
 }  // namespace xff::fields
