@@ -63,6 +63,8 @@ using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier
 // when unset or out of range) -- used by gated -exec after a -regex match. The
 // {env.NAME} namespace renders a process environment variable, {def.NAME} a
 // --define value, and {capture.NAME} a --capture result (each empty when unset).
+// As a qualifier, a sed-style rewrite {field:s/PAT/REPL/flags} (any delimiter;
+// flags g=all, i=ignore-case) post-processes the field's value via RE2.
 //
 // Compile parses the template once into literal/field segments; the resulting
 // Template renders against many entries without re-scanning -- the hot path for
@@ -81,6 +83,7 @@ class Template {
     detail::FieldFn fn = nullptr;
     std::string key;
     std::string qualifier;
+    bool rewrite = false;  // qualifier is a sed-style s/PAT/REPL/ rewrite, applied post-render
   };
 
   std::vector<Segment> segments_;

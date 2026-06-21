@@ -24,6 +24,7 @@
 #include <grp.h>
 #include <pwd.h>
 
+#include <cctype>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -33,8 +34,10 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
+#include "xff/regex/regex.h"
 #include "xff/vfs/entry.h"
 
 namespace xff::fields {
@@ -327,6 +330,40 @@ std::pair<detail::FieldFn, std::string> ResolveName(std::string_view name) {
   return {LookupField(name), std::string()};
 }
 
+// A qualifier is a sed-style rewrite when it is `s` followed by a punctuation
+// delimiter (s/.../.../, s#...#...#, ...) -- distinct from the format qualifiers
+// (h, iso, epoch, a strftime %..., or a quoted "...").
+bool IsRewriteQualifier(std::string_view qualifier) {
+  return qualifier.size() >= 2 && qualifier[0] == 's' &&
+         std::ispunct(static_cast<unsigned char>(qualifier[1])) != 0;
+}
+
+// Applies a sed-style rewrite `s<delim>PAT<delim>REPL<delim>[flags]` to `value`:
+// an RE2 substitution with `g` (all matches) and `i` (case-insensitive) flags. A
+// malformed spec or uncompilable pattern leaves the value unchanged.
+std::string ApplyRewrite(std::string_view value, std::string_view spec) {
+  const char delim = spec[1];  // caller guarantees a rewrite spec (size >= 2)
+  const std::string_view rest = spec.substr(2);
+  const std::string_view::size_type pat_end = rest.find(delim);
+  if (pat_end == std::string_view::npos) {
+    return std::string(value);
+  }
+  const std::string_view pattern = rest.substr(0, pat_end);
+  const std::string_view after = rest.substr(pat_end + 1);
+  const std::string_view::size_type repl_end = after.find(delim);
+  if (repl_end == std::string_view::npos) {
+    return std::string(value);
+  }
+  const std::string_view replacement = after.substr(0, repl_end);
+  const std::string_view flags = after.substr(repl_end + 1);
+  const absl::StatusOr<regex::Matcher> matcher =
+      regex::Matcher::Compile(pattern, /*case_insensitive=*/flags.find('i') != std::string_view::npos);
+  if (!matcher.ok()) {
+    return std::string(value);
+  }
+  return matcher->Rewrite(value, replacement, /*global=*/flags.find('g') != std::string_view::npos);
+}
+
 }  // namespace
 
 Template Template::Compile(std::string_view tmpl) {
@@ -357,7 +394,9 @@ Template Template::Compile(std::string_view tmpl) {
       }
       flush_literal();
       auto [fn, key] = ResolveName(name);  // builtin field, {0}..{N} capture, or {env.NAME}
-      compiled.segments_.push_back({.fn = fn, .key = std::move(key), .qualifier = std::move(qualifier)});
+      const bool rewrite = IsRewriteQualifier(qualifier);  // {field:s/PAT/REPL/} post-render transform
+      compiled.segments_.push_back(
+          {.fn = fn, .key = std::move(key), .qualifier = std::move(qualifier), .rewrite = rewrite});
       i = next;
     } else {
       literal.push_back(ch);
@@ -372,7 +411,11 @@ std::string Template::Render(const RenderContext& context) const {
   std::string out;
   for (const Segment& segment : segments_) {
     if (segment.fn != nullptr) {
-      out.append(segment.fn(segment.key, segment.qualifier, context));
+      // A rewrite qualifier post-processes the field's default value; otherwise
+      // the qualifier is the field's own format argument.
+      std::string value =
+          segment.fn(segment.key, segment.rewrite ? std::string_view{} : segment.qualifier, context);
+      out.append(segment.rewrite ? ApplyRewrite(value, segment.qualifier) : value);
     } else {
       out.append(segment.literal);
     }
