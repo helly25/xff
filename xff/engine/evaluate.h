@@ -16,6 +16,7 @@
 #ifndef XFF_ENGINE_EVALUATE_H_
 #define XFF_ENGINE_EVALUATE_H_
 
+#include <map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -56,6 +57,7 @@ struct EvalContext {
   Control& control;               // collects -prune/-quit requests
   bool exec_fields = false;       // --exec-fields: render -exec tokens through the field vocabulary
   std::vector<std::string>* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off
+  const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
 };
 
 // Evaluates a parsed find expression against one visited entry and returns its

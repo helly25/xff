@@ -437,7 +437,7 @@ bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
     // {path}, {root}, ...), then spawn the already-substituted argv.
     const fields::RenderContext render_ctx{
         .path = visit.path, .root = visit.root, .metadata = visit.metadata, .depth = visit.depth,
-        .captures = ctx.captures};
+        .captures = ctx.captures, .defines = ctx.defines};
     std::vector<std::string> argv;
     argv.reserve(expr.args.size());
     for (const std::string& token : expr.args) {
