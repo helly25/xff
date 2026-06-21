@@ -23,6 +23,8 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <map>
+#include <string>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -153,6 +155,15 @@ TEST_F(FieldsTest, EnvNamespaceReadsEnvironment) {
   EXPECT_THAT(Render("{env.XFF_TEST_ENV_VAR}", "p", md, 0), Eq("hello"));
   ::unsetenv("XFF_TEST_ENV_VAR");
   EXPECT_THAT(Render("{env.XFF_TEST_ENV_VAR}", "p", md, 0), Eq(""));  // unset -> empty
+}
+
+TEST_F(FieldsTest, DefNamespaceReadsDefines) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const std::map<std::string, std::string> defines = {{"greeting", "hi"}, {"n", "42"}};
+  const RenderContext ctx{.path = "p", .metadata = md, .defines = &defines};
+  EXPECT_THAT(Render("{def.greeting}-{def.n}", ctx), Eq("hi-42"));
+  EXPECT_THAT(Render("{def.missing}", ctx), Eq(""));              // undefined -> empty
+  EXPECT_THAT(Render("[{def.greeting}]", "p", md, 0), Eq("[]"));  // no defines map -> empty
 }
 
 }  // namespace

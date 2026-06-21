@@ -16,6 +16,7 @@
 #ifndef XFF_FIELDS_FIELDS_H_
 #define XFF_FIELDS_FIELDS_H_
 
+#include <map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -32,6 +33,7 @@ struct RenderContext {
   const vfs::Metadata& metadata;  // the entry's metadata
   int depth = 0;                  // 0 for a root operand, +1 per directory level
   const std::vector<std::string>* captures = nullptr;  // -regex groups for {0..N}: [0] whole match, 1..N groups
+  const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
 };
 
 namespace detail {
@@ -58,7 +60,8 @@ using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier
 // \" and \\ are escapes. A numeric placeholder {0}..{N} renders a regex capture
 // from RenderContext::captures ({0} the whole match, {1}..{N} the groups; empty
 // when unset or out of range) -- used by gated -exec after a -regex match. The
-// {env.NAME} namespace renders a process environment variable (empty when unset).
+// {env.NAME} namespace renders a process environment variable, and {def.NAME} a
+// --define value (each empty when unset).
 //
 // Compile parses the template once into literal/field segments; the resulting
 // Template renders against many entries without re-scanning -- the hot path for
