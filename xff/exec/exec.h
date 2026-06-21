@@ -16,6 +16,7 @@
 #ifndef XFF_EXEC_EXEC_H_
 #define XFF_EXEC_EXEC_H_
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -34,6 +35,13 @@ bool Execute(const std::vector<std::string>& command, std::string_view path);
 // "{}" substitution -- the caller has already produced the final argv (e.g. via
 // the field vocabulary under --exec-fields). Empty `args` returns false.
 bool ExecuteArgs(const std::vector<std::string>& args);
+
+// Spawns `args` verbatim, captures the child's stdout, and returns it once the
+// child exits. The text is raw (no trimming) and is captured even when the child
+// exits nonzero; nullopt only when `args` is empty or the spawn itself fails.
+// Drains the pipe before reaping, so output larger than the pipe buffer does not
+// deadlock. Backs the --capture action ({output.NAME}).
+std::optional<std::string> CaptureOutput(const std::vector<std::string>& args);
 
 }  // namespace xff::exec
 
