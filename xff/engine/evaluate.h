@@ -40,6 +40,20 @@ struct Control {
   bool quit = false;
 };
 
+// Per-evaluation environment threaded through Evaluate for one visited entry.
+// Bundles what an expression node may read -- the entry, the action sink, the
+// filesystem, the reference clock -- plus the traversal-control side-channel, so
+// predicates and actions take them from one place rather than a long parameter
+// list. Evaluation-wide options (e.g. modern -exec field substitution) attach
+// here as the engine grows.
+struct EvalContext {
+  const Visit& visit;             // the entry being evaluated (constant across the expression)
+  EmitFn emit;                    // action output sink (-print/-print0/...)
+  const vfs::FileSystem& fs;      // backs predicates that read the source (e.g. -empty on a directory)
+  absl::Time now;                 // single reference instant for age tests (-mtime/-mmin)
+  Control& control;               // collects -prune/-quit requests
+};
+
 // Evaluates a parsed find expression against one visited entry and returns its
 // overall truth value, mirroring find:
 //   - tests: -name/-iname/-path/-ipath/-type/-true/-false against the entry;
@@ -48,13 +62,9 @@ struct Control {
 // -name/-iname glob the basename, -path/-ipath glob the whole path; the `i`
 // variants fold case (fnmatch, matching GNU find). Short-circuit means actions
 // to the right of a failed -a (or in the unused branch of -o) do not fire.
-// `fs` backs predicates that must read the source (e.g. -empty on a directory).
-// `now` is the single reference instant for age tests (-mtime/-mmin); the driver
-// captures it once so every entry is compared against the same clock, like find.
-// `control` collects traversal-control requests raised by -prune/-quit.
-bool Evaluate(
-    const parser::Expr& expr, const Visit& visit, EmitFn emit, const vfs::FileSystem& fs, absl::Time now,
-    Control& control);
+// `context` carries the entry, the action sink, the filesystem, the reference
+// clock, and the -prune/-quit side-channel (see EvalContext).
+bool Evaluate(const parser::Expr& expr, EvalContext& context);
 
 // True if `expr` contains any action node (-print, ...). The driver uses this
 // to decide whether an implicit -print applies: find adds -print only when the
