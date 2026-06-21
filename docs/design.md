@@ -122,6 +122,8 @@ A **prime goal** (see Goals). Two strands:
 - **Security** (untrusted external input — configs, archives, remote sources): always paramount; no `find`-compat tension since find lacks these features.
 - **Safety** (the user's own destructive ops): paramount on xff's own surface. On the `find` drop-in surface, find primaries keep find behaviour (e.g. `-delete` deletes) for fidelity — but xff emits a **visible, suppressible safety warning** (stderr; behaviour unchanged, so scripts are unaffected). xff's *own* destructive actions are guarded (dry-run + `--confirm`); a global `--dry-run` is always available; find's `-ok`/`-okdir` are honoured.
 
+**Config system (detailed spec):** the full layered model - system `/etc/xff.ini` policy over user/project `.xffrc`, per-flag safe-by-default capability gating, `--config` / `--feature` / `--xffrc` selectors, and `argv[0]` dispatch - is specified in [`design-config.md`](design-config.md), which is **authoritative for config** (e.g. the explicit-file spelling is now `--xffrc=FILE`, freeing `--config=NAME` for named-config selection). The notes below are the original sketch.
+
 **Config format:** INI-style — flat CLI-arg lines (the same flags you'd type, parsed by our own `parser`) plus optional `[named]` blocks (saved queries / exec recipes). No separate schema; "what you can type, you can save." Parsing is **inert** (builds an AST, never executes) — the security work is the action-gate below, not the format.
 
 **Config trust model:**
