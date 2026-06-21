@@ -332,5 +332,25 @@ TEST_F(RunTest, ExecFieldsSubstitutesRegexCaptures) {
   EXPECT_THAT(content, Eq("a.txt"));  // {1}="a", {2}="txt"
 }
 
+TEST_F(RunTest, DefinePopulatesDefNamespace) {
+  // --define=NAME=VALUE surfaces as {def.NAME} in --template output (last wins).
+  const auto command = parser::Parse(
+      {"--define=label=old", "--define=label=new", "--template={def.label}:{name}", root_.string(), "-name",
+       "a.txt"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  RunFind(
+      *command, fs_,
+      [&](std::string_view record) {
+        std::string text(record);
+        if (!text.empty() && text.back() == '\n') {
+          text.pop_back();
+        }
+        records.push_back(std::move(text));
+      },
+      [](std::string_view, const absl::Status&) {});
+  EXPECT_THAT(records, UnorderedElementsAre("new:a.txt"));  // last --define wins
+}
+
 }  // namespace
 }  // namespace xff::engine

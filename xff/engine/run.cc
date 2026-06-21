@@ -15,6 +15,7 @@
 
 #include "xff/engine/run.h"
 
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -176,6 +177,27 @@ bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
   return false;
 }
 
+// Collects --define=NAME=VALUE globals into a name->value map (last wins). The
+// text after the prefix is NAME=VALUE; NAME runs to the first '=', VALUE (which
+// may itself contain '=') is the rest. --define=NAME with no '=' binds empty.
+std::map<std::string, std::string> ResolveDefines(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--define=";
+  std::map<std::string, std::string> defines;
+  for (const std::string& global : globals) {
+    if (!global.starts_with(kPrefix)) {
+      continue;
+    }
+    const std::string spec = global.substr(kPrefix.size());
+    const std::string::size_type eq = spec.find('=');
+    if (eq == std::string::npos) {
+      defines[spec] = "";
+    } else {
+      defines[spec.substr(0, eq)] = spec.substr(eq + 1);
+    }
+  }
+  return defines;
+}
+
 }  // namespace
 
 int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn emit, WalkErrorFn on_error) {
@@ -193,6 +215,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   const std::optional<fields::Template> compiled_tmpl =
       tmpl.has_value() ? std::optional<fields::Template>(fields::Template::Compile(*tmpl)) : std::nullopt;
   const bool exec_fields = HasGlobal(command.globals, "--exec-fields");  // route -exec through the vocabulary
+  const std::map<std::string, std::string> defines = ResolveDefines(command.globals);  // {def.NAME} values
   if (expression != nullptr) {
     ScanDepthOptions(*expression, &options);
   }
@@ -213,12 +236,13 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
         std::vector<std::string> captures;  // -regex groups for this entry; consumed by gated -exec {0}..{N}
         EvalContext eval_context{
             .visit = visit, .emit = emit, .fs = walk_fs, .now = now, .control = control,
-            .exec_fields = exec_fields, .captures = exec_fields ? &captures : nullptr};
+            .exec_fields = exec_fields, .captures = exec_fields ? &captures : nullptr, .defines = &defines};
         const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
         if (matched && !has_action) {
           if (compiled_tmpl.has_value()) {  // --template overrides --format
             emit(compiled_tmpl->Render(fields::RenderContext{
-                     .path = visit.path, .root = visit.root, .metadata = visit.metadata, .depth = visit.depth}) +
+                     .path = visit.path, .root = visit.root, .metadata = visit.metadata, .depth = visit.depth,
+                     .defines = &defines}) +
                  "\n");
           } else {
             emit(render::Renderer(format).Record(visit.path));
