@@ -79,6 +79,10 @@ class Template {
 // empty root. Prefer Compile once + Render per entry on hot paths.
 std::string Render(std::string_view tmpl, std::string_view path, const vfs::Metadata& metadata, int depth);
 
+// Convenience wrapper rendering against a full context (so {root} resolves).
+// Like the overload above, compiles per call -- prefer Compile once on hot paths.
+std::string Render(std::string_view tmpl, const RenderContext& context);
+
 }  // namespace xff::fields
 
 #endif  // XFF_FIELDS_FIELDS_H_

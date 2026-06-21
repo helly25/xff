@@ -119,5 +119,16 @@ TEST_F(FieldsTest, RootFieldReportsTheSearchRoot) {
   EXPECT_THAT(compiled.Render(RenderContext{.path = "x", .metadata = md, .depth = 0}), Eq("|x"));
 }
 
+TEST_F(FieldsTest, EmptyPlaceholderIsPathAndContextOverloadResolvesRoot) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  // {} is find's full-path placeholder -> an alias for {path}.
+  EXPECT_THAT(Render("{}", "a/b/c.txt", md, 0), Eq("a/b/c.txt"));
+  EXPECT_THAT(Render("echo {}", "p", md, 0), Eq("echo p"));
+  // The context overload resolves {root}, which the rootless 4-arg overload cannot.
+  EXPECT_THAT(
+      Render("{root}:{}", RenderContext{.path = "r/sub/f", .root = "r", .metadata = md, .depth = 1}),
+      Eq("r:r/sub/f"));
+}
+
 }  // namespace
 }  // namespace xff::fields

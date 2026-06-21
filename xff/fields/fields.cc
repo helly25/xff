@@ -184,9 +184,11 @@ std::string EmptyField(std::string_view, const RenderContext&) {
 }
 
 // Constexpr field-name -> renderer table, built once at compile time via mbo's
-// LimitedMap. Aliases (file/name, ext/extension, mode/perm) share a renderer.
+// LimitedMap. Aliases (file/name, ext/extension, mode/perm) share a renderer;
+// the empty name backs {}, find's full-path placeholder (an alias for {path}).
 using FieldEntry = std::pair<std::string_view, detail::FieldFn>;
 constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
+    FieldEntry{"", &PathField},  // {} -> full path (find's -exec placeholder)
     FieldEntry{"atime", &AtimeField}, FieldEntry{"btime", &BtimeField}, FieldEntry{"ctime", &CtimeField},
     FieldEntry{"depth", &DepthField}, FieldEntry{"dir", &DirField}, FieldEntry{"ext", &ExtField},
     FieldEntry{"extension", &ExtField}, FieldEntry{"file", &NameField}, FieldEntry{"group", &GroupField},
@@ -303,6 +305,10 @@ std::string Template::Render(const RenderContext& context) const {
 
 std::string Render(std::string_view tmpl, std::string_view path, const vfs::Metadata& metadata, int depth) {
   return Template::Compile(tmpl).Render(RenderContext{.path = path, .metadata = metadata, .depth = depth});
+}
+
+std::string Render(std::string_view tmpl, const RenderContext& context) {
+  return Template::Compile(tmpl).Render(context);
 }
 
 }  // namespace xff::fields
