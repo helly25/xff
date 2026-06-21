@@ -53,9 +53,10 @@ struct EvaluateTest : ::testing::Test {
     }
     const auto sink = [this](std::string_view record) { emitted_ += record; };
     captures_.clear();
+    outputs_.clear();
     EvalContext context{
         .visit = visit, .emit = sink, .fs = fs_, .now = now_, .control = control_, .exec_fields = exec_fields_,
-        .captures = exec_fields_ ? &captures_ : nullptr};
+        .captures = exec_fields_ ? &captures_ : nullptr, .outputs = &outputs_};
     return Evaluate(*command->expression, context);
   }
 
@@ -74,6 +75,7 @@ struct EvaluateTest : ::testing::Test {
   Control control_;  // set by Match from the most recent evaluation (-prune/-quit)
   bool exec_fields_ = false;  // when true, Match enables --exec-fields token substitution
   std::vector<std::string> captures_;  // -regex groups captured during the most recent (gated) Match
+  std::map<std::string, std::string> outputs_;  // --capture results from the most recent Match
 };
 
 TEST_F(EvaluateTest, TrueAndFalse) {
@@ -378,6 +380,17 @@ TEST_F(EvaluateTest, CapturesAreVisibleLeftToRightOnly) {
   // -regex to the RIGHT: not yet evaluated when -exec runs, so {1} is still empty there.
   EXPECT_TRUE(
       Match({"-exec", "/bin/sh", "-c", "test -z \"{1}\"", ";", "-regex", "(.*)/([^/]+)\\.(.*)"}, visit));
+}
+
+TEST_F(EvaluateTest, CaptureBindsOutputNamespace) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("a/b/c.txt", "c.txt", vfs::FileType::kRegular, md);
+  exec_fields_ = true;  // so the -exec reading {output.tag} renders the vocabulary
+  // --capture runs the command and binds {output.tag}; the later -exec reads it.
+  EXPECT_TRUE(Match(
+      {"--capture=tag", "/bin/sh", "-c", "printf hi", ";", "-exec", "/bin/sh", "-c", "test \"{output.tag}\" = hi",
+       ";"},
+      visit));
 }
 
 }  // namespace

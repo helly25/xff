@@ -25,6 +25,7 @@
 #include <grp.h>
 #include <pwd.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -363,6 +364,21 @@ bool MatchesRegex(
   return true;
 }
 
+// Applies a --capture extraction regex to `text` (the captured stdout): returns
+// capture group 1, or the whole match when the regex has no groups, or empty
+// when it does not fully match (or fails to compile).
+std::string ExtractCapture(std::string_view regex, std::string_view text) {
+  const absl::StatusOr<regex::Matcher> matcher = regex::Matcher::Compile(regex, /*case_insensitive=*/false);
+  if (!matcher.ok()) {
+    return "";
+  }
+  const std::optional<std::vector<std::string>> groups = matcher->FullMatchCaptures(text);
+  if (!groups.has_value()) {
+    return "";
+  }
+  return groups->size() > 1 ? (*groups)[1] : (*groups)[0];
+}
+
 bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
   // Alias the context members so the predicate/action body below reads them
   // directly (the body predates EvalContext and is left untouched).
@@ -437,13 +453,40 @@ bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
     // {path}, {root}, ...), then spawn the already-substituted argv.
     const fields::RenderContext render_ctx{
         .path = visit.path, .root = visit.root, .metadata = visit.metadata, .depth = visit.depth,
-        .captures = ctx.captures, .defines = ctx.defines};
+        .captures = ctx.captures, .defines = ctx.defines, .outputs = ctx.outputs};
     std::vector<std::string> argv;
     argv.reserve(expr.args.size());
     for (const std::string& token : expr.args) {
       argv.push_back(fields::Render(token, render_ctx));
     }
     return exec::ExecuteArgs(argv);  // true iff the child exits 0
+  }
+  if (name == "--capture") {  // args = [NAME, REGEX (may be empty), cmd...]
+    if (ctx.outputs == nullptr || expr.args.size() < 3) {
+      return true;  // unwired or malformed: binding is a no-op, but --capture is always true
+    }
+    // The command renders through the field vocabulary so {} -> path and prior
+    // {output.*}/{def.*}/{N} resolve (left-to-right chaining).
+    const fields::RenderContext render_ctx{
+        .path = visit.path, .root = visit.root, .metadata = visit.metadata, .depth = visit.depth,
+        .captures = ctx.captures, .defines = ctx.defines, .outputs = ctx.outputs};
+    std::vector<std::string> command;
+    command.reserve(expr.args.size() - 2);
+    for (std::size_t i = 2; i < expr.args.size(); ++i) {
+      command.push_back(fields::Render(expr.args[i], render_ctx));
+    }
+    std::string value;
+    if (const std::optional<std::string> out = exec::CaptureOutput(command); out.has_value()) {
+      value = *out;
+      while (!value.empty() && value.back() == '\n') {
+        value.pop_back();  // strip trailing newline(s)
+      }
+      if (!expr.args[1].empty()) {
+        value = ExtractCapture(expr.args[1], value);  // optional regex extraction
+      }
+    }
+    (*ctx.outputs)[expr.args[0]] = std::move(value);  // bind {output.NAME} (last wins)
+    return true;  // a binding side effect; always true
   }
   if (name == "-prune") {
     control.prune = true;  // do not descend into this directory; -prune is always true
@@ -474,10 +517,12 @@ bool Evaluate(const parser::Expr& expr, EvalContext& context) {
 
 bool ContainsAction(const parser::Expr& expr) {
   switch (expr.kind) {
-    // -prune is an action but does NOT suppress the implicit -print (find's "no
-    // actions other than -prune" rule); -quit and the print actions do.
+    // -prune and --capture are actions that do NOT suppress the implicit print:
+    // -prune per find's "no actions other than -prune" rule, and --capture is a
+    // binding side effect (not output). -quit and the print actions do suppress.
     case parser::Expr::Kind::kPredicate:
-      return expr.descriptor->kind == registry::Kind::kAction && expr.descriptor->name != "-prune";
+      return expr.descriptor->kind == registry::Kind::kAction && expr.descriptor->name != "-prune" &&
+             expr.descriptor->name != "--capture";
     case parser::Expr::Kind::kNot: return ContainsAction(*expr.lhs);
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:

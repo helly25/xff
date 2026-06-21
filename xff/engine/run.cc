@@ -234,15 +234,17 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
       [&](const Visit& visit) {
         Control control;
         std::vector<std::string> captures;  // -regex groups for this entry; consumed by gated -exec {0}..{N}
+        std::map<std::string, std::string> outputs;  // --capture results for this entry; read by {output.NAME}
         EvalContext eval_context{
             .visit = visit, .emit = emit, .fs = walk_fs, .now = now, .control = control,
-            .exec_fields = exec_fields, .captures = exec_fields ? &captures : nullptr, .defines = &defines};
+            .exec_fields = exec_fields, .captures = exec_fields ? &captures : nullptr, .defines = &defines,
+            .outputs = &outputs};
         const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
         if (matched && !has_action) {
           if (compiled_tmpl.has_value()) {  // --template overrides --format
             emit(compiled_tmpl->Render(fields::RenderContext{
                      .path = visit.path, .root = visit.root, .metadata = visit.metadata, .depth = visit.depth,
-                     .defines = &defines}) +
+                     .defines = &defines, .outputs = &outputs}) +
                  "\n");
           } else {
             emit(render::Renderer(format).Record(visit.path));
