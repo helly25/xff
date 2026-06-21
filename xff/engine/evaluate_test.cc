@@ -365,5 +365,20 @@ TEST_F(EvaluateTest, ExecFieldsSubstitutesRegexCaptures) {
       Match({"-regex", "(.*)/([^/]+)\\.(.*)", "-exec", "/bin/sh", "-c", "test \"{1}\" = a/b", ";"}, visit));
 }
 
+TEST_F(EvaluateTest, CapturesAreVisibleLeftToRightOnly) {
+  // The variable store accumulates left-to-right, so a binding (here a -regex
+  // match) is in scope for later actions and only later -- the guarantee that
+  // capture/-exec chaining rests on.
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("a/b/c.txt", "c.txt", vfs::FileType::kRegular, md);
+  exec_fields_ = true;
+  // -regex to the LEFT of -exec: its groups are bound when -exec runs, so {1} == "a/b".
+  EXPECT_TRUE(
+      Match({"-regex", "(.*)/([^/]+)\\.(.*)", "-exec", "/bin/sh", "-c", "test \"{1}\" = a/b", ";"}, visit));
+  // -regex to the RIGHT: not yet evaluated when -exec runs, so {1} is still empty there.
+  EXPECT_TRUE(
+      Match({"-exec", "/bin/sh", "-c", "test -z \"{1}\"", ";", "-regex", "(.*)/([^/]+)\\.(.*)"}, visit));
+}
+
 }  // namespace
 }  // namespace xff::engine
