@@ -243,6 +243,56 @@ std::optional<std::string> DuplicateCaptureName(const parser::Expr& expr) {
   return dup == names.end() ? std::nullopt : std::optional<std::string>(*dup);
 }
 
+// Collects strings that may reference {capture.NAME}: the command tokens of every
+// -exec and --capture action (a later command can use an earlier capture). The
+// --template global is added by the caller.
+void CollectCaptureRefs(const parser::Expr& expr, std::vector<std::string>* refs) {
+  switch (expr.kind) {
+    case parser::Expr::Kind::kPredicate:
+      if (expr.descriptor->name == "-exec") {
+        refs->insert(refs->end(), expr.args.begin(), expr.args.end());
+      } else if (expr.descriptor->name == "--capture" && expr.args.size() > 2) {
+        refs->insert(refs->end(), expr.args.begin() + 2, expr.args.end());  // skip [NAME, REGEX]
+      }
+      break;
+    case parser::Expr::Kind::kNot:
+      CollectCaptureRefs(*expr.lhs, refs);
+      break;
+    case parser::Expr::Kind::kAnd:
+    case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kComma:
+      CollectCaptureRefs(*expr.lhs, refs);
+      CollectCaptureRefs(*expr.rhs, refs);
+      break;
+  }
+}
+
+// Returns a --capture NAME whose {capture.NAME} placeholder appears nowhere (no
+// -exec/--capture command and not the --template), or nullopt when all are used.
+std::optional<std::string> UnusedCaptureName(const parser::Expr& expr, const std::optional<std::string>& tmpl) {
+  std::vector<std::string> names;
+  CollectCaptureNames(expr, &names);
+  if (names.empty()) {
+    return std::nullopt;
+  }
+  std::vector<std::string> refs;
+  CollectCaptureRefs(expr, &refs);
+  if (tmpl.has_value()) {
+    refs.push_back(*tmpl);
+  }
+  for (const std::string& name : names) {
+    const std::string closed = absl::StrCat("{capture.", name, "}");
+    const std::string qualified = absl::StrCat("{capture.", name, ":");
+    const bool used = std::any_of(refs.begin(), refs.end(), [&](const std::string& ref) {
+      return ref.find(closed) != std::string::npos || ref.find(qualified) != std::string::npos;
+    });
+    if (!used) {
+      return name;
+    }
+  }
+  return std::nullopt;
+}
+
 }  // namespace
 
 int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn emit, WalkErrorFn on_error) {
@@ -265,6 +315,15 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   options.symlinks = ResolveSymlinkMode(command.globals);
   const render::Format format = ResolveFormat(command.globals);
   const std::optional<std::string> tmpl = ResolveTemplate(command.globals);
+  // A --capture whose {capture.NAME} is never referenced ran a subprocess for
+  // nothing (use -exec for pure side effects); flag it before traversing.
+  if (expression != nullptr) {
+    if (const std::optional<std::string> unused = UnusedCaptureName(*expression, tmpl); unused.has_value()) {
+      on_error("--capture", absl::FailedPreconditionError(absl::StrCat(
+                                "--capture '", *unused, "' is never referenced as {capture.", *unused, "}")));
+      return 2;  // do not traverse
+    }
+  }
   // Precompile the --template once; rendering each match then skips re-scanning.
   const std::optional<fields::Template> compiled_tmpl =
       tmpl.has_value() ? std::optional<fields::Template>(fields::Template::Compile(*tmpl)) : std::nullopt;
