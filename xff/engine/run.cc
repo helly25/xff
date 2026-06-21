@@ -252,7 +252,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
         if (control.prune) return WalkAction::kPrune;
         return WalkAction::kContinue;
       },
-      [&](std::string_view path, const absl::Status& error_status) {
+      [&](std::string_view path, absl::Status error_status) {
         ++errors;
         on_error(path, error_status);
       });

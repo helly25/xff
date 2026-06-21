@@ -159,7 +159,7 @@ struct ConformanceTest : ::testing::Test {
             }
             lines.push_back(std::move(text));
           },
-          [](std::string_view, const absl::Status&) {});
+          [](std::string_view, absl::Status) {});
     }
     std::sort(lines.begin(), lines.end());
     return lines;

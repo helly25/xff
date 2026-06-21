@@ -73,7 +73,7 @@ using Visitor = absl::FunctionRef<WalkAction(const Visit&)>;
 // Reports a per-path traversal failure (unreadable directory, failed stat, ...).
 // The walk continues; the engine maps these to exit code 2 later (design.md
 // "Exit-code model").
-using WalkErrorFn = absl::FunctionRef<void(std::string_view path, const absl::Status& status)>;
+using WalkErrorFn = absl::FunctionRef<void(std::string_view path, absl::Status status)>;
 
 // Walks `roots` depth-first over `fs` -- pre-order by default, post-order when
 // `options.post_order` is set: each entry at depth >= `options.min_depth` is
