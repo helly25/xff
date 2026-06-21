@@ -117,70 +117,71 @@ std::string HumanSize(std::uint64_t bytes) {
 }
 
 // Per-field renderers. The signature is uniform so they can share one dispatch
-// table; unused parameters are left unnamed. `path`-derived fields build their
-// own std::filesystem::path -- a template rarely uses more than one of them.
-std::string PathField(std::string_view, const RenderContext& ctx) {
+// table: (key, qualifier, ctx). `key` is the bound argument for dynamic fields
+// (a capture index, an {env.NAME} var, ...), unused (unnamed) by the builtins.
+// `path`-derived fields build their own std::filesystem::path.
+std::string PathField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::string(ctx.path);
 }
-std::string RootField(std::string_view, const RenderContext& ctx) {
+std::string RootField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::string(ctx.root);  // command-line search root (find %H); empty when unset
 }
-std::string DirField(std::string_view, const RenderContext& ctx) {
+std::string DirField(std::string_view, std::string_view, const RenderContext& ctx) {
   const std::string parent = stdfs::path(std::string(ctx.path)).parent_path().string();
   return parent.empty() ? "." : parent;  // find's %h is "." when there is no directory part
 }
-std::string NameField(std::string_view, const RenderContext& ctx) {
+std::string NameField(std::string_view, std::string_view, const RenderContext& ctx) {
   return stdfs::path(std::string(ctx.path)).filename().string();
 }
-std::string StemField(std::string_view, const RenderContext& ctx) {
+std::string StemField(std::string_view, std::string_view, const RenderContext& ctx) {
   return stdfs::path(std::string(ctx.path)).stem().string();
 }
-std::string ExtField(std::string_view, const RenderContext& ctx) {
+std::string ExtField(std::string_view, std::string_view, const RenderContext& ctx) {
   const std::string ext = stdfs::path(std::string(ctx.path)).extension().string();  // includes the leading '.'
   return ext.empty() ? ext : ext.substr(1);
 }
-std::string SuffixesField(std::string_view, const RenderContext& ctx) {
+std::string SuffixesField(std::string_view, std::string_view, const RenderContext& ctx) {
   const std::string filename = stdfs::path(std::string(ctx.path)).filename().string();
   const std::string::size_type dot = filename.find('.', 1);  // all extensions; a leading dot is not one
   return dot == std::string::npos ? "" : filename.substr(dot);
 }
-std::string DepthField(std::string_view, const RenderContext& ctx) {
+std::string DepthField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::to_string(ctx.depth);
 }
-std::string SizeField(std::string_view qualifier, const RenderContext& ctx) {
+std::string SizeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return qualifier == "h" ? HumanSize(ctx.metadata.size) : std::to_string(ctx.metadata.size);
 }
-std::string TypeField(std::string_view, const RenderContext& ctx) {
+std::string TypeField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::string(1, TypeLetter(ctx.metadata.type));
 }
-std::string InodeField(std::string_view, const RenderContext& ctx) {
+std::string InodeField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::to_string(ctx.metadata.ino);
 }
-std::string LinksField(std::string_view, const RenderContext& ctx) {
+std::string LinksField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::to_string(ctx.metadata.nlink);
 }
-std::string MtimeField(std::string_view qualifier, const RenderContext& ctx) {
+std::string MtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return FormatTimeField(ctx.metadata.mtime, qualifier);
 }
-std::string AtimeField(std::string_view qualifier, const RenderContext& ctx) {
+std::string AtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return FormatTimeField(ctx.metadata.atime, qualifier);
 }
-std::string CtimeField(std::string_view qualifier, const RenderContext& ctx) {
+std::string CtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return FormatTimeField(ctx.metadata.ctime, qualifier);
 }
-std::string BtimeField(std::string_view qualifier, const RenderContext& ctx) {
+std::string BtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return ctx.metadata.btime.has_value() ? FormatTimeField(*ctx.metadata.btime, qualifier) : "";
 }
-std::string ModeField(std::string_view, const RenderContext& ctx) {
+std::string ModeField(std::string_view, std::string_view, const RenderContext& ctx) {
   return OctalPerm(ctx.metadata.mode);
 }
-std::string UserField(std::string_view, const RenderContext& ctx) {
+std::string UserField(std::string_view, std::string_view, const RenderContext& ctx) {
   return OwnerName(ctx.metadata.uid);
 }
-std::string GroupField(std::string_view, const RenderContext& ctx) {
+std::string GroupField(std::string_view, std::string_view, const RenderContext& ctx) {
   return GroupName(ctx.metadata.gid);
 }
-std::string EmptyField(std::string_view, const RenderContext&) {
+std::string EmptyField(std::string_view, std::string_view, const RenderContext&) {
   return "";  // unknown field -> empty
 }
 
@@ -268,6 +269,17 @@ int CaptureIndex(std::string_view name) {
   return value;
 }
 
+// Renders a numeric {0}..{N} placeholder: `key` is the digit run; reads the
+// matching regex capture from the context ([0] whole match, 1..N groups), empty
+// when captures are unset or the index is out of range.
+std::string CaptureField(std::string_view key, std::string_view, const RenderContext& ctx) {
+  const int index = CaptureIndex(key);
+  if (ctx.captures == nullptr || index < 0 || index >= static_cast<int>(ctx.captures->size())) {
+    return "";
+  }
+  return (*ctx.captures)[static_cast<std::size_t>(index)];
+}
+
 }  // namespace
 
 Template Template::Compile(std::string_view tmpl) {
@@ -275,7 +287,7 @@ Template Template::Compile(std::string_view tmpl) {
   std::string literal;
   const auto flush_literal = [&] {
     if (!literal.empty()) {
-      compiled.segments_.push_back({std::move(literal), nullptr, {}});
+      compiled.segments_.push_back({.literal = std::move(literal)});
       literal.clear();  // restore the moved-from buffer to a known-empty state
     }
   };
@@ -297,10 +309,11 @@ Template Template::Compile(std::string_view tmpl) {
         continue;
       }
       flush_literal();
-      if (const int capture = CaptureIndex(name); capture >= 0) {  // {0}..{N} -> regex capture
-        compiled.segments_.push_back({.qualifier = std::move(qualifier), .capture = capture});
+      if (CaptureIndex(name) >= 0) {  // {0}..{N} -> regex capture, rendered by CaptureField from `key`
+        compiled.segments_.push_back(
+            {.fn = &CaptureField, .key = std::string(name), .qualifier = std::move(qualifier)});
       } else {
-        compiled.segments_.push_back({{}, LookupField(name), std::move(qualifier)});
+        compiled.segments_.push_back({.fn = LookupField(name), .qualifier = std::move(qualifier)});
       }
       i = next;
     } else {
@@ -315,12 +328,8 @@ Template Template::Compile(std::string_view tmpl) {
 std::string Template::Render(const RenderContext& context) const {
   std::string out;
   for (const Segment& segment : segments_) {
-    if (segment.capture >= 0) {  // numeric {N}: a regex capture, empty when unset or out of range
-      if (context.captures != nullptr && segment.capture < static_cast<int>(context.captures->size())) {
-        out.append((*context.captures)[static_cast<std::size_t>(segment.capture)]);
-      }
-    } else if (segment.fn != nullptr) {
-      out.append(segment.fn(segment.qualifier, context));
+    if (segment.fn != nullptr) {
+      out.append(segment.fn(segment.key, segment.qualifier, context));
     } else {
       out.append(segment.literal);
     }
