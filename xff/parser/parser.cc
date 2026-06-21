@@ -162,7 +162,7 @@ class ExprParser {
       ++pos_;
       return inner;
     }
-    // --capture=NAME[=REGEX] cmd... ; binds the command's stdout to {output.NAME}
+    // --capture=NAME[=REGEX] cmd... ; binds the command's stdout to {capture.NAME}
     // (with an optional RE2 extraction regex). Encoded as args = [NAME, REGEX
     // (may be empty), cmd...]; the command is collected like -exec.
     static constexpr char kCapturePrefix[] = "--capture=";

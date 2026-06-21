@@ -34,7 +34,7 @@ struct RenderContext {
   int depth = 0;                  // 0 for a root operand, +1 per directory level
   const std::vector<std::string>* captures = nullptr;  // -regex groups for {0..N}: [0] whole match, 1..N groups
   const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
-  const std::map<std::string, std::string>* outputs = nullptr;  // --capture results for {output.NAME}
+  const std::map<std::string, std::string>* outputs = nullptr;  // --capture results for {capture.NAME}
 };
 
 namespace detail {
@@ -62,7 +62,7 @@ using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier
 // from RenderContext::captures ({0} the whole match, {1}..{N} the groups; empty
 // when unset or out of range) -- used by gated -exec after a -regex match. The
 // {env.NAME} namespace renders a process environment variable, {def.NAME} a
-// --define value, and {output.NAME} a --capture result (each empty when unset).
+// --define value, and {capture.NAME} a --capture result (each empty when unset).
 //
 // Compile parses the template once into literal/field segments; the resulting
 // Template renders against many entries without re-scanning -- the hot path for

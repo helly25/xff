@@ -385,10 +385,10 @@ TEST_F(EvaluateTest, CapturesAreVisibleLeftToRightOnly) {
 TEST_F(EvaluateTest, CaptureBindsOutputNamespace) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("a/b/c.txt", "c.txt", vfs::FileType::kRegular, md);
-  exec_fields_ = true;  // so the -exec reading {output.tag} renders the vocabulary
-  // --capture runs the command and binds {output.tag}; the later -exec reads it.
+  exec_fields_ = true;  // so the -exec reading {capture.tag} renders the vocabulary
+  // --capture runs the command and binds {capture.tag}; the later -exec reads it.
   EXPECT_TRUE(Match(
-      {"--capture=tag", "/bin/sh", "-c", "printf hi", ";", "-exec", "/bin/sh", "-c", "test \"{output.tag}\" = hi",
+      {"--capture=tag", "/bin/sh", "-c", "printf hi", ";", "-exec", "/bin/sh", "-c", "test \"{capture.tag}\" = hi",
        ";"},
       visit));
 }

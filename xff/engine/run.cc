@@ -234,7 +234,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
       [&](const Visit& visit) {
         Control control;
         std::vector<std::string> captures;  // -regex groups for this entry; consumed by gated -exec {0}..{N}
-        std::map<std::string, std::string> outputs;  // --capture results for this entry; read by {output.NAME}
+        std::map<std::string, std::string> outputs;  // --capture results for this entry; read by {capture.NAME}
         EvalContext eval_context{
             .visit = visit, .emit = emit, .fs = walk_fs, .now = now, .control = control,
             .exec_fields = exec_fields, .captures = exec_fields ? &captures : nullptr, .defines = &defines,
