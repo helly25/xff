@@ -58,4 +58,14 @@ std::optional<std::vector<std::string>> Matcher::FullMatchCaptures(std::string_v
   return captures;
 }
 
+std::string Matcher::Rewrite(std::string_view text, std::string_view replacement, bool global) const {
+  std::string out(text);
+  if (global) {
+    RE2::GlobalReplace(&out, *re_, replacement);
+  } else {
+    RE2::Replace(&out, *re_, replacement);
+  }
+  return out;
+}
+
 }  // namespace xff::regex
