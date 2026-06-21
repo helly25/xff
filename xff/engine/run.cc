@@ -210,8 +210,10 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
       walk_fs, command.roots, options,
       [&](const Visit& visit) {
         Control control;
+        std::vector<std::string> captures;  // -regex groups for this entry; consumed by gated -exec {0}..{N}
         EvalContext eval_context{
-            .visit = visit, .emit = emit, .fs = walk_fs, .now = now, .control = control, .exec_fields = exec_fields};
+            .visit = visit, .emit = emit, .fs = walk_fs, .now = now, .control = control,
+            .exec_fields = exec_fields, .captures = exec_fields ? &captures : nullptr};
         const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
         if (matched && !has_action) {
           if (compiled_tmpl.has_value()) {  // --template overrides --format
