@@ -26,6 +26,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -280,6 +281,28 @@ std::string CaptureField(std::string_view key, std::string_view, const RenderCon
   return (*ctx.captures)[static_cast<std::size_t>(index)];
 }
 
+// Renders {env.NAME}: `key` is NAME; the process environment value, or empty
+// when unset. std::getenv is standard C++ (no POSIX feature-test needed).
+std::string EnvField(std::string_view key, std::string_view, const RenderContext&) {
+  const std::string name(key);
+  const char* const value = std::getenv(name.c_str());
+  return value == nullptr ? "" : value;
+}
+
+// Resolves a placeholder name to a renderer and its bound key: a numeric
+// {0}..{N} -> a regex capture; the {env.NAME} namespace -> the environment;
+// otherwise a builtin field from the table (empty key). New namespaces
+// ({def.*}, {output.*}) slot in here.
+std::pair<detail::FieldFn, std::string> ResolveName(std::string_view name) {
+  if (CaptureIndex(name) >= 0) {
+    return {&CaptureField, std::string(name)};
+  }
+  if (name.starts_with("env.")) {
+    return {&EnvField, std::string(name.substr(4))};
+  }
+  return {LookupField(name), std::string()};
+}
+
 }  // namespace
 
 Template Template::Compile(std::string_view tmpl) {
@@ -309,12 +332,8 @@ Template Template::Compile(std::string_view tmpl) {
         continue;
       }
       flush_literal();
-      if (CaptureIndex(name) >= 0) {  // {0}..{N} -> regex capture, rendered by CaptureField from `key`
-        compiled.segments_.push_back(
-            {.fn = &CaptureField, .key = std::string(name), .qualifier = std::move(qualifier)});
-      } else {
-        compiled.segments_.push_back({.fn = LookupField(name), .qualifier = std::move(qualifier)});
-      }
+      auto [fn, key] = ResolveName(name);  // builtin field, {0}..{N} capture, or {env.NAME}
+      compiled.segments_.push_back({.fn = fn, .key = std::move(key), .qualifier = std::move(qualifier)});
       i = next;
     } else {
       literal.push_back(ch);

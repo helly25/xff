@@ -13,9 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// setenv()/unsetenv() are POSIX, hidden by glibc under strict -std=c++23; request
+// them explicitly for the {env.NAME} test. No effect on macOS.
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE 1
+#endif
+
 #include "xff/fields/fields.h"
 
 #include <cstdint>
+#include <cstdlib>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -138,6 +145,14 @@ TEST_F(FieldsTest, NumericPlaceholdersRenderRegexCaptures) {
   EXPECT_THAT(Render("{0}", ctx), Eq("a/b/c.txt"));           // {0} is the whole match
   EXPECT_THAT(Render("{9}", ctx), Eq(""));                    // out of range -> empty
   EXPECT_THAT(Render("[{1}]", "a/b/c.txt", md, 0), Eq("[]"));  // no captures available -> empty
+}
+
+TEST_F(FieldsTest, EnvNamespaceReadsEnvironment) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  ::setenv("XFF_TEST_ENV_VAR", "hello", 1);
+  EXPECT_THAT(Render("{env.XFF_TEST_ENV_VAR}", "p", md, 0), Eq("hello"));
+  ::unsetenv("XFF_TEST_ENV_VAR");
+  EXPECT_THAT(Render("{env.XFF_TEST_ENV_VAR}", "p", md, 0), Eq(""));  // unset -> empty
 }
 
 }  // namespace
