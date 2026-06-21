@@ -57,7 +57,8 @@ using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier
 // ({mtime:"{\"t\":\"%H:%M\"}"}) so it can hold a literal '}' or ':'; inside it
 // \" and \\ are escapes. A numeric placeholder {0}..{N} renders a regex capture
 // from RenderContext::captures ({0} the whole match, {1}..{N} the groups; empty
-// when unset or out of range) -- used by gated -exec after a -regex match.
+// when unset or out of range) -- used by gated -exec after a -regex match. The
+// {env.NAME} namespace renders a process environment variable (empty when unset).
 //
 // Compile parses the template once into literal/field segments; the resulting
 // Template renders against many entries without re-scanning -- the hot path for
