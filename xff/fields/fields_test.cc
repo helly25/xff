@@ -130,5 +130,15 @@ TEST_F(FieldsTest, EmptyPlaceholderIsPathAndContextOverloadResolvesRoot) {
       Eq("r:r/sub/f"));
 }
 
+TEST_F(FieldsTest, NumericPlaceholdersRenderRegexCaptures) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const std::vector<std::string> captures = {"a/b/c.txt", "a/b", "c", "txt"};  // [0]=whole match, 1..3 groups
+  const RenderContext ctx{.path = "a/b/c.txt", .metadata = md, .captures = &captures};
+  EXPECT_THAT(Render("{1}-{3}", ctx), Eq("a/b-txt"));
+  EXPECT_THAT(Render("{0}", ctx), Eq("a/b/c.txt"));           // {0} is the whole match
+  EXPECT_THAT(Render("{9}", ctx), Eq(""));                    // out of range -> empty
+  EXPECT_THAT(Render("[{1}]", "a/b/c.txt", md, 0), Eq("[]"));  // no captures available -> empty
+}
+
 }  // namespace
 }  // namespace xff::fields

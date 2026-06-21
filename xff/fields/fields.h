@@ -31,6 +31,7 @@ struct RenderContext {
   std::string_view root;          // command-line search root it was reached from (find %H); may be empty
   const vfs::Metadata& metadata;  // the entry's metadata
   int depth = 0;                  // 0 for a root operand, +1 per directory level
+  const std::vector<std::string>* captures = nullptr;  // -regex groups for {0..N}: [0] whole match, 1..N groups
 };
 
 namespace detail {
@@ -53,7 +54,9 @@ using FieldFn = std::string (*)(std::string_view qualifier, const RenderContext&
 // ({mtime:%Y-%m-%d}) or preset ({mtime:iso|epoch}); local time, default
 // ISO-8601. A qualifier may also be a "C-quoted string"
 // ({mtime:"{\"t\":\"%H:%M\"}"}) so it can hold a literal '}' or ':'; inside it
-// \" and \\ are escapes.
+// \" and \\ are escapes. A numeric placeholder {0}..{N} renders a regex capture
+// from RenderContext::captures ({0} the whole match, {1}..{N} the groups; empty
+// when unset or out of range) -- used by gated -exec after a -regex match.
 //
 // Compile parses the template once into literal/field segments; the resulting
 // Template renders against many entries without re-scanning -- the hot path for
@@ -65,11 +68,13 @@ class Template {
   std::string Render(const RenderContext& context) const;
 
  private:
-  // A literal run (fn == nullptr -> emit `literal`) or a field reference (-> fn).
+  // A literal run (fn == nullptr -> emit `literal`), a field reference (-> fn), or
+  // a numeric regex-capture placeholder (capture >= 0 -> RenderContext::captures).
   struct Segment {
     std::string literal;
     detail::FieldFn fn = nullptr;
     std::string qualifier;
+    int capture = -1;
   };
 
   std::vector<Segment> segments_;

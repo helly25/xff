@@ -24,6 +24,7 @@
 #include <grp.h>
 #include <pwd.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -251,6 +252,22 @@ std::string_view::size_type ParseField(
   return end + 1;
 }
 
+// Parses a field name that is a run of digits ({0},{1},...) into a capture index;
+// returns -1 when `name` is empty or has a non-digit (i.e. not a capture ref).
+int CaptureIndex(std::string_view name) {
+  if (name.empty()) {
+    return -1;  // {} is the path alias, not a capture
+  }
+  int value = 0;
+  for (const char ch : name) {
+    if (ch < '0' || ch > '9') {
+      return -1;
+    }
+    value = value * 10 + (ch - '0');
+  }
+  return value;
+}
+
 }  // namespace
 
 Template Template::Compile(std::string_view tmpl) {
@@ -280,7 +297,11 @@ Template Template::Compile(std::string_view tmpl) {
         continue;
       }
       flush_literal();
-      compiled.segments_.push_back({{}, LookupField(name), std::move(qualifier)});
+      if (const int capture = CaptureIndex(name); capture >= 0) {  // {0}..{N} -> regex capture
+        compiled.segments_.push_back({.qualifier = std::move(qualifier), .capture = capture});
+      } else {
+        compiled.segments_.push_back({{}, LookupField(name), std::move(qualifier)});
+      }
       i = next;
     } else {
       literal.push_back(ch);
@@ -294,7 +315,11 @@ Template Template::Compile(std::string_view tmpl) {
 std::string Template::Render(const RenderContext& context) const {
   std::string out;
   for (const Segment& segment : segments_) {
-    if (segment.fn != nullptr) {
+    if (segment.capture >= 0) {  // numeric {N}: a regex capture, empty when unset or out of range
+      if (context.captures != nullptr && segment.capture < static_cast<int>(context.captures->size())) {
+        out.append((*context.captures)[static_cast<std::size_t>(segment.capture)]);
+      }
+    } else if (segment.fn != nullptr) {
       out.append(segment.fn(segment.qualifier, context));
     } else {
       out.append(segment.literal);
