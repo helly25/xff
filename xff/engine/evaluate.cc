@@ -466,7 +466,7 @@ bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
       return true;  // unwired or malformed: binding is a no-op, but --capture is always true
     }
     // The command renders through the field vocabulary so {} -> path and prior
-    // {output.*}/{def.*}/{N} resolve (left-to-right chaining).
+    // {capture.*}/{def.*}/{N} resolve (left-to-right chaining).
     const fields::RenderContext render_ctx{
         .path = visit.path, .root = visit.root, .metadata = visit.metadata, .depth = visit.depth,
         .captures = ctx.captures, .defines = ctx.defines, .outputs = ctx.outputs};
@@ -485,7 +485,7 @@ bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
         value = ExtractCapture(expr.args[1], value);  // optional regex extraction
       }
     }
-    (*ctx.outputs)[expr.args[0]] = std::move(value);  // bind {output.NAME} (last wins)
+    (*ctx.outputs)[expr.args[0]] = std::move(value);  // bind {capture.NAME} (last wins)
     return true;  // a binding side effect; always true
   }
   if (name == "-prune") {

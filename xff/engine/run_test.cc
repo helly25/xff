@@ -354,9 +354,9 @@ TEST_F(RunTest, DefinePopulatesDefNamespace) {
 
 TEST_F(RunTest, CaptureBindsOutputForTemplate) {
   // --capture runs a command per match (with {} -> path) and binds its stdout to
-  // {output.NAME}; --template then prints it.
+  // {capture.NAME}; --template then prints it.
   const auto command = parser::Parse(
-      {"--template={output.base}", root_.string(), "-name", "a.txt", "--capture=base", "/bin/sh", "-c",
+      {"--template={capture.base}", root_.string(), "-name", "a.txt", "--capture=base", "/bin/sh", "-c",
        "basename {}", ";"});
   ASSERT_THAT(command, IsOk());
   std::vector<std::string> records;
@@ -374,10 +374,10 @@ TEST_F(RunTest, CaptureBindsOutputForTemplate) {
 }
 
 TEST_F(RunTest, CaptureChainsPriorOutputs) {
-  // A later --capture command references an earlier capture's {output.*}.
+  // A later --capture command references an earlier capture's {capture.*}.
   const auto command = parser::Parse(
-      {"--template={output.b}", root_.string(), "-name", "a.txt", "--capture=a", "/bin/sh", "-c", "printf X", ";",
-       "--capture=b", "/bin/sh", "-c", "printf {output.a}Y", ";"});
+      {"--template={capture.b}", root_.string(), "-name", "a.txt", "--capture=a", "/bin/sh", "-c", "printf X", ";",
+       "--capture=b", "/bin/sh", "-c", "printf {capture.a}Y", ";"});
   ASSERT_THAT(command, IsOk());
   std::vector<std::string> records;
   RunFind(
@@ -390,7 +390,7 @@ TEST_F(RunTest, CaptureChainsPriorOutputs) {
         records.push_back(std::move(text));
       },
       [](std::string_view, absl::Status) {});
-  EXPECT_THAT(records, UnorderedElementsAre("XY"));  // b = {output.a}("X") + "Y"
+  EXPECT_THAT(records, UnorderedElementsAre("XY"));  // b = {capture.a}("X") + "Y"
 }
 
 }  // namespace
