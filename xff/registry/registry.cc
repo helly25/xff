@@ -68,6 +68,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-print", .kind = Kind::kAction, .arity = 0},
     {.name = "-print0", .kind = Kind::kAction, .arity = 0},
     {.name = "-printf", .kind = Kind::kAction, .arity = 1},
+    {.name = "-println", .kind = Kind::kAction, .arity = 0},    // xff: -print with the OS line ending
+    {.name = "-printfln", .kind = Kind::kAction, .arity = 1},   // xff: -printf + the OS line ending
     {.name = "-delete", .kind = Kind::kAction, .arity = 0},
     {.name = "-prune", .kind = Kind::kAction, .arity = 0},
     {.name = "-quit", .kind = Kind::kAction, .arity = 0},
