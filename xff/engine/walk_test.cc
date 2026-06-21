@@ -149,7 +149,7 @@ struct WalkTest : ::testing::Test {
           result.seen.emplace_back(std::string(visit.path), visit.depth);
           return control(visit);
         },
-        [&](std::string_view, const absl::Status&) { ++result.errors; });
+        [&](std::string_view, absl::Status) { ++result.errors; });
     return result;
   }
 
@@ -254,7 +254,7 @@ struct WalkFakeFsTest : ::testing::Test {
           out.push_back(std::string(visit.path));
           return WalkAction::kContinue;
         },
-        [&](std::string_view, const absl::Status&) { ++errors_; });
+        [&](std::string_view, absl::Status) { ++errors_; });
     EXPECT_THAT(status, IsOk());
     return out;
   }
@@ -329,7 +329,7 @@ TEST_F(WalkFakeFsTest, CarriesOriginatingRootPerEntry) {
         seen.emplace_back(std::string(visit.path), std::string(visit.root));
         return WalkAction::kContinue;
       },
-      [&](std::string_view, const absl::Status&) {});
+      [&](std::string_view, absl::Status) {});
   EXPECT_THAT(status, IsOk());
   EXPECT_THAT(
       seen,

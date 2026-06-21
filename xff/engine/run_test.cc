@@ -80,7 +80,7 @@ struct RunTest : ::testing::Test {
           }
           records.push_back(std::move(text));
         },
-        [](std::string_view, const absl::Status&) {});
+        [](std::string_view, absl::Status) {});
     return records;
   }
 
@@ -150,7 +150,7 @@ TEST_F(RunTest, MissingRootCountsError) {
   std::vector<std::string> records;
   const int errors = RunFind(
       *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
-      [](std::string_view, const absl::Status&) {});
+      [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, IsEmpty());
   EXPECT_THAT(errors, Eq(1));
 }
@@ -194,7 +194,7 @@ TEST_F(RunTest, SymlinkLModeFollowsDirectorySymlink) {
         }
         out.push_back(std::move(text));
       },
-      [](std::string_view, const absl::Status&) {});
+      [](std::string_view, absl::Status) {});
   EXPECT_THAT(out, UnorderedElementsAre(Path("sub/c.txt"), Path("lnk/c.txt")));
 }
 
@@ -204,7 +204,7 @@ TEST_F(RunTest, FormatJsonlRendersImplicitPrintAsJson) {
   std::vector<std::string> records;
   RunFind(
       *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
-      [](std::string_view, const absl::Status&) {});
+      [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, UnorderedElementsAre(Eq(std::string("{\"path\":\"") + Path("a.txt") + "\"}\n")));
 }
 
@@ -214,7 +214,7 @@ TEST_F(RunTest, FormatNulViaDashZero) {
   std::vector<std::string> records;
   RunFind(
       *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
-      [](std::string_view, const absl::Status&) {});
+      [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, UnorderedElementsAre(Eq(Path("a.txt") + std::string("\0", 1))));
 }
 
@@ -238,7 +238,7 @@ TEST_F(RunTest, DeleteDryRunPreviewsWithoutDeleting) {
         }
         records.push_back(std::move(text));
       },
-      [](std::string_view, const absl::Status&) {});
+      [](std::string_view, absl::Status) {});
   EXPECT_TRUE(fs::exists(root_ / "a.txt"));  // --dry-run: nothing deleted
   EXPECT_THAT(records, UnorderedElementsAre(Path("a.txt")));  // but previewed
 }
@@ -247,7 +247,7 @@ TEST_F(RunTest, SafeRefusesDelete) {
   const auto command = parser::Parse({"--safe", root_.string(), "-delete"});
   ASSERT_THAT(command, IsOk());
   const int errors =
-      RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, const absl::Status&) {});
+      RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
   EXPECT_THAT(errors, Eq(2));
   EXPECT_TRUE(fs::exists(root_ / "a.txt"));  // refused: nothing deleted
 }
@@ -263,7 +263,7 @@ TEST_F(RunTest, SafeRefusesExec) {
       parser::Parse({"--safe", root_.string(), "-exec", "/bin/sh", "-c", "echo > \"{}.ran\"", ";"});
   ASSERT_THAT(command, IsOk());
   const int errors =
-      RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, const absl::Status&) {});
+      RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
   EXPECT_THAT(errors, Eq(2));
   EXPECT_FALSE(fs::exists(root_ / "a.txt.ran"));  // refused: command not run
 }
@@ -281,7 +281,7 @@ TEST_F(RunTest, TemplateRendersImplicitPrint) {
         }
         records.push_back(std::move(text));
       },
-      [](std::string_view, const absl::Status&) {});
+      [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, UnorderedElementsAre("a.txt:f"));  // {name}:{type} for a regular file
 }
 
@@ -301,7 +301,7 @@ TEST_F(RunTest, TemplateRootFieldReportsTheSearchOperand) {
         }
         records.push_back(std::move(text));
       },
-      [](std::string_view, const absl::Status&) {});
+      [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, UnorderedElementsAre(root_.string() + "|c.txt"));
 }
 
@@ -312,7 +312,7 @@ TEST_F(RunTest, ExecFieldsRendersNamedPlaceholders) {
   const auto command = parser::Parse(
       {"--exec-fields", root_.string(), "-name", "a.txt", "-exec", "/bin/sh", "-c", "echo > \"{path}.fld\"", ";"});
   ASSERT_THAT(command, IsOk());
-  RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, const absl::Status&) {});
+  RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
   EXPECT_TRUE(fs::exists(root_ / "a.txt.fld"));
 }
 
@@ -323,7 +323,7 @@ TEST_F(RunTest, ExecFieldsSubstitutesRegexCaptures) {
       {"--exec-fields", root_.string(), "-regex", ".*/(a)\\.(txt)", "-exec", "/bin/sh", "-c",
        "printf '%s' \"{1}.{2}\" > \"{path}.cap\"", ";"});
   ASSERT_THAT(command, IsOk());
-  RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, const absl::Status&) {});
+  RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
   const fs::path marker = root_ / "a.txt.cap";
   ASSERT_TRUE(fs::exists(marker));
   std::ifstream in(marker);
@@ -348,7 +348,7 @@ TEST_F(RunTest, DefinePopulatesDefNamespace) {
         }
         records.push_back(std::move(text));
       },
-      [](std::string_view, const absl::Status&) {});
+      [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, UnorderedElementsAre("new:a.txt"));  // last --define wins
 }
 
