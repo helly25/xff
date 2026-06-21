@@ -341,6 +341,19 @@ TEST_F(EvaluateTest, PrintfExpandsDirectivesAndEscapes) {
   EXPECT_THAT(emitted_, Eq("%\t3"));
 }
 
+TEST_F(EvaluateTest, PrintlnAndPrintflnAppendOsLineEnding) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.size = 42;
+  const Visit visit{.path = "a/b/c.txt", .name = "c.txt", .depth = 2, .metadata = md};
+  // -println: -print with the OS line ending (LF on this platform).
+  EXPECT_TRUE(Match({"-println"}, visit));
+  EXPECT_THAT(emitted_, Eq("a/b/c.txt\n"));
+  // -printfln: -printf plus a trailing OS line ending the format need not carry.
+  EXPECT_TRUE(Match({"-printfln", "%f|%s"}, visit));
+  EXPECT_THAT(emitted_, Eq("c.txt|42\n"));
+}
+
 TEST_F(EvaluateTest, ExecFieldsGatesNamedPlaceholderSubstitution) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("a/b/f.txt", "f.txt", vfs::FileType::kRegular, md);

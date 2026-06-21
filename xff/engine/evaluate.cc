@@ -47,6 +47,11 @@
 namespace xff::engine {
 namespace {
 
+// The OS-native line terminator used by -println/-printfln (xff extensions).
+// LF today; a Windows build would select "\r\n". Centralized so both actions
+// agree and the platform choice lives in one place.
+constexpr std::string_view kOsLineEnding = "\n";
+
 bool Fnmatch(std::string_view pattern, std::string_view text, int flags) {
   return ::fnmatch(std::string(pattern).c_str(), std::string(text).c_str(), flags) == 0;
 }
@@ -438,6 +443,16 @@ bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
   if (name == "-printf") {
     if (has_arg) {
       emit(FormatPrintf(expr.args.front(), visit));  // no implicit newline; the format owns it
+    }
+    return true;
+  }
+  if (name == "-println") {
+    emit(absl::StrCat(visit.path, kOsLineEnding));  // xff: -print with the OS line ending
+    return true;
+  }
+  if (name == "-printfln") {
+    if (has_arg) {  // xff: -printf plus the OS line ending appended
+      emit(absl::StrCat(FormatPrintf(expr.args.front(), visit), kOsLineEnding));
     }
     return true;
   }
