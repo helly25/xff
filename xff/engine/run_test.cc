@@ -352,5 +352,46 @@ TEST_F(RunTest, DefinePopulatesDefNamespace) {
   EXPECT_THAT(records, UnorderedElementsAre("new:a.txt"));  // last --define wins
 }
 
+TEST_F(RunTest, CaptureBindsOutputForTemplate) {
+  // --capture runs a command per match (with {} -> path) and binds its stdout to
+  // {output.NAME}; --template then prints it.
+  const auto command = parser::Parse(
+      {"--template={output.base}", root_.string(), "-name", "a.txt", "--capture=base", "/bin/sh", "-c",
+       "basename {}", ";"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  RunFind(
+      *command, fs_,
+      [&](std::string_view record) {
+        std::string text(record);
+        if (!text.empty() && text.back() == '\n') {
+          text.pop_back();
+        }
+        records.push_back(std::move(text));
+      },
+      [](std::string_view, absl::Status) {});
+  EXPECT_THAT(records, UnorderedElementsAre("a.txt"));
+}
+
+TEST_F(RunTest, CaptureChainsPriorOutputs) {
+  // A later --capture command references an earlier capture's {output.*}.
+  const auto command = parser::Parse(
+      {"--template={output.b}", root_.string(), "-name", "a.txt", "--capture=a", "/bin/sh", "-c", "printf X", ";",
+       "--capture=b", "/bin/sh", "-c", "printf {output.a}Y", ";"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  RunFind(
+      *command, fs_,
+      [&](std::string_view record) {
+        std::string text(record);
+        if (!text.empty() && text.back() == '\n') {
+          text.pop_back();
+        }
+        records.push_back(std::move(text));
+      },
+      [](std::string_view, absl::Status) {});
+  EXPECT_THAT(records, UnorderedElementsAre("XY"));  // b = {output.a}("X") + "Y"
+}
+
 }  // namespace
 }  // namespace xff::engine
