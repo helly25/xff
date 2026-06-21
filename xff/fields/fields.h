@@ -35,10 +35,11 @@ struct RenderContext {
 };
 
 namespace detail {
-// A resolved field renderer: produces one field's value for an entry. Compile
-// resolves each {field} name to one of these once (constexpr dispatch table in
-// fields.cc), so Render does a direct call per entry instead of name matching.
-using FieldFn = std::string (*)(std::string_view qualifier, const RenderContext& context);
+// A resolved field renderer: produces one field's value for an entry. `key` is
+// the bound argument for dynamic/namespaced fields (a capture index, an
+// {env.NAME} variable, ...), empty for builtins. Compile resolves each {field}
+// to one of these once, so Render is a direct call per entry, not name matching.
+using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier, const RenderContext& context);
 }  // namespace detail
 
 // Renders {field} placeholder templates against a visited entry, substituting
@@ -68,13 +69,13 @@ class Template {
   std::string Render(const RenderContext& context) const;
 
  private:
-  // A literal run (fn == nullptr -> emit `literal`), a field reference (-> fn), or
-  // a numeric regex-capture placeholder (capture >= 0 -> RenderContext::captures).
+  // A literal run (fn == nullptr -> emit `literal`) or a field reference: fn is
+  // the renderer and `key` its bound argument (capture index, {env.NAME} var, ...).
   struct Segment {
     std::string literal;
     detail::FieldFn fn = nullptr;
+    std::string key;
     std::string qualifier;
-    int capture = -1;
   };
 
   std::vector<Segment> segments_;
