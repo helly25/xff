@@ -43,5 +43,14 @@ TEST_F(ExecTest, EmptyCommandIsFalse) {
   EXPECT_FALSE(Execute({}, "x"));
 }
 
+TEST_F(ExecTest, ExecuteArgsSpawnsVerbatimWithoutSubstitution) {
+  EXPECT_TRUE(ExecuteArgs({"/bin/sh", "-c", "exit 0"}));
+  EXPECT_FALSE(ExecuteArgs({"/bin/sh", "-c", "exit 7"}));
+  EXPECT_FALSE(ExecuteArgs({}));  // empty argv
+  // No "{}" substitution: the literal braces reach the child unchanged, so both
+  // sides of the comparison are the literal string "{}".
+  EXPECT_TRUE(ExecuteArgs({"/bin/sh", "-c", "test '{}' = '{}'"}));
+}
+
 }  // namespace
 }  // namespace xff::exec
