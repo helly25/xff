@@ -104,6 +104,32 @@ TEST_F(ParserTest, ExecWithoutTerminatorErrors) {
   EXPECT_THAT(Parse({".", "-exec", "echo", "{}"}), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
+TEST_F(ParserTest, CaptureCollectsNameRegexAndCommand) {
+  // --capture=NAME[=REGEX] cmd... ; => args = [NAME, REGEX (may be empty), cmd...].
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "--capture=lines", "wc", "-l", "{}", ";", "-print"}));
+  const Expr& root = *cmd.expression;
+  ASSERT_THAT(root.kind, Eq(Expr::Kind::kAnd));
+  ASSERT_THAT(root.lhs->kind, Eq(Expr::Kind::kPredicate));
+  EXPECT_THAT(root.lhs->descriptor->name, Eq("--capture"));
+  EXPECT_THAT(root.lhs->args, ElementsAre("lines", "", "wc", "-l", "{}"));  // empty regex slot
+  EXPECT_THAT(root.rhs->descriptor->name, Eq("-print"));
+}
+
+TEST_F(ParserTest, CaptureExtractionRegexInSpec) {
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "--capture=n=([0-9]+)", "wc", ";"}));
+  const Expr& root = *cmd.expression;
+  ASSERT_THAT(root.kind, Eq(Expr::Kind::kPredicate));
+  EXPECT_THAT(root.descriptor->name, Eq("--capture"));
+  EXPECT_THAT(root.args, ElementsAre("n", "([0-9]+)", "wc"));  // NAME, REGEX, command
+}
+
+TEST_F(ParserTest, CaptureErrors) {
+  using ::absl::StatusCode;
+  EXPECT_THAT(Parse({".", "--capture=x", "echo"}), StatusIs(StatusCode::kInvalidArgument));      // no ';'
+  EXPECT_THAT(Parse({".", "--capture=", "echo", ";"}), StatusIs(StatusCode::kInvalidArgument));  // no NAME
+  EXPECT_THAT(Parse({".", "--capture=x", ";"}), StatusIs(StatusCode::kInvalidArgument));         // no command
+}
+
 TEST_F(ParserTest, Errors) {
   using ::absl::StatusCode;
   EXPECT_THAT(Parse({".", "-bogus"}), StatusIs(StatusCode::kInvalidArgument));            // unknown predicate

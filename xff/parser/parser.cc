@@ -162,6 +162,42 @@ class ExprParser {
       ++pos_;
       return inner;
     }
+    // --capture=NAME[=REGEX] cmd... ; binds the command's stdout to {output.NAME}
+    // (with an optional RE2 extraction regex). Encoded as args = [NAME, REGEX
+    // (may be empty), cmd...]; the command is collected like -exec.
+    static constexpr char kCapturePrefix[] = "--capture=";
+    if (token.starts_with(kCapturePrefix)) {
+      const std::string spec = token.substr(sizeof(kCapturePrefix) - 1);  // NAME[=REGEX]
+      const std::string::size_type eq = spec.find('=');
+      std::string name = eq == std::string::npos ? spec : spec.substr(0, eq);
+      std::string regex = eq == std::string::npos ? std::string() : spec.substr(eq + 1);
+      if (name.empty()) {
+        Fail("'--capture=' needs a NAME");
+        return nullptr;
+      }
+      ++pos_;
+      std::vector<std::string> command;
+      while (!AtEnd() && Peek() != ";") {
+        command.push_back(tokens_[pos_++]);
+      }
+      if (AtEnd()) {
+        Fail("'--capture' is missing a ';' terminator");
+        return nullptr;
+      }
+      if (command.empty()) {
+        Fail("'--capture' needs a command before ';'");
+        return nullptr;
+      }
+      ++pos_;  // consume ';'
+      std::vector<std::string> args;
+      args.reserve(command.size() + 2);
+      args.push_back(std::move(name));
+      args.push_back(std::move(regex));
+      for (std::string& cmd_token : command) {
+        args.push_back(std::move(cmd_token));
+      }
+      return MakePredicate(registry::Lookup("--capture"), std::move(args));
+    }
     const registry::Descriptor* descriptor = registry::Lookup(token);
     if (descriptor == nullptr) {
       Fail(absl::StrCat("unknown predicate: '", token, "'"));
