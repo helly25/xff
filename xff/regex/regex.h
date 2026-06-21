@@ -17,7 +17,10 @@
 #define XFF_REGEX_REGEX_H_
 
 #include <memory>
+#include <optional>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "absl/status/statusor.h"
 #include "re2/re2.h"
@@ -37,6 +40,12 @@ class Matcher {
 
   // True iff `text` matches the pattern in its entirety (both ends anchored).
   bool FullMatch(std::string_view text) const;
+
+  // Like FullMatch, but on success returns the captured substrings: index 0 is
+  // the whole match, 1..N the parenthesised groups (a group that did not take
+  // part is empty). nullopt when `text` does not fully match. Backs the gated
+  // {1}..{N} -exec placeholders.
+  std::optional<std::vector<std::string>> FullMatchCaptures(std::string_view text) const;
 
   Matcher(Matcher&&) = default;
   Matcher& operator=(Matcher&&) = default;
