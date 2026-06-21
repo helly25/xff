@@ -305,5 +305,16 @@ TEST_F(RunTest, TemplateRootFieldReportsTheSearchOperand) {
   EXPECT_THAT(records, UnorderedElementsAre(root_.string() + "|c.txt"));
 }
 
+TEST_F(RunTest, ExecFieldsRendersNamedPlaceholders) {
+  // --exec-fields routes -exec tokens through the field vocabulary: {path} is the
+  // full path, so the marker lands beside the matched file (vs. a literal "{path}"
+  // file in the cwd without the flag).
+  const auto command = parser::Parse(
+      {"--exec-fields", root_.string(), "-name", "a.txt", "-exec", "/bin/sh", "-c", "echo > \"{path}.fld\"", ";"});
+  ASSERT_THAT(command, IsOk());
+  RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, const absl::Status&) {});
+  EXPECT_TRUE(fs::exists(root_ / "a.txt.fld"));
+}
+
 }  // namespace
 }  // namespace xff::engine

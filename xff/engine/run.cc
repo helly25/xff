@@ -192,6 +192,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   // Precompile the --template once; rendering each match then skips re-scanning.
   const std::optional<fields::Template> compiled_tmpl =
       tmpl.has_value() ? std::optional<fields::Template>(fields::Template::Compile(*tmpl)) : std::nullopt;
+  const bool exec_fields = HasGlobal(command.globals, "--exec-fields");  // route -exec through the vocabulary
   if (expression != nullptr) {
     ScanDepthOptions(*expression, &options);
   }
@@ -209,7 +210,8 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
       walk_fs, command.roots, options,
       [&](const Visit& visit) {
         Control control;
-        EvalContext eval_context{.visit = visit, .emit = emit, .fs = walk_fs, .now = now, .control = control};
+        EvalContext eval_context{
+            .visit = visit, .emit = emit, .fs = walk_fs, .now = now, .control = control, .exec_fields = exec_fields};
         const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
         if (matched && !has_action) {
           if (compiled_tmpl.has_value()) {  // --template overrides --format
