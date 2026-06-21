@@ -298,6 +298,15 @@ std::string DefField(std::string_view key, std::string_view, const RenderContext
   return it == ctx.defines->end() ? "" : it->second;
 }
 
+// Renders {output.NAME}: `key` is NAME; a --capture result, empty when unset.
+std::string OutputField(std::string_view key, std::string_view, const RenderContext& ctx) {
+  if (ctx.outputs == nullptr) {
+    return "";
+  }
+  const auto it = ctx.outputs->find(std::string(key));
+  return it == ctx.outputs->end() ? "" : it->second;
+}
+
 // Resolves a placeholder name to a renderer and its bound key: a numeric
 // {0}..{N} -> a regex capture; the {env.NAME} namespace -> the environment;
 // otherwise a builtin field from the table (empty key). New namespaces
@@ -311,6 +320,9 @@ std::pair<detail::FieldFn, std::string> ResolveName(std::string_view name) {
   }
   if (name.starts_with("def.")) {
     return {&DefField, std::string(name.substr(4))};
+  }
+  if (name.starts_with("output.")) {
+    return {&OutputField, std::string(name.substr(7))};
   }
   return {LookupField(name), std::string()};
 }

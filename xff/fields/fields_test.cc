@@ -166,5 +166,15 @@ TEST_F(FieldsTest, DefNamespaceReadsDefines) {
   EXPECT_THAT(Render("[{def.greeting}]", "p", md, 0), Eq("[]"));  // no defines map -> empty
 }
 
+TEST_F(FieldsTest, OutputNamespaceReadsCaptureResults) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const std::map<std::string, std::string> outputs = {{"lines", "42"}};
+  const RenderContext ctx{.path = "p", .metadata = md, .outputs = &outputs};
+  EXPECT_THAT(Render("{output.lines}", ctx), Eq("42"));
+  EXPECT_THAT(Render("[{output.lines}]", ctx), Eq("[42]"));      // value composes with surrounding literals
+  EXPECT_THAT(Render("{output.missing}", ctx), Eq(""));          // unset -> empty
+  EXPECT_THAT(Render("[{output.lines}]", "p", md, 0), Eq("[]"));  // no outputs map -> empty
+}
+
 }  // namespace
 }  // namespace xff::fields
