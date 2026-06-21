@@ -36,6 +36,7 @@
 #include "absl/time/time.h"
 #include "xff/engine/walk.h"
 #include "xff/exec/exec.h"
+#include "xff/fields/fields.h"
 #include "xff/parser/ast.h"
 #include "xff/regex/regex.h"
 #include "xff/registry/descriptor.h"
@@ -415,7 +416,19 @@ bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
     return true;
   }
   if (name == "-exec") {
-    return exec::Execute(expr.args, visit.path);  // true iff the child exits 0 (find's -exec ... ;)
+    if (!ctx.exec_fields) {
+      return exec::Execute(expr.args, visit.path);  // find-exact: only {} is substituted (-> path)
+    }
+    // --exec-fields: render each token through the field vocabulary ({}, {name},
+    // {path}, {root}, ...), then spawn the already-substituted argv.
+    const fields::RenderContext render_ctx{
+        .path = visit.path, .root = visit.root, .metadata = visit.metadata, .depth = visit.depth};
+    std::vector<std::string> argv;
+    argv.reserve(expr.args.size());
+    for (const std::string& token : expr.args) {
+      argv.push_back(fields::Render(token, render_ctx));
+    }
+    return exec::ExecuteArgs(argv);  // true iff the child exits 0
   }
   if (name == "-prune") {
     control.prune = true;  // do not descend into this directory; -prune is always true

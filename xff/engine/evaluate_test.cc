@@ -52,7 +52,8 @@ struct EvaluateTest : ::testing::Test {
       return false;
     }
     const auto sink = [this](std::string_view record) { emitted_ += record; };
-    EvalContext context{.visit = visit, .emit = sink, .fs = fs_, .now = now_, .control = control_};
+    EvalContext context{
+        .visit = visit, .emit = sink, .fs = fs_, .now = now_, .control = control_, .exec_fields = exec_fields_};
     return Evaluate(*command->expression, context);
   }
 
@@ -69,6 +70,7 @@ struct EvaluateTest : ::testing::Test {
   // mtime is set relative to this so the assertions are clock-independent.
   const absl::Time now_ = absl::FromUnixSeconds(1700000000);
   Control control_;  // set by Match from the most recent evaluation (-prune/-quit)
+  bool exec_fields_ = false;  // when true, Match enables --exec-fields token substitution
 };
 
 TEST_F(EvaluateTest, TrueAndFalse) {
@@ -332,6 +334,18 @@ TEST_F(EvaluateTest, PrintfExpandsDirectivesAndEscapes) {
   EXPECT_THAT(emitted_, Eq("a/b/c.txt|c.txt|a/b|42|644|2|f\n"));
   EXPECT_TRUE(Match({"-printf", "%%\\t%n"}, visit));  // literal %, tab escape, link count
   EXPECT_THAT(emitted_, Eq("%\t3"));
+}
+
+TEST_F(EvaluateTest, ExecFieldsGatesNamedPlaceholderSubstitution) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("a/b/f.txt", "f.txt", vfs::FileType::kRegular, md);
+  // Default (find-exact): {name} is not a placeholder, so the child compares the
+  // literal "{name}" against "f.txt" -> not equal -> child exits 1 -> false.
+  exec_fields_ = false;
+  EXPECT_FALSE(Match({"-exec", "/bin/sh", "-c", "test \"{name}\" = f.txt", ";"}, visit));
+  // With --exec-fields, {name} renders the basename -> equal -> child exits 0 -> true.
+  exec_fields_ = true;
+  EXPECT_TRUE(Match({"-exec", "/bin/sh", "-c", "test \"{name}\" = f.txt", ";"}, visit));
 }
 
 }  // namespace
