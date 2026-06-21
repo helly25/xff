@@ -15,9 +15,13 @@
 
 #include "xff/regex/regex.h"
 
+#include <cstddef>
 #include <memory>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -38,5 +42,20 @@ absl::StatusOr<Matcher> Matcher::Compile(std::string_view pattern, bool case_ins
 }
 
 bool Matcher::FullMatch(std::string_view text) const { return RE2::FullMatch(text, *re_); }
+
+std::optional<std::vector<std::string>> Matcher::FullMatchCaptures(std::string_view text) const {
+  const int groups = re_->NumberOfCapturingGroups();  // parenthesised groups, excluding the whole match
+  const int nsubmatch = groups + 1;                   // index 0 holds the whole match
+  std::vector<std::string_view> submatches(static_cast<std::size_t>(nsubmatch));
+  if (!re_->Match(text, 0, text.size(), RE2::ANCHOR_BOTH, submatches.data(), nsubmatch)) {
+    return std::nullopt;
+  }
+  std::vector<std::string> captures;
+  captures.reserve(submatches.size());
+  for (const std::string_view submatch : submatches) {  // [0] = whole match, [1..] = groups
+    captures.emplace_back(submatch);
+  }
+  return captures;
+}
 
 }  // namespace xff::regex
