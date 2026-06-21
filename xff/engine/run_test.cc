@@ -451,5 +451,35 @@ TEST_F(RunTest, CaptureUsedByLaterExecIsNotFlagged) {
   EXPECT_THAT(errors, Eq(0));
 }
 
+TEST_F(RunTest, ImplicitPrintNoSuppressesDefaultPrint) {
+  // No action, so find would print -- --implicit-print=no forces it off.
+  const auto command = parser::Parse({"--implicit-print=no", root_.string(), "-name", "a.txt"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  RunFind(
+      *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
+      [](std::string_view, absl::Status) {});
+  EXPECT_TRUE(records.empty());
+}
+
+TEST_F(RunTest, ImplicitPrintYesPrintsAlongsideAction) {
+  // -exec would suppress the implicit print; --implicit-print=yes forces it on.
+  const auto command = parser::Parse(
+      {"--implicit-print=yes", root_.string(), "-name", "a.txt", "-exec", "/bin/sh", "-c", "true", ";"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  RunFind(
+      *command, fs_,
+      [&](std::string_view record) {
+        std::string text(record);
+        if (!text.empty() && text.back() == '\n') {
+          text.pop_back();
+        }
+        records.push_back(std::move(text));
+      },
+      [](std::string_view, absl::Status) {});
+  EXPECT_THAT(records, UnorderedElementsAre(Path("a.txt")));
+}
+
 }  // namespace
 }  // namespace xff::engine
