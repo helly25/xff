@@ -52,8 +52,10 @@ struct EvaluateTest : ::testing::Test {
       return false;
     }
     const auto sink = [this](std::string_view record) { emitted_ += record; };
+    captures_.clear();
     EvalContext context{
-        .visit = visit, .emit = sink, .fs = fs_, .now = now_, .control = control_, .exec_fields = exec_fields_};
+        .visit = visit, .emit = sink, .fs = fs_, .now = now_, .control = control_, .exec_fields = exec_fields_,
+        .captures = exec_fields_ ? &captures_ : nullptr};
     return Evaluate(*command->expression, context);
   }
 
@@ -71,6 +73,7 @@ struct EvaluateTest : ::testing::Test {
   const absl::Time now_ = absl::FromUnixSeconds(1700000000);
   Control control_;  // set by Match from the most recent evaluation (-prune/-quit)
   bool exec_fields_ = false;  // when true, Match enables --exec-fields token substitution
+  std::vector<std::string> captures_;  // -regex groups captured during the most recent (gated) Match
 };
 
 TEST_F(EvaluateTest, TrueAndFalse) {
@@ -346,6 +349,20 @@ TEST_F(EvaluateTest, ExecFieldsGatesNamedPlaceholderSubstitution) {
   // With --exec-fields, {name} renders the basename -> equal -> child exits 0 -> true.
   exec_fields_ = true;
   EXPECT_TRUE(Match({"-exec", "/bin/sh", "-c", "test \"{name}\" = f.txt", ";"}, visit));
+}
+
+TEST_F(EvaluateTest, ExecFieldsSubstitutesRegexCaptures) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("a/b/c.txt", "c.txt", vfs::FileType::kRegular, md);
+  // A preceding -regex match records its groups; -exec {1} then references group 1
+  // ("a/b"). The child compares it to a/b -> exit 0 -> true.
+  exec_fields_ = true;
+  EXPECT_TRUE(
+      Match({"-regex", "(.*)/([^/]+)\\.(.*)", "-exec", "/bin/sh", "-c", "test \"{1}\" = a/b", ";"}, visit));
+  // Without the gate there is no capture and {1} stays literal -> not equal -> false.
+  exec_fields_ = false;
+  EXPECT_FALSE(
+      Match({"-regex", "(.*)/([^/]+)\\.(.*)", "-exec", "/bin/sh", "-c", "test \"{1}\" = a/b", ";"}, visit));
 }
 
 }  // namespace

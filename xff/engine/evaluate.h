@@ -16,7 +16,9 @@
 #ifndef XFF_ENGINE_EVALUATE_H_
 #define XFF_ENGINE_EVALUATE_H_
 
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "absl/functional/function_ref.h"
 #include "absl/time/time.h"
@@ -53,6 +55,7 @@ struct EvalContext {
   absl::Time now;                 // single reference instant for age tests (-mtime/-mmin)
   Control& control;               // collects -prune/-quit requests
   bool exec_fields = false;       // --exec-fields: render -exec tokens through the field vocabulary
+  std::vector<std::string>* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off
 };
 
 // Evaluates a parsed find expression against one visited entry and returns its

@@ -316,5 +316,21 @@ TEST_F(RunTest, ExecFieldsRendersNamedPlaceholders) {
   EXPECT_TRUE(fs::exists(root_ / "a.txt.fld"));
 }
 
+TEST_F(RunTest, ExecFieldsSubstitutesRegexCaptures) {
+  // --exec-fields + a -regex match: {1}/{2} resolve to the capture groups, written
+  // to a marker beside the file ({path} keeps the marker absolute for cleanup).
+  const auto command = parser::Parse(
+      {"--exec-fields", root_.string(), "-regex", ".*/(a)\\.(txt)", "-exec", "/bin/sh", "-c",
+       "printf '%s' \"{1}.{2}\" > \"{path}.cap\"", ";"});
+  ASSERT_THAT(command, IsOk());
+  RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, const absl::Status&) {});
+  const fs::path marker = root_ / "a.txt.cap";
+  ASSERT_TRUE(fs::exists(marker));
+  std::ifstream in(marker);
+  std::string content;
+  std::getline(in, content);
+  EXPECT_THAT(content, Eq("a.txt"));  // {1}="a", {2}="txt"
+}
+
 }  // namespace
 }  // namespace xff::engine

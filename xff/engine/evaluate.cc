@@ -344,9 +344,23 @@ std::optional<std::uint32_t> ResolveGid(std::string_view name) {
 // find's -regex/-iregex: the pattern must match the whole path (not a substring).
 // Compiled per call for now; pre-compilation is a tracked optimization. An
 // uncompilable pattern matches nothing (a hard error is deferred to exit codes).
-bool MatchesRegex(std::string_view pattern, std::string_view path, bool case_insensitive) {
+// When `captures` is non-null (gated -exec is active) a match records its groups
+// there ([0] the whole match, 1..N the groups) for the {0}..{N} placeholders.
+bool MatchesRegex(
+    std::string_view pattern, std::string_view path, bool case_insensitive, std::vector<std::string>* captures) {
   const absl::StatusOr<regex::Matcher> matcher = regex::Matcher::Compile(pattern, case_insensitive);
-  return matcher.ok() && matcher->FullMatch(path);
+  if (!matcher.ok()) {
+    return false;
+  }
+  if (captures == nullptr) {
+    return matcher->FullMatch(path);
+  }
+  std::optional<std::vector<std::string>> groups = matcher->FullMatchCaptures(path);
+  if (!groups.has_value()) {
+    return false;
+  }
+  *captures = std::move(*groups);
+  return true;
 }
 
 bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
@@ -365,8 +379,8 @@ bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
   if (name == "-iname") return has_arg && Fnmatch(expr.args.front(), visit.name, FNM_CASEFOLD);
   if (name == "-path") return has_arg && Fnmatch(expr.args.front(), visit.path, 0);
   if (name == "-ipath") return has_arg && Fnmatch(expr.args.front(), visit.path, FNM_CASEFOLD);
-  if (name == "-regex") return has_arg && MatchesRegex(expr.args.front(), visit.path, /*case_insensitive=*/false);
-  if (name == "-iregex") return has_arg && MatchesRegex(expr.args.front(), visit.path, /*case_insensitive=*/true);
+  if (name == "-regex") return has_arg && MatchesRegex(expr.args.front(), visit.path, false, ctx.captures);
+  if (name == "-iregex") return has_arg && MatchesRegex(expr.args.front(), visit.path, true, ctx.captures);
   if (name == "-type") return has_arg && MatchesType(expr.args.front(), visit.metadata.type);
   if (name == "-size") return has_arg && MatchesSize(expr.args.front(), visit.metadata.size);
   if (name == "-links") return has_arg && MatchesNumeric(expr.args.front(), visit.metadata.nlink);
@@ -422,7 +436,8 @@ bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
     // --exec-fields: render each token through the field vocabulary ({}, {name},
     // {path}, {root}, ...), then spawn the already-substituted argv.
     const fields::RenderContext render_ctx{
-        .path = visit.path, .root = visit.root, .metadata = visit.metadata, .depth = visit.depth};
+        .path = visit.path, .root = visit.root, .metadata = visit.metadata, .depth = visit.depth,
+        .captures = ctx.captures};
     std::vector<std::string> argv;
     argv.reserve(expr.args.size());
     for (const std::string& token : expr.args) {
