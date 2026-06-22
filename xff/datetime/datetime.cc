@@ -102,21 +102,30 @@ std::optional<absl::Time> ParseTimeString(std::string_view text, absl::Time now)
   return std::nullopt;
 }
 
-// The ctime(3)/asctime(3) layout, shared by the "find" and "asctime" presets.
-constexpr std::string_view kAsctime = "%a %b %e %H:%M:%S %Y";
-
 // Preset time formats; any other spec is used verbatim as an absl::FormatTime
 // pattern. Keyed alphabetically (constexpr dispatch, like the engine's tables).
+// Only genuinely-conformant forms carry a standard's name; "space" is the readable
+// default and claims none. epoch/zulu/zulu-dense are handled in FormatTime (they
+// are numeric or force UTC), so they are not table entries.
+constexpr std::string_view kIso8601 = "%Y-%m-%dT%H:%M:%S%z";  // ISO-8601 extended, shared by "iso"/"iso8601"
+
 constexpr auto kNamedFormats = mbo::container::MakeLimitedMap(
-    std::pair<std::string_view, std::string_view>{"asctime", kAsctime},                // asctime(3) layout
-    std::pair<std::string_view, std::string_view>{"find", kAsctime},                   // find's %t (same layout)
-    std::pair<std::string_view, std::string_view>{"iso", "%Y-%m-%dT%H:%M:%S%z"},       // ISO-8601, +0100 offset
-    std::pair<std::string_view, std::string_view>{"rfc3339", "%Y-%m-%dT%H:%M:%S%Ez"},  // RFC 3339, +01:00 offset
-    std::pair<std::string_view, std::string_view>{"space", "%Y-%m-%d %H:%M:%S%z"});    // ISO + space (default)
+    std::pair<std::string_view, std::string_view>{"asctime", "%a %b %e %H:%M:%S %Y"},   // asctime(3); find's default %t
+    std::pair<std::string_view, std::string_view>{"iso", kIso8601},                     // common shorthand for iso8601
+    std::pair<std::string_view, std::string_view>{"iso8601", kIso8601},                 // ISO-8601 extended (T)
+    std::pair<std::string_view, std::string_view>{"iso8601-basic", "%Y%m%dT%H%M%S%z"},  // ISO-8601 basic (compact)
+    std::pair<std::string_view, std::string_view>{"rfc3339", "%Y-%m-%dT%H:%M:%S%Ez"},   // RFC 3339 (colon offset)
+    std::pair<std::string_view, std::string_view>{"space", "%Y-%m-%d %H:%M:%S %z"});    // readable default; no standard
 
 std::string FormatTime(absl::Time time, std::string_view spec, absl::TimeZone tz) {
   if (spec == "epoch") {
     return std::to_string(absl::ToUnixSeconds(time));
+  }
+  if (spec == "zulu") {  // UTC with a 'Z' designator (extended), regardless of `tz`
+    return absl::FormatTime("%Y-%m-%dT%H:%M:%SZ", time, absl::UTCTimeZone());
+  }
+  if (spec == "zulu-dense") {  // UTC 'Z', no separators (compact)
+    return absl::FormatTime("%Y%m%dT%H%M%SZ", time, absl::UTCTimeZone());
   }
   std::string_view pattern = spec.empty() ? std::string_view("space") : spec;
   if (const auto it = kNamedFormats.find(pattern); it != kNamedFormats.end()) {
