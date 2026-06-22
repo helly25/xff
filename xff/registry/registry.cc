@@ -71,13 +71,13 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-print", .kind = Kind::kAction, .arity = 0},
     {.name = "-print0", .kind = Kind::kAction, .arity = 0},
     {.name = "-printf", .kind = Kind::kAction, .arity = 1},
-    {.name = "-println", .kind = Kind::kAction, .arity = 0},    // xff: -print with the OS line ending
-    {.name = "-printfln", .kind = Kind::kAction, .arity = 1},   // xff: -printf + the OS line ending
+    {.name = "-println", .kind = Kind::kAction, .arity = 0},   // xff: -print with the OS line ending
+    {.name = "-printfln", .kind = Kind::kAction, .arity = 1},  // xff: -printf + the OS line ending
     {.name = "-delete", .kind = Kind::kAction, .arity = 0},
     {.name = "-prune", .kind = Kind::kAction, .arity = 0},
     {.name = "-quit", .kind = Kind::kAction, .arity = 0},
     {.name = "-exec", .kind = Kind::kAction, .arity = -1},
-    {.name = "-ok", .kind = Kind::kAction, .arity = -1},        // -exec that prompts; runs only on an affirmative reply
+    {.name = "-ok", .kind = Kind::kAction, .arity = -1},       // -exec that prompts; runs only on an affirmative reply
     {.name = "-capture", .kind = Kind::kAction, .arity = -1},  // -capture=NAME[=REGEX] cmd... ;
     {.name = "-a", .kind = Kind::kOperator, .arity = 0},
     {.name = "-and", .kind = Kind::kOperator, .arity = 0},

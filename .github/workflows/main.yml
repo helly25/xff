@@ -47,3 +47,18 @@ jobs:
             bazel-${{ matrix.os }}-${{ matrix.config.name }}-
       - name: bazel test
         run: bazel test //... --disk_cache=$HOME/.cache/bazel-disk --repository_cache=$HOME/.cache/bazel-repo ${{ matrix.config.flags }}
+      # Lint gates run once, on the ubuntu clang-asan cell: its --config=clang
+      # build above has already fetched the hermetic clang-format, so
+      # tools/clang_format.sh resolves the pinned toolchain version.
+      - name: clang-format
+        if: matrix.os == 'ubuntu-latest' && matrix.config.name == 'clang-asan'
+        run: |
+          find xff -type f \( -name '*.cc' -o -name '*.h' \) -print0 \
+            | xargs -0 tools/clang_format.sh --dry-run -Werror
+      - name: no em-dashes
+        if: matrix.os == 'ubuntu-latest' && matrix.config.name == 'clang-asan'
+        run: |
+          if git grep -n $'\xe2\x80\x94'; then
+            echo "::error::em-dash (U+2014) found - use a hyphen"
+            exit 1
+          fi

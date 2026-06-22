@@ -22,10 +22,9 @@
 #include <system_error>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
-#include "absl/status/status.h"
 #include "mbo/testing/status.h"
 #include "xff/parser/parser.h"
 #include "xff/vfs/local_fs.h"
@@ -46,8 +45,8 @@ using ::testing::UnorderedElementsAre;
 //   <root>/sub/c.txt
 struct RunTest : ::testing::Test {
   void SetUp() override {
-    root_ = fs::path(::testing::TempDir()) /
-            (std::string("xff_run_") + ::testing::UnitTest::GetInstance()->current_test_info()->name());
+    root_ = fs::path(::testing::TempDir())
+            / (std::string("xff_run_") + ::testing::UnitTest::GetInstance()->current_test_info()->name());
     std::error_code ec;
     fs::remove_all(root_, ec);
     ASSERT_TRUE(fs::create_directories(root_ / "sub"));
@@ -91,9 +90,7 @@ struct RunTest : ::testing::Test {
 
 TEST_F(RunTest, NoExpressionPrintsEverything) {
   EXPECT_THAT(
-      RunExpr({}),
-      UnorderedElementsAre(
-          root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
+      RunExpr({}), UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
   EXPECT_THAT(last_errors_, Eq(0));
 }
 
@@ -116,15 +113,13 @@ TEST_F(RunTest, Print0EmitsNulTerminatedRecords) {
 TEST_F(RunTest, MaxDepthLimitsDescent) {
   // -maxdepth 1: root + its direct children, but not sub/c.txt (depth 2).
   EXPECT_THAT(
-      RunExpr({"-maxdepth", "1"}),
-      UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub")));
+      RunExpr({"-maxdepth", "1"}), UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub")));
 }
 
 TEST_F(RunTest, MinDepthSkipsRoot) {
   // -mindepth 1: everything except the root operand itself.
   EXPECT_THAT(
-      RunExpr({"-mindepth", "1"}),
-      UnorderedElementsAre(Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
+      RunExpr({"-mindepth", "1"}), UnorderedElementsAre(Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
 }
 
 TEST_F(RunTest, EmptyMatchesEmptyFileAndDir) {
@@ -138,9 +133,7 @@ TEST_F(RunTest, EmptyMatchesEmptyFileAndDir) {
 
 TEST_F(RunTest, LinksOneMatchesRegularFiles) {
   // Regular files have one hard link; directories have >= 2.
-  EXPECT_THAT(
-      RunExpr({"-links", "1"}),
-      UnorderedElementsAre(Path("a.txt"), Path("b.md"), Path("sub/c.txt")));
+  EXPECT_THAT(RunExpr({"-links", "1"}), UnorderedElementsAre(Path("a.txt"), Path("b.md"), Path("sub/c.txt")));
 }
 
 TEST_F(RunTest, MissingRootCountsError) {
@@ -170,8 +163,7 @@ TEST_F(RunTest, QuitStopsTraversal) {
 TEST_F(RunTest, DepthVisitsPostOrder) {
   const std::vector<std::string> out = RunExpr({"-depth"});
   // -depth lists the same set but post-order, so the root operand prints last.
-  EXPECT_THAT(
-      out, UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
+  EXPECT_THAT(out, UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
   ASSERT_FALSE(out.empty());
   EXPECT_THAT(out.back(), Eq(root_.string()));
 }
@@ -239,15 +231,14 @@ TEST_F(RunTest, DeleteDryRunPreviewsWithoutDeleting) {
         records.push_back(std::move(text));
       },
       [](std::string_view, absl::Status) {});
-  EXPECT_TRUE(fs::exists(root_ / "a.txt"));  // --dry-run: nothing deleted
+  EXPECT_TRUE(fs::exists(root_ / "a.txt"));                   // --dry-run: nothing deleted
   EXPECT_THAT(records, UnorderedElementsAre(Path("a.txt")));  // but previewed
 }
 
 TEST_F(RunTest, SafeRefusesDelete) {
   const auto command = parser::Parse({"--safe", root_.string(), "-delete"});
   ASSERT_THAT(command, IsOk());
-  const int errors =
-      RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
+  const int errors = RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
   EXPECT_THAT(errors, Eq(2));
   EXPECT_TRUE(fs::exists(root_ / "a.txt"));  // refused: nothing deleted
 }
@@ -259,11 +250,9 @@ TEST_F(RunTest, ExecRunsCommandPerMatch) {
 }
 
 TEST_F(RunTest, SafeRefusesExec) {
-  const auto command =
-      parser::Parse({"--safe", root_.string(), "-exec", "/bin/sh", "-c", "echo > \"{}.ran\"", ";"});
+  const auto command = parser::Parse({"--safe", root_.string(), "-exec", "/bin/sh", "-c", "echo > \"{}.ran\"", ";"});
   ASSERT_THAT(command, IsOk());
-  const int errors =
-      RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
+  const int errors = RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
   EXPECT_THAT(errors, Eq(2));
   EXPECT_FALSE(fs::exists(root_ / "a.txt.ran"));  // refused: command not run
 }
@@ -335,8 +324,7 @@ TEST_F(RunTest, ExecFieldsSubstitutesRegexCaptures) {
 TEST_F(RunTest, DefinePopulatesDefNamespace) {
   // --define=NAME=VALUE surfaces as {def.NAME} in --template output (last wins).
   const auto command = parser::Parse(
-      {"--define=label=old", "--define=label=new", "--template={def.label}:{name}", root_.string(), "-name",
-       "a.txt"});
+      {"--define=label=old", "--define=label=new", "--template={def.label}:{name}", root_.string(), "-name", "a.txt"});
   ASSERT_THAT(command, IsOk());
   std::vector<std::string> records;
   RunFind(
@@ -356,8 +344,8 @@ TEST_F(RunTest, CaptureBindsOutputForTemplate) {
   // -capture runs a command per match (with {} -> path) and binds its stdout to
   // {capture.NAME}; --template then prints it.
   const auto command = parser::Parse(
-      {"--template={capture.base}", root_.string(), "-name", "a.txt", "-capture=base", "/bin/sh", "-c",
-       "basename {}", ";"});
+      {"--template={capture.base}", root_.string(), "-name", "a.txt", "-capture=base", "/bin/sh", "-c", "basename {}",
+       ";"});
   ASSERT_THAT(command, IsOk());
   std::vector<std::string> records;
   RunFind(
@@ -397,20 +385,18 @@ TEST_F(RunTest, DuplicateCaptureNameIsErrorByDefault) {
   // Two -capture actions binding the same NAME, no --capture-override -> exit 2,
   // reported before traversal (silent clobbering would mean wrong data).
   const auto command = parser::Parse(
-      {root_.string(), "-capture=x", "/bin/sh", "-c", "printf a", ";", "-capture=x", "/bin/sh", "-c", "printf b",
-       ";"});
+      {root_.string(), "-capture=x", "/bin/sh", "-c", "printf a", ";", "-capture=x", "/bin/sh", "-c", "printf b", ";"});
   ASSERT_THAT(command, IsOk());
   int errors = 0;
-  const int code =
-      RunFind(*command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
+  const int code = RunFind(*command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
   EXPECT_THAT(code, Eq(2));
   EXPECT_THAT(errors, Eq(1));
 }
 
 TEST_F(RunTest, CaptureOverrideAllowsDuplicateNameLastWins) {
   const auto command = parser::Parse(
-      {"--capture-override", "--template={capture.x}", root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh",
-       "-c", "printf a", ";", "-capture=x", "/bin/sh", "-c", "printf b", ";"});
+      {"--capture-override", "--template={capture.x}", root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh", "-c",
+       "printf a", ";", "-capture=x", "/bin/sh", "-c", "printf b", ";"});
   ASSERT_THAT(command, IsOk());
   std::vector<std::string> records;
   RunFind(
@@ -432,8 +418,7 @@ TEST_F(RunTest, UnusedCaptureIsError) {
       parser::Parse({root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh", "-c", "printf a", ";"});
   ASSERT_THAT(command, IsOk());
   int errors = 0;
-  const int code =
-      RunFind(*command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
+  const int code = RunFind(*command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
   EXPECT_THAT(code, Eq(2));
   EXPECT_THAT(errors, Eq(1));
 }
@@ -445,8 +430,7 @@ TEST_F(RunTest, CaptureUsedByLaterExecIsNotFlagged) {
        "/bin/sh", "-c", "test \"{capture.x}\" = a", ";"});
   ASSERT_THAT(command, IsOk());
   int errors = 0;
-  const int code =
-      RunFind(*command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
+  const int code = RunFind(*command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
   EXPECT_THAT(code, Eq(0));  // used by the -exec, so not flagged
   EXPECT_THAT(errors, Eq(0));
 }
@@ -464,8 +448,8 @@ TEST_F(RunTest, ImplicitPrintNoSuppressesDefaultPrint) {
 
 TEST_F(RunTest, ImplicitPrintYesPrintsAlongsideAction) {
   // -exec would suppress the implicit print; --implicit-print=yes forces it on.
-  const auto command = parser::Parse(
-      {"--implicit-print=yes", root_.string(), "-name", "a.txt", "-exec", "/bin/sh", "-c", "true", ";"});
+  const auto command =
+      parser::Parse({"--implicit-print=yes", root_.string(), "-name", "a.txt", "-exec", "/bin/sh", "-c", "true", ";"});
   ASSERT_THAT(command, IsOk());
   std::vector<std::string> records;
   RunFind(

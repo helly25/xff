@@ -17,7 +17,7 @@
 // under the strict `-std=c++23` we build with; request them explicitly. No
 // effect on macOS, whose headers expose POSIX regardless of language mode.
 #if defined(__linux__) && !defined(_GNU_SOURCE)
-#define _GNU_SOURCE 1
+# define _GNU_SOURCE 1
 #endif
 
 #include "xff/vfs/local_fs.h"
@@ -48,13 +48,27 @@ namespace xff::vfs {
 namespace {
 
 FileType TypeFromMode(mode_t mode) {
-  if (S_ISREG(mode)) return FileType::kRegular;
-  if (S_ISDIR(mode)) return FileType::kDirectory;
-  if (S_ISLNK(mode)) return FileType::kSymlink;
-  if (S_ISBLK(mode)) return FileType::kBlockDevice;
-  if (S_ISCHR(mode)) return FileType::kCharDevice;
-  if (S_ISFIFO(mode)) return FileType::kFifo;
-  if (S_ISSOCK(mode)) return FileType::kSocket;
+  if (S_ISREG(mode)) {
+    return FileType::kRegular;
+  }
+  if (S_ISDIR(mode)) {
+    return FileType::kDirectory;
+  }
+  if (S_ISLNK(mode)) {
+    return FileType::kSymlink;
+  }
+  if (S_ISBLK(mode)) {
+    return FileType::kBlockDevice;
+  }
+  if (S_ISCHR(mode)) {
+    return FileType::kCharDevice;
+  }
+  if (S_ISFIFO(mode)) {
+    return FileType::kFifo;
+  }
+  if (S_ISSOCK(mode)) {
+    return FileType::kSocket;
+  }
   return FileType::kUnknown;
 }
 
@@ -72,15 +86,20 @@ FileType TypeFromDirent(unsigned char d_type) {
 }
 
 std::string JoinPath(std::string_view dir, std::string_view name) {
-  if (dir.empty()) return std::string(name);
-  if (dir.back() == '/') return absl::StrCat(dir, name);
+  if (dir.empty()) {
+    return std::string(name);
+  }
+  if (dir.back() == '/') {
+    return absl::StrCat(dir, name);
+  }
   return absl::StrCat(dir, "/", name);
 }
 
 // Birth/creation time, where the platform + filesystem record it.
-std::optional<absl::Time> BirthTime([[maybe_unused]] const struct stat& st,
-                                    [[maybe_unused]] const std::string& path,
-                                    [[maybe_unused]] bool follow_symlinks) {
+std::optional<absl::Time> BirthTime(
+    [[maybe_unused]] const struct stat& st,
+    [[maybe_unused]] const std::string& path,
+    [[maybe_unused]] bool follow_symlinks) {
 #if defined(__APPLE__)
   return absl::TimeFromTimespec(st.st_birthtimespec);
 #elif defined(__linux__) && defined(STATX_BTIME)

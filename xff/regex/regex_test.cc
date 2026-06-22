@@ -15,10 +15,9 @@
 
 #include "xff/regex/regex.h"
 
+#include "absl/status/status.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
-#include "absl/status/status.h"
 #include "mbo/testing/status.h"
 
 namespace xff::regex {
@@ -52,7 +51,7 @@ TEST_F(RegexTest, FullMatchCapturesReturnsGroups) {
   const auto captures = matcher.FullMatchCaptures("a/b/c.txt");
   ASSERT_TRUE(captures.has_value());
   EXPECT_THAT(*captures, ElementsAre("a/b/c.txt", "a/b", "c", "txt"));  // [0]=whole match, then the 3 groups
-  EXPECT_FALSE(matcher.FullMatchCaptures("nomatch").has_value());      // no full match -> nullopt
+  EXPECT_FALSE(matcher.FullMatchCaptures("nomatch").has_value());       // no full match -> nullopt
 }
 
 TEST_F(RegexTest, FullMatchCapturesWithNoGroupsReturnsWholeMatchOnly) {

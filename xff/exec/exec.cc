@@ -16,7 +16,7 @@
 // posix_spawnp() and waitpid() are POSIX, hidden by glibc under the strict
 // `-std=c++23` we build with; request them explicitly. No effect on macOS.
 #if defined(__linux__) && !defined(_GNU_SOURCE)
-#define _GNU_SOURCE 1
+# define _GNU_SOURCE 1
 #endif
 
 #include "xff/exec/exec.h"
@@ -123,7 +123,7 @@ std::optional<std::string> CaptureOutput(const std::vector<std::string>& args) {
   // Drain the pipe before waiting, so a child writing more than the pipe buffer
   // cannot deadlock against our waitpid.
   std::string output;
-  char buffer[4096];
+  char buffer[4'096];
   for (;;) {
     const ssize_t n = ::read(pipe_fds[0], buffer, sizeof(buffer));
     if (n > 0) {

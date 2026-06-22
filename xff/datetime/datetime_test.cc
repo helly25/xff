@@ -31,10 +31,12 @@ using ::testing::Optional;
 // A fixed reference instant for the relative forms. Its exact value is
 // irrelevant for the duration-based units (they offset by a fixed Duration);
 // month/year use the local zone consistently on both sides of the assertion.
-absl::Time Now() { return absl::FromCivil(absl::CivilSecond(2021, 3, 15, 12, 30, 0), absl::LocalTimeZone()); }
+absl::Time Now() {
+  return absl::FromCivil(absl::CivilSecond(2'021, 3, 15, 12, 30, 0), absl::LocalTimeZone());
+}
 
 TEST(DateTimeTest, EpochSeconds) {
-  EXPECT_THAT(ParseTimeString("@1600000000", Now()), Optional(Eq(absl::FromUnixSeconds(1600000000))));
+  EXPECT_THAT(ParseTimeString("@1600000000", Now()), Optional(Eq(absl::FromUnixSeconds(1'600'000'000))));
   EXPECT_THAT(ParseTimeString("@0", Now()), Optional(Eq(absl::FromUnixSeconds(0))));
   EXPECT_EQ(ParseTimeString("@", Now()), std::nullopt);
   EXPECT_EQ(ParseTimeString("@12x", Now()), std::nullopt);
@@ -42,12 +44,15 @@ TEST(DateTimeTest, EpochSeconds) {
 
 TEST(DateTimeTest, IsoAbsoluteFormsInLocalZone) {
   const absl::TimeZone zone = absl::LocalTimeZone();
-  EXPECT_THAT(ParseTimeString("2020-01-02", Now()),
-              Optional(Eq(absl::FromCivil(absl::CivilSecond(2020, 1, 2, 0, 0, 0), zone))));
-  EXPECT_THAT(ParseTimeString("2020-01-02 15:04:05", Now()),
-              Optional(Eq(absl::FromCivil(absl::CivilSecond(2020, 1, 2, 15, 4, 5), zone))));
-  EXPECT_THAT(ParseTimeString("2020-01-02T15:04:05", Now()),
-              Optional(Eq(absl::FromCivil(absl::CivilSecond(2020, 1, 2, 15, 4, 5), zone))));
+  EXPECT_THAT(
+      ParseTimeString("2020-01-02", Now()),
+      Optional(Eq(absl::FromCivil(absl::CivilSecond(2'020, 1, 2, 0, 0, 0), zone))));
+  EXPECT_THAT(
+      ParseTimeString("2020-01-02 15:04:05", Now()),
+      Optional(Eq(absl::FromCivil(absl::CivilSecond(2'020, 1, 2, 15, 4, 5), zone))));
+  EXPECT_THAT(
+      ParseTimeString("2020-01-02T15:04:05", Now()),
+      Optional(Eq(absl::FromCivil(absl::CivilSecond(2'020, 1, 2, 15, 4, 5), zone))));
   EXPECT_EQ(ParseTimeString("2020/01/02", Now()), std::nullopt);
   EXPECT_EQ(ParseTimeString("not-a-date", Now()), std::nullopt);
 }
@@ -69,12 +74,15 @@ TEST(DateTimeTest, RelativeDurationUnits) {
 TEST(DateTimeTest, RelativeCalendarUnits) {
   const absl::TimeZone zone = absl::LocalTimeZone();
   const absl::Time t = Now();  // 2021-03-15 12:30:00 local
-  EXPECT_THAT(ParseTimeString("1 month ago", t),
-              Optional(Eq(absl::FromCivil(absl::CivilSecond(2021, 2, 15, 12, 30, 0), zone))));
-  EXPECT_THAT(ParseTimeString("13 months ago", t),  // crosses the year boundary
-              Optional(Eq(absl::FromCivil(absl::CivilSecond(2020, 2, 15, 12, 30, 0), zone))));
-  EXPECT_THAT(ParseTimeString("2 years ago", t),
-              Optional(Eq(absl::FromCivil(absl::CivilSecond(2019, 3, 15, 12, 30, 0), zone))));
+  EXPECT_THAT(
+      ParseTimeString("1 month ago", t),
+      Optional(Eq(absl::FromCivil(absl::CivilSecond(2'021, 2, 15, 12, 30, 0), zone))));
+  EXPECT_THAT(
+      ParseTimeString("13 months ago", t),  // crosses the year boundary
+      Optional(Eq(absl::FromCivil(absl::CivilSecond(2'020, 2, 15, 12, 30, 0), zone))));
+  EXPECT_THAT(
+      ParseTimeString("2 years ago", t),
+      Optional(Eq(absl::FromCivil(absl::CivilSecond(2'019, 3, 15, 12, 30, 0), zone))));
 }
 
 TEST(DateTimeTest, SignAndAgoSelectDirection) {

@@ -17,7 +17,6 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
 #include "xff/registry/descriptor.h"
 
 namespace xff::registry {

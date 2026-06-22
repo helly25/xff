@@ -41,7 +41,9 @@ absl::StatusOr<Matcher> Matcher::Compile(std::string_view pattern, bool case_ins
   return Matcher(std::move(re));
 }
 
-bool Matcher::FullMatch(std::string_view text) const { return RE2::FullMatch(text, *re_); }
+bool Matcher::FullMatch(std::string_view text) const {
+  return RE2::FullMatch(text, *re_);
+}
 
 std::optional<std::vector<std::string>> Matcher::FullMatchCaptures(std::string_view text) const {
   const int groups = re_->NumberOfCapturingGroups();  // parenthesised groups, excluding the whole match

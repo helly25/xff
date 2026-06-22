@@ -16,7 +16,7 @@
 // FNM_CASEFOLD and POSIX fnmatch() are hidden by glibc under the strict
 // `-std=c++23` we build with; request them explicitly. No effect on macOS.
 #if defined(__linux__) && !defined(_GNU_SOURCE)
-#define _GNU_SOURCE 1
+# define _GNU_SOURCE 1
 #endif
 
 #include "xff/engine/evaluate.h"
@@ -94,8 +94,12 @@ char TypeLetter(vfs::FileType type) {
 // '/', "/" for a root-level child, or "." when there is no '/'.
 std::string_view Dirname(std::string_view path) {
   const std::string_view::size_type slash = path.rfind('/');
-  if (slash == std::string_view::npos) return ".";
-  if (slash == 0) return "/";
+  if (slash == std::string_view::npos) {
+    return ".";
+  }
+  if (slash == 0) {
+    return "/";
+  }
   return path.substr(0, slash);
 }
 
@@ -127,7 +131,10 @@ std::string FormatPrintf(std::string_view format, const Visit& visit) {
         case 'r': out.push_back('\r'); break;
         case '0': out.push_back('\0'); break;
         case '\\': out.push_back('\\'); break;
-        default: out.push_back('\\'); out.push_back(format[i]); break;
+        default:
+          out.push_back('\\');
+          out.push_back(format[i]);
+          break;
       }
     } else if (ch == '%' && i + 1 < format.size()) {
       switch (format[++i]) {
@@ -141,7 +148,10 @@ std::string FormatPrintf(std::string_view format, const Visit& visit) {
         case 'i': absl::StrAppend(&out, visit.metadata.ino); break;
         case 'n': absl::StrAppend(&out, visit.metadata.nlink); break;
         case '%': out.push_back('%'); break;
-        default: out.push_back('%'); out.push_back(format[i]); break;
+        default:
+          out.push_back('%');
+          out.push_back(format[i]);
+          break;
       }
     } else {
       out.push_back(ch);
@@ -168,9 +178,9 @@ bool MatchesSize(std::string_view arg, std::uint64_t size_bytes) {
       case 'b': unit = 512; break;
       case 'c': unit = 1; break;
       case 'w': unit = 2; break;
-      case 'k': unit = 1024; break;
-      case 'M': unit = 1024ULL * 1024; break;
-      case 'G': unit = 1024ULL * 1024 * 1024; break;
+      case 'k': unit = 1'024; break;
+      case 'M': unit = 1'024ULL * 1'024; break;
+      case 'G': unit = 1'024ULL * 1'024 * 1'024; break;
       default: return false;  // unknown unit
     }
     arg.remove_suffix(1);
@@ -356,7 +366,10 @@ std::optional<std::uint32_t> ResolveGid(std::string_view name) {
 // When `captures` is non-null (gated -exec is active) a match records its groups
 // there ([0] the whole match, 1..N the groups) for the {0}..{N} placeholders.
 bool MatchesRegex(
-    std::string_view pattern, std::string_view path, bool case_insensitive, std::vector<std::string>* captures) {
+    std::string_view pattern,
+    std::string_view path,
+    bool case_insensitive,
+    std::vector<std::string>* captures) {
   const absl::StatusOr<regex::Matcher> matcher = regex::Matcher::Compile(pattern, case_insensitive);
   if (!matcher.ok()) {
     return false;
@@ -392,62 +405,92 @@ std::string ExtractCapture(std::string_view regex, std::string_view text) {
 // name to its handler, so evaluation is a constexpr-map lookup, not a linear
 // name scan. Signature is uniform: (const Expr&, EvalContext&) -> bool. ---
 
-bool EvalTrue(const parser::Expr&, EvalContext&) { return true; }
-bool EvalFalse(const parser::Expr&, EvalContext&) { return false; }
+bool EvalTrue(const parser::Expr&, EvalContext&) {
+  return true;
+}
+
+bool EvalFalse(const parser::Expr&, EvalContext&) {
+  return false;
+}
+
 bool EvalName(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.name, 0);
 }
+
 bool EvalIname(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.name, FNM_CASEFOLD);
 }
+
 bool EvalPath(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.path, 0);
 }
+
 bool EvalIpath(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.path, FNM_CASEFOLD);
 }
+
 bool EvalRegex(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesRegex(expr.args.front(), ctx.visit.path, false, ctx.captures);
 }
+
 bool EvalIregex(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesRegex(expr.args.front(), ctx.visit.path, true, ctx.captures);
 }
+
 bool EvalType(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesType(expr.args.front(), ctx.visit.metadata.type);
 }
+
 bool EvalSize(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesSize(expr.args.front(), ctx.visit.metadata.size);
 }
+
 bool EvalLinks(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesNumeric(expr.args.front(), ctx.visit.metadata.nlink);
 }
+
 bool EvalUid(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesNumeric(expr.args.front(), ctx.visit.metadata.uid);
 }
+
 bool EvalGid(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesNumeric(expr.args.front(), ctx.visit.metadata.gid);
 }
+
 bool EvalUser(const parser::Expr& expr, EvalContext& ctx) {
-  if (expr.args.empty()) return false;
+  if (expr.args.empty()) {
+    return false;
+  }
   const std::optional<std::uint32_t> uid = ResolveUid(expr.args.front());
   return uid.has_value() && ctx.visit.metadata.uid == *uid;
 }
+
 bool EvalGroup(const parser::Expr& expr, EvalContext& ctx) {
-  if (expr.args.empty()) return false;
+  if (expr.args.empty()) {
+    return false;
+  }
   const std::optional<std::uint32_t> gid = ResolveGid(expr.args.front());
   return gid.has_value() && ctx.visit.metadata.gid == *gid;
 }
+
 bool EvalPerm(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesPerm(expr.args.front(), ctx.visit.metadata.mode);
 }
-bool EvalEmpty(const parser::Expr&, EvalContext& ctx) { return IsEmpty(ctx.visit, ctx.fs); }
+
+bool EvalEmpty(const parser::Expr&, EvalContext& ctx) {
+  return IsEmpty(ctx.visit, ctx.fs);
+}
+
 bool EvalNewer(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && IsNewerThan(ctx.visit, expr.args.front(), ctx.fs);
 }
+
 // -newerXY (X,Y in {a,c,m}); -newerXt (Y=t) compares the X-time to a time string.
 // Shared by every 8-char -newer* name; reads X/Y from the descriptor.
 bool EvalNewerXY(const parser::Expr& expr, EvalContext& ctx) {
-  if (expr.args.empty()) return false;
+  if (expr.args.empty()) {
+    return false;
+  }
   const std::string_view name = expr.descriptor->name;
   const char x = name[6];
   if (name[7] == 't') {
@@ -456,54 +499,67 @@ bool EvalNewerXY(const parser::Expr& expr, EvalContext& ctx) {
   }
   return IsNewerXY(ctx.visit, x, name[7], expr.args.front(), ctx.fs);
 }
+
 bool EvalMtime(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.mtime, ctx.now, absl::Hours(24));
 }
+
 bool EvalMmin(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.mtime, ctx.now, absl::Minutes(1));
 }
+
 bool EvalAtime(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.atime, ctx.now, absl::Hours(24));
 }
+
 bool EvalAmin(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.atime, ctx.now, absl::Minutes(1));
 }
+
 bool EvalCtime(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.ctime, ctx.now, absl::Hours(24));
 }
+
 bool EvalCmin(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.ctime, ctx.now, absl::Minutes(1));
 }
+
 bool EvalPrint(const parser::Expr&, EvalContext& ctx) {
   ctx.emit(absl::StrCat(ctx.visit.path, "\n"));
   return true;
 }
+
 bool EvalPrint0(const parser::Expr&, EvalContext& ctx) {
   std::string record(ctx.visit.path);
   record.push_back('\0');
   ctx.emit(record);
   return true;
 }
+
 bool EvalPrintf(const parser::Expr& expr, EvalContext& ctx) {
   if (!expr.args.empty()) {
     ctx.emit(FormatPrintf(expr.args.front(), ctx.visit));  // no implicit newline; the format owns it
   }
   return true;
 }
+
 bool EvalPrintln(const parser::Expr&, EvalContext& ctx) {
   ctx.emit(absl::StrCat(ctx.visit.path, kOsLineEnding));  // xff: -print with the OS line ending
   return true;
 }
+
 bool EvalPrintfln(const parser::Expr& expr, EvalContext& ctx) {
   if (!expr.args.empty()) {  // xff: -printf plus the OS line ending appended
     ctx.emit(absl::StrCat(FormatPrintf(expr.args.front(), ctx.visit), kOsLineEnding));
   }
   return true;
 }
+
 bool EvalDelete(const parser::Expr&, EvalContext& ctx) {
   static_cast<void>(ctx.fs.Remove(ctx.visit.path));  // failures set a nonzero exit; wired in the exit-code work
   return true;
 }
+
 bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
   if (!ctx.exec_fields) {
     return exec::Execute(expr.args, ctx.visit.path);  // find-exact: only {} is substituted (-> path)
@@ -511,8 +567,13 @@ bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
   // --exec-fields: render each token through the field vocabulary ({}, {name},
   // {path}, {root}, ...), then spawn the already-substituted argv.
   const fields::RenderContext render_ctx{
-      .path = ctx.visit.path, .root = ctx.visit.root, .metadata = ctx.visit.metadata, .depth = ctx.visit.depth,
-      .captures = ctx.captures, .defines = ctx.defines, .outputs = ctx.outputs};
+      .path = ctx.visit.path,
+      .root = ctx.visit.root,
+      .metadata = ctx.visit.metadata,
+      .depth = ctx.visit.depth,
+      .captures = ctx.captures,
+      .defines = ctx.defines,
+      .outputs = ctx.outputs};
   std::vector<std::string> argv;
   argv.reserve(expr.args.size());
   for (const std::string& token : expr.args) {
@@ -520,6 +581,7 @@ bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
   }
   return exec::ExecuteArgs(argv);  // true iff the child exits 0
 }
+
 bool EvalOk(const parser::Expr& expr, EvalContext& ctx) {
   // Like -exec, but prompt on stderr and run only on an affirmative reply.
   // Declined, or no confirmer wired -> false (the command is not run), per find.
@@ -543,6 +605,7 @@ bool EvalOk(const parser::Expr& expr, EvalContext& ctx) {
   }
   return exec::Execute(expr.args, ctx.visit.path);  // substitutes {} -> path; true iff the child exits 0
 }
+
 bool EvalCapture(const parser::Expr& expr, EvalContext& ctx) {  // args = [NAME, REGEX (may be empty), cmd...]
   if (ctx.outputs == nullptr || expr.args.size() < 3) {
     return true;  // unwired or malformed: binding is a no-op, but -capture is always true
@@ -550,8 +613,13 @@ bool EvalCapture(const parser::Expr& expr, EvalContext& ctx) {  // args = [NAME,
   // The command renders through the field vocabulary so {} -> path and prior
   // {capture.*}/{def.*}/{N} resolve (left-to-right chaining).
   const fields::RenderContext render_ctx{
-      .path = ctx.visit.path, .root = ctx.visit.root, .metadata = ctx.visit.metadata, .depth = ctx.visit.depth,
-      .captures = ctx.captures, .defines = ctx.defines, .outputs = ctx.outputs};
+      .path = ctx.visit.path,
+      .root = ctx.visit.root,
+      .metadata = ctx.visit.metadata,
+      .depth = ctx.visit.depth,
+      .captures = ctx.captures,
+      .defines = ctx.defines,
+      .outputs = ctx.outputs};
   std::vector<std::string> command;
   command.reserve(expr.args.size() - 2);
   for (std::size_t i = 2; i < expr.args.size(); ++i) {
@@ -568,12 +636,14 @@ bool EvalCapture(const parser::Expr& expr, EvalContext& ctx) {  // args = [NAME,
     }
   }
   (*ctx.outputs)[expr.args[0]] = std::move(value);  // bind {capture.NAME} (last wins)
-  return true;  // a binding side effect; always true
+  return true;                                      // a binding side effect; always true
 }
+
 bool EvalPrune(const parser::Expr&, EvalContext& ctx) {
   ctx.control.prune = true;  // do not descend into this directory; -prune is always true
   return true;
 }
+
 bool EvalQuit(const parser::Expr&, EvalContext& ctx) {
   ctx.control.quit = true;  // stop the whole traversal after this entry
   return true;
@@ -594,24 +664,53 @@ struct EvalEntry {
 
 using DispatchPair = std::pair<std::string_view, EvalEntry>;
 constexpr auto kDispatch = mbo::container::MakeLimitedMap(
-    DispatchPair{"-amin", {&EvalAmin}}, DispatchPair{"-atime", {&EvalAtime}}, DispatchPair{"-capture", {&EvalCapture}},
-    DispatchPair{"-cmin", {&EvalCmin}}, DispatchPair{"-ctime", {&EvalCtime}}, DispatchPair{"-delete", {&EvalDelete}},
-    DispatchPair{"-empty", {&EvalEmpty}}, DispatchPair{"-exec", {&EvalExec}}, DispatchPair{"-false", {&EvalFalse}},
-    DispatchPair{"-gid", {&EvalGid}}, DispatchPair{"-group", {&EvalGroup}}, DispatchPair{"-iname", {&EvalIname}},
-    DispatchPair{"-ipath", {&EvalIpath}}, DispatchPair{"-iregex", {&EvalIregex}}, DispatchPair{"-links", {&EvalLinks}},
-    DispatchPair{"-mmin", {&EvalMmin}}, DispatchPair{"-mtime", {&EvalMtime}}, DispatchPair{"-name", {&EvalName}},
-    DispatchPair{"-newer", {&EvalNewer}}, DispatchPair{"-neweraa", {&EvalNewerXY}},
-    DispatchPair{"-newerac", {&EvalNewerXY}}, DispatchPair{"-neweram", {&EvalNewerXY}},
-    DispatchPair{"-newerat", {&EvalNewerXY}}, DispatchPair{"-newerca", {&EvalNewerXY}},
-    DispatchPair{"-newercc", {&EvalNewerXY}}, DispatchPair{"-newercm", {&EvalNewerXY}},
-    DispatchPair{"-newerct", {&EvalNewerXY}}, DispatchPair{"-newerma", {&EvalNewerXY}},
-    DispatchPair{"-newermc", {&EvalNewerXY}}, DispatchPair{"-newermm", {&EvalNewerXY}},
-    DispatchPair{"-newermt", {&EvalNewerXY}}, DispatchPair{"-ok", {&EvalOk}}, DispatchPair{"-path", {&EvalPath}},
-    DispatchPair{"-perm", {&EvalPerm}}, DispatchPair{"-print", {&EvalPrint}}, DispatchPair{"-print0", {&EvalPrint0}},
-    DispatchPair{"-printf", {&EvalPrintf}}, DispatchPair{"-printfln", {&EvalPrintfln}},
-    DispatchPair{"-println", {&EvalPrintln}}, DispatchPair{"-prune", {&EvalPrune}}, DispatchPair{"-quit", {&EvalQuit}},
-    DispatchPair{"-regex", {&EvalRegex}}, DispatchPair{"-size", {&EvalSize}}, DispatchPair{"-true", {&EvalTrue}},
-    DispatchPair{"-type", {&EvalType}}, DispatchPair{"-uid", {&EvalUid}}, DispatchPair{"-user", {&EvalUser}});
+    DispatchPair{"-amin", {&EvalAmin}},
+    DispatchPair{"-atime", {&EvalAtime}},
+    DispatchPair{"-capture", {&EvalCapture}},
+    DispatchPair{"-cmin", {&EvalCmin}},
+    DispatchPair{"-ctime", {&EvalCtime}},
+    DispatchPair{"-delete", {&EvalDelete}},
+    DispatchPair{"-empty", {&EvalEmpty}},
+    DispatchPair{"-exec", {&EvalExec}},
+    DispatchPair{"-false", {&EvalFalse}},
+    DispatchPair{"-gid", {&EvalGid}},
+    DispatchPair{"-group", {&EvalGroup}},
+    DispatchPair{"-iname", {&EvalIname}},
+    DispatchPair{"-ipath", {&EvalIpath}},
+    DispatchPair{"-iregex", {&EvalIregex}},
+    DispatchPair{"-links", {&EvalLinks}},
+    DispatchPair{"-mmin", {&EvalMmin}},
+    DispatchPair{"-mtime", {&EvalMtime}},
+    DispatchPair{"-name", {&EvalName}},
+    DispatchPair{"-newer", {&EvalNewer}},
+    DispatchPair{"-neweraa", {&EvalNewerXY}},
+    DispatchPair{"-newerac", {&EvalNewerXY}},
+    DispatchPair{"-neweram", {&EvalNewerXY}},
+    DispatchPair{"-newerat", {&EvalNewerXY}},
+    DispatchPair{"-newerca", {&EvalNewerXY}},
+    DispatchPair{"-newercc", {&EvalNewerXY}},
+    DispatchPair{"-newercm", {&EvalNewerXY}},
+    DispatchPair{"-newerct", {&EvalNewerXY}},
+    DispatchPair{"-newerma", {&EvalNewerXY}},
+    DispatchPair{"-newermc", {&EvalNewerXY}},
+    DispatchPair{"-newermm", {&EvalNewerXY}},
+    DispatchPair{"-newermt", {&EvalNewerXY}},
+    DispatchPair{"-ok", {&EvalOk}},
+    DispatchPair{"-path", {&EvalPath}},
+    DispatchPair{"-perm", {&EvalPerm}},
+    DispatchPair{"-print", {&EvalPrint}},
+    DispatchPair{"-print0", {&EvalPrint0}},
+    DispatchPair{"-printf", {&EvalPrintf}},
+    DispatchPair{"-printfln", {&EvalPrintfln}},
+    DispatchPair{"-println", {&EvalPrintln}},
+    DispatchPair{"-prune", {&EvalPrune}},
+    DispatchPair{"-quit", {&EvalQuit}},
+    DispatchPair{"-regex", {&EvalRegex}},
+    DispatchPair{"-size", {&EvalSize}},
+    DispatchPair{"-true", {&EvalTrue}},
+    DispatchPair{"-type", {&EvalType}},
+    DispatchPair{"-uid", {&EvalUid}},
+    DispatchPair{"-user", {&EvalUser}});
 
 bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
   // O(log n) dispatch on the descriptor name. A name not in the table (e.g. a
@@ -642,8 +741,8 @@ bool ContainsAction(const parser::Expr& expr) {
     // -prune per find's "no actions other than -prune" rule, and -capture is a
     // binding side effect (not output). -quit and the print actions do suppress.
     case parser::Expr::Kind::kPredicate:
-      return expr.descriptor->kind == registry::Kind::kAction && expr.descriptor->name != "-prune" &&
-             expr.descriptor->name != "-capture";
+      return expr.descriptor->kind == registry::Kind::kAction && expr.descriptor->name != "-prune"
+             && expr.descriptor->name != "-capture";
     case parser::Expr::Kind::kNot: return ContainsAction(*expr.lhs);
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:

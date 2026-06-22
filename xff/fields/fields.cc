@@ -16,7 +16,7 @@
 // getpwuid()/getgrgid() are POSIX, hidden by glibc under the strict -std=c++23
 // build; request them explicitly. No effect on macOS.
 #if defined(__linux__) && !defined(_GNU_SOURCE)
-#define _GNU_SOURCE 1
+# define _GNU_SOURCE 1
 #endif
 
 #include "xff/fields/fields.h"
@@ -95,22 +95,21 @@ std::string FormatTimeField(absl::Time time, std::string_view qualifier) {
   if (qualifier == "epoch") {
     return std::to_string(absl::ToUnixSeconds(time));
   }
-  const std::string format =
-      (qualifier.empty() || qualifier == "iso") ? "%Y-%m-%dT%H:%M:%S%z" : std::string(qualifier);
+  const std::string format = (qualifier.empty() || qualifier == "iso") ? "%Y-%m-%dT%H:%M:%S%z" : std::string(qualifier);
   return absl::FormatTime(format, time, absl::LocalTimeZone());
 }
 
 // Human-readable size ({size:h}): bytes under 1 KiB as a plain count, otherwise
 // a 1024-based unit with one (truncated) decimal, e.g. 1536 -> "1.5K".
 std::string HumanSize(std::uint64_t bytes) {
-  if (bytes < 1024) {
+  if (bytes < 1'024) {
     return std::to_string(bytes);
   }
   static constexpr char kUnits[] = "KMGTPE";
-  std::uint64_t scale = 1024;
+  std::uint64_t scale = 1'024;
   int unit = 0;
-  while (bytes >= scale * 1024 && unit + 1 < 6) {
-    scale *= 1024;
+  while (bytes >= scale * 1'024 && unit + 1 < 6) {
+    scale *= 1'024;
     ++unit;
   }
   std::string out = std::to_string(bytes / scale);
@@ -127,64 +126,83 @@ std::string HumanSize(std::uint64_t bytes) {
 std::string PathField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::string(ctx.path);
 }
+
 std::string RootField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::string(ctx.root);  // command-line search root (find %H); empty when unset
 }
+
 std::string DirField(std::string_view, std::string_view, const RenderContext& ctx) {
   const std::string parent = stdfs::path(std::string(ctx.path)).parent_path().string();
   return parent.empty() ? "." : parent;  // find's %h is "." when there is no directory part
 }
+
 std::string NameField(std::string_view, std::string_view, const RenderContext& ctx) {
   return stdfs::path(std::string(ctx.path)).filename().string();
 }
+
 std::string StemField(std::string_view, std::string_view, const RenderContext& ctx) {
   return stdfs::path(std::string(ctx.path)).stem().string();
 }
+
 std::string ExtField(std::string_view, std::string_view, const RenderContext& ctx) {
   const std::string ext = stdfs::path(std::string(ctx.path)).extension().string();  // includes the leading '.'
   return ext.empty() ? ext : ext.substr(1);
 }
+
 std::string SuffixesField(std::string_view, std::string_view, const RenderContext& ctx) {
   const std::string filename = stdfs::path(std::string(ctx.path)).filename().string();
   const std::string::size_type dot = filename.find('.', 1);  // all extensions; a leading dot is not one
   return dot == std::string::npos ? "" : filename.substr(dot);
 }
+
 std::string DepthField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::to_string(ctx.depth);
 }
+
 std::string SizeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return qualifier == "h" ? HumanSize(ctx.metadata.size) : std::to_string(ctx.metadata.size);
 }
+
 std::string TypeField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::string(1, TypeLetter(ctx.metadata.type));
 }
+
 std::string InodeField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::to_string(ctx.metadata.ino);
 }
+
 std::string LinksField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::to_string(ctx.metadata.nlink);
 }
+
 std::string MtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return FormatTimeField(ctx.metadata.mtime, qualifier);
 }
+
 std::string AtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return FormatTimeField(ctx.metadata.atime, qualifier);
 }
+
 std::string CtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return FormatTimeField(ctx.metadata.ctime, qualifier);
 }
+
 std::string BtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return ctx.metadata.btime.has_value() ? FormatTimeField(*ctx.metadata.btime, qualifier) : "";
 }
+
 std::string ModeField(std::string_view, std::string_view, const RenderContext& ctx) {
   return OctalPerm(ctx.metadata.mode);
 }
+
 std::string UserField(std::string_view, std::string_view, const RenderContext& ctx) {
   return OwnerName(ctx.metadata.uid);
 }
+
 std::string GroupField(std::string_view, std::string_view, const RenderContext& ctx) {
   return GroupName(ctx.metadata.gid);
 }
+
 std::string EmptyField(std::string_view, std::string_view, const RenderContext&) {
   return "";  // unknown field -> empty
 }
@@ -195,13 +213,27 @@ std::string EmptyField(std::string_view, std::string_view, const RenderContext&)
 using FieldEntry = std::pair<std::string_view, detail::FieldFn>;
 constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"", &PathField},  // {} -> full path (find's -exec placeholder)
-    FieldEntry{"atime", &AtimeField}, FieldEntry{"btime", &BtimeField}, FieldEntry{"ctime", &CtimeField},
-    FieldEntry{"depth", &DepthField}, FieldEntry{"dir", &DirField}, FieldEntry{"ext", &ExtField},
-    FieldEntry{"extension", &ExtField}, FieldEntry{"file", &NameField}, FieldEntry{"group", &GroupField},
-    FieldEntry{"inode", &InodeField}, FieldEntry{"links", &LinksField}, FieldEntry{"mode", &ModeField},
-    FieldEntry{"mtime", &MtimeField}, FieldEntry{"name", &NameField}, FieldEntry{"path", &PathField},
-    FieldEntry{"perm", &ModeField}, FieldEntry{"root", &RootField}, FieldEntry{"size", &SizeField},
-    FieldEntry{"stem", &StemField}, FieldEntry{"suffixes", &SuffixesField}, FieldEntry{"type", &TypeField},
+    FieldEntry{"atime", &AtimeField},
+    FieldEntry{"btime", &BtimeField},
+    FieldEntry{"ctime", &CtimeField},
+    FieldEntry{"depth", &DepthField},
+    FieldEntry{"dir", &DirField},
+    FieldEntry{"ext", &ExtField},
+    FieldEntry{"extension", &ExtField},
+    FieldEntry{"file", &NameField},
+    FieldEntry{"group", &GroupField},
+    FieldEntry{"inode", &InodeField},
+    FieldEntry{"links", &LinksField},
+    FieldEntry{"mode", &ModeField},
+    FieldEntry{"mtime", &MtimeField},
+    FieldEntry{"name", &NameField},
+    FieldEntry{"path", &PathField},
+    FieldEntry{"perm", &ModeField},
+    FieldEntry{"root", &RootField},
+    FieldEntry{"size", &SizeField},
+    FieldEntry{"stem", &StemField},
+    FieldEntry{"suffixes", &SuffixesField},
+    FieldEntry{"type", &TypeField},
     FieldEntry{"user", &UserField});
 
 // Resolves a field name to its renderer; an unknown name renders empty.
@@ -216,7 +248,10 @@ detail::FieldFn LookupField(std::string_view name) {
 // "C-quoted string" so it can carry a literal '}' or ':' (\" and \\ are escapes).
 // Returns npos when there is no well-formed placeholder (the '{' stays literal).
 std::string_view::size_type ParseField(
-    std::string_view tmpl, std::string_view::size_type start, std::string_view& name, std::string& qualifier) {
+    std::string_view tmpl,
+    std::string_view::size_type start,
+    std::string_view& name,
+    std::string& qualifier) {
   std::string_view::size_type pos = start + 1;
   const std::string_view::size_type name_begin = pos;
   while (pos < tmpl.size() && tmpl[pos] != ':' && tmpl[pos] != '}') {
@@ -230,9 +265,9 @@ std::string_view::size_type ParseField(
     qualifier.clear();
     return pos + 1;
   }
-  ++pos;  // consume ':'
+  ++pos;                                        // consume ':'
   if (pos < tmpl.size() && tmpl[pos] == '"') {  // quoted qualifier
-    ++pos;  // consume opening '"'
+    ++pos;                                      // consume opening '"'
     std::string value;
     while (pos < tmpl.size() && tmpl[pos] != '"') {
       if (tmpl[pos] == '\\' && pos + 1 < tmpl.size() && (tmpl[pos + 1] == '"' || tmpl[pos + 1] == '\\')) {
@@ -334,8 +369,7 @@ std::pair<detail::FieldFn, std::string> ResolveName(std::string_view name) {
 // delimiter (s/.../.../, s#...#...#, ...) -- distinct from the format qualifiers
 // (h, iso, epoch, a strftime %..., or a quoted "...").
 bool IsRewriteQualifier(std::string_view qualifier) {
-  return qualifier.size() >= 2 && qualifier[0] == 's' &&
-         std::ispunct(static_cast<unsigned char>(qualifier[1])) != 0;
+  return qualifier.size() >= 2 && qualifier[0] == 's' && std::ispunct(static_cast<unsigned char>(qualifier[1])) != 0;
 }
 
 // Applies a sed-style rewrite `s<delim>PAT<delim>REPL<delim>[flags]` to `value`:
@@ -393,7 +427,7 @@ Template Template::Compile(std::string_view tmpl) {
         continue;
       }
       flush_literal();
-      auto [fn, key] = ResolveName(name);  // builtin field, {0}..{N} capture, or {env.NAME}
+      auto [fn, key] = ResolveName(name);                  // builtin field, {0}..{N} capture, or {env.NAME}
       const bool rewrite = IsRewriteQualifier(qualifier);  // {field:s/PAT/REPL/} post-render transform
       compiled.segments_.push_back(
           {.fn = fn, .key = std::move(key), .qualifier = std::move(qualifier), .rewrite = rewrite});
@@ -413,8 +447,7 @@ std::string Template::Render(const RenderContext& context) const {
     if (segment.fn != nullptr) {
       // A rewrite qualifier post-processes the field's default value; otherwise
       // the qualifier is the field's own format argument.
-      std::string value =
-          segment.fn(segment.key, segment.rewrite ? std::string_view{} : segment.qualifier, context);
+      std::string value = segment.fn(segment.key, segment.rewrite ? std::string_view{} : segment.qualifier, context);
       out.append(segment.rewrite ? ApplyRewrite(value, segment.qualifier) : value);
     } else {
       out.append(segment.literal);

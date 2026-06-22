@@ -61,9 +61,9 @@ struct Metadata {
   std::uint32_t gid = 0;
   std::uint64_t ino = 0;
   std::uint64_t dev = 0;
-  absl::Time atime;  // last access
-  absl::Time mtime;  // last modification
-  absl::Time ctime;  // last inode change (NOT creation)
+  absl::Time atime;                 // last access
+  absl::Time mtime;                 // last modification
+  absl::Time ctime;                 // last inode change (NOT creation)
   std::optional<absl::Time> btime;  // birth / creation time, where recorded
 };
 

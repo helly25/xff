@@ -77,9 +77,7 @@ void ScanDepthOptions(const parser::Expr& expr, WalkOptions* options) {
       }
       break;
     }
-    case parser::Expr::Kind::kNot:
-      ScanDepthOptions(*expr.lhs, options);
-      break;
+    case parser::Expr::Kind::kNot: ScanDepthOptions(*expr.lhs, options); break;
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
     case parser::Expr::Kind::kComma:
@@ -141,10 +139,13 @@ std::optional<std::string> ResolveTemplate(const std::vector<std::string>& globa
 class DryRunFileSystem : public vfs::FileSystem {
  public:
   DryRunFileSystem(const vfs::FileSystem& fs, EmitFn preview) : fs_(fs), preview_(preview) {}
+
   absl::StatusOr<std::vector<vfs::Entry>> ReadDir(std::string_view dir) const override { return fs_.ReadDir(dir); }
+
   absl::StatusOr<vfs::Metadata> Stat(std::string_view path, bool follow) const override {
     return fs_.Stat(path, follow);
   }
+
   absl::Status Remove(std::string_view path) const override {
     preview_(absl::StrCat(path, "\n"));  // would-delete preview; nothing is removed
     return absl::OkStatus();
@@ -160,8 +161,7 @@ class DryRunFileSystem : public vfs::FileSystem {
 // in ScanDepthOptions.)
 bool ContainsArmedAction(const parser::Expr& expr) {
   switch (expr.kind) {
-    case parser::Expr::Kind::kPredicate:
-      return expr.descriptor->name == "-delete" || expr.descriptor->name == "-exec";
+    case parser::Expr::Kind::kPredicate: return expr.descriptor->name == "-delete" || expr.descriptor->name == "-exec";
     case parser::Expr::Kind::kNot: return ContainsArmedAction(*expr.lhs);
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
@@ -238,9 +238,7 @@ void CollectCaptureNames(const parser::Expr& expr, std::vector<std::string>* nam
         names->push_back(expr.args.front());
       }
       break;
-    case parser::Expr::Kind::kNot:
-      CollectCaptureNames(*expr.lhs, names);
-      break;
+    case parser::Expr::Kind::kNot: CollectCaptureNames(*expr.lhs, names); break;
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
     case parser::Expr::Kind::kComma:
@@ -271,9 +269,7 @@ void CollectCaptureRefs(const parser::Expr& expr, std::vector<std::string>* refs
         refs->insert(refs->end(), expr.args.begin() + 2, expr.args.end());  // skip [NAME, REGEX]
       }
       break;
-    case parser::Expr::Kind::kNot:
-      CollectCaptureRefs(*expr.lhs, refs);
-      break;
+    case parser::Expr::Kind::kNot: CollectCaptureRefs(*expr.lhs, refs); break;
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
     case parser::Expr::Kind::kComma:
@@ -324,8 +320,9 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   // mean silently-wrong data); --capture-override opts into last-wins.
   if (expression != nullptr && !CaptureOverride(command.globals)) {
     if (const std::optional<std::string> dup = DuplicateCaptureName(*expression); dup.has_value()) {
-      on_error("-capture", absl::FailedPreconditionError(
-                                absl::StrCat("duplicate -capture name '", *dup, "'; use --capture-override")));
+      on_error(
+          "-capture",
+          absl::FailedPreconditionError(absl::StrCat("duplicate -capture name '", *dup, "'; use --capture-override")));
       return 2;  // do not traverse
     }
   }
@@ -337,8 +334,9 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   // nothing (use -exec for pure side effects); flag it before traversing.
   if (expression != nullptr) {
     if (const std::optional<std::string> unused = UnusedCaptureName(*expression, tmpl); unused.has_value()) {
-      on_error("-capture", absl::FailedPreconditionError(absl::StrCat(
-                                "-capture '", *unused, "' is never referenced as {capture.", *unused, "}")));
+      on_error(
+          "-capture", absl::FailedPreconditionError(
+                          absl::StrCat("-capture '", *unused, "' is never referenced as {capture.", *unused, "}")));
       return 2;  // do not traverse
     }
   }
@@ -374,25 +372,42 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
       walk_fs, command.roots, options,
       [&](const Visit& visit) {
         Control control;
-        std::vector<std::string> captures;  // -regex groups for this entry; consumed by gated -exec {0}..{N}
+        std::vector<std::string> captures;           // -regex groups for this entry; consumed by gated -exec {0}..{N}
         std::map<std::string, std::string> outputs;  // -capture results for this entry; read by {capture.NAME}
         EvalContext eval_context{
-            .visit = visit, .emit = emit, .fs = walk_fs, .now = now, .control = control,
-            .exec_fields = exec_fields, .captures = exec_fields ? &captures : nullptr, .defines = &defines,
-            .outputs = &outputs, .confirm = confirm};
+            .visit = visit,
+            .emit = emit,
+            .fs = walk_fs,
+            .now = now,
+            .control = control,
+            .exec_fields = exec_fields,
+            .captures = exec_fields ? &captures : nullptr,
+            .defines = &defines,
+            .outputs = &outputs,
+            .confirm = confirm};
         const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
         if (matched && implicit_print) {
           if (compiled_tmpl.has_value()) {  // --template overrides --format
-            emit(compiled_tmpl->Render(fields::RenderContext{
-                     .path = visit.path, .root = visit.root, .metadata = visit.metadata, .depth = visit.depth,
-                     .defines = &defines, .outputs = &outputs}) +
-                 "\n");
+            emit(
+                compiled_tmpl->Render(
+                    fields::RenderContext{
+                        .path = visit.path,
+                        .root = visit.root,
+                        .metadata = visit.metadata,
+                        .depth = visit.depth,
+                        .defines = &defines,
+                        .outputs = &outputs})
+                + "\n");
           } else {
             emit(render::Renderer(format).Record(visit.path));
           }
         }
-        if (control.quit) return WalkAction::kStop;
-        if (control.prune) return WalkAction::kPrune;
+        if (control.quit) {
+          return WalkAction::kStop;
+        }
+        if (control.prune) {
+          return WalkAction::kPrune;
+        }
         return WalkAction::kContinue;
       },
       [&](std::string_view path, absl::Status error_status) {

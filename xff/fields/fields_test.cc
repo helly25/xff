@@ -16,7 +16,7 @@
 // setenv()/unsetenv() are POSIX, hidden by glibc under strict -std=c++23; request
 // them explicitly for the {env.NAME} test. No effect on macOS.
 #if defined(__linux__) && !defined(_GNU_SOURCE)
-#define _GNU_SOURCE 1
+# define _GNU_SOURCE 1
 #endif
 
 #include "xff/fields/fields.h"
@@ -26,10 +26,9 @@
 #include <map>
 #include <string>
 
+#include "absl/time/time.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
-#include "absl/time/time.h"
 #include "xff/vfs/entry.h"
 
 namespace xff::fields {
@@ -50,8 +49,7 @@ struct FieldsTest : ::testing::Test {
 TEST_F(FieldsTest, SubstitutesPathComponentsAndMetadata) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 12);
   EXPECT_THAT(
-      Render("{name} in {dir} [{ext}] {size}b {type}", "a/b/file.tar.gz", md, 2),
-      Eq("file.tar.gz in a/b [gz] 12b f"));
+      Render("{name} in {dir} [{ext}] {size}b {type}", "a/b/file.tar.gz", md, 2), Eq("file.tar.gz in a/b [gz] 12b f"));
   EXPECT_THAT(Render("{stem}", "a/b/file.tar.gz", md, 2), Eq("file.tar"));
 }
 
@@ -69,7 +67,7 @@ TEST_F(FieldsTest, UnknownFieldRendersEmpty) {
 
 TEST_F(FieldsTest, TimeFieldQualifiers) {
   vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
-  md.mtime = absl::FromUnixSeconds(1700000000);  // 2023-11-14, mid-month: the year is timezone-stable
+  md.mtime = absl::FromUnixSeconds(1'700'000'000);  // 2023-11-14, mid-month: the year is timezone-stable
   EXPECT_THAT(Render("{mtime:epoch}", "f", md, 0), Eq("1700000000"));
   EXPECT_THAT(Render("{mtime:%Y}", "f", md, 0), Eq("2023"));
   EXPECT_THAT(Render("{mtime:iso}", "f", md, 0), HasSubstr("2023"));
@@ -79,26 +77,26 @@ TEST_F(FieldsTest, TimeFieldQualifiers) {
 TEST_F(FieldsTest, ModeAndOwnerFields) {
   vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   md.mode = 0644;
-  md.uid = 1234567;  // unlikely to have a passwd/group entry -> numeric fallback (find's %u/%g)
-  md.gid = 1234567;
+  md.uid = 1'234'567;  // unlikely to have a passwd/group entry -> numeric fallback (find's %u/%g)
+  md.gid = 1'234'567;
   EXPECT_THAT(Render("{mode} {user}:{group}", "f", md, 0), Eq("644 1234567:1234567"));
 }
 
 TEST_F(FieldsTest, HumanSizeAndSuffixes) {
-  EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 1536), 0), Eq("1.5K"));
-  EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 500), 0), Eq("500"));  // < 1 KiB: plain
-  EXPECT_THAT(Render("{size}", "f", Meta(vfs::FileType::kRegular, 1536), 0), Eq("1536"));  // no qualifier
+  EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 1'536), 0), Eq("1.5K"));
+  EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 500), 0), Eq("500"));   // < 1 KiB: plain
+  EXPECT_THAT(Render("{size}", "f", Meta(vfs::FileType::kRegular, 1'536), 0), Eq("1536"));  // no qualifier
   EXPECT_THAT(Render("{suffixes}", "a/b/file.tar.gz", Meta(vfs::FileType::kRegular, 0), 0), Eq(".tar.gz"));
   EXPECT_THAT(Render("{suffixes}", "a/b/file", Meta(vfs::FileType::kRegular, 0), 0), Eq(""));
 }
 
 TEST_F(FieldsTest, QuotedQualifierCarriesBracesColonsAndQuotes) {
   vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
-  md.mtime = absl::FromUnixSeconds(1700000000);  // 2023-11-14, mid-month: the year is timezone-stable
+  md.mtime = absl::FromUnixSeconds(1'700'000'000);  // 2023-11-14, mid-month: the year is timezone-stable
   // Escaped quotes/braces survive into the strftime format; the inner '}' does not end the field.
   EXPECT_THAT(Render(R"({mtime:"{\"y\":\"%Y\"}"})", "f", md, 0), Eq(R"({"y":"2023"})"));
   // A quoted qualifier is dequoted before matching, so {size:"h"} still selects human-readable size.
-  EXPECT_THAT(Render(R"({size:"h"})", "f", Meta(vfs::FileType::kRegular, 1536), 0), Eq("1.5K"));
+  EXPECT_THAT(Render(R"({size:"h"})", "f", Meta(vfs::FileType::kRegular, 1'536), 0), Eq("1.5K"));
   // An unterminated quoted qualifier leaves the '{' and the remaining text literal.
   EXPECT_THAT(Render(R"({mtime:"%Y)", "f", md, 0), Eq(R"({mtime:"%Y)"));
 }
@@ -106,7 +104,7 @@ TEST_F(FieldsTest, QuotedQualifierCarriesBracesColonsAndQuotes) {
 TEST_F(FieldsTest, CompiledTemplateRendersManyEntries) {
   const Template compiled = Template::Compile("{name}={size:h}");  // parsed once, reused below
   const vfs::Metadata small = Meta(vfs::FileType::kRegular, 1);
-  const vfs::Metadata big = Meta(vfs::FileType::kRegular, 1536);
+  const vfs::Metadata big = Meta(vfs::FileType::kRegular, 1'536);
   EXPECT_THAT(compiled.Render(RenderContext{.path = "a/x", .metadata = small, .depth = 0}), Eq("x=1"));
   EXPECT_THAT(compiled.Render(RenderContext{.path = "b/big", .metadata = big, .depth = 0}), Eq("big=1.5K"));
 }
@@ -135,8 +133,7 @@ TEST_F(FieldsTest, EmptyPlaceholderIsPathAndContextOverloadResolvesRoot) {
   EXPECT_THAT(Render("echo {}", "p", md, 0), Eq("echo p"));
   // The context overload resolves {root}, which the rootless 4-arg overload cannot.
   EXPECT_THAT(
-      Render("{root}:{}", RenderContext{.path = "r/sub/f", .root = "r", .metadata = md, .depth = 1}),
-      Eq("r:r/sub/f"));
+      Render("{root}:{}", RenderContext{.path = "r/sub/f", .root = "r", .metadata = md, .depth = 1}), Eq("r:r/sub/f"));
 }
 
 TEST_F(FieldsTest, NumericPlaceholdersRenderRegexCaptures) {
@@ -144,8 +141,8 @@ TEST_F(FieldsTest, NumericPlaceholdersRenderRegexCaptures) {
   const std::vector<std::string> captures = {"a/b/c.txt", "a/b", "c", "txt"};  // [0]=whole match, 1..3 groups
   const RenderContext ctx{.path = "a/b/c.txt", .metadata = md, .captures = &captures};
   EXPECT_THAT(Render("{1}-{3}", ctx), Eq("a/b-txt"));
-  EXPECT_THAT(Render("{0}", ctx), Eq("a/b/c.txt"));           // {0} is the whole match
-  EXPECT_THAT(Render("{9}", ctx), Eq(""));                    // out of range -> empty
+  EXPECT_THAT(Render("{0}", ctx), Eq("a/b/c.txt"));            // {0} is the whole match
+  EXPECT_THAT(Render("{9}", ctx), Eq(""));                     // out of range -> empty
   EXPECT_THAT(Render("[{1}]", "a/b/c.txt", md, 0), Eq("[]"));  // no captures available -> empty
 }
 
@@ -171,17 +168,17 @@ TEST_F(FieldsTest, OutputNamespaceReadsCaptureResults) {
   const std::map<std::string, std::string> outputs = {{"lines", "42"}};
   const RenderContext ctx{.path = "p", .metadata = md, .outputs = &outputs};
   EXPECT_THAT(Render("{capture.lines}", ctx), Eq("42"));
-  EXPECT_THAT(Render("[{capture.lines}]", ctx), Eq("[42]"));      // value composes with surrounding literals
-  EXPECT_THAT(Render("{capture.missing}", ctx), Eq(""));          // unset -> empty
+  EXPECT_THAT(Render("[{capture.lines}]", ctx), Eq("[42]"));       // value composes with surrounding literals
+  EXPECT_THAT(Render("{capture.missing}", ctx), Eq(""));           // unset -> empty
   EXPECT_THAT(Render("[{capture.lines}]", "p", md, 0), Eq("[]"));  // no outputs map -> empty
 }
 
 TEST_F(FieldsTest, RewriteQualifierTransformsTheValue) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
-  EXPECT_THAT(Render("{name:s/\\.txt$/.md/}", "a/b/c.txt", md, 0), Eq("c.md"));   // first match
-  EXPECT_THAT(Render("{name:s/[aeiou]//g}", "a/b/foo.txt", md, 0), Eq("f.txt"));  // g = all matches
-  EXPECT_THAT(Render("{path:s#/#_#g}", "a/b/c", md, 0), Eq("a_b_c"));             // alternate delimiter
-  EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 1536), 0), Eq("1.5K"));  // non-rewrite intact
+  EXPECT_THAT(Render("{name:s/\\.txt$/.md/}", "a/b/c.txt", md, 0), Eq("c.md"));               // first match
+  EXPECT_THAT(Render("{name:s/[aeiou]//g}", "a/b/foo.txt", md, 0), Eq("f.txt"));              // g = all matches
+  EXPECT_THAT(Render("{path:s#/#_#g}", "a/b/c", md, 0), Eq("a_b_c"));                         // alternate delimiter
+  EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 1'536), 0), Eq("1.5K"));  // non-rewrite intact
 }
 
 }  // namespace

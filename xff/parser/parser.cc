@@ -43,9 +43,17 @@ bool StartsExpression(const std::string& arg) {
   return arg == "(" || arg == ")" || arg == "!" || arg == ",";
 }
 
-bool IsOr(const std::string& t) { return t == "-o" || t == "-or"; }
-bool IsAnd(const std::string& t) { return t == "-a" || t == "-and"; }
-bool IsNot(const std::string& t) { return t == "!" || t == "-not"; }
+bool IsOr(const std::string& t) {
+  return t == "-o" || t == "-or";
+}
+
+bool IsAnd(const std::string& t) {
+  return t == "-a" || t == "-and";
+}
+
+bool IsNot(const std::string& t) {
+  return t == "!" || t == "-not";
+}
 
 ExprPtr MakePredicate(const registry::Descriptor* descriptor, std::vector<std::string> args) {
   auto expr = std::make_unique<Expr>();
@@ -94,7 +102,9 @@ class ExprParser {
 
  private:
   bool AtEnd() const { return pos_ >= tokens_.size(); }
+
   const std::string& Peek() const { return tokens_[pos_]; }
+
   void Fail(std::string message) {
     if (status_.ok()) {
       status_ = absl::InvalidArgumentError(std::move(message));

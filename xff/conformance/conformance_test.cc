@@ -15,12 +15,12 @@
 
 // popen()/pclose() are POSIX, hidden by glibc under the strict -std=c++23 build.
 #if defined(__linux__) && !defined(_GNU_SOURCE)
-#define _GNU_SOURCE 1
+# define _GNU_SOURCE 1
 #endif
 
-#include <grp.h>      // getgrgid()/struct group for the -group oracle
-#include <pwd.h>      // getpwuid()/struct passwd for the -user oracle
-#include <unistd.h>   // geteuid()/getegid() for the -uid/-gid and -user/-group oracles
+#include <grp.h>     // getgrgid()/struct group for the -group oracle
+#include <pwd.h>     // getpwuid()/struct passwd for the -user oracle
+#include <unistd.h>  // geteuid()/getegid() for the -uid/-gid and -user/-group oracles
 
 #include <algorithm>
 #include <cstddef>
@@ -33,11 +33,10 @@
 #include <system_error>
 #include <vector>
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 #include "mbo/testing/status.h"
 #include "xff/engine/run.h"
 #include "xff/parser/parser.h"
@@ -88,8 +87,8 @@ std::vector<std::string> SplitLines(std::string_view text) {
 // BSD on macOS), so only universally-portable predicates belong in the matrix.
 struct ConformanceTest : ::testing::Test {
   void SetUp() override {
-    root_ = fs::path(::testing::TempDir()) /
-            (std::string("xff_conf_") + ::testing::UnitTest::GetInstance()->current_test_info()->name());
+    root_ = fs::path(::testing::TempDir())
+            / (std::string("xff_conf_") + ::testing::UnitTest::GetInstance()->current_test_info()->name());
     std::error_code ec;
     fs::remove_all(root_, ec);
     ASSERT_TRUE(fs::create_directories(root_ / "sub"));
@@ -113,7 +112,8 @@ struct ConformanceTest : ::testing::Test {
   // Runs `find <globals...> <root> <expr...>`, returning its sorted output lines,
   // or nullopt if `find` could not be run (so the test skips rather than fails).
   std::optional<std::vector<std::string>> SystemFind(
-      const std::vector<std::string>& globals, const std::vector<std::string>& expr) {
+      const std::vector<std::string>& globals,
+      const std::vector<std::string>& expr) {
     std::string command = "find";
     for (const std::string& global : globals) {
       absl::StrAppend(&command, " ", ShellQuote(global));
@@ -129,7 +129,7 @@ struct ConformanceTest : ::testing::Test {
       return std::nullopt;
     }
     std::string output;
-    char chunk[4096];
+    char chunk[4'096];
     for (std::size_t n = ::fread(chunk, 1, sizeof(chunk), pipe); n > 0; n = ::fread(chunk, 1, sizeof(chunk), pipe)) {
       output.append(chunk, n);
     }
@@ -179,71 +179,208 @@ struct ConformanceTest : ::testing::Test {
   fs::path root_;
 };
 
-TEST_F(ConformanceTest, PrintAll) { ExpectMatchesFind({}); }
-TEST_F(ConformanceTest, ExplicitPrint) { ExpectMatchesFind({"-print"}); }
-TEST_F(ConformanceTest, TypeFile) { ExpectMatchesFind({"-type", "f"}); }
-TEST_F(ConformanceTest, TypeDirectory) { ExpectMatchesFind({"-type", "d"}); }
-TEST_F(ConformanceTest, TypeSymlink) { ExpectMatchesFind({"-type", "l"}); }
-TEST_F(ConformanceTest, NameGlob) { ExpectMatchesFind({"-name", "*.txt"}); }
-TEST_F(ConformanceTest, NotTypeDirectory) { ExpectMatchesFind({"!", "-type", "d"}); }
-TEST_F(ConformanceTest, OrExpression) { ExpectMatchesFind({"-name", "*.txt", "-o", "-type", "d"}); }
-TEST_F(ConformanceTest, PathGlob) { ExpectMatchesFind({"-path", "*/sub/*"}); }
-TEST_F(ConformanceTest, AndChain) { ExpectMatchesFind({"-type", "f", "-name", "*.md"}); }
-TEST_F(ConformanceTest, SizeExactBytes) { ExpectMatchesFind({"-size", "1c"}); }
-TEST_F(ConformanceTest, SizeGreaterBytes) { ExpectMatchesFind({"-size", "+1c"}); }
-TEST_F(ConformanceTest, SizeLessBytes) { ExpectMatchesFind({"-size", "-3c"}); }
-TEST_F(ConformanceTest, PermExact) { ExpectMatchesFind({"-perm", "644"}); }
-TEST_F(ConformanceTest, PermExactOther) { ExpectMatchesFind({"-perm", "600"}); }
-TEST_F(ConformanceTest, PermAllBitsOwnerWrite) { ExpectMatchesFind({"-perm", "-200"}); }
-TEST_F(ConformanceTest, PermAllBitsReadable) { ExpectMatchesFind({"-perm", "-044"}); }
-TEST_F(ConformanceTest, MaxDepthOne) { ExpectMatchesFind({"-maxdepth", "1"}); }
-TEST_F(ConformanceTest, MaxDepthTwo) { ExpectMatchesFind({"-maxdepth", "2"}); }
-TEST_F(ConformanceTest, MinDepthOne) { ExpectMatchesFind({"-mindepth", "1"}); }
-TEST_F(ConformanceTest, MaxDepthWithType) { ExpectMatchesFind({"-maxdepth", "1", "-type", "f"}); }
-TEST_F(ConformanceTest, Empty) { ExpectMatchesFind({"-empty"}); }
-TEST_F(ConformanceTest, LinksOne) { ExpectMatchesFind({"-links", "1"}); }
-TEST_F(ConformanceTest, LinksMoreThanOne) { ExpectMatchesFind({"-links", "+1"}); }
-TEST_F(ConformanceTest, NewerThanReferenceFile) { ExpectMatchesFind({"-newer", (root_ / "b.md").string()}); }
-TEST_F(ConformanceTest, UidMatchesCurrentUser) { ExpectMatchesFind({"-uid", std::to_string(::geteuid())}); }
-TEST_F(ConformanceTest, GidMatchesCurrentGroup) { ExpectMatchesFind({"-gid", std::to_string(::getegid())}); }
+TEST_F(ConformanceTest, PrintAll) {
+  ExpectMatchesFind({});
+}
+
+TEST_F(ConformanceTest, ExplicitPrint) {
+  ExpectMatchesFind({"-print"});
+}
+
+TEST_F(ConformanceTest, TypeFile) {
+  ExpectMatchesFind({"-type", "f"});
+}
+
+TEST_F(ConformanceTest, TypeDirectory) {
+  ExpectMatchesFind({"-type", "d"});
+}
+
+TEST_F(ConformanceTest, TypeSymlink) {
+  ExpectMatchesFind({"-type", "l"});
+}
+
+TEST_F(ConformanceTest, NameGlob) {
+  ExpectMatchesFind({"-name", "*.txt"});
+}
+
+TEST_F(ConformanceTest, NotTypeDirectory) {
+  ExpectMatchesFind({"!", "-type", "d"});
+}
+
+TEST_F(ConformanceTest, OrExpression) {
+  ExpectMatchesFind({"-name", "*.txt", "-o", "-type", "d"});
+}
+
+TEST_F(ConformanceTest, PathGlob) {
+  ExpectMatchesFind({"-path", "*/sub/*"});
+}
+
+TEST_F(ConformanceTest, AndChain) {
+  ExpectMatchesFind({"-type", "f", "-name", "*.md"});
+}
+
+TEST_F(ConformanceTest, SizeExactBytes) {
+  ExpectMatchesFind({"-size", "1c"});
+}
+
+TEST_F(ConformanceTest, SizeGreaterBytes) {
+  ExpectMatchesFind({"-size", "+1c"});
+}
+
+TEST_F(ConformanceTest, SizeLessBytes) {
+  ExpectMatchesFind({"-size", "-3c"});
+}
+
+TEST_F(ConformanceTest, PermExact) {
+  ExpectMatchesFind({"-perm", "644"});
+}
+
+TEST_F(ConformanceTest, PermExactOther) {
+  ExpectMatchesFind({"-perm", "600"});
+}
+
+TEST_F(ConformanceTest, PermAllBitsOwnerWrite) {
+  ExpectMatchesFind({"-perm", "-200"});
+}
+
+TEST_F(ConformanceTest, PermAllBitsReadable) {
+  ExpectMatchesFind({"-perm", "-044"});
+}
+
+TEST_F(ConformanceTest, MaxDepthOne) {
+  ExpectMatchesFind({"-maxdepth", "1"});
+}
+
+TEST_F(ConformanceTest, MaxDepthTwo) {
+  ExpectMatchesFind({"-maxdepth", "2"});
+}
+
+TEST_F(ConformanceTest, MinDepthOne) {
+  ExpectMatchesFind({"-mindepth", "1"});
+}
+
+TEST_F(ConformanceTest, MaxDepthWithType) {
+  ExpectMatchesFind({"-maxdepth", "1", "-type", "f"});
+}
+
+TEST_F(ConformanceTest, Empty) {
+  ExpectMatchesFind({"-empty"});
+}
+
+TEST_F(ConformanceTest, LinksOne) {
+  ExpectMatchesFind({"-links", "1"});
+}
+
+TEST_F(ConformanceTest, LinksMoreThanOne) {
+  ExpectMatchesFind({"-links", "+1"});
+}
+
+TEST_F(ConformanceTest, NewerThanReferenceFile) {
+  ExpectMatchesFind({"-newer", (root_ / "b.md").string()});
+}
+
+TEST_F(ConformanceTest, UidMatchesCurrentUser) {
+  ExpectMatchesFind({"-uid", std::to_string(::geteuid())});
+}
+
+TEST_F(ConformanceTest, GidMatchesCurrentGroup) {
+  ExpectMatchesFind({"-gid", std::to_string(::getegid())});
+}
+
 TEST_F(ConformanceTest, UserMatchesCurrentUser) {
   const struct passwd* const pw = ::getpwuid(::geteuid());
-  if (pw == nullptr) GTEST_SKIP() << "no passwd entry for euid";
+  if (pw == nullptr) {
+    GTEST_SKIP() << "no passwd entry for euid";
+  }
   ExpectMatchesFind({"-user", pw->pw_name});
 }
+
 TEST_F(ConformanceTest, GroupMatchesCurrentGroup) {
   const struct group* const gr = ::getgrgid(::getegid());
-  if (gr == nullptr) GTEST_SKIP() << "no group entry for egid";
+  if (gr == nullptr) {
+    GTEST_SKIP() << "no group entry for egid";
+  }
   ExpectMatchesFind({"-group", gr->gr_name});
 }
-TEST_F(ConformanceTest, ParenGrouping) { ExpectMatchesFind({"(", "-type", "f", "-o", "-type", "d", ")"}); }
+
+TEST_F(ConformanceTest, ParenGrouping) {
+  ExpectMatchesFind({"(", "-type", "f", "-o", "-type", "d", ")"});
+}
+
 // The comma operator is a GNU extension; BSD find rejects it, so these skip on macOS.
-TEST_F(ConformanceTest, CommaListImplicitPrint) { ExpectMatchesFind({"-name", "*.txt", ",", "-name", "*.md"}); }
-TEST_F(ConformanceTest, CommaWithExplicitAction) { ExpectMatchesFind({"-type", "f", ",", "-print"}); }
-TEST_F(ConformanceTest, PruneSkipsDirectory) { ExpectMatchesFind({"-name", "sub", "-prune", "-o", "-print"}); }
+TEST_F(ConformanceTest, CommaListImplicitPrint) {
+  ExpectMatchesFind({"-name", "*.txt", ",", "-name", "*.md"});
+}
+
+TEST_F(ConformanceTest, CommaWithExplicitAction) {
+  ExpectMatchesFind({"-type", "f", ",", "-print"});
+}
+
+TEST_F(ConformanceTest, PruneSkipsDirectory) {
+  ExpectMatchesFind({"-name", "sub", "-prune", "-o", "-print"});
+}
+
 // -depth changes visit order only; the conformance harness sorts, so this checks
 // the set is unaffected (xff's post-order property is unit-tested in walk/run).
-TEST_F(ConformanceTest, DepthSameSet) { ExpectMatchesFind({"-depth"}); }
-TEST_F(ConformanceTest, DepthWithTypeFile) { ExpectMatchesFind({"-depth", "-type", "f"}); }
+TEST_F(ConformanceTest, DepthSameSet) {
+  ExpectMatchesFind({"-depth"});
+}
+
+TEST_F(ConformanceTest, DepthWithTypeFile) {
+  ExpectMatchesFind({"-depth", "-type", "f"});
+}
+
 // The fixture is single-device, so -xdev prunes nothing here; this confirms the
 // option is accepted and the set is unchanged (cross-device pruning is unit-tested).
-TEST_F(ConformanceTest, XdevSameSetOnSingleDevice) { ExpectMatchesFind({"-xdev"}); }
+TEST_F(ConformanceTest, XdevSameSetOnSingleDevice) {
+  ExpectMatchesFind({"-xdev"});
+}
+
 // -H/-L/-P are leading globals; the fixture's `link -> a.txt` makes them observable.
-TEST_F(ConformanceTest, FollowAllTypeFileIncludesSymlink) { ExpectMatchesFind({"-L"}, {"-type", "f"}); }
-TEST_F(ConformanceTest, FollowAllLeavesNoSymlinkType) { ExpectMatchesFind({"-L"}, {"-type", "l"}); }
-TEST_F(ConformanceTest, PhysicalKeepsSymlinkType) { ExpectMatchesFind({"-P"}, {"-type", "l"}); }
+TEST_F(ConformanceTest, FollowAllTypeFileIncludesSymlink) {
+  ExpectMatchesFind({"-L"}, {"-type", "f"});
+}
+
+TEST_F(ConformanceTest, FollowAllLeavesNoSymlinkType) {
+  ExpectMatchesFind({"-L"}, {"-type", "l"});
+}
+
+TEST_F(ConformanceTest, PhysicalKeepsSymlinkType) {
+  ExpectMatchesFind({"-P"}, {"-type", "l"});
+}
+
 // -regex matches the whole path; `.*\.txt` is grammar-agnostic (basic/emacs/RE2 agree).
-TEST_F(ConformanceTest, RegexWholePathTxt) { ExpectMatchesFind({"-regex", ".*\\.txt"}); }
-TEST_F(ConformanceTest, IRegexWholePathTxt) { ExpectMatchesFind({"-iregex", ".*\\.TXT"}); }
+TEST_F(ConformanceTest, RegexWholePathTxt) {
+  ExpectMatchesFind({"-regex", ".*\\.txt"});
+}
+
+TEST_F(ConformanceTest, IRegexWholePathTxt) {
+  ExpectMatchesFind({"-iregex", ".*\\.TXT"});
+}
+
 // -newerXY compares two files' timestamps; mtime/ctime are stable between the
 // find and xff runs (atime is not, so it is avoided here). The fixture chmods
 // some files, so ctime != mtime, which distinguishes the X/Y field selection.
-TEST_F(ConformanceTest, NewerMtimeVsRefMtime) { ExpectMatchesFind({"-newermm", (root_ / "b.md").string()}); }
-TEST_F(ConformanceTest, NewerCtimeVsRefMtime) { ExpectMatchesFind({"-newercm", (root_ / "b.md").string()}); }
-TEST_F(ConformanceTest, NewerMtimeVsRefCtime) { ExpectMatchesFind({"-newermc", (root_ / "b.md").string()}); }
+TEST_F(ConformanceTest, NewerMtimeVsRefMtime) {
+  ExpectMatchesFind({"-newermm", (root_ / "b.md").string()});
+}
+
+TEST_F(ConformanceTest, NewerCtimeVsRefMtime) {
+  ExpectMatchesFind({"-newercm", (root_ / "b.md").string()});
+}
+
+TEST_F(ConformanceTest, NewerMtimeVsRefCtime) {
+  ExpectMatchesFind({"-newermc", (root_ / "b.md").string()});
+}
+
 // -printf is a GNU extension; BSD find lacks it, so these skip on macOS.
-TEST_F(ConformanceTest, PrintfPathAndSize) { ExpectMatchesFind({"-printf", "%p %s\\n"}); }
-TEST_F(ConformanceTest, PrintfNameTypeDepth) { ExpectMatchesFind({"-printf", "%f %y %d\\n"}); }
+TEST_F(ConformanceTest, PrintfPathAndSize) {
+  ExpectMatchesFind({"-printf", "%p %s\\n"});
+}
+
+TEST_F(ConformanceTest, PrintfNameTypeDepth) {
+  ExpectMatchesFind({"-printf", "%f %y %d\\n"});
+}
 
 }  // namespace
 }  // namespace xff
