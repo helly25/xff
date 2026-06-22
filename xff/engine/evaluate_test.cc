@@ -352,6 +352,16 @@ TEST_F(EvaluateTest, PrintfExpandsDirectivesAndEscapes) {
   EXPECT_THAT(emitted_, Eq("%\t3"));
 }
 
+TEST_F(EvaluateTest, PrintfOwnerDirectives) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.uid = 1'234'567;  // no passwd entry -> %u falls back to the numeric id
+  md.gid = 7'654'321;  // no group entry -> %g falls back to the numeric id
+  const Visit visit{.path = "d/f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-printf", "%u|%U|%g|%G"}, visit));
+  EXPECT_THAT(emitted_, Eq("1234567|1234567|7654321|7654321"));  // %U/%G numeric; %u/%g fall back to the id
+}
+
 TEST_F(EvaluateTest, PrintlnAndPrintflnAppendOsLineEnding) {
   vfs::Metadata md;
   md.type = vfs::FileType::kRegular;
