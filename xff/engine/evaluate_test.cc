@@ -56,7 +56,8 @@ struct EvaluateTest : ::testing::Test {
     outputs_.clear();
     EvalContext context{
         .visit = visit, .emit = sink, .fs = fs_, .now = now_, .control = control_, .exec_fields = exec_fields_,
-        .captures = exec_fields_ ? &captures_ : nullptr, .outputs = &outputs_};
+        .captures = exec_fields_ ? &captures_ : nullptr, .outputs = &outputs_,
+        .confirm = [this](std::string_view prompt) { last_prompt_ = std::string(prompt); return confirm_reply_; }};
     return Evaluate(*command->expression, context);
   }
 
@@ -68,6 +69,8 @@ struct EvaluateTest : ::testing::Test {
   }
 
   std::string emitted_;
+  bool confirm_reply_ = false;  // scripted reply for the -ok confirmer
+  std::string last_prompt_;     // captures the prompt -ok passed to confirm()
   vfs::LocalFs fs_;
   // A fixed reference instant for age-test (-mtime/-mmin) cases; the entry's
   // mtime is set relative to this so the assertions are clock-independent.
@@ -352,6 +355,19 @@ TEST_F(EvaluateTest, PrintlnAndPrintflnAppendOsLineEnding) {
   // -printfln: -printf plus a trailing OS line ending the format need not carry.
   EXPECT_TRUE(Match({"-printfln", "%f|%s"}, visit));
   EXPECT_THAT(emitted_, Eq("c.txt|42\n"));
+}
+
+TEST_F(EvaluateTest, OkPromptsWithSubstitutionAndRunsOnlyWhenConfirmed) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/foo.txt", "foo.txt", vfs::FileType::kRegular, md);
+  // Declined: the command is not run, -ok is false; the prompt shows {} -> the path.
+  confirm_reply_ = false;
+  EXPECT_FALSE(Match({"-ok", "/bin/echo", "{}", ";"}, visit));
+  EXPECT_THAT(last_prompt_, Eq("/bin/echo dir/foo.txt? "));
+  // Affirmative: the command runs and -ok mirrors its exit status.
+  confirm_reply_ = true;
+  EXPECT_TRUE(Match({"-ok", "/bin/sh", "-c", "exit 0", ";"}, visit));
+  EXPECT_FALSE(Match({"-ok", "/bin/sh", "-c", "exit 1", ";"}, visit));
 }
 
 TEST_F(EvaluateTest, ExecFieldsGatesNamedPlaceholderSubstitution) {

@@ -16,6 +16,7 @@
 #include "xff/engine/run.h"
 
 #include <algorithm>
+#include <iostream>
 #include <map>
 #include <optional>
 #include <string>
@@ -359,6 +360,16 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   DryRunFileSystem dry_run_fs(fs, emit);
   const vfs::FileSystem& walk_fs = HasGlobal(command.globals, "--dry-run") ? dry_run_fs : fs;
 
+  // -ok confirmation: prompt to stderr, read a line from stdin, affirmative on y/Y (like find).
+  const auto confirm = [](std::string_view prompt) -> bool {
+    std::cerr << prompt;
+    std::string line;
+    if (!std::getline(std::cin, line)) {
+      return false;  // EOF or closed stdin -> decline
+    }
+    return !line.empty() && (line[0] == 'y' || line[0] == 'Y');
+  };
+
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
       [&](const Visit& visit) {
@@ -368,7 +379,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
         EvalContext eval_context{
             .visit = visit, .emit = emit, .fs = walk_fs, .now = now, .control = control,
             .exec_fields = exec_fields, .captures = exec_fields ? &captures : nullptr, .defines = &defines,
-            .outputs = &outputs};
+            .outputs = &outputs, .confirm = confirm};
         const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
         if (matched && implicit_print) {
           if (compiled_tmpl.has_value()) {  // --template overrides --format

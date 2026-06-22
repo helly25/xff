@@ -16,6 +16,7 @@
 #ifndef XFF_ENGINE_EVALUATE_H_
 #define XFF_ENGINE_EVALUATE_H_
 
+#include <functional>
 #include <map>
 #include <string>
 #include <string_view>
@@ -59,6 +60,7 @@ struct EvalContext {
   std::vector<std::string>* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off
   const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
   std::map<std::string, std::string>* outputs = nullptr;  // --capture results for {capture.NAME} (mutable, per entry)
+  std::function<bool(std::string_view)> confirm;  // -ok prompt sink: returns true to run the command; empty -> decline
 };
 
 // Evaluates a parsed find expression against one visited entry and returns its
