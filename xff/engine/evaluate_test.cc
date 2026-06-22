@@ -19,10 +19,9 @@
 #include <string_view>
 #include <vector>
 
+#include "absl/time/time.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
-#include "absl/time/time.h"
 #include "mbo/testing/status.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/parser.h"
@@ -55,9 +54,18 @@ struct EvaluateTest : ::testing::Test {
     captures_.clear();
     outputs_.clear();
     EvalContext context{
-        .visit = visit, .emit = sink, .fs = fs_, .now = now_, .control = control_, .exec_fields = exec_fields_,
-        .captures = exec_fields_ ? &captures_ : nullptr, .outputs = &outputs_,
-        .confirm = [this](std::string_view prompt) { last_prompt_ = std::string(prompt); return confirm_reply_; }};
+        .visit = visit,
+        .emit = sink,
+        .fs = fs_,
+        .now = now_,
+        .control = control_,
+        .exec_fields = exec_fields_,
+        .captures = exec_fields_ ? &captures_ : nullptr,
+        .outputs = &outputs_,
+        .confirm = [this](std::string_view prompt) {
+          last_prompt_ = std::string(prompt);
+          return confirm_reply_;
+        }};
     return Evaluate(*command->expression, context);
   }
 
@@ -74,10 +82,10 @@ struct EvaluateTest : ::testing::Test {
   vfs::LocalFs fs_;
   // A fixed reference instant for age-test (-mtime/-mmin) cases; the entry's
   // mtime is set relative to this so the assertions are clock-independent.
-  const absl::Time now_ = absl::FromUnixSeconds(1700000000);
-  Control control_;  // set by Match from the most recent evaluation (-prune/-quit)
-  bool exec_fields_ = false;  // when true, Match enables --exec-fields token substitution
-  std::vector<std::string> captures_;  // -regex groups captured during the most recent (gated) Match
+  const absl::Time now_ = absl::FromUnixSeconds(1'700'000'000);
+  Control control_;                             // set by Match from the most recent evaluation (-prune/-quit)
+  bool exec_fields_ = false;                    // when true, Match enables --exec-fields token substitution
+  std::vector<std::string> captures_;           // -regex groups captured during the most recent (gated) Match
   std::map<std::string, std::string> outputs_;  // -capture results from the most recent Match
 };
 
@@ -171,7 +179,7 @@ TEST_F(EvaluateTest, PermMatchesOctalModes) {
   md.type = vfs::FileType::kRegular;
   md.mode = 0644;  // rw-r--r--
   const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
-  EXPECT_TRUE(Match({"-perm", "644"}, visit));    // exact
+  EXPECT_TRUE(Match({"-perm", "644"}, visit));  // exact
   EXPECT_FALSE(Match({"-perm", "640"}, visit));
   EXPECT_TRUE(Match({"-perm", "-200"}, visit));   // -MODE: owner-write bit set
   EXPECT_TRUE(Match({"-perm", "-044"}, visit));   // group + other read set
@@ -223,7 +231,7 @@ TEST_F(EvaluateTest, MTimeMatchesWholeDaysAgo) {
   md.type = vfs::FileType::kRegular;
   md.mtime = now_ - absl::Hours(60);  // 2.5 days ago -> floor to 2 whole days
   const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
-  EXPECT_TRUE(Match({"-mtime", "2"}, visit));    // floor(2.5) == 2
+  EXPECT_TRUE(Match({"-mtime", "2"}, visit));  // floor(2.5) == 2
   EXPECT_FALSE(Match({"-mtime", "3"}, visit));
   EXPECT_TRUE(Match({"-mtime", "+1"}, visit));   // strictly older than 1 day
   EXPECT_FALSE(Match({"-mtime", "+2"}, visit));  // not strictly older than 2
@@ -252,7 +260,7 @@ TEST_F(EvaluateTest, UidAndGidMatchNumericOwner) {
   EXPECT_TRUE(Match({"-uid", "+500"}, visit));  // uid strictly greater than 500
   EXPECT_TRUE(Match({"-gid", "20"}, visit));
   EXPECT_FALSE(Match({"-gid", "21"}, visit));
-  EXPECT_TRUE(Match({"-gid", "-21"}, visit));   // gid strictly less than 21
+  EXPECT_TRUE(Match({"-gid", "-21"}, visit));  // gid strictly less than 21
 }
 
 TEST_F(EvaluateTest, AccessAndChangeTimeFamily) {
@@ -261,11 +269,11 @@ TEST_F(EvaluateTest, AccessAndChangeTimeFamily) {
   md.atime = now_ - absl::Hours(60);     // 2.5 days / 3600 minutes ago
   md.ctime = now_ - absl::Minutes(150);  // 2.5 hours / 150 minutes ago
   const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
-  EXPECT_TRUE(Match({"-atime", "2"}, visit));   // -atime/-amin read atime: floor(2.5 days) == 2
+  EXPECT_TRUE(Match({"-atime", "2"}, visit));  // -atime/-amin read atime: floor(2.5 days) == 2
   EXPECT_TRUE(Match({"-atime", "+1"}, visit));
   EXPECT_TRUE(Match({"-amin", "3600"}, visit));
   EXPECT_TRUE(Match({"-amin", "+3000"}, visit));
-  EXPECT_TRUE(Match({"-ctime", "0"}, visit));   // -ctime/-cmin read ctime: 2.5 hours floors to 0 days
+  EXPECT_TRUE(Match({"-ctime", "0"}, visit));  // -ctime/-cmin read ctime: 2.5 hours floors to 0 days
   EXPECT_TRUE(Match({"-cmin", "150"}, visit));
   EXPECT_FALSE(Match({"-cmin", "+150"}, visit));
 }
@@ -414,12 +422,10 @@ TEST_F(EvaluateTest, ExecFieldsSubstitutesRegexCaptures) {
   // A preceding -regex match records its groups; -exec {1} then references group 1
   // ("a/b"). The child compares it to a/b -> exit 0 -> true.
   exec_fields_ = true;
-  EXPECT_TRUE(
-      Match({"-regex", "(.*)/([^/]+)\\.(.*)", "-exec", "/bin/sh", "-c", "test \"{1}\" = a/b", ";"}, visit));
+  EXPECT_TRUE(Match({"-regex", "(.*)/([^/]+)\\.(.*)", "-exec", "/bin/sh", "-c", "test \"{1}\" = a/b", ";"}, visit));
   // Without the gate there is no capture and {1} stays literal -> not equal -> false.
   exec_fields_ = false;
-  EXPECT_FALSE(
-      Match({"-regex", "(.*)/([^/]+)\\.(.*)", "-exec", "/bin/sh", "-c", "test \"{1}\" = a/b", ";"}, visit));
+  EXPECT_FALSE(Match({"-regex", "(.*)/([^/]+)\\.(.*)", "-exec", "/bin/sh", "-c", "test \"{1}\" = a/b", ";"}, visit));
 }
 
 TEST_F(EvaluateTest, CapturesAreVisibleLeftToRightOnly) {
@@ -430,11 +436,9 @@ TEST_F(EvaluateTest, CapturesAreVisibleLeftToRightOnly) {
   const Visit visit = MakeVisit("a/b/c.txt", "c.txt", vfs::FileType::kRegular, md);
   exec_fields_ = true;
   // -regex to the LEFT of -exec: its groups are bound when -exec runs, so {1} == "a/b".
-  EXPECT_TRUE(
-      Match({"-regex", "(.*)/([^/]+)\\.(.*)", "-exec", "/bin/sh", "-c", "test \"{1}\" = a/b", ";"}, visit));
+  EXPECT_TRUE(Match({"-regex", "(.*)/([^/]+)\\.(.*)", "-exec", "/bin/sh", "-c", "test \"{1}\" = a/b", ";"}, visit));
   // -regex to the RIGHT: not yet evaluated when -exec runs, so {1} is still empty there.
-  EXPECT_TRUE(
-      Match({"-exec", "/bin/sh", "-c", "test -z \"{1}\"", ";", "-regex", "(.*)/([^/]+)\\.(.*)"}, visit));
+  EXPECT_TRUE(Match({"-exec", "/bin/sh", "-c", "test -z \"{1}\"", ";", "-regex", "(.*)/([^/]+)\\.(.*)"}, visit));
 }
 
 TEST_F(EvaluateTest, CaptureBindsOutputNamespace) {
@@ -443,8 +447,7 @@ TEST_F(EvaluateTest, CaptureBindsOutputNamespace) {
   exec_fields_ = true;  // so the -exec reading {capture.tag} renders the vocabulary
   // -capture runs the command and binds {capture.tag}; the later -exec reads it.
   EXPECT_TRUE(Match(
-      {"-capture=tag", "/bin/sh", "-c", "printf hi", ";", "-exec", "/bin/sh", "-c", "test \"{capture.tag}\" = hi",
-       ";"},
+      {"-capture=tag", "/bin/sh", "-c", "printf hi", ";", "-exec", "/bin/sh", "-c", "test \"{capture.tag}\" = hi", ";"},
       visit));
 }
 

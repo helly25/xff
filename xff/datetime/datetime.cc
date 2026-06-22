@@ -94,7 +94,8 @@ std::optional<absl::Time> ParseTimeString(std::string_view text, absl::Time now)
     }
     const absl::CivilMonth shifted = absl::CivilMonth(base.year(), base.month()) + count;
     return absl::FromCivil(
-        absl::CivilSecond(shifted.year(), shifted.month(), base.day(), base.hour(), base.minute(), base.second()), zone);
+        absl::CivilSecond(shifted.year(), shifted.month(), base.day(), base.hour(), base.minute(), base.second()),
+        zone);
   }
   return std::nullopt;
 }

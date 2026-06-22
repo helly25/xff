@@ -26,12 +26,11 @@
 #include <utility>
 #include <vector>
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-
 #include "absl/functional/function_ref.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 #include "mbo/testing/status.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/filesystem.h"
@@ -58,7 +57,9 @@ class FakeFs : public vfs::FileSystem {
     nodes_[path] = Meta(vfs::FileType::kDirectory, dev, path);
     dirs_[path] = std::move(children);
   }
+
   void AddFile(const std::string& path, std::uint64_t dev) { nodes_[path] = Meta(vfs::FileType::kRegular, dev, path); }
+
   // A symlink with its own (link) metadata that resolves to `target` when followed.
   void AddSymlink(const std::string& path, std::uint64_t dev, const std::string& target) {
     nodes_[path] = Meta(vfs::FileType::kSymlink, dev, path);
@@ -67,14 +68,20 @@ class FakeFs : public vfs::FileSystem {
 
   absl::StatusOr<std::vector<vfs::Entry>> ReadDir(std::string_view dir) const override {
     const auto it = dirs_.find(Resolve(std::string(dir)));
-    if (it == dirs_.end()) return absl::NotFoundError("FakeFs: no such directory");
+    if (it == dirs_.end()) {
+      return absl::NotFoundError("FakeFs: no such directory");
+    }
     return it->second;
   }
+
   absl::StatusOr<vfs::Metadata> Stat(std::string_view path, bool follow_symlinks) const override {
     const auto it = nodes_.find(follow_symlinks ? Resolve(std::string(path)) : std::string(path));
-    if (it == nodes_.end()) return absl::NotFoundError("FakeFs: no such path");
+    if (it == nodes_.end()) {
+      return absl::NotFoundError("FakeFs: no such path");
+    }
     return it->second;
   }
+
   absl::Status Remove(std::string_view) const override { return absl::OkStatus(); }  // unused by walk tests
 
  private:
@@ -85,11 +92,13 @@ class FakeFs : public vfs::FileSystem {
     md.ino = std::hash<std::string>{}(path);  // distinct per path, for loop detection
     return md;
   }
+
   // Resolves one symlink level (sufficient for these tests).
   std::string Resolve(std::string path) const {
     const auto it = targets_.find(path);
     return it == targets_.end() ? path : it->second;
   }
+
   std::map<std::string, vfs::Metadata> nodes_;
   std::map<std::string, std::vector<vfs::Entry>> dirs_;
   std::map<std::string, std::string> targets_;
@@ -98,9 +107,11 @@ class FakeFs : public vfs::FileSystem {
 vfs::Entry DirEntry(const std::string& path, const std::string& name) {
   return vfs::Entry{.path = path, .name = name, .type = vfs::FileType::kDirectory};
 }
+
 vfs::Entry FileEntry(const std::string& path, const std::string& name) {
   return vfs::Entry{.path = path, .name = name, .type = vfs::FileType::kRegular};
 }
+
 vfs::Entry SymlinkEntry(const std::string& path, const std::string& name) {
   return vfs::Entry{.path = path, .name = name, .type = vfs::FileType::kSymlink};
 }
@@ -111,8 +122,8 @@ vfs::Entry SymlinkEntry(const std::string& path, const std::string& name) {
 //   <root>/link -> a.txt
 struct WalkTest : ::testing::Test {
   void SetUp() override {
-    root_ = fs::path(::testing::TempDir()) /
-            (std::string("xff_walk_") + ::testing::UnitTest::GetInstance()->current_test_info()->name());
+    root_ = fs::path(::testing::TempDir())
+            / (std::string("xff_walk_") + ::testing::UnitTest::GetInstance()->current_test_info()->name());
     std::error_code ec;
     fs::remove_all(root_, ec);
     ASSERT_TRUE(fs::create_directories(root_ / "sub"));
@@ -157,28 +168,25 @@ struct WalkTest : ::testing::Test {
   fs::path root_;
 };
 
-WalkAction Continue(const Visit& /*visit*/) { return WalkAction::kContinue; }
+WalkAction Continue(const Visit& /*visit*/) {
+  return WalkAction::kContinue;
+}
 
 TEST_F(WalkTest, VisitsWholeTreePreorder) {
   const Result result = Run(WalkOptions{}, Continue);
   EXPECT_THAT(result.status, IsOk());
   EXPECT_THAT(result.errors, Eq(0));
   EXPECT_THAT(
-      result.seen,
-      UnorderedElementsAre(
-          Pair(root_.string(), 0),
-          Pair(Path("a.txt"), 1),
-          Pair(Path("sub"), 1),
-          Pair(Path("sub/b.txt"), 2),
-          Pair(Path("link"), 1)));
+      result.seen, UnorderedElementsAre(
+                       Pair(root_.string(), 0), Pair(Path("a.txt"), 1), Pair(Path("sub"), 1),
+                       Pair(Path("sub/b.txt"), 2), Pair(Path("link"), 1)));
 }
 
 TEST_F(WalkTest, MaxDepthLimitsDescent) {
   const Result result = Run(WalkOptions{.min_depth = 0, .max_depth = 1}, Continue);
   EXPECT_THAT(
-      result.seen,
-      UnorderedElementsAre(
-          Pair(root_.string(), 0), Pair(Path("a.txt"), 1), Pair(Path("sub"), 1), Pair(Path("link"), 1)));
+      result.seen, UnorderedElementsAre(
+                       Pair(root_.string(), 0), Pair(Path("a.txt"), 1), Pair(Path("sub"), 1), Pair(Path("link"), 1)));
 }
 
 TEST_F(WalkTest, MaxDepthZeroVisitsRootsOnly) {
@@ -200,9 +208,8 @@ TEST_F(WalkTest, PruneSkipsDirectorySubtree) {
     return visit.path == sub ? WalkAction::kPrune : WalkAction::kContinue;
   });
   EXPECT_THAT(
-      result.seen,
-      UnorderedElementsAre(
-          Pair(root_.string(), 0), Pair(Path("a.txt"), 1), Pair(Path("sub"), 1), Pair(Path("link"), 1)));
+      result.seen, UnorderedElementsAre(
+                       Pair(root_.string(), 0), Pair(Path("a.txt"), 1), Pair(Path("sub"), 1), Pair(Path("link"), 1)));
 }
 
 TEST_F(WalkTest, StopHaltsWalk) {
@@ -223,13 +230,9 @@ TEST_F(WalkTest, DepthVisitsPostOrder) {
   EXPECT_THAT(result.status, IsOk());
   // Post-order visits the same set as pre-order...
   EXPECT_THAT(
-      result.seen,
-      UnorderedElementsAre(
-          Pair(root_.string(), 0),
-          Pair(Path("a.txt"), 1),
-          Pair(Path("sub"), 1),
-          Pair(Path("sub/b.txt"), 2),
-          Pair(Path("link"), 1)));
+      result.seen, UnorderedElementsAre(
+                       Pair(root_.string(), 0), Pair(Path("a.txt"), 1), Pair(Path("sub"), 1),
+                       Pair(Path("sub/b.txt"), 2), Pair(Path("link"), 1)));
   // ...but a directory comes after its contents: the root is visited last, and
   // sub/b.txt precedes sub. Sibling order is filesystem-defined, so only the
   // parent-after-child relationship is asserted.
@@ -237,7 +240,9 @@ TEST_F(WalkTest, DepthVisitsPostOrder) {
   EXPECT_THAT(result.seen.back(), Pair(root_.string(), 0));
   const auto index_of = [&](std::string_view path) -> int {
     for (int i = 0; i < static_cast<int>(result.seen.size()); ++i) {
-      if (result.seen[i].first == path) return i;
+      if (result.seen[i].first == path) {
+        return i;
+      }
     }
     return -1;
   };
@@ -285,9 +290,7 @@ TEST_F(WalkFakeFsTest, FollowAllDescendsSymlinkedDirectory) {
   // -P (default): lnk is a leaf symlink; its target is not entered.
   EXPECT_THAT(Seen(WalkOptions{}), UnorderedElementsAre("/r", "/r/a", "/r/lnk"));
   // -L: lnk resolves to the directory /t and is descended into.
-  EXPECT_THAT(
-      Seen(WalkOptions{.symlinks = SymlinkMode::kAll}),
-      UnorderedElementsAre("/r", "/r/a", "/r/lnk", "/t/g"));
+  EXPECT_THAT(Seen(WalkOptions{.symlinks = SymlinkMode::kAll}), UnorderedElementsAre("/r", "/r/a", "/r/lnk", "/t/g"));
 }
 
 TEST_F(WalkFakeFsTest, FollowRootsOnlyFollowsTheOperand) {
@@ -299,9 +302,7 @@ TEST_F(WalkFakeFsTest, FollowRootsOnlyFollowsTheOperand) {
   fs_.AddSymlink("/real/lnk", 1, "/other");
   fs_.AddDir("/other", 1, {FileEntry("/other/z", "z")});
   fs_.AddFile("/other/z", 1);
-  EXPECT_THAT(
-      Seen(WalkOptions{.symlinks = SymlinkMode::kRoots}),
-      UnorderedElementsAre("/r", "/real/a", "/real/lnk"));
+  EXPECT_THAT(Seen(WalkOptions{.symlinks = SymlinkMode::kRoots}), UnorderedElementsAre("/r", "/real/a", "/real/lnk"));
 }
 
 TEST_F(WalkFakeFsTest, FollowAllDetectsFilesystemLoop) {
@@ -332,10 +333,9 @@ TEST_F(WalkFakeFsTest, CarriesOriginatingRootPerEntry) {
       [&](std::string_view, absl::Status) {});
   EXPECT_THAT(status, IsOk());
   EXPECT_THAT(
-      seen,
-      UnorderedElementsAre(
-          Pair("/r", "/r"), Pair("/r/a", "/r"), Pair("/r/sub", "/r"), Pair("/r/sub/b", "/r"), Pair("/s", "/s"),
-          Pair("/s/c", "/s")));
+      seen, UnorderedElementsAre(
+                Pair("/r", "/r"), Pair("/r/a", "/r"), Pair("/r/sub", "/r"), Pair("/r/sub/b", "/r"), Pair("/s", "/s"),
+                Pair("/s/c", "/s")));
 }
 
 }  // namespace

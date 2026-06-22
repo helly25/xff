@@ -51,8 +51,8 @@ class Walker {
     }
     // -P: never follow; -H: follow only command-line operands (depth 0); -L:
     // follow all. A dangling symlink (target missing) falls back to the link.
-    const bool follow = options_.symlinks == SymlinkMode::kAll ||
-                        (options_.symlinks == SymlinkMode::kRoots && depth == 0);
+    const bool follow =
+        options_.symlinks == SymlinkMode::kAll || (options_.symlinks == SymlinkMode::kRoots && depth == 0);
     absl::StatusOr<vfs::Metadata> metadata = fs_.Stat(path, follow);
     if (!metadata.ok() && follow) {
       metadata = fs_.Stat(path, /*follow_symlinks=*/false);
@@ -132,7 +132,7 @@ class Walker {
   Visitor visit_;
   WalkErrorFn on_error_;
   bool stopped_ = false;
-  std::uint64_t root_dev_ = 0;  // device of the current root subtree (for -xdev)
+  std::uint64_t root_dev_ = 0;     // device of the current root subtree (for -xdev)
   std::string_view current_root_;  // command-line operand the current subtree descends from (find %H)
   std::set<std::pair<std::uint64_t, std::uint64_t>> ancestors_;  // (dev,ino) on the descent path (loops)
 };

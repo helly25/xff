@@ -76,10 +76,9 @@ TEST_F(ExecTest, CaptureOutputEmptyArgsOrSpawnFailureIsNullopt) {
 TEST_F(ExecTest, CaptureOutputDrainsMoreThanPipeBuffer) {
   // 100 KB exceeds the pipe buffer; the child blocks on write until we read, so
   // this would deadlock if we reaped before draining.
-  const std::optional<std::string> out =
-      CaptureOutput({"/bin/sh", "-c", "head -c 100000 /dev/zero | tr '\\0' x"});
+  const std::optional<std::string> out = CaptureOutput({"/bin/sh", "-c", "head -c 100000 /dev/zero | tr '\\0' x"});
   ASSERT_TRUE(out.has_value());
-  EXPECT_EQ(out->size(), 100000U);
+  EXPECT_EQ(out->size(), 100'000U);
 }
 
 }  // namespace

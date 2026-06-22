@@ -51,12 +51,12 @@ struct Control {
 // list. Evaluation-wide options (e.g. modern -exec field substitution) attach
 // here as the engine grows.
 struct EvalContext {
-  const Visit& visit;             // the entry being evaluated (constant across the expression)
-  EmitFn emit;                    // action output sink (-print/-print0/...)
-  const vfs::FileSystem& fs;      // backs predicates that read the source (e.g. -empty on a directory)
-  absl::Time now;                 // single reference instant for age tests (-mtime/-mmin)
-  Control& control;               // collects -prune/-quit requests
-  bool exec_fields = false;       // --exec-fields: render -exec tokens through the field vocabulary
+  const Visit& visit;                            // the entry being evaluated (constant across the expression)
+  EmitFn emit;                                   // action output sink (-print/-print0/...)
+  const vfs::FileSystem& fs;                     // backs predicates that read the source (e.g. -empty on a directory)
+  absl::Time now;                                // single reference instant for age tests (-mtime/-mmin)
+  Control& control;                              // collects -prune/-quit requests
+  bool exec_fields = false;                      // --exec-fields: render -exec tokens through the field vocabulary
   std::vector<std::string>* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off
   const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
   std::map<std::string, std::string>* outputs = nullptr;  // -capture results for {capture.NAME} (mutable, per entry)

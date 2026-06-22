@@ -50,9 +50,7 @@ int main(int argc, char** argv) {
   const xff::vfs::LocalFs fs;
   const int errors = xff::engine::RunFind(
       *command, fs,
-      [](std::string_view record) {
-        std::cout.write(record.data(), static_cast<std::streamsize>(record.size()));
-      },
+      [](std::string_view record) { std::cout.write(record.data(), static_cast<std::streamsize>(record.size())); },
       [](std::string_view path, absl::Status status) {
         std::cerr << "xff: " << path << ": " << status.message() << "\n";
       });

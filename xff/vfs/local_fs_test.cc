@@ -21,11 +21,10 @@
 #include <string_view>
 #include <system_error>
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-
 #include "absl/status/status.h"
 #include "absl/time/time.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 #include "mbo/testing/status.h"
 #include "xff/vfs/entry.h"
 
@@ -48,8 +47,8 @@ using ::testing::UnorderedElementsAre;
 //   <root>/link       (symlink -> file.txt)
 struct LocalFsTest : ::testing::Test {
   void SetUp() override {
-    root_ = fs::path(::testing::TempDir()) /
-            (std::string("xff_localfs_") + ::testing::UnitTest::GetInstance()->current_test_info()->name());
+    root_ = fs::path(::testing::TempDir())
+            / (std::string("xff_localfs_") + ::testing::UnitTest::GetInstance()->current_test_info()->name());
     std::error_code ec;
     fs::remove_all(root_, ec);
     ASSERT_TRUE(fs::create_directories(root_));
