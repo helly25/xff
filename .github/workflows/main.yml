@@ -62,3 +62,32 @@ jobs:
             echo "::error::em-dash (U+2014) found - use a hyphen"
             exit 1
           fi
+
+  # Single required status check: one job that gates merge on the whole matrix,
+  # so branch protection needs only `done`. A yq/jq step self-checks that every
+  # workflow job is wired into `needs`, so a newly added job cannot silently
+  # escape the gate. Mirrors helly25/mbo.
+  done:
+    needs: [test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Ensure every job is wired into this gate
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          declared="$(yq '.jobs | keys | .[]' .github/workflows/main.yml | grep -vx done | sort)"
+          wired="$(jq -r 'keys[]' <<<"${NEEDS_JSON}" | sort)"
+          missing="$(comm -23 <(printf '%s\n' "${declared}") <(printf '%s\n' "${wired}"))"
+          if [[ -n "${missing}" ]]; then
+            echo "Jobs declared in the workflow but missing from done.needs:"
+            while read -r job; do
+              echo "::error title=Gate is missing a job::${job} not in done.needs"
+            done <<<"${missing}"
+            exit 1
+          fi
+          echo "done covers all $(grep -c . <<<"${declared}") workflow jobs."
+      - name: Fail if any dependency did not succeed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
