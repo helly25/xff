@@ -370,7 +370,7 @@ bool MatchesRegex(
   return true;
 }
 
-// Applies a --capture extraction regex to `text` (the captured stdout): returns
+// Applies a -capture extraction regex to `text` (the captured stdout): returns
 // capture group 1, or the whole match when the regex has no groups, or empty
 // when it does not fully match (or fails to compile).
 std::string ExtractCapture(std::string_view regex, std::string_view text) {
@@ -508,9 +508,9 @@ bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
     }
     return exec::Execute(expr.args, visit.path);  // substitutes {} -> path; true iff the child exits 0
   }
-  if (name == "--capture") {  // args = [NAME, REGEX (may be empty), cmd...]
+  if (name == "-capture") {  // args = [NAME, REGEX (may be empty), cmd...]
     if (ctx.outputs == nullptr || expr.args.size() < 3) {
-      return true;  // unwired or malformed: binding is a no-op, but --capture is always true
+      return true;  // unwired or malformed: binding is a no-op, but -capture is always true
     }
     // The command renders through the field vocabulary so {} -> path and prior
     // {capture.*}/{def.*}/{N} resolve (left-to-right chaining).
@@ -564,12 +564,12 @@ bool Evaluate(const parser::Expr& expr, EvalContext& context) {
 
 bool ContainsAction(const parser::Expr& expr) {
   switch (expr.kind) {
-    // -prune and --capture are actions that do NOT suppress the implicit print:
-    // -prune per find's "no actions other than -prune" rule, and --capture is a
+    // -prune and -capture are actions that do NOT suppress the implicit print:
+    // -prune per find's "no actions other than -prune" rule, and -capture is a
     // binding side effect (not output). -quit and the print actions do suppress.
     case parser::Expr::Kind::kPredicate:
       return expr.descriptor->kind == registry::Kind::kAction && expr.descriptor->name != "-prune" &&
-             expr.descriptor->name != "--capture";
+             expr.descriptor->name != "-capture";
     case parser::Expr::Kind::kNot: return ContainsAction(*expr.lhs);
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:

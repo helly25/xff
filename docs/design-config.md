@@ -7,7 +7,7 @@
 
 ## Purpose
 
-A find-compatible tool that can run `-exec`/`--capture` is, by construction, a
+A find-compatible tool that can run `-exec`/`-capture` is, by construction, a
 code-execution engine. A config system for it must make the common case
 convenient **without** ever letting an untrusted, repo-local file silently run
 commands. The design goal, in the user's words: *"by default there is no
@@ -82,7 +82,7 @@ typed validation and must be unambiguous.
 # Built-in default already denies @sensitive/@destructive at the project layer.
 project.allow = --sort, --color, --format       # redundant with built-ins; explicit is fine
 project.deny  = --threads                        # tighten: forbid even a "safe" flag
-user.allow    = @sensitive                       # user may arm -exec/--capture from ~/.config
+user.allow    = @sensitive                       # user may arm -exec/-capture from ~/.config
 ```
 
 - Class tokens `@safe` / `@sensitive` / `@destructive` expand to every flag with
@@ -123,7 +123,7 @@ built-in `safety` classification so the safe default needs no admin file:
 | `sensitive`   | deny    | allow | allow  |
 | `destructive` | deny    | allow | allow  |
 
-`safe` = output / traversal / matching (`--color`, `--sort`, `-name`); `sensitive` = the exec family (`-exec`, `-execdir`, `-ok`, `-okdir`, `--capture`, `--capturedir`); `destructive` = `-delete` and future built-in mutators.
+`safe` = output / traversal / matching (`--color`, `--sort`, `-name`); `sensitive` = the exec family (`-exec`, `-execdir`, `-ok`, `-okdir`, `-capture`, `-capturedir`); `destructive` = `-delete` and future built-in mutators.
 
 - **No `/etc/xff.ini` ⇒ this built-in table is the policy.** A repo-local
   `.xffrc` can recolor output or set a default sort; it can **not** run a
@@ -179,12 +179,12 @@ cd ./untrusted && xff .
 #   ./.xffrc: common: -exec rm {} ;      → dropped + warned (sensitive, project-denied)
 
 # Personal exec recipe from your own config → trusted.
-#   ~/.config/xff/config: xff:thumbs: --capture=W=… convert {} … ;
+#   ~/.config/xff/config: xff:thumbs: -capture=W=… convert {} … ;
 xff --config=thumbs ~/Pictures            # armed: user layer allows @sensitive
 
 # CI host loosens the project layer for a vetted pipeline.
-#   /etc/xff.ini: [policy] project.allow = --capture
-cd $CI_WORKSPACE && xff .                 # repo .xffrc --capture now armed
+#   /etc/xff.ini: [policy] project.allow = -capture
+cd $CI_WORKSPACE && xff .                 # repo .xffrc -capture now armed
 
 # Strict drop-in via name.
 ln -s xff find && ./find . -println        # → error: -println unknown (find style)

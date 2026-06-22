@@ -353,10 +353,10 @@ TEST_F(RunTest, DefinePopulatesDefNamespace) {
 }
 
 TEST_F(RunTest, CaptureBindsOutputForTemplate) {
-  // --capture runs a command per match (with {} -> path) and binds its stdout to
+  // -capture runs a command per match (with {} -> path) and binds its stdout to
   // {capture.NAME}; --template then prints it.
   const auto command = parser::Parse(
-      {"--template={capture.base}", root_.string(), "-name", "a.txt", "--capture=base", "/bin/sh", "-c",
+      {"--template={capture.base}", root_.string(), "-name", "a.txt", "-capture=base", "/bin/sh", "-c",
        "basename {}", ";"});
   ASSERT_THAT(command, IsOk());
   std::vector<std::string> records;
@@ -374,10 +374,10 @@ TEST_F(RunTest, CaptureBindsOutputForTemplate) {
 }
 
 TEST_F(RunTest, CaptureChainsPriorOutputs) {
-  // A later --capture command references an earlier capture's {capture.*}.
+  // A later -capture command references an earlier capture's {capture.*}.
   const auto command = parser::Parse(
-      {"--template={capture.b}", root_.string(), "-name", "a.txt", "--capture=a", "/bin/sh", "-c", "printf X", ";",
-       "--capture=b", "/bin/sh", "-c", "printf {capture.a}Y", ";"});
+      {"--template={capture.b}", root_.string(), "-name", "a.txt", "-capture=a", "/bin/sh", "-c", "printf X", ";",
+       "-capture=b", "/bin/sh", "-c", "printf {capture.a}Y", ";"});
   ASSERT_THAT(command, IsOk());
   std::vector<std::string> records;
   RunFind(
@@ -394,10 +394,10 @@ TEST_F(RunTest, CaptureChainsPriorOutputs) {
 }
 
 TEST_F(RunTest, DuplicateCaptureNameIsErrorByDefault) {
-  // Two --capture actions binding the same NAME, no --capture-override -> exit 2,
+  // Two -capture actions binding the same NAME, no --capture-override -> exit 2,
   // reported before traversal (silent clobbering would mean wrong data).
   const auto command = parser::Parse(
-      {root_.string(), "--capture=x", "/bin/sh", "-c", "printf a", ";", "--capture=x", "/bin/sh", "-c", "printf b",
+      {root_.string(), "-capture=x", "/bin/sh", "-c", "printf a", ";", "-capture=x", "/bin/sh", "-c", "printf b",
        ";"});
   ASSERT_THAT(command, IsOk());
   int errors = 0;
@@ -409,8 +409,8 @@ TEST_F(RunTest, DuplicateCaptureNameIsErrorByDefault) {
 
 TEST_F(RunTest, CaptureOverrideAllowsDuplicateNameLastWins) {
   const auto command = parser::Parse(
-      {"--capture-override", "--template={capture.x}", root_.string(), "-name", "a.txt", "--capture=x", "/bin/sh",
-       "-c", "printf a", ";", "--capture=x", "/bin/sh", "-c", "printf b", ";"});
+      {"--capture-override", "--template={capture.x}", root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh",
+       "-c", "printf a", ";", "-capture=x", "/bin/sh", "-c", "printf b", ";"});
   ASSERT_THAT(command, IsOk());
   std::vector<std::string> records;
   RunFind(
@@ -423,13 +423,13 @@ TEST_F(RunTest, CaptureOverrideAllowsDuplicateNameLastWins) {
         records.push_back(std::move(text));
       },
       [](std::string_view, absl::Status) {});
-  EXPECT_THAT(records, UnorderedElementsAre("b"));  // last --capture wins under --capture-override
+  EXPECT_THAT(records, UnorderedElementsAre("b"));  // last -capture wins under --capture-override
 }
 
 TEST_F(RunTest, UnusedCaptureIsError) {
-  // --capture=x but {capture.x} is referenced nowhere -> exit 2 before traversal.
+  // -capture=x but {capture.x} is referenced nowhere -> exit 2 before traversal.
   const auto command =
-      parser::Parse({root_.string(), "-name", "a.txt", "--capture=x", "/bin/sh", "-c", "printf a", ";"});
+      parser::Parse({root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh", "-c", "printf a", ";"});
   ASSERT_THAT(command, IsOk());
   int errors = 0;
   const int code =
@@ -441,7 +441,7 @@ TEST_F(RunTest, UnusedCaptureIsError) {
 TEST_F(RunTest, CaptureUsedByLaterExecIsNotFlagged) {
   // {capture.x} referenced in a later -exec counts as used -> no unused error.
   const auto command = parser::Parse(
-      {"--exec-fields", root_.string(), "-name", "a.txt", "--capture=x", "/bin/sh", "-c", "printf a", ";", "-exec",
+      {"--exec-fields", root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh", "-c", "printf a", ";", "-exec",
        "/bin/sh", "-c", "test \"{capture.x}\" = a", ";"});
   ASSERT_THAT(command, IsOk());
   int errors = 0;

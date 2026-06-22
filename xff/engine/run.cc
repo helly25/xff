@@ -215,7 +215,7 @@ std::map<std::string, std::string> ResolveDefines(const std::vector<std::string>
   return defines;
 }
 
-// Whether --capture-override permits re-binding a --capture NAME. Strict by
+// Whether --capture-override permits re-binding a -capture NAME. Strict by
 // default (a duplicate name is an error); --capture-override (== =yes) allows it,
 // --capture-override=no restores strict. Last occurrence wins.
 bool CaptureOverride(const std::vector<std::string>& globals) {
@@ -230,11 +230,11 @@ bool CaptureOverride(const std::vector<std::string>& globals) {
   return allow;
 }
 
-// Collects the NAME of every --capture action in the expression (its args[0]).
+// Collects the NAME of every -capture action in the expression (its args[0]).
 void CollectCaptureNames(const parser::Expr& expr, std::vector<std::string>* names) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate:
-      if (expr.descriptor->name == "--capture" && !expr.args.empty()) {
+      if (expr.descriptor->name == "-capture" && !expr.args.empty()) {
         names->push_back(expr.args.front());
       }
       break;
@@ -250,7 +250,7 @@ void CollectCaptureNames(const parser::Expr& expr, std::vector<std::string>* nam
   }
 }
 
-// Returns a --capture NAME bound more than once, or nullopt when all are unique.
+// Returns a -capture NAME bound more than once, or nullopt when all are unique.
 std::optional<std::string> DuplicateCaptureName(const parser::Expr& expr) {
   std::vector<std::string> names;
   CollectCaptureNames(expr, &names);
@@ -260,14 +260,14 @@ std::optional<std::string> DuplicateCaptureName(const parser::Expr& expr) {
 }
 
 // Collects strings that may reference {capture.NAME}: the command tokens of every
-// -exec and --capture action (a later command can use an earlier capture). The
+// -exec and -capture action (a later command can use an earlier capture). The
 // --template global is added by the caller.
 void CollectCaptureRefs(const parser::Expr& expr, std::vector<std::string>* refs) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate:
       if (expr.descriptor->name == "-exec") {
         refs->insert(refs->end(), expr.args.begin(), expr.args.end());
-      } else if (expr.descriptor->name == "--capture" && expr.args.size() > 2) {
+      } else if (expr.descriptor->name == "-capture" && expr.args.size() > 2) {
         refs->insert(refs->end(), expr.args.begin() + 2, expr.args.end());  // skip [NAME, REGEX]
       }
       break;
@@ -283,8 +283,8 @@ void CollectCaptureRefs(const parser::Expr& expr, std::vector<std::string>* refs
   }
 }
 
-// Returns a --capture NAME whose {capture.NAME} placeholder appears nowhere (no
-// -exec/--capture command and not the --template), or nullopt when all are used.
+// Returns a -capture NAME whose {capture.NAME} placeholder appears nowhere (no
+// -exec/-capture command and not the --template), or nullopt when all are used.
 std::optional<std::string> UnusedCaptureName(const parser::Expr& expr, const std::optional<std::string>& tmpl) {
   std::vector<std::string> names;
   CollectCaptureNames(expr, &names);
@@ -320,12 +320,12 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
     on_error("-delete", absl::FailedPreconditionError("refused: --safe forbids destructive actions"));
     return 2;  // do not traverse
   }
-  // A --capture NAME bound twice is an error by default (silent clobbering would
+  // A -capture NAME bound twice is an error by default (silent clobbering would
   // mean silently-wrong data); --capture-override opts into last-wins.
   if (expression != nullptr && !CaptureOverride(command.globals)) {
     if (const std::optional<std::string> dup = DuplicateCaptureName(*expression); dup.has_value()) {
-      on_error("--capture", absl::FailedPreconditionError(
-                                absl::StrCat("duplicate --capture name '", *dup, "'; use --capture-override")));
+      on_error("-capture", absl::FailedPreconditionError(
+                                absl::StrCat("duplicate -capture name '", *dup, "'; use --capture-override")));
       return 2;  // do not traverse
     }
   }
@@ -333,12 +333,12 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   options.symlinks = ResolveSymlinkMode(command.globals);
   const render::Format format = ResolveFormat(command.globals);
   const std::optional<std::string> tmpl = ResolveTemplate(command.globals);
-  // A --capture whose {capture.NAME} is never referenced ran a subprocess for
+  // A -capture whose {capture.NAME} is never referenced ran a subprocess for
   // nothing (use -exec for pure side effects); flag it before traversing.
   if (expression != nullptr) {
     if (const std::optional<std::string> unused = UnusedCaptureName(*expression, tmpl); unused.has_value()) {
-      on_error("--capture", absl::FailedPreconditionError(absl::StrCat(
-                                "--capture '", *unused, "' is never referenced as {capture.", *unused, "}")));
+      on_error("-capture", absl::FailedPreconditionError(absl::StrCat(
+                                "-capture '", *unused, "' is never referenced as {capture.", *unused, "}")));
       return 2;  // do not traverse
     }
   }
@@ -375,7 +375,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
       [&](const Visit& visit) {
         Control control;
         std::vector<std::string> captures;  // -regex groups for this entry; consumed by gated -exec {0}..{N}
-        std::map<std::string, std::string> outputs;  // --capture results for this entry; read by {capture.NAME}
+        std::map<std::string, std::string> outputs;  // -capture results for this entry; read by {capture.NAME}
         EvalContext eval_context{
             .visit = visit, .emit = emit, .fs = walk_fs, .now = now, .control = control,
             .exec_fields = exec_fields, .captures = exec_fields ? &captures : nullptr, .defines = &defines,
