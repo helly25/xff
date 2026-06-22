@@ -132,47 +132,68 @@ std::string GroupName(std::uint32_t gid) {
   return std::to_string(gid);
 }
 
-// find's -printf FORMAT: expands % directives and \ escapes against the entry.
-// Supported: %p path, %f name, %h dir, %s size, %m octal perm, %d depth, %y
-// type, %i inode, %n links, %u/%g owner name, %U/%G owner id, %% literal; \n \t
-// \r \\ \0 escapes. Unknown directives are emitted literally. (Time directives
+// find's -printf \ escapes: the literal character each backslash sequence emits.
+constexpr auto kPrintfEscapes = mbo::container::MakeLimitedMap(
+    std::pair{'0', '\0'},
+    std::pair{'\\', '\\'},
+    std::pair{'n', '\n'},
+    std::pair{'r', '\r'},
+    std::pair{'t', '\t'});
+
+// One -printf % directive: appends its expansion for `visit` to `out`. Captureless
+// lambdas so the table below is a constexpr LimitedMap, like the engine's kDispatch.
+using PrintfDirective = void (*)(std::string& out, const Visit& visit);
+
+// find's -printf % directives, keyed by letter (alphabetical; '%' emits a literal %).
+constexpr auto kPrintfDirectives = mbo::container::MakeLimitedMap(
+    std::pair<char, PrintfDirective>{'%', [](std::string& out, const Visit&) { out.push_back('%'); }},
+    std::pair<char, PrintfDirective>{
+        'G', [](std::string& out, const Visit& v) { absl::StrAppend(&out, v.metadata.gid); }},
+    std::pair<char, PrintfDirective>{
+        'U', [](std::string& out, const Visit& v) { absl::StrAppend(&out, v.metadata.uid); }},
+    std::pair<char, PrintfDirective>{'d', [](std::string& out, const Visit& v) { absl::StrAppend(&out, v.depth); }},
+    std::pair<char, PrintfDirective>{'f', [](std::string& out, const Visit& v) { out.append(v.name); }},
+    std::pair<char, PrintfDirective>{
+        'g', [](std::string& out, const Visit& v) { out.append(GroupName(v.metadata.gid)); }},
+    std::pair<char, PrintfDirective>{'h', [](std::string& out, const Visit& v) { out.append(Dirname(v.path)); }},
+    std::pair<char, PrintfDirective>{
+        'i', [](std::string& out, const Visit& v) { absl::StrAppend(&out, v.metadata.ino); }},
+    std::pair<char, PrintfDirective>{
+        'm', [](std::string& out, const Visit& v) { out.append(OctalPerm(v.metadata.mode)); }},
+    std::pair<char, PrintfDirective>{
+        'n', [](std::string& out, const Visit& v) { absl::StrAppend(&out, v.metadata.nlink); }},
+    std::pair<char, PrintfDirective>{'p', [](std::string& out, const Visit& v) { out.append(v.path); }},
+    std::pair<char, PrintfDirective>{
+        's', [](std::string& out, const Visit& v) { absl::StrAppend(&out, v.metadata.size); }},
+    std::pair<char, PrintfDirective>{
+        'u', [](std::string& out, const Visit& v) { out.append(UserName(v.metadata.uid)); }},
+    std::pair<char, PrintfDirective>{
+        'y', [](std::string& out, const Visit& v) { out.push_back(TypeLetter(v.metadata.type)); }});
+
+// find's -printf FORMAT: expands % directives and \ escapes against the entry via
+// the tables above. Supported %: p path, f name, h dir, s size, m octal perm, d
+// depth, y type, i inode, n links, u/g owner name, U/G owner id, %% literal; \:
+// n t r \\ \0. Unknown directives/escapes are emitted literally. (Time directives
 // %a/%c/%t and the strftime %Tk forms are a follow-up.)
 std::string FormatPrintf(std::string_view format, const Visit& visit) {
   std::string out;
   for (std::string_view::size_type i = 0; i < format.size(); ++i) {
     const char ch = format[i];
     if (ch == '\\' && i + 1 < format.size()) {
-      switch (format[++i]) {
-        case 'n': out.push_back('\n'); break;
-        case 't': out.push_back('\t'); break;
-        case 'r': out.push_back('\r'); break;
-        case '0': out.push_back('\0'); break;
-        case '\\': out.push_back('\\'); break;
-        default:
-          out.push_back('\\');
-          out.push_back(format[i]);
-          break;
+      const char esc = format[++i];
+      if (const auto it = kPrintfEscapes.find(esc); it != kPrintfEscapes.end()) {
+        out.push_back(it->second);
+      } else {
+        out.push_back('\\');  // unknown escape: emit the backslash and char literally
+        out.push_back(esc);
       }
     } else if (ch == '%' && i + 1 < format.size()) {
-      switch (format[++i]) {
-        case 'p': out.append(visit.path); break;
-        case 'f': out.append(visit.name); break;
-        case 'h': out.append(Dirname(visit.path)); break;
-        case 's': absl::StrAppend(&out, visit.metadata.size); break;
-        case 'm': out.append(OctalPerm(visit.metadata.mode)); break;
-        case 'd': absl::StrAppend(&out, visit.depth); break;
-        case 'y': out.push_back(TypeLetter(visit.metadata.type)); break;
-        case 'i': absl::StrAppend(&out, visit.metadata.ino); break;
-        case 'n': absl::StrAppend(&out, visit.metadata.nlink); break;
-        case 'u': out.append(UserName(visit.metadata.uid)); break;
-        case 'g': out.append(GroupName(visit.metadata.gid)); break;
-        case 'U': absl::StrAppend(&out, visit.metadata.uid); break;
-        case 'G': absl::StrAppend(&out, visit.metadata.gid); break;
-        case '%': out.push_back('%'); break;
-        default:
-          out.push_back('%');
-          out.push_back(format[i]);
-          break;
+      const char directive = format[++i];
+      if (const auto it = kPrintfDirectives.find(directive); it != kPrintfDirectives.end()) {
+        it->second(out, visit);
+      } else {
+        out.push_back('%');  // unknown directive: emit the percent and char literally
+        out.push_back(directive);
       }
     } else {
       out.push_back(ch);
