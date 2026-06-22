@@ -108,14 +108,17 @@ std::optional<absl::Time> ParseTimeString(std::string_view text, absl::Time now)
 // default and claims none. epoch/zulu/zulu-dense are handled in FormatTime (they
 // are numeric or force UTC), so they are not table entries.
 constexpr std::string_view kIso8601 = "%Y-%m-%dT%H:%M:%S%z";  // ISO-8601 extended, shared by "iso"/"iso8601"
+constexpr std::string_view kSpace = "%Y-%m-%d %H:%M:%S %z";   // readable default, shared by "space"/"human"
 
 constexpr auto kNamedFormats = mbo::container::MakeLimitedMap(
-    std::pair<std::string_view, std::string_view>{"asctime", "%a %b %e %H:%M:%S %Y"},   // asctime(3); find's default %t
-    std::pair<std::string_view, std::string_view>{"iso", kIso8601},                     // common shorthand for iso8601
+    std::pair<std::string_view, std::string_view>{"asctime", "%a %b %e %H:%M:%S %Y"},   // asctime(3); find default %t
+    std::pair<std::string_view, std::string_view>{"human", kSpace},                     // alias of space
+    std::pair<std::string_view, std::string_view>{"iso", kIso8601},                     // shorthand for iso8601
     std::pair<std::string_view, std::string_view>{"iso8601", kIso8601},                 // ISO-8601 extended (T)
     std::pair<std::string_view, std::string_view>{"iso8601-basic", "%Y%m%dT%H%M%S%z"},  // ISO-8601 basic (compact)
-    std::pair<std::string_view, std::string_view>{"rfc3339", "%Y-%m-%dT%H:%M:%S%Ez"},   // RFC 3339 (colon offset)
-    std::pair<std::string_view, std::string_view>{"space", "%Y-%m-%d %H:%M:%S %z"});    // readable default; no standard
+    std::pair<std::string_view, std::string_view>{"iso8601-full", "%Y-%m-%dT%H:%M:%E9S%z"},  // ISO-8601 + sub-second
+    std::pair<std::string_view, std::string_view>{"rfc3339", "%Y-%m-%dT%H:%M:%S%Ez"},        // RFC 3339 (colon offset)
+    std::pair<std::string_view, std::string_view>{"space", kSpace});  // readable default (primary)
 
 std::string FormatTime(absl::Time time, std::string_view spec, absl::TimeZone tz) {
   if (spec == "epoch") {
