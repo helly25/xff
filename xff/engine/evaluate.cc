@@ -476,6 +476,29 @@ bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
     }
     return exec::ExecuteArgs(argv);  // true iff the child exits 0
   }
+  if (name == "-ok") {
+    // Like -exec, but prompt on stderr and run only on an affirmative reply.
+    // Declined, or no confirmer wired -> false (the command is not run), per find.
+    if (!ctx.confirm) {
+      return false;
+    }
+    std::string prompt;  // the command shown find-exact: each {} substituted to the path, then "? "
+    for (const std::string& token : expr.args) {
+      if (!prompt.empty()) {
+        prompt += ' ';
+      }
+      std::string rendered = token;
+      for (std::size_t pos = 0; (pos = rendered.find("{}", pos)) != std::string::npos; pos += visit.path.size()) {
+        rendered.replace(pos, 2, std::string(visit.path));
+      }
+      prompt += rendered;
+    }
+    prompt += "? ";
+    if (!ctx.confirm(prompt)) {
+      return false;  // declined -> not run; -ok is false
+    }
+    return exec::Execute(expr.args, visit.path);  // substitutes {} -> path; true iff the child exits 0
+  }
   if (name == "--capture") {  // args = [NAME, REGEX (may be empty), cmd...]
     if (ctx.outputs == nullptr || expr.args.size() < 3) {
       return true;  // unwired or malformed: binding is a no-op, but --capture is always true
