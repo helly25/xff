@@ -30,11 +30,13 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
+#include "mbo/container/limited_map.h"
 #include "xff/datetime/datetime.h"
 #include "xff/engine/walk.h"
 #include "xff/exec/exec.h"
@@ -385,166 +387,238 @@ std::string ExtractCapture(std::string_view regex, std::string_view text) {
   return groups->size() > 1 ? (*groups)[1] : (*groups)[0];
 }
 
-bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
-  // Alias the context members so the predicate/action body below reads them
-  // directly (the body predates EvalContext and is left untouched).
-  const Visit& visit = ctx.visit;
-  const EmitFn emit = ctx.emit;
-  const vfs::FileSystem& fs = ctx.fs;
-  const absl::Time now = ctx.now;
-  Control& control = ctx.control;
+// --- Per-primary handlers. One free function per leaf test/action, each reading
+// what it needs from `expr` and `ctx`. The dispatch table below maps a registry
+// name to its handler, so evaluation is a constexpr-map lookup, not a linear
+// name scan. Signature is uniform: (const Expr&, EvalContext&) -> bool. ---
+
+bool EvalTrue(const parser::Expr&, EvalContext&) { return true; }
+bool EvalFalse(const parser::Expr&, EvalContext&) { return false; }
+bool EvalName(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.name, 0);
+}
+bool EvalIname(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.name, FNM_CASEFOLD);
+}
+bool EvalPath(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.path, 0);
+}
+bool EvalIpath(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.path, FNM_CASEFOLD);
+}
+bool EvalRegex(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesRegex(expr.args.front(), ctx.visit.path, false, ctx.captures);
+}
+bool EvalIregex(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesRegex(expr.args.front(), ctx.visit.path, true, ctx.captures);
+}
+bool EvalType(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesType(expr.args.front(), ctx.visit.metadata.type);
+}
+bool EvalSize(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesSize(expr.args.front(), ctx.visit.metadata.size);
+}
+bool EvalLinks(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesNumeric(expr.args.front(), ctx.visit.metadata.nlink);
+}
+bool EvalUid(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesNumeric(expr.args.front(), ctx.visit.metadata.uid);
+}
+bool EvalGid(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesNumeric(expr.args.front(), ctx.visit.metadata.gid);
+}
+bool EvalUser(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.args.empty()) return false;
+  const std::optional<std::uint32_t> uid = ResolveUid(expr.args.front());
+  return uid.has_value() && ctx.visit.metadata.uid == *uid;
+}
+bool EvalGroup(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.args.empty()) return false;
+  const std::optional<std::uint32_t> gid = ResolveGid(expr.args.front());
+  return gid.has_value() && ctx.visit.metadata.gid == *gid;
+}
+bool EvalPerm(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesPerm(expr.args.front(), ctx.visit.metadata.mode);
+}
+bool EvalEmpty(const parser::Expr&, EvalContext& ctx) { return IsEmpty(ctx.visit, ctx.fs); }
+bool EvalNewer(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && IsNewerThan(ctx.visit, expr.args.front(), ctx.fs);
+}
+// -newerXY (X,Y in {a,c,m}); -newerXt (Y=t) compares the X-time to a time string.
+// Shared by every 8-char -newer* name; reads X/Y from the descriptor.
+bool EvalNewerXY(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.args.empty()) return false;
   const std::string_view name = expr.descriptor->name;
-  const bool has_arg = !expr.args.empty();
-  if (name == "-true") return true;
-  if (name == "-false") return false;
-  if (name == "-name") return has_arg && Fnmatch(expr.args.front(), visit.name, 0);
-  if (name == "-iname") return has_arg && Fnmatch(expr.args.front(), visit.name, FNM_CASEFOLD);
-  if (name == "-path") return has_arg && Fnmatch(expr.args.front(), visit.path, 0);
-  if (name == "-ipath") return has_arg && Fnmatch(expr.args.front(), visit.path, FNM_CASEFOLD);
-  if (name == "-regex") return has_arg && MatchesRegex(expr.args.front(), visit.path, false, ctx.captures);
-  if (name == "-iregex") return has_arg && MatchesRegex(expr.args.front(), visit.path, true, ctx.captures);
-  if (name == "-type") return has_arg && MatchesType(expr.args.front(), visit.metadata.type);
-  if (name == "-size") return has_arg && MatchesSize(expr.args.front(), visit.metadata.size);
-  if (name == "-links") return has_arg && MatchesNumeric(expr.args.front(), visit.metadata.nlink);
-  if (name == "-uid") return has_arg && MatchesNumeric(expr.args.front(), visit.metadata.uid);
-  if (name == "-gid") return has_arg && MatchesNumeric(expr.args.front(), visit.metadata.gid);
-  if (name == "-user") {
-    if (!has_arg) return false;
-    const std::optional<std::uint32_t> uid = ResolveUid(expr.args.front());
-    return uid.has_value() && visit.metadata.uid == *uid;
+  const char x = name[6];
+  if (name[7] == 't') {
+    const std::optional<absl::Time> ref = datetime::ParseTimeString(expr.args.front(), ctx.now);
+    return ref.has_value() && TimeField(ctx.visit.metadata, x) > *ref;
   }
-  if (name == "-group") {
-    if (!has_arg) return false;
-    const std::optional<std::uint32_t> gid = ResolveGid(expr.args.front());
-    return gid.has_value() && visit.metadata.gid == *gid;
-  }
-  if (name == "-perm") return has_arg && MatchesPerm(expr.args.front(), visit.metadata.mode);
-  if (name == "-empty") return IsEmpty(visit, fs);
-  if (name == "-newer") return has_arg && IsNewerThan(visit, expr.args.front(), fs);
-  // -newerXY (X,Y in {a,c,m}) and -newerXt (Y=t: the reference is a time string,
-  // not a file). The registry only admits these 8-char names.
-  if (name.size() == 8 && name.starts_with("-newer")) {
-    if (name[7] == 't') {
-      if (!has_arg) {
-        return false;
-      }
-      const std::optional<absl::Time> ref = datetime::ParseTimeString(expr.args.front(), now);
-      return ref.has_value() && TimeField(visit.metadata, name[6]) > *ref;
-    }
-    return has_arg && IsNewerXY(visit, name[6], name[7], expr.args.front(), fs);
-  }
-  if (name == "-mtime") return has_arg && MatchesTime(expr.args.front(), visit.metadata.mtime, now, absl::Hours(24));
-  if (name == "-mmin") return has_arg && MatchesTime(expr.args.front(), visit.metadata.mtime, now, absl::Minutes(1));
-  if (name == "-atime") return has_arg && MatchesTime(expr.args.front(), visit.metadata.atime, now, absl::Hours(24));
-  if (name == "-amin") return has_arg && MatchesTime(expr.args.front(), visit.metadata.atime, now, absl::Minutes(1));
-  if (name == "-ctime") return has_arg && MatchesTime(expr.args.front(), visit.metadata.ctime, now, absl::Hours(24));
-  if (name == "-cmin") return has_arg && MatchesTime(expr.args.front(), visit.metadata.ctime, now, absl::Minutes(1));
-  if (name == "-print") {
-    emit(absl::StrCat(visit.path, "\n"));
-    return true;
-  }
-  if (name == "-print0") {
-    std::string record(visit.path);
-    record.push_back('\0');
-    emit(record);
-    return true;
-  }
-  if (name == "-printf") {
-    if (has_arg) {
-      emit(FormatPrintf(expr.args.front(), visit));  // no implicit newline; the format owns it
-    }
-    return true;
-  }
-  if (name == "-println") {
-    emit(absl::StrCat(visit.path, kOsLineEnding));  // xff: -print with the OS line ending
-    return true;
-  }
-  if (name == "-printfln") {
-    if (has_arg) {  // xff: -printf plus the OS line ending appended
-      emit(absl::StrCat(FormatPrintf(expr.args.front(), visit), kOsLineEnding));
-    }
-    return true;
-  }
-  if (name == "-delete") {
-    static_cast<void>(fs.Remove(visit.path));  // failures set a nonzero exit; wired in the exit-code work
-    return true;
-  }
-  if (name == "-exec") {
-    if (!ctx.exec_fields) {
-      return exec::Execute(expr.args, visit.path);  // find-exact: only {} is substituted (-> path)
-    }
-    // --exec-fields: render each token through the field vocabulary ({}, {name},
-    // {path}, {root}, ...), then spawn the already-substituted argv.
-    const fields::RenderContext render_ctx{
-        .path = visit.path, .root = visit.root, .metadata = visit.metadata, .depth = visit.depth,
-        .captures = ctx.captures, .defines = ctx.defines, .outputs = ctx.outputs};
-    std::vector<std::string> argv;
-    argv.reserve(expr.args.size());
-    for (const std::string& token : expr.args) {
-      argv.push_back(fields::Render(token, render_ctx));
-    }
-    return exec::ExecuteArgs(argv);  // true iff the child exits 0
-  }
-  if (name == "-ok") {
-    // Like -exec, but prompt on stderr and run only on an affirmative reply.
-    // Declined, or no confirmer wired -> false (the command is not run), per find.
-    if (!ctx.confirm) {
-      return false;
-    }
-    std::string prompt;  // the command shown find-exact: each {} substituted to the path, then "? "
-    for (const std::string& token : expr.args) {
-      if (!prompt.empty()) {
-        prompt += ' ';
-      }
-      std::string rendered = token;
-      for (std::size_t pos = 0; (pos = rendered.find("{}", pos)) != std::string::npos; pos += visit.path.size()) {
-        rendered.replace(pos, 2, std::string(visit.path));
-      }
-      prompt += rendered;
-    }
-    prompt += "? ";
-    if (!ctx.confirm(prompt)) {
-      return false;  // declined -> not run; -ok is false
-    }
-    return exec::Execute(expr.args, visit.path);  // substitutes {} -> path; true iff the child exits 0
-  }
-  if (name == "-capture") {  // args = [NAME, REGEX (may be empty), cmd...]
-    if (ctx.outputs == nullptr || expr.args.size() < 3) {
-      return true;  // unwired or malformed: binding is a no-op, but -capture is always true
-    }
-    // The command renders through the field vocabulary so {} -> path and prior
-    // {capture.*}/{def.*}/{N} resolve (left-to-right chaining).
-    const fields::RenderContext render_ctx{
-        .path = visit.path, .root = visit.root, .metadata = visit.metadata, .depth = visit.depth,
-        .captures = ctx.captures, .defines = ctx.defines, .outputs = ctx.outputs};
-    std::vector<std::string> command;
-    command.reserve(expr.args.size() - 2);
-    for (std::size_t i = 2; i < expr.args.size(); ++i) {
-      command.push_back(fields::Render(expr.args[i], render_ctx));
-    }
-    std::string value;
-    if (const std::optional<std::string> out = exec::CaptureOutput(command); out.has_value()) {
-      value = *out;
-      while (!value.empty() && value.back() == '\n') {
-        value.pop_back();  // strip trailing newline(s)
-      }
-      if (!expr.args[1].empty()) {
-        value = ExtractCapture(expr.args[1], value);  // optional regex extraction
-      }
-    }
-    (*ctx.outputs)[expr.args[0]] = std::move(value);  // bind {capture.NAME} (last wins)
-    return true;  // a binding side effect; always true
-  }
-  if (name == "-prune") {
-    control.prune = true;  // do not descend into this directory; -prune is always true
-    return true;
-  }
-  if (name == "-quit") {
-    control.quit = true;  // stop the whole traversal after this entry
-    return true;
-  }
-  // Predicates not yet implemented evaluate to true (no-op); wired in follow-ups.
+  return IsNewerXY(ctx.visit, x, name[7], expr.args.front(), ctx.fs);
+}
+bool EvalMtime(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.mtime, ctx.now, absl::Hours(24));
+}
+bool EvalMmin(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.mtime, ctx.now, absl::Minutes(1));
+}
+bool EvalAtime(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.atime, ctx.now, absl::Hours(24));
+}
+bool EvalAmin(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.atime, ctx.now, absl::Minutes(1));
+}
+bool EvalCtime(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.ctime, ctx.now, absl::Hours(24));
+}
+bool EvalCmin(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.ctime, ctx.now, absl::Minutes(1));
+}
+bool EvalPrint(const parser::Expr&, EvalContext& ctx) {
+  ctx.emit(absl::StrCat(ctx.visit.path, "\n"));
   return true;
+}
+bool EvalPrint0(const parser::Expr&, EvalContext& ctx) {
+  std::string record(ctx.visit.path);
+  record.push_back('\0');
+  ctx.emit(record);
+  return true;
+}
+bool EvalPrintf(const parser::Expr& expr, EvalContext& ctx) {
+  if (!expr.args.empty()) {
+    ctx.emit(FormatPrintf(expr.args.front(), ctx.visit));  // no implicit newline; the format owns it
+  }
+  return true;
+}
+bool EvalPrintln(const parser::Expr&, EvalContext& ctx) {
+  ctx.emit(absl::StrCat(ctx.visit.path, kOsLineEnding));  // xff: -print with the OS line ending
+  return true;
+}
+bool EvalPrintfln(const parser::Expr& expr, EvalContext& ctx) {
+  if (!expr.args.empty()) {  // xff: -printf plus the OS line ending appended
+    ctx.emit(absl::StrCat(FormatPrintf(expr.args.front(), ctx.visit), kOsLineEnding));
+  }
+  return true;
+}
+bool EvalDelete(const parser::Expr&, EvalContext& ctx) {
+  static_cast<void>(ctx.fs.Remove(ctx.visit.path));  // failures set a nonzero exit; wired in the exit-code work
+  return true;
+}
+bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
+  if (!ctx.exec_fields) {
+    return exec::Execute(expr.args, ctx.visit.path);  // find-exact: only {} is substituted (-> path)
+  }
+  // --exec-fields: render each token through the field vocabulary ({}, {name},
+  // {path}, {root}, ...), then spawn the already-substituted argv.
+  const fields::RenderContext render_ctx{
+      .path = ctx.visit.path, .root = ctx.visit.root, .metadata = ctx.visit.metadata, .depth = ctx.visit.depth,
+      .captures = ctx.captures, .defines = ctx.defines, .outputs = ctx.outputs};
+  std::vector<std::string> argv;
+  argv.reserve(expr.args.size());
+  for (const std::string& token : expr.args) {
+    argv.push_back(fields::Render(token, render_ctx));
+  }
+  return exec::ExecuteArgs(argv);  // true iff the child exits 0
+}
+bool EvalOk(const parser::Expr& expr, EvalContext& ctx) {
+  // Like -exec, but prompt on stderr and run only on an affirmative reply.
+  // Declined, or no confirmer wired -> false (the command is not run), per find.
+  if (!ctx.confirm) {
+    return false;
+  }
+  std::string prompt;  // the command shown find-exact: each {} substituted to the path, then "? "
+  for (const std::string& token : expr.args) {
+    if (!prompt.empty()) {
+      prompt += ' ';
+    }
+    std::string rendered = token;
+    for (std::size_t pos = 0; (pos = rendered.find("{}", pos)) != std::string::npos; pos += ctx.visit.path.size()) {
+      rendered.replace(pos, 2, std::string(ctx.visit.path));
+    }
+    prompt += rendered;
+  }
+  prompt += "? ";
+  if (!ctx.confirm(prompt)) {
+    return false;  // declined -> not run; -ok is false
+  }
+  return exec::Execute(expr.args, ctx.visit.path);  // substitutes {} -> path; true iff the child exits 0
+}
+bool EvalCapture(const parser::Expr& expr, EvalContext& ctx) {  // args = [NAME, REGEX (may be empty), cmd...]
+  if (ctx.outputs == nullptr || expr.args.size() < 3) {
+    return true;  // unwired or malformed: binding is a no-op, but -capture is always true
+  }
+  // The command renders through the field vocabulary so {} -> path and prior
+  // {capture.*}/{def.*}/{N} resolve (left-to-right chaining).
+  const fields::RenderContext render_ctx{
+      .path = ctx.visit.path, .root = ctx.visit.root, .metadata = ctx.visit.metadata, .depth = ctx.visit.depth,
+      .captures = ctx.captures, .defines = ctx.defines, .outputs = ctx.outputs};
+  std::vector<std::string> command;
+  command.reserve(expr.args.size() - 2);
+  for (std::size_t i = 2; i < expr.args.size(); ++i) {
+    command.push_back(fields::Render(expr.args[i], render_ctx));
+  }
+  std::string value;
+  if (const std::optional<std::string> out = exec::CaptureOutput(command); out.has_value()) {
+    value = *out;
+    while (!value.empty() && value.back() == '\n') {
+      value.pop_back();  // strip trailing newline(s)
+    }
+    if (!expr.args[1].empty()) {
+      value = ExtractCapture(expr.args[1], value);  // optional regex extraction
+    }
+  }
+  (*ctx.outputs)[expr.args[0]] = std::move(value);  // bind {capture.NAME} (last wins)
+  return true;  // a binding side effect; always true
+}
+bool EvalPrune(const parser::Expr&, EvalContext& ctx) {
+  ctx.control.prune = true;  // do not descend into this directory; -prune is always true
+  return true;
+}
+bool EvalQuit(const parser::Expr&, EvalContext& ctx) {
+  ctx.control.quit = true;  // stop the whole traversal after this entry
+  return true;
+}
+
+// Engine-side dispatch entry for one primary. A struct (not a bare function
+// pointer) so per-primary engine config can be added here as it is designed,
+// without changing the table or its call site. Declarative metadata (kind,
+// arity, and the coming mode/feature/safety classification) lives on the
+// registry Descriptor (the SOT, below the parser); the eval function is the one
+// piece that must be engine-side, so it lives here and is keyed by the same
+// name. A registry/dispatch consistency test guards the pairing.
+using EvalFn = bool (*)(const parser::Expr&, EvalContext&);
+
+struct EvalEntry {
+  EvalFn eval = nullptr;
+};
+
+using DispatchPair = std::pair<std::string_view, EvalEntry>;
+constexpr auto kDispatch = mbo::container::MakeLimitedMap(
+    DispatchPair{"-amin", {&EvalAmin}}, DispatchPair{"-atime", {&EvalAtime}}, DispatchPair{"-capture", {&EvalCapture}},
+    DispatchPair{"-cmin", {&EvalCmin}}, DispatchPair{"-ctime", {&EvalCtime}}, DispatchPair{"-delete", {&EvalDelete}},
+    DispatchPair{"-empty", {&EvalEmpty}}, DispatchPair{"-exec", {&EvalExec}}, DispatchPair{"-false", {&EvalFalse}},
+    DispatchPair{"-gid", {&EvalGid}}, DispatchPair{"-group", {&EvalGroup}}, DispatchPair{"-iname", {&EvalIname}},
+    DispatchPair{"-ipath", {&EvalIpath}}, DispatchPair{"-iregex", {&EvalIregex}}, DispatchPair{"-links", {&EvalLinks}},
+    DispatchPair{"-mmin", {&EvalMmin}}, DispatchPair{"-mtime", {&EvalMtime}}, DispatchPair{"-name", {&EvalName}},
+    DispatchPair{"-newer", {&EvalNewer}}, DispatchPair{"-neweraa", {&EvalNewerXY}},
+    DispatchPair{"-newerac", {&EvalNewerXY}}, DispatchPair{"-neweram", {&EvalNewerXY}},
+    DispatchPair{"-newerat", {&EvalNewerXY}}, DispatchPair{"-newerca", {&EvalNewerXY}},
+    DispatchPair{"-newercc", {&EvalNewerXY}}, DispatchPair{"-newercm", {&EvalNewerXY}},
+    DispatchPair{"-newerct", {&EvalNewerXY}}, DispatchPair{"-newerma", {&EvalNewerXY}},
+    DispatchPair{"-newermc", {&EvalNewerXY}}, DispatchPair{"-newermm", {&EvalNewerXY}},
+    DispatchPair{"-newermt", {&EvalNewerXY}}, DispatchPair{"-ok", {&EvalOk}}, DispatchPair{"-path", {&EvalPath}},
+    DispatchPair{"-perm", {&EvalPerm}}, DispatchPair{"-print", {&EvalPrint}}, DispatchPair{"-print0", {&EvalPrint0}},
+    DispatchPair{"-printf", {&EvalPrintf}}, DispatchPair{"-printfln", {&EvalPrintfln}},
+    DispatchPair{"-println", {&EvalPrintln}}, DispatchPair{"-prune", {&EvalPrune}}, DispatchPair{"-quit", {&EvalQuit}},
+    DispatchPair{"-regex", {&EvalRegex}}, DispatchPair{"-size", {&EvalSize}}, DispatchPair{"-true", {&EvalTrue}},
+    DispatchPair{"-type", {&EvalType}}, DispatchPair{"-uid", {&EvalUid}}, DispatchPair{"-user", {&EvalUser}});
+
+bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
+  // O(log n) dispatch on the descriptor name. A name not in the table (e.g. a
+  // traversal option like -maxdepth, consumed by the walk, not per entry) is a
+  // no-op that evaluates true, matching the previous fall-through.
+  const auto it = kDispatch.find(expr.descriptor->name);
+  return it == kDispatch.end() || it->second.eval(expr, ctx);
 }
 
 }  // namespace
