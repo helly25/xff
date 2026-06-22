@@ -78,7 +78,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-quit", .kind = Kind::kAction, .arity = 0},
     {.name = "-exec", .kind = Kind::kAction, .arity = -1},
     {.name = "-ok", .kind = Kind::kAction, .arity = -1},        // -exec that prompts; runs only on an affirmative reply
-    {.name = "--capture", .kind = Kind::kAction, .arity = -1},  // --capture=NAME[=REGEX] cmd... ;
+    {.name = "-capture", .kind = Kind::kAction, .arity = -1},  // -capture=NAME[=REGEX] cmd... ;
     {.name = "-a", .kind = Kind::kOperator, .arity = 0},
     {.name = "-and", .kind = Kind::kOperator, .arity = 0},
     {.name = "-o", .kind = Kind::kOperator, .arity = 0},

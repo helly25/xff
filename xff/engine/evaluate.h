@@ -59,7 +59,7 @@ struct EvalContext {
   bool exec_fields = false;       // --exec-fields: render -exec tokens through the field vocabulary
   std::vector<std::string>* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off
   const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
-  std::map<std::string, std::string>* outputs = nullptr;  // --capture results for {capture.NAME} (mutable, per entry)
+  std::map<std::string, std::string>* outputs = nullptr;  // -capture results for {capture.NAME} (mutable, per entry)
   std::function<bool(std::string_view)> confirm;  // -ok prompt sink: returns true to run the command; empty -> decline
 };
 

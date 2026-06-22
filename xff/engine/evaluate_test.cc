@@ -78,7 +78,7 @@ struct EvaluateTest : ::testing::Test {
   Control control_;  // set by Match from the most recent evaluation (-prune/-quit)
   bool exec_fields_ = false;  // when true, Match enables --exec-fields token substitution
   std::vector<std::string> captures_;  // -regex groups captured during the most recent (gated) Match
-  std::map<std::string, std::string> outputs_;  // --capture results from the most recent Match
+  std::map<std::string, std::string> outputs_;  // -capture results from the most recent Match
 };
 
 TEST_F(EvaluateTest, TrueAndFalse) {
@@ -441,9 +441,9 @@ TEST_F(EvaluateTest, CaptureBindsOutputNamespace) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("a/b/c.txt", "c.txt", vfs::FileType::kRegular, md);
   exec_fields_ = true;  // so the -exec reading {capture.tag} renders the vocabulary
-  // --capture runs the command and binds {capture.tag}; the later -exec reads it.
+  // -capture runs the command and binds {capture.tag}; the later -exec reads it.
   EXPECT_TRUE(Match(
-      {"--capture=tag", "/bin/sh", "-c", "printf hi", ";", "-exec", "/bin/sh", "-c", "test \"{capture.tag}\" = hi",
+      {"-capture=tag", "/bin/sh", "-c", "printf hi", ";", "-exec", "/bin/sh", "-c", "test \"{capture.tag}\" = hi",
        ";"},
       visit));
 }

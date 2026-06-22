@@ -301,7 +301,7 @@ std::string DefField(std::string_view key, std::string_view, const RenderContext
   return it == ctx.defines->end() ? "" : it->second;
 }
 
-// Renders {capture.NAME}: `key` is NAME; a --capture result, empty when unset.
+// Renders {capture.NAME}: `key` is NAME; a -capture result, empty when unset.
 std::string OutputField(std::string_view key, std::string_view, const RenderContext& ctx) {
   if (ctx.outputs == nullptr) {
     return "";
