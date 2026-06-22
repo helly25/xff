@@ -35,6 +35,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
+#include "xff/datetime/datetime.h"
 #include "xff/engine/walk.h"
 #include "xff/exec/exec.h"
 #include "xff/fields/fields.h"
@@ -285,35 +286,6 @@ bool IsNewerXY(const Visit& visit, char x, char y, std::string_view reference, c
   return ref.ok() && TimeField(visit.metadata, x) > TimeField(*ref, y);
 }
 
-// Parses a -newerXt reference time: "@<seconds>" (Unix epoch) or an ISO-8601
-// date / date-time interpreted in the local zone ("2020-01-02", "2020-01-02
-// 15:04:05", "2020-01-02T15:04:05"). Returns nullopt when none match -- find's
-// full relative-date grammar ("2 days ago") is intentionally not supported.
-std::optional<absl::Time> ParseTimeString(std::string_view spec) {
-  if (!spec.empty() && spec.front() == '@') {  // @epoch-seconds
-    const std::string_view digits = spec.substr(1);
-    if (digits.empty()) {
-      return std::nullopt;
-    }
-    std::int64_t seconds = 0;
-    for (const char c : digits) {
-      if (c < '0' || c > '9') {
-        return std::nullopt;
-      }
-      seconds = seconds * 10 + (c - '0');
-    }
-    return absl::FromUnixSeconds(seconds);
-  }
-  for (const std::string_view format : {"%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"}) {
-    absl::Time time;
-    std::string error;
-    if (absl::ParseTime(format, spec, absl::LocalTimeZone(), &time, &error)) {
-      return time;
-    }
-  }
-  return std::nullopt;
-}
-
 // find's -mtime/-mmin: the entry was modified N units ago -- 24h for -mtime, one
 // minute for -mmin -- with any fractional unit discarded (floor), so a 2.9-day
 // file is "2 days". +N means strictly more than N units ago, -N strictly fewer.
@@ -456,7 +428,7 @@ bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
       if (!has_arg) {
         return false;
       }
-      const std::optional<absl::Time> ref = ParseTimeString(expr.args.front());
+      const std::optional<absl::Time> ref = datetime::ParseTimeString(expr.args.front(), now);
       return ref.has_value() && TimeField(visit.metadata, name[6]) > *ref;
     }
     return has_arg && IsNewerXY(visit, name[6], name[7], expr.args.front(), fs);

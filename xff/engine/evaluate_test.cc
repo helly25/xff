@@ -385,6 +385,17 @@ TEST_F(EvaluateTest, NewerMtComparesEntryTimeToTimeString) {
   EXPECT_FALSE(Match({"-newermt", "yesterday"}, visit));
 }
 
+TEST_F(EvaluateTest, NewerMtAcceptsRelativeTimeStrings) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.mtime = now_ - absl::Hours(48);  // modified two days before the reference clock
+  const Visit visit = MakeVisit("f", "f", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-newermt", "3 days ago"}, visit));  // within the last three days
+  EXPECT_TRUE(Match({"-newermt", "-3 days"}, visit));     // same, sign form
+  EXPECT_FALSE(Match({"-newermt", "1 day ago"}, visit));  // not within the last day
+  EXPECT_FALSE(Match({"-newermt", "now"}, visit));        // older than now
+}
+
 TEST_F(EvaluateTest, ExecFieldsGatesNamedPlaceholderSubstitution) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("a/b/f.txt", "f.txt", vfs::FileType::kRegular, md);
