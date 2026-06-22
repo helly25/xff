@@ -81,5 +81,31 @@ TEST_F(ExecTest, CaptureOutputDrainsMoreThanPipeBuffer) {
   EXPECT_EQ(out->size(), 100'000U);
 }
 
+TEST_F(ExecTest, ExecuteInDirSetsChildWorkingDirectory) {
+  // The child runs with its cwd set to `dir`: chdir to "/" -> pwd -P is "/". "/" is
+  // always present and accessible, including under the test sandbox.
+  EXPECT_TRUE(ExecuteInDir({"/bin/sh", "-c", "test \"$(pwd -P)\" = /"}, "/", "ignored"));
+}
+
+TEST_F(ExecTest, ExecuteInDirSubstitutesBraceWithName) {
+  // {} is replaced by `name` (the caller's "./<basename>"), independent of the cwd.
+  EXPECT_TRUE(ExecuteInDir({"/bin/sh", "-c", "test \"{}\" = ./f.txt"}, "/", "./f.txt"));
+  EXPECT_FALSE(ExecuteInDir({"/bin/sh", "-c", "test \"{}\" = ./f.txt"}, "/", "./other"));
+  EXPECT_FALSE(ExecuteInDir({}, "/", "x"));  // empty command
+}
+
+TEST_F(ExecTest, ExecuteArgsInDirSpawnsVerbatimInDir) {
+  EXPECT_TRUE(ExecuteArgsInDir({"/bin/sh", "-c", "test \"$(pwd -P)\" = /"}, "/"));
+  EXPECT_FALSE(ExecuteArgsInDir({}, "/"));  // empty argv
+  // No "{}" substitution: the literal braces reach the child unchanged.
+  EXPECT_TRUE(ExecuteArgsInDir({"/bin/sh", "-c", "test '{}' = '{}'"}, "/"));
+}
+
+TEST_F(ExecTest, DirVariantsWithEmptyOrDotDirInheritCwd) {
+  // An empty or "." dir means "do not chdir" -- like ExecuteArgs/Execute.
+  EXPECT_TRUE(ExecuteArgsInDir({"/bin/sh", "-c", "exit 0"}, ""));
+  EXPECT_TRUE(ExecuteArgsInDir({"/bin/sh", "-c", "exit 0"}, "."));
+}
+
 }  // namespace
 }  // namespace xff::exec

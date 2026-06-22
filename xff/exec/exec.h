@@ -27,7 +27,7 @@ namespace xff::exec {
 // token of `command` is replaced by `path`, then the command is spawned (PATH-
 // searched via posix_spawnp) and waited for. Returns true iff the child ran and
 // exited 0, matching find's -exec truth value. Synchronous and serial; the `+`
-// batch form, -execdir, and -j parallelism are layered on separately.
+// batch form and -j parallelism are layered on separately.
 bool Execute(const std::vector<std::string>& command, std::string_view path);
 
 // Spawns `args` verbatim (args[0] PATH-searched via posix_spawnp) and waits,
@@ -35,6 +35,17 @@ bool Execute(const std::vector<std::string>& command, std::string_view path);
 // "{}" substitution -- the caller has already produced the final argv (e.g. via
 // the field vocabulary under --exec-fields). Empty `args` returns false.
 bool ExecuteArgs(const std::vector<std::string>& args);
+
+// Like Execute (find-exact "{}" -> `name` substitution) but runs the child with
+// its working directory set to `dir` -- find's -execdir. The caller passes the
+// entry's "./<basename>" as `name`; `dir` empty or "." inherits our directory.
+// Returns true iff the child ran and exited 0.
+bool ExecuteInDir(const std::vector<std::string>& command, std::string_view dir, std::string_view name);
+
+// Like ExecuteArgs (verbatim argv, no "{}" substitution) but runs the child with
+// its working directory set to `dir`. Backs -execdir under --exec-fields, where
+// the caller has already rendered the argv through the field vocabulary.
+bool ExecuteArgsInDir(const std::vector<std::string>& args, std::string_view dir);
 
 // Spawns `args` verbatim, captures the child's stdout, and returns it once the
 // child exits. The text is raw (no trimming) and is captured even when the child

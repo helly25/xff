@@ -582,6 +582,41 @@ bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
   return exec::ExecuteArgs(argv);  // true iff the child exits 0
 }
 
+bool EvalExecdir(const parser::Expr& expr, EvalContext& ctx) {
+  // Like -exec, but the child runs with its working directory set to the directory
+  // containing the matched entry, and find-exact {} expands to "./<basename>" (the
+  // leading "./" keeps names that begin with '-' from looking like options).
+  const std::string_view path = ctx.visit.path;
+  std::string dir;
+  std::string_view base;
+  if (const auto slash = path.find_last_of('/'); slash == std::string_view::npos) {
+    dir = ".";  // a top-level entry: run in the current directory
+    base = path;
+  } else {
+    dir = (slash == 0) ? "/" : std::string(path.substr(0, slash));
+    base = path.substr(slash + 1);
+  }
+  if (!ctx.exec_fields) {
+    return exec::ExecuteInDir(expr.args, dir, absl::StrCat("./", base));  // find-exact: {} -> ./basename
+  }
+  // --exec-fields: render each token through the field vocabulary (which still
+  // sees the full path/root), then spawn in the entry's directory.
+  const fields::RenderContext render_ctx{
+      .path = ctx.visit.path,
+      .root = ctx.visit.root,
+      .metadata = ctx.visit.metadata,
+      .depth = ctx.visit.depth,
+      .captures = ctx.captures,
+      .defines = ctx.defines,
+      .outputs = ctx.outputs};
+  std::vector<std::string> argv;
+  argv.reserve(expr.args.size());
+  for (const std::string& token : expr.args) {
+    argv.push_back(fields::Render(token, render_ctx));
+  }
+  return exec::ExecuteArgsInDir(argv, dir);
+}
+
 bool EvalOk(const parser::Expr& expr, EvalContext& ctx) {
   // Like -exec, but prompt on stderr and run only on an affirmative reply.
   // Declined, or no confirmer wired -> false (the command is not run), per find.
@@ -672,6 +707,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-delete", {&EvalDelete}},
     DispatchPair{"-empty", {&EvalEmpty}},
     DispatchPair{"-exec", {&EvalExec}},
+    DispatchPair{"-execdir", {&EvalExecdir}},
     DispatchPair{"-false", {&EvalFalse}},
     DispatchPair{"-gid", {&EvalGid}},
     DispatchPair{"-group", {&EvalGroup}},

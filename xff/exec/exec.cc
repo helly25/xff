@@ -56,9 +56,11 @@ std::string SubstitutePlaceholder(std::string_view token, std::string_view path)
   return out;
 }
 
-}  // namespace
-
-bool ExecuteArgs(const std::vector<std::string>& args) {
+// Spawns `args` (args[0] PATH-searched via posix_spawnp) and waits. When `dir` is
+// non-empty and not ".", the child first chdir()s there (find's -execdir); empty
+// or "." inherits our working directory. Returns true iff the child ran and exited
+// 0; empty `args` returns false.
+bool SpawnAndWait(const std::vector<std::string>& args, std::string_view dir) {
   if (args.empty()) {
     return false;
   }
@@ -69,15 +71,34 @@ bool ExecuteArgs(const std::vector<std::string>& args) {
   }
   argv.push_back(nullptr);
 
+  posix_spawn_file_actions_t actions;
+  posix_spawn_file_actions_t* actions_ptr = nullptr;
+  std::string dir_storage;  // keeps the chdir path alive across the spawn call
+  if (!dir.empty() && dir != ".") {
+    dir_storage = std::string(dir);
+    posix_spawn_file_actions_init(&actions);
+    posix_spawn_file_actions_addchdir_np(&actions, dir_storage.c_str());  // set child cwd before exec
+    actions_ptr = &actions;
+  }
   pid_t pid = 0;
-  if (::posix_spawnp(&pid, argv[0], nullptr, nullptr, argv.data(), environ) != 0) {
-    return false;  // could not spawn (e.g. command not found)
+  const int spawned = ::posix_spawnp(&pid, argv[0], actions_ptr, nullptr, argv.data(), environ);
+  if (actions_ptr != nullptr) {
+    posix_spawn_file_actions_destroy(actions_ptr);
+  }
+  if (spawned != 0) {
+    return false;  // could not spawn (command not found, or dir does not exist)
   }
   int status = 0;
   if (::waitpid(pid, &status, 0) != pid) {
     return false;
   }
   return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+}
+
+}  // namespace
+
+bool ExecuteArgs(const std::vector<std::string>& args) {
+  return SpawnAndWait(args, /*dir=*/{});
 }
 
 bool Execute(const std::vector<std::string>& command, std::string_view path) {
@@ -87,6 +108,19 @@ bool Execute(const std::vector<std::string>& command, std::string_view path) {
     args.push_back(SubstitutePlaceholder(token, path));
   }
   return ExecuteArgs(args);  // empty command -> empty args -> false
+}
+
+bool ExecuteInDir(const std::vector<std::string>& command, std::string_view dir, std::string_view name) {
+  std::vector<std::string> args;
+  args.reserve(command.size());
+  for (const std::string& token : command) {
+    args.push_back(SubstitutePlaceholder(token, name));  // find-exact -execdir: {} -> ./basename
+  }
+  return SpawnAndWait(args, dir);
+}
+
+bool ExecuteArgsInDir(const std::vector<std::string>& args, std::string_view dir) {
+  return SpawnAndWait(args, dir);
 }
 
 std::optional<std::string> CaptureOutput(const std::vector<std::string>& args) {
