@@ -120,13 +120,17 @@ TEST(DateTimeTest, FormatTimePresetsAndCustomPatterns) {
   const absl::TimeZone utc = absl::UTCTimeZone();
   const absl::Time t = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13 12:26:40 UTC (a Sunday)
   EXPECT_EQ(FormatTime(t, "epoch", utc), "1600000000");
-  EXPECT_EQ(FormatTime(t, "iso", utc), "2020-09-13T12:26:40+0000");
-  EXPECT_EQ(FormatTime(t, "space", utc), "2020-09-13 12:26:40+0000");
-  EXPECT_EQ(FormatTime(t, "", utc), "2020-09-13 12:26:40+0000");          // empty -> "space" default (no silly 'T')
-  EXPECT_EQ(FormatTime(t, "find", utc), "Sun Sep 13 12:26:40 2020");      // ctime-style
-  EXPECT_EQ(FormatTime(t, "asctime", utc), "Sun Sep 13 12:26:40 2020");   // synonym of find
-  EXPECT_EQ(FormatTime(t, "rfc3339", utc), "2020-09-13T12:26:40+00:00");  // colon offset
-  EXPECT_EQ(FormatTime(t, "%Y/%m/%d", utc), "2020/09/13");                // custom pattern, used verbatim
+  EXPECT_EQ(FormatTime(t, "iso8601", utc), "2020-09-13T12:26:40+0000");
+  EXPECT_EQ(FormatTime(t, "iso", utc), "2020-09-13T12:26:40+0000");  // "iso" aliases iso8601
+  EXPECT_EQ(FormatTime(t, "iso8601-basic", utc), "20200913T122640+0000");
+  EXPECT_EQ(FormatTime(t, "rfc3339", utc), "2020-09-13T12:26:40+00:00");                 // colon offset
+  EXPECT_EQ(FormatTime(t, "space", utc), "2020-09-13 12:26:40 +0000");                   // space before offset
+  EXPECT_EQ(FormatTime(t, "", utc), "2020-09-13 12:26:40 +0000");                        // empty -> "space" default
+  EXPECT_EQ(FormatTime(t, "asctime", utc), "Sun Sep 13 12:26:40 2020");                  // find's default %t
+  EXPECT_EQ(FormatTime(t, "zulu", utc), "2020-09-13T12:26:40Z");                         // UTC, Z
+  EXPECT_EQ(FormatTime(t, "zulu", absl::FixedTimeZone(3'600)), "2020-09-13T12:26:40Z");  // zulu ignores tz, always UTC
+  EXPECT_EQ(FormatTime(t, "zulu-dense", utc), "20200913T122640Z");                       // Zulu, no separators
+  EXPECT_EQ(FormatTime(t, "%Y/%m/%d", utc), "2020/09/13");                               // custom pattern, verbatim
 }
 
 }  // namespace
