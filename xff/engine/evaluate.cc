@@ -665,7 +665,10 @@ bool EvalOkdir(const parser::Expr& expr, EvalContext& ctx) {
   return exec::ExecuteInDir(expr.args, target.dir, target.brace);
 }
 
-bool EvalCapture(const parser::Expr& expr, EvalContext& ctx) {  // args = [NAME, REGEX (may be empty), cmd...]
+// Shared body of -capture/-capturedir: render the command through the field
+// vocabulary, run it (in `dir`, or our directory when `dir` is empty/"."), capture
+// stdout, strip trailing newlines, optionally regex-extract, and bind {capture.NAME}.
+bool RunCapture(const parser::Expr& expr, EvalContext& ctx, std::string_view dir) {  // args = [NAME, REGEX, cmd...]
   if (ctx.outputs == nullptr || expr.args.size() < 3) {
     return true;  // unwired or malformed: binding is a no-op, but -capture is always true
   }
@@ -685,7 +688,7 @@ bool EvalCapture(const parser::Expr& expr, EvalContext& ctx) {  // args = [NAME,
     command.push_back(fields::Render(expr.args[i], render_ctx));
   }
   std::string value;
-  if (const std::optional<std::string> out = exec::CaptureOutput(command); out.has_value()) {
+  if (const std::optional<std::string> out = exec::CaptureOutput(command, dir); out.has_value()) {
     value = *out;
     while (!value.empty() && value.back() == '\n') {
       value.pop_back();  // strip trailing newline(s)
@@ -696,6 +699,15 @@ bool EvalCapture(const parser::Expr& expr, EvalContext& ctx) {  // args = [NAME,
   }
   (*ctx.outputs)[expr.args[0]] = std::move(value);  // bind {capture.NAME} (last wins)
   return true;                                      // a binding side effect; always true
+}
+
+bool EvalCapture(const parser::Expr& expr, EvalContext& ctx) {
+  return RunCapture(expr, ctx, /*dir=*/{});
+}
+
+// -capturedir: -capture run in the matched entry's directory (the -execdir of -capture).
+bool EvalCapturedir(const parser::Expr& expr, EvalContext& ctx) {
+  return RunCapture(expr, ctx, Dirname(ctx.visit.path));
 }
 
 bool EvalPrune(const parser::Expr&, EvalContext& ctx) {
@@ -726,6 +738,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-amin", {&EvalAmin}},
     DispatchPair{"-atime", {&EvalAtime}},
     DispatchPair{"-capture", {&EvalCapture}},
+    DispatchPair{"-capturedir", {&EvalCapturedir}},
     DispatchPair{"-cmin", {&EvalCmin}},
     DispatchPair{"-ctime", {&EvalCtime}},
     DispatchPair{"-delete", {&EvalDelete}},

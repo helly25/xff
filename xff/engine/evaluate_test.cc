@@ -456,6 +456,15 @@ TEST_F(EvaluateTest, OkdirDeclinedDoesNotRunAndIsFalse) {
   EXPECT_FALSE(Match({"-okdir", "/bin/sh", "-c", "exit 0", ";"}, visit));
 }
 
+TEST_F(EvaluateTest, CapturedirRunsCommandInEntryDirAndBindsStdout) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("/x.txt", "x.txt", vfs::FileType::kRegular, md);
+  // -capturedir=NAME runs the command in the entry's directory ("/") and binds its
+  // stdout (trailing newline stripped) to {capture.NAME}.
+  EXPECT_TRUE(Match({"-capturedir=cwd", "/bin/sh", "-c", "pwd -P", ";"}, visit));
+  EXPECT_EQ(outputs_["cwd"], "/");
+}
+
 TEST_F(EvaluateTest, ExecFieldsSubstitutesRegexCaptures) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("a/b/c.txt", "c.txt", vfs::FileType::kRegular, md);
