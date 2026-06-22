@@ -123,7 +123,7 @@ bool ExecuteArgsInDir(const std::vector<std::string>& args, std::string_view dir
   return SpawnAndWait(args, dir);
 }
 
-std::optional<std::string> CaptureOutput(const std::vector<std::string>& args) {
+std::optional<std::string> CaptureOutput(const std::vector<std::string>& args, std::string_view dir) {
   if (args.empty()) {
     return std::nullopt;
   }
@@ -134,6 +134,11 @@ std::optional<std::string> CaptureOutput(const std::vector<std::string>& args) {
 
   posix_spawn_file_actions_t actions;
   posix_spawn_file_actions_init(&actions);
+  std::string dir_storage;  // keeps the chdir path alive across the spawn call
+  if (!dir.empty() && dir != ".") {
+    dir_storage = std::string(dir);
+    posix_spawn_file_actions_addchdir_np(&actions, dir_storage.c_str());  // child cwd before exec (-capturedir)
+  }
   posix_spawn_file_actions_adddup2(&actions, pipe_fds[1], STDOUT_FILENO);  // child stdout -> pipe write end
   posix_spawn_file_actions_addclose(&actions, pipe_fds[0]);                // child needs neither raw fd
   posix_spawn_file_actions_addclose(&actions, pipe_fds[1]);

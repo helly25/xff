@@ -80,7 +80,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-execdir", .kind = Kind::kAction, .arity = -1},  // -exec in the matched entry's directory
     {.name = "-ok", .kind = Kind::kAction, .arity = -1},       // -exec that prompts; runs only on an affirmative reply
     {.name = "-okdir", .kind = Kind::kAction, .arity = -1},  // -execdir that prompts; runs only on an affirmative reply
-    {.name = "-capture", .kind = Kind::kAction, .arity = -1},  // -capture=NAME[=REGEX] cmd... ;
+    {.name = "-capture", .kind = Kind::kAction, .arity = -1},     // -capture=NAME[=REGEX] cmd... ;
+    {.name = "-capturedir", .kind = Kind::kAction, .arity = -1},  // -capture run in the matched entry's directory
     {.name = "-a", .kind = Kind::kOperator, .arity = 0},
     {.name = "-and", .kind = Kind::kOperator, .arity = 0},
     {.name = "-o", .kind = Kind::kOperator, .arity = 0},

@@ -51,8 +51,10 @@ bool ExecuteArgsInDir(const std::vector<std::string>& args, std::string_view dir
 // child exits. The text is raw (no trimming) and is captured even when the child
 // exits nonzero; nullopt only when `args` is empty or the spawn itself fails.
 // Drains the pipe before reaping, so output larger than the pipe buffer does not
-// deadlock. Backs the -capture action ({capture.NAME}).
-std::optional<std::string> CaptureOutput(const std::vector<std::string>& args);
+// deadlock. Backs -capture ({capture.NAME}). `dir`, when non-empty and not ".",
+// sets the child's working directory before exec (find's -capturedir); the
+// default inherits our directory.
+std::optional<std::string> CaptureOutput(const std::vector<std::string>& args, std::string_view dir = {});
 
 }  // namespace xff::exec
 

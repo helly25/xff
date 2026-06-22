@@ -107,5 +107,19 @@ TEST_F(ExecTest, DirVariantsWithEmptyOrDotDirInheritCwd) {
   EXPECT_TRUE(ExecuteArgsInDir({"/bin/sh", "-c", "exit 0"}, "."));
 }
 
+TEST_F(ExecTest, CaptureOutputRunsChildInDirWhenDirGiven) {
+  // With dir "/", the child's cwd is "/", so `pwd -P` prints "/\n" (raw, untrimmed).
+  const std::optional<std::string> out = CaptureOutput({"/bin/sh", "-c", "pwd -P"}, "/");
+  ASSERT_TRUE(out.has_value());
+  EXPECT_EQ(*out, "/\n");
+}
+
+TEST_F(ExecTest, CaptureOutputDefaultDirInheritsCwd) {
+  // The default (empty) dir = no chdir: the original single-argument behavior.
+  const std::optional<std::string> out = CaptureOutput({"/bin/sh", "-c", "printf hi"});
+  ASSERT_TRUE(out.has_value());
+  EXPECT_EQ(*out, "hi");
+}
+
 }  // namespace
 }  // namespace xff::exec
