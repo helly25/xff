@@ -116,10 +116,27 @@ std::string OctalPerm(std::uint32_t mode) {
   return out.empty() ? "0" : out;
 }
 
+// find's %u/%g: the owner/group name, or the numeric id when the user/group
+// database has no entry for it (the reverse of ResolveUid/ResolveGid).
+std::string UserName(std::uint32_t uid) {
+  if (const struct passwd* const pw = ::getpwuid(uid); pw != nullptr) {
+    return pw->pw_name;
+  }
+  return std::to_string(uid);
+}
+
+std::string GroupName(std::uint32_t gid) {
+  if (const struct group* const gr = ::getgrgid(gid); gr != nullptr) {
+    return gr->gr_name;
+  }
+  return std::to_string(gid);
+}
+
 // find's -printf FORMAT: expands % directives and \ escapes against the entry.
 // Supported: %p path, %f name, %h dir, %s size, %m octal perm, %d depth, %y
-// type, %i inode, %n links, %% literal; \n \t \r \\ \0 escapes. Unknown
-// directives are emitted literally. (%u/%g/%t and friends are a follow-up.)
+// type, %i inode, %n links, %u/%g owner name, %U/%G owner id, %% literal; \n \t
+// \r \\ \0 escapes. Unknown directives are emitted literally. (Time directives
+// %a/%c/%t and the strftime %Tk forms are a follow-up.)
 std::string FormatPrintf(std::string_view format, const Visit& visit) {
   std::string out;
   for (std::string_view::size_type i = 0; i < format.size(); ++i) {
@@ -147,6 +164,10 @@ std::string FormatPrintf(std::string_view format, const Visit& visit) {
         case 'y': out.push_back(TypeLetter(visit.metadata.type)); break;
         case 'i': absl::StrAppend(&out, visit.metadata.ino); break;
         case 'n': absl::StrAppend(&out, visit.metadata.nlink); break;
+        case 'u': out.append(UserName(visit.metadata.uid)); break;
+        case 'g': out.append(GroupName(visit.metadata.gid)); break;
+        case 'U': absl::StrAppend(&out, visit.metadata.uid); break;
+        case 'G': absl::StrAppend(&out, visit.metadata.gid); break;
         case '%': out.push_back('%'); break;
         default:
           out.push_back('%');
