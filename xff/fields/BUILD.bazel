@@ -22,6 +22,7 @@ cc_library(
     hdrs = ["fields.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
+        "//xff/datetime:datetime_cc",
         "//xff/regex:regex_cc",
         "//xff/vfs:vfs_cc",
         "@abseil-cpp//absl/status:statusor",

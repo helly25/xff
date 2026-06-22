@@ -16,6 +16,7 @@
 #include "xff/datetime/datetime.h"
 
 #include <optional>
+#include <string>
 
 #include "absl/time/civil_time.h"
 #include "absl/time/time.h"
@@ -113,6 +114,19 @@ TEST(DateTimeTest, UnparseableReturnsNullopt) {
   EXPECT_EQ(ParseTimeString("2 days 3 hours ago", t), std::nullopt);  // combined terms
   EXPECT_EQ(ParseTimeString("5 fortnights", t), std::nullopt);        // unknown unit
   EXPECT_EQ(ParseTimeString("days ago", t), std::nullopt);            // missing count
+}
+
+TEST(DateTimeTest, FormatTimePresetsAndCustomPatterns) {
+  const absl::TimeZone utc = absl::UTCTimeZone();
+  const absl::Time t = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13 12:26:40 UTC (a Sunday)
+  EXPECT_EQ(FormatTime(t, "epoch", utc), "1600000000");
+  EXPECT_EQ(FormatTime(t, "iso", utc), "2020-09-13T12:26:40+0000");
+  EXPECT_EQ(FormatTime(t, "space", utc), "2020-09-13 12:26:40+0000");
+  EXPECT_EQ(FormatTime(t, "", utc), "2020-09-13 12:26:40+0000");          // empty -> "space" default (no silly 'T')
+  EXPECT_EQ(FormatTime(t, "find", utc), "Sun Sep 13 12:26:40 2020");      // ctime-style
+  EXPECT_EQ(FormatTime(t, "asctime", utc), "Sun Sep 13 12:26:40 2020");   // synonym of find
+  EXPECT_EQ(FormatTime(t, "rfc3339", utc), "2020-09-13T12:26:40+00:00");  // colon offset
+  EXPECT_EQ(FormatTime(t, "%Y/%m/%d", utc), "2020/09/13");                // custom pattern, used verbatim
 }
 
 }  // namespace
