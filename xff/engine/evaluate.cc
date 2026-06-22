@@ -35,6 +35,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
+#include "xff/datetime/datetime.h"
 #include "xff/engine/walk.h"
 #include "xff/exec/exec.h"
 #include "xff/fields/fields.h"
@@ -420,8 +421,16 @@ bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
   if (name == "-perm") return has_arg && MatchesPerm(expr.args.front(), visit.metadata.mode);
   if (name == "-empty") return IsEmpty(visit, fs);
   if (name == "-newer") return has_arg && IsNewerThan(visit, expr.args.front(), fs);
-  // -newerXY with X,Y in {a,c,m}: the registry only admits those 8-char names.
+  // -newerXY (X,Y in {a,c,m}) and -newerXt (Y=t: the reference is a time string,
+  // not a file). The registry only admits these 8-char names.
   if (name.size() == 8 && name.starts_with("-newer")) {
+    if (name[7] == 't') {
+      if (!has_arg) {
+        return false;
+      }
+      const std::optional<absl::Time> ref = datetime::ParseTimeString(expr.args.front(), now);
+      return ref.has_value() && TimeField(visit.metadata, name[6]) > *ref;
+    }
     return has_arg && IsNewerXY(visit, name[6], name[7], expr.args.front(), fs);
   }
   if (name == "-mtime") return has_arg && MatchesTime(expr.args.front(), visit.metadata.mtime, now, absl::Hours(24));

@@ -370,6 +370,32 @@ TEST_F(EvaluateTest, OkPromptsWithSubstitutionAndRunsOnlyWhenConfirmed) {
   EXPECT_FALSE(Match({"-ok", "/bin/sh", "-c", "exit 1", ";"}, visit));
 }
 
+TEST_F(EvaluateTest, NewerMtComparesEntryTimeToTimeString) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.mtime = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13, a fixed mtime
+  const Visit visit = MakeVisit("f", "f", vfs::FileType::kRegular, md);
+  // @epoch reference: mtime is newer than an earlier instant, not a later one.
+  EXPECT_TRUE(Match({"-newermt", "@1500000000"}, visit));
+  EXPECT_FALSE(Match({"-newermt", "@1700000000"}, visit));
+  // ISO date form (local zone); the coarse year gap is timezone-independent.
+  EXPECT_TRUE(Match({"-newermt", "2001-01-01"}, visit));
+  EXPECT_FALSE(Match({"-newermt", "2099-01-01"}, visit));
+  // An unparseable time string never matches.
+  EXPECT_FALSE(Match({"-newermt", "yesterday"}, visit));
+}
+
+TEST_F(EvaluateTest, NewerMtAcceptsRelativeTimeStrings) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.mtime = now_ - absl::Hours(48);  // modified two days before the reference clock
+  const Visit visit = MakeVisit("f", "f", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-newermt", "3 days ago"}, visit));  // within the last three days
+  EXPECT_TRUE(Match({"-newermt", "-3 days"}, visit));     // same, sign form
+  EXPECT_FALSE(Match({"-newermt", "1 day ago"}, visit));  // not within the last day
+  EXPECT_FALSE(Match({"-newermt", "now"}, visit));        // older than now
+}
+
 TEST_F(EvaluateTest, ExecFieldsGatesNamedPlaceholderSubstitution) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("a/b/f.txt", "f.txt", vfs::FileType::kRegular, md);
