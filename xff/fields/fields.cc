@@ -37,6 +37,7 @@
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
+#include "xff/datetime/datetime.h"
 #include "xff/regex/regex.h"
 #include "xff/vfs/entry.h"
 
@@ -88,15 +89,11 @@ std::string GroupName(std::uint32_t gid) {
   return std::to_string(gid);
 }
 
-// Formats a timestamp for a time field: "epoch" -> Unix seconds; "iso" or an
-// empty qualifier -> ISO-8601 local time; otherwise a strftime format string.
-// find/xff render times in local time (like find's %t).
+// Formats a timestamp for a time field. The qualifier is a datetime preset name
+// (find/iso/space/epoch) or a custom absl::FormatTime pattern; empty defaults to
+// the "space" ISO form. Rendered in local time (like find's %t).
 std::string FormatTimeField(absl::Time time, std::string_view qualifier) {
-  if (qualifier == "epoch") {
-    return std::to_string(absl::ToUnixSeconds(time));
-  }
-  const std::string format = (qualifier.empty() || qualifier == "iso") ? "%Y-%m-%dT%H:%M:%S%z" : std::string(qualifier);
-  return absl::FormatTime(format, time, absl::LocalTimeZone());
+  return datetime::FormatTime(time, qualifier);
 }
 
 // Human-readable size ({size:h}): bytes under 1 KiB as a plain count, otherwise

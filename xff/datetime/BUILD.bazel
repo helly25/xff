@@ -25,6 +25,7 @@ cc_library(
     deps = [
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/time",
+        "@com_helly25_mbo//mbo/container:limited_map_cc",
     ],
 )
 

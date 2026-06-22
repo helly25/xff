@@ -17,6 +17,7 @@
 #define XFF_DATETIME_DATETIME_H_
 
 #include <optional>
+#include <string>
 #include <string_view>
 
 #include "absl/time/time.h"
@@ -41,6 +42,18 @@ namespace xff::datetime {
 // nothing matches (callers treat that as "no match"); get_date's wider grammar
 // ("next Tuesday", combined terms) is intentionally not supported.
 std::optional<absl::Time> ParseTimeString(std::string_view text, absl::Time now);
+
+// Formats `time`, the inverse of ParseTimeString. `spec` is a preset name or any
+// absl::FormatTime() pattern:
+//   (empty) / "space"   ISO-8601, space-separated:  2026-06-22 14:30:00+0100
+//   "iso"               ISO-8601 ('T' separator):   2026-06-22T14:30:00+0100
+//   "rfc3339"           RFC 3339 (colon offset):    2026-06-22T14:30:00+01:00
+//   "find" / "asctime"  ctime(3)/asctime layout:    Mon Jun 22 14:30:00 2026
+//   "epoch"             Unix seconds:               1781612345
+//   <pattern>           used verbatim as an absl::FormatTime() pattern
+// `tz` defaults to the local zone (find renders local time); tests pass a fixed
+// zone for determinism.
+std::string FormatTime(absl::Time time, std::string_view spec = {}, absl::TimeZone tz = absl::LocalTimeZone());
 
 }  // namespace xff::datetime
 
