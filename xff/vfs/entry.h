@@ -70,7 +70,7 @@ struct Metadata {
 // A single child produced by directory iteration. `path` is what the traversal
 // uses downstream (the real filesystem path for `kLocalFs`); `name` is the
 // final component. `type` comes from `readdir` and may be `kUnknown` when the
-// filesystem does not report `d_type` — callers `Stat` to resolve it.
+// filesystem does not report `d_type` - callers `Stat` to resolve it.
 struct Entry {
   std::string path;
   std::string name;
