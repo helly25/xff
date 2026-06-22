@@ -582,22 +582,48 @@ bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
   return exec::ExecuteArgs(argv);  // true iff the child exits 0
 }
 
+// Splits an entry path into the directory that -execdir/-okdir run the child in
+// and the "./<basename>" that find substitutes for {}. A top-level entry (no
+// slash) runs in "."; an entry at the root ("/x") runs in "/".
+struct ExecDir {
+  std::string dir;
+  std::string brace;  // "./<basename>"
+};
+
+ExecDir SplitExecDir(std::string_view path) {
+  const auto slash = path.find_last_of('/');
+  if (slash == std::string_view::npos) {
+    return {.dir = ".", .brace = absl::StrCat("./", path)};  // top-level entry: run in the current directory
+  }
+  return {
+      .dir = (slash == 0) ? "/" : std::string(path.substr(0, slash)),
+      .brace = absl::StrCat("./", path.substr(slash + 1))};
+}
+
+// Builds the -ok/-okdir confirmation prompt: each command token with "{}" replaced
+// by `subst`, space-joined, then "? " (find's interactive form).
+std::string OkPrompt(const std::vector<std::string>& args, std::string_view subst) {
+  std::string prompt;
+  for (const std::string& token : args) {
+    if (!prompt.empty()) {
+      prompt += ' ';
+    }
+    std::string rendered = token;
+    for (std::size_t pos = 0; (pos = rendered.find("{}", pos)) != std::string::npos; pos += subst.size()) {
+      rendered.replace(pos, 2, std::string(subst));
+    }
+    prompt += rendered;
+  }
+  prompt += "? ";
+  return prompt;
+}
+
 bool EvalExecdir(const parser::Expr& expr, EvalContext& ctx) {
   // Like -exec, but the child runs with its working directory set to the directory
-  // containing the matched entry, and find-exact {} expands to "./<basename>" (the
-  // leading "./" keeps names that begin with '-' from looking like options).
-  const std::string_view path = ctx.visit.path;
-  std::string dir;
-  std::string_view base;
-  if (const auto slash = path.find_last_of('/'); slash == std::string_view::npos) {
-    dir = ".";  // a top-level entry: run in the current directory
-    base = path;
-  } else {
-    dir = (slash == 0) ? "/" : std::string(path.substr(0, slash));
-    base = path.substr(slash + 1);
-  }
+  // containing the matched entry, and find-exact {} expands to "./<basename>".
+  const ExecDir target = SplitExecDir(ctx.visit.path);
   if (!ctx.exec_fields) {
-    return exec::ExecuteInDir(expr.args, dir, absl::StrCat("./", base));  // find-exact: {} -> ./basename
+    return exec::ExecuteInDir(expr.args, target.dir, target.brace);  // find-exact: {} -> ./basename
   }
   // --exec-fields: render each token through the field vocabulary (which still
   // sees the full path/root), then spawn in the entry's directory.
@@ -614,31 +640,29 @@ bool EvalExecdir(const parser::Expr& expr, EvalContext& ctx) {
   for (const std::string& token : expr.args) {
     argv.push_back(fields::Render(token, render_ctx));
   }
-  return exec::ExecuteArgsInDir(argv, dir);
+  return exec::ExecuteArgsInDir(argv, target.dir);
 }
 
 bool EvalOk(const parser::Expr& expr, EvalContext& ctx) {
-  // Like -exec, but prompt on stderr and run only on an affirmative reply.
-  // Declined, or no confirmer wired -> false (the command is not run), per find.
+  // Like -exec, but prompt on stderr (find-exact: {} -> path) and run only on an
+  // affirmative reply. Declined, or no confirmer wired -> false, per find.
+  if (!ctx.confirm || !ctx.confirm(OkPrompt(expr.args, ctx.visit.path))) {
+    return false;
+  }
+  return exec::Execute(expr.args, ctx.visit.path);  // substitutes {} -> path; true iff the child exits 0
+}
+
+bool EvalOkdir(const parser::Expr& expr, EvalContext& ctx) {
+  // -okdir is to -execdir what -ok is to -exec: prompt (showing {} -> ./basename),
+  // then on an affirmative reply run the command in the matched entry's directory.
   if (!ctx.confirm) {
     return false;
   }
-  std::string prompt;  // the command shown find-exact: each {} substituted to the path, then "? "
-  for (const std::string& token : expr.args) {
-    if (!prompt.empty()) {
-      prompt += ' ';
-    }
-    std::string rendered = token;
-    for (std::size_t pos = 0; (pos = rendered.find("{}", pos)) != std::string::npos; pos += ctx.visit.path.size()) {
-      rendered.replace(pos, 2, std::string(ctx.visit.path));
-    }
-    prompt += rendered;
+  const ExecDir target = SplitExecDir(ctx.visit.path);
+  if (!ctx.confirm(OkPrompt(expr.args, target.brace))) {
+    return false;  // declined -> not run; -okdir is false
   }
-  prompt += "? ";
-  if (!ctx.confirm(prompt)) {
-    return false;  // declined -> not run; -ok is false
-  }
-  return exec::Execute(expr.args, ctx.visit.path);  // substitutes {} -> path; true iff the child exits 0
+  return exec::ExecuteInDir(expr.args, target.dir, target.brace);
 }
 
 bool EvalCapture(const parser::Expr& expr, EvalContext& ctx) {  // args = [NAME, REGEX (may be empty), cmd...]
@@ -732,6 +756,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-newermm", {&EvalNewerXY}},
     DispatchPair{"-newermt", {&EvalNewerXY}},
     DispatchPair{"-ok", {&EvalOk}},
+    DispatchPair{"-okdir", {&EvalOkdir}},
     DispatchPair{"-path", {&EvalPath}},
     DispatchPair{"-perm", {&EvalPerm}},
     DispatchPair{"-print", {&EvalPrint}},

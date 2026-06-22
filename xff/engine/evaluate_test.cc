@@ -438,6 +438,24 @@ TEST_F(EvaluateTest, ExecdirHonorsExecFields) {
   EXPECT_FALSE(Match({"-execdir", "/bin/sh", "-c", "test \"{name}\" = f.txt", ";"}, visit));
 }
 
+TEST_F(EvaluateTest, OkdirPromptsWithDotSlashBasenameThenRunsInEntryDirOnYes) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("/x.txt", "x.txt", vfs::FileType::kRegular, md);
+  confirm_reply_ = true;  // affirmative: -okdir runs the command, like -execdir
+  EXPECT_TRUE(Match({"-okdir", "/bin/sh", "-c", "test \"$(pwd -P)\" = /", ";"}, visit));  // ran in "/"
+  EXPECT_TRUE(Match({"-okdir", "/bin/sh", "-c", "test \"{}\" = ./x.txt", ";"}, visit));   // {} -> ./basename
+  // The prompt substitutes {} -> ./basename and ends with "? ".
+  EXPECT_TRUE(Match({"-okdir", "/bin/echo", "{}", ";"}, visit));
+  EXPECT_EQ(last_prompt_, "/bin/echo ./x.txt? ");  // tokens joined, then "? " (no space before, like -ok)
+}
+
+TEST_F(EvaluateTest, OkdirDeclinedDoesNotRunAndIsFalse) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("/x.txt", "x.txt", vfs::FileType::kRegular, md);
+  confirm_reply_ = false;  // declined: not run, -okdir is false (the command would exit 0)
+  EXPECT_FALSE(Match({"-okdir", "/bin/sh", "-c", "exit 0", ";"}, visit));
+}
+
 TEST_F(EvaluateTest, ExecFieldsSubstitutesRegexCaptures) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("a/b/c.txt", "c.txt", vfs::FileType::kRegular, md);
