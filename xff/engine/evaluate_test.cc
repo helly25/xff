@@ -416,6 +416,28 @@ TEST_F(EvaluateTest, ExecFieldsGatesNamedPlaceholderSubstitution) {
   EXPECT_TRUE(Match({"-exec", "/bin/sh", "-c", "test \"{name}\" = f.txt", ";"}, visit));
 }
 
+TEST_F(EvaluateTest, ExecdirRunsChildInEntryDirectoryWithDotSlashBasename) {
+  vfs::Metadata md;
+  // Entry "/x.txt" -> -execdir runs the child in "/" with {} expanded to "./x.txt"
+  // ("/" always exists, so the chdir succeeds under the test sandbox).
+  const Visit visit = MakeVisit("/x.txt", "x.txt", vfs::FileType::kRegular, md);
+  exec_fields_ = false;
+  EXPECT_TRUE(Match({"-execdir", "/bin/sh", "-c", "test \"$(pwd -P)\" = /", ";"}, visit));  // ran in "/"
+  EXPECT_TRUE(Match({"-execdir", "/bin/sh", "-c", "test \"{}\" = ./x.txt", ";"}, visit));   // {} -> ./basename
+  EXPECT_FALSE(Match({"-execdir", "/bin/sh", "-c", "test \"{}\" = ./nope", ";"}, visit));
+}
+
+TEST_F(EvaluateTest, ExecdirHonorsExecFields) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("/f.txt", "f.txt", vfs::FileType::kRegular, md);
+  // With --exec-fields, {name} renders the basename (the vocabulary still sees the
+  // full path); without it, {name} stays literal and the comparison fails.
+  exec_fields_ = true;
+  EXPECT_TRUE(Match({"-execdir", "/bin/sh", "-c", "test \"{name}\" = f.txt", ";"}, visit));
+  exec_fields_ = false;
+  EXPECT_FALSE(Match({"-execdir", "/bin/sh", "-c", "test \"{name}\" = f.txt", ";"}, visit));
+}
+
 TEST_F(EvaluateTest, ExecFieldsSubstitutesRegexCaptures) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("a/b/c.txt", "c.txt", vfs::FileType::kRegular, md);
