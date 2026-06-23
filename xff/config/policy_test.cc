@@ -81,7 +81,8 @@ TEST_F(PolicyTest, DenyBeatsAllowOnConflict) {
   SystemConfig policy;
   policy.policy = {
       PolicyRule{.layer = "project", .allow = true, .tokens = {"-exec"}},
-      PolicyRule{.layer = "project", .allow = false, .tokens = {"-exec"}}};
+      PolicyRule{.layer = "project", .allow = false, .tokens = {"-exec"}},
+  };
   EXPECT_FALSE(LinePermitted(Line({"-exec", "rm", ";"}), Source::kProject, policy));
 }
 
@@ -113,6 +114,15 @@ TEST_F(PolicyTest, GateConfigToleratesNullDropsSink) {
   ConfigInputs inputs;
   inputs.project = {Line({"-delete"})};
   EXPECT_THAT(GateConfig(inputs, nullptr).project, IsEmpty());  // denied, dropped, no crash
+}
+
+TEST_F(PolicyTest, DropMessageNamesPrimaryLayerAndClass) {
+  const Drop drop{
+      .line = Line({"-exec", "rm", ";"}),
+      .layer = Source::kProject,
+      .safety = registry::Safety::kSecurity,
+  };
+  EXPECT_THAT(DropMessage(drop), "'-exec' from the project .xffrc (sensitive)");
 }
 
 }  // namespace

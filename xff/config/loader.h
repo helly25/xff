@@ -51,10 +51,12 @@ std::string UserConfigPath(const DiscoveryOptions& opts);
 // ResolveConfig), reading every file through `read`:
 //   - system: /etc/xff.ini (always read; its [policy] is never skipped),
 //   - user:   UserConfigPath(opts), in the .xffrc grammar,
-//   - --xffrc=FILE: appended to the user layer (naming the file is the consent).
-// --no-config skips the user layer and the explicit files (ResolveConfig then
-// also drops the system [defaults]); the system file is still read so its policy
-// is available to the gate (phase C). The project cascade is phase E.
+//   - --xffrc=FILE: appended to the user layer (naming the file is the consent),
+//   - project: ./.xffrc in the current directory (untrusted; the policy gate is
+//     what makes loading it safe).
+// --no-config skips the user + project layers and the explicit files (ResolveConfig
+// then also drops the system [defaults]); the system file is still read so its
+// policy is available to the gate (phase C). The full project cascade is phase E.
 ConfigInputs Discover(const DiscoveryOptions& opts, FileReader read);
 
 // Extracts the config selectors among `globals` into a DiscoveryOptions (the env

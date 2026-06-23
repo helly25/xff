@@ -16,6 +16,7 @@
 #ifndef XFF_CONFIG_POLICY_H_
 #define XFF_CONFIG_POLICY_H_
 
+#include <string>
 #include <vector>
 
 #include "xff/config/config.h"
@@ -53,6 +54,10 @@ struct Drop {
 // removed and recording each in `drops` (when non-null). The system [defaults]
 // are root-authored and never gated; CLI flags are not config and never gated.
 ConfigInputs GateConfig(const ConfigInputs& inputs, std::vector<Drop>* drops);
+
+// A one-line human description of a dropped line for the stderr warning and
+// --explain, e.g. "'-exec' from the project .xffrc (sensitive)".
+std::string DropMessage(const Drop& drop);
 
 }  // namespace xff::config
 
