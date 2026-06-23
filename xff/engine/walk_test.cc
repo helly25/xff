@@ -43,7 +43,6 @@ namespace fs = std::filesystem;
 
 using ::mbo::testing::IsOk;
 using ::testing::ElementsAre;
-using ::testing::Eq;
 using ::testing::IsEmpty;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
@@ -175,7 +174,7 @@ WalkAction Continue(const Visit& /*visit*/) {
 TEST_F(WalkTest, VisitsWholeTreePreorder) {
   const Result result = Run(WalkOptions{}, Continue);
   EXPECT_THAT(result.status, IsOk());
-  EXPECT_THAT(result.errors, Eq(0));
+  EXPECT_THAT(result.errors, 0);
   EXPECT_THAT(
       result.seen, UnorderedElementsAre(
                        Pair(root_.string(), 0), Pair(Path("a.txt"), 1), Pair(Path("sub"), 1),
@@ -222,7 +221,7 @@ TEST_F(WalkTest, MissingRootReportsErrorAndContinues) {
   const Result result = RunRoots({Path("does-not-exist")}, WalkOptions{}, Continue);
   EXPECT_THAT(result.status, IsOk());
   EXPECT_THAT(result.seen, IsEmpty());
-  EXPECT_THAT(result.errors, Eq(1));
+  EXPECT_THAT(result.errors, 1);
 }
 
 TEST_F(WalkTest, DepthVisitsPostOrder) {
@@ -310,7 +309,7 @@ TEST_F(WalkFakeFsTest, FollowAllDetectsFilesystemLoop) {
   fs_.AddDir("/r", 1, {SymlinkEntry("/r/loop", "loop")});
   fs_.AddSymlink("/r/loop", 1, "/r");
   EXPECT_THAT(Seen(WalkOptions{.symlinks = SymlinkMode::kAll}), UnorderedElementsAre("/r", "/r/loop"));
-  EXPECT_THAT(errors_, Eq(1));  // the loop was reported, and the walk did not recurse forever
+  EXPECT_THAT(errors_, 1);  // the loop was reported, and the walk did not recurse forever
 }
 
 TEST_F(WalkFakeFsTest, CarriesOriginatingRootPerEntry) {

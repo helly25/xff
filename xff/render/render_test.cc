@@ -23,27 +23,25 @@
 namespace xff::render {
 namespace {
 
-using ::testing::Eq;
-
 struct RenderTest : ::testing::Test {};
 
 TEST_F(RenderTest, PlainAppendsNewline) {
-  EXPECT_THAT(Renderer(Format::kPlain).Record("a/b/c"), Eq("a/b/c\n"));
+  EXPECT_THAT(Renderer(Format::kPlain).Record("a/b/c"), "a/b/c\n");
 }
 
 TEST_F(RenderTest, NulAppendsNulTerminator) {
-  EXPECT_THAT(Renderer(Format::kNul).Record("a/b/c"), Eq(std::string("a/b/c\0", 6)));
+  EXPECT_THAT(Renderer(Format::kNul).Record("a/b/c"), std::string("a/b/c\0", 6));
 }
 
 TEST_F(RenderTest, JsonlEmitsOneObjectPerLine) {
-  EXPECT_THAT(Renderer(Format::kJsonl).Record("a/b/c"), Eq("{\"path\":\"a/b/c\"}\n"));
+  EXPECT_THAT(Renderer(Format::kJsonl).Record("a/b/c"), "{\"path\":\"a/b/c\"}\n");
 }
 
 TEST_F(RenderTest, JsonlEscapesQuotesBackslashAndControls) {
   // a "b \c <tab> d  ->  a \" b \\ c \t d
-  EXPECT_THAT(Renderer(Format::kJsonl).Record("a\"b\\c\td"), Eq("{\"path\":\"a\\\"b\\\\c\\td\"}\n"));
+  EXPECT_THAT(Renderer(Format::kJsonl).Record("a\"b\\c\td"), "{\"path\":\"a\\\"b\\\\c\\td\"}\n");
   // A raw control byte (0x01) becomes a \u escape.
-  EXPECT_THAT(Renderer(Format::kJsonl).Record(std::string("x\x01y", 3)), Eq("{\"path\":\"x\\u0001y\"}\n"));
+  EXPECT_THAT(Renderer(Format::kJsonl).Record(std::string("x\x01y", 3)), "{\"path\":\"x\\u0001y\"}\n");
 }
 
 }  // namespace

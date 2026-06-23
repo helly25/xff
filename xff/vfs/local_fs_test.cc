@@ -81,9 +81,9 @@ TEST_F(LocalFsTest, ReadDirTagsEntriesAsWritableLocal) {
   const auto entries = local_fs_.ReadDir(root_.string());
   ASSERT_THAT(entries, IsOk());
   for (const Entry& entry : *entries) {
-    EXPECT_THAT(entry.source, Eq(Source::kLocalFs));
+    EXPECT_THAT(entry.source, Source::kLocalFs);
     EXPECT_FALSE(entry.read_only);
-    EXPECT_THAT(entry.path, Eq(Path(entry.name)));
+    EXPECT_THAT(entry.path, Path(entry.name));
   }
 }
 
@@ -98,8 +98,8 @@ TEST_F(LocalFsTest, ReadDirOnRegularFileFails) {
 TEST_F(LocalFsTest, StatRegularFile) {
   const auto md = local_fs_.Stat(Path("file.txt"), /*follow_symlinks=*/false);
   ASSERT_THAT(md, IsOk());
-  EXPECT_THAT(md->type, Eq(FileType::kRegular));
-  EXPECT_THAT(md->size, Eq(5U));
+  EXPECT_THAT(md->type, FileType::kRegular);
+  EXPECT_THAT(md->size, 5U);
   EXPECT_THAT(md->nlink, Gt(0U));
   // mtime is populated (well after 2020-01-01, not a zero/epoch default).
   EXPECT_THAT(md->mtime, Gt(absl::FromUnixSeconds(1'577'836'800)));
@@ -108,18 +108,18 @@ TEST_F(LocalFsTest, StatRegularFile) {
 TEST_F(LocalFsTest, StatDirectory) {
   const auto md = local_fs_.Stat(Path("sub"), /*follow_symlinks=*/false);
   ASSERT_THAT(md, IsOk());
-  EXPECT_THAT(md->type, Eq(FileType::kDirectory));
+  EXPECT_THAT(md->type, FileType::kDirectory);
 }
 
 TEST_F(LocalFsTest, StatSymlinkRespectsFollow) {
   const auto link = local_fs_.Stat(Path("link"), /*follow_symlinks=*/false);
   ASSERT_THAT(link, IsOk());
-  EXPECT_THAT(link->type, Eq(FileType::kSymlink));
+  EXPECT_THAT(link->type, FileType::kSymlink);
 
   const auto target = local_fs_.Stat(Path("link"), /*follow_symlinks=*/true);
   ASSERT_THAT(target, IsOk());
-  EXPECT_THAT(target->type, Eq(FileType::kRegular));
-  EXPECT_THAT(target->size, Eq(5U));
+  EXPECT_THAT(target->type, FileType::kRegular);
+  EXPECT_THAT(target->size, 5U);
 }
 
 TEST_F(LocalFsTest, StatMissingPathIsNotFound) {
