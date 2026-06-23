@@ -23,6 +23,7 @@ cc_binary(
     deps = [
         "//xff/config:config_cc",
         "//xff/config:loader_cc",
+        "//xff/config:policy_cc",
         "//xff/engine:run_cc",
         "//xff/parser:parser_cc",
         "//xff/vfs:local_fs_cc",

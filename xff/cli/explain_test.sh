@@ -66,4 +66,22 @@ test::config_applies_to_the_run() {
   expect_ne "{" "${plain:0:1}"
 }
 
+test::project_xffrc_is_policy_gated() {
+  # A hostile repo .xffrc: one safe line + one sensitive -exec line. Run from
+  # inside the project dir, so ./.xffrc is the (untrusted) project layer.
+  local proj="${TEST_TMPDIR}/proj"
+  mkdir -p "${proj}"
+  printf 'common: --color=never\ncommon: -exec rm {} ;\n' >"${proj}/.xffrc"
+  local xff
+  xff="$(_xff_bin)"
+  local out
+  out="$(cd "${proj}" && XFF_CONFIG="${TEST_TMPDIR}/none" "${xff}" --explain)"
+  local lines=()
+  local line
+  while IFS= read -r line; do lines+=("${line}"); done <<<"${out}"
+  # The safe line applies with project provenance; the sensitive -exec is dropped.
+  expect_contains "$(printf 'project\t--color=never')" "${lines[@]}"
+  expect_contains "$(printf "dropped\t'-exec' from the project .xffrc (sensitive)")" "${lines[@]}"
+}
+
 test_runner

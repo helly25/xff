@@ -75,7 +75,12 @@ ConfigInputs Discover(const DiscoveryOptions& opts, FileReader read) {
       AppendXffrc(inputs.user, *text);
     }
   }
-  // Project cascade: phase E.
+  // Project: the .xffrc in the current directory (untrusted). The full cascade up
+  // the directory tree to each search root is phase E. The policy gate (phase C)
+  // is what makes loading this untrusted layer safe.
+  if (const std::optional<std::string> text = read(".xffrc"); text.has_value()) {
+    inputs.project = ParseXffrc(*text);
+  }
   return inputs;
 }
 

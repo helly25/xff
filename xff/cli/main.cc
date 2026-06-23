@@ -27,6 +27,7 @@
 #include "absl/status/statusor.h"
 #include "xff/config/config.h"
 #include "xff/config/loader.h"
+#include "xff/config/policy.h"
 #include "xff/engine/run.h"
 #include "xff/parser/parser.h"
 #include "xff/vfs/local_fs.h"
@@ -83,11 +84,21 @@ int main(int argc, char** argv) {
   opts.xff_config = EnvOpt("XFF_CONFIG");
   opts.xdg_config_home = EnvOpt("XDG_CONFIG_HOME");
   opts.home = EnvOpt("HOME");
-  const std::vector<xff::config::ResolvedFlag> resolved =
-      xff::config::ResolveConfig(xff::config::Discover(opts, ReadFile));
+  const xff::config::ConfigInputs inputs = xff::config::Discover(opts, ReadFile);
+  std::vector<xff::config::Drop> drops;
+  const xff::config::ConfigInputs gated = xff::config::GateConfig(inputs, &drops);
+  const std::vector<xff::config::ResolvedFlag> resolved = xff::config::ResolveConfig(gated);
   if (absl::c_contains(command.globals, "--explain")) {
     std::cout << xff::config::ExplainConfig(resolved, command.globals);
+    for (const xff::config::Drop& drop : drops) {
+      std::cout << "dropped\t" << xff::config::DropMessage(drop) << "\n";
+    }
     return 0;
+  }
+  // A disallowed config line is dropped, never fatal: warn (self-documenting) and
+  // carry on with the survivors (design-config.md "Enforcement & self-documentation").
+  for (const xff::config::Drop& drop : drops) {
+    std::cerr << "xff: ignoring " << xff::config::DropMessage(drop) << " - denied by config policy\n";
   }
   // Apply the config: prepend the resolved flags to the globals so they take
   // effect, the CLI globals (already present, kept last) winning on conflict.

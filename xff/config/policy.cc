@@ -66,6 +66,16 @@ bool TokenMatchesLine(std::string_view token, const RcLine& line) {
       line.flags, [&](std::string_view flag) { return flag == token || absl::StartsWith(flag, with_eq); });
 }
 
+// The human name of a safety class, for warnings and --explain.
+std::string_view ClassName(registry::Safety safety) {
+  switch (safety) {
+    case registry::Safety::kNone: return "safe";
+    case registry::Safety::kSafety: return "destructive";
+    case registry::Safety::kSecurity: return "sensitive";
+  }
+  return "safe";
+}
+
 }  // namespace
 
 registry::Safety LineSafety(const RcLine& line) {
@@ -125,6 +135,11 @@ ConfigInputs GateConfig(const ConfigInputs& inputs, std::vector<Drop>* drops) {
   gate(inputs.user, Source::kUser, gated.user);
   gate(inputs.project, Source::kProject, gated.project);
   return gated;
+}
+
+std::string DropMessage(const Drop& drop) {
+  const std::string_view primary = drop.line.flags.empty() ? std::string_view("(empty line)") : drop.line.flags.front();
+  return absl::StrCat("'", primary, "' from the ", SourceName(drop.layer), " .xffrc (", ClassName(drop.safety), ")");
 }
 
 }  // namespace xff::config

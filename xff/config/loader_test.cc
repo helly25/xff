@@ -120,5 +120,13 @@ TEST_F(LoaderTest, SelectorsFromGlobalsExtractsConfigSelectorsInOrder) {
   EXPECT_THAT(opts.xffrc_files, ElementsAre("/a", "/b"));
 }
 
+TEST_F(LoaderTest, DiscoversProjectXffrcInCwdAsProjectLayer) {
+  FakeFs fs;
+  fs.files[".xffrc"] = "common: --color=never\n";  // the untrusted project file in the cwd
+  DiscoveryOptions opts;
+  const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
+  EXPECT_THAT(ResolveConfig(in), ElementsAre(FlagIs("--color=never", Source::kProject)));
+}
+
 }  // namespace
 }  // namespace xff::config
