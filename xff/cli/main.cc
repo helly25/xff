@@ -70,31 +70,39 @@ int main(int argc, char** argv) {
     }
   }
 
-  const absl::StatusOr<xff::parser::Command> command = xff::parser::Parse(args);
-  if (!command.ok()) {
-    std::cerr << "xff: " << command.status().message() << "\n";
+  absl::StatusOr<xff::parser::Command> parsed = xff::parser::Parse(args);
+  if (!parsed.ok()) {
+    std::cerr << "xff: " << parsed.status().message() << "\n";
     return 2;
   }
+  xff::parser::Command command = *std::move(parsed);
 
   // Load the layered config (system + user + explicit --xffrc) and resolve the
-  // effective flags. --explain writes that effective configuration and exits;
-  // applying it to the run (prepending to the globals) is the next slice.
-  xff::config::DiscoveryOptions opts = xff::config::SelectorsFromGlobals(command->globals);
+  // effective flags. --explain writes that effective configuration and exits.
+  xff::config::DiscoveryOptions opts = xff::config::SelectorsFromGlobals(command.globals);
   opts.xff_config = EnvOpt("XFF_CONFIG");
   opts.xdg_config_home = EnvOpt("XDG_CONFIG_HOME");
   opts.home = EnvOpt("HOME");
   const std::vector<xff::config::ResolvedFlag> resolved =
       xff::config::ResolveConfig(xff::config::Discover(opts, ReadFile));
-  if (absl::c_contains(command->globals, "--explain")) {
-    std::cout << xff::config::ExplainConfig(resolved, command->globals);
+  if (absl::c_contains(command.globals, "--explain")) {
+    std::cout << xff::config::ExplainConfig(resolved, command.globals);
     return 0;
   }
+  // Apply the config: prepend the resolved flags to the globals so they take
+  // effect, the CLI globals (already present, kept last) winning on conflict.
+  std::vector<std::string> config_flags;
+  config_flags.reserve(resolved.size());
+  for (const xff::config::ResolvedFlag& flag : resolved) {
+    config_flags.push_back(flag.flag);
+  }
+  command.globals.insert(command.globals.begin(), config_flags.begin(), config_flags.end());
 
   // Walk the roots and evaluate the expression, printing matches. Per-path
   // errors -> exit 2 (the xff exit-code model; design.md "Exit-code model").
   const xff::vfs::LocalFs fs;
   const int errors = xff::engine::RunFind(
-      *command, fs,
+      command, fs,
       [](std::string_view record) { std::cout.write(record.data(), static_cast<std::streamsize>(record.size())); },
       [](std::string_view path, absl::Status status) {
         std::cerr << "xff: " << path << ": " << status.message() << "\n";
