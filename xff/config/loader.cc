@@ -79,4 +79,20 @@ ConfigInputs Discover(const DiscoveryOptions& opts, FileReader read) {
   return inputs;
 }
 
+DiscoveryOptions SelectorsFromGlobals(const std::vector<std::string>& globals) {
+  constexpr std::string_view kConfig = "--config=";
+  constexpr std::string_view kXffrc = "--xffrc=";
+  DiscoveryOptions opts;
+  for (const std::string& global : globals) {
+    if (global == "--no-config") {
+      opts.no_config = true;
+    } else if (global.starts_with(kConfig)) {
+      opts.configs.push_back(global.substr(kConfig.size()));
+    } else if (global.starts_with(kXffrc)) {
+      opts.xffrc_files.push_back(global.substr(kXffrc.size()));
+    }
+  }
+  return opts;
+}
+
 }  // namespace xff::config

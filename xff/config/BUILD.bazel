@@ -73,6 +73,7 @@ cc_library(
         ":ini_cc",
         ":xffrc_cc",
         "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/strings",
     ],
 )
 

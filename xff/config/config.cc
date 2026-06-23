@@ -16,9 +16,11 @@
 #include "xff/config/config.h"
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/strings/str_cat.h"
 #include "xff/config/ini.h"
 #include "xff/config/xffrc.h"
 
@@ -61,6 +63,28 @@ std::vector<ResolvedFlag> ResolveConfig(const ConfigInputs& inputs) {
   AppendMatching(resolved, inputs.user, inputs.configs, Source::kUser);
   AppendMatching(resolved, inputs.project, inputs.configs, Source::kProject);
   return resolved;
+}
+
+std::string_view SourceName(Source source) {
+  switch (source) {
+    case Source::kCli: return "cli";
+    case Source::kProject: return "project";
+    case Source::kSystem: return "system";
+    case Source::kUnset: return "unset";
+    case Source::kUser: return "user";
+  }
+  return "unset";
+}
+
+std::string ExplainConfig(const std::vector<ResolvedFlag>& resolved, const std::vector<std::string>& cli_globals) {
+  std::string out = "# xff effective configuration (application order; later overrides earlier)\n";
+  for (const ResolvedFlag& flag : resolved) {
+    absl::StrAppend(&out, SourceName(flag.source), "\t", flag.flag, "\n");
+  }
+  for (const std::string& flag : cli_globals) {
+    absl::StrAppend(&out, "cli\t", flag, "\n");
+  }
+  return out;
 }
 
 }  // namespace xff::config
