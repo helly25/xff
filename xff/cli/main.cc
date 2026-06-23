@@ -30,6 +30,7 @@
 #include "xff/config/policy.h"
 #include "xff/engine/run.h"
 #include "xff/parser/parser.h"
+#include "xff/registry/descriptor.h"
 #include "xff/vfs/local_fs.h"
 
 namespace {
@@ -108,6 +109,15 @@ int main(int argc, char** argv) {
     config_flags.push_back(flag.flag);
   }
   command.globals.insert(command.globals.begin(), config_flags.begin(), config_flags.end());
+
+  // The strict find style (--config=find) accepts only find's own vocabulary;
+  // reject xff extensions (e.g. -println) so a find-style run behaves like GNU
+  // find (design-config.md "CLI selectors"). The default xff style accepts all.
+  const xff::registry::Style style = xff::config::ActiveStyle(inputs.configs);
+  if (const absl::Status status = xff::parser::EnforceStyle(command, style); !status.ok()) {
+    std::cerr << "xff: " << status.message() << "\n";
+    return 2;
+  }
 
   // Walk the roots and evaluate the expression, printing matches. Per-path
   // errors -> exit 2 (the xff exit-code model; design.md "Exit-code model").

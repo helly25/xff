@@ -72,6 +72,7 @@ cc_library(
     deps = [
         ":ini_cc",
         ":xffrc_cc",
+        "//xff/registry:registry_cc",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/strings",
     ],
@@ -84,6 +85,7 @@ cc_test(
     deps = [
         ":config_cc",
         ":xffrc_cc",
+        "//xff/registry:registry_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

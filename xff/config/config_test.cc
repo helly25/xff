@@ -21,6 +21,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "xff/config/xffrc.h"
+#include "xff/registry/descriptor.h"
 
 namespace xff::config {
 namespace {
@@ -94,6 +95,17 @@ TEST_F(ConfigTest, SourceNameMapsEachLayer) {
   EXPECT_THAT(SourceName(Source::kProject), "project");
   EXPECT_THAT(SourceName(Source::kCli), "cli");
   EXPECT_THAT(SourceName(Source::kUnset), "unset");
+}
+
+TEST_F(ConfigTest, ActiveStyleDefaultsToXffAndTracksTheConfigStack) {
+  EXPECT_THAT(ActiveStyle({}), registry::Style::kXff);         // no selector -> the modern default
+  EXPECT_THAT(ActiveStyle({"find"}), registry::Style::kFind);  // strict find
+  EXPECT_THAT(ActiveStyle({"xff"}), registry::Style::kXff);
+  EXPECT_THAT(ActiveStyle({"debug"}), registry::Style::kXff);           // a custom config name is not a style
+  EXPECT_THAT(ActiveStyle({"xff:2"}), registry::Style::kXff);           // version-pinned epoch -> base "xff"
+  EXPECT_THAT(ActiveStyle({"find", "debug"}), registry::Style::kFind);  // a custom config keeps the style
+  EXPECT_THAT(ActiveStyle({"xff", "find"}), registry::Style::kFind);    // the last style selector wins
+  EXPECT_THAT(ActiveStyle({"find", "xff"}), registry::Style::kXff);
 }
 
 TEST_F(ConfigTest, ExplainConfigTagsEachFlagWithProvenance) {

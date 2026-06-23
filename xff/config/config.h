@@ -22,6 +22,7 @@
 
 #include "xff/config/ini.h"
 #include "xff/config/xffrc.h"
+#include "xff/registry/descriptor.h"
 
 namespace xff::config {
 
@@ -56,6 +57,15 @@ std::vector<ResolvedFlag> ResolveConfig(const ConfigInputs& inputs);
 
 // The lowercase layer name for a Source: "unset"/"system"/"user"/"project"/"cli".
 std::string_view SourceName(Source source);
+
+// The active find/xff style selected by the --config stack. A --config=NAME whose
+// base (the part before any ':') is "find" or "xff" picks that style; selectors
+// stack, so the last style selector wins. With no style selector the default is
+// the modern xff style. Custom config names (e.g. "debug") and version-pinned
+// epochs ("xff:2" -> base "xff") leave the mapping unchanged. The strict find
+// style is what makes a `find`-style run reject xff-only primaries (see
+// parser::EnforceStyle); design-config.md "CLI selectors".
+registry::Style ActiveStyle(const std::vector<std::string>& configs);
 
 // Renders the effective configuration for --explain: the resolved config flags
 // (each prefixed by its provenance) in application order, then the CLI globals
