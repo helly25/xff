@@ -80,4 +80,30 @@ test::xff_style_accepts_xff_extensions() {
   expect_eq "0" "${rc}"
 }
 
+test::argv0_find_alias_defaults_to_strict_style() {
+  local dir
+  dir="$(_tree argv0)"
+  # Invoked through a `find`-named symlink, the strict find style is the default
+  # (no --config needed): an xff extension is rejected with exit 2.
+  ln -sf "$(_xff_bin)" "${TEST_TMPDIR}/find"
+  local out rc
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "${TEST_TMPDIR}/find" "${dir}" -println 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  local lines=()
+  local line
+  while IFS= read -r line; do lines+=("${line}"); done <<<"${out}"
+  expect_contains \
+    "xff: '-println' is an xff extension, not available under the find style (--config=find); use --config=xff" \
+    "${lines[@]}"
+}
+
+test::argv0_xff_alias_defaults_to_modern_style() {
+  local dir
+  dir="$(_tree argv0xff)"
+  # Invoked as xff (its real name), the modern style is the default: -println runs.
+  local rc
+  XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name a.txt -println >/dev/null 2>&1 && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+}
+
 test_runner

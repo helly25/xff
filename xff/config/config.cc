@@ -90,6 +90,13 @@ registry::Style ActiveStyle(const std::vector<std::string>& configs) {
   return style;
 }
 
+std::string_view DefaultStyleForProgram(std::string_view argv0) {
+  if (const std::string_view::size_type slash = argv0.rfind('/'); slash != std::string_view::npos) {
+    argv0 = argv0.substr(slash + 1);  // basename: the last path component
+  }
+  return argv0 == "find" ? "find" : "xff";
+}
+
 std::string ExplainConfig(const std::vector<ResolvedFlag>& resolved, const std::vector<std::string>& cli_globals) {
   std::string out = "# xff effective configuration (application order; later overrides earlier)\n";
   for (const ResolvedFlag& flag : resolved) {
