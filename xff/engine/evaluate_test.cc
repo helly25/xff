@@ -456,7 +456,7 @@ TEST_F(EvaluateTest, OkdirPromptsWithDotSlashBasenameThenRunsInEntryDirOnYes) {
   EXPECT_TRUE(Match({"-okdir", "/bin/sh", "-c", "test \"{}\" = ./x.txt", ";"}, visit));   // {} -> ./basename
   // The prompt substitutes {} -> ./basename and ends with "? ".
   EXPECT_TRUE(Match({"-okdir", "/bin/echo", "{}", ";"}, visit));
-  EXPECT_EQ(last_prompt_, "/bin/echo ./x.txt? ");  // tokens joined, then "? " (no space before, like -ok)
+  EXPECT_THAT(last_prompt_, "/bin/echo ./x.txt? ");  // tokens joined, then "? " (no space before, like -ok)
 }
 
 TEST_F(EvaluateTest, OkdirDeclinedDoesNotRunAndIsFalse) {
@@ -472,7 +472,7 @@ TEST_F(EvaluateTest, CapturedirRunsCommandInEntryDirAndBindsStdout) {
   // -capturedir=NAME runs the command in the entry's directory ("/") and binds its
   // stdout (trailing newline stripped) to {capture.NAME}.
   EXPECT_TRUE(Match({"-capturedir=cwd", "/bin/sh", "-c", "pwd -P", ";"}, visit));
-  EXPECT_EQ(outputs_["cwd"], "/");
+  EXPECT_THAT(outputs_["cwd"], "/");
 }
 
 TEST_F(EvaluateTest, ExecFieldsSubstitutesRegexCaptures) {

@@ -34,7 +34,7 @@ struct ConfigTest : ::testing::Test {};
 // Matches a ResolvedFlag by both its flag text and its provenance, so an
 // ElementsAre(...) assertion folds size, order, flag, and Source into one check.
 testing::Matcher<ResolvedFlag> FlagIs(const std::string& flag, Source source) {
-  return AllOf(Field(&ResolvedFlag::flag, flag), Field(&ResolvedFlag::source, source));
+  return AllOf(Field("flag", &ResolvedFlag::flag, flag), Field("source", &ResolvedFlag::source, source));
 }
 
 TEST_F(ConfigTest, NoConfigYieldsEmpty) {

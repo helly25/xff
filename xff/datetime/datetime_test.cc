@@ -39,8 +39,8 @@ absl::Time Now() {
 TEST(DateTimeTest, EpochSeconds) {
   EXPECT_THAT(ParseTimeString("@1600000000", Now()), Optional(Eq(absl::FromUnixSeconds(1'600'000'000))));
   EXPECT_THAT(ParseTimeString("@0", Now()), Optional(Eq(absl::FromUnixSeconds(0))));
-  EXPECT_EQ(ParseTimeString("@", Now()), std::nullopt);
-  EXPECT_EQ(ParseTimeString("@12x", Now()), std::nullopt);
+  EXPECT_THAT(ParseTimeString("@", Now()), Eq(std::nullopt));
+  EXPECT_THAT(ParseTimeString("@12x", Now()), Eq(std::nullopt));
 }
 
 TEST(DateTimeTest, IsoAbsoluteFormsInLocalZone) {
@@ -54,8 +54,8 @@ TEST(DateTimeTest, IsoAbsoluteFormsInLocalZone) {
   EXPECT_THAT(
       ParseTimeString("2020-01-02T15:04:05", Now()),
       Optional(Eq(absl::FromCivil(absl::CivilSecond(2'020, 1, 2, 15, 4, 5), zone))));
-  EXPECT_EQ(ParseTimeString("2020/01/02", Now()), std::nullopt);
-  EXPECT_EQ(ParseTimeString("not-a-date", Now()), std::nullopt);
+  EXPECT_THAT(ParseTimeString("2020/01/02", Now()), Eq(std::nullopt));
+  EXPECT_THAT(ParseTimeString("not-a-date", Now()), Eq(std::nullopt));
 }
 
 TEST(DateTimeTest, NowKeywordIsCaseInsensitive) {
@@ -108,31 +108,31 @@ TEST(DateTimeTest, PluralSingularAliasesAndCase) {
 
 TEST(DateTimeTest, UnparseableReturnsNullopt) {
   const absl::Time t = Now();
-  EXPECT_EQ(ParseTimeString("", t), std::nullopt);
-  EXPECT_EQ(ParseTimeString("yesterday", t), std::nullopt);
-  EXPECT_EQ(ParseTimeString("next tuesday", t), std::nullopt);
-  EXPECT_EQ(ParseTimeString("2 days 3 hours ago", t), std::nullopt);  // combined terms
-  EXPECT_EQ(ParseTimeString("5 fortnights", t), std::nullopt);        // unknown unit
-  EXPECT_EQ(ParseTimeString("days ago", t), std::nullopt);            // missing count
+  EXPECT_THAT(ParseTimeString("", t), Eq(std::nullopt));
+  EXPECT_THAT(ParseTimeString("yesterday", t), Eq(std::nullopt));
+  EXPECT_THAT(ParseTimeString("next tuesday", t), Eq(std::nullopt));
+  EXPECT_THAT(ParseTimeString("2 days 3 hours ago", t), Eq(std::nullopt));  // combined terms
+  EXPECT_THAT(ParseTimeString("5 fortnights", t), Eq(std::nullopt));        // unknown unit
+  EXPECT_THAT(ParseTimeString("days ago", t), Eq(std::nullopt));            // missing count
 }
 
 TEST(DateTimeTest, FormatTimePresetsAndCustomPatterns) {
   const absl::TimeZone utc = absl::UTCTimeZone();
   const absl::Time t = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13 12:26:40 UTC (a Sunday)
-  EXPECT_EQ(FormatTime(t, "epoch", utc), "1600000000");
-  EXPECT_EQ(FormatTime(t, "iso8601", utc), "2020-09-13T12:26:40+0000");
-  EXPECT_EQ(FormatTime(t, "iso", utc), "2020-09-13T12:26:40+0000");  // "iso" aliases iso8601
-  EXPECT_EQ(FormatTime(t, "iso8601-basic", utc), "20200913T122640+0000");
-  EXPECT_EQ(FormatTime(t, "iso8601-full", utc), "2020-09-13T12:26:40.000000000+0000");   // sub-second
-  EXPECT_EQ(FormatTime(t, "rfc3339", utc), "2020-09-13T12:26:40+00:00");                 // colon offset
-  EXPECT_EQ(FormatTime(t, "space", utc), "2020-09-13 12:26:40 +0000");                   // space before offset
-  EXPECT_EQ(FormatTime(t, "human", utc), "2020-09-13 12:26:40 +0000");                   // alias of space
-  EXPECT_EQ(FormatTime(t, "", utc), "2020-09-13 12:26:40 +0000");                        // empty -> "space" default
-  EXPECT_EQ(FormatTime(t, "asctime", utc), "Sun Sep 13 12:26:40 2020");                  // find's default %t
-  EXPECT_EQ(FormatTime(t, "zulu", utc), "2020-09-13T12:26:40Z");                         // UTC, Z
-  EXPECT_EQ(FormatTime(t, "zulu", absl::FixedTimeZone(3'600)), "2020-09-13T12:26:40Z");  // zulu ignores tz, always UTC
-  EXPECT_EQ(FormatTime(t, "zulu-dense", utc), "20200913T122640Z");                       // Zulu, no separators
-  EXPECT_EQ(FormatTime(t, "%Y/%m/%d", utc), "2020/09/13");                               // custom pattern, verbatim
+  EXPECT_THAT(FormatTime(t, "epoch", utc), "1600000000");
+  EXPECT_THAT(FormatTime(t, "iso8601", utc), "2020-09-13T12:26:40+0000");
+  EXPECT_THAT(FormatTime(t, "iso", utc), "2020-09-13T12:26:40+0000");  // "iso" aliases iso8601
+  EXPECT_THAT(FormatTime(t, "iso8601-basic", utc), "20200913T122640+0000");
+  EXPECT_THAT(FormatTime(t, "iso8601-full", utc), "2020-09-13T12:26:40.000000000+0000");   // sub-second
+  EXPECT_THAT(FormatTime(t, "rfc3339", utc), "2020-09-13T12:26:40+00:00");                 // colon offset
+  EXPECT_THAT(FormatTime(t, "space", utc), "2020-09-13 12:26:40 +0000");                   // space before offset
+  EXPECT_THAT(FormatTime(t, "human", utc), "2020-09-13 12:26:40 +0000");                   // alias of space
+  EXPECT_THAT(FormatTime(t, "", utc), "2020-09-13 12:26:40 +0000");                        // empty -> space default
+  EXPECT_THAT(FormatTime(t, "asctime", utc), "Sun Sep 13 12:26:40 2020");                  // find's default %t
+  EXPECT_THAT(FormatTime(t, "zulu", utc), "2020-09-13T12:26:40Z");                         // UTC, Z
+  EXPECT_THAT(FormatTime(t, "zulu", absl::FixedTimeZone(3'600)), "2020-09-13T12:26:40Z");  // zulu forces UTC
+  EXPECT_THAT(FormatTime(t, "zulu-dense", utc), "20200913T122640Z");                       // Zulu, no separators
+  EXPECT_THAT(FormatTime(t, "%Y/%m/%d", utc), "2020/09/13");                               // custom pattern
 }
 
 }  // namespace
