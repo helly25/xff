@@ -1,0 +1,58 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef XFF_CONFIG_CONFIG_H_
+#define XFF_CONFIG_CONFIG_H_
+
+#include <string>
+#include <vector>
+
+#include "xff/config/ini.h"
+#include "xff/config/xffrc.h"
+
+namespace xff::config {
+
+// Provenance of a resolved setting: which layer contributed it. Resolution is
+// last-non-unset-wins; kUnset is the "no override" sentinel and is never stored.
+enum class Source { kUnset, kSystem, kUser, kProject, kCli };
+
+// One resolved config flag plus the layer it came from.
+struct ResolvedFlag {
+  std::string flag;
+  Source source;
+};
+
+// The parsed layers + active selectors fed to ResolveConfig. CLI flags are NOT
+// here: the caller applies them last (highest precedence) after this resolution.
+struct ConfigInputs {
+  SystemConfig system;               // parsed /etc/xff.ini ([defaults] + [policy])
+  std::vector<RcLine> user;          // parsed user .xffrc
+  std::vector<RcLine> project;       // parsed project .xffrc (single file for now; cascade is phase E)
+  std::vector<std::string> configs;  // active --config=NAME selectors (styles and/or named configs)
+  bool no_config = false;            // --no-config: drop user+project layers and system defaults
+};
+
+// Resolves config-supplied flags, lowest precedence first (system [defaults] <
+// user .xffrc < project .xffrc), each tagged with its Source; the caller appends
+// CLI flags afterwards (they win). An .xffrc line contributes its flags when its
+// base selector is empty/"common" or names an active --config, AND its config
+// selector is empty or names an active --config. --no-config yields an empty
+// result (pure CLI + built-ins); the system *policy* is never dropped (it is read
+// elsewhere and bounds the run regardless). No capability gating yet (phase C).
+std::vector<ResolvedFlag> ResolveConfig(const ConfigInputs& inputs);
+
+}  // namespace xff::config
+
+#endif  // XFF_CONFIG_CONFIG_H_

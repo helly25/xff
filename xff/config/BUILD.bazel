@@ -60,3 +60,29 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+# The loader core: resolves the parsed layers (system [defaults] + user/project
+# .xffrc) under the active --config selectors into a precedence-ordered, prov-
+# enance-tagged flag list. No discovery (phase B-next) or gating (phase C) yet.
+cc_library(
+    name = "config_cc",
+    srcs = ["config.cc"],
+    hdrs = ["config.h"],
+    visibility = ["//xff:__subpackages__"],
+    deps = [
+        ":ini_cc",
+        ":xffrc_cc",
+    ],
+)
+
+cc_test(
+    name = "config_test",
+    size = "small",
+    srcs = ["config_test.cc"],
+    deps = [
+        ":config_cc",
+        ":xffrc_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
