@@ -22,8 +22,10 @@
 namespace xff::registry {
 namespace {
 
+using ::testing::Field;
 using ::testing::IsNull;
 using ::testing::NotNull;
+using ::testing::Pointee;
 
 struct RegistryTest : ::testing::Test {};
 
@@ -51,6 +53,18 @@ TEST_F(RegistryTest, UnknownTokenIsNull) {
   EXPECT_THAT(Lookup("-nonexistent"), IsNull());
   EXPECT_THAT(Lookup(""), IsNull());
   EXPECT_THAT(Lookup("."), IsNull());
+}
+
+TEST_F(RegistryTest, SecurityRelevantPrimariesAreClassified) {
+  // The exec family runs arbitrary commands (kSecurity); -delete loses data
+  // (kSafety); everything else is unclassified (kNone). The config policy gate
+  // (phase C) keys its safe-by-default deny off this.
+  for (const char* const name : {"-exec", "-execdir", "-ok", "-okdir", "-capture", "-capturedir"}) {
+    EXPECT_THAT(Lookup(name), Pointee(Field("safety", &Descriptor::safety, Safety::kSecurity))) << name;
+  }
+  EXPECT_THAT(Lookup("-delete"), Pointee(Field("safety", &Descriptor::safety, Safety::kSafety)));
+  EXPECT_THAT(Lookup("-name"), Pointee(Field("safety", &Descriptor::safety, Safety::kNone)));
+  EXPECT_THAT(Lookup("-print"), Pointee(Field("safety", &Descriptor::safety, Safety::kNone)));
 }
 
 }  // namespace
