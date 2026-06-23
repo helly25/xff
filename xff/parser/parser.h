@@ -19,8 +19,10 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "xff/parser/ast.h"
+#include "xff/registry/descriptor.h"
 
 namespace xff::parser {
 
@@ -31,6 +33,14 @@ namespace xff::parser {
 // grouping). Returns an error for an unknown predicate, a predicate missing
 // arguments, an unexpected operator, or unbalanced parentheses.
 absl::StatusOr<Command> Parse(const std::vector<std::string>& args);
+
+// Enforces the active find/xff style on a parsed command. Under the strict find
+// style (registry::Style::kFind, selected by --config=find), any expression
+// primary tagged registry::Style::kXff (an xff extension such as -println or
+// -capture) is outside find's vocabulary, so this returns InvalidArgument naming
+// the first such primary; the xff style (the default) accepts the full vocabulary
+// and always returns Ok. design-config.md "CLI selectors".
+absl::Status EnforceStyle(const Command& command, registry::Style style);
 
 }  // namespace xff::parser
 

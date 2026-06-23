@@ -25,8 +25,10 @@
 namespace xff::parser {
 namespace {
 
+using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
+using ::testing::HasSubstr;
 using ::testing::IsNull;
 using ::testing::NotNull;
 
@@ -135,6 +137,39 @@ TEST_F(ParserTest, Errors) {
   EXPECT_THAT(Parse({".", "-name"}), StatusIs(StatusCode::kInvalidArgument));             // missing argument
   EXPECT_THAT(Parse({".", "(", "-type", "f"}), StatusIs(StatusCode::kInvalidArgument));   // unbalanced '('
   EXPECT_THAT(Parse({".", "-o", "-type", "f"}), StatusIs(StatusCode::kInvalidArgument));  // leading operator
+}
+
+TEST_F(ParserTest, EnforceStyleRejectsXffExtensionUnderFind) {
+  // The strict find style (--config=find) refuses an xff-only primary, naming it
+  // and pointing at the escape hatch.
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-println"}));
+  const absl::Status status = EnforceStyle(cmd, registry::Style::kFind);
+  EXPECT_THAT(status, StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(status.message(), HasSubstr("-println"));
+  EXPECT_THAT(status.message(), HasSubstr("--config=xff"));
+}
+
+TEST_F(ParserTest, EnforceStyleWalksTheWholeTree) {
+  // A -capture buried under operators is still found (the check is a full walk).
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-type", "f", "-o", "-capture=n", "wc", ";"}));
+  const absl::Status status = EnforceStyle(cmd, registry::Style::kFind);
+  EXPECT_THAT(status, StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(status.message(), HasSubstr("-capture"));
+}
+
+TEST_F(ParserTest, EnforceStyleAcceptsFindVocabularyUnderFind) {
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-type", "f", "-o", "-name", "x"}));
+  EXPECT_THAT(EnforceStyle(cmd, registry::Style::kFind), IsOk());
+}
+
+TEST_F(ParserTest, EnforceStyleAcceptsXffExtensionsUnderXff) {
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-println"}));
+  EXPECT_THAT(EnforceStyle(cmd, registry::Style::kXff), IsOk());
+}
+
+TEST_F(ParserTest, EnforceStyleAllowsAnEmptyExpression) {
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({"."}));  // roots only, no expression
+  EXPECT_THAT(EnforceStyle(cmd, registry::Style::kFind), IsOk());
 }
 
 }  // namespace

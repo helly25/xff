@@ -76,6 +76,20 @@ std::string_view SourceName(Source source) {
   return "unset";
 }
 
+registry::Style ActiveStyle(const std::vector<std::string>& configs) {
+  registry::Style style = registry::Style::kXff;  // the modern xff style is the default
+  for (const std::string& name : configs) {
+    std::string_view base = name;
+    base = base.substr(0, base.find(':'));  // "xff:2" pins an epoch; the base picks the style
+    if (base == "find") {
+      style = registry::Style::kFind;
+    } else if (base == "xff") {
+      style = registry::Style::kXff;
+    }
+  }
+  return style;
+}
+
 std::string ExplainConfig(const std::vector<ResolvedFlag>& resolved, const std::vector<std::string>& cli_globals) {
   std::string out = "# xff effective configuration (application order; later overrides earlier)\n";
   for (const ResolvedFlag& flag : resolved) {

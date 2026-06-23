@@ -265,6 +265,23 @@ class ExprParser {
   absl::Status status_ = absl::OkStatus();
 };
 
+// Returns the first expression primary (pre-order, left to right in evaluation
+// order) whose descriptor is tagged as an xff extension, or nullptr if the tree
+// has none. The strict find-style check uses it to name the offending primary.
+const registry::Descriptor* FirstXffExtension(const Expr* expr) {
+  if (expr == nullptr) {
+    return nullptr;
+  }
+  if (expr->kind == Expr::Kind::kPredicate) {
+    const registry::Descriptor* const descriptor = expr->descriptor;
+    return descriptor != nullptr && descriptor->style == registry::Style::kXff ? descriptor : nullptr;
+  }
+  if (const registry::Descriptor* const found = FirstXffExtension(expr->lhs.get()); found != nullptr) {
+    return found;
+  }
+  return FirstXffExtension(expr->rhs.get());
+}
+
 }  // namespace
 
 absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
@@ -304,6 +321,19 @@ absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
     cmd.expression = *std::move(expr);
   }
   return cmd;
+}
+
+absl::Status EnforceStyle(const Command& command, registry::Style style) {
+  if (style != registry::Style::kFind) {
+    return absl::OkStatus();  // the xff style accepts the full vocabulary
+  }
+  if (const registry::Descriptor* const ext = FirstXffExtension(command.expression.get()); ext != nullptr) {
+    return absl::InvalidArgumentError(
+        absl::StrCat(
+            "'", ext->name,
+            "' is an xff extension, not available under the find style (--config=find); use --config=xff"));
+  }
+  return absl::OkStatus();
 }
 
 }  // namespace xff::parser

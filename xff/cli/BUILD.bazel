@@ -26,6 +26,7 @@ cc_binary(
         "//xff/config:policy_cc",
         "//xff/engine:run_cc",
         "//xff/parser:parser_cc",
+        "//xff/registry:registry_cc",
         "//xff/vfs:local_fs_cc",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/status",
@@ -40,5 +41,15 @@ bashtest(
     name = "explain_test",
     size = "small",
     srcs = ["explain_test.sh"],
+    data = [":xff"],
+)
+
+# Binary-level test of the strict find style: cli/main.cc's ActiveStyle +
+# EnforceStyle wiring rejects xff extensions under --config=find and accepts the
+# full vocabulary under the default xff style.
+bashtest(
+    name = "style_test",
+    size = "small",
+    srcs = ["style_test.sh"],
     data = [":xff"],
 )
