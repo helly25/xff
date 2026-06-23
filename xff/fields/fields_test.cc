@@ -86,6 +86,24 @@ TEST_F(FieldsTest, TimeFieldsRenderInTheContextZone) {
       "+0100|13");
 }
 
+TEST_F(FieldsTest, BareTimeFieldUsesTheTimeFormatDefault) {
+  vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  md.mtime = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13 12:26:40 UTC
+  const Template bare = Template::Compile("{mtime}");
+  // A bare {mtime} (no qualifier) renders with the --time-format default...
+  EXPECT_THAT(
+      bare.Render(RenderContext{.path = "f", .metadata = md, .tz = absl::UTCTimeZone(), .time_format = "epoch"}),
+      "1600000000");
+  // ...with no --time-format default it falls back to the "space" form...
+  EXPECT_THAT(
+      bare.Render(RenderContext{.path = "f", .metadata = md, .tz = absl::UTCTimeZone()}), "2020-09-13 12:26:40 +0000");
+  // ...and an explicit {mtime:QUAL} qualifier always wins over the default.
+  const Template qualified = Template::Compile("{mtime:%Y}");
+  EXPECT_THAT(
+      qualified.Render(RenderContext{.path = "f", .metadata = md, .tz = absl::UTCTimeZone(), .time_format = "epoch"}),
+      "2020");
+}
+
 TEST_F(FieldsTest, ModeAndOwnerFields) {
   vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   md.mode = 0644;

@@ -172,20 +172,23 @@ std::string LinksField(std::string_view, std::string_view, const RenderContext& 
   return std::to_string(ctx.metadata.nlink);
 }
 
+// A bare {mtime} (no {:qualifier}) uses the --time-format default (ctx.time_format,
+// itself empty -> "space"); an explicit {mtime:iso} qualifier always wins.
 std::string MtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
-  return FormatTimeField(ctx.metadata.mtime, qualifier, ctx.tz);
+  return FormatTimeField(ctx.metadata.mtime, qualifier.empty() ? ctx.time_format : qualifier, ctx.tz);
 }
 
 std::string AtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
-  return FormatTimeField(ctx.metadata.atime, qualifier, ctx.tz);
+  return FormatTimeField(ctx.metadata.atime, qualifier.empty() ? ctx.time_format : qualifier, ctx.tz);
 }
 
 std::string CtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
-  return FormatTimeField(ctx.metadata.ctime, qualifier, ctx.tz);
+  return FormatTimeField(ctx.metadata.ctime, qualifier.empty() ? ctx.time_format : qualifier, ctx.tz);
 }
 
 std::string BtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
-  return ctx.metadata.btime.has_value() ? FormatTimeField(*ctx.metadata.btime, qualifier, ctx.tz) : "";
+  const std::string_view spec = qualifier.empty() ? ctx.time_format : qualifier;
+  return ctx.metadata.btime.has_value() ? FormatTimeField(*ctx.metadata.btime, spec, ctx.tz) : "";
 }
 
 std::string ModeField(std::string_view, std::string_view, const RenderContext& ctx) {

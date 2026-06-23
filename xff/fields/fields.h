@@ -34,6 +34,7 @@ struct RenderContext {
   const vfs::Metadata& metadata;              // the entry's metadata
   int depth = 0;                              // 0 for a root operand, +1 per directory level
   absl::TimeZone tz = absl::LocalTimeZone();  // zone for {atime}/{mtime}/{ctime}/{btime} formatting; --timezone
+  std::string_view time_format;               // default format for a time field with no {:qualifier}; --time-format
   const std::vector<std::string>* captures = nullptr;  // -regex groups for {0..N}: [0] whole match, 1..N groups
   const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
   const std::map<std::string, std::string>* outputs = nullptr;  // -capture results for {capture.NAME}
