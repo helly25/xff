@@ -21,6 +21,7 @@
 #include <string_view>
 #include <vector>
 
+#include "absl/time/time.h"
 #include "xff/vfs/entry.h"
 
 namespace xff::fields {
@@ -28,10 +29,11 @@ namespace xff::fields {
 // The per-entry inputs a field renderer reads. Bundled into a context so new
 // fields can draw on more inputs without changing every renderer's signature.
 struct RenderContext {
-  std::string_view path;          // path as traversed
-  std::string_view root;          // command-line search root it was reached from (find %H); may be empty
-  const vfs::Metadata& metadata;  // the entry's metadata
-  int depth = 0;                  // 0 for a root operand, +1 per directory level
+  std::string_view path;                      // path as traversed
+  std::string_view root;                      // command-line search root it was reached from (find %H); may be empty
+  const vfs::Metadata& metadata;              // the entry's metadata
+  int depth = 0;                              // 0 for a root operand, +1 per directory level
+  absl::TimeZone tz = absl::LocalTimeZone();  // zone for {atime}/{mtime}/{ctime}/{btime} formatting; --timezone
   const std::vector<std::string>* captures = nullptr;  // -regex groups for {0..N}: [0] whole match, 1..N groups
   const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
   const std::map<std::string, std::string>* outputs = nullptr;  // -capture results for {capture.NAME}
@@ -55,7 +57,8 @@ using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier
 // {suffixes} {depth} {size} ({size:h} human-readable) {type} {inode} {links}
 // {mode}/{perm} (octal) {user} {group}, and time fields {atime} {mtime} {ctime}
 // {btime} with an optional qualifier {field:QUAL} -- a strftime format
-// ({mtime:%Y-%m-%d}) or preset ({mtime:iso|epoch}); local time, default
+// ({mtime:%Y-%m-%d}) or preset ({mtime:iso|epoch}); rendered in
+// RenderContext::tz (the local zone unless --timezone overrides it), default
 // ISO-8601. A qualifier may also be a "C-quoted string"
 // ({mtime:"{\"t\":\"%H:%M\"}"}) so it can hold a literal '}' or ':'; inside it
 // \" and \\ are escapes. A numeric placeholder {0}..{N} renders a regex capture

@@ -298,6 +298,25 @@ TEST_F(RunTest, ValidTimezoneIsAcceptedAndTheRunProceeds) {
   EXPECT_THAT(records, UnorderedElementsAre(Path("a.txt")));
 }
 
+TEST_F(RunTest, TimezoneAppliesToTimeFieldFormatting) {
+  // --timezone reaches time-field formatting too: {mtime:%z} is the numeric zone
+  // offset, so under --timezone=UTC it is "+0000" regardless of the host's zone.
+  const auto command = parser::Parse({"--timezone=UTC", "--template={mtime:%z}", root_.string(), "-name", "a.txt"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  RunFind(
+      *command, fs_,
+      [&](std::string_view record) {
+        std::string text(record);
+        if (!text.empty() && text.back() == '\n') {
+          text.pop_back();
+        }
+        records.push_back(std::move(text));
+      },
+      [](std::string_view, absl::Status) {});
+  EXPECT_THAT(records, UnorderedElementsAre("+0000"));
+}
+
 TEST_F(RunTest, TemplateRendersImplicitPrint) {
   const auto command = parser::Parse({"--template={name}:{type}", root_.string(), "-name", "a.txt"});
   ASSERT_THAT(command, IsOk());
