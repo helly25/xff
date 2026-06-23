@@ -27,7 +27,6 @@ namespace {
 
 using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
-using ::testing::Eq;
 using ::testing::IsNull;
 using ::testing::NotNull;
 
@@ -38,9 +37,9 @@ TEST_F(ParserTest, GlobalsRootsExpression) {
   EXPECT_THAT(cmd.globals, ElementsAre("--color"));
   EXPECT_THAT(cmd.roots, ElementsAre("."));
   ASSERT_THAT(cmd.expression, NotNull());
-  EXPECT_THAT(cmd.expression->kind, Eq(Expr::Kind::kPredicate));
+  EXPECT_THAT(cmd.expression->kind, Expr::Kind::kPredicate);
   ASSERT_THAT(cmd.expression->descriptor, NotNull());
-  EXPECT_THAT(cmd.expression->descriptor->name, Eq("-type"));
+  EXPECT_THAT(cmd.expression->descriptor->name, "-type");
   EXPECT_THAT(cmd.expression->args, ElementsAre("f"));
 }
 
@@ -54,49 +53,49 @@ TEST_F(ParserTest, OrIsLowerThanImplicitAnd) {
   // `-type f -name x -o -name y` => Or( And(-type f, -name x), -name y )
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-type", "f", "-name", "x", "-o", "-name", "y"}));
   const Expr& root = *cmd.expression;
-  ASSERT_THAT(root.kind, Eq(Expr::Kind::kOr));
-  EXPECT_THAT(root.lhs->kind, Eq(Expr::Kind::kAnd));
-  ASSERT_THAT(root.rhs->kind, Eq(Expr::Kind::kPredicate));
-  EXPECT_THAT(root.rhs->descriptor->name, Eq("-name"));
+  ASSERT_THAT(root.kind, Expr::Kind::kOr);
+  EXPECT_THAT(root.lhs->kind, Expr::Kind::kAnd);
+  ASSERT_THAT(root.rhs->kind, Expr::Kind::kPredicate);
+  EXPECT_THAT(root.rhs->descriptor->name, "-name");
 }
 
 TEST_F(ParserTest, NotBindsTightest) {
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "!", "-type", "d"}));
   const Expr& root = *cmd.expression;
-  ASSERT_THAT(root.kind, Eq(Expr::Kind::kNot));
-  ASSERT_THAT(root.lhs->kind, Eq(Expr::Kind::kPredicate));
-  EXPECT_THAT(root.lhs->descriptor->name, Eq("-type"));
+  ASSERT_THAT(root.kind, Expr::Kind::kNot);
+  ASSERT_THAT(root.lhs->kind, Expr::Kind::kPredicate);
+  EXPECT_THAT(root.lhs->descriptor->name, "-type");
 }
 
 TEST_F(ParserTest, ParensGroup) {
   // `( -type f -o -type d ) -print` => And( Or(...), -print )
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "(", "-type", "f", "-o", "-type", "d", ")", "-print"}));
   const Expr& root = *cmd.expression;
-  ASSERT_THAT(root.kind, Eq(Expr::Kind::kAnd));
-  EXPECT_THAT(root.lhs->kind, Eq(Expr::Kind::kOr));
-  ASSERT_THAT(root.rhs->kind, Eq(Expr::Kind::kPredicate));
-  EXPECT_THAT(root.rhs->descriptor->name, Eq("-print"));
+  ASSERT_THAT(root.kind, Expr::Kind::kAnd);
+  EXPECT_THAT(root.lhs->kind, Expr::Kind::kOr);
+  ASSERT_THAT(root.rhs->kind, Expr::Kind::kPredicate);
+  EXPECT_THAT(root.rhs->descriptor->name, "-print");
 }
 
 TEST_F(ParserTest, CommaIsLowestPrecedence) {
   // `-type f -o -type d , -name x` => Comma( Or(-type f, -type d), -name x )
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-type", "f", "-o", "-type", "d", ",", "-name", "x"}));
   const Expr& root = *cmd.expression;
-  ASSERT_THAT(root.kind, Eq(Expr::Kind::kComma));
-  EXPECT_THAT(root.lhs->kind, Eq(Expr::Kind::kOr));
-  ASSERT_THAT(root.rhs->kind, Eq(Expr::Kind::kPredicate));
-  EXPECT_THAT(root.rhs->descriptor->name, Eq("-name"));
+  ASSERT_THAT(root.kind, Expr::Kind::kComma);
+  EXPECT_THAT(root.lhs->kind, Expr::Kind::kOr);
+  ASSERT_THAT(root.rhs->kind, Expr::Kind::kPredicate);
+  EXPECT_THAT(root.rhs->descriptor->name, "-name");
 }
 
 TEST_F(ParserTest, ExecCollectsCommandUntilSemicolon) {
   // `-exec echo {} ; -print` => And( -exec[echo, {}], -print ); the ';' is consumed.
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-exec", "echo", "{}", ";", "-print"}));
   const Expr& root = *cmd.expression;
-  ASSERT_THAT(root.kind, Eq(Expr::Kind::kAnd));
-  ASSERT_THAT(root.lhs->kind, Eq(Expr::Kind::kPredicate));
-  EXPECT_THAT(root.lhs->descriptor->name, Eq("-exec"));
+  ASSERT_THAT(root.kind, Expr::Kind::kAnd);
+  ASSERT_THAT(root.lhs->kind, Expr::Kind::kPredicate);
+  EXPECT_THAT(root.lhs->descriptor->name, "-exec");
   EXPECT_THAT(root.lhs->args, ElementsAre("echo", "{}"));
-  EXPECT_THAT(root.rhs->descriptor->name, Eq("-print"));
+  EXPECT_THAT(root.rhs->descriptor->name, "-print");
 }
 
 TEST_F(ParserTest, ExecWithoutTerminatorErrors) {
@@ -107,18 +106,18 @@ TEST_F(ParserTest, CaptureCollectsNameRegexAndCommand) {
   // -capture=NAME[=REGEX] cmd... ; => args = [NAME, REGEX (may be empty), cmd...].
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-capture=lines", "wc", "-l", "{}", ";", "-print"}));
   const Expr& root = *cmd.expression;
-  ASSERT_THAT(root.kind, Eq(Expr::Kind::kAnd));
-  ASSERT_THAT(root.lhs->kind, Eq(Expr::Kind::kPredicate));
-  EXPECT_THAT(root.lhs->descriptor->name, Eq("-capture"));
+  ASSERT_THAT(root.kind, Expr::Kind::kAnd);
+  ASSERT_THAT(root.lhs->kind, Expr::Kind::kPredicate);
+  EXPECT_THAT(root.lhs->descriptor->name, "-capture");
   EXPECT_THAT(root.lhs->args, ElementsAre("lines", "", "wc", "-l", "{}"));  // empty regex slot
-  EXPECT_THAT(root.rhs->descriptor->name, Eq("-print"));
+  EXPECT_THAT(root.rhs->descriptor->name, "-print");
 }
 
 TEST_F(ParserTest, CaptureExtractionRegexInSpec) {
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-capture=n=([0-9]+)", "wc", ";"}));
   const Expr& root = *cmd.expression;
-  ASSERT_THAT(root.kind, Eq(Expr::Kind::kPredicate));
-  EXPECT_THAT(root.descriptor->name, Eq("-capture"));
+  ASSERT_THAT(root.kind, Expr::Kind::kPredicate);
+  EXPECT_THAT(root.descriptor->name, "-capture");
   EXPECT_THAT(root.args, ElementsAre("n", "([0-9]+)", "wc"));  // NAME, REGEX, command
 }
 

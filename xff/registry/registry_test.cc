@@ -22,7 +22,6 @@
 namespace xff::registry {
 namespace {
 
-using ::testing::Eq;
 using ::testing::IsNull;
 using ::testing::NotNull;
 
@@ -31,21 +30,21 @@ struct RegistryTest : ::testing::Test {};
 TEST_F(RegistryTest, LooksUpKnownTokens) {
   const Descriptor* name = Lookup("-name");
   ASSERT_THAT(name, NotNull());
-  EXPECT_THAT(name->kind, Eq(Kind::kTest));
-  EXPECT_THAT(name->arity, Eq(1));
+  EXPECT_THAT(name->kind, Kind::kTest);
+  EXPECT_THAT(name->arity, 1);
 
   const Descriptor* print = Lookup("-print");
   ASSERT_THAT(print, NotNull());
-  EXPECT_THAT(print->kind, Eq(Kind::kAction));
-  EXPECT_THAT(print->arity, Eq(0));
+  EXPECT_THAT(print->kind, Kind::kAction);
+  EXPECT_THAT(print->arity, 0);
 
   const Descriptor* or_op = Lookup("-o");
   ASSERT_THAT(or_op, NotNull());
-  EXPECT_THAT(or_op->kind, Eq(Kind::kOperator));
+  EXPECT_THAT(or_op->kind, Kind::kOperator);
 
   const Descriptor* bang = Lookup("!");
   ASSERT_THAT(bang, NotNull());
-  EXPECT_THAT(bang->kind, Eq(Kind::kOperator));
+  EXPECT_THAT(bang->kind, Kind::kOperator);
 }
 
 TEST_F(RegistryTest, UnknownTokenIsNull) {

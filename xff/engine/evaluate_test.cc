@@ -32,7 +32,6 @@ namespace xff::engine {
 namespace {
 
 using ::mbo::testing::IsOk;
-using ::testing::Eq;
 using ::testing::IsEmpty;
 
 struct EvaluateTest : ::testing::Test {
@@ -146,16 +145,16 @@ TEST_F(EvaluateTest, PrintActionsEmit) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("dir/foo.txt", "foo.txt", vfs::FileType::kRegular, md);
   EXPECT_TRUE(Match({"-print"}, visit));
-  EXPECT_THAT(emitted_, Eq("dir/foo.txt\n"));
+  EXPECT_THAT(emitted_, "dir/foo.txt\n");
   EXPECT_TRUE(Match({"-print0"}, visit));
-  EXPECT_THAT(emitted_, Eq(std::string("dir/foo.txt\0", 12)));
+  EXPECT_THAT(emitted_, std::string("dir/foo.txt\0", 12));
 }
 
 TEST_F(EvaluateTest, ShortCircuitSkipsAction) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("dir/foo.txt", "foo.txt", vfs::FileType::kRegular, md);
   EXPECT_TRUE(Match({"-type", "f", "-print"}, visit));
-  EXPECT_THAT(emitted_, Eq("dir/foo.txt\n"));
+  EXPECT_THAT(emitted_, "dir/foo.txt\n");
   EXPECT_FALSE(Match({"-type", "d", "-print"}, visit)) << "-type d fails; -a short-circuits before -print";
   EXPECT_THAT(emitted_, IsEmpty());
 }
@@ -302,7 +301,7 @@ TEST_F(EvaluateTest, CommaEvaluatesBothValueIsRight) {
   EXPECT_TRUE(Match({"-false", ",", "-true"}, visit));
   // Side effects on both sides still occur: two -print actions emit two records.
   EXPECT_TRUE(Match({"-print", ",", "-print"}, visit));
-  EXPECT_THAT(emitted_, Eq("f\nf\n"));
+  EXPECT_THAT(emitted_, "f\nf\n");
 }
 
 TEST_F(EvaluateTest, PruneAndQuitSetControl) {
@@ -347,9 +346,9 @@ TEST_F(EvaluateTest, PrintfExpandsDirectivesAndEscapes) {
   md.nlink = 3;
   const Visit visit{.path = "a/b/c.txt", .name = "c.txt", .depth = 2, .metadata = md};
   EXPECT_TRUE(Match({"-printf", "%p|%f|%h|%s|%m|%d|%y\\n"}, visit));
-  EXPECT_THAT(emitted_, Eq("a/b/c.txt|c.txt|a/b|42|644|2|f\n"));
+  EXPECT_THAT(emitted_, "a/b/c.txt|c.txt|a/b|42|644|2|f\n");
   EXPECT_TRUE(Match({"-printf", "%%\\t%n"}, visit));  // literal %, tab escape, link count
-  EXPECT_THAT(emitted_, Eq("%\t3"));
+  EXPECT_THAT(emitted_, "%\t3");
 }
 
 TEST_F(EvaluateTest, PrintfOwnerDirectives) {
@@ -359,7 +358,7 @@ TEST_F(EvaluateTest, PrintfOwnerDirectives) {
   md.gid = 7'654'321;  // no group entry -> %g falls back to the numeric id
   const Visit visit{.path = "d/f", .name = "f", .depth = 1, .metadata = md};
   EXPECT_TRUE(Match({"-printf", "%u|%U|%g|%G"}, visit));
-  EXPECT_THAT(emitted_, Eq("1234567|1234567|7654321|7654321"));  // %U/%G numeric; %u/%g fall back to the id
+  EXPECT_THAT(emitted_, "1234567|1234567|7654321|7654321");  // %U/%G numeric; %u/%g fall back to the id
 }
 
 TEST_F(EvaluateTest, PrintlnAndPrintflnAppendOsLineEnding) {
@@ -369,10 +368,10 @@ TEST_F(EvaluateTest, PrintlnAndPrintflnAppendOsLineEnding) {
   const Visit visit{.path = "a/b/c.txt", .name = "c.txt", .depth = 2, .metadata = md};
   // -println: -print with the OS line ending (LF on this platform).
   EXPECT_TRUE(Match({"-println"}, visit));
-  EXPECT_THAT(emitted_, Eq("a/b/c.txt\n"));
+  EXPECT_THAT(emitted_, "a/b/c.txt\n");
   // -printfln: -printf plus a trailing OS line ending the format need not carry.
   EXPECT_TRUE(Match({"-printfln", "%f|%s"}, visit));
-  EXPECT_THAT(emitted_, Eq("c.txt|42\n"));
+  EXPECT_THAT(emitted_, "c.txt|42\n");
 }
 
 TEST_F(EvaluateTest, OkPromptsWithSubstitutionAndRunsOnlyWhenConfirmed) {
@@ -381,7 +380,7 @@ TEST_F(EvaluateTest, OkPromptsWithSubstitutionAndRunsOnlyWhenConfirmed) {
   // Declined: the command is not run, -ok is false; the prompt shows {} -> the path.
   confirm_reply_ = false;
   EXPECT_FALSE(Match({"-ok", "/bin/echo", "{}", ";"}, visit));
-  EXPECT_THAT(last_prompt_, Eq("/bin/echo dir/foo.txt? "));
+  EXPECT_THAT(last_prompt_, "/bin/echo dir/foo.txt? ");
   // Affirmative: the command runs and -ok mirrors its exit status.
   confirm_reply_ = true;
   EXPECT_TRUE(Match({"-ok", "/bin/sh", "-c", "exit 0", ";"}, visit));

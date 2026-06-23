@@ -91,7 +91,7 @@ struct RunTest : ::testing::Test {
 TEST_F(RunTest, NoExpressionPrintsEverything) {
   EXPECT_THAT(
       RunExpr({}), UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
-  EXPECT_THAT(last_errors_, Eq(0));
+  EXPECT_THAT(last_errors_, 0);
 }
 
 TEST_F(RunTest, NameGlobImplicitPrint) {
@@ -145,7 +145,7 @@ TEST_F(RunTest, MissingRootCountsError) {
       *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
       [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, IsEmpty());
-  EXPECT_THAT(errors, Eq(1));
+  EXPECT_THAT(errors, 1);
 }
 
 TEST_F(RunTest, PruneSkipsDirectoryDescent) {
@@ -165,7 +165,7 @@ TEST_F(RunTest, DepthVisitsPostOrder) {
   // -depth lists the same set but post-order, so the root operand prints last.
   EXPECT_THAT(out, UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
   ASSERT_FALSE(out.empty());
-  EXPECT_THAT(out.back(), Eq(root_.string()));
+  EXPECT_THAT(out.back(), root_.string());
 }
 
 TEST_F(RunTest, SymlinkLModeFollowsDirectorySymlink) {
@@ -239,7 +239,7 @@ TEST_F(RunTest, SafeRefusesDelete) {
   const auto command = parser::Parse({"--safe", root_.string(), "-delete"});
   ASSERT_THAT(command, IsOk());
   const int errors = RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
-  EXPECT_THAT(errors, Eq(2));
+  EXPECT_THAT(errors, 2);
   EXPECT_TRUE(fs::exists(root_ / "a.txt"));  // refused: nothing deleted
 }
 
@@ -253,7 +253,7 @@ TEST_F(RunTest, SafeRefusesExec) {
   const auto command = parser::Parse({"--safe", root_.string(), "-exec", "/bin/sh", "-c", "echo > \"{}.ran\"", ";"});
   ASSERT_THAT(command, IsOk());
   const int errors = RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
-  EXPECT_THAT(errors, Eq(2));
+  EXPECT_THAT(errors, 2);
   EXPECT_FALSE(fs::exists(root_ / "a.txt.ran"));  // refused: command not run
 }
 
@@ -318,7 +318,7 @@ TEST_F(RunTest, ExecFieldsSubstitutesRegexCaptures) {
   std::ifstream in(marker);
   std::string content;
   std::getline(in, content);
-  EXPECT_THAT(content, Eq("a.txt"));  // {1}="a", {2}="txt"
+  EXPECT_THAT(content, "a.txt");  // {1}="a", {2}="txt"
 }
 
 TEST_F(RunTest, DefinePopulatesDefNamespace) {
@@ -389,8 +389,8 @@ TEST_F(RunTest, DuplicateCaptureNameIsErrorByDefault) {
   ASSERT_THAT(command, IsOk());
   int errors = 0;
   const int code = RunFind(*command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
-  EXPECT_THAT(code, Eq(2));
-  EXPECT_THAT(errors, Eq(1));
+  EXPECT_THAT(code, 2);
+  EXPECT_THAT(errors, 1);
 }
 
 TEST_F(RunTest, CaptureOverrideAllowsDuplicateNameLastWins) {
@@ -419,8 +419,8 @@ TEST_F(RunTest, UnusedCaptureIsError) {
   ASSERT_THAT(command, IsOk());
   int errors = 0;
   const int code = RunFind(*command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
-  EXPECT_THAT(code, Eq(2));
-  EXPECT_THAT(errors, Eq(1));
+  EXPECT_THAT(code, 2);
+  EXPECT_THAT(errors, 1);
 }
 
 TEST_F(RunTest, CaptureUsedByLaterExecIsNotFlagged) {
@@ -431,8 +431,8 @@ TEST_F(RunTest, CaptureUsedByLaterExecIsNotFlagged) {
   ASSERT_THAT(command, IsOk());
   int errors = 0;
   const int code = RunFind(*command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
-  EXPECT_THAT(code, Eq(0));  // used by the -exec, so not flagged
-  EXPECT_THAT(errors, Eq(0));
+  EXPECT_THAT(code, 0);  // used by the -exec, so not flagged
+  EXPECT_THAT(errors, 0);
 }
 
 TEST_F(RunTest, ImplicitPrintNoSuppressesDefaultPrint) {
