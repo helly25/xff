@@ -55,6 +55,7 @@ struct EvalContext {
   EmitFn emit;                                   // action output sink (-print/-print0/...)
   const vfs::FileSystem& fs;                     // backs predicates that read the source (e.g. -empty on a directory)
   absl::Time now;                                // single reference instant for age tests (-mtime/-mmin)
+  absl::TimeZone tz = absl::LocalTimeZone();     // zone for interpreting time-string args (-newerXt); --timezone
   Control& control;                              // collects -prune/-quit requests
   bool exec_fields = false;                      // --exec-fields: render -exec tokens through the field vocabulary
   std::vector<std::string>* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off

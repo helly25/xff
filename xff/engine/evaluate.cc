@@ -536,7 +536,7 @@ bool EvalNewerXY(const parser::Expr& expr, EvalContext& ctx) {
   const std::string_view name = expr.descriptor->name;
   const char x = name[6];
   if (name[7] == 't') {
-    const std::optional<absl::Time> ref = datetime::ParseTimeString(expr.args.front(), ctx.now);
+    const std::optional<absl::Time> ref = datetime::ParseTimeString(expr.args.front(), ctx.now, ctx.tz);
     return ref.has_value() && TimeField(ctx.visit.metadata, x) > *ref;
   }
   return IsNewerXY(ctx.visit, x, name[7], expr.args.front(), ctx.fs);

@@ -35,6 +35,7 @@ namespace {
 namespace fs = std::filesystem;
 
 using ::mbo::testing::IsOk;
+using ::mbo::testing::StatusIs;
 using ::testing::Eq;
 using ::testing::IsEmpty;
 using ::testing::UnorderedElementsAre;
@@ -255,6 +256,46 @@ TEST_F(RunTest, SafeRefusesExec) {
   const int errors = RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
   EXPECT_THAT(errors, 2);
   EXPECT_FALSE(fs::exists(root_ / "a.txt.ran"));  // refused: command not run
+}
+
+TEST_F(RunTest, UnknownTimezoneIsRefusedBeforeTraversal) {
+  // An unknown --timezone is a usage error refused before the walk (exit 2), like
+  // the --safe guards above: reported via on_error, emitting nothing.
+  const auto command = parser::Parse({"--timezone=Not/AZone", root_.string()});
+  ASSERT_THAT(command, IsOk());
+  std::string err_path;
+  absl::Status err_status;
+  bool emitted = false;
+  const int errors = RunFind(
+      *command, fs_, [&](std::string_view) { emitted = true; },
+      [&](std::string_view path, absl::Status status) {
+        err_path = std::string(path);
+        err_status = status;
+      });
+  EXPECT_THAT(errors, 2);
+  EXPECT_THAT(err_path, "--timezone");
+  EXPECT_THAT(err_status, StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_FALSE(emitted) << "an invalid --timezone must not traverse";
+}
+
+TEST_F(RunTest, ValidTimezoneIsAcceptedAndTheRunProceeds) {
+  // A valid --timezone resolves and the run proceeds normally (here it does not
+  // change the result, just proving the flag is accepted end to end).
+  const auto command = parser::Parse({"--timezone=UTC", root_.string(), "-name", "a.txt"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  const int errors = RunFind(
+      *command, fs_,
+      [&](std::string_view record) {
+        std::string text(record);
+        if (!text.empty() && text.back() == '\n') {
+          text.pop_back();
+        }
+        records.push_back(std::move(text));
+      },
+      [](std::string_view, absl::Status) {});
+  EXPECT_THAT(errors, 0);
+  EXPECT_THAT(records, UnorderedElementsAre(Path("a.txt")));
 }
 
 TEST_F(RunTest, TemplateRendersImplicitPrint) {

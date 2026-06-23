@@ -19,6 +19,7 @@
 #include <string_view>
 #include <vector>
 
+#include "absl/time/civil_time.h"
 #include "absl/time/time.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -57,6 +58,7 @@ struct EvaluateTest : ::testing::Test {
         .emit = sink,
         .fs = fs_,
         .now = now_,
+        .tz = tz_,
         .control = control_,
         .exec_fields = exec_fields_,
         .captures = exec_fields_ ? &captures_ : nullptr,
@@ -82,6 +84,7 @@ struct EvaluateTest : ::testing::Test {
   // A fixed reference instant for age-test (-mtime/-mmin) cases; the entry's
   // mtime is set relative to this so the assertions are clock-independent.
   const absl::Time now_ = absl::FromUnixSeconds(1'700'000'000);
+  absl::TimeZone tz_ = absl::LocalTimeZone();   // zone Match feeds to EvalContext::tz (varied by -newermt cases)
   Control control_;                             // set by Match from the most recent evaluation (-prune/-quit)
   bool exec_fields_ = false;                    // when true, Match enables --exec-fields token substitution
   std::vector<std::string> captures_;           // -regex groups captured during the most recent (gated) Match
@@ -411,6 +414,21 @@ TEST_F(EvaluateTest, NewerMtAcceptsRelativeTimeStrings) {
   EXPECT_TRUE(Match({"-newermt", "-3 days"}, visit));     // same, sign form
   EXPECT_FALSE(Match({"-newermt", "1 day ago"}, visit));  // not within the last day
   EXPECT_FALSE(Match({"-newermt", "now"}, visit));        // older than now
+}
+
+TEST_F(EvaluateTest, NewerMtInterpretsTheTimeStringInTheContextZone) {
+  // A file modified at 2020-01-01 23:30 UTC straddles the 2020-01-02 boundary:
+  // that midnight is 00:00 UTC but 23:00 UTC the previous day in UTC+1, so
+  // -newermt 2020-01-02 flips with the context zone (EvalContext::tz, --timezone).
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.mtime = absl::FromCivil(absl::CivilSecond(2'020, 1, 1, 23, 30, 0), absl::UTCTimeZone());
+  const Visit visit = MakeVisit("f", "f", vfs::FileType::kRegular, md);
+
+  tz_ = absl::UTCTimeZone();  // ref = 2020-01-02 00:00 UTC; mtime is 30 min earlier -> not newer
+  EXPECT_FALSE(Match({"-newermt", "2020-01-02"}, visit));
+  tz_ = absl::FixedTimeZone(3'600);  // UTC+1: ref = 2020-01-01 23:00 UTC; mtime is 30 min later -> newer
+  EXPECT_TRUE(Match({"-newermt", "2020-01-02"}, visit));
 }
 
 TEST_F(EvaluateTest, ExecFieldsGatesNamedPlaceholderSubstitution) {

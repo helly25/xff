@@ -40,8 +40,22 @@ namespace xff::datetime {
 // redundant "-N ... ago" (which get_date flips back to the future). Matching is
 // case-insensitive and the plural unit form is accepted. Returns nullopt when
 // nothing matches (callers treat that as "no match"); get_date's wider grammar
-// ("next Tuesday", combined terms) is intentionally not supported.
-std::optional<absl::Time> ParseTimeString(std::string_view text, absl::Time now);
+// ("next Tuesday", combined terms) is intentionally not supported. The calendar
+// forms (YYYY-MM-DD[ HH:MM:SS]) and the month/year shifts are interpreted in
+// `tz` (default the local zone; --timezone overrides it); @epoch and the
+// second..week shifts are absolute instants and ignore `tz`.
+std::optional<absl::Time> ParseTimeString(
+    std::string_view text,
+    absl::Time now,
+    absl::TimeZone tz = absl::LocalTimeZone());
+
+// Resolves a --timezone spec to an absl::TimeZone, writing it to *out and
+// returning true on success. Accepts "" or "local" (the host's local zone),
+// "utc"/"z"/"zulu" (UTC, case-insensitive), and any IANA zone name
+// ("America/New_York", "Europe/London") loaded from the system zone database.
+// Returns false (leaving *out unchanged) for an unknown name, so the caller can
+// report a usage error rather than silently falling back.
+bool ParseTimeZone(std::string_view spec, absl::TimeZone* out);
 
 // Formats `time`, the inverse of ParseTimeString. `spec` is a preset name or any
 // absl::FormatTime() pattern. Presets (only conformant forms claim a standard):
