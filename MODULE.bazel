@@ -38,3 +38,7 @@ bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 # Central Registry. 0.11.1 carries the macOS clang+asan verification (#188) and
 # the StatusIs code-matcher support (#190) our test conventions rely on.
 bazel_dep(name = "helly25_mbo", version = "0.11.1", repo_name = "com_helly25_mbo")
+
+# helly25/bashtest -- shell-test runner (expect_* helpers + test_runner) for the
+# binary-level CLI tests; its workspace/repo name is com_helly25_bashtest.
+bazel_dep(name = "helly25_bashtest", version = "0.3.1", repo_name = "com_helly25_bashtest")

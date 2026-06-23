@@ -15,30 +15,39 @@
 # limitations under the License.
 #
 # Binary-level test: `xff --explain` writes the effective configuration resolved
-# from XFF_CONFIG, tagging each flag with its provenance and omitting lines whose
-# style is not active. This is the binary-level counterpart to the loader/config
-# unit tests, exercising the real cli/main.cc wiring end to end.
+# from XFF_CONFIG, tagging each flag with provenance and omitting inactive-style
+# lines. Exercises the real cli/main.cc wiring end to end (helly25/bashtest).
 
 set -euo pipefail
 
-xff="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
-if [ ! -x "${xff}" ]; then
-  xff="$(find "${TEST_SRCDIR}" -type f -name xff -path '*xff/cli/xff' 2>/dev/null | head -1)"
-fi
-[ -x "${xff}" ] || { echo "FAIL: xff binary not found under ${TEST_SRCDIR}" >&2; exit 1; }
+# shellcheck disable=SC1090,SC1091,SC2154
+source "${helly25_bashtest}"
 
-cfg="${TEST_TMPDIR}/xff_config"
-printf 'common: --sort\nxff: --feature=long\nfind: --warn\n' > "${cfg}"
+# Path to the built xff binary in the test runfiles.
+_xff_bin() {
+  local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
+  if [[ ! -x "${bin}" ]]; then
+    bin="$(find "${TEST_SRCDIR}" -type f -name xff -path '*xff/cli/xff' 2>/dev/null | head -1)"
+  fi
+  echo "${bin}"
+}
 
-out="$(XFF_CONFIG="${cfg}" "${xff}" --config=xff --explain)"
+test::explain_reflects_effective_config() {
+  local cfg="${TEST_TMPDIR}/xff_config"
+  printf 'common: --sort\nxff: --feature=long\nfind: --warn\n' >"${cfg}"
+  local out
+  out="$(XFF_CONFIG="${cfg}" "$(_xff_bin)" --config=xff --explain)"
+  local lines=()
+  local line
+  while IFS= read -r line; do lines+=("${line}"); done <<<"${out}"
 
-fail() { echo "FAIL: $1" >&2; printf 'output was:\n%s\n' "${out}" >&2; exit 1; }
-assert_has() { if ! printf '%s\n' "${out}" | grep -q "$1"; then fail "missing: $1"; fi; }
-assert_lacks() { if printf '%s\n' "${out}" | grep -q -- "$1"; then fail "leaked: $1"; fi; }
+  # common: applies under every style; xff: applies because --config=xff is active.
+  expect_contains "$(printf 'user\t--sort')" "${lines[@]}"
+  expect_contains "$(printf 'user\t--feature=long')" "${lines[@]}"
+  # The find: line is inert (its style is not active): --warn must not surface.
+  expect_not_contains "$(printf 'user\t--warn')" "${lines[@]}"
+  # The CLI selector is echoed with cli provenance.
+  expect_contains "$(printf 'cli\t--config=xff')" "${lines[@]}"
+}
 
-assert_has 'user.*--sort'          # common: line applies under every style
-assert_has 'user.*--feature=long'  # xff: line applies because --config=xff is active
-assert_lacks '--warn'              # find: line is inert (the find style is not active)
-assert_has 'cli.*--config=xff'     # the CLI selector is echoed with cli provenance
-
-echo "PASS: xff --explain reflects the effective config"
+test_runner
