@@ -118,3 +118,37 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+# The safe-by-default policy gate: classifies an .xffrc line by the registry
+# safety class of its flags and decides whether the line is permitted for its
+# layer (built-in deny table + [policy] overrides, deny beats allow). Pure
+# decision logic; phase C-next wires it into the resolve path with drop-and-warn.
+cc_library(
+    name = "policy_cc",
+    srcs = ["policy.cc"],
+    hdrs = ["policy.h"],
+    visibility = ["//xff:__subpackages__"],
+    deps = [
+        ":config_cc",
+        ":ini_cc",
+        ":xffrc_cc",
+        "//xff/registry:registry_cc",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "policy_test",
+    size = "small",
+    srcs = ["policy_test.cc"],
+    deps = [
+        ":config_cc",
+        ":ini_cc",
+        ":policy_cc",
+        ":xffrc_cc",
+        "//xff/registry:registry_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
