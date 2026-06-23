@@ -29,6 +29,10 @@
 namespace xff::config {
 namespace {
 
+using ::testing::ElementsAre;
+using ::testing::IsEmpty;
+using ::testing::SizeIs;
+
 struct PolicyTest : ::testing::Test {};
 
 RcLine Line(std::vector<std::string> flags) {
@@ -88,6 +92,27 @@ TEST_F(PolicyTest, PolicyRulesAreScopedToTheirLayer) {
   EXPECT_FALSE(LinePermitted(Line({"-exec", "rm", ";"}), Source::kUser, policy));
   // ...but does not touch the project layer (still its built-in deny).
   EXPECT_FALSE(LinePermitted(Line({"-exec", "rm", ";"}), Source::kProject, policy));
+}
+
+TEST_F(PolicyTest, GateConfigDropsDeniedProjectLinesAndRecordsThem) {
+  ConfigInputs inputs;
+  inputs.user = {Line({"-exec", "rm", ";"}), Line({"--color=auto"})};      // user: both allowed
+  inputs.project = {Line({"-exec", "rm", ";"}), Line({"--color=never"})};  // project: -exec denied
+  std::vector<Drop> drops;
+  const ConfigInputs gated = GateConfig(inputs, &drops);
+  EXPECT_THAT(gated.user, SizeIs(2));  // the user layer keeps everything
+  ASSERT_THAT(gated.project, SizeIs(1));
+  EXPECT_THAT(gated.project.front().flags, ElementsAre("--color=never"));  // only the safe project line survives
+  ASSERT_THAT(drops, SizeIs(1));
+  EXPECT_THAT(drops.front().layer, Source::kProject);
+  EXPECT_THAT(drops.front().safety, registry::Safety::kSecurity);
+  EXPECT_THAT(drops.front().line.flags, ElementsAre("-exec", "rm", ";"));
+}
+
+TEST_F(PolicyTest, GateConfigToleratesNullDropsSink) {
+  ConfigInputs inputs;
+  inputs.project = {Line({"-delete"})};
+  EXPECT_THAT(GateConfig(inputs, nullptr).project, IsEmpty());  // denied, dropped, no crash
 }
 
 }  // namespace

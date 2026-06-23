@@ -18,6 +18,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/match.h"
@@ -106,6 +107,24 @@ bool LinePermitted(const RcLine& line, Source layer, const SystemConfig& policy)
     return true;  // a system rule loosens the built-in default
   }
   return builtin_allowed;
+}
+
+ConfigInputs GateConfig(const ConfigInputs& inputs, std::vector<Drop>* drops) {
+  ConfigInputs gated = inputs;
+  gated.user.clear();
+  gated.project.clear();
+  const auto gate = [&](const std::vector<RcLine>& lines, Source layer, std::vector<RcLine>& out) {
+    for (const RcLine& line : lines) {
+      if (LinePermitted(line, layer, inputs.system)) {
+        out.push_back(line);
+      } else if (drops != nullptr) {
+        drops->push_back(Drop{.line = line, .layer = layer, .safety = LineSafety(line)});
+      }
+    }
+  };
+  gate(inputs.user, Source::kUser, gated.user);
+  gate(inputs.project, Source::kProject, gated.project);
+  return gated;
 }
 
 }  // namespace xff::config
