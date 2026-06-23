@@ -76,5 +76,16 @@ TEST_F(RegistryTest, CaptureFamilyDeclaresLabelRegexBinding) {
   EXPECT_THAT(Lookup("-name"), Pointee(Field("binding", &Descriptor::binding, Binding::kNone)));
 }
 
+TEST_F(RegistryTest, XffExtensionsAreStyleTagged) {
+  // The xff-native primaries carry Style::kXff so the strict find style (phase D)
+  // can reject them; everything inherited from find stays kFind (the default).
+  for (const char* const name : {"-println", "-printfln", "-capture", "-capturedir"}) {
+    EXPECT_THAT(Lookup(name), Pointee(Field("style", &Descriptor::style, Style::kXff))) << name;
+  }
+  for (const char* const name : {"-print", "-printf", "-name", "-exec", "-delete"}) {
+    EXPECT_THAT(Lookup(name), Pointee(Field("style", &Descriptor::style, Style::kFind))) << name;
+  }
+}
+
 }  // namespace
 }  // namespace xff::registry

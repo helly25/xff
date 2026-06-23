@@ -37,6 +37,11 @@ enum class Cost { kCheap, kMeta, kExpensive };
 // kNone for most; kLabelRegex for -capture/-capturedir (-capture=NAME[=REGEX]).
 enum class Binding { kNone, kLabel, kLabelRegex };
 
+// Whether a primary belongs to find (kFind) or is an xff extension (kXff). The
+// strict find style (--config=find) rejects xff extensions; the xff style accepts
+// all. The default is kFind, so only xff-native primaries need tagging.
+enum class Style { kFind, kXff };
+
 // One option / predicate / action description. The registry is the single
 // source of truth from which the parser, --help, completions, --explain, and
 // the cost-warning are all derived.
@@ -47,6 +52,7 @@ struct Descriptor {
   int arity = 0;                     // trailing tokens consumed as arguments (-1 = variadic until ';')
   Binding binding = Binding::kNone;  // attached '=' payload carried on the token itself
   Safety safety = Safety::kNone;
+  Style style = Style::kFind;  // find-native by default; set kXff to mark an xff extension
   Cost cost = Cost::kCheap;
   bool pure = true;  // side-effect-free (reorderable within a conjunction)
 };
