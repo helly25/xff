@@ -63,14 +63,14 @@ TEST_F(RegexTest, FullMatchCapturesWithNoGroupsReturnsWholeMatchOnly) {
 
 TEST_F(RegexTest, RewriteReplacesFirstOrAllMatches) {
   ASSERT_OK_AND_ASSIGN(const Matcher matcher, Matcher::Compile("[0-9]+", /*case_insensitive=*/false));
-  EXPECT_EQ(matcher.Rewrite("a12b34", "#", /*global=*/false), "a#b34");  // first match only
-  EXPECT_EQ(matcher.Rewrite("a12b34", "#", /*global=*/true), "a#b#");    // every match
-  EXPECT_EQ(matcher.Rewrite("abc", "#", /*global=*/true), "abc");        // no match -> unchanged
+  EXPECT_THAT(matcher.Rewrite("a12b34", "#", /*global=*/false), "a#b34");  // first match only
+  EXPECT_THAT(matcher.Rewrite("a12b34", "#", /*global=*/true), "a#b#");    // every match
+  EXPECT_THAT(matcher.Rewrite("abc", "#", /*global=*/true), "abc");        // no match -> unchanged
 }
 
 TEST_F(RegexTest, RewriteSupportsBackreferences) {
   ASSERT_OK_AND_ASSIGN(const Matcher matcher, Matcher::Compile("(\\w+)@(\\w+)", /*case_insensitive=*/false));
-  EXPECT_EQ(matcher.Rewrite("user@host", "\\2.\\1", /*global=*/false), "host.user");  // \1/\2 backrefs
+  EXPECT_THAT(matcher.Rewrite("user@host", "\\2.\\1", /*global=*/false), "host.user");  // \1/\2 backrefs
 }
 
 }  // namespace

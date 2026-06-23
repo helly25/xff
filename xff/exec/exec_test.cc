@@ -25,6 +25,10 @@
 namespace xff::exec {
 namespace {
 
+using ::testing::Eq;
+using ::testing::Optional;
+using ::testing::SizeIs;
+
 // /bin/sh is used as a portable, always-present command so these tests do not
 // depend on PATH lookup or any particular utility being installed.
 struct ExecTest : ::testing::Test {};
@@ -57,28 +61,23 @@ TEST_F(ExecTest, ExecuteArgsSpawnsVerbatimWithoutSubstitution) {
 }
 
 TEST_F(ExecTest, CaptureOutputReturnsChildStdout) {
-  const std::optional<std::string> out = CaptureOutput({"/bin/sh", "-c", "printf 'hello world'"});
-  ASSERT_TRUE(out.has_value());
-  EXPECT_EQ(*out, "hello world");  // raw stdout, no trailing newline added
+  // Raw stdout, no trailing newline added.
+  EXPECT_THAT(CaptureOutput({"/bin/sh", "-c", "printf 'hello world'"}), Optional(Eq("hello world")));
 }
 
 TEST_F(ExecTest, CaptureOutputCapturesStdoutEvenOnNonzeroExit) {
-  const std::optional<std::string> out = CaptureOutput({"/bin/sh", "-c", "printf partial; exit 3"});
-  ASSERT_TRUE(out.has_value());
-  EXPECT_EQ(*out, "partial");
+  EXPECT_THAT(CaptureOutput({"/bin/sh", "-c", "printf partial; exit 3"}), Optional(Eq("partial")));
 }
 
 TEST_F(ExecTest, CaptureOutputEmptyArgsOrSpawnFailureIsNullopt) {
-  EXPECT_FALSE(CaptureOutput({}).has_value());
-  EXPECT_FALSE(CaptureOutput({"/nonexistent/xff/zzz"}).has_value());  // spawn fails
+  EXPECT_THAT(CaptureOutput({}), Eq(std::nullopt));
+  EXPECT_THAT(CaptureOutput({"/nonexistent/xff/zzz"}), Eq(std::nullopt));  // spawn fails
 }
 
 TEST_F(ExecTest, CaptureOutputDrainsMoreThanPipeBuffer) {
   // 100 KB exceeds the pipe buffer; the child blocks on write until we read, so
   // this would deadlock if we reaped before draining.
-  const std::optional<std::string> out = CaptureOutput({"/bin/sh", "-c", "head -c 100000 /dev/zero | tr '\\0' x"});
-  ASSERT_TRUE(out.has_value());
-  EXPECT_EQ(out->size(), 100'000U);
+  EXPECT_THAT(CaptureOutput({"/bin/sh", "-c", "head -c 100000 /dev/zero | tr '\\0' x"}), Optional(SizeIs(100'000U)));
 }
 
 TEST_F(ExecTest, ExecuteInDirSetsChildWorkingDirectory) {
@@ -109,16 +108,12 @@ TEST_F(ExecTest, DirVariantsWithEmptyOrDotDirInheritCwd) {
 
 TEST_F(ExecTest, CaptureOutputRunsChildInDirWhenDirGiven) {
   // With dir "/", the child's cwd is "/", so `pwd -P` prints "/\n" (raw, untrimmed).
-  const std::optional<std::string> out = CaptureOutput({"/bin/sh", "-c", "pwd -P"}, "/");
-  ASSERT_TRUE(out.has_value());
-  EXPECT_EQ(*out, "/\n");
+  EXPECT_THAT(CaptureOutput({"/bin/sh", "-c", "pwd -P"}, "/"), Optional(Eq("/\n")));
 }
 
 TEST_F(ExecTest, CaptureOutputDefaultDirInheritsCwd) {
   // The default (empty) dir = no chdir: the original single-argument behavior.
-  const std::optional<std::string> out = CaptureOutput({"/bin/sh", "-c", "printf hi"});
-  ASSERT_TRUE(out.has_value());
-  EXPECT_EQ(*out, "hi");
+  EXPECT_THAT(CaptureOutput({"/bin/sh", "-c", "printf hi"}), Optional(Eq("hi")));
 }
 
 }  // namespace

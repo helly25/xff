@@ -38,7 +38,9 @@ Matcher<PolicyRule> PolicyRuleIs(
     const std::string& layer,
     bool allow,
     const Matcher<std::vector<std::string>>& tokens) {
-  return AllOf(Field(&PolicyRule::layer, layer), Field(&PolicyRule::allow, allow), Field(&PolicyRule::tokens, tokens));
+  return AllOf(
+      Field("layer", &PolicyRule::layer, layer), Field("allow", &PolicyRule::allow, allow),
+      Field("tokens", &PolicyRule::tokens, tokens));
 }
 
 TEST_F(IniTest, DefaultsRenderToCliTokens) {

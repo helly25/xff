@@ -38,7 +38,9 @@ Matcher<RcLine> RcLineIs(
     const std::string& base,
     const std::string& config,
     const Matcher<std::vector<std::string>>& flags) {
-  return AllOf(Field(&RcLine::base, base), Field(&RcLine::config, config), Field(&RcLine::flags, flags));
+  return AllOf(
+      Field("base", &RcLine::base, base), Field("config", &RcLine::config, config),
+      Field("flags", &RcLine::flags, flags));
 }
 
 TEST_F(XffrcTest, SkipsBlanksAndComments) {
