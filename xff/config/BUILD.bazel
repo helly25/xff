@@ -37,3 +37,26 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+# The system policy parser (/etc/xff.ini): [defaults] flag lines + [policy]
+# per-layer allow/deny rules. Parse-only; the policy gate (phase C) enforces.
+cc_library(
+    name = "ini_cc",
+    srcs = ["ini.cc"],
+    hdrs = ["ini.h"],
+    visibility = ["//xff:__subpackages__"],
+    deps = [
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "ini_test",
+    size = "small",
+    srcs = ["ini_test.cc"],
+    deps = [
+        ":ini_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
