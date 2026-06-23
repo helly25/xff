@@ -1,0 +1,116 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "xff/config/loader.h"
+
+#include <map>
+#include <optional>
+#include <string>
+#include <string_view>
+
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+#include "xff/config/config.h"
+
+namespace xff::config {
+namespace {
+
+using ::testing::AllOf;
+using ::testing::ElementsAre;
+using ::testing::Field;
+using ::testing::IsEmpty;
+using ::testing::SizeIs;
+
+// A FileReader backed by an in-memory path->contents map; absent paths read as
+// nullopt (missing file).
+struct FakeFs {
+  std::map<std::string, std::string> files;
+
+  std::optional<std::string> Read(std::string_view path) const {
+    if (const auto it = files.find(std::string(path)); it != files.end()) {
+      return it->second;
+    }
+    return std::nullopt;
+  }
+};
+
+testing::Matcher<ResolvedFlag> FlagIs(const std::string& flag, Source source) {
+  return AllOf(Field("flag", &ResolvedFlag::flag, flag), Field("source", &ResolvedFlag::source, source));
+}
+
+struct LoaderTest : ::testing::Test {};
+
+TEST_F(LoaderTest, UserConfigPathPrefersXffConfigThenXdgThenHome) {
+  DiscoveryOptions opts;
+  opts.home = "/home/u";
+  EXPECT_THAT(UserConfigPath(opts), "/home/u/.config/xff/config");
+  opts.xdg_config_home = "/xdg";
+  EXPECT_THAT(UserConfigPath(opts), "/xdg/xff/config");
+  opts.xff_config = "/explicit/rc";
+  EXPECT_THAT(UserConfigPath(opts), "/explicit/rc");
+}
+
+TEST_F(LoaderTest, UserConfigPathEmptyWhenNoEnv) {
+  EXPECT_THAT(UserConfigPath(DiscoveryOptions{}), IsEmpty());
+}
+
+TEST_F(LoaderTest, DiscoverAppliesSystemThenUserLayersWithActiveConfig) {
+  FakeFs fs;
+  fs.files["/etc/xff.ini"] = "[defaults]\n--color=auto\n";
+  fs.files["/home/u/.config/xff/config"] = "common: --sort\nxff: --feature=long\nfind: --warn\n";
+  DiscoveryOptions opts;
+  opts.home = "/home/u";
+  opts.configs = {"xff"};  // the find: line stays inert
+  const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
+  EXPECT_THAT(
+      ResolveConfig(in), ElementsAre(
+                             FlagIs("--color=auto", Source::kSystem), FlagIs("--sort", Source::kUser),
+                             FlagIs("--feature=long", Source::kUser)));
+}
+
+TEST_F(LoaderTest, ExplicitXffrcFilesAppendToUserLayerInOrder) {
+  FakeFs fs;
+  fs.files["/proj/.xffrc"] = "common: --threads=2\n";
+  fs.files["/extra.rc"] = "common: --color=never\n";
+  DiscoveryOptions opts;
+  opts.xffrc_files = {"/proj/.xffrc", "/extra.rc"};
+  const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
+  EXPECT_THAT(
+      ResolveConfig(in), ElementsAre(FlagIs("--threads=2", Source::kUser), FlagIs("--color=never", Source::kUser)));
+}
+
+TEST_F(LoaderTest, NoConfigSkipsUserAndDefaultsButStillReadsSystemPolicy) {
+  FakeFs fs;
+  fs.files["/etc/xff.ini"] = "[defaults]\n--color=auto\n[policy]\nproject.deny = @sensitive\n";
+  fs.files["/home/u/.config/xff/config"] = "common: --sort\n";
+  DiscoveryOptions opts;
+  opts.home = "/home/u";
+  opts.no_config = true;
+  const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
+  EXPECT_THAT(in.system.policy, SizeIs(1));   // policy still parsed for the gate (phase C)
+  EXPECT_THAT(ResolveConfig(in), IsEmpty());  // defaults + user dropped
+}
+
+TEST_F(LoaderTest, MissingFilesYieldEmptyLayers) {
+  FakeFs fs;  // nothing on disk
+  DiscoveryOptions opts;
+  opts.home = "/home/u";
+  const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
+  EXPECT_THAT(in.system.defaults, IsEmpty());
+  EXPECT_THAT(ResolveConfig(in), IsEmpty());
+}
+
+}  // namespace
+}  // namespace xff::config

@@ -87,3 +87,33 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+# Discovery: locates and reads the config files (system /etc/xff.ini, user
+# .xffrc, explicit --xffrc) through an injectable FileReader, parsing them into
+# ConfigInputs for ResolveConfig. No file IO of its own (run.cc supplies the
+# reader); the project cascade is phase E.
+cc_library(
+    name = "loader_cc",
+    srcs = ["loader.cc"],
+    hdrs = ["loader.h"],
+    visibility = ["//xff:__subpackages__"],
+    deps = [
+        ":config_cc",
+        ":ini_cc",
+        ":xffrc_cc",
+        "@abseil-cpp//absl/functional:function_ref",
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "loader_test",
+    size = "small",
+    srcs = ["loader_test.cc"],
+    deps = [
+        ":config_cc",
+        ":loader_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
