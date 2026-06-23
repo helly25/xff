@@ -15,16 +15,31 @@
 
 #include "xff/config/ini.h"
 
+#include <string>
+#include <vector>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace xff::config {
 namespace {
 
+using ::testing::AllOf;
 using ::testing::ElementsAre;
+using ::testing::Field;
 using ::testing::IsEmpty;
+using ::testing::Matcher;
 
 struct IniTest : ::testing::Test {};
+
+// Matches a PolicyRule by its layer, allow/deny flag, and a matcher over its
+// tokens, so one ElementsAre(...) covers rule count, order, and every field.
+Matcher<PolicyRule> PolicyRuleIs(
+    const std::string& layer,
+    bool allow,
+    const Matcher<std::vector<std::string>>& tokens) {
+  return AllOf(Field(&PolicyRule::layer, layer), Field(&PolicyRule::allow, allow), Field(&PolicyRule::tokens, tokens));
+}
 
 TEST_F(IniTest, DefaultsRenderToCliTokens) {
   const SystemConfig c = ParseIni("[defaults]\n--color = auto\n--warn\n");
@@ -38,24 +53,18 @@ TEST_F(IniTest, PolicyAllowDenyAndClassTokens) {
       "project.allow = --sort, --color, --format\n"
       "project.deny  = --threads\n"
       "user.allow    = @sensitive\n");
-  ASSERT_EQ(c.policy.size(), 3U);
-  EXPECT_EQ(c.policy[0].layer, "project");
-  EXPECT_TRUE(c.policy[0].allow);
-  EXPECT_THAT(c.policy[0].tokens, ElementsAre("--sort", "--color", "--format"));
-  EXPECT_EQ(c.policy[1].layer, "project");
-  EXPECT_FALSE(c.policy[1].allow);
-  EXPECT_THAT(c.policy[1].tokens, ElementsAre("--threads"));
-  EXPECT_EQ(c.policy[2].layer, "user");
-  EXPECT_TRUE(c.policy[2].allow);
-  EXPECT_THAT(c.policy[2].tokens, ElementsAre("@sensitive"));
+  EXPECT_THAT(
+      c.policy, ElementsAre(
+                    PolicyRuleIs("project", true, ElementsAre("--sort", "--color", "--format")),
+                    PolicyRuleIs("project", false, ElementsAre("--threads")),
+                    PolicyRuleIs("user", true, ElementsAre("@sensitive"))));
 }
 
 TEST_F(IniTest, CommentsBlanksAndBothSections) {
   const SystemConfig c =
       ParseIni("; a comment\n# another\n[defaults]\n\n--color = never\n[policy]\nproject.allow = --sort\n");
   EXPECT_THAT(c.defaults, ElementsAre("--color=never"));
-  ASSERT_EQ(c.policy.size(), 1U);
-  EXPECT_THAT(c.policy[0].tokens, ElementsAre("--sort"));
+  EXPECT_THAT(c.policy, ElementsAre(PolicyRuleIs("project", true, ElementsAre("--sort"))));
 }
 
 TEST_F(IniTest, MalformedPolicyLinesIgnored) {

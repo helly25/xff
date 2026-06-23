@@ -15,6 +15,8 @@
 
 #include "xff/config/config.h"
 
+#include <string>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "xff/config/xffrc.h"
@@ -22,9 +24,18 @@
 namespace xff::config {
 namespace {
 
+using ::testing::AllOf;
+using ::testing::ElementsAre;
+using ::testing::Field;
 using ::testing::IsEmpty;
 
 struct ConfigTest : ::testing::Test {};
+
+// Matches a ResolvedFlag by both its flag text and its provenance, so an
+// ElementsAre(...) assertion folds size, order, flag, and Source into one check.
+testing::Matcher<ResolvedFlag> FlagIs(const std::string& flag, Source source) {
+  return AllOf(Field(&ResolvedFlag::flag, flag), Field(&ResolvedFlag::source, source));
+}
 
 TEST_F(ConfigTest, NoConfigYieldsEmpty) {
   ConfigInputs in;
@@ -37,21 +48,14 @@ TEST_F(ConfigTest, NoConfigYieldsEmpty) {
 TEST_F(ConfigTest, SystemDefaultsAreLowestPrecedence) {
   ConfigInputs in;
   in.system.defaults = {"--color=auto", "--threads=4"};
-  const auto resolved = ResolveConfig(in);
-  ASSERT_EQ(resolved.size(), 2U);
-  EXPECT_EQ(resolved[0].flag, "--color=auto");
-  EXPECT_EQ(resolved[0].source, Source::kSystem);
-  EXPECT_EQ(resolved[1].flag, "--threads=4");
+  EXPECT_THAT(
+      ResolveConfig(in), ElementsAre(FlagIs("--color=auto", Source::kSystem), FlagIs("--threads=4", Source::kSystem)));
 }
 
 TEST_F(ConfigTest, CommonAndBareLinesAlwaysApply) {
   ConfigInputs in;
   in.user = ParseXffrc("common: --color=never\n--sort");
-  const auto resolved = ResolveConfig(in);
-  ASSERT_EQ(resolved.size(), 2U);
-  EXPECT_EQ(resolved[0].flag, "--color=never");
-  EXPECT_EQ(resolved[0].source, Source::kUser);
-  EXPECT_EQ(resolved[1].flag, "--sort");
+  EXPECT_THAT(ResolveConfig(in), ElementsAre(FlagIs("--color=never", Source::kUser), FlagIs("--sort", Source::kUser)));
 }
 
 TEST_F(ConfigTest, BaseSelectorGatedByActiveConfig) {
@@ -59,9 +63,7 @@ TEST_F(ConfigTest, BaseSelectorGatedByActiveConfig) {
   in.user = ParseXffrc("xff: --feature=long-paths\nfind: --warn");
   EXPECT_THAT(ResolveConfig(in), IsEmpty());  // no active --config -> neither base applies
   in.configs = {"xff"};
-  const auto resolved = ResolveConfig(in);
-  ASSERT_EQ(resolved.size(), 1U);
-  EXPECT_EQ(resolved[0].flag, "--feature=long-paths");
+  EXPECT_THAT(ResolveConfig(in), ElementsAre(FlagIs("--feature=long-paths", Source::kUser)));
 }
 
 TEST_F(ConfigTest, ConfigSelectorGatedByNamedConfig) {
@@ -70,9 +72,7 @@ TEST_F(ConfigTest, ConfigSelectorGatedByNamedConfig) {
   in.configs = {"xff"};  // style active, but not the :debug named config
   EXPECT_THAT(ResolveConfig(in), IsEmpty());
   in.configs = {"xff", "debug"};
-  const auto resolved = ResolveConfig(in);
-  ASSERT_EQ(resolved.size(), 1U);
-  EXPECT_EQ(resolved[0].flag, "--threads=1");
+  EXPECT_THAT(ResolveConfig(in), ElementsAre(FlagIs("--threads=1", Source::kUser)));
 }
 
 TEST_F(ConfigTest, LayerPrecedenceSystemThenUserThenProject) {
@@ -80,11 +80,10 @@ TEST_F(ConfigTest, LayerPrecedenceSystemThenUserThenProject) {
   in.system.defaults = {"--color=auto"};
   in.user = ParseXffrc("common: --sort");
   in.project = ParseXffrc("common: --color=never");
-  const auto resolved = ResolveConfig(in);
-  ASSERT_EQ(resolved.size(), 3U);
-  EXPECT_EQ(resolved[0].source, Source::kSystem);   // --color=auto
-  EXPECT_EQ(resolved[1].source, Source::kUser);     // --sort
-  EXPECT_EQ(resolved[2].source, Source::kProject);  // --color=never (later wins when applied)
+  EXPECT_THAT(
+      ResolveConfig(in), ElementsAre(
+                             FlagIs("--color=auto", Source::kSystem), FlagIs("--sort", Source::kUser),
+                             FlagIs("--color=never", Source::kProject)));
 }
 
 }  // namespace

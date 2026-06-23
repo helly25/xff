@@ -72,6 +72,7 @@ cc_library(
     deps = [
         ":ini_cc",
         ":xffrc_cc",
+        "@abseil-cpp//absl/algorithm:container",
     ],
 )
 

@@ -15,68 +15,68 @@
 
 #include "xff/config/xffrc.h"
 
+#include <string>
+#include <vector>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace xff::config {
 namespace {
 
+using ::testing::AllOf;
 using ::testing::ElementsAre;
+using ::testing::Field;
 using ::testing::IsEmpty;
+using ::testing::Matcher;
 
 struct XffrcTest : ::testing::Test {};
+
+// Matches an RcLine by its base/config selectors and a matcher over its flags,
+// so one ElementsAre(...) covers line count, order, selectors, and flags at once.
+Matcher<RcLine> RcLineIs(
+    const std::string& base,
+    const std::string& config,
+    const Matcher<std::vector<std::string>>& flags) {
+  return AllOf(Field(&RcLine::base, base), Field(&RcLine::config, config), Field(&RcLine::flags, flags));
+}
 
 TEST_F(XffrcTest, SkipsBlanksAndComments) {
   EXPECT_THAT(ParseXffrc("\n  \n# a comment\n   # indented comment\n"), IsEmpty());
 }
 
 TEST_F(XffrcTest, BareFlagsAreCommonAnyConfig) {
-  const auto lines = ParseXffrc("--color=auto --sort");
-  ASSERT_EQ(lines.size(), 1U);
-  EXPECT_EQ(lines[0].base, "");  // no selector -> common
-  EXPECT_EQ(lines[0].config, "");
-  EXPECT_THAT(lines[0].flags, ElementsAre("--color=auto", "--sort"));
+  EXPECT_THAT(ParseXffrc("--color=auto --sort"), ElementsAre(RcLineIs("", "", ElementsAre("--color=auto", "--sort"))));
 }
 
 TEST_F(XffrcTest, BaseSelector) {
-  const auto lines = ParseXffrc("xff: --feature=long-paths");
-  ASSERT_EQ(lines.size(), 1U);
-  EXPECT_EQ(lines[0].base, "xff");
-  EXPECT_EQ(lines[0].config, "");
-  EXPECT_THAT(lines[0].flags, ElementsAre("--feature=long-paths"));
+  EXPECT_THAT(
+      ParseXffrc("xff: --feature=long-paths"), ElementsAre(RcLineIs("xff", "", ElementsAre("--feature=long-paths"))));
 }
 
 TEST_F(XffrcTest, BaseAndConfigSelector) {
-  const auto lines = ParseXffrc("xff:debug: --feature=trace --threads=1");
-  ASSERT_EQ(lines.size(), 1U);
-  EXPECT_EQ(lines[0].base, "xff");
-  EXPECT_EQ(lines[0].config, "debug");
-  EXPECT_THAT(lines[0].flags, ElementsAre("--feature=trace", "--threads=1"));
+  EXPECT_THAT(
+      ParseXffrc("xff:debug: --feature=trace --threads=1"),
+      ElementsAre(RcLineIs("xff", "debug", ElementsAre("--feature=trace", "--threads=1"))));
 }
 
 TEST_F(XffrcTest, CommonSelectorPreservedVerbatim) {
-  const auto lines = ParseXffrc("common: --color=auto");
-  ASSERT_EQ(lines.size(), 1U);
-  EXPECT_EQ(lines[0].base, "common");  // the loader treats "common" == ""
-  EXPECT_THAT(lines[0].flags, ElementsAre("--color=auto"));
+  // The loader treats "common" == "", but the parser preserves it verbatim.
+  EXPECT_THAT(ParseXffrc("common: --color=auto"), ElementsAre(RcLineIs("common", "", ElementsAre("--color=auto"))));
 }
 
 TEST_F(XffrcTest, SelectorOnlyLineHasNoFlags) {
-  const auto lines = ParseXffrc("find: --warn\nxff:\nxff: --feature=x");
-  ASSERT_EQ(lines.size(), 3U);
-  EXPECT_EQ(lines[0].base, "find");
-  EXPECT_THAT(lines[0].flags, ElementsAre("--warn"));
-  EXPECT_EQ(lines[1].base, "xff");  // selector with no flags
-  EXPECT_THAT(lines[1].flags, IsEmpty());
-  EXPECT_EQ(lines[2].base, "xff");
-  EXPECT_THAT(lines[2].flags, ElementsAre("--feature=x"));
+  EXPECT_THAT(
+      ParseXffrc("find: --warn\nxff:\nxff: --feature=x"),
+      ElementsAre(
+          RcLineIs("find", "", ElementsAre("--warn")), RcLineIs("xff", "", IsEmpty()),  // selector with no flags
+          RcLineIs("xff", "", ElementsAre("--feature=x"))));
 }
 
 TEST_F(XffrcTest, FlagValueWithColonIsNotASelector) {
-  const auto lines = ParseXffrc("--config=xff:2");  // ends in '2', not ':'
-  ASSERT_EQ(lines.size(), 1U);
-  EXPECT_EQ(lines[0].base, "");
-  EXPECT_THAT(lines[0].flags, ElementsAre("--config=xff:2"));
+  EXPECT_THAT(
+      ParseXffrc("--config=xff:2"),  // ends in '2', not ':'
+      ElementsAre(RcLineIs("", "", ElementsAre("--config=xff:2"))));
 }
 
 }  // namespace
