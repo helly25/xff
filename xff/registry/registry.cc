@@ -71,8 +71,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-print", .kind = Kind::kAction, .arity = 0},
     {.name = "-print0", .kind = Kind::kAction, .arity = 0},
     {.name = "-printf", .kind = Kind::kAction, .arity = 1},
-    {.name = "-println", .kind = Kind::kAction, .arity = 0},   // xff: -print with the OS line ending
-    {.name = "-printfln", .kind = Kind::kAction, .arity = 1},  // xff: -printf + the OS line ending
+    // xff: -print with the OS line ending
+    {.name = "-println", .kind = Kind::kAction, .arity = 0, .style = Style::kXff},
+    // xff: -printf + the OS line ending
+    {.name = "-printfln", .kind = Kind::kAction, .arity = 1, .style = Style::kXff},
     {.name = "-delete", .kind = Kind::kAction, .arity = 0, .safety = Safety::kSafety},
     {.name = "-prune", .kind = Kind::kAction, .arity = 0},
     {.name = "-quit", .kind = Kind::kAction, .arity = 0},
@@ -90,6 +92,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .arity = -1,
         .binding = Binding::kLabelRegex,
         .safety = Safety::kSecurity,
+        .style = Style::kXff,
     },
     // -capture run in the matched entry's directory
     {
@@ -98,6 +101,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .arity = -1,
         .binding = Binding::kLabelRegex,
         .safety = Safety::kSecurity,
+        .style = Style::kXff,
     },
     {.name = "-a", .kind = Kind::kOperator, .arity = 0},
     {.name = "-and", .kind = Kind::kOperator, .arity = 0},
