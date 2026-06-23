@@ -50,4 +50,20 @@ test::explain_reflects_effective_config() {
   expect_contains "$(printf 'cli\t--config=xff')" "${lines[@]}"
 }
 
+test::config_applies_to_the_run() {
+  local dir="${TEST_TMPDIR}/tree"
+  mkdir -p "${dir}"
+  : >"${dir}/a.txt"
+  local cfg="${TEST_TMPDIR}/xff_apply_config"
+  printf 'common: --format=jsonl\n' >"${cfg}"
+  # With the config, the default print emits a JSONL object (line starts with '{').
+  local with_cfg
+  with_cfg="$(XFF_CONFIG="${cfg}" "$(_xff_bin)" "${dir}" -name a.txt)"
+  expect_eq "{" "${with_cfg:0:1}"
+  # Without a config, the default print stays plain (an absolute path, not '{').
+  local plain
+  plain="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name a.txt)"
+  expect_ne "{" "${plain:0:1}"
+}
+
 test_runner
