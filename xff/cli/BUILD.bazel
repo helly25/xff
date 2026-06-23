@@ -14,6 +14,7 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 cc_binary(
     name = "xff",
@@ -29,4 +30,13 @@ cc_binary(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
     ],
+)
+
+# Binary-level test of `xff --explain`: exercises cli/main.cc's real config
+# wiring (XFF_CONFIG discovery -> resolve -> effective-config dump) end to end.
+sh_test(
+    name = "explain_test",
+    size = "small",
+    srcs = ["explain_test.sh"],
+    data = [":xff"],
 )
