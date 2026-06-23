@@ -112,5 +112,13 @@ TEST_F(LoaderTest, MissingFilesYieldEmptyLayers) {
   EXPECT_THAT(ResolveConfig(in), IsEmpty());
 }
 
+TEST_F(LoaderTest, SelectorsFromGlobalsExtractsConfigSelectorsInOrder) {
+  const DiscoveryOptions opts = SelectorsFromGlobals(
+      {"-L", "--config=xff", "--no-config", "--xffrc=/a", "--config=debug", "--xffrc=/b", "--color=auto"});
+  EXPECT_TRUE(opts.no_config);
+  EXPECT_THAT(opts.configs, ElementsAre("xff", "debug"));
+  EXPECT_THAT(opts.xffrc_files, ElementsAre("/a", "/b"));
+}
+
 }  // namespace
 }  // namespace xff::config

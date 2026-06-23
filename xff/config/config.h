@@ -17,6 +17,7 @@
 #define XFF_CONFIG_CONFIG_H_
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "xff/config/ini.h"
@@ -52,6 +53,14 @@ struct ConfigInputs {
 // result (pure CLI + built-ins); the system *policy* is never dropped (it is read
 // elsewhere and bounds the run regardless). No capability gating yet (phase C).
 std::vector<ResolvedFlag> ResolveConfig(const ConfigInputs& inputs);
+
+// The lowercase layer name for a Source: "unset"/"system"/"user"/"project"/"cli".
+std::string_view SourceName(Source source);
+
+// Renders the effective configuration for --explain: the resolved config flags
+// (each prefixed by its provenance) in application order, then the CLI globals
+// (provenance "cli"). Later lines override earlier ones, mirroring resolution.
+std::string ExplainConfig(const std::vector<ResolvedFlag>& resolved, const std::vector<std::string>& cli_globals);
 
 }  // namespace xff::config
 

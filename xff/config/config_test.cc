@@ -16,6 +16,7 @@
 #include "xff/config/config.h"
 
 #include <string>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -27,6 +28,7 @@ namespace {
 using ::testing::AllOf;
 using ::testing::ElementsAre;
 using ::testing::Field;
+using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 
 struct ConfigTest : ::testing::Test {};
@@ -84,6 +86,23 @@ TEST_F(ConfigTest, LayerPrecedenceSystemThenUserThenProject) {
       ResolveConfig(in), ElementsAre(
                              FlagIs("--color=auto", Source::kSystem), FlagIs("--sort", Source::kUser),
                              FlagIs("--color=never", Source::kProject)));
+}
+
+TEST_F(ConfigTest, SourceNameMapsEachLayer) {
+  EXPECT_THAT(SourceName(Source::kSystem), "system");
+  EXPECT_THAT(SourceName(Source::kUser), "user");
+  EXPECT_THAT(SourceName(Source::kProject), "project");
+  EXPECT_THAT(SourceName(Source::kCli), "cli");
+  EXPECT_THAT(SourceName(Source::kUnset), "unset");
+}
+
+TEST_F(ConfigTest, ExplainConfigTagsEachFlagWithProvenance) {
+  const std::vector<ResolvedFlag> resolved = {
+      {.flag = "--color=auto", .source = Source::kSystem}, {.flag = "--sort", .source = Source::kUser}};
+  const std::string explained = ExplainConfig(resolved, {"--format=jsonl"});
+  EXPECT_THAT(explained, HasSubstr("system\t--color=auto\n"));
+  EXPECT_THAT(explained, HasSubstr("user\t--sort\n"));
+  EXPECT_THAT(explained, HasSubstr("cli\t--format=jsonl\n"));
 }
 
 }  // namespace

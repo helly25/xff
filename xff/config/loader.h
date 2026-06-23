@@ -57,6 +57,11 @@ std::string UserConfigPath(const DiscoveryOptions& opts);
 // is available to the gate (phase C). The project cascade is phase E.
 ConfigInputs Discover(const DiscoveryOptions& opts, FileReader read);
 
+// Extracts the config selectors among `globals` into a DiscoveryOptions (the env
+// fields are left unset for the caller): --no-config, --config=NAME (in order),
+// and --xffrc=FILE (in order). Every other global is ignored.
+DiscoveryOptions SelectorsFromGlobals(const std::vector<std::string>& globals);
+
 }  // namespace xff::config
 
 #endif  // XFF_CONFIG_LOADER_H_
