@@ -31,7 +31,7 @@
 
 namespace xff::datetime {
 
-std::optional<absl::Time> ParseTimeString(std::string_view text, absl::Time now) {
+std::optional<absl::Time> ParseTimeString(std::string_view text, absl::Time now, absl::TimeZone tz) {
   if (!text.empty() && text.front() == '@') {  // @epoch-seconds
     std::int64_t seconds = 0;
     if (!absl::SimpleAtoi(text.substr(1), &seconds)) {
@@ -42,7 +42,7 @@ std::optional<absl::Time> ParseTimeString(std::string_view text, absl::Time now)
   for (const std::string_view format : {"%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"}) {
     absl::Time time;
     std::string error;
-    if (absl::ParseTime(format, text, absl::LocalTimeZone(), &time, &error)) {
+    if (absl::ParseTime(format, text, tz, &time, &error)) {
       return time;
     }
   }
@@ -87,7 +87,7 @@ std::optional<absl::Time> ParseTimeString(std::string_view text, absl::Time now)
     return now + count * absl::Hours(24 * 7);
   }
   if (unit == "month" || unit == "year") {
-    const absl::TimeZone zone = absl::LocalTimeZone();
+    const absl::TimeZone zone = tz;
     const absl::CivilSecond base = absl::ToCivilSecond(now, zone);
     if (unit == "year") {
       return absl::FromCivil(
@@ -100,6 +100,19 @@ std::optional<absl::Time> ParseTimeString(std::string_view text, absl::Time now)
         zone);
   }
   return std::nullopt;
+}
+
+bool ParseTimeZone(std::string_view spec, absl::TimeZone* out) {
+  const std::string lowered = absl::AsciiStrToLower(spec);
+  if (lowered.empty() || lowered == "local") {
+    *out = absl::LocalTimeZone();
+    return true;
+  }
+  if (lowered == "utc" || lowered == "z" || lowered == "zulu") {
+    *out = absl::UTCTimeZone();
+    return true;
+  }
+  return absl::LoadTimeZone(std::string(spec), out);  // IANA name (case-sensitive); false when unknown
 }
 
 // Preset time formats; any other spec is used verbatim as an absl::FormatTime

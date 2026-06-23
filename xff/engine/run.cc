@@ -26,6 +26,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
+#include "xff/datetime/datetime.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/walk.h"
 #include "xff/fields/fields.h"
@@ -132,6 +133,29 @@ std::optional<std::string> ResolveTemplate(const std::vector<std::string>& globa
     }
   }
   return tmpl;
+}
+
+// --timezone=ZONE overrides the detected local zone used to interpret time-string
+// arguments (-newerXt). Last occurrence wins. Resolves the winner to *tz and
+// returns true; an unknown zone returns false with *bad set to the offending
+// value (and *tz unchanged), so the caller can fail the run. Absent --timezone
+// leaves *tz at its local-zone default and returns true.
+bool ResolveTimeZone(const std::vector<std::string>& globals, absl::TimeZone* tz, std::string* bad) {
+  constexpr std::string_view kPrefix = "--timezone=";
+  std::optional<std::string> spec;
+  for (const std::string& global : globals) {
+    if (global.starts_with(kPrefix)) {
+      spec = global.substr(kPrefix.size());  // last occurrence wins
+    }
+  }
+  if (!spec.has_value()) {
+    return true;
+  }
+  if (!datetime::ParseTimeZone(*spec, tz)) {
+    *bad = *std::move(spec);
+    return false;
+  }
+  return true;
 }
 
 // Wraps a FileSystem so Remove previews (emits the path) instead of deleting:
@@ -351,6 +375,13 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   // Capture one reference instant so every entry's age test (-mtime/-mmin) is
   // measured against the same clock, matching find's start-time semantics.
   const absl::Time now = absl::Now();
+  // --timezone=ZONE overrides the local zone for interpreting time-string args
+  // (-newerXt). An unknown zone is a usage error, refused before traversal.
+  absl::TimeZone tz = absl::LocalTimeZone();
+  if (std::string bad; !ResolveTimeZone(command.globals, &tz, &bad)) {
+    on_error("--timezone", absl::InvalidArgumentError(absl::StrCat("unknown time zone: '", bad, "'")));
+    return 2;  // do not traverse
+  }
   int errors = 0;
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
@@ -379,6 +410,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
             .emit = emit,
             .fs = walk_fs,
             .now = now,
+            .tz = tz,
             .control = control,
             .exec_fields = exec_fields,
             .captures = exec_fields ? &captures : nullptr,

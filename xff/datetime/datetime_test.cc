@@ -27,7 +27,11 @@ namespace xff::datetime {
 namespace {
 
 using ::testing::Eq;
+using ::testing::IsFalse;
+using ::testing::IsTrue;
 using ::testing::Optional;
+
+struct DateTimeTest : ::testing::Test {};
 
 // A fixed reference instant for the relative forms. Its exact value is
 // irrelevant for the duration-based units (they offset by a fixed Duration);
@@ -36,14 +40,14 @@ absl::Time Now() {
   return absl::FromCivil(absl::CivilSecond(2'021, 3, 15, 12, 30, 0), absl::LocalTimeZone());
 }
 
-TEST(DateTimeTest, EpochSeconds) {
+TEST_F(DateTimeTest, EpochSeconds) {
   EXPECT_THAT(ParseTimeString("@1600000000", Now()), Optional(Eq(absl::FromUnixSeconds(1'600'000'000))));
   EXPECT_THAT(ParseTimeString("@0", Now()), Optional(Eq(absl::FromUnixSeconds(0))));
   EXPECT_THAT(ParseTimeString("@", Now()), Eq(std::nullopt));
   EXPECT_THAT(ParseTimeString("@12x", Now()), Eq(std::nullopt));
 }
 
-TEST(DateTimeTest, IsoAbsoluteFormsInLocalZone) {
+TEST_F(DateTimeTest, IsoAbsoluteFormsInLocalZone) {
   const absl::TimeZone zone = absl::LocalTimeZone();
   EXPECT_THAT(
       ParseTimeString("2020-01-02", Now()),
@@ -58,12 +62,12 @@ TEST(DateTimeTest, IsoAbsoluteFormsInLocalZone) {
   EXPECT_THAT(ParseTimeString("not-a-date", Now()), Eq(std::nullopt));
 }
 
-TEST(DateTimeTest, NowKeywordIsCaseInsensitive) {
+TEST_F(DateTimeTest, NowKeywordIsCaseInsensitive) {
   EXPECT_THAT(ParseTimeString("now", Now()), Optional(Eq(Now())));
   EXPECT_THAT(ParseTimeString("NOW", Now()), Optional(Eq(Now())));
 }
 
-TEST(DateTimeTest, RelativeDurationUnits) {
+TEST_F(DateTimeTest, RelativeDurationUnits) {
   const absl::Time t = Now();
   EXPECT_THAT(ParseTimeString("30 seconds ago", t), Optional(Eq(t - absl::Seconds(30))));
   EXPECT_THAT(ParseTimeString("5 minutes ago", t), Optional(Eq(t - absl::Minutes(5))));
@@ -72,7 +76,7 @@ TEST(DateTimeTest, RelativeDurationUnits) {
   EXPECT_THAT(ParseTimeString("1 week ago", t), Optional(Eq(t - absl::Hours(24 * 7))));
 }
 
-TEST(DateTimeTest, RelativeCalendarUnits) {
+TEST_F(DateTimeTest, RelativeCalendarUnits) {
   const absl::TimeZone zone = absl::LocalTimeZone();
   const absl::Time t = Now();  // 2021-03-15 12:30:00 local
   EXPECT_THAT(
@@ -86,7 +90,7 @@ TEST(DateTimeTest, RelativeCalendarUnits) {
       Optional(Eq(absl::FromCivil(absl::CivilSecond(2'019, 3, 15, 12, 30, 0), zone))));
 }
 
-TEST(DateTimeTest, SignAndAgoSelectDirection) {
+TEST_F(DateTimeTest, SignAndAgoSelectDirection) {
   const absl::Time t = Now();
   // Past: leading '-', or trailing "ago", or both (the redundant case stays past).
   EXPECT_THAT(ParseTimeString("3 days ago", t), Optional(Eq(t - absl::Hours(72))));
@@ -97,7 +101,7 @@ TEST(DateTimeTest, SignAndAgoSelectDirection) {
   EXPECT_THAT(ParseTimeString("+3 days", t), Optional(Eq(t + absl::Hours(72))));
 }
 
-TEST(DateTimeTest, PluralSingularAliasesAndCase) {
+TEST_F(DateTimeTest, PluralSingularAliasesAndCase) {
   const absl::Time t = Now();
   EXPECT_THAT(ParseTimeString("1 day ago", t), Optional(Eq(t - absl::Hours(24))));
   EXPECT_THAT(ParseTimeString("1 DAY AGO", t), Optional(Eq(t - absl::Hours(24))));
@@ -106,7 +110,7 @@ TEST(DateTimeTest, PluralSingularAliasesAndCase) {
   EXPECT_THAT(ParseTimeString("2 hr ago", t), Optional(Eq(t - absl::Hours(2))));
 }
 
-TEST(DateTimeTest, UnparseableReturnsNullopt) {
+TEST_F(DateTimeTest, UnparseableReturnsNullopt) {
   const absl::Time t = Now();
   EXPECT_THAT(ParseTimeString("", t), Eq(std::nullopt));
   EXPECT_THAT(ParseTimeString("yesterday", t), Eq(std::nullopt));
@@ -116,7 +120,7 @@ TEST(DateTimeTest, UnparseableReturnsNullopt) {
   EXPECT_THAT(ParseTimeString("days ago", t), Eq(std::nullopt));            // missing count
 }
 
-TEST(DateTimeTest, FormatTimePresetsAndCustomPatterns) {
+TEST_F(DateTimeTest, FormatTimePresetsAndCustomPatterns) {
   const absl::TimeZone utc = absl::UTCTimeZone();
   const absl::Time t = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13 12:26:40 UTC (a Sunday)
   EXPECT_THAT(FormatTime(t, "epoch", utc), "1600000000");
@@ -133,6 +137,45 @@ TEST(DateTimeTest, FormatTimePresetsAndCustomPatterns) {
   EXPECT_THAT(FormatTime(t, "zulu", absl::FixedTimeZone(3'600)), "2020-09-13T12:26:40Z");  // zulu forces UTC
   EXPECT_THAT(FormatTime(t, "zulu-dense", utc), "20200913T122640Z");                       // Zulu, no separators
   EXPECT_THAT(FormatTime(t, "%Y/%m/%d", utc), "2020/09/13");                               // custom pattern
+}
+
+TEST_F(DateTimeTest, ParseTimeZoneAcceptsLocalUtcAndNamedZones) {
+  absl::TimeZone zone;
+  EXPECT_THAT(ParseTimeZone("", &zone), IsTrue());  // empty -> local
+  EXPECT_THAT(zone, Eq(absl::LocalTimeZone()));
+  EXPECT_THAT(ParseTimeZone("local", &zone), IsTrue());
+  EXPECT_THAT(zone, Eq(absl::LocalTimeZone()));
+  EXPECT_THAT(ParseTimeZone("UTC", &zone), IsTrue());
+  EXPECT_THAT(zone, Eq(absl::UTCTimeZone()));
+  EXPECT_THAT(ParseTimeZone("utc", &zone), IsTrue());  // special names are case-insensitive
+  EXPECT_THAT(zone, Eq(absl::UTCTimeZone()));
+  EXPECT_THAT(ParseTimeZone("zulu", &zone), IsTrue());
+  EXPECT_THAT(zone, Eq(absl::UTCTimeZone()));
+  // An IANA name resolves via the system zone database (delegated to LoadTimeZone).
+  absl::TimeZone expected;
+  ASSERT_THAT(absl::LoadTimeZone("America/New_York", &expected), IsTrue());
+  absl::TimeZone got;
+  ASSERT_THAT(ParseTimeZone("America/New_York", &got), IsTrue());
+  EXPECT_THAT(got, Eq(expected));
+  // An unknown zone fails (so the caller can report a usage error).
+  EXPECT_THAT(ParseTimeZone("Not/AZone", &zone), IsFalse());
+}
+
+TEST_F(DateTimeTest, TimeZoneArgInterpretsCalendarFormsButNotAbsoluteOnes) {
+  const absl::TimeZone utc = absl::UTCTimeZone();
+  const absl::TimeZone plus1 = absl::FixedTimeZone(3'600);  // UTC+1
+  EXPECT_THAT(
+      ParseTimeString("2020-01-02", Now(), utc),
+      Optional(Eq(absl::FromCivil(absl::CivilSecond(2'020, 1, 2, 0, 0, 0), utc))));
+  EXPECT_THAT(
+      ParseTimeString("2020-01-02", Now(), plus1),
+      Optional(Eq(absl::FromCivil(absl::CivilSecond(2'020, 1, 2, 0, 0, 0), plus1))));
+  // Midnight in UTC is one hour after midnight in UTC+1 (same wall-clock date).
+  EXPECT_THAT(
+      ParseTimeString("2020-01-02", Now(), utc),
+      Optional(Eq(*ParseTimeString("2020-01-02", Now(), plus1) + absl::Hours(1))));
+  // @epoch is an absolute instant: the zone must not shift it.
+  EXPECT_THAT(ParseTimeString("@1600000000", Now(), plus1), Optional(Eq(absl::FromUnixSeconds(1'600'000'000))));
 }
 
 }  // namespace
