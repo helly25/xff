@@ -158,6 +158,22 @@ bool ResolveTimeZone(const std::vector<std::string>& globals, absl::TimeZone* tz
   return true;
 }
 
+// --time-format=NAME sets the default format for a time field rendered without an
+// explicit {:qualifier} (a datetime preset name or a custom absl::FormatTime
+// pattern). Last occurrence wins; empty (absent) keeps the built-in "space"
+// default. Any value is accepted verbatim (an unknown name renders literally,
+// like printf), so there is nothing to reject.
+std::string ResolveTimeFormat(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--time-format=";
+  std::string format;
+  for (const std::string& global : globals) {
+    if (global.starts_with(kPrefix)) {
+      format = global.substr(kPrefix.size());  // last occurrence wins
+    }
+  }
+  return format;
+}
+
 // Wraps a FileSystem so Remove previews (emits the path) instead of deleting:
 // backs --dry-run for -delete. ReadDir/Stat pass through unchanged.
 class DryRunFileSystem : public vfs::FileSystem {
@@ -382,6 +398,8 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
     on_error("--timezone", absl::InvalidArgumentError(absl::StrCat("unknown time zone: '", bad, "'")));
     return 2;  // do not traverse
   }
+  // --time-format=NAME: default spec for a time field with no {:qualifier}.
+  const std::string time_format = ResolveTimeFormat(command.globals);
   int errors = 0;
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
@@ -411,6 +429,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
             .fs = walk_fs,
             .now = now,
             .tz = tz,
+            .time_format = time_format,
             .control = control,
             .exec_fields = exec_fields,
             .captures = exec_fields ? &captures : nullptr,
@@ -428,6 +447,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
                         .metadata = visit.metadata,
                         .depth = visit.depth,
                         .tz = tz,
+                        .time_format = time_format,
                         .defines = &defines,
                         .outputs = &outputs})
                 + "\n");

@@ -36,8 +36,11 @@ namespace fs = std::filesystem;
 
 using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
+using ::testing::ElementsAre;
 using ::testing::Eq;
+using ::testing::HasSubstr;
 using ::testing::IsEmpty;
+using ::testing::Not;
 using ::testing::UnorderedElementsAre;
 
 // Fixture tree:
@@ -315,6 +318,27 @@ TEST_F(RunTest, TimezoneAppliesToTimeFieldFormatting) {
       },
       [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, UnorderedElementsAre("+0000"));
+}
+
+TEST_F(RunTest, TimeFormatGlobalSetsTheBareTimeFieldDefault) {
+  // --time-format=epoch makes a bare {mtime} render as Unix seconds (all digits,
+  // no date dashes), proving the global threads through to time-field formatting.
+  const auto command = parser::Parse({"--time-format=epoch", "--template={mtime}", root_.string(), "-name", "a.txt"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  RunFind(
+      *command, fs_,
+      [&](std::string_view record) {
+        std::string text(record);
+        if (!text.empty() && text.back() == '\n') {
+          text.pop_back();
+        }
+        records.push_back(std::move(text));
+      },
+      [](std::string_view, absl::Status) {});
+  // epoch is all digits; a date format would carry dashes. ElementsAre folds the
+  // single-match count and the content check into one matcher.
+  EXPECT_THAT(records, ElementsAre(Not(HasSubstr("-"))));
 }
 
 TEST_F(RunTest, TemplateRendersImplicitPrint) {
