@@ -613,6 +613,7 @@ bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
       .root = ctx.visit.root,
       .metadata = ctx.visit.metadata,
       .depth = ctx.visit.depth,
+      .tz = ctx.tz,
       .captures = ctx.captures,
       .defines = ctx.defines,
       .outputs = ctx.outputs};
@@ -674,6 +675,7 @@ bool EvalExecdir(const parser::Expr& expr, EvalContext& ctx) {
       .root = ctx.visit.root,
       .metadata = ctx.visit.metadata,
       .depth = ctx.visit.depth,
+      .tz = ctx.tz,
       .captures = ctx.captures,
       .defines = ctx.defines,
       .outputs = ctx.outputs};
@@ -721,6 +723,7 @@ bool RunCapture(const parser::Expr& expr, EvalContext& ctx, std::string_view dir
       .root = ctx.visit.root,
       .metadata = ctx.visit.metadata,
       .depth = ctx.visit.depth,
+      .tz = ctx.tz,
       .captures = ctx.captures,
       .defines = ctx.defines,
       .outputs = ctx.outputs};

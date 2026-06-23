@@ -73,6 +73,19 @@ TEST_F(FieldsTest, TimeFieldQualifiers) {
   EXPECT_THAT(Render("{mtime}", "f", md, 0), HasSubstr("2023"));  // default ISO-8601
 }
 
+TEST_F(FieldsTest, TimeFieldsRenderInTheContextZone) {
+  vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  md.mtime = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13 12:26:40 UTC
+  const Template compiled = Template::Compile("{mtime:%z}|{mtime:%H}");
+  // UTC: zero offset, hour 12 (RenderContext::tz drives the formatting zone).
+  EXPECT_THAT(
+      compiled.Render(RenderContext{.path = "f", .metadata = md, .depth = 0, .tz = absl::UTCTimeZone()}), "+0000|12");
+  // UTC+1 (fixed): +0100 offset, hour 13 -- the same instant, a different zone.
+  EXPECT_THAT(
+      compiled.Render(RenderContext{.path = "f", .metadata = md, .depth = 0, .tz = absl::FixedTimeZone(3'600)}),
+      "+0100|13");
+}
+
 TEST_F(FieldsTest, ModeAndOwnerFields) {
   vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   md.mode = 0644;

@@ -427,6 +427,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
                         .root = visit.root,
                         .metadata = visit.metadata,
                         .depth = visit.depth,
+                        .tz = tz,
                         .defines = &defines,
                         .outputs = &outputs})
                 + "\n");

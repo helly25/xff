@@ -91,9 +91,9 @@ std::string GroupName(std::uint32_t gid) {
 
 // Formats a timestamp for a time field. The qualifier is a datetime preset name
 // (find/iso/space/epoch) or a custom absl::FormatTime pattern; empty defaults to
-// the "space" ISO form. Rendered in local time (like find's %t).
-std::string FormatTimeField(absl::Time time, std::string_view qualifier) {
-  return datetime::FormatTime(time, qualifier);
+// the "space" ISO form. Rendered in `tz` (the local zone unless --timezone).
+std::string FormatTimeField(absl::Time time, std::string_view qualifier, absl::TimeZone tz) {
+  return datetime::FormatTime(time, qualifier, tz);
 }
 
 // Human-readable size ({size:h}): bytes under 1 KiB as a plain count, otherwise
@@ -173,19 +173,19 @@ std::string LinksField(std::string_view, std::string_view, const RenderContext& 
 }
 
 std::string MtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
-  return FormatTimeField(ctx.metadata.mtime, qualifier);
+  return FormatTimeField(ctx.metadata.mtime, qualifier, ctx.tz);
 }
 
 std::string AtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
-  return FormatTimeField(ctx.metadata.atime, qualifier);
+  return FormatTimeField(ctx.metadata.atime, qualifier, ctx.tz);
 }
 
 std::string CtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
-  return FormatTimeField(ctx.metadata.ctime, qualifier);
+  return FormatTimeField(ctx.metadata.ctime, qualifier, ctx.tz);
 }
 
 std::string BtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
-  return ctx.metadata.btime.has_value() ? FormatTimeField(*ctx.metadata.btime, qualifier) : "";
+  return ctx.metadata.btime.has_value() ? FormatTimeField(*ctx.metadata.btime, qualifier, ctx.tz) : "";
 }
 
 std::string ModeField(std::string_view, std::string_view, const RenderContext& ctx) {
