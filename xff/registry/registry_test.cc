@@ -67,5 +67,14 @@ TEST_F(RegistryTest, SecurityRelevantPrimariesAreClassified) {
   EXPECT_THAT(Lookup("-print"), Pointee(Field("safety", &Descriptor::safety, Safety::kNone)));
 }
 
+TEST_F(RegistryTest, CaptureFamilyDeclaresLabelRegexBinding) {
+  // -capture/-capturedir carry an attached =NAME[=REGEX] on the token; the parser
+  // reads this binding from the registry instead of hardcoding the names.
+  EXPECT_THAT(Lookup("-capture"), Pointee(Field("binding", &Descriptor::binding, Binding::kLabelRegex)));
+  EXPECT_THAT(Lookup("-capturedir"), Pointee(Field("binding", &Descriptor::binding, Binding::kLabelRegex)));
+  EXPECT_THAT(Lookup("-exec"), Pointee(Field("binding", &Descriptor::binding, Binding::kNone)));  // no =label
+  EXPECT_THAT(Lookup("-name"), Pointee(Field("binding", &Descriptor::binding, Binding::kNone)));
+}
+
 }  // namespace
 }  // namespace xff::registry

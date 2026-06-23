@@ -172,49 +172,55 @@ class ExprParser {
       ++pos_;
       return inner;
     }
-    // -capture=NAME[=REGEX] cmd... ; (and -capturedir=, run in the entry's
-    // directory) bind the command's stdout to {capture.NAME} with an optional RE2
-    // extraction regex. Encoded as args = [NAME, REGEX (may be empty), cmd...]; the
-    // command is collected like -exec.
-    for (const char* action : {"-capture", "-capturedir"}) {
-      const std::string prefix = absl::StrCat(action, "=");
-      if (!token.starts_with(prefix)) {
-        continue;
+    // A primary that declares Binding::kLabelRegex (-capture/-capturedir) carries an
+    // attached =NAME[=REGEX] on its own token, then collects a command like -exec:
+    // args = [NAME, REGEX (may be empty), cmd...]. The grammar is read from the
+    // registry, not a hardcoded name list.
+    if (const std::string::size_type eq = token.find('='); eq != std::string::npos) {
+      const std::string base = token.substr(0, eq);
+      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
+          descriptor != nullptr && descriptor->binding == registry::Binding::kLabelRegex) {
+        const std::string spec = token.substr(eq + 1);  // NAME[=REGEX]
+        const std::string::size_type spec_eq = spec.find('=');
+        std::string name = spec_eq == std::string::npos ? spec : spec.substr(0, spec_eq);
+        std::string regex = spec_eq == std::string::npos ? std::string() : spec.substr(spec_eq + 1);
+        if (name.empty()) {
+          Fail(absl::StrCat("'", base, "=' needs a NAME"));
+          return nullptr;
+        }
+        ++pos_;
+        std::vector<std::string> command;
+        while (!AtEnd() && Peek() != ";") {
+          command.push_back(tokens_[pos_++]);
+        }
+        if (AtEnd()) {
+          Fail(absl::StrCat("'", base, "' is missing a ';' terminator"));
+          return nullptr;
+        }
+        if (command.empty()) {
+          Fail(absl::StrCat("'", base, "' needs a command before ';'"));
+          return nullptr;
+        }
+        ++pos_;  // consume ';'
+        std::vector<std::string> args;
+        args.reserve(command.size() + 2);
+        args.push_back(std::move(name));
+        args.push_back(std::move(regex));
+        for (std::string& cmd_token : command) {
+          args.push_back(std::move(cmd_token));
+        }
+        return MakePredicate(descriptor, std::move(args));
       }
-      const std::string spec = token.substr(prefix.size());  // NAME[=REGEX]
-      const std::string::size_type eq = spec.find('=');
-      std::string name = eq == std::string::npos ? spec : spec.substr(0, eq);
-      std::string regex = eq == std::string::npos ? std::string() : spec.substr(eq + 1);
-      if (name.empty()) {
-        Fail(absl::StrCat("'", action, "=' needs a NAME"));
-        return nullptr;
-      }
-      ++pos_;
-      std::vector<std::string> command;
-      while (!AtEnd() && Peek() != ";") {
-        command.push_back(tokens_[pos_++]);
-      }
-      if (AtEnd()) {
-        Fail(absl::StrCat("'", action, "' is missing a ';' terminator"));
-        return nullptr;
-      }
-      if (command.empty()) {
-        Fail(absl::StrCat("'", action, "' needs a command before ';'"));
-        return nullptr;
-      }
-      ++pos_;  // consume ';'
-      std::vector<std::string> args;
-      args.reserve(command.size() + 2);
-      args.push_back(std::move(name));
-      args.push_back(std::move(regex));
-      for (std::string& cmd_token : command) {
-        args.push_back(std::move(cmd_token));
-      }
-      return MakePredicate(registry::Lookup(action), std::move(args));
     }
     const registry::Descriptor* descriptor = registry::Lookup(token);
     if (descriptor == nullptr) {
       Fail(absl::StrCat("unknown predicate: '", token, "'"));
+      return nullptr;
+    }
+    // A binding primary used bare (no =NAME), e.g. "-capture": the registry binding
+    // lets us reject it instead of silently accepting a nameless action.
+    if (descriptor->binding == registry::Binding::kLabelRegex) {
+      Fail(absl::StrCat("'", token, "' needs a =NAME (e.g. ", token, "=NAME)"));
       return nullptr;
     }
     if (descriptor->kind == registry::Kind::kOperator) {
