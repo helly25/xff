@@ -73,15 +73,20 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-printf", .kind = Kind::kAction, .arity = 1},
     {.name = "-println", .kind = Kind::kAction, .arity = 0},   // xff: -print with the OS line ending
     {.name = "-printfln", .kind = Kind::kAction, .arity = 1},  // xff: -printf + the OS line ending
-    {.name = "-delete", .kind = Kind::kAction, .arity = 0},
+    {.name = "-delete", .kind = Kind::kAction, .arity = 0, .safety = Safety::kSafety},
     {.name = "-prune", .kind = Kind::kAction, .arity = 0},
     {.name = "-quit", .kind = Kind::kAction, .arity = 0},
-    {.name = "-exec", .kind = Kind::kAction, .arity = -1},
-    {.name = "-execdir", .kind = Kind::kAction, .arity = -1},  // -exec in the matched entry's directory
-    {.name = "-ok", .kind = Kind::kAction, .arity = -1},       // -exec that prompts; runs only on an affirmative reply
-    {.name = "-okdir", .kind = Kind::kAction, .arity = -1},  // -execdir that prompts; runs only on an affirmative reply
-    {.name = "-capture", .kind = Kind::kAction, .arity = -1},     // -capture=NAME[=REGEX] cmd... ;
-    {.name = "-capturedir", .kind = Kind::kAction, .arity = -1},  // -capture run in the matched entry's directory
+    {.name = "-exec", .kind = Kind::kAction, .arity = -1, .safety = Safety::kSecurity},
+    // -exec in the matched entry's directory
+    {.name = "-execdir", .kind = Kind::kAction, .arity = -1, .safety = Safety::kSecurity},
+    // -exec that prompts; runs only on an affirmative reply
+    {.name = "-ok", .kind = Kind::kAction, .arity = -1, .safety = Safety::kSecurity},
+    // -execdir that prompts; runs only on an affirmative reply
+    {.name = "-okdir", .kind = Kind::kAction, .arity = -1, .safety = Safety::kSecurity},
+    // -capture=NAME[=REGEX] cmd... ;
+    {.name = "-capture", .kind = Kind::kAction, .arity = -1, .safety = Safety::kSecurity},
+    // -capture run in the matched entry's directory
+    {.name = "-capturedir", .kind = Kind::kAction, .arity = -1, .safety = Safety::kSecurity},
     {.name = "-a", .kind = Kind::kOperator, .arity = 0},
     {.name = "-and", .kind = Kind::kOperator, .arity = 0},
     {.name = "-o", .kind = Kind::kOperator, .arity = 0},
