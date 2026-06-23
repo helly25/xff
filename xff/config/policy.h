@@ -16,6 +16,8 @@
 #ifndef XFF_CONFIG_POLICY_H_
 #define XFF_CONFIG_POLICY_H_
 
+#include <vector>
+
 #include "xff/config/config.h"
 #include "xff/config/ini.h"
 #include "xff/config/xffrc.h"
@@ -37,6 +39,20 @@ registry::Safety LineSafety(const RcLine& line);
 // an @safe/@sensitive/@destructive class token. Only the root-owned system layer
 // supplies [policy].
 bool LinePermitted(const RcLine& line, Source layer, const SystemConfig& policy);
+
+// A config line dropped by the gate: the line, the layer it came from, and the
+// safety class that got it denied (for the stderr warning and --explain).
+struct Drop {
+  RcLine line;
+  Source layer;
+  registry::Safety safety;
+};
+
+// Filters the user and project .xffrc lines of `inputs` through LinePermitted
+// (with inputs.system as the policy), returning a copy with the denied lines
+// removed and recording each in `drops` (when non-null). The system [defaults]
+// are root-authored and never gated; CLI flags are not config and never gated.
+ConfigInputs GateConfig(const ConfigInputs& inputs, std::vector<Drop>* drops);
 
 }  // namespace xff::config
 
