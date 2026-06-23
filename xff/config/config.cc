@@ -16,29 +16,20 @@
 #include "xff/config/config.h"
 
 #include <string>
-#include <string_view>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "xff/config/ini.h"
 #include "xff/config/xffrc.h"
 
 namespace xff::config {
 namespace {
 
-bool Contains(const std::vector<std::string>& haystack, std::string_view needle) {
-  for (const std::string& item : haystack) {
-    if (item == needle) {
-      return true;
-    }
-  }
-  return false;
-}
-
 // An .xffrc line applies under the active --config selectors when its base is
 // "common"/empty or names an active config, AND its config is empty or names one.
 bool LineApplies(const RcLine& line, const std::vector<std::string>& configs) {
-  const bool base_ok = line.base.empty() || line.base == "common" || Contains(configs, line.base);
-  const bool config_ok = line.config.empty() || Contains(configs, line.config);
+  const bool base_ok = line.base.empty() || line.base == "common" || absl::c_contains(configs, line.base);
+  const bool config_ok = line.config.empty() || absl::c_contains(configs, line.config);
   return base_ok && config_ok;
 }
 
