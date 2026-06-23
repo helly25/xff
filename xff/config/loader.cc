@@ -1,0 +1,82 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "xff/config/loader.h"
+
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "absl/strings/str_cat.h"
+#include "xff/config/config.h"
+#include "xff/config/ini.h"
+#include "xff/config/xffrc.h"
+
+namespace xff::config {
+namespace {
+
+// Parses `text` in the .xffrc grammar and appends its lines to `out`.
+void AppendXffrc(std::vector<RcLine>& out, std::string_view text) {
+  const std::vector<RcLine> lines = ParseXffrc(text);
+  out.insert(out.end(), lines.begin(), lines.end());
+}
+
+}  // namespace
+
+std::string UserConfigPath(const DiscoveryOptions& opts) {
+  if (opts.xff_config.has_value() && !opts.xff_config->empty()) {
+    return *opts.xff_config;
+  }
+  if (opts.xdg_config_home.has_value() && !opts.xdg_config_home->empty()) {
+    return absl::StrCat(*opts.xdg_config_home, "/xff/config");
+  }
+  if (opts.home.has_value() && !opts.home->empty()) {
+    return absl::StrCat(*opts.home, "/.config/xff/config");
+  }
+  return "";
+}
+
+ConfigInputs Discover(const DiscoveryOptions& opts, FileReader read) {
+  ConfigInputs inputs;
+  inputs.no_config = opts.no_config;
+  inputs.configs = opts.configs;
+
+  // System: always read. Its [policy] is never skipped by --no-config (the gate,
+  // phase C, needs it); ResolveConfig drops the [defaults] under --no-config.
+  if (const std::optional<std::string> text = read("/etc/xff.ini"); text.has_value()) {
+    inputs.system = ParseIni(*text);
+  }
+  if (opts.no_config) {
+    return inputs;  // user + explicit files skipped; system [defaults] dropped by ResolveConfig
+  }
+
+  // User: the first existing of $XFF_CONFIG / $XDG_CONFIG_HOME/xff/config / ~/.config/xff/config.
+  if (const std::string user_path = UserConfigPath(opts); !user_path.empty()) {
+    if (const std::optional<std::string> text = read(user_path); text.has_value()) {
+      AppendXffrc(inputs.user, *text);
+    }
+  }
+  // Explicit --xffrc files arm into the user layer, in order.
+  for (const std::string& path : opts.xffrc_files) {
+    if (const std::optional<std::string> text = read(path); text.has_value()) {
+      AppendXffrc(inputs.user, *text);
+    }
+  }
+  // Project cascade: phase E.
+  return inputs;
+}
+
+}  // namespace xff::config
