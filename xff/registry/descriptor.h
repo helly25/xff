@@ -32,6 +32,11 @@ enum class Safety { kNone, kSafety, kSecurity };
 // Cost tier driving the advisory ordering warning (design.md "Evaluation").
 enum class Cost { kCheap, kMeta, kExpensive };
 
+// How a primary carries an attached '=' payload on its own token, so the parser
+// reads the grammar from the registry instead of hardcoding names (design #68):
+// kNone for most; kLabelRegex for -capture/-capturedir (-capture=NAME[=REGEX]).
+enum class Binding { kNone, kLabel, kLabelRegex };
+
 // One option / predicate / action description. The registry is the single
 // source of truth from which the parser, --help, completions, --explain, and
 // the cost-warning are all derived.
@@ -39,7 +44,8 @@ struct Descriptor {
   std::string_view name;
   Kind kind = Kind::kTest;
   Region region = Region::kExpression;
-  int arity = 0;  // tokens consumed as arguments
+  int arity = 0;                     // trailing tokens consumed as arguments (-1 = variadic until ';')
+  Binding binding = Binding::kNone;  // attached '=' payload carried on the token itself
   Safety safety = Safety::kNone;
   Cost cost = Cost::kCheap;
   bool pure = true;  // side-effect-free (reorderable within a conjunction)

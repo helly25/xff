@@ -126,6 +126,7 @@ TEST_F(ParserTest, CaptureErrors) {
   EXPECT_THAT(Parse({".", "-capture=x", "echo"}), StatusIs(StatusCode::kInvalidArgument));      // no ';'
   EXPECT_THAT(Parse({".", "-capture=", "echo", ";"}), StatusIs(StatusCode::kInvalidArgument));  // no NAME
   EXPECT_THAT(Parse({".", "-capture=x", ";"}), StatusIs(StatusCode::kInvalidArgument));         // no command
+  EXPECT_THAT(Parse({".", "-capture", "echo", ";"}), StatusIs(StatusCode::kInvalidArgument));   // bare, missing =NAME
 }
 
 TEST_F(ParserTest, Errors) {
