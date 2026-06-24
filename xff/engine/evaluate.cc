@@ -118,6 +118,45 @@ std::string OctalPerm(std::uint32_t mode) {
   return out.empty() ? "0" : out;
 }
 
+// The 10-char symbolic permission string for -ls: a type char then user/group/
+// other rwx triplets, with setuid/setgid/sticky shown as s/S/t/T (like ls).
+std::string SymbolicPerms(vfs::FileType type, std::uint32_t mode) {
+  std::string out(10, '-');
+  switch (type) {
+    case vfs::FileType::kRegular: out[0] = '-'; break;
+    case vfs::FileType::kDirectory: out[0] = 'd'; break;
+    case vfs::FileType::kSymlink: out[0] = 'l'; break;
+    case vfs::FileType::kBlockDevice: out[0] = 'b'; break;
+    case vfs::FileType::kCharDevice: out[0] = 'c'; break;
+    case vfs::FileType::kFifo: out[0] = 'p'; break;
+    case vfs::FileType::kSocket: out[0] = 's'; break;
+    case vfs::FileType::kUnknown: out[0] = '?'; break;
+  }
+  static constexpr char kRwx[] = {'r', 'w', 'x'};
+  for (int i = 0; i < 9; ++i) {
+    if ((mode & (1U << (8 - i))) != 0U) {
+      out[1 + i] = kRwx[i % 3];
+    }
+  }
+  if ((mode & 04000U) != 0U) {  // setuid
+    out[3] = out[3] == 'x' ? 's' : 'S';
+  }
+  if ((mode & 02000U) != 0U) {  // setgid
+    out[6] = out[6] == 'x' ? 's' : 'S';
+  }
+  if ((mode & 01000U) != 0U) {  // sticky
+    out[9] = out[9] == 'x' ? 't' : 'T';
+  }
+  return out;
+}
+
+// The -ls time column: "Mon DD HH:MM" for entries within ~6 months of `now`,
+// else "Mon DD  YYYY" (like ls). Rendered in `tz`.
+std::string LsTime(absl::Time mtime, absl::Time now, absl::TimeZone tz) {
+  const bool recent = mtime > now - absl::Hours(24 * 182) && mtime < now + absl::Hours(1);
+  return absl::FormatTime(recent ? "%b %e %H:%M" : "%b %e  %Y", mtime, tz);
+}
+
 // find's %u/%g: the owner/group name, or the numeric id when the user/group
 // database has no entry for it (the reverse of ResolveUid/ResolveGid).
 std::string UserName(std::uint32_t uid) {
@@ -604,6 +643,19 @@ bool EvalPrint0(const parser::Expr&, EvalContext& ctx) {
   return true;
 }
 
+// find's -ls: an `ls -dils`-style line per entry -- inode, 1 KiB blocks, symbolic
+// permissions, link count, owner, group, size, time, and path -- rendered in
+// ctx.tz. Columns are single-space-separated (xff does not pad to find's widths).
+bool EvalLs(const parser::Expr&, EvalContext& ctx) {
+  const vfs::Metadata& md = ctx.visit.metadata;
+  const std::uint64_t blocks_1k = (md.blocks + 1) / 2;  // 512-byte blocks -> 1 KiB blocks (rounded up)
+  ctx.emit(
+      absl::StrCat(
+          md.ino, " ", blocks_1k, " ", SymbolicPerms(md.type, md.mode), " ", md.nlink, " ", UserName(md.uid), " ",
+          GroupName(md.gid), " ", md.size, " ", LsTime(md.mtime, ctx.now, ctx.tz), " ", ctx.visit.path, "\n"));
+  return true;
+}
+
 bool EvalPrintf(const parser::Expr& expr, EvalContext& ctx) {
   if (!expr.args.empty()) {
     ctx.emit(FormatPrintf(expr.args.front(), ctx.visit, ctx.tz));  // no implicit newline; the format owns it
@@ -826,6 +878,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-ipath", {&EvalPath}},
     DispatchPair{"-iregex", {&EvalRegex}},
     DispatchPair{"-links", {&EvalLinks}},
+    DispatchPair{"-ls", {&EvalLs}},
     DispatchPair{"-mmin", {&EvalMmin}},
     DispatchPair{"-mtime", {&EvalMtime}},
     DispatchPair{"-name", {&EvalName}},

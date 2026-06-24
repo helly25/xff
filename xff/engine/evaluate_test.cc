@@ -393,6 +393,23 @@ TEST_F(EvaluateTest, PrintlnAndPrintflnAppendOsLineEnding) {
   EXPECT_THAT(emitted_, "c.txt|42\n");
 }
 
+TEST_F(EvaluateTest, LsEmitsAnLsStyleLine) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.ino = 42;
+  md.blocks = 8;   // 8 * 512B -> 4 KiB blocks
+  md.mode = 0644;  // -rw-r--r--
+  md.nlink = 1;
+  md.uid = 1'234'567;  // no passwd/group entry -> numeric owner/group
+  md.gid = 7'654'321;
+  md.size = 4'096;
+  md.mtime = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13 UTC, >6mo before now_ -> year form
+  const Visit visit{.path = "dir/f", .name = "f", .depth = 1, .metadata = md};
+  tz_ = absl::UTCTimeZone();
+  EXPECT_TRUE(Match({"-ls"}, visit));
+  EXPECT_THAT(emitted_, "42 4 -rw-r--r-- 1 1234567 7654321 4096 Sep 13  2020 dir/f\n");
+}
+
 TEST_F(EvaluateTest, OkPromptsWithSubstitutionAndRunsOnlyWhenConfirmed) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("dir/foo.txt", "foo.txt", vfs::FileType::kRegular, md);

@@ -68,6 +68,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-empty", .kind = Kind::kTest, .arity = 0},
     {.name = "-true", .kind = Kind::kTest, .arity = 0},
     {.name = "-false", .kind = Kind::kTest, .arity = 0},
+    {.name = "-ls", .kind = Kind::kAction, .arity = 0},  // ls -dils style line per entry
     {.name = "-print", .kind = Kind::kAction, .arity = 0},
     {.name = "-print0", .kind = Kind::kAction, .arity = 0},
     {.name = "-printf", .kind = Kind::kAction, .arity = 1},
