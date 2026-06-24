@@ -422,19 +422,12 @@ std::optional<std::uint32_t> ResolveGid(std::string_view name) {
   return ParseId(name);
 }
 
-// find's -regex/-iregex: the pattern must match the whole path (not a substring).
-// The matcher is compiled once per run and reused (regex::MatcherCache), not
-// recompiled per entry. An uncompilable pattern matches nothing (a hard error is
-// deferred to exit codes). When `captures` is non-null (gated -exec is active) a
-// match records its groups there ([0] the whole match, 1..N the groups) for the
-// {0}..{N} placeholders.
-bool MatchesRegex(
-    std::string_view pattern,
-    std::string_view path,
-    bool case_insensitive,
-    std::vector<std::string>* captures,
-    regex::MatcherCache& cache) {
-  const regex::Matcher* const matcher = cache.GetOrCompile(pattern, case_insensitive);
+// find's -regex/-iregex: the node's pre-compiled matcher (Expr::matcher, built at
+// parse time) must match the whole path (not a substring). A null matcher (no
+// pattern, or it failed to compile) matches nothing. When `captures` is non-null
+// (gated -exec is active) a match records its groups there ([0] the whole match,
+// 1..N the groups) for the {0}..{N} placeholders.
+bool MatchesRegex(const regex::Matcher* matcher, std::string_view path, std::vector<std::string>* captures) {
   if (matcher == nullptr) {
     return false;
   }
@@ -449,11 +442,11 @@ bool MatchesRegex(
   return true;
 }
 
-// Applies a -capture extraction regex to `text` (the captured stdout): returns
-// capture group 1, or the whole match when the regex has no groups, or empty when
-// it does not fully match (or fails to compile). Uses the run-level compile cache.
-std::string ExtractCapture(std::string_view regex, std::string_view text, regex::MatcherCache& cache) {
-  const regex::Matcher* const matcher = cache.GetOrCompile(regex, /*case_insensitive=*/false);
+// Applies a -capture extraction matcher (Expr::matcher, pre-compiled from the
+// optional =NAME=REGEX) to `text`: returns capture group 1, or the whole match
+// when the regex has no groups, or empty when it does not fully match. The caller
+// only invokes this when an extraction regex was given, so `matcher` is non-null.
+std::string ExtractCapture(const regex::Matcher* matcher, std::string_view text) {
   if (matcher == nullptr) {
     return "";
   }
@@ -477,28 +470,23 @@ bool EvalFalse(const parser::Expr&, EvalContext&) {
   return false;
 }
 
+// -name/-iname (and -path/-ipath below): the descriptor's fold_case selects
+// FNM_CASEFOLD, so the case-insensitive variant is registry data, not a separate
+// handler. -name and -iname both dispatch here.
 bool EvalName(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.name, 0);
-}
-
-bool EvalIname(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.name, FNM_CASEFOLD);
+  const int flags = expr.descriptor->fold_case ? FNM_CASEFOLD : 0;
+  return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.name, flags);
 }
 
 bool EvalPath(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.path, 0);
+  const int flags = expr.descriptor->fold_case ? FNM_CASEFOLD : 0;
+  return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.path, flags);
 }
 
-bool EvalIpath(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.path, FNM_CASEFOLD);
-}
-
+// Both -regex and -iregex map here: case sensitivity is baked into the matcher the
+// parser compiled (iregex folds case), so the handler just matches the path.
 bool EvalRegex(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && MatchesRegex(expr.args.front(), ctx.visit.path, false, ctx.captures, *ctx.regex_cache);
-}
-
-bool EvalIregex(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && MatchesRegex(expr.args.front(), ctx.visit.path, true, ctx.captures, *ctx.regex_cache);
+  return MatchesRegex(expr.matcher.get(), ctx.visit.path, ctx.captures);
 }
 
 bool EvalType(const parser::Expr& expr, EvalContext& ctx) {
@@ -764,7 +752,7 @@ bool RunCapture(const parser::Expr& expr, EvalContext& ctx, std::string_view dir
       value.pop_back();  // strip trailing newline(s)
     }
     if (!expr.args[1].empty()) {
-      value = ExtractCapture(expr.args[1], value, *ctx.regex_cache);  // optional regex extraction
+      value = ExtractCapture(expr.matcher.get(), value);  // optional regex extraction (matcher pre-compiled)
     }
   }
   (*ctx.outputs)[expr.args[0]] = std::move(value);  // bind {capture.NAME} (last wins)
@@ -818,9 +806,9 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-false", {&EvalFalse}},
     DispatchPair{"-gid", {&EvalGid}},
     DispatchPair{"-group", {&EvalGroup}},
-    DispatchPair{"-iname", {&EvalIname}},
-    DispatchPair{"-ipath", {&EvalIpath}},
-    DispatchPair{"-iregex", {&EvalIregex}},
+    DispatchPair{"-iname", {&EvalName}},
+    DispatchPair{"-ipath", {&EvalPath}},
+    DispatchPair{"-iregex", {&EvalRegex}},
     DispatchPair{"-links", {&EvalLinks}},
     DispatchPair{"-mmin", {&EvalMmin}},
     DispatchPair{"-mtime", {&EvalMtime}},

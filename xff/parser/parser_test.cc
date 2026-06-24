@@ -20,6 +20,7 @@
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
 #include "xff/parser/ast.h"
+#include "xff/regex/regex.h"
 #include "xff/registry/descriptor.h"
 
 namespace xff::parser {
@@ -170,6 +171,29 @@ TEST_F(ParserTest, EnforceStyleAcceptsXffExtensionsUnderXff) {
 TEST_F(ParserTest, EnforceStyleAllowsAnEmptyExpression) {
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({"."}));  // roots only, no expression
   EXPECT_THAT(EnforceStyle(cmd, registry::Style::kFind), IsOk());
+}
+
+TEST_F(ParserTest, RegexPredicatesCompileAMatcherAtParseTime) {
+  // -regex carries a compiled matcher on the node (so evaluation is a lock-free read).
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-regex", ".*\\.txt"}));
+  ASSERT_THAT(cmd.expression, NotNull());
+  ASSERT_THAT(cmd.expression->matcher, NotNull());
+  EXPECT_TRUE(cmd.expression->matcher->FullMatch("a/b.txt"));
+  EXPECT_FALSE(cmd.expression->matcher->FullMatch("a/b.md"));
+}
+
+TEST_F(ParserTest, IregexMatcherFoldsCaseFromTheDescriptor) {
+  // -iregex's case-insensitivity comes from the descriptor's fold_case, not a name check.
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-iregex", ".*readme"}));
+  ASSERT_THAT(cmd.expression->matcher, NotNull());
+  EXPECT_TRUE(cmd.expression->matcher->FullMatch("docs/README"));
+}
+
+TEST_F(ParserTest, NonRegexAndUncompilablePatternsLeaveMatcherNull) {
+  ASSERT_OK_AND_ASSIGN(const Command name, Parse({".", "-name", "x"}));
+  EXPECT_THAT(name.expression->matcher, IsNull());  // not a regex predicate
+  ASSERT_OK_AND_ASSIGN(const Command bad, Parse({".", "-regex", "a("}));
+  EXPECT_THAT(bad.expression->matcher, IsNull());  // uncompilable: null (evaluated as no-match), no parse error
 }
 
 }  // namespace

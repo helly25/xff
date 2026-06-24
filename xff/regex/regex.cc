@@ -16,7 +16,6 @@
 #include "xff/regex/regex.h"
 
 #include <cstddef>
-#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -69,20 +68,6 @@ std::string Matcher::Rewrite(std::string_view text, std::string_view replacement
     RE2::Replace(&out, *re_, replacement);
   }
   return out;
-}
-
-const Matcher* MatcherCache::GetOrCompile(std::string_view pattern, bool case_insensitive) {
-  std::pair<std::string, bool> key(std::string(pattern), case_insensitive);
-  if (const auto it = cache_.find(key); it != cache_.end()) {
-    return it->second.has_value() ? &*it->second : nullptr;
-  }
-  absl::StatusOr<Matcher> compiled = Matcher::Compile(pattern, case_insensitive);
-  std::optional<Matcher> value;
-  if (compiled.ok()) {
-    value.emplace(*std::move(compiled));
-  }
-  const auto result = cache_.emplace(std::move(key), std::move(value));
-  return result.first->second.has_value() ? &*result.first->second : nullptr;
 }
 
 }  // namespace xff::regex

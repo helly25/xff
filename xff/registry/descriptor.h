@@ -51,6 +51,11 @@ struct Descriptor {
   Region region = Region::kExpression;
   int arity = 0;                     // trailing tokens consumed as arguments (-1 = variadic until ';')
   Binding binding = Binding::kNone;  // attached '=' payload carried on the token itself
+  // The case-insensitive variant of a matcher (-iname/-ipath/-iregex): folds case
+  // when matching (FNM_CASEFOLD for the glob tests, RE2 case-insensitive for the
+  // regex). Lets the parser/evaluator read case from the registry instead of
+  // keying off the leading 'i' in the primary's name.
+  bool fold_case = false;
   Safety safety = Safety::kNone;
   Style style = Style::kFind;  // find-native by default; set kXff to mark an xff extension
   Cost cost = Cost::kCheap;

@@ -16,12 +16,10 @@
 #ifndef XFF_REGEX_REGEX_H_
 #define XFF_REGEX_REGEX_H_
 
-#include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 #include "absl/status/statusor.h"
@@ -62,22 +60,6 @@ class Matcher {
   explicit Matcher(std::unique_ptr<RE2> re) : re_(std::move(re)) {}
 
   std::unique_ptr<RE2> re_;
-};
-
-// Compiles Matchers on first use and caches them by (pattern, case_insensitive),
-// so a -regex/-iregex pattern (or a -capture extraction regex) is compiled once
-// per run rather than once per visited entry. Not thread-safe; the sequential walk
-// owns one cache for the whole run.
-class MatcherCache {
- public:
-  // The compiled matcher for (pattern, case_insensitive), compiled and cached on
-  // the first request and reused after. Returns nullptr if the pattern does not
-  // compile (the failure is cached too, so it is not retried). The pointer stays
-  // valid for the cache's lifetime (entries are never evicted).
-  const Matcher* GetOrCompile(std::string_view pattern, bool case_insensitive);
-
- private:
-  std::map<std::pair<std::string, bool>, std::optional<Matcher>> cache_;
 };
 
 }  // namespace xff::regex
