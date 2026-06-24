@@ -364,6 +364,22 @@ TEST_F(EvaluateTest, PrintfOwnerDirectives) {
   EXPECT_THAT(emitted_, "1234567|1234567|7654321|7654321");  // %U/%G numeric; %u/%g fall back to the id
 }
 
+TEST_F(EvaluateTest, PrintfTimeDirectives) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.mtime = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13 12:26:40 UTC (a Sunday)
+  md.atime = absl::FromUnixSeconds(0);              // 1970-01-01 UTC
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  tz_ = absl::UTCTimeZone();  // render times in UTC for a deterministic assertion
+  // %t/%a are the asctime form of mtime/atime; %Tk/%Ak are strftime conversion k.
+  EXPECT_TRUE(Match({"-printf", "%t|%TY-%Tm-%Td %TH:%TM:%TS|%AY"}, visit));
+  EXPECT_THAT(emitted_, "Sun Sep 13 12:26:40 2020|2020-09-13 12:26:40|1970");
+  // The rendering zone honors EvalContext::tz (--timezone): 12:26 UTC is 13:26 in UTC+1.
+  tz_ = absl::FixedTimeZone(3'600);
+  EXPECT_TRUE(Match({"-printf", "%TH"}, visit));
+  EXPECT_THAT(emitted_, "13");
+}
+
 TEST_F(EvaluateTest, PrintlnAndPrintflnAppendOsLineEnding) {
   vfs::Metadata md;
   md.type = vfs::FileType::kRegular;
