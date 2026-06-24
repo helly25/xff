@@ -92,7 +92,7 @@ test::project_cascade_applies_ancestor_xffrc() {
   # ancestor cascade), surfacing in --explain with project provenance.
   local base="${TEST_TMPDIR}/cascade"
   mkdir -p "${base}/sub"
-  printf 'common: --color=never\n' >"${base}/.xffrc"  # ancestor (parent) project file
+  printf 'common: --color=never\n' >"${base}/.xffrc" # ancestor (parent) project file
   local out
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --explain "${base}/sub")"
   local lines=()

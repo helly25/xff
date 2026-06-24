@@ -1,0 +1,85 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# pre-commit configuration (https://pre-commit.com). Mirrors helly25/mbo's set,
+# trimmed to what xff uses. Install once with `pre-commit install`; run over the
+# whole tree with `pre-commit run -a`. clang-tidy and the broader linters live in
+# trunk (.trunk/trunk.yaml). clang-format here is pinned to v20.1.8 to match the
+# hermetic toolchain clang-format (tools/clang_format.sh + the CI test step)
+# byte-for-byte; keep this pin in lockstep with the LLVM toolchain version. A
+# mismatch surfaces loudly as a CI clang-format failure rather than silent
+# reformatting churn. This file owns clang-format, shell, YAML, workflow and
+# repo-policy text checks.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.7
+    hooks:
+      - id: actionlint
+        name: Lint GitHub Actions workflow files
+        description: Runs actionlint to lint GitHub Actions workflow files
+        language: golang
+        types: ["yaml"]
+        files: ^\.github/workflows/
+        entry: actionlint
+        args: ["-shellcheck", ""]
+
+  - repo: local
+    hooks:
+      - id: no-do-not-merge
+        name: No 'DO NOT MERGE'
+        description: |
+          Add 'DONOTMERGE', 'DONOTSUBMIT', 'DO NOT MERGE', 'DO NOT SUBMIT', "DON'T MERGE",
+          "DON'T SUBMIT" (or the underscore forms) to block merging. To skip this hook once,
+          run `SKIP="no-do-not-merge" pre-commit`.
+        language: pygrep
+        args: [-i]
+        entry: DO([ _]?NOT|N'T)[ _]?(SUBMIT|MERGE)
+        exclude: ^.pre-commit-config.yaml$
+        types: [text]
+      - id: no-em-dashes
+        name: No em-dashes
+        description: |
+          Project convention: never an em-dash (U+2014) anywhere (prose, docs, comments,
+          commit messages). Use a spaced hyphen instead.
+        language: pygrep
+        entry: "—"
+        exclude: ^.pre-commit-config.yaml$
+        types: [text]
+      - id: no-todos-without-context
+        name: No TODOs without context
+        description: |
+          Use referenceable TODOs: `// TODO(user@helly25.com)` or
+          `# FIXME(https://github.com/helly25/xff/issues/42)`. A bare TODO/FIXME with no
+          email or URL is unmaintainable. To skip once, run
+          `SKIP="no-todos-without-context" pre-commit`.
+        language: pygrep
+        args: [-i]
+        exclude: ^[.]pre-commit-config.yaml$
+        entry: (#|//|/[*]).*(FIXME|TODO)[(](?!(((\w|\w[.-]\w)+@(\w|-)+([.](\w|-)+)*)|(https?://[^)]+))(,[^)]+)?)[)]
+        types: [text]
+
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v20.1.8
+    hooks:
+      - id: clang-format
+        types_or: [c, c++, cuda]
+
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.11.0-1
+    hooks:
+      - id: shfmt
+        args: ["-bn", "-ci", "-i=2", "-w"]
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck

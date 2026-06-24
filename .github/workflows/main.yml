@@ -55,20 +55,25 @@ jobs:
         run: |
           find xff -type f \( -name '*.cc' -o -name '*.h' \) -print0 \
             | xargs -0 tools/clang_format.sh --dry-run -Werror
-      - name: no em-dashes
-        if: matrix.os == 'ubuntu-latest' && matrix.config.name == 'clang-asan'
-        run: |
-          if git grep -n $'\xe2\x80\x94'; then
-            echo "::error::em-dash (U+2014) found - use a hyphen"
-            exit 1
-          fi
+
+  # pre-commit hooks (clang-format, shfmt, shellcheck, actionlint, and the
+  # repo-policy text checks incl. no-em-dashes). Mirrors helly25/mbo. clang-tidy
+  # and the heavier linters are trunk's job, added separately.
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: pre-commit/action@v3.0.1
 
   # Single required status check: one job that gates merge on the whole matrix,
   # so branch protection needs only `done`. A yq/jq step self-checks that every
   # workflow job is wired into `needs`, so a newly added job cannot silently
   # escape the gate. Mirrors helly25/mbo.
   done:
-    needs: [test]
+    needs: [test, pre-commit]
     if: always()
     runs-on: ubuntu-latest
     steps:
