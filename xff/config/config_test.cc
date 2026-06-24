@@ -108,6 +108,17 @@ TEST_F(ConfigTest, ActiveStyleDefaultsToXffAndTracksTheConfigStack) {
   EXPECT_THAT(ActiveStyle({"find", "xff"}), registry::Style::kXff);
 }
 
+TEST_F(ConfigTest, DefaultStyleForProgramSelectsByBasename) {
+  EXPECT_THAT(DefaultStyleForProgram("find"), "find");
+  EXPECT_THAT(DefaultStyleForProgram("/usr/local/bin/find"), "find");  // the basename, not the path
+  EXPECT_THAT(DefaultStyleForProgram("./find"), "find");
+  EXPECT_THAT(DefaultStyleForProgram("xff"), "xff");
+  EXPECT_THAT(DefaultStyleForProgram("/opt/helly25/xff"), "xff");
+  EXPECT_THAT(DefaultStyleForProgram("myfind"), "xff");     // only the exact name "find" is strict
+  EXPECT_THAT(DefaultStyleForProgram("findutils"), "xff");  // not a prefix/substring match
+  EXPECT_THAT(DefaultStyleForProgram(""), "xff");
+}
+
 TEST_F(ConfigTest, ExplainConfigTagsEachFlagWithProvenance) {
   const std::vector<ResolvedFlag> resolved = {
       {.flag = "--color=auto", .source = Source::kSystem}, {.flag = "--sort", .source = Source::kUser}};

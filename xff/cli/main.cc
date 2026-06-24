@@ -82,6 +82,11 @@ int main(int argc, char** argv) {
   // Load the layered config (system + user + explicit --xffrc) and resolve the
   // effective flags. --explain writes that effective configuration and exits.
   xff::config::DiscoveryOptions opts = xff::config::SelectorsFromGlobals(command.globals);
+  // argv[0] dispatch: the program name picks the base style (invoked as `find` ->
+  // strict find; as `xff` or any other alias -> modern xff) as the lowest-precedence
+  // selector, so an explicit --config still overrides it (design-config.md "CLI
+  // selectors"). Prepended before discovery so find:/xff: .xffrc lines gate on it too.
+  opts.configs.insert(opts.configs.begin(), std::string(xff::config::DefaultStyleForProgram(argv[0])));
   opts.xff_config = EnvOpt("XFF_CONFIG");
   opts.xdg_config_home = EnvOpt("XDG_CONFIG_HOME");
   opts.home = EnvOpt("HOME");

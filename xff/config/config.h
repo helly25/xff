@@ -67,6 +67,14 @@ std::string_view SourceName(Source source);
 // parser::EnforceStyle); design-config.md "CLI selectors".
 registry::Style ActiveStyle(const std::vector<std::string>& configs);
 
+// The default --config style selected by the program name (argv[0] dispatch): a
+// basename of "find" selects the strict find style, anything else (the canonical
+// "xff", or any other alias) selects the modern xff style. main() prepends this
+// as the lowest-precedence selector, so an explicit --config still overrides it
+// via ActiveStyle's last-wins (design-config.md "CLI selectors"). Returns the
+// selector string "find" or "xff".
+std::string_view DefaultStyleForProgram(std::string_view argv0);
+
 // Renders the effective configuration for --explain: the resolved config flags
 // (each prefixed by its provenance) in application order, then the CLI globals
 // (provenance "cli"). Later lines override earlier ones, mirroring resolution.
