@@ -24,8 +24,9 @@ shipped one way but not yet settled.
   usage error. The companion `--time-format=NAME` selector shipped alongside it
   (config phase D4b). Not yet settled / deferred: (a) a `--tz` short alias; (b)
   fixed-offset specs (`+01:00`), which `absl::LoadTimeZone` does not parse; (c)
-  `-printf %t` / `-ls` time directives (a separate FormatPrintf path, not yet
-  implemented - #48). Revisit with the datetime lib growth (#70).
+  `-ls`'s time column (a fixed multi-column listing; `-printf` time directives
+  `%a`/`%c`/`%t` + `%Ak`/`%Ck`/`%Tk` now honor the zone, #48). Revisit with the
+  datetime lib growth (#70).
 
 - **Project `.xffrc` per-entry subtree scoping (deferred).**
   The cascade (config phase E2a) reads, for each search root, every `.xffrc` from

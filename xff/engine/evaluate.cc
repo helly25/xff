@@ -170,12 +170,25 @@ constexpr auto kPrintfDirectives = mbo::container::MakeLimitedMap(
     std::pair<char, PrintfDirective>{
         'y', [](std::string& out, const Visit& v) { out.push_back(TypeLetter(v.metadata.type)); }});
 
+// The entry time a -printf time directive refers to: a/A -> atime, c/C -> ctime,
+// t/T -> mtime (find's %a/%c/%t and the %Ak/%Ck/%Tk strftime families).
+absl::Time PrintfTime(const vfs::Metadata& md, char which) {
+  switch (which) {
+    case 'A':
+    case 'a': return md.atime;
+    case 'C':
+    case 'c': return md.ctime;
+    default: return md.mtime;
+  }
+}
+
 // find's -printf FORMAT: expands % directives and \ escapes against the entry via
 // the tables above. Supported %: p path, f name, h dir, s size, m octal perm, d
-// depth, y type, i inode, n links, u/g owner name, U/G owner id, %% literal; \:
-// n t r \\ \0. Unknown directives/escapes are emitted literally. (Time directives
-// %a/%c/%t and the strftime %Tk forms are a follow-up.)
-std::string FormatPrintf(std::string_view format, const Visit& visit) {
+// depth, y type, i inode, n links, u/g owner name, U/G owner id; the time families
+// a/c/t (asctime form) and Ak/Ck/Tk (strftime conversion k on atime/ctime/mtime),
+// rendered in `tz`; %% literal; \: n t r \\ \0. Unknown directives/escapes are
+// emitted literally.
+std::string FormatPrintf(std::string_view format, const Visit& visit, absl::TimeZone tz) {
   std::string out;
   for (std::string_view::size_type i = 0; i < format.size(); ++i) {
     const char ch = format[i];
@@ -189,7 +202,14 @@ std::string FormatPrintf(std::string_view format, const Visit& visit) {
       }
     } else if (ch == '%' && i + 1 < format.size()) {
       const char directive = format[++i];
-      if (const auto it = kPrintfDirectives.find(directive); it != kPrintfDirectives.end()) {
+      if (directive == 'a' || directive == 'c' || directive == 't') {
+        absl::StrAppend(&out, datetime::FormatTime(PrintfTime(visit.metadata, directive), "asctime", tz));
+      } else if ((directive == 'A' || directive == 'C' || directive == 'T') && i + 1 < format.size()) {
+        const char conv = format[++i];  // %Tk etc.: strftime conversion k on the chosen time
+        absl::StrAppend(
+            &out,
+            datetime::FormatTime(PrintfTime(visit.metadata, directive), absl::StrCat("%", std::string(1, conv)), tz));
+      } else if (const auto it = kPrintfDirectives.find(directive); it != kPrintfDirectives.end()) {
         it->second(out, visit);
       } else {
         out.push_back('%');  // unknown directive: emit the percent and char literally
@@ -580,7 +600,7 @@ bool EvalPrint0(const parser::Expr&, EvalContext& ctx) {
 
 bool EvalPrintf(const parser::Expr& expr, EvalContext& ctx) {
   if (!expr.args.empty()) {
-    ctx.emit(FormatPrintf(expr.args.front(), ctx.visit));  // no implicit newline; the format owns it
+    ctx.emit(FormatPrintf(expr.args.front(), ctx.visit, ctx.tz));  // no implicit newline; the format owns it
   }
   return true;
 }
@@ -592,7 +612,7 @@ bool EvalPrintln(const parser::Expr&, EvalContext& ctx) {
 
 bool EvalPrintfln(const parser::Expr& expr, EvalContext& ctx) {
   if (!expr.args.empty()) {  // xff: -printf plus the OS line ending appended
-    ctx.emit(absl::StrCat(FormatPrintf(expr.args.front(), ctx.visit), kOsLineEnding));
+    ctx.emit(absl::StrCat(FormatPrintf(expr.args.front(), ctx.visit, ctx.tz), kOsLineEnding));
   }
   return true;
 }
