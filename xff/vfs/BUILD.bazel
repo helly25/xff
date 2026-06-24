@@ -53,7 +53,7 @@ cc_test(
         ":vfs_cc",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/time",
-        "@com_helly25_mbo//mbo/testing:status_cc",
+        "@helly25_mbo//mbo/testing:status_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
