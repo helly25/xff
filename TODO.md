@@ -26,3 +26,13 @@ shipped one way but not yet settled.
   fixed-offset specs (`+01:00`), which `absl::LoadTimeZone` does not parse; (c)
   `-printf %t` / `-ls` time directives (a separate FormatPrintf path, not yet
   implemented - #48). Revisit with the datetime lib growth (#70).
+
+- **Project `.xffrc` per-entry subtree scoping (deferred).**
+  The cascade (config phase E2a) reads, for each search root, every `.xffrc` from
+  the filesystem root down to the root's directory (ancestors), applied run-level.
+  The design (design-config.md L41, L56-58) also wants gitignore-style *subtree*
+  scoping: a `.xffrc` in a directory *below* a root should apply only to that
+  subtree -- which means config resolution would vary per directory during the
+  walk, an architectural change (per-entry layering on the traversal hot path).
+  Deferred until a real need appears; the ancestor cascade already covers the
+  common "repo + parents" case.

@@ -37,6 +37,7 @@ struct DiscoveryOptions {
   bool no_config = false;                      // --no-config
   std::vector<std::string> configs;            // --config=NAME, in order
   std::vector<std::string> xffrc_files;        // --xffrc=FILE, in order
+  std::vector<std::string> roots;              // absolute search-root dirs; the project .xffrc cascade walks each
   std::optional<std::string> xff_config;       // $XFF_CONFIG
   std::optional<std::string> xdg_config_home;  // $XDG_CONFIG_HOME
   std::optional<std::string> home;             // $HOME
@@ -52,11 +53,13 @@ std::string UserConfigPath(const DiscoveryOptions& opts);
 //   - system: /etc/xff.ini (always read; its [policy] is never skipped),
 //   - user:   UserConfigPath(opts), in the .xffrc grammar,
 //   - --xffrc=FILE: appended to the user layer (naming the file is the consent),
-//   - project: ./.xffrc in the current directory (untrusted; the policy gate is
-//     what makes loading it safe).
+//   - project: the .xffrc cascade -- for each absolute dir in opts.roots, every
+//     .xffrc from the filesystem root down to that dir, shallowest first (deeper
+//     overrides), deduped across roots (untrusted; the policy gate makes it safe).
 // --no-config skips the user + project layers and the explicit files (ResolveConfig
 // then also drops the system [defaults]); the system file is still read so its
-// policy is available to the gate (phase C). The full project cascade is phase E.
+// policy is available to the gate (phase C). Per-entry subtree scoping for files
+// below a root (config varying mid-walk) is deferred; see TODO.md.
 ConfigInputs Discover(const DiscoveryOptions& opts, FileReader read);
 
 // Extracts the config selectors among `globals` into a DiscoveryOptions (the env
