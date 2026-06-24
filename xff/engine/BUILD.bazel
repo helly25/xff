@@ -42,9 +42,9 @@ cc_test(
         "@abseil-cpp//absl/functional:function_ref",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
-        "@helly25_mbo//mbo/testing:status_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
     ],
 )
 
@@ -83,9 +83,9 @@ cc_test(
         "//xff/vfs:local_fs_cc",
         "//xff/vfs:vfs_cc",
         "@abseil-cpp//absl/time",
-        "@helly25_mbo//mbo/testing:status_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
     ],
 )
 
@@ -119,8 +119,8 @@ cc_test(
         "//xff/parser:parser_cc",
         "//xff/vfs:local_fs_cc",
         "@abseil-cpp//absl/status",
-        "@helly25_mbo//mbo/testing:status_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
     ],
 )

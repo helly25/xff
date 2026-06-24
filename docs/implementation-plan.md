@@ -1,6 +1,6 @@
 # xff - Implementation Plan
 
-> Companion to [design.md](design.md). **design.md** is the source of truth for *what / why* (decisions); this plan owns *how / in what order* (build, modules, sequencing). Decisions are referenced here, not re-argued.
+> Companion to [design.md](design.md). **design.md** is the source of truth for _what / why_ (decisions); this plan owns _how / in what order_ (build, modules, sequencing). Decisions are referenced here, not re-argued.
 > Status: **Draft** · 2026-06-07 · Org: helly25 · License: **Apache-2.0**
 > Design review #1–#13 complete and incorporated (see design.md §Notes/Decisions); the module seams and phasing below reflect every resolved decision.
 
@@ -37,7 +37,7 @@ xff/
 
 ## Module contracts (the seams)
 
-- **`registry`** - the single source of truth. Descriptors carry name(s), region (global/expression), arity, dialect (GNU/BSD), cost-tier, purity, toggle-style. `--help`, completions, `--explain`, and the cost-warning are all *derived* from it. **DAG root** - everything else depends on it.
+- **`registry`** - the single source of truth. Descriptors carry name(s), region (global/expression), arity, dialect (GNU/BSD), cost-tier, purity, toggle-style. `--help`, completions, `--explain`, and the cost-warning are all _derived_ from it. **DAG root** - everything else depends on it.
 - **`parser`** - `argv → AST` (globals, roots[], expression tree) or a diagnostic with source spans. No traversal / IO ⇒ unit-testable as a pure `string[] → AST`. (design.md §CLI grammar & parser.)
 - **`config`** - config files → settings, merged by the cascade with provenance (`unset` ≠ explicit); CLI > config > defaults. Enforces the **trust model** (data-only tree configs; `--config`-armed exec blocks; ownership gate) - design.md §Security & safety.
 - **`vfs`** - `Entry`/`Metadata` interface + directory iteration; `LocalFs` backend first. Archive/remote backends slot behind the same interface, tagging entries by source (real-fs/archive-member/remote) + read-only flag, with untrusted-input guards (decompression-bomb / Zip-Slip) - design.md §Virtual entries. Exposes platform metadata caps (btime, normalization/case).
@@ -53,6 +53,7 @@ Dependency direction: `registry` ← {`parser`, `config`, `engine`}; `engine` �
 > Every phase carries the cross-cutting prime goals (design.md §Security & safety): security against untrusted input, safety with self-documenting refusals/warnings, find-fidelity on the drop-in surface.
 
 ### Phase 0 - Foundations
+
 - Bazel/bzlmod skeleton; hermetic-toolchain decision; `.bazelrc`; CI matrix (macOS+Linux); **Apache-2.0 LICENSE + NOTICE/THIRD_PARTY**; buildifier.
 - `registry` (descriptor types incl. **`safety` classification + cost-tier + toggle-style**; initial descriptors); `parser` (left scanner + recursive-descent + AST + diagnostics).
 - Result model; minimal `cli` (`--help`/`--version`).
@@ -60,6 +61,7 @@ Dependency direction: `registry` ← {`parser`, `config`, `engine`}; `engine` �
 - **Exit:** `bazel test //...` green on both OSes; `parser` passes table-driven AST + error-diagnostic tests.
 
 ### Phase 1 - Drop-in find (the contract)
+
 - `vfs` local backend; `engine` traversal (sequential → parallel) with **`--exact` FS-aware name matching** (#8) and **`--path-encoding`** non-UTF-8 output handling (#5).
 - Full find expression: tests (`-name/-iname/-path/-type/-size/-mtime/-perm/-empty/-newer…`, **`-regex`/`-regextype` via RE2 grammar-translation** (#4), **birthtime `-Btime`/`-Bmin`/`-Bnewer`** (#8)), positional options (`-maxdepth/-mindepth/-depth/-xdev`), symlink modes `-H/-L/-P`, operators/precedence, actions (`-print/-print0/-printf`, `-exec \;`/`+`, `-execdir`, `-delete`, `-prune`, `-quit`, `-ok`/`-okdir`), default `-print`; GNU-canonical + BSD globals.
 - **Exit-code model** (#9, find-default); **impossible-task-fail + `--skip-unsupported`** (#8); **safety**: `--safe`/`--dry-run` + destructive-primitive warnings (#2); **serial `-exec` default + `-j` opt-in parallel** w/ per-child buffering (#7).
@@ -67,6 +69,7 @@ Dependency direction: `registry` ← {`parser`, `config`, `engine`}; `engine` �
 - **Exit:** **find-compatibility conformance suite passes** (Linux GNU-find + macOS BSD-find).
 
 ### Phase 2 - Modern layer
+
 - **Content matching** - composable `-contains`/`-grep` via `regex` (**PCRE2 opt-in + configurable limits** (#4), prefilter) + `-i`/`--ignore-case`; **binary-skip + `--all-text`** (#10), **`--encoding`/`-E` input decoding** (#10), **`--max-contentsize`** + negative-match cost (#6).
 - **Ignore family** (gitignore stack, `.ignore`/`--ignore-files`, `.xffignore`, `-u`/`--no-ignore`, `--exclude/--include`); dotfiles/hidden.
 - **`config` cascade + promotion-to-modern + trust model** (#2): data-only tree configs, `--config`-armed exec blocks, ownership gate.
@@ -75,14 +78,18 @@ Dependency direction: `registry` ← {`parser`, `config`, `engine`}; `engine` �
 - **Exit:** content/ignore/config-trust/render/explain tested incl. CJK-width golden + config-trust security tests; completions generated.
 
 ### Phase 3 - Differentiators
+
 - `stats` (sizes/counts, per-type, histograms, top-N); **`--shards` collapsing + completeness flagging** (#11); duplicate detection (content hash); `vfs` **archive** backend - **virtual entries (read-only, `container!member`) + bomb/Zip-Slip guards** (#3) - via libarchive.
 - **Exit:** stats/shards/dedup/archive tested incl. decompression-bomb + Zip-Slip cases.
 
 ### Phase 4 - Later / optional
+
 - Freshness-aware index (**FSEvents/inotify** behind a platform interface, #8); `vfs` **remote/SFTP** virtual entries (#3); opt-in `--optimize`; named query profiles. (sed-like editing remains a non-goal.)
 
 ## Test strategy (detail in docs/test-plan.md)
+
 Per the project rule (tests at every level; no one-shots):
+
 - **parser:** table-driven `argv → AST` / error (pure, no fixtures).
 - **find-compat:** golden conformance - real `find` vs `xff` over a fixture tree × expression matrix, both dialects (Phase-1 gate).
 - **engine:** integration over fixture trees (predicates, actions, parallel determinism with `--sort`).

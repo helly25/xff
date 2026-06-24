@@ -18,7 +18,7 @@ shipped one way but not yet settled.
 
 - **`--timezone` scope and spelling.**
   Shipped (config phase D4a) as `--timezone=ZONE`: overrides the zone used both
-  to *interpret* time-string arguments (`-newerXt`) and to *format* time fields
+  to _interpret_ time-string arguments (`-newerXt`) and to _format_ time fields
   (`{atime}`/`{mtime}`/`{ctime}`/`{btime}`). Accepts `local`/empty,
   `utc`/`z`/`zulu`, and IANA names (`America/New_York`); an unknown zone is a
   usage error. The companion `--time-format=NAME` selector shipped alongside it
@@ -30,8 +30,8 @@ shipped one way but not yet settled.
 - **Project `.xffrc` per-entry subtree scoping (deferred).**
   The cascade (config phase E2a) reads, for each search root, every `.xffrc` from
   the filesystem root down to the root's directory (ancestors), applied run-level.
-  The design (design-config.md L41, L56-58) also wants gitignore-style *subtree*
-  scoping: a `.xffrc` in a directory *below* a root should apply only to that
+  The design (design-config.md L41, L56-58) also wants gitignore-style _subtree_
+  scoping: a `.xffrc` in a directory _below_ a root should apply only to that
   subtree -- which means config resolution would vary per directory during the
   walk, an architectural change (per-entry layering on the traversal hot path).
   Deferred until a real need appears; the ancestor cascade already covers the
