@@ -36,7 +36,7 @@ cc_test(
     deps = [
         ":regex_cc",
         "@abseil-cpp//absl/status",
-        "@com_helly25_mbo//mbo/testing:status_cc",
+        "@helly25_mbo//mbo/testing:status_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

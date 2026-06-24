@@ -18,7 +18,6 @@
 module(
     name = "helly25_xff",
     version = "0.0.0",
-    repo_name = "com_helly25_xff",
 )
 
 # Local-development modules: hermetic LLVM toolchain + clangd compile-commands.
@@ -37,8 +36,10 @@ bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 # helly25/mbo -- utility library and conventions reference, from the Bazel
 # Central Registry. 0.11.1 carries the macOS clang+asan verification (#188) and
 # the StatusIs code-matcher support (#190) our test conventions rely on.
-bazel_dep(name = "helly25_mbo", version = "0.11.1", repo_name = "com_helly25_mbo")
+bazel_dep(name = "helly25_mbo", version = "0.11.1")
 
 # helly25/bashtest -- shell-test runner (expect_* helpers + test_runner) for the
-# binary-level CLI tests; its workspace/repo name is com_helly25_bashtest.
+# binary-level CLI tests. The repo_name alias is required, not cosmetic: the
+# bashtest() macro emits "@com_helly25_bashtest//..." labels that resolve in the
+# consumer's repo context, so the dep must be visible under that name.
 bazel_dep(name = "helly25_bashtest", version = "0.3.1", repo_name = "com_helly25_bashtest")

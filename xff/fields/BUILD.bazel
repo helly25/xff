@@ -27,7 +27,7 @@ cc_library(
         "//xff/vfs:vfs_cc",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
-        "@com_helly25_mbo//mbo/container:limited_map_cc",
+        "@helly25_mbo//mbo/container:limited_map_cc",
     ],
 )
 
