@@ -128,5 +128,15 @@ TEST_F(ConfigTest, ExplainConfigTagsEachFlagWithProvenance) {
   EXPECT_THAT(explained, HasSubstr("cli\t--format=jsonl\n"));
 }
 
+TEST_F(ConfigTest, ExplainSourcesListsActiveStyleAndConsultedFiles) {
+  const std::vector<ConfigSource> sources = {
+      {.path = "/etc/xff.ini", .layer = Source::kSystem, .found = false},
+      {.path = ".xffrc", .layer = Source::kProject, .found = true}};
+  const std::string out = ExplainSources(sources, registry::Style::kFind);
+  EXPECT_THAT(out, HasSubstr("# xff active style: find\n"));
+  EXPECT_THAT(out, HasSubstr("source\tsystem\tabsent\t/etc/xff.ini\n"));
+  EXPECT_THAT(out, HasSubstr("source\tproject\tfound\t.xffrc\n"));
+}
+
 }  // namespace
 }  // namespace xff::config

@@ -56,8 +56,12 @@ ConfigInputs Discover(const DiscoveryOptions& opts, FileReader read) {
 
   // System: always read. Its [policy] is never skipped by --no-config (the gate,
   // phase C, needs it); ResolveConfig drops the [defaults] under --no-config.
-  if (const std::optional<std::string> text = read("/etc/xff.ini"); text.has_value()) {
-    inputs.system = ParseIni(*text);
+  {
+    const std::optional<std::string> text = read("/etc/xff.ini");
+    inputs.sources.push_back({.path = "/etc/xff.ini", .layer = Source::kSystem, .found = text.has_value()});
+    if (text.has_value()) {
+      inputs.system = ParseIni(*text);
+    }
   }
   if (opts.no_config) {
     return inputs;  // user + explicit files skipped; system [defaults] dropped by ResolveConfig
@@ -65,21 +69,29 @@ ConfigInputs Discover(const DiscoveryOptions& opts, FileReader read) {
 
   // User: the first existing of $XFF_CONFIG / $XDG_CONFIG_HOME/xff/config / ~/.config/xff/config.
   if (const std::string user_path = UserConfigPath(opts); !user_path.empty()) {
-    if (const std::optional<std::string> text = read(user_path); text.has_value()) {
+    const std::optional<std::string> text = read(user_path);
+    inputs.sources.push_back({.path = user_path, .layer = Source::kUser, .found = text.has_value()});
+    if (text.has_value()) {
       AppendXffrc(inputs.user, *text);
     }
   }
   // Explicit --xffrc files arm into the user layer, in order.
   for (const std::string& path : opts.xffrc_files) {
-    if (const std::optional<std::string> text = read(path); text.has_value()) {
+    const std::optional<std::string> text = read(path);
+    inputs.sources.push_back({.path = path, .layer = Source::kUser, .found = text.has_value()});
+    if (text.has_value()) {
       AppendXffrc(inputs.user, *text);
     }
   }
   // Project: the .xffrc in the current directory (untrusted). The full cascade up
   // the directory tree to each search root is phase E. The policy gate (phase C)
   // is what makes loading this untrusted layer safe.
-  if (const std::optional<std::string> text = read(".xffrc"); text.has_value()) {
-    inputs.project = ParseXffrc(*text);
+  {
+    const std::optional<std::string> text = read(".xffrc");
+    inputs.sources.push_back({.path = ".xffrc", .layer = Source::kProject, .found = text.has_value()});
+    if (text.has_value()) {
+      inputs.project = ParseXffrc(*text);
+    }
   }
   return inputs;
 }

@@ -108,4 +108,14 @@ std::string ExplainConfig(const std::vector<ResolvedFlag>& resolved, const std::
   return out;
 }
 
+std::string ExplainSources(const std::vector<ConfigSource>& sources, registry::Style style) {
+  std::string out = absl::StrCat("# xff active style: ", style == registry::Style::kFind ? "find" : "xff", "\n");
+  absl::StrAppend(&out, "# config sources consulted (precedence order)\n");
+  for (const ConfigSource& source : sources) {
+    absl::StrAppend(
+        &out, "source\t", SourceName(source.layer), "\t", source.found ? "found" : "absent", "\t", source.path, "\n");
+  }
+  return out;
+}
+
 }  // namespace xff::config

@@ -50,6 +50,12 @@ testing::Matcher<ResolvedFlag> FlagIs(const std::string& flag, Source source) {
   return AllOf(Field("flag", &ResolvedFlag::flag, flag), Field("source", &ResolvedFlag::source, source));
 }
 
+testing::Matcher<ConfigSource> SourceIs(const std::string& path, Source layer, bool found) {
+  return AllOf(
+      Field("path", &ConfigSource::path, path), Field("layer", &ConfigSource::layer, layer),
+      Field("found", &ConfigSource::found, found));
+}
+
 struct LoaderTest : ::testing::Test {};
 
 TEST_F(LoaderTest, UserConfigPathPrefersXffConfigThenXdgThenHome) {
@@ -126,6 +132,22 @@ TEST_F(LoaderTest, DiscoversProjectXffrcInCwdAsProjectLayer) {
   DiscoveryOptions opts;
   const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
   EXPECT_THAT(ResolveConfig(in), ElementsAre(FlagIs("--color=never", Source::kProject)));
+}
+
+TEST_F(LoaderTest, DiscoverRecordsConsultedSourcesForExplain) {
+  FakeFs fs;
+  fs.files["/etc/xff.ini"] = "[defaults]\n--color=auto\n";  // present
+  fs.files[".xffrc"] = "common: --sort\n";                  // present (project)
+  DiscoveryOptions opts;
+  opts.home = "/home/u";             // user path computed, but the file is absent
+  opts.xffrc_files = {"/extra.rc"};  // explicit file, absent
+  const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
+  // Every consulted path is recorded in precedence order with its found/absent state.
+  EXPECT_THAT(
+      in.sources,
+      ElementsAre(
+          SourceIs("/etc/xff.ini", Source::kSystem, true), SourceIs("/home/u/.config/xff/config", Source::kUser, false),
+          SourceIs("/extra.rc", Source::kUser, false), SourceIs(".xffrc", Source::kProject, true)));
 }
 
 }  // namespace
