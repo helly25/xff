@@ -87,6 +87,28 @@ struct RunTest : ::testing::Test {
     return records;
   }
 
+  // Like RunExpr, but takes the whole argv (so leading globals such as --summary
+  // can come before the root), returning the emitted records, terminator stripped.
+  std::vector<std::string> RunArgvRecords(const std::vector<std::string>& argv) {
+    const auto command = parser::Parse(argv);
+    EXPECT_THAT(command, IsOk());
+    std::vector<std::string> records;
+    if (!command.ok()) {
+      return records;
+    }
+    last_errors_ = RunFind(
+        *command, fs_,
+        [&](std::string_view record) {
+          std::string text(record);
+          if (!text.empty() && (text.back() == '\n' || text.back() == '\0')) {
+            text.pop_back();
+          }
+          records.push_back(std::move(text));
+        },
+        [](std::string_view, absl::Status) {});
+    return records;
+  }
+
   vfs::LocalFs fs_;
   fs::path root_;
   int last_errors_ = 0;
@@ -567,6 +589,25 @@ TEST_F(RunTest, ImplicitPrintYesPrintsAlongsideAction) {
       },
       [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, UnorderedElementsAre(Path("a.txt")));
+}
+
+TEST_F(RunTest, SummaryOverallReducesMatchesToACountAndSize) {
+  // --summary suppresses the per-match print and emits one total row: a.txt and
+  // sub/c.txt match (1 byte each), so 2 matches / 2 bytes.
+  EXPECT_THAT(RunArgvRecords({"--summary", root_.string(), "-name", "*.txt"}), ElementsAre("total\t2\t2"));
+}
+
+TEST_F(RunTest, SummaryByTypeGroupsThenTotals) {
+  // --summary=type over the three files (1 byte each): one "file" group, then total.
+  EXPECT_THAT(
+      RunArgvRecords({"--summary=type", root_.string(), "-type", "f"}), ElementsAre("file\t3\t3", "total\t3\t3"));
+}
+
+TEST_F(RunTest, SummaryByExtensionGroupsSortedThenTotals) {
+  // --summary=ext over the files: "md" (b.md) sorts before "txt" (a.txt, sub/c.txt).
+  EXPECT_THAT(
+      RunArgvRecords({"--summary=ext", root_.string(), "-type", "f"}),
+      ElementsAre("md\t1\t1", "txt\t2\t2", "total\t3\t3"));
 }
 
 }  // namespace
