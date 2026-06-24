@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
@@ -114,10 +115,15 @@ class Walker {
   }
 
   void Descend(const std::string& dir, int depth) {
-    const absl::StatusOr<std::vector<vfs::Entry>> children = fs_.ReadDir(dir);
+    absl::StatusOr<std::vector<vfs::Entry>> children = fs_.ReadDir(dir);
     if (!children.ok()) {
       on_error_(dir, children.status());
       return;
+    }
+    // --sort=name: order siblings by path before visiting. They share `dir` as a
+    // prefix, so path order is name order; the result is a deterministic walk.
+    if (options_.sort == SortOrder::kName) {
+      absl::c_sort(*children, [](const vfs::Entry& a, const vfs::Entry& b) { return a.path < b.path; });
     }
     for (const vfs::Entry& child : *children) {
       if (stopped_) {

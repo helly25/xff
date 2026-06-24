@@ -104,6 +104,21 @@ SymlinkMode ResolveSymlinkMode(const std::vector<std::string>& globals) {
   return mode;
 }
 
+// xff --sort[=name|none]: order siblings by name within each directory for
+// deterministic output, or keep readdir order (none / absent). Bare --sort means
+// --sort=name. Leading global, last occurrence wins.
+SortOrder ResolveSort(const std::vector<std::string>& globals) {
+  SortOrder sort = SortOrder::kNone;
+  for (const std::string& global : globals) {
+    if (global == "--sort" || global == "--sort=name") {
+      sort = SortOrder::kName;
+    } else if (global == "--sort=none") {
+      sort = SortOrder::kNone;
+    }
+  }
+  return sort;
+}
+
 // xff's modern output selector (leading globals, last wins, default plain):
 // --format=plain|nul|jsonl, with -0 a shorthand for NUL. find's -print/-print0
 // keep their fixed formats; this drives only the implicit (default) print.
@@ -368,6 +383,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   }
   WalkOptions options;
   options.symlinks = ResolveSymlinkMode(command.globals);
+  options.sort = ResolveSort(command.globals);
   const render::Format format = ResolveFormat(command.globals);
   const std::optional<std::string> tmpl = ResolveTemplate(command.globals);
   // A -capture whose {capture.NAME} is never referenced ran a subprocess for

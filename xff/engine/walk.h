@@ -32,6 +32,11 @@ namespace xff::engine {
 // (`-L`). Following enables filesystem-loop detection.
 enum class SymlinkMode { kNever, kRoots, kAll };
 
+// Sibling ordering within each directory (xff's --sort). kNone keeps the
+// filesystem's readdir order (find's default, fastest, non-reproducible); kName
+// sorts each directory's entries by path so output is deterministic and diffable.
+enum class SortOrder { kNone, kName };
+
 // Traversal limits. Parallelism is layered on in a follow-up (design.md
 // "Determinism").
 struct WalkOptions {
@@ -52,6 +57,8 @@ struct WalkOptions {
   // symlink is followed, its target's metadata is reported and a directory target
   // is descended into, with loop detection.
   SymlinkMode symlinks = SymlinkMode::kNever;
+  // Sibling ordering within each directory (xff `--sort`); kNone is readdir order.
+  SortOrder sort = SortOrder::kNone;
 };
 
 // One visited entry handed to the `Visitor`. `path`/`name` reference storage
