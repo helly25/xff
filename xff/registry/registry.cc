@@ -28,11 +28,11 @@ namespace {
 // cost-warning all read from here.
 constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-name", .kind = Kind::kTest, .arity = 1},
-    {.name = "-iname", .kind = Kind::kTest, .arity = 1},
+    {.name = "-iname", .kind = Kind::kTest, .arity = 1, .fold_case = true},
     {.name = "-path", .kind = Kind::kTest, .arity = 1},
-    {.name = "-ipath", .kind = Kind::kTest, .arity = 1},
+    {.name = "-ipath", .kind = Kind::kTest, .arity = 1, .fold_case = true},
     {.name = "-regex", .kind = Kind::kTest, .arity = 1},
-    {.name = "-iregex", .kind = Kind::kTest, .arity = 1},
+    {.name = "-iregex", .kind = Kind::kTest, .arity = 1, .fold_case = true},
     {.name = "-regextype", .kind = Kind::kTest, .arity = 1},
     {.name = "-type", .kind = Kind::kTest, .arity = 1},
     {.name = "-size", .kind = Kind::kTest, .arity = 1},

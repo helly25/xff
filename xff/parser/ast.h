@@ -22,6 +22,10 @@
 
 #include "xff/registry/descriptor.h"
 
+namespace xff::regex {
+class Matcher;  // forward-declared; Expr holds a shared_ptr to a pre-compiled one (pointer only, no dep)
+}  // namespace xff::regex
+
 namespace xff::parser {
 
 struct Expr;
@@ -37,6 +41,11 @@ struct Expr {
   // kPredicate: the matched descriptor and its consumed arguments.
   const registry::Descriptor* descriptor = nullptr;
   std::vector<std::string> args;
+  // The node's regex, compiled once at parse time (so evaluation is a lock-free
+  // read, not a per-entry compile): -regex/-iregex's pattern (args[0], case folded
+  // for -iregex), or -capture/-capturedir's optional extraction regex (args[1]).
+  // Null when the node has no regex or the pattern did not compile (-> no match).
+  std::shared_ptr<const regex::Matcher> matcher;
   // kNot: operand in `lhs`. kAnd / kOr / kComma: operands in `lhs` and `rhs`.
   ExprPtr lhs;
   ExprPtr rhs;

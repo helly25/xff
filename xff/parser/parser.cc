@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -25,6 +26,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "xff/parser/ast.h"
+#include "xff/regex/regex.h"
 #include "xff/registry/descriptor.h"
 #include "xff/registry/registry.h"
 
@@ -55,10 +57,34 @@ bool IsNot(const std::string& t) {
   return t == "!" || t == "-not";
 }
 
+// Pre-compiles a node's regex at parse time so evaluation reads it lock-free:
+// -regex/-iregex match args[0]; -capture/-capturedir (Binding::kLabelRegex) carry
+// an optional extraction regex in args[1]. Case sensitivity comes from the
+// descriptor's fold_case (so -iregex is data, not a name check). Returns null when
+// the node carries no regex, or the pattern does not compile (then no-match).
+std::shared_ptr<const regex::Matcher> CompileNodeRegex(
+    const registry::Descriptor& descriptor,
+    const std::vector<std::string>& args) {
+  std::string_view pattern;
+  if ((descriptor.name == "-regex" || descriptor.name == "-iregex") && !args.empty()) {
+    pattern = args[0];
+  } else if (descriptor.binding == registry::Binding::kLabelRegex && args.size() > 1 && !args[1].empty()) {
+    pattern = args[1];  // the optional =NAME=REGEX extraction regex
+  } else {
+    return nullptr;
+  }
+  absl::StatusOr<regex::Matcher> matcher = regex::Matcher::Compile(pattern, descriptor.fold_case);
+  if (!matcher.ok()) {
+    return nullptr;
+  }
+  return std::make_shared<const regex::Matcher>(*std::move(matcher));
+}
+
 ExprPtr MakePredicate(const registry::Descriptor* descriptor, std::vector<std::string> args) {
   auto expr = std::make_unique<Expr>();
   expr->kind = Expr::Kind::kPredicate;
   expr->descriptor = descriptor;
+  expr->matcher = CompileNodeRegex(*descriptor, args);  // compile once, here; eval just reads it
   expr->args = std::move(args);
   return expr;
 }

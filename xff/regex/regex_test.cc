@@ -24,12 +24,7 @@ namespace xff::regex {
 namespace {
 
 using ::mbo::testing::StatusIs;
-using ::testing::AllOf;
 using ::testing::ElementsAre;
-using ::testing::Eq;
-using ::testing::IsNull;
-using ::testing::Ne;
-using ::testing::NotNull;
 
 struct RegexTest : ::testing::Test {};
 
@@ -76,19 +71,6 @@ TEST_F(RegexTest, RewriteReplacesFirstOrAllMatches) {
 TEST_F(RegexTest, RewriteSupportsBackreferences) {
   ASSERT_OK_AND_ASSIGN(const Matcher matcher, Matcher::Compile("(\\w+)@(\\w+)", /*case_insensitive=*/false));
   EXPECT_THAT(matcher.Rewrite("user@host", "\\2.\\1", /*global=*/false), "host.user");  // \1/\2 backrefs
-}
-
-TEST_F(RegexTest, MatcherCacheCompilesOnceAndReusesByKey) {
-  MatcherCache cache;
-  const Matcher* const a = cache.GetOrCompile("a.*", /*case_insensitive=*/false);
-  ASSERT_THAT(a, NotNull());
-  EXPECT_TRUE(a->FullMatch("abc"));
-  // The same (pattern, case) returns the very same cached matcher (pointer identity).
-  EXPECT_THAT(cache.GetOrCompile("a.*", /*case_insensitive=*/false), Eq(a));
-  // A different case flag is a distinct cache entry.
-  EXPECT_THAT(cache.GetOrCompile("a.*", /*case_insensitive=*/true), AllOf(NotNull(), Ne(a)));
-  // An invalid pattern caches a failure and returns nullptr (a no-match, not retried).
-  EXPECT_THAT(cache.GetOrCompile("a(b", /*case_insensitive=*/false), IsNull());
 }
 
 }  // namespace
