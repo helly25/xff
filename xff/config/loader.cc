@@ -20,7 +20,9 @@
 #include <string_view>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
 #include "xff/config/config.h"
 #include "xff/config/ini.h"
 #include "xff/config/xffrc.h"
@@ -32,6 +34,24 @@ namespace {
 void AppendXffrc(std::vector<RcLine>& out, std::string_view text) {
   const std::vector<RcLine> lines = ParseXffrc(text);
   out.insert(out.end(), lines.begin(), lines.end());
+}
+
+// The directories from the filesystem root down to `abs_dir` (inclusive),
+// shallowest first: "/a/b" -> {"/", "/a", "/a/b"}, "/" -> {"/"}. `abs_dir` is
+// expected absolute (main resolves search roots before discovery).
+std::vector<std::string> AncestorDirs(std::string_view abs_dir) {
+  std::vector<std::string> dirs = {"/"};
+  std::string cur;
+  for (const std::string_view part : absl::StrSplit(abs_dir, '/', absl::SkipEmpty())) {
+    absl::StrAppend(&cur, "/", part);
+    dirs.push_back(cur);
+  }
+  return dirs;
+}
+
+// The .xffrc path inside `dir` ("/" -> "/.xffrc", "/a/b" -> "/a/b/.xffrc").
+std::string XffrcPath(std::string_view dir) {
+  return dir == "/" ? "/.xffrc" : absl::StrCat(dir, "/.xffrc");
 }
 
 }  // namespace
@@ -83,14 +103,25 @@ ConfigInputs Discover(const DiscoveryOptions& opts, FileReader read) {
       AppendXffrc(inputs.user, *text);
     }
   }
-  // Project: the .xffrc in the current directory (untrusted). The full cascade up
-  // the directory tree to each search root is phase E. The policy gate (phase C)
-  // is what makes loading this untrusted layer safe.
-  {
-    const std::optional<std::string> text = read(".xffrc");
-    inputs.sources.push_back({.path = ".xffrc", .layer = Source::kProject, .found = text.has_value()});
-    if (text.has_value()) {
-      inputs.project = ParseXffrc(*text);
+  // Project: the .xffrc cascade. For each (absolute) search-root dir, every .xffrc
+  // from the filesystem root down to that dir contributes to the project layer,
+  // shallowest first so a deeper file overrides a shallower one (like .gitignore).
+  // Directories shared across roots are read once. The whole layer is untrusted;
+  // the policy gate (phase C) is what makes loading it safe. (Per-entry subtree
+  // scoping for files BELOW a root is deferred -- see TODO.md.)
+  std::vector<std::string> seen;
+  for (const std::string& root : opts.roots) {
+    for (const std::string& dir : AncestorDirs(root)) {
+      if (absl::c_contains(seen, dir)) {
+        continue;
+      }
+      seen.push_back(dir);
+      const std::string path = XffrcPath(dir);
+      const std::optional<std::string> text = read(path);
+      inputs.sources.push_back({.path = path, .layer = Source::kProject, .found = text.has_value()});
+      if (text.has_value()) {
+        AppendXffrc(inputs.project, *text);
+      }
     }
   }
   return inputs;

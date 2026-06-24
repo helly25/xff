@@ -104,6 +104,7 @@ cc_library(
         ":config_cc",
         ":ini_cc",
         ":xffrc_cc",
+        "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/functional:function_ref",
         "@abseil-cpp//absl/strings",
     ],

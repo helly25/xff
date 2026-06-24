@@ -87,4 +87,19 @@ test::project_xffrc_is_policy_gated() {
   expect_contains "$(printf "dropped\t'-exec' from the project .xffrc (sensitive)")" "${lines[@]}"
 }
 
+test::project_cascade_applies_ancestor_xffrc() {
+  # A .xffrc at a PARENT dir applies to a search root in a subdir (gitignore-style
+  # ancestor cascade), surfacing in --explain with project provenance.
+  local base="${TEST_TMPDIR}/cascade"
+  mkdir -p "${base}/sub"
+  printf 'common: --color=never\n' >"${base}/.xffrc"  # ancestor (parent) project file
+  local out
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --explain "${base}/sub")"
+  local lines=()
+  local line
+  while IFS= read -r line; do lines+=("${line}"); done <<<"${out}"
+  # The ancestor .xffrc is discovered as a project-layer source and contributes.
+  expect_contains "$(printf 'project\t--color=never')" "${lines[@]}"
+}
+
 test_runner

@@ -14,12 +14,14 @@
 // limitations under the License.
 
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <vector>
 
 #include "absl/algorithm/container.h"
@@ -53,6 +55,33 @@ std::optional<std::string> ReadFile(std::string_view path) {
   std::ostringstream buffer;
   buffer << in.rdbuf();
   return buffer.str();
+}
+
+// The absolute directories whose .xffrc ancestor chains form the project cascade:
+// each search root resolved to an absolute path (a regular file -> its parent
+// directory), or the current directory when no roots were given. The loader walks
+// each one's ancestors; a non-existent root still contributes its ancestor chain.
+std::vector<std::string> ProjectDirs(const std::vector<std::string>& roots) {
+  namespace fs = std::filesystem;
+  std::vector<std::string> inputs = roots;
+  if (inputs.empty()) {
+    inputs.emplace_back(".");
+  }
+  std::vector<std::string> dirs;
+  dirs.reserve(inputs.size());
+  for (const std::string& root : inputs) {
+    std::error_code ec;
+    fs::path abs = fs::absolute(root, ec);
+    if (ec) {
+      continue;
+    }
+    abs = abs.lexically_normal();
+    if (fs::is_regular_file(abs, ec)) {
+      abs = abs.parent_path();
+    }
+    dirs.push_back(abs.string());
+  }
+  return dirs;
 }
 
 }  // namespace
@@ -90,6 +119,7 @@ int main(int argc, char** argv) {
   opts.xff_config = EnvOpt("XFF_CONFIG");
   opts.xdg_config_home = EnvOpt("XDG_CONFIG_HOME");
   opts.home = EnvOpt("HOME");
+  opts.roots = ProjectDirs(command.roots);  // absolute dirs for the project .xffrc cascade
   const xff::config::ConfigInputs inputs = xff::config::Discover(opts, ReadFile);
   std::vector<xff::config::Drop> drops;
   const xff::config::ConfigInputs gated = xff::config::GateConfig(inputs, &drops);
