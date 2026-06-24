@@ -98,6 +98,26 @@ TEST_F(RunTest, NoExpressionPrintsEverything) {
   EXPECT_THAT(last_errors_, 0);
 }
 
+TEST_F(RunTest, SortNameVisitsSiblingsInDeterministicOrder) {
+  // --sort=name orders each directory's entries by name, so the whole walk is
+  // deterministic: root first, then a.txt < b.md < sub, then sub/c.txt. ElementsAre
+  // (not UnorderedElementsAre) asserts the exact sequence.
+  const auto command = parser::Parse({"--sort", root_.string()});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  RunFind(
+      *command, fs_,
+      [&](std::string_view record) {
+        std::string text(record);
+        if (!text.empty() && text.back() == '\n') {
+          text.pop_back();
+        }
+        records.push_back(std::move(text));
+      },
+      [](std::string_view, absl::Status) {});
+  EXPECT_THAT(records, ElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
+}
+
 TEST_F(RunTest, NameGlobImplicitPrint) {
   EXPECT_THAT(RunExpr({"-name", "*.txt"}), UnorderedElementsAre(Path("a.txt"), Path("sub/c.txt")));
 }
