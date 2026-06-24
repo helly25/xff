@@ -16,11 +16,13 @@
 #include "xff/engine/run.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <iostream>
 #include <map>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -117,6 +119,61 @@ SortOrder ResolveSort(const std::vector<std::string>& globals) {
     }
   }
   return sort;
+}
+
+// xff --summary[=overall|type|ext]: reduce the matches to a count + total size
+// table instead of printing each one. Bare --summary / =overall is one total row;
+// =type groups by file type, =ext by filename extension; =none / absent is off.
+enum class SummaryMode { kOff, kOverall, kType, kExt };
+
+SummaryMode ResolveSummary(const std::vector<std::string>& globals) {
+  SummaryMode mode = SummaryMode::kOff;
+  for (const std::string& global : globals) {
+    if (global == "--summary" || global == "--summary=overall") {
+      mode = SummaryMode::kOverall;
+    } else if (global == "--summary=type") {
+      mode = SummaryMode::kType;
+    } else if (global == "--summary=ext") {
+      mode = SummaryMode::kExt;
+    } else if (global == "--summary=none") {
+      mode = SummaryMode::kOff;
+    }
+  }
+  return mode;
+}
+
+// The readable file-type word used as a --summary=type group key.
+std::string_view TypeName(vfs::FileType type) {
+  switch (type) {
+    case vfs::FileType::kRegular: return "file";
+    case vfs::FileType::kDirectory: return "directory";
+    case vfs::FileType::kSymlink: return "symlink";
+    case vfs::FileType::kBlockDevice: return "block-device";
+    case vfs::FileType::kCharDevice: return "char-device";
+    case vfs::FileType::kFifo: return "fifo";
+    case vfs::FileType::kSocket: return "socket";
+    case vfs::FileType::kUnknown: return "unknown";
+  }
+  return "unknown";
+}
+
+// The filename extension used as a --summary=ext group key: the part after the
+// last '.', or "(none)" when there is none (including a leading-dot dotfile).
+std::string SummaryExtension(std::string_view name) {
+  const std::string_view::size_type dot = name.rfind('.');
+  if (dot == std::string_view::npos || dot == 0) {
+    return "(none)";
+  }
+  return std::string(name.substr(dot + 1));
+}
+
+// The group key for one matched entry under `mode` (kOff never reaches here).
+std::string SummaryKey(SummaryMode mode, const Visit& visit) {
+  switch (mode) {
+    case SummaryMode::kType: return std::string(TypeName(visit.metadata.type));
+    case SummaryMode::kExt: return SummaryExtension(visit.name);
+    default: return "total";  // kOverall: a single bucket
+  }
 }
 
 // xff's modern output selector (leading globals, last wins, default plain):
@@ -416,6 +473,10 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   }
   // --time-format=NAME: default spec for a time field with no {:qualifier}.
   const std::string time_format = ResolveTimeFormat(command.globals);
+  // --summary: reduce matches to a {count, total size} per group instead of
+  // printing each one; the table is emitted after the walk.
+  const SummaryMode summary_mode = ResolveSummary(command.globals);
+  std::map<std::string, std::pair<std::uint64_t, std::uint64_t>> summary;  // group -> {count, total size}
   int errors = 0;
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
@@ -453,7 +514,13 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
             .outputs = &outputs,
             .confirm = confirm};
         const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
-        if (matched && implicit_print) {
+        if (matched && summary_mode != SummaryMode::kOff) {
+          // --summary reduces matches instead of printing them: bump this group's
+          // count and size. Explicit actions (-print/-exec) still ran via Evaluate.
+          std::pair<std::uint64_t, std::uint64_t>& agg = summary[SummaryKey(summary_mode, visit)];
+          agg.first += 1;
+          agg.second += visit.metadata.size;
+        } else if (matched && implicit_print) {
           if (compiled_tmpl.has_value()) {  // --template overrides --format
             emit(
                 compiled_tmpl->Render(
@@ -485,6 +552,22 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
       });
   if (!status.ok()) {
     ++errors;  // Fatal traversal error (none today; per-path errors handled above).
+  }
+
+  // --summary: emit the accumulated table -- one `group<TAB>count<TAB>bytes` row
+  // per group (sorted by key, since `summary` is an ordered map), then a `total`
+  // row. The overall mode has a single group already keyed "total".
+  if (summary_mode != SummaryMode::kOff) {
+    std::uint64_t total_count = 0;
+    std::uint64_t total_size = 0;
+    for (const auto& [key, agg] : summary) {
+      emit(absl::StrCat(key, "\t", agg.first, "\t", agg.second, "\n"));
+      total_count += agg.first;
+      total_size += agg.second;
+    }
+    if (summary_mode != SummaryMode::kOverall) {
+      emit(absl::StrCat("total\t", total_count, "\t", total_size, "\n"));
+    }
   }
 
   return errors;
