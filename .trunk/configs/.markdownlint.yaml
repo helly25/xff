@@ -1,0 +1,17 @@
+# Autoformatter friendly markdownlint config (all formatting rules disabled)
+default: true
+blank_lines: false
+bullet: false
+html: false
+indentation: false
+line_length: false
+spaces: false
+url: false
+whitespace: false
+# CHANGELOG.md uses one top-level heading per version.
+single-h1: false
+# xff design docs use bold lead-ins as inline labels (not section headings) and a
+# few language-less fenced blocks (ASCII trees / console output). Disable the two
+# stylistic rules that flag those rather than churn the authored prose.
+MD036: false # no-emphasis-as-heading
+MD040: false # fenced-code-language

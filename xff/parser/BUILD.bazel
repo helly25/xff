@@ -40,8 +40,8 @@ cc_test(
         "//xff/regex:regex_cc",
         "//xff/registry:registry_cc",
         "@abseil-cpp//absl/status",
-        "@helly25_mbo//mbo/testing:status_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
     ],
 )

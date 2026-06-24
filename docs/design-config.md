@@ -10,12 +10,12 @@
 A find-compatible tool that can run `-exec`/`-capture` is, by construction, a
 code-execution engine. A config system for it must make the common case
 convenient **without** ever letting an untrusted, repo-local file silently run
-commands. The design goal, in the user's words: *"by default there is no
-security issue."*
+commands. The design goal, in the user's words: _"by default there is no
+security issue."_
 
 The system has **four layers** with a strict trust order, and a single
 root-owned **policy** that decides how much each lower (less-trusted) layer may
-do. The policy is the keystone: absence of an admin policy yields the *safe*
+do. The policy is the keystone: absence of an admin policy yields the _safe_
 default, never an unsafe one.
 
 ## The four layers
@@ -23,17 +23,17 @@ default, never an unsafe one.
 Lowest → highest precedence; each overrides values set by an earlier one, and
 the **CLI always wins** (typing a flag is explicit consent).
 
-| # | Layer       | Owner / trust            | Format                  |
-|---|-------------|--------------------------|-------------------------|
-| 1 | built-in    | the binary               | (none)                  |
-| 2 | **system**  | root - the trust anchor  | INI (structured policy) |
-| 3 | **user**    | the user - trusted as-is | `.xffrc` grammar        |
-| 4 | **project** | repo - **untrusted**     | `.xffrc` grammar        |
-| 5 | **CLI**     | explicit user consent    | flags                   |
+| #   | Layer       | Owner / trust            | Format                  |
+| --- | ----------- | ------------------------ | ----------------------- |
+| 1   | built-in    | the binary               | (none)                  |
+| 2   | **system**  | root - the trust anchor  | INI (structured policy) |
+| 3   | **user**    | the user - trusted as-is | `.xffrc` grammar        |
+| 4   | **project** | repo - **untrusted**     | `.xffrc` grammar        |
+| 5   | **CLI**     | explicit user consent    | flags                   |
 
 (Locations are detailed under Discovery below.)
 
-- **System** holds global defaults *and* the per-flag **policy** (below). Only
+- **System** holds global defaults _and_ the per-flag **policy** (below). Only
   this root-owned layer may grant capability; lower layers can never widen their
   own permissions.
 - **User** is trusted as the user themselves - data and armed `[exec]`/named
@@ -43,7 +43,7 @@ the **CLI always wins** (typing a flag is explicit consent).
   subtree - per `design.md` §132) and is **capped by the policy**: sensitive
   flags are inert unless the system policy grants the project layer.
 - Provenance: every setting records `enum{unset, system, user, project, cli}`
-  (not `bool`), so resolution is last-non-unset-wins and *unset* ≠ *off*
+  (not `bool`), so resolution is last-non-unset-wins and _unset_ ≠ _off_
   (`design.md` §102).
 
 ## Discovery & loading
@@ -57,12 +57,12 @@ the **CLI always wins** (typing a flag is explicit consent).
   filesystem root down to the entry's directory contributes to that subtree
   (cascade). Ownership-gated even for data-only settings (`design.md` §132).
 - **Explicit:** `--xffrc=FILE` loads a specific file and **arms** its
-  sensitive/named blocks (ownership-gated). Naming the file *is* the
+  sensitive/named blocks (ownership-gated). Naming the file _is_ the
   authorization - no trust DB, no hashes. This replaces the working
   `--config <file>` spelling in `design.md` §130 (which now collides with
   `--config=NAME` below).
-- **`--no-config`:** skip the user + project layers (and system *defaults*);
-  pure CLI + built-ins. The system *policy* still bounds anything that would
+- **`--no-config`:** skip the user + project layers (and system _defaults_);
+  pure CLI + built-ins. The system _policy_ still bounds anything that would
   otherwise be loaded - moot when nothing is.
 
 ## Formats
@@ -86,7 +86,7 @@ user.allow    = @sensitive                       # user may arm -exec/-capture f
 ```
 
 - Class tokens `@safe` / `@sensitive` / `@destructive` expand to every flag with
-  that registry `safety` classification (`design.md` §134), so a *new*
+  that registry `safety` classification (`design.md` §134), so a _new_
   sensitive flag is covered without editing the policy - **no gaps as the tool
   grows.**
 - `deny` beats `allow` on conflict. A layer can be tightened (deny a safe flag)
@@ -110,7 +110,7 @@ find:          --warn                        # only under the find style
   expressive than bazel's single `command:config` - a custom config can differ
   per style.
 - A line is inert (parsed to AST, never executed). Sensitive flags within it are
-  subject to the policy of the *layer the file belongs to*.
+  subject to the policy of the _layer the file belongs to_.
 
 ## Capability policy (per-flag, safe-by-default)
 
@@ -118,7 +118,7 @@ The user-chosen model is **per-flag allow/deny**, anchored to the registry's
 built-in `safety` classification so the safe default needs no admin file:
 
 | Class         | Project | User  | System |
-|---------------|---------|-------|--------|
+| ------------- | ------- | ----- | ------ |
 | `safe`        | allow   | allow | allow  |
 | `sensitive`   | deny    | allow | allow  |
 | `destructive` | deny    | allow | allow  |
@@ -143,11 +143,12 @@ built-in `safety` classification so the safe default needs no admin file:
   xff: ignoring `-exec` from ./.xffrc - denied for the project layer [security];
        arm it explicitly with `--xffrc=./.xffrc`, or allow in /etc/xff.ini.
   ```
+
 - `--explain` lists every config source consulted, what each contributed, and
-  every gate that fired with its *why*.
+  every gate that fired with its _why_.
 - Interacts with `--safe` (`design.md` §136): `--safe` is an orthogonal,
   user-facing hard-refuse of destructive/dangerous ops regardless of layer; the
-  policy governs *where settings may originate*. Both can refuse; both explain.
+  policy governs _where settings may originate_. Both can refuse; both explain.
 
 ## CLI selectors
 
@@ -203,7 +204,7 @@ ln -s xff find && ./find . -println        # → error: -println unknown (find s
 - `/etc/xff.d/` drop-in dir now, or single `/etc/xff.ini` first?
 - Class tokens (`@sensitive`) in the `[policy]` lists from day one, or per-flag
   names only until proven necessary?
-- Should `--no-config` also drop system *defaults*, or only user + project?
+- Should `--no-config` also drop system _defaults_, or only user + project?
 - Windows: system path (`%PROGRAMDATA%\xff`) and user path mapping (deferred with
   the rest of Windows support - `design.md` §Non-Goals).
 
@@ -211,7 +212,7 @@ ln -s xff find && ./find . -println        # → error: -println unknown (find s
 
 - **ripgrep:** config only via an explicit `RIPGREP_CONFIG_PATH` env var - no
   ambient discovery. (We add cascading project files, but gate them.)
-- **fd:** ships *no* config file at all - the maximally safe stance.
+- **fd:** ships _no_ config file at all - the maximally safe stance.
 - **sudoers / ssh:** a root-owned system file defines policy that user files
   cannot override - the model for our system-over-project trust anchor.
 - **bazel:** `--config=NAME` named configs and rc layering - adopted, minus

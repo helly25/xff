@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: ["**"]
 
 # A branch push is covered by its pull_request run; only `main` needs a push
 # run. And cancel superseded runs on the same ref so rapid pushes don't pile up.
@@ -56,9 +57,19 @@ jobs:
           find xff -type f \( -name '*.cc' -o -name '*.h' \) -print0 \
             | xargs -0 tools/clang_format.sh --dry-run -Werror
 
+  # trunk (https://trunk.io) runs the heavier linters: buildifier, markdownlint,
+  # prettier, yamllint, the security scanners, and clang-tidy (local only;
+  # CI-skipped without a compile DB, so CI relies on the bazel -Werror gate).
+  # Mirrors helly25/mbo.
+  trunk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Trunk Check
+        uses: trunk-io/trunk-action@v1
+
   # pre-commit hooks (clang-format, shfmt, shellcheck, actionlint, and the
-  # repo-policy text checks incl. no-em-dashes). Mirrors helly25/mbo. clang-tidy
-  # and the heavier linters are trunk's job, added separately.
+  # repo-policy text checks incl. no-em-dashes). Mirrors helly25/mbo.
   pre-commit:
     runs-on: ubuntu-latest
     steps:
@@ -73,7 +84,7 @@ jobs:
   # workflow job is wired into `needs`, so a newly added job cannot silently
   # escape the gate. Mirrors helly25/mbo.
   done:
-    needs: [test, pre-commit]
+    needs: [test, pre-commit, trunk]
     if: always()
     runs-on: ubuntu-latest
     steps:
