@@ -3,6 +3,9 @@
 Conventions for AI agents and contributors working on this repository.
 Companion to [`docs/design.md`](docs/design.md) (decisions) and
 [`docs/implementation-plan.md`](docs/implementation-plan.md) (build & sequencing).
+The full **C++ coding style** is [`STYLE_CPP.md`](STYLE_CPP.md); project-level rules are
+[`RULES.md`](RULES.md); the contribution flow is [`CONTRIBUTING.md`](CONTRIBUTING.md). The
+GoogleTest section below is the quick reference; `STYLE_CPP.md` is canonical.
 
 Build & test: `bazel test //...` · sanitizers: `bazel test //... --config=clang --config=asan`.
 Toolchain: clang-22 minimum (hermetic LLVM under `--config=clang`).
@@ -23,7 +26,7 @@ Toolchain: clang-22 minimum (hermetic LLVM under `--config=clang`).
 6. **Test `absl::Status` / `absl::StatusOr<T>` with status matchers - never raw
    `.ok()`.** Raw `EXPECT_TRUE(s.ok())` / `EXPECT_FALSE(s.ok())` throws away the
    code and message on failure. Use `mbo::testing`
-   (`@com_helly25_mbo//mbo/testing:status_cc`):
+   (`@helly25_mbo//mbo/testing:status_cc`):
    - `EXPECT_THAT(s, IsOk())`
    - `EXPECT_THAT(s, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("…")))`
    - `EXPECT_THAT(so, IsOkAndHolds(Eq(42)))`
