@@ -36,3 +36,49 @@ shipped one way but not yet settled.
   walk, an architectural change (per-entry layering on the traversal hot path).
   Deferred until a real need appears; the ancestor cascade already covers the
   common "repo + parents" case.
+
+## Remaining work
+
+The backlog of features and infrastructure not yet built. Ordered by current
+intent, not hard dependency. Task numbers reference the agent task list.
+
+### Lint / CI / style adoption (from helly25/mbo)
+
+- **Style docs + `.clang-tidy`** (this change). `.clang-tidy` (mbo's rule set),
+  `STYLE_CPP.md`, `RULES.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and an
+  `AGENTS.md` pointer. The `bazel-compile-commands-extractor` dev module is
+  already wired (`bazelmod/dev.MODULE.bazel`), so clang-tidy can run locally.
+- **Apply clang-tidy.** `bazel run @bazel_compile_commands_extractor//:refresh_all`
+  to produce `compile_commands.json`, run `clang-tidy` across `xff/`, and fix the
+  findings (likely several PRs sized by finding count).
+- **Adopt trunk.** `.trunk/trunk.yaml` (+ `configs/`) and a CI `trunk` job
+  mirroring mbo: clang-tidy (CI-skipped without a compile DB, gated locally),
+  buildifier, markdownlint, prettier, yamllint, trivy/trufflehog, git-diff-check.
+- **Adopt pre-commit.** `.pre-commit-config.yaml` (+ `.pre-commit/` scripts) and a
+  CI `pre-commit` job: clang-format (mirrors-clang-format), shfmt, shellcheck,
+  actionlint, and the local hooks (`no-do-not-merge`, `no-todos-without-context`,
+  `done-gate-covers-all-jobs`, the no-em-dash check). Retire the hand-rolled
+  clang-format CI step once pre-commit owns it.
+
+### find / xff features (roadmap tail)
+
+- **Parallel traversal + `--jobs` + deterministic `--sort`** (#43). The big one;
+  needs a design pass (work-stealing vs per-root pool; ordering guarantees).
+- **Exit-code model refinement + `--skip-unsupported` + impossible-task-fail**
+  (#44).
+- **`--exact` FS-aware matching + `--path-encoding` output** (#45).
+- **`--feature=NAME` / `--feature=no-NAME` capability gates** (config phase D3,
+  #73).
+- **Grow `xff/datetime` into a parse+format lib** (#70): named formats +
+  modifiers; plus the deferred `--tz` short alias and fixed-offset zone specs
+  (`+01:00`, which `absl::LoadTimeZone` does not parse).
+- **`--mode=NAME` + argv[0] mode mechanism** (#54). The `--modern` umbrella flag
+  stays deferred; ship per-feature gates first.
+- **Access predicates** `-readable` / `-writable` / `-executable` (needs a
+  `vfs::FileSystem::Access` capability).
+- **`-inum N` / `-samefile FILE`** (inode identity; `Metadata.ino`/`dev` already
+  captured).
+- **Symbolic `-perm` modes** (`-perm u+w`, `-mode`, `/mode`) beyond the octal form.
+- **`-lname` / `-ilname`** (symlink-target glob; needs `vfs::FileSystem::ReadLink`).
+- **`-fstype TYPE`** (filesystem-type predicate).
+- **Markdown table vertical-alignment formatter** as a reusable skill (#66).
