@@ -27,6 +27,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -422,19 +424,33 @@ std::optional<std::uint32_t> ResolveGid(std::string_view name) {
   return ParseId(name);
 }
 
-// find's -regex/-iregex: the node's pre-compiled matcher (Expr::matcher, built at
-// parse time) must match the whole path (not a substring). A null matcher (no
-// pattern, or it failed to compile) matches nothing. When `captures` is non-null
-// (gated -exec is active) a match records its groups there ([0] the whole match,
-// 1..N the groups) for the {0}..{N} placeholders.
-bool MatchesRegex(const regex::Matcher* matcher, std::string_view path, std::vector<std::string>* captures) {
+// An optional reference to a node's pre-compiled matcher: empty when the node has
+// no regex (no pattern, or it failed to compile). Explicit about the optionality,
+// unlike a raw pointer.
+using MatcherRef = std::optional<std::reference_wrapper<const regex::Matcher>>;
+
+// Builds a MatcherRef from a node's Expr::matcher (a shared_ptr, possibly null).
+MatcherRef AsRef(const std::shared_ptr<const regex::Matcher>& matcher) {
   if (matcher == nullptr) {
+    return std::nullopt;
+  }
+  return std::cref(*matcher);
+}
+
+// find's -regex/-iregex: `matcher` (the node's pre-compiled Expr::matcher) must
+// match the whole path (not a substring). An empty matcher (no pattern, or it
+// failed to compile) matches nothing. When `captures` is non-null (gated -exec is
+// active) a match records its groups there ([0] the whole match, 1..N the groups)
+// for the {0}..{N} placeholders.
+bool MatchesRegex(MatcherRef matcher, std::string_view path, std::vector<std::string>* captures) {
+  if (!matcher.has_value()) {
     return false;
   }
+  const regex::Matcher& re = matcher->get();
   if (captures == nullptr) {
-    return matcher->FullMatch(path);
+    return re.FullMatch(path);
   }
-  std::optional<std::vector<std::string>> groups = matcher->FullMatchCaptures(path);
+  std::optional<std::vector<std::string>> groups = re.FullMatchCaptures(path);
   if (!groups.has_value()) {
     return false;
   }
@@ -444,13 +460,13 @@ bool MatchesRegex(const regex::Matcher* matcher, std::string_view path, std::vec
 
 // Applies a -capture extraction matcher (Expr::matcher, pre-compiled from the
 // optional =NAME=REGEX) to `text`: returns capture group 1, or the whole match
-// when the regex has no groups, or empty when it does not fully match. The caller
-// only invokes this when an extraction regex was given, so `matcher` is non-null.
-std::string ExtractCapture(const regex::Matcher* matcher, std::string_view text) {
-  if (matcher == nullptr) {
+// when the regex has no groups, or empty when it does not fully match (or the
+// matcher is empty -- no/uncompilable extraction regex).
+std::string ExtractCapture(MatcherRef matcher, std::string_view text) {
+  if (!matcher.has_value()) {
     return "";
   }
-  const std::optional<std::vector<std::string>> groups = matcher->FullMatchCaptures(text);
+  const std::optional<std::vector<std::string>> groups = matcher->get().FullMatchCaptures(text);
   if (!groups.has_value()) {
     return "";
   }
@@ -486,7 +502,7 @@ bool EvalPath(const parser::Expr& expr, EvalContext& ctx) {
 // Both -regex and -iregex map here: case sensitivity is baked into the matcher the
 // parser compiled (iregex folds case), so the handler just matches the path.
 bool EvalRegex(const parser::Expr& expr, EvalContext& ctx) {
-  return MatchesRegex(expr.matcher.get(), ctx.visit.path, ctx.captures);
+  return MatchesRegex(AsRef(expr.matcher), ctx.visit.path, ctx.captures);
 }
 
 bool EvalType(const parser::Expr& expr, EvalContext& ctx) {
@@ -752,7 +768,7 @@ bool RunCapture(const parser::Expr& expr, EvalContext& ctx, std::string_view dir
       value.pop_back();  // strip trailing newline(s)
     }
     if (!expr.args[1].empty()) {
-      value = ExtractCapture(expr.matcher.get(), value);  // optional regex extraction (matcher pre-compiled)
+      value = ExtractCapture(AsRef(expr.matcher), value);  // optional regex extraction (matcher pre-compiled)
     }
   }
   (*ctx.outputs)[expr.args[0]] = std::move(value);  // bind {capture.NAME} (last wins)
