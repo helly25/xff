@@ -344,8 +344,9 @@ serialized-string comparison. See the Protocol Buffers section.
 
 ### Shell / binary-level tests
 
-- Use **helly25/bashtest** (`bazel_dep(name = "helly25_bashtest")`), not a hand-rolled
-  `sh_test`: `load("@helly25_bashtest//bashtest:bashtest.bzl", "bashtest")`, then a
+- Use **helly25/bashtest** (`bazel_dep(name = "helly25_bashtest", repo_name = "com_helly25_bashtest")`,
+  whose macro emits `@com_helly25_bashtest` labels), not a hand-rolled `sh_test`:
+  `load("@com_helly25_bashtest//bashtest:bashtest.bzl", "bashtest")`, then a
   script that `source`s `"${helly25_bashtest}"`, defines `test::name()` functions using
   `expect_eq` / `expect_contains` / `expect_not_contains`, and ends with `test_runner`.
 - It runs under macOS bash 3.2: **no `mapfile` / `readarray`** or other bash-4 features.
