@@ -31,6 +31,7 @@
 #include "xff/engine/walk.h"
 #include "xff/fields/fields.h"
 #include "xff/parser/ast.h"
+#include "xff/regex/regex.h"
 #include "xff/registry/descriptor.h"
 #include "xff/render/render.h"
 #include "xff/vfs/filesystem.h"
@@ -417,6 +418,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   // --time-format=NAME: default spec for a time field with no {:qualifier}.
   const std::string time_format = ResolveTimeFormat(command.globals);
   int errors = 0;
+  regex::MatcherCache regex_cache;  // compile each -regex/-iregex pattern once for the whole walk
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
   // what it would remove without touching the filesystem.
@@ -451,7 +453,8 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
             .captures = exec_fields ? &captures : nullptr,
             .defines = &defines,
             .outputs = &outputs,
-            .confirm = confirm};
+            .confirm = confirm,
+            .regex_cache = &regex_cache};
         const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
         if (matched && implicit_print) {
           if (compiled_tmpl.has_value()) {  // --template overrides --format

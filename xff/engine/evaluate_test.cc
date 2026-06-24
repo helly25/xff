@@ -26,6 +26,7 @@
 #include "mbo/testing/status.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/parser.h"
+#include "xff/regex/regex.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/local_fs.h"
 
@@ -63,10 +64,12 @@ struct EvaluateTest : ::testing::Test {
         .exec_fields = exec_fields_,
         .captures = exec_fields_ ? &captures_ : nullptr,
         .outputs = &outputs_,
-        .confirm = [this](std::string_view prompt) {
-          last_prompt_ = std::string(prompt);
-          return confirm_reply_;
-        }};
+        .confirm =
+            [this](std::string_view prompt) {
+              last_prompt_ = std::string(prompt);
+              return confirm_reply_;
+            },
+        .regex_cache = &regex_cache_};
     return Evaluate(*command->expression, context);
   }
 
@@ -89,6 +92,7 @@ struct EvaluateTest : ::testing::Test {
   bool exec_fields_ = false;                    // when true, Match enables --exec-fields token substitution
   std::vector<std::string> captures_;           // -regex groups captured during the most recent (gated) Match
   std::map<std::string, std::string> outputs_;  // -capture results from the most recent Match
+  regex::MatcherCache regex_cache_;             // run-level compile cache fed to EvalContext::regex_cache
 };
 
 TEST_F(EvaluateTest, TrueAndFalse) {
