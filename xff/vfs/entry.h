@@ -54,8 +54,9 @@ enum class Source {
 // "macOS / cross-platform correctness").
 struct Metadata {
   FileType type = FileType::kUnknown;
-  std::uint64_t size = 0;  // logical size in bytes
-  std::uint32_t mode = 0;  // permission + type bits (st_mode), masked by the engine
+  std::uint64_t size = 0;    // logical size in bytes
+  std::uint64_t blocks = 0;  // 512-byte blocks actually allocated (st_blocks); backs -ls
+  std::uint32_t mode = 0;    // permission + type bits (st_mode), masked by the engine
   std::uint64_t nlink = 0;
   std::uint32_t uid = 0;
   std::uint32_t gid = 0;

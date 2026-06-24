@@ -610,5 +610,13 @@ TEST_F(RunTest, SummaryByExtensionGroupsSortedThenTotals) {
       ElementsAre("md\t1\t1", "txt\t2\t2", "total\t3\t3"));
 }
 
+TEST_F(RunTest, LsEmitsOneLinePerMatchAndSuppressesImplicitPrint) {
+  // -ls is an action, so it suppresses the implicit -print: exactly one line (the
+  // ls-style listing) for the match, containing its path. The exact columns are
+  // umask/fs-dependent (covered deterministically in evaluate_test); here we just
+  // confirm the end-to-end wiring and the print suppression.
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "-ls"}), ElementsAre(HasSubstr(Path("a.txt"))));
+}
+
 }  // namespace
 }  // namespace xff::engine

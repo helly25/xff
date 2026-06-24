@@ -121,6 +121,7 @@ Metadata MetadataFromStat(const struct stat& st, std::optional<absl::Time> btime
   Metadata md;
   md.type = TypeFromMode(st.st_mode);
   md.size = static_cast<std::uint64_t>(st.st_size);
+  md.blocks = static_cast<std::uint64_t>(st.st_blocks);  // 512-byte blocks, for -ls
   md.mode = static_cast<std::uint32_t>(st.st_mode);
   md.nlink = static_cast<std::uint64_t>(st.st_nlink);
   md.uid = static_cast<std::uint32_t>(st.st_uid);

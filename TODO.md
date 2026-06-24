@@ -22,11 +22,10 @@ shipped one way but not yet settled.
   (`{atime}`/`{mtime}`/`{ctime}`/`{btime}`). Accepts `local`/empty,
   `utc`/`z`/`zulu`, and IANA names (`America/New_York`); an unknown zone is a
   usage error. The companion `--time-format=NAME` selector shipped alongside it
-  (config phase D4b). Not yet settled / deferred: (a) a `--tz` short alias; (b)
-  fixed-offset specs (`+01:00`), which `absl::LoadTimeZone` does not parse; (c)
-  `-ls`'s time column (a fixed multi-column listing; `-printf` time directives
-  `%a`/`%c`/`%t` + `%Ak`/`%Ck`/`%Tk` now honor the zone, #48). Revisit with the
-  datetime lib growth (#70).
+  (config phase D4b), and `-printf` (`%a`/`%c`/`%t` + `%Ak`/`%Ck`/`%Tk`) and `-ls`
+  both render in the zone (#48). Not yet settled / deferred: (a) a `--tz` short
+  alias; (b) fixed-offset specs (`+01:00`), which `absl::LoadTimeZone` does not
+  parse. Revisit with the datetime lib growth (#70).
 
 - **Project `.xffrc` per-entry subtree scoping (deferred).**
   The cascade (config phase E2a) reads, for each search root, every `.xffrc` from
