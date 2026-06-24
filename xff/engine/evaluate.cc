@@ -423,17 +423,19 @@ std::optional<std::uint32_t> ResolveGid(std::string_view name) {
 }
 
 // find's -regex/-iregex: the pattern must match the whole path (not a substring).
-// Compiled per call for now; pre-compilation is a tracked optimization. An
-// uncompilable pattern matches nothing (a hard error is deferred to exit codes).
-// When `captures` is non-null (gated -exec is active) a match records its groups
-// there ([0] the whole match, 1..N the groups) for the {0}..{N} placeholders.
+// The matcher is compiled once per run and reused (regex::MatcherCache), not
+// recompiled per entry. An uncompilable pattern matches nothing (a hard error is
+// deferred to exit codes). When `captures` is non-null (gated -exec is active) a
+// match records its groups there ([0] the whole match, 1..N the groups) for the
+// {0}..{N} placeholders.
 bool MatchesRegex(
     std::string_view pattern,
     std::string_view path,
     bool case_insensitive,
-    std::vector<std::string>* captures) {
-  const absl::StatusOr<regex::Matcher> matcher = regex::Matcher::Compile(pattern, case_insensitive);
-  if (!matcher.ok()) {
+    std::vector<std::string>* captures,
+    regex::MatcherCache& cache) {
+  const regex::Matcher* const matcher = cache.GetOrCompile(pattern, case_insensitive);
+  if (matcher == nullptr) {
     return false;
   }
   if (captures == nullptr) {
@@ -448,11 +450,11 @@ bool MatchesRegex(
 }
 
 // Applies a -capture extraction regex to `text` (the captured stdout): returns
-// capture group 1, or the whole match when the regex has no groups, or empty
-// when it does not fully match (or fails to compile).
-std::string ExtractCapture(std::string_view regex, std::string_view text) {
-  const absl::StatusOr<regex::Matcher> matcher = regex::Matcher::Compile(regex, /*case_insensitive=*/false);
-  if (!matcher.ok()) {
+// capture group 1, or the whole match when the regex has no groups, or empty when
+// it does not fully match (or fails to compile). Uses the run-level compile cache.
+std::string ExtractCapture(std::string_view regex, std::string_view text, regex::MatcherCache& cache) {
+  const regex::Matcher* const matcher = cache.GetOrCompile(regex, /*case_insensitive=*/false);
+  if (matcher == nullptr) {
     return "";
   }
   const std::optional<std::vector<std::string>> groups = matcher->FullMatchCaptures(text);
@@ -492,11 +494,11 @@ bool EvalIpath(const parser::Expr& expr, EvalContext& ctx) {
 }
 
 bool EvalRegex(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && MatchesRegex(expr.args.front(), ctx.visit.path, false, ctx.captures);
+  return !expr.args.empty() && MatchesRegex(expr.args.front(), ctx.visit.path, false, ctx.captures, *ctx.regex_cache);
 }
 
 bool EvalIregex(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && MatchesRegex(expr.args.front(), ctx.visit.path, true, ctx.captures);
+  return !expr.args.empty() && MatchesRegex(expr.args.front(), ctx.visit.path, true, ctx.captures, *ctx.regex_cache);
 }
 
 bool EvalType(const parser::Expr& expr, EvalContext& ctx) {
@@ -762,7 +764,7 @@ bool RunCapture(const parser::Expr& expr, EvalContext& ctx, std::string_view dir
       value.pop_back();  // strip trailing newline(s)
     }
     if (!expr.args[1].empty()) {
-      value = ExtractCapture(expr.args[1], value);  // optional regex extraction
+      value = ExtractCapture(expr.args[1], value, *ctx.regex_cache);  // optional regex extraction
     }
   }
   (*ctx.outputs)[expr.args[0]] = std::move(value);  // bind {capture.NAME} (last wins)

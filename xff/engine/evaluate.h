@@ -28,6 +28,10 @@
 #include "xff/parser/ast.h"
 #include "xff/vfs/filesystem.h"
 
+namespace xff::regex {
+class MatcherCache;  // run-level -regex/-iregex compile cache (forward-declared; pointer only)
+}  // namespace xff::regex
+
 namespace xff::engine {
 
 // Output sink for actions: receives one fully-formed record per action firing
@@ -63,6 +67,7 @@ struct EvalContext {
   const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
   std::map<std::string, std::string>* outputs = nullptr;  // -capture results for {capture.NAME} (mutable, per entry)
   std::function<bool(std::string_view)> confirm;  // -ok prompt sink: returns true to run the command; empty -> decline
+  regex::MatcherCache* regex_cache = nullptr;     // run-level -regex/-iregex compile cache (compile once, reuse)
 };
 
 // Evaluates a parsed find expression against one visited entry and returns its
