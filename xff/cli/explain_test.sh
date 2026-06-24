@@ -48,6 +48,9 @@ test::explain_reflects_effective_config() {
   expect_not_contains "$(printf 'user\t--warn')" "${lines[@]}"
   # The CLI selector is echoed with cli provenance.
   expect_contains "$(printf 'cli\t--config=xff')" "${lines[@]}"
+  # The source trace reports the active style and the consulted user config (found).
+  expect_contains "# xff active style: xff" "${lines[@]}"
+  expect_contains "$(printf 'source\tuser\tfound\t%s' "${cfg}")" "${lines[@]}"
 }
 
 test::config_applies_to_the_run() {

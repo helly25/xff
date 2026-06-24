@@ -36,14 +36,23 @@ struct ResolvedFlag {
   Source source;
 };
 
+// One config file consulted during discovery, recorded for --explain's source
+// trace: its path, the layer it would feed, and whether it existed/was readable.
+struct ConfigSource {
+  std::string path;
+  Source layer;
+  bool found = false;
+};
+
 // The parsed layers + active selectors fed to ResolveConfig. CLI flags are NOT
 // here: the caller applies them last (highest precedence) after this resolution.
 struct ConfigInputs {
-  SystemConfig system;               // parsed /etc/xff.ini ([defaults] + [policy])
-  std::vector<RcLine> user;          // parsed user .xffrc
-  std::vector<RcLine> project;       // parsed project .xffrc (single file for now; cascade is phase E)
-  std::vector<std::string> configs;  // active --config=NAME selectors (styles and/or named configs)
-  bool no_config = false;            // --no-config: drop user+project layers and system defaults
+  SystemConfig system;                // parsed /etc/xff.ini ([defaults] + [policy])
+  std::vector<RcLine> user;           // parsed user .xffrc
+  std::vector<RcLine> project;        // parsed project .xffrc (single file for now; cascade is phase E)
+  std::vector<std::string> configs;   // active --config=NAME selectors (styles and/or named configs)
+  bool no_config = false;             // --no-config: drop user+project layers and system defaults
+  std::vector<ConfigSource> sources;  // every file consulted during discovery, for --explain (set by Discover)
 };
 
 // Resolves config-supplied flags, lowest precedence first (system [defaults] <
@@ -79,6 +88,12 @@ std::string_view DefaultStyleForProgram(std::string_view argv0);
 // (each prefixed by its provenance) in application order, then the CLI globals
 // (provenance "cli"). Later lines override earlier ones, mirroring resolution.
 std::string ExplainConfig(const std::vector<ResolvedFlag>& resolved, const std::vector<std::string>& cli_globals);
+
+// Renders the discovery trace for --explain: the active find/xff style, then every
+// config file consulted (precedence order: system < user < project), each tagged
+// with its layer and whether it was found. Pairs with ExplainConfig (which shows
+// what each contributed); together they answer "what did xff read, and why".
+std::string ExplainSources(const std::vector<ConfigSource>& sources, registry::Style style);
 
 }  // namespace xff::config
 

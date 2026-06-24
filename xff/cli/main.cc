@@ -95,6 +95,7 @@ int main(int argc, char** argv) {
   const xff::config::ConfigInputs gated = xff::config::GateConfig(inputs, &drops);
   const std::vector<xff::config::ResolvedFlag> resolved = xff::config::ResolveConfig(gated);
   if (absl::c_contains(command.globals, "--explain")) {
+    std::cout << xff::config::ExplainSources(inputs.sources, xff::config::ActiveStyle(inputs.configs));
     std::cout << xff::config::ExplainConfig(resolved, command.globals);
     for (const xff::config::Drop& drop : drops) {
       std::cout << "dropped\t" << xff::config::DropMessage(drop) << "\n";
