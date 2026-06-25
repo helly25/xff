@@ -27,7 +27,7 @@ namespace {
 // quotes), escaping per RFC 8259: quote, backslash, and the control characters
 // U+0000..U+001F (the common ones by name, the rest as \u00XX).
 void AppendJsonEscaped(std::string_view path, std::string* out) {
-  static constexpr char kHex[] = "0123456789abcdef";
+  static constexpr std::string_view kHex = "0123456789abcdef";
   for (const char ch : path) {
     const auto byte = static_cast<unsigned char>(ch);
     switch (ch) {

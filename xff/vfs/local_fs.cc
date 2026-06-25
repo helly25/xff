@@ -177,7 +177,7 @@ absl::StatusOr<std::vector<Entry>> LocalFs::ReadDir(std::string_view dir) const 
 
 absl::StatusOr<Metadata> LocalFs::Stat(std::string_view path, bool follow_symlinks) const {
   const std::string path_str(path);
-  struct stat st;
+  struct stat st{};
   const int rc = follow_symlinks ? ::stat(path_str.c_str(), &st) : ::lstat(path_str.c_str(), &st);
   if (rc != 0) {
     return absl::ErrnoToStatus(errno, absl::StrCat(follow_symlinks ? "stat('" : "lstat('", path, "')"));
