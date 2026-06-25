@@ -183,7 +183,7 @@ TEST_F(RunTest, LinksOneMatchesRegularFiles) {
 }
 
 TEST_F(RunTest, MissingRootCountsError) {
-  std::vector<std::string> argv = {(root_ / "absent").string(), "-print"};
+  const std::vector<std::string> argv = {(root_ / "absent").string(), "-print"};
   const auto command = parser::Parse(argv);
   ASSERT_THAT(command, IsOk());
   std::vector<std::string> records;

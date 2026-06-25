@@ -337,7 +337,7 @@ absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
   }
 
   // Expression: the remaining tokens, parsed to a tree.
-  std::vector<std::string> expr_tokens(args.begin() + static_cast<std::ptrdiff_t>(i), args.end());
+  const std::vector<std::string> expr_tokens(args.begin() + static_cast<std::ptrdiff_t>(i), args.end());
   if (!expr_tokens.empty()) {
     ExprParser parser(expr_tokens);
     absl::StatusOr<ExprPtr> expr = parser.Parse();

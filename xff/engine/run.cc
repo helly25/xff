@@ -481,7 +481,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
   // what it would remove without touching the filesystem.
-  DryRunFileSystem dry_run_fs(fs, emit);
+  const DryRunFileSystem dry_run_fs(fs, emit);
   const vfs::FileSystem& walk_fs = HasGlobal(command.globals, "--dry-run") ? dry_run_fs : fs;
 
   // -ok confirmation: prompt to stderr, read a line from stdin, affirmative on y/Y (like find).

@@ -447,7 +447,8 @@ std::string Template::Render(const RenderContext& context) const {
     if (segment.fn != nullptr) {
       // A rewrite qualifier post-processes the field's default value; otherwise
       // the qualifier is the field's own format argument.
-      std::string value = segment.fn(segment.key, segment.rewrite ? std::string_view{} : segment.qualifier, context);
+      const std::string value =
+          segment.fn(segment.key, segment.rewrite ? std::string_view{} : segment.qualifier, context);
       out.append(segment.rewrite ? ApplyRewrite(value, segment.qualifier) : value);
     } else {
       out.append(segment.literal);
