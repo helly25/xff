@@ -132,7 +132,7 @@ std::string SymbolicPerms(vfs::FileType type, std::uint32_t mode) {
     case vfs::FileType::kSocket: out[0] = 's'; break;
     case vfs::FileType::kUnknown: out[0] = '?'; break;
   }
-  static constexpr char kRwx[] = {'r', 'w', 'x'};
+  static constexpr std::string_view kRwx = "rwx";
   for (int i = 0; i < 9; ++i) {
     if ((mode & (1U << (8 - i))) != 0U) {
       out[1 + i] = kRwx[i % 3];
