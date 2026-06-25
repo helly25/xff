@@ -48,7 +48,7 @@ std::optional<std::string> EnvOpt(const char* name) {
 
 // Reads a whole file, or nullopt if it cannot be opened: the config FileReader.
 std::optional<std::string> ReadFile(std::string_view path) {
-  std::ifstream in{std::string(path), std::ios::binary};
+  const std::ifstream in{std::string(path), std::ios::binary};
   if (!in) {
     return std::nullopt;
   }
