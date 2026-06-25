@@ -23,6 +23,7 @@
 #include <unistd.h>  // geteuid()/getegid() for the -uid/-gid and -user/-group oracles
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdio>
 #include <filesystem>
@@ -129,9 +130,10 @@ struct ConformanceTest : ::testing::Test {
       return std::nullopt;
     }
     std::string output;
-    char chunk[4'096];
-    for (std::size_t n = ::fread(chunk, 1, sizeof(chunk), pipe); n > 0; n = ::fread(chunk, 1, sizeof(chunk), pipe)) {
-      output.append(chunk, n);
+    std::array<char, 4'096> chunk;
+    for (std::size_t n = ::fread(chunk.data(), 1, chunk.size(), pipe); n > 0;
+         n = ::fread(chunk.data(), 1, chunk.size(), pipe)) {
+      output.append(chunk.data(), n);
     }
     if (::pclose(pipe) != 0) {
       return std::nullopt;

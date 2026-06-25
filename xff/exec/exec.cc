@@ -26,6 +26,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <array>
 #include <cerrno>
 #include <cstddef>
 #include <optional>
@@ -127,8 +128,8 @@ std::optional<std::string> CaptureOutput(const std::vector<std::string>& args, s
   if (args.empty()) {
     return std::nullopt;
   }
-  int pipe_fds[2] = {-1, -1};
-  if (::pipe(pipe_fds) != 0) {
+  std::array<int, 2> pipe_fds = {-1, -1};
+  if (::pipe(pipe_fds.data()) != 0) {
     return std::nullopt;
   }
 
@@ -162,11 +163,11 @@ std::optional<std::string> CaptureOutput(const std::vector<std::string>& args, s
   // Drain the pipe before waiting, so a child writing more than the pipe buffer
   // cannot deadlock against our waitpid.
   std::string output;
-  char buffer[4'096];
+  std::array<char, 4'096> buffer;
   for (;;) {
-    const ssize_t n = ::read(pipe_fds[0], buffer, sizeof(buffer));
+    const ssize_t n = ::read(pipe_fds[0], buffer.data(), buffer.size());
     if (n > 0) {
-      output.append(buffer, static_cast<std::size_t>(n));
+      output.append(buffer.data(), static_cast<std::size_t>(n));
     } else if (n == 0 || errno != EINTR) {
       break;  // EOF, or a non-retryable read error
     }
