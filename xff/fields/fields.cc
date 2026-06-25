@@ -102,7 +102,7 @@ std::string HumanSize(std::uint64_t bytes) {
   if (bytes < 1'024) {
     return std::to_string(bytes);
   }
-  static constexpr char kUnits[] = "KMGTPE";
+  static constexpr std::string_view kUnits = "KMGTPE";
   std::uint64_t scale = 1'024;
   int unit = 0;
   while (bytes >= scale * 1'024 && unit + 1 < 6) {
