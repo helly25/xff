@@ -1,4 +1,12 @@
 ---
+# Base ruleset is helly25/mbo's. xff additionally relaxes a handful of checks that
+# fight this codebase's established idioms: declare-then-fill locals
+# (cppcoreguidelines-init-variables), domain 2-char names like md/st/rc/ec
+# (readability-identifier-length minimum lowered to 2 below), block-size/mode
+# magic numbers (avoid-magic-numbers), adjacent same-type params
+# (easily-swappable-parameters), and intentionally unnamed unused parameters
+# (named-parameter). The genuine checks (const-correctness, avoid-c-arrays,
+# member-init, ...) stay on.
 Checks: >
   *,
   abseil-*,
@@ -32,6 +40,12 @@ Checks: >
   -readability-avoid-nested-conditional-operator,
   -readability-else-after-return,
   -readability-redundant-inline-specifier,
+  -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-init-variables,
+  -hicpp-named-parameter,
+  -readability-magic-numbers,
+  -readability-named-parameter,
 
 WarningsAsErrors: true
 FormatStyle:       '.clang-format'
@@ -76,6 +90,10 @@ CheckOptions:
     value:           'os|v'
   - key:             readability-identifier-length.IgnoredVariableNames
     value:           'os|v|it'
+  - key:             readability-identifier-length.MinimumParameterNameLength
+    value:           '2'
+  - key:             readability-identifier-length.MinimumVariableNameLength
+    value:           '2'
   - key:             cppcoreguidelines-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
     value:           '1'
   - key:             readability-identifier-naming.ClassCase

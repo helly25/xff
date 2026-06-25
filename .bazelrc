@@ -29,6 +29,14 @@ common --define absl=1
 # xff is a C++23 project.
 common --cxxopt=-std=c++23 --host_cxxopt=-std=c++23 --cxxopt=-Werror
 
+# Some Clang versions warn that '-c' is unused when a tool re-runs the compile
+# command in preprocess-only mode (clang-tidy / compile_commands include-scanning
+# appends -M): https://github.com/llvm/llvm-project/issues/100909. Suppress it in
+# every config (not just :clang) so the generated compile_commands.json works with
+# clang-tidy via trunk. It is a no-op for the normal build (no unused args there),
+# and gcc silently accepts an unknown -Wno-* option.
+common --cxxopt=-Wno-unused-command-line-argument
+
 # Keep -Werror strict for our code but not third-party (external) code:
 #  - external_include_paths: external repo headers become -isystem.
 #  - per_file_copt on external/*: downgrades -Werror when compiling external sources.
@@ -47,8 +55,6 @@ common:clang --extra_toolchains=@llvm_toolchain_llvm//:all
 common:clang --cxxopt=-gmlt --host_cxxopt=-gmlt
 common:clang --linkopt=-fuse-ld=lld --host_linkopt=-fuse-ld=lld
 common:clang --define is_clang=true
-# Some newer Clang versions do not like '-c': https://github.com/llvm/llvm-project/issues/100909
-common:clang --cxxopt=-Wno-unused-command-line-argument
 
 common:symbolizer --strip=never
 common:symbolizer --run_under=//tools:run_under_symbolizer
