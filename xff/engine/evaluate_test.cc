@@ -325,6 +325,40 @@ TEST_F(EvaluateTest, LnameGlobsSymlinkTarget) {
   stdfs::remove(link);
 }
 
+TEST_F(EvaluateTest, XtypeFollowsSymlinkTarget) {
+  namespace stdfs = std::filesystem;
+  const stdfs::path dir = stdfs::temp_directory_path() / "xff_xtype_probe.d";
+  stdfs::remove_all(dir);
+  ASSERT_TRUE(stdfs::create_directories(dir));
+  const stdfs::path file = dir / "target.txt";
+  { std::ofstream(file) << "x"; }
+  stdfs::create_symlink(file, dir / "to_file");
+  stdfs::create_symlink(dir, dir / "to_dir");
+  stdfs::create_symlink(dir / "missing", dir / "broken");  // dangling
+
+  const std::string to_file = (dir / "to_file").string();
+  const std::string to_dir = (dir / "to_dir").string();
+  const std::string broken = (dir / "broken").string();
+  const std::string file_s = file.string();
+  vfs::Metadata link_md;
+  link_md.type = vfs::FileType::kSymlink;
+  const Visit v_file{.path = to_file, .name = "to_file", .depth = 1, .metadata = link_md};
+  const Visit v_dir{.path = to_dir, .name = "to_dir", .depth = 1, .metadata = link_md};
+  const Visit v_broken{.path = broken, .name = "broken", .depth = 1, .metadata = link_md};
+  EXPECT_TRUE(Match({"-xtype", "f"}, v_file));  // link -> regular file
+  EXPECT_FALSE(Match({"-xtype", "d"}, v_file));
+  EXPECT_TRUE(Match({"-xtype", "d"}, v_dir));     // link -> directory
+  EXPECT_TRUE(Match({"-xtype", "l"}, v_broken));  // broken link reports type l
+  EXPECT_FALSE(Match({"-xtype", "f"}, v_broken));
+  // A non-symlink behaves exactly like -type.
+  vfs::Metadata reg_md;
+  reg_md.type = vfs::FileType::kRegular;
+  const Visit v_reg{.path = file_s, .name = "target.txt", .depth = 1, .metadata = reg_md};
+  EXPECT_TRUE(Match({"-xtype", "f"}, v_reg));
+  EXPECT_FALSE(Match({"-xtype", "l"}, v_reg));
+  stdfs::remove_all(dir);
+}
+
 TEST_F(EvaluateTest, MTimeMatchesWholeDaysAgo) {
   vfs::Metadata md;
   md.type = vfs::FileType::kRegular;
