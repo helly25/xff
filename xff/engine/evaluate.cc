@@ -384,6 +384,15 @@ bool IsNewerThan(const Visit& visit, std::string_view reference, const vfs::File
   return ref.ok() && visit.metadata.mtime > ref->mtime;
 }
 
+// -samefile FILE: the entry is the same file as FILE, i.e. shares its inode AND
+// device (so hard links to FILE match). FILE is stat'd following symlinks; a
+// missing/unreadable reference makes it false. FILE is re-stat'd per entry for
+// now, like IsNewerThan; resolving it once is a later optimization.
+bool IsSameFile(const Visit& visit, std::string_view reference, const vfs::FileSystem& fs) {
+  const absl::StatusOr<vfs::Metadata> ref = fs.Stat(reference, /*follow_symlinks=*/true);
+  return ref.ok() && visit.metadata.ino == ref->ino && visit.metadata.dev == ref->dev;
+}
+
 // Selects a timestamp by find's X/Y letter: a=access, c=inode-change, m=modify.
 absl::Time TimeField(const vfs::Metadata& metadata, char field) {
   switch (field) {
@@ -556,6 +565,10 @@ bool EvalLinks(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesNumeric(expr.args.front(), ctx.visit.metadata.nlink);
 }
 
+bool EvalInum(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesNumeric(expr.args.front(), ctx.visit.metadata.ino);
+}
+
 bool EvalUid(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesNumeric(expr.args.front(), ctx.visit.metadata.uid);
 }
@@ -590,6 +603,10 @@ bool EvalEmpty(const parser::Expr&, EvalContext& ctx) {
 
 bool EvalNewer(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && IsNewerThan(ctx.visit, expr.args.front(), ctx.fs);
+}
+
+bool EvalSamefile(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && IsSameFile(ctx.visit, expr.args.front(), ctx.fs);
 }
 
 // -newerXY (X,Y in {a,c,m}); -newerXt (Y=t) compares the X-time to a time string.
@@ -875,6 +892,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-gid", {&EvalGid}},
     DispatchPair{"-group", {&EvalGroup}},
     DispatchPair{"-iname", {&EvalName}},
+    DispatchPair{"-inum", {&EvalInum}},
     DispatchPair{"-ipath", {&EvalPath}},
     DispatchPair{"-iregex", {&EvalRegex}},
     DispatchPair{"-links", {&EvalLinks}},
@@ -907,6 +925,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-prune", {&EvalPrune}},
     DispatchPair{"-quit", {&EvalQuit}},
     DispatchPair{"-regex", {&EvalRegex}},
+    DispatchPair{"-samefile", {&EvalSamefile}},
     DispatchPair{"-size", {&EvalSize}},
     DispatchPair{"-true", {&EvalTrue}},
     DispatchPair{"-type", {&EvalType}},

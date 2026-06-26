@@ -228,6 +228,26 @@ TEST_F(EvaluateTest, NewerFalseWhenReferenceMissing) {
   EXPECT_FALSE(Match({"-newer", "/no/such/reference/file"}, visit));
 }
 
+TEST_F(EvaluateTest, InumMatchesInodeNumber) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.ino = 4'242;
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-inum", "4242"}, visit));
+  EXPECT_FALSE(Match({"-inum", "4243"}, visit));
+  EXPECT_TRUE(Match({"-inum", "-5000"}, visit));   // inode < 5000
+  EXPECT_FALSE(Match({"-inum", "+4242"}, visit));  // not strictly greater than itself
+}
+
+TEST_F(EvaluateTest, SamefileFalseWhenReferenceMissing) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  // No reference to stat, so -samefile is false (the real same-inode match is
+  // covered by the conformance test against an actual hard link).
+  EXPECT_FALSE(Match({"-samefile", "/no/such/reference/file"}, visit));
+}
+
 TEST_F(EvaluateTest, MTimeMatchesWholeDaysAgo) {
   vfs::Metadata md;
   md.type = vfs::FileType::kRegular;

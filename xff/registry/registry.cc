@@ -37,6 +37,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-type", .kind = Kind::kTest, .arity = 1},
     {.name = "-size", .kind = Kind::kTest, .arity = 1},
     {.name = "-links", .kind = Kind::kTest, .arity = 1},
+    {.name = "-inum", .kind = Kind::kTest, .arity = 1},
+    {.name = "-samefile", .kind = Kind::kTest, .arity = 1},
     {.name = "-uid", .kind = Kind::kTest, .arity = 1},
     {.name = "-gid", .kind = Kind::kTest, .arity = 1},
     {.name = "-user", .kind = Kind::kTest, .arity = 1},
