@@ -37,6 +37,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-iregex", .kind = Kind::kTest, .arity = 1, .fold_case = true},
     {.name = "-regextype", .kind = Kind::kTest, .arity = 1},
     {.name = "-type", .kind = Kind::kTest, .arity = 1},
+    {.name = "-xtype", .kind = Kind::kTest, .arity = 1},  // -type of the symlink's target
     {.name = "-size", .kind = Kind::kTest, .arity = 1},
     {.name = "-links", .kind = Kind::kTest, .arity = 1},
     {.name = "-inum", .kind = Kind::kTest, .arity = 1},

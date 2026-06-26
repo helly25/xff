@@ -572,6 +572,21 @@ bool EvalType(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesType(expr.args.front(), ctx.visit.metadata.type);
 }
 
+// -xtype: like -type, but for a symlink it tests the type of the link's *target*
+// (the link is followed). A broken symlink is reported as a symlink, so
+// "-xtype l" matches it, matching GNU find under the default -P.
+bool EvalXtype(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.args.empty()) {
+    return false;
+  }
+  if (ctx.visit.metadata.type != vfs::FileType::kSymlink) {
+    return MatchesType(expr.args.front(), ctx.visit.metadata.type);
+  }
+  const absl::StatusOr<vfs::Metadata> target = ctx.fs.Stat(ctx.visit.path, /*follow_symlinks=*/true);
+  const vfs::FileType type = target.ok() ? target->type : vfs::FileType::kSymlink;
+  return MatchesType(expr.args.front(), type);
+}
+
 bool EvalSize(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesSize(expr.args.front(), ctx.visit.metadata.size);
 }
@@ -964,7 +979,8 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-type", {&EvalType}},
     DispatchPair{"-uid", {&EvalUid}},
     DispatchPair{"-user", {&EvalUser}},
-    DispatchPair{"-writable", {&EvalWritable}});
+    DispatchPair{"-writable", {&EvalWritable}},
+    DispatchPair{"-xtype", {&EvalXtype}});
 
 bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
   // O(log n) dispatch on the descriptor name. A name not in the table (e.g. a

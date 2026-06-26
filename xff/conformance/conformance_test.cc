@@ -215,6 +215,20 @@ TEST_F(ConformanceTest, IlnameFoldsCase) {
   ExpectMatchesFind({"-ilname", "A.TXT"});
 }
 
+// -xtype follows symlinks: the fixture's `link` targets the regular file a.txt,
+// so -xtype f includes it but -type f does not. (GNU find; skips on BSD find.)
+TEST_F(ConformanceTest, XtypeFileFollowsLink) {
+  ExpectMatchesFind({"-xtype", "f"});
+}
+
+TEST_F(ConformanceTest, XtypeDirectory) {
+  ExpectMatchesFind({"-xtype", "d"});
+}
+
+TEST_F(ConformanceTest, XtypeSymlinkOnlyBroken) {
+  ExpectMatchesFind({"-xtype", "l"});
+}
+
 TEST_F(ConformanceTest, NameGlob) {
   ExpectMatchesFind({"-name", "*.txt"});
 }
