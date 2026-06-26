@@ -199,4 +199,20 @@ bool LocalFs::Access(std::string_view path, AccessMode mode) const {
   return ::access(std::string(path).c_str(), flag) == 0;
 }
 
+absl::StatusOr<std::string> LocalFs::ReadLink(std::string_view path) const {
+  const std::string path_str(path);
+  std::string buffer(1'024, '\0');
+  for (;;) {
+    const ssize_t len = ::readlink(path_str.c_str(), buffer.data(), buffer.size());
+    if (len < 0) {
+      return absl::ErrnoToStatus(errno, absl::StrCat("readlink('", path, "')"));
+    }
+    if (static_cast<std::string::size_type>(len) < buffer.size()) {
+      buffer.resize(static_cast<std::string::size_type>(len));
+      return buffer;
+    }
+    buffer.resize(buffer.size() * 2);  // target may have been truncated; grow and retry
+  }
+}
+
 }  // namespace xff::vfs

@@ -16,6 +16,7 @@
 #ifndef XFF_VFS_LOCAL_FS_H_
 #define XFF_VFS_LOCAL_FS_H_
 
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -38,6 +39,7 @@ class LocalFs final : public FileSystem {
   absl::StatusOr<Metadata> Stat(std::string_view path, bool follow_symlinks) const override;
   absl::Status Remove(std::string_view path) const override;
   bool Access(std::string_view path, AccessMode mode) const override;
+  absl::StatusOr<std::string> ReadLink(std::string_view path) const override;
 };
 
 }  // namespace xff::vfs

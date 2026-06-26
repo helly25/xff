@@ -201,6 +201,20 @@ TEST_F(ConformanceTest, TypeSymlink) {
   ExpectMatchesFind({"-type", "l"});
 }
 
+// -lname is GNU-only; BSD find (macOS) errors, so SystemFind returns nullopt and
+// this skips. The fixture's `link` targets `a.txt`.
+TEST_F(ConformanceTest, LnameMatchesSymlinkTarget) {
+  ExpectMatchesFind({"-lname", "a.txt"});
+}
+
+TEST_F(ConformanceTest, LnameGlobMatchesSymlinkTarget) {
+  ExpectMatchesFind({"-lname", "*.txt"});
+}
+
+TEST_F(ConformanceTest, IlnameFoldsCase) {
+  ExpectMatchesFind({"-ilname", "A.TXT"});
+}
+
 TEST_F(ConformanceTest, NameGlob) {
   ExpectMatchesFind({"-name", "*.txt"});
 }

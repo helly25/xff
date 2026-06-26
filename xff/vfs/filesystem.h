@@ -62,6 +62,10 @@ class FileSystem {
   // the real permission check (ownership, groups, ACLs), not just mode bits.
   // A missing/unreadable path is false.
   virtual bool Access(std::string_view path, AccessMode mode) const = 0;
+
+  // Reads the target path of the symlink at `path` (find's -lname/-ilname),
+  // without resolving it. An error if `path` is not a symlink or cannot be read.
+  virtual absl::StatusOr<std::string> ReadLink(std::string_view path) const = 0;
 };
 
 }  // namespace xff::vfs

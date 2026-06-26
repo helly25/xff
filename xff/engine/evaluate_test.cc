@@ -266,6 +266,26 @@ TEST_F(EvaluateTest, AccessReadableWritableExecutable) {
   EXPECT_FALSE(Match({"-readable"}, visit));  // gone -> not accessible
 }
 
+TEST_F(EvaluateTest, LnameGlobsSymlinkTarget) {
+  namespace stdfs = std::filesystem;
+  const stdfs::path link = stdfs::temp_directory_path() / "xff_lname_probe.link";
+  stdfs::remove(link);  // clear any leftover from a previous run
+  stdfs::create_symlink("/some/Where/target.txt", link);
+  const std::string path = link.string();
+  vfs::Metadata md;
+  md.type = vfs::FileType::kSymlink;
+  const Visit visit{.path = path, .name = "xff_lname_probe.link", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-lname", "*/target.txt"}, visit));   // glob against the (unresolved) target text
+  EXPECT_FALSE(Match({"-lname", "*/TARGET.txt"}, visit));  // -lname is case-sensitive
+  EXPECT_TRUE(Match({"-ilname", "*/TARGET.txt"}, visit));  // -ilname folds case
+  // A non-symlink never matches, even when the target glob otherwise would.
+  vfs::Metadata reg;
+  reg.type = vfs::FileType::kRegular;
+  const Visit regular{.path = path, .name = "xff_lname_probe.link", .depth = 1, .metadata = reg};
+  EXPECT_FALSE(Match({"-lname", "*"}, regular));
+  stdfs::remove(link);
+}
+
 TEST_F(EvaluateTest, MTimeMatchesWholeDaysAgo) {
   vfs::Metadata md;
   md.type = vfs::FileType::kRegular;
