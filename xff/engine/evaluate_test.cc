@@ -15,6 +15,8 @@
 
 #include "xff/engine/evaluate.h"
 
+#include <filesystem>
+#include <fstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -246,6 +248,22 @@ TEST_F(EvaluateTest, SamefileFalseWhenReferenceMissing) {
   // No reference to stat, so -samefile is false (the real same-inode match is
   // covered by the conformance test against an actual hard link).
   EXPECT_FALSE(Match({"-samefile", "/no/such/reference/file"}, visit));
+}
+
+TEST_F(EvaluateTest, AccessReadableWritableExecutable) {
+  namespace stdfs = std::filesystem;
+  const stdfs::path tmp = stdfs::temp_directory_path() / "xff_access_probe.tmp";
+  { std::ofstream(tmp) << "x"; }
+  stdfs::permissions(tmp, stdfs::perms::owner_read | stdfs::perms::owner_write);  // rw, no execute bit
+  const std::string path = tmp.string();
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  const Visit visit{.path = path, .name = "xff_access_probe.tmp", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-readable"}, visit));
+  EXPECT_TRUE(Match({"-writable"}, visit));
+  EXPECT_FALSE(Match({"-executable"}, visit));  // no execute bit (X_OK is not bypassed, even for root)
+  stdfs::remove(tmp);
+  EXPECT_FALSE(Match({"-readable"}, visit));  // gone -> not accessible
 }
 
 TEST_F(EvaluateTest, MTimeMatchesWholeDaysAgo) {

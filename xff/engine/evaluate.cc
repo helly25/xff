@@ -601,6 +601,20 @@ bool EvalEmpty(const parser::Expr&, EvalContext& ctx) {
   return IsEmpty(ctx.visit, ctx.fs);
 }
 
+// find's -readable/-writable/-executable: the current user can access the entry
+// for that mode (a real access() probe, not just a mode-bit guess).
+bool EvalReadable(const parser::Expr&, EvalContext& ctx) {
+  return ctx.fs.Access(ctx.visit.path, vfs::AccessMode::kRead);
+}
+
+bool EvalWritable(const parser::Expr&, EvalContext& ctx) {
+  return ctx.fs.Access(ctx.visit.path, vfs::AccessMode::kWrite);
+}
+
+bool EvalExecutable(const parser::Expr&, EvalContext& ctx) {
+  return ctx.fs.Access(ctx.visit.path, vfs::AccessMode::kExecute);
+}
+
 bool EvalNewer(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && IsNewerThan(ctx.visit, expr.args.front(), ctx.fs);
 }
@@ -888,6 +902,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-empty", {&EvalEmpty}},
     DispatchPair{"-exec", {&EvalExec}},
     DispatchPair{"-execdir", {&EvalExecdir}},
+    DispatchPair{"-executable", {&EvalExecutable}},
     DispatchPair{"-false", {&EvalFalse}},
     DispatchPair{"-gid", {&EvalGid}},
     DispatchPair{"-group", {&EvalGroup}},
@@ -924,13 +939,15 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-println", {&EvalPrintln}},
     DispatchPair{"-prune", {&EvalPrune}},
     DispatchPair{"-quit", {&EvalQuit}},
+    DispatchPair{"-readable", {&EvalReadable}},
     DispatchPair{"-regex", {&EvalRegex}},
     DispatchPair{"-samefile", {&EvalSamefile}},
     DispatchPair{"-size", {&EvalSize}},
     DispatchPair{"-true", {&EvalTrue}},
     DispatchPair{"-type", {&EvalType}},
     DispatchPair{"-uid", {&EvalUid}},
-    DispatchPair{"-user", {&EvalUser}});
+    DispatchPair{"-user", {&EvalUser}},
+    DispatchPair{"-writable", {&EvalWritable}});
 
 bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
   // O(log n) dispatch on the descriptor name. A name not in the table (e.g. a

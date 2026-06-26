@@ -83,6 +83,8 @@ class FakeFs : public vfs::FileSystem {
 
   absl::Status Remove(std::string_view) const override { return absl::OkStatus(); }  // unused by walk tests
 
+  bool Access(std::string_view, vfs::AccessMode) const override { return true; }  // unused by walk tests
+
  private:
   static vfs::Metadata Meta(vfs::FileType type, std::uint64_t dev, const std::string& path) {
     vfs::Metadata md;
