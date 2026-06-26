@@ -547,6 +547,21 @@ bool EvalPath(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.path, flags);
 }
 
+// -lname/-ilname: glob the symlink's *target* text (the link is never resolved).
+// Only a symlink can match; the descriptor's fold_case selects -ilname's
+// FNM_CASEFOLD, mirroring -name/-iname.
+bool EvalLname(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.args.empty() || ctx.visit.metadata.type != vfs::FileType::kSymlink) {
+    return false;
+  }
+  const absl::StatusOr<std::string> target = ctx.fs.ReadLink(ctx.visit.path);
+  if (!target.ok()) {
+    return false;
+  }
+  const int flags = expr.descriptor->fold_case ? FNM_CASEFOLD : 0;
+  return Fnmatch(expr.args.front(), *target, flags);
+}
+
 // Both -regex and -iregex map here: case sensitivity is baked into the matcher the
 // parser compiled (iregex folds case), so the handler just matches the path.
 bool EvalRegex(const parser::Expr& expr, EvalContext& ctx) {
@@ -906,11 +921,13 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-false", {&EvalFalse}},
     DispatchPair{"-gid", {&EvalGid}},
     DispatchPair{"-group", {&EvalGroup}},
+    DispatchPair{"-ilname", {&EvalLname}},
     DispatchPair{"-iname", {&EvalName}},
     DispatchPair{"-inum", {&EvalInum}},
     DispatchPair{"-ipath", {&EvalPath}},
     DispatchPair{"-iregex", {&EvalRegex}},
     DispatchPair{"-links", {&EvalLinks}},
+    DispatchPair{"-lname", {&EvalLname}},
     DispatchPair{"-ls", {&EvalLs}},
     DispatchPair{"-mmin", {&EvalMmin}},
     DispatchPair{"-mtime", {&EvalMtime}},

@@ -85,6 +85,14 @@ class FakeFs : public vfs::FileSystem {
 
   bool Access(std::string_view, vfs::AccessMode) const override { return true; }  // unused by walk tests
 
+  absl::StatusOr<std::string> ReadLink(std::string_view path) const override {
+    const auto it = targets_.find(std::string(path));
+    if (it == targets_.end()) {
+      return absl::InvalidArgumentError("FakeFs: not a symlink");
+    }
+    return it->second;
+  }
+
  private:
   static vfs::Metadata Meta(vfs::FileType type, std::uint64_t dev, const std::string& path) {
     vfs::Metadata md;
