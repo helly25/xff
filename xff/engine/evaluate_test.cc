@@ -125,6 +125,15 @@ TEST_F(EvaluateTest, PathGlobsWholePath) {
   EXPECT_TRUE(Match({"-ipath", "A/B/*"}, visit));
 }
 
+TEST_F(EvaluateTest, WholenameIsSynonymForPath) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("a/b/c.txt", "c.txt", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-wholename", "a/*/c.txt"}, visit));  // -wholename == -path
+  EXPECT_FALSE(Match({"-wholename", "c.txt"}, visit));     // matches the whole path, not the basename
+  EXPECT_TRUE(Match({"-iwholename", "A/B/*"}, visit));     // -iwholename folds case, like -ipath
+  EXPECT_FALSE(Match({"-wholename", "A/B/*"}, visit));     // -wholename is case-sensitive
+}
+
 TEST_F(EvaluateTest, TypeMatchesFileType) {
   vfs::Metadata file_md;
   const Visit file = MakeVisit("x", "x", vfs::FileType::kRegular, file_md);

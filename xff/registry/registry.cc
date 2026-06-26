@@ -31,7 +31,9 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-iname", .kind = Kind::kTest, .arity = 1, .fold_case = true},
     {.name = "-path", .kind = Kind::kTest, .arity = 1},
     {.name = "-ipath", .kind = Kind::kTest, .arity = 1, .fold_case = true},
-    {.name = "-lname", .kind = Kind::kTest, .arity = 1},  // glob the symlink target
+    {.name = "-wholename", .kind = Kind::kTest, .arity = 1},                      // GNU synonym for -path
+    {.name = "-iwholename", .kind = Kind::kTest, .arity = 1, .fold_case = true},  // GNU synonym for -ipath
+    {.name = "-lname", .kind = Kind::kTest, .arity = 1},                          // glob the symlink target
     {.name = "-ilname", .kind = Kind::kTest, .arity = 1, .fold_case = true},
     {.name = "-regex", .kind = Kind::kTest, .arity = 1},
     {.name = "-iregex", .kind = Kind::kTest, .arity = 1, .fold_case = true},
