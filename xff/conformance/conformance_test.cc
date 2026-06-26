@@ -273,6 +273,16 @@ TEST_F(ConformanceTest, LinksOne) {
   ExpectMatchesFind({"-links", "1"});
 }
 
+TEST_F(ConformanceTest, SamefileMatchesHardLink) {
+  std::error_code ec;
+  fs::create_hard_link(root_ / "a.txt", root_ / "a-hardlink", ec);
+  if (ec) {
+    GTEST_SKIP() << "hard links unsupported on this filesystem";
+  }
+  // -samefile a.txt must match a.txt and its hard link (same inode + device).
+  ExpectMatchesFind({"-samefile", (root_ / "a.txt").string()});
+}
+
 TEST_F(ConformanceTest, LinksMoreThanOne) {
   ExpectMatchesFind({"-links", "+1"});
 }
