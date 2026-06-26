@@ -26,6 +26,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include <cerrno>
 #include <cstdint>
@@ -191,6 +192,11 @@ absl::Status LocalFs::Remove(std::string_view path) const {
     return absl::ErrnoToStatus(errno, absl::StrCat("remove('", path, "')"));
   }
   return absl::OkStatus();
+}
+
+bool LocalFs::Access(std::string_view path, AccessMode mode) const {
+  const int flag = mode == AccessMode::kRead ? R_OK : (mode == AccessMode::kWrite ? W_OK : X_OK);
+  return ::access(std::string(path).c_str(), flag) == 0;
 }
 
 }  // namespace xff::vfs

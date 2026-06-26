@@ -258,6 +258,8 @@ class DryRunFileSystem : public vfs::FileSystem {
     return fs_.Stat(path, follow);
   }
 
+  bool Access(std::string_view path, vfs::AccessMode mode) const override { return fs_.Access(path, mode); }
+
   absl::Status Remove(std::string_view path) const override {
     preview_(absl::StrCat(path, "\n"));  // would-delete preview; nothing is removed
     return absl::OkStatus();

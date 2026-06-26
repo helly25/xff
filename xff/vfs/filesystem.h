@@ -26,6 +26,10 @@
 
 namespace xff::vfs {
 
+// Permission to probe with `FileSystem::Access` (find's -readable/-writable/
+// -executable). Platform-neutral; LocalFs maps these to R_OK/W_OK/X_OK.
+enum class AccessMode { kRead, kWrite, kExecute };
+
 // Abstraction over a source of files. `LocalFs` (the real filesystem) is the
 // only backend today; archive and remote backends slot in behind this same
 // interface as read-only virtual entries (design.md "Virtual entries").
@@ -52,6 +56,12 @@ class FileSystem {
   // on -depth to empty directories first). Read-only backends (archive/remote)
   // return an error. The object is not mutated, only the underlying source.
   virtual absl::Status Remove(std::string_view path) const = 0;
+
+  // True if `path` is accessible to the current (effective) user for `mode`
+  // (find's -readable/-writable/-executable). Resolves symlinks and reflects
+  // the real permission check (ownership, groups, ACLs), not just mode bits.
+  // A missing/unreadable path is false.
+  virtual bool Access(std::string_view path, AccessMode mode) const = 0;
 };
 
 }  // namespace xff::vfs
