@@ -25,6 +25,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "mbo/status/status_macros.h"
 #include "xff/parser/ast.h"
 #include "xff/regex/regex.h"
 #include "xff/registry/descriptor.h"
@@ -340,11 +341,7 @@ absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
   const std::vector<std::string> expr_tokens(args.begin() + static_cast<std::ptrdiff_t>(i), args.end());
   if (!expr_tokens.empty()) {
     ExprParser parser(expr_tokens);
-    absl::StatusOr<ExprPtr> expr = parser.Parse();
-    if (!expr.ok()) {
-      return expr.status();
-    }
-    cmd.expression = *std::move(expr);
+    MBO_ASSIGN_OR_RETURN(cmd.expression, parser.Parse());
   }
   return cmd;
 }

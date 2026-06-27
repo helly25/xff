@@ -29,6 +29,7 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
+        "@helly25_mbo//mbo/status:status_macros_cc",
     ],
 )
 
