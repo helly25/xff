@@ -62,7 +62,7 @@ bool Fnmatch(std::string_view pattern, std::string_view text, int flags) {
 }
 
 bool IsTypeChar(char letter) {
-  return std::string_view("fdlbcps").find(letter) != std::string_view::npos;
+  return std::string_view("fdlbcps").contains(letter);
 }
 
 bool MatchesTypeChar(char letter, vfs::FileType type) {
