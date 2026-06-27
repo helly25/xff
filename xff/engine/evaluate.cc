@@ -108,13 +108,13 @@ bool MatchesType(std::string_view arg, vfs::FileType type) {
 // find's %y type letter: the inverse of MatchesType's mapping.
 char TypeLetter(vfs::FileType type) {
   switch (type) {
-    case vfs::FileType::kRegular: return 'f';
-    case vfs::FileType::kDirectory: return 'd';
-    case vfs::FileType::kSymlink: return 'l';
     case vfs::FileType::kBlockDevice: return 'b';
     case vfs::FileType::kCharDevice: return 'c';
+    case vfs::FileType::kDirectory: return 'd';
     case vfs::FileType::kFifo: return 'p';
+    case vfs::FileType::kRegular: return 'f';
     case vfs::FileType::kSocket: return 's';
+    case vfs::FileType::kSymlink: return 'l';
     case vfs::FileType::kUnknown: return 'U';
   }
   return 'U';
@@ -151,13 +151,13 @@ std::string OctalPerm(std::uint32_t mode) {
 std::string SymbolicPerms(vfs::FileType type, std::uint32_t mode) {
   std::string out(10, '-');
   switch (type) {
-    case vfs::FileType::kRegular: out[0] = '-'; break;
-    case vfs::FileType::kDirectory: out[0] = 'd'; break;
-    case vfs::FileType::kSymlink: out[0] = 'l'; break;
     case vfs::FileType::kBlockDevice: out[0] = 'b'; break;
     case vfs::FileType::kCharDevice: out[0] = 'c'; break;
+    case vfs::FileType::kDirectory: out[0] = 'd'; break;
     case vfs::FileType::kFifo: out[0] = 'p'; break;
+    case vfs::FileType::kRegular: out[0] = '-'; break;
     case vfs::FileType::kSocket: out[0] = 's'; break;
+    case vfs::FileType::kSymlink: out[0] = 'l'; break;
     case vfs::FileType::kUnknown: out[0] = '?'; break;
   }
   static constexpr std::string_view kRwx = "rwx";
@@ -291,6 +291,18 @@ std::string FormatPrintf(std::string_view format, const Visit& visit, absl::Time
   return out;
 }
 
+// find's `-size` unit suffixes -> bytes per unit (c=char/1, w=2-byte word, b=512
+// block, k/M/G binary multiples). A constexpr map, per the style's preference for a
+// uniform key -> value mapping over a switch.
+using SizeUnitPair = std::pair<char, std::uint64_t>;
+constexpr auto kSizeUnits = mbo::container::MakeLimitedMap(
+    SizeUnitPair{'G', 1'024ULL * 1'024 * 1'024},
+    SizeUnitPair{'M', 1'024ULL * 1'024},
+    SizeUnitPair{'b', 512},
+    SizeUnitPair{'c', 1},
+    SizeUnitPair{'k', 1'024},
+    SizeUnitPair{'w', 2});
+
 // Matches find's `-size N[bcwkMG]` with an optional +/- prefix. The file size
 // is rounded UP to the chosen unit (default 512-byte blocks), as find does.
 bool MatchesSize(std::string_view arg, std::uint64_t size_bytes) {
@@ -305,15 +317,11 @@ bool MatchesSize(std::string_view arg, std::uint64_t size_bytes) {
   std::uint64_t unit = 512;  // find default: 512-byte blocks
   const char suffix = arg.back();
   if (suffix < '0' || suffix > '9') {
-    switch (suffix) {
-      case 'b': unit = 512; break;
-      case 'c': unit = 1; break;
-      case 'w': unit = 2; break;
-      case 'k': unit = 1'024; break;
-      case 'M': unit = 1'024ULL * 1'024; break;
-      case 'G': unit = 1'024ULL * 1'024 * 1'024; break;
-      default: return false;  // unknown unit
+    const auto it = kSizeUnits.find(suffix);
+    if (it == kSizeUnits.end()) {
+      return false;  // unknown unit
     }
+    unit = it->second;
     arg.remove_suffix(1);
   }
   if (arg.empty()) {
@@ -434,12 +442,12 @@ bool ApplyPermClause(std::string_view clause, std::uint32_t* want) {
   bool sticky = false;
   for (; i < clause.size(); ++i) {
     switch (clause[i]) {
+      case 'X':
+      case 'x': exec = true; break;
       case 'r': read = true; break;
-      case 'w': write = true; break;
-      case 'x':
-      case 'X': exec = true; break;
       case 's': setid = true; break;
       case 't': sticky = true; break;
+      case 'w': write = true; break;
       default: return false;
     }
   }
@@ -579,6 +587,17 @@ bool IsNewerXY(const Visit& visit, char x, char y, std::string_view reference, c
   return lhs.has_value() && rhs.has_value() && *lhs > *rhs;
 }
 
+// BSD's `-mtime`/`-atime`/`-ctime` trailing unit suffix -> the duration of one
+// unit. A constexpr map, per the style's preference for a uniform key -> value
+// mapping over a switch.
+using TimeUnitPair = std::pair<char, absl::Duration>;
+constexpr auto kTimeUnits = mbo::container::MakeLimitedMap(
+    TimeUnitPair{'d', absl::Hours(24)},
+    TimeUnitPair{'h', absl::Hours(1)},
+    TimeUnitPair{'m', absl::Minutes(1)},
+    TimeUnitPair{'s', absl::Seconds(1)},
+    TimeUnitPair{'w', absl::Hours(24 * 7)});
+
 // find's -mtime/-mmin: the entry was modified N units ago -- 24h for -mtime, one
 // minute for -mmin -- with any fractional unit discarded (floor), so a 2.9-day
 // file is "2 days". +N means strictly more than N units ago, -N strictly fewer.
@@ -595,14 +614,11 @@ bool MatchesTime(std::string_view arg, absl::Time mtime, absl::Time now, absl::D
   // overrides the predicate's default unit (e.g. "-mtime -1h"). find-compatible
   // (BSD); the GNU -mmin/-amin/-cmin family keeps integer minutes (no suffix).
   if (allow_unit_suffix && (arg.back() < '0' || arg.back() > '9')) {
-    switch (arg.back()) {
-      case 's': unit = absl::Seconds(1); break;
-      case 'm': unit = absl::Minutes(1); break;
-      case 'h': unit = absl::Hours(1); break;
-      case 'd': unit = absl::Hours(24); break;
-      case 'w': unit = absl::Hours(24 * 7); break;
-      default: return false;  // unrecognised suffix
+    const auto it = kTimeUnits.find(arg.back());
+    if (it == kTimeUnits.end()) {
+      return false;  // unrecognised suffix
     }
+    unit = it->second;
     arg.remove_suffix(1);
     if (arg.empty()) {
       return false;

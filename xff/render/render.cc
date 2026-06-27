@@ -52,18 +52,18 @@ void AppendJsonEscaped(std::string_view path, std::string* out) {
 
 std::string Renderer::Record(std::string_view path) const {
   switch (format_) {
-    case Format::kPlain: return absl::StrCat(path, "\n");
-    case Format::kNul: {
-      std::string record(path);
-      record.push_back('\0');
-      return record;
-    }
     case Format::kJsonl: {
       std::string record = "{\"path\":\"";
       AppendJsonEscaped(path, &record);
       record.append("\"}\n");
       return record;
     }
+    case Format::kNul: {
+      std::string record(path);
+      record.push_back('\0');
+      return record;
+    }
+    case Format::kPlain: return absl::StrCat(path, "\n");
   }
   return absl::StrCat(path, "\n");  // unreachable: every Format returns above
 }

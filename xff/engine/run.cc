@@ -238,8 +238,8 @@ std::string SummaryExtension(std::string_view name) {
 // The group key for one matched entry under `mode` (kOff never reaches here).
 std::string SummaryKey(SummaryMode mode, const Visit& visit) {
   switch (mode) {
-    case SummaryMode::kType: return std::string(TypeName(visit.metadata.type));
     case SummaryMode::kExt: return SummaryExtension(visit.name);
+    case SummaryMode::kType: return std::string(TypeName(visit.metadata.type));
     default: return "total";  // kOverall: a single bucket
   }
 }
