@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "absl/functional/function_ref.h"
+#include "absl/status/status.h"
 #include "absl/time/time.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/ast.h"
@@ -106,6 +107,14 @@ bool Evaluate(const parser::Expr& expr, EvalContext& context);
 // to decide whether an implicit -print applies: find adds -print only when the
 // expression has no action of its own.
 bool ContainsAction(const parser::Expr& expr);
+
+// Validates every `-size` argument in `expr`, returning the first malformed one as
+// an InvalidArgument status (unknown unit, an over-64-bit unit like Z/Y, or a
+// missing/non-numeric count) or Ok when all are well-formed. The driver calls this
+// before the walk so a bad `-size` is a usage error (exit 2) rather than a silent
+// per-entry no-match, matching find's parse-time rejection. Style-independent: the
+// size units (incl. the T/P/E continuation) are valid in every flavor.
+absl::Status ValidateSizeArgs(const parser::Expr& expr);
 
 }  // namespace xff::engine
 

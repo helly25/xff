@@ -37,6 +37,7 @@ namespace {
 
 using ::mbo::testing::IsOk;
 using ::mbo::testing::IsOkAndHolds;
+using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
@@ -239,6 +240,44 @@ TEST_F(EvaluateTest, SizeMatchesBytesAndUnits) {
   EXPECT_FALSE(Match({"-size", "+5c"}, visit));
   EXPECT_TRUE(Match({"-size", "1"}, visit)) << "5 bytes rounds up to one 512-byte block";
   EXPECT_TRUE(Match({"-size", "1k"}, visit)) << "5 bytes rounds up to one 1k unit";
+}
+
+TEST_F(EvaluateTest, SizeMatchesLargeUnits) {
+  // T/P/E continue the k/M/G binary scale (2^40/2^50/2^60). Exact multiples make the
+  // round-up-to-unit arithmetic land on a clean count.
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.size = 3ULL * 1'024 * 1'024 * 1'024 * 1'024;  // 3 TiB
+  const Visit tib{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-size", "3T"}, tib));
+  EXPECT_TRUE(Match({"-size", "+2T"}, tib));
+  EXPECT_FALSE(Match({"-size", "2T"}, tib));
+  md.size = 2ULL * 1'024 * 1'024 * 1'024 * 1'024 * 1'024;  // 2 PiB
+  const Visit pib{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-size", "2P"}, pib));
+  md.size = 1ULL * 1'024 * 1'024 * 1'024 * 1'024 * 1'024 * 1'024;  // 1 EiB (2^60)
+  const Visit eib{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-size", "1E"}, eib));
+}
+
+TEST_F(EvaluateTest, ValidateSizeArgsRejectsBadUnits) {
+  // Valid units (incl. the T/P/E continuation) pass; an over-64-bit unit (Z/Y/...)
+  // or an unknown unit is rejected with a self-documenting message, so the driver
+  // fails before traversing rather than silently matching nothing.
+  for (const std::string_view good : {"+1T", "2P", "-3E", "5c", "1k"}) {
+    const auto command = parser::Parse({".", "-size", std::string(good)});
+    ASSERT_THAT(command, IsOk());
+    EXPECT_THAT(ValidateSizeArgs(*command->expression), IsOk()) << good;
+  }
+  const auto zetta = parser::Parse({".", "-size", "+1Z"});
+  ASSERT_THAT(zetta, IsOk());
+  EXPECT_THAT(
+      ValidateSizeArgs(*zetta->expression), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("E (exabyte)")));
+  const auto unknown = parser::Parse({".", "-size", "1q"});
+  ASSERT_THAT(unknown, IsOk());
+  EXPECT_THAT(
+      ValidateSizeArgs(*unknown->expression),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("unknown size unit")));
 }
 
 TEST_F(EvaluateTest, PermMatchesOctalModes) {
