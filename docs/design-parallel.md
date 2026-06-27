@@ -18,6 +18,26 @@ output (when asked for), the `-prune`/`-quit`/`-depth` control semantics, and th
 exit-code model. The VFS layer is already contractually safe to call from many
 threads (`vfs::FileSystem`), so the foundation is ready.
 
+## v1 scope (what shipped first)
+
+The first implementation (engine PR for #43) takes three deliberate simplifications
+of the design below; each has a noted follow-up:
+
+- **The worker pool parallelizes `readdir`+`lstat` only.** The visitor (evaluate +
+  emit + exec + capture + summary) runs on the single coordinator thread in `--sort`
+  order, so that whole pipeline stays single-threaded and unchanged (`run.cc`
+  untouched) - the only new concurrent code is the pool, whose jobs are pure
+  (path -> stat'd listing) and touch just the thread-safe VFS and a mutex-guarded
+  queue. Per-worker parallel evaluation is a later option if profiling wants it.
+- **The ordered modes are deterministic.** Siblings are consumed in sorted order
+  (reads still overlap via prefetch), so `dir`/`subtree`/`tree` are reproducible
+  across runs and machines. Streaming subtrees strictly by completion order (lower
+  latency, nondeterministic) is a later refinement.
+- **Parallelism and sort are opt-in:** `-j`/`--jobs` and `--sort` (default stays
+  sequential + `none`, find-compatible). The mode-scoped auto-defaults (modern ->
+  parallel + `dir`; find/fd/rg -> all cores + `none`) land with the mode mechanism
+  (#54), which is where a persona can be queried.
+
 ## Architecture
 
 A bounded **worker pool** over directories, with a single **emission-ordering

@@ -83,4 +83,20 @@ common:asan --action_env=UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbol
 common:asan --test_env=ASAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1:color=always
 common:asan --test_env=UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1:color=always
 
+# --config=tsan : ThreadSanitizer, run with `--config=clang --config=tsan`. Mutually
+# exclusive with asan (a separate matrix cell), so the parallel walk's data-race
+# coverage lives here. Mirrors the asan block; the `tsan` feature drives the
+# hermetic toolchain and the explicit -fsanitize copt/linkopt keeps it portable.
+common:tsan --config=symbolizer
+common:tsan --copt=-g
+common:tsan --copt=-fsanitize=thread
+common:tsan --copt=-fno-omit-frame-pointer
+common:tsan --copt=-DTHREAD_SANITIZER
+common:tsan --linkopt=-fsanitize=thread
+common:tsan --build_tag_filters=-no_san  # skip targets tagged no_san
+common:tsan --test_tag_filters=-no_san
+common:tsan --features=tsan
+common:tsan --action_env=TSAN_OPTIONS=halt_on_error=1:second_deadlock_stack=1:symbolize=1:color=always
+common:tsan --test_env=TSAN_OPTIONS=halt_on_error=1:second_deadlock_stack=1:symbolize=1:color=always
+
 try-import %workspace%/.bazelrc.user.end
