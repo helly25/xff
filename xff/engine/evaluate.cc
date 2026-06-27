@@ -359,6 +359,34 @@ bool MatchesNumeric(std::string_view arg, std::uint64_t value) {
   return value == want;
 }
 
+// Like MatchesNumeric, but over a signed count: find's -used day delta is
+// negative when a file's access time predates its status-change time. The
+// argument N is still non-negative (a leading +/- is the comparison operator).
+bool MatchesSignedNumeric(std::string_view arg, std::int64_t value) {
+  char compare = '=';
+  if (!arg.empty() && (arg.front() == '+' || arg.front() == '-')) {
+    compare = arg.front();
+    arg.remove_prefix(1);
+  }
+  if (arg.empty()) {
+    return false;
+  }
+  std::int64_t want = 0;
+  for (const char digit : arg) {
+    if (digit < '0' || digit > '9') {
+      return false;
+    }
+    want = want * 10 + static_cast<std::int64_t>(digit - '0');
+  }
+  if (compare == '+') {
+    return value > want;
+  }
+  if (compare == '-') {
+    return value < want;
+  }
+  return value == want;
+}
+
 // Matches find's `-perm` over the permission bits (incl. setuid/setgid/sticky):
 //   MODE   exact match;  -MODE  all of MODE's bits set;  /MODE  any of them set.
 // Octal MODE only for now (symbolic `u+w`,... is deferred).
@@ -722,6 +750,17 @@ bool EvalLinks(const parser::Expr& expr, EvalContext& ctx) {
 
 bool EvalInum(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesNumeric(expr.args.front(), ctx.visit.metadata.ino);
+}
+
+// find's -used N: the entry was last accessed N days after its status last
+// changed, i.e. trunc((atime - ctime) / day). The delta is negative when the
+// access predates the status change; N uses the usual N / +N / -N comparison.
+bool EvalUsed(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.args.empty()) {
+    return false;
+  }
+  const std::int64_t seconds = absl::ToInt64Seconds(ctx.visit.metadata.atime - ctx.visit.metadata.ctime);
+  return MatchesSignedNumeric(expr.args.front(), seconds / 86'400);
 }
 
 bool EvalUid(const parser::Expr& expr, EvalContext& ctx) {
@@ -1117,6 +1156,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-true", {&EvalTrue}},
     DispatchPair{"-type", {&EvalType}},
     DispatchPair{"-uid", {&EvalUid}},
+    DispatchPair{"-used", {&EvalUsed}},
     DispatchPair{"-user", {&EvalUser}},
     DispatchPair{"-wholename", {&EvalPath}},
     DispatchPair{"-writable", {&EvalWritable}},
