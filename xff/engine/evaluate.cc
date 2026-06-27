@@ -857,6 +857,13 @@ bool EvalEmpty(const parser::Expr&, EvalContext& ctx) {
   return IsEmpty(ctx.visit, ctx.fs);
 }
 
+// find's -sparse: the file has holes -- fewer 512-byte blocks allocated than its
+// apparent size needs (st_blocks * 512 < st_size). A zero-size file is not sparse.
+bool EvalSparse(const parser::Expr&, EvalContext& ctx) {
+  const vfs::Metadata& md = ctx.visit.metadata;
+  return md.size > 0 && md.blocks * 512U < md.size;
+}
+
 // find's -readable/-writable/-executable: the current user can access the entry
 // for that mode (a real access() probe, not just a mode-bit guess).
 bool EvalReadable(const parser::Expr&, EvalContext& ctx) {
@@ -1295,6 +1302,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-regex", {&EvalRegex}},
     DispatchPair{"-samefile", {&EvalSamefile}},
     DispatchPair{"-size", {&EvalSize}},
+    DispatchPair{"-sparse", {&EvalSparse}},
     DispatchPair{"-true", {&EvalTrue}},
     DispatchPair{"-type", {&EvalType}},
     DispatchPair{"-uid", {&EvalUid}},
