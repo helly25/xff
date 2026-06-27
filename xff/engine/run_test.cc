@@ -501,6 +501,21 @@ TEST_F(RunTest, UnknownTimezoneIsRefusedBeforeTraversal) {
   EXPECT_FALSE(emitted) << "an invalid --timezone must not traverse";
 }
 
+TEST_F(RunTest, OversizedSizeUnitIsRefusedBeforeTraversal) {
+  // -size with an over-64-bit unit (Z/Y/...) is a usage error refused before the
+  // walk (exit 2), naming the limit -- not a silent per-entry no-match.
+  const auto command = parser::Parse({root_.string(), "-size", "+1Z"});
+  ASSERT_THAT(command, IsOk());
+  absl::Status err_status;
+  bool emitted = false;
+  const int errors = RunFind(
+      *command, fs_, [&](std::string_view) { emitted = true; },
+      [&](std::string_view, absl::Status status) { err_status = status; });
+  EXPECT_THAT(errors, 2);
+  EXPECT_THAT(err_status, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("E (exabyte)")));
+  EXPECT_FALSE(emitted) << "a malformed -size must not traverse";
+}
+
 TEST_F(RunTest, ValidTimezoneIsAcceptedAndTheRunProceeds) {
   // A valid --timezone resolves and the run proceeds normally (here it does not
   // change the result, just proving the flag is accepted end to end).

@@ -292,56 +292,90 @@ std::string FormatPrintf(std::string_view format, const Visit& visit, absl::Time
 }
 
 // find's `-size` unit suffixes -> bytes per unit (c=char/1, w=2-byte word, b=512
-// block, k/M/G binary multiples). A constexpr map, per the style's preference for a
-// uniform key -> value mapping over a switch.
+// block; k/M/G/T/P/E are the binary multiples 2^10..2^60). b/c/w/k/M/G and T/P are
+// find-native (BSD accepts up to P); E (exabyte) is an xff continuation of the same
+// scale -- a strict superset (no find-valid input changes meaning), so it is
+// available in every style. The next prefixes (Z/Y/...) name a real magnitude but
+// 2^70+ overflows the 64-bit byte count, so they are rejected (see ParseSizeSpec).
+// A constexpr map, per the style's preference for a uniform key -> value mapping.
 using SizeUnitPair = std::pair<char, std::uint64_t>;
 constexpr auto kSizeUnits = mbo::container::MakeLimitedMap(
-    SizeUnitPair{'G', 1'024ULL * 1'024 * 1'024},
-    SizeUnitPair{'M', 1'024ULL * 1'024},
+    SizeUnitPair{'E', 1'024ULL * 1'024 * 1'024 * 1'024 * 1'024 * 1'024},  // 2^60 exbibyte
+    SizeUnitPair{'G', 1'024ULL * 1'024 * 1'024},                          // 2^30 gibibyte
+    SizeUnitPair{'M', 1'024ULL * 1'024},                                  // 2^20 mebibyte
+    SizeUnitPair{'P', 1'024ULL * 1'024 * 1'024 * 1'024 * 1'024},          // 2^50 pebibyte
+    SizeUnitPair{'T', 1'024ULL * 1'024 * 1'024 * 1'024},                  // 2^40 tebibyte
     SizeUnitPair{'b', 512},
     SizeUnitPair{'c', 1},
     SizeUnitPair{'k', 1'024},
     SizeUnitPair{'w', 2});
 
-// Matches find's `-size N[bcwkMG]` with an optional +/- prefix. The file size
-// is rounded UP to the chosen unit (default 512-byte blocks), as find does.
-bool MatchesSize(std::string_view arg, std::uint64_t size_bytes) {
-  char compare = '=';
+// Size prefixes one step beyond E: each names a real magnitude (zetta/yotta/ronna/
+// quetta) but 2^70+ exceeds the 64-bit byte count, so xff rejects them with a clear
+// message rather than silently mis-sizing.
+constexpr std::string_view kOversizedUnits = "ZYRQ";
+
+struct SizeSpec {
+  char compare = '=';        // '+' greater than, '-' less than, '=' exactly
+  std::uint64_t want = 0;    // the count, in `unit`s
+  std::uint64_t unit = 512;  // bytes per unit (find default: 512-byte blocks)
+};
+
+// Parses a `-size` argument `[+|-]N[unit]` into a SizeSpec, or returns an
+// InvalidArgument status naming the problem (unknown unit, an over-64-bit unit, or
+// a missing/non-numeric count). Used to reject a bad value before the walk and,
+// defensively, by MatchesSize.
+absl::StatusOr<SizeSpec> ParseSizeSpec(std::string_view arg) {
+  const std::string_view original = arg;
+  SizeSpec spec;
   if (!arg.empty() && (arg.front() == '+' || arg.front() == '-')) {
-    compare = arg.front();
+    spec.compare = arg.front();
     arg.remove_prefix(1);
   }
-  if (arg.empty()) {
-    return false;
-  }
-  std::uint64_t unit = 512;  // find default: 512-byte blocks
-  const char suffix = arg.back();
-  if (suffix < '0' || suffix > '9') {
+  if (!arg.empty() && (arg.back() < '0' || arg.back() > '9')) {
+    const char suffix = arg.back();
     const auto it = kSizeUnits.find(suffix);
     if (it == kSizeUnits.end()) {
-      return false;  // unknown unit
+      if (kOversizedUnits.find(suffix) != std::string_view::npos) {
+        return absl::InvalidArgumentError(
+            absl::StrCat(
+                "'", original, "': size unit '", std::string(1, suffix),
+                "' exceeds xff's 64-bit byte range; the largest size unit is E (exabyte)"));
+      }
+      return absl::InvalidArgumentError(
+          absl::StrCat("'", original, "': unknown size unit '", std::string(1, suffix), "'"));
     }
-    unit = it->second;
+    spec.unit = it->second;
     arg.remove_suffix(1);
   }
   if (arg.empty()) {
-    return false;
+    return absl::InvalidArgumentError(absl::StrCat("'", original, "': missing numeric size"));
   }
-  std::uint64_t want = 0;
   for (const char digit : arg) {
     if (digit < '0' || digit > '9') {
-      return false;
+      return absl::InvalidArgumentError(absl::StrCat("'", original, "': size is not a number"));
     }
-    want = want * 10 + static_cast<std::uint64_t>(digit - '0');
+    spec.want = (spec.want * 10) + static_cast<std::uint64_t>(digit - '0');
   }
-  const std::uint64_t size_in_units = (size_bytes + unit - 1) / unit;
-  if (compare == '+') {
-    return size_in_units > want;
+  return spec;
+}
+
+// Matches find's `-size N[bcwkMGTPE]` with an optional +/- prefix. The file size is
+// rounded UP to the chosen unit (default 512-byte blocks), as find does. A
+// malformed arg never matches (it is rejected before the walk; see ValidateSizeArgs).
+bool MatchesSize(std::string_view arg, std::uint64_t size_bytes) {
+  const absl::StatusOr<SizeSpec> spec = ParseSizeSpec(arg);
+  if (!spec.ok()) {
+    return false;
   }
-  if (compare == '-') {
-    return size_in_units < want;
+  const std::uint64_t size_in_units = (size_bytes + spec->unit - 1) / spec->unit;
+  if (spec->compare == '+') {
+    return size_in_units > spec->want;
   }
-  return size_in_units == want;
+  if (spec->compare == '-') {
+    return size_in_units < spec->want;
+  }
+  return size_in_units == spec->want;
 }
 
 // Matches a plain integer metadata field (e.g. -links) with an optional +/-
@@ -1462,6 +1496,28 @@ bool ContainsAction(const parser::Expr& expr) {
     case parser::Expr::Kind::kComma: return ContainsAction(*expr.lhs) || ContainsAction(*expr.rhs);
   }
   return false;  // Unreachable: every Expr::Kind returns above.
+}
+
+absl::Status ValidateSizeArgs(const parser::Expr& expr) {
+  if (expr.kind == parser::Expr::Kind::kPredicate) {
+    if (expr.descriptor != nullptr && expr.descriptor->name == "-size" && !expr.args.empty()) {
+      if (const absl::Status status = ParseSizeSpec(expr.args.front()).status(); !status.ok()) {
+        return status;
+      }
+    }
+    return absl::OkStatus();
+  }
+  if (expr.lhs != nullptr) {
+    if (const absl::Status status = ValidateSizeArgs(*expr.lhs); !status.ok()) {
+      return status;
+    }
+  }
+  if (expr.rhs != nullptr) {
+    if (const absl::Status status = ValidateSizeArgs(*expr.rhs); !status.ok()) {
+      return status;
+    }
+  }
+  return absl::OkStatus();
 }
 
 }  // namespace xff::engine
