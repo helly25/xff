@@ -46,6 +46,13 @@ using EmitFn = absl::FunctionRef<void(std::string_view)>;
 struct Control {
   bool prune = false;
   bool quit = false;
+  // Set by a predicate that cannot be evaluated correctly on this entry's
+  // filesystem/kernel -- an "impossible task", e.g. -Btime where the birth time is
+  // unrecorded. Holds a short static reason (empty means none). The driver turns it
+  // into a hard error naming the path (exit 2) or, under --skip-unsupported, a
+  // warning, skipping the entry. (Rule: fail when correctness is impossible; warn
+  // when degraded-but-correct.) The predicate also returns false (it cannot match).
+  std::string_view unsupported;
 };
 
 // Per-evaluation environment threaded through Evaluate for one visited entry.

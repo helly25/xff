@@ -617,6 +617,15 @@ int RunFind(
   // in-process default) the actions stay synchronous and this stays idle.
   exec::ParallelExec parallel_exec(options.workers);
 
+  // Impossible-task policy (design.md "Exit-code model"): a predicate that cannot be
+  // evaluated correctly on an entry's filesystem (e.g. -Btime where birth time is
+  // unrecorded) signals via control.unsupported. By default that is a hard error
+  // (exit 2); --skip-unsupported downgrades it to a warning and skips the entry.
+  // Reported once per run (a representative path) rather than once per entry, so a
+  // whole btime-less tree does not flood stderr.
+  const bool skip_unsupported = HasGlobal(command.globals, "--skip-unsupported");
+  bool unsupported_reported = false;
+
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
       [&](const Visit& visit) {
@@ -665,6 +674,17 @@ int RunFind(
                 + "\n");
           } else {
             emit(render::Renderer(format).Record(visit.path));
+          }
+        }
+        if (!control.unsupported.empty() && !unsupported_reported) {
+          unsupported_reported = true;  // once per run, not per entry
+          if (skip_unsupported) {
+            on_error(visit.path, absl::FailedPreconditionError(absl::StrCat(control.unsupported, " (skipped)")));
+          } else {
+            on_error(
+                visit.path, absl::FailedPreconditionError(
+                                absl::StrCat(control.unsupported, "; use --skip-unsupported to skip such entries")));
+            ++errors;  // impossible task -> hard error (exit 2)
           }
         }
         if (control.quit) {

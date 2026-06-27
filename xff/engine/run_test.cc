@@ -24,10 +24,13 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
 #include "xff/parser/parser.h"
+#include "xff/vfs/entry.h"
+#include "xff/vfs/filesystem.h"
 #include "xff/vfs/local_fs.h"
 
 namespace xff::engine {
@@ -840,6 +843,73 @@ TEST_F(RunTest, LsEmitsOneLinePerMatchAndSuppressesImplicitPrint) {
   // umask/fs-dependent (covered deterministically in evaluate_test); here we just
   // confirm the end-to-end wiring and the print suppression.
   EXPECT_THAT(RunExpr({"-name", "a.txt", "-ls"}), ElementsAre(HasSubstr(Path("a.txt"))));
+}
+
+// Minimal in-memory FileSystem: a root directory holding one regular file whose
+// metadata carries NO birth time. The real local FS records btime on macOS/Linux,
+// so it cannot reproduce the "-Btime where birth time is unrecorded" impossible
+// task; this can.
+class NoBtimeFs : public vfs::FileSystem {
+ public:
+  explicit NoBtimeFs(std::string root) : root_(std::move(root)) {}
+
+  absl::StatusOr<std::vector<vfs::Entry>> ReadDir(std::string_view dir) const override {
+    if (std::string(dir) != root_) {
+      return absl::NotFoundError("NoBtimeFs: no such directory");
+    }
+    return std::vector<vfs::Entry>{
+        vfs::Entry{.path = root_ + "/f.txt", .name = "f.txt", .type = vfs::FileType::kRegular}};
+  }
+
+  absl::StatusOr<vfs::Metadata> Stat(std::string_view path, bool /*follow_symlinks*/) const override {
+    vfs::Metadata md;
+    md.type = std::string(path) == root_ ? vfs::FileType::kDirectory : vfs::FileType::kRegular;
+    return md;  // btime deliberately left empty (unrecorded)
+  }
+
+  absl::Status Remove(std::string_view) const override { return absl::OkStatus(); }
+
+  bool Access(std::string_view, vfs::AccessMode) const override { return true; }
+
+  absl::StatusOr<std::string> ReadLink(std::string_view) const override {
+    return absl::InvalidArgumentError("NoBtimeFs: not a symlink");
+  }
+
+  absl::StatusOr<std::string> FsType(std::string_view) const override { return std::string("fakefs"); }
+
+ private:
+  std::string root_;
+};
+
+TEST_F(RunTest, BtimeOnEntryWithoutBirthtimeFailsByDefault) {
+  // Impossible task: -Btime against a filesystem that does not record birth time is
+  // a hard error (exit 2), reported once with a self-documenting message.
+  const NoBtimeFs fs("/fake");
+  const auto command = parser::Parse({"/fake", "-Btime", "1"});
+  ASSERT_THAT(command, IsOk());
+  int reports = 0;
+  std::string message;
+  const int errors = RunFind(
+      *command, fs, [](std::string_view) {},
+      [&](std::string_view, absl::Status status) {
+        ++reports;
+        message = std::string(status.message());
+      });
+  EXPECT_THAT(errors, Not(0));  // hard error
+  EXPECT_THAT(reports, 1);      // reported once, not per entry
+  EXPECT_THAT(message, HasSubstr("birth time"));
+}
+
+TEST_F(RunTest, SkipUnsupportedDowngradesImpossibleBtimeToWarnAndSkip) {
+  // --skip-unsupported turns the same impossible task into a warning + skip: the
+  // run still reports once (so the user knows), but it is not an error (exit 0).
+  const NoBtimeFs fs("/fake");
+  const auto command = parser::Parse({"--skip-unsupported", "/fake", "-Btime", "1"});
+  ASSERT_THAT(command, IsOk());
+  int reports = 0;
+  const int errors = RunFind(*command, fs, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++reports; });
+  EXPECT_THAT(errors, 0);   // skipped -> not an error
+  EXPECT_THAT(reports, 1);  // but warned once
 }
 
 }  // namespace
