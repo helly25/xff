@@ -276,6 +276,15 @@ TEST_F(ConformanceTest, SizeLessBytes) {
   ExpectMatchesFind({"-size", "-3c"});
 }
 
+// Note: -size with a UNIT suffix (k/M/G/T/P) and a +/- prefix is deliberately NOT
+// conformance-tested. BSD find (macOS) compares the raw byte size against N*unit
+// (so `-size -1k` matches a 1-byte file), while GNU find -- which xff follows --
+// rounds the size UP to whole units first (so `-size -1k` rounds 1 byte to 1 unit,
+// which is not < 1). The two flavors genuinely diverge, so the macOS oracle cannot
+// bless xff's GNU semantics; the unit arithmetic (incl. the T/P/E continuation) is
+// covered by the engine unit test instead. Only `c` (bytes), where the flavors
+// agree, is conformance-tested (above).
+
 TEST_F(ConformanceTest, PermExact) {
   ExpectMatchesFind({"-perm", "644"});
 }
@@ -332,6 +341,18 @@ TEST_F(ConformanceTest, LinksMoreThanOne) {
 
 TEST_F(ConformanceTest, NewerThanReferenceFile) {
   ExpectMatchesFind({"-newer", (root_ / "b.md").string()});
+}
+
+// Birthtime predicates -Bmin/-Btime are BSD-native (macOS); GNU `find` lacks them,
+// so these skip on Linux. The fixture entries are created in SetUp, so all were
+// born within the last minute/day -- a non-trivial set both must agree on (when the
+// filesystem records a birth time, which APFS does).
+TEST_F(ConformanceTest, BminWithinTheHour) {
+  ExpectMatchesFind({"-Bmin", "-60"});
+}
+
+TEST_F(ConformanceTest, BtimeWithinTheDay) {
+  ExpectMatchesFind({"-Btime", "-1"});
 }
 
 TEST_F(ConformanceTest, UidMatchesCurrentUser) {
