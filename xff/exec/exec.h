@@ -30,6 +30,13 @@ namespace xff::exec {
 // batch form and -j parallelism are layered on separately.
 bool Execute(const std::vector<std::string>& command, std::string_view path);
 
+// Runs find's `-exec command... +` batch form over `paths`: the command's final
+// "{}" token is dropped and the selected paths are appended in ARG_MAX-bounded
+// chunks, spawning the command once per chunk. Returns true iff every chunk ran
+// and exited 0 (true for empty `paths`, which runs nothing). The caller
+// guarantees the command's last token is "{}" (the parser enforces it).
+bool ExecuteBatch(const std::vector<std::string>& command, const std::vector<std::string>& paths);
+
 // Spawns `args` verbatim (args[0] PATH-searched via posix_spawnp) and waits,
 // returning true iff the child ran and exited 0. Unlike Execute it performs no
 // "{}" substitution -- the caller has already produced the final argv (e.g. via

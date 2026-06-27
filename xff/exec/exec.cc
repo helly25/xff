@@ -111,6 +111,30 @@ bool Execute(const std::vector<std::string>& command, std::string_view path) {
   return ExecuteArgs(args);  // empty command -> empty args -> false
 }
 
+bool ExecuteBatch(const std::vector<std::string>& command, const std::vector<std::string>& paths) {
+  if (command.empty() || paths.empty()) {
+    return true;  // nothing to run (an empty batch is a no-op, like find)
+  }
+  const std::vector<std::string> prefix(command.begin(), command.end() - 1);  // drop the trailing "{}"
+  std::size_t prefix_bytes = 0;
+  for (const std::string& token : prefix) {
+    prefix_bytes += token.size() + 1;  // +1 for the argv NUL terminator
+  }
+  constexpr std::size_t kMaxArgBytes = 128 * 1'024;  // conservative, well under ARG_MAX
+  bool all_ok = true;
+  for (std::size_t i = 0; i < paths.size();) {
+    std::vector<std::string> args = prefix;
+    std::size_t bytes = prefix_bytes;
+    do {  // always take at least one path so an oversized one still makes progress
+      bytes += paths[i].size() + 1;
+      args.push_back(paths[i]);
+      ++i;
+    } while (i < paths.size() && bytes + paths[i].size() + 1 <= kMaxArgBytes);
+    all_ok = SpawnAndWait(args, /*dir=*/{}) && all_ok;
+  }
+  return all_ok;
+}
+
 bool ExecuteInDir(const std::vector<std::string>& command, std::string_view dir, std::string_view name) {
   std::vector<std::string> args;
   args.reserve(command.size());

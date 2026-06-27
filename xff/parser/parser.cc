@@ -262,19 +262,30 @@ class ExprParser {
         command.push_back(tokens_[pos_++]);
       }
       if (AtEnd()) {
-        Fail(absl::StrCat("'", token, "' is missing a ';' terminator"));
+        Fail(absl::StrCat("'", token, "' is missing a ';' or '+' terminator"));
         return nullptr;
       }
-      if (Peek() == "+") {
-        Fail("the '-exec/-execdir ... +' batch form is not yet supported");
-        return nullptr;
-      }
+      const bool batch = Peek() == "+";
       if (command.empty()) {
-        Fail(absl::StrCat("'", token, "' needs a command before ';'"));
+        Fail(absl::StrCat("'", token, "' needs a command before '", Peek(), "'"));
         return nullptr;
       }
-      ++pos_;  // consume ';'
-      return MakePredicate(descriptor, std::move(command));
+      if (batch && descriptor->name != "-exec") {
+        // -execdir + (per-directory batch) and -j parallel exec are follow-ups; the
+        // interactive -ok/-okdir never take '+'.
+        Fail(absl::StrCat("the '", token, " ... +' batch form is not yet supported; use ';'"));
+        return nullptr;
+      }
+      if (batch && command.back() != "{}") {
+        Fail("'-exec ... +' requires '{}' as the last argument before '+'");
+        return nullptr;
+      }
+      ++pos_;  // consume ';' or '+'
+      ExprPtr node = MakePredicate(descriptor, std::move(command));
+      if (node != nullptr) {
+        node->exec_batch = batch;
+      }
+      return node;
     }
     std::vector<std::string> args;
     for (int i = 0; i < descriptor->arity; ++i) {

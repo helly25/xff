@@ -1059,6 +1059,14 @@ bool EvalDelete(const parser::Expr&, EvalContext& ctx) {
 }
 
 bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.exec_batch) {
+    // `-exec ... +`: queue the path; the command runs at end-of-walk (RunFind
+    // flushes each batch node in ARG_MAX chunks). The action is true per entry.
+    if (ctx.exec_batches != nullptr) {
+      (*ctx.exec_batches)[&expr].emplace_back(ctx.visit.path);
+    }
+    return true;
+  }
   if (!ctx.exec_fields) {
     return exec::Execute(expr.args, ctx.visit.path);  // find-exact: only {} is substituted (-> path)
   }

@@ -67,6 +67,9 @@ struct EvalContext {
   const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
   std::map<std::string, std::string>* outputs = nullptr;  // -capture results for {capture.NAME} (mutable, per entry)
   std::function<bool(std::string_view)> confirm;  // -ok prompt sink: returns true to run the command; empty -> decline
+  // Accumulates matched paths per `-exec ... +` node for the end-of-walk batch
+  // flush (keyed by the Expr node); null disables batching (the action no-ops).
+  std::map<const parser::Expr*, std::vector<std::string>>* exec_batches = nullptr;
 };
 
 // Evaluates a parsed find expression against one visited entry and returns its
