@@ -72,7 +72,9 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-amin", .kind = Kind::kTest, .arity = 1},
     {.name = "-ctime", .kind = Kind::kTest, .arity = 1},
     {.name = "-cmin", .kind = Kind::kTest, .arity = 1},
-    {.name = "-used", .kind = Kind::kTest, .arity = 1},  // days between atime and ctime
+    {.name = "-Btime", .kind = Kind::kTest, .arity = 1},  // birth (creation) time, BSD-compat; days
+    {.name = "-Bmin", .kind = Kind::kTest, .arity = 1},   // birth (creation) time, BSD-compat; minutes
+    {.name = "-used", .kind = Kind::kTest, .arity = 1},   // days between atime and ctime
     {.name = "-perm", .kind = Kind::kTest, .arity = 1},
     {.name = "-maxdepth", .kind = Kind::kTest, .arity = 1},
     {.name = "-mindepth", .kind = Kind::kTest, .arity = 1},
