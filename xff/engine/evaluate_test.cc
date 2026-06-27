@@ -312,6 +312,24 @@ TEST_F(EvaluateTest, EmptyMatchesZeroByteFilesNotOthers) {
       << "-empty matches only regular files and directories";
 }
 
+TEST_F(EvaluateTest, SparseMatchesFilesWithHoles) {
+  vfs::Metadata sparse;
+  sparse.type = vfs::FileType::kRegular;
+  sparse.size = 1'000'000;
+  sparse.blocks = 8;  // 8 * 512 = 4096, far less than the 1 MB apparent size -> sparse
+  EXPECT_TRUE(Match({"-sparse"}, Visit{.path = "s", .name = "s", .depth = 1, .metadata = sparse}));
+
+  vfs::Metadata dense;
+  dense.type = vfs::FileType::kRegular;
+  dense.size = 4'096;
+  dense.blocks = 8;  // 4096 fully allocated -> not sparse
+  EXPECT_FALSE(Match({"-sparse"}, Visit{.path = "d", .name = "d", .depth = 1, .metadata = dense}));
+
+  vfs::Metadata empty;
+  empty.type = vfs::FileType::kRegular;  // zero-size is not sparse
+  EXPECT_FALSE(Match({"-sparse"}, Visit{.path = "e", .name = "e", .depth = 1, .metadata = empty}));
+}
+
 TEST_F(EvaluateTest, LinksMatchesHardLinkCount) {
   vfs::Metadata md;
   md.type = vfs::FileType::kRegular;

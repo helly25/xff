@@ -83,6 +83,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-x", .kind = Kind::kTest, .arity = 0},         // BSD synonym for -xdev
     {.name = "-daystart", .kind = Kind::kTest, .arity = 0},  // measure age tests from today's local midnight
     {.name = "-empty", .kind = Kind::kTest, .arity = 0},
+    {.name = "-sparse", .kind = Kind::kTest, .arity = 0},  // file has holes (blocks*512 < size)
     {.name = "-readable", .kind = Kind::kTest, .arity = 0},
     {.name = "-writable", .kind = Kind::kTest, .arity = 0},
     {.name = "-executable", .kind = Kind::kTest, .arity = 0},
