@@ -67,6 +67,16 @@ TEST_F(DateTimeTest, NowKeywordIsCaseInsensitive) {
   EXPECT_THAT(ParseTimeString("NOW", Now()), Optional(Eq(Now())));
 }
 
+TEST_F(DateTimeTest, DayKeywords) {
+  // find's get_date day words: today == the reference instant; yesterday/tomorrow
+  // are one fixed 24h day before/after it. Case-insensitive, like "now".
+  const absl::Time t = Now();
+  EXPECT_THAT(ParseTimeString("today", t), Optional(Eq(t)));
+  EXPECT_THAT(ParseTimeString("Today", t), Optional(Eq(t)));
+  EXPECT_THAT(ParseTimeString("yesterday", t), Optional(Eq(t - absl::Hours(24))));
+  EXPECT_THAT(ParseTimeString("tomorrow", t), Optional(Eq(t + absl::Hours(24))));
+}
+
 TEST_F(DateTimeTest, RelativeDurationUnits) {
   const absl::Time t = Now();
   EXPECT_THAT(ParseTimeString("30 seconds ago", t), Optional(Eq(t - absl::Seconds(30))));
@@ -131,7 +141,7 @@ TEST_F(DateTimeTest, PluralSingularAliasesAndCase) {
 TEST_F(DateTimeTest, UnparseableReturnsNullopt) {
   const absl::Time t = Now();
   EXPECT_THAT(ParseTimeString("", t), Eq(std::nullopt));
-  EXPECT_THAT(ParseTimeString("yesterday", t), Eq(std::nullopt));
+  EXPECT_THAT(ParseTimeString("someday", t), Eq(std::nullopt));  // not a recognized day keyword
   EXPECT_THAT(ParseTimeString("next tuesday", t), Eq(std::nullopt));
   EXPECT_THAT(ParseTimeString("1 day 5 fortnights", t), Eq(std::nullopt));  // unknown unit in a later term
   EXPECT_THAT(ParseTimeString("5 fortnights", t), Eq(std::nullopt));        // unknown unit

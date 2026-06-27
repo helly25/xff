@@ -455,6 +455,13 @@ TEST_F(ConformanceTest, NewerMtimeVsRefCtime) {
   ExpectMatchesFind({"-newermc", (root_ / "b.md").string()});
 }
 
+// -newermt with the "yesterday" day word: both GNU and BSD find accept it. The
+// fixture entries were created in SetUp (well after yesterday), so all are newer in
+// both -- the exact yesterday boundary (now-24h vs civil midnight) never bites here.
+TEST_F(ConformanceTest, NewerMtimeVsYesterdayKeyword) {
+  ExpectMatchesFind({"-newermt", "yesterday"});
+}
+
 // -printf is a GNU extension; BSD find lacks it, so these skip on macOS.
 TEST_F(ConformanceTest, PrintfPathAndSize) {
   ExpectMatchesFind({"-printf", "%p %s\\n"});
