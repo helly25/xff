@@ -566,7 +566,7 @@ bool IsNewerXY(const Visit& visit, char x, char y, std::string_view reference, c
 // find's -mtime/-mmin: the entry was modified N units ago -- 24h for -mtime, one
 // minute for -mmin -- with any fractional unit discarded (floor), so a 2.9-day
 // file is "2 days". +N means strictly more than N units ago, -N strictly fewer.
-bool MatchesTime(std::string_view arg, absl::Time mtime, absl::Time now, absl::Duration unit) {
+bool MatchesTime(std::string_view arg, absl::Time mtime, absl::Time now, absl::Duration unit, bool allow_unit_suffix) {
   char compare = '=';
   if (!arg.empty() && (arg.front() == '+' || arg.front() == '-')) {
     compare = arg.front();
@@ -574,6 +574,23 @@ bool MatchesTime(std::string_view arg, absl::Time mtime, absl::Time now, absl::D
   }
   if (arg.empty()) {
     return false;
+  }
+  // BSD unit suffix: -mtime/-atime/-ctime accept a trailing s/m/h/d/w that
+  // overrides the predicate's default unit (e.g. "-mtime -1h"). find-compatible
+  // (BSD); the GNU -mmin/-amin/-cmin family keeps integer minutes (no suffix).
+  if (allow_unit_suffix && (arg.back() < '0' || arg.back() > '9')) {
+    switch (arg.back()) {
+      case 's': unit = absl::Seconds(1); break;
+      case 'm': unit = absl::Minutes(1); break;
+      case 'h': unit = absl::Hours(1); break;
+      case 'd': unit = absl::Hours(24); break;
+      case 'w': unit = absl::Hours(24 * 7); break;
+      default: return false;  // unrecognised suffix
+    }
+    arg.remove_suffix(1);
+    if (arg.empty()) {
+      return false;
+    }
   }
   std::int64_t want = 0;
   for (const char digit : arg) {
@@ -857,27 +874,39 @@ bool EvalCnewer(const parser::Expr& expr, EvalContext& ctx) {
 }
 
 bool EvalMtime(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.mtime, ctx.now, absl::Hours(24));
+  return !expr.args.empty()
+         && MatchesTime(
+             expr.args.front(), ctx.visit.metadata.mtime, ctx.now, absl::Hours(24), /*allow_unit_suffix=*/true);
 }
 
 bool EvalMmin(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.mtime, ctx.now, absl::Minutes(1));
+  return !expr.args.empty()
+         && MatchesTime(
+             expr.args.front(), ctx.visit.metadata.mtime, ctx.now, absl::Minutes(1), /*allow_unit_suffix=*/false);
 }
 
 bool EvalAtime(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.atime, ctx.now, absl::Hours(24));
+  return !expr.args.empty()
+         && MatchesTime(
+             expr.args.front(), ctx.visit.metadata.atime, ctx.now, absl::Hours(24), /*allow_unit_suffix=*/true);
 }
 
 bool EvalAmin(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.atime, ctx.now, absl::Minutes(1));
+  return !expr.args.empty()
+         && MatchesTime(
+             expr.args.front(), ctx.visit.metadata.atime, ctx.now, absl::Minutes(1), /*allow_unit_suffix=*/false);
 }
 
 bool EvalCtime(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.ctime, ctx.now, absl::Hours(24));
+  return !expr.args.empty()
+         && MatchesTime(
+             expr.args.front(), ctx.visit.metadata.ctime, ctx.now, absl::Hours(24), /*allow_unit_suffix=*/true);
 }
 
 bool EvalCmin(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.ctime, ctx.now, absl::Minutes(1));
+  return !expr.args.empty()
+         && MatchesTime(
+             expr.args.front(), ctx.visit.metadata.ctime, ctx.now, absl::Minutes(1), /*allow_unit_suffix=*/false);
 }
 
 // Record builders shared by the stdout actions (-print/-print0/-ls) and their

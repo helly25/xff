@@ -487,6 +487,35 @@ TEST_F(EvaluateTest, MMinMatchesWholeMinutesAgo) {
   EXPECT_TRUE(Match({"-mmin", "-200"}, visit));
 }
 
+TEST_F(EvaluateTest, MTimeAcceptsBsdUnitSuffix) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.mtime = now_ - absl::Hours(3);  // 3 hours ago
+  md.atime = now_ - absl::Hours(3);
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  // A BSD s/m/h/d/w suffix overrides the day default (here, hours).
+  EXPECT_TRUE(Match({"-mtime", "3h"}, visit));     // floor(3h / 1h) == 3
+  EXPECT_TRUE(Match({"-mtime", "+2h"}, visit));    // older than 2 hours
+  EXPECT_FALSE(Match({"-mtime", "+3h"}, visit));   // not older than 3
+  EXPECT_TRUE(Match({"-mtime", "-4h"}, visit));    // younger than 4 hours
+  EXPECT_FALSE(Match({"-mtime", "-3h"}, visit));   // not younger than 3
+  EXPECT_TRUE(Match({"-mtime", "+179m"}, visit));  // 180 min old, older than 179 minutes
+  EXPECT_TRUE(Match({"-mtime", "-1d"}, visit));    // younger than 1 day
+  EXPECT_TRUE(Match({"-mtime", "+1s"}, visit));    // older than 1 second
+  EXPECT_TRUE(Match({"-atime", "+2h"}, visit));    // suffix works on -atime too
+  EXPECT_FALSE(Match({"-mtime", "3x"}, visit));    // unrecognised suffix -> no match
+}
+
+TEST_F(EvaluateTest, MMinRejectsUnitSuffix) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.mtime = now_ - absl::Minutes(150);
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  // -mmin is GNU integer-minutes only; a BSD-style suffix is not its vocabulary.
+  EXPECT_FALSE(Match({"-mmin", "150m"}, visit));
+  EXPECT_FALSE(Match({"-mmin", "-3h"}, visit));
+}
+
 TEST_F(EvaluateTest, UidAndGidMatchNumericOwner) {
   vfs::Metadata md;
   md.type = vfs::FileType::kRegular;
