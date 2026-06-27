@@ -161,6 +161,21 @@ TEST_F(DateTimeTest, ParseTimeZoneAcceptsLocalUtcAndNamedZones) {
   EXPECT_THAT(ParseTimeZone("Not/AZone", &zone), IsFalse());
 }
 
+TEST_F(DateTimeTest, StartOfDayFloorsToZoneMidnight) {
+  const absl::TimeZone utc = absl::UTCTimeZone();
+  // A mid-afternoon instant collapses to 00:00:00 of the same calendar day.
+  const absl::Time afternoon = absl::FromCivil(absl::CivilSecond(2'026, 6, 27, 14, 30, 45), utc);
+  EXPECT_THAT(StartOfDay(afternoon, utc), Eq(absl::FromCivil(absl::CivilDay(2'026, 6, 27), utc)));
+  // Exactly midnight is a fixed point.
+  const absl::Time midnight = absl::FromCivil(absl::CivilDay(2'026, 6, 27), utc);
+  EXPECT_THAT(StartOfDay(midnight, utc), Eq(midnight));
+  // The day boundary is the zone's, not UTC's: 00:30 at +02:00 floors to that
+  // zone's local midnight (two hours before the UTC day even begins).
+  const absl::TimeZone plus2 = absl::FixedTimeZone(2 * 60 * 60);
+  const absl::Time early = absl::FromCivil(absl::CivilSecond(2'026, 6, 27, 0, 30, 0), plus2);
+  EXPECT_THAT(StartOfDay(early, plus2), Eq(absl::FromCivil(absl::CivilDay(2'026, 6, 27), plus2)));
+}
+
 TEST_F(DateTimeTest, TimeZoneArgInterpretsCalendarFormsButNotAbsoluteOnes) {
   const absl::TimeZone utc = absl::UTCTimeZone();
   const absl::TimeZone plus1 = absl::FixedTimeZone(3'600);  // UTC+1

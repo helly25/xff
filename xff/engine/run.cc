@@ -338,6 +338,19 @@ bool ContainsArmedAction(const parser::Expr& expr) {
   return false;
 }
 
+// True if the expression mentions the primary `name` anywhere. Used for the
+// positional options that take effect run-wide regardless of position (-daystart).
+bool ContainsPrimary(const parser::Expr& expr, std::string_view name) {
+  switch (expr.kind) {
+    case parser::Expr::Kind::kPredicate: return expr.descriptor->name == name;
+    case parser::Expr::Kind::kNot: return ContainsPrimary(*expr.lhs, name);
+    case parser::Expr::Kind::kAnd:
+    case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kComma: return ContainsPrimary(*expr.lhs, name) || ContainsPrimary(*expr.rhs, name);
+  }
+  return false;
+}
+
 bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
   for (const std::string& global : globals) {
     if (global == flag) {
@@ -523,16 +536,19 @@ int RunFind(
   if (expression != nullptr) {
     ScanDepthOptions(*expression, &options);
   }
-  // Capture one reference instant so every entry's age test (-mtime/-mmin) is
-  // measured against the same clock, matching find's start-time semantics.
-  const absl::Time now = absl::Now();
   // --timezone=ZONE overrides the local zone for interpreting time-string args
-  // (-newerXt). An unknown zone is a usage error, refused before traversal.
+  // (-newerXt) and -daystart's midnight. Resolved first (both need it); an unknown
+  // zone is a usage error, refused before traversal.
   absl::TimeZone tz = absl::LocalTimeZone();
   if (std::string bad; !ResolveTimeZone(command.globals, &tz, &bad)) {
     on_error("--timezone", absl::InvalidArgumentError(absl::StrCat("unknown time zone: '", bad, "'")));
     return 2;  // do not traverse
   }
+  // Capture one reference instant so every entry's age test (-mtime/-mmin) is
+  // measured against the same clock. -daystart measures from today's local
+  // midnight (in tz) instead of find's start time (the run's start).
+  const bool daystart = expression != nullptr && ContainsPrimary(*expression, "-daystart");
+  const absl::Time now = daystart ? datetime::StartOfDay(absl::Now(), tz) : absl::Now();
   // --time-format=NAME: default spec for a time field with no {:qualifier}.
   const std::string time_format = ResolveTimeFormat(command.globals);
   // --summary: reduce matches to a {count, total size} per group instead of

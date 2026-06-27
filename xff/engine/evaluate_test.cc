@@ -111,6 +111,15 @@ TEST_F(EvaluateTest, TrueAndFalse) {
   EXPECT_FALSE(Match({"-false"}, visit));
 }
 
+TEST_F(EvaluateTest, DaystartIsAPositionalNoOp) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/foo", "foo", vfs::FileType::kRegular, md);
+  // -daystart is consumed by the driver (it shifts the age-test reference to local
+  // midnight); as a predicate it is a no-op that matches, so it never filters.
+  EXPECT_TRUE(Match({"-daystart"}, visit));
+  EXPECT_TRUE(Match({"-daystart", "-name", "foo"}, visit));
+}
+
 TEST_F(EvaluateTest, NameGlobsBasename) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("dir/foo.txt", "foo.txt", vfs::FileType::kRegular, md);

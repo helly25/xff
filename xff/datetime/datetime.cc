@@ -102,6 +102,10 @@ std::optional<absl::Time> ParseTimeString(std::string_view text, absl::Time now,
   return std::nullopt;
 }
 
+absl::Time StartOfDay(absl::Time t, absl::TimeZone tz) {
+  return absl::FromCivil(absl::ToCivilDay(t, tz), tz);  // midnight of t's civil day in tz
+}
+
 bool ParseTimeZone(std::string_view spec, absl::TimeZone* out) {
   const std::string lowered = absl::AsciiStrToLower(spec);
   if (lowered.empty() || lowered == "local") {

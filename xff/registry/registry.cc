@@ -76,6 +76,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-mindepth", .kind = Kind::kTest, .arity = 1},
     {.name = "-depth", .kind = Kind::kTest, .arity = 0},
     {.name = "-xdev", .kind = Kind::kTest, .arity = 0},
+    {.name = "-daystart", .kind = Kind::kTest, .arity = 0},  // measure age tests from today's local midnight
     {.name = "-empty", .kind = Kind::kTest, .arity = 0},
     {.name = "-readable", .kind = Kind::kTest, .arity = 0},
     {.name = "-writable", .kind = Kind::kTest, .arity = 0},

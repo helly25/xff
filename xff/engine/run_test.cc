@@ -15,6 +15,7 @@
 
 #include "xff/engine/run.h"
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -159,6 +160,19 @@ TEST_F(RunTest, FprintWritesMatchesToFileNotStdout) {
   }
   EXPECT_THAT(lines, UnorderedElementsAre(Path("a.txt"), Path("sub/c.txt")));
   fs::remove(out, ec);
+}
+
+TEST_F(RunTest, DaystartFeedsTheTimeTests) {
+  // Age a.txt to ~10 days ago, then select with -daystart -mtime +5 (older than
+  // ~5 days, measured from today's local midnight). 10 days clears the boundary
+  // with room to spare, so this exercises the daystart -> reference-instant ->
+  // time-test wiring end to end without depending on the exact midnight cutoff.
+  const auto ten_days_ago = fs::file_time_type::clock::now() - std::chrono::hours(24 * 10);
+  std::error_code ec;
+  fs::last_write_time(root_ / "a.txt", ten_days_ago, ec);
+  ASSERT_FALSE(ec);
+  EXPECT_THAT(RunExpr({"-daystart", "-mtime", "+5", "-name", "a.txt"}), ElementsAre(Path("a.txt")));
+  EXPECT_THAT(last_errors_, 0);
 }
 
 TEST_F(RunTest, ModeScopedSortDefault) {
