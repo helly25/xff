@@ -1042,6 +1042,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-inum", {&EvalInum}},
     DispatchPair{"-ipath", {&EvalPath}},
     DispatchPair{"-iregex", {&EvalRegex}},
+    DispatchPair{"-iwholename", {&EvalPath}},
     DispatchPair{"-links", {&EvalLinks}},
     DispatchPair{"-lname", {&EvalLname}},
     DispatchPair{"-ls", {&EvalLs}},
@@ -1080,6 +1081,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-type", {&EvalType}},
     DispatchPair{"-uid", {&EvalUid}},
     DispatchPair{"-user", {&EvalUser}},
+    DispatchPair{"-wholename", {&EvalPath}},
     DispatchPair{"-writable", {&EvalWritable}},
     DispatchPair{"-xtype", {&EvalXtype}});
 
