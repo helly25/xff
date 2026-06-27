@@ -175,6 +175,19 @@ TEST_F(RunTest, DaystartFeedsTheTimeTests) {
   EXPECT_THAT(last_errors_, 0);
 }
 
+TEST_F(RunTest, TraversalSynonymsAccepted) {
+  // -mount/-x (= -xdev) and -d (= -depth) are accepted; on a single-device tree
+  // -xdev prunes nothing, and -d only reorders (post-order), so the set is the same.
+  EXPECT_THAT(
+      RunExpr({"-mount"}),
+      UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
+  EXPECT_THAT(
+      RunExpr({"-x"}),
+      UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
+  EXPECT_THAT(RunExpr({"-d", "-name", "*.txt"}), UnorderedElementsAre(Path("a.txt"), Path("sub/c.txt")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
 TEST_F(RunTest, ModeScopedSortDefault) {
   // With no --sort, the active style picks the default: modern (kXff) sorts each
   // directory's listing, so the walk is deterministic (root, then a.txt < b.md <

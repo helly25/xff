@@ -75,7 +75,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-maxdepth", .kind = Kind::kTest, .arity = 1},
     {.name = "-mindepth", .kind = Kind::kTest, .arity = 1},
     {.name = "-depth", .kind = Kind::kTest, .arity = 0},
+    {.name = "-d", .kind = Kind::kTest, .arity = 0},  // BSD/GNU short spelling of -depth
     {.name = "-xdev", .kind = Kind::kTest, .arity = 0},
+    {.name = "-mount", .kind = Kind::kTest, .arity = 0},     // GNU/BSD synonym for -xdev
+    {.name = "-x", .kind = Kind::kTest, .arity = 0},         // BSD synonym for -xdev
     {.name = "-daystart", .kind = Kind::kTest, .arity = 0},  // measure age tests from today's local midnight
     {.name = "-empty", .kind = Kind::kTest, .arity = 0},
     {.name = "-readable", .kind = Kind::kTest, .arity = 0},
