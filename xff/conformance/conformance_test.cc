@@ -250,6 +250,16 @@ TEST_F(ConformanceTest, PathGlob) {
   ExpectMatchesFind({"-path", "*/sub/*"});
 }
 
+// -wholename/-iwholename are GNU synonyms for -path/-ipath; BSD find lacks them,
+// so SystemFind returns nullopt and these skip on macOS.
+TEST_F(ConformanceTest, WholenameGlob) {
+  ExpectMatchesFind({"-wholename", "*/sub/*"});
+}
+
+TEST_F(ConformanceTest, IwholenameFoldsCase) {
+  ExpectMatchesFind({"-iwholename", "*/SUB/*"});
+}
+
 TEST_F(ConformanceTest, AndChain) {
   ExpectMatchesFind({"-type", "f", "-name", "*.md"});
 }

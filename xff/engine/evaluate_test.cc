@@ -125,6 +125,15 @@ TEST_F(EvaluateTest, PathGlobsWholePath) {
   EXPECT_TRUE(Match({"-ipath", "A/B/*"}, visit));
 }
 
+TEST_F(EvaluateTest, WholenameIsSynonymForPath) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("a/b/c.txt", "c.txt", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-wholename", "a/*/c.txt"}, visit));  // -wholename == -path
+  EXPECT_FALSE(Match({"-wholename", "c.txt"}, visit));     // matches the whole path, not the basename
+  EXPECT_TRUE(Match({"-iwholename", "A/B/*"}, visit));     // -iwholename folds case, like -ipath
+  EXPECT_FALSE(Match({"-wholename", "A/B/*"}, visit));     // -wholename is case-sensitive
+}
+
 TEST_F(EvaluateTest, TypeMatchesFileType) {
   vfs::Metadata file_md;
   const Visit file = MakeVisit("x", "x", vfs::FileType::kRegular, file_md);
@@ -208,6 +217,45 @@ TEST_F(EvaluateTest, PermMatchesOctalModes) {
   EXPECT_FALSE(Match({"-perm", "-022"}, visit));  // group/other write NOT set
   EXPECT_TRUE(Match({"-perm", "/040"}, visit));   // /MODE: any bit (group read) set
   EXPECT_FALSE(Match({"-perm", "/022"}, visit));  // none of group/other write set
+}
+
+TEST_F(EvaluateTest, PermMatchesSymbolicModes) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.mode = 0644;  // rw-r--r--
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  // Exact: the symbolic mode resolves (from zero) to exactly the file's bits.
+  EXPECT_TRUE(Match({"-perm", "u=rw,go=r"}, visit));  // == 0644
+  EXPECT_FALSE(Match({"-perm", "u=rw,g=r"}, visit));  // == 0640, file is 0644
+  EXPECT_FALSE(Match({"-perm", "u+w"}, visit));       // == 0200 exactly; file has more
+  // -MODE: all requested bits present.
+  EXPECT_TRUE(Match({"-perm", "-u+w"}, visit));       // owner write set
+  EXPECT_TRUE(Match({"-perm", "-u+r,go+r"}, visit));  // all of owner/group/other read set
+  EXPECT_FALSE(Match({"-perm", "-g+w"}, visit));      // group write NOT set
+  EXPECT_FALSE(Match({"-perm", "-a+x"}, visit));      // no execute bits set
+  // /MODE: any requested bit present.
+  EXPECT_TRUE(Match({"-perm", "/u+x,g+r"}, visit));  // group read is set
+  EXPECT_FALSE(Match({"-perm", "/a+x"}, visit));     // no execute bits at all
+  // A malformed symbolic mode never matches.
+  EXPECT_FALSE(Match({"-perm", "u?w"}, visit));
+
+  // An omitted "who" behaves as 'a' (all classes): "+r" resolves to 0444, not 0400.
+  vfs::Metadata r_md;
+  r_md.type = vfs::FileType::kRegular;
+  r_md.mode = 0444;  // r--r--r--
+  const Visit r_all{.path = "r", .name = "r", .depth = 1, .metadata = r_md};
+  EXPECT_TRUE(Match({"-perm", "+r"}, r_all));    // exact: omitted who == a, so 0444
+  EXPECT_FALSE(Match({"-perm", "u+r"}, r_all));  // exact: explicit u+r == 0400, file is 0444
+}
+
+TEST_F(EvaluateTest, PermSymbolicSpecialBits) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.mode = 04755;  // setuid + rwxr-xr-x
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-perm", "-u+s"}, visit));      // setuid bit set
+  EXPECT_FALSE(Match({"-perm", "-g+s"}, visit));     // setgid NOT set
+  EXPECT_TRUE(Match({"-perm", "-u+s,a+x"}, visit));  // setuid + all execute set
 }
 
 TEST_F(EvaluateTest, EmptyMatchesZeroByteFilesNotOthers) {
