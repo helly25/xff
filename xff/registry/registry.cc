@@ -90,6 +90,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-println", .kind = Kind::kAction, .arity = 0, .style = Style::kXff},
     // xff: -printf + the OS line ending
     {.name = "-printfln", .kind = Kind::kAction, .arity = 1, .style = Style::kXff},
+    {.name = "-fprint", .kind = Kind::kAction, .arity = 1},   // -print to a named FILE
+    {.name = "-fprint0", .kind = Kind::kAction, .arity = 1},  // -print0 to a named FILE
+    {.name = "-fprintf", .kind = Kind::kAction, .arity = 2},  // -printf FORMAT to a named FILE
+    {.name = "-fls", .kind = Kind::kAction, .arity = 1},      // -ls to a named FILE
     {.name = "-delete", .kind = Kind::kAction, .arity = 0, .safety = Safety::kSafety},
     {.name = "-prune", .kind = Kind::kAction, .arity = 0},
     {.name = "-quit", .kind = Kind::kAction, .arity = 0},

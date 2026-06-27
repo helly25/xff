@@ -880,28 +880,41 @@ bool EvalCmin(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.ctime, ctx.now, absl::Minutes(1));
 }
 
+// Record builders shared by the stdout actions (-print/-print0/-ls) and their
+// file-writing counterparts (-fprint/-fprint0/-fls), so both emit identical bytes.
+std::string PrintRecord(const Visit& visit) {
+  return absl::StrCat(visit.path, "\n");
+}
+
+std::string Print0Record(const Visit& visit) {
+  std::string record(visit.path);
+  record.push_back('\0');
+  return record;
+}
+
+// find's -ls: an `ls -dils`-style line -- inode, 1 KiB blocks, symbolic
+// permissions, link count, owner, group, size, time, and path -- rendered in
+// `tz`. Columns are single-space-separated (xff does not pad to find's widths).
+std::string LsRecord(const Visit& visit, absl::Time now, absl::TimeZone tz) {
+  const vfs::Metadata& md = visit.metadata;
+  const std::uint64_t blocks_1k = (md.blocks + 1) / 2;  // 512-byte blocks -> 1 KiB blocks (rounded up)
+  return absl::StrCat(
+      md.ino, " ", blocks_1k, " ", SymbolicPerms(md.type, md.mode), " ", md.nlink, " ", UserName(md.uid), " ",
+      GroupName(md.gid), " ", md.size, " ", LsTime(md.mtime, now, tz), " ", visit.path, "\n");
+}
+
 bool EvalPrint(const parser::Expr&, EvalContext& ctx) {
-  ctx.emit(absl::StrCat(ctx.visit.path, "\n"));
+  ctx.emit(PrintRecord(ctx.visit));
   return true;
 }
 
 bool EvalPrint0(const parser::Expr&, EvalContext& ctx) {
-  std::string record(ctx.visit.path);
-  record.push_back('\0');
-  ctx.emit(record);
+  ctx.emit(Print0Record(ctx.visit));
   return true;
 }
 
-// find's -ls: an `ls -dils`-style line per entry -- inode, 1 KiB blocks, symbolic
-// permissions, link count, owner, group, size, time, and path -- rendered in
-// ctx.tz. Columns are single-space-separated (xff does not pad to find's widths).
 bool EvalLs(const parser::Expr&, EvalContext& ctx) {
-  const vfs::Metadata& md = ctx.visit.metadata;
-  const std::uint64_t blocks_1k = (md.blocks + 1) / 2;  // 512-byte blocks -> 1 KiB blocks (rounded up)
-  ctx.emit(
-      absl::StrCat(
-          md.ino, " ", blocks_1k, " ", SymbolicPerms(md.type, md.mode), " ", md.nlink, " ", UserName(md.uid), " ",
-          GroupName(md.gid), " ", md.size, " ", LsTime(md.mtime, ctx.now, ctx.tz), " ", ctx.visit.path, "\n"));
+  ctx.emit(LsRecord(ctx.visit, ctx.now, ctx.tz));
   return true;
 }
 
@@ -920,6 +933,39 @@ bool EvalPrintln(const parser::Expr&, EvalContext& ctx) {
 bool EvalPrintfln(const parser::Expr& expr, EvalContext& ctx) {
   if (!expr.args.empty()) {  // xff: -printf plus the OS line ending appended
     ctx.emit(absl::StrCat(FormatPrintf(expr.args.front(), ctx.visit, ctx.tz), kOsLineEnding));
+  }
+  return true;
+}
+
+// find's -fprint FILE / -fprint0 FILE / -fls FILE / -fprintf FILE FORMAT: the
+// -print/-print0/-ls/-printf output, written to a named file instead of stdout.
+// The driver opens each file once (truncating) and appends across firings; with
+// no file sink wired the actions are inert (in-process callers that pass none).
+bool EvalFprint(const parser::Expr& expr, EvalContext& ctx) {
+  if (!expr.args.empty() && ctx.emit_file) {
+    ctx.emit_file(expr.args.front(), PrintRecord(ctx.visit));
+  }
+  return true;
+}
+
+bool EvalFprint0(const parser::Expr& expr, EvalContext& ctx) {
+  if (!expr.args.empty() && ctx.emit_file) {
+    ctx.emit_file(expr.args.front(), Print0Record(ctx.visit));
+  }
+  return true;
+}
+
+bool EvalFls(const parser::Expr& expr, EvalContext& ctx) {
+  if (!expr.args.empty() && ctx.emit_file) {
+    ctx.emit_file(expr.args.front(), LsRecord(ctx.visit, ctx.now, ctx.tz));
+  }
+  return true;
+}
+
+// -fprintf takes FILE then FORMAT; the format owns its own terminator, like -printf.
+bool EvalFprintf(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.args.size() >= 2 && ctx.emit_file) {
+    ctx.emit_file(expr.args.front(), FormatPrintf(expr.args[1], ctx.visit, ctx.tz));
   }
   return true;
 }
@@ -1124,6 +1170,10 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-execdir", {&EvalExecdir}},
     DispatchPair{"-executable", {&EvalExecutable}},
     DispatchPair{"-false", {&EvalFalse}},
+    DispatchPair{"-fls", {&EvalFls}},
+    DispatchPair{"-fprint", {&EvalFprint}},
+    DispatchPair{"-fprint0", {&EvalFprint0}},
+    DispatchPair{"-fprintf", {&EvalFprintf}},
     DispatchPair{"-fstype", {&EvalFstype}},
     DispatchPair{"-gid", {&EvalGid}},
     DispatchPair{"-group", {&EvalGroup}},

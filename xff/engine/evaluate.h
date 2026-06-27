@@ -51,8 +51,12 @@ struct Control {
 // list. Evaluation-wide options (e.g. modern -exec field substitution) attach
 // here as the engine grows.
 struct EvalContext {
-  const Visit& visit;                            // the entry being evaluated (constant across the expression)
-  EmitFn emit;                                   // action output sink (-print/-print0/...)
+  const Visit& visit;  // the entry being evaluated (constant across the expression)
+  EmitFn emit;         // action output sink (-print/-print0/...)
+  // File-output sink for -fprint/-fprint0/-fprintf/-fls: (filename, record). The
+  // driver appends to each named file (opened once, truncating); empty -> the
+  // file actions are inert (in-process callers that wire no sink).
+  std::function<void(std::string_view, std::string_view)> emit_file;
   const vfs::FileSystem& fs;                     // backs predicates that read the source (e.g. -empty on a directory)
   absl::Time now;                                // single reference instant for age tests (-mtime/-mmin)
   absl::TimeZone tz = absl::LocalTimeZone();     // zone for interpreting time-string args (-newerXt); --timezone

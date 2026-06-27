@@ -142,6 +142,25 @@ TEST_F(RunTest, NoExpressionPrintsEverything) {
   EXPECT_THAT(last_errors_, 0);
 }
 
+TEST_F(RunTest, FprintWritesMatchesToFileNotStdout) {
+  // -fprint FILE redirects the matched paths into FILE; being an action, it also
+  // suppresses the implicit -print, so stdout stays empty. The output file lives
+  // outside the walked tree so it never appears in its own results.
+  const std::string out = (fs::path(::testing::TempDir()) / "xff_fprint_out.lst").string();
+  std::error_code ec;
+  fs::remove(out, ec);
+  EXPECT_THAT(RunExpr({"-name", "*.txt", "-fprint", out}), IsEmpty());
+  EXPECT_THAT(last_errors_, 0);
+  std::ifstream in(out, std::ios::binary);
+  ASSERT_TRUE(in.good());
+  std::vector<std::string> lines;
+  for (std::string line; std::getline(in, line);) {
+    lines.push_back(line);
+  }
+  EXPECT_THAT(lines, UnorderedElementsAre(Path("a.txt"), Path("sub/c.txt")));
+  fs::remove(out, ec);
+}
+
 TEST_F(RunTest, ModeScopedSortDefault) {
   // With no --sort, the active style picks the default: modern (kXff) sorts each
   // directory's listing, so the walk is deterministic (root, then a.txt < b.md <

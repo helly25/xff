@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <optional>
@@ -555,6 +556,20 @@ int RunFind(
     return !line.empty() && (line[0] == 'y' || line[0] == 'Y');
   };
 
+  // File-output actions (-fprint/-fprint0/-fprintf/-fls) append to a named file,
+  // opened once (truncating) on first write and held open for the whole walk. The
+  // visitor is single-threaded, so the sink map needs no synchronisation. Streams
+  // close (flushing) when `file_sinks` goes out of scope after the walk.
+  std::map<std::string, std::ofstream> file_sinks;
+  const auto emit_file = [&file_sinks](std::string_view file, std::string_view record) {
+    const std::string name(file);
+    auto it = file_sinks.find(name);
+    if (it == file_sinks.end()) {
+      it = file_sinks.emplace(name, std::ofstream(name, std::ios::binary | std::ios::trunc)).first;
+    }
+    it->second.write(record.data(), static_cast<std::streamsize>(record.size()));
+  };
+
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
       [&](const Visit& visit) {
@@ -564,6 +579,7 @@ int RunFind(
         EvalContext eval_context{
             .visit = visit,
             .emit = emit,
+            .emit_file = emit_file,
             .fs = walk_fs,
             .now = now,
             .tz = tz,
