@@ -270,14 +270,13 @@ class ExprParser {
         Fail(absl::StrCat("'", token, "' needs a command before '", Peek(), "'"));
         return nullptr;
       }
-      if (batch && descriptor->name != "-exec") {
-        // -execdir + (per-directory batch) and -j parallel exec are follow-ups; the
-        // interactive -ok/-okdir never take '+'.
-        Fail(absl::StrCat("the '", token, " ... +' batch form is not yet supported; use ';'"));
+      if (batch && descriptor->name != "-exec" && descriptor->name != "-execdir") {
+        // Only -exec/-execdir batch; the interactive -ok/-okdir never take '+'.
+        Fail(absl::StrCat("'", token, " ... +' is not supported; use ';'"));
         return nullptr;
       }
       if (batch && command.back() != "{}") {
-        Fail("'-exec ... +' requires '{}' as the last argument before '+'");
+        Fail(absl::StrCat("'", token, " ... +' requires '{}' as the last argument before '+'"));
         return nullptr;
       }
       ++pos_;  // consume ';' or '+'

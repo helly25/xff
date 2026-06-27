@@ -1064,10 +1064,11 @@ bool EvalDelete(const parser::Expr&, EvalContext& ctx) {
 
 bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
   if (expr.exec_batch) {
-    // `-exec ... +`: queue the path; the command runs at end-of-walk (RunFind
-    // flushes each batch node in ARG_MAX chunks). The action is true per entry.
+    // `-exec ... +`: queue the full path in the single global ("") bucket; the
+    // command runs at end-of-walk (RunFind flushes each batch node in ARG_MAX
+    // chunks). The action is true per entry.
     if (ctx.exec_batches != nullptr) {
-      (*ctx.exec_batches)[&expr].emplace_back(ctx.visit.path);
+      (*ctx.exec_batches)[&expr][""].emplace_back(ctx.visit.path);
     }
     return true;
   }
@@ -1134,6 +1135,14 @@ bool EvalExecdir(const parser::Expr& expr, EvalContext& ctx) {
   // Like -exec, but the child runs with its working directory set to the directory
   // containing the matched entry, and find-exact {} expands to "./<basename>".
   const ExecDir target = SplitExecDir(ctx.visit.path);
+  if (expr.exec_batch) {
+    // `-execdir ... +`: queue the "./<basename>" under its directory; RunFind runs
+    // the command once per directory (cwd = that dir) at end-of-walk.
+    if (ctx.exec_batches != nullptr) {
+      (*ctx.exec_batches)[&expr][target.dir].push_back(target.brace);
+    }
+    return true;
+  }
   if (!ctx.exec_fields) {
     return exec::ExecuteInDir(expr.args, target.dir, target.brace);  // find-exact: {} -> ./basename
   }

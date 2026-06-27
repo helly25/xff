@@ -96,6 +96,33 @@ bool SpawnAndWait(const std::vector<std::string>& args, std::string_view dir) {
   return WIFEXITED(status) && WEXITSTATUS(status) == 0;
 }
 
+// find's `... +` batch core: drop the command's trailing "{}", append `items` in
+// ARG_MAX-bounded chunks, and spawn once per chunk in `dir` (empty inherits our
+// cwd; -execdir passes the entry's directory). True iff every chunk exits 0.
+bool RunBatched(const std::vector<std::string>& command, const std::vector<std::string>& items, std::string_view dir) {
+  if (command.empty() || items.empty()) {
+    return true;  // nothing to run (an empty batch is a no-op, like find)
+  }
+  const std::vector<std::string> prefix(command.begin(), command.end() - 1);  // drop the trailing "{}"
+  std::size_t prefix_bytes = 0;
+  for (const std::string& token : prefix) {
+    prefix_bytes += token.size() + 1;  // +1 for the argv NUL terminator
+  }
+  constexpr std::size_t kMaxArgBytes = 128 * 1'024;  // conservative, well under ARG_MAX
+  bool all_ok = true;
+  for (std::size_t i = 0; i < items.size();) {
+    std::vector<std::string> args = prefix;
+    std::size_t bytes = prefix_bytes;
+    do {  // always take at least one item so an oversized one still makes progress
+      bytes += items[i].size() + 1;
+      args.push_back(items[i]);
+      ++i;
+    } while (i < items.size() && bytes + items[i].size() + 1 <= kMaxArgBytes);
+    all_ok = SpawnAndWait(args, dir) && all_ok;
+  }
+  return all_ok;
+}
+
 }  // namespace
 
 bool ExecuteArgs(const std::vector<std::string>& args) {
@@ -112,27 +139,14 @@ bool Execute(const std::vector<std::string>& command, std::string_view path) {
 }
 
 bool ExecuteBatch(const std::vector<std::string>& command, const std::vector<std::string>& paths) {
-  if (command.empty() || paths.empty()) {
-    return true;  // nothing to run (an empty batch is a no-op, like find)
-  }
-  const std::vector<std::string> prefix(command.begin(), command.end() - 1);  // drop the trailing "{}"
-  std::size_t prefix_bytes = 0;
-  for (const std::string& token : prefix) {
-    prefix_bytes += token.size() + 1;  // +1 for the argv NUL terminator
-  }
-  constexpr std::size_t kMaxArgBytes = 128 * 1'024;  // conservative, well under ARG_MAX
-  bool all_ok = true;
-  for (std::size_t i = 0; i < paths.size();) {
-    std::vector<std::string> args = prefix;
-    std::size_t bytes = prefix_bytes;
-    do {  // always take at least one path so an oversized one still makes progress
-      bytes += paths[i].size() + 1;
-      args.push_back(paths[i]);
-      ++i;
-    } while (i < paths.size() && bytes + paths[i].size() + 1 <= kMaxArgBytes);
-    all_ok = SpawnAndWait(args, /*dir=*/{}) && all_ok;
-  }
-  return all_ok;
+  return RunBatched(command, paths, /*dir=*/{});  // -exec ... + : full paths, our cwd
+}
+
+bool ExecuteBatchInDir(
+    const std::vector<std::string>& command,
+    const std::vector<std::string>& names,
+    std::string_view dir) {
+  return RunBatched(command, names, dir);  // -execdir ... + : ./basenames, child cwd = dir
 }
 
 bool ExecuteInDir(const std::vector<std::string>& command, std::string_view dir, std::string_view name) {

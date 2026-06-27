@@ -221,6 +221,26 @@ TEST_F(RunTest, ExecPlusBatchesAllMatchesIntoOneRun) {
   fs::remove(out, ec);
 }
 
+TEST_F(RunTest, ExecdirPlusBatchesPerDirectory) {
+  // *.txt are in two directories (root/a.txt, root/sub/c.txt), so -execdir ... +
+  // runs ONCE PER DIRECTORY, passing the ./basename. Two dirs -> two RUN markers;
+  // the items are basenames, not full paths (the cwd is each entry's directory).
+  const std::string out = (fs::path(::testing::TempDir()) / "xff_execdirplus_out.lst").string();
+  std::error_code ec;
+  fs::remove(out, ec);
+  const std::string script = "echo RUN >> '" + out + "'; for p in \"$@\"; do echo \"$p\" >> '" + out + "'; done";
+  RunExpr({"-name", "*.txt", "-execdir", "sh", "-c", script, "_", "{}", "+"});
+  EXPECT_THAT(last_errors_, 0);
+  std::ifstream in(out, std::ios::binary);
+  ASSERT_TRUE(in.good());
+  std::vector<std::string> lines;
+  for (std::string line; std::getline(in, line);) {
+    lines.push_back(line);
+  }
+  EXPECT_THAT(lines, UnorderedElementsAre("RUN", "RUN", "./a.txt", "./c.txt"));
+  fs::remove(out, ec);
+}
+
 TEST_F(RunTest, ModeScopedSortDefault) {
   // With no --sort, the active style picks the default: modern (kXff) sorts each
   // directory's listing, so the walk is deterministic (root, then a.txt < b.md <

@@ -37,6 +37,14 @@ bool Execute(const std::vector<std::string>& command, std::string_view path);
 // guarantees the command's last token is "{}" (the parser enforces it).
 bool ExecuteBatch(const std::vector<std::string>& command, const std::vector<std::string>& paths);
 
+// Like ExecuteBatch (`-exec ... +`), but each spawned chunk runs with its working
+// directory set to `dir` -- find's `-execdir ... +`, batched per directory. The
+// caller passes the entries' "./<basename>" tokens as `names`.
+bool ExecuteBatchInDir(
+    const std::vector<std::string>& command,
+    const std::vector<std::string>& names,
+    std::string_view dir);
+
 // Spawns `args` verbatim (args[0] PATH-searched via posix_spawnp) and waits,
 // returning true iff the child ran and exited 0. Unlike Execute it performs no
 // "{}" substitution -- the caller has already produced the final argv (e.g. via
