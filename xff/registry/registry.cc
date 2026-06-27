@@ -49,6 +49,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-gid", .kind = Kind::kTest, .arity = 1},
     {.name = "-user", .kind = Kind::kTest, .arity = 1},
     {.name = "-group", .kind = Kind::kTest, .arity = 1},
+    {.name = "-nouser", .kind = Kind::kTest, .arity = 0},   // owner uid has no passwd entry
+    {.name = "-nogroup", .kind = Kind::kTest, .arity = 0},  // group gid has no group entry
     {.name = "-newer", .kind = Kind::kTest, .arity = 1},
     {.name = "-anewer", .kind = Kind::kTest, .arity = 1},  // atime newer than ref's mtime (== -neweram)
     {.name = "-cnewer", .kind = Kind::kTest, .arity = 1},  // ctime newer than ref's mtime (== -newercm)
