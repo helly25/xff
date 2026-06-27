@@ -124,8 +124,15 @@ TEST_F(ParserTest, ExecPlusRequiresTrailingBrace) {
       Parse({".", "-exec", "echo", "{}", "x", "+"}), StatusIs(absl::StatusCode::kInvalidArgument));  // {} not last
 }
 
-TEST_F(ParserTest, ExecdirPlusNotYetSupported) {
-  EXPECT_THAT(Parse({".", "-execdir", "echo", "{}", "+"}), StatusIs(absl::StatusCode::kInvalidArgument));
+TEST_F(ParserTest, ExecdirPlusMarksBatch) {
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-execdir", "echo", "{}", "+"}));
+  EXPECT_THAT(cmd.expression->descriptor->name, "-execdir");
+  EXPECT_TRUE(cmd.expression->exec_batch);
+}
+
+TEST_F(ParserTest, OkPlusNotSupported) {
+  // The interactive -ok/-okdir never take the '+' batch form.
+  EXPECT_THAT(Parse({".", "-ok", "echo", "{}", "+"}), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST_F(ParserTest, CaptureCollectsNameRegexAndCommand) {

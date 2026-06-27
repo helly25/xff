@@ -595,10 +595,11 @@ int RunFind(
     it->second.write(record.data(), static_cast<std::streamsize>(record.size()));
   };
 
-  // `-exec ... +`: each batch node's matched paths accrue here during the walk and
-  // run once at the end (keyed by the Expr node). The visitor is single-threaded,
-  // so no synchronisation is needed.
-  std::map<const parser::Expr*, std::vector<std::string>> exec_batches;
+  // `-exec/-execdir ... +`: each batch node's matched items accrue here during the
+  // walk and run at the end. Outer key the Expr node; inner key the directory ("" =
+  // -exec's single global batch, the entry's dir = -execdir's per-dir batches). The
+  // visitor is single-threaded, so no synchronisation is needed.
+  std::map<const parser::Expr*, std::map<std::string, std::vector<std::string>>> exec_batches;
 
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
@@ -662,12 +663,18 @@ int RunFind(
     ++errors;  // Fatal traversal error (none today; per-path errors handled above).
   }
 
-  // `-exec ... +`: now that the walk is done, run each batch node's accumulated
-  // paths in ARG_MAX chunks. A nonzero exit is a per-command error, as for `;`.
-  for (const auto& [node, paths] : exec_batches) {
-    if (!exec::ExecuteBatch(node->args, paths)) {
-      ++errors;
-      on_error(node->descriptor->name, absl::UnknownError("batched command exited non-zero"));
+  // `-exec/-execdir ... +`: now that the walk is done, run each batch node's
+  // accumulated items in ARG_MAX chunks -- -exec once over the global ("") bucket,
+  // -execdir once per directory bucket (cwd = that dir). A nonzero exit is a
+  // per-command error, as for `;`.
+  for (const auto& [node, by_dir] : exec_batches) {
+    const bool execdir = node->descriptor->name == "-execdir";
+    for (const auto& [dir, items] : by_dir) {
+      const bool ok = execdir ? exec::ExecuteBatchInDir(node->args, items, dir) : exec::ExecuteBatch(node->args, items);
+      if (!ok) {
+        ++errors;
+        on_error(node->descriptor->name, absl::UnknownError("batched command exited non-zero"));
+      }
     }
   }
 

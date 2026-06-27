@@ -86,4 +86,20 @@ test::exec_semicolon_runs_once_per_match() {
   expect_eq "2" "${#_lines[@]}"
 }
 
+test::execdir_plus_runs_in_each_directory_with_basenames() {
+  local dir out
+  dir="$(_tree edir)"
+  out="${TEST_TMPDIR}/edir.out"
+  : >"${out}"
+  # -execdir ... + runs in each entry's directory (cwd = that dir) with ./basename
+  # arguments. Both matches are in one directory here, so PWD is that directory.
+  # shellcheck disable=SC2016  # the single-quoted script runs in the spawned sh, which expands $OUT/$@/$p
+  XFF_CONFIG="${TEST_TMPDIR}/none" OUT="${out}" "$(_xff_bin)" "${dir}" -name '*.txt' \
+    -execdir sh -c 'echo "PWD=$PWD" >>"$OUT"; for p in "$@"; do echo "$p" >>"$OUT"; done' _ '{}' +
+  _read_lines "${out}"
+  expect_contains "PWD=${dir}" "${_lines[@]}"
+  expect_contains "./a.txt" "${_lines[@]}"
+  expect_contains "./b.txt" "${_lines[@]}"
+}
+
 test_runner
