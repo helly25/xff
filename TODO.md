@@ -66,7 +66,14 @@ intent, not hard dependency. Task numbers reference the agent task list.
 - **Parallel traversal + `--jobs` + deterministic `--sort`** (#43). The big one;
   needs a design pass (work-stealing vs per-root pool; ordering guarantees).
 - **Exit-code model refinement + `--skip-unsupported` + impossible-task-fail**
-  (#44).
+  (#44). Match-sensitive exit has shipped: the default stays find semantics (0 ran
+  / 2 error, match status never affects exit), while `--quiet` (suppress output,
+  exit by match) and `--exit-match` (keep output, exit by match) make "1 = no
+  match" reachable; an error still outranks match status (exit 2). Still open:
+  impossible-task-fail (a predicate that cannot be evaluated correctly on a given
+  FS, e.g. `-Btime` with no birthtime) and its `--skip-unsupported` downgrade; and
+  the grep-compat `-q` short alias of `--quiet` (single-dash whole-run flag tensions
+  with the dash-count convention -- decide before adding).
 - **`--exact` FS-aware matching + `--path-encoding` output** (#45).
 - **`--feature=NAME` / `--feature=no-NAME` capability gates** (config phase D3,
   #73).

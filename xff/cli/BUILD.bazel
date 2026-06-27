@@ -63,3 +63,14 @@ bashtest(
     srcs = ["exec_test.sh"],
     data = [":xff"],
 )
+
+# Binary-level test of the exit-code model: default find semantics (0/2, match
+# status never affects exit) vs --quiet / --exit-match making "1 = no match"
+# reachable, with errors (exit 2) outranking match status. Exit codes are a
+# process-level concern, so this drives the real binary.
+bashtest(
+    name = "exit_test",
+    size = "small",
+    srcs = ["exit_test.sh"],
+    data = [":xff"],
+)
