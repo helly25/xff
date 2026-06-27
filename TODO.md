@@ -23,9 +23,10 @@ shipped one way but not yet settled.
   `utc`/`z`/`zulu`, and IANA names (`America/New_York`); an unknown zone is a
   usage error. The companion `--time-format=NAME` selector shipped alongside it
   (config phase D4b), and `-printf` (`%a`/`%c`/`%t` + `%Ak`/`%Ck`/`%Tk`) and `-ls`
-  both render in the zone (#48). Not yet settled / deferred: (a) a `--tz` short
-  alias; (b) fixed-offset specs (`+01:00`), which `absl::LoadTimeZone` does not
-  parse. Revisit with the datetime lib growth (#70).
+  both render in the zone (#48). Both follow-ups have now shipped (with the #70
+  datetime growth): (a) the `--tz=ZONE` short alias of `--timezone=ZONE`; (b)
+  fixed-offset specs (`+05:30`, `-0800`, `+01`), which `ParseTimeZone` builds via
+  `absl::FixedTimeZone` since `absl::LoadTimeZone` cannot parse them.
 
 - **Project `.xffrc` per-entry subtree scoping (deferred).**
   The cascade (config phase E2a) reads, for each search root, every `.xffrc` from
@@ -69,9 +70,10 @@ intent, not hard dependency. Task numbers reference the agent task list.
 - **`--exact` FS-aware matching + `--path-encoding` output** (#45).
 - **`--feature=NAME` / `--feature=no-NAME` capability gates** (config phase D3,
   #73).
-- **Grow `xff/datetime` into a parse+format lib** (#70): named formats +
-  modifiers; plus the deferred `--tz` short alias and fixed-offset zone specs
-  (`+01:00`, which `absl::LoadTimeZone` does not parse).
+- **Grow `xff/datetime` into a parse+format lib** (#70): named formats, field
+  modifiers, and the `--time-format` / `--timezone` global flags have shipped, as
+  have the last deferred pieces -- the `--tz` short alias and fixed-offset zone
+  specs (`+05:30` / `-0800` / `+01`). Nothing outstanding here.
 - **`--mode=NAME` + argv[0] mode mechanism** (#54). The `--modern` umbrella flag
   stays deferred; ship per-feature gates first.
 - **Access predicates** `-readable` / `-writable` / `-executable` (needs a
