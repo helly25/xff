@@ -15,10 +15,18 @@
 
 #include "xff/engine/walk.h"
 
+#include <condition_variable>
+#include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <future>
+#include <memory>
+#include <mutex>
+#include <queue>
 #include <set>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -41,106 +49,306 @@ std::string_view Basename(std::string_view path) {
   return slash == std::string_view::npos ? path : path.substr(slash + 1);
 }
 
+// One child of a directory, already stat'd by a read job.
+struct Stated {
+  std::string path;
+  vfs::Metadata metadata;
+  bool ok = false;
+  absl::Status status;
+};
+
+// The result of reading one directory: its children stat'd, or a read error.
+struct Listing {
+  std::vector<Stated> children;
+  absl::Status read_status;  // ReadDir failure; children is then empty
+};
+
+// A fixed pool of worker threads running leaf read jobs (`readdir` + `lstat`).
+// Workers touch only their job's inputs and the (thread-safe) FileSystem and the
+// task queue; they never call back into the walk, so no job can wait on another
+// and there is no shared walk state to race (the coordinator runs everything
+// else on one thread). With zero workers, `Submit` runs the job inline.
+class ReadPool {
+ public:
+  explicit ReadPool(std::size_t workers) {
+    threads_.reserve(workers);
+    for (std::size_t i = 0; i < workers; ++i) {
+      threads_.emplace_back([this] { Run(); });
+    }
+  }
+
+  ~ReadPool() {
+    {
+      const std::lock_guard<std::mutex> lock(mutex_);
+      stop_ = true;
+    }
+    cv_.notify_all();
+    for (std::thread& thread : threads_) {
+      thread.join();
+    }
+  }
+
+  ReadPool(const ReadPool&) = delete;
+  ReadPool& operator=(const ReadPool&) = delete;
+
+  std::future<Listing> Submit(std::function<Listing()> job) {
+    auto task = std::make_shared<std::packaged_task<Listing()>>(std::move(job));
+    std::future<Listing> future = task->get_future();
+    if (threads_.empty()) {
+      (*task)();  // sequential: run inline
+      return future;
+    }
+    {
+      const std::lock_guard<std::mutex> lock(mutex_);
+      queue_.emplace([task] { (*task)(); });
+    }
+    cv_.notify_one();
+    return future;
+  }
+
+ private:
+  void Run() {
+    for (;;) {
+      std::function<void()> job;
+      {
+        std::unique_lock<std::mutex> lock(mutex_);
+        cv_.wait(lock, [this] { return stop_ || !queue_.empty(); });
+        if (stop_ && queue_.empty()) {
+          return;
+        }
+        job = std::move(queue_.front());
+        queue_.pop();
+      }
+      job();
+    }
+  }
+
+  std::mutex mutex_;
+  std::condition_variable cv_;
+  std::queue<std::function<void()>> queue_;
+  std::vector<std::thread> threads_;
+  bool stop_ = false;
+};
+
 class Walker {
  public:
   Walker(const vfs::FileSystem& fs, const WalkOptions& options, Visitor visit, WalkErrorFn on_error)
-      : fs_(fs), options_(options), visit_(visit), on_error_(on_error) {}
+      : fs_(fs),
+        options_(options),
+        visit_(visit),
+        on_error_(on_error),
+        follow_children_(options.symlinks == SymlinkMode::kAll),
+        pool_(options.workers > 1 ? options.workers : std::size_t{0}) {}
 
-  void VisitNode(const std::string& path, int depth) {
-    if (stopped_) {
-      return;
+  void WalkRoots(absl::Span<const std::string> roots) {
+    for (const std::string& root : roots) {
+      if (stopped_) {
+        return;
+      }
+      // -P never follows, -H follows command-line operands (depth 0), -L all.
+      const bool follow = options_.symlinks != SymlinkMode::kNever;
+      const Stated stated = StatNode(root, follow);
+      root_dev_ = stated.ok ? stated.metadata.dev : 0;
+      current_root_ = root;
+      VisitSubtree(stated, /*depth=*/0, /*prefetched=*/nullptr);
     }
-    // -P: never follow; -H: follow only command-line operands (depth 0); -L:
-    // follow all. A dangling symlink (target missing) falls back to the link.
-    const bool follow =
-        options_.symlinks == SymlinkMode::kAll || (options_.symlinks == SymlinkMode::kRoots && depth == 0);
+  }
+
+ private:
+  // lstat (or stat, when following) a single path into a Stated, with the
+  // dangling-symlink fallback to the link itself.
+  Stated StatNode(const std::string& path, bool follow) const {
     absl::StatusOr<vfs::Metadata> metadata = fs_.Stat(path, follow);
     if (!metadata.ok() && follow) {
       metadata = fs_.Stat(path, /*follow_symlinks=*/false);
     }
     if (!metadata.ok()) {
-      on_error_(path, metadata.status());
-      return;
+      return Stated{.path = path, .ok = false, .status = metadata.status()};
     }
+    return Stated{.path = path, .metadata = *metadata, .ok = true};
+  }
 
-    if (depth == 0) {
-      root_dev_ = metadata->dev;  // device of the root this subtree started from (-xdev)
-      current_root_ = path;       // command-line operand this subtree descends from (find %H)
+  // A read job: list `dir` and stat every child. Pure - safe to run on a worker.
+  Listing ReadDir(const std::string& dir) const {
+    absl::StatusOr<std::vector<vfs::Entry>> entries = fs_.ReadDir(dir);
+    if (!entries.ok()) {
+      return Listing{.read_status = entries.status()};
+    }
+    Listing listing;
+    listing.children.reserve(entries->size());
+    for (const vfs::Entry& entry : *entries) {
+      listing.children.push_back(StatNode(entry.path, follow_children_));
+    }
+    return listing;
+  }
+
+  std::future<Listing> SubmitRead(const std::string& dir) {
+    return pool_.Submit([this, dir] { return ReadDir(dir); });
+  }
+
+  bool Descendable(const Stated& stated, int depth) const {
+    const bool is_dir = stated.ok && stated.metadata.type == vfs::FileType::kDirectory;
+    const bool within_depth = options_.max_depth < 0 || depth < options_.max_depth;
+    const bool on_root_fs = !options_.single_filesystem || stated.metadata.dev == root_dev_;
+    return is_dir && within_depth && on_root_fs;
+  }
+
+  // Reports `stated` to the visitor (pre/post order handled by the caller).
+  // Returns the visitor's action, or kContinue when the entry is below
+  // `min_depth` (traversed but not visited) or failed to stat.
+  WalkAction VisitOne(const Stated& stated, int depth) {
+    if (!stated.ok) {
+      on_error_(stated.path, stated.status);
+      return WalkAction::kContinue;
+    }
+    if (depth < options_.min_depth) {
+      return WalkAction::kContinue;
     }
     const Visit visit{
-        .path = path, .name = Basename(path), .root = current_root_, .depth = depth, .metadata = *metadata};
-    const bool is_dir = metadata->type == vfs::FileType::kDirectory;
-    const bool within_depth = options_.max_depth < 0 || depth < options_.max_depth;
-    const bool visible = depth >= options_.min_depth;
-    const bool on_root_fs = !options_.single_filesystem || metadata->dev == root_dev_;
-    const bool can_descend = is_dir && within_depth && on_root_fs;
-
-    if (options_.post_order) {
-      // find -depth: descend first, then visit. -prune cannot un-visit the
-      // already-walked children, so it has no effect here (matching find).
-      if (can_descend) {
-        MaybeDescend(path, depth, metadata->dev, metadata->ino);
-      }
-      if (!stopped_ && visible && visit_(visit) == WalkAction::kStop) {
-        stopped_ = true;
-      }
-      return;
-    }
-
-    // Pre-order (default): visit first; the visitor may prune the descent or stop.
-    WalkAction action = WalkAction::kContinue;
-    if (visible) {
-      action = visit_(visit);
-    }
+        .path = stated.path,
+        .name = Basename(stated.path),
+        .root = current_root_,
+        .depth = depth,
+        .metadata = stated.metadata};
+    const WalkAction action = visit_(visit);
     if (action == WalkAction::kStop) {
       stopped_ = true;
+    }
+    return action;
+  }
+
+  static bool IsDir(const Stated& stated) { return stated.ok && stated.metadata.type == vfs::FileType::kDirectory; }
+
+  // Visits `stated` and, if it is a descendable directory, descends into it.
+  // Pre-order by default; post-order (`-depth`) descends first, then visits, and
+  // `-prune` has no effect (matching find). `prefetched` is the directory's
+  // already-submitted listing read (from the parent's batch), or null to read now.
+  void VisitSubtree(const Stated& stated, int depth, std::future<Listing>* prefetched) {
+    if (stopped_) {
       return;
     }
-    if (can_descend && action != WalkAction::kPrune) {
-      MaybeDescend(path, depth, metadata->dev, metadata->ino);
+    const bool descend = Descendable(stated, depth);
+    if (options_.post_order) {
+      if (descend) {
+        Descend(stated, depth, prefetched);
+      }
+      if (!stopped_) {
+        VisitOne(stated, depth);
+      }
+      return;
+    }
+    const WalkAction action = VisitOne(stated, depth);
+    if (!stopped_ && descend && action != WalkAction::kPrune) {
+      Descend(stated, depth, prefetched);
     }
   }
 
- private:
-  // Descends into `path` (a directory we've decided to enter), guarding against
-  // filesystem loops: if its (dev, ino) is already on the current descent path --
-  // only possible when following symlinks -- report it and do not recurse.
-  void MaybeDescend(const std::string& path, int depth, std::uint64_t dev, std::uint64_t ino) {
-    if (!ancestors_.insert({dev, ino}).second) {
-      on_error_(path, absl::FailedPreconditionError("filesystem loop detected"));
+  // Reads `dir` (from its prefetched future, or now) and recurses its children,
+  // guarding against filesystem loops (only possible when following symlinks).
+  void Descend(const Stated& dir, int depth, std::future<Listing>* prefetched) {
+    const std::pair<std::uint64_t, std::uint64_t> id{dir.metadata.dev, dir.metadata.ino};
+    if (!ancestors_.insert(id).second) {
+      on_error_(dir.path, absl::FailedPreconditionError("filesystem loop detected"));
       return;
     }
-    Descend(path, depth);
-    ancestors_.erase({dev, ino});
+    Listing listing = prefetched != nullptr ? prefetched->get() : SubmitRead(dir.path).get();
+    if (!listing.read_status.ok()) {
+      on_error_(dir.path, listing.read_status);
+      ancestors_.erase(id);
+      return;
+    }
+    if (options_.sort != SortOrder::kNone) {
+      absl::c_sort(listing.children, [](const Stated& a, const Stated& b) { return a.path < b.path; });
+    }
+    HandleChildren(listing.children, depth + 1);
+    ancestors_.erase(id);
   }
 
-  void Descend(const std::string& dir, int depth) {
-    absl::StatusOr<std::vector<vfs::Entry>> children = fs_.ReadDir(dir);
-    if (!children.ok()) {
-      on_error_(dir, children.status());
+  // Recurses a directory's (already sorted) children. The sort modes differ only
+  // in how a subdirectory's entry is grouped relative to its subtree. Reads for
+  // the descendable subdirectories are submitted as a batch up front so the pool
+  // overlaps their IO while the coordinator visits in order.
+  void HandleChildren(const std::vector<Stated>& children, int depth) {
+    // Inline DFS at each entry's position. kTree emits a subtree in its sorted
+    // place; post-order (`-depth`) always uses this shape (descend then visit).
+    if (options_.sort == SortOrder::kTree || options_.post_order) {
+      std::vector<std::future<Listing>> reads = SubmitSubdirReads(children, depth);
+      for (std::size_t i = 0; i < children.size(); ++i) {
+        if (stopped_) {
+          return;
+        }
+        VisitSubtree(children[i], depth, reads[i].valid() ? &reads[i] : nullptr);
+      }
       return;
     }
-    // --sort=name: order siblings by path before visiting. They share `dir` as a
-    // prefix, so path order is name order; the result is a deterministic walk.
-    if (options_.sort == SortOrder::kName) {
-      absl::c_sort(*children, [](const vfs::Entry& a, const vfs::Entry& b) { return a.path < b.path; });
+    if (options_.sort == SortOrder::kSubtree) {
+      // Non-directory entries first (sorted block), then each subtree contiguous.
+      for (const Stated& child : children) {
+        if (stopped_) {
+          return;
+        }
+        if (!IsDir(child)) {
+          VisitOne(child, depth);
+        }
+      }
+      std::vector<std::future<Listing>> reads = SubmitSubdirReads(children, depth);
+      for (std::size_t i = 0; i < children.size(); ++i) {
+        if (stopped_) {
+          return;
+        }
+        if (IsDir(children[i])) {
+          VisitSubtree(children[i], depth, reads[i].valid() ? &reads[i] : nullptr);
+        }
+      }
+      return;
     }
-    for (const vfs::Entry& child : *children) {
+    // kDir / kNone: emit the whole listing block, then recurse the subdirectories.
+    // The per-child action is captured so a pruned directory is not descended into.
+    std::vector<bool> pruned(children.size(), false);
+    for (std::size_t i = 0; i < children.size(); ++i) {
       if (stopped_) {
         return;
       }
-      VisitNode(child.path, depth + 1);
+      pruned[i] = VisitOne(children[i], depth) == WalkAction::kPrune;
     }
+    std::vector<std::future<Listing>> reads = SubmitSubdirReads(children, depth);
+    for (std::size_t i = 0; i < children.size(); ++i) {
+      if (stopped_) {
+        return;
+      }
+      if (Descendable(children[i], depth) && !pruned[i]) {
+        Descend(children[i], depth, reads[i].valid() ? &reads[i] : nullptr);  // entry already visited above
+      }
+    }
+  }
+
+  // Submits a read for every descendable subdirectory in `children`, returning a
+  // vector aligned with `children` (an invalid future where there is no read), so
+  // the pool overlaps their IO. The sequential walk (no workers) reads lazily at
+  // descend time instead, so it never pre-reads siblings it might not reach.
+  std::vector<std::future<Listing>> SubmitSubdirReads(const std::vector<Stated>& children, int depth) {
+    std::vector<std::future<Listing>> reads(children.size());
+    if (options_.workers <= 1) {
+      return reads;
+    }
+    for (std::size_t i = 0; i < children.size(); ++i) {
+      if (Descendable(children[i], depth)) {
+        reads[i] = SubmitRead(children[i].path);
+      }
+    }
+    return reads;
   }
 
   const vfs::FileSystem& fs_;
   const WalkOptions& options_;
   Visitor visit_;
   WalkErrorFn on_error_;
+  const bool follow_children_;
+  ReadPool pool_;
   bool stopped_ = false;
-  std::uint64_t root_dev_ = 0;     // device of the current root subtree (for -xdev)
-  std::string_view current_root_;  // command-line operand the current subtree descends from (find %H)
-  std::set<std::pair<std::uint64_t, std::uint64_t>> ancestors_;  // (dev,ino) on the descent path (loops)
+  std::uint64_t root_dev_ = 0;
+  std::string_view current_root_;
+  std::set<std::pair<std::uint64_t, std::uint64_t>> ancestors_;
 };
 
 }  // namespace
@@ -152,9 +360,7 @@ absl::Status Walk(
     Visitor visit,
     WalkErrorFn on_error) {
   Walker walker(fs, options, visit, on_error);
-  for (const std::string& root : roots) {
-    walker.VisitNode(root, 0);
-  }
+  walker.WalkRoots(roots);
   return absl::OkStatus();
 }
 

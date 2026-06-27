@@ -16,6 +16,7 @@
 #include "xff/engine/run.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <map>
@@ -26,6 +27,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "xff/datetime/datetime.h"
@@ -106,19 +108,49 @@ SymlinkMode ResolveSymlinkMode(const std::vector<std::string>& globals) {
   return mode;
 }
 
-// xff --sort[=name|none]: order siblings by name within each directory for
-// deterministic output, or keep readdir order (none / absent). Bare --sort means
-// --sort=name. Leading global, last occurrence wins.
+// xff --sort=none|dir|subtree|tree: per-directory sibling ordering for the walk
+// (see docs/design-parallel.md). `none` keeps readdir order (find's default);
+// `dir` sorts each directory's listing; `subtree` adds contiguous subtrees;
+// `tree` is a total path order. Bare --sort and the legacy `name` mean `dir`.
+// Leading global, last occurrence wins.
 SortOrder ResolveSort(const std::vector<std::string>& globals) {
   SortOrder sort = SortOrder::kNone;
   for (const std::string& global : globals) {
-    if (global == "--sort" || global == "--sort=name") {
-      sort = SortOrder::kName;
+    if (global == "--sort" || global == "--sort=dir" || global == "--sort=name") {
+      sort = SortOrder::kDir;
+    } else if (global == "--sort=subtree") {
+      sort = SortOrder::kSubtree;
+    } else if (global == "--sort=tree") {
+      sort = SortOrder::kTree;
     } else if (global == "--sort=none") {
       sort = SortOrder::kNone;
     }
   }
   return sort;
+}
+
+// xff -jN / --jobs=N: worker threads for the parallel directory read-ahead (see
+// docs/design-parallel.md). `1` (the default) is the sequential walk. Leading
+// global, last valid occurrence wins; a non-positive or unparseable value is
+// ignored. Mode-scoped auto-defaults (e.g. modern -> all cores) arrive with the
+// mode mechanism (#54); until then parallelism is explicit.
+std::size_t ResolveJobs(const std::vector<std::string>& globals) {
+  std::size_t jobs = 1;
+  for (const std::string& global : globals) {
+    std::string_view value;
+    if (global.starts_with("--jobs=")) {
+      value = std::string_view(global).substr(7);
+    } else if (global.starts_with("-j") && global.size() > 2) {
+      value = std::string_view(global).substr(2);
+    } else {
+      continue;
+    }
+    std::size_t parsed = 0;
+    if (absl::SimpleAtoi(value, &parsed) && parsed >= 1) {
+      jobs = parsed;
+    }
+  }
+  return jobs;
 }
 
 // xff --summary[=overall|type|ext]: reduce the matches to a count + total size
@@ -445,6 +477,7 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   WalkOptions options;
   options.symlinks = ResolveSymlinkMode(command.globals);
   options.sort = ResolveSort(command.globals);
+  options.workers = ResolveJobs(command.globals);
   const render::Format format = ResolveFormat(command.globals);
   const std::optional<std::string> tmpl = ResolveTemplate(command.globals);
   // A -capture whose {capture.NAME} is never referenced ran a subprocess for

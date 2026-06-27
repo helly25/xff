@@ -191,6 +191,51 @@ TEST_F(WalkTest, VisitsWholeTreePreorder) {
                        Pair(Path("sub/b.txt"), 2), Pair(Path("link"), 1)));
 }
 
+TEST_F(WalkTest, ParallelVisitsWholeTreeAsSet) {
+  const Result result = Run(WalkOptions{.workers = 8}, Continue);
+  EXPECT_THAT(result.status, IsOk());
+  EXPECT_THAT(result.errors, 0);
+  EXPECT_THAT(
+      result.seen, UnorderedElementsAre(
+                       Pair(root_.string(), 0), Pair(Path("a.txt"), 1), Pair(Path("sub"), 1),
+                       Pair(Path("sub/b.txt"), 2), Pair(Path("link"), 1)));
+}
+
+TEST_F(WalkTest, SortModesOrderUnderWorkers) {
+  // A tree where a file (`z.txt`) sorts after the subdirectories, so the three
+  // ordered modes are all distinct. Output is deterministic at any worker count.
+  ASSERT_TRUE(fs::create_directories(root_ / "order" / "m1"));
+  ASSERT_TRUE(fs::create_directories(root_ / "order" / "m2"));
+  { std::ofstream(root_ / "order" / "a.txt") << "a"; }
+  { std::ofstream(root_ / "order" / "z.txt") << "z"; }
+  { std::ofstream(root_ / "order" / "m1" / "x.txt") << "x"; }
+  { std::ofstream(root_ / "order" / "m2" / "y.txt") << "y"; }
+  const std::string base = (root_ / "order").string();
+  const auto p = [&](const std::string& rel) { return (root_ / "order" / rel).string(); };
+  const auto paths = [](const Result& result) {
+    std::vector<std::string> out;
+    for (const auto& [path, depth] : result.seen) {
+      out.push_back(path);
+    }
+    return out;
+  };
+
+  for (const std::size_t workers : {std::size_t{1}, std::size_t{4}}) {
+    EXPECT_THAT(
+        paths(RunRoots({base}, WalkOptions{.sort = SortOrder::kTree, .workers = workers}, Continue)),
+        ElementsAre(base, p("a.txt"), p("m1"), p("m1/x.txt"), p("m2"), p("m2/y.txt"), p("z.txt")))
+        << "kTree, workers=" << workers;
+    EXPECT_THAT(
+        paths(RunRoots({base}, WalkOptions{.sort = SortOrder::kDir, .workers = workers}, Continue)),
+        ElementsAre(base, p("a.txt"), p("m1"), p("m2"), p("z.txt"), p("m1/x.txt"), p("m2/y.txt")))
+        << "kDir, workers=" << workers;
+    EXPECT_THAT(
+        paths(RunRoots({base}, WalkOptions{.sort = SortOrder::kSubtree, .workers = workers}, Continue)),
+        ElementsAre(base, p("a.txt"), p("z.txt"), p("m1"), p("m1/x.txt"), p("m2"), p("m2/y.txt")))
+        << "kSubtree, workers=" << workers;
+  }
+}
+
 TEST_F(WalkTest, MaxDepthLimitsDescent) {
   const Result result = Run(WalkOptions{.min_depth = 0, .max_depth = 1}, Continue);
   EXPECT_THAT(

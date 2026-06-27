@@ -16,6 +16,7 @@
 #ifndef XFF_ENGINE_WALK_H_
 #define XFF_ENGINE_WALK_H_
 
+#include <cstddef>
 #include <string>
 #include <string_view>
 
@@ -33,12 +34,17 @@ namespace xff::engine {
 enum class SymlinkMode { kNever, kRoots, kAll };
 
 // Sibling ordering within each directory (xff's --sort). kNone keeps the
-// filesystem's readdir order (find's default, fastest, non-reproducible); kName
-// sorts each directory's entries by path so output is deterministic and diffable.
-enum class SortOrder { kNone, kName };
+// filesystem's readdir order (find's default, fastest, non-reproducible). The
+// other modes sort each directory's entries by path; they differ in how subtree
+// contents are emitted relative to the listing (see docs/design-parallel.md):
+//   kDir     - emit each directory's sorted listing as a block; subtree contents
+//              interleave by completion order (ordering within a directory).
+//   kSubtree - sorted non-dir entries, then each subtree inlined contiguously as
+//              it completes (ordering within a subtree; bounded buffering).
+//   kTree    - whole result globally path-ordered (total ordering; buffers all).
+enum class SortOrder { kNone, kDir, kSubtree, kTree };
 
-// Traversal limits. Parallelism is layered on in a follow-up (design.md
-// "Determinism").
+// Traversal limits and parallelism (see docs/design-parallel.md).
 struct WalkOptions {
   // Entries shallower than `min_depth` are traversed but not visited (find
   // `-mindepth`). A root operand is depth 0.
@@ -59,6 +65,10 @@ struct WalkOptions {
   SymlinkMode symlinks = SymlinkMode::kNever;
   // Sibling ordering within each directory (xff `--sort`); kNone is readdir order.
   SortOrder sort = SortOrder::kNone;
+  // Worker threads for the parallel directory read-ahead; `1` is the sequential
+  // walk. The visitor always runs on a single coordinator thread, so evaluation
+  // and emission stay single-threaded; only `readdir`+`lstat` run in parallel.
+  std::size_t workers = 1;
 };
 
 // One visited entry handed to the `Visitor`. `path`/`name` reference storage
