@@ -793,6 +793,17 @@ bool EvalNewerXY(const parser::Expr& expr, EvalContext& ctx) {
   return IsNewerXY(ctx.visit, x, name[7], expr.args.front(), ctx.fs);
 }
 
+// find's -anewer/-cnewer: the entry's access/change time is newer than the
+// reference file's modification time -- the classic spellings of -neweram /
+// -newercm. (-newer itself is mtime-vs-mtime, handled by EvalNewer above.)
+bool EvalAnewer(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && IsNewerXY(ctx.visit, 'a', 'm', expr.args.front(), ctx.fs);
+}
+
+bool EvalCnewer(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && IsNewerXY(ctx.visit, 'c', 'm', expr.args.front(), ctx.fs);
+}
+
 bool EvalMtime(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesTime(expr.args.front(), ctx.visit.metadata.mtime, ctx.now, absl::Hours(24));
 }
@@ -1048,10 +1059,12 @@ struct EvalEntry {
 using DispatchPair = std::pair<std::string_view, EvalEntry>;
 constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-amin", {&EvalAmin}},
+    DispatchPair{"-anewer", {&EvalAnewer}},
     DispatchPair{"-atime", {&EvalAtime}},
     DispatchPair{"-capture", {&EvalCapture}},
     DispatchPair{"-capturedir", {&EvalCapturedir}},
     DispatchPair{"-cmin", {&EvalCmin}},
+    DispatchPair{"-cnewer", {&EvalCnewer}},
     DispatchPair{"-ctime", {&EvalCtime}},
     DispatchPair{"-delete", {&EvalDelete}},
     DispatchPair{"-empty", {&EvalEmpty}},
