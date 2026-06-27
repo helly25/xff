@@ -32,6 +32,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
+#include "mbo/container/limited_map.h"
 #include "xff/datetime/datetime.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/walk.h"
@@ -206,19 +207,22 @@ SummaryMode ResolveSummary(const std::vector<std::string>& globals) {
   return mode;
 }
 
-// The readable file-type word used as a --summary=type group key.
+// The readable file-type word used as a --summary=type group key, keyed by file
+// type (kUnknown and any unmapped value fall through to "unknown"). A constexpr map,
+// per the style's preference for a uniform key -> value mapping over a switch.
+using TypeNamePair = std::pair<vfs::FileType, std::string_view>;
+constexpr auto kTypeNames = mbo::container::MakeLimitedMap(
+    TypeNamePair{vfs::FileType::kBlockDevice, "block-device"},
+    TypeNamePair{vfs::FileType::kCharDevice, "char-device"},
+    TypeNamePair{vfs::FileType::kDirectory, "directory"},
+    TypeNamePair{vfs::FileType::kFifo, "fifo"},
+    TypeNamePair{vfs::FileType::kRegular, "file"},
+    TypeNamePair{vfs::FileType::kSocket, "socket"},
+    TypeNamePair{vfs::FileType::kSymlink, "symlink"});
+
 std::string_view TypeName(vfs::FileType type) {
-  switch (type) {
-    case vfs::FileType::kRegular: return "file";
-    case vfs::FileType::kDirectory: return "directory";
-    case vfs::FileType::kSymlink: return "symlink";
-    case vfs::FileType::kBlockDevice: return "block-device";
-    case vfs::FileType::kCharDevice: return "char-device";
-    case vfs::FileType::kFifo: return "fifo";
-    case vfs::FileType::kSocket: return "socket";
-    case vfs::FileType::kUnknown: return "unknown";
-  }
-  return "unknown";
+  const auto it = kTypeNames.find(type);
+  return it == kTypeNames.end() ? "unknown" : it->second;  // kUnknown / unmapped -> "unknown"
 }
 
 // The filename extension used as a --summary=ext group key: the part after the
