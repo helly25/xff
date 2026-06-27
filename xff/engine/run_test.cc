@@ -188,6 +188,17 @@ TEST_F(RunTest, TraversalSynonymsAccepted) {
   EXPECT_THAT(last_errors_, 0);
 }
 
+TEST_F(RunTest, IgnoreReaddirRaceAccepted) {
+  // The option parses and walks normally (no races on this stable tree); the
+  // ENOENT-suppression behaviour itself is covered at the walk level.
+  EXPECT_THAT(
+      RunExpr({"-ignore_readdir_race"}),
+      UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
+  EXPECT_THAT(
+      RunExpr({"-noignore_readdir_race", "-name", "*.txt"}), UnorderedElementsAre(Path("a.txt"), Path("sub/c.txt")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
 TEST_F(RunTest, ModeScopedSortDefault) {
   // With no --sort, the active style picks the default: modern (kXff) sorts each
   // directory's listing, so the walk is deterministic (root, then a.txt < b.md <

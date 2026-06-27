@@ -79,9 +79,11 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-depth", .kind = Kind::kTest, .arity = 0},
     {.name = "-d", .kind = Kind::kTest, .arity = 0},  // BSD/GNU short spelling of -depth
     {.name = "-xdev", .kind = Kind::kTest, .arity = 0},
-    {.name = "-mount", .kind = Kind::kTest, .arity = 0},     // GNU/BSD synonym for -xdev
-    {.name = "-x", .kind = Kind::kTest, .arity = 0},         // BSD synonym for -xdev
-    {.name = "-daystart", .kind = Kind::kTest, .arity = 0},  // measure age tests from today's local midnight
+    {.name = "-mount", .kind = Kind::kTest, .arity = 0},                // GNU/BSD synonym for -xdev
+    {.name = "-x", .kind = Kind::kTest, .arity = 0},                    // BSD synonym for -xdev
+    {.name = "-daystart", .kind = Kind::kTest, .arity = 0},             // measure age tests from today's local midnight
+    {.name = "-ignore_readdir_race", .kind = Kind::kTest, .arity = 0},  // skip vanished-entry (ENOENT) races
+    {.name = "-noignore_readdir_race", .kind = Kind::kTest, .arity = 0},  // report them (default)
     {.name = "-empty", .kind = Kind::kTest, .arity = 0},
     {.name = "-sparse", .kind = Kind::kTest, .arity = 0},  // file has holes (blocks*512 < size)
     {.name = "-readable", .kind = Kind::kTest, .arity = 0},
