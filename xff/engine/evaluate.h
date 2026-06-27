@@ -28,6 +28,10 @@
 #include "xff/parser/ast.h"
 #include "xff/vfs/filesystem.h"
 
+namespace xff::exec {
+class ParallelExec;  // bounded concurrent `-exec/-execdir ... ;` runner (xff/exec/exec.h)
+}  // namespace xff::exec
+
 namespace xff::engine {
 
 // Output sink for actions: receives one fully-formed record per action firing
@@ -72,6 +76,11 @@ struct EvalContext {
   // single global batch; the entry's dir for -execdir's per-directory batches).
   // Null disables batching (the action no-ops).
   std::map<const parser::Expr*, std::map<std::string, std::vector<std::string>>>* exec_batches = nullptr;
+  // Bounded concurrent runner for `-exec/-execdir ... ;` under -j>1: when set, the
+  // serial-`;` action launches the child here (returning true on launch) instead of
+  // running it synchronously. Null -> the action runs synchronously (find's default,
+  // and -j1). The `+` batch forms always go through exec_batches, never this.
+  exec::ParallelExec* parallel_exec = nullptr;
 };
 
 // Evaluates a parsed find expression against one visited entry and returns its

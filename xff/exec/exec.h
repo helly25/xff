@@ -16,6 +16,7 @@
 #ifndef XFF_EXEC_EXEC_H_
 #define XFF_EXEC_EXEC_H_
 
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -44,6 +45,45 @@ bool ExecuteBatchInDir(
     const std::vector<std::string>& command,
     const std::vector<std::string>& names,
     std::string_view dir);
+
+// Runs `-exec/-execdir command ;` children concurrently for find's `-j` (the
+// single parallelism knob, shared with the directory walk). `Launch` spawns a
+// child and returns as soon as fewer than `cap` are outstanding -- reaping a
+// finished one first when already at the cap -- so at most `cap` run at once;
+// `Drain` waits for the rest. Because a launched child's exit status is not known
+// when Launch returns, the action reports success on launch (its result does not
+// gate later predicates) -- the documented parallel-mode trade-off; use `-j1` for
+// find's strict synchronous semantics.
+//
+// Touched only from the single-threaded walk visitor, so it holds no locks. The
+// only other process-spawning path (CaptureOutput) reaps its own child before
+// returning, so the unqualified `waitpid` here only ever sees these children.
+class ParallelExec {
+ public:
+  explicit ParallelExec(std::size_t cap) : cap_(cap < 1 ? 1 : cap) {}
+
+  ParallelExec(const ParallelExec&) = delete;
+  ParallelExec& operator=(const ParallelExec&) = delete;
+  ParallelExec(ParallelExec&&) = delete;
+  ParallelExec& operator=(ParallelExec&&) = delete;
+
+  ~ParallelExec() { Drain(); }  // safety net: reap anything a caller forgot to drain
+
+  // Spawn `command` with each "{}" replaced by `target`, child cwd = `dir` (empty
+  // inherits ours). Blocks only when `cap` children already run (reaps one first).
+  void Launch(const std::vector<std::string>& command, std::string_view target, std::string_view dir);
+
+  // Wait for every outstanding child; returns the total count (across the run)
+  // that exited nonzero or failed to spawn. Idempotent.
+  std::size_t Drain();
+
+ private:
+  void ReapOne();  // wait for one child, tallying a failure if it exited nonzero
+
+  const std::size_t cap_;
+  std::size_t outstanding_ = 0;
+  std::size_t failures_ = 0;
+};
 
 // Spawns `args` verbatim (args[0] PATH-searched via posix_spawnp) and waits,
 // returning true iff the child ran and exited 0. Unlike Execute it performs no

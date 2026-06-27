@@ -92,7 +92,20 @@ that is precisely what `tree` buys, and why only `tree` must buffer everything.
 
 A single knob, `-j N` (long form `--jobs`), caps total concurrency for **both**
 the directory walk and concurrent `-exec`/`-capture` children - one mental model.
-`-j 1` forces the sequential walk.
+`-j 1` forces the sequential walk. `-j all` (`--jobs=all`) means every detected
+core (`hardware_concurrency()`), regardless of the active mode's default.
+
+Under `-j > 1` the serial `-exec ... ;` / `-execdir ... ;` form launches its child
+on a bounded runner (at most `N` outstanding) instead of running it synchronously.
+Because the child's exit status is not yet known when the action returns, the action
+reports success on launch, so its truth value cannot gate a predicate to its right
+(e.g. `-exec a \; -exec b \;` or `-exec test \; -print`). This matches find's exit
+model: find's `;` form is a predicate whose nonzero exit makes only the action false
+and never raises find's own exit status (verified against BSD and GNU find), so
+nothing observable is lost at the exit-code level - the children are still reaped at
+the end-of-walk drain. Use `-j 1` for find's strict synchronous, status-gating
+semantics. The `+` batch forms are unaffected: they always accumulate and flush once
+at end-of-walk, and a nonzero exit there does raise the exit status, as in find.
 
 When `-j` is omitted the default is **mode-scoped** - xff wears the persona it is
 invoked as (the `--mode` / `argv[0]` mechanism, design-config.md and #54/#59):

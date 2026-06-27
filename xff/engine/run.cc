@@ -172,6 +172,11 @@ std::size_t ResolveJobs(const std::vector<std::string>& globals, std::optional<r
     } else {
       continue;
     }
+    if (value == "all") {  // --jobs=all / -jall: every detected core, regardless of mode
+      const unsigned detected = std::thread::hardware_concurrency();
+      jobs = detected == 0 ? 1 : detected;
+      continue;
+    }
     std::size_t parsed = 0;
     if (absl::SimpleAtoi(value, &parsed) && parsed >= 1) {
       jobs = parsed;
@@ -601,6 +606,12 @@ int RunFind(
   // visitor is single-threaded, so no synchronisation is needed.
   std::map<const parser::Expr*, std::map<std::string, std::vector<std::string>>> exec_batches;
 
+  // -j>1: `-exec/-execdir ... ;` children run concurrently on this bounded runner,
+  // capped at the same worker count as the walk (docs/design-parallel.md's single
+  // knob). It is wired into the context only when workers > 1; at -j1 (and the
+  // in-process default) the actions stay synchronous and this stays idle.
+  exec::ParallelExec parallel_exec(options.workers);
+
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
       [&](const Visit& visit) {
@@ -621,7 +632,8 @@ int RunFind(
             .defines = &defines,
             .outputs = &outputs,
             .confirm = confirm,
-            .exec_batches = &exec_batches};
+            .exec_batches = &exec_batches,
+            .parallel_exec = options.workers > 1 ? &parallel_exec : nullptr};
         const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
         if (matched && summary_mode != SummaryMode::kOff) {
           // --summary reduces matches instead of printing them: bump this group's
@@ -662,6 +674,14 @@ int RunFind(
   if (!status.ok()) {
     ++errors;  // Fatal traversal error (none today; per-path errors handled above).
   }
+
+  // -j>1: reap every concurrent `-exec/-execdir ... ;` child still running. find's
+  // `;` form is a predicate -- a nonzero exit makes only the action false, it does
+  // NOT affect find's exit status (verified against BSD/GNU find) -- so the drained
+  // failure count is intentionally discarded here, keeping -jN identical to the
+  // synchronous -j1 path. The `+` batch form is the one that does count failures,
+  // and it runs through exec_batches just below. A no-op when nothing was launched.
+  parallel_exec.Drain();
 
   // `-exec/-execdir ... +`: now that the walk is done, run each batch node's
   // accumulated items in ARG_MAX chunks -- -exec once over the global ("") bucket,
