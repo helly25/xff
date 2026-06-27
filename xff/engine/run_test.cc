@@ -109,6 +109,28 @@ struct RunTest : ::testing::Test {
     return records;
   }
 
+  // Runs the bare root under `style` to exercise the mode-scoped traversal
+  // defaults (RunFind's `style`), returning records with the terminator stripped.
+  std::vector<std::string> RunStyled(registry::Style style) {
+    const auto command = parser::Parse({root_.string()});
+    EXPECT_THAT(command, IsOk());
+    std::vector<std::string> records;
+    if (!command.ok()) {
+      return records;
+    }
+    RunFind(
+        *command, fs_,
+        [&](std::string_view record) {
+          std::string text(record);
+          if (!text.empty() && (text.back() == '\n' || text.back() == '\0')) {
+            text.pop_back();
+          }
+          records.push_back(std::move(text));
+        },
+        [](std::string_view, absl::Status) {}, style);
+    return records;
+  }
+
   vfs::LocalFs fs_;
   fs::path root_;
   int last_errors_ = 0;
@@ -118,6 +140,18 @@ TEST_F(RunTest, NoExpressionPrintsEverything) {
   EXPECT_THAT(
       RunExpr({}), UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
   EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ModeScopedSortDefault) {
+  // With no --sort, the active style picks the default: modern (kXff) sorts each
+  // directory's listing, so the walk is deterministic (root, then a.txt < b.md <
+  // sub as a block, then sub's contents). find leaves it unordered (same set).
+  EXPECT_THAT(
+      RunStyled(registry::Style::kXff),
+      ElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
+  EXPECT_THAT(
+      RunStyled(registry::Style::kFind),
+      UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
 }
 
 TEST_F(RunTest, SortNameVisitsSiblingsInDeterministicOrder) {

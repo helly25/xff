@@ -23,6 +23,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -108,13 +109,30 @@ SymlinkMode ResolveSymlinkMode(const std::vector<std::string>& globals) {
   return mode;
 }
 
+// The mode-scoped default worker count when `-j` is absent (docs/design-parallel.md
+// "Parallelism control"): modern (kXff) leaves a core for the consumer and caps at
+// 15 to avoid oversubscription; find/fd/rg saturate cores; an unset style stays
+// sequential (the conservative in-process / test default).
+std::size_t DefaultWorkers(std::optional<registry::Style> style) {
+  if (!style.has_value()) {
+    return 1;
+  }
+  const unsigned detected = std::thread::hardware_concurrency();
+  const std::size_t cores = detected == 0 ? 1 : detected;
+  if (*style == registry::Style::kXff) {
+    return std::max<std::size_t>(1, std::min<std::size_t>(cores - 1, 15));
+  }
+  return cores;
+}
+
 // xff --sort=none|dir|subtree|tree: per-directory sibling ordering for the walk
 // (see docs/design-parallel.md). `none` keeps readdir order (find's default);
 // `dir` sorts each directory's listing; `subtree` adds contiguous subtrees;
-// `tree` is a total path order. Bare --sort and the legacy `name` mean `dir`.
+// `tree` is a total path order. Bare --sort and the legacy `name` mean `dir`. The
+// default is mode-scoped: modern (kXff) sorts each directory, find stays unordered.
 // Leading global, last occurrence wins.
-SortOrder ResolveSort(const std::vector<std::string>& globals) {
-  SortOrder sort = SortOrder::kNone;
+SortOrder ResolveSort(const std::vector<std::string>& globals, std::optional<registry::Style> style) {
+  SortOrder sort = style == registry::Style::kXff ? SortOrder::kDir : SortOrder::kNone;
   for (const std::string& global : globals) {
     if (global == "--sort" || global == "--sort=dir" || global == "--sort=name") {
       sort = SortOrder::kDir;
@@ -130,12 +148,11 @@ SortOrder ResolveSort(const std::vector<std::string>& globals) {
 }
 
 // xff -jN / --jobs=N: worker threads for the parallel directory read-ahead (see
-// docs/design-parallel.md). `1` (the default) is the sequential walk. Leading
-// global, last valid occurrence wins; a non-positive or unparseable value is
-// ignored. Mode-scoped auto-defaults (e.g. modern -> all cores) arrive with the
-// mode mechanism (#54); until then parallelism is explicit.
-std::size_t ResolveJobs(const std::vector<std::string>& globals) {
-  std::size_t jobs = 1;
+// docs/design-parallel.md). When absent, the count is mode-scoped (DefaultWorkers).
+// Leading global, last valid occurrence wins; a non-positive or unparseable value
+// is ignored.
+std::size_t ResolveJobs(const std::vector<std::string>& globals, std::optional<registry::Style> style) {
+  std::size_t jobs = DefaultWorkers(style);
   for (const std::string& global : globals) {
     std::string_view value;
     if (global.starts_with("--jobs=")) {
@@ -455,7 +472,12 @@ std::optional<std::string> UnusedCaptureName(const parser::Expr& expr, const std
 
 }  // namespace
 
-int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn emit, WalkErrorFn on_error) {
+int RunFind(
+    const parser::Command& command,
+    const vfs::FileSystem& fs,
+    EmitFn emit,
+    WalkErrorFn on_error,
+    std::optional<registry::Style> style) {
   const parser::Expr* const expression = command.expression.get();
   const bool has_action = expression != nullptr && ContainsAction(*expression);
   // --implicit-print=yes|no overrides find's default-print rule (otherwise !has_action).
@@ -476,8 +498,8 @@ int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn em
   }
   WalkOptions options;
   options.symlinks = ResolveSymlinkMode(command.globals);
-  options.sort = ResolveSort(command.globals);
-  options.workers = ResolveJobs(command.globals);
+  options.sort = ResolveSort(command.globals, style);
+  options.workers = ResolveJobs(command.globals, style);
   const render::Format format = ResolveFormat(command.globals);
   const std::optional<std::string> tmpl = ResolveTemplate(command.globals);
   // A -capture whose {capture.NAME} is never referenced ran a subprocess for

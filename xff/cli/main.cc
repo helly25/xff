@@ -163,6 +163,7 @@ int main(int argc, char** argv) {
       [](std::string_view record) { std::cout.write(record.data(), static_cast<std::streamsize>(record.size())); },
       [](std::string_view path, absl::Status status) {
         std::cerr << "xff: " << path << ": " << status.message() << "\n";
-      });
+      },
+      style);  // mode-scoped traversal defaults (modern -> sorted + parallel; find -> unordered)
   return errors == 0 ? 0 : 2;
 }

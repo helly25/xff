@@ -300,6 +300,11 @@ substitute for a committed test. Tests use GoogleTest + GoogleMock with these co
   give far better failure messages. The accepted exception is the boolean `EXPECT_TRUE` /
   `EXPECT_FALSE` (and `ASSERT_TRUE` / `ASSERT_FALSE`), which read fine on their own. Within a
   single test keep one style - do not mix, say, `EXPECT_TRUE(x)` and `EXPECT_THAT(y, IsTrue())`.
+- **Name matchers unqualified - never the `::testing::` prefix inline.** Bring each matcher in with
+  a `using ::testing::Foo;` (or `using ::mbo::testing::Foo;`) in the test file's anonymous namespace
+  and use the bare name in the `EXPECT_THAT` / `ASSERT_THAT` expression; a `::testing::Foo(...)`
+  written inline in an assertion is the smell to fix by adding the `using`. (Fixture utilities such
+  as `::testing::Test` / `::testing::TempDir` are not matchers and keep their qualification.)
 - **`Eq` is optional - a readability choice, not a rule.** `EXPECT_THAT(x, value)` auto-wraps a
   bare value in `Eq`, so both forms compile. The value of `EXPECT_THAT` is that the line reads as
   a sentence - `EXPECT_THAT(foo, Eq(25))` is "expect that foo equals 25" - so keep `Eq` where it
