@@ -609,6 +609,25 @@ bool MatchesTime(std::string_view arg, absl::Time mtime, absl::Time now, absl::D
   return units == want;
 }
 
+// xff word/compound duration on -mtime/-atime/-ctime (e.g. "-3 weeks 3 hours",
+// "+2 days"): '+' = older than the span, '-' = younger than it. The span reuses
+// ParseTimeString ("<span> ago" is the instant the span reaches back to), so the
+// full relative grammar (compound terms, calendar units) carries over. The form
+// requires an explicit sign; an unparseable span never matches. This is the lone
+// xff-only time form (gated out of --config=find); see docs/design-find-flavors.md.
+bool MatchesAge(std::string_view arg, absl::Time time, absl::Time now, absl::TimeZone tz) {
+  if (arg.empty() || (arg.front() != '+' && arg.front() != '-')) {
+    return false;
+  }
+  const char compare = arg.front();
+  arg.remove_prefix(1);
+  const std::optional<absl::Time> ref = datetime::ParseTimeString(absl::StrCat(arg, " ago"), now, tz);
+  if (!ref.has_value()) {
+    return false;
+  }
+  return compare == '+' ? time < *ref : time > *ref;
+}
+
 // Parses an all-digits string as an unsigned id, or nullopt otherwise.
 std::optional<std::uint32_t> ParseId(std::string_view text) {
   if (text.empty()) {
@@ -874,9 +893,14 @@ bool EvalCnewer(const parser::Expr& expr, EvalContext& ctx) {
 }
 
 bool EvalMtime(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty()
-         && MatchesTime(
-             expr.args.front(), ctx.visit.metadata.mtime, ctx.now, absl::Hours(24), /*allow_unit_suffix=*/true);
+  if (expr.args.empty()) {
+    return false;
+  }
+  const std::string_view arg = expr.args.front();
+  if (arg.find(' ') != std::string_view::npos) {  // xff word/compound duration (e.g. "-3 weeks 3 hours")
+    return MatchesAge(arg, ctx.visit.metadata.mtime, ctx.now, ctx.tz);
+  }
+  return MatchesTime(arg, ctx.visit.metadata.mtime, ctx.now, absl::Hours(24), /*allow_unit_suffix=*/true);
 }
 
 bool EvalMmin(const parser::Expr& expr, EvalContext& ctx) {
@@ -886,9 +910,14 @@ bool EvalMmin(const parser::Expr& expr, EvalContext& ctx) {
 }
 
 bool EvalAtime(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty()
-         && MatchesTime(
-             expr.args.front(), ctx.visit.metadata.atime, ctx.now, absl::Hours(24), /*allow_unit_suffix=*/true);
+  if (expr.args.empty()) {
+    return false;
+  }
+  const std::string_view arg = expr.args.front();
+  if (arg.find(' ') != std::string_view::npos) {  // xff word/compound duration
+    return MatchesAge(arg, ctx.visit.metadata.atime, ctx.now, ctx.tz);
+  }
+  return MatchesTime(arg, ctx.visit.metadata.atime, ctx.now, absl::Hours(24), /*allow_unit_suffix=*/true);
 }
 
 bool EvalAmin(const parser::Expr& expr, EvalContext& ctx) {
@@ -898,9 +927,14 @@ bool EvalAmin(const parser::Expr& expr, EvalContext& ctx) {
 }
 
 bool EvalCtime(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty()
-         && MatchesTime(
-             expr.args.front(), ctx.visit.metadata.ctime, ctx.now, absl::Hours(24), /*allow_unit_suffix=*/true);
+  if (expr.args.empty()) {
+    return false;
+  }
+  const std::string_view arg = expr.args.front();
+  if (arg.find(' ') != std::string_view::npos) {  // xff word/compound duration
+    return MatchesAge(arg, ctx.visit.metadata.ctime, ctx.now, ctx.tz);
+  }
+  return MatchesTime(arg, ctx.visit.metadata.ctime, ctx.now, absl::Hours(24), /*allow_unit_suffix=*/true);
 }
 
 bool EvalCmin(const parser::Expr& expr, EvalContext& ctx) {

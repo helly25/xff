@@ -309,6 +309,30 @@ const registry::Descriptor* FirstXffExtension(const Expr* expr) {
   return FirstXffExtension(expr->rhs.get());
 }
 
+// Returns the first day-time predicate (-mtime/-atime/-ctime, pre-order) whose
+// argument is the xff duration form -- a space-bearing span like "-3 weeks 3
+// hours" -- or nullptr. The bare day count and the BSD unit suffix (-1h) never
+// contain a space, so they stay find-compatible; only the word/compound span is
+// an xff extension the strict find style rejects. See docs/design-find-flavors.md.
+const Expr* FirstXffDurationValue(const Expr* expr) {
+  if (expr == nullptr) {
+    return nullptr;
+  }
+  if (expr->kind == Expr::Kind::kPredicate) {
+    const registry::Descriptor* const descriptor = expr->descriptor;
+    if (descriptor == nullptr) {
+      return nullptr;
+    }
+    const std::string_view name = descriptor->name;
+    const bool day_time = name == "-mtime" || name == "-atime" || name == "-ctime";
+    return day_time && !expr->args.empty() && expr->args.front().find(' ') != std::string::npos ? expr : nullptr;
+  }
+  if (const Expr* const found = FirstXffDurationValue(expr->lhs.get()); found != nullptr) {
+    return found;
+  }
+  return FirstXffDurationValue(expr->rhs.get());
+}
+
 }  // namespace
 
 absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
@@ -355,6 +379,13 @@ absl::Status EnforceStyle(const Command& command, registry::Style style) {
         absl::StrCat(
             "'", ext->name,
             "' is an xff extension, not available under the find style (--config=find); use --config=xff"));
+  }
+  if (const Expr* const dur = FirstXffDurationValue(command.expression.get()); dur != nullptr) {
+    return absl::InvalidArgumentError(
+        absl::StrCat(
+            "the duration form of '", dur->descriptor->name,
+            "' (e.g. \"-3 weeks 3 hours\") is an xff extension, not available under the find style (--config=find); "
+            "use a day count, a unit suffix like -1h, or --config=xff"));
   }
   return absl::OkStatus();
 }

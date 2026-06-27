@@ -516,6 +516,22 @@ TEST_F(EvaluateTest, MMinRejectsUnitSuffix) {
   EXPECT_FALSE(Match({"-mmin", "-3h"}, visit));
 }
 
+TEST_F(EvaluateTest, MTimeAcceptsXffWordDuration) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.mtime = now_ - absl::Hours(24 * 7 * 3) - absl::Hours(3);  // 3 weeks 3 hours ago
+  md.atime = md.mtime;
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  // "+span" = older than the span; "-span" = younger than it (the span reaches
+  // back through ParseTimeString, so compound terms work).
+  EXPECT_TRUE(Match({"-mtime", "+3 weeks"}, visit));           // 3w3h old is older than 3 weeks
+  EXPECT_FALSE(Match({"-mtime", "+3 weeks 4 hours"}, visit));  // but not older than 3w4h
+  EXPECT_TRUE(Match({"-mtime", "-3 weeks 4 hours"}, visit));   // it is younger than 3w4h
+  EXPECT_FALSE(Match({"-mtime", "-3 weeks"}, visit));          // not younger than 3 weeks
+  EXPECT_TRUE(Match({"-atime", "+1 day"}, visit));             // works on -atime too
+  EXPECT_FALSE(Match({"-mtime", "3 weeks"}, visit));           // the word form requires an explicit sign
+}
+
 TEST_F(EvaluateTest, UidAndGidMatchNumericOwner) {
   vfs::Metadata md;
   md.type = vfs::FileType::kRegular;
