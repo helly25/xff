@@ -46,18 +46,22 @@ namespace {
 
 namespace stdfs = std::filesystem;
 
+// find's -printf %y / the {type} field letter, keyed by file type (kUnknown and any
+// unmapped value fall through to 'U'). A constexpr map, per the style's preference
+// for a uniform key -> value mapping over a switch.
+using TypeLetterPair = std::pair<vfs::FileType, char>;
+constexpr auto kTypeLetters = mbo::container::MakeLimitedMap(
+    TypeLetterPair{vfs::FileType::kBlockDevice, 'b'},
+    TypeLetterPair{vfs::FileType::kCharDevice, 'c'},
+    TypeLetterPair{vfs::FileType::kDirectory, 'd'},
+    TypeLetterPair{vfs::FileType::kFifo, 'p'},
+    TypeLetterPair{vfs::FileType::kRegular, 'f'},
+    TypeLetterPair{vfs::FileType::kSocket, 's'},
+    TypeLetterPair{vfs::FileType::kSymlink, 'l'});
+
 char TypeLetter(vfs::FileType type) {
-  switch (type) {
-    case vfs::FileType::kRegular: return 'f';
-    case vfs::FileType::kDirectory: return 'd';
-    case vfs::FileType::kSymlink: return 'l';
-    case vfs::FileType::kBlockDevice: return 'b';
-    case vfs::FileType::kCharDevice: return 'c';
-    case vfs::FileType::kFifo: return 'p';
-    case vfs::FileType::kSocket: return 's';
-    case vfs::FileType::kUnknown: return 'U';
-  }
-  return 'U';
+  const auto it = kTypeLetters.find(type);
+  return it == kTypeLetters.end() ? 'U' : it->second;  // kUnknown / unmapped -> 'U'
 }
 
 // Permission bits as octal without leading zeros (find's %m): %o of mode & 07777.
