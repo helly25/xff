@@ -41,6 +41,9 @@ struct Expr {
   // kPredicate: the matched descriptor and its consumed arguments.
   const registry::Descriptor* descriptor = nullptr;
   std::vector<std::string> args;
+  // -exec terminated by `+` (batch form): the matched paths are accumulated and
+  // the command runs at end-of-walk in ARG_MAX-bounded chunks, not per entry.
+  bool exec_batch = false;
   // The node's regex, compiled once at parse time (so evaluation is a lock-free
   // read, not a per-entry compile): -regex/-iregex's pattern (args[0], case folded
   // for -iregex), or -capture/-capturedir's optional extraction regex (args[1]).

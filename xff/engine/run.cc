@@ -35,6 +35,7 @@
 #include "xff/datetime/datetime.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/walk.h"
+#include "xff/exec/exec.h"
 #include "xff/fields/fields.h"
 #include "xff/parser/ast.h"
 #include "xff/registry/descriptor.h"
@@ -594,6 +595,11 @@ int RunFind(
     it->second.write(record.data(), static_cast<std::streamsize>(record.size()));
   };
 
+  // `-exec ... +`: each batch node's matched paths accrue here during the walk and
+  // run once at the end (keyed by the Expr node). The visitor is single-threaded,
+  // so no synchronisation is needed.
+  std::map<const parser::Expr*, std::vector<std::string>> exec_batches;
+
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
       [&](const Visit& visit) {
@@ -613,7 +619,8 @@ int RunFind(
             .captures = exec_fields ? &captures : nullptr,
             .defines = &defines,
             .outputs = &outputs,
-            .confirm = confirm};
+            .confirm = confirm,
+            .exec_batches = &exec_batches};
         const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
         if (matched && summary_mode != SummaryMode::kOff) {
           // --summary reduces matches instead of printing them: bump this group's
@@ -653,6 +660,15 @@ int RunFind(
       });
   if (!status.ok()) {
     ++errors;  // Fatal traversal error (none today; per-path errors handled above).
+  }
+
+  // `-exec ... +`: now that the walk is done, run each batch node's accumulated
+  // paths in ARG_MAX chunks. A nonzero exit is a per-command error, as for `;`.
+  for (const auto& [node, paths] : exec_batches) {
+    if (!exec::ExecuteBatch(node->args, paths)) {
+      ++errors;
+      on_error(node->descriptor->name, absl::UnknownError("batched command exited non-zero"));
+    }
   }
 
   // --summary: emit the accumulated table -- one `group<TAB>count<TAB>bytes` row

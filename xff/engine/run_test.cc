@@ -199,6 +199,26 @@ TEST_F(RunTest, IgnoreReaddirRaceAccepted) {
   EXPECT_THAT(last_errors_, 0);
 }
 
+TEST_F(RunTest, ExecPlusBatchesAllMatchesIntoOneRun) {
+  // `-exec ... +` accumulates matches and runs the command ONCE with all of them.
+  // The shell appends a "RUN" marker per invocation plus each path, so exactly one
+  // RUN line proves a single batched invocation (per-entry would yield two).
+  const std::string out = (fs::path(::testing::TempDir()) / "xff_execplus_out.lst").string();
+  std::error_code ec;
+  fs::remove(out, ec);
+  const std::string script = "echo RUN >> '" + out + "'; for p in \"$@\"; do echo \"$p\" >> '" + out + "'; done";
+  RunExpr({"-name", "*.txt", "-exec", "sh", "-c", script, "_", "{}", "+"});
+  EXPECT_THAT(last_errors_, 0);
+  std::ifstream in(out, std::ios::binary);
+  ASSERT_TRUE(in.good());
+  std::vector<std::string> lines;
+  for (std::string line; std::getline(in, line);) {
+    lines.push_back(line);
+  }
+  EXPECT_THAT(lines, UnorderedElementsAre("RUN", Path("a.txt"), Path("sub/c.txt")));
+  fs::remove(out, ec);
+}
+
 TEST_F(RunTest, ModeScopedSortDefault) {
   // With no --sort, the active style picks the default: modern (kXff) sorts each
   // directory's listing, so the walk is deterministic (root, then a.txt < b.md <

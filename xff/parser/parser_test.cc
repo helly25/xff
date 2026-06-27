@@ -105,6 +105,29 @@ TEST_F(ParserTest, ExecWithoutTerminatorErrors) {
   EXPECT_THAT(Parse({".", "-exec", "echo", "{}"}), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
+TEST_F(ParserTest, ExecPlusMarksBatchAndKeepsCommand) {
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-exec", "echo", "{}", "+"}));
+  const Expr& root = *cmd.expression;
+  EXPECT_THAT(root.descriptor->name, "-exec");
+  EXPECT_TRUE(root.exec_batch);
+  EXPECT_THAT(root.args, ElementsAre("echo", "{}"));
+}
+
+TEST_F(ParserTest, ExecSemicolonIsNotBatch) {
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-exec", "echo", "{}", ";"}));
+  EXPECT_FALSE(cmd.expression->exec_batch);
+}
+
+TEST_F(ParserTest, ExecPlusRequiresTrailingBrace) {
+  EXPECT_THAT(Parse({".", "-exec", "echo", "+"}), StatusIs(absl::StatusCode::kInvalidArgument));  // no {}
+  EXPECT_THAT(
+      Parse({".", "-exec", "echo", "{}", "x", "+"}), StatusIs(absl::StatusCode::kInvalidArgument));  // {} not last
+}
+
+TEST_F(ParserTest, ExecdirPlusNotYetSupported) {
+  EXPECT_THAT(Parse({".", "-execdir", "echo", "{}", "+"}), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
 TEST_F(ParserTest, CaptureCollectsNameRegexAndCommand) {
   // -capture=NAME[=REGEX] cmd... ; => args = [NAME, REGEX (may be empty), cmd...].
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-capture=lines", "wc", "-l", "{}", ";", "-print"}));
