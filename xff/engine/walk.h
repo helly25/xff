@@ -59,6 +59,9 @@ struct WalkOptions {
   // walk root it was reached from (find `-xdev`): the mount point is visited but
   // its contents are not.
   bool single_filesystem = false;
+  // When true, an entry that vanishes between readdir and stat (an ENOENT race)
+  // is silently skipped instead of reported (find `-ignore_readdir_race`).
+  bool ignore_readdir_race = false;
   // Which symlinks to resolve before stat/descend (find `-P`/`-H`/`-L`). When a
   // symlink is followed, its target's metadata is reported and a directory target
   // is descended into, with loop detection.

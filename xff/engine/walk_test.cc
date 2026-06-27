@@ -338,6 +338,16 @@ TEST_F(WalkFakeFsTest, XdevStopsAtDeviceBoundary) {
   EXPECT_THAT(Seen(WalkOptions{.single_filesystem = true}), UnorderedElementsAre("/r", "/r/a.txt", "/r/mnt"));
 }
 
+TEST_F(WalkFakeFsTest, IgnoreReaddirRaceSkipsVanishedEntries) {
+  // /r lists gone.txt, but no node exists for it -- it vanished between readdir
+  // and stat, so the stat fails with NotFound (the readdir race).
+  fs_.AddDir("/r", 1, {FileEntry("/r/gone.txt", "gone.txt")});
+  Seen(WalkOptions{});
+  EXPECT_THAT(errors_, 1) << "by default the vanished entry's failed stat is reported";
+  Seen(WalkOptions{.ignore_readdir_race = true});
+  EXPECT_THAT(errors_, 0) << "-ignore_readdir_race silently skips the ENOENT race";
+}
+
 TEST_F(WalkFakeFsTest, FollowAllDescendsSymlinkedDirectory) {
   // /r holds a regular file and lnk -> /t (an out-of-tree directory holding g).
   fs_.AddDir("/r", 1, {FileEntry("/r/a", "a"), SymlinkEntry("/r/lnk", "lnk")});

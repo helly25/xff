@@ -74,6 +74,14 @@ void ScanDepthOptions(const parser::Expr& expr, WalkOptions* options) {
         options->single_filesystem = true;  // -mount (GNU/BSD) and -x (BSD) are synonyms for -xdev
         break;
       }
+      if (expr.descriptor->name == "-ignore_readdir_race") {
+        options->ignore_readdir_race = true;
+        break;
+      }
+      if (expr.descriptor->name == "-noignore_readdir_race") {
+        options->ignore_readdir_race = false;  // last occurrence wins, as in find
+        break;
+      }
       int value = 0;
       if (!expr.args.empty() && ParseNonNegInt(expr.args.front(), &value)) {
         if (expr.descriptor->name == "-maxdepth") {

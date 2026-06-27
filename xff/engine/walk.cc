@@ -195,7 +195,11 @@ class Walker {
   // `min_depth` (traversed but not visited) or failed to stat.
   WalkAction VisitOne(const Stated& stated, int depth) {
     if (!stated.ok) {
-      on_error_(stated.path, stated.status);
+      // -ignore_readdir_race: an entry that vanished after readdir (ENOENT) is a
+      // race, not an error worth reporting; other stat failures still surface.
+      if (!(options_.ignore_readdir_race && absl::IsNotFound(stated.status))) {
+        on_error_(stated.path, stated.status);
+      }
       return WalkAction::kContinue;
     }
     if (depth < options_.min_depth) {
@@ -250,7 +254,10 @@ class Walker {
     }
     Listing listing = prefetched != nullptr ? prefetched->get() : SubmitRead(dir.path).get();
     if (!listing.ok()) {
-      on_error_(dir.path, listing.status());
+      // A directory that vanished before we could read it is the same readdir race.
+      if (!(options_.ignore_readdir_race && absl::IsNotFound(listing.status()))) {
+        on_error_(dir.path, listing.status());
+      }
       ancestors_.erase(id);
       return;
     }
