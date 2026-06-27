@@ -21,6 +21,7 @@
 #include <string_view>
 #include <vector>
 
+#include "absl/status/statusor.h"
 #include "absl/time/civil_time.h"
 #include "absl/time/time.h"
 #include "gmock/gmock.h"
@@ -717,6 +718,68 @@ TEST_F(EvaluateTest, AnewerCnewerCompareEntryTimeToReferenceMtime) {
   const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
   EXPECT_TRUE(Match({"-anewer", ref_path}, visit));   // atime newer than the reference mtime
   EXPECT_FALSE(Match({"-cnewer", ref_path}, visit));  // ctime older than the reference mtime
+  stdfs::remove(ref);
+}
+
+TEST_F(EvaluateTest, NewerBtComparesBirthTimeToTimeString) {
+  // -newerBt (X=B, Y=t): the entry's birth time vs a time string. now_ == 1.7e9.
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.btime = now_;
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-newerBt", "@1500000000"}, visit));   // born after an earlier instant
+  EXPECT_FALSE(Match({"-newerBt", "@1700000001"}, visit));  // not after a later instant
+}
+
+TEST_F(EvaluateTest, NewerBCombosAreFalseWhenBirthTimeUnrecorded) {
+  // Every -newerXY touching B is false when that birth time is unrecorded -- here
+  // the entry's (X=B). Both the time-string and file-reference forms short-circuit.
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;  // no btime
+  md.mtime = now_;
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_FALSE(Match({"-newerBt", "@1"}, visit));                  // X=B, no btime
+  EXPECT_FALSE(Match({"-newerBm", "/no/such/reference"}, visit));  // X=B (also a missing ref)
+}
+
+TEST_F(EvaluateTest, NewerBmComparesBirthTimeToReferenceMtime) {
+  // -newerBm: the entry's birth time vs the reference FILE's mtime (X=B, file-ref).
+  namespace stdfs = std::filesystem;
+  const stdfs::path ref = stdfs::temp_directory_path() / "xff_newerbm_ref.tmp";
+  { std::ofstream(ref) << "r"; }  // reference mtime is ~now (between the two fixed times below)
+  const std::string ref_path = ref.string();
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.btime = absl::FromUnixSeconds(2'000'000'000);  // 2033, after the reference's mtime
+  const Visit younger{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-newerBm", ref_path}, younger));
+  md.btime = absl::FromUnixSeconds(1'000'000'000);  // 2001, before the reference's mtime
+  const Visit older{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_FALSE(Match({"-newerBm", ref_path}, older));
+  stdfs::remove(ref);
+}
+
+TEST_F(EvaluateTest, NewerMbComparesMtimeToReferenceBirthTime) {
+  // -newermB (Y=B): the entry's mtime vs the reference FILE's birth time. Only
+  // assert when the test filesystem records birth time -- otherwise the reference
+  // btime is absent and the comparison is always false (mirroring -Btime), which
+  // is not what this case means to exercise.
+  namespace stdfs = std::filesystem;
+  const stdfs::path ref = stdfs::temp_directory_path() / "xff_newermb_ref.tmp";
+  { std::ofstream(ref) << "r"; }  // birth time is ~now (between the two fixed times below)
+  const std::string ref_path = ref.string();
+  const absl::StatusOr<vfs::Metadata> ref_md = fs_.Stat(ref_path, /*follow_symlinks=*/true);
+  ASSERT_THAT(ref_md, IsOk());
+  if (ref_md->btime.has_value()) {
+    vfs::Metadata md;
+    md.type = vfs::FileType::kRegular;
+    md.mtime = absl::FromUnixSeconds(2'000'000'000);  // 2033, after the reference's birth time
+    const Visit younger{.path = "f", .name = "f", .depth = 1, .metadata = md};
+    EXPECT_TRUE(Match({"-newermB", ref_path}, younger));
+    md.mtime = absl::FromUnixSeconds(1'000'000'000);  // 2001, before the reference's birth time
+    const Visit older{.path = "f", .name = "f", .depth = 1, .metadata = md};
+    EXPECT_FALSE(Match({"-newermB", ref_path}, older));
+  }
   stdfs::remove(ref);
 }
 

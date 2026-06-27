@@ -66,6 +66,15 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-newerat", .kind = Kind::kTest, .arity = 1},  // atime newer than a time string
     {.name = "-newerct", .kind = Kind::kTest, .arity = 1},  // ctime newer than a time string
     {.name = "-newermt", .kind = Kind::kTest, .arity = 1},  // mtime newer than a time string
+    // Birthtime -newerXY combos (BSD-compat): X or Y = B (birth/creation time).
+    {.name = "-newerBa", .kind = Kind::kTest, .arity = 1},  // btime newer than ref's atime
+    {.name = "-newerBc", .kind = Kind::kTest, .arity = 1},  // btime newer than ref's ctime
+    {.name = "-newerBm", .kind = Kind::kTest, .arity = 1},  // btime newer than ref's mtime
+    {.name = "-newerBB", .kind = Kind::kTest, .arity = 1},  // btime newer than ref's btime
+    {.name = "-newerBt", .kind = Kind::kTest, .arity = 1},  // btime newer than a time string
+    {.name = "-neweraB", .kind = Kind::kTest, .arity = 1},  // atime newer than ref's btime
+    {.name = "-newercB", .kind = Kind::kTest, .arity = 1},  // ctime newer than ref's btime
+    {.name = "-newermB", .kind = Kind::kTest, .arity = 1},  // mtime newer than ref's btime
     {.name = "-mtime", .kind = Kind::kTest, .arity = 1},
     {.name = "-mmin", .kind = Kind::kTest, .arity = 1},
     {.name = "-atime", .kind = Kind::kTest, .arity = 1},
