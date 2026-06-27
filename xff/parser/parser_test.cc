@@ -173,6 +173,30 @@ TEST_F(ParserTest, EnforceStyleAllowsAnEmptyExpression) {
   EXPECT_THAT(EnforceStyle(cmd, registry::Style::kFind), IsOk());
 }
 
+TEST_F(ParserTest, EnforceStyleRejectsTimeDurationValueUnderFind) {
+  // The xff word/compound duration value of a day-time predicate is refused by the
+  // strict find style (the bare day count and BSD unit suffix stay allowed below).
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-mtime", "-3 weeks 3 hours"}));
+  const absl::Status status = EnforceStyle(cmd, registry::Style::kFind);
+  EXPECT_THAT(status, StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(status.message(), HasSubstr("-mtime"));
+  EXPECT_THAT(status.message(), HasSubstr("--config=xff"));
+}
+
+TEST_F(ParserTest, EnforceStyleAcceptsTimeDurationValueUnderXff) {
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-mtime", "-3 weeks 3 hours"}));
+  EXPECT_THAT(EnforceStyle(cmd, registry::Style::kXff), IsOk());
+}
+
+TEST_F(ParserTest, EnforceStyleAcceptsBareAndSuffixTimeUnderFind) {
+  // A bare day count (POSIX/GNU) and a BSD unit suffix carry no space, so both
+  // stay find-compatible under --config=find.
+  ASSERT_OK_AND_ASSIGN(const Command bare, Parse({".", "-mtime", "+2"}));
+  EXPECT_THAT(EnforceStyle(bare, registry::Style::kFind), IsOk());
+  ASSERT_OK_AND_ASSIGN(const Command suffix, Parse({".", "-mtime", "-1h"}));
+  EXPECT_THAT(EnforceStyle(suffix, registry::Style::kFind), IsOk());
+}
+
 TEST_F(ParserTest, RegexPredicatesCompileAMatcherAtParseTime) {
   // -regex carries a compiled matcher on the node (so evaluation is a lock-free read).
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-regex", ".*\\.txt"}));
