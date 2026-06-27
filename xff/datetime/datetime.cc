@@ -48,8 +48,18 @@ std::optional<absl::Time> ParseTimeString(std::string_view text, absl::Time now,
     }
   }
   const std::string lowered = absl::AsciiStrToLower(text);
-  if (lowered == "now") {
+  // Day keywords (find's get_date accepts these). "today" is the reference instant;
+  // "yesterday"/"tomorrow" are one fixed day (24h) before/after it, consistent with
+  // the relative-duration handling below (a "day" is 24h here; -daystart is the way
+  // to anchor on civil midnight).
+  if (lowered == "now" || lowered == "today") {
     return now;
+  }
+  if (lowered == "yesterday") {
+    return now - absl::Hours(24);
+  }
+  if (lowered == "tomorrow") {
+    return now + absl::Hours(24);
   }
   // Relative: "[+|-]N unit[s] [N unit[s] ...] [ago]" -- one or more count+unit
   // terms summed into a single offset from `now`. A leading '-' on the first
