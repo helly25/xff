@@ -36,3 +36,12 @@ Toolchain: clang-22 minimum (hermetic LLVM under `--config=clang`).
    `StatusOr`, and adds payload matchers (`StatusHasPayload`) plus the
    `EXPECT_OK` / `ASSERT_OK` / `ASSERT_OK_AND_ASSIGN` macros over abseil's
    `absl_testing`.
+
+## Markdown
+
+Keep GitHub-flavored Markdown tables **vertically aligned** (the `|` pipes line
+up, every column padded to its widest cell, honoring the `:--` / `--:` / `:-:`
+alignment markers). Do not hand-align them: run the formatter
+[`tools/align_markdown_tables.py`](tools/align_markdown_tables.py) (`FILE...`, or
+`--check` to only report). It is enforced by the `align-markdown-tables`
+pre-commit hook, so a misaligned table fails CI; let the tool do the spacing.
