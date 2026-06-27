@@ -311,6 +311,8 @@ class DryRunFileSystem : public vfs::FileSystem {
 
   absl::StatusOr<std::string> ReadLink(std::string_view path) const override { return fs_.ReadLink(path); }
 
+  absl::StatusOr<std::string> FsType(std::string_view path) const override { return fs_.FsType(path); }
+
   absl::Status Remove(std::string_view path) const override {
     preview_(absl::StrCat(path, "\n"));  // would-delete preview; nothing is removed
     return absl::OkStatus();
