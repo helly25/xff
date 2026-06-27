@@ -307,6 +307,29 @@ TEST_F(EvaluateTest, InumMatchesInodeNumber) {
   EXPECT_FALSE(Match({"-inum", "+4242"}, visit));  // not strictly greater than itself
 }
 
+TEST_F(EvaluateTest, UsedMatchesWholeDaysBetweenAtimeAndCtime) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.ctime = absl::FromUnixSeconds(1'600'000'000);
+  md.atime = md.ctime + absl::Hours(24 * 5) + absl::Hours(3);  // 5 days 3h later -> floor 5
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-used", "5"}, visit));  // exactly 5 whole days
+  EXPECT_FALSE(Match({"-used", "6"}, visit));
+  EXPECT_TRUE(Match({"-used", "+4"}, visit));  // more than 4
+  EXPECT_FALSE(Match({"-used", "+5"}, visit));
+  EXPECT_TRUE(Match({"-used", "-6"}, visit));  // fewer than 6
+  EXPECT_FALSE(Match({"-used", "-5"}, visit));
+
+  // atime before ctime yields a negative day delta (accessed before status change).
+  vfs::Metadata before;
+  before.type = vfs::FileType::kRegular;
+  before.ctime = absl::FromUnixSeconds(1'600'000'000);
+  before.atime = before.ctime - absl::Hours(24 * 2);  // 2 days earlier -> -2
+  const Visit earlier{.path = "g", .name = "g", .depth = 1, .metadata = before};
+  EXPECT_FALSE(Match({"-used", "0"}, earlier));  // -2 is not 0
+  EXPECT_TRUE(Match({"-used", "-1"}, earlier));  // -2 < 1
+}
+
 TEST_F(EvaluateTest, SamefileFalseWhenReferenceMissing) {
   vfs::Metadata md;
   md.type = vfs::FileType::kRegular;
