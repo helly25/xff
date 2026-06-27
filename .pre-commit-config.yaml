@@ -66,6 +66,23 @@ repos:
         exclude: ^[.]pre-commit-config.yaml$
         entry: (#|//|/[*]).*(FIXME|TODO)[(](?!(((\w|\w[.-]\w)+@(\w|-)+([.](\w|-)+)*)|(https?://[^)]+))(,[^)]+)?)[)]
         types: [text]
+      - id: align-markdown-tables
+        name: Align Markdown tables
+        description: |
+          Project convention (AGENTS.md): GitHub-flavored Markdown tables are kept
+          vertically aligned (the pipes line up). This formatter pads each column to
+          its widest cell, honoring the delimiter alignment markers, and rewrites the
+          file in place. To skip once, run `SKIP="align-markdown-tables" pre-commit`.
+        language: script
+        entry: tools/align_markdown_tables.py
+        types: [markdown]
+      - id: align-markdown-tables-test
+        name: Test the Markdown table aligner
+        description: Runs the table-aligner unit tests when the tool or its test changes.
+        language: script
+        entry: tools/align_markdown_tables_test.py
+        files: ^tools/align_markdown_tables(_test)?\.py$
+        pass_filenames: false
 
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v20.1.8
