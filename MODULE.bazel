@@ -39,7 +39,5 @@ bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 bazel_dep(name = "helly25_mbo", version = "0.11.1")
 
 # helly25/bashtest -- shell-test runner (expect_* helpers + test_runner) for the
-# binary-level CLI tests. The repo_name alias is required, not cosmetic: the
-# bashtest() macro emits "@com_helly25_bashtest//..." labels that resolve in the
-# consumer's repo context, so the dep must be visible under that name.
-bazel_dep(name = "helly25_bashtest", version = "0.3.1", repo_name = "com_helly25_bashtest")
+# binary-level CLI tests. Visible under its canonical name @helly25_bashtest.
+bazel_dep(name = "helly25_bashtest", version = "0.4.0")

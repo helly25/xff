@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@com_helly25_bashtest//bashtest:bashtest.bzl", "bashtest")
+load("@helly25_bashtest//bashtest:bashtest.bzl", "bashtest")
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 
 cc_binary(
@@ -51,5 +51,15 @@ bashtest(
     name = "style_test",
     size = "small",
     srcs = ["style_test.sh"],
+    data = [":xff"],
+)
+
+# Binary-level test of -exec, which spawns real children: the `+` batch form runs
+# the command once with all matches, `\;` once per match. Shell level is the right
+# fit for a subprocess-spawning feature.
+bashtest(
+    name = "exec_test",
+    size = "small",
+    srcs = ["exec_test.sh"],
     data = [":xff"],
 )

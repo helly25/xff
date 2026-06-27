@@ -200,9 +200,11 @@ TEST_F(RunTest, IgnoreReaddirRaceAccepted) {
 }
 
 TEST_F(RunTest, ExecPlusBatchesAllMatchesIntoOneRun) {
-  // `-exec ... +` accumulates matches and runs the command ONCE with all of them.
-  // The shell appends a "RUN" marker per invocation plus each path, so exactly one
-  // RUN line proves a single batched invocation (per-entry would yield two).
+  // Engine-level: RunFind accumulates the matches and flushes ONE batched command
+  // at end-of-walk (the exec_batches map + post-walk flush), in-process. The shell
+  // appends a RUN marker per invocation plus each path, so exactly one RUN line
+  // proves a single batched run (per-entry would yield two). The full binary/CLI
+  // path is covered at the system level in //xff/cli:exec_test (helly25/bashtest).
   const std::string out = (fs::path(::testing::TempDir()) / "xff_execplus_out.lst").string();
   std::error_code ec;
   fs::remove(out, ec);
