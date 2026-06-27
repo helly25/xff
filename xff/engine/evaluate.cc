@@ -553,21 +553,30 @@ bool IsSameFile(const Visit& visit, std::string_view reference, const vfs::FileS
   return ref.ok() && visit.metadata.ino == ref->ino && visit.metadata.dev == ref->dev;
 }
 
-// Selects a timestamp by find's X/Y letter: a=access, c=inode-change, m=modify.
-absl::Time TimeField(const vfs::Metadata& metadata, char field) {
+// Selects a timestamp by find's X/Y letter: a=access, c=inode-change, m=modify,
+// B=birth. Birth time is optional (only some kernels/filesystems record it), so
+// 'B' may yield no value; a/c/m are always present (returned as an engaged option).
+std::optional<absl::Time> TimeField(const vfs::Metadata& metadata, char field) {
   switch (field) {
     case 'a': return metadata.atime;
     case 'c': return metadata.ctime;
-    default: return metadata.mtime;  // 'm'
+    case 'B': return metadata.btime;  // empty when birthtime is unrecorded
+    default: return metadata.mtime;   // 'm'
   }
 }
 
-// find's -newerXY (X,Y in {a,c,m}): the entry's X-time is more recent than the
+// find's -newerXY (X,Y in {a,B,c,m}): the entry's X-time is more recent than the
 // reference FILE's Y-time. The reference is stat'd following symlinks; a missing
-// reference makes it false. (The Y=t time-string form is a later addition.)
+// reference makes it false, as does an unrecorded birth time on either side (X=B
+// or Y=B). (The Y=t time-string form is handled in EvalNewerXY.)
 bool IsNewerXY(const Visit& visit, char x, char y, std::string_view reference, const vfs::FileSystem& fs) {
   const absl::StatusOr<vfs::Metadata> ref = fs.Stat(reference, /*follow_symlinks=*/true);
-  return ref.ok() && TimeField(visit.metadata, x) > TimeField(*ref, y);
+  if (!ref.ok()) {
+    return false;
+  }
+  const std::optional<absl::Time> lhs = TimeField(visit.metadata, x);
+  const std::optional<absl::Time> rhs = TimeField(*ref, y);
+  return lhs.has_value() && rhs.has_value() && *lhs > *rhs;
 }
 
 // find's -mtime/-mmin: the entry was modified N units ago -- 24h for -mtime, one
@@ -890,8 +899,9 @@ bool EvalSamefile(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && IsSameFile(ctx.visit, expr.args.front(), ctx.fs);
 }
 
-// -newerXY (X,Y in {a,c,m}); -newerXt (Y=t) compares the X-time to a time string.
-// Shared by every 8-char -newer* name; reads X/Y from the descriptor.
+// -newerXY (X,Y in {a,B,c,m}); -newerXt (Y=t) compares the X-time to a time string.
+// Shared by every 8-char -newer* name; reads X/Y from the descriptor. An X=B entry
+// whose birth time is unrecorded never matches (no value to compare).
 bool EvalNewerXY(const parser::Expr& expr, EvalContext& ctx) {
   if (expr.args.empty()) {
     return false;
@@ -900,7 +910,8 @@ bool EvalNewerXY(const parser::Expr& expr, EvalContext& ctx) {
   const char x = name[6];
   if (name[7] == 't') {
     const std::optional<absl::Time> ref = datetime::ParseTimeString(expr.args.front(), ctx.now, ctx.tz);
-    return ref.has_value() && TimeField(ctx.visit.metadata, x) > *ref;
+    const std::optional<absl::Time> field = TimeField(ctx.visit.metadata, x);
+    return ref.has_value() && field.has_value() && *field > *ref;
   }
   return IsNewerXY(ctx.visit, x, name[7], expr.args.front(), ctx.fs);
 }
@@ -1329,6 +1340,12 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-mtime", {&EvalMtime}},
     DispatchPair{"-name", {&EvalName}},
     DispatchPair{"-newer", {&EvalNewer}},
+    DispatchPair{"-newerBB", {&EvalNewerXY}},  // birthtime -newerXY combos (BSD-compat)
+    DispatchPair{"-newerBa", {&EvalNewerXY}},
+    DispatchPair{"-newerBc", {&EvalNewerXY}},
+    DispatchPair{"-newerBm", {&EvalNewerXY}},
+    DispatchPair{"-newerBt", {&EvalNewerXY}},
+    DispatchPair{"-neweraB", {&EvalNewerXY}},
     DispatchPair{"-neweraa", {&EvalNewerXY}},
     DispatchPair{"-newerac", {&EvalNewerXY}},
     DispatchPair{"-neweram", {&EvalNewerXY}},
@@ -1337,6 +1354,8 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-newercc", {&EvalNewerXY}},
     DispatchPair{"-newercm", {&EvalNewerXY}},
     DispatchPair{"-newerct", {&EvalNewerXY}},
+    DispatchPair{"-newercB", {&EvalNewerXY}},
+    DispatchPair{"-newermB", {&EvalNewerXY}},
     DispatchPair{"-newerma", {&EvalNewerXY}},
     DispatchPair{"-newermc", {&EvalNewerXY}},
     DispatchPair{"-newermm", {&EvalNewerXY}},
