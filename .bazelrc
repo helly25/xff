@@ -62,13 +62,17 @@ common:symbolizer --run_under=//tools:run_under_symbolizer
 # --config=asan : run with `--config=clang --config=asan` (macOS + clang-22 works
 # via toolchains_llvm 1.8.0 / #769). 1.8.0 also drives sanitizers via the `asan`
 # feature (#765); the explicit -fsanitize copts/linkopts keep it working elsewhere too.
+# Enables AddressSanitizer + UndefinedBehaviorSanitizer (vptr excluded: it needs RTTI
+# across TUs). -fno-sanitize-recover makes UB a hard failure, matching the
+# UBSAN_OPTIONS=halt_on_error below (otherwise UBSan only logs a warning and passes).
 common:asan --config=symbolizer
 common:asan --copt=-g
-common:asan --copt=-fsanitize=address
+common:asan --copt=-fsanitize=address,undefined
 common:asan --copt=-fno-sanitize=vptr
+common:asan --copt=-fno-sanitize-recover=undefined
 common:asan --copt=-fno-omit-frame-pointer
 common:asan --copt=-DADDRESS_SANITIZER
-common:asan --linkopt=-fsanitize=address
+common:asan --linkopt=-fsanitize=address,undefined
 common:asan --linkopt=-fno-sanitize=vptr
 common:asan --linkopt=-ldl
 common:asan --build_tag_filters=-no_san  # skip targets tagged no_san
