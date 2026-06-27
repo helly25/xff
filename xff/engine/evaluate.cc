@@ -61,11 +61,12 @@ bool Fnmatch(std::string_view pattern, std::string_view text, int flags) {
   return ::fnmatch(std::string(pattern).c_str(), std::string(text).c_str(), flags) == 0;
 }
 
-bool MatchesType(std::string_view arg, vfs::FileType type) {
-  if (arg.size() != 1) {
-    return false;  // Multi-type lists ("-type f,d") are a GNU extension; deferred.
-  }
-  switch (arg.front()) {
+bool IsTypeChar(char letter) {
+  return std::string_view("fdlbcps").contains(letter);
+}
+
+bool MatchesTypeChar(char letter, vfs::FileType type) {
+  switch (letter) {
     case 'f': return type == vfs::FileType::kRegular;
     case 'd': return type == vfs::FileType::kDirectory;
     case 'l': return type == vfs::FileType::kSymlink;
@@ -75,6 +76,29 @@ bool MatchesType(std::string_view arg, vfs::FileType type) {
     case 's': return type == vfs::FileType::kSocket;
     default: return false;
   }
+}
+
+// find's -type / -xtype argument: a single type letter, or (GNU extension) a
+// comma-separated list like "f,d" that matches if the entry is any listed type.
+// An empty, multi-character, or unknown element fails the whole match.
+bool MatchesType(std::string_view arg, vfs::FileType type) {
+  if (arg.empty()) {
+    return false;
+  }
+  bool matched = false;
+  while (true) {
+    const std::size_t comma = arg.find(',');
+    const std::string_view item = arg.substr(0, comma);
+    if (item.size() != 1 || !IsTypeChar(item.front())) {
+      return false;
+    }
+    matched = matched || MatchesTypeChar(item.front(), type);
+    if (comma == std::string_view::npos) {
+      break;
+    }
+    arg.remove_prefix(comma + 1);
+  }
+  return matched;
 }
 
 // find's %y type letter: the inverse of MatchesType's mapping.

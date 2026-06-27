@@ -145,6 +145,24 @@ TEST_F(EvaluateTest, TypeMatchesFileType) {
   EXPECT_FALSE(Match({"-type", "f"}, dir));
 }
 
+TEST_F(EvaluateTest, TypeListMatchesAnyListedType) {
+  vfs::Metadata file_md;
+  const Visit file = MakeVisit("x", "x", vfs::FileType::kRegular, file_md);
+  vfs::Metadata dir_md;
+  const Visit dir = MakeVisit("d", "d", vfs::FileType::kDirectory, dir_md);
+  vfs::Metadata link_md;
+  const Visit link = MakeVisit("l", "l", vfs::FileType::kSymlink, link_md);
+  // GNU's "-type f,d": matches if the entry is any of the listed types.
+  EXPECT_TRUE(Match({"-type", "f,d"}, file));
+  EXPECT_TRUE(Match({"-type", "f,d"}, dir));
+  EXPECT_FALSE(Match({"-type", "f,d"}, link));
+  EXPECT_TRUE(Match({"-type", "l,p,f"}, file));  // order does not matter
+  // A malformed list (empty element, trailing comma, unknown letter) never matches.
+  EXPECT_FALSE(Match({"-type", "f,"}, file));
+  EXPECT_FALSE(Match({"-type", ",f"}, file));
+  EXPECT_FALSE(Match({"-type", "f,z"}, file));
+}
+
 TEST_F(EvaluateTest, AndOrNotShortCircuit) {
   vfs::Metadata md;
   const Visit txt = MakeVisit("dir/foo.txt", "foo.txt", vfs::FileType::kRegular, md);

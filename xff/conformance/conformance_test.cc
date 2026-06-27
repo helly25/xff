@@ -201,6 +201,11 @@ TEST_F(ConformanceTest, TypeSymlink) {
   ExpectMatchesFind({"-type", "l"});
 }
 
+// Note: comma-separated -type lists ("f,d") are deliberately NOT conformance-
+// tested. They are a GNU extension, and BSD find (macOS) silently accepts "f,d"
+// as plain "f" rather than erroring, so the oracle diverges by platform. The
+// GNU semantics are covered by the engine unit test instead.
+
 // -lname is GNU-only; BSD find (macOS) errors, so SystemFind returns nullopt and
 // this skips. The fixture's `link` targets `a.txt`.
 TEST_F(ConformanceTest, LnameMatchesSymlinkTarget) {
