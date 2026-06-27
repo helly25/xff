@@ -15,7 +15,8 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
-# Sequential pre-order traversal over a vfs::FileSystem.
+# Directory traversal over a vfs::FileSystem: a worker pool reads (readdir+lstat)
+# in parallel while a single coordinator thread visits in --sort order.
 cc_library(
     name = "walk_cc",
     srcs = ["walk.cc"],
@@ -24,9 +25,11 @@ cc_library(
     deps = [
         "//xff/vfs:vfs_cc",
         "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/functional:function_ref",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/types:span",
     ],
 )

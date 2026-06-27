@@ -15,13 +15,11 @@
 
 #include "xff/engine/walk.h"
 
-#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <future>
 #include <memory>
-#include <mutex>
 #include <queue>
 #include <set>
 #include <string>
@@ -31,8 +29,10 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/thread_annotations.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/synchronization/mutex.h"
 #include "absl/types/span.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/filesystem.h"
@@ -57,11 +57,8 @@ struct Stated {
   absl::Status status;
 };
 
-// The result of reading one directory: its children stat'd, or a read error.
-struct Listing {
-  std::vector<Stated> children;
-  absl::Status read_status;  // ReadDir failure; children is then empty
-};
+// The result of reading one directory: its children stat'd, or a ReadDir error.
+using Listing = absl::StatusOr<std::vector<Stated>>;
 
 // A fixed pool of worker threads running leaf read jobs (`readdir` + `lstat`).
 // Workers touch only their job's inputs and the (thread-safe) FileSystem and the
@@ -79,10 +76,9 @@ class ReadPool {
 
   ~ReadPool() {
     {
-      const std::lock_guard<std::mutex> lock(mutex_);
-      stop_ = true;
+      const absl::MutexLock lock(&mutex_);
+      stop_ = true;  // turns Pending() true, so every worker's Await wakes
     }
-    cv_.notify_all();
     for (std::thread& thread : threads_) {
       thread.join();
     }
@@ -91,28 +87,32 @@ class ReadPool {
   ReadPool(const ReadPool&) = delete;
   ReadPool& operator=(const ReadPool&) = delete;
 
-  std::future<Listing> Submit(std::function<Listing()> job) {
+  // Enqueues a read job (or runs it inline with no workers). Caller must NOT
+  // hold `mutex_`.
+  std::future<Listing> Submit(std::function<Listing()> job) ABSL_LOCKS_EXCLUDED(mutex_) {
     auto task = std::make_shared<std::packaged_task<Listing()>>(std::move(job));
     std::future<Listing> future = task->get_future();
     if (threads_.empty()) {
       (*task)();  // sequential: run inline
       return future;
     }
-    {
-      const std::lock_guard<std::mutex> lock(mutex_);
-      queue_.emplace([task] { (*task)(); });
-    }
-    cv_.notify_one();
+    const absl::MutexLock lock(&mutex_);
+    queue_.emplace([task] { (*task)(); });
     return future;
   }
 
  private:
-  void Run() {
+  // A job is ready or the pool is stopping. `absl::Mutex::Await` evaluates this
+  // with `mutex_` held, so it requires the lock.
+  bool Pending() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_) { return stop_ || !queue_.empty(); }
+
+  // Worker loop: drain jobs until stopped and the queue is empty. Caller (the
+  // worker thread) must NOT hold `mutex_`.
+  void Run() ABSL_LOCKS_EXCLUDED(mutex_) {
     for (;;) {
       std::function<void()> job;
       {
-        std::unique_lock<std::mutex> lock(mutex_);
-        cv_.wait(lock, [this] { return stop_ || !queue_.empty(); });
+        const absl::MutexLock lock(&mutex_, absl::Condition(this, &ReadPool::Pending));
         if (stop_ && queue_.empty()) {
           return;
         }
@@ -123,11 +123,10 @@ class ReadPool {
     }
   }
 
-  std::mutex mutex_;
-  std::condition_variable cv_;
-  std::queue<std::function<void()>> queue_;
-  std::vector<std::thread> threads_;
-  bool stop_ = false;
+  mutable absl::Mutex mutex_;
+  std::queue<std::function<void()>> queue_ ABSL_GUARDED_BY(mutex_);
+  bool stop_ ABSL_GUARDED_BY(mutex_) = false;
+  std::vector<std::thread> threads_;  // created in the ctor, joined in the dtor; not shared otherwise
 };
 
 class Walker {
@@ -172,14 +171,14 @@ class Walker {
   Listing ReadDir(const std::string& dir) const {
     absl::StatusOr<std::vector<vfs::Entry>> entries = fs_.ReadDir(dir);
     if (!entries.ok()) {
-      return Listing{.read_status = entries.status()};
+      return entries.status();
     }
-    Listing listing;
-    listing.children.reserve(entries->size());
+    std::vector<Stated> children;
+    children.reserve(entries->size());
     for (const vfs::Entry& entry : *entries) {
-      listing.children.push_back(StatNode(entry.path, follow_children_));
+      children.push_back(StatNode(entry.path, follow_children_));
     }
-    return listing;
+    return children;
   }
 
   std::future<Listing> SubmitRead(const std::string& dir) {
@@ -252,15 +251,15 @@ class Walker {
       return;
     }
     Listing listing = prefetched != nullptr ? prefetched->get() : SubmitRead(dir.path).get();
-    if (!listing.read_status.ok()) {
-      on_error_(dir.path, listing.read_status);
+    if (!listing.ok()) {
+      on_error_(dir.path, listing.status());
       ancestors_.erase(id);
       return;
     }
     if (options_.sort != SortOrder::kNone) {
-      absl::c_sort(listing.children, [](const Stated& a, const Stated& b) { return a.path < b.path; });
+      absl::c_sort(*listing, [](const Stated& a, const Stated& b) { return a.path < b.path; });
     }
-    HandleChildren(listing.children, depth + 1);
+    HandleChildren(*listing, depth + 1);
     ancestors_.erase(id);
   }
 
