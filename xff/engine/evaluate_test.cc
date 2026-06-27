@@ -35,7 +35,9 @@ namespace xff::engine {
 namespace {
 
 using ::mbo::testing::IsOk;
+using ::mbo::testing::IsOkAndHolds;
 using ::testing::IsEmpty;
+using ::testing::Not;
 
 struct EvaluateTest : ::testing::Test {
   // Parses `. <expr...>` and evaluates the expression against `visit`, capturing
@@ -353,6 +355,26 @@ TEST_F(EvaluateTest, AccessReadableWritableExecutable) {
   EXPECT_FALSE(Match({"-executable"}, visit));  // no execute bit (X_OK is not bypassed, even for root)
   stdfs::remove(tmp);
   EXPECT_FALSE(Match({"-readable"}, visit));  // gone -> not accessible
+}
+
+TEST_F(EvaluateTest, FstypeMatchesTheHostingFilesystem) {
+  namespace stdfs = std::filesystem;
+  const stdfs::path tmp = stdfs::temp_directory_path() / "xff_fstype_probe.tmp";
+  { std::ofstream(tmp) << "x"; }
+  const std::string path = tmp.string();
+  // The recognised names are platform-specific (apfs, ext2/ext3, tmpfs, ...), so
+  // learn the temp filesystem's actual type through the same VFS the predicate
+  // uses, then assert the match is by exact name -- and that an unrelated name
+  // does not match.
+  const absl::StatusOr<std::string> actual = fs_.FsType(path);
+  ASSERT_THAT(actual, IsOkAndHolds(Not(IsEmpty())));
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  const Visit visit{.path = path, .name = "xff_fstype_probe.tmp", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-fstype", *actual}, visit));
+  EXPECT_FALSE(Match({"-fstype", "xff_no_such_fstype"}, visit));
+  stdfs::remove(tmp);
+  EXPECT_FALSE(Match({"-fstype", *actual}, visit));  // gone -> statfs fails -> never matches
 }
 
 TEST_F(EvaluateTest, LnameGlobsSymlinkTarget) {

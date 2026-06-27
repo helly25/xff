@@ -27,6 +27,12 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#if defined(__APPLE__)
+# include <sys/mount.h>  // statfs + f_fstypename (BSD/macOS report the name directly)
+# include <sys/param.h>
+#else
+# include <sys/vfs.h>  // statfs + f_type magic (Linux reports a number, not a name)
+#endif
 
 #include <cerrno>
 #include <cstdint>
@@ -142,6 +148,27 @@ Metadata MetadataFromStat(const struct stat& st, std::optional<absl::Time> btime
   return md;
 }
 
+#if !defined(__APPLE__)
+struct FsMagic {
+  std::uint64_t magic;
+  std::string_view name;
+};
+
+// A stable subset of the kernel's filesystem magic numbers mapped to the names
+// GNU find reports (Linux `statfs` yields a number, not a name like BSD/macOS).
+// These constants are kernel ABI (see `linux/magic.h`) and inlined so we do not
+// depend on a given kernel header exposing every one. An unrecognised magic
+// falls back to a hex string, so `-fstype` simply will not match a name we do
+// not know -- which is the correct outcome rather than a wrong match.
+constexpr FsMagic kFsMagics[] = {
+    {0x0000'6969, "nfs"},    {0x0000'9660, "iso9660"},   {0x0000'9FA0, "proc"},    {0x0000'4D44, "msdos"},
+    {0x0000'1CD1, "devpts"}, {0x0000'EF53, "ext2/ext3"}, {0x0027'E0EB, "cgroup"},  {0x0102'1994, "tmpfs"},
+    {0x5846'5342, "xfs"},    {0x6265'6572, "sysfs"},     {0x6367'7270, "cgroup2"}, {0x6462'6720, "debugfs"},
+    {0x6573'7546, "fuse"},   {0x7371'7368, "squashfs"},  {0x794C'7630, "overlay"}, {0x8584'58F6, "ramfs"},
+    {0x9123'683E, "btrfs"},  {0xCAFE'4A11, "bpf"},       {0xF2F5'2010, "f2fs"},
+};
+#endif
+
 }  // namespace
 
 absl::StatusOr<std::vector<Entry>> LocalFs::ReadDir(std::string_view dir) const {
@@ -213,6 +240,25 @@ absl::StatusOr<std::string> LocalFs::ReadLink(std::string_view path) const {
     }
     buffer.resize(buffer.size() * 2);  // target may have been truncated; grow and retry
   }
+}
+
+absl::StatusOr<std::string> LocalFs::FsType(std::string_view path) const {
+  const std::string path_str(path);
+  struct statfs sfs{};
+  if (::statfs(path_str.c_str(), &sfs) != 0) {
+    return absl::ErrnoToStatus(errno, absl::StrCat("statfs('", path, "')"));
+  }
+#if defined(__APPLE__)
+  return std::string(sfs.f_fstypename);  // BSD/macOS report the type name directly
+#else
+  const std::uint64_t magic = static_cast<std::uint64_t>(sfs.f_type) & 0xFFFF'FFFFULL;
+  for (const FsMagic& entry : kFsMagics) {
+    if (entry.magic == magic) {
+      return std::string(entry.name);
+    }
+  }
+  return absl::StrCat("0x", absl::Hex(magic));  // unknown magic: a non-matching sentinel
+#endif
 }
 
 }  // namespace xff::vfs

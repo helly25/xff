@@ -740,6 +740,19 @@ bool EvalXtype(const parser::Expr& expr, EvalContext& ctx) {
   return MatchesType(expr.args.front(), type);
 }
 
+// -fstype: matches when the filesystem holding the entry has the given type
+// name (e.g. "ext2/ext3", "apfs", "tmpfs", "nfs"). The recognised names are
+// platform-specific -- macOS/BSD report `f_fstypename` verbatim, Linux maps the
+// `statfs` magic to a find-compatible name -- so a portable expression usually
+// tests a single known value. An unqueryable path never matches.
+bool EvalFstype(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.args.empty()) {
+    return false;
+  }
+  const absl::StatusOr<std::string> type = ctx.fs.FsType(ctx.visit.path);
+  return type.ok() && *type == expr.args.front();
+}
+
 bool EvalSize(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesSize(expr.args.front(), ctx.visit.metadata.size);
 }
@@ -1111,6 +1124,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-execdir", {&EvalExecdir}},
     DispatchPair{"-executable", {&EvalExecutable}},
     DispatchPair{"-false", {&EvalFalse}},
+    DispatchPair{"-fstype", {&EvalFstype}},
     DispatchPair{"-gid", {&EvalGid}},
     DispatchPair{"-group", {&EvalGroup}},
     DispatchPair{"-ilname", {&EvalLname}},

@@ -93,6 +93,10 @@ class FakeFs : public vfs::FileSystem {
     return it->second;
   }
 
+  absl::StatusOr<std::string> FsType(std::string_view) const override {
+    return std::string("fakefs");
+  }  // unused by walk tests
+
  private:
   static vfs::Metadata Meta(vfs::FileType type, std::uint64_t dev, const std::string& path) {
     vfs::Metadata md;

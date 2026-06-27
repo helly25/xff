@@ -66,6 +66,10 @@ class FileSystem {
   // Reads the target path of the symlink at `path` (find's -lname/-ilname),
   // without resolving it. An error if `path` is not a symlink or cannot be read.
   virtual absl::StatusOr<std::string> ReadLink(std::string_view path) const = 0;
+
+  // The filesystem type name at `path` (find's -fstype), e.g. "ext2/ext3",
+  // "apfs", "tmpfs", "nfs". An error if `path` cannot be queried (`statfs`).
+  virtual absl::StatusOr<std::string> FsType(std::string_view path) const = 0;
 };
 
 }  // namespace xff::vfs

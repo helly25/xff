@@ -40,6 +40,7 @@ class LocalFs final : public FileSystem {
   absl::Status Remove(std::string_view path) const override;
   bool Access(std::string_view path, AccessMode mode) const override;
   absl::StatusOr<std::string> ReadLink(std::string_view path) const override;
+  absl::StatusOr<std::string> FsType(std::string_view path) const override;
 };
 
 }  // namespace xff::vfs
