@@ -39,6 +39,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
+#include "mbo/container/limited_set.h"
 #include "xff/datetime/datetime.h"
 #include "xff/engine/walk.h"
 #include "xff/exec/exec.h"
@@ -61,21 +62,24 @@ bool Fnmatch(std::string_view pattern, std::string_view text, int flags) {
   return ::fnmatch(std::string(pattern).c_str(), std::string(text).c_str(), flags) == 0;
 }
 
-bool IsTypeChar(char letter) {
-  return std::string_view("fdlbcps").contains(letter);
-}
+// The (letter, type) pairs find's -type/-xtype letters denote, alphabetical by
+// letter: matching an entry is then one membership test (contains).
+constexpr auto kTypeChars = mbo::container::MakeLimitedSet(
+    std::pair{'b', vfs::FileType::kBlockDevice},
+    std::pair{'c', vfs::FileType::kCharDevice},
+    std::pair{'d', vfs::FileType::kDirectory},
+    std::pair{'f', vfs::FileType::kRegular},
+    std::pair{'l', vfs::FileType::kSymlink},
+    std::pair{'p', vfs::FileType::kFifo},
+    std::pair{'s', vfs::FileType::kSocket});
 
 bool MatchesTypeChar(char letter, vfs::FileType type) {
-  switch (letter) {
-    case 'f': return type == vfs::FileType::kRegular;
-    case 'd': return type == vfs::FileType::kDirectory;
-    case 'l': return type == vfs::FileType::kSymlink;
-    case 'b': return type == vfs::FileType::kBlockDevice;
-    case 'c': return type == vfs::FileType::kCharDevice;
-    case 'p': return type == vfs::FileType::kFifo;
-    case 's': return type == vfs::FileType::kSocket;
-    default: return false;
-  }
+  return kTypeChars.contains(std::pair{letter, type});
+}
+
+// A valid -type/-xtype letter (the keys of kTypeChars), to reject an unknown one.
+bool IsTypeChar(char letter) {
+  return std::string_view("bcdflps").contains(letter);
 }
 
 // find's -type / -xtype argument: a single type letter, or (GNU extension) a

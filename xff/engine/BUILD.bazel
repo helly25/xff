@@ -73,6 +73,7 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/time",
         "@helly25_mbo//mbo/container:limited_map_cc",
+        "@helly25_mbo//mbo/container:limited_set_cc",
     ],
 )
 
