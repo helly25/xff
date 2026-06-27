@@ -33,18 +33,20 @@ jobs:
       - uses: bazelbuild/setup-bazelisk@v3
       # Persist Bazel's repository cache (downloaded external deps) and disk cache
       # (compiled action outputs) so each run reuses prior work instead of fetching
-      # and rebuilding from scratch. The github.sha suffix makes every run save a
-      # fresh entry; restore-keys fall back to the newest prior cache for this
-      # os/config (and the lockfile hash busts it when dependencies change).
+      # and rebuilding from scratch. Keyed by os/config + the lockfile hash only:
+      # a per-run github.sha suffix used to mint a fresh ~5 GB asan cache on every
+      # commit, and two asan cells alone overflowed GitHub's 10 GB/repo limit, so
+      # caches were evicted before they could be reused. A stable key keeps one
+      # entry per os/config/lockfile (the hash busts it when deps change); the
+      # restore-key seeds a warm base from a previous lockfile after a bump.
       - name: Mount Bazel caches
         uses: actions/cache@v4
         with:
           path: |
             ~/.cache/bazel-disk
             ~/.cache/bazel-repo
-          key: bazel-${{ matrix.os }}-${{ matrix.config.name }}-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}-${{ github.sha }}
+          key: bazel-${{ matrix.os }}-${{ matrix.config.name }}-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
           restore-keys: |
-            bazel-${{ matrix.os }}-${{ matrix.config.name }}-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}-
             bazel-${{ matrix.os }}-${{ matrix.config.name }}-
       - name: bazel test
         run: bazel test //... --disk_cache=$HOME/.cache/bazel-disk --repository_cache=$HOME/.cache/bazel-repo ${{ matrix.config.flags }}
