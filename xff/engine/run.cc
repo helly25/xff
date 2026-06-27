@@ -508,7 +508,11 @@ int RunFind(
     const vfs::FileSystem& fs,
     EmitFn emit,
     WalkErrorFn on_error,
-    std::optional<registry::Style> style) {
+    std::optional<registry::Style> style,
+    bool* any_match) {
+  if (any_match != nullptr) {
+    *any_match = false;  // no match until an entry satisfies the expression
+  }
   const parser::Expr* const expression = command.expression.get();
   const bool has_action = expression != nullptr && ContainsAction(*expression);
   // --implicit-print=yes|no overrides find's default-print rule (otherwise !has_action).
@@ -636,6 +640,9 @@ int RunFind(
             .exec_batches = &exec_batches,
             .parallel_exec = options.workers > 1 ? &parallel_exec : nullptr};
         const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
+        if (matched && any_match != nullptr) {
+          *any_match = true;  // grep-style "found anything" -- the expression's truth, not output
+        }
         if (matched && summary_mode != SummaryMode::kOff) {
           // --summary reduces matches instead of printing them: bump this group's
           // count and size. Explicit actions (-print/-exec) still ran via Evaluate.

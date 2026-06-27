@@ -155,15 +155,28 @@ int main(int argc, char** argv) {
     return 2;
   }
 
-  // Walk the roots and evaluate the expression, printing matches. Per-path
-  // errors -> exit 2 (the xff exit-code model; design.md "Exit-code model").
+  // Walk the roots and evaluate the expression, printing matches. Per-path errors
+  // -> exit 2 (the xff exit-code model; design.md "Exit-code model"). Match-sensitive
+  // exit is opt-in: --quiet suppresses output and exits by match, --exit-match keeps
+  // output but exits by match; either makes "1 = no match" reachable. An error still
+  // outranks match status (exit 2).
+  const bool quiet = absl::c_contains(command.globals, "--quiet");
+  const bool match_sensitive = quiet || absl::c_contains(command.globals, "--exit-match");
   const xff::vfs::LocalFs fs;
+  bool matched = false;
   const int errors = xff::engine::RunFind(
       command, fs,
-      [](std::string_view record) { std::cout.write(record.data(), static_cast<std::streamsize>(record.size())); },
+      [quiet](std::string_view record) {
+        if (!quiet) {  // --quiet suppresses output; the match is still recorded via `matched`
+          std::cout.write(record.data(), static_cast<std::streamsize>(record.size()));
+        }
+      },
       [](std::string_view path, absl::Status status) {
         std::cerr << "xff: " << path << ": " << status.message() << "\n";
       },
-      style);  // mode-scoped traversal defaults (modern -> sorted + parallel; find -> unordered)
-  return errors == 0 ? 0 : 2;
+      style, &matched);  // mode-scoped traversal defaults (modern -> sorted + parallel; find -> unordered)
+  if (errors != 0) {
+    return 2;  // an error outranks match status
+  }
+  return match_sensitive && !matched ? 1 : 0;
 }

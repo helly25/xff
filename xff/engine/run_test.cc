@@ -41,6 +41,8 @@ using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
+using ::testing::IsFalse;
+using ::testing::IsTrue;
 using ::testing::Not;
 using ::testing::UnorderedElementsAre;
 
@@ -551,6 +553,37 @@ TEST_F(RunTest, FixedOffsetTimezoneAppliesToFormatting) {
       RunArgvRecords({"--tz=+05:30", "--template={mtime:%z}", root_.string(), "-name", "a.txt"}),
       UnorderedElementsAre("+0530"));
   EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, AnyMatchIsTrueWhenExpressionMatches) {
+  const auto command = parser::Parse({root_.string(), "-name", "a.txt"});
+  ASSERT_THAT(command, IsOk());
+  bool matched = false;
+  RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {}, std::nullopt, &matched);
+  EXPECT_THAT(matched, IsTrue());
+}
+
+TEST_F(RunTest, AnyMatchIsFalseWhenNothingMatches) {
+  const auto command = parser::Parse({root_.string(), "-name", "no-such-file.zzz"});
+  ASSERT_THAT(command, IsOk());
+  bool matched = false;
+  RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {}, std::nullopt, &matched);
+  EXPECT_THAT(matched, IsFalse());
+}
+
+TEST_F(RunTest, AnyMatchReflectsExpressionNotEmittedOutput) {
+  // any_match is the expression's truth, not output: with --implicit-print=no, a.txt
+  // matches but nothing is emitted, yet any_match is still true (so --quiet on an
+  // action-only expression like `-exec` still reports the match).
+  const auto command = parser::Parse({"--implicit-print=no", root_.string(), "-name", "a.txt"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  bool matched = false;
+  RunFind(
+      *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
+      [](std::string_view, absl::Status) {}, std::nullopt, &matched);
+  EXPECT_THAT(records, IsEmpty());
+  EXPECT_THAT(matched, IsTrue());
 }
 
 TEST_F(RunTest, TimeFormatGlobalSetsTheBareTimeFieldDefault) {
