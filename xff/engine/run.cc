@@ -66,12 +66,12 @@ bool ParseNonNegInt(std::string_view text, int* out) {
 void ScanDepthOptions(const parser::Expr& expr, WalkOptions* options) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate: {
-      if (expr.descriptor->name == "-depth" || expr.descriptor->name == "-delete") {
-        options->post_order = true;  // -delete implies -depth
+      if (expr.descriptor->name == "-depth" || expr.descriptor->name == "-d" || expr.descriptor->name == "-delete") {
+        options->post_order = true;  // -delete implies -depth; -d is the BSD/GNU short spelling
         break;
       }
-      if (expr.descriptor->name == "-xdev") {
-        options->single_filesystem = true;
+      if (expr.descriptor->name == "-xdev" || expr.descriptor->name == "-mount" || expr.descriptor->name == "-x") {
+        options->single_filesystem = true;  // -mount (GNU/BSD) and -x (BSD) are synonyms for -xdev
         break;
       }
       int value = 0;
