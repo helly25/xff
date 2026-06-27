@@ -489,7 +489,10 @@ std::optional<std::uint32_t> ParseSymbolicPerm(std::string_view spec) {
 bool MatchesPerm(std::string_view arg, std::uint32_t mode) {
   char op = '=';
   if (!arg.empty() && (arg.front() == '-' || arg.front() == '/')) {
-    op = arg.front();
+    op = arg.front();  // '-' all-of, '/' (GNU) any-of, bare exact
+    arg.remove_prefix(1);
+  } else if (arg.size() > 1 && arg.front() == '+' && arg.find_first_not_of("01234567", 1) == std::string_view::npos) {
+    op = '+';  // BSD '+octal' is any-of (like '/'); a symbolic "+r" stays an exact mode (== 0444)
     arg.remove_prefix(1);
   }
   if (arg.empty()) {
@@ -511,7 +514,7 @@ bool MatchesPerm(std::string_view arg, std::uint32_t mode) {
   if (op == '-') {
     return (bits & want) == want;  // all requested bits set
   }
-  if (op == '/') {
+  if (op == '/' || op == '+') {
     return want == 0 || (bits & want) != 0;  // any requested bit set
   }
   return bits == want;  // exact
