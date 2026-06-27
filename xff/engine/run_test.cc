@@ -148,7 +148,7 @@ TEST_F(RunTest, ModeScopedSortDefault) {
   // sub as a block, then sub's contents). find leaves it unordered (same set).
   EXPECT_THAT(
       RunStyled(registry::Style::kXff),
-      ::testing::ElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
+      ElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
   EXPECT_THAT(
       RunStyled(registry::Style::kFind),
       UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
