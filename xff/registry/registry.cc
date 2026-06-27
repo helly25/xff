@@ -49,6 +49,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-user", .kind = Kind::kTest, .arity = 1},
     {.name = "-group", .kind = Kind::kTest, .arity = 1},
     {.name = "-newer", .kind = Kind::kTest, .arity = 1},
+    {.name = "-anewer", .kind = Kind::kTest, .arity = 1},  // atime newer than ref's mtime (== -neweram)
+    {.name = "-cnewer", .kind = Kind::kTest, .arity = 1},  // ctime newer than ref's mtime (== -newercm)
     {.name = "-neweraa", .kind = Kind::kTest, .arity = 1},
     {.name = "-newerac", .kind = Kind::kTest, .arity = 1},
     {.name = "-neweram", .kind = Kind::kTest, .arity = 1},

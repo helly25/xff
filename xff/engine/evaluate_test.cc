@@ -499,6 +499,28 @@ TEST_F(EvaluateTest, NewerXYFalseWhenReferenceMissing) {
   EXPECT_FALSE(Match({"-newerac", "/no/such/reference"}, visit));
 }
 
+TEST_F(EvaluateTest, AnewerCnewerCompareEntryTimeToReferenceMtime) {
+  // -anewer/-cnewer are the classic spellings of -neweram/-newercm: the entry's
+  // atime/ctime vs the reference file's mtime. False when the reference is gone.
+  vfs::Metadata missing_md;
+  const Visit missing = MakeVisit("f", "f", vfs::FileType::kRegular, missing_md);
+  EXPECT_FALSE(Match({"-anewer", "/no/such/reference"}, missing));
+  EXPECT_FALSE(Match({"-cnewer", "/no/such/reference"}, missing));
+
+  namespace stdfs = std::filesystem;
+  const stdfs::path ref = stdfs::temp_directory_path() / "xff_anewer_ref.tmp";
+  { std::ofstream(ref) << "r"; }  // reference mtime is ~now (between the two fixed times below)
+  const std::string ref_path = ref.string();
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.atime = absl::FromUnixSeconds(2'000'000'000);  // 2033, after the reference's mtime
+  md.ctime = absl::FromUnixSeconds(1'000'000'000);  // 2001, before the reference's mtime
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-anewer", ref_path}, visit));   // atime newer than the reference mtime
+  EXPECT_FALSE(Match({"-cnewer", ref_path}, visit));  // ctime older than the reference mtime
+  stdfs::remove(ref);
+}
+
 TEST_F(EvaluateTest, PrintfExpandsDirectivesAndEscapes) {
   vfs::Metadata md;
   md.type = vfs::FileType::kRegular;

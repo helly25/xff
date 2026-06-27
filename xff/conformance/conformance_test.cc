@@ -424,6 +424,12 @@ TEST_F(ConformanceTest, NewerCtimeVsRefMtime) {
   ExpectMatchesFind({"-newercm", (root_ / "b.md").string()});
 }
 
+// -cnewer is the classic spelling of -newercm and exists in both GNU and BSD
+// find, so it is portable here (atime-based -anewer stays unit-tested only).
+TEST_F(ConformanceTest, CnewerMatchesNewercm) {
+  ExpectMatchesFind({"-cnewer", (root_ / "b.md").string()});
+}
+
 TEST_F(ConformanceTest, NewerMtimeVsRefCtime) {
   ExpectMatchesFind({"-newermc", (root_ / "b.md").string()});
 }
