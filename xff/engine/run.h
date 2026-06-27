@@ -16,9 +16,12 @@
 #ifndef XFF_ENGINE_RUN_H_
 #define XFF_ENGINE_RUN_H_
 
+#include <optional>
+
 #include "xff/engine/evaluate.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/ast.h"
+#include "xff/registry/descriptor.h"
 #include "xff/vfs/filesystem.h"
 
 namespace xff::engine {
@@ -30,7 +33,18 @@ namespace xff::engine {
 //
 // Returns the number of per-path errors encountered (0 == clean). The CLI maps
 // a nonzero count to exit 2; the full exit-code model is a follow-up.
-int RunFind(const parser::Command& command, const vfs::FileSystem& fs, EmitFn emit, WalkErrorFn on_error);
+//
+// `style` selects the mode-scoped traversal defaults applied when the user gives
+// no `--sort` / `-j`: kXff (modern) sorts each directory (`--sort=dir`) and runs
+// a capped parallel walk; kFind matches find (unordered) but saturates cores.
+// `std::nullopt` keeps the conservative defaults (unordered, single-threaded) and
+// is what the in-process callers/tests use; the CLI passes the active style.
+int RunFind(
+    const parser::Command& command,
+    const vfs::FileSystem& fs,
+    EmitFn emit,
+    WalkErrorFn on_error,
+    std::optional<registry::Style> style = std::nullopt);
 
 }  // namespace xff::engine
 
