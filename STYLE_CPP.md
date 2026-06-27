@@ -175,6 +175,10 @@ Propagate errors with the macros from `mbo/status/status_macros.h`
 (`@helly25_mbo//mbo/status:status_macros_cc`), not a hand-written
 `if (!x.ok()) return x.status();`.
 
+- **A "value or error" type IS `absl::StatusOr<T>`.** Do not hand-roll a struct that bundles
+  a value (or a `std::vector` / `std::optional`) with an `absl::Status` plus an "ok" flag:
+  `absl::StatusOr<T>` is exactly that, enforces the not-ok-has-no-value invariant by
+  construction, composes with the macros below, and matches every other API.
 - **`MBO_RETURN_IF_ERROR(expr)`** evaluates a `Status` or `StatusOr` and returns early if
   it is not OK. It returns a `mbo::status::StatusBuilder`, which converts to the calling
   function's `absl::Status` or `absl::StatusOr<T>`, so it works in both.

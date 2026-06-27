@@ -34,6 +34,7 @@
 #include "absl/status/statusor.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/types/span.h"
+#include "mbo/status/status_macros.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/filesystem.h"
 
@@ -76,7 +77,7 @@ class ReadPool {
 
   ~ReadPool() {
     {
-      const absl::MutexLock lock(&mutex_);
+      const absl::MutexLock lock(mutex_);
       stop_ = true;  // turns Pending() true, so every worker's Await wakes
     }
     for (std::thread& thread : threads_) {
@@ -96,7 +97,7 @@ class ReadPool {
       (*task)();  // sequential: run inline
       return future;
     }
-    const absl::MutexLock lock(&mutex_);
+    const absl::MutexLock lock(mutex_);
     queue_.emplace([task] { (*task)(); });
     return future;
   }
@@ -112,7 +113,7 @@ class ReadPool {
     for (;;) {
       std::function<void()> job;
       {
-        const absl::MutexLock lock(&mutex_, absl::Condition(this, &ReadPool::Pending));
+        const absl::MutexLock lock(mutex_, absl::Condition(this, &ReadPool::Pending));
         if (stop_ && queue_.empty()) {
           return;
         }
@@ -169,13 +170,10 @@ class Walker {
 
   // A read job: list `dir` and stat every child. Pure - safe to run on a worker.
   Listing ReadDir(const std::string& dir) const {
-    absl::StatusOr<std::vector<vfs::Entry>> entries = fs_.ReadDir(dir);
-    if (!entries.ok()) {
-      return entries.status();
-    }
+    MBO_ASSIGN_OR_RETURN(std::vector<vfs::Entry> entries, fs_.ReadDir(dir));
     std::vector<Stated> children;
-    children.reserve(entries->size());
-    for (const vfs::Entry& entry : *entries) {
+    children.reserve(entries.size());
+    for (const vfs::Entry& entry : entries) {
       children.push_back(StatNode(entry.path, follow_children_));
     }
     return children;
