@@ -61,9 +61,12 @@ std::string SubstitutePlaceholder(std::string_view token, std::string_view path)
 // non-empty and not ".", the child first chdir()s there (find's -execdir); empty
 // or "." inherits our working directory. Returns true iff the child ran and exited
 // 0; empty `args` returns false.
-bool SpawnAndWait(const std::vector<std::string>& args, std::string_view dir) {
+// Spawns `args` (args[0] PATH-searched) without waiting; returns the child pid, or
+// 0 if `args` is empty or the spawn fails. `dir` non-empty and not "." sets the
+// child cwd first (find's -execdir). The caller must reap the pid.
+pid_t SpawnNoWait(const std::vector<std::string>& args, std::string_view dir) {
   if (args.empty()) {
-    return false;
+    return 0;
   }
   std::vector<char*> argv;
   argv.reserve(args.size() + 1);
@@ -86,8 +89,13 @@ bool SpawnAndWait(const std::vector<std::string>& args, std::string_view dir) {
   if (actions_ptr != nullptr) {
     posix_spawn_file_actions_destroy(actions_ptr);
   }
-  if (spawned != 0) {
-    return false;  // could not spawn (command not found, or dir does not exist)
+  return spawned == 0 ? pid : 0;  // 0 -> could not spawn (command not found, or dir does not exist)
+}
+
+bool SpawnAndWait(const std::vector<std::string>& args, std::string_view dir) {
+  const pid_t pid = SpawnNoWait(args, dir);
+  if (pid == 0) {
+    return false;
   }
   int status = 0;
   if (::waitpid(pid, &status, 0) != pid) {
@@ -147,6 +155,45 @@ bool ExecuteBatchInDir(
     const std::vector<std::string>& names,
     std::string_view dir) {
   return RunBatched(command, names, dir);  // -execdir ... + : ./basenames, child cwd = dir
+}
+
+void ParallelExec::Launch(const std::vector<std::string>& command, std::string_view target, std::string_view dir) {
+  std::vector<std::string> args;
+  args.reserve(command.size());
+  for (const std::string& token : command) {
+    args.push_back(SubstitutePlaceholder(token, target));  // {} -> the entry path (or ./basename for -execdir)
+  }
+  if (outstanding_ >= cap_) {
+    ReapOne();  // at the cap: free a slot before spawning, so at most `cap_` run at once
+  }
+  if (SpawnNoWait(args, dir) != 0) {
+    ++outstanding_;
+  } else {
+    ++failures_;  // could not spawn (command not found, or dir missing)
+  }
+}
+
+void ParallelExec::ReapOne() {
+  int status = 0;
+  pid_t reaped = 0;
+  do {
+    reaped = ::waitpid(-1, &status, 0);
+  } while (reaped < 0 && errno == EINTR);
+  if (reaped <= 0) {
+    outstanding_ = 0;  // no reapable child (ECHILD); stop tracking to avoid a spin
+    return;
+  }
+  --outstanding_;
+  if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+    ++failures_;
+  }
+}
+
+std::size_t ParallelExec::Drain() {
+  while (outstanding_ > 0) {
+    ReapOne();
+  }
+  return failures_;
 }
 
 bool ExecuteInDir(const std::vector<std::string>& command, std::string_view dir, std::string_view name) {

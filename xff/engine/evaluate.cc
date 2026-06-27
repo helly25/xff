@@ -1062,21 +1062,9 @@ bool EvalDelete(const parser::Expr&, EvalContext& ctx) {
   return true;
 }
 
-bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
-  if (expr.exec_batch) {
-    // `-exec ... +`: queue the full path in the single global ("") bucket; the
-    // command runs at end-of-walk (RunFind flushes each batch node in ARG_MAX
-    // chunks). The action is true per entry.
-    if (ctx.exec_batches != nullptr) {
-      (*ctx.exec_batches)[&expr][""].emplace_back(ctx.visit.path);
-    }
-    return true;
-  }
-  if (!ctx.exec_fields) {
-    return exec::Execute(expr.args, ctx.visit.path);  // find-exact: only {} is substituted (-> path)
-  }
-  // --exec-fields: render each token through the field vocabulary ({}, {name},
-  // {path}, {root}, ...), then spawn the already-substituted argv.
+// Renders every -exec/-execdir token through the field vocabulary ({}, {name},
+// {path}, {root}, {capture.*}, ...) for --exec-fields, yielding the final argv.
+std::vector<std::string> RenderExecArgv(const parser::Expr& expr, const EvalContext& ctx) {
   const fields::RenderContext render_ctx{
       .path = ctx.visit.path,
       .root = ctx.visit.root,
@@ -1092,7 +1080,36 @@ bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
   for (const std::string& token : expr.args) {
     argv.push_back(fields::Render(token, render_ctx));
   }
-  return exec::ExecuteArgs(argv);  // true iff the child exits 0
+  return argv;
+}
+
+bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.exec_batch) {
+    // `-exec ... +`: queue the full path in the single global ("") bucket; the
+    // command runs at end-of-walk (RunFind flushes each batch node in ARG_MAX
+    // chunks). The action is true per entry.
+    if (ctx.exec_batches != nullptr) {
+      (*ctx.exec_batches)[&expr][""].emplace_back(ctx.visit.path);
+    }
+    return true;
+  }
+  if (ctx.parallel_exec != nullptr) {
+    // -j>1: launch the child on the bounded runner. find-exact substitutes {} ->
+    // path inside Launch; --exec-fields renders first (no {} remains, empty target).
+    // True per entry -- the exit status is collected at the end-of-walk Drain.
+    if (ctx.exec_fields) {
+      ctx.parallel_exec->Launch(RenderExecArgv(expr, ctx), /*target=*/{}, /*dir=*/{});
+    } else {
+      ctx.parallel_exec->Launch(expr.args, ctx.visit.path, /*dir=*/{});
+    }
+    return true;
+  }
+  if (!ctx.exec_fields) {
+    return exec::Execute(expr.args, ctx.visit.path);  // find-exact: only {} is substituted (-> path)
+  }
+  // --exec-fields: render each token through the field vocabulary, then spawn the
+  // already-substituted argv.
+  return exec::ExecuteArgs(RenderExecArgv(expr, ctx));  // true iff the child exits 0
 }
 
 // Splits an entry path into the directory that -execdir/-okdir run the child in
@@ -1143,27 +1160,22 @@ bool EvalExecdir(const parser::Expr& expr, EvalContext& ctx) {
     }
     return true;
   }
+  if (ctx.parallel_exec != nullptr) {
+    // -j>1: launch in the entry's directory (cwd = target.dir). find-exact maps {}
+    // -> ./basename inside Launch; --exec-fields renders first (no {} remains).
+    if (ctx.exec_fields) {
+      ctx.parallel_exec->Launch(RenderExecArgv(expr, ctx), /*target=*/{}, target.dir);
+    } else {
+      ctx.parallel_exec->Launch(expr.args, target.brace, target.dir);
+    }
+    return true;
+  }
   if (!ctx.exec_fields) {
     return exec::ExecuteInDir(expr.args, target.dir, target.brace);  // find-exact: {} -> ./basename
   }
   // --exec-fields: render each token through the field vocabulary (which still
   // sees the full path/root), then spawn in the entry's directory.
-  const fields::RenderContext render_ctx{
-      .path = ctx.visit.path,
-      .root = ctx.visit.root,
-      .metadata = ctx.visit.metadata,
-      .depth = ctx.visit.depth,
-      .tz = ctx.tz,
-      .time_format = ctx.time_format,
-      .captures = ctx.captures,
-      .defines = ctx.defines,
-      .outputs = ctx.outputs};
-  std::vector<std::string> argv;
-  argv.reserve(expr.args.size());
-  for (const std::string& token : expr.args) {
-    argv.push_back(fields::Render(token, render_ctx));
-  }
-  return exec::ExecuteArgsInDir(argv, target.dir);
+  return exec::ExecuteArgsInDir(RenderExecArgv(expr, ctx), target.dir);
 }
 
 bool EvalOk(const parser::Expr& expr, EvalContext& ctx) {

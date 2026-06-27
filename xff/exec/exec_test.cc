@@ -15,8 +15,11 @@
 
 #include "xff/exec/exec.h"
 
+#include <filesystem>
+#include <fstream>
 #include <optional>
 #include <string>
+#include <system_error>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -28,6 +31,7 @@ namespace {
 using ::testing::Eq;
 using ::testing::Optional;
 using ::testing::SizeIs;
+using ::testing::UnorderedElementsAre;
 
 // /bin/sh is used as a portable, always-present command so these tests do not
 // depend on PATH lookup or any particular utility being installed.
@@ -114,6 +118,102 @@ TEST_F(ExecTest, CaptureOutputRunsChildInDirWhenDirGiven) {
 TEST_F(ExecTest, CaptureOutputDefaultDirInheritsCwd) {
   // The default (empty) dir = no chdir: the original single-argument behavior.
   EXPECT_THAT(CaptureOutput({"/bin/sh", "-c", "printf hi"}), Optional(Eq("hi")));
+}
+
+TEST_F(ExecTest, ParallelExecDrainCountsNonzeroExits) {
+  // Three children each `exit 1`; with a cap of 2 they are reaped as slots free up
+  // and at Drain. Drain returns the total failure count across the run.
+  ParallelExec pool(2);
+  for (int i = 0; i < 3; ++i) {
+    pool.Launch({"/bin/sh", "-c", "exit 1"}, "ignored", {});
+  }
+  EXPECT_THAT(pool.Drain(), Eq(3U));
+}
+
+TEST_F(ExecTest, ParallelExecDrainIsZeroWhenAllSucceed) {
+  ParallelExec pool(2);
+  for (int i = 0; i < 3; ++i) {
+    pool.Launch({"/bin/sh", "-c", "exit 0"}, "ignored", {});
+  }
+  EXPECT_THAT(pool.Drain(), Eq(0U));
+}
+
+TEST_F(ExecTest, ParallelExecCountsSpawnFailures) {
+  // A command that cannot be spawned counts as one failure (find reports the child
+  // could not run) without aborting the rest of the run.
+  ParallelExec pool(2);
+  pool.Launch({"/nonexistent/xff/zzz"}, "ignored", {});
+  EXPECT_THAT(pool.Drain(), Eq(1U));
+}
+
+TEST_F(ExecTest, ParallelExecSubstitutesTargetForBrace) {
+  // {} is replaced by `target` in each token, like Execute: the matching target
+  // exits 0, the mismatching one exits 1, so exactly one failure is tallied --
+  // proving both children actually ran with the right substitution.
+  ParallelExec pool(2);
+  pool.Launch({"/bin/sh", "-c", "test \"{}\" = ok"}, "ok", {});
+  pool.Launch({"/bin/sh", "-c", "test \"{}\" = ok"}, "no", {});
+  EXPECT_THAT(pool.Drain(), Eq(1U));
+}
+
+TEST_F(ExecTest, ParallelExecRunsChildInDir) {
+  // A non-empty dir sets the child cwd (find's -execdir): chdir "/" then verify.
+  ParallelExec pool(2);
+  pool.Launch({"/bin/sh", "-c", "test \"$(pwd -P)\" = /"}, "ignored", "/");
+  EXPECT_THAT(pool.Drain(), Eq(0U));
+}
+
+TEST_F(ExecTest, ParallelExecDrainIsIdempotent) {
+  ParallelExec pool(2);
+  pool.Launch({"/bin/sh", "-c", "exit 1"}, "ignored", {});
+  EXPECT_THAT(pool.Drain(), Eq(1U));
+  EXPECT_THAT(pool.Drain(), Eq(1U));  // nothing outstanding; the tally is unchanged
+}
+
+TEST_F(ExecTest, ParallelExecRunsEveryChildBeyondCap) {
+  // Six launches with a cap of 2 must all run: each appends its (short, O_APPEND-
+  // atomic) target line, so the file ends with one line per launch. Exercises the
+  // reap-one-when-at-cap path repeatedly.
+  const std::string out = (std::filesystem::path(::testing::TempDir()) / "xff_parexec_all.lst").string();
+  std::error_code ec;
+  std::filesystem::remove(out, ec);
+  {
+    ParallelExec pool(2);
+    for (int i = 0; i < 6; ++i) {
+      pool.Launch({"/bin/sh", "-c", "echo {} >> '" + out + "'"}, std::to_string(i), {});
+    }
+    EXPECT_THAT(pool.Drain(), Eq(0U));
+  }
+  std::ifstream in(out, std::ios::binary);
+  std::vector<std::string> lines;
+  for (std::string line; std::getline(in, line);) {
+    lines.push_back(line);
+  }
+  EXPECT_THAT(lines, UnorderedElementsAre("0", "1", "2", "3", "4", "5"));
+  std::filesystem::remove(out, ec);
+}
+
+TEST_F(ExecTest, ParallelExecDestructorDrainsOutstandingChildren) {
+  // Without an explicit Drain, the destructor still waits for every child, so a
+  // forgotten Drain leaves no zombie and loses no child's work: after the pool
+  // leaves scope all three lines are present.
+  const std::string out = (std::filesystem::path(::testing::TempDir()) / "xff_parexec_dtor.lst").string();
+  std::error_code ec;
+  std::filesystem::remove(out, ec);
+  {
+    ParallelExec pool(4);
+    for (int i = 0; i < 3; ++i) {
+      pool.Launch({"/bin/sh", "-c", "echo {} >> '" + out + "'"}, std::to_string(i), {});
+    }
+    // No Drain(): the destructor reaps.
+  }
+  std::ifstream in(out, std::ios::binary);
+  std::vector<std::string> lines;
+  for (std::string line; std::getline(in, line);) {
+    lines.push_back(line);
+  }
+  EXPECT_THAT(lines, UnorderedElementsAre("0", "1", "2"));
+  std::filesystem::remove(out, ec);
 }
 
 }  // namespace

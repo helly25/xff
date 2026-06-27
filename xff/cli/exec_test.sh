@@ -86,6 +86,23 @@ test::exec_semicolon_runs_once_per_match() {
   expect_eq "2" "${#_lines[@]}"
 }
 
+test::exec_semicolon_under_parallel_jobs_runs_every_match() {
+  local dir out
+  dir="$(_tree par)"
+  out="${TEST_TMPDIR}/par.out"
+  : >"${out}"
+  # -j2 routes the serial `\;` form through the bounded parallel runner. Each of the
+  # two matches still runs exactly once; the children append their path (one short,
+  # O_APPEND-atomic line each), so order is unspecified but both must appear.
+  # shellcheck disable=SC2016  # the single-quoted script runs in the spawned sh, which expands $OUT
+  XFF_CONFIG="${TEST_TMPDIR}/none" OUT="${out}" "$(_xff_bin)" -j2 "${dir}" -name '*.txt' \
+    -exec sh -c 'echo "$1" >>"$OUT"' _ '{}' \;
+  _read_lines "${out}"
+  expect_eq "2" "${#_lines[@]}"
+  expect_contains "${dir}/a.txt" "${_lines[@]}"
+  expect_contains "${dir}/b.txt" "${_lines[@]}"
+}
+
 test::execdir_plus_runs_in_each_directory_with_basenames() {
   local dir out
   dir="$(_tree edir)"

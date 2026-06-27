@@ -241,6 +241,46 @@ TEST_F(RunTest, ExecdirPlusBatchesPerDirectory) {
   fs::remove(out, ec);
 }
 
+TEST_F(RunTest, ExecSemicolonUnderParallelJobsRunsEveryMatch) {
+  // -j>1 routes the serial `-exec ... ;` action through the bounded ParallelExec
+  // runner. Each of the two *.txt matches must still run exactly once; the children
+  // append their path (one short, O_APPEND-atomic line apiece) so order is
+  // unspecified but the set is complete -- proving no match is dropped on launch.
+  const std::string out = (fs::path(::testing::TempDir()) / "xff_execpar_out.lst").string();
+  std::error_code ec;
+  fs::remove(out, ec);
+  const std::string script = "echo \"$1\" >> '" + out + "'";
+  RunArgvRecords({"-j2", root_.string(), "-name", "*.txt", "-exec", "sh", "-c", script, "_", "{}", ";"});
+  EXPECT_THAT(last_errors_, 0);
+  std::ifstream in(out, std::ios::binary);
+  ASSERT_TRUE(in.good());
+  std::vector<std::string> lines;
+  for (std::string line; std::getline(in, line);) {
+    lines.push_back(line);
+  }
+  EXPECT_THAT(lines, UnorderedElementsAre(Path("a.txt"), Path("sub/c.txt")));
+  fs::remove(out, ec);
+}
+
+TEST_F(RunTest, ExecSemicolonUnderParallelJobsLeavesExitStatusUnaffected) {
+  // find's `-exec ... ;` is a predicate: a nonzero exit makes the action false but
+  // does NOT raise find's exit status (unlike the `+` batch form). The parallel
+  // runner preserves that -- both *.txt matches run `sh -c 'exit 1'`, yet the run
+  // reports no error, identical to the synchronous -j1 path.
+  RunArgvRecords({"-j2", root_.string(), "-name", "*.txt", "-exec", "sh", "-c", "exit 1", ";"});
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, JobsAllParsesAndWalksEverything) {
+  // --jobs=all resolves to every detected core; the parallel walk still visits the
+  // whole tree. The set is complete (order unspecified). On a 1-core host it folds
+  // to -j1, which returns the same set, so the assertion holds regardless.
+  EXPECT_THAT(
+      RunArgvRecords({"--jobs=all", root_.string()}),
+      UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
 TEST_F(RunTest, ModeScopedSortDefault) {
   // With no --sort, the active style picks the default: modern (kXff) sorts each
   // directory's listing, so the walk is deterministic (root, then a.txt < b.md <
