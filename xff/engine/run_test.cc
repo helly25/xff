@@ -199,25 +199,10 @@ TEST_F(RunTest, IgnoreReaddirRaceAccepted) {
   EXPECT_THAT(last_errors_, 0);
 }
 
-TEST_F(RunTest, ExecPlusBatchesAllMatchesIntoOneRun) {
-  // `-exec ... +` accumulates matches and runs the command ONCE with all of them.
-  // The shell appends a "RUN" marker per invocation plus each path, so exactly one
-  // RUN line proves a single batched invocation (per-entry would yield two).
-  const std::string out = (fs::path(::testing::TempDir()) / "xff_execplus_out.lst").string();
-  std::error_code ec;
-  fs::remove(out, ec);
-  const std::string script = "echo RUN >> '" + out + "'; for p in \"$@\"; do echo \"$p\" >> '" + out + "'; done";
-  RunExpr({"-name", "*.txt", "-exec", "sh", "-c", script, "_", "{}", "+"});
-  EXPECT_THAT(last_errors_, 0);
-  std::ifstream in(out, std::ios::binary);
-  ASSERT_TRUE(in.good());
-  std::vector<std::string> lines;
-  for (std::string line; std::getline(in, line);) {
-    lines.push_back(line);
-  }
-  EXPECT_THAT(lines, UnorderedElementsAre("RUN", Path("a.txt"), Path("sub/c.txt")));
-  fs::remove(out, ec);
-}
+// End-to-end -exec behaviour (the `+` batch vs `\;` per-entry spawning) is tested
+// at the shell level against the real binary in //xff/cli:exec_test, the right fit
+// for a subprocess-spawning feature; the parser-level batch marking lives in
+// parser_test. Run-level coverage here stays focused on traversal/evaluation.
 
 TEST_F(RunTest, ModeScopedSortDefault) {
   // With no --sort, the active style picks the default: modern (kXff) sorts each
