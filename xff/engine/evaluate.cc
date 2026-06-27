@@ -839,6 +839,16 @@ bool EvalGroup(const parser::Expr& expr, EvalContext& ctx) {
   return gid.has_value() && ctx.visit.metadata.gid == *gid;
 }
 
+// find's -nouser / -nogroup: the entry's owner uid / group gid has no entry in
+// the passwd / group database (an orphaned id).
+bool EvalNouser(const parser::Expr&, EvalContext& ctx) {
+  return ::getpwuid(ctx.visit.metadata.uid) == nullptr;
+}
+
+bool EvalNogroup(const parser::Expr&, EvalContext& ctx) {
+  return ::getgrgid(ctx.visit.metadata.gid) == nullptr;
+}
+
 bool EvalPerm(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesPerm(expr.args.front(), ctx.visit.metadata.mode);
 }
@@ -1268,6 +1278,8 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-newermc", {&EvalNewerXY}},
     DispatchPair{"-newermm", {&EvalNewerXY}},
     DispatchPair{"-newermt", {&EvalNewerXY}},
+    DispatchPair{"-nogroup", {&EvalNogroup}},
+    DispatchPair{"-nouser", {&EvalNouser}},
     DispatchPair{"-ok", {&EvalOk}},
     DispatchPair{"-okdir", {&EvalOkdir}},
     DispatchPair{"-path", {&EvalPath}},

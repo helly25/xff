@@ -578,6 +578,23 @@ TEST_F(EvaluateTest, UserGroupNumericFallback) {
   EXPECT_FALSE(Match({"-group", "21"}, visit));
 }
 
+TEST_F(EvaluateTest, NouserNogroupMatchOrphanedIds) {
+  vfs::Metadata owned_md;
+  owned_md.type = vfs::FileType::kRegular;
+  owned_md.uid = 0;  // root: present in passwd
+  owned_md.gid = 0;  // present in group
+  const Visit owned{.path = "a", .name = "a", .depth = 1, .metadata = owned_md};
+  EXPECT_FALSE(Match({"-nouser"}, owned));
+  EXPECT_FALSE(Match({"-nogroup"}, owned));
+  vfs::Metadata orphan_md;
+  orphan_md.type = vfs::FileType::kRegular;
+  orphan_md.uid = 2'000'000'001U;  // unassigned on Linux/macOS runners (avoids macOS nobody == -2)
+  orphan_md.gid = 2'000'000'001U;
+  const Visit orphan{.path = "b", .name = "b", .depth = 1, .metadata = orphan_md};
+  EXPECT_TRUE(Match({"-nouser"}, orphan));
+  EXPECT_TRUE(Match({"-nogroup"}, orphan));
+}
+
 TEST_F(EvaluateTest, CommaEvaluatesBothValueIsRight) {
   vfs::Metadata md;
   md.type = vfs::FileType::kRegular;
