@@ -252,6 +252,8 @@ TEST_F(EvaluateTest, PermMatchesOctalModes) {
   EXPECT_FALSE(Match({"-perm", "-022"}, visit));  // group/other write NOT set
   EXPECT_TRUE(Match({"-perm", "/040"}, visit));   // /MODE: any bit (group read) set
   EXPECT_FALSE(Match({"-perm", "/022"}, visit));  // none of group/other write set
+  EXPECT_TRUE(Match({"-perm", "+040"}, visit));   // BSD +MODE: any-of, like /MODE
+  EXPECT_FALSE(Match({"-perm", "+022"}, visit));  // none of group/other write set
 }
 
 TEST_F(EvaluateTest, PermMatchesSymbolicModes) {
