@@ -15,6 +15,7 @@
 
 #include "xff/datetime/datetime.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -50,56 +51,62 @@ std::optional<absl::Time> ParseTimeString(std::string_view text, absl::Time now,
   if (lowered == "now") {
     return now;
   }
-  // Relative: "[+|-]N unit[s] [ago]".
-  const std::vector<std::string_view> parts = absl::StrSplit(lowered, ' ', absl::SkipEmpty());
-  if (parts.size() != 2 && parts.size() != 3) {
-    return std::nullopt;
+  // Relative: "[+|-]N unit[s] [N unit[s] ...] [ago]" -- one or more count+unit
+  // terms summed into a single offset from `now`. A leading '-' on the first
+  // count OR a trailing "ago" puts the whole offset in the past; '+' or neither,
+  // the future. Calendar units (month/year) shift the civil date (preserving the
+  // time of day, in `tz`); the rest are fixed durations added on top.
+  std::vector<std::string_view> parts = absl::StrSplit(lowered, ' ', absl::SkipEmpty());
+  bool past = false;
+  if (!parts.empty() && parts.back() == "ago") {
+    past = true;
+    parts.pop_back();
   }
-  std::int64_t count = 0;
-  if (!absl::SimpleAtoi(parts[0], &count)) {
-    return std::nullopt;
+  if (parts.empty() || parts.size() % 2 != 0) {
+    return std::nullopt;  // need whole count/unit pairs
   }
-  if (parts.size() == 3) {
-    if (parts[2] != "ago") {
+  if (parts.front().front() == '-') {  // a leading '-' selects the past for the whole sum
+    past = true;
+  }
+  absl::Duration offset;    // accumulated fixed-duration terms (second..week)
+  std::int64_t months = 0;  // accumulated calendar terms (month/year), in months
+  for (std::size_t i = 0; i + 1 < parts.size(); i += 2) {
+    std::int64_t count = 0;
+    if (!absl::SimpleAtoi(parts[i], &count)) {
       return std::nullopt;
     }
-    if (count > 0) {
-      count = -count;  // "ago" selects the past
+    count = count < 0 ? -count : count;  // magnitude; direction comes from `past`
+    std::string_view unit = parts[i + 1];
+    if (unit.size() > 1 && unit.back() == 's') {
+      unit.remove_suffix(1);  // accept the plural form
+    }
+    if (unit == "second" || unit == "sec") {
+      offset += count * absl::Seconds(1);
+    } else if (unit == "minute" || unit == "min") {
+      offset += count * absl::Minutes(1);
+    } else if (unit == "hour" || unit == "hr") {
+      offset += count * absl::Hours(1);
+    } else if (unit == "day") {
+      offset += count * absl::Hours(24);
+    } else if (unit == "week") {
+      offset += count * absl::Hours(24 * 7);
+    } else if (unit == "month") {
+      months += count;
+    } else if (unit == "year") {
+      months += 12 * count;
+    } else {
+      return std::nullopt;  // unknown unit
     }
   }
-  std::string_view unit = parts[1];
-  if (unit.size() > 1 && unit.back() == 's') {
-    unit.remove_suffix(1);  // accept the plural form
+  const std::int64_t sign = past ? -1 : 1;
+  absl::Time result = now;
+  if (months != 0) {
+    const absl::CivilSecond base = absl::ToCivilSecond(now, tz);
+    const absl::CivilMonth shifted = absl::CivilMonth(base.year(), base.month()) + sign * months;
+    result = absl::FromCivil(
+        absl::CivilSecond(shifted.year(), shifted.month(), base.day(), base.hour(), base.minute(), base.second()), tz);
   }
-  if (unit == "second" || unit == "sec") {
-    return now + count * absl::Seconds(1);
-  }
-  if (unit == "minute" || unit == "min") {
-    return now + count * absl::Minutes(1);
-  }
-  if (unit == "hour" || unit == "hr") {
-    return now + count * absl::Hours(1);
-  }
-  if (unit == "day") {
-    return now + count * absl::Hours(24);
-  }
-  if (unit == "week") {
-    return now + count * absl::Hours(24 * 7);
-  }
-  if (unit == "month" || unit == "year") {
-    const absl::TimeZone zone = tz;
-    const absl::CivilSecond base = absl::ToCivilSecond(now, zone);
-    if (unit == "year") {
-      return absl::FromCivil(
-          absl::CivilSecond(base.year() + count, base.month(), base.day(), base.hour(), base.minute(), base.second()),
-          zone);
-    }
-    const absl::CivilMonth shifted = absl::CivilMonth(base.year(), base.month()) + count;
-    return absl::FromCivil(
-        absl::CivilSecond(shifted.year(), shifted.month(), base.day(), base.hour(), base.minute(), base.second()),
-        zone);
-  }
-  return std::nullopt;
+  return result + sign * offset;
 }
 
 absl::Time StartOfDay(absl::Time t, absl::TimeZone tz) {

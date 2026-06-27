@@ -101,6 +101,24 @@ TEST_F(DateTimeTest, SignAndAgoSelectDirection) {
   EXPECT_THAT(ParseTimeString("+3 days", t), Optional(Eq(t + absl::Hours(72))));
 }
 
+TEST_F(DateTimeTest, CompoundDurations) {
+  const absl::TimeZone zone = absl::LocalTimeZone();
+  const absl::Time t = Now();  // 2021-03-15 12:30:00 local
+  // Multiple fixed-duration terms sum into one offset; the leading sign or "ago"
+  // applies to the whole sum.
+  EXPECT_THAT(ParseTimeString("3 weeks 3 hours", t), Optional(Eq(t + absl::Hours(24 * 7 * 3) + absl::Hours(3))));
+  EXPECT_THAT(ParseTimeString("-3 weeks 3 hours", t), Optional(Eq(t - absl::Hours(24 * 7 * 3) - absl::Hours(3))));
+  EXPECT_THAT(
+      ParseTimeString("1 day 2 hours 30 minutes ago", t),
+      Optional(Eq(t - absl::Hours(24) - absl::Hours(2) - absl::Minutes(30))));
+  // Calendar and fixed-duration terms combine: shift the civil date, then offset.
+  EXPECT_THAT(
+      ParseTimeString("1 year 2 days ago", t),
+      Optional(Eq(absl::FromCivil(absl::CivilSecond(2'020, 3, 15, 12, 30, 0), zone) - absl::Hours(48))));
+  // A dangling count (an odd run of tokens) is rejected.
+  EXPECT_THAT(ParseTimeString("3 weeks 3", t), Eq(std::nullopt));
+}
+
 TEST_F(DateTimeTest, PluralSingularAliasesAndCase) {
   const absl::Time t = Now();
   EXPECT_THAT(ParseTimeString("1 day ago", t), Optional(Eq(t - absl::Hours(24))));
@@ -115,7 +133,7 @@ TEST_F(DateTimeTest, UnparseableReturnsNullopt) {
   EXPECT_THAT(ParseTimeString("", t), Eq(std::nullopt));
   EXPECT_THAT(ParseTimeString("yesterday", t), Eq(std::nullopt));
   EXPECT_THAT(ParseTimeString("next tuesday", t), Eq(std::nullopt));
-  EXPECT_THAT(ParseTimeString("2 days 3 hours ago", t), Eq(std::nullopt));  // combined terms
+  EXPECT_THAT(ParseTimeString("1 day 5 fortnights", t), Eq(std::nullopt));  // unknown unit in a later term
   EXPECT_THAT(ParseTimeString("5 fortnights", t), Eq(std::nullopt));        // unknown unit
   EXPECT_THAT(ParseTimeString("days ago", t), Eq(std::nullopt));            // missing count
 }

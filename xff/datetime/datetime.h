@@ -31,13 +31,17 @@ namespace xff::datetime {
 //   YYYY-MM-DD            ISO-8601 date in the local zone (time 00:00:00).
 //   YYYY-MM-DD HH:MM:SS   ISO-8601 date-time in the local zone (space or 'T').
 //   now                   the supplied reference instant `now`.
-//   [+|-]N unit[s] [ago]  relative to `now`; unit is one of
-//                         sec(ond)/min(ute)/hour(hr)/day/week/month/year.
+//   [+|-]N unit[s] [N unit[s] ...] [ago]
+//                         one or more count+unit terms summed into one offset
+//                         from `now`; unit is one of
+//                         sec(ond)/min(ute)/hour(hr)/day/week/month/year, e.g.
+//                         "3 weeks 3 hours" or "1 day 2 hours 30 minutes ago".
 //
-// In the relative form a leading '-' OR a trailing "ago" selects the past,
-// while '+' or neither selects the future, so "-3 days" equals "3 days ago".
-// That is the logical reading; it diverges from GNU get_date only on the
-// redundant "-N ... ago" (which get_date flips back to the future). Matching is
+// In the relative form a leading '-' on the first count OR a trailing "ago"
+// selects the past for the whole sum, while '+' or neither selects the future,
+// so "-3 days" equals "3 days ago" and "-3 weeks 3 hours" is (3 weeks + 3 hours)
+// in the past. That is the logical reading; it diverges from GNU get_date only on
+// the redundant "-N ... ago" (still the past here). Matching is
 // case-insensitive and the plural unit form is accepted. Returns nullopt when
 // nothing matches (callers treat that as "no match"); get_date's wider grammar
 // ("next Tuesday", combined terms) is intentionally not supported. The calendar
