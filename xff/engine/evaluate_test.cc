@@ -36,14 +36,18 @@ namespace {
 
 using ::mbo::testing::IsOk;
 using ::mbo::testing::IsOkAndHolds;
+using ::testing::ElementsAre;
+using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Not;
+using ::testing::Pair;
 
 struct EvaluateTest : ::testing::Test {
   // Parses `. <expr...>` and evaluates the expression against `visit`, capturing
   // any action output in `emitted_`.
   bool Match(const std::vector<std::string>& expr, const Visit& visit) {
     emitted_.clear();
+    file_emitted_.clear();
     control_ = {};
     std::vector<std::string> argv;
     argv.reserve(expr.size() + 1);
@@ -57,9 +61,13 @@ struct EvaluateTest : ::testing::Test {
     const auto sink = [this](std::string_view record) { emitted_ += record; };
     captures_.clear();
     outputs_.clear();
+    const auto file_sink = [this](std::string_view file, std::string_view record) {
+      file_emitted_[std::string(file)] += record;
+    };
     EvalContext context{
         .visit = visit,
         .emit = sink,
+        .emit_file = file_sink,
         .fs = fs_,
         .now = now_,
         .tz = tz_,
@@ -82,8 +90,9 @@ struct EvaluateTest : ::testing::Test {
   }
 
   std::string emitted_;
-  bool confirm_reply_ = false;  // scripted reply for the -ok confirmer
-  std::string last_prompt_;     // captures the prompt -ok passed to confirm()
+  std::map<std::string, std::string> file_emitted_;  // -fprint/-fprintf/... output, keyed by filename
+  bool confirm_reply_ = false;                       // scripted reply for the -ok confirmer
+  std::string last_prompt_;                          // captures the prompt -ok passed to confirm()
   vfs::LocalFs fs_;
   // A fixed reference instant for age-test (-mtime/-mmin) cases; the entry's
   // mtime is set relative to this so the assertions are clock-independent.
@@ -182,6 +191,21 @@ TEST_F(EvaluateTest, PrintActionsEmit) {
   EXPECT_THAT(emitted_, "dir/foo.txt\n");
   EXPECT_TRUE(Match({"-print0"}, visit));
   EXPECT_THAT(emitted_, std::string("dir/foo.txt\0", 12));
+}
+
+TEST_F(EvaluateTest, FileActionsWriteRecordsToNamedFiles) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/foo.txt", "foo.txt", vfs::FileType::kRegular, md);
+  // Each f-action mirrors its stdout counterpart's bytes, routed to the FILE arg
+  // (Match clears file_emitted_ each call, so each map holds just that action's output).
+  EXPECT_TRUE(Match({"-fprint", "out"}, visit));
+  EXPECT_THAT(file_emitted_, ElementsAre(Pair("out", "dir/foo.txt\n")));
+  EXPECT_TRUE(Match({"-fprint0", "out"}, visit));
+  EXPECT_THAT(file_emitted_, ElementsAre(Pair("out", std::string("dir/foo.txt\0", 12))));
+  EXPECT_TRUE(Match({"-fprintf", "out", "%p:%f\n"}, visit));
+  EXPECT_THAT(file_emitted_, ElementsAre(Pair("out", "dir/foo.txt:foo.txt\n")));
+  EXPECT_TRUE(Match({"-fls", "log"}, visit));
+  EXPECT_THAT(file_emitted_, ElementsAre(Pair("log", HasSubstr("dir/foo.txt"))));
 }
 
 TEST_F(EvaluateTest, ShortCircuitSkipsAction) {
