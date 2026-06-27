@@ -967,6 +967,27 @@ bool EvalCmin(const parser::Expr& expr, EvalContext& ctx) {
              expr.args.front(), ctx.visit.metadata.ctime, ctx.now, absl::Minutes(1), /*allow_unit_suffix=*/false);
 }
 
+// BSD's -Btime/-Bmin: the birth (creation) time, the -mtime/-mmin of `btime`.
+// Birth time is optional -- only some kernels/filesystems record it -- so an entry
+// without it never matches here. (Making the missing-btime case a hard error, with
+// an opt-in --skip-unsupported downgrade, is the impossible-task-fail follow-up.)
+bool EvalBtime(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.args.empty() || !ctx.visit.metadata.btime.has_value()) {
+    return false;
+  }
+  const std::string_view arg = expr.args.front();
+  if (arg.find(' ') != std::string_view::npos) {  // xff word/compound duration
+    return MatchesAge(arg, *ctx.visit.metadata.btime, ctx.now, ctx.tz);
+  }
+  return MatchesTime(arg, *ctx.visit.metadata.btime, ctx.now, absl::Hours(24), /*allow_unit_suffix=*/true);
+}
+
+bool EvalBmin(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && ctx.visit.metadata.btime.has_value()
+         && MatchesTime(
+             expr.args.front(), *ctx.visit.metadata.btime, ctx.now, absl::Minutes(1), /*allow_unit_suffix=*/false);
+}
+
 // Record builders shared by the stdout actions (-print/-print0/-ls) and their
 // file-writing counterparts (-fprint/-fprint0/-fls), so both emit identical bytes.
 std::string PrintRecord(const Visit& visit) {
@@ -1272,6 +1293,8 @@ struct EvalEntry {
 
 using DispatchPair = std::pair<std::string_view, EvalEntry>;
 constexpr auto kDispatch = mbo::container::MakeLimitedMap(
+    DispatchPair{"-Bmin", {&EvalBmin}},    // capital 'B' sorts before the lowercase entries
+    DispatchPair{"-Btime", {&EvalBtime}},  // (ASCII), so the birth-time pair leads the table
     DispatchPair{"-amin", {&EvalAmin}},
     DispatchPair{"-anewer", {&EvalAnewer}},
     DispatchPair{"-atime", {&EvalAtime}},

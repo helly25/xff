@@ -507,6 +507,45 @@ TEST_F(EvaluateTest, MMinMatchesWholeMinutesAgo) {
   EXPECT_TRUE(Match({"-mmin", "-200"}, visit));
 }
 
+TEST_F(EvaluateTest, BTimeMatchesWholeDaysSinceBirth) {
+  // BSD -Btime: the -mtime of the birth time. Same whole-day floor / +N older /
+  // -N younger semantics, measured against `btime`.
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.btime = now_ - absl::Hours(60);  // born 2.5 days ago -> floor to 2 whole days
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-Btime", "2"}, visit));  // floor(2.5) == 2
+  EXPECT_FALSE(Match({"-Btime", "3"}, visit));
+  EXPECT_TRUE(Match({"-Btime", "+1"}, visit));   // strictly older than 1 day
+  EXPECT_FALSE(Match({"-Btime", "+2"}, visit));  // not strictly older than 2
+  EXPECT_TRUE(Match({"-Btime", "-3"}, visit));   // strictly younger than 3 days
+}
+
+TEST_F(EvaluateTest, BMinMatchesWholeMinutesSinceBirth) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.btime = now_ - absl::Minutes(150);  // born 150 minutes ago
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-Bmin", "150"}, visit));
+  EXPECT_TRUE(Match({"-Bmin", "+100"}, visit));
+  EXPECT_FALSE(Match({"-Bmin", "+150"}, visit));
+  EXPECT_TRUE(Match({"-Bmin", "-200"}, visit));
+}
+
+TEST_F(EvaluateTest, BirthtimePredicatesNeverMatchWhenBtimeUnrecorded) {
+  // btime is optional: when the kernel/FS did not record it, -Btime/-Bmin match
+  // nothing -- there is no value to compare -- and must not borrow another stamp.
+  // (Turning the missing-btime case into a hard error, with --skip-unsupported to
+  // downgrade, is the impossible-task-fail follow-up.)
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;  // md.btime deliberately left empty
+  md.mtime = now_ - absl::Hours(60);  // a present mtime must not be used as a fallback
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_FALSE(Match({"-Btime", "2"}, visit));
+  EXPECT_FALSE(Match({"-Btime", "-9999"}, visit));  // even a wide window: no btime -> no match
+  EXPECT_FALSE(Match({"-Bmin", "-9999"}, visit));
+}
+
 TEST_F(EvaluateTest, MTimeAcceptsBsdUnitSuffix) {
   vfs::Metadata md;
   md.type = vfs::FileType::kRegular;
