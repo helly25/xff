@@ -899,15 +899,29 @@ bool EvalSamefile(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && IsSameFile(ctx.visit, expr.args.front(), ctx.fs);
 }
 
+// A birth-time predicate hit an entry whose filesystem/kernel did not record a
+// birth time: it cannot be evaluated correctly here (an impossible task). Flags the
+// entry on the control side-channel for the driver (hard error, or warn-and-skip
+// under --skip-unsupported) and returns false, since the predicate cannot match.
+bool ReportNoBtime(EvalContext& ctx) {
+  ctx.control.unsupported = "birth time is not recorded (the filesystem or kernel does not support it)";
+  return false;
+}
+
 // -newerXY (X,Y in {a,B,c,m}); -newerXt (Y=t) compares the X-time to a time string.
-// Shared by every 8-char -newer* name; reads X/Y from the descriptor. An X=B entry
-// whose birth time is unrecorded never matches (no value to compare).
+// Shared by every 8-char -newer* name; reads X/Y from the descriptor. When X=B and
+// the entry's birth time is unrecorded the comparison is impossible (ReportNoBtime).
+// A Y=B reference whose birth time is unrecorded stays a silent no-match (it is the
+// reference file's filesystem, not the walked entry's, that is at issue).
 bool EvalNewerXY(const parser::Expr& expr, EvalContext& ctx) {
   if (expr.args.empty()) {
     return false;
   }
   const std::string_view name = expr.descriptor->name;
   const char x = name[6];
+  if (x == 'B' && !ctx.visit.metadata.btime.has_value()) {
+    return ReportNoBtime(ctx);  // the walked entry's birth time is required but absent
+  }
   if (name[7] == 't') {
     const std::optional<absl::Time> ref = datetime::ParseTimeString(expr.args.front(), ctx.now, ctx.tz);
     const std::optional<absl::Time> field = TimeField(ctx.visit.metadata, x);
@@ -978,13 +992,16 @@ bool EvalCmin(const parser::Expr& expr, EvalContext& ctx) {
              expr.args.front(), ctx.visit.metadata.ctime, ctx.now, absl::Minutes(1), /*allow_unit_suffix=*/false);
 }
 
-// BSD's -Btime/-Bmin: the birth (creation) time, the -mtime/-mmin of `btime`.
-// Birth time is optional -- only some kernels/filesystems record it -- so an entry
-// without it never matches here. (Making the missing-btime case a hard error, with
-// an opt-in --skip-unsupported downgrade, is the impossible-task-fail follow-up.)
+// BSD's -Btime/-Bmin: the birth (creation) time, the -mtime/-mmin of `btime`. Birth
+// time is optional -- only some kernels/filesystems record it -- so an entry without
+// it cannot satisfy the predicate and is flagged as an impossible task (see
+// ReportNoBtime); the driver fails or, under --skip-unsupported, warns and skips.
 bool EvalBtime(const parser::Expr& expr, EvalContext& ctx) {
-  if (expr.args.empty() || !ctx.visit.metadata.btime.has_value()) {
+  if (expr.args.empty()) {
     return false;
+  }
+  if (!ctx.visit.metadata.btime.has_value()) {
+    return ReportNoBtime(ctx);
   }
   const std::string_view arg = expr.args.front();
   if (arg.find(' ') != std::string_view::npos) {  // xff word/compound duration
@@ -994,9 +1011,14 @@ bool EvalBtime(const parser::Expr& expr, EvalContext& ctx) {
 }
 
 bool EvalBmin(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && ctx.visit.metadata.btime.has_value()
-         && MatchesTime(
-             expr.args.front(), *ctx.visit.metadata.btime, ctx.now, absl::Minutes(1), /*allow_unit_suffix=*/false);
+  if (expr.args.empty()) {
+    return false;
+  }
+  if (!ctx.visit.metadata.btime.has_value()) {
+    return ReportNoBtime(ctx);
+  }
+  return MatchesTime(
+      expr.args.front(), *ctx.visit.metadata.btime, ctx.now, absl::Minutes(1), /*allow_unit_suffix=*/false);
 }
 
 // Record builders shared by the stdout actions (-print/-print0/-ls) and their

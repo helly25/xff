@@ -536,8 +536,6 @@ TEST_F(EvaluateTest, BMinMatchesWholeMinutesSinceBirth) {
 TEST_F(EvaluateTest, BirthtimePredicatesNeverMatchWhenBtimeUnrecorded) {
   // btime is optional: when the kernel/FS did not record it, -Btime/-Bmin match
   // nothing -- there is no value to compare -- and must not borrow another stamp.
-  // (Turning the missing-btime case into a hard error, with --skip-unsupported to
-  // downgrade, is the impossible-task-fail follow-up.)
   vfs::Metadata md;
   md.type = vfs::FileType::kRegular;  // md.btime deliberately left empty
   md.mtime = now_ - absl::Hours(60);  // a present mtime must not be used as a fallback
@@ -545,6 +543,32 @@ TEST_F(EvaluateTest, BirthtimePredicatesNeverMatchWhenBtimeUnrecorded) {
   EXPECT_FALSE(Match({"-Btime", "2"}, visit));
   EXPECT_FALSE(Match({"-Btime", "-9999"}, visit));  // even a wide window: no btime -> no match
   EXPECT_FALSE(Match({"-Bmin", "-9999"}, visit));
+}
+
+TEST_F(EvaluateTest, BirthtimePredicateFlagsUnsupportedWhenBtimeUnrecorded) {
+  // An unrecorded birth time is an impossible task: besides not matching, the
+  // predicate raises the control side-channel so the driver can fail (or, under
+  // --skip-unsupported, warn and skip). Covers -Btime/-Bmin and the X=B -newerXY.
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;  // no btime
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_FALSE(Match({"-Btime", "2"}, visit));
+  EXPECT_THAT(control_.unsupported, Not(IsEmpty()));
+  EXPECT_FALSE(Match({"-Bmin", "2"}, visit));
+  EXPECT_THAT(control_.unsupported, Not(IsEmpty()));
+  EXPECT_FALSE(Match({"-newerBt", "@1"}, visit));
+  EXPECT_THAT(control_.unsupported, Not(IsEmpty()));
+}
+
+TEST_F(EvaluateTest, BirthtimePredicateDoesNotFlagUnsupportedWhenBtimePresent) {
+  // With a recorded birth time the predicate evaluates normally and leaves the
+  // control side-channel clear (no impossible-task signal).
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.btime = now_ - absl::Hours(60);
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-Btime", "2"}, visit));
+  EXPECT_THAT(control_.unsupported, IsEmpty());
 }
 
 TEST_F(EvaluateTest, MTimeAcceptsBsdUnitSuffix) {
