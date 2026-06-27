@@ -61,11 +61,12 @@ bool Fnmatch(std::string_view pattern, std::string_view text, int flags) {
   return ::fnmatch(std::string(pattern).c_str(), std::string(text).c_str(), flags) == 0;
 }
 
-bool MatchesType(std::string_view arg, vfs::FileType type) {
-  if (arg.size() != 1) {
-    return false;  // Multi-type lists ("-type f,d") are a GNU extension; deferred.
-  }
-  switch (arg.front()) {
+bool IsTypeChar(char letter) {
+  return std::string_view("fdlbcps").contains(letter);
+}
+
+bool MatchesTypeChar(char letter, vfs::FileType type) {
+  switch (letter) {
     case 'f': return type == vfs::FileType::kRegular;
     case 'd': return type == vfs::FileType::kDirectory;
     case 'l': return type == vfs::FileType::kSymlink;
@@ -75,6 +76,29 @@ bool MatchesType(std::string_view arg, vfs::FileType type) {
     case 's': return type == vfs::FileType::kSocket;
     default: return false;
   }
+}
+
+// find's -type / -xtype argument: a single type letter, or (GNU extension) a
+// comma-separated list like "f,d" that matches if the entry is any listed type.
+// An empty, multi-character, or unknown element fails the whole match.
+bool MatchesType(std::string_view arg, vfs::FileType type) {
+  if (arg.empty()) {
+    return false;
+  }
+  bool matched = false;
+  while (true) {
+    const std::size_t comma = arg.find(',');
+    const std::string_view item = arg.substr(0, comma);
+    if (item.size() != 1 || !IsTypeChar(item.front())) {
+      return false;
+    }
+    matched = matched || MatchesTypeChar(item.front(), type);
+    if (comma == std::string_view::npos) {
+      break;
+    }
+    arg.remove_prefix(comma + 1);
+  }
+  return matched;
 }
 
 // find's %y type letter: the inverse of MatchesType's mapping.
@@ -338,6 +362,102 @@ bool MatchesNumeric(std::string_view arg, std::uint64_t value) {
 // Matches find's `-perm` over the permission bits (incl. setuid/setgid/sticky):
 //   MODE   exact match;  -MODE  all of MODE's bits set;  /MODE  any of them set.
 // Octal MODE only for now (symbolic `u+w`,... is deferred).
+// Resolves one chmod-style symbolic clause ("u+w", "go=r", "+x", "u+s", ...)
+// into `want`, applied from find's zero base with no umask. Returns false on a
+// syntax error. 'X' is treated as 'x' (find resolves -perm with no per-file
+// context, so the conditional-execute form degenerates to plain execute).
+bool ApplyPermClause(std::string_view clause, std::uint32_t* want) {
+  bool user = false;
+  bool group = false;
+  bool other = false;
+  std::size_t i = 0;
+  for (; i < clause.size(); ++i) {
+    const char who = clause[i];
+    if (who == 'u') {
+      user = true;
+    } else if (who == 'g') {
+      group = true;
+    } else if (who == 'o') {
+      other = true;
+    } else if (who == 'a') {
+      user = group = other = true;
+    } else {
+      break;
+    }
+  }
+  if (!user && !group && !other) {
+    user = group = other = true;  // an omitted "who" behaves as 'a' (find applies no umask)
+  }
+  if (i >= clause.size()) {
+    return false;  // missing operator
+  }
+  const char op = clause[i++];
+  if (op != '+' && op != '-' && op != '=') {
+    return false;
+  }
+  bool read = false;
+  bool write = false;
+  bool exec = false;
+  bool setid = false;
+  bool sticky = false;
+  for (; i < clause.size(); ++i) {
+    switch (clause[i]) {
+      case 'r': read = true; break;
+      case 'w': write = true; break;
+      case 'x':
+      case 'X': exec = true; break;
+      case 's': setid = true; break;
+      case 't': sticky = true; break;
+      default: return false;
+    }
+  }
+  std::uint32_t pattern = 0;
+  std::uint32_t who_mask = 0;
+  if (user) {
+    pattern |= (read ? 0400U : 0U) | (write ? 0200U : 0U) | (exec ? 0100U : 0U) | (setid ? 04000U : 0U);
+    who_mask |= 04700U;
+  }
+  if (group) {
+    pattern |= (read ? 0040U : 0U) | (write ? 0020U : 0U) | (exec ? 0010U : 0U) | (setid ? 02000U : 0U);
+    who_mask |= 02070U;
+  }
+  if (other) {
+    pattern |= (read ? 0004U : 0U) | (write ? 0002U : 0U) | (exec ? 0001U : 0U);
+    who_mask |= 01007U;
+  }
+  if (sticky) {
+    pattern |= 01000U;
+  }
+  if (op == '+') {
+    *want |= pattern;
+  } else if (op == '-') {
+    *want &= ~pattern;
+  } else {
+    *want = (*want & ~who_mask) | pattern;  // '=' clears the affected classes first
+  }
+  return true;
+}
+
+// Parses a full symbolic mode (comma-separated clauses) from a zero base, or
+// nullopt on any syntax error.
+std::optional<std::uint32_t> ParseSymbolicPerm(std::string_view spec) {
+  if (spec.empty()) {
+    return std::nullopt;
+  }
+  std::uint32_t want = 0;
+  while (true) {
+    const std::size_t comma = spec.find(',');
+    if (!ApplyPermClause(spec.substr(0, comma), &want)) {
+      return std::nullopt;
+    }
+    if (comma == std::string_view::npos) {
+      break;
+    }
+    spec.remove_prefix(comma + 1);
+  }
+  return want;
+}
+
 bool MatchesPerm(std::string_view arg, std::uint32_t mode) {
   char op = '=';
   if (!arg.empty() && (arg.front() == '-' || arg.front() == '/')) {
@@ -348,11 +468,16 @@ bool MatchesPerm(std::string_view arg, std::uint32_t mode) {
     return false;
   }
   std::uint32_t want = 0;
-  for (const char digit : arg) {
-    if (digit < '0' || digit > '7') {
-      return false;  // octal digits only
+  if (arg.find_first_not_of("01234567") == std::string_view::npos) {
+    for (const char digit : arg) {
+      want = want * 8 + static_cast<std::uint32_t>(digit - '0');
     }
-    want = want * 8 + static_cast<std::uint32_t>(digit - '0');
+  } else {
+    const std::optional<std::uint32_t> symbolic = ParseSymbolicPerm(arg);
+    if (!symbolic.has_value()) {
+      return false;  // neither octal nor a valid symbolic mode
+    }
+    want = *symbolic;
   }
   const std::uint32_t bits = mode & 07777U;  // permission + setuid/setgid/sticky bits
   if (op == '-') {
@@ -941,6 +1066,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-inum", {&EvalInum}},
     DispatchPair{"-ipath", {&EvalPath}},
     DispatchPair{"-iregex", {&EvalRegex}},
+    DispatchPair{"-iwholename", {&EvalPath}},
     DispatchPair{"-links", {&EvalLinks}},
     DispatchPair{"-lname", {&EvalLname}},
     DispatchPair{"-ls", {&EvalLs}},
@@ -979,6 +1105,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-type", {&EvalType}},
     DispatchPair{"-uid", {&EvalUid}},
     DispatchPair{"-user", {&EvalUser}},
+    DispatchPair{"-wholename", {&EvalPath}},
     DispatchPair{"-writable", {&EvalWritable}},
     DispatchPair{"-xtype", {&EvalXtype}});
 
