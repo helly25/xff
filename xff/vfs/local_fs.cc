@@ -81,12 +81,12 @@ FileType TypeFromMode(mode_t mode) {
 
 FileType TypeFromDirent(unsigned char d_type) {
   switch (d_type) {
-    case DT_REG: return FileType::kRegular;
-    case DT_DIR: return FileType::kDirectory;
-    case DT_LNK: return FileType::kSymlink;
     case DT_BLK: return FileType::kBlockDevice;
     case DT_CHR: return FileType::kCharDevice;
+    case DT_DIR: return FileType::kDirectory;
     case DT_FIFO: return FileType::kFifo;
+    case DT_LNK: return FileType::kSymlink;
+    case DT_REG: return FileType::kRegular;
     case DT_SOCK: return FileType::kSocket;
     default: return FileType::kUnknown;
   }
