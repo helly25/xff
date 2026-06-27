@@ -179,6 +179,27 @@ TEST_F(DateTimeTest, ParseTimeZoneAcceptsLocalUtcAndNamedZones) {
   EXPECT_THAT(ParseTimeZone("Not/AZone", &zone), IsFalse());
 }
 
+TEST_F(DateTimeTest, ParseTimeZoneAcceptsFixedUtcOffsets) {
+  absl::TimeZone zone;
+  // +HH:MM, the compact +HHMM, and hours-only +HH all parse; equivalent spellings
+  // agree on the offset.
+  EXPECT_THAT(ParseTimeZone("+05:30", &zone), IsTrue());
+  EXPECT_THAT(zone, Eq(absl::FixedTimeZone((5 * 3'600) + (30 * 60))));
+  EXPECT_THAT(ParseTimeZone("+0530", &zone), IsTrue());  // compact form, same offset
+  EXPECT_THAT(zone, Eq(absl::FixedTimeZone((5 * 3'600) + (30 * 60))));
+  EXPECT_THAT(ParseTimeZone("+01", &zone), IsTrue());  // hours only -> :00 minutes
+  EXPECT_THAT(zone, Eq(absl::FixedTimeZone(3'600)));
+  EXPECT_THAT(ParseTimeZone("-08:00", &zone), IsTrue());  // negative offset (west of UTC)
+  EXPECT_THAT(zone, Eq(absl::FixedTimeZone(-8 * 3'600)));
+  EXPECT_THAT(ParseTimeZone("+00:00", &zone), IsTrue());  // zero offset
+  EXPECT_THAT(zone, Eq(absl::FixedTimeZone(0)));
+  // Malformed offsets fail, so the caller reports a usage error.
+  EXPECT_THAT(ParseTimeZone("+5:", &zone), IsFalse());     // empty minutes
+  EXPECT_THAT(ParseTimeZone("+99:00", &zone), IsFalse());  // hours out of range
+  EXPECT_THAT(ParseTimeZone("+01:99", &zone), IsFalse());  // minutes out of range
+  EXPECT_THAT(ParseTimeZone("+xy", &zone), IsFalse());     // non-numeric
+}
+
 TEST_F(DateTimeTest, StartOfDayFloorsToZoneMidnight) {
   const absl::TimeZone utc = absl::UTCTimeZone();
   // A mid-afternoon instant collapses to 00:00:00 of the same calendar day.

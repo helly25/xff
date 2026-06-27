@@ -271,17 +271,18 @@ std::optional<std::string> ResolveTemplate(const std::vector<std::string>& globa
   return tmpl;
 }
 
-// --timezone=ZONE overrides the detected local zone used to interpret time-string
-// arguments (-newerXt). Last occurrence wins. Resolves the winner to *tz and
-// returns true; an unknown zone returns false with *bad set to the offending
-// value (and *tz unchanged), so the caller can fail the run. Absent --timezone
-// leaves *tz at its local-zone default and returns true.
+// --timezone=ZONE (short alias --tz=ZONE) overrides the detected local zone used to
+// interpret time-string arguments (-newerXt). Last occurrence of either spelling
+// wins. Resolves the winner to *tz and returns true; an unknown zone returns false
+// with *bad set to the offending value (and *tz unchanged), so the caller can fail
+// the run. Absent the flag, leaves *tz at its local-zone default and returns true.
 bool ResolveTimeZone(const std::vector<std::string>& globals, absl::TimeZone* tz, std::string* bad) {
-  constexpr std::string_view kPrefix = "--timezone=";
   std::optional<std::string> spec;
   for (const std::string& global : globals) {
-    if (global.starts_with(kPrefix)) {
-      spec = global.substr(kPrefix.size());  // last occurrence wins
+    for (const std::string_view prefix : {std::string_view("--timezone="), std::string_view("--tz=")}) {
+      if (global.starts_with(prefix)) {
+        spec = global.substr(prefix.size());  // last occurrence of either spelling wins
+      }
     }
   }
   if (!spec.has_value()) {

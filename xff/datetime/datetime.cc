@@ -123,6 +123,29 @@ bool ParseTimeZone(std::string_view spec, absl::TimeZone* out) {
     *out = absl::UTCTimeZone();
     return true;
   }
+  // Fixed UTC offset: +HH, +HH:MM, or +HHMM (and the '-' forms). absl::LoadTimeZone
+  // cannot parse these, so build an absl::FixedTimeZone from the parsed offset.
+  if (spec.size() >= 2 && (spec.front() == '+' || spec.front() == '-')) {
+    const int sign = spec.front() == '-' ? -1 : 1;
+    const std::string_view rest = spec.substr(1);
+    std::string_view hh = rest;
+    std::string_view mm = "0";
+    if (const auto colon = rest.find(':'); colon != std::string_view::npos) {
+      hh = rest.substr(0, colon);
+      mm = rest.substr(colon + 1);
+    } else if (rest.size() == 4) {  // compact HHMM
+      hh = rest.substr(0, 2);
+      mm = rest.substr(2);
+    }
+    int hours = 0;
+    int minutes = 0;
+    if (absl::SimpleAtoi(hh, &hours) && absl::SimpleAtoi(mm, &minutes) && hours >= 0 && hours <= 23 && minutes >= 0
+        && minutes <= 59) {
+      *out = absl::FixedTimeZone(sign * (hours * 3'600 + minutes * 60));
+      return true;
+    }
+    return false;  // malformed offset
+  }
   return absl::LoadTimeZone(std::string(spec), out);  // IANA name (case-sensitive); false when unknown
 }
 

@@ -535,6 +535,24 @@ TEST_F(RunTest, TimezoneAppliesToTimeFieldFormatting) {
   EXPECT_THAT(records, UnorderedElementsAre("+0000"));
 }
 
+TEST_F(RunTest, TzIsAnAliasForTimezone) {
+  // --tz=ZONE is the short alias of --timezone=ZONE: under --tz=UTC the {mtime:%z}
+  // numeric offset is "+0000" regardless of the host zone, just as --timezone=UTC.
+  EXPECT_THAT(
+      RunArgvRecords({"--tz=UTC", "--template={mtime:%z}", root_.string(), "-name", "a.txt"}),
+      UnorderedElementsAre("+0000"));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, FixedOffsetTimezoneAppliesToFormatting) {
+  // A fixed UTC offset (+05:30) is accepted as a zone spec and reaches time-field
+  // formatting: {mtime:%z} renders the zone's numeric offset, "+0530".
+  EXPECT_THAT(
+      RunArgvRecords({"--tz=+05:30", "--template={mtime:%z}", root_.string(), "-name", "a.txt"}),
+      UnorderedElementsAre("+0530"));
+  EXPECT_THAT(last_errors_, 0);
+}
+
 TEST_F(RunTest, TimeFormatGlobalSetsTheBareTimeFieldDefault) {
   // --time-format=epoch makes a bare {mtime} render as Unix seconds (all digits,
   // no date dashes), proving the global threads through to time-field formatting.
