@@ -74,3 +74,12 @@ bashtest(
     srcs = ["exit_test.sh"],
     data = [":xff"],
 )
+
+# Binary-level test that --help / -h print a real usage page (not a stub) and exit
+# 0, and that --version prints and exits 0. Help text is a process-level concern.
+bashtest(
+    name = "help_test",
+    size = "small",
+    srcs = ["help_test.sh"],
+    data = [":xff"],
+)

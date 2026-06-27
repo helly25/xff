@@ -37,6 +37,57 @@
 
 namespace {
 
+// `--help` / `-h` text. Lists the whole-run options (globals) that are actually
+// wired; the find expression vocabulary (tests/operators/actions) follows the
+// roots and is documented in find(1) and docs/.
+constexpr std::string_view kHelpText =
+    R"(xff -- eXtended File Find: a find(1)-compatible file finder with modern extensions.
+
+Usage:
+  xff [option...] [path...] [expression]
+  find [option...] [path...] [expression]   # strict find compatibility, when invoked as `find`
+
+No path searches the current directory; no action prints each match (an implicit -print).
+
+Options (whole-run, before the paths):
+  Config / mode:
+    --config=NAME       select a style or config layer (find = strict find, xff = modern); repeatable
+    --no-config         ignore discovered .xffrc files
+    --xffrc=FILE        also load a specific config file
+    --explain           print the resolved configuration and exit
+  Traversal:
+    -H / -L / -P        symlinks: follow on the roots / follow everywhere / never (default -P)
+    -j N, --jobs=N|all  worker count for the walk and concurrent -exec (all = every core)
+    --sort[=none|dir|subtree|tree]   sibling/traversal ordering (default depends on the mode)
+  Output:
+    --format=plain|nul|jsonl   record format (plain default; nul = -print0; jsonl = JSON lines)
+    --template=TEMPLATE        render each match through a field template ({path}, {name}, ...)
+    --implicit-print=yes|no    force the default -print on or off
+    --summary[=overall|type|ext]   print a count + size table instead of each match
+  Exit by match (grep-style):
+    --quiet             suppress output; exit 0 if anything matched, else 1
+    --exit-match        keep output; exit 0 if anything matched, else 1
+  Safety:
+    --safe              refuse destructive actions (-delete / -exec)
+    --dry-run           preview -delete without removing anything
+    --skip-unsupported  warn and skip a predicate a filesystem cannot evaluate (e.g. -Btime), not fail
+  Fields & exec:
+    --exec-fields       render -exec tokens through the field vocabulary ({name}, {path}, ...)
+    --define=NAME=VALUE define a value referenced as {def.NAME}
+    --capture-override  allow a -capture NAME to be bound more than once (last wins)
+  Time:
+    --time-format=FMT   default format for time fields (a preset name or a strftime pattern)
+    --timezone=ZONE, --tz=ZONE   zone for interpreting/formatting times (local, utc, an IANA name, or +HH:MM)
+  Other:
+    -h, --help          print this help and exit
+    --version           print the version and exit
+
+Expression: find tests (-name, -iname, -path, -type, -size, -mtime/-atime/-ctime, -Btime,
+-newerXY, -regex, -perm, -empty, -user/-group, ...), operators (-a, -o, !, ( ), comma), and
+actions (-print/-print0/-printf/-println, -exec ... \; or +, -execdir, -delete, -prune, -quit,
+-ok). See find(1) and the docs/ directory for the full vocabulary and the xff extensions.
+)";
+
 // Environment variable as an optional (nullopt when unset), for config discovery.
 std::optional<std::string> EnvOpt(const char* name) {
   const char* const value = std::getenv(name);
@@ -91,8 +142,7 @@ int main(int argc, char** argv) {
 
   for (const std::string& arg : args) {
     if (arg == "--help" || arg == "-h") {
-      std::cout << "xff -- eXtended File Find (skeleton)\n"
-                   "usage: xff [globals] <dir...> [find expression]\n";
+      std::cout << kHelpText;
       return 0;
     }
     if (arg == "--version") {
