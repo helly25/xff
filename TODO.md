@@ -87,6 +87,15 @@ intent, not hard dependency. Task numbers reference the agent task list.
   specs (`+05:30` / `-0800` / `+01`). Nothing outstanding here.
 - **`--mode=NAME` + argv[0] mode mechanism** (#54). The `--modern` umbrella flag
   stays deferred; ship per-feature gates first.
+- **Full help system** (grow the `--help` overview shipped in #171). Today `--help`
+  is a flat one-page summary; turn it into detailed, topic-addressable help:
+  - Explain everything in depth, including the **whole config system** (layering /
+    precedence, `.xffrc` discovery, `--config` / `--no-config` / `--xffrc` /
+    `--explain`) and **especially flavor selection by alias / sym-linking** (the
+    `argv[0]` dispatch: invoked as `find` -> strict find, as `xff` -> modern;
+    explicit `--config` overrides).
+  - **Topic help**: `xff help <topic>` for sub-commands, global flags, and matchers
+    / primaries -- e.g. `xff help -regex`, `xff help --config`, `xff help <subcommand>`.
 - **Access predicates** `-readable` / `-writable` / `-executable` (needs a
   `vfs::FileSystem::Access` capability).
 - **`-inum N` / `-samefile FILE`** (inode identity; `Metadata.ino`/`dev` already
