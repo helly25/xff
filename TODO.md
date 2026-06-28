@@ -63,6 +63,12 @@ intent, not hard dependency. Task numbers reference the agent task list.
 
 ### find / xff features (roadmap tail)
 
+The standard find predicate surface is complete (the access predicates
+`-readable` / `-writable` / `-executable`, `-inum` / `-samefile`, symbolic `-perm`
+modes, `-lname` / `-ilname`, and `-fstype`; all in the CHANGELOG and covered by the
+engine unit test), as is the reusable markdown-table-alignment skill (#66). What
+remains below is the design-forked / larger work.
+
 - **Parallel traversal + `--jobs` + deterministic `--sort`** (#43). The big one;
   needs a design pass (work-stealing vs per-root pool; ordering guarantees).
 - **Exit-code model refinement + `--skip-unsupported` + impossible-task-fail**
@@ -96,11 +102,3 @@ intent, not hard dependency. Task numbers reference the agent task list.
     explicit `--config` overrides).
   - **Topic help**: `xff help <topic>` for sub-commands, global flags, and matchers
     / primaries -- e.g. `xff help -regex`, `xff help --config`, `xff help <subcommand>`.
-- **Access predicates** `-readable` / `-writable` / `-executable` (needs a
-  `vfs::FileSystem::Access` capability).
-- **`-inum N` / `-samefile FILE`** (inode identity; `Metadata.ino`/`dev` already
-  captured).
-- **Symbolic `-perm` modes** (`-perm u+w`, `-mode`, `/mode`) beyond the octal form.
-- **`-lname` / `-ilname`** (symlink-target glob; needs `vfs::FileSystem::ReadLink`).
-- **`-fstype TYPE`** (filesystem-type predicate).
-- **Markdown table vertical-alignment formatter** as a reusable skill (#66).
