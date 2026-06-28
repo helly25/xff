@@ -84,8 +84,8 @@ Options (whole-run, before the paths):
     -h, --help          print this help and exit
     --version           print the version and exit
 
-Expression: find tests (-name, -iname, -path, -type, -size, -mtime/-atime/-ctime, -Btime,
--newerXY, -regex, -perm, -empty, -user/-group, ...), operators (-a, -o, !, ( ), comma), and
+Expression: find tests (-name, -iname, -path, -type, -size, -blocks, -mtime/-atime/-ctime,
+-Btime, -newerXY, -regex, -perm, -empty, -user/-group, ...), operators (-a, -o, !, ( ), comma), and
 actions (-print/-print0/-printf/-println, -exec ... \; or +, -execdir, -delete, -prune, -quit,
 -ok). See find(1) and the docs/ directory for the full vocabulary and the xff extensions.
 )";

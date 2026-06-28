@@ -873,6 +873,14 @@ bool EvalSize(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesSize(expr.args.front(), ctx.visit.metadata.size, ctx.block_size);
 }
 
+// xff's -blocks: -size's exact grammar, but against the ALLOCATED space (st_blocks *
+// 512 bytes) instead of the apparent size. So `-blocks +0` selects files that occupy
+// any disk, `-blocks 1` files in one --block-size block (default 512), `-blocks +1M`
+// files using more than a mebibyte. The honest "disk-occupancy" counterpart to -size.
+bool EvalBlocks(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && MatchesSize(expr.args.front(), ctx.visit.metadata.blocks * 512U, ctx.block_size);
+}
+
 bool EvalLinks(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesNumeric(expr.args.front(), ctx.visit.metadata.nlink);
 }
@@ -1395,6 +1403,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-amin", {&EvalAmin}},
     DispatchPair{"-anewer", {&EvalAnewer}},
     DispatchPair{"-atime", {&EvalAtime}},
+    DispatchPair{"-blocks", {&EvalBlocks}},
     DispatchPair{"-capture", {&EvalCapture}},
     DispatchPair{"-capturedir", {&EvalCapturedir}},
     DispatchPair{"-cmin", {&EvalCmin}},
@@ -1514,7 +1523,9 @@ bool ContainsAction(const parser::Expr& expr) {
 
 absl::Status ValidateSizeArgs(const parser::Expr& expr) {
   if (expr.kind == parser::Expr::Kind::kPredicate) {
-    if (expr.descriptor != nullptr && expr.descriptor->name == "-size" && !expr.args.empty()) {
+    const bool size_like =
+        expr.descriptor != nullptr && (expr.descriptor->name == "-size" || expr.descriptor->name == "-blocks");
+    if (size_like && !expr.args.empty()) {
       if (const absl::Status status = ParseSizeSpec(expr.args.front()).status(); !status.ok()) {
         return status;
       }
