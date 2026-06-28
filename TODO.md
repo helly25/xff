@@ -69,8 +69,12 @@ modes, `-lname` / `-ilname`, and `-fstype`; all in the CHANGELOG and covered by 
 engine unit test), as is the reusable markdown-table-alignment skill (#66). What
 remains below is the design-forked / larger work.
 
-- **Parallel traversal + `--jobs` + deterministic `--sort`** (#43). The big one;
-  needs a design pass (work-stealing vs per-root pool; ordering guarantees).
+- **Parallel traversal + `--jobs` + deterministic `--sort`** (#43). Built: a
+  worker-pool walk (`ReadPool`, `absl::Mutex`; parallel `readdir`+`lstat` on workers,
+  single-thread coordinator/visitor) with `--sort=none|dir|subtree|tree`
+  (`absl::c_sort`), `-j N` / `--jobs=all`, mode-scoped defaults, unit-tested across
+  worker counts plus a tsan CI cell. Remaining: a CLI-level bashtest exercising
+  `--sort` / `-j` end to end, then close #43/#27.
 - **Exit-code model refinement + `--skip-unsupported` + impossible-task-fail**
   (#44). Shipped: (a) match-sensitive exit -- the default stays find semantics
   (0 ran / 2 error, match status never affects exit), while `--quiet` (suppress
@@ -84,15 +88,40 @@ remains below is the design-forked / larger work.
   extending impossible-task detection beyond birth time (only `-Btime`/`-Bmin`/
   X=B `-newerXY` flag it today; a Y=B reference with no btime stays a silent
   no-match, and other FS-capability gaps are not yet modelled).
-- **`--exact` FS-aware matching + `--path-encoding` output** (#45).
-- **`--feature=NAME` / `--feature=no-NAME` capability gates** (config phase D3,
-  #73).
+- **`--exact` + `--path-encoding`** (#45). Decided (2026-06-28): the **default is
+  the filesystem-native, naturally-expected behavior** - matching follows the
+  volume's own case-sensitivity (case-insensitive on a folding FS like APFS / HFS+ /
+  NTFS, case-sensitive on ext4 and friends), so most users get what they expect on
+  their platform; **`--exact` opts out** to force verbatim byte-for-byte comparison
+  regardless of the FS. Needs a `vfs` case-sensitivity probe
+  (`pathconf(_PC_CASE_SENSITIVE)` / statfs flags; conservative byte-exact fallback
+  when unknown). Separately, **`--path-encoding=raw|escape`** governs how
+  non-printable / invalid-UTF-8 path bytes render in plain / `--template` output
+  (`raw` = find-compatible default; `escape` = C-style `\xNN`, like `ls -b`);
+  `--format=jsonl` already escapes.
+- **`--feature=NAME` / `--feature=no-NAME` capability gates** (#73). **Parked** - no
+  concrete customer yet (valued knobs like `--implicit-print` / `--capture-override`
+  / `--exec-fields` are dedicated flags by design, and whole-behavior switches are
+  `--config` styles), so building it now is infrastructure without a user. **Design,
+  ready to build the moment a boolean capability appears:** repeatable on/off dials
+  resolved after the style/config defaults and before explicit dedicated flags
+  (explicit wins); a **feature registry mirroring the descriptor/globals SOT** (each
+  feature = name + one-line summary + default-per-style) so unknown `--feature=X`
+  errors and `--help` / `--man` / `--markdown` list features automatically;
+  `--explain` shows each feature's resolved value + origin; a style is just a named
+  bundle of feature defaults (design-config.md L162-165). **Trigger (also in
+  AGENTS.md):** the first boolean user-toggleable capability that is neither a style
+  behavior nor a valued option must be built as the first `--feature`, not a bespoke
+  flag.
 - **Grow `xff/datetime` into a parse+format lib** (#70): named formats, field
   modifiers, and the `--time-format` / `--timezone` global flags have shipped, as
   have the last deferred pieces -- the `--tz` short alias and fixed-offset zone
   specs (`+05:30` / `-0800` / `+01`). Nothing outstanding here.
-- **`--mode=NAME` + argv[0] mode mechanism** (#54). The `--modern` umbrella flag
-  stays deferred; ship per-feature gates first.
+- **Mode mechanism** (#54). **Subsumed by `--config`:** `--config=find|xff` is the
+  style/mode selector (#72) and `argv[0]` dispatch picks the default (#59);
+  design-config.md L159 deliberately folds `--style` / `--mode` into `--config`, and
+  `--config=xff:2` gives version epochs a binary `--modern` cannot. No separate
+  `--mode` flag; the `--modern` umbrella stays deferred.
 - **Full help system** (grow the `--help` overview shipped in #171). The CLI is
   flag-only -- no subcommands (decided 2026-06-28; xff is a single-purpose tool like
   fd/ripgrep, so find and xff keep one grammar). Shipped (#184): `--help=NAME` topic
