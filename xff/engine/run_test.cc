@@ -516,6 +516,31 @@ TEST_F(RunTest, OversizedSizeUnitIsRefusedBeforeTraversal) {
   EXPECT_FALSE(emitted) << "a malformed -size must not traverse";
 }
 
+TEST_F(RunTest, BlockSizeRedefinesTheBareSizeUnit) {
+  // A 1000-byte file is 2 blocks at the default 512 (so -size 1 misses, -size 2
+  // hits) but 1 block under --block-size=4k (so -size 1 hits). Proves the global
+  // redefines the bare/`b` -size unit end to end.
+  { std::ofstream(root_ / "kilo.bin", std::ios::binary) << std::string(1'000, 'x'); }
+  EXPECT_THAT(RunArgvRecords({root_.string(), "-name", "kilo.bin", "-size", "1"}), IsEmpty());
+  EXPECT_THAT(RunArgvRecords({root_.string(), "-name", "kilo.bin", "-size", "2"}), ElementsAre(Path("kilo.bin")));
+  EXPECT_THAT(
+      RunArgvRecords({"--block-size=4k", root_.string(), "-name", "kilo.bin", "-size", "1"}),
+      ElementsAre(Path("kilo.bin")));
+}
+
+TEST_F(RunTest, InvalidBlockSizeIsRefusedBeforeTraversal) {
+  const auto command = parser::Parse({"--block-size=0", root_.string()});
+  ASSERT_THAT(command, IsOk());
+  absl::Status err_status;
+  bool emitted = false;
+  const int errors = RunFind(
+      *command, fs_, [&](std::string_view) { emitted = true; },
+      [&](std::string_view, absl::Status status) { err_status = status; });
+  EXPECT_THAT(errors, 2);
+  EXPECT_THAT(err_status, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("positive")));
+  EXPECT_FALSE(emitted) << "an invalid --block-size must not traverse";
+}
+
 TEST_F(RunTest, ValidTimezoneIsAcceptedAndTheRunProceeds) {
   // A valid --timezone resolves and the run proceeds normally (here it does not
   // change the result, just proving the flag is accepted end to end).

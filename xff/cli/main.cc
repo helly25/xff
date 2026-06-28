@@ -59,6 +59,8 @@ Options (whole-run, before the paths):
     -H / -L / -P        symlinks: follow on the roots / follow everywhere / never (default -P)
     -j N, --jobs=N|all  worker count for the walk and concurrent -exec (all = every core)
     --sort[=none|dir|subtree|tree]   sibling/traversal ordering (default depends on the mode)
+  Matching:
+    --block-size=SIZE   bytes per -size block for a bare `-size N` / `-size Nb` (default 512; e.g. 4k)
   Output:
     --format=plain|nul|jsonl   record format (plain default; nul = -print0; jsonl = JSON lines)
     --template=TEMPLATE        render each match through a field template ({path}, {name}, ...)
