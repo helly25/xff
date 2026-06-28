@@ -97,6 +97,10 @@ void ScanDepthOptions(const parser::Expr& expr, WalkOptions* options) {
     case parser::Expr::Kind::kNot: ScanDepthOptions(*expr.lhs, options); break;
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kNand:
+    case parser::Expr::Kind::kNor:
+    case parser::Expr::Kind::kXor:
+    case parser::Expr::Kind::kXnor:
     case parser::Expr::Kind::kComma:
       ScanDepthOptions(*expr.lhs, options);
       ScanDepthOptions(*expr.rhs, options);
@@ -374,6 +378,10 @@ bool ContainsArmedAction(const parser::Expr& expr) {
     case parser::Expr::Kind::kNot: return ContainsArmedAction(*expr.lhs);
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kNand:
+    case parser::Expr::Kind::kNor:
+    case parser::Expr::Kind::kXor:
+    case parser::Expr::Kind::kXnor:
     case parser::Expr::Kind::kComma: return ContainsArmedAction(*expr.lhs) || ContainsArmedAction(*expr.rhs);
   }
   return false;
@@ -387,6 +395,10 @@ bool ContainsPrimary(const parser::Expr& expr, std::string_view name) {
     case parser::Expr::Kind::kNot: return ContainsPrimary(*expr.lhs, name);
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kNand:
+    case parser::Expr::Kind::kNor:
+    case parser::Expr::Kind::kXor:
+    case parser::Expr::Kind::kXnor:
     case parser::Expr::Kind::kComma: return ContainsPrimary(*expr.lhs, name) || ContainsPrimary(*expr.rhs, name);
   }
   return false;
@@ -463,6 +475,10 @@ void CollectCaptureNames(const parser::Expr& expr, std::vector<std::string>* nam
     case parser::Expr::Kind::kNot: CollectCaptureNames(*expr.lhs, names); break;
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kNand:
+    case parser::Expr::Kind::kNor:
+    case parser::Expr::Kind::kXor:
+    case parser::Expr::Kind::kXnor:
     case parser::Expr::Kind::kComma:
       CollectCaptureNames(*expr.lhs, names);
       CollectCaptureNames(*expr.rhs, names);
@@ -494,6 +510,10 @@ void CollectCaptureRefs(const parser::Expr& expr, std::vector<std::string>* refs
     case parser::Expr::Kind::kNot: CollectCaptureRefs(*expr.lhs, refs); break;
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kNand:
+    case parser::Expr::Kind::kNor:
+    case parser::Expr::Kind::kXor:
+    case parser::Expr::Kind::kXnor:
     case parser::Expr::Kind::kComma:
       CollectCaptureRefs(*expr.lhs, refs);
       CollectCaptureRefs(*expr.rhs, refs);

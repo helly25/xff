@@ -356,6 +356,35 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-or", .summary = "logical OR", .kind = Kind::kOperator, .arity = 0},
     {.name = "-not", .summary = "logical negation", .kind = Kind::kOperator, .arity = 0},
     {.name = "!", .summary = "logical negation", .kind = Kind::kOperator, .arity = 0},
+    // xff logical operators (no find has them): precedence NOT > AND/-nand > XOR/-xnor > OR/-nor.
+    {
+        .name = "-xor",
+        .summary = "logical XOR; matches exactly one side (xff)",
+        .kind = Kind::kOperator,
+        .arity = 0,
+        .style = Style::kXff,
+    },
+    {
+        .name = "-nand",
+        .summary = "logical NAND; ! (lhs -a rhs) (xff)",
+        .kind = Kind::kOperator,
+        .arity = 0,
+        .style = Style::kXff,
+    },
+    {
+        .name = "-nor",
+        .summary = "logical NOR; ! (lhs -o rhs) (xff)",
+        .kind = Kind::kOperator,
+        .arity = 0,
+        .style = Style::kXff,
+    },
+    {
+        .name = "-xnor",
+        .summary = "logical XNOR; matches when both sides agree (xff)",
+        .kind = Kind::kOperator,
+        .arity = 0,
+        .style = Style::kXff,
+    },
 });
 
 }  // namespace

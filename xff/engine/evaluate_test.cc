@@ -114,6 +114,42 @@ TEST_F(EvaluateTest, TrueAndFalse) {
   EXPECT_FALSE(Match({"-false"}, visit));
 }
 
+TEST_F(EvaluateTest, XorMatchesExactlyOneSide) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/foo", "foo", vfs::FileType::kRegular, md);
+  EXPECT_FALSE(Match({"-true", "-xor", "-true"}, visit));
+  EXPECT_TRUE(Match({"-true", "-xor", "-false"}, visit));
+  EXPECT_TRUE(Match({"-false", "-xor", "-true"}, visit));
+  EXPECT_FALSE(Match({"-false", "-xor", "-false"}, visit));
+}
+
+TEST_F(EvaluateTest, XnorMatchesWhenBothSidesAgree) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/foo", "foo", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-true", "-xnor", "-true"}, visit));
+  EXPECT_FALSE(Match({"-true", "-xnor", "-false"}, visit));
+  EXPECT_FALSE(Match({"-false", "-xnor", "-true"}, visit));
+  EXPECT_TRUE(Match({"-false", "-xnor", "-false"}, visit));
+}
+
+TEST_F(EvaluateTest, NandIsTheNegationOfAnd) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/foo", "foo", vfs::FileType::kRegular, md);
+  EXPECT_FALSE(Match({"-true", "-nand", "-true"}, visit));
+  EXPECT_TRUE(Match({"-true", "-nand", "-false"}, visit));
+  EXPECT_TRUE(Match({"-false", "-nand", "-true"}, visit));
+  EXPECT_TRUE(Match({"-false", "-nand", "-false"}, visit));
+}
+
+TEST_F(EvaluateTest, NorIsTheNegationOfOr) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/foo", "foo", vfs::FileType::kRegular, md);
+  EXPECT_FALSE(Match({"-true", "-nor", "-true"}, visit));
+  EXPECT_FALSE(Match({"-true", "-nor", "-false"}, visit));
+  EXPECT_FALSE(Match({"-false", "-nor", "-true"}, visit));
+  EXPECT_TRUE(Match({"-false", "-nor", "-false"}, visit));
+}
+
 TEST_F(EvaluateTest, DaystartIsAPositionalNoOp) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("dir/foo", "foo", vfs::FileType::kRegular, md);

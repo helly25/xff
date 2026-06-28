@@ -32,10 +32,14 @@ struct Expr;
 using ExprPtr = std::unique_ptr<Expr>;
 
 // A node in the parsed find expression tree (design.md "CLI grammar & parser").
-// Predicates (tests and actions) are leaves; `!`/`-a`/`-o`/`,` are interior nodes.
-// `( )` grouping is reflected in tree shape, not as a node.
+// Predicates (tests and actions) are leaves; the operators `!`/`-a`/`-o`/`,` and
+// the xff extensions `-xor`/`-nand`/`-nor`/`-xnor` are interior nodes. `( )`
+// grouping is reflected in tree shape, not as a node.
 struct Expr {
-  enum class Kind { kPredicate, kNot, kAnd, kOr, kComma };
+  // kNand/kNor/kXnor are the negations of kAnd/kOr/kXor; kXor/kXnor must evaluate
+  // both operands (the result depends on both), while kNand/kNor short-circuit like
+  // their positive base. See the evaluator.
+  enum class Kind { kPredicate, kNot, kAnd, kOr, kXor, kNand, kNor, kXnor, kComma };
 
   Kind kind;
   // kPredicate: the matched descriptor and its consumed arguments.
