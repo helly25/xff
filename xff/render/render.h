@@ -25,20 +25,28 @@ namespace xff::render {
 // -print/-print0; kJsonl is xff's modern one-object-per-line stream.
 enum class Format { kPlain, kNul, kJsonl };
 
-// Formats matched paths into output records. Stateless aside from the format
-// selector; cheap to copy.
+// How path bytes are emitted (xff `--path-encoding`). kRaw writes the bytes
+// verbatim (find-compatible default). kEscape C-escapes the backslash and control
+// characters (`\n`, `\t`, `\r`, else `\xNN`) so a newline or control byte in a
+// filename cannot corrupt the line-oriented kPlain stream. It applies only to
+// kPlain: kNul stays raw by design (the NUL is the separator) and kJsonl always
+// JSON-escapes regardless.
+enum class PathEncoding { kRaw, kEscape };
+
+// Formats matched paths into output records. Stateless aside from the format +
+// encoding selectors; cheap to copy.
 class Renderer {
  public:
-  explicit Renderer(Format format) : format_(format) {}
+  explicit Renderer(Format format, PathEncoding encoding = PathEncoding::kRaw) : format_(format), encoding_(encoding) {}
 
   // Returns the output record for `path`, terminator included:
-  //   kPlain -> "path\n", kNul -> "path\0", kJsonl -> {"path":"<escaped>"}\n.
-  // For kJsonl the path is JSON-string-escaped (quote, backslash, control
-  // characters); non-UTF-8 byte handling is refined later with --path-encoding.
+  //   kPlain -> "path\n" (path C-escaped when encoding is kEscape),
+  //   kNul   -> "path\0" (always raw), kJsonl -> {"path":"<JSON-escaped>"}\n.
   std::string Record(std::string_view path) const;
 
  private:
   Format format_;
+  PathEncoding encoding_;
 };
 
 }  // namespace xff::render

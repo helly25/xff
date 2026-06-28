@@ -66,6 +66,7 @@ Options (whole-run, before the paths):
     --block-size=SIZE   bytes per -size block for a bare `-size N` / `-size Nb` (default 512; e.g. 4k)
   Output:
     --format=plain|nul|jsonl   record format (plain default; nul = -print0; jsonl = JSON lines)
+    --path-encoding=raw|escape plain-output path bytes: raw (verbatim) or escape (C-escape controls)
     --template=TEMPLATE        render each match through a field template ({path}, {name}, ...)
     --implicit-print=yes|no    force the default -print on or off
     --summary[=overall|type|ext]   print a count + size table instead of each match
