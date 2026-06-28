@@ -95,4 +95,15 @@ test::error_outranks_match_status() {
   expect_eq "2" "${rc}"
 }
 
+test::dash_q_is_a_grep_alias_of_quiet() {
+  local dir out rc
+  dir="$(_tree qalias)"
+  # -q behaves exactly like --quiet: suppress output, exit by match.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" -q "${dir}" -name a.txt 2>/dev/null)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_eq "" "${out}"
+  XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" -q "${dir}" -name 'nope.zzz' >/dev/null 2>&1 && rc=0 || rc=$?
+  expect_eq "1" "${rc}"
+}
+
 test_runner

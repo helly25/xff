@@ -120,9 +120,10 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--quiet",
-        .display = "--quiet",
+        .alias = "-q",
+        .display = "--quiet, -q",
         .group = "Exit by match",
-        .summary = "suppress output; exit 0 if anything matched, else 1",
+        .summary = "suppress output; exit 0 if anything matched, else 1 (-q: grep-compatible)",
     },
     {
         .name = "--exit-match",
