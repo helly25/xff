@@ -62,4 +62,20 @@ test::version_prints_and_exits_zero() {
   expect_eq "yes" "$(_has "${out}" 'xff')"
 }
 
+test::gnu_single_dash_help_matches_long_help() {
+  # GNU find compatibility: -help is the single-dash long option for --help.
+  local single long
+  single="$("$(_xff_bin)" -help 2>&1)"
+  long="$("$(_xff_bin)" --help 2>&1)"
+  expect_eq "${long}" "${single}"
+}
+
+test::gnu_single_dash_version_prints_and_exits_zero() {
+  # GNU find compatibility: -version is the single-dash long option for --version.
+  local out rc
+  out="$("$(_xff_bin)" -version 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_eq "yes" "$(_has "${out}" 'xff')"
+}
+
 test_runner

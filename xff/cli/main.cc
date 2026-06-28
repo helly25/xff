@@ -27,6 +27,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "xff/cli/help.h"
 #include "xff/config/config.h"
 #include "xff/config/loader.h"
 #include "xff/config/policy.h"
@@ -81,8 +82,10 @@ Options (whole-run, before the paths):
     --time-format=FMT   default format for time fields (a preset name or a strftime pattern)
     --timezone=ZONE, --tz=ZONE   zone for interpreting/formatting times (local, utc, an IANA name, or +HH:MM)
   Other:
-    -h, --help          print this help and exit
-    --version           print the version and exit
+    -h, --help, -help   print this help and exit (-help for GNU find compatibility)
+    --help=NAME         print help for one primary/operator/action (e.g. --help=-regex);
+                        --help= or --help=list prints the whole-vocabulary index
+    --version, -version print the version and exit
 
 Expression: find tests (-name, -iname, -path, -type, -size, -blocks, -mtime/-atime/-ctime,
 -Btime, -newerXY, -regex, -perm, -empty, -user/-group, ...), operators (-a, -o, !, ( ), comma;
@@ -143,14 +146,52 @@ std::vector<std::string> ProjectDirs(const std::vector<std::string>& roots) {
 int main(int argc, char** argv) {
   const std::vector<std::string> args(argv + 1, argv + argc);
 
+  // Help and version, scanned anywhere in the arguments (find prints usage on a
+  // bare --help wherever it lands). xff stays flag-only -- no `help` subcommand --
+  // so the grammar is identical in find and xff flavors; only the vocabulary
+  // differs. Accepted forms:
+  //   --help / -h        usage page
+  //   -help              GNU find compatibility (single-dash long option)
+  //   --help=TOPIC       xff: registry-backed help for one primary/operator/action
+  //   --help= / =list    xff: the whole-vocabulary index
+  //   --version          version
+  //   -version           GNU find compatibility
   for (const std::string& arg : args) {
-    if (arg == "--help" || arg == "-h") {
+    if (arg == "--help" || arg == "-help" || arg == "-h") {
       std::cout << kHelpText;
       return 0;
     }
-    if (arg == "--version") {
+    if (arg.starts_with("--help=")) {
+      const xff::cli::HelpResult help = xff::cli::RenderHelp(std::string_view(arg).substr(7));
+      (help.found ? std::cout : std::cerr) << help.text;
+      return help.found ? 0 : 2;
+    }
+    if (arg == "--version" || arg == "-version") {
       std::cout << "xff 0.0.0\n";
       return 0;
+    }
+  }
+
+  // xff is flag-only -- there is no `help` / `version` subcommand. A user reaching
+  // for one out of git/cargo habit would otherwise have the word silently taken as a
+  // path to search, so (in the xff flavor only; find must keep `find help` meaning
+  // "search ./help") catch a leading operand that names one and point at the flag.
+  if (xff::config::DefaultStyleForProgram(argv[0]) != "find") {
+    for (const std::string& arg : args) {
+      if (arg == "--") {
+        break;  // explicit end-of-options: the next token is deliberately an operand
+      }
+      if (arg.starts_with("-") || arg.starts_with("+")) {
+        continue;  // a leading global, not yet the first operand
+      }
+      if (arg == "help" || arg == "version") {
+        const std::string_view flag_hint =
+            arg == "help" ? " for usage, or '--help=NAME' for one primary (e.g. '--help=-regex')" : "";
+        std::cerr << "xff: '" << arg << "' is not a subcommand (xff is flag-only). Use '--" << arg << "'" << flag_hint
+                  << ". To search a path literally named '" << arg << "', use './" << arg << "'.\n";
+        return 2;
+      }
+      break;  // the first operand is something else; carry on to normal parsing
     }
   }
 
