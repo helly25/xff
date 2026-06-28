@@ -24,6 +24,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
+#include "xff/cli/globals.h"
 #include "xff/registry/descriptor.h"
 #include "xff/registry/registry.h"
 
@@ -72,22 +73,37 @@ std::string RenderOne(const registry::Descriptor& descriptor) {
   return absl::StrCat(descriptor.name, ArgHint(descriptor), "  ", Tags(descriptor), "\n    ", descriptor.summary, "\n");
 }
 
+std::string RenderGlobalFlag(const GlobalFlag& flag) {
+  return absl::StrCat(flag.display, "  (global, ", flag.xff ? "xff" : "find", ")\n    ", flag.summary, "\n");
+}
+
 std::string RenderIndex() {
   std::string out =
-      "xff expression vocabulary. Use `--help=NAME` for one entry (e.g. `--help=-regex`), "
+      "xff vocabulary. Use `--help=NAME` for one entry (e.g. `--help=-regex`, `--help=--sort`), "
       "or `--help` for the usage overview.\n";
 
-  struct Group {
+  // Whole-run global options, grouped as the usage page groups them (array order).
+  std::string_view group;
+  for (const GlobalFlag& flag : Globals()) {
+    if (flag.group != group) {
+      group = flag.group;
+      absl::StrAppend(&out, "\n", group, ":\n");
+    }
+    absl::StrAppendFormat(&out, "  %-30s%s\n", flag.display, flag.summary);
+  }
+
+  // Expression vocabulary, grouped by kind.
+  struct Section {
     registry::Kind kind;
     std::string_view title;
   };
 
-  for (const Group& group :
-       {Group{registry::Kind::kTest, "Tests"}, Group{registry::Kind::kAction, "Actions"},
-        Group{registry::Kind::kOperator, "Operators"}}) {
-    absl::StrAppend(&out, "\n", group.title, ":\n");
+  for (const Section& section :
+       {Section{registry::Kind::kTest, "Tests"}, Section{registry::Kind::kAction, "Actions"},
+        Section{registry::Kind::kOperator, "Operators"}}) {
+    absl::StrAppend(&out, "\n", section.title, ":\n");
     for (const registry::Descriptor& descriptor : registry::All()) {
-      if (descriptor.kind == group.kind) {
+      if (descriptor.kind == section.kind) {
         absl::StrAppendFormat(&out, "  %-24s%s\n", descriptor.name, descriptor.summary);
       }
     }
@@ -101,14 +117,23 @@ absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   if (topic.empty() || topic == "list" || topic == "all") {
     return RenderIndex();
   }
+  // Expression primary / operator / action (leading-dash convenience: `--help=regex`).
   const registry::Descriptor* descriptor = registry::Lookup(topic);
   if (descriptor == nullptr && topic.front() != '-' && topic.front() != '!') {
-    descriptor = registry::Lookup(absl::StrCat("-", topic));  // friendly: `--help=regex`
+    descriptor = registry::Lookup(absl::StrCat("-", topic));
   }
-  if (descriptor == nullptr) {
-    return absl::NotFoundError("");  // the caller holds the topic and composes the message
+  if (descriptor != nullptr) {
+    return RenderOne(*descriptor);
   }
-  return RenderOne(*descriptor);
+  // Whole-run global option (leading-dashes convenience: `--help=sort`).
+  const GlobalFlag* global = LookupGlobal(topic);
+  if (global == nullptr && topic.front() != '-') {
+    global = LookupGlobal(absl::StrCat("--", topic));
+  }
+  if (global != nullptr) {
+    return RenderGlobalFlag(*global);
+  }
+  return absl::NotFoundError("");  // the caller holds the topic and composes the message
 }
 
 }  // namespace xff::cli

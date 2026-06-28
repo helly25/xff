@@ -83,8 +83,8 @@ Options (whole-run, before the paths):
     --timezone=ZONE, --tz=ZONE   zone for interpreting/formatting times (local, utc, an IANA name, or +HH:MM)
   Other:
     -h, --help, -help   print this help and exit (-help for GNU find compatibility)
-    --help=NAME         print help for one primary/operator/action (e.g. --help=-regex);
-                        --help= or --help=list prints the whole-vocabulary index
+    --help=NAME         print help for one primary, operator, action, or global flag
+                        (e.g. --help=-regex, --help=--sort); --help=list prints the index
     --version, -version print the version and exit
 
 Expression: find tests (-name, -iname, -path, -type, -size, -blocks, -mtime/-atime/-ctime,
