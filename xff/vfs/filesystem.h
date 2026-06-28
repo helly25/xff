@@ -70,6 +70,14 @@ class FileSystem {
   // The filesystem type name at `path` (find's -fstype), e.g. "ext2/ext3",
   // "apfs", "tmpfs", "nfs". An error if `path` cannot be queried (`statfs`).
   virtual absl::StatusOr<std::string> FsType(std::string_view path) const = 0;
+
+  // Reads the entire byte content of the regular file at `path` (xff's content
+  // predicates -content / -icontent / -rxc / -irxc). Returns an error when the
+  // path cannot be opened or read; content search treats that as a non-match
+  // rather than aborting the walk. Reading the whole file is what makes those
+  // predicates Cost::kExpensive. Only meaningful for regular files; the caller is
+  // expected to gate on the entry type.
+  virtual absl::StatusOr<std::string> ReadContent(std::string_view path) const = 0;
 };
 
 }  // namespace xff::vfs

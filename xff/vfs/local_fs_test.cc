@@ -34,6 +34,7 @@ namespace {
 namespace fs = std::filesystem;
 
 using ::mbo::testing::IsOk;
+using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
 using ::testing::Eq;
 using ::testing::Field;
@@ -135,6 +136,14 @@ TEST_F(LocalFsTest, RemoveDeletesFileAndEmptyDirectory) {
 
 TEST_F(LocalFsTest, RemoveMissingPathErrors) {
   EXPECT_THAT(local_fs_.Remove(Path("nope")), StatusIs(absl::StatusCode::kNotFound));
+}
+
+TEST_F(LocalFsTest, ReadContentReturnsFileBytes) {
+  EXPECT_THAT(local_fs_.ReadContent(Path("file.txt")), IsOkAndHolds(Eq("hello")));
+}
+
+TEST_F(LocalFsTest, ReadContentMissingPathErrors) {
+  EXPECT_THAT(local_fs_.ReadContent(Path("nope")), StatusIs(absl::StatusCode::kNotFound));
 }
 
 }  // namespace

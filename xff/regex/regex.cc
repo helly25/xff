@@ -45,6 +45,10 @@ bool Matcher::FullMatch(std::string_view text) const {
   return RE2::FullMatch(text, *re_);
 }
 
+bool Matcher::PartialMatch(std::string_view text) const {
+  return RE2::PartialMatch(text, *re_);
+}
+
 std::optional<std::vector<std::string>> Matcher::FullMatchCaptures(std::string_view text) const {
   const int groups = re_->NumberOfCapturingGroups();  // parenthesised groups, excluding the whole match
   const int nsubmatch = groups + 1;                   // index 0 holds the whole match

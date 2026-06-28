@@ -168,6 +168,17 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of the content-search predicates (-content / -icontent / -rxc /
+# -irxc): they read files on disk, so the real binary is the right level. Covers
+# literal vs regex, the case-folding variants, the binary-file skip, and the
+# find-style gating of these xff extensions.
+bashtest(
+    name = "content_test",
+    size = "small",
+    srcs = ["content_test.sh"],
+    data = [":xff"],
+)
+
 # Binary-level test of -exec, which spawns real children: the `+` batch form runs
 # the command once with all matches, `\;` once per match. Shell level is the right
 # fit for a subprocess-spawning feature.

@@ -34,6 +34,7 @@
 # include <sys/vfs.h>  // statfs + f_type magic (Linux reports a number, not a name)
 #endif
 
+#include <array>
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>
@@ -259,6 +260,30 @@ absl::StatusOr<std::string> LocalFs::FsType(std::string_view path) const {
   }
   return absl::StrCat("0x", absl::Hex(magic));  // unknown magic: a non-matching sentinel
 #endif
+}
+
+absl::StatusOr<std::string> LocalFs::ReadContent(std::string_view path) const {
+  const std::string path_str(path);
+  const int fd = ::open(path_str.c_str(), O_RDONLY);
+  if (fd < 0) {
+    return absl::ErrnoToStatus(errno, absl::StrCat("open('", path, "')"));
+  }
+  std::string content;
+  std::array<char, 64 * 1'024> buffer{};
+  for (;;) {
+    const ssize_t count = ::read(fd, buffer.data(), buffer.size());
+    if (count < 0) {
+      const int read_errno = errno;
+      ::close(fd);
+      return absl::ErrnoToStatus(read_errno, absl::StrCat("read('", path, "')"));
+    }
+    if (count == 0) {
+      break;  // end of file
+    }
+    content.append(buffer.data(), static_cast<std::string::size_type>(count));
+  }
+  ::close(fd);
+  return content;
 }
 
 }  // namespace xff::vfs

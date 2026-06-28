@@ -41,6 +41,11 @@ class Matcher {
   // True iff `text` matches the pattern in its entirety (both ends anchored).
   bool FullMatch(std::string_view text) const;
 
+  // True iff the pattern matches *anywhere* in `text` (unanchored). Backs the -rxc
+  // regex content predicate ("the file's content matches"), the counterpart of
+  // FullMatch's whole-string -regex.
+  bool PartialMatch(std::string_view text) const;
+
   // Like FullMatch, but on success returns the captured substrings: index 0 is
   // the whole match, 1..N the parenthesised groups (a group that did not take
   // part is empty). nullopt when `text` does not fully match. Backs the gated

@@ -35,6 +35,14 @@ TEST_F(RegexTest, FullMatchAnchorsBothEnds) {
   EXPECT_FALSE(matcher.FullMatch("c.md"));
 }
 
+TEST_F(RegexTest, PartialMatchIsUnanchored) {
+  ASSERT_OK_AND_ASSIGN(const Matcher matcher, Matcher::Compile("c\\.txt", /*case_insensitive=*/false));
+  EXPECT_TRUE(matcher.PartialMatch("a/b/c.txt"));  // matches a substring (unlike FullMatch)
+  EXPECT_TRUE(matcher.PartialMatch("c.txt.bak"));  // trailing text is fine for a partial match
+  EXPECT_FALSE(matcher.PartialMatch("c.md"));      // still must occur somewhere
+  EXPECT_FALSE(matcher.FullMatch("a/b/c.txt"));    // the same pattern does not match the whole string
+}
+
 TEST_F(RegexTest, CaseInsensitiveFoldsCase) {
   ASSERT_OK_AND_ASSIGN(const Matcher folded, Matcher::Compile("readme", /*case_insensitive=*/true));
   EXPECT_TRUE(folded.FullMatch("README"));
