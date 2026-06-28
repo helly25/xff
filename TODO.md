@@ -83,11 +83,11 @@ remains below is the design-forked / larger work.
   impossible-task-fail -- a predicate that cannot be evaluated correctly on an
   entry's FS (e.g. `-Btime` where birth time is unrecorded) is a hard error
   (exit 2), reported once; `--skip-unsupported` downgrades it to a warning + skip.
-  Still open: the grep-compat `-q` short alias of `--quiet` (single-dash whole-run
-  flag tensions with the dash-count convention -- decide before adding); and
-  extending impossible-task detection beyond birth time (only `-Btime`/`-Bmin`/
-  X=B `-newerXY` flag it today; a Y=B reference with no btime stays a silent
-  no-match, and other FS-capability gaps are not yet modelled).
+  (c) `-q` -- the grep-compatible short alias of `--quiet`, a special-cased global
+  (like `-h`/`-help`/`-version`), self-documented via the globals table. Nothing
+  outstanding except, if a concrete case ever appears, extending impossible-task
+  detection beyond birth time (only `-Btime`/`-Bmin`/X=B `-newerXY` flag it today;
+  a Y=B reference with no btime stays a silent no-match by design).
 - **`--exact` + `--path-encoding`** (#45). Decided (2026-06-28): the **default is
   the filesystem-native, naturally-expected behavior** - matching follows the
   volume's own case-sensitivity (case-insensitive on a folding FS like APFS / HFS+ /
