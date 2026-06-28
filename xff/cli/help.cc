@@ -40,22 +40,6 @@ std::string_view KindLabel(registry::Kind kind) {
   return "";
 }
 
-// The argument shape shown after the name, read from the descriptor grammar so it
-// stays in lockstep with the parser (arity / binding), not hand-maintained.
-std::string ArgHint(const registry::Descriptor& descriptor) {
-  if (descriptor.binding == registry::Binding::kLabelRegex) {
-    return "=NAME[=REGEX] CMD... ;";
-  }
-  if (descriptor.arity < 0) {
-    return " CMD... ;";  // variadic until ';' (or '+' for -exec / -execdir)
-  }
-  std::string hint;
-  for (int i = 0; i < descriptor.arity; ++i) {
-    absl::StrAppend(&hint, " ARG");
-  }
-  return hint;
-}
-
 // "(test, find)" / "(action, xff, runs commands)".
 std::string Tags(const registry::Descriptor& descriptor) {
   std::vector<std::string_view> tags;
@@ -112,6 +96,22 @@ std::string RenderIndex() {
 }
 
 }  // namespace
+
+// Read from the descriptor grammar (arity / binding) so the synopsis never drifts
+// from the parser; shared with the man page. Documented in help.h.
+std::string ArgHint(const registry::Descriptor& descriptor) {
+  if (descriptor.binding == registry::Binding::kLabelRegex) {
+    return "=NAME[=REGEX] CMD... ;";
+  }
+  if (descriptor.arity < 0) {
+    return " CMD... ;";  // variadic until ';' (or '+' for -exec / -execdir)
+  }
+  std::string hint;
+  for (int i = 0; i < descriptor.arity; ++i) {
+    absl::StrAppend(&hint, " ARG");
+  }
+  return hint;
+}
 
 absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   if (topic.empty() || topic == "list" || topic == "all") {

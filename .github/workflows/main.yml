@@ -48,6 +48,14 @@ jobs:
           key: bazel-${{ matrix.os }}-${{ matrix.config.name }}-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
           restore-keys: |
             bazel-${{ matrix.os }}-${{ matrix.config.name }}-
+      # man_test renders `xff --man` through a roff formatter; it is a required test
+      # dependency (no skip). macOS ships mandoc; install it on Linux.
+      - name: Install roff formatter (mandoc)
+        run: |
+          if [ "${RUNNER_OS}" = "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y mandoc
+          fi
+          command -v mandoc
       - name: bazel test
         run: bazel test //... --disk_cache=$HOME/.cache/bazel-disk --repository_cache=$HOME/.cache/bazel-repo ${{ matrix.config.flags }}
       # Lint gates run once, on the ubuntu clang-asan cell: its --config=clang
@@ -97,6 +105,8 @@ jobs:
           key: bazel-repo-tsan-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
           restore-keys: |
             bazel-repo-tsan-
+      - name: Install roff formatter (mandoc)
+        run: sudo apt-get update && sudo apt-get install -y mandoc
       - name: bazel test
         run: bazel test //... --repository_cache=$HOME/.cache/bazel-repo --config=clang --config=tsan
 

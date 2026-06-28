@@ -78,4 +78,12 @@ test::gnu_single_dash_version_prints_and_exits_zero() {
   expect_eq "yes" "$(_has "${out}" 'xff')"
 }
 
+test::man_prints_roff_and_exits_zero() {
+  local out rc
+  out="$("$(_xff_bin)" --man 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_eq "yes" "$(_has "${out}" '^\.TH xff 1')" # a roff man page header
+  expect_eq "yes" "$(_has "${out}" '^\.SH OPTIONS')"
+}
+
 test_runner
