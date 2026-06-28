@@ -637,14 +637,16 @@ bool IsNewerXY(const Visit& visit, char x, char y, std::string_view reference, c
 
 // BSD's `-mtime`/`-atime`/`-ctime` trailing unit suffix -> the duration of one
 // unit. A constexpr map, per the style's preference for a uniform key -> value
-// mapping over a switch.
+// mapping over a switch. Like kSizeUnits, the entries are listed in ascending
+// magnitude (s < m < h < d < w) rather than alphabetically -- the natural time
+// scale. MakeLimitedMap sorts by key internally, so this ordering is for the reader.
 using TimeUnitPair = std::pair<char, absl::Duration>;
 constexpr auto kTimeUnits = mbo::container::MakeLimitedMap(
-    TimeUnitPair{'d', absl::Hours(24)},
-    TimeUnitPair{'h', absl::Hours(1)},
-    TimeUnitPair{'m', absl::Minutes(1)},
-    TimeUnitPair{'s', absl::Seconds(1)},
-    TimeUnitPair{'w', absl::Hours(24 * 7)});
+    TimeUnitPair{'s', absl::Seconds(1)},      // second
+    TimeUnitPair{'m', absl::Minutes(1)},      // minute
+    TimeUnitPair{'h', absl::Hours(1)},        // hour
+    TimeUnitPair{'d', absl::Hours(24)},       // day
+    TimeUnitPair{'w', absl::Hours(24 * 7)});  // week
 
 // find's -mtime/-mmin: the entry was modified N units ago -- 24h for -mtime, one
 // minute for -mmin -- with any fractional unit discarded (floor), so a 2.9-day
