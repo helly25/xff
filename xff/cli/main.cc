@@ -70,7 +70,7 @@ Options (whole-run, before the paths):
     --implicit-print=yes|no    force the default -print on or off
     --summary[=overall|type|ext]   print a count + size table instead of each match
   Exit by match (grep-style):
-    --quiet             suppress output; exit 0 if anything matched, else 1
+    --quiet, -q         suppress output; exit 0 if anything matched, else 1 (-q: grep-compatible)
     --exit-match        keep output; exit 0 if anything matched, else 1
   Safety:
     --safe              refuse destructive actions (-delete / -exec)
@@ -271,7 +271,7 @@ int main(int argc, char** argv) {
   // exit is opt-in: --quiet suppresses output and exits by match, --exit-match keeps
   // output but exits by match; either makes "1 = no match" reachable. An error still
   // outranks match status (exit 2).
-  const bool quiet = absl::c_contains(command.globals, "--quiet");
+  const bool quiet = absl::c_contains(command.globals, "--quiet") || absl::c_contains(command.globals, "-q");
   const bool match_sensitive = quiet || absl::c_contains(command.globals, "--exit-match");
   const xff::vfs::LocalFs fs;
   bool matched = false;
