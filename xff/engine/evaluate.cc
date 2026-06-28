@@ -1501,6 +1501,23 @@ bool Evaluate(const parser::Expr& expr, EvalContext& context) {
     case parser::Expr::Kind::kNot: return !Evaluate(*expr.lhs, context);
     case parser::Expr::Kind::kAnd: return Evaluate(*expr.lhs, context) && Evaluate(*expr.rhs, context);
     case parser::Expr::Kind::kOr: return Evaluate(*expr.lhs, context) || Evaluate(*expr.rhs, context);
+    // -nand / -nor are the negations of && / || and inherit their left-to-right
+    // short-circuit (the right operand, and its actions, run only when the left
+    // does not already decide the result).
+    case parser::Expr::Kind::kNand: return !(Evaluate(*expr.lhs, context) && Evaluate(*expr.rhs, context));
+    case parser::Expr::Kind::kNor: return !(Evaluate(*expr.lhs, context) || Evaluate(*expr.rhs, context));
+    // -xor / -xnor depend on both sides, so neither can short-circuit; evaluate
+    // left then right (sequenced via locals so any actions still fire in order).
+    case parser::Expr::Kind::kXor: {
+      const bool lhs = Evaluate(*expr.lhs, context);
+      const bool rhs = Evaluate(*expr.rhs, context);
+      return lhs != rhs;
+    }
+    case parser::Expr::Kind::kXnor: {
+      const bool lhs = Evaluate(*expr.lhs, context);
+      const bool rhs = Evaluate(*expr.rhs, context);
+      return lhs == rhs;
+    }
     case parser::Expr::Kind::kComma:
       Evaluate(*expr.lhs, context);         // left operand: evaluated for side effects only
       return Evaluate(*expr.rhs, context);  // the list's value is the right operand's
@@ -1519,6 +1536,10 @@ bool ContainsAction(const parser::Expr& expr) {
     case parser::Expr::Kind::kNot: return ContainsAction(*expr.lhs);
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kNand:
+    case parser::Expr::Kind::kNor:
+    case parser::Expr::Kind::kXor:
+    case parser::Expr::Kind::kXnor:
     case parser::Expr::Kind::kComma: return ContainsAction(*expr.lhs) || ContainsAction(*expr.rhs);
   }
   return false;  // Unreachable: every Expr::Kind returns above.

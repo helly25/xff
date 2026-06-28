@@ -164,10 +164,12 @@ TEST_F(ParserTest, CaptureErrors) {
 
 TEST_F(ParserTest, Errors) {
   using ::absl::StatusCode;
-  EXPECT_THAT(Parse({".", "-bogus"}), StatusIs(StatusCode::kInvalidArgument));            // unknown predicate
-  EXPECT_THAT(Parse({".", "-name"}), StatusIs(StatusCode::kInvalidArgument));             // missing argument
-  EXPECT_THAT(Parse({".", "(", "-type", "f"}), StatusIs(StatusCode::kInvalidArgument));   // unbalanced '('
-  EXPECT_THAT(Parse({".", "-o", "-type", "f"}), StatusIs(StatusCode::kInvalidArgument));  // leading operator
+  EXPECT_THAT(Parse({".", "-bogus"}), StatusIs(StatusCode::kInvalidArgument));              // unknown predicate
+  EXPECT_THAT(Parse({".", "-name"}), StatusIs(StatusCode::kInvalidArgument));               // missing argument
+  EXPECT_THAT(Parse({".", "(", "-type", "f"}), StatusIs(StatusCode::kInvalidArgument));     // unbalanced '('
+  EXPECT_THAT(Parse({".", "-o", "-type", "f"}), StatusIs(StatusCode::kInvalidArgument));    // leading operator
+  EXPECT_THAT(Parse({".", "-xor", "-name", "x"}), StatusIs(StatusCode::kInvalidArgument));  // leading xff operator
+  EXPECT_THAT(Parse({".", "-name", "x", "-nor"}), StatusIs(StatusCode::kInvalidArgument));  // operator missing rhs
 }
 
 TEST_F(ParserTest, EnforceStyleRejectsXffExtensionUnderFind) {
@@ -248,6 +250,66 @@ TEST_F(ParserTest, NonRegexAndUncompilablePatternsLeaveMatcherNull) {
   EXPECT_THAT(name.expression->matcher, IsNull());  // not a regex predicate
   ASSERT_OK_AND_ASSIGN(const Command bad, Parse({".", "-regex", "a("}));
   EXPECT_THAT(bad.expression->matcher, IsNull());  // uncompilable: null (evaluated as no-match), no parse error
+}
+
+TEST_F(ParserTest, XorBindsTighterThanOr) {
+  // `-name a -xor -name b -o -name c` => Or( Xor(a, b), c ): XOR is above OR.
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-name", "a", "-xor", "-name", "b", "-o", "-name", "c"}));
+  const Expr& root = *cmd.expression;
+  ASSERT_THAT(root.kind, Expr::Kind::kOr);
+  EXPECT_THAT(root.lhs->kind, Expr::Kind::kXor);
+  ASSERT_THAT(root.rhs->kind, Expr::Kind::kPredicate);
+  EXPECT_THAT(root.rhs->descriptor->name, "-name");
+}
+
+TEST_F(ParserTest, XorBindsLooserThanAnd) {
+  // `-name a -xor -name b -name c` => Xor( a, And(b, c) ): implicit AND is above XOR.
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-name", "a", "-xor", "-name", "b", "-name", "c"}));
+  const Expr& root = *cmd.expression;
+  ASSERT_THAT(root.kind, Expr::Kind::kXor);
+  EXPECT_THAT(root.lhs->kind, Expr::Kind::kPredicate);
+  EXPECT_THAT(root.rhs->kind, Expr::Kind::kAnd);
+}
+
+TEST_F(ParserTest, NandBindsAtTheAndTier) {
+  // `-name a -nand -name b -o -name c` => Or( Nand(a, b), c ).
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-name", "a", "-nand", "-name", "b", "-o", "-name", "c"}));
+  const Expr& root = *cmd.expression;
+  ASSERT_THAT(root.kind, Expr::Kind::kOr);
+  EXPECT_THAT(root.lhs->kind, Expr::Kind::kNand);
+}
+
+TEST_F(ParserTest, NorBindsAtTheOrTier) {
+  // `-name a -o -name b -nor -name c` => Nor( Or(a, b), c ): left-associative at the OR tier.
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-name", "a", "-o", "-name", "b", "-nor", "-name", "c"}));
+  const Expr& root = *cmd.expression;
+  ASSERT_THAT(root.kind, Expr::Kind::kNor);
+  EXPECT_THAT(root.lhs->kind, Expr::Kind::kOr);
+}
+
+TEST_F(ParserTest, XnorParsesAsItsOwnNode) {
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-name", "a", "-xnor", "-name", "b"}));
+  const Expr& root = *cmd.expression;
+  ASSERT_THAT(root.kind, Expr::Kind::kXnor);
+  EXPECT_THAT(root.lhs->kind, Expr::Kind::kPredicate);
+  EXPECT_THAT(root.rhs->kind, Expr::Kind::kPredicate);
+}
+
+TEST_F(ParserTest, EnforceStyleRejectsXffOperatorsUnderFind) {
+  // The new logical operators are xff extensions; the strict find style refuses
+  // them even though they are interior nodes with no descriptor.
+  for (const char* const op : {"-xor", "-nand", "-nor", "-xnor"}) {
+    ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-name", "a", op, "-name", "b"}));
+    const absl::Status status = EnforceStyle(cmd, registry::Style::kFind);
+    EXPECT_THAT(status, StatusIs(absl::StatusCode::kInvalidArgument)) << op;
+    EXPECT_THAT(status.message(), HasSubstr(op)) << op;
+    EXPECT_THAT(status.message(), HasSubstr("--config=xff")) << op;
+  }
+}
+
+TEST_F(ParserTest, EnforceStyleAcceptsXffOperatorsUnderXff) {
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-name", "a", "-xor", "-name", "b"}));
+  EXPECT_THAT(EnforceStyle(cmd, registry::Style::kXff), IsOk());
 }
 
 }  // namespace

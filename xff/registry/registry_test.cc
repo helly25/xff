@@ -86,11 +86,20 @@ TEST_F(RegistryTest, CaptureFamilyDeclaresLabelRegexBinding) {
 TEST_F(RegistryTest, XffExtensionsAreStyleTagged) {
   // The xff-native primaries carry Style::kXff so the strict find style (phase D)
   // can reject them; everything inherited from find stays kFind (the default).
-  for (const char* const name : {"-println", "-printfln", "-capture", "-capturedir"}) {
+  for (const char* const name :
+       {"-println", "-printfln", "-capture", "-capturedir", "-xor", "-nand", "-nor", "-xnor"}) {
     EXPECT_THAT(Lookup(name), Pointee(Field("style", &Descriptor::style, Style::kXff))) << name;
   }
   for (const char* const name : {"-print", "-printf", "-name", "-exec", "-delete"}) {
     EXPECT_THAT(Lookup(name), Pointee(Field("style", &Descriptor::style, Style::kFind))) << name;
+  }
+}
+
+TEST_F(RegistryTest, ExtendedLogicalOperatorsAreOperators) {
+  // -xor/-nand/-nor/-xnor are xff logical operators (the style tagging is asserted
+  // above); confirm they are classified as operators, not tests/actions.
+  for (const char* const name : {"-xor", "-nand", "-nor", "-xnor"}) {
+    EXPECT_THAT(Lookup(name), Pointee(Field("kind", &Descriptor::kind, Kind::kOperator))) << name;
   }
 }
 

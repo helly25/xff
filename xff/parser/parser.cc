@@ -36,7 +36,7 @@ namespace {
 
 // A token begins the find expression if it is a single-dash word, or one of
 // the operator/grouping tokens.
-bool StartsExpression(const std::string& arg) {
+bool StartsExpression(std::string_view arg) {
   if (arg.empty()) {
     return false;
   }
@@ -46,16 +46,33 @@ bool StartsExpression(const std::string& arg) {
   return arg == "(" || arg == ")" || arg == "!" || arg == ",";
 }
 
-bool IsOr(const std::string& t) {
+bool IsOr(std::string_view t) {
   return t == "-o" || t == "-or";
 }
 
-bool IsAnd(const std::string& t) {
+bool IsAnd(std::string_view t) {
   return t == "-a" || t == "-and";
 }
 
-bool IsNot(const std::string& t) {
+bool IsNot(std::string_view t) {
   return t == "!" || t == "-not";
+}
+
+// xff extensions: -nand binds at the AND tier, -nor at the OR tier, and -xor /
+// -xnor form a new tier between them (NOT > AND > XOR > OR), matching the
+// conventional boolean / C bitwise (& ^ |) precedence.
+bool IsNand(std::string_view t) {
+  return t == "-nand";
+}
+
+// Operators at the OR tier (the lowest binary tier): -o / -or / -nor.
+bool IsOrTier(std::string_view t) {
+  return IsOr(t) || t == "-nor";
+}
+
+// Operators at the XOR tier (between AND and OR): -xor / -xnor.
+bool IsXorTier(std::string_view t) {
+  return t == "-xor" || t == "-xnor";
 }
 
 // Pre-compiles a node's regex at parse time so evaluation reads it lock-free:
@@ -107,9 +124,10 @@ ExprPtr MakeBinary(Expr::Kind kind, ExprPtr lhs, ExprPtr rhs) {
 
 // Recursive-descent parser over the find expression tokens. Errors are
 // accumulated in `status_`; node-returning methods return nullptr once failed.
-//   list := or ( ',' or )*                       // comma: lowest precedence
-//   or   := and ( ('-o'|'-or') and )*
-//   and  := unary ( ('-a'|'-and')? unary )*      // implicit -a
+//   list := or ( ',' or )*                          // comma: lowest precedence
+//   or   := xor ( ('-o'|'-or'|'-nor') xor )*
+//   xor  := and ( ('-xor'|'-xnor') and )*           // xff tier, between or and and
+//   and  := unary ( ('-a'|'-and'|'-nand')? unary )* // implicit -a; -nand explicit
 //   unary:= ('!'|'-not') unary | primary
 //   prim := '(' list ')' | PREDICATE arg{arity}
 class ExprParser {
@@ -151,23 +169,41 @@ class ExprParser {
   }
 
   ExprPtr ParseOr() {
+    ExprPtr lhs = ParseXor();
+    while (status_.ok() && !AtEnd() && IsOrTier(Peek())) {
+      const Expr::Kind kind = Peek() == "-nor" ? Expr::Kind::kNor : Expr::Kind::kOr;
+      ++pos_;
+      ExprPtr rhs = ParseXor();
+      lhs = MakeBinary(kind, std::move(lhs), std::move(rhs));
+    }
+    return lhs;
+  }
+
+  // The XOR tier sits between OR and AND (NOT > AND > XOR > OR). -xor / -xnor
+  // (xff) bind here; both operands always evaluate (the result needs both).
+  ExprPtr ParseXor() {
     ExprPtr lhs = ParseAnd();
-    while (status_.ok() && !AtEnd() && IsOr(Peek())) {
+    while (status_.ok() && !AtEnd() && IsXorTier(Peek())) {
+      const Expr::Kind kind = Peek() == "-xnor" ? Expr::Kind::kXnor : Expr::Kind::kXor;
       ++pos_;
       ExprPtr rhs = ParseAnd();
-      lhs = MakeBinary(Expr::Kind::kOr, std::move(lhs), std::move(rhs));
+      lhs = MakeBinary(kind, std::move(lhs), std::move(rhs));
     }
     return lhs;
   }
 
   ExprPtr ParseAnd() {
     ExprPtr lhs = ParseUnary();
-    while (status_.ok() && !AtEnd() && !IsOr(Peek()) && Peek() != ")" && Peek() != ",") {
-      if (IsAnd(Peek())) {
+    while (status_.ok() && !AtEnd() && !IsOrTier(Peek()) && !IsXorTier(Peek()) && Peek() != ")" && Peek() != ",") {
+      Expr::Kind kind = Expr::Kind::kAnd;
+      if (IsNand(Peek())) {
+        ++pos_;  // explicit -nand (xff)
+        kind = Expr::Kind::kNand;
+      } else if (IsAnd(Peek())) {
         ++pos_;  // optional explicit -a
       }
       ExprPtr rhs = ParseUnary();
-      lhs = MakeBinary(Expr::Kind::kAnd, std::move(lhs), std::move(rhs));
+      lhs = MakeBinary(kind, std::move(lhs), std::move(rhs));
     }
     return lhs;
   }
@@ -343,6 +379,27 @@ const Expr* FirstXffDurationValue(const Expr* expr) {
   return FirstXffDurationValue(expr->rhs.get());
 }
 
+// Returns the canonical name of the first xff-only logical operator node
+// (-xor/-nand/-nor/-xnor, pre-order), or empty if none. These are interior nodes
+// with no descriptor, so FirstXffExtension (which inspects predicate descriptors)
+// cannot see them; the strict find style rejects them through this instead.
+std::string_view FirstXffOperator(const Expr* expr) {
+  if (expr == nullptr) {
+    return {};
+  }
+  switch (expr->kind) {
+    case Expr::Kind::kNand: return "-nand";
+    case Expr::Kind::kNor: return "-nor";
+    case Expr::Kind::kXnor: return "-xnor";
+    case Expr::Kind::kXor: return "-xor";
+    default: break;
+  }
+  if (const std::string_view found = FirstXffOperator(expr->lhs.get()); !found.empty()) {
+    return found;
+  }
+  return FirstXffOperator(expr->rhs.get());
+}
+
 }  // namespace
 
 absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
@@ -389,6 +446,11 @@ absl::Status EnforceStyle(const Command& command, registry::Style style) {
         absl::StrCat(
             "'", ext->name,
             "' is an xff extension, not available under the find style (--config=find); use --config=xff"));
+  }
+  if (const std::string_view op = FirstXffOperator(command.expression.get()); !op.empty()) {
+    return absl::InvalidArgumentError(
+        absl::StrCat(
+            "'", op, "' is an xff extension, not available under the find style (--config=find); use --config=xff"));
   }
   if (const Expr* const dur = FirstXffDurationValue(command.expression.get()); dur != nullptr) {
     return absl::InvalidArgumentError(

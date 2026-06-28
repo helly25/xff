@@ -145,6 +145,12 @@ clang-format picks a layout per line; these habits steer it toward the readable 
     cache-friendlier. In tests, `std::map` / `std::set` are fine.
   - Small compile-time tables: `mbo::container::LimitedMap` / `LimitedSet`.
   - A type-detection trait may name a `std::` container type freely - it must, to recognize it.
+- **A read-only string parameter is `std::string_view` (by value), not `const std::string&`.**
+  This is pretty much always: a `std::string_view` binds to a `std::string`, a string literal,
+  a `char*`, or another view with no allocation and no `.c_str()` dance, so the `const&` only
+  narrows what callers may pass. Keep `const std::string&` (or `std::string` by value) only
+  when the body genuinely needs a `std::string` - it calls `.c_str()` for a C API, stores or
+  moves the argument, or passes it to something that itself wants `const std::string&`.
 - **A by-value `std::string_view` is never `const`.** The characters it views are already
   `const`; making the view itself `const` only disables the view's own API
   (`remove_prefix`, `remove_suffix`, reassignment) for no benefit. This applies to locals

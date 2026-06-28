@@ -115,10 +115,8 @@ remains below is the design-forked / larger work.
       primaries / flags from the same source (an integrated subcommand and/or a build
       target; a separate external generator alongside the man-page builder is fine if
       need be). Wire it into CI so the committed docs cannot drift from the vocabulary.
-- **Extended logical operators** (silly-complete): `-xor` / `-nand` / `-nor` /
-  `-xnor`. find has none of these (only `-a`/`-and`, `-o`/`-or`, `-not`/`!`), so they
-  would be xff extensions (`Style::kXff`). `-xor` is genuinely useful ("match exactly
-  one side"); the rest are derivable but cheap. Needs a precedence decision first:
-  where `-xor` binds relative to `-a` and `-o` (the recursive-descent parser has
-  explicit precedence tiers), and whether the rarely-seen `-nand` / `-nor` / `-xnor`
-  earn their surface. Decide before implementing.
+- **Extended logical operators**: shipped. `-xor` / `-nand` / `-nor` / `-xnor` are
+  xff extensions (find has only `-a`/`-and`, `-o`/`-or`, `-not`/`!`), with the
+  conventional precedence `NOT > AND/-nand > XOR/-xnor > OR/-nor`; the strict find
+  style rejects them. (`-xor` matches exactly one side; the rest are the negations
+  of and/or/xor.)
