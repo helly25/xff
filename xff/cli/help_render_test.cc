@@ -20,6 +20,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
+#include "xff/cli/globals.h"
 #include "xff/cli/help.h"
 #include "xff/registry/registry.h"
 
@@ -79,6 +80,25 @@ TEST_F(HelpTest, ListAndAllAreIndexAliases) {
   ASSERT_THAT(index, IsOk());
   EXPECT_THAT(RenderHelp("list"), IsOkAndHolds(*index));
   EXPECT_THAT(RenderHelp("all"), IsOkAndHolds(*index));
+}
+
+TEST_F(HelpTest, GlobalFlagTopicRendersWithGlobalTag) {
+  EXPECT_THAT(
+      RenderHelp("--sort"), IsOkAndHolds(AllOf(HasSubstr("--sort"), HasSubstr("ordering"), HasSubstr("global"))));
+}
+
+TEST_F(HelpTest, GlobalFlagResolvesByAliasAndDashless) {
+  EXPECT_THAT(RenderHelp("-j"), IsOkAndHolds(HasSubstr("--jobs")));    // alias -> --jobs
+  EXPECT_THAT(RenderHelp("sort"), IsOkAndHolds(HasSubstr("--sort")));  // dash-less -> --sort
+}
+
+TEST_F(HelpTest, IndexIncludesGlobalGroupsAndEveryFlag) {
+  const absl::StatusOr<std::string> index = RenderHelp("");
+  ASSERT_THAT(index, IsOk());
+  EXPECT_THAT(*index, AllOf(HasSubstr("Config:"), HasSubstr("Traversal:")));
+  for (const GlobalFlag& flag : Globals()) {
+    EXPECT_THAT(*index, HasSubstr(flag.name)) << flag.name;
+  }
 }
 
 }  // namespace
