@@ -265,6 +265,21 @@ render::Format ResolveFormat(const std::vector<std::string>& globals) {
   return format;
 }
 
+// --path-encoding=raw|escape: how the plain renderer emits path bytes (see
+// render::PathEncoding). Mirrors ResolveFormat -- last occurrence wins, the
+// find-compatible kRaw default; applies only to the default/plain output.
+render::PathEncoding ResolvePathEncoding(const std::vector<std::string>& globals) {
+  render::PathEncoding encoding = render::PathEncoding::kRaw;
+  for (const std::string& global : globals) {
+    if (global == "--path-encoding=raw") {
+      encoding = render::PathEncoding::kRaw;
+    } else if (global == "--path-encoding=escape") {
+      encoding = render::PathEncoding::kEscape;
+    }
+  }
+  return encoding;
+}
+
 // --template=TMPL renders each match through the field vocabulary (xff-native),
 // overriding --format for the implicit print. Last occurrence wins; nullopt when
 // absent.
@@ -582,6 +597,7 @@ int RunFind(
   options.sort = ResolveSort(command.globals, style);
   options.workers = ResolveJobs(command.globals, style);
   const render::Format format = ResolveFormat(command.globals);
+  const render::PathEncoding path_encoding = ResolvePathEncoding(command.globals);
   const std::optional<std::string> tmpl = ResolveTemplate(command.globals);
   // A -capture whose {capture.NAME} is never referenced ran a subprocess for
   // nothing (use -exec for pure side effects); flag it before traversing.
@@ -736,7 +752,7 @@ int RunFind(
                         .outputs = &outputs})
                 + "\n");
           } else {
-            emit(render::Renderer(format).Record(visit.path));
+            emit(render::Renderer(format, path_encoding).Record(visit.path));
           }
         }
         if (!control.unsupported.empty() && !unsupported_reported) {

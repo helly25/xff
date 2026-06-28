@@ -44,5 +44,27 @@ TEST_F(RenderTest, JsonlEscapesQuotesBackslashAndControls) {
   EXPECT_THAT(Renderer(Format::kJsonl).Record(std::string("x\x01y", 3)), "{\"path\":\"x\\u0001y\"}\n");
 }
 
+TEST_F(RenderTest, PlainRawIsTheDefaultEncoding) {
+  // kPlain defaults to verbatim bytes (find-compatible): a newline in the name passes
+  // through, splitting the record.
+  EXPECT_THAT(Renderer(Format::kPlain).Record("a\nb"), "a\nb\n");
+}
+
+TEST_F(RenderTest, PlainEscapeCEscapesBackslashAndControls) {
+  // --path-encoding=escape: backslash + the common control chars become C escapes.
+  EXPECT_THAT(Renderer(Format::kPlain, PathEncoding::kEscape).Record("a\nb\tc\\d"), "a\\nb\\tc\\\\d\n");
+  // Other control / DEL bytes use \xNN (upper-case hex); printable + high UTF-8 bytes
+  // pass through verbatim.
+  EXPECT_THAT(Renderer(Format::kPlain, PathEncoding::kEscape).Record(std::string("x\x01y\x7f", 4)), "x\\x01y\\x7F\n");
+  EXPECT_THAT(Renderer(Format::kPlain, PathEncoding::kEscape).Record("caf\xc3\xa9"), "caf\xc3\xa9\n");
+}
+
+TEST_F(RenderTest, EscapeAppliesOnlyToPlain) {
+  // kNul stays raw (the NUL is the separator); kJsonl always JSON-escapes, both
+  // regardless of the path encoding.
+  EXPECT_THAT(Renderer(Format::kNul, PathEncoding::kEscape).Record("a\nb"), std::string("a\nb\0", 4));
+  EXPECT_THAT(Renderer(Format::kJsonl, PathEncoding::kEscape).Record("a\nb"), "{\"path\":\"a\\nb\"}\n");
+}
+
 }  // namespace
 }  // namespace xff::render

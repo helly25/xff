@@ -48,6 +48,31 @@ void AppendJsonEscaped(std::string_view path, std::string* out) {
   }
 }
 
+// Appends `path` to `out`, C-escaping the backslash and control characters so a
+// newline or control byte in a filename cannot corrupt line-oriented output: `\\`,
+// `\n`, `\t`, `\r`, and any other byte < 0x20 or 0x7F (DEL) as `\xNN`. Printable
+// ASCII and high (UTF-8) bytes pass through verbatim.
+void AppendCEscaped(std::string_view path, std::string* out) {
+  static constexpr std::string_view kHex = "0123456789ABCDEF";
+  for (const char ch : path) {
+    const auto byte = static_cast<unsigned char>(ch);
+    switch (ch) {
+      case '\\': out->append("\\\\"); break;
+      case '\n': out->append("\\n"); break;
+      case '\t': out->append("\\t"); break;
+      case '\r': out->append("\\r"); break;
+      default:
+        if (byte < 0x20 || byte == 0x7F) {
+          out->append("\\x");
+          out->push_back(kHex[byte >> 4]);
+          out->push_back(kHex[byte & 0x0F]);
+        } else {
+          out->push_back(ch);
+        }
+    }
+  }
+}
+
 }  // namespace
 
 std::string Renderer::Record(std::string_view path) const {
@@ -63,7 +88,15 @@ std::string Renderer::Record(std::string_view path) const {
       record.push_back('\0');
       return record;
     }
-    case Format::kPlain: return absl::StrCat(path, "\n");
+    case Format::kPlain: {
+      if (encoding_ == PathEncoding::kEscape) {
+        std::string record;
+        AppendCEscaped(path, &record);
+        record.push_back('\n');
+        return record;
+      }
+      return absl::StrCat(path, "\n");
+    }
   }
   return absl::StrCat(path, "\n");  // unreachable: every Format returns above
 }

@@ -101,6 +101,12 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "record format (plain default; nul = -print0; jsonl = JSON lines)",
     },
     {
+        .name = "--path-encoding",
+        .display = "--path-encoding=raw|escape",
+        .group = "Output",
+        .summary = "plain-output path byte encoding: raw (verbatim, default) or escape (C-escape controls)",
+    },
+    {
         .name = "--template",
         .display = "--template=TEMPLATE",
         .group = "Output",

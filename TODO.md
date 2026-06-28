@@ -88,7 +88,10 @@ remains below is the design-forked / larger work.
   outstanding except, if a concrete case ever appears, extending impossible-task
   detection beyond birth time (only `-Btime`/`-Bmin`/X=B `-newerXY` flag it today;
   a Y=B reference with no btime stays a silent no-match by design).
-- **`--exact` + `--path-encoding`** (#45). Decided (2026-06-28): the **default is
+- **`--exact` + `--path-encoding`** (#45). `--path-encoding=raw|escape` has
+  shipped: the plain renderer C-escapes backslash + control bytes under `escape`
+  (kNul stays raw, kJsonl always JSON-escapes). `--exact` is still to do. Decided
+  (2026-06-28): the **default is
   the filesystem-native, naturally-expected behavior** - matching follows the
   volume's own case-sensitivity (case-insensitive on a folding FS like APFS / HFS+ /
   NTFS, case-sensitive on ext4 and friends), so most users get what they expect on
