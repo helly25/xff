@@ -96,6 +96,14 @@ clang-format picks a layout per line; these habits steer it toward the readable 
    };
    ```
 
+   **In a long array of struct literals - a registry-style table such as `kGlobals` or
+   `kDescriptors` - put the trailing comma on _every_ element**, even the short ones that
+   would fit on a single line, so clang-format expands the whole table uniformly, one
+   field per line. A consistent table you scroll through reads better than a mix of
+   one-liners and exploded rows packed to save height. This stays a deliberate, per-table
+   choice made element by element: `InsertTrailingCommas` is off (we do not always want
+   trailing commas), so clang-format never forces it for you.
+
 3. **Force a line break with a comment rather than let clang-format cram a value at the right
    margin.** A long argument - especially a raw string such as a proto `R"pb(...)pb"` - otherwise
    gets packed onto the call line and shoved against the 120 column, unreadable. A trailing
