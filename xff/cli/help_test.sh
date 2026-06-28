@@ -86,4 +86,12 @@ test::man_prints_roff_and_exits_zero() {
   expect_eq "yes" "$(_has "${out}" '^\.SH OPTIONS')"
 }
 
+test::markdown_prints_reference_and_exits_zero() {
+  local out rc
+  out="$("$(_xff_bin)" --markdown 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_eq "yes" "$(_has "${out}" '^# xff')"
+  expect_eq "yes" "$(_has "${out}" '^## Options')"
+}
+
 test_runner

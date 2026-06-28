@@ -29,6 +29,7 @@
 #include "absl/status/statusor.h"
 #include "xff/cli/help.h"
 #include "xff/cli/manpage.h"
+#include "xff/cli/markdown.h"
 #include "xff/config/config.h"
 #include "xff/config/loader.h"
 #include "xff/config/policy.h"
@@ -88,6 +89,7 @@ Options (whole-run, before the paths):
                         (e.g. --help=-regex, --help=--sort); --help=list prints the index
     --version, -version print the version and exit
     --man               print the man page (roff; pipe to `man -l -`) and exit
+    --markdown          print a Markdown reference of all options and primaries and exit
 
 Expression: find tests (-name, -iname, -path, -type, -size, -blocks, -mtime/-atime/-ctime,
 -Btime, -newerXY, -regex, -perm, -empty, -user/-group, ...), operators (-a, -o, !, ( ), comma;
@@ -179,6 +181,10 @@ int main(int argc, char** argv) {
     }
     if (arg == "--man") {
       std::cout << xff::cli::ManPage();  // roff(1); pipe to `man -l -` or install as xff.1
+      return 0;
+    }
+    if (arg == "--markdown") {
+      std::cout << xff::cli::MarkdownReference();  // GitHub-renderable vocabulary reference
       return 0;
     }
   }
