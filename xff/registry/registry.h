@@ -18,6 +18,7 @@
 
 #include <string_view>
 
+#include "absl/types/span.h"
 #include "xff/registry/descriptor.h"
 
 namespace xff::registry {
@@ -26,6 +27,11 @@ namespace xff::registry {
 // "-type", "-o", "!"). Returns nullptr if the token is not a known
 // predicate / action / operator.
 const Descriptor* Lookup(std::string_view name);
+
+// All descriptors, in registry (source) order. The single enumeration point for
+// the help system, generated --help, `xff help`, and the planned man-page / .md
+// documentation generators, so they never drift from the parser's vocabulary.
+absl::Span<const Descriptor> All();
 
 }  // namespace xff::registry
 

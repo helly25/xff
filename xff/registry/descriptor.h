@@ -47,6 +47,11 @@ enum class Style { kFind, kXff };
 // the cost-warning are all derived.
 struct Descriptor {
   std::string_view name;
+  // One-line synopsis for `xff help <name>` and the generated --help listing: a
+  // short phrase, normally lower-case (proper nouns such as GNU/BSD aside), with no
+  // trailing period (e.g. "match the basename against a shell glob"). Every
+  // descriptor carries one; registry_test enforces the shape.
+  std::string_view summary;
   Kind kind = Kind::kTest;
   Region region = Region::kExpression;
   int arity = 0;                     // trailing tokens consumed as arguments (-1 = variadic until ';')

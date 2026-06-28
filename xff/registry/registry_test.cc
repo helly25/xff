@@ -22,8 +22,14 @@
 namespace xff::registry {
 namespace {
 
+using ::testing::Eq;
 using ::testing::Field;
+using ::testing::HasSubstr;
+using ::testing::IsEmpty;
 using ::testing::IsNull;
+using ::testing::Le;
+using ::testing::Ne;
+using ::testing::Not;
 using ::testing::NotNull;
 using ::testing::Pointee;
 
@@ -84,6 +90,27 @@ TEST_F(RegistryTest, XffExtensionsAreStyleTagged) {
   }
   for (const char* const name : {"-print", "-printf", "-name", "-exec", "-delete"}) {
     EXPECT_THAT(Lookup(name), Pointee(Field("style", &Descriptor::style, Style::kFind))) << name;
+  }
+}
+
+TEST_F(RegistryTest, EveryDescriptorCarriesAWellFormedSummary) {
+  // The help system, generated --help, and the planned man-page / .md doc
+  // generators all read `summary`, so every descriptor must carry a one-line
+  // synopsis: non-empty, single line, no trailing period.
+  EXPECT_THAT(All(), Not(IsEmpty()));
+  for (const Descriptor& descriptor : All()) {
+    ASSERT_THAT(descriptor.summary, Not(IsEmpty())) << descriptor.name;
+    EXPECT_THAT(descriptor.summary.size(), Le(90U)) << descriptor.name;
+    EXPECT_THAT(descriptor.summary.back(), Ne('.')) << descriptor.name;
+    EXPECT_THAT(descriptor.summary, Not(HasSubstr("\n"))) << descriptor.name;
+  }
+}
+
+TEST_F(RegistryTest, AllEnumeratesTheSameDescriptorsLookupResolves) {
+  // All() and Lookup() must read the same table, so generators and the parser
+  // never drift: each enumerated descriptor resolves back to itself by name.
+  for (const Descriptor& descriptor : All()) {
+    EXPECT_THAT(Lookup(descriptor.name), Eq(&descriptor)) << descriptor.name;
   }
 }
 
