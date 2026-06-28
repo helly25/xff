@@ -350,7 +350,8 @@ TEST_F(ConformanceTest, GroupMatchesCurrentGroup) {
 }
 
 TEST_F(ConformanceTest, ParenGrouping) {
-  ExpectXff({"(", "-type", "f", "-o", "-type", "d", ")"}, {"", "a.txt", "b.md", "sub", "sub/c.txt", "empty.txt", "emptydir"});
+  ExpectXff(
+      {"(", "-type", "f", "-o", "-type", "d", ")"}, {"", "a.txt", "b.md", "sub", "sub/c.txt", "empty.txt", "emptydir"});
 }
 
 TEST_F(ConformanceTest, CommaListImplicitPrint) {
@@ -407,9 +408,10 @@ TEST_F(ConformanceTest, IRegexWholePathTxt) {
 TEST_F(ConformanceTest, PrintfPathAndSize) {
   EXPECT_THAT(
       Xff({}, {"-type", "f", "-printf", "%p %s\\n"}),
-      ElementsAreArray(std::vector<std::string>{
-          absl::StrCat(Rel("a.txt"), " 1"), absl::StrCat(Rel("b.md"), " 2"), absl::StrCat(Rel("empty.txt"), " 0"),
-          absl::StrCat(Rel("sub/c.txt"), " 3")}));
+      ElementsAreArray(
+          std::vector<std::string>{
+              absl::StrCat(Rel("a.txt"), " 1"), absl::StrCat(Rel("b.md"), " 2"), absl::StrCat(Rel("empty.txt"), " 0"),
+              absl::StrCat(Rel("sub/c.txt"), " 3")}));
 }
 
 TEST_F(ConformanceTest, PrintfNameTypeDepth) {
