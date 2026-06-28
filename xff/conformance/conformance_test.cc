@@ -13,22 +13,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// popen()/pclose() are POSIX, hidden by glibc under the strict -std=c++23 build.
-#if defined(__linux__) && !defined(_GNU_SOURCE)
-# define _GNU_SOURCE 1
-#endif
+// This suite asserts xff's OWN resulting offering against a fixed fixture, NOT
+// conformance to a system find. xff is the union of POSIX/GNU/BSD with its own
+// chosen resolutions and extensions, so the right question is "does xff produce the
+// output xff specifies", not "does it match whatever find is installed" (which
+// varies by platform and skips where a flag is flavor-specific). The expected sets
+// below are therefore hardcoded and deterministic.
+//
+// To stay platform-independent the fixture controls everything the predicates read:
+// file contents (sizes), modes (chmod), and the regular files' mtimes (pinned to
+// distinct far-past instants, so directories/the symlink -- left at their ~now
+// creation time -- are always strictly newer). Cases whose result is inherently
+// filesystem-dependent and cannot be pinned on a real FS (birth time, which not
+// every FS records; inode-change time, which has no set API) are covered by the
+// engine unit test instead, not here.
 
-#include <grp.h>     // getgrgid()/struct group for the -group oracle
-#include <pwd.h>     // getpwuid()/struct passwd for the -user oracle
-#include <unistd.h>  // geteuid()/getegid() for the -uid/-gid and -user/-group oracles
+#include <grp.h>     // getgrgid()/struct group for the -group arg
+#include <pwd.h>     // getpwuid()/struct passwd for the -user arg
+#include <unistd.h>  // geteuid()/getegid() for the -uid/-gid and -user/-group args
 
 #include <algorithm>
-#include <array>
-#include <cstddef>
-#include <cstdio>
-#include <filesystem>
+#include <chrono>
 #include <fstream>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -51,41 +57,14 @@ namespace fs = std::filesystem;
 using ::mbo::testing::IsOk;
 using ::testing::ElementsAreArray;
 
-// Wraps `arg` in single quotes so the shell passes it to `find` verbatim
-// (e.g. globs are not expanded by the shell).
-std::string ShellQuote(std::string_view arg) {
-  std::string out = "'";
-  for (const char c : arg) {
-    if (c == '\'') {
-      out += "'\\''";
-    } else {
-      out += c;
-    }
-  }
-  out += "'";
-  return out;
-}
-
-std::vector<std::string> SplitLines(std::string_view text) {
-  std::vector<std::string> lines;
-  std::string current;
-  for (const char c : text) {
-    if (c == '\n') {
-      lines.push_back(current);
-      current.clear();
-    } else {
-      current += c;
-    }
-  }
-  if (!current.empty()) {
-    lines.push_back(current);
-  }
-  return lines;
-}
-
-// Asserts that `xff <root> <expr>` produces the same set of paths as the system
-// `find`. find is the oracle on whichever platform the test runs (GNU on Linux,
-// BSD on macOS), so only universally-portable predicates belong in the matrix.
+// Fixture tree (relative to <root>):
+//   a.txt      1 byte,  mode 0644, mtime pinned oldest
+//   b.md       2 bytes, mode 0640, mtime pinned
+//   sub/       directory
+//   sub/c.txt  3 bytes, mode 0600, mtime pinned
+//   link       symlink -> a.txt (mtime ~now)
+//   empty.txt  0 bytes, mode 0664, mtime pinned newest of the files
+//   emptydir/  empty directory
 struct ConformanceTest : ::testing::Test {
   void SetUp() override {
     root_ = fs::path(::testing::TempDir())
@@ -93,16 +72,25 @@ struct ConformanceTest : ::testing::Test {
     std::error_code ec;
     fs::remove_all(root_, ec);
     ASSERT_TRUE(fs::create_directories(root_ / "sub"));
+    fs::create_directory(root_ / "emptydir", ec);
     { std::ofstream(root_ / "a.txt") << "a"; }
     { std::ofstream(root_ / "b.md") << "bb"; }
     { std::ofstream(root_ / "sub" / "c.txt") << "ccc"; }
+    { std::ofstream(root_ / "empty.txt"); }  // 0 bytes
     fs::create_symlink("a.txt", root_ / "link");
-    // Known modes so -perm cases are meaningful (find and xff both lstat these).
+    // Known modes so -perm is meaningful and FS-independent.
     fs::permissions(root_ / "a.txt", static_cast<fs::perms>(0644));
     fs::permissions(root_ / "b.md", static_cast<fs::perms>(0640));
     fs::permissions(root_ / "sub" / "c.txt", static_cast<fs::perms>(0600));
-    { std::ofstream(root_ / "empty.txt"); }  // 0 bytes, for -empty
-    fs::create_directory(root_ / "emptydir", ec);
+    fs::permissions(root_ / "empty.txt", static_cast<fs::perms>(0664));
+    // Pin the regular files' mtimes to distinct far-past instants (a < b < c <
+    // empty, all well before now), so -newer*/-newermt are deterministic and the
+    // directories + symlink (still at ~now) are strictly the newest entries.
+    const auto now = fs::file_time_type::clock::now();
+    PinMtime("a.txt", now - std::chrono::hours(4'000));
+    PinMtime("b.md", now - std::chrono::hours(3'000));
+    PinMtime("sub/c.txt", now - std::chrono::hours(2'000));
+    PinMtime("empty.txt", now - std::chrono::hours(1'000));
   }
 
   void TearDown() override {
@@ -110,41 +98,29 @@ struct ConformanceTest : ::testing::Test {
     fs::remove_all(root_, ec);
   }
 
-  // Runs `find <globals...> <root> <expr...>`, returning its sorted output lines,
-  // or nullopt if `find` could not be run (so the test skips rather than fails).
-  std::optional<std::vector<std::string>> SystemFind(
-      const std::vector<std::string>& globals,
-      const std::vector<std::string>& expr) {
-    std::string command = "find";
-    for (const std::string& global : globals) {
-      absl::StrAppend(&command, " ", ShellQuote(global));
-    }
-    absl::StrAppend(&command, " ", ShellQuote(root_.string()));
-    for (const std::string& token : expr) {
-      absl::StrAppend(&command, " ", ShellQuote(token));
-    }
-    absl::StrAppend(&command, " 2>/dev/null");
-
-    FILE* pipe = ::popen(command.c_str(), "r");
-    if (pipe == nullptr) {
-      return std::nullopt;
-    }
-    std::string output;
-    std::array<char, 4'096> chunk;
-    for (std::size_t n = ::fread(chunk.data(), 1, chunk.size(), pipe); n > 0;
-         n = ::fread(chunk.data(), 1, chunk.size(), pipe)) {
-      output.append(chunk.data(), n);
-    }
-    if (::pclose(pipe) != 0) {
-      return std::nullopt;
-    }
-    std::vector<std::string> lines = SplitLines(output);
-    std::sort(lines.begin(), lines.end());
-    return lines;
+  void PinMtime(std::string_view rel, fs::file_time_type when) {
+    std::error_code ec;
+    fs::last_write_time(root_ / rel, when, ec);
+    ASSERT_FALSE(ec) << "pin mtime " << rel << ": " << ec.message();
   }
 
-  // Runs xff's engine over the same globals + root + expression, sorted.
-  std::vector<std::string> Xff(const std::vector<std::string>& globals, const std::vector<std::string>& expr) {
+  // The full path for a fixture entry; "" is the root itself.
+  std::string Rel(std::string_view rel) const { return rel.empty() ? root_.string() : (root_ / rel).string(); }
+
+  // Maps fixture-relative names to full paths, sorted, for ElementsAreArray.
+  std::vector<std::string> Paths(const std::vector<std::string>& rels) const {
+    std::vector<std::string> out;
+    out.reserve(rels.size());
+    for (const std::string& rel : rels) {
+      out.push_back(Rel(rel));
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+  }
+
+  // Runs xff over `<globals> <root> <expr>` and returns the emitted records, sorted,
+  // with a single trailing terminator stripped.
+  std::vector<std::string> Xff(const std::vector<std::string>& globals, const std::vector<std::string>& expr) const {
     std::vector<std::string> argv = globals;
     argv.push_back(root_.string());
     argv.insert(argv.end(), expr.begin(), expr.end());
@@ -167,14 +143,21 @@ struct ConformanceTest : ::testing::Test {
     return lines;
   }
 
-  void ExpectMatchesFind(const std::vector<std::string>& expr) { ExpectMatchesFind({}, expr); }
+  // Asserts xff's output for `expr` is exactly the given fixture entries.
+  void ExpectXff(const std::vector<std::string>& expr, const std::vector<std::string>& expected_rels) const {
+    ExpectXff({}, expr, expected_rels);
+  }
 
-  void ExpectMatchesFind(const std::vector<std::string>& globals, const std::vector<std::string>& expr) {
-    const std::optional<std::vector<std::string>> expected = SystemFind(globals, expr);
-    if (!expected.has_value()) {
-      GTEST_SKIP() << "system `find` unavailable";
-    }
-    EXPECT_THAT(Xff(globals, expr), ElementsAreArray(*expected));
+  void ExpectXff(
+      const std::vector<std::string>& globals,
+      const std::vector<std::string>& expr,
+      const std::vector<std::string>& expected_rels) const {
+    EXPECT_THAT(Xff(globals, expr), ElementsAreArray(Paths(expected_rels)));
+  }
+
+  // The whole tree (every entry, "" being the root).
+  static std::vector<std::string> All() {
+    return {"", "a.txt", "b.md", "sub", "sub/c.txt", "link", "empty.txt", "emptydir"};
   }
 
   vfs::LocalFs fs_;
@@ -182,147 +165,139 @@ struct ConformanceTest : ::testing::Test {
 };
 
 TEST_F(ConformanceTest, PrintAll) {
-  ExpectMatchesFind({});
+  ExpectXff({}, All());
 }
 
 TEST_F(ConformanceTest, ExplicitPrint) {
-  ExpectMatchesFind({"-print"});
+  ExpectXff({"-print"}, All());
 }
 
 TEST_F(ConformanceTest, TypeFile) {
-  ExpectMatchesFind({"-type", "f"});
+  ExpectXff({"-type", "f"}, {"a.txt", "b.md", "sub/c.txt", "empty.txt"});
 }
 
 TEST_F(ConformanceTest, TypeDirectory) {
-  ExpectMatchesFind({"-type", "d"});
+  ExpectXff({"-type", "d"}, {"", "sub", "emptydir"});
 }
 
 TEST_F(ConformanceTest, TypeSymlink) {
-  ExpectMatchesFind({"-type", "l"});
+  ExpectXff({"-type", "l"}, {"link"});
 }
 
-// Note: comma-separated -type lists ("f,d") are deliberately NOT conformance-
-// tested. They are a GNU extension, and BSD find (macOS) silently accepts "f,d"
-// as plain "f" rather than erroring, so the oracle diverges by platform. The
-// GNU semantics are covered by the engine unit test instead.
-
-// -lname is GNU-only; BSD find (macOS) errors, so SystemFind returns nullopt and
-// this skips. The fixture's `link` targets `a.txt`.
 TEST_F(ConformanceTest, LnameMatchesSymlinkTarget) {
-  ExpectMatchesFind({"-lname", "a.txt"});
+  ExpectXff({"-lname", "a.txt"}, {"link"});
 }
 
 TEST_F(ConformanceTest, LnameGlobMatchesSymlinkTarget) {
-  ExpectMatchesFind({"-lname", "*.txt"});
+  ExpectXff({"-lname", "*.txt"}, {"link"});
 }
 
 TEST_F(ConformanceTest, IlnameFoldsCase) {
-  ExpectMatchesFind({"-ilname", "A.TXT"});
+  ExpectXff({"-ilname", "A.TXT"}, {"link"});
 }
 
-// -xtype follows symlinks: the fixture's `link` targets the regular file a.txt,
-// so -xtype f includes it but -type f does not. (GNU find; skips on BSD find.)
+// -xtype follows the symlink: link -> a.txt (a regular file), so -xtype f includes
+// link while -type f does not; -xtype l matches only broken links (none here).
 TEST_F(ConformanceTest, XtypeFileFollowsLink) {
-  ExpectMatchesFind({"-xtype", "f"});
+  ExpectXff({"-xtype", "f"}, {"a.txt", "b.md", "sub/c.txt", "empty.txt", "link"});
 }
 
 TEST_F(ConformanceTest, XtypeDirectory) {
-  ExpectMatchesFind({"-xtype", "d"});
+  ExpectXff({"-xtype", "d"}, {"", "sub", "emptydir"});
 }
 
 TEST_F(ConformanceTest, XtypeSymlinkOnlyBroken) {
-  ExpectMatchesFind({"-xtype", "l"});
+  ExpectXff({"-xtype", "l"}, {});
 }
 
 TEST_F(ConformanceTest, NameGlob) {
-  ExpectMatchesFind({"-name", "*.txt"});
+  ExpectXff({"-name", "*.txt"}, {"a.txt", "sub/c.txt", "empty.txt"});
 }
 
 TEST_F(ConformanceTest, NotTypeDirectory) {
-  ExpectMatchesFind({"!", "-type", "d"});
+  ExpectXff({"!", "-type", "d"}, {"a.txt", "b.md", "sub/c.txt", "link", "empty.txt"});
 }
 
 TEST_F(ConformanceTest, OrExpression) {
-  ExpectMatchesFind({"-name", "*.txt", "-o", "-type", "d"});
+  ExpectXff({"-name", "*.txt", "-o", "-type", "d"}, {"", "a.txt", "sub", "sub/c.txt", "empty.txt", "emptydir"});
 }
 
 TEST_F(ConformanceTest, PathGlob) {
-  ExpectMatchesFind({"-path", "*/sub/*"});
+  ExpectXff({"-path", "*/sub/*"}, {"sub/c.txt"});
 }
 
-// -wholename/-iwholename are GNU synonyms for -path/-ipath; BSD find lacks them,
-// so SystemFind returns nullopt and these skip on macOS.
 TEST_F(ConformanceTest, WholenameGlob) {
-  ExpectMatchesFind({"-wholename", "*/sub/*"});
+  ExpectXff({"-wholename", "*/sub/*"}, {"sub/c.txt"});
 }
 
 TEST_F(ConformanceTest, IwholenameFoldsCase) {
-  ExpectMatchesFind({"-iwholename", "*/SUB/*"});
+  ExpectXff({"-iwholename", "*/SUB/*"}, {"sub/c.txt"});
 }
 
 TEST_F(ConformanceTest, AndChain) {
-  ExpectMatchesFind({"-type", "f", "-name", "*.md"});
+  ExpectXff({"-type", "f", "-name", "*.md"}, {"b.md"});
 }
 
-TEST_F(ConformanceTest, SizeExactBytes) {
-  ExpectMatchesFind({"-size", "1c"});
+// -size cases are scoped to -type f: the regular-file sizes are fixed by the
+// fixture (1/2/3/0 bytes), whereas directory and symlink sizes are filesystem-
+// dependent. The rounding/unit arithmetic is covered by the engine unit test.
+TEST_F(ConformanceTest, SizeFileExactByte) {
+  ExpectXff({"-type", "f", "-size", "1c"}, {"a.txt"});
 }
 
-TEST_F(ConformanceTest, SizeGreaterBytes) {
-  ExpectMatchesFind({"-size", "+1c"});
+TEST_F(ConformanceTest, SizeFileGreaterByte) {
+  ExpectXff({"-type", "f", "-size", "+1c"}, {"b.md", "sub/c.txt"});
 }
 
-TEST_F(ConformanceTest, SizeLessBytes) {
-  ExpectMatchesFind({"-size", "-3c"});
+TEST_F(ConformanceTest, SizeFileUnderThreeBytes) {
+  ExpectXff({"-type", "f", "-size", "-3c"}, {"a.txt", "b.md", "empty.txt"});
 }
-
-// Note: -size with a UNIT suffix (k/M/G/T/P) and a +/- prefix is deliberately NOT
-// conformance-tested. BSD find (macOS) compares the raw byte size against N*unit
-// (so `-size -1k` matches a 1-byte file), while GNU find -- which xff follows --
-// rounds the size UP to whole units first (so `-size -1k` rounds 1 byte to 1 unit,
-// which is not < 1). The two flavors genuinely diverge, so the macOS oracle cannot
-// bless xff's GNU semantics; the unit arithmetic (incl. the T/P/E continuation) is
-// covered by the engine unit test instead. Only `c` (bytes), where the flavors
-// agree, is conformance-tested (above).
 
 TEST_F(ConformanceTest, PermExact) {
-  ExpectMatchesFind({"-perm", "644"});
+  ExpectXff({"-perm", "644"}, {"a.txt"});
 }
 
 TEST_F(ConformanceTest, PermExactOther) {
-  ExpectMatchesFind({"-perm", "600"});
+  ExpectXff({"-perm", "600"}, {"sub/c.txt"});
 }
 
 TEST_F(ConformanceTest, PermAllBitsOwnerWrite) {
-  ExpectMatchesFind({"-perm", "-200"});
+  ExpectXff({"-perm", "-200"}, All());  // every entry is owner-writable
 }
 
-TEST_F(ConformanceTest, PermAllBitsReadable) {
-  ExpectMatchesFind({"-perm", "-044"});
+TEST_F(ConformanceTest, PermAllBitsGroupAndOtherRead) {
+  // 0044 = group-read and other-read. a.txt(644)/empty(664) have both; the dirs
+  // and symlink (0755/0777) have both; b.md(640) lacks other-read, c.txt(600) lacks
+  // both.
+  ExpectXff({"-perm", "-044"}, {"", "a.txt", "sub", "link", "empty.txt", "emptydir"});
 }
 
 TEST_F(ConformanceTest, MaxDepthOne) {
-  ExpectMatchesFind({"-maxdepth", "1"});
+  ExpectXff({"-maxdepth", "1"}, {"", "a.txt", "b.md", "sub", "link", "empty.txt", "emptydir"});
 }
 
 TEST_F(ConformanceTest, MaxDepthTwo) {
-  ExpectMatchesFind({"-maxdepth", "2"});
+  ExpectXff({"-maxdepth", "2"}, All());
 }
 
 TEST_F(ConformanceTest, MinDepthOne) {
-  ExpectMatchesFind({"-mindepth", "1"});
+  ExpectXff({"-mindepth", "1"}, {"a.txt", "b.md", "sub", "sub/c.txt", "link", "empty.txt", "emptydir"});
 }
 
 TEST_F(ConformanceTest, MaxDepthWithType) {
-  ExpectMatchesFind({"-maxdepth", "1", "-type", "f"});
+  ExpectXff({"-maxdepth", "1", "-type", "f"}, {"a.txt", "b.md", "empty.txt"});
 }
 
 TEST_F(ConformanceTest, Empty) {
-  ExpectMatchesFind({"-empty"});
+  ExpectXff({"-empty"}, {"empty.txt", "emptydir"});
 }
 
 TEST_F(ConformanceTest, LinksOne) {
-  ExpectMatchesFind({"-links", "1"});
+  ExpectXff({"-links", "1"}, {"a.txt", "b.md", "sub/c.txt", "link", "empty.txt"});
+}
+
+TEST_F(ConformanceTest, LinksMoreThanOne) {
+  ExpectXff({"-links", "+1"}, {"", "sub", "emptydir"});  // directories have nlink >= 2
 }
 
 TEST_F(ConformanceTest, SamefileMatchesHardLink) {
@@ -331,36 +306,31 @@ TEST_F(ConformanceTest, SamefileMatchesHardLink) {
   if (ec) {
     GTEST_SKIP() << "hard links unsupported on this filesystem";
   }
-  // -samefile a.txt must match a.txt and its hard link (same inode + device).
-  ExpectMatchesFind({"-samefile", (root_ / "a.txt").string()});
+  ExpectXff({"-samefile", (root_ / "a.txt").string()}, {"a.txt", "a-hardlink"});
 }
 
-TEST_F(ConformanceTest, LinksMoreThanOne) {
-  ExpectMatchesFind({"-links", "+1"});
-}
-
+// b.md's mtime is pinned to the middle, so -newer/-newermm select every entry
+// strictly newer: the later-pinned files plus the ~now directories and symlink.
 TEST_F(ConformanceTest, NewerThanReferenceFile) {
-  ExpectMatchesFind({"-newer", (root_ / "b.md").string()});
+  ExpectXff({"-newer", (root_ / "b.md").string()}, {"", "sub", "sub/c.txt", "link", "empty.txt", "emptydir"});
 }
 
-// Birthtime predicates -Bmin/-Btime are BSD-native (macOS); GNU `find` lacks them,
-// so these skip on Linux. The fixture entries are created in SetUp, so all were
-// born within the last minute/day -- a non-trivial set both must agree on (when the
-// filesystem records a birth time, which APFS does).
-TEST_F(ConformanceTest, BminWithinTheHour) {
-  ExpectMatchesFind({"-Bmin", "-60"});
+TEST_F(ConformanceTest, NewerMtimeVsRefMtime) {
+  ExpectXff({"-newermm", (root_ / "b.md").string()}, {"", "sub", "sub/c.txt", "link", "empty.txt", "emptydir"});
 }
 
-TEST_F(ConformanceTest, BtimeWithinTheDay) {
-  ExpectMatchesFind({"-Btime", "-1"});
+// -newermt with the "yesterday" day word: the files are pinned far in the past, so
+// only the ~now directories and symlink are newer than yesterday.
+TEST_F(ConformanceTest, NewerMtimeVsYesterdayKeyword) {
+  ExpectXff({"-newermt", "yesterday"}, {"", "sub", "link", "emptydir"});
 }
 
 TEST_F(ConformanceTest, UidMatchesCurrentUser) {
-  ExpectMatchesFind({"-uid", std::to_string(::geteuid())});
+  ExpectXff({"-uid", std::to_string(::geteuid())}, All());  // every entry is owned by the test user
 }
 
 TEST_F(ConformanceTest, GidMatchesCurrentGroup) {
-  ExpectMatchesFind({"-gid", std::to_string(::getegid())});
+  ExpectXff({"-gid", std::to_string(::getegid())}, All());
 }
 
 TEST_F(ConformanceTest, UserMatchesCurrentUser) {
@@ -368,7 +338,7 @@ TEST_F(ConformanceTest, UserMatchesCurrentUser) {
   if (pw == nullptr) {
     GTEST_SKIP() << "no passwd entry for euid";
   }
-  ExpectMatchesFind({"-user", pw->pw_name});
+  ExpectXff({"-user", pw->pw_name}, All());
 }
 
 TEST_F(ConformanceTest, GroupMatchesCurrentGroup) {
@@ -376,99 +346,76 @@ TEST_F(ConformanceTest, GroupMatchesCurrentGroup) {
   if (gr == nullptr) {
     GTEST_SKIP() << "no group entry for egid";
   }
-  ExpectMatchesFind({"-group", gr->gr_name});
+  ExpectXff({"-group", gr->gr_name}, All());
 }
 
 TEST_F(ConformanceTest, ParenGrouping) {
-  ExpectMatchesFind({"(", "-type", "f", "-o", "-type", "d", ")"});
+  ExpectXff({"(", "-type", "f", "-o", "-type", "d", ")"}, {"", "a.txt", "b.md", "sub", "sub/c.txt", "empty.txt", "emptydir"});
 }
 
-// The comma operator is a GNU extension; BSD find rejects it, so these skip on macOS.
 TEST_F(ConformanceTest, CommaListImplicitPrint) {
-  ExpectMatchesFind({"-name", "*.txt", ",", "-name", "*.md"});
+  // The comma's value is its right operand, so the implicit -print fires for the
+  // *.md match only.
+  ExpectXff({"-name", "*.txt", ",", "-name", "*.md"}, {"b.md"});
 }
 
 TEST_F(ConformanceTest, CommaWithExplicitAction) {
-  ExpectMatchesFind({"-type", "f", ",", "-print"});
+  // -print (right operand) is an always-true action, so every entry prints.
+  ExpectXff({"-type", "f", ",", "-print"}, All());
 }
 
 TEST_F(ConformanceTest, PruneSkipsDirectory) {
-  ExpectMatchesFind({"-name", "sub", "-prune", "-o", "-print"});
+  // `-name sub -prune -o -print`: sub matches and is pruned (not printed, subtree
+  // skipped); everything else prints.
+  ExpectXff({"-name", "sub", "-prune", "-o", "-print"}, {"", "a.txt", "b.md", "link", "empty.txt", "emptydir"});
 }
 
-// -depth changes visit order only; the conformance harness sorts, so this checks
-// the set is unaffected (xff's post-order property is unit-tested in walk/run).
 TEST_F(ConformanceTest, DepthSameSet) {
-  ExpectMatchesFind({"-depth"});
+  ExpectXff({"-depth"}, All());  // post-order changes visit order only; the set is unchanged
 }
 
 TEST_F(ConformanceTest, DepthWithTypeFile) {
-  ExpectMatchesFind({"-depth", "-type", "f"});
+  ExpectXff({"-depth", "-type", "f"}, {"a.txt", "b.md", "sub/c.txt", "empty.txt"});
 }
 
-// The fixture is single-device, so -xdev prunes nothing here; this confirms the
-// option is accepted and the set is unchanged (cross-device pruning is unit-tested).
 TEST_F(ConformanceTest, XdevSameSetOnSingleDevice) {
-  ExpectMatchesFind({"-xdev"});
+  ExpectXff({"-xdev"}, All());  // single-device fixture: -xdev prunes nothing
 }
 
-// -H/-L/-P are leading globals; the fixture's `link -> a.txt` makes them observable.
 TEST_F(ConformanceTest, FollowAllTypeFileIncludesSymlink) {
-  ExpectMatchesFind({"-L"}, {"-type", "f"});
+  ExpectXff({"-L"}, {"-type", "f"}, {"a.txt", "b.md", "sub/c.txt", "empty.txt", "link"});
 }
 
 TEST_F(ConformanceTest, FollowAllLeavesNoSymlinkType) {
-  ExpectMatchesFind({"-L"}, {"-type", "l"});
+  ExpectXff({"-L"}, {"-type", "l"}, {});  // under -L the symlink resolves to its target
 }
 
 TEST_F(ConformanceTest, PhysicalKeepsSymlinkType) {
-  ExpectMatchesFind({"-P"}, {"-type", "l"});
+  ExpectXff({"-P"}, {"-type", "l"}, {"link"});
 }
 
-// -regex matches the whole path; `.*\.txt` is grammar-agnostic (basic/emacs/RE2 agree).
 TEST_F(ConformanceTest, RegexWholePathTxt) {
-  ExpectMatchesFind({"-regex", ".*\\.txt"});
+  ExpectXff({"-regex", ".*\\.txt"}, {"a.txt", "sub/c.txt", "empty.txt"});
 }
 
 TEST_F(ConformanceTest, IRegexWholePathTxt) {
-  ExpectMatchesFind({"-iregex", ".*\\.TXT"});
+  ExpectXff({"-iregex", ".*\\.TXT"}, {"a.txt", "sub/c.txt", "empty.txt"});
 }
 
-// -newerXY compares two files' timestamps; mtime/ctime are stable between the
-// find and xff runs (atime is not, so it is avoided here). The fixture chmods
-// some files, so ctime != mtime, which distinguishes the X/Y field selection.
-TEST_F(ConformanceTest, NewerMtimeVsRefMtime) {
-  ExpectMatchesFind({"-newermm", (root_ / "b.md").string()});
-}
-
-TEST_F(ConformanceTest, NewerCtimeVsRefMtime) {
-  ExpectMatchesFind({"-newercm", (root_ / "b.md").string()});
-}
-
-// -cnewer is the classic spelling of -newercm and exists in both GNU and BSD
-// find, so it is portable here (atime-based -anewer stays unit-tested only).
-TEST_F(ConformanceTest, CnewerMatchesNewercm) {
-  ExpectMatchesFind({"-cnewer", (root_ / "b.md").string()});
-}
-
-TEST_F(ConformanceTest, NewerMtimeVsRefCtime) {
-  ExpectMatchesFind({"-newermc", (root_ / "b.md").string()});
-}
-
-// -newermt with the "yesterday" day word: both GNU and BSD find accept it. The
-// fixture entries were created in SetUp (well after yesterday), so all are newer in
-// both -- the exact yesterday boundary (now-24h vs civil midnight) never bites here.
-TEST_F(ConformanceTest, NewerMtimeVsYesterdayKeyword) {
-  ExpectMatchesFind({"-newermt", "yesterday"});
-}
-
-// -printf is a GNU extension; BSD find lacks it, so these skip on macOS.
+// -printf is scoped to -type f so %p/%s/%f cover only the fixed-size regular files
+// (directory sizes and the root basename are otherwise environment-dependent).
 TEST_F(ConformanceTest, PrintfPathAndSize) {
-  ExpectMatchesFind({"-printf", "%p %s\\n"});
+  EXPECT_THAT(
+      Xff({}, {"-type", "f", "-printf", "%p %s\\n"}),
+      ElementsAreArray(std::vector<std::string>{
+          absl::StrCat(Rel("a.txt"), " 1"), absl::StrCat(Rel("b.md"), " 2"), absl::StrCat(Rel("empty.txt"), " 0"),
+          absl::StrCat(Rel("sub/c.txt"), " 3")}));
 }
 
 TEST_F(ConformanceTest, PrintfNameTypeDepth) {
-  ExpectMatchesFind({"-printf", "%f %y %d\\n"});
+  EXPECT_THAT(
+      Xff({}, {"-type", "f", "-printf", "%f %y %d\\n"}),
+      ElementsAreArray(std::vector<std::string>{"a.txt f 1", "b.md f 1", "c.txt f 2", "empty.txt f 1"}));
 }
 
 }  // namespace

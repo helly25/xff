@@ -15,8 +15,9 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_test")
 
-# Find-compatibility conformance gate: xff vs the system `find` over a fixture
-# tree (design.md / implementation-plan.md Phase-1 exit).
+# Conformance gate: asserts xff's OWN defined output over a fixed fixture tree
+# (not differential against a system `find`, which varies by platform). See the
+# header comment in conformance_test.cc.
 cc_test(
     name = "conformance_test",
     size = "small",
