@@ -45,3 +45,41 @@ alignment markers). Do not hand-align them: run the formatter
 [`tools/align_markdown_tables.py`](tools/align_markdown_tables.py) (`FILE...`, or
 `--check` to only report). It is enforced by the `align-markdown-tables`
 pre-commit hook, so a misaligned table fails CI; let the tool do the spacing.
+
+## Self-documenting features (the registry is the single source of truth)
+
+The expression vocabulary (`xff/registry`) and the global options
+(`xff/cli/globals.cc`) are the single sources of truth from which `--help`,
+`--help=TOPIC`, the `--help=list` index, the `--man` roff page, and the
+`--markdown` reference are all generated. So **every feature add or change carries
+its self-documentation in the same change** - this is part of "done", never a
+follow-up:
+
+- a new / changed **primary** -> its `registry::Descriptor.summary` (a non-empty
+  one-line synopsis; `registry_test` enforces presence + shape);
+- a new / changed **global flag** -> its `cli::GlobalFlag` entry in `globals.cc`
+  (`globals_test` enforces it; set `alias` / `display` for short or alternate forms);
+- the hand-maintained `kHelpText` usage page in `cli/main.cc`;
+- any prose docs the change affects (`docs/design-*.md`, `TODO.md`).
+
+The generated `--help` / `--man` / `--markdown` then stay complete by construction.
+
+## CLI conventions
+
+- **Flag scope by dash count.** `--flag` is a whole-run global (a config / output /
+  traversal modifier); a single-dash `-flag` is an expression primary (a per-entry
+  test or action). Grep / GNU single-dash _globals_ (`-h`, `-help`, `-version`,
+  `-q`) are deliberate special-cased compatibility aliases of their `--` form, not
+  new primaries.
+- **Flag-only; no subcommands.** xff is a single-purpose tool (like `fd` /
+  `ripgrep`), so meta operations are flags (`--help`, `--man`, `--markdown`,
+  `--explain`), never `git`-style subcommands; find and xff share one grammar,
+  differing only in vocabulary. (Decided 2026-06-28.)
+- **A user-toggleable boolean capability is a `--feature`, not a bespoke flag.**
+  `--feature=NAME` / `--feature=no-NAME` is the parked mechanism (full design in
+  [`TODO.md`](TODO.md) under #73); it has no concrete customer yet, so it is
+  unbuilt. **Trigger:** the first time you would add a boolean on/off capability
+  that is neither a whole-style behavior nor a valued option (valued ones stay
+  dedicated flags, e.g. `--implicit-print=no`), build the `--feature` mechanism per
+  the #73 design and register the capability there - do not add a one-off boolean
+  flag.
