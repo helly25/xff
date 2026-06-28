@@ -25,6 +25,7 @@
 #include <grp.h>
 #include <pwd.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -36,6 +37,7 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
@@ -840,6 +842,58 @@ bool EvalRegex(const parser::Expr& expr, EvalContext& ctx) {
   return MatchesRegex(AsRef(expr.matcher), ctx.visit.path, ctx.captures);
 }
 
+// Reads the regular-file content a content predicate should search, or nullopt when
+// there is nothing to search: a non-regular entry, an unreadable file, or a binary
+// file. "Binary" is grep/ripgrep's heuristic -- a NUL byte in the sniffed prefix --
+// so content search skips binaries by default instead of emitting noise. The whole
+// file is read (hence the predicates' Cost::kExpensive); the prefix sniff only
+// decides the binary skip.
+std::optional<std::string> ContentToSearch(const Visit& visit, const vfs::FileSystem& fs) {
+  if (visit.metadata.type != vfs::FileType::kRegular) {
+    return std::nullopt;  // only regular files have searchable content
+  }
+  absl::StatusOr<std::string> content = fs.ReadContent(visit.path);
+  if (!content.ok()) {
+    return std::nullopt;  // unreadable: a non-match here (the walk surfaces the read error itself)
+  }
+  constexpr std::size_t kBinarySniffBytes = 8 * 1'024;
+  const std::string_view prefix(content->data(), std::min(content->size(), kBinarySniffBytes));
+  if (prefix.find('\0') != std::string_view::npos) {
+    return std::nullopt;  // a NUL in the first 8 KiB marks the file binary; skip it
+  }
+  return *std::move(content);
+}
+
+// xff -content / -icontent: the file's content contains the argument as a literal
+// substring; the -icontent variant folds ASCII case (the descriptor's fold_case,
+// like -iname). Non-regular, unreadable, and binary files do not match (see
+// ContentToSearch). The literal form sidesteps grep's regex-flavor ambiguity; -rxc
+// is the regex counterpart.
+bool EvalContent(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.args.empty()) {
+    return false;
+  }
+  const std::optional<std::string> content = ContentToSearch(ctx.visit, ctx.fs);
+  if (!content.has_value()) {
+    return false;
+  }
+  return expr.descriptor->fold_case ? absl::StrContainsIgnoreCase(*content, expr.args.front())
+                                    : absl::StrContains(*content, expr.args.front());
+}
+
+// xff -rxc / -irxc: the file's content matches the regular expression anywhere (RE2
+// PartialMatch, unanchored -- the content counterpart of -regex's whole-path
+// FullMatch). The matcher is pre-compiled by the parser, with case folding baked in
+// for -irxc. Non-regular, unreadable, and binary files do not match.
+bool EvalRxc(const parser::Expr& expr, EvalContext& ctx) {
+  const MatcherRef matcher = AsRef(expr.matcher);
+  if (!matcher.has_value()) {
+    return false;
+  }
+  const std::optional<std::string> content = ContentToSearch(ctx.visit, ctx.fs);
+  return content.has_value() && matcher->get().PartialMatch(*content);
+}
+
 bool EvalType(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesType(expr.args.front(), ctx.visit.metadata.type);
 }
@@ -1411,6 +1465,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-capturedir", {&EvalCapturedir}},
     DispatchPair{"-cmin", {&EvalCmin}},
     DispatchPair{"-cnewer", {&EvalCnewer}},
+    DispatchPair{"-content", {&EvalContent}},
     DispatchPair{"-ctime", {&EvalCtime}},
     DispatchPair{"-delete", {&EvalDelete}},
     DispatchPair{"-empty", {&EvalEmpty}},
@@ -1425,11 +1480,13 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-fstype", {&EvalFstype}},
     DispatchPair{"-gid", {&EvalGid}},
     DispatchPair{"-group", {&EvalGroup}},
+    DispatchPair{"-icontent", {&EvalContent}},
     DispatchPair{"-ilname", {&EvalLname}},
     DispatchPair{"-iname", {&EvalName}},
     DispatchPair{"-inum", {&EvalInum}},
     DispatchPair{"-ipath", {&EvalPath}},
     DispatchPair{"-iregex", {&EvalRegex}},
+    DispatchPair{"-irxc", {&EvalRxc}},
     DispatchPair{"-iwholename", {&EvalPath}},
     DispatchPair{"-links", {&EvalLinks}},
     DispatchPair{"-lname", {&EvalLname}},
@@ -1473,6 +1530,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-quit", {&EvalQuit}},
     DispatchPair{"-readable", {&EvalReadable}},
     DispatchPair{"-regex", {&EvalRegex}},
+    DispatchPair{"-rxc", {&EvalRxc}},
     DispatchPair{"-samefile", {&EvalSamefile}},
     DispatchPair{"-size", {&EvalSize}},
     DispatchPair{"-sparse", {&EvalSparse}},

@@ -76,15 +76,18 @@ bool IsXorTier(std::string_view t) {
 }
 
 // Pre-compiles a node's regex at parse time so evaluation reads it lock-free:
-// -regex/-iregex match args[0]; -capture/-capturedir (Binding::kLabelRegex) carry
-// an optional extraction regex in args[1]. Case sensitivity comes from the
-// descriptor's fold_case (so -iregex is data, not a name check). Returns null when
-// the node carries no regex, or the pattern does not compile (then no-match).
+// -regex/-iregex (whole-path) and -rxc/-irxc (file-content) match args[0];
+// -capture/-capturedir (Binding::kLabelRegex) carry an optional extraction regex in
+// args[1]. Case sensitivity comes from the descriptor's fold_case (so the i-variants
+// are data, not a name check). Returns null when the node carries no regex, or the
+// pattern does not compile (then no-match).
 std::shared_ptr<const regex::Matcher> CompileNodeRegex(
     const registry::Descriptor& descriptor,
     const std::vector<std::string>& args) {
   std::string_view pattern;
-  if ((descriptor.name == "-regex" || descriptor.name == "-iregex") && !args.empty()) {
+  if ((descriptor.name == "-regex" || descriptor.name == "-iregex" || descriptor.name == "-rxc"
+       || descriptor.name == "-irxc")
+      && !args.empty()) {
     pattern = args[0];
   } else if (descriptor.binding == registry::Binding::kLabelRegex && args.size() > 1 && !args[1].empty()) {
     pattern = args[1];  // the optional =NAME=REGEX extraction regex

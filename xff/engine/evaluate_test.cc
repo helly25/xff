@@ -17,8 +17,10 @@
 
 #include <filesystem>
 #include <fstream>
+#include <ios>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <vector>
 
 #include "absl/status/statusor.h"
@@ -92,6 +94,28 @@ struct EvaluateTest : ::testing::Test {
     return Visit{.path = path, .name = name, .depth = 1, .metadata = storage};
   }
 
+  // Writes `bytes` (which may contain a NUL, for the binary-skip case) to a temp
+  // file and returns its path, tracked for TearDown cleanup. The content predicates
+  // read a real file via LocalFs::ReadContent, so they need one on disk.
+  std::string WriteContentFile(std::string_view tag, std::string_view bytes) {
+    namespace stdfs = std::filesystem;
+    const stdfs::path path = stdfs::temp_directory_path() / (std::string("xff_content_") + std::string(tag));
+    {
+      std::ofstream out(path, std::ios::binary);
+      out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    }
+    content_files_.push_back(path.string());
+    return content_files_.back();
+  }
+
+  void TearDown() override {
+    namespace stdfs = std::filesystem;
+    for (const std::string& file : content_files_) {
+      std::error_code ec;
+      stdfs::remove(file, ec);
+    }
+  }
+
   std::string emitted_;
   std::map<std::string, std::string> file_emitted_;  // -fprint/-fprintf/... output, keyed by filename
   bool confirm_reply_ = false;                       // scripted reply for the -ok confirmer
@@ -105,6 +129,7 @@ struct EvaluateTest : ::testing::Test {
   bool exec_fields_ = false;                    // when true, Match enables --exec-fields token substitution
   std::vector<std::string> captures_;           // -regex groups captured during the most recent (gated) Match
   std::map<std::string, std::string> outputs_;  // -capture results from the most recent Match
+  std::vector<std::string> content_files_;      // temp files written by WriteContentFile, removed in TearDown
 };
 
 TEST_F(EvaluateTest, TrueAndFalse) {
@@ -544,6 +569,68 @@ TEST_F(EvaluateTest, FstypeMatchesTheHostingFilesystem) {
   EXPECT_FALSE(Match({"-fstype", "xff_no_such_fstype"}, visit));
   stdfs::remove(tmp);
   EXPECT_FALSE(Match({"-fstype", *actual}, visit));  // gone -> statfs fails -> never matches
+}
+
+TEST_F(EvaluateTest, ContentMatchesLiteralSubstring) {
+  const std::string path = WriteContentFile("literal.txt", "the quick brown fox\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "literal.txt", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-content", "quick brown"}, visit));
+  EXPECT_TRUE(Match({"-content", "fox"}, visit));
+  EXPECT_FALSE(Match({"-content", "QUICK"}, visit));     // -content is case-sensitive
+  EXPECT_FALSE(Match({"-content", "lazy dog"}, visit));  // absent
+  // '.' is a literal character, not a regex wildcard: "q.ick" matches "quick" as a
+  // regex but not as the literal substring -content searches for.
+  EXPECT_FALSE(Match({"-content", "q.ick"}, visit));
+}
+
+TEST_F(EvaluateTest, IcontentFoldsCase) {
+  const std::string path = WriteContentFile("fold.txt", "Hello World");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "fold.txt", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-icontent", "hello"}, visit));
+  EXPECT_TRUE(Match({"-icontent", "WORLD"}, visit));
+  EXPECT_FALSE(Match({"-icontent", "goodbye"}, visit));
+}
+
+TEST_F(EvaluateTest, RxcMatchesRegexAnywhere) {
+  const std::string path = WriteContentFile("rx.txt", "id=12345 name=foo\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "rx.txt", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-rxc", "id=[0-9]+"}, visit));  // unanchored: matches a substring
+  EXPECT_TRUE(Match({"-rxc", "name=[a-z]+"}, visit));
+  EXPECT_FALSE(Match({"-rxc", "id=[a-z]+"}, visit));  // digits are not letters
+  EXPECT_FALSE(Match({"-rxc", "^name="}, visit));     // 'name=' is not at the start of the content
+}
+
+TEST_F(EvaluateTest, IrxcFoldsCase) {
+  const std::string path = WriteContentFile("irx.txt", "STATUS: OK");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "irx.txt", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-irxc", "status: ok"}, visit));
+  EXPECT_FALSE(Match({"-rxc", "status: ok"}, visit));  // the case-sensitive form does not match
+}
+
+TEST_F(EvaluateTest, ContentSkipsBinaryFiles) {
+  // A NUL byte in the sniffed prefix marks the file binary; content search skips it,
+  // so even a literal substring that is present does not match (grep/rg behaviour).
+  const std::string path = WriteContentFile("bin", std::string("ELF\0needle here", 15));
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "bin", vfs::FileType::kRegular, md);
+  EXPECT_FALSE(Match({"-content", "needle"}, visit));
+  EXPECT_FALSE(Match({"-rxc", "needle"}, visit));
+}
+
+TEST_F(EvaluateTest, ContentNonRegularOrMissingDoesNotMatch) {
+  // A directory has no searchable content and a missing path is unreadable: both are
+  // a clean no-match, not an error.
+  vfs::Metadata dir_md;
+  const Visit dir = MakeVisit(".", ".", vfs::FileType::kDirectory, dir_md);
+  EXPECT_FALSE(Match({"-content", "anything"}, dir));
+  vfs::Metadata md;
+  const Visit missing = MakeVisit("/no/such/xff/file", "file", vfs::FileType::kRegular, md);
+  EXPECT_FALSE(Match({"-content", "anything"}, missing));
+  EXPECT_FALSE(Match({"-rxc", "anything"}, missing));
 }
 
 TEST_F(EvaluateTest, LnameGlobsSymlinkTarget) {

@@ -99,6 +99,44 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .kind = Kind::kTest,
         .arity = 1,
     },
+    // xff content-search predicates: match the file's CONTENT, not its path. The
+    // literal pair (-content/-icontent) sidesteps grep's regex-flavor ambiguity; the
+    // regex pair (-rxc/-irxc) is the RE2 counterpart. All read the file (skipping
+    // binaries), so they are Cost::kExpensive and the strict find style rejects them.
+    {
+        .name = "-content",
+        .summary = "match a literal substring in the file's content (xff)",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .style = Style::kXff,
+        .cost = Cost::kExpensive,
+    },
+    {
+        .name = "-icontent",
+        .summary = "match a literal substring in the file's content, case-insensitively (xff)",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .fold_case = true,
+        .style = Style::kXff,
+        .cost = Cost::kExpensive,
+    },
+    {
+        .name = "-rxc",
+        .summary = "match the file's content against a regular expression (xff)",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .style = Style::kXff,
+        .cost = Cost::kExpensive,
+    },
+    {
+        .name = "-irxc",
+        .summary = "match the file's content against a regular expression, case-insensitively (xff)",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .fold_case = true,
+        .style = Style::kXff,
+        .cost = Cost::kExpensive,
+    },
     {
         .name = "-type",
         .summary = "match the file type (f/d/l/b/c/p/s)",
