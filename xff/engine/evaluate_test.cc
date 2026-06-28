@@ -39,6 +39,7 @@ using ::mbo::testing::IsOk;
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
+using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Not;
@@ -278,6 +279,20 @@ TEST_F(EvaluateTest, ValidateSizeArgsRejectsBadUnits) {
   EXPECT_THAT(
       ValidateSizeArgs(*unknown->expression),
       StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("unknown size unit")));
+}
+
+TEST_F(EvaluateTest, ParseBlockSizeAcceptsBytesAndUnits) {
+  // --block-size value: a bare number is bytes (unlike -size, where bare = blocks);
+  // the binary-multiple suffixes scale it. 'b' (circular), zero, and a missing/
+  // non-numeric value are rejected.
+  EXPECT_THAT(ParseBlockSize("512"), IsOkAndHolds(Eq(512U)));
+  EXPECT_THAT(ParseBlockSize("4096"), IsOkAndHolds(Eq(4'096U)));
+  EXPECT_THAT(ParseBlockSize("4k"), IsOkAndHolds(Eq(4'096U)));
+  EXPECT_THAT(ParseBlockSize("1M"), IsOkAndHolds(Eq(1'024U * 1'024)));
+  EXPECT_THAT(ParseBlockSize("0"), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("positive")));
+  EXPECT_THAT(ParseBlockSize("4b"), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("invalid block-size unit")));
+  EXPECT_THAT(ParseBlockSize("9Z"), StatusIs(absl::StatusCode::kInvalidArgument));  // over-64-bit unit, not in the map
+  EXPECT_THAT(ParseBlockSize(""), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST_F(EvaluateTest, PermMatchesOctalModes) {

@@ -16,6 +16,7 @@
 #ifndef XFF_ENGINE_EVALUATE_H_
 #define XFF_ENGINE_EVALUATE_H_
 
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <string>
@@ -24,6 +25,7 @@
 
 #include "absl/functional/function_ref.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/ast.h"
@@ -73,6 +75,7 @@ struct EvalContext {
   absl::Time now;                                // single reference instant for age tests (-mtime/-mmin)
   absl::TimeZone tz = absl::LocalTimeZone();     // zone for interpreting time-string args (-newerXt); --timezone
   std::string_view time_format;                  // --time-format: default for a time field with no {:qualifier}
+  std::uint64_t block_size = 512;                // --block-size: bytes per -size block (bare value / 'b'); find's 512
   Control& control;                              // collects -prune/-quit requests
   bool exec_fields = false;                      // --exec-fields: render -exec tokens through the field vocabulary
   std::vector<std::string>* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off
@@ -115,6 +118,13 @@ bool ContainsAction(const parser::Expr& expr);
 // per-entry no-match, matching find's parse-time rejection. Style-independent: the
 // size units (incl. the T/P/E continuation) are valid in every flavor.
 absl::Status ValidateSizeArgs(const parser::Expr& expr);
+
+// Parses a `--block-size=SIZE` value into bytes: `N[unit]` where a bare number is
+// bytes and the unit suffixes are the fixed binary multiples (c/w/k/M/G/T/P/E; 'b'
+// and the over-64-bit Z/Y/... are rejected). The result is the bytes-per-block used
+// for a bare `-size N` and the `-size Nb` unit (find's default is 512). Returns an
+// InvalidArgument status (naming the problem) for a malformed or zero size.
+absl::StatusOr<std::uint64_t> ParseBlockSize(std::string_view spec);
 
 }  // namespace xff::engine
 

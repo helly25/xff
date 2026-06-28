@@ -291,23 +291,22 @@ std::string FormatPrintf(std::string_view format, const Visit& visit, absl::Time
   return out;
 }
 
-// find's `-size` unit suffixes -> bytes per unit (c=char/1, w=2-byte word, b=512
-// block; k/M/G/T/P/E are the binary multiples 2^10..2^60). b/c/w/k/M/G and T/P are
-// find-native (BSD accepts up to P); E (exabyte) is an xff continuation of the same
-// scale -- a strict superset (no find-valid input changes meaning), so it is
-// available in every style. The next prefixes (Z/Y/...) name a real magnitude but
-// 2^70+ overflows the 64-bit byte count, so they are rejected (see ParseSizeSpec).
+// find's `-size` unit suffixes -> bytes per unit. c=byte, w=2-byte word; k/M/G/T/P/E
+// are the binary multiples 2^10..2^60. c/w/k/M/G and T/P are find-native (BSD accepts
+// up to P); E (exabyte) is an xff continuation of the same scale -- a strict superset
+// (no find-valid input changes meaning), available in every style. The next prefixes
+// (Z/Y/...) name a real magnitude but 2^70+ overflows the 64-bit byte count, so they
+// are rejected (see ParseSizeSpec). The block unit 'b' (and a bare, suffix-less -size
+// value) is NOT in this map: it is the configurable block size (--block-size, default
+// 512), resolved per run and applied in ParseSizeSpec.
 // A constexpr map, per the style's preference for a uniform key -> value mapping.
-// Divergence: the entries are listed in ascending magnitude (the natural size
-// scale c < w < b < k < ... < E) rather than alphabetically by suffix as elsewhere
-// -- reading the progression mirrors how the units relate, which is clearer here
-// than 'E','G','M',.... MakeLimitedMap sorts by key internally, so this ordering is
-// purely for the reader.
+// Divergence: entries are listed in ascending magnitude (the natural size scale
+// c < w < k < ... < E) rather than alphabetically as elsewhere -- the progression
+// mirrors how the units relate. MakeLimitedMap sorts by key, so this is for the reader.
 using SizeUnitPair = std::pair<char, std::uint64_t>;
 constexpr auto kSizeUnits = mbo::container::MakeLimitedMap(
     SizeUnitPair{'c', 1},                                                  // byte
     SizeUnitPair{'w', 2},                                                  // 2-byte word
-    SizeUnitPair{'b', 512},                                                // 512-byte block (the default)
     SizeUnitPair{'k', 1'024},                                              // 2^10 kibibyte
     SizeUnitPair{'M', 1'024ULL * 1'024},                                   // 2^20 mebibyte
     SizeUnitPair{'G', 1'024ULL * 1'024 * 1'024},                           // 2^30 gibibyte
@@ -320,37 +319,47 @@ constexpr auto kSizeUnits = mbo::container::MakeLimitedMap(
 // message rather than silently mis-sizing.
 constexpr std::string_view kOversizedUnits = "ZYRQ";
 
+// find's historical `-size` block unit: 512 bytes. The default for the bare value
+// and the 'b' suffix; --block-size overrides it (see ParseBlockSize).
+constexpr std::uint64_t kDefaultBlockSize = 512;
+
 struct SizeSpec {
-  char compare = '=';        // '+' greater than, '-' less than, '=' exactly
-  std::uint64_t want = 0;    // the count, in `unit`s
-  std::uint64_t unit = 512;  // bytes per unit (find default: 512-byte blocks)
+  char compare = '=';                      // '+' greater than, '-' less than, '=' exactly
+  std::uint64_t want = 0;                  // the count, in `unit`s
+  std::uint64_t unit = kDefaultBlockSize;  // bytes per unit
 };
 
 // Parses a `-size` argument `[+|-]N[unit]` into a SizeSpec, or returns an
 // InvalidArgument status naming the problem (unknown unit, an over-64-bit unit, or
-// a missing/non-numeric count). Used to reject a bad value before the walk and,
-// defensively, by MatchesSize.
-absl::StatusOr<SizeSpec> ParseSizeSpec(std::string_view arg) {
+// a missing/non-numeric count). A bare value and the 'b' suffix use `block_size`
+// (find's 512 by default; --block-size overrides). Used to reject a bad value before
+// the walk and, defensively, by MatchesSize.
+absl::StatusOr<SizeSpec> ParseSizeSpec(std::string_view arg, std::uint64_t block_size = kDefaultBlockSize) {
   const std::string_view original = arg;
   SizeSpec spec;
+  spec.unit = block_size;  // no suffix -> the (configurable) block unit
   if (!arg.empty() && (arg.front() == '+' || arg.front() == '-')) {
     spec.compare = arg.front();
     arg.remove_prefix(1);
   }
   if (!arg.empty() && (arg.back() < '0' || arg.back() > '9')) {
     const char suffix = arg.back();
-    const auto it = kSizeUnits.find(suffix);
-    if (it == kSizeUnits.end()) {
-      if (kOversizedUnits.find(suffix) != std::string_view::npos) {
+    if (suffix == 'b') {
+      spec.unit = block_size;  // 'b' = blocks (--block-size, default 512)
+    } else {
+      const auto it = kSizeUnits.find(suffix);
+      if (it == kSizeUnits.end()) {
+        if (kOversizedUnits.find(suffix) != std::string_view::npos) {
+          return absl::InvalidArgumentError(
+              absl::StrCat(
+                  "'", original, "': size unit '", std::string(1, suffix),
+                  "' exceeds xff's 64-bit byte range; the largest size unit is E (exabyte)"));
+        }
         return absl::InvalidArgumentError(
-            absl::StrCat(
-                "'", original, "': size unit '", std::string(1, suffix),
-                "' exceeds xff's 64-bit byte range; the largest size unit is E (exabyte)"));
+            absl::StrCat("'", original, "': unknown size unit '", std::string(1, suffix), "'"));
       }
-      return absl::InvalidArgumentError(
-          absl::StrCat("'", original, "': unknown size unit '", std::string(1, suffix), "'"));
+      spec.unit = it->second;
     }
-    spec.unit = it->second;
     arg.remove_suffix(1);
   }
   if (arg.empty()) {
@@ -366,10 +375,10 @@ absl::StatusOr<SizeSpec> ParseSizeSpec(std::string_view arg) {
 }
 
 // Matches find's `-size N[bcwkMGTPE]` with an optional +/- prefix. The file size is
-// rounded UP to the chosen unit (default 512-byte blocks), as find does. A
-// malformed arg never matches (it is rejected before the walk; see ValidateSizeArgs).
-bool MatchesSize(std::string_view arg, std::uint64_t size_bytes) {
-  const absl::StatusOr<SizeSpec> spec = ParseSizeSpec(arg);
+// rounded UP to the chosen unit, as find does; a bare value / 'b' uses `block_size`.
+// A malformed arg never matches (it is rejected before the walk; see ValidateSizeArgs).
+bool MatchesSize(std::string_view arg, std::uint64_t size_bytes, std::uint64_t block_size) {
+  const absl::StatusOr<SizeSpec> spec = ParseSizeSpec(arg, block_size);
   if (!spec.ok()) {
     return false;
   }
@@ -861,7 +870,7 @@ bool EvalFstype(const parser::Expr& expr, EvalContext& ctx) {
 }
 
 bool EvalSize(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && MatchesSize(expr.args.front(), ctx.visit.metadata.size);
+  return !expr.args.empty() && MatchesSize(expr.args.front(), ctx.visit.metadata.size, ctx.block_size);
 }
 
 bool EvalLinks(const parser::Expr& expr, EvalContext& ctx) {
@@ -1523,6 +1532,38 @@ absl::Status ValidateSizeArgs(const parser::Expr& expr) {
     }
   }
   return absl::OkStatus();
+}
+
+absl::StatusOr<std::uint64_t> ParseBlockSize(std::string_view spec) {
+  // N[unit]: a bare number is bytes (unlike -size, where bare means blocks); the
+  // unit suffixes are the fixed binary multiples (c/w/k/M/G/T/P/E). 'b' is rejected
+  // (a block size measured in blocks is circular), as are the over-64-bit units.
+  std::uint64_t unit = 1;
+  std::string_view number = spec;
+  if (!spec.empty() && (spec.back() < '0' || spec.back() > '9')) {
+    const char suffix = spec.back();
+    const auto it = kSizeUnits.find(suffix);
+    if (it == kSizeUnits.end()) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("'", spec, "': invalid block-size unit '", std::string(1, suffix), "'"));
+    }
+    unit = it->second;
+    number.remove_suffix(1);
+  }
+  if (number.empty()) {
+    return absl::InvalidArgumentError(absl::StrCat("'", spec, "': missing number"));
+  }
+  std::uint64_t value = 0;
+  for (const char digit : number) {
+    if (digit < '0' || digit > '9') {
+      return absl::InvalidArgumentError(absl::StrCat("'", spec, "': not a number"));
+    }
+    value = (value * 10) + static_cast<std::uint64_t>(digit - '0');
+  }
+  if (value == 0) {
+    return absl::InvalidArgumentError(absl::StrCat("'", spec, "': block size must be positive"));
+  }
+  return value * unit;
 }
 
 }  // namespace xff::engine

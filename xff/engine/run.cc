@@ -299,6 +299,28 @@ bool ResolveTimeZone(const std::vector<std::string>& globals, absl::TimeZone* tz
   return true;
 }
 
+// --block-size=SIZE sets the bytes-per-block for a bare `-size N` and `-size Nb`
+// (find's historical default is 512). Last occurrence wins. Resolves to *block_size
+// (left untouched when the flag is absent) and returns Ok, or the parse error.
+absl::Status ResolveBlockSize(const std::vector<std::string>& globals, std::uint64_t* block_size) {
+  constexpr std::string_view kPrefix = "--block-size=";
+  std::optional<std::string> spec;
+  for (const std::string& global : globals) {
+    if (global.starts_with(kPrefix)) {
+      spec = global.substr(kPrefix.size());  // last occurrence wins
+    }
+  }
+  if (!spec.has_value()) {
+    return absl::OkStatus();
+  }
+  const absl::StatusOr<std::uint64_t> bytes = ParseBlockSize(*spec);
+  if (!bytes.ok()) {
+    return bytes.status();
+  }
+  *block_size = *bytes;
+  return absl::OkStatus();
+}
+
 // --time-format=NAME sets the default format for a time field rendered without an
 // explicit {:qualifier} (a datetime preset name or a custom absl::FormatTime
 // pattern). Last occurrence wins; empty (absent) keeps the built-in "space"
@@ -583,6 +605,13 @@ int RunFind(
   const absl::Time now = daystart ? datetime::StartOfDay(absl::Now(), tz) : absl::Now();
   // --time-format=NAME: default spec for a time field with no {:qualifier}.
   const std::string time_format = ResolveTimeFormat(command.globals);
+  // --block-size=SIZE: bytes per -size block (a bare value / the 'b' suffix); find's
+  // historical default is 512. A malformed SIZE is a usage error, refused here.
+  std::uint64_t block_size = 512;
+  if (const absl::Status size_status = ResolveBlockSize(command.globals, &block_size); !size_status.ok()) {
+    on_error("--block-size", size_status);
+    return 2;  // do not traverse
+  }
   // --summary: reduce matches to a {count, total size} per group instead of
   // printing each one; the table is emitted after the walk.
   const SummaryMode summary_mode = ResolveSummary(command.globals);
@@ -653,6 +682,7 @@ int RunFind(
             .now = now,
             .tz = tz,
             .time_format = time_format,
+            .block_size = block_size,
             .control = control,
             .exec_fields = exec_fields,
             .captures = exec_fields ? &captures : nullptr,
