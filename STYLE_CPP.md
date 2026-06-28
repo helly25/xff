@@ -322,6 +322,16 @@ substitute for a committed test. Tests use GoogleTest + GoogleMock with these co
   `IsEmpty()` cover size + order + contents in one matcher, instead of an
   `ASSERT_EQ(v.size(), n)` followed by indexed `EXPECT_EQ`s. `ElementsAre` auto-wraps
   each bare element in `Eq`.
+- **Size and emptiness: match the container, never extract then match.** Use
+  `SizeIs` / `IsEmpty` on the container itself, not `.size()` / `.empty()` fed to a
+  scalar matcher or `EXPECT_TRUE` - the matcher form prints the container on failure
+  while the extracted form throws it away. So:
+  - `EXPECT_THAT(v, SizeIs(3))`, not `EXPECT_THAT(v.size(), 3)` / `EXPECT_EQ(v.size(), 3)`.
+  - `SizeIs` composes with a matcher for bounds: `EXPECT_THAT(v, SizeIs(Le(90)))`,
+    not `EXPECT_THAT(v.size(), Le(90))`.
+  - `EXPECT_THAT(v, IsEmpty())` / `EXPECT_THAT(v, Not(IsEmpty()))`, not
+    `EXPECT_TRUE(v.empty())` / `EXPECT_FALSE(v.empty())` (this is the one place a
+    `.empty()` boolean should still become a matcher).
 - **Struct elements**: fold per-field checks into the element matcher with the
   **3-arg, named** `Field("member", &T::member, m)` + `AllOf`, ideally via a small
   `testing::Matcher<T> FooIs(...)` helper, so a mismatch names the field rather than

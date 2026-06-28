@@ -388,7 +388,7 @@ TEST_F(RunTest, DepthVisitsPostOrder) {
   const std::vector<std::string> out = RunExpr({"-depth"});
   // -depth lists the same set but post-order, so the root operand prints last.
   EXPECT_THAT(out, UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
-  ASSERT_FALSE(out.empty());
+  ASSERT_THAT(out, Not(IsEmpty()));
   EXPECT_THAT(out.back(), root_.string());
 }
 
@@ -836,7 +836,7 @@ TEST_F(RunTest, ImplicitPrintNoSuppressesDefaultPrint) {
   RunFind(
       *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
       [](std::string_view, absl::Status) {});
-  EXPECT_TRUE(records.empty());
+  EXPECT_THAT(records, IsEmpty());
 }
 
 TEST_F(RunTest, ImplicitPrintYesPrintsAlongsideAction) {
