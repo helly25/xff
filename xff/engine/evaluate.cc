@@ -298,17 +298,22 @@ std::string FormatPrintf(std::string_view format, const Visit& visit, absl::Time
 // available in every style. The next prefixes (Z/Y/...) name a real magnitude but
 // 2^70+ overflows the 64-bit byte count, so they are rejected (see ParseSizeSpec).
 // A constexpr map, per the style's preference for a uniform key -> value mapping.
+// Divergence: the entries are listed in ascending magnitude (the natural size
+// scale c < w < b < k < ... < E) rather than alphabetically by suffix as elsewhere
+// -- reading the progression mirrors how the units relate, which is clearer here
+// than 'E','G','M',.... MakeLimitedMap sorts by key internally, so this ordering is
+// purely for the reader.
 using SizeUnitPair = std::pair<char, std::uint64_t>;
 constexpr auto kSizeUnits = mbo::container::MakeLimitedMap(
-    SizeUnitPair{'E', 1'024ULL * 1'024 * 1'024 * 1'024 * 1'024 * 1'024},  // 2^60 exbibyte
-    SizeUnitPair{'G', 1'024ULL * 1'024 * 1'024},                          // 2^30 gibibyte
-    SizeUnitPair{'M', 1'024ULL * 1'024},                                  // 2^20 mebibyte
-    SizeUnitPair{'P', 1'024ULL * 1'024 * 1'024 * 1'024 * 1'024},          // 2^50 pebibyte
-    SizeUnitPair{'T', 1'024ULL * 1'024 * 1'024 * 1'024},                  // 2^40 tebibyte
-    SizeUnitPair{'b', 512},
-    SizeUnitPair{'c', 1},
-    SizeUnitPair{'k', 1'024},
-    SizeUnitPair{'w', 2});
+    SizeUnitPair{'c', 1},                                                  // byte
+    SizeUnitPair{'w', 2},                                                  // 2-byte word
+    SizeUnitPair{'b', 512},                                                // 512-byte block (the default)
+    SizeUnitPair{'k', 1'024},                                              // 2^10 kibibyte
+    SizeUnitPair{'M', 1'024ULL * 1'024},                                   // 2^20 mebibyte
+    SizeUnitPair{'G', 1'024ULL * 1'024 * 1'024},                           // 2^30 gibibyte
+    SizeUnitPair{'T', 1'024ULL * 1'024 * 1'024 * 1'024},                   // 2^40 tebibyte
+    SizeUnitPair{'P', 1'024ULL * 1'024 * 1'024 * 1'024 * 1'024},           // 2^50 pebibyte
+    SizeUnitPair{'E', 1'024ULL * 1'024 * 1'024 * 1'024 * 1'024 * 1'024});  // 2^60 exbibyte
 
 // Size prefixes one step beyond E: each names a real magnitude (zetta/yotta/ronna/
 // quetta) but 2^70+ exceeds the 64-bit byte count, so xff rejects them with a clear
