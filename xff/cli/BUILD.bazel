@@ -43,6 +43,8 @@ cc_library(
     hdrs = ["help.h"],
     deps = [
         "//xff/registry:registry_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
     ],
@@ -55,8 +57,11 @@ cc_test(
     deps = [
         ":help_cc",
         "//xff/registry:registry_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
     ],
 )
 

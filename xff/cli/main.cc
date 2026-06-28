@@ -162,9 +162,14 @@ int main(int argc, char** argv) {
       return 0;
     }
     if (arg.starts_with("--help=")) {
-      const xff::cli::HelpResult help = xff::cli::RenderHelp(std::string_view(arg).substr(7));
-      (help.found ? std::cout : std::cerr) << help.text;
-      return help.found ? 0 : 2;
+      const std::string_view topic = std::string_view(arg).substr(7);
+      const absl::StatusOr<std::string> help = xff::cli::RenderHelp(topic);
+      if (help.ok()) {
+        std::cout << *help;
+        return 0;
+      }
+      std::cerr << "xff: no help topic '" << topic << "'\n";  // RenderHelp's only failure is unknown-topic
+      return 2;
     }
     if (arg == "--version" || arg == "-version") {
       std::cout << "xff 0.0.0\n";

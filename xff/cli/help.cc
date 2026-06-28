@@ -19,6 +19,8 @@
 #include <string_view>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
@@ -95,21 +97,18 @@ std::string RenderIndex() {
 
 }  // namespace
 
-HelpResult RenderHelp(std::string_view topic) {
+absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   if (topic.empty() || topic == "list" || topic == "all") {
-    return {.text = RenderIndex(), .found = true};
+    return RenderIndex();
   }
   const registry::Descriptor* descriptor = registry::Lookup(topic);
   if (descriptor == nullptr && topic.front() != '-' && topic.front() != '!') {
-    descriptor = registry::Lookup(absl::StrCat("-", topic));  // friendly: `xff help regex`
+    descriptor = registry::Lookup(absl::StrCat("-", topic));  // friendly: `--help=regex`
   }
   if (descriptor == nullptr) {
-    return {
-        .text = absl::StrCat("xff: no help topic '", topic, "'; try `xff help` for the list\n"),
-        .found = false,
-    };
+    return absl::NotFoundError("");  // the caller holds the topic and composes the message
   }
-  return {.text = RenderOne(*descriptor), .found = true};
+  return RenderOne(*descriptor);
 }
 
 }  // namespace xff::cli
