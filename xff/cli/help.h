@@ -19,21 +19,17 @@
 #include <string>
 #include <string_view>
 
-namespace xff::cli {
+#include "absl/status/statusor.h"
 
-// The outcome of an `xff help [topic]` request.
-struct HelpResult {
-  std::string text;   // the rendered help, always populated
-  bool found = true;  // false when `topic` named no known primary / operator / action
-};
+namespace xff::cli {
 
 // Renders the `--help=TOPIC` help from the registry (the single source of truth, so
 // help can never drift from the parser's vocabulary). An empty topic (or "list" /
 // "all") returns the index of the whole expression vocabulary grouped by kind. A
 // named topic (e.g. "-regex", "-xor", or the dash-less "regex") returns that entry's
-// detailed help; `found` is false (and the text is a short "no such topic" note)
-// when the topic is unknown.
-HelpResult RenderHelp(std::string_view topic);
+// detailed help. An unknown topic is a plain `NotFoundError` (the status code is the
+// signal; the caller holds the topic and composes the user-facing message).
+absl::StatusOr<std::string> RenderHelp(std::string_view topic);
 
 }  // namespace xff::cli
 

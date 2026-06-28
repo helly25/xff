@@ -13,71 +13,72 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "mbo/testing/status.h"
 #include "xff/cli/help.h"
 #include "xff/registry/registry.h"
 
 namespace xff::cli {
 namespace {
 
+using ::mbo::testing::IsOk;
+using ::mbo::testing::IsOkAndHolds;
+using ::mbo::testing::StatusIs;
+using ::testing::AllOf;
 using ::testing::HasSubstr;
 
 struct HelpTest : ::testing::Test {};
 
 TEST_F(HelpTest, TopicRendersNameSummaryAndTags) {
-  const HelpResult result = RenderHelp("-regex");
-  EXPECT_TRUE(result.found);
-  EXPECT_THAT(result.text, HasSubstr("-regex"));
-  EXPECT_THAT(result.text, HasSubstr("regular expression"));  // the summary
-  EXPECT_THAT(result.text, HasSubstr("test"));                // kind tag
-  EXPECT_THAT(result.text, HasSubstr("find"));                // style tag
+  EXPECT_THAT(
+      RenderHelp("-regex"), IsOkAndHolds(AllOf(
+                                HasSubstr("-regex"), HasSubstr("regular expression"),  // the summary
+                                HasSubstr("test"), HasSubstr("find"))));               // kind + style tags
 }
 
 TEST_F(HelpTest, DashlessTopicResolves) {
-  // Friendly: `xff help regex` finds -regex.
-  const HelpResult result = RenderHelp("regex");
-  EXPECT_TRUE(result.found);
-  EXPECT_THAT(result.text, HasSubstr("-regex"));
+  // Friendly: `--help=regex` finds -regex.
+  EXPECT_THAT(RenderHelp("regex"), IsOkAndHolds(HasSubstr("-regex")));
 }
 
 TEST_F(HelpTest, XffOperatorIsTaggedXff) {
-  const HelpResult result = RenderHelp("-xor");
-  EXPECT_TRUE(result.found);
-  EXPECT_THAT(result.text, HasSubstr("operator"));
-  EXPECT_THAT(result.text, HasSubstr("xff"));
+  EXPECT_THAT(RenderHelp("-xor"), IsOkAndHolds(AllOf(HasSubstr("operator"), HasSubstr("xff"))));
 }
 
 TEST_F(HelpTest, SecurityActionIsTagged) {
-  EXPECT_THAT(RenderHelp("-exec").text, HasSubstr("runs commands"));
+  EXPECT_THAT(RenderHelp("-exec"), IsOkAndHolds(HasSubstr("runs commands")));
 }
 
 TEST_F(HelpTest, VariadicArgHintShowsCommandForm) {
-  EXPECT_THAT(RenderHelp("-exec").text, HasSubstr("CMD..."));
+  EXPECT_THAT(RenderHelp("-exec"), IsOkAndHolds(HasSubstr("CMD...")));
 }
 
 TEST_F(HelpTest, UnknownTopicIsNotFound) {
-  const HelpResult result = RenderHelp("-bogus");
-  EXPECT_FALSE(result.found);
-  EXPECT_THAT(result.text, HasSubstr("no help topic"));
+  // RenderHelp signals unknown-topic with the status code only; the user-facing
+  // message is the caller's to compose (verified end to end in help_topic_test.sh).
+  EXPECT_THAT(RenderHelp("-bogus"), StatusIs(absl::StatusCode::kNotFound));
 }
 
 TEST_F(HelpTest, IndexGroupsByKindAndListsEveryDescriptor) {
-  const HelpResult result = RenderHelp("");
-  EXPECT_TRUE(result.found);
-  EXPECT_THAT(result.text, HasSubstr("Tests:"));
-  EXPECT_THAT(result.text, HasSubstr("Actions:"));
-  EXPECT_THAT(result.text, HasSubstr("Operators:"));
+  const absl::StatusOr<std::string> index = RenderHelp("");
+  ASSERT_THAT(index, IsOk());
+  EXPECT_THAT(*index, AllOf(HasSubstr("Tests:"), HasSubstr("Actions:"), HasSubstr("Operators:")));
   for (const registry::Descriptor& descriptor : registry::All()) {
-    EXPECT_THAT(result.text, HasSubstr(descriptor.name)) << descriptor.name;
+    EXPECT_THAT(*index, HasSubstr(descriptor.name)) << descriptor.name;
   }
 }
 
 TEST_F(HelpTest, ListAndAllAreIndexAliases) {
   // `--help=list` / `--help=all` render the same index as the empty topic.
-  const HelpResult index = RenderHelp("");
-  EXPECT_EQ(RenderHelp("list").text, index.text);
-  EXPECT_EQ(RenderHelp("all").text, index.text);
+  const absl::StatusOr<std::string> index = RenderHelp("");
+  ASSERT_THAT(index, IsOk());
+  EXPECT_THAT(RenderHelp("list"), IsOkAndHolds(*index));
+  EXPECT_THAT(RenderHelp("all"), IsOkAndHolds(*index));
 }
 
 }  // namespace
