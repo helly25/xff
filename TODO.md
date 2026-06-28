@@ -102,3 +102,23 @@ remains below is the design-forked / larger work.
     explicit `--config` overrides).
   - **Topic help**: `xff help <topic>` for sub-commands, global flags, and matchers
     / primaries -- e.g. `xff help -regex`, `xff help --config`, `xff help <subcommand>`.
+    Foundation landed: every descriptor now carries a one-line `summary` and
+    `registry::All()` enumerates them, so per-primary topic help can read the
+    registry directly; global-flag and config topics still need wiring.
+  - **Generated reference docs from the same registry SOT.** Now that
+    `registry::All()` enumerates every primary with a `summary`, drive documentation
+    off it instead of hand-maintaining parallel copies:
+    - **Man page on demand**: emit roff/troff (so `man -l -` / a packaged `man xff`
+      works), e.g. `xff --man` or `xff help --man`, generated at runtime from the
+      registry + the global-flag table + the config docs.
+    - **Integrated Markdown documentation build**: emit a `.md` reference of all
+      primaries / flags from the same source (an integrated subcommand and/or a build
+      target; a separate external generator alongside the man-page builder is fine if
+      need be). Wire it into CI so the committed docs cannot drift from the vocabulary.
+- **Extended logical operators** (silly-complete): `-xor` / `-nand` / `-nor` /
+  `-xnor`. find has none of these (only `-a`/`-and`, `-o`/`-or`, `-not`/`!`), so they
+  would be xff extensions (`Style::kXff`). `-xor` is genuinely useful ("match exactly
+  one side"); the rest are derivable but cheap. Needs a precedence decision first:
+  where `-xor` binds relative to `-a` and `-o` (the recursive-descent parser has
+  explicit precedence tiers), and whether the rarely-seen `-nand` / `-nor` / `-xnor`
+  earn their surface. Decide before implementing.
