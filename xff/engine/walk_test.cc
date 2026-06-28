@@ -44,6 +44,7 @@ namespace fs = std::filesystem;
 using ::mbo::testing::IsOk;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
+using ::testing::Not;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 
@@ -294,7 +295,7 @@ TEST_F(WalkTest, DepthVisitsPostOrder) {
   // ...but a directory comes after its contents: the root is visited last, and
   // sub/b.txt precedes sub. Sibling order is filesystem-defined, so only the
   // parent-after-child relationship is asserted.
-  ASSERT_FALSE(result.seen.empty());
+  ASSERT_THAT(result.seen, Not(IsEmpty()));
   EXPECT_THAT(result.seen.back(), Pair(root_.string(), 0));
   const auto index_of = [&](std::string_view path) -> int {
     for (int i = 0; i < static_cast<int>(result.seen.size()); ++i) {

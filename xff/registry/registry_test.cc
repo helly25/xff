@@ -32,6 +32,7 @@ using ::testing::Ne;
 using ::testing::Not;
 using ::testing::NotNull;
 using ::testing::Pointee;
+using ::testing::SizeIs;
 
 struct RegistryTest : ::testing::Test {};
 
@@ -100,7 +101,7 @@ TEST_F(RegistryTest, EveryDescriptorCarriesAWellFormedSummary) {
   EXPECT_THAT(All(), Not(IsEmpty()));
   for (const Descriptor& descriptor : All()) {
     ASSERT_THAT(descriptor.summary, Not(IsEmpty())) << descriptor.name;
-    EXPECT_THAT(descriptor.summary.size(), Le(90U)) << descriptor.name;
+    EXPECT_THAT(descriptor.summary, SizeIs(Le(90U))) << descriptor.name;
     EXPECT_THAT(descriptor.summary.back(), Ne('.')) << descriptor.name;
     EXPECT_THAT(descriptor.summary, Not(HasSubstr("\n"))) << descriptor.name;
   }
