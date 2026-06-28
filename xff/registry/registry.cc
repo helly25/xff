@@ -41,6 +41,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {.name = "-type", .kind = Kind::kTest, .arity = 1},
     {.name = "-xtype", .kind = Kind::kTest, .arity = 1},  // -type of the symlink's target
     {.name = "-size", .kind = Kind::kTest, .arity = 1},
+    // xff extension: -size but over ALLOCATED space (st_blocks), not apparent size.
+    {.name = "-blocks", .kind = Kind::kTest, .arity = 1, .style = Style::kXff},
     {.name = "-links", .kind = Kind::kTest, .arity = 1},
     {.name = "-inum", .kind = Kind::kTest, .arity = 1},
     {.name = "-samefile", .kind = Kind::kTest, .arity = 1},

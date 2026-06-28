@@ -581,12 +581,12 @@ int RunFind(
   if (expression != nullptr) {
     ScanDepthOptions(*expression, &options);
   }
-  // A malformed -size value (unknown unit, an over-64-bit unit like Z/Y, or a
-  // non-numeric count) is a usage error refused before the walk -- find rejects bad
-  // -size at parse time too, rather than silently matching nothing.
+  // A malformed -size / -blocks value (unknown unit, an over-64-bit unit like Z/Y,
+  // or a non-numeric count) is a usage error refused before the walk -- find rejects
+  // bad -size at parse time too, rather than silently matching nothing.
   if (expression != nullptr) {
     if (const absl::Status size_status = ValidateSizeArgs(*expression); !size_status.ok()) {
-      on_error("-size", size_status);
+      on_error("-size/-blocks", size_status);
       return 2;  // do not traverse
     }
   }

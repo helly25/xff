@@ -295,6 +295,31 @@ TEST_F(EvaluateTest, ParseBlockSizeAcceptsBytesAndUnits) {
   EXPECT_THAT(ParseBlockSize(""), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
+TEST_F(EvaluateTest, BlocksMatchesAllocatedSpaceNotApparentSize) {
+  // -blocks applies -size's grammar to allocated space (st_blocks * 512), so it is
+  // independent of the apparent size: a 1-byte file occupying 16 512-blocks (8 KiB
+  // on disk) matches -blocks but not -size of the same magnitude.
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.size = 1;     // 1 apparent byte
+  md.blocks = 16;  // 16 * 512 = 8 KiB allocated
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-blocks", "16"}, visit));  // 8192 bytes / 512-byte block = 16
+  EXPECT_TRUE(Match({"-blocks", "+8"}, visit));  // more than 8 blocks
+  EXPECT_TRUE(Match({"-blocks", "8k"}, visit));  // exactly 8 KiB allocated
+  EXPECT_FALSE(Match({"-blocks", "+8k"}, visit));
+  EXPECT_FALSE(Match({"-blocks", "1c"}, visit));  // not 1 byte allocated
+  EXPECT_TRUE(Match({"-size", "1c"}, visit));     // but -size sees the 1 apparent byte
+}
+
+TEST_F(EvaluateTest, BlocksZeroForUnallocatedEntry) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;  // blocks defaults to 0 (nothing allocated)
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_FALSE(Match({"-blocks", "+0"}, visit));  // occupies no disk
+  EXPECT_TRUE(Match({"-blocks", "0"}, visit));
+}
+
 TEST_F(EvaluateTest, PermMatchesOctalModes) {
   vfs::Metadata md;
   md.type = vfs::FileType::kRegular;

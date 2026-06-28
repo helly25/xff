@@ -52,6 +52,14 @@ TEST_F(FieldsTest, SubstitutesPathComponentsAndMetadata) {
   EXPECT_THAT(Render("{stem}", "a/b/file.tar.gz", md, 2), "file.tar");
 }
 
+TEST_F(FieldsTest, BlocksFieldRendersAllocatedSpace) {
+  vfs::Metadata md = Meta(vfs::FileType::kRegular, 1);         // 1 apparent byte
+  md.blocks = 16;                                              // 16 * 512 = 8 KiB allocated
+  EXPECT_THAT(Render("{blocks}", "f", md, 0), "16");           // allocated 512-blocks (find's %b)
+  EXPECT_THAT(Render("{blocks:h}", "f", md, 0), "8.0K");       // human-readable allocated bytes
+  EXPECT_THAT(Render("{size} {blocks}", "f", md, 0), "1 16");  // apparent vs allocated differ
+}
+
 TEST_F(FieldsTest, DirOfTopLevelEntryIsDot) {
   EXPECT_THAT(Render("{dir}", "file", Meta(vfs::FileType::kRegular, 0), 0), ".");
 }

@@ -164,6 +164,12 @@ std::string SizeField(std::string_view, std::string_view qualifier, const Render
   return qualifier == "h" ? HumanSize(ctx.metadata.size) : std::to_string(ctx.metadata.size);
 }
 
+// {blocks}: allocated 512-byte blocks (st_blocks, find's %b); {blocks:h} the
+// human-readable allocated bytes. The on-disk counterpart to {size} (apparent).
+std::string BlocksField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
+  return qualifier == "h" ? HumanSize(ctx.metadata.blocks * 512U) : std::to_string(ctx.metadata.blocks);
+}
+
 std::string TypeField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::string(1, TypeLetter(ctx.metadata.type));
 }
@@ -218,6 +224,7 @@ using FieldEntry = std::pair<std::string_view, detail::FieldFn>;
 constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"", &PathField},  // {} -> full path (find's -exec placeholder)
     FieldEntry{"atime", &AtimeField},
+    FieldEntry{"blocks", &BlocksField},
     FieldEntry{"btime", &BtimeField},
     FieldEntry{"ctime", &CtimeField},
     FieldEntry{"depth", &DepthField},
