@@ -96,11 +96,10 @@ intent, not hard dependency. Task numbers reference the agent task list.
     explicit `--config` overrides).
   - **Topic help**: `xff help <topic>` for sub-commands, global flags, and matchers
     / primaries -- e.g. `xff help -regex`, `xff help --config`, `xff help <subcommand>`.
-- **Access predicates** `-readable` / `-writable` / `-executable` (needs a
-  `vfs::FileSystem::Access` capability).
-- **`-inum N` / `-samefile FILE`** (inode identity; `Metadata.ino`/`dev` already
-  captured).
-- **Symbolic `-perm` modes** (`-perm u+w`, `-mode`, `/mode`) beyond the octal form.
-- **`-lname` / `-ilname`** (symlink-target glob; needs `vfs::FileSystem::ReadLink`).
-- **`-fstype TYPE`** (filesystem-type predicate).
-- **Markdown table vertical-alignment formatter** as a reusable skill (#66).
+    The standard find predicate surface is now complete (see the CHANGELOG): the
+    access predicates `-readable` / `-writable` / `-executable`, `-inum` / `-samefile`,
+    symbolic `-perm` modes (`u+w`, `go=r`, `+x`, ...), `-lname` / `-ilname`, and
+    `-fstype` have all shipped and are covered by the engine unit test. The reusable
+    markdown-table-alignment skill (#66) is also done. What is left above is the
+    design-forked / larger work (parallel traversal, the mode mechanism, `--feature`
+    gates, `--exact`, and the full help system).

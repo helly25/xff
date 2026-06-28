@@ -449,7 +449,8 @@ bool MatchesSignedNumeric(std::string_view arg, std::int64_t value) {
 
 // Matches find's `-perm` over the permission bits (incl. setuid/setgid/sticky):
 //   MODE   exact match;  -MODE  all of MODE's bits set;  /MODE  any of them set.
-// Octal MODE only for now (symbolic `u+w`,... is deferred).
+// MODE is either octal (0644, 644) or a chmod-style symbolic mode (`u+w`,
+// `go=r`, comma-separated clauses); ParseSymbolicPerm resolves the latter.
 // Resolves one chmod-style symbolic clause ("u+w", "go=r", "+x", "u+s", ...)
 // into `want`, applied from find's zero base with no umask. Returns false on a
 // syntax error. 'X' is treated as 'x' (find resolves -perm with no per-file
