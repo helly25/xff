@@ -20,8 +20,15 @@
 #include <string_view>
 
 #include "absl/status/statusor.h"
+#include "xff/registry/descriptor.h"
 
 namespace xff::cli {
+
+// The argument-shape hint shown after a primary's name: " ARG" (arity 1), " ARG ARG"
+// (arity 2), " CMD... ;" (variadic), "=NAME[=REGEX] CMD... ;" (a binding action), or
+// "" (a flag-like primary). Read from the descriptor grammar so `--help` and the man
+// page render the synopsis identically and neither drifts from the parser.
+std::string ArgHint(const registry::Descriptor& descriptor);
 
 // Renders the `--help=TOPIC` help from the registry (the single source of truth, so
 // help can never drift from the parser's vocabulary). An empty topic (or "list" /

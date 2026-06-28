@@ -22,6 +22,7 @@ cc_binary(
     visibility = ["//visibility:public"],
     deps = [
         ":help_cc",
+        ":manpage_cc",
         "//xff/config:config_cc",
         "//xff/config:loader_cc",
         "//xff/config:policy_cc",
@@ -32,6 +33,35 @@ cc_binary(
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+    ],
+)
+
+# Registry-backed `xff --man`: a roff man page generated from Globals() + All(), so
+# it cannot drift from the binary. Reuses help_cc's ArgHint for the synopsis.
+cc_library(
+    name = "manpage_cc",
+    srcs = ["manpage.cc"],
+    hdrs = ["manpage.h"],
+    deps = [
+        ":globals_cc",
+        ":help_cc",
+        "//xff/registry:registry_cc",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+    ],
+)
+
+cc_test(
+    name = "manpage_test",
+    size = "small",
+    srcs = ["manpage_test.cc"],
+    deps = [
+        ":globals_cc",
+        ":manpage_cc",
+        "//xff/registry:registry_cc",
+        "@abseil-cpp//absl/strings",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -144,5 +174,16 @@ bashtest(
     name = "help_topic_test",
     size = "small",
     srcs = ["help_topic_test.sh"],
+    data = [":xff"],
+)
+
+# End-to-end test that `xff --man` emits roff that renders through a real formatter
+# (mandoc / groff / nroff) into a proper man page. The formatter is a required test
+# dependency (mandoc on macOS, installed in CI on Linux); a missing one fails the
+# test. Proves the generated roff is valid, not just well-formed text.
+bashtest(
+    name = "man_test",
+    size = "small",
+    srcs = ["man_test.sh"],
     data = [":xff"],
 )
