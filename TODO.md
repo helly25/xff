@@ -63,6 +63,12 @@ intent, not hard dependency. Task numbers reference the agent task list.
 
 ### find / xff features (roadmap tail)
 
+The standard find predicate surface is complete (the access predicates
+`-readable` / `-writable` / `-executable`, `-inum` / `-samefile`, symbolic `-perm`
+modes, `-lname` / `-ilname`, and `-fstype`; all in the CHANGELOG and covered by the
+engine unit test), as is the reusable markdown-table-alignment skill (#66). What
+remains below is the design-forked / larger work.
+
 - **Parallel traversal + `--jobs` + deterministic `--sort`** (#43). The big one;
   needs a design pass (work-stealing vs per-root pool; ordering guarantees).
 - **Exit-code model refinement + `--skip-unsupported` + impossible-task-fail**
@@ -96,10 +102,3 @@ intent, not hard dependency. Task numbers reference the agent task list.
     explicit `--config` overrides).
   - **Topic help**: `xff help <topic>` for sub-commands, global flags, and matchers
     / primaries -- e.g. `xff help -regex`, `xff help --config`, `xff help <subcommand>`.
-    The standard find predicate surface is now complete (see the CHANGELOG): the
-    access predicates `-readable` / `-writable` / `-executable`, `-inum` / `-samefile`,
-    symbolic `-perm` modes (`u+w`, `go=r`, `+x`, ...), `-lname` / `-ilname`, and
-    `-fstype` have all shipped and are covered by the engine unit test. The reusable
-    markdown-table-alignment skill (#66) is also done. What is left above is the
-    design-forked / larger work (parallel traversal, the mode mechanism, `--feature`
-    gates, `--exact`, and the full help system).
