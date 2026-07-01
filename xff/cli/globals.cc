@@ -107,6 +107,13 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "re-include paths a --exclude would skip, matching a gitignore-style glob (repeatable)",
     },
     {
+        .name = "--gitignore",
+        .alias = "-g",
+        .display = "--gitignore[=on|off], -g",
+        .group = "Ignore / filter",
+        .summary = "respect per-directory .gitignore files (-g short form; off by default)",
+    },
+    {
         .name = "--ignore-files",
         .display = "--ignore-files",
         .group = "Ignore / filter",

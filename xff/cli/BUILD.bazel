@@ -199,6 +199,15 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of -g / --gitignore: per-directory .gitignore is opt-in (off by
+# default), recursive, scoped to its subtree, and disabled by -u.
+bashtest(
+    name = "ignore_gitignore_test",
+    size = "small",
+    srcs = ["ignore_gitignore_test.sh"],
+    data = [":xff"],
+)
+
 # Binary-level test of -exec, which spawns real children: the `+` batch form runs
 # the command once with all matches, `\;` once per match. Shell level is the right
 # fit for a subprocess-spawning feature.
