@@ -158,15 +158,18 @@ bool PatternList::Add(std::string_view pattern, bool negate) {
   return true;
 }
 
-PatternList PatternList::Parse(std::string_view text) {
-  PatternList list;
-  for (const std::string_view raw : absl::StrSplit(text, '\n')) {
-    std::string_view line = raw;
+void PatternList::AddPatterns(std::string_view text) {
+  for (std::string_view line : absl::StrSplit(text, '\n')) {
     if (!line.empty() && line.back() == '\r') {
       line.remove_suffix(1);  // tolerate CRLF ignore files
     }
-    list.Add(line);
+    Add(line);
   }
+}
+
+PatternList PatternList::Parse(std::string_view text) {
+  PatternList list;
+  list.AddPatterns(text);
   return list;
 }
 
