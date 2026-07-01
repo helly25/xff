@@ -520,16 +520,40 @@ bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
   return false;
 }
 
-// The per-directory ignore filenames --ignore-files activates (.ignore then
-// .xffignore, so the xff file wins), or empty when ignore-file processing is off:
-// it is find-compatibly off by default, enabled by --ignore-files, and force-disabled
-// by --no-ignore / -u (the master switch, which also covers a future -g gitignore).
+// --gitignore / -g: respect .gitignore files. Last occurrence wins; `--gitignore=off`
+// turns it back off. Off by default (find-compatible). (The design's bare-`-g`=auto
+// "respect iff in a git repo" ternary and the -g+/-g- spelling need git-repo detection
+// and toggle-parser machinery not built yet; today bare -g / --gitignore means on.)
+bool GitignoreEnabled(const std::vector<std::string>& globals) {
+  bool enabled = false;
+  for (const std::string& global : globals) {
+    if (global == "-g" || global == "--gitignore" || global == "--gitignore=on") {
+      enabled = true;
+    } else if (global == "--gitignore=off") {
+      enabled = false;
+    }
+  }
+  return enabled;
+}
+
+// The per-directory ignore filenames in effect, lowest precedence first (a directory's
+// files accumulate into one list, so a later name wins): .gitignore (-g) < .ignore <
+// .xffignore (--ignore-files). Empty when ignore-file processing is off -- it is
+// find-compatibly off by default, and --no-ignore / -u is the master switch that
+// force-disables every source.
 std::vector<std::string> ResolveIgnoreFileNames(const std::vector<std::string>& globals) {
-  const bool disabled = HasGlobal(globals, "--no-ignore") || HasGlobal(globals, "-u");
-  if (disabled || !HasGlobal(globals, "--ignore-files")) {
+  if (HasGlobal(globals, "--no-ignore") || HasGlobal(globals, "-u")) {
     return {};
   }
-  return {".ignore", ".xffignore"};
+  std::vector<std::string> names;
+  if (GitignoreEnabled(globals)) {
+    names.emplace_back(".gitignore");
+  }
+  if (HasGlobal(globals, "--ignore-files")) {
+    names.emplace_back(".ignore");
+    names.emplace_back(".xffignore");
+  }
+  return names;
 }
 
 // --implicit-print=yes|no forces the default (implicit) print on or off,
