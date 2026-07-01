@@ -156,3 +156,48 @@ remains below is the design-forked / larger work.
   conventional precedence `NOT > AND/-nand > XOR/-xnor > OR/-nor`; the strict find
   style rejects them. (`-xor` matches exactly one side; the rest are the negations
   of and/or/xor.)
+- **Right align numbers in summary**: In `--summary=...` mode right align the numbers
+  for files and size.
+- **More output control for summary**: In `--summary=...` mode offer the ability to
+  control whether numbers have thousands operators and whether sizes should use unit
+  suffixes (akin to `du -h`) so `kB`/`kiB`, `MB`/`MiB` etc. Some of that is available,
+  we should have a general number output formatter that knows whether a number is for
+  Bytes=B, or blocks or whatever. Use that in all related output.
+- **Number of lines per file**: Investigate whether xff should offer line counting
+  since grep offers it via (-c/--count) or whether we leave it for a `-exec` etc.
+- **Align outputs like -ls**: Output like `-ls` should be aligned, either the way
+  ls does it by providing some reasonable space defaults, or by full alignment.
+  Maybe with options since full alignment can be very slow and use lots of memory.
+  Likely best option is to provide the same width defaults linux/bsd do and then
+  offer to compute width across the initial output where that initial limit can also
+  be configured (with -1 = disable, and 0 off).
+- **Mimetype support**: Consider adding match on mime type support.
+- **File type support**: Consider adding match on file type support (e.g. `.cpp`,
+  `.h` and so on are C-source files). Determine a good data source that matches
+  expectations, like how does VSCode do it. One way: support reading something like
+  https://github.com/github-linguist/linguist/blob/main/lib/linguist/languages.yml
+  and offer to download if not available.
+- **Color support**: Add color support based on the file type color in languages.yml
+  or based on whatever `ls` uses.
+- **`-diff` compare mode**: find files as usual, then compare each match against a
+  counterpart file whose path is _constructed per entry_ from the field vocabulary
+  (`{path}`/`{name}`/`{relpath}`/`{root}`/`{def.NAME}`, ...), so comparing a whole
+  tree against a parallel one is `xff A -type f -diff '{def.B}/{relpath}'` (needs a
+  `{relpath}` field = path relative to its search root; add if missing). The find
+  expression is exactly how you "control which files are compared". Design:
+  - **`-diff TARGET` is a TEST** (xff, `Cost::kExpensive`, reads both files), TRUE
+    when the content _differs_ -- so the default implicit `-print` lists changed
+    files, `! -diff` selects unchanged, and it composes with every other predicate.
+    A missing/unreadable TARGET counts as a difference (present here, absent there);
+    a later `--diff-missing=` knob can refine that.
+  - **Output modes reuse existing machinery:** _list_ differing files = default;
+    _count_ = `--summary` over the (differing) matched set; _"is everything equal?"_
+    = exit code via `--quiet`/`--exit-match` (exit 1 = nothing differed). The one new
+    piece is an **overall unified-diff dump**: a companion action (name TBD --
+    `-udiff`/`-diffout`) emitting a unified diff of the entry vs TARGET, so
+    `... -diff '{def.B}/{relpath}' -udiff '{def.B}/{relpath}' > all.diff` writes one
+    combined patch.
+  - Binary files: reuse the content-search NUL-skip, plus a byte-exact compare mode.
+  - Names to argue: `-diff` (test) vs `-differs`/`-changed`; the dump action
+    `-udiff`/`-diffout`/`--format=diff`; whether the action re-takes TARGET (leaning
+    yes, so each is usable independently) or `-diff` stashes it.
