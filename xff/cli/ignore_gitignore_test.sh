@@ -90,7 +90,17 @@ test::nested_gitignore_scopes_to_its_subtree() {
 }
 
 test::help_topic_documents_gitignore() {
-  expect_eq "yes" "$(printf '%s\n' "$("$(_xff_bin)" --help=-g 2>&1)" | grep -qi 'gitignore' && echo yes || echo no)"
+  # Capture the exit status and the full output separately, and surface both when the
+  # assertion fails, so a flake (e.g. the sanitizer aborting the subprocess) is
+  # diagnosable in CI instead of masquerading as a bare "substring missing".
+  local out rc
+  out="$("$(_xff_bin)" --help=-g 2>&1)" && rc=0 || rc=$?
+  if [[ "${rc}" != "0" ]] || ! printf '%s\n' "${out}" | grep -qi 'gitignore'; then
+    echo "help=-g exited ${rc}; captured output:"
+    printf '%s\n' "${out}"
+  fi
+  expect_eq "0" "${rc}"
+  expect_eq "yes" "$(printf '%s\n' "${out}" | grep -qi 'gitignore' && echo yes || echo no)"
 }
 
 test_runner
