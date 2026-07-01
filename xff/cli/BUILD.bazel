@@ -189,6 +189,16 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of per-directory ignore files (--ignore-files): .ignore /
+# .xffignore are opt-in, stack per directory (deeper overrides shallower), prune
+# directories, and are disabled by -u / --no-ignore.
+bashtest(
+    name = "ignore_files_test",
+    size = "small",
+    srcs = ["ignore_files_test.sh"],
+    data = [":xff"],
+)
+
 # Binary-level test of -exec, which spawns real children: the `+` batch form runs
 # the command once with all matches, `\;` once per match. Shell level is the right
 # fit for a subprocess-spawning feature.

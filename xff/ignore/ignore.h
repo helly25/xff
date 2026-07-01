@@ -63,6 +63,11 @@ class PatternList {
   // compile is skipped (best-effort, as git does).
   static PatternList Parse(std::string_view text);
 
+  // Appends every pattern in `text` (one per line, like Parse) to this list, so
+  // several ignore files in the same directory (e.g. .ignore then .xffignore) can
+  // accumulate into one list with later files taking precedence (last match wins).
+  void AddPatterns(std::string_view text);
+
   // Adds a single pattern. `negate` starts it as a re-include (for `--include`); a
   // leading `!` in `pattern` flips that again. Returns false (adding nothing) for a
   // blank line, a `#` comment, or a pattern that does not compile.

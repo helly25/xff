@@ -457,6 +457,60 @@ ignore::PatternList BuildIgnorePatterns(const std::vector<std::string>& globals)
   return patterns;
 }
 
+// Per-directory ignore-file lookup for --ignore-files: reads and caches each
+// directory's combined ignore PatternList (.ignore then .xffignore, so the xff file
+// wins) lazily, and answers the ignore Decision for a path from the ignore files in
+// its ancestor directories -- deepest first, so a deeper file overrides a shallower
+// one (gitignore precedence). Single-threaded: the walk visitor runs on one
+// coordinator thread, so the cache needs no lock. Inactive (no filenames) is a no-op.
+class IgnoreFileCache {
+ public:
+  IgnoreFileCache(const vfs::FileSystem& fs, std::vector<std::string> filenames)
+      : fs_(&fs), filenames_(std::move(filenames)) {}
+
+  bool active() const { return !filenames_.empty(); }
+
+  ignore::Decision Decide(std::string_view path, std::string_view root, bool is_dir) {
+    const std::string_view rel = RelativeTo(path, root);
+    // Walk the ancestor directories of `path`, deepest first: for rel "a/b/c" that is
+    // "a/b", then "a", then "" (the root itself). Each directory's ignore file matches
+    // the entry's path relative to THAT directory.
+    std::string_view ancestor = rel;
+    for (;;) {
+      const std::string_view::size_type slash = ancestor.rfind('/');
+      ancestor = slash == std::string_view::npos ? std::string_view() : ancestor.substr(0, slash);
+      const std::string dir = ancestor.empty() ? std::string(root) : absl::StrCat(root, "/", ancestor);
+      const std::string_view sub = ancestor.empty() ? rel : rel.substr(ancestor.size() + 1);
+      const ignore::Decision decision = ListFor(dir).Match(sub, is_dir);
+      if (decision != ignore::Decision::kDefault) {
+        return decision;
+      }
+      if (ancestor.empty()) {
+        return ignore::Decision::kDefault;
+      }
+    }
+  }
+
+ private:
+  const ignore::PatternList& ListFor(const std::string& dir) {
+    const auto it = cache_.find(dir);
+    if (it != cache_.end()) {
+      return it->second;
+    }
+    ignore::PatternList list;
+    for (const std::string& name : filenames_) {
+      if (const absl::StatusOr<std::string> content = fs_->ReadContent(absl::StrCat(dir, "/", name)); content.ok()) {
+        list.AddPatterns(*content);
+      }
+    }
+    return cache_.emplace(dir, std::move(list)).first->second;
+  }
+
+  const vfs::FileSystem* fs_;
+  std::vector<std::string> filenames_;
+  std::map<std::string, ignore::PatternList> cache_;
+};
+
 bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
   for (const std::string& global : globals) {
     if (global == flag) {
@@ -464,6 +518,18 @@ bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
     }
   }
   return false;
+}
+
+// The per-directory ignore filenames --ignore-files activates (.ignore then
+// .xffignore, so the xff file wins), or empty when ignore-file processing is off:
+// it is find-compatibly off by default, enabled by --ignore-files, and force-disabled
+// by --no-ignore / -u (the master switch, which also covers a future -g gitignore).
+std::vector<std::string> ResolveIgnoreFileNames(const std::vector<std::string>& globals) {
+  const bool disabled = HasGlobal(globals, "--no-ignore") || HasGlobal(globals, "-u");
+  if (disabled || !HasGlobal(globals, "--ignore-files")) {
+    return {};
+  }
+  return {".ignore", ".xffignore"};
 }
 
 // --implicit-print=yes|no forces the default (implicit) print on or off,
@@ -700,6 +766,10 @@ int RunFind(
   // what it would remove without touching the filesystem.
   const DryRunFileSystem dry_run_fs(fs, emit);
   const vfs::FileSystem& walk_fs = HasGlobal(command.globals, "--dry-run") ? dry_run_fs : fs;
+  // --ignore-files: honor per-directory .ignore / .xffignore files (off by default,
+  // find-compatible; -u / --no-ignore forces it off). Reads through walk_fs, so a
+  // --dry-run still consults them. Inactive is zero overhead.
+  IgnoreFileCache ignore_files(walk_fs, ResolveIgnoreFileNames(command.globals));
 
   // -ok confirmation: prompt to stderr, read a line from stdin, affirmative on y/Y (like find).
   const auto confirm = [](std::string_view prompt) -> bool {
@@ -749,15 +819,23 @@ int RunFind(
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
       [&](const Visit& visit) {
-        // --exclude/--include filter: drop an ignored entry before any evaluation or
-        // output. A matched directory is pruned (its subtree is never walked, so this
-        // is also the fast path); a matched file is simply skipped. The search root
-        // itself (empty relative path) is never filtered -- the user named it.
-        if (!ignore_patterns.empty()) {
+        // Ignore filter: drop an ignored entry before any evaluation or output. A
+        // matched directory is pruned (its subtree is never walked, so this is also
+        // the fast path); a matched file is simply skipped. The search root itself
+        // (empty relative path) is never filtered -- the user named it. CLI
+        // --exclude/--include has highest precedence; the per-directory ignore-file
+        // stack (--ignore-files) decides only where the CLI patterns are silent.
+        if (!ignore_patterns.empty() || ignore_files.active()) {
           const bool is_dir = visit.metadata.type == vfs::FileType::kDirectory;
           const std::string_view rel = RelativeTo(visit.path, visit.root);
-          if (!rel.empty() && ignore_patterns.Match(rel, is_dir) == ignore::Decision::kIgnore) {
-            return is_dir ? WalkAction::kPrune : WalkAction::kContinue;
+          if (!rel.empty()) {
+            ignore::Decision decision = ignore_patterns.Match(rel, is_dir);
+            if (decision == ignore::Decision::kDefault && ignore_files.active()) {
+              decision = ignore_files.Decide(visit.path, visit.root, is_dir);
+            }
+            if (decision == ignore::Decision::kIgnore) {
+              return is_dir ? WalkAction::kPrune : WalkAction::kContinue;
+            }
           }
         }
         Control control;
