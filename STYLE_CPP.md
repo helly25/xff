@@ -164,7 +164,20 @@ clang-format picks a layout per line; these habits steer it toward the readable 
   (`remove_prefix`, `remove_suffix`, reassignment) for no benefit. This applies to locals
   and range-`for` variables. (Not to `std::string_view::size_type`, which is a `size_t`,
   nor to `absl::Span<const std::string_view>`, where `const` is the element type of an
-  immutable span.)
+  immutable span.) **Corollary: when a loop view needs trimming, iterate a mutable by-value
+  view and mutate it in place - never `const` the loop view and then copy it to a mutable
+  local just to mutate the copy.**
+
+  ```cpp
+  for (std::string_view line : absl::StrSplit(text, '\n')) {   // yes: mutate in place
+    if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
+  }
+  for (const std::string_view raw : absl::StrSplit(text, '\n')) {  // no: const + copy-to-mutate
+    std::string_view line = raw;
+    if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
+  }
+  ```
+
 - **Do not overload `const T*` to express "optional" or to conflate omission with value.** A
   raw pointer mixes nullability, the pointed-at value, and ownership/lifetime into one type
   the caller has to second-guess. For an optional reference use
