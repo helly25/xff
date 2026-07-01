@@ -38,6 +38,7 @@
 #include "xff/engine/walk.h"
 #include "xff/exec/exec.h"
 #include "xff/fields/fields.h"
+#include "xff/ignore/ignore.h"
 #include "xff/parser/ast.h"
 #include "xff/registry/descriptor.h"
 #include "xff/render/render.h"
@@ -421,6 +422,41 @@ bool ContainsPrimary(const parser::Expr& expr, std::string_view name) {
   return false;
 }
 
+// The path of `path` relative to the search `root` it was reached from, '/'-
+// separated with no leading '/' -- what the ignore patterns match against. The
+// walk only yields the root itself or paths beneath it, so stripping the root
+// prefix (and any separator) is exact; the root entry maps to "" (never ignored).
+std::string_view RelativeTo(std::string_view path, std::string_view root) {
+  if (path == root || root.empty()) {
+    return path == root ? std::string_view() : path;
+  }
+  if (path.size() > root.size() && path.substr(0, root.size()) == root) {
+    std::string_view rest = path.substr(root.size());
+    while (!rest.empty() && rest.front() == '/') {
+      rest.remove_prefix(1);
+    }
+    return rest;
+  }
+  return path;  // not root-prefixed (should not happen from the walk); match whole
+}
+
+// Builds the ignore/filter set from the run's `--exclude=GLOB` / `--include=GLOB`
+// globals, in command-line order so the gitignore last-match-wins rule holds across
+// them: `--exclude` adds a plain pattern, `--include` a negation (re-include).
+ignore::PatternList BuildIgnorePatterns(const std::vector<std::string>& globals) {
+  constexpr std::string_view kExclude = "--exclude=";
+  constexpr std::string_view kInclude = "--include=";
+  ignore::PatternList patterns;
+  for (const std::string& global : globals) {
+    if (global.starts_with(kExclude)) {
+      patterns.Add(global.substr(kExclude.size()), /*negate=*/false);
+    } else if (global.starts_with(kInclude)) {
+      patterns.Add(global.substr(kInclude.size()), /*negate=*/true);
+    }
+  }
+  return patterns;
+}
+
 bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
   for (const std::string& global : globals) {
     if (global == flag) {
@@ -616,6 +652,10 @@ int RunFind(
       tmpl.has_value() ? std::optional<fields::Template>(fields::Template::Compile(*tmpl)) : std::nullopt;
   const bool exec_fields = HasGlobal(command.globals, "--exec-fields");  // route -exec through the vocabulary
   const std::map<std::string, std::string> defines = ResolveDefines(command.globals);  // {def.NAME} values
+  // --exclude=GLOB / --include=GLOB: a run-level gitignore-style filter. An ignored
+  // entry is dropped before evaluation (a matched directory is pruned, not descended);
+  // --include re-includes. Empty when neither flag is present (zero overhead).
+  const ignore::PatternList ignore_patterns = BuildIgnorePatterns(command.globals);
   if (expression != nullptr) {
     ScanDepthOptions(*expression, &options);
   }
@@ -709,6 +749,17 @@ int RunFind(
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
       [&](const Visit& visit) {
+        // --exclude/--include filter: drop an ignored entry before any evaluation or
+        // output. A matched directory is pruned (its subtree is never walked, so this
+        // is also the fast path); a matched file is simply skipped. The search root
+        // itself (empty relative path) is never filtered -- the user named it.
+        if (!ignore_patterns.empty()) {
+          const bool is_dir = visit.metadata.type == vfs::FileType::kDirectory;
+          const std::string_view rel = RelativeTo(visit.path, visit.root);
+          if (!rel.empty() && ignore_patterns.Match(rel, is_dir) == ignore::Decision::kIgnore) {
+            return is_dir ? WalkAction::kPrune : WalkAction::kContinue;
+          }
+        }
         Control control;
         std::vector<std::string> captures;           // -regex groups for this entry; consumed by gated -exec {0}..{N}
         std::map<std::string, std::string> outputs;  // -capture results for this entry; read by {capture.NAME}
