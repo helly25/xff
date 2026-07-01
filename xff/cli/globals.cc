@@ -95,6 +95,18 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "bytes per -size block for a bare -size N / -size Nb (default 512)",
     },
     {
+        .name = "--exclude",
+        .display = "--exclude=GLOB",
+        .group = "Ignore / filter",
+        .summary = "skip paths matching a gitignore-style glob (repeatable; a matched directory is pruned)",
+    },
+    {
+        .name = "--include",
+        .display = "--include=GLOB",
+        .group = "Ignore / filter",
+        .summary = "re-include paths a --exclude would skip, matching a gitignore-style glob (repeatable)",
+    },
+    {
         .name = "--format",
         .display = "--format=plain|nul|jsonl",
         .group = "Output",

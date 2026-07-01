@@ -64,6 +64,9 @@ Options (whole-run, before the paths):
     --sort[=none|dir|subtree|tree]   sibling/traversal ordering (default depends on the mode)
   Matching:
     --block-size=SIZE   bytes per -size block for a bare `-size N` / `-size Nb` (default 512; e.g. 4k)
+  Ignore / filter:
+    --exclude=GLOB      skip paths matching a gitignore-style glob (repeatable; a matched dir is pruned)
+    --include=GLOB      re-include paths a --exclude would skip (repeatable; last match wins)
   Output:
     --format=plain|nul|jsonl   record format (plain default; nul = -print0; jsonl = JSON lines)
     --path-encoding=raw|escape plain-output path bytes: raw (verbatim) or escape (C-escape controls)
@@ -149,7 +152,7 @@ std::vector<std::string> ProjectDirs(const std::vector<std::string>& roots) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
+int RunMain(int argc, char** argv) {
   const std::vector<std::string> args(argv + 1, argv + argc);
 
   // Help and version, scanned anywhere in the arguments (find prints usage on a
@@ -292,4 +295,17 @@ int main(int argc, char** argv) {
     return 2;  // an error outranks match status
   }
   return match_sensitive && !matched ? 1 : 0;
+}
+
+// Entry point: run xff, then flush stdout explicitly before the process exits.
+// xff writes results and the help / man / markdown pages to std::cout, which is
+// fully buffered when stdout is a pipe. An abnormal exit after main -- notably
+// LeakSanitizer's _exit under `--config=asan` on Linux, which runs before libc++
+// would flush the stream -- otherwise truncates large output (a partial `--man` or
+// `--help=list`). Flushing here, before returning into the C++ exit sequence,
+// guarantees the bytes are written regardless of what the exit path does next.
+int main(int argc, char** argv) {
+  const int exit_code = RunMain(argc, argv);
+  std::cout.flush();
+  return exit_code;
 }

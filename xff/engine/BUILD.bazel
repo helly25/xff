@@ -106,6 +106,7 @@ cc_library(
         "//xff/datetime:datetime_cc",
         "//xff/exec:exec_cc",
         "//xff/fields:fields_cc",
+        "//xff/ignore:ignore_cc",
         "//xff/parser:parser_cc",
         "//xff/registry:registry_cc",
         "//xff/render:render_cc",

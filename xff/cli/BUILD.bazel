@@ -179,6 +179,16 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of the --exclude / --include run-level filter (ignore family):
+# a gitignore-style glob drops matching files, a matched directory is pruned, and
+# --include re-includes with last-match-wins. Drives the real binary.
+bashtest(
+    name = "ignore_test",
+    size = "small",
+    srcs = ["ignore_test.sh"],
+    data = [":xff"],
+)
+
 # Binary-level test of -exec, which spawns real children: the `+` batch form runs
 # the command once with all matches, `\;` once per match. Shell level is the right
 # fit for a subprocess-spawning feature.
