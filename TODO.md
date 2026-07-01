@@ -197,6 +197,16 @@ remains below is the design-forked / larger work.
     `-udiff`/`-diffout`) emitting a unified diff of the entry vs TARGET, so
     `... -diff '{def.B}/{relpath}' -udiff '{def.B}/{relpath}' > all.diff` writes one
     combined patch.
+  - **Configurable diff engine (the substance, not a stock byte compare).** A
+    strong diff core (Myers-class) behind a normalization + filtering layer, so
+    "differs" means "differs after the requested normalization". Knobs (all
+    composable, and settable per run / in `.xffrc`): ignore all whitespace
+    (`diff -w`), ignore whitespace-run changes (`-b`), tabs-vs-spaces, EOL style
+    (CRLF vs LF) and a trailing-newline mismatch, blank lines (`-B`), case (`-i`),
+    and **suppress lines matching a user criterion** (a regex/glob line filter, e.g.
+    drop `Copyright`/timestamp lines before comparing). The normalization is shared
+    with the unified-diff dump so the emitted patch reflects the same rules. Vendor a
+    diff lib vs implement the core is an open build choice.
   - Binary files: reuse the content-search NUL-skip, plus a byte-exact compare mode.
   - Names to argue: `-diff` (test) vs `-differs`/`-changed`; the dump action
     `-udiff`/`-diffout`/`--format=diff`; whether the action re-takes TARGET (leaning
