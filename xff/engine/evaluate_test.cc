@@ -76,6 +76,7 @@ struct EvaluateTest : ::testing::Test {
         .fs = fs_,
         .now = now_,
         .tz = tz_,
+        .fold_name_case = fold_name_case_,
         .control = control_,
         .exec_fields = exec_fields_,
         .captures = exec_fields_ ? &captures_ : nullptr,
@@ -127,6 +128,7 @@ struct EvaluateTest : ::testing::Test {
   absl::TimeZone tz_ = absl::LocalTimeZone();   // zone Match feeds to EvalContext::tz (varied by -newermt cases)
   Control control_;                             // set by Match from the most recent evaluation (-prune/-quit)
   bool exec_fields_ = false;                    // when true, Match enables --exec-fields token substitution
+  bool fold_name_case_ = false;                 // when true, Match sets EvalContext::fold_name_case (FS-native fold)
   std::vector<std::string> captures_;           // -regex groups captured during the most recent (gated) Match
   std::map<std::string, std::string> outputs_;  // -capture results from the most recent Match
   std::vector<std::string> content_files_;      // temp files written by WriteContentFile, removed in TearDown
@@ -198,6 +200,26 @@ TEST_F(EvaluateTest, INameFoldsCase) {
   const Visit visit = MakeVisit("dir/Foo.TXT", "Foo.TXT", vfs::FileType::kRegular, md);
   EXPECT_TRUE(Match({"-iname", "foo.txt"}, visit));
   EXPECT_FALSE(Match({"-name", "foo.txt"}, visit));
+}
+
+TEST_F(EvaluateTest, FsNativeFoldsNameOnCaseFoldingVolume) {
+  // fold_name_case (set by the driver for an entry on a case-folding volume, xff
+  // style, no --exact) makes the case-sensitive -name fold like -iname, so it
+  // matches the way the filesystem itself resolves the name.
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/Foo.TXT", "Foo.TXT", vfs::FileType::kRegular, md);
+  EXPECT_FALSE(Match({"-name", "foo.txt"}, visit)) << "byte-exact by default (case-sensitive volume / --exact)";
+  fold_name_case_ = true;
+  EXPECT_TRUE(Match({"-name", "foo.txt"}, visit)) << "FS-native fold on a case-folding volume";
+  EXPECT_TRUE(Match({"-name", "Foo.TXT"}, visit)) << "the exact-case name still matches when folding";
+}
+
+TEST_F(EvaluateTest, FsNativeFoldsPathOnCaseFoldingVolume) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("Dir/Foo.TXT", "Foo.TXT", vfs::FileType::kRegular, md);
+  EXPECT_FALSE(Match({"-path", "dir/foo.txt"}, visit));
+  fold_name_case_ = true;
+  EXPECT_TRUE(Match({"-path", "dir/foo.txt"}, visit)) << "-path folds too under FS-native matching";
 }
 
 TEST_F(EvaluateTest, PathGlobsWholePath) {

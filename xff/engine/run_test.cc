@@ -965,5 +965,94 @@ TEST_F(RunTest, SkipUnsupportedDowngradesImpossibleBtimeToWarnAndSkip) {
   EXPECT_THAT(reports, 1);  // but warned once
 }
 
+// In-memory FileSystem on a case-FOLDING volume (IsCaseSensitive -> false): a root
+// holding one mixed-case regular file (Foo.txt). It reports case-insensitive
+// regardless of the host runner, so the FS-native -name matching / --exact tests
+// below are deterministic on case-sensitive CI (ext4) too.
+class CaseFoldFs : public vfs::FileSystem {
+ public:
+  explicit CaseFoldFs(std::string root) : root_(std::move(root)) {}
+
+  absl::StatusOr<std::vector<vfs::Entry>> ReadDir(std::string_view dir) const override {
+    if (std::string(dir) != root_) {
+      return absl::NotFoundError("CaseFoldFs: no such directory");
+    }
+    return std::vector<vfs::Entry>{
+        vfs::Entry{.path = root_ + "/Foo.txt", .name = "Foo.txt", .type = vfs::FileType::kRegular}};
+  }
+
+  absl::StatusOr<vfs::Metadata> Stat(std::string_view path, bool /*follow_symlinks*/) const override {
+    vfs::Metadata md;
+    md.type = std::string(path) == root_ ? vfs::FileType::kDirectory : vfs::FileType::kRegular;
+    return md;
+  }
+
+  absl::Status Remove(std::string_view) const override { return absl::OkStatus(); }
+
+  bool Access(std::string_view, vfs::AccessMode) const override { return true; }
+
+  absl::StatusOr<std::string> ReadLink(std::string_view) const override {
+    return absl::InvalidArgumentError("CaseFoldFs: not a symlink");
+  }
+
+  absl::StatusOr<std::string> FsType(std::string_view) const override { return std::string("fakefs"); }
+
+  absl::StatusOr<bool> IsCaseSensitive(std::string_view) const override { return false; }  // a folding volume
+
+  absl::StatusOr<std::string> ReadContent(std::string_view) const override { return std::string(); }
+
+ private:
+  std::string root_;
+};
+
+// Runs `-name <pattern>` over a CaseFoldFs (holding Foo.txt) in `style`, with or
+// without --exact, and returns the concatenated emitted output.
+std::string RunNameOnCaseFoldVolume(std::string_view pattern, std::optional<registry::Style> style, bool exact) {
+  const CaseFoldFs fs("/fake");
+  std::vector<std::string> args;
+  if (exact) {
+    args.emplace_back("--exact");
+  }
+  args.insert(args.end(), {"/fake", "-name", std::string(pattern)});
+  const auto command = parser::Parse(args);
+  EXPECT_THAT(command, IsOk());
+  std::string out;
+  const int errors = RunFind(
+      *command, fs, [&out](std::string_view record) { out += record; }, [](std::string_view, absl::Status) {}, style);
+  EXPECT_THAT(errors, 0);
+  return out;
+}
+
+TEST_F(RunTest, XffStyleFoldsNameOnCaseFoldingVolume) {
+  // FS-native matching: the xff style matches -name the way the volume resolves
+  // names, so a lower-case pattern matches the mixed-case Foo.txt on a folding FS.
+  EXPECT_THAT(RunNameOnCaseFoldVolume("foo.txt", registry::Style::kXff, /*exact=*/false), HasSubstr("Foo.txt"));
+}
+
+TEST_F(RunTest, ExactOptsOutOfFsNativeFolding) {
+  // --exact forces verbatim byte-exact matching even on a folding volume.
+  EXPECT_THAT(RunNameOnCaseFoldVolume("foo.txt", registry::Style::kXff, /*exact=*/true), IsEmpty());
+}
+
+TEST_F(RunTest, FindStyleIsAlwaysByteExact) {
+  // The find style is drop-in faithful: no FS-native folding, so a lower-case
+  // pattern does not match Foo.txt regardless of the volume.
+  EXPECT_THAT(RunNameOnCaseFoldVolume("foo.txt", registry::Style::kFind, /*exact=*/false), IsEmpty());
+}
+
+TEST_F(RunTest, InProcessDefaultStyleIsByteExact) {
+  // std::nullopt style (the conservative in-process default) does not fold either;
+  // FS-native matching is opt-in via the xff style the CLI resolves.
+  EXPECT_THAT(RunNameOnCaseFoldVolume("foo.txt", std::nullopt, /*exact=*/false), IsEmpty());
+}
+
+TEST_F(RunTest, ExactCaseNameMatchesRegardlessOfFolding) {
+  // The exact-case name matches in every style / with --exact -- folding only
+  // widens what matches, it never stops the verbatim name from matching.
+  EXPECT_THAT(RunNameOnCaseFoldVolume("Foo.txt", registry::Style::kXff, /*exact=*/false), HasSubstr("Foo.txt"));
+  EXPECT_THAT(RunNameOnCaseFoldVolume("Foo.txt", registry::Style::kXff, /*exact=*/true), HasSubstr("Foo.txt"));
+  EXPECT_THAT(RunNameOnCaseFoldVolume("Foo.txt", registry::Style::kFind, /*exact=*/false), HasSubstr("Foo.txt"));
+}
+
 }  // namespace
 }  // namespace xff::engine

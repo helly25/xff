@@ -64,6 +64,7 @@ Options (whole-run, before the paths):
     --sort[=none|dir|subtree|tree]   sibling/traversal ordering (default depends on the mode)
   Matching:
     --block-size=SIZE   bytes per -size block for a bare `-size N` / `-size Nb` (default 512; e.g. 4k)
+    --exact             match -name/-path byte-exact (xff otherwise folds case on a case-folding volume)
   Ignore / filter:
     --exclude=GLOB      skip paths matching a gitignore-style glob (repeatable; a matched dir is pruned)
     --include=GLOB      re-include paths a --exclude would skip (repeatable; last match wins)

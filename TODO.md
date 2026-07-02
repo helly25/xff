@@ -88,20 +88,21 @@ remains below is the design-forked / larger work.
   outstanding except, if a concrete case ever appears, extending impossible-task
   detection beyond birth time (only `-Btime`/`-Bmin`/X=B `-newerXY` flag it today;
   a Y=B reference with no btime stays a silent no-match by design).
-- **`--exact` + `--path-encoding`** (#45). `--path-encoding=raw|escape` has
-  shipped: the plain renderer C-escapes backslash + control bytes under `escape`
-  (kNul stays raw, kJsonl always JSON-escapes). `--exact` is still to do. Decided
-  (2026-06-28): the **default is
-  the filesystem-native, naturally-expected behavior** - matching follows the
-  volume's own case-sensitivity (case-insensitive on a folding FS like APFS / HFS+ /
-  NTFS, case-sensitive on ext4 and friends), so most users get what they expect on
-  their platform; **`--exact` opts out** to force verbatim byte-for-byte comparison
-  regardless of the FS. Needs a `vfs` case-sensitivity probe
-  (`pathconf(_PC_CASE_SENSITIVE)` / statfs flags; conservative byte-exact fallback
-  when unknown). Separately, **`--path-encoding=raw|escape`** governs how
-  non-printable / invalid-UTF-8 path bytes render in plain / `--template` output
-  (`raw` = find-compatible default; `escape` = C-style `\xNN`, like `ls -b`);
-  `--format=jsonl` already escapes.
+- **`--exact` + `--path-encoding`** (#45). **Both shipped.** `--exact`: the default
+  is the **filesystem-native, naturally-expected** behavior - the xff style matches
+  `-name` / `-path` the way the entry's own volume resolves names (case-insensitive
+  on a folding FS like APFS / HFS+ / NTFS, case-sensitive on ext4 and friends), so
+  most users get what they expect on their platform; **`--exact` opts out** to force
+  verbatim byte-for-byte comparison regardless of the FS, and the find style stays
+  byte-exact (drop-in faithful). Backed by a `vfs::FileSystem::IsCaseSensitive`
+  probe (`pathconf(_PC_CASE_SENSITIVE)` on macOS/BSD; conservative case-sensitive
+  fallback on Linux and when unprobeable), cached per device during the walk. Scope
+  is **case only**; NFC/NFD normalization and fuzzy matching (the earlier
+  `--exact+`/`--exact-` sketch) stay deferred. Linux per-directory casefold (ext4
+  `+F` / `statx STATX_ATTR_CASEFOLD`) is a later refinement. `--path-encoding=raw|escape`
+  also shipped: the plain renderer C-escapes backslash + control bytes under
+  `escape` (kNul stays raw, kJsonl always JSON-escapes; `raw` = find-compatible
+  default, `escape` = C-style `\xNN`, like `ls -b`).
 - **`--feature=NAME` / `--feature=no-NAME` capability gates** (#73). **Parked** - no
   concrete customer yet (valued knobs like `--implicit-print` / `--capture-override`
   / `--exec-fields` are dedicated flags by design, and whole-behavior switches are

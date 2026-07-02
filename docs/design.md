@@ -196,11 +196,21 @@ POSIX paths (and content) are byte strings, not guaranteed UTF-8; JSON/CSV/markd
 
 ### macOS / cross-platform correctness (review #8)
 
-- **Name-match strictness - tri-state `--exact` (suffix-sign convention):**
-  - `--exact+` - always binary/byte-exact (case- & normalization-sensitive; find-byte-faithful regardless of FS).
-  - `--exact` (bare, **default**) - **auto from the filesystem**: normalization-insensitive on APFS/HFS+, byte-exact on Linux. Matches the FS's own notion of identity (fixes find's silent NFC/NFD miss on macOS).
-  - `--exact-` - **similarity / fuzzy** matching (a feature in its own right): folds normalization + case + diacritics (exact fuzzy model TBD - fold-only vs subsequence vs edit-distance).
-- **Case stays explicit & FS-independent:** `-name` / `-iname` are find primaries (tier-1) - _not_ made tri-state (`-iname±` has no natural meaning; `-iname-` ≡ `-name`). Case-folding is otherwise a dimension of `--exact-`. `--exact` auto handles _normalization only_, never case (case is visible/intentional → kept explicit & cross-platform-consistent).
+- **Name-match strictness - `--exact` (shipped #45; decided 2026-06-28).** The
+  default is the **filesystem-native, naturally-expected** behavior: the xff style
+  matches `-name` / `-path` the way the entry's own volume resolves names - **case
+  folding on a case-insensitive volume** (APFS / HFS+ in their default config, NTFS,
+  exFAT), byte-exact on a case-sensitive one (ext4 and friends) - so a lookup the OS
+  would satisfy case-insensitively also matches here. **`--exact` opts out**, forcing
+  verbatim byte-exact comparison regardless of the FS; the **find style is always
+  byte-exact** (drop-in faithful), as is the conservative in-process default. Backed
+  by a `vfs` per-volume `IsCaseSensitive` probe (`pathconf(_PC_CASE_SENSITIVE)` on
+  macOS/BSD; conservative case-sensitive fallback on Linux and when unprobeable). The
+  `-iname` / `-ipath` variants fold regardless; regex keeps its own `-iregex`.
+  - **Scope is case only for now.** Normalization (NFC/NFD) and fuzzy/similarity
+    matching were an earlier sketch (`--exact+` byte-exact / `--exact-` fuzzy);
+    they are **deferred** - the shipped flag is the boolean case opt-out above, and
+    the tri-state `+`/`-` spellings can layer on later if a concrete need appears.
 - **Birthtime** (`-Btime`/`-Bmin`/`-Bnewer`, BSD-compat; GNU lacks them): backed by `st_birthtime` (macOS/BSD) / `statx(STATX_BTIME)` (Linux ≥4.11).
 - **Impossible tasks fail by default:** a predicate that can't be evaluated correctly on a given kernel/FS (e.g. `-Btime` where birthtime is unrecorded) → **hard error**, self-documenting, naming the unsupported path/FS. Opt-in `--skip-unsupported` downgrades to warn-and-skip. (Rule: **fail when correctness is impossible; warn when degraded-but-correct.**)
 - **FSEvents (macOS) vs inotify/fanotify (Linux):** the Phase-4 index/watch abstracts behind a platform interface (deferred).

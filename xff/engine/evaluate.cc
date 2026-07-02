@@ -811,14 +811,17 @@ bool EvalFalse(const parser::Expr&, EvalContext&) {
 
 // -name/-iname (and -path/-ipath below): the descriptor's fold_case selects
 // FNM_CASEFOLD, so the case-insensitive variant is registry data, not a separate
-// handler. -name and -iname both dispatch here.
+// handler. -name and -iname both dispatch here. ctx.fold_name_case additionally
+// folds the case-sensitive variant when FS-native matching is in effect (the
+// entry is on a case-folding volume, xff style, no --exact), so -name matches
+// the way the filesystem itself resolves names.
 bool EvalName(const parser::Expr& expr, EvalContext& ctx) {
-  const int flags = expr.descriptor->fold_case ? FNM_CASEFOLD : 0;
+  const int flags = (expr.descriptor->fold_case || ctx.fold_name_case) ? FNM_CASEFOLD : 0;
   return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.name, flags);
 }
 
 bool EvalPath(const parser::Expr& expr, EvalContext& ctx) {
-  const int flags = expr.descriptor->fold_case ? FNM_CASEFOLD : 0;
+  const int flags = (expr.descriptor->fold_case || ctx.fold_name_case) ? FNM_CASEFOLD : 0;
   return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.path, flags);
 }
 
