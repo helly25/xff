@@ -39,6 +39,23 @@ TEST_F(FormatTest, IntGroupsInThreesFromTheRight) {
   EXPECT_THAT(Int(1'000'000'000, ','), "1,000,000,000");
 }
 
+TEST_F(FormatTest, SizeIecUsesBinaryUnits) {
+  EXPECT_THAT(Size(0, SizeUnits::kIec), "0 B");
+  EXPECT_THAT(Size(56, SizeUnits::kIec), "56 B");  // below one unit: exact bytes
+  EXPECT_THAT(Size(1'023, SizeUnits::kIec), "1023 B");
+  EXPECT_THAT(Size(1'024, SizeUnits::kIec), "1.0 KiB");
+  EXPECT_THAT(Size(1'536, SizeUnits::kIec), "1.5 KiB");  // 1024 + 512
+  EXPECT_THAT(Size(5'872'025, SizeUnits::kIec), "5.6 MiB");
+  EXPECT_THAT(Size(1'024ULL * 1'024 * 1'024, SizeUnits::kIec), "1.0 GiB");
+}
+
+TEST_F(FormatTest, SizeSiUsesDecimalUnits) {
+  EXPECT_THAT(Size(999, SizeUnits::kSi), "999 B");
+  EXPECT_THAT(Size(1'000, SizeUnits::kSi), "1.0 kB");
+  EXPECT_THAT(Size(5'872'025, SizeUnits::kSi), "5.9 MB");
+  EXPECT_THAT(Size(2'000'000'000, SizeUnits::kSi), "2.0 GB");
+}
+
 TEST_F(FormatTest, PadLeftRightJustifies) {
   EXPECT_THAT(PadLeft("42", 5), "   42");
   EXPECT_THAT(PadLeft("42", 2), "42");        // already wide enough

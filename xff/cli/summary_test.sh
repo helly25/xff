@@ -83,4 +83,37 @@ test::summary_overall_is_a_single_total_row() {
   expect_eq "yes" "$(_has "${out}" '\{"group":"total","count":3,"bytes":1249\}')"
 }
 
+# A 5,872,025-byte file to exercise human size units (5.6 MiB / 5.9 MB).
+_make_big() {
+  local root
+  root="$(mktemp -d)"
+  head -c 5872025 /dev/zero >"${root}/big.bin"
+  echo "${root}"
+}
+
+test::human_iec_renders_binary_units() {
+  local root out
+  root="$(_make_big)"
+  out="$(_run --summary --human "${root}" -type f)"
+  rm -rf "${root}"
+  expect_eq "yes" "$(_has "${out}" '5\.6 MiB')" # bare --human = iec (binary)
+}
+
+test::human_si_renders_decimal_units() {
+  local root out
+  root="$(_make_big)"
+  out="$(_run --summary --human=si "${root}" -type f)"
+  rm -rf "${root}"
+  expect_eq "yes" "$(_has "${out}" '5\.9 MB')"
+}
+
+test::human_does_not_change_jsonl_bytes() {
+  # jsonl is the machine path: exact bytes regardless of --human.
+  local root out
+  root="$(_make_big)"
+  out="$(_run --summary --human --format=jsonl "${root}" -type f)"
+  rm -rf "${root}"
+  expect_eq "yes" "$(_has "${out}" '"bytes":5872025')"
+}
+
 test_runner
