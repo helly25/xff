@@ -95,6 +95,12 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "bytes per -size block for a bare -size N / -size Nb (default 512)",
     },
     {
+        .name = "--exact",
+        .display = "--exact",
+        .group = "Matching",
+        .summary = "match -name/-path byte-exact, opting out of the xff FS-native case default",
+    },
+    {
         .name = "--exclude",
         .display = "--exclude=GLOB",
         .group = "Ignore / filter",

@@ -80,11 +80,18 @@ struct EvalContext {
   // -ls size-column rendering: human units (iec/si) or, when nullopt, raw bytes.
   // The driver resolves it from --human + the style (xff -> human, find -> bytes).
   std::optional<format::SizeUnits> ls_size_units;
-  const vfs::FileSystem& fs;                     // backs predicates that read the source (e.g. -empty on a directory)
-  absl::Time now;                                // single reference instant for age tests (-mtime/-mmin)
-  absl::TimeZone tz = absl::LocalTimeZone();     // zone for interpreting time-string args (-newerXt); --timezone
-  std::string_view time_format;                  // --time-format: default for a time field with no {:qualifier}
-  std::uint64_t block_size = 512;                // --block-size: bytes per -size block (bare value / 'b'); find's 512
+  const vfs::FileSystem& fs;                  // backs predicates that read the source (e.g. -empty on a directory)
+  absl::Time now;                             // single reference instant for age tests (-mtime/-mmin)
+  absl::TimeZone tz = absl::LocalTimeZone();  // zone for interpreting time-string args (-newerXt); --timezone
+  std::string_view time_format;               // --time-format: default for a time field with no {:qualifier}
+  std::uint64_t block_size = 512;             // --block-size: bytes per -size block (bare value / 'b'); find's 512
+  // FS-native name matching: when true, the case-sensitive name predicates
+  // (-name/-path) fold case for this entry because it lives on a case-folding
+  // volume and the xff-style default is in effect (no --exact). The driver
+  // resolves it per entry from a per-device IsCaseSensitive probe; it is always
+  // false in the find style and under --exact (byte-exact matching). The `i`
+  // variants (-iname/-ipath) fold regardless.
+  bool fold_name_case = false;
   Control& control;                              // collects -prune/-quit requests
   bool exec_fields = false;                      // --exec-fields: render -exec tokens through the field vocabulary
   std::vector<std::string>* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off

@@ -28,6 +28,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
@@ -932,6 +933,16 @@ int RunFind(
   const bool skip_unsupported = HasGlobal(command.globals, "--skip-unsupported");
   bool unsupported_reported = false;
 
+  // FS-native name matching (design.md "macOS / cross-platform correctness"; #45):
+  // the xff style matches -name/-path the way the entry's own volume resolves
+  // names, so a lookup the OS would satisfy case-insensitively (APFS/HFS+ default,
+  // NTFS) also matches here. --exact opts out (verbatim byte-exact), and the find
+  // style is always byte-exact (drop-in faithful). When active, each entry's volume
+  // is probed once (cached by device id; the visitor is single-threaded, so the
+  // cache needs no synchronisation), and a case-folding volume sets fold_name_case.
+  const bool fs_native_case = style == registry::Style::kXff && !HasGlobal(command.globals, "--exact");
+  absl::flat_hash_map<std::uint64_t, bool> case_sensitive_by_dev;
+
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
       [&](const Visit& visit) {
@@ -957,6 +968,17 @@ int RunFind(
         Control control;
         std::vector<std::string> captures;           // -regex groups for this entry; consumed by gated -exec {0}..{N}
         std::map<std::string, std::string> outputs;  // -capture results for this entry; read by {capture.NAME}
+        // FS-native name matching: fold -name/-path case on a case-folding volume
+        // (xff style, no --exact). Probe each device once, defaulting to
+        // case-sensitive (byte-exact) on the miss and on any probe error.
+        bool fold_name_case = false;
+        if (fs_native_case) {
+          auto [it, inserted] = case_sensitive_by_dev.try_emplace(visit.metadata.dev, true);
+          if (inserted) {
+            it->second = walk_fs.IsCaseSensitive(visit.path).value_or(true);
+          }
+          fold_name_case = !it->second;
+        }
         EvalContext eval_context{
             .visit = visit,
             .emit = emit,
@@ -968,6 +990,7 @@ int RunFind(
             .tz = tz,
             .time_format = time_format,
             .block_size = block_size,
+            .fold_name_case = fold_name_case,
             .control = control,
             .exec_fields = exec_fields,
             .captures = exec_fields ? &captures : nullptr,

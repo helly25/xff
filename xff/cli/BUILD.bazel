@@ -226,6 +226,16 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of --exact / FS-native name matching: --exact forces byte-exact,
+# the find style stays byte-exact, and the xff default follows the test volume's
+# own case rule (probed at runtime, so it holds on case-sensitive and folding FS).
+bashtest(
+    name = "exact_test",
+    size = "small",
+    srcs = ["exact_test.sh"],
+    data = [":xff"],
+)
+
 # Binary-level test of -exec, which spawns real children: the `+` batch form runs
 # the command once with all matches, `\;` once per match. Shell level is the right
 # fit for a subprocess-spawning feature.
