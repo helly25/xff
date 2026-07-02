@@ -120,4 +120,15 @@ test::regextype_reserved_value_is_a_usage_error() {
   expect_eq "yes" "$(_has "${out}" 'not supported yet')"
 }
 
+test::grep_format_overrides_the_default_output() {
+  local root out
+  root="$(_make_tree)"
+  # -grep=FORMAT renders a field template ({line}/{text} + the entry vocabulary).
+  out="$(_run "${root}" -name 'a.txt' -grep='{line}|{text}' 'TODO')"
+  rm -rf "${root}"
+  expect_eq "yes" "$(_has "${out}" '^1\|first TODO line$')"
+  expect_eq "yes" "$(_has "${out}" '^3\|another TODO here$')"
+  expect_eq "no" "$(_has "${out}" ':')" # the default path:line:text colons are gone
+}
+
 test_runner

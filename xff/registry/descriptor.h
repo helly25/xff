@@ -34,8 +34,9 @@ enum class Cost { kCheap, kMeta, kExpensive };
 
 // How a primary carries an attached '=' payload on its own token, so the parser
 // reads the grammar from the registry instead of hardcoding names (design #68):
-// kNone for most; kLabelRegex for -capture/-capturedir (-capture=NAME[=REGEX]).
-enum class Binding { kNone, kLabel, kLabelRegex };
+// kNone for most; kLabelRegex for -capture/-capturedir (-capture=NAME[=REGEX]);
+// kFormat for -grep (-grep=FORMAT, an attached output template).
+enum class Binding { kNone, kLabel, kLabelRegex, kFormat };
 
 // Whether a primary belongs to find (kFind) or is an xff extension (kXff). The
 // strict find style (--config=find) rejects xff extensions; the xff style accepts

@@ -26,6 +26,10 @@ namespace xff::regex {
 class Matcher;  // forward-declared; Expr holds a shared_ptr to a pre-compiled one (pointer only, no dep)
 }  // namespace xff::regex
 
+namespace xff::fields {
+class Template;  // forward-declared; Expr holds a shared_ptr to -grep=FORMAT's compiled template
+}  // namespace xff::fields
+
 namespace xff::parser {
 
 struct Expr;
@@ -53,6 +57,9 @@ struct Expr {
   // for -iregex), or -capture/-capturedir's optional extraction regex (args[1]).
   // Null when the node has no regex or the pattern did not compile (-> no match).
   std::shared_ptr<const regex::Matcher> matcher;
+  // -grep=FORMAT: the attached output template, compiled once at parse time. Null
+  // for a bare -grep (which uses the default path:line:text) and every other node.
+  std::shared_ptr<const fields::Template> grep_template;
   // kNot: operand in `lhs`. kAnd / kOr / kComma: operands in `lhs` and `rhs`.
   ExprPtr lhs;
   ExprPtr rhs;

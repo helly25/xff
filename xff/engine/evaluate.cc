@@ -932,7 +932,27 @@ bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
         *content, [&matcher](std::string_view line) { return matcher->get().PartialMatch(line); });
   }
   for (const content::LineMatch& line : lines) {
-    ctx.emit(absl::StrCat(ctx.visit.path, ":", line.number, ":", line.text, "\n"));
+    if (expr.grep_template != nullptr) {
+      // -grep=FORMAT: render the field template per match line ({line}/{text} plus
+      // the entry's {path}/{name}/... vocabulary), one record per matching line.
+      ctx.emit(
+          expr.grep_template->Render(
+              fields::RenderContext{
+                  .path = ctx.visit.path,
+                  .root = ctx.visit.root,
+                  .metadata = ctx.visit.metadata,
+                  .depth = ctx.visit.depth,
+                  .tz = ctx.tz,
+                  .time_format = ctx.time_format,
+                  .captures = ctx.captures,
+                  .defines = ctx.defines,
+                  .outputs = ctx.outputs,
+                  .line_number = line.number,
+                  .line_text = line.text})
+          + "\n");
+    } else {
+      ctx.emit(absl::StrCat(ctx.visit.path, ":", line.number, ":", line.text, "\n"));
+    }
   }
   return !lines.empty();
 }
