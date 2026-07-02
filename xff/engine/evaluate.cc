@@ -942,8 +942,7 @@ bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
         match_text = line.text.substr(pos, needle.size());
         match_column = pos + 1;
       }
-    } else if (const std::optional<std::pair<std::size_t, std::size_t>> span = matcher->get().FindFirst(line.text);
-               span.has_value()) {
+    } else if (const std::optional<std::pair<std::size_t, std::size_t>> span = matcher->get().FindFirst(line.text)) {
       match_text = line.text.substr(span->first, span->second);
       match_column = span->first + 1;
     }
