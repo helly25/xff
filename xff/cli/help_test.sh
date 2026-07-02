@@ -32,7 +32,9 @@ _xff_bin() {
 }
 
 # "yes" if $1 (output) contains the regex $2, else "no" -- for expect_eq.
-_has() { printf '%s\n' "$1" | grep -qE -- "$2" && echo yes || echo no; }
+# `<<<` (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a
+# still-writing printf, which fails under `set -o pipefail` and misreports "no".
+_has() { grep -qE -- "$2" <<<"$1" && echo yes || echo no; }
 
 test::help_prints_usage_and_options() {
   local out rc

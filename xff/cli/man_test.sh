@@ -33,8 +33,10 @@ _xff_bin() {
   echo "${bin}"
 }
 
-# "yes" if $1 (text) matches the regex $2, else "no" -- for expect_eq.
-_has() { printf '%s\n' "$1" | grep -qE -- "$2" && echo yes || echo no; }
+# "yes" if $1 (text) matches the regex $2, else "no" -- for expect_eq. Uses `<<<`
+# (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a still-writing
+# printf, which fails under `set -o pipefail` and misreports "no" on large output.
+_has() { grep -qE -- "$2" <<<"$1" && echo yes || echo no; }
 
 test::man_renders_through_a_roff_formatter() {
   local roff tmp rendered renderer=""

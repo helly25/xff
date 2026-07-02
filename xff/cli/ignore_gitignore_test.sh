@@ -30,7 +30,9 @@ _xff_bin() {
   echo "${bin}"
 }
 
-_has() { printf '%s\n' "$1" | grep -qE -- "(^|/)${2}\$" && echo yes || echo no; }
+# `<<<` (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a
+# still-writing printf, which fails under `set -o pipefail` and misreports "no".
+_has() { grep -qE -- "(^|/)${2}\$" <<<"$1" && echo yes || echo no; }
 
 # Tree: keep.cc, a.o, sub/b.o, sub/keep.h.  <root>/.gitignore => *.o
 _make_tree() {
@@ -95,12 +97,12 @@ test::help_topic_documents_gitignore() {
   # diagnosable in CI instead of masquerading as a bare "substring missing".
   local out rc
   out="$("$(_xff_bin)" --help=-g 2>&1)" && rc=0 || rc=$?
-  if [[ "${rc}" != "0" ]] || ! printf '%s\n' "${out}" | grep -qi 'gitignore'; then
+  if [[ "${rc}" != "0" ]] || ! grep -qi 'gitignore' <<<"${out}"; then
     echo "help=-g exited ${rc}; captured output:"
     printf '%s\n' "${out}"
   fi
   expect_eq "0" "${rc}"
-  expect_eq "yes" "$(printf '%s\n' "${out}" | grep -qi 'gitignore' && echo yes || echo no)"
+  expect_eq "yes" "$(grep -qi 'gitignore' <<<"${out}" && echo yes || echo no)"
 }
 
 test_runner

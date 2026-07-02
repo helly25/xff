@@ -43,7 +43,9 @@ _run() {
   printf '%s' "${out}"
 }
 
-_has() { printf '%s\n' "$1" | grep -qE -- "$2" && echo yes || echo no; }
+# `<<<` (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a
+# still-writing printf, which fails under `set -o pipefail` and misreports "no".
+_has() { grep -qE -- "$2" <<<"$1" && echo yes || echo no; }
 
 # Two files with very different size widths (1 vs 6 digits) and name lengths.
 _make_tree() {
