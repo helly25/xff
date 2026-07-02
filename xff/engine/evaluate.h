@@ -28,6 +28,7 @@
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "xff/engine/walk.h"
+#include "xff/format/format.h"
 #include "xff/parser/ast.h"
 #include "xff/vfs/filesystem.h"
 
@@ -71,6 +72,10 @@ struct EvalContext {
   // driver appends to each named file (opened once, truncating); empty -> the
   // file actions are inert (in-process callers that wire no sink).
   std::function<void(std::string_view, std::string_view)> emit_file;
+  // Row sink for -ls's aligned output: receives the entry's -ls columns as cells
+  // (inode, blocks, perms, ...) for the driver to feed to a format::ColumnBuffer.
+  // Empty -> -ls falls back to a single-space-joined line (in-process callers).
+  std::function<void(std::vector<std::string>)> emit_ls_row;
   const vfs::FileSystem& fs;                     // backs predicates that read the source (e.g. -empty on a directory)
   absl::Time now;                                // single reference instant for age tests (-mtime/-mmin)
   absl::TimeZone tz = absl::LocalTimeZone();     // zone for interpreting time-string args (-newerXt); --timezone
@@ -125,6 +130,25 @@ absl::Status ValidateSizeArgs(const parser::Expr& expr);
 // for a bare `-size N` and the `-size Nb` unit (find's default is 512). Returns an
 // InvalidArgument status (naming the problem) for a malformed or zero size.
 absl::StatusOr<std::uint64_t> ParseBlockSize(std::string_view spec);
+
+// The `-ls` columns for one entry, in display order: inode, 1 KiB blocks, symbolic
+// permissions, link count, owner, group, size (bytes), time (in `tz`), path. The
+// aligned renderer (format::ColumnBuffer) consumes these; LsRecord joins them
+// single-spaced for the unbuffered fallback.
+std::vector<std::string> LsCells(const Visit& visit, absl::Time now, absl::TimeZone tz);
+
+// One `-ls` column's alignment and minimum (also fixed, when --buffer=off) width.
+struct LsColumn {
+  format::Align align;
+  std::size_t min_width;
+};
+
+// The `-ls` column layout (alignment + minimum width per column), in LsCells order:
+// numeric columns right-aligned, text left; the driver builds the --buffer
+// format::ColumnBuffer from this. The minimums are ls -l-like defaults for the
+// flexible fields (owner/group/size), a fixed 10 for the permission string, and 0
+// for the trailing path.
+std::vector<LsColumn> LsColumns();
 
 }  // namespace xff::engine
 

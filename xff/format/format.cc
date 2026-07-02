@@ -145,11 +145,10 @@ std::string ColumnBuffer::Add(std::vector<std::string> cells) {
     }
     return "";
   }
-  // Streaming: with a real window the columns keep growing to fit later rows; with
-  // window == 0 the widths stay at the mins (rows are not aligned across each other).
-  if (window_ != 0) {
-    widen(cells);
-  }
+  // Streaming after the window: the widths are frozen (decided by the buffered
+  // window), so output is direct and columns never shift -- a rare cell wider than
+  // anything in the window simply overflows its column. (window == 0 likewise streams
+  // at the fixed minimum widths.)
   return RenderPaddedRow(cells, aligns_, widths_, "  ");
 }
 

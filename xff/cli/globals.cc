@@ -163,6 +163,12 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "show --summary sizes in units: iec (KiB/MiB, default) or si (kB/MB)",
     },
     {
+        .name = "--buffer",
+        .display = "--buffer[=auto|off|all|N]",
+        .group = "Output",
+        .summary = "-ls column alignment: buffer rows to size columns (auto=100, off, all, or N)",
+    },
+    {
         .name = "--quiet",
         .alias = "-q",
         .display = "--quiet, -q",

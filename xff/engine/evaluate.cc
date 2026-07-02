@@ -39,6 +39,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
 #include "mbo/container/limited_set.h"
@@ -1163,14 +1164,11 @@ std::string Print0Record(const Visit& visit) {
 }
 
 // find's -ls: an `ls -dils`-style line -- inode, 1 KiB blocks, symbolic
-// permissions, link count, owner, group, size, time, and path -- rendered in
-// `tz`. Columns are single-space-separated (xff does not pad to find's widths).
+// permissions, link count, owner, group, size, time, and path -- rendered in `tz`.
+// The single-space-joined fallback when no aligning row sink is wired (e.g. -fls,
+// in-process callers); the aligned stdout path goes through LsCells + ColumnBuffer.
 std::string LsRecord(const Visit& visit, absl::Time now, absl::TimeZone tz) {
-  const vfs::Metadata& md = visit.metadata;
-  const std::uint64_t blocks_1k = (md.blocks + 1) / 2;  // 512-byte blocks -> 1 KiB blocks (rounded up)
-  return absl::StrCat(
-      md.ino, " ", blocks_1k, " ", SymbolicPerms(md.type, md.mode), " ", md.nlink, " ", UserName(md.uid), " ",
-      GroupName(md.gid), " ", md.size, " ", LsTime(md.mtime, now, tz), " ", visit.path, "\n");
+  return absl::StrCat(absl::StrJoin(LsCells(visit, now, tz), " "), "\n");
 }
 
 bool EvalPrint(const parser::Expr&, EvalContext& ctx) {
@@ -1184,7 +1182,13 @@ bool EvalPrint0(const parser::Expr&, EvalContext& ctx) {
 }
 
 bool EvalLs(const parser::Expr&, EvalContext& ctx) {
-  ctx.emit(LsRecord(ctx.visit, ctx.now, ctx.tz));
+  // Aligned path: hand the columns to the driver's ColumnBuffer. Without a row sink
+  // (in-process callers, no --buffer wiring) fall back to the single-spaced line.
+  if (ctx.emit_ls_row) {
+    ctx.emit_ls_row(LsCells(ctx.visit, ctx.now, ctx.tz));
+  } else {
+    ctx.emit(LsRecord(ctx.visit, ctx.now, ctx.tz));
+  }
   return true;
 }
 
@@ -1552,6 +1556,30 @@ bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
 }
 
 }  // namespace
+
+std::vector<std::string> LsCells(const Visit& visit, absl::Time now, absl::TimeZone tz) {
+  const vfs::Metadata& md = visit.metadata;
+  const std::uint64_t blocks_1k = (md.blocks + 1) / 2;  // 512-byte blocks -> 1 KiB blocks (rounded up)
+  return {
+      std::to_string(md.ino),   std::to_string(blocks_1k), SymbolicPerms(md.type, md.mode),
+      std::to_string(md.nlink), UserName(md.uid),          GroupName(md.gid),
+      std::to_string(md.size),  LsTime(md.mtime, now, tz), std::string(visit.path),
+  };
+}
+
+std::vector<LsColumn> LsColumns() {
+  return {
+      {format::Align::kRight, 8},  // inode
+      {format::Align::kRight, 5},  // 1 KiB blocks
+      {format::Align::kLeft, 10},  // symbolic permissions (fixed width)
+      {format::Align::kRight, 2},  // link count
+      {format::Align::kLeft, 8},   // owner
+      {format::Align::kLeft, 8},   // group
+      {format::Align::kRight, 8},  // size (bytes)
+      {format::Align::kLeft, 12},  // time
+      {format::Align::kLeft, 0},   // path (trailing, unpadded)
+  };
+}
 
 bool Evaluate(const parser::Expr& expr, EvalContext& context) {
   switch (expr.kind) {
