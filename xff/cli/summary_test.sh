@@ -43,7 +43,9 @@ _run() {
   printf '%s' "${out}"
 }
 
-_has() { printf '%s\n' "$1" | grep -qE -- "$2" && echo yes || echo no; }
+# `<<<` (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a
+# still-writing printf, which fails under `set -o pipefail` and misreports "no".
+_has() { grep -qE -- "$2" <<<"$1" && echo yes || echo no; }
 
 # Tree: a.txt (1234 bytes), b.txt (10 bytes), c.md (5 bytes).
 _make_tree() {

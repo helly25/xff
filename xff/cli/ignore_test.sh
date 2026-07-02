@@ -32,8 +32,10 @@ _xff_bin() {
   echo "${bin}"
 }
 
-# "yes" if $1 (output) contains a line ending in the path $2, else "no".
-_has() { printf '%s\n' "$1" | grep -qE -- "(^|/)${2}\$" && echo yes || echo no; }
+# "yes" if $1 (output) contains a line ending in the path $2, else "no". Uses
+# `<<<` (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a
+# still-writing printf, which fails under `set -o pipefail` and misreports "no".
+_has() { grep -qE -- "(^|/)${2}\$" <<<"$1" && echo yes || echo no; }
 
 # A fresh tree per test: src/main.cc, src/util.log, build/out.o,
 # node_modules/pkg/index.js, keep.log.
@@ -87,7 +89,7 @@ test::no_filter_lists_everything() {
 }
 
 test::help_topic_documents_exclude() {
-  expect_eq "yes" "$(printf '%s\n' "$("$(_xff_bin)" --help=--exclude 2>&1)" | grep -qE 'gitignore' && echo yes || echo no)"
+  expect_eq "yes" "$(grep -qE 'gitignore' <<<"$("$(_xff_bin)" --help=--exclude 2>&1)" && echo yes || echo no)"
 }
 
 test_runner

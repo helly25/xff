@@ -32,8 +32,10 @@ _xff_bin() {
   echo "${bin}"
 }
 
-# "yes" if $1 (output) has a line ending in the path $2, else "no".
-_has() { printf '%s\n' "$1" | grep -qE -- "(^|/)${2}\$" && echo yes || echo no; }
+# "yes" if $1 (output) has a line ending in the path $2, else "no". Uses `<<<`
+# (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a still-writing
+# printf, which fails under `set -o pipefail` and misreports "no" on large output.
+_has() { grep -qE -- "(^|/)${2}\$" <<<"$1" && echo yes || echo no; }
 
 # Tree: top.log, src/main.cc, src/debug.log, build/out.o.
 #   <root>/.xffignore      => *.log       (ignore logs everywhere)

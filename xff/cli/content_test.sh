@@ -32,8 +32,10 @@ _xff_bin() {
   echo "${bin}"
 }
 
-# "yes" if $1 (output) contains the regex $2, else "no" -- for expect_eq.
-_has() { printf '%s\n' "$1" | grep -qE -- "$2" && echo yes || echo no; }
+# "yes" if $1 (output) contains the regex $2, else "no" -- for expect_eq. Uses
+# `<<<` (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a
+# still-writing printf, which fails under `set -o pipefail` and misreports "no".
+_has() { grep -qE -- "$2" <<<"$1" && echo yes || echo no; }
 
 # A fresh tree per test: text files with known content plus one binary file whose
 # NUL byte marks it binary (so content search skips it even though it has a match).
