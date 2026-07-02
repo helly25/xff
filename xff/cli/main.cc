@@ -100,12 +100,16 @@ Options (whole-run, before the paths):
     --man               print the man page (roff; pipe to `man -l -`) and exit
     --markdown          print a Markdown reference of all options and primaries and exit
 
-Expression: find tests (-name, -iname, -path, -type, -size, -blocks, -mtime/-atime/-ctime,
--Btime, -newerXY, -regex, -perm, -empty, -user/-group, ...; xff content search -content/-icontent
-for a literal substring, -rxc/-irxc for a regular expression, both skipping binary files),
-operators (-a, -o, !, ( ), comma; xff: -xor, -nand, -nor, -xnor), and actions
-(-print/-print0/-printf/-println, -exec ... \; or +, -execdir, -delete, -prune, -quit, -ok). See
-find(1) and the docs/ directory for the full vocabulary and the xff extensions.
+Expression: tests, operators, and actions applied to each entry, by group. Use
+`--help=expressions` for the full annotated list and `--help=NAME` for one entry
+(e.g. `--help=-regex`):
+  Name / path   -name  -iname  -path  -regex  -lname
+  Type / size   -type  -size  -blocks  -empty  -sparse
+  Time          -mtime  -atime  -ctime  -Btime  -newerXY   (units + compound durations)
+  Owner / perm  -user  -group  -uid  -gid  -perm  -readable / -writable / -executable
+  Content       -content / -icontent (literal),  -rxc / -irxc (regex);  binaries skipped
+  Operators     -a   -o   !   ( )   ,      xff: -xor  -nand  -nor  -xnor
+  Actions       -print  -print0  -printf  -println  -ls  -exec / -execdir CMD ;|+  -delete  -prune  -quit  -ok
 )";
 
 // Environment variable as an optional (nullopt when unset), for config discovery.

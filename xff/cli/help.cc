@@ -61,6 +61,27 @@ std::string RenderGlobalFlag(const GlobalFlag& flag) {
   return absl::StrCat(flag.display, "  (global, ", flag.xff ? "xff" : "find", ")\n    ", flag.summary, "\n");
 }
 
+// Appends the expression vocabulary to `out`, grouped by kind (Tests, Actions,
+// Operators), one `name  summary` line per primary. Shared by the full index and
+// the expressions-only listing so both stay in lock-step with registry::All().
+void AppendExpressions(std::string* out) {
+  struct Section {
+    registry::Kind kind;
+    std::string_view title;
+  };
+
+  for (const Section& section :
+       {Section{registry::Kind::kTest, "Tests"}, Section{registry::Kind::kAction, "Actions"},
+        Section{registry::Kind::kOperator, "Operators"}}) {
+    absl::StrAppend(out, "\n", section.title, ":\n");
+    for (const registry::Descriptor& descriptor : registry::All()) {
+      if (descriptor.kind == section.kind) {
+        absl::StrAppendFormat(out, "  %-24s%s\n", descriptor.name, descriptor.summary);
+      }
+    }
+  }
+}
+
 std::string RenderIndex() {
   std::string out =
       "xff vocabulary. Use `--help=NAME` for one entry (e.g. `--help=-regex`, `--help=--sort`), "
@@ -76,22 +97,18 @@ std::string RenderIndex() {
     absl::StrAppendFormat(&out, "  %-30s%s\n", flag.display, flag.summary);
   }
 
-  // Expression vocabulary, grouped by kind.
-  struct Section {
-    registry::Kind kind;
-    std::string_view title;
-  };
+  AppendExpressions(&out);  // Tests / Actions / Operators, grouped by kind
+  return out;
+}
 
-  for (const Section& section :
-       {Section{registry::Kind::kTest, "Tests"}, Section{registry::Kind::kAction, "Actions"},
-        Section{registry::Kind::kOperator, "Operators"}}) {
-    absl::StrAppend(&out, "\n", section.title, ":\n");
-    for (const registry::Descriptor& descriptor : registry::All()) {
-      if (descriptor.kind == section.kind) {
-        absl::StrAppendFormat(&out, "  %-24s%s\n", descriptor.name, descriptor.summary);
-      }
-    }
-  }
+// The expression vocabulary alone (Tests / Actions / Operators with one-line
+// summaries), for `--help=expressions` -- the full annotated list the usage page's
+// grouped overview points at, without the whole-run global flags.
+std::string RenderExpressions() {
+  std::string out =
+      "xff expression vocabulary (tests, operators, actions applied to each entry). "
+      "Use `--help=NAME` for one entry; `--help` for the usage overview.\n";
+  AppendExpressions(&out);
   return out;
 }
 
@@ -116,6 +133,9 @@ std::string ArgHint(const registry::Descriptor& descriptor) {
 absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   if (topic.empty() || topic == "list" || topic == "all") {
     return RenderIndex();
+  }
+  if (topic == "expressions") {
+    return RenderExpressions();  // the annotated Tests/Actions/Operators list, sans globals
   }
   // Expression primary / operator / action (leading-dash convenience: `--help=regex`).
   const registry::Descriptor* descriptor = registry::Lookup(topic);

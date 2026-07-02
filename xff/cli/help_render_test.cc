@@ -32,6 +32,7 @@ using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
 using ::testing::AllOf;
 using ::testing::HasSubstr;
+using ::testing::Not;
 
 struct HelpTest : ::testing::Test {};
 
@@ -80,6 +81,19 @@ TEST_F(HelpTest, ListAndAllAreIndexAliases) {
   ASSERT_THAT(index, IsOk());
   EXPECT_THAT(RenderHelp("list"), IsOkAndHolds(*index));
   EXPECT_THAT(RenderHelp("all"), IsOkAndHolds(*index));
+}
+
+TEST_F(HelpTest, ExpressionsListsEveryPrimaryGroupedWithoutGlobals) {
+  // `--help=expressions` is the annotated Tests/Actions/Operators list -- every
+  // expression primary with its summary, but not the whole-run global flags.
+  const absl::StatusOr<std::string> expr = RenderHelp("expressions");
+  ASSERT_THAT(expr, IsOk());
+  EXPECT_THAT(*expr, AllOf(HasSubstr("Tests:"), HasSubstr("Actions:"), HasSubstr("Operators:")));
+  for (const registry::Descriptor& descriptor : registry::All()) {
+    EXPECT_THAT(*expr, HasSubstr(descriptor.name)) << descriptor.name;
+  }
+  // The global-flag groups from the full index are absent (e.g. the "Traversal:" header).
+  EXPECT_THAT(*expr, Not(HasSubstr("Traversal:")));
 }
 
 TEST_F(HelpTest, GlobalFlagTopicRendersWithGlobalTag) {
