@@ -1168,7 +1168,7 @@ std::string Print0Record(const Visit& visit) {
 // The single-space-joined fallback when no aligning row sink is wired (e.g. -fls,
 // in-process callers); the aligned stdout path goes through LsCells + ColumnBuffer.
 std::string LsRecord(const Visit& visit, absl::Time now, absl::TimeZone tz) {
-  return absl::StrCat(absl::StrJoin(LsCells(visit, now, tz), " "), "\n");
+  return absl::StrCat(absl::StrJoin(LsCells(visit, now, tz, std::nullopt), " "), "\n");  // fallback: raw bytes
 }
 
 bool EvalPrint(const parser::Expr&, EvalContext& ctx) {
@@ -1185,7 +1185,7 @@ bool EvalLs(const parser::Expr&, EvalContext& ctx) {
   // Aligned path: hand the columns to the driver's ColumnBuffer. Without a row sink
   // (in-process callers, no --buffer wiring) fall back to the single-spaced line.
   if (ctx.emit_ls_row) {
-    ctx.emit_ls_row(LsCells(ctx.visit, ctx.now, ctx.tz));
+    ctx.emit_ls_row(LsCells(ctx.visit, ctx.now, ctx.tz, ctx.ls_size_units));
   } else {
     ctx.emit(LsRecord(ctx.visit, ctx.now, ctx.tz));
   }
@@ -1557,13 +1557,18 @@ bool EvaluatePredicate(const parser::Expr& expr, EvalContext& ctx) {
 
 }  // namespace
 
-std::vector<std::string> LsCells(const Visit& visit, absl::Time now, absl::TimeZone tz) {
+std::vector<std::string> LsCells(
+    const Visit& visit,
+    absl::Time now,
+    absl::TimeZone tz,
+    std::optional<format::SizeUnits> size_units) {
   const vfs::Metadata& md = visit.metadata;
   const std::uint64_t blocks_1k = (md.blocks + 1) / 2;  // 512-byte blocks -> 1 KiB blocks (rounded up)
+  std::string size = size_units.has_value() ? format::Size(md.size, *size_units) : std::to_string(md.size);
   return {
       std::to_string(md.ino),   std::to_string(blocks_1k), SymbolicPerms(md.type, md.mode),
       std::to_string(md.nlink), UserName(md.uid),          GroupName(md.gid),
-      std::to_string(md.size),  LsTime(md.mtime, now, tz), std::string(visit.path),
+      std::move(size),          LsTime(md.mtime, now, tz), std::string(visit.path),
   };
 }
 

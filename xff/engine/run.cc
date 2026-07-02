@@ -693,16 +693,24 @@ std::optional<std::string> UnusedCaptureName(const parser::Expr& expr, const std
 
 }  // namespace
 
-// --human[=iec|si]: render --summary sizes as human-readable units instead of raw
-// bytes. Bare --human / =iec is binary (KiB/MiB); =si is decimal (kB/MB); absent is
-// nullopt (raw grouped bytes). Last occurrence wins.
-std::optional<format::SizeUnits> ResolveHuman(const std::vector<std::string>& globals) {
+// --human[=iec|si|off]: how sizes render in -ls and --summary. iec = binary
+// (KiB/MiB), si = decimal (kB/MB), off = raw bytes. The default when unset is
+// style-scoped: the xff style shows human (iec), the find style shows raw bytes
+// (find -ls compatibility). Last occurrence wins; nullopt means raw bytes.
+std::optional<format::SizeUnits> ResolveHuman(
+    const std::vector<std::string>& globals,
+    std::optional<registry::Style> style) {
   std::optional<format::SizeUnits> units;
+  if (style == registry::Style::kXff) {
+    units = format::SizeUnits::kIec;  // xff defaults to human-readable sizes
+  }
   for (const std::string& global : globals) {
     if (global == "--human" || global == "--human=iec") {
       units = format::SizeUnits::kIec;
     } else if (global == "--human=si") {
       units = format::SizeUnits::kSi;
+    } else if (global == "--human=off") {
+      units = std::nullopt;  // force raw bytes, even in the xff style
     }
   }
   return units;
@@ -846,8 +854,9 @@ int RunFind(
   // --summary: reduce matches to a {count, total size} per group instead of
   // printing each one; the table is emitted after the walk.
   const SummaryMode summary_mode = ResolveSummary(command.globals);
-  const std::optional<format::SizeUnits> human = ResolveHuman(command.globals);  // --human: size units in the table
-  std::map<std::string, std::pair<std::uint64_t, std::uint64_t>> summary;        // group -> {count, total size}
+  const std::optional<format::SizeUnits> human =
+      ResolveHuman(command.globals, style);  // --human: size units for --summary and -ls (xff -> human)
+  std::map<std::string, std::pair<std::uint64_t, std::uint64_t>> summary;  // group -> {count, total size}
   int errors = 0;
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
@@ -951,6 +960,7 @@ int RunFind(
             .emit = emit,
             .emit_file = emit_file,
             .emit_ls_row = emit_ls_row,
+            .ls_size_units = human,
             .fs = walk_fs,
             .now = now,
             .tz = tz,

@@ -158,9 +158,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--human",
-        .display = "--human[=iec|si]",
+        .display = "--human[=iec|si|off]",
         .group = "Output",
-        .summary = "show --summary sizes in units: iec (KiB/MiB, default) or si (kB/MB)",
+        .summary = "size units for -ls / --summary: iec (KiB/MiB), si (kB/MB), off (bytes); xff -> iec",
     },
     {
         .name = "--buffer",
