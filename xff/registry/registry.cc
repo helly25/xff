@@ -565,11 +565,13 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .style = Style::kXff,
     },
     {
-        // xff: the line-output companion of the -rxc content predicate.
+        // xff: the line-output companion of the -rxc content predicate. Bare -grep
+        // prints path:line:text; -grep=FORMAT renders a {line}/{text}/... template.
         .name = "-grep",
-        .summary = "print each content line matching a regex, as path:line:text (xff)",
+        .summary = "print each content line matching a regex; -grep=FORMAT for a template (xff)",
         .kind = Kind::kAction,
         .arity = 1,
+        .binding = Binding::kFormat,
         .style = Style::kXff,
         .cost = Cost::kExpensive,
     },

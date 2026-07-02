@@ -698,6 +698,24 @@ TEST_F(EvaluateTest, GrepExactModeAcceptsRegexMetacharactersAsLiterals) {
   EXPECT_EQ(emitted_, absl::StrCat(path, ":1:call foo(bar) now\n"));
 }
 
+TEST_F(EvaluateTest, GrepFormatRendersTemplatePerMatchLine) {
+  // -grep=FORMAT overrides the default path:line:text; {line}/{text} bind per line.
+  const std::string path = WriteContentFile("grep_fmt.txt", "alpha\nhit one\nbeta\nhit two\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "grep_fmt.txt", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-grep={line}: {text}", "hit"}, visit));
+  EXPECT_EQ(emitted_, "2: hit one\n4: hit two\n");
+}
+
+TEST_F(EvaluateTest, GrepFormatCanReferenceEntryFields) {
+  // The template sees the entry's field vocabulary too, not just {line}/{text}.
+  const std::string path = WriteContentFile("grep_fmt2.txt", "x hit y\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "grep_fmt2.txt", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-grep={path}#{line}", "hit"}, visit));
+  EXPECT_EQ(emitted_, absl::StrCat(path, "#1\n"));
+}
+
 TEST_F(EvaluateTest, ContentNonRegularOrMissingDoesNotMatch) {
   // A directory has no searchable content and a missing path is unreadable: both are
   // a clean no-match, not an error.

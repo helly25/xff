@@ -1085,5 +1085,11 @@ TEST_F(RunTest, UnsupportedRegextypeIsAUsageError) {
   EXPECT_THAT(last_errors_, Not(0));
 }
 
+TEST_F(RunTest, GrepFormatRendersCustomTemplate) {
+  // -grep=FORMAT overrides the default path:line:text with a field template.
+  { std::ofstream(root_ / "a.txt") << "alpha\nTODO one\nbeta\n"; }
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "-grep={line}|{text}", "TODO"}), ElementsAre("2|TODO one"));
+}
+
 }  // namespace
 }  // namespace xff::engine

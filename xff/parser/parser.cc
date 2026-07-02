@@ -26,6 +26,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "mbo/status/status_macros.h"
+#include "xff/fields/fields.h"
 #include "xff/parser/ast.h"
 #include "xff/regex/regex.h"
 #include "xff/registry/descriptor.h"
@@ -276,6 +277,28 @@ class ExprParser {
           args.push_back(std::move(cmd_token));
         }
         return MakePredicate(descriptor, std::move(args));
+      }
+      // A Binding::kFormat primary (-grep) carries an attached =FORMAT output
+      // template on its own token; the whole payload after the first '=' is the
+      // template (it may itself contain '='), then the arity operand (the pattern)
+      // follows. The template is compiled once here and stored on the node.
+      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
+          descriptor != nullptr && descriptor->binding == registry::Binding::kFormat) {
+        const std::string format = token.substr(eq + 1);
+        ++pos_;  // consume the `<name>=FORMAT` token
+        std::vector<std::string> args;
+        for (int i = 0; i < descriptor->arity; ++i) {
+          if (AtEnd()) {
+            Fail(absl::StrCat("predicate '", base, "' is missing an argument"));
+            return nullptr;
+          }
+          args.push_back(tokens_[pos_++]);
+        }
+        ExprPtr node = MakePredicate(descriptor, std::move(args));
+        if (node != nullptr) {
+          node->grep_template = std::make_shared<const fields::Template>(fields::Template::Compile(format));
+        }
+        return node;
       }
     }
     const registry::Descriptor* descriptor = registry::Lookup(token);
