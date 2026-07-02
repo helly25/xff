@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -76,6 +77,9 @@ struct EvalContext {
   // (inode, blocks, perms, ...) for the driver to feed to a format::ColumnBuffer.
   // Empty -> -ls falls back to a single-space-joined line (in-process callers).
   std::function<void(std::vector<std::string>)> emit_ls_row;
+  // -ls size-column rendering: human units (iec/si) or, when nullopt, raw bytes.
+  // The driver resolves it from --human + the style (xff -> human, find -> bytes).
+  std::optional<format::SizeUnits> ls_size_units;
   const vfs::FileSystem& fs;                     // backs predicates that read the source (e.g. -empty on a directory)
   absl::Time now;                                // single reference instant for age tests (-mtime/-mmin)
   absl::TimeZone tz = absl::LocalTimeZone();     // zone for interpreting time-string args (-newerXt); --timezone
@@ -132,10 +136,15 @@ absl::Status ValidateSizeArgs(const parser::Expr& expr);
 absl::StatusOr<std::uint64_t> ParseBlockSize(std::string_view spec);
 
 // The `-ls` columns for one entry, in display order: inode, 1 KiB blocks, symbolic
-// permissions, link count, owner, group, size (bytes), time (in `tz`), path. The
+// permissions, link count, owner, group, size, time (in `tz`), path. The size is
+// rendered in `size_units` (human iec/si) or, when nullopt, as raw bytes. The
 // aligned renderer (format::ColumnBuffer) consumes these; LsRecord joins them
 // single-spaced for the unbuffered fallback.
-std::vector<std::string> LsCells(const Visit& visit, absl::Time now, absl::TimeZone tz);
+std::vector<std::string> LsCells(
+    const Visit& visit,
+    absl::Time now,
+    absl::TimeZone tz,
+    std::optional<format::SizeUnits> size_units);
 
 // One `-ls` column's alignment and minimum (also fixed, when --buffer=off) width.
 struct LsColumn {

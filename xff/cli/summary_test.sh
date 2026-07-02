@@ -55,15 +55,26 @@ _make_tree() {
   echo "${root}"
 }
 
-test::summary_default_is_right_aligned_with_grouped_digits() {
+test::summary_default_is_human_and_right_aligned_in_xff() {
   local root out
   root="$(_make_tree)"
   out="$(_run --summary=ext "${root}" -type f)"
   rm -rf "${root}"
-  # txt: 2 files, 1244 bytes -> grouped "1,244"; total 3 / 1,249. Numbers right of the label.
+  # xff style defaults to human sizes: txt (2 files, 1244 bytes) -> KiB, md (5) -> B,
+  # with the count right of the label.
+  expect_eq "yes" "$(_has "${out}" 'txt +2 +[0-9.]+ KiB')"
+  expect_eq "yes" "$(_has "${out}" 'total +3 +[0-9.]+ KiB')"
+  expect_eq "yes" "$(_has "${out}" 'md +1 +5 B')"
+}
+
+test::summary_human_off_shows_grouped_bytes() {
+  local root out
+  root="$(_make_tree)"
+  out="$(_run --summary=ext --human=off "${root}" -type f)"
+  rm -rf "${root}"
+  # --human=off forces raw grouped bytes (the machine-ish view), right-aligned.
   expect_eq "yes" "$(_has "${out}" 'txt +2 +1,244')"
   expect_eq "yes" "$(_has "${out}" 'total +3 +1,249')"
-  expect_eq "yes" "$(_has "${out}" 'md +1 +5')"
 }
 
 test::summary_jsonl_emits_one_object_per_row() {
