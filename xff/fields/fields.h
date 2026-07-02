@@ -45,6 +45,11 @@ struct RenderContext {
   // outside a -grep line (line_number unset), so they no-op in --template/-printf.
   std::optional<std::size_t> line_number;
   std::string_view line_text;
+  // The matched span within the line (grep -o): `{match}` is the matched substring,
+  // `{column}` its 1-based byte start. Empty/unset unless match_column is set (only
+  // -grep=FORMAT computes it), so they no-op elsewhere.
+  std::string_view match_text;
+  std::optional<std::size_t> match_column;
 };
 
 namespace detail {

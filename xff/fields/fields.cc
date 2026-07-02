@@ -170,6 +170,16 @@ std::string TextField(std::string_view, std::string_view, const RenderContext& c
   return ctx.line_number.has_value() ? std::string(ctx.line_text) : std::string();
 }
 
+// {match} / {column}: the matched substring on a -grep line (grep -o) and its
+// 1-based byte column; empty/absent unless the driver computed a match span.
+std::string MatchField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return ctx.match_column.has_value() ? std::string(ctx.match_text) : std::string();
+}
+
+std::string ColumnField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return ctx.match_column.has_value() ? std::to_string(*ctx.match_column) : std::string();
+}
+
 std::string SizeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return qualifier == "h" ? HumanSize(ctx.metadata.size) : std::to_string(ctx.metadata.size);
 }
@@ -236,6 +246,7 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"atime", &AtimeField},
     FieldEntry{"blocks", &BlocksField},
     FieldEntry{"btime", &BtimeField},
+    FieldEntry{"column", &ColumnField},
     FieldEntry{"ctime", &CtimeField},
     FieldEntry{"depth", &DepthField},
     FieldEntry{"dir", &DirField},
@@ -246,6 +257,7 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"inode", &InodeField},
     FieldEntry{"line", &LineField},
     FieldEntry{"links", &LinksField},
+    FieldEntry{"match", &MatchField},
     FieldEntry{"mode", &ModeField},
     FieldEntry{"mtime", &MtimeField},
     FieldEntry{"name", &NameField},

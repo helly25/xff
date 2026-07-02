@@ -49,6 +49,14 @@ bool Matcher::PartialMatch(std::string_view text) const {
   return RE2::PartialMatch(text, *re_);
 }
 
+std::optional<std::pair<std::size_t, std::size_t>> Matcher::FindFirst(std::string_view text) const {
+  std::string_view match;  // submatch[0] = the whole match; its data() points into `text`
+  if (!re_->Match(text, 0, text.size(), RE2::UNANCHORED, &match, 1)) {
+    return std::nullopt;
+  }
+  return std::make_pair(static_cast<std::size_t>(match.data() - text.data()), match.size());
+}
+
 std::optional<std::vector<std::string>> Matcher::FullMatchCaptures(std::string_view text) const {
   const int groups = re_->NumberOfCapturingGroups();  // parenthesised groups, excluding the whole match
   const int nsubmatch = groups + 1;                   // index 0 holds the whole match
