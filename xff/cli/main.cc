@@ -75,7 +75,8 @@ Options (whole-run, before the paths):
     --path-encoding=raw|escape plain-output path bytes: raw (verbatim) or escape (C-escape controls)
     --template=TEMPLATE        render each match through a field template ({path}, {name}, ...)
     --implicit-print=yes|no    force the default -print on or off
-    --summary[=overall|type|ext]   print a count + size table instead of each match
+    --summary[=overall|type|ext]   print an aligned count + size table instead of each match
+                        (grouped digits; --format=jsonl emits one machine object per row)
   Exit by match (grep-style):
     --quiet, -q         suppress output; exit 0 if anything matched, else 1 (-q: grep-compatible)
     --exit-match        keep output; exit 0 if anything matched, else 1

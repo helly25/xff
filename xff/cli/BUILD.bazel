@@ -208,6 +208,15 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of --summary output: right-aligned human table (grouped digits)
+# by default, stable one-object-per-row --format=jsonl machine output.
+bashtest(
+    name = "summary_test",
+    size = "small",
+    srcs = ["summary_test.sh"],
+    data = [":xff"],
+)
+
 # Binary-level test of -exec, which spawns real children: the `+` batch form runs
 # the command once with all matches, `\;` once per match. Shell level is the right
 # fit for a subprocess-spawning feature.

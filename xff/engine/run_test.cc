@@ -858,23 +858,32 @@ TEST_F(RunTest, ImplicitPrintYesPrintsAlongsideAction) {
   EXPECT_THAT(records, UnorderedElementsAre(Path("a.txt")));
 }
 
+// The default --summary output is a right-aligned human table (grouped digits);
+// these assert the stable --format=jsonl machine rows instead, so the exact counts
+// are checked without depending on column padding. The aligned human rendering is
+// covered end to end by cli/summary_test.sh.
 TEST_F(RunTest, SummaryOverallReducesMatchesToACountAndSize) {
   // --summary suppresses the per-match print and emits one total row: a.txt and
   // sub/c.txt match (1 byte each), so 2 matches / 2 bytes.
-  EXPECT_THAT(RunArgvRecords({"--summary", root_.string(), "-name", "*.txt"}), ElementsAre("total\t2\t2"));
+  EXPECT_THAT(
+      RunArgvRecords({"--summary", "--format=jsonl", root_.string(), "-name", "*.txt"}),
+      ElementsAre(R"({"group":"total","count":2,"bytes":2})"));
 }
 
 TEST_F(RunTest, SummaryByTypeGroupsThenTotals) {
   // --summary=type over the three files (1 byte each): one "file" group, then total.
   EXPECT_THAT(
-      RunArgvRecords({"--summary=type", root_.string(), "-type", "f"}), ElementsAre("file\t3\t3", "total\t3\t3"));
+      RunArgvRecords({"--summary=type", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(R"({"group":"file","count":3,"bytes":3})", R"({"group":"total","count":3,"bytes":3})"));
 }
 
 TEST_F(RunTest, SummaryByExtensionGroupsSortedThenTotals) {
   // --summary=ext over the files: "md" (b.md) sorts before "txt" (a.txt, sub/c.txt).
   EXPECT_THAT(
-      RunArgvRecords({"--summary=ext", root_.string(), "-type", "f"}),
-      ElementsAre("md\t1\t1", "txt\t2\t2", "total\t3\t3"));
+      RunArgvRecords({"--summary=ext", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(
+          R"({"group":"md","count":1,"bytes":1})", R"({"group":"txt","count":2,"bytes":2})",
+          R"({"group":"total","count":3,"bytes":3})"));
 }
 
 TEST_F(RunTest, LsEmitsOneLinePerMatchAndSuppressesImplicitPrint) {
