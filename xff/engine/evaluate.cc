@@ -900,22 +900,37 @@ bool EvalRxc(const parser::Expr& expr, EvalContext& ctx) {
 }
 
 // xff -grep PATTERN: the line-output companion of -rxc. Prints each line of the
-// file's content that matches the regex (RE2, pre-compiled by the parser), as
-// `path:lineno:text` (grep's piped form). Matching is per line, so a pattern with
-// no '\n' selects individual lines the way grep does; non-regular, unreadable, and
-// binary files yield nothing (see ContentToSearch). Returns true iff at least one
-// line was printed, so the action's truth reflects "found a match" for -o / -q.
+// file's content that matches, as `path:lineno:text` (grep's piped form). The
+// pattern is an RE2 regex by default (pre-compiled by the parser) or a literal
+// substring under --regextype=EXACT (ctx.grep_literal). Matching is per line, so a
+// pattern with no '\n' selects individual lines the way grep does; non-regular,
+// unreadable, and binary files yield nothing (see ContentToSearch). Returns true
+// iff at least one line was printed, so the action's truth reflects "found a match"
+// for -o / -q.
 bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
-  const MatcherRef matcher = AsRef(expr.matcher);
-  if (!matcher.has_value()) {
+  if (expr.args.empty()) {
     return false;
   }
   const std::optional<std::string> content = ContentToSearch(ctx.visit, ctx.fs);
   if (!content.has_value()) {
     return false;
   }
-  const std::vector<content::LineMatch> lines = content::CollectLineMatches(
-      *content, [&matcher](std::string_view line) { return matcher->get().PartialMatch(line); });
+  std::vector<content::LineMatch> lines;
+  if (ctx.grep_literal) {
+    // --regextype=EXACT: match the pattern as a literal substring, per line.
+    const std::string_view needle = expr.args.front();
+    lines = content::CollectLineMatches(
+        *content, [needle](std::string_view line) { return absl::StrContains(line, needle); });
+  } else {
+    // Default RE2 regex; an unparseable pattern yields a null matcher and thus no
+    // lines, mirroring -rxc.
+    const MatcherRef matcher = AsRef(expr.matcher);
+    if (!matcher.has_value()) {
+      return false;
+    }
+    lines = content::CollectLineMatches(
+        *content, [&matcher](std::string_view line) { return matcher->get().PartialMatch(line); });
+  }
   for (const content::LineMatch& line : lines) {
     ctx.emit(absl::StrCat(ctx.visit.path, ":", line.number, ":", line.text, "\n"));
   }

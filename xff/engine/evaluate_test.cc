@@ -77,6 +77,7 @@ struct EvaluateTest : ::testing::Test {
         .now = now_,
         .tz = tz_,
         .fold_name_case = fold_name_case_,
+        .grep_literal = grep_literal_,
         .control = control_,
         .exec_fields = exec_fields_,
         .captures = exec_fields_ ? &captures_ : nullptr,
@@ -129,6 +130,7 @@ struct EvaluateTest : ::testing::Test {
   Control control_;                             // set by Match from the most recent evaluation (-prune/-quit)
   bool exec_fields_ = false;                    // when true, Match enables --exec-fields token substitution
   bool fold_name_case_ = false;                 // when true, Match sets EvalContext::fold_name_case (FS-native fold)
+  bool grep_literal_ = false;                   // when true, Match sets EvalContext::grep_literal (-grep EXACT mode)
   std::vector<std::string> captures_;           // -regex groups captured during the most recent (gated) Match
   std::map<std::string, std::string> outputs_;  // -capture results from the most recent Match
   std::vector<std::string> content_files_;      // temp files written by WriteContentFile, removed in TearDown
@@ -673,6 +675,27 @@ TEST_F(EvaluateTest, GrepSkipsBinaryFiles) {
   const Visit visit = MakeVisit(path, "grep_bin", vfs::FileType::kRegular, md);
   EXPECT_FALSE(Match({"-grep", "TODO"}, visit));
   EXPECT_THAT(emitted_, IsEmpty());
+}
+
+TEST_F(EvaluateTest, GrepExactModeMatchesLiterally) {
+  // grep_literal (--regextype=EXACT) treats the pattern as a literal substring, so
+  // '.' is a literal dot, not a regex wildcard.
+  const std::string path = WriteContentFile("grep_exact.txt", "price 3.50\nprice 3X50\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "grep_exact.txt", vfs::FileType::kRegular, md);
+  grep_literal_ = true;
+  EXPECT_TRUE(Match({"-grep", "3.50"}, visit));
+  EXPECT_EQ(emitted_, absl::StrCat(path, ":1:price 3.50\n"));  // only the literal 3.50, not 3X50
+}
+
+TEST_F(EvaluateTest, GrepExactModeAcceptsRegexMetacharactersAsLiterals) {
+  // A pattern that is not a valid regex is still a fine literal under EXACT.
+  const std::string path = WriteContentFile("grep_lit.txt", "call foo(bar) now\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "grep_lit.txt", vfs::FileType::kRegular, md);
+  grep_literal_ = true;
+  EXPECT_TRUE(Match({"-grep", "foo(bar"}, visit));
+  EXPECT_EQ(emitted_, absl::StrCat(path, ":1:call foo(bar) now\n"));
 }
 
 TEST_F(EvaluateTest, ContentNonRegularOrMissingDoesNotMatch) {

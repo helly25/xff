@@ -101,4 +101,23 @@ test::grep_is_rejected_by_the_find_style() {
   expect_eq "yes" "$(_has "${out}" 'xff extension')"
 }
 
+test::regextype_exact_matches_literally() {
+  local root out
+  root="$(mktemp -d)"
+  printf 'price 3.50\nprice 3X50\n' >"${root}/p.txt"
+  out="$(_run --regextype=EXACT "${root}" -type f -grep '3.50')" # '.' is literal under EXACT
+  rm -rf "${root}"
+  expect_eq "yes" "$(_has "${out}" '/p\.txt:1:price 3\.50$')"
+  expect_eq "no" "$(_has "${out}" '3X50')" # the regex-wildcard match is gone
+}
+
+test::regextype_reserved_value_is_a_usage_error() {
+  local root out rc
+  root="$(_make_tree)"
+  out="$("$(_xff_bin)" --regextype=MATCH "${root}" -grep 'TODO' 2>&1)" && rc=0 || rc=$?
+  rm -rf "${root}"
+  expect_eq "2" "${rc}" # MATCH / PCRE are reserved (#85)
+  expect_eq "yes" "$(_has "${out}" 'not supported yet')"
+}
+
 test_runner

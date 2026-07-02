@@ -1063,5 +1063,27 @@ TEST_F(RunTest, GrepEmitsPathLineTextAcrossTheWalk) {
       ElementsAre(Path("a.txt") + ":2:TODO one", Path("a.txt") + ":4:TODO two"));
 }
 
+TEST_F(RunTest, GrepRegextypeExactMatchesLiterally) {
+  { std::ofstream(root_ / "a.txt") << "price 3.50\nprice 3X50\n"; }
+  // --regextype=EXACT (a leading global) makes '.' a literal, so only the real 3.50.
+  EXPECT_THAT(
+      RunArgvRecords({"--regextype=EXACT", root_.string(), "-name", "a.txt", "-grep", "3.50"}),
+      ElementsAre(Path("a.txt") + ":1:price 3.50"));
+}
+
+TEST_F(RunTest, GrepRegextypeDefaultIsRe2) {
+  { std::ofstream(root_ / "a.txt") << "price 3.50\nprice 3X50\n"; }
+  // Default (RE2): '.' is a wildcard, so both lines match.
+  EXPECT_THAT(
+      RunArgvRecords({root_.string(), "-name", "a.txt", "-grep", "3.50"}),
+      ElementsAre(Path("a.txt") + ":1:price 3.50", Path("a.txt") + ":2:price 3X50"));
+}
+
+TEST_F(RunTest, UnsupportedRegextypeIsAUsageError) {
+  // MATCH / PCRE are reserved (#85): a usage error refused before the walk (exit 2).
+  EXPECT_THAT(RunArgvRecords({"--regextype=MATCH", root_.string(), "-grep", "x"}), IsEmpty());
+  EXPECT_THAT(last_errors_, Not(0));
+}
+
 }  // namespace
 }  // namespace xff::engine
