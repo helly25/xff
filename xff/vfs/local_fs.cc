@@ -262,6 +262,33 @@ absl::StatusOr<std::string> LocalFs::FsType(std::string_view path) const {
 #endif
 }
 
+absl::StatusOr<bool> LocalFs::IsCaseSensitive(std::string_view path) const {
+#if defined(_PC_CASE_SENSITIVE)
+  // macOS / BSD expose the volume's case rule directly: pathconf returns 1 for a
+  // case-sensitive volume and 0 for a case-folding one. A -1 return is either an
+  // error (errno set) or an indeterminate answer (errno left at 0); both fall back
+  // to the conservative case-sensitive default (error propagated; indeterminate
+  // reported as case-sensitive), which is always find-faithful.
+  const std::string path_str(path);
+  errno = 0;
+  const long rc = ::pathconf(path_str.c_str(), _PC_CASE_SENSITIVE);  // NOLINT(google-runtime-int)
+  if (rc < 0) {
+    if (errno != 0) {
+      return absl::ErrnoToStatus(errno, absl::StrCat("pathconf(_PC_CASE_SENSITIVE, '", path, "')"));
+    }
+    return true;  // indeterminate -> conservative byte-exact
+  }
+  return rc != 0;
+#else
+  // Linux / glibc has no _PC_CASE_SENSITIVE. ext4 / xfs / btrfs are case-sensitive
+  // by default; per-directory case folding (ext4 +F / statx STATX_ATTR_CASEFOLD) is
+  // a future refinement. Report case-sensitive, which is also the safe default and
+  // matches find's byte-exact matching.
+  (void)path;
+  return true;
+#endif
+}
+
 absl::StatusOr<std::string> LocalFs::ReadContent(std::string_view path) const {
   const std::string path_str(path);
   const int fd = ::open(path_str.c_str(), O_RDONLY);

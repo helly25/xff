@@ -41,6 +41,7 @@ class LocalFs final : public FileSystem {
   bool Access(std::string_view path, AccessMode mode) const override;
   absl::StatusOr<std::string> ReadLink(std::string_view path) const override;
   absl::StatusOr<std::string> FsType(std::string_view path) const override;
+  absl::StatusOr<bool> IsCaseSensitive(std::string_view path) const override;
   absl::StatusOr<std::string> ReadContent(std::string_view path) const override;
 };
 

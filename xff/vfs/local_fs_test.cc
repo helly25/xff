@@ -146,5 +146,21 @@ TEST_F(LocalFsTest, ReadContentMissingPathErrors) {
   EXPECT_THAT(local_fs_.ReadContent(Path("nope")), StatusIs(absl::StatusCode::kNotFound));
 }
 
+TEST_F(LocalFsTest, IsCaseSensitiveProbesTheVolume) {
+  // The probe must succeed on a normal directory. The value depends on the volume
+  // (case-sensitive ext4 vs case-folding APFS), so it is cross-checked against the
+  // volume's actual behaviour in the next test rather than hard-coded here.
+  EXPECT_THAT(local_fs_.IsCaseSensitive(root_.string()), IsOk());
+}
+
+TEST_F(LocalFsTest, IsCaseSensitiveAgreesWithTheVolumeBehaviour) {
+  // file.txt exists in lower case; whether the upper-case name resolves to it is
+  // exactly the volume's own case rule, so the probe must report the matching
+  // value: a case-folding volume resolves FILE.TXT (not sensitive), a
+  // case-sensitive one does not (sensitive).
+  const bool upper_resolves = fs::exists(root_ / "FILE.TXT");
+  EXPECT_THAT(local_fs_.IsCaseSensitive(root_.string()), IsOkAndHolds(Eq(!upper_resolves)));
+}
+
 }  // namespace
 }  // namespace xff::vfs

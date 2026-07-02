@@ -376,6 +376,8 @@ class DryRunFileSystem : public vfs::FileSystem {
 
   absl::StatusOr<std::string> FsType(std::string_view path) const override { return fs_.FsType(path); }
 
+  absl::StatusOr<bool> IsCaseSensitive(std::string_view path) const override { return fs_.IsCaseSensitive(path); }
+
   absl::StatusOr<std::string> ReadContent(std::string_view path) const override { return fs_.ReadContent(path); }
 
   absl::Status Remove(std::string_view path) const override {

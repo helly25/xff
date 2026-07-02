@@ -926,6 +926,8 @@ class NoBtimeFs : public vfs::FileSystem {
 
   absl::StatusOr<std::string> FsType(std::string_view) const override { return std::string("fakefs"); }
 
+  absl::StatusOr<bool> IsCaseSensitive(std::string_view) const override { return true; }
+
   absl::StatusOr<std::string> ReadContent(std::string_view) const override { return std::string(); }
 
  private:
