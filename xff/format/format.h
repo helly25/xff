@@ -83,6 +83,37 @@ class Table {
   std::vector<std::vector<std::string>> rows_;
 };
 
+// Streaming column aligner for tabular output that arrives row by row (e.g. -ls,
+// which emits one line per entry during the walk). Buffers up to `window` rows to
+// compute per-column widths, emits that block aligned, then streams each later row
+// using those widths -- growing a column when a wider cell appears. `window == 0`
+// disables buffering (every row is emitted immediately at the minimum widths, so
+// rows do not align across each other); `window == kAll` buffers everything (full
+// alignment, emitted on Flush). Backs -ls's --buffer=auto|off|all|N.
+class ColumnBuffer {
+ public:
+  static constexpr std::size_t kAll = static_cast<std::size_t>(-1);
+
+  // `aligns` and `mins` are per-column (mins are the minimum, and the fixed, widths
+  // when window == 0); `window` is how many rows to buffer before the first flush.
+  ColumnBuffer(std::vector<Align> aligns, std::vector<std::size_t> mins, std::size_t window);
+
+  // Feeds one row; returns whatever is now ready to emit (empty while still buffering
+  // the initial window). Extra cells beyond the column count are ignored; missing
+  // ones render empty.
+  std::string Add(std::vector<std::string> cells);
+
+  // Emits any rows still buffered (call once after the final Add). Idempotent.
+  std::string Flush();
+
+ private:
+  std::vector<Align> aligns_;
+  std::vector<std::size_t> widths_;  // starts at the mins; grows to the widest cell seen
+  std::size_t window_;
+  bool buffering_;
+  std::vector<std::vector<std::string>> buffer_;
+};
+
 }  // namespace xff::format
 
 #endif  // XFF_FORMAT_FORMAT_H_

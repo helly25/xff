@@ -87,5 +87,31 @@ TEST_F(FormatTest, TableLeftColumnHasNoTrailingWhitespaceWhenLast) {
   EXPECT_EQ(table.Render(), "  1  a\n200  bb\n");
 }
 
+TEST_F(FormatTest, ColumnBufferAllAlignsAcrossEveryRow) {
+  ColumnBuffer buf({Align::kLeft, Align::kRight}, {0, 0}, ColumnBuffer::kAll);
+  EXPECT_THAT(buf.Add({"a", "1"}), "");     // buffered, nothing emitted yet
+  EXPECT_THAT(buf.Add({"bb", "200"}), "");  // buffered
+  // Flush aligns to the widest cells: col0 width 2, col1 width 3 (two-space gap).
+  EXPECT_EQ(buf.Flush(), "a     1\nbb  200\n");
+  EXPECT_THAT(buf.Flush(), "");  // idempotent
+}
+
+TEST_F(FormatTest, ColumnBufferWindowFlushesThenStreamsAndGrows) {
+  ColumnBuffer buf({Align::kLeft, Align::kRight}, {0, 0}, /*window=*/2);
+  EXPECT_THAT(buf.Add({"a", "1"}), "");                  // still buffering (1 < window)
+  EXPECT_EQ(buf.Add({"bb", "20"}), "a    1\nbb  20\n");  // window full -> flush both at widths 2/2
+  // Streaming now: a wider row grows the columns for itself (the flushed rows are out).
+  EXPECT_EQ(buf.Add({"ccc", "300"}), "ccc  300\n");
+  EXPECT_THAT(buf.Flush(), "");
+}
+
+TEST_F(FormatTest, ColumnBufferOffStreamsEachRowAtMinWidths) {
+  ColumnBuffer buf({Align::kLeft, Align::kRight}, {3, 4}, /*window=*/0);
+  // No buffering: each row emitted immediately, padded to the fixed minimum widths.
+  EXPECT_EQ(buf.Add({"a", "1"}), "a       1\n");
+  EXPECT_EQ(buf.Add({"bb", "200"}), "bb    200\n");
+  EXPECT_THAT(buf.Flush(), "");
+}
+
 }  // namespace
 }  // namespace xff::format
