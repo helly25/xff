@@ -101,6 +101,12 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "match -name/-path byte-exact, opting out of the xff FS-native case default",
     },
     {
+        .name = "--regextype",
+        .display = "--regextype=RE2|EXACT",
+        .group = "Matching",
+        .summary = "how -grep reads its pattern: RE2 regex (default) or EXACT literal (MATCH/PCRE reserved)",
+    },
+    {
         .name = "--exclude",
         .display = "--exclude=GLOB",
         .group = "Ignore / filter",

@@ -343,6 +343,33 @@ absl::Status ResolveBlockSize(const std::vector<std::string>& globals, std::uint
   return absl::OkStatus();
 }
 
+// --regextype=RE2|EXACT: how -grep interprets its pattern. RE2 (the default) is the
+// regex engine; EXACT is a literal substring. The grep-flavor (MATCH) and PCRE
+// engines are reserved for #85 and rejected until then. Returns whether -grep
+// matches literally, or an InvalidArgument naming an unsupported / unknown value
+// (a usage error, refused before the walk). Last occurrence wins.
+absl::StatusOr<bool> ResolveGrepLiteral(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--regextype=";
+  bool literal = false;
+  for (const std::string& global : globals) {
+    if (!global.starts_with(kPrefix)) {
+      continue;
+    }
+    const std::string_view value = std::string_view(global).substr(kPrefix.size());
+    if (value == "RE2") {
+      literal = false;
+    } else if (value == "EXACT") {
+      literal = true;
+    } else if (value == "MATCH" || value == "PCRE") {
+      return absl::InvalidArgumentError(
+          absl::StrCat("--regextype=", value, " is not supported yet (planned via #85); use RE2 or EXACT"));
+    } else {
+      return absl::InvalidArgumentError(absl::StrCat("unknown --regextype '", value, "'; expected RE2 or EXACT"));
+    }
+  }
+  return literal;
+}
+
 // --time-format=NAME sets the default format for a time field rendered without an
 // explicit {:qualifier} (a datetime preset name or a custom absl::FormatTime
 // pattern). Last occurrence wins; empty (absent) keeps the built-in "space"
@@ -854,6 +881,13 @@ int RunFind(
     on_error("--block-size", size_status);
     return 2;  // do not traverse
   }
+  // --regextype=RE2|EXACT: how -grep reads its pattern (RE2 regex default; EXACT
+  // literal). An unsupported (MATCH/PCRE) or unknown value is a usage error.
+  const absl::StatusOr<bool> grep_literal = ResolveGrepLiteral(command.globals);
+  if (!grep_literal.ok()) {
+    on_error("--regextype", grep_literal.status());
+    return 2;  // do not traverse
+  }
   // --summary: reduce matches to a {count, total size} per group instead of
   // printing each one; the table is emitted after the walk.
   const SummaryMode summary_mode = ResolveSummary(command.globals);
@@ -991,6 +1025,7 @@ int RunFind(
             .time_format = time_format,
             .block_size = block_size,
             .fold_name_case = fold_name_case,
+            .grep_literal = *grep_literal,
             .control = control,
             .exec_fields = exec_fields,
             .captures = exec_fields ? &captures : nullptr,

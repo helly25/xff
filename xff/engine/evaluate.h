@@ -92,6 +92,10 @@ struct EvalContext {
   // false in the find style and under --exact (byte-exact matching). The `i`
   // variants (-iname/-ipath) fold regardless.
   bool fold_name_case = false;
+  // --regextype=EXACT: -grep matches its pattern as a literal substring per line
+  // instead of the default RE2 regex. The driver resolves it once from --regextype
+  // (RE2 the default; MATCH/PCRE reserved for #85). Only -grep consults it today.
+  bool grep_literal = false;
   Control& control;                              // collects -prune/-quit requests
   bool exec_fields = false;                      // --exec-fields: render -exec tokens through the field vocabulary
   std::vector<std::string>* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off
