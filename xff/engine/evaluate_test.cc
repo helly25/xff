@@ -643,6 +643,38 @@ TEST_F(EvaluateTest, ContentSkipsBinaryFiles) {
   EXPECT_FALSE(Match({"-rxc", "needle"}, visit));
 }
 
+TEST_F(EvaluateTest, GrepEmitsMatchingLinesAsPathLineText) {
+  const std::string path = WriteContentFile("grep.txt", "first TODO line\nsecond line\nanother TODO here\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "grep.txt", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-grep", "TODO"}, visit));  // returns true because a line matched
+  EXPECT_EQ(emitted_, absl::StrCat(path, ":1:first TODO line\n", path, ":3:another TODO here\n"));
+}
+
+TEST_F(EvaluateTest, GrepUsesRegexNotLiteral) {
+  const std::string path = WriteContentFile("grep_rx.txt", "id=12345\nname=foo\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "grep_rx.txt", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-grep", "id=[0-9]+"}, visit));
+  EXPECT_EQ(emitted_, absl::StrCat(path, ":1:id=12345\n"));
+}
+
+TEST_F(EvaluateTest, GrepWithNoMatchingLineIsFalseAndSilent) {
+  const std::string path = WriteContentFile("grep_none.txt", "nothing to see\nhere at all\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "grep_none.txt", vfs::FileType::kRegular, md);
+  EXPECT_FALSE(Match({"-grep", "TODO"}, visit));
+  EXPECT_THAT(emitted_, IsEmpty());
+}
+
+TEST_F(EvaluateTest, GrepSkipsBinaryFiles) {
+  const std::string path = WriteContentFile("grep_bin", std::string("ELF\0TODO here\n", 14));
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "grep_bin", vfs::FileType::kRegular, md);
+  EXPECT_FALSE(Match({"-grep", "TODO"}, visit));
+  EXPECT_THAT(emitted_, IsEmpty());
+}
+
 TEST_F(EvaluateTest, ContentNonRegularOrMissingDoesNotMatch) {
   // A directory has no searchable content and a missing path is unreadable: both are
   // a clean no-match, not an error.

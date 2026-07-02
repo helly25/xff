@@ -43,6 +43,7 @@
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
 #include "mbo/container/limited_set.h"
+#include "xff/content/line_match.h"
 #include "xff/datetime/datetime.h"
 #include "xff/engine/walk.h"
 #include "xff/exec/exec.h"
@@ -898,6 +899,29 @@ bool EvalRxc(const parser::Expr& expr, EvalContext& ctx) {
   return content.has_value() && matcher->get().PartialMatch(*content);
 }
 
+// xff -grep PATTERN: the line-output companion of -rxc. Prints each line of the
+// file's content that matches the regex (RE2, pre-compiled by the parser), as
+// `path:lineno:text` (grep's piped form). Matching is per line, so a pattern with
+// no '\n' selects individual lines the way grep does; non-regular, unreadable, and
+// binary files yield nothing (see ContentToSearch). Returns true iff at least one
+// line was printed, so the action's truth reflects "found a match" for -o / -q.
+bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
+  const MatcherRef matcher = AsRef(expr.matcher);
+  if (!matcher.has_value()) {
+    return false;
+  }
+  const std::optional<std::string> content = ContentToSearch(ctx.visit, ctx.fs);
+  if (!content.has_value()) {
+    return false;
+  }
+  const std::vector<content::LineMatch> lines = content::CollectLineMatches(
+      *content, [&matcher](std::string_view line) { return matcher->get().PartialMatch(line); });
+  for (const content::LineMatch& line : lines) {
+    ctx.emit(absl::StrCat(ctx.visit.path, ":", line.number, ":", line.text, "\n"));
+  }
+  return !lines.empty();
+}
+
 bool EvalType(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesType(expr.args.front(), ctx.visit.metadata.type);
 }
@@ -1486,6 +1510,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-fprintf", {&EvalFprintf}},
     DispatchPair{"-fstype", {&EvalFstype}},
     DispatchPair{"-gid", {&EvalGid}},
+    DispatchPair{"-grep", {&EvalGrep}},
     DispatchPair{"-group", {&EvalGroup}},
     DispatchPair{"-icontent", {&EvalContent}},
     DispatchPair{"-ilname", {&EvalLname}},

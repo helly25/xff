@@ -179,6 +179,15 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of the -grep action: prints path:line:text per matching content
+# line (regex), skips binaries, composes with find predicates, find style rejects it.
+bashtest(
+    name = "grep_test",
+    size = "small",
+    srcs = ["grep_test.sh"],
+    data = [":xff"],
+)
+
 # End-to-end test of the --exclude / --include run-level filter (ignore family):
 # a gitignore-style glob drops matching files, a matched directory is pruned, and
 # --include re-includes with last-match-wins. Drives the real binary.

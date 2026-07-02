@@ -86,7 +86,7 @@ std::shared_ptr<const regex::Matcher> CompileNodeRegex(
     const std::vector<std::string>& args) {
   std::string_view pattern;
   if ((descriptor.name == "-regex" || descriptor.name == "-iregex" || descriptor.name == "-rxc"
-       || descriptor.name == "-irxc")
+       || descriptor.name == "-irxc" || descriptor.name == "-grep")
       && !args.empty()) {
     pattern = args[0];
   } else if (descriptor.binding == registry::Binding::kLabelRegex && args.size() > 1 && !args[1].empty()) {
