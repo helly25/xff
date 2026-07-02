@@ -55,6 +55,16 @@ test::help_list_shows_grouped_index() {
   expect_eq "yes" "$(_has "${out}" 'Operators:')"
 }
 
+test::help_expressions_lists_the_annotated_vocabulary() {
+  # `--help=expressions` is the grouped Tests/Actions/Operators list with summaries,
+  # the full list the usage overview points at.
+  local out
+  out="$("$(_xff_bin)" --help=expressions 2>&1)"
+  expect_eq "yes" "$(_has "${out}" 'Tests:')"
+  expect_eq "yes" "$(_has "${out}" 'Actions:')"
+  expect_eq "yes" "$(_has "${out}" '\-content')" # an expression primary is listed
+}
+
 test::help_unknown_topic_exits_two() {
   local out rc
   out="$("$(_xff_bin)" --help=-nonesuch 2>&1)" && rc=0 || rc=$?

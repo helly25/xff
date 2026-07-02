@@ -42,6 +42,9 @@ test::help_prints_usage_and_options() {
   expect_eq "yes" "$(_has "${out}" '\-\-config')" # a shipped global, not the old stub
   expect_eq "yes" "$(_has "${out}" '\-\-quiet')"
   expect_eq "yes" "$(_has "${out}" 'Expression:')"
+  # The Expression section is a grouped overview that points at the full list.
+  expect_eq "yes" "$(_has "${out}" 'Name / path')"
+  expect_eq "yes" "$(_has "${out}" '\-\-help=expressions')"
   local n
   n="$(printf '%s\n' "${out}" | wc -l)"
   # The old stub was two lines; a real page is many more.
