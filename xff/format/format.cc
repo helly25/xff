@@ -28,6 +28,35 @@
 #include "absl/strings/str_format.h"
 
 namespace xff::format {
+namespace {
+
+// One aligned row: each cell padded to its column width per its Align, columns
+// joined by `gap`, '\n'-terminated. The right-most cell is not right-padded, so no
+// line carries trailing whitespace. Shared by Table and ColumnBuffer.
+std::string RenderPaddedRow(
+    const std::vector<std::string>& cells,
+    const std::vector<Align>& aligns,
+    const std::vector<std::size_t>& widths,
+    std::string_view gap) {
+  std::string out;
+  for (std::size_t col = 0; col < aligns.size(); ++col) {
+    if (col != 0) {
+      out.append(gap);
+    }
+    const std::string_view cell = col < cells.size() ? std::string_view(cells[col]) : std::string_view();
+    if (aligns[col] == Align::kRight) {
+      out.append(PadLeft(cell, widths[col]));
+    } else if (col + 1 == aligns.size()) {
+      out.append(cell);
+    } else {
+      out.append(PadRight(cell, widths[col]));
+    }
+  }
+  out.push_back('\n');
+  return out;
+}
+
+}  // namespace
 
 std::string Int(std::uint64_t value, char group_sep) {
   std::string digits = std::to_string(value);
@@ -91,22 +120,49 @@ void Table::AddRow(std::vector<std::string> cells) {
 std::string Table::Render(std::string_view gap) const {
   std::string out;
   for (const std::vector<std::string>& row : rows_) {
-    for (std::size_t col = 0; col < aligns_.size(); ++col) {
-      if (col != 0) {
-        out.append(gap);
-      }
-      const std::string_view cell = col < row.size() ? std::string_view(row[col]) : std::string_view();
-      // The last column is not right-padded, so lines carry no trailing whitespace.
-      if (aligns_[col] == Align::kRight) {
-        out.append(PadLeft(cell, widths_[col]));
-      } else if (col + 1 == aligns_.size()) {
-        out.append(cell);
-      } else {
-        out.append(PadRight(cell, widths_[col]));
-      }
-    }
-    out.push_back('\n');
+    out.append(RenderPaddedRow(row, aligns_, widths_, gap));
   }
+  return out;
+}
+
+ColumnBuffer::ColumnBuffer(std::vector<Align> aligns, std::vector<std::size_t> mins, std::size_t window)
+    : aligns_(std::move(aligns)), widths_(std::move(mins)), window_(window), buffering_(window != 0) {
+  widths_.resize(aligns_.size(), 0);  // one width per column, seeded from the mins
+}
+
+std::string ColumnBuffer::Add(std::vector<std::string> cells) {
+  const auto widen = [this](const std::vector<std::string>& row) {
+    for (std::size_t col = 0; col < row.size() && col < widths_.size(); ++col) {
+      widths_[col] = std::max(widths_[col], row[col].size());
+    }
+  };
+  if (buffering_) {
+    widen(cells);
+    buffer_.push_back(std::move(cells));
+    // A bounded window that is now full flushes; kAll keeps buffering until Flush.
+    if (window_ != kAll && buffer_.size() >= window_) {
+      return Flush();
+    }
+    return "";
+  }
+  // Streaming: with a real window the columns keep growing to fit later rows; with
+  // window == 0 the widths stay at the mins (rows are not aligned across each other).
+  if (window_ != 0) {
+    widen(cells);
+  }
+  return RenderPaddedRow(cells, aligns_, widths_, "  ");
+}
+
+std::string ColumnBuffer::Flush() {
+  if (!buffering_) {
+    return "";
+  }
+  buffering_ = false;
+  std::string out;
+  for (const std::vector<std::string>& row : buffer_) {
+    out.append(RenderPaddedRow(row, aligns_, widths_, "  "));
+  }
+  buffer_.clear();
   return out;
 }
 
