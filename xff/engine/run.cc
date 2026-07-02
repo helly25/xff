@@ -693,6 +693,21 @@ std::optional<std::string> UnusedCaptureName(const parser::Expr& expr, const std
 
 }  // namespace
 
+// --human[=iec|si]: render --summary sizes as human-readable units instead of raw
+// bytes. Bare --human / =iec is binary (KiB/MiB); =si is decimal (kB/MB); absent is
+// nullopt (raw grouped bytes). Last occurrence wins.
+std::optional<format::SizeUnits> ResolveHuman(const std::vector<std::string>& globals) {
+  std::optional<format::SizeUnits> units;
+  for (const std::string& global : globals) {
+    if (global == "--human" || global == "--human=iec") {
+      units = format::SizeUnits::kIec;
+    } else if (global == "--human=si") {
+      units = format::SizeUnits::kSi;
+    }
+  }
+  return units;
+}
+
 // A JSON string literal for `text` (quotes included): escapes the JSON-significant
 // characters and any control byte as \uXXXX. Used for the --summary=jsonl group key
 // (type/extension names, which are normally plain but may carry odd bytes).
@@ -808,7 +823,8 @@ int RunFind(
   // --summary: reduce matches to a {count, total size} per group instead of
   // printing each one; the table is emitted after the walk.
   const SummaryMode summary_mode = ResolveSummary(command.globals);
-  std::map<std::string, std::pair<std::uint64_t, std::uint64_t>> summary;  // group -> {count, total size}
+  const std::optional<format::SizeUnits> human = ResolveHuman(command.globals);  // --human: size units in the table
+  std::map<std::string, std::pair<std::uint64_t, std::uint64_t>> summary;        // group -> {count, total size}
   int errors = 0;
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
@@ -1016,7 +1032,10 @@ int RunFind(
       // aligned. The Table carries the per-column max-width context and renders once.
       format::Table table({format::Align::kLeft, format::Align::kRight, format::Align::kRight});
       for (const Row& row : rows) {
-        table.AddRow({row.key, format::Int(row.count, ','), format::Int(row.size, ',')});
+        // --human renders the size column in units (KiB/MiB or kB/MB); otherwise it
+        // stays raw grouped bytes. The count column is always a grouped integer.
+        std::string size = human.has_value() ? format::Size(row.size, *human) : format::Int(row.size, ',');
+        table.AddRow({row.key, format::Int(row.count, ','), std::move(size)});
       }
       emit(table.Render());
     }

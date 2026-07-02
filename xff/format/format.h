@@ -33,6 +33,17 @@ namespace xff::format {
 // "1,234,567"); the default (`\0`) leaves them ungrouped ("1234567").
 std::string Int(std::uint64_t value, char group_sep = '\0');
 
+// Which powers/suffixes Size() uses: kIec is binary (1024) with IEC suffixes
+// (B/KiB/MiB/GiB/...), matching xff's -size units; kSi is decimal (1000) with SI
+// suffixes (B/kB/MB/GB/...), like `ls --si` and disk-vendor sizes.
+enum class SizeUnits { kIec, kSi };
+
+// Renders `bytes` as a human-readable size (du -h / ls -h style): exact bytes under
+// one unit ("56 B"), otherwise the value scaled to the largest fitting unit with one
+// decimal and a space before the suffix ("5.6 MiB", "5.9 MB"). `units` picks the
+// binary (kIec) or decimal (kSi) scale.
+std::string Size(std::uint64_t bytes, SizeUnits units);
+
 // Right-justifies `text` in a field of `width` columns by prepending spaces (no
 // truncation: a longer `text` is returned unchanged). For aligning a numeric
 // column to its widest cell.

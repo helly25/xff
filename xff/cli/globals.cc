@@ -157,6 +157,12 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "print an aligned count + size table (or --format=jsonl rows) instead of each match",
     },
     {
+        .name = "--human",
+        .display = "--human[=iec|si]",
+        .group = "Output",
+        .summary = "show --summary sizes in units: iec (KiB/MiB, default) or si (kB/MB)",
+    },
+    {
         .name = "--quiet",
         .alias = "-q",
         .display = "--quiet, -q",

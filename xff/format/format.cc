@@ -16,12 +16,16 @@
 #include "xff/format/format.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 
 namespace xff::format {
 
@@ -41,6 +45,23 @@ std::string Int(std::uint64_t value, char group_sep) {
     out.push_back(digits[i]);
   }
   return out;
+}
+
+std::string Size(std::uint64_t bytes, SizeUnits units) {
+  const double base = units == SizeUnits::kSi ? 1000.0 : 1024.0;
+  static constexpr std::array<std::string_view, 7> kIec{"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};
+  static constexpr std::array<std::string_view, 7> kSi{"B", "kB", "MB", "GB", "TB", "PB", "EB"};
+  const std::array<std::string_view, 7>& suffix = units == SizeUnits::kSi ? kSi : kIec;
+  if (static_cast<double>(bytes) < base) {
+    return absl::StrCat(bytes, " ", suffix[0]);  // exact bytes below one unit
+  }
+  double value = static_cast<double>(bytes);
+  std::size_t unit = 0;
+  while (value >= base && unit + 1 < suffix.size()) {
+    value /= base;
+    ++unit;
+  }
+  return absl::StrFormat("%.1f %s", value, suffix[unit]);
 }
 
 std::string PadLeft(std::string_view text, std::size_t width) {
