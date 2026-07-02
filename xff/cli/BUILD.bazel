@@ -217,6 +217,15 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of -ls column alignment (via the ColumnBuffer) and the --buffer
+# modes (auto/off/all/N).
+bashtest(
+    name = "ls_test",
+    size = "small",
+    srcs = ["ls_test.sh"],
+    data = [":xff"],
+)
+
 # Binary-level test of -exec, which spawns real children: the `+` batch form runs
 # the command once with all matches, `\;` once per match. Shell level is the right
 # fit for a subprocess-spawning feature.

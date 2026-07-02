@@ -708,6 +708,29 @@ std::optional<format::SizeUnits> ResolveHuman(const std::vector<std::string>& gl
   return units;
 }
 
+// --buffer=auto|off|all|N: how -ls buffers rows to align columns. auto (the default)
+// buffers the first 100 to compute widths, then streams the rest at them; off / 0
+// disables buffering (fixed minimum widths); all buffers the whole run; N buffers the
+// first N. Last occurrence wins.
+std::size_t ResolveBufferWindow(const std::vector<std::string>& globals) {
+  std::size_t window = 100;  // --buffer=auto (the default)
+  for (const std::string& global : globals) {
+    if (global == "--buffer" || global == "--buffer=auto") {
+      window = 100;
+    } else if (global == "--buffer=off") {
+      window = 0;
+    } else if (global == "--buffer=all") {
+      window = format::ColumnBuffer::kAll;
+    } else if (global.starts_with("--buffer=")) {
+      std::size_t value = 0;  // a numeric window ("0" means off, like --buffer=off)
+      if (absl::SimpleAtoi(std::string_view(global).substr(9), &value)) {
+        window = value;
+      }
+    }
+  }
+  return window;
+}
+
 // A JSON string literal for `text` (quotes included): escapes the JSON-significant
 // characters and any control byte as \uXXXX. Used for the --summary=jsonl group key
 // (type/extension names, which are normally plain but may carry odd bytes).
@@ -860,6 +883,23 @@ int RunFind(
     it->second.write(record.data(), static_cast<std::streamsize>(record.size()));
   };
 
+  // -ls aligned output: each -ls row's cells feed a ColumnBuffer (per --buffer), whose
+  // ready output is emitted as it forms and whose remainder is flushed after the walk.
+  // Built once here so the computed column widths span the whole run. The visitor is
+  // single-threaded, so the buffer needs no synchronisation.
+  std::vector<format::Align> ls_aligns;
+  std::vector<std::size_t> ls_mins;
+  for (const LsColumn& column : LsColumns()) {
+    ls_aligns.push_back(column.align);
+    ls_mins.push_back(column.min_width);
+  }
+  format::ColumnBuffer ls_buffer(std::move(ls_aligns), std::move(ls_mins), ResolveBufferWindow(command.globals));
+  const auto emit_ls_row = [&ls_buffer, &emit](std::vector<std::string> cells) {
+    if (const std::string ready = ls_buffer.Add(std::move(cells)); !ready.empty()) {
+      emit(ready);
+    }
+  };
+
   // `-exec/-execdir ... +`: each batch node's matched items accrue here during the
   // walk and run at the end. Outer key the Expr node; inner key the directory ("" =
   // -exec's single global batch, the entry's dir = -execdir's per-dir batches). The
@@ -910,6 +950,7 @@ int RunFind(
             .visit = visit,
             .emit = emit,
             .emit_file = emit_file,
+            .emit_ls_row = emit_ls_row,
             .fs = walk_fs,
             .now = now,
             .tz = tz,
@@ -976,6 +1017,12 @@ int RunFind(
       });
   if (!status.ok()) {
     ++errors;  // Fatal traversal error (none today; per-path errors handled above).
+  }
+
+  // Flush any -ls rows still buffered for alignment (a run shorter than the --buffer
+  // window, or --buffer=all). No-op when -ls was not used or nothing remains.
+  if (const std::string ls_tail = ls_buffer.Flush(); !ls_tail.empty()) {
+    emit(ls_tail);
   }
 
   // -j>1: reap every concurrent `-exec/-execdir ... ;` child still running. find's

@@ -78,6 +78,8 @@ Options (whole-run, before the paths):
     --summary[=overall|type|ext]   print an aligned count + size table instead of each match
                         (grouped digits; --format=jsonl emits one machine object per row)
     --human[=iec|si]    show --summary sizes in units: iec (KiB/MiB, default) or si (kB/MB)
+    --buffer[=auto|off|all|N]   -ls column alignment: buffer rows to size columns
+                        (auto = first 100 then stream; off = min widths; all; or N)
   Exit by match (grep-style):
     --quiet, -q         suppress output; exit 0 if anything matched, else 1 (-q: grep-compatible)
     --exit-match        keep output; exit 0 if anything matched, else 1
