@@ -38,6 +38,7 @@
 #include "xff/engine/walk.h"
 #include "xff/exec/exec.h"
 #include "xff/fields/fields.h"
+#include "xff/format/format.h"
 #include "xff/ignore/ignore.h"
 #include "xff/parser/ast.h"
 #include "xff/registry/descriptor.h"
@@ -692,6 +693,30 @@ std::optional<std::string> UnusedCaptureName(const parser::Expr& expr, const std
 
 }  // namespace
 
+// A JSON string literal for `text` (quotes included): escapes the JSON-significant
+// characters and any control byte as \uXXXX. Used for the --summary=jsonl group key
+// (type/extension names, which are normally plain but may carry odd bytes).
+std::string JsonQuote(std::string_view text) {
+  std::string out = "\"";
+  for (const char ch : text) {
+    switch (ch) {
+      case '"': out += "\\\""; break;
+      case '\\': out += "\\\\"; break;
+      case '\n': out += "\\n"; break;
+      case '\r': out += "\\r"; break;
+      case '\t': out += "\\t"; break;
+      default:
+        if (static_cast<unsigned char>(ch) < 0x20) {
+          absl::StrAppend(&out, "\\u", absl::Hex(static_cast<unsigned char>(ch), absl::kZeroPad4));
+        } else {
+          out.push_back(ch);
+        }
+    }
+  }
+  out.push_back('"');
+  return out;
+}
+
 int RunFind(
     const parser::Command& command,
     const vfs::FileSystem& fs,
@@ -960,19 +985,40 @@ int RunFind(
     }
   }
 
-  // --summary: emit the accumulated table -- one `group<TAB>count<TAB>bytes` row
-  // per group (sorted by key, since `summary` is an ordered map), then a `total`
-  // row. The overall mode has a single group already keyed "total".
+  // --summary: emit the accumulated table -- one row per group (sorted, since
+  // `summary` is an ordered map) plus a `total` row (the overall mode already has a
+  // single group keyed "total"). Default is a right-aligned human table (grouped
+  // digits); --format=jsonl emits one machine object per row instead.
   if (summary_mode != SummaryMode::kOff) {
+    struct Row {
+      std::string key;
+      std::uint64_t count = 0;
+      std::uint64_t size = 0;
+    };
+
+    std::vector<Row> rows;
     std::uint64_t total_count = 0;
     std::uint64_t total_size = 0;
     for (const auto& [key, agg] : summary) {
-      emit(absl::StrCat(key, "\t", agg.first, "\t", agg.second, "\n"));
+      rows.push_back(Row{.key = key, .count = agg.first, .size = agg.second});
       total_count += agg.first;
       total_size += agg.second;
     }
     if (summary_mode != SummaryMode::kOverall) {
-      emit(absl::StrCat("total\t", total_count, "\t", total_size, "\n"));
+      rows.push_back(Row{.key = "total", .count = total_count, .size = total_size});
+    }
+    if (format == render::Format::kJsonl) {
+      for (const Row& row : rows) {
+        emit(absl::StrCat("{\"group\":", JsonQuote(row.key), ",\"count\":", row.count, ",\"bytes\":", row.size, "}\n"));
+      }
+    } else {
+      // Right-aligned human table: label left, grouped count + byte size right-
+      // aligned. The Table carries the per-column max-width context and renders once.
+      format::Table table({format::Align::kLeft, format::Align::kRight, format::Align::kRight});
+      for (const Row& row : rows) {
+        table.AddRow({row.key, format::Int(row.count, ','), format::Int(row.size, ',')});
+      }
+      emit(table.Render());
     }
   }
 
