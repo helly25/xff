@@ -1054,5 +1054,14 @@ TEST_F(RunTest, ExactCaseNameMatchesRegardlessOfFolding) {
   EXPECT_THAT(RunNameOnCaseFoldVolume("Foo.txt", registry::Style::kFind, /*exact=*/false), HasSubstr("Foo.txt"));
 }
 
+TEST_F(RunTest, GrepEmitsPathLineTextAcrossTheWalk) {
+  // -grep is an action, so it suppresses the implicit path-print and emits one
+  // record per matching line, path:line:text, over the whole traversal.
+  { std::ofstream(root_ / "a.txt") << "alpha\nTODO one\nbeta\nTODO two\n"; }  // overwrite the fixture's "a"
+  EXPECT_THAT(
+      RunExpr({"-name", "a.txt", "-grep", "TODO"}),
+      ElementsAre(Path("a.txt") + ":2:TODO one", Path("a.txt") + ":4:TODO two"));
+}
+
 }  // namespace
 }  // namespace xff::engine

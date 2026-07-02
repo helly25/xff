@@ -565,6 +565,15 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .style = Style::kXff,
     },
     {
+        // xff: the line-output companion of the -rxc content predicate.
+        .name = "-grep",
+        .summary = "print each content line matching a regex, as path:line:text (xff)",
+        .kind = Kind::kAction,
+        .arity = 1,
+        .style = Style::kXff,
+        .cost = Cost::kExpensive,
+    },
+    {
         .name = "-fprint",
         .summary = "write -print output to a named file",
         .kind = Kind::kAction,

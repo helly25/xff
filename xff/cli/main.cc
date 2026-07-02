@@ -111,7 +111,7 @@ Expression: tests, operators, and actions applied to each entry, by group. Use
   Type / size   -type  -size  -blocks  -empty  -sparse
   Time          -mtime  -atime  -ctime  -Btime  -newerXY   (units + compound durations)
   Owner / perm  -user  -group  -uid  -gid  -perm  -readable / -writable / -executable
-  Content       -content / -icontent (literal),  -rxc / -irxc (regex);  binaries skipped
+  Content       -content / -icontent (literal),  -rxc / -irxc (regex) filter;  -grep prints matching lines
   Operators     -a   -o   !   ( )   ,      xff: -xor  -nand  -nor  -xnor
   Actions       -print  -print0  -printf  -println  -ls  -exec / -execdir CMD ;|+  -delete  -prune  -quit  -ok
 )";
