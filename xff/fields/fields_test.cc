@@ -72,6 +72,22 @@ TEST_F(FieldsTest, UnknownFieldRendersEmpty) {
   EXPECT_THAT(Render("[{bogus}]", "p", Meta(vfs::FileType::kRegular, 0), 0), "[]");
 }
 
+TEST_F(FieldsTest, LineAndTextRenderTheGrepMatchLine) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const Template compiled = Template::Compile("{path}:{line}:{text}");
+  EXPECT_THAT(
+      compiled.Render(RenderContext{.path = "src/a.py", .metadata = md, .line_number = 12, .line_text = "  # TODO"}),
+      "src/a.py:12:  # TODO");
+}
+
+TEST_F(FieldsTest, LineAndTextAreEmptyWithoutAMatchLine) {
+  // line_number unset (outside a -grep line): {line}/{text} render empty so they
+  // no-op in --template / -printf.
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const Template compiled = Template::Compile("[{line}][{text}]");
+  EXPECT_THAT(compiled.Render(RenderContext{.path = "f", .metadata = md}), "[][]");
+}
+
 TEST_F(FieldsTest, TimeFieldQualifiers) {
   vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   md.mtime = absl::FromUnixSeconds(1'700'000'000);  // 2023-11-14, mid-month: the year is timezone-stable

@@ -160,6 +160,16 @@ std::string DepthField(std::string_view, std::string_view, const RenderContext& 
   return std::to_string(ctx.depth);
 }
 
+// {line} / {text}: the 1-based number and text of the current -grep match line;
+// both empty outside a -grep line (line_number unset), so they no-op elsewhere.
+std::string LineField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return ctx.line_number.has_value() ? std::to_string(*ctx.line_number) : std::string();
+}
+
+std::string TextField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return ctx.line_number.has_value() ? std::string(ctx.line_text) : std::string();
+}
+
 std::string SizeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return qualifier == "h" ? HumanSize(ctx.metadata.size) : std::to_string(ctx.metadata.size);
 }
@@ -234,6 +244,7 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"file", &NameField},
     FieldEntry{"group", &GroupField},
     FieldEntry{"inode", &InodeField},
+    FieldEntry{"line", &LineField},
     FieldEntry{"links", &LinksField},
     FieldEntry{"mode", &ModeField},
     FieldEntry{"mtime", &MtimeField},
@@ -244,6 +255,7 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"size", &SizeField},
     FieldEntry{"stem", &StemField},
     FieldEntry{"suffixes", &SuffixesField},
+    FieldEntry{"text", &TextField},
     FieldEntry{"type", &TypeField},
     FieldEntry{"user", &UserField});
 
