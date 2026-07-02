@@ -71,6 +71,17 @@ class FileSystem {
   // "apfs", "tmpfs", "nfs". An error if `path` cannot be queried (`statfs`).
   virtual absl::StatusOr<std::string> FsType(std::string_view path) const = 0;
 
+  // Whether name lookups on the volume holding `path` distinguish case: true =
+  // case-sensitive (ext4 / xfs and most Linux filesystems, where `foo` and `FOO`
+  // are distinct files), false = case-folding (APFS / HFS+ in their default
+  // configuration, NTFS, exFAT, where they are the same file). Backs xff's
+  // FS-native name matching (`--exact` opts out): the default xff style matches
+  // `-name` the way the filesystem itself would, so a lookup that the OS would
+  // satisfy case-insensitively also matches here. Returns an error when the
+  // volume cannot be probed; the caller falls back to the conservative
+  // case-sensitive (byte-exact) behaviour, which is always find-faithful.
+  virtual absl::StatusOr<bool> IsCaseSensitive(std::string_view path) const = 0;
+
   // Reads the entire byte content of the regular file at `path` (xff's content
   // predicates -content / -icontent / -rxc / -irxc). Returns an error when the
   // path cannot be opened or read; content search treats that as a non-match
