@@ -78,9 +78,9 @@ test::exact_forces_byte_exact_matching() {
   root="$(_make_tree)"
   # --exact: verbatim byte comparison regardless of the volume.
   out="$(_run --exact "${root}" -name Foo.txt)"
-  expect_eq "yes" "$(_has "${out}" 'Foo\.txt')"       # exact-case name matches
+  expect_eq "yes" "$(_has "${out}" 'Foo\.txt')" # exact-case name matches
   out="$(_run --exact "${root}" -name foo.txt)"
-  expect_eq "no" "$(_has "${out}" 'Foo\.txt')"        # wrong-case name does not
+  expect_eq "no" "$(_has "${out}" 'Foo\.txt')" # wrong-case name does not
   rm -rf "${root}"
 }
 
