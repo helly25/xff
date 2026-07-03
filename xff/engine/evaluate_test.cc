@@ -78,6 +78,7 @@ struct EvaluateTest : ::testing::Test {
         .tz = tz_,
         .fold_name_case = fold_name_case_,
         .grep_literal = grep_literal_,
+        .grep_count = grep_count_,
         .control = control_,
         .exec_fields = exec_fields_,
         .captures = exec_fields_ ? &captures_ : nullptr,
@@ -131,6 +132,7 @@ struct EvaluateTest : ::testing::Test {
   bool exec_fields_ = false;                    // when true, Match enables --exec-fields token substitution
   bool fold_name_case_ = false;                 // when true, Match sets EvalContext::fold_name_case (FS-native fold)
   bool grep_literal_ = false;                   // when true, Match sets EvalContext::grep_literal (-grep EXACT mode)
+  bool grep_count_ = false;                     // when true, Match sets EvalContext::grep_count (-grep --count mode)
   std::vector<std::string> captures_;           // -regex groups captured during the most recent (gated) Match
   std::map<std::string, std::string> outputs_;  // -capture results from the most recent Match
   std::vector<std::string> content_files_;      // temp files written by WriteContentFile, removed in TearDown
@@ -732,6 +734,25 @@ TEST_F(EvaluateTest, GrepFormatMatchInExactModeUsesTheLiteralSpan) {
   grep_literal_ = true;
   EXPECT_TRUE(Match({"-grep={column} {match}", "X"}, visit));
   EXPECT_EQ(emitted_, "2 X\n");  // first literal X at column 2
+}
+
+TEST_F(EvaluateTest, GrepCountEmitsPerFileMatchLineCount) {
+  // --count: one path:count (matching lines) instead of the lines; supersedes FORMAT.
+  const std::string path = WriteContentFile("grep_c.txt", "TODO a\nx\nTODO b\nTODO c\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "grep_c.txt", vfs::FileType::kRegular, md);
+  grep_count_ = true;
+  EXPECT_TRUE(Match({"-grep={line}", "TODO"}, visit));  // FORMAT is superseded by --count
+  EXPECT_EQ(emitted_, absl::StrCat(path, ":3\n"));
+}
+
+TEST_F(EvaluateTest, GrepCountEmitsNothingWhenNoLineMatches) {
+  const std::string path = WriteContentFile("grep_c0.txt", "nothing here\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "grep_c0.txt", vfs::FileType::kRegular, md);
+  grep_count_ = true;
+  EXPECT_FALSE(Match({"-grep", "TODO"}, visit));  // no match -> false, and no count line
+  EXPECT_THAT(emitted_, IsEmpty());
 }
 
 TEST_F(EvaluateTest, ContentNonRegularOrMissingDoesNotMatch) {
