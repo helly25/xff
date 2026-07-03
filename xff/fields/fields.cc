@@ -163,6 +163,13 @@ std::string RootField(std::string_view, std::string_view, const RenderContext& c
   return std::string(ctx.root);  // command-line search root (find %H); empty when unset
 }
 
+// {target}: a symlink's target text (find %l), the driver having resolved it via
+// ReadLink; empty for a non-symlink. Composes with the path-component qualifier
+// ({target:name}, {target:core}, ...) like any path-valued field.
+std::string TargetField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return std::string(ctx.link_target);
+}
+
 // {relpath}: the entry's path relative to the search root it was reached from
 // (find's %P) -- the root prefix and its trailing separator removed. Empty for the
 // root operand itself, and (best-effort) the whole path when no root is recorded or
@@ -358,6 +365,7 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"stem", &StemField},
     FieldEntry{"suffix", &SuffixField},
     FieldEntry{"suffixes", &SuffixesField},
+    FieldEntry{"target", &TargetField},
     FieldEntry{"text", &TextField},
     FieldEntry{"type", &TypeField},
     FieldEntry{"uid", &UidField},

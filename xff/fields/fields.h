@@ -33,6 +33,7 @@ namespace xff::fields {
 struct RenderContext {
   std::string_view path;                      // path as traversed
   std::string_view root;                      // command-line search root it was reached from (find %H); may be empty
+  std::string_view link_target;               // {target}: a symlink's target (find %l); empty for non-symlinks
   const vfs::Metadata& metadata;              // the entry's metadata
   int depth = 0;                              // 0 for a root operand, +1 per directory level
   absl::TimeZone tz = absl::LocalTimeZone();  // zone for {atime}/{mtime}/{ctime}/{btime} formatting; --timezone
@@ -69,7 +70,8 @@ using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier
 // Supported: {path} {root} {relpath} (path relative to the search root, find's %P)
 // {dir} {name}/{file} {stem} {core} (name minus ALL extensions: "foo") {ext}/{extension}
 // {suffix} (last, with dot: ".gz")
-// {suffixes} {depth} {size} ({size:h} human-readable) {type} {inode} {links} {dev}
+// {suffixes} {target} (a symlink's target, find %l) {depth} {size} ({size:h}
+// human-readable) {type} {inode} {links} {dev}
 // {mode}/{perm} (octal) {access} (ls -l / stat %A symbolic) {user} {group} {uid}
 // {gid}, and time fields {atime} {mtime} {ctime}
 // {btime} with an optional qualifier {field:QUAL} -- a strftime format
@@ -87,7 +89,7 @@ using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier
 // path-component qualifier likewise post-processes, treating the value as a path and
 // extracting a component -- {field:dir|name|basename|file|core|stem|ext|extension|
 // suffix|suffixes|path} -- so any path-valued field composes: {path:name} == {name},
-// {relpath:stem}, {def.B:dir}, and (once it exists) {target:ext}.
+// {relpath:stem}, {def.B:dir}, {target:ext}.
 //
 // Compile parses the template once into literal/field segments; the resulting
 // Template renders against many entries without re-scanning -- the hot path for

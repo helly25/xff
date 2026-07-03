@@ -1205,11 +1205,20 @@ int RunFind(
           agg.second += visit.metadata.size;
         } else if (matched && implicit_print) {
           if (compiled_tmpl.has_value()) {  // --template overrides --format
+            // {target}: a symlink's target for the template (find %l); symlink-gated,
+            // so a non-symlink costs no syscall. `link` owns the text for the Render.
+            std::string link;
+            if (visit.metadata.type == vfs::FileType::kSymlink) {
+              if (const absl::StatusOr<std::string> target = walk_fs.ReadLink(visit.path); target.ok()) {
+                link = *target;
+              }
+            }
             emit(
                 compiled_tmpl->Render(
                     fields::RenderContext{
                         .path = visit.path,
                         .root = visit.root,
+                        .link_target = link,
                         .metadata = visit.metadata,
                         .depth = visit.depth,
                         .tz = tz,
