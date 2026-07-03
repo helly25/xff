@@ -16,8 +16,8 @@
 #
 # End-to-end test of -g / --gitignore: per-directory .gitignore files, opt-in (off
 # by default, find-compatible), stacked per directory, and disabled by -u. Bare -g is
-# the AUTO ternary (respect .gitignore only inside a git repo); =on forces it on
-# regardless, =off forces it off. _make_tree plants an empty .git so bare -g sees a repo.
+# the AUTO ternary (respect .gitignore only inside a git repo); -g+/=on force it on
+# regardless, -g-/=off force it off. _make_tree plants an empty .git so bare -g sees a repo.
 
 set -euo pipefail
 
@@ -101,6 +101,23 @@ test::gitignore_off_value_disables() {
   out="$("$(_xff_bin)" --gitignore=off "${root}" -type f 2>&1)"
   rm -rf "${root}"
   expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
+}
+
+test::dash_g_plus_forces_on_outside_a_repo() {
+  local root out
+  root="$(_make_tree_no_repo)" # no .git; -g+ is the short form of =on (force on)
+  out="$("$(_xff_bin)" -g+ "${root}" -type f 2>&1)"
+  rm -rf "${root}"
+  expect_not_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
+  expect_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}"
+}
+
+test::dash_g_minus_forces_off_in_a_repo() {
+  local root out
+  root="$(_make_tree)" # has .git, so bare -g would auto-on; -g- (=off) forces it off
+  out="$("$(_xff_bin)" -g- "${root}" -type f 2>&1)"
+  rm -rf "${root}"
+  expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}" # -g- overrides the repo auto-on
 }
 
 test::no_ignore_master_switch_overrides_dash_g() {
