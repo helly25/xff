@@ -28,6 +28,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/strings/numbers.h"
@@ -769,6 +770,23 @@ std::size_t ResolveBufferWindow(const std::vector<std::string>& globals) {
   return window;
 }
 
+// --top=N: with --summary, keep only the N largest groups by size. Last occurrence
+// wins; nullopt (absent, or a non-positive / malformed N) means no limit -- all
+// groups in the default alphabetical order.
+std::optional<std::size_t> ResolveTop(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--top=";
+  std::optional<std::size_t> top;
+  for (const std::string& global : globals) {
+    if (!global.starts_with(kPrefix)) {
+      continue;
+    }
+    if (std::size_t value = 0; absl::SimpleAtoi(std::string_view(global).substr(kPrefix.size()), &value) && value > 0) {
+      top = value;
+    }
+  }
+  return top;
+}
+
 // A JSON string literal for `text` (quotes included): escapes the JSON-significant
 // characters and any control byte as \uXXXX. Used for the --summary=jsonl group key
 // (type/extension names, which are normally plain but may carry odd bytes).
@@ -1139,6 +1157,24 @@ int RunFind(
       rows.push_back(Row{.key = key, .count = agg.first, .size = agg.second});
       total_count += agg.first;
       total_size += agg.second;
+    }
+    // --top=N: keep the N largest groups by size (count, then key, break ties), in
+    // that order; the total row below still reflects every matched group. Absent =>
+    // all groups in the map's alphabetical order.
+    if (const std::optional<std::size_t> top = ResolveTop(command.globals);
+        top.has_value() && summary_mode != SummaryMode::kOverall) {
+      absl::c_sort(rows, [](const Row& lhs, const Row& rhs) {
+        if (lhs.size != rhs.size) {
+          return lhs.size > rhs.size;
+        }
+        if (lhs.count != rhs.count) {
+          return lhs.count > rhs.count;
+        }
+        return lhs.key < rhs.key;
+      });
+      if (rows.size() > *top) {
+        rows.resize(*top);
+      }
     }
     if (summary_mode != SummaryMode::kOverall) {
       rows.push_back(Row{.key = "total", .count = total_count, .size = total_size});

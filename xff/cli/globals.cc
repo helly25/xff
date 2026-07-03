@@ -176,6 +176,12 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "with -grep, print a per-file matching-line count (path:count) instead of the lines",
     },
     {
+        .name = "--top",
+        .display = "--top=N",
+        .group = "Output",
+        .summary = "with --summary, show only the N largest groups by size (the total row still counts all)",
+    },
+    {
         .name = "--human",
         .display = "--human[=iec|si|off]",
         .group = "Output",
