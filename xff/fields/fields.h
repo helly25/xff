@@ -67,7 +67,8 @@ using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier
 // -exec substitution.
 //
 // Supported: {path} {root} {relpath} (path relative to the search root, find's %P)
-// {dir} {name}/{file} {stem} {ext}/{extension} {suffix} (last, with dot: ".gz")
+// {dir} {name}/{file} {stem} {core} (name minus ALL extensions: "foo") {ext}/{extension}
+// {suffix} (last, with dot: ".gz")
 // {suffixes} {depth} {size} ({size:h} human-readable) {type} {inode} {links} {dev}
 // {mode}/{perm} (octal) {access} (ls -l / stat %A symbolic) {user} {group} {uid}
 // {gid}, and time fields {atime} {mtime} {ctime}
@@ -82,7 +83,11 @@ using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier
 // {env.NAME} namespace renders a process environment variable, {def.NAME} a
 // --define value, and {capture.NAME} a -capture result (each empty when unset).
 // As a qualifier, a sed-style rewrite {field:s/PAT/REPL/flags} (any delimiter;
-// flags g=all, i=ignore-case) post-processes the field's value via RE2.
+// flags g=all, i=ignore-case) post-processes the field's value via RE2. A
+// path-component qualifier likewise post-processes, treating the value as a path and
+// extracting a component -- {field:dir|name|basename|file|core|stem|ext|extension|
+// suffix|suffixes|path} -- so any path-valued field composes: {path:name} == {name},
+// {relpath:stem}, {def.B:dir}, and (once it exists) {target:ext}.
 //
 // Compile parses the template once into literal/field segments; the resulting
 // Template renders against many entries without re-scanning -- the hot path for
@@ -97,11 +102,16 @@ class Template {
   // A literal run (fn == nullptr -> emit `literal`) or a field reference: fn is
   // the renderer and `key` its bound argument (capture index, {env.NAME} var, ...).
   struct Segment {
+    // How the qualifier transforms the rendered value: none (the qualifier is the
+    // field's own format argument), a sed-style s/PAT/REPL/ rewrite, or a path-component
+    // extraction ({field:stem} etc.) that treats the value as a path. Rewrite and
+    // component are post-render transforms; the field then renders with no qualifier.
+    enum class PostProcess { kNone, kRewrite, kComponent };
     std::string literal;
     detail::FieldFn fn = nullptr;
     std::string key;
     std::string qualifier;
-    bool rewrite = false;  // qualifier is a sed-style s/PAT/REPL/ rewrite, applied post-render
+    PostProcess post = PostProcess::kNone;
   };
 
   std::vector<Segment> segments_;
