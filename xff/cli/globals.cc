@@ -123,7 +123,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .alias = "-g",
         .display = "--gitignore[=on|off], -g",
         .group = "Ignore / filter",
-        .summary = "respect per-directory .gitignore files (-g short form; off by default)",
+        .summary = "respect .gitignore files: -g = auto (only in a git repo), =on always, =off never",
     },
     {
         .name = "--ignore-files",
