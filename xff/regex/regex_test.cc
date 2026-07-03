@@ -25,6 +25,9 @@ namespace {
 
 using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
+using ::testing::Eq;
+using ::testing::Optional;
+using ::testing::Pair;
 
 struct RegexTest : ::testing::Test {};
 
@@ -41,6 +44,13 @@ TEST_F(RegexTest, PartialMatchIsUnanchored) {
   EXPECT_TRUE(matcher.PartialMatch("c.txt.bak"));  // trailing text is fine for a partial match
   EXPECT_FALSE(matcher.PartialMatch("c.md"));      // still must occur somewhere
   EXPECT_FALSE(matcher.FullMatch("a/b/c.txt"));    // the same pattern does not match the whole string
+}
+
+TEST_F(RegexTest, FindFirstReturnsLeftmostMatchSpan) {
+  ASSERT_OK_AND_ASSIGN(const Matcher matcher, Matcher::Compile("E[0-9]+", /*case_insensitive=*/false));
+  EXPECT_THAT(matcher.FindFirst("code E42 and E7"), Optional(Pair(5, 3)));  // leftmost: E42 at offset 5
+  EXPECT_THAT(matcher.FindFirst("no match here"), Eq(std::nullopt));
+  EXPECT_THAT(matcher.FindFirst("E9"), Optional(Pair(0, 2)));  // at the very start
 }
 
 TEST_F(RegexTest, CaseInsensitiveFoldsCase) {

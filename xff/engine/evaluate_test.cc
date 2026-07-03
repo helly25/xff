@@ -716,6 +716,24 @@ TEST_F(EvaluateTest, GrepFormatCanReferenceEntryFields) {
   EXPECT_EQ(emitted_, absl::StrCat(path, "#1\n"));
 }
 
+TEST_F(EvaluateTest, GrepFormatMatchAndColumnExtractTheMatch) {
+  // {match} is the matched substring (grep -o), {column} its 1-based start.
+  const std::string path = WriteContentFile("grep_o.txt", "code E42 here\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "grep_o.txt", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-grep={column}:{match}", "E[0-9]+"}, visit));
+  EXPECT_EQ(emitted_, "6:E42\n");  // E42 starts at column 6 (after "code ")
+}
+
+TEST_F(EvaluateTest, GrepFormatMatchInExactModeUsesTheLiteralSpan) {
+  const std::string path = WriteContentFile("grep_o2.txt", "aXbXc\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "grep_o2.txt", vfs::FileType::kRegular, md);
+  grep_literal_ = true;
+  EXPECT_TRUE(Match({"-grep={column} {match}", "X"}, visit));
+  EXPECT_EQ(emitted_, "2 X\n");  // first literal X at column 2
+}
+
 TEST_F(EvaluateTest, ContentNonRegularOrMissingDoesNotMatch) {
   // A directory has no searchable content and a missing path is unreadable: both are
   // a clean no-match, not an error.

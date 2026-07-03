@@ -16,10 +16,12 @@
 #ifndef XFF_REGEX_REGEX_H_
 #define XFF_REGEX_REGEX_H_
 
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/status/statusor.h"
@@ -45,6 +47,11 @@ class Matcher {
   // regex content predicate ("the file's content matches"), the counterpart of
   // FullMatch's whole-string -regex.
   bool PartialMatch(std::string_view text) const;
+
+  // The `[offset, length)` byte span of the leftmost unanchored match in `text`, or
+  // nullopt when it does not match. Backs -grep's `{match}` (the matched substring)
+  // and `{column}` (1-based match start); PartialMatch is the yes/no counterpart.
+  std::optional<std::pair<std::size_t, std::size_t>> FindFirst(std::string_view text) const;
 
   // Like FullMatch, but on success returns the captured substrings: index 0 is
   // the whole match, 1..N the parenthesised groups (a group that did not take

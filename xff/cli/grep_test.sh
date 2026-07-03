@@ -131,4 +131,15 @@ test::grep_format_overrides_the_default_output() {
   expect_eq "no" "$(_has "${out}" ':')" # the default path:line:text colons are gone
 }
 
+test::grep_match_field_extracts_only_the_match() {
+  local root out
+  root="$(mktemp -d)"
+  printf 'error E42 here\nwarn E7\n' >"${root}/log.txt"
+  # {match} is grep -o: just the matched substring, {column} its 1-based start.
+  out="$(_run "${root}" -name 'log.txt' -grep='{column}:{match}' 'E[0-9]+')"
+  rm -rf "${root}"
+  expect_eq "yes" "$(_has "${out}" '^7:E42$')" # E42 at column 7 of "error E42 here"
+  expect_eq "yes" "$(_has "${out}" '^6:E7$')"  # E7 at column 6 of "warn E7"
+}
+
 test_runner

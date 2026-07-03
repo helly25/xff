@@ -88,6 +88,20 @@ TEST_F(FieldsTest, LineAndTextAreEmptyWithoutAMatchLine) {
   EXPECT_THAT(compiled.Render(RenderContext{.path = "f", .metadata = md}), "[][]");
 }
 
+TEST_F(FieldsTest, MatchAndColumnRenderTheMatchedSpan) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const Template compiled = Template::Compile("{column}:{match}");
+  EXPECT_THAT(
+      compiled.Render(RenderContext{.path = "f", .metadata = md, .match_text = "E42", .match_column = 6}), "6:E42");
+}
+
+TEST_F(FieldsTest, MatchAndColumnAreEmptyWithoutASpan) {
+  // match_column unset: {match}/{column} render empty (they only fire for -grep -o).
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const Template compiled = Template::Compile("[{column}][{match}]");
+  EXPECT_THAT(compiled.Render(RenderContext{.path = "f", .metadata = md}), "[][]");
+}
+
 TEST_F(FieldsTest, TimeFieldQualifiers) {
   vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   md.mtime = absl::FromUnixSeconds(1'700'000'000);  // 2023-11-14, mid-month: the year is timezone-stable

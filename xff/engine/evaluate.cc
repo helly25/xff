@@ -915,44 +915,54 @@ bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
   if (!content.has_value()) {
     return false;
   }
-  std::vector<content::LineMatch> lines;
-  if (ctx.grep_literal) {
-    // --regextype=EXACT: match the pattern as a literal substring, per line.
-    const std::string_view needle = expr.args.front();
-    lines = content::CollectLineMatches(
-        *content, [needle](std::string_view line) { return absl::StrContains(line, needle); });
-  } else {
-    // Default RE2 regex; an unparseable pattern yields a null matcher and thus no
-    // lines, mirroring -rxc.
-    const MatcherRef matcher = AsRef(expr.matcher);
-    if (!matcher.has_value()) {
-      return false;
-    }
-    lines = content::CollectLineMatches(
-        *content, [&matcher](std::string_view line) { return matcher->get().PartialMatch(line); });
+  // --regextype=EXACT matches the pattern as a literal substring; the default is the
+  // pre-compiled RE2 regex (a null matcher -- unparseable pattern -- matches nothing,
+  // mirroring -rxc). The same choice drives the line filter and, for -grep=FORMAT,
+  // the per-line {match}/{column} span.
+  const std::string_view needle = expr.args.front();
+  const MatcherRef matcher = ctx.grep_literal ? MatcherRef{} : AsRef(expr.matcher);
+  if (!ctx.grep_literal && !matcher.has_value()) {
+    return false;
   }
+  const std::vector<content::LineMatch> lines = content::CollectLineMatches(*content, [&](std::string_view line) {
+    return ctx.grep_literal ? absl::StrContains(line, needle) : matcher->get().PartialMatch(line);
+  });
   for (const content::LineMatch& line : lines) {
-    if (expr.grep_template != nullptr) {
-      // -grep=FORMAT: render the field template per match line ({line}/{text} plus
-      // the entry's {path}/{name}/... vocabulary), one record per matching line.
-      ctx.emit(
-          expr.grep_template->Render(
-              fields::RenderContext{
-                  .path = ctx.visit.path,
-                  .root = ctx.visit.root,
-                  .metadata = ctx.visit.metadata,
-                  .depth = ctx.visit.depth,
-                  .tz = ctx.tz,
-                  .time_format = ctx.time_format,
-                  .captures = ctx.captures,
-                  .defines = ctx.defines,
-                  .outputs = ctx.outputs,
-                  .line_number = line.number,
-                  .line_text = line.text})
-          + "\n");
-    } else {
+    if (expr.grep_template == nullptr) {
       ctx.emit(absl::StrCat(ctx.visit.path, ":", line.number, ":", line.text, "\n"));
+      continue;
     }
+    // -grep=FORMAT: render the field template per match line ({line}/{text} plus the
+    // entry's {path}/{name}/... vocabulary). {match}/{column} need the matched span,
+    // recomputed here on this already-matching line.
+    std::string_view match_text;
+    std::optional<std::size_t> match_column;
+    if (ctx.grep_literal) {
+      if (const std::size_t pos = line.text.find(needle); pos != std::string_view::npos) {
+        match_text = line.text.substr(pos, needle.size());
+        match_column = pos + 1;
+      }
+    } else if (const std::optional<std::pair<std::size_t, std::size_t>> span = matcher->get().FindFirst(line.text)) {
+      match_text = line.text.substr(span->first, span->second);
+      match_column = span->first + 1;
+    }
+    ctx.emit(
+        expr.grep_template->Render(
+            fields::RenderContext{
+                .path = ctx.visit.path,
+                .root = ctx.visit.root,
+                .metadata = ctx.visit.metadata,
+                .depth = ctx.visit.depth,
+                .tz = ctx.tz,
+                .time_format = ctx.time_format,
+                .captures = ctx.captures,
+                .defines = ctx.defines,
+                .outputs = ctx.outputs,
+                .line_number = line.number,
+                .line_text = line.text,
+                .match_text = match_text,
+                .match_column = match_column})
+        + "\n");
   }
   return !lines.empty();
 }
