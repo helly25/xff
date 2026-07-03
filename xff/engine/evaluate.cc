@@ -1346,11 +1346,21 @@ bool EvalPrintfln(const parser::Expr& expr, EvalContext& ctx) {
 
 // find's -fprint FILE / -fprint0 FILE / -fls FILE / -fprintf FILE FORMAT: the
 // -print/-print0/-ls/-printf output, written to a named file instead of stdout.
-// The driver opens each file once (truncating) and appends across firings; with
-// no file sink wired the actions are inert (in-process callers that pass none).
+// The xff -fprintln / -fprintfln add the OS line ending, the file-writing
+// counterparts of -println / -printfln. The driver opens each file once
+// (truncating) and appends across firings; with no file sink wired the actions
+// are inert (in-process callers that pass none).
 bool EvalFprint(const parser::Expr& expr, EvalContext& ctx) {
   if (!expr.args.empty() && ctx.emit_file) {
     ctx.emit_file(expr.args.front(), PrintRecord(ctx.visit));
+  }
+  return true;
+}
+
+// xff: -fprint with the OS line ending (the file-writing form of -println).
+bool EvalFprintln(const parser::Expr& expr, EvalContext& ctx) {
+  if (!expr.args.empty() && ctx.emit_file) {
+    ctx.emit_file(expr.args.front(), absl::StrCat(ctx.visit.path, kOsLineEnding));
   }
   return true;
 }
@@ -1373,6 +1383,15 @@ bool EvalFls(const parser::Expr& expr, EvalContext& ctx) {
 bool EvalFprintf(const parser::Expr& expr, EvalContext& ctx) {
   if (expr.args.size() >= 2 && ctx.emit_file) {
     ctx.emit_file(expr.args.front(), FormatPrintf(expr.args[1], ctx.visit, ctx.tz));
+  }
+  return true;
+}
+
+// xff: -fprintf plus the OS line ending (the file-writing form of -printfln);
+// FILE then FORMAT, like -fprintf.
+bool EvalFprintfln(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.args.size() >= 2 && ctx.emit_file) {
+    ctx.emit_file(expr.args.front(), absl::StrCat(FormatPrintf(expr.args[1], ctx.visit, ctx.tz), kOsLineEnding));
   }
   return true;
 }
@@ -1619,6 +1638,8 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-fprint", {&EvalFprint}},
     DispatchPair{"-fprint0", {&EvalFprint0}},
     DispatchPair{"-fprintf", {&EvalFprintf}},
+    DispatchPair{"-fprintfln", {&EvalFprintfln}},
+    DispatchPair{"-fprintln", {&EvalFprintln}},
     DispatchPair{"-fstype", {&EvalFstype}},
     DispatchPair{"-gid", {&EvalGid}},
     DispatchPair{"-grep", {&EvalGrep}},

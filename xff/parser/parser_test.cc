@@ -182,6 +182,18 @@ TEST_F(ParserTest, EnforceStyleRejectsXffExtensionUnderFind) {
   EXPECT_THAT(status.message(), HasSubstr("--config=xff"));
 }
 
+TEST_F(ParserTest, EnforceStyleRejectsFileWritingLineEndingActionsUnderFind) {
+  // -fprintln / -fprintfln are the file-writing counterparts of -println / -printfln,
+  // so they are xff extensions the find style rejects (their bases -fprint / -fprintf
+  // stay find-native).
+  ASSERT_OK_AND_ASSIGN(const Command ln, Parse({".", "-fprintln", "out"}));
+  EXPECT_THAT(EnforceStyle(ln, registry::Style::kFind), StatusIs(absl::StatusCode::kInvalidArgument));
+  ASSERT_OK_AND_ASSIGN(const Command fln, Parse({".", "-fprintfln", "out", "%p"}));
+  EXPECT_THAT(EnforceStyle(fln, registry::Style::kFind), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(EnforceStyle(ln, registry::Style::kXff), IsOk());
+  EXPECT_THAT(EnforceStyle(fln, registry::Style::kXff), IsOk());
+}
+
 TEST_F(ParserTest, EnforceStyleWalksTheWholeTree) {
   // A -capture buried under operators is still found (the check is a full walk).
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-type", "f", "-o", "-capture=n", "wc", ";"}));

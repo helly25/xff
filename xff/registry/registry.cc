@@ -601,6 +601,14 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .arity = 1,
     },
     {
+        // xff: -fprint with the OS line ending (the file form of -println)
+        .name = "-fprintln",
+        .summary = "write -println output to a named file (xff)",
+        .kind = Kind::kAction,
+        .arity = 1,
+        .style = Style::kXff,
+    },
+    {
         .name = "-fprint0",
         .summary = "write -print0 output to a named file",
         .kind = Kind::kAction,
@@ -611,6 +619,14 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .summary = "write -printf output to a named file",
         .kind = Kind::kAction,
         .arity = 2,
+    },
+    {
+        // xff: -fprintf with the OS line ending (the file form of -printfln)
+        .name = "-fprintfln",
+        .summary = "write -printfln output to a named file (xff)",
+        .kind = Kind::kAction,
+        .arity = 2,
+        .style = Style::kXff,
     },
     {
         .name = "-fls",

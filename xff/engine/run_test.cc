@@ -18,6 +18,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -166,6 +167,32 @@ TEST_F(RunTest, FprintWritesMatchesToFileNotStdout) {
   }
   EXPECT_THAT(lines, UnorderedElementsAre(Path("a.txt"), Path("sub/c.txt")));
   fs::remove(out, ec);
+}
+
+TEST_F(RunTest, FprintlnAndFprintflnWriteWithOsLineEndingToFile) {
+  // xff: the file-writing forms of -println / -printfln, the counterparts of -fprint /
+  // -fprintf. Each redirects into FILE (so, being an action, the implicit -print is
+  // suppressed and stdout stays empty) and terminates the record with the OS line
+  // ending (here "\n"). -fprintfln takes FILE then FORMAT, like -fprintf.
+  const auto read_all = [](const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+  };
+  const std::string ln = (fs::path(::testing::TempDir()) / "xff_fprintln.out").string();
+  const std::string fln = (fs::path(::testing::TempDir()) / "xff_fprintfln.out").string();
+  std::error_code ec;
+  fs::remove(ln, ec);
+  fs::remove(fln, ec);
+
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "-fprintln", ln}), IsEmpty());
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "-fprintfln", fln, "name %f"}), IsEmpty());
+  EXPECT_THAT(last_errors_, 0);
+
+  EXPECT_THAT(read_all(ln), Eq(Path("a.txt") + "\n"));
+  EXPECT_THAT(read_all(fln), Eq(std::string("name a.txt\n")));
+
+  fs::remove(ln, ec);
+  fs::remove(fln, ec);
 }
 
 TEST_F(RunTest, DaystartFeedsTheTimeTests) {
