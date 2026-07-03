@@ -67,9 +67,10 @@ using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier
 // -exec substitution.
 //
 // Supported: {path} {root} {relpath} (path relative to the search root, find's %P)
-// {dir} {name}/{file} {stem} {ext}/{extension}
-// {suffixes} {depth} {size} ({size:h} human-readable) {type} {inode} {links}
-// {mode}/{perm} (octal) {user} {group}, and time fields {atime} {mtime} {ctime}
+// {dir} {name}/{file} {stem} {ext}/{extension} {suffix} (last, with dot: ".gz")
+// {suffixes} {depth} {size} ({size:h} human-readable) {type} {inode} {links} {dev}
+// {mode}/{perm} (octal) {access} (ls -l / stat %A symbolic) {user} {group} {uid}
+// {gid}, and time fields {atime} {mtime} {ctime}
 // {btime} with an optional qualifier {field:QUAL} -- a strftime format
 // ({mtime:%Y-%m-%d}) or preset ({mtime:iso|epoch}); rendered in
 // RenderContext::tz (the local zone unless --timezone overrides it), default

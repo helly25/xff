@@ -158,7 +158,24 @@ TEST_F(FieldsTest, ModeAndOwnerFields) {
   md.mode = 0644;
   md.uid = 1'234'567;  // unlikely to have a passwd/group entry -> numeric fallback (find's %u/%g)
   md.gid = 1'234'567;
+  md.dev = 42;
   EXPECT_THAT(Render("{mode} {user}:{group}", "f", md, 0), "644 1234567:1234567");
+  EXPECT_THAT(Render("{uid}:{gid} dev={dev}", "f", md, 0), "1234567:1234567 dev=42");  // numeric ids + device
+}
+
+TEST_F(FieldsTest, AccessRendersTheSymbolicModeString) {
+  vfs::Metadata reg = Meta(vfs::FileType::kRegular, 0);
+  reg.mode = 0644;
+  EXPECT_THAT(Render("{access}", "f", reg, 0), "-rw-r--r--");  // ls -l / stat %A style
+  vfs::Metadata dir = Meta(vfs::FileType::kDirectory, 0);
+  dir.mode = 0755;
+  EXPECT_THAT(Render("{access}", "d", dir, 0), "drwxr-xr-x");
+  vfs::Metadata suid = Meta(vfs::FileType::kRegular, 0);
+  suid.mode = 04755;  // setuid + rwxr-xr-x -> owner exec shows 's'
+  EXPECT_THAT(Render("{access}", "f", suid, 0), "-rwsr-xr-x");
+  vfs::Metadata sticky = Meta(vfs::FileType::kDirectory, 0);
+  sticky.mode = 01777;  // sticky + rwxrwxrwx -> other exec shows 't' (e.g. /tmp)
+  EXPECT_THAT(Render("{access}", "d", sticky, 0), "drwxrwxrwt");
 }
 
 TEST_F(FieldsTest, HumanSizeAndSuffixes) {
@@ -167,6 +184,9 @@ TEST_F(FieldsTest, HumanSizeAndSuffixes) {
   EXPECT_THAT(Render("{size}", "f", Meta(vfs::FileType::kRegular, 1'536), 0), "1536");  // no qualifier
   EXPECT_THAT(Render("{suffixes}", "a/b/file.tar.gz", Meta(vfs::FileType::kRegular, 0), 0), ".tar.gz");
   EXPECT_THAT(Render("{suffixes}", "a/b/file", Meta(vfs::FileType::kRegular, 0), 0), "");
+  // {suffix} is the last extension WITH its dot; {ext} drops the dot; {suffixes} is all.
+  EXPECT_THAT(Render("{suffix}|{ext}", "a/b/file.tar.gz", Meta(vfs::FileType::kRegular, 0), 0), ".gz|gz");
+  EXPECT_THAT(Render("[{suffix}]", "a/b/file", Meta(vfs::FileType::kRegular, 0), 0), "[]");
 }
 
 TEST_F(FieldsTest, QuotedQualifierCarriesBracesColonsAndQuotes) {
