@@ -47,12 +47,6 @@ _run() {
   printf '%s' "${out}"
 }
 
-# Uses a here-string, not `printf ... | grep`: under `set -o pipefail`, grep -q
-# exits on the first match and a still-writing printf on the closed pipe takes
-# SIGPIPE, failing the pipeline and misreporting "no" on large inputs. `<<<` has
-# no upstream process, so there is nothing to SIGPIPE.
-_has() { grep -qE -- "$2" <<<"$1" && echo yes || echo no; }
-
 # A tree with one mixed-case file, Foo.txt.
 _make_tree() {
   local root
@@ -78,9 +72,9 @@ test::exact_forces_byte_exact_matching() {
   root="$(_make_tree)"
   # --exact: verbatim byte comparison regardless of the volume.
   out="$(_run --exact "${root}" -name Foo.txt)"
-  expect_eq "yes" "$(_has "${out}" 'Foo\.txt')" # exact-case name matches
+  expect_matches 'Foo\.txt' "${out}" # exact-case name matches
   out="$(_run --exact "${root}" -name foo.txt)"
-  expect_eq "no" "$(_has "${out}" 'Foo\.txt')" # wrong-case name does not
+  expect_not_matches 'Foo\.txt' "${out}" # wrong-case name does not
   rm -rf "${root}"
 }
 
@@ -89,17 +83,20 @@ test::find_style_is_byte_exact() {
   root="$(_make_tree)"
   # The find style is drop-in faithful: no FS-native folding.
   out="$(_run --config=find "${root}" -name foo.txt)"
-  expect_eq "no" "$(_has "${out}" 'Foo\.txt')"
+  expect_not_matches 'Foo\.txt' "${out}"
   rm -rf "${root}"
 }
 
 test::xff_default_follows_volume_case() {
-  local root out expect
+  local root out
   root="$(_make_tree)"
   # Bare xff style, no --exact: -name matches the way the volume resolves names.
   out="$(_run "${root}" -name foo.txt)"
-  if [[ "$(_volume_folds_case)" == "yes" ]]; then expect="yes"; else expect="no"; fi
-  expect_eq "${expect}" "$(_has "${out}" 'Foo\.txt')"
+  if [[ "$(_volume_folds_case)" == "yes" ]]; then
+    expect_matches 'Foo\.txt' "${out}"
+  else
+    expect_not_matches 'Foo\.txt' "${out}"
+  fi
   rm -rf "${root}"
 }
 
@@ -108,7 +105,7 @@ test::exact_case_name_always_matches_in_xff() {
   root="$(_make_tree)"
   # Folding only widens what matches; the verbatim name always matches.
   out="$(_run "${root}" -name Foo.txt)"
-  expect_eq "yes" "$(_has "${out}" 'Foo\.txt')"
+  expect_matches 'Foo\.txt' "${out}"
   rm -rf "${root}"
 }
 

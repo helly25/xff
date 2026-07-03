@@ -32,11 +32,6 @@ _xff_bin() {
   echo "${bin}"
 }
 
-# "yes" if $1 (output) contains the regex $2, else "no" -- for expect_eq. Uses
-# `<<<` (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a
-# still-writing printf, which fails under `set -o pipefail` and misreports "no".
-_has() { grep -qE -- "$2" <<<"$1" && echo yes || echo no; }
-
 # The ANSI CSI escape for a directory (bold blue) and the SGR reset, as literal
 # bytes so grep sees the real ESC (\033). bash 3.2 ANSI-C quoting ($'...').
 DIR_COLOR=$'\033\\[1;34m'
@@ -56,8 +51,8 @@ test::color_always_wraps_directories_in_ansi() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" --color=always "${root}" -type d 2>&1)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" "${DIR_COLOR}")"
-  expect_eq "yes" "$(_has "${out}" "${RESET}")"
+  expect_matches "${DIR_COLOR}" "${out}"
+  expect_matches "${RESET}" "${out}"
 }
 
 test::color_never_emits_no_escapes() {
@@ -65,7 +60,7 @@ test::color_never_emits_no_escapes() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" --color=never "${root}" -type d 2>&1)"
   rm -rf "${root}"
-  expect_eq "no" "$(_has "${out}" "${DIR_COLOR}")"
+  expect_not_matches "${DIR_COLOR}" "${out}"
 }
 
 test::color_auto_is_plain_when_stdout_is_not_a_tty() {
@@ -74,7 +69,7 @@ test::color_auto_is_plain_when_stdout_is_not_a_tty() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -type d 2>&1)"
   rm -rf "${root}"
-  expect_eq "no" "$(_has "${out}" "${DIR_COLOR}")"
+  expect_not_matches "${DIR_COLOR}" "${out}"
 }
 
 test::color_always_leaves_plain_files_uncolored() {
@@ -83,12 +78,12 @@ test::color_always_leaves_plain_files_uncolored() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" --color=always "${root}" -name a.txt 2>&1)"
   rm -rf "${root}"
-  expect_eq "no" "$(_has "${out}" $'\033\\[')"
+  expect_not_matches $'\033\\[' "${out}"
 }
 
 test::help_documents_color() {
   # Self-documentation: the --help usage page lists --color in the Output group.
-  expect_eq "yes" "$(_has "$("$(_xff_bin)" --help 2>&1)" "--color")"
+  expect_output_contains "--color" "$("$(_xff_bin)" --help 2>&1)"
 }
 
 test_runner

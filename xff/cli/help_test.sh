@@ -23,6 +23,11 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# A real newline for line-anchored expect_matches patterns: expect_matches matches
+# the whole text ([[ =~ ]]), so `^`/`$` anchor the whole output, not a line.
+# `(^|${NL})X` and `X($|${NL})` restore grep's per-line anchoring.
+NL=$'\n'
+
 _xff_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
   if [[ ! -x "${bin}" ]]; then
@@ -31,22 +36,17 @@ _xff_bin() {
   echo "${bin}"
 }
 
-# "yes" if $1 (output) contains the regex $2, else "no" -- for expect_eq.
-# `<<<` (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a
-# still-writing printf, which fails under `set -o pipefail` and misreports "no".
-_has() { grep -qE -- "$2" <<<"$1" && echo yes || echo no; }
-
 test::help_prints_usage_and_options() {
   local out rc
   out="$("$(_xff_bin)" --help 2>&1)" && rc=0 || rc=$?
   expect_eq "0" "${rc}"
-  expect_eq "yes" "$(_has "${out}" 'Usage:')"
-  expect_eq "yes" "$(_has "${out}" '\-\-config')" # a shipped global, not the old stub
-  expect_eq "yes" "$(_has "${out}" '\-\-quiet')"
-  expect_eq "yes" "$(_has "${out}" 'Expression:')"
+  expect_output_contains 'Usage:' "${out}"
+  expect_matches '\-\-config' "${out}" # a shipped global, not the old stub
+  expect_matches '\-\-quiet' "${out}"
+  expect_output_contains 'Expression:' "${out}"
   # The Expression section is a grouped overview that points at the full list.
-  expect_eq "yes" "$(_has "${out}" 'Name / path')"
-  expect_eq "yes" "$(_has "${out}" '\-\-help=expressions')"
+  expect_output_contains 'Name / path' "${out}"
+  expect_matches '\-\-help=expressions' "${out}"
   local n
   n="$(printf '%s\n' "${out}" | wc -l)"
   # The old stub was two lines; a real page is many more.
@@ -64,7 +64,7 @@ test::version_prints_and_exits_zero() {
   local out rc
   out="$("$(_xff_bin)" --version 2>&1)" && rc=0 || rc=$?
   expect_eq "0" "${rc}"
-  expect_eq "yes" "$(_has "${out}" 'xff')"
+  expect_output_contains 'xff' "${out}"
 }
 
 test::gnu_single_dash_help_matches_long_help() {
@@ -80,23 +80,23 @@ test::gnu_single_dash_version_prints_and_exits_zero() {
   local out rc
   out="$("$(_xff_bin)" -version 2>&1)" && rc=0 || rc=$?
   expect_eq "0" "${rc}"
-  expect_eq "yes" "$(_has "${out}" 'xff')"
+  expect_output_contains 'xff' "${out}"
 }
 
 test::man_prints_roff_and_exits_zero() {
   local out rc
   out="$("$(_xff_bin)" --man 2>&1)" && rc=0 || rc=$?
   expect_eq "0" "${rc}"
-  expect_eq "yes" "$(_has "${out}" '^\.TH xff 1')" # a roff man page header
-  expect_eq "yes" "$(_has "${out}" '^\.SH OPTIONS')"
+  expect_matches "(^|${NL})\.TH xff 1" "${out}" # a roff man page header
+  expect_matches "(^|${NL})\.SH OPTIONS" "${out}"
 }
 
 test::markdown_prints_reference_and_exits_zero() {
   local out rc
   out="$("$(_xff_bin)" --markdown 2>&1)" && rc=0 || rc=$?
   expect_eq "0" "${rc}"
-  expect_eq "yes" "$(_has "${out}" '^# xff')"
-  expect_eq "yes" "$(_has "${out}" '^## Options')"
+  expect_matches "(^|${NL})# xff" "${out}"
+  expect_matches "(^|${NL})## Options" "${out}"
 }
 
 test_runner

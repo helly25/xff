@@ -22,6 +22,11 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# A real newline for line-anchored expect_matches patterns: expect_matches matches
+# the whole text ([[ =~ ]]), so `^`/`$` anchor the whole output, not a line.
+# `(^|${NL})X` and `X($|${NL})` restore grep's per-line anchoring.
+NL=$'\n'
+
 _xff_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
   if [[ ! -x "${bin}" ]]; then
@@ -29,10 +34,6 @@ _xff_bin() {
   fi
   echo "${bin}"
 }
-
-# `<<<` (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a
-# still-writing printf, which fails under `set -o pipefail` and misreports "no".
-_has() { grep -qE -- "(^|/)${2}\$" <<<"$1" && echo yes || echo no; }
 
 # Tree: keep.cc, a.o, sub/b.o, sub/keep.h.  <root>/.gitignore => *.o
 _make_tree() {
@@ -49,7 +50,7 @@ test::gitignore_off_by_default() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -type f 2>&1)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" 'a\.o')" # .gitignore not consulted without -g
+  expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}" # .gitignore not consulted without -g
 }
 
 test::dash_g_respects_gitignore_recursively() {
@@ -57,10 +58,10 @@ test::dash_g_respects_gitignore_recursively() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" -g "${root}" -type f 2>&1)"
   rm -rf "${root}"
-  expect_eq "no" "$(_has "${out}" 'a\.o')"     # dropped at the root
-  expect_eq "no" "$(_has "${out}" 'sub/b\.o')" # and in the subdirectory
-  expect_eq "yes" "$(_has "${out}" 'keep\.cc')"
-  expect_eq "yes" "$(_has "${out}" 'sub/keep\.h')"
+  expect_not_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"     # dropped at the root
+  expect_not_matches "(^|${NL}|/)sub/b\.o(\$|${NL})" "${out}" # and in the subdirectory
+  expect_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}"
+  expect_matches "(^|${NL}|/)sub/keep\.h(\$|${NL})" "${out}"
 }
 
 test::gitignore_off_value_disables() {
@@ -68,7 +69,7 @@ test::gitignore_off_value_disables() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" --gitignore=off "${root}" -type f 2>&1)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" 'a\.o')"
+  expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
 }
 
 test::no_ignore_master_switch_overrides_dash_g() {
@@ -76,7 +77,7 @@ test::no_ignore_master_switch_overrides_dash_g() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" -g -u "${root}" -type f 2>&1)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" 'a\.o')" # -u force-disables even with -g
+  expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}" # -u force-disables even with -g
 }
 
 test::nested_gitignore_scopes_to_its_subtree() {
@@ -87,8 +88,8 @@ test::nested_gitignore_scopes_to_its_subtree() {
   printf '*.tmp\n' >"${root}/sub/.gitignore" # only in sub/
   out="$("$(_xff_bin)" -g "${root}" -type f 2>&1)"
   rm -rf "${root}"
-  expect_eq "no" "$(_has "${out}" 'inner\.tmp')" # sub/.gitignore applies here
-  expect_eq "yes" "$(_has "${out}" 'top\.tmp')"  # but not above its directory
+  expect_not_matches "(^|${NL}|/)inner\.tmp(\$|${NL})" "${out}" # sub/.gitignore applies here
+  expect_matches "(^|${NL}|/)top\.tmp(\$|${NL})" "${out}"       # but not above its directory
 }
 
 test::help_topic_documents_gitignore() {

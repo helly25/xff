@@ -22,6 +22,11 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# A real newline for line-anchored expect_matches patterns: expect_matches matches
+# the whole text ([[ =~ ]]), so `^`/`$` anchor the whole output, not a line.
+# `(^|${NL})X` and `X($|${NL})` restore grep's per-line anchoring.
+NL=$'\n'
+
 _xff_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
   if [[ ! -x "${bin}" ]]; then
@@ -43,10 +48,6 @@ _run() {
   printf '%s' "${out}"
 }
 
-# `<<<` (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a
-# still-writing printf, which fails under `set -o pipefail` and misreports "no".
-_has() { grep -qE -- "$2" <<<"$1" && echo yes || echo no; }
-
 # Tree: a.txt (1234 bytes), b.txt (10 bytes), c.md (5 bytes).
 _make_tree() {
   local root
@@ -64,9 +65,9 @@ test::summary_default_is_human_and_right_aligned_in_xff() {
   rm -rf "${root}"
   # xff style defaults to human sizes: txt (2 files, 1244 bytes) -> KiB, md (5) -> B,
   # with the count right of the label.
-  expect_eq "yes" "$(_has "${out}" 'txt +2 +[0-9.]+ KiB')"
-  expect_eq "yes" "$(_has "${out}" 'total +3 +[0-9.]+ KiB')"
-  expect_eq "yes" "$(_has "${out}" 'md +1 +5 B')"
+  expect_matches 'txt +2 +[0-9.]+ KiB' "${out}"
+  expect_matches 'total +3 +[0-9.]+ KiB' "${out}"
+  expect_matches 'md +1 +5 B' "${out}"
 }
 
 test::summary_human_off_shows_grouped_bytes() {
@@ -75,8 +76,8 @@ test::summary_human_off_shows_grouped_bytes() {
   out="$(_run --summary=ext --human=off "${root}" -type f)"
   rm -rf "${root}"
   # --human=off forces raw grouped bytes (the machine-ish view), right-aligned.
-  expect_eq "yes" "$(_has "${out}" 'txt +2 +1,244')"
-  expect_eq "yes" "$(_has "${out}" 'total +3 +1,249')"
+  expect_matches 'txt +2 +1,244' "${out}"
+  expect_matches 'total +3 +1,249' "${out}"
 }
 
 test::summary_jsonl_emits_one_object_per_row() {
@@ -84,8 +85,8 @@ test::summary_jsonl_emits_one_object_per_row() {
   root="$(_make_tree)"
   out="$(_run --summary=ext --format=jsonl "${root}" -type f)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" '\{"group":"txt","count":2,"bytes":1244\}')"
-  expect_eq "yes" "$(_has "${out}" '\{"group":"total","count":3,"bytes":1249\}')"
+  expect_matches '\{"group":"txt","count":2,"bytes":1244\}' "${out}"
+  expect_matches '\{"group":"total","count":3,"bytes":1249\}' "${out}"
 }
 
 test::summary_overall_is_a_single_total_row() {
@@ -93,7 +94,7 @@ test::summary_overall_is_a_single_total_row() {
   root="$(_make_tree)"
   out="$(_run --summary --format=jsonl "${root}" -type f)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" '\{"group":"total","count":3,"bytes":1249\}')"
+  expect_matches '\{"group":"total","count":3,"bytes":1249\}' "${out}"
 }
 
 # A 5,872,025-byte file to exercise human size units (5.6 MiB / 5.9 MB).
@@ -109,7 +110,7 @@ test::human_iec_renders_binary_units() {
   root="$(_make_big)"
   out="$(_run --summary --human "${root}" -type f)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" '5\.6 MiB')" # bare --human = iec (binary)
+  expect_matches '5\.6 MiB' "${out}" # bare --human = iec (binary)
 }
 
 test::human_si_renders_decimal_units() {
@@ -117,7 +118,7 @@ test::human_si_renders_decimal_units() {
   root="$(_make_big)"
   out="$(_run --summary --human=si "${root}" -type f)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" '5\.9 MB')"
+  expect_matches '5\.9 MB' "${out}"
 }
 
 test::human_does_not_change_jsonl_bytes() {
@@ -126,7 +127,7 @@ test::human_does_not_change_jsonl_bytes() {
   root="$(_make_big)"
   out="$(_run --summary --human --format=jsonl "${root}" -type f)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" '"bytes":5872025')"
+  expect_output_contains '"bytes":5872025' "${out}"
 }
 
 test::summary_top_keeps_the_largest_groups_by_size() {
@@ -136,9 +137,9 @@ test::summary_top_keeps_the_largest_groups_by_size() {
   root="$(_make_tree)"
   out="$(_run --summary=ext --top=1 --human=off "${root}" -type f)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" 'txt +2 +1,244')"
-  expect_eq "yes" "$(_has "${out}" 'total +3 +1,249')"
-  expect_eq "no" "$(_has "${out}" '^md ')" # the smallest group is dropped
+  expect_matches 'txt +2 +1,244' "${out}"
+  expect_matches 'total +3 +1,249' "${out}"
+  expect_not_matches "(^|${NL})md " "${out}" # the smallest group is dropped
 }
 
 test_runner

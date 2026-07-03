@@ -43,10 +43,6 @@ _run() {
   printf '%s' "${out}"
 }
 
-# `<<<` (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a
-# still-writing printf, which fails under `set -o pipefail` and misreports "no".
-_has() { grep -qE -- "$2" <<<"$1" && echo yes || echo no; }
-
 # Two files with very different size widths (1 vs 6 digits) and name lengths.
 _make_tree() {
   local root
@@ -61,8 +57,8 @@ test::ls_lists_entries_with_perms() {
   root="$(_make_tree)"
   out="$(_run "${root}" -type f -ls)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" 'aaa')"
-  expect_eq "yes" "$(_has "${out}" '\-rw')" # the permission column is present
+  expect_output_contains 'aaa' "${out}"
+  expect_matches '\-rw' "${out}" # the permission column is present
 }
 
 test::ls_columns_are_aligned() {
@@ -81,14 +77,14 @@ test::buffer_modes_are_accepted() {
   local root
   root="$(_make_tree)"
   # off (min widths), all (full buffering), and an explicit window all run and list.
-  expect_eq "yes" "$(_has "$(_run --buffer=off "${root}" -type f -ls)" 'aaa')"
-  expect_eq "yes" "$(_has "$(_run --buffer=all "${root}" -type f -ls)" 'aaa')"
-  expect_eq "yes" "$(_has "$(_run --buffer=1 "${root}" -type f -ls)" 'aaa')"
+  expect_output_contains 'aaa' "$(_run --buffer=off "${root}" -type f -ls)"
+  expect_output_contains 'aaa' "$(_run --buffer=all "${root}" -type f -ls)"
+  expect_output_contains 'aaa' "$(_run --buffer=1 "${root}" -type f -ls)"
   rm -rf "${root}"
 }
 
 test::help_topic_documents_buffer() {
-  expect_eq "yes" "$(_has "$(_run --help=--buffer)" 'buffer')"
+  expect_output_contains 'buffer' "$(_run --help=--buffer)"
 }
 
 test_runner

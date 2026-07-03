@@ -24,6 +24,11 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# A real newline for line-anchored expect_matches patterns: expect_matches matches
+# the whole text ([[ =~ ]]), so `^`/`$` anchor the whole output, not a line.
+# `(^|${NL})X` and `X($|${NL})` restore grep's per-line anchoring.
+NL=$'\n'
+
 _xff_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
   if [[ ! -x "${bin}" ]]; then
@@ -31,11 +36,6 @@ _xff_bin() {
   fi
   echo "${bin}"
 }
-
-# "yes" if $1 (output) has a line ending in the path $2, else "no". Uses `<<<`
-# (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a still-writing
-# printf, which fails under `set -o pipefail` and misreports "no" on large output.
-_has() { grep -qE -- "(^|/)${2}\$" <<<"$1" && echo yes || echo no; }
 
 # Tree: top.log, src/main.cc, src/debug.log, build/out.o.
 #   <root>/.xffignore      => *.log       (ignore logs everywhere)
@@ -55,7 +55,7 @@ test::ignore_files_off_by_default() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -type f 2>&1)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" 'top\.log')" # find-compatible: .xffignore not consulted
+  expect_matches "(^|${NL}|/)top\.log(\$|${NL})" "${out}" # find-compatible: .xffignore not consulted
 }
 
 test::ignore_files_honored_when_enabled() {
@@ -63,8 +63,8 @@ test::ignore_files_honored_when_enabled() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" --ignore-files "${root}" -type f 2>&1)"
   rm -rf "${root}"
-  expect_eq "no" "$(_has "${out}" 'top\.log')"  # dropped by the root *.log rule
-  expect_eq "yes" "$(_has "${out}" 'main\.cc')" # unaffected
+  expect_not_matches "(^|${NL}|/)top\.log(\$|${NL})" "${out}" # dropped by the root *.log rule
+  expect_matches "(^|${NL}|/)main\.cc(\$|${NL})" "${out}"     # unaffected
 }
 
 test::deeper_ignore_file_overrides_shallower() {
@@ -73,7 +73,7 @@ test::deeper_ignore_file_overrides_shallower() {
   out="$("$(_xff_bin)" --ignore-files "${root}" -type f 2>&1)"
   rm -rf "${root}"
   # src/.xffignore's !debug.log re-includes it even though the root *.log would drop it.
-  expect_eq "yes" "$(_has "${out}" 'debug\.log')"
+  expect_matches "(^|${NL}|/)debug\.log(\$|${NL})" "${out}"
 }
 
 test::no_ignore_master_switch_disables() {
@@ -82,8 +82,8 @@ test::no_ignore_master_switch_disables() {
   out_u="$("$(_xff_bin)" --ignore-files -u "${root}" -type f 2>&1)"
   out_long="$("$(_xff_bin)" --ignore-files --no-ignore "${root}" -type f 2>&1)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out_u}" 'top\.log')"    # -u forces ignore processing off
-  expect_eq "yes" "$(_has "${out_long}" 'top\.log')" # --no-ignore likewise
+  expect_matches "(^|${NL}|/)top\.log(\$|${NL})" "${out_u}"    # -u forces ignore processing off
+  expect_matches "(^|${NL}|/)top\.log(\$|${NL})" "${out_long}" # --no-ignore likewise
 }
 
 test::ignore_file_prunes_a_directory() {
@@ -94,8 +94,8 @@ test::ignore_file_prunes_a_directory() {
   printf 'skip/\n' >"${root}/.xffignore" # directory-only rule
   out="$("$(_xff_bin)" --ignore-files "${root}" -type f 2>&1)"
   rm -rf "${root}"
-  expect_eq "no" "$(_has "${out}" 'skip/b')" # skip/ pruned, its contents gone
-  expect_eq "yes" "$(_has "${out}" 'keep/a')"
+  expect_not_matches "(^|${NL}|/)skip/b(\$|${NL})" "${out}" # skip/ pruned, its contents gone
+  expect_matches "(^|${NL}|/)keep/a(\$|${NL})" "${out}"
 }
 
 test::dot_ignore_file_is_also_respected() {
@@ -105,8 +105,8 @@ test::dot_ignore_file_is_also_respected() {
   printf '*.tmp\n' >"${root}/.ignore" # the generic .ignore, not just .xffignore
   out="$("$(_xff_bin)" --ignore-files "${root}" -type f 2>&1)"
   rm -rf "${root}"
-  expect_eq "no" "$(_has "${out}" 'a\.tmp')"
-  expect_eq "yes" "$(_has "${out}" 'a\.cc')"
+  expect_not_matches "(^|${NL}|/)a\.tmp(\$|${NL})" "${out}"
+  expect_matches "(^|${NL}|/)a\.cc(\$|${NL})" "${out}"
 }
 
 test_runner

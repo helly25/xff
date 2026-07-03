@@ -25,6 +25,11 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# A real newline for line-anchored expect_matches patterns: expect_matches matches
+# the whole text ([[ =~ ]]), so `^`/`$` anchor the whole output, not a line.
+# `(^|${NL})X` and `X($|${NL})` restore grep's per-line anchoring.
+NL=$'\n'
+
 _xff_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
   if [[ ! -x "${bin}" ]]; then
@@ -32,11 +37,6 @@ _xff_bin() {
   fi
   echo "${bin}"
 }
-
-# "yes" if $1 (text) matches the regex $2, else "no" -- for expect_eq. Uses `<<<`
-# (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a still-writing
-# printf, which fails under `set -o pipefail` and misreports "no" on large output.
-_has() { grep -qE -- "$2" <<<"$1" && echo yes || echo no; }
 
 test::man_renders_through_a_roff_formatter() {
   local roff tmp rendered renderer=""
@@ -71,14 +71,14 @@ test::man_renders_through_a_roff_formatter() {
 
   # The formatter produced a real man page: title (mandoc keeps `xff(1)`, groff/man-db
   # upper-case to `XFF(1)`, so match either) + section headings and a documented option.
-  expect_eq "yes" "$(_has "${rendered}" '[Xx][Ff][Ff]\(1\)')"
-  expect_eq "yes" "$(_has "${rendered}" 'NAME')"
-  expect_eq "yes" "$(_has "${rendered}" 'OPTIONS')"
-  expect_eq "yes" "$(_has "${rendered}" '\-\-sort')"
+  expect_matches '[Xx][Ff][Ff]\(1\)' "${rendered}"
+  expect_output_contains 'NAME' "${rendered}"
+  expect_output_contains 'OPTIONS' "${rendered}"
+  expect_matches '\-\-sort' "${rendered}"
   # All roff was consumed: no control request survives into the output, neither at
   # line start nor mid-line (a `.B`/`.SH`/... left mid-sentence is printed literally).
-  expect_eq "no" "$(_has "${rendered}" '^\.[A-Za-z]')"
-  expect_eq "no" "$(_has "${rendered}" '\.(B|BR|SH|SS|TP|PP|TH) ')"
+  expect_not_matches "(^|${NL})\.[A-Za-z]" "${rendered}"
+  expect_not_matches '\.(B|BR|SH|SS|TP|PP|TH) ' "${rendered}"
 }
 
 test_runner

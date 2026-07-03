@@ -394,6 +394,18 @@ serialized-string comparison. See the Protocol Buffers section.
   whose macro emits `@com_helly25_bashtest` labels), not a hand-rolled `sh_test`:
   `load("@com_helly25_bashtest//bashtest:bashtest.bzl", "bashtest")`, then a
   script that `source`s `"${helly25_bashtest}"`, defines `test::name()` functions using
-  `expect_eq` / `expect_contains` / `expect_not_contains`, and ends with `test_runner`.
+  the `expect_*` assertions, and ends with `test_runner`.
+- **Assert on captured output with bashtest's content matchers (>= 0.5.0), never a
+  hand-rolled `grep`.** `expect_output_contains` / `expect_output_not_contains` for a
+  literal substring; `expect_matches` / `expect_not_matches` for an ERE. They take the
+  pattern / substring **first** and the text **second**, and match via bash's built-in
+  `[[ =~ ]]` (no subprocess), so - unlike `printf ... | grep -qE` - they cannot misfire
+  on SIGPIPE under `set -o pipefail`. `expect_eq` / `expect_ne` stay for scalar checks
+  (exit codes, counts); `expect_contains` / `expect_not_contains` are **array**-membership,
+  not substring. Do not reintroduce a `_has`-style `grep -q` wrapper.
+  - **Anchoring caveat:** `expect_matches` matches the **whole** text, so `^` / `$` anchor
+    the whole output, not a line (unlike `grep`). For a per-line anchor use a real newline:
+    `NL=$'\n'`, then `(^|${NL})X` for a line start and `X($|${NL})` for a line end (`\n` is
+    not a portable ERE escape, so embed the newline via `${NL}`).
 - It runs under macOS bash 3.2: **no `mapfile` / `readarray`** or other bash-4 features.
   Read lines with `while IFS= read -r line; do arr+=("$line"); done <<< "$out"`.
