@@ -169,6 +169,13 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "print an aligned count + size table (or --format=jsonl rows) instead of each match",
     },
     {
+        .name = "--count",
+        .alias = "-c",
+        .display = "--count, -c",
+        .group = "Output",
+        .summary = "with -grep, print a per-file matching-line count (path:count) instead of the lines",
+    },
+    {
         .name = "--human",
         .display = "--human[=iec|si|off]",
         .group = "Output",

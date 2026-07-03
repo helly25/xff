@@ -1091,5 +1091,13 @@ TEST_F(RunTest, GrepFormatRendersCustomTemplate) {
   EXPECT_THAT(RunExpr({"-name", "a.txt", "-grep={line}|{text}", "TODO"}), ElementsAre("2|TODO one"));
 }
 
+TEST_F(RunTest, GrepCountEmitsPerFileCount) {
+  // --count / -c (a leading global): path:count per file with matches, not the lines.
+  { std::ofstream(root_ / "a.txt") << "TODO 1\nx\nTODO 2\n"; }
+  EXPECT_THAT(
+      RunArgvRecords({"--count", root_.string(), "-name", "a.txt", "-grep", "TODO"}),
+      ElementsAre(Path("a.txt") + ":2"));
+}
+
 }  // namespace
 }  // namespace xff::engine

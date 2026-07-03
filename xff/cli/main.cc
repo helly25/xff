@@ -79,6 +79,7 @@ Options (whole-run, before the paths):
     --implicit-print=yes|no    force the default -print on or off
     --summary[=overall|type|ext]   print an aligned count + size table instead of each match
                         (grouped digits; --format=jsonl emits one machine object per row)
+    --count, -c         with -grep, print a per-file matching-line count (path:count), not the lines
     --human[=iec|si|off]   size units for -ls / --summary: iec (KiB/MiB), si (kB/MB), off (bytes)
                         (default: xff style -> human, find style -> bytes)
     --buffer[=auto|off|all|N]   -ls column alignment: buffer rows to size columns

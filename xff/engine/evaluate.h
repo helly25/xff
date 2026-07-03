@@ -96,6 +96,9 @@ struct EvalContext {
   // instead of the default RE2 regex. The driver resolves it once from --regextype
   // (RE2 the default; MATCH/PCRE reserved for #85). Only -grep consults it today.
   bool grep_literal = false;
+  // --count / -c: -grep prints one `path:count` per file (its matching-line count)
+  // instead of the lines, rg -c style; supersedes -grep=FORMAT. Only -grep reads it.
+  bool grep_count = false;
   Control& control;                              // collects -prune/-quit requests
   bool exec_fields = false;                      // --exec-fields: render -exec tokens through the field vocabulary
   std::vector<std::string>* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off

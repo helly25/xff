@@ -888,6 +888,8 @@ int RunFind(
     on_error("--regextype", grep_literal.status());
     return 2;  // do not traverse
   }
+  // --count / -c: -grep emits a per-file matching-line count instead of the lines.
+  const bool grep_count = HasGlobal(command.globals, "--count") || HasGlobal(command.globals, "-c");
   // --summary: reduce matches to a {count, total size} per group instead of
   // printing each one; the table is emitted after the walk.
   const SummaryMode summary_mode = ResolveSummary(command.globals);
@@ -1026,6 +1028,7 @@ int RunFind(
             .block_size = block_size,
             .fold_name_case = fold_name_case,
             .grep_literal = *grep_literal,
+            .grep_count = grep_count,
             .control = control,
             .exec_fields = exec_fields,
             .captures = exec_fields ? &captures : nullptr,

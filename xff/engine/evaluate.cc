@@ -927,6 +927,14 @@ bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
   const std::vector<content::LineMatch> lines = content::CollectLineMatches(*content, [&](std::string_view line) {
     return ctx.grep_literal ? absl::StrContains(line, needle) : matcher->get().PartialMatch(line);
   });
+  if (ctx.grep_count) {
+    // --count / -c (rg -c): one path:count per file with matches, in place of the
+    // lines (and any -grep=FORMAT); files with no match emit nothing.
+    if (!lines.empty()) {
+      ctx.emit(absl::StrCat(ctx.visit.path, ":", lines.size(), "\n"));
+    }
+    return !lines.empty();
+  }
   for (const content::LineMatch& line : lines) {
     if (expr.grep_template == nullptr) {
       ctx.emit(absl::StrCat(ctx.visit.path, ":", line.number, ":", line.text, "\n"));

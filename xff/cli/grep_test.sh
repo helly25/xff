@@ -142,4 +142,17 @@ test::grep_match_field_extracts_only_the_match() {
   expect_eq "yes" "$(_has "${out}" '^6:E7$')"  # E7 at column 6 of "warn E7"
 }
 
+test::grep_count_prints_per_file_match_line_count() {
+  local root out
+  root="$(mktemp -d)"
+  printf 'TODO 1\nx\nTODO 2\n' >"${root}/a.txt"
+  printf 'no hits\n' >"${root}/b.txt"
+  # --count (a leading global): path:count per file with matches; 0-match files omitted.
+  out="$(_run --count "${root}" -type f -grep 'TODO')"
+  rm -rf "${root}"
+  expect_eq "yes" "$(_has "${out}" '/a\.txt:2$')"
+  expect_eq "no" "$(_has "${out}" 'b\.txt')" # no matches -> not listed
+  expect_eq "no" "$(_has "${out}" 'TODO')"   # the lines themselves are not printed
+}
+
 test_runner
