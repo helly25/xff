@@ -106,4 +106,22 @@ test::dash_q_is_a_grep_alias_of_quiet() {
   expect_eq "1" "${rc}"
 }
 
+test::unknown_global_flag_is_a_usage_error() {
+  local dir out rc
+  dir="$(_tree unknownflag)"
+  # An unrecognized leading option is a usage error (exit 2), not silently ignored.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --bogus-flag "${dir}" 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "unknown option" "${out}" # prominent, actionable message
+  expect_output_contains "--bogus-flag" "${out}"   # names the offending flag
+}
+
+test::known_global_flag_is_accepted() {
+  local dir rc
+  dir="$(_tree knownflag)"
+  # A valid leading global (--sort) is accepted; the run exits 0.
+  XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --sort "${dir}" -name a.txt >/dev/null 2>&1 && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+}
+
 test_runner

@@ -44,6 +44,14 @@ absl::Span<const GlobalFlag> Globals();
 // nullptr if none. `name` carries its leading dashes (e.g. "--sort", "-j").
 const GlobalFlag* LookupGlobal(std::string_view name);
 
+// Whether `arg` is a recognized whole-run global token, so `main` can reject an
+// unknown leading option instead of silently ignoring it. Accepts: an exact name or
+// alias; a valued `name=VALUE` / `alias=VALUE` form when the flag advertises a value
+// (its `display` contains '='); the `-jN` / `-jall` short jobs form; and the compat
+// aliases not in the table (`-0`, `-g+`, `-g-`). The meta flags `--help` / `--version`
+// / `--man` / `--markdown` are consumed before parsing and are not checked here.
+bool IsKnownGlobal(std::string_view arg);
+
 }  // namespace xff::cli
 
 #endif  // XFF_CLI_GLOBALS_H_
