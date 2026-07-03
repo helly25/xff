@@ -75,7 +75,7 @@ void AppendCEscaped(std::string_view path, std::string* out) {
 
 }  // namespace
 
-std::string Renderer::Record(std::string_view path) const {
+std::string Renderer::Record(std::string_view path, std::string_view color) const {
   switch (format_) {
     case Format::kJsonl: {
       std::string record = "{\"path\":\"";
@@ -89,13 +89,16 @@ std::string Renderer::Record(std::string_view path) const {
       return record;
     }
     case Format::kPlain: {
+      std::string body;  // the path bytes (raw or C-escaped), before color + newline
       if (encoding_ == PathEncoding::kEscape) {
-        std::string record;
-        AppendCEscaped(path, &record);
-        record.push_back('\n');
-        return record;
+        AppendCEscaped(path, &body);
+      } else {
+        body = std::string(path);
       }
-      return absl::StrCat(path, "\n");
+      if (color.empty()) {
+        return absl::StrCat(body, "\n");
+      }
+      return absl::StrCat("\x1b[", color, "m", body, "\x1b[0m\n");
     }
   }
   return absl::StrCat(path, "\n");  // unreachable: every Format returns above

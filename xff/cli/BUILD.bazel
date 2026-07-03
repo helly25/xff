@@ -179,6 +179,16 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of --color=auto|always|never: only --color=always forces the
+# ANSI escapes when stdout is a pipe (the test captures it); a plain file stays
+# uncolored; --help documents the flag. Drives the real binary (reads isatty).
+bashtest(
+    name = "color_test",
+    size = "small",
+    srcs = ["color_test.sh"],
+    data = [":xff"],
+)
+
 # End-to-end test of the -grep action: prints path:line:text per matching content
 # line (regex), skips binaries, composes with find predicates, find style rejects it.
 bashtest(

@@ -25,6 +25,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
@@ -438,6 +439,22 @@ TEST_F(RunTest, FormatNulViaDashZero) {
       *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
       [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, UnorderedElementsAre(Eq(Path("a.txt") + std::string("\0", 1))));
+}
+
+TEST_F(RunTest, ColorAlwaysWrapsDirectoriesButLeavesPlainFilesUncolored) {
+  // --color=always forces ANSI even though the test's captured stdout is a pipe,
+  // not a tty (so the default auto would stay plain). A directory gets bold blue
+  // (1;34); a plain non-executable regular file is emitted with no escapes.
+  EXPECT_THAT(
+      RunArgvRecords({"--color=always", root_.string(), "-name", "sub"}),
+      ElementsAre(absl::StrCat("\x1b[1;34m", Path("sub"), "\x1b[0m")));
+  EXPECT_THAT(RunArgvRecords({"--color=always", root_.string(), "-name", "a.txt"}), ElementsAre(Path("a.txt")));
+}
+
+TEST_F(RunTest, ColorAutoStaysPlainWhenStdoutIsNotATty) {
+  // The captured stdout here is a pipe, so auto (the default) leaves even a
+  // directory uncolored; only --color=always would force escapes.
+  EXPECT_THAT(RunArgvRecords({root_.string(), "-name", "sub"}), ElementsAre(Path("sub")));
 }
 
 TEST_F(RunTest, DeleteRemovesMatchedFiles) {
