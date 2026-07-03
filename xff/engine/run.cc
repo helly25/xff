@@ -15,9 +15,12 @@
 
 #include "xff/engine/run.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -35,6 +38,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
+#include "xff/color/color.h"
 #include "xff/datetime/datetime.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/walk.h"
@@ -845,6 +849,13 @@ int RunFind(
   options.workers = ResolveJobs(command.globals, style);
   const render::Format format = ResolveFormat(command.globals);
   const render::PathEncoding path_encoding = ResolvePathEncoding(command.globals);
+  // --color=auto|always|never: colorize the plain listing by file type. auto (the
+  // default) colors only a real terminal with NO_COLOR unset; a pipe (or a test's
+  // captured stdout) is not a tty, so it stays plain unless --color=always forces it.
+  const bool colorize =
+      format == render::Format::kPlain
+      && color::Enabled(
+          color::ResolveWhen(command.globals), ::isatty(STDOUT_FILENO) != 0, std::getenv("NO_COLOR") != nullptr);
   const std::optional<std::string> tmpl = ResolveTemplate(command.globals);
   // A -capture whose {capture.NAME} is never referenced ran a subprocess for
   // nothing (use -exec for pure side effects); flag it before traversing.
@@ -1080,7 +1091,9 @@ int RunFind(
                         .outputs = &outputs})
                 + "\n");
           } else {
-            emit(render::Renderer(format, path_encoding).Record(visit.path));
+            const std::string_view color =
+                colorize ? color::CodeForType(visit.metadata.type, visit.metadata.mode) : std::string_view();
+            emit(render::Renderer(format, path_encoding).Record(visit.path, color));
           }
         }
         if (!control.unsupported.empty() && !unsupported_reported) {

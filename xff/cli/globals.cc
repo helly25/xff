@@ -182,6 +182,12 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "with --summary, show only the N largest groups by size (the total row still counts all)",
     },
     {
+        .name = "--color",
+        .display = "--color[=auto|always|never]",
+        .group = "Output",
+        .summary = "colorize the plain listing by file type: auto (a tty), always, or never; honors NO_COLOR",
+    },
+    {
         .name = "--human",
         .display = "--human[=iec|si|off]",
         .group = "Output",

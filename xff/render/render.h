@@ -42,7 +42,10 @@ class Renderer {
   // Returns the output record for `path`, terminator included:
   //   kPlain -> "path\n" (path C-escaped when encoding is kEscape),
   //   kNul   -> "path\0" (always raw), kJsonl -> {"path":"<JSON-escaped>"}\n.
-  std::string Record(std::string_view path) const;
+  // `color` is an ANSI SGR parameter (e.g. "1;34"); when non-empty it wraps the
+  // kPlain path in `\e[<color>m...\e[0m` (--color). Ignored for kNul (the NUL is the
+  // separator) and kJsonl (a machine format), which stay uncolored.
+  std::string Record(std::string_view path, std::string_view color = {}) const;
 
  private:
   Format format_;

@@ -178,8 +178,10 @@ remains below is the design-forked / larger work.
   expectations, like how does VSCode do it. One way: support reading something like
   https://github.com/github-linguist/linguist/blob/main/lib/linguist/languages.yml
   and offer to download if not available.
-- **Color support**: Add color support based on the file type color in languages.yml
-  or based on whatever `ls` uses.
+- **Color support**: `--color[=auto|always|never]` ships an `ls`-like scheme keyed
+  on the filesystem file type (directory, symlink, executable, fifo/socket/device);
+  auto colors only a tty and honors `NO_COLOR`. Still open: per-language coloring
+  keyed on `languages.yml` (see "File type support"), once that data source lands.
 - **`-diff` compare mode**: find files as usual, then compare each match against a
   counterpart file whose path is _constructed per entry_ from the field vocabulary
   (`{path}`/`{name}`/`{relpath}`/`{root}`/`{def.NAME}`, ...), so comparing a whole

@@ -106,6 +106,7 @@ cc_library(
     deps = [
         ":evaluate_cc",
         ":walk_cc",
+        "//xff/color:color_cc",
         "//xff/datetime:datetime_cc",
         "//xff/exec:exec_cc",
         "//xff/fields:fields_cc",
