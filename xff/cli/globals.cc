@@ -278,4 +278,29 @@ const GlobalFlag* LookupGlobal(std::string_view name) {
   return nullptr;
 }
 
+bool IsKnownGlobal(std::string_view arg) {
+  // Compat aliases that are not table rows: -0 (= --format=nul) and the -g+/-g- short
+  // gitignore forms (= --gitignore=on/off).
+  if (arg == "-0" || arg == "-g+" || arg == "-g-") {
+    return true;
+  }
+  // The short jobs form carries its value attached: -j4, -jall (the "=" form --jobs=N
+  // is handled by the valued-name path below via the -j alias).
+  if (arg.starts_with("-j") && arg.size() > 2) {
+    return true;
+  }
+  // An exact name or alias (bare flags, and valued flags used without a value).
+  if (LookupGlobal(arg) != nullptr) {
+    return true;
+  }
+  // A valued form name=VALUE / alias=VALUE: the key must resolve to a flag that
+  // advertises a value (its display contains '='), so `--safe=x` stays unknown while
+  // `--sort=tree` / `--define=A=B` are accepted (only the key before the first '=').
+  if (const std::string_view::size_type eq = arg.find('='); eq != std::string_view::npos) {
+    const GlobalFlag* const flag = LookupGlobal(arg.substr(0, eq));
+    return flag != nullptr && flag->display.find('=') != std::string_view::npos;
+  }
+  return false;
+}
+
 }  // namespace xff::cli

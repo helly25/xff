@@ -27,6 +27,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "xff/cli/globals.h"
 #include "xff/cli/help.h"
 #include "xff/cli/manpage.h"
 #include "xff/cli/markdown.h"
@@ -240,6 +241,17 @@ int RunMain(int argc, char** argv) {
     return 2;
   }
   xff::parser::Command command = *std::move(parsed);
+
+  // Reject an unknown leading global option (usually a typo) with a usage error,
+  // instead of silently ignoring it. Meta flags (--help / --version / --man /
+  // --markdown) are already handled above, so they never reach here.
+  for (const std::string& global : command.globals) {
+    if (!xff::cli::IsKnownGlobal(global)) {
+      std::cerr << "xff: unknown option '" << global << "'\n"
+                << "Try 'xff --help' for usage, or 'xff --help=NAME' for one option.\n";
+      return 2;
+    }
+  }
 
   // Load the layered config (system + user + explicit --xffrc) and resolve the
   // effective flags. --explain writes that effective configuration and exits.

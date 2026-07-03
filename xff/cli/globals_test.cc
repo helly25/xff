@@ -60,5 +60,34 @@ TEST_F(GlobalsTest, EveryGlobalResolvesByItsOwnName) {
   }
 }
 
+TEST_F(GlobalsTest, IsKnownGlobalAcceptsEveryTableNameAndAlias) {
+  for (const GlobalFlag& flag : Globals()) {
+    EXPECT_TRUE(IsKnownGlobal(flag.name)) << flag.name;
+    if (!flag.alias.empty()) {
+      EXPECT_TRUE(IsKnownGlobal(flag.alias)) << flag.alias;
+    }
+  }
+}
+
+TEST_F(GlobalsTest, IsKnownGlobalAcceptsValuedFormsAndCompatAliases) {
+  EXPECT_TRUE(IsKnownGlobal("--sort=tree"));     // valued name=VALUE
+  EXPECT_TRUE(IsKnownGlobal("--define=A=B"));    // value may itself contain '='
+  EXPECT_TRUE(IsKnownGlobal("--gitignore=on"));  // bare-or-valued flag, valued form
+  EXPECT_TRUE(IsKnownGlobal("--tz=utc"));        // valued via an alias
+  EXPECT_TRUE(IsKnownGlobal("-j4"));             // -jN short jobs form
+  EXPECT_TRUE(IsKnownGlobal("-jall"));           // -jall
+  EXPECT_TRUE(IsKnownGlobal("-0"));              // compat: --format=nul
+  EXPECT_TRUE(IsKnownGlobal("-g+"));             // compat: --gitignore=on
+  EXPECT_TRUE(IsKnownGlobal("-g-"));             // compat: --gitignore=off
+}
+
+TEST_F(GlobalsTest, IsKnownGlobalRejectsUnknownFlagsAndBadValuedKeys) {
+  EXPECT_FALSE(IsKnownGlobal("--bogus"));
+  EXPECT_FALSE(IsKnownGlobal("--srot"));  // a typo of --sort
+  EXPECT_FALSE(IsKnownGlobal("-Z"));
+  EXPECT_FALSE(IsKnownGlobal("--safe=x"));   // --safe takes no value, so a valued form is unknown
+  EXPECT_FALSE(IsKnownGlobal("--bogus=1"));  // unknown key with a value
+}
+
 }  // namespace
 }  // namespace xff::cli
