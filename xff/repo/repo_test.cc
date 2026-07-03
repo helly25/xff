@@ -15,9 +15,11 @@
 
 #include "xff/repo/repo.h"
 
+#include <map>
 #include <set>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -32,17 +34,31 @@ namespace {
 using ::testing::Eq;
 using ::testing::Optional;
 
-// A filesystem whose only meaningful query is Stat: a path exists iff it was added.
-// FindRepoRoot only probes `<dir>/.git` via Stat, so nothing else needs to work.
-class StatOnlyFs : public vfs::FileSystem {
+// A filesystem backed by two maps: `paths_` (existence, for Stat / FindRepoRoot's
+// `.git` probe) and `contents_` (file bodies, for ReadContent / GlobalExcludesPath's
+// config reads). Adding content also marks the path as existing.
+class FakeFs : public vfs::FileSystem {
  public:
   void Add(std::string path) { paths_.insert(std::move(path)); }
+
+  void AddContent(const std::string& path, std::string content) {
+    paths_.insert(path);
+    contents_[path] = std::move(content);
+  }
 
   absl::StatusOr<vfs::Metadata> Stat(std::string_view path, bool /*follow_symlinks*/) const override {
     if (paths_.contains(std::string(path))) {
       return vfs::Metadata{};
     }
-    return absl::NotFoundError("StatOnlyFs: no such path");
+    return absl::NotFoundError("FakeFs: no such path");
+  }
+
+  absl::StatusOr<std::string> ReadContent(std::string_view path) const override {
+    const auto it = contents_.find(std::string(path));
+    if (it == contents_.end()) {
+      return absl::NotFoundError("FakeFs: no such file");
+    }
+    return it->second;
   }
 
   absl::StatusOr<std::vector<vfs::Entry>> ReadDir(std::string_view) const override {
@@ -59,13 +75,12 @@ class StatOnlyFs : public vfs::FileSystem {
 
   absl::StatusOr<bool> IsCaseSensitive(std::string_view) const override { return true; }
 
-  absl::StatusOr<std::string> ReadContent(std::string_view) const override {
-    return absl::UnimplementedError("unused");
-  }
-
  private:
   std::set<std::string> paths_;
+  std::map<std::string, std::string> contents_;
 };
+
+using StatOnlyFs = FakeFs;  // the FindRepoRoot tests below only exercise Stat
 
 struct RepoTest : ::testing::Test {};
 
@@ -109,6 +124,47 @@ TEST_F(RepoTest, ReturnsNulloptWhenNoAncestorHasGit) {
 TEST_F(RepoTest, ReturnsNulloptFromTheRootWithNoGit) {
   StatOnlyFs fs;
   EXPECT_THAT(FindRepoRoot(fs, "/"), Eq(std::nullopt));
+}
+
+TEST_F(RepoTest, GlobalExcludesReadsCoreExcludesFileFromGitconfig) {
+  FakeFs fs;
+  fs.AddContent("/home/u/.gitconfig", "[core]\n\texcludesfile = /custom/ignore\n");
+  EXPECT_THAT(GlobalExcludesPath(fs, {.home = "/home/u"}), Optional(Eq("/custom/ignore")));
+}
+
+TEST_F(RepoTest, GlobalExcludesExpandsALeadingTilde) {
+  FakeFs fs;
+  fs.AddContent("/home/u/.gitconfig", "[core]\nexcludesfile = ~/my.ignore\n");
+  EXPECT_THAT(GlobalExcludesPath(fs, {.home = "/home/u"}), Optional(Eq("/home/u/my.ignore")));
+}
+
+TEST_F(RepoTest, GlobalExcludesKeyAndSectionAreCaseInsensitive) {
+  FakeFs fs;
+  fs.AddContent("/home/u/.gitconfig", "[CORE]\n  ExcludesFile = \"/quoted/path\"\n");  // quotes stripped too
+  EXPECT_THAT(GlobalExcludesPath(fs, {.home = "/home/u"}), Optional(Eq("/quoted/path")));
+}
+
+TEST_F(RepoTest, GlobalExcludesDefaultsToXdgGitIgnoreWhenUnset) {
+  FakeFs fs;  // no config files at all
+  EXPECT_THAT(GlobalExcludesPath(fs, {.home = "/home/u"}), Optional(Eq("/home/u/.config/git/ignore")));
+}
+
+TEST_F(RepoTest, GlobalExcludesHonorsXdgConfigHome) {
+  FakeFs fs;
+  fs.AddContent("/xdg/git/config", "[core]\nexcludesfile = /from/xdg\n");
+  EXPECT_THAT(GlobalExcludesPath(fs, {.home = "/home/u", .xdg_config_home = "/xdg"}), Optional(Eq("/from/xdg")));
+}
+
+TEST_F(RepoTest, GlobalExcludesGitconfigWinsOverXdg) {
+  FakeFs fs;
+  fs.AddContent("/xdg/git/config", "[core]\nexcludesfile = /from/xdg\n");
+  fs.AddContent("/home/u/.gitconfig", "[core]\nexcludesfile = /from/gitconfig\n");
+  EXPECT_THAT(GlobalExcludesPath(fs, {.home = "/home/u", .xdg_config_home = "/xdg"}), Optional(Eq("/from/gitconfig")));
+}
+
+TEST_F(RepoTest, GlobalExcludesIsNulloptWithoutHomeOrXdg) {
+  FakeFs fs;
+  EXPECT_THAT(GlobalExcludesPath(fs, {}), Eq(std::nullopt));
 }
 
 }  // namespace
