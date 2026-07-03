@@ -121,9 +121,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     {
         .name = "--gitignore",
         .alias = "-g",
-        .display = "--gitignore[=on|off], -g",
+        .display = "--gitignore[=on|off], -g[+|-]",
         .group = "Ignore / filter",
-        .summary = "respect .gitignore files: -g = auto (only in a git repo), =on always, =off never",
+        .summary = "respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never",
     },
     {
         .name = "--ignore-files",

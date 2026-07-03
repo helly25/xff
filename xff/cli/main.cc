@@ -69,7 +69,7 @@ Options (whole-run, before the paths):
   Ignore / filter:
     --exclude=GLOB      skip paths matching a gitignore-style glob (repeatable; a matched dir is pruned)
     --include=GLOB      re-include paths a --exclude would skip (repeatable; last match wins)
-    -g, --gitignore[=on|off]   respect .gitignore: bare -g = auto (only in a git repo), =on always, =off never
+    -g[+|-], --gitignore[=on|off]   respect .gitignore: -g = auto (in a git repo), -g+/=on always, -g-/=off never
     --ignore-files      respect per-directory .ignore / .xffignore files (off by default)
     --no-ignore, -u     disable all ignore-file processing (-u: rg/fd short form)
   Output:

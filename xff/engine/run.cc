@@ -561,9 +561,8 @@ bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
 
 // --gitignore / -g ternary. Bare `-g` / `--gitignore` selects AUTO (respect .gitignore
 // only when the traversal is inside a git repo, matching git's own behavior);
-// `--gitignore=on` forces it on regardless, `--gitignore=off` forces it off. Last
-// occurrence wins. Off by default (find-compatible). (The `-g+` / `-g-` short spellings
-// for the on / off forms are a separate follow-up.)
+// `--gitignore=on` (or the short `-g+`) forces it on regardless, `--gitignore=off`
+// (short `-g-`) forces it off. Last occurrence wins. Off by default (find-compatible).
 enum class GitignoreMode { kOff, kOn, kAuto };
 
 GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals) {
@@ -571,9 +570,9 @@ GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals) {
   for (const std::string& global : globals) {
     if (global == "-g" || global == "--gitignore") {
       mode = GitignoreMode::kAuto;
-    } else if (global == "--gitignore=on") {
+    } else if (global == "-g+" || global == "--gitignore=on") {
       mode = GitignoreMode::kOn;
-    } else if (global == "--gitignore=off") {
+    } else if (global == "-g-" || global == "--gitignore=off") {
       mode = GitignoreMode::kOff;
     }
   }
