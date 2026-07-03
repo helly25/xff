@@ -77,6 +77,35 @@ std::string OctalPerm(std::uint32_t mode) {
   return out.empty() ? "0" : out;
 }
 
+// The ls -l / stat %A symbolic access string for {access}: a type char followed by
+// the owner/group/other rwx triples, with setuid/setgid ('s'/'S') and sticky
+// ('t'/'T') folded onto the execute positions. Type char is ls-style ('-' for a
+// regular file, not the {type} letter 'f').
+std::string AccessString(vfs::FileType type, std::uint32_t mode) {
+  std::string out;
+  switch (type) {  // alphabetical by enum name
+    case vfs::FileType::kBlockDevice: out.push_back('b'); break;
+    case vfs::FileType::kCharDevice: out.push_back('c'); break;
+    case vfs::FileType::kDirectory: out.push_back('d'); break;
+    case vfs::FileType::kFifo: out.push_back('p'); break;
+    case vfs::FileType::kRegular: out.push_back('-'); break;
+    case vfs::FileType::kSocket: out.push_back('s'); break;
+    case vfs::FileType::kSymlink: out.push_back('l'); break;
+    case vfs::FileType::kUnknown: out.push_back('?'); break;
+  }
+  // One rwx triple: r, w, then x with the special (setid/sticky) bit folded in.
+  const auto triple = [&out, mode](unsigned r, unsigned w, unsigned x, unsigned special, char set, char clr) {
+    out.push_back((mode & r) != 0 ? 'r' : '-');
+    out.push_back((mode & w) != 0 ? 'w' : '-');
+    const bool exec = (mode & x) != 0;
+    out.push_back((mode & special) != 0 ? (exec ? set : clr) : (exec ? 'x' : '-'));
+  };
+  triple(0400U, 0200U, 0100U, 04000U, 's', 'S');  // owner + setuid
+  triple(0040U, 0020U, 0010U, 02000U, 's', 'S');  // group + setgid
+  triple(0004U, 0002U, 0001U, 01000U, 't', 'T');  // other + sticky
+  return out;
+}
+
 // Owner / group name from the password / group database, falling back to the
 // numeric id when there is no entry (matching find's %u/%g).
 std::string OwnerName(std::uint32_t uid) {
@@ -177,6 +206,12 @@ std::string SuffixesField(std::string_view, std::string_view, const RenderContex
   return dot == std::string::npos ? "" : filename.substr(dot);
 }
 
+// {suffix}: the LAST extension WITH its leading dot (pathlib's .suffix: ".gz"),
+// complementing {ext} (no dot: "gz") and {suffixes} (all of them: ".tar.gz").
+std::string SuffixField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return stdfs::path(std::string(ctx.path)).extension().string();  // ".gz", or "" when none
+}
+
 std::string DepthField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::to_string(ctx.depth);
 }
@@ -254,6 +289,25 @@ std::string GroupField(std::string_view, std::string_view, const RenderContext& 
   return GroupName(ctx.metadata.gid);
 }
 
+// {uid} / {gid}: numeric owner / group ids (find's %U/%G), complementing the name
+// fields {user}/{group}. {dev}: the device number (find's %D). {access}: the ls -l /
+// stat %A symbolic permission string, complementing the octal {mode}/{perm}.
+std::string UidField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return std::to_string(ctx.metadata.uid);
+}
+
+std::string GidField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return std::to_string(ctx.metadata.gid);
+}
+
+std::string DevField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return std::to_string(ctx.metadata.dev);
+}
+
+std::string AccessField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return AccessString(ctx.metadata.type, ctx.metadata.mode);
+}
+
 std::string EmptyField(std::string_view, std::string_view, const RenderContext&) {
   return "";  // unknown field -> empty
 }
@@ -264,16 +318,19 @@ std::string EmptyField(std::string_view, std::string_view, const RenderContext&)
 using FieldEntry = std::pair<std::string_view, detail::FieldFn>;
 constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"", &PathField},  // {} -> full path (find's -exec placeholder)
+    FieldEntry{"access", &AccessField},
     FieldEntry{"atime", &AtimeField},
     FieldEntry{"blocks", &BlocksField},
     FieldEntry{"btime", &BtimeField},
     FieldEntry{"column", &ColumnField},
     FieldEntry{"ctime", &CtimeField},
     FieldEntry{"depth", &DepthField},
+    FieldEntry{"dev", &DevField},
     FieldEntry{"dir", &DirField},
     FieldEntry{"ext", &ExtField},
     FieldEntry{"extension", &ExtField},
     FieldEntry{"file", &NameField},
+    FieldEntry{"gid", &GidField},
     FieldEntry{"group", &GroupField},
     FieldEntry{"inode", &InodeField},
     FieldEntry{"line", &LineField},
@@ -288,9 +345,11 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"root", &RootField},
     FieldEntry{"size", &SizeField},
     FieldEntry{"stem", &StemField},
+    FieldEntry{"suffix", &SuffixField},
     FieldEntry{"suffixes", &SuffixesField},
     FieldEntry{"text", &TextField},
     FieldEntry{"type", &TypeField},
+    FieldEntry{"uid", &UidField},
     FieldEntry{"user", &UserField});
 
 // Resolves a field name to its renderer; an unknown name renders empty.
