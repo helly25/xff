@@ -132,6 +132,27 @@ std::string RootField(std::string_view, std::string_view, const RenderContext& c
   return std::string(ctx.root);  // command-line search root (find %H); empty when unset
 }
 
+// {relpath}: the entry's path relative to the search root it was reached from
+// (find's %P) -- the root prefix and its trailing separator removed. Empty for the
+// root operand itself, and (best-effort) the whole path when no root is recorded or
+// the path is not root-prefixed. Mirrors engine::RelativeTo so `-cmp`/`-diff` targets
+// like '{def.B}/{relpath}' address the parallel entry under another tree.
+std::string RelpathField(std::string_view, std::string_view, const RenderContext& ctx) {
+  const std::string_view path = ctx.path;
+  const std::string_view root = ctx.root;
+  if (root.empty() || path == root) {
+    return path == root ? std::string() : std::string(path);
+  }
+  if (path.size() > root.size() && path.substr(0, root.size()) == root) {
+    std::string_view rest = path.substr(root.size());
+    while (!rest.empty() && rest.front() == '/') {
+      rest.remove_prefix(1);
+    }
+    return std::string(rest);
+  }
+  return std::string(path);  // not root-prefixed (should not happen from the walk)
+}
+
 std::string DirField(std::string_view, std::string_view, const RenderContext& ctx) {
   const std::string parent = stdfs::path(std::string(ctx.path)).parent_path().string();
   return parent.empty() ? "." : parent;  // find's %h is "." when there is no directory part
@@ -263,6 +284,7 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"name", &NameField},
     FieldEntry{"path", &PathField},
     FieldEntry{"perm", &ModeField},
+    FieldEntry{"relpath", &RelpathField},
     FieldEntry{"root", &RootField},
     FieldEntry{"size", &SizeField},
     FieldEntry{"stem", &StemField},
