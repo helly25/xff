@@ -168,6 +168,36 @@ test::dash_g_from_a_subdir_honors_repo_root_ignores() {
   expect_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}"
 }
 
+test::default_global_git_ignore_is_honored() {
+  # git's default global ignore ($XDG_CONFIG_HOME/git/ignore, else ~/.config/git/ignore)
+  # is the lowest ignore layer. Drive it via a throwaway HOME (XDG unset).
+  local root home out
+  root="$(mktemp -d)"
+  home="$(mktemp -d)"
+  mkdir -p "${root}/.git" "${home}/.config/git"
+  touch "${root}/keep.cc" "${root}/drop.bak"
+  printf '*.bak\n' >"${home}/.config/git/ignore"
+  out="$(env -u XDG_CONFIG_HOME HOME="${home}" "$(_xff_bin)" -g "${root}" -type f 2>&1)"
+  rm -rf "${root}" "${home}"
+  expect_not_matches "(^|${NL}|/)drop\.bak(\$|${NL})" "${out}" # ~/.config/git/ignore applies
+  expect_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}"
+}
+
+test::core_excludesfile_is_honored() {
+  # core.excludesFile in ~/.gitconfig points at a custom global ignore file.
+  local root home out
+  root="$(mktemp -d)"
+  home="$(mktemp -d)"
+  mkdir -p "${root}/.git"
+  touch "${root}/keep.cc" "${root}/drop.bak"
+  printf '*.bak\n' >"${home}/my_ignore"
+  printf '[core]\n\texcludesfile = %s/my_ignore\n' "${home}" >"${home}/.gitconfig"
+  out="$(env -u XDG_CONFIG_HOME HOME="${home}" "$(_xff_bin)" -g "${root}" -type f 2>&1)"
+  rm -rf "${root}" "${home}"
+  expect_not_matches "(^|${NL}|/)drop\.bak(\$|${NL})" "${out}" # core.excludesFile applies
+  expect_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}"
+}
+
 test::help_topic_documents_gitignore() {
   # Capture the exit status and the full output separately, and surface both when the
   # assertion fails, so a flake (e.g. the sanitizer aborting the subprocess) is

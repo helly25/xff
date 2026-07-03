@@ -521,8 +521,15 @@ std::string AbsoluteDir(std::string_view root) {
 // no lock. Inactive (no filenames) is a no-op.
 class IgnoreFileCache {
  public:
-  IgnoreFileCache(const vfs::FileSystem& fs, std::vector<std::string> filenames, bool gitignore_on)
-      : fs_(&fs), filenames_(std::move(filenames)), gitignore_on_(gitignore_on) {}
+  IgnoreFileCache(
+      const vfs::FileSystem& fs,
+      std::vector<std::string> filenames,
+      bool gitignore_on,
+      ignore::PatternList global_excludes)
+      : fs_(&fs),
+        filenames_(std::move(filenames)),
+        gitignore_on_(gitignore_on),
+        global_excludes_(std::move(global_excludes)) {}
 
   bool active() const { return !filenames_.empty(); }
 
@@ -555,12 +562,16 @@ class IgnoreFileCache {
         return decision;
       }
       if (ancestor.empty()) {
-        // At the repo root, `.git/info/exclude` applies below every `.gitignore` (it is
-        // repo-root-anchored, so it matches the entry relative to the repo root: `rel`).
+        // At the repo root, `.git/info/exclude` applies below every `.gitignore`, and
+        // git's global excludes (`core.excludesFile`) below that -- both repo-root-
+        // anchored, so they match the entry relative to the repo root: `rel`.
         if (scope.in_repo) {
-          return RepoExcludeFor(scope.base).Match(rel, is_dir);
+          const ignore::Decision decision = RepoExcludeFor(scope.base).Match(rel, is_dir);
+          if (decision != ignore::Decision::kDefault) {
+            return decision;
+          }
         }
-        return ignore::Decision::kDefault;
+        return global_excludes_.Match(rel, is_dir);  // lowest layer; empty (a no-op) when off / none
       }
     }
   }
@@ -626,6 +637,7 @@ class IgnoreFileCache {
   const vfs::FileSystem* fs_;
   std::vector<std::string> filenames_;
   bool gitignore_on_;
+  ignore::PatternList global_excludes_;  // git core.excludesFile, applied below .git/info/exclude
   std::map<std::string, Scope> scope_cache_;
   std::map<std::string, ignore::PatternList> cache_;
   std::map<std::string, ignore::PatternList> repo_exclude_cache_;
@@ -1034,7 +1046,22 @@ int RunFind(
   const GitignoreMode gitignore_mode = ResolveGitignoreMode(command.globals);
   const bool gitignore_on = gitignore_mode == GitignoreMode::kOn
                             || (gitignore_mode == GitignoreMode::kAuto && AnyRootInRepo(walk_fs, command.roots));
-  IgnoreFileCache ignore_files(walk_fs, ResolveIgnoreFileNames(command.globals, gitignore_on), gitignore_on);
+  // git's global excludes (core.excludesFile, else ~/.config/git/ignore): the lowest
+  // ignore layer, resolved once when gitignore is on. Read through walk_fs so --dry-run
+  // still consults it; empty (a no-op) otherwise.
+  ignore::PatternList global_excludes;
+  if (gitignore_on) {
+    const char* const home = std::getenv("HOME");
+    const char* const xdg = std::getenv("XDG_CONFIG_HOME");
+    const repo::GitConfigEnv env{.home = home == nullptr ? "" : home, .xdg_config_home = xdg == nullptr ? "" : xdg};
+    if (const std::optional<std::string> path = repo::GlobalExcludesPath(walk_fs, env)) {
+      if (const absl::StatusOr<std::string> content = walk_fs.ReadContent(*path); content.ok()) {
+        global_excludes = ignore::PatternList::Parse(*content);
+      }
+    }
+  }
+  IgnoreFileCache ignore_files(
+      walk_fs, ResolveIgnoreFileNames(command.globals, gitignore_on), gitignore_on, std::move(global_excludes));
 
   // -ok confirmation: prompt to stderr, read a line from stdin, affirmative on y/Y (like find).
   const auto confirm = [](std::string_view prompt) -> bool {
