@@ -140,6 +140,34 @@ test::nested_gitignore_scopes_to_its_subtree() {
   expect_matches "(^|${NL}|/)top\.tmp(\$|${NL})" "${out}"       # but not above its directory
 }
 
+test::git_info_exclude_is_honored() {
+  local root out
+  root="$(mktemp -d)"
+  mkdir -p "${root}/.git/info" # a real .git dir -> repo root
+  printf '*.tmp\n' >"${root}/.git/info/exclude"
+  touch "${root}/keep.cc" "${root}/drop.tmp"
+  out="$("$(_xff_bin)" -g "${root}" -type f 2>&1)"
+  rm -rf "${root}"
+  expect_not_matches "(^|${NL}|/)drop\.tmp(\$|${NL})" "${out}" # .git/info/exclude drops it
+  expect_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}"
+}
+
+test::dash_g_from_a_subdir_honors_repo_root_ignores() {
+  # Search root is a SUBDIR of the repo: git/rg/fd honor the repo-root .gitignore and
+  # .git/info/exclude even though they sit ABOVE the search root.
+  local root out
+  root="$(mktemp -d)"
+  mkdir -p "${root}/.git/info" "${root}/sub"
+  printf '*.log\n' >"${root}/.gitignore"        # repo-root .gitignore (above the search root)
+  printf '*.tmp\n' >"${root}/.git/info/exclude" # repo-level exclude
+  touch "${root}/sub/a.log" "${root}/sub/b.tmp" "${root}/sub/keep.cc"
+  out="$("$(_xff_bin)" -g "${root}/sub" -type f 2>&1)"
+  rm -rf "${root}"
+  expect_not_matches "(^|${NL}|/)a\.log(\$|${NL})" "${out}" # repo-root .gitignore reaches down
+  expect_not_matches "(^|${NL}|/)b\.tmp(\$|${NL})" "${out}" # .git/info/exclude reaches down
+  expect_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}"
+}
+
 test::help_topic_documents_gitignore() {
   # Capture the exit status and the full output separately, and surface both when the
   # assertion fails, so a flake (e.g. the sanitizer aborting the subprocess) is

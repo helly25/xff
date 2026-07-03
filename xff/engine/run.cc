@@ -496,41 +496,104 @@ ignore::PatternList BuildIgnorePatterns(const std::vector<std::string>& globals)
   return patterns;
 }
 
-// Per-directory ignore-file lookup for --ignore-files: reads and caches each
-// directory's combined ignore PatternList (.ignore then .xffignore, so the xff file
-// wins) lazily, and answers the ignore Decision for a path from the ignore files in
-// its ancestor directories -- deepest first, so a deeper file overrides a shallower
-// one (gitignore precedence). Single-threaded: the walk visitor runs on one
-// coordinator thread, so the cache needs no lock. Inactive (no filenames) is a no-op.
+// Resolves a search root to an absolute, normalized path for repo discovery (which
+// walks the path string upward, so it needs an absolute path). Prepends the process
+// cwd for a relative root; falls back to the raw path if that fails.
+std::string AbsoluteDir(std::string_view root) {
+  std::error_code ec;
+  const std::filesystem::path abs = std::filesystem::absolute(std::filesystem::path(root), ec);
+  return ec ? std::string(root) : abs.lexically_normal().string();
+}
+
+// Per-directory ignore-file lookup for --ignore-files / -g: reads and caches each
+// directory's combined ignore PatternList (.gitignore < .ignore < .xffignore, so the
+// later file wins) lazily, and answers the ignore Decision for a path from the ignore
+// files in its ancestor directories -- deepest first, so a deeper file overrides a
+// shallower one (gitignore precedence).
+//
+// When gitignore is on and a search root is inside a git repo, the ancestor walk is
+// rebased on the REPO ROOT (git/rg/fd behavior): every directory from the entry up to
+// the repo root is consulted -- including directories ABOVE the search root -- and the
+// repo's `.git/info/exclude` is applied at the bottom (below every `.gitignore`). Off
+// a repo (or gitignore off) the walk stops at the search root, unchanged.
+//
+// Single-threaded: the walk visitor runs on one coordinator thread, so the cache needs
+// no lock. Inactive (no filenames) is a no-op.
 class IgnoreFileCache {
  public:
-  IgnoreFileCache(const vfs::FileSystem& fs, std::vector<std::string> filenames)
-      : fs_(&fs), filenames_(std::move(filenames)) {}
+  IgnoreFileCache(const vfs::FileSystem& fs, std::vector<std::string> filenames, bool gitignore_on)
+      : fs_(&fs), filenames_(std::move(filenames)), gitignore_on_(gitignore_on) {}
 
   bool active() const { return !filenames_.empty(); }
 
   ignore::Decision Decide(std::string_view path, std::string_view root, bool is_dir) {
-    const std::string_view rel = RelativeTo(path, root);
-    // Walk the ancestor directories of `path`, deepest first: for rel "a/b/c" that is
-    // "a/b", then "a", then "" (the root itself). Each directory's ignore file matches
-    // the entry's path relative to THAT directory.
+    const Scope& scope = ScopeFor(root);
+    // In repo scope the walk is done in absolute paths anchored at the repo root, so a
+    // relative entry (e.g. under root ".") is first rebased onto the search root's
+    // absolute form. Off a repo, `base` is the search root as given and no rebase is
+    // needed. `owner` keeps the rebased string alive for the string_views below.
+    std::string owner;
+    std::string_view rel;
+    if (scope.in_repo) {
+      const std::string_view rel_to_root = RelativeTo(path, root);
+      owner = rel_to_root.empty() ? scope.abs_root : absl::StrCat(scope.abs_root, "/", rel_to_root);
+      rel = RelativeTo(owner, scope.base);
+    } else {
+      rel = RelativeTo(path, root);
+    }
+    // Walk the ancestor directories of the entry, deepest first: for rel "a/b/c" that is
+    // "a/b", then "a", then "" (the base). Each directory's ignore file matches the entry
+    // relative to THAT directory.
     std::string_view ancestor = rel;
     for (;;) {
       const std::string_view::size_type slash = ancestor.rfind('/');
       ancestor = slash == std::string_view::npos ? std::string_view() : ancestor.substr(0, slash);
-      const std::string dir = ancestor.empty() ? std::string(root) : absl::StrCat(root, "/", ancestor);
+      const std::string dir = ancestor.empty() ? scope.base : absl::StrCat(scope.base, "/", ancestor);
       const std::string_view sub = ancestor.empty() ? rel : rel.substr(ancestor.size() + 1);
       const ignore::Decision decision = ListFor(dir).Match(sub, is_dir);
       if (decision != ignore::Decision::kDefault) {
         return decision;
       }
       if (ancestor.empty()) {
+        // At the repo root, `.git/info/exclude` applies below every `.gitignore` (it is
+        // repo-root-anchored, so it matches the entry relative to the repo root: `rel`).
+        if (scope.in_repo) {
+          return RepoExcludeFor(scope.base).Match(rel, is_dir);
+        }
         return ignore::Decision::kDefault;
       }
     }
   }
 
  private:
+  // Where a search root's ignore walk is anchored: `base` is the repo root (absolute)
+  // when gitignore is on and the root is in a repo (`in_repo`), else the search root as
+  // given. `abs_root` is the root's absolute form, used to rebase relative entries.
+  struct Scope {
+    std::string base;
+    std::string abs_root;
+    bool in_repo = false;
+  };
+
+  const Scope& ScopeFor(std::string_view root) {
+    const auto it = scope_cache_.find(std::string(root));
+    if (it != scope_cache_.end()) {
+      return it->second;
+    }
+    Scope scope;
+    if (gitignore_on_) {
+      scope.abs_root = AbsoluteDir(root);
+      if (const std::optional<std::string> repo_root = repo::FindRepoRoot(*fs_, scope.abs_root)) {
+        scope.base = *repo_root;
+        scope.in_repo = true;
+      }
+    }
+    if (!scope.in_repo) {
+      scope.base = std::string(root);
+    }
+    return scope_cache_.emplace(std::string(root), std::move(scope)).first->second;
+  }
+
   const ignore::PatternList& ListFor(const std::string& dir) {
     const auto it = cache_.find(dir);
     if (it != cache_.end()) {
@@ -545,9 +608,27 @@ class IgnoreFileCache {
     return cache_.emplace(dir, std::move(list)).first->second;
   }
 
+  // The repo's `.git/info/exclude` (gitignore-format), matched relative to the repo
+  // root; cached per repo root, empty when the file is absent.
+  const ignore::PatternList& RepoExcludeFor(const std::string& repo_root) {
+    const auto it = repo_exclude_cache_.find(repo_root);
+    if (it != repo_exclude_cache_.end()) {
+      return it->second;
+    }
+    ignore::PatternList list;
+    if (const absl::StatusOr<std::string> content = fs_->ReadContent(absl::StrCat(repo_root, "/.git/info/exclude"));
+        content.ok()) {
+      list.AddPatterns(*content);
+    }
+    return repo_exclude_cache_.emplace(repo_root, std::move(list)).first->second;
+  }
+
   const vfs::FileSystem* fs_;
   std::vector<std::string> filenames_;
+  bool gitignore_on_;
+  std::map<std::string, Scope> scope_cache_;
   std::map<std::string, ignore::PatternList> cache_;
+  std::map<std::string, ignore::PatternList> repo_exclude_cache_;
 };
 
 bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
@@ -577,15 +658,6 @@ GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals) {
     }
   }
   return mode;
-}
-
-// Resolves a search root to an absolute, normalized path for repo discovery (which
-// walks the path string upward, so it needs an absolute path). Prepends the process
-// cwd for a relative root; falls back to the raw path if that fails.
-std::string AbsoluteDir(std::string_view root) {
-  std::error_code ec;
-  const std::filesystem::path abs = std::filesystem::absolute(std::filesystem::path(root), ec);
-  return ec ? std::string(root) : abs.lexically_normal().string();
 }
 
 // -g auto: whether any search root is inside a git working tree, so .gitignore applies.
@@ -962,7 +1034,7 @@ int RunFind(
   const GitignoreMode gitignore_mode = ResolveGitignoreMode(command.globals);
   const bool gitignore_on = gitignore_mode == GitignoreMode::kOn
                             || (gitignore_mode == GitignoreMode::kAuto && AnyRootInRepo(walk_fs, command.roots));
-  IgnoreFileCache ignore_files(walk_fs, ResolveIgnoreFileNames(command.globals, gitignore_on));
+  IgnoreFileCache ignore_files(walk_fs, ResolveIgnoreFileNames(command.globals, gitignore_on), gitignore_on);
 
   // -ok confirmation: prompt to stderr, read a line from stdin, affirmative on y/Y (like find).
   const auto confirm = [](std::string_view prompt) -> bool {
