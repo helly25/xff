@@ -48,6 +48,7 @@
 #include "xff/engine/walk.h"
 #include "xff/exec/exec.h"
 #include "xff/fields/fields.h"
+#include "xff/mime/mime.h"
 #include "xff/parser/ast.h"
 #include "xff/regex/regex.h"
 #include "xff/registry/descriptor.h"
@@ -979,6 +980,13 @@ bool EvalType(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && MatchesType(expr.args.front(), ctx.visit.metadata.type);
 }
 
+// xff -mime GLOB: match the entry's media type (derived from its extension via the
+// mime table) against a shell glob, so -mime 'image/*' selects png/jpeg/... at once.
+// Content is not read; an unknown or absent extension is application/octet-stream.
+bool EvalMime(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && Fnmatch(expr.args.front(), mime::TypeForName(ctx.visit.name), 0);
+}
+
 // -xtype: like -type, but for a symlink it tests the type of the link's *target*
 // (the link is followed). A broken symlink is reported as a symlink, so
 // "-xtype l" matches it, matching GNU find under the default -P.
@@ -1576,6 +1584,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-links", {&EvalLinks}},
     DispatchPair{"-lname", {&EvalLname}},
     DispatchPair{"-ls", {&EvalLs}},
+    DispatchPair{"-mime", {&EvalMime}},
     DispatchPair{"-mmin", {&EvalMmin}},
     DispatchPair{"-mtime", {&EvalMtime}},
     DispatchPair{"-name", {&EvalName}},

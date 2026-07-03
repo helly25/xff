@@ -150,6 +150,14 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .arity = 1,
     },
     {
+        // xff: match the media (MIME) type derived from the extension, glob-style.
+        .name = "-mime",
+        .summary = "match the media type by extension against a glob, e.g. -mime 'image/*' (xff)",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .style = Style::kXff,
+    },
+    {
         .name = "-size",
         .summary = "match the apparent size (unit suffix c/w/k/M/G/T/P/E)",
         .kind = Kind::kTest,

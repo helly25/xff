@@ -255,6 +255,19 @@ TEST_F(EvaluateTest, TypeMatchesFileType) {
   EXPECT_FALSE(Match({"-type", "f"}, dir));
 }
 
+TEST_F(EvaluateTest, MimeGlobsTheExtensionDerivedMediaType) {
+  vfs::Metadata md;
+  const Visit png = MakeVisit("dir/photo.png", "photo.png", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-mime", "image/*"}, png));    // image/png matches the glob
+  EXPECT_TRUE(Match({"-mime", "image/png"}, png));  // and the exact type
+  EXPECT_FALSE(Match({"-mime", "text/*"}, png));
+  // An unknown / absent extension is application/octet-stream (the file(1) fallback).
+  vfs::Metadata bin_md;
+  const Visit bin = MakeVisit("dir/README", "README", vfs::FileType::kRegular, bin_md);
+  EXPECT_TRUE(Match({"-mime", "application/octet-stream"}, bin));
+  EXPECT_FALSE(Match({"-mime", "text/*"}, bin));
+}
+
 TEST_F(EvaluateTest, TypeListMatchesAnyListedType) {
   vfs::Metadata file_md;
   const Visit file = MakeVisit("x", "x", vfs::FileType::kRegular, file_md);
