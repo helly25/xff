@@ -892,6 +892,14 @@ TEST_F(RunTest, SummaryByExtensionGroupsSortedThenTotals) {
           R"({"group":"total","count":3,"bytes":3})"));
 }
 
+TEST_F(RunTest, SummaryTopKeepsTheLargestGroupsBySize) {
+  // --top=1: keep the largest group by size (txt, 2 bytes) and drop md (1 byte),
+  // ordered by size; the total row still counts every matched group.
+  EXPECT_THAT(
+      RunArgvRecords({"--summary=ext", "--top=1", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(R"({"group":"txt","count":2,"bytes":2})", R"({"group":"total","count":3,"bytes":3})"));
+}
+
 TEST_F(RunTest, LsEmitsOneLinePerMatchAndSuppressesImplicitPrint) {
   // -ls is an action, so it suppresses the implicit -print: exactly one line (the
   // ls-style listing) for the match, containing its path. The exact columns are

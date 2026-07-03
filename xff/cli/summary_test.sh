@@ -129,4 +129,16 @@ test::human_does_not_change_jsonl_bytes() {
   expect_eq "yes" "$(_has "${out}" '"bytes":5872025')"
 }
 
+test::summary_top_keeps_the_largest_groups_by_size() {
+  # txt (a.txt+b.txt = 1244 B) is larger than md (c.md = 5 B); --top=1 keeps txt and
+  # drops md, while the total row still counts every group.
+  local root out
+  root="$(_make_tree)"
+  out="$(_run --summary=ext --top=1 --human=off "${root}" -type f)"
+  rm -rf "${root}"
+  expect_eq "yes" "$(_has "${out}" 'txt +2 +1,244')"
+  expect_eq "yes" "$(_has "${out}" 'total +3 +1,249')"
+  expect_eq "no" "$(_has "${out}" '^md ')" # the smallest group is dropped
+}
+
 test_runner
