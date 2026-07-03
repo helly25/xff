@@ -32,9 +32,11 @@ must precede the root (such as `--summary`) can: `["--summary", "<ROOT>", "-type
 1. Add an `xff_golden(...)` target in `../BUILD.bazel` (reuse `basic_tree.sh` or add a new
    fixture script here).
 2. Create empty golden files, run the test once, and paste the actual output from the
-   failure diff into them - or generate them the same way the driver does: run
-   `xff --config=<style> <args-with-$TREE>` and pipe through `sed 's|$TREE|<ROOT>|g' |
-LC_ALL=C sort`.
+   failure diff into them - or generate them the same way the driver does:
+
+   ```sh
+   xff --config=<style> <args-with-$TREE> 2>&1 | sed "s|$TREE|<ROOT>|g" | LC_ALL=C sort
+   ```
 
 ## Updating goldens after an intended behavior change
 
