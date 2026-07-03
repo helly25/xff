@@ -451,6 +451,14 @@ TEST_F(RunTest, ColorAlwaysWrapsDirectoriesButLeavesPlainFilesUncolored) {
   EXPECT_THAT(RunArgvRecords({"--color=always", root_.string(), "-name", "a.txt"}), ElementsAre(Path("a.txt")));
 }
 
+TEST_F(RunTest, TemplateRelpathIsRelativeToTheSearchRoot) {
+  // {relpath} renders each entry's path relative to the search root (find %P), so the
+  // walk's per-entry root wiring is exercised end-to-end.
+  EXPECT_THAT(
+      RunArgvRecords({"--template={relpath}", root_.string(), "-type", "f"}),
+      UnorderedElementsAre("a.txt", "b.md", "sub/c.txt"));
+}
+
 TEST_F(RunTest, ColorAutoStaysPlainWhenStdoutIsNotATty) {
   // The captured stdout here is a pipe, so auto (the default) leaves even a
   // directory uncolored; only --color=always would force escapes.

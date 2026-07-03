@@ -64,6 +64,17 @@ TEST_F(FieldsTest, DirOfTopLevelEntryIsDot) {
   EXPECT_THAT(Render("{dir}", "file", Meta(vfs::FileType::kRegular, 0), 0), ".");
 }
 
+TEST_F(FieldsTest, RelpathIsThePathRelativeToTheSearchRoot) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const Template compiled = Template::Compile("{relpath}");
+  // Descendant: the root prefix and its separator are stripped (find's %P).
+  EXPECT_THAT(compiled.Render(RenderContext{.path = "A/sub/x.txt", .root = "A", .metadata = md}), "sub/x.txt");
+  // The root operand itself renders empty.
+  EXPECT_THAT(compiled.Render(RenderContext{.path = "A", .root = "A", .metadata = md}), "");
+  // No root recorded: best-effort whole path.
+  EXPECT_THAT(compiled.Render(RenderContext{.path = "A/x", .metadata = md}), "A/x");
+}
+
 TEST_F(FieldsTest, DoubledBracesAreLiteral) {
   EXPECT_THAT(Render("{{x}}={name}", "p/q", Meta(vfs::FileType::kRegular, 0), 0), "{x}=q");
 }
