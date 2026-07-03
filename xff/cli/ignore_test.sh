@@ -24,6 +24,11 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# A real newline for line-anchored expect_matches patterns: expect_matches matches
+# the whole text ([[ =~ ]]), so `^`/`$` anchor the whole output, not a line.
+# `(^|${NL})X` and `X($|${NL})` restore grep's per-line anchoring.
+NL=$'\n'
+
 _xff_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
   if [[ ! -x "${bin}" ]]; then
@@ -31,11 +36,6 @@ _xff_bin() {
   fi
   echo "${bin}"
 }
-
-# "yes" if $1 (output) contains a line ending in the path $2, else "no". Uses
-# `<<<` (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a
-# still-writing printf, which fails under `set -o pipefail` and misreports "no".
-_has() { grep -qE -- "(^|/)${2}\$" <<<"$1" && echo yes || echo no; }
 
 # A fresh tree per test: src/main.cc, src/util.log, build/out.o,
 # node_modules/pkg/index.js, keep.log.
@@ -53,9 +53,9 @@ test::exclude_glob_drops_matching_files() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" --exclude='*.log' "${root}" -type f 2>&1)"
   rm -rf "${root}"
-  expect_eq "no" "$(_has "${out}" 'util\.log')"
-  expect_eq "no" "$(_has "${out}" 'keep\.log')"
-  expect_eq "yes" "$(_has "${out}" 'main\.cc')" # a non-matching file stays
+  expect_not_matches "(^|${NL}|/)util\.log(\$|${NL})" "${out}"
+  expect_not_matches "(^|${NL}|/)keep\.log(\$|${NL})" "${out}"
+  expect_matches "(^|${NL}|/)main\.cc(\$|${NL})" "${out}" # a non-matching file stays
 }
 
 test::exclude_prunes_a_matching_directory() {
@@ -63,9 +63,9 @@ test::exclude_prunes_a_matching_directory() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" --exclude=build --exclude=node_modules "${root}" -type f 2>&1)"
   rm -rf "${root}"
-  expect_eq "no" "$(_has "${out}" 'out\.o')"    # build/ pruned
-  expect_eq "no" "$(_has "${out}" 'index\.js')" # node_modules/ pruned
-  expect_eq "yes" "$(_has "${out}" 'main\.cc')"
+  expect_not_matches "(^|${NL}|/)out\.o(\$|${NL})" "${out}"    # build/ pruned
+  expect_not_matches "(^|${NL}|/)index\.js(\$|${NL})" "${out}" # node_modules/ pruned
+  expect_matches "(^|${NL}|/)main\.cc(\$|${NL})" "${out}"
 }
 
 test::include_reincludes_with_last_match_wins() {
@@ -75,8 +75,8 @@ test::include_reincludes_with_last_match_wins() {
   # include is last, so it wins and keep.log survives while util.log stays dropped.
   out="$("$(_xff_bin)" --exclude='*.log' --include='keep.log' "${root}" -type f 2>&1)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" 'keep\.log')"
-  expect_eq "no" "$(_has "${out}" 'util\.log')"
+  expect_matches "(^|${NL}|/)keep\.log(\$|${NL})" "${out}"
+  expect_not_matches "(^|${NL}|/)util\.log(\$|${NL})" "${out}"
 }
 
 test::no_filter_lists_everything() {
@@ -84,8 +84,8 @@ test::no_filter_lists_everything() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -type f 2>&1)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" 'out\.o')"
-  expect_eq "yes" "$(_has "${out}" 'keep\.log')"
+  expect_matches "(^|${NL}|/)out\.o(\$|${NL})" "${out}"
+  expect_matches "(^|${NL}|/)keep\.log(\$|${NL})" "${out}"
 }
 
 test::help_topic_documents_exclude() {

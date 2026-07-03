@@ -40,4 +40,4 @@ bazel_dep(name = "helly25_mbo", version = "0.11.1")
 
 # helly25/bashtest -- shell-test runner (expect_* helpers + test_runner) for the
 # binary-level CLI tests. Visible under its canonical name @helly25_bashtest.
-bazel_dep(name = "helly25_bashtest", version = "0.4.0")
+bazel_dep(name = "helly25_bashtest", version = "0.5.0")

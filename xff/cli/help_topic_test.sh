@@ -31,30 +31,25 @@ _xff_bin() {
   echo "${bin}"
 }
 
-# "yes" if $1 (output) contains the regex $2, else "no" -- for expect_eq. Uses
-# `<<<` (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a
-# still-writing printf, which fails under `set -o pipefail` and misreports "no".
-_has() { grep -qE -- "$2" <<<"$1" && echo yes || echo no; }
-
 test::help_topic_flag_prints_entry() {
   local out rc
   out="$("$(_xff_bin)" --help=-regex 2>&1)" && rc=0 || rc=$?
   expect_eq "0" "${rc}"
-  expect_eq "yes" "$(_has "${out}" '\-regex')"
-  expect_eq "yes" "$(_has "${out}" 'regular expression')" # the summary
-  expect_eq "yes" "$(_has "${out}" 'test')"               # kind tag
+  expect_matches '\-regex' "${out}"
+  expect_output_contains 'regular expression' "${out}" # the summary
+  expect_output_contains 'test' "${out}"               # kind tag
 }
 
 test::help_topic_flag_resolves_without_dash() {
-  expect_eq "yes" "$(_has "$("$(_xff_bin)" --help=regex 2>&1)" '\-regex')"
+  expect_matches '\-regex' "$("$(_xff_bin)" --help=regex 2>&1)"
 }
 
 test::help_list_shows_grouped_index() {
   local out
   out="$("$(_xff_bin)" --help=list 2>&1)"
-  expect_eq "yes" "$(_has "${out}" 'Tests:')"
-  expect_eq "yes" "$(_has "${out}" 'Actions:')"
-  expect_eq "yes" "$(_has "${out}" 'Operators:')"
+  expect_output_contains 'Tests:' "${out}"
+  expect_output_contains 'Actions:' "${out}"
+  expect_output_contains 'Operators:' "${out}"
 }
 
 test::help_expressions_lists_the_annotated_vocabulary() {
@@ -62,16 +57,16 @@ test::help_expressions_lists_the_annotated_vocabulary() {
   # the full list the usage overview points at.
   local out
   out="$("$(_xff_bin)" --help=expressions 2>&1)"
-  expect_eq "yes" "$(_has "${out}" 'Tests:')"
-  expect_eq "yes" "$(_has "${out}" 'Actions:')"
-  expect_eq "yes" "$(_has "${out}" '\-content')" # an expression primary is listed
+  expect_output_contains 'Tests:' "${out}"
+  expect_output_contains 'Actions:' "${out}"
+  expect_matches '\-content' "${out}" # an expression primary is listed
 }
 
 test::help_unknown_topic_exits_two() {
   local out rc
   out="$("$(_xff_bin)" --help=-nonesuch 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
-  expect_eq "yes" "$(_has "${out}" 'no help topic')"
+  expect_output_contains 'no help topic' "${out}"
 }
 
 test::bare_help_operand_is_guided_not_a_subcommand() {
@@ -80,8 +75,8 @@ test::bare_help_operand_is_guided_not_a_subcommand() {
   local out rc
   out="$("$(_xff_bin)" help 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
-  expect_eq "yes" "$(_has "${out}" 'not a subcommand')"
-  expect_eq "yes" "$(_has "${out}" '\-\-help')"
+  expect_output_contains 'not a subcommand' "${out}"
+  expect_matches '\-\-help' "${out}"
 }
 
 test::bare_help_operand_passes_through_in_find_mode() {
@@ -92,7 +87,7 @@ test::bare_help_operand_passes_through_in_find_mode() {
   cp "$(_xff_bin)" "${tmp}/find"
   out="$("${tmp}/find" help 2>&1)" || true
   rm -rf "${tmp}"
-  expect_eq "no" "$(_has "${out}" 'not a subcommand')"
+  expect_output_not_contains 'not a subcommand' "${out}"
 }
 
 test_runner

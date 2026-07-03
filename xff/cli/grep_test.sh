@@ -23,6 +23,12 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# A real newline for line-anchored expect_matches patterns: bashtest's expect_matches
+# matches the whole text ([[ =~ ]]), so `^`/`$` anchor the whole output, not a line.
+# `(^|${NL})X` and `X($|${NL})` restore grep's per-line anchoring (a real newline,
+# because `\n` is not a portable ERE escape).
+NL=$'\n'
+
 _xff_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
   if [[ ! -x "${bin}" ]]; then
@@ -44,10 +50,6 @@ _run() {
   printf '%s' "${out}"
 }
 
-# Here-string, not `printf | grep`: a pipe lets grep -q's early exit SIGPIPE a
-# still-writing printf, which fails under `set -o pipefail` and misreports "no".
-_has() { grep -qE -- "$2" <<<"$1" && echo yes || echo no; }
-
 _make_tree() {
   local root
   root="$(mktemp -d)"
@@ -62,9 +64,9 @@ test::grep_prints_path_line_text_for_each_match() {
   root="$(_make_tree)"
   out="$(_run "${root}" -type f -grep 'TODO')"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" '/a\.txt:1:first TODO line$')"
-  expect_eq "yes" "$(_has "${out}" '/a\.txt:3:another TODO here$')"
-  expect_eq "no" "$(_has "${out}" 'second line')" # a non-matching line is not printed
+  expect_matches "/a\.txt:1:first TODO line(\$|${NL})" "${out}"
+  expect_matches "/a\.txt:3:another TODO here(\$|${NL})" "${out}"
+  expect_not_matches 'second line' "${out}" # a non-matching line is not printed
 }
 
 test::grep_uses_regex() {
@@ -72,7 +74,7 @@ test::grep_uses_regex() {
   root="$(_make_tree)"
   out="$(_run "${root}" -type f -grep 'T.DO')" # '.' is a regex wildcard
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" '/a\.txt:1:first TODO line$')"
+  expect_matches "/a\.txt:1:first TODO line(\$|${NL})" "${out}"
 }
 
 test::grep_skips_binary_files() {
@@ -80,7 +82,7 @@ test::grep_skips_binary_files() {
   root="$(_make_tree)"
   out="$(_run "${root}" -type f -grep 'TODO')"
   rm -rf "${root}"
-  expect_eq "no" "$(_has "${out}" 'c\.bin')" # the binary's TODO is not reported
+  expect_not_matches 'c\.bin' "${out}" # the binary's TODO is not reported
 }
 
 test::grep_composes_with_find_predicates() {
@@ -88,8 +90,8 @@ test::grep_composes_with_find_predicates() {
   root="$(_make_tree)"
   out="$(_run "${root}" -name 'a.txt' -grep 'TODO')"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" '/a\.txt:1:first TODO line$')"
-  expect_eq "no" "$(_has "${out}" '/b\.txt')"
+  expect_matches "/a\.txt:1:first TODO line(\$|${NL})" "${out}"
+  expect_not_matches '/b\.txt' "${out}"
 }
 
 test::grep_is_rejected_by_the_find_style() {
@@ -98,7 +100,7 @@ test::grep_is_rejected_by_the_find_style() {
   out="$("$(_xff_bin)" --config=find "${root}" -grep 'TODO' 2>&1)" && rc=0 || rc=$?
   rm -rf "${root}"
   expect_eq "2" "${rc}" # an xff extension is a usage error under --config=find
-  expect_eq "yes" "$(_has "${out}" 'xff extension')"
+  expect_matches 'xff extension' "${out}"
 }
 
 test::regextype_exact_matches_literally() {
@@ -107,8 +109,8 @@ test::regextype_exact_matches_literally() {
   printf 'price 3.50\nprice 3X50\n' >"${root}/p.txt"
   out="$(_run --regextype=EXACT "${root}" -type f -grep '3.50')" # '.' is literal under EXACT
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" '/p\.txt:1:price 3\.50$')"
-  expect_eq "no" "$(_has "${out}" '3X50')" # the regex-wildcard match is gone
+  expect_matches "/p\.txt:1:price 3\.50(\$|${NL})" "${out}"
+  expect_not_matches '3X50' "${out}" # the regex-wildcard match is gone
 }
 
 test::regextype_reserved_value_is_a_usage_error() {
@@ -117,7 +119,7 @@ test::regextype_reserved_value_is_a_usage_error() {
   out="$("$(_xff_bin)" --regextype=MATCH "${root}" -grep 'TODO' 2>&1)" && rc=0 || rc=$?
   rm -rf "${root}"
   expect_eq "2" "${rc}" # MATCH / PCRE are reserved (#85)
-  expect_eq "yes" "$(_has "${out}" 'not supported yet')"
+  expect_matches 'not supported yet' "${out}"
 }
 
 test::grep_format_overrides_the_default_output() {
@@ -126,9 +128,9 @@ test::grep_format_overrides_the_default_output() {
   # -grep=FORMAT renders a field template ({line}/{text} + the entry vocabulary).
   out="$(_run "${root}" -name 'a.txt' -grep='{line}|{text}' 'TODO')"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" '^1\|first TODO line$')"
-  expect_eq "yes" "$(_has "${out}" '^3\|another TODO here$')"
-  expect_eq "no" "$(_has "${out}" ':')" # the default path:line:text colons are gone
+  expect_matches "(^|${NL})1\|first TODO line(\$|${NL})" "${out}"
+  expect_matches "(^|${NL})3\|another TODO here(\$|${NL})" "${out}"
+  expect_not_matches ':' "${out}" # the default path:line:text colons are gone
 }
 
 test::grep_match_field_extracts_only_the_match() {
@@ -138,8 +140,8 @@ test::grep_match_field_extracts_only_the_match() {
   # {match} is grep -o: just the matched substring, {column} its 1-based start.
   out="$(_run "${root}" -name 'log.txt' -grep='{column}:{match}' 'E[0-9]+')"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" '^7:E42$')" # E42 at column 7 of "error E42 here"
-  expect_eq "yes" "$(_has "${out}" '^6:E7$')"  # E7 at column 6 of "warn E7"
+  expect_matches "(^|${NL})7:E42(\$|${NL})" "${out}" # E42 at column 7 of "error E42 here"
+  expect_matches "(^|${NL})6:E7(\$|${NL})" "${out}"  # E7 at column 6 of "warn E7"
 }
 
 test::grep_count_prints_per_file_match_line_count() {
@@ -150,9 +152,9 @@ test::grep_count_prints_per_file_match_line_count() {
   # --count (a leading global): path:count per file with matches; 0-match files omitted.
   out="$(_run --count "${root}" -type f -grep 'TODO')"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" '/a\.txt:2$')"
-  expect_eq "no" "$(_has "${out}" 'b\.txt')" # no matches -> not listed
-  expect_eq "no" "$(_has "${out}" 'TODO')"   # the lines themselves are not printed
+  expect_matches "/a\.txt:2(\$|${NL})" "${out}"
+  expect_not_matches 'b\.txt' "${out}" # no matches -> not listed
+  expect_not_matches 'TODO' "${out}"   # the lines themselves are not printed
 }
 
 test_runner

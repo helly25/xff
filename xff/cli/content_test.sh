@@ -32,11 +32,6 @@ _xff_bin() {
   echo "${bin}"
 }
 
-# "yes" if $1 (output) contains the regex $2, else "no" -- for expect_eq. Uses
-# `<<<` (not `printf | grep`): a pipe lets grep -q's early exit SIGPIPE a
-# still-writing printf, which fails under `set -o pipefail` and misreports "no".
-_has() { grep -qE -- "$2" <<<"$1" && echo yes || echo no; }
-
 # A fresh tree per test: text files with known content plus one binary file whose
 # NUL byte marks it binary (so content search skips it even though it has a match).
 _make_tree() {
@@ -58,8 +53,8 @@ test::content_matches_literal_substring() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -content 'BETA' 2>&1)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" 'a\.txt')"
-  expect_eq "no" "$(_has "${out}" 'b\.txt')"
+  expect_matches 'a\.txt' "${out}"
+  expect_not_matches 'b\.txt' "${out}"
 }
 
 test::content_treats_the_pattern_as_literal_not_regex() {
@@ -68,7 +63,7 @@ test::content_treats_the_pattern_as_literal_not_regex() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -content 'alph.' 2>&1)"
   rm -rf "${root}"
-  expect_eq "no" "$(_has "${out}" 'a\.txt')"
+  expect_not_matches 'a\.txt' "${out}"
 }
 
 test::content_is_case_sensitive_icontent_folds() {
@@ -77,8 +72,8 @@ test::content_is_case_sensitive_icontent_folds() {
   out_cs="$("$(_xff_bin)" "${root}" -content 'beta' 2>&1)"  # lower-case: no match
   out_ci="$("$(_xff_bin)" "${root}" -icontent 'beta' 2>&1)" # folds case: matches
   rm -rf "${root}"
-  expect_eq "no" "$(_has "${out_cs}" 'a\.txt')"
-  expect_eq "yes" "$(_has "${out_ci}" 'a\.txt')"
+  expect_not_matches 'a\.txt' "${out_cs}"
+  expect_matches 'a\.txt' "${out_ci}"
 }
 
 test::rxc_matches_a_regular_expression() {
@@ -86,8 +81,8 @@ test::rxc_matches_a_regular_expression() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -rxc 'id=[0-9]+' 2>&1)"
   rm -rf "${root}"
-  expect_eq "yes" "$(_has "${out}" 'c\.log')"
-  expect_eq "no" "$(_has "${out}" 'a\.txt')"
+  expect_matches 'c\.log' "${out}"
+  expect_not_matches 'a\.txt' "${out}"
 }
 
 test::binary_files_are_skipped() {
@@ -96,7 +91,7 @@ test::binary_files_are_skipped() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -content 'needle' 2>&1)"
   rm -rf "${root}"
-  expect_eq "no" "$(_has "${out}" 'bin\.dat')"
+  expect_not_matches 'bin\.dat' "${out}"
 }
 
 test::content_is_rejected_in_strict_find_style() {
@@ -110,7 +105,7 @@ test::content_is_rejected_in_strict_find_style() {
 
 test::help_topic_documents_content() {
   # Self-documentation flows from the registry: --help=-content renders its summary.
-  expect_eq "yes" "$(_has "$("$(_xff_bin)" --help=-content 2>&1)" "content")"
+  expect_output_contains "content" "$("$(_xff_bin)" --help=-content 2>&1)"
 }
 
 test_runner
