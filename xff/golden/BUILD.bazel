@@ -80,3 +80,19 @@ xff_golden(
     setup = "testdata/basic_tree.sh",
     xff_golden = "testdata/summary.xff.txt",
 )
+
+# The xff %{field} escape in -printf: find rejects it (it is an xff extension in an
+# otherwise find-native action), xff expands it to the field vocabulary ({relpath}).
+xff_golden(
+    name = "printf_field_test",
+    args = [
+        "<ROOT>",
+        "-type",
+        "f",
+        "-printf",
+        "%{relpath}\n",
+    ],
+    find_golden = "testdata/printf_field.find.txt",
+    setup = "testdata/basic_tree.sh",
+    xff_golden = "testdata/printf_field.xff.txt",
+)

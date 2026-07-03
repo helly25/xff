@@ -195,6 +195,17 @@ TEST_F(RunTest, FprintlnAndFprintflnWriteWithOsLineEndingToFile) {
   fs::remove(fln, ec);
 }
 
+TEST_F(RunTest, PrintfPercentBraceEscapeExpandsXffFields) {
+  // xff: `%{field}` in a -printf format reaches the brace field vocabulary (here
+  // {relpath}); `%%` stays a literal percent, a bare `{..}` stays literal (printf formats
+  // legitimately contain braces), and an unterminated `%{` is emitted literally. The whole
+  // format renders as one record (it owns its terminator).
+  EXPECT_THAT(
+      RunExpr({"-name", "a.txt", "-printf", "rel=%{relpath} f=%f pct=%% bare={x} bad=%{oops\n"}),
+      ElementsAre("rel=a.txt f=a.txt pct=% bare={x} bad=%{oops"));
+  EXPECT_THAT(last_errors_, 0);
+}
+
 TEST_F(RunTest, DaystartFeedsTheTimeTests) {
   // Age a.txt to ~10 days ago, then select with -daystart -mtime +5 (older than
   // ~5 days, measured from today's local midnight). 10 days clears the boundary

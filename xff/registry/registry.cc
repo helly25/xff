@@ -563,7 +563,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     },
     {
         .name = "-printf",
-        .summary = "print a custom format string",
+        .summary = "print a custom format string (%{field} expands the xff field vocabulary)",
         .kind = Kind::kAction,
         .arity = 1,
     },

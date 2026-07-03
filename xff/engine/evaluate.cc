@@ -256,13 +256,38 @@ absl::Time PrintfTime(const vfs::Metadata& md, char which) {
   }
 }
 
-// find's -printf FORMAT: expands % directives and \ escapes against the entry via
-// the tables above. Supported %: p path, f name, h dir, s size, m octal perm, d
-// depth, y type, i inode, n links, u/g owner name, U/G owner id; the time families
-// a/c/t (asctime form) and Ak/Ck/Tk (strftime conversion k on atime/ctime/mtime),
-// rendered in `tz`; %% literal; \: n t r \\ \0. Unknown directives/escapes are
-// emitted literally.
-std::string FormatPrintf(std::string_view format, const Visit& visit, absl::TimeZone tz) {
+// A symlink's target for {target} (defined below with the other field helpers); read
+// only when a -printf format actually references a field, so plain find -printf pays
+// no readlink.
+std::string LinkTarget(const EvalContext& ctx);
+
+// Renders a -printf / -fprintf FORMAT against `ctx`'s entry. Expands find's % directives
+// and \ escapes via the tables above. Supported %: p path, f name, h dir, s size, m octal
+// perm, d depth, y type, i inode, n links, u/g owner name, U/G owner id; the time families
+// a/c/t (asctime form) and Ak/Ck/Tk (strftime conversion k on atime/ctime/mtime), rendered
+// in ctx.tz; %% literal; \: n t r \\ \0.
+//
+// xff: `%{NAME}` / `%{NAME:qualifier}` expands the brace field vocabulary -- the same
+// fields as --format ({relpath} {core} {suffix} {target} {def.NAME} {env.NAME} {size:h},
+// time qualifiers, the s/// rewrite, ...) -- so a per-entry action reaches fields find's %
+// set does not name. A bare `{...}` stays literal (printf formats legitimately contain
+// braces) and an unterminated `%{` is emitted literally, matching the field template's own
+// lenient handling; the strict find style rejects `%{...}` before the walk (EnforceStyle).
+// Unknown %/\ directives are emitted literally.
+std::string FormatPrintf(std::string_view format, const EvalContext& ctx) {
+  const bool has_field = format.find("%{") != std::string_view::npos;
+  const std::string link = has_field ? LinkTarget(ctx) : std::string();  // backs {target}
+  const fields::RenderContext field_ctx{
+      .path = ctx.visit.path,
+      .root = ctx.visit.root,
+      .link_target = link,
+      .metadata = ctx.visit.metadata,
+      .depth = ctx.visit.depth,
+      .tz = ctx.tz,
+      .time_format = ctx.time_format,
+      .captures = ctx.captures,
+      .defines = ctx.defines,
+      .outputs = ctx.outputs};
   std::string out;
   for (std::string_view::size_type i = 0; i < format.size(); ++i) {
     const char ch = format[i];
@@ -276,15 +301,26 @@ std::string FormatPrintf(std::string_view format, const Visit& visit, absl::Time
       }
     } else if (ch == '%' && i + 1 < format.size()) {
       const char directive = format[++i];
-      if (directive == 'a' || directive == 'c' || directive == 't') {
-        absl::StrAppend(&out, datetime::FormatTime(PrintfTime(visit.metadata, directive), "asctime", tz));
+      if (directive == '{') {
+        // xff: %{NAME[:qualifier]} -> the brace field vocabulary. Read to the first '}'
+        // and render it as a single {field}; an unterminated %{ stays literal.
+        const std::string_view::size_type close = format.find('}', i + 1);
+        if (close == std::string_view::npos) {
+          out.append("%{");
+        } else {
+          const std::string_view inner = format.substr(i + 1, close - (i + 1));
+          absl::StrAppend(&out, fields::Render(absl::StrCat("{", inner, "}"), field_ctx));
+          i = close;  // consume through the closing '}'
+        }
+      } else if (directive == 'a' || directive == 'c' || directive == 't') {
+        absl::StrAppend(&out, datetime::FormatTime(PrintfTime(ctx.visit.metadata, directive), "asctime", ctx.tz));
       } else if ((directive == 'A' || directive == 'C' || directive == 'T') && i + 1 < format.size()) {
         const char conv = format[++i];  // %Tk etc.: strftime conversion k on the chosen time
         absl::StrAppend(
-            &out,
-            datetime::FormatTime(PrintfTime(visit.metadata, directive), absl::StrCat("%", std::string(1, conv)), tz));
+            &out, datetime::FormatTime(
+                      PrintfTime(ctx.visit.metadata, directive), absl::StrCat("%", std::string(1, conv)), ctx.tz));
       } else if (const auto it = kPrintfDirectives.find(directive); it != kPrintfDirectives.end()) {
-        it->second(out, visit);
+        it->second(out, ctx.visit);
       } else {
         out.push_back('%');  // unknown directive: emit the percent and char literally
         out.push_back(directive);
@@ -1327,7 +1363,7 @@ bool EvalLs(const parser::Expr&, EvalContext& ctx) {
 
 bool EvalPrintf(const parser::Expr& expr, EvalContext& ctx) {
   if (!expr.args.empty()) {
-    ctx.emit(FormatPrintf(expr.args.front(), ctx.visit, ctx.tz));  // no implicit newline; the format owns it
+    ctx.emit(FormatPrintf(expr.args.front(), ctx));  // no implicit newline; the format owns it
   }
   return true;
 }
@@ -1339,7 +1375,7 @@ bool EvalPrintln(const parser::Expr&, EvalContext& ctx) {
 
 bool EvalPrintfln(const parser::Expr& expr, EvalContext& ctx) {
   if (!expr.args.empty()) {  // xff: -printf plus the OS line ending appended
-    ctx.emit(absl::StrCat(FormatPrintf(expr.args.front(), ctx.visit, ctx.tz), kOsLineEnding));
+    ctx.emit(absl::StrCat(FormatPrintf(expr.args.front(), ctx), kOsLineEnding));
   }
   return true;
 }
@@ -1382,7 +1418,7 @@ bool EvalFls(const parser::Expr& expr, EvalContext& ctx) {
 // -fprintf takes FILE then FORMAT; the format owns its own terminator, like -printf.
 bool EvalFprintf(const parser::Expr& expr, EvalContext& ctx) {
   if (expr.args.size() >= 2 && ctx.emit_file) {
-    ctx.emit_file(expr.args.front(), FormatPrintf(expr.args[1], ctx.visit, ctx.tz));
+    ctx.emit_file(expr.args.front(), FormatPrintf(expr.args[1], ctx));
   }
   return true;
 }
@@ -1391,7 +1427,7 @@ bool EvalFprintf(const parser::Expr& expr, EvalContext& ctx) {
 // FILE then FORMAT, like -fprintf.
 bool EvalFprintfln(const parser::Expr& expr, EvalContext& ctx) {
   if (expr.args.size() >= 2 && ctx.emit_file) {
-    ctx.emit_file(expr.args.front(), absl::StrCat(FormatPrintf(expr.args[1], ctx.visit, ctx.tz), kOsLineEnding));
+    ctx.emit_file(expr.args.front(), absl::StrCat(FormatPrintf(expr.args[1], ctx), kOsLineEnding));
   }
   return true;
 }

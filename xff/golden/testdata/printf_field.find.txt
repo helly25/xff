@@ -1,0 +1,1 @@
+xff: the '%{field}' escape in '-printf' is an xff extension, not available under the find style (--config=find); use --config=xff
