@@ -113,7 +113,7 @@ _Discussion outcomes land here after the list is complete._
 
 _All default to find-compatible (ignore nothing / show everything); a user's config promotes to modern behaviour._
 
-- **`.gitignore` stack** (nested gitignores + `.git/info/exclude` + global `core.excludesFile`): `-g` / `--gitignore`, ternary - bare `-g` = **auto** (respect iff in a git repo), `-g+` = on, `-g-` = off; unconfigured default = **off**.
+- **`.gitignore` stack** (nested gitignores + `.git/info/exclude` + global `core.excludesFile`): `-g` / `--gitignore`, ternary - bare `-g` = **auto** (respect iff in a git repo), `-g+` = on, `-g-` = off; unconfigured default = **off**. _Shipped: per-directory nested `.gitignore` and the bare-`-g` auto ternary (git-repo detection via `xff/repo`), with `--gitignore=on|off` for the explicit forms. Pending: the `-g+` / `-g-` short spellings, `.git/info/exclude`, and `core.excludesFile`._
 - **`.ignore`** (generic, non-git): `--ignore-files` (long-only).
 - **`.xffignore`**: our own tool-specific ignore file.
 - **Master "show everything":** `-u` / `--no-ignore` (disables _all_ ignore-file processing; rg/fd convention).

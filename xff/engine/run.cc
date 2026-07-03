@@ -21,12 +21,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -49,6 +51,7 @@
 #include "xff/parser/ast.h"
 #include "xff/registry/descriptor.h"
 #include "xff/render/render.h"
+#include "xff/repo/repo.h"
 #include "xff/vfs/filesystem.h"
 
 namespace xff::engine {
@@ -556,20 +559,40 @@ bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
   return false;
 }
 
-// --gitignore / -g: respect .gitignore files. Last occurrence wins; `--gitignore=off`
-// turns it back off. Off by default (find-compatible). (The design's bare-`-g`=auto
-// "respect iff in a git repo" ternary and the -g+/-g- spelling need git-repo detection
-// and toggle-parser machinery not built yet; today bare -g / --gitignore means on.)
-bool GitignoreEnabled(const std::vector<std::string>& globals) {
-  bool enabled = false;
+// --gitignore / -g ternary. Bare `-g` / `--gitignore` selects AUTO (respect .gitignore
+// only when the traversal is inside a git repo, matching git's own behavior);
+// `--gitignore=on` forces it on regardless, `--gitignore=off` forces it off. Last
+// occurrence wins. Off by default (find-compatible). (The `-g+` / `-g-` short spellings
+// for the on / off forms are a separate follow-up.)
+enum class GitignoreMode { kOff, kOn, kAuto };
+
+GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals) {
+  GitignoreMode mode = GitignoreMode::kOff;
   for (const std::string& global : globals) {
-    if (global == "-g" || global == "--gitignore" || global == "--gitignore=on") {
-      enabled = true;
+    if (global == "-g" || global == "--gitignore") {
+      mode = GitignoreMode::kAuto;
+    } else if (global == "--gitignore=on") {
+      mode = GitignoreMode::kOn;
     } else if (global == "--gitignore=off") {
-      enabled = false;
+      mode = GitignoreMode::kOff;
     }
   }
-  return enabled;
+  return mode;
+}
+
+// Resolves a search root to an absolute, normalized path for repo discovery (which
+// walks the path string upward, so it needs an absolute path). Prepends the process
+// cwd for a relative root; falls back to the raw path if that fails.
+std::string AbsoluteDir(std::string_view root) {
+  std::error_code ec;
+  const std::filesystem::path abs = std::filesystem::absolute(std::filesystem::path(root), ec);
+  return ec ? std::string(root) : abs.lexically_normal().string();
+}
+
+// -g auto: whether any search root is inside a git working tree, so .gitignore applies.
+bool AnyRootInRepo(const vfs::FileSystem& fs, const std::vector<std::string>& roots) {
+  return absl::c_any_of(
+      roots, [&fs](std::string_view root) { return repo::FindRepoRoot(fs, AbsoluteDir(root)).has_value(); });
 }
 
 // The per-directory ignore filenames in effect, lowest precedence first (a directory's
@@ -577,12 +600,12 @@ bool GitignoreEnabled(const std::vector<std::string>& globals) {
 // .xffignore (--ignore-files). Empty when ignore-file processing is off -- it is
 // find-compatibly off by default, and --no-ignore / -u is the master switch that
 // force-disables every source.
-std::vector<std::string> ResolveIgnoreFileNames(const std::vector<std::string>& globals) {
+std::vector<std::string> ResolveIgnoreFileNames(const std::vector<std::string>& globals, bool gitignore_on) {
   if (HasGlobal(globals, "--no-ignore") || HasGlobal(globals, "-u")) {
     return {};
   }
   std::vector<std::string> names;
-  if (GitignoreEnabled(globals)) {
+  if (gitignore_on) {
     names.emplace_back(".gitignore");
   }
   if (HasGlobal(globals, "--ignore-files")) {
@@ -934,7 +957,13 @@ int RunFind(
   // --ignore-files: honor per-directory .ignore / .xffignore files (off by default,
   // find-compatible; -u / --no-ignore forces it off). Reads through walk_fs, so a
   // --dry-run still consults them. Inactive is zero overhead.
-  IgnoreFileCache ignore_files(walk_fs, ResolveIgnoreFileNames(command.globals));
+  // -g / --gitignore: on forces .gitignore, auto enables it only when a search root
+  // is inside a git repo (probe once, before the walk). -u / --no-ignore still wins
+  // (ResolveIgnoreFileNames returns nothing then, so the repo probe is skipped).
+  const GitignoreMode gitignore_mode = ResolveGitignoreMode(command.globals);
+  const bool gitignore_on = gitignore_mode == GitignoreMode::kOn
+                            || (gitignore_mode == GitignoreMode::kAuto && AnyRootInRepo(walk_fs, command.roots));
+  IgnoreFileCache ignore_files(walk_fs, ResolveIgnoreFileNames(command.globals, gitignore_on));
 
   // -ok confirmation: prompt to stderr, read a line from stdin, affirmative on y/Y (like find).
   const auto confirm = [](std::string_view prompt) -> bool {

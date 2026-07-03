@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 # End-to-end test of -g / --gitignore: per-directory .gitignore files, opt-in (off
-# by default, find-compatible), stacked per directory, and disabled by -u.
+# by default, find-compatible), stacked per directory, and disabled by -u. Bare -g is
+# the AUTO ternary (respect .gitignore only inside a git repo); =on forces it on
+# regardless, =off forces it off. _make_tree plants an empty .git so bare -g sees a repo.
 
 set -euo pipefail
 
@@ -35,8 +37,20 @@ _xff_bin() {
   echo "${bin}"
 }
 
-# Tree: keep.cc, a.o, sub/b.o, sub/keep.h.  <root>/.gitignore => *.o
+# Tree: keep.cc, a.o, sub/b.o, sub/keep.h.  <root>/.gitignore => *.o.  An empty .git
+# marks the tree as a git repo, so bare -g (auto) turns .gitignore on. The empty .git
+# directory contributes no -type f entries, so it does not perturb the assertions.
 _make_tree() {
+  local root
+  root="$(mktemp -d)"
+  mkdir -p "${root}/sub" "${root}/.git"
+  touch "${root}/keep.cc" "${root}/a.o" "${root}/sub/b.o" "${root}/sub/keep.h"
+  printf '*.o\n' >"${root}/.gitignore"
+  echo "${root}"
+}
+
+# The same tree WITHOUT a .git, so it is not a git repo (bare -g auto stays off).
+_make_tree_no_repo() {
   local root
   root="$(mktemp -d)"
   mkdir -p "${root}/sub"
@@ -53,15 +67,32 @@ test::gitignore_off_by_default() {
   expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}" # .gitignore not consulted without -g
 }
 
-test::dash_g_respects_gitignore_recursively() {
+test::dash_g_auto_respects_gitignore_recursively_in_a_repo() {
   local root out
-  root="$(_make_tree)"
+  root="$(_make_tree)" # has .git -> auto turns on
   out="$("$(_xff_bin)" -g "${root}" -type f 2>&1)"
   rm -rf "${root}"
   expect_not_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"     # dropped at the root
   expect_not_matches "(^|${NL}|/)sub/b\.o(\$|${NL})" "${out}" # and in the subdirectory
   expect_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}"
   expect_matches "(^|${NL}|/)sub/keep\.h(\$|${NL})" "${out}"
+}
+
+test::dash_g_auto_is_off_outside_a_repo() {
+  local root out
+  root="$(_make_tree_no_repo)" # no .git -> auto stays off, .gitignore ignored
+  out="$("$(_xff_bin)" -g "${root}" -type f 2>&1)"
+  rm -rf "${root}"
+  expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}" # not in a repo: bare -g is a no-op
+}
+
+test::gitignore_on_forces_even_outside_a_repo() {
+  local root out
+  root="$(_make_tree_no_repo)" # no .git, but =on forces regardless
+  out="$("$(_xff_bin)" --gitignore=on "${root}" -type f 2>&1)"
+  rm -rf "${root}"
+  expect_not_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
+  expect_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}"
 }
 
 test::gitignore_off_value_disables() {
@@ -85,8 +116,8 @@ test::nested_gitignore_scopes_to_its_subtree() {
   root="$(mktemp -d)"
   mkdir -p "${root}/sub"
   touch "${root}/top.tmp" "${root}/sub/inner.tmp"
-  printf '*.tmp\n' >"${root}/sub/.gitignore" # only in sub/
-  out="$("$(_xff_bin)" -g "${root}" -type f 2>&1)"
+  printf '*.tmp\n' >"${root}/sub/.gitignore"                   # only in sub/
+  out="$("$(_xff_bin)" --gitignore=on "${root}" -type f 2>&1)" # =on: exercise nesting without a .git
   rm -rf "${root}"
   expect_not_matches "(^|${NL}|/)inner\.tmp(\$|${NL})" "${out}" # sub/.gitignore applies here
   expect_matches "(^|${NL}|/)top\.tmp(\$|${NL})" "${out}"       # but not above its directory
