@@ -1,0 +1,3 @@
+<ROOT>/docs/c.txt
+<ROOT>/src/a.txt
+<ROOT>/src/b.log

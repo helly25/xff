@@ -1,0 +1,2 @@
+<ROOT>/docs/c.txt
+<ROOT>/src/a.txt

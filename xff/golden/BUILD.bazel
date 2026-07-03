@@ -1,0 +1,82 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Dual-mode golden tests: each xff_golden case runs the built xff over a fixture in both
+# the find and the xff style and diffs stdout+stderr against a committed golden per mode.
+# See golden.bzl for the macro and testdata/README.md for regenerating goldens.
+
+load("//xff/golden:golden.bzl", "xff_golden")
+
+package(default_visibility = ["//xff:__subpackages__"])
+
+exports_files(["golden_driver.sh"])
+
+# Baseline traversal: find and xff agree on which files a `-type f` walk yields.
+xff_golden(
+    name = "type_f_test",
+    args = [
+        "<ROOT>",
+        "-type",
+        "f",
+    ],
+    find_golden = "testdata/type_f.find.txt",
+    setup = "testdata/basic_tree.sh",
+    xff_golden = "testdata/type_f.xff.txt",
+)
+
+# -name glob narrows to the two *.txt files; identical across styles.
+xff_golden(
+    name = "name_glob_test",
+    args = [
+        "<ROOT>",
+        "-name",
+        "*.txt",
+    ],
+    find_golden = "testdata/name_glob.find.txt",
+    setup = "testdata/basic_tree.sh",
+    xff_golden = "testdata/name_glob.xff.txt",
+)
+
+# Style divergence: -println is an xff extension, so the find style rejects it (error on
+# stderr) while the xff style prints the paths. Pins the strict-find gate end to end.
+xff_golden(
+    name = "xff_primary_rejected_test",
+    args = [
+        "<ROOT>",
+        "-type",
+        "f",
+        "-println",
+    ],
+    find_golden = "testdata/reject.find.txt",
+    setup = "testdata/basic_tree.sh",
+    xff_golden = "testdata/reject.xff.txt",
+)
+
+# --summary is additive to an explicit action (it replaces only the implicit print), and
+# its size total diverges: find reports raw bytes (13), xff human sizes (13 B). Pins both
+# the additivity the design settled on and the --human style default.
+xff_golden(
+    name = "summary_additive_test",
+    args = [
+        "--summary",
+        "<ROOT>",
+        "-type",
+        "f",
+        "-print",
+    ],
+    find_golden = "testdata/summary.find.txt",
+    setup = "testdata/basic_tree.sh",
+    xff_golden = "testdata/summary.xff.txt",
+)
