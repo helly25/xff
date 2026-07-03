@@ -189,6 +189,33 @@ TEST_F(FieldsTest, HumanSizeAndSuffixes) {
   EXPECT_THAT(Render("[{suffix}]", "a/b/file", Meta(vfs::FileType::kRegular, 0), 0), "[]");
 }
 
+TEST_F(FieldsTest, CoreStripsAllExtensions) {
+  // {core} = the filename with ALL extensions removed; complement of {suffixes}.
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  EXPECT_THAT(Render("{core}", "a/b/foo.tar.gz", md, 0), "foo");                     // vs {stem}="foo.tar"
+  EXPECT_THAT(Render("{core}|{suffixes}", "a/b/foo.tar.gz", md, 0), "foo|.tar.gz");  // core + suffixes == name
+  EXPECT_THAT(Render("{core}", "a/b/foo", md, 0), "foo");                            // no extension
+  EXPECT_THAT(Render("{core}", "a/b/.bashrc", md, 0), ".bashrc");  // a leading dot is not an extension
+}
+
+TEST_F(FieldsTest, PathComponentQualifierDecomposesAnyPathValuedField) {
+  // A component qualifier post-processes, treating the field's value as a path -- so
+  // {path:X} mirrors the flat {X} field, and it composes onto {relpath}, {def.NAME}, etc.
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const std::map<std::string, std::string> defs = {{"B", "/other/tree/report.tar.gz"}};
+  const Template compiled = Template::Compile("{path:name}|{path:stem}|{path:core}|{path:ext}|{path:dir}");
+  EXPECT_THAT(
+      compiled.Render(RenderContext{.path = "a/b/foo.tar.gz", .metadata = md}), "foo.tar.gz|foo.tar|foo|gz|a/b");
+  // {path:name} equals the flat {name}.
+  EXPECT_THAT(Render("{path:name}", "a/b/foo.tar.gz", md, 0), Render("{name}", "a/b/foo.tar.gz", md, 0));
+  // Composes on {relpath} (root-relative) and on a {def.NAME} value.
+  EXPECT_THAT(
+      Template::Compile("{relpath:dir}").Render(RenderContext{.path = "A/sub/x.cc", .root = "A", .metadata = md}),
+      "sub");
+  EXPECT_THAT(
+      Template::Compile("{def.B:core}").Render(RenderContext{.path = "f", .metadata = md, .defines = &defs}), "report");
+}
+
 TEST_F(FieldsTest, QuotedQualifierCarriesBracesColonsAndQuotes) {
   vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   md.mtime = absl::FromUnixSeconds(1'700'000'000);  // 2023-11-14, mid-month: the year is timezone-stable

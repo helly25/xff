@@ -24,6 +24,7 @@
 #include <grp.h>
 #include <pwd.h>
 
+#include <array>
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
@@ -34,6 +35,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
@@ -212,6 +214,14 @@ std::string SuffixField(std::string_view, std::string_view, const RenderContext&
   return stdfs::path(std::string(ctx.path)).extension().string();  // ".gz", or "" when none
 }
 
+// {core}: the filename with ALL extensions removed (foo.tar.gz -> foo), the complement
+// of {suffixes} ({core} + {suffixes} == {name}, as {stem} + {suffix} == {name}).
+std::string CoreField(std::string_view, std::string_view, const RenderContext& ctx) {
+  const std::string filename = stdfs::path(std::string(ctx.path)).filename().string();
+  const std::string::size_type dot = filename.find('.', 1);  // first extension; a leading dot is not one
+  return dot == std::string::npos ? filename : filename.substr(0, dot);
+}
+
 std::string DepthField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::to_string(ctx.depth);
 }
@@ -323,6 +333,7 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"blocks", &BlocksField},
     FieldEntry{"btime", &BtimeField},
     FieldEntry{"column", &ColumnField},
+    FieldEntry{"core", &CoreField},
     FieldEntry{"ctime", &CtimeField},
     FieldEntry{"depth", &DepthField},
     FieldEntry{"dev", &DevField},
@@ -514,6 +525,50 @@ std::string ApplyRewrite(std::string_view value, std::string_view spec) {
   return matcher->Rewrite(value, replacement, /*global=*/flags.find('g') != std::string_view::npos);
 }
 
+// The path-component qualifier keywords ({field:KEYWORD}). Sorted (for readability).
+constexpr auto kPathComponents = std::to_array<std::string_view>(
+    {"basename", "core", "dir", "ext", "extension", "file", "name", "path", "stem", "suffix", "suffixes"});
+
+// A qualifier is a path-component extraction when it is one of the keywords above --
+// applied post-render (treating the field's value as a path), like the s/// rewrite.
+bool IsPathComponent(std::string_view qualifier) {
+  return absl::c_contains(kPathComponents, qualifier);
+}
+
+// Treats `value` as a path and extracts `component`, mirroring the flat path fields
+// so any path-valued field composes: {target:stem}, {path:name}, {def.B:dir}, ...
+// {core} = the filename with ALL extensions removed (foo.tar.gz -> foo), the
+// complement of {suffixes}; {path} (and any unknown keyword) is the identity.
+std::string PathComponent(std::string_view value, std::string_view component) {
+  const stdfs::path path{std::string(value)};
+  if (component == "dir") {
+    const std::string parent = path.parent_path().string();
+    return parent.empty() ? "." : parent;
+  }
+  if (component == "name" || component == "basename" || component == "file") {
+    return path.filename().string();
+  }
+  if (component == "stem") {
+    return path.stem().string();
+  }
+  if (component == "ext" || component == "extension") {
+    const std::string ext = path.extension().string();  // includes the leading '.'
+    return ext.empty() ? ext : ext.substr(1);
+  }
+  if (component == "suffix") {
+    return path.extension().string();  // last extension WITH its dot
+  }
+  const std::string filename = path.filename().string();
+  const std::string::size_type dot = filename.find('.', 1);  // first extension; a leading dot is not one
+  if (component == "suffixes") {
+    return dot == std::string::npos ? "" : filename.substr(dot);
+  }
+  if (component == "core") {
+    return dot == std::string::npos ? filename : filename.substr(0, dot);
+  }
+  return std::string(value);  // "path" (whole) or an unrecognised keyword -> identity
+}
+
 }  // namespace
 
 Template Template::Compile(std::string_view tmpl) {
@@ -543,10 +598,13 @@ Template Template::Compile(std::string_view tmpl) {
         continue;
       }
       flush_literal();
-      auto [fn, key] = ResolveName(name);                  // builtin field, {0}..{N} capture, or {env.NAME}
-      const bool rewrite = IsRewriteQualifier(qualifier);  // {field:s/PAT/REPL/} post-render transform
-      compiled.segments_.push_back(
-          {.fn = fn, .key = std::move(key), .qualifier = std::move(qualifier), .rewrite = rewrite});
+      auto [fn, key] = ResolveName(name);  // builtin field, {0}..{N} capture, or {env.NAME}
+      // Classify the qualifier: an s/// rewrite or a path-component extraction is a
+      // post-render transform; anything else is the field's own format argument.
+      const Segment::PostProcess post = IsRewriteQualifier(qualifier) ? Segment::PostProcess::kRewrite
+                                        : IsPathComponent(qualifier)  ? Segment::PostProcess::kComponent
+                                                                      : Segment::PostProcess::kNone;
+      compiled.segments_.push_back({.fn = fn, .key = std::move(key), .qualifier = std::move(qualifier), .post = post});
       i = next;
     } else {
       literal.push_back(ch);
@@ -561,11 +619,16 @@ std::string Template::Render(const RenderContext& context) const {
   std::string out;
   for (const Segment& segment : segments_) {
     if (segment.fn != nullptr) {
-      // A rewrite qualifier post-processes the field's default value; otherwise
-      // the qualifier is the field's own format argument.
-      const std::string value =
-          segment.fn(segment.key, segment.rewrite ? std::string_view{} : segment.qualifier, context);
-      out.append(segment.rewrite ? ApplyRewrite(value, segment.qualifier) : value);
+      // A post-render transform (s/// rewrite or path-component) renders the field
+      // with no qualifier, then transforms the value; otherwise the qualifier is the
+      // field's own format argument.
+      const bool transform = segment.post != Segment::PostProcess::kNone;
+      const std::string value = segment.fn(segment.key, transform ? std::string_view{} : segment.qualifier, context);
+      switch (segment.post) {
+        case Segment::PostProcess::kComponent: out.append(PathComponent(value, segment.qualifier)); break;
+        case Segment::PostProcess::kNone: out.append(value); break;
+        case Segment::PostProcess::kRewrite: out.append(ApplyRewrite(value, segment.qualifier)); break;
+      }
     } else {
       out.append(segment.literal);
     }
