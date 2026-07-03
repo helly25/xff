@@ -117,6 +117,7 @@ Expression: tests, operators, and actions applied to each entry, by group. Use
   Time          -mtime  -atime  -ctime  -Btime  -newerXY   (units + compound durations)
   Owner / perm  -user  -group  -uid  -gid  -perm  -readable / -writable / -executable
   Content       -content / -icontent (literal),  -rxc / -irxc (regex) filter;  -grep[=FMT] prints match lines
+  Compare       -cmp TARGET  (true when byte-identical to TARGET, a field template; e.g. '{def.B}/{relpath}')
   Operators     -a   -o   !   ( )   ,      xff: -xor  -nand  -nor  -xnor
   Actions       -print  -print0  -printf  -println  -ls  -exec / -execdir CMD ;|+  -delete  -prune  -quit  -ok
 )";

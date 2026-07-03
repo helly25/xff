@@ -911,6 +911,38 @@ bool EvalRxc(const parser::Expr& expr, EvalContext& ctx) {
   return content.has_value() && matcher->get().PartialMatch(*content);
 }
 
+// xff -cmp TARGET: true when the entry's content is byte-for-byte identical to
+// TARGET's (TRUE = same, like cmp(1)); false when they differ or either side is
+// missing/unreadable. TARGET is a field template rendered per entry, so
+// `xff A ! -cmp '{def.B}/{relpath}'` lists files that differ from their counterpart
+// under tree B. Byte-exact and binary-safe (reads raw content, not ContentToSearch);
+// text normalization (--diff-ignore) is -diff's concern. Cost::kExpensive (two reads).
+bool EvalCmp(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.args.empty()) {
+    return false;
+  }
+  const std::string link = LinkTarget(ctx);  // owns the {target} text for the render below
+  const std::string target = fields::Template::Compile(expr.args.front())
+                                 .Render(
+                                     fields::RenderContext{
+                                         .path = ctx.visit.path,
+                                         .root = ctx.visit.root,
+                                         .link_target = link,
+                                         .metadata = ctx.visit.metadata,
+                                         .depth = ctx.visit.depth,
+                                         .tz = ctx.tz,
+                                         .time_format = ctx.time_format,
+                                         .captures = ctx.captures,
+                                         .defines = ctx.defines,
+                                         .outputs = ctx.outputs});
+  if (target.empty()) {
+    return false;  // no target resolved (e.g. an empty template) -> treat as differing
+  }
+  const absl::StatusOr<std::string> lhs = ctx.fs.ReadContent(ctx.visit.path);
+  const absl::StatusOr<std::string> rhs = ctx.fs.ReadContent(target);
+  return lhs.ok() && rhs.ok() && *lhs == *rhs;  // byte-exact; TRUE = identical content
+}
+
 // xff -grep PATTERN: the line-output companion of -rxc. Prints each line of the
 // file's content that matches, as `path:lineno:text` (grep's piped form). The
 // pattern is an RE2 regex by default (pre-compiled by the parser) or a literal
@@ -1573,6 +1605,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-capture", {&EvalCapture}},
     DispatchPair{"-capturedir", {&EvalCapturedir}},
     DispatchPair{"-cmin", {&EvalCmin}},
+    DispatchPair{"-cmp", {&EvalCmp}},
     DispatchPair{"-cnewer", {&EvalCnewer}},
     DispatchPair{"-content", {&EvalContent}},
     DispatchPair{"-ctime", {&EvalCtime}},
