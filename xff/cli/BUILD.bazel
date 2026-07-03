@@ -179,6 +179,16 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of -cmp: byte-exact content comparison (TRUE = identical); `! -cmp`
+# with a {def.B}/{relpath} target lists files that differ from a parallel tree; the
+# find style rejects it. Drives the real binary (reads files).
+bashtest(
+    name = "cmp_test",
+    size = "small",
+    srcs = ["cmp_test.sh"],
+    data = [":xff"],
+)
+
 # End-to-end test of --color=auto|always|never: only --color=always forces the
 # ANSI escapes when stdout is a pipe (the test captures it); a plain file stays
 # uncolored; --help documents the flag. Drives the real binary (reads isatty).

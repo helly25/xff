@@ -137,6 +137,17 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .style = Style::kXff,
         .cost = Cost::kExpensive,
     },
+    // xff -cmp: content comparison. TRUE when the file is byte-for-byte identical to
+    // TARGET (a field template rendered per entry, e.g. '{def.B}/{relpath}'); byte-exact
+    // and binary-safe, so `! -cmp` selects files that differ from a parallel tree.
+    {
+        .name = "-cmp",
+        .summary = "true when the file's content is byte-identical to TARGET (a field template) (xff)",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .style = Style::kXff,
+        .cost = Cost::kExpensive,
+    },
     {
         .name = "-type",
         .summary = "match the file type (f/d/l/b/c/p/s)",

@@ -469,6 +469,36 @@ TEST_F(RunTest, TemplateTargetRendersTheSymlinkTarget) {
   EXPECT_THAT(RunArgvRecords({"--template=[{target}]", root_.string(), "-name", "a.txt"}), ElementsAre("[]"));
 }
 
+TEST_F(RunTest, CmpMatchesByteIdenticalContent) {
+  { std::ofstream(root_ / "twin.txt") << "a"; }  // byte-identical to a.txt (content "a")
+  { std::ofstream(root_ / "diff.txt") << "X"; }  // differs
+  // -cmp TARGET is TRUE (same) when byte-identical; TARGET is a field template (a bare
+  // path is a literal). a.txt == twin.txt, a.txt != diff.txt.
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "-cmp", Path("twin.txt")}), ElementsAre(Path("a.txt")));
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "-cmp", Path("diff.txt")}), IsEmpty());
+  // `! -cmp` selects files that differ (the "list changed files" idiom).
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "!", "-cmp", Path("diff.txt")}), ElementsAre(Path("a.txt")));
+  // A missing / unreadable target counts as differing (not-same -> false).
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "-cmp", Path("nope.txt")}), IsEmpty());
+}
+
+TEST_F(RunTest, CmpTargetIsAPerEntryTemplate) {
+  // The target is rendered per entry, so {def.NAME} / {name} build it dynamically:
+  // compare each file against a same-named file under a parallel directory.
+  const std::string other = (fs::path(::testing::TempDir()) / "xff_cmp_other").string();
+  std::error_code ec;
+  fs::remove_all(other, ec);
+  ASSERT_TRUE(fs::create_directories(other));
+  { std::ofstream(fs::path(other) / "a.txt") << "a"; }         // identical to <root>/a.txt
+  { std::ofstream(fs::path(other) / "b.md") << "DIFFERENT"; }  // differs from <root>/b.md ("b")
+  // ! -cmp '{def.OTHER}/{name}' -> files whose twin under OTHER differs (b.md; a.txt matches).
+  const std::vector<std::string> changed =
+      RunArgvRecords({"--define=OTHER=" + other, root_.string(), "-type", "f", "!", "-cmp", "{def.OTHER}/{name}"});
+  fs::remove_all(other, ec);
+  // sub/c.txt has no counterpart under OTHER (missing -> differs); b.md differs; a.txt matches.
+  EXPECT_THAT(changed, UnorderedElementsAre(Path("b.md"), Path("sub/c.txt")));
+}
+
 TEST_F(RunTest, ColorAutoStaysPlainWhenStdoutIsNotATty) {
   // The captured stdout here is a pipe, so auto (the default) leaves even a
   // directory uncolored; only --color=always would force escapes.
