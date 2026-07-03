@@ -459,6 +459,16 @@ TEST_F(RunTest, TemplateRelpathIsRelativeToTheSearchRoot) {
       UnorderedElementsAre("a.txt", "b.md", "sub/c.txt"));
 }
 
+TEST_F(RunTest, TemplateTargetRendersTheSymlinkTarget) {
+  // {target} = the symlink's target (find %l), resolved via ReadLink at the render
+  // context; empty for a non-symlink. Exercises the engine's link-target wiring e2e.
+  std::error_code ec;
+  fs::create_symlink("a.txt", root_ / "link.lnk", ec);
+  ASSERT_FALSE(ec);
+  EXPECT_THAT(RunArgvRecords({"--template={target}", root_.string(), "-name", "link.lnk"}), ElementsAre("a.txt"));
+  EXPECT_THAT(RunArgvRecords({"--template=[{target}]", root_.string(), "-name", "a.txt"}), ElementsAre("[]"));
+}
+
 TEST_F(RunTest, ColorAutoStaysPlainWhenStdoutIsNotATty) {
   // The captured stdout here is a pipe, so auto (the default) leaves even a
   // directory uncolored; only --color=always would force escapes.

@@ -216,6 +216,16 @@ TEST_F(FieldsTest, PathComponentQualifierDecomposesAnyPathValuedField) {
       Template::Compile("{def.B:core}").Render(RenderContext{.path = "f", .metadata = md, .defines = &defs}), "report");
 }
 
+TEST_F(FieldsTest, TargetRendersTheSymlinkTargetAndComposes) {
+  const vfs::Metadata link = Meta(vfs::FileType::kSymlink, 0);
+  const Template compiled = Template::Compile("{target}|{target:name}|{target:core}");
+  EXPECT_THAT(
+      compiled.Render(RenderContext{.path = "l", .link_target = "sub/report.tar.gz", .metadata = link}),
+      "sub/report.tar.gz|report.tar.gz|report");
+  // Empty for a non-symlink (link_target unset by the driver).
+  EXPECT_THAT(Render("[{target}]", "f", Meta(vfs::FileType::kRegular, 0), 0), "[]");
+}
+
 TEST_F(FieldsTest, QuotedQualifierCarriesBracesColonsAndQuotes) {
   vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   md.mtime = absl::FromUnixSeconds(1'700'000'000);  // 2023-11-14, mid-month: the year is timezone-stable

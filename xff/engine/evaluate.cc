@@ -827,6 +827,17 @@ bool EvalPath(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.path, flags);
 }
 
+// {target} render support: a symlink's target text (find %l) for the field
+// vocabulary, empty for a non-symlink or on a read error. Symlink-gated, so a
+// non-symlink costs no syscall.
+std::string LinkTarget(const EvalContext& ctx) {
+  if (ctx.visit.metadata.type != vfs::FileType::kSymlink) {
+    return "";
+  }
+  const absl::StatusOr<std::string> target = ctx.fs.ReadLink(ctx.visit.path);
+  return target.ok() ? *target : std::string();
+}
+
 // -lname/-ilname: glob the symlink's *target* text (the link is never resolved).
 // Only a symlink can match; the descriptor's fold_case selects -ilname's
 // FNM_CASEFOLD, mirroring -name/-iname.
@@ -955,11 +966,13 @@ bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
       match_text = line.text.substr(span->first, span->second);
       match_column = span->first + 1;
     }
+    const std::string link = LinkTarget(ctx);  // owns the {target} text for the render below
     ctx.emit(
         expr.grep_template->Render(
             fields::RenderContext{
                 .path = ctx.visit.path,
                 .root = ctx.visit.root,
+                .link_target = link,
                 .metadata = ctx.visit.metadata,
                 .depth = ctx.visit.depth,
                 .tz = ctx.tz,
@@ -1340,9 +1353,11 @@ bool EvalDelete(const parser::Expr&, EvalContext& ctx) {
 // Renders every -exec/-execdir token through the field vocabulary ({}, {name},
 // {path}, {root}, {capture.*}, ...) for --exec-fields, yielding the final argv.
 std::vector<std::string> RenderExecArgv(const parser::Expr& expr, const EvalContext& ctx) {
+  const std::string link = LinkTarget(ctx);  // outlives render_ctx (its {target} view)
   const fields::RenderContext render_ctx{
       .path = ctx.visit.path,
       .root = ctx.visit.root,
+      .link_target = link,
       .metadata = ctx.visit.metadata,
       .depth = ctx.visit.depth,
       .tz = ctx.tz,
@@ -1484,9 +1499,11 @@ bool RunCapture(const parser::Expr& expr, EvalContext& ctx, std::string_view dir
   }
   // The command renders through the field vocabulary so {} -> path and prior
   // {capture.*}/{def.*}/{N} resolve (left-to-right chaining).
+  const std::string link = LinkTarget(ctx);  // outlives render_ctx (its {target} view)
   const fields::RenderContext render_ctx{
       .path = ctx.visit.path,
       .root = ctx.visit.root,
+      .link_target = link,
       .metadata = ctx.visit.metadata,
       .depth = ctx.visit.depth,
       .tz = ctx.tz,
