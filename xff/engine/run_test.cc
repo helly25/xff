@@ -360,6 +360,12 @@ TEST_F(RunTest, LinksOneMatchesRegularFiles) {
   EXPECT_THAT(RunExpr({"-links", "1"}), UnorderedElementsAre(Path("a.txt"), Path("b.md"), Path("sub/c.txt")));
 }
 
+TEST_F(RunTest, MimeMatchesByExtensionDerivedType) {
+  // Fixture: a.txt + sub/c.txt (text/plain) and b.md (text/markdown) are all text/*;
+  // the directories (no extension -> octet-stream) are excluded.
+  EXPECT_THAT(RunExpr({"-mime", "text/*"}), UnorderedElementsAre(Path("a.txt"), Path("b.md"), Path("sub/c.txt")));
+}
+
 TEST_F(RunTest, MissingRootCountsError) {
   const std::vector<std::string> argv = {(root_ / "absent").string(), "-print"};
   const auto command = parser::Parse(argv);

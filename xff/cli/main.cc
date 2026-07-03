@@ -110,7 +110,7 @@ Expression: tests, operators, and actions applied to each entry, by group. Use
 `--help=expressions` for the full annotated list and `--help=NAME` for one entry
 (e.g. `--help=-regex`):
   Name / path   -name  -iname  -path  -regex  -lname
-  Type / size   -type  -size  -blocks  -empty  -sparse
+  Type / size   -type  -size  -blocks  -empty  -sparse  -mime (media type by extension)
   Time          -mtime  -atime  -ctime  -Btime  -newerXY   (units + compound durations)
   Owner / perm  -user  -group  -uid  -gid  -perm  -readable / -writable / -executable
   Content       -content / -icontent (literal),  -rxc / -irxc (regex) filter;  -grep[=FMT] prints match lines
