@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
@@ -224,92 +225,132 @@ std::string Renderer::Header() const {
   return "";  // unreachable: every Format handled above
 }
 
+TableStream::TableStream(Format format, std::vector<std::string> header, bool with_header, std::size_t window)
+    : md_(format == Format::kMarkdown),
+      columns_(format == Format::kAligned || format == Format::kMarkdown ? header.size() : 0),
+      with_header_(with_header),
+      window_(window),
+      widths_(columns_, md_ ? 3 : 0),
+      buffering_(window != 0),
+      header_done_(false),
+      flushed_(false) {
+  header_.reserve(columns_);
+  for (std::size_t col = 0; col < columns_; ++col) {
+    header_.push_back(md_ ? MarkdownCell(header[col]) : std::move(header[col]));
+    if (with_header_) {
+      widths_[col] = std::max(widths_[col], header_[col].size());
+    }
+  }
+}
+
+std::string TableStream::Row(const std::vector<std::string>& cells) const {
+  std::string out;
+  for (std::size_t col = 0; col < columns_; ++col) {
+    if (md_) {
+      out.append(col == 0 ? "| " : " | ");
+    }
+    const std::string& cell = cells[col];
+    out.append(cell);
+    // Pad to the column width, except the last cell of an aligned row (no trailing space).
+    // widths_ always covers every cell already emitted, so the subtraction never underflows.
+    if (md_ || col + 1 < columns_) {
+      out.append(widths_[col] - cell.size(), ' ');
+    }
+    if (md_ && col + 1 == columns_) {
+      out.append(" |");
+    } else if (!md_ && col + 1 < columns_) {
+      out.append("  ");  // two-space column gap
+    }
+  }
+  out.push_back('\n');
+  return out;
+}
+
+std::string TableStream::HeaderAndRule() {
+  if (header_done_ || !with_header_) {
+    return "";
+  }
+  header_done_ = true;
+  std::string out = Row(header_);
+  // The rule under the header: `| --- | --- |` for md, a dashed underline for aligned.
+  for (std::size_t col = 0; col < columns_; ++col) {
+    if (md_) {
+      out.append(col == 0 ? "| " : " | ");
+    }
+    out.append(widths_[col], '-');
+    if (md_ && col + 1 == columns_) {
+      out.append(" |");
+    } else if (!md_ && col + 1 < columns_) {
+      out.append("  ");
+    }
+  }
+  out.push_back('\n');
+  return out;
+}
+
+std::string TableStream::Add(const std::vector<std::string>& cells) {
+  if (columns_ == 0) {
+    return "";  // not a buffered tabular format
+  }
+  std::vector<std::string> row;
+  row.reserve(columns_);
+  for (std::size_t col = 0; col < columns_; ++col) {
+    const std::string_view cell = col < cells.size() ? std::string_view(cells[col]) : std::string_view();
+    row.push_back(md_ ? MarkdownCell(cell) : std::string(cell));
+  }
+  for (std::size_t col = 0; col < columns_; ++col) {
+    widths_[col] = std::max(widths_[col], row[col].size());
+  }
+  if (buffering_) {
+    buffer_.push_back(std::move(row));
+    if (window_ != kAll && buffer_.size() >= window_) {
+      // The window is full: lock the widths, flush the header + rule + buffered rows, then
+      // stream. A later wider cell grows its column for that row only (earlier rows keep the
+      // locked width), so no row is dropped -- the same graceful skew as -ls past its window.
+      buffering_ = false;
+      std::string out = HeaderAndRule();
+      for (const std::vector<std::string>& buffered : buffer_) {
+        out += Row(buffered);
+      }
+      buffer_.clear();
+      return out;
+    }
+    return "";
+  }
+  // Streaming (window == 0, or already past the initial window): emit at the current widths.
+  return HeaderAndRule() + Row(row);
+}
+
+std::string TableStream::Flush() {
+  if (columns_ == 0 || flushed_) {
+    return "";
+  }
+  flushed_ = true;
+  if (buffering_) {
+    // The window was never reached (or window == kAll): full alignment of everything buffered.
+    buffering_ = false;
+    std::string out = HeaderAndRule();
+    for (const std::vector<std::string>& buffered : buffer_) {
+      out += Row(buffered);
+    }
+    buffer_.clear();
+    return out;
+  }
+  // Streaming already emitted every row; emit the header alone if nothing ever streamed.
+  return HeaderAndRule();
+}
+
 std::string RenderTable(
     Format format,
     const std::vector<std::string>& header,
     const std::vector<std::vector<std::string>>& rows,
     bool with_header) {
-  const bool md = format == Format::kMarkdown;
-  if (!md && format != Format::kAligned) {
-    return "";  // streaming / non-tabular; rendered per row via Record / EncodeTabularRow
-  }
-  const std::size_t columns = header.size();
-  if (columns == 0) {
-    return "";
-  }
-
-  // Escape each cell for its format (md `|`-escapes and single-lines; aligned keeps bytes
-  // verbatim, like -ls), then take each column's width as the widest shown cell: the header
-  // (unless --no-header dropped it) plus every data row. md floors a column at 3 so the
-  // `---` rule always fits. This holds every matched row in memory (O(matches)) because the
-  // widths are only known once the walk ends; a --buffer-style bound is a planned follow-up.
-  const auto encode = [md](std::string_view cell) { return md ? MarkdownCell(cell) : std::string(cell); };
-  std::vector<std::string> head;
-  head.reserve(columns);
-  for (const std::string& name : header) {
-    head.push_back(encode(name));
-  }
-  std::vector<std::vector<std::string>> data;
-  data.reserve(rows.size());
-  for (const std::vector<std::string>& row : rows) {
-    std::vector<std::string> cells;
-    cells.reserve(columns);
-    for (std::size_t col = 0; col < columns; ++col) {
-      cells.push_back(encode(col < row.size() ? std::string_view(row[col]) : std::string_view()));
-    }
-    data.push_back(std::move(cells));
-  }
-  std::vector<std::size_t> width(columns, md ? 3 : 0);
-  if (with_header) {
-    for (std::size_t col = 0; col < columns; ++col) {
-      width[col] = std::max(width[col], head[col].size());
-    }
-  }
-  for (const std::vector<std::string>& cells : data) {
-    for (std::size_t col = 0; col < columns; ++col) {
-      width[col] = std::max(width[col], cells[col].size());
-    }
-  }
-
+  TableStream stream(format, header, with_header, TableStream::kAll);
   std::string out;
-  const auto emit_row = [&](const std::vector<std::string>& cells) {
-    for (std::size_t col = 0; col < columns; ++col) {
-      if (md) {
-        out.append(col == 0 ? "| " : " | ");
-      }
-      out.append(cells[col]);
-      // Pad to the column width, except the last cell of an aligned row (no trailing space).
-      if (md || col + 1 < columns) {
-        out.append(width[col] - cells[col].size(), ' ');
-      }
-      if (md && col + 1 == columns) {
-        out.append(" |");
-      } else if (!md && col + 1 < columns) {
-        out.append("  ");  // two-space column gap
-      }
-    }
-    out.push_back('\n');
-  };
-
-  if (with_header) {
-    emit_row(head);
-    // The rule under the header: `| --- | --- |` for md, a dashed underline for aligned.
-    for (std::size_t col = 0; col < columns; ++col) {
-      if (md) {
-        out.append(col == 0 ? "| " : " | ");
-      }
-      out.append(width[col], '-');
-      if (md && col + 1 == columns) {
-        out.append(" |");
-      } else if (!md && col + 1 < columns) {
-        out.append("  ");
-      }
-    }
-    out.push_back('\n');
+  for (const std::vector<std::string>& row : rows) {
+    out += stream.Add(row);  // window == kAll buffers every row, so each Add returns ""
   }
-  for (const std::vector<std::string>& cells : data) {
-    emit_row(cells);
-  }
+  out += stream.Flush();
   return out;
 }
 
