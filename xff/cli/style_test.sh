@@ -188,6 +188,25 @@ test::case_smart_and_overrides() {
   expect_output_not_contains "README.md" "${out}"
 }
 
+test::help_styles_shows_the_flavor_comparison() {
+  local out
+  out="$("$(_xff_bin)" --help=styles 2>&1)"
+  # All four style columns and the key behavior rows are present.
+  expect_output_contains "xfd" "${out}"
+  expect_output_contains "hidden dotfiles" "${out}"
+  expect_output_contains "letter case" "${out}"
+  # hidden: find/xff show, xfd/rg skip (one row, so the whole-text regex stays on that line).
+  expect_matches 'hidden dotfiles.*show.*show.*skip.*skip' "${out}"
+}
+
+test::explain_adds_the_current_flavor_column() {
+  local out
+  # --explain prints the flavor table with a `current` column resolved for this run.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --config=rg --explain 2>&1)"
+  expect_output_contains "current" "${out}"
+  expect_matches 'letter case.*smart' "${out}" # rg resolves case -> smart
+}
+
 test::argv0_find_alias_defaults_to_strict_style() {
   local dir
   dir="$(_tree argv0)"

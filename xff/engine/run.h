@@ -16,7 +16,11 @@
 #ifndef XFF_ENGINE_RUN_H_
 #define XFF_ENGINE_RUN_H_
 
+#include <functional>
 #include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
 
 #include "xff/engine/evaluate.h"
 #include "xff/engine/walk.h"
@@ -25,6 +29,20 @@
 #include "xff/vfs/filesystem.h"
 
 namespace xff::engine {
+
+// One row of the flavor feature-map (--help=styles / --explain): a style-scoped behavior,
+// the flag(s) that control it, and a function that yields its resolved value as a display
+// string. `value({}, style)` is that style's default (an empty globals list); `value(globals,
+// active)` is the current resolved value. Each facet wraps its own resolver, so the table
+// and a real run read the same source and cannot drift. FlavorFacets() is the collector
+// (a --feature capability would append its own facet here later).
+struct FlavorFacet {
+  std::string_view behavior;
+  std::string_view flag;
+  std::function<std::string(const std::vector<std::string>& globals, registry::Style style)> value;
+};
+
+std::vector<FlavorFacet> FlavorFacets();
 
 // Runs a parsed find command over `fs`: walks the roots in pre-order and, for
 // each entry, evaluates the expression -- firing -print/-print0 actions through
