@@ -277,6 +277,10 @@ render::Format ResolveFormat(const std::vector<std::string>& globals) {
       format = render::Format::kCsv;
     } else if (global == "--format=tsv") {
       format = render::Format::kTsv;
+    } else if (global == "--format=aligned") {
+      format = render::Format::kAligned;
+    } else if (global == "--format=markdown" || global == "--format=md") {
+      format = render::Format::kMarkdown;  // `md` is the short alias of the canonical `markdown`
     }
   }
   return format;
@@ -1043,20 +1047,26 @@ int RunFind(
   // Precompile the --template once; rendering each match then skips re-scanning.
   const std::optional<fields::Template> compiled_tmpl =
       tmpl.has_value() ? std::optional<fields::Template>(fields::Template::Compile(*tmpl)) : std::nullopt;
-  // --columns=FIELD,... : the tabular column set for --format=csv / tsv. Validate before
-  // the walk -- an unknown column, a non-tabular format, or a suppressed default listing
+  // --columns=FIELD,... : the tabular column set (--format=csv/tsv/aligned/markdown). Validate
+  // before the walk -- an unknown column, a non-tabular format, or a suppressed default listing
   // (an action / --implicit-print=no) is a usage error, not a silently-empty or moot table.
+  // aligned/markdown are `buffered` (the whole table renders after the walk, once every column
+  // width is known); csv/tsv stream a row at a time. All four support --columns + a header.
   const std::vector<std::string> columns = ResolveColumns(command.globals);
-  const bool tabular = format == render::Format::kCsv || format == render::Format::kTsv;
+  const bool buffered = format == render::Format::kAligned || format == render::Format::kMarkdown;
+  const bool tabular = format == render::Format::kCsv || format == render::Format::kTsv || buffered;
   if ((tabular || !columns.empty()) && !implicit_print) {
     on_error(
         "--format", absl::FailedPreconditionError(
-                        "csv/tsv output and --columns format the default listing; an action like -ls / -printf / "
-                        "-exec produces its own output -- drop the action, or drop --format=csv/tsv / --columns"));
+                        "tabular output (--format=csv/tsv/aligned/markdown) and --columns format the default "
+                        "listing; an action like -ls / -printf / -exec produces its own output -- drop the "
+                        "action, or drop --format / --columns"));
     return 2;
   }
   if (!columns.empty() && !tabular) {
-    on_error("--columns", absl::FailedPreconditionError("--columns needs --format=csv or --format=tsv"));
+    on_error(
+        "--columns",
+        absl::FailedPreconditionError("--columns needs a tabular --format (csv, tsv, aligned, or markdown)"));
     return 2;
   }
   for (const std::string& col : columns) {
@@ -1232,8 +1242,15 @@ int RunFind(
   // --hidden / --no-hidden (style-scoped default): whether to drop hidden dotfiles.
   const bool skip_hidden = ResolveSkipHidden(command.globals, style);
 
-  // csv/tsv emit a one-time header row before the records, unless --no-header (or the
-  // output is a --summary / explicit-action stream rather than the implicit path records).
+  // Buffered tabular output (--format=aligned/markdown) collects each match's cells here and
+  // renders the whole table after the walk (once every column width is known). The visitor is
+  // single-threaded, so no lock; O(matches) memory (a --buffer bound is a planned follow-up).
+  std::vector<std::vector<std::string>> buffered_rows;
+
+  // Streaming tabular (csv/tsv) emits a one-time header row before the records, unless
+  // --no-header (or the output is a --summary / explicit-action stream rather than the
+  // implicit path records). The buffered formats emit their header inside RenderTable, so
+  // Header() / EncodeTabularRow() return "" for them and this block is a no-op.
   if (implicit_print && summary_mode == SummaryMode::kOff && !HasGlobal(command.globals, "--no-header")) {
     const std::string header = columns.empty() ? render::Renderer(format, path_encoding).Header()
                                                : render::EncodeTabularRow(format, columns);  // the column names
@@ -1318,7 +1335,11 @@ int RunFind(
           agg.first += 1;
           agg.second += visit.metadata.size;
         } else if (matched && implicit_print) {
-          if (!column_templates.empty() || compiled_tmpl.has_value()) {
+          if (buffered && column_templates.empty() && !compiled_tmpl.has_value()) {
+            // Buffered tabular (aligned/markdown) with the default single `path` column: no
+            // field vocabulary needed, so collect the raw path directly.
+            buffered_rows.push_back({std::string(visit.path)});
+          } else if (!column_templates.empty() || compiled_tmpl.has_value()) {
             // --columns / --template render through the field vocabulary; build the context
             // once. {target} is a symlink's target (find %l), symlink-gated so a non-symlink
             // costs no syscall; `link` owns the text for the Render.
@@ -1338,13 +1359,17 @@ int RunFind(
                 .time_format = time_format,
                 .defines = &defines,
                 .outputs = &outputs};
-            if (!column_templates.empty()) {  // --columns: a csv/tsv row of field values
+            if (!column_templates.empty()) {  // --columns: a tabular row of field values
               std::vector<std::string> cells;
               cells.reserve(column_templates.size());
               for (const fields::Template& column : column_templates) {
                 cells.push_back(column.Render(ctx));
               }
-              emit(render::EncodeTabularRow(format, cells));
+              if (buffered) {  // aligned/markdown: collect; the whole table renders after the walk
+                buffered_rows.push_back(std::move(cells));
+              } else {
+                emit(render::EncodeTabularRow(format, cells));
+              }
             } else {  // --template overrides --format
               emit(compiled_tmpl->Render(ctx) + "\n");
             }
@@ -1385,6 +1410,19 @@ int RunFind(
   // window, or --buffer=all). No-op when -ls was not used or nothing remains.
   if (const std::string ls_tail = ls_buffer.Flush(); !ls_tail.empty()) {
     emit(ls_tail);
+  }
+
+  // Render the buffered tabular formats (--format=aligned/markdown) now that every matched
+  // row -- and thus every column width -- is known. The header row (the column names, or the
+  // single default `path`) is included unless --no-header, matching the csv/tsv header above.
+  if (buffered) {
+    const std::vector<std::string> table_header = columns.empty() ? std::vector<std::string>{"path"} : columns;
+    const bool with_header =
+        implicit_print && summary_mode == SummaryMode::kOff && !HasGlobal(command.globals, "--no-header");
+    if (const std::string table = render::RenderTable(format, table_header, buffered_rows, with_header);
+        !table.empty()) {
+      emit(table);
+    }
   }
 
   // -j>1: reap every concurrent `-exec/-execdir ... ;` child still running. find's

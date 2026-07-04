@@ -16,6 +16,7 @@
 #include "xff/render/render.h"
 
 #include <string>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -95,6 +96,65 @@ TEST_F(RenderTest, EncodeTabularRowJoinsAndEncodesCells) {
   // Non-tabular formats are not rows.
   EXPECT_THAT(EncodeTabularRow(Format::kPlain, cells), "");
   EXPECT_THAT(EncodeTabularRow(Format::kJsonl, cells), "");
+}
+
+// The buffered tabular formats (kAligned / kMarkdown) render the whole table at once via
+// RenderTable. EXPECT_EQ for the multiline output: its unified diff beats a matcher here.
+
+TEST_F(RenderTest, RenderTableAlignsColumnsUnderADashedHeaderRule) {
+  const std::vector<std::string> header = {"name", "size"};
+  const std::vector<std::vector<std::string>> rows = {{"a.txt", "3"}, {"README", "12"}};
+  EXPECT_EQ(
+      RenderTable(Format::kAligned, header, rows),
+      "name    size\n"
+      "------  ----\n"
+      "a.txt   3\n"
+      "README  12\n");
+}
+
+TEST_F(RenderTest, RenderTableMarkdownEmitsAGithubTableWithARule) {
+  const std::vector<std::string> header = {"name", "size"};
+  const std::vector<std::vector<std::string>> rows = {{"README", "12"}, {"a.txt", "3"}};
+  EXPECT_EQ(
+      RenderTable(Format::kMarkdown, header, rows),
+      "| name   | size |\n"
+      "| ------ | ---- |\n"
+      "| README | 12   |\n"
+      "| a.txt  | 3    |\n");
+}
+
+TEST_F(RenderTest, RenderTableMarkdownFloorsColumnWidthAtThreeForTheRule) {
+  EXPECT_EQ(
+      RenderTable(Format::kMarkdown, {"x"}, {{"y"}}),
+      "| x   |\n"
+      "| --- |\n"
+      "| y   |\n");
+}
+
+TEST_F(RenderTest, RenderTableMarkdownEscapesInteriorPipes) {
+  // A literal `|` in a cell is escaped so it cannot split the column.
+  EXPECT_EQ(
+      RenderTable(Format::kMarkdown, {"name"}, {{"has|pipe.txt"}}),
+      "| name          |\n"
+      "| ------------- |\n"
+      "| has\\|pipe.txt |\n");
+}
+
+TEST_F(RenderTest, RenderTableNoHeaderDropsTheHeaderAndRule) {
+  // --no-header: only the data rows, and the widths no longer count the hidden header.
+  const std::vector<std::string> header = {"name", "size"};
+  const std::vector<std::vector<std::string>> rows = {{"README", "12"}, {"a.txt", "3"}};
+  EXPECT_EQ(
+      RenderTable(Format::kAligned, header, rows, /*with_header=*/false),
+      "README  12\n"
+      "a.txt   3\n");
+}
+
+TEST_F(RenderTest, RenderTableIsEmptyForTheStreamingAndNonTabularFormats) {
+  const std::vector<std::vector<std::string>> rows = {{"a"}};
+  EXPECT_THAT(RenderTable(Format::kCsv, {"path"}, rows), "");
+  EXPECT_THAT(RenderTable(Format::kTsv, {"path"}, rows), "");
+  EXPECT_THAT(RenderTable(Format::kPlain, {"path"}, rows), "");
 }
 
 }  // namespace

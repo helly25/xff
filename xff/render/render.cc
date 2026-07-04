@@ -15,6 +15,8 @@
 
 #include "xff/render/render.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -106,10 +108,31 @@ void AppendTsvField(std::string_view field, std::string* out) {
   }
 }
 
+// One Markdown table cell: a cell is single-line and `|`-delimited, so escape `|` as `\|`,
+// turn a newline into a space, and drop CR. Everything else passes through verbatim.
+std::string MarkdownCell(std::string_view field) {
+  std::string out;
+  for (const char ch : field) {
+    switch (ch) {
+      case '|': out.append("\\|"); break;
+      case '\n': out.push_back(' '); break;
+      case '\r': break;
+      default: out.push_back(ch);
+    }
+  }
+  return out;
+}
+
 }  // namespace
 
 std::string Renderer::Record(std::string_view path, std::string_view color) const {
   switch (format_) {
+    case Format::kAligned:
+    case Format::kMarkdown:
+      // Buffered tabular: the whole table renders once via RenderTable, so a single record
+      // has no standalone encoding here. Emit the raw path line as a defensive fallback (the
+      // walk driver routes these formats through RenderTable, never Record).
+      return absl::StrCat(path, "\n");
     case Format::kCsv: {
       std::string record;
       AppendCsvField(path, &record);
@@ -169,9 +192,11 @@ std::string EncodeTabularRow(Format format, const std::vector<std::string>& cell
       out.push_back('\n');
       return out;
     }
+    case Format::kAligned:
+    case Format::kMarkdown:
     case Format::kJsonl:
     case Format::kNul:
-    case Format::kPlain: return "";  // not a tabular format; the caller passes only csv/tsv
+    case Format::kPlain: return "";  // streaming per-row is csv/tsv only (buffered ones use RenderTable)
   }
   return "";  // unreachable: every Format handled above
 }
@@ -190,11 +215,102 @@ std::string Renderer::Header() const {
       header.push_back('\n');
       return header;
     }
+    case Format::kAligned:
+    case Format::kMarkdown:
     case Format::kJsonl:
     case Format::kNul:
-    case Format::kPlain: return "";
+    case Format::kPlain: return "";  // buffered formats emit their header inside RenderTable
   }
   return "";  // unreachable: every Format handled above
+}
+
+std::string RenderTable(
+    Format format,
+    const std::vector<std::string>& header,
+    const std::vector<std::vector<std::string>>& rows,
+    bool with_header) {
+  const bool md = format == Format::kMarkdown;
+  if (!md && format != Format::kAligned) {
+    return "";  // streaming / non-tabular; rendered per row via Record / EncodeTabularRow
+  }
+  const std::size_t columns = header.size();
+  if (columns == 0) {
+    return "";
+  }
+
+  // Escape each cell for its format (md `|`-escapes and single-lines; aligned keeps bytes
+  // verbatim, like -ls), then take each column's width as the widest shown cell: the header
+  // (unless --no-header dropped it) plus every data row. md floors a column at 3 so the
+  // `---` rule always fits. This holds every matched row in memory (O(matches)) because the
+  // widths are only known once the walk ends; a --buffer-style bound is a planned follow-up.
+  const auto encode = [md](std::string_view cell) { return md ? MarkdownCell(cell) : std::string(cell); };
+  std::vector<std::string> head;
+  head.reserve(columns);
+  for (const std::string& name : header) {
+    head.push_back(encode(name));
+  }
+  std::vector<std::vector<std::string>> data;
+  data.reserve(rows.size());
+  for (const std::vector<std::string>& row : rows) {
+    std::vector<std::string> cells;
+    cells.reserve(columns);
+    for (std::size_t col = 0; col < columns; ++col) {
+      cells.push_back(encode(col < row.size() ? std::string_view(row[col]) : std::string_view()));
+    }
+    data.push_back(std::move(cells));
+  }
+  std::vector<std::size_t> width(columns, md ? 3 : 0);
+  if (with_header) {
+    for (std::size_t col = 0; col < columns; ++col) {
+      width[col] = std::max(width[col], head[col].size());
+    }
+  }
+  for (const std::vector<std::string>& cells : data) {
+    for (std::size_t col = 0; col < columns; ++col) {
+      width[col] = std::max(width[col], cells[col].size());
+    }
+  }
+
+  std::string out;
+  const auto emit_row = [&](const std::vector<std::string>& cells) {
+    for (std::size_t col = 0; col < columns; ++col) {
+      if (md) {
+        out.append(col == 0 ? "| " : " | ");
+      }
+      out.append(cells[col]);
+      // Pad to the column width, except the last cell of an aligned row (no trailing space).
+      if (md || col + 1 < columns) {
+        out.append(width[col] - cells[col].size(), ' ');
+      }
+      if (md && col + 1 == columns) {
+        out.append(" |");
+      } else if (!md && col + 1 < columns) {
+        out.append("  ");  // two-space column gap
+      }
+    }
+    out.push_back('\n');
+  };
+
+  if (with_header) {
+    emit_row(head);
+    // The rule under the header: `| --- | --- |` for md, a dashed underline for aligned.
+    for (std::size_t col = 0; col < columns; ++col) {
+      if (md) {
+        out.append(col == 0 ? "| " : " | ");
+      }
+      out.append(width[col], '-');
+      if (md && col + 1 == columns) {
+        out.append(" |");
+      } else if (!md && col + 1 < columns) {
+        out.append("  ");
+      }
+    }
+    out.push_back('\n');
+  }
+  for (const std::vector<std::string>& cells : data) {
+    emit_row(cells);
+  }
+  return out;
 }
 
 }  // namespace xff::render

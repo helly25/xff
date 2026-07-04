@@ -14,9 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# End-to-end test of --format=csv / --format=tsv: a header row by default (suppressed by
-# --no-header), and RFC-4180 quoting for a CSV field that holds a comma. Drives the real
-# binary (the header is emitted once by the walk driver, so shell level is the right fit).
+# End-to-end test of the tabular --format family: csv / tsv stream a header row by default
+# (suppressed by --no-header) with RFC-4180 quoting; aligned / markdown buffer the whole
+# table and render it padded (a dashed rule under the header) after the walk. --columns and
+# its usage errors are shared by all four. Drives the real binary (the header / table is
+# emitted by the walk driver, so shell level is the right fit).
 
 set -euo pipefail
 
@@ -86,11 +88,44 @@ test::columns_validation_is_a_usage_error() {
   # --columns without a tabular format.
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --columns=name "${dir}" 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
-  expect_output_contains "needs --format=csv" "${out}"
+  expect_output_contains "needs a tabular --format" "${out}"
   # --format=csv with an output action (-ls) that suppresses the default listing.
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=csv "${dir}" -ls 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
   expect_output_contains "format the default listing" "${out}"
+}
+
+test::aligned_renders_a_padded_table_under_a_dashed_rule() {
+  local dir out
+  dir="${TEST_TMPDIR}/aligned"
+  mkdir -p "${dir}"
+  echo hi >"${dir}/a.txt"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=aligned --columns=name,size "${dir}" -type f 2>&1)"
+  expect_output_contains "name" "${out}" # the header column names
+  expect_output_contains "size" "${out}"
+  expect_matches "----" "${out}" # a dashed underline separates the header from the rows
+  expect_output_contains "a.txt" "${out}"
+}
+
+test::markdown_renders_a_github_table_and_md_is_its_alias() {
+  local dir out
+  dir="${TEST_TMPDIR}/md"
+  mkdir -p "${dir}"
+  echo hi >"${dir}/a.txt"
+  # --format=md is the short alias of --format=markdown.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=md --columns=name,size "${dir}" -type f 2>&1)"
+  expect_matches "[|] -+ [|] -+ [|]" "${out}" # the padded | --- | --- | rule
+  expect_output_contains "| a.txt" "${out}"
+}
+
+test::no_header_drops_the_buffered_table_header() {
+  local dir out
+  dir="${TEST_TMPDIR}/aligned_nohdr"
+  mkdir -p "${dir}"
+  echo hi >"${dir}/a.txt"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=aligned --no-header --columns=name,size "${dir}" -type f 2>&1)"
+  expect_output_not_contains "name" "${out}" # the header row (and its rule) is gone
+  expect_output_contains "a.txt" "${out}"
 }
 
 test_runner
