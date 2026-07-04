@@ -265,6 +265,31 @@ std::string RenderOptions(std::string_view group_indent) {
   return out;
 }
 
+std::vector<HelpFlag> HelpFlags() {
+  return {
+      {.display = "-h, --help, -help", .summary = "print this usage page and exit (-help for GNU find compatibility)"},
+      {.display = "--help=NAME", .summary = "full help for one option or primary (e.g. --help=-regex, --help=--sort)"},
+      {.display = "--help=TOPIC", .summary = "detailed help for a topic:"},
+      {.display = "--help-full", .summary = "the full detailed reference (also --help-long); --help-all = --help=all"},
+      {.display = "--man", .summary = "print the man page (roff; pipe to `man -l -`) and exit"},
+      {.display = "--markdown", .summary = "print a Markdown reference of all options and primaries and exit"},
+      {.display = "--version, -version", .summary = "print the version and exit"},
+  };
+}
+
+std::string RenderHelpSection() {
+  constexpr std::size_t kWidth = 21;  // widest display ("--version, -version") + a 2-space gap
+  std::string out = "\n  Help:\n";
+  for (const HelpFlag& flag : HelpFlags()) {
+    const std::size_t pad = flag.display.size() + 2 <= kWidth ? kWidth - flag.display.size() : 2;
+    absl::StrAppend(&out, "    ", flag.display, std::string(pad, ' '), flag.summary, "\n");
+    if (flag.display == "--help=TOPIC") {
+      absl::StrAppend(&out, RenderTopicIndex("      "));  // the topic list nests under --help=TOPIC
+    }
+  }
+  return out;
+}
+
 absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   if (topic.empty() || topic == "list") {
     return RenderIndex();

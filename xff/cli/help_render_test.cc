@@ -37,6 +37,7 @@ using ::testing::EndsWith;
 using ::testing::Eq;
 using ::testing::Gt;
 using ::testing::HasSubstr;
+using ::testing::IsEmpty;
 using ::testing::Lt;
 using ::testing::Not;
 using ::testing::SizeIs;
@@ -111,6 +112,15 @@ TEST_F(HelpTest, SingleFlagHelpShowsTheLongExplanation) {
   // `--help=NAME` for a flag with a `details` paragraph shows it (not just the summary).
   EXPECT_THAT(RenderHelp("--config"), IsOkAndHolds(HasSubstr("A config style sets")));
   EXPECT_THAT(RenderHelp("--time-format"), IsOkAndHolds(HasSubstr("per-field qualifier")));
+}
+
+TEST_F(HelpTest, HelpSectionIsGeneratedFromFlagsAndTopics) {
+  // The usage-page Help: section is built from HelpFlags() + the topic index, not a
+  // hand-written string. It shows the meta/doc flags and nests the topic list.
+  EXPECT_THAT(HelpFlags(), Not(IsEmpty()));
+  const std::string section = RenderHelpSection();
+  EXPECT_THAT(section, AllOf(HasSubstr("--help=TOPIC"), HasSubstr("--man"), HasSubstr("--version")));
+  EXPECT_THAT(section, HasSubstr("fields"));  // the topic index (HelpTopics) is nested in
 }
 
 TEST_F(HelpTest, HelpGuideListsEveryTopic) {

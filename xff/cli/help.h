@@ -55,6 +55,21 @@ std::string RenderTopicIndex(std::string_view indent);
 // and neither hand-maintains flag descriptions.
 std::string RenderOptions(std::string_view group_indent);
 
+// One meta / doc flag for the usage page's Help: section (-h/--help, --help=NAME,
+// --help=TOPIC, --help-full, --man, --markdown, --version). These are consumed before
+// parsing (not in Globals(), never looked up), so they carry their own doc SOT here
+// instead of being hand-written; RenderHelpSection() renders them + the topic index.
+struct HelpFlag {
+  std::string_view display;  // e.g. "-h, --help, -help", "--man"
+  std::string_view summary;  // one-line description
+};
+
+std::vector<HelpFlag> HelpFlags();
+
+// The usage page's "Help:" section: the HelpFlags() rows plus the --help=TOPIC index
+// (from HelpTopics()), so the CLI hand-maintains no help-flag text.
+std::string RenderHelpSection();
+
 // Renders the `--help=TOPIC` help from the registry (the single source of truth, so
 // help can never drift from the parser's vocabulary). An empty topic (or "list")
 // returns the index of the whole vocabulary grouped by kind; "help" the help-system

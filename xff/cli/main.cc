@@ -27,7 +27,6 @@
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/str_cat.h"
 #include "xff/cli/globals.h"
 #include "xff/cli/help.h"
 #include "xff/cli/manpage.h"
@@ -59,9 +58,9 @@ Options (whole-run, before the paths):
 )";
 
 // The Expression: section of the usage page, printed after the generated Help: section.
-// The Help: section (help / doc flags + the --help=TOPIC index) is composed at print
-// time from the cli::HelpTopics() SOT so the advertised topic list cannot drift from
-// what --help=TOPIC accepts; see HelpSection().
+// The Help: section (help / doc flags + the --help=TOPIC index) is generated from the
+// cli::HelpFlags() and cli::HelpTopics() SOTs so no help-flag text is hand-maintained
+// here; see cli::RenderHelpSection().
 constexpr std::string_view kHelpTextExpression =
     R"(
 Expression: tests, operators, and actions applied to each entry, by group. Use
@@ -76,22 +75,6 @@ Expression: tests, operators, and actions applied to each entry, by group. Use
   Operators     -a   -o   !   ( )   ,      xff: -xor  -nand  -nor  -xnor
   Actions       -print  -print0  -printf  -println  -ls  -exec / -execdir CMD ;|+  -delete  -prune  -quit  -ok
 )";
-
-// The usage page's "Help:" section, composed at print time: the help / doc flag lines
-// plus the --help=TOPIC index generated from cli::HelpTopics(), so the topic list shown
-// on the usage page cannot drift from what --help=TOPIC actually accepts.
-std::string HelpSection() {
-  return absl::StrCat(
-      "\n  Help:\n"
-      "    -h, --help, -help    print this usage page and exit (-help for GNU find compatibility)\n"
-      "    --help=NAME          full help for one option or primary (e.g. --help=-regex, --help=--sort)\n"
-      "    --help=TOPIC         detailed help for a topic:\n",
-      xff::cli::RenderTopicIndex("      "),
-      "    --help-full          alias of --help=full (also --help-long); --help-all aliases --help=all\n"
-      "    --man                print the man page (roff; pipe to `man -l -`) and exit\n"
-      "    --markdown           print a Markdown reference of all options and primaries and exit\n"
-      "    --version, -version  print the version and exit\n");
-}
 
 // Environment variable as an optional (nullopt when unset), for config discovery.
 std::optional<std::string> EnvOpt(const char* name) {
@@ -183,7 +166,7 @@ int RunMain(int argc, char** argv) {
   //   -version           GNU find compatibility
   for (const std::string& arg : args) {
     if (arg == "--help" || arg == "-help" || arg == "-h") {
-      std::cout << kHelpText << xff::cli::RenderOptions("  ") << HelpSection() << kHelpTextExpression;
+      std::cout << kHelpText << xff::cli::RenderOptions("  ") << xff::cli::RenderHelpSection() << kHelpTextExpression;
       return 0;
     }
     if (arg == "--help-all") {
