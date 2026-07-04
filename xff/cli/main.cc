@@ -27,6 +27,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "xff/cli/globals.h"
 #include "xff/cli/help.h"
 #include "xff/cli/manpage.h"
@@ -55,73 +56,14 @@ Usage:
 No path searches the current directory; no action prints each match (an implicit -print).
 
 Options (whole-run, before the paths):
-  Config / mode:
-    --config=NAME       select a config style: find (strict), xff (find-evolved), xfd/rg (opinionated); repeatable
-    --no-config         ignore discovered .xffrc files
-    --xffrc=FILE        also load a specific config file
-    --explain           print the resolved configuration and exit
+)";
 
-  Traversal:
-    -H / -L / -P        symlinks: follow on the roots / follow everywhere / never (default -P)
-    -j N, --jobs=N|all  worker count for the walk and concurrent -exec (all = every core)
-    --sort[=none|dir|subtree|tree]   sibling/traversal ordering (default depends on the mode)
-
-  Matching:
-    --block-size=SIZE   bytes per -size block for a bare `-size N` / `-size Nb` (default 512; e.g. 4k)
-    --exact             match -name/-path byte-exact (xff otherwise folds case on a case-folding volume)
-    --regextype=RE2|EXACT  how -grep reads its pattern: RE2 regex (default) or EXACT literal
-
-  Ignore / filter:
-    --exclude=GLOB      skip paths matching a gitignore-style glob (repeatable; a matched dir is pruned)
-    --include=GLOB      re-include paths a --exclude would skip (repeatable; last match wins)
-    -g[+|-], --gitignore[=on|off]   respect .gitignore: -g = auto (in a git repo), -g+/=on always, -g-/=off never
-    --ignore-files      respect per-directory .ignore / .xffignore files (off by default)
-    --no-ignore, -u     disable all ignore-file processing (-u: rg/fd short form)
-    --hidden            include hidden dotfiles (default: find/xff show, xfd/rg skip)
-    --no-hidden         skip hidden dotfiles (the xfd/rg default)
-
-  Output:
-    --format=plain|nul|jsonl   record format (plain default; nul = -print0; jsonl = JSON lines)
-    --path-encoding=raw|escape plain-output path bytes: raw (verbatim) or escape (C-escape controls)
-    --template=TEMPLATE        render each match through a field template ({path}, {name}, ...)
-    --implicit-print=yes|no    force the default -print on or off
-    --summary[=overall|type|ext]   print an aligned count + size table instead of each match
-                        (grouped digits; --format=jsonl emits one machine object per row)
-    --count, -c         with -grep, print a per-file matching-line count (path:count), not the lines
-    --top=N             with --summary, show only the N largest groups by size (total still counts all)
-    --color[=auto|always|never]   colorize the plain listing by file type (auto=a tty; honors NO_COLOR)
-    --human[=iec|si|off]   size units for -ls / --summary: iec (KiB/MiB), si (kB/MB), off (bytes)
-                        (default: xff style -> human, find style -> bytes)
-    --buffer[=auto|off|all|N]   -ls column alignment: buffer rows to size columns
-                        (auto = first 100 then stream; off = min widths; all; or N)
-
-  Exit by match (grep-style):
-    --quiet, -q         suppress output; exit 0 if anything matched, else 1 (-q: grep-compatible)
-    --exit-match        keep output; exit 0 if anything matched, else 1
-
-  Safety:
-    --safe              refuse destructive actions (-delete / -exec)
-    --dry-run           preview -delete without removing anything
-    --skip-unsupported  warn and skip a predicate a filesystem cannot evaluate (e.g. -Btime), not fail
-
-  Fields & exec:
-    --exec-fields       render -exec tokens through the field vocabulary ({name}, {path}, ...)
-    --define=NAME=VALUE define a value referenced as {def.NAME}
-    --capture-override  allow a -capture NAME to be bound more than once (last wins)
-
-  Time:
-    --time-format=FMT   default format for time fields (a preset name or a strftime pattern)
-    --timezone=ZONE, --tz=ZONE   zone for interpreting/formatting times (local, utc, an IANA name, or +HH:MM)
-
-  Other:
-    -h, --help, -help   print this help and exit (-help for GNU find compatibility)
-    --help=NAME         print help for one primary, operator, action, or global flag
-                        (e.g. --help=-regex, --help=--sort); --help=list prints the index
-    --help=styles       print the find/xff/xfd/rg default comparison (--explain adds current)
-    --version, -version print the version and exit
-    --man               print the man page (roff; pipe to `man -l -`) and exit
-    --markdown          print a Markdown reference of all options and primaries and exit
-
+// The Expression: section of the usage page, printed after the generated Help: section.
+// The Help: section (help / doc flags + the --help=TOPIC index) is composed at print
+// time from the cli::HelpTopics() SOT so the advertised topic list cannot drift from
+// what --help=TOPIC accepts; see HelpSection().
+constexpr std::string_view kHelpTextExpression =
+    R"(
 Expression: tests, operators, and actions applied to each entry, by group. Use
 `--help=expressions` for the full annotated list and `--help=NAME` for one entry
 (e.g. `--help=-regex`):
@@ -134,6 +76,22 @@ Expression: tests, operators, and actions applied to each entry, by group. Use
   Operators     -a   -o   !   ( )   ,      xff: -xor  -nand  -nor  -xnor
   Actions       -print  -print0  -printf  -println  -ls  -exec / -execdir CMD ;|+  -delete  -prune  -quit  -ok
 )";
+
+// The usage page's "Help:" section, composed at print time: the help / doc flag lines
+// plus the --help=TOPIC index generated from cli::HelpTopics(), so the topic list shown
+// on the usage page cannot drift from what --help=TOPIC actually accepts.
+std::string HelpSection() {
+  return absl::StrCat(
+      "\n  Help:\n"
+      "    -h, --help, -help    print this usage page and exit (-help for GNU find compatibility)\n"
+      "    --help=NAME          full help for one option or primary (e.g. --help=-regex, --help=--sort)\n"
+      "    --help=TOPIC         detailed help for a topic:\n",
+      xff::cli::RenderTopicIndex("      "),
+      "    --help-full          alias of --help=full (also --help-long); --help-all aliases --help=all\n"
+      "    --man                print the man page (roff; pipe to `man -l -`) and exit\n"
+      "    --markdown           print a Markdown reference of all options and primaries and exit\n"
+      "    --version, -version  print the version and exit\n");
+}
 
 // Environment variable as an optional (nullopt when unset), for config discovery.
 std::optional<std::string> EnvOpt(const char* name) {
@@ -225,7 +183,15 @@ int RunMain(int argc, char** argv) {
   //   -version           GNU find compatibility
   for (const std::string& arg : args) {
     if (arg == "--help" || arg == "-help" || arg == "-h") {
-      std::cout << kHelpText;
+      std::cout << kHelpText << xff::cli::RenderOptions("  ") << HelpSection() << kHelpTextExpression;
+      return 0;
+    }
+    if (arg == "--help-all") {
+      std::cout << xff::cli::RenderHelp("all").value_or("");  // hyphenated shortcut for --help=all (summaries)
+      return 0;
+    }
+    if (arg == "--help-full" || arg == "--help-long") {
+      std::cout << xff::cli::RenderHelp("full").value_or("");  // hyphenated shortcut for --help=full (explained)
       return 0;
     }
     if (arg.starts_with("--help=")) {

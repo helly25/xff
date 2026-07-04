@@ -15,6 +15,7 @@
 
 #include "xff/cli/help.h"
 
+#include <cstddef>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -25,6 +26,7 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 #include "xff/cli/globals.h"
+#include "xff/fields/fields.h"
 #include "xff/registry/descriptor.h"
 #include "xff/registry/registry.h"
 
@@ -57,8 +59,12 @@ std::string RenderOne(const registry::Descriptor& descriptor) {
   return absl::StrCat(descriptor.name, ArgHint(descriptor), "  ", Tags(descriptor), "\n    ", descriptor.summary, "\n");
 }
 
-std::string RenderGlobalFlag(const GlobalFlag& flag) {
-  return absl::StrCat(flag.display, "  (global, ", flag.xff ? "xff" : "find", ")\n    ", flag.summary, "\n");
+std::string RenderGlobalFlag(const GlobalFlag& flag, bool with_details = false) {
+  std::string out = absl::StrCat(flag.display, "  (global, ", flag.xff ? "xff" : "find", ")\n    ", flag.summary, "\n");
+  if (with_details && !flag.details.empty()) {
+    absl::StrAppend(&out, "    ", flag.details, "\n");  // the long explanation (--help=NAME / --help=full)
+  }
+  return out;
 }
 
 // Appends the expression vocabulary to `out`, grouped by kind (Tests, Actions,
@@ -87,17 +93,11 @@ std::string RenderIndex() {
       "xff vocabulary. Use `--help=NAME` for one entry (e.g. `--help=-regex`, `--help=--sort`), "
       "or `--help` for the usage overview.\n";
 
-  // Whole-run global options, grouped as the usage page groups them (array order).
-  std::string_view group;
-  for (const GlobalFlag& flag : Globals()) {
-    if (flag.group != group) {
-      group = flag.group;
-      absl::StrAppend(&out, "\n", group, ":\n");
-    }
-    absl::StrAppendFormat(&out, "  %-30s%s\n", flag.display, flag.summary);
-  }
+  // Whole-run global options, grouped by GlobalFlag.group (shared with the usage page).
+  absl::StrAppend(&out, RenderOptions(""));
 
   AppendExpressions(&out);  // Tests / Actions / Operators, grouped by kind
+  absl::StrAppend(&out, "\nHelp topics (--help=TOPIC):\n", RenderTopicIndex("  "));
   return out;
 }
 
@@ -109,6 +109,102 @@ std::string RenderExpressions() {
       "xff expression vocabulary (tests, operators, actions applied to each entry). "
       "Use `--help=NAME` for one entry; `--help` for the usage overview.\n";
   AppendExpressions(&out);
+  return out;
+}
+
+// The `--help=fields` (alias `--help=format`) topic: the {field} placeholder
+// vocabulary. The named-field rows come from fields::FieldDocs() (the SOT, covered by
+// a fields_test drift guard) grouped by heading; the dynamic namespaces, qualifiers,
+// and brace rules are prose, and the % directives cross-reference `--help=-printf`.
+std::string RenderFields() {
+  std::string out =
+      "xff {field} placeholder vocabulary. Substituted per entry in --template and --format, "
+      "in -printf via the %{field} escape, and (with --exec-fields) in -exec.\n";
+
+  std::string_view group;
+  for (const fields::FieldDoc& doc : fields::FieldDocs()) {
+    if (doc.group != group) {
+      group = doc.group;
+      absl::StrAppend(&out, "\n", doc.header, ":\n");  // key drives grouping; header is the display
+    }
+    std::string names = absl::StrCat("{", doc.name, "}");
+    for (const std::string_view alias : doc.aliases) {
+      absl::StrAppend(&names, " {", alias, "}");
+    }
+    absl::StrAppendFormat(&out, "  %-18s%s\n", names, doc.summary);
+  }
+
+  absl::StrAppend(
+      &out,
+      "\nBraces:\n"
+      "  {{ and }} emit literal braces; {} is an alias for {path}; an unknown field renders\n"
+      "  empty; a malformed or unterminated { stays literal.\n"
+      "\nDynamic namespaces:\n"
+      "  {0}..{N}          -regex captures ({0} the whole match, {1}..{N} the groups)\n"
+      "  {env.NAME}        a process environment variable\n"
+      "  {def.NAME}        a --define value\n"
+      "  {capture.NAME}    a -capture command result\n"
+      "\nQualifiers ({field:QUAL}):\n"
+      "  {mtime:FMT}       time format: strftime (%Y-%m-%d) or preset (iso, epoch); see "
+      "--time-format / --timezone\n"
+      "  {size:h}          human-readable size\n"
+      "  {name:s/RE/R/f}   RE2 rewrite of the value (flags g=all, i=ignore-case; any delimiter)\n");
+  absl::StrAppendFormat(
+      &out, "  %-18s%s%s\n", "{path:COMP}",
+      "path component of the value: ", absl::StrJoin(fields::PathComponentKeywords(), "|"));
+  absl::StrAppend(
+      &out,
+      "                    any path-valued field composes, e.g. {relpath:stem}, {def.B:dir}\n"
+      "\nFor -printf's own % directives (%p %f %s %t ...) and the %{field} escape that bridges\n"
+      "them to this vocabulary, see `--help=-printf`.\n");
+  return out;
+}
+
+// The `--help=help` topic: a guide to the (subcommand-free) help system, then the
+// generated topic index. So there is one place a user can ask "how do I get help?".
+std::string RenderHelpGuide() {
+  std::string out =
+      "xff help system. xff has no subcommands; every kind of help is a flag:\n"
+      "\n"
+      "  xff --help              this usage overview (also -h)\n"
+      "  xff --help=NAME         full help for one option or primary (e.g. --help=-regex, --help=--sort)\n"
+      "  xff --help=TOPIC        one of the topics below\n"
+      "  xff --help=full         the full detailed reference (also --help-full / --help-long / --help-all)\n"
+      "  xff --man               the man page (roff; pipe to `man -l -`)\n"
+      "  xff --markdown          a Markdown reference of every option and primary\n"
+      "\nTopics (--help=TOPIC):\n";
+  absl::StrAppend(&out, RenderTopicIndex("  "));
+  return out;
+}
+
+// The `--help=full` (aliases long / all) topic: the full detailed reference -- every
+// whole-run option and every expression primary, each rendered like `--help=NAME`.
+// Reuses RenderGlobalFlag / RenderOne so the detail cannot drift from per-entry help.
+std::string RenderFull(bool detailed) {
+  std::string out =
+      detailed ? "xff full reference: every whole-run option and expression primary, with explanations. "
+                 "See `xff --help` for the usage overview.\n\nOPTIONS\n"
+               : "xff reference: every whole-run option and expression primary (summaries; --help=full adds the "
+                 "explanations). See `xff --help` for the usage overview.\n\nOPTIONS\n";
+  std::string_view group;
+  for (const GlobalFlag& flag : Globals()) {
+    if (flag.group != group) {
+      group = flag.group;
+      absl::StrAppend(&out, "\n", flag.header, ":\n");  // group is the key; header is the display
+    }
+    absl::StrAppend(&out, "  ", RenderGlobalFlag(flag, detailed));
+  }
+  absl::StrAppend(&out, "\nEXPRESSION\n");
+  for (const auto& [kind, title] :
+       {std::pair{registry::Kind::kTest, "Tests"}, std::pair{registry::Kind::kAction, "Actions"},
+        std::pair{registry::Kind::kOperator, "Operators"}}) {
+    absl::StrAppend(&out, "\n", title, ":\n");
+    for (const registry::Descriptor& descriptor : registry::All()) {
+      if (descriptor.kind == kind) {
+        absl::StrAppend(&out, "  ", RenderOne(descriptor));
+      }
+    }
+  }
   return out;
 }
 
@@ -130,12 +226,63 @@ std::string ArgHint(const registry::Descriptor& descriptor) {
   return hint;
 }
 
+std::vector<HelpTopic> HelpTopics() {
+  return {
+      {.name = "help", .aliases = {}, .summary = "how the help system works, and the topics here"},
+      {.name = "list", .aliases = {}, .summary = "index of every option and expression primary"},
+      {.name = "all", .aliases = {}, .summary = "every option and primary, summaries only"},
+      {.name = "expressions", .aliases = {}, .summary = "the expression vocabulary: tests, operators, actions"},
+      {.name = "fields", .aliases = {"format"}, .summary = "the {field} placeholder vocabulary"},
+      {.name = "styles", .aliases = {"flavors"}, .summary = "the find / xff / xfd / rg flavor comparison"},
+      {.name = "full", .aliases = {"long"}, .summary = "every option and primary, with the long explanations"},
+  };
+}
+
+std::string RenderTopicIndex(std::string_view indent) {
+  std::string out;
+  for (const HelpTopic& topic : HelpTopics()) {
+    std::string summary(topic.summary);
+    if (!topic.aliases.empty()) {
+      absl::StrAppend(&summary, " (also: ", absl::StrJoin(topic.aliases, ", "), ")");
+    }
+    absl::StrAppendFormat(&out, "%s%-13s%s\n", indent, topic.name, summary);
+  }
+  return out;
+}
+
+std::string RenderOptions(std::string_view group_indent) {
+  constexpr std::size_t kWidth = 30;  // summary column; a display longer than this gets a 2-space gap
+  std::string out;
+  std::string_view group;
+  for (const GlobalFlag& flag : Globals()) {
+    if (flag.group != group) {
+      group = flag.group;
+      absl::StrAppend(&out, "\n", group_indent, flag.header, ":\n");  // group is the key; header is the display
+    }
+    const std::size_t pad = flag.display.size() + 2 <= kWidth ? kWidth - flag.display.size() : 2;
+    absl::StrAppend(&out, group_indent, "  ", flag.display, std::string(pad, ' '), flag.summary, "\n");
+  }
+  return out;
+}
+
 absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
-  if (topic.empty() || topic == "list" || topic == "all") {
+  if (topic.empty() || topic == "list") {
     return RenderIndex();
+  }
+  if (topic == "help") {
+    return RenderHelpGuide();  // the help-system guide + topic index
+  }
+  if (topic == "all") {
+    return RenderFull(/*detailed=*/false);  // every option + primary, summaries only
+  }
+  if (topic == "full" || topic == "long") {
+    return RenderFull(/*detailed=*/true);  // every option + primary, with the long explanations
   }
   if (topic == "expressions") {
     return RenderExpressions();  // the annotated Tests/Actions/Operators list, sans globals
+  }
+  if (topic == "fields" || topic == "format") {
+    return RenderFields();  // the {field} placeholder vocabulary
   }
   // Expression primary / operator / action (leading-dash convenience: `--help=regex`).
   const registry::Descriptor* descriptor = registry::Lookup(topic);
@@ -151,7 +298,7 @@ absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
     global = LookupGlobal(absl::StrCat("--", topic));
   }
   if (global != nullptr) {
-    return RenderGlobalFlag(*global);
+    return RenderGlobalFlag(*global, /*with_details=*/true);  // single-entry help shows the long explanation
   }
   return absl::NotFoundError("");  // the caller holds the topic and composes the message
 }

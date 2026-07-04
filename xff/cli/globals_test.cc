@@ -39,6 +39,7 @@ TEST_F(GlobalsTest, EveryGlobalIsWellFormed) {
     EXPECT_THAT(flag.name, Not(IsEmpty())) << flag.name;
     EXPECT_THAT(flag.display, Not(IsEmpty())) << flag.name;
     EXPECT_THAT(flag.group, Not(IsEmpty())) << flag.name;
+    EXPECT_THAT(flag.header, Not(IsEmpty())) << flag.name;
     ASSERT_THAT(flag.summary, Not(IsEmpty())) << flag.name;
     EXPECT_THAT(flag.summary, SizeIs(Le(90U))) << flag.name;
     EXPECT_THAT(flag.summary.back(), Ne('.')) << flag.name;

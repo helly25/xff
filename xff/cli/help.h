@@ -18,6 +18,7 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "absl/status/statusor.h"
 #include "xff/registry/descriptor.h"
@@ -30,12 +31,39 @@ namespace xff::cli {
 // page render the synopsis identically and neither drifts from the parser.
 std::string ArgHint(const registry::Descriptor& descriptor);
 
+// One `--help=TOPIC` topic, for the generated topic index. The single source of the
+// help-system map: the usage page's Help: section, `--help=list`, and `--help=help`
+// all render HelpTopics() through RenderTopicIndex(), so the advertised topic list can
+// never drift from what RenderHelp actually accepts (help_render_test enforces it).
+struct HelpTopic {
+  std::string_view name;                  // the topic keyword (--help=NAME)
+  std::vector<std::string_view> aliases;  // alternate spellings, or empty
+  std::string_view summary;               // one-line description
+};
+
+// The meta-topics of the help system (help, list, expressions, fields, styles, full).
+// Not the per-entry NAME lookup, which is the registry/global fallback in RenderHelp.
+std::vector<HelpTopic> HelpTopics();
+
+// Formats HelpTopics() as a block of `<indent>name   summary (also: aliases)` lines.
+// Shared by the usage page, `--help=list`, and `--help=help`.
+std::string RenderTopicIndex(std::string_view indent);
+
+// Renders the whole-run options grouped by GlobalFlag.group, one "display  summary"
+// line per flag, at `group_indent` (flags indented two spaces more). Generated from
+// Globals() so the usage page (--help) and the index (--help=list) share one source
+// and neither hand-maintains flag descriptions.
+std::string RenderOptions(std::string_view group_indent);
+
 // Renders the `--help=TOPIC` help from the registry (the single source of truth, so
-// help can never drift from the parser's vocabulary). An empty topic (or "list" /
-// "all") returns the index of the whole expression vocabulary grouped by kind. A
-// named topic (e.g. "-regex", "-xor", or the dash-less "regex") returns that entry's
-// detailed help. An unknown topic is a plain `NotFoundError` (the status code is the
-// signal; the caller holds the topic and composes the user-facing message).
+// help can never drift from the parser's vocabulary). An empty topic (or "list")
+// returns the index of the whole vocabulary grouped by kind; "help" the help-system
+// guide; "expressions" the primary vocabulary; "fields"/"format" the {field}
+// vocabulary; "full"/"long"/"all" the full detailed reference. A named topic (e.g.
+// "-regex", "-xor", or the dash-less "regex") returns that entry's detailed help. An
+// unknown topic is a plain `NotFoundError` (the status code is the signal; the caller
+// holds the topic and composes the user-facing message). `styles`/`flavors` are
+// rendered by the CLI (they need the engine), not here.
 absl::StatusOr<std::string> RenderHelp(std::string_view topic);
 
 }  // namespace xff::cli

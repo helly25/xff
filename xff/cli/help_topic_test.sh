@@ -62,6 +62,22 @@ test::help_expressions_lists_the_annotated_vocabulary() {
   expect_matches '\-content' "${out}" # an expression primary is listed
 }
 
+test::help_fields_lists_the_placeholder_vocabulary() {
+  # `--help=fields` (alias `--help=format`) prints the {field} vocabulary: named fields
+  # grouped by heading, aliases folded in, plus the dynamic namespaces and qualifiers.
+  local out rc
+  out="$("$(_xff_bin)" --help=fields 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_output_contains 'Path & name:' "${out}"    # a group heading
+  expect_output_contains '{relpath}' "${out}"       # a named field
+  expect_matches '\{name\} \{file\}' "${out}"       # an alias folded onto its canonical
+  expect_output_contains '{env.NAME}' "${out}"      # a dynamic namespace
+  expect_output_contains '{name:s/RE/R/f}' "${out}" # the rewrite qualifier
+  expect_output_contains 'stem' "${out}"            # a path-component keyword (read from the SOT)
+  # The `format` alias renders the same topic.
+  expect_output_contains '{relpath}' "$("$(_xff_bin)" --help=format 2>&1)"
+}
+
 test::help_unknown_topic_exits_two() {
   local out rc
   out="$("$(_xff_bin)" --help=-nonesuch 2>&1)" && rc=0 || rc=$?

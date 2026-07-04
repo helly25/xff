@@ -14,6 +14,8 @@
 // limitations under the License.
 
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -31,8 +33,13 @@ using ::mbo::testing::IsOk;
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
 using ::testing::AllOf;
+using ::testing::EndsWith;
+using ::testing::Eq;
+using ::testing::Gt;
 using ::testing::HasSubstr;
+using ::testing::Lt;
 using ::testing::Not;
+using ::testing::SizeIs;
 
 struct HelpTest : ::testing::Test {};
 
@@ -75,12 +82,62 @@ TEST_F(HelpTest, IndexGroupsByKindAndListsEveryDescriptor) {
   }
 }
 
-TEST_F(HelpTest, ListAndAllAreIndexAliases) {
-  // `--help=list` / `--help=all` render the same index as the empty topic.
+TEST_F(HelpTest, ListIsAnIndexAliasEndingWithTheTopicMap) {
+  // `--help=list` renders the same index as the empty topic, and the index ends with
+  // the generated help-topic map (so `--help=list` is also the help-system map).
   const absl::StatusOr<std::string> index = RenderHelp("");
   ASSERT_THAT(index, IsOk());
   EXPECT_THAT(RenderHelp("list"), IsOkAndHolds(*index));
-  EXPECT_THAT(RenderHelp("all"), IsOkAndHolds(*index));
+  EXPECT_THAT(*index, HasSubstr("Help topics"));
+}
+
+TEST_F(HelpTest, FullIsDetailedAndAllIsShort) {
+  // `full` (alias long) carries the long per-flag explanations; `all` is the same set
+  // (every option + primary) but summaries only -- strictly shorter, no detail prose.
+  const absl::StatusOr<std::string> full = RenderHelp("full");
+  const absl::StatusOr<std::string> all = RenderHelp("all");
+  ASSERT_THAT(full, IsOk());
+  ASSERT_THAT(all, IsOk());
+  EXPECT_THAT(*full, AllOf(HasSubstr("--sort"), HasSubstr("-regex"), HasSubstr("EXPRESSION")));
+  EXPECT_THAT(*all, AllOf(HasSubstr("--sort"), HasSubstr("-regex")));
+  EXPECT_THAT(RenderHelp("long"), IsOkAndHolds(*full));           // long is a synonym of full
+  EXPECT_THAT(*full, HasSubstr("A config style sets"));           // a seeded --config detail paragraph
+  EXPECT_THAT(*all, Not(HasSubstr("A config style sets")));       // all omits the long explanations
+  EXPECT_THAT(*all, SizeIs(Lt(full->size())));                    // strictly shorter than full
+  EXPECT_THAT(RenderHelp("list"), IsOkAndHolds(Not(Eq(*full))));  // and neither is the terse index
+}
+
+TEST_F(HelpTest, SingleFlagHelpShowsTheLongExplanation) {
+  // `--help=NAME` for a flag with a `details` paragraph shows it (not just the summary).
+  EXPECT_THAT(RenderHelp("--config"), IsOkAndHolds(HasSubstr("A config style sets")));
+  EXPECT_THAT(RenderHelp("--time-format"), IsOkAndHolds(HasSubstr("per-field qualifier")));
+}
+
+TEST_F(HelpTest, HelpGuideListsEveryTopic) {
+  // `--help=help` is the help-system guide; it lists every topic from the SOT.
+  const absl::StatusOr<std::string> guide = RenderHelp("help");
+  ASSERT_THAT(guide, IsOk());
+  EXPECT_THAT(*guide, HasSubstr("Topics"));
+  for (const HelpTopic& topic : HelpTopics()) {
+    EXPECT_THAT(*guide, HasSubstr(topic.name)) << topic.name;
+  }
+}
+
+TEST_F(HelpTest, EveryAdvertisedTopicRendersAndAliasesAreSynonyms) {
+  // Drift guard: every advertised topic resolves to substantial, newline-terminated
+  // help, and each alias is a pure synonym (byte-identical output). Only `styles` /
+  // `flavors` are excluded -- the CLI renders those (they need the engine).
+  for (const HelpTopic& topic : HelpTopics()) {
+    if (topic.name == "styles") {
+      continue;
+    }
+    const absl::StatusOr<std::string> rendered = RenderHelp(topic.name);
+    ASSERT_THAT(rendered, IsOk()) << topic.name;
+    EXPECT_THAT(*rendered, AllOf(SizeIs(Gt(10)), EndsWith("\n"))) << topic.name;
+    for (const std::string_view alias : topic.aliases) {
+      EXPECT_THAT(RenderHelp(alias), IsOkAndHolds(*rendered)) << alias;
+    }
+  }
 }
 
 TEST_F(HelpTest, ExpressionsListsEveryPrimaryGroupedWithoutGlobals) {
