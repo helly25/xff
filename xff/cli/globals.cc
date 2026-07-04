@@ -204,6 +204,13 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "omit the header row from --format=csv / tsv (on by default)",
     },
     {
+        .name = "--columns",
+        .display = "--columns=FIELD,...",
+        .group = "output",
+        .header = "Output",
+        .summary = "columns for --format=csv / tsv, from the {field} vocabulary (e.g. path,size,mtime)",
+    },
+    {
         .name = "--path-encoding",
         .display = "--path-encoding=raw|escape",
         .group = "output",

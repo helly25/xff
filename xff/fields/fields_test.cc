@@ -360,5 +360,16 @@ TEST_F(FieldsTest, PathComponentKeywordsAreExposedForHelp) {
   EXPECT_THAT(PathComponentKeywords(), AllOf(Not(IsEmpty()), Contains("stem"), Contains("dir")));
 }
 
+TEST_F(FieldsTest, IsKnownFieldAcceptsVocabularyRejectsUnknown) {
+  // Powers --columns validation: a builtin, a qualified name, a namespace, and a capture
+  // index are known; a typo is not.
+  EXPECT_TRUE(IsKnownField("path"));
+  EXPECT_TRUE(IsKnownField("mtime:%Y"));  // a name with a :qualifier
+  EXPECT_TRUE(IsKnownField("env.HOME"));  // a dynamic namespace
+  EXPECT_TRUE(IsKnownField("def.B"));
+  EXPECT_TRUE(IsKnownField("0"));  // a {0}..{N} capture index
+  EXPECT_FALSE(IsKnownField("bogus"));
+}
+
 }  // namespace
 }  // namespace xff::fields

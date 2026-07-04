@@ -18,6 +18,7 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace xff::render {
 
@@ -60,6 +61,14 @@ class Renderer {
   Format format_;
   PathEncoding encoding_;
 };
+
+// Encodes one row of already-rendered cell values for a tabular format (--columns): CSV
+// (each cell RFC-4180 quoted, comma-joined) or TSV (each cell tab/newline/backslash
+// escaped, tab-joined), plus a trailing newline. Shared by the header row (column names)
+// and each match's row. Defined only for the tabular formats (kCsv / kTsv today; md /
+// aligned will join here); the non-tabular kPlain / kNul / kJsonl are not rows and yield
+// an empty string.
+std::string EncodeTabularRow(Format format, const std::vector<std::string>& cells);
 
 }  // namespace xff::render
 

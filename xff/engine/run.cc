@@ -38,6 +38,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
 #include "xff/color/color.h"
@@ -279,6 +280,20 @@ render::Format ResolveFormat(const std::vector<std::string>& globals) {
     }
   }
   return format;
+}
+
+// --columns=FIELD,FIELD,... : the tabular column set for --format=csv / tsv, drawn from
+// the {field} vocabulary (a column may carry a :qualifier, like {field}). Last occurrence
+// wins; empty (absent) keeps the single default `path` column.
+std::vector<std::string> ResolveColumns(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--columns=";
+  std::vector<std::string> columns;
+  for (const std::string& global : globals) {
+    if (global.starts_with(kPrefix)) {
+      columns = absl::StrSplit(std::string_view(global).substr(kPrefix.size()), ',');  // last --columns wins
+    }
+  }
+  return columns;
 }
 
 // --path-encoding=raw|escape: how the plain renderer emits path bytes (see
@@ -1028,6 +1043,34 @@ int RunFind(
   // Precompile the --template once; rendering each match then skips re-scanning.
   const std::optional<fields::Template> compiled_tmpl =
       tmpl.has_value() ? std::optional<fields::Template>(fields::Template::Compile(*tmpl)) : std::nullopt;
+  // --columns=FIELD,... : the tabular column set for --format=csv / tsv. Validate before
+  // the walk -- an unknown column, a non-tabular format, or a suppressed default listing
+  // (an action / --implicit-print=no) is a usage error, not a silently-empty or moot table.
+  const std::vector<std::string> columns = ResolveColumns(command.globals);
+  const bool tabular = format == render::Format::kCsv || format == render::Format::kTsv;
+  if ((tabular || !columns.empty()) && !implicit_print) {
+    on_error(
+        "--format", absl::FailedPreconditionError(
+                        "csv/tsv output and --columns format the default listing; an action like -ls / -printf / "
+                        "-exec produces its own output -- drop the action, or drop --format=csv/tsv / --columns"));
+    return 2;
+  }
+  if (!columns.empty() && !tabular) {
+    on_error("--columns", absl::FailedPreconditionError("--columns needs --format=csv or --format=tsv"));
+    return 2;
+  }
+  for (const std::string& col : columns) {
+    if (col.empty() || !fields::IsKnownField(col)) {
+      on_error("--columns", absl::InvalidArgumentError(absl::StrCat("unknown column '", col, "'")));
+      return 2;
+    }
+  }
+  // Precompile one field Template per column ({col}); each match renders them into a row.
+  std::vector<fields::Template> column_templates;
+  column_templates.reserve(columns.size());
+  for (const std::string& col : columns) {
+    column_templates.push_back(fields::Template::Compile(absl::StrCat("{", col, "}")));
+  }
   const bool exec_fields = HasGlobal(command.globals, "--exec-fields");  // route -exec through the vocabulary
   const std::map<std::string, std::string> defines = ResolveDefines(command.globals);  // {def.NAME} values
   // --exclude=GLOB / --include=GLOB: a run-level gitignore-style filter. An ignored
@@ -1192,7 +1235,9 @@ int RunFind(
   // csv/tsv emit a one-time header row before the records, unless --no-header (or the
   // output is a --summary / explicit-action stream rather than the implicit path records).
   if (implicit_print && summary_mode == SummaryMode::kOff && !HasGlobal(command.globals, "--no-header")) {
-    if (const std::string header = render::Renderer(format, path_encoding).Header(); !header.empty()) {
+    const std::string header = columns.empty() ? render::Renderer(format, path_encoding).Header()
+                                               : render::EncodeTabularRow(format, columns);  // the column names
+    if (!header.empty()) {
       emit(header);
     }
   }
@@ -1273,28 +1318,36 @@ int RunFind(
           agg.first += 1;
           agg.second += visit.metadata.size;
         } else if (matched && implicit_print) {
-          if (compiled_tmpl.has_value()) {  // --template overrides --format
-            // {target}: a symlink's target for the template (find %l); symlink-gated,
-            // so a non-symlink costs no syscall. `link` owns the text for the Render.
+          if (!column_templates.empty() || compiled_tmpl.has_value()) {
+            // --columns / --template render through the field vocabulary; build the context
+            // once. {target} is a symlink's target (find %l), symlink-gated so a non-symlink
+            // costs no syscall; `link` owns the text for the Render.
             std::string link;
             if (visit.metadata.type == vfs::FileType::kSymlink) {
               if (const absl::StatusOr<std::string> target = walk_fs.ReadLink(visit.path); target.ok()) {
                 link = *target;
               }
             }
-            emit(
-                compiled_tmpl->Render(
-                    fields::RenderContext{
-                        .path = visit.path,
-                        .root = visit.root,
-                        .link_target = link,
-                        .metadata = visit.metadata,
-                        .depth = visit.depth,
-                        .tz = tz,
-                        .time_format = time_format,
-                        .defines = &defines,
-                        .outputs = &outputs})
-                + "\n");
+            const fields::RenderContext ctx{
+                .path = visit.path,
+                .root = visit.root,
+                .link_target = link,
+                .metadata = visit.metadata,
+                .depth = visit.depth,
+                .tz = tz,
+                .time_format = time_format,
+                .defines = &defines,
+                .outputs = &outputs};
+            if (!column_templates.empty()) {  // --columns: a csv/tsv row of field values
+              std::vector<std::string> cells;
+              cells.reserve(column_templates.size());
+              for (const fields::Template& column : column_templates) {
+                cells.push_back(column.Render(ctx));
+              }
+              emit(render::EncodeTabularRow(format, cells));
+            } else {  // --template overrides --format
+              emit(compiled_tmpl->Render(ctx) + "\n");
+            }
           } else {
             const std::string_view color =
                 colorize ? color::CodeForType(visit.metadata.type, visit.metadata.mode) : std::string_view();

@@ -139,6 +139,12 @@ std::vector<FieldDoc> FieldDocs();
 // backs {} (find's full-path placeholder). Powers the FieldDocs() coverage test.
 std::vector<std::string_view> FieldNames();
 
+// Whether `spec` (a --columns entry / field name, optionally with a `:qualifier`) names a
+// renderable field: a builtin (FieldNames), a {0}..{N} capture, or an {env./def./capture.}
+// namespace. Powers --columns validation, so an unknown name is a usage error rather than
+// a silently-empty column.
+bool IsKnownField(std::string_view spec);
+
 // The path-component qualifier keywords ({field:KEYWORD}: dir, name, stem, ...), so
 // the help topic lists exactly the keywords the renderer accepts.
 std::vector<std::string_view> PathComponentKeywords();

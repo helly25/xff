@@ -17,6 +17,7 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 
@@ -146,6 +147,33 @@ std::string Renderer::Record(std::string_view path, std::string_view color) cons
     }
   }
   return absl::StrCat(path, "\n");  // unreachable: every Format returns above
+}
+
+std::string EncodeTabularRow(Format format, const std::vector<std::string>& cells) {
+  switch (format) {
+    case Format::kCsv:
+    case Format::kTsv: {
+      std::string out;
+      bool first = true;
+      for (const std::string& cell : cells) {
+        if (!first) {
+          out.push_back(format == Format::kTsv ? '\t' : ',');
+        }
+        first = false;
+        if (format == Format::kTsv) {
+          AppendTsvField(cell, &out);
+        } else {
+          AppendCsvField(cell, &out);
+        }
+      }
+      out.push_back('\n');
+      return out;
+    }
+    case Format::kJsonl:
+    case Format::kNul:
+    case Format::kPlain: return "";  // not a tabular format; the caller passes only csv/tsv
+  }
+  return "";  // unreachable: every Format handled above
 }
 
 std::string Renderer::Header() const {
