@@ -73,6 +73,8 @@ Options (whole-run, before the paths):
     -g[+|-], --gitignore[=on|off]   respect .gitignore: -g = auto (in a git repo), -g+/=on always, -g-/=off never
     --ignore-files      respect per-directory .ignore / .xffignore files (off by default)
     --no-ignore, -u     disable all ignore-file processing (-u: rg/fd short form)
+    --hidden            include hidden dotfiles (default: find/xff show, xfd/rg skip)
+    --no-hidden         skip hidden dotfiles (the xfd/rg default)
   Output:
     --format=plain|nul|jsonl   record format (plain default; nul = -print0; jsonl = JSON lines)
     --path-encoding=raw|escape plain-output path bytes: raw (verbatim) or escape (C-escape controls)
