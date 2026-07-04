@@ -658,8 +658,10 @@ bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
 // (short `-g-`) forces it off. Last occurrence wins. Off by default (find-compatible).
 enum class GitignoreMode { kOff, kOn, kAuto };
 
-GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals) {
-  GitignoreMode mode = GitignoreMode::kOff;
+GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals, std::optional<registry::Style> style) {
+  // The rg style respects ignore files by default (its headline behavior); find/xff
+  // start off (find-compatible). An explicit -g / --gitignore flag still overrides.
+  GitignoreMode mode = style == registry::Style::kRg ? GitignoreMode::kOn : GitignoreMode::kOff;
   for (const std::string& global : globals) {
     if (global == "-g" || global == "--gitignore") {
       mode = GitignoreMode::kAuto;
@@ -683,7 +685,10 @@ bool AnyRootInRepo(const vfs::FileSystem& fs, const std::vector<std::string>& ro
 // .xffignore (--ignore-files). Empty when ignore-file processing is off -- it is
 // find-compatibly off by default, and --no-ignore / -u is the master switch that
 // force-disables every source.
-std::vector<std::string> ResolveIgnoreFileNames(const std::vector<std::string>& globals, bool gitignore_on) {
+std::vector<std::string> ResolveIgnoreFileNames(
+    const std::vector<std::string>& globals,
+    bool gitignore_on,
+    std::optional<registry::Style> style) {
   if (HasGlobal(globals, "--no-ignore") || HasGlobal(globals, "-u")) {
     return {};
   }
@@ -691,7 +696,9 @@ std::vector<std::string> ResolveIgnoreFileNames(const std::vector<std::string>& 
   if (gitignore_on) {
     names.emplace_back(".gitignore");
   }
-  if (HasGlobal(globals, "--ignore-files")) {
+  // The rg style also honors .ignore / .xffignore by default (like ripgrep); other
+  // styles need --ignore-files. -u / --no-ignore above still force-disables all.
+  if (HasGlobal(globals, "--ignore-files") || style == registry::Style::kRg) {
     names.emplace_back(".ignore");
     names.emplace_back(".xffignore");
   }
@@ -836,14 +843,14 @@ std::optional<std::string> UnusedCaptureName(const parser::Expr& expr, const std
 
 // --human[=iec|si|off]: how sizes render in -ls and --summary. iec = binary
 // (KiB/MiB), si = decimal (kB/MB), off = raw bytes. The default when unset is
-// style-scoped: the xff style shows human (iec), the find style shows raw bytes
-// (find -ls compatibility). Last occurrence wins; nullopt means raw bytes.
+// style-scoped: the modern styles (xff, rg) show human (iec), the find style shows raw
+// bytes (find -ls compatibility). Last occurrence wins; nullopt means raw bytes.
 std::optional<format::SizeUnits> ResolveHuman(
     const std::vector<std::string>& globals,
     std::optional<registry::Style> style) {
   std::optional<format::SizeUnits> units;
-  if (style == registry::Style::kXff) {
-    units = format::SizeUnits::kIec;  // xff defaults to human-readable sizes
+  if (style.has_value() && *style != registry::Style::kFind) {
+    units = format::SizeUnits::kIec;  // the modern styles (xff, rg) default to human sizes
   }
   for (const std::string& global : globals) {
     if (global == "--human" || global == "--human=iec") {
@@ -1062,7 +1069,7 @@ int RunFind(
   // -g / --gitignore: on forces .gitignore, auto enables it only when a search root
   // is inside a git repo (probe once, before the walk). -u / --no-ignore still wins
   // (ResolveIgnoreFileNames returns nothing then, so the repo probe is skipped).
-  const GitignoreMode gitignore_mode = ResolveGitignoreMode(command.globals);
+  const GitignoreMode gitignore_mode = ResolveGitignoreMode(command.globals, style);
   const bool gitignore_on = gitignore_mode == GitignoreMode::kOn
                             || (gitignore_mode == GitignoreMode::kAuto && AnyRootInRepo(walk_fs, command.roots));
   // git's global excludes (core.excludesFile, else ~/.config/git/ignore): the lowest
@@ -1080,7 +1087,7 @@ int RunFind(
     }
   }
   IgnoreFileCache ignore_files(
-      walk_fs, ResolveIgnoreFileNames(command.globals, gitignore_on), gitignore_on, std::move(global_excludes));
+      walk_fs, ResolveIgnoreFileNames(command.globals, gitignore_on, style), gitignore_on, std::move(global_excludes));
 
   // -ok confirmation: prompt to stderr, read a line from stdin, affirmative on y/Y (like find).
   const auto confirm = [](std::string_view prompt) -> bool {

@@ -38,10 +38,14 @@ enum class Cost { kCheap, kMeta, kExpensive };
 // kFormat for -grep (-grep=FORMAT, an attached output template).
 enum class Binding { kNone, kLabel, kLabelRegex, kFormat };
 
-// Whether a primary belongs to find (kFind) or is an xff extension (kXff). The
-// strict find style (--config=find) rejects xff extensions; the xff style accepts
-// all. The default is kFind, so only xff-native primaries need tagging.
-enum class Style { kFind, kXff };
+// The active command style, and (for kFind/kXff) a primary's origin. As a primary
+// tag: kFind = find-native, kXff = an xff extension; the strict find style
+// (--config=find) rejects xff extensions, the xff style accepts all. The default is
+// kFind, so only xff-native primaries need tagging. kRg (--config=rg) is a
+// config-only style, never a descriptor tag: it uses the full xff vocabulary but
+// swaps in ripgrep-like defaults (respect .gitignore/.ignore, unsorted); vocabulary
+// is accepted exactly like kXff (everything but kFind accepts all).
+enum class Style { kFind, kXff, kRg };
 
 // One option / predicate / action description. The registry is the single
 // source of truth from which the parser, --help, completions, --explain, and

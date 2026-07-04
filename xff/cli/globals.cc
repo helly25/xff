@@ -34,7 +34,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .name = "--config",
         .display = "--config=NAME",
         .group = "Config",
-        .summary = "select a style or config layer (find = strict find, xff = modern); repeatable",
+        .summary = "select a style/config layer (find=strict, xff=modern, rg=ripgrep-like); repeatable",
     },
     {
         .name = "--no-config",
