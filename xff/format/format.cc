@@ -19,11 +19,13 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 
@@ -196,6 +198,42 @@ std::string ColumnBuffer::Flush() {
   }
   buffer_.clear();
   return out;
+}
+
+std::optional<std::size_t> ParseBufferWindow(std::string_view value) {
+  if (value == "auto") {
+    return std::size_t{100};
+  }
+  if (value == "off") {
+    return std::size_t{0};
+  }
+  if (value == "all") {
+    return ColumnBuffer::kAll;
+  }
+  if (value.empty()) {
+    return std::nullopt;
+  }
+  // A trailing decimal SI multiplier scales a row count (case-insensitive). A byte-unit form
+  // (a trailing 'B', as in 10MB / 10MiB) is a memory budget, not a row window, and leaves the
+  // number un-parseable here so it falls through to nullopt.
+  std::size_t multiplier = 1;
+  switch (value.back()) {
+    case 'k':
+    case 'K': multiplier = 1'000; break;
+    case 'm':
+    case 'M': multiplier = 1'000'000; break;
+    case 'g':
+    case 'G': multiplier = 1'000'000'000; break;
+    case 't':
+    case 'T': multiplier = 1'000'000'000'000; break;
+    default: break;
+  }
+  const std::string_view digits = multiplier == 1 ? value : value.substr(0, value.size() - 1);
+  std::size_t number = 0;
+  if (digits.empty() || !absl::SimpleAtoi(digits, &number)) {
+    return std::nullopt;
+  }
+  return number * multiplier;
 }
 
 }  // namespace xff::format

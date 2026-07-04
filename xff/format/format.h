@@ -18,6 +18,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -128,6 +129,14 @@ class ColumnBuffer {
   bool buffering_;
   std::vector<std::vector<std::string>> buffer_;
 };
+
+// Parses a --buffer=VALUE selector into a row window for the column buffers: "auto" -> 100,
+// "off" -> 0, "all" -> ColumnBuffer::kAll, a bare integer -> that many rows, or an integer
+// with a decimal SI multiplier suffix k/M/G/T (case-insensitive: `10k` = 10'000, `10M` = ten
+// million). Returns nullopt for anything else -- a byte-budget form such as `10MB` / `10MiB`
+// (a memory bound, handled elsewhere) or garbage -- so the caller keeps its current window.
+// `auto` maps to 100 here; the per-format default for an absent flag is the caller's concern.
+std::optional<std::size_t> ParseBufferWindow(std::string_view value);
 
 }  // namespace xff::format
 
