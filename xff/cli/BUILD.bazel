@@ -250,6 +250,16 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of --format=csv / --format=tsv: the header row is emitted by default
+# (--no-header suppresses it) and a comma in a filename is RFC-4180 quoted. The header is
+# a driver concern (emitted once before the walk), so this drives the real binary.
+bashtest(
+    name = "csv_test",
+    size = "small",
+    srcs = ["csv_test.sh"],
+    data = [":xff"],
+)
+
 # End-to-end test of -ls column alignment (via the ColumnBuffer) and the --buffer
 # modes (auto/off/all/N).
 bashtest(

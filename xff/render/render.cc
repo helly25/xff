@@ -73,10 +73,48 @@ void AppendCEscaped(std::string_view path, std::string* out) {
   }
 }
 
+// Appends `field` to `out` as one RFC-4180 CSV field: quoted only when it contains a
+// comma, double-quote, CR, or LF, with each interior `"` doubled. A path never holds a
+// NUL or '/'-embedded control that would break this, so no other escaping is needed.
+void AppendCsvField(std::string_view field, std::string* out) {
+  if (field.find_first_of(",\"\r\n") == std::string_view::npos) {
+    out->append(field);
+    return;
+  }
+  out->push_back('"');
+  for (const char ch : field) {
+    if (ch == '"') {
+      out->push_back('"');  // double the interior quote
+    }
+    out->push_back(ch);
+  }
+  out->push_back('"');
+}
+
+// Appends `field` to `out` as one TSV field: a TSV field cannot hold a literal tab or
+// newline, so escape tab / newline / CR / backslash as `\t` / `\n` / `\r` / `\\`.
+void AppendTsvField(std::string_view field, std::string* out) {
+  for (const char ch : field) {
+    switch (ch) {
+      case '\\': out->append("\\\\"); break;
+      case '\t': out->append("\\t"); break;
+      case '\n': out->append("\\n"); break;
+      case '\r': out->append("\\r"); break;
+      default: out->push_back(ch);
+    }
+  }
+}
+
 }  // namespace
 
 std::string Renderer::Record(std::string_view path, std::string_view color) const {
   switch (format_) {
+    case Format::kCsv: {
+      std::string record;
+      AppendCsvField(path, &record);
+      record.push_back('\n');
+      return record;
+    }
     case Format::kJsonl: {
       std::string record = "{\"path\":\"";
       AppendJsonEscaped(path, &record);
@@ -100,8 +138,35 @@ std::string Renderer::Record(std::string_view path, std::string_view color) cons
       }
       return absl::StrCat("\x1b[", color, "m", body, "\x1b[0m\n");
     }
+    case Format::kTsv: {
+      std::string record;
+      AppendTsvField(path, &record);
+      record.push_back('\n');
+      return record;
+    }
   }
   return absl::StrCat(path, "\n");  // unreachable: every Format returns above
+}
+
+std::string Renderer::Header() const {
+  switch (format_) {
+    case Format::kCsv: {
+      std::string header;
+      AppendCsvField("path", &header);  // slice 1: the single default column
+      header.push_back('\n');
+      return header;
+    }
+    case Format::kTsv: {
+      std::string header;
+      AppendTsvField("path", &header);
+      header.push_back('\n');
+      return header;
+    }
+    case Format::kJsonl:
+    case Format::kNul:
+    case Format::kPlain: return "";
+  }
+  return "";  // unreachable: every Format handled above
 }
 
 }  // namespace xff::render

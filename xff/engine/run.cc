@@ -272,6 +272,10 @@ render::Format ResolveFormat(const std::vector<std::string>& globals) {
       format = render::Format::kPlain;
     } else if (global == "--format=jsonl") {
       format = render::Format::kJsonl;
+    } else if (global == "--format=csv") {
+      format = render::Format::kCsv;
+    } else if (global == "--format=tsv") {
+      format = render::Format::kTsv;
     }
   }
   return format;
@@ -1184,6 +1188,14 @@ int RunFind(
   absl::flat_hash_map<std::uint64_t, bool> case_sensitive_by_dev;
   // --hidden / --no-hidden (style-scoped default): whether to drop hidden dotfiles.
   const bool skip_hidden = ResolveSkipHidden(command.globals, style);
+
+  // csv/tsv emit a one-time header row before the records, unless --no-header (or the
+  // output is a --summary / explicit-action stream rather than the implicit path records).
+  if (implicit_print && summary_mode == SummaryMode::kOff && !HasGlobal(command.globals, "--no-header")) {
+    if (const std::string header = render::Renderer(format, path_encoding).Header(); !header.empty()) {
+      emit(header);
+    }
+  }
 
   const absl::Status status = Walk(
       walk_fs, command.roots, options,

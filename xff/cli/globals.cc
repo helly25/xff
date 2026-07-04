@@ -191,10 +191,17 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--format",
-        .display = "--format=plain|nul|jsonl",
+        .display = "--format=plain|nul|jsonl|csv|tsv",
         .group = "output",
         .header = "Output",
-        .summary = "record format (plain default; nul = -print0; jsonl = JSON lines)",
+        .summary = "record format: plain (default), nul (-print0), jsonl, csv, tsv",
+    },
+    {
+        .name = "--no-header",
+        .display = "--no-header",
+        .group = "output",
+        .header = "Output",
+        .summary = "omit the header row from --format=csv / tsv (on by default)",
     },
     {
         .name = "--path-encoding",
