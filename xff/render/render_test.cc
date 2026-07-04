@@ -86,5 +86,16 @@ TEST_F(RenderTest, OnlyTabularFormatsHaveAHeader) {
   EXPECT_THAT(Renderer(Format::kJsonl).Header(), "");
 }
 
+TEST_F(RenderTest, EncodeTabularRowJoinsAndEncodesCells) {
+  const std::vector<std::string> cells = {"a", "b,c", "d\te"};
+  // CSV: comma-join; the "b,c" cell is quoted; a tab is not special in CSV, so it stays.
+  EXPECT_THAT(EncodeTabularRow(Format::kCsv, cells), "a,\"b,c\",d\te\n");
+  // TSV: tab-join; the interior tab in "d\te" is escaped to \t (a literal comma is fine).
+  EXPECT_THAT(EncodeTabularRow(Format::kTsv, cells), "a\tb,c\td\\te\n");
+  // Non-tabular formats are not rows.
+  EXPECT_THAT(EncodeTabularRow(Format::kPlain, cells), "");
+  EXPECT_THAT(EncodeTabularRow(Format::kJsonl, cells), "");
+}
+
 }  // namespace
 }  // namespace xff::render

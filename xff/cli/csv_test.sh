@@ -64,4 +64,33 @@ test::tsv_has_a_header_and_tab_separated_records() {
   expect_output_contains "a.txt" "${out}"
 }
 
+test::columns_produce_a_multi_column_table_with_a_header() {
+  local dir out
+  dir="${TEST_TMPDIR}/cols"
+  mkdir -p "${dir}"
+  echo hi >"${dir}/a.txt" # 3 bytes (hi + newline)
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=csv --columns=name,size,type "${dir}" -type f 2>&1)"
+  expect_eq "name,size,type" "$(head -1 <<<"${out}")" # the header is the column names
+  expect_output_contains "a.txt,3,f" "${out}"
+}
+
+test::columns_validation_is_a_usage_error() {
+  local dir out rc
+  dir="${TEST_TMPDIR}/colerr"
+  mkdir -p "${dir}"
+  : >"${dir}/a.txt"
+  # An unknown column name.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=csv --columns=name,bogus "${dir}" 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "unknown column 'bogus'" "${out}"
+  # --columns without a tabular format.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --columns=name "${dir}" 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "needs --format=csv" "${out}"
+  # --format=csv with an output action (-ls) that suppresses the default listing.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=csv "${dir}" -ls 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "format the default listing" "${out}"
+}
+
 test_runner

@@ -787,6 +787,13 @@ std::vector<std::string_view> FieldNames() {
   return names;
 }
 
+bool IsKnownField(std::string_view spec) {
+  const std::string_view name = spec.substr(0, spec.find(':'));  // strip an optional :qualifier
+  return LookupField(name) != &EmptyField                        // a builtin field (incl. "" -> {} path alias)
+         || CaptureIndex(name) >= 0                              // a {0}..{N} regex capture
+         || name.starts_with("env.") || name.starts_with("def.") || name.starts_with("capture.");
+}
+
 std::vector<std::string_view> PathComponentKeywords() {
   return {kPathComponents.begin(), kPathComponents.end()};
 }
