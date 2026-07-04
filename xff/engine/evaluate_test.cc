@@ -1389,5 +1389,18 @@ TEST_F(EvaluateTest, PrintfDocsDocumentEveryDirective) {
   EXPECT_THAT(codes, HasSubstr("%{NAME}"));
 }
 
+TEST_F(EvaluateTest, SizeUnitDocsDocumentEveryUnit) {
+  // Drift guard for --help=size: every unit suffix in the SOT (kSizeUnits, via
+  // SizeUnitSuffixes) is documented by SizeUnitDocs.
+  std::string codes;
+  for (const auto& [code, description] : SizeUnitDocs()) {
+    codes += code;
+    codes += ' ';
+  }
+  for (const char suffix : SizeUnitSuffixes()) {
+    EXPECT_THAT(codes, HasSubstr(std::string(1, suffix))) << "undocumented -size unit: " << suffix;
+  }
+}
+
 }  // namespace
 }  // namespace xff::engine

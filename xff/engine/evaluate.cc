@@ -1923,4 +1923,27 @@ std::vector<std::pair<std::string_view, std::string_view>> PrintfDocs() {
   };
 }
 
+std::string SizeUnitSuffixes() {
+  std::string suffixes;
+  for (const auto& [suffix, bytes] : kSizeUnits) {
+    suffixes.push_back(suffix);
+  }
+  return suffixes;
+}
+
+std::vector<std::pair<std::string_view, std::string_view>> SizeUnitDocs() {
+  return {
+      {"c", "bytes"},
+      {"w", "2-byte words"},
+      {"b", "512-byte blocks (the default unit; --block-size overrides)"},
+      {"k", "kibibytes (1024 bytes)"},
+      {"M", "mebibytes (1024^2)"},
+      {"G", "gibibytes (1024^3)"},
+      {"T", "tebibytes (1024^4)"},
+      {"P", "pebibytes (1024^5)"},
+      {"E", "exbibytes (1024^6)"},
+      {"+N / -N", "greater than / less than N units; a bare N matches exactly"},
+  };
+}
+
 }  // namespace xff::engine

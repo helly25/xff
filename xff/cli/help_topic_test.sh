@@ -93,6 +93,24 @@ test::help_printf_lists_the_directive_vocabulary() {
   expect_output_contains 'PRINTF DIRECTIVES' "$("$(_xff_bin)" --help=full 2>&1)"
 }
 
+test::help_time_and_size_list_their_vocabularies() {
+  # `--help=time` prints the time-format presets (from datetime::FormatDocs); `--help=size`
+  # the -size units (from engine::SizeUnitDocs). Both fold into --help=full.
+  local out
+  out="$("$(_xff_bin)" --help=time 2>&1)"
+  expect_output_contains 'TIME FORMATS' "${out}"
+  expect_output_contains 'iso8601' "${out}"
+  expect_output_contains 'epoch' "${out}"
+  out="$("$(_xff_bin)" --help=size 2>&1)"
+  expect_output_contains 'SIZE UNITS' "${out}"
+  expect_output_contains 'kibibytes' "${out}"
+  # --help=full is exhaustive: it folds in the field, printf, time, and size vocabularies.
+  out="$("$(_xff_bin)" --help=full 2>&1)"
+  expect_output_contains 'TIME FORMATS' "${out}"
+  expect_output_contains 'SIZE UNITS' "${out}"
+  expect_output_contains 'PRINTF DIRECTIVES' "${out}"
+}
+
 test::help_unknown_topic_exits_two() {
   local out rc
   out="$("$(_xff_bin)" --help=-nonesuch 2>&1)" && rc=0 || rc=$?

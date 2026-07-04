@@ -27,6 +27,7 @@ namespace xff::datetime {
 namespace {
 
 using ::testing::Eq;
+using ::testing::HasSubstr;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Optional;
@@ -240,6 +241,19 @@ TEST_F(DateTimeTest, TimeZoneArgInterpretsCalendarFormsButNotAbsoluteOnes) {
       Optional(Eq(*ParseTimeString("2020-01-02", Now(), plus1) + absl::Hours(1))));
   // @epoch is an absolute instant: the zone must not shift it.
   EXPECT_THAT(ParseTimeString("@1600000000", Now(), plus1), Optional(Eq(absl::FromUnixSeconds(1'600'000'000))));
+}
+
+TEST_F(DateTimeTest, FormatDocsDocumentEveryPreset) {
+  // Drift guard for --help=time: every named preset in the SOT (kNamedFormats, via
+  // NamedFormatNames) is documented by FormatDocs.
+  std::string names;
+  for (const auto& [name, description] : FormatDocs()) {
+    names += name;
+    names += ' ';
+  }
+  for (const std::string_view preset : NamedFormatNames()) {
+    EXPECT_THAT(names, HasSubstr(preset)) << "undocumented time preset: " << preset;
+  }
 }
 
 }  // namespace

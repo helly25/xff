@@ -27,6 +27,7 @@ cc_binary(
         "//xff/config:config_cc",
         "//xff/config:loader_cc",
         "//xff/config:policy_cc",
+        "//xff/datetime:datetime_cc",
         "//xff/engine:evaluate_cc",
         "//xff/engine:run_cc",
         "//xff/format:format_cc",

@@ -49,6 +49,7 @@ struct HelpTopic {
   std::string_view name;                  // the topic keyword (--help=NAME)
   std::vector<std::string_view> aliases;  // alternate spellings, or empty
   std::string_view summary;               // one-line description
+  bool in_full = false;                   // a sub-vocabulary folded into the --help=full reference
 };
 
 // The meta-topics of the help system (help, list, expressions, fields, styles, full).

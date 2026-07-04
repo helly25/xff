@@ -184,6 +184,14 @@ std::vector<std::pair<std::string_view, std::string_view>> PrintfDocs();
 // `--help=printf` coverage guard.
 std::string PrintfDirectiveLetters();
 
+// The -size unit vocabulary for `--help=size`, as {code, description} rows: the unit
+// suffixes (kSizeUnits), the 512-byte block default, and the +/- comparison prefix.
+// evaluate_test guards that it covers SizeUnitSuffixes().
+std::vector<std::pair<std::string_view, std::string_view>> SizeUnitDocs();
+
+// The -size unit suffixes (the kSizeUnits keys), for the `--help=size` coverage guard.
+std::string SizeUnitSuffixes();
+
 }  // namespace xff::engine
 
 #endif  // XFF_ENGINE_EVALUATE_H_

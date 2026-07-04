@@ -35,6 +35,7 @@
 #include "xff/config/config.h"
 #include "xff/config/loader.h"
 #include "xff/config/policy.h"
+#include "xff/datetime/datetime.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/run.h"
 #include "xff/format/format.h"
@@ -159,12 +160,56 @@ std::string RenderPrintfDocs() {
   return out;
 }
 
+// The time-format vocabulary (--help=time), rendered from datetime::FormatDocs().
+std::string RenderTimeDocs() {
+  std::string out = "TIME FORMATS (--time-format=FMT, --timezone, and time-field {:qualifiers}):\n";
+  absl::StrAppend(&out, xff::cli::RenderDocRows("  ", xff::datetime::FormatDocs()));
+  return out;
+}
+
+// The -size unit vocabulary (--help=size), rendered from engine::SizeUnitDocs().
+std::string RenderSizeDocs() {
+  std::string out = "SIZE UNITS (-size / -blocks [+|-]N[unit]):\n";
+  absl::StrAppend(&out, xff::cli::RenderDocRows("  ", xff::engine::SizeUnitDocs()));
+  return out;
+}
+
+absl::StatusOr<std::string> RenderTopic(std::string_view topic);  // forward declaration (FullReference recurses)
+
 // The full detailed reference (--help=full / long and --help-full / --help-long): every
-// option and primary with explanations, followed by the sub-vocabulary code tables.
+// option and primary with explanations, then each sub-vocabulary topic marked in_full --
+// so adding a topic auto-includes it here, no hand-maintained list.
 std::string FullReference() {
   std::string out(xff::cli::RenderHelp("full").value_or(""));
-  absl::StrAppend(&out, "\n", RenderPrintfDocs());
+  for (const xff::cli::HelpTopic& topic : xff::cli::HelpTopics()) {
+    if (topic.in_full) {
+      absl::StrAppend(&out, "\n", RenderTopic(topic.name).value_or(""));
+    }
+  }
   return out;
+}
+
+// The single dispatch for `--help=TOPIC`: the CLI-rendered topics (needing the engine /
+// datetime / flavor facets), else the registry-backed cli::RenderHelp. Shared by the
+// --help= handler, the --help-* shortcuts, and FullReference (which never asks for the
+// self-referential full/long, so there is no recursion).
+absl::StatusOr<std::string> RenderTopic(std::string_view topic) {
+  if (topic == "styles" || topic == "flavors") {
+    return RenderFlavorTable({}, std::nullopt);
+  }
+  if (topic == "printf") {
+    return RenderPrintfDocs();
+  }
+  if (topic == "time") {
+    return RenderTimeDocs();
+  }
+  if (topic == "size") {
+    return RenderSizeDocs();
+  }
+  if (topic == "full" || topic == "long") {
+    return FullReference();
+  }
+  return xff::cli::RenderHelp(topic);
 }
 
 }  // namespace
@@ -188,33 +233,21 @@ int RunMain(int argc, char** argv) {
       return 0;
     }
     if (arg == "--help-all") {
-      std::cout << xff::cli::RenderHelp("all").value_or("");  // hyphenated shortcut for --help=all (summaries)
+      std::cout << RenderTopic("all").value_or("");  // hyphenated shortcut for --help=all (summaries)
       return 0;
     }
     if (arg == "--help-full" || arg == "--help-long") {
-      std::cout << FullReference();  // hyphenated shortcut for --help=full (explained + sub-vocab tables)
+      std::cout << RenderTopic("full").value_or("");  // hyphenated shortcut for --help=full (explained)
       return 0;
     }
     if (arg.starts_with("--help=")) {
       const std::string_view topic = std::string_view(arg).substr(7);
-      if (topic == "styles" || topic == "flavors") {
-        std::cout << RenderFlavorTable({}, std::nullopt);  // static comparison; --explain adds `current`
-        return 0;
-      }
-      if (topic == "printf") {
-        std::cout << RenderPrintfDocs();  // the -printf % directive vocabulary (engine::PrintfDocs)
-        return 0;
-      }
-      if (topic == "full" || topic == "long") {
-        std::cout << FullReference();  // full reference + the sub-vocabulary code tables
-        return 0;
-      }
-      const absl::StatusOr<std::string> help = xff::cli::RenderHelp(topic);
+      const absl::StatusOr<std::string> help = RenderTopic(topic);
       if (help.ok()) {
         std::cout << *help;
         return 0;
       }
-      std::cerr << "xff: no help topic '" << topic << "'\n";  // RenderHelp's only failure is unknown-topic
+      std::cerr << "xff: no help topic '" << topic << "'\n";  // RenderTopic's only failure is unknown-topic
       return 2;
     }
     if (arg == "--version" || arg == "-version") {
