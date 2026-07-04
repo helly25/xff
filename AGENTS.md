@@ -18,8 +18,12 @@ Toolchain: clang-22 minimum (hermetic LLVM under `--config=clang`).
    `::testing::Test` (or a friend such as `::testing::TestWithParam<T>`).
 3. **Prefer `EXPECT_THAT` / `ASSERT_THAT` (gmock matchers) almost exclusively**
    over `EXPECT_EQ` / `ASSERT_EQ`.
-4. **Exception:** use `EXPECT_EQ` for **multiline text** comparisons - its
-   unified-diff output is more readable than matchers for large strings.
+4. **Multi-line text: `mbo::testing::EqualsText`, not `EXPECT_EQ`.** For a
+   multi-line string use `EXPECT_THAT(actual, EqualsText(golden))` (unified diff,
+   line by line); `WithDropIndent(EqualsText(golden))` + `mbo::strings::DropIndent`
+   strip a source indent, and `DropIndentAndSplit` yields the lines as a vector.
+   `STYLE_CPP.md` is canonical. A bare `EXPECT_EQ` multi-line is only the
+   fallback for text that is not line-oriented.
 5. **Typed and parameterized tests supply names from the types/values** (name
    generators for `TYPED_TEST_SUITE` / `INSTANTIATE_TEST_SUITE_P`), so the
    output never shows numbered tests (`Suite/0`, `Suite/1`).
