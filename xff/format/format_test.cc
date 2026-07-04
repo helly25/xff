@@ -56,6 +56,34 @@ TEST_F(FormatTest, SizeSiUsesDecimalUnits) {
   EXPECT_THAT(Size(2'000'000'000, SizeUnits::kSi), "2.0 GB");
 }
 
+TEST_F(FormatTest, SizeColumnsSplitsNumberAndSuffixWithFixedFraction) {
+  // Scaled units get exactly `fraction_digits` decimals; the suffix comes back separately
+  // for a left-aligned column.
+  const SizeParts kib = SizeColumns(1'536, SizeUnits::kIec, 2);
+  EXPECT_THAT(kib.number, "1.50");
+  EXPECT_THAT(kib.suffix, "KiB");
+  const SizeParts mb = SizeColumns(5'872'025, SizeUnits::kSi, 2);
+  EXPECT_THAT(mb.number, "5.87");
+  EXPECT_THAT(mb.suffix, "MB");
+}
+
+TEST_F(FormatTest, SizeColumnsBlanksTheFractionAreaForExactBytes) {
+  // Exact bytes render as the integer; the fraction columns (point + digits) become
+  // spaces so a right-aligned number column still lines the (absent) point up.
+  const SizeParts b = SizeColumns(56, SizeUnits::kIec, 2);
+  EXPECT_THAT(b.number, "56   ");  // "56" + three blanks standing in for ".DD"
+  EXPECT_THAT(b.suffix, "B");
+  // A one-digit byte and a one-digit scaled value share a number width, so right-aligning
+  // the column lines the point (present or blanked) up.
+  EXPECT_THAT(SizeColumns(5, SizeUnits::kIec, 2).number, "5   ");
+  EXPECT_THAT(SizeColumns(1'024, SizeUnits::kIec, 2).number, "1.00");
+}
+
+TEST_F(FormatTest, SizeColumnsZeroPrecisionDropsThePoint) {
+  EXPECT_THAT(SizeColumns(5'872'025, SizeUnits::kIec, 0).number, "6");  // rounded, no point
+  EXPECT_THAT(SizeColumns(56, SizeUnits::kIec, 0).number, "56");        // no fraction area to blank
+}
+
 TEST_F(FormatTest, PadLeftRightJustifies) {
   EXPECT_THAT(PadLeft("42", 5), "   42");
   EXPECT_THAT(PadLeft("42", 2), "42");        // already wide enough
