@@ -80,6 +80,40 @@ test::xff_style_accepts_xff_extensions() {
   expect_eq "0" "${rc}"
 }
 
+# A tree with a .gitignore and a .ignore, plus a file each would exclude and one kept.
+_ignore_tree() {
+  local dir="${TEST_TMPDIR}/$1"
+  mkdir -p "${dir}/build"
+  printf 'build/\n' >"${dir}/.gitignore"
+  printf '*.tmp\n' >"${dir}/.ignore"
+  : >"${dir}/build/out.o" # excluded by .gitignore
+  : >"${dir}/junk.tmp"    # excluded by .ignore
+  : >"${dir}/keep.txt"    # kept
+  echo "${dir}"
+}
+
+test::rg_style_respects_ignore_files_by_default() {
+  local dir out
+  dir="$(_ignore_tree rgignore)"
+  # --config=rg turns on .gitignore + .ignore with no flags (ripgrep's headline default).
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --config=rg "${dir}" -type f 2>&1)"
+  expect_output_contains "keep.txt" "${out}"
+  expect_output_not_contains "out.o" "${out}"    # .gitignore build/
+  expect_output_not_contains "junk.tmp" "${out}" # .ignore *.tmp
+  # The find style leaves ignore files off, so it sees everything.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --config=find "${dir}" -type f 2>&1)"
+  expect_output_contains "out.o" "${out}"
+  expect_output_contains "junk.tmp" "${out}"
+}
+
+test::rg_style_accepts_xff_extensions() {
+  local dir rc
+  dir="$(_tree rgvocab)"
+  # rg uses the full xff vocabulary; only the strict find style rejects extensions.
+  XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --config=rg "${dir}" -name a.txt -println >/dev/null 2>&1 && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+}
+
 test::argv0_find_alias_defaults_to_strict_style() {
   local dir
   dir="$(_tree argv0)"

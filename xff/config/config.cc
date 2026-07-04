@@ -85,9 +85,21 @@ registry::Style ActiveStyle(const std::vector<std::string>& configs) {
       style = registry::Style::kFind;
     } else if (base == "xff") {
       style = registry::Style::kXff;
+    } else if (base == "rg") {
+      style = registry::Style::kRg;  // ripgrep-like defaults on the xff vocabulary
     }
   }
   return style;
+}
+
+// The active style's name for --explain output.
+std::string_view StyleName(registry::Style style) {
+  switch (style) {
+    case registry::Style::kFind: return "find";
+    case registry::Style::kRg: return "rg";
+    case registry::Style::kXff: return "xff";
+  }
+  return "xff";
 }
 
 std::string_view DefaultStyleForProgram(std::string_view argv0) {
@@ -109,7 +121,7 @@ std::string ExplainConfig(const std::vector<ResolvedFlag>& resolved, const std::
 }
 
 std::string ExplainSources(const std::vector<ConfigSource>& sources, registry::Style style) {
-  std::string out = absl::StrCat("# xff active style: ", style == registry::Style::kFind ? "find" : "xff", "\n");
+  std::string out = absl::StrCat("# xff active style: ", StyleName(style), "\n");
   absl::StrAppend(&out, "# config sources consulted (precedence order)\n");
   for (const ConfigSource& source : sources) {
     absl::StrAppend(

@@ -106,6 +106,9 @@ TEST_F(ConfigTest, ActiveStyleDefaultsToXffAndTracksTheConfigStack) {
   EXPECT_THAT(ActiveStyle({"find", "debug"}), registry::Style::kFind);  // a custom config keeps the style
   EXPECT_THAT(ActiveStyle({"xff", "find"}), registry::Style::kFind);    // the last style selector wins
   EXPECT_THAT(ActiveStyle({"find", "xff"}), registry::Style::kXff);
+  EXPECT_THAT(ActiveStyle({"rg"}), registry::Style::kRg);            // ripgrep-like defaults
+  EXPECT_THAT(ActiveStyle({"rg:2"}), registry::Style::kRg);          // version-pinned epoch -> base "rg"
+  EXPECT_THAT(ActiveStyle({"rg", "find"}), registry::Style::kFind);  // last selector still wins
 }
 
 TEST_F(ConfigTest, DefaultStyleForProgramSelectsByBasename) {
