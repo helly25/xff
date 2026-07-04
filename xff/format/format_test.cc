@@ -15,11 +15,17 @@
 
 #include "xff/format/format.h"
 
+#include <cstddef>
+#include <optional>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace xff::format {
 namespace {
+
+using ::testing::Eq;
+using ::testing::Optional;
 
 struct FormatTest : ::testing::Test {};
 
@@ -139,6 +145,34 @@ TEST_F(FormatTest, ColumnBufferOffStreamsEachRowAtMinWidths) {
   EXPECT_EQ(buf.Add({"a", "1"}), "a       1\n");
   EXPECT_EQ(buf.Add({"bb", "200"}), "bb    200\n");
   EXPECT_THAT(buf.Flush(), "");
+}
+
+TEST_F(FormatTest, ParseBufferWindowKeywords) {
+  EXPECT_THAT(ParseBufferWindow("auto"), Optional(Eq(std::size_t{100})));
+  EXPECT_THAT(ParseBufferWindow("off"), Optional(Eq(std::size_t{0})));
+  EXPECT_THAT(ParseBufferWindow("all"), Optional(Eq(ColumnBuffer::kAll)));
+}
+
+TEST_F(FormatTest, ParseBufferWindowBareInteger) {
+  EXPECT_THAT(ParseBufferWindow("0"), Optional(Eq(std::size_t{0})));
+  EXPECT_THAT(ParseBufferWindow("250"), Optional(Eq(std::size_t{250})));
+}
+
+TEST_F(FormatTest, ParseBufferWindowScalesTheDecimalSiMultiplier) {
+  EXPECT_THAT(ParseBufferWindow("10k"), Optional(Eq(std::size_t{10'000})));
+  EXPECT_THAT(ParseBufferWindow("10K"), Optional(Eq(std::size_t{10'000})));  // case-insensitive
+  EXPECT_THAT(ParseBufferWindow("2M"), Optional(Eq(std::size_t{2'000'000})));
+  EXPECT_THAT(ParseBufferWindow("1G"), Optional(Eq(std::size_t{1'000'000'000})));
+}
+
+TEST_F(FormatTest, ParseBufferWindowRejectsByteBudgetsAndGarbage) {
+  // A byte-unit form (a trailing B) is a memory budget, not a row window -- handled elsewhere.
+  EXPECT_THAT(ParseBufferWindow("10MB"), Eq(std::nullopt));
+  EXPECT_THAT(ParseBufferWindow("10MiB"), Eq(std::nullopt));
+  EXPECT_THAT(ParseBufferWindow("10B"), Eq(std::nullopt));
+  EXPECT_THAT(ParseBufferWindow("garbage"), Eq(std::nullopt));
+  EXPECT_THAT(ParseBufferWindow(""), Eq(std::nullopt));
+  EXPECT_THAT(ParseBufferWindow("M"), Eq(std::nullopt));  // multiplier with no number
 }
 
 }  // namespace

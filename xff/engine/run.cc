@@ -909,24 +909,21 @@ std::optional<format::SizeUnits> ResolveHuman(
   return units;
 }
 
-// --buffer=auto|off|all|N: how many rows to buffer to align columns (-ls, and the buffered
-// --format=aligned/markdown tables). auto buffers the first 100 to compute widths then streams
-// the rest at them; off / 0 disables buffering; all buffers the whole run; N buffers the first
-// N. Last occurrence wins. `default_window` is used when no --buffer flag is present (-ls
-// passes 100 = auto; the tables pass kAll = full alignment, their natural default).
+// --buffer=auto|off|all|N[k/M/G]: how many rows to buffer to align columns (-ls, and the
+// buffered --format=aligned/markdown tables). auto (=100) buffers the first 100 to compute
+// widths then streams the rest at them; off / 0 disables buffering; all buffers the whole run;
+// N (with an optional decimal SI multiplier k/M/G/T) buffers the first N rows. Last occurrence
+// wins; a value format::ParseBufferWindow does not recognize is ignored (window unchanged).
+// `default_window` applies when no --buffer flag is present (-ls passes 100 = auto; the tables
+// pass kAll = full alignment, their natural default).
 std::size_t ResolveBufferWindow(const std::vector<std::string>& globals, std::size_t default_window) {
   std::size_t window = default_window;  // no --buffer flag -> the caller's default
   for (const std::string& global : globals) {
-    if (global == "--buffer" || global == "--buffer=auto") {
-      window = 100;
-    } else if (global == "--buffer=off") {
-      window = 0;
-    } else if (global == "--buffer=all") {
-      window = format::ColumnBuffer::kAll;
+    if (global == "--buffer") {
+      window = 100;  // bare --buffer == --buffer=auto
     } else if (global.starts_with("--buffer=")) {
-      std::size_t value = 0;  // a numeric window ("0" means off, like --buffer=off)
-      if (absl::SimpleAtoi(std::string_view(global).substr(9), &value)) {
-        window = value;
+      if (const std::optional<std::size_t> parsed = format::ParseBufferWindow(std::string_view(global).substr(9))) {
+        window = *parsed;
       }
     }
   }

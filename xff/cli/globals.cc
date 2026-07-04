@@ -282,7 +282,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--buffer",
-        .display = "--buffer[=auto|off|all|N]",
+        .display = "--buffer[=auto|off|all|N[kMG]]",
         .group = "output",
         .header = "Output",
         .summary = "rows buffered to align columns (-ls, --format=aligned/markdown): auto=100, off, all, N",
