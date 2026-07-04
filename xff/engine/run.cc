@@ -49,6 +49,7 @@
 #include "xff/format/format.h"
 #include "xff/ignore/ignore.h"
 #include "xff/parser/ast.h"
+#include "xff/parser/parser.h"
 #include "xff/registry/descriptor.h"
 #include "xff/render/render.h"
 #include "xff/repo/repo.h"
@@ -1422,6 +1423,73 @@ int RunFind(
   }
 
   return errors;
+}
+
+namespace {
+
+// Display strings for the flavor feature-map, one per resolver's value type.
+std::string GitignoreName(GitignoreMode mode) {
+  switch (mode) {
+    case GitignoreMode::kAuto: return "auto";
+    case GitignoreMode::kOff: return "off";
+    case GitignoreMode::kOn: return "on";
+  }
+  return "off";
+}
+
+std::string HiddenName(bool skip) {
+  return skip ? "skip" : "show";
+}
+
+std::string HumanName(std::optional<format::SizeUnits> units) {
+  if (!units.has_value()) {
+    return "bytes";
+  }
+  return *units == format::SizeUnits::kSi ? "si" : "iec";
+}
+
+std::string SortName(SortOrder order) {
+  switch (order) {
+    case SortOrder::kNone: return "none";
+    case SortOrder::kDir: return "per-dir";
+    case SortOrder::kSubtree: return "subtree";
+    case SortOrder::kTree: return "tree";
+  }
+  return "none";
+}
+
+std::string CaseName(parser::CaseMode mode) {
+  switch (mode) {
+    case parser::CaseMode::kInsensitive: return "insensitive";
+    case parser::CaseMode::kSensitive: return "sensitive";
+    case parser::CaseMode::kSmart: return "smart";
+  }
+  return "sensitive";
+}
+
+}  // namespace
+
+std::vector<FlavorFacet> FlavorFacets() {
+  return {
+      {.behavior = "ignore files (.gitignore/.ignore)",
+       .flag = "-g / --gitignore, --no-ignore",
+       .value = [](const std::vector<std::string>& g,
+                   registry::Style s) { return GitignoreName(ResolveGitignoreMode(g, s)); }},
+      {.behavior = "hidden dotfiles",
+       .flag = "--hidden / --no-hidden",
+       .value = [](const std::vector<std::string>& g,
+                   registry::Style s) { return HiddenName(ResolveSkipHidden(g, s)); }},
+      {.behavior = "sizes",
+       .flag = "--human",
+       .value = [](const std::vector<std::string>& g, registry::Style s) { return HumanName(ResolveHuman(g, s)); }},
+      {.behavior = "traversal order",
+       .flag = "--sort",
+       .value = [](const std::vector<std::string>& g, registry::Style s) { return SortName(ResolveSort(g, s)); }},
+      {.behavior = "letter case",
+       .flag = "--case, -i, -s[+|-]",
+       .value = [](const std::vector<std::string>& g,
+                   registry::Style s) { return CaseName(parser::ResolveCaseMode(g, s)); }},
+  };
 }
 
 }  // namespace xff::engine

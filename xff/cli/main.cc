@@ -35,6 +35,7 @@
 #include "xff/config/loader.h"
 #include "xff/config/policy.h"
 #include "xff/engine/run.h"
+#include "xff/format/format.h"
 #include "xff/parser/parser.h"
 #include "xff/registry/descriptor.h"
 #include "xff/vfs/local_fs.h"
@@ -107,6 +108,7 @@ Options (whole-run, before the paths):
     -h, --help, -help   print this help and exit (-help for GNU find compatibility)
     --help=NAME         print help for one primary, operator, action, or global flag
                         (e.g. --help=-regex, --help=--sort); --help=list prints the index
+    --help=styles       print the find/xff/xfd/rg default comparison (--explain adds current)
     --version, -version print the version and exit
     --man               print the man page (roff; pipe to `man -l -`) and exit
     --markdown          print a Markdown reference of all options and primaries and exit
@@ -171,6 +173,32 @@ std::vector<std::string> ProjectDirs(const std::vector<std::string>& roots) {
   return dirs;
 }
 
+// The flavor feature-map: one row per style-scoped behavior, its controlling flag(s), each
+// style's default, and (when `current` is set) the value resolved for this invocation. All
+// values come from engine::FlavorFacets() -- each facet wraps its own resolver -- so the
+// table cannot drift from an actual run. `--help=styles` shows the static comparison (no
+// `current`); `--explain` adds the `current` column from the resolved style + globals.
+std::string RenderFlavorTable(const std::vector<std::string>& globals, std::optional<xff::registry::Style> current) {
+  using xff::registry::Style;
+  std::vector<xff::format::Align> aligns(current.has_value() ? 7 : 6, xff::format::Align::kLeft);
+  xff::format::Table table(std::move(aligns));
+  std::vector<std::string> header = {"behavior", "flag", "find", "xff", "xfd", "rg"};
+  if (current.has_value()) {
+    header.emplace_back("current");
+  }
+  table.AddRow(std::move(header));
+  for (const xff::engine::FlavorFacet& facet : xff::engine::FlavorFacets()) {
+    std::vector<std::string> row = {std::string(facet.behavior),   std::string(facet.flag),
+                                    facet.value({}, Style::kFind), facet.value({}, Style::kXff),
+                                    facet.value({}, Style::kXfd),  facet.value({}, Style::kRg)};
+    if (current.has_value()) {
+      row.push_back(facet.value(globals, *current));
+    }
+    table.AddRow(std::move(row));
+  }
+  return table.Render();
+}
+
 }  // namespace
 
 int RunMain(int argc, char** argv) {
@@ -193,6 +221,10 @@ int RunMain(int argc, char** argv) {
     }
     if (arg.starts_with("--help=")) {
       const std::string_view topic = std::string_view(arg).substr(7);
+      if (topic == "styles" || topic == "flavors") {
+        std::cout << RenderFlavorTable({}, std::nullopt);  // static comparison; --explain adds `current`
+        return 0;
+      }
       const absl::StatusOr<std::string> help = xff::cli::RenderHelp(topic);
       if (help.ok()) {
         std::cout << *help;
@@ -278,6 +310,8 @@ int RunMain(int argc, char** argv) {
     for (const xff::config::Drop& drop : drops) {
       std::cout << "dropped\t" << xff::config::DropMessage(drop) << "\n";
     }
+    std::cout << "\n# flavor defaults per style, and the value resolved for this run:\n";
+    std::cout << RenderFlavorTable(command.globals, xff::config::ActiveStyle(inputs.configs));
     return 0;
   }
   // A disallowed config line is dropped, never fatal: warn (self-documenting) and
