@@ -19,6 +19,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include "absl/time/time.h"
 
@@ -83,6 +85,16 @@ bool ParseTimeZone(std::string_view spec, absl::TimeZone* out);
 //   <pattern>           used verbatim as an absl::FormatTime() pattern
 // `tz` defaults to the local zone; tests pass a fixed zone for determinism.
 std::string FormatTime(absl::Time time, std::string_view spec = {}, absl::TimeZone tz = absl::LocalTimeZone());
+
+// The time-format vocabulary for `--help=time`, as {name, description} rows: the preset
+// names (kNamedFormats plus the special epoch / zulu / zulu-dense forms), and a note that
+// any other spec is an strftime pattern. datetime_test guards that it covers
+// NamedFormatNames().
+std::vector<std::pair<std::string_view, std::string_view>> FormatDocs();
+
+// The preset names of the named time formats (the kNamedFormats keys), for the
+// `--help=time` coverage guard.
+std::vector<std::string_view> NamedFormatNames();
 
 }  // namespace xff::datetime
 

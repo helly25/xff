@@ -62,6 +62,55 @@ test::help_expressions_lists_the_annotated_vocabulary() {
   expect_matches '\-content' "${out}" # an expression primary is listed
 }
 
+test::help_fields_lists_the_placeholder_vocabulary() {
+  # `--help=fields` prints the {field} vocabulary: named fields grouped by heading,
+  # aliases folded in, plus the dynamic namespaces and qualifiers.
+  local out rc
+  out="$("$(_xff_bin)" --help=fields 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_output_contains 'Path & name:' "${out}"    # a group heading
+  expect_output_contains '{relpath}' "${out}"       # a named field
+  expect_matches '\{name\} \{file\}' "${out}"       # an alias folded onto its canonical
+  expect_output_contains '{env.NAME}' "${out}"      # a dynamic namespace
+  expect_output_contains '{name:s/RE/R/f}' "${out}" # the rewrite qualifier
+  expect_output_contains 'stem' "${out}"            # a path-component keyword (read from the SOT)
+  # `--help=format` is NOT this topic: it resolves to the --format record-format flag.
+  out="$("$(_xff_bin)" --help=format 2>&1)"
+  expect_output_contains 'record format' "${out}"
+  expect_output_not_contains '{relpath}' "${out}"
+}
+
+test::help_printf_lists_the_directive_vocabulary() {
+  # `--help=printf` prints the % directive table (from engine::PrintfDocs) plus the
+  # %{field} escape; --help=full folds the same table in so the full reference is exhaustive.
+  local out rc
+  out="$("$(_xff_bin)" --help=printf 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_output_contains 'PRINTF DIRECTIVES' "${out}"
+  expect_output_contains '%p' "${out}"                # a find % directive
+  expect_output_contains '%{NAME}' "${out}"           # the xff field escape
+  expect_output_contains 'see --help=fields' "${out}" # qualifier cross-reference
+  expect_output_contains 'PRINTF DIRECTIVES' "$("$(_xff_bin)" --help=full 2>&1)"
+}
+
+test::help_time_and_size_list_their_vocabularies() {
+  # `--help=time` prints the time-format presets (from datetime::FormatDocs); `--help=size`
+  # the -size units (from engine::SizeUnitDocs). Both fold into --help=full.
+  local out
+  out="$("$(_xff_bin)" --help=time 2>&1)"
+  expect_output_contains 'TIME FORMATS' "${out}"
+  expect_output_contains 'iso8601' "${out}"
+  expect_output_contains 'epoch' "${out}"
+  out="$("$(_xff_bin)" --help=size 2>&1)"
+  expect_output_contains 'SIZE UNITS' "${out}"
+  expect_output_contains 'kibibytes' "${out}"
+  # --help=full is exhaustive: it folds in the field, printf, time, and size vocabularies.
+  out="$("$(_xff_bin)" --help=full 2>&1)"
+  expect_output_contains 'TIME FORMATS' "${out}"
+  expect_output_contains 'SIZE UNITS' "${out}"
+  expect_output_contains 'PRINTF DIRECTIVES' "${out}"
+}
+
 test::help_unknown_topic_exits_two() {
   local out rc
   out="$("$(_xff_bin)" --help=-nonesuch 2>&1)" && rc=0 || rc=$?

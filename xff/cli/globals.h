@@ -31,9 +31,13 @@ struct GlobalFlag {
   std::string_view name;     // primary lookup key, e.g. "--sort", "--jobs", "-H"
   std::string_view alias;    // alternate lookup key, or "" (e.g. "-j" for --jobs, "--tz")
   std::string_view display;  // human header, e.g. "-j N, --jobs=N|all" or "--sort[=none|dir|subtree|tree]"
-  std::string_view group;    // section for the index, e.g. "Config", "Traversal", "Output"
+  std::string_view group;    // short group key, e.g. "config", "traversal", "filter" (drives grouping)
+  std::string_view header;   // display heading for the group, e.g. "Filter & Ignore" (shown at its first flag)
   std::string_view summary;  // one-line synopsis, lower-case, no trailing period
-  bool xff = true;           // false for a find-native option (-H/-L/-P); true for an xff extension
+  // Optional multi-sentence explanation shown by `--help=NAME` and `--help=full` (the
+  // long tier); empty falls back to the summary. `--help=all` shows the summary only.
+  std::string_view details;
+  bool xff = true;  // false for a find-native option (-H/-L/-P); true for an xff extension
 };
 
 // All global options, in display order. The single enumeration point for the help

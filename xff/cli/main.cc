@@ -27,6 +27,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "xff/cli/globals.h"
 #include "xff/cli/help.h"
 #include "xff/cli/manpage.h"
@@ -34,6 +35,8 @@
 #include "xff/config/config.h"
 #include "xff/config/loader.h"
 #include "xff/config/policy.h"
+#include "xff/datetime/datetime.h"
+#include "xff/engine/evaluate.h"
 #include "xff/engine/run.h"
 #include "xff/format/format.h"
 #include "xff/parser/parser.h"
@@ -55,73 +58,14 @@ Usage:
 No path searches the current directory; no action prints each match (an implicit -print).
 
 Options (whole-run, before the paths):
-  Config / mode:
-    --config=NAME       select a config style: find (strict), xff (find-evolved), xfd/rg (opinionated); repeatable
-    --no-config         ignore discovered .xffrc files
-    --xffrc=FILE        also load a specific config file
-    --explain           print the resolved configuration and exit
+)";
 
-  Traversal:
-    -H / -L / -P        symlinks: follow on the roots / follow everywhere / never (default -P)
-    -j N, --jobs=N|all  worker count for the walk and concurrent -exec (all = every core)
-    --sort[=none|dir|subtree|tree]   sibling/traversal ordering (default depends on the mode)
-
-  Matching:
-    --block-size=SIZE   bytes per -size block for a bare `-size N` / `-size Nb` (default 512; e.g. 4k)
-    --exact             match -name/-path byte-exact (xff otherwise folds case on a case-folding volume)
-    --regextype=RE2|EXACT  how -grep reads its pattern: RE2 regex (default) or EXACT literal
-
-  Ignore / filter:
-    --exclude=GLOB      skip paths matching a gitignore-style glob (repeatable; a matched dir is pruned)
-    --include=GLOB      re-include paths a --exclude would skip (repeatable; last match wins)
-    -g[+|-], --gitignore[=on|off]   respect .gitignore: -g = auto (in a git repo), -g+/=on always, -g-/=off never
-    --ignore-files      respect per-directory .ignore / .xffignore files (off by default)
-    --no-ignore, -u     disable all ignore-file processing (-u: rg/fd short form)
-    --hidden            include hidden dotfiles (default: find/xff show, xfd/rg skip)
-    --no-hidden         skip hidden dotfiles (the xfd/rg default)
-
-  Output:
-    --format=plain|nul|jsonl   record format (plain default; nul = -print0; jsonl = JSON lines)
-    --path-encoding=raw|escape plain-output path bytes: raw (verbatim) or escape (C-escape controls)
-    --template=TEMPLATE        render each match through a field template ({path}, {name}, ...)
-    --implicit-print=yes|no    force the default -print on or off
-    --summary[=overall|type|ext]   print an aligned count + size table instead of each match
-                        (grouped digits; --format=jsonl emits one machine object per row)
-    --count, -c         with -grep, print a per-file matching-line count (path:count), not the lines
-    --top=N             with --summary, show only the N largest groups by size (total still counts all)
-    --color[=auto|always|never]   colorize the plain listing by file type (auto=a tty; honors NO_COLOR)
-    --human[=iec|si|off]   size units for -ls / --summary: iec (KiB/MiB), si (kB/MB), off (bytes)
-                        (default: xff style -> human, find style -> bytes)
-    --buffer[=auto|off|all|N]   -ls column alignment: buffer rows to size columns
-                        (auto = first 100 then stream; off = min widths; all; or N)
-
-  Exit by match (grep-style):
-    --quiet, -q         suppress output; exit 0 if anything matched, else 1 (-q: grep-compatible)
-    --exit-match        keep output; exit 0 if anything matched, else 1
-
-  Safety:
-    --safe              refuse destructive actions (-delete / -exec)
-    --dry-run           preview -delete without removing anything
-    --skip-unsupported  warn and skip a predicate a filesystem cannot evaluate (e.g. -Btime), not fail
-
-  Fields & exec:
-    --exec-fields       render -exec tokens through the field vocabulary ({name}, {path}, ...)
-    --define=NAME=VALUE define a value referenced as {def.NAME}
-    --capture-override  allow a -capture NAME to be bound more than once (last wins)
-
-  Time:
-    --time-format=FMT   default format for time fields (a preset name or a strftime pattern)
-    --timezone=ZONE, --tz=ZONE   zone for interpreting/formatting times (local, utc, an IANA name, or +HH:MM)
-
-  Other:
-    -h, --help, -help   print this help and exit (-help for GNU find compatibility)
-    --help=NAME         print help for one primary, operator, action, or global flag
-                        (e.g. --help=-regex, --help=--sort); --help=list prints the index
-    --help=styles       print the find/xff/xfd/rg default comparison (--explain adds current)
-    --version, -version print the version and exit
-    --man               print the man page (roff; pipe to `man -l -`) and exit
-    --markdown          print a Markdown reference of all options and primaries and exit
-
+// The Expression: section of the usage page, printed after the generated Help: section.
+// The Help: section (help / doc flags + the --help=TOPIC index) is generated from the
+// cli::HelpFlags() and cli::HelpTopics() SOTs so no help-flag text is hand-maintained
+// here; see cli::RenderHelpSection().
+constexpr std::string_view kHelpTextExpression =
+    R"(
 Expression: tests, operators, and actions applied to each entry, by group. Use
 `--help=expressions` for the full annotated list and `--help=NAME` for one entry
 (e.g. `--help=-regex`):
@@ -208,6 +152,66 @@ std::string RenderFlavorTable(const std::vector<std::string>& globals, std::opti
   return table.Render();
 }
 
+// The -printf directive reference (--help=printf, and appended to --help=full), rendered
+// from engine::PrintfDocs() through the shared cli::RenderDocRows layout.
+std::string RenderPrintfDocs() {
+  std::string out = "PRINTF DIRECTIVES (-printf / -fprintf / -println FORMAT):\n";
+  absl::StrAppend(&out, xff::cli::RenderDocRows("  ", xff::engine::PrintfDocs()));
+  return out;
+}
+
+// The time-format vocabulary (--help=time), rendered from datetime::FormatDocs().
+std::string RenderTimeDocs() {
+  std::string out = "TIME FORMATS (--time-format=FMT, --timezone, and time-field {:qualifiers}):\n";
+  absl::StrAppend(&out, xff::cli::RenderDocRows("  ", xff::datetime::FormatDocs()));
+  return out;
+}
+
+// The -size unit vocabulary (--help=size), rendered from engine::SizeUnitDocs().
+std::string RenderSizeDocs() {
+  std::string out = "SIZE UNITS (-size / -blocks [+|-]N[unit]):\n";
+  absl::StrAppend(&out, xff::cli::RenderDocRows("  ", xff::engine::SizeUnitDocs()));
+  return out;
+}
+
+absl::StatusOr<std::string> RenderTopic(std::string_view topic);  // forward declaration (FullReference recurses)
+
+// The full detailed reference (--help=full / long and --help-full / --help-long): every
+// option and primary with explanations, then each sub-vocabulary topic marked in_full --
+// so adding a topic auto-includes it here, no hand-maintained list.
+std::string FullReference() {
+  std::string out(xff::cli::RenderHelp("full").value_or(""));
+  for (const xff::cli::HelpTopic& topic : xff::cli::HelpTopics()) {
+    if (topic.in_full) {
+      absl::StrAppend(&out, "\n", RenderTopic(topic.name).value_or(""));
+    }
+  }
+  return out;
+}
+
+// The single dispatch for `--help=TOPIC`: the CLI-rendered topics (needing the engine /
+// datetime / flavor facets), else the registry-backed cli::RenderHelp. Shared by the
+// --help= handler, the --help-* shortcuts, and FullReference (which never asks for the
+// self-referential full/long, so there is no recursion).
+absl::StatusOr<std::string> RenderTopic(std::string_view topic) {
+  if (topic == "styles" || topic == "flavors") {
+    return RenderFlavorTable({}, std::nullopt);
+  }
+  if (topic == "printf") {
+    return RenderPrintfDocs();
+  }
+  if (topic == "time") {
+    return RenderTimeDocs();
+  }
+  if (topic == "size") {
+    return RenderSizeDocs();
+  }
+  if (topic == "full" || topic == "long") {
+    return FullReference();
+  }
+  return xff::cli::RenderHelp(topic);
+}
+
 }  // namespace
 
 int RunMain(int argc, char** argv) {
@@ -225,21 +229,25 @@ int RunMain(int argc, char** argv) {
   //   -version           GNU find compatibility
   for (const std::string& arg : args) {
     if (arg == "--help" || arg == "-help" || arg == "-h") {
-      std::cout << kHelpText;
+      std::cout << kHelpText << xff::cli::RenderOptions("  ") << xff::cli::RenderHelpSection() << kHelpTextExpression;
+      return 0;
+    }
+    if (arg == "--help-all") {
+      std::cout << RenderTopic("all").value_or("");  // hyphenated shortcut for --help=all (summaries)
+      return 0;
+    }
+    if (arg == "--help-full" || arg == "--help-long") {
+      std::cout << RenderTopic("full").value_or("");  // hyphenated shortcut for --help=full (explained)
       return 0;
     }
     if (arg.starts_with("--help=")) {
       const std::string_view topic = std::string_view(arg).substr(7);
-      if (topic == "styles" || topic == "flavors") {
-        std::cout << RenderFlavorTable({}, std::nullopt);  // static comparison; --explain adds `current`
-        return 0;
-      }
-      const absl::StatusOr<std::string> help = xff::cli::RenderHelp(topic);
+      const absl::StatusOr<std::string> help = RenderTopic(topic);
       if (help.ok()) {
         std::cout << *help;
         return 0;
       }
-      std::cerr << "xff: no help topic '" << topic << "'\n";  // RenderHelp's only failure is unknown-topic
+      std::cerr << "xff: no help topic '" << topic << "'\n";  // RenderTopic's only failure is unknown-topic
       return 2;
     }
     if (arg == "--version" || arg == "-version") {

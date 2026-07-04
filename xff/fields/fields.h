@@ -119,6 +119,30 @@ class Template {
   std::vector<Segment> segments_;
 };
 
+// One documented named field, for the `--help=fields` reference. The vocabulary's
+// documentation source: FieldDocs() below is asserted (fields_test) to cover exactly
+// the renderable field names, so the help topic cannot drift from the renderers.
+struct FieldDoc {
+  std::string_view name;                  // canonical placeholder name ({name})
+  std::vector<std::string_view> aliases;  // alternate names, or empty
+  std::string_view group;                 // short group key (path, type, owner, time, grep)
+  std::string_view header;                // display heading for the group (shown at its first field)
+  std::string_view summary;               // one-line description
+};
+
+// The named {field} vocabulary, grouped for display (rows are pre-ordered by group).
+// Covers exactly the renderable field names; the dynamic namespaces ({env.NAME},
+// {def.NAME}, {capture.NAME}, {0}..{N}) and the qualifiers are prose in the renderer.
+std::vector<FieldDoc> FieldDocs();
+
+// Every renderable field name (the {field} table keys), including the empty name that
+// backs {} (find's full-path placeholder). Powers the FieldDocs() coverage test.
+std::vector<std::string_view> FieldNames();
+
+// The path-component qualifier keywords ({field:KEYWORD}: dir, name, stem, ...), so
+// the help topic lists exactly the keywords the renderer accepts.
+std::vector<std::string_view> PathComponentKeywords();
+
 // Convenience wrapper: Compile(tmpl).Render({path, metadata, depth}) with an
 // empty root. Prefer Compile once + Render per entry on hot paths.
 std::string Render(std::string_view tmpl, std::string_view path, const vfs::Metadata& metadata, int depth);

@@ -78,7 +78,7 @@ std::string ManPage() {
   for (const GlobalFlag& flag : Globals()) {
     if (flag.group != group) {
       group = flag.group;
-      absl::StrAppendFormat(&out, ".SS %s\n", group);
+      absl::StrAppendFormat(&out, ".SS %s\n", flag.header);
     }
     Entry(&out, flag.display, flag.summary, flag.xff);
   }

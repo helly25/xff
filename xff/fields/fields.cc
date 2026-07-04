@@ -652,4 +652,143 @@ std::string Render(std::string_view tmpl, const RenderContext& context) {
   return Template::Compile(tmpl).Render(context);
 }
 
+std::vector<FieldDoc> FieldDocs() {
+  return {
+      // Path & name.
+      {.name = "path",
+       .aliases = {},
+       .group = "path",
+       .header = "Path & name",
+       .summary = "full path as traversed ({} is an alias)"},
+      {.name = "relpath",
+       .aliases = {},
+       .group = "path",
+       .header = "Path & name",
+       .summary = "path relative to the search root (find %P)"},
+      {.name = "root",
+       .aliases = {},
+       .group = "path",
+       .header = "Path & name",
+       .summary = "the search root it was reached from (find %H)"},
+      {.name = "dir",
+       .aliases = {},
+       .group = "path",
+       .header = "Path & name",
+       .summary = "directory containing the entry"},
+      {.name = "name",
+       .aliases = {"file"},
+       .group = "path",
+       .header = "Path & name",
+       .summary = "final path component (the file name)"},
+      {.name = "stem",
+       .aliases = {},
+       .group = "path",
+       .header = "Path & name",
+       .summary = "name without its last extension"},
+      {.name = "core",
+       .aliases = {},
+       .group = "path",
+       .header = "Path & name",
+       .summary = "name without all extensions (foo.tar.gz -> foo)"},
+      {.name = "ext",
+       .aliases = {"extension"},
+       .group = "path",
+       .header = "Path & name",
+       .summary = "last extension, no dot (gz)"},
+      {.name = "suffix",
+       .aliases = {},
+       .group = "path",
+       .header = "Path & name",
+       .summary = "last extension, with dot (.gz)"},
+      {.name = "suffixes",
+       .aliases = {},
+       .group = "path",
+       .header = "Path & name",
+       .summary = "all extensions, with dots (.tar.gz)"},
+      {.name = "target",
+       .aliases = {},
+       .group = "path",
+       .header = "Path & name",
+       .summary = "a symlink's target (find %l); else empty"},
+      // Type & size.
+      {.name = "type",
+       .aliases = {},
+       .group = "type",
+       .header = "Type & size",
+       .summary = "entry type letter (f, d, l, ...)"},
+      {.name = "size",
+       .aliases = {},
+       .group = "type",
+       .header = "Type & size",
+       .summary = "size in bytes ({size:h} human-readable)"},
+      {.name = "blocks",
+       .aliases = {},
+       .group = "type",
+       .header = "Type & size",
+       .summary = "512-byte blocks allocated"},
+      {.name = "inode", .aliases = {}, .group = "type", .header = "Type & size", .summary = "inode number"},
+      {.name = "links", .aliases = {}, .group = "type", .header = "Type & size", .summary = "hard-link count"},
+      {.name = "dev", .aliases = {}, .group = "type", .header = "Type & size", .summary = "device number"},
+      {.name = "depth",
+       .aliases = {},
+       .group = "type",
+       .header = "Type & size",
+       .summary = "depth below the root (0 at a root operand)"},
+      // Owner & mode.
+      {.name = "user", .aliases = {}, .group = "owner", .header = "Owner & mode", .summary = "owner user name"},
+      {.name = "group", .aliases = {}, .group = "owner", .header = "Owner & mode", .summary = "owner group name"},
+      {.name = "uid", .aliases = {}, .group = "owner", .header = "Owner & mode", .summary = "owner numeric user id"},
+      {.name = "gid", .aliases = {}, .group = "owner", .header = "Owner & mode", .summary = "owner numeric group id"},
+      {.name = "mode",
+       .aliases = {"perm"},
+       .group = "owner",
+       .header = "Owner & mode",
+       .summary = "permission bits, octal"},
+      {.name = "access",
+       .aliases = {},
+       .group = "owner",
+       .header = "Owner & mode",
+       .summary = "symbolic permissions (ls -l / stat %A)"},
+      // Time (each takes an optional {:FORMAT} qualifier; see below).
+      {.name = "atime", .aliases = {}, .group = "time", .header = "Time", .summary = "last access time"},
+      {.name = "mtime", .aliases = {}, .group = "time", .header = "Time", .summary = "last modification time"},
+      {.name = "ctime", .aliases = {}, .group = "time", .header = "Time", .summary = "inode change time"},
+      {.name = "btime",
+       .aliases = {},
+       .group = "time",
+       .header = "Time",
+       .summary = "creation/birth time (where supported)"},
+      // Grep context (populated only during -grep=FORMAT; empty elsewhere).
+      {.name = "line",
+       .aliases = {},
+       .group = "grep",
+       .header = "Grep context",
+       .summary = "1-based number of the matching line"},
+      {.name = "text", .aliases = {}, .group = "grep", .header = "Grep context", .summary = "the full matching line"},
+      {.name = "match",
+       .aliases = {},
+       .group = "grep",
+       .header = "Grep context",
+       .summary = "the matched substring (grep -o)"},
+      {.name = "column",
+       .aliases = {},
+       .group = "grep",
+       .header = "Grep context",
+       .summary = "1-based column of the match"},
+  };
+}
+
+std::vector<std::string_view> FieldNames() {
+  std::vector<std::string_view> names;
+  names.reserve(kFieldTable.size());
+  for (const auto& [name, fn] : kFieldTable) {
+    names.push_back(name);
+  }
+  return names;
+}
+
+std::vector<std::string_view> PathComponentKeywords() {
+  return {kPathComponents.begin(), kPathComponents.end()};
+}
+
 }  // namespace xff::fields

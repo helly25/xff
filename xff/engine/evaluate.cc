@@ -1889,4 +1889,61 @@ absl::StatusOr<std::uint64_t> ParseBlockSize(std::string_view spec) {
   return value * unit;
 }
 
+std::string PrintfDirectiveLetters() {
+  std::string letters;
+  for (const auto& [letter, fn] : kPrintfDirectives) {
+    letters.push_back(letter);
+  }
+  return letters;
+}
+
+std::vector<std::pair<std::string_view, std::string_view>> PrintfDocs() {
+  return {
+      {"%p", "the entry's path"},
+      {"%f", "file name (basename)"},
+      {"%h", "leading directories (dirname)"},
+      {"%d", "depth below the starting point"},
+      {"%y", "type letter (f d l b c p s)"},
+      {"%s", "size in bytes"},
+      {"%i", "inode number"},
+      {"%n", "number of hard links"},
+      {"%m", "permission bits, octal"},
+      {"%u", "owner user name (numeric uid if unknown)"},
+      {"%g", "owner group name (numeric gid if unknown)"},
+      {"%U", "numeric user id"},
+      {"%G", "numeric group id"},
+      {"%a %c %t", "access / change / modification time (asctime form)"},
+      {"%Ak %Ck %Tk", "atime / ctime / mtime via strftime conversion k (e.g. %TY, %Tj)"},
+      {"%%", "a literal percent"},
+      {"\\n \\t \\r \\\\ \\0", "newline, tab, carriage return, backslash, NUL"},
+      {"%{NAME}", "xff: the {field} vocabulary (%{relpath}, %{size:h}, %{def.X}); see --help=fields"},
+      {"%{NAME:qual}",
+       "xff: a field with a :qualifier -- time format, {size:h}, s/// rewrite, or path component "
+       "(see --help=fields for the full qualifier list)"},
+  };
+}
+
+std::string SizeUnitSuffixes() {
+  std::string suffixes;
+  for (const auto& [suffix, bytes] : kSizeUnits) {
+    suffixes.push_back(suffix);
+  }
+  return suffixes;
+}
+
+std::vector<std::pair<std::string_view, std::string_view>> SizeUnitDocs() {
+  return {
+      {"c", "bytes"},
+      {"w", "2-byte words"},
+      {"b", "512-byte blocks (the default unit; --block-size overrides)"},
+      {"k", "kibibytes (1024 bytes)"},
+      {"M", "mebibytes (1024^2)"},
+      {"G", "gibibytes (1024^3)"},
+      {"T", "tebibytes (1024^4)"},
+      {"P", "pebibytes (1024^5)"},
+      {"E", "exbibytes (1024^6)"},
+      {"+N / -N", "greater than / less than N units; a bare N matches exactly"},
+  };
+}
+
 }  // namespace xff::engine

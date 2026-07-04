@@ -48,7 +48,7 @@ std::string MarkdownReference() {
   for (const GlobalFlag& flag : Globals()) {
     if (flag.group != group) {
       group = flag.group;
-      absl::StrAppendFormat(&out, "\n### %s\n\n", group);
+      absl::StrAppendFormat(&out, "\n### %s\n\n", flag.header);
     }
     Bullet(&out, flag.display, flag.summary, flag.xff);
   }

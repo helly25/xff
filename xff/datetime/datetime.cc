@@ -194,4 +194,28 @@ std::string FormatTime(absl::Time time, std::string_view spec, absl::TimeZone tz
   return absl::FormatTime(pattern, time, tz);
 }
 
+std::vector<std::string_view> NamedFormatNames() {
+  std::vector<std::string_view> names;
+  names.reserve(kNamedFormats.size());
+  for (const auto& [name, pattern] : kNamedFormats) {
+    names.push_back(name);
+  }
+  return names;
+}
+
+std::vector<std::pair<std::string_view, std::string_view>> FormatDocs() {
+  return {
+      {"iso, iso8601", "ISO-8601 extended (2020-09-13T12:26:40+0000)"},
+      {"iso8601-basic", "ISO-8601 basic / compact (20200913T122640+0000)"},
+      {"iso8601-full", "ISO-8601 with sub-second precision"},
+      {"rfc3339", "RFC 3339, colon offset (2020-09-13T12:26:40+00:00)"},
+      {"space, human", "readable default (2020-09-13 12:26:40 +0000)"},
+      {"asctime", "asctime(3); find's default %t (Sun Sep 13 12:26:40 2020)"},
+      {"epoch", "seconds since the Unix epoch"},
+      {"zulu", "UTC with a Z designator (2020-09-13T12:26:40Z)"},
+      {"zulu-dense", "UTC Z, no separators (20200913T122640Z)"},
+      {"<strftime>", "any other value is used as an strftime(3) pattern, e.g. %Y-%m-%d"},
+  };
+}
+
 }  // namespace xff::datetime

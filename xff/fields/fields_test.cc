@@ -25,6 +25,8 @@
 #include <cstdlib>
 #include <map>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include "absl/time/time.h"
 #include "gmock/gmock.h"
@@ -34,7 +36,12 @@
 namespace xff::fields {
 namespace {
 
+using ::testing::AllOf;
+using ::testing::Contains;
 using ::testing::HasSubstr;
+using ::testing::IsEmpty;
+using ::testing::Not;
+using ::testing::UnorderedElementsAreArray;
 
 struct FieldsTest : ::testing::Test {
   static vfs::Metadata Meta(vfs::FileType type, std::uint64_t size) {
@@ -314,6 +321,43 @@ TEST_F(FieldsTest, RewriteQualifierTransformsTheValue) {
   EXPECT_THAT(Render("{name:s/[aeiou]//g}", "a/b/foo.txt", md, 0), "f.txt");              // g = all matches
   EXPECT_THAT(Render("{path:s#/#_#g}", "a/b/c", md, 0), "a_b_c");                         // alternate delimiter
   EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 1'536), 0), "1.5K");  // non-rewrite intact
+}
+
+// The --help=fields SOT guard: FieldDocs() must document exactly the renderable field
+// names, so the help topic can never drift from the actual field table.
+TEST_F(FieldsTest, FieldDocsCoverEveryRenderableField) {
+  std::vector<std::string_view> documented;
+  for (const FieldDoc& doc : FieldDocs()) {
+    documented.push_back(doc.name);
+    for (const std::string_view alias : doc.aliases) {
+      documented.push_back(alias);
+    }
+  }
+  std::vector<std::string_view> renderable;
+  for (const std::string_view name : FieldNames()) {
+    if (!name.empty()) {  // "" backs {} (an alias of {path}); asserted separately below
+      renderable.push_back(name);
+    }
+  }
+  EXPECT_THAT(documented, UnorderedElementsAreArray(renderable));
+}
+
+TEST_F(FieldsTest, EmptyNameIsThePathAlias) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  EXPECT_THAT(Render("{}", "a/b/c", md, 0), "a/b/c");                           // {} -> full path
+  EXPECT_THAT(Render("{}", "a/b/c", md, 0), Render("{path}", "a/b/c", md, 0));  // same as {path}
+}
+
+TEST_F(FieldsTest, EveryFieldDocHasGroupHeaderAndSummary) {
+  for (const FieldDoc& doc : FieldDocs()) {
+    EXPECT_THAT(doc.group, Not(IsEmpty())) << "field {" << doc.name << "}";
+    EXPECT_THAT(doc.header, Not(IsEmpty())) << "field {" << doc.name << "}";
+    EXPECT_THAT(doc.summary, Not(IsEmpty())) << "field {" << doc.name << "}";
+  }
+}
+
+TEST_F(FieldsTest, PathComponentKeywordsAreExposedForHelp) {
+  EXPECT_THAT(PathComponentKeywords(), AllOf(Not(IsEmpty()), Contains("stem"), Contains("dir")));
 }
 
 }  // namespace
