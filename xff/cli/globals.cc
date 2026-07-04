@@ -285,7 +285,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--buffer[=auto|off|all|N]",
         .group = "output",
         .header = "Output",
-        .summary = "-ls column alignment: buffer rows to size columns (auto=100, off, all, or N)",
+        .summary = "rows buffered to align columns (-ls, --format=aligned/markdown): auto=100, off, all, N",
     },
     {
         .name = "--quiet",

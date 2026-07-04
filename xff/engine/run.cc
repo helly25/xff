@@ -909,12 +909,13 @@ std::optional<format::SizeUnits> ResolveHuman(
   return units;
 }
 
-// --buffer=auto|off|all|N: how -ls buffers rows to align columns. auto (the default)
-// buffers the first 100 to compute widths, then streams the rest at them; off / 0
-// disables buffering (fixed minimum widths); all buffers the whole run; N buffers the
-// first N. Last occurrence wins.
-std::size_t ResolveBufferWindow(const std::vector<std::string>& globals) {
-  std::size_t window = 100;  // --buffer=auto (the default)
+// --buffer=auto|off|all|N: how many rows to buffer to align columns (-ls, and the buffered
+// --format=aligned/markdown tables). auto buffers the first 100 to compute widths then streams
+// the rest at them; off / 0 disables buffering; all buffers the whole run; N buffers the first
+// N. Last occurrence wins. `default_window` is used when no --buffer flag is present (-ls
+// passes 100 = auto; the tables pass kAll = full alignment, their natural default).
+std::size_t ResolveBufferWindow(const std::vector<std::string>& globals, std::size_t default_window) {
+  std::size_t window = default_window;  // no --buffer flag -> the caller's default
   for (const std::string& global : globals) {
     if (global == "--buffer" || global == "--buffer=auto") {
       window = 100;
@@ -1202,7 +1203,7 @@ int RunFind(
     ls_aligns.push_back(column.align);
     ls_mins.push_back(column.min_width);
   }
-  format::ColumnBuffer ls_buffer(std::move(ls_aligns), std::move(ls_mins), ResolveBufferWindow(command.globals));
+  format::ColumnBuffer ls_buffer(std::move(ls_aligns), std::move(ls_mins), ResolveBufferWindow(command.globals, 100));
   const auto emit_ls_row = [&ls_buffer, &emit](std::vector<std::string> cells) {
     if (const std::string ready = ls_buffer.Add(std::move(cells)); !ready.empty()) {
       emit(ready);
@@ -1242,16 +1243,26 @@ int RunFind(
   // --hidden / --no-hidden (style-scoped default): whether to drop hidden dotfiles.
   const bool skip_hidden = ResolveSkipHidden(command.globals, style);
 
-  // Buffered tabular output (--format=aligned/markdown) collects each match's cells here and
-  // renders the whole table after the walk (once every column width is known). The visitor is
-  // single-threaded, so no lock; O(matches) memory (a --buffer bound is a planned follow-up).
-  std::vector<std::vector<std::string>> buffered_rows;
+  // The header row (the column names, or the single default `path`) prints unless --no-header,
+  // and only for the implicit path listing (not a --summary or explicit-action stream).
+  const bool table_header_shown =
+      implicit_print && summary_mode == SummaryMode::kOff && !HasGlobal(command.globals, "--no-header");
 
-  // Streaming tabular (csv/tsv) emits a one-time header row before the records, unless
-  // --no-header (or the output is a --summary / explicit-action stream rather than the
-  // implicit path records). The buffered formats emit their header inside RenderTable, so
-  // Header() / EncodeTabularRow() return "" for them and this block is a no-op.
-  if (implicit_print && summary_mode == SummaryMode::kOff && !HasGlobal(command.globals, "--no-header")) {
+  // Buffered tabular output (--format=aligned/markdown) streams each match's cells through a
+  // TableStream: it buffers up to the --buffer window (default all = full alignment) to size the
+  // columns, then emits the header + rule + rows and streams the rest at the locked widths. The
+  // visitor is single-threaded, so no lock.
+  std::optional<render::TableStream> table_stream;
+  if (buffered) {
+    std::vector<std::string> table_columns = columns.empty() ? std::vector<std::string>{"path"} : columns;
+    table_stream.emplace(
+        format, std::move(table_columns), table_header_shown,
+        ResolveBufferWindow(command.globals, render::TableStream::kAll));
+  }
+
+  // Streaming tabular (csv/tsv) emits its one-time header row here; the buffered formats emit
+  // theirs inside TableStream, so Header() / EncodeTabularRow() return "" and this is a no-op.
+  if (table_header_shown) {
     const std::string header = columns.empty() ? render::Renderer(format, path_encoding).Header()
                                                : render::EncodeTabularRow(format, columns);  // the column names
     if (!header.empty()) {
@@ -1337,8 +1348,8 @@ int RunFind(
         } else if (matched && implicit_print) {
           if (buffered && column_templates.empty() && !compiled_tmpl.has_value()) {
             // Buffered tabular (aligned/markdown) with the default single `path` column: no
-            // field vocabulary needed, so collect the raw path directly.
-            buffered_rows.push_back({std::string(visit.path)});
+            // field vocabulary needed, so stream the raw path directly.
+            emit(table_stream->Add({std::string(visit.path)}));
           } else if (!column_templates.empty() || compiled_tmpl.has_value()) {
             // --columns / --template render through the field vocabulary; build the context
             // once. {target} is a symlink's target (find %l), symlink-gated so a non-symlink
@@ -1365,8 +1376,8 @@ int RunFind(
               for (const fields::Template& column : column_templates) {
                 cells.push_back(column.Render(ctx));
               }
-              if (buffered) {  // aligned/markdown: collect; the whole table renders after the walk
-                buffered_rows.push_back(std::move(cells));
+              if (buffered) {  // aligned/markdown: stream through the buffer (windowed by --buffer)
+                emit(table_stream->Add(cells));
               } else {
                 emit(render::EncodeTabularRow(format, cells));
               }
@@ -1412,15 +1423,11 @@ int RunFind(
     emit(ls_tail);
   }
 
-  // Render the buffered tabular formats (--format=aligned/markdown) now that every matched
-  // row -- and thus every column width -- is known. The header row (the column names, or the
-  // single default `path`) is included unless --no-header, matching the csv/tsv header above.
-  if (buffered) {
-    const std::vector<std::string> table_header = columns.empty() ? std::vector<std::string>{"path"} : columns;
-    const bool with_header =
-        implicit_print && summary_mode == SummaryMode::kOff && !HasGlobal(command.globals, "--no-header");
-    if (const std::string table = render::RenderTable(format, table_header, buffered_rows, with_header);
-        !table.empty()) {
+  // Flush the buffered tabular formats (--format=aligned/markdown): emit whatever the
+  // TableStream still holds (a run shorter than the --buffer window, or --buffer=all), plus a
+  // header-only table when nothing matched. A no-op once the window already streamed everything.
+  if (table_stream.has_value()) {
+    if (const std::string table = table_stream->Flush(); !table.empty()) {
       emit(table);
     }
   }

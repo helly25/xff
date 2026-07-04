@@ -20,9 +20,12 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "mbo/testing/matchers.h"
 
 namespace xff::render {
 namespace {
+
+using ::mbo::testing::EqualsText;
 
 struct RenderTest : ::testing::Test {};
 
@@ -155,6 +158,57 @@ TEST_F(RenderTest, RenderTableIsEmptyForTheStreamingAndNonTabularFormats) {
   EXPECT_THAT(RenderTable(Format::kCsv, {"path"}, rows), "");
   EXPECT_THAT(RenderTable(Format::kTsv, {"path"}, rows), "");
   EXPECT_THAT(RenderTable(Format::kPlain, {"path"}, rows), "");
+}
+
+// TableStream is the windowed engine RenderTable wraps. These lock the bounded-buffer
+// behavior: buffer the window, flush aligned, then stream the rest at the locked widths.
+
+TEST_F(RenderTest, TableStreamBuffersTheWindowThenStreamsTheRestSkewed) {
+  TableStream stream(Format::kAligned, {"name", "n"}, /*with_header=*/true, /*window=*/2);
+  EXPECT_THAT(stream.Add({"a", "1"}), "");  // still buffering the window
+  // The second row fills the window: header + rule + both rows flush at the locked widths.
+  EXPECT_THAT(
+      stream.Add({"bb", "2"}), EqualsText(
+                                   "name  n\n"
+                                   "----  -\n"
+                                   "a     1\n"
+                                   "bb    2\n"));
+  // Past the window a wider cell grows its own column only (graceful skew, no row dropped).
+  EXPECT_THAT(stream.Add({"cccc", "3"}), EqualsText("cccc  3\n"));
+  EXPECT_THAT(stream.Flush(), "");  // nothing left buffered
+}
+
+TEST_F(RenderTest, TableStreamAllBuffersUntilFlush) {
+  TableStream stream(Format::kAligned, {"name", "n"}, /*with_header=*/true, TableStream::kAll);
+  EXPECT_THAT(stream.Add({"a", "1"}), "");
+  EXPECT_THAT(stream.Add({"cccc", "2"}), "");  // still buffering everything
+  // Flush aligns the whole run at once: `cccc` widens the column for the header and all rows.
+  EXPECT_THAT(
+      stream.Flush(), EqualsText(
+                          "name  n\n"
+                          "----  -\n"
+                          "a     1\n"
+                          "cccc  2\n"));
+  EXPECT_THAT(stream.Flush(), "");  // idempotent
+}
+
+TEST_F(RenderTest, TableStreamMarkdownStreamsPastAWindowOfOne) {
+  TableStream stream(Format::kMarkdown, {"name"}, /*with_header=*/true, /*window=*/1);
+  // The first row fills the window: header + rule + row flush at the locked width.
+  EXPECT_THAT(
+      stream.Add({"a"}), EqualsText(
+                             "| name |\n"
+                             "| ---- |\n"
+                             "| a    |\n"));
+  // A wider later cell grows its own column; still valid Markdown.
+  EXPECT_THAT(stream.Add({"bbbbb"}), EqualsText("| bbbbb |\n"));
+  EXPECT_THAT(stream.Flush(), "");
+}
+
+TEST_F(RenderTest, TableStreamIsEmptyForNonBufferedFormats) {
+  TableStream stream(Format::kCsv, {"path"}, /*with_header=*/true, TableStream::kAll);
+  EXPECT_THAT(stream.Add({"a"}), "");
+  EXPECT_THAT(stream.Flush(), "");
 }
 
 }  // namespace

@@ -64,14 +64,54 @@ class Renderer {
   PathEncoding encoding_;
 };
 
-// Renders a whole buffered table -- a header row (`header`, the column names) then the data
-// `rows` of already-rendered cells -- for the buffered tabular formats: kAligned (columns
-// padded to their widest cell, space-separated, with a dashed underline under the header) or
-// kMarkdown (a GitHub Markdown table: `| a | b |` rows, a `| --- | --- |` rule, cells with
-// `|` and newlines escaped). `with_header` false (from --no-header) drops the header and its
-// rule, emitting only the data rows. Buffered because a column's width needs every row, so
-// the caller accumulates all matched rows first (O(matches) memory); returns "" for the
-// streaming / non-tabular formats (which render per row via Record / EncodeTabularRow).
+// Streams a buffered tabular table -- kAligned (columns padded to their widest cell,
+// space-separated, with a dashed underline under the header) or kMarkdown (a GitHub Markdown
+// table: `| a | b |` rows, a `| --- | --- |` rule, cells with `|` and newlines escaped) --
+// with a bounded buffer so a huge result set need not be held whole. It buffers up to
+// `window` rows to size the columns, then emits the header + rule + those rows at the locked
+// widths and streams every later row at those widths; a wider later cell just overflows its
+// column (like -ls past its --buffer window) so no row is ever dropped. `window == kAll`
+// buffers everything and emits it all on Flush() (full alignment; the aligned/md default);
+// `window == 0` does not buffer (each row streams as it arrives, columns growing to fit, so
+// rows need not align across the run). `with_header`
+// false (from --no-header) drops the header and its rule. Feed each match via Add() during
+// the walk, then call Flush() once after it. A non-buffered `format` makes every call "".
+class TableStream {
+ public:
+  static constexpr std::size_t kAll = static_cast<std::size_t>(-1);
+
+  TableStream(Format format, std::vector<std::string> header, bool with_header, std::size_t window);
+
+  // Feeds one row of already-rendered cells; returns whatever is ready to emit now (empty
+  // while still buffering the initial window). Missing cells render empty; extras are ignored.
+  std::string Add(const std::vector<std::string>& cells);
+
+  // Emits any rows still buffered plus a header-only table when nothing matched (call once
+  // after the final Add). Idempotent.
+  std::string Flush();
+
+ private:
+  // The header + rule rows at the current widths, emitted once (nothing if --no-header).
+  std::string HeaderAndRule();
+  // One data row padded to the current widths.
+  std::string Row(const std::vector<std::string>& cells) const;
+
+  bool md_;
+  std::size_t columns_;
+  bool with_header_;
+  std::size_t window_;
+  std::vector<std::string> header_;  // already encoded (md-escaped) column names
+  std::vector<std::size_t> widths_;
+  std::vector<std::vector<std::string>> buffer_;  // encoded rows held while still buffering
+  bool buffering_;
+  bool header_done_;
+  bool flushed_;
+};
+
+// Renders a whole buffered table at once: the convenience wrapper over TableStream with
+// window == kAll (full alignment). `header` is the column names, `rows` the data rows of
+// already-rendered cells; `with_header` false (from --no-header) drops the header + rule.
+// Holds every row (O(rows) memory); returns "" for the streaming / non-tabular formats.
 std::string RenderTable(
     Format format,
     const std::vector<std::string>& header,

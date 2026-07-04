@@ -118,6 +118,22 @@ test::markdown_renders_a_github_table_and_md_is_its_alias() {
   expect_output_contains "| a.txt" "${out}"
 }
 
+test::buffer_bounds_the_aligned_table_without_dropping_rows() {
+  local dir out
+  dir="${TEST_TMPDIR}/abuf"
+  mkdir -p "${dir}"
+  : >"${dir}/a.txt"
+  : >"${dir}/bb.txt"
+  : >"${dir}/ccc.txt"
+  # --buffer=1 locks the column widths on the first row then streams the rest; every match
+  # must still appear (bounded memory, no data loss) and the header rule is still emitted.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=aligned --buffer=1 --columns=name "${dir}" -type f 2>&1)"
+  expect_output_contains "a.txt" "${out}"
+  expect_output_contains "bb.txt" "${out}"
+  expect_output_contains "ccc.txt" "${out}"
+  expect_matches "----" "${out}"
+}
+
 test::no_header_drops_the_buffered_table_header() {
   local dir out
   dir="${TEST_TMPDIR}/aligned_nohdr"
