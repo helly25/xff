@@ -426,6 +426,34 @@ std::string_view FirstXffOperator(const Expr* expr) {
   return FirstXffOperator(expr->rhs.get());
 }
 
+// Returns the first -printf / -fprintf (pre-order) whose FORMAT uses the xff `%{field}`
+// escape, or nullptr. -printf / -fprintf are find-native actions, but %{...} -- the bridge
+// from their % format into the brace field vocabulary -- is an xff extension the strict
+// find style rejects. (-printfln / -fprintfln are xff extensions already, so they are
+// caught by FirstXffExtension; -fprintf takes FILE then FORMAT, so its format is arg 1.)
+const Expr* FirstXffPrintfField(const Expr* expr) {
+  if (expr == nullptr) {
+    return nullptr;
+  }
+  if (expr->kind == Expr::Kind::kPredicate) {
+    const registry::Descriptor* const descriptor = expr->descriptor;
+    if (descriptor != nullptr) {
+      const std::string_view name = descriptor->name;
+      const bool is_fprintf = name == "-fprintf";
+      const std::size_t fmt_index = is_fprintf ? 1 : 0;
+      if ((name == "-printf" || is_fprintf) && expr->args.size() > fmt_index
+          && expr->args[fmt_index].find("%{") != std::string_view::npos) {
+        return expr;
+      }
+    }
+    return nullptr;
+  }
+  if (const Expr* const found = FirstXffPrintfField(expr->lhs.get()); found != nullptr) {
+    return found;
+  }
+  return FirstXffPrintfField(expr->rhs.get());
+}
+
 }  // namespace
 
 absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
@@ -484,6 +512,12 @@ absl::Status EnforceStyle(const Command& command, registry::Style style) {
             "the duration form of '", dur->descriptor->name,
             "' (e.g. \"-3 weeks 3 hours\") is an xff extension, not available under the find style (--config=find); "
             "use a day count, a unit suffix like -1h, or --config=xff"));
+  }
+  if (const Expr* const pf = FirstXffPrintfField(command.expression.get()); pf != nullptr) {
+    return absl::InvalidArgumentError(
+        absl::StrCat(
+            "the '%{field}' escape in '", pf->descriptor->name,
+            "' is an xff extension, not available under the find style (--config=find); use --config=xff"));
   }
   return absl::OkStatus();
 }

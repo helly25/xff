@@ -194,6 +194,19 @@ TEST_F(ParserTest, EnforceStyleRejectsFileWritingLineEndingActionsUnderFind) {
   EXPECT_THAT(EnforceStyle(fln, registry::Style::kXff), IsOk());
 }
 
+TEST_F(ParserTest, EnforceStyleRejectsPrintfFieldEscapeUnderFind) {
+  // -printf / -fprintf are find-native, but their xff `%{field}` escape is not: the strict
+  // find style rejects a format that uses it (while a plain % format stays fine). -fprintf
+  // takes FILE then FORMAT, so the escape is checked in its second argument.
+  ASSERT_OK_AND_ASSIGN(const Command pf, Parse({".", "-printf", "%{relpath}\n"}));
+  EXPECT_THAT(EnforceStyle(pf, registry::Style::kFind), StatusIs(absl::StatusCode::kInvalidArgument));
+  ASSERT_OK_AND_ASSIGN(const Command fpf, Parse({".", "-fprintf", "out", "%{name}"}));
+  EXPECT_THAT(EnforceStyle(fpf, registry::Style::kFind), StatusIs(absl::StatusCode::kInvalidArgument));
+  ASSERT_OK_AND_ASSIGN(const Command plain, Parse({".", "-printf", "%p\n"}));
+  EXPECT_THAT(EnforceStyle(plain, registry::Style::kFind), IsOk());
+  EXPECT_THAT(EnforceStyle(pf, registry::Style::kXff), IsOk());
+}
+
 TEST_F(ParserTest, EnforceStyleWalksTheWholeTree) {
   // A -capture buried under operators is still found (the check is a full walk).
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-type", "f", "-o", "-capture=n", "wc", ";"}));

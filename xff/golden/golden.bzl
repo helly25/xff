@@ -35,7 +35,9 @@ def xff_golden(name, setup, args, find_golden, xff_golden, ordered = False, size
     Args:
         name:        Test target name (should end in `_test`).
         setup:       A shell script (label/file) that populates the fixture tree ($PWD).
-        args:        The xff expression argv (the search root is supplied by the driver).
+        args:        The full xff argv; a `<ROOT>` token marks where the search root goes
+                     (so globals like `--summary` can precede it). Use a real newline for a
+                     -printf terminator, not `\\n` (the sh_test launcher strips the backslash).
         find_golden: Expected normalized output under `--config=find`.
         xff_golden:  Expected normalized output under `--config=xff`.
         ordered:     Keep output line order (default: sort, so readdir order is immaterial).

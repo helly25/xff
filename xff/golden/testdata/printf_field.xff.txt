@@ -1,0 +1,3 @@
+docs/c.txt
+src/a.txt
+src/b.log
