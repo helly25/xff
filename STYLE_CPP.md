@@ -341,6 +341,17 @@ substitute for a committed test. Tests use GoogleTest + GoogleMock with these co
   below). Strings sometimes need `StrEq` (e.g. a `char*` subject, where bare `Eq` compares
   pointers). For booleans, `IsTrue()` / `IsFalse()` usually read better than a bare `true` /
   `false` or `Eq(true)`: `EXPECT_THAT(found, IsTrue())`.
+- **Multi-line text: `mbo::testing::EqualsText`, not `EXPECT_EQ`.** For a multi-line string
+  (a rendered table, generated `--help`, file contents) prefer
+  `EXPECT_THAT(actual, EqualsText(golden))` (`@helly25_mbo//mbo/testing:matchers_cc`): it compares
+  line by line with unified-diff output, so a mismatch points at the offending line instead of
+  dumping the whole blob. When the golden is an indented raw-string literal, wrap it
+  `WithDropIndent(EqualsText(golden))` to strip the source indent, and de-indent the subject to
+  match via `mbo::strings::DropIndent(actual)` (`@helly25_mbo//mbo/strings:indent_cc`) -
+  `EXPECT_THAT(DropIndent(actual), WithDropIndent(EqualsText(golden)))`. Its `DropIndentAndSplit`
+  returns the de-indented lines as a `std::vector<std::string_view>` for when you would rather match
+  them with `ElementsAre`. A bare `EXPECT_EQ` on a multi-line string is now only the fallback for
+  text that is not line-oriented.
 - **Floats / doubles**: never `Eq` / `==`; use `FloatEq` / `DoubleEq` (or `Near`).
 - **Optionals**: `EXPECT_THAT(opt, Eq(std::nullopt))` for empty, `Optional(...)` for a
   value. Nested matchers do **not** auto-wrap: `Optional(Eq("x"))` and `Pointee(Eq("x"))`

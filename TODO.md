@@ -60,6 +60,13 @@ intent, not hard dependency. Task numbers reference the agent task list.
   actionlint, and the local hooks (`no-do-not-merge`, `no-todos-without-context`,
   `done-gate-covers-all-jobs`, the no-em-dash check). Retire the hand-rolled
   clang-format CI step once pre-commit owns it.
+- **Adopt `mbo::testing::EqualsText` for multi-line test comparisons.** The convention is now
+  in `STYLE_CPP.md` / `AGENTS.md`: prefer `EXPECT_THAT(actual, EqualsText(golden))` (unified diff,
+  line by line) over `EXPECT_EQ` for multi-line strings, with `WithDropIndent` /
+  `mbo::strings::DropIndent` / `DropIndentAndSplit` (`@helly25_mbo//mbo/testing:matchers_cc`,
+  `@helly25_mbo//mbo/strings:indent_cc`) when an indented literal reads better. Retrofit the
+  existing `EXPECT_EQ`-on-multi-line tests in one sweep (e.g. `xff/render/render_test.cc`'s
+  `RenderTable` goldens, plus any generated-help / man / markdown goldens), sized by count.
 
 ### find / xff features (roadmap tail)
 
