@@ -66,5 +66,25 @@ TEST_F(RenderTest, EscapeAppliesOnlyToPlain) {
   EXPECT_THAT(Renderer(Format::kJsonl, PathEncoding::kEscape).Record("a\nb"), "{\"path\":\"a\\nb\"}\n");
 }
 
+TEST_F(RenderTest, CsvQuotesOnlyWhenNeededAndDoublesQuotes) {
+  EXPECT_THAT(Renderer(Format::kCsv).Record("a/b/c"), "a/b/c\n");      // no special char -> unquoted
+  EXPECT_THAT(Renderer(Format::kCsv).Record("a,b"), "\"a,b\"\n");      // comma -> quoted
+  EXPECT_THAT(Renderer(Format::kCsv).Record("a\"b"), "\"a\"\"b\"\n");  // quote -> doubled + quoted
+  EXPECT_THAT(Renderer(Format::kCsv).Record("a\nb"), "\"a\nb\"\n");    // newline -> quoted (kept literal)
+}
+
+TEST_F(RenderTest, TsvEscapesTabNewlineAndBackslash) {
+  EXPECT_THAT(Renderer(Format::kTsv).Record("a/b/c"), "a/b/c\n");  // no special char -> verbatim
+  EXPECT_THAT(Renderer(Format::kTsv).Record("a\tb\nc\\d"), "a\\tb\\nc\\\\d\n");
+}
+
+TEST_F(RenderTest, OnlyTabularFormatsHaveAHeader) {
+  EXPECT_THAT(Renderer(Format::kCsv).Header(), "path\n");
+  EXPECT_THAT(Renderer(Format::kTsv).Header(), "path\n");
+  EXPECT_THAT(Renderer(Format::kPlain).Header(), "");
+  EXPECT_THAT(Renderer(Format::kNul).Header(), "");
+  EXPECT_THAT(Renderer(Format::kJsonl).Header(), "");
+}
+
 }  // namespace
 }  // namespace xff::render
