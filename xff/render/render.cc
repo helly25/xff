@@ -225,11 +225,18 @@ std::string Renderer::Header() const {
   return "";  // unreachable: every Format handled above
 }
 
-TableStream::TableStream(Format format, std::vector<std::string> header, bool with_header, std::size_t window)
+TableStream::TableStream(
+    Format format,
+    std::vector<std::string> header,
+    bool with_header,
+    std::size_t window,
+    std::size_t byte_budget)
     : md_(format == Format::kMarkdown),
       columns_(format == Format::kAligned || format == Format::kMarkdown ? header.size() : 0),
       with_header_(with_header),
       window_(window),
+      byte_budget_(byte_budget),
+      buffered_bytes_(0),
       widths_(columns_, md_ ? 3 : 0),
       buffering_(window != 0),
       header_done_(false),
@@ -302,11 +309,15 @@ std::string TableStream::Add(const std::vector<std::string>& cells) {
     widths_[col] = std::max(widths_[col], row[col].size());
   }
   if (buffering_) {
+    for (const std::string& cell : row) {
+      buffered_bytes_ += cell.size();
+    }
     buffer_.push_back(std::move(row));
-    if (window_ != kAll && buffer_.size() >= window_) {
-      // The window is full: lock the widths, flush the header + rule + buffered rows, then
-      // stream. A later wider cell grows its column for that row only (earlier rows keep the
-      // locked width), so no row is dropped -- the same graceful skew as -ls past its window.
+    if ((window_ != kAll && buffer_.size() >= window_) || (byte_budget_ != 0 && buffered_bytes_ >= byte_budget_)) {
+      // The window is full (by row count or the byte budget): lock the widths, flush the
+      // header + rule + buffered rows, then stream. A later wider cell grows its column for
+      // that row only (earlier rows keep the locked width), so no row is dropped -- the same
+      // graceful skew as -ls past its window.
       buffering_ = false;
       std::string out = HeaderAndRule();
       for (const std::vector<std::string>& buffered : buffer_) {

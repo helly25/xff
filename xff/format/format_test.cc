@@ -25,6 +25,9 @@ namespace xff::format {
 namespace {
 
 using ::testing::Eq;
+using ::testing::HasSubstr;
+using ::testing::IsEmpty;
+using ::testing::Not;
 using ::testing::Optional;
 
 struct FormatTest : ::testing::Test {};
@@ -173,6 +176,37 @@ TEST_F(FormatTest, ParseBufferWindowRejectsByteBudgetsAndGarbage) {
   EXPECT_THAT(ParseBufferWindow("garbage"), Eq(std::nullopt));
   EXPECT_THAT(ParseBufferWindow(""), Eq(std::nullopt));
   EXPECT_THAT(ParseBufferWindow("M"), Eq(std::nullopt));  // multiplier with no number
+}
+
+TEST_F(FormatTest, ParseByteBudgetDecimalAndBinaryUnits) {
+  EXPECT_THAT(ParseByteBudget("10B"), Optional(Eq(std::size_t{10})));
+  EXPECT_THAT(ParseByteBudget("10KB"), Optional(Eq(std::size_t{10'000})));        // SI 10^3
+  EXPECT_THAT(ParseByteBudget("10MB"), Optional(Eq(std::size_t{10'000'000})));    // SI 10^6
+  EXPECT_THAT(ParseByteBudget("2GB"), Optional(Eq(std::size_t{2'000'000'000})));  // SI 10^9
+  EXPECT_THAT(ParseByteBudget("10KiB"), Optional(Eq(std::size_t{10'240})));       // IEC 2^10
+  EXPECT_THAT(ParseByteBudget("10MiB"), Optional(Eq(std::size_t{10'485'760})));   // IEC 2^20
+  EXPECT_THAT(ParseByteBudget("10mb"), Optional(Eq(std::size_t{10'000'000})));    // case-insensitive
+}
+
+TEST_F(FormatTest, ParseByteBudgetRejectsRowFormsAndGarbage) {
+  EXPECT_THAT(ParseByteBudget("10M"), Eq(std::nullopt));  // a row count (no trailing B)
+  EXPECT_THAT(ParseByteBudget("100"), Eq(std::nullopt));
+  EXPECT_THAT(ParseByteBudget("all"), Eq(std::nullopt));
+  EXPECT_THAT(ParseByteBudget("10iB"), Eq(std::nullopt));  // IEC 'i' with no scale letter
+  EXPECT_THAT(ParseByteBudget("B"), Eq(std::nullopt));     // no number
+  EXPECT_THAT(ParseByteBudget(""), Eq(std::nullopt));
+}
+
+TEST_F(FormatTest, ColumnBufferFlushesOnTheByteBudget) {
+  // window kAll (no row cap) plus a 6-byte budget: the buffer keeps accumulating until the
+  // buffered cell bytes reach the budget, then flushes the aligned block and streams the rest.
+  ColumnBuffer buf({Align::kLeft, Align::kLeft}, {0, 0}, ColumnBuffer::kAll, /*byte_budget=*/6);
+  EXPECT_THAT(buf.Add({"a", "b"}), IsEmpty());        // 2 bytes buffered, under budget
+  const std::string flushed = buf.Add({"cc", "dd"});  // +4 = 6 >= budget -> flush both rows
+  EXPECT_THAT(flushed, Not(IsEmpty()));
+  EXPECT_THAT(flushed, HasSubstr("a"));
+  EXPECT_THAT(flushed, HasSubstr("cc"));
+  EXPECT_THAT(buf.Flush(), IsEmpty());  // everything already emitted
 }
 
 }  // namespace

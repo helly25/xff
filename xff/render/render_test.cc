@@ -211,5 +211,14 @@ TEST_F(RenderTest, TableStreamIsEmptyForNonBufferedFormats) {
   EXPECT_THAT(stream.Flush(), "");
 }
 
+TEST_F(RenderTest, TableStreamFlushesOnTheByteBudget) {
+  // window kAll (no row cap) but a 4-byte budget: buffer until the buffered cell bytes reach
+  // it, then flush the aligned block. --no-header keeps this to just the data rows.
+  TableStream stream(Format::kAligned, {"n"}, /*with_header=*/false, TableStream::kAll, /*byte_budget=*/4);
+  EXPECT_THAT(stream.Add({"ab"}), "");                      // 2 bytes, under budget
+  EXPECT_THAT(stream.Add({"cd"}), EqualsText("ab\ncd\n"));  // +2 = 4 >= budget -> flush both
+  EXPECT_THAT(stream.Flush(), "");                          // nothing left buffered
+}
+
 }  // namespace
 }  // namespace xff::render
