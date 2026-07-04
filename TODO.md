@@ -166,6 +166,16 @@ remains below is the design-forked / larger work.
     - **A top-level map of the help system** in `--help`: state what it supports -
       `--help`, `--help=TOPIC`, `--help=list`, `--help=expressions`, `--man`, `--markdown`,
       `--explain` (and any `--help=full`) - so users can find the detailed views.
+    - **A flavor feature-map** (2026-07-04 feedback): a find/xff/xfd/rg x
+      `[behavior] [controlling flag] [find] [xff] [xfd] [rg] [current]` comparison table,
+      rendered from ONE static per-style-defaults config the resolvers also read (so it
+      cannot drift) - the #103 config x style matrix made concrete. The `current` column is
+      a per-behavior `--explain`. Sequence after smart-case so its rows are complete.
+    - **Worked examples / a cookbook** (2026-07-04 feedback): `--help` should carry
+      concrete recipes, not just a flag list. Motivating example - per-file `git blame`
+      author line-counts: run `git blame` per file, capture the authors and their line
+      counts, then aggregate with `--summary` (distributions / totals). Exercises
+      `-exec`/`-capture` + the field vocabulary + `--summary` end to end.
 - **Extended logical operators**: shipped. `-xor` / `-nand` / `-nor` / `-xnor` are
   xff extensions (find has only `-a`/`-and`, `-o`/`-or`, `-not`/`!`), with the
   conventional precedence `NOT > AND/-nand > XOR/-xnor > OR/-nor`; the strict find
@@ -178,8 +188,17 @@ remains below is the design-forked / larger work.
   suffixes (akin to `du -h`) so `kB`/`kiB`, `MB`/`MiB` etc. Some of that is available,
   we should have a general number output formatter that knows whether a number is for
   Bytes=B, or blocks or whatever. Use that in all related output.
-- **Number of lines per file**: Investigate whether xff should offer line counting
-  since grep offers it via (-c/--count) or whether we leave it for a `-exec` etc.
+- **Line count as a first-class metric** (2026-07-04): a fully-featured per-text-file line
+  count, beyond the shipped grep-style `-grep -c` / `--count` (#92). It should be a field in
+  the vocabulary (`{lines}`, usable in `-printf` `%{lines}` / `--format` / per-file output),
+  a `--summary` value (sum + a distribution / histogram of line counts across matches), and
+  available to final / aggregate outputs - count lines everywhere counts and sizes already
+  appear. (Binary files: no count, like the content detector.)
+- **Per-file content hashes** (2026-07-04): compute a hash (md5 / sha\* / ...) per file,
+  exposed as a field (`{hash}`, `{hash:sha256}`) and matchable, for dedup / change-detection
+  / manifest output + `--summary` grouping. **Deferred pending the next `mbo` version**,
+  which will provide the hashing (like `-diff` waits on mbo's diff); build against mbo's
+  hashes when they land rather than vendoring our own.
 - **Align outputs like -ls**: Output like `-ls` should be aligned, either the way
   ls does it by providing some reasonable space defaults, or by full alignment.
   Maybe with options since full alignment can be very slow and use lots of memory.
