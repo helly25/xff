@@ -172,6 +172,56 @@ TEST_F(ParserTest, Errors) {
   EXPECT_THAT(Parse({".", "-name", "x", "-nor"}), StatusIs(StatusCode::kInvalidArgument));  // operator missing rhs
 }
 
+TEST_F(ParserTest, ResolveCaseModeDefaultsAndFlags) {
+  // Style defaults: find/xff sensitive, the opinionated styles (xfd/rg) smart.
+  EXPECT_THAT(ResolveCaseMode({}, registry::Style::kFind), CaseMode::kSensitive);
+  EXPECT_THAT(ResolveCaseMode({}, registry::Style::kXff), CaseMode::kSensitive);
+  EXPECT_THAT(ResolveCaseMode({}, registry::Style::kXfd), CaseMode::kSmart);
+  EXPECT_THAT(ResolveCaseMode({}, registry::Style::kRg), CaseMode::kSmart);
+  // Flags override the default; last occurrence wins.
+  EXPECT_THAT(ResolveCaseMode({"-i"}, registry::Style::kFind), CaseMode::kInsensitive);
+  EXPECT_THAT(ResolveCaseMode({"-s"}, registry::Style::kFind), CaseMode::kSmart);
+  EXPECT_THAT(ResolveCaseMode({"-s+"}, registry::Style::kFind), CaseMode::kSmart);
+  EXPECT_THAT(ResolveCaseMode({"-s-"}, registry::Style::kXfd), CaseMode::kSensitive);
+  EXPECT_THAT(ResolveCaseMode({"--case=insensitive"}, registry::Style::kFind), CaseMode::kInsensitive);
+  EXPECT_THAT(ResolveCaseMode({"--case=smart"}, registry::Style::kFind), CaseMode::kSmart);
+  EXPECT_THAT(ResolveCaseMode({"--case=sensitive"}, registry::Style::kXfd), CaseMode::kSensitive);
+  EXPECT_THAT(ResolveCaseMode({"-i", "-s-"}, registry::Style::kFind), CaseMode::kSensitive);  // last wins
+}
+
+TEST_F(ParserTest, ApplyCaseModeFoldsSensitiveMatchers) {
+  // smart: an all-lowercase glob folds; an uppercase-bearing pattern stays exact.
+  ASSERT_OK_AND_ASSIGN(Command lower, Parse({".", "-name", "readme"}));
+  ApplyCaseMode(lower, CaseMode::kSmart);
+  EXPECT_TRUE(lower.expression->case_fold);
+  ASSERT_OK_AND_ASSIGN(Command upper, Parse({".", "-name", "README"}));
+  ApplyCaseMode(upper, CaseMode::kSmart);
+  EXPECT_FALSE(upper.expression->case_fold);
+  // insensitive: folds regardless of pattern case.
+  ASSERT_OK_AND_ASSIGN(Command ins, Parse({".", "-name", "README"}));
+  ApplyCaseMode(ins, CaseMode::kInsensitive);
+  EXPECT_TRUE(ins.expression->case_fold);
+  // The -i variant already folds (descriptor.fold_case), so it is left untouched.
+  ASSERT_OK_AND_ASSIGN(Command iname, Parse({".", "-iname", "README"}));
+  ApplyCaseMode(iname, CaseMode::kInsensitive);
+  EXPECT_FALSE(iname.expression->case_fold);
+  // sensitive is a no-op.
+  ASSERT_OK_AND_ASSIGN(Command sens, Parse({".", "-name", "readme"}));
+  ApplyCaseMode(sens, CaseMode::kSensitive);
+  EXPECT_FALSE(sens.expression->case_fold);
+}
+
+TEST_F(ParserTest, ApplyCaseModeRecompilesRegexInsensitive) {
+  // A -regex node's pre-compiled matcher is recompiled case-insensitively under smart
+  // (all-lowercase pattern), so it then matches an uppercase path.
+  ASSERT_OK_AND_ASSIGN(Command cmd, Parse({".", "-regex", ".*readme.*"}));
+  ASSERT_THAT(cmd.expression->matcher, NotNull());
+  EXPECT_FALSE(cmd.expression->matcher->PartialMatch("/x/README.txt"));  // sensitive before
+  ApplyCaseMode(cmd, CaseMode::kSmart);
+  ASSERT_THAT(cmd.expression->matcher, NotNull());
+  EXPECT_TRUE(cmd.expression->matcher->PartialMatch("/x/README.txt"));  // folded after
+}
+
 TEST_F(ParserTest, EnforceStyleRejectsXffExtensionUnderFind) {
   // The strict find style (--config=find) refuses an xff-only primary, naming it
   // and pointing at the escape hatch.

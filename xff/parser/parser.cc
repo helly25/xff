@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -520,6 +521,79 @@ absl::Status EnforceStyle(const Command& command, registry::Style style) {
             "' is an xff extension, not available under the find style (--config=find); use --config=xff"));
   }
   return absl::OkStatus();
+}
+
+CaseMode ResolveCaseMode(const std::vector<std::string>& globals, registry::Style style) {
+  // The opinionated styles (rg, xfd) default to smart-case; find/xff to sensitive.
+  CaseMode mode =
+      (style == registry::Style::kRg || style == registry::Style::kXfd) ? CaseMode::kSmart : CaseMode::kSensitive;
+  for (const std::string& global : globals) {
+    if (global == "-i" || global == "--case=insensitive") {
+      mode = CaseMode::kInsensitive;
+    } else if (global == "-s" || global == "-s+" || global == "--case=smart") {
+      mode = CaseMode::kSmart;
+    } else if (global == "-s-" || global == "--case=sensitive") {
+      mode = CaseMode::kSensitive;
+    }
+  }
+  return mode;
+}
+
+namespace {
+
+// A pattern is "cased" -- forcing case-sensitive under smart mode -- if it has an ASCII
+// uppercase letter (the smart-case rule shared by rg / fd).
+bool HasUpperAscii(std::string_view pattern) {
+  return absl::c_any_of(pattern, [](char ch) { return ch >= 'A' && ch <= 'Z'; });
+}
+
+// Whether a case-sensitive matcher should fold under `mode` (the -i variants already fold
+// and never reach here). kSmart folds only an all-lowercase pattern.
+bool ShouldFold(CaseMode mode, std::string_view pattern) {
+  switch (mode) {
+    case CaseMode::kInsensitive: return true;
+    case CaseMode::kSensitive: return false;
+    case CaseMode::kSmart: return !HasUpperAscii(pattern);
+  }
+  return false;
+}
+
+// Sets folding on the case-sensitive matchers under `mode`: the glob / substring ones
+// (-name/-path/-lname/-content) via Expr::case_fold, the pre-compiled regex ones
+// (-regex/-rxc/-grep) by recompiling `matcher` case-insensitively. Leaves the -i variants
+// and non-matcher nodes untouched; recurses over the whole tree.
+void ApplyCaseModeToNode(Expr* expr, CaseMode mode) {
+  if (expr == nullptr) {
+    return;
+  }
+  if (expr->kind == Expr::Kind::kPredicate && expr->descriptor != nullptr && !expr->descriptor->fold_case
+      && !expr->args.empty()) {
+    const std::string_view name = expr->descriptor->name;
+    const std::string_view pattern = expr->args.front();
+    const bool glob_or_content = name == "-name" || name == "-path" || name == "-lname" || name == "-content";
+    const bool regex = name == "-regex" || name == "-rxc" || name == "-grep";
+    if ((glob_or_content || regex) && ShouldFold(mode, pattern)) {
+      if (regex) {
+        if (absl::StatusOr<regex::Matcher> matcher = regex::Matcher::Compile(pattern, /*case_insensitive=*/true);
+            matcher.ok()) {
+          expr->matcher = std::make_shared<const regex::Matcher>(*std::move(matcher));
+        }
+      } else {
+        expr->case_fold = true;
+      }
+    }
+  }
+  ApplyCaseModeToNode(expr->lhs.get(), mode);
+  ApplyCaseModeToNode(expr->rhs.get(), mode);
+}
+
+}  // namespace
+
+void ApplyCaseMode(Command& command, CaseMode mode) {
+  if (mode == CaseMode::kSensitive) {
+    return;  // nothing to fold; the -i variants already handle their own case
+  }
+  ApplyCaseModeToNode(command.expression.get(), mode);
 }
 
 }  // namespace xff::parser

@@ -42,6 +42,23 @@ absl::StatusOr<Command> Parse(const std::vector<std::string>& args);
 // and always returns Ok. design-config.md "CLI selectors".
 absl::Status EnforceStyle(const Command& command, registry::Style style);
 
+// How the name/content matchers treat letter case, independent of the per-primary
+// -i variants (which always fold). kSmart folds only when the pattern has no uppercase.
+enum class CaseMode { kSensitive, kInsensitive, kSmart };
+
+// Resolves the case mode from the globals and active style. Default is style-scoped:
+// find/xff -> kSensitive (find-compatible), the opinionated styles (rg, xfd) -> kSmart.
+// Overrides (last wins): `--case=sensitive|insensitive|smart`; the shorts `-i`
+// (insensitive), `-s`/`-s+` (smart), `-s-` (sensitive).
+CaseMode ResolveCaseMode(const std::vector<std::string>& globals, registry::Style style);
+
+// Applies `mode` to `command`'s matchers in place (call after Parse, once the style is
+// known, before the walk): for the otherwise case-sensitive matchers it sets Expr.case_fold
+// (glob / content) and recompiles the pre-compiled regex case-insensitively (-regex/-rxc/
+// -grep) when the mode calls for folding (kInsensitive always; kSmart when the pattern has
+// no uppercase). kSensitive is a no-op; the -i variants are left as they are (already fold).
+void ApplyCaseMode(Command& command, CaseMode mode);
+
 }  // namespace xff::parser
 
 #endif  // XFF_PARSER_PARSER_H_

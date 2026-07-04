@@ -303,6 +303,11 @@ int RunMain(int argc, char** argv) {
     return 2;
   }
 
+  // Apply the resolved case mode to the matchers (--case / -i / -s[+|-]; xfd/rg default
+  // smart), in place before the walk: sets folding on the case-sensitive matchers and
+  // recompiles their pre-compiled regex. A no-op under the sensitive default.
+  xff::parser::ApplyCaseMode(command, xff::parser::ResolveCaseMode(command.globals, style));
+
   // Walk the roots and evaluate the expression, printing matches. Per-path errors
   // -> exit 2 (the xff exit-code model; design.md "Exit-code model"). Match-sensitive
   // exit is opt-in: --quiet suppresses output and exits by match, --exit-match keeps
