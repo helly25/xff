@@ -135,6 +135,32 @@ test::argv0_fd_alias_defaults_to_xfd_style() {
   expect_output_not_contains "out.o" "${out}"
 }
 
+# A tree with a hidden dotfile alongside a visible one.
+_hidden_tree() {
+  local dir="${TEST_TMPDIR}/$1"
+  mkdir -p "${dir}"
+  : >"${dir}/.secret"
+  : >"${dir}/visible.txt"
+  echo "${dir}"
+}
+
+test::hidden_dotfiles_skipped_by_opinionated_styles() {
+  local dir out xff
+  dir="$(_hidden_tree hid)"
+  xff="$(_xff_bin)"
+  # find / xff (conservative) show dotfiles; xfd / rg (opinionated) skip them.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "${xff}" --config=xff "${dir}" -type f 2>&1)"
+  expect_output_contains ".secret" "${out}"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "${xff}" --config=xfd "${dir}" -type f 2>&1)"
+  expect_output_contains "visible.txt" "${out}"
+  expect_output_not_contains ".secret" "${out}"
+  # --hidden opts the opinionated style back in; --no-hidden opts the conservative out.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "${xff}" --config=xfd --hidden "${dir}" -type f 2>&1)"
+  expect_output_contains ".secret" "${out}"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "${xff}" --config=xff --no-hidden "${dir}" -type f 2>&1)"
+  expect_output_not_contains ".secret" "${out}"
+}
+
 test::argv0_find_alias_defaults_to_strict_style() {
   local dir
   dir="$(_tree argv0)"

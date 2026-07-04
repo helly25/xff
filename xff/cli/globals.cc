@@ -139,6 +139,18 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "disable all ignore-file processing (.gitignore/.ignore/.xffignore)",
     },
     {
+        .name = "--hidden",
+        .display = "--hidden",
+        .group = "Ignore / filter",
+        .summary = "include hidden dotfiles in the walk (default: find/xff show, xfd/rg skip)",
+    },
+    {
+        .name = "--no-hidden",
+        .display = "--no-hidden",
+        .group = "Ignore / filter",
+        .summary = "skip hidden dotfiles (the xfd/rg default; opts find/xff out)",
+    },
+    {
         .name = "--format",
         .display = "--format=plain|nul|jsonl",
         .group = "Output",

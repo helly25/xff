@@ -676,6 +676,23 @@ GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals, std:
   return mode;
 }
 
+// --hidden / --no-hidden: whether to skip hidden dotfiles (a path component starting with
+// '.'). Default is style-scoped: find and the conservative xff style show them
+// (find-compatible), the opinionated styles (rg, xfd) skip them (fd-like, less dotclutter).
+// --hidden forces show, --no-hidden forces skip; last occurrence wins. An explicitly named
+// search root is always entered regardless (handled at the walk by depth).
+bool ResolveSkipHidden(const std::vector<std::string>& globals, std::optional<registry::Style> style) {
+  bool skip = style == registry::Style::kRg || style == registry::Style::kXfd;
+  for (const std::string& global : globals) {
+    if (global == "--hidden") {
+      skip = false;
+    } else if (global == "--no-hidden") {
+      skip = true;
+    }
+  }
+  return skip;
+}
+
 // -g auto: whether any search root is inside a git working tree, so .gitignore applies.
 bool AnyRootInRepo(const vfs::FileSystem& fs, const std::vector<std::string>& roots) {
   return absl::c_any_of(
@@ -1164,10 +1181,19 @@ int RunFind(
   // cache needs no synchronisation), and a case-folding volume sets fold_name_case.
   const bool fs_native_case = style == registry::Style::kXff && !HasGlobal(command.globals, "--exact");
   absl::flat_hash_map<std::uint64_t, bool> case_sensitive_by_dev;
+  // --hidden / --no-hidden (style-scoped default): whether to drop hidden dotfiles.
+  const bool skip_hidden = ResolveSkipHidden(command.globals, style);
 
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
       [&](const Visit& visit) {
+        // Hidden filter: unless hidden files are included, drop a dotfile (basename
+        // starting with '.') before any evaluation or output. A hidden directory is
+        // pruned (its whole subtree skipped); a hidden file is skipped. Depth 0 is an
+        // explicitly named search root, always entered -- so `xff .git` still descends.
+        if (skip_hidden && visit.depth > 0 && !visit.name.empty() && visit.name.front() == '.') {
+          return visit.metadata.type == vfs::FileType::kDirectory ? WalkAction::kPrune : WalkAction::kContinue;
+        }
         // Ignore filter: drop an ignored entry before any evaluation or output. A
         // matched directory is pruned (its subtree is never walked, so this is also
         // the fast path); a matched file is simply skipped. The search root itself
