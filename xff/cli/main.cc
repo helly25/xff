@@ -55,7 +55,7 @@ No path searches the current directory; no action prints each match (an implicit
 
 Options (whole-run, before the paths):
   Config / mode:
-    --config=NAME       select a style or config layer (find = strict, xff = modern, rg = ripgrep-like); repeatable
+    --config=NAME       select a config style: find (strict), xff (find-evolved), xfd/rg (opinionated); repeatable
     --no-config         ignore discovered .xffrc files
     --xffrc=FILE        also load a specific config file
     --explain           print the resolved configuration and exit

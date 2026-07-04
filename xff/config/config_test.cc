@@ -109,6 +109,8 @@ TEST_F(ConfigTest, ActiveStyleDefaultsToXffAndTracksTheConfigStack) {
   EXPECT_THAT(ActiveStyle({"rg"}), registry::Style::kRg);            // ripgrep-like defaults
   EXPECT_THAT(ActiveStyle({"rg:2"}), registry::Style::kRg);          // version-pinned epoch -> base "rg"
   EXPECT_THAT(ActiveStyle({"rg", "find"}), registry::Style::kFind);  // last selector still wins
+  EXPECT_THAT(ActiveStyle({"xfd"}), registry::Style::kXfd);          // fd-like opinionated defaults
+  EXPECT_THAT(ActiveStyle({"xfd:2"}), registry::Style::kXfd);        // version-pinned epoch -> base "xfd"
 }
 
 TEST_F(ConfigTest, DefaultStyleForProgramSelectsByBasename) {
@@ -120,6 +122,10 @@ TEST_F(ConfigTest, DefaultStyleForProgramSelectsByBasename) {
   EXPECT_THAT(DefaultStyleForProgram("myfind"), "xff");     // only the exact name "find" is strict
   EXPECT_THAT(DefaultStyleForProgram("findutils"), "xff");  // not a prefix/substring match
   EXPECT_THAT(DefaultStyleForProgram(""), "xff");
+  // The opinionated flavors are reachable by invocation name too.
+  EXPECT_THAT(DefaultStyleForProgram("xfd"), "xfd");
+  EXPECT_THAT(DefaultStyleForProgram("/usr/bin/fd"), "xfd");  // `fd` muscle-memory alias, basename
+  EXPECT_THAT(DefaultStyleForProgram("rg"), "rg");
 }
 
 TEST_F(ConfigTest, ExplainConfigTagsEachFlagWithProvenance) {

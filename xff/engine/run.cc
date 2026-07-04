@@ -659,9 +659,11 @@ bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
 enum class GitignoreMode { kOff, kOn, kAuto };
 
 GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals, std::optional<registry::Style> style) {
-  // The rg style respects ignore files by default (its headline behavior); find/xff
-  // start off (find-compatible). An explicit -g / --gitignore flag still overrides.
-  GitignoreMode mode = style == registry::Style::kRg ? GitignoreMode::kOn : GitignoreMode::kOff;
+  // The opinionated styles (rg, xfd) respect ignore files by default (their headline
+  // behavior); find/xff start off (find-compatible). An explicit -g / --gitignore flag
+  // still overrides.
+  const bool opinionated = style == registry::Style::kRg || style == registry::Style::kXfd;
+  GitignoreMode mode = opinionated ? GitignoreMode::kOn : GitignoreMode::kOff;
   for (const std::string& global : globals) {
     if (global == "-g" || global == "--gitignore") {
       mode = GitignoreMode::kAuto;
@@ -696,9 +698,11 @@ std::vector<std::string> ResolveIgnoreFileNames(
   if (gitignore_on) {
     names.emplace_back(".gitignore");
   }
-  // The rg style also honors .ignore / .xffignore by default (like ripgrep); other
-  // styles need --ignore-files. -u / --no-ignore above still force-disables all.
-  if (HasGlobal(globals, "--ignore-files") || style == registry::Style::kRg) {
+  // The opinionated styles (rg, xfd) also honor .ignore / .xffignore by default (like
+  // ripgrep / fd); other styles need --ignore-files. -u / --no-ignore above still
+  // force-disables all.
+  const bool opinionated = style == registry::Style::kRg || style == registry::Style::kXfd;
+  if (HasGlobal(globals, "--ignore-files") || opinionated) {
     names.emplace_back(".ignore");
     names.emplace_back(".xffignore");
   }
