@@ -191,24 +191,24 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--format",
-        .display = "--format=plain|nul|jsonl|csv|tsv",
+        .display = "--format=plain|nul|jsonl|csv|tsv|aligned|markdown",
         .group = "output",
         .header = "Output",
-        .summary = "record format: plain (default), nul (-print0), jsonl, csv, tsv",
+        .summary = "record format: plain (default), nul (-print0), jsonl, csv, tsv, aligned, markdown (md)",
     },
     {
         .name = "--no-header",
         .display = "--no-header",
         .group = "output",
         .header = "Output",
-        .summary = "omit the header row from --format=csv / tsv (on by default)",
+        .summary = "omit the header row from tabular --format (csv/tsv/aligned/markdown; on by default)",
     },
     {
         .name = "--columns",
         .display = "--columns=FIELD,...",
         .group = "output",
         .header = "Output",
-        .summary = "columns for --format=csv / tsv, from the {field} vocabulary (e.g. path,size,mtime)",
+        .summary = "columns for tabular --format, from the {field} vocabulary (e.g. path,size,mtime)",
     },
     {
         .name = "--path-encoding",
