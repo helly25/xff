@@ -16,9 +16,12 @@
 #ifndef XFF_RENDER_RENDER_H_
 #define XFF_RENDER_RENDER_H_
 
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "absl/container/btree_map.h"
 
 namespace xff::render {
 
@@ -27,7 +30,8 @@ namespace xff::render {
 // streaming tabular (a one-time header via Header(), then one field row per match);
 // kAligned/kMarkdown are buffered tabular (column widths need every row, so the whole
 // table renders once via RenderTable): aligned space-padded columns, or a Markdown table.
-enum class Format { kPlain, kNul, kJsonl, kCsv, kTsv, kAligned, kMarkdown };
+// kTree renders the matched paths as a directory tree (via the Tree builder), buffered.
+enum class Format { kPlain, kNul, kJsonl, kCsv, kTsv, kAligned, kMarkdown, kTree };
 
 // How path bytes are emitted (xff `--path-encoding`). kRaw writes the bytes
 // verbatim (find-compatible default). kEscape C-escapes the backslash and control
@@ -134,6 +138,38 @@ std::string RenderTable(
 // buffered kAligned / kMarkdown render via RenderTable instead, and the non-tabular kPlain /
 // kNul / kJsonl are not rows -- all of those yield an empty string.
 std::string EncodeTabularRow(Format format, const std::vector<std::string>& cells);
+
+// Builds a directory tree from the matched paths and renders it (--format=tree). Each Add()
+// splices a path into a shared-prefix child map, so a match implies its ancestor directories as
+// branch nodes and memory is O(distinct path components), not O(rendered bytes). Render() draws
+// the tree depth-first with box-drawing connectors: Unicode (the `|-- / `-- / |` glyphs' UTF-8
+// forms) when `unicode`, else the ASCII forms. Siblings render lexically (the conventional tree
+// order). Buffered: a node's last-child connector needs every sibling, so the whole (cheap)
+// structure is built before rendering.
+class Tree {
+ public:
+  explicit Tree(bool unicode) : unicode_(unicode) {}
+
+  // Splices `path` (its '/'-separated components) into the tree; an absolute path roots at "/".
+  void Add(std::string_view path);
+
+  // Renders the whole tree: each top-level component is a root line, its descendants indented
+  // under it. Empty (no paths added) yields "".
+  std::string Render() const;
+
+ private:
+  struct Node {
+    // btree_map (not std::map) keeps children lexically ordered; the value is a unique_ptr
+    // because absl::btree_map needs a complete value type while Node is recursive.
+    absl::btree_map<std::string, std::unique_ptr<Node>> children;
+  };
+
+  // Appends `node`'s children under `prefix`, each recursing with the connector-extended prefix.
+  void RenderChildren(const Node& node, std::string_view prefix, std::string* out) const;
+
+  bool unicode_;
+  Node root_;  // the forest; root_.children are the top-level nodes (roots / first components)
+};
 
 }  // namespace xff::render
 

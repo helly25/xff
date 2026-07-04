@@ -22,6 +22,7 @@ cc_library(
     hdrs = ["render.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
+        "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/strings",
     ],
 )

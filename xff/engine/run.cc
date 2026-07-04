@@ -281,9 +281,38 @@ render::Format ResolveFormat(const std::vector<std::string>& globals) {
       format = render::Format::kAligned;
     } else if (global == "--format=markdown" || global == "--format=md") {
       format = render::Format::kMarkdown;  // `md` is the short alias of the canonical `markdown`
+    } else if (global == "--format=tree") {
+      format = render::Format::kTree;
     }
   }
   return format;
+}
+
+// --unicode=auto|always|never: whether --format=tree draws Unicode box-drawing connectors (else
+// ASCII). auto (the default) uses Unicode when the locale is UTF-8 (LC_ALL / LC_CTYPE / LANG,
+// first set wins), the way --color=auto probes the tty. Last occurrence wins; bare --unicode ==
+// --unicode=always.
+bool ResolveUnicode(const std::vector<std::string>& globals) {
+  enum class When : std::uint8_t { kAuto, kAlways, kNever };
+  When when = When::kAuto;
+  for (const std::string& global : globals) {
+    if (global == "--unicode" || global == "--unicode=always") {
+      when = When::kAlways;
+    } else if (global == "--unicode=never") {
+      when = When::kNever;
+    } else if (global == "--unicode=auto") {
+      when = When::kAuto;
+    }
+  }
+  if (when != When::kAuto) {
+    return when == When::kAlways;
+  }
+  for (const char* const var : {"LC_ALL", "LC_CTYPE", "LANG"}) {
+    if (const char* const value = std::getenv(var); value != nullptr && *value != '\0') {
+      return absl::StrContains(absl::AsciiStrToUpper(value), "UTF");  // en_US.UTF-8, C.UTF-8, ...
+    }
+  }
+  return false;  // no locale set -> ASCII is the safe default
 }
 
 // --columns=FIELD,FIELD,... : the tabular column set for --format=csv / tsv, drawn from
@@ -1063,13 +1092,14 @@ int RunFind(
   // width is known); csv/tsv stream a row at a time. All four support --columns + a header.
   const std::vector<std::string> columns = ResolveColumns(command.globals);
   const bool buffered = format == render::Format::kAligned || format == render::Format::kMarkdown;
+  const bool is_tree = format == render::Format::kTree;
   const bool tabular = format == render::Format::kCsv || format == render::Format::kTsv || buffered;
-  if ((tabular || !columns.empty()) && !implicit_print) {
+  if ((tabular || is_tree || !columns.empty()) && !implicit_print) {
     on_error(
         "--format", absl::FailedPreconditionError(
-                        "tabular output (--format=csv/tsv/aligned/markdown) and --columns format the default "
-                        "listing; an action like -ls / -printf / -exec produces its own output -- drop the "
-                        "action, or drop --format / --columns"));
+                        "tabular/tree output (--format=csv/tsv/aligned/markdown/tree) and --columns format the "
+                        "default listing; an action like -ls / -printf / -exec produces its own output -- drop "
+                        "the action, or drop --format / --columns"));
     return 2;
   }
   if (!columns.empty() && !tabular) {
@@ -1268,6 +1298,13 @@ int RunFind(
     table_stream.emplace(format, std::move(table_columns), table_header_shown, bound.window, bound.byte_budget);
   }
 
+  // --format=tree splices each matched path into a shared-prefix structure (its ancestors become
+  // branch nodes), rendered depth-first after the walk. --unicode picks box-drawing vs ASCII.
+  std::optional<render::Tree> tree;
+  if (is_tree) {
+    tree.emplace(ResolveUnicode(command.globals));
+  }
+
   // Streaming tabular (csv/tsv) emits its one-time header row here; the buffered formats emit
   // theirs inside TableStream, so Header() / EncodeTabularRow() return "" and this is a no-op.
   if (table_header_shown) {
@@ -1354,7 +1391,9 @@ int RunFind(
           agg.first += 1;
           agg.second += visit.metadata.size;
         } else if (matched && implicit_print) {
-          if (buffered && column_templates.empty() && !compiled_tmpl.has_value()) {
+          if (is_tree) {
+            tree->Add(visit.path);  // splice into the tree; rendered whole after the walk
+          } else if (buffered && column_templates.empty() && !compiled_tmpl.has_value()) {
             // Buffered tabular (aligned/markdown) with the default single `path` column: no
             // field vocabulary needed, so stream the raw path directly.
             emit(table_stream->Add({std::string(visit.path)}));
@@ -1437,6 +1476,13 @@ int RunFind(
   if (table_stream.has_value()) {
     if (const std::string table = table_stream->Flush(); !table.empty()) {
       emit(table);
+    }
+  }
+
+  // Render the tree (--format=tree) now that every matched path has been spliced in.
+  if (tree.has_value()) {
+    if (const std::string rendered = tree->Render(); !rendered.empty()) {
+      emit(rendered);
     }
   }
 
