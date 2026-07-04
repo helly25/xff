@@ -27,6 +27,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "xff/cli/globals.h"
 #include "xff/cli/help.h"
 #include "xff/cli/manpage.h"
@@ -34,6 +35,7 @@
 #include "xff/config/config.h"
 #include "xff/config/loader.h"
 #include "xff/config/policy.h"
+#include "xff/engine/evaluate.h"
 #include "xff/engine/run.h"
 #include "xff/format/format.h"
 #include "xff/parser/parser.h"
@@ -149,6 +151,22 @@ std::string RenderFlavorTable(const std::vector<std::string>& globals, std::opti
   return table.Render();
 }
 
+// The -printf directive reference (--help=printf, and appended to --help=full), rendered
+// from engine::PrintfDocs() through the shared cli::RenderDocRows layout.
+std::string RenderPrintfDocs() {
+  std::string out = "PRINTF DIRECTIVES (-printf / -fprintf / -println FORMAT):\n";
+  absl::StrAppend(&out, xff::cli::RenderDocRows("  ", xff::engine::PrintfDocs()));
+  return out;
+}
+
+// The full detailed reference (--help=full / long and --help-full / --help-long): every
+// option and primary with explanations, followed by the sub-vocabulary code tables.
+std::string FullReference() {
+  std::string out(xff::cli::RenderHelp("full").value_or(""));
+  absl::StrAppend(&out, "\n", RenderPrintfDocs());
+  return out;
+}
+
 }  // namespace
 
 int RunMain(int argc, char** argv) {
@@ -174,13 +192,21 @@ int RunMain(int argc, char** argv) {
       return 0;
     }
     if (arg == "--help-full" || arg == "--help-long") {
-      std::cout << xff::cli::RenderHelp("full").value_or("");  // hyphenated shortcut for --help=full (explained)
+      std::cout << FullReference();  // hyphenated shortcut for --help=full (explained + sub-vocab tables)
       return 0;
     }
     if (arg.starts_with("--help=")) {
       const std::string_view topic = std::string_view(arg).substr(7);
       if (topic == "styles" || topic == "flavors") {
         std::cout << RenderFlavorTable({}, std::nullopt);  // static comparison; --explain adds `current`
+        return 0;
+      }
+      if (topic == "printf") {
+        std::cout << RenderPrintfDocs();  // the -printf % directive vocabulary (engine::PrintfDocs)
+        return 0;
+      }
+      if (topic == "full" || topic == "long") {
+        std::cout << FullReference();  // full reference + the sub-vocabulary code tables
         return 0;
       }
       const absl::StatusOr<std::string> help = xff::cli::RenderHelp(topic);

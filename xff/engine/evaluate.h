@@ -22,6 +22,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/functional/function_ref.h"
@@ -172,6 +173,16 @@ struct LsColumn {
 // flexible fields (owner/group/size), a fixed 10 for the permission string, and 0
 // for the trailing path.
 std::vector<LsColumn> LsColumns();
+
+// The -printf directive vocabulary for `--help=printf`, as {code, description} rows:
+// find's % directives (the kPrintfDirectives table), the a/c/t + Ak/Ck/Tk time families,
+// the \ escapes, and xff's %{field} escape. evaluate_test guards that it documents every
+// directive in PrintfDirectiveLetters().
+std::vector<std::pair<std::string_view, std::string_view>> PrintfDocs();
+
+// The letters of find's -printf % directives (the kPrintfDirectives keys), for the
+// `--help=printf` coverage guard.
+std::string PrintfDirectiveLetters();
 
 }  // namespace xff::engine
 

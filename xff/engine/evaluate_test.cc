@@ -1375,5 +1375,19 @@ TEST_F(EvaluateTest, CaptureBindsOutputNamespace) {
       visit));
 }
 
+TEST_F(EvaluateTest, PrintfDocsDocumentEveryDirective) {
+  // Drift guard for --help=printf: every % directive in the SOT table (kPrintfDirectives,
+  // via PrintfDirectiveLetters) is documented by PrintfDocs, and the xff %{field} escape too.
+  std::string codes;
+  for (const auto& [code, description] : PrintfDocs()) {
+    codes += code;
+    codes += ' ';
+  }
+  for (const char letter : PrintfDirectiveLetters()) {
+    EXPECT_THAT(codes, HasSubstr(std::string("%") + letter)) << "undocumented -printf directive %" << letter;
+  }
+  EXPECT_THAT(codes, HasSubstr("%{NAME}"));
+}
+
 }  // namespace
 }  // namespace xff::engine

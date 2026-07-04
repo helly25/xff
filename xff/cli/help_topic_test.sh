@@ -63,8 +63,8 @@ test::help_expressions_lists_the_annotated_vocabulary() {
 }
 
 test::help_fields_lists_the_placeholder_vocabulary() {
-  # `--help=fields` (alias `--help=format`) prints the {field} vocabulary: named fields
-  # grouped by heading, aliases folded in, plus the dynamic namespaces and qualifiers.
+  # `--help=fields` prints the {field} vocabulary: named fields grouped by heading,
+  # aliases folded in, plus the dynamic namespaces and qualifiers.
   local out rc
   out="$("$(_xff_bin)" --help=fields 2>&1)" && rc=0 || rc=$?
   expect_eq "0" "${rc}"
@@ -74,8 +74,23 @@ test::help_fields_lists_the_placeholder_vocabulary() {
   expect_output_contains '{env.NAME}' "${out}"      # a dynamic namespace
   expect_output_contains '{name:s/RE/R/f}' "${out}" # the rewrite qualifier
   expect_output_contains 'stem' "${out}"            # a path-component keyword (read from the SOT)
-  # The `format` alias renders the same topic.
-  expect_output_contains '{relpath}' "$("$(_xff_bin)" --help=format 2>&1)"
+  # `--help=format` is NOT this topic: it resolves to the --format record-format flag.
+  out="$("$(_xff_bin)" --help=format 2>&1)"
+  expect_output_contains 'record format' "${out}"
+  expect_output_not_contains '{relpath}' "${out}"
+}
+
+test::help_printf_lists_the_directive_vocabulary() {
+  # `--help=printf` prints the % directive table (from engine::PrintfDocs) plus the
+  # %{field} escape; --help=full folds the same table in so the full reference is exhaustive.
+  local out rc
+  out="$("$(_xff_bin)" --help=printf 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_output_contains 'PRINTF DIRECTIVES' "${out}"
+  expect_output_contains '%p' "${out}"                # a find % directive
+  expect_output_contains '%{NAME}' "${out}"           # the xff field escape
+  expect_output_contains 'see --help=fields' "${out}" # qualifier cross-reference
+  expect_output_contains 'PRINTF DIRECTIVES' "$("$(_xff_bin)" --help=full 2>&1)"
 }
 
 test::help_unknown_topic_exits_two() {

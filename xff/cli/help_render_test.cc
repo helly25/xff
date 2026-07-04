@@ -138,8 +138,8 @@ TEST_F(HelpTest, EveryAdvertisedTopicRendersAndAliasesAreSynonyms) {
   // help, and each alias is a pure synonym (byte-identical output). Only `styles` /
   // `flavors` are excluded -- the CLI renders those (they need the engine).
   for (const HelpTopic& topic : HelpTopics()) {
-    if (topic.name == "styles") {
-      continue;
+    if (topic.name == "styles" || topic.name == "printf") {
+      continue;  // rendered by the CLI (need the engine / flavor facets), not RenderHelp
     }
     const absl::StatusOr<std::string> rendered = RenderHelp(topic.name);
     ASSERT_THAT(rendered, IsOk()) << topic.name;

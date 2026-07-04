@@ -15,9 +15,11 @@
 
 #include "xff/cli/help.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -112,8 +114,9 @@ std::string RenderExpressions() {
   return out;
 }
 
-// The `--help=fields` (alias `--help=format`) topic: the {field} placeholder
-// vocabulary. The named-field rows come from fields::FieldDocs() (the SOT, covered by
+// The `--help=fields` topic: the {field} placeholder vocabulary. (Not `--help=format`,
+// which is the --format record-format flag -- a different concept.) The named-field rows
+// come from fields::FieldDocs() (the SOT, covered by
 // a fields_test drift guard) grouped by heading; the dynamic namespaces, qualifiers,
 // and brace rules are prose, and the % directives cross-reference `--help=-printf`.
 std::string RenderFields() {
@@ -232,20 +235,37 @@ std::vector<HelpTopic> HelpTopics() {
       {.name = "list", .aliases = {}, .summary = "index of every option and expression primary"},
       {.name = "all", .aliases = {}, .summary = "every option and primary, summaries only"},
       {.name = "expressions", .aliases = {}, .summary = "the expression vocabulary: tests, operators, actions"},
-      {.name = "fields", .aliases = {"format"}, .summary = "the {field} placeholder vocabulary"},
+      {.name = "fields", .aliases = {}, .summary = "the {field} placeholder vocabulary"},
+      {.name = "printf", .aliases = {}, .summary = "the -printf % directives and the %{field} escape"},
       {.name = "styles", .aliases = {"flavors"}, .summary = "the find / xff / xfd / rg flavor comparison"},
       {.name = "full", .aliases = {"long"}, .summary = "every option and primary, with the long explanations"},
   };
 }
 
-std::string RenderTopicIndex(std::string_view indent) {
+std::string RenderTopicIndex(std::string_view indent, std::size_t name_width) {
   std::string out;
   for (const HelpTopic& topic : HelpTopics()) {
     std::string summary(topic.summary);
     if (!topic.aliases.empty()) {
       absl::StrAppend(&summary, " (also: ", absl::StrJoin(topic.aliases, ", "), ")");
     }
-    absl::StrAppendFormat(&out, "%s%-13s%s\n", indent, topic.name, summary);
+    const std::size_t pad = name_width > topic.name.size() ? name_width - topic.name.size() : 2;
+    absl::StrAppend(&out, indent, topic.name, std::string(pad, ' '), summary, "\n");
+  }
+  return out;
+}
+
+std::string RenderDocRows(
+    std::string_view indent,
+    const std::vector<std::pair<std::string_view, std::string_view>>& rows) {
+  std::size_t width = 0;
+  for (const auto& [code, detail] : rows) {
+    width = std::max(width, code.size());
+  }
+  width += 2;  // a 2-space gap after the widest code
+  std::string out;
+  for (const auto& [code, detail] : rows) {
+    absl::StrAppend(&out, indent, code, std::string(width - code.size(), ' '), detail, "\n");
   }
   return out;
 }
@@ -284,7 +304,10 @@ std::string RenderHelpSection() {
     const std::size_t pad = flag.display.size() + 2 <= kWidth ? kWidth - flag.display.size() : 2;
     absl::StrAppend(&out, "    ", flag.display, std::string(pad, ' '), flag.summary, "\n");
     if (flag.display == "--help=TOPIC") {
-      absl::StrAppend(&out, RenderTopicIndex("      "));  // the topic list nests under --help=TOPIC
+      // Nest the topic list under --help=TOPIC (8-space indent); name_width 19 lands the
+      // topic summaries at column 27 -- a deliberate +2 past the flag summaries (col 25)
+      // so the nested list reads as sub-items rather than a broken grid.
+      absl::StrAppend(&out, RenderTopicIndex("        ", 19));
     }
   }
   return out;
@@ -306,8 +329,8 @@ absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   if (topic == "expressions") {
     return RenderExpressions();  // the annotated Tests/Actions/Operators list, sans globals
   }
-  if (topic == "fields" || topic == "format") {
-    return RenderFields();  // the {field} placeholder vocabulary
+  if (topic == "fields") {
+    return RenderFields();  // the {field} placeholder vocabulary (--help=format is the --format flag)
   }
   // Expression primary / operator / action (leading-dash convenience: `--help=regex`).
   const registry::Descriptor* descriptor = registry::Lookup(topic);
