@@ -152,6 +152,20 @@ remains below is the design-forked / larger work.
       primaries / flags from the same source (an integrated mode and/or a build
       target; a separate external generator alongside the man-page builder is fine if
       need be). Wire it into CI so the committed docs cannot drift from the vocabulary.
+  - **`--help` readability + discoverability** (2026-07-04 feedback):
+    - **Blank line before each section header** (`Traversal:`, `Matching:`, ...) in the
+      `--help` overview, so the groups are visually separated.
+    - **A full, detailed expression reference.** `--help=expressions` is still one-line
+      summaries; add a detailed view - each primary's full description (arguments, style,
+      cost, an example) - reachable via `--help=full` and/or `--help-full` (dump
+      everything at full detail).
+    - **Surface the format / placeholder vocabulary.** The `{field}` template vocabulary,
+      `-printf` `%` directives + the `%{field}` escape, and the qualifiers (`:s/PAT/REPL/`,
+      path-component, time) are documented nowhere reachable from `--help`; add a topic
+      (e.g. `--help=fields` / `--help=format`).
+    - **A top-level map of the help system** in `--help`: state what it supports -
+      `--help`, `--help=TOPIC`, `--help=list`, `--help=expressions`, `--man`, `--markdown`,
+      `--explain` (and any `--help=full`) - so users can find the detailed views.
 - **Extended logical operators**: shipped. `-xor` / `-nand` / `-nor` / `-xnor` are
   xff extensions (find has only `-a`/`-and`, `-o`/`-or`, `-not`/`!`), with the
   conventional precedence `NOT > AND/-nand > XOR/-xnor > OR/-nor`; the strict find
