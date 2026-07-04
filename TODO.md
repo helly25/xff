@@ -182,35 +182,24 @@ remains below is the design-forked / larger work.
   on the filesystem file type (directory, symlink, executable, fifo/socket/device);
   auto colors only a tty and honors `NO_COLOR`. Still open: per-language coloring
   keyed on `languages.yml` (see "File type support"), once that data source lands.
-- **`-diff` compare mode**: find files as usual, then compare each match against a
-  counterpart file whose path is _constructed per entry_ from the field vocabulary
-  (`{path}`/`{name}`/`{relpath}`/`{root}`/`{def.NAME}`, ...), so comparing a whole
-  tree against a parallel one is `xff A -type f -diff '{def.B}/{relpath}'` (needs a
-  `{relpath}` field = path relative to its search root; add if missing). The find
-  expression is exactly how you "control which files are compared". Design:
-  - **`-diff TARGET` is a TEST** (xff, `Cost::kExpensive`, reads both files), TRUE
-    when the content _differs_ -- so the default implicit `-print` lists changed
-    files, `! -diff` selects unchanged, and it composes with every other predicate.
-    A missing/unreadable TARGET counts as a difference (present here, absent there);
-    a later `--diff-missing=` knob can refine that.
-  - **Output modes reuse existing machinery:** _list_ differing files = default;
-    _count_ = `--summary` over the (differing) matched set; _"is everything equal?"_
-    = exit code via `--quiet`/`--exit-match` (exit 1 = nothing differed). The one new
-    piece is an **overall unified-diff dump**: a companion action (name TBD --
-    `-udiff`/`-diffout`) emitting a unified diff of the entry vs TARGET, so
-    `... -diff '{def.B}/{relpath}' -udiff '{def.B}/{relpath}' > all.diff` writes one
-    combined patch.
-  - **Configurable diff engine (the substance, not a stock byte compare).** A
-    strong diff core (Myers-class) behind a normalization + filtering layer, so
-    "differs" means "differs after the requested normalization". Knobs (all
-    composable, and settable per run / in `.xffrc`): ignore all whitespace
-    (`diff -w`), ignore whitespace-run changes (`-b`), tabs-vs-spaces, EOL style
-    (CRLF vs LF) and a trailing-newline mismatch, blank lines (`-B`), case (`-i`),
-    and **suppress lines matching a user criterion** (a regex/glob line filter, e.g.
-    drop `Copyright`/timestamp lines before comparing). The normalization is shared
-    with the unified-diff dump so the emitted patch reflects the same rules. Vendor a
-    diff lib vs implement the core is an open build choice.
-  - Binary files: reuse the content-search NUL-skip, plus a byte-exact compare mode.
-  - Names to argue: `-diff` (test) vs `-differs`/`-changed`; the dump action
-    `-udiff`/`-diffout`/`--format=diff`; whether the action re-takes TARGET (leaning
-    yes, so each is usable independently) or `-diff` stashes it.
+- **`-cmp` / `-diff` (compare each match against a per-entry target).** The target path
+  is built per entry from the field vocabulary (`{def.B}/{relpath}`, ...), so comparing a
+  whole tree against a parallel one is `xff A -type f ! -cmp '{def.B}/{relpath}'`. The find
+  expression is how you control which files are compared. Ratified split (2026-07-03);
+  polarity **TRUE = same** (like `cmp`/`diff`, exit 0 = identical):
+  - **`-cmp TARGET`** = pure byte-exact matcher (a TEST). **SHIPPED (#231).** `! -cmp`
+    lists changed files; a missing/unreadable target differs (-> false); never normalizes.
+  - **`-diff[=STYLE] TARGET`** = a diff-producing ACTION that also returns true/false
+    (silent + true when equal; emits + false on a difference). Default `-diff=u3` (unified,
+    3 context lines, file header); `-diff=none` = compute-but-silent normalized matcher.
+    Text only; a binary file prints `Binary files A and B differ` to **stderr** (byte
+    compared) instead of a text diff (IDEAS: a `--diff-binary=error|note|skip` flag later).
+    Normalization is `-diff`-only: `--diff-ignore=<tokens>`
+    (ws/lead/trail/change/eol/blank/case/eofnl) + the sibling `--diff-ignore-matching=REGEX`
+    (both `.xffrc`-settable).
+  - **PARKED pending the next `mbo` version (2026-07-04):** the advanced diff output - the
+    `c` (context) / `n` (normal) formats mbo lacks, and a faster (Myers/histogram) core -
+    waits for mbo rather than shipping a partial `-diff` and reworking it. When mbo is
+    ready, v1 is **backend-formatted via `mbo::diff`** (Apache-2.0; `kUnified` + `kDirect` =
+    side-by-side, both native); the `DiffEngine` seam / `--diff-engine` is deferred to a 2nd
+    backend. Full design in the memory note (`project_xff_cmp_diff`).
