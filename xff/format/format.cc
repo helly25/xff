@@ -160,8 +160,17 @@ std::string Table::Render(std::string_view gap) const {
   return out;
 }
 
-ColumnBuffer::ColumnBuffer(std::vector<Align> aligns, std::vector<std::size_t> mins, std::size_t window)
-    : aligns_(std::move(aligns)), widths_(std::move(mins)), window_(window), buffering_(window != 0) {
+ColumnBuffer::ColumnBuffer(
+    std::vector<Align> aligns,
+    std::vector<std::size_t> mins,
+    std::size_t window,
+    std::size_t byte_budget)
+    : aligns_(std::move(aligns)),
+      widths_(std::move(mins)),
+      window_(window),
+      byte_budget_(byte_budget),
+      buffered_bytes_(0),
+      buffering_(window != 0) {
   widths_.resize(aligns_.size(), 0);  // one width per column, seeded from the mins
 }
 
@@ -173,9 +182,13 @@ std::string ColumnBuffer::Add(std::vector<std::string> cells) {
   };
   if (buffering_) {
     widen(cells);
+    for (const std::string& cell : cells) {
+      buffered_bytes_ += cell.size();
+    }
     buffer_.push_back(std::move(cells));
-    // A bounded window that is now full flushes; kAll keeps buffering until Flush.
-    if (window_ != kAll && buffer_.size() >= window_) {
+    // Flush the window once it is full by row count, or once the buffered bytes reach the
+    // memory budget (kAll / 0 mean no cap on that axis); otherwise keep buffering until Flush.
+    if ((window_ != kAll && buffer_.size() >= window_) || (byte_budget_ != 0 && buffered_bytes_ >= byte_budget_)) {
       return Flush();
     }
     return "";
@@ -234,6 +247,46 @@ std::optional<std::size_t> ParseBufferWindow(std::string_view value) {
     return std::nullopt;
   }
   return number * multiplier;
+}
+
+std::optional<std::size_t> ParseByteBudget(std::string_view value) {
+  // A byte budget ends in a byte unit whose final char is `B` (case-insensitive); anything
+  // else is a row count / keyword, not a memory cap.
+  if (value.empty() || (value.back() != 'B' && value.back() != 'b')) {
+    return std::nullopt;
+  }
+  value.remove_suffix(1);    // the 'B'
+  std::size_t base = 1'000;  // SI (decimal) unless an 'i' selects the IEC (binary) base
+  if (!value.empty() && (value.back() == 'i' || value.back() == 'I')) {
+    base = 1'024;
+    value.remove_suffix(1);
+  }
+  std::size_t scale = 1;
+  if (!value.empty()) {
+    switch (value.back()) {
+      case 'k':
+      case 'K': scale = base; break;
+      case 'm':
+      case 'M': scale = base * base; break;
+      case 'g':
+      case 'G': scale = base * base * base; break;
+      case 't':
+      case 'T': scale = base * base * base * base; break;
+      default: break;
+    }
+    if (scale != 1) {
+      value.remove_suffix(1);  // consumed the scale letter
+    }
+  }
+  // An IEC 'i' only makes sense with a scale letter: `10iB` is malformed.
+  if (base == 1'024 && scale == 1) {
+    return std::nullopt;
+  }
+  std::size_t number = 0;
+  if (value.empty() || !absl::SimpleAtoi(value, &number)) {
+    return std::nullopt;
+  }
+  return number * scale;
 }
 
 }  // namespace xff::format

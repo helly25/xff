@@ -909,25 +909,36 @@ std::optional<format::SizeUnits> ResolveHuman(
   return units;
 }
 
-// --buffer=auto|off|all|N[k/M/G]: how many rows to buffer to align columns (-ls, and the
-// buffered --format=aligned/markdown tables). auto (=100) buffers the first 100 to compute
-// widths then streams the rest at them; off / 0 disables buffering; all buffers the whole run;
-// N (with an optional decimal SI multiplier k/M/G/T) buffers the first N rows. Last occurrence
-// wins; a value format::ParseBufferWindow does not recognize is ignored (window unchanged).
-// `default_window` applies when no --buffer flag is present (-ls passes 100 = auto; the tables
-// pass kAll = full alignment, their natural default).
-std::size_t ResolveBufferWindow(const std::vector<std::string>& globals, std::size_t default_window) {
-  std::size_t window = default_window;  // no --buffer flag -> the caller's default
+// The resolved --buffer cap for a column buffer: a row `window` and/or a `byte_budget` (0 =
+// no byte cap). A byte-budget value clears the row cap to kAll so only the bytes bound.
+struct BufferBound {
+  std::size_t window;
+  std::size_t byte_budget;
+};
+
+// --buffer=auto|off|all|N[k/M/G]|N<byte-unit>: how much to buffer to align columns (-ls, and
+// the buffered --format=aligned/markdown tables). auto (=100) buffers the first 100 rows to
+// compute widths then streams the rest at them; off / 0 disables buffering; all buffers the
+// whole run; a row count N (optional decimal SI multiplier k/M/G/T) buffers N rows; a byte
+// budget (N with a byte unit, e.g. 10MB / 10MiB) buffers until that many cell bytes, then
+// streams. Last occurrence wins; an unrecognized value is ignored. `default_window` applies
+// when no --buffer flag is present (-ls passes 100 = auto; the tables pass kAll = full align).
+BufferBound ResolveBufferBound(const std::vector<std::string>& globals, std::size_t default_window) {
+  BufferBound bound{.window = default_window, .byte_budget = 0};
   for (const std::string& global : globals) {
     if (global == "--buffer") {
-      window = 100;  // bare --buffer == --buffer=auto
+      bound = {.window = 100, .byte_budget = 0};  // bare --buffer == --buffer=auto
     } else if (global.starts_with("--buffer=")) {
-      if (const std::optional<std::size_t> parsed = format::ParseBufferWindow(std::string_view(global).substr(9))) {
-        window = *parsed;
+      const std::string_view value = std::string_view(global).substr(9);
+      if (const std::optional<std::size_t> rows = format::ParseBufferWindow(value)) {
+        bound = {.window = *rows, .byte_budget = 0};
+      } else if (const std::optional<std::size_t> bytes = format::ParseByteBudget(value)) {
+        bound = {.window = format::ColumnBuffer::kAll, .byte_budget = *bytes};  // bytes-only cap
       }
+      // else: unrecognized value -> keep the previous bound
     }
   }
-  return window;
+  return bound;
 }
 
 // --top=N: with --summary, keep only the N largest groups by size. Last occurrence
@@ -1200,7 +1211,8 @@ int RunFind(
     ls_aligns.push_back(column.align);
     ls_mins.push_back(column.min_width);
   }
-  format::ColumnBuffer ls_buffer(std::move(ls_aligns), std::move(ls_mins), ResolveBufferWindow(command.globals, 100));
+  const BufferBound ls_bound = ResolveBufferBound(command.globals, 100);  // -ls default: auto=100
+  format::ColumnBuffer ls_buffer(std::move(ls_aligns), std::move(ls_mins), ls_bound.window, ls_bound.byte_budget);
   const auto emit_ls_row = [&ls_buffer, &emit](std::vector<std::string> cells) {
     if (const std::string ready = ls_buffer.Add(std::move(cells)); !ready.empty()) {
       emit(ready);
@@ -1252,9 +1264,8 @@ int RunFind(
   std::optional<render::TableStream> table_stream;
   if (buffered) {
     std::vector<std::string> table_columns = columns.empty() ? std::vector<std::string>{"path"} : columns;
-    table_stream.emplace(
-        format, std::move(table_columns), table_header_shown,
-        ResolveBufferWindow(command.globals, render::TableStream::kAll));
+    const BufferBound bound = ResolveBufferBound(command.globals, render::TableStream::kAll);  // tables: all
+    table_stream.emplace(format, std::move(table_columns), table_header_shown, bound.window, bound.byte_budget);
   }
 
   // Streaming tabular (csv/tsv) emits its one-time header row here; the buffered formats emit

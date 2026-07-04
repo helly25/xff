@@ -112,7 +112,13 @@ class ColumnBuffer {
 
   // `aligns` and `mins` are per-column (mins are the minimum, and the fixed, widths
   // when window == 0); `window` is how many rows to buffer before the first flush.
-  ColumnBuffer(std::vector<Align> aligns, std::vector<std::size_t> mins, std::size_t window);
+  // `byte_budget` (0 = none) flushes the window early once the buffered cell bytes reach it,
+  // so a --buffer memory cap bounds the buffer regardless of row count.
+  ColumnBuffer(
+      std::vector<Align> aligns,
+      std::vector<std::size_t> mins,
+      std::size_t window,
+      std::size_t byte_budget = 0);
 
   // Feeds one row; returns whatever is now ready to emit (empty while still buffering
   // the initial window). Extra cells beyond the column count are ignored; missing
@@ -126,6 +132,8 @@ class ColumnBuffer {
   std::vector<Align> aligns_;
   std::vector<std::size_t> widths_;  // starts at the mins; grows to the widest cell seen
   std::size_t window_;
+  std::size_t byte_budget_;     // 0 = no byte cap; else flush the window at this many buffered bytes
+  std::size_t buffered_bytes_;  // running total of buffered cell bytes (while buffering_)
   bool buffering_;
   std::vector<std::vector<std::string>> buffer_;
 };
@@ -137,6 +145,15 @@ class ColumnBuffer {
 // (a memory bound, handled elsewhere) or garbage -- so the caller keeps its current window.
 // `auto` maps to 100 here; the per-format default for an absent flag is the caller's concern.
 std::optional<std::size_t> ParseBufferWindow(std::string_view value);
+
+// Parses a --buffer=VALUE memory budget into a byte count: an integer with a byte unit whose
+// final letter is `B` (case-insensitive) -- bare `B` (bytes), or a scale letter k/M/G/T with a
+// decimal (SI) base (`10MB` = 10 * 10^6) or an `i` before the `B` for the binary (IEC) base
+// (`10MiB` = 10 * 2^20). The trailing `B` is what marks a byte budget rather than a row count
+// (`10M` = ten million rows, `10MB` = ten megabytes). Returns nullopt for a non-byte value (a
+// row count or keyword, or garbage such as `10iB` with no scale), so the caller treats it as a
+// row window instead. Pair with ParseBufferWindow: try the window first, then the byte budget.
+std::optional<std::size_t> ParseByteBudget(std::string_view value);
 
 }  // namespace xff::format
 

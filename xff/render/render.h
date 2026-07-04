@@ -80,7 +80,14 @@ class TableStream {
  public:
   static constexpr std::size_t kAll = static_cast<std::size_t>(-1);
 
-  TableStream(Format format, std::vector<std::string> header, bool with_header, std::size_t window);
+  // `byte_budget` (0 = none) flushes the window early once the buffered cell bytes reach it,
+  // so a --buffer memory cap bounds the table regardless of row count.
+  TableStream(
+      Format format,
+      std::vector<std::string> header,
+      bool with_header,
+      std::size_t window,
+      std::size_t byte_budget = 0);
 
   // Feeds one row of already-rendered cells; returns whatever is ready to emit now (empty
   // while still buffering the initial window). Missing cells render empty; extras are ignored.
@@ -100,6 +107,8 @@ class TableStream {
   std::size_t columns_;
   bool with_header_;
   std::size_t window_;
+  std::size_t byte_budget_;          // 0 = no byte cap; else flush the window at this many buffered bytes
+  std::size_t buffered_bytes_;       // running total of buffered cell bytes (while buffering_)
   std::vector<std::string> header_;  // already encoded (md-escaped) column names
   std::vector<std::size_t> widths_;
   std::vector<std::vector<std::string>> buffer_;  // encoded rows held while still buffering
