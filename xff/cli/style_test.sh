@@ -114,6 +114,27 @@ test::rg_style_accepts_xff_extensions() {
   expect_eq "0" "${rc}"
 }
 
+test::xfd_style_respects_ignore_files_by_default() {
+  local dir out
+  dir="$(_ignore_tree xfdignore)"
+  # --config=xfd (the fd-like flavor) turns on .gitignore + .ignore by default, like rg.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --config=xfd "${dir}" -type f 2>&1)"
+  expect_output_contains "keep.txt" "${out}"
+  expect_output_not_contains "out.o" "${out}"    # .gitignore build/
+  expect_output_not_contains "junk.tmp" "${out}" # .ignore *.tmp
+}
+
+test::argv0_fd_alias_defaults_to_xfd_style() {
+  local dir out
+  dir="$(_ignore_tree argv0fd)"
+  # Invoked through an `fd`-named symlink, the opinionated xfd style is the default (no
+  # --config needed): ignore files are respected.
+  ln -sf "$(_xff_bin)" "${TEST_TMPDIR}/fd"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "${TEST_TMPDIR}/fd" "${dir}" -type f 2>&1)"
+  expect_output_contains "keep.txt" "${out}"
+  expect_output_not_contains "out.o" "${out}"
+}
+
 test::argv0_find_alias_defaults_to_strict_style() {
   local dir
   dir="$(_tree argv0)"

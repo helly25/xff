@@ -41,11 +41,14 @@ enum class Binding { kNone, kLabel, kLabelRegex, kFormat };
 // The active command style, and (for kFind/kXff) a primary's origin. As a primary
 // tag: kFind = find-native, kXff = an xff extension; the strict find style
 // (--config=find) rejects xff extensions, the xff style accepts all. The default is
-// kFind, so only xff-native primaries need tagging. kRg (--config=rg) is a
-// config-only style, never a descriptor tag: it uses the full xff vocabulary but
-// swaps in ripgrep-like defaults (respect .gitignore/.ignore, unsorted); vocabulary
-// is accepted exactly like kXff (everything but kFind accepts all).
-enum class Style { kFind, kXff, kRg };
+// kFind, so only xff-native primaries need tagging. kXff is find-evolved but
+// conservative (find-like visibility: shows hidden, ignore files off). kRg
+// (--config=rg) and kXfd (--config=xfd) are config-only styles, never descriptor tags:
+// both use the full xff vocabulary but swap in opinionated defaults (respect
+// .gitignore/.ignore, skip hidden, unsorted) - kXfd is the fd-like file finder, kRg
+// the ripgrep-like variant. Vocabulary is accepted exactly like kXff (everything but
+// kFind accepts all).
+enum class Style { kFind, kXff, kRg, kXfd };
 
 // One option / predicate / action description. The registry is the single
 // source of truth from which the parser, --help, completions, --explain, and

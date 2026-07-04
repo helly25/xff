@@ -87,6 +87,8 @@ registry::Style ActiveStyle(const std::vector<std::string>& configs) {
       style = registry::Style::kXff;
     } else if (base == "rg") {
       style = registry::Style::kRg;  // ripgrep-like defaults on the xff vocabulary
+    } else if (base == "xfd") {
+      style = registry::Style::kXfd;  // fd-like opinionated defaults on the xff vocabulary
     }
   }
   return style;
@@ -97,6 +99,7 @@ std::string_view StyleName(registry::Style style) {
   switch (style) {
     case registry::Style::kFind: return "find";
     case registry::Style::kRg: return "rg";
+    case registry::Style::kXfd: return "xfd";
     case registry::Style::kXff: return "xff";
   }
   return "xff";
@@ -106,7 +109,19 @@ std::string_view DefaultStyleForProgram(std::string_view argv0) {
   if (const std::string_view::size_type slash = argv0.rfind('/'); slash != std::string_view::npos) {
     argv0 = argv0.substr(slash + 1);  // basename: the last path component
   }
-  return argv0 == "find" ? "find" : "xff";
+  // Flavor by invocation name: `find` -> strict find, `xfd`/`fd` -> the fd-like
+  // opinionated style, `rg` -> the ripgrep-like style; anything else (including `xff`)
+  // -> the conservative modern default. An explicit --config always overrides.
+  if (argv0 == "find") {
+    return "find";
+  }
+  if (argv0 == "xfd" || argv0 == "fd") {
+    return "xfd";
+  }
+  if (argv0 == "rg") {
+    return "rg";
+  }
+  return "xff";
 }
 
 std::string ExplainConfig(const std::vector<ResolvedFlag>& resolved, const std::vector<std::string>& cli_globals) {
