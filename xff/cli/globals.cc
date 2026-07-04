@@ -191,10 +191,10 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--format",
-        .display = "--format=plain|nul|jsonl|csv|tsv|aligned|markdown",
+        .display = "--format=plain|nul|jsonl|csv|tsv|aligned|markdown|tree",
         .group = "output",
         .header = "Output",
-        .summary = "record format: plain (default), nul (-print0), jsonl, csv, tsv, aligned, markdown (md)",
+        .summary = "output format: plain, nul, jsonl, csv, tsv, aligned, markdown (md), tree; default plain",
     },
     {
         .name = "--no-header",
@@ -272,6 +272,16 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .details = "Colorizes the plain listing by file type. auto colorizes only when stdout is a terminal; always "
                    "forces color even through a pipe or pager; never disables it. The NO_COLOR environment variable "
                    "always wins.",
+    },
+    {
+        .name = "--unicode",
+        .display = "--unicode[=auto|always|never]",
+        .group = "output",
+        .header = "Output",
+        .summary = "--format=tree connectors: auto (a UTF-8 locale), always (Unicode), or never (ASCII)",
+        .details = "Selects the box-drawing characters --format=tree connects nodes with. auto uses Unicode when the "
+                   "locale (LC_ALL / LC_CTYPE / LANG) is UTF-8, else ASCII; always forces the Unicode connectors; "
+                   "never forces the ASCII ones.",
     },
     {
         .name = "--human",

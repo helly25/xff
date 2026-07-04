@@ -17,12 +17,14 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
 
 namespace xff::render {
 namespace {
@@ -130,9 +132,10 @@ std::string Renderer::Record(std::string_view path, std::string_view color) cons
   switch (format_) {
     case Format::kAligned:
     case Format::kMarkdown:
-      // Buffered tabular: the whole table renders once via RenderTable, so a single record
-      // has no standalone encoding here. Emit the raw path line as a defensive fallback (the
-      // walk driver routes these formats through RenderTable, never Record).
+    case Format::kTree:
+      // Buffered formats: the whole output renders once (RenderTable / Tree), so a single
+      // record has no standalone encoding here. Emit the raw path line as a defensive fallback
+      // (the walk driver routes these formats through their builder, never Record).
       return absl::StrCat(path, "\n");
     case Format::kCsv: {
       std::string record;
@@ -195,9 +198,10 @@ std::string EncodeTabularRow(Format format, const std::vector<std::string>& cell
     }
     case Format::kAligned:
     case Format::kMarkdown:
+    case Format::kTree:
     case Format::kJsonl:
     case Format::kNul:
-    case Format::kPlain: return "";  // streaming per-row is csv/tsv only (buffered ones use RenderTable)
+    case Format::kPlain: return "";  // streaming per-row is csv/tsv only (buffered ones use their builder)
   }
   return "";  // unreachable: every Format handled above
 }
@@ -218,9 +222,10 @@ std::string Renderer::Header() const {
     }
     case Format::kAligned:
     case Format::kMarkdown:
+    case Format::kTree:
     case Format::kJsonl:
     case Format::kNul:
-    case Format::kPlain: return "";  // buffered formats emit their header inside RenderTable
+    case Format::kPlain: return "";  // buffered formats emit their header inside their builder
   }
   return "";  // unreachable: every Format handled above
 }
@@ -362,6 +367,53 @@ std::string RenderTable(
     out += stream.Add(row);  // window == kAll buffers every row, so each Add returns ""
   }
   out += stream.Flush();
+  return out;
+}
+
+void Tree::Add(std::string_view path) {
+  Node* node = &root_;
+  const auto descend = [&node](std::string_view name) {
+    std::unique_ptr<Node>& child = node->children[std::string(name)];  // create-or-descend
+    if (child == nullptr) {
+      child = std::make_unique<Node>();
+    }
+    node = child.get();  // shared prefixes reuse the same node
+  };
+  if (!path.empty() && path.front() == '/') {
+    descend("/");  // an absolute path roots at "/"
+  }
+  for (const std::string_view part : absl::StrSplit(path, '/', absl::SkipEmpty())) {
+    descend(part);
+  }
+}
+
+void Tree::RenderChildren(const Node& node, std::string_view prefix, std::string* out) const {
+  // Box-drawing connectors when unicode_: tee (U+251C), elbow (U+2514), and vertical (U+2502)
+  // with horizontals (U+2500), as literal UTF-8; else the ASCII forms.
+  const std::string_view tee = unicode_ ? "├── " : "|-- ";
+  const std::string_view elbow = unicode_ ? "└── " : "`-- ";
+  const std::string_view vertical = unicode_ ? "│   " : "|   ";
+  static constexpr std::string_view kGap = "    ";
+  std::size_t index = 0;
+  const std::size_t count = node.children.size();
+  for (const auto& [name, child] : node.children) {
+    const bool last = ++index == count;
+    out->append(prefix);
+    out->append(last ? elbow : tee);
+    out->append(name);
+    out->push_back('\n');
+    RenderChildren(*child, absl::StrCat(prefix, last ? kGap : vertical), out);
+  }
+}
+
+std::string Tree::Render() const {
+  // Each top-level node is a bare root line (no connector); its descendants indent under it.
+  std::string out;
+  for (const auto& [name, child] : root_.children) {
+    out.append(name);
+    out.push_back('\n');
+    RenderChildren(*child, "", &out);
+  }
   return out;
 }
 

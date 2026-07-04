@@ -220,5 +220,60 @@ TEST_F(RenderTest, TableStreamFlushesOnTheByteBudget) {
   EXPECT_THAT(stream.Flush(), "");                          // nothing left buffered
 }
 
+// Tree (--format=tree): splice paths into a shared-prefix structure, render depth-first with
+// box-drawing connectors. Siblings are lexical; the last child gets the elbow connector.
+
+TEST_F(RenderTest, TreeRendersUnicodeConnectorsWithCorrectLastChild) {
+  Tree tree(/*unicode=*/true);
+  tree.Add("root/src/main.cc");
+  tree.Add("root/src/util.cc");
+  tree.Add("root/README.md");  // sorts before "src"; "src" is root's last child (elbow)
+  EXPECT_THAT(
+      tree.Render(), EqualsText(
+                         "root\n"
+                         "├── README.md\n"
+                         "└── src\n"
+                         "    ├── main.cc\n"
+                         "    └── util.cc\n"));
+}
+
+TEST_F(RenderTest, TreeRendersAsciiConnectorsWhenNotUnicode) {
+  Tree tree(/*unicode=*/false);
+  tree.Add("root/src/main.cc");
+  tree.Add("root/src/util.cc");
+  tree.Add("root/README.md");
+  EXPECT_THAT(
+      tree.Render(), EqualsText(
+                         "root\n"
+                         "|-- README.md\n"
+                         "`-- src\n"
+                         "    |-- main.cc\n"
+                         "    `-- util.cc\n"));
+}
+
+TEST_F(RenderTest, TreeShowsAncestorsOfADeepMatch) {
+  // Only the leaf was added; its ancestor directories appear as branch nodes.
+  Tree tree(/*unicode=*/false);
+  tree.Add("root/src/main.cc");
+  EXPECT_THAT(
+      tree.Render(), EqualsText(
+                         "root\n"
+                         "`-- src\n"
+                         "    `-- main.cc\n"));
+}
+
+TEST_F(RenderTest, TreeDrawsAVerticalForNonLastBranches) {
+  // `a` is not root's last child, so its subtree is prefixed with the vertical connector.
+  Tree tree(/*unicode=*/true);
+  tree.Add("root/a/x");
+  tree.Add("root/b");
+  EXPECT_THAT(
+      tree.Render(), EqualsText(
+                         "root\n"
+                         "├── a\n"
+                         "│   └── x\n"
+                         "└── b\n"));
+}
+
 }  // namespace
 }  // namespace xff::render

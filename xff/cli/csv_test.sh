@@ -14,11 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# End-to-end test of the tabular --format family: csv / tsv stream a header row by default
-# (suppressed by --no-header) with RFC-4180 quoting; aligned / markdown buffer the whole
-# table and render it padded (a dashed rule under the header) after the walk. --columns and
-# its usage errors are shared by all four. Drives the real binary (the header / table is
-# emitted by the walk driver, so shell level is the right fit).
+# End-to-end test of the non-plain --format renderers. The tabular family: csv / tsv stream a
+# header row by default (suppressed by --no-header) with RFC-4180 quoting; aligned / markdown
+# buffer the whole table and render it padded (a dashed rule under the header) after the walk;
+# --columns and its usage errors are shared by all four. And tree, which renders the matched
+# paths as a directory tree (--unicode picks the connectors). Drives the real binary (the
+# header / table / tree is emitted by the walk driver, so shell level is the right fit).
 
 set -euo pipefail
 
@@ -142,6 +143,22 @@ test::no_header_drops_the_buffered_table_header() {
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=aligned --no-header --columns=name,size "${dir}" -type f 2>&1)"
   expect_output_not_contains "name" "${out}" # the header row (and its rule) is gone
   expect_output_contains "a.txt" "${out}"
+}
+
+test::tree_renders_a_directory_tree_with_ascii_connectors_under_no_unicode() {
+  local dir out rc
+  dir="${TEST_TMPDIR}/tree"
+  mkdir -p "${dir}/sub"
+  : >"${dir}/a.txt"
+  : >"${dir}/sub/b.txt"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=tree --unicode=never "${dir}" -type f 2>&1)"
+  expect_output_contains "a.txt" "${out}"
+  expect_output_contains "b.txt" "${out}" # a deep match pulls in its ancestor dir
+  expect_matches "[|]-- " "${out}"        # an ASCII tree connector
+  # tree formats the default listing, so an output action is a usage error.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=tree "${dir}" -ls 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "format the default listing" "${out}"
 }
 
 test_runner
