@@ -44,6 +44,21 @@ enum class SizeUnits { kIec, kSi };
 // binary (kIec) or decimal (kSi) scale.
 std::string Size(std::uint64_t bytes, SizeUnits units);
 
+// A human size split into a right-alignable number and a left-alignable unit suffix,
+// for a column-aligned report (--summary). See SizeColumns.
+struct SizeParts {
+  std::string number;
+  std::string suffix;
+};
+
+// Like Size, but split for two-column alignment. `number` carries a fixed-width fraction
+// area -- `fraction_digits` decimals for a scaled unit ("12.34"), or, for an exact byte
+// count, the integer with that area blanked ("12   ") -- so right-aligning the number
+// column lines every decimal point up (and blanks it for bytes) while the suffixes, in a
+// left-aligned column, all start at one place. So a caller pads: PadLeft(number, w) + " "
+// + suffix. `fraction_digits == 0` drops the point (both scaled and bytes are integers).
+SizeParts SizeColumns(std::uint64_t bytes, SizeUnits units, unsigned fraction_digits);
+
 // Right-justifies `text` in a field of `width` columns by prepending spaces (no
 // truncation: a longer `text` is returned unchanged). For aligning a numeric
 // column to its widest cell.

@@ -897,6 +897,25 @@ std::optional<std::size_t> ResolveTop(const std::vector<std::string>& globals) {
   return top;
 }
 
+// --summary-precision=N: fraction digits for the --summary human size column (default 2,
+// e.g. "12.34 MiB"). A malformed value keeps the default; the count is capped at 9 so the
+// column stays readable. Bytes stay integer regardless (12 B), with the fraction columns
+// blanked so points line up (see format::SizeColumns).
+unsigned ResolveSummaryPrecision(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--summary-precision=";
+  unsigned precision = 2;
+  for (const std::string& global : globals) {
+    if (!global.starts_with(kPrefix)) {
+      continue;
+    }
+    if (std::uint32_t value = 0;
+        absl::SimpleAtoi(std::string_view(global).substr(kPrefix.size()), &value) && value <= 9) {
+      precision = value;
+    }
+  }
+  return precision;
+}
+
 // A JSON string literal for `text` (quotes included): escapes the JSON-significant
 // characters and any control byte as \uXXXX. Used for the --summary=jsonl group key
 // (type/extension names, which are normally plain but may carry odd bytes).
@@ -1333,16 +1352,35 @@ int RunFind(
         emit(absl::StrCat("{\"group\":", JsonQuote(row.key), ",\"count\":", row.count, ",\"bytes\":", row.size, "}\n"));
       }
     } else {
-      // Right-aligned human table: label left, grouped count + byte size right-
-      // aligned. The Table carries the per-column max-width context and renders once.
-      format::Table table({format::Align::kLeft, format::Align::kRight, format::Align::kRight});
-      for (const Row& row : rows) {
-        // --human renders the size column in units (KiB/MiB or kB/MB); otherwise it
-        // stays raw grouped bytes. The count column is always a grouped integer.
-        std::string size = human.has_value() ? format::Size(row.size, *human) : format::Int(row.size, ',');
-        table.AddRow({row.key, format::Int(row.count, ','), std::move(size)});
+      // Label left, grouped count right. --human renders the size as two aligned columns
+      // -- a right-aligned number (fixed fraction area, so decimal points line up and are
+      // blanked for exact bytes) and a left-aligned unit suffix that starts at one column,
+      // e.g. "12.34 MiB" over "512    B". Without --human the size stays raw grouped bytes,
+      // right-aligned. The Table carries the per-column max-width context.
+      if (human.has_value()) {
+        const unsigned precision = ResolveSummaryPrecision(command.globals);
+        std::vector<format::SizeParts> sizes;
+        sizes.reserve(rows.size());
+        std::size_t number_width = 0;
+        for (const Row& row : rows) {
+          format::SizeParts parts = format::SizeColumns(row.size, *human, precision);
+          number_width = std::max(number_width, parts.number.size());
+          sizes.push_back(std::move(parts));
+        }
+        format::Table table({format::Align::kLeft, format::Align::kRight, format::Align::kLeft});
+        for (std::size_t i = 0; i < rows.size(); ++i) {
+          table.AddRow(
+              {rows[i].key, format::Int(rows[i].count, ','),
+               absl::StrCat(format::PadLeft(sizes[i].number, number_width), " ", sizes[i].suffix)});
+        }
+        emit(table.Render());
+      } else {
+        format::Table table({format::Align::kLeft, format::Align::kRight, format::Align::kRight});
+        for (const Row& row : rows) {
+          table.AddRow({row.key, format::Int(row.count, ','), format::Int(row.size, ',')});
+        }
+        emit(table.Render());
       }
-      emit(table.Render());
     }
   }
 

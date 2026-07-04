@@ -56,6 +56,31 @@ std::string RenderPaddedRow(
   return out;
 }
 
+// The scale chosen for `bytes`: `exact` (below one unit -> render the raw byte count) or
+// `value` in `unit`. Shared by Size and SizeColumns so both pick the same unit.
+struct Scaled {
+  bool exact = false;
+  double value = 0.0;
+  std::string_view unit;
+};
+
+Scaled ScaleSize(std::uint64_t bytes, SizeUnits units) {
+  const double base = units == SizeUnits::kSi ? 1000.0 : 1024.0;
+  static constexpr std::array<std::string_view, 7> kIec{"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};
+  static constexpr std::array<std::string_view, 7> kSi{"B", "kB", "MB", "GB", "TB", "PB", "EB"};
+  const std::array<std::string_view, 7>& suffix = units == SizeUnits::kSi ? kSi : kIec;
+  if (static_cast<double>(bytes) < base) {
+    return {.exact = true, .unit = suffix[0]};  // exact bytes below one unit
+  }
+  double value = static_cast<double>(bytes);
+  std::size_t unit = 0;
+  while (value >= base && unit + 1 < suffix.size()) {
+    value /= base;
+    ++unit;
+  }
+  return {.exact = false, .value = value, .unit = suffix[unit]};
+}
+
 }  // namespace
 
 std::string Int(std::uint64_t value, char group_sep) {
@@ -77,20 +102,28 @@ std::string Int(std::uint64_t value, char group_sep) {
 }
 
 std::string Size(std::uint64_t bytes, SizeUnits units) {
-  const double base = units == SizeUnits::kSi ? 1000.0 : 1024.0;
-  static constexpr std::array<std::string_view, 7> kIec{"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};
-  static constexpr std::array<std::string_view, 7> kSi{"B", "kB", "MB", "GB", "TB", "PB", "EB"};
-  const std::array<std::string_view, 7>& suffix = units == SizeUnits::kSi ? kSi : kIec;
-  if (static_cast<double>(bytes) < base) {
-    return absl::StrCat(bytes, " ", suffix[0]);  // exact bytes below one unit
+  const Scaled scaled = ScaleSize(bytes, units);
+  if (scaled.exact) {
+    return absl::StrCat(bytes, " ", scaled.unit);
   }
-  double value = static_cast<double>(bytes);
-  std::size_t unit = 0;
-  while (value >= base && unit + 1 < suffix.size()) {
-    value /= base;
-    ++unit;
+  return absl::StrFormat("%.1f %s", scaled.value, scaled.unit);
+}
+
+SizeParts SizeColumns(std::uint64_t bytes, SizeUnits units, unsigned fraction_digits) {
+  const Scaled scaled = ScaleSize(bytes, units);
+  SizeParts parts{.number = "", .suffix = std::string(scaled.unit)};
+  if (scaled.exact) {
+    // Exact bytes render as the integer; blank the fraction columns (a point plus
+    // `fraction_digits` digits) so the (absent) decimal point still lines up under the
+    // scaled rows when the number column is right-aligned.
+    parts.number = absl::StrCat(bytes);
+    if (fraction_digits > 0) {
+      parts.number.append(fraction_digits + 1, ' ');
+    }
+  } else {
+    parts.number = absl::StrFormat("%.*f", static_cast<int>(fraction_digits), scaled.value);
   }
-  return absl::StrFormat("%.1f %s", value, suffix[unit]);
+  return parts;
 }
 
 std::string PadLeft(std::string_view text, std::size_t width) {
