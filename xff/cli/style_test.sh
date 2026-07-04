@@ -161,6 +161,33 @@ test::hidden_dotfiles_skipped_by_opinionated_styles() {
   expect_output_not_contains ".secret" "${out}"
 }
 
+test::case_smart_and_overrides() {
+  local dir out xff
+  dir="${TEST_TMPDIR}/casesmart"
+  mkdir -p "${dir}"
+  : >"${dir}/README.md"
+  xff="$(_xff_bin)"
+  # Use the find style for globs (no FS-native folding), so the case flags are the only
+  # case input on any platform. smart: an all-lowercase pattern folds; one with an
+  # uppercase letter stays exact.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "${xff}" --config=find --case=smart "${dir}" -name 'readme*' 2>&1)"
+  expect_output_contains "README.md" "${out}"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "${xff}" --config=find --case=smart "${dir}" -name 'Readme*' 2>&1)"
+  expect_output_not_contains "README.md" "${out}" # uppercase in pattern -> exact
+  # sensitive (find default): a lowercase pattern does not match the uppercase file.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "${xff}" --config=find "${dir}" -name 'readme*' 2>&1)"
+  expect_output_not_contains "README.md" "${out}"
+  # -i forces insensitive.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "${xff}" --config=find -i "${dir}" -name 'readme*' 2>&1)"
+  expect_output_contains "README.md" "${out}"
+  # xfd defaults to smart; a lowercase regex folds (regex ignores FS-native, so portable),
+  # and -s- forces sensitive back off.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "${xff}" --config=xfd "${dir}" -regex '.*readme.*' 2>&1)"
+  expect_output_contains "README.md" "${out}"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "${xff}" --config=xfd -s- "${dir}" -regex '.*readme.*' 2>&1)"
+  expect_output_not_contains "README.md" "${out}"
+}
+
 test::argv0_find_alias_defaults_to_strict_style() {
   local dir
   dir="$(_tree argv0)"

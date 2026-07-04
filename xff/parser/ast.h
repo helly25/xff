@@ -60,6 +60,13 @@ struct Expr {
   // -grep=FORMAT: the attached output template, compiled once at parse time. Null
   // for a bare -grep (which uses the default path:line:text) and every other node.
   std::shared_ptr<const fields::Template> grep_template;
+  // Case folding forced on by the resolved --case mode (parser::ApplyCaseMode), for the
+  // otherwise case-sensitive matchers (-name/-path/-content and, via a recompiled
+  // `matcher`, -regex/-rxc/-grep): true under --case=insensitive, or --case=smart when the
+  // pattern has no uppercase. Independent of the descriptor's fold_case (the -i variants,
+  // always folded) and ctx.fold_name_case (per-entry FS-native folding); the evaluator ORs
+  // all three.
+  bool case_fold = false;
   // kNot: operand in `lhs`. kAnd / kOr / kComma: operands in `lhs` and `rhs`.
   ExprPtr lhs;
   ExprPtr rhs;

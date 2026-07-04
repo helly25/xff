@@ -854,12 +854,12 @@ bool EvalFalse(const parser::Expr&, EvalContext&) {
 // entry is on a case-folding volume, xff style, no --exact), so -name matches
 // the way the filesystem itself resolves names.
 bool EvalName(const parser::Expr& expr, EvalContext& ctx) {
-  const int flags = (expr.descriptor->fold_case || ctx.fold_name_case) ? FNM_CASEFOLD : 0;
+  const int flags = (expr.descriptor->fold_case || ctx.fold_name_case || expr.case_fold) ? FNM_CASEFOLD : 0;
   return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.name, flags);
 }
 
 bool EvalPath(const parser::Expr& expr, EvalContext& ctx) {
-  const int flags = (expr.descriptor->fold_case || ctx.fold_name_case) ? FNM_CASEFOLD : 0;
+  const int flags = (expr.descriptor->fold_case || ctx.fold_name_case || expr.case_fold) ? FNM_CASEFOLD : 0;
   return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.path, flags);
 }
 
@@ -885,7 +885,7 @@ bool EvalLname(const parser::Expr& expr, EvalContext& ctx) {
   if (!target.ok()) {
     return false;
   }
-  const int flags = expr.descriptor->fold_case ? FNM_CASEFOLD : 0;
+  const int flags = (expr.descriptor->fold_case || expr.case_fold) ? FNM_CASEFOLD : 0;
   return Fnmatch(expr.args.front(), *target, flags);
 }
 
@@ -930,8 +930,8 @@ bool EvalContent(const parser::Expr& expr, EvalContext& ctx) {
   if (!content.has_value()) {
     return false;
   }
-  return expr.descriptor->fold_case ? absl::StrContainsIgnoreCase(*content, expr.args.front())
-                                    : absl::StrContains(*content, expr.args.front());
+  return (expr.descriptor->fold_case || expr.case_fold) ? absl::StrContainsIgnoreCase(*content, expr.args.front())
+                                                        : absl::StrContains(*content, expr.args.front());
 }
 
 // xff -rxc / -irxc: the file's content matches the regular expression anywhere (RE2

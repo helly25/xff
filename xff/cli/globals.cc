@@ -101,6 +101,12 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "match -name/-path byte-exact, opting out of the xff FS-native case default",
     },
     {
+        .name = "--case",
+        .display = "--case=sensitive|insensitive|smart, -i, -s[+|-]",
+        .group = "Matching",
+        .summary = "letter case for matchers: -i insensitive, -s/-s+ smart, -s- sensitive (xfd/rg -> smart)",
+    },
+    {
         .name = "--regextype",
         .display = "--regextype=RE2|EXACT",
         .group = "Matching",
@@ -297,9 +303,10 @@ const GlobalFlag* LookupGlobal(std::string_view name) {
 }
 
 bool IsKnownGlobal(std::string_view arg) {
-  // Compat aliases that are not table rows: -0 (= --format=nul) and the -g+/-g- short
-  // gitignore forms (= --gitignore=on/off).
-  if (arg == "-0" || arg == "-g+" || arg == "-g-") {
+  // Compat aliases that are not table rows: -0 (= --format=nul), the -g+/-g- short
+  // gitignore forms (= --gitignore=on/off), and the short case forms -i (insensitive),
+  // -s/-s+ (smart), -s- (sensitive) (= --case=...).
+  if (arg == "-0" || arg == "-g+" || arg == "-g-" || arg == "-i" || arg == "-s" || arg == "-s+" || arg == "-s-") {
     return true;
   }
   // The short jobs form carries its value attached: -j4, -jall (the "=" form --jobs=N
