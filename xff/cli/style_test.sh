@@ -135,6 +135,23 @@ test::argv0_fd_alias_defaults_to_xfd_style() {
   expect_output_not_contains "out.o" "${out}"
 }
 
+test::argv0_custom_alias_activates_same_named_config() {
+  local dir="${TEST_TMPDIR}/argv0alias"
+  mkdir -p "${dir}"
+  : >"${dir}/a.txt"
+  # A user config defines a NAMED block `mytool:` (not a preset). Invoked through a `mytool`
+  # symlink, argv[0] selects that named config with no --config, so its --format=jsonl applies.
+  local cfg="${TEST_TMPDIR}/argv0alias_cfg"
+  printf 'mytool: --format=jsonl\n' >"${cfg}"
+  ln -sf "$(_xff_bin)" "${TEST_TMPDIR}/mytool"
+  local out
+  out="$(XFF_CONFIG="${cfg}" "${TEST_TMPDIR}/mytool" "${dir}" -name a.txt 2>&1)"
+  expect_output_contains "{" "${out}" # --format=jsonl from the mytool: block -> a JSON object
+  # A plain xff run does not activate mytool:, so output stays plain (no JSON object).
+  out="$(XFF_CONFIG="${cfg}" "$(_xff_bin)" "${dir}" -name a.txt 2>&1)"
+  expect_output_not_contains "{" "${out}"
+}
+
 # A tree with a hidden dotfile alongside a visible one.
 _hidden_tree() {
   local dir="${TEST_TMPDIR}/$1"
