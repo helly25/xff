@@ -31,6 +31,8 @@ namespace {
 
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
+using ::testing::IsFalse;
+using ::testing::IsTrue;
 using ::testing::SizeIs;
 
 struct PolicyTest : ::testing::Test {};
@@ -123,6 +125,33 @@ TEST_F(PolicyTest, DropMessageNamesPrimaryLayerAndClass) {
       .safety = registry::Safety::kSecurity,
   };
   EXPECT_THAT(DropMessage(drop), "'-exec' from the project .xffrc (sensitive)");
+}
+
+TEST_F(PolicyTest, OverloadsPresetDetectsBarePresetSelectors) {
+  // A bare preset selector (base is a built-in style, no named config) overloads the preset.
+  EXPECT_THAT(OverloadsPreset(ParseXffrc("xff: --feature=long").front()), IsTrue());
+  EXPECT_THAT(OverloadsPreset(ParseXffrc("find: --warn").front()), IsTrue());
+  EXPECT_THAT(OverloadsPreset(ParseXffrc("rg: --x").front()), IsTrue());
+  // common: is not a preset; a named config and a style-scoped named config are fine (they need
+  // explicit activation, so they do not silently change a plain preset run).
+  EXPECT_THAT(OverloadsPreset(ParseXffrc("common: --sort").front()), IsFalse());
+  EXPECT_THAT(OverloadsPreset(ParseXffrc("myx: --feature=long").front()), IsFalse());
+  EXPECT_THAT(OverloadsPreset(ParseXffrc("xff:debug: --threads=1").front()), IsFalse());
+}
+
+TEST_F(PolicyTest, GateConfigDropsPresetOverloadInEveryLayerWithReason) {
+  ConfigInputs inputs;
+  // user: xff: is a preset-overload (dropped); common: / myx: / xff:debug: survive.
+  inputs.user = ParseXffrc("xff: --feature=long\ncommon: --sort\nmyx: --color=never\nxff:debug: --threads=1");
+  inputs.project = ParseXffrc("find: --warn");  // project: find: is a preset-overload (dropped)
+  std::vector<Drop> drops;
+  const ConfigInputs gated = GateConfig(inputs, &drops);
+  EXPECT_THAT(gated.user, SizeIs(3));  // common:, myx:, xff:debug:
+  EXPECT_THAT(gated.project, IsEmpty());
+  ASSERT_THAT(drops, SizeIs(2));
+  EXPECT_THAT(drops[0].reason, DropReason::kPresetOverload);  // xff: from user (file order)
+  EXPECT_THAT(drops[1].reason, DropReason::kPresetOverload);  // find: from project
+  EXPECT_THAT(DropMessage(drops[0]), "'xff:' in the user .xffrc");
 }
 
 }  // namespace

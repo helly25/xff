@@ -74,6 +74,13 @@ std::vector<ResolvedFlag> ResolveConfig(const ConfigInputs& inputs);
 // The lowercase layer name for a Source: "unset"/"system"/"user"/"project"/"cli".
 std::string_view SourceName(Source source);
 
+// Whether `name` is one of the built-in preset styles (find / xff / rg / xfd). Tests the base of
+// a selector (so "xff:2" should be reduced to "xff" first). Those names are reserved: a config
+// file may not attach behavior to a preset (see GateConfig's preset-overload rule), and argv[0]
+// dispatch uses this to tell a preset invocation name from a custom alias (which selects a named
+// config instead).
+bool IsBuiltinStyle(std::string_view name);
+
 // The active find/xff style selected by the --config stack. A --config=NAME whose
 // base (the part before any ':') is "find" or "xff" picks that style; selectors
 // stack, so the last style selector wins. With no style selector the default is

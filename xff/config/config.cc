@@ -76,6 +76,10 @@ std::string_view SourceName(Source source) {
   return "unset";
 }
 
+bool IsBuiltinStyle(std::string_view name) {
+  return name == "find" || name == "rg" || name == "xfd" || name == "xff";
+}
+
 registry::Style ActiveStyle(const std::vector<std::string>& configs) {
   registry::Style style = registry::Style::kXff;  // the modern xff style is the default
   for (const std::string& name : configs) {

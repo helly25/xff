@@ -41,13 +41,25 @@ registry::Safety LineSafety(const RcLine& line);
 // supplies [policy].
 bool LinePermitted(const RcLine& line, Source layer, const SystemConfig& policy);
 
-// A config line dropped by the gate: the line, the layer it came from, and the
-// safety class that got it denied (for the stderr warning and --explain).
+// Why the gate dropped a line: a safety-policy denial (its safety class bars it from the layer),
+// or a structural rule (it attaches behavior to a built-in preset, which no config file may do).
+enum class DropReason { kSafetyPolicy, kPresetOverload };
+
+// A config line dropped by the gate: the line, the layer it came from, the safety class (relevant
+// to kSafetyPolicy), and why it was dropped (for the stderr warning and --explain).
 struct Drop {
   RcLine line;
   Source layer;
   registry::Safety safety;
+  DropReason reason = DropReason::kSafetyPolicy;
 };
+
+// Whether `line` attaches behavior to a built-in preset: its base names a style (find/xff/rg/xfd)
+// with no named-config component (`xff: --flag`), so it would apply whenever that preset is active
+// and silently change what a plain `xff` run does. Config files customize via `common:` (always-on)
+// or named blocks (`myconfig:`, or the style-scoped `xff:myconfig:`) instead, so a preset stays
+// reproducible. Applies to every layer.
+bool OverloadsPreset(const RcLine& line);
 
 // Filters the user and project .xffrc lines of `inputs` through LinePermitted
 // (with inputs.system as the policy), returning a copy with the denied lines

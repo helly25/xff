@@ -34,23 +34,44 @@ _xff_bin() {
 
 test::explain_reflects_effective_config() {
   local cfg="${TEST_TMPDIR}/xff_config"
-  printf 'common: --sort\nxff: --feature=long\nfind: --warn\n' >"${cfg}"
+  # common: always applies; a named config (myx:) applies only when --config=myx is active; an
+  # inactive named config (other:) stays inert. (Bare preset selectors like `xff:` are rejected -
+  # see explain_rejects_preset_overloading_config.)
+  printf 'common: --sort\nmyx: --feature=long\nother: --warn\n' >"${cfg}"
   local out
-  out="$(XFF_CONFIG="${cfg}" "$(_xff_bin)" --config=xff --explain)"
+  out="$(XFF_CONFIG="${cfg}" "$(_xff_bin)" --config=myx --explain)"
   local lines=()
   local line
   while IFS= read -r line; do lines+=("${line}"); done <<<"${out}"
 
-  # common: applies under every style; xff: applies because --config=xff is active.
+  # common: applies always; myx: applies because --config=myx is active.
   expect_contains "$(printf 'user\t--sort')" "${lines[@]}"
   expect_contains "$(printf 'user\t--feature=long')" "${lines[@]}"
-  # The find: line is inert (its style is not active): --warn must not surface.
+  # The other: line is inert (its named config is not active): --warn must not surface.
   expect_not_contains "$(printf 'user\t--warn')" "${lines[@]}"
   # The CLI selector is echoed with cli provenance.
-  expect_contains "$(printf 'cli\t--config=xff')" "${lines[@]}"
-  # The source trace reports the active style and the consulted user config (found).
-  expect_contains "# xff active style: xff" "${lines[@]}"
+  expect_contains "$(printf 'cli\t--config=myx')" "${lines[@]}"
+  # The source trace reports the consulted user config (found).
   expect_contains "$(printf 'source\tuser\tfound\t%s' "${cfg}")" "${lines[@]}"
+}
+
+test::explain_rejects_preset_overloading_config() {
+  # A config file may not attach behavior to a built-in preset: a bare `xff:` / `find:` selector
+  # (no named config) is dropped in every layer, so a plain preset run stays reproducible.
+  local cfg="${TEST_TMPDIR}/xff_overload_config"
+  printf 'xff: --feature=long\ncommon: --sort\n' >"${cfg}"
+  local dir="${TEST_TMPDIR}/ov"
+  mkdir -p "${dir}"
+  : >"${dir}/a.txt"
+  local out
+  # A normal run warns on stderr that the bare-preset line was dropped.
+  out="$(XFF_CONFIG="${cfg}" "$(_xff_bin)" --config=xff "${dir}" -name a.txt 2>&1)"
+  expect_matches 'cannot change a preset' "${out}"
+  # --explain records the drop in its trace, does not resolve the bare-preset flag, keeps common:.
+  out="$(XFF_CONFIG="${cfg}" "$(_xff_bin)" --config=xff --explain 2>&1)"
+  expect_matches "dropped[[:space:]]'xff:' in the" "${out}"
+  expect_not_matches 'user[[:space:]]--feature=long' "${out}"
+  expect_matches 'user[[:space:]]--sort' "${out}"
 }
 
 test::config_applies_to_the_run() {
