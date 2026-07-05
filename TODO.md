@@ -254,3 +254,19 @@ remains below is the design-forked / larger work.
     - **`mbo` dependency:** built against a `git_override` pinned at the mbo `main` commit merging
       helly25/mbo#234 (0.13.0-dev: `mbo/diff` + `mbo/digest`); drop it for a plain `helly25_mbo`
       0.13.0 bump once that releases to BCR.
+
+- **`--explain` flavor table: two-tier layout** (2026-07-05): the flavor/settings table has grown
+  long enough that the signal (the settings that actually differ for this run, or between styles)
+  is lost among every facet. Split it: a "most relevant" section first (e.g. the facets that differ
+  from the default, or that the current run overrides), then an "all other settings" section with
+  the full list. Keep it generated from `engine::FlavorFacets()` so it cannot drift; the split is a
+  presentation layer over the same SOT. Applies to both `--help=styles` (static) and `--explain`
+  (with the `current` column).
+
+- **`xfd` vs `rg` styles look identical: differentiate or drop `xfd`** (2026-07-05): the `xfd`
+  (fd-like) and `rg` (ripgrep-like) config styles currently resolve to the same flavor defaults
+  (both: gitignore + skip-hidden opinionated). If they stay identical they are redundant. Decide
+  one of: (a) drop `xfd` and keep `rg` as the single opinionated style; or (b) flesh `xfd` out in a
+  genuinely fd-flavored direction distinct from `rg` (e.g. fd's smart-case, its regex-by-default
+  vs literal, its own default action / output shape) so the two earn their separate names. Audit
+  `engine::FlavorFacets()` for where they diverge today (if anywhere) before choosing.
