@@ -1,0 +1,6 @@
+root/Makefile
+root/README.md
+root/docs/guide.md
+root/src/main.cc
+root/src/util.cc
+root/src/util.h

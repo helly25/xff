@@ -25,6 +25,12 @@
 This pins find-vs-xff behavior and catches drift a single-mode test would miss. Output
 with volatile per-run fields (`-ls` inode/date) is not golden-able yet; use stable
 output (`-print`/`-printf`/name listings, `--summary` counts) for now.
+
+This is the dual-mode (two styles, one command) harness. Its sibling,
+`//xff/cli:golden.bzl`'s `xff_golden_cases`, is single-mode and many-cases: a dict of
+arbitrary xff command lines, each run once (default xff style) and diffed against its own
+golden via mbo's `diff_test`. Use it to lock the exact output of many (often xff-only)
+commands; use `xff_golden` here to assert find and xff agree (or diverge) on one command.
 """
 
 load("@helly25_bashtest//bashtest:bashtest.bzl", "bashtest")
