@@ -268,13 +268,14 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--summary",
-        .display = "--summary[=overall|type|ext]",
+        .display = "--summary[=overall|type|ext|lang]",
         .group = "output",
         .header = "Output",
         .summary = "print an aligned count + size table (or --format=jsonl rows) instead of each match",
         .details = "Replaces the per-match listing with an aggregate table: match count and total size per group "
-                   "(overall, by type, or by extension). --top=N limits the rows, --summary-precision sets the "
-                   "scaled-size digits, and --format=jsonl emits one object per group for scripts.",
+                   "(overall, by type, by extension, or by programming language). --top=N limits the rows, "
+                   "--summary-precision sets the scaled-size digits, and --format=jsonl emits one object per group "
+                   "for scripts.",
     },
     {
         .name = "--count",

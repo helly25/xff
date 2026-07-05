@@ -1107,6 +1107,16 @@ TEST_F(RunTest, SummaryByExtensionGroupsSortedThenTotals) {
           R"({"group":"total","count":3,"bytes":3})"));
 }
 
+TEST_F(RunTest, SummaryByLanguageGroupsThenTotals) {
+  // --summary=lang: b.md is Markdown; a.txt and sub/c.txt have no known language ("(none)").
+  // "(" sorts before letters, so the "(none)" bucket leads, then Markdown, then the total.
+  EXPECT_THAT(
+      RunArgvRecords({"--summary=lang", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(
+          R"j({"group":"(none)","count":2,"bytes":2})j", R"j({"group":"Markdown","count":1,"bytes":1})j",
+          R"j({"group":"total","count":3,"bytes":3})j"));
+}
+
 TEST_F(RunTest, SummaryTopKeepsTheLargestGroupsBySize) {
   // --top=1: keep the largest group by size (txt, 2 bytes) and drop md (1 byte),
   // ordered by size; the total row still counts every matched group.
