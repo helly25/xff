@@ -50,12 +50,13 @@ load("@helly25_mbo//mbo/diff:diff.bzl", "diff_test")
 
 # Populate the fixture in a temp dir, then run `xff <flags>` over it in mode-stable order, pipe the
 # stdout through the optional normalizer, and capture it. Placeholders are substituted with str
-# .replace (not .format) so `{relpath}` / `{name}` field templates in `args` survive verbatim.
-# XFF_CONFIG points off any real .xffrc so the run is hermetic.
+# .replace (not .format) so `{relpath}` / `{name}` field templates in `args` survive verbatim; the
+# `__...__` tokens avoid `@@` (Bazel canonical-repo syntax, which buildifier flags) and `{}` (field
+# templates). XFF_CONFIG points off any real .xffrc so the run is hermetic.
 _CMD = (
-    "tmp=$$(mktemp -d) && cp $(location @@SETUP@@) $$tmp/setup.sh && " +
+    "tmp=$$(mktemp -d) && cp $(location __SETUP__) $$tmp/setup.sh && " +
     "bin=$$(pwd)/$(location //xff/cli:xff) && " +
-    "( cd $$tmp && bash setup.sh && XFF_CONFIG=/nonexistent $$bin @@FLAGS@@ ) @@NORM@@ > $@"
+    "( cd $$tmp && bash setup.sh && XFF_CONFIG=/nonexistent $$bin __FLAGS__ ) __NORM__ > $@"
 )
 
 def xff_golden_cases(name, setup, cases, sort = "tree", normalize = None):
@@ -82,9 +83,9 @@ def xff_golden_cases(name, setup, cases, sort = "tree", normalize = None):
         actual = "{}_{}.actual".format(name, label)
         cmd = (
             _CMD
-                .replace("@@SETUP@@", setup)
-                .replace("@@FLAGS@@", sort_flag + args)
-                .replace("@@NORM@@", norm)
+                .replace("__SETUP__", setup)
+                .replace("__FLAGS__", sort_flag + args)
+                .replace("__NORM__", norm)
         )
         native.genrule(
             name = "{}_{}_gen".format(name, label),
