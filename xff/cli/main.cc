@@ -351,7 +351,10 @@ int RunMain(int argc, char** argv) {
   // A disallowed config line is dropped, never fatal: warn (self-documenting) and
   // carry on with the survivors (design-config.md "Enforcement & self-documentation").
   for (const xff::config::Drop& drop : drops) {
-    std::cerr << "xff: ignoring " << xff::config::DropMessage(drop) << " - denied by config policy\n";
+    const std::string_view why = drop.reason == xff::config::DropReason::kPresetOverload
+                                     ? " - a config file cannot change a preset; use a named config (--config=NAME)"
+                                     : " - denied by config policy";
+    std::cerr << "xff: ignoring " << xff::config::DropMessage(drop) << why << "\n";
   }
   // Apply the config: prepend the resolved flags to the globals so they take
   // effect, the CLI globals (already present, kept last) winning on conflict.

@@ -62,10 +62,12 @@ TEST_F(ConfigTest, CommonAndBareLinesAlwaysApply) {
 }
 
 TEST_F(ConfigTest, BaseSelectorGatedByActiveConfig) {
+  // A named-config base gates the line on that --config being active (bare preset bases like
+  // `xff:` are a separate concern rejected by GateConfig; ResolveConfig only does the gating).
   ConfigInputs in;
-  in.user = ParseXffrc("xff: --feature=long-paths\nfind: --warn");
+  in.user = ParseXffrc("myproj: --feature=long-paths\nother: --warn");
   EXPECT_THAT(ResolveConfig(in), IsEmpty());  // no active --config -> neither base applies
-  in.configs = {"xff"};
+  in.configs = {"myproj"};
   EXPECT_THAT(ResolveConfig(in), ElementsAre(FlagIs("--feature=long-paths", Source::kUser)));
 }
 

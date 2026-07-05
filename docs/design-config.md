@@ -98,17 +98,20 @@ Line-oriented flag bundles ("what you can type, you can save", `design.md`
 §125), each optionally prefixed by a **two-axis selector** `base:config:`:
 
 ```
-# <base>:<config>:  <flags…>     base ∈ {common, xff, find, <custom>, ∅(=common)}
-common:        --color=auto                 # every style, always
-xff:           --feature=long-paths         # only under the xff style
-xff:debug:     --feature=trace --threads=1  # only when style=xff AND --config=debug
-find:          --warn                        # only under the find style
+# <base>:<config>:  <flags…>     base ∈ {common, <named-config>, ∅(=common)}
+common:        --color=auto                 # every run, always (your defaults)
+myproj:        --feature=long-paths         # only when --config=myproj is active
+xff:myproj:    --feature=trace --threads=1  # only when the xff style AND --config=myproj
 ```
 
-- `base` gates by active **style** (`xff`/`find`/custom); `common`/empty applies
-  always. `:config` gates by an active **named config** (`--config=NAME`). More
-  expressive than bazel's single `command:config` - a custom config can differ
-  per style.
+- `base` is `common`/empty (applies always - your standing defaults) or a **named
+  config** (applies only when that `--config=NAME` is active). A **bare built-in-style
+  base** (`xff:` / `find:` / `rg:` / `xfd:` with no `:config`) is **rejected**: a config
+  file may not attach behavior to a preset, so a plain `xff` run stays reproducible (the
+  gate drops such a line and warns). `:config` gates by an active named config; a
+  `style:config:` prefix additionally scopes it to a style (it still needs the named
+  config active, so it never fires on a plain preset run). Customize by defining a named
+  config and activating it with `--config=NAME` or an argv[0] alias of that name.
 - A line is inert (parsed to AST, never executed). Sensitive flags within it are
   subject to the policy of the _layer the file belongs to_.
 

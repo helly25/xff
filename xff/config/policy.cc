@@ -119,16 +119,31 @@ bool LinePermitted(const RcLine& line, Source layer, const SystemConfig& policy)
   return builtin_allowed;
 }
 
+bool OverloadsPreset(const RcLine& line) {
+  return line.config.empty() && IsBuiltinStyle(line.base);
+}
+
 ConfigInputs GateConfig(const ConfigInputs& inputs, std::vector<Drop>* drops) {
   ConfigInputs gated = inputs;
   gated.user.clear();
   gated.project.clear();
   const auto gate = [&](const std::vector<RcLine>& lines, Source layer, std::vector<RcLine>& out) {
     for (const RcLine& line : lines) {
+      // A preset-overloading line is dropped in every layer: a config file may not attach behavior
+      // to find/xff/rg/xfd (it would change what a plain preset run does). This is checked before
+      // the safety policy so the warning names the real reason.
+      if (OverloadsPreset(line)) {
+        if (drops != nullptr) {
+          drops->push_back(
+              Drop{.line = line, .layer = layer, .safety = LineSafety(line), .reason = DropReason::kPresetOverload});
+        }
+        continue;
+      }
       if (LinePermitted(line, layer, inputs.system)) {
         out.push_back(line);
       } else if (drops != nullptr) {
-        drops->push_back(Drop{.line = line, .layer = layer, .safety = LineSafety(line)});
+        drops->push_back(
+            Drop{.line = line, .layer = layer, .safety = LineSafety(line), .reason = DropReason::kSafetyPolicy});
       }
     }
   };
@@ -138,6 +153,9 @@ ConfigInputs GateConfig(const ConfigInputs& inputs, std::vector<Drop>* drops) {
 }
 
 std::string DropMessage(const Drop& drop) {
+  if (drop.reason == DropReason::kPresetOverload) {
+    return absl::StrCat("'", drop.line.base, ":' in the ", SourceName(drop.layer), " .xffrc");
+  }
   const std::string_view primary = drop.line.flags.empty() ? std::string_view("(empty line)") : drop.line.flags.front();
   return absl::StrCat("'", primary, "' from the ", SourceName(drop.layer), " .xffrc (", ClassName(drop.safety), ")");
 }
