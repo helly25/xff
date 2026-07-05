@@ -301,6 +301,43 @@ class ExprParser {
         }
         return node;
       }
+      // A Binding::kStyle primary (-diff) carries an attached =STYLE token (u3/c/n/y/none),
+      // then the arity operand (the TARGET template). The style is stored raw on the node and
+      // validated in the evaluator; a bare -diff (no '=') falls through to the default (u3).
+      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
+          descriptor != nullptr && descriptor->binding == registry::Binding::kStyle) {
+        const std::string style = token.substr(eq + 1);
+        // Syntactic check: empty (default u3), "none", or a format letter u/c/n/y with an
+        // optional context count (u3, c5, n, y). The evaluator maps it to the mbo output.
+        bool valid_style = style.empty() || style == "none";
+        if (!valid_style && (style[0] == 'u' || style[0] == 'c' || style[0] == 'n' || style[0] == 'y')) {
+          valid_style = true;
+          for (std::size_t i = 1; i < style.size(); ++i) {
+            if (style[i] < '0' || style[i] > '9') {
+              valid_style = false;
+              break;
+            }
+          }
+        }
+        if (!valid_style) {
+          Fail(absl::StrCat("'", base, "=", style, "': unknown style (use u[N] / c[N] / n / y[N] / none)"));
+          return nullptr;
+        }
+        ++pos_;  // consume the `<name>=STYLE` token
+        std::vector<std::string> args;
+        for (int i = 0; i < descriptor->arity; ++i) {
+          if (AtEnd()) {
+            Fail(absl::StrCat("predicate '", base, "' is missing an argument"));
+            return nullptr;
+          }
+          args.push_back(tokens_[pos_++]);
+        }
+        ExprPtr node = MakePredicate(descriptor, std::move(args));
+        if (node != nullptr) {
+          node->diff_style = style;
+        }
+        return node;
+      }
     }
     const registry::Descriptor* descriptor = registry::Lookup(token);
     if (descriptor == nullptr) {

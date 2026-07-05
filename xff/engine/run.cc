@@ -41,6 +41,7 @@
 #include "absl/strings/str_split.h"
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
+#include "mbo/diff/diff_options.h"
 #include "xff/color/color.h"
 #include "xff/datetime/datetime.h"
 #include "xff/engine/evaluate.h"
@@ -1169,6 +1170,23 @@ int RunFind(
   }
   // --count / -c: -grep emits a per-file matching-line count instead of the lines.
   const bool grep_count = HasGlobal(command.globals, "--count") || HasGlobal(command.globals, "-c");
+  // --diff-algorithm=naive|direct|myers: the engine -diff uses (mbo::diff). Last occurrence
+  // wins; empty -> myers (the default). Validated here so a bad value is a usage error (exit 2)
+  // before the walk rather than a silent fallback.
+  std::string diff_algorithm;
+  for (const std::string& global : command.globals) {
+    constexpr std::string_view kDiffAlgo = "--diff-algorithm=";
+    if (global.starts_with(kDiffAlgo)) {
+      diff_algorithm = global.substr(kDiffAlgo.size());
+    }
+  }
+  if (!diff_algorithm.empty() && !mbo::diff::DiffOptions::ParseAlgorithmFlag(diff_algorithm).has_value()) {
+    on_error(
+        "--diff-algorithm",
+        absl::InvalidArgumentError(
+            absl::StrCat("unknown diff algorithm '", diff_algorithm, "' (use naive, direct, or myers)")));
+    return 2;
+  }
   // --summary: reduce matches to a {count, total size} per group instead of
   // printing each one; the table is emitted after the walk.
   const SummaryMode summary_mode = ResolveSummary(command.globals);
@@ -1372,6 +1390,7 @@ int RunFind(
             .fold_name_case = fold_name_case,
             .grep_literal = *grep_literal,
             .grep_count = grep_count,
+            .diff_algorithm = diff_algorithm,
             .control = control,
             .exec_fields = exec_fields,
             .captures = exec_fields ? &captures : nullptr,

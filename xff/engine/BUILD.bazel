@@ -77,6 +77,8 @@ cc_library(
         "@abseil-cpp//absl/time",
         "@helly25_mbo//mbo/container:limited_map_cc",
         "@helly25_mbo//mbo/container:limited_set_cc",
+        "@helly25_mbo//mbo/diff:diff_cc",
+        "@helly25_mbo//mbo/file:artefact_cc",
     ],
 )
 
@@ -121,6 +123,7 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/time",
+        "@helly25_mbo//mbo/diff:diff_cc",
     ],
 )
 

@@ -60,6 +60,9 @@ struct Expr {
   // -grep=FORMAT: the attached output template, compiled once at parse time. Null
   // for a bare -grep (which uses the default path:line:text) and every other node.
   std::shared_ptr<const fields::Template> grep_template;
+  // -diff=STYLE: the attached output-style token (u[N]/c[N]/n/y[W]/none); empty for a
+  // bare -diff (which defaults to u3) and every other node. Validated in the evaluator.
+  std::string diff_style;
   // Case folding forced on by the resolved --case mode (parser::ApplyCaseMode), for the
   // otherwise case-sensitive matchers (-name/-path/-content and, via a recompiled
   // `matcher`, -regex/-rxc/-grep): true under --case=insensitive, or --case=smart when the
