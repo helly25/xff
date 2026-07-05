@@ -256,28 +256,18 @@ std::string ColumnField(std::string_view, std::string_view, const RenderContext&
 }
 
 // {hash} / {hash:ALGO[/ENCODING]}: the digest of the entry's file content. The qualifier is an
-// algorithm name (empty -> sha256) optionally followed by /ENCODING (hex the default, or base64),
-// e.g. {hash:md5} or {hash:sha256/base64} or {hash:/base64}. An unknown algorithm or encoding, or
-// an unreadable file, renders empty (the field convention). Reads the file, so it is expensive.
+// algorithm name optionally followed by /ENCODING (e.g. {hash:md5}, {hash:sha256/base64},
+// {hash:/base64}); empty parts fall back to the --hash-algorithm / --hash-encoding defaults
+// (sha256 / hex when unset). An unknown algorithm or encoding, or an unreadable file, renders
+// empty (the field convention). Reads the file, so it is expensive.
 std::string HashField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
-  std::string_view algo = qualifier;
-  std::string_view encoding_name;
-  if (const std::size_t slash = qualifier.find('/'); slash != std::string_view::npos) {
-    algo = qualifier.substr(0, slash);
-    encoding_name = qualifier.substr(slash + 1);
+  const std::string_view default_algo = ctx.hash_algorithm.empty() ? "sha256" : ctx.hash_algorithm;
+  const hash::Encoding default_encoding = hash::ParseEncoding(ctx.hash_encoding).value_or(hash::Encoding::kHex);
+  const std::optional<hash::AlgoEncoding> spec = hash::ParseSpec(qualifier, default_algo, default_encoding);
+  if (!spec.has_value()) {
+    return "";  // unknown algorithm or encoding -> empty, like an unknown field
   }
-  if (algo.empty()) {
-    algo = "sha256";
-  }
-  hash::Encoding encoding = hash::Encoding::kHex;
-  if (!encoding_name.empty()) {
-    const std::optional<hash::Encoding> parsed = hash::ParseEncoding(encoding_name);
-    if (!parsed.has_value()) {
-      return "";  // unknown encoding -> empty, like an unknown field
-    }
-    encoding = *parsed;
-  }
-  return hash::HashFile(algo, ctx.path, encoding).value_or("");
+  return hash::HashFile(spec->algo, ctx.path, spec->encoding).value_or("");
 }
 
 std::string SizeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {

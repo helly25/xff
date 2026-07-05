@@ -232,6 +232,20 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "-diff ignores lines matching this regex (RE2)",
     },
     {
+        .name = "--hash-algorithm",
+        .display = "--hash-algorithm=ALGO",
+        .group = "output",
+        .header = "Output",
+        .summary = "default digest for -hash / {hash} (sha256 default; md5, sha512, blake3, and more)",
+    },
+    {
+        .name = "--hash-encoding",
+        .display = "--hash-encoding=hex|base64",
+        .group = "output",
+        .header = "Output",
+        .summary = "default -hash / {hash} rendering: hex (default) or base64",
+    },
+    {
         .name = "--path-encoding",
         .display = "--path-encoding=raw|escape",
         .group = "output",

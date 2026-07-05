@@ -109,6 +109,11 @@ struct EvalContext {
   // --diff-ignore-matching=REGEX: -diff ignores lines matching this RE2 (compiled per -diff
   // entry; the pattern is validated once before the walk). Empty -> no line filter.
   std::string_view diff_ignore_matching;
+  // --hash-algorithm=ALGO / --hash-encoding=hex|base64: the default digest for a bare -hash
+  // action and a bare {hash} field (empty -> sha256 / hex). Validated once before the walk;
+  // an explicit -hash=ALGO[/ENCODING] or {hash:...} qualifier overrides per node.
+  std::string_view hash_algorithm;
+  std::string_view hash_encoding;
   Control& control;                              // collects -prune/-quit requests
   bool exec_fields = false;                      // --exec-fields: render -exec tokens through the field vocabulary
   std::vector<std::string>* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off
@@ -159,6 +164,12 @@ absl::Status ValidateSizeArgs(const parser::Expr& expr);
 // driver calls it once before the walk so a bad value is a usage error (exit 2) rather than a
 // silent per-entry no-op; -diff then trusts the validated values.
 absl::Status ValidateDiffIgnore(std::string_view tokens, std::string_view matching);
+
+// Validates every `-hash=ALGO[/ENCODING]` spec in `expr`, returning the first malformed one as
+// an InvalidArgument (unknown algorithm or encoding, naming it) or Ok. The driver calls it before
+// the walk so a bad `-hash` spec is a usage error (exit 2) rather than a silent per-entry no-op,
+// matching how the other payload primaries validate up front.
+absl::Status ValidateHashArgs(const parser::Expr& expr);
 
 // Parses a `--block-size=SIZE` value into bytes: `N[unit]` where a bare number is
 // bytes and the unit suffixes are the fixed binary multiples (c/w/k/M/G/T/P/E; 'b'

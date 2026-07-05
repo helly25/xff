@@ -38,6 +38,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
@@ -49,6 +50,7 @@
 #include "xff/exec/exec.h"
 #include "xff/fields/fields.h"
 #include "xff/format/format.h"
+#include "xff/hash/hash.h"
 #include "xff/ignore/ignore.h"
 #include "xff/parser/ast.h"
 #include "xff/parser/parser.h"
@@ -1205,6 +1207,41 @@ int RunFind(
     on_error("--diff-ignore", status);
     return 2;
   }
+  // --hash-algorithm=ALGO / --hash-encoding=hex|base64: defaults for a bare -hash action and a
+  // bare {hash} field (last occurrence wins; empty -> sha256 / hex). Validated here so a bad value
+  // is a usage error (exit 2) before the walk; the explicit -hash=ALGO[/ENCODING] specs in the
+  // expression are validated by ValidateHashArgs below.
+  std::string hash_algorithm;
+  std::string hash_encoding;
+  for (const std::string& global : command.globals) {
+    constexpr std::string_view kHashAlgo = "--hash-algorithm=";
+    constexpr std::string_view kHashEncoding = "--hash-encoding=";
+    if (global.starts_with(kHashAlgo)) {
+      hash_algorithm = global.substr(kHashAlgo.size());
+    } else if (global.starts_with(kHashEncoding)) {
+      hash_encoding = global.substr(kHashEncoding.size());
+    }
+  }
+  if (!hash_algorithm.empty() && !hash::IsAlgorithm(hash_algorithm)) {
+    on_error(
+        "--hash-algorithm", absl::InvalidArgumentError(
+                                absl::StrCat(
+                                    "unknown hash algorithm '", hash_algorithm,
+                                    "' (one of: ", absl::StrJoin(hash::AlgorithmNames(), ", "), ")")));
+    return 2;
+  }
+  if (!hash_encoding.empty() && !hash::ParseEncoding(hash_encoding).has_value()) {
+    on_error(
+        "--hash-encoding",
+        absl::InvalidArgumentError(absl::StrCat("unknown hash encoding '", hash_encoding, "' (use hex or base64)")));
+    return 2;
+  }
+  if (expression != nullptr) {
+    if (const absl::Status status = ValidateHashArgs(*expression); !status.ok()) {
+      on_error("-hash", status);
+      return 2;
+    }
+  }
   // --summary: reduce matches to a {count, total size} per group instead of
   // printing each one; the table is emitted after the walk.
   const SummaryMode summary_mode = ResolveSummary(command.globals);
@@ -1411,6 +1448,8 @@ int RunFind(
             .diff_algorithm = diff_algorithm,
             .diff_ignore = diff_ignore,
             .diff_ignore_matching = diff_ignore_matching,
+            .hash_algorithm = hash_algorithm,
+            .hash_encoding = hash_encoding,
             .control = control,
             .exec_fields = exec_fields,
             .captures = exec_fields ? &captures : nullptr,
@@ -1454,6 +1493,8 @@ int RunFind(
                 .depth = visit.depth,
                 .tz = tz,
                 .time_format = time_format,
+                .hash_algorithm = hash_algorithm,
+                .hash_encoding = hash_encoding,
                 .defines = &defines,
                 .outputs = &outputs};
             if (!column_templates.empty()) {  // --columns: a tabular row of field values

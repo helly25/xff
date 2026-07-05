@@ -161,6 +161,15 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .cost = Cost::kExpensive,
     },
     {
+        .name = "-hash",
+        .summary = "print the file digest and path; -hash=ALGO[/ENCODING], sha256 hex default (xff)",
+        .kind = Kind::kAction,
+        .arity = 0,
+        .binding = Binding::kHash,
+        .style = Style::kXff,
+        .cost = Cost::kExpensive,
+    },
+    {
         .name = "-type",
         .summary = "match the file type (f/d/l/b/c/p/s)",
         .kind = Kind::kTest,

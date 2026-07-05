@@ -38,6 +38,10 @@ struct RenderContext {
   int depth = 0;                              // 0 for a root operand, +1 per directory level
   absl::TimeZone tz = absl::LocalTimeZone();  // zone for {atime}/{mtime}/{ctime}/{btime} formatting; --timezone
   std::string_view time_format;               // default format for a time field with no {:qualifier}; --time-format
+  // --hash-algorithm / --hash-encoding: defaults for a bare {hash} (empty -> sha256 / hex); a
+  // {hash:ALGO[/ENCODING]} qualifier overrides per use. Only {hash} reads them.
+  std::string_view hash_algorithm;
+  std::string_view hash_encoding;
   const std::vector<std::string>* captures = nullptr;  // -regex groups for {0..N}: [0] whole match, 1..N groups
   const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
   const std::map<std::string, std::string>* outputs = nullptr;  // -capture results for {capture.NAME}

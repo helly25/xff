@@ -338,6 +338,19 @@ class ExprParser {
         }
         return node;
       }
+      // A Binding::kHash primary (-hash) carries an attached =ALGO[/ENCODING] token and takes no
+      // operand. The spec is stored raw and validated before the walk (engine::ValidateHashArgs);
+      // a bare -hash (no '=') falls through to the default (--hash-algorithm / --hash-encoding).
+      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
+          descriptor != nullptr && descriptor->binding == registry::Binding::kHash) {
+        const std::string spec = token.substr(eq + 1);
+        ++pos_;  // consume the `<name>=SPEC` token
+        ExprPtr node = MakePredicate(descriptor, {});
+        if (node != nullptr) {
+          node->hash_spec = spec;
+        }
+        return node;
+      }
     }
     const registry::Descriptor* descriptor = registry::Lookup(token);
     if (descriptor == nullptr) {
