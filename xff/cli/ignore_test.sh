@@ -89,7 +89,9 @@ test::no_filter_lists_everything() {
 }
 
 test::help_topic_documents_exclude() {
-  expect_eq "yes" "$(grep -qE 'gitignore' <<<"$("$(_xff_bin)" --help=--exclude 2>&1)" && echo yes || echo no)"
+  local out
+  out="$("$(_xff_bin)" --help=--exclude 2>&1)"
+  expect_output_contains 'gitignore' "${out}"
 }
 
 test_runner

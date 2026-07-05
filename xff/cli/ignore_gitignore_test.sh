@@ -199,17 +199,13 @@ test::core_excludesfile_is_honored() {
 }
 
 test::help_topic_documents_gitignore() {
-  # Capture the exit status and the full output separately, and surface both when the
-  # assertion fails, so a flake (e.g. the sanitizer aborting the subprocess) is
-  # diagnosable in CI instead of masquerading as a bare "substring missing".
+  # Check the exit status separately from the content, so a crashed subprocess (rc != 0,
+  # e.g. a sanitizer abort) is distinguishable from a genuine "substring missing"; the
+  # content matcher prints the captured output on failure, so no manual diagnostic is needed.
   local out rc
   out="$("$(_xff_bin)" --help=-g 2>&1)" && rc=0 || rc=$?
-  if [[ "${rc}" != "0" ]] || ! grep -qi 'gitignore' <<<"${out}"; then
-    echo "help=-g exited ${rc}; captured output:"
-    printf '%s\n' "${out}"
-  fi
   expect_eq "0" "${rc}"
-  expect_eq "yes" "$(grep -qi 'gitignore' <<<"${out}" && echo yes || echo no)"
+  expect_output_contains 'gitignore' "${out}"
 }
 
 test_runner
