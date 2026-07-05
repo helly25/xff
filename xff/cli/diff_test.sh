@@ -63,6 +63,8 @@ test::diff_ignore_normalizes_and_rejects_bad_values() {
   printf 'one\ntwo\nthree\n' >"${dir}/right.txt"
   printf 'keep\nDEBUG x\nkeep2\n' >"${dir}/ml.txt"
   printf 'keep\nDEBUG y\nkeep2\n' >"${dir}/mr.txt"
+  printf 'a\nb' >"${dir}/nonl.txt"     # no final newline
+  printf 'a\nb\n' >"${dir}/withnl.txt" # same content, with a final newline
   # Without normalization the trailing whitespace differs -> -diff=none is FALSE, no -print.
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name left.txt -diff=none "${dir}/right.txt" -print 2>&1)"
   expect_output_not_contains 'left.txt' "${out}"
@@ -72,7 +74,12 @@ test::diff_ignore_normalizes_and_rejects_bad_values() {
   # --diff-ignore-matching drops the differing DEBUG line before comparing -> equal.
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-ignore-matching='^DEBUG' "${dir}" -name ml.txt -diff=none "${dir}/mr.txt" -print 2>&1)"
   expect_output_contains 'ml.txt' "${out}"
-  # An unknown token (mbo's eol awaits a newer mbo) is a usage error.
+  # A missing final newline differs by default (-> no -print), but --diff-ignore=eofnl equates them.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name nonl.txt -diff=none "${dir}/withnl.txt" -print 2>&1)"
+  expect_output_not_contains 'nonl.txt' "${out}"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-ignore=eofnl "${dir}" -name nonl.txt -diff=none "${dir}/withnl.txt" -print 2>&1)"
+  expect_output_contains 'nonl.txt' "${out}"
+  # An unknown token is a usage error (eol/lead are not tokens: trail and change/ws cover them).
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-ignore=eol "${dir}" -name left.txt -diff "${dir}/right.txt" 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
   expect_output_contains 'unknown --diff-ignore token' "${out}"

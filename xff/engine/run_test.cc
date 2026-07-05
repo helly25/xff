@@ -573,6 +573,14 @@ TEST_F(RunTest, DiffIgnoreNormalizesComparison) {
           {"--diff-ignore-matching=^DEBUG", root_.string(), "-name", "mleft.txt", "-diff=none", Path("mright.txt"),
            "-print"}),
       ElementsAre(Path("mleft.txt")));
+  // --diff-ignore=eofnl equates a file with and one without a final newline (via mbo #234).
+  { std::ofstream(root_ / "nonl.txt") << "a\nb"; }      // no final newline
+  { std::ofstream(root_ / "withnl.txt") << "a\nb\n"; }  // same content, with a final newline
+  EXPECT_THAT(RunExpr({"-name", "nonl.txt", "-diff=none", Path("withnl.txt"), "-print"}), IsEmpty());
+  EXPECT_THAT(
+      RunArgvRecords(
+          {"--diff-ignore=eofnl", root_.string(), "-name", "nonl.txt", "-diff=none", Path("withnl.txt"), "-print"}),
+      ElementsAre(Path("nonl.txt")));
 }
 
 TEST_F(RunTest, DiffIgnoreRejectsUnknownToken) {
