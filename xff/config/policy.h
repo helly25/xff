@@ -54,7 +54,7 @@ struct Drop {
   DropReason reason = DropReason::kSafetyPolicy;
 };
 
-// Whether `line` attaches behavior to a built-in preset: its base names a style (find/xff/rg/xfd)
+// Whether `line` attaches behavior to a built-in preset: its base names a style (find/xff/rg)
 // with no named-config component (`xff: --flag`), so it would apply whenever that preset is active
 // and silently change what a plain `xff` run does. Config files customize via `common:` (always-on)
 // or named blocks (`myconfig:`, or the style-scoped `xff:myconfig:`) instead, so a preset stays

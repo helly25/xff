@@ -173,19 +173,18 @@ TEST_F(ParserTest, Errors) {
 }
 
 TEST_F(ParserTest, ResolveCaseModeDefaultsAndFlags) {
-  // Style defaults: find/xff sensitive, the opinionated styles (xfd/rg) smart.
+  // Style defaults: find/xff sensitive, the opinionated style (rg) smart.
   EXPECT_THAT(ResolveCaseMode({}, registry::Style::kFind), CaseMode::kSensitive);
   EXPECT_THAT(ResolveCaseMode({}, registry::Style::kXff), CaseMode::kSensitive);
-  EXPECT_THAT(ResolveCaseMode({}, registry::Style::kXfd), CaseMode::kSmart);
   EXPECT_THAT(ResolveCaseMode({}, registry::Style::kRg), CaseMode::kSmart);
   // Flags override the default; last occurrence wins.
   EXPECT_THAT(ResolveCaseMode({"-i"}, registry::Style::kFind), CaseMode::kInsensitive);
   EXPECT_THAT(ResolveCaseMode({"-s"}, registry::Style::kFind), CaseMode::kSmart);
   EXPECT_THAT(ResolveCaseMode({"-s+"}, registry::Style::kFind), CaseMode::kSmart);
-  EXPECT_THAT(ResolveCaseMode({"-s-"}, registry::Style::kXfd), CaseMode::kSensitive);
+  EXPECT_THAT(ResolveCaseMode({"-s-"}, registry::Style::kRg), CaseMode::kSensitive);
   EXPECT_THAT(ResolveCaseMode({"--case=insensitive"}, registry::Style::kFind), CaseMode::kInsensitive);
   EXPECT_THAT(ResolveCaseMode({"--case=smart"}, registry::Style::kFind), CaseMode::kSmart);
-  EXPECT_THAT(ResolveCaseMode({"--case=sensitive"}, registry::Style::kXfd), CaseMode::kSensitive);
+  EXPECT_THAT(ResolveCaseMode({"--case=sensitive"}, registry::Style::kRg), CaseMode::kSensitive);
   EXPECT_THAT(ResolveCaseMode({"-i", "-s-"}, registry::Style::kFind), CaseMode::kSensitive);  // last wins
 }
 

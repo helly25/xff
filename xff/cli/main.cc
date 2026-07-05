@@ -133,17 +133,17 @@ std::vector<std::string> ProjectDirs(const std::vector<std::string>& roots) {
 // `current`); `--explain` adds the `current` column from the resolved style + globals.
 std::string RenderFlavorTable(const std::vector<std::string>& globals, std::optional<xff::registry::Style> current) {
   using xff::registry::Style;
-  std::vector<xff::format::Align> aligns(current.has_value() ? 7 : 6, xff::format::Align::kLeft);
+  std::vector<xff::format::Align> aligns(current.has_value() ? 6 : 5, xff::format::Align::kLeft);
   xff::format::Table table(std::move(aligns));
-  std::vector<std::string> header = {"behavior", "flag", "find", "xff", "xfd", "rg"};
+  std::vector<std::string> header = {"behavior", "flag", "find", "xff", "rg"};
   if (current.has_value()) {
     header.emplace_back("current");
   }
   table.AddRow(std::move(header));
   for (const xff::engine::FlavorFacet& facet : xff::engine::FlavorFacets()) {
-    std::vector<std::string> row = {std::string(facet.behavior),   std::string(facet.flag),
-                                    facet.value({}, Style::kFind), facet.value({}, Style::kXff),
-                                    facet.value({}, Style::kXfd),  facet.value({}, Style::kRg)};
+    std::vector<std::string> row = {
+        std::string(facet.behavior), std::string(facet.flag), facet.value({}, Style::kFind),
+        facet.value({}, Style::kXff), facet.value({}, Style::kRg)};
     if (current.has_value()) {
       row.push_back(facet.value(globals, *current));
     }
@@ -374,7 +374,7 @@ int RunMain(int argc, char** argv) {
     return 2;
   }
 
-  // Apply the resolved case mode to the matchers (--case / -i / -s[+|-]; xfd/rg default
+  // Apply the resolved case mode to the matchers (--case / -i / -s[+|-]; rg defaults
   // smart), in place before the walk: sets folding on the case-sensitive matchers and
   // recompiles their pre-compiled regex. A no-op under the sensitive default.
   xff::parser::ApplyCaseMode(command, xff::parser::ResolveCaseMode(command.globals, style));

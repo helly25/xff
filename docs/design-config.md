@@ -106,7 +106,7 @@ xff:myproj:    --feature=trace --threads=1  # only when the xff style AND --conf
 
 - `base` is `common`/empty (applies always - your standing defaults) or a **named
   config** (applies only when that `--config=NAME` is active). A **bare built-in-style
-  base** (`xff:` / `find:` / `rg:` / `xfd:` with no `:config`) is **rejected**: a config
+  base** (`xff:` / `find:` / `rg:` with no `:config`) is **rejected**: a config
   file may not attach behavior to a preset, so a plain `xff` run stays reproducible (the
   gate drops such a line and warns). `:config` gates by an active named config; a
   `style:config:` prefix additionally scopes it to a style (it still needs the named
@@ -178,12 +178,12 @@ built-in `safety` classification so the safe default needs no admin file:
 - **`argv[0]` dispatch** - the invocation name is the leading `--config` selector.
   A built-in style name selects that preset: `find` (strict: accept only find's own
   primaries/options, reject every xff extension incl. single-dash modern primitives
-  like `-println`), `xff` (modern), `rg`/`xfd`/`fd` (the opinionated flavors). **Any
-  other name selects a same-named _named config_**: a `mytool` symlink to `xff`
-  activates the user/system `mytool:` block while the base style stays the modern
-  `xff` default - the sanctioned way to ship a personal preset without overloading a
-  built-in one. An explicit `--config=` still stacks over it. (Subsumes the standalone
-  argv[0]-dispatch task.)
+  like `-println`), `xff` (modern), `rg` (the single opinionated flavor). **Any other
+  name selects a same-named _named config_** (there is no `xfd`/`fd` magic - they are
+  just names): a `mytool` symlink to `xff` activates the user/system `mytool:` block
+  while the base style stays the modern `xff` default - the sanctioned way to ship a
+  personal preset without overloading a built-in one. An explicit `--config=` still
+  stacks over it. (Subsumes the standalone argv[0]-dispatch task.)
 
 ## Worked examples
 

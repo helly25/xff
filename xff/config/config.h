@@ -74,11 +74,11 @@ std::vector<ResolvedFlag> ResolveConfig(const ConfigInputs& inputs);
 // The lowercase layer name for a Source: "unset"/"system"/"user"/"project"/"cli".
 std::string_view SourceName(Source source);
 
-// Whether `name` is one of the built-in preset styles (find / xff / rg / xfd). Tests the base of
+// Whether `name` is one of the reserved built-in style names (find / xff / rg). Tests the base of
 // a selector (so "xff:2" should be reduced to "xff" first). Those names are reserved: a config
 // file may not attach behavior to a preset (see GateConfig's preset-overload rule), and argv[0]
 // dispatch uses this to tell a preset invocation name from a custom alias (which selects a named
-// config instead).
+// config instead). There is no `xfd`; it is just another name (a named-config selector).
 bool IsBuiltinStyle(std::string_view name);
 
 // The active find/xff style selected by the --config stack. A --config=NAME whose
@@ -91,8 +91,8 @@ bool IsBuiltinStyle(std::string_view name);
 registry::Style ActiveStyle(const std::vector<std::string>& configs);
 
 // The leading --config selector implied by the program name (argv[0] dispatch), from its
-// basename: a built-in style name ("find"/"xff"/"rg"/"xfd") selects that preset ("fd" is the
-// fd-like alias -> "xfd"); an empty name defaults to "xff"; ANY OTHER name is returned verbatim as
+// basename: a built-in style name ("find"/"xff"/"rg") selects that preset; an empty name defaults
+// to "xff"; ANY OTHER name (including "fd"/"xfd" - there is no magic remap) is returned verbatim as
 // a NAMED-config selector (e.g. a "mytool" symlink -> "mytool"), which activates a matching
 // `mytool:` config block while leaving the base style at the modern xff default (ActiveStyle
 // ignores a non-style selector). main() prepends this as the lowest-precedence selector, so an

@@ -285,7 +285,7 @@ std::vector<HelpTopic> HelpTopics() {
       {.name = "printf", .aliases = {}, .summary = "the -printf % directives and the %{field} escape", .in_full = true},
       {.name = "time", .aliases = {}, .summary = "time-format presets and strftime patterns", .in_full = true},
       {.name = "size", .aliases = {}, .summary = "-size units (c/w/b/k/M/G/T/P/E) and +/-", .in_full = true},
-      {.name = "styles", .aliases = {"flavors"}, .summary = "the find / xff / xfd / rg flavor comparison"},
+      {.name = "styles", .aliases = {"flavors"}, .summary = "the find / xff / rg flavor comparison"},
       {.name = "full", .aliases = {"long"}, .summary = "every option and primary, with the long explanations"},
   };
 }

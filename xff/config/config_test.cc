@@ -111,8 +111,7 @@ TEST_F(ConfigTest, ActiveStyleDefaultsToXffAndTracksTheConfigStack) {
   EXPECT_THAT(ActiveStyle({"rg"}), registry::Style::kRg);            // ripgrep-like defaults
   EXPECT_THAT(ActiveStyle({"rg:2"}), registry::Style::kRg);          // version-pinned epoch -> base "rg"
   EXPECT_THAT(ActiveStyle({"rg", "find"}), registry::Style::kFind);  // last selector still wins
-  EXPECT_THAT(ActiveStyle({"xfd"}), registry::Style::kXfd);          // fd-like opinionated defaults
-  EXPECT_THAT(ActiveStyle({"xfd:2"}), registry::Style::kXfd);        // version-pinned epoch -> base "xfd"
+  EXPECT_THAT(ActiveStyle({"xfd"}), registry::Style::kXff);          // xfd was dropped: not a style -> default xff
 }
 
 TEST_F(ConfigTest, DefaultStyleForProgramSelectsByBasename) {
@@ -122,12 +121,12 @@ TEST_F(ConfigTest, DefaultStyleForProgramSelectsByBasename) {
   EXPECT_THAT(DefaultStyleForProgram("xff"), "xff");
   EXPECT_THAT(DefaultStyleForProgram("/opt/helly25/xff"), "xff");
   EXPECT_THAT(DefaultStyleForProgram(""), "xff");  // no name -> the modern default
-  // The opinionated flavors are reachable by invocation name too.
-  EXPECT_THAT(DefaultStyleForProgram("xfd"), "xfd");
-  EXPECT_THAT(DefaultStyleForProgram("/usr/bin/fd"), "xfd");  // `fd` muscle-memory alias, basename
   EXPECT_THAT(DefaultStyleForProgram("rg"), "rg");
   // A non-preset invocation name is returned verbatim as a named-config selector (a `mytool`
-  // symlink activates a `mytool:` config block; the base style stays the xff default).
+  // symlink activates a `mytool:` config block; the base style stays the xff default). xfd was
+  // dropped and fd was never a style, so both are plain verbatim names now (no magic remap).
+  EXPECT_THAT(DefaultStyleForProgram("xfd"), "xfd");
+  EXPECT_THAT(DefaultStyleForProgram("/usr/bin/fd"), "fd");  // basename, verbatim (not remapped to rg)
   EXPECT_THAT(DefaultStyleForProgram("myfind"), "myfind");
   EXPECT_THAT(DefaultStyleForProgram("findutils"), "findutils");
   EXPECT_THAT(DefaultStyleForProgram("/opt/bin/mytool"), "mytool");  // basename, verbatim

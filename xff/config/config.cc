@@ -77,7 +77,7 @@ std::string_view SourceName(Source source) {
 }
 
 bool IsBuiltinStyle(std::string_view name) {
-  return name == "find" || name == "rg" || name == "xfd" || name == "xff";
+  return name == "find" || name == "rg" || name == "xff";
 }
 
 registry::Style ActiveStyle(const std::vector<std::string>& configs) {
@@ -90,9 +90,7 @@ registry::Style ActiveStyle(const std::vector<std::string>& configs) {
     } else if (base == "xff") {
       style = registry::Style::kXff;
     } else if (base == "rg") {
-      style = registry::Style::kRg;  // ripgrep-like defaults on the xff vocabulary
-    } else if (base == "xfd") {
-      style = registry::Style::kXfd;  // fd-like opinionated defaults on the xff vocabulary
+      style = registry::Style::kRg;  // the single opinionated style (gitignore, skip hidden, smart case)
     }
   }
   return style;
@@ -103,7 +101,6 @@ std::string_view StyleName(registry::Style style) {
   switch (style) {
     case registry::Style::kFind: return "find";
     case registry::Style::kRg: return "rg";
-    case registry::Style::kXfd: return "xfd";
     case registry::Style::kXff: return "xff";
   }
   return "xff";
@@ -116,14 +113,12 @@ std::string_view DefaultStyleForProgram(std::string_view argv0) {
   if (argv0.empty()) {
     return "xff";  // no invocation name -> the modern default
   }
-  if (argv0 == "fd") {
-    return "xfd";  // muscle-memory alias for the fd-like style
-  }
   // The invocation name is the leading --config selector, used verbatim: a built-in style name
-  // (find/xff/rg/xfd) selects that preset; any other name (e.g. a `mytool` symlink to xff) selects
-  // a same-named NAMED config, leaving the base style at the modern xff default (ActiveStyle
-  // ignores a non-style selector). So aliasing xff auto-activates the matching `mytool:` config
-  // block without a preset ever being overloadable. An explicit --config still stacks (last wins).
+  // (find/xff/rg) selects that preset; any other name (a `mytool` symlink to xff, and note there
+  // is no `xfd`/`fd` magic - those are just names too) selects a same-named NAMED config, leaving
+  // the base style at the modern xff default (ActiveStyle ignores a non-style selector). So
+  // aliasing xff auto-activates the matching `mytool:` config block without a preset ever being
+  // overloadable. An explicit --config still stacks (last wins).
   return argv0;
 }
 

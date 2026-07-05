@@ -35,10 +35,10 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--config=NAME",
         .group = "config",
         .header = "Config",
-        .summary = "select a config style: find (strict), xff (evolved), xfd/rg (opinionated); repeatable",
+        .summary = "select a config style: find (strict), xff (evolved), rg (opinionated); repeatable",
         .details = "A config style sets the defaults for ignore files, hidden files, sizes, sort order, and case. "
                    "find is strict find compatibility; xff keeps find's grammar but sorts and prints human sizes; "
-                   "xfd and rg are opinionated (respect .gitignore, skip hidden, smart case). Repeatable and "
+                   "rg is opinionated (respect .gitignore, skip hidden, smart case). Repeatable and "
                    "layered, last one wins. See --help=styles for the per-style defaults.",
     },
     {
@@ -114,7 +114,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "sibling/traversal ordering (default depends on the mode)",
         .details = "none leaves entries in filesystem order (fastest); dir sorts each directory's entries; subtree "
                    "and tree give a deterministic order across the whole walk. The default is per style: xff sorts "
-                   "per directory, while find, xfd, and rg leave the order unspecified.",
+                   "per directory, while find and rg leave the order unspecified.",
     },
     {
         .name = "--block-size",
@@ -135,10 +135,10 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--case=sensitive|insensitive|smart, -i, -s[+|-]",
         .group = "matching",
         .header = "Matching",
-        .summary = "letter case for matchers: -i insensitive, -s/-s+ smart, -s- sensitive (xfd/rg -> smart)",
+        .summary = "letter case for matchers: -i insensitive, -s/-s+ smart, -s- sensitive (rg -> smart)",
         .details = "Controls case for -name/-path/-regex and the content matchers. sensitive matches exactly; "
                    "insensitive (-i) folds case; smart (-s / -s+) folds only when the pattern is all lower case and "
-                   "matches exactly otherwise; -s- forces sensitive. xfd and rg default to smart.",
+                   "matches exactly otherwise; -s- forces sensitive. rg defaults to smart.",
     },
     {
         .name = "--regextype",
@@ -199,14 +199,14 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--hidden",
         .group = "filter",
         .header = "Filter & Ignore",
-        .summary = "include hidden dotfiles in the walk (default: find/xff show, xfd/rg skip)",
+        .summary = "include hidden dotfiles in the walk (default: find/xff show, rg skips)",
     },
     {
         .name = "--no-hidden",
         .display = "--no-hidden",
         .group = "filter",
         .header = "Filter & Ignore",
-        .summary = "skip hidden dotfiles (the xfd/rg default; opts find/xff out)",
+        .summary = "skip hidden dotfiles (the rg default; opts find/xff out)",
     },
     {
         .name = "--format",

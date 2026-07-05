@@ -47,7 +47,7 @@ absl::Status EnforceStyle(const Command& command, registry::Style style);
 enum class CaseMode { kSensitive, kInsensitive, kSmart };
 
 // Resolves the case mode from the globals and active style. Default is style-scoped:
-// find/xff -> kSensitive (find-compatible), the opinionated styles (rg, xfd) -> kSmart.
+// find/xff -> kSensitive (find-compatible), the opinionated style (rg) -> kSmart.
 // Overrides (last wins): `--case=sensitive|insensitive|smart`; the shorts `-i`
 // (insensitive), `-s`/`-s+` (smart), `-s-` (sensitive).
 CaseMode ResolveCaseMode(const std::vector<std::string>& globals, registry::Style style);
