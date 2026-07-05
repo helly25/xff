@@ -127,11 +127,11 @@ std::string_view DefaultStyleForProgram(std::string_view argv0) {
 ProjectConfigMode ResolveProjectConfigMode(const std::vector<std::string>& globals) {
   constexpr std::string_view kFlag = "--project-config=";
   ProjectConfigMode mode = ProjectConfigMode::kWarn;  // default: ignore a project .xffrc, but note it
-  for (const std::string& global : globals) {
+  for (std::string_view global : globals) {
     if (!global.starts_with(kFlag)) {
       continue;
     }
-    const std::string_view value = std::string_view(global).substr(kFlag.size());
+    const std::string_view value = global.substr(kFlag.size());
     if (value == "on") {
       mode = ProjectConfigMode::kOn;
     } else if (value == "off") {
