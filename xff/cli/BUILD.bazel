@@ -15,6 +15,7 @@
 
 load("@helly25_bashtest//bashtest:bashtest.bzl", "bashtest")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load(":diff_golden.bzl", "diff_golden_test")
 
 cc_binary(
     name = "xff",
@@ -267,6 +268,20 @@ bashtest(
     size = "small",
     srcs = ["diff_test.sh"],
     data = [":xff"],
+)
+
+# Golden output of -diff per mode: xff walks tree `a` and diffs each file against `b/{relpath}`,
+# one committed golden each, checked with mbo's diff_test (fixed mtimes -> verbatim; diff_golden.bzl).
+diff_golden_test(
+    name = "diff_golden",
+    modes = {
+        "u": "testdata/diff/golden/u.txt",
+        "c": "testdata/diff/golden/c.txt",
+        "n": "testdata/diff/golden/n.txt",
+        "y": "testdata/diff/golden/y.txt",
+        "none": "testdata/diff/golden/none.txt",
+    },
+    setup = "testdata/diff/setup.sh",
 )
 
 # End-to-end test of -ls column alignment (via the ColumnBuffer) and the --buffer

@@ -1,0 +1,18 @@
+*** a/one.txt
+--- b/one.txt
+***************
+*** 1,2 ****
+  alpha
+! beta
+--- 1,2 ----
+  alpha
+! BETA
+*** a/sub/two.txt
+--- b/sub/two.txt
+***************
+*** 1,2 ****
+  gamma
+! delta
+--- 1,2 ----
+  gamma
+! DELTA
