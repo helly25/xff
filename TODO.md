@@ -230,16 +230,17 @@ remains below is the design-forked / larger work.
   - **`-cmp TARGET`** = pure byte-exact matcher (a TEST). **SHIPPED (#231).** `! -cmp`
     lists changed files; a missing/unreadable target differs (-> false); never normalizes.
   - **`-diff[=STYLE] TARGET`** = a diff-producing ACTION that also returns true/false
-    (silent + true when equal; emits + false on a difference). Default `-diff=u3` (unified,
-    3 context lines, file header); `-diff=none` = compute-but-silent normalized matcher.
-    Text only; a binary file prints `Binary files A and B differ` to **stderr** (byte
-    compared) instead of a text diff (IDEAS: a `--diff-binary=error|note|skip` flag later).
-    Normalization is `-diff`-only: `--diff-ignore=<tokens>`
-    (ws/lead/trail/change/eol/blank/case/eofnl) + the sibling `--diff-ignore-matching=REGEX`
-    (both `.xffrc`-settable).
-  - **PARKED pending the next `mbo` version (2026-07-04):** the advanced diff output - the
-    `c` (context) / `n` (normal) formats mbo lacks, and a faster (Myers/histogram) core -
-    waits for mbo rather than shipping a partial `-diff` and reworking it. When mbo is
-    ready, v1 is **backend-formatted via `mbo::diff`** (Apache-2.0; `kUnified` + `kDirect` =
-    side-by-side, both native); the `DiffEngine` seam / `--diff-engine` is deferred to a 2nd
-    backend. Full design in the memory note (`project_xff_cmp_diff`).
+    (silent + true when equal; emits + false on a difference). **SHIPPED** via `mbo::diff`
+    (0.13.0). STYLE picks the mbo output: `u[N]` unified (default `u3`), `c[N]` context, `n`
+    normal, `y[N]` side-by-side, `none` = compute-but-silent matcher. `--diff-algorithm=`
+    `naive|direct|myers` (default myers) selects the engine. Text only; a binary side prints
+    `Binary files A and B differ` to **stderr** (byte compared). The header carries each side's
+    mtime (`diff -u` style).
+    - **Deferred to a follow-up:** the `--diff-ignore=<tokens>`
+      (ws/lead/trail/change/eol/blank/case/eofnl) + `--diff-ignore-matching=REGEX` normalization
+      (both `.xffrc`-settable) - `mbo::diff::DiffOptions` supports them, but the RE2 option is
+      non-copyable so it needs a per-node vs per-run plumbing pass. A git-style (no-timestamp)
+      header would need an mbo option (candidate for mbo 0.14.0). Full design in the memory note
+      (`project_xff_cmp_diff`).
+    - **`mbo` dependency:** built against a `git_override` pinned at the mbo commit that carries
+      0.13.0's `mbo/diff`; drop it for a plain `helly25_mbo` 0.13.0 bump once that releases to BCR.

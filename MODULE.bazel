@@ -38,6 +38,16 @@ bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 # the StatusIs code-matcher support (#190) our test conventions rely on.
 bazel_dep(name = "helly25_mbo", version = "0.11.1")
 
+# TEMPORARY override for -diff (#88): mbo/diff's rich API (unified/context/normal/side-by-side
+# formats, myers/naive/direct engines) landed in mbo 0.13.0, which is not yet in the BCR (0.12.0
+# is the latest release). Pin the mbo commit that carries it so CI can fetch it. DROP THIS for a
+# plain `bazel_dep(... version = "0.13.0")` bump the moment mbo 0.13.0 releases to the BCR.
+git_override(
+    module_name = "helly25_mbo",
+    commit = "d6dd2e28bb57f5abc542147d53594031358a80cd",
+    remote = "https://github.com/helly25/mbo.git",
+)
+
 # helly25/bashtest -- shell-test runner (expect_* helpers + test_runner) for the
 # binary-level CLI tests. Visible under its canonical name @helly25_bashtest.
 bazel_dep(name = "helly25_bashtest", version = "0.5.0")

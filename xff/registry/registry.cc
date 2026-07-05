@@ -148,6 +148,18 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .style = Style::kXff,
         .cost = Cost::kExpensive,
     },
+    // xff -diff[=STYLE]: emit a diff of each match against TARGET (a field template). An
+    // ACTION whose truth is TRUE = same (like cmp/diff): silent when equal, prints the diff
+    // and is false on a difference. STYLE (u3 default / c / n / y / none) picks the output.
+    {
+        .name = "-diff",
+        .summary = "diff the file against TARGET (a field template); true when equal (xff)",
+        .kind = Kind::kAction,
+        .arity = 1,
+        .binding = Binding::kStyle,
+        .style = Style::kXff,
+        .cost = Cost::kExpensive,
+    },
     {
         .name = "-type",
         .summary = "match the file type (f/d/l/b/c/p/s)",

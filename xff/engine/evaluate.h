@@ -100,6 +100,9 @@ struct EvalContext {
   // --count / -c: -grep prints one `path:count` per file (its matching-line count)
   // instead of the lines, rg -c style; supersedes -grep=FORMAT. Only -grep reads it.
   bool grep_count = false;
+  // --diff-algorithm=naive|direct|myers: the diff engine -diff uses (mbo::diff). Empty ->
+  // myers (the default). Validated once before the walk; only -diff reads it.
+  std::string_view diff_algorithm;
   Control& control;                              // collects -prune/-quit requests
   bool exec_fields = false;                      // --exec-fields: render -exec tokens through the field vocabulary
   std::vector<std::string>* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off

@@ -537,6 +537,19 @@ TEST_F(RunTest, CmpTargetIsAPerEntryTemplate) {
   EXPECT_THAT(changed, UnorderedElementsAre(Path("b.md"), Path("sub/c.txt")));
 }
 
+TEST_F(RunTest, DiffPolarityIsTrueWhenEqual) {
+  { std::ofstream(root_ / "twin.txt") << "a"; }   // identical to a.txt (content "a")
+  { std::ofstream(root_ / "other.txt") << "X"; }  // differs
+  // -diff=none is the silent matcher (TRUE = same, like -cmp); -diff is an action, so an
+  // explicit -print reveals the truth. a.txt == twin, a.txt != other.
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "-diff=none", Path("twin.txt"), "-print"}), ElementsAre(Path("a.txt")));
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "-diff=none", Path("other.txt"), "-print"}), IsEmpty());
+  // ! -diff selects files that differ from their target (the "changed files" idiom).
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "!", "-diff=none", Path("other.txt"), "-print"}), ElementsAre(Path("a.txt")));
+  // A missing / unreadable target counts as differing (false).
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "-diff=none", Path("nope.txt"), "-print"}), IsEmpty());
+}
+
 TEST_F(RunTest, ColorAutoStaysPlainWhenStdoutIsNotATty) {
   // The captured stdout here is a pipe, so auto (the default) leaves even a
   // directory uncolored; only --color=always would force escapes.

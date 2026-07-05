@@ -29,6 +29,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
@@ -38,11 +39,15 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/match.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
 #include "mbo/container/limited_set.h"
+#include "mbo/diff/diff.h"
+#include "mbo/diff/diff_options.h"
+#include "mbo/file/artefact.h"
 #include "xff/content/line_match.h"
 #include "xff/datetime/datetime.h"
 #include "xff/engine/walk.h"
@@ -979,6 +984,112 @@ bool EvalCmp(const parser::Expr& expr, EvalContext& ctx) {
   return lhs.ok() && rhs.ok() && *lhs == *rhs;  // byte-exact; TRUE = identical content
 }
 
+namespace {
+
+// The output selectors a -diff=STYLE token maps to: a format, its context size, and whether
+// output is suppressed (`-diff=none`, a compute-but-silent matcher). The token is already
+// syntactically valid (the parser checked it); default (empty) is u3.
+struct DiffStyle {
+  mbo::diff::DiffOptions::OutputFormat format = mbo::diff::DiffOptions::OutputFormat::kUnified;
+  std::size_t context = 3;
+  bool silent = false;
+};
+
+DiffStyle ParseDiffStyle(std::string_view style) {
+  using OutputFormat = mbo::diff::DiffOptions::OutputFormat;
+  if (style.empty()) {
+    return {};  // bare -diff == -diff=u3
+  }
+  if (style == "none") {
+    return {.silent = true};  // compute-but-silent (a normalized matcher)
+  }
+  DiffStyle result;
+  switch (style.front()) {
+    case 'u': result.format = OutputFormat::kUnified; break;
+    case 'c': result.format = OutputFormat::kContext; break;
+    case 'n': result.format = OutputFormat::kNormal; break;
+    case 'y': result.format = OutputFormat::kSideBySide; break;
+    default: break;  // unreachable: validated in the parser
+  }
+  std::size_t context = 0;
+  if (style.size() > 1 && absl::SimpleAtoi(style.substr(1), &context)) {
+    result.context = context;  // explicit context count (uN / cN / yN)
+  }
+  return result;
+}
+
+// A file looks binary when a NUL byte appears in its leading bytes (like GNU diff / grep):
+// -diff text-diffs only, so a binary side is byte-compared with a stderr note instead.
+bool LooksBinary(std::string_view data) {
+  return data.substr(0, 8'000).find('\0') != std::string_view::npos;
+}
+
+}  // namespace
+
+// xff -diff[=STYLE] TARGET: an ACTION that diffs the entry against TARGET (a field template,
+// like -cmp) via mbo::diff and returns TRUE = same (silent when equal; prints the diff and is
+// false on a difference). STYLE picks the output (u3 default / c / n / y / none = silent). A
+// binary side is byte-compared with a `Binary files A and B differ` note on stderr, never a
+// text diff. Missing/unreadable target -> differs (false). Cost::kExpensive (two reads).
+bool EvalDiff(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.args.empty()) {
+    return false;
+  }
+  const std::string link = LinkTarget(ctx);  // owns the {target} text for the render below
+  const std::string target = fields::Template::Compile(expr.args.front())
+                                 .Render(
+                                     fields::RenderContext{
+                                         .path = ctx.visit.path,
+                                         .root = ctx.visit.root,
+                                         .link_target = link,
+                                         .metadata = ctx.visit.metadata,
+                                         .depth = ctx.visit.depth,
+                                         .tz = ctx.tz,
+                                         .time_format = ctx.time_format,
+                                         .captures = ctx.captures,
+                                         .defines = ctx.defines,
+                                         .outputs = ctx.outputs});
+  if (target.empty()) {
+    return false;  // no target resolved -> treat as differing
+  }
+  // The unified/context header carries each side's mtime (like `diff -u`); a no-timestamp
+  // (git-style) header would need an mbo option, noted for a later mbo version.
+  const absl::StatusOr<mbo::file::Artefact> lhs = mbo::file::Artefact::Read(ctx.visit.path);
+  const absl::StatusOr<mbo::file::Artefact> rhs = mbo::file::Artefact::Read(target);
+  if (!lhs.ok() || !rhs.ok()) {
+    return false;  // missing / unreadable -> differs
+  }
+  // A binary side is byte-compared, not text-diffed: equal is silent; a difference notes it on
+  // stderr (like `diff`/`cmp`) and is false.
+  if (LooksBinary(lhs->data) || LooksBinary(rhs->data)) {
+    if (lhs->data == rhs->data) {
+      return true;
+    }
+    std::cerr << "Binary files " << lhs->name << " and " << rhs->name << " differ\n";
+    return false;
+  }
+  const DiffStyle style = ParseDiffStyle(expr.diff_style);
+  mbo::diff::DiffOptions options;  // default-constructed (myers, unified, ctx 3) then tuned
+  options.output_format = style.format;
+  options.context_size = style.context;
+  if (const std::optional<mbo::diff::DiffOptions::Algorithm> algo =
+          mbo::diff::DiffOptions::ParseAlgorithmFlag(ctx.diff_algorithm);
+      algo.has_value()) {
+    options.algorithm = *algo;
+  }
+  const absl::StatusOr<std::string> diff = mbo::diff::Diff::FileDiff(*lhs, *rhs, options);
+  if (!diff.ok()) {
+    return false;  // a diff failure -> treat as differing
+  }
+  if (diff->empty()) {
+    return true;  // identical (FileDiff returns "" when the sides are equal)
+  }
+  if (!style.silent) {
+    ctx.emit(*diff);
+  }
+  return false;  // differ
+}
+
 // xff -grep PATTERN: the line-output companion of -rxc. Prints each line of the
 // file's content that matches, as `path:lineno:text` (grep's piped form). The
 // pattern is an RE2 regex by default (pre-compiled by the parser) or a literal
@@ -1665,6 +1776,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-content", {&EvalContent}},
     DispatchPair{"-ctime", {&EvalCtime}},
     DispatchPair{"-delete", {&EvalDelete}},
+    DispatchPair{"-diff", {&EvalDiff}},
     DispatchPair{"-empty", {&EvalEmpty}},
     DispatchPair{"-exec", {&EvalExec}},
     DispatchPair{"-execdir", {&EvalExecdir}},

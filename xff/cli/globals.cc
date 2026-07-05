@@ -211,6 +211,13 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "columns for tabular --format, from the {field} vocabulary (e.g. path,size,mtime)",
     },
     {
+        .name = "--diff-algorithm",
+        .display = "--diff-algorithm=naive|direct|myers",
+        .group = "output",
+        .header = "Output",
+        .summary = "diff engine for -diff: naive, direct, or myers (the default, minimal like git)",
+    },
+    {
         .name = "--path-encoding",
         .display = "--path-encoding=raw|escape",
         .group = "output",
