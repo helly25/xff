@@ -113,19 +113,18 @@ std::string_view DefaultStyleForProgram(std::string_view argv0) {
   if (const std::string_view::size_type slash = argv0.rfind('/'); slash != std::string_view::npos) {
     argv0 = argv0.substr(slash + 1);  // basename: the last path component
   }
-  // Flavor by invocation name: `find` -> strict find, `xfd`/`fd` -> the fd-like
-  // opinionated style, `rg` -> the ripgrep-like style; anything else (including `xff`)
-  // -> the conservative modern default. An explicit --config always overrides.
-  if (argv0 == "find") {
-    return "find";
+  if (argv0.empty()) {
+    return "xff";  // no invocation name -> the modern default
   }
-  if (argv0 == "xfd" || argv0 == "fd") {
-    return "xfd";
+  if (argv0 == "fd") {
+    return "xfd";  // muscle-memory alias for the fd-like style
   }
-  if (argv0 == "rg") {
-    return "rg";
-  }
-  return "xff";
+  // The invocation name is the leading --config selector, used verbatim: a built-in style name
+  // (find/xff/rg/xfd) selects that preset; any other name (e.g. a `mytool` symlink to xff) selects
+  // a same-named NAMED config, leaving the base style at the modern xff default (ActiveStyle
+  // ignores a non-style selector). So aliasing xff auto-activates the matching `mytool:` config
+  // block without a preset ever being overloadable. An explicit --config still stacks (last wins).
+  return argv0;
 }
 
 ProjectConfigMode ResolveProjectConfigMode(const std::vector<std::string>& globals) {

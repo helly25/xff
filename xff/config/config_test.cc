@@ -121,13 +121,16 @@ TEST_F(ConfigTest, DefaultStyleForProgramSelectsByBasename) {
   EXPECT_THAT(DefaultStyleForProgram("./find"), "find");
   EXPECT_THAT(DefaultStyleForProgram("xff"), "xff");
   EXPECT_THAT(DefaultStyleForProgram("/opt/helly25/xff"), "xff");
-  EXPECT_THAT(DefaultStyleForProgram("myfind"), "xff");     // only the exact name "find" is strict
-  EXPECT_THAT(DefaultStyleForProgram("findutils"), "xff");  // not a prefix/substring match
-  EXPECT_THAT(DefaultStyleForProgram(""), "xff");
+  EXPECT_THAT(DefaultStyleForProgram(""), "xff");  // no name -> the modern default
   // The opinionated flavors are reachable by invocation name too.
   EXPECT_THAT(DefaultStyleForProgram("xfd"), "xfd");
   EXPECT_THAT(DefaultStyleForProgram("/usr/bin/fd"), "xfd");  // `fd` muscle-memory alias, basename
   EXPECT_THAT(DefaultStyleForProgram("rg"), "rg");
+  // A non-preset invocation name is returned verbatim as a named-config selector (a `mytool`
+  // symlink activates a `mytool:` config block; the base style stays the xff default).
+  EXPECT_THAT(DefaultStyleForProgram("myfind"), "myfind");
+  EXPECT_THAT(DefaultStyleForProgram("findutils"), "findutils");
+  EXPECT_THAT(DefaultStyleForProgram("/opt/bin/mytool"), "mytool");  // basename, verbatim
 }
 
 TEST_F(ConfigTest, ResolveProjectConfigModeDefaultsToWarnAndLastWins) {

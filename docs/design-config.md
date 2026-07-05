@@ -175,11 +175,15 @@ built-in `safety` classification so the safe default needs no admin file:
   find baseline or arm `-exec`); `warn` (**default**) ignores it but prints one
   stderr note when a project `.xffrc` was found; `off` ignores it silently. Full
   config, including style relaxation, works only from the user and system layers.
-- **`argv[0]` dispatch** - invoked as `find` (alias/symlink) defaults to
-  `--config=find` (strict: accept only find's own primaries/options, reject
-  every xff extension incl. single-dash modern primitives like `-println`);
-  invoked as `xff` defaults to `--config=xff` (modern). Explicit `--config=`
-  overrides. (Subsumes the standalone argv[0]-dispatch task.)
+- **`argv[0]` dispatch** - the invocation name is the leading `--config` selector.
+  A built-in style name selects that preset: `find` (strict: accept only find's own
+  primaries/options, reject every xff extension incl. single-dash modern primitives
+  like `-println`), `xff` (modern), `rg`/`xfd`/`fd` (the opinionated flavors). **Any
+  other name selects a same-named _named config_**: a `mytool` symlink to `xff`
+  activates the user/system `mytool:` block while the base style stays the modern
+  `xff` default - the sanctioned way to ship a personal preset without overloading a
+  built-in one. An explicit `--config=` still stacks over it. (Subsumes the standalone
+  argv[0]-dispatch task.)
 
 ## Worked examples
 

@@ -90,12 +90,14 @@ bool IsBuiltinStyle(std::string_view name);
 // parser::EnforceStyle); design-config.md "CLI selectors".
 registry::Style ActiveStyle(const std::vector<std::string>& configs);
 
-// The default --config style selected by the program name (argv[0] dispatch): a
-// basename of "find" selects the strict find style, anything else (the canonical
-// "xff", or any other alias) selects the modern xff style. main() prepends this
-// as the lowest-precedence selector, so an explicit --config still overrides it
-// via ActiveStyle's last-wins (design-config.md "CLI selectors"). Returns the
-// selector string "find" or "xff".
+// The leading --config selector implied by the program name (argv[0] dispatch), from its
+// basename: a built-in style name ("find"/"xff"/"rg"/"xfd") selects that preset ("fd" is the
+// fd-like alias -> "xfd"); an empty name defaults to "xff"; ANY OTHER name is returned verbatim as
+// a NAMED-config selector (e.g. a "mytool" symlink -> "mytool"), which activates a matching
+// `mytool:` config block while leaving the base style at the modern xff default (ActiveStyle
+// ignores a non-style selector). main() prepends this as the lowest-precedence selector, so an
+// explicit --config still stacks over it via ActiveStyle's last-wins (design-config.md "CLI
+// selectors"). The returned view aliases `argv0` for a passthrough name; copy it to retain.
 std::string_view DefaultStyleForProgram(std::string_view argv0);
 
 // The project-config mode from the CLI globals: the last --project-config=on|warn|off wins, and
