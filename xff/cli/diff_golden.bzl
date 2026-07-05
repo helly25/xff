@@ -32,7 +32,8 @@ _RUN = (
     "tmp=$$(mktemp -d) && cp $(location {setup}) $$tmp/setup.sh && " +
     "bin=$$(pwd)/$(location //xff/cli:xff) && " +
     "( cd $$tmp && bash setup.sh && " +
-    "XFF_CONFIG=/nonexistent $$bin --sort=tree a -type f -diff={mode} 'b/{{relpath}}' ) > $@"
+    "XFF_CONFIG=/nonexistent $$bin --sort=tree a -type f -diff={mode} 'b/{{relpath}}' ) " +
+    "| sed -E 's/^(--- |[+][+][+] |[*][*][*] )([^ ]+) [0-9].*/\\1\\2/' > $@"
 )
 
 def diff_golden_test(name, setup, modes):
