@@ -27,6 +27,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
+#include "absl/strings/str_split.h"
 #include "xff/cli/globals.h"
 #include "xff/fields/fields.h"
 #include "xff/registry/descriptor.h"
@@ -57,14 +58,59 @@ std::string Tags(const registry::Descriptor& descriptor) {
   return absl::StrCat("(", absl::StrJoin(tags, ", "), ")");
 }
 
-std::string RenderOne(const registry::Descriptor& descriptor) {
-  return absl::StrCat(descriptor.name, ArgHint(descriptor), "  ", Tags(descriptor), "\n    ", descriptor.summary, "\n");
+// Appends an indented influence sub-block ("Header:\n" then one entry per line) to `out` when
+// `items` is non-empty. The entries sit two spaces deeper than the header so the reader stays
+// anchored under it (per the help design). Shared by the derived "Affects:" / "Affected by:"
+// cross-references on both globals and primaries.
+void AppendInfluenceBlock(std::string* out, std::string_view header, const std::vector<std::string_view>& items) {
+  if (items.empty()) {
+    return;
+  }
+  absl::StrAppend(out, "    ", header, "\n");
+  for (const std::string_view item : items) {
+    absl::StrAppend(out, "      ", item, "\n");
+  }
+}
+
+// The forward affects list of `flag` (GlobalFlag.affects, comma-split, empty tokens skipped).
+std::vector<std::string_view> AffectsList(const GlobalFlag& flag) {
+  return absl::StrSplit(flag.affects, ',', absl::SkipEmpty());
+}
+
+// The reverse of AffectsList: every global flag that declares (via its affects list) that it
+// changes `name`'s behavior, in Globals() display order. `name` is a primary ("-diff") or a
+// global ("--context"). Deriving both directions from the one affects field keeps an entry's
+// "Affected by:" block in lock-step with the flags' forward declarations (globals_test guards it).
+std::vector<std::string_view> AffectedBy(std::string_view name) {
+  std::vector<std::string_view> out;
+  for (const GlobalFlag& flag : Globals()) {
+    for (const std::string_view token : absl::StrSplit(flag.affects, ',', absl::SkipEmpty())) {
+      if (token == name) {
+        out.push_back(flag.name);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+std::string RenderOne(const registry::Descriptor& descriptor, bool with_details = false) {
+  std::string out =
+      absl::StrCat(descriptor.name, ArgHint(descriptor), "  ", Tags(descriptor), "\n    ", descriptor.summary, "\n");
+  if (with_details) {
+    AppendInfluenceBlock(&out, "Affected by:", AffectedBy(descriptor.name));  // derived from the globals
+  }
+  return out;
 }
 
 std::string RenderGlobalFlag(const GlobalFlag& flag, bool with_details = false) {
   std::string out = absl::StrCat(flag.display, "  (global, ", flag.xff ? "xff" : "find", ")\n    ", flag.summary, "\n");
-  if (with_details && !flag.details.empty()) {
-    absl::StrAppend(&out, "    ", flag.details, "\n");  // the long explanation (--help=NAME / --help=full)
+  if (with_details) {
+    if (!flag.details.empty()) {
+      absl::StrAppend(&out, "    ", flag.details, "\n");  // the long explanation (--help=NAME / --help=full)
+    }
+    AppendInfluenceBlock(&out, "Affects:", AffectsList(flag));          // forward: what this flag changes
+    AppendInfluenceBlock(&out, "Affected by:", AffectedBy(flag.name));  // reverse: flags that change it
   }
   return out;
 }
@@ -204,7 +250,7 @@ std::string RenderFull(bool detailed) {
     absl::StrAppend(&out, "\n", title, ":\n");
     for (const registry::Descriptor& descriptor : registry::All()) {
       if (descriptor.kind == kind) {
-        absl::StrAppend(&out, "  ", RenderOne(descriptor));
+        absl::StrAppend(&out, "  ", RenderOne(descriptor, detailed));
       }
     }
   }
@@ -340,7 +386,7 @@ absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
     descriptor = registry::Lookup(absl::StrCat("-", topic));
   }
   if (descriptor != nullptr) {
-    return RenderOne(*descriptor);
+    return RenderOne(*descriptor, /*with_details=*/true);
   }
   // Whole-run global option (leading-dashes convenience: `--help=sort`).
   const GlobalFlag* global = LookupGlobal(topic);
