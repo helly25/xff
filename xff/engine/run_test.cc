@@ -405,6 +405,18 @@ TEST_F(RunTest, MimeMatchesByExtensionDerivedType) {
   EXPECT_THAT(RunExpr({"-mime", "text/*"}), UnorderedElementsAre(Path("a.txt"), Path("b.md"), Path("sub/c.txt")));
 }
 
+TEST_F(RunTest, LangMatchesAndRendersTheLanguage) {
+  { std::ofstream(root_ / "main.cc"); }
+  { std::ofstream(root_ / "app.py"); }
+  { std::ofstream(root_ / "Makefile"); }
+  // -lang globs the language name case-insensitively (C++ from .cc; Python from .py).
+  EXPECT_THAT(RunExpr({"-lang", "c++"}), ElementsAre(Path("main.cc")));
+  EXPECT_THAT(RunExpr({"-lang", "python"}), ElementsAre(Path("app.py")));
+  EXPECT_THAT(RunExpr({"-lang", "Makefile"}), ElementsAre(Path("Makefile")));
+  // The {lang} field renders the canonical name, usable in -printf / --format.
+  EXPECT_THAT(RunExpr({"-name", "main.cc", "-printf", "%{lang}\n"}), ElementsAre("C++"));
+}
+
 TEST_F(RunTest, MissingRootCountsError) {
   const std::vector<std::string> argv = {(root_ / "absent").string(), "-print"};
   const auto command = parser::Parse(argv);

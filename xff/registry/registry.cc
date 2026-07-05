@@ -190,6 +190,13 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .style = Style::kXff,
     },
     {
+        .name = "-lang",
+        .summary = "match the language by extension/filename against a glob, e.g. -lang 'C*' (xff)",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .style = Style::kXff,
+    },
+    {
         .name = "-size",
         .summary = "match the apparent size (unit suffix c/w/k/M/G/T/P/E)",
         .kind = Kind::kTest,

@@ -67,6 +67,7 @@ cc_library(
         "//xff/fields:fields_cc",
         "//xff/format:format_cc",
         "//xff/hash:hash_cc",
+        "//xff/language:language_cc",
         "//xff/mime:mime_cc",
         "//xff/parser:parser_cc",
         "//xff/regex:regex_cc",
