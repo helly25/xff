@@ -43,6 +43,7 @@ namespace fs = std::filesystem;
 using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
 using ::testing::AllOf;
+using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::HasSubstr;
@@ -677,6 +678,28 @@ TEST_F(RunTest, DiffFormatAndContextRejectBadValues) {
       {"--diff-format=bogus", root_.string(), "-name", "a.txt", "-diff", Path("b.md")}, "unknown diff format 'bogus'");
   run_expect_usage_error(
       {"--diff-context=x", root_.string(), "-name", "a.txt", "-diff", Path("b.md")}, "bad --diff-context value 'x'");
+}
+
+TEST_F(RunTest, IgnoreFileExcludesMatchingEntriesRootedAtItsOwnDir) {
+  { std::ofstream(root_ / "keep.log") << "x"; }
+  { std::ofstream(root_ / "my.ignore") << "*.log\n"; }
+  // --ignore-file reads the gitignore-format file and roots its patterns at the file's own
+  // directory (here root_), so *.log is excluded anywhere beneath it while a.txt survives.
+  const std::vector<std::string> out =
+      RunArgvRecords({"--ignore-file=" + Path("my.ignore"), root_.string(), "-type", "f"});
+  EXPECT_THAT(out, AllOf(Contains(Path("a.txt")), Not(Contains(Path("keep.log")))));
+}
+
+TEST_F(RunTest, IgnoreFileRootsAtItsOwnDirectoryNotTheSearchRoot) {
+  { std::ofstream(root_ / "top.log") << "x"; }           // under root_, NOT under sub/
+  { std::ofstream(root_ / "sub" / "deep.log") << "y"; }  // under sub/
+  { std::ofstream(root_ / "sub" / "nested.ignore") << "*.log\n"; }
+  // The ignore file lives in sub/, so its patterns root at sub/: sub/deep.log is excluded, but
+  // the sibling top.log (outside sub/) is untouched -- the root is the file's dir, not the search
+  // root, which is exactly why no separate --ignore-file-root flag is needed.
+  const std::vector<std::string> out =
+      RunArgvRecords({"--ignore-file=" + Path("sub/nested.ignore"), root_.string(), "-type", "f"});
+  EXPECT_THAT(out, AllOf(Contains(Path("top.log")), Not(Contains(Path("sub/deep.log")))));
 }
 
 TEST_F(RunTest, HashActionPrintsDigestAndPath) {

@@ -168,6 +168,13 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "respect per-directory .ignore and .xffignore files (off by default)",
     },
     {
+        .name = "--ignore-file",
+        .display = "--ignore-file=PATH",
+        .group = "filter",
+        .header = "Filter & Ignore",
+        .summary = "read an extra gitignore-format file, rooted at its own directory (repeatable)",
+    },
+    {
         .name = "--no-ignore",
         .alias = "-u",
         .display = "--no-ignore, -u",

@@ -777,6 +777,85 @@ class IgnoreFileCache {
   std::map<std::string, ignore::PatternList> repo_exclude_cache_;
 };
 
+// --ignore-file=PATH sources: each an explicitly named ignore file whose gitignore-format
+// patterns are rooted at the file's OWN directory (its absolute, normalized parent), not the
+// search root. An entry matches a source only when it lies within that root; its path relative
+// to the root is tested. Pointing the flag at the file both selects the patterns and anchors
+// them, so no separate --ignore-file-root flag is needed. Repeatable: sources are consulted in
+// command-line order and the last non-silent one wins (later --ignore-file overrides earlier,
+// like the gitignore last-match convention across files). Read best-effort -- an unreadable file
+// contributes nothing, matching how a missing .gitignore is handled. Applied whole-run, so it is
+// independent of -g / --gitignore (which drive the auto per-directory stack).
+class RootedIgnoreFiles {
+ public:
+  RootedIgnoreFiles() = default;
+
+  // Builds the sources from the --ignore-file=PATH globals (command-line order), reading each
+  // through `fs`. A source's root is AbsoluteDir(dirname(PATH)); a bare filename roots at cwd.
+  static RootedIgnoreFiles FromGlobals(const vfs::FileSystem& fs, const std::vector<std::string>& globals) {
+    constexpr std::string_view kIgnoreFile = "--ignore-file=";
+    RootedIgnoreFiles out;
+    for (const std::string& global : globals) {
+      if (!global.starts_with(kIgnoreFile)) {
+        continue;
+      }
+      const std::string_view path = std::string_view(global).substr(kIgnoreFile.size());
+      if (path.empty()) {
+        continue;
+      }
+      const std::string_view::size_type slash = path.rfind('/');
+      const std::string_view dir = slash == std::string_view::npos ? std::string_view(".") : path.substr(0, slash);
+      Source source{.root = AbsoluteDir(dir), .patterns = {}};
+      if (const absl::StatusOr<std::string> content = fs.ReadContent(path); content.ok()) {
+        source.patterns = ignore::PatternList::Parse(*content);
+      }
+      out.sources_.push_back(std::move(source));
+    }
+    return out;
+  }
+
+  bool active() const { return !sources_.empty(); }
+
+  // The decision for an entry given its absolute, normalized path. Each source whose root
+  // contains the entry contributes; the last non-default decision wins (later --ignore-file
+  // overrides earlier). kDefault when no source's root contains the entry, or all are silent.
+  ignore::Decision Decide(std::string_view abs_path, bool is_dir) const {
+    ignore::Decision result = ignore::Decision::kDefault;
+    for (const Source& source : sources_) {
+      const std::optional<std::string_view> rel = Under(abs_path, source.root);
+      if (!rel.has_value()) {
+        continue;  // the entry is outside this source's root subtree
+      }
+      if (const ignore::Decision decision = source.patterns.Match(*rel, is_dir);
+          decision != ignore::Decision::kDefault) {
+        result = decision;
+      }
+    }
+    return result;
+  }
+
+ private:
+  struct Source {
+    std::string root;  // absolute, normalized directory the patterns are relative to
+    ignore::PatternList patterns;
+  };
+
+  // `abs_path` relative to `root` ('/'-separated, no leading '/'), or nullopt when `abs_path` is
+  // neither `root` nor beneath it. The root directory itself maps to "" (matched against, but a
+  // pattern rarely matches "", and the walk never filters the named search root anyway).
+  static std::optional<std::string_view> Under(std::string_view abs_path, std::string_view root) {
+    if (abs_path == root) {
+      return std::string_view();
+    }
+    if (abs_path.size() > root.size() && abs_path.substr(0, root.size()) == root && abs_path[root.size()] == '/') {
+      return abs_path.substr(root.size() + 1);
+    }
+    return std::nullopt;
+  }
+
+  std::vector<Source> sources_;
+};
+
 bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
   for (const std::string& global : globals) {
     if (global == flag) {
@@ -1409,6 +1488,10 @@ int RunFind(
   }
   IgnoreFileCache ignore_files(
       walk_fs, ResolveIgnoreFileNames(command.globals, gitignore_on, style), gitignore_on, std::move(global_excludes));
+  // --ignore-file=PATH: explicit ignore files, each rooted at its own directory. Independent of
+  // -g / --no-ignore (the user named these), consulted below CLI --exclude but above the auto
+  // .gitignore stack (an explicitly named file outranks auto-discovery, below a direct glob).
+  const RootedIgnoreFiles rooted_ignore_files = RootedIgnoreFiles::FromGlobals(walk_fs, command.globals);
 
   // -ok confirmation: prompt to stderr, read a line from stdin, affirmative on y/Y (like find).
   const auto confirm = [](std::string_view prompt) -> bool {
@@ -1532,13 +1615,17 @@ int RunFind(
         // matched directory is pruned (its subtree is never walked, so this is also
         // the fast path); a matched file is simply skipped. The search root itself
         // (empty relative path) is never filtered -- the user named it. CLI
-        // --exclude/--include has highest precedence; the per-directory ignore-file
-        // stack (--ignore-files) decides only where the CLI patterns are silent.
-        if (!ignore_patterns.empty() || ignore_files.active()) {
+        // --exclude/--include has highest precedence, then explicit --ignore-file sources
+        // (rooted at the file's own dir), then the auto per-directory ignore-file stack
+        // (--ignore-files / -g); each later layer decides only where the earlier ones are silent.
+        if (!ignore_patterns.empty() || rooted_ignore_files.active() || ignore_files.active()) {
           const bool is_dir = visit.metadata.type == vfs::FileType::kDirectory;
           const std::string_view rel = RelativeTo(visit.path, visit.root);
           if (!rel.empty()) {
             ignore::Decision decision = ignore_patterns.Match(rel, is_dir);
+            if (decision == ignore::Decision::kDefault && rooted_ignore_files.active()) {
+              decision = rooted_ignore_files.Decide(AbsoluteDir(visit.path), is_dir);
+            }
             if (decision == ignore::Decision::kDefault && ignore_files.active()) {
               decision = ignore_files.Decide(visit.path, visit.root, is_dir);
             }
