@@ -57,6 +57,7 @@
 #include "xff/exec/exec.h"
 #include "xff/fields/fields.h"
 #include "xff/hash/hash.h"
+#include "xff/language/language.h"
 #include "xff/mime/mime.h"
 #include "xff/parser/ast.h"
 #include "xff/regex/regex.h"
@@ -1266,6 +1267,14 @@ bool EvalMime(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && Fnmatch(expr.args.front(), mime::TypeForName(ctx.visit.name), 0);
 }
 
+// xff -lang GLOB: match the entry's programming/markup language (from its extension or filename
+// via the language table) against a shell glob, case-insensitively, so -lang 'c*' selects C / C++
+// / C# / CSS / Clojure at once. Content is not read; an unrecognized name has no language (the
+// empty string), which only a `*` / empty pattern matches.
+bool EvalLang(const parser::Expr& expr, EvalContext& ctx) {
+  return !expr.args.empty() && Fnmatch(expr.args.front(), language::LanguageForName(ctx.visit.name), FNM_CASEFOLD);
+}
+
 // -xtype: like -type, but for a symlink it tests the type of the link's *target*
 // (the link is followed). A broken symlink is reported as a symlink, so
 // "-xtype l" matches it, matching GNU find under the default -P.
@@ -1892,6 +1901,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-iregex", {&EvalRegex}},
     DispatchPair{"-irxc", {&EvalRxc}},
     DispatchPair{"-iwholename", {&EvalPath}},
+    DispatchPair{"-lang", {&EvalLang}},
     DispatchPair{"-links", {&EvalLinks}},
     DispatchPair{"-lname", {&EvalLname}},
     DispatchPair{"-ls", {&EvalLs}},

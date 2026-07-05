@@ -75,7 +75,8 @@ using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier
 // {dir} {name}/{file} {stem} {core} (name minus ALL extensions: "foo") {ext}/{extension}
 // {suffix} (last, with dot: ".gz")
 // {suffixes} {target} (a symlink's target, find %l) {depth} {size} ({size:h}
-// human-readable) {type} {inode} {links} {dev}
+// human-readable) {type} {lang}/{language} (programming language by
+// extension/filename) {inode} {links} {dev}
 // {hash} (file digest; {hash:ALGO[/ENCODING]} picks the algorithm, default sha256,
 // and hex or base64, e.g. {hash:sha256/base64})
 // {mode}/{perm} (octal) {access} (ls -l / stat %A symbolic) {user} {group} {uid}

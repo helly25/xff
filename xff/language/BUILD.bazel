@@ -15,32 +15,25 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
-# Named-field template rendering: {field} substitution for --format and -exec.
+# Filename / extension -> programming language via a curated static table (no github-linguist
+# dependency), for the -lang GLOB predicate and the {lang} field.
 cc_library(
-    name = "fields_cc",
-    srcs = ["fields.cc"],
-    hdrs = ["fields.h"],
+    name = "language_cc",
+    srcs = ["language.cc"],
+    hdrs = ["language.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
-        "//xff/datetime:datetime_cc",
-        "//xff/hash:hash_cc",
-        "//xff/language:language_cc",
-        "//xff/regex:regex_cc",
-        "//xff/vfs:vfs_cc",
-        "@abseil-cpp//absl/status:statusor",
-        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/strings",
         "@helly25_mbo//mbo/container:limited_map_cc",
     ],
 )
 
 cc_test(
-    name = "fields_test",
+    name = "language_test",
     size = "small",
-    srcs = ["fields_test.cc"],
+    srcs = ["language_test.cc"],
     deps = [
-        ":fields_cc",
-        "//xff/vfs:vfs_cc",
-        "@abseil-cpp//absl/time",
+        ":language_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

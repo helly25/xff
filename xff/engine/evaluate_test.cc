@@ -268,6 +268,21 @@ TEST_F(EvaluateTest, MimeGlobsTheExtensionDerivedMediaType) {
   EXPECT_FALSE(Match({"-mime", "text/*"}, bin));
 }
 
+TEST_F(EvaluateTest, LangGlobsTheExtensionOrFilenameLanguage) {
+  vfs::Metadata md;
+  const Visit cpp = MakeVisit("src/main.cc", "main.cc", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-lang", "C*"}, cpp));   // "C++" matches the glob
+  EXPECT_TRUE(Match({"-lang", "c++"}, cpp));  // and case-insensitively (canonical is "C++")
+  EXPECT_FALSE(Match({"-lang", "Python"}, cpp));
+  // Filename-classified languages match too.
+  const Visit mk = MakeVisit("proj/Makefile", "Makefile", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-lang", "Makefile"}, mk));
+  // An unrecognized name has no language (""), matched only by a `*` / empty pattern.
+  const Visit bin = MakeVisit("dir/photo.jpg", "photo.jpg", vfs::FileType::kRegular, md);
+  EXPECT_FALSE(Match({"-lang", "C*"}, bin));
+  EXPECT_TRUE(Match({"-lang", "*"}, bin));
+}
+
 TEST_F(EvaluateTest, TypeListMatchesAnyListedType) {
   vfs::Metadata file_md;
   const Visit file = MakeVisit("x", "x", vfs::FileType::kRegular, file_md);

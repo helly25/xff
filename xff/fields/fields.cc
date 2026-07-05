@@ -42,6 +42,7 @@
 #include "mbo/container/limited_map.h"
 #include "xff/datetime/datetime.h"
 #include "xff/hash/hash.h"
+#include "xff/language/language.h"
 #include "xff/regex/regex.h"
 #include "xff/vfs/entry.h"
 
@@ -270,6 +271,14 @@ std::string HashField(std::string_view, std::string_view qualifier, const Render
   return hash::HashFile(spec->algo, ctx.path, spec->encoding).value_or("");
 }
 
+// {lang} / {language}: the entry's programming/markup language (github-linguist name, e.g. "C++",
+// "Python"), from its filename/extension via the language table; empty when unrecognized. Content
+// is not read, so it is cheap; composes with --summary group-by to tally files per language.
+std::string LanguageField(std::string_view, std::string_view, const RenderContext& ctx) {
+  const std::string name = stdfs::path(std::string(ctx.path)).filename().string();
+  return std::string(language::LanguageForName(name));
+}
+
 std::string SizeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return qualifier == "h" ? HumanSize(ctx.metadata.size) : std::to_string(ctx.metadata.size);
 }
@@ -369,6 +378,8 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"group", &GroupField},
     FieldEntry{"hash", &HashField},
     FieldEntry{"inode", &InodeField},
+    FieldEntry{"lang", &LanguageField},
+    FieldEntry{"language", &LanguageField},
     FieldEntry{"line", &LineField},
     FieldEntry{"links", &LinksField},
     FieldEntry{"match", &MatchField},
@@ -734,6 +745,11 @@ std::vector<FieldDoc> FieldDocs() {
        .group = "type",
        .header = "Type & size",
        .summary = "entry type letter (f, d, l, ...)"},
+      {.name = "lang",
+       .aliases = {"language"},
+       .group = "type",
+       .header = "Type & size",
+       .summary = "language by extension/filename (C++, Python, ...; empty if unknown)"},
       {.name = "size",
        .aliases = {},
        .group = "type",
