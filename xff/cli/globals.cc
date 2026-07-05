@@ -222,7 +222,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--diff-ignore=TOKEN,...",
         .group = "output",
         .header = "Output",
-        .summary = "normalize -diff comparison: ws, change, trail, blank, case (comma-separated)",
+        .summary = "normalize -diff comparison: ws, change, trail, blank, case, eofnl (comma-separated)",
     },
     {
         .name = "--diff-ignore-matching",

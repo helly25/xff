@@ -1038,16 +1038,19 @@ bool LooksBinary(std::string_view data) {
 using DiffIgnoreSetter = void (*)(mbo::diff::DiffOptions&);
 
 // The --diff-ignore token vocabulary (ws = all whitespace, change = whitespace changes, trail =
-// trailing whitespace, blank = blank lines, case = letter case). Single source of truth for the
-// token set -- both the apply path (EvalDiff) and the pre-walk validation (ValidateDiffIgnore) go
-// through it. (mbo's lead / eol / eofnl ignores await a newer mbo and are intentionally absent, so
-// an unknown token is a usage error.)
+// trailing whitespace, blank = blank lines, case = letter case, eofnl = a missing final newline).
+// Single source of truth for the token set -- both the apply path (EvalDiff) and the pre-walk
+// validation (ValidateDiffIgnore) go through it. (There is no `lead`/`eol` token: leading
+// whitespace is subsumed by `change`/`ws`, and CRLF-vs-LF by `trail`, since a `\r` is trailing
+// whitespace.) An unknown token is a usage error.
 constexpr auto kDiffIgnoreTokens = mbo::container::MakeLimitedMap(
     std::pair<std::string_view, DiffIgnoreSetter>{
         "blank", [](mbo::diff::DiffOptions& o) { o.ignore_blank_lines = true; }},
     std::pair<std::string_view, DiffIgnoreSetter>{"case", [](mbo::diff::DiffOptions& o) { o.ignore_case = true; }},
     std::pair<std::string_view, DiffIgnoreSetter>{
         "change", [](mbo::diff::DiffOptions& o) { o.ignore_consecutive_space = true; }},
+    std::pair<std::string_view, DiffIgnoreSetter>{
+        "eofnl", [](mbo::diff::DiffOptions& o) { o.ignore_missing_final_newline = true; }},
     std::pair<std::string_view, DiffIgnoreSetter>{
         "trail", [](mbo::diff::DiffOptions& o) { o.ignore_trailing_space = true; }},
     std::pair<std::string_view, DiffIgnoreSetter>{"ws", [](mbo::diff::DiffOptions& o) { o.ignore_all_space = true; }});
@@ -1062,7 +1065,7 @@ absl::Status ApplyDiffIgnore(std::string_view tokens, std::string_view matching,
     const auto it = kDiffIgnoreTokens.find(token);
     if (it == kDiffIgnoreTokens.end()) {
       return absl::InvalidArgumentError(
-          absl::StrCat("unknown --diff-ignore token '", token, "' (use ws, change, trail, blank, or case)"));
+          absl::StrCat("unknown --diff-ignore token '", token, "' (use ws, change, trail, blank, case, or eofnl)"));
     }
     it->second(options);
   }
@@ -1110,8 +1113,6 @@ bool EvalDiff(const parser::Expr& expr, EvalContext& ctx) {
   if (target.empty()) {
     return false;  // no target resolved -> treat as differing
   }
-  // The unified/context header carries each side's mtime (like `diff -u`); a no-timestamp
-  // (git-style) header would need an mbo option, noted for a later mbo version.
   const absl::StatusOr<mbo::file::Artefact> lhs = mbo::file::Artefact::Read(ctx.visit.path);
   const absl::StatusOr<mbo::file::Artefact> rhs = mbo::file::Artefact::Read(target);
   if (!lhs.ok() || !rhs.ok()) {
@@ -1130,6 +1131,9 @@ bool EvalDiff(const parser::Expr& expr, EvalContext& ctx) {
   mbo::diff::DiffOptions options;  // default-constructed (myers, unified, ctx 3) then tuned
   options.output_format = style.format;
   options.context_size = style.context;
+  // Git-style header: an empty time_format omits the per-file mtime (`--- a/one.txt`), so the
+  // output is reproducible regardless of the compared files' timestamps or the local time zone.
+  options.time_format = "";
   if (const std::optional<mbo::diff::DiffOptions::Algorithm> algo =
           mbo::diff::DiffOptions::ParseAlgorithmFlag(ctx.diff_algorithm);
       algo.has_value()) {

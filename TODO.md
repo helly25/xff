@@ -236,17 +236,21 @@ remains below is the design-forked / larger work.
     `naive|direct|myers` (default myers) selects the engine. Text only; a binary side prints
     `Binary files A and B differ` to **stderr** (byte compared). The header carries each side's
     mtime (`diff -u` style).
-    - **Normalization SHIPPED (the mbo-supported subset):** `--diff-ignore=<tokens>` where a
-      token is `ws` (all whitespace), `change` (whitespace changes), `trail` (trailing
-      whitespace), `blank` (blank lines), or `case` (letter case), comma-separated; plus
-      `--diff-ignore-matching=REGEX` (RE2, ignores matching lines). Both validated before the
-      walk (an unknown token or bad regex is a usage error, exit 2) and shared with the apply
-      path via `ApplyDiffIgnore`. The non-copyable RE2 option is sidestepped by building a fresh
-      `DiffOptions` per `-diff` entry (`emplace` per call, with `log_errors(false)` so a bad
-      pattern reports once, cleanly).
-    - **Still deferred (mbo-blocked, tracked in #107):** the `lead` / `eol` / `eofnl` ignore
-      tokens (no `mbo::diff` field yet) and a git-style (no-timestamp) diff header - both need a
-      newer mbo. Making `--diff-ignore*` `.xffrc`-settable also stays for the config pass. Full
-      design in the memory note (`project_xff_cmp_diff`).
-    - **`mbo` dependency:** built against a `git_override` pinned at the mbo commit that carries
-      0.13.0's `mbo/diff`; drop it for a plain `helly25_mbo` 0.13.0 bump once that releases to BCR.
+    - **Normalization SHIPPED:** `--diff-ignore=<tokens>` where a token is `ws` (all whitespace),
+      `change` (whitespace changes), `trail` (trailing whitespace), `blank` (blank lines), `case`
+      (letter case), or `eofnl` (a missing final newline), comma-separated; plus
+      `--diff-ignore-matching=REGEX` (RE2, ignores matching lines). Both validated before the walk
+      (an unknown token or bad regex is a usage error, exit 2) and shared with the apply path via
+      `ApplyDiffIgnore`. The non-copyable RE2 option is sidestepped by building a fresh
+      `DiffOptions` per `-diff` entry (`emplace` per call, with `log_errors(false)`). There is no
+      `lead`/`eol` token: leading whitespace is subsumed by `change`/`ws`, and CRLF-vs-LF by `trail`
+      (a `\r` is trailing whitespace).
+    - **Git-style header SHIPPED:** `-diff` sets `time_format=""` so the header omits the per-file
+      mtime (`--- a/one.txt`), making the output reproducible; the golden tests no longer strip a
+      timestamp with `sed`. (mbo `ignore_missing_final_newline` + empty-`time_format` landed in
+      helly25/mbo#234.)
+    - **Still deferred:** making `--diff-ignore*` `.xffrc`-settable (the config pass). Full design in
+      the memory note (`project_xff_cmp_diff`).
+    - **`mbo` dependency:** built against a `git_override` pinned at the mbo `main` commit merging
+      helly25/mbo#234 (0.13.0-dev: `mbo/diff` + `mbo/digest`); drop it for a plain `helly25_mbo`
+      0.13.0 bump once that releases to BCR.
