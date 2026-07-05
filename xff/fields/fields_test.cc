@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
 #include <map>
 #include <string>
 #include <string_view>
@@ -118,6 +119,32 @@ TEST_F(FieldsTest, MatchAndColumnAreEmptyWithoutASpan) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   const Template compiled = Template::Compile("[{column}][{match}]");
   EXPECT_THAT(compiled.Render(RenderContext{.path = "f", .metadata = md}), "[][]");
+}
+
+TEST_F(FieldsTest, HashFieldDigestsFileContent) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 3);
+  const std::string path = std::string(::testing::TempDir()) + "/xff_fields_hash_abc";
+  { std::ofstream(path) << "abc"; }
+  // Bare {hash} is sha256 hex; the qualifier picks the algorithm and (after /) the encoding.
+  EXPECT_THAT(
+      Template::Compile("{hash}").Render(RenderContext{.path = path, .metadata = md}),
+      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+  EXPECT_THAT(
+      Template::Compile("{hash:md5}").Render(RenderContext{.path = path, .metadata = md}),
+      "900150983cd24fb0d6963f7d28e17f72");
+  EXPECT_THAT(
+      Template::Compile("{hash:sha256/base64}").Render(RenderContext{.path = path, .metadata = md}),
+      "ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=");
+  // An unknown algorithm or encoding renders empty (the field convention).
+  EXPECT_THAT(Template::Compile("[{hash:crc32}]").Render(RenderContext{.path = path, .metadata = md}), "[]");
+  EXPECT_THAT(Template::Compile("[{hash:sha256/b64}]").Render(RenderContext{.path = path, .metadata = md}), "[]");
+  std::remove(path.c_str());
+}
+
+TEST_F(FieldsTest, HashFieldOfUnreadableFileIsEmpty) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const std::string absent = std::string(::testing::TempDir()) + "/xff_fields_hash_absent";
+  EXPECT_THAT(Template::Compile("[{hash}]").Render(RenderContext{.path = absent, .metadata = md}), "[]");
 }
 
 TEST_F(FieldsTest, TimeFieldQualifiers) {

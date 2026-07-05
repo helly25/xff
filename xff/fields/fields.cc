@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -40,6 +41,7 @@
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
 #include "xff/datetime/datetime.h"
+#include "xff/hash/hash.h"
 #include "xff/regex/regex.h"
 #include "xff/vfs/entry.h"
 
@@ -253,6 +255,31 @@ std::string ColumnField(std::string_view, std::string_view, const RenderContext&
   return ctx.match_column.has_value() ? std::to_string(*ctx.match_column) : std::string();
 }
 
+// {hash} / {hash:ALGO[/ENCODING]}: the digest of the entry's file content. The qualifier is an
+// algorithm name (empty -> sha256) optionally followed by /ENCODING (hex the default, or base64),
+// e.g. {hash:md5} or {hash:sha256/base64} or {hash:/base64}. An unknown algorithm or encoding, or
+// an unreadable file, renders empty (the field convention). Reads the file, so it is expensive.
+std::string HashField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
+  std::string_view algo = qualifier;
+  std::string_view encoding_name;
+  if (const std::size_t slash = qualifier.find('/'); slash != std::string_view::npos) {
+    algo = qualifier.substr(0, slash);
+    encoding_name = qualifier.substr(slash + 1);
+  }
+  if (algo.empty()) {
+    algo = "sha256";
+  }
+  hash::Encoding encoding = hash::Encoding::kHex;
+  if (!encoding_name.empty()) {
+    const std::optional<hash::Encoding> parsed = hash::ParseEncoding(encoding_name);
+    if (!parsed.has_value()) {
+      return "";  // unknown encoding -> empty, like an unknown field
+    }
+    encoding = *parsed;
+  }
+  return hash::HashFile(algo, ctx.path, encoding).value_or("");
+}
+
 std::string SizeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return qualifier == "h" ? HumanSize(ctx.metadata.size) : std::to_string(ctx.metadata.size);
 }
@@ -350,6 +377,7 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"file", &NameField},
     FieldEntry{"gid", &GidField},
     FieldEntry{"group", &GroupField},
+    FieldEntry{"hash", &HashField},
     FieldEntry{"inode", &InodeField},
     FieldEntry{"line", &LineField},
     FieldEntry{"links", &LinksField},
@@ -734,6 +762,12 @@ std::vector<FieldDoc> FieldDocs() {
        .group = "type",
        .header = "Type & size",
        .summary = "depth below the root (0 at a root operand)"},
+      // Content.
+      {.name = "hash",
+       .aliases = {},
+       .group = "content",
+       .header = "Content",
+       .summary = "file digest; {hash:ALGO[/ENCODING]} picks the algorithm (default sha256) and hex/base64"},
       // Owner & mode.
       {.name = "user", .aliases = {}, .group = "owner", .header = "Owner & mode", .summary = "owner user name"},
       {.name = "group", .aliases = {}, .group = "owner", .header = "Owner & mode", .summary = "owner group name"},
