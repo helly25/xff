@@ -304,25 +304,35 @@ absl::Status ApplyContextSpec(std::string_view spec, std::size_t& before, std::s
 
 // --context=SPEC / --before-context=N / --after-context=N (grep -C/-B/-A): the lines of context
 // -grep prints before/after each match. Processed in order, last value per side wins; fills
-// (before, after). A malformed value is an InvalidArgument (a usage error before the walk).
-absl::Status ResolveGrepContext(const std::vector<std::string>& globals, std::size_t& before, std::size_t& after) {
+// (before, after) and sets `any_context` when at least one of the three flags appeared (so a
+// caller can tell a deliberate `--context=0` from "no context flag"). A malformed value is an
+// InvalidArgument (a usage error before the walk).
+absl::Status ResolveGrepContext(
+    const std::vector<std::string>& globals,
+    std::size_t& before,
+    std::size_t& after,
+    bool& any_context) {
   constexpr std::string_view kContext = "--context=";
   constexpr std::string_view kBefore = "--before-context=";
   constexpr std::string_view kAfter = "--after-context=";
   before = 0;
   after = 0;
+  any_context = false;
   for (const std::string& global : globals) {
     if (global.starts_with(kContext)) {
+      any_context = true;
       if (const absl::Status status = ApplyContextSpec(std::string_view(global).substr(kContext.size()), before, after);
           !status.ok()) {
         return status;
       }
     } else if (global.starts_with(kBefore)) {
+      any_context = true;
       if (const std::string_view value = std::string_view(global).substr(kBefore.size());
           !absl::SimpleAtoi(value, &before)) {
         return absl::InvalidArgumentError(absl::StrCat("bad --before-context value '", value, "'"));
       }
     } else if (global.starts_with(kAfter)) {
+      any_context = true;
       if (const std::string_view value = std::string_view(global).substr(kAfter.size());
           !absl::SimpleAtoi(value, &after)) {
         return absl::InvalidArgumentError(absl::StrCat("bad --after-context value '", value, "'"));
@@ -1244,7 +1254,9 @@ int RunFind(
   // here so a bad value is a usage error (exit 2) before the walk.
   std::size_t grep_before = 0;
   std::size_t grep_after = 0;
-  if (const absl::Status status = ResolveGrepContext(command.globals, grep_before, grep_after); !status.ok()) {
+  bool context_seen = false;
+  if (const absl::Status status = ResolveGrepContext(command.globals, grep_before, grep_after, context_seen);
+      !status.ok()) {
     on_error("--context", status);
     return 2;
   }
@@ -1282,6 +1294,48 @@ int RunFind(
   if (const absl::Status status = ValidateDiffIgnore(diff_ignore, diff_ignore_matching); !status.ok()) {
     on_error("--diff-ignore", status);
     return 2;
+  }
+  // --diff-format=u|c|n|y|unified|context|normal|side-by-side: the default -diff output format
+  // (last occurrence wins; unset -> unified). A per-action -diff=STYLE letter still overrides it.
+  // Validated here so a bad value is a usage error (exit 2) before the walk.
+  mbo::diff::DiffOptions::OutputFormat diff_format = mbo::diff::DiffOptions::OutputFormat::kUnified;
+  std::string diff_format_flag;
+  for (const std::string& global : command.globals) {
+    constexpr std::string_view kDiffFormat = "--diff-format=";
+    if (global.starts_with(kDiffFormat)) {
+      diff_format_flag = global.substr(kDiffFormat.size());
+    }
+  }
+  if (!diff_format_flag.empty()) {
+    const std::optional<mbo::diff::DiffOptions::OutputFormat> parsed = ParseDiffFormatFlag(diff_format_flag);
+    if (!parsed.has_value()) {
+      on_error(
+          "--diff-format", absl::InvalidArgumentError(
+                               absl::StrCat(
+                                   "unknown diff format '", diff_format_flag,
+                                   "' (use u/unified, c/context, n/normal, or y/side-by-side)")));
+      return 2;
+    }
+    diff_format = *parsed;
+  }
+  // --diff-context=N (and --context=N when symmetric): the default -diff context size (built-in 3).
+  // --context feeds diff only when before==after (a single symmetric value a diff can represent);
+  // --diff-context overrides --context regardless of order; a per-action -diff=uN overrides both.
+  std::size_t diff_context = 3;
+  if (context_seen && grep_before == grep_after) {
+    diff_context = grep_before;
+  }
+  for (const std::string& global : command.globals) {
+    constexpr std::string_view kDiffContext = "--diff-context=";
+    if (global.starts_with(kDiffContext)) {
+      const std::string_view value = std::string_view(global).substr(kDiffContext.size());
+      if (std::size_t n = 0; absl::SimpleAtoi(value, &n)) {
+        diff_context = n;
+      } else {
+        on_error("--diff-context", absl::InvalidArgumentError(absl::StrCat("bad --diff-context value '", value, "'")));
+        return 2;
+      }
+    }
   }
   // --hash-algorithm=ALGO / --hash-encoding=hex|base64: defaults for a bare -hash action and a
   // bare {hash} field (last occurrence wins; empty -> sha256 / hex). Validated here so a bad value
@@ -1526,6 +1580,8 @@ int RunFind(
             .diff_algorithm = diff_algorithm,
             .diff_ignore = diff_ignore,
             .diff_ignore_matching = diff_ignore_matching,
+            .diff_format = diff_format,
+            .diff_context = diff_context,
             .hash_algorithm = hash_algorithm,
             .hash_encoding = hash_encoding,
             .control = control,

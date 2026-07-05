@@ -232,6 +232,20 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "-diff ignores lines matching this regex (RE2)",
     },
     {
+        .name = "--diff-format",
+        .display = "--diff-format=u|c|n|y",
+        .group = "output",
+        .header = "Output",
+        .summary = "default -diff format: u/unified (default), c/context, n/normal, y/side-by-side",
+    },
+    {
+        .name = "--diff-context",
+        .display = "--diff-context=N",
+        .group = "output",
+        .header = "Output",
+        .summary = "default -diff context lines (3); overrides --context for -diff, and -diff=uN overrides it",
+    },
+    {
         .name = "--hash-algorithm",
         .display = "--hash-algorithm=ALGO",
         .group = "output",

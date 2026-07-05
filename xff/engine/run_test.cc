@@ -42,6 +42,7 @@ namespace fs = std::filesystem;
 
 using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
+using ::testing::AllOf;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::HasSubstr;
@@ -607,6 +608,75 @@ TEST_F(RunTest, DiffIgnoreRejectsUnknownToken) {
   EXPECT_THAT(records, IsEmpty());
   EXPECT_THAT(errors, 2);
   EXPECT_THAT(reported, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("unknown --diff-ignore token 'bogus'")));
+}
+
+TEST_F(RunTest, DiffFormatAndContextGlobalsSetTheDefaults) {
+  // A 7-line file with a single changed line (line 4); -diff emits the whole diff as one record.
+  { std::ofstream(root_ / "one.txt") << "a\nb\nc\nd\ne\nf\ng\n"; }
+  { std::ofstream(root_ / "two.txt") << "a\nb\nc\nX\ne\nf\ng\n"; }
+  const std::string two = Path("two.txt");
+  // Built-in default: unified with 3 lines of context (the hunk spans all 7 lines here).
+  EXPECT_THAT(
+      RunArgvRecords({root_.string(), "-name", "one.txt", "-diff", two}), ElementsAre(HasSubstr("@@ -1,7 +1,7 @@")));
+  // --diff-context=1 narrows the unified hunk to one line of context each side.
+  EXPECT_THAT(
+      RunArgvRecords({"--diff-context=1", root_.string(), "-name", "one.txt", "-diff", two}),
+      ElementsAre(HasSubstr("@@ -3,3 +3,3 @@")));
+  // --diff-format=normal switches to the `NcN` normal format (no unified `@@` hunk header).
+  EXPECT_THAT(
+      RunArgvRecords({"--diff-format=normal", root_.string(), "-name", "one.txt", "-diff", two}),
+      ElementsAre(AllOf(HasSubstr("4c4"), HasSubstr("< d"), HasSubstr("> X"), Not(HasSubstr("@@")))));
+}
+
+TEST_F(RunTest, ContextGlobalFeedsDiffContextWhenSymmetric) {
+  { std::ofstream(root_ / "one.txt") << "a\nb\nc\nd\ne\nf\ng\n"; }
+  { std::ofstream(root_ / "two.txt") << "a\nb\nc\nX\ne\nf\ng\n"; }
+  const std::string two = Path("two.txt");
+  // A symmetric --context=1 (grep before==after) also seeds the -diff default context.
+  EXPECT_THAT(
+      RunArgvRecords({"--context=1", root_.string(), "-name", "one.txt", "-diff", two}),
+      ElementsAre(HasSubstr("@@ -3,3 +3,3 @@")));
+  // An asymmetric --context (after != before) is grep-only; -diff falls back to its built-in 3.
+  EXPECT_THAT(
+      RunArgvRecords({"--context=A:1,B:0", root_.string(), "-name", "one.txt", "-diff", two}),
+      ElementsAre(HasSubstr("@@ -1,7 +1,7 @@")));
+  // --diff-context overrides --context for -diff regardless of order.
+  EXPECT_THAT(
+      RunArgvRecords({"--context=1", "--diff-context=5", root_.string(), "-name", "one.txt", "-diff", two}),
+      ElementsAre(HasSubstr("@@ -1,7 +1,7 @@")));
+}
+
+TEST_F(RunTest, PerActionDiffStyleOverridesTheGlobals) {
+  { std::ofstream(root_ / "one.txt") << "a\nb\nc\nd\ne\nf\ng\n"; }
+  { std::ofstream(root_ / "two.txt") << "a\nb\nc\nX\ne\nf\ng\n"; }
+  const std::string two = Path("two.txt");
+  // -diff=c (context format) wins over --diff-format=normal; the `*** ` marker is context-diff.
+  EXPECT_THAT(
+      RunArgvRecords({"--diff-format=normal", root_.string(), "-name", "one.txt", "-diff=c", two}),
+      ElementsAre(AllOf(HasSubstr("***"), Not(HasSubstr("4c4")))));
+  // -diff=u5 (explicit context 5) wins over --diff-context=1: the hunk widens back to all 7 lines.
+  EXPECT_THAT(
+      RunArgvRecords({"--diff-context=1", root_.string(), "-name", "one.txt", "-diff=u5", two}),
+      ElementsAre(HasSubstr("@@ -1,7 +1,7 @@")));
+}
+
+TEST_F(RunTest, DiffFormatAndContextRejectBadValues) {
+  const auto run_expect_usage_error = [&](const std::vector<std::string>& argv, std::string_view message) {
+    const auto command = parser::Parse(argv);
+    ASSERT_THAT(command, IsOk());
+    std::vector<std::string> records;
+    absl::Status reported;
+    const int errors = RunFind(
+        *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
+        [&](std::string_view, absl::Status status) { reported = status; });
+    EXPECT_THAT(records, IsEmpty());
+    EXPECT_THAT(errors, 2);
+    EXPECT_THAT(reported, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr(message)));
+  };
+  run_expect_usage_error(
+      {"--diff-format=bogus", root_.string(), "-name", "a.txt", "-diff", Path("b.md")}, "unknown diff format 'bogus'");
+  run_expect_usage_error(
+      {"--diff-context=x", root_.string(), "-name", "a.txt", "-diff", Path("b.md")}, "bad --diff-context value 'x'");
 }
 
 TEST_F(RunTest, HashActionPrintsDigestAndPath) {

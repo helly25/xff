@@ -995,34 +995,36 @@ bool EvalCmp(const parser::Expr& expr, EvalContext& ctx) {
 
 namespace {
 
-// The output selectors a -diff=STYLE token maps to: a format, its context size, and whether
-// output is suppressed (`-diff=none`, a compute-but-silent matcher). The token is already
-// syntactically valid (the parser checked it); default (empty) is u3.
+// The output selectors a -diff=STYLE token maps to. `format` and `context` are optional: an
+// omitted one falls back to the resolved global default (--diff-format / --diff-context /
+// --context, themselves defaulting to unified / 3), so the per-action token wins only over the
+// parts it names. `silent` is -diff=none (compute but do not print). The token is already
+// syntactically valid (the parser checked it).
 struct DiffStyle {
-  mbo::diff::DiffOptions::OutputFormat format = mbo::diff::DiffOptions::OutputFormat::kUnified;
-  std::size_t context = 3;
+  std::optional<mbo::diff::DiffOptions::OutputFormat> format;
+  std::optional<std::size_t> context;
   bool silent = false;
 };
 
 DiffStyle ParseDiffStyle(std::string_view style) {
   using OutputFormat = mbo::diff::DiffOptions::OutputFormat;
   if (style.empty()) {
-    return {};  // bare -diff == -diff=u3
+    return {};  // bare -diff: format and context both fall back to the resolved globals
   }
   if (style == "none") {
     return {.silent = true};  // compute-but-silent (a normalized matcher)
   }
   DiffStyle result;
   switch (style.front()) {
-    case 'u': result.format = OutputFormat::kUnified; break;
     case 'c': result.format = OutputFormat::kContext; break;
     case 'n': result.format = OutputFormat::kNormal; break;
+    case 'u': result.format = OutputFormat::kUnified; break;
     case 'y': result.format = OutputFormat::kSideBySide; break;
     default: break;  // unreachable: validated in the parser
   }
   std::size_t context = 0;
   if (style.size() > 1 && absl::SimpleAtoi(style.substr(1), &context)) {
-    result.context = context;  // explicit context count (uN / cN / yN)
+    result.context = context;  // explicit context count (uN / cN / yN) overrides the global
   }
   return result;
 }
@@ -1130,8 +1132,10 @@ bool EvalDiff(const parser::Expr& expr, EvalContext& ctx) {
   }
   const DiffStyle style = ParseDiffStyle(expr.diff_style);
   mbo::diff::DiffOptions options;  // default-constructed (myers, unified, ctx 3) then tuned
-  options.output_format = style.format;
-  options.context_size = style.context;
+  // A -diff=STYLE token overrides only the parts it names; an omitted format/context falls back to
+  // the resolved global default (--diff-format / --diff-context / --context, else unified / 3).
+  options.output_format = style.format.value_or(ctx.diff_format);
+  options.context_size = style.context.value_or(ctx.diff_context);
   // Git-style header: an empty time_format omits the per-file mtime (`--- a/one.txt`), so the
   // output is reproducible regardless of the compared files' timestamps or the local time zone.
   options.time_format = "";
@@ -2064,6 +2068,27 @@ bool ContainsAction(const parser::Expr& expr) {
     case parser::Expr::Kind::kComma: return ContainsAction(*expr.lhs) || ContainsAction(*expr.rhs);
   }
   return false;  // Unreachable: every Expr::Kind returns above.
+}
+
+std::optional<mbo::diff::DiffOptions::OutputFormat> ParseDiffFormatFlag(std::string_view flag) {
+  using OutputFormat = mbo::diff::DiffOptions::OutputFormat;
+  // The -diff=STYLE letters plus the long names, each mapping to one mbo output format. Keys are
+  // alphabetical so the constexpr LimitedMap stays sorted. `none` is deliberately absent: it is
+  // the per-action silencer, not a default the walk carries.
+  static constexpr auto kFormats = mbo::container::MakeLimitedMap(
+      std::pair<std::string_view, OutputFormat>{"c", OutputFormat::kContext},
+      std::pair<std::string_view, OutputFormat>{"context", OutputFormat::kContext},
+      std::pair<std::string_view, OutputFormat>{"n", OutputFormat::kNormal},
+      std::pair<std::string_view, OutputFormat>{"normal", OutputFormat::kNormal},
+      std::pair<std::string_view, OutputFormat>{"side-by-side", OutputFormat::kSideBySide},
+      std::pair<std::string_view, OutputFormat>{"u", OutputFormat::kUnified},
+      std::pair<std::string_view, OutputFormat>{"unified", OutputFormat::kUnified},
+      std::pair<std::string_view, OutputFormat>{"y", OutputFormat::kSideBySide});
+  const auto it = kFormats.find(flag);
+  if (it == kFormats.end()) {
+    return std::nullopt;
+  }
+  return it->second;
 }
 
 // Pre-walk validation of the --diff-ignore / --diff-ignore-matching values: runs the same
