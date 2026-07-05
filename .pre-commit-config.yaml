@@ -66,6 +66,17 @@ repos:
         exclude: ^[.]pre-commit-config.yaml$
         entry: (#|//|/[*]).*(FIXME|TODO)[(](?!(((\w|\w[.-]\w)+@(\w|-)+([.](\w|-)+)*)|(https?://[^)]+))(,[^)]+)?)[)]
         types: [text]
+      - id: no-shell-grep-in-bashtests
+        name: No hand-rolled grep in bashtests
+        description: |
+          Project convention (STYLE_CPP.md): a bashtest asserts on captured output with
+          helly25/bashtest content matchers (expect_output_contains / expect_matches),
+          never a hand-rolled shell `grep` - a piped `grep -q` misfires on SIGPIPE under
+          `set -o pipefail`, and `$(grep -q ... && echo yes)` drops the output on failure.
+          To skip once, run `SKIP="no-shell-grep-in-bashtests" pre-commit`.
+        language: script
+        entry: tools/check_bashtest_grep.sh
+        files: _test\.sh$
       - id: align-markdown-tables
         name: Align Markdown tables
         description: |

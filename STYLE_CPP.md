@@ -413,10 +413,21 @@ serialized-string comparison. See the Protocol Buffers section.
   `[[ =~ ]]` (no subprocess), so - unlike `printf ... | grep -qE` - they cannot misfire
   on SIGPIPE under `set -o pipefail`. `expect_eq` / `expect_ne` stay for scalar checks
   (exit codes, counts); `expect_contains` / `expect_not_contains` are **array**-membership,
-  not substring. Do not reintroduce a `_has`-style `grep -q` wrapper.
+  not substring. Do not reintroduce a `_has`-style `grep -q` wrapper. This is **enforced**
+  by the `no-shell-grep-in-bashtests` pre-commit hook (`tools/check_bashtest_grep.sh`),
+  which fails on a shell `grep` at a command position in any `*_test.sh` (the `-grep`
+  primary under test and prose are not flagged).
   - **Anchoring caveat:** `expect_matches` matches the **whole** text, so `^` / `$` anchor
     the whole output, not a line (unlike `grep`). For a per-line anchor use a real newline:
     `NL=$'\n'`, then `(^|${NL})X` for a line start and `X($|${NL})` for a line end (`\n` is
     not a portable ERE escape, so embed the newline via `${NL}`).
+- **For a whole-output-per-case golden, prefer a golden-file test over scraping.** When a
+  test wants to lock an entire rendered output (not just probe for substrings), commit one
+  expected-output file per case and diff against it with mbo's `diff.bzl` `diff_test`
+  (`@helly25_mbo//mbo/diff:diff.bzl`), which fails printing the offending diff. `xff`'s
+  `diff_golden.bzl` macro is the pattern: a single input generator plus a `{case: golden}`
+  dict, each case run through the built binary into a normalized `.actual` that `diff_test`
+  compares. This is the output analogue of `EqualsText` for C++ and reads far better than a
+  pile of `expect_output_contains` probes.
 - It runs under macOS bash 3.2: **no `mapfile` / `readarray`** or other bash-4 features.
   Read lines with `while IFS= read -r line; do arr+=("$line"); done <<< "$out"`.
