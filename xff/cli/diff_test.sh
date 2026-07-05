@@ -107,4 +107,27 @@ test::diff_binary_notes_on_stderr_and_bad_inputs_are_usage_errors() {
   expect_output_contains 'unknown diff algorithm' "${out}"
 }
 
+test::diff_format_and_context_globals() {
+  local dir out rc
+  dir="${TEST_TMPDIR}/difffmt"
+  mkdir -p "${dir}"
+  printf 'a\nb\nc\nd\ne\nf\ng\n' >"${dir}/one.txt"
+  printf 'a\nb\nc\nX\ne\nf\ng\n' >"${dir}/two.txt" # one changed line (line 4)
+  # --diff-format=normal emits the `NcN` normal format (no unified `@@` hunk header).
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-format=normal "${dir}" -name one.txt -diff "${dir}/two.txt" 2>&1)"
+  expect_output_contains '4c4' "${out}"
+  expect_output_not_contains '@@' "${out}"
+  # --diff-context=1 narrows the unified hunk to one line of context on each side.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-context=1 "${dir}" -name one.txt -diff "${dir}/two.txt" 2>&1)"
+  expect_output_contains '@@ -3,3 +3,3 @@' "${out}"
+  # A bad --diff-format is a usage error.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-format=bogus "${dir}" -name one.txt -diff "${dir}/two.txt" 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains 'unknown diff format' "${out}"
+  # A bad --diff-context is a usage error.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-context=x "${dir}" -name one.txt -diff "${dir}/two.txt" 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains 'bad --diff-context value' "${out}"
+}
+
 test_runner
