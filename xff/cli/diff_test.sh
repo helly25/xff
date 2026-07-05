@@ -31,38 +31,28 @@ _xff_bin() {
   echo "${bin}"
 }
 
-test::diff_emits_a_unified_diff_and_is_silent_when_equal() {
+# The per-mode output (u/c/n/y/none) is golden-tested by the `diff_golden` targets: one
+# committed expected-output file per mode, checked with mbo's diff_test. This bashtest covers
+# what is not stdout-golden-able -- the TRUE = same polarity, --diff-algorithm acceptance, the
+# binary stderr note, and the usage errors.
+
+test::diff_polarity_true_when_equal_false_when_different() {
   local dir out
-  dir="${TEST_TMPDIR}/diff"
+  dir="${TEST_TMPDIR}/diffpol"
   mkdir -p "${dir}"
-  printf 'one\ntwo\nthree\n' >"${dir}/a.txt"
-  printf 'one\nTWO\nthree\n' >"${dir}/b.txt"
-  printf 'one\ntwo\nthree\n' >"${dir}/same.txt"
-  # Default u3 unified diff of a.txt against b.txt.
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name a.txt -diff "${dir}/b.txt" 2>&1)"
-  expect_output_contains '@@' "${out}" # a unified hunk header
-  expect_output_contains '-two' "${out}"
-  expect_output_contains '+TWO' "${out}"
-  # Equal -> silent (no diff), and TRUE, so a trailing -print still fires.
+  printf 'one\ntwo\n' >"${dir}/a.txt"
+  printf 'one\nTWO\n' >"${dir}/b.txt"
+  printf 'one\ntwo\n' >"${dir}/same.txt"
+  # Equal -> -diff is silent (no diff) but TRUE, so a trailing -print fires.
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name a.txt -diff "${dir}/same.txt" -print 2>&1)"
   expect_output_not_contains '@@' "${out}"
   expect_output_contains 'a.txt' "${out}"
-}
-
-test::diff_style_selects_the_output_format() {
-  local dir out
-  dir="${TEST_TMPDIR}/diffstyle"
-  mkdir -p "${dir}"
-  printf 'one\ntwo\n' >"${dir}/a.txt"
-  printf 'one\n2\n' >"${dir}/b.txt"
-  # Normal style (-diff=n): `< ` / `> ` lines, no unified `@@` header.
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name a.txt -diff=n "${dir}/b.txt" 2>&1)"
-  expect_output_contains '< two' "${out}"
-  expect_output_contains '> 2' "${out}"
-  expect_output_not_contains '@@' "${out}"
-  # A valid --diff-algorithm is accepted (the engine still produces the change).
+  # Different -> -diff=none is the silent matcher and FALSE, so -print does not fire.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name a.txt -diff=none "${dir}/b.txt" -print 2>&1)"
+  expect_output_not_contains 'a.txt' "${out}"
+  # A valid --diff-algorithm is accepted and still produces the diff.
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-algorithm=naive "${dir}" -name a.txt -diff "${dir}/b.txt" 2>&1)"
-  expect_output_contains '+2' "${out}"
+  expect_output_contains '+TWO' "${out}"
 }
 
 test::diff_binary_notes_on_stderr_and_bad_inputs_are_usage_errors() {
