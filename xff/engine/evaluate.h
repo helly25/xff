@@ -103,6 +103,12 @@ struct EvalContext {
   // --diff-algorithm=naive|direct|myers: the diff engine -diff uses (mbo::diff). Empty ->
   // myers (the default). Validated once before the walk; only -diff reads it.
   std::string_view diff_algorithm;
+  // --diff-ignore=<tokens>: comma-separated normalization tokens for -diff (ws / change /
+  // trail / blank / case), validated once before the walk. Empty -> exact. Only -diff reads it.
+  std::string_view diff_ignore;
+  // --diff-ignore-matching=REGEX: -diff ignores lines matching this RE2 (compiled per -diff
+  // entry; the pattern is validated once before the walk). Empty -> no line filter.
+  std::string_view diff_ignore_matching;
   Control& control;                              // collects -prune/-quit requests
   bool exec_fields = false;                      // --exec-fields: render -exec tokens through the field vocabulary
   std::vector<std::string>* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off
@@ -145,6 +151,14 @@ bool ContainsAction(const parser::Expr& expr);
 // per-entry no-match, matching find's parse-time rejection. Style-independent: the
 // size units (incl. the T/P/E continuation) are valid in every flavor.
 absl::Status ValidateSizeArgs(const parser::Expr& expr);
+
+// Validates the --diff-ignore token list and the --diff-ignore-matching regex, returning the
+// first problem as an InvalidArgument (an unknown token names it; a bad regex carries RE2's
+// diagnostic) or Ok. Each comma-separated token in `tokens` must be one of ws / change / trail
+// / blank / case (empty tokens are skipped); a non-empty `matching` must be a valid RE2. The
+// driver calls it once before the walk so a bad value is a usage error (exit 2) rather than a
+// silent per-entry no-op; -diff then trusts the validated values.
+absl::Status ValidateDiffIgnore(std::string_view tokens, std::string_view matching);
 
 // Parses a `--block-size=SIZE` value into bytes: `N[unit]` where a bare number is
 // bytes and the unit suffixes are the fixed binary multiples (c/w/k/M/G/T/P/E; 'b'

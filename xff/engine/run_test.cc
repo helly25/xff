@@ -550,6 +550,45 @@ TEST_F(RunTest, DiffPolarityIsTrueWhenEqual) {
   EXPECT_THAT(RunExpr({"-name", "a.txt", "-diff=none", Path("nope.txt"), "-print"}), IsEmpty());
 }
 
+TEST_F(RunTest, DiffIgnoreNormalizesComparison) {
+  // Two files that differ only by trailing whitespace; the normalization globals make -diff
+  // treat them as equal (TRUE, so the trailing -print fires). -diff=none is the silent matcher.
+  { std::ofstream(root_ / "left.txt") << "one\ntwo   \nthree\n"; }
+  { std::ofstream(root_ / "right.txt") << "one\ntwo\nthree\n"; }
+  const std::string right = Path("right.txt");
+  // Without normalization the trailing whitespace differs -> FALSE, no print.
+  EXPECT_THAT(RunExpr({"-name", "left.txt", "-diff=none", right, "-print"}), IsEmpty());
+  // --diff-ignore=trail and =ws both fold the whitespace so the sides compare equal.
+  EXPECT_THAT(
+      RunArgvRecords({"--diff-ignore=trail", root_.string(), "-name", "left.txt", "-diff=none", right, "-print"}),
+      ElementsAre(Path("left.txt")));
+  EXPECT_THAT(
+      RunArgvRecords({"--diff-ignore=ws", root_.string(), "-name", "left.txt", "-diff=none", right, "-print"}),
+      ElementsAre(Path("left.txt")));
+  // --diff-ignore-matching drops lines matching the regex before comparing (the DEBUG line here).
+  { std::ofstream(root_ / "mleft.txt") << "keep\nDEBUG x\nkeep2\n"; }
+  { std::ofstream(root_ / "mright.txt") << "keep\nDEBUG y\nkeep2\n"; }
+  EXPECT_THAT(
+      RunArgvRecords(
+          {"--diff-ignore-matching=^DEBUG", root_.string(), "-name", "mleft.txt", "-diff=none", Path("mright.txt"),
+           "-print"}),
+      ElementsAre(Path("mleft.txt")));
+}
+
+TEST_F(RunTest, DiffIgnoreRejectsUnknownToken) {
+  // An unknown --diff-ignore token is a pre-walk usage error (exit 2), not a silent no-op.
+  const auto command = parser::Parse({"--diff-ignore=bogus", root_.string(), "-name", "a.txt", "-diff", Path("b.md")});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  absl::Status reported;
+  const int errors = RunFind(
+      *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
+      [&](std::string_view, absl::Status status) { reported = status; });
+  EXPECT_THAT(records, IsEmpty());
+  EXPECT_THAT(errors, 2);
+  EXPECT_THAT(reported, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("unknown --diff-ignore token 'bogus'")));
+}
+
 TEST_F(RunTest, ColorAutoStaysPlainWhenStdoutIsNotATty) {
   // The captured stdout here is a pipe, so auto (the default) leaves even a
   // directory uncolored; only --color=always would force escapes.

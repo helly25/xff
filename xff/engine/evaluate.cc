@@ -37,17 +37,20 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
+#include "absl/strings/str_split.h"
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
 #include "mbo/container/limited_set.h"
 #include "mbo/diff/diff.h"
 #include "mbo/diff/diff_options.h"
 #include "mbo/file/artefact.h"
+#include "re2/re2.h"
 #include "xff/content/line_match.h"
 #include "xff/datetime/datetime.h"
 #include "xff/engine/walk.h"
@@ -1024,6 +1027,54 @@ bool LooksBinary(std::string_view data) {
   return data.substr(0, 8'000).find('\0') != std::string_view::npos;
 }
 
+// One --diff-ignore token's effect: sets its normalization bool on the DiffOptions.
+// Captureless so the table is a constexpr LimitedMap (the mbo bools are bit-fields, so a
+// pointer-to-member cannot address them; a setter can). Like the engine's kPrintfDirectives.
+using DiffIgnoreSetter = void (*)(mbo::diff::DiffOptions&);
+
+// The --diff-ignore token vocabulary (ws = all whitespace, change = whitespace changes, trail =
+// trailing whitespace, blank = blank lines, case = letter case). Single source of truth for the
+// token set -- both the apply path (EvalDiff) and the pre-walk validation (ValidateDiffIgnore) go
+// through it. (mbo's lead / eol / eofnl ignores await a newer mbo and are intentionally absent, so
+// an unknown token is a usage error.)
+constexpr auto kDiffIgnoreTokens = mbo::container::MakeLimitedMap(
+    std::pair<std::string_view, DiffIgnoreSetter>{
+        "blank", [](mbo::diff::DiffOptions& o) { o.ignore_blank_lines = true; }},
+    std::pair<std::string_view, DiffIgnoreSetter>{"case", [](mbo::diff::DiffOptions& o) { o.ignore_case = true; }},
+    std::pair<std::string_view, DiffIgnoreSetter>{
+        "change", [](mbo::diff::DiffOptions& o) { o.ignore_consecutive_space = true; }},
+    std::pair<std::string_view, DiffIgnoreSetter>{
+        "trail", [](mbo::diff::DiffOptions& o) { o.ignore_trailing_space = true; }},
+    std::pair<std::string_view, DiffIgnoreSetter>{"ws", [](mbo::diff::DiffOptions& o) { o.ignore_all_space = true; }});
+
+// Applies the --diff-ignore token list and --diff-ignore-matching regex onto `options`.
+// Each token runs its setter via kDiffIgnoreTokens; an unknown token is an InvalidArgument
+// (naming it). A non-empty `matching` is compiled into options.ignore_matching_lines; a
+// regex that does not compile is an InvalidArgument (carrying RE2's diagnostic). Shared by
+// EvalDiff (per entry) and ValidateDiffIgnore (once, pre-walk, to reject a bad value early).
+absl::Status ApplyDiffIgnore(std::string_view tokens, std::string_view matching, mbo::diff::DiffOptions& options) {
+  for (const std::string_view token : absl::StrSplit(tokens, ',', absl::SkipEmpty())) {
+    const auto it = kDiffIgnoreTokens.find(token);
+    if (it == kDiffIgnoreTokens.end()) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("unknown --diff-ignore token '", token, "' (use ws, change, trail, blank, or case)"));
+    }
+    it->second(options);
+  }
+  if (!matching.empty()) {
+    // log_errors(false): a bad pattern is reported via our own message (below) carrying RE2's
+    // error(), so RE2 must not also LOG(ERROR) it (which, pre-InitializeLog, is noisy on stderr).
+    RE2::Options re2_options;
+    re2_options.set_log_errors(false);
+    options.ignore_matching_lines.emplace(matching, re2_options);
+    if (!options.ignore_matching_lines->ok()) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("invalid --diff-ignore-matching regex: ", options.ignore_matching_lines->error()));
+    }
+  }
+  return absl::OkStatus();
+}
+
 }  // namespace
 
 // xff -diff[=STYLE] TARGET: an ACTION that diffs the entry against TARGET (a field template,
@@ -1077,6 +1128,9 @@ bool EvalDiff(const parser::Expr& expr, EvalContext& ctx) {
       algo.has_value()) {
     options.algorithm = *algo;
   }
+  // --diff-ignore / --diff-ignore-matching normalization. The values were validated before
+  // the walk (ValidateDiffIgnore), so this only configures; the returned status is ignored.
+  ApplyDiffIgnore(ctx.diff_ignore, ctx.diff_ignore_matching, options).IgnoreError();
   const absl::StatusOr<std::string> diff = mbo::diff::Diff::FileDiff(*lhs, *rhs, options);
   if (!diff.ok()) {
     return false;  // a diff failure -> treat as differing
@@ -1943,6 +1997,14 @@ bool ContainsAction(const parser::Expr& expr) {
     case parser::Expr::Kind::kComma: return ContainsAction(*expr.lhs) || ContainsAction(*expr.rhs);
   }
   return false;  // Unreachable: every Expr::Kind returns above.
+}
+
+// Pre-walk validation of the --diff-ignore / --diff-ignore-matching values: runs the same
+// ApplyDiffIgnore the per-entry -diff uses against a throwaway DiffOptions, so the token set and
+// the regex share one source of truth with the apply path. See the header for the contract.
+absl::Status ValidateDiffIgnore(std::string_view tokens, std::string_view matching) {
+  mbo::diff::DiffOptions options;
+  return ApplyDiffIgnore(tokens, matching, options);
 }
 
 absl::Status ValidateSizeArgs(const parser::Expr& expr) {
