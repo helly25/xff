@@ -157,4 +157,16 @@ test::grep_count_prints_per_file_match_line_count() {
   expect_not_matches 'TODO' "${out}"   # the lines themselves are not printed
 }
 
+test::grep_context_prints_surrounding_lines() {
+  local root out
+  root="$(_make_tree)"
+  # --context=1 (leading global, grep -C1): the non-matching "second line" now shows as context
+  # with '-' separators between the two TODO matches (':' separators); the windows merge.
+  out="$(_run --context=1 "${root}" -name a.txt -grep 'TODO')"
+  rm -rf "${root}"
+  expect_matches "/a\.txt:1:first TODO line(\$|${NL})" "${out}" # match line, colon
+  expect_matches "/a\.txt-2-second line(\$|${NL})" "${out}"     # context line, dash
+  expect_matches "/a\.txt:3:another TODO here(\$|${NL})" "${out}"
+}
+
 test_runner

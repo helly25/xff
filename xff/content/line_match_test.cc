@@ -81,5 +81,60 @@ TEST_F(LineMatchTest, NoMatchingLinesIsEmpty) {
   EXPECT_THAT(CollectLineMatches("a\nb\nc\n", never), IsEmpty());
 }
 
+Matcher<ContextLine> CtxIs(std::size_t number, std::string_view text, bool is_match, std::size_t group) {
+  return AllOf(
+      Field("number", &ContextLine::number, number), Field("text", &ContextLine::text, text),
+      Field("is_match", &ContextLine::is_match, is_match), Field("group", &ContextLine::group, group));
+}
+
+// The single match is "HIT"; the other lines are context.
+bool IsHit(std::string_view line) {
+  return line == "HIT";
+}
+
+struct LineContextTest : ::testing::Test {};
+
+TEST_F(LineContextTest, ZeroContextReturnsOnlyMatches) {
+  // before == after == 0: exactly the matches; adjacent matches share a group, a gap splits them.
+  EXPECT_THAT(
+      CollectLineMatchesWithContext("HIT\na\nHIT\n", IsHit, 0, 0),
+      ElementsAre(CtxIs(1, "HIT", true, 0), CtxIs(3, "HIT", true, 1)));
+}
+
+TEST_F(LineContextTest, AfterContext) {
+  EXPECT_THAT(
+      CollectLineMatchesWithContext("a\nHIT\nb\nc\n", IsHit, 0, 1),
+      ElementsAre(CtxIs(2, "HIT", true, 0), CtxIs(3, "b", false, 0)));
+}
+
+TEST_F(LineContextTest, BeforeContext) {
+  EXPECT_THAT(
+      CollectLineMatchesWithContext("a\nHIT\nb\n", IsHit, 1, 0),
+      ElementsAre(CtxIs(1, "a", false, 0), CtxIs(2, "HIT", true, 0)));
+}
+
+TEST_F(LineContextTest, SymmetricContextClampsAtEdges) {
+  // before == after == 1 around a match on the first line: no line 0, one after.
+  EXPECT_THAT(
+      CollectLineMatchesWithContext("HIT\nb\n", IsHit, 1, 1),
+      ElementsAre(CtxIs(1, "HIT", true, 0), CtxIs(2, "b", false, 0)));
+}
+
+TEST_F(LineContextTest, OverlappingWindowsMergeIntoOneGroup) {
+  // Two matches whose context windows touch merge into a single group (no separator between).
+  EXPECT_THAT(
+      CollectLineMatchesWithContext("a\nHIT\nb\nHIT\nc\n", IsHit, 1, 1),
+      ElementsAre(
+          CtxIs(1, "a", false, 0), CtxIs(2, "HIT", true, 0), CtxIs(3, "b", false, 0), CtxIs(4, "HIT", true, 0),
+          CtxIs(5, "c", false, 0)));
+}
+
+TEST_F(LineContextTest, GapStartsANewGroup) {
+  // Matches far apart -> two groups (caller prints "--" between them).
+  EXPECT_THAT(
+      CollectLineMatchesWithContext("HIT\na\nb\nc\nd\nHIT\n", IsHit, 0, 1),
+      ElementsAre(CtxIs(1, "HIT", true, 0), CtxIs(2, "a", false, 0), CtxIs(6, "HIT", true, 1)));
+}
+
 }  // namespace
 }  // namespace xff::content

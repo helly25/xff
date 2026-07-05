@@ -272,6 +272,66 @@ std::string SummaryKey(SummaryMode mode, const Visit& visit) {
   }
 }
 
+// Applies one --context SPEC onto (before, after): a bare non-negative integer sets both sides,
+// else comma-separated A:N / B:N / C:N tokens set after / before / both (last value per side wins).
+// A malformed token or count is an InvalidArgument.
+absl::Status ApplyContextSpec(std::string_view spec, std::size_t& before, std::size_t& after) {
+  if (std::size_t both = 0; absl::SimpleAtoi(spec, &both)) {
+    before = both;
+    after = both;
+    return absl::OkStatus();
+  }
+  for (const std::string_view token : absl::StrSplit(spec, ',', absl::SkipEmpty())) {
+    const std::size_t colon = token.find(':');
+    std::size_t value = 0;
+    if (colon == std::string_view::npos || !absl::SimpleAtoi(token.substr(colon + 1), &value)) {
+      return absl::InvalidArgumentError(absl::StrCat("bad --context token '", token, "' (use N, or A:N / B:N / C:N)"));
+    }
+    const std::string_view side = token.substr(0, colon);
+    if (side == "A" || side == "a") {
+      after = value;
+    } else if (side == "B" || side == "b") {
+      before = value;
+    } else if (side == "C" || side == "c") {
+      before = value;
+      after = value;
+    } else {
+      return absl::InvalidArgumentError(absl::StrCat("bad --context side '", side, "' (use A, B, or C)"));
+    }
+  }
+  return absl::OkStatus();
+}
+
+// --context=SPEC / --before-context=N / --after-context=N (grep -C/-B/-A): the lines of context
+// -grep prints before/after each match. Processed in order, last value per side wins; fills
+// (before, after). A malformed value is an InvalidArgument (a usage error before the walk).
+absl::Status ResolveGrepContext(const std::vector<std::string>& globals, std::size_t& before, std::size_t& after) {
+  constexpr std::string_view kContext = "--context=";
+  constexpr std::string_view kBefore = "--before-context=";
+  constexpr std::string_view kAfter = "--after-context=";
+  before = 0;
+  after = 0;
+  for (const std::string& global : globals) {
+    if (global.starts_with(kContext)) {
+      if (const absl::Status status = ApplyContextSpec(std::string_view(global).substr(kContext.size()), before, after);
+          !status.ok()) {
+        return status;
+      }
+    } else if (global.starts_with(kBefore)) {
+      if (const std::string_view value = std::string_view(global).substr(kBefore.size());
+          !absl::SimpleAtoi(value, &before)) {
+        return absl::InvalidArgumentError(absl::StrCat("bad --before-context value '", value, "'"));
+      }
+    } else if (global.starts_with(kAfter)) {
+      if (const std::string_view value = std::string_view(global).substr(kAfter.size());
+          !absl::SimpleAtoi(value, &after)) {
+        return absl::InvalidArgumentError(absl::StrCat("bad --after-context value '", value, "'"));
+      }
+    }
+  }
+  return absl::OkStatus();
+}
+
 // xff's modern output selector (leading globals, last wins, default plain):
 // --format=plain|nul|jsonl, with -0 a shorthand for NUL. find's -print/-print0
 // keep their fixed formats; this drives only the implicit (default) print.
@@ -1180,6 +1240,14 @@ int RunFind(
   }
   // --count / -c: -grep emits a per-file matching-line count instead of the lines.
   const bool grep_count = HasGlobal(command.globals, "--count") || HasGlobal(command.globals, "-c");
+  // --context / --before-context / --after-context (grep -C/-B/-A): -grep context lines. Validated
+  // here so a bad value is a usage error (exit 2) before the walk.
+  std::size_t grep_before = 0;
+  std::size_t grep_after = 0;
+  if (const absl::Status status = ResolveGrepContext(command.globals, grep_before, grep_after); !status.ok()) {
+    on_error("--context", status);
+    return 2;
+  }
   // --diff-algorithm=naive|direct|myers: the engine -diff uses (mbo::diff). Last occurrence
   // wins; empty -> myers (the default). Validated here so a bad value is a usage error (exit 2)
   // before the walk rather than a silent fallback.
@@ -1453,6 +1521,8 @@ int RunFind(
             .fold_name_case = fold_name_case,
             .grep_literal = *grep_literal,
             .grep_count = grep_count,
+            .grep_before = grep_before,
+            .grep_after = grep_after,
             .diff_algorithm = diff_algorithm,
             .diff_ignore = diff_ignore,
             .diff_ignore_matching = diff_ignore_matching,

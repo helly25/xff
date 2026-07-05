@@ -1302,6 +1302,25 @@ TEST_F(RunTest, GrepEmitsPathLineTextAcrossTheWalk) {
       ElementsAre(Path("a.txt") + ":2:TODO one", Path("a.txt") + ":4:TODO two"));
 }
 
+TEST_F(RunTest, GrepContextPrintsSurroundingLinesWithGroupSeparator) {
+  { std::ofstream(root_ / "a.txt") << "1\nHIT\n3\n4\n5\nHIT\n7\n"; }
+  // --context=1 (leading global): 1 line before/after each match; a match line uses ':', a context
+  // line '-', and the two non-adjacent windows are divided by a "--" line -- like grep -C1.
+  EXPECT_THAT(
+      RunArgvRecords({"--context=1", root_.string(), "-name", "a.txt", "-grep", "HIT"}),
+      ElementsAre(
+          Path("a.txt") + "-1-1", Path("a.txt") + ":2:HIT", Path("a.txt") + "-3-3", "--", Path("a.txt") + "-5-5",
+          Path("a.txt") + ":6:HIT", Path("a.txt") + "-7-7"));
+}
+
+TEST_F(RunTest, GrepAfterContextIsAsymmetric) {
+  { std::ofstream(root_ / "a.txt") << "x\nHIT\ny\nz\n"; }
+  // --after-context=1 (grep -A1): the match and one trailing line, no leading context.
+  EXPECT_THAT(
+      RunArgvRecords({"--after-context=1", root_.string(), "-name", "a.txt", "-grep", "HIT"}),
+      ElementsAre(Path("a.txt") + ":2:HIT", Path("a.txt") + "-3-y"));
+}
+
 TEST_F(RunTest, GrepRegextypeExactMatchesLiterally) {
   { std::ofstream(root_ / "a.txt") << "price 3.50\nprice 3X50\n"; }
   // --regextype=EXACT (a leading global) makes '.' a literal, so only the real 3.50.
