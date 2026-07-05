@@ -52,6 +52,7 @@
 #include "xff/format/format.h"
 #include "xff/hash/hash.h"
 #include "xff/ignore/ignore.h"
+#include "xff/language/language.h"
 #include "xff/parser/ast.h"
 #include "xff/parser/parser.h"
 #include "xff/registry/descriptor.h"
@@ -206,10 +207,11 @@ std::size_t ResolveJobs(const std::vector<std::string>& globals, std::optional<r
   return jobs;
 }
 
-// xff --summary[=overall|type|ext]: reduce the matches to a count + total size
+// xff --summary[=overall|type|ext|lang]: reduce the matches to a count + total size
 // table instead of printing each one. Bare --summary / =overall is one total row;
-// =type groups by file type, =ext by filename extension; =none / absent is off.
-enum class SummaryMode { kOff, kOverall, kType, kExt };
+// =type groups by file type, =ext by filename extension, =lang by programming language
+// (a files-per-language histogram); =none / absent is off.
+enum class SummaryMode { kOff, kOverall, kType, kExt, kLanguage };
 
 SummaryMode ResolveSummary(const std::vector<std::string>& globals) {
   SummaryMode mode = SummaryMode::kOff;
@@ -220,6 +222,8 @@ SummaryMode ResolveSummary(const std::vector<std::string>& globals) {
       mode = SummaryMode::kType;
     } else if (global == "--summary=ext") {
       mode = SummaryMode::kExt;
+    } else if (global == "--summary=lang") {
+      mode = SummaryMode::kLanguage;
     } else if (global == "--summary=none") {
       mode = SummaryMode::kOff;
     }
@@ -260,6 +264,10 @@ std::string SummaryKey(SummaryMode mode, const Visit& visit) {
   switch (mode) {
     case SummaryMode::kExt: return SummaryExtension(visit.name);
     case SummaryMode::kType: return std::string(TypeName(visit.metadata.type));
+    case SummaryMode::kLanguage: {
+      const std::string_view lang = language::LanguageForName(visit.name);
+      return lang.empty() ? "(none)" : std::string(lang);  // unrecognized -> one "(none)" bucket
+    }
     default: return "total";  // kOverall: a single bucket
   }
 }
