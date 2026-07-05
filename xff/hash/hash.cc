@@ -1,0 +1,137 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "xff/hash/hash.h"
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
+#include "absl/types/span.h"
+#include "mbo/container/limited_map.h"
+#include "mbo/digest/digest.h"
+#include "mbo/file/artefact.h"
+
+namespace xff::hash {
+namespace {
+
+// Renders a fixed-size digest per `encoding`: lowercase hex (mbo's ToHexString) or standard
+// padded base64 over the raw digest bytes.
+template<std::size_t N>
+std::string Encode(const std::array<uint8_t, N>& digest, Encoding encoding) {
+  if (encoding == Encoding::kBase64) {
+    // char aliases any object type, so viewing the byte array as chars for Base64Escape is
+    // well-defined; there is no std::byte / uint8_t overload of Base64Escape to use instead.
+    return absl::Base64Escape(
+        std::string_view(reinterpret_cast<const char*>(digest.data()), digest.size()));  // NOLINT(*-reinterpret-cast)
+  }
+  return mbo::digest::ToHexString(digest);
+}
+
+// One algorithm: hash `data` and render it per `encoding`. Captureless so the table below is a
+// constexpr LimitedMap (like the engine's kDispatch); each wraps one mbo::digest namespace.
+using DigestFn = std::string (*)(std::string_view data, Encoding encoding);
+
+// The supported algorithms, keyed by name (MakeLimitedMap sorts by key). md5 / sha1 are
+// collision-broken and offered for interop only. This is the single source of truth for the
+// algorithm set: IsAlgorithm / AlgorithmNames / HashData all read it.
+constexpr auto kAlgorithms = mbo::container::MakeLimitedMap(
+    std::pair<std::string_view, DigestFn>{
+        "blake2b", [](std::string_view d, Encoding e) { return Encode(mbo::digest::blake2b::Digest(d), e); }},
+    std::pair<std::string_view, DigestFn>{
+        "blake2b_256", [](std::string_view d, Encoding e) { return Encode(mbo::digest::blake2b_256::Digest(d), e); }},
+    std::pair<std::string_view, DigestFn>{
+        "blake3", [](std::string_view d, Encoding e) { return Encode(mbo::digest::blake3::Digest(d), e); }},
+    std::pair<std::string_view, DigestFn>{
+        "md5", [](std::string_view d, Encoding e) { return Encode(mbo::digest::md5::Digest(d), e); }},
+    std::pair<std::string_view, DigestFn>{
+        "sha1", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha1::Digest(d), e); }},
+    std::pair<std::string_view, DigestFn>{
+        "sha224", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha224::Digest(d), e); }},
+    std::pair<std::string_view, DigestFn>{
+        "sha256", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha256::Digest(d), e); }},
+    std::pair<std::string_view, DigestFn>{
+        "sha3_224", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha3_224::Digest(d), e); }},
+    std::pair<std::string_view, DigestFn>{
+        "sha3_256", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha3_256::Digest(d), e); }},
+    std::pair<std::string_view, DigestFn>{
+        "sha3_384", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha3_384::Digest(d), e); }},
+    std::pair<std::string_view, DigestFn>{
+        "sha3_512", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha3_512::Digest(d), e); }},
+    std::pair<std::string_view, DigestFn>{
+        "sha384", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha384::Digest(d), e); }},
+    std::pair<std::string_view, DigestFn>{
+        "sha512", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha512::Digest(d), e); }},
+    std::pair<std::string_view, DigestFn>{
+        "sha512_224", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha512_224::Digest(d), e); }},
+    std::pair<std::string_view, DigestFn>{
+        "sha512_256", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha512_256::Digest(d), e); }});
+
+}  // namespace
+
+std::optional<Encoding> ParseEncoding(std::string_view name) {
+  if (name == "hex") {
+    return Encoding::kHex;
+  }
+  if (name == "base64") {
+    return Encoding::kBase64;
+  }
+  return std::nullopt;
+}
+
+bool IsAlgorithm(std::string_view algo) {
+  return kAlgorithms.contains(algo);
+}
+
+absl::Span<const std::string_view> AlgorithmNames() {
+  // Built once from the (sorted) table, so the name list never drifts from kAlgorithms.
+  static const std::vector<std::string_view>* const kNames = [] {
+    auto* names = new std::vector<std::string_view>();
+    names->reserve(kAlgorithms.size());
+    for (const auto& [name, fn] : kAlgorithms) {
+      names->push_back(name);
+    }
+    return names;
+  }();
+  return *kNames;
+}
+
+std::optional<std::string> HashData(std::string_view algo, std::string_view data, Encoding encoding) {
+  const auto it = kAlgorithms.find(algo);
+  if (it == kAlgorithms.end()) {
+    return std::nullopt;
+  }
+  return it->second(data, encoding);
+}
+
+std::optional<std::string> HashFile(std::string_view algo, std::string_view path, Encoding encoding) {
+  if (!IsAlgorithm(algo)) {
+    return std::nullopt;  // reject before touching the filesystem
+  }
+  const absl::StatusOr<mbo::file::Artefact> artefact = mbo::file::Artefact::Read(path);
+  if (!artefact.ok()) {
+    return std::nullopt;
+  }
+  return HashData(algo, artefact->data, encoding);
+}
+
+}  // namespace xff::hash
