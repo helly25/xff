@@ -124,6 +124,25 @@ std::string_view DefaultStyleForProgram(std::string_view argv0) {
   return "xff";
 }
 
+ProjectConfigMode ResolveProjectConfigMode(const std::vector<std::string>& globals) {
+  constexpr std::string_view kFlag = "--project-config=";
+  ProjectConfigMode mode = ProjectConfigMode::kWarn;  // default: ignore a project .xffrc, but note it
+  for (std::string_view global : globals) {
+    if (!global.starts_with(kFlag)) {
+      continue;
+    }
+    const std::string_view value = global.substr(kFlag.size());
+    if (value == "on") {
+      mode = ProjectConfigMode::kOn;
+    } else if (value == "off") {
+      mode = ProjectConfigMode::kOff;
+    } else {
+      mode = ProjectConfigMode::kWarn;  // "warn" and any unrecognized value fall back to the default
+    }
+  }
+  return mode;
+}
+
 std::string ExplainConfig(const std::vector<ResolvedFlag>& resolved, const std::vector<std::string>& cli_globals) {
   std::string out = "# xff effective configuration (application order; later overrides earlier)\n";
   for (const ResolvedFlag& flag : resolved) {

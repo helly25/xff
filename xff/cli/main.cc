@@ -319,7 +319,24 @@ int RunMain(int argc, char** argv) {
   opts.roots = ProjectDirs(command.roots);  // absolute dirs for the project .xffrc cascade
   const xff::config::ConfigInputs inputs = xff::config::Discover(opts, ReadFile);
   std::vector<xff::config::Drop> drops;
-  const xff::config::ConfigInputs gated = xff::config::GateConfig(inputs, &drops);
+  xff::config::ConfigInputs gated = xff::config::GateConfig(inputs, &drops);
+  // --project-config: a per-directory (project) .xffrc lives in a tree the user may not control,
+  // so it is not applied unless explicitly enabled. Unless =on, drop the project layer before
+  // resolving; =warn (the default) prints one stderr note when a project .xffrc was found, =off
+  // stays silent. Sensitive/destructive lines and style selectors are user/system-only regardless
+  // (GateConfig/style resolution never take them from a project file); this gates the safe subset
+  // too, since the file's mere presence in an untrusted tree should not silently change a run.
+  const xff::config::ProjectConfigMode project_mode = xff::config::ResolveProjectConfigMode(command.globals);
+  if (project_mode != xff::config::ProjectConfigMode::kOn) {
+    const bool project_found = absl::c_any_of(inputs.sources, [](const xff::config::ConfigSource& source) {
+      return source.layer == xff::config::Source::kProject && source.found;
+    });
+    gated.project.clear();
+    if (project_mode == xff::config::ProjectConfigMode::kWarn && project_found) {
+      std::cerr << "xff: a per-directory .xffrc was found but ignored; use --project-config=on to apply it, "
+                   "or --project-config=off to silence this note\n";
+    }
+  }
   const std::vector<xff::config::ResolvedFlag> resolved = xff::config::ResolveConfig(gated);
   if (absl::c_contains(command.globals, "--explain")) {
     std::cout << xff::config::ExplainSources(inputs.sources, xff::config::ActiveStyle(inputs.configs));

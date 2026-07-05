@@ -30,6 +30,13 @@ namespace xff::config {
 // last-non-unset-wins; kUnset is the "no override" sentinel and is never stored.
 enum class Source { kUnset, kSystem, kUser, kProject, kCli };
 
+// How a per-directory (project) .xffrc is treated (--project-config). A project file lives in a
+// tree the user may not control, so it is off unless explicitly enabled: kOn applies it (still
+// safe-subset only -- GateConfig drops sensitive/destructive project lines regardless, and style
+// selectors are never taken from a project file); kWarn (the default) ignores it but lets the CLI
+// note that one was found; kOff ignores it silently. Full config lives in user/system files.
+enum class ProjectConfigMode { kOff, kWarn, kOn };
+
 // One resolved config flag plus the layer it came from.
 struct ResolvedFlag {
   std::string flag;
@@ -83,6 +90,12 @@ registry::Style ActiveStyle(const std::vector<std::string>& configs);
 // via ActiveStyle's last-wins (design-config.md "CLI selectors"). Returns the
 // selector string "find" or "xff".
 std::string_view DefaultStyleForProgram(std::string_view argv0);
+
+// The project-config mode from the CLI globals: the last --project-config=on|warn|off wins, and
+// the default (no flag, or an unrecognized value) is kWarn. main() uses it to decide whether a
+// discovered per-directory .xffrc is applied (kOn), ignored with a stderr note (kWarn), or ignored
+// silently (kOff). Only the project layer is affected; user/system config is always applied.
+ProjectConfigMode ResolveProjectConfigMode(const std::vector<std::string>& globals);
 
 // Renders the effective configuration for --explain: the resolved config flags
 // (each prefixed by its provenance) in application order, then the CLI globals

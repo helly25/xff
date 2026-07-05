@@ -128,6 +128,17 @@ TEST_F(ConfigTest, DefaultStyleForProgramSelectsByBasename) {
   EXPECT_THAT(DefaultStyleForProgram("rg"), "rg");
 }
 
+TEST_F(ConfigTest, ResolveProjectConfigModeDefaultsToWarnAndLastWins) {
+  EXPECT_THAT(ResolveProjectConfigMode({}), ProjectConfigMode::kWarn);  // no flag -> the default
+  EXPECT_THAT(ResolveProjectConfigMode({"--project-config=on"}), ProjectConfigMode::kOn);
+  EXPECT_THAT(ResolveProjectConfigMode({"--project-config=off"}), ProjectConfigMode::kOff);
+  EXPECT_THAT(ResolveProjectConfigMode({"--project-config=warn"}), ProjectConfigMode::kWarn);
+  EXPECT_THAT(ResolveProjectConfigMode({"--project-config=bogus"}), ProjectConfigMode::kWarn);  // unknown -> default
+  // Last occurrence wins (like the other repeatable selectors).
+  EXPECT_THAT(ResolveProjectConfigMode({"--project-config=on", "--project-config=off"}), ProjectConfigMode::kOff);
+  EXPECT_THAT(ResolveProjectConfigMode({"--project-config=off", "--project-config=on"}), ProjectConfigMode::kOn);
+}
+
 TEST_F(ConfigTest, ExplainConfigTagsEachFlagWithProvenance) {
   const std::vector<ResolvedFlag> resolved = {
       {.flag = "--color=auto", .source = Source::kSystem}, {.flag = "--sort", .source = Source::kUser}};

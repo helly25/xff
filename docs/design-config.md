@@ -165,6 +165,13 @@ built-in `safety` classification so the safe default needs no admin file:
   `--implicit-print=no`) stay dedicated flags, **not** `--feature`.
 - **`--xffrc=FILE`** - load + arm a specific file (see Discovery).
 - **`--no-config`** - see Discovery.
+- **`--project-config=on|warn|off`** - a per-directory (project) `.xffrc` lives in a
+  tree the user may not control, so it is **off unless explicitly enabled**: `on`
+  applies it (still safe-subset only - sensitive/destructive lines and **style
+  selectors** are never honored from a project file, so a repo cannot relax the
+  find baseline or arm `-exec`); `warn` (**default**) ignores it but prints one
+  stderr note when a project `.xffrc` was found; `off` ignores it silently. Full
+  config, including style relaxation, works only from the user and system layers.
 - **`argv[0]` dispatch** - invoked as `find` (alias/symlink) defaults to
   `--config=find` (strict: accept only find's own primaries/options, reject
   every xff extension incl. single-dash modern primitives like `-println`);
@@ -174,18 +181,24 @@ built-in `safety` classification so the safe default needs no admin file:
 ## Worked examples
 
 ```sh
-# Hostile repo, no admin policy → safe by default.
+# Hostile repo → a per-directory .xffrc is OFF by default: nothing from ./.xffrc applies.
 cd ./untrusted && xff .
+#   ./.xffrc present → ignored; "a per-directory .xffrc was found but ignored" on stderr
+#   (silence with --project-config=off)
+
+# Opt in to a per-directory .xffrc. Even then it is safe-subset only: sensitive/destructive
+# lines and style selectors are never honored from a project file (those need user/system config).
+cd ./trusted && xff --project-config=on .
 #   ./.xffrc: common: --color=never     → applied (safe)
 #   ./.xffrc: common: -exec rm {} ;      → dropped + warned (sensitive, project-denied)
 
-# Personal exec recipe from your own config → trusted.
+# Personal exec recipe from your own (user) config → trusted, applied with no opt-in.
 #   ~/.config/xff/config: xff:thumbs: -capture=W=… convert {} … ;
 xff --config=thumbs ~/Pictures            # armed: user layer allows @sensitive
 
-# CI host loosens the project layer for a vetted pipeline.
+# CI host loosens the project layer for a vetted pipeline (opt-in + policy allow).
 #   /etc/xff.ini: [policy] project.allow = -capture
-cd $CI_WORKSPACE && xff .                 # repo .xffrc -capture now armed
+cd $CI_WORKSPACE && xff --project-config=on .   # repo .xffrc -capture now armed
 
 # Strict drop-in via name.
 ln -s xff find && ./find . -println        # → error: -println unknown (find style)
