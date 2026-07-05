@@ -270,3 +270,14 @@ remains below is the design-forked / larger work.
   genuinely fd-flavored direction distinct from `rg` (e.g. fd's smart-case, its regex-by-default
   vs literal, its own default action / output shape) so the two earn their separate names. Audit
   `engine::FlavorFacets()` for where they diverge today (if anywhere) before choosing.
+
+- **Byte units: SI (1000^N) vs binary (1024^N), consistent everywhere** (2026-07-05): the program
+  must clearly distinguish decimal SI units (`KB`/`MB`/`GB`/`TB`/`PB`/`EB` = 1000^N) from binary IEC
+  units (`KiB`/`MiB`/`GiB`/`TiB`/`PiB`/`EiB` = 1024^N), spell each correctly (the `i` marks binary),
+  and never mix the two notations at one site (never print `MB` for a 1024^2 value). Audit and
+  reconcile every place bytes are parsed or formatted so one convention is used correctly
+  throughout: `-size` / `-blocks` unit suffixes (find-native `k`/`M`/`G`/`T`/`P`/`E` are binary
+  multipliers today), `--block-size`, the `--summary` and `-ls` human sizes (`format::SizeUnits`
+  iec/si), `--buffer` byte budgets (`B`/`MB`/`MiB`), and any `{size}` / `-printf %s` rendering.
+  Decide the canonical spelling rule (bare `K`/`M`/... base, following GNU only where find-compat
+  requires it) and make it uniform and documented in `--help=size`.
