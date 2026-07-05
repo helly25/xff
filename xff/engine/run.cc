@@ -1187,6 +1187,24 @@ int RunFind(
             absl::StrCat("unknown diff algorithm '", diff_algorithm, "' (use naive, direct, or myers)")));
     return 2;
   }
+  // --diff-ignore=<tokens> / --diff-ignore-matching=REGEX: -diff normalization (mbo::diff). Last
+  // occurrence of each wins; empty -> exact. Validated here (shared with the apply path) so a bad
+  // token or regex is a usage error (exit 2) before the walk.
+  std::string diff_ignore;
+  std::string diff_ignore_matching;
+  for (const std::string& global : command.globals) {
+    constexpr std::string_view kDiffIgnore = "--diff-ignore=";
+    constexpr std::string_view kDiffIgnoreMatching = "--diff-ignore-matching=";
+    if (global.starts_with(kDiffIgnoreMatching)) {
+      diff_ignore_matching = global.substr(kDiffIgnoreMatching.size());
+    } else if (global.starts_with(kDiffIgnore)) {
+      diff_ignore = global.substr(kDiffIgnore.size());
+    }
+  }
+  if (const absl::Status status = ValidateDiffIgnore(diff_ignore, diff_ignore_matching); !status.ok()) {
+    on_error("--diff-ignore", status);
+    return 2;
+  }
   // --summary: reduce matches to a {count, total size} per group instead of
   // printing each one; the table is emitted after the walk.
   const SummaryMode summary_mode = ResolveSummary(command.globals);
@@ -1391,6 +1409,8 @@ int RunFind(
             .grep_literal = *grep_literal,
             .grep_count = grep_count,
             .diff_algorithm = diff_algorithm,
+            .diff_ignore = diff_ignore,
+            .diff_ignore_matching = diff_ignore_matching,
             .control = control,
             .exec_fields = exec_fields,
             .captures = exec_fields ? &captures : nullptr,

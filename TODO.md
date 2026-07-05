@@ -236,11 +236,17 @@ remains below is the design-forked / larger work.
     `naive|direct|myers` (default myers) selects the engine. Text only; a binary side prints
     `Binary files A and B differ` to **stderr** (byte compared). The header carries each side's
     mtime (`diff -u` style).
-    - **Deferred to a follow-up:** the `--diff-ignore=<tokens>`
-      (ws/lead/trail/change/eol/blank/case/eofnl) + `--diff-ignore-matching=REGEX` normalization
-      (both `.xffrc`-settable) - `mbo::diff::DiffOptions` supports them, but the RE2 option is
-      non-copyable so it needs a per-node vs per-run plumbing pass. A git-style (no-timestamp)
-      header would need an mbo option (candidate for mbo 0.14.0). Full design in the memory note
-      (`project_xff_cmp_diff`).
+    - **Normalization SHIPPED (the mbo-supported subset):** `--diff-ignore=<tokens>` where a
+      token is `ws` (all whitespace), `change` (whitespace changes), `trail` (trailing
+      whitespace), `blank` (blank lines), or `case` (letter case), comma-separated; plus
+      `--diff-ignore-matching=REGEX` (RE2, ignores matching lines). Both validated before the
+      walk (an unknown token or bad regex is a usage error, exit 2) and shared with the apply
+      path via `ApplyDiffIgnore`. The non-copyable RE2 option is sidestepped by building a fresh
+      `DiffOptions` per `-diff` entry (`emplace` per call, with `log_errors(false)` so a bad
+      pattern reports once, cleanly).
+    - **Still deferred (mbo-blocked, tracked in #107):** the `lead` / `eol` / `eofnl` ignore
+      tokens (no `mbo::diff` field yet) and a git-style (no-timestamp) diff header - both need a
+      newer mbo. Making `--diff-ignore*` `.xffrc`-settable also stays for the config pass. Full
+      design in the memory note (`project_xff_cmp_diff`).
     - **`mbo` dependency:** built against a `git_override` pinned at the mbo commit that carries
       0.13.0's `mbo/diff`; drop it for a plain `helly25_mbo` 0.13.0 bump once that releases to BCR.

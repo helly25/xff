@@ -218,6 +218,20 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "diff engine for -diff: naive, direct, or myers (the default, minimal like git)",
     },
     {
+        .name = "--diff-ignore",
+        .display = "--diff-ignore=TOKEN,...",
+        .group = "output",
+        .header = "Output",
+        .summary = "normalize -diff comparison: ws, change, trail, blank, case (comma-separated)",
+    },
+    {
+        .name = "--diff-ignore-matching",
+        .display = "--diff-ignore-matching=REGEX",
+        .group = "output",
+        .header = "Output",
+        .summary = "-diff ignores lines matching this regex (RE2)",
+    },
+    {
         .name = "--path-encoding",
         .display = "--path-encoding=raw|escape",
         .group = "output",

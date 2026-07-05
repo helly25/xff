@@ -55,6 +55,33 @@ test::diff_polarity_true_when_equal_false_when_different() {
   expect_output_contains '+TWO' "${out}"
 }
 
+test::diff_ignore_normalizes_and_rejects_bad_values() {
+  local dir out rc
+  dir="${TEST_TMPDIR}/diffign"
+  mkdir -p "${dir}"
+  printf 'one\ntwo   \nthree\n' >"${dir}/left.txt" # trailing whitespace on line 2
+  printf 'one\ntwo\nthree\n' >"${dir}/right.txt"
+  printf 'keep\nDEBUG x\nkeep2\n' >"${dir}/ml.txt"
+  printf 'keep\nDEBUG y\nkeep2\n' >"${dir}/mr.txt"
+  # Without normalization the trailing whitespace differs -> -diff=none is FALSE, no -print.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name left.txt -diff=none "${dir}/right.txt" -print 2>&1)"
+  expect_output_not_contains 'left.txt' "${out}"
+  # --diff-ignore=trail folds the trailing whitespace -> equal -> -print fires.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-ignore=trail "${dir}" -name left.txt -diff=none "${dir}/right.txt" -print 2>&1)"
+  expect_output_contains 'left.txt' "${out}"
+  # --diff-ignore-matching drops the differing DEBUG line before comparing -> equal.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-ignore-matching='^DEBUG' "${dir}" -name ml.txt -diff=none "${dir}/mr.txt" -print 2>&1)"
+  expect_output_contains 'ml.txt' "${out}"
+  # An unknown token (mbo's eol awaits a newer mbo) is a usage error.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-ignore=eol "${dir}" -name left.txt -diff "${dir}/right.txt" 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains 'unknown --diff-ignore token' "${out}"
+  # A malformed --diff-ignore-matching regex is a usage error (one clean line, no RE2 log noise).
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-ignore-matching='[' "${dir}" -name left.txt -diff "${dir}/right.txt" 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains 'invalid --diff-ignore-matching regex' "${out}"
+}
+
 test::diff_binary_notes_on_stderr_and_bad_inputs_are_usage_errors() {
   local dir out rc
   dir="${TEST_TMPDIR}/diffbin"
