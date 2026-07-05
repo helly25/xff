@@ -15,7 +15,7 @@
 
 load("@helly25_bashtest//bashtest:bashtest.bzl", "bashtest")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
-load(":diff_golden.bzl", "diff_golden_test")
+load(":golden.bzl", "xff_golden_cases")
 
 cc_binary(
     name = "xff",
@@ -271,17 +271,38 @@ bashtest(
 )
 
 # Golden output of -diff per mode: xff walks tree `a` and diffs each file against `b/{relpath}`,
-# one committed golden each, checked with mbo's diff_test (fixed mtimes -> verbatim; diff_golden.bzl).
-diff_golden_test(
+# one committed golden each (golden.bzl). The `normalize` strips the volatile diff-header mtime
+# (git-style header), so the whole per-mode output is a verbatim golden checked with mbo's diff_test.
+xff_golden_cases(
     name = "diff_golden",
-    modes = {
-        "u": "testdata/diff/golden/u.txt",
-        "c": "testdata/diff/golden/c.txt",
-        "n": "testdata/diff/golden/n.txt",
-        "y": "testdata/diff/golden/y.txt",
-        "none": "testdata/diff/golden/none.txt",
+    cases = {
+        "u": ("a -type f -diff=u 'b/{relpath}'", "testdata/diff/golden/u.txt"),
+        "c": ("a -type f -diff=c 'b/{relpath}'", "testdata/diff/golden/c.txt"),
+        "n": ("a -type f -diff=n 'b/{relpath}'", "testdata/diff/golden/n.txt"),
+        "y": ("a -type f -diff=y 'b/{relpath}'", "testdata/diff/golden/y.txt"),
+        "none": ("a -type f -diff=none 'b/{relpath}'", "testdata/diff/golden/none.txt"),
     },
+    normalize = ["s/^(--- |[+][+][+] |[*][*][*] )([^ ]+) [0-9].*/\\1\\2/"],
     setup = "testdata/diff/setup.sh",
+)
+
+# Broad golden coverage of the walk / matching / -printf / traversal-control surface over one
+# fixture (golden.bzl): each case is a whole xff command line diffed against a committed golden.
+# The fixture's output is stable (relative paths, basenames, type chars, depths -- no mtime / size /
+# inode), so no normalization is needed. Add a case + a golden to cover another command.
+xff_golden_cases(
+    name = "walk_golden",
+    cases = {
+        "type_f": ("root -type f", "testdata/walk/golden/type_f.txt"),
+        "name_cc": ("root -type f -name '*.cc'", "testdata/walk/golden/name_cc.txt"),
+        "regex_header": ("root -regex '.*[.]h'", "testdata/walk/golden/regex_header.txt"),
+        "path_src": ("root -type f -path '*/src/*'", "testdata/walk/golden/path_src.txt"),
+        "printf_type": ("root -printf '%y %p\\n'", "testdata/walk/golden/printf_type.txt"),
+        "printf_name": ("root -type f -printf '%f\\n'", "testdata/walk/golden/printf_name.txt"),
+        "maxdepth1": ("root -maxdepth 1", "testdata/walk/golden/maxdepth1.txt"),
+        "prune_src": ("root -name src -prune -o -print", "testdata/walk/golden/prune_src.txt"),
+    },
+    setup = "testdata/walk/setup.sh",
 )
 
 # End-to-end test of -ls column alignment (via the ColumnBuffer) and the --buffer
