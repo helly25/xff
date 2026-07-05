@@ -286,6 +286,27 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "with -grep, print a per-file matching-line count (path:count) instead of the lines",
     },
     {
+        .name = "--context",
+        .display = "--context=SPEC",
+        .group = "output",
+        .header = "Output",
+        .summary = "-grep context lines: N both sides, or A:N,B:N,C:N for after/before/both (grep -C/-A/-B)",
+    },
+    {
+        .name = "--after-context",
+        .display = "--after-context=N",
+        .group = "output",
+        .header = "Output",
+        .summary = "with -grep, print N lines of context after each match (grep -A; = --context=A:N)",
+    },
+    {
+        .name = "--before-context",
+        .display = "--before-context=N",
+        .group = "output",
+        .header = "Output",
+        .summary = "with -grep, print N lines of context before each match (grep -B; = --context=B:N)",
+    },
+    {
         .name = "--top",
         .display = "--top=N",
         .group = "output",

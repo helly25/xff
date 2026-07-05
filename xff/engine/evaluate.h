@@ -100,6 +100,11 @@ struct EvalContext {
   // --count / -c: -grep prints one `path:count` per file (its matching-line count)
   // instead of the lines, rg -c style; supersedes -grep=FORMAT. Only -grep reads it.
   bool grep_count = false;
+  // --context / --before-context / --after-context (grep -C/-B/-A): lines of context -grep prints
+  // before and after each match (0 = none, the default). Resolved once before the walk; only -grep
+  // reads them. Superseded by --count.
+  std::size_t grep_before = 0;
+  std::size_t grep_after = 0;
   // --diff-algorithm=naive|direct|myers: the diff engine -diff uses (mbo::diff). Empty ->
   // myers (the default). Validated once before the walk; only -diff reads it.
   std::string_view diff_algorithm;

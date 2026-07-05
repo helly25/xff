@@ -41,6 +41,28 @@ std::vector<LineMatch> CollectLineMatches(
     std::string_view content,
     absl::FunctionRef<bool(std::string_view line)> matches);
 
+// One line selected for grep-with-context output (grep -A/-B/-C): its 1-based number, text,
+// whether it is a match (vs a surrounding context line), and its group index.
+struct ContextLine {
+  std::size_t number = 0;
+  std::string_view text{};
+  bool is_match = false;
+  // 0-based group index; increments at each gap between emitted lines, so a caller prints a
+  // group separator ("--") before every group after the first.
+  std::size_t group = 0;
+};
+
+// Like CollectLineMatches, but also returns `before` lines preceding and `after` lines following
+// each match (grep -B / -A; -C is before == after). Overlapping or adjacent windows merge, and a
+// gap between emitted lines starts a new `group`. With before == after == 0 this returns exactly
+// the match lines, each its own group (so a caller can suppress the separator when no context is
+// set). Same line semantics as CollectLineMatches; the `text` views alias `content`.
+std::vector<ContextLine> CollectLineMatchesWithContext(
+    std::string_view content,
+    absl::FunctionRef<bool(std::string_view line)> matches,
+    std::size_t before,
+    std::size_t after);
+
 }  // namespace xff::content
 
 #endif  // XFF_CONTENT_LINE_MATCH_H_

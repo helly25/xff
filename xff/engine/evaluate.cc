@@ -1201,37 +1201,56 @@ bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
   if (!ctx.grep_literal && !matcher.has_value()) {
     return false;
   }
-  const std::vector<content::LineMatch> lines = content::CollectLineMatches(*content, [&](std::string_view line) {
+  const auto is_match = [&](std::string_view line) {
     return ctx.grep_literal ? absl::StrContains(line, needle) : matcher->get().PartialMatch(line);
-  });
+  };
   if (ctx.grep_count) {
     // --count / -c (rg -c): one path:count per file with matches, in place of the
-    // lines (and any -grep=FORMAT); files with no match emit nothing.
+    // lines (and any -grep=FORMAT); files with no match emit nothing. Context is ignored.
+    const std::vector<content::LineMatch> lines = content::CollectLineMatches(*content, is_match);
     if (!lines.empty()) {
       ctx.emit(absl::StrCat(ctx.visit.path, ":", lines.size(), "\n"));
     }
     return !lines.empty();
   }
-  for (const content::LineMatch& line : lines) {
+  // --context / --before-context / --after-context (grep -C/-B/-A): each match carries N lines of
+  // surrounding context (0/0 -> matches only, the default). A match line uses ':' separators, a
+  // context line '-', and a "--" line divides non-adjacent groups -- exactly grep/ripgrep.
+  const std::vector<content::ContextLine> lines =
+      content::CollectLineMatchesWithContext(*content, is_match, ctx.grep_before, ctx.grep_after);
+  const bool with_context = ctx.grep_before > 0 || ctx.grep_after > 0;
+  const std::string link = expr.grep_template == nullptr ? std::string() : LinkTarget(ctx);
+  bool any_match = false;
+  bool first = true;
+  std::size_t prev_group = 0;
+  for (const content::ContextLine& line : lines) {
+    any_match = any_match || line.is_match;
+    if (with_context && !first && line.group != prev_group) {
+      ctx.emit("--\n");  // separator between non-adjacent context blocks
+    }
+    first = false;
+    prev_group = line.group;
     if (expr.grep_template == nullptr) {
-      ctx.emit(absl::StrCat(ctx.visit.path, ":", line.number, ":", line.text, "\n"));
+      const std::string_view sep = line.is_match ? ":" : "-";  // grep: ':' for a match line, '-' for context
+      ctx.emit(absl::StrCat(ctx.visit.path, sep, line.number, sep, line.text, "\n"));
       continue;
     }
-    // -grep=FORMAT: render the field template per match line ({line}/{text} plus the
-    // entry's {path}/{name}/... vocabulary). {match}/{column} need the matched span,
-    // recomputed here on this already-matching line.
+    // -grep=FORMAT: render the field template per line ({line}/{text} plus the entry's
+    // {path}/{name}/... vocabulary). {match}/{column} need the matched span, recomputed here on a
+    // match line; on a context line they stay empty.
     std::string_view match_text;
     std::optional<std::size_t> match_column;
-    if (ctx.grep_literal) {
+    if (line.is_match && ctx.grep_literal) {
       if (const std::size_t pos = line.text.find(needle); pos != std::string_view::npos) {
         match_text = line.text.substr(pos, needle.size());
         match_column = pos + 1;
       }
-    } else if (const std::optional<std::pair<std::size_t, std::size_t>> span = matcher->get().FindFirst(line.text)) {
-      match_text = line.text.substr(span->first, span->second);
-      match_column = span->first + 1;
+    } else if (line.is_match) {
+      if (const std::optional<std::pair<std::size_t, std::size_t>> span = matcher->get().FindFirst(line.text)) {
+        match_text = line.text.substr(span->first, span->second);
+        match_column = span->first + 1;
+      }
     }
-    const std::string link = LinkTarget(ctx);  // owns the {target} text for the render below
     ctx.emit(
         expr.grep_template->Render(
             fields::RenderContext{
@@ -1253,7 +1272,7 @@ bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
                 .match_column = match_column})
         + "\n");
   }
-  return !lines.empty();
+  return any_match;
 }
 
 bool EvalType(const parser::Expr& expr, EvalContext& ctx) {
