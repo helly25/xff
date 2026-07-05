@@ -98,6 +98,30 @@ std::optional<Encoding> ParseEncoding(std::string_view name) {
   return std::nullopt;
 }
 
+std::optional<AlgoEncoding> ParseSpec(std::string_view spec, std::string_view default_algo, Encoding default_encoding) {
+  std::string_view algo = spec;
+  std::string_view encoding_name;
+  if (const std::size_t slash = spec.find('/'); slash != std::string_view::npos) {
+    algo = spec.substr(0, slash);
+    encoding_name = spec.substr(slash + 1);
+  }
+  if (algo.empty()) {
+    algo = default_algo;
+  }
+  if (!IsAlgorithm(algo)) {
+    return std::nullopt;
+  }
+  Encoding encoding = default_encoding;
+  if (!encoding_name.empty()) {
+    const std::optional<Encoding> parsed = ParseEncoding(encoding_name);
+    if (!parsed.has_value()) {
+      return std::nullopt;
+    }
+    encoding = *parsed;
+  }
+  return AlgoEncoding{.algo = algo, .encoding = encoding};
+}
+
 bool IsAlgorithm(std::string_view algo) {
   return kAlgorithms.contains(algo);
 }

@@ -40,6 +40,22 @@ enum class Encoding {
 // Parses an encoding name -- "hex" or "base64" -- returning nullopt for anything else.
 std::optional<Encoding> ParseEncoding(std::string_view name);
 
+// A resolved (algorithm, encoding) pair, e.g. from a `{hash:...}` qualifier or a `-hash=...` spec.
+struct AlgoEncoding {
+  std::string_view algo;
+  Encoding encoding = Encoding::kHex;
+};
+
+// Parses an "ALGO[/ENCODING]" spec, filling empty parts from the defaults: an empty ALGO uses
+// `default_algo`, an absent `/ENCODING` uses `default_encoding`. Returns nullopt if the resolved
+// algorithm is unsupported or the ENCODING is not hex/base64. This is the single grammar shared by
+// the `{hash}` field and the `-hash` action. The returned `algo` view aliases `spec` or
+// `default_algo`, so keep those alive while using the result.
+std::optional<AlgoEncoding> ParseSpec(
+    std::string_view spec,
+    std::string_view default_algo,
+    Encoding default_encoding = Encoding::kHex);
+
 // True if `algo` names a supported digest algorithm (one of AlgorithmNames()).
 bool IsAlgorithm(std::string_view algo);
 

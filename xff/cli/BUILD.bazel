@@ -270,6 +270,16 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of -hash (xff/hash -> mbo::digest): the `<digest>  <path>` sha256sum layout,
+# -hash=ALGO[/ENCODING], the --hash-algorithm / --hash-encoding defaults for the action and the
+# {hash} field, the usage errors, and the find-style rejection.
+bashtest(
+    name = "hash_test",
+    size = "small",
+    srcs = ["hash_test.sh"],
+    data = [":xff"],
+)
+
 # Golden output of -diff per mode: xff walks tree `a` and diffs each file against `b/{relpath}`,
 # one committed golden each (golden.bzl). The `normalize` strips the volatile diff-header mtime
 # (git-style header), so the whole per-mode output is a verbatim golden checked with mbo's diff_test.

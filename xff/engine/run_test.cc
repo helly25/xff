@@ -589,6 +589,46 @@ TEST_F(RunTest, DiffIgnoreRejectsUnknownToken) {
   EXPECT_THAT(reported, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("unknown --diff-ignore token 'bogus'")));
 }
 
+TEST_F(RunTest, HashActionPrintsDigestAndPath) {
+  { std::ofstream(root_ / "abc.txt") << "abc"; }
+  // -hash prints `<digest>  <path>` (the sha256sum layout); the default algorithm is sha256.
+  EXPECT_THAT(
+      RunExpr({"-name", "abc.txt", "-hash"}),
+      ElementsAre("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  " + Path("abc.txt")));
+  // -hash=ALGO[/ENCODING] selects the algorithm and hex/base64 rendering.
+  EXPECT_THAT(
+      RunExpr({"-name", "abc.txt", "-hash=md5"}), ElementsAre("900150983cd24fb0d6963f7d28e17f72  " + Path("abc.txt")));
+  EXPECT_THAT(
+      RunExpr({"-name", "abc.txt", "-hash=sha256/base64"}),
+      ElementsAre("ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=  " + Path("abc.txt")));
+}
+
+TEST_F(RunTest, HashAlgorithmGlobalSetsTheDefaultForActionAndField) {
+  { std::ofstream(root_ / "abc.txt") << "abc"; }
+  // --hash-algorithm=md5 changes the default for a bare -hash action ...
+  EXPECT_THAT(
+      RunArgvRecords({"--hash-algorithm=md5", root_.string(), "-name", "abc.txt", "-hash"}),
+      ElementsAre("900150983cd24fb0d6963f7d28e17f72  " + Path("abc.txt")));
+  // ... and for a bare {hash} field (the %{hash} printf escape renders it).
+  EXPECT_THAT(
+      RunArgvRecords({"--hash-algorithm=md5", root_.string(), "-name", "abc.txt", "-printf", "%{hash}\n"}),
+      ElementsAre("900150983cd24fb0d6963f7d28e17f72"));
+}
+
+TEST_F(RunTest, HashRejectsUnknownSpec) {
+  // A bad -hash=ALGO[/ENCODING] spec is a pre-walk usage error (exit 2), not a silent no-op.
+  const auto command = parser::Parse({root_.string(), "-name", "a.txt", "-hash=crc32"});
+  ASSERT_THAT(command, IsOk());
+  std::vector<std::string> records;
+  absl::Status reported;
+  const int errors = RunFind(
+      *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
+      [&](std::string_view, absl::Status status) { reported = status; });
+  EXPECT_THAT(records, IsEmpty());
+  EXPECT_THAT(errors, 2);
+  EXPECT_THAT(reported, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("'-hash=crc32'")));
+}
+
 TEST_F(RunTest, ColorAutoStaysPlainWhenStdoutIsNotATty) {
   // The captured stdout here is a pipe, so auto (the default) leaves even a
   // directory uncolored; only --color=always would force escapes.

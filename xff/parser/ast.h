@@ -63,6 +63,10 @@ struct Expr {
   // -diff=STYLE: the attached output-style token (u[N]/c[N]/n/y[W]/none); empty for a
   // bare -diff (which defaults to u3) and every other node. Validated in the evaluator.
   std::string diff_style;
+  // -hash=ALGO[/ENCODING]: the attached digest spec (e.g. sha256, md5, sha256/base64);
+  // empty for a bare -hash (which uses the --hash-algorithm / --hash-encoding defaults) and
+  // every other node. Validated before the walk (engine::ValidateHashArgs).
+  std::string hash_spec;
   // Case folding forced on by the resolved --case mode (parser::ApplyCaseMode), for the
   // otherwise case-sensitive matchers (-name/-path/-content and, via a recompiled
   // `matcher`, -regex/-rxc/-grep): true under --case=insensitive, or --case=smart when the

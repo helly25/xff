@@ -56,6 +56,7 @@
 #include "xff/engine/walk.h"
 #include "xff/exec/exec.h"
 #include "xff/fields/fields.h"
+#include "xff/hash/hash.h"
 #include "xff/mime/mime.h"
 #include "xff/parser/ast.h"
 #include "xff/regex/regex.h"
@@ -293,6 +294,8 @@ std::string FormatPrintf(std::string_view format, const EvalContext& ctx) {
       .depth = ctx.visit.depth,
       .tz = ctx.tz,
       .time_format = ctx.time_format,
+      .hash_algorithm = ctx.hash_algorithm,
+      .hash_encoding = ctx.hash_encoding,
       .captures = ctx.captures,
       .defines = ctx.defines,
       .outputs = ctx.outputs};
@@ -976,6 +979,8 @@ bool EvalCmp(const parser::Expr& expr, EvalContext& ctx) {
                                          .depth = ctx.visit.depth,
                                          .tz = ctx.tz,
                                          .time_format = ctx.time_format,
+                                         .hash_algorithm = ctx.hash_algorithm,
+                                         .hash_encoding = ctx.hash_encoding,
                                          .captures = ctx.captures,
                                          .defines = ctx.defines,
                                          .outputs = ctx.outputs});
@@ -1097,6 +1102,8 @@ bool EvalDiff(const parser::Expr& expr, EvalContext& ctx) {
                                          .depth = ctx.visit.depth,
                                          .tz = ctx.tz,
                                          .time_format = ctx.time_format,
+                                         .hash_algorithm = ctx.hash_algorithm,
+                                         .hash_encoding = ctx.hash_encoding,
                                          .captures = ctx.captures,
                                          .defines = ctx.defines,
                                          .outputs = ctx.outputs});
@@ -1142,6 +1149,26 @@ bool EvalDiff(const parser::Expr& expr, EvalContext& ctx) {
     ctx.emit(*diff);
   }
   return false;  // differ
+}
+
+// xff -hash[=ALGO[/ENCODING]]: an ACTION that prints the entry's digest and path as
+// `<digest>  <path>` (the `sha256sum` layout, so the output feeds `<algo>sum -c`). The spec
+// picks the algorithm and hex/base64 rendering; empty parts fall back to --hash-algorithm /
+// --hash-encoding (sha256 / hex). Reads the file (Cost::kExpensive); an unreadable file emits
+// nothing. Like -print it is always true. The spec was validated before the walk
+// (ValidateHashArgs), so a parse failure here defensively no-ops.
+bool EvalHash(const parser::Expr& expr, EvalContext& ctx) {
+  const std::string_view default_algo = ctx.hash_algorithm.empty() ? "sha256" : ctx.hash_algorithm;
+  const hash::Encoding default_encoding = hash::ParseEncoding(ctx.hash_encoding).value_or(hash::Encoding::kHex);
+  const std::optional<hash::AlgoEncoding> spec = hash::ParseSpec(expr.hash_spec, default_algo, default_encoding);
+  if (!spec.has_value()) {
+    return true;
+  }
+  const std::optional<std::string> digest = hash::HashFile(spec->algo, ctx.visit.path, spec->encoding);
+  if (digest.has_value()) {
+    ctx.emit(absl::StrCat(*digest, "  ", ctx.visit.path, "\n"));
+  }
+  return true;
 }
 
 // xff -grep PATTERN: the line-output companion of -rxc. Prints each line of the
@@ -1210,6 +1237,8 @@ bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
                 .depth = ctx.visit.depth,
                 .tz = ctx.tz,
                 .time_format = ctx.time_format,
+                .hash_algorithm = ctx.hash_algorithm,
+                .hash_encoding = ctx.hash_encoding,
                 .captures = ctx.captures,
                 .defines = ctx.defines,
                 .outputs = ctx.outputs,
@@ -1614,6 +1643,8 @@ std::vector<std::string> RenderExecArgv(const parser::Expr& expr, const EvalCont
       .depth = ctx.visit.depth,
       .tz = ctx.tz,
       .time_format = ctx.time_format,
+      .hash_algorithm = ctx.hash_algorithm,
+      .hash_encoding = ctx.hash_encoding,
       .captures = ctx.captures,
       .defines = ctx.defines,
       .outputs = ctx.outputs};
@@ -1760,6 +1791,8 @@ bool RunCapture(const parser::Expr& expr, EvalContext& ctx, std::string_view dir
       .depth = ctx.visit.depth,
       .tz = ctx.tz,
       .time_format = ctx.time_format,
+      .hash_algorithm = ctx.hash_algorithm,
+      .hash_encoding = ctx.hash_encoding,
       .captures = ctx.captures,
       .defines = ctx.defines,
       .outputs = ctx.outputs};
@@ -1846,6 +1879,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-gid", {&EvalGid}},
     DispatchPair{"-grep", {&EvalGrep}},
     DispatchPair{"-group", {&EvalGroup}},
+    DispatchPair{"-hash", {&EvalHash}},
     DispatchPair{"-icontent", {&EvalContent}},
     DispatchPair{"-ilname", {&EvalLname}},
     DispatchPair{"-iname", {&EvalName}},
@@ -2025,6 +2059,32 @@ absl::Status ValidateSizeArgs(const parser::Expr& expr) {
   }
   if (expr.rhs != nullptr) {
     if (const absl::Status status = ValidateSizeArgs(*expr.rhs); !status.ok()) {
+      return status;
+    }
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateHashArgs(const parser::Expr& expr) {
+  if (expr.kind == parser::Expr::Kind::kPredicate) {
+    if (expr.descriptor != nullptr && expr.descriptor->name == "-hash" && !expr.hash_spec.empty()) {
+      // Only the spec's explicit parts matter here, so validate against a concrete default.
+      if (!hash::ParseSpec(expr.hash_spec, "sha256", hash::Encoding::kHex).has_value()) {
+        return absl::InvalidArgumentError(
+            absl::StrCat(
+                "'-hash=", expr.hash_spec,
+                "': unknown algorithm or encoding (ALGO[/ENCODING]; encoding is hex or base64)"));
+      }
+    }
+    return absl::OkStatus();
+  }
+  if (expr.lhs != nullptr) {
+    if (const absl::Status status = ValidateHashArgs(*expr.lhs); !status.ok()) {
+      return status;
+    }
+  }
+  if (expr.rhs != nullptr) {
+    if (const absl::Status status = ValidateHashArgs(*expr.rhs); !status.ok()) {
       return status;
     }
   }

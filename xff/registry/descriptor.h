@@ -36,8 +36,9 @@ enum class Cost { kCheap, kMeta, kExpensive };
 // reads the grammar from the registry instead of hardcoding names (design #68):
 // kNone for most; kLabelRegex for -capture/-capturedir (-capture=NAME[=REGEX]);
 // kFormat for -grep (-grep=FORMAT, an attached output template); kStyle for -diff
-// (-diff=STYLE, an attached output-style token like u3 / c / n / y / none).
-enum class Binding { kNone, kLabel, kLabelRegex, kFormat, kStyle };
+// (-diff=STYLE, an attached output-style token like u3 / c / n / y / none); kHash for
+// -hash (-hash=ALGO[/ENCODING], the digest algorithm and hex/base64 rendering).
+enum class Binding { kNone, kLabel, kLabelRegex, kFormat, kStyle, kHash };
 
 // The active command style, and (for kFind/kXff) a primary's origin. As a primary
 // tag: kFind = find-native, kXff = an xff extension; the strict find style
