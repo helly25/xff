@@ -216,6 +216,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "diff engine for -diff: naive, direct, or myers (the default, minimal like git)",
+        .affects = "-diff",
     },
     {
         .name = "--diff-ignore",
@@ -223,6 +224,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "normalize -diff comparison: ws, change, trail, blank, case, eofnl (comma-separated)",
+        .affects = "-diff",
     },
     {
         .name = "--diff-ignore-matching",
@@ -230,6 +232,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "-diff ignores lines matching this regex (RE2)",
+        .affects = "-diff",
     },
     {
         .name = "--diff-format",
@@ -237,6 +240,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "default -diff format: u/unified (default), c/context, n/normal, y/side-by-side",
+        .affects = "-diff",
     },
     {
         .name = "--diff-context",
@@ -244,6 +248,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "default -diff context lines (3); overrides --context for -diff, and -diff=uN overrides it",
+        .affects = "-diff,--context",
     },
     {
         .name = "--hash-algorithm",
@@ -298,6 +303,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "with -grep, print a per-file matching-line count (path:count) instead of the lines",
+        .affects = "-grep",
     },
     {
         .name = "--context",
@@ -305,6 +311,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "-grep context lines: N both sides, or A:N,B:N,C:N for after/before/both (grep -C/-A/-B)",
+        .affects = "-grep,-diff",
     },
     {
         .name = "--after-context",
@@ -312,6 +319,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "with -grep, print N lines of context after each match (grep -A; = --context=A:N)",
+        .affects = "-grep",
     },
     {
         .name = "--before-context",
@@ -319,6 +327,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "with -grep, print N lines of context before each match (grep -B; = --context=B:N)",
+        .affects = "-grep",
     },
     {
         .name = "--top",

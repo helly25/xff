@@ -19,6 +19,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_split.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
@@ -179,6 +180,45 @@ TEST_F(HelpTest, IndexIncludesGlobalGroupsAndEveryFlag) {
   EXPECT_THAT(*index, AllOf(HasSubstr("Config:"), HasSubstr("Traversal:")));
   for (const GlobalFlag& flag : Globals()) {
     EXPECT_THAT(*index, HasSubstr(flag.name)) << flag.name;
+  }
+}
+
+TEST_F(HelpTest, DetailedHelpShowsInfluenceCrossReferences) {
+  // A primary's detailed help lists the globals that change it (the reverse of their affects
+  // declarations), under an indented "Affected by:" sub-header.
+  EXPECT_THAT(
+      RenderHelp("-diff"),
+      IsOkAndHolds(AllOf(
+          HasSubstr("Affected by:"), HasSubstr("--diff-format"), HasSubstr("--diff-context"), HasSubstr("--context"))));
+  EXPECT_THAT(
+      RenderHelp("-grep"),
+      IsOkAndHolds(AllOf(HasSubstr("Affected by:"), HasSubstr("--count"), HasSubstr("--after-context"))));
+  // A global lists what it affects (forward "Affects:") and, when another flag supersedes it, what
+  // affects it in turn (flag <-> flag): --diff-context overrides --context, so --context shows both.
+  EXPECT_THAT(
+      RenderHelp("--context"),
+      IsOkAndHolds(
+          AllOf(HasSubstr("Affects:"), HasSubstr("-grep"), HasSubstr("Affected by:"), HasSubstr("--diff-context"))));
+  // A global that nothing supersedes shows Affects: but no Affected by:.
+  EXPECT_THAT(RenderHelp("--diff-format"), IsOkAndHolds(AllOf(HasSubstr("Affects:"), Not(HasSubstr("Affected by:")))));
+}
+
+TEST_F(HelpTest, InfluenceBlocksAreTheDetailTierOnly) {
+  // --help=full (the detailed tier) carries the influence blocks; --help=all (summaries) omits them.
+  EXPECT_THAT(RenderHelp("full"), IsOkAndHolds(HasSubstr("Affected by:")));
+  EXPECT_THAT(RenderHelp("all"), IsOkAndHolds(Not(HasSubstr("Affected by:"))));
+}
+
+TEST_F(HelpTest, EveryAffectsTokenResolvesToARealEntry) {
+  // Drift guard: each token a global declares in `affects` must resolve to a real expression
+  // primary or global flag, so the "Affects:" / "Affected by:" cross-references never dangle after
+  // a rename. (A leading-'@' category token is a planned extension and is intentionally not used
+  // yet -- it would fail this check until the resolver learns to expand it.)
+  for (const GlobalFlag& flag : Globals()) {
+    for (const std::string_view token : absl::StrSplit(flag.affects, ',', absl::SkipEmpty())) {
+      const bool resolves = registry::Lookup(token) != nullptr || LookupGlobal(token) != nullptr;
+      EXPECT_TRUE(resolves) << flag.name << " affects unknown entry '" << token << "'";
+    }
   }
 }
 

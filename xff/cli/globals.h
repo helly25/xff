@@ -37,6 +37,14 @@ struct GlobalFlag {
   // Optional multi-sentence explanation shown by `--help=NAME` and `--help=full` (the
   // long tier); empty falls back to the summary. `--help=all` shows the summary only.
   std::string_view details;
+  // The single source of truth for cross-references in the help system: a comma-separated
+  // list of the expression primaries and other global flags whose behavior this flag changes
+  // (e.g. "-diff" for --diff-format, "-grep,-diff" for --context). Detailed help derives an
+  // "Affects:" block here and the reverse "Affected by:" block on each named entry, so the two
+  // directions cannot drift (globals_test checks every token resolves). Each token is a primary
+  // name ("-diff") or a global name ("--context"); a leading-'@' category token is a planned
+  // extension (not yet resolved) for when one flag affects a whole family at once.
+  std::string_view affects;
   bool xff = true;  // false for a find-native option (-H/-L/-P); true for an xff extension
 };
 
