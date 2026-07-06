@@ -188,13 +188,6 @@ remains below is the design-forked / larger work.
   conventional precedence `NOT > AND/-nand > XOR/-xnor > OR/-nor`; the strict find
   style rejects them. (`-xor` matches exactly one side; the rest are the negations
   of and/or/xor.)
-- **Right align numbers in summary**: In `--summary=...` mode right align the numbers
-  for files and size.
-- **More output control for summary**: In `--summary=...` mode offer the ability to
-  control whether numbers have thousands operators and whether sizes should use unit
-  suffixes (akin to `du -h`) so `kB`/`kiB`, `MB`/`MiB` etc. Some of that is available,
-  we should have a general number output formatter that knows whether a number is for
-  Bytes=B, or blocks or whatever. Use that in all related output.
 - **Line count as a first-class metric** (2026-07-04): a fully-featured per-text-file line
   count, beyond the shipped grep-style `-grep -c` / `--count` (#92). It should be a field in
   the vocabulary (`{lines}`, usable in `-printf` `%{lines}` / `--format` / per-file output),
@@ -206,22 +199,10 @@ remains below is the design-forked / larger work.
   / manifest output + `--summary` grouping. **Deferred pending the next `mbo` version**,
   which will provide the hashing (like `-diff` waits on mbo's diff); build against mbo's
   hashes when they land rather than vendoring our own.
-- **Align outputs like -ls**: Output like `-ls` should be aligned, either the way
-  ls does it by providing some reasonable space defaults, or by full alignment.
-  Maybe with options since full alignment can be very slow and use lots of memory.
-  Likely best option is to provide the same width defaults linux/bsd do and then
-  offer to compute width across the initial output where that initial limit can also
-  be configured (with -1 = disable, and 0 off).
-- **Mimetype support**: Consider adding match on mime type support.
-- **File type support**: Consider adding match on file type support (e.g. `.cpp`,
-  `.h` and so on are C-source files). Determine a good data source that matches
-  expectations, like how does VSCode do it. One way: support reading something like
-  https://github.com/github-linguist/linguist/blob/main/lib/linguist/languages.yml
-  and offer to download if not available.
 - **Color support**: `--color[=auto|always|never]` ships an `ls`-like scheme keyed
   on the filesystem file type (directory, symlink, executable, fifo/socket/device);
   auto colors only a tty and honors `NO_COLOR`. Still open: per-language coloring
-  keyed on `languages.yml` (see "File type support"), once that data source lands.
+  keyed on `languages.yml` (the same data source `-lang` / `{lang}` already load).
 - **`-cmp` / `-diff` (compare each match against a per-entry target).** The target path
   is built per entry from the field vocabulary (`{def.B}/{relpath}`, ...), so comparing a
   whole tree against a parallel one is `xff A -type f ! -cmp '{def.B}/{relpath}'`. The find
