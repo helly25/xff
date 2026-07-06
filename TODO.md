@@ -282,3 +282,45 @@ remains below is the design-forked / larger work.
     and `--buffer`'s own `B`/`MB`/`MiB` grammar. These are parsed, never printed with a suffix, so
     there is no "MB for 1024^2" mismatch; a future pass could offer explicit `KiB`-style input units
     for xff-style callers and document the rule in `--help=size`.
+
+- **Archive diving (#83, `--archive`): use libarchive - decided 2026-07-06.** Descend into archives
+  and match/list their entries as virtual paths (`foo.tar.gz/inner/file.txt`) via a read-only
+  `vfs::FileSystem` backend, so the whole predicate/action set (incl. `-grep` on entry content)
+  works unchanged. Engine = **libarchive** via its BCR module
+  (`bazel_dep(name = "libarchive", version = "3.8.1.bcr.2")`) - a clean first-class dep (no
+  vendoring / rules_foreign_cc), less code than hand-rolling, covers tar/zip/cpio/ar/iso + the
+  gz/bz2/xz/zstd/lz4 filters behind one streaming API. Detect by extension + magic under `--archive`.
+  - **Two build variants planned:** _minimal_ (tar + gz + bz2; disable xz/zstd/lz4/mbedtls at the
+    libarchive build config) and _extended_ (add xz/zstd/zip/...). The license/NOTICE footprint
+    scales with the enabled codec set.
+  - **NOTICE obligations (all permissive; must be maintained).** libarchive's closure adds bzip2,
+    lz4, xz, zlib, zstd, mbedtls. Net-new license types vs our Apache-2.0 / BSD-3-Clause baseline:
+    **BSD-2-Clause** (libarchive, lz4), **Zlib**, **bzip2-1.0.6**, **0BSD** (xz - no notice needed).
+    Two are dual-licensed: **pin zstd -> BSD-3-Clause** and **mbedtls -> Apache-2.0** (never their
+    GPL arms), and link lz4's **library** (BSD-2), not its GPL-2.0 CLI. With those arms pinned there
+    is no copyleft. Ship a third-party-notices file carrying each permissive notice; extend it as
+    the codec set grows (minimal variant needs only BSD-2 + Zlib + bzip2).
+
+- **Heavy/special libs are composable build-time extras (decided 2026-07-06).** libarchive (#83),
+  pcre2 (#85), and any later special dependency are gated behind Bazel flags, not always compiled
+  in: the default binary is a lean core (RE2 only, no archive), and an extended binary is composed
+  from the same tree by enabling extras. Per extra: a `bazel_skylib` `bool_flag` (e.g.
+  `//xff:archive`, `//xff:pcre`, default False) + a `config_setting` + `select()` so the extra's
+  srcs/deps (`@libarchive`, `@pcre2`) link only when on, plus a `-DXFF_WITH_*` define so the backend
+  registration `#ifdef`s in. A `.bazelrc` convenience config (`build:full --//xff:archive
+--//xff:pcre`) composes them; CI builds both the lean and the full binary. The CLI reports which
+  extras are compiled in (`--version` / help) and a disabled feature errors clearly ("not built in;
+  rebuild with `--//xff:archive`"), never crashes. This is BUILD-time composition (what code/deps
+  are in the binary), distinct from the #73 `--feature` RUNTIME gates. The third-party NOTICE is
+  assembled from the enabled extras, so a lean build carries none of their notices.
+
+- **PCRE2 backend (#85, `-regextype`): use pcre2 as a composable extra - decided 2026-07-06.** RE2
+  (our engine) is linear-time and omits backreferences / lookaround / recursion; pcre2 is the Perl
+  superset a `-regextype pcre`/`perl` grammar needs (RE2 already covers the POSIX-family grammars,
+  which are all regular). **pcre2 is in the BCR**, upstream-maintained
+  (`bazel_dep(name = "pcre2", version = "10.47")` - a stable release, not the 10.46-DEV snapshot); a
+  clean dep, BSD-3-Clause (same family as re2 / googletest, so no new license type). Add a
+  PCRE2-backed `regex::Matcher` behind the existing `xff/regex` abstraction, gated by the
+  `//xff:pcre` extra above; keep **RE2 the default**, PCRE2 opt-in via `-regextype`, and set pcre2
+  match / backtrack / depth limits (`pcre2_set_match_limit` etc.) so an adversarial pattern (ReDoS,
+  which RE2 is immune to) cannot hang a walk.
