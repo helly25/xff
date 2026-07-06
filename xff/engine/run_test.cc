@@ -1218,6 +1218,47 @@ TEST_F(RunTest, SummaryTopKeepsTheLargestGroupsBySize) {
       ElementsAre(R"({"group":"txt","count":2,"bytes":2})", R"({"group":"total","count":3,"bytes":3})"));
 }
 
+TEST_F(RunTest, HistogramByExtensionCountsPerBucketSortedByCount) {
+  // --histogram=ext: txt (a.txt, sub/c.txt) has 2, md (b.md) has 1; bars sort by count
+  // descending, so txt leads. No total row (a histogram is just bars). The jsonl rows are
+  // block-tagged and the per-match listing is suppressed (only histogram rows appear).
+  EXPECT_THAT(
+      RunArgvRecords({"--histogram=ext", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(R"({"histogram":"ext","bucket":"txt","value":2})", R"({"histogram":"ext","bucket":"md","value":1})"));
+}
+
+TEST_F(RunTest, HistogramByTypeCountsMatches) {
+  EXPECT_THAT(
+      RunArgvRecords({"--histogram=type", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(R"({"histogram":"type","bucket":"file","value":3})"));
+}
+
+TEST_F(RunTest, HistogramCombinesWithSummaryEmittingBothBlocks) {
+  // --summary and --histogram are independent, combinable reductions fed by one walk: the
+  // summary rows come first, then the histogram bars, all block-tagged in --format=jsonl.
+  EXPECT_THAT(
+      RunArgvRecords({"--summary=type", "--histogram=ext", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(
+          R"({"group":"file","count":3,"bytes":3})", R"({"group":"total","count":3,"bytes":3})",
+          R"({"histogram":"ext","bucket":"txt","value":2})", R"({"histogram":"ext","bucket":"md","value":1})"));
+}
+
+TEST_F(RunTest, HistogramTopKeepsTheTallestBuckets) {
+  // --top=1: keep only the tallest bucket (txt, 2); a histogram has no total row.
+  EXPECT_THAT(
+      RunArgvRecords({"--histogram=ext", "--top=1", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(R"({"histogram":"ext","bucket":"txt","value":2})"));
+}
+
+TEST_F(RunTest, RepeatedHistogramEmitsEachBlockInOrder) {
+  // Repeatable: two --histogram flags -> two blocks, in the order given.
+  EXPECT_THAT(
+      RunArgvRecords({"--histogram=type", "--histogram=ext", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(
+          R"({"histogram":"type","bucket":"file","value":3})", R"({"histogram":"ext","bucket":"txt","value":2})",
+          R"({"histogram":"ext","bucket":"md","value":1})"));
+}
+
 TEST_F(RunTest, LsEmitsOneLinePerMatchAndSuppressesImplicitPrint) {
   // -ls is an action, so it suppresses the implicit -print: exactly one line (the
   // ls-style listing) for the match, containing its path. The exact columns are

@@ -280,6 +280,15 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of --histogram: ASCII vs Unicode bars (--unicode), count-per-bucket sorted by
+# height, suppression of the per-match listing, combining with --summary, and the bad-bucket error.
+bashtest(
+    name = "histogram_test",
+    size = "small",
+    srcs = ["histogram_test.sh"],
+    data = [":xff"],
+)
+
 # Golden output of -diff per mode: xff walks tree `a` and diffs each file against `b/{relpath}`,
 # one committed golden each (golden.bzl). -diff emits a git-style (no-timestamp) header, so the
 # whole per-mode output is a verbatim golden with no normalization, checked with mbo's diff_test.

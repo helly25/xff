@@ -316,6 +316,18 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "for scripts.",
     },
     {
+        .name = "--histogram",
+        .display = "--histogram=overall|type|ext|lang",
+        .group = "output",
+        .header = "Output",
+        .summary = "draw a bar chart of the match count per bucket (repeatable; combinable with --summary)",
+        .details = "A terminal reduction like --summary, drawn as bars: one bar per bucket (overall, by type, by "
+                   "extension, or by programming language), scaled to the tallest. Repeatable and combinable with "
+                   "--summary - both are fed by one walk and replace the per-match listing. Bars use Unicode block "
+                   "characters on a UTF-8 locale (see --unicode) or ASCII '#' otherwise; --top=N keeps the N "
+                   "tallest, and --format=jsonl emits one object per bar for scripts.",
+    },
+    {
         .name = "--count",
         .alias = "-c",
         .display = "--count, -c",
@@ -353,7 +365,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--top=N",
         .group = "output",
         .header = "Output",
-        .summary = "with --summary, show only the N largest groups by size (the total row still counts all)",
+        .summary = "with --summary or --histogram, keep only the N largest/tallest groups",
     },
     {
         .name = "--summary-precision",
