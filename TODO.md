@@ -173,8 +173,8 @@ remains below is the design-forked / larger work.
     - **A top-level map of the help system** in `--help`: state what it supports -
       `--help`, `--help=TOPIC`, `--help=list`, `--help=expressions`, `--man`, `--markdown`,
       `--explain` (and any `--help=full`) - so users can find the detailed views.
-    - **A flavor feature-map** (2026-07-04 feedback): a find/xff/xfd/rg x
-      `[behavior] [controlling flag] [find] [xff] [xfd] [rg] [current]` comparison table,
+    - **A flavor feature-map** (2026-07-04 feedback): a find/xff/rg x
+      `[behavior] [controlling flag] [find] [xff] [rg] [current]` comparison table,
       rendered from ONE static per-style-defaults config the resolvers also read (so it
       cannot drift) - the #103 config x style matrix made concrete. The `current` column is
       a per-behavior `--explain`. Sequence after smart-case so its rows are complete.
@@ -263,13 +263,13 @@ remains below is the design-forked / larger work.
   presentation layer over the same SOT. Applies to both `--help=styles` (static) and `--explain`
   (with the `current` column).
 
-- **`xfd` vs `rg` styles look identical: differentiate or drop `xfd`** (2026-07-05): the `xfd`
-  (fd-like) and `rg` (ripgrep-like) config styles currently resolve to the same flavor defaults
-  (both: gitignore + skip-hidden opinionated). If they stay identical they are redundant. Decide
-  one of: (a) drop `xfd` and keep `rg` as the single opinionated style; or (b) flesh `xfd` out in a
-  genuinely fd-flavored direction distinct from `rg` (e.g. fd's smart-case, its regex-by-default
-  vs literal, its own default action / output shape) so the two earn their separate names. Audit
-  `engine::FlavorFacets()` for where they diverge today (if anywhere) before choosing.
+- **`xfd` dropped (2026-07-06): rg is the single opinionated style.** `xfd` was identical to `rg`
+  (both: gitignore + skip-hidden + smart-case opinionated), so it was removed rather than aliased
+  (an alias silently using another config is confusing). There is no `kXfd` style: `--config=xfd`
+  and an `xfd`/`fd` invocation are now just plain names (named-config selectors on the xff base, no
+  magic remap). **Reintroduce only if given a genuinely distinct fd direction** (regex-by-default
+  bare pattern, its own default action / output) that earns a separate name; today nothing in the
+  unified grammar distinguishes it from `rg`.
 
 - **Byte units: SI (1000^N) vs binary (1024^N), consistent everywhere** (2026-07-05): the program
   must clearly distinguish decimal SI units (`KB`/`MB`/`GB`/`TB`/`PB`/`EB` = 1000^N) from binary IEC

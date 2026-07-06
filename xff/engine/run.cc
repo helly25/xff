@@ -872,10 +872,10 @@ bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
 enum class GitignoreMode { kOff, kOn, kAuto };
 
 GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals, std::optional<registry::Style> style) {
-  // The opinionated styles (rg, xfd) respect ignore files by default (their headline
+  // The opinionated style (rg) respect ignore files by default (their headline
   // behavior); find/xff start off (find-compatible). An explicit -g / --gitignore flag
   // still overrides.
-  const bool opinionated = style == registry::Style::kRg || style == registry::Style::kXfd;
+  const bool opinionated = style == registry::Style::kRg;
   GitignoreMode mode = opinionated ? GitignoreMode::kOn : GitignoreMode::kOff;
   for (const std::string& global : globals) {
     if (global == "-g" || global == "--gitignore") {
@@ -891,11 +891,11 @@ GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals, std:
 
 // --hidden / --no-hidden: whether to skip hidden dotfiles (a path component starting with
 // '.'). Default is style-scoped: find and the conservative xff style show them
-// (find-compatible), the opinionated styles (rg, xfd) skip them (fd-like, less dotclutter).
+// (find-compatible), the opinionated style (rg) skips them (fd-like, less dotclutter).
 // --hidden forces show, --no-hidden forces skip; last occurrence wins. An explicitly named
 // search root is always entered regardless (handled at the walk by depth).
 bool ResolveSkipHidden(const std::vector<std::string>& globals, std::optional<registry::Style> style) {
-  bool skip = style == registry::Style::kRg || style == registry::Style::kXfd;
+  bool skip = style == registry::Style::kRg;
   for (const std::string& global : globals) {
     if (global == "--hidden") {
       skip = false;
@@ -928,10 +928,10 @@ std::vector<std::string> ResolveIgnoreFileNames(
   if (gitignore_on) {
     names.emplace_back(".gitignore");
   }
-  // The opinionated styles (rg, xfd) also honor .ignore / .xffignore by default (like
+  // The opinionated style (rg) also honor .ignore / .xffignore by default (like
   // ripgrep / fd); other styles need --ignore-files. -u / --no-ignore above still
   // force-disables all.
-  const bool opinionated = style == registry::Style::kRg || style == registry::Style::kXfd;
+  const bool opinionated = style == registry::Style::kRg;
   if (HasGlobal(globals, "--ignore-files") || opinionated) {
     names.emplace_back(".ignore");
     names.emplace_back(".xffignore");

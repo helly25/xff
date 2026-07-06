@@ -574,9 +574,8 @@ absl::Status EnforceStyle(const Command& command, registry::Style style) {
 }
 
 CaseMode ResolveCaseMode(const std::vector<std::string>& globals, registry::Style style) {
-  // The opinionated styles (rg, xfd) default to smart-case; find/xff to sensitive.
-  CaseMode mode =
-      (style == registry::Style::kRg || style == registry::Style::kXfd) ? CaseMode::kSmart : CaseMode::kSensitive;
+  // The opinionated style (rg) defaults to smart-case; find/xff to sensitive.
+  CaseMode mode = style == registry::Style::kRg ? CaseMode::kSmart : CaseMode::kSensitive;
   for (const std::string& global : globals) {
     if (global == "-i" || global == "--case=insensitive") {
       mode = CaseMode::kInsensitive;

@@ -130,7 +130,7 @@ ConfigInputs GateConfig(const ConfigInputs& inputs, std::vector<Drop>* drops) {
   const auto gate = [&](const std::vector<RcLine>& lines, Source layer, std::vector<RcLine>& out) {
     for (const RcLine& line : lines) {
       // A preset-overloading line is dropped in every layer: a config file may not attach behavior
-      // to find/xff/rg/xfd (it would change what a plain preset run does). This is checked before
+      // to find/xff/rg (it would change what a plain preset run does). This is checked before
       // the safety policy so the warning names the real reason.
       if (OverloadsPreset(line)) {
         if (drops != nullptr) {
