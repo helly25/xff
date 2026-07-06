@@ -203,6 +203,8 @@ test::help_styles_shows_the_flavor_comparison() {
   expect_output_not_contains "xfd" "${out}"
   expect_output_contains "hidden dotfiles" "${out}"
   expect_output_contains "letter case" "${out}"
+  # Two-tier: the differing behaviors lead under a "Where the styles differ:" heading.
+  expect_output_contains "Where the styles differ:" "${out}"
   # hidden: find/xff show, rg skips (one row, so the whole-text regex stays on that line).
   expect_matches 'hidden dotfiles.*show.*show.*skip' "${out}"
 }
@@ -212,7 +214,8 @@ test::explain_adds_the_current_flavor_column() {
   # --explain prints the flavor table with a `current` column resolved for this run.
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --config=rg --explain 2>&1)"
   expect_output_contains "current" "${out}"
-  expect_matches 'letter case.*smart' "${out}" # rg resolves case -> smart
+  expect_output_contains "Relevant to this run:" "${out}" # the two-tier lead heading
+  expect_matches 'letter case.*smart' "${out}"            # rg resolves case -> smart
 }
 
 test::argv0_find_alias_defaults_to_strict_style() {

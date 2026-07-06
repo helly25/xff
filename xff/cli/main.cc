@@ -128,28 +128,60 @@ std::vector<std::string> ProjectDirs(const std::vector<std::string>& roots) {
 
 // The flavor feature-map: one row per style-scoped behavior, its controlling flag(s), each
 // style's default, and (when `current` is set) the value resolved for this invocation. All
-// values come from engine::FlavorFacets() -- each facet wraps its own resolver -- so the
-// table cannot drift from an actual run. `--help=styles` shows the static comparison (no
-// `current`); `--explain` adds the `current` column from the resolved style + globals.
+// values come from engine::FlavorFacets() -- each facet wraps its own resolver -- so the table
+// cannot drift from an actual run. `--help=styles` shows the static comparison (no `current`);
+// `--explain` adds the `current` column from the resolved style + globals.
+//
+// Two-tier: the facets that actually vary lead (the styles disagree, or -- in --explain -- a flag
+// overrode the active style's default), then the facets identical in every style follow, so the
+// signal is not buried among the many behaviors that never differ.
 std::string RenderFlavorTable(const std::vector<std::string>& globals, std::optional<xff::registry::Style> current) {
   using xff::registry::Style;
-  std::vector<xff::format::Align> aligns(current.has_value() ? 6 : 5, xff::format::Align::kLeft);
-  xff::format::Table table(std::move(aligns));
+  const std::size_t columns = current.has_value() ? 6 : 5;
   std::vector<std::string> header = {"behavior", "flag", "find", "xff", "rg"};
   if (current.has_value()) {
     header.emplace_back("current");
   }
-  table.AddRow(std::move(header));
+
+  struct FacetRow {
+    std::vector<std::string> cells;
+    bool relevant = false;
+  };
+
+  std::vector<FacetRow> rows;
   for (const xff::engine::FlavorFacet& facet : xff::engine::FlavorFacets()) {
-    std::vector<std::string> row = {
-        std::string(facet.behavior), std::string(facet.flag), facet.value({}, Style::kFind),
-        facet.value({}, Style::kXff), facet.value({}, Style::kRg)};
+    const std::string find = facet.value({}, Style::kFind);
+    const std::string xff = facet.value({}, Style::kXff);
+    const std::string rg = facet.value({}, Style::kRg);
+    std::vector<std::string> cells = {std::string(facet.behavior), std::string(facet.flag), find, xff, rg};
+    bool relevant = !(find == xff && xff == rg);  // the styles disagree on this behavior
     if (current.has_value()) {
-      row.push_back(facet.value(globals, *current));
+      const std::string resolved = facet.value(globals, *current);
+      cells.push_back(resolved);
+      if (resolved != facet.value({}, *current)) {
+        relevant = true;  // a flag overrode the active style's default this run
+      }
     }
-    table.AddRow(std::move(row));
+    rows.push_back({.cells = std::move(cells), .relevant = relevant});
   }
-  return table.Render();
+  const auto section = [&](std::string_view title, bool want_relevant) -> std::string {
+    xff::format::Table table(std::vector<xff::format::Align>(columns, xff::format::Align::kLeft));
+    table.AddRow(header);
+    std::size_t count = 0;
+    for (const FacetRow& row : rows) {
+      if (row.relevant == want_relevant) {
+        table.AddRow(row.cells);
+        ++count;
+      }
+    }
+    return count == 0 ? std::string() : absl::StrCat(title, "\n", table.Render());
+  };
+  const std::string_view lead_title = current.has_value() ? "Relevant to this run:" : "Where the styles differ:";
+  std::string out = section(lead_title, /*want_relevant=*/true);
+  if (const std::string same = section("Same in every style:", /*want_relevant=*/false); !same.empty()) {
+    absl::StrAppend(&out, out.empty() ? "" : "\n", same);
+  }
+  return out;
 }
 
 // The -printf directive reference (--help=printf, and appended to --help=full), rendered
