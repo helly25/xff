@@ -300,3 +300,27 @@ remains below is the design-forked / larger work.
     GPL arms), and link lz4's **library** (BSD-2), not its GPL-2.0 CLI. With those arms pinned there
     is no copyleft. Ship a third-party-notices file carrying each permissive notice; extend it as
     the codec set grows (minimal variant needs only BSD-2 + Zlib + bzip2).
+
+- **Heavy/special libs are composable build-time extras (decided 2026-07-06).** libarchive (#83),
+  pcre2 (#85), and any later special dependency are gated behind Bazel flags, not always compiled
+  in: the default binary is a lean core (RE2 only, no archive), and an extended binary is composed
+  from the same tree by enabling extras. Per extra: a `bazel_skylib` `bool_flag` (e.g.
+  `//xff:archive`, `//xff:pcre`, default False) + a `config_setting` + `select()` so the extra's
+  srcs/deps (`@libarchive`, `@pcre2`) link only when on, plus a `-DXFF_WITH_*` define so the backend
+  registration `#ifdef`s in. A `.bazelrc` convenience config (`build:full --//xff:archive
+--//xff:pcre`) composes them; CI builds both the lean and the full binary. The CLI reports which
+  extras are compiled in (`--version` / help) and a disabled feature errors clearly ("not built in;
+  rebuild with `--//xff:archive`"), never crashes. This is BUILD-time composition (what code/deps
+  are in the binary), distinct from the #73 `--feature` RUNTIME gates. The third-party NOTICE is
+  assembled from the enabled extras, so a lean build carries none of their notices.
+
+- **PCRE2 backend (#85, `-regextype`): use pcre2 as a composable extra - decided 2026-07-06.** RE2
+  (our engine) is linear-time and omits backreferences / lookaround / recursion; pcre2 is the Perl
+  superset a `-regextype pcre`/`perl` grammar needs (RE2 already covers the POSIX-family grammars,
+  which are all regular). **pcre2 is in the BCR**, upstream-maintained
+  (`bazel_dep(name = "pcre2", version = "10.47")` - a stable release, not the 10.46-DEV snapshot); a
+  clean dep, BSD-3-Clause (same family as re2 / googletest, so no new license type). Add a
+  PCRE2-backed `regex::Matcher` behind the existing `xff/regex` abstraction, gated by the
+  `//xff:pcre` extra above; keep **RE2 the default**, PCRE2 opt-in via `-regextype`, and set pcre2
+  match / backtrack / depth limits (`pcre2_set_match_limit` etc.) so an adversarial pattern (ReDoS,
+  which RE2 is immune to) cannot hang a walk.
