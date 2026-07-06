@@ -255,13 +255,13 @@ remains below is the design-forked / larger work.
       helly25/mbo#234 (0.13.0-dev: `mbo/diff` + `mbo/digest`); drop it for a plain `helly25_mbo`
       0.13.0 bump once that releases to BCR.
 
-- **`--explain` flavor table: two-tier layout** (2026-07-05): the flavor/settings table has grown
-  long enough that the signal (the settings that actually differ for this run, or between styles)
-  is lost among every facet. Split it: a "most relevant" section first (e.g. the facets that differ
-  from the default, or that the current run overrides), then an "all other settings" section with
-  the full list. Keep it generated from `engine::FlavorFacets()` so it cannot drift; the split is a
-  presentation layer over the same SOT. Applies to both `--help=styles` (static) and `--explain`
-  (with the `current` column).
+- **`--explain` flavor table: two-tier layout - SHIPPED (2026-07-06).** `RenderFlavorTable` now
+  leads with the facets that vary ("Where the styles differ:" for `--help=styles`, "Relevant to
+  this run:" for `--explain` - the latter also promotes any facet a flag overrode this run), then a
+  "Same in every style:" section for the rest. Still generated from `engine::FlavorFacets()` (a
+  presentation layer over the same SOT). Note: with today's five facets all differing across styles,
+  the "Same in every style:" section is currently empty - it auto-populates as uniform facets are
+  added (e.g. behaviors a future `--feature` gate introduces).
 
 - **`xfd` dropped (2026-07-06): rg is the single opinionated style.** `xfd` was identical to `rg`
   (both: gitignore + skip-hidden + smart-case opinionated), so it was removed rather than aliased
