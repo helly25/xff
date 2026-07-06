@@ -188,12 +188,12 @@ remains below is the design-forked / larger work.
   conventional precedence `NOT > AND/-nand > XOR/-xnor > OR/-nor`; the strict find
   style rejects them. (`-xor` matches exactly one side; the rest are the negations
   of and/or/xor.)
-- **Line count as a first-class metric** (2026-07-04): a fully-featured per-text-file line
-  count, beyond the shipped grep-style `-grep -c` / `--count` (#92). It should be a field in
-  the vocabulary (`{lines}`, usable in `-printf` `%{lines}` / `--format` / per-file output),
-  a `--summary` value (sum + a distribution / histogram of line counts across matches), and
-  available to final / aggregate outputs - count lines everywhere counts and sizes already
-  appear. (Binary files: no count, like the content detector.)
+- **Line count as a first-class metric** (2026-07-04): **the `{lines}` field shipped** - a
+  per-text-file line count in the field vocabulary (`{lines}`, `-printf` `%{lines}`, `--template`),
+  `wc -l`-style but also counting a final unterminated line; empty for a binary / unreadable /
+  non-regular file (`content::FileLineCount` + `CountLines`, reusing the grep NUL-byte binary
+  heuristic). **Remaining:** surfacing it as an aggregate (sum + a distribution across matches),
+  which is the `lines` metric of the histograms work (#81), not a separate item.
 - **Hash-verification workflow (#109) - [DISCUSS].** The hashing primitives shipped (#105:
   `xff/hash` + the `{hash}` / `{hash:sha256}` field + the `-hash` action + hex/base64 via
   `mbo::digest`). Still to design and build: read an expected hash into a variable, an

@@ -22,6 +22,7 @@ cc_library(
     hdrs = ["fields.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
+        "//xff/content:line_match_cc",
         "//xff/datetime:datetime_cc",
         "//xff/hash:hash_cc",
         "//xff/language:language_cc",

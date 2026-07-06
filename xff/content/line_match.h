@@ -17,6 +17,7 @@
 #define XFF_CONTENT_LINE_MATCH_H_
 
 #include <cstddef>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -62,6 +63,18 @@ std::vector<ContextLine> CollectLineMatchesWithContext(
     absl::FunctionRef<bool(std::string_view line)> matches,
     std::size_t before,
     std::size_t after);
+
+// The number of text lines in `content`, using the same line semantics as CollectLineMatches:
+// each '\n'-terminated segment is a line, plus a trailing partial line with no final '\n'. So
+// "" is 0, "a\nb\n" is 2, "a\nb" is 2, "a" is 1, "\n" is 1. Like `wc -l` but also counting an
+// unterminated final line.
+std::size_t CountLines(std::string_view content);
+
+// CountLines for the regular file at `path`, or nullopt when there is nothing to count: an
+// unreadable file, or a binary one (a NUL byte in the first 8 KiB, grep/ripgrep's heuristic - the
+// same rule content search uses to skip binaries). Reads the whole file, so it is expensive. The
+// caller is responsible for restricting this to regular files.
+std::optional<std::size_t> FileLineCount(std::string_view path);
 
 }  // namespace xff::content
 

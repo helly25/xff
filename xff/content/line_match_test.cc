@@ -15,6 +15,11 @@
 
 #include "xff/content/line_match.h"
 
+#include <cstddef>
+#include <cstdio>
+#include <fstream>
+#include <optional>
+#include <string>
 #include <string_view>
 
 #include "absl/strings/match.h"
@@ -25,9 +30,11 @@ namespace xff::content {
 namespace {
 
 using ::testing::ElementsAre;
+using ::testing::Eq;
 using ::testing::Field;
 using ::testing::IsEmpty;
 using ::testing::Matcher;
+using ::testing::Optional;
 
 Matcher<LineMatch> LineIs(std::size_t number, std::string_view text) {
   return AllOf(Field("number", &LineMatch::number, number), Field("text", &LineMatch::text, text));
@@ -134,6 +141,38 @@ TEST_F(LineContextTest, GapStartsANewGroup) {
   EXPECT_THAT(
       CollectLineMatchesWithContext("HIT\na\nb\nc\nd\nHIT\n", IsHit, 0, 1),
       ElementsAre(CtxIs(1, "HIT", true, 0), CtxIs(2, "a", false, 0), CtxIs(6, "HIT", true, 1)));
+}
+
+struct LineCountTest : ::testing::Test {};
+
+TEST_F(LineCountTest, CountLinesMatchesGrepSemantics) {
+  EXPECT_THAT(CountLines(""), 0U);
+  EXPECT_THAT(CountLines("a"), 1U);  // an unterminated single line
+  EXPECT_THAT(CountLines("a\n"), 1U);
+  EXPECT_THAT(CountLines("a\nb\n"), 2U);
+  EXPECT_THAT(CountLines("a\nb"), 2U);  // a final line with no trailing newline still counts
+  EXPECT_THAT(CountLines("\n"), 1U);    // a lone newline is one (empty) line
+  EXPECT_THAT(CountLines("\n\n"), 2U);
+  EXPECT_THAT(CountLines("a\r\nb\r\n"), 2U);  // CRLF counts like LF
+}
+
+TEST_F(LineCountTest, FileLineCountReadsAndCounts) {
+  const std::string path = std::string(::testing::TempDir()) + "/xff_line_count_txt";
+  { std::ofstream(path) << "one\ntwo\nthree\n"; }
+  EXPECT_THAT(FileLineCount(path), Optional(Eq(std::size_t{3})));
+  { std::ofstream(path) << "no trailing newline"; }
+  EXPECT_THAT(FileLineCount(path), Optional(Eq(std::size_t{1})));
+  { std::ofstream(path) << ""; }  // truncate to empty
+  EXPECT_THAT(FileLineCount(path), Optional(Eq(std::size_t{0})));
+  std::remove(path.c_str());
+}
+
+TEST_F(LineCountTest, FileLineCountSkipsBinaryAndUnreadable) {
+  const std::string path = std::string(::testing::TempDir()) + "/xff_line_count_bin";
+  { std::ofstream(path, std::ios::binary).write("a\0b\n", 4); }  // a NUL byte in the content
+  EXPECT_THAT(FileLineCount(path), Eq(std::nullopt));            // a NUL byte marks the file binary
+  std::remove(path.c_str());
+  EXPECT_THAT(FileLineCount(std::string(::testing::TempDir()) + "/xff_line_count_absent"), Eq(std::nullopt));
 }
 
 }  // namespace

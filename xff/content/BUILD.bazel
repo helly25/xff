@@ -24,6 +24,8 @@ cc_library(
     visibility = ["//xff:__subpackages__"],
     deps = [
         "@abseil-cpp//absl/functional:function_ref",
+        "@abseil-cpp//absl/status:statusor",
+        "@helly25_mbo//mbo/file:artefact_cc",
     ],
 )
 
