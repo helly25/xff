@@ -17,10 +17,13 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 #include <string_view>
 #include <vector>
 
 #include "absl/functional/function_ref.h"
+#include "absl/status/statusor.h"
+#include "mbo/file/artefact.h"
 
 namespace xff::content {
 namespace {
@@ -104,6 +107,25 @@ std::vector<ContextLine> CollectLineMatchesWithContext(
     first = false;
   }
   return result;
+}
+
+std::size_t CountLines(std::string_view content) {
+  std::size_t lines = 0;
+  ForEachLine(content, [&lines](std::size_t, std::string_view) { ++lines; });
+  return lines;
+}
+
+std::optional<std::size_t> FileLineCount(std::string_view path) {
+  const absl::StatusOr<mbo::file::Artefact> artefact = mbo::file::Artefact::Read(path);
+  if (!artefact.ok()) {
+    return std::nullopt;  // unreadable / missing -> nothing to count
+  }
+  const std::string_view content = artefact->data;
+  constexpr std::size_t kBinarySniffBytes = std::size_t{8} * 1'024;
+  if (content.substr(0, std::min(content.size(), kBinarySniffBytes)).find('\0') != std::string_view::npos) {
+    return std::nullopt;  // a NUL in the first 8 KiB marks the file binary; skip it (like content search)
+  }
+  return CountLines(content);
 }
 
 }  // namespace xff::content

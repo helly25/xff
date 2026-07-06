@@ -314,6 +314,15 @@ xff_golden_cases(
     setup = "testdata/walk/setup.sh",
 )
 
+# End-to-end test of the {lines} per-file line-count field via the %{lines} -printf escape:
+# text-file counts, no-trailing-newline, empty (0), binary (empty), and non-regular (empty).
+bashtest(
+    name = "lines_test",
+    size = "small",
+    srcs = ["lines_test.sh"],
+    data = [":xff"],
+)
+
 # End-to-end test of -ls column alignment (via the ColumnBuffer) and the --buffer
 # modes (auto/off/all/N).
 bashtest(

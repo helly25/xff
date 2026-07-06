@@ -147,6 +147,33 @@ TEST_F(FieldsTest, HashFieldOfUnreadableFileIsEmpty) {
   EXPECT_THAT(Template::Compile("[{hash}]").Render(RenderContext{.path = absent, .metadata = md}), "[]");
 }
 
+TEST_F(FieldsTest, LinesFieldCountsTextLines) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const std::string path = std::string(::testing::TempDir()) + "/xff_fields_lines";
+  { std::ofstream(path) << "one\ntwo\nthree\n"; }
+  EXPECT_THAT(Template::Compile("{lines}").Render(RenderContext{.path = path, .metadata = md}), "3");
+  { std::ofstream(path) << "no trailing newline"; }  // a final unterminated line still counts
+  EXPECT_THAT(Template::Compile("{lines}").Render(RenderContext{.path = path, .metadata = md}), "1");
+  { std::ofstream(path) << ""; }  // truncate: an empty file is zero lines
+  EXPECT_THAT(Template::Compile("{lines}").Render(RenderContext{.path = path, .metadata = md}), "0");
+  std::remove(path.c_str());
+}
+
+TEST_F(FieldsTest, LinesFieldIsEmptyForBinaryUnreadableOrNonRegular) {
+  const vfs::Metadata reg = Meta(vfs::FileType::kRegular, 0);
+  const std::string path = std::string(::testing::TempDir()) + "/xff_fields_lines_bin";
+  { std::ofstream(path, std::ios::binary).write("a\0b\n", 4); }  // a NUL byte in the content
+  // A NUL byte marks the file binary -> empty, like the content detector.
+  EXPECT_THAT(Template::Compile("[{lines}]").Render(RenderContext{.path = path, .metadata = reg}), "[]");
+  // A regular file that cannot be read -> empty.
+  const std::string absent = std::string(::testing::TempDir()) + "/xff_fields_lines_absent";
+  EXPECT_THAT(Template::Compile("[{lines}]").Render(RenderContext{.path = absent, .metadata = reg}), "[]");
+  // A non-regular entry is never counted, even at a readable path.
+  const vfs::Metadata dir = Meta(vfs::FileType::kDirectory, 0);
+  EXPECT_THAT(Template::Compile("[{lines}]").Render(RenderContext{.path = path, .metadata = dir}), "[]");
+  std::remove(path.c_str());
+}
+
 TEST_F(FieldsTest, TimeFieldQualifiers) {
   vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   md.mtime = absl::FromUnixSeconds(1'700'000'000);  // 2023-11-14, mid-month: the year is timezone-stable

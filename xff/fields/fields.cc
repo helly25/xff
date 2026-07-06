@@ -40,6 +40,7 @@
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
+#include "xff/content/line_match.h"
 #include "xff/datetime/datetime.h"
 #include "xff/hash/hash.h"
 #include "xff/language/language.h"
@@ -271,6 +272,19 @@ std::string HashField(std::string_view, std::string_view qualifier, const Render
   return hash::HashFile(spec->algo, ctx.path, spec->encoding).value_or("");
 }
 
+// {lines}: the number of text lines in the entry's file content (like `wc -l`, but also counting a
+// final line with no trailing newline). Empty for a non-regular, unreadable, or binary file (a NUL
+// byte in the first 8 KiB, grep/ripgrep's heuristic, so binaries render nothing rather than a
+// misleading count). Reads the file, so it is expensive; composes with --summary / -printf to tally
+// lines across matches.
+std::string LinesField(std::string_view, std::string_view, const RenderContext& ctx) {
+  if (ctx.metadata.type != vfs::FileType::kRegular) {
+    return "";  // only regular files have countable content
+  }
+  const std::optional<std::size_t> lines = content::FileLineCount(ctx.path);
+  return lines.has_value() ? std::to_string(*lines) : "";
+}
+
 // {lang} / {language}: the entry's programming/markup language (github-linguist name, e.g. "C++",
 // "Python"), from its filename/extension via the language table; empty when unrecognized. Content
 // is not read, so it is cheap; composes with --summary group-by to tally files per language.
@@ -381,6 +395,7 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"lang", &LanguageField},
     FieldEntry{"language", &LanguageField},
     FieldEntry{"line", &LineField},
+    FieldEntry{"lines", &LinesField},
     FieldEntry{"links", &LinksField},
     FieldEntry{"match", &MatchField},
     FieldEntry{"mode", &ModeField},
@@ -774,6 +789,11 @@ std::vector<FieldDoc> FieldDocs() {
        .group = "content",
        .header = "Content",
        .summary = "file digest; {hash:ALGO[/ENCODING]} picks the algorithm (default sha256) and hex/base64"},
+      {.name = "lines",
+       .aliases = {},
+       .group = "content",
+       .header = "Content",
+       .summary = "text line count (empty for a binary/unreadable file); reads the file"},
       // Owner & mode.
       {.name = "user", .aliases = {}, .group = "owner", .header = "Owner & mode", .summary = "owner user name"},
       {.name = "group", .aliases = {}, .group = "owner", .header = "Owner & mode", .summary = "owner group name"},
