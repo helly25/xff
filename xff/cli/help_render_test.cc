@@ -193,12 +193,17 @@ TEST_F(HelpTest, DetailedHelpShowsInfluenceCrossReferences) {
   EXPECT_THAT(
       RenderHelp("-grep"),
       IsOkAndHolds(AllOf(HasSubstr("Affected by:"), HasSubstr("--count"), HasSubstr("--after-context"))));
-  // A global lists what it affects (forward "Affects:") and, when another flag supersedes it, what
-  // affects it in turn (flag <-> flag): --diff-context overrides --context, so --context shows both.
+  // A flag <-> flag edge points from the feeder to the fed: --context supplies the -diff context
+  // when --diff-context is absent, so --context lists --diff-context under "Affects:" and
+  // --diff-context shows the reverse "Affected by:" (never the other way around).
   EXPECT_THAT(
       RenderHelp("--context"),
+      IsOkAndHolds(AllOf(
+          HasSubstr("Affects:"), HasSubstr("-grep"), HasSubstr("--diff-context"), Not(HasSubstr("Affected by:")))));
+  EXPECT_THAT(
+      RenderHelp("--diff-context"),
       IsOkAndHolds(
-          AllOf(HasSubstr("Affects:"), HasSubstr("-grep"), HasSubstr("Affected by:"), HasSubstr("--diff-context"))));
+          AllOf(HasSubstr("Affects:"), HasSubstr("-diff"), HasSubstr("Affected by:"), HasSubstr("--context"))));
   // A global that nothing supersedes shows Affects: but no Affected by:.
   EXPECT_THAT(RenderHelp("--diff-format"), IsOkAndHolds(AllOf(HasSubstr("Affects:"), Not(HasSubstr("Affected by:")))));
 }

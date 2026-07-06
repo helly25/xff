@@ -124,8 +124,12 @@ test::no_ignore_master_switch_overrides_dash_g() {
   local root out
   root="$(_make_tree)"
   out="$("$(_xff_bin)" -g -u "${root}" -type f 2>&1)"
-  rm -rf "${root}"
   expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}" # -u force-disables even with -g
+  out="$("$(_xff_bin)" -u -g+ "${root}" -type f 2>&1)"
+  rm -rf "${root}"
+  # ... and even a forced -g+, regardless of position: -u is a master switch, not a
+  # participant in the -g last-wins scan.
+  expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
 }
 
 test::nested_gitignore_scopes_to_its_subtree() {
