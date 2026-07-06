@@ -80,8 +80,12 @@ remains below is the design-forked / larger work.
   worker-pool walk (`ReadPool`, `absl::Mutex`; parallel `readdir`+`lstat` on workers,
   single-thread coordinator/visitor) with `--sort=none|dir|subtree|tree`
   (`absl::c_sort`), `-j N` / `--jobs=all`, mode-scoped defaults, unit-tested across
-  worker counts plus a tsan CI cell. Remaining: a CLI-level bashtest exercising
-  `--sort` / `-j` end to end, then close #43/#27.
+  worker counts plus a tsan CI cell. Remaining: the `--sort` / `-j` CLI bashtest
+  (its own bullet below), then close #43/#27.
+- **`--sort` / `-j` CLI bashtest** (tail of #43/#27): the one missing piece of #43 - a
+  binary-level bashtest driving `--sort=none|dir|subtree|tree` and `-j N` / `--jobs=all` end to
+  end. The engine is already covered by C++ unit tests across worker counts plus a tsan CI cell;
+  this adds the CLI coverage, then closes #43 / #27. Ready to build.
 - **Exit-code model refinement + `--skip-unsupported` + impossible-task-fail**
   (#44). Shipped: (a) match-sensitive exit -- the default stays find semantics
   (0 ran / 2 error, match status never affects exit), while `--quiet` (suppress
