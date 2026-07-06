@@ -282,3 +282,21 @@ remains below is the design-forked / larger work.
     and `--buffer`'s own `B`/`MB`/`MiB` grammar. These are parsed, never printed with a suffix, so
     there is no "MB for 1024^2" mismatch; a future pass could offer explicit `KiB`-style input units
     for xff-style callers and document the rule in `--help=size`.
+
+- **Archive diving (#83, `--archive`): use libarchive - decided 2026-07-06.** Descend into archives
+  and match/list their entries as virtual paths (`foo.tar.gz/inner/file.txt`) via a read-only
+  `vfs::FileSystem` backend, so the whole predicate/action set (incl. `-grep` on entry content)
+  works unchanged. Engine = **libarchive** via its BCR module
+  (`bazel_dep(name = "libarchive", version = "3.8.1.bcr.2")`) - a clean first-class dep (no
+  vendoring / rules_foreign_cc), less code than hand-rolling, covers tar/zip/cpio/ar/iso + the
+  gz/bz2/xz/zstd/lz4 filters behind one streaming API. Detect by extension + magic under `--archive`.
+  - **Two build variants planned:** _minimal_ (tar + gz + bz2; disable xz/zstd/lz4/mbedtls at the
+    libarchive build config) and _extended_ (add xz/zstd/zip/...). The license/NOTICE footprint
+    scales with the enabled codec set.
+  - **NOTICE obligations (all permissive; must be maintained).** libarchive's closure adds bzip2,
+    lz4, xz, zlib, zstd, mbedtls. Net-new license types vs our Apache-2.0 / BSD-3-Clause baseline:
+    **BSD-2-Clause** (libarchive, lz4), **Zlib**, **bzip2-1.0.6**, **0BSD** (xz - no notice needed).
+    Two are dual-licensed: **pin zstd -> BSD-3-Clause** and **mbedtls -> Apache-2.0** (never their
+    GPL arms), and link lz4's **library** (BSD-2), not its GPL-2.0 CLI. With those arms pinned there
+    is no copyleft. Ship a third-party-notices file carrying each permissive notice; extend it as
+    the codec set grows (minimal variant needs only BSD-2 + Zlib + bzip2).
