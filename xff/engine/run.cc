@@ -869,9 +869,14 @@ bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
 // only when the traversal is inside a git repo, matching git's own behavior);
 // `--gitignore=on` (or the short `-g+`) forces it on regardless, `--gitignore=off`
 // (short `-g-`) forces it off. Last occurrence wins. Off by default (find-compatible).
+// -u / --no-ignore overrules them all: the master switch over every ignore source is
+// position-independent, not a participant in the last-wins scan.
 enum class GitignoreMode { kOff, kOn, kAuto };
 
 GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals, std::optional<registry::Style> style) {
+  if (HasGlobal(globals, "--no-ignore") || HasGlobal(globals, "-u")) {
+    return GitignoreMode::kOff;
+  }
   // The opinionated style (rg) respect ignore files by default (their headline
   // behavior); find/xff start off (find-compatible). An explicit -g / --gitignore flag
   // still overrides.
@@ -1468,8 +1473,9 @@ int RunFind(
   // find-compatible; -u / --no-ignore forces it off). Reads through walk_fs, so a
   // --dry-run still consults them. Inactive is zero overhead.
   // -g / --gitignore: on forces .gitignore, auto enables it only when a search root
-  // is inside a git repo (probe once, before the walk). -u / --no-ignore still wins
-  // (ResolveIgnoreFileNames returns nothing then, so the repo probe is skipped).
+  // is inside a git repo (probe once, before the walk). -u / --no-ignore still wins:
+  // ResolveGitignoreMode returns kOff then, so the repo probe and the global-excludes
+  // read below are skipped too.
   const GitignoreMode gitignore_mode = ResolveGitignoreMode(command.globals, style);
   const bool gitignore_on = gitignore_mode == GitignoreMode::kOn
                             || (gitignore_mode == GitignoreMode::kAuto && AnyRootInRepo(walk_fs, command.roots));

@@ -267,7 +267,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "default -diff context lines (3); overrides --context for -diff, and -diff=uN overrides it",
-        .affects = "-diff,--context",
+        .affects = "-diff",
     },
     {
         .name = "--hash-algorithm",
@@ -330,7 +330,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "-grep context lines: N both sides, or A:N,B:N,C:N for after/before/both (grep -C/-A/-B)",
-        .affects = "-grep,-diff",
+        .affects = "-grep,-diff,--diff-context",
     },
     {
         .name = "--after-context",

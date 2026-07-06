@@ -218,6 +218,17 @@ test::explain_adds_the_current_flavor_column() {
   expect_matches 'letter case.*smart' "${out}"            # rg resolves case -> smart
 }
 
+test::no_ignore_wins_in_the_explain_flavor_column() {
+  local out
+  local NL=$'\n'
+  # The ignore-files facet resolves the -g ternary: -g+ forces on (the row ends with the
+  # current column), and -u / --no-ignore is the master switch that overrules it to off.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" -g+ --explain 2>&1)"
+  expect_matches "ignore files[^${NL}]*on[[:space:]]*(\$|${NL})" "${out}"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" -g+ -u --explain 2>&1)"
+  expect_matches "ignore files[^${NL}]*off[[:space:]]*(\$|${NL})" "${out}"
+}
+
 test::argv0_find_alias_defaults_to_strict_style() {
   local dir
   dir="$(_tree argv0)"
