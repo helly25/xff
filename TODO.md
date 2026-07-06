@@ -80,8 +80,12 @@ remains below is the design-forked / larger work.
   worker-pool walk (`ReadPool`, `absl::Mutex`; parallel `readdir`+`lstat` on workers,
   single-thread coordinator/visitor) with `--sort=none|dir|subtree|tree`
   (`absl::c_sort`), `-j N` / `--jobs=all`, mode-scoped defaults, unit-tested across
-  worker counts plus a tsan CI cell. Remaining: a CLI-level bashtest exercising
-  `--sort` / `-j` end to end, then close #43/#27.
+  worker counts plus a tsan CI cell. Remaining: the `--sort` / `-j` CLI bashtest
+  (its own bullet below), then close #43/#27.
+- **`--sort` / `-j` CLI bashtest** (tail of #43/#27): the one missing piece of #43 - a
+  binary-level bashtest driving `--sort=none|dir|subtree|tree` and `-j N` / `--jobs=all` end to
+  end. The engine is already covered by C++ unit tests across worker counts plus a tsan CI cell;
+  this adds the CLI coverage, then closes #43 / #27. Ready to build.
 - **Exit-code model refinement + `--skip-unsupported` + impossible-task-fail**
   (#44). Shipped: (a) match-sensitive exit -- the default stays find semantics
   (0 ran / 2 error, match status never affects exit), while `--quiet` (suppress
@@ -194,11 +198,26 @@ remains below is the design-forked / larger work.
   a `--summary` value (sum + a distribution / histogram of line counts across matches), and
   available to final / aggregate outputs - count lines everywhere counts and sizes already
   appear. (Binary files: no count, like the content detector.)
-- **Per-file content hashes** (2026-07-04): compute a hash (md5 / sha\* / ...) per file,
-  exposed as a field (`{hash}`, `{hash:sha256}`) and matchable, for dedup / change-detection
-  / manifest output + `--summary` grouping. **Deferred pending the next `mbo` version**,
-  which will provide the hashing (like `-diff` waits on mbo's diff); build against mbo's
-  hashes when they land rather than vendoring our own.
+- **Hash-verification workflow (#109) - [DISCUSS].** The hashing primitives shipped (#105:
+  `xff/hash` + the `{hash}` / `{hash:sha256}` field + the `-hash` action + hex/base64 via
+  `mbo::digest`). Still to design and build: read an expected hash into a variable, an
+  `-eval`-style matcher that compares a computed `{hash}` against it (verify a manifest, detect
+  drift), and `--summary` tallies of verified vs failed (plus `--summary=hash` grouping for
+  dedup). **Open:** where expected hashes come from (a sidecar manifest file, a `{def.X}` value,
+  or a per-entry target like `-cmp`) and the matcher's spelling / polarity. Not yet designed.
+- **Smart-case matching (`--smart-case`) - [DISCUSS].** The rg / fd convention: an all-lowercase
+  pattern matches case-insensitively, a pattern with any uppercase matches case-sensitively.
+  Already referenced as an rg-flavor default (the `xfd`-drop and flavor-table notes below) but
+  never defined as its own work item. Build `--smart-case` + an off switch, with the per-style
+  default (on for rg, off for find / xff). **Sequence this BEFORE the flavor feature-map help
+  row** - that table stays incomplete until smart-case is a real facet. **Open:** interaction
+  with `--exact` and the FS case-fold probe, and whether it applies uniformly to `-name` globs,
+  `-regex`, and `-grep`.
+- **Sharded-file support (#84) - TBD, needs a design pass.** Treat a set of shard files
+  (`data-00000-of-00010`, split `foo.tar.001` parts, ...) as one logical entry for matching /
+  listing / content actions. **No design yet:** which shard schemes are in scope, whether it is
+  a traversal-time grouping or a virtual `vfs` view (cf. `--archive`), and how it interacts with
+  `-grep` / `-size` / `--count` over the reassembled whole. Decide the shape before building.
 - **Color support**: `--color[=auto|always|never]` ships an `ls`-like scheme keyed
   on the filesystem file type (directory, symlink, executable, fifo/socket/device);
   auto colors only a tty and honors `NO_COLOR`. Still open: per-language coloring
