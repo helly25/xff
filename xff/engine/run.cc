@@ -18,6 +18,8 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -270,6 +272,60 @@ std::string SummaryKey(SummaryMode mode, const Visit& visit) {
     }
     default: return "total";  // kOverall: a single bucket
   }
+}
+
+// xff --histogram=BUCKET (repeatable): reduce matches to a bar chart of the count per bucket,
+// instead of (or alongside) the --summary table. BUCKET is the same categorical group-by as
+// --summary (overall / type / ext / lang). Independent of and combinable with --summary; both are
+// terminal reductions fed by one walk. (Numeric metrics and aggregators -- ext:sum(lines) etc. --
+// are a later addition; today a histogram counts entries per bucket.)
+struct HistogramSpec {
+  SummaryMode bucket = SummaryMode::kOverall;
+  std::string label;  // the bucket name as written, for the jsonl tag and the text heading
+};
+
+absl::StatusOr<std::vector<HistogramSpec>> ResolveHistograms(const std::vector<std::string>& globals) {
+  constexpr std::string_view kFlag = "--histogram";
+  std::vector<HistogramSpec> specs;
+  for (std::string_view global : globals) {
+    if (global != kFlag && !absl::StartsWith(global, absl::StrCat(kFlag, "="))) {
+      continue;
+    }
+    const std::string_view value = global == kFlag ? "overall" : global.substr(kFlag.size() + 1);
+    SummaryMode bucket = SummaryMode::kOverall;
+    if (value == "overall") {
+      bucket = SummaryMode::kOverall;
+    } else if (value == "type") {
+      bucket = SummaryMode::kType;
+    } else if (value == "ext") {
+      bucket = SummaryMode::kExt;
+    } else if (value == "lang") {
+      bucket = SummaryMode::kLanguage;
+    } else {
+      return absl::InvalidArgumentError(
+          absl::StrCat("unknown --histogram bucket '", value, "'; use overall, type, ext, or lang"));
+    }
+    specs.push_back(HistogramSpec{.bucket = bucket, .label = std::string(value)});
+  }
+  return specs;
+}
+
+// A horizontal bar `fraction` (0..1) of `width` cells wide. With unicode, the Unicode block
+// elements give eighth-of-a-cell precision (full block plus a partial); otherwise ASCII '#'
+// rounded to whole cells. Empty for fraction 0.
+std::string HistogramBar(double fraction, std::size_t width, bool unicode) {
+  fraction = std::clamp(fraction, 0.0, 1.0);
+  if (!unicode) {
+    return std::string(static_cast<std::size_t>(std::llround(fraction * static_cast<double>(width))), '#');
+  }
+  constexpr std::array<std::string_view, 8> kPartials = {"", "▏", "▎", "▍", "▌", "▋", "▊", "▉"};
+  const auto eighths = static_cast<std::size_t>(std::llround(fraction * static_cast<double>(width) * 8.0));
+  std::string bar;
+  for (std::size_t full = eighths / 8; full > 0; --full) {
+    bar += "█";  // full block
+  }
+  bar += kPartials.at(eighths % 8);
+  return bar;
 }
 
 // Applies one --context SPEC onto (before, after): a bare non-negative integer sets both sides,
@@ -1463,6 +1519,16 @@ int RunFind(
   const std::optional<format::SizeUnits> human =
       ResolveHuman(command.globals, style);  // --human: size units for --summary and -ls (xff -> human)
   std::map<std::string, std::pair<std::uint64_t, std::uint64_t>> summary;  // group -> {count, total size}
+  // --histogram (repeatable): a bar chart of the count per bucket, alongside or instead of
+  // --summary. Both are reductions fed by one walk; a run with either suppresses the listing.
+  absl::StatusOr<std::vector<HistogramSpec>> histograms_or = ResolveHistograms(command.globals);
+  if (!histograms_or.ok()) {
+    on_error("--histogram", histograms_or.status());
+    return 2;
+  }
+  const std::vector<HistogramSpec> histograms = *std::move(histograms_or);
+  std::vector<std::map<std::string, std::uint64_t>> histogram_counts(histograms.size());  // one per spec
+  const bool any_reduction = summary_mode != SummaryMode::kOff || !histograms.empty();
   int errors = 0;
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
@@ -1577,8 +1643,7 @@ int RunFind(
 
   // The header row (the column names, or the single default `path`) prints unless --no-header,
   // and only for the implicit path listing (not a --summary or explicit-action stream).
-  const bool table_header_shown =
-      implicit_print && summary_mode == SummaryMode::kOff && !HasGlobal(command.globals, "--no-header");
+  const bool table_header_shown = implicit_print && !any_reduction && !HasGlobal(command.globals, "--no-header");
 
   // Buffered tabular output (--format=aligned/markdown) streams each match's cells through a
   // TableStream: it buffers up to the --buffer window (default all = full alignment) to size the
@@ -1690,12 +1755,17 @@ int RunFind(
         if (matched && any_match != nullptr) {
           *any_match = true;  // grep-style "found anything" -- the expression's truth, not output
         }
-        if (matched && summary_mode != SummaryMode::kOff) {
-          // --summary reduces matches instead of printing them: bump this group's
-          // count and size. Explicit actions (-print/-exec) still ran via Evaluate.
-          std::pair<std::uint64_t, std::uint64_t>& agg = summary[SummaryKey(summary_mode, visit)];
-          agg.first += 1;
-          agg.second += visit.metadata.size;
+        if (matched && any_reduction) {
+          // --summary / --histogram reduce matches instead of printing them; explicit
+          // actions (-print/-exec) still ran via Evaluate.
+          if (summary_mode != SummaryMode::kOff) {
+            std::pair<std::uint64_t, std::uint64_t>& agg = summary[SummaryKey(summary_mode, visit)];
+            agg.first += 1;
+            agg.second += visit.metadata.size;
+          }
+          for (std::size_t i = 0; i < histograms.size(); ++i) {
+            histogram_counts[i][SummaryKey(histograms[i].bucket, visit)] += 1;
+          }
         } else if (matched && implicit_print) {
           if (is_tree) {
             tree->Add(visit.path);  // splice into the tree; rendered whole after the walk
@@ -1890,6 +1960,63 @@ int RunFind(
           table.AddRow({row.key, format::Int(row.count, ','), format::Int(row.size, ',')});
         }
         emit(table.Render());
+      }
+    }
+  }
+
+  // --histogram: after any --summary table, emit each histogram's bars (or jsonl rows), in the
+  // order the flags were given. Bars scale to the tallest bucket; --top keeps the N tallest.
+  // Unicode block bars on a UTF-8 locale (--unicode), ASCII '#' otherwise.
+  if (!histograms.empty()) {
+    const bool unicode = ResolveUnicode(command.globals);
+    const std::optional<std::size_t> top = ResolveTop(command.globals);
+    constexpr std::size_t kBarWidth = 40;
+
+    struct Bar {
+      std::string key;
+      std::uint64_t value = 0;
+    };
+
+    for (std::size_t i = 0; i < histograms.size(); ++i) {
+      std::vector<Bar> bars;
+      std::uint64_t max_value = 0;
+      for (const auto& [key, value] : histogram_counts[i]) {
+        bars.push_back(Bar{.key = key, .value = value});
+        max_value = std::max(max_value, value);
+      }
+      absl::c_sort(bars, [](const Bar& lhs, const Bar& rhs) {
+        return lhs.value != rhs.value ? lhs.value > rhs.value : lhs.key < rhs.key;
+      });
+      if (top.has_value() && bars.size() > *top) {
+        bars.resize(*top);
+      }
+      if (format == render::Format::kJsonl) {
+        for (const Bar& bar : bars) {
+          emit(
+              absl::StrCat(
+                  "{\"histogram\":", JsonQuote(histograms[i].label), ",\"bucket\":", JsonQuote(bar.key),
+                  ",\"value\":", bar.value, "}\n"));
+        }
+        continue;
+      }
+      // Text bars: the label left-padded to the widest key, the grouped count right-aligned, then
+      // the bar. The bar is last so its Unicode width never disturbs the aligned columns.
+      std::size_t label_width = 0;
+      std::size_t count_width = 0;
+      std::vector<std::string> counts;
+      counts.reserve(bars.size());
+      for (const Bar& bar : bars) {
+        label_width = std::max(label_width, bar.key.size());
+        counts.push_back(format::Int(bar.value, ','));
+        count_width = std::max(count_width, counts.back().size());
+      }
+      for (std::size_t j = 0; j < bars.size(); ++j) {
+        const double fraction =
+            max_value == 0 ? 0.0 : static_cast<double>(bars[j].value) / static_cast<double>(max_value);
+        emit(
+            absl::StrCat(
+                bars[j].key, std::string(label_width - bars[j].key.size(), ' '), "  ",
+                format::PadLeft(counts[j], count_width), "  ", HistogramBar(fraction, kBarWidth, unicode), "\n"));
       }
     }
   }
