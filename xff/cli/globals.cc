@@ -384,10 +384,17 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--human",
-        .display = "--human[=iec|si|off]",
+        .display = "--human[=si|iec|off]",
         .group = "output",
         .header = "Output",
-        .summary = "size units for -ls / --summary: iec (KiB/MiB), si (kB/MB), off (bytes); xff -> iec",
+        .summary = "size units for -ls / --summary: si (kB/MB, default), iec (KiB/MiB), off (bytes); xff -> si",
+    },
+    {
+        .name = "--si",
+        .display = "--si",
+        .group = "output",
+        .header = "Output",
+        .summary = "human sizes in SI (kB/MB, 1000^N); an alias for --human=si (the --human default)",
     },
     {
         .name = "--buffer",

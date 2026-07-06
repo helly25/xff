@@ -63,10 +63,10 @@ test::summary_default_is_human_and_right_aligned_in_xff() {
   root="$(_make_tree)"
   out="$(_run --summary=ext "${root}" -type f)"
   rm -rf "${root}"
-  # xff style defaults to human sizes: txt (2 files, 1244 bytes) -> KiB, md (5) -> B,
+  # xff style defaults to human sizes in SI: txt (2 files, 1244 bytes) -> kB, md (5) -> B,
   # with the count right of the label.
-  expect_matches 'txt +2 +[0-9.]+ KiB' "${out}"
-  expect_matches 'total +3 +[0-9.]+ KiB' "${out}"
+  expect_matches 'txt +2 +[0-9.]+ kB' "${out}"
+  expect_matches 'total +3 +[0-9.]+ kB' "${out}"
   # A byte size renders as the integer with the fraction columns blanked (so points line
   # up under the scaled rows), hence several spaces before the left-aligned suffix.
   expect_matches 'md +1 +5 +B' "${out}"
@@ -110,9 +110,9 @@ _make_big() {
 test::human_iec_renders_binary_units() {
   local root out
   root="$(_make_big)"
-  out="$(_run --summary --human "${root}" -type f)"
+  out="$(_run --summary --human=iec "${root}" -type f)"
   rm -rf "${root}"
-  expect_matches '5\.6[0-9]* MiB' "${out}" # bare --human = iec (binary); precision-agnostic
+  expect_matches '5\.6[0-9]* MiB' "${out}" # --human=iec = binary (MiB); precision-agnostic
 }
 
 test::human_si_renders_decimal_units() {
@@ -123,14 +123,26 @@ test::human_si_renders_decimal_units() {
   expect_matches '5\.[0-9]+ MB' "${out}" # --human=si = decimal (MB, not MiB); precision-agnostic
 }
 
+test::human_default_and_si_alias_are_decimal() {
+  local root out
+  root="$(_make_big)"
+  # Bare --human defaults to SI (decimal MB, not MiB); --si is its alias.
+  out="$(_run --summary --human "${root}" -type f)"
+  expect_matches '5\.[0-9]+ MB' "${out}"
+  expect_not_matches 'MiB' "${out}"
+  out="$(_run --summary --si "${root}" -type f)"
+  rm -rf "${root}"
+  expect_matches '5\.[0-9]+ MB' "${out}"
+}
+
 test::summary_precision_sets_fraction_digits() {
   local root out
   root="$(_make_big)"
   # --summary-precision=N sets the scaled-size fraction digits (default 2).
-  out="$(_run --summary --human --summary-precision=4 "${root}" -type f)"
+  out="$(_run --summary --human=iec --summary-precision=4 "${root}" -type f)"
   expect_matches '5\.[0-9]{4} MiB' "${out}" # exactly four fraction digits
   # 0 => integer, no decimal point.
-  out="$(_run --summary --human --summary-precision=0 "${root}" -type f)"
+  out="$(_run --summary --human=iec --summary-precision=0 "${root}" -type f)"
   rm -rf "${root}"
   expect_matches '[0-9]+ MiB' "${out}"
   expect_not_matches '\. *MiB|[0-9]\.[0-9]+ MiB' "${out}"

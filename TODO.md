@@ -271,13 +271,14 @@ remains below is the design-forked / larger work.
   bare pattern, its own default action / output) that earns a separate name; today nothing in the
   unified grammar distinguishes it from `rg`.
 
-- **Byte units: SI (1000^N) vs binary (1024^N), consistent everywhere** (2026-07-05): the program
-  must clearly distinguish decimal SI units (`KB`/`MB`/`GB`/`TB`/`PB`/`EB` = 1000^N) from binary IEC
-  units (`KiB`/`MiB`/`GiB`/`TiB`/`PiB`/`EiB` = 1024^N), spell each correctly (the `i` marks binary),
-  and never mix the two notations at one site (never print `MB` for a 1024^2 value). Audit and
-  reconcile every place bytes are parsed or formatted so one convention is used correctly
-  throughout: `-size` / `-blocks` unit suffixes (find-native `k`/`M`/`G`/`T`/`P`/`E` are binary
-  multipliers today), `--block-size`, the `--summary` and `-ls` human sizes (`format::SizeUnits`
-  iec/si), `--buffer` byte budgets (`B`/`MB`/`MiB`), and any `{size}` / `-printf %s` rendering.
-  Decide the canonical spelling rule (bare `K`/`M`/... base, following GNU only where find-compat
-  requires it) and make it uniform and documented in `--help=size`.
+- **Byte units: SI vs binary - human output default resolved to SI (2026-07-06).** The only
+  unit-suffixed OUTPUT is the human-size renderer (`format::Size`, `--summary` / `-ls`), and it
+  already spells both scales correctly: SI `kB`/`MB`/`GB` = 1000^N (lowercase SI kilo), IEC
+  `KiB`/`MiB`/`GiB` = 1024^N. `--human` now defaults to **SI** (bare `--human` and the xff/rg style
+  default; `--si` is an alias; `--human=iec` / `=1024` selects binary, `=si` / `=1000` decimal,
+  `=off` raw), since IEC's `i` reads less human. No site mixes the two.
+  - **Still open (audit, not a known bug):** the INPUT unit grammars stay find-native binary and
+    are not renamed - `-size` / `-blocks` `k`/`M`/`G`/... (find-compat: `k` = 1024), `--block-size`,
+    and `--buffer`'s own `B`/`MB`/`MiB` grammar. These are parsed, never printed with a suffix, so
+    there is no "MB for 1024^2" mismatch; a future pass could offer explicit `KiB`-style input units
+    for xff-style callers and document the rule in `--help=size`.

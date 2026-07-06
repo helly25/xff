@@ -1075,24 +1075,25 @@ std::optional<std::string> UnusedCaptureName(const parser::Expr& expr, const std
 
 }  // namespace
 
-// --human[=iec|si|off]: how sizes render in -ls and --summary. iec = binary
-// (KiB/MiB), si = decimal (kB/MB), off = raw bytes. The default when unset is
-// style-scoped: the modern styles (xff, rg) show human (iec), the find style shows raw
-// bytes (find -ls compatibility). Last occurrence wins; nullopt means raw bytes.
+// --human[=iec|si|off] (and the --si alias): how sizes render in -ls and --summary. si = decimal
+// (kB/MB, 1000^N) - the default, since it reads most human; iec = binary (KiB/MiB, 1024^N); off =
+// raw bytes. Numeric synonyms: 1000 = si, 1024 = iec. Bare --human and --si both select si. The
+// default when unset is style-scoped: the modern styles (xff, rg) show human (si), the find style
+// shows raw bytes (find -ls compatibility). Last occurrence wins; nullopt means raw bytes.
 std::optional<format::SizeUnits> ResolveHuman(
     const std::vector<std::string>& globals,
     std::optional<registry::Style> style) {
   std::optional<format::SizeUnits> units;
   if (style.has_value() && *style != registry::Style::kFind) {
-    units = format::SizeUnits::kIec;  // the modern styles (xff, rg) default to human sizes
+    units = format::SizeUnits::kSi;  // the modern styles (xff, rg) default to human sizes (SI)
   }
-  for (const std::string& global : globals) {
-    if (global == "--human" || global == "--human=iec") {
+  for (std::string_view global : globals) {
+    if (global == "--human" || global == "--human=si" || global == "--human=1000" || global == "--si") {
+      units = format::SizeUnits::kSi;  // bare --human defaults to SI (KB/MB); --si is its alias
+    } else if (global == "--human=iec" || global == "--human=1024") {
       units = format::SizeUnits::kIec;
-    } else if (global == "--human=si") {
-      units = format::SizeUnits::kSi;
     } else if (global == "--human=off") {
-      units = std::nullopt;  // force raw bytes, even in the xff style
+      units = std::nullopt;  // force raw bytes, even in the modern styles
     }
   }
   return units;
