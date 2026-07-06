@@ -324,3 +324,52 @@ remains below is the design-forked / larger work.
   `//xff:pcre` extra above; keep **RE2 the default**, PCRE2 opt-in via `-regextype`, and set pcre2
   match / backtrack / depth limits (`pcre2_set_match_limit` etc.) so an adversarial pattern (ReDoS,
   which RE2 is immune to) cannot hang a walk.
+
+- **Richer stats: histograms (#81) - design pinned 2026-07-06.** Histograms of "what the user
+  sees": aggregate a metric grouped by a field and draw it as bars. `--summary` (the count+size
+  group table) and `--histogram` are **independent, combinable terminal reductions** - a list of
+  reduction specs, ONE walk feeds all of them, blocks render in declared order, and any reduction
+  suppresses the per-match listing (like `--summary` today; an explicit `-print` / action brings it
+  back). `--top=N`, `--summary-precision=N`, and `--human` apply to every block's numeric column.
+  - **Grammar `--histogram='BUCKET[:MEASURE]'`** (repeatable). BUCKET is a `{field}` (categorical:
+    `ext` / `type` / `lang` / `mime` / `user` / ...; numeric: `size` / `lines` / `depth`). MEASURE is
+    `count` (the default, aggregator-free) or `sum(FIELD)` / `mean(FIELD)` / `min(FIELD)` /
+    `max(FIELD)` over a numeric FIELD. **No default aggregator on a numeric metric:** `ext:sum(lines)`
+    is valid, bare `ext:lines` (metric without an aggregator) is a usage error naming the four.
+    Bucket-first is deliberate - it mirrors `--summary=BUCKET`, matches the bars-are-buckets model,
+    and `sum(lines)` reads as the SQL aggregate. Examples: `--histogram=ext` (files per ext),
+    `--histogram='ext:sum(lines)'` (total lines per ext), `--histogram='type:mean(size)'`,
+    `--histogram=size` (the size distribution, `= size:count`). Shell note: `()` need quoting; a
+    bracket-free `ext:lines:sum` stays available as the no-quote fallback.
+  - **v1 buckets = categorical + numeric-range.** Categorical -> one bar per value. Numeric -> auto
+    ranges (log-scale for `size` / `lines`, per-value or small-linear for `depth`). Time / age buckets
+    and custom bucket edges are deferred to the Featured-ideas list below.
+  - **Console-adaptive bars, via the existing `--unicode` flag.** Bars reuse the SAME
+    `--unicode=auto|always|never` resolver (`engine::ResolveUnicode`) that `--format=tree` uses for
+    its box-drawing: Unicode block bars (`█` plus the partials `▏▎▍▌▋▊▉` for sub-cell precision) when
+    unicode, plain ASCII (`#`) otherwise - no new style flag. Each row is `label  value  bar`, value
+    through the shared number formatter (#86), sorted by value descending. Default bar width ~40 with
+    a `--histogram-width=N` override; terminal-width auto-fit (COLUMNS / `winsize` on a tty) is a
+    later nicety.
+  - **Combined `--format=jsonl` = flat, block-tagged rows, one object per line:**
+    `{"histogram":"ext:sum(lines)","bucket":".cpp","value":3120}` /
+    `{"summary":"type","group":"file","count":42,"bytes":1048576}`. A nested `{spec, rows}` array is
+    rejected - it would be a single JSON blob, breaking jsonl's one-object-per-line / `jq -c` contract.
+  - **Metric cost.** `count` / `size` are free from the stat; `lines` is content-derived (reads every
+    matched file), so the `lines` metric depends on the first-class `{lines}` field ("Line count as a
+    first-class metric" above). The single walk computes each needed field once and feeds all reducers.
+  - **Self-doc (part of done):** a `--histogram` `GlobalFlag` entry + a `--help=stats` topic (or fold
+    into a `--help=summary`), and the usage page / man / markdown regenerate from those SOTs.
+
+### Featured ideas (deferred)
+
+Nice-to-haves parked with a design leaning but not yet scheduled; promote to the roadmap above when a
+concrete need appears.
+
+- **Time / age-bucketed histograms** (#81): bucket a metric by an `mtime` / `atime` / `ctime` band
+  (files-per-week, bytes-per-month, ...). Held out of the #81 v1 (categorical + numeric buckets only)
+  because it needs a date-bucketing grammar - bucket size plus boundary / timezone - that overlaps
+  `xff/datetime`; design it against that lib.
+- **Custom histogram bucket edges / counts** (#81): explicit numeric-range boundaries or a target
+  bucket count (e.g. `--histogram-buckets=...`) in place of the automatic log / linear ranging.
+  Deferred until the auto ranging proves insufficient in practice.
