@@ -28,15 +28,11 @@ shipped one way but not yet settled.
   fixed-offset specs (`+05:30`, `-0800`, `+01`), which `ParseTimeZone` builds via
   `absl::FixedTimeZone` since `absl::LoadTimeZone` cannot parse them.
 
-- **Project `.xffrc` per-entry subtree scoping (deferred).**
-  The cascade (config phase E2a) reads, for each search root, every `.xffrc` from
-  the filesystem root down to the root's directory (ancestors), applied run-level.
-  The design (design-config.md L41, L56-58) also wants gitignore-style _subtree_
-  scoping: a `.xffrc` in a directory _below_ a root should apply only to that
-  subtree -- which means config resolution would vary per directory during the
-  walk, an architectural change (per-entry layering on the traversal hot path).
-  Deferred until a real need appears; the ancestor cascade already covers the
-  common "repo + parents" case.
+- **Project `.xffrc` layer: resolved - dropped entirely (Option B, 2026-07-06).**
+  Decided against any auto-discovered project config (no ancestor cascade, no subtree
+  scoping); config is system + user + an explicit `--xffrc=FILE` only. This supersedes the
+  earlier subtree-scoping question (now moot). Full record + the `--xffrc` arming restriction
+  are in the roadmap tail below ("Config: drop the project `.xffrc` layer").
 
 ## Remaining work
 
@@ -263,6 +259,29 @@ remains below is the design-forked / larger work.
     and `--buffer`'s own `B`/`MB`/`MiB` grammar. These are parsed, never printed with a suffix, so
     there is no "MB for 1024^2" mismatch; a future pass could offer explicit `KiB`-style input units
     for xff-style callers and document the rule in `--help=size`.
+
+- **Config: drop the project `.xffrc` layer entirely (Option B, decided 2026-07-06).** No
+  auto-discovered project config at all - not the ancestor cascade, not subtree scoping. Config
+  comes from three tiers only: **system** (`/etc/xff...`, root-owned - defaults + a policy that
+  can hard-deny capabilities), **user** (`~/.config/xff/...`, trusted-as-user), and an **explicit
+  `--xffrc=FILE`** (the user names the file to load it). Per-directory _ignore_ rules stay in the
+  ignore family (`.gitignore` / `.xffignore`) - that is ignore, not config, and is unaffected.
+  Removes: the `.xffrc` cascade discovery (`loader.cc`), `ProjectConfigMode` + `--project-config`,
+  and the project branch of the policy gate; simplifies the system layer (its old job of capping
+  the untrusted project layer is gone). Reverses the `design.md` §149 / `design-config.md`
+  subtree-scoped-project intent (docs rewritten in the build).
+  - **`--xffrc` arming restriction (no self-authorization).** A named `--xffrc=FILE` can no
+    longer arm its own dangerous directives (reverses `loader.cc:98` "arm into the user layer").
+    Driven by the existing `registry::Safety` classes: `kNone` (safe) directives are honored from
+    any tier including `--xffrc`; `kSafety` (destructive) / `kSecurity` (sensitive: `-exec` /
+    `-execdir` / `-ok` / capture) directives loaded from a `--xffrc` file are **inert unless
+    armed**. Arming is a dedicated flag (`--allow-exec`) honored from the **CLI or the trusted
+    user/system tiers, never from a `--xffrc`-loaded file**; the **system policy can hard-deny**
+    even the CLI arm. An unarmed dangerous directive is inert + a one-line stderr warning.
+    `-delete` keeps its own `--safe` / `--dry-run` guards (#40).
+  - **Build (small serialized slices):** (1) this record + rewrite `design-config.md` /
+    `design.md`; (2) remove the project layer + `--project-config` + its tests; (3) `--xffrc` as
+    its own non-arming tier + safety-gated `--allow-exec` + inert-and-warn + tests / bashtest.
 
 - **Archive diving (#83, `--archive`): use libarchive - decided 2026-07-06.** Descend into archives
   and match/list their entries as virtual paths (`foo.tar.gz/inner/file.txt`) via a read-only
