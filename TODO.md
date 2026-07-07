@@ -210,6 +210,14 @@ remains below is the design-forked / larger work.
   listing / content actions. **No design yet:** which shard schemes are in scope, whether it is
   a traversal-time grouping or a virtual `vfs` view (cf. `--archive`), and how it interacts with
   `-grep` / `-size` / `--count` over the reassembled whole. Decide the shape before building.
+- **Respect `.gitkeep` in gitignore handling (#120) - [DISCUSS].** A `.gitkeep` is a pure
+  convention (git itself has no notion of it) that keeps an otherwise-empty directory in a repo.
+  Question: respect it always whenever `.gitignore` is active, or only in an advanced gitignore
+  mode? The concrete semantics need pinning first - e.g. do not prune / hide a directory whose only
+  content is a `.gitkeep`, or treat `.gitkeep` as a keep signal. Note xff already honors `!`
+  negation, so an explicit `!.gitkeep` line already un-ignores it; this is about implicit handling.
+  Leaning **always** (once the behavior is defined) rather than a separate mode, since it is a
+  ubiquitous convention with no downside to honoring - but decide the semantics before building.
 - **Color support**: `--color[=auto|always|never]` ships an `ls`-like scheme keyed
   on the filesystem file type (directory, symlink, executable, fifo/socket/device);
   auto colors only a tty and honors `NO_COLOR`. Still open: per-language coloring
