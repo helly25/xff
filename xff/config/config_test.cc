@@ -80,21 +80,19 @@ TEST_F(ConfigTest, ConfigSelectorGatedByNamedConfig) {
   EXPECT_THAT(ResolveConfig(in), ElementsAre(FlagIs("--threads=1", Source::kUser)));
 }
 
-TEST_F(ConfigTest, LayerPrecedenceSystemThenUserThenProject) {
+TEST_F(ConfigTest, LayerPrecedenceSystemThenUser) {
   ConfigInputs in;
   in.system.defaults = {"--color=auto"};
-  in.user = ParseXffrc("common: --sort");
-  in.project = ParseXffrc("common: --color=never");
+  in.user = ParseXffrc("common: --sort\ncommon: --color=never");  // user wins over the system default
   EXPECT_THAT(
       ResolveConfig(in), ElementsAre(
                              FlagIs("--color=auto", Source::kSystem), FlagIs("--sort", Source::kUser),
-                             FlagIs("--color=never", Source::kProject)));
+                             FlagIs("--color=never", Source::kUser)));
 }
 
 TEST_F(ConfigTest, SourceNameMapsEachLayer) {
   EXPECT_THAT(SourceName(Source::kSystem), "system");
   EXPECT_THAT(SourceName(Source::kUser), "user");
-  EXPECT_THAT(SourceName(Source::kProject), "project");
   EXPECT_THAT(SourceName(Source::kCli), "cli");
   EXPECT_THAT(SourceName(Source::kUnset), "unset");
 }
@@ -132,17 +130,6 @@ TEST_F(ConfigTest, DefaultStyleForProgramSelectsByBasename) {
   EXPECT_THAT(DefaultStyleForProgram("/opt/bin/mytool"), "mytool");  // basename, verbatim
 }
 
-TEST_F(ConfigTest, ResolveProjectConfigModeDefaultsToWarnAndLastWins) {
-  EXPECT_THAT(ResolveProjectConfigMode({}), ProjectConfigMode::kWarn);  // no flag -> the default
-  EXPECT_THAT(ResolveProjectConfigMode({"--project-config=on"}), ProjectConfigMode::kOn);
-  EXPECT_THAT(ResolveProjectConfigMode({"--project-config=off"}), ProjectConfigMode::kOff);
-  EXPECT_THAT(ResolveProjectConfigMode({"--project-config=warn"}), ProjectConfigMode::kWarn);
-  EXPECT_THAT(ResolveProjectConfigMode({"--project-config=bogus"}), ProjectConfigMode::kWarn);  // unknown -> default
-  // Last occurrence wins (like the other repeatable selectors).
-  EXPECT_THAT(ResolveProjectConfigMode({"--project-config=on", "--project-config=off"}), ProjectConfigMode::kOff);
-  EXPECT_THAT(ResolveProjectConfigMode({"--project-config=off", "--project-config=on"}), ProjectConfigMode::kOn);
-}
-
 TEST_F(ConfigTest, ExplainConfigTagsEachFlagWithProvenance) {
   const std::vector<ResolvedFlag> resolved = {
       {.flag = "--color=auto", .source = Source::kSystem}, {.flag = "--sort", .source = Source::kUser}};
@@ -155,11 +142,11 @@ TEST_F(ConfigTest, ExplainConfigTagsEachFlagWithProvenance) {
 TEST_F(ConfigTest, ExplainSourcesListsActiveStyleAndConsultedFiles) {
   const std::vector<ConfigSource> sources = {
       {.path = "/etc/xff.ini", .layer = Source::kSystem, .found = false},
-      {.path = ".xffrc", .layer = Source::kProject, .found = true}};
+      {.path = "/home/u/.config/xff/config", .layer = Source::kUser, .found = true}};
   const std::string out = ExplainSources(sources, registry::Style::kFind);
   EXPECT_THAT(out, HasSubstr("# xff active style: find\n"));
   EXPECT_THAT(out, HasSubstr("source\tsystem\tabsent\t/etc/xff.ini\n"));
-  EXPECT_THAT(out, HasSubstr("source\tproject\tfound\t.xffrc\n"));
+  EXPECT_THAT(out, HasSubstr("source\tuser\tfound\t/home/u/.config/xff/config\n"));
 }
 
 }  // namespace

@@ -5,6 +5,18 @@
 > two differ, this document is authoritative for config specifically.
 > Status: **Draft** · 2026-06-21 · Org: helly25
 
+> **SUPERSEDED IN PART - the project layer was dropped (Option B, 2026-07-06).**
+> xff has **no auto-discovered project config**: no per-directory `.xffrc`, no ancestor
+> cascade, no subtree scoping, and no `--project-config` flag. Config comes from **three
+> tiers only**: **system** (`/etc/xff.ini`, root-owned), **user**
+> (`~/.config/xff/config`), and an **explicit `--xffrc=FILE`** (naming the file is the
+> consent to load it). Per-directory _ignore_ rules (`.gitignore` / `.xffignore`) are an
+> ignore concern, not config, and are unaffected. Every mention below of the "project"
+> layer, the `.xffrc` cascade, or `--project-config` is historical - read it as removed.
+> The `--xffrc` arming restriction (a named file cannot self-arm `-exec`/`-delete`;
+> `--allow-exec` arms from the CLI/user/system tiers only) is the remaining live rule; see
+> `TODO.md` "Config: drop the project `.xffrc` layer".
+
 ## Purpose
 
 A find-compatible tool that can run `-exec`/`-capture` is, by construction, a

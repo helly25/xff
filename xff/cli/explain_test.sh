@@ -90,62 +90,32 @@ test::config_applies_to_the_run() {
   expect_ne "{" "${plain:0:1}"
 }
 
-test::project_xffrc_is_policy_gated() {
-  # A hostile repo .xffrc: one safe line + one sensitive -exec line. Run from
-  # inside the project dir, so ./.xffrc is the (untrusted) project layer.
-  local proj="${TEST_TMPDIR}/proj"
-  mkdir -p "${proj}"
-  printf 'common: --color=never\ncommon: -exec rm {} ;\n' >"${proj}/.xffrc"
-  local xff
-  xff="$(_xff_bin)"
-  local out
-  # --project-config=on opts in to the per-directory file (off by default); the gate still runs.
-  out="$(cd "${proj}" && XFF_CONFIG="${TEST_TMPDIR}/none" "${xff}" --project-config=on --explain)"
-  local lines=()
-  local line
-  while IFS= read -r line; do lines+=("${line}"); done <<<"${out}"
-  # The safe line applies with project provenance; the sensitive -exec is dropped.
-  expect_contains "$(printf 'project\t--color=never')" "${lines[@]}"
-  expect_contains "$(printf "dropped\t'-exec' from the project .xffrc (sensitive)")" "${lines[@]}"
-}
-
-test::project_cascade_applies_ancestor_xffrc() {
-  # A .xffrc at a PARENT dir applies to a search root in a subdir (gitignore-style
-  # ancestor cascade), surfacing in --explain with project provenance.
-  local base="${TEST_TMPDIR}/cascade"
-  mkdir -p "${base}/sub"
-  printf 'common: --color=never\n' >"${base}/.xffrc" # ancestor (parent) project file
-  local out
-  # Opt in with --project-config=on; the ancestor cascade is a project-layer source.
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --project-config=on --explain "${base}/sub")"
-  local lines=()
-  local line
-  while IFS= read -r line; do lines+=("${line}"); done <<<"${out}"
-  # The ancestor .xffrc is discovered as a project-layer source and contributes.
-  expect_contains "$(printf 'project\t--color=never')" "${lines[@]}"
-}
-
-test::project_config_is_off_by_default_and_warns() {
-  # A per-directory .xffrc lives in a tree we may not control, so it is off unless opted in.
-  local proj="${TEST_TMPDIR}/pcmode"
+test::local_xffrc_in_the_tree_is_ignored() {
+  # The project layer was dropped (Option B, 2026-07-06): a .xffrc sitting in the search tree is
+  # NOT config. It never loads, never warns, and cannot change the run. (Per-directory rules are an
+  # ignore concern -- .gitignore / .xffignore -- not config; config is system + user + --xffrc only.)
+  local proj="${TEST_TMPDIR}/localrc"
   mkdir -p "${proj}"
   : >"${proj}/a.txt"
-  printf 'common: --format=jsonl\n' >"${proj}/.xffrc" # a project file that WOULD change output
-  local xff
+  printf 'common: --format=jsonl\n' >"${proj}/.xffrc" # a would-be project file; must have no effect
+  local xff out
   xff="$(_xff_bin)"
-  # Default (warn): the project file is NOT applied (output stays plain, no JSONL brace) and a
-  # stderr note fires because a project .xffrc was found.
-  local out
   out="$(cd "${proj}" && XFF_CONFIG="${TEST_TMPDIR}/none" "${xff}" . -name a.txt 2>&1)"
-  expect_matches 'per-directory .xffrc was found but ignored' "${out}"
-  expect_not_matches '\{' "${out}" # --format=jsonl not applied -> no object brace
-  # off: ignored silently (no note).
-  out="$(cd "${proj}" && XFF_CONFIG="${TEST_TMPDIR}/none" "${xff}" --project-config=off . -name a.txt 2>&1)"
-  expect_not_matches 'found but ignored' "${out}"
-  expect_not_matches '\{' "${out}"
-  # on: applied -> the JSONL object appears.
-  out="$(cd "${proj}" && XFF_CONFIG="${TEST_TMPDIR}/none" "${xff}" --project-config=on . -name a.txt 2>&1)"
-  expect_matches '\{' "${out}"
+  expect_not_matches '\{' "${out}"      # --format=jsonl NOT applied -> no object brace
+  expect_not_matches 'ignored' "${out}" # no project-config note (the mechanism is gone)
+}
+
+test::xffrc_flag_loads_an_explicit_file() {
+  # An explicit --xffrc=FILE is loaded (naming it is the consent) and surfaces in --explain as a
+  # user-layer source.
+  local rc="${TEST_TMPDIR}/explicit.rc"
+  printf 'common: --color=never\n' >"${rc}"
+  local out
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --xffrc="${rc}" --explain)"
+  local lines=()
+  local line
+  while IFS= read -r line; do lines+=("${line}"); done <<<"${out}"
+  expect_contains "$(printf 'user\t--color=never')" "${lines[@]}"
 }
 
 test_runner

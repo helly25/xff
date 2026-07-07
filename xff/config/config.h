@@ -28,14 +28,9 @@ namespace xff::config {
 
 // Provenance of a resolved setting: which layer contributed it. Resolution is
 // last-non-unset-wins; kUnset is the "no override" sentinel and is never stored.
-enum class Source { kUnset, kSystem, kUser, kProject, kCli };
-
-// How a per-directory (project) .xffrc is treated (--project-config). A project file lives in a
-// tree the user may not control, so it is off unless explicitly enabled: kOn applies it (still
-// safe-subset only -- GateConfig drops sensitive/destructive project lines regardless, and style
-// selectors are never taken from a project file); kWarn (the default) ignores it but lets the CLI
-// note that one was found; kOff ignores it silently. Full config lives in user/system files.
-enum class ProjectConfigMode { kOff, kWarn, kOn };
+// There is no auto-discovered project layer (dropped 2026-07-06, Option B): config
+// comes from system, user, and an explicit --xffrc=FILE only.
+enum class Source { kUnset, kSystem, kUser, kCli };
 
 // One resolved config flag plus the layer it came from.
 struct ResolvedFlag {
@@ -55,23 +50,22 @@ struct ConfigSource {
 // here: the caller applies them last (highest precedence) after this resolution.
 struct ConfigInputs {
   SystemConfig system;                // parsed /etc/xff.ini ([defaults] + [policy])
-  std::vector<RcLine> user;           // parsed user .xffrc
-  std::vector<RcLine> project;        // parsed project .xffrc (single file for now; cascade is phase E)
+  std::vector<RcLine> user;           // parsed user .xffrc (incl. --xffrc=FILE, appended)
   std::vector<std::string> configs;   // active --config=NAME selectors (styles and/or named configs)
-  bool no_config = false;             // --no-config: drop user+project layers and system defaults
+  bool no_config = false;             // --no-config: drop the user layer and the system defaults
   std::vector<ConfigSource> sources;  // every file consulted during discovery, for --explain (set by Discover)
 };
 
 // Resolves config-supplied flags, lowest precedence first (system [defaults] <
-// user .xffrc < project .xffrc), each tagged with its Source; the caller appends
-// CLI flags afterwards (they win). An .xffrc line contributes its flags when its
-// base selector is empty/"common" or names an active --config, AND its config
-// selector is empty or names an active --config. --no-config yields an empty
-// result (pure CLI + built-ins); the system *policy* is never dropped (it is read
-// elsewhere and bounds the run regardless). No capability gating yet (phase C).
+// user .xffrc), each tagged with its Source; the caller appends CLI flags
+// afterwards (they win). An .xffrc line contributes its flags when its base
+// selector is empty/"common" or names an active --config, AND its config selector
+// is empty or names an active --config. --no-config yields an empty result (pure
+// CLI + built-ins); the system *policy* is never dropped (it is read elsewhere and
+// bounds the run regardless).
 std::vector<ResolvedFlag> ResolveConfig(const ConfigInputs& inputs);
 
-// The lowercase layer name for a Source: "unset"/"system"/"user"/"project"/"cli".
+// The lowercase layer name for a Source: "unset"/"system"/"user"/"cli".
 std::string_view SourceName(Source source);
 
 // Whether `name` is one of the reserved built-in style names (find / xff / rg). Tests the base of
@@ -100,20 +94,14 @@ registry::Style ActiveStyle(const std::vector<std::string>& configs);
 // selectors"). The returned view aliases `argv0` for a passthrough name; copy it to retain.
 std::string_view DefaultStyleForProgram(std::string_view argv0);
 
-// The project-config mode from the CLI globals: the last --project-config=on|warn|off wins, and
-// the default (no flag, or an unrecognized value) is kWarn. main() uses it to decide whether a
-// discovered per-directory .xffrc is applied (kOn), ignored with a stderr note (kWarn), or ignored
-// silently (kOff). Only the project layer is affected; user/system config is always applied.
-ProjectConfigMode ResolveProjectConfigMode(const std::vector<std::string>& globals);
-
 // Renders the effective configuration for --explain: the resolved config flags
 // (each prefixed by its provenance) in application order, then the CLI globals
 // (provenance "cli"). Later lines override earlier ones, mirroring resolution.
 std::string ExplainConfig(const std::vector<ResolvedFlag>& resolved, const std::vector<std::string>& cli_globals);
 
 // Renders the discovery trace for --explain: the active find/xff style, then every
-// config file consulted (precedence order: system < user < project), each tagged
-// with its layer and whether it was found. Pairs with ExplainConfig (which shows
+// config file consulted (precedence order: system < user), each tagged with its
+// layer and whether it was found. Pairs with ExplainConfig (which shows
 // what each contributed); together they answer "what did xff read, and why".
 std::string ExplainSources(const std::vector<ConfigSource>& sources, registry::Style style);
 

@@ -56,18 +56,6 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "also load a specific config file",
     },
     {
-        .name = "--project-config",
-        .display = "--project-config=on|warn|off",
-        .group = "config",
-        .header = "Config",
-        .summary = "per-directory .xffrc: on applies it, warn (default) ignores + warns, off ignores silently",
-        .details = "A per-directory (project) .xffrc lives in a tree you may not control, so it is not applied "
-                   "unless you opt in: =on applies it (still safe-subset only; sensitive, destructive, and style "
-                   "settings are never honored from a project file - those need a user or system config). =warn (the "
-                   "default) ignores it but prints one stderr note when a project .xffrc exists. =off ignores it "
-                   "silently. Full config (including style relaxation) works only from user and system files.",
-    },
-    {
         .name = "--explain",
         .display = "--explain",
         .group = "config",

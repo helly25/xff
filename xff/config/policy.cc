@@ -92,31 +92,20 @@ registry::Safety LineSafety(const RcLine& line) {
 }
 
 bool LinePermitted(const RcLine& line, Source layer, const SystemConfig& policy) {
-  const registry::Safety cls = LineSafety(line);
-  const bool builtin_allowed = layer != Source::kProject || cls == registry::Safety::kNone;
+  // No layer is denied by default now (the untrusted project layer was dropped 2026-07-06,
+  // Option B): the trusted system/user layers may do anything, so a line is permitted unless the
+  // root-owned system [policy] explicitly DENIES it for this layer. An @class or flag-name token
+  // matches; a deny rule bars the line. (An allow rule has nothing left to loosen, so it is inert.)
   const std::string_view layer_name = SourceName(layer);
-  bool allow_override = false;
-  bool deny_override = false;
   for (const PolicyRule& rule : policy.policy) {
-    if (rule.layer != layer_name) {
+    if (rule.allow || rule.layer != layer_name) {
       continue;
     }
-    if (!absl::c_any_of(rule.tokens, [&](std::string_view token) { return TokenMatchesLine(token, line); })) {
-      continue;
-    }
-    if (rule.allow) {
-      allow_override = true;
-    } else {
-      deny_override = true;
+    if (absl::c_any_of(rule.tokens, [&](std::string_view token) { return TokenMatchesLine(token, line); })) {
+      return false;
     }
   }
-  if (deny_override) {
-    return false;  // deny beats allow
-  }
-  if (allow_override) {
-    return true;  // a system rule loosens the built-in default
-  }
-  return builtin_allowed;
+  return true;
 }
 
 bool OverloadsPreset(const RcLine& line) {
@@ -126,7 +115,6 @@ bool OverloadsPreset(const RcLine& line) {
 ConfigInputs GateConfig(const ConfigInputs& inputs, std::vector<Drop>* drops) {
   ConfigInputs gated = inputs;
   gated.user.clear();
-  gated.project.clear();
   const auto gate = [&](const std::vector<RcLine>& lines, Source layer, std::vector<RcLine>& out) {
     for (const RcLine& line : lines) {
       // A preset-overloading line is dropped in every layer: a config file may not attach behavior
@@ -148,7 +136,6 @@ ConfigInputs GateConfig(const ConfigInputs& inputs, std::vector<Drop>* drops) {
     }
   };
   gate(inputs.user, Source::kUser, gated.user);
-  gate(inputs.project, Source::kProject, gated.project);
   return gated;
 }
 

@@ -14,14 +14,12 @@
 // limitations under the License.
 
 #include <cstdlib>
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <vector>
 
 #include "absl/algorithm/container.h"
@@ -97,33 +95,6 @@ std::optional<std::string> ReadFile(std::string_view path) {
   std::ostringstream buffer;
   buffer << in.rdbuf();
   return buffer.str();
-}
-
-// The absolute directories whose .xffrc ancestor chains form the project cascade:
-// each search root resolved to an absolute path (a regular file -> its parent
-// directory), or the current directory when no roots were given. The loader walks
-// each one's ancestors; a non-existent root still contributes its ancestor chain.
-std::vector<std::string> ProjectDirs(const std::vector<std::string>& roots) {
-  namespace fs = std::filesystem;
-  std::vector<std::string> inputs = roots;
-  if (inputs.empty()) {
-    inputs.emplace_back(".");
-  }
-  std::vector<std::string> dirs;
-  dirs.reserve(inputs.size());
-  for (const std::string& root : inputs) {
-    std::error_code ec;
-    fs::path abs = fs::absolute(root, ec);
-    if (ec) {
-      continue;
-    }
-    abs = abs.lexically_normal();
-    if (fs::is_regular_file(abs, ec)) {
-      abs = abs.parent_path();
-    }
-    dirs.push_back(abs.string());
-  }
-  return dirs;
 }
 
 // The flavor feature-map: one row per style-scoped behavior, its controlling flag(s), each
@@ -348,27 +319,11 @@ int RunMain(int argc, char** argv) {
   opts.xff_config = EnvOpt("XFF_CONFIG");
   opts.xdg_config_home = EnvOpt("XDG_CONFIG_HOME");
   opts.home = EnvOpt("HOME");
-  opts.roots = ProjectDirs(command.roots);  // absolute dirs for the project .xffrc cascade
+  // Config is system + user + explicit --xffrc only; there is no auto-discovered project layer
+  // (Option B, 2026-07-06), so the search roots do not feed config discovery.
   const xff::config::ConfigInputs inputs = xff::config::Discover(opts, ReadFile);
   std::vector<xff::config::Drop> drops;
-  xff::config::ConfigInputs gated = xff::config::GateConfig(inputs, &drops);
-  // --project-config: a per-directory (project) .xffrc lives in a tree the user may not control,
-  // so it is not applied unless explicitly enabled. Unless =on, drop the project layer before
-  // resolving; =warn (the default) prints one stderr note when a project .xffrc was found, =off
-  // stays silent. Sensitive/destructive lines and style selectors are user/system-only regardless
-  // (GateConfig/style resolution never take them from a project file); this gates the safe subset
-  // too, since the file's mere presence in an untrusted tree should not silently change a run.
-  const xff::config::ProjectConfigMode project_mode = xff::config::ResolveProjectConfigMode(command.globals);
-  if (project_mode != xff::config::ProjectConfigMode::kOn) {
-    const bool project_found = absl::c_any_of(inputs.sources, [](const xff::config::ConfigSource& source) {
-      return source.layer == xff::config::Source::kProject && source.found;
-    });
-    gated.project.clear();
-    if (project_mode == xff::config::ProjectConfigMode::kWarn && project_found) {
-      std::cerr << "xff: a per-directory .xffrc was found but ignored; use --project-config=on to apply it, "
-                   "or --project-config=off to silence this note\n";
-    }
-  }
+  const xff::config::ConfigInputs gated = xff::config::GateConfig(inputs, &drops);
   const std::vector<xff::config::ResolvedFlag> resolved = xff::config::ResolveConfig(gated);
   if (absl::c_contains(command.globals, "--explain")) {
     std::cout << xff::config::ExplainSources(inputs.sources, xff::config::ActiveStyle(inputs.configs));
