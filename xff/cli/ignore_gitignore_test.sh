@@ -212,4 +212,35 @@ test::help_topic_documents_gitignore() {
   expect_output_contains 'gitignore' "${out}"
 }
 
+# Tree: .gitkeep + keep.cc + build.o, with .gitignore = `*` (ignore everything). A .gitkeep is a
+# placeholder that keeps its directory in the repo, so xff always keeps it against the gitignore
+# layers (#120); the rest is ignored. --hidden shows the dotfile so the exemption is observable.
+_make_gitkeep_tree() {
+  local root
+  root="$(mktemp -d)"
+  mkdir -p "${root}/.git"
+  touch "${root}/.gitkeep" "${root}/keep.cc" "${root}/build.o"
+  printf '*\n' >"${root}/.gitignore"
+  echo "${root}"
+}
+
+test::gitignore_always_keeps_gitkeep() {
+  local root out
+  root="$(_make_gitkeep_tree)"
+  out="$("$(_xff_bin)" -g+ --hidden "${root}" -type f 2>&1)"
+  rm -rf "${root}"
+  expect_matches "(^|${NL}|/)\.gitkeep(\$|${NL})" "${out}"    # exempt from `*`, always kept
+  expect_not_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}" # ignored by `*`
+  expect_not_matches "(^|${NL}|/)build\.o(\$|${NL})" "${out}" # ignored by `*`
+}
+
+test::explicit_exclude_overrides_gitkeep_exemption() {
+  local root out
+  root="$(_make_gitkeep_tree)"
+  # The gitignore exemption keeps .gitkeep, but an explicit --exclude still wins over it.
+  out="$("$(_xff_bin)" -g+ --hidden --exclude='.gitkeep' "${root}" -type f 2>&1)"
+  rm -rf "${root}"
+  expect_not_matches "(^|${NL}|/)\.gitkeep(\$|${NL})" "${out}"
+}
+
 test_runner
