@@ -211,11 +211,13 @@ std::size_t ResolveJobs(const std::vector<std::string>& globals, std::optional<r
   return jobs;
 }
 
-// xff --summary[=overall|type|ext|lang]: reduce the matches to a count + total size
-// table instead of printing each one. Bare --summary / =overall is one total row;
-// =type groups by file type, =ext by filename extension, =lang by programming language
-// (a files-per-language histogram); =none / absent is off.
-enum class SummaryMode { kOff, kOverall, kType, kExt, kLanguage };
+// xff --summary[=overall|type|ext|lang|mime|user|group]: reduce the matches to a count +
+// total size table instead of printing each one. Bare --summary / =overall is one total row;
+// =type groups by file type, =ext by filename extension, =lang by programming language, =mime by
+// media type, =user (alias =owner) by owner name, =group by owning group (each a files-per-key
+// histogram); =none / absent is off. The mime/user/group keys reuse the field vocabulary (the
+// {mime}/{user}/{group} renderers), so they cannot drift from the field values.
+enum class SummaryMode : std::uint8_t { kOff, kOverall, kType, kExt, kLanguage, kMime, kUser, kGroup };
 
 SummaryMode ResolveSummary(const std::vector<std::string>& globals) {
   SummaryMode mode = SummaryMode::kOff;
@@ -228,6 +230,12 @@ SummaryMode ResolveSummary(const std::vector<std::string>& globals) {
       mode = SummaryMode::kExt;
     } else if (global == "--summary=lang") {
       mode = SummaryMode::kLanguage;
+    } else if (global == "--summary=mime") {
+      mode = SummaryMode::kMime;
+    } else if (global == "--summary=user" || global == "--summary=owner") {
+      mode = SummaryMode::kUser;
+    } else if (global == "--summary=group") {
+      mode = SummaryMode::kGroup;
     } else if (global == "--summary=none") {
       mode = SummaryMode::kOff;
     }
@@ -263,7 +271,10 @@ std::string SummaryExtension(std::string_view name) {
   return std::string(name.substr(dot + 1));
 }
 
-// The group key for one matched entry under `mode` (kOff never reaches here).
+// The group key for one matched entry under `mode` (kOff never reaches here). The mime/user/group
+// keys render the matching field ({mime}/{user}/{group}) so the reduction reuses the field
+// vocabulary rather than re-deriving the value; the field renderers never return empty (owner /
+// group fall back to the numeric id, mime to application/octet-stream), so no "(none)" bucket.
 std::string SummaryKey(SummaryMode mode, const Visit& visit) {
   switch (mode) {
     case SummaryMode::kExt: return SummaryExtension(visit.name);
@@ -272,16 +283,30 @@ std::string SummaryKey(SummaryMode mode, const Visit& visit) {
       const std::string_view lang = language::LanguageForName(visit.name);
       return lang.empty() ? "(none)" : std::string(lang);  // unrecognized -> one "(none)" bucket
     }
+    case SummaryMode::kMime: return fields::Render("{mime}", visit.path, visit.metadata, visit.depth);
+    case SummaryMode::kUser: return fields::Render("{user}", visit.path, visit.metadata, visit.depth);
+    case SummaryMode::kGroup: return fields::Render("{group}", visit.path, visit.metadata, visit.depth);
     default: return "total";  // kOverall: a single bucket
   }
 }
 
 // xff --histogram=BUCKET[:MEASURE] (repeatable): reduce matches to a bar chart instead of (or
 // alongside) the --summary table. BUCKET groups the matches - categorical (overall / type / ext /
-// lang) or a numeric-range field (size / lines by order of magnitude, depth per level). The optional
-// MEASURE is the bar's value (see HistAgg). Independent of and combinable with --summary; both are
-// terminal reductions fed by one walk.
-enum class HistBucket : std::uint8_t { kOverall, kType, kExt, kLang, kSizeRange, kLinesRange, kDepthRange };
+// lang / mime / user / group) or a numeric-range field (size / lines by order of magnitude, depth
+// per level). The optional MEASURE is the bar's value (see HistAgg). Independent of and combinable
+// with --summary; both are terminal reductions fed by one walk.
+enum class HistBucket : std::uint8_t {
+  kOverall,
+  kType,
+  kExt,
+  kLang,
+  kMime,
+  kUser,
+  kGroup,
+  kSizeRange,
+  kLinesRange,
+  kDepthRange,
+};
 
 // A numeric-range bucket (size / lines / depth) draws its bars in ascending range order; a
 // categorical bucket sorts by bar height and honors --top.
@@ -376,11 +401,20 @@ std::optional<std::pair<std::string, std::string>> HistBucketKey(const Histogram
     case HistBucket::kOverall:
     case HistBucket::kType:
     case HistBucket::kExt:
-    case HistBucket::kLang: {
-      const SummaryMode mode = spec.bucket == HistBucket::kType   ? SummaryMode::kType
-                               : spec.bucket == HistBucket::kExt  ? SummaryMode::kExt
-                               : spec.bucket == HistBucket::kLang ? SummaryMode::kLanguage
-                                                                  : SummaryMode::kOverall;
+    case HistBucket::kLang:
+    case HistBucket::kMime:
+    case HistBucket::kUser:
+    case HistBucket::kGroup: {
+      // Categorical buckets reuse SummaryKey; the map converts the bucket to its summary mode
+      // (kOverall - and any unmapped value - is the single "total" key).
+      using BucketModePair = std::pair<HistBucket, SummaryMode>;
+      constexpr auto kBucketModes = mbo::container::MakeLimitedMap(
+          BucketModePair{HistBucket::kType, SummaryMode::kType}, BucketModePair{HistBucket::kExt, SummaryMode::kExt},
+          BucketModePair{HistBucket::kLang, SummaryMode::kLanguage},
+          BucketModePair{HistBucket::kMime, SummaryMode::kMime}, BucketModePair{HistBucket::kUser, SummaryMode::kUser},
+          BucketModePair{HistBucket::kGroup, SummaryMode::kGroup});
+      const auto it = kBucketModes.find(spec.bucket);
+      const SummaryMode mode = it == kBucketModes.end() ? SummaryMode::kOverall : it->second;
       std::string key = SummaryKey(mode, visit);
       return std::make_pair(key, key);
     }
@@ -415,6 +449,12 @@ absl::StatusOr<std::vector<HistogramSpec>> ResolveHistograms(const std::vector<s
       spec.bucket = HistBucket::kExt;
     } else if (bucket_name == "lang") {
       spec.bucket = HistBucket::kLang;
+    } else if (bucket_name == "mime") {
+      spec.bucket = HistBucket::kMime;
+    } else if (bucket_name == "user" || bucket_name == "owner") {
+      spec.bucket = HistBucket::kUser;
+    } else if (bucket_name == "group") {
+      spec.bucket = HistBucket::kGroup;
     } else if (bucket_name == "size") {
       spec.bucket = HistBucket::kSizeRange;
     } else if (bucket_name == "lines") {
@@ -424,7 +464,8 @@ absl::StatusOr<std::vector<HistogramSpec>> ResolveHistograms(const std::vector<s
     } else {
       return absl::InvalidArgumentError(
           absl::StrCat(
-              "unknown --histogram bucket '", bucket_name, "'; use overall, type, ext, lang, size, lines, or depth"));
+              "unknown --histogram bucket '", bucket_name,
+              "'; use overall, type, ext, lang, mime, user, group, size, lines, or depth"));
     }
     if (colon != std::string_view::npos && value.substr(colon + 1) != "count") {
       const absl::StatusOr<std::pair<HistAgg, HistMetric>> measure = ParseHistMeasure(value.substr(colon + 1));

@@ -60,6 +60,19 @@ TEST_F(FieldsTest, SubstitutesPathComponentsAndMetadata) {
   EXPECT_THAT(Render("{stem}", "a/b/file.tar.gz", md, 2), "file.tar");
 }
 
+TEST_F(FieldsTest, MimeFieldRendersMediaTypeByExtension) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  EXPECT_THAT(Render("{mime}", "a/b/notes.txt", md, 0), "text/plain");
+  EXPECT_THAT(Render("{mime}", "a/b/readme.md", md, 0), "text/markdown");
+  EXPECT_THAT(Render("{mime}", "a/b/README", md, 0), "application/octet-stream");  // no extension
+}
+
+TEST_F(FieldsTest, OwnerIsAnAliasOfUser) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  // {owner} is an alias of {user}: both render the same owner name (the value is runtime-dependent).
+  EXPECT_THAT(Render("{owner}", "f", md, 0), Render("{user}", "f", md, 0));
+}
+
 TEST_F(FieldsTest, BlocksFieldRendersAllocatedSpace) {
   vfs::Metadata md = Meta(vfs::FileType::kRegular, 1);         // 1 apparent byte
   md.blocks = 16;                                              // 16 * 512 = 8 KiB allocated

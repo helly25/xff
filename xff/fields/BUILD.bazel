@@ -26,6 +26,7 @@ cc_library(
         "//xff/datetime:datetime_cc",
         "//xff/hash:hash_cc",
         "//xff/language:language_cc",
+        "//xff/mime:mime_cc",
         "//xff/regex:regex_cc",
         "//xff/vfs:vfs_cc",
         "@abseil-cpp//absl/status:statusor",

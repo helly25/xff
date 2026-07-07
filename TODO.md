@@ -353,17 +353,20 @@ remains below is the design-forked / larger work.
   reduction specs, ONE walk feeds all of them, blocks render in declared order, and any reduction
   suppresses the per-match listing (like `--summary` today; an explicit `-print` / action brings it
   back). `--top=N`, `--summary-precision=N`, and `--human` apply to every block's numeric column.
-  - **Slices 1-2b shipped:** `--histogram=BUCKET[:MEASURE]`. BUCKET is categorical
-    (`overall|type|ext|lang`, reusing the `--summary` group-by) or a numeric-range field
-    (`size`/`lines` by order of magnitude - "0"/"1-9"/"10-99"/... - and `depth` per level, drawn as
-    an ascending distribution). MEASURE is `count` (default) or an aggregate `sum/mean/min/max(size|
-lines)`; a numeric metric with no aggregator is a usage error. Unicode block bars via `--unicode`
-    (ASCII `#` fallback), scaled to the tallest; `--top` keeps the N tallest (categorical buckets);
-    `--summary-precision` sets `mean`'s decimals; `--histogram-width=N` sets the bar cell width
-    (default 40); `--format=jsonl` emits block-tagged rows (`{"histogram":...,"bucket":...,
-    "value":...}`); combinable with `--summary`. A `--help=stats` topic documents both reductions,
-    pulling its flags from the globals SOT via a `GlobalFlag.topic` tag. **Remaining:** a broader
-    bucket vocabulary (mime / user).
+  - **SHIPPED (all slices).** `--histogram=BUCKET[:MEASURE]`. BUCKET is categorical
+    (`overall|type|ext|lang|mime|user|group`, reusing the `--summary` group-by; `owner` is an alias
+    of `user`) or a numeric-range field (`size`/`lines` by order of magnitude - "0"/"1-9"/"10-99"/...
+    - and `depth` per level, drawn as an ascending distribution). MEASURE is `count` (default) or an
+      aggregate `sum/mean/min/max(size|lines)`; a numeric metric with no aggregator is a usage error.
+      Unicode block bars via `--unicode` (ASCII `#` fallback), scaled to the tallest; `--top` keeps the
+      N tallest (categorical buckets); `--summary-precision` sets `mean`'s decimals; `--histogram-width=N`
+      sets the bar cell width (default 40); `--format=jsonl` emits block-tagged rows
+      (`{"histogram":...,"bucket":...,"value":...}`); combinable with `--summary`. A `--help=stats` topic
+      documents both reductions, pulling its flags from the globals SOT via a `GlobalFlag.topic` tag.
+      The `mime`/`user`/`group` categorical buckets reuse the `{mime}`/`{user}`/`{group}` field
+      vocabulary (a new `{mime}` field + `{owner}` alias of `{user}`), so bucket keys cannot drift from
+      the field values, and `--summary` gained the same three keys. Remaining ideas (time buckets,
+      custom edges) are deferred entries below, not part of #81 v1.
   - **Grammar `--histogram='BUCKET[:MEASURE]'`** (repeatable). BUCKET is a `{field}` (categorical:
     `ext` / `type` / `lang` / `mime` / `user` / ...; numeric: `size` / `lines` / `depth`). MEASURE is
     `count` (the default, aggregator-free) or `sum(FIELD)` / `mean(FIELD)` / `min(FIELD)` /

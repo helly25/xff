@@ -50,6 +50,7 @@ using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
+using ::testing::MatchesRegex;
 using ::testing::Not;
 using ::testing::UnorderedElementsAre;
 
@@ -1309,6 +1310,49 @@ TEST_F(RunTest, HistogramSizeRangeGroupsByMagnitude) {
   EXPECT_THAT(
       RunArgvRecords({"--histogram=size", "--format=jsonl", root_.string(), "-type", "f"}),
       ElementsAre(R"({"histogram":"size","bucket":"1-9","value":3})"));
+}
+
+TEST_F(RunTest, SummaryByMimeGroupsByMediaType) {
+  // --summary=mime reuses the {mime} field: a.txt / sub/c.txt are text/plain, b.md is text/markdown.
+  // Rows sort by key (text/markdown before text/plain), then the total.
+  EXPECT_THAT(
+      RunArgvRecords({"--summary=mime", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(
+          R"({"group":"text/markdown","count":1,"bytes":1})", R"({"group":"text/plain","count":2,"bytes":2})",
+          R"({"group":"total","count":3,"bytes":3})"));
+}
+
+TEST_F(RunTest, HistogramByMimeCountsPerMediaType) {
+  // --histogram=mime: text/plain (a.txt, sub/c.txt) has 2, text/markdown (b.md) has 1; bars by count.
+  EXPECT_THAT(
+      RunArgvRecords({"--histogram=mime", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(
+          R"({"histogram":"mime","bucket":"text/plain","value":2})",
+          R"({"histogram":"mime","bucket":"text/markdown","value":1})"));
+}
+
+TEST_F(RunTest, HistogramByUserGroupsUnderTheOwner) {
+  // --histogram=user reuses the {user} field. Every fixture file has the same owner (the test
+  // process), so there is one bucket of 3; the owner name is runtime-dependent, so assert the
+  // shape (one bucket, value 3), not the name.
+  EXPECT_THAT(
+      RunArgvRecords({"--histogram=user", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(MatchesRegex(R"(\{"histogram":"user","bucket":".+","value":3\})")));
+}
+
+TEST_F(RunTest, SummaryOwnerIsAnAliasOfUser) {
+  // --summary=owner is the =user alias: one owner bucket of 3 (name runtime-dependent), then no
+  // separate total row is emitted for a single group beyond it -- match the owner row's shape.
+  EXPECT_THAT(
+      RunArgvRecords({"--summary=owner", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(MatchesRegex(R"(\{"group":".+","count":3,"bytes":3\})"), R"({"group":"total","count":3,"bytes":3})"));
+}
+
+TEST_F(RunTest, HistogramByGroupGroupsUnderTheOwningGroup) {
+  // --histogram=group reuses the {group} field; one owning-group bucket of 3 (name runtime-dependent).
+  EXPECT_THAT(
+      RunArgvRecords({"--histogram=group", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(MatchesRegex(R"(\{"histogram":"group","bucket":".+","value":3\})")));
 }
 
 TEST_F(RunTest, LsEmitsOneLinePerMatchAndSuppressesImplicitPrint) {
