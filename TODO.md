@@ -210,14 +210,13 @@ remains below is the design-forked / larger work.
   listing / content actions. **No design yet:** which shard schemes are in scope, whether it is
   a traversal-time grouping or a virtual `vfs` view (cf. `--archive`), and how it interacts with
   `-grep` / `-size` / `--count` over the reassembled whole. Decide the shape before building.
-- **Respect `.gitkeep` in gitignore handling (#120) - [DISCUSS].** A `.gitkeep` is a pure
-  convention (git itself has no notion of it) that keeps an otherwise-empty directory in a repo.
-  Question: respect it always whenever `.gitignore` is active, or only in an advanced gitignore
-  mode? The concrete semantics need pinning first - e.g. do not prune / hide a directory whose only
-  content is a `.gitkeep`, or treat `.gitkeep` as a keep signal. Note xff already honors `!`
-  negation, so an explicit `!.gitkeep` line already un-ignores it; this is about implicit handling.
-  Leaning **always** (once the behavior is defined) rather than a separate mode, since it is a
-  ubiquitous convention with no downside to honoring - but decide the semantics before building.
+- **Respect `.gitkeep` in gitignore handling (#120) - SHIPPED (2026-07-07).** A `.gitkeep` is a
+  pure convention (git itself has no notion of it) that keeps an otherwise-empty directory in a
+  repo. Decided: **always on** (no separate mode) - when gitignore handling is active, a `.gitkeep`
+  is never ignored by the gitignore layers, as if by a top-precedence `!.gitkeep`, so a directory
+  kept in the repo by its `.gitkeep` always surfaces it. Implemented in `IgnoreStack::Decide`
+  (`xff/engine/run.cc`): a `.gitkeep` short-circuits the gitignore / repo-exclude layers but still
+  runs through explicit `--exclude` / `--include`, so a CLI exclude can still override it.
 - **Color support**: `--color[=auto|always|never]` ships an `ls`-like scheme keyed
   on the filesystem file type (directory, symlink, executable, fifo/socket/device);
   auto colors only a tty and honors `NO_COLOR`. Still open: per-language coloring

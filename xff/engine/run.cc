@@ -898,6 +898,12 @@ class IgnoreFileCache {
     } else {
       rel = RelativeTo(path, root);
     }
+    // A `.gitkeep` intentionally keeps its (otherwise-empty) directory in the repo, so the gitignore
+    // layers never ignore it - it is always kept, as if by a top-precedence `!.gitkeep`. Explicit
+    // --exclude / --include (global_excludes_) still decide, so a user can still override it.
+    if (active() && rel.substr(rel.rfind('/') + 1) == ".gitkeep") {
+      return global_excludes_.Match(rel, is_dir);
+    }
     // Walk the ancestor directories of the entry, deepest first: for rel "a/b/c" that is
     // "a/b", then "a", then "" (the base). Each directory's ignore file matches the entry
     // relative to THAT directory.
