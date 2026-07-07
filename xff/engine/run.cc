@@ -1375,6 +1375,22 @@ std::optional<std::size_t> ResolveTop(const std::vector<std::string>& globals) {
   return top;
 }
 
+// --histogram-width=N: the cell width the tallest histogram bar fills (default 40). A non-positive
+// or malformed value is ignored (keeps the default); the last valid one wins.
+std::size_t ResolveHistogramWidth(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--histogram-width=";
+  std::size_t width = 40;
+  for (const std::string& global : globals) {
+    if (!global.starts_with(kPrefix)) {
+      continue;
+    }
+    if (std::size_t value = 0; absl::SimpleAtoi(std::string_view(global).substr(kPrefix.size()), &value) && value > 0) {
+      width = value;
+    }
+  }
+  return width;
+}
+
 // --summary-precision=N: fraction digits for the --summary human size column (default 2,
 // e.g. "12.34 MiB"). A malformed value keeps the default; the count is capped at 9 so the
 // column stays readable. Bytes stay integer regardless (12 B), with the fraction columns
@@ -2161,7 +2177,7 @@ int RunFind(
     const bool unicode = ResolveUnicode(command.globals);
     const std::optional<std::size_t> top = ResolveTop(command.globals);
     const unsigned precision = ResolveSummaryPrecision(command.globals);
-    constexpr std::size_t kBarWidth = 40;
+    const std::size_t bar_width = ResolveHistogramWidth(command.globals);
 
     struct Bar {
       std::string label;
@@ -2216,7 +2232,7 @@ int RunFind(
         emit(
             absl::StrCat(
                 bar.label, std::string(label_width - bar.label.size(), ' '), "  ",
-                format::PadLeft(bar.value.text, value_width), "  ", HistogramBar(fraction, kBarWidth, unicode), "\n"));
+                format::PadLeft(bar.value.text, value_width), "  ", HistogramBar(fraction, bar_width, unicode), "\n"));
       }
     }
   }
