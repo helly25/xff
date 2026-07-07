@@ -373,6 +373,14 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "with --summary or --histogram, keep only the N largest/tallest groups",
     },
     {
+        .name = "--histogram-width",
+        .display = "--histogram-width=N",
+        .group = "output",
+        .header = "Output",
+        .summary = "cell width the tallest --histogram bar fills (default 40)",
+        .affects = "--histogram",
+    },
+    {
         .name = "--summary-precision",
         .display = "--summary-precision=N",
         .group = "output",

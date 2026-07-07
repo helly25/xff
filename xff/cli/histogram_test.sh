@@ -23,6 +23,9 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# A real newline for line-anchored expect_matches patterns (it matches the whole text).
+NL=$'\n'
+
 _xff_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
   if [[ ! -x "${bin}" ]]; then
@@ -112,6 +115,15 @@ test::histogram_numeric_range_buckets() {
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --histogram=size --unicode=never "${dir}" -type f 2>&1)"
   expect_output_contains "1-9" "${out}"
   expect_output_contains "100-999" "${out}"
+}
+
+test::histogram_width_sets_the_bar_length() {
+  local dir out
+  dir="${TEST_TMPDIR}/histwidth"
+  _make_tree "${dir}" # cc=3 (tallest), h=1
+  # --histogram-width=10: the tallest bar (cc) fills exactly 10 cells (default is 40).
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --histogram=ext --histogram-width=10 --unicode=never "${dir}" -type f 2>&1)"
+  expect_matches "cc[[:space:]]+3[[:space:]]+##########(${NL}|\$)" "${out}"
 }
 
 test_runner
