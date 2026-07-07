@@ -321,8 +321,10 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "bar chart per bucket: a count or sum/mean/min/max of size|lines (repeatable)",
-        .details = "A terminal reduction like --summary, drawn as bars. BUCKET groups the matches (overall, type, "
-                   "ext, or lang); the optional :MEASURE is the bar's value - `count` (the default) or an aggregate "
+        .details = "A terminal reduction like --summary, drawn as bars. BUCKET groups the matches - a category "
+                   "(overall, type, ext, lang) or a numeric-range field (size / lines by order of magnitude, depth "
+                   "per level, drawn as an ascending distribution). The optional :MEASURE is the bar's value - "
+                   "`count` (the default) or an aggregate "
                    "`sum(FIELD)` / `mean(FIELD)` / `min(FIELD)` / `max(FIELD)` over a numeric FIELD (size or lines). "
                    "A numeric metric needs an aggregator (`ext:lines` is an error; `ext:sum(lines)` is not). "
                    "Repeatable and combinable with --summary - both are fed by one walk and replace the per-match "

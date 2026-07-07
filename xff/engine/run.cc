@@ -276,25 +276,35 @@ std::string SummaryKey(SummaryMode mode, const Visit& visit) {
   }
 }
 
-// xff --histogram=BUCKET (repeatable): reduce matches to a bar chart of the count per bucket,
-// instead of (or alongside) the --summary table. BUCKET is the same categorical group-by as
-// --summary (overall / type / ext / lang). Independent of and combinable with --summary; both are
-// terminal reductions fed by one walk. (Numeric metrics and aggregators -- ext:sum(lines) etc. --
-// are a later addition; today a histogram counts entries per bucket.)
+// xff --histogram=BUCKET[:MEASURE] (repeatable): reduce matches to a bar chart instead of (or
+// alongside) the --summary table. BUCKET groups the matches - categorical (overall / type / ext /
+// lang) or a numeric-range field (size / lines by order of magnitude, depth per level). The optional
+// MEASURE is the bar's value (see HistAgg). Independent of and combinable with --summary; both are
+// terminal reductions fed by one walk.
+enum class HistBucket : std::uint8_t { kOverall, kType, kExt, kLang, kSizeRange, kLinesRange, kDepthRange };
+
+// A numeric-range bucket (size / lines / depth) draws its bars in ascending range order; a
+// categorical bucket sorts by bar height and honors --top.
+constexpr bool IsNumericBucket(HistBucket bucket) {
+  return bucket == HistBucket::kSizeRange || bucket == HistBucket::kLinesRange || bucket == HistBucket::kDepthRange;
+}
+
 // A histogram's measure: the count of matched entries (the default), or an aggregate of a numeric
 // field. kCount ignores `metric`; the aggregators reduce the metric field per bucket.
 enum class HistAgg : std::uint8_t { kCount, kSum, kMean, kMin, kMax };
 enum class HistMetric : std::uint8_t { kSize, kLines };  // the numeric field an aggregate reduces
 
 struct HistogramSpec {
-  SummaryMode bucket = SummaryMode::kOverall;
+  HistBucket bucket = HistBucket::kOverall;
   HistAgg agg = HistAgg::kCount;
   HistMetric metric = HistMetric::kSize;  // only when agg != kCount
   std::string label;                      // the spec as written, for the jsonl tag + text heading
 };
 
-// The running per-bucket aggregate: enough to render any aggregator (min/max are valid iff count>0).
+// The running per-bucket aggregate. `label` is the bucket's display text (the map key itself for a
+// categorical bucket; a range like "10-99" for a numeric one). min/max are valid iff count>0.
 struct HistCell {
+  std::string label;
   std::uint64_t count = 0;
   std::uint64_t sum = 0;
   std::uint64_t min = 0;
@@ -337,6 +347,54 @@ absl::StatusOr<std::pair<HistAgg, HistMetric>> ParseHistMeasure(std::string_view
   return std::make_pair(agg, metric);
 }
 
+// An order-of-magnitude range bucket for `value`: {order-preserving map key, human range label}.
+// "0" for zero, then "1-9", "10-99", "100-999", ...; the map key is the zero-padded magnitude so
+// buckets sort ascending. Exact integer math (no log/pow rounding).
+std::pair<std::string, std::string> MagnitudeBucket(std::uint64_t value) {
+  if (value == 0) {
+    return {"00", "0"};
+  }
+  int magnitude = 0;
+  std::uint64_t low = 1;
+  for (std::uint64_t rest = value; rest >= 10; rest /= 10) {
+    ++magnitude;
+    low *= 10;
+  }
+  return {absl::StrFormat("%02d", magnitude + 1), absl::StrCat(low, "-", (low * 10) - 1)};
+}
+
+// A per-value depth bucket: one bucket per level. The map key is zero-padded so 2 sorts before 10.
+std::pair<std::string, std::string> DepthBucket(int depth) {
+  return {absl::StrFormat("%06d", depth), absl::StrCat(depth)};
+}
+
+// The {order-preserving map key, display label} for `visit` under `spec`, or nullopt when the bucket
+// field is unavailable (a numeric lines bucket for a non-regular or binary file). Categorical
+// buckets reuse SummaryKey; numeric buckets range-bucket a field.
+std::optional<std::pair<std::string, std::string>> HistBucketKey(const HistogramSpec& spec, const Visit& visit) {
+  switch (spec.bucket) {
+    case HistBucket::kOverall:
+    case HistBucket::kType:
+    case HistBucket::kExt:
+    case HistBucket::kLang: {
+      const SummaryMode mode = spec.bucket == HistBucket::kType   ? SummaryMode::kType
+                               : spec.bucket == HistBucket::kExt  ? SummaryMode::kExt
+                               : spec.bucket == HistBucket::kLang ? SummaryMode::kLanguage
+                                                                  : SummaryMode::kOverall;
+      std::string key = SummaryKey(mode, visit);
+      return std::make_pair(key, key);
+    }
+    case HistBucket::kSizeRange: return MagnitudeBucket(visit.metadata.size);
+    case HistBucket::kLinesRange: {
+      const std::optional<std::uint64_t> lines =
+          visit.metadata.type == vfs::FileType::kRegular ? content::FileLineCount(visit.path) : std::nullopt;
+      return lines.has_value() ? std::optional(MagnitudeBucket(*lines)) : std::nullopt;
+    }
+    case HistBucket::kDepthRange: return DepthBucket(visit.depth);
+  }
+  return std::nullopt;
+}
+
 absl::StatusOr<std::vector<HistogramSpec>> ResolveHistograms(const std::vector<std::string>& globals) {
   constexpr std::string_view kFlag = "--histogram";
   std::vector<HistogramSpec> specs;
@@ -350,16 +408,23 @@ absl::StatusOr<std::vector<HistogramSpec>> ResolveHistograms(const std::vector<s
     HistogramSpec spec;
     spec.label = std::string(value);
     if (bucket_name == "overall") {
-      spec.bucket = SummaryMode::kOverall;
+      spec.bucket = HistBucket::kOverall;
     } else if (bucket_name == "type") {
-      spec.bucket = SummaryMode::kType;
+      spec.bucket = HistBucket::kType;
     } else if (bucket_name == "ext") {
-      spec.bucket = SummaryMode::kExt;
+      spec.bucket = HistBucket::kExt;
     } else if (bucket_name == "lang") {
-      spec.bucket = SummaryMode::kLanguage;
+      spec.bucket = HistBucket::kLang;
+    } else if (bucket_name == "size") {
+      spec.bucket = HistBucket::kSizeRange;
+    } else if (bucket_name == "lines") {
+      spec.bucket = HistBucket::kLinesRange;
+    } else if (bucket_name == "depth") {
+      spec.bucket = HistBucket::kDepthRange;
     } else {
       return absl::InvalidArgumentError(
-          absl::StrCat("unknown --histogram bucket '", bucket_name, "'; use overall, type, ext, or lang"));
+          absl::StrCat(
+              "unknown --histogram bucket '", bucket_name, "'; use overall, type, ext, lang, size, lines, or depth"));
     }
     if (colon != std::string_view::npos && value.substr(colon + 1) != "count") {
       const absl::StatusOr<std::pair<HistAgg, HistMetric>> measure = ParseHistMeasure(value.substr(colon + 1));
@@ -1860,6 +1925,10 @@ int RunFind(
           }
           for (std::size_t i = 0; i < histograms.size(); ++i) {
             const HistogramSpec& spec = histograms[i];
+            const std::optional<std::pair<std::string, std::string>> bucket = HistBucketKey(spec, visit);
+            if (!bucket.has_value()) {
+              continue;  // the bucket field is unavailable here (e.g. a lines bucket for a binary file)
+            }
             std::optional<std::uint64_t> value = 1;  // kCount: each match contributes one
             if (spec.agg != HistAgg::kCount) {
               if (spec.metric == HistMetric::kSize) {
@@ -1872,7 +1941,10 @@ int RunFind(
             if (!value.has_value()) {
               continue;  // no value for this metric on this entry (e.g. a binary file for lines)
             }
-            HistCell& cell = histogram_cells[i][SummaryKey(spec.bucket, visit)];
+            HistCell& cell = histogram_cells[i][bucket->first];
+            if (cell.count == 0) {
+              cell.label = bucket->second;  // display text, set once when the bucket is first seen
+            }
             cell.min = cell.count == 0 ? *value : std::min(cell.min, *value);
             cell.max = cell.count == 0 ? *value : std::max(cell.max, *value);
             cell.sum += *value;
@@ -2086,52 +2158,58 @@ int RunFind(
     constexpr std::size_t kBarWidth = 40;
 
     struct Bar {
-      std::string key;
+      std::string label;
       HistValue value;
     };
 
     for (std::size_t i = 0; i < histograms.size(); ++i) {
+      const bool numeric = IsNumericBucket(histograms[i].bucket);
       std::vector<Bar> bars;
       double max_scale = 0;
+      // The map iterates in key order, i.e. the ascending range order for a numeric bucket.
       for (const auto& [key, cell] : histogram_cells[i]) {
         HistValue value = HistMeasureValue(histograms[i].agg, cell, precision);
         max_scale = std::max(max_scale, value.scale);
-        bars.push_back(Bar{.key = key, .value = std::move(value)});
+        bars.push_back(Bar{.label = cell.label, .value = std::move(value)});
       }
-      absl::c_sort(bars, [](const Bar& lhs, const Bar& rhs) {
-        if (lhs.value.scale > rhs.value.scale) {
-          return true;
+      // A categorical bucket sorts by bar height (tallest first) and honors --top; a numeric-range
+      // bucket keeps the ascending range order (a distribution) and shows every range.
+      if (!numeric) {
+        absl::c_sort(bars, [](const Bar& lhs, const Bar& rhs) {
+          if (lhs.value.scale > rhs.value.scale) {
+            return true;
+          }
+          if (lhs.value.scale < rhs.value.scale) {
+            return false;
+          }
+          return lhs.label < rhs.label;
+        });
+        if (top.has_value() && bars.size() > *top) {
+          bars.resize(*top);
         }
-        if (lhs.value.scale < rhs.value.scale) {
-          return false;
-        }
-        return lhs.key < rhs.key;
-      });
-      if (top.has_value() && bars.size() > *top) {
-        bars.resize(*top);
       }
       if (format == render::Format::kJsonl) {
         for (const Bar& bar : bars) {
           emit(
               absl::StrCat(
-                  "{\"histogram\":", JsonQuote(histograms[i].label), ",\"bucket\":", JsonQuote(bar.key),
+                  "{\"histogram\":", JsonQuote(histograms[i].label), ",\"bucket\":", JsonQuote(bar.label),
                   ",\"value\":", bar.value.json, "}\n"));
         }
         continue;
       }
-      // Text bars: the label left-padded to the widest key, the value right-aligned, then the bar.
-      // The bar is last so its Unicode width never disturbs the aligned columns.
+      // Text bars: the label left-padded to the widest, the value right-aligned, then the bar. The
+      // bar is last so its Unicode width never disturbs the aligned columns.
       std::size_t label_width = 0;
       std::size_t value_width = 0;
       for (const Bar& bar : bars) {
-        label_width = std::max(label_width, bar.key.size());
+        label_width = std::max(label_width, bar.label.size());
         value_width = std::max(value_width, bar.value.text.size());
       }
       for (const Bar& bar : bars) {
         const double fraction = max_scale == 0 ? 0.0 : bar.value.scale / max_scale;
         emit(
             absl::StrCat(
-                bar.key, std::string(label_width - bar.key.size(), ' '), "  ",
+                bar.label, std::string(label_width - bar.label.size(), ' '), "  ",
                 format::PadLeft(bar.value.text, value_width), "  ", HistogramBar(fraction, kBarWidth, unicode), "\n"));
       }
     }
