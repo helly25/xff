@@ -311,8 +311,8 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .header = "Output",
         .summary = "print an aligned count + size table (or --format=jsonl rows) instead of each match",
         .details = "Replaces the per-match listing with an aggregate table: match count and total size per group "
-                   "(overall, by type, extension, programming language, media (MIME) type, owner user - =owner is an "
-                   "alias - or owning group). The categorical keys reuse the {mime}/{user}/{group} field vocabulary. "
+                   "(overall, by type, extension, programming language, media (MIME) type, user (owner), or "
+                   "owning group). The categorical keys reuse the {mime}/{user}/{group} field vocabulary. "
                    "--top=N limits the rows, --summary-precision sets the scaled-size digits, and --format=jsonl "
                    "emits one object per group for scripts.",
         .topic = "stats",
@@ -324,7 +324,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .header = "Output",
         .summary = "bar chart per bucket: a count or sum/mean/min/max of size|lines (repeatable)",
         .details = "A terminal reduction like --summary, drawn as bars. BUCKET groups the matches - a category "
-                   "(overall, type, ext, lang, mime, user - =owner alias - or group) or a numeric-range field "
+                   "(overall, type, ext, lang, mime, user (owner), or group) or a numeric-range field "
                    "(size / lines by order of magnitude, depth per level, drawn as an ascending distribution). "
                    "The optional :MEASURE is the bar's value - "
                    "`count` (the default) or an aggregate "
