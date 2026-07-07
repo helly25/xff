@@ -242,6 +242,15 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of --sort (none/dir/subtree/tree) + -j / --jobs: whole-tree coverage, the
+# deterministic global --sort=tree order identical across worker counts, and --sort=dir ordering.
+bashtest(
+    name = "sort_test",
+    size = "small",
+    srcs = ["sort_test.sh"],
+    data = [":xff"],
+)
+
 # End-to-end test of --summary output: right-aligned human table (grouped digits)
 # by default, stable one-object-per-row --format=jsonl machine output.
 bashtest(

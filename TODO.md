@@ -72,16 +72,12 @@ modes, `-lname` / `-ilname`, and `-fstype`; all in the CHANGELOG and covered by 
 engine unit test), as is the reusable markdown-table-alignment skill (#66). What
 remains below is the design-forked / larger work.
 
-- **Parallel traversal + `--jobs` + deterministic `--sort`** (#43). Built: a
-  worker-pool walk (`ReadPool`, `absl::Mutex`; parallel `readdir`+`lstat` on workers,
-  single-thread coordinator/visitor) with `--sort=none|dir|subtree|tree`
-  (`absl::c_sort`), `-j N` / `--jobs=all`, mode-scoped defaults, unit-tested across
-  worker counts plus a tsan CI cell. Remaining: the `--sort` / `-j` CLI bashtest
-  (its own bullet below), then close #43/#27.
-- **`--sort` / `-j` CLI bashtest** (tail of #43/#27): the one missing piece of #43 - a
-  binary-level bashtest driving `--sort=none|dir|subtree|tree` and `-j N` / `--jobs=all` end to
-  end. The engine is already covered by C++ unit tests across worker counts plus a tsan CI cell;
-  this adds the CLI coverage, then closes #43 / #27. Ready to build.
+- **Parallel traversal + `--jobs` + deterministic `--sort`** (#43). **Complete.** A worker-pool
+  walk (`ReadPool`, `absl::Mutex`; parallel `readdir`+`lstat` on workers, single-thread
+  coordinator/visitor) with `--sort=none|dir|subtree|tree` (`absl::c_sort`), `-j N` / `--jobs=all`,
+  mode-scoped defaults, unit-tested across worker counts plus a tsan CI cell. The CLI gap closed
+  with `xff/cli/sort_test.sh` (every mode walks the whole tree; `--sort=tree` is a deterministic
+  global order identical across `-j`; `--sort=dir` orders each directory) - #43/#27 done.
 - **Exit-code model refinement + `--skip-unsupported` + impossible-task-fail**
   (#44). Shipped: (a) match-sensitive exit -- the default stays find semantics
   (0 ran / 2 error, match status never affects exit), while `--quiet` (suppress
