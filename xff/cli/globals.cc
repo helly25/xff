@@ -317,15 +317,18 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--histogram",
-        .display = "--histogram=overall|type|ext|lang",
+        .display = "--histogram=BUCKET[:MEASURE]",
         .group = "output",
         .header = "Output",
-        .summary = "draw a bar chart of the match count per bucket (repeatable; combinable with --summary)",
-        .details = "A terminal reduction like --summary, drawn as bars: one bar per bucket (overall, by type, by "
-                   "extension, or by programming language), scaled to the tallest. Repeatable and combinable with "
-                   "--summary - both are fed by one walk and replace the per-match listing. Bars use Unicode block "
-                   "characters on a UTF-8 locale (see --unicode) or ASCII '#' otherwise; --top=N keeps the N "
-                   "tallest, and --format=jsonl emits one object per bar for scripts.",
+        .summary = "bar chart per bucket: a count or sum/mean/min/max of size|lines (repeatable)",
+        .details = "A terminal reduction like --summary, drawn as bars. BUCKET groups the matches (overall, type, "
+                   "ext, or lang); the optional :MEASURE is the bar's value - `count` (the default) or an aggregate "
+                   "`sum(FIELD)` / `mean(FIELD)` / `min(FIELD)` / `max(FIELD)` over a numeric FIELD (size or lines). "
+                   "A numeric metric needs an aggregator (`ext:lines` is an error; `ext:sum(lines)` is not). "
+                   "Repeatable and combinable with --summary - both are fed by one walk and replace the per-match "
+                   "listing. Bars scale to the tallest, use Unicode block characters on a UTF-8 locale (see "
+                   "--unicode) or ASCII '#' otherwise; --top=N keeps the N tallest and --format=jsonl emits one "
+                   "object per bar for scripts.",
     },
     {
         .name = "--count",

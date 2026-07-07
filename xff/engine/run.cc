@@ -40,12 +40,14 @@
 #include "absl/status/status.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
 #include "mbo/diff/diff_options.h"
 #include "xff/color/color.h"
+#include "xff/content/line_match.h"
 #include "xff/datetime/datetime.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/walk.h"
@@ -279,10 +281,61 @@ std::string SummaryKey(SummaryMode mode, const Visit& visit) {
 // --summary (overall / type / ext / lang). Independent of and combinable with --summary; both are
 // terminal reductions fed by one walk. (Numeric metrics and aggregators -- ext:sum(lines) etc. --
 // are a later addition; today a histogram counts entries per bucket.)
+// A histogram's measure: the count of matched entries (the default), or an aggregate of a numeric
+// field. kCount ignores `metric`; the aggregators reduce the metric field per bucket.
+enum class HistAgg : std::uint8_t { kCount, kSum, kMean, kMin, kMax };
+enum class HistMetric : std::uint8_t { kSize, kLines };  // the numeric field an aggregate reduces
+
 struct HistogramSpec {
   SummaryMode bucket = SummaryMode::kOverall;
-  std::string label;  // the bucket name as written, for the jsonl tag and the text heading
+  HistAgg agg = HistAgg::kCount;
+  HistMetric metric = HistMetric::kSize;  // only when agg != kCount
+  std::string label;                      // the spec as written, for the jsonl tag + text heading
 };
+
+// The running per-bucket aggregate: enough to render any aggregator (min/max are valid iff count>0).
+struct HistCell {
+  std::uint64_t count = 0;
+  std::uint64_t sum = 0;
+  std::uint64_t min = 0;
+  std::uint64_t max = 0;
+};
+
+// Parses a `--histogram` MEASURE (the part after `BUCKET:`) into (aggregator, metric). "count" is
+// the aggregator-free measure; every other form must be AGG(FIELD) with AGG in sum/mean/min/max and
+// FIELD in size/lines. A bare field with no aggregator (e.g. `lines`) is a usage error, per design.
+absl::StatusOr<std::pair<HistAgg, HistMetric>> ParseHistMeasure(std::string_view measure) {
+  const std::string_view::size_type open = measure.find('(');
+  if (open == std::string_view::npos || measure.empty() || measure.back() != ')') {
+    return absl::InvalidArgumentError(
+        absl::StrCat(
+            "histogram metric '", measure, "' needs an aggregator: sum(size), mean(lines), min(...), or max(...)"));
+  }
+  const std::string_view agg_name = measure.substr(0, open);
+  const std::string_view field = measure.substr(open + 1, measure.size() - open - 2);
+  HistAgg agg = HistAgg::kSum;
+  if (agg_name == "sum") {
+    agg = HistAgg::kSum;
+  } else if (agg_name == "mean") {
+    agg = HistAgg::kMean;
+  } else if (agg_name == "min") {
+    agg = HistAgg::kMin;
+  } else if (agg_name == "max") {
+    agg = HistAgg::kMax;
+  } else {
+    return absl::InvalidArgumentError(
+        absl::StrCat("unknown histogram aggregator '", agg_name, "'; use sum, mean, min, or max"));
+  }
+  HistMetric metric = HistMetric::kSize;
+  if (field == "size") {
+    metric = HistMetric::kSize;
+  } else if (field == "lines") {
+    metric = HistMetric::kLines;
+  } else {
+    return absl::InvalidArgumentError(absl::StrCat("unknown histogram metric field '", field, "'; use size or lines"));
+  }
+  return std::make_pair(agg, metric);
+}
 
 absl::StatusOr<std::vector<HistogramSpec>> ResolveHistograms(const std::vector<std::string>& globals) {
   constexpr std::string_view kFlag = "--histogram";
@@ -292,20 +345,31 @@ absl::StatusOr<std::vector<HistogramSpec>> ResolveHistograms(const std::vector<s
       continue;
     }
     const std::string_view value = global == kFlag ? "overall" : global.substr(kFlag.size() + 1);
-    SummaryMode bucket = SummaryMode::kOverall;
-    if (value == "overall") {
-      bucket = SummaryMode::kOverall;
-    } else if (value == "type") {
-      bucket = SummaryMode::kType;
-    } else if (value == "ext") {
-      bucket = SummaryMode::kExt;
-    } else if (value == "lang") {
-      bucket = SummaryMode::kLanguage;
+    const std::string_view::size_type colon = value.find(':');
+    const std::string_view bucket_name = value.substr(0, colon);
+    HistogramSpec spec;
+    spec.label = std::string(value);
+    if (bucket_name == "overall") {
+      spec.bucket = SummaryMode::kOverall;
+    } else if (bucket_name == "type") {
+      spec.bucket = SummaryMode::kType;
+    } else if (bucket_name == "ext") {
+      spec.bucket = SummaryMode::kExt;
+    } else if (bucket_name == "lang") {
+      spec.bucket = SummaryMode::kLanguage;
     } else {
       return absl::InvalidArgumentError(
-          absl::StrCat("unknown --histogram bucket '", value, "'; use overall, type, ext, or lang"));
+          absl::StrCat("unknown --histogram bucket '", bucket_name, "'; use overall, type, ext, or lang"));
     }
-    specs.push_back(HistogramSpec{.bucket = bucket, .label = std::string(value)});
+    if (colon != std::string_view::npos && value.substr(colon + 1) != "count") {
+      const absl::StatusOr<std::pair<HistAgg, HistMetric>> measure = ParseHistMeasure(value.substr(colon + 1));
+      if (!measure.ok()) {
+        return measure.status();
+      }
+      spec.agg = measure->first;
+      spec.metric = measure->second;
+    }
+    specs.push_back(std::move(spec));
   }
   return specs;
 }
@@ -326,6 +390,37 @@ std::string HistogramBar(double fraction, std::size_t width, bool unicode) {
   }
   bar += kPartials.at(eighths % 8);
   return bar;
+}
+
+// The rendered aggregate for one bucket: a double for bar-scaling and sorting, an aligned text
+// form, and the JSON number. mean is fixed to `precision` decimals; the integer aggregators
+// (count / sum / min / max) group digits for the text form and emit a bare integer for JSON.
+struct HistValue {
+  double scale = 0;
+  std::string text;
+  std::string json;
+};
+
+HistValue HistMeasureValue(HistAgg agg, const HistCell& cell, unsigned precision) {
+  const auto integer = [](std::uint64_t value) {
+    return HistValue{.scale = static_cast<double>(value), .text = format::Int(value, ','), .json = absl::StrCat(value)};
+  };
+  switch (agg) {
+    case HistAgg::kSum: return integer(cell.sum);
+    case HistAgg::kMin: return integer(cell.min);
+    case HistAgg::kMax: return integer(cell.max);
+    case HistAgg::kMean: {
+      const double mean = cell.count == 0 ? 0.0 : static_cast<double>(cell.sum) / static_cast<double>(cell.count);
+      std::string formatted;
+      if (!absl::FormatUntyped(
+              &formatted, absl::UntypedFormatSpec(absl::StrCat("%.", precision, "f")), {absl::FormatArg(mean)})) {
+        formatted = absl::StrCat(mean);  // defensive: the format is always valid
+      }
+      return HistValue{.scale = mean, .text = formatted, .json = formatted};
+    }
+    case HistAgg::kCount: break;
+  }
+  return integer(cell.count);
 }
 
 // Applies one --context SPEC onto (before, after): a bare non-negative integer sets both sides,
@@ -1527,7 +1622,7 @@ int RunFind(
     return 2;
   }
   const std::vector<HistogramSpec> histograms = *std::move(histograms_or);
-  std::vector<std::map<std::string, std::uint64_t>> histogram_counts(histograms.size());  // one per spec
+  std::vector<std::map<std::string, HistCell>> histogram_cells(histograms.size());  // one per spec
   const bool any_reduction = summary_mode != SummaryMode::kOff || !histograms.empty();
   int errors = 0;
 
@@ -1764,7 +1859,24 @@ int RunFind(
             agg.second += visit.metadata.size;
           }
           for (std::size_t i = 0; i < histograms.size(); ++i) {
-            histogram_counts[i][SummaryKey(histograms[i].bucket, visit)] += 1;
+            const HistogramSpec& spec = histograms[i];
+            std::optional<std::uint64_t> value = 1;  // kCount: each match contributes one
+            if (spec.agg != HistAgg::kCount) {
+              if (spec.metric == HistMetric::kSize) {
+                value = visit.metadata.size;
+              } else {  // kLines: content-derived, absent for a non-regular or binary file
+                value =
+                    visit.metadata.type == vfs::FileType::kRegular ? content::FileLineCount(visit.path) : std::nullopt;
+              }
+            }
+            if (!value.has_value()) {
+              continue;  // no value for this metric on this entry (e.g. a binary file for lines)
+            }
+            HistCell& cell = histogram_cells[i][SummaryKey(spec.bucket, visit)];
+            cell.min = cell.count == 0 ? *value : std::min(cell.min, *value);
+            cell.max = cell.count == 0 ? *value : std::max(cell.max, *value);
+            cell.sum += *value;
+            cell.count += 1;
           }
         } else if (matched && implicit_print) {
           if (is_tree) {
@@ -1970,22 +2082,30 @@ int RunFind(
   if (!histograms.empty()) {
     const bool unicode = ResolveUnicode(command.globals);
     const std::optional<std::size_t> top = ResolveTop(command.globals);
+    const unsigned precision = ResolveSummaryPrecision(command.globals);
     constexpr std::size_t kBarWidth = 40;
 
     struct Bar {
       std::string key;
-      std::uint64_t value = 0;
+      HistValue value;
     };
 
     for (std::size_t i = 0; i < histograms.size(); ++i) {
       std::vector<Bar> bars;
-      std::uint64_t max_value = 0;
-      for (const auto& [key, value] : histogram_counts[i]) {
-        bars.push_back(Bar{.key = key, .value = value});
-        max_value = std::max(max_value, value);
+      double max_scale = 0;
+      for (const auto& [key, cell] : histogram_cells[i]) {
+        HistValue value = HistMeasureValue(histograms[i].agg, cell, precision);
+        max_scale = std::max(max_scale, value.scale);
+        bars.push_back(Bar{.key = key, .value = std::move(value)});
       }
       absl::c_sort(bars, [](const Bar& lhs, const Bar& rhs) {
-        return lhs.value != rhs.value ? lhs.value > rhs.value : lhs.key < rhs.key;
+        if (lhs.value.scale > rhs.value.scale) {
+          return true;
+        }
+        if (lhs.value.scale < rhs.value.scale) {
+          return false;
+        }
+        return lhs.key < rhs.key;
       });
       if (top.has_value() && bars.size() > *top) {
         bars.resize(*top);
@@ -1995,28 +2115,24 @@ int RunFind(
           emit(
               absl::StrCat(
                   "{\"histogram\":", JsonQuote(histograms[i].label), ",\"bucket\":", JsonQuote(bar.key),
-                  ",\"value\":", bar.value, "}\n"));
+                  ",\"value\":", bar.value.json, "}\n"));
         }
         continue;
       }
-      // Text bars: the label left-padded to the widest key, the grouped count right-aligned, then
-      // the bar. The bar is last so its Unicode width never disturbs the aligned columns.
+      // Text bars: the label left-padded to the widest key, the value right-aligned, then the bar.
+      // The bar is last so its Unicode width never disturbs the aligned columns.
       std::size_t label_width = 0;
-      std::size_t count_width = 0;
-      std::vector<std::string> counts;
-      counts.reserve(bars.size());
+      std::size_t value_width = 0;
       for (const Bar& bar : bars) {
         label_width = std::max(label_width, bar.key.size());
-        counts.push_back(format::Int(bar.value, ','));
-        count_width = std::max(count_width, counts.back().size());
+        value_width = std::max(value_width, bar.value.text.size());
       }
-      for (std::size_t j = 0; j < bars.size(); ++j) {
-        const double fraction =
-            max_value == 0 ? 0.0 : static_cast<double>(bars[j].value) / static_cast<double>(max_value);
+      for (const Bar& bar : bars) {
+        const double fraction = max_scale == 0 ? 0.0 : bar.value.scale / max_scale;
         emit(
             absl::StrCat(
-                bars[j].key, std::string(label_width - bars[j].key.size(), ' '), "  ",
-                format::PadLeft(counts[j], count_width), "  ", HistogramBar(fraction, kBarWidth, unicode), "\n"));
+                bar.key, std::string(label_width - bar.key.size(), ' '), "  ",
+                format::PadLeft(bar.value.text, value_width), "  ", HistogramBar(fraction, kBarWidth, unicode), "\n"));
       }
     }
   }

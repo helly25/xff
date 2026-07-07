@@ -1259,6 +1259,41 @@ TEST_F(RunTest, RepeatedHistogramEmitsEachBlockInOrder) {
           R"({"histogram":"ext","bucket":"md","value":1})"));
 }
 
+TEST_F(RunTest, HistogramSumOfSizePerBucket) {
+  // ext:sum(size): txt has two 1-byte files (2), md has one (1); sorted by value descending.
+  EXPECT_THAT(
+      RunArgvRecords({"--histogram=ext:sum(size)", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(
+          R"j({"histogram":"ext:sum(size)","bucket":"txt","value":2})j",
+          R"j({"histogram":"ext:sum(size)","bucket":"md","value":1})j"));
+}
+
+TEST_F(RunTest, HistogramMeanRendersFixedDecimals) {
+  // type:mean(size): three 1-byte files -> mean 1.00 (default 2 decimals), a single bucket.
+  EXPECT_THAT(
+      RunArgvRecords({"--histogram=type:mean(size)", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(R"j({"histogram":"type:mean(size)","bucket":"file","value":1.00})j"));
+}
+
+TEST_F(RunTest, HistogramMaxOfSizeSortsTiesByKey) {
+  // ext:max(size): every file is 1 byte, so both buckets max at 1; equal values sort by key.
+  EXPECT_THAT(
+      RunArgvRecords({"--histogram=ext:max(size)", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(
+          R"j({"histogram":"ext:max(size)","bucket":"md","value":1})j",
+          R"j({"histogram":"ext:max(size)","bucket":"txt","value":1})j"));
+}
+
+TEST_F(RunTest, HistogramBadMeasureIsAUsageError) {
+  // A numeric metric with no aggregator, an unknown aggregator, and an unknown field each fail (2).
+  RunArgvRecords({"--histogram=ext:lines", root_.string(), "-type", "f"});
+  EXPECT_THAT(last_errors_, 2);
+  RunArgvRecords({"--histogram=ext:avg(size)", root_.string(), "-type", "f"});
+  EXPECT_THAT(last_errors_, 2);
+  RunArgvRecords({"--histogram=ext:sum(bogus)", root_.string(), "-type", "f"});
+  EXPECT_THAT(last_errors_, 2);
+}
+
 TEST_F(RunTest, LsEmitsOneLinePerMatchAndSuppressesImplicitPrint) {
   // -ls is an action, so it suppresses the implicit -print: exactly one line (the
   // ls-style listing) for the match, containing its path. The exact columns are
