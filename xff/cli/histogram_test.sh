@@ -102,4 +102,16 @@ test::histogram_metric_without_aggregator_is_a_usage_error() {
   expect_output_contains "needs an aggregator" "${out}"
 }
 
+test::histogram_numeric_range_buckets() {
+  local dir out
+  dir="${TEST_TMPDIR}/histrange"
+  mkdir -p "${dir}"
+  head -c 5 /dev/zero >"${dir}/small" # 5 bytes -> the "1-9" magnitude range
+  head -c 150 /dev/zero >"${dir}/big" # 150 bytes -> the "100-999" range
+  # A numeric size bucket groups by order of magnitude into ascending ranges (a distribution).
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --histogram=size --unicode=never "${dir}" -type f 2>&1)"
+  expect_output_contains "1-9" "${out}"
+  expect_output_contains "100-999" "${out}"
+}
+
 test_runner

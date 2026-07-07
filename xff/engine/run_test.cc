@@ -1294,6 +1294,23 @@ TEST_F(RunTest, HistogramBadMeasureIsAUsageError) {
   EXPECT_THAT(last_errors_, 2);
 }
 
+TEST_F(RunTest, HistogramDepthRangeIsPerLevelInAscendingOrder) {
+  // A numeric-range bucket draws in ascending range order (a distribution), not by height. depth:
+  // root is 0 (1), a.txt/b.md/sub are 1 (3), sub/c.txt is 2 (1).
+  EXPECT_THAT(
+      RunArgvRecords({"--histogram=depth", "--format=jsonl", root_.string()}),
+      ElementsAre(
+          R"({"histogram":"depth","bucket":"0","value":1})", R"({"histogram":"depth","bucket":"1","value":3})",
+          R"({"histogram":"depth","bucket":"2","value":1})"));
+}
+
+TEST_F(RunTest, HistogramSizeRangeGroupsByMagnitude) {
+  // A size-range bucket groups by order of magnitude: the three 1-byte files all land in "1-9".
+  EXPECT_THAT(
+      RunArgvRecords({"--histogram=size", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(R"({"histogram":"size","bucket":"1-9","value":3})"));
+}
+
 TEST_F(RunTest, LsEmitsOneLinePerMatchAndSuppressesImplicitPrint) {
   // -ls is an action, so it suppresses the implicit -print: exactly one line (the
   // ls-style listing) for the match, containing its path. The exact columns are

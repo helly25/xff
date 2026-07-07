@@ -346,15 +346,15 @@ remains below is the design-forked / larger work.
   reduction specs, ONE walk feeds all of them, blocks render in declared order, and any reduction
   suppresses the per-match listing (like `--summary` today; an explicit `-print` / action brings it
   back). `--top=N`, `--summary-precision=N`, and `--human` apply to every block's numeric column.
-  - **Slices 1-2 shipped:** `--histogram=BUCKET[:MEASURE]` over categorical buckets
-    (`overall|type|ext|lang`, reusing the `--summary` group-by). MEASURE is `count` (default) or an
-    aggregate `sum/mean/min/max(size|lines)` over a numeric field; a numeric metric with no
-    aggregator is a usage error. Unicode block bars via `--unicode` (ASCII `#` fallback), scaled to
-    the tallest; `--top` keeps the N tallest; `--summary-precision` sets `mean`'s decimals;
-    `--format=jsonl` emits block-tagged rows (`{"histogram":...,"bucket":...,"value":...}`);
-    combinable with `--summary` (both suppress the listing). **Remaining slices:** numeric-range
-    buckets (`size`/`lines`/`depth` auto-ranges), a broader bucket vocabulary (mime / user), and
-    `--histogram-width` + a `--help=stats` topic.
+  - **Slices 1-2b shipped:** `--histogram=BUCKET[:MEASURE]`. BUCKET is categorical
+    (`overall|type|ext|lang`, reusing the `--summary` group-by) or a numeric-range field
+    (`size`/`lines` by order of magnitude - "0"/"1-9"/"10-99"/... - and `depth` per level, drawn as
+    an ascending distribution). MEASURE is `count` (default) or an aggregate `sum/mean/min/max(size|
+lines)`; a numeric metric with no aggregator is a usage error. Unicode block bars via `--unicode`
+    (ASCII `#` fallback), scaled to the tallest; `--top` keeps the N tallest (categorical buckets);
+    `--summary-precision` sets `mean`'s decimals; `--format=jsonl` emits block-tagged rows
+    (`{"histogram":...,"bucket":...,"value":...}`); combinable with `--summary`. **Remaining:** a
+    broader bucket vocabulary (mime / user), `--histogram-width`, and a `--help=stats` topic.
   - **Grammar `--histogram='BUCKET[:MEASURE]'`** (repeatable). BUCKET is a `{field}` (categorical:
     `ext` / `type` / `lang` / `mime` / `user` / ...; numeric: `size` / `lines` / `depth`). MEASURE is
     `count` (the default, aggregator-free) or `sum(FIELD)` / `mean(FIELD)` / `min(FIELD)` /
