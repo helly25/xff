@@ -79,4 +79,27 @@ test::histogram_unknown_bucket_is_a_usage_error() {
   expect_output_contains "unknown --histogram bucket" "${out}"
 }
 
+test::histogram_numeric_measure_aggregates_a_field() {
+  local dir out
+  dir="${TEST_TMPDIR}/histnum"
+  mkdir -p "${dir}"
+  printf 'a\nb\nc\n' >"${dir}/x.cc" # 3 lines
+  printf 'd\ne\n' >"${dir}/y.cc"    # 2 lines
+  printf 'z\n' >"${dir}/w.h"        # 1 line
+  # ext:sum(lines): cc = 3 + 2 = 5 (tallest), h = 1.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --histogram='ext:sum(lines)' --unicode=never "${dir}" -type f 2>&1)"
+  expect_matches "cc[[:space:]]+5[[:space:]]+#+" "${out}"
+  expect_matches "h[[:space:]]+1[[:space:]]+#+" "${out}"
+}
+
+test::histogram_metric_without_aggregator_is_a_usage_error() {
+  local dir out rc
+  dir="${TEST_TMPDIR}/histnoagg"
+  mkdir -p "${dir}"
+  # A numeric metric with no aggregator (ext:lines) is a usage error, per the design.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --histogram='ext:lines' "${dir}" 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "needs an aggregator" "${out}"
+}
+
 test_runner
