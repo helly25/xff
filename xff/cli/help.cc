@@ -209,6 +209,32 @@ std::string RenderFields() {
   return out;
 }
 
+// The `--help=stats` topic: the two terminal reductions, --summary and --histogram. Both replace
+// the per-match listing with an aggregate over the whole walk; they are independent and combinable.
+std::string RenderStats() {
+  // The flags (and the bucket/measure grammar, which lives in --histogram's details) are pulled
+  // from the globals SOT via the "stats" topic tag, so this body cannot drift from the flags.
+  std::string out =
+      "xff statistics reductions. --summary and --histogram replace the per-match listing with an\n"
+      "aggregate over all matches; they are independent and combinable (one walk feeds both), and\n"
+      "an explicit action (-print / -exec) still runs. --format=jsonl emits machine rows instead.\n"
+      "\n";
+  for (const GlobalFlag& flag : Globals()) {
+    if (flag.topic == "stats") {
+      absl::StrAppend(&out, RenderGlobalFlag(flag, /*with_details=*/true), "\n");
+    }
+  }
+  absl::StrAppend(
+      &out,
+      "Examples:\n"
+      "  xff --summary=ext                                   files + total size per extension\n"
+      "  xff --histogram=ext                                 a bar chart of files per extension\n"
+      "  xff --histogram='ext:sum(lines)'                    total lines per extension\n"
+      "  xff --histogram=size                                the file-size distribution\n"
+      "  xff --summary=type --histogram=ext --format=jsonl   both, as machine rows\n");
+  return out;
+}
+
 // The `--help=help` topic: a guide to the (subcommand-free) help system, then the
 // generated topic index. So there is one place a user can ask "how do I get help?".
 std::string RenderHelpGuide() {
@@ -286,6 +312,7 @@ std::vector<HelpTopic> HelpTopics() {
       {.name = "time", .aliases = {}, .summary = "time-format presets and strftime patterns", .in_full = true},
       {.name = "size", .aliases = {}, .summary = "-size units (c/w/b/k/M/G/T/P/E) and +/-", .in_full = true},
       {.name = "styles", .aliases = {"flavors"}, .summary = "the find / xff / rg flavor comparison"},
+      {.name = "stats", .aliases = {}, .summary = "the --summary and --histogram reductions"},
       {.name = "full", .aliases = {"long"}, .summary = "every option and primary, with the long explanations"},
   };
 }
@@ -379,6 +406,9 @@ absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   }
   if (topic == "fields") {
     return RenderFields();  // the {field} placeholder vocabulary (--help=format is the --format flag)
+  }
+  if (topic == "stats") {
+    return RenderStats();  // the --summary / --histogram reductions
   }
   // Expression primary / operator / action (leading-dash convenience: `--help=regex`).
   const registry::Descriptor* descriptor = registry::Lookup(topic);

@@ -45,6 +45,10 @@ struct GlobalFlag {
   // name ("-diff") or a global name ("--context"); a leading-'@' category token is a planned
   // extension (not yet resolved) for when one flag affects a whole family at once.
   std::string_view affects;
+  // Help-topic membership, e.g. "stats". A `--help=TOPIC` body pulls every flag tagged with its
+  // topic straight from this table, so the topic's flag list is the SOT and cannot drift. Empty
+  // means the flag belongs to no topic body (it still appears in the grouped `--help` options).
+  std::string_view topic;
   bool xff = true;  // false for a find-native option (-H/-L/-P); true for an xff extension
 };
 
