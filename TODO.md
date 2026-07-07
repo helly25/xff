@@ -361,8 +361,9 @@ lines)`; a numeric metric with no aggregator is a usage error. Unicode block bar
     (ASCII `#` fallback), scaled to the tallest; `--top` keeps the N tallest (categorical buckets);
     `--summary-precision` sets `mean`'s decimals; `--histogram-width=N` sets the bar cell width
     (default 40); `--format=jsonl` emits block-tagged rows (`{"histogram":...,"bucket":...,
-    "value":...}`); combinable with `--summary`. **Remaining:** a broader bucket vocabulary
-    (mime / user) and a `--help=stats` topic.
+    "value":...}`); combinable with `--summary`. A `--help=stats` topic documents both reductions,
+    pulling its flags from the globals SOT via a `GlobalFlag.topic` tag. **Remaining:** a broader
+    bucket vocabulary (mime / user).
   - **Grammar `--histogram='BUCKET[:MEASURE]'`** (repeatable). BUCKET is a `{field}` (categorical:
     `ext` / `type` / `lang` / `mime` / `user` / ...; numeric: `size` / `lines` / `depth`). MEASURE is
     `count` (the default, aggregator-free) or `sum(FIELD)` / `mean(FIELD)` / `min(FIELD)` /

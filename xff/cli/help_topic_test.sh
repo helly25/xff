@@ -80,6 +80,18 @@ test::help_fields_lists_the_placeholder_vocabulary() {
   expect_output_not_contains '{relpath}' "${out}"
 }
 
+test::help_stats_documents_the_reductions() {
+  # `--help=stats` documents --summary and --histogram. Their flags (and the bucket/measure
+  # grammar, carried in --histogram's details) are pulled from the SOT via the "stats" topic tag.
+  local out rc
+  out="$("$(_xff_bin)" --help=stats 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_matches '\-\-summary' "${out}"
+  expect_matches '\-\-histogram' "${out}"
+  expect_output_contains 'sum(lines)' "${out}"          # the aggregate grammar (from --histogram details)
+  expect_output_contains 'needs an aggregator' "${out}" # the no-bare-metric rule
+}
+
 test::help_printf_lists_the_directive_vocabulary() {
   # `--help=printf` prints the % directive table (from engine::PrintfDocs) plus the
   # %{field} escape; --help=full folds the same table in so the full reference is exhaustive.

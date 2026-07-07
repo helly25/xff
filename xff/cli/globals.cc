@@ -314,6 +314,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "(overall, by type, by extension, or by programming language). --top=N limits the rows, "
                    "--summary-precision sets the scaled-size digits, and --format=jsonl emits one object per group "
                    "for scripts.",
+        .topic = "stats",
     },
     {
         .name = "--histogram",
@@ -331,6 +332,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "listing. Bars scale to the tallest, use Unicode block characters on a UTF-8 locale (see "
                    "--unicode) or ASCII '#' otherwise; --top=N keeps the N tallest and --format=jsonl emits one "
                    "object per bar for scripts.",
+        .topic = "stats",
     },
     {
         .name = "--count",
@@ -371,6 +373,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "with --summary or --histogram, keep only the N largest/tallest groups",
+        .topic = "stats",
     },
     {
         .name = "--histogram-width",
@@ -379,6 +382,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .header = "Output",
         .summary = "cell width the tallest --histogram bar fills (default 40)",
         .affects = "--histogram",
+        .topic = "stats",
     },
     {
         .name = "--summary-precision",
@@ -386,6 +390,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "with --summary --human: fraction digits for scaled sizes (default 2; bytes stay integer)",
+        .topic = "stats",
     },
     {
         .name = "--color",

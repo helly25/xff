@@ -164,6 +164,15 @@ TEST_F(HelpTest, ExpressionsListsEveryPrimaryGroupedWithoutGlobals) {
   EXPECT_THAT(*expr, Not(HasSubstr("Traversal:")));
 }
 
+TEST_F(HelpTest, StatsTopicDocumentsSummaryAndHistogram) {
+  // `--help=stats` covers both reductions: --summary, --histogram, the numeric-metric grammar,
+  // and the no-bare-metric rule.
+  EXPECT_THAT(
+      RenderHelp("stats"), IsOkAndHolds(AllOf(
+                               HasSubstr("--summary"), HasSubstr("--histogram"), HasSubstr("sum(lines)"),
+                               HasSubstr("needs an aggregator"))));
+}
+
 TEST_F(HelpTest, GlobalFlagTopicRendersWithGlobalTag) {
   EXPECT_THAT(
       RenderHelp("--sort"), IsOkAndHolds(AllOf(HasSubstr("--sort"), HasSubstr("ordering"), HasSubstr("global"))));
