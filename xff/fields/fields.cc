@@ -44,6 +44,7 @@
 #include "xff/datetime/datetime.h"
 #include "xff/hash/hash.h"
 #include "xff/language/language.h"
+#include "xff/mime/mime.h"
 #include "xff/regex/regex.h"
 #include "xff/vfs/entry.h"
 
@@ -293,6 +294,11 @@ std::string LanguageField(std::string_view, std::string_view, const RenderContex
   return std::string(language::LanguageForName(name));
 }
 
+std::string MimeField(std::string_view, std::string_view, const RenderContext& ctx) {
+  const std::string name = stdfs::path(std::string(ctx.path)).filename().string();
+  return std::string(mime::TypeForName(name));
+}
+
 std::string SizeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return qualifier == "h" ? HumanSize(ctx.metadata.size) : std::to_string(ctx.metadata.size);
 }
@@ -398,9 +404,11 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"lines", &LinesField},
     FieldEntry{"links", &LinksField},
     FieldEntry{"match", &MatchField},
+    FieldEntry{"mime", &MimeField},
     FieldEntry{"mode", &ModeField},
     FieldEntry{"mtime", &MtimeField},
     FieldEntry{"name", &NameField},
+    FieldEntry{"owner", &UserField},
     FieldEntry{"path", &PathField},
     FieldEntry{"perm", &ModeField},
     FieldEntry{"relpath", &RelpathField},
@@ -765,6 +773,11 @@ std::vector<FieldDoc> FieldDocs() {
        .group = "type",
        .header = "Type & size",
        .summary = "language by extension/filename (C++, Python, ...; empty if unknown)"},
+      {.name = "mime",
+       .aliases = {},
+       .group = "type",
+       .header = "Type & size",
+       .summary = "media (MIME) type by extension (text/plain, image/png; application/octet-stream if unknown)"},
       {.name = "size",
        .aliases = {},
        .group = "type",
@@ -795,7 +808,11 @@ std::vector<FieldDoc> FieldDocs() {
        .header = "Content",
        .summary = "text line count (empty for a binary/unreadable file); reads the file"},
       // Owner & mode.
-      {.name = "user", .aliases = {}, .group = "owner", .header = "Owner & mode", .summary = "owner user name"},
+      {.name = "user",
+       .aliases = {"owner"},
+       .group = "owner",
+       .header = "Owner & mode",
+       .summary = "owner user name (alias {owner}; find %u)"},
       {.name = "group", .aliases = {}, .group = "owner", .header = "Owner & mode", .summary = "owner group name"},
       {.name = "uid", .aliases = {}, .group = "owner", .header = "Owner & mode", .summary = "owner numeric user id"},
       {.name = "gid", .aliases = {}, .group = "owner", .header = "Owner & mode", .summary = "owner numeric group id"},

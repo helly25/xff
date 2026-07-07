@@ -117,6 +117,33 @@ test::histogram_numeric_range_buckets() {
   expect_output_contains "100-999" "${out}"
 }
 
+test::histogram_by_mime_groups_by_media_type() {
+  local dir out
+  dir="${TEST_TMPDIR}/histmime"
+  mkdir -p "${dir}"
+  echo x >"${dir}/a.txt"
+  echo x >"${dir}/b.txt"
+  echo x >"${dir}/c.md"
+  # --histogram=mime reuses the {mime} field: text/plain (2, tallest), text/markdown (1).
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --histogram=mime --unicode=never "${dir}" -type f 2>&1)"
+  expect_matches "text/plain[[:space:]]+2[[:space:]]+#+" "${out}"
+  expect_matches "text/markdown[[:space:]]+1[[:space:]]+#+" "${out}"
+}
+
+test::histogram_by_user_groups_under_the_owner() {
+  local dir out
+  dir="${TEST_TMPDIR}/histuser"
+  mkdir -p "${dir}"
+  echo x >"${dir}/a.txt"
+  echo x >"${dir}/b.txt"
+  echo x >"${dir}/c.txt"
+  # --histogram=user reuses the {user} field; all files share one owner (the test user), so one bar
+  # of 3. The owner name is runtime-dependent, so assert the count and that the listing is suppressed.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --histogram=user --unicode=never "${dir}" -type f 2>&1)"
+  expect_matches "3[[:space:]]+#+" "${out}"
+  expect_output_not_contains "a.txt" "${out}"
+}
+
 test::histogram_width_sets_the_bar_length() {
   local dir out
   dir="${TEST_TMPDIR}/histwidth"
