@@ -349,17 +349,28 @@ remains below is the design-forked / larger work.
     under a distinct "Extras (not built into this binary)" help group with a `[needs --//xff:archive]`
     note, is documented NOT-built-in by `--help=--archive`, and is a hard immediate error (exit 2)
     **only when used**. Covered by `globals_test` + `extras_test.sh`.
-  - **#115b SHIPPED:** the root `NOTICE` file rewritten (xff Apache-2.0; core deps Abseil/RE2/mbo;
-    the archive + regex extras' permissive notice sets, marked "linked only when the extra is on").
-    For single-file binary releases the program REPRODUCES its notices (pointing at files would not
-    satisfy notice retention): `NOTICE` + `LICENSE` are compiled in via the `//xff/cli:notices_gen`
-    genrule (each wrapped in a raw string; `notices.h` exposes non-constexpr `NoticeText()` /
-    `LicenseText()`, so the text lives only in the generated `.cc`, never a header). Two help topics:
-    `--help=notice` (alias `notices`) = the third-party manifest + which extras THIS binary has (via
-    `ExtraEnabled`); `--help=license` (alias `licenses`) = xff's Apache-2.0 in full. TODO in
-    `notices.h`: move to C++23 `#embed` + reproduce each dependency's own license file verbatim.
-  - **Then #83:** wire `select()` -> `-DXFF_WITH_ARCHIVE` + the `@libarchive` dep + the read-only
-    archive vfs backend behind the flag (tar/gz/bzip2/xz/zstd/lz4; mbedtls deferred).
+  - **Licenses/notices SHIPPED (#296 interim, then #297 the real design).** Single-file binaries
+    must REPRODUCE their notices (pointing at files does not satisfy notice retention). #297 made the
+    code the SOT via **self-registration**: `xff/license` holds a `Notice` registry + `Registrar`;
+    core deps (Abseil/RE2/mbo) self-register from `license.cc`; `NoticeText()`/`LicenseText()` (the
+    latter genrule'd byte-exact from `//:LICENSE`, which stays canonical); `--help=notice` /
+    `--help=license` (plural aliases) reproduce the compiled-in set; `license_test` drift-guards the
+    committed `NOTICE`/`LICENSE` against the code. No external dep. Author name is `Boerger`.
+    **Under self-registration a MINIMAL binary's NOTICE is core-only, which is CORRECT** - the
+    libarchive/PCRE2 notices belong to the FULL binary and land with the extras' real modules
+    (below). TODO in `license.h`: C++23 `#embed` + reproduce each dep's own license text.
+  - **DEFERRED to #83/#85 - the dual binary + extra modules (agreed 2026-07-08, NOT built):** - **Dual binary via alias:** `xff_minimal` (core, default) + `xff_full` (`tags=["manual"]`, links
+    the real extra modules); `alias(name="xff", actual=select({":full": ":xff_full", default:
+":xff_minimal"}))`. `//xff:archive` (+ new `//xff:pcre`) drive a `:full` config_setting;
+    `.bazelrc build:full`. `manual` keeps the heavy full binary + its deps out of default `//...`. - **Stub/real per extra:** `xff/archive` + `xff/pcre` each expose a cheap STUB (minimal links; no
+    external dep, no notice) and a REAL module (full links; deps `@libarchive`/`@pcre2`,
+    `alwayslink`, self-registers its notices). Real modules build ONLY under `--config=full`.
+    `@libarchive` **3.8.1.bcr.2 RESOLVES** (verified; target `@libarchive//libarchive:libarchive`,
+    keep its `use_mbedtls` OFF); **pcre2 BCR version TBD**; codec set tar/gz/bzip2/xz/zstd/lz4,
+    mbedtls deferred; add the `-encrypted` detection predicate (no crypto needed). - **What CHANGES when this lands:** committed `NOTICE` becomes the FULL set (regenerated from the
+    full binary); a drift check runs `--config=full` only; CI gains a full cell (builds/tests both
+    lean and full). **Open detail:** what `--archive` does in a full build before real diving
+    exists (avoid a silent no-op; "not yet implemented" is distinct from the minimal "not built in").
 
 - **PCRE2 backend (#85, `-regextype`): use pcre2 as a composable extra - decided 2026-07-06.** RE2
   (our engine) is linear-time and omits backreferences / lookaround / recursion; pcre2 is the Perl
