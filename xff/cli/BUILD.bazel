@@ -163,6 +163,16 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of the composable-extras UX in the lean (default) build: a disabled extra flag
+# (--archive) stays listed under a distinct "Extras" heading, is documented as not built in, and is
+# a hard error when used. See xff/BUILD.bazel (the //xff:archive flag) and cli/globals ExtraEnabled.
+bashtest(
+    name = "extras_test",
+    size = "small",
+    srcs = ["extras_test.sh"],
+    data = [":xff"],
+)
+
 # Binary-level test of the strict find style: cli/main.cc's ActiveStyle +
 # EnforceStyle wiring rejects xff extensions under --config=find and accepts the
 # full vocabulary under the default xff style.

@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Build-time "composable extras" flags. Heavy / special dependencies are OFF by default so the
+# stock binary is a lean core; an extended binary is composed from the same tree by turning a flag
+# on (e.g. `bazel build --//xff:archive //xff/cli:xff`). Each flag drives a `-DXFF_WITH_*` define
+# (added via select() in the consuming cc_library) that gates the backend in. The matching global
+# flag (`--archive`, ...) is ALWAYS present in the CLI; using it in a build without the extra is a
+# hard immediate error, never a silent no-op. See TODO.md "Composable-extras" and
+# docs/design-config.md.
+
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+
+package(default_visibility = ["//visibility:public"])
+
+# --//xff:archive -- compile in archive diving (libarchive backend; wired in #83). Default off.
+bool_flag(
+    name = "archive",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "archive_enabled",
+    flag_values = {":archive": "True"},
+)

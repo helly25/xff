@@ -107,6 +107,18 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .xff = false,
     },
     {
+        .name = "--archive",
+        .display = "--archive",
+        .group = "traversal",
+        .header = "Traversal",
+        .summary = "descend into archives (tar/zip/...) as virtual paths",
+        .details = "Treats each archive (tar, gz, bzip2, xz, zstd, lz4, zip, ...) as a directory, so the whole "
+                   "expression - including -grep on entry content - matches its entries at virtual paths like "
+                   "`foo.tar.gz/inner/x`. Read-only. A build-time extra: the stock binary is lean and omits it "
+                   "(rebuild with --//xff:archive); using --archive without it is a hard error.",
+        .extra = "archive",
+    },
+    {
         .name = "--jobs",
         .alias = "-j",
         .display = "-j N, --jobs=N|all",
@@ -561,6 +573,20 @@ bool IsKnownGlobal(std::string_view arg) {
     return flag != nullptr && flag->display.find('=') != std::string_view::npos;
   }
   return false;
+}
+
+bool ExtraEnabled(std::string_view key) {
+  // Each build-time extra maps to an XFF_WITH_* define added (via select) by its `//xff:<extra>`
+  // Bazel flag. In the lean default build no such define is set, so every extra reads as off. New
+  // extras add a branch here (and #83 wires libarchive behind archive).
+  if (key == "archive") {
+#ifdef XFF_WITH_ARCHIVE
+    return true;
+#else
+    return false;
+#endif
+  }
+  return false;  // unknown / not-yet-wired extra
 }
 
 }  // namespace xff::cli
