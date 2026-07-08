@@ -1,35 +1,16 @@
 xff - eXtended File Find
-Copyright 2026 Marcus Börger / helly25
+Copyright 2026 Marcus Boerger / helly25
+Licensed under the Apache License, Version 2.0 (see the LICENSE file / --help=license).
 
-Licensed under the Apache License, Version 2.0 (see the LICENSE file).
+This product links the third-party components below; all are under permissive licenses
+(no copyleft). The notice-retention obligation is met by reproducing each name, SPDX license
+identifier, and copyright line.
 
-===============================================================================
-Third-party components
-===============================================================================
+Abseil (C++)  [Apache-2.0]
+  Copyright The Abseil Authors. Licensed under the Apache License, Version 2.0.
 
-xff links the libraries below, fetched via Bazel modules. All are under
-permissive licenses (no copyleft); the notice-retention obligation is satisfied
-by reproducing each project's name and license identifier here. Run
-`xff --help=licenses` for a summary of what a given binary actually contains.
+RE2  [BSD-3-Clause]
+  Copyright (c) 2009 The RE2 Authors. Redistribution permitted under the BSD-3-Clause license.
 
-Core (always linked):
-
-  Abseil (C++)   Apache-2.0     https://github.com/abseil/abseil-cpp
-  RE2            BSD-3-Clause   https://github.com/google/re2
-  helly25/mbo    Apache-2.0     https://github.com/helly25/mbo
-
-Build-time extras -- linked ONLY when the matching `--//xff:<extra>` Bazel flag
-is set, and therefore ABSENT from the default (lean) binary. The notice set
-scales with the enabled extras:
-
-  archive  (--//xff:archive), via libarchive:
-    libarchive     BSD-2-Clause
-    zlib           Zlib
-    bzip2          bzip2-1.0.6
-    xz / liblzma   0BSD           (public-domain-equivalent; no notice required)
-    zstd           BSD-3-Clause   (dual-licensed; the BSD arm is used, never GPL-2.0)
-    lz4            BSD-2-Clause   (the library; never the GPL-2.0 command-line tool)
-    (mbedtls, for encrypted-archive reading, is deliberately NOT linked.)
-
-  regex  (--//xff:pcre), via PCRE2:
-    PCRE2          BSD-3-Clause
+helly25/mbo  [Apache-2.0]
+  Copyright helly25. Licensed under the Apache License, Version 2.0.
