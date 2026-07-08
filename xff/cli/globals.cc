@@ -40,6 +40,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "find is strict find compatibility; xff keeps find's grammar but sorts and prints human sizes; "
                    "rg is opinionated (respect .gitignore, skip hidden, smart case). Repeatable and "
                    "layered, last one wins. See --help=styles for the per-style defaults.",
+        .topic = "config",
     },
     {
         .name = "--no-config",
@@ -47,6 +48,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "config",
         .header = "Config",
         .summary = "ignore discovered .xffrc files",
+        .topic = "config",
     },
     {
         .name = "--xffrc",
@@ -60,6 +62,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "user/system config, never from an --xffrc file itself). An unarmed dangerous line is dropped with "
                    "a one-line warning. Repeatable; later files win.",
         .affects = "--allow-exec",
+        .topic = "config",
     },
     {
         .name = "--allow-exec",
@@ -74,6 +77,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "this. Without it, such lines are inert (dropped + warned); -delete still obeys its own "
                    "--safe/--dry-run guards.",
         .affects = "--xffrc",
+        .topic = "config",
     },
     {
         .name = "--explain",
@@ -81,6 +85,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "config",
         .header = "Config",
         .summary = "print the resolved configuration and exit",
+        .topic = "config",
     },
     {
         .name = "-H",
