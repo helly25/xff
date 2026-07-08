@@ -47,9 +47,20 @@ test::help_full_shows_per_primary_details() {
   local full expr
   full="$("$(_xff_bin)" --help=full 2>&1)"
   expr="$("$(_xff_bin)" --help=expressions 2>&1)"
-  expect_output_contains 'batches as many paths' "${full}" # from -exec details
-  expect_output_contains 'needs --allow-exec' "${full}"    # -exec sensitivity note in the details
+  expect_output_contains 'batches as many paths' "${full}"                 # from -exec details
+  expect_output_contains 'needs --allow-exec' "${full}"                    # -exec sensitivity note in the details
+  expect_output_contains 'reaches back a full relative duration' "${full}" # from -mtime details
   expect_output_not_contains 'batches as many paths' "${expr}"
+  expect_output_not_contains 'reaches back a full relative duration' "${expr}"
+}
+
+test::help_time_primary_shows_details() {
+  # A per-primary topic (`--help=mtime`) resolves the -mtime descriptor and shows its long
+  # description, including the xff-only compound-span form and the find-compat note.
+  local out
+  out="$("$(_xff_bin)" --help=mtime 2>&1)"
+  expect_output_contains 'reaches back a full relative duration' "${out}"
+  expect_output_contains 'rejected by --config=find' "${out}"
 }
 
 test::help_topic_flag_resolves_without_dash() {
