@@ -61,14 +61,12 @@ std::vector<ResolvedFlag> ResolveConfig(const ConfigInputs& inputs) {
     resolved.push_back(ResolvedFlag{.flag = flag, .source = Source::kSystem});
   }
   AppendMatching(resolved, inputs.user, inputs.configs, Source::kUser);
-  AppendMatching(resolved, inputs.project, inputs.configs, Source::kProject);
   return resolved;
 }
 
 std::string_view SourceName(Source source) {
   switch (source) {
     case Source::kCli: return "cli";
-    case Source::kProject: return "project";
     case Source::kSystem: return "system";
     case Source::kUnset: return "unset";
     case Source::kUser: return "user";
@@ -120,25 +118,6 @@ std::string_view DefaultStyleForProgram(std::string_view argv0) {
   // aliasing xff auto-activates the matching `mytool:` config block without a preset ever being
   // overloadable. An explicit --config still stacks (last wins).
   return argv0;
-}
-
-ProjectConfigMode ResolveProjectConfigMode(const std::vector<std::string>& globals) {
-  constexpr std::string_view kFlag = "--project-config=";
-  ProjectConfigMode mode = ProjectConfigMode::kWarn;  // default: ignore a project .xffrc, but note it
-  for (std::string_view global : globals) {
-    if (!global.starts_with(kFlag)) {
-      continue;
-    }
-    const std::string_view value = global.substr(kFlag.size());
-    if (value == "on") {
-      mode = ProjectConfigMode::kOn;
-    } else if (value == "off") {
-      mode = ProjectConfigMode::kOff;
-    } else {
-      mode = ProjectConfigMode::kWarn;  // "warn" and any unrecognized value fall back to the default
-    }
-  }
-  return mode;
 }
 
 std::string ExplainConfig(const std::vector<ResolvedFlag>& resolved, const std::vector<std::string>& cli_globals) {

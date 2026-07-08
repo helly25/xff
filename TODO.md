@@ -301,9 +301,11 @@ remains below is the design-forked / larger work.
     user/system tiers, never from a `--xffrc`-loaded file**; the **system policy can hard-deny**
     even the CLI arm. An unarmed dangerous directive is inert + a one-line stderr warning.
     `-delete` keeps its own `--safe` / `--dry-run` guards (#40).
-  - **Build (small serialized slices):** (1) this record + rewrite `design-config.md` /
-    `design.md`; (2) remove the project layer + `--project-config` + its tests; (3) `--xffrc` as
-    its own non-arming tier + safety-gated `--allow-exec` + inert-and-warn + tests / bashtest.
+  - **Build (small serialized slices):** (1) this record + design-doc supersede banner - DONE;
+    (2) remove the project layer + `--project-config` + its tests - DONE (Source loses kProject,
+    ConfigInputs loses `project`, loader drops the cascade, policy is deny-only, `--project-config`
+    gone; local `.xffrc` in the tree is now inert). (3) REMAINING: `--xffrc` as its own non-arming
+    tier + safety-gated `--allow-exec` + inert-and-warn + tests / bashtest.
 
 - **Archive diving (#83, `--archive`): use libarchive - decided 2026-07-06.** Descend into archives
   and match/list their entries as virtual paths (`foo.tar.gz/inner/file.txt`) via a read-only

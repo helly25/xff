@@ -49,82 +49,77 @@ TEST_F(PolicyTest, LineSafetyTakesTheWorstFlag) {
   EXPECT_THAT(LineSafety(Line({"-name", "x", "-exec", "rm", ";"})), registry::Safety::kSecurity);  // worst wins
 }
 
-TEST_F(PolicyTest, BuiltInDeniesProjectSensitiveAndDestructive) {
+TEST_F(PolicyTest, NoLayerIsDeniedByDefault) {
   const SystemConfig none;  // no [policy]
-  EXPECT_FALSE(LinePermitted(Line({"-exec", "rm", ";"}), Source::kProject, none));
-  EXPECT_FALSE(LinePermitted(Line({"-delete"}), Source::kProject, none));
-  EXPECT_TRUE(LinePermitted(Line({"--color=auto"}), Source::kProject, none));   // safe is fine
-  EXPECT_TRUE(LinePermitted(Line({"-exec", "rm", ";"}), Source::kUser, none));  // user may arm
-  EXPECT_TRUE(LinePermitted(Line({"-delete"}), Source::kSystem, none));         // system may
+  // With the untrusted project layer gone (Option B), the trusted user/system layers may do
+  // anything by default; only a system [policy] deny rule bars a line.
+  EXPECT_TRUE(LinePermitted(Line({"-exec", "rm", ";"}), Source::kUser, none));
+  EXPECT_TRUE(LinePermitted(Line({"-delete"}), Source::kUser, none));
+  EXPECT_TRUE(LinePermitted(Line({"-delete"}), Source::kSystem, none));
+  EXPECT_TRUE(LinePermitted(Line({"--color=auto"}), Source::kUser, none));
 }
 
-TEST_F(PolicyTest, PolicyAllowLoosensByFlagName) {
+TEST_F(PolicyTest, PolicyDenyTightensAFlagByName) {
   SystemConfig policy;
-  policy.policy = {PolicyRule{.layer = "project", .allow = true, .tokens = {"-capture"}}};
-  EXPECT_TRUE(LinePermitted(Line({"-capture=w", "cmd", ";"}), Source::kProject, policy));  // armed by name
-  EXPECT_FALSE(LinePermitted(Line({"-exec", "rm", ";"}), Source::kProject, policy));       // -exec still denied
+  policy.policy = {PolicyRule{.layer = "user", .allow = false, .tokens = {"--threads"}}};
+  EXPECT_FALSE(LinePermitted(Line({"--threads=4"}), Source::kUser, policy));  // named flag denied
+  EXPECT_TRUE(LinePermitted(Line({"--color=auto"}), Source::kUser, policy));  // unrelated flag fine
 }
 
-TEST_F(PolicyTest, PolicyAllowLoosensByClassToken) {
+TEST_F(PolicyTest, PolicyDenyTightensByClassToken) {
   SystemConfig policy;
-  policy.policy = {PolicyRule{.layer = "project", .allow = true, .tokens = {"@sensitive"}}};
-  EXPECT_TRUE(LinePermitted(Line({"-exec", "rm", ";"}), Source::kProject, policy));  // @sensitive armed
-  EXPECT_FALSE(LinePermitted(Line({"-delete"}), Source::kProject, policy));          // @destructive still denied
+  policy.policy = {PolicyRule{.layer = "user", .allow = false, .tokens = {"@sensitive"}}};
+  EXPECT_FALSE(LinePermitted(Line({"-exec", "rm", ";"}), Source::kUser, policy));  // @sensitive denied
+  EXPECT_TRUE(LinePermitted(Line({"-delete"}), Source::kUser, policy));            // @destructive not matched
 }
 
-TEST_F(PolicyTest, PolicyDenyTightensASafeFlag) {
+TEST_F(PolicyTest, AllowRuleIsInertAndDenyStillBars) {
   SystemConfig policy;
-  policy.policy = {PolicyRule{.layer = "project", .allow = false, .tokens = {"--threads"}}};
-  EXPECT_FALSE(LinePermitted(Line({"--threads=4"}), Source::kProject, policy));  // safe but tightened
-  EXPECT_TRUE(LinePermitted(Line({"--color=auto"}), Source::kProject, policy));  // unrelated safe flag fine
-}
-
-TEST_F(PolicyTest, DenyBeatsAllowOnConflict) {
-  SystemConfig policy;
+  // An allow rule has nothing to loosen now (no default denial), so it is inert; a deny rule still bars.
   policy.policy = {
-      PolicyRule{.layer = "project", .allow = true, .tokens = {"-exec"}},
-      PolicyRule{.layer = "project", .allow = false, .tokens = {"-exec"}},
+      PolicyRule{.layer = "user", .allow = true, .tokens = {"-exec"}},
+      PolicyRule{.layer = "user", .allow = false, .tokens = {"-exec"}},
   };
-  EXPECT_FALSE(LinePermitted(Line({"-exec", "rm", ";"}), Source::kProject, policy));
+  EXPECT_FALSE(LinePermitted(Line({"-exec", "rm", ";"}), Source::kUser, policy));
 }
 
 TEST_F(PolicyTest, PolicyRulesAreScopedToTheirLayer) {
   SystemConfig policy;
   policy.policy = {PolicyRule{.layer = "user", .allow = false, .tokens = {"-exec"}}};
-  // The user.deny tightens the user layer (normally allowed)...
+  // The user.deny tightens the user layer...
   EXPECT_FALSE(LinePermitted(Line({"-exec", "rm", ";"}), Source::kUser, policy));
-  // ...but does not touch the project layer (still its built-in deny).
-  EXPECT_FALSE(LinePermitted(Line({"-exec", "rm", ";"}), Source::kProject, policy));
+  // ...but does not touch the system layer.
+  EXPECT_TRUE(LinePermitted(Line({"-exec", "rm", ";"}), Source::kSystem, policy));
 }
 
-TEST_F(PolicyTest, GateConfigDropsDeniedProjectLinesAndRecordsThem) {
+TEST_F(PolicyTest, GateConfigDropsDeniedUserLinesAndRecordsThem) {
   ConfigInputs inputs;
-  inputs.user = {Line({"-exec", "rm", ";"}), Line({"--color=auto"})};      // user: both allowed
-  inputs.project = {Line({"-exec", "rm", ";"}), Line({"--color=never"})};  // project: -exec denied
+  inputs.system.policy = {PolicyRule{.layer = "user", .allow = false, .tokens = {"-exec"}}};  // deny -exec in user
+  inputs.user = {Line({"-exec", "rm", ";"}), Line({"--color=never"})};
   std::vector<Drop> drops;
   const ConfigInputs gated = GateConfig(inputs, &drops);
-  EXPECT_THAT(gated.user, SizeIs(2));  // the user layer keeps everything
-  ASSERT_THAT(gated.project, SizeIs(1));
-  EXPECT_THAT(gated.project.front().flags, ElementsAre("--color=never"));  // only the safe project line survives
+  ASSERT_THAT(gated.user, SizeIs(1));
+  EXPECT_THAT(gated.user.front().flags, ElementsAre("--color=never"));  // only the permitted line survives
   ASSERT_THAT(drops, SizeIs(1));
-  EXPECT_THAT(drops.front().layer, Source::kProject);
+  EXPECT_THAT(drops.front().layer, Source::kUser);
   EXPECT_THAT(drops.front().safety, registry::Safety::kSecurity);
   EXPECT_THAT(drops.front().line.flags, ElementsAre("-exec", "rm", ";"));
 }
 
 TEST_F(PolicyTest, GateConfigToleratesNullDropsSink) {
   ConfigInputs inputs;
-  inputs.project = {Line({"-delete"})};
-  EXPECT_THAT(GateConfig(inputs, nullptr).project, IsEmpty());  // denied, dropped, no crash
+  inputs.system.policy = {PolicyRule{.layer = "user", .allow = false, .tokens = {"-delete"}}};
+  inputs.user = {Line({"-delete"})};
+  EXPECT_THAT(GateConfig(inputs, nullptr).user, IsEmpty());  // denied, dropped, no crash
 }
 
 TEST_F(PolicyTest, DropMessageNamesPrimaryLayerAndClass) {
   const Drop drop{
       .line = Line({"-exec", "rm", ";"}),
-      .layer = Source::kProject,
+      .layer = Source::kUser,
       .safety = registry::Safety::kSecurity,
   };
-  EXPECT_THAT(DropMessage(drop), "'-exec' from the project .xffrc (sensitive)");
+  EXPECT_THAT(DropMessage(drop), "'-exec' from the user .xffrc (sensitive)");
 }
 
 TEST_F(PolicyTest, OverloadsPresetDetectsBarePresetSelectors) {
@@ -139,18 +134,17 @@ TEST_F(PolicyTest, OverloadsPresetDetectsBarePresetSelectors) {
   EXPECT_THAT(OverloadsPreset(ParseXffrc("xff:debug: --threads=1").front()), IsFalse());
 }
 
-TEST_F(PolicyTest, GateConfigDropsPresetOverloadInEveryLayerWithReason) {
+TEST_F(PolicyTest, GateConfigDropsPresetOverloadWithReason) {
   ConfigInputs inputs;
-  // user: xff: is a preset-overload (dropped); common: / myx: / xff:debug: survive.
-  inputs.user = ParseXffrc("xff: --feature=long\ncommon: --sort\nmyx: --color=never\nxff:debug: --threads=1");
-  inputs.project = ParseXffrc("find: --warn");  // project: find: is a preset-overload (dropped)
+  // xff: and find: are preset-overloads (dropped in any layer); common: / myx: / xff:debug: survive.
+  inputs.user =
+      ParseXffrc("xff: --feature=long\ncommon: --sort\nfind: --warn\nmyx: --color=never\nxff:debug: --threads=1");
   std::vector<Drop> drops;
   const ConfigInputs gated = GateConfig(inputs, &drops);
   EXPECT_THAT(gated.user, SizeIs(3));  // common:, myx:, xff:debug:
-  EXPECT_THAT(gated.project, IsEmpty());
   ASSERT_THAT(drops, SizeIs(2));
-  EXPECT_THAT(drops[0].reason, DropReason::kPresetOverload);  // xff: from user (file order)
-  EXPECT_THAT(drops[1].reason, DropReason::kPresetOverload);  // find: from project
+  EXPECT_THAT(drops[0].reason, DropReason::kPresetOverload);  // xff: (file order)
+  EXPECT_THAT(drops[1].reason, DropReason::kPresetOverload);  // find:
   EXPECT_THAT(DropMessage(drops[0]), "'xff:' in the user .xffrc");
 }
 

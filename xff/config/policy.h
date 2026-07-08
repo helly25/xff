@@ -32,13 +32,12 @@ namespace xff::config {
 // like "-capture=tag" is classified by its base name before '='.
 registry::Safety LineSafety(const RcLine& line);
 
-// Whether a `line` from `layer` is permitted under the system `policy`. The
-// safe-by-default built-in table denies the project layer any kSecurity (the
-// exec family) or kSafety (-delete) line; the user and system layers may do
-// anything. The [policy] rules then override per layer (deny beats allow):
-// tightening a safe flag or loosening a sensitive one, addressed by flag name or
-// an @safe/@sensitive/@destructive class token. Only the root-owned system layer
-// supplies [policy].
+// Whether a `line` from `layer` is permitted under the system `policy`. With the
+// untrusted project layer gone (2026-07-06, Option B), no layer is denied by
+// default: the trusted system/user layers may do anything, so a line is permitted
+// unless the root-owned system [policy] explicitly DENIES it for this layer,
+// addressed by flag name or an @safe/@sensitive/@destructive class token. Only the
+// system layer supplies [policy].
 bool LinePermitted(const RcLine& line, Source layer, const SystemConfig& policy);
 
 // Why the gate dropped a line: a safety-policy denial (its safety class bars it from the layer),
@@ -61,10 +60,10 @@ struct Drop {
 // reproducible. Applies to every layer.
 bool OverloadsPreset(const RcLine& line);
 
-// Filters the user and project .xffrc lines of `inputs` through LinePermitted
-// (with inputs.system as the policy), returning a copy with the denied lines
-// removed and recording each in `drops` (when non-null). The system [defaults]
-// are root-authored and never gated; CLI flags are not config and never gated.
+// Filters the user .xffrc lines of `inputs` through LinePermitted (with
+// inputs.system as the policy), returning a copy with the denied lines removed and
+// recording each in `drops` (when non-null). The system [defaults] are
+// root-authored and never gated; CLI flags are not config and never gated.
 ConfigInputs GateConfig(const ConfigInputs& inputs, std::vector<Drop>* drops);
 
 // A one-line human description of a dropped line for the stderr warning and

@@ -126,56 +126,21 @@ TEST_F(LoaderTest, SelectorsFromGlobalsExtractsConfigSelectorsInOrder) {
   EXPECT_THAT(opts.xffrc_files, ElementsAre("/a", "/b"));
 }
 
-TEST_F(LoaderTest, ProjectCascadeReadsTheRootDirsXffrc) {
-  FakeFs fs;
-  fs.files["/work/.xffrc"] = "common: --color=never\n";  // the untrusted project file at the root dir
-  DiscoveryOptions opts;
-  opts.roots = {"/work"};  // cascade: /.xffrc (absent) then /work/.xffrc
-  const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
-  EXPECT_THAT(ResolveConfig(in), ElementsAre(FlagIs("--color=never", Source::kProject)));
-}
-
-TEST_F(LoaderTest, ProjectCascadeAppliesAncestorsShallowestFirst) {
-  FakeFs fs;
-  fs.files["/a/.xffrc"] = "common: --color=auto\ncommon: --sort\n";
-  fs.files["/a/b/c/.xffrc"] = "common: --color=never\n";  // deeper: overrides --color
-  DiscoveryOptions opts;
-  opts.roots = {"/a/b/c"};
-  const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
-  // Shallow (/a) lines come first, then the deeper (/a/b/c) line; resolution is
-  // last-wins, so --color=never (deeper) overrides --color=auto and --sort stays.
-  EXPECT_THAT(
-      ResolveConfig(in), ElementsAre(
-                             FlagIs("--color=auto", Source::kProject), FlagIs("--sort", Source::kProject),
-                             FlagIs("--color=never", Source::kProject)));
-}
-
-TEST_F(LoaderTest, ProjectCascadeReadsSharedAncestorsOnce) {
-  FakeFs fs;
-  fs.files["/a/.xffrc"] = "common: --color=auto\n";
-  DiscoveryOptions opts;
-  opts.roots = {"/a/b", "/a/c"};  // both roots share the ancestors / and /a
-  const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
-  // /a/.xffrc contributes exactly once despite two roots sharing /a.
-  EXPECT_THAT(ResolveConfig(in), ElementsAre(FlagIs("--color=auto", Source::kProject)));
-}
-
 TEST_F(LoaderTest, DiscoverRecordsConsultedSourcesForExplain) {
   FakeFs fs;
   fs.files["/etc/xff.ini"] = "[defaults]\n--color=auto\n";  // present
-  fs.files["/work/.xffrc"] = "common: --sort\n";            // present (project root dir)
+  fs.files["/extra.rc"] = "common: --sort\n";               // present (explicit --xffrc)
   DiscoveryOptions opts;
   opts.home = "/home/u";             // user path computed, but the file is absent
-  opts.xffrc_files = {"/extra.rc"};  // explicit file, absent
-  opts.roots = {"/work"};            // project cascade: /.xffrc (absent), /work/.xffrc (found)
+  opts.xffrc_files = {"/extra.rc"};  // explicit file, present
   const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
-  // Every consulted path is recorded in precedence order with its found/absent state.
+  // Every consulted path is recorded in precedence order with its found/absent state. There is no
+  // project cascade: only system, the user path, and the explicit --xffrc file are consulted.
   EXPECT_THAT(
       in.sources,
       ElementsAre(
           SourceIs("/etc/xff.ini", Source::kSystem, true), SourceIs("/home/u/.config/xff/config", Source::kUser, false),
-          SourceIs("/extra.rc", Source::kUser, false), SourceIs("/.xffrc", Source::kProject, false),
-          SourceIs("/work/.xffrc", Source::kProject, true)));
+          SourceIs("/extra.rc", Source::kUser, true)));
 }
 
 }  // namespace
