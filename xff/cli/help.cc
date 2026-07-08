@@ -244,6 +244,57 @@ std::string RenderStats() {
   return out;
 }
 
+// One cookbook recipe: a task, the command that does it, and a one-line note on how it works.
+struct Recipe {
+  std::string_view task;     // what the recipe accomplishes
+  std::string_view command;  // the exact command (correct as written; users copy it)
+  std::string_view note;     // how it works / which building blocks it composes
+};
+
+// The `--help=cookbook` topic (aliases examples / recipes), folded into --help=full: task-oriented
+// worked examples that compose xff's building blocks end to end. The SOT is the recipe list below;
+// every command is kept runnable as written. This complements the reference topics (--help=fields /
+// --help=stats / --help=NAME), which describe pieces in isolation.
+std::string RenderCookbook() {
+  const std::vector<Recipe> recipes = {
+      {.task = "Ten largest files",
+       .command = "xff . -type f -printf '%s\\t%p\\n' | sort -rn | head",
+       .note = "%s is the size, %p the path; the shell sorts and takes the top ten. -printf builds any "
+               "columnar line you need."},
+      {.task = "Disk use per file type",
+       .command = "xff --summary=ext",
+       .note = "a count + total size per extension; swap in --histogram=ext for bars, or "
+               "--histogram='ext:sum(lines)' to rank by lines. See --help=stats."},
+      {.task = "Delete stale temp files, safely",
+       .command = "xff . -type f -name '*.tmp' -mtime +7 -delete --dry-run",
+       .note = "lists what -delete WOULD remove (guarded by --dry-run); rerun without it to delete. "
+               "-delete implies -depth so directories empty first."},
+      {.task = "Search code content, filtered by language",
+       .command = "xff src -lang 'C*' -grep 'TODO'",
+       .note = "prints every TODO line as path:lineno:text in C / C++ / C# files; add -c for per-file "
+               "counts or --context=2 for surrounding lines."},
+      {.task = "Per-file git-blame author line counts",
+       .command = "xff . -type f -name '*.py' -exec git blame --line-porcelain {} \\; "
+                  "| grep '^author ' | sort | uniq -c | sort -rn",
+       .note = "runs git blame on each Python file; the shell pipe tallies lines per author across the "
+               "tree. -exec feeds any pipeline the field vocabulary cannot express alone."},
+      {.task = "Checksum manifest for a tree",
+       .command = "xff . -type f -hash=sha256",
+       .note = "prints `DIGEST  PATH` per file (like sha256sum); redirect to a file to snapshot a tree, "
+               "then diff two runs to spot changes."},
+      {.task = "Recently changed files as machine rows",
+       .command = "xff . -type f -mtime -1 --format=jsonl",
+       .note = "everything modified in the last day, one JSON object per file, ready for jq or a script."},
+  };
+  std::string out =
+      "xff cookbook: worked examples that compose xff's building blocks. Each shows a task, the\n"
+      "command, and how it works. See --help=fields for {field}s and --help=stats for the reductions.\n";
+  for (const Recipe& recipe : recipes) {
+    absl::StrAppend(&out, "\n  ", recipe.task, "\n    ", recipe.command, "\n    ", recipe.note, "\n");
+  }
+  return out;
+}
+
 // The `--help=licenses` topic: a minimum-viable license summary. xff's own license, the core
 // libraries always linked in, and the build extras with whether THIS binary has them (via
 // ExtraEnabled, so it reflects the actual build). Full notice texts live in the NOTICE file; this
@@ -343,6 +394,10 @@ std::vector<HelpTopic> HelpTopics() {
       {.name = "size", .aliases = {}, .summary = "-size units (c/w/b/k/M/G/T/P/E) and +/-", .in_full = true},
       {.name = "styles", .aliases = {"flavors"}, .summary = "the find / xff / rg flavor comparison"},
       {.name = "stats", .aliases = {}, .summary = "the --summary and --histogram reductions"},
+      {.name = "cookbook",
+       .aliases = {"examples", "recipes"},
+       .summary = "worked examples that compose xff end to end",
+       .in_full = true},
       {.name = "notice", .aliases = {"notices"}, .summary = "third-party components + what this binary contains"},
       {.name = "license", .aliases = {"licenses"}, .summary = "xff's license in full (Apache-2.0)"},
       {.name = "full", .aliases = {"long"}, .summary = "every option and primary, with the long explanations"},
@@ -455,6 +510,9 @@ absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   }
   if (topic == "stats") {
     return RenderStats();  // the --summary / --histogram reductions
+  }
+  if (topic == "cookbook" || topic == "examples" || topic == "recipes") {
+    return RenderCookbook();  // worked examples composing the building blocks end to end
   }
   if (topic == "notice" || topic == "notices") {
     return RenderNotice();  // third-party component manifest + what this binary contains

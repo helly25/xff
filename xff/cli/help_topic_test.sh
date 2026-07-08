@@ -119,6 +119,20 @@ test::help_topic_flag_resolves_without_dash() {
   expect_matches '\-regex' "$("$(_xff_bin)" --help=regex 2>&1)"
 }
 
+test::help_cookbook_lists_worked_examples() {
+  # `--help=cookbook` (aliases examples / recipes) is the task-oriented recipe list; each recipe
+  # carries a runnable command. It also folds into --help=full.
+  local cookbook full
+  cookbook="$("$(_xff_bin)" --help=cookbook 2>&1)"
+  expect_output_contains 'xff cookbook' "${cookbook}"
+  expect_output_contains 'git blame' "${cookbook}"                           # the flagship -exec recipe
+  expect_output_contains 'xff --summary=ext' "${cookbook}"                   # a runnable command line
+  expect_output_contains 'Ten largest files' "${cookbook}"                   # a recipe task heading
+  expect_output_contains 'git blame' "$("$(_xff_bin)" --help=examples 2>&1)" # alias resolves
+  full="$("$(_xff_bin)" --help=full 2>&1)"
+  expect_output_contains 'xff cookbook' "${full}" # in_full folds it into the full reference
+}
+
 test::help_list_shows_grouped_index() {
   local out
   out="$("$(_xff_bin)" --help=list 2>&1)"

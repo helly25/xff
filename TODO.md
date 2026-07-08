@@ -158,13 +158,24 @@ remains below is the design-forked / larger work.
   - **`--help` readability + discoverability** (2026-07-04 feedback):
     - **Blank line before each section header** (`Traversal:`, `Matching:`, ...) in the
       `--help` overview, so the groups are visually separated.
-    - **A full, detailed expression reference - SHIPPED.** `registry::Descriptor` gained an optional
-      `details` field (the per-primary counterpart of `GlobalFlag.details`); `RenderOne` shows it in
-      `--help=NAME` and `--help=full` (`--help=expressions` stays summaries-only). Populated for the
-      high-value primaries (the exec/capture cluster, -delete/-prune/-quit, -regex/-iregex, -size,
-      -diff/-hash, -mime/-lang, -ls/-printf), each with a short example; trivial find primaries keep
-      summary-only (empty `details` falls back). Remaining polish: fill in `details` for the rest and
-      a worked-examples cookbook (the git-blame author line-counts recipe).
+    - **A full, detailed expression reference - SHIPPED (sweep complete).** `registry::Descriptor`
+      gained an optional `details` field (the per-primary counterpart of `GlobalFlag.details`);
+      `RenderOne` shows it in `--help=NAME` and `--help=full` (`--help=expressions` stays
+      summaries-only). Now populated across every non-trivial primary: the exec/capture cluster,
+      -delete/-prune/-quit, -regex/-iregex, -size, -diff/-hash, -mime/-lang, -ls/-printf, the
+      time-comparison family (-mtime/-mmin/-atime/.../-daystart), the matching predicates
+      (-name/-path/-lname globs + -content/-rxc), the attribute tests (-type/-xtype/-perm/-fstype/
+      -empty/-sparse/-readable/-writable/-executable), the output actions (-print/-print0/-println/
+      -printfln/-grep + the -fprint family), the reference-time predicates (-newer + the -newerXY
+      matrix anchor + -newermt), and traversal/owner/operators (-maxdepth/-mindepth/-depth/-xdev,
+      -uid/-gid/-user/-group/-nouser/-nogroup, -a/-o/-not/-xor). Only self-explanatory synonyms
+      (-wholename/-and/-or/!/-d/-mount/-x) and -true/-false stay summary-only by design.
+    - **Worked-examples cookbook - SHIPPED.** `--help=cookbook` (aliases examples / recipes), folded
+      into `--help=full` via `in_full`: task-oriented recipes (largest files, disk-use-per-ext,
+      safe stale-file delete, language-filtered content search, the git-blame author-line-counts
+      -exec pipeline, a sha256 manifest, recently-changed-as-jsonl) built from a `Recipe` SOT, each
+      with a runnable command. Note: per-line author aggregation is an -exec + shell pipeline, not
+      `--summary` (which reduces over matched files, not lines within them).
     - **Surface the format / placeholder vocabulary.** The `{field}` template vocabulary,
       `-printf` `%` directives + the `%{field}` escape, and the qualifiers (`:s/PAT/REPL/`,
       path-component, time) are documented nowhere reachable from `--help`; add a topic
