@@ -63,7 +63,7 @@ std::vector<Notice> Notices() {
 std::string NoticeText() {
   std::string out =
       "xff - eXtended File Find\n"
-      "Copyright 2026 Marcus Börger / helly25\n"
+      "Copyright 2026 Marcus Boerger / helly25\n"
       "Licensed under the Apache License, Version 2.0 (see the LICENSE file / --help=license).\n"
       "\n"
       "This product links the third-party components below; all are under permissive licenses\n"
