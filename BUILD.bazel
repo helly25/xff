@@ -21,6 +21,16 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
+# LICENSE + NOTICE are compiled into the binary (see //xff/cli:notices_gen) so a single-file
+# release reproduces its own third-party notices.
+exports_files(
+    [
+        "LICENSE",
+        "NOTICE",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 config_setting(
     name = "is_clang",
     define_values = {"is_clang": "true"},

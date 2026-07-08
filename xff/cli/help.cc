@@ -29,6 +29,7 @@
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "xff/cli/globals.h"
+#include "xff/cli/notices.h"
 #include "xff/fields/fields.h"
 #include "xff/registry/descriptor.h"
 #include "xff/registry/registry.h"
@@ -243,6 +244,27 @@ std::string RenderStats() {
   return out;
 }
 
+// The `--help=licenses` topic: a minimum-viable license summary. xff's own license, the core
+// libraries always linked in, and the build extras with whether THIS binary has them (via
+// ExtraEnabled, so it reflects the actual build). Full notice texts live in the NOTICE file; this
+// is the at-a-glance answer to "what is in this binary, and under what licenses?".
+// `--help=notice` (alias notices): the third-party component manifest, reproduced verbatim from the
+// repo NOTICE compiled into the binary (see notices.h) so a single-file release is self-contained,
+// prefixed with the one build-dependent line -- which extras THIS binary actually contains.
+std::string RenderNotice() {
+  std::string out = "Build extras compiled into this binary: ";
+  absl::StrAppend(&out, ExtraEnabled("archive") ? "archive" : "none (lean build)", "\n\n");
+  absl::StrAppend(&out, NoticeText());
+  return out;
+}
+
+// `--help=license` (alias licenses): xff's own license (Apache-2.0), reproduced verbatim from the
+// repo LICENSE compiled into the binary. Separate from `--help=notice`, which is the third-party
+// attribution; a user asking for either gets the full text, never a pointer to a file.
+std::string RenderLicense() {
+  return std::string(LicenseText());
+}
+
 // The `--help=help` topic: a guide to the (subcommand-free) help system, then the
 // generated topic index. So there is one place a user can ask "how do I get help?".
 std::string RenderHelpGuide() {
@@ -321,6 +343,8 @@ std::vector<HelpTopic> HelpTopics() {
       {.name = "size", .aliases = {}, .summary = "-size units (c/w/b/k/M/G/T/P/E) and +/-", .in_full = true},
       {.name = "styles", .aliases = {"flavors"}, .summary = "the find / xff / rg flavor comparison"},
       {.name = "stats", .aliases = {}, .summary = "the --summary and --histogram reductions"},
+      {.name = "notice", .aliases = {"notices"}, .summary = "third-party components + what this binary contains"},
+      {.name = "license", .aliases = {"licenses"}, .summary = "xff's license in full (Apache-2.0)"},
       {.name = "full", .aliases = {"long"}, .summary = "every option and primary, with the long explanations"},
   };
 }
@@ -431,6 +455,12 @@ absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   }
   if (topic == "stats") {
     return RenderStats();  // the --summary / --histogram reductions
+  }
+  if (topic == "notice" || topic == "notices") {
+    return RenderNotice();  // third-party component manifest + what this binary contains
+  }
+  if (topic == "license" || topic == "licenses") {
+    return RenderLicense();  // xff's own license (Apache-2.0), in full
   }
   // Expression primary / operator / action (leading-dash convenience: `--help=regex`).
   const registry::Descriptor* descriptor = registry::Lookup(topic);

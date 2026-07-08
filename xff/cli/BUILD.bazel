@@ -122,12 +122,48 @@ cc_test(
 # Registry-backed `--help=TOPIC` rendering: the index and per-entry help are derived
 # from registry::All() (primaries) and Globals() (flags), so they never drift from
 # the parser vocabulary or the option set.
+# Compile the repo's NOTICE + LICENSE into the binary so a single-file release reproduces its own
+# third-party notices (--help=licenses). Each file is wrapped verbatim in a raw string literal; the
+# `xff_notice` / `xff_license` delimiters cannot appear in license prose. See notices.h for the TODO
+# to move to C++23 #embed + per-dependency license reproduction.
+genrule(
+    name = "notices_gen",
+    srcs = [
+        "//:LICENSE",
+        "//:NOTICE",
+    ],
+    outs = ["notices_generated.cc"],
+    cmd = """(
+      echo '// Generated from //:NOTICE and //:LICENSE by //xff/cli:notices_gen. Do not edit.'
+      echo '#include "xff/cli/notices.h"'
+      echo 'namespace xff::cli {'
+      echo 'std::string_view NoticeText() {'
+      echo '  return R"xff_notice('
+      cat $(location //:NOTICE)
+      echo ')xff_notice";'
+      echo '}'
+      echo 'std::string_view LicenseText() {'
+      echo '  return R"xff_license('
+      cat $(location //:LICENSE)
+      echo ')xff_license";'
+      echo '}'
+      echo '}  // namespace xff::cli'
+    ) > $@""",
+)
+
+cc_library(
+    name = "notices_cc",
+    srcs = ["notices_generated.cc"],
+    hdrs = ["notices.h"],
+)
+
 cc_library(
     name = "help_cc",
     srcs = ["help.cc"],
     hdrs = ["help.h"],
     deps = [
         ":globals_cc",
+        ":notices_cc",
         "//xff/fields:fields_cc",
         "//xff/registry:registry_cc",
         "@abseil-cpp//absl/status",
