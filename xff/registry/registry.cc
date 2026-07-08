@@ -31,12 +31,18 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-name",
         .summary = "match the basename against a shell glob",
+        .details = "Globs the entry's basename (last path component): `*` matches any run including none, `?` one "
+                   "character, `[...]` a class. Unlike the shell a leading dot is matched literally. Case follows "
+                   "--case - the xff default folds when the volume does (APFS / HFS+ / NTFS), while --exact or "
+                   "--config=find forces a byte-exact compare; -iname always folds. Contrast -path (whole path) and "
+                   "-regex (anchored pattern). Example: `xff . -name '*.log'`.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-iname",
         .summary = "match the basename against a shell glob, case-insensitively",
+        .details = "The always-case-insensitive -name: folds case regardless of --case or the volume.",
         .kind = Kind::kTest,
         .arity = 1,
         .fold_case = true,
@@ -44,12 +50,16 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-path",
         .summary = "match the whole path against a shell glob",
+        .details = "Globs the whole path as printed (from the start point down), not just the basename. Unlike the "
+                   "shell, `*` and `?` DO match `/`, so `-path '*/build/*'` matches a build directory at any depth. "
+                   "Wildcards and case handling are -name's. GNU spells this -wholename.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-ipath",
         .summary = "match the whole path against a shell glob, case-insensitively",
+        .details = "The always-case-insensitive -path (whole-path glob).",
         .kind = Kind::kTest,
         .arity = 1,
         .fold_case = true,
@@ -70,12 +80,17 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-lname",
         .summary = "match the symlink target against a shell glob",
+        .details = "Globs the symlink's target text - the path the link points AT, never the resolved destination - "
+                   "so a link matches even when its target is missing. Only a symbolic link can match, and with the "
+                   "default -P (or -H) a symlink is seen as itself. Wildcards and case handling are -name's; -ilname "
+                   "always folds.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-ilname",
         .summary = "match the symlink target against a shell glob, case-insensitively",
+        .details = "The always-case-insensitive -lname (symlink-target glob).",
         .kind = Kind::kTest,
         .arity = 1,
         .fold_case = true,
@@ -112,6 +127,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-content",
         .summary = "match a literal substring in the file's content (xff)",
+        .details = "Matches when the file contains SUBSTRING literally (no regex metacharacters - the literal pair "
+                   "sidesteps grep's flavor ambiguity). Reads the file, so it is expensive; a non-regular, "
+                   "unreadable, or binary file (a NUL byte in the first 8 KiB) never matches. -icontent folds ASCII "
+                   "case. Use -rxc for a pattern. This is an xff extension --config=find rejects.",
         .kind = Kind::kTest,
         .arity = 1,
         .style = Style::kXff,
@@ -120,6 +139,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-icontent",
         .summary = "match a literal substring in the file's content, case-insensitively (xff)",
+        .details = "The case-insensitive -content: folds ASCII case on the literal substring search.",
         .kind = Kind::kTest,
         .arity = 1,
         .fold_case = true,
@@ -129,6 +149,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-rxc",
         .summary = "match the file's content against a regular expression (xff)",
+        .details = "The regex counterpart of -content: matches when the RE2 pattern is found ANYWHERE in the "
+                   "content (unanchored, like grep - use `^` / `$` to anchor), not the whole-file anchoring -regex "
+                   "applies to the path. Same expensive read and non-regular / unreadable / binary skip; -irxc folds "
+                   "case. An xff extension --config=find rejects.",
         .kind = Kind::kTest,
         .arity = 1,
         .style = Style::kXff,
@@ -137,6 +161,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-irxc",
         .summary = "match the file's content against a regular expression, case-insensitively (xff)",
+        .details = "The case-insensitive -rxc: folds case on the content regex search.",
         .kind = Kind::kTest,
         .arity = 1,
         .fold_case = true,
