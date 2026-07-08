@@ -244,6 +244,46 @@ std::string RenderStats() {
   return out;
 }
 
+// The `--help=config` topic: how xff resolves options (layered tiers + the command line), how a
+// style is chosen (--config and the argv[0] invocation name), and how dangerous --xffrc directives
+// are armed. The config flags are pulled from the globals SOT via the "config" topic tag, so the
+// flag list here cannot drift; the layering / argv[0] / arming rules are prose.
+std::string RenderConfig() {
+  std::string out =
+      "xff configuration. Options resolve from layered config tiers, then the command line; later\n"
+      "layers win. A style (find / xff / rg) sets the baseline defaults, which the tiers and the\n"
+      "command line then adjust. Run --explain to print exactly what resolved.\n"
+      "\n"
+      "Layers, lowest to highest precedence:\n"
+      "  system config   machine-wide defaults (+ a root-owned [policy] that can hard-deny arming)\n"
+      "  user config     your personal defaults\n"
+      "  --xffrc=FILE    an explicitly named file (repeatable) - a NON-ARMING tier\n"
+      "  command line    flags and --config, highest\n"
+      "\n"
+      "There is no project / ancestor .xffrc discovery: config comes from the system and user files\n"
+      "plus any --xffrc you name. --no-config ignores the discovered system/user files.\n"
+      "\n"
+      "Choosing a style:\n"
+      "  --config=NAME selects find / xff / rg (repeatable, last wins); see --help=styles for the table.\n"
+      "  The invocation name (argv[0]) is the leading selector, so a symlink named `find` runs the\n"
+      "  strict find style and `rg` the rg style; any other name (e.g. a `mytool` symlink) activates a\n"
+      "  same-named config block over the xff default. An explicit --config still stacks on top.\n"
+      "\n"
+      "Arming dangerous directives:\n"
+      "  A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) carried by an\n"
+      "  --xffrc file is inert unless --allow-exec is set from a TRUSTED tier (the command line or the\n"
+      "  system/user config, never an --xffrc file itself). Unarmed lines are dropped with a warning;\n"
+      "  the root system [policy] can hard-deny even --allow-exec.\n"
+      "\n"
+      "Config flags:\n";
+  for (const GlobalFlag& flag : Globals()) {
+    if (flag.topic == "config") {
+      absl::StrAppend(&out, RenderGlobalFlag(flag, /*with_details=*/true), "\n");
+    }
+  }
+  return out;
+}
+
 // One cookbook recipe: a task, the command that does it, and a one-line note on how it works.
 struct Recipe {
   std::string_view task;     // what the recipe accomplishes
@@ -392,6 +432,7 @@ std::vector<HelpTopic> HelpTopics() {
       {.name = "printf", .aliases = {}, .summary = "the -printf % directives and the %{field} escape", .in_full = true},
       {.name = "time", .aliases = {}, .summary = "time-format presets and strftime patterns", .in_full = true},
       {.name = "size", .aliases = {}, .summary = "-size units (c/w/b/k/M/G/T/P/E) and +/-", .in_full = true},
+      {.name = "config", .aliases = {}, .summary = "config tiers, style selection (--config / argv[0]), and arming"},
       {.name = "styles", .aliases = {"flavors"}, .summary = "the find / xff / rg flavor comparison"},
       {.name = "stats", .aliases = {}, .summary = "the --summary and --histogram reductions"},
       {.name = "cookbook",
@@ -510,6 +551,9 @@ absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   }
   if (topic == "stats") {
     return RenderStats();  // the --summary / --histogram reductions
+  }
+  if (topic == "config") {
+    return RenderConfig();  // config tiers, style selection, and arming
   }
   if (topic == "cookbook" || topic == "examples" || topic == "recipes") {
     return RenderCookbook();  // worked examples composing the building blocks end to end

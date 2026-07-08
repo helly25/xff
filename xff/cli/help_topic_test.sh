@@ -119,6 +119,20 @@ test::help_topic_flag_resolves_without_dash() {
   expect_matches '\-regex' "$("$(_xff_bin)" --help=regex 2>&1)"
 }
 
+test::help_config_explains_tiers_and_style_selection() {
+  # `--help=config` explains the layering, style selection (--config / argv[0]), and arming, and
+  # pulls the config flags from the SOT. Distinct from `--help=--config` (just that flag).
+  local config flag
+  config="$("$(_xff_bin)" --help=config 2>&1)"
+  expect_output_contains 'lowest to highest precedence' "${config}" # the tier ordering
+  expect_output_contains 'argv[0]' "${config}"                      # style selection by invocation name
+  expect_output_contains 'NON-ARMING' "${config}"                   # the --xffrc arming rule
+  expect_matches '\-\-allow-exec' "${config}"                       # a config flag pulled from the SOT
+  # --help=--config is the single flag, not the topic (no tier explanation).
+  flag="$("$(_xff_bin)" --help=--config 2>&1)"
+  expect_output_not_contains 'lowest to highest precedence' "${flag}"
+}
+
 test::help_cookbook_lists_worked_examples() {
   # `--help=cookbook` (aliases examples / recipes) is the task-oriented recipe list; each recipe
   # carries a runnable command. It also folds into --help=full.

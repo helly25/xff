@@ -140,11 +140,14 @@ remains below is the design-forked / larger work.
     today; extend it to global flags (`--help=--config`, `--help=--sort`, ...), which
     needs the globals enumerated the way `registry::All()` enumerates primaries (the
     globals are not in the registry yet).
-  - **Explain the config system + flavor selection in depth** (in `--help`/topic
-    help): config layering / precedence, `.xffrc` discovery, `--config` /
-    `--no-config` / `--xffrc` / `--explain`, and **especially flavor selection by
-    alias / sym-linking** (the `argv[0]` dispatch: invoked as `find` -> strict find,
-    as `xff` -> modern; explicit `--config` overrides).
+  - **Explain the config system + flavor selection in depth - SHIPPED.** `--help=config`
+    covers the layered tiers (system < user < `--xffrc` < CLI, later wins) and their
+    precedence, that there is no project/ancestor `.xffrc` discovery (#119), `--no-config`,
+    the `--xffrc` NON-ARMING rule + `--allow-exec` trusted-tier arming, and flavor selection
+    by `--config` and by the `argv[0]` invocation name (a `find` symlink runs strict find, `rg`
+    the rg style; any other name activates a same-named config block over the xff default). The
+    config flags are pulled from the globals SOT via the `config` topic tag (like `--help=stats`),
+    so the flag list cannot drift; points at `--help=styles` for the per-style defaults table.
   - **Generated reference docs from the same registry SOT.** Drive docs off
     `registry::All()` (+ the globals table, once enumerated) rather than maintaining
     parallel copies:
