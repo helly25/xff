@@ -135,6 +135,20 @@ test::help_time_and_size_list_their_vocabularies() {
   expect_output_contains 'PRINTF DIRECTIVES' "${out}"
 }
 
+test::help_licenses_lists_core_deps_and_extras() {
+  # `--help=licenses` (alias =license) summarizes xff's license, the core linked libraries, and the
+  # build extras with whether THIS binary has them; full texts live in the NOTICE file.
+  local out rc
+  out="$("$(_xff_bin)" --help=licenses 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_output_contains 'Apache-2.0' "${out}"                               # xff + core deps
+  expect_output_contains 'RE2' "${out}"                                      # a core linked library
+  expect_output_contains 'archive' "${out}"                                  # the build extra
+  expect_output_contains 'not built in' "${out}"                             # its lean-build status
+  expect_output_contains 'NOTICE' "${out}"                                   # pointer to the full notice texts
+  expect_output_contains 'Apache-2.0' "$("$(_xff_bin)" --help=license 2>&1)" # the alias resolves
+}
+
 test::help_unknown_topic_exits_two() {
   local out rc
   out="$("$(_xff_bin)" --help=-nonesuch 2>&1)" && rc=0 || rc=$?

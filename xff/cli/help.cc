@@ -243,6 +243,39 @@ std::string RenderStats() {
   return out;
 }
 
+// The `--help=licenses` topic: a minimum-viable license summary. xff's own license, the core
+// libraries always linked in, and the build extras with whether THIS binary has them (via
+// ExtraEnabled, so it reflects the actual build). Full notice texts live in the NOTICE file; this
+// is the at-a-glance answer to "what is in this binary, and under what licenses?".
+std::string RenderLicenses() {
+  std::string out =
+      "xff is Apache-2.0 (see the LICENSE and NOTICE files). It links the libraries below, all under\n"
+      "permissive licenses (no copyleft).\n"
+      "\n"
+      "Core (always linked):\n";
+  const std::vector<std::pair<std::string_view, std::string_view>> core = {
+      {"Abseil (C++)", "Apache-2.0"},
+      {"RE2", "BSD-3-Clause"},
+      {"helly25/mbo", "Apache-2.0"},
+  };
+  for (const auto& [name, license] : core) {
+    absl::StrAppendFormat(&out, "  %-16s%s\n", name, license);
+  }
+  // Build extras: the license set each would add, plus whether this binary actually has it. The
+  // per-extra license summary is the SOT here; the built-in marker is derived from ExtraEnabled.
+  absl::StrAppend(&out, "\nBuild extras (add their notices only when compiled in):\n");
+  const std::vector<std::pair<std::string_view, std::string_view>> extras = {
+      {"archive", "libarchive BSD-2, zlib Zlib, bzip2, xz 0BSD, zstd BSD-3, lz4 BSD-2 (via libarchive)"},
+  };
+  for (const auto& [key, license] : extras) {
+    absl::StrAppendFormat(
+        &out, "  %-16s%s\n%-18s[%s; --//xff:%s]\n", key, license, "", ExtraEnabled(key) ? "built in" : "not built in",
+        key);
+  }
+  absl::StrAppend(&out, "\nFull third-party notice texts ship in the NOTICE file distributed with xff.\n");
+  return out;
+}
+
 // The `--help=help` topic: a guide to the (subcommand-free) help system, then the
 // generated topic index. So there is one place a user can ask "how do I get help?".
 std::string RenderHelpGuide() {
@@ -321,6 +354,7 @@ std::vector<HelpTopic> HelpTopics() {
       {.name = "size", .aliases = {}, .summary = "-size units (c/w/b/k/M/G/T/P/E) and +/-", .in_full = true},
       {.name = "styles", .aliases = {"flavors"}, .summary = "the find / xff / rg flavor comparison"},
       {.name = "stats", .aliases = {}, .summary = "the --summary and --histogram reductions"},
+      {.name = "licenses", .aliases = {"license"}, .summary = "third-party licenses and what this binary contains"},
       {.name = "full", .aliases = {"long"}, .summary = "every option and primary, with the long explanations"},
   };
 }
@@ -431,6 +465,9 @@ absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   }
   if (topic == "stats") {
     return RenderStats();  // the --summary / --histogram reductions
+  }
+  if (topic == "licenses" || topic == "license") {
+    return RenderLicenses();  // third-party licenses + what this binary contains
   }
   // Expression primary / operator / action (leading-dash convenience: `--help=regex`).
   const registry::Descriptor* descriptor = registry::Lookup(topic);

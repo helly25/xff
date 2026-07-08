@@ -349,8 +349,10 @@ remains below is the design-forked / larger work.
     under a distinct "Extras (not built into this binary)" help group with a `[needs --//xff:archive]`
     note, is documented NOT-built-in by `--help=--archive`, and is a hard immediate error (exit 2)
     **only when used**. Covered by `globals_test` + `extras_test.sh`.
-  - **Remaining (#115b):** a root `NOTICE` file + a `--help=licenses` topic (minimum info: xff's
-    Apache-2.0, the core linked deps, and the enabled extras' notices, pointing at `NOTICE`).
+  - **#115b SHIPPED:** the root `NOTICE` file rewritten (xff Apache-2.0; core deps Abseil/RE2/mbo;
+    the archive + regex extras' permissive notice sets, marked "linked only when the extra is on")
+    - a `--help=licenses` topic (aliases `=license`) showing xff's license, the core linked libs,
+      and each extra with whether THIS binary has it (via `ExtraEnabled`), pointing at `NOTICE`.
   - **Then #83:** wire `select()` -> `-DXFF_WITH_ARCHIVE` + the `@libarchive` dep + the read-only
     archive vfs backend behind the flag (tar/gz/bzip2/xz/zstd/lz4; mbedtls deferred).
 
