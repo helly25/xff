@@ -143,7 +143,7 @@ test::help_notice_and_license_reproduce_the_texts() {
   notice="$("$(_xff_bin)" --help=notice 2>&1)"
   expect_output_contains 'none (lean build)' "${notice}" # the build-dependent extras line (lean here)
   expect_output_contains 'RE2' "${notice}"               # a core component (from the reproduced NOTICE)
-  expect_output_contains 'libarchive' "${notice}"        # an extra's component (from the reproduced NOTICE)
+  expect_output_contains 'BSD-3-Clause' "${notice}"      # a component's SPDX id in the manifest
   license="$("$(_xff_bin)" --help=license 2>&1)"
   expect_output_contains 'Apache License' "${license}" # the reproduced LICENSE text, in full
   expect_output_contains 'Version 2.0' "${license}"    # ditto (not just a pointer to a file)

@@ -29,8 +29,8 @@
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "xff/cli/globals.h"
-#include "xff/cli/notices.h"
 #include "xff/fields/fields.h"
+#include "xff/license/license.h"
 #include "xff/registry/descriptor.h"
 #include "xff/registry/registry.h"
 
@@ -254,7 +254,7 @@ std::string RenderStats() {
 std::string RenderNotice() {
   std::string out = "Build extras compiled into this binary: ";
   absl::StrAppend(&out, ExtraEnabled("archive") ? "archive" : "none (lean build)", "\n\n");
-  absl::StrAppend(&out, NoticeText());
+  absl::StrAppend(&out, license::NoticeText());
   return out;
 }
 
@@ -262,7 +262,7 @@ std::string RenderNotice() {
 // repo LICENSE compiled into the binary. Separate from `--help=notice`, which is the third-party
 // attribution; a user asking for either gets the full text, never a pointer to a file.
 std::string RenderLicense() {
-  return std::string(LicenseText());
+  return std::string(license::LicenseText());
 }
 
 // The `--help=help` topic: a guide to the (subcommand-free) help system, then the
