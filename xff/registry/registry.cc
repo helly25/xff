@@ -83,12 +83,18 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-regex",
         .summary = "match the whole path against a regular expression",
+        .details = "Matches when the pattern matches the WHOLE path (anchored both ends, like find), not just a "
+                   "substring - use `.*` to match anywhere. Dialect is chosen by -regextype (RE2 by default); "
+                   "capture groups become `{1}`..`{N}` for a following -exec / -printf. Example: "
+                   "`xff . -regex '.*/[0-9]+\\.log'`.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-iregex",
         .summary = "match the whole path against a regular expression, case-insensitively",
+        .details = "The case-insensitive -regex: same whole-path anchoring and capture-group binding, matching "
+                   "without regard to case.",
         .kind = Kind::kTest,
         .arity = 1,
         .fold_case = true,
@@ -154,6 +160,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-diff",
         .summary = "diff the file against TARGET (a field template); true when equal (xff)",
+        .details = "Compares the matched file against TARGET - a {field} template evaluated per entry, so it can name "
+                   "a mirror path like `../b/{relpath}` - and is true when they are equal, false on a difference. The "
+                   "optional =STYLE picks the output: unified `u3` (default; 3 lines of context), context `c`, "
+                   "normal `n`, side-by-side `y`, or `none` for just the boolean. Text files only; expensive.",
         .kind = Kind::kAction,
         .arity = 1,
         .binding = Binding::kStyle,
@@ -163,6 +173,9 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-hash",
         .summary = "print the file digest and path; -hash=ALGO[/ENCODING], sha256 hex default (xff)",
+        .details = "Prints `DIGEST  PATH` for each match (an action). `-hash=ALGO[/ENCODING]` picks the algorithm "
+                   "(sha256 default; also sha1/sha512/...) and encoding (hex default, or base64). Reads the whole "
+                   "file, so it is expensive; the same digest is available as the {hash} field.",
         .kind = Kind::kAction,
         .arity = 0,
         .binding = Binding::kHash,
@@ -185,6 +198,9 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         // xff: match the media (MIME) type derived from the extension, glob-style.
         .name = "-mime",
         .summary = "match the media type by extension against a glob, e.g. -mime 'image/*' (xff)",
+        .details = "xff extension: matches the media (MIME) type derived from the filename extension (a fast, "
+                   "dependency-free table - no content sniffing) against a shell glob, so `image/*` matches "
+                   "png/jpg/... and `text/plain` is exact. The same value is the {mime} field.",
         .kind = Kind::kTest,
         .arity = 1,
         .style = Style::kXff,
@@ -192,6 +208,9 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-lang",
         .summary = "match the language by extension/filename against a glob, e.g. -lang 'C*' (xff)",
+        .details = "xff extension: matches the programming language inferred from the extension/filename "
+                   "(github-linguist data) against a shell glob, so `C*` matches C / C++ / C#. The same value is the "
+                   "{lang} field.",
         .kind = Kind::kTest,
         .arity = 1,
         .style = Style::kXff,
@@ -199,6 +218,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-size",
         .summary = "match the apparent size (unit suffix c/w/k/M/G/T/P/E)",
+        .details = "Compares the file's apparent size. A bare number counts 512-byte blocks (find default); a unit "
+                   "suffix sets the scale - c=bytes, w=2 bytes, k/M/G/T/P, plus the xff-only E. A leading + / - means "
+                   "greater / less than. Following GNU, the size is rounded up to whole units, so `-size +100M` means "
+                   "\"larger than 100 MB\". (See -blocks for allocated space.)",
         .kind = Kind::kTest,
         .arity = 1,
     },
@@ -574,6 +597,9 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-ls",
         .summary = "print an `ls -dils` style line per entry",
+        .details = "Prints one `ls -dils`-style line per match: inode, blocks, mode, links, owner, group, size, "
+                   "time, name (find's -ls). Columns align to ls/BSD width defaults. For a custom layout use -printf; "
+                   "for aligned columns of {field}s use --format=aligned.",
         .kind = Kind::kAction,
         .arity = 0,
     },
@@ -592,6 +618,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-printf",
         .summary = "print a custom format string (%{field} expands the xff field vocabulary)",
+        .details = "Prints FORMAT for each match, expanding find's `%` directives (%p path, %f name, %s size, "
+                   "%t/%Ak times, ...) and C escapes (\\n, \\t). xff adds `%{NAME}` to reach the full {field} "
+                   "vocabulary and its qualifiers (see --help=fields, --help=printf). No trailing newline unless you "
+                   "write one; -printfln adds the OS line ending. Example: `xff . -printf '%s\\t%p\\n'`.",
         .kind = Kind::kAction,
         .arity = 1,
     },
@@ -665,6 +695,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-delete",
         .summary = "delete the matched entry",
+        .details = "Deletes the matched file or (empty) directory, and implies -depth so a directory's contents are "
+                   "removed before the directory itself. Destructive, so it is guarded: --dry-run previews (prints "
+                   "what would be deleted, removes nothing) and --safe refuses risky targets. Example: "
+                   "`xff . -name '*.tmp' -delete`.",
         .kind = Kind::kAction,
         .arity = 0,
         .safety = Safety::kSafety,
@@ -672,18 +706,28 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-prune",
         .summary = "do not descend into the matched directory",
+        .details = "When the matched entry is a directory, do not descend into it (evaluates true). Usually paired "
+                   "with -o to skip a subtree while still processing everything else: "
+                   "`xff . -name .git -prune -o -print`.",
         .kind = Kind::kAction,
         .arity = 0,
     },
     {
         .name = "-quit",
         .summary = "stop the search immediately",
+        .details = "Stops the whole search as soon as it is reached (after actions on the current entry have run). "
+                   "Handy to emit just the first match: `xff . -name target -print -quit`.",
         .kind = Kind::kAction,
         .arity = 0,
     },
     {
         .name = "-exec",
         .summary = "run a command per match (;) or batched (+)",
+        .details = "Runs the command up to a terminator: `;` runs it once per match, `+` batches as many paths as "
+                   "fit per invocation (like xargs). `{}` expands to the path; xff also binds `{1}`..`{N}` from "
+                   "-regex capture groups and the whole {field} vocabulary. Serial by default; `-j N` runs "
+                   "invocations in parallel. Sensitive: loaded from an --xffrc file it needs --allow-exec. Example: "
+                   "`xff . -name '*.o' -exec rm {} +`.",
         .kind = Kind::kAction,
         .arity = -1,
         .safety = Safety::kSecurity,
@@ -691,6 +735,9 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-execdir",
         .summary = "run a command in the matched entry's directory",
+        .details = "Like -exec, but each command runs with its working directory set to the matched entry's parent "
+                   "and `{}` is the basename - safer against path injection and directory races. `;` per match or "
+                   "`+` batched (a batch shares one directory). Example: `xff . -name '*.log' -execdir gzip {} ;`.",
         .kind = Kind::kAction,
         .arity = -1,
         .safety = Safety::kSecurity,
@@ -698,6 +745,9 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-ok",
         .summary = "like -exec, but prompt before each command",
+        .details = "Like -exec but prompts on stderr before each command and runs it only when the reply begins with "
+                   "'y'; a declined or EOF answer skips that entry. `;`-terminated only (no `+` batching, since each "
+                   "run needs its own prompt).",
         .kind = Kind::kAction,
         .arity = -1,
         .safety = Safety::kSecurity,
@@ -705,6 +755,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-okdir",
         .summary = "like -execdir, but prompt before each command",
+        .details = "Like -execdir (runs in the matched entry's directory, `{}` is the basename) but prompts before "
+                   "each command, exactly as -ok does.",
         .kind = Kind::kAction,
         .arity = -1,
         .safety = Safety::kSecurity,
@@ -713,6 +765,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         // -capture=NAME[=REGEX] cmd... ;
         .name = "-capture",
         .summary = "run a command and bind its output to {capture.NAME} (xff)",
+        .details = "xff extension: runs the `;`-terminated command and binds its stdout to `{capture.NAME}` for a "
+                   "later -printf / --format field; `-capture=NAME=REGEX` keeps only REGEX's first capture group. "
+                   "Sensitive: from an --xffrc file it needs --allow-exec. Example: "
+                   "`-capture=branch git rev-parse --abbrev-ref HEAD ; -printf '{relpath}\\t{capture.branch}\\n'`.",
         .kind = Kind::kAction,
         .arity = -1,
         .binding = Binding::kLabelRegex,
@@ -723,6 +779,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         // -capture run in the matched entry's directory
         .name = "-capturedir",
         .summary = "run -capture in the matched entry's directory (xff)",
+        .details = "The -execdir counterpart of -capture: runs the command in the matched entry's directory and "
+                   "binds its stdout to `{capture.NAME}`. Same `NAME[=REGEX]` binding and --allow-exec gating.",
         .kind = Kind::kAction,
         .arity = -1,
         .binding = Binding::kLabelRegex,

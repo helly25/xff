@@ -61,6 +61,12 @@ struct Descriptor {
   // trailing period (e.g. "match the basename against a shell glob"). Every
   // descriptor carries one; registry_test enforces the shape.
   std::string_view summary;
+  // Optional multi-sentence explanation shown by the detailed tiers (`--help=NAME` for this
+  // primary, and `--help=full`); empty falls back to the summary alone. Full prose: arguments, how
+  // it behaves, and ideally a short example. The counterpart of cli::GlobalFlag::details, so the
+  // detailed reference is generated from the registry SOT and cannot drift. A trivial primary whose
+  // summary already says everything (e.g. -true, -a) may leave this empty.
+  std::string_view details;
   Kind kind = Kind::kTest;
   Region region = Region::kExpression;
   int arity = 0;                     // trailing tokens consumed as arguments (-1 = variadic until ';')

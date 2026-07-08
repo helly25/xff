@@ -158,10 +158,13 @@ remains below is the design-forked / larger work.
   - **`--help` readability + discoverability** (2026-07-04 feedback):
     - **Blank line before each section header** (`Traversal:`, `Matching:`, ...) in the
       `--help` overview, so the groups are visually separated.
-    - **A full, detailed expression reference.** `--help=expressions` is still one-line
-      summaries; add a detailed view - each primary's full description (arguments, style,
-      cost, an example) - reachable via `--help=full` and/or `--help-full` (dump
-      everything at full detail).
+    - **A full, detailed expression reference - SHIPPED.** `registry::Descriptor` gained an optional
+      `details` field (the per-primary counterpart of `GlobalFlag.details`); `RenderOne` shows it in
+      `--help=NAME` and `--help=full` (`--help=expressions` stays summaries-only). Populated for the
+      high-value primaries (the exec/capture cluster, -delete/-prune/-quit, -regex/-iregex, -size,
+      -diff/-hash, -mime/-lang, -ls/-printf), each with a short example; trivial find primaries keep
+      summary-only (empty `details` falls back). Remaining polish: fill in `details` for the rest and
+      a worked-examples cookbook (the git-blame author line-counts recipe).
     - **Surface the format / placeholder vocabulary.** The `{field}` template vocabulary,
       `-printf` `%` directives + the `%{field}` escape, and the qualifiers (`:s/PAT/REPL/`,
       path-component, time) are documented nowhere reachable from `--help`; add a topic
