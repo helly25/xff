@@ -210,12 +210,18 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-type",
         .summary = "match the file type (f/d/l/b/c/p/s)",
+        .details = "Matches the entry's type by letter: f=regular file, d=directory, l=symlink, b/c=block / char "
+                   "device, p=FIFO, s=socket. A GNU-style comma list is any-of, so `-type f,l` matches regular files "
+                   "or symlinks. Under the default -P a symlink is type l; -xtype tests its target's type instead.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-xtype",
         .summary = "match the file type of a symlink's target",
+        .details = "Like -type, but for a symlink it tests the type of the link's TARGET (the link is followed). A "
+                   "broken symlink has no target, so it reports as a symlink and `-xtype l` matches it, matching GNU "
+                   "find under the default -P. On a non-symlink it is identical to -type.",
         .kind = Kind::kTest,
         .arity = 1,
     },
@@ -279,6 +285,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-fstype",
         .summary = "match the filesystem type (statfs)",
+        .details = "Matches when the filesystem holding the entry has the given type name (e.g. `apfs`, "
+                   "`ext2/ext3`, `tmpfs`, `nfs`). The recognized names are platform-specific - macOS / BSD report "
+                   "`f_fstypename` verbatim, Linux maps the statfs magic to a find-compatible name - so a portable "
+                   "expression usually cannot assume one name across OSes.",
         .kind = Kind::kTest,
         .arity = 1,
     },
@@ -540,6 +550,11 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-perm",
         .summary = "match the permission bits (octal or symbolic mode)",
+        .details = "Matches the permission (and setuid / setgid / sticky) bits. MODE is octal (`644`, `0755`) or a "
+                   "chmod-style symbolic mode (`u+w`, `go=r`, comma-separated clauses). A bare MODE matches exactly; "
+                   "`-MODE` matches when ALL the listed bits are set; `/MODE` (GNU) when ANY are. BSD `+octal` is "
+                   "any-of like `/`, while a symbolic `+r` stays exact. Example: `-perm -u+x` = owner-executable. "
+                   "Contrast -readable / -writable / -executable, which probe the effective user's real access.",
         .kind = Kind::kTest,
         .arity = 1,
     },
@@ -610,30 +625,41 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-empty",
         .summary = "match an empty regular file or empty directory",
+        .details = "Matches an empty regular file (size 0) or a directory with no entries; other types never match. "
+                   "The directory case reads the directory to check, so it costs a syscall.",
         .kind = Kind::kTest,
         .arity = 0,
     },
     {
         .name = "-sparse",
         .summary = "match a file with holes (allocated blocks < apparent size)",
+        .details = "Matches a file stored sparsely - fewer 512-byte blocks are allocated than its apparent size "
+                   "would need (`st_blocks * 512 < st_size`), i.e. it has holes. A zero-size file is never sparse. "
+                   "Compare -blocks (allocated space) against -size (apparent size).",
         .kind = Kind::kTest,
         .arity = 0,
     },
     {
         .name = "-readable",
         .summary = "match entries the current user can read",
+        .details = "Matches when the entry is readable by the CURRENT (effective) user, via a real access(2) probe "
+                   "rather than a guess from the mode bits - so it reflects ownership and ACLs and can differ from "
+                   "-perm. See -writable / -executable for the other access modes.",
         .kind = Kind::kTest,
         .arity = 0,
     },
     {
         .name = "-writable",
         .summary = "match entries the current user can write",
+        .details = "The write-mode -readable: a real access(2) probe for the effective user (see -readable).",
         .kind = Kind::kTest,
         .arity = 0,
     },
     {
         .name = "-executable",
         .summary = "match entries the current user can execute",
+        .details = "The execute/search-mode -readable: a real access(2) probe for the effective user. On a "
+                   "directory this means search (traverse) permission. See -readable.",
         .kind = Kind::kTest,
         .arity = 0,
     },

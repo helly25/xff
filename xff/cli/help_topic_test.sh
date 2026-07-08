@@ -73,6 +73,15 @@ test::help_matching_primaries_show_details() {
   expect_output_contains 'unanchored' "${rxc}"
 }
 
+test::help_attribute_primaries_show_details() {
+  # -perm documents the exact / all-of / any-of prefix grammar; -xtype the follow-the-target rule.
+  local perm xtype
+  perm="$("$(_xff_bin)" --help=perm 2>&1)"
+  expect_output_contains 'ALL the listed bits' "${perm}" # the -MODE all-of rule
+  xtype="$("$(_xff_bin)" --help=xtype 2>&1)"
+  expect_output_contains "link's TARGET" "${xtype}"
+}
+
 test::help_topic_flag_resolves_without_dash() {
   expect_matches '\-regex' "$("$(_xff_bin)" --help=regex 2>&1)"
 }
