@@ -687,12 +687,19 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-print",
         .summary = "print the path followed by a newline",
+        .details = "Prints the path then a newline. This is the DEFAULT action: with no action anywhere in the "
+                   "expression xff prints each match, exactly as if -print were appended. Naming any action "
+                   "(including -print itself) suppresses that implicit default; --implicit-print=yes|no forces it "
+                   "on or off.",
         .kind = Kind::kAction,
         .arity = 0,
     },
     {
         .name = "-print0",
         .summary = "print the path followed by a NUL",
+        .details = "Prints the path then a NUL byte instead of a newline, so paths containing spaces or newlines "
+                   "survive a pipe into `xargs -0`. The machine-readable counterpart of -print; see also "
+                   "--format=jsonl.",
         .kind = Kind::kAction,
         .arity = 0,
     },
@@ -710,6 +717,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         // xff: -print with the OS line ending
         .name = "-println",
         .summary = "print the path with the OS line ending (xff)",
+        .details = "-print but terminated with the OS-native line ending (CRLF on Windows, LF elsewhere) rather "
+                   "than always LF. An xff extension --config=find rejects.",
         .kind = Kind::kAction,
         .arity = 0,
         .style = Style::kXff,
@@ -718,6 +727,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         // xff: -printf + the OS line ending
         .name = "-printfln",
         .summary = "print a custom format with the OS line ending (xff)",
+        .details = "-printf plus the OS line ending appended, so you write FORMAT without a trailing `\\n`. An xff "
+                   "extension --config=find rejects; see -printf for the directive vocabulary.",
         .kind = Kind::kAction,
         .arity = 1,
         .style = Style::kXff,
@@ -727,6 +738,13 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         // prints path:line:text; -grep=FORMAT renders a {line}/{text}/... template.
         .name = "-grep",
         .summary = "print each content line matching a regex; -grep=FORMAT for a template (xff)",
+        .details = "The line-output companion of -rxc: `-grep PATTERN` prints every content line matching the RE2 "
+                   "PATTERN as `path:lineno:text` (grep's piped form; a literal substring under "
+                   "--regextype=EXACT). `-grep=FORMAT PATTERN` renders a {line}/{text}/{match}/{column} template "
+                   "instead. Honors -c / --count (one `path:count` per file) and -A / -B / --context (surrounding "
+                   "lines, grep-style). Reads the file (expensive); non-regular / unreadable / binary files yield "
+                   "nothing. Its truth is \"matched a line\", so it composes with -o / -q. An xff extension "
+                   "--config=find rejects.",
         .kind = Kind::kAction,
         .arity = 1,
         .binding = Binding::kFormat,
@@ -736,6 +754,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-fprint",
         .summary = "write -print output to a named file",
+        .details = "Writes what -print would emit to FILE instead of stdout. FILE is opened once (truncating any "
+                   "existing content) and held open for the whole walk, so matches append to it in visit order. "
+                   "This is the anchor of the -f* family - each mirrors a stdout action: -fprint0, -fprintf, -fls, "
+                   "and the xff -fprintln / -fprintfln.",
         .kind = Kind::kAction,
         .arity = 1,
     },
@@ -743,6 +765,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         // xff: -fprint with the OS line ending (the file form of -println)
         .name = "-fprintln",
         .summary = "write -println output to a named file (xff)",
+        .details = "The file form of -println (-fprint with the OS line ending). See -fprint for the file "
+                   "handling; an xff extension --config=find rejects.",
         .kind = Kind::kAction,
         .arity = 1,
         .style = Style::kXff,
@@ -750,12 +774,15 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-fprint0",
         .summary = "write -print0 output to a named file",
+        .details = "The file form of -print0 (NUL-terminated paths). See -fprint for the file handling.",
         .kind = Kind::kAction,
         .arity = 1,
     },
     {
         .name = "-fprintf",
         .summary = "write -printf output to a named file",
+        .details = "The file form of -printf: `-fprintf FILE FORMAT` (FILE first, then the format). See -printf "
+                   "for the directive vocabulary and -fprint for the file handling.",
         .kind = Kind::kAction,
         .arity = 2,
     },
@@ -763,6 +790,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         // xff: -fprintf with the OS line ending (the file form of -printfln)
         .name = "-fprintfln",
         .summary = "write -printfln output to a named file (xff)",
+        .details = "The file form of -printfln: `-fprintfln FILE FORMAT` with the OS line ending appended. An xff "
+                   "extension --config=find rejects; see -fprint for the file handling.",
         .kind = Kind::kAction,
         .arity = 2,
         .style = Style::kXff,
@@ -770,6 +799,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-fls",
         .summary = "write -ls output to a named file",
+        .details = "The file form of -ls (the `ls -dils` line). See -fprint for the file handling.",
         .kind = Kind::kAction,
         .arity = 1,
     },
