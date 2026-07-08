@@ -63,6 +63,16 @@ test::help_time_primary_shows_details() {
   expect_output_contains 'rejected by --config=find' "${out}"
 }
 
+test::help_matching_primaries_show_details() {
+  # -path documents that its glob crosses `/` (unlike the shell); -rxc that its content regex is
+  # unanchored, distinguishing it from -regex's whole-path anchoring.
+  local path rxc
+  path="$("$(_xff_bin)" --help=path 2>&1)"
+  expect_output_contains 'DO match' "${path}" # `*`/`?` cross `/`
+  rxc="$("$(_xff_bin)" --help=rxc 2>&1)"
+  expect_output_contains 'unanchored' "${rxc}"
+}
+
 test::help_topic_flag_resolves_without_dash() {
   expect_matches '\-regex' "$("$(_xff_bin)" --help=regex 2>&1)"
 }
