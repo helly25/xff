@@ -108,6 +108,11 @@ std::string RenderOne(const registry::Descriptor& descriptor, bool with_details 
 
 std::string RenderGlobalFlag(const GlobalFlag& flag, bool with_details = false) {
   std::string out = absl::StrCat(flag.display, "  (global, ", flag.xff ? "xff" : "find", ")\n    ", flag.summary, "\n");
+  if (!flag.extra.empty() && !ExtraEnabled(flag.extra)) {
+    absl::StrAppend(
+        &out, "    NOT built into this binary: rebuild with --//xff:", flag.extra,
+        " (used as-is, it is a hard error).\n");
+  }
   if (with_details) {
     if (!flag.details.empty()) {
       absl::StrAppend(&out, "    ", flag.details, "\n");  // the long explanation (--help=NAME / --help=full)
@@ -350,15 +355,29 @@ std::string RenderDocRows(
 
 std::string RenderOptions(std::string_view group_indent) {
   constexpr std::size_t kWidth = 30;  // summary column; a display longer than this gets a 2-space gap
+  const auto row = [&](std::string_view display, std::string_view summary) {
+    const std::size_t pad = display.size() + 2 <= kWidth ? kWidth - display.size() : 2;
+    return absl::StrCat(group_indent, "  ", display, std::string(pad, ' '), summary, "\n");
+  };
   std::string out;
+  std::string extras;  // flags whose build extra is not compiled into this binary (deferred)
   std::string_view group;
   for (const GlobalFlag& flag : Globals()) {
+    // An extra flag that is NOT built in stays listed, but under a distinct "Extras" group with a
+    // note on what to rebuild with (the flag/extra are the SOT; the hint is derived). When the extra
+    // IS built in, the flag shows in its normal group like any other.
+    if (!flag.extra.empty() && !ExtraEnabled(flag.extra)) {
+      absl::StrAppend(&extras, row(flag.display, absl::StrCat(flag.summary, "  [needs --//xff:", flag.extra, "]")));
+      continue;
+    }
     if (flag.group != group) {
       group = flag.group;
       absl::StrAppend(&out, "\n", group_indent, flag.header, ":\n");  // group is the key; header is the display
     }
-    const std::size_t pad = flag.display.size() + 2 <= kWidth ? kWidth - flag.display.size() : 2;
-    absl::StrAppend(&out, group_indent, "  ", flag.display, std::string(pad, ' '), flag.summary, "\n");
+    absl::StrAppend(&out, row(flag.display, flag.summary));
+  }
+  if (!extras.empty()) {
+    absl::StrAppend(&out, "\n", group_indent, "Extras (not built into this binary):\n", extras);
   }
   return out;
 }

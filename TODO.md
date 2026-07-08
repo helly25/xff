@@ -343,6 +343,16 @@ remains below is the design-forked / larger work.
   rebuild with `--//xff:archive`"), never crashes. This is BUILD-time composition (what code/deps
   are in the binary), distinct from the #73 `--feature` RUNTIME gates. The third-party NOTICE is
   assembled from the enabled extras, so a lean build carries none of their notices.
+  - **Scaffolding SHIPPED (#115a):** the `//xff:archive` `bool_flag` + `config_setting`; a structural
+    `cli::GlobalFlag.extra` key + `cli::ExtraEnabled(key)` (reads the `XFF_WITH_*` define); the
+    `--archive` global, always listed. In a lean build a disabled extra flag stays present but shows
+    under a distinct "Extras (not built into this binary)" help group with a `[needs --//xff:archive]`
+    note, is documented NOT-built-in by `--help=--archive`, and is a hard immediate error (exit 2)
+    **only when used**. Covered by `globals_test` + `extras_test.sh`.
+  - **Remaining (#115b):** a root `NOTICE` file + a `--help=licenses` topic (minimum info: xff's
+    Apache-2.0, the core linked deps, and the enabled extras' notices, pointing at `NOTICE`).
+  - **Then #83:** wire `select()` -> `-DXFF_WITH_ARCHIVE` + the `@libarchive` dep + the read-only
+    archive vfs backend behind the flag (tar/gz/bzip2/xz/zstd/lz4; mbedtls deferred).
 
 - **PCRE2 backend (#85, `-regextype`): use pcre2 as a composable extra - decided 2026-07-06.** RE2
   (our engine) is linear-time and omits backreferences / lookaround / recursion; pcre2 is the Perl

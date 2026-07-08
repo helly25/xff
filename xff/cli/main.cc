@@ -308,6 +308,19 @@ int RunMain(int argc, char** argv) {
     }
   }
 
+  // A composable-extra flag (e.g. --archive) is always recognized, but if the extra it needs is not
+  // compiled into this binary, using it is a hard immediate error naming what to rebuild with - never
+  // a silent no-op. Derived from the flag's SOT `extra` key + the compile-time ExtraEnabled map.
+  for (std::string_view global : command.globals) {
+    const std::string_view name = global.substr(0, global.find('='));
+    const xff::cli::GlobalFlag* const flag = xff::cli::LookupGlobal(name);
+    if (flag != nullptr && !flag->extra.empty() && !xff::cli::ExtraEnabled(flag->extra)) {
+      std::cerr << "xff: " << flag->name << ": this build has no " << flag->extra
+                << " support; rebuild with --//xff:" << flag->extra << "\n";
+      return 2;
+    }
+  }
+
   // Load the layered config (system + user + explicit --xffrc) and resolve the
   // effective flags. --explain writes that effective configuration and exits.
   xff::config::DiscoveryOptions opts = xff::config::SelectorsFromGlobals(command.globals);

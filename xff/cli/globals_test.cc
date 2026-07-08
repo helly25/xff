@@ -24,6 +24,7 @@ namespace {
 using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
+using ::testing::IsFalse;
 using ::testing::IsNull;
 using ::testing::Le;
 using ::testing::Ne;
@@ -53,6 +54,15 @@ TEST_F(GlobalsTest, LookupResolvesNameAndAlias) {
   EXPECT_THAT(LookupGlobal("--jobs"), Eq(LookupGlobal("-j")));        // alias resolves to the same entry
   EXPECT_THAT(LookupGlobal("--timezone"), Eq(LookupGlobal("--tz")));  // ditto
   EXPECT_THAT(LookupGlobal("--nonesuch"), IsNull());
+}
+
+TEST_F(GlobalsTest, ComposableExtraFlagCarriesItsExtraKeyAndIsOffInTheLeanBuild) {
+  const GlobalFlag* const archive = LookupGlobal("--archive");
+  ASSERT_THAT(archive, NotNull());
+  EXPECT_THAT(archive->extra, Eq("archive"));             // the SOT link from the flag to its build extra
+  EXPECT_THAT(ExtraEnabled("archive"), IsFalse());        // not compiled into the lean default binary
+  EXPECT_THAT(ExtraEnabled("nonesuch"), IsFalse());       // an unknown extra reads as off
+  EXPECT_THAT(LookupGlobal("--sort")->extra, IsEmpty());  // a core flag carries no extra
 }
 
 TEST_F(GlobalsTest, EveryGlobalResolvesByItsOwnName) {
