@@ -82,6 +82,18 @@ test::help_attribute_primaries_show_details() {
   expect_output_contains "link's TARGET" "${xtype}"
 }
 
+test::help_action_primaries_show_details() {
+  # -print documents the implicit-default rule; -grep the path:lineno:text form; -fprint the
+  # opened-once file handling that anchors the -f* family.
+  local print grep fprint
+  print="$("$(_xff_bin)" --help=print 2>&1)"
+  expect_output_contains 'DEFAULT action' "${print}"
+  grep="$("$(_xff_bin)" --help=grep 2>&1)"
+  expect_output_contains 'line-output companion of -rxc' "${grep}"
+  fprint="$("$(_xff_bin)" --help=fprint 2>&1)"
+  expect_output_contains 'opened once' "${fprint}"
+}
+
 test::help_topic_flag_resolves_without_dash() {
   expect_matches '\-regex' "$("$(_xff_bin)" --help=regex 2>&1)"
 }
