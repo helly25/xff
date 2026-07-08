@@ -112,30 +112,39 @@ bool OverloadsPreset(const RcLine& line) {
   return line.config.empty() && IsBuiltinStyle(line.base);
 }
 
-ConfigInputs GateConfig(const ConfigInputs& inputs, std::vector<Drop>* drops) {
+ConfigInputs GateConfig(const ConfigInputs& inputs, bool xffrc_armed, std::vector<Drop>* drops) {
   ConfigInputs gated = inputs;
   gated.user.clear();
+  gated.xffrc.clear();
+  const auto record = [&](const RcLine& line, Source layer, DropReason reason) {
+    if (drops != nullptr) {
+      drops->push_back(Drop{.line = line, .layer = layer, .safety = LineSafety(line), .reason = reason});
+    }
+  };
   const auto gate = [&](const std::vector<RcLine>& lines, Source layer, std::vector<RcLine>& out) {
     for (const RcLine& line : lines) {
       // A preset-overloading line is dropped in every layer: a config file may not attach behavior
-      // to find/xff/rg (it would change what a plain preset run does). This is checked before
-      // the safety policy so the warning names the real reason.
+      // to find/xff/rg (it would change what a plain preset run does). Checked first so the warning
+      // names the real reason.
       if (OverloadsPreset(line)) {
-        if (drops != nullptr) {
-          drops->push_back(
-              Drop{.line = line, .layer = layer, .safety = LineSafety(line), .reason = DropReason::kPresetOverload});
-        }
+        record(line, layer, DropReason::kPresetOverload);
+        continue;
+      }
+      // The --xffrc tier is non-arming: a dangerous (sensitive/destructive) line is inert unless
+      // --allow-exec was set from a trusted tier. A named file thus cannot authorize its own -exec.
+      if (layer == Source::kXffrc && !xffrc_armed && LineSafety(line) != registry::Safety::kNone) {
+        record(line, layer, DropReason::kUnarmedXffrc);
         continue;
       }
       if (LinePermitted(line, layer, inputs.system)) {
         out.push_back(line);
-      } else if (drops != nullptr) {
-        drops->push_back(
-            Drop{.line = line, .layer = layer, .safety = LineSafety(line), .reason = DropReason::kSafetyPolicy});
+      } else {
+        record(line, layer, DropReason::kSafetyPolicy);
       }
     }
   };
   gate(inputs.user, Source::kUser, gated.user);
+  gate(inputs.xffrc, Source::kXffrc, gated.xffrc);
   return gated;
 }
 
@@ -144,6 +153,9 @@ std::string DropMessage(const Drop& drop) {
     return absl::StrCat("'", drop.line.base, ":' in the ", SourceName(drop.layer), " .xffrc");
   }
   const std::string_view primary = drop.line.flags.empty() ? std::string_view("(empty line)") : drop.line.flags.front();
+  if (drop.reason == DropReason::kUnarmedXffrc) {
+    return absl::StrCat("'", primary, "' from the --xffrc file (", ClassName(drop.safety), "; needs --allow-exec)");
+  }
   return absl::StrCat("'", primary, "' from the ", SourceName(drop.layer), " .xffrc (", ClassName(drop.safety), ")");
 }
 

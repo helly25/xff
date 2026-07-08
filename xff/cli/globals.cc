@@ -53,7 +53,27 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--xffrc=FILE",
         .group = "config",
         .header = "Config",
-        .summary = "also load a specific config file",
+        .summary = "also load a specific config file (a non-arming tier; see --allow-exec)",
+        .details = "Loads FILE as a config tier above the user config (naming it is consent to LOAD it). It is a "
+                   "NON-ARMING tier: safe directives apply, but a dangerous one - the exec family (-exec/-execdir/-ok, "
+                   "-capture) or -delete - is inert unless --allow-exec is set from a trusted tier (the CLI or the "
+                   "user/system config, never from an --xffrc file itself). An unarmed dangerous line is dropped with "
+                   "a one-line warning. Repeatable; later files win.",
+        .affects = "--allow-exec",
+    },
+    {
+        .name = "--allow-exec",
+        .display = "--allow-exec",
+        .group = "config",
+        .header = "Config",
+        .summary = "arm dangerous directives loaded from an --xffrc file (exec family, -delete)",
+        .details = "Permits the sensitive/destructive directives (the exec family -exec/-execdir/-ok and -capture, "
+                   "and the destructive -delete) carried by an --xffrc-loaded file to actually run. Honored only from "
+                   "a trusted tier - typed on the CLI, or set in the user/system config - never from an --xffrc file "
+                   "(so a named config cannot authorize itself). The root-owned system [policy] can hard-deny even "
+                   "this. Without it, such lines are inert (dropped + warned); -delete still obeys its own "
+                   "--safe/--dry-run guards.",
+        .affects = "--xffrc",
     },
     {
         .name = "--explain",

@@ -75,13 +75,14 @@ ConfigInputs Discover(const DiscoveryOptions& opts, FileReader read) {
       AppendXffrc(inputs.user, *text);
     }
   }
-  // Explicit --xffrc files are appended to the user layer, in order (naming the file is the
-  // consent to load it). There is no auto-discovered project layer.
+  // Explicit --xffrc files form their own tier (inputs.xffrc), in order. Naming the file is the
+  // consent to LOAD it, not to arm it: its dangerous directives stay inert unless --allow-exec is
+  // set from a trusted tier (the gate enforces this). There is no auto-discovered project layer.
   for (const std::string& path : opts.xffrc_files) {
     const std::optional<std::string> text = read(path);
-    inputs.sources.push_back({.path = path, .layer = Source::kUser, .found = text.has_value()});
+    inputs.sources.push_back({.path = path, .layer = Source::kXffrc, .found = text.has_value()});
     if (text.has_value()) {
-      AppendXffrc(inputs.user, *text);
+      AppendXffrc(inputs.xffrc, *text);
     }
   }
   return inputs;

@@ -86,15 +86,16 @@ TEST_F(LoaderTest, DiscoverAppliesSystemThenUserLayersWithActiveConfig) {
                              FlagIs("--feature=long", Source::kUser)));
 }
 
-TEST_F(LoaderTest, ExplicitXffrcFilesAppendToUserLayerInOrder) {
+TEST_F(LoaderTest, ExplicitXffrcFilesFormTheirOwnTierInOrder) {
   FakeFs fs;
   fs.files["/proj/.xffrc"] = "common: --threads=2\n";
   fs.files["/extra.rc"] = "common: --color=never\n";
   DiscoveryOptions opts;
   opts.xffrc_files = {"/proj/.xffrc", "/extra.rc"};
   const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
+  // --xffrc files land in the xffrc tier (not the user layer), in order.
   EXPECT_THAT(
-      ResolveConfig(in), ElementsAre(FlagIs("--threads=2", Source::kUser), FlagIs("--color=never", Source::kUser)));
+      ResolveConfig(in), ElementsAre(FlagIs("--threads=2", Source::kXffrc), FlagIs("--color=never", Source::kXffrc)));
 }
 
 TEST_F(LoaderTest, NoConfigSkipsUserAndDefaultsButStillReadsSystemPolicy) {
@@ -140,7 +141,7 @@ TEST_F(LoaderTest, DiscoverRecordsConsultedSourcesForExplain) {
       in.sources,
       ElementsAre(
           SourceIs("/etc/xff.ini", Source::kSystem, true), SourceIs("/home/u/.config/xff/config", Source::kUser, false),
-          SourceIs("/extra.rc", Source::kUser, true)));
+          SourceIs("/extra.rc", Source::kXffrc, true)));
 }
 
 }  // namespace

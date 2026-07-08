@@ -97,7 +97,7 @@ TEST_F(PolicyTest, GateConfigDropsDeniedUserLinesAndRecordsThem) {
   inputs.system.policy = {PolicyRule{.layer = "user", .allow = false, .tokens = {"-exec"}}};  // deny -exec in user
   inputs.user = {Line({"-exec", "rm", ";"}), Line({"--color=never"})};
   std::vector<Drop> drops;
-  const ConfigInputs gated = GateConfig(inputs, &drops);
+  const ConfigInputs gated = GateConfig(inputs, /*xffrc_armed=*/false, &drops);
   ASSERT_THAT(gated.user, SizeIs(1));
   EXPECT_THAT(gated.user.front().flags, ElementsAre("--color=never"));  // only the permitted line survives
   ASSERT_THAT(drops, SizeIs(1));
@@ -110,7 +110,7 @@ TEST_F(PolicyTest, GateConfigToleratesNullDropsSink) {
   ConfigInputs inputs;
   inputs.system.policy = {PolicyRule{.layer = "user", .allow = false, .tokens = {"-delete"}}};
   inputs.user = {Line({"-delete"})};
-  EXPECT_THAT(GateConfig(inputs, nullptr).user, IsEmpty());  // denied, dropped, no crash
+  EXPECT_THAT(GateConfig(inputs, /*xffrc_armed=*/false, nullptr).user, IsEmpty());  // denied, dropped, no crash
 }
 
 TEST_F(PolicyTest, DropMessageNamesPrimaryLayerAndClass) {
@@ -120,6 +120,47 @@ TEST_F(PolicyTest, DropMessageNamesPrimaryLayerAndClass) {
       .safety = registry::Safety::kSecurity,
   };
   EXPECT_THAT(DropMessage(drop), "'-exec' from the user .xffrc (sensitive)");
+}
+
+TEST_F(PolicyTest, XffrcDangerousLineIsInertUnlessArmed) {
+  ConfigInputs inputs;
+  inputs.xffrc = {Line({"-exec", "rm", ";"}), Line({"--color=never"})};
+  std::vector<Drop> drops;
+  const ConfigInputs unarmed = GateConfig(inputs, /*xffrc_armed=*/false, &drops);
+  ASSERT_THAT(unarmed.xffrc, SizeIs(1));
+  EXPECT_THAT(unarmed.xffrc.front().flags, ElementsAre("--color=never"));  // the safe line survives
+  ASSERT_THAT(drops, SizeIs(1));
+  EXPECT_THAT(drops.front().reason, DropReason::kUnarmedXffrc);
+  EXPECT_THAT(drops.front().layer, Source::kXffrc);
+  EXPECT_THAT(drops.front().safety, registry::Safety::kSecurity);
+  // Armed: the -exec line is honored (both lines survive).
+  EXPECT_THAT(GateConfig(inputs, /*xffrc_armed=*/true, nullptr).xffrc, SizeIs(2));
+}
+
+TEST_F(PolicyTest, ArmingGatesOnlyTheXffrcTierNotTheUserLayer) {
+  ConfigInputs inputs;
+  inputs.user = {Line({"-exec", "rm", ";"})};  // a dangerous USER line is honored regardless of the arm
+  EXPECT_THAT(GateConfig(inputs, /*xffrc_armed=*/false, nullptr).user, SizeIs(1));
+}
+
+TEST_F(PolicyTest, SystemPolicyHardDeniesAnArmedXffrcLine) {
+  ConfigInputs inputs;
+  inputs.system.policy = {PolicyRule{.layer = "xffrc", .allow = false, .tokens = {"@sensitive"}}};
+  inputs.xffrc = {Line({"-exec", "rm", ";"})};
+  std::vector<Drop> drops;
+  EXPECT_THAT(GateConfig(inputs, /*xffrc_armed=*/true, &drops).xffrc, IsEmpty());  // armed, but policy denies
+  ASSERT_THAT(drops, SizeIs(1));
+  EXPECT_THAT(drops.front().reason, DropReason::kSafetyPolicy);
+}
+
+TEST_F(PolicyTest, DropMessageForUnarmedXffrcNamesTheArm) {
+  const Drop drop{
+      .line = Line({"-exec", "rm", ";"}),
+      .layer = Source::kXffrc,
+      .safety = registry::Safety::kSecurity,
+      .reason = DropReason::kUnarmedXffrc,
+  };
+  EXPECT_THAT(DropMessage(drop), "'-exec' from the --xffrc file (sensitive; needs --allow-exec)");
 }
 
 TEST_F(PolicyTest, OverloadsPresetDetectsBarePresetSelectors) {
@@ -140,7 +181,7 @@ TEST_F(PolicyTest, GateConfigDropsPresetOverloadWithReason) {
   inputs.user =
       ParseXffrc("xff: --feature=long\ncommon: --sort\nfind: --warn\nmyx: --color=never\nxff:debug: --threads=1");
   std::vector<Drop> drops;
-  const ConfigInputs gated = GateConfig(inputs, &drops);
+  const ConfigInputs gated = GateConfig(inputs, /*xffrc_armed=*/false, &drops);
   EXPECT_THAT(gated.user, SizeIs(3));  // common:, myx:, xff:debug:
   ASSERT_THAT(drops, SizeIs(2));
   EXPECT_THAT(drops[0].reason, DropReason::kPresetOverload);  // xff: (file order)

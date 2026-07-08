@@ -301,11 +301,14 @@ remains below is the design-forked / larger work.
     user/system tiers, never from a `--xffrc`-loaded file**; the **system policy can hard-deny**
     even the CLI arm. An unarmed dangerous directive is inert + a one-line stderr warning.
     `-delete` keeps its own `--safe` / `--dry-run` guards (#40).
-  - **Build (small serialized slices):** (1) this record + design-doc supersede banner - DONE;
-    (2) remove the project layer + `--project-config` + its tests - DONE (Source loses kProject,
-    ConfigInputs loses `project`, loader drops the cascade, policy is deny-only, `--project-config`
-    gone; local `.xffrc` in the tree is now inert). (3) REMAINING: `--xffrc` as its own non-arming
-    tier + safety-gated `--allow-exec` + inert-and-warn + tests / bashtest.
+  - **SHIPPED (both slices).** (1) design-doc supersede banner + record. (2) Removed the project
+    layer + `--project-config` (Source lost kProject, ConfigInputs lost `project`, loader dropped
+    the cascade, policy is deny-only; a local `.xffrc` in the tree is inert). (3) `--xffrc` is its
+    own tier (`Source::kXffrc`, precedence user < xffrc < cli). It is NON-ARMING: a sensitive
+    (`-exec`/`-execdir`/`-ok`/`-capture`) or destructive (`-delete`) line loaded from an `--xffrc`
+    file is inert (dropped + one-line warning) unless armed by `--allow-exec`, which is honored
+    only from a trusted tier (CLI, or user/system config via `ArmedFromTrustedTier`) - never from
+    an `--xffrc` file itself - and the system `[policy]` can still hard-deny an armed line.
 
 - **Archive diving (#83, `--archive`): use libarchive - decided 2026-07-06.** Descend into archives
   and match/list their entries as virtual paths (`foo.tar.gz/inner/file.txt`) via a read-only
