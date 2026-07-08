@@ -41,8 +41,9 @@ registry::Safety LineSafety(const RcLine& line);
 bool LinePermitted(const RcLine& line, Source layer, const SystemConfig& policy);
 
 // Why the gate dropped a line: a safety-policy denial (its safety class bars it from the layer),
-// or a structural rule (it attaches behavior to a built-in preset, which no config file may do).
-enum class DropReason { kSafetyPolicy, kPresetOverload };
+// a structural rule (it attaches behavior to a built-in preset, which no config file may do), or
+// an unarmed dangerous directive loaded from an --xffrc file (kSafety/kSecurity, no --allow-exec).
+enum class DropReason { kSafetyPolicy, kPresetOverload, kUnarmedXffrc };
 
 // A config line dropped by the gate: the line, the layer it came from, the safety class (relevant
 // to kSafetyPolicy), and why it was dropped (for the stderr warning and --explain).
@@ -60,11 +61,15 @@ struct Drop {
 // reproducible. Applies to every layer.
 bool OverloadsPreset(const RcLine& line);
 
-// Filters the user .xffrc lines of `inputs` through LinePermitted (with
+// Filters the user + --xffrc .xffrc lines of `inputs` through the gate (with
 // inputs.system as the policy), returning a copy with the denied lines removed and
-// recording each in `drops` (when non-null). The system [defaults] are
-// root-authored and never gated; CLI flags are not config and never gated.
-ConfigInputs GateConfig(const ConfigInputs& inputs, std::vector<Drop>* drops);
+// recording each in `drops` (when non-null). Every layer drops a preset-overloading
+// line (kPresetOverload) and a system-[policy]-denied line (kSafetyPolicy). The
+// --xffrc tier additionally drops a dangerous (kSafety/kSecurity) line as
+// kUnarmedXffrc unless `xffrc_armed` is set (--allow-exec from a trusted tier; see
+// ArmedFromTrustedTier). The system [defaults] are root-authored and never gated;
+// CLI flags are not config and never gated.
+ConfigInputs GateConfig(const ConfigInputs& inputs, bool xffrc_armed, std::vector<Drop>* drops);
 
 // A one-line human description of a dropped line for the stderr warning and
 // --explain, e.g. "'-exec' from the project .xffrc (sensitive)".

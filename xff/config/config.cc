@@ -61,6 +61,7 @@ std::vector<ResolvedFlag> ResolveConfig(const ConfigInputs& inputs) {
     resolved.push_back(ResolvedFlag{.flag = flag, .source = Source::kSystem});
   }
   AppendMatching(resolved, inputs.user, inputs.configs, Source::kUser);
+  AppendMatching(resolved, inputs.xffrc, inputs.configs, Source::kXffrc);  // explicit --xffrc wins over user
   return resolved;
 }
 
@@ -70,8 +71,26 @@ std::string_view SourceName(Source source) {
     case Source::kSystem: return "system";
     case Source::kUnset: return "unset";
     case Source::kUser: return "user";
+    case Source::kXffrc: return "xffrc";
   }
   return "unset";
+}
+
+bool ArmedFromTrustedTier(
+    const ConfigInputs& inputs,
+    const std::vector<std::string>& cli_globals,
+    std::string_view flag) {
+  if (absl::c_contains(cli_globals, flag)) {
+    return true;  // typed on the CLI: explicit consent
+  }
+  if (absl::c_contains(inputs.system.defaults, flag)) {
+    return true;  // root-authored system defaults
+  }
+  // An applying user .xffrc line (inputs.xffrc is intentionally NOT consulted: a named file
+  // cannot arm itself). A line applies under the active --config selectors, like ResolveConfig.
+  return absl::c_any_of(inputs.user, [&](const RcLine& line) {
+    return LineApplies(line, inputs.configs) && absl::c_contains(line.flags, flag);
+  });
 }
 
 bool IsBuiltinStyle(std::string_view name) {

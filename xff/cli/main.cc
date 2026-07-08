@@ -322,8 +322,13 @@ int RunMain(int argc, char** argv) {
   // Config is system + user + explicit --xffrc only; there is no auto-discovered project layer
   // (Option B, 2026-07-06), so the search roots do not feed config discovery.
   const xff::config::ConfigInputs inputs = xff::config::Discover(opts, ReadFile);
+  // --allow-exec arms the dangerous directives an --xffrc file may carry, but only when it comes
+  // from a trusted tier (the CLI, or the user/system config) - never from an --xffrc file itself,
+  // so a named config cannot authorize its own -exec/-delete. The gate uses this to keep unarmed
+  // --xffrc dangerous lines inert.
+  const bool xffrc_armed = xff::config::ArmedFromTrustedTier(inputs, command.globals, "--allow-exec");
   std::vector<xff::config::Drop> drops;
-  const xff::config::ConfigInputs gated = xff::config::GateConfig(inputs, &drops);
+  const xff::config::ConfigInputs gated = xff::config::GateConfig(inputs, xffrc_armed, &drops);
   const std::vector<xff::config::ResolvedFlag> resolved = xff::config::ResolveConfig(gated);
   if (absl::c_contains(command.globals, "--explain")) {
     std::cout << xff::config::ExplainSources(inputs.sources, xff::config::ActiveStyle(inputs.configs));
@@ -338,9 +343,12 @@ int RunMain(int argc, char** argv) {
   // A disallowed config line is dropped, never fatal: warn (self-documenting) and
   // carry on with the survivors (design-config.md "Enforcement & self-documentation").
   for (const xff::config::Drop& drop : drops) {
-    const std::string_view why = drop.reason == xff::config::DropReason::kPresetOverload
-                                     ? " - a config file cannot change a preset; use a named config (--config=NAME)"
-                                     : " - denied by config policy";
+    std::string_view why = " - denied by config policy";
+    if (drop.reason == xff::config::DropReason::kPresetOverload) {
+      why = " - a config file cannot change a preset; use a named config (--config=NAME)";
+    } else if (drop.reason == xff::config::DropReason::kUnarmedXffrc) {
+      why = " - inert unless armed with --allow-exec (from the CLI or user/system config)";
+    }
     std::cerr << "xff: ignoring " << xff::config::DropMessage(drop) << why << "\n";
   }
   // Apply the config: prepend the resolved flags to the globals so they take

@@ -90,9 +90,40 @@ TEST_F(ConfigTest, LayerPrecedenceSystemThenUser) {
                              FlagIs("--color=never", Source::kUser)));
 }
 
+TEST_F(ConfigTest, XffrcTierResolvesAboveUser) {
+  ConfigInputs in;
+  in.user = ParseXffrc("common: --color=auto");
+  in.xffrc = ParseXffrc("common: --color=never");  // an explicit --xffrc file wins over user config
+  EXPECT_THAT(
+      ResolveConfig(in), ElementsAre(FlagIs("--color=auto", Source::kUser), FlagIs("--color=never", Source::kXffrc)));
+}
+
+TEST_F(ConfigTest, ArmedFromTrustedTierAcceptsCliUserSystemNotXffrc) {
+  ConfigInputs in;
+  EXPECT_TRUE(ArmedFromTrustedTier(in, {"--allow-exec"}, "--allow-exec"));  // typed on the CLI
+  EXPECT_FALSE(ArmedFromTrustedTier(in, {}, "--allow-exec"));               // nowhere
+  in.system.defaults = {"--allow-exec"};
+  EXPECT_TRUE(ArmedFromTrustedTier(in, {}, "--allow-exec"));  // system defaults
+  in.system.defaults = {};
+  in.user = ParseXffrc("common: --allow-exec");
+  EXPECT_TRUE(ArmedFromTrustedTier(in, {}, "--allow-exec"));  // an applying user line
+  in.user = {};
+  in.xffrc = ParseXffrc("common: --allow-exec");
+  EXPECT_FALSE(ArmedFromTrustedTier(in, {}, "--allow-exec"));  // NOT from an --xffrc file (no self-arming)
+}
+
+TEST_F(ConfigTest, ArmedFromTrustedTierRespectsActiveConfig) {
+  ConfigInputs in;
+  in.user = ParseXffrc("debug: --allow-exec");                 // only under --config=debug
+  EXPECT_FALSE(ArmedFromTrustedTier(in, {}, "--allow-exec"));  // debug not active -> line inert
+  in.configs = {"debug"};
+  EXPECT_TRUE(ArmedFromTrustedTier(in, {}, "--allow-exec"));
+}
+
 TEST_F(ConfigTest, SourceNameMapsEachLayer) {
   EXPECT_THAT(SourceName(Source::kSystem), "system");
   EXPECT_THAT(SourceName(Source::kUser), "user");
+  EXPECT_THAT(SourceName(Source::kXffrc), "xffrc");
   EXPECT_THAT(SourceName(Source::kCli), "cli");
   EXPECT_THAT(SourceName(Source::kUnset), "unset");
 }

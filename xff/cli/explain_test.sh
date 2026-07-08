@@ -106,8 +106,8 @@ test::local_xffrc_in_the_tree_is_ignored() {
 }
 
 test::xffrc_flag_loads_an_explicit_file() {
-  # An explicit --xffrc=FILE is loaded (naming it is the consent) and surfaces in --explain as a
-  # user-layer source.
+  # An explicit --xffrc=FILE is loaded (naming it is the consent) as its own tier, surfacing in
+  # --explain with `xffrc` provenance.
   local rc="${TEST_TMPDIR}/explicit.rc"
   printf 'common: --color=never\n' >"${rc}"
   local out
@@ -115,7 +115,23 @@ test::xffrc_flag_loads_an_explicit_file() {
   local lines=()
   local line
   while IFS= read -r line; do lines+=("${line}"); done <<<"${out}"
-  expect_contains "$(printf 'user\t--color=never')" "${lines[@]}"
+  expect_contains "$(printf 'xffrc\t--color=never')" "${lines[@]}"
+}
+
+test::xffrc_dangerous_line_is_inert_unless_armed() {
+  # The --xffrc tier is non-arming: a sensitive -exec carried by the file is dropped (inert) with a
+  # "needs --allow-exec" note unless --allow-exec is passed from a trusted tier (here, the CLI). A
+  # safe line on the same file still applies.
+  local rc="${TEST_TMPDIR}/arm.rc"
+  printf 'common: --color=never\ncommon: -exec echo {} ;\n' >"${rc}"
+  local out
+  # Unarmed: the -exec is dropped; the safe --color line survives with xffrc provenance.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --xffrc="${rc}" --explain 2>&1)"
+  expect_output_contains 'needs --allow-exec' "${out}"
+  expect_matches 'xffrc[[:space:]]+--color=never' "${out}"
+  # Armed from the CLI: the -exec is honored, so the "needs --allow-exec" drop note is gone.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --allow-exec --xffrc="${rc}" --explain 2>&1)"
+  expect_output_not_contains 'needs --allow-exec' "${out}"
 }
 
 test_runner

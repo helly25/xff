@@ -29,8 +29,10 @@ namespace xff::config {
 // Provenance of a resolved setting: which layer contributed it. Resolution is
 // last-non-unset-wins; kUnset is the "no override" sentinel and is never stored.
 // There is no auto-discovered project layer (dropped 2026-07-06, Option B): config
-// comes from system, user, and an explicit --xffrc=FILE only.
-enum class Source { kUnset, kSystem, kUser, kCli };
+// comes from system, user, and an explicit --xffrc=FILE only. Precedence order is
+// system < user < xffrc < cli; kXffrc is a NON-ARMING tier (a named --xffrc file
+// cannot self-authorize -exec/-delete; see the gate + --allow-exec).
+enum class Source { kUnset, kSystem, kUser, kXffrc, kCli };
 
 // One resolved config flag plus the layer it came from.
 struct ResolvedFlag {
@@ -50,23 +52,34 @@ struct ConfigSource {
 // here: the caller applies them last (highest precedence) after this resolution.
 struct ConfigInputs {
   SystemConfig system;                // parsed /etc/xff.ini ([defaults] + [policy])
-  std::vector<RcLine> user;           // parsed user .xffrc (incl. --xffrc=FILE, appended)
+  std::vector<RcLine> user;           // parsed user .xffrc
+  std::vector<RcLine> xffrc;          // parsed --xffrc=FILE files, in order (the non-arming tier)
   std::vector<std::string> configs;   // active --config=NAME selectors (styles and/or named configs)
-  bool no_config = false;             // --no-config: drop the user layer and the system defaults
+  bool no_config = false;             // --no-config: drop the user + xffrc layers and the system defaults
   std::vector<ConfigSource> sources;  // every file consulted during discovery, for --explain (set by Discover)
 };
 
 // Resolves config-supplied flags, lowest precedence first (system [defaults] <
-// user .xffrc), each tagged with its Source; the caller appends CLI flags
-// afterwards (they win). An .xffrc line contributes its flags when its base
-// selector is empty/"common" or names an active --config, AND its config selector
-// is empty or names an active --config. --no-config yields an empty result (pure
-// CLI + built-ins); the system *policy* is never dropped (it is read elsewhere and
-// bounds the run regardless).
+// user .xffrc < --xffrc files), each tagged with its Source; the caller appends
+// CLI flags afterwards (they win). An .xffrc line contributes its flags when its
+// base selector is empty/"common" or names an active --config, AND its config
+// selector is empty or names an active --config. --no-config yields an empty result
+// (pure CLI + built-ins); the system *policy* is never dropped (it is read elsewhere
+// and bounds the run regardless). Gate the inputs first (GateConfig) so a dangerous,
+// unarmed --xffrc line never reaches here.
 std::vector<ResolvedFlag> ResolveConfig(const ConfigInputs& inputs);
 
-// The lowercase layer name for a Source: "unset"/"system"/"user"/"cli".
+// The lowercase layer name for a Source: "unset"/"system"/"user"/"xffrc"/"cli".
 std::string_view SourceName(Source source);
+
+// Whether the arming flag `flag` (e.g. "--allow-exec") is active from a TRUSTED tier - the CLI
+// globals, the system [defaults], or an applying user .xffrc line (gated on inputs.configs) - but
+// NOT from an --xffrc-loaded file (inputs.xffrc is deliberately excluded). This is what lets a
+// named --xffrc file carry `-exec`/`-delete` yet not authorize itself: only a trusted tier arms.
+bool ArmedFromTrustedTier(
+    const ConfigInputs& inputs,
+    const std::vector<std::string>& cli_globals,
+    std::string_view flag);
 
 // Whether `name` is one of the reserved built-in style names (find / xff / rg). Tests the base of
 // a selector (so "xff:2" should be reduced to "xff" first). Those names are reserved: a config
