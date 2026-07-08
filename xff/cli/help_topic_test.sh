@@ -103,6 +103,18 @@ test::help_reference_time_primaries_show_details() {
   expect_output_contains 'a timestamp xff parses' "${newermt}"
 }
 
+test::help_traversal_owner_operator_primaries_show_details() {
+  # -maxdepth documents the global-positional rule; -user the name/numeric resolution; -a the
+  # operator precedence order.
+  local maxdepth user op
+  maxdepth="$("$(_xff_bin)" --help=maxdepth 2>&1)"
+  expect_output_contains 'global positional option' "${maxdepth}"
+  user="$("$(_xff_bin)" --help=user 2>&1)"
+  expect_output_contains 'passwd database' "${user}"
+  op="$("$(_xff_bin)" --help=-a 2>&1)"
+  expect_output_contains 'tightest to loosest' "${op}"
+}
+
 test::help_topic_flag_resolves_without_dash() {
   expect_matches '\-regex' "$("$(_xff_bin)" --help=regex 2>&1)"
 }

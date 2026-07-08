@@ -295,36 +295,50 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-uid",
         .summary = "match the numeric owner id",
+        .details = "Matches the owner's numeric user id. Like find's numeric tests it accepts `+N` (greater than), "
+                   "`-N` (less than), or a bare N (exact). Match by login name with -user instead.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-gid",
         .summary = "match the numeric group id",
+        .details = "The group counterpart of -uid: the numeric group id, with `+N` / `-N` / bare-N. Match by group "
+                   "name with -group instead.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-user",
         .summary = "match the owner by name",
+        .details = "Matches the owner by login name, resolved through the passwd database. A name with no passwd "
+                   "entry never matches, but a bare numeric argument is taken as a uid, so `-user 0` behaves like "
+                   "`-uid 0`. Exact match only (no `+` / `-`).",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-group",
         .summary = "match the group by name",
+        .details = "The group counterpart of -user: matches by group name (via the group database), falling back to "
+                   "a numeric gid. Exact match only.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-nouser",
         .summary = "match when the owner uid has no passwd entry",
+        .details = "Matches when the entry's owner uid has NO entry in the passwd database - an orphaned owner, e.g. "
+                   "from a deleted account or an archive unpacked with foreign ids. Takes no argument. See -nogroup "
+                   "for the group side.",
         .kind = Kind::kTest,
         .arity = 0,
     },
     {
         .name = "-nogroup",
         .summary = "match when the group gid has no group entry",
+        .details = "Matches when the entry's group gid has no entry in the group database (the group side of "
+                   "-nouser).",
         .kind = Kind::kTest,
         .arity = 0,
     },
@@ -576,18 +590,27 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-maxdepth",
         .summary = "descend at most N directory levels below each start",
+        .details = "Limits traversal to at most N levels below each start point: level 0 is a start point itself, 1 "
+                   "its immediate children. Like find this is a global positional option - it applies to the whole "
+                   "run wherever it sits in the expression, not just to what follows it. Pair with -mindepth to "
+                   "bound both ends.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-mindepth",
         .summary = "skip entries fewer than N levels below each start",
+        .details = "Skips entries fewer than N levels below a start point, so -mindepth 1 excludes the start points "
+                   "themselves. A global positional option like -maxdepth (applies run-wide).",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-depth",
         .summary = "process a directory's contents before the directory",
+        .details = "Visits a directory's contents BEFORE the directory itself (post-order), so a directory is acted "
+                   "on only after everything within it - what -delete needs, and -delete turns this on for you. A "
+                   "global positional option; -d is the BSD/GNU short spelling.",
         .kind = Kind::kTest,
         .arity = 0,
     },
@@ -600,6 +623,9 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-xdev",
         .summary = "do not descend into other filesystems",
+        .details = "Confines the walk to the filesystem of each start point: it will not descend into a directory "
+                   "that lives on a different mounted device. A global positional option; -mount and -x are "
+                   "synonyms.",
         .kind = Kind::kTest,
         .arity = 0,
     },
@@ -916,6 +942,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-a",
         .summary = "logical AND (implicit between predicates)",
+        .details = "Logical AND of two predicates (`-and` is the long spelling). It is also IMPLICIT between "
+                   "juxtaposed predicates, so `-type f -name '*.c'` means `-type f -a -name '*.c'`. Precedence, "
+                   "tightest to loosest: -not, then -a, then (xff) -xor, then -o, then the `,` comma operator; "
+                   "parentheses `( ... )` override it. Evaluation short-circuits.",
         .kind = Kind::kOperator,
         .arity = 0,
     },
@@ -928,6 +958,9 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-o",
         .summary = "logical OR",
+        .details = "Logical OR of two predicates (`-or` is the long spelling); binds looser than -a, so `A -o B -a "
+                   "C` is `A -o (B -a C)`. Short-circuits: the right side is skipped when the left already matched. "
+                   "See -a for the full precedence order.",
         .kind = Kind::kOperator,
         .arity = 0,
     },
@@ -940,6 +973,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-not",
         .summary = "logical negation",
+        .details = "Negates the predicate that follows (`!` is the synonym). Binds tightest of the operators, so "
+                   "`-not -type d -o -name x` is `(-not -type d) -o -name x`. See -a for the full precedence order.",
         .kind = Kind::kOperator,
         .arity = 0,
     },
@@ -953,6 +988,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-xor",
         .summary = "logical XOR; matches exactly one side (xff)",
+        .details = "Matches when exactly ONE side is true (never both). One of four xff-only operators find lacks: "
+                   "-xor, and the negations -nand (not both), -nor (neither), -xnor (both agree). They sit between -a "
+                   "and -o in precedence (-not > -a / -nand > -xor / -xnor > -o / -nor) and, like all xff-only "
+                   "operators, are rejected by --config=find.",
         .kind = Kind::kOperator,
         .arity = 0,
         .style = Style::kXff,
