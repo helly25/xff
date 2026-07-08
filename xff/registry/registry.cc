@@ -435,54 +435,80 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-mtime",
         .summary = "match the data-modification age in days",
+        .details = "Matches the data-modification age. A bare integer N counts 24-hour periods with any fraction "
+                   "floored (a 2.9-day file is 2); `+N` matches strictly older than N units, `-N` strictly younger. A "
+                   "trailing s/m/h/d/w overrides the unit BSD-style (`-mtime -1h` = under an hour old). The xff-only "
+                   "word/compound span (`-mtime \"-3 weeks 3 hours\"`, sign required) reaches back a full relative "
+                   "duration and is rejected by --config=find. See -mmin for the minute scale, -atime / -ctime / "
+                   "-Btime for the other time axes.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-mmin",
         .summary = "match the data-modification age in minutes",
+        .details = "The minute-scale -mtime: N counts whole minutes (floored), `+N` / `-N` for older / younger. "
+                   "Integer only - no unit suffix and no compound span (use -mtime for those).",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-atime",
         .summary = "match the access age in days",
+        .details = "-mtime measured on the access time (atime): same N-day scale, `+N` / `-N` polarity, BSD unit "
+                   "suffix, and xff compound span. Note atime is often unreliable - many mounts use relatime or "
+                   "noatime, so a read may not update it.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-amin",
         .summary = "match the access age in minutes",
+        .details = "The minute-scale -atime (access time): integer minutes, `+N` / `-N`, no suffix. See -mmin.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-ctime",
         .summary = "match the status-change age in days",
+        .details = "-mtime measured on the status-change time (ctime) - when the inode metadata last changed "
+                   "(permissions, ownership, link count, rename), which a content edit also bumps. Same N-day scale, "
+                   "`+N` / `-N` polarity, BSD unit suffix, and xff compound span. This is not a creation time; see "
+                   "-Btime for that.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-cmin",
         .summary = "match the status-change age in minutes",
+        .details = "The minute-scale -ctime (status-change time): integer minutes, `+N` / `-N`, no suffix. See -mmin.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-Btime",
         .summary = "match the birth (creation) age in days",
+        .details = "-mtime measured on the birth (creation) time: same N-day scale, `+N` / `-N` polarity, BSD unit "
+                   "suffix, and xff compound span. Birth time is not recorded on every filesystem or kernel - where "
+                   "it is absent the test cannot be evaluated and is a hard error (exit 2); --skip-unsupported "
+                   "downgrades that to a warning and skips the entry.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-Bmin",
         .summary = "match the birth (creation) age in minutes",
+        .details = "The minute-scale -Btime (birth time): integer minutes, `+N` / `-N`, no suffix. Same "
+                   "unrecorded-birth-time handling as -Btime (hard error, or a skip under --skip-unsupported).",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-used",
         .summary = "match the whole days between atime and ctime",
+        .details = "Matches the whole days between an entry's last status change and its last access (atime minus "
+                   "ctime) - roughly how long after its metadata changed it was next read. `+N` / `-N` for more / "
+                   "fewer days. Shares atime's relatime / noatime caveat (see -atime).",
         .kind = Kind::kTest,
         .arity = 1,
     },
@@ -537,6 +563,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-daystart",
         .summary = "measure age tests from today's local midnight",
+        .details = "Measures the day- and minute-scale age tests (-mtime / -atime / -ctime / -Btime and their -min "
+                   "forms) from the start of today (local midnight) instead of from the exact current instant, "
+                   "matching GNU find's -daystart. Unlike find, where it only affects tests to its right, in xff it "
+                   "applies run-wide regardless of where it appears in the expression.",
         .kind = Kind::kTest,
         .arity = 0,
     },
