@@ -98,6 +98,9 @@ std::string RenderOne(const registry::Descriptor& descriptor, bool with_details 
   std::string out =
       absl::StrCat(descriptor.name, ArgHint(descriptor), "  ", Tags(descriptor), "\n    ", descriptor.summary, "\n");
   if (with_details) {
+    if (!descriptor.details.empty()) {
+      absl::StrAppend(&out, "    ", descriptor.details, "\n");  // the long explanation (--help=NAME / --help=full)
+    }
     AppendInfluenceBlock(&out, "Affected by:", AffectedBy(descriptor.name));  // derived from the globals
   }
   return out;

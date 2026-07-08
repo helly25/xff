@@ -38,6 +38,18 @@ test::help_topic_flag_prints_entry() {
   expect_matches '\-regex' "${out}"
   expect_output_contains 'regular expression' "${out}" # the summary
   expect_output_contains 'test' "${out}"               # kind tag
+  expect_output_contains 'whole' "${out}"              # the per-primary details (whole-path anchoring)
+}
+
+test::help_full_shows_per_primary_details() {
+  # --help=full renders each primary's long description (registry Descriptor.details), not just the
+  # one-line summaries; --help=expressions (summaries only) does not.
+  local full expr
+  full="$("$(_xff_bin)" --help=full 2>&1)"
+  expr="$("$(_xff_bin)" --help=expressions 2>&1)"
+  expect_output_contains 'batches as many paths' "${full}" # from -exec details
+  expect_output_contains 'needs --allow-exec' "${full}"    # -exec sensitivity note in the details
+  expect_output_not_contains 'batches as many paths' "${expr}"
 }
 
 test::help_topic_flag_resolves_without_dash() {
