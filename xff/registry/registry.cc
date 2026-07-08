@@ -331,18 +331,29 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-newer",
         .summary = "match when mtime is newer than the reference file's mtime",
+        .details = "Matches when the entry's mtime is strictly newer than reference FILE's mtime. FILE is stat'd "
+                   "following symlinks; a missing or unreadable reference makes it false. This is the base of the "
+                   "-newerXY family: `-newerXY FILE` compares the entry's X time against the reference's Y time, "
+                   "where each of X and Y is a=access, c=status-change, m=modification, or B=birth - so `-newerac` "
+                   "is the entry's atime vs the reference's ctime. -anewer / -cnewer are the classic aliases. When Y "
+                   "is `t` the operand is a TIME STRING, not a file (see -newermt). A birth time the filesystem "
+                   "never recorded makes an X=B test a hard error and a Y=B reference a silent no-match.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-anewer",
         .summary = "match when atime is newer than the reference file's mtime (== -neweram)",
+        .details = "find's classic spelling of -neweram: the entry's access time is newer than the reference file's "
+                   "modification time. See -newer for the -newerXY family.",
         .kind = Kind::kTest,
         .arity = 1,
     },
     {
         .name = "-cnewer",
         .summary = "match when ctime is newer than the reference file's mtime (== -newercm)",
+        .details = "find's classic spelling of -newercm: the entry's status-change time is newer than the reference "
+                   "file's modification time. See -newer for the -newerXY family.",
         .kind = Kind::kTest,
         .arity = 1,
     },
@@ -415,6 +426,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-newermt",
         .summary = "match when mtime is newer than a time string",
+        .details = "The `-newerXt` time-string form: matches when the entry's mtime is newer than TIME - a timestamp "
+                   "xff parses (an ISO date / date-time, @epoch, or a relative span), interpreted in --timezone - "
+                   "rather than a reference file. -newerat / -newerct / -newerBt are the access / status-change / "
+                   "birth-time counterparts; the file-reference forms are -newerXY (see -newer).",
         .kind = Kind::kTest,
         .arity = 1,
     },

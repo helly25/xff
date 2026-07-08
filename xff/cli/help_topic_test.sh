@@ -94,6 +94,15 @@ test::help_action_primaries_show_details() {
   expect_output_contains 'opened once' "${fprint}"
 }
 
+test::help_reference_time_primaries_show_details() {
+  # -newer documents the -newerXY matrix convention; -newermt the time-string (t) form.
+  local newer newermt
+  newer="$("$(_xff_bin)" --help=newer 2>&1)"
+  expect_output_contains 'where each of X and Y is a=access' "${newer}"
+  newermt="$("$(_xff_bin)" --help=newermt 2>&1)"
+  expect_output_contains 'a timestamp xff parses' "${newermt}"
+}
+
 test::help_topic_flag_resolves_without_dash() {
   expect_matches '\-regex' "$("$(_xff_bin)" --help=regex 2>&1)"
 }
