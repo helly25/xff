@@ -26,6 +26,7 @@ namespace xff::render {
 namespace {
 
 using ::mbo::testing::EqualsText;
+using ::mbo::testing::WithDropIndent;
 
 struct RenderTest : ::testing::Test {};
 
@@ -102,55 +103,56 @@ TEST_F(RenderTest, EncodeTabularRowJoinsAndEncodesCells) {
 }
 
 // The buffered tabular formats (kAligned / kMarkdown) render the whole table at once via
-// RenderTable. EXPECT_EQ for the multiline output: its unified diff beats a matcher here.
+// RenderTable. EqualsText compares the multiline output line by line (unified diff on mismatch),
+// per the STYLE convention.
 
 TEST_F(RenderTest, RenderTableAlignsColumnsUnderADashedHeaderRule) {
   const std::vector<std::string> header = {"name", "size"};
   const std::vector<std::vector<std::string>> rows = {{"a.txt", "3"}, {"README", "12"}};
-  EXPECT_EQ(
-      RenderTable(Format::kAligned, header, rows),
-      "name    size\n"
-      "------  ----\n"
-      "a.txt   3\n"
-      "README  12\n");
+  EXPECT_THAT(RenderTable(Format::kAligned, header, rows), WithDropIndent(EqualsText(R"out(
+      name    size
+      ------  ----
+      a.txt   3
+      README  12
+      )out")));
 }
 
 TEST_F(RenderTest, RenderTableMarkdownEmitsAGithubTableWithARule) {
   const std::vector<std::string> header = {"name", "size"};
   const std::vector<std::vector<std::string>> rows = {{"README", "12"}, {"a.txt", "3"}};
-  EXPECT_EQ(
-      RenderTable(Format::kMarkdown, header, rows),
-      "| name   | size |\n"
-      "| ------ | ---- |\n"
-      "| README | 12   |\n"
-      "| a.txt  | 3    |\n");
+  EXPECT_THAT(RenderTable(Format::kMarkdown, header, rows), WithDropIndent(EqualsText(R"out(
+      | name   | size |
+      | ------ | ---- |
+      | README | 12   |
+      | a.txt  | 3    |
+      )out")));
 }
 
 TEST_F(RenderTest, RenderTableMarkdownFloorsColumnWidthAtThreeForTheRule) {
-  EXPECT_EQ(
-      RenderTable(Format::kMarkdown, {"x"}, {{"y"}}),
-      "| x   |\n"
-      "| --- |\n"
-      "| y   |\n");
+  EXPECT_THAT(RenderTable(Format::kMarkdown, {"x"}, {{"y"}}), WithDropIndent(EqualsText(R"out(
+      | x   |
+      | --- |
+      | y   |
+      )out")));
 }
 
 TEST_F(RenderTest, RenderTableMarkdownEscapesInteriorPipes) {
   // A literal `|` in a cell is escaped so it cannot split the column.
-  EXPECT_EQ(
-      RenderTable(Format::kMarkdown, {"name"}, {{"has|pipe.txt"}}),
-      "| name          |\n"
-      "| ------------- |\n"
-      "| has\\|pipe.txt |\n");
+  EXPECT_THAT(RenderTable(Format::kMarkdown, {"name"}, {{"has|pipe.txt"}}), WithDropIndent(EqualsText(R"out(
+      | name          |
+      | ------------- |
+      | has\|pipe.txt |
+      )out")));
 }
 
 TEST_F(RenderTest, RenderTableNoHeaderDropsTheHeaderAndRule) {
   // --no-header: only the data rows, and the widths no longer count the hidden header.
   const std::vector<std::string> header = {"name", "size"};
   const std::vector<std::vector<std::string>> rows = {{"README", "12"}, {"a.txt", "3"}};
-  EXPECT_EQ(
-      RenderTable(Format::kAligned, header, rows, /*with_header=*/false),
-      "README  12\n"
-      "a.txt   3\n");
+  EXPECT_THAT(RenderTable(Format::kAligned, header, rows, /*with_header=*/false), WithDropIndent(EqualsText(R"out(
+      README  12
+      a.txt   3
+      )out")));
 }
 
 TEST_F(RenderTest, RenderTableIsEmptyForTheStreamingAndNonTabularFormats) {
@@ -167,12 +169,12 @@ TEST_F(RenderTest, TableStreamBuffersTheWindowThenStreamsTheRestSkewed) {
   TableStream stream(Format::kAligned, {"name", "n"}, /*with_header=*/true, /*window=*/2);
   EXPECT_THAT(stream.Add({"a", "1"}), "");  // still buffering the window
   // The second row fills the window: header + rule + both rows flush at the locked widths.
-  EXPECT_THAT(
-      stream.Add({"bb", "2"}), EqualsText(
-                                   "name  n\n"
-                                   "----  -\n"
-                                   "a     1\n"
-                                   "bb    2\n"));
+  EXPECT_THAT(stream.Add({"bb", "2"}), WithDropIndent(EqualsText(R"out(
+      name  n
+      ----  -
+      a     1
+      bb    2
+      )out")));
   // Past the window a wider cell grows its own column only (graceful skew, no row dropped).
   EXPECT_THAT(stream.Add({"cccc", "3"}), EqualsText("cccc  3\n"));
   EXPECT_THAT(stream.Flush(), "");  // nothing left buffered
@@ -183,12 +185,12 @@ TEST_F(RenderTest, TableStreamAllBuffersUntilFlush) {
   EXPECT_THAT(stream.Add({"a", "1"}), "");
   EXPECT_THAT(stream.Add({"cccc", "2"}), "");  // still buffering everything
   // Flush aligns the whole run at once: `cccc` widens the column for the header and all rows.
-  EXPECT_THAT(
-      stream.Flush(), EqualsText(
-                          "name  n\n"
-                          "----  -\n"
-                          "a     1\n"
-                          "cccc  2\n"));
+  EXPECT_THAT(stream.Flush(), WithDropIndent(EqualsText(R"out(
+      name  n
+      ----  -
+      a     1
+      cccc  2
+      )out")));
   EXPECT_THAT(stream.Flush(), "");  // idempotent
 }
 
