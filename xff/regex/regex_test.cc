@@ -64,6 +64,19 @@ TEST_F(RegexTest, InvalidPatternReturnsError) {
   EXPECT_THAT(Matcher::Compile("a(b", /*case_insensitive=*/false), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
+TEST_F(RegexTest, Re2IsTheExplicitDefaultGrammar) {
+  ASSERT_OK_AND_ASSIGN(const Matcher matcher, Matcher::Compile("a.c", /*case_insensitive=*/false, Grammar::kRe2));
+  EXPECT_TRUE(matcher.FullMatch("abc"));
+}
+
+TEST_F(RegexTest, Pcre2GrammarIsNotBuiltInAndReportsUnimplemented) {
+  // The PCRE2 backend is a build-time extra; this build does not link it, so the grammar resolves to
+  // a distinct Unimplemented error (not an InvalidArgument for a bad pattern). A full build compiles
+  // the real backend for this case.
+  EXPECT_THAT(
+      Matcher::Compile("a.c", /*case_insensitive=*/false, Grammar::kPcre2), StatusIs(absl::StatusCode::kUnimplemented));
+}
+
 TEST_F(RegexTest, FullMatchCapturesReturnsGroups) {
   ASSERT_OK_AND_ASSIGN(const Matcher matcher, Matcher::Compile("(.*)/([^/]+)\\.(.*)", /*case_insensitive=*/false));
   const auto captures = matcher.FullMatchCaptures("a/b/c.txt");
