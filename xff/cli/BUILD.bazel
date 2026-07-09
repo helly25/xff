@@ -249,12 +249,16 @@ bashtest(
 )
 
 # End-to-end test of the extended `xff_full` binary: its `_full` invocation name resolves to the xff
-# style, and without the PCRE2 extra linked it still rejects `--regextype=PCRE2`. Drives xff_full.
+# style, and without the PCRE2 extra linked it still rejects `--regextype=PCRE2`. Drives xff_full, so
+# it is itself `manual` - anything depending on the manual full binary must be excluded from default
+# `//...` builds too, else building the test would build xff_full (and, once #85 lands, its extras).
+# Run it explicitly (`bazel test //xff/cli:full_binary_test`) or in the full CI cell.
 bashtest(
     name = "full_binary_test",
     size = "small",
     srcs = ["full_binary_test.sh"],
     data = [":xff_full"],
+    tags = ["manual"],
 )
 
 # End-to-end test of the --exclude / --include run-level filter (ignore family):
