@@ -70,9 +70,10 @@ TEST_F(RegexTest, Re2IsTheExplicitDefaultGrammar) {
 }
 
 TEST_F(RegexTest, Pcre2GrammarIsNotBuiltInAndReportsUnimplemented) {
-  // The PCRE2 backend is a build-time extra; this build does not link it, so the grammar resolves to
-  // a distinct Unimplemented error (not an InvalidArgument for a bad pattern). A full build compiles
-  // the real backend for this case.
+  // No PCRE2 backend is registered in this (lean) test binary, so Compile reports the grammar as
+  // unavailable -- a distinct Unimplemented state from an InvalidArgument for a bad pattern, and
+  // never a silent fallback to RE2. A full build links the real backend and this succeeds.
+  EXPECT_FALSE(Pcre2Available());
   EXPECT_THAT(
       Matcher::Compile("a.c", /*case_insensitive=*/false, Grammar::kPcre2), StatusIs(absl::StatusCode::kUnimplemented));
 }
