@@ -17,11 +17,14 @@
 #define XFF_REGEX_BACKEND_H_
 
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#include "absl/status/statusor.h"
 
 namespace xff::regex {
 
@@ -49,6 +52,25 @@ class RegexBackend {
   virtual std::optional<std::pair<std::size_t, std::size_t>> FindFirst(std::string_view text) const = 0;
   virtual std::optional<std::vector<std::string>> FullMatchCaptures(std::string_view text) const = 0;
   virtual std::string Rewrite(std::string_view text, std::string_view replacement, bool global) const = 0;
+};
+
+// Compiles `pattern` into a PCRE2-backed RegexBackend (case-folding when `case_insensitive`), or an
+// InvalidArgument error for a pattern PCRE2 rejects. The real PCRE2 backend -- built only into the
+// full binary, from its own removable target under third_party/ -- provides one of these.
+using Pcre2Factory =
+    absl::StatusOr<std::unique_ptr<const RegexBackend>> (*)(std::string_view pattern, bool case_insensitive);
+
+// Registers the process-wide PCRE2 backend factory. Called once, at static-init, from the real
+// backend's translation unit; linkage is presence -- a lean build links no such unit, so nothing
+// registers and the PCRE2 grammar reports "not built in" (see Matcher::Compile / Pcre2Available).
+// Static-init only; not thread-safe (the matter is resolved before the walk starts).
+void RegisterPcre2Backend(Pcre2Factory factory);
+
+// Self-registers `factory` on construction. Declare one at namespace scope in the real backend's TU
+// (the target must be alwayslink so the registrar is not dropped):
+//   const xff::regex::Pcre2Registrar kRegisterPcre2{&CompilePcre2};
+struct Pcre2Registrar {
+  explicit Pcre2Registrar(Pcre2Factory factory) { RegisterPcre2Backend(factory); }
 };
 
 }  // namespace xff::regex

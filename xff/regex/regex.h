@@ -87,6 +87,12 @@ class Matcher {
   std::unique_ptr<const RegexBackend> backend_;
 };
 
+// Whether the PCRE2 grammar (kPcre2) is available in this binary, i.e. the real PCRE2 backend is
+// linked and self-registered. False in the lean build (RE2 only), true in the full build. Drives
+// the help "regex grammars" presence line and the Compile(kPcre2) availability check; -regextype=pcre
+// on a binary where this is false is a clean error, never a silent RE2 fallback.
+bool Pcre2Available();
+
 }  // namespace xff::regex
 
 #endif  // XFF_REGEX_REGEX_H_
