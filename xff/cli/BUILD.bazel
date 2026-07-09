@@ -17,48 +17,52 @@ load("@helly25_bashtest//bashtest:bashtest.bzl", "bashtest")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load(":golden.bzl", "xff_golden_cases")
 
-# Deps shared by the lean `xff` and the extended `xff_full`: both build the same core from the same
-# main.cc and differ only in the composable extras that `xff_full` additionally links (see
-# xff/BUILD.bazel). Kept in one list so the two binaries cannot drift.
-_XFF_CORE_DEPS = [
-    ":help_cc",
-    ":manpage_cc",
-    ":markdown_cc",
-    "//xff/config:config_cc",
-    "//xff/config:loader_cc",
-    "//xff/config:policy_cc",
-    "//xff/datetime:datetime_cc",
-    "//xff/engine:evaluate_cc",
-    "//xff/engine:run_cc",
-    "//xff/format:format_cc",
-    "//xff/parser:parser_cc",
-    "//xff/registry:registry_cc",
-    "//xff/vfs:local_fs_cc",
-    "@abseil-cpp//absl/algorithm:container",
-    "@abseil-cpp//absl/status",
-    "@abseil-cpp//absl/status:statusor",
-]
+# main.cc (the CLI entry point, `main()` included) as a library, so the lean `xff` and the extended
+# `xff_full` are both thin binaries over it: main.cc compiles once, neither binary carries its own
+# main(), and `xff_full` differs only by the composable extras it additionally links (see
+# xff/BUILD.bazel). Sharing one main() is why the two cannot drift.
+cc_library(
+    name = "main_cc",
+    srcs = ["main.cc"],
+    deps = [
+        ":help_cc",
+        ":manpage_cc",
+        ":markdown_cc",
+        "//xff/config:config_cc",
+        "//xff/config:loader_cc",
+        "//xff/config:policy_cc",
+        "//xff/datetime:datetime_cc",
+        "//xff/engine:evaluate_cc",
+        "//xff/engine:run_cc",
+        "//xff/format:format_cc",
+        "//xff/parser:parser_cc",
+        "//xff/registry:registry_cc",
+        "//xff/vfs:local_fs_cc",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+    ],
+)
 
 # The stock lean binary: core only, no composable extras. This is the target every test and golden
 # runs against, and the one built by `//...`.
 cc_binary(
     name = "xff",
-    srcs = ["main.cc"],
     visibility = ["//visibility:public"],
-    deps = _XFF_CORE_DEPS,
+    deps = [":main_cc"],
 )
 
 # The extended binary: the same core plus every composable extra that is turned on. `manual` so
 # `//...` and plain wildcard builds skip it (the extras pull heavier deps); build it explicitly with
 # `bazel build --config=full //xff/cli:xff_full`. Its `xff_full` invocation name maps back to the
 # base style (DefaultStyleForProgram strips the `_full` suffix), so it behaves exactly as `xff` with
-# the extras present. #85 (next) links the PCRE2 backend via `select({"//xff:pcre_enabled": [...]})`.
+# the extras present. #85 (next) adds the PCRE2 backend to its deps via
+# `select({"//xff:xff_pcre_enabled": [...]})`.
 cc_binary(
     name = "xff_full",
-    srcs = ["main.cc"],
     tags = ["manual"],
     visibility = ["//visibility:public"],
-    deps = _XFF_CORE_DEPS,
+    deps = [":main_cc"],
 )
 
 # Registry-backed `xff --man`: a roff man page generated from Globals() + All(), so

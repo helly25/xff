@@ -382,22 +382,22 @@ remains below is the design-forked / larger work.
   pcre2 (#85), and any later special dependency are gated behind Bazel flags, not always compiled
   in: the default binary is a lean core (RE2 only, no archive), and an extended binary is composed
   from the same tree by enabling extras. Per extra: a `bazel_skylib` `bool_flag` (e.g.
-  `//xff:archive`, `//xff:pcre`, default False) + a `config_setting` + a `select()` on the FULL
+  `//xff:xff_archive`, `//xff:xff_pcre`, default False) + a `config_setting` + a `select()` on the FULL
   binary's deps so the extra's backend target (`@libarchive`, `third_party/pcre2`) links only when
   on. Presence is then detected at runtime from the registry the backend self-registers into (e.g.
   `regex::Pcre2Available()`), so there is NO `#ifdef` in the core - deleting the extra's directory
   makes an extra-on build fail to compile while the lean build still builds. (The `-DXFF_WITH_*`
   define was #115a's archive interim; PCRE2 supersedes it with self-registration, and #83 will
-  follow.) A `.bazelrc` convenience config (`build:full --//xff:pcre`, `--//xff:archive` joins with
+  follow.) A `.bazelrc` convenience config (`build:full --//xff:xff_pcre`, `--//xff:xff_archive` joins with
   #83) composes them; CI builds both the lean and the full binary. The CLI reports which
   extras are compiled in (`--version` / help) and a disabled feature errors clearly ("not built in;
-  rebuild with `--//xff:archive`"), never crashes. This is BUILD-time composition (what code/deps
+  rebuild with `--//xff:xff_archive`"), never crashes. This is BUILD-time composition (what code/deps
   are in the binary), distinct from the #73 `--feature` RUNTIME gates. The third-party NOTICE is
   assembled from the enabled extras, so a lean build carries none of their notices.
-  - **Scaffolding SHIPPED (#115a):** the `//xff:archive` `bool_flag` + `config_setting`; a structural
+  - **Scaffolding SHIPPED (#115a):** the `//xff:xff_archive` `bool_flag` + `config_setting`; a structural
     `cli::GlobalFlag.extra` key + `cli::ExtraEnabled(key)` (reads the `XFF_WITH_*` define); the
     `--archive` global, always listed. In a lean build a disabled extra flag stays present but shows
-    under a distinct "Extras (not built into this binary)" help group with a `[needs --//xff:archive]`
+    under a distinct "Extras (not built into this binary)" help group with a `[needs --//xff:xff_archive]`
     note, is documented NOT-built-in by `--help=--archive`, and is a hard immediate error (exit 2)
     **only when used**. Covered by `globals_test` + `extras_test.sh`.
   - **Licenses/notices SHIPPED (#296 interim, then #297 the real design).** Single-file binaries
@@ -412,14 +412,14 @@ remains below is the design-forked / larger work.
     (below). TODO in `license.h`: C++23 `#embed` + reproduce each dep's own license text.
   - **Dual binary SHIPPED (#85 PR4, supersedes the earlier `alias` sketch).** Two real, named
     binaries in `//xff/cli`: `xff` (lean, the target every test/golden runs against and the one built
-    by `//...`) and `xff_full` (`tags=["manual"]`, same core + a `select({"//xff:pcre_enabled":
+    by `//...`) and `xff_full` (`tags=["manual"]`, same core + a `select({"//xff:xff_pcre_enabled":
 [...]})` on its deps). NO `alias` - an alias's runfile takes the resolved target's basename
     (`xff_minimal`), which would break every bashtest's hardcoded `xff/cli/xff` lookup; two named
     `cc_binary`s keep the `xff` artifact named `xff` (zero test churn), and the user picks which
     binary to run. `manual` keeps the heavy full binary + its deps out of default `//...`.
     `DefaultStyleForProgram` strips a `_full` suffix so `xff_full` -> xff style (and `find_full` ->
     find, etc.); covered by `config_test` + `full_binary_test.sh`. `--config=full` (`.bazelrc`) turns
-    the extras on; `--config=full --//xff:pcre=false` drops one from an otherwise-full build.
+    the extras on; `--config=full --//xff:xff_pcre=false` drops one from an otherwise-full build.
   - **REMAINING #85 PR5 (the real PCRE2 backend, NOT built):** `third_party/pcre2/` REAL
     `Pcre2Backend` (implements the `xff/regex` `RegexBackend` iface via the PCRE2 C API), `alwayslink`
     self-registers via `Pcre2Registrar` + a BSD-3 notice, deps the BCR `pcre2` module, linked into
@@ -428,9 +428,9 @@ remains below is the design-forked / larger work.
     pcre2 match/backtrack/depth limits (ReDoS guard), PCRE2-only tests (lookahead/backreferences)
     under `--config=full`, and a CI full cell. Add backend + threading atomically (no window where
     `Pcre2Available()` is true but nothing threads the grammar).
-  - **REMAINING #83 (archive extra, NOT built):** same shape - `//xff:archive` already exists; add a
+  - **REMAINING #83 (archive extra, NOT built):** same shape - `//xff:xff_archive` already exists; add a
     `third_party`/libarchive-backed self-registering module linked into `xff_full` via
-    `select({"//xff:archive_enabled": [...]})`, join `--//xff:archive` into `.bazelrc build:full`.
+    `select({"//xff:xff_archive_enabled": [...]})`, join `--//xff:xff_archive` into `.bazelrc build:full`.
     `@libarchive` **3.8.1.bcr.2 RESOLVES** (verified; target `@libarchive//libarchive:libarchive`,
     keep its `use_mbedtls` OFF); codec set tar/gz/bzip2/xz/zstd/lz4, mbedtls deferred; add the
     `-encrypted` detection predicate (no crypto needed).
@@ -450,7 +450,7 @@ kPcre2}` + `Pcre2Available()` registration slot are in place; PR4 shipped the du
   (`bazel_dep(name = "pcre2", version = "10.47")` - a stable release, not the 10.46-DEV snapshot); a
   clean dep, BSD-3-Clause (same family as re2 / googletest, so no new license type). Add a
   PCRE2-backed `regex::Matcher` behind the existing `xff/regex` abstraction, gated by the
-  `//xff:pcre` extra above; keep **RE2 the default**, PCRE2 opt-in via `-regextype`, and set pcre2
+  `//xff:xff_pcre` extra above; keep **RE2 the default**, PCRE2 opt-in via `-regextype`, and set pcre2
   match / backtrack / depth limits (`pcre2_set_match_limit` etc.) so an adversarial pattern (ReDoS,
   which RE2 is immune to) cannot hang a walk.
 
