@@ -59,6 +59,7 @@
 #include "xff/language/language.h"
 #include "xff/parser/ast.h"
 #include "xff/parser/parser.h"
+#include "xff/regex/regex.h"
 #include "xff/registry/descriptor.h"
 #include "xff/render/render.h"
 #include "xff/repo/repo.h"
@@ -742,11 +743,12 @@ absl::Status ResolveBlockSize(const std::vector<std::string>& globals, std::uint
   return absl::OkStatus();
 }
 
-// --regextype=RE2|EXACT: how -grep interprets its pattern. RE2 (the default) is the
-// regex engine; EXACT is a literal substring. The grep-flavor (MATCH) and PCRE
-// engines are reserved for #85 and rejected until then. Returns whether -grep
-// matches literally, or an InvalidArgument naming an unsupported / unknown value
-// (a usage error, refused before the walk). Last occurrence wins.
+// --regextype=RE2|PCRE2|EXACT: the regex grammar for the pattern predicates (RE2 default, or PCRE2),
+// or EXACT (a literal substring, -grep only). This validates the value for the whole run (it is
+// called unconditionally, so it also guards -regex/-rxc, not just -grep) and returns whether -grep
+// matches literally. PCRE2 is a build-time extra: when it is not linked into this binary it is a
+// usage error here -- never a silent RE2 fallback. MATCH is still reserved. An unknown value is a
+// usage error. All are refused before the walk (exit 2). Last occurrence wins.
 absl::StatusOr<bool> ResolveGrepLiteral(const std::vector<std::string>& globals) {
   constexpr std::string_view kPrefix = "--regextype=";
   bool literal = false;
@@ -757,13 +759,20 @@ absl::StatusOr<bool> ResolveGrepLiteral(const std::vector<std::string>& globals)
     const std::string_view value = std::string_view(global).substr(kPrefix.size());
     if (value == "RE2") {
       literal = false;
+    } else if (value == "PCRE2") {
+      if (!regex::Pcre2Available()) {
+        return absl::InvalidArgumentError(
+            "--regextype=PCRE2 is not built into this binary (the PCRE2 backend is a build extra)");
+      }
+      literal = false;
     } else if (value == "EXACT") {
       literal = true;
-    } else if (value == "MATCH" || value == "PCRE") {
+    } else if (value == "MATCH") {
       return absl::InvalidArgumentError(
-          absl::StrCat("--regextype=", value, " is not supported yet (planned via #85); use RE2 or EXACT"));
+          absl::StrCat("--regextype=", value, " is not supported yet (planned via #85); use RE2, PCRE2 or EXACT"));
     } else {
-      return absl::InvalidArgumentError(absl::StrCat("unknown --regextype '", value, "'; expected RE2 or EXACT"));
+      return absl::InvalidArgumentError(
+          absl::StrCat("unknown --regextype '", value, "'; expected RE2, PCRE2 or EXACT"));
     }
   }
   return literal;
@@ -1605,8 +1614,9 @@ int RunFind(
     on_error("--block-size", size_status);
     return 2;  // do not traverse
   }
-  // --regextype=RE2|EXACT: how -grep reads its pattern (RE2 regex default; EXACT
-  // literal). An unsupported (MATCH/PCRE) or unknown value is a usage error.
+  // --regextype=RE2|PCRE2|EXACT: the regex grammar (RE2 default, or PCRE2) plus EXACT (-grep
+  // literal). Validated for the whole run; PCRE2 when not built into this binary, MATCH (reserved),
+  // and unknown values are usage errors.
   const absl::StatusOr<bool> grep_literal = ResolveGrepLiteral(command.globals);
   if (!grep_literal.ok()) {
     on_error("--regextype", grep_literal.status());
