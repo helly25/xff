@@ -358,7 +358,26 @@ remains below is the design-forked / larger work.
     GPL arms), and link lz4's **library** (BSD-2), not its GPL-2.0 CLI. With those arms pinned there
     is no copyleft. Ship a third-party-notices file carrying each permissive notice; extend it as
     the codec set grows (minimal variant needs only BSD-2 + Zlib + bzip2).
+  - **Scope: recurse into any archive found, not roots-only (decided 2026-07-09).** `--archive` is
+    opt-in (default off = archives are plain files everywhere; `find .` unchanged). When on, an
+    archive is transparently a directory WHEREVER it appears - a named root (`xff --archive foo.tgz`)
+    AND every archive met during a walk (`xff --archive . -grep TODO` searches inside all of them).
+    One uniform rule (archive == directory), not special-cased roots (roots-only can't do the walk
+    case, which is the point). Entry path = the archive path as a directory prefix
+    (`foo.tgz/dir/file.txt`; globs / `{relpath}` compose). Nested archives recurse with a DEPTH CAP;
+    a size/depth cost guard is a follow-up knob (opt-in, so the cost is the user's choice). The
+    archive VFS is READ-ONLY: `-delete` / `-exec` / `-execdir` on an archive entry is a clean error,
+    never a silent no-op (`-exec` extract-to-temp deferred). Encrypted archives: `-encrypted`
+    detection only, no `--password` decryption.
 
+- **Third `-regextype` grammar: shell-glob (#121, task-tracked).** Once PCRE2 proves the third-backend
+  path, add `Grammar::kGlob` + a `GlobBackend` on the `xff/regex` `RegexBackend` abstraction,
+  selectable via `--regextype=GLOB` (and later the find `-regextype` primary). Fits `-regex`/`-iregex`
+  as a whole-string shell glob (fnmatch) - a grammar-selected alternative to `-path`. Open nuance:
+  glob has no capture groups and no natural match-span, so partial/line matching (`-grep`/`-rxc`) and
+  captures / `{field:s/}` rewrite are degenerate - restrict `kGlob` to the whole-match predicates or
+  define per-line fnmatch. Cheap on the abstraction; overlaps `-path` for `-regex` (fine - it is about
+  letting glob-thinking users pick their grammar uniformly).
 - **Heavy/special libs are composable build-time extras (decided 2026-07-06).** libarchive (#83),
   pcre2 (#85), and any later special dependency are gated behind Bazel flags, not always compiled
   in: the default binary is a lean core (RE2 only, no archive), and an extended binary is composed

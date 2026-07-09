@@ -118,8 +118,19 @@ test::regextype_reserved_value_is_a_usage_error() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" --regextype=MATCH "${root}" -grep 'TODO' 2>&1)" && rc=0 || rc=$?
   rm -rf "${root}"
-  expect_eq "2" "${rc}" # MATCH / PCRE are reserved (#85)
+  expect_eq "2" "${rc}" # MATCH is still reserved (#85)
   expect_matches 'not supported yet' "${out}"
+}
+
+test::regextype_pcre2_not_built_in_is_a_usage_error() {
+  # PCRE2 is a build-time extra; this (lean) binary does not link it, so --regextype=PCRE2 is a
+  # usage error (exit 2), never a silent RE2 fallback. A full build accepts it.
+  local root out rc
+  root="$(_make_tree)"
+  out="$("$(_xff_bin)" --regextype=PCRE2 "${root}" -grep 'TODO' 2>&1)" && rc=0 || rc=$?
+  rm -rf "${root}"
+  expect_eq "2" "${rc}"
+  expect_matches 'not built into this binary' "${out}"
 }
 
 test::grep_format_overrides_the_default_output() {

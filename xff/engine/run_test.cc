@@ -1568,8 +1568,11 @@ TEST_F(RunTest, GrepRegextypeDefaultIsRe2) {
 }
 
 TEST_F(RunTest, UnsupportedRegextypeIsAUsageError) {
-  // MATCH / PCRE are reserved (#85): a usage error refused before the walk (exit 2).
+  // MATCH is reserved (#85), and PCRE2 is a build extra not linked into this (lean) test binary:
+  // both are usage errors refused before the walk (exit 2), never a silent RE2 fallback.
   EXPECT_THAT(RunArgvRecords({"--regextype=MATCH", root_.string(), "-grep", "x"}), IsEmpty());
+  EXPECT_THAT(last_errors_, Not(0));
+  EXPECT_THAT(RunArgvRecords({"--regextype=PCRE2", root_.string(), "-grep", "x"}), IsEmpty());
   EXPECT_THAT(last_errors_, Not(0));
 }
 
