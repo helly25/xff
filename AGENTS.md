@@ -20,10 +20,14 @@ Toolchain: clang-22 minimum (hermetic LLVM under `--config=clang`).
    over `EXPECT_EQ` / `ASSERT_EQ`.
 4. **Multi-line text: `mbo::testing::EqualsText`, not `EXPECT_EQ`.** For a
    multi-line string use `EXPECT_THAT(actual, EqualsText(golden))` (unified diff,
-   line by line); `WithDropIndent(EqualsText(golden))` + `mbo::strings::DropIndent`
-   strip a source indent, and `DropIndentAndSplit` yields the lines as a vector.
-   `STYLE_CPP.md` is canonical. A bare `EXPECT_EQ` multi-line is only the
-   fallback for text that is not line-oriented.
+   line by line). Write the golden as a `DropIndent`-filtered indented raw string,
+   not concatenated `"...\n"` literals (which `clang-format` shoves against the
+   `EqualsText(` paren): `WithDropIndent(EqualsText(R"out(` ... `)out"))`.
+   `WithDropIndent` de-indents the expected text only; `DropIndentAndSplit` yields
+   the lines as a vector. Caveat: a raw-string golden cannot carry significant
+   trailing whitespace (the trim-trailing-whitespace hook strips it) - use the
+   literal form there. `STYLE_CPP.md` is canonical. A bare `EXPECT_EQ` multi-line is
+   only the fallback for text that is not line-oriented.
 5. **Typed and parameterized tests supply names from the types/values** (name
    generators for `TYPED_TEST_SUITE` / `INSTANTIATE_TEST_SUITE_P`), so the
    output never shows numbered tests (`Suite/0`, `Suite/1`).

@@ -345,13 +345,38 @@ substitute for a committed test. Tests use GoogleTest + GoogleMock with these co
   (a rendered table, generated `--help`, file contents) prefer
   `EXPECT_THAT(actual, EqualsText(golden))` (`@helly25_mbo//mbo/testing:matchers_cc`): it compares
   line by line with unified-diff output, so a mismatch points at the offending line instead of
-  dumping the whole blob. When the golden is an indented raw-string literal, wrap it
-  `WithDropIndent(EqualsText(golden))` to strip the source indent, and de-indent the subject to
-  match via `mbo::strings::DropIndent(actual)` (`@helly25_mbo//mbo/strings:indent_cc`) -
-  `EXPECT_THAT(DropIndent(actual), WithDropIndent(EqualsText(golden)))`. Its `DropIndentAndSplit`
-  returns the de-indented lines as a `std::vector<std::string_view>` for when you would rather match
-  them with `ElementsAre`. A bare `EXPECT_EQ` on a multi-line string is now only the fallback for
+  dumping the whole blob. A bare `EXPECT_EQ` on a multi-line string is now only the fallback for
   text that is not line-oriented.
+  - **Write the golden as a `DropIndent`-filtered raw string, not concatenated `"...\n"` literals.**
+    `clang-format` shoves adjacent string literals hard against the `EqualsText(` bracket (aligned to
+    the open paren, often at column ~35), which is unreadable and drifts with the call length. Instead
+    write the expected block as an indented raw string and strip the source indent with
+    `WithDropIndent`, which `clang-format` leaves untouched:
+
+    ```cpp
+    using ::mbo::testing::EqualsText;
+    using ::mbo::testing::WithDropIndent;
+    EXPECT_THAT(RenderTable(Format::kAligned, header, rows), WithDropIndent(EqualsText(R"out(
+        name    size
+        ------  ----
+        a.txt   3
+        )out")));
+    ```
+
+    `mbo::strings::DropIndent` (which `WithDropIndent` applies to the **expected** text only) drops the
+    empty first line after `R"out(`, strips the first content line's indent from every line, and clears
+    a whitespace-only last line - so the block reads as the literal expected output. The subject stays
+    as-is; only de-indent it too (`EXPECT_THAT(DropIndent(actual), WithDropIndent(EqualsText(golden)))`,
+    `@helly25_mbo//mbo/strings:indent_cc`) when the actual is itself an indented literal. Use any raw
+    delimiter (`R"out(`, `R"md(`); a raw string also needs no `\n` / `\\` escaping.
+
+  - **Caveat - trailing whitespace.** A raw-string golden cannot carry significant _trailing_ spaces on
+    a line: the `trim trailing whitespace` pre-commit hook strips them, silently changing the golden. If
+    the expected output has meaningful trailing whitespace (e.g. right-padded columns), fall back to the
+    concatenated-literal form for that case and accept the paren alignment.
+  - `DropIndentAndSplit` returns the de-indented lines as a `std::vector<std::string_view>` for when you
+    would rather match them with `ElementsAre`.
+
 - **Floats / doubles**: never `Eq` / `==`; use `FloatEq` / `DoubleEq` (or `Near`).
 - **Optionals**: `EXPECT_THAT(opt, Eq(std::nullopt))` for empty, `Optional(...)` for a
   value. Nested matchers do **not** auto-wrap: `Optional(Eq("x"))` and `Pointee(Eq("x"))`
