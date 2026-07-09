@@ -25,20 +25,30 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
-#include "re2/re2.h"
 
 namespace xff::regex {
 
-// A compiled regular expression matched against whole strings: find's -regex
-// matches the entire path, not a substring. Backed by RE2 (linear-time, no
-// catastrophic backtracking). Move-only; safe to match concurrently once
-// compiled. The -regextype grammar selection is layered on in a follow-up; this
-// uses RE2's default (POSIX-extended-like) syntax.
+// The regex grammar a Matcher compiles with. kRe2 is RE2 (linear-time, no catastrophic
+// backtracking) - the default and find's historic behavior. kPcre2 is PCRE2 (Perl syntax:
+// backreferences, lookaround), selected by -regextype=pcre / --regextype=PCRE; it is available only
+// when the PCRE2 backend is built into the binary, otherwise Compile returns an Unimplemented error.
+enum class Grammar { kRe2, kPcre2 };
+
+class RegexBackend;  // the concrete engine (backend.h); a Matcher owns one behind a unique_ptr
+
+// A compiled regular expression. -regex matches the whole string (FullMatch); -rxc / -grep match
+// anywhere (PartialMatch / FindFirst). The grammar (RE2 default, or PCRE2) is chosen at Compile and
+// the engine held behind a RegexBackend, so this API is grammar-agnostic. Move-only; const after
+// compile, so a compiled Matcher is safe to match concurrently.
 class Matcher {
  public:
-  // Compiles `pattern`; `case_insensitive` folds case (find's -iregex). Returns
-  // an InvalidArgument error carrying RE2's diagnostic when it does not compile.
-  static absl::StatusOr<Matcher> Compile(std::string_view pattern, bool case_insensitive);
+  // Compiles `pattern` under `grammar`; `case_insensitive` folds case (find's -iregex). Returns an
+  // InvalidArgument error carrying the engine's diagnostic when the pattern does not compile, or an
+  // Unimplemented error when `grammar`'s backend is not built into this binary.
+  static absl::StatusOr<Matcher> Compile(
+      std::string_view pattern,
+      bool case_insensitive,
+      Grammar grammar = Grammar::kRe2);
 
   // True iff `text` matches the pattern in its entirety (both ends anchored).
   bool FullMatch(std::string_view text) const;
@@ -65,13 +75,16 @@ class Matcher {
   // {field:s/PAT/REPL/} rewrite qualifier.
   std::string Rewrite(std::string_view text, std::string_view replacement, bool global) const;
 
-  Matcher(Matcher&&) = default;
-  Matcher& operator=(Matcher&&) = default;
+  ~Matcher();
+  Matcher(Matcher&&) noexcept;
+  Matcher& operator=(Matcher&&) noexcept;
+  Matcher(const Matcher&) = delete;
+  Matcher& operator=(const Matcher&) = delete;
 
  private:
-  explicit Matcher(std::unique_ptr<RE2> re) : re_(std::move(re)) {}
+  explicit Matcher(std::unique_ptr<const RegexBackend> backend);
 
-  std::unique_ptr<RE2> re_;
+  std::unique_ptr<const RegexBackend> backend_;
 };
 
 }  // namespace xff::regex

@@ -27,59 +27,105 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "re2/re2.h"
+#include "xff/regex/backend.h"
 
 namespace xff::regex {
+namespace {
 
-absl::StatusOr<Matcher> Matcher::Compile(std::string_view pattern, bool case_insensitive) {
-  RE2::Options options;
-  options.set_case_sensitive(!case_insensitive);
-  options.set_log_errors(false);  // surface failures via Status, not stderr
-  auto re = std::make_unique<RE2>(pattern, options);
-  if (!re->ok()) {
-    return absl::InvalidArgumentError(absl::StrCat("invalid regular expression: ", re->error()));
+// The default grammar: RE2 (linear-time, no catastrophic backtracking). Holds the compiled RE2 and
+// forwards each Matcher operation to it.
+class Re2Backend final : public RegexBackend {
+ public:
+  explicit Re2Backend(std::unique_ptr<RE2> re) : re_(std::move(re)) {}
+
+  bool FullMatch(std::string_view text) const override { return RE2::FullMatch(text, *re_); }
+
+  bool PartialMatch(std::string_view text) const override { return RE2::PartialMatch(text, *re_); }
+
+  std::optional<std::pair<std::size_t, std::size_t>> FindFirst(std::string_view text) const override {
+    std::string_view match;  // submatch[0] = the whole match; its data() points into `text`
+    if (!re_->Match(text, 0, text.size(), RE2::UNANCHORED, &match, 1)) {
+      return std::nullopt;
+    }
+    return std::make_pair(static_cast<std::size_t>(match.data() - text.data()), match.size());
   }
-  return Matcher(std::move(re));
+
+  std::optional<std::vector<std::string>> FullMatchCaptures(std::string_view text) const override {
+    const int groups = re_->NumberOfCapturingGroups();  // parenthesised groups, excluding the whole match
+    const int nsubmatch = groups + 1;                   // index 0 holds the whole match
+    std::vector<std::string_view> submatches(static_cast<std::size_t>(nsubmatch));
+    if (!re_->Match(text, 0, text.size(), RE2::ANCHOR_BOTH, submatches.data(), nsubmatch)) {
+      return std::nullopt;
+    }
+    std::vector<std::string> captures;
+    captures.reserve(submatches.size());
+    for (const std::string_view submatch : submatches) {  // [0] = whole match, [1..] = groups
+      captures.emplace_back(submatch);
+    }
+    return captures;
+  }
+
+  std::string Rewrite(std::string_view text, std::string_view replacement, bool global) const override {
+    std::string out(text);
+    if (global) {
+      RE2::GlobalReplace(&out, *re_, replacement);
+    } else {
+      RE2::Replace(&out, *re_, replacement);
+    }
+    return out;
+  }
+
+ private:
+  std::unique_ptr<RE2> re_;
+};
+
+}  // namespace
+
+absl::StatusOr<Matcher> Matcher::Compile(std::string_view pattern, bool case_insensitive, Grammar grammar) {
+  switch (grammar) {
+    case Grammar::kRe2: {
+      RE2::Options options;
+      options.set_case_sensitive(!case_insensitive);
+      options.set_log_errors(false);  // surface failures via Status, not stderr
+      auto re = std::make_unique<RE2>(pattern, options);
+      if (!re->ok()) {
+        return absl::InvalidArgumentError(absl::StrCat("invalid regular expression: ", re->error()));
+      }
+      return Matcher(std::make_unique<Re2Backend>(std::move(re)));
+    }
+    case Grammar::kPcre2:
+      // The PCRE2 backend is a build-time extra; this build does not link it. A full build will
+      // compile a real Pcre2Backend for this case (see backend.h). Kept a distinct state from a bad
+      // pattern: this is "grammar not available in this binary", not "your regex is wrong".
+      return absl::UnimplementedError("the PCRE2 regex grammar (-regextype=pcre) is not built into this binary");
+  }
+  return absl::InternalError("unknown regex grammar");  // unreachable: the enum is exhaustive
 }
 
+Matcher::Matcher(std::unique_ptr<const RegexBackend> backend) : backend_(std::move(backend)) {}
+
+Matcher::~Matcher() = default;
+Matcher::Matcher(Matcher&&) noexcept = default;
+Matcher& Matcher::operator=(Matcher&&) noexcept = default;
+
 bool Matcher::FullMatch(std::string_view text) const {
-  return RE2::FullMatch(text, *re_);
+  return backend_->FullMatch(text);
 }
 
 bool Matcher::PartialMatch(std::string_view text) const {
-  return RE2::PartialMatch(text, *re_);
+  return backend_->PartialMatch(text);
 }
 
 std::optional<std::pair<std::size_t, std::size_t>> Matcher::FindFirst(std::string_view text) const {
-  std::string_view match;  // submatch[0] = the whole match; its data() points into `text`
-  if (!re_->Match(text, 0, text.size(), RE2::UNANCHORED, &match, 1)) {
-    return std::nullopt;
-  }
-  return std::make_pair(static_cast<std::size_t>(match.data() - text.data()), match.size());
+  return backend_->FindFirst(text);
 }
 
 std::optional<std::vector<std::string>> Matcher::FullMatchCaptures(std::string_view text) const {
-  const int groups = re_->NumberOfCapturingGroups();  // parenthesised groups, excluding the whole match
-  const int nsubmatch = groups + 1;                   // index 0 holds the whole match
-  std::vector<std::string_view> submatches(static_cast<std::size_t>(nsubmatch));
-  if (!re_->Match(text, 0, text.size(), RE2::ANCHOR_BOTH, submatches.data(), nsubmatch)) {
-    return std::nullopt;
-  }
-  std::vector<std::string> captures;
-  captures.reserve(submatches.size());
-  for (const std::string_view submatch : submatches) {  // [0] = whole match, [1..] = groups
-    captures.emplace_back(submatch);
-  }
-  return captures;
+  return backend_->FullMatchCaptures(text);
 }
 
 std::string Matcher::Rewrite(std::string_view text, std::string_view replacement, bool global) const {
-  std::string out(text);
-  if (global) {
-    RE2::GlobalReplace(&out, *re_, replacement);
-  } else {
-    RE2::Replace(&out, *re_, replacement);
-  }
-  return out;
+  return backend_->Rewrite(text, replacement, global);
 }
 
 }  // namespace xff::regex

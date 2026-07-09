@@ -18,7 +18,10 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 # Regular-expression matching for find's -regex/-iregex, backed by RE2.
 cc_library(
     name = "regex_cc",
-    srcs = ["regex.cc"],
+    srcs = [
+        "backend.h",  # private: the RegexBackend interface (RE2 today, PCRE2 when built in)
+        "regex.cc",
+    ],
     hdrs = ["regex.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
