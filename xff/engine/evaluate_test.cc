@@ -261,6 +261,10 @@ TEST_F(EvaluateTest, MimeGlobsTheExtensionDerivedMediaType) {
   EXPECT_TRUE(Match({"-mime", "image/*"}, png));    // image/png matches the glob
   EXPECT_TRUE(Match({"-mime", "image/png"}, png));  // and the exact type
   EXPECT_FALSE(Match({"-mime", "text/*"}, png));
+  // MIME type/subtype names are case-insensitive (RFC 2045/6838): an upper- or mixed-case pattern
+  // matches the (canonical lowercase) type just the same.
+  EXPECT_TRUE(Match({"-mime", "IMAGE/*"}, png));
+  EXPECT_TRUE(Match({"-mime", "Image/PNG"}, png));
   // An unknown / absent extension is application/octet-stream (the file(1) fallback).
   vfs::Metadata bin_md;
   const Visit bin = MakeVisit("dir/README", "README", vfs::FileType::kRegular, bin_md);

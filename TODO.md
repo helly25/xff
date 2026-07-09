@@ -222,6 +222,20 @@ remains below is the design-forked / larger work.
   row** - that table stays incomplete until smart-case is a real facet. **Open:** interaction
   with `--exact` and the FS case-fold probe, and whether it applies uniformly to `-name` globs,
   `-regex`, and `-grep`.
+- **`-mime` / `-lang` vocabulary: richer per-type data + table overrides - deferred.** Matching is
+  now always case-insensitive (MIME type/subtype names are case-insensitive per RFC 2045/6838;
+  language names keep a canonical case for the `{mime}`/`{lang}` display), independent of
+  `--case`/`-i`/`-s` - shipped as a lower-cased glob compare in `EvalMime`/`EvalLang`. **Deferred
+  (build when a consumer or the override feature gives it a concrete driver):** turn the
+  `TypeForName`/`LanguageForName` return into a `{key, data}` struct - `key` the canonical
+  lower-cased value (the match target), `data` an extensible payload for `file(1)`-style details
+  (description, category, linguist color / aliases). The tables would become canonical vocabularies
+  keyed on the lower-cased value (each entry once), with a runtime-derived `ext -> key` index
+  (uniqueness-checked: one ext maps to one entry; true multi-candidate disambiguation is the
+  separately-deferred content-classification feature) and the ability to override the compiled-in
+  tables at runtime. Callers already reach the vocabulary only through the query, so the storage
+  change stays behind the API. The design is captured in the NOTE in `xff/mime/mime.h` and
+  `xff/language/language.h`.
 - **Sharded-file support (#84) - TBD, needs a design pass.** Treat a set of shard files
   (`data-00000-of-00010`, split `foo.tar.001` parts, ...) as one logical entry for matching /
   listing / content actions. **No design yet:** which shard schemes are in scope, whether it is

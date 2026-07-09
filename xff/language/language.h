@@ -30,7 +30,16 @@ namespace xff::language {
 // (no github-linguist dependency, no YAML parsing -- a deliberate no-heavyweight-dep choice, the
 // same call the mime module makes). The heuristics linguist layers on top (shebang / modeline /
 // content disambiguation of `.h`, `.m`, `.pl`, ...) are out of scope; this is a fast,
-// dependency-free first cut backing the `-lang GLOB` predicate and the `{lang}` field.
+// dependency-free first cut backing the `-lang GLOB` predicate and the `{lang}` field. -lang
+// matching is case-insensitive (a canonical name has fixed case that display keeps) and
+// independent of --case / -i / -s.
+//
+// NOTE (deferred richer data): callers reach the vocabulary only through this query, so the return
+// can later become a `{key, data}` struct -- `key` the canonical lower-cased name (the -lang match
+// target), `data` an extensible payload (linguist color / group / aliases, ...). The table could
+// then be a canonical map keyed on the lower-cased name (each language once) with a runtime-derived
+// extension index (uniqueness-checked) and table overrides. Deferred until a consumer drives it;
+// see TODO.md.
 std::string_view LanguageForName(std::string_view name);
 
 }  // namespace xff::language

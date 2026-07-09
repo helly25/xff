@@ -231,7 +231,9 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .summary = "match the media type by extension against a glob, e.g. -mime 'image/*' (xff)",
         .details = "xff extension: matches the media (MIME) type derived from the filename extension (a fast, "
                    "dependency-free table - no content sniffing) against a shell glob, so `image/*` matches "
-                   "png/jpg/... and `text/plain` is exact. The same value is the {mime} field.",
+                   "png/jpg/... and `text/plain` is exact. The same value is the {mime} field. Matching is always "
+                   "case-insensitive (MIME names are case-insensitive per RFC 2045/6838), so `IMAGE/*` behaves like "
+                   "`image/*`; --case / -i / -s do not affect it.",
         .kind = Kind::kTest,
         .arity = 1,
         .style = Style::kXff,
@@ -241,7 +243,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .summary = "match the language by extension/filename against a glob, e.g. -lang 'C*' (xff)",
         .details = "xff extension: matches the programming language inferred from the extension/filename "
                    "(github-linguist data) against a shell glob, so `C*` matches C / C++ / C#. The same value is the "
-                   "{lang} field.",
+                   "{lang} field. Matching is always case-insensitive (`c++` matches the canonical `C++`) and "
+                   "unaffected by --case / -i / -s.",
         .kind = Kind::kTest,
         .arity = 1,
         .style = Style::kXff,

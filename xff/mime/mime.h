@@ -31,6 +31,12 @@ namespace xff::mime {
 // later; the extension map is a fast, dependency-free first cut that backs the
 // `-mime GLOB` predicate. Matching is case-insensitive on the extension (`.JPG` ==
 // `.jpg`); a dotfile with no further dot (e.g. `.bashrc`) has no extension.
+//
+// NOTE (deferred richer data): callers reach the vocabulary only through this query, so the return
+// can later become a `{key, data}` struct -- `key` the canonical lower-cased type (the -mime match
+// target), `data` an extensible payload for file(1)-style details (description, category, ...).
+// The table could then be a canonical, override-able vocabulary with a runtime-derived extension
+// index. Not built until a metadata consumer or the table-override feature drives it; see TODO.md.
 std::string_view TypeForName(std::string_view name);
 
 }  // namespace xff::mime
