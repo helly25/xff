@@ -39,6 +39,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
@@ -1285,9 +1286,15 @@ bool EvalType(const parser::Expr& expr, EvalContext& ctx) {
 
 // xff -mime GLOB: match the entry's media type (derived from its extension via the
 // mime table) against a shell glob, so -mime 'image/*' selects png/jpeg/... at once.
-// Content is not read; an unknown or absent extension is application/octet-stream.
+// Matching is ALWAYS case-insensitive: MIME type/subtype names are case-insensitive per
+// RFC 2045 / 6838, so 'IMAGE/*' and 'image/*' behave the same. Both sides are ASCII-lowered and
+// glob-compared, so it is independent of --case / -i / -s (which govern the text matchers, not
+// this derived vocabulary). Content is not read; an unknown or absent extension is
+// application/octet-stream. (See mime::TypeForName for the deferred richer-data plan.)
 bool EvalMime(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && Fnmatch(expr.args.front(), mime::TypeForName(ctx.visit.name), 0);
+  return !expr.args.empty()
+         && Fnmatch(
+             absl::AsciiStrToLower(expr.args.front()), absl::AsciiStrToLower(mime::TypeForName(ctx.visit.name)), 0);
 }
 
 // xff -lang GLOB: match the entry's programming/markup language (from its extension or filename
