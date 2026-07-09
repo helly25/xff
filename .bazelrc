@@ -48,12 +48,12 @@ test --test_output=errors
 common --copt=-fdiagnostics-color=always
 common --copt=-fno-exceptions
 
-# --config=full : build the extended "full" binary (`//xff/cli:xff_full`, a `manual` target) with
+# --config=xff_full : build the extended "full" binary (`//xff/cli:xff_full`, a `manual` target) with
 # every composable extra linked in. Each extra is off by default (see xff/BUILD.bazel); this config
 # turns them on. Drop one from an otherwise-full build by overriding on the command line, e.g.
-# `bazel build --config=full --//xff:xff_pcre=false //xff/cli:xff_full`. (--//xff:xff_archive joins
+# `bazel build --config=xff_full --//xff:xff_pcre=false //xff/cli:xff_full`. (--//xff:xff_archive joins
 # here once #83 wires its backend target.)
-common:full --//xff:xff_pcre=True
+common:xff_full --//xff:xff_pcre=True
 
 # Register the hermetic LLVM/clang toolchain ONLY for `--config=clang`. Bazel 9
 # always resolves C++ toolchains, so `--extra_toolchains` (higher priority than

@@ -54,7 +54,7 @@ cc_binary(
 
 # The extended binary: the same core plus every composable extra that is turned on. `manual` so
 # `//...` and plain wildcard builds skip it (the extras pull heavier deps); build it explicitly with
-# `bazel build --config=full //xff/cli:xff_full`. Its `xff_full` invocation name maps back to the
+# `bazel build --config=xff_full //xff/cli:xff_full`. Its `xff_full` invocation name maps back to the
 # base style (DefaultStyleForProgram strips the `_full` suffix), so it behaves exactly as `xff` with
 # the extras present. #85 (next) adds the PCRE2 backend to its deps via
 # `select({"//xff:xff_pcre_enabled": [...]})`.

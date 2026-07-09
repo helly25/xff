@@ -15,9 +15,9 @@
 
 # Build-time "composable extras" flags. Heavy / special dependencies are OFF by default so the
 # stock `//xff/cli:xff` is a lean core; the extended `//xff/cli:xff_full` binary is composed from
-# the same source tree by turning extras on. `bazel build --config=full //xff/cli:xff_full` builds
+# the same source tree by turning extras on. `bazel build --config=xff_full //xff/cli:xff_full` builds
 # the full binary with every extra; a single extra can still be dropped from an otherwise-full
-# build on the command line (e.g. `--config=full --//xff:xff_pcre=false //xff/cli:xff_full`).
+# build on the command line (e.g. `--config=xff_full --//xff:xff_pcre=false //xff/cli:xff_full`).
 #
 # Each extra is a self-registering backend target (under `third_party/`) that only `xff_full` links,
 # via a `select()` on the extra's `config_setting`. Presence is detected at runtime from the
@@ -45,7 +45,7 @@ config_setting(
 )
 
 # --//xff:xff_pcre -- link the PCRE2 regex backend (third_party/pcre2; wired in #85). Default off, so
-# only `xff_full` built with the extra on (`--config=full`, or `--//xff:xff_pcre`) links it. Without
+# only `xff_full` built with the extra on (`--config=xff_full`, or `--//xff:xff_pcre`) links it. Without
 # it, `--regextype=PCRE2` is a usage error (never a silent RE2 fallback).
 bool_flag(
     name = "xff_pcre",

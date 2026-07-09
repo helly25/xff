@@ -388,7 +388,7 @@ remains below is the design-forked / larger work.
   `regex::Pcre2Available()`), so there is NO `#ifdef` in the core - deleting the extra's directory
   makes an extra-on build fail to compile while the lean build still builds. (The `-DXFF_WITH_*`
   define was #115a's archive interim; PCRE2 supersedes it with self-registration, and #83 will
-  follow.) A `.bazelrc` convenience config (`build:full --//xff:xff_pcre`, `--//xff:xff_archive` joins with
+  follow.) A `.bazelrc` convenience config (`build:xff_full --//xff:xff_pcre`, `--//xff:xff_archive` joins with
   #83) composes them; CI builds both the lean and the full binary. The CLI reports which
   extras are compiled in (`--version` / help) and a disabled feature errors clearly ("not built in;
   rebuild with `--//xff:xff_archive`"), never crashes. This is BUILD-time composition (what code/deps
@@ -418,24 +418,24 @@ remains below is the design-forked / larger work.
     `cc_binary`s keep the `xff` artifact named `xff` (zero test churn), and the user picks which
     binary to run. `manual` keeps the heavy full binary + its deps out of default `//...`.
     `DefaultStyleForProgram` strips a `_full` suffix so `xff_full` -> xff style (and `find_full` ->
-    find, etc.); covered by `config_test` + `full_binary_test.sh`. `--config=full` (`.bazelrc`) turns
-    the extras on; `--config=full --//xff:xff_pcre=false` drops one from an otherwise-full build.
+    find, etc.); covered by `config_test` + `full_binary_test.sh`. `--config=xff_full` (`.bazelrc`) turns
+    the extras on; `--config=xff_full --//xff:xff_pcre=false` drops one from an otherwise-full build.
   - **REMAINING #85 PR5 (the real PCRE2 backend, NOT built):** `third_party/pcre2/` REAL
     `Pcre2Backend` (implements the `xff/regex` `RegexBackend` iface via the PCRE2 C API), `alwayslink`
     self-registers via `Pcre2Registrar` + a BSD-3 notice, deps the BCR `pcre2` module, linked into
-    `xff_full` by that `select`; builds ONLY under `--config=full`. Plus grammar threading
+    `xff_full` by that `select`; builds ONLY under `--config=xff_full`. Plus grammar threading
     (`Grammar::kPcre2` through the parser compile sites) so `--regextype=PCRE2` actually uses it, set
     pcre2 match/backtrack/depth limits (ReDoS guard), PCRE2-only tests (lookahead/backreferences)
-    under `--config=full`, and a CI full cell. Add backend + threading atomically (no window where
+    under `--config=xff_full`, and a CI full cell. Add backend + threading atomically (no window where
     `Pcre2Available()` is true but nothing threads the grammar).
   - **REMAINING #83 (archive extra, NOT built):** same shape - `//xff:xff_archive` already exists; add a
     `third_party`/libarchive-backed self-registering module linked into `xff_full` via
-    `select({"//xff:xff_archive_enabled": [...]})`, join `--//xff:xff_archive` into `.bazelrc build:full`.
+    `select({"//xff:xff_archive_enabled": [...]})`, join `--//xff:xff_archive` into `.bazelrc build:xff_full`.
     `@libarchive` **3.8.1.bcr.2 RESOLVES** (verified; target `@libarchive//libarchive:libarchive`,
     keep its `use_mbedtls` OFF); codec set tar/gz/bzip2/xz/zstd/lz4, mbedtls deferred; add the
     `-encrypted` detection predicate (no crypto needed).
   - **What CHANGES when the real modules land:** committed `NOTICE` becomes the FULL set (regenerated
-    from the full binary); a drift check runs `--config=full` only; CI gains a full cell (builds/tests
+    from the full binary); a drift check runs `--config=xff_full` only; CI gains a full cell (builds/tests
     both lean and full). **Open detail:** what `--archive` does in a full build before real diving
     exists (avoid a silent no-op; "not yet implemented" is distinct from the minimal "not built in").
 

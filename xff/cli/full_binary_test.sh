@@ -18,7 +18,7 @@
 # the dual-binary scaffolding: `xff_full` is a real, runnable binary whose `_full` invocation name
 # maps back to the xff style (so it behaves exactly as `xff`), and - because this build did not link
 # the PCRE2 extra - `--regextype=PCRE2` is still a usage error, never a silent RE2 fallback. The
-# `--config=full` build that links the backend (so PCRE2 works) is exercised by #85's own tests.
+# `--config=xff_full` build that links the backend (so PCRE2 works) is exercised by #85's own tests.
 
 set -euo pipefail
 
@@ -47,7 +47,7 @@ test::full_binary_resolves_to_the_xff_style_via_argv0() {
 
 test::full_binary_without_the_pcre_extra_rejects_pcre2() {
   # This build did not link the PCRE2 backend (the extra is off by default), so even the full binary
-  # rejects `--regextype=PCRE2` with a usage error (exit 2). A `--config=full` build accepts it.
+  # rejects `--regextype=PCRE2` with a usage error (exit 2). A `--config=xff_full` build accepts it.
   local root out rc
   root="$(mktemp -d)"
   printf 'x\n' >"${root}/f.txt"
