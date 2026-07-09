@@ -79,22 +79,22 @@ class Re2Backend final : public RegexBackend {
   std::unique_ptr<RE2> re_;
 };
 
-// The process-wide PCRE2 backend factory, or nullptr when no PCRE2 backend is linked. Set once at
+// The process-wide PCRE2 backend factory, empty when no PCRE2 backend is linked. Set once at
 // static-init by the real backend's Pcre2Registrar (full build only); a Meyers static so the
 // registrar in another TU can safely write it during static initialization.
 Pcre2Factory& Pcre2FactorySlot() {
-  static Pcre2Factory slot = nullptr;
+  static Pcre2Factory slot;
   return slot;
 }
 
 }  // namespace
 
 void RegisterPcre2Backend(Pcre2Factory factory) {
-  Pcre2FactorySlot() = factory;
+  Pcre2FactorySlot() = std::move(factory);
 }
 
 bool Pcre2Available() {
-  return Pcre2FactorySlot() != nullptr;
+  return static_cast<bool>(Pcre2FactorySlot());
 }
 
 absl::StatusOr<Matcher> Matcher::Compile(std::string_view pattern, bool case_insensitive, Grammar grammar) {
@@ -113,8 +113,8 @@ absl::StatusOr<Matcher> Matcher::Compile(std::string_view pattern, bool case_ins
       // PCRE2 is a build-time extra: the real backend self-registers a factory (full build only).
       // When none is registered (lean build) the grammar is not available -- a distinct Unimplemented
       // state from an InvalidArgument bad pattern, and never a silent fallback to RE2.
-      const Pcre2Factory factory = Pcre2FactorySlot();
-      if (factory == nullptr) {
+      const Pcre2Factory& factory = Pcre2FactorySlot();
+      if (!factory) {
         return absl::UnimplementedError("the PCRE2 regex grammar (-regextype=pcre) is not built into this binary");
       }
       absl::StatusOr<std::unique_ptr<const RegexBackend>> backend = factory(pattern, case_insensitive);

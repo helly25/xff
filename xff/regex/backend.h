@@ -17,6 +17,7 @@
 #define XFF_REGEX_BACKEND_H_
 
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -58,7 +59,7 @@ class RegexBackend {
 // InvalidArgument error for a pattern PCRE2 rejects. The real PCRE2 backend -- built only into the
 // full binary, from its own removable target under third_party/ -- provides one of these.
 using Pcre2Factory =
-    absl::StatusOr<std::unique_ptr<const RegexBackend>> (*)(std::string_view pattern, bool case_insensitive);
+    std::function<absl::StatusOr<std::unique_ptr<const RegexBackend>>(std::string_view pattern, bool case_insensitive)>;
 
 // Registers the process-wide PCRE2 backend factory. Called once, at static-init, from the real
 // backend's translation unit; linkage is presence -- a lean build links no such unit, so nothing
@@ -70,7 +71,7 @@ void RegisterPcre2Backend(Pcre2Factory factory);
 // (the target must be alwayslink so the registrar is not dropped):
 //   const xff::regex::Pcre2Registrar kRegisterPcre2{&CompilePcre2};
 struct Pcre2Registrar {
-  explicit Pcre2Registrar(Pcre2Factory factory) { RegisterPcre2Backend(factory); }
+  explicit Pcre2Registrar(Pcre2Factory factory) { RegisterPcre2Backend(std::move(factory)); }
 };
 
 }  // namespace xff::regex
