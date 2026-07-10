@@ -33,10 +33,12 @@ namespace xff::regex {
 // string match (no metacharacters), a core engine: FullMatch is equality, PartialMatch a substring
 // test. kFnmatch is a flat shell wildcard (POSIX fnmatch: `*`/`?`/`[…]`, where `*` matches any
 // character including `/`), a core engine - the `-name`/`-path` matching offered as a grammar.
-// kPcre2 is PCRE2 (Perl syntax: backreferences, lookaround); it is a build extra, available only
-// when its backend is linked, otherwise Compile returns an Unimplemented error (never a silent RE2
-// fallback). kExact and kFnmatch need no real compilation, so Compile(...) never fails for them.
-enum class Grammar { kRe2, kExact, kFnmatch, kPcre2 };
+// kGlob is a path-segment-aware shell glob (`*`/`?` stop at `/`, `**` crosses directories - the
+// shell / gitignore semantics), a core engine translated to RE2 (via xff/glob). kPcre2 is PCRE2
+// (Perl syntax: backreferences, lookaround); it is a build extra, available only when its backend
+// is linked, otherwise Compile returns an Unimplemented error (never a silent RE2 fallback). kExact
+// and kFnmatch need no real compilation, so Compile(...) never fails for them.
+enum class Grammar { kRe2, kExact, kFnmatch, kGlob, kPcre2 };
 
 class RegexBackend;  // the concrete engine (backend.h); a Matcher owns one behind a unique_ptr
 

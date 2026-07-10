@@ -164,5 +164,31 @@ TEST_F(RegexTest, FnmatchCaseInsensitiveUsesCasefold) {
   EXPECT_FALSE(exact.FullMatch("readme"));
 }
 
+TEST_F(RegexTest, GlobGrammarIsPathSegmentAware) {
+  // kGlob is a path-aware shell glob (translated to RE2): unlike fnmatch, `*` stops at `/`.
+  ASSERT_OK_AND_ASSIGN(
+      const Matcher matcher, Matcher::Compile("src/*.txt", /*case_insensitive=*/false, Grammar::kGlob));
+  EXPECT_TRUE(matcher.FullMatch("src/a.txt"));
+  EXPECT_FALSE(matcher.FullMatch("src/sub/a.txt"));  // '*' does not cross '/' (unlike FNMATCH)
+  EXPECT_FALSE(matcher.FullMatch("a.txt"));
+}
+
+TEST_F(RegexTest, GlobDoubleStarCrossesDirectories) {
+  // `**` is the cross-directory wildcard (the gitignore/shell globstar).
+  ASSERT_OK_AND_ASSIGN(
+      const Matcher matcher, Matcher::Compile("src/**/*.txt", /*case_insensitive=*/false, Grammar::kGlob));
+  EXPECT_TRUE(matcher.FullMatch("src/a.txt"));      // zero directories
+  EXPECT_TRUE(matcher.FullMatch("src/x/y/a.txt"));  // several directories
+  EXPECT_FALSE(matcher.FullMatch("other/a.txt"));
+}
+
+TEST_F(RegexTest, GlobDelegatesToRe2ForSpanAndPartial) {
+  // Because kGlob compiles to RE2, PartialMatch is unanchored and FindFirst returns a real span
+  // (unlike fnmatch's whole-text span) - so -grep's {match}/{column} work under GLOB.
+  ASSERT_OK_AND_ASSIGN(const Matcher matcher, Matcher::Compile("f*o", /*case_insensitive=*/false, Grammar::kGlob));
+  EXPECT_TRUE(matcher.PartialMatch("a foo b"));                               // matches within the line
+  EXPECT_THAT(matcher.FindFirst("a foo b"), Optional(Pair(Eq(2U), Eq(3U))));  // "foo" at offset 2, len 3
+}
+
 }  // namespace
 }  // namespace xff::regex

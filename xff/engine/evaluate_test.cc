@@ -685,6 +685,17 @@ TEST_F(EvaluateTest, RxcUnderFnmatchUsesShellWildcards) {
   EXPECT_FALSE(Match({"-rxc", "quick.fox"}, visit));  // '.' is literal in a glob, no dot here
 }
 
+TEST_F(EvaluateTest, RxcUnderGlobUsesPathAwareGlob) {
+  // --regextype=GLOB reaches -rxc: a path-aware shell glob (`*` stops at '/', `**` crosses).
+  const std::string path = WriteContentFile("rx_pathglob.txt", "path is src/app/main.cc\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "rx_pathglob.txt", vfs::FileType::kRegular, md);
+  regextype_ = "GLOB";
+  EXPECT_TRUE(Match({"-rxc", "src/**/main.cc"}, visit));  // `**` crosses the 'app' directory
+  EXPECT_TRUE(Match({"-rxc", "src/*/main.cc"}, visit));   // one segment
+  EXPECT_FALSE(Match({"-rxc", "src/main.cc"}, visit));    // `*`/segment does not cross '/', 'app' is in the way
+}
+
 TEST_F(EvaluateTest, IrxcFoldsCase) {
   const std::string path = WriteContentFile("irx.txt", "STATUS: OK");
   vfs::Metadata md;

@@ -524,6 +524,8 @@ regex::Grammar GrammarFromGlobals(const std::vector<std::string>& globals) {
       grammar = regex::Grammar::kExact;
     } else if (value == "FNMATCH") {
       grammar = regex::Grammar::kFnmatch;
+    } else if (value == "GLOB") {
+      grammar = regex::Grammar::kGlob;
     } else if (value == "PCRE2") {
       grammar = regex::Grammar::kPcre2;
     } else {
