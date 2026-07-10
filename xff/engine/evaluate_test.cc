@@ -674,6 +674,17 @@ TEST_F(EvaluateTest, RxcUnderExactMatchesLiterally) {
   EXPECT_FALSE(Match({"-rxc", "a5b"}, visit));     // the regex interpretation is gone under EXACT
 }
 
+TEST_F(EvaluateTest, RxcUnderFnmatchUsesShellWildcards) {
+  // --regextype=FNMATCH treats the -rxc argument as a shell glob: `*` matches any run, `?` one char.
+  const std::string path = WriteContentFile("rx_glob.txt", "the quick brown fox\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "rx_glob.txt", vfs::FileType::kRegular, md);
+  regextype_ = "FNMATCH";
+  EXPECT_TRUE(Match({"-rxc", "quick*fox"}, visit));   // glob spans the middle
+  EXPECT_TRUE(Match({"-rxc", "q?ick"}, visit));       // '?' matches one char
+  EXPECT_FALSE(Match({"-rxc", "quick.fox"}, visit));  // '.' is literal in a glob, no dot here
+}
+
 TEST_F(EvaluateTest, IrxcFoldsCase) {
   const std::string path = WriteContentFile("irx.txt", "STATUS: OK");
   vfs::Metadata md;

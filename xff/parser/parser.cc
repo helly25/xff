@@ -508,9 +508,10 @@ const Expr* FirstXffPrintfField(const Expr* expr) {
 }
 
 // The regex grammar for the command's matchers, from `--regextype=` (last occurrence wins). EXACT
-// selects the literal engine, PCRE2 the Perl engine; RE2 (and the reserved MATCH placeholder) stay
-// RE2. This is lenient by design: an unknown or PCRE2-not-built-in value is left as RE2 and rejected
-// by run.cc's ValidateRegextype (the validating reader) before the walk, so it never reaches a matcher.
+// selects the literal engine, FNMATCH the shell-wildcard engine, PCRE2 the Perl engine; RE2 (and the
+// reserved MATCH placeholder) stay RE2. This is lenient by design: an unknown or PCRE2-not-built-in
+// value is left as RE2 and rejected by run.cc's ValidateRegextype (the validating reader) before the
+// walk, so it never reaches a matcher.
 regex::Grammar GrammarFromGlobals(const std::vector<std::string>& globals) {
   constexpr std::string_view kPrefix = "--regextype=";
   regex::Grammar grammar = regex::Grammar::kRe2;
@@ -521,6 +522,8 @@ regex::Grammar GrammarFromGlobals(const std::vector<std::string>& globals) {
     const std::string_view value = std::string_view(global).substr(kPrefix.size());
     if (value == "EXACT") {
       grammar = regex::Grammar::kExact;
+    } else if (value == "FNMATCH") {
+      grammar = regex::Grammar::kFnmatch;
     } else if (value == "PCRE2") {
       grammar = regex::Grammar::kPcre2;
     } else {

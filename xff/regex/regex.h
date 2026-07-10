@@ -30,12 +30,13 @@ namespace xff::regex {
 
 // The grammar a Matcher compiles with - the engine behind `--regextype`. kRe2 is RE2 (linear-time,
 // no catastrophic backtracking) - the default and find's historic behavior. kExact is a literal
-// string match (no metacharacters), a core engine selected by --regextype=EXACT: FullMatch is
-// equality, PartialMatch a substring test, so it is the "verify this exact text" grammar and needs
-// no pattern to compile. kPcre2 is PCRE2 (Perl syntax: backreferences, lookaround), selected by
-// --regextype=PCRE2; it is a build extra, available only when its backend is linked, otherwise
-// Compile returns an Unimplemented error (never a silent RE2 fallback).
-enum class Grammar { kRe2, kExact, kPcre2 };
+// string match (no metacharacters), a core engine: FullMatch is equality, PartialMatch a substring
+// test. kFnmatch is a flat shell wildcard (POSIX fnmatch: `*`/`?`/`[…]`, where `*` matches any
+// character including `/`), a core engine - the `-name`/`-path` matching offered as a grammar.
+// kPcre2 is PCRE2 (Perl syntax: backreferences, lookaround); it is a build extra, available only
+// when its backend is linked, otherwise Compile returns an Unimplemented error (never a silent RE2
+// fallback). kExact and kFnmatch need no real compilation, so Compile(...) never fails for them.
+enum class Grammar { kRe2, kExact, kFnmatch, kPcre2 };
 
 class RegexBackend;  // the concrete engine (backend.h); a Matcher owns one behind a unique_ptr
 
