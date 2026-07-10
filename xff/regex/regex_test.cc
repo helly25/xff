@@ -105,5 +105,35 @@ TEST_F(RegexTest, RewriteSupportsBackreferences) {
   EXPECT_THAT(matcher.Rewrite("user@host", "\\2.\\1", /*global=*/false), "host.user");  // \1/\2 backrefs
 }
 
+TEST_F(RegexTest, ExactGrammarMatchesLiterally) {
+  // kExact is a literal engine: metacharacters are plain text, FullMatch is equality, PartialMatch a
+  // substring test. It is a core grammar, always available, and never fails to compile.
+  ASSERT_OK_AND_ASSIGN(const Matcher matcher, Matcher::Compile("3.50", /*case_insensitive=*/false, Grammar::kExact));
+  EXPECT_TRUE(matcher.FullMatch("3.50"));
+  EXPECT_FALSE(matcher.FullMatch("3X50"));   // '.' is literal, not a wildcard
+  EXPECT_FALSE(matcher.FullMatch("x3.50"));  // FullMatch is whole-string equality
+  EXPECT_TRUE(matcher.PartialMatch("price 3.50 now"));
+  EXPECT_FALSE(matcher.PartialMatch("price 3X50"));
+}
+
+TEST_F(RegexTest, ExactGrammarCompilesAnyPatternAndFindsTheSpan) {
+  // A pattern that is not a valid regex is a fine literal (never an InvalidArgument), and FindFirst
+  // reports the literal span (offset + pattern length), 1:1 with the old -grep EXACT substring path.
+  ASSERT_OK_AND_ASSIGN(const Matcher matcher, Matcher::Compile("foo(bar", /*case_insensitive=*/false, Grammar::kExact));
+  EXPECT_TRUE(matcher.PartialMatch("call foo(bar) now"));
+  EXPECT_THAT(matcher.FindFirst("aXfoo(barX"), Optional(Pair(Eq(2U), Eq(7U))));  // "foo(bar" at offset 2, len 7
+  EXPECT_THAT(matcher.FindFirst("no match"), Eq(std::nullopt));
+  EXPECT_THAT(matcher.Rewrite("x foo(bar y foo(bar", "Z", /*global=*/true), "x Z y Z");  // literal replace
+}
+
+TEST_F(RegexTest, ExactGrammarCaseInsensitiveFoldsAsciiCase) {
+  ASSERT_OK_AND_ASSIGN(const Matcher folded, Matcher::Compile("Readme", /*case_insensitive=*/true, Grammar::kExact));
+  EXPECT_TRUE(folded.FullMatch("README"));
+  EXPECT_TRUE(folded.PartialMatch("the readme file"));
+  EXPECT_THAT(folded.FindFirst("see README now"), Optional(Pair(Eq(4U), Eq(6U))));  // span in the original text
+  ASSERT_OK_AND_ASSIGN(const Matcher exact, Matcher::Compile("Readme", /*case_insensitive=*/false, Grammar::kExact));
+  EXPECT_FALSE(exact.FullMatch("README"));
+}
+
 }  // namespace
 }  // namespace xff::regex

@@ -55,7 +55,10 @@ struct EvaluateTest : ::testing::Test {
     file_emitted_.clear();
     control_ = {};
     std::vector<std::string> argv;
-    argv.reserve(expr.size() + 1);
+    argv.reserve(expr.size() + 2);
+    if (!regextype_.empty()) {
+      argv.push_back(absl::StrCat("--regextype=", regextype_));  // a leading global, before the root
+    }
     argv.emplace_back(".");
     argv.insert(argv.end(), expr.begin(), expr.end());
     const auto command = parser::Parse(argv);
@@ -77,7 +80,6 @@ struct EvaluateTest : ::testing::Test {
         .now = now_,
         .tz = tz_,
         .fold_name_case = fold_name_case_,
-        .grep_literal = grep_literal_,
         .grep_count = grep_count_,
         .control = control_,
         .exec_fields = exec_fields_,
@@ -131,7 +133,7 @@ struct EvaluateTest : ::testing::Test {
   Control control_;                             // set by Match from the most recent evaluation (-prune/-quit)
   bool exec_fields_ = false;                    // when true, Match enables --exec-fields token substitution
   bool fold_name_case_ = false;                 // when true, Match sets EvalContext::fold_name_case (FS-native fold)
-  bool grep_literal_ = false;                   // when true, Match sets EvalContext::grep_literal (-grep EXACT mode)
+  std::string regextype_;                       // when set (e.g. "EXACT"), Match prepends --regextype=<v> as a global
   bool grep_count_ = false;                     // when true, Match sets EvalContext::grep_count (-grep --count mode)
   std::vector<std::string> captures_;           // -regex groups captured during the most recent (gated) Match
   std::map<std::string, std::string> outputs_;  // -capture results from the most recent Match
@@ -661,6 +663,17 @@ TEST_F(EvaluateTest, RxcMatchesRegexAnywhere) {
   EXPECT_FALSE(Match({"-rxc", "^name="}, visit));     // 'name=' is not at the start of the content
 }
 
+TEST_F(EvaluateTest, RxcUnderExactMatchesLiterally) {
+  // --regextype=EXACT reaches -rxc too (not just -grep): the content predicate matches the argument
+  // as a literal substring, so metacharacters are plain text.
+  const std::string path = WriteContentFile("rx_exact.txt", "value = a[0-9]b here\n");
+  vfs::Metadata md;
+  const Visit visit = MakeVisit(path, "rx_exact.txt", vfs::FileType::kRegular, md);
+  regextype_ = "EXACT";
+  EXPECT_TRUE(Match({"-rxc", "a[0-9]b"}, visit));  // the literal bracket text is present
+  EXPECT_FALSE(Match({"-rxc", "a5b"}, visit));     // the regex interpretation is gone under EXACT
+}
+
 TEST_F(EvaluateTest, IrxcFoldsCase) {
   const std::string path = WriteContentFile("irx.txt", "STATUS: OK");
   vfs::Metadata md;
@@ -717,7 +730,7 @@ TEST_F(EvaluateTest, GrepExactModeMatchesLiterally) {
   const std::string path = WriteContentFile("grep_exact.txt", "price 3.50\nprice 3X50\n");
   vfs::Metadata md;
   const Visit visit = MakeVisit(path, "grep_exact.txt", vfs::FileType::kRegular, md);
-  grep_literal_ = true;
+  regextype_ = "EXACT";
   EXPECT_TRUE(Match({"-grep", "3.50"}, visit));
   EXPECT_EQ(emitted_, absl::StrCat(path, ":1:price 3.50\n"));  // only the literal 3.50, not 3X50
 }
@@ -727,7 +740,7 @@ TEST_F(EvaluateTest, GrepExactModeAcceptsRegexMetacharactersAsLiterals) {
   const std::string path = WriteContentFile("grep_lit.txt", "call foo(bar) now\n");
   vfs::Metadata md;
   const Visit visit = MakeVisit(path, "grep_lit.txt", vfs::FileType::kRegular, md);
-  grep_literal_ = true;
+  regextype_ = "EXACT";
   EXPECT_TRUE(Match({"-grep", "foo(bar"}, visit));
   EXPECT_EQ(emitted_, absl::StrCat(path, ":1:call foo(bar) now\n"));
 }
@@ -763,7 +776,7 @@ TEST_F(EvaluateTest, GrepFormatMatchInExactModeUsesTheLiteralSpan) {
   const std::string path = WriteContentFile("grep_o2.txt", "aXbXc\n");
   vfs::Metadata md;
   const Visit visit = MakeVisit(path, "grep_o2.txt", vfs::FileType::kRegular, md);
-  grep_literal_ = true;
+  regextype_ = "EXACT";
   EXPECT_TRUE(Match({"-grep={column} {match}", "X"}, visit));
   EXPECT_EQ(emitted_, "2 X\n");  // first literal X at column 2
 }

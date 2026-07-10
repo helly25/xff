@@ -94,10 +94,6 @@ struct EvalContext {
   // false in the find style and under --exact (byte-exact matching). The `i`
   // variants (-iname/-ipath) fold regardless.
   bool fold_name_case = false;
-  // --regextype=EXACT: -grep matches its pattern as a literal substring per line
-  // instead of the default RE2 regex. The driver resolves it once from --regextype
-  // (RE2 the default; MATCH/PCRE reserved for #85). Only -grep consults it today.
-  bool grep_literal = false;
   // --count / -c: -grep prints one `path:count` per file (its matching-line count)
   // instead of the lines, rg -c style; supersedes -grep=FORMAT. Only -grep reads it.
   bool grep_count = false;

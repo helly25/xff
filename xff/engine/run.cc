@@ -743,39 +743,37 @@ absl::Status ResolveBlockSize(const std::vector<std::string>& globals, std::uint
   return absl::OkStatus();
 }
 
-// --regextype=RE2|PCRE2|EXACT: the regex grammar for the pattern predicates (RE2 default, or PCRE2),
-// or EXACT (a literal substring, -grep only). This validates the value for the whole run (it is
-// called unconditionally, so it also guards -regex/-rxc, not just -grep) and returns whether -grep
-// matches literally. PCRE2 is a build-time extra: when it is not linked into this binary it is a
-// usage error here -- never a silent RE2 fallback. MATCH is still reserved. An unknown value is a
-// usage error. All are refused before the walk (exit 2). Last occurrence wins.
-absl::StatusOr<bool> ResolveGrepLiteral(const std::vector<std::string>& globals) {
+// --regextype=RE2|EXACT|PCRE2: validates the grammar selector for the whole run. The grammar itself
+// is resolved by the parser (parser::GrammarFromGlobals) and pre-compiled into each matcher; this is
+// the single validating reader, called unconditionally so it guards every pattern predicate
+// (-regex/-rxc/-grep). RE2 (default) and EXACT (literal) are core engines, always available. PCRE2
+// is a build-time extra: when its backend is not linked it is a usage error here, never a silent RE2
+// fallback. MATCH is still reserved. An unknown value is a usage error. All are refused before the
+// walk (exit 2). Last occurrence wins (the parser agrees).
+absl::Status ValidateRegextype(const std::vector<std::string>& globals) {
   constexpr std::string_view kPrefix = "--regextype=";
-  bool literal = false;
   for (const std::string& global : globals) {
     if (!global.starts_with(kPrefix)) {
       continue;
     }
     const std::string_view value = std::string_view(global).substr(kPrefix.size());
-    if (value == "RE2") {
-      literal = false;
-    } else if (value == "PCRE2") {
+    if (value == "RE2" || value == "EXACT") {
+      continue;  // core engines, always linked
+    }
+    if (value == "PCRE2") {
       if (!regex::Pcre2Available()) {
         return absl::InvalidArgumentError(
             "--regextype=PCRE2 is not built into this binary (the PCRE2 backend is a build extra)");
       }
-      literal = false;
-    } else if (value == "EXACT") {
-      literal = true;
     } else if (value == "MATCH") {
       return absl::InvalidArgumentError(
-          absl::StrCat("--regextype=", value, " is not supported yet (planned via #85); use RE2, PCRE2 or EXACT"));
+          absl::StrCat("--regextype=", value, " is reserved and not supported yet; use RE2, EXACT or PCRE2"));
     } else {
       return absl::InvalidArgumentError(
-          absl::StrCat("unknown --regextype '", value, "'; expected RE2, PCRE2 or EXACT"));
+          absl::StrCat("unknown --regextype '", value, "'; expected RE2, EXACT or PCRE2"));
     }
   }
-  return literal;
+  return absl::OkStatus();
 }
 
 // --time-format=NAME sets the default format for a time field rendered without an
@@ -1614,12 +1612,11 @@ int RunFind(
     on_error("--block-size", size_status);
     return 2;  // do not traverse
   }
-  // --regextype=RE2|PCRE2|EXACT: the regex grammar (RE2 default, or PCRE2) plus EXACT (-grep
-  // literal). Validated for the whole run; PCRE2 when not built into this binary, MATCH (reserved),
-  // and unknown values are usage errors.
-  const absl::StatusOr<bool> grep_literal = ResolveGrepLiteral(command.globals);
-  if (!grep_literal.ok()) {
-    on_error("--regextype", grep_literal.status());
+  // --regextype=RE2|EXACT|PCRE2: the grammar is resolved by the parser and pre-compiled into each
+  // matcher; here we only validate the selector for the whole run. PCRE2 when not built into this
+  // binary, MATCH (reserved), and unknown values are usage errors, refused before the walk.
+  if (const absl::Status regextype = ValidateRegextype(command.globals); !regextype.ok()) {
+    on_error("--regextype", regextype);
     return 2;  // do not traverse
   }
   // --count / -c: -grep emits a per-file matching-line count instead of the lines.
@@ -1965,7 +1962,6 @@ int RunFind(
             .time_format = time_format,
             .block_size = block_size,
             .fold_name_case = fold_name_case,
-            .grep_literal = *grep_literal,
             .grep_count = grep_count,
             .grep_before = grep_before,
             .grep_after = grep_after,
