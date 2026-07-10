@@ -34,7 +34,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
-#include "xff/license/license.h"
+#include "xff/license/notice.h"
 #include "xff/regex/backend.h"
 
 namespace {

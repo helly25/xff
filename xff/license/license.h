@@ -18,33 +18,10 @@
 
 #include <string>
 #include <string_view>
-#include <vector>
+
+#include "xff/license/notice.h"  // Notice, Register, Registrar, Notices() (the registration seam)
 
 namespace xff::license {
-
-// One third-party component's notice: the name, its SPDX license id, and the copyright / notice
-// line to reproduce. `text` points at a static string literal (lives for the process). This is the
-// SOT for the notice content; the repo NOTICE file is generated from / checked against it.
-struct Notice {
-  std::string_view component;
-  std::string_view spdx;
-  std::string_view text;
-};
-
-// Records `notice` in the process-wide set. Called once per component from a file-scope Registrar,
-// so a component is registered exactly when its translation unit is linked in (core deps always;
-// each build-extra from its own TU). Static-init only; not thread-safe.
-void Register(Notice notice);
-
-// Registers on construction. Declare one at namespace scope in the component's TU:
-//   const xff::license::Registrar kFooNotice{{.component = "foo", .spdx = "MIT", .text = "..."}};
-struct Registrar {
-  explicit Registrar(Notice notice) { Register(notice); }
-};
-
-// Every registered third-party notice, sorted by component name so the output is deterministic
-// regardless of static-init order across translation units.
-std::vector<Notice> Notices();
 
 // xff's own license, the Apache License 2.0, verbatim (xff holds the copyright). Reproduced so a
 // single-file binary is self-contained; the text is generated from the repo LICENSE file (see the

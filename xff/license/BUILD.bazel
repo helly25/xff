@@ -49,8 +49,8 @@ cc_library(
     ],
     hdrs = ["license.h"],
     deps = [
-        "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/strings",
+        "@xff_extras_api//:license_notice",
     ],
 )
 

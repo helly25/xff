@@ -16,21 +16,11 @@
 #include "xff/license/license.h"
 
 #include <string>
-#include <vector>
 
-#include "absl/algorithm/container.h"
 #include "absl/strings/str_cat.h"
 
 namespace xff::license {
 namespace {
-
-// The registered notices. A function-local static (constructed on first use) so the file-scope
-// Registrars below -- and those in other linked TUs -- can register during static init without a
-// static-init-order dependency on a namespace-scope container.
-std::vector<Notice>& Registry() {
-  static std::vector<Notice> registry;
-  return registry;
-}
 
 // The always-linked core dependencies. Kept in this TU (the one that defines NoticeText) so the
 // linker never drops them: NoticeText is referenced, so this TU -- and its registrars -- are pulled
@@ -49,16 +39,6 @@ const Registrar kMbo{
      .text = "Copyright helly25. Licensed under the Apache License, Version 2.0."}};
 
 }  // namespace
-
-void Register(Notice notice) {
-  Registry().push_back(notice);
-}
-
-std::vector<Notice> Notices() {
-  std::vector<Notice> out = Registry();
-  absl::c_sort(out, [](const Notice& lhs, const Notice& rhs) { return lhs.component < rhs.component; });
-  return out;
-}
 
 std::string NoticeText() {
   std::string out =
