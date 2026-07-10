@@ -132,18 +132,18 @@ cc_test(
     ],
 )
 
-# Registry-backed `xff --markdown`: a GitHub-renderable reference from Globals() +
-# All(), the markdown counterpart of the man page. Reuses help_cc's ArgHint.
+# `xff --markdown`: a GitHub-renderable reference, a MarkdownRenderer over the shared
+# WriteReference() walk (the Markdown counterpart of --man), so it carries the complete
+# reference and cannot drift from --man / --help=full.
 cc_library(
     name = "markdown_cc",
     srcs = ["markdown.cc"],
     hdrs = ["markdown.h"],
     deps = [
-        ":globals_cc",
-        ":help_cc",
-        "//xff/registry:registry_cc",
+        ":doc_renderer_cc",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/types:span",
     ],
 )
 

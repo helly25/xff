@@ -122,8 +122,8 @@ TEST_F(DocRendererTest, ReferenceEmitsTheExpectedTopLevelSections) {
   WriteReference(rec);
   EXPECT_THAT(
       rec.Texts("section"), ElementsAre(
-                                "DESCRIPTION", "OPTIONS", "EXPRESSION", "FIELDS", "PRINTF DIRECTIVES", "TIME FORMATS",
-                                "SIZE UNITS", "EXAMPLES", "EXIT STATUS", "SEE ALSO"));
+                                "Description", "Options", "Expression", "Fields", "Printf directives", "Time formats",
+                                "Size units", "Examples", "Exit status", "See also"));
 }
 
 // Drift guard: the walk hard-codes the sub-vocabulary sections (fields / printf / time / size /

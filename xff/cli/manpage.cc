@@ -20,6 +20,7 @@
 #include <string_view>
 #include <utility>
 
+#include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/types/span.h"
@@ -64,7 +65,9 @@ class RoffRenderer final : public DocRenderer {
   }
 
   void Section(std::string_view title) override {
-    absl::StrAppendFormat(&out_, ".SH %s\n", Roff(title));
+    // Man convention: top-level section headings are uppercase. The shared walk carries
+    // natural-case titles (so Markdown / plain render them as authored); roff uppercases here.
+    absl::StrAppendFormat(&out_, ".SH %s\n", Roff(absl::AsciiStrToUpper(title)));
     para_ = false;
   }
 

@@ -63,7 +63,7 @@ constexpr std::array<DocRow, 4> kDynamicNamespaces = {{
 // "{name} {alias}" terms and the {path:COMP} description are held in local storage (reserved up
 // front so their string_views never dangle) for the duration of the Rows() spans they back.
 void WriteFields(DocRenderer& out) {
-  out.Section("FIELDS");
+  out.Section("Fields");
   out.Prose(
       "The `{field}` placeholder vocabulary, substituted per entry in --template / --format, in "
       "-printf via the `%{field}` escape, and (with --exec-fields) in -exec.");
@@ -119,7 +119,7 @@ void WriteFields(DocRenderer& out) {
   out.Rows(qualifiers);
   out.Prose(
       "For -printf's own % directives (%p %f %s %t ...) and the `%{field}` escape that bridges them "
-      "to this vocabulary, see the PRINTF DIRECTIVES section.");
+      "to this vocabulary, see the Printf directives section below.");
 }
 
 }  // namespace
@@ -179,7 +179,7 @@ void WriteReference(DocRenderer& out) {
       "xff", "eXtended File Find, a find(1)-compatible file finder with modern extensions",
       "[option...] [path...] [expression]");
 
-  out.Section("DESCRIPTION");
+  out.Section("Description");
   out.Prose(
       "xff walks each starting path and acts on the entries matching an expression, like `find`(1). "
       "With no path it searches the current directory; with no action it prints each match.");
@@ -189,7 +189,7 @@ void WriteReference(DocRenderer& out) {
       "`--config=find|xff` overrides the program name. Items marked as xff extensions below are the "
       "additions over find.");
 
-  out.Section("OPTIONS");
+  out.Section("Options");
   std::string_view group;
   for (const GlobalFlag& flag : Globals()) {
     if (flag.group != group) {
@@ -199,7 +199,7 @@ void WriteReference(DocRenderer& out) {
     out.Entry(flag.display, flag.summary, flag.details, flag.xff);
   }
 
-  out.Section("EXPRESSION");
+  out.Section("Expression");
   for (const KindSection& section : kKindSections) {
     out.Subsection(section.title);
     for (const registry::Descriptor& descriptor : registry::All()) {
@@ -213,27 +213,27 @@ void WriteReference(DocRenderer& out) {
 
   WriteFields(out);
 
-  out.Section("PRINTF DIRECTIVES");
+  out.Section("Printf directives");
   out.Prose("Directives for -printf / -fprintf / -println FORMAT, and the `%{field}` escape.");
   out.Rows(engine::PrintfDocs());
 
-  out.Section("TIME FORMATS");
+  out.Section("Time formats");
   out.Prose("Presets and strftime patterns for --time-format, --timezone, and time-field {:qualifiers}.");
   out.Rows(datetime::FormatDocs());
 
-  out.Section("SIZE UNITS");
+  out.Section("Size units");
   out.Prose("Units for -size / -blocks [+|-]N[unit].");
   out.Rows(engine::SizeUnitDocs());
 
-  out.Section("EXAMPLES");
+  out.Section("Examples");
   out.Example(RenderHelp("cookbook").value_or(""));
 
-  out.Section("EXIT STATUS");
+  out.Section("Exit status");
   out.Prose(
       "0 on success, 2 on error. With `--quiet` or `--exit-match` the exit is 0 when something "
       "matched and 1 when nothing did (an error still outranks the match status).");
 
-  out.Section("SEE ALSO");
+  out.Section("See also");
   static constexpr std::array<CrossRef, 5> kSeeAlso = {{
       {.name = "find", .section = "1"},
       {.name = "grep", .section = "1"},
