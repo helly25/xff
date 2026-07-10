@@ -135,5 +135,34 @@ TEST_F(RegexTest, ExactGrammarCaseInsensitiveFoldsAsciiCase) {
   EXPECT_FALSE(exact.FullMatch("README"));
 }
 
+TEST_F(RegexTest, FnmatchGrammarIsAWholeStringWildcard) {
+  // kFnmatch is a shell glob: FullMatch is a whole-string fnmatch (`*` matches any char, incl '/');
+  // '.' is literal. A core grammar; Compile never fails.
+  ASSERT_OK_AND_ASSIGN(
+      const Matcher matcher, Matcher::Compile("a*.txt", /*case_insensitive=*/false, Grammar::kFnmatch));
+  EXPECT_TRUE(matcher.FullMatch("a.txt"));
+  EXPECT_TRUE(matcher.FullMatch("abc.txt"));
+  EXPECT_TRUE(matcher.FullMatch("a/b/c.txt"));  // '*' spans '/' (no FNM_PATHNAME - flat, like -path)
+  EXPECT_FALSE(matcher.FullMatch("a.md"));
+  EXPECT_FALSE(matcher.FullMatch("xa.txt"));  // FullMatch is anchored (whole string)
+}
+
+TEST_F(RegexTest, FnmatchPartialMatchWrapsInStars) {
+  // PartialMatch wraps the pattern in `*…*` so it matches anywhere; FindFirst reports the whole text
+  // as the span (fnmatch is a whole-string test, not a sub-span search).
+  ASSERT_OK_AND_ASSIGN(const Matcher matcher, Matcher::Compile("f?o", /*case_insensitive=*/false, Grammar::kFnmatch));
+  EXPECT_TRUE(matcher.PartialMatch("a foo b"));  // contains an f-any-o triple
+  EXPECT_FALSE(matcher.PartialMatch("a fizz b"));
+  EXPECT_THAT(matcher.FindFirst("a foo b"), Optional(Pair(Eq(0U), Eq(7U))));  // whole text is the match
+  EXPECT_THAT(matcher.FindFirst("nope"), Eq(std::nullopt));
+}
+
+TEST_F(RegexTest, FnmatchCaseInsensitiveUsesCasefold) {
+  ASSERT_OK_AND_ASSIGN(const Matcher folded, Matcher::Compile("R*E", /*case_insensitive=*/true, Grammar::kFnmatch));
+  EXPECT_TRUE(folded.FullMatch("readme"));
+  ASSERT_OK_AND_ASSIGN(const Matcher exact, Matcher::Compile("R*E", /*case_insensitive=*/false, Grammar::kFnmatch));
+  EXPECT_FALSE(exact.FullMatch("readme"));
+}
+
 }  // namespace
 }  // namespace xff::regex

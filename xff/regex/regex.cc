@@ -13,7 +13,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// FNM_CASEFOLD and POSIX fnmatch() are hidden by glibc under the strict `-std=c++23` we build with;
+// request them explicitly (the kFnmatch backend needs them). No effect on macOS.
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+# define _GNU_SOURCE 1
+#endif
+
 #include "xff/regex/regex.h"
+
+#include <fnmatch.h>
 
 #include <cstddef>
 #include <memory>
@@ -148,6 +156,56 @@ class ExactBackend final : public RegexBackend {
   std::string needle_;  // == pattern_, ASCII-lowered when case_insensitive_
 };
 
+// The kFnmatch grammar: a flat shell wildcard via POSIX fnmatch (`*`/`?`/`[…]`, `*` matching any
+// character including `/` - no FNM_PATHNAME, matching find's -name/-path). A core engine (no
+// dependency). fnmatch is a whole-string test: FullMatch runs it directly (anchored), PartialMatch
+// wraps the pattern in `*…*` so it matches anywhere (`**` collapses to `*` in POSIX fnmatch, so the
+// always-wrap is safe - see #85). fnmatch yields no span or groups, so FindFirst reports the whole
+// text as the match, FullMatchCaptures is the whole match only, and Rewrite is a no-op.
+// `case_insensitive` sets FNM_CASEFOLD. There is no pattern to compile, so Compile never fails.
+class FnmatchBackend final : public RegexBackend {
+ public:
+  FnmatchBackend(std::string pattern, bool case_insensitive)
+      : pattern_(std::move(pattern)),
+        partial_pattern_(absl::StrCat("*", pattern_, "*")),
+        flags_(case_insensitive ? FNM_CASEFOLD : 0) {}
+
+  bool FullMatch(std::string_view text) const override { return Fnmatch(pattern_, text); }
+
+  bool PartialMatch(std::string_view text) const override { return Fnmatch(partial_pattern_, text); }
+
+  std::optional<std::pair<std::size_t, std::size_t>> FindFirst(std::string_view text) const override {
+    // fnmatch is a whole-string test, not a span search: when the unanchored pattern matches, the
+    // match is the whole text (so -grep=FORMAT's {match} is the line, {column} is 1).
+    if (!PartialMatch(text)) {
+      return std::nullopt;
+    }
+    return std::make_pair(std::size_t{0}, text.size());
+  }
+
+  std::optional<std::vector<std::string>> FullMatchCaptures(std::string_view text) const override {
+    if (!FullMatch(text)) {
+      return std::nullopt;
+    }
+    return std::vector<std::string>{std::string(text)};  // index 0 = the whole match; no groups
+  }
+
+  std::string Rewrite(std::string_view text, std::string_view /*replacement*/, bool /*global*/) const override {
+    return std::string(text);  // a shell glob has no rewrite / backreference semantics
+  }
+
+ private:
+  bool Fnmatch(const std::string& pattern, std::string_view text) const {
+    // fnmatch needs NUL-terminated C strings; `text` may not be, so materialize it (per-entry cost,
+    // matching the evaluator's own -name/-path helper).
+    return ::fnmatch(pattern.c_str(), std::string(text).c_str(), flags_) == 0;
+  }
+
+  std::string pattern_;
+  std::string partial_pattern_;  // "*" + pattern_ + "*", for the unanchored PartialMatch
+  int flags_;
+};
+
 // The process-wide PCRE2 backend factory, empty when no PCRE2 backend is linked. Set once at
 // static-init by the real backend's Pcre2Registrar (full build only); a Meyers static so the
 // registrar in another TU can safely write it during static initialization.
@@ -181,6 +239,9 @@ absl::StatusOr<Matcher> Matcher::Compile(std::string_view pattern, bool case_ins
     case Grammar::kExact:
       // A literal match: no pattern to compile, so this never fails.
       return Matcher(std::make_unique<ExactBackend>(std::string(pattern), case_insensitive));
+    case Grammar::kFnmatch:
+      // A shell wildcard: fnmatch validates lazily per call, so this never fails either.
+      return Matcher(std::make_unique<FnmatchBackend>(std::string(pattern), case_insensitive));
     case Grammar::kPcre2: {
       // PCRE2 is a build-time extra: the real backend self-registers a factory (full build only).
       // When none is registered (lean build) the grammar is not available -- a distinct Unimplemented
