@@ -64,6 +64,20 @@ intent, not hard dependency. Task numbers reference the agent task list.
   existing `EXPECT_EQ`-on-multi-line tests in one sweep (e.g. `xff/render/render_test.cc`'s
   `RenderTable` goldens, plus any generated-help / man / markdown goldens), sized by count.
 
+- **Reconcile our glob->RE2 translator with `mbo::file::Glob2Re2` (#122).** `//xff/glob:GlobToRegex`
+  (extracted from the gitignore engine in #316, and reused by the `--regextype=GLOB` matcher)
+  duplicates `mbo::file::Glob2Re2Expression` / `Glob2Re2` in `mbo/file/glob.h` (already in the pinned
+  mbo). Root cause: #316 factored the existing translator without first checking whether mbo provides
+  one - it does. **Analyse the semantic differences and decide the disposition** (keep both / migrate
+  onto mbo + delete `//xff/glob` / fix or extend mbo upstream / deliberately keep ours, documented).
+  Known divergences to weigh: `**` mapping (ours: `**/`->`(?:.*/)?`, trailing `/**`->`.*`, glued
+  `**`->`*`; mbo: `**`->`.*`, slash-enclosed to `(/.+)?` / `(.+/)?` - note `.+`, not `.*`, and gated
+  by `allow_star_star`); ranges are option-gated in mbo (`allow_ranges`) with their own
+  `[]]`->`[\]]` escaping; `[!...]`->`[^...]` in both. Any migration is gated on `ignore_test` + the
+  GLOB `regex_test` staying green (adjust the gitignore `**`/anchoring shim where they differ). mbo
+  also offers filesystem globbing (`Glob`, `GlobSplit`, `GlobEntry`) that may be worth adopting
+  elsewhere.
+
 ### find / xff features (roadmap tail)
 
 The standard find predicate surface is complete (the access predicates
