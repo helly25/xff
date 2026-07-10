@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "xff/regex/regex.h"
 #include "xff/registry/descriptor.h"
 
 namespace xff::regex {
@@ -85,6 +86,10 @@ struct Command {
   std::vector<std::string> globals;
   std::vector<std::string> roots;
   ExprPtr expression;
+  // The regex grammar for every matcher in this command, resolved once from --regextype at parse
+  // time (default RE2). The pattern predicates (-regex/-rxc/-grep + the -capture extraction regex)
+  // compile with it; ApplyCaseMode's recompile reuses it.
+  regex::Grammar grammar = regex::Grammar::kRe2;
 };
 
 }  // namespace xff::parser

@@ -386,5 +386,26 @@ TEST_F(ParserTest, EnforceStyleAcceptsXffOperatorsUnderXff) {
   EXPECT_THAT(EnforceStyle(cmd, registry::Style::kXff), IsOk());
 }
 
+TEST_F(ParserTest, RegextypeSelectsTheMatcherGrammar) {
+  // The grammar is resolved once from --regextype and stored on the Command, so every matcher (and
+  // the ApplyCaseMode recompile) uses it. RE2 is the default; PCRE2 is the only non-default value.
+  ASSERT_OK_AND_ASSIGN(const Command def, Parse({".", "-regex", ".*"}));
+  EXPECT_THAT(def.grammar, regex::Grammar::kRe2);  // no --regextype -> RE2
+
+  ASSERT_OK_AND_ASSIGN(const Command re2, Parse({"--regextype=RE2", ".", "-regex", ".*"}));
+  EXPECT_THAT(re2.grammar, regex::Grammar::kRe2);
+
+  ASSERT_OK_AND_ASSIGN(const Command pcre2, Parse({"--regextype=PCRE2", ".", "-regex", ".*"}));
+  EXPECT_THAT(pcre2.grammar, regex::Grammar::kPcre2);
+
+  // EXACT is a -grep literal selector, not a regex engine, so the grammar stays RE2.
+  ASSERT_OK_AND_ASSIGN(const Command exact, Parse({"--regextype=EXACT", ".", "-grep", "x"}));
+  EXPECT_THAT(exact.grammar, regex::Grammar::kRe2);
+
+  // Last occurrence wins (mirrors run.cc's ResolveGrepLiteral).
+  ASSERT_OK_AND_ASSIGN(const Command last, Parse({"--regextype=PCRE2", "--regextype=RE2", ".", "-regex", ".*"}));
+  EXPECT_THAT(last.grammar, regex::Grammar::kRe2);
+}
+
 }  // namespace
 }  // namespace xff::parser
