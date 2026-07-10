@@ -15,13 +15,15 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
-# The shared extras API: the RegexBackend plugin interface + the PCRE2 registration slot. Both the
-# xff core (//xff/regex depends on this for the interface; Matcher::Compile(kPcre2) calls
-# MakePcre2Backend) and each removable extra (extra_modules/pcre2 implements RegexBackend and
-# self-registers via Pcre2Registrar) depend on this module, so an extra never depends back into the
-# core. `include_prefix = "xff/regex"` keeps the header's logical path `xff/regex/backend.h`.
+# The shared extras API, one target per seam. Both the xff core and each removable extra depend on
+# these, so an extra never depends back into the core (which would be a cycle). `include_prefix`
+# keeps each header's logical path (`xff/regex/backend.h`, `xff/license/notice.h`) unchanged.
+
+# The RegexBackend plugin interface + PCRE2 registration slot. //xff/regex depends on this for the
+# interface (Matcher::Compile(kPcre2) calls MakePcre2Backend); an extra backend implements
+# RegexBackend and self-registers via Pcre2Registrar.
 cc_library(
-    name = "xff_extras_api",
+    name = "regex_backend",
     srcs = ["backend.cc"],
     hdrs = ["backend.h"],
     include_prefix = "xff/regex",
@@ -29,5 +31,19 @@ cc_library(
     deps = [
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+    ],
+)
+
+# The license-notice registration seam: components self-register a Notice via a file-scope
+# Registrar, and Notices() returns them sorted. The xff core (//xff/license) registers its own
+# deps and assembles NoticeText() on top; each extra self-registers its notice from its own TU.
+cc_library(
+    name = "license_notice",
+    srcs = ["notice.cc"],
+    hdrs = ["notice.h"],
+    include_prefix = "xff/license",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/algorithm:container",
     ],
 )
