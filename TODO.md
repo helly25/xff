@@ -392,6 +392,39 @@ remains below is the design-forked / larger work.
   captures / `{field:s/}` rewrite are degenerate - restrict `kGlob` to the whole-match predicates or
   define per-line fnmatch. Cheap on the abstraction; overlaps `-path` for `-regex` (fine - it is about
   letting glob-thinking users pick their grammar uniformly).
+- **Extras architecture v2 - full separation via local modules (#123, DESIGN, revises #311-#317).**
+  Post-#317 review (2026-07-10): the shipped approach is not fully separated - the ROOT `MODULE.bazel`
+  names `pcre2`, `backend.h` visibility was widened, and a manual `//xff:xff_pcre` flag + a bespoke
+  `full` CI cell drive it. Target end-state, so the core has ZERO knowledge of any extra and a
+  minimal `xff` source package can ship with the optional parts DELETED (317/5, 317/6):
+  - **Layout (317/2):** rename `third_party/` -> `extra_modules/` (it holds glue/wrapper code, not the
+    vendored lib). Each extra is `extra_modules/<name>/`.
+  - **Local module per extra (317/3):** each `extra_modules/<name>/` is its OWN local Bazel module -
+    its `MODULE.bazel` declares the external `bazel_dep` (e.g. `pcre2`) + the wrapper; root pulls it
+    via `bazel_dep(name="xff_<name>") + local_path_override(path="extra_modules/<name>")`. So the
+    external dep is named by the EXTRA, not the root/core. Disable = comment the root's two lines (a
+    simple patch) or delete the directory.
+  - **Auto-enable via a module extension (the "check this"; SPIKE first):** `module_ctx.modules` lists
+    only extension PARTICIPANTS, not the whole graph - so each extra must SELF-REGISTER by using the
+    extension (from its own MODULE.bazel), and the extension must live in a shared base module both
+    root and the extras can load (defining it in root is circular, since root depends on the extras).
+    The extension then generates the wiring so `xff_full` links exactly the present+registered extras -
+    the piece that makes a root-only patch / dir-removal build `xff_full` lean with no dangling label
+    and `@pcre2` never fetched. **Must spike** to confirm this (and "patch root only -> clean strip")
+    actually holds in bzlmod before rearchitecting; else fall back to the flag.
+  - **Normal build (317/1):** `bazel build //...` builds BOTH lean `xff` and full `xff_full` (extras
+    present by default); DROP the separate `full` CI cell. The only separate build is the stripped one
+    (the minimal package), which is a patch/removal, not a required cell.
+  - **License/NOTICE (317/4):** each extra carries its wrapped lib's own `LICENSE`/`NOTICE` next to its
+    `MODULE.bazel` and self-registers its notice (SPDX + copyright, ideally the full text) into
+    `xff/license`, as the core deps do - so `xff_full`'s `--help=notice` + generated NOTICE reproduce
+    core+extras. The committed root NOTICE stays core-only + a disclaimer that `xff_full` may compile
+    in further deps (present-at-load + actively enabled), whose notices then apply. Drift-check: core
+    for the committed root NOTICE, full for the extras' set.
+  - **Staging:** spike the bzlmod mechanism (local module + self-registration extension + clean strip);
+    if viable, implement v2 wholesale (rename + local modules + auto-detect + per-extra notices,
+    retiring the `//xff:xff_pcre` flag + `full` cell); #83 archive then follows the same shape.
+
 - **Heavy/special libs are composable build-time extras (decided 2026-07-06).** libarchive (#83),
   pcre2 (#85), and any later special dependency are gated behind Bazel flags, not always compiled
   in: the default binary is a lean core (RE2 only, no archive), and an extended binary is composed
