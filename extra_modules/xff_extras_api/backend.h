@@ -33,10 +33,12 @@ namespace xff::regex {
 // is built in. `Matcher` owns a `RegexBackend` behind a `unique_ptr` and forwards each operation, so
 // the public API is grammar-agnostic and the concrete engine (and its dependency) stays private.
 //
-// This is also the seam the future lean/full split gates on: a lean build can ship only the RE2
-// backend and have the PCRE2 grammar resolve to a "not built in" error, while a full build links the
-// real PCRE2 backend -- neither changes this interface, `Matcher`, or the `-regextype` selection.
-// One backend instance per pattern; const after construction, so matching is thread-safe.
+// This is the extension seam a build extra implements. It lives in the standalone xff_extras_api
+// module (not the xff core), so an extra can implement it from its own module without depending back
+// into the core. A lean build ships only the RE2 backend and has the PCRE2 grammar resolve to a "not
+// built in" error; a full build links the real PCRE2 backend -- neither changes this interface,
+// `Matcher`, or the `-regextype` selection. One backend instance per pattern; const after
+// construction, so matching is thread-safe.
 class RegexBackend {
  public:
   RegexBackend() = default;
@@ -57,13 +59,13 @@ class RegexBackend {
 
 // Compiles `pattern` into a PCRE2-backed RegexBackend (case-folding when `case_insensitive`), or an
 // InvalidArgument error for a pattern PCRE2 rejects. The real PCRE2 backend -- built only into the
-// full binary, from its own removable target under extra_modules/ -- provides one of these.
+// full binary, from its own removable module under extra_modules/ -- provides one of these.
 using Pcre2Factory =
     std::function<absl::StatusOr<std::unique_ptr<const RegexBackend>>(std::string_view pattern, bool case_insensitive)>;
 
 // Registers the process-wide PCRE2 backend factory. Called once, at static-init, from the real
 // backend's translation unit; linkage is presence -- a lean build links no such unit, so nothing
-// registers and the PCRE2 grammar reports "not built in" (see Matcher::Compile / Pcre2Available).
+// registers and the PCRE2 grammar reports "not built in" (see MakePcre2Backend / Pcre2Available).
 // Static-init only; not thread-safe (the matter is resolved before the walk starts).
 void RegisterPcre2Backend(Pcre2Factory factory);
 
@@ -73,6 +75,18 @@ void RegisterPcre2Backend(Pcre2Factory factory);
 struct Pcre2Registrar {
   explicit Pcre2Registrar(Pcre2Factory factory) { RegisterPcre2Backend(std::move(factory)); }
 };
+
+// Whether the PCRE2 grammar (kPcre2) is available in this binary, i.e. the real PCRE2 backend is
+// linked and self-registered. False in the lean build (RE2 only), true in the full build. Drives
+// the help "regex grammars" presence line and the Compile(kPcre2) availability check; -regextype=PCRE2
+// on a binary where this is false is a clean error, never a silent RE2 fallback.
+bool Pcre2Available();
+
+// Compiles `pattern` through the registered PCRE2 factory (case-folding when `case_insensitive`).
+// Returns Unimplemented when no PCRE2 backend is built in (lean build), or the factory's
+// InvalidArgument for a bad pattern. Matcher::Compile(kPcre2) calls this, so the xff core reaches the
+// PCRE2 seam without a direct dependency on PCRE2 or on the real backend's translation unit.
+absl::StatusOr<std::unique_ptr<const RegexBackend>> MakePcre2Backend(std::string_view pattern, bool case_insensitive);
 
 }  // namespace xff::regex
 

@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
+#include "xff/regex/backend.h"  // RegexBackend, the PCRE2 registration API, and Pcre2Available()
 
 namespace xff::regex {
 
@@ -39,8 +40,6 @@ namespace xff::regex {
 // is linked, otherwise Compile returns an Unimplemented error (never a silent RE2 fallback). kExact
 // and kFnmatch need no real compilation, so Compile(...) never fails for them.
 enum class Grammar { kRe2, kExact, kFnmatch, kGlob, kPcre2 };
-
-class RegexBackend;  // the concrete engine (backend.h); a Matcher owns one behind a unique_ptr
 
 // A compiled regular expression. -regex matches the whole string (FullMatch); -rxc / -grep match
 // anywhere (PartialMatch / FindFirst). The grammar (RE2 default, or PCRE2) is chosen at Compile and

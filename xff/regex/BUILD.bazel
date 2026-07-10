@@ -16,16 +16,13 @@
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 # Regular-expression matching for find's -regex/-iregex, backed by RE2 (+ EXACT/FNMATCH/GLOB core
-# engines, and PCRE2 when the build extra is linked). `backend.h` is the extension seam an extra
-# backend implements (extra_modules/pcre2), so it is an exported header and the target is visible to
-# //extra_modules too - not just //xff.
+# engines, and PCRE2 when the build extra is linked). The RegexBackend interface + PCRE2 registration
+# API (`xff/regex/backend.h`) now live in the standalone @xff_extras_api module - the seam an extra
+# backend implements without depending back into the core - and are re-exported through regex.h.
 cc_library(
     name = "regex_cc",
     srcs = ["regex.cc"],
-    hdrs = [
-        "backend.h",  # the RegexBackend interface + PCRE2 registration API (for extra backends)
-        "regex.h",
-    ],
+    hdrs = ["regex.h"],
     visibility = [
         "//extra_modules:__subpackages__",
         "//xff:__subpackages__",
@@ -36,6 +33,7 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@re2",
+        "@xff_extras_api",
     ],
 )
 

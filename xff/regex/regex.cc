@@ -207,23 +207,7 @@ class FnmatchBackend final : public RegexBackend {
   int flags_;
 };
 
-// The process-wide PCRE2 backend factory, empty when no PCRE2 backend is linked. Set once at
-// static-init by the real backend's Pcre2Registrar (full build only); a Meyers static so the
-// registrar in another TU can safely write it during static initialization.
-Pcre2Factory& Pcre2FactorySlot() {
-  static Pcre2Factory slot;
-  return slot;
-}
-
 }  // namespace
-
-void RegisterPcre2Backend(Pcre2Factory factory) {
-  Pcre2FactorySlot() = std::move(factory);
-}
-
-bool Pcre2Available() {
-  return static_cast<bool>(Pcre2FactorySlot());
-}
 
 absl::StatusOr<Matcher> Matcher::Compile(std::string_view pattern, bool case_insensitive, Grammar grammar) {
   // Shared RE2 compilation: kRe2 uses the pattern verbatim, kGlob its glob-to-RE2 translation. A
@@ -251,14 +235,11 @@ absl::StatusOr<Matcher> Matcher::Compile(std::string_view pattern, bool case_ins
       // GlobToRegex escapes all input, so the result is valid RE2 (the error path is unreachable).
       return compile_re2(glob::GlobToRegex(pattern));
     case Grammar::kPcre2: {
-      // PCRE2 is a build-time extra: the real backend self-registers a factory (full build only).
-      // When none is registered (lean build) the grammar is not available -- a distinct Unimplemented
-      // state from an InvalidArgument bad pattern, and never a silent fallback to RE2.
-      const Pcre2Factory& factory = Pcre2FactorySlot();
-      if (!factory) {
-        return absl::UnimplementedError("the PCRE2 regex grammar (--regextype=PCRE2) is not built into this binary");
-      }
-      absl::StatusOr<std::unique_ptr<const RegexBackend>> backend = factory(pattern, case_insensitive);
+      // PCRE2 is a build-time extra: the real backend (extra_modules/pcre2) self-registers a factory
+      // in the xff_extras_api slot. MakePcre2Backend invokes it, or returns Unimplemented when no
+      // PCRE2 backend is linked (lean build) -- a distinct state from an InvalidArgument bad pattern,
+      // and never a silent fallback to RE2.
+      absl::StatusOr<std::unique_ptr<const RegexBackend>> backend = MakePcre2Backend(pattern, case_insensitive);
       if (!backend.ok()) {
         return backend.status();
       }
