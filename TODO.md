@@ -397,8 +397,8 @@ remains below is the design-forked / larger work.
   names `pcre2`, `backend.h` visibility was widened, and a manual `//xff:xff_pcre` flag + a bespoke
   `full` CI cell drive it. Target end-state, so the core has ZERO knowledge of any extra and a
   minimal `xff` source package can ship with the optional parts DELETED (317/5, 317/6):
-  - **Layout (317/2):** rename `third_party/` -> `extra_modules/` (it holds glue/wrapper code, not the
-    vendored lib). Each extra is `extra_modules/<name>/`.
+  - **Layout (317/2) DONE:** renamed `third_party/` -> `extra_modules/` (it holds glue/wrapper code,
+    not the vendored lib). Each extra is `extra_modules/<name>/`.
   - **Local module per extra (317/3):** each `extra_modules/<name>/` is its OWN local Bazel module -
     its `MODULE.bazel` declares the external `bazel_dep` (e.g. `pcre2`) + the wrapper; root pulls it
     via `bazel_dep(name="xff_<name>") + local_path_override(path="extra_modules/<name>")`. So the
@@ -430,7 +430,7 @@ remains below is the design-forked / larger work.
   in: the default binary is a lean core (RE2 only, no archive), and an extended binary is composed
   from the same tree by enabling extras. Per extra: a `bazel_skylib` `bool_flag` (e.g.
   `//xff:xff_archive`, `//xff:xff_pcre`, default False) + a `config_setting` + a `select()` on the FULL
-  binary's deps so the extra's backend target (`@libarchive`, `third_party/pcre2`) links only when
+  binary's deps so the extra's backend target (`@libarchive`, `extra_modules/pcre2`) links only when
   on. Presence is then detected at runtime from the registry the backend self-registers into (e.g.
   `regex::Pcre2Available()`), so there is NO `#ifdef` in the core - deleting the extra's directory
   makes an extra-on build fail to compile while the lean build still builds. (The `-DXFF_WITH_*`
@@ -467,7 +467,7 @@ remains below is the design-forked / larger work.
     `DefaultStyleForProgram` strips a `_full` suffix so `xff_full` -> xff style (and `find_full` ->
     find, etc.); covered by `config_test` + `full_binary_test.sh`. `--config=xff_full` (`.bazelrc`) turns
     the extras on; `--config=xff_full --//xff:xff_pcre=false` drops one from an otherwise-full build.
-  - **PCRE2 backend SHIPPED (#85 PR5).** `third_party/pcre2/` (removable dir) holds the real
+  - **PCRE2 backend SHIPPED (#85 PR5).** `extra_modules/pcre2/` (removable dir) holds the real
     `Pcre2Backend` (implements `xff/regex`'s `RegexBackend` via the PCRE2 C API - compile / match /
     ovector / substitute), `alwayslink` self-registers via `Pcre2Registrar` + a BSD-3 notice
     (license registry), deps the BCR `pcre2` 10.47 module, and links into `xff_full` via
@@ -479,7 +479,7 @@ remains below is the design-forked / larger work.
     `--config=xff_full`. This completes the RegexBackend engine family: RE2 / EXACT / FNMATCH / GLOB
     (core) + PCRE2 (extra).
   - **REMAINING #83 (archive extra, NOT built):** same shape - `//xff:xff_archive` already exists; add a
-    `third_party`/libarchive-backed self-registering module linked into `xff_full` via
+    `extra_modules`/libarchive-backed self-registering module linked into `xff_full` via
     `select({"//xff:xff_archive_enabled": [...]})`, join `--//xff:xff_archive` into `.bazelrc build:xff_full`.
     `@libarchive` **3.8.1.bcr.2 RESOLVES** (verified; target `@libarchive//libarchive:libarchive`,
     keep its `use_mbedtls` OFF); codec set tar/gz/bzip2/xz/zstd/lz4, mbedtls deferred; add the
@@ -491,7 +491,7 @@ remains below is the design-forked / larger work.
 
 - **PCRE2 backend (#85, `-regextype`): SHIPPED as a composable extra - decided 2026-07-06.**
   **Done:** PR3 recognized `--regextype=PCRE2` + guaranteed the "not built in" error; PR4 the
-  dual-binary + extras-flag scaffolding; PR5a the grammar threading; PR5b the real `third_party/pcre2`
+  dual-binary + extras-flag scaffolding; PR5a the grammar threading; PR5b the real `extra_modules/pcre2`
   backend + BSD notice + `xff_full` `select` + CI `full` cell (above). `--regextype` now selects any
   of RE2 / EXACT / FNMATCH / GLOB (core) or PCRE2 (extra). RE2
   (our engine) is linear-time and omits backreferences / lookaround / recursion; pcre2 is the Perl

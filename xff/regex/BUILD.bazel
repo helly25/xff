@@ -17,8 +17,8 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 # Regular-expression matching for find's -regex/-iregex, backed by RE2 (+ EXACT/FNMATCH/GLOB core
 # engines, and PCRE2 when the build extra is linked). `backend.h` is the extension seam an extra
-# backend implements (third_party/pcre2), so it is an exported header and the target is visible to
-# //third_party too - not just //xff.
+# backend implements (extra_modules/pcre2), so it is an exported header and the target is visible to
+# //extra_modules too - not just //xff.
 cc_library(
     name = "regex_cc",
     srcs = ["regex.cc"],
@@ -27,7 +27,7 @@ cc_library(
         "regex.h",
     ],
     visibility = [
-        "//third_party:__subpackages__",
+        "//extra_modules:__subpackages__",
         "//xff:__subpackages__",
     ],
     deps = [

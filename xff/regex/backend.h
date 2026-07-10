@@ -57,7 +57,7 @@ class RegexBackend {
 
 // Compiles `pattern` into a PCRE2-backed RegexBackend (case-folding when `case_insensitive`), or an
 // InvalidArgument error for a pattern PCRE2 rejects. The real PCRE2 backend -- built only into the
-// full binary, from its own removable target under third_party/ -- provides one of these.
+// full binary, from its own removable target under extra_modules/ -- provides one of these.
 using Pcre2Factory =
     std::function<absl::StatusOr<std::unique_ptr<const RegexBackend>>(std::string_view pattern, bool case_insensitive)>;
 

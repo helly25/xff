@@ -111,7 +111,7 @@ jobs:
         run: bazel test //... --repository_cache=$HOME/.cache/bazel-repo --config=clang --config=tsan
 
   # The extended `xff_full` binary and its composable build extras (PCRE2, #85). This is the ONLY
-  # cell that links the extra backends (third_party/pcre2) and fetches @pcre2 - a plain build never
+  # cell that links the extra backends (extra_modules/pcre2) and fetches @pcre2 - a plain build never
   # does. It runs the whole suite with the extra on (`--config=xff_full`), then the `manual`
   # full-only targets by name (wildcards skip `manual`): the full binary's end-to-end test and the
   # PCRE2 backend unit tests. ubuntu-only + repo-cache-only, like tsan.
@@ -132,7 +132,7 @@ jobs:
       - name: bazel test (xff_full + extras)
         run: >
           bazel test --config=xff_full --repository_cache=$HOME/.cache/bazel-repo
-          //... //xff/cli:full_binary_test //third_party/pcre2:pcre2_backend_test
+          //... //xff/cli:full_binary_test //extra_modules/pcre2:pcre2_backend_test
 
   # Single required status check: one job that gates merge on the whole matrix,
   # so branch protection needs only `done`. A yq/jq step self-checks that every

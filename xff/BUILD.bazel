@@ -19,11 +19,11 @@
 # the full binary with every extra; a single extra can still be dropped from an otherwise-full
 # build on the command line (e.g. `--config=xff_full --//xff:xff_pcre=false //xff/cli:xff_full`).
 #
-# Each extra is a self-registering backend target (under `third_party/`) that only `xff_full` links,
+# Each extra is a self-registering backend target (under `extra_modules/`) that only `xff_full` links,
 # via a `select()` on the extra's `config_setting`. Presence is detected at runtime from the
 # registry the backend registers into (e.g. `xff::regex::Pcre2Available()`), so there is no
 # `#ifdef` in the core and the lean binary simply never links the target - deleting the
-# `third_party/` directory makes a `--//xff:xff_<extra>` build fail to compile while the lean build
+# `extra_modules/` directory makes a `--//xff:xff_<extra>` build fail to compile while the lean build
 # still builds. The matching CLI surface (`--regextype=PCRE2`, `--archive`, ...) is ALWAYS present;
 # using an extra in a build that did not link it is a hard immediate error, never a silent no-op.
 # See TODO.md "Composable-extras" and docs/design-config.md.
@@ -44,7 +44,7 @@ config_setting(
     flag_values = {":xff_archive": "True"},
 )
 
-# --//xff:xff_pcre -- link the PCRE2 regex backend (third_party/pcre2; wired in #85). Default off, so
+# --//xff:xff_pcre -- link the PCRE2 regex backend (extra_modules/pcre2; wired in #85). Default off, so
 # only `xff_full` built with the extra on (`--config=xff_full`, or `--//xff:xff_pcre`) links it. Without
 # it, `--regextype=PCRE2` is a usage error (never a silent RE2 fallback).
 bool_flag(
