@@ -85,7 +85,8 @@ bool IsXorTier(std::string_view t) {
 // pattern does not compile (then no-match).
 std::shared_ptr<const regex::Matcher> CompileNodeRegex(
     const registry::Descriptor& descriptor,
-    const std::vector<std::string>& args) {
+    const std::vector<std::string>& args,
+    regex::Grammar grammar) {
   std::string_view pattern;
   if ((descriptor.name == "-regex" || descriptor.name == "-iregex" || descriptor.name == "-rxc"
        || descriptor.name == "-irxc" || descriptor.name == "-grep")
@@ -96,18 +97,18 @@ std::shared_ptr<const regex::Matcher> CompileNodeRegex(
   } else {
     return nullptr;
   }
-  absl::StatusOr<regex::Matcher> matcher = regex::Matcher::Compile(pattern, descriptor.fold_case);
+  absl::StatusOr<regex::Matcher> matcher = regex::Matcher::Compile(pattern, descriptor.fold_case, grammar);
   if (!matcher.ok()) {
     return nullptr;
   }
   return std::make_shared<const regex::Matcher>(*std::move(matcher));
 }
 
-ExprPtr MakePredicate(const registry::Descriptor* descriptor, std::vector<std::string> args) {
+ExprPtr MakePredicate(const registry::Descriptor* descriptor, std::vector<std::string> args, regex::Grammar grammar) {
   auto expr = std::make_unique<Expr>();
   expr->kind = Expr::Kind::kPredicate;
   expr->descriptor = descriptor;
-  expr->matcher = CompileNodeRegex(*descriptor, args);  // compile once, here; eval just reads it
+  expr->matcher = CompileNodeRegex(*descriptor, args, grammar);  // compile once, here; eval just reads it
   expr->args = std::move(args);
   return expr;
 }
@@ -137,7 +138,7 @@ ExprPtr MakeBinary(Expr::Kind kind, ExprPtr lhs, ExprPtr rhs) {
 //   prim := '(' list ')' | PREDICATE arg{arity}
 class ExprParser {
  public:
-  explicit ExprParser(const std::vector<std::string>& tokens) : tokens_(tokens) {}
+  ExprParser(const std::vector<std::string>& tokens, regex::Grammar grammar) : tokens_(tokens), grammar_(grammar) {}
 
   absl::StatusOr<ExprPtr> Parse() {
     ExprPtr expr = ParseComma();
@@ -277,7 +278,7 @@ class ExprParser {
         for (std::string& cmd_token : command) {
           args.push_back(std::move(cmd_token));
         }
-        return MakePredicate(descriptor, std::move(args));
+        return MakePredicate(descriptor, std::move(args), grammar_);
       }
       // A Binding::kFormat primary (-grep) carries an attached =FORMAT output
       // template on its own token; the whole payload after the first '=' is the
@@ -295,7 +296,7 @@ class ExprParser {
           }
           args.push_back(tokens_[pos_++]);
         }
-        ExprPtr node = MakePredicate(descriptor, std::move(args));
+        ExprPtr node = MakePredicate(descriptor, std::move(args), grammar_);
         if (node != nullptr) {
           node->grep_template = std::make_shared<const fields::Template>(fields::Template::Compile(format));
         }
@@ -332,7 +333,7 @@ class ExprParser {
           }
           args.push_back(tokens_[pos_++]);
         }
-        ExprPtr node = MakePredicate(descriptor, std::move(args));
+        ExprPtr node = MakePredicate(descriptor, std::move(args), grammar_);
         if (node != nullptr) {
           node->diff_style = style;
         }
@@ -345,7 +346,7 @@ class ExprParser {
           descriptor != nullptr && descriptor->binding == registry::Binding::kHash) {
         const std::string spec = token.substr(eq + 1);
         ++pos_;  // consume the `<name>=SPEC` token
-        ExprPtr node = MakePredicate(descriptor, {});
+        ExprPtr node = MakePredicate(descriptor, {}, grammar_);
         if (node != nullptr) {
           node->hash_spec = spec;
         }
@@ -393,7 +394,7 @@ class ExprParser {
         return nullptr;
       }
       ++pos_;  // consume ';' or '+'
-      ExprPtr node = MakePredicate(descriptor, std::move(command));
+      ExprPtr node = MakePredicate(descriptor, std::move(command), grammar_);
       if (node != nullptr) {
         node->exec_batch = batch;
       }
@@ -407,10 +408,11 @@ class ExprParser {
       }
       args.push_back(tokens_[pos_++]);
     }
-    return MakePredicate(descriptor, std::move(args));
+    return MakePredicate(descriptor, std::move(args), grammar_);
   }
 
   const std::vector<std::string>& tokens_;
+  regex::Grammar grammar_;  // the regex grammar for this command's matchers (from --regextype)
   std::size_t pos_ = 0;
   absl::Status status_ = absl::OkStatus();
 };
@@ -505,6 +507,22 @@ const Expr* FirstXffPrintfField(const Expr* expr) {
   return FirstXffPrintfField(expr->rhs.get());
 }
 
+// The regex grammar for the command's matchers, from `--regextype=` (last occurrence wins). Only
+// PCRE2 selects a non-default grammar; RE2 / EXACT (and the -grep MATCH placeholder) stay RE2 here.
+// This is lenient by design: an unknown or PCRE2-not-built-in value is left as RE2 and rejected by
+// run.cc's ResolveGrepLiteral (the validating reader) before the walk, so it never reaches a matcher.
+regex::Grammar GrammarFromGlobals(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--regextype=";
+  regex::Grammar grammar = regex::Grammar::kRe2;
+  for (const std::string& global : globals) {
+    if (global.starts_with(kPrefix)) {
+      grammar =
+          std::string_view(global).substr(kPrefix.size()) == "PCRE2" ? regex::Grammar::kPcre2 : regex::Grammar::kRe2;
+    }
+  }
+  return grammar;
+}
+
 }  // namespace
 
 absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
@@ -524,6 +542,9 @@ absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
       break;
     }
   }
+  // The regex grammar (from --regextype) is fixed for the whole command, so resolve it once here and
+  // compile every matcher with it (below, and on the ApplyCaseMode recompile).
+  cmd.grammar = GrammarFromGlobals(cmd.globals);
 
   // Roots: operands until the expression begins.
   for (; i < args.size(); ++i) {
@@ -536,7 +557,7 @@ absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
   // Expression: the remaining tokens, parsed to a tree.
   const std::vector<std::string> expr_tokens(args.begin() + static_cast<std::ptrdiff_t>(i), args.end());
   if (!expr_tokens.empty()) {
-    ExprParser parser(expr_tokens);
+    ExprParser parser(expr_tokens, cmd.grammar);
     MBO_ASSIGN_OR_RETURN(cmd.expression, parser.Parse());
   }
   return cmd;
@@ -611,7 +632,7 @@ bool ShouldFold(CaseMode mode, std::string_view pattern) {
 // (-name/-path/-lname/-content) via Expr::case_fold, the pre-compiled regex ones
 // (-regex/-rxc/-grep) by recompiling `matcher` case-insensitively. Leaves the -i variants
 // and non-matcher nodes untouched; recurses over the whole tree.
-void ApplyCaseModeToNode(Expr* expr, CaseMode mode) {
+void ApplyCaseModeToNode(Expr* expr, CaseMode mode, regex::Grammar grammar) {
   if (expr == nullptr) {
     return;
   }
@@ -623,7 +644,8 @@ void ApplyCaseModeToNode(Expr* expr, CaseMode mode) {
     const bool regex = name == "-regex" || name == "-rxc" || name == "-grep";
     if ((glob_or_content || regex) && ShouldFold(mode, pattern)) {
       if (regex) {
-        if (absl::StatusOr<regex::Matcher> matcher = regex::Matcher::Compile(pattern, /*case_insensitive=*/true);
+        if (absl::StatusOr<regex::Matcher> matcher =
+                regex::Matcher::Compile(pattern, /*case_insensitive=*/true, grammar);
             matcher.ok()) {
           expr->matcher = std::make_shared<const regex::Matcher>(*std::move(matcher));
         }
@@ -632,8 +654,8 @@ void ApplyCaseModeToNode(Expr* expr, CaseMode mode) {
       }
     }
   }
-  ApplyCaseModeToNode(expr->lhs.get(), mode);
-  ApplyCaseModeToNode(expr->rhs.get(), mode);
+  ApplyCaseModeToNode(expr->lhs.get(), mode, grammar);
+  ApplyCaseModeToNode(expr->rhs.get(), mode, grammar);
 }
 
 }  // namespace
@@ -642,7 +664,7 @@ void ApplyCaseMode(Command& command, CaseMode mode) {
   if (mode == CaseMode::kSensitive) {
     return;  // nothing to fold; the -i variants already handle their own case
   }
-  ApplyCaseModeToNode(command.expression.get(), mode);
+  ApplyCaseModeToNode(command.expression.get(), mode, command.grammar);
 }
 
 }  // namespace xff::parser
