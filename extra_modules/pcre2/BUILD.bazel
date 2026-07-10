@@ -33,8 +33,8 @@ cc_library(
     visibility = ["//xff/cli:__pkg__"],
     deps = [
         "//xff/license:license_cc",
-        "//xff/regex:regex_cc",
         "@pcre2",
+        "@xff_extras_api",
     ],
     alwayslink = True,
 )

@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# The shared extras API: the RegexBackend plugin interface + the PCRE2 registration slot. Both the
+# xff core (//xff/regex depends on this for the interface; Matcher::Compile(kPcre2) calls
+# MakePcre2Backend) and each removable extra (extra_modules/pcre2 implements RegexBackend and
+# self-registers via Pcre2Registrar) depend on this module, so an extra never depends back into the
+# core. `include_prefix = "xff/regex"` keeps the header's logical path `xff/regex/backend.h`.
+cc_library(
+    name = "xff_extras_api",
+    srcs = ["backend.cc"],
+    hdrs = ["backend.h"],
+    include_prefix = "xff/regex",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+    ],
+)
