@@ -15,7 +15,12 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
-package(default_visibility = ["//xff:__subpackages__"])
+# Visible to //third_party too: a build extra (e.g. third_party/pcre2) self-registers its notice
+# here via license::Registrar, the same way core deps do.
+package(default_visibility = [
+    "//third_party:__subpackages__",
+    "//xff:__subpackages__",
+])
 
 # xff's own license (Apache-2.0) is compiled into the binary from the canonical repo LICENSE file so
 # a single-file release reproduces it (--help=license). LICENSE stays canonical; this only embeds
