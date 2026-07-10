@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
+# The real PCRE2 regex backend: the --regextype=PCRE2 build extra (#85). ONLY //xff/cli:xff_full
+# links it, via `select({"//xff:xff_pcre_enabled": [...]})`; the lean binary and a default build
+# never reference it (bzlmod also never fetches @pcre2 then). `alwayslink` keeps the self-
+# registration translation unit from being dropped. Deleting this directory removes PCRE2 support
+# entirely: an `--//xff:xff_pcre` build then fails to compile, while the lean build is unaffected.
+cc_library(
+    name = "pcre2_backend",
+    srcs = ["pcre2_backend.cc"],
+    # `manual` so a wildcard `//...` build (the lean CI cells) never builds it or fetches @pcre2;
+    # xff_full's `select` and the test below dep it explicitly, which is unaffected by `manual`.
+    tags = ["manual"],
+    visibility = ["//xff/cli:__pkg__"],
+    deps = [
+        "//xff/license:license_cc",
+        "//xff/regex:regex_cc",
+        "@pcre2",
+    ],
+    alwayslink = True,
+)
+
+# Unit tests for the PCRE2 backend ops. `manual` (it deps the backend + @pcre2), so `//...` skips
+# it; the full CI cell runs it. Deps the backend directly, so the factory is always registered here.
+cc_test(
+    name = "pcre2_backend_test",
+    size = "small",
+    srcs = ["pcre2_backend_test.cc"],
+    tags = ["manual"],
+    deps = [
+        ":pcre2_backend",
+        "//xff/regex:regex_cc",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)

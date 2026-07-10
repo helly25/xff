@@ -420,14 +420,17 @@ remains below is the design-forked / larger work.
     `DefaultStyleForProgram` strips a `_full` suffix so `xff_full` -> xff style (and `find_full` ->
     find, etc.); covered by `config_test` + `full_binary_test.sh`. `--config=xff_full` (`.bazelrc`) turns
     the extras on; `--config=xff_full --//xff:xff_pcre=false` drops one from an otherwise-full build.
-  - **REMAINING #85 PR5 (the real PCRE2 backend, NOT built):** `third_party/pcre2/` REAL
-    `Pcre2Backend` (implements the `xff/regex` `RegexBackend` iface via the PCRE2 C API), `alwayslink`
-    self-registers via `Pcre2Registrar` + a BSD-3 notice, deps the BCR `pcre2` module, linked into
-    `xff_full` by that `select`; builds ONLY under `--config=xff_full`. Plus grammar threading
-    (`Grammar::kPcre2` through the parser compile sites) so `--regextype=PCRE2` actually uses it, set
-    pcre2 match/backtrack/depth limits (ReDoS guard), PCRE2-only tests (lookahead/backreferences)
-    under `--config=xff_full`, and a CI full cell. Add backend + threading atomically (no window where
-    `Pcre2Available()` is true but nothing threads the grammar).
+  - **PCRE2 backend SHIPPED (#85 PR5).** `third_party/pcre2/` (removable dir) holds the real
+    `Pcre2Backend` (implements `xff/regex`'s `RegexBackend` via the PCRE2 C API - compile / match /
+    ovector / substitute), `alwayslink` self-registers via `Pcre2Registrar` + a BSD-3 notice
+    (license registry), deps the BCR `pcre2` 10.47 module, and links into `xff_full` via
+    `select({"//xff:xff_pcre_enabled": [...]})` - `manual`, so a plain `//...` build never fetches
+    `@pcre2`. FullMatch is ANCHORED|ENDANCHORED; ReDoS guarded by match + depth limits; Rewrite
+    translates the RE2 `\1` contract to PCRE2 `$1`. Grammar threading (kPcre2) landed in PR5a. Tests:
+    `pcre2_backend_test` (unit, all ops, backreferences/lookahead) + `full_binary_test` (config-aware
+    end-to-end); a CI `full` cell runs the whole suite + the manual full targets under
+    `--config=xff_full`. This completes the RegexBackend engine family: RE2 / EXACT / FNMATCH / GLOB
+    (core) + PCRE2 (extra).
   - **REMAINING #83 (archive extra, NOT built):** same shape - `//xff:xff_archive` already exists; add a
     `third_party`/libarchive-backed self-registering module linked into `xff_full` via
     `select({"//xff:xff_archive_enabled": [...]})`, join `--//xff:xff_archive` into `.bazelrc build:xff_full`.
@@ -439,11 +442,11 @@ remains below is the design-forked / larger work.
     both lean and full). **Open detail:** what `--archive` does in a full build before real diving
     exists (avoid a silent no-op; "not yet implemented" is distinct from the minimal "not built in").
 
-- **PCRE2 backend (#85, `-regextype`): use pcre2 as a composable extra - decided 2026-07-06.**
-  **Progress:** PR3 shipped `--regextype=PCRE2` recognition + the guaranteed "not built into this
-  binary" error (no silent RE2 fallback); the `xff/regex` `RegexBackend` iface + `Grammar {kRe2,
-kPcre2}` + `Pcre2Available()` registration slot are in place; PR4 shipped the dual-binary + extras
-  flag scaffolding (above). PR5 = the real backend + grammar threading (above). RE2
+- **PCRE2 backend (#85, `-regextype`): SHIPPED as a composable extra - decided 2026-07-06.**
+  **Done:** PR3 recognized `--regextype=PCRE2` + guaranteed the "not built in" error; PR4 the
+  dual-binary + extras-flag scaffolding; PR5a the grammar threading; PR5b the real `third_party/pcre2`
+  backend + BSD notice + `xff_full` `select` + CI `full` cell (above). `--regextype` now selects any
+  of RE2 / EXACT / FNMATCH / GLOB (core) or PCRE2 (extra). RE2
   (our engine) is linear-time and omits backreferences / lookaround / recursion; pcre2 is the Perl
   superset a `-regextype pcre`/`perl` grammar needs (RE2 already covers the POSIX-family grammars,
   which are all regular). **pcre2 is in the BCR**, upstream-maintained

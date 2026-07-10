@@ -14,11 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# End-to-end test of the extended `xff_full` binary (#85 / composable extras, #115). This asserts
-# the dual-binary scaffolding: `xff_full` is a real, runnable binary whose `_full` invocation name
-# maps back to the xff style (so it behaves exactly as `xff`), and - because this build did not link
-# the PCRE2 extra - `--regextype=PCRE2` is still a usage error, never a silent RE2 fallback. The
-# `--config=xff_full` build that links the backend (so PCRE2 works) is exercised by #85's own tests.
+# End-to-end test of the extended `xff_full` binary (#85 / composable extras, #115). It asserts the
+# dual-binary scaffolding - `xff_full` is a real, runnable binary whose `_full` invocation name maps
+# back to the xff style (so it behaves exactly as `xff`) - and the PCRE2 extra. It is config-aware,
+# so it passes in both builds: a plain build links no PCRE2 backend (--regextype=PCRE2 is a usage
+# error, never a silent RE2 fallback), while a `--config=xff_full` build links it (PCRE2 patterns
+# work). The full CI cell runs it under `--config=xff_full` to exercise the linked path.
 
 set -euo pipefail
 
@@ -45,16 +46,28 @@ test::full_binary_resolves_to_the_xff_style_via_argv0() {
   expect_matches '/f\.txt:1:has TODO here' "${out}"
 }
 
-test::full_binary_without_the_pcre_extra_rejects_pcre2() {
-  # This build did not link the PCRE2 backend (the extra is off by default), so even the full binary
-  # rejects `--regextype=PCRE2` with a usage error (exit 2). A `--config=xff_full` build accepts it.
-  local root out rc
+test::full_binary_pcre2_works_when_the_extra_is_linked_else_errors() {
+  # This test drives xff_full in whichever build config it was compiled with, so it passes both
+  # ways: a plain build links no PCRE2 backend (--regextype=PCRE2 is a usage error), while a
+  # `--config=xff_full` build links it (a PCRE2-only pattern - here a backreference RE2 rejects -
+  # actually matches). Detect which by probing --regextype=PCRE2 on a bare root.
+  local root out rc bin
+  bin="$(_xff_full_bin)"
   root="$(mktemp -d)"
-  printf 'x\n' >"${root}/f.txt"
-  out="$("$(_xff_full_bin)" --regextype=PCRE2 "${root}" -grep 'x' 2>&1)" && rc=0 || rc=$?
-  rm -rf "${root}"
-  expect_eq "2" "${rc}"
-  expect_matches 'not built into this binary' "${out}"
+  printf 'the the fox\nunique here\n' >"${root}/f.txt"
+  if "${bin}" --regextype=PCRE2 "${root}" >/dev/null 2>&1; then
+    # PCRE2 is linked: a backreference (unsupported by RE2) matches the doubled word.
+    out="$("${bin}" --regextype=PCRE2 "${root}" -type f -grep '(\w+) \1' 2>&1)" && rc=0 || rc=$?
+    rm -rf "${root}"
+    expect_eq "0" "${rc}"
+    expect_matches '/f\.txt:1:the the fox' "${out}"
+  else
+    # PCRE2 is not linked (the extra is off): --regextype=PCRE2 is a usage error, never a fallback.
+    out="$("${bin}" --regextype=PCRE2 "${root}" -grep 'x' 2>&1)" && rc=0 || rc=$?
+    rm -rf "${root}"
+    expect_eq "2" "${rc}"
+    expect_matches 'not built into this binary' "${out}"
+  fi
 }
 
 test_runner
