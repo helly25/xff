@@ -167,10 +167,10 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--regextype",
-        .display = "--regextype=RE2|PCRE2|EXACT",
+        .display = "--regextype=RE2|EXACT|PCRE2",
         .group = "matching",
         .header = "Matching",
-        .summary = "regex grammar: RE2 (default) or PCRE2 (a build extra), or EXACT literal for -grep",
+        .summary = "match engine: RE2 (default), EXACT (literal), or PCRE2 (a build extra)",
     },
     {
         .name = "--exclude",

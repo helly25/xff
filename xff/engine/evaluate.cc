@@ -1183,9 +1183,9 @@ bool EvalHash(const parser::Expr& expr, EvalContext& ctx) {
 
 // xff -grep PATTERN: the line-output companion of -rxc. Prints each line of the
 // file's content that matches, as `path:lineno:text` (grep's piped form). The
-// pattern is an RE2 regex by default (pre-compiled by the parser) or a literal
-// substring under --regextype=EXACT (ctx.grep_literal). Matching is per line, so a
-// pattern with no '\n' selects individual lines the way grep does; non-regular,
+// pattern is pre-compiled by the parser under the run's --regextype grammar (RE2 by
+// default, the literal engine under EXACT, PCRE2 when built in). Matching is per line,
+// so a pattern with no '\n' selects individual lines the way grep does; non-regular,
 // unreadable, and binary files yield nothing (see ContentToSearch). Returns true
 // iff at least one line was printed, so the action's truth reflects "found a match"
 // for -o / -q.
@@ -1197,18 +1197,15 @@ bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
   if (!content.has_value()) {
     return false;
   }
-  // --regextype=EXACT matches the pattern as a literal substring; the default is the
-  // pre-compiled RE2 regex (a null matcher -- unparseable pattern -- matches nothing,
-  // mirroring -rxc). The same choice drives the line filter and, for -grep=FORMAT,
-  // the per-line {match}/{column} span.
-  const std::string_view needle = expr.args.front();
-  const MatcherRef matcher = ctx.grep_literal ? MatcherRef{} : AsRef(expr.matcher);
-  if (!ctx.grep_literal && !matcher.has_value()) {
+  // The pattern is pre-compiled by the parser into a matcher under the run's grammar (RE2 by
+  // default, the literal engine under --regextype=EXACT, PCRE2 when built in). A null matcher (an
+  // unparseable pattern) matches nothing, mirroring -rxc. The matcher drives the line filter and,
+  // for -grep=FORMAT, the per-line {match}/{column} span, so EXACT and RE2 share one code path.
+  const MatcherRef matcher = AsRef(expr.matcher);
+  if (!matcher.has_value()) {
     return false;
   }
-  const auto is_match = [&](std::string_view line) {
-    return ctx.grep_literal ? absl::StrContains(line, needle) : matcher->get().PartialMatch(line);
-  };
+  const auto is_match = [&](std::string_view line) { return matcher->get().PartialMatch(line); };
   if (ctx.grep_count) {
     // --count / -c (rg -c): one path:count per file with matches, in place of the
     // lines (and any -grep=FORMAT); files with no match emit nothing. Context is ignored.
@@ -1245,12 +1242,7 @@ bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
     // match line; on a context line they stay empty.
     std::string_view match_text;
     std::optional<std::size_t> match_column;
-    if (line.is_match && ctx.grep_literal) {
-      if (const std::size_t pos = line.text.find(needle); pos != std::string_view::npos) {
-        match_text = line.text.substr(pos, needle.size());
-        match_column = pos + 1;
-      }
-    } else if (line.is_match) {
+    if (line.is_match) {
       if (const std::optional<std::pair<std::size_t, std::size_t>> span = matcher->get().FindFirst(line.text)) {
         match_text = line.text.substr(span->first, span->second);
         match_column = span->first + 1;

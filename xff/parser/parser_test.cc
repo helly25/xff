@@ -398,9 +398,9 @@ TEST_F(ParserTest, RegextypeSelectsTheMatcherGrammar) {
   ASSERT_OK_AND_ASSIGN(const Command pcre2, Parse({"--regextype=PCRE2", ".", "-regex", ".*"}));
   EXPECT_THAT(pcre2.grammar, regex::Grammar::kPcre2);
 
-  // EXACT is a -grep literal selector, not a regex engine, so the grammar stays RE2.
+  // EXACT selects the literal engine (a core grammar, applies to every pattern predicate).
   ASSERT_OK_AND_ASSIGN(const Command exact, Parse({"--regextype=EXACT", ".", "-grep", "x"}));
-  EXPECT_THAT(exact.grammar, regex::Grammar::kRe2);
+  EXPECT_THAT(exact.grammar, regex::Grammar::kExact);
 
   // Last occurrence wins (mirrors run.cc's ResolveGrepLiteral).
   ASSERT_OK_AND_ASSIGN(const Command last, Parse({"--regextype=PCRE2", "--regextype=RE2", ".", "-regex", ".*"}));

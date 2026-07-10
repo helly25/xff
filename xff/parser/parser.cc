@@ -507,17 +507,24 @@ const Expr* FirstXffPrintfField(const Expr* expr) {
   return FirstXffPrintfField(expr->rhs.get());
 }
 
-// The regex grammar for the command's matchers, from `--regextype=` (last occurrence wins). Only
-// PCRE2 selects a non-default grammar; RE2 / EXACT (and the -grep MATCH placeholder) stay RE2 here.
-// This is lenient by design: an unknown or PCRE2-not-built-in value is left as RE2 and rejected by
-// run.cc's ResolveGrepLiteral (the validating reader) before the walk, so it never reaches a matcher.
+// The regex grammar for the command's matchers, from `--regextype=` (last occurrence wins). EXACT
+// selects the literal engine, PCRE2 the Perl engine; RE2 (and the reserved MATCH placeholder) stay
+// RE2. This is lenient by design: an unknown or PCRE2-not-built-in value is left as RE2 and rejected
+// by run.cc's ValidateRegextype (the validating reader) before the walk, so it never reaches a matcher.
 regex::Grammar GrammarFromGlobals(const std::vector<std::string>& globals) {
   constexpr std::string_view kPrefix = "--regextype=";
   regex::Grammar grammar = regex::Grammar::kRe2;
   for (const std::string& global : globals) {
-    if (global.starts_with(kPrefix)) {
-      grammar =
-          std::string_view(global).substr(kPrefix.size()) == "PCRE2" ? regex::Grammar::kPcre2 : regex::Grammar::kRe2;
+    if (!global.starts_with(kPrefix)) {
+      continue;
+    }
+    const std::string_view value = std::string_view(global).substr(kPrefix.size());
+    if (value == "EXACT") {
+      grammar = regex::Grammar::kExact;
+    } else if (value == "PCRE2") {
+      grammar = regex::Grammar::kPcre2;
+    } else {
+      grammar = regex::Grammar::kRe2;  // RE2 / MATCH / unknown -> RE2 (run.cc validates the value)
     }
   }
   return grammar;

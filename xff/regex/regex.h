@@ -28,11 +28,14 @@
 
 namespace xff::regex {
 
-// The regex grammar a Matcher compiles with. kRe2 is RE2 (linear-time, no catastrophic
-// backtracking) - the default and find's historic behavior. kPcre2 is PCRE2 (Perl syntax:
-// backreferences, lookaround), selected by -regextype=pcre / --regextype=PCRE; it is available only
-// when the PCRE2 backend is built into the binary, otherwise Compile returns an Unimplemented error.
-enum class Grammar { kRe2, kPcre2 };
+// The grammar a Matcher compiles with - the engine behind `--regextype`. kRe2 is RE2 (linear-time,
+// no catastrophic backtracking) - the default and find's historic behavior. kExact is a literal
+// string match (no metacharacters), a core engine selected by --regextype=EXACT: FullMatch is
+// equality, PartialMatch a substring test, so it is the "verify this exact text" grammar and needs
+// no pattern to compile. kPcre2 is PCRE2 (Perl syntax: backreferences, lookaround), selected by
+// --regextype=PCRE2; it is a build extra, available only when its backend is linked, otherwise
+// Compile returns an Unimplemented error (never a silent RE2 fallback).
+enum class Grammar { kRe2, kExact, kPcre2 };
 
 class RegexBackend;  // the concrete engine (backend.h); a Matcher owns one behind a unique_ptr
 
