@@ -22,14 +22,19 @@
 #include "absl/types/span.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "xff/cli/globals.h"
 #include "xff/cli/help.h"
+#include "xff/registry/descriptor.h"
+#include "xff/registry/registry.h"
 
 namespace xff::cli {
 namespace {
 
 using ::testing::AllOf;
+using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::Field;
+using ::testing::StartsWith;
 using ::testing::UnorderedElementsAre;
 
 // One recorded DocRenderer call, so the shared walk / Markdown parser can be asserted
@@ -137,6 +142,28 @@ TEST_F(DocRendererTest, InFullTopicsMatchTheReferenceWalk) {
     }
   }
   EXPECT_THAT(in_full, UnorderedElementsAre("fields", "printf", "time", "size", "cookbook"));
+}
+
+// Completeness guards: the shared walk feeds --man and --markdown, so every expression primary
+// and every global flag must reach it. This is the exact class of drift that motivated the walk
+// (man/markdown had silently lagged the vocabulary), now locked at the source.
+TEST_F(DocRendererTest, ReferenceEntriesCoverEveryPrimary) {
+  Recorder rec;
+  WriteReference(rec);
+  const std::vector<std::string> entries = rec.Texts("entry");
+  for (const registry::Descriptor& descriptor : registry::All()) {
+    // Entry terms are "<name><arg-hint>", so the primary name is a prefix of its entry.
+    EXPECT_THAT(entries, Contains(StartsWith(descriptor.name))) << descriptor.name;
+  }
+}
+
+TEST_F(DocRendererTest, ReferenceEntriesCoverEveryGlobalFlag) {
+  Recorder rec;
+  WriteReference(rec);
+  const std::vector<std::string> entries = rec.Texts("entry");
+  for (const GlobalFlag& flag : Globals()) {
+    EXPECT_THAT(entries, Contains(std::string(flag.display))) << flag.name;
+  }
 }
 
 }  // namespace
