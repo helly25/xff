@@ -34,7 +34,7 @@ bazel_dep(name = "re2", version = "2025-11-05.bcr.1")
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 
 # PCRE2 is a composable build extra (--regextype=PCRE2, #85): only //xff/cli:xff_full links its
-# backend (third_party/pcre2), via a select on //xff:xff_pcre. bzlmod is lazy, so a lean build never
+# backend (extra_modules/pcre2), via a select on //xff:xff_pcre. bzlmod is lazy, so a lean build never
 # fetches or compiles it. BSD-3-Clause (same family as re2 / googletest, no new license type).
 bazel_dep(name = "pcre2", version = "10.47")
 

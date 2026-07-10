@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Unit tests for the real PCRE2 backend. This target deps //third_party/pcre2:pcre2_backend
+// Unit tests for the real PCRE2 backend. This target deps //extra_modules/pcre2:pcre2_backend
 // directly (alwayslink), so the factory is always registered here regardless of the //xff:xff_pcre
 // flag - Pcre2Available() is true and Matcher::Compile(kPcre2) exercises the actual engine. It is a
 // `manual` target (it pulls @pcre2), run in the full CI cell.

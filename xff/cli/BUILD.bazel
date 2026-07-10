@@ -56,14 +56,14 @@ cc_binary(
 # `//...` and plain wildcard builds skip it (the extras pull heavier deps); build it explicitly with
 # `bazel build --config=xff_full //xff/cli:xff_full`. Its `xff_full` invocation name maps back to the
 # base style (DefaultStyleForProgram strips the `_full` suffix), so it behaves exactly as `xff` with
-# the extras present. The PCRE2 backend (third_party/pcre2) links in via the `select` on
+# the extras present. The PCRE2 backend (extra_modules/pcre2) links in via the `select` on
 # //xff:xff_pcre_enabled: on under `--config=xff_full`, off (and never fetched) otherwise.
 cc_binary(
     name = "xff_full",
     tags = ["manual"],
     visibility = ["//visibility:public"],
     deps = [":main_cc"] + select({
-        "//xff:xff_pcre_enabled": ["//third_party/pcre2:pcre2_backend"],
+        "//xff:xff_pcre_enabled": ["//extra_modules/pcre2:pcre2_backend"],
         "//conditions:default": [],
     }),
 )

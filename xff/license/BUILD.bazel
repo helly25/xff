@@ -15,10 +15,10 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
-# Visible to //third_party too: a build extra (e.g. third_party/pcre2) self-registers its notice
+# Visible to //extra_modules too: a build extra (e.g. extra_modules/pcre2) self-registers its notice
 # here via license::Registrar, the same way core deps do.
 package(default_visibility = [
-    "//third_party:__subpackages__",
+    "//extra_modules:__subpackages__",
     "//xff:__subpackages__",
 ])
 
