@@ -15,102 +15,139 @@
 
 #include "xff/cli/manpage.h"
 
+#include <cstddef>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
-#include "xff/cli/globals.h"
-#include "xff/cli/help.h"
-#include "xff/registry/descriptor.h"
-#include "xff/registry/registry.h"
+#include "absl/types/span.h"
+#include "xff/cli/doc_renderer.h"
 
 namespace xff::cli {
 namespace {
 
-// Escape text for a roff source line: backslash starts an escape, and a hyphen is
-// rendered as `\-` so option dashes are real hyphen-minus (copy-pasteable), per the
-// man-page convention. No content here begins a line with `.`/`'`, the other roff
-// control characters, so those need no guarding.
+// Escape text for a roff source line: backslash starts an escape, a hyphen is rendered as `\-`
+// so option dashes are real hyphen-minus (copy-pasteable), and a leading `.` or `'` in the first
+// column - a roff control line - is guarded with the zero-width `\&` (prose, details, and
+// verbatim examples may begin a line with either).
 std::string Roff(std::string_view text) {
   std::string out;
   out.reserve(text.size());
-  for (const char c : text) {
-    if (c == '\\') {
+  bool at_line_start = true;
+  for (const char ch : text) {
+    if (at_line_start && (ch == '.' || ch == '\'')) {
+      out += "\\&";
+    }
+    at_line_start = ch == '\n';
+    if (ch == '\\') {
       out += "\\\\";
-    } else if (c == '-') {
+    } else if (ch == '-') {
       out += "\\-";
     } else {
-      out += c;
+      out += ch;
     }
   }
   return out;
 }
 
-// A `.TP` tagged-paragraph entry: a bold header line then the description, with a
-// trailing " (xff extension)" when the item is xff-only.
-void Entry(std::string* out, std::string_view header, std::string_view summary, bool xff) {
-  absl::StrAppendFormat(out, ".TP\n.B %s\n%s%s\n", Roff(header), Roff(summary), xff ? " (xff extension)" : "");
-}
+// Renders the shared reference (WriteReference) as roff man-page source. Inline `code` spans
+// become \fB..\fR; the `.PP` state gives consecutive prose paragraphs a blank line between them.
+class RoffRenderer final : public DocRenderer {
+ public:
+  void Document(std::string_view name, std::string_view tagline, std::string_view usage) override {
+    absl::StrAppendFormat(&out_, ".TH %s 1 \"\" \"%s\" \"User Commands\"\n", Roff(name), Roff(name));
+    absl::StrAppend(&out_, ".SH NAME\n", Roff(name), " \\- ", Roff(tagline), "\n");
+    absl::StrAppend(&out_, ".SH SYNOPSIS\n.B ", Roff(name), "\n", Roff(usage), "\n");
+    para_ = false;
+  }
+
+  void Section(std::string_view title) override {
+    absl::StrAppendFormat(&out_, ".SH %s\n", Roff(title));
+    para_ = false;
+  }
+
+  void Subsection(std::string_view title) override {
+    absl::StrAppendFormat(&out_, ".SS %s\n", Roff(title));
+    para_ = false;
+  }
+
+  void Prose(std::string_view text) override {
+    if (para_) {
+      absl::StrAppend(&out_, ".PP\n");
+    }
+    EmitInline(text);
+    absl::StrAppend(&out_, "\n");
+    para_ = true;
+  }
+
+  void Bullets(absl::Span<const std::string_view> items) override {
+    for (const std::string_view item : items) {
+      absl::StrAppend(&out_, ".IP \\(bu 3\n");
+      EmitInline(item);
+      absl::StrAppend(&out_, "\n");
+    }
+    para_ = false;
+  }
+
+  void Entry(std::string_view term, std::string_view summary, std::string_view details, bool xff) override {
+    absl::StrAppendFormat(&out_, ".TP\n.B %s\n%s%s\n", Roff(term), Roff(summary), xff ? " (xff extension)" : "");
+    if (!details.empty()) {
+      absl::StrAppendFormat(&out_, ".sp\n%s\n", Roff(details));
+    }
+    para_ = false;
+  }
+
+  void Rows(absl::Span<const DocRow> rows) override {
+    for (const DocRow& row : rows) {
+      absl::StrAppendFormat(&out_, ".TP\n.B %s\n%s\n", Roff(row.first), Roff(row.second));
+    }
+    para_ = false;
+  }
+
+  void Example(std::string_view text) override {
+    absl::StrAppend(&out_, ".PP\n.nf\n", Roff(text));
+    if (text.empty() || text.back() != '\n') {
+      absl::StrAppend(&out_, "\n");
+    }
+    absl::StrAppend(&out_, ".fi\n");
+    para_ = false;
+  }
+
+  void SeeAlso(absl::Span<const CrossRef> refs, std::string_view note) override {
+    for (std::size_t i = 0; i < refs.size(); ++i) {
+      absl::StrAppendFormat(
+          &out_, ".BR %s (%s)%s\n", Roff(refs[i].name), Roff(refs[i].section), i + 1 < refs.size() ? "," : "");
+    }
+    if (!note.empty()) {
+      absl::StrAppend(&out_, ".PP\n");
+      EmitInline(note);
+      absl::StrAppend(&out_, "\n");
+    }
+    para_ = false;
+  }
+
+  std::string Take() override { return std::move(out_); }
+
+ private:
+  // Emit prose / a bullet, mapping backtick `code` spans to bold (\fB..\fR).
+  void EmitInline(std::string_view text) {
+    ScanInline(
+        text, [&](std::string_view run) { absl::StrAppend(&out_, Roff(run)); },
+        [&](std::string_view code) { absl::StrAppend(&out_, "\\fB", Roff(code), "\\fR"); });
+  }
+
+  std::string out_;
+  bool para_ = false;
+};
 
 }  // namespace
 
 std::string ManPage() {
-  std::string out;
-  absl::StrAppend(&out, ".TH xff 1 \"\" \"xff\" \"User Commands\"\n");
-  absl::StrAppend(
-      &out, ".SH NAME\nxff \\- eXtended File Find, a find(1)-compatible file finder with modern extensions\n");
-  absl::StrAppend(&out, ".SH SYNOPSIS\n.B xff\n[option...] [path...] [expression]\n");
-  absl::StrAppend(
-      &out,
-      ".SH DESCRIPTION\n"
-      "xff walks each starting path and acts on the entries matching an expression, "
-      "like find(1). With no path it searches the current directory; with no action it "
-      "prints each match.\n"
-      ".PP\n"
-      "xff has two flavors selected by the program name: invoked as \\fBfind\\fR it is "
-      "strict find (only the standard vocabulary); invoked as \\fBxff\\fR it enables the "
-      "modern extensions. An explicit \\fB\\-\\-config=find|xff\\fR overrides the program "
-      "name. Options marked \"(xff extension)\" below are the additions over find.\n");
-
-  absl::StrAppend(&out, ".SH OPTIONS\n");
-  std::string_view group;
-  for (const GlobalFlag& flag : Globals()) {
-    if (flag.group != group) {
-      group = flag.group;
-      absl::StrAppendFormat(&out, ".SS %s\n", flag.header);
-    }
-    Entry(&out, flag.display, flag.summary, flag.xff);
-  }
-
-  absl::StrAppend(&out, ".SH EXPRESSION\n");
-
-  struct Section {
-    registry::Kind kind;
-    std::string_view title;
-  };
-
-  for (const Section& section :
-       {Section{registry::Kind::kTest, "Tests"}, Section{registry::Kind::kAction, "Actions"},
-        Section{registry::Kind::kOperator, "Operators"}}) {
-    absl::StrAppendFormat(&out, ".SS %s\n", section.title);
-    for (const registry::Descriptor& descriptor : registry::All()) {
-      if (descriptor.kind == section.kind) {
-        Entry(
-            &out, absl::StrCat(descriptor.name, ArgHint(descriptor)), descriptor.summary,
-            descriptor.style == registry::Style::kXff);
-      }
-    }
-  }
-
-  absl::StrAppend(
-      &out,
-      ".SH EXIT STATUS\n"
-      "0 on success, 2 on error. With \\fB\\-\\-quiet\\fR or \\fB\\-\\-exit\\-match\\fR the "
-      "exit is 0 when something matched and 1 when nothing did (an error still outranks "
-      "the match status).\n");
-  absl::StrAppend(&out, ".SH SEE ALSO\n.BR find (1)\n");
-  return out;
+  RoffRenderer renderer;
+  WriteReference(renderer);
+  return renderer.Take();
 }
 
 }  // namespace xff::cli

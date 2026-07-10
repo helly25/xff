@@ -172,6 +172,20 @@ remains below is the design-forked / larger work.
       primaries / flags from the same source (an integrated mode and/or a build
       target; a separate external generator alongside the man-page builder is fine if
       need be). Wire it into CI so the committed docs cannot drift from the vocabulary.
+    - **One walk, native renderer per format (#125, A/B/C).** `--man`, `--markdown`,
+      and `--help=full` were three hand-rolled walks over the same SOT that had drifted
+      (man/markdown lacked the per-item `.details` and every sub-vocabulary topic that
+      `--help=full` carried). Fixed by a single `WriteReference(DocRenderer&)` traversal
+      (`xff/cli/doc_renderer.{h,cc}`) driving a format renderer: `Document`/`Section`/
+      `Subsection`/`Prose`/`Bullets`/`Entry`/`Rows`/`Example`/`SeeAlso`, plus a shared
+      `WriteMarkdown()` that understands a Markdown subset (`#`/`##` headings, `- `
+      bullets, blank-line paragraphs, backtick `code`) so authored prose renders
+      natively in every format. **PR A (done):** `RoffRenderer` - `--man` now carries the
+      complete reference (options + expression with details, FIELDS incl.
+      braces/namespaces/qualifiers, PRINTF/TIME/SIZE, EXAMPLES, EXIT STATUS, extended
+      SEE ALSO) + a `doc_renderer_test` drift guard on the in_full topic set.
+      **PR B:** `MarkdownRenderer` over the same walk. **PR C:** `PlainRenderer` for
+      `--help=full` (retire the bespoke `FullReference` + the main.cc topic renderers).
   - **`--help` readability + discoverability** (2026-07-04 feedback):
     - **Blank line before each section header** (`Traversal:`, `Matching:`, ...) in the
       `--help` overview, so the groups are visually separated.
