@@ -15,6 +15,10 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
+# The extra's external dependency lives in pcre2.MODULE.bazel next to this file; the root
+# MODULE.bazel `include()`s it, so it must be exported.
+exports_files(["pcre2.MODULE.bazel"])
+
 # The real PCRE2 regex backend: the --regextype=PCRE2 build extra (#85). ONLY //xff/cli:xff_full
 # links it, via `select({"//xff:xff_pcre_enabled": [...]})`; the lean binary and a default build
 # never reference it (bzlmod also never fetches @pcre2 then). `alwayslink` keeps the self-
