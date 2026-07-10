@@ -258,7 +258,7 @@ int RunMain(int argc, char** argv) {
       return 0;
     }
     if (arg == "--man") {
-      std::cout << xff::cli::ManPage();  // roff(1); pipe to `man -l -` or install as xff.1
+      std::cout << xff::cli::ManPage();  // roff(1); pipe to `mandoc` (or GNU `man -l -`), or install as xff.1
       return 0;
     }
     if (arg == "--markdown") {
