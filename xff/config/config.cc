@@ -130,6 +130,17 @@ std::string_view DefaultStyleForProgram(std::string_view argv0) {
   if (argv0.empty()) {
     return "xff";  // no invocation name -> the modern default
   }
+  // A `_full` suffix marks the extras-included twin of a program (the `xff_full` full build, and
+  // more generally `<prefix>_full`); it behaves exactly as its base name, so `xff_full` -> xff,
+  // `find_full` -> find, `rg_full` -> rg. Without this strip, `find_full` would not match the
+  // `find` built-in selector and would silently fall through to the xff default, losing find
+  // semantics. The `_full` suffix is thus reserved for the full build and never a config name.
+  if (argv0.ends_with("_full")) {
+    argv0.remove_suffix(std::string_view("_full").size());
+    if (argv0.empty()) {
+      return "xff";  // a bare `_full` invocation name -> the modern default
+    }
+  }
   // The invocation name is the leading --config selector, used verbatim: a built-in style name
   // (find/xff/rg) selects that preset; any other name (a `mytool` symlink to xff, and note there
   // is no `xfd`/`fd` magic - those are just names too) selects a same-named NAMED config, leaving

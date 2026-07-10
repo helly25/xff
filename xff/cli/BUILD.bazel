@@ -17,10 +17,13 @@ load("@helly25_bashtest//bashtest:bashtest.bzl", "bashtest")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load(":golden.bzl", "xff_golden_cases")
 
-cc_binary(
-    name = "xff",
+# main.cc (the CLI entry point, `main()` included) as a library, so the lean `xff` and the extended
+# `xff_full` are both thin binaries over it: main.cc compiles once, neither binary carries its own
+# main(), and `xff_full` differs only by the composable extras it additionally links (see
+# xff/BUILD.bazel). Sharing one main() is why the two cannot drift.
+cc_library(
+    name = "main_cc",
     srcs = ["main.cc"],
-    visibility = ["//visibility:public"],
     deps = [
         ":help_cc",
         ":manpage_cc",
@@ -39,6 +42,27 @@ cc_binary(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
     ],
+)
+
+# The stock lean binary: core only, no composable extras. This is the target every test and golden
+# runs against, and the one built by `//...`.
+cc_binary(
+    name = "xff",
+    visibility = ["//visibility:public"],
+    deps = [":main_cc"],
+)
+
+# The extended binary: the same core plus every composable extra that is turned on. `manual` so
+# `//...` and plain wildcard builds skip it (the extras pull heavier deps); build it explicitly with
+# `bazel build --config=xff_full //xff/cli:xff_full`. Its `xff_full` invocation name maps back to the
+# base style (DefaultStyleForProgram strips the `_full` suffix), so it behaves exactly as `xff` with
+# the extras present. #85 (next) adds the PCRE2 backend to its deps via
+# `select({"//xff:xff_pcre_enabled": [...]})`.
+cc_binary(
+    name = "xff_full",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+    deps = [":main_cc"],
 )
 
 # Registry-backed `xff --man`: a roff man page generated from Globals() + All(), so
@@ -222,6 +246,19 @@ bashtest(
     size = "small",
     srcs = ["grep_test.sh"],
     data = [":xff"],
+)
+
+# End-to-end test of the extended `xff_full` binary: its `_full` invocation name resolves to the xff
+# style, and without the PCRE2 extra linked it still rejects `--regextype=PCRE2`. Drives xff_full, so
+# it is itself `manual` - anything depending on the manual full binary must be excluded from default
+# `//...` builds too, else building the test would build xff_full (and, once #85 lands, its extras).
+# Run it explicitly (`bazel test //xff/cli:full_binary_test`) or in the full CI cell.
+bashtest(
+    name = "full_binary_test",
+    size = "small",
+    srcs = ["full_binary_test.sh"],
+    data = [":xff_full"],
+    tags = ["manual"],
 )
 
 # End-to-end test of the --exclude / --include run-level filter (ignore family):

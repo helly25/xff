@@ -382,18 +382,22 @@ remains below is the design-forked / larger work.
   pcre2 (#85), and any later special dependency are gated behind Bazel flags, not always compiled
   in: the default binary is a lean core (RE2 only, no archive), and an extended binary is composed
   from the same tree by enabling extras. Per extra: a `bazel_skylib` `bool_flag` (e.g.
-  `//xff:archive`, `//xff:pcre`, default False) + a `config_setting` + `select()` so the extra's
-  srcs/deps (`@libarchive`, `@pcre2`) link only when on, plus a `-DXFF_WITH_*` define so the backend
-  registration `#ifdef`s in. A `.bazelrc` convenience config (`build:full --//xff:archive
---//xff:pcre`) composes them; CI builds both the lean and the full binary. The CLI reports which
+  `//xff:xff_archive`, `//xff:xff_pcre`, default False) + a `config_setting` + a `select()` on the FULL
+  binary's deps so the extra's backend target (`@libarchive`, `third_party/pcre2`) links only when
+  on. Presence is then detected at runtime from the registry the backend self-registers into (e.g.
+  `regex::Pcre2Available()`), so there is NO `#ifdef` in the core - deleting the extra's directory
+  makes an extra-on build fail to compile while the lean build still builds. (The `-DXFF_WITH_*`
+  define was #115a's archive interim; PCRE2 supersedes it with self-registration, and #83 will
+  follow.) A `.bazelrc` convenience config (`build:xff_full --//xff:xff_pcre`, `--//xff:xff_archive` joins with
+  #83) composes them; CI builds both the lean and the full binary. The CLI reports which
   extras are compiled in (`--version` / help) and a disabled feature errors clearly ("not built in;
-  rebuild with `--//xff:archive`"), never crashes. This is BUILD-time composition (what code/deps
+  rebuild with `--//xff:xff_archive`"), never crashes. This is BUILD-time composition (what code/deps
   are in the binary), distinct from the #73 `--feature` RUNTIME gates. The third-party NOTICE is
   assembled from the enabled extras, so a lean build carries none of their notices.
-  - **Scaffolding SHIPPED (#115a):** the `//xff:archive` `bool_flag` + `config_setting`; a structural
+  - **Scaffolding SHIPPED (#115a):** the `//xff:xff_archive` `bool_flag` + `config_setting`; a structural
     `cli::GlobalFlag.extra` key + `cli::ExtraEnabled(key)` (reads the `XFF_WITH_*` define); the
     `--archive` global, always listed. In a lean build a disabled extra flag stays present but shows
-    under a distinct "Extras (not built into this binary)" help group with a `[needs --//xff:archive]`
+    under a distinct "Extras (not built into this binary)" help group with a `[needs --//xff:xff_archive]`
     note, is documented NOT-built-in by `--help=--archive`, and is a hard immediate error (exit 2)
     **only when used**. Covered by `globals_test` + `extras_test.sh`.
   - **Licenses/notices SHIPPED (#296 interim, then #297 the real design).** Single-file binaries
@@ -406,27 +410,47 @@ remains below is the design-forked / larger work.
     **Under self-registration a MINIMAL binary's NOTICE is core-only, which is CORRECT** - the
     libarchive/PCRE2 notices belong to the FULL binary and land with the extras' real modules
     (below). TODO in `license.h`: C++23 `#embed` + reproduce each dep's own license text.
-  - **DEFERRED to #83/#85 - the dual binary + extra modules (agreed 2026-07-08, NOT built):** - **Dual binary via alias:** `xff_minimal` (core, default) + `xff_full` (`tags=["manual"]`, links
-    the real extra modules); `alias(name="xff", actual=select({":full": ":xff_full", default:
-":xff_minimal"}))`. `//xff:archive` (+ new `//xff:pcre`) drive a `:full` config_setting;
-    `.bazelrc build:full`. `manual` keeps the heavy full binary + its deps out of default `//...`. - **Stub/real per extra:** `xff/archive` + `xff/pcre` each expose a cheap STUB (minimal links; no
-    external dep, no notice) and a REAL module (full links; deps `@libarchive`/`@pcre2`,
-    `alwayslink`, self-registers its notices). Real modules build ONLY under `--config=full`.
+  - **Dual binary SHIPPED (#85 PR4, supersedes the earlier `alias` sketch).** Two real, named
+    binaries in `//xff/cli`: `xff` (lean, the target every test/golden runs against and the one built
+    by `//...`) and `xff_full` (`tags=["manual"]`, same core + a `select({"//xff:xff_pcre_enabled":
+[...]})` on its deps). NO `alias` - an alias's runfile takes the resolved target's basename
+    (`xff_minimal`), which would break every bashtest's hardcoded `xff/cli/xff` lookup; two named
+    `cc_binary`s keep the `xff` artifact named `xff` (zero test churn), and the user picks which
+    binary to run. `manual` keeps the heavy full binary + its deps out of default `//...`.
+    `DefaultStyleForProgram` strips a `_full` suffix so `xff_full` -> xff style (and `find_full` ->
+    find, etc.); covered by `config_test` + `full_binary_test.sh`. `--config=xff_full` (`.bazelrc`) turns
+    the extras on; `--config=xff_full --//xff:xff_pcre=false` drops one from an otherwise-full build.
+  - **REMAINING #85 PR5 (the real PCRE2 backend, NOT built):** `third_party/pcre2/` REAL
+    `Pcre2Backend` (implements the `xff/regex` `RegexBackend` iface via the PCRE2 C API), `alwayslink`
+    self-registers via `Pcre2Registrar` + a BSD-3 notice, deps the BCR `pcre2` module, linked into
+    `xff_full` by that `select`; builds ONLY under `--config=xff_full`. Plus grammar threading
+    (`Grammar::kPcre2` through the parser compile sites) so `--regextype=PCRE2` actually uses it, set
+    pcre2 match/backtrack/depth limits (ReDoS guard), PCRE2-only tests (lookahead/backreferences)
+    under `--config=xff_full`, and a CI full cell. Add backend + threading atomically (no window where
+    `Pcre2Available()` is true but nothing threads the grammar).
+  - **REMAINING #83 (archive extra, NOT built):** same shape - `//xff:xff_archive` already exists; add a
+    `third_party`/libarchive-backed self-registering module linked into `xff_full` via
+    `select({"//xff:xff_archive_enabled": [...]})`, join `--//xff:xff_archive` into `.bazelrc build:xff_full`.
     `@libarchive` **3.8.1.bcr.2 RESOLVES** (verified; target `@libarchive//libarchive:libarchive`,
-    keep its `use_mbedtls` OFF); **pcre2 BCR version TBD**; codec set tar/gz/bzip2/xz/zstd/lz4,
-    mbedtls deferred; add the `-encrypted` detection predicate (no crypto needed). - **What CHANGES when this lands:** committed `NOTICE` becomes the FULL set (regenerated from the
-    full binary); a drift check runs `--config=full` only; CI gains a full cell (builds/tests both
-    lean and full). **Open detail:** what `--archive` does in a full build before real diving
+    keep its `use_mbedtls` OFF); codec set tar/gz/bzip2/xz/zstd/lz4, mbedtls deferred; add the
+    `-encrypted` detection predicate (no crypto needed).
+  - **What CHANGES when the real modules land:** committed `NOTICE` becomes the FULL set (regenerated
+    from the full binary); a drift check runs `--config=xff_full` only; CI gains a full cell (builds/tests
+    both lean and full). **Open detail:** what `--archive` does in a full build before real diving
     exists (avoid a silent no-op; "not yet implemented" is distinct from the minimal "not built in").
 
-- **PCRE2 backend (#85, `-regextype`): use pcre2 as a composable extra - decided 2026-07-06.** RE2
+- **PCRE2 backend (#85, `-regextype`): use pcre2 as a composable extra - decided 2026-07-06.**
+  **Progress:** PR3 shipped `--regextype=PCRE2` recognition + the guaranteed "not built into this
+  binary" error (no silent RE2 fallback); the `xff/regex` `RegexBackend` iface + `Grammar {kRe2,
+kPcre2}` + `Pcre2Available()` registration slot are in place; PR4 shipped the dual-binary + extras
+  flag scaffolding (above). PR5 = the real backend + grammar threading (above). RE2
   (our engine) is linear-time and omits backreferences / lookaround / recursion; pcre2 is the Perl
   superset a `-regextype pcre`/`perl` grammar needs (RE2 already covers the POSIX-family grammars,
   which are all regular). **pcre2 is in the BCR**, upstream-maintained
   (`bazel_dep(name = "pcre2", version = "10.47")` - a stable release, not the 10.46-DEV snapshot); a
   clean dep, BSD-3-Clause (same family as re2 / googletest, so no new license type). Add a
   PCRE2-backed `regex::Matcher` behind the existing `xff/regex` abstraction, gated by the
-  `//xff:pcre` extra above; keep **RE2 the default**, PCRE2 opt-in via `-regextype`, and set pcre2
+  `//xff:xff_pcre` extra above; keep **RE2 the default**, PCRE2 opt-in via `-regextype`, and set pcre2
   match / backtrack / depth limits (`pcre2_set_match_limit` etc.) so an adversarial pattern (ReDoS,
   which RE2 is immune to) cannot hang a walk.
 
