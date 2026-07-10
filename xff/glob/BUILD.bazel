@@ -15,33 +15,22 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
-# Regular-expression matching for find's -regex/-iregex, backed by RE2.
+# Shell-glob -> RE2 translation, shared by the gitignore engine (//xff/ignore) and the
+# --regextype=GLOB matcher (//xff/regex). Path-segment aware (`*`/`?` stop at `/`, `**` crosses).
 cc_library(
-    name = "regex_cc",
-    srcs = [
-        "backend.h",  # private: the RegexBackend interface (RE2 today, PCRE2 when built in)
-        "regex.cc",
-    ],
-    hdrs = ["regex.h"],
+    name = "glob_cc",
+    srcs = ["glob.cc"],
+    hdrs = ["glob.h"],
     visibility = ["//xff:__subpackages__"],
-    deps = [
-        "//xff/glob:glob_cc",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:statusor",
-        "@abseil-cpp//absl/strings",
-        "@re2",
-    ],
 )
 
 cc_test(
-    name = "regex_test",
+    name = "glob_test",
     size = "small",
-    srcs = ["regex_test.cc"],
+    srcs = ["glob_test.cc"],
     deps = [
-        ":regex_cc",
-        "@abseil-cpp//absl/status",
+        ":glob_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:status_cc",
     ],
 )

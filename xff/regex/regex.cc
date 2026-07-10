@@ -37,6 +37,7 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "re2/re2.h"
+#include "xff/glob/glob.h"
 #include "xff/regex/backend.h"
 
 namespace xff::regex {
@@ -225,23 +226,30 @@ bool Pcre2Available() {
 }
 
 absl::StatusOr<Matcher> Matcher::Compile(std::string_view pattern, bool case_insensitive, Grammar grammar) {
-  switch (grammar) {
-    case Grammar::kRe2: {
-      RE2::Options options;
-      options.set_case_sensitive(!case_insensitive);
-      options.set_log_errors(false);  // surface failures via Status, not stderr
-      auto re = std::make_unique<RE2>(pattern, options);
-      if (!re->ok()) {
-        return absl::InvalidArgumentError(absl::StrCat("invalid regular expression: ", re->error()));
-      }
-      return Matcher(std::make_unique<Re2Backend>(std::move(re)));
+  // Shared RE2 compilation: kRe2 uses the pattern verbatim, kGlob its glob-to-RE2 translation. A
+  // lambda in this member function reaches Matcher's private constructor.
+  const auto compile_re2 = [case_insensitive](std::string_view re_pattern) -> absl::StatusOr<Matcher> {
+    RE2::Options options;
+    options.set_case_sensitive(!case_insensitive);
+    options.set_log_errors(false);  // surface failures via Status, not stderr
+    auto re = std::make_unique<RE2>(re_pattern, options);
+    if (!re->ok()) {
+      return absl::InvalidArgumentError(absl::StrCat("invalid regular expression: ", re->error()));
     }
+    return Matcher(std::make_unique<Re2Backend>(std::move(re)));
+  };
+  switch (grammar) {
+    case Grammar::kRe2: return compile_re2(pattern);
     case Grammar::kExact:
       // A literal match: no pattern to compile, so this never fails.
       return Matcher(std::make_unique<ExactBackend>(std::string(pattern), case_insensitive));
     case Grammar::kFnmatch:
       // A shell wildcard: fnmatch validates lazily per call, so this never fails either.
       return Matcher(std::make_unique<FnmatchBackend>(std::string(pattern), case_insensitive));
+    case Grammar::kGlob:
+      // A path-aware shell glob translated to RE2 (via xff/glob), then RE2 provides every op.
+      // GlobToRegex escapes all input, so the result is valid RE2 (the error path is unreachable).
+      return compile_re2(glob::GlobToRegex(pattern));
     case Grammar::kPcre2: {
       // PCRE2 is a build-time extra: the real backend self-registers a factory (full build only).
       // When none is registered (lean build) the grammar is not available -- a distinct Unimplemented

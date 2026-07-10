@@ -23,89 +23,15 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
+#include "xff/glob/glob.h"
 #include "xff/regex/regex.h"
 
 namespace xff::ignore {
 namespace {
 
-// Appends `c` to `re` as a literal, escaping the RE2 metacharacters. `*`, `?` and
-// `[` are consumed by GlobToRegex before reaching here, so a bare one arriving as a
-// literal (e.g. an unterminated class's `[`) is still escaped defensively.
-void AppendLiteral(std::string& re, char c) {
-  if (std::string_view(".+*?()|[]{}^$\\").find(c) != std::string_view::npos) {
-    re += '\\';
-  }
-  re += c;
-}
-
-// Translates a gitignore glob `body` (leading `!`, anchoring `/`, and trailing `/`
-// already stripped by the caller) into an RE2 pattern matched with FullMatch, so
-// the anchors are implicit. `*` -> one path segment's worth of non-slash, `?` -> a
-// single non-slash, `[...]` -> a character class (`[!` becomes `[^`), and `**` as a
-// whole segment -> cross-directory: `**/` (or leading `**`) becomes "zero or more
-// directories", a trailing `/**` becomes "everything below". A `**` that is not a
-// full segment degrades to a single `*`.
-std::string GlobToRegex(std::string_view body) {
-  std::string re;
-  for (std::size_t i = 0; i < body.size();) {
-    const char c = body[i];
-    if (c == '*') {
-      if (i + 1 < body.size() && body[i + 1] == '*') {
-        std::size_t j = i;
-        while (j < body.size() && body[j] == '*') {
-          ++j;
-        }
-        const bool slash_before = i == 0 || body[i - 1] == '/';
-        const bool slash_after = j == body.size() || body[j] == '/';
-        if (slash_before && slash_after) {
-          if (j == body.size()) {
-            re += ".*";  // trailing `/**` (or a bare `**`): everything below
-          } else {
-            re += "(?:.*/)?";  // `**/`: zero or more leading directories
-            ++j;               // also consume the separator that closed the segment
-          }
-        } else {
-          re += "[^/]*";  // a `**` glued to other chars is just `*`
-        }
-        i = j;
-        continue;
-      }
-      re += "[^/]*";
-      ++i;
-    } else if (c == '?') {
-      re += "[^/]";
-      ++i;
-    } else if (c == '[') {
-      re += '[';
-      ++i;
-      if (i < body.size() && body[i] == '!') {  // gitignore negated class -> RE2 `[^`
-        re += '^';
-        ++i;
-      }
-      while (i < body.size() && body[i] != ']') {
-        if (body[i] == '\\' && i + 1 < body.size()) {
-          re += '\\';
-          re += body[i + 1];
-          i += 2;
-          continue;
-        }
-        re += body[i];
-        ++i;
-      }
-      if (i < body.size()) {  // closing ']'
-        re += ']';
-        ++i;
-      }
-    } else if (c == '\\' && i + 1 < body.size()) {
-      AppendLiteral(re, body[i + 1]);  // backslash escape: the next char is literal
-      i += 2;
-    } else {
-      AppendLiteral(re, c);
-      ++i;
-    }
-  }
-  return re;
-}
+// The glob -> RE2 translation lives in the shared //xff/glob lib (glob::GlobToRegex), used here and
+// by the --regextype=GLOB matcher. The gitignore-specific stripping (leading `!` / anchoring `/` /
+// trailing `/`) stays below; GlobToRegex receives the already-stripped body.
 
 // Strips trailing unescaped spaces (gitignore ignores them unless backslash-quoted).
 std::string_view RstripSpaces(std::string_view line) {
@@ -148,7 +74,7 @@ bool PatternList::Add(std::string_view pattern, bool negate) {
   }
   // FullMatch anchors both ends, so an anchored pattern is the bare translation and
   // a floating one gets an optional leading-directory prefix ("match at any depth").
-  const std::string translated = GlobToRegex(body);
+  const std::string translated = glob::GlobToRegex(body);
   const std::string re = anchored ? translated : absl::StrCat("(?:.*/)?", translated);
   absl::StatusOr<regex::Matcher> matcher = regex::Matcher::Compile(re, /*case_insensitive=*/false);
   if (!matcher.ok()) {

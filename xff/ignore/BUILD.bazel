@@ -23,6 +23,7 @@ cc_library(
     hdrs = ["ignore.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
+        "//xff/glob:glob_cc",
         "//xff/regex:regex_cc",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",

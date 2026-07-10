@@ -406,6 +406,10 @@ TEST_F(ParserTest, RegextypeSelectsTheMatcherGrammar) {
   ASSERT_OK_AND_ASSIGN(const Command fnmatch, Parse({"--regextype=FNMATCH", ".", "-rxc", "x*"}));
   EXPECT_THAT(fnmatch.grammar, regex::Grammar::kFnmatch);
 
+  // GLOB selects the path-aware shell-glob engine (also core).
+  ASSERT_OK_AND_ASSIGN(const Command glob, Parse({"--regextype=GLOB", ".", "-regex", "src/*.txt"}));
+  EXPECT_THAT(glob.grammar, regex::Grammar::kGlob);
+
   // Last occurrence wins (mirrors run.cc's ResolveGrepLiteral).
   ASSERT_OK_AND_ASSIGN(const Command last, Parse({"--regextype=PCRE2", "--regextype=RE2", ".", "-regex", ".*"}));
   EXPECT_THAT(last.grammar, regex::Grammar::kRe2);
