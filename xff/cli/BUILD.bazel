@@ -68,18 +68,53 @@ cc_binary(
     }),
 )
 
-# Registry-backed `xff --man`: a roff man page generated from Globals() + All(), so
-# it cannot drift from the binary. Reuses help_cc's ArgHint for the synopsis.
+# The single SOT traversal behind every generated reference: WriteReference() walks the
+# global flags + the expression registry + the in_full help topics once and drives a
+# DocRenderer, so --man (roff), --markdown, and --help=full render the same content and
+# cannot drift. Each format is a native renderer over this walk (see manpage.cc / markdown.cc).
+cc_library(
+    name = "doc_renderer_cc",
+    srcs = ["doc_renderer.cc"],
+    hdrs = ["doc_renderer.h"],
+    deps = [
+        ":globals_cc",
+        ":help_cc",
+        "//xff/datetime:datetime_cc",
+        "//xff/engine:evaluate_cc",
+        "//xff/fields:fields_cc",
+        "//xff/registry:registry_cc",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:span",
+    ],
+)
+
+cc_test(
+    name = "doc_renderer_test",
+    size = "small",
+    srcs = ["doc_renderer_test.cc"],
+    deps = [
+        ":doc_renderer_cc",
+        ":help_cc",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:span",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# `xff --man`: the roff man page, a RoffRenderer over the shared WriteReference() walk, so
+# it carries the complete reference (options + expression with details, every in_full topic)
+# and cannot drift from the binary or from --markdown / --help=full.
 cc_library(
     name = "manpage_cc",
     srcs = ["manpage.cc"],
     hdrs = ["manpage.h"],
     deps = [
-        ":globals_cc",
-        ":help_cc",
-        "//xff/registry:registry_cc",
+        ":doc_renderer_cc",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/types:span",
     ],
 )
 
