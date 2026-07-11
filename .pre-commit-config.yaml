@@ -94,6 +94,25 @@ repos:
         entry: tools/align_markdown_tables_test.py
         files: ^tools/align_markdown_tables(_test)?\.py$
         pass_filenames: false
+      - id: check-module-versions
+        name: Modules share one version
+        description: |
+          The git tag is the version source of truth; the repo stays at the 0.0.0
+          sentinel and the release workflow stamps the tag's version everywhere. This
+          asserts every in-repo MODULE.bazel version, every intra-repo bazel_dep on one
+          of our modules, and the `xff --version` literal already agree, so the stamp
+          has one uniform value to replace and nothing ships a stale version.
+        language: script
+        entry: tools/check_module_versions.py
+        files: ((^|/)MODULE\.bazel|^xff/cli/main\.cc|^tools/check_module_versions\.py)$
+        pass_filenames: false
+      - id: check-module-versions-test
+        name: Test the module-version check
+        description: Runs the version-check unit tests when the tool or its test changes.
+        language: script
+        entry: tools/check_module_versions_test.py
+        files: ^tools/check_module_versions(_test)?\.py$
+        pass_filenames: false
 
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v20.1.8
