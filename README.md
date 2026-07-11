@@ -103,14 +103,19 @@ cannot drift:
 
 ## Building
 
-The stock `//xff` binary is a lean core. Heavier capabilities (the PCRE2 regex
-grammar, archive diving) are composable build-time extras, off by default, so the
-default build stays small and dependency-light. The extended binary links them all:
+The default build is a lean core. Heavier capabilities (the PCRE2 regex grammar,
+archive diving) are composable build-time extras, off by default, so the default
+build stays small and dependency-light. The extended binary links them all:
 
 ```sh
 # The full binary, with every extra (PCRE2, ...).
 bazel build --config=xff_full //xff/cli:xff_full
 ```
+
+The `//xff` alias follows the active config: it is the lean binary by default and
+the full binary under `--config=xff_full`, so `bazel run //xff` gives you whichever
+you configured. The two underlying targets stay explicit and config-stable:
+`//xff/cli:xff` is always lean, `//xff/cli:xff_full` always full.
 
 The CLI surface for an extra (`--regextype=PCRE2`, `--archive`) is always present;
 using one in a build that did not link it is an immediate, explicit error, never a

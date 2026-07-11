@@ -189,8 +189,11 @@ remains below is the design-forked / larger work.
       XFF_FULL_ONLY so it runs under `--config=xff_full` in every CI test job) regenerates and fails
       on any drift. No auto-update pre-commit hook: regenerating needs the full `xff_full` build
       (pcre2 / archive extras), too heavy for a git hook - the CI diff_test is the gate, the script
-      the one-command fix (same split as `compile_commands-update.sh`). Also added the `//xff` alias
-      to `//xff/cli:xff` so `bazel run //xff` reaches the stock binary. CI runs the guard as a fast
+      the one-command fix (same split as `compile_commands-update.sh`). Also added a config-adaptive
+      `//xff` alias: it resolves to `//xff/cli:xff_full` in a full build and the lean `//xff/cli:xff`
+      otherwise, keyed on a single `//xff:full_build` `config_setting_group` that `XFF_FULL_ONLY`
+      (xff_full's own compatibility gate) also uses - so "full mode" is defined once and a future extra
+      (archive #83) only edits that group. CI runs the guard as a fast
       pre-flight `xff-md` job (builds only `xff_full` + the diff_test, repo-cache-only); the heavy
       matrix (`test` / `tsan` / `minimal`) `needs: [pre-commit, trunk, xff-md]`, so a stale reference
       or a lint failure fails in minutes instead of after the full asan build. Also dropped the macOS

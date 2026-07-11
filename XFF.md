@@ -13,7 +13,6 @@ xff has two flavors selected by the program name: invoked as `find` it is strict
 ## Options
 
 ### Config
-
 - `--config=NAME` - select a config style: find (strict), xff (evolved), rg (opinionated); repeatable _(xff)_
   A config style sets the defaults for ignore files, hidden files, sizes, sort order, and case. find is strict find compatibility; xff keeps find's grammar but sorts and prints human sizes; rg is opinionated (respect .gitignore, skip hidden, smart case). Repeatable and layered, last one wins. See --help=styles for the per-style defaults.
 - `--no-config` - ignore discovered .xffrc files _(xff)_
@@ -24,7 +23,6 @@ xff has two flavors selected by the program name: invoked as `find` it is strict
 - `--explain` - print the resolved configuration and exit _(xff)_
 
 ### Traversal
-
 - `-H` - follow symlinks named on the command line, not while walking
 - `-L` - follow symlinks everywhere during the walk
 - `-P` - never follow symlinks (the default)
@@ -35,16 +33,14 @@ xff has two flavors selected by the program name: invoked as `find` it is strict
   none leaves entries in filesystem order (fastest); dir sorts each directory's entries; subtree and tree give a deterministic order across the whole walk. The default is per style: xff sorts per directory, while find and rg leave the order unspecified.
 
 ### Matching
-
 - `--block-size=SIZE` - bytes per -size block for a bare -size N / -size Nb (default 512) _(xff)_
 - `--exact` - match -name/-path byte-exact, opting out of the xff FS-native case default _(xff)_
 - `--case=sensitive|insensitive|smart, -i, -s[+|-]` - letter case for matchers: -i insensitive, -s/-s+ smart, -s- sensitive (rg -> smart) _(xff)_
   Controls case for -name/-path/-regex and the content matchers. sensitive matches exactly; insensitive (-i) folds case; smart (-s / -s+) folds only when the pattern is all lower case and matches exactly otherwise; -s- forces sensitive. rg defaults to smart.
 - `--regextype=RE2|EXACT|FNMATCH|GLOB|SHGLOB|PCRE2` - match engine: RE2, EXACT, FNMATCH, GLOB, SHGLOB (GLOB + {a,b}), or PCRE2 (a build extra) _(xff)_
-  Selects the grammar for -regex/-iregex and the content matchers -rxc/-grep. RE2 (the default) is linear-time regular expressions; EXACT is a literal string (metacharacters are plain text); FNMATCH is a flat shell wildcard where _ matches any character including /; GLOB is a path-aware shell glob where _/? stop at / and \*_ crosses directories (gitignore semantics), with [...] classes; SHGLOB is GLOB plus {a,b} brace alternation, so _.{cc,h} matches either. PCRE2 (Perl syntax: lookaround, backreferences) is the one build-time extra: it is present only in a full build, and selecting it in a lean build is a hard error, never a silent fall back to RE2. RE2/EXACT/FNMATCH/GLOB/SHGLOB are always built in; run xff --help=extras to see whether THIS binary includes PCRE2. See --help=grammars for a full description of each grammar (GLOB/SHGLOB are xff's own, not POSIX glob(7)).
+  Selects the grammar for -regex/-iregex and the content matchers -rxc/-grep. RE2 (the default) is linear-time regular expressions; EXACT is a literal string (metacharacters are plain text); FNMATCH is a flat shell wildcard where * matches any character including /; GLOB is a path-aware shell glob where */? stop at / and ** crosses directories (gitignore semantics), with [...] classes; SHGLOB is GLOB plus {a,b} brace alternation, so *.{cc,h} matches either. PCRE2 (Perl syntax: lookaround, backreferences) is the one build-time extra: it is present only in a full build, and selecting it in a lean build is a hard error, never a silent fall back to RE2. RE2/EXACT/FNMATCH/GLOB/SHGLOB are always built in; run xff --help=extras to see whether THIS binary includes PCRE2. See --help=grammars for a full description of each grammar (GLOB/SHGLOB are xff's own, not POSIX glob(7)).
 
 ### Filter & Ignore
-
 - `--exclude=GLOB` - skip paths matching a gitignore-style glob (repeatable; a matched directory is pruned) _(xff)_
 - `--include=GLOB` - re-include paths a --exclude would skip, matching a gitignore-style glob (repeatable) _(xff)_
 - `--gitignore[=on|off], -g[+|-]` - respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never _(xff)_
@@ -55,11 +51,10 @@ xff has two flavors selected by the program name: invoked as `find` it is strict
 - `--hidden` - include hidden dotfiles in the walk (default: find/xff show, rg skips) _(xff)_
 - `--no-hidden` - skip hidden dotfiles (the rg default; opts find/xff out) _(xff)_
 - `--skip-vcs[=git,hg,svn,jj,bzr,darcs,cvs|all|none]` - prune VCS metadata dirs (.git, .hg, ...); bare/=all = every known VCS, =LIST a subset _(xff)_
-  Prunes version-control metadata directories at any depth (like ripgrep / fd), so a search never wades into repo plumbing. Bare --skip-vcs (or =all) covers every known VCS: git (.git), hg (.hg), svn (.svn), jj (.jj), bzr (.bzr), darcs (\_darcs), cvs (CVS). A comma list (--skip-vcs=git,hg) is an explicit, frozen subset - it never changes if a VCS is added to the default set later. --no-skip-vcs (or =none) turns it off. Independent of --hidden, so the user's own dotfiles (.bazelrc, .gitignore) still show. -g / gitignore mode implies --skip-vcs=git (only .git); an explicit --skip-vcs overrides that. Default off otherwise.
+  Prunes version-control metadata directories at any depth (like ripgrep / fd), so a search never wades into repo plumbing. Bare --skip-vcs (or =all) covers every known VCS: git (.git), hg (.hg), svn (.svn), jj (.jj), bzr (.bzr), darcs (_darcs), cvs (CVS). A comma list (--skip-vcs=git,hg) is an explicit, frozen subset - it never changes if a VCS is added to the default set later. --no-skip-vcs (or =none) turns it off. Independent of --hidden, so the user's own dotfiles (.bazelrc, .gitignore) still show. -g / gitignore mode implies --skip-vcs=git (only .git); an explicit --skip-vcs overrides that. Default off otherwise.
 - `--no-skip-vcs` - keep VCS metadata dirs in the walk (opts out of --skip-vcs and the -g .git default) _(xff)_
 
 ### Output
-
 - `--format=plain|nul|jsonl|csv|tsv|aligned|markdown|tree` - output format: plain, nul, jsonl, csv, tsv, aligned, markdown (md), tree; default plain _(xff)_
 - `--no-header` - omit the header row from tabular --format (csv/tsv/aligned/markdown; on by default) _(xff)_
 - `--columns=FIELD,...` - columns for tabular --format, from the {field} vocabulary (e.g. path,size,mtime) _(xff)_
@@ -84,7 +79,7 @@ xff has two flavors selected by the program name: invoked as `find` it is strict
 - `--top=N` - with --summary or --histogram, keep only the N largest/tallest groups _(xff)_
 - `--histogram-width=N` - cell width the tallest --histogram bar fills (default 40) _(xff)_
 - `--summary-precision=N` - with --summary --human: fraction digits for scaled sizes (default 2; bytes stay integer) _(xff)_
-- `--color[=auto|always|never]` - colorize the plain listing by file type: auto (a tty), always, or never; honors NO*COLOR *(xff)\_
+- `--color[=auto|always|never]` - colorize the plain listing by file type: auto (a tty), always, or never; honors NO_COLOR _(xff)_
   Colorizes the plain listing by file type. auto colorizes only when stdout is a terminal; always forces color even through a pipe or pager; never disables it. The NO_COLOR environment variable always wins.
 - `--unicode[=auto|always|never]` - --format=tree connectors: auto (a UTF-8 locale), always (Unicode), or never (ASCII) _(xff)_
   Selects the box-drawing characters --format=tree connects nodes with. auto uses Unicode when the locale (LC_ALL / LC_CTYPE / LANG) is UTF-8, else ASCII; always forces the Unicode connectors; never forces the ASCII ones.
@@ -93,24 +88,20 @@ xff has two flavors selected by the program name: invoked as `find` it is strict
 - `--buffer[=auto|off|all|N[kMG]|NMB]` - buffer to size columns (-ls / tables): auto, off, all, N[kMG] rows, or NMB/NMiB bytes _(xff)_
 
 ### Exit code control
-
 - `--quiet, -q` - suppress output; exit 0 if anything matched, else 1 (-q: grep-compatible) _(xff)_
 - `--exit-match` - keep output; exit 0 if anything matched, else 1 _(xff)_
 
 ### Safety
-
 - `--safe` - refuse destructive actions (-delete / -exec) _(xff)_
 - `--dry-run` - preview -delete without removing anything _(xff)_
 - `--skip-unsupported` - warn and skip a predicate a filesystem cannot evaluate, not fail _(xff)_
 
 ### Fields & Exec
-
 - `--exec-fields` - render -exec tokens through the field vocabulary ({name}, {path}, ...) _(xff)_
 - `--define=NAME=VALUE` - define a value referenced as {def.NAME} _(xff)_
 - `--capture-override` - allow a -capture NAME to be bound more than once (last wins) _(xff)_
 
 ### Time
-
 - `--time-format=FMT` - default format for time fields (a preset name or a strftime pattern) _(xff)_
   Sets the default rendering for time fields ({mtime}, {atime}, -printf %t, ...) when no per-field qualifier is given. Accepts a preset (iso, epoch, space, find) or any strftime pattern such as %Y-%m-%d. A per-field qualifier like {mtime:%H:%M} still overrides it.
 - `--timezone=ZONE, --tz=ZONE` - zone for interpreting/formatting times (local, utc, an IANA name, or +HH:MM) _(xff)_
@@ -119,7 +110,6 @@ xff has two flavors selected by the program name: invoked as `find` it is strict
 ## Expression
 
 ### Tests
-
 - `-name ARG` - match the basename against a shell glob
   Globs the entry's basename (last path component): `*` matches any run including none, `?` one character, `[...]` a class. Unlike the shell a leading dot is matched literally. Case follows --case - the xff default folds when the volume does (APFS / HFS+ / NTFS), while --exact or --config=find forces a byte-exact compare; -iname always folds. Contrast -path (whole path) and -regex (anchored pattern). Example: `xff . -name '*.log'`.
 - `-iname ARG` - match the basename against a shell glob, case-insensitively
@@ -162,13 +152,13 @@ xff has two flavors selected by the program name: invoked as `find` it is strict
   Matches the entry's type by letter: f=regular file, d=directory, l=symlink, b/c=block / char device, p=FIFO, s=socket. A GNU-style comma list is any-of, so `-type f,l` matches regular files or symlinks. Under the default -P a symlink is type l; -xtype tests its target's type instead.
 - `-xtype ARG` - match the file type of a symlink's target
   Like -type, but for a symlink it tests the type of the link's TARGET (the link is followed). A broken symlink has no target, so it reports as a symlink and `-xtype l` matches it, matching GNU find under the default -P. On a non-symlink it is identical to -type.
-- `-mime ARG` - match the media type by extension against a glob, e.g. -mime 'image/_' (xff) *(xff)*
-  xff extension: matches the media (MIME) type derived from the filename extension (a fast, dependency-free table - no content sniffing) against a shell glob, so `image/_`matches png/jpg/... and`text/plain`is exact. The same value is the {mime} field. Matching is always case-insensitive (MIME names are case-insensitive per RFC 2045/6838), so`IMAGE/_`behaves like`image/_`; --case / -i / -s do not affect it.
-- `-lang ARG` - match the language by extension/filename against a glob, e.g. -lang 'C*' (xff) *(xff)_
-  xff extension: matches the programming language inferred from the extension/filename (github-linguist data) against a shell glob, so `C_` matches C / C++ / C#. The same value is the {lang} field. Matching is always case-insensitive (`c++`matches the canonical`C++`) and unaffected by --case / -i / -s.
+- `-mime ARG` - match the media type by extension against a glob, e.g. -mime 'image/*' (xff) _(xff)_
+  xff extension: matches the media (MIME) type derived from the filename extension (a fast, dependency-free table - no content sniffing) against a shell glob, so `image/*` matches png/jpg/... and `text/plain` is exact. The same value is the {mime} field. Matching is always case-insensitive (MIME names are case-insensitive per RFC 2045/6838), so `IMAGE/*` behaves like `image/*`; --case / -i / -s do not affect it.
+- `-lang ARG` - match the language by extension/filename against a glob, e.g. -lang 'C*' (xff) _(xff)_
+  xff extension: matches the programming language inferred from the extension/filename (github-linguist data) against a shell glob, so `C*` matches C / C++ / C#. The same value is the {lang} field. Matching is always case-insensitive (`c++` matches the canonical `C++`) and unaffected by --case / -i / -s.
 - `-size ARG` - match the apparent size (unit suffix c/w/k/M/G/T/P/E)
   Compares the file's apparent size. A bare number counts 512-byte blocks (find default); a unit suffix sets the scale - c=bytes, w=2 bytes, k/M/G/T/P, plus the xff-only E. A leading + / - means greater / less than. Following GNU, the size is rounded up to whole units, so `-size +100M` means "larger than 100 MB". (See -blocks for allocated space.)
-- `-blocks ARG` - match the allocated size (st*blocks); xff's disk-occupancy counterpart to -size *(xff)\_
+- `-blocks ARG` - match the allocated size (st_blocks); xff's disk-occupancy counterpart to -size _(xff)_
 - `-links ARG` - match the hard-link count
 - `-inum ARG` - match the inode number
 - `-samefile ARG` - match files that share an inode with FILE
@@ -262,7 +252,6 @@ xff has two flavors selected by the program name: invoked as `find` it is strict
 - `-false` - never match
 
 ### Actions
-
 - `-diff ARG` - diff the file against TARGET (a field template); true when equal (xff) _(xff)_
   Compares the matched file against TARGET - a {field} template evaluated per entry, so it can name a mirror path like `../b/{relpath}` - and is true when they are equal, false on a difference. The optional =STYLE picks the output: unified `u3` (default; 3 lines of context), context `c`, normal `n`, side-by-side `y`, or `none` for just the boolean. Text files only; expensive.
 - `-hash` - print the file digest and path; -hash=ALGO[/ENCODING], sha256 hex default (xff) _(xff)_
@@ -282,7 +271,7 @@ xff has two flavors selected by the program name: invoked as `find` it is strict
 - `-grep ARG` - print each content line matching a regex; -grep=FORMAT for a template (xff) _(xff)_
   The line-output companion of -rxc: `-grep PATTERN` prints every content line matching the RE2 PATTERN as `path:lineno:text` (grep's piped form; a literal substring under --regextype=EXACT). `-grep=FORMAT PATTERN` renders a {line}/{text}/{match}/{column} template instead. Honors -c / --count (one `path:count` per file) and -A / -B / --context (surrounding lines, grep-style). Reads the file (expensive); non-regular / unreadable / binary files yield nothing. Its truth is "matched a line", so it composes with -o / -q. An xff extension --config=find rejects.
 - `-fprint ARG` - write -print output to a named file
-  Writes what -print would emit to FILE instead of stdout. FILE is opened once (truncating any existing content) and held open for the whole walk, so matches append to it in visit order. This is the anchor of the -f\* family - each mirrors a stdout action: -fprint0, -fprintf, -fls, and the xff -fprintln / -fprintfln.
+  Writes what -print would emit to FILE instead of stdout. FILE is opened once (truncating any existing content) and held open for the whole walk, so matches append to it in visit order. This is the anchor of the -f* family - each mirrors a stdout action: -fprint0, -fprintf, -fls, and the xff -fprintln / -fprintfln.
 - `-fprintln ARG` - write -println output to a named file (xff) _(xff)_
   The file form of -println (-fprint with the OS line ending). See -fprint for the file handling; an xff extension --config=find rejects.
 - `-fprint0 ARG` - write -print0 output to a named file
@@ -313,7 +302,6 @@ xff has two flavors selected by the program name: invoked as `find` it is strict
   The -execdir counterpart of -capture: runs the command in the matched entry's directory and binds its stdout to `{capture.NAME}`. Same `NAME[=REGEX]` binding and --allow-exec gating.
 
 ### Operators
-
 - `-a` - logical AND (implicit between predicates)
   Logical AND of two predicates (`-and` is the long spelling). It is also IMPLICIT between juxtaposed predicates, so `-type f -name '*.c'` means `-type f -a -name '*.c'`. Precedence, tightest to loosest: -not, then -a, then (xff) -xor, then -o, then the `,` comma operator; parentheses `( ... )` override it. Evaluation short-circuits.
 - `-and` - logical AND (implicit between predicates)
@@ -470,9 +458,9 @@ The grammar for -regex / -iregex and the content matchers -rxc / -grep, chosen b
 
 - `RE2` - the default. Google RE2 regular expressions - linear-time, no catastrophic backtracking. Full syntax: https://github.com/google/re2/wiki/Syntax .
 - `EXACT` - a literal string; every character matches itself, no metacharacters. -regex is whole-string equality, -rxc / -grep a substring test.
-- `FNMATCH` - a flat shell wildcard via the platform's fnmatch(3): \* matches any run of characters (including /), ? one character, [...] a class. Whole-string, like find -name / -path (no /-awareness); -i uses FNM_CASEFOLD. Provided by libc, so class / collation details vary by system.
-- `GLOB` - xff's own path-aware shell glob (gitignore-flavored, compiled to RE2 - NOT POSIX glob(7)): _ and ? match within one path segment (they stop at /); ** is a whole-segment cross-directory wildcard (leading **/ = zero or more directories, trailing /** = everything below, a glued ** degrades to _); [...] is a class with [a-z] ranges, [[:alpha:]] POSIX classes, a leading ! negating and a leading ] literal; { } are literal. Because it compiles to RE2, -grep / -rxc partial matching and match spans work.
-- `SHGLOB` - GLOB plus brace alternation: {a,b,c} matches any one alternative, so \*.{cc,h} matches either. Alternatives may nest and may be empty; each is itself SHGLOB-translated. \{ \} \, and braces inside a [...] class are literal. Everything else is exactly GLOB.
+- `FNMATCH` - a flat shell wildcard via the platform's fnmatch(3): * matches any run of characters (including /), ? one character, [...] a class. Whole-string, like find -name / -path (no /-awareness); -i uses FNM_CASEFOLD. Provided by libc, so class / collation details vary by system.
+- `GLOB` - xff's own path-aware shell glob (gitignore-flavored, compiled to RE2 - NOT POSIX glob(7)): * and ? match within one path segment (they stop at /); ** is a whole-segment cross-directory wildcard (leading **/ = zero or more directories, trailing /** = everything below, a glued ** degrades to *); [...] is a class with [a-z] ranges, [[:alpha:]] POSIX classes, a leading ! negating and a leading ] literal; { } are literal. Because it compiles to RE2, -grep / -rxc partial matching and match spans work.
+- `SHGLOB` - GLOB plus brace alternation: {a,b,c} matches any one alternative, so *.{cc,h} matches either. Alternatives may nest and may be empty; each is itself SHGLOB-translated. \{ \} \, and braces inside a [...] class are literal. Everything else is exactly GLOB.
 - `PCRE2` - Perl-Compatible Regular Expressions (lookaround, backreferences, ...). A build-time extra: present only in a full build - run `xff --help=extras` to see whether THIS binary has it. Full syntax: pcre2pattern(3).
 
 ## Examples

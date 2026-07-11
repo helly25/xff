@@ -28,6 +28,7 @@
 # using an extra in a build that did not link it is a hard immediate error, never a silent no-op.
 # See TODO.md "Composable-extras" and docs/design-config.md.
 
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 
 package(default_visibility = ["//visibility:public"])
@@ -57,10 +58,29 @@ config_setting(
     flag_values = {":xff_pcre": "True"},
 )
 
-# `//xff` == the default (lean) binary. A convenience alias so `bazel run //xff -- ...` and
-# `bazel build //xff` reach the stock tool without spelling out the //xff/cli:xff path; the full
-# binary stays the explicit //xff/cli:xff_full.
+# The single "is this the full / extras build" condition. Full mode is whatever set of extras is on,
+# NOT any one extra: today that is just PCRE2 (`--config=xff_full` sets --//xff:xff_pcre), but when
+# archive (#83) or a later extra lands, add its `:xff_<extra>_enabled` here (match_any = logical OR)
+# and every consumer follows. Both XFF_FULL_ONLY (xff_full's own compatibility gate, //xff:extras.bzl)
+# and the //xff alias below key on THIS, so "full mode" is defined in exactly one place. (Linking a
+# specific backend, e.g. the pcre select in //xff/cli:xff_full, stays keyed on that extra's own
+# :xff_<extra>_enabled - that is "is pcre on", a different question from "is this the full build".)
+selects.config_setting_group(
+    name = "full_build",
+    match_any = [":xff_pcre_enabled"],
+)
+
+# `//xff` == the right binary for the active build config: the extended //xff/cli:xff_full in a full
+# build (:full_build), else the lean //xff/cli:xff. So `bazel run //xff -- ...` follows your config -
+# default it to --config=xff_full and //xff transparently means the full tool - without spelling out
+# the //xff/cli path. The two underlying binaries stay explicit and config-stable (//xff/cli:xff is
+# always lean, //xff/cli:xff_full always full); only this convenience alias adapts. It keys on the same
+# :full_build as XFF_FULL_ONLY (xff_full's compatibility gate), so the alias can never resolve to an
+# incompatible target.
 alias(
     name = "xff",
-    actual = "//xff/cli:xff",
+    actual = select({
+        ":full_build": "//xff/cli:xff_full",
+        "//conditions:default": "//xff/cli:xff",
+    }),
 )
