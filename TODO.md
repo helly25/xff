@@ -630,6 +630,24 @@ remains below is the design-forked / larger work.
     per-line measure (`{...:m//}` emitting a number + `:sum(...)`), which keeps key and measure at
     the same per-line cardinality.
 
+- **Content-type predicates `-text` / `-binary` / `-eofnl` (#137) - SHIPPED.** Three xff, expensive
+  (content-reading) tests, each file-only. `-text` = a regular readable file whose content is text
+  (no NUL in the first 8000 bytes - git's `buffer_is_binary` heuristic, also grep/ripgrep's, now a
+  single `content::kBinaryNulSniffBytes` used by `-grep`/`-content`/`{lines}`/`-diff`/`-text`/`-binary`);
+  `-binary` = the binary complement WITHIN regular files (so `-binary` != `! -text`, which also
+  matches non-files); `-eofnl` = ends in a newline (or empty), the newline-termination axis only.
+  Compose: `-text -eofnl` = a well-formed text file, `-text ! -eofnl` = the missing-final-newline
+  lint. The two blame cookbook recipes now use `-text` (was a silent `-name '*.py'` / `-lang Python`)
+  so their titles match, and `git blame` skips binaries. `-text` is deliberately the search heuristic,
+  NOT POSIX conformance (POSIX forbids a NUL anywhere + caps line length + requires newline-termination).
+  - **FOLLOW-UP `-text[=apple|posix|windows]` (#138).** A line-ending-aware flavor on `-text`: bare
+    `-text` stays the loose default (any/mixed EOL); `=posix` requires LF-only + no NUL + final newline
+    (the "for real" check), `=windows` CRLF, `=apple` CR. One valued predicate rather than
+    `-posix-text` / a separate `-eol=` axis. Needs: parser support for an attached `-text=VALUE` on a
+    primary, per-flavor EOL detection (LF/CRLF/CR/mixed), and settling the overlap with `-eofnl`
+    (`=posix` subsumes LF final-newline; `-eofnl` stays the flavor-agnostic primitive). Additive - bare
+    `-text` is unchanged, so it is a clean extension.
+
 ### Featured ideas (deferred)
 
 Nice-to-haves parked with a design leaning but not yet scheduled; promote to the roadmap above when a

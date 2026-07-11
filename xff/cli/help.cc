@@ -314,19 +314,19 @@ std::string RenderCookbook() {
        .note = "prints every TODO line as path:lineno:text in C / C++ / C# files; add -c for per-file "
                "counts or --context=2 for surrounding lines."},
       {.task = "Per-file git-blame author line counts",
-       .command = "xff . -type f -name '*.py' -exec git blame --line-porcelain {} \\; "
+       .command = "xff . -text -exec git blame --line-porcelain {} \\; "
                   "| grep '^author ' | sort | uniq -c | sort -rn",
-       .note = "runs git blame on each Python file; the shell pipe tallies lines per author across the "
-               "tree. -exec feeds any pipeline the field vocabulary cannot express alone."},
-      {.task = "Author line counts across several trees / repos",
-       .command = "xff src lib -g -type f -lang Python -execdir git blame --line-porcelain {} \\; "
-                  "| awk '/^author /{sub(/^author /,\"\"); n[$0]++} END{for(a in n) printf \"%7d  %s\\n\", n[a], a}' "
-                  "| sort -rn",
-       .note = "aggregates blame into lines-per-contributor over MANY roots at once. Differs from the "
-               "per-file recipe above: one tally spans the whole selection. -execdir runs git in each "
-               "file's own directory, so it works even when the roots live in different repos; -g honors "
-               ".gitignore and skips .git; -lang selects by language. The awk tallies in one pass. A "
-               "native capture -> group-by reduction is planned to fold that pipe into xff."},
+       .note = "runs git blame on each text file; the shell pipe tallies lines per author across the "
+               "tree. -text skips binaries (which git blame cannot line-blame). -exec feeds any pipeline "
+               "the field vocabulary cannot express alone."},
+      {.task = "Author line counts, natively (no shell pipe)",
+       .command = "xff -g --summary='{capture.blame:m/^author (.+)$/\\1/}' . -text "
+                  "-capturedir=blame git blame --line-porcelain {} \\;",
+       .note = "the recipe above with the awk|sort tail folded into xff. -capturedir runs git blame in each "
+               "file's own directory (repo-safe, works across nested repos); --summary folds that output via "
+               "an m// extraction, tallying lines per author across the tree - no external pipe. -g honors "
+               ".gitignore and skips .git; -text keeps blame off binaries. Pass several roots (a b c ...) to "
+               "span multiple trees. Globals (--summary, -g) come before the first path."},
       {.task = "Checksum manifest for a tree",
        .command = "xff . -type f -hash=sha256",
        .note = "prints `DIGEST  PATH` per file (like sha256sum); redirect to a file to snapshot a tree, "

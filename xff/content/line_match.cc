@@ -121,9 +121,8 @@ std::optional<std::size_t> FileLineCount(std::string_view path) {
     return std::nullopt;  // unreadable / missing -> nothing to count
   }
   const std::string_view content = artefact->data;
-  constexpr std::size_t kBinarySniffBytes = std::size_t{8} * 1'024;
-  if (content.substr(0, std::min(content.size(), kBinarySniffBytes)).find('\0') != std::string_view::npos) {
-    return std::nullopt;  // a NUL in the first 8 KiB marks the file binary; skip it (like content search)
+  if (content.substr(0, std::min(content.size(), kBinaryNulSniffBytes)).find('\0') != std::string_view::npos) {
+    return std::nullopt;  // a NUL in the sniff window marks the file binary; skip it (like content search)
   }
   return CountLines(content);
 }
