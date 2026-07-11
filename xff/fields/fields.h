@@ -92,7 +92,9 @@ using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier
 // {env.NAME} namespace renders a process environment variable, {def.NAME} a
 // --define value, and {capture.NAME} a -capture result (each empty when unset).
 // As a qualifier, a sed-style rewrite {field:s/PAT/REPL/flags} (any delimiter;
-// flags g=all, i=ignore-case) post-processes the field's value via RE2. A
+// flags g=all, i=ignore-case) post-processes the field's value via RE2. Several rewrites chain with
+// `;` and apply left to right ({name:s/a/b/;s/c/d/}); a command after `;` may omit the leading `s`
+// ({name:s/a/b/;/c/d/}). A
 // path-component qualifier likewise post-processes, treating the value as a path and
 // extracting a component -- {field:dir|name|basename|file|core|stem|ext|extension|
 // suffix|suffixes|path} -- so any path-valued field composes: {path:name} == {name},
@@ -103,7 +105,9 @@ using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier
 // matches PAT emits the RE2 rewrite REPL (\0 whole match, \1..\9 groups; flags g/i). Lines that do
 // not match are dropped -- so it filters as well as transforms. Unlike s/// (scalar -> scalar over
 // the whole value), m// is multi-line -> a value stream, consumed by an aggregation key
-// (AsExtraction below). In a scalar Render context it degrades to the matches newline-joined.
+// (AsExtraction below). In a scalar Render context it degrades to the matches newline-joined. Like
+// s///, an m// qualifier chains with `;`: the FIRST command filters+extracts each line, and the rest
+// substitute on the surviving per-line value ({capture.NAME:m/^author (.+)$/\1/;s/ /_/g}).
 //
 // Compile parses the template once into literal/field segments; the resulting
 // Template renders against many entries without re-scanning -- the hot path for

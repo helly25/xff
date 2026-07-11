@@ -194,6 +194,19 @@ test::summary_m_extraction_key_counts_per_extracted_line() {
   expect_matches "(^|${NL})total +3" "${out}" # three matching lines in total
 }
 
+test::summary_m_chain_extracts_then_normalizes() {
+  # A ;-chained m// key: the first command extracts the author, the second normalizes it
+  # (spaces -> underscores) per line, then --summary counts the normalized keys.
+  local root out
+  root="$(mktemp -d)"
+  : >"${root}/only.txt"
+  out="$(_run --summary='{capture.a:m/^author (.+)$/\1/;s/ /_/g}' "${root}" -type f \
+    -capture=a sh -c 'printf "author Bob Smith\nauthor Bob Smith\nauthor Ann Lee\n"' \;)"
+  rm -rf "${root}"
+  expect_matches "(^|${NL})Bob_Smith +2" "${out}"
+  expect_matches "(^|${NL})Ann_Lee +1" "${out}"
+}
+
 test::m_extraction_rejected_in_a_scalar_render_context() {
   # An m// extraction is a value stream, valid only as a --summary key. A per-entry scalar context
   # (-printf / --template / an -exec arg) rejects it with a usage error instead of newline-joining.

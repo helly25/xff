@@ -561,30 +561,96 @@ bool IsRewriteQualifier(std::string_view qualifier) {
   return qualifier.size() >= 2 && qualifier[0] == 's' && std::ispunct(static_cast<unsigned char>(qualifier[1])) != 0;
 }
 
-// Applies a sed-style rewrite `s<delim>PAT<delim>REPL<delim>[flags]` to `value`:
-// an RE2 substitution with `g` (all matches) and `i` (case-insensitive) flags. A
-// malformed spec or uncompilable pattern leaves the value unchanged.
+// One sed command in a rewrite chain: an RE2 pattern, its replacement, and the flags (`g`/`i`).
+struct RewriteOp {
+  std::string_view pattern;
+  std::string_view replacement;
+  std::string_view flags;
+};
+
+// Splits a rewrite / extraction qualifier into its `;`-separated command chain. `spec` starts with
+// the mode letter (`s` or `m`); each command is `[letter]<delim>PAT<delim>REPL<delim>[flags]`, and a
+// command after `;` may repeat the letter or omit it (an omitted letter is a substitution). The
+// delimiter is the char right after the (optional) letter, so a `;` inside PAT/REPL is not a
+// separator - only a `;` after the flags ends a command. Returns empty on any malformed command
+// (mirroring the single-command "leave the value alone on bad input" stance). No delimiter-escaping,
+// matching the original single-command behavior (pick a delimiter the pattern does not use).
+std::vector<RewriteOp> ParseRewriteChain(std::string_view spec) {
+  std::vector<RewriteOp> ops;
+  std::size_t pos = 0;
+  bool first = true;
+  while (pos < spec.size()) {
+    if (spec[pos] == 's' || spec[pos] == 'm') {
+      ++pos;  // the mode letter (required on the first command, optional after `;`)
+    } else if (first) {
+      return {};
+    }
+    first = false;
+    if (pos >= spec.size()) {
+      return {};
+    }
+    const char delim = spec[pos];
+    ++pos;
+    const std::size_t pat = pos;
+    while (pos < spec.size() && spec[pos] != delim) {
+      ++pos;
+    }
+    if (pos >= spec.size()) {
+      return {};  // no closing delimiter after the pattern
+    }
+    const std::string_view pattern = spec.substr(pat, pos - pat);
+    ++pos;
+    const std::size_t repl = pos;
+    while (pos < spec.size() && spec[pos] != delim) {
+      ++pos;
+    }
+    if (pos >= spec.size()) {
+      return {};  // no closing delimiter after the replacement
+    }
+    const std::string_view replacement = spec.substr(repl, pos - repl);
+    ++pos;
+    const std::size_t flags = pos;
+    while (pos < spec.size() && spec[pos] != ';') {
+      ++pos;
+    }
+    ops.push_back({.pattern = pattern, .replacement = replacement, .flags = spec.substr(flags, pos - flags)});
+    if (pos < spec.size() && spec[pos] == ';') {
+      ++pos;  // consume the command separator
+    }
+  }
+  return ops;
+}
+
+// Compiles every op's pattern (case-insensitive when its flags carry `i`), or nullopt if any fails
+// to compile - so a chain with a bad pattern is a whole no-op (the leave-alone stance).
+std::optional<std::vector<regex::Matcher>> CompileChain(const std::vector<RewriteOp>& ops) {
+  std::vector<regex::Matcher> matchers;
+  matchers.reserve(ops.size());
+  for (const RewriteOp& op : ops) {
+    absl::StatusOr<regex::Matcher> matcher =
+        regex::Matcher::Compile(op.pattern, /*case_insensitive=*/op.flags.find('i') != std::string_view::npos);
+    if (!matcher.ok()) {
+      return std::nullopt;
+    }
+    matchers.push_back(*std::move(matcher));
+  }
+  return matchers;
+}
+
+// Applies a sed-style rewrite chain `s<delim>PAT<delim>REPL<delim>[flags][;...]` to `value`: each
+// command is an RE2 substitution (`g` all matches, `i` case-insensitive), applied left to right. A
+// malformed spec or any uncompilable pattern leaves the value unchanged.
 std::string ApplyRewrite(std::string_view value, std::string_view spec) {
-  const char delim = spec[1];  // caller guarantees a rewrite spec (size >= 2)
-  const std::string_view rest = spec.substr(2);
-  const std::string_view::size_type pat_end = rest.find(delim);
-  if (pat_end == std::string_view::npos) {
+  const std::vector<RewriteOp> ops = ParseRewriteChain(spec);
+  const std::optional<std::vector<regex::Matcher>> matchers = CompileChain(ops);
+  if (ops.empty() || !matchers.has_value()) {
     return std::string(value);
   }
-  const std::string_view pattern = rest.substr(0, pat_end);
-  const std::string_view after = rest.substr(pat_end + 1);
-  const std::string_view::size_type repl_end = after.find(delim);
-  if (repl_end == std::string_view::npos) {
-    return std::string(value);
+  std::string out(value);
+  for (std::size_t i = 0; i < ops.size(); ++i) {
+    out = (*matchers)[i].Rewrite(out, ops[i].replacement, /*global=*/ops[i].flags.find('g') != std::string_view::npos);
   }
-  const std::string_view replacement = after.substr(0, repl_end);
-  const std::string_view flags = after.substr(repl_end + 1);
-  const absl::StatusOr<regex::Matcher> matcher =
-      regex::Matcher::Compile(pattern, /*case_insensitive=*/flags.find('i') != std::string_view::npos);
-  if (!matcher.ok()) {
-    return std::string(value);
-  }
-  return matcher->Rewrite(value, replacement, /*global=*/flags.find('g') != std::string_view::npos);
+  return out;
 }
 
 // A qualifier is a per-line extraction when it is `m` followed by a punctuation delimiter
@@ -593,37 +659,29 @@ bool IsExtractQualifier(std::string_view qualifier) {
   return qualifier.size() >= 2 && qualifier[0] == 'm' && std::ispunct(static_cast<unsigned char>(qualifier[1])) != 0;
 }
 
-// Applies a per-line extraction `m<delim>PAT<delim>REPL<delim>[flags]` to `value`: splits it into
-// lines, and for each line that matches PAT emits the RE2 rewrite REPL (flags g=all-on-the-line,
-// i=ignore-case). Non-matching lines are dropped, so this filters as well as transforms. A malformed
-// spec or uncompilable pattern yields an empty list (nothing extracted), matching ApplyRewrite's
-// leave-it-alone stance on bad input.
+// Applies a per-line extraction chain `m<delim>PAT<delim>REPL<delim>[flags][;...]` to `value`: splits
+// it into lines, and for each line that matches the FIRST command's pattern emits its RE2 rewrite,
+// then runs the remaining commands as substitutions on that per-line value. Non-matching lines are
+// dropped by the first command, so it filters as well as transforms. A malformed spec or any
+// uncompilable pattern yields an empty list (matching ApplyRewrite's leave-it-alone stance).
 std::vector<std::string> ExtractLines(std::string_view value, std::string_view spec) {
-  const char delim = spec[1];  // caller guarantees an extract spec (size >= 2)
-  const std::string_view rest = spec.substr(2);
-  const std::string_view::size_type pat_end = rest.find(delim);
-  if (pat_end == std::string_view::npos) {
+  const std::vector<RewriteOp> ops = ParseRewriteChain(spec);
+  const std::optional<std::vector<regex::Matcher>> matchers = CompileChain(ops);
+  if (ops.empty() || !matchers.has_value()) {
     return {};
   }
-  const std::string_view pattern = rest.substr(0, pat_end);
-  const std::string_view after = rest.substr(pat_end + 1);
-  const std::string_view::size_type repl_end = after.find(delim);
-  if (repl_end == std::string_view::npos) {
-    return {};
-  }
-  const std::string_view replacement = after.substr(0, repl_end);
-  const std::string_view flags = after.substr(repl_end + 1);
-  const absl::StatusOr<regex::Matcher> matcher =
-      regex::Matcher::Compile(pattern, /*case_insensitive=*/flags.find('i') != std::string_view::npos);
-  if (!matcher.ok()) {
-    return {};
-  }
-  const bool global = flags.find('g') != std::string_view::npos;
+  const bool first_global = ops.front().flags.find('g') != std::string_view::npos;
   std::vector<std::string> out;
   for (const std::string_view line : absl::StrSplit(value, '\n')) {
-    if (matcher->PartialMatch(line)) {  // only lines that match contribute
-      out.push_back(matcher->Rewrite(line, replacement, global));
+    if (!matchers->front().PartialMatch(line)) {
+      continue;  // the first command filters: only matching lines contribute
     }
+    std::string current = matchers->front().Rewrite(line, ops.front().replacement, first_global);
+    for (std::size_t i = 1; i < ops.size(); ++i) {  // remaining commands substitute on the survivor
+      current = (*matchers)[i].Rewrite(
+          current, ops[i].replacement, /*global=*/ops[i].flags.find('g') != std::string_view::npos);
+    }
+    out.push_back(std::move(current));
   }
   return out;
 }
