@@ -1411,6 +1411,37 @@ void CollectCaptureRefs(const parser::Expr& expr, std::vector<std::string>* refs
   }
 }
 
+// The first argument anywhere in `expr` that compiles to a field template carrying an m// extraction
+// (a value stream), or nullopt. An m// extraction is only meaningful as a --summary key; in any
+// per-entry scalar render context (-exec/-printf/-grep/... command and format args) a value stream
+// has no single value, so it is a usage error. Checking EVERY arg is safe: Template::HasExtraction is
+// true only for a known field with a well-formed m// qualifier, which a user writes solely to extract
+// -- a -name glob / -regex / -size value never trips it.
+std::optional<std::string> FindScalarExtraction(const parser::Expr& expr) {
+  switch (expr.kind) {
+    case parser::Expr::Kind::kPredicate:
+      for (const std::string& arg : expr.args) {
+        if (fields::Template::Compile(arg).HasExtraction()) {
+          return arg;
+        }
+      }
+      return std::nullopt;
+    case parser::Expr::Kind::kNot: return FindScalarExtraction(*expr.lhs);
+    case parser::Expr::Kind::kAnd:
+    case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kNand:
+    case parser::Expr::Kind::kNor:
+    case parser::Expr::Kind::kXor:
+    case parser::Expr::Kind::kXnor:
+    case parser::Expr::Kind::kComma:
+      if (const std::optional<std::string> lhs = FindScalarExtraction(*expr.lhs); lhs.has_value()) {
+        return lhs;
+      }
+      return FindScalarExtraction(*expr.rhs);
+  }
+  return std::nullopt;
+}
+
 // Returns a -capture NAME whose {capture.NAME} placeholder appears nowhere (no
 // -exec/-capture command, not the --template, and not a --summary={...} key), or nullopt when all
 // are used.
@@ -1641,6 +1672,35 @@ int RunFind(
   // aligned/markdown are `buffered` (the whole table renders after the walk, once every column
   // width is known); csv/tsv stream a row at a time. All four support --columns + a header.
   const std::vector<std::string> columns = ResolveColumns(command.globals);
+  // (i): an m// extraction yields a value stream, valid ONLY as a --summary key. In any per-entry
+  // scalar render context -- an -exec/-printf/-grep command or format arg, --template, or a
+  // --columns field -- a stream has no single value, so reject it up front (exit 2) rather than
+  // silently newline-joining it. --summary handles the extraction key separately (kTemplate).
+  {
+    std::optional<std::string> extraction;
+    if (expression != nullptr) {
+      extraction = FindScalarExtraction(*expression);
+    }
+    if (!extraction.has_value() && tmpl.has_value() && fields::Template::Compile(*tmpl).HasExtraction()) {
+      extraction = *tmpl;
+    }
+    for (const std::string& col : columns) {
+      if (extraction.has_value()) {
+        break;
+      }
+      if (fields::Template::Compile(absl::StrCat("{", col, "}")).HasExtraction()) {
+        extraction = col;
+      }
+    }
+    if (extraction.has_value()) {
+      on_error(
+          "field template", absl::InvalidArgumentError(
+                                absl::StrCat(
+                                    "an m// extraction ('", *extraction,
+                                    "') is only valid as a --summary key, not in a per-entry render context")));
+      return 2;
+    }
+  }
   const bool buffered = format == render::Format::kAligned || format == render::Format::kMarkdown;
   const bool is_tree = format == render::Format::kTree;
   const bool tabular = format == render::Format::kCsv || format == render::Format::kTsv || buffered;

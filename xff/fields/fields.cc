@@ -765,8 +765,9 @@ bool Template::IsExtraction() const {
 }
 
 bool Template::HasExtraction() const {
-  return absl::c_any_of(
-      segments_, [](const Segment& s) { return s.fn != nullptr && s.post == Segment::PostProcess::kExtract; });
+  return absl::c_any_of(segments_, [](const Segment& segment) {
+    return segment.fn != nullptr && segment.post == Segment::PostProcess::kExtract;
+  });
 }
 
 std::string Render(std::string_view tmpl, std::string_view path, const vfs::Metadata& metadata, int depth) {
