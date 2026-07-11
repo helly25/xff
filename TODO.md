@@ -190,7 +190,12 @@ remains below is the design-forked / larger work.
       on any drift. No auto-update pre-commit hook: regenerating needs the full `xff_full` build
       (pcre2 / archive extras), too heavy for a git hook - the CI diff_test is the gate, the script
       the one-command fix (same split as `compile_commands-update.sh`). Also added the `//xff` alias
-      to `//xff/cli:xff` so `bazel run //xff` reaches the stock binary.
+      to `//xff/cli:xff` so `bazel run //xff` reaches the stock binary. CI runs the guard as a fast
+      pre-flight `xff-md` job (builds only `xff_full` + the diff_test, repo-cache-only); the heavy
+      matrix (`test` / `tsan` / `minimal`) `needs: [pre-commit, trunk, xff-md]`, so a stale reference
+      or a lint failure fails in minutes instead of after the full asan build. Also dropped the macOS
+      asan cell (Linux asan is enough sanitizer coverage): the matrix is now ubuntu default + ubuntu
+      clang-asan + macos default.
   - **`--help` readability + discoverability** (2026-07-04 feedback):
     - **Blank line before each section header** (`Traversal:`, `Matching:`, ...) in the
       `--help` overview, so the groups are visually separated.

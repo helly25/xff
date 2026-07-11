@@ -17,6 +17,9 @@ permissions: read-all
 jobs:
   test:
     name: ${{ matrix.os }} / ${{ matrix.config.name }}
+    # Gate the heavy matrix behind the fast pre-flight checks (lint + the XFF.md drift guard), so a
+    # stale reference or a lint failure fails in minutes instead of after the full asan build.
+    needs: [pre-commit, trunk, xff-md]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -27,6 +30,13 @@ jobs:
             flags: ""
           - name: clang-asan
             flags: "--config=clang --config=asan"
+        exclude:
+          # asan on Linux is enough; the macOS asan cell is redundant sanitizer coverage, so drop it.
+          # This leaves: ubuntu default, ubuntu clang-asan, macos default.
+          - os: macos-latest
+            config:
+              name: clang-asan
+              flags: "--config=clang --config=asan"
     steps:
       - uses: actions/checkout@v6
       # bazelisk launches the Bazel release pinned in .bazelversion (9.1.1).
@@ -103,6 +113,7 @@ jobs:
   # total Actions cache stays under GitHub's 10 GB limit next to the asan caches;
   # the instrumented objects rebuild each run.
   tsan:
+    needs: [pre-commit, trunk, xff-md]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -128,6 +139,7 @@ jobs:
   # core->extra dependency would fail here. The sole job that opts OUT of the extras (every other job
   # runs --config=xff_full); one cell on the single most-default target (lean //xff/cli:xff, ubuntu).
   minimal:
+    needs: [pre-commit, trunk, xff-md]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -146,12 +158,33 @@ jobs:
       - name: bazel build (lean core, extras removed)
         run: bazel build //xff/cli:xff --repository_cache=$HOME/.cache/bazel-repo
 
+  # Fast pre-flight gate: XFF.md is the committed `xff_full --markdown` reference, so regenerate it
+  # and fail on any drift (//xff/cli:xff_markdown_test) BEFORE the heavy build/test matrix runs. It
+  # builds only xff_full + the diff_test (no asan/tsan, no full suite) and is repo-cache-only (like
+  # tsan/minimal), so it is one of the cheap checks the matrix waits on, alongside pre-commit/trunk.
+  xff-md:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: bazelbuild/setup-bazelisk@v3
+      - name: Mount Bazel repo cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-xff-md-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
+          restore-keys: |
+            bazel-repo-xff-md-
+      - name: Verify XFF.md matches xff_full --markdown
+        run: >
+          bazel test //xff/cli:xff_markdown_test --config=xff_full
+          --repository_cache=$HOME/.cache/bazel-repo
+
   # Single required status check: one job that gates merge on the whole matrix,
   # so branch protection needs only `done`. A yq/jq step self-checks that every
   # workflow job is wired into `needs`, so a newly added job cannot silently
   # escape the gate. Mirrors helly25/mbo.
   done:
-    needs: [test, pre-commit, trunk, tsan, minimal]
+    needs: [test, pre-commit, trunk, tsan, minimal, xff-md]
     if: always()
     runs-on: ubuntu-latest
     steps:
