@@ -305,8 +305,9 @@ bashtest(
 )
 
 # Asserts xff_full actually LINKS every extra --config=xff_full enables (via --help=extras) - the CI
-# guard that a shipping extra is never silently dropped from the full binary. `manual` + run ONLY by
-# the full cell, so its assertions run under --config=xff_full (PCRE2 on) and are unconditional.
+# guard that a shipping extra is never silently dropped from the full binary. `manual` (it links the
+# extras) but named by every CI test job, which all run --config=xff_full, so its assertions run with
+# the extras on and are unconditional.
 bashtest(
     name = "full_extras_test",
     size = "small",

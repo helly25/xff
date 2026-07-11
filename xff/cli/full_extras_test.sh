@@ -19,11 +19,12 @@
 # backend that fails to self-register. It reads the per-extra availability straight from
 # `xff --help=extras` and asserts each enabled extra reports "built into this binary".
 #
-# This target is `manual` and is run ONLY by the full CI cell (named explicitly there), so it always
-# runs under `--config=xff_full`; the assertions are unconditional on purpose. A plain build of
-# xff_full would correctly report these extras off - that is not this test's concern (full_binary_test
-# covers the config-agnostic behaviour). As a new extra is added to `--config=xff_full`, add its line
-# here so the guarantee grows with the set.
+# This target is `manual` (it links the extras + fetches @pcre2), so wildcard builds skip it; every
+# CI test job names it explicitly and runs it under `--config=xff_full` (only the `minimal` job opts
+# out of the extras). So its assertions are unconditional on purpose. A plain lean build of xff_full
+# would correctly report these extras off - not this test's concern (full_binary_test covers the
+# config-agnostic behaviour). As a new extra is added to `--config=xff_full`, add its line here so
+# the guarantee grows with the set.
 
 set -euo pipefail
 
