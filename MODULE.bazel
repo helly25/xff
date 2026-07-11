@@ -36,18 +36,25 @@ bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 # The shared extras API (the RegexBackend plugin interface + PCRE2 registration slot), a local
 # module both the xff core and every removable extra depend on - so an extra can be a standalone
 # module without a dependency cycle back into the core. It names no heavy deps and is always built.
-# See extra_modules/xff_extras_api and TODO.md "Extras architecture v2".
+# It lives at the top level (NOT under extra_modules/, which holds only removable extras), so a
+# minimal core archive can drop extra_modules/ wholesale. See xff_extras_api and TODO.md.
 bazel_dep(name = "xff_extras_api", version = "0.0.0")
 local_path_override(
     module_name = "xff_extras_api",
-    path = "extra_modules/xff_extras_api",
+    path = "xff_extras_api",
 )
 
-# Composable build extras keep their external deps in their OWN extra_modules/<name>/*.MODULE.bazel
-# segment, included here - so the core never names them and removing the include (or the directory)
-# drops the extra entirely. PCRE2 (--regextype=PCRE2, #85): only //xff/cli:xff_full links its backend
-# (via the //xff:xff_pcre select), so a lean build never fetches or compiles pcre2.
-include("//extra_modules/pcre2:pcre2.MODULE.bazel")
+# Composable build extras are standalone local modules under extra_modules/<name>, pulled via
+# bazel_dep + local_path_override - so the core never names the extra's own external deps, and
+# removing the bazel_dep line (or the whole directory) drops the extra entirely. PCRE2
+# (--regextype=PCRE2, #85): only //xff/cli:xff_full links @xff_pcre2's backend (via the
+# //xff:xff_pcre select), so bzlmod's laziness means a lean build never fetches or compiles @pcre2.
+# The module depends on @xff_extras_api (resolved by the override above), never on the core.
+bazel_dep(name = "xff_pcre2", version = "0.0.0")
+local_path_override(
+    module_name = "xff_pcre2",
+    path = "extra_modules/pcre2",
+)
 
 # helly25/mbo -- utility library and conventions reference, from the Bazel
 # Central Registry. 0.11.1 carries the macOS clang+asan verification (#188) and

@@ -13,23 +13,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Unit tests for the real PCRE2 backend. This target deps //extra_modules/pcre2:pcre2_backend
-// directly (alwayslink), so the factory is always registered here regardless of the //xff:xff_pcre
-// flag - Pcre2Available() is true and Matcher::Compile(kPcre2) exercises the actual engine. It is a
-// `manual` target (it pulls @pcre2), run in the full CI cell.
+// Unit tests for the real PCRE2 backend, exercised through the shared RegexBackend seam
+// (MakePcre2Backend) so they stay module-local - no dependency on the xff core. This target deps
+// :pcre2_backend directly (alwayslink), so the factory is always registered here regardless of the
+// //xff:xff_pcre flag: Pcre2Available() is true and MakePcre2Backend() yields the real engine. The
+// Matcher-level routing (Grammar::kPcre2 -> this backend) is covered by //xff/cli:full_binary_test.
+// `manual` (it pulls @pcre2); run in the full CI cell.
 
+#include <memory>
 #include <optional>
 
 #include "absl/status/status.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
-#include "xff/regex/regex.h"
+#include "xff/regex/backend.h"
 
 namespace xff::regex {
 namespace {
 
 using ::mbo::testing::StatusIs;
+using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::IsTrue;
 using ::testing::Optional;
@@ -42,61 +46,52 @@ TEST_F(Pcre2BackendTest, IsAvailableWhenLinked) {
 }
 
 TEST_F(Pcre2BackendTest, BackreferencesMatch) {
-  // A backreference is the canonical PCRE2-only feature: RE2 rejects the pattern outright.
-  ASSERT_OK_AND_ASSIGN(
-      const Matcher matcher, Matcher::Compile("(\\w+) \\1", /*case_insensitive=*/false, Grammar::kPcre2));
-  EXPECT_THAT(matcher.PartialMatch("the the fox"), IsTrue());  // doubled word
-  EXPECT_FALSE(matcher.PartialMatch("the quick fox"));
-  EXPECT_THAT(
-      Matcher::Compile("(\\w+) \\1", /*case_insensitive=*/false, Grammar::kRe2),
-      StatusIs(absl::StatusCode::kInvalidArgument));  // RE2 cannot compile it
+  // A backreference is the canonical PCRE2-only feature (RE2 rejects it; see //xff/regex:regex_test).
+  ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> backend, MakePcre2Backend("(\\w+) \\1", false));
+  EXPECT_THAT(backend->PartialMatch("the the fox"), IsTrue());  // doubled word
+  EXPECT_FALSE(backend->PartialMatch("the quick fox"));
 }
 
 TEST_F(Pcre2BackendTest, LookaheadMatchesAndFindsSpan) {
-  ASSERT_OK_AND_ASSIGN(
-      const Matcher matcher, Matcher::Compile("foo(?=bar)", /*case_insensitive=*/false, Grammar::kPcre2));
-  EXPECT_THAT(matcher.PartialMatch("foobar"), IsTrue());
-  EXPECT_FALSE(matcher.PartialMatch("foobaz"));
+  ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> backend, MakePcre2Backend("foo(?=bar)", false));
+  EXPECT_THAT(backend->PartialMatch("foobar"), IsTrue());
+  EXPECT_FALSE(backend->PartialMatch("foobaz"));
   EXPECT_THAT(
-      matcher.FindFirst("x foobar"), Optional(Pair(Eq(2U), Eq(3U))));  // just "foo", the lookahead is zero-width
+      backend->FindFirst("x foobar"), Optional(Pair(Eq(2U), Eq(3U))));  // just "foo", the lookahead is zero-width
 }
 
 TEST_F(Pcre2BackendTest, FullMatchAnchorsBothEnds) {
-  ASSERT_OK_AND_ASSIGN(const Matcher matcher, Matcher::Compile("a.c", /*case_insensitive=*/false, Grammar::kPcre2));
-  EXPECT_THAT(matcher.FullMatch("abc"), IsTrue());
-  EXPECT_FALSE(matcher.FullMatch("xabc"));  // anchored: must match the whole string
-  EXPECT_FALSE(matcher.FullMatch("abcx"));
-  EXPECT_THAT(matcher.PartialMatch("xabcx"), IsTrue());  // unanchored still matches within
+  ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> backend, MakePcre2Backend("a.c", false));
+  EXPECT_THAT(backend->FullMatch("abc"), IsTrue());
+  EXPECT_FALSE(backend->FullMatch("xabc"));  // anchored: must match the whole string
+  EXPECT_FALSE(backend->FullMatch("abcx"));
+  EXPECT_THAT(backend->PartialMatch("xabcx"), IsTrue());  // unanchored still matches within
 }
 
 TEST_F(Pcre2BackendTest, FullMatchCapturesReturnsGroups) {
-  ASSERT_OK_AND_ASSIGN(
-      const Matcher matcher, Matcher::Compile("(\\w+)@(\\w+)", /*case_insensitive=*/false, Grammar::kPcre2));
-  const auto captures = matcher.FullMatchCaptures("user@host");
+  ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> backend, MakePcre2Backend("(\\w+)@(\\w+)", false));
+  const auto captures = backend->FullMatchCaptures("user@host");
   ASSERT_TRUE(captures.has_value());
-  EXPECT_THAT(*captures, ::testing::ElementsAre("user@host", "user", "host"));  // [0]=whole, then groups
-  EXPECT_FALSE(matcher.FullMatchCaptures("nope").has_value());
+  EXPECT_THAT(*captures, ElementsAre("user@host", "user", "host"));  // [0]=whole, then groups
+  EXPECT_FALSE(backend->FullMatchCaptures("nope").has_value());
 }
 
 TEST_F(Pcre2BackendTest, RewriteUsesRe2StyleBackrefs) {
   // The Rewrite contract is RE2 syntax (\1); the backend translates to PCRE2's $1 internally.
-  ASSERT_OK_AND_ASSIGN(
-      const Matcher matcher, Matcher::Compile("(\\w+)@(\\w+)", /*case_insensitive=*/false, Grammar::kPcre2));
-  EXPECT_THAT(matcher.Rewrite("user@host", "\\2.\\1", /*global=*/false), "host.user");
-  EXPECT_THAT(matcher.Rewrite("a@b c@d", "<\\1>", /*global=*/true), "<a> <c>");
+  ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> backend, MakePcre2Backend("(\\w+)@(\\w+)", false));
+  EXPECT_THAT(backend->Rewrite("user@host", "\\2.\\1", /*global=*/false), "host.user");
+  EXPECT_THAT(backend->Rewrite("a@b c@d", "<\\1>", /*global=*/true), "<a> <c>");
 }
 
 TEST_F(Pcre2BackendTest, CaseInsensitiveFolds) {
-  ASSERT_OK_AND_ASSIGN(const Matcher folded, Matcher::Compile("readme", /*case_insensitive=*/true, Grammar::kPcre2));
-  EXPECT_THAT(folded.FullMatch("README"), IsTrue());
-  ASSERT_OK_AND_ASSIGN(const Matcher exact, Matcher::Compile("readme", /*case_insensitive=*/false, Grammar::kPcre2));
-  EXPECT_FALSE(exact.FullMatch("README"));
+  ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> folded, MakePcre2Backend("readme", true));
+  EXPECT_THAT(folded->FullMatch("README"), IsTrue());
+  ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> exact, MakePcre2Backend("readme", false));
+  EXPECT_FALSE(exact->FullMatch("README"));
 }
 
 TEST_F(Pcre2BackendTest, InvalidPatternReturnsInvalidArgument) {
-  EXPECT_THAT(
-      Matcher::Compile("a(b", /*case_insensitive=*/false, Grammar::kPcre2),
-      StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(MakePcre2Backend("a(b", false), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 }  // namespace

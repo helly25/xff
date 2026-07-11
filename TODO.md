@@ -413,11 +413,19 @@ remains below is the design-forked / larger work.
   minimal `xff` source package can ship with the optional parts DELETED (317/5, 317/6):
   - **Layout (317/2) DONE:** renamed `third_party/` -> `extra_modules/` (it holds glue/wrapper code,
     not the vendored lib). Each extra is `extra_modules/<name>/`.
-  - **Local module per extra (317/3):** each `extra_modules/<name>/` is its OWN local Bazel module -
-    its `MODULE.bazel` declares the external `bazel_dep` (e.g. `pcre2`) + the wrapper; root pulls it
-    via `bazel_dep(name="xff_<name>") + local_path_override(path="extra_modules/<name>")`. So the
-    external dep is named by the EXTRA, not the root/core. Disable = comment the root's two lines (a
-    simple patch) or delete the directory.
+  - **Shared base module `xff_extras_api` SHIPPED (b1 #326, b2 #327):** the RegexBackend plugin
+    interface + PCRE2 registration slot (`backend.{h,cc}`) and the license-notice registry
+    (`notice.{h,cc}`, `Register`/`Registrar`/`Notices`) live in a standalone top-level local module
+    both the core and every extra `bazel_dep`, breaking the cycle (an extra can't dep the core). It is
+    at the TOP LEVEL, NOT under `extra_modules/`, so a minimal archive can drop `extra_modules/`
+    wholesale. Two targets: `@xff_extras_api//:regex_backend` + `:license_notice`, each keeping its
+    logical include path (`xff/regex/backend.h`, `xff/license/notice.h`) via `include_prefix`.
+  - **Local module per extra (317/3) SHIPPED for PCRE2 (b3):** `extra_modules/pcre2/` is its OWN local
+    Bazel module `xff_pcre2` - its `MODULE.bazel` declares `bazel_dep(pcre2)` + `bazel_dep(xff_extras_api)`;
+    root pulls it via `bazel_dep(name="xff_pcre2") + local_path_override(path="extra_modules/pcre2")`.
+    The backend deps ONLY `@xff_extras_api` + `@pcre2` (verified: the lean `//xff/cli:xff` cquery has
+    zero `extra_modules`/`@pcre2` deps). Disable = comment the root's bazel_dep+override, or delete the
+    directory. `extra_modules/` now holds only removable extras.
   - **Auto-enable via a module extension (the "check this"; SPIKE first):** `module_ctx.modules` lists
     only extension PARTICIPANTS, not the whole graph - so each extra must SELF-REGISTER by using the
     extension (from its own MODULE.bazel), and the extension must live in a shared base module both
