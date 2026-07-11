@@ -319,15 +319,15 @@ std::string RenderCookbook() {
        .note = "runs git blame on each text file; the shell pipe tallies lines per author across the "
                "tree. -text skips binaries (which git blame cannot line-blame). -exec feeds any pipeline "
                "the field vocabulary cannot express alone."},
-      {.task = "Author line counts across several trees / repos",
-       .command = "xff src lib -g -type f -text -execdir git blame --line-porcelain {} \\; "
+      {.task = "Author line counts, gitignore-aware and repo-safe",
+       .command = "xff . -g -type f -text -execdir git blame --line-porcelain {} \\; "
                   "| awk '/^author /{sub(/^author /,\"\"); n[$0]++} END{for(a in n) printf \"%7d  %s\\n\", n[a], a}' "
                   "| sort -rn",
-       .note = "aggregates blame into lines-per-contributor over MANY roots at once. Differs from the "
-               "per-file recipe above: one tally spans the whole selection. -execdir runs git in each "
-               "file's own directory, so it works even when the roots live in different repos; -g honors "
-               ".gitignore and skips .git; -text keeps blame off binaries. The awk tallies in one pass. A "
-               "native capture -> group-by reduction is planned to fold that pipe into xff."},
+       .note = "aggregates blame into lines-per-contributor over the whole tree. The robust cousin of the "
+               "recipe above: -execdir runs git in each file's own directory, so it works from anywhere and "
+               "even across nested repos / submodules; -g honors .gitignore and skips .git; -text keeps blame "
+               "off binaries. Pass several roots (xff a b c ...) to span multiple trees in one tally. The awk "
+               "tallies in one pass. A native capture -> group-by reduction is planned to fold that pipe in."},
       {.task = "Checksum manifest for a tree",
        .command = "xff . -type f -hash=sha256",
        .note = "prints `DIGEST  PATH` per file (like sha256sum); redirect to a file to snapshot a tree, "
