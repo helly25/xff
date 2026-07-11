@@ -25,6 +25,13 @@
 
 namespace xff::content {
 
+// How many leading bytes to sniff for a NUL when classifying a file as binary. There is no standard
+// definition of a "binary file"; this is the heuristic git's buffer_is_binary() uses (its
+// FIRST_FEW_BYTES = 8000) and the spirit of grep -I / ripgrep (a NUL means binary). Every xff site
+// that skips or classifies binaries -- content search (-grep/-content/-rxc), line counting ({lines}),
+// -diff, and the -text/-binary predicates -- shares this one value so they all agree.
+inline constexpr std::size_t kBinaryNulSniffBytes = 8'000;
+
 // One matching line within a file's content, as grep/ripgrep report it: the line's
 // 1-based number and its text. Backs the `-grep` action's `{line}` / `{text}`
 // fields.

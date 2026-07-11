@@ -168,6 +168,49 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .style = Style::kXff,
         .cost = Cost::kExpensive,
     },
+    // xff content-type predicates: is the file's CONTENT text or binary? Both read the file and use
+    // the same NUL-in-first-8-KiB heuristic as the content search above, so they classify a file the
+    // same way -content / -grep skip it. Both are file-only: a non-regular or unreadable entry is
+    // neither text nor binary (so -text and -binary are NOT complements - `! -text` also matches
+    // directories, symlinks and unreadable files).
+    {
+        .name = "-text",
+        .summary = "match a regular file whose content is text (no NUL in the first 8 KiB) (xff)",
+        .details = "TRUE for a regular, readable file whose content is text - no NUL byte in the first 8 KiB, the "
+                   "same heuristic -grep / -content use to skip binaries. Reads the file, so it is expensive. A "
+                   "directory, symlink, device or unreadable file is not text (nor binary), so it never matches. "
+                   "The counterpart is -binary; `! -text` is NOT -binary (it also matches non-files). An xff "
+                   "extension --config=find rejects.",
+        .kind = Kind::kTest,
+        .arity = 0,
+        .style = Style::kXff,
+        .cost = Cost::kExpensive,
+    },
+    {
+        .name = "-binary",
+        .summary = "match a regular file whose content is binary (a NUL in the first 8 KiB) (xff)",
+        .details = "TRUE for a regular, readable file whose content is binary - a NUL byte in the first 8 KiB. The "
+                   "precise complement of -text WITHIN regular files: a directory, symlink, device or unreadable "
+                   "file is neither, so `-binary` is not `! -text`. Reads the file (expensive). An xff extension "
+                   "--config=find rejects.",
+        .kind = Kind::kTest,
+        .arity = 0,
+        .style = Style::kXff,
+        .cost = Cost::kExpensive,
+    },
+    {
+        .name = "-eofnl",
+        .summary = "match a regular file whose content ends with a newline, or is empty (xff)",
+        .details = "TRUE for a regular, readable file whose content ends with a newline (or is empty - a zero-line "
+                   "file is complete). Tests ONLY newline-termination, the other axis from -text/-binary: compose "
+                   "-text -eofnl for a well-formed (POSIX-style) text file, or -text ! -eofnl for the common lint "
+                   "'a text file missing its final newline'. Reads the file (expensive). An xff extension "
+                   "--config=find rejects.",
+        .kind = Kind::kTest,
+        .arity = 0,
+        .style = Style::kXff,
+        .cost = Cost::kExpensive,
+    },
     // xff -cmp: content comparison. TRUE when the file is byte-for-byte identical to
     // TARGET (a field template rendered per entry, e.g. '{def.B}/{relpath}'); byte-exact
     // and binary-safe, so `! -cmp` selects files that differ from a parallel tree.

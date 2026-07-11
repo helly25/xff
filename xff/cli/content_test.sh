@@ -103,6 +103,53 @@ test::content_is_rejected_in_strict_find_style() {
   expect_eq "2" "${rc}"
 }
 
+test::text_and_binary_classify_regular_files() {
+  # -text matches a text regular file, -binary a binary one; a directory is neither.
+  local root out
+  root="$(mktemp -d)"
+  printf 'hello\n' >"${root}/plain.txt" # text
+  printf 'a\0b' >"${root}/blob.dat"     # a NUL -> binary
+  mkdir "${root}/adir"                  # neither text nor binary
+  out="$("$(_xff_bin)" "${root}" -text 2>&1)"
+  expect_matches 'plain\.txt' "${out}"
+  expect_not_matches 'blob\.dat' "${out}"
+  expect_not_matches 'adir' "${out}"
+  out="$("$(_xff_bin)" "${root}" -binary 2>&1)"
+  expect_matches 'blob\.dat' "${out}"
+  expect_not_matches 'plain\.txt' "${out}"
+  rm -rf "${root}"
+}
+
+test::eofnl_selects_newline_terminated_or_empty_files() {
+  # -text -eofnl = well-formed text (ends in newline, or empty); -text ! -eofnl = the
+  # missing-final-newline lint.
+  local root out
+  root="$(mktemp -d)"
+  printf 'done\n' >"${root}/good.txt" # ends in newline
+  printf 'oops' >"${root}/nonl.txt"   # no final newline
+  : >"${root}/empty.txt"              # empty is complete (zero lines)
+  out="$("$(_xff_bin)" "${root}" -text -eofnl 2>&1)"
+  expect_matches 'good\.txt' "${out}"
+  expect_matches 'empty\.txt' "${out}"
+  expect_not_matches 'nonl\.txt' "${out}"
+  out="$("$(_xff_bin)" "${root}" -text ! -eofnl 2>&1)"
+  expect_matches 'nonl\.txt' "${out}"
+  expect_not_matches 'good\.txt' "${out}"
+  rm -rf "${root}"
+}
+
+test::text_binary_eofnl_are_rejected_in_strict_find_style() {
+  # All three are xff extensions; --config=find rejects each (exit 2).
+  local root rc
+  root="$(mktemp -d)"
+  : >"${root}/f"
+  for pred in -text -binary -eofnl; do
+    "$(_xff_bin)" --config=find "${root}" "${pred}" >/dev/null 2>&1 && rc=0 || rc=$?
+    expect_eq "2" "${rc}"
+  done
+  rm -rf "${root}"
+}
+
 test::help_topic_documents_content() {
   # Self-documentation flows from the registry: --help=-content renders its summary.
   expect_output_contains "content" "$("$(_xff_bin)" --help=-content 2>&1)"

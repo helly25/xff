@@ -922,12 +922,54 @@ std::optional<std::string> ContentToSearch(const Visit& visit, const vfs::FileSy
   if (!content.ok()) {
     return std::nullopt;  // unreadable: a non-match here (the walk surfaces the read error itself)
   }
-  constexpr std::size_t kBinarySniffBytes = 8 * 1'024;
-  const std::string_view prefix(content->data(), std::min(content->size(), kBinarySniffBytes));
+  const std::string_view prefix(content->data(), std::min(content->size(), content::kBinaryNulSniffBytes));
   if (prefix.find('\0') != std::string_view::npos) {
-    return std::nullopt;  // a NUL in the first 8 KiB marks the file binary; skip it
+    return std::nullopt;  // a NUL in the sniff window marks the file binary; skip it
   }
   return *std::move(content);
+}
+
+// nullopt when `visit` is not a readable regular file; otherwise whether its content is binary -- a
+// NUL in the first 8 KiB, the SAME heuristic ContentToSearch uses, so -text / -binary classify a file
+// exactly as -grep / -content skip it. Backs -text (content is text, i.e. == false) and -binary
+// (== true); both stay false for a non-regular or unreadable entry (nullopt), so they are not
+// complements.
+std::optional<bool> FileContentIsBinary(const Visit& visit, const vfs::FileSystem& fs) {
+  if (visit.metadata.type != vfs::FileType::kRegular) {
+    return std::nullopt;
+  }
+  const absl::StatusOr<std::string> content = fs.ReadContent(visit.path);
+  if (!content.ok()) {
+    return std::nullopt;
+  }
+  const std::string_view prefix(content->data(), std::min(content->size(), content::kBinaryNulSniffBytes));
+  return prefix.find('\0') != std::string_view::npos;
+}
+
+// xff -text / -binary: classify a regular file's content. -text matches text (no NUL in the sniff
+// window), -binary matches binary; neither matches a non-regular or unreadable entry.
+bool EvalText(const parser::Expr& /*expr*/, EvalContext& ctx) {
+  return FileContentIsBinary(ctx.visit, ctx.fs) == false;
+}
+
+bool EvalBinary(const parser::Expr& /*expr*/, EvalContext& ctx) {
+  return FileContentIsBinary(ctx.visit, ctx.fs) == true;
+}
+
+// xff -eofnl: TRUE for a regular, readable file whose content ends with a newline, or is empty (a
+// zero-line file is complete). Tests ONLY newline-termination -- the content-class axis is -text, so
+// `-text -eofnl` is a well-formed (POSIX-ish) text file and `-text ! -eofnl` the missing-final-newline
+// lint. Orthogonal on purpose: bundling the binary heuristic here would make `! -eofnl` sweep in
+// binaries and non-files.
+bool EvalEofnl(const parser::Expr& /*expr*/, EvalContext& ctx) {
+  if (ctx.visit.metadata.type != vfs::FileType::kRegular) {
+    return false;
+  }
+  const absl::StatusOr<std::string> content = ctx.fs.ReadContent(ctx.visit.path);
+  if (!content.ok()) {
+    return false;
+  }
+  return content->empty() || content->back() == '\n';
 }
 
 // xff -content / -icontent: the file's content contains the argument as a literal
@@ -1033,7 +1075,7 @@ DiffStyle ParseDiffStyle(std::string_view style) {
 // A file looks binary when a NUL byte appears in its leading bytes (like GNU diff / grep):
 // -diff text-diffs only, so a binary side is byte-compared with a stderr note instead.
 bool LooksBinary(std::string_view data) {
-  return data.substr(0, 8'000).find('\0') != std::string_view::npos;
+  return data.substr(0, content::kBinaryNulSniffBytes).find('\0') != std::string_view::npos;
 }
 
 // One --diff-ignore token's effect: sets its normalization bool on the DiffOptions.
@@ -1889,6 +1931,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-amin", {&EvalAmin}},
     DispatchPair{"-anewer", {&EvalAnewer}},
     DispatchPair{"-atime", {&EvalAtime}},
+    DispatchPair{"-binary", {&EvalBinary}},
     DispatchPair{"-blocks", {&EvalBlocks}},
     DispatchPair{"-capture", {&EvalCapture}},
     DispatchPair{"-capturedir", {&EvalCapturedir}},
@@ -1900,6 +1943,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-delete", {&EvalDelete}},
     DispatchPair{"-diff", {&EvalDiff}},
     DispatchPair{"-empty", {&EvalEmpty}},
+    DispatchPair{"-eofnl", {&EvalEofnl}},
     DispatchPair{"-exec", {&EvalExec}},
     DispatchPair{"-execdir", {&EvalExecdir}},
     DispatchPair{"-executable", {&EvalExecutable}},
@@ -1971,6 +2015,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-samefile", {&EvalSamefile}},
     DispatchPair{"-size", {&EvalSize}},
     DispatchPair{"-sparse", {&EvalSparse}},
+    DispatchPair{"-text", {&EvalText}},
     DispatchPair{"-true", {&EvalTrue}},
     DispatchPair{"-type", {&EvalType}},
     DispatchPair{"-uid", {&EvalUid}},
