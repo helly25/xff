@@ -40,15 +40,19 @@ const Registrar kMbo{
 
 }  // namespace
 
+std::string_view CopyrightNotice() {
+  return "xff - eXtended File Find\n"
+         "Copyright 2026 Marcus Boerger / helly25\n"
+         "Licensed under the Apache License, Version 2.0.\n";
+}
+
 std::string NoticeText() {
-  std::string out =
-      "xff - eXtended File Find\n"
-      "Copyright 2026 Marcus Boerger / helly25\n"
-      "Licensed under the Apache License, Version 2.0 (see the LICENSE file / --help=license).\n"
+  std::string out = absl::StrCat(
+      CopyrightNotice(),
       "\n"
       "This product links the third-party components below; all are under permissive licenses\n"
       "(no copyleft). The notice-retention obligation is met by reproducing each name, SPDX license\n"
-      "identifier, and copyright line.\n";
+      "identifier, and copyright line.\n");
   for (const Notice& notice : Notices()) {
     absl::StrAppend(&out, "\n", notice.component, "  [", notice.spdx, "]\n  ", notice.text, "\n");
   }

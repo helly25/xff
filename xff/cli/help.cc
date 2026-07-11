@@ -358,11 +358,15 @@ std::string RenderNotice() {
   return out;
 }
 
-// `--help=license` (alias licenses): xff's own license (Apache-2.0), reproduced verbatim from the
-// repo LICENSE compiled into the binary. Separate from `--help=notice`, which is the third-party
+// `--help=license` (alias licenses): the copyright + grant (CopyrightNotice, so --help=license and
+// --help=notice can never state a different owner) that COMPLETES the licensing statement per Apache
+// 2.0's own APPENDIX, followed by xff's own license (Apache-2.0) reproduced verbatim from the repo
+// LICENSE compiled into the binary. Separate from `--help=notice`, which is the third-party
 // attribution; a user asking for either gets the full text, never a pointer to a file.
 std::string RenderLicense() {
-  return std::string(license::LicenseText());
+  // LicenseText() already opens with a blank line, so the copyright block and the license body are
+  // separated by exactly one blank line with no extra separator here.
+  return absl::StrCat(license::CopyrightNotice(), license::LicenseText());
 }
 
 // The `--help=help` topic: a guide to the (subcommand-free) help system, then the

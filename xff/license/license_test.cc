@@ -37,6 +37,7 @@ using ::testing::HasSubstr;
 using ::testing::IsTrue;
 using ::testing::Not;
 using ::testing::NotNull;
+using ::testing::StartsWith;
 
 // Reads a data-dep file from the test's runfiles, or an empty optional if unavailable.
 std::string ReadRunfile(std::string_view relative) {
@@ -77,12 +78,21 @@ TEST_F(LicenseTest, NoticesAreSortedByComponentForDeterministicOutput) {
       IsTrue());
 }
 
-TEST_F(LicenseTest, NoticeTextReproducesTheHeaderAndComponents) {
+TEST_F(LicenseTest, CopyrightNoticeStatesTheOwnerAndGrant) {
+  const std::string_view text = CopyrightNotice();
+  EXPECT_THAT(
+      std::string(text),
+      AllOf(
+          HasSubstr("xff - eXtended File Find"), HasSubstr("Copyright 2026 Marcus Boerger / helly25"),
+          HasSubstr("Licensed under the Apache License, Version 2.0.")));
+}
+
+TEST_F(LicenseTest, NoticeTextLeadsWithTheCopyrightNoticeThenComponents) {
   const std::string text = NoticeText();
-  EXPECT_THAT(text, HasSubstr("xff - eXtended File Find"));  // the attribution header
-  EXPECT_THAT(text, HasSubstr("RE2"));                       // a component
-  EXPECT_THAT(text, HasSubstr("BSD-3-Clause"));              // its SPDX id
-  EXPECT_THAT(text, HasSubstr("Apache-2.0"));                // a core dep's SPDX id
+  EXPECT_THAT(text, StartsWith(CopyrightNotice()));  // the shared attribution header
+  EXPECT_THAT(text, HasSubstr("RE2"));               // a component
+  EXPECT_THAT(text, HasSubstr("BSD-3-Clause"));      // its SPDX id
+  EXPECT_THAT(text, HasSubstr("Apache-2.0"));        // a core dep's SPDX id
 }
 
 TEST_F(LicenseTest, LicenseTextIsTheApacheLicenseInFull) {
