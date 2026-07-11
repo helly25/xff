@@ -99,6 +99,15 @@ class Matcher {
 // on a binary where this is false is a clean error, never a silent RE2 fallback.
 bool Pcre2Available();
 
+// The `--regextype` grammar reference: one row per Grammar, `{VALUE, what it is}`, in --regextype
+// value order. The single source of truth behind `--help=regex` (and the "Regex grammars" section of
+// --help=full / --man / --markdown), so the documented grammars cannot drift from the enum -
+// regex_test asserts every Grammar value has a row. RE2 and PCRE2 cite their canonical external
+// references (the RE2 wiki, pcre2pattern(3)); the core engines EXACT / FNMATCH / GLOB / SHGLOB are
+// spelled out in full here because they have no single authoritative man page (and FNMATCH delegates
+// to the platform's fnmatch(3), whose class/collation details vary by system).
+std::vector<std::pair<std::string_view, std::string_view>> GrammarDocs();
+
 }  // namespace xff::regex
 
 #endif  // XFF_REGEX_REGEX_H_

@@ -279,4 +279,35 @@ std::string Matcher::Rewrite(std::string_view text, std::string_view replacement
   return backend_->Rewrite(text, replacement, global);
 }
 
+std::vector<std::pair<std::string_view, std::string_view>> GrammarDocs() {
+  return {
+      {"RE2",
+       "the default. Google RE2 regular expressions - linear-time, no catastrophic backtracking. "
+       "Full syntax: https://github.com/google/re2/wiki/Syntax ."},
+      {"EXACT",
+       "a literal string; every character matches itself, no metacharacters. -regex is whole-string "
+       "equality, -rxc / -grep a substring test."},
+      {"FNMATCH",
+       "a flat shell wildcard via the platform's fnmatch(3): * matches any run of characters "
+       "(including /), ? one character, [...] a class. Whole-string, like find -name / -path (no "
+       "/-awareness); -i uses FNM_CASEFOLD. Provided by libc, so class / collation details vary by "
+       "system."},
+      {"GLOB",
+       "xff's own path-aware shell glob (gitignore-flavored, compiled to RE2 - NOT POSIX glob(7)): * "
+       "and ? match within one path segment (they stop at /); ** is a whole-segment cross-directory "
+       "wildcard (leading **/ = zero or more directories, trailing /** = everything below, a glued ** "
+       "degrades to *); [...] is a class with [a-z] ranges, [[:alpha:]] POSIX classes, a leading ! "
+       "negating and a leading ] literal; { } are literal. Because it compiles to RE2, -grep / -rxc "
+       "partial matching and match spans work."},
+      {"SHGLOB",
+       "GLOB plus brace alternation: {a,b,c} matches any one alternative, so *.{cc,h} matches either. "
+       "Alternatives may nest and may be empty; each is itself SHGLOB-translated. \\{ \\} \\, and "
+       "braces inside a [...] class are literal. Everything else is exactly GLOB."},
+      {"PCRE2",
+       "Perl-Compatible Regular Expressions (lookaround, backreferences, ...). A build-time extra: "
+       "present only in a full build - run `xff --help=extras` to see whether THIS binary has it. Full "
+       "syntax: pcre2pattern(3)."},
+  };
+}
+
 }  // namespace xff::regex

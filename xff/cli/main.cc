@@ -179,6 +179,17 @@ std::string RenderSizeDocs() {
   return out;
 }
 
+// The --regextype grammar reference (--help=grammars), rendered from regex::GrammarDocs(). Documents
+// every grammar in full; RE2 / PCRE2 cite their canonical external references, the core engines
+// (EXACT / FNMATCH / GLOB / SHGLOB) are spelled out here because they have none (and FNMATCH's
+// fnmatch(3) varies by platform). Named "grammars", not "regex" / "regextype", so it does not shadow
+// the -regex primary's or the --regextype flag's own --help= entries.
+std::string RenderRegexDocs() {
+  std::string out = "REGEX GRAMMARS (--regextype=VALUE, for -regex/-iregex/-rxc/-grep):\n";
+  absl::StrAppend(&out, xff::cli::RenderDocRows("  ", xff::regex::GrammarDocs()));
+  return out;
+}
+
 // The --help=extras topic: the optional build-time features and whether THIS binary links each.
 // Availability is per-binary, so this is a runtime topic (not folded into the static --help=full /
 // man / markdown reference). PCRE2 is the --regextype value extra (regex::Pcre2Available, from the
@@ -236,6 +247,9 @@ absl::StatusOr<std::string> RenderTopic(std::string_view topic) {
   }
   if (topic == "size") {
     return RenderSizeDocs();
+  }
+  if (topic == "grammars") {
+    return RenderRegexDocs();
   }
   if (topic == "extras") {
     return RenderExtras();

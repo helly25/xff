@@ -32,6 +32,7 @@
 #include "xff/datetime/datetime.h"
 #include "xff/engine/evaluate.h"
 #include "xff/fields/fields.h"
+#include "xff/regex/regex.h"
 #include "xff/registry/descriptor.h"
 #include "xff/registry/registry.h"
 
@@ -225,6 +226,15 @@ void WriteReference(DocRenderer& out) {
   out.Prose("Units for -size / -blocks [+|-]N[unit].");
   out.Rows(engine::SizeUnitDocs());
 
+  out.Section("Regex grammars");
+  out.Prose(
+      "The grammar for -regex / -iregex and the content matchers -rxc / -grep, chosen by `--regextype` "
+      "(default RE2). EXACT, FNMATCH, GLOB and SHGLOB are core engines, always built in; PCRE2 is a "
+      "build-time extra (see `--help=extras`). RE2 and PCRE2 have canonical external references, so the "
+      "smaller engines are spelled out in full here: they have no single authoritative man page, and "
+      "FNMATCH delegates to the platform's fnmatch(3), whose class / collation details vary by system.");
+  out.Rows(regex::GrammarDocs());
+
   out.Section("Examples");
   out.Example(RenderHelp("cookbook").value_or(""));
 
@@ -243,9 +253,10 @@ void WriteReference(DocRenderer& out) {
   }};
   out.SeeAlso(
       kSeeAlso,
-      "The grammars selected by `--regextype` map to these references: FNMATCH uses fnmatch(3), GLOB "
-      "(and SHGLOB, which adds `{a,b}` brace alternation) use glob(7), and PCRE2 uses pcre2pattern(3). "
-      "The default RE2 grammar has no man page; its syntax is documented at "
+      "For the `--regextype` grammars see the Regex grammars section above (`--help=grammars`). FNMATCH "
+      "is the platform's fnmatch(3) and PCRE2 is pcre2pattern(3); GLOB and SHGLOB are xff's own "
+      "path-aware globs (compiled to RE2), NOT POSIX glob(7) - that page is listed only as background "
+      "on shell globbing. The default RE2 grammar has no man page; its syntax is at "
       "https://github.com/google/re2/wiki/Syntax .");
 }
 

@@ -179,7 +179,8 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "matches either. PCRE2 (Perl syntax: lookaround, backreferences) is the one build-time "
                    "extra: it is present only in a full build, and selecting it in a lean build is a hard "
                    "error, never a silent fall back to RE2. RE2/EXACT/FNMATCH/GLOB/SHGLOB are always built in; "
-                   "run xff --help=extras to see whether THIS binary includes PCRE2.",
+                   "run xff --help=extras to see whether THIS binary includes PCRE2. See --help=grammars for "
+                   "a full description of each grammar (GLOB/SHGLOB are xff's own, not POSIX glob(7)).",
     },
     {
         .name = "--exclude",
