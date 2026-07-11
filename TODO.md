@@ -328,6 +328,16 @@ remains below is the design-forked / larger work.
   belongs before the expression (a late one is hoisted but does not retro-recompile matchers). The
   cookbook/README/usage examples now show `--summary` at the tail; #144 (the `-summary`-as-action
   idea) is superseded for its positional driver.
+- **`--summary` is repeatable (#144) - SHIPPED.** Each `--summary[=X]` is now an independent sink
+  (like `--histogram`, already a list), so `xff . -type f --summary=ext --summary=type` prints both
+  tables, in order, blank-line separated; `--summary=none` clears the list. Delivers the multiple-sinks
+  benefit that was #144's only remaining driver after #145 gave the positional win - WITHOUT the
+  expression-action machinery I first over-scoped (no single-dash action, no suppress-default-print,
+  no expression-scoping). `ResolveSummaries` returns a `vector<SummarySpec>`; the walk accumulates one
+  `{group -> {count,size}}` map per sink and a render lambda emits each table. `--top` /
+  `--summary-precision` stay global and apply to every table (per-sink modifiers deferred). Mirrors the
+  existing `--histogram` list exactly, so it was a bounded change, not the aggregation-core refactor I
+  wrongly estimated.
 - **Color support**: `--color[=auto|always|never]` ships an `ls`-like scheme keyed
   on the filesystem file type (directory, symlink, executable, fifo/socket/device);
   auto colors only a tty and honors `NO_COLOR`. Still open: per-language coloring

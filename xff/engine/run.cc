@@ -221,44 +221,48 @@ std::size_t ResolveJobs(const std::vector<std::string>& globals, std::optional<r
 // {mime}/{user}/{group} renderers), so they cannot drift from the field values.
 enum class SummaryMode : std::uint8_t { kOff, kOverall, kType, kExt, kLanguage, kMime, kUser, kGroup, kTemplate };
 
-SummaryMode ResolveSummary(const std::vector<std::string>& globals) {
-  SummaryMode mode = SummaryMode::kOff;
+// One --summary sink: a group-by mode plus the {template} string (mode == kTemplate only). --summary
+// is repeatable, like --histogram, so a run can carry several independent summary tables.
+struct SummarySpec {
+  SummaryMode mode = SummaryMode::kOverall;
+  std::string key_template;
+};
+
+// Parses every --summary[=X] into an ordered list of sinks (each occurrence appends one); the value
+// selects the mode, `--summary=none` clears the list (turns every summary off). No last-wins
+// collapse: two distinct --summary flags produce two tables.
+std::vector<SummarySpec> ResolveSummaries(const std::vector<std::string>& globals) {
+  using ModePair = std::pair<std::string_view, SummaryMode>;
+  static constexpr auto kModes = mbo::container::MakeLimitedMap(
+      ModePair{"--summary", SummaryMode::kOverall}, ModePair{"--summary=ext", SummaryMode::kExt},
+      ModePair{"--summary=group", SummaryMode::kGroup}, ModePair{"--summary=lang", SummaryMode::kLanguage},
+      ModePair{"--summary=mime", SummaryMode::kMime}, ModePair{"--summary=overall", SummaryMode::kOverall},
+      ModePair{"--summary=owner", SummaryMode::kUser}, ModePair{"--summary=type", SummaryMode::kType},
+      ModePair{"--summary=user", SummaryMode::kUser});
+  constexpr std::string_view kPrefix = "--summary=";
+  std::vector<SummarySpec> specs;
   for (const std::string& global : globals) {
-    if (global == "--summary" || global == "--summary=overall") {
-      mode = SummaryMode::kOverall;
-    } else if (global == "--summary=type") {
-      mode = SummaryMode::kType;
-    } else if (global == "--summary=ext") {
-      mode = SummaryMode::kExt;
-    } else if (global == "--summary=lang") {
-      mode = SummaryMode::kLanguage;
-    } else if (global == "--summary=mime") {
-      mode = SummaryMode::kMime;
-    } else if (global == "--summary=user" || global == "--summary=owner") {
-      mode = SummaryMode::kUser;
-    } else if (global == "--summary=group") {
-      mode = SummaryMode::kGroup;
-    } else if (global == "--summary=none") {
-      mode = SummaryMode::kOff;
+    if (global == "--summary=none") {
+      specs.clear();
     } else if (global.starts_with("--summary={")) {
-      mode = SummaryMode::kTemplate;  // group by a {field} template (incl. an m// per-line extraction)
+      specs.push_back({.mode = SummaryMode::kTemplate, .key_template = global.substr(kPrefix.size())});
+    } else if (const auto it = kModes.find(global); it != kModes.end()) {
+      specs.push_back({.mode = it->second, .key_template = ""});
     }
   }
-  return mode;
+  return specs;
 }
 
-// The `--summary={template}` key template (last occurrence), or empty when no template form was
-// given. The `{...}` groups by an arbitrary field value; an m// extraction key groups per extracted
-// line (a value stream), any other template one key per matched entry.
-std::string SummaryKeyTemplate(const std::vector<std::string>& globals) {
-  constexpr std::string_view kPrefix = "--summary=";
-  std::string tmpl;
+// The concatenation of every --summary={template} string, for the -capture reference check (a
+// {capture.NAME} used in any summary key counts as referenced).
+std::string AllSummaryTemplates(const std::vector<std::string>& globals) {
+  std::string out;
   for (const std::string& global : globals) {
     if (global.starts_with("--summary={")) {
-      tmpl = global.substr(kPrefix.size());
+      absl::StrAppend(&out, global.substr(std::string_view("--summary=").size()));
     }
   }
-  return tmpl;
+  return out;
 }
 
 // The readable file-type word used as a --summary=type group key, keyed by file
@@ -1660,7 +1664,7 @@ int RunFind(
   // nothing (use -exec for pure side effects); flag it before traversing.
   if (expression != nullptr) {
     if (const std::optional<std::string> unused =
-            UnusedCaptureName(*expression, tmpl, SummaryKeyTemplate(command.globals));
+            UnusedCaptureName(*expression, tmpl, AllSummaryTemplates(command.globals));
         unused.has_value()) {
       on_error(
           "-capture", absl::FailedPreconditionError(
@@ -1906,27 +1910,32 @@ int RunFind(
       return 2;
     }
   }
-  // --summary: reduce matches to a {count, total size} per group instead of
-  // printing each one; the table is emitted after the walk.
-  const SummaryMode summary_mode = ResolveSummary(command.globals);
-  // --summary={template}: the group key is a field template, compiled once. An unreduced m//
-  // extraction key groups per extracted line (a value stream folded into the counts); any other
-  // template (including a reducer-terminated m// like `;join(...)`, which is scalar) one key per
-  // matched entry. A template mixing an UNREDUCED extraction with other text has no single key and is
-  // a usage error refused before the walk; a reduced extraction is scalar and mixes fine.
-  std::optional<fields::Template> summary_template;
-  if (summary_mode == SummaryMode::kTemplate) {
-    summary_template = fields::Template::Compile(SummaryKeyTemplate(command.globals));
-    if (summary_template->HasUnreducedExtraction() && !summary_template->IsExtraction()) {
+  // --summary (repeatable): reduce matches to a {count, total size} per group instead of printing
+  // each one; each --summary is an independent table emitted after the walk. --summary={template}
+  // keys group by a field template, compiled once per sink: an unreduced m// extraction key groups
+  // per extracted line (a value stream folded into the counts); any other template (including a
+  // reducer-terminated m// like `;join(...)`, which is scalar) one key per matched entry. A template
+  // mixing an UNREDUCED extraction with other text has no single key and is a usage error refused
+  // before the walk; a reduced extraction is scalar and mixes fine.
+  const std::vector<SummarySpec> summaries = ResolveSummaries(command.globals);
+  std::vector<std::optional<fields::Template>> summary_templates(summaries.size());  // compiled, kTemplate only
+  for (std::size_t i = 0; i < summaries.size(); ++i) {
+    if (summaries[i].mode != SummaryMode::kTemplate) {
+      continue;
+    }
+    fields::Template tmpl = fields::Template::Compile(summaries[i].key_template);
+    if (tmpl.HasUnreducedExtraction() && !tmpl.IsExtraction()) {
       on_error(
           "--summary", absl::InvalidArgumentError(
                            "a --summary key template must be a plain field or exactly one m// extraction, not a mix"));
       return 2;
     }
+    summary_templates[i] = std::move(tmpl);
   }
   const std::optional<format::SizeUnits> human =
       ResolveHuman(command.globals, style);  // --human: size units for --summary and -ls (xff -> human)
-  std::map<std::string, std::pair<std::uint64_t, std::uint64_t>> summary;  // group -> {count, total size}
+  // One {group -> {count, total size}} accumulator per --summary sink.
+  std::vector<std::map<std::string, std::pair<std::uint64_t, std::uint64_t>>> summary_cells(summaries.size());
   // --histogram (repeatable): a bar chart of the count per bucket, alongside or instead of
   // --summary. Both are reductions fed by one walk; a run with either suppresses the listing.
   absl::StatusOr<std::vector<HistogramSpec>> histograms_or = ResolveHistograms(command.globals);
@@ -1936,7 +1945,7 @@ int RunFind(
   }
   const std::vector<HistogramSpec> histograms = *std::move(histograms_or);
   std::vector<std::map<std::string, HistCell>> histogram_cells(histograms.size());  // one per spec
-  const bool any_reduction = summary_mode != SummaryMode::kOff || !histograms.empty();
+  const bool any_reduction = !summaries.empty() || !histograms.empty();
   int errors = 0;
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
@@ -2184,38 +2193,43 @@ int RunFind(
         if (matched && any_reduction) {
           // --summary / --histogram reduce matches instead of printing them; explicit
           // actions (-print/-exec) still ran via Evaluate.
-          if (summary_mode == SummaryMode::kTemplate) {
-            // A field-template key. Build the render context once; an m// extraction contributes a
-            // value stream (one count per extracted line, size not attributed -- a per-line key would
-            // double-count the file's size), a plain template one key per matched entry (size
-            // meaningful). {target} in a summary key is unsupported here (link_target left empty).
-            const std::string link;
-            const fields::RenderContext key_ctx{
-                .path = visit.path,
-                .root = visit.root,
-                .link_target = link,
-                .metadata = visit.metadata,
-                .depth = visit.depth,
-                .tz = tz,
-                .time_format = time_format,
-                .hash_algorithm = hash_algorithm,
-                .hash_encoding = hash_encoding,
-                .defines = &defines,
-                .outputs = &outputs};
-            if (const std::optional<std::vector<std::string>> stream = summary_template->AsExtraction(key_ctx);
-                stream.has_value()) {
-              for (const std::string& key : *stream) {
-                summary[key].first += 1;
+          // Accumulate this entry into each --summary sink. The field-template render context is
+          // built once and shared: an m// extraction contributes a value stream (one count per
+          // extracted line, size not attributed -- a per-line key would double-count the file's
+          // size), a plain template one key per matched entry (size meaningful). {target} in a
+          // summary key is unsupported here (link_target left empty).
+          const std::string link;
+          const fields::RenderContext key_ctx{
+              .path = visit.path,
+              .root = visit.root,
+              .link_target = link,
+              .metadata = visit.metadata,
+              .depth = visit.depth,
+              .tz = tz,
+              .time_format = time_format,
+              .hash_algorithm = hash_algorithm,
+              .hash_encoding = hash_encoding,
+              .defines = &defines,
+              .outputs = &outputs};
+          for (std::size_t i = 0; i < summaries.size(); ++i) {
+            std::map<std::string, std::pair<std::uint64_t, std::uint64_t>>& cells = summary_cells[i];
+            if (summaries[i].mode == SummaryMode::kTemplate) {
+              const fields::Template& tmpl = *summary_templates[i];
+              if (const std::optional<std::vector<std::string>> stream = tmpl.AsExtraction(key_ctx);
+                  stream.has_value()) {
+                for (const std::string& key : *stream) {
+                  cells[key].first += 1;
+                }
+              } else {
+                std::pair<std::uint64_t, std::uint64_t>& agg = cells[tmpl.Render(key_ctx)];
+                agg.first += 1;
+                agg.second += visit.metadata.size;
               }
             } else {
-              std::pair<std::uint64_t, std::uint64_t>& agg = summary[summary_template->Render(key_ctx)];
+              std::pair<std::uint64_t, std::uint64_t>& agg = cells[SummaryKey(summaries[i].mode, visit)];
               agg.first += 1;
               agg.second += visit.metadata.size;
             }
-          } else if (summary_mode != SummaryMode::kOff) {
-            std::pair<std::uint64_t, std::uint64_t>& agg = summary[SummaryKey(summary_mode, visit)];
-            agg.first += 1;
-            agg.second += visit.metadata.size;
           }
           for (std::size_t i = 0; i < histograms.size(); ++i) {
             const HistogramSpec& spec = histograms[i];
@@ -2365,58 +2379,58 @@ int RunFind(
     }
   }
 
-  // --summary: emit the accumulated table -- one row per group (sorted, since
-  // `summary` is an ordered map) plus a `total` row (the overall mode already has a
-  // single group keyed "total"). Default is a right-aligned human table (grouped
-  // digits); --format=jsonl emits one machine object per row instead.
-  if (summary_mode != SummaryMode::kOff) {
-    struct Row {
-      std::string key;
-      std::uint64_t count = 0;
-      std::uint64_t size = 0;
-    };
-
-    std::vector<Row> rows;
-    std::uint64_t total_count = 0;
-    std::uint64_t total_size = 0;
-    for (const auto& [key, agg] : summary) {
-      rows.push_back(Row{.key = key, .count = agg.first, .size = agg.second});
-      total_count += agg.first;
-      total_size += agg.second;
-    }
-    // --top=N: keep the N largest groups by size (count, then key, break ties), in
-    // that order; the total row below still reflects every matched group. Absent =>
-    // all groups in the map's alphabetical order.
-    if (const std::optional<std::size_t> top = ResolveTop(command.globals);
-        top.has_value() && summary_mode != SummaryMode::kOverall) {
-      absl::c_sort(rows, [](const Row& lhs, const Row& rhs) {
-        if (lhs.size != rhs.size) {
-          return lhs.size > rhs.size;
-        }
-        if (lhs.count != rhs.count) {
-          return lhs.count > rhs.count;
-        }
-        return lhs.key < rhs.key;
-      });
-      if (rows.size() > *top) {
-        rows.resize(*top);
+  // --summary: emit one accumulated table per sink -- a row per group (the map is ordered) plus a
+  // `total` row (the overall mode is already a single "total" group). Default is a right-aligned
+  // human table (grouped digits); --format=jsonl emits one machine object per row. Multiple --summary
+  // flags print in order, separated by a blank line. --top / --summary-precision are global and apply
+  // to every table.
+  if (!summaries.empty()) {
+    const std::optional<std::size_t> summary_top = ResolveTop(command.globals);
+    const unsigned precision = ResolveSummaryPrecision(command.globals);
+    const auto emit_summary = [&](SummaryMode mode,
+                                  const std::map<std::string, std::pair<std::uint64_t, std::uint64_t>>& cells) {
+      struct Row {
+        std::string key;
+        std::uint64_t count = 0;
+        std::uint64_t size = 0;
+      };
+      std::vector<Row> rows;
+      std::uint64_t total_count = 0;
+      std::uint64_t total_size = 0;
+      for (const auto& [key, agg] : cells) {
+        rows.push_back(Row{.key = key, .count = agg.first, .size = agg.second});
+        total_count += agg.first;
+        total_size += agg.second;
       }
-    }
-    if (summary_mode != SummaryMode::kOverall) {
-      rows.push_back(Row{.key = "total", .count = total_count, .size = total_size});
-    }
-    if (format == render::Format::kJsonl) {
-      for (const Row& row : rows) {
-        emit(absl::StrCat("{\"group\":", JsonQuote(row.key), ",\"count\":", row.count, ",\"bytes\":", row.size, "}\n"));
+      // --top=N: keep the N largest groups by size (count, then key, break ties); the total row
+      // still reflects every matched group. Absent => all groups in the map's alphabetical order.
+      if (summary_top.has_value() && mode != SummaryMode::kOverall) {
+        absl::c_sort(rows, [](const Row& lhs, const Row& rhs) {
+          if (lhs.size != rhs.size) {
+            return lhs.size > rhs.size;
+          }
+          if (lhs.count != rhs.count) {
+            return lhs.count > rhs.count;
+          }
+          return lhs.key < rhs.key;
+        });
+        if (rows.size() > *summary_top) {
+          rows.resize(*summary_top);
+        }
       }
-    } else {
-      // Label left, grouped count right. --human renders the size as two aligned columns
-      // -- a right-aligned number (fixed fraction area, so decimal points line up and are
-      // blanked for exact bytes) and a left-aligned unit suffix that starts at one column,
-      // e.g. "12.34 MiB" over "512    B". Without --human the size stays raw grouped bytes,
-      // right-aligned. The Table carries the per-column max-width context.
-      if (human.has_value()) {
-        const unsigned precision = ResolveSummaryPrecision(command.globals);
+      if (mode != SummaryMode::kOverall) {
+        rows.push_back(Row{.key = "total", .count = total_count, .size = total_size});
+      }
+      if (format == render::Format::kJsonl) {
+        for (const Row& row : rows) {
+          emit(
+              absl::StrCat(
+                  "{\"group\":", JsonQuote(row.key), ",\"count\":", row.count, ",\"bytes\":", row.size, "}\n"));
+        }
+      } else if (human.has_value()) {
+        // Label left, grouped count right, size as two aligned columns -- a right-aligned number
+        // (fixed fraction area, so decimal points line up) and a left-aligned unit suffix, e.g.
+        // "12.34 MiB" over "512    B". The Table carries the per-column max-width context.
         std::vector<format::SizeParts> sizes;
         sizes.reserve(rows.size());
         std::size_t number_width = 0;
@@ -2439,6 +2453,12 @@ int RunFind(
         }
         emit(table.Render());
       }
+    };
+    for (std::size_t i = 0; i < summaries.size(); ++i) {
+      if (i > 0 && format != render::Format::kJsonl) {
+        emit("\n");  // blank line between consecutive tables (jsonl streams objects, no separator)
+      }
+      emit_summary(summaries[i].mode, summary_cells[i]);
     }
   }
 

@@ -388,15 +388,17 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--summary[=overall|type|ext|lang|mime|user|group|{template}]",
         .group = "output",
         .header = "Output",
-        .summary = "print an aligned count + size table (or --format=jsonl rows) instead of each match",
+        .summary = "aligned count + size table (or --format=jsonl rows) instead of each match; repeatable",
         .details = "Replaces the per-match listing with an aggregate table: match count and total size per group "
                    "(overall, by type, extension, programming language, media (MIME) type, user (owner), or "
                    "owning group). The categorical keys reuse the {mime}/{user}/{group} field vocabulary. A "
                    "{template} key groups by any field value (e.g. --summary='{ext}-{type}'); a single m// "
                    "extraction key (--summary='{capture.NAME:m/re/\\1/}') groups per extracted line, so a "
                    "per-file command's multi-line output tallies per key (e.g. git-blame lines per author) - the "
-                   "size column is not meaningful there. --top=N limits the rows, --summary-precision sets the "
-                   "scaled-size digits, and --format=jsonl emits one object per group for scripts.",
+                   "size column is not meaningful there. Repeatable: each --summary is its own table (e.g. "
+                   "--summary=ext --summary=type), printed in order. --top=N limits the rows of each, "
+                   "--summary-precision sets the scaled-size digits, and --format=jsonl emits one object per group "
+                   "for scripts.",
         .topic = "stats",
     },
     {

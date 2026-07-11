@@ -261,4 +261,19 @@ test::summary_mixed_extraction_template_is_a_usage_error() {
   expect_matches 'not a mix' "${out}"
 }
 
+test::multiple_summary_flags_emit_independent_tables() {
+  # --summary is repeatable (like --histogram): each occurrence is its own table, printed in order,
+  # separated by a blank line. --top applies to every table.
+  local root out
+  root="$(mktemp -d)"
+  : >"${root}/a.txt"
+  : >"${root}/b.txt"
+  : >"${root}/c.log"
+  out="$(_run "${root}" -type f --summary=ext --summary=type)"
+  rm -rf "${root}"
+  expect_matches "(^|${NL})txt +2" "${out}"  # the ext table
+  expect_matches "(^|${NL})log +1" "${out}"  # the ext table
+  expect_matches "(^|${NL})file +3" "${out}" # the type table (all three are regular files)
+}
+
 test_runner
