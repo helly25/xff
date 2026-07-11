@@ -757,7 +757,7 @@ absl::Status ValidateRegextype(const std::vector<std::string>& globals) {
       continue;
     }
     const std::string_view value = std::string_view(global).substr(kPrefix.size());
-    if (value == "RE2" || value == "EXACT" || value == "FNMATCH" || value == "GLOB") {
+    if (value == "RE2" || value == "EXACT" || value == "FNMATCH" || value == "GLOB" || value == "SHGLOB") {
       continue;  // core engines, always linked
     }
     if (value == "PCRE2") {
@@ -768,10 +768,11 @@ absl::Status ValidateRegextype(const std::vector<std::string>& globals) {
     } else if (value == "MATCH") {
       return absl::InvalidArgumentError(
           absl::StrCat(
-              "--regextype=", value, " is reserved and not supported yet; use RE2, EXACT, FNMATCH, GLOB or PCRE2"));
+              "--regextype=", value,
+              " is reserved and not supported yet; use RE2, EXACT, FNMATCH, GLOB, SHGLOB or PCRE2"));
     } else {
       return absl::InvalidArgumentError(
-          absl::StrCat("unknown --regextype '", value, "'; expected RE2, EXACT, FNMATCH, GLOB or PCRE2"));
+          absl::StrCat("unknown --regextype '", value, "'; expected RE2, EXACT, FNMATCH, GLOB, SHGLOB or PCRE2"));
     }
   }
   return absl::OkStatus();

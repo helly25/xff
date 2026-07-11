@@ -167,10 +167,19 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--regextype",
-        .display = "--regextype=RE2|EXACT|FNMATCH|GLOB|PCRE2",
+        .display = "--regextype=RE2|EXACT|FNMATCH|GLOB|SHGLOB|PCRE2",
         .group = "matching",
         .header = "Matching",
-        .summary = "match engine: RE2, EXACT, FNMATCH, GLOB, or PCRE2 (a build extra)",
+        .summary = "match engine: RE2, EXACT, FNMATCH, GLOB, SHGLOB (GLOB + {a,b}), or PCRE2 (a build extra)",
+        .details = "Selects the grammar for -regex/-iregex and the content matchers -rxc/-grep. RE2 (the "
+                   "default) is linear-time regular expressions; EXACT is a literal string (metacharacters are "
+                   "plain text); FNMATCH is a flat shell wildcard where * matches any character including /; "
+                   "GLOB is a path-aware shell glob where */? stop at / and ** crosses directories (gitignore "
+                   "semantics), with [...] classes; SHGLOB is GLOB plus {a,b} brace alternation, so *.{cc,h} "
+                   "matches either. PCRE2 (Perl syntax: lookaround, backreferences) is the one build-time "
+                   "extra: it is present only in a full build, and selecting it in a lean build is a hard "
+                   "error, never a silent fall back to RE2. RE2/EXACT/FNMATCH/GLOB/SHGLOB are always built in; "
+                   "run xff --help=extras to see whether THIS binary includes PCRE2.",
     },
     {
         .name = "--exclude",

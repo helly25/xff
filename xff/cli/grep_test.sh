@@ -113,6 +113,29 @@ test::regextype_exact_matches_literally() {
   expect_not_matches '3X50' "${out}" # the regex-wildcard match is gone
 }
 
+test::regextype_shglob_expands_brace_alternation() {
+  local root out
+  root="$(mktemp -d)"
+  printf 'a TODO line\na FIXME line\na plain line\n' >"${root}/n.txt"
+  # SHGLOB adds brace alternation over GLOB: {TODO,FIXME} matches either keyword.
+  out="$(_run --regextype=SHGLOB "${root}" -type f -grep '{TODO,FIXME}')"
+  rm -rf "${root}"
+  expect_matches "/n\.txt:1:a TODO line(\$|${NL})" "${out}"
+  expect_matches "/n\.txt:2:a FIXME line(\$|${NL})" "${out}"
+  expect_not_matches 'plain line' "${out}" # a non-matching line is not printed
+}
+
+test::regextype_glob_keeps_braces_literal() {
+  local root out
+  root="$(mktemp -d)"
+  # Under plain GLOB the braces are literal, so the alternation above matches nothing here.
+  printf 'a TODO line\nliteral {TODO,FIXME} here\n' >"${root}/n.txt"
+  out="$(_run --regextype=GLOB "${root}" -type f -grep '{TODO,FIXME}')"
+  rm -rf "${root}"
+  expect_matches "literal \{TODO,FIXME\} here" "${out}" # matches the literal braces
+  expect_not_matches ':1:a TODO line' "${out}"          # not the bare keyword
+}
+
 test::regextype_reserved_value_is_a_usage_error() {
   local root out rc
   root="$(_make_tree)"

@@ -190,5 +190,26 @@ TEST_F(RegexTest, GlobDelegatesToRe2ForSpanAndPartial) {
   EXPECT_THAT(matcher.FindFirst("a foo b"), Optional(Pair(Eq(2U), Eq(3U))));  // "foo" at offset 2, len 3
 }
 
+TEST_F(RegexTest, ShglobGrammarExpandsBraceAlternation) {
+  // kShglob is kGlob plus `{a,b}` brace alternation (translated to RE2 via xff/glob), so an
+  // extension-of-set pattern matches any listed alternative and nothing else.
+  ASSERT_OK_AND_ASSIGN(
+      const Matcher matcher, Matcher::Compile("*.{cc,h}", /*case_insensitive=*/false, Grammar::kShglob));
+  EXPECT_TRUE(matcher.FullMatch("a.cc"));
+  EXPECT_TRUE(matcher.FullMatch("a.h"));
+  EXPECT_FALSE(matcher.FullMatch("a.hpp"));  // only the listed alternatives
+  EXPECT_FALSE(matcher.FullMatch("a.o"));
+}
+
+TEST_F(RegexTest, ShglobKeepsGlobPathSemantics) {
+  // The GLOB behavior carries over: `*` stops at `/`, alternatives may contain `/`.
+  ASSERT_OK_AND_ASSIGN(
+      const Matcher matcher, Matcher::Compile("{src,test}/*.cc", /*case_insensitive=*/false, Grammar::kShglob));
+  EXPECT_TRUE(matcher.FullMatch("src/a.cc"));
+  EXPECT_TRUE(matcher.FullMatch("test/a.cc"));
+  EXPECT_FALSE(matcher.FullMatch("src/sub/a.cc"));  // '*' does not cross '/'
+  EXPECT_FALSE(matcher.FullMatch("lib/a.cc"));
+}
+
 }  // namespace
 }  // namespace xff::regex

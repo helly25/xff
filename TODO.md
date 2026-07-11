@@ -64,19 +64,15 @@ intent, not hard dependency. Task numbers reference the agent task list.
   existing `EXPECT_EQ`-on-multi-line tests in one sweep (e.g. `xff/render/render_test.cc`'s
   `RenderTable` goldens, plus any generated-help / man / markdown goldens), sized by count.
 
-- **Reconcile our glob->RE2 translator with `mbo::file::Glob2Re2` (#122).** `//xff/glob:GlobToRegex`
-  (extracted from the gitignore engine in #316, and reused by the `--regextype=GLOB` matcher)
-  duplicates `mbo::file::Glob2Re2Expression` / `Glob2Re2` in `mbo/file/glob.h` (already in the pinned
-  mbo). Root cause: #316 factored the existing translator without first checking whether mbo provides
-  one - it does. **Analyse the semantic differences and decide the disposition** (keep both / migrate
-  onto mbo + delete `//xff/glob` / fix or extend mbo upstream / deliberately keep ours, documented).
-  Known divergences to weigh: `**` mapping (ours: `**/`->`(?:.*/)?`, trailing `/**`->`.*`, glued
-  `**`->`*`; mbo: `**`->`.*`, slash-enclosed to `(/.+)?` / `(.+/)?` - note `.+`, not `.*`, and gated
-  by `allow_star_star`); ranges are option-gated in mbo (`allow_ranges`) with their own
-  `[]]`->`[\]]` escaping; `[!...]`->`[^...]` in both. Any migration is gated on `ignore_test` + the
-  GLOB `regex_test` staying green (adjust the gitignore `**`/anchoring shim where they differ). mbo
-  also offers filesystem globbing (`Glob`, `GlobSplit`, `GlobEntry`) that may be worth adopting
-  elsewhere.
+- **Reconcile our glob->RE2 translator with `mbo::file::Glob2Re2` (#122). RESOLVED (#333):
+  deliberately keep ours, documented.** `//xff/glob:GlobToRegex` (extracted from the gitignore engine
+  in #316, reused by `--regextype=GLOB`/`SHGLOB`) overlaps `mbo::file::Glob2Re2` but the `**` semantics
+  differ on purpose: ours are gitignore's (`**/`->`(?:.*/)?`, trailing `/**`->`.*`, glued `**`->`*`),
+  mbo's are its own (`**`->`.*`, slash-enclosed `(/.+)?` / `(.+/)?` with `.+`, gated by
+  `allow_star_star`). xff walks its own VFS engine and needs only the pure pattern->RE2 step, not mbo's
+  filesystem globbing (`Glob`/`GlobSplit`/`GlobEntry`), so a migration would trade a self-contained ~130
+  line translator for a semantic-shim on a lib we otherwise do not use. The divergence + rationale now
+  live in `xff/glob/glob.h`; no migration. (mbo's FS globbing may still be worth adopting elsewhere.)
 
 ### find / xff features (roadmap tail)
 
@@ -405,7 +401,15 @@ remains below is the design-forked / larger work.
   glob has no capture groups and no natural match-span, so partial/line matching (`-grep`/`-rxc`) and
   captures / `{field:s/}` rewrite are degenerate - restrict `kGlob` to the whole-match predicates or
   define per-line fnmatch. Cheap on the abstraction; overlaps `-path` for `-regex` (fine - it is about
-  letting glob-thinking users pick their grammar uniformly).
+  letting glob-thinking users pick their grammar uniformly). (Shipped as `--regextype=GLOB`; because it
+  compiles to RE2 the partial/span ops are NOT degenerate - `-grep`/`-rxc` work under GLOB.)
+- **`--regextype=SHGLOB` - shell glob with brace alternation (#129). SHIPPED.** `Grammar::kShglob` =
+  GLOB plus `{a,b,c}` -> RE2 `(?:a|b|c)` (`xff::glob::ShglobToRegex`), so `*.{cc,h}` matches either.
+  A separate grammar (not a GLOB feature) because GLOB / gitignore must keep matching literal braces.
+  Rules match bash: each alt is itself SHGLOB-translated (nesting, `*`/`?`/`[...]` inside), a comma-less
+  `{x}` / unbalanced `{` stays literal, empty alts allowed, `\{`/`\}`/`\,` escape. Deferred: numeric /
+  char sequences `{1..9}` / `{a..z}`, and bash extglob pattern-lists `?(..)`/`@(..)`/`!(..)` (the last
+  has no clean RE2 form - which is also why the grammar is SHGLOB, not the misleading `EXTGLOB`).
 - **Extras architecture v2 - full separation via local modules (#123, DESIGN, revises #311-#317).**
   Post-#317 review (2026-07-10): the shipped approach is not fully separated - the ROOT `MODULE.bazel`
   names `pcre2`, `backend.h` visibility was widened, and a manual `//xff:xff_pcre` flag + a bespoke
