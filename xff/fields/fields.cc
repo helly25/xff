@@ -686,6 +686,132 @@ std::vector<std::string> ExtractLines(std::string_view value, std::string_view s
   return out;
 }
 
+// A stream reducer collapses an m// per-line value stream to a single scalar, so the extraction is
+// valid in a scalar context (-printf / --template / -exec / --columns). It is a terminal `;`-chain
+// segment in FUNCTION notation: v1 ships `join(SEP)` (join the stream with SEP; bare `join` = "\n",
+// `join()` = "" concatenate). The numeric reducers (sum/avg/min/max/count/first/last) are reserved
+// for the same slot -- per-field, so nothing here rules out numeric aggregation. Unlike s/// / m//
+// (whose regex args are delimiter-hostile, hence sed-style delimiters), a reducer's arg is simple, so
+// parens read cleanly.
+struct Reducer {
+  std::string separator = "\n";
+};
+
+// A `;`-chain segment is a reducer iff its leading [a-z]+ run is one of these keywords. Only `join`
+// is implemented today; a bare `sum` etc. still parses as a (malformed) rewrite -- reserving the
+// names is a later step.
+bool IsReducerKeyword(std::string_view word) {
+  return word == "join";
+}
+
+// Unescape a join separator argument: \t \n become the control char, any other `\x` becomes `x` (so
+// `\)` is a literal ')' and `\\` a backslash); everything else is literal. `join(, )` -> ", ".
+std::string UnescapeSeparator(std::string_view arg) {
+  std::string out;
+  for (std::size_t i = 0; i < arg.size(); ++i) {
+    if (arg[i] == '\\' && i + 1 < arg.size()) {
+      const char next = arg[++i];
+      out.push_back(next == 't' ? '\t' : next == 'n' ? '\n' : next);
+    } else {
+      out.push_back(arg[i]);
+    }
+  }
+  return out;
+}
+
+// The leading lower-case run at `pos` (a candidate reducer keyword).
+std::string_view LeadingWord(std::string_view spec, std::size_t pos) {
+  std::size_t end = pos;
+  while (end < spec.size() && std::islower(static_cast<unsigned char>(spec[end])) != 0) {
+    ++end;
+  }
+  return spec.substr(pos, end - pos);
+}
+
+// The index of the terminating ';' (or spec.size()) of the `;`-chain segment starting at `pos`. A
+// reducer segment is a keyword optionally followed by `(ARG)` (with `\)` escaping inside); a rewrite
+// segment is `[sm]?<delim>PAT<delim>REPL<delim>flags`, where a ';' is a boundary only AFTER the third
+// delimiter -- so a ';' inside PAT/REPL is protected, matching ParseRewriteChain.
+std::size_t SegmentEnd(std::string_view spec, std::size_t pos) {
+  if (IsReducerKeyword(LeadingWord(spec, pos))) {
+    std::size_t p = pos + LeadingWord(spec, pos).size();
+    if (p < spec.size() && spec[p] == '(') {
+      for (++p; p < spec.size() && spec[p] != ')';) {
+        p += (spec[p] == '\\' && p + 1 < spec.size()) ? 2 : 1;
+      }
+      if (p < spec.size()) {
+        ++p;  // consume ')'
+      }
+    }
+    while (p < spec.size() && spec[p] != ';') {
+      ++p;
+    }
+    return p;
+  }
+  std::size_t p = pos;
+  if (p < spec.size() && (spec[p] == 's' || spec[p] == 'm')) {
+    ++p;
+  }
+  if (p >= spec.size()) {
+    return spec.size();
+  }
+  const char delim = spec[p];
+  int delims = 1;
+  for (++p; p < spec.size(); ++p) {
+    if (delims < 3) {
+      if (spec[p] == delim) {
+        ++delims;
+      }
+    } else if (spec[p] == ';') {
+      return p;
+    }
+  }
+  return spec.size();
+}
+
+// An m// extract qualifier split into its per-line stream chain, an optional terminal reducer, and
+// the post-reducer scalar chain. With no reducer the whole spec is the stream (a pure value stream:
+// the --summary key, or the #136 scalar error). The FIRST reducer segment is the pivot: everything
+// before it (minus the separating ';') is the per-line chain; everything after is a scalar s/// chain
+// applied to the reduced value ({field:m/.../\1/;s/x/y/;join(, );s/a/b/} = extract+map per line,
+// join, then rewrite the scalar).
+struct Pipeline {
+  std::string_view stream;
+  std::optional<Reducer> reducer;
+  std::string_view scalar;
+};
+
+Pipeline SplitPipeline(std::string_view spec) {
+  for (std::size_t pos = 0; pos < spec.size();) {
+    const std::size_t end = SegmentEnd(spec, pos);
+    const std::string_view word = LeadingWord(spec, pos);
+    if (IsReducerKeyword(word)) {
+      Reducer reducer;
+      const std::size_t after = pos + word.size();
+      if (after < spec.size() && spec[after] == '(') {
+        std::size_t arg_end = after + 1;
+        while (arg_end < spec.size() && spec[arg_end] != ')') {
+          arg_end += (spec[arg_end] == '\\' && arg_end + 1 < spec.size()) ? 2 : 1;
+        }
+        reducer.separator = UnescapeSeparator(spec.substr(after + 1, arg_end - (after + 1)));
+      }
+      return {
+          .stream = pos == 0 ? std::string_view{} : spec.substr(0, pos - 1),
+          .reducer = reducer,
+          .scalar = end < spec.size() ? spec.substr(end + 1) : std::string_view{},
+      };
+    }
+    pos = end < spec.size() ? end + 1 : end;
+  }
+  return {.stream = spec, .reducer = std::nullopt, .scalar = {}};
+}
+
+// Whether an m// extract qualifier ends its pipeline in a reducer -- so it is scalar-valued, not a
+// value stream. The scalar-context guard (#136) rejects only UNREDUCED extractions.
+bool HasReducer(std::string_view spec) {
+  return SplitPipeline(spec).reducer.has_value();
+}
+
 // The path-component qualifier keywords ({field:KEYWORD}). Sorted (for readability).
 constexpr auto kPathComponents = std::to_array<std::string_view>(
     {"basename", "core", "dir", "ext", "extension", "file", "name", "path", "stem", "suffix", "suffixes"});
@@ -790,11 +916,24 @@ std::string Template::Render(const RenderContext& context) const {
         case Segment::PostProcess::kComponent: out.append(PathComponent(value, segment.qualifier)); break;
         case Segment::PostProcess::kNone: out.append(value); break;
         case Segment::PostProcess::kRewrite: out.append(ApplyRewrite(value, segment.qualifier)); break;
-        // A per-line extraction has no single scalar value; its scalar projection is the matches
-        // newline-joined. The value-stream use goes through AsExtraction (never Render).
-        case Segment::PostProcess::kExtract:
-          out.append(absl::StrJoin(ExtractLines(value, segment.qualifier), "\n"));
+        // A per-line extraction is a value stream. A terminal reducer (`;join(...)`) collapses it to
+        // a scalar (then a post-reducer s/// chain rewrites that scalar); without one it has no single
+        // scalar value, so its scalar projection is the matches newline-joined -- but the scalar-
+        // context guard (#136) rejects an unreduced extraction up front, so that branch is a fallback.
+        case Segment::PostProcess::kExtract: {
+          const Pipeline pipeline = SplitPipeline(segment.qualifier);
+          const std::vector<std::string> stream = ExtractLines(value, pipeline.stream);
+          if (pipeline.reducer.has_value()) {
+            std::string scalar = absl::StrJoin(stream, pipeline.reducer->separator);
+            if (!pipeline.scalar.empty()) {
+              scalar = ApplyRewrite(scalar, pipeline.scalar);
+            }
+            out.append(scalar);
+          } else {
+            out.append(absl::StrJoin(stream, "\n"));
+          }
           break;
+        }
       }
     } else {
       out.append(segment.literal);
@@ -804,13 +943,14 @@ std::string Template::Render(const RenderContext& context) const {
 }
 
 std::optional<std::vector<std::string>> Template::AsExtraction(const RenderContext& context) const {
-  // Only a template that is exactly one `{field:m/.../.../}` extraction is a value stream; anything
-  // else (a literal, several segments, or a non-m field) is an ordinary scalar template.
+  // Only a template that is exactly one UNREDUCED `{field:m/.../.../}` extraction is a value stream;
+  // anything else (a literal, several segments, a non-m field, or a reducer-terminated m// that is
+  // scalar-valued) is an ordinary scalar template.
   if (segments_.size() != 1) {
     return std::nullopt;
   }
   const Segment& segment = segments_.front();
-  if (segment.fn == nullptr || segment.post != Segment::PostProcess::kExtract) {
+  if (segment.fn == nullptr || segment.post != Segment::PostProcess::kExtract || HasReducer(segment.qualifier)) {
     return std::nullopt;
   }
   const std::string value = segment.fn(segment.key, std::string_view{}, context);  // base value, no qualifier
@@ -819,12 +959,12 @@ std::optional<std::vector<std::string>> Template::AsExtraction(const RenderConte
 
 bool Template::IsExtraction() const {
   return segments_.size() == 1 && segments_.front().fn != nullptr
-         && segments_.front().post == Segment::PostProcess::kExtract;
+         && segments_.front().post == Segment::PostProcess::kExtract && !HasReducer(segments_.front().qualifier);
 }
 
-bool Template::HasExtraction() const {
+bool Template::HasUnreducedExtraction() const {
   return absl::c_any_of(segments_, [](const Segment& segment) {
-    return segment.fn != nullptr && segment.post == Segment::PostProcess::kExtract;
+    return segment.fn != nullptr && segment.post == Segment::PostProcess::kExtract && !HasReducer(segment.qualifier);
   });
 }
 

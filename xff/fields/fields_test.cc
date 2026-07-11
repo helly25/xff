@@ -436,6 +436,41 @@ TEST_F(FieldsTest, MExtractorChainFiltersThenSubstitutes) {
   EXPECT_THAT(*compiled.AsExtraction(ctx), ElementsAre("Bob_Smith", "Ann_Lee"));
 }
 
+TEST_F(FieldsTest, MReducerJoinCollapsesTheStreamToAScalar) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const std::map<std::string, std::string> outputs = {{"blame", "author Bob\nx\nauthor Ann\nauthor Bob\n"}};
+  const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
+  // A terminal join(...) reducer collapses the per-line stream to one scalar, so the extraction is
+  // valid in a scalar Render: bare join = "\n"; join(SEP) a custom separator; join() concatenates.
+  EXPECT_THAT(Template::Compile("{capture.blame:m/^author (.+)$/\\1/;join(, )}").Render(ctx), "Bob, Ann, Bob");
+  EXPECT_THAT(Template::Compile("{capture.blame:m/^author (.+)$/\\1/;join}").Render(ctx), "Bob\nAnn\nBob");
+  EXPECT_THAT(Template::Compile("{capture.blame:m/^author (.+)$/\\1/;join()}").Render(ctx), "BobAnnBob");
+  EXPECT_THAT(Template::Compile("{capture.blame:m/^author (.+)$/\\1/;join(\\t)}").Render(ctx), "Bob\tAnn\tBob");
+}
+
+TEST_F(FieldsTest, MReducerIsScalarValuedNotAStream) {
+  // A reducer-terminated extraction is scalar, so it is NOT a value stream: IsExtraction /
+  // HasUnreducedExtraction treat it as an ordinary scalar template (the #136 guard lets it into
+  // scalar contexts), unlike the bare (unreduced) extraction.
+  const Template bare = Template::Compile("{capture.b:m/(.+)/\\1/}");
+  const Template reduced = Template::Compile("{capture.b:m/(.+)/\\1/;join(, )}");
+  EXPECT_TRUE(bare.HasUnreducedExtraction());
+  EXPECT_TRUE(bare.IsExtraction());
+  EXPECT_FALSE(reduced.HasUnreducedExtraction());
+  EXPECT_FALSE(reduced.IsExtraction());
+}
+
+TEST_F(FieldsTest, MReducerAppliesPerLineChainThenJoinsThenScalarChain) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const std::map<std::string, std::string> outputs = {{"blame", "author Bob Smith\nx\nauthor Ann Lee\n"}};
+  const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
+  // The uniform pipeline: extract+map per line (spaces -> _), join with ", ", then a scalar s/// on
+  // the joined value (_ -> .). #135's per-line s/// after m// is preserved; the reducer is the pivot.
+  EXPECT_THAT(
+      Template::Compile("{capture.blame:m/^author (.+)$/\\1/;s/ /_/g;join(, );s/_/./g}").Render(ctx),
+      "Bob.Smith, Ann.Lee");
+}
+
 TEST_F(FieldsTest, MExtractorEmptyStreamVersusNonExtractionTemplate) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   const std::map<std::string, std::string> outputs = {{"x", "aaa\nbbb"}};

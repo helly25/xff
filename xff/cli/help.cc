@@ -206,7 +206,14 @@ std::string RenderFields() {
       "  {mtime:FMT}       time format: strftime (%Y-%m-%d) or preset (iso, epoch); see "
       "--time-format / --timezone\n"
       "  {size:h}          human-readable size\n"
-      "  {name:s/RE/R/f}   RE2 rewrite of the value (flags g=all, i=ignore-case; any delimiter)\n");
+      "  {name:s/RE/R/f}   RE2 rewrite of the value (flags g=all, i=ignore-case; any delimiter)\n"
+      "  {cap:m/RE/R/f}    per-line extraction: a value stream, e.g. a --summary key (m//, s///'s "
+      "list-producing sibling)\n"
+      "  {cap:m/RE/R/;join(SEP)}\n"
+      "                    reduce the stream to one scalar (join, SEP default newline) so m// is usable "
+      "in a scalar\n"
+      "                    context (-printf / --template / -exec); reducers are function-notation, "
+      "e.g. join(, )\n");
   absl::StrAppendFormat(
       &out, "  %-18s%s%s\n", "{path:COMP}",
       "path component of the value: ", absl::StrJoin(fields::PathComponentKeywords(), "|"));
