@@ -997,12 +997,13 @@ bool EvalBinary(const parser::Expr& /*expr*/, EvalContext& ctx) {
   return FileContentIsBinary(ctx.visit, ctx.fs) == true;
 }
 
-// xff -eofnl: TRUE for a regular, readable file whose content ends with a newline, or is empty (a
-// zero-line file is complete). Tests ONLY newline-termination -- the content-class axis is -text, so
-// `-text -eofnl` is a well-formed (POSIX-ish) text file and `-text ! -eofnl` the missing-final-newline
-// lint. Orthogonal on purpose: bundling the binary heuristic here would make `! -eofnl` sweep in
-// binaries and non-files.
-bool EvalEofnl(const parser::Expr& /*expr*/, EvalContext& ctx) {
+// Shared body for the -eofnl / -eofcr / -eofcrlf final-terminator lints: TRUE for a regular,
+// readable file whose content ends with `terminator`, or is empty (a zero-line file is vacuously
+// complete). Tests ONLY the final terminator -- the content-class axis is -text -- so `-text -eofnl`
+// is a well-formed (POSIX-style) text file and `-text ! -eofnl` the missing-final-newline lint, and
+// `-text=windows -eofcrlf` / `-text=apple -eofcr` are their CRLF / CR analogues. Orthogonal on
+// purpose: bundling the binary heuristic here would make `! -eof*` sweep in binaries and non-files.
+bool EvalEofTerminator(EvalContext& ctx, std::string_view terminator) {
   if (ctx.visit.metadata.type != vfs::FileType::kRegular) {
     return false;
   }
@@ -1010,7 +1011,23 @@ bool EvalEofnl(const parser::Expr& /*expr*/, EvalContext& ctx) {
   if (!content.ok()) {
     return false;
   }
-  return content->empty() || content->back() == '\n';
+  return content->empty() || absl::EndsWith(*content, terminator);
+}
+
+// xff -eofnl: content ends with LF (a CRLF file, ending in "\r\n", also ends in LF and so matches).
+bool EvalEofnl(const parser::Expr& /*expr*/, EvalContext& ctx) {
+  return EvalEofTerminator(ctx, "\n");
+}
+
+// xff -eofcr: content ends with a bare CR (the classic-Mac / -text=apple terminator). A CRLF file
+// ends in LF, not CR, so it does NOT match -eofcr.
+bool EvalEofcr(const parser::Expr& /*expr*/, EvalContext& ctx) {
+  return EvalEofTerminator(ctx, "\r");
+}
+
+// xff -eofcrlf: content ends with CRLF (the Windows / -text=windows terminator).
+bool EvalEofcrlf(const parser::Expr& /*expr*/, EvalContext& ctx) {
+  return EvalEofTerminator(ctx, "\r\n");
 }
 
 // xff -content / -icontent: the file's content contains the argument as a literal
@@ -1984,6 +2001,8 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-delete", {&EvalDelete}},
     DispatchPair{"-diff", {&EvalDiff}},
     DispatchPair{"-empty", {&EvalEmpty}},
+    DispatchPair{"-eofcr", {&EvalEofcr}},
+    DispatchPair{"-eofcrlf", {&EvalEofcrlf}},
     DispatchPair{"-eofnl", {&EvalEofnl}},
     DispatchPair{"-exec", {&EvalExec}},
     DispatchPair{"-execdir", {&EvalExecdir}},

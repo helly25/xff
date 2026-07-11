@@ -648,10 +648,20 @@ remains below is the design-forked / larger work.
     `=apple` CR-only. A no-terminator or mixed-EOL file matches only `git`. `-eofnl` stays the
     flavor-agnostic "ends in LF" primitive (`=posix` subsumes it). One valued predicate, not
     `-posix-text` / a separate `-eol=` axis; unknown flavor is a usage error.
-    - **FOLLOW-UP `-eofcr` (and `-eofcrlf`) (#139).** `-eofnl` is LF-centric ("ends with LF"); the
-      CR-terminated (apple) completeness primitive is `-eofcr` ("ends with CR"), and `-eofcrlf` the
-      Windows one, so the standalone final-terminator lint exists per line-ending style (the flavor
-      predicates bundle it; these are the a-la-carte axis). Plus any apple/windows subtlety refinements.
+    - **`-eofcr` and `-eofcrlf` final-terminator primitives (#139) - SHIPPED.** `-eofnl` was
+      LF-centric ("ends with LF"); `-eofcr` ("ends with a bare CR", the classic-Mac / `-text=apple`
+      terminator) and `-eofcrlf` ("ends with CRLF", the Windows / `-text=windows` terminator) complete
+      the a-la-carte final-terminator axis, so each line-ending style has a standalone completeness lint
+      the way the flavor predicates bundle it. All three share one `EvalEofTerminator(ctx, terminator)`
+      body (regular readable file whose content is empty or `absl::EndsWith` the terminator), content-
+      class-agnostic on purpose - compose `-text=windows -eofcrlf` / `-text=apple -eofcr`, or negate for
+      the missing-terminator lint. A CRLF file ends in LF too, so it satisfies `-eofnl`; `-eofcrlf` is
+      the strict form. All three are xff, expensive, `--config=find` rejects them.
+      - **Deferred apple/windows subtleties.** The `-text` flavor logic is sound as shipped (a strict
+        flavor requires no NUL anywhere + a proper final terminator; a no-terminator or mixed-EOL file
+        matches only `git`). BOM handling (UTF-8 BOM is transparent; UTF-16's NULs already fail the
+        strict flavors and often `git`) and mixed-ending leniency are left as future refinements if a
+        real need appears - not built speculatively.
 
 ### Featured ideas (deferred)
 
