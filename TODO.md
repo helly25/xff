@@ -618,7 +618,14 @@ remains below is the design-forked / larger work.
     not a silent newline-join. One `FindScalarExtraction` walk over the expression (checking every arg
     is safe - `Template::HasExtraction` trips only on a known field + valid `m//`) plus the `--template`
     / `--columns` strings, refused before the walk. `--summary` is the sole sanctioned list context.
-    Friendlier scalar handling is #134; chained rewrites #135.
+    Friendlier scalar handling is #134.
+  - **SHIPPED chained sed rewrites (#135):** an `s///` or `m//` qualifier takes a `;`-separated command
+    chain, applied left to right; a command after `;` may omit the leading `s`. `s` chain = scalar
+    substitution pipeline (`{name:s/a/b/;s/c/d/}`); `m` chain = the first command filters+extracts each
+    line, the rest substitute on the survivor (`{capture.blame:m/^author (.+)$/\1/;s/ /_/g}` = the
+    author, spaces normalized). Shared `ParseRewriteChain` + `CompileChain` in `xff/fields/fields.cc`
+    (single command = the one-element case); `;` separates only after the flags, so a `;` inside
+    PAT/REPL is safe.
   - **DEFERRED:** `--histogram={template}` (histogram counterpart of the summary key); a numeric
     per-line measure (`{...:m//}` emitting a number + `:sum(...)`), which keeps key and measure at
     the same per-line cardinality.

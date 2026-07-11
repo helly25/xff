@@ -416,6 +416,26 @@ TEST_F(FieldsTest, MExtractorHonorsDelimiterFlagsAndWholeMatch) {
   EXPECT_THAT(*Template::Compile("{capture.x:m/nope/\\0/}").AsExtraction(ctx), ElementsAre("nope"));
 }
 
+TEST_F(FieldsTest, RewriteChainAppliesCommandsInSequence) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  // A ;-separated s-chain applies each substitution left to right; a command after ; may omit the
+  // leading s (it defaults to a substitution).
+  EXPECT_THAT(Render("{name:s/o/0/g;s/txt/md/}", "a/foo.txt", md, 0), "f00.md");
+  EXPECT_THAT(Render("{name:s/o/0/g;/txt/md/}", "a/foo.txt", md, 0), "f00.md");    // 2nd command letterless
+  EXPECT_THAT(Render("{path:s#/#_#g;s/^/root_/}", "a/b/c", md, 0), "root_a_b_c");  // alt delimiter + chain
+}
+
+TEST_F(FieldsTest, MExtractorChainFiltersThenSubstitutes) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const std::map<std::string, std::string> outputs = {{"blame", "author Bob Smith\nother line\nauthor Ann Lee\n"}};
+  // First command extracts the author (and filters non-author lines); the second normalizes the
+  // extracted value (spaces -> underscores) per surviving line.
+  const Template compiled = Template::Compile("{capture.blame:m/^author (.+)$/\\1/;s/ /_/g}");
+  const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
+  ASSERT_TRUE(compiled.AsExtraction(ctx).has_value());
+  EXPECT_THAT(*compiled.AsExtraction(ctx), ElementsAre("Bob_Smith", "Ann_Lee"));
+}
+
 TEST_F(FieldsTest, MExtractorEmptyStreamVersusNonExtractionTemplate) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   const std::map<std::string, std::string> outputs = {{"x", "aaa\nbbb"}};
