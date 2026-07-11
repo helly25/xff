@@ -138,6 +138,34 @@ test::eofnl_selects_newline_terminated_or_empty_files() {
   rm -rf "${root}"
 }
 
+test::eof_terminators_pin_the_final_line_ending() {
+  # -eofnl / -eofcr / -eofcrlf each test one final terminator (LF / CR / CRLF). A CRLF file ends
+  # in LF too, so -eofnl matches it while -eofcrlf is the strict form; a bare-CR file matches only
+  # -eofcr. Distinct names (unix/dos/mac) avoid substring collisions in the matchers.
+  local root out
+  root="$(mktemp -d)"
+  printf 'a\nb\n' >"${root}/unix.txt"    # ends LF
+  printf 'a\r\nb\r\n' >"${root}/dos.txt" # ends CRLF
+  printf 'a\rb\r' >"${root}/mac.txt"     # ends CR
+  printf 'oops' >"${root}/nonl.txt"      # no terminator
+  out="$("$(_xff_bin)" "${root}" -eofnl 2>&1)"
+  expect_matches 'unix\.txt' "${out}"
+  expect_matches 'dos\.txt' "${out}" # CRLF ends in LF, so -eofnl matches
+  expect_not_matches 'mac\.txt' "${out}"
+  expect_not_matches 'nonl\.txt' "${out}"
+  out="$("$(_xff_bin)" "${root}" -eofcr 2>&1)"
+  expect_matches 'mac\.txt' "${out}"
+  expect_not_matches 'unix\.txt' "${out}"
+  expect_not_matches 'dos\.txt' "${out}" # CRLF ends in LF, not a bare CR
+  expect_not_matches 'nonl\.txt' "${out}"
+  out="$("$(_xff_bin)" "${root}" -eofcrlf 2>&1)"
+  expect_matches 'dos\.txt' "${out}"
+  expect_not_matches 'unix\.txt' "${out}"
+  expect_not_matches 'mac\.txt' "${out}"
+  expect_not_matches 'nonl\.txt' "${out}"
+  rm -rf "${root}"
+}
+
 test::text_flavors_pin_the_line_ending() {
   # Bare -text (=git) is line-ending-agnostic; =posix/=windows/=apple pin LF / CRLF / CR. Distinct
   # names (unix/dos/mac) avoid substring collisions in the matchers.
@@ -178,7 +206,7 @@ test::text_binary_eofnl_are_rejected_in_strict_find_style() {
   local root rc
   root="$(mktemp -d)"
   : >"${root}/f"
-  for pred in -text -binary -eofnl; do
+  for pred in -text -binary -eofnl -eofcr -eofcrlf; do
     "$(_xff_bin)" --config=find "${root}" "${pred}" >/dev/null 2>&1 && rc=0 || rc=$?
     expect_eq "2" "${rc}"
   done

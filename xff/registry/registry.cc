@@ -203,12 +203,39 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     },
     {
         .name = "-eofnl",
-        .summary = "match a regular file whose content ends with a newline, or is empty (xff)",
-        .details = "TRUE for a regular, readable file whose content ends with a newline (or is empty - a zero-line "
-                   "file is complete). Tests ONLY newline-termination, the other axis from -text/-binary: compose "
-                   "-text -eofnl for a well-formed (POSIX-style) text file, or -text ! -eofnl for the common lint "
-                   "'a text file missing its final newline'. Reads the file (expensive). An xff extension "
+        .summary = "match a regular file whose content ends with a newline (LF), or is empty (xff)",
+        .details = "TRUE for a regular, readable file whose content ends with a newline / LF (or is empty - a "
+                   "zero-line file is complete). Tests ONLY the final terminator, the other axis from -text/-binary: "
+                   "compose -text -eofnl for a well-formed (POSIX-style) text file, or -text ! -eofnl for the common "
+                   "lint 'a text file missing its final newline'. A CRLF file ends with LF too, so it also matches "
+                   "-eofnl; -eofcrlf is the strict CRLF form. Reads the file (expensive). An xff extension "
                    "--config=find rejects.",
+        .kind = Kind::kTest,
+        .arity = 0,
+        .style = Style::kXff,
+        .cost = Cost::kExpensive,
+    },
+    {
+        .name = "-eofcr",
+        .summary = "match a regular file whose content ends with a bare CR, or is empty (xff)",
+        .details = "TRUE for a regular, readable file whose content ends with a bare carriage return / CR (or is "
+                   "empty). The classic-Mac / -text=apple final terminator, and the CR analogue of -eofnl: compose "
+                   "-text=apple -eofcr for a well-formed CR-terminated file, or -text=apple ! -eofcr for the missing "
+                   "final CR. A CRLF file ends with LF (not a bare CR), so it does NOT match -eofcr. Reads the file "
+                   "(expensive). An xff extension --config=find rejects.",
+        .kind = Kind::kTest,
+        .arity = 0,
+        .style = Style::kXff,
+        .cost = Cost::kExpensive,
+    },
+    {
+        .name = "-eofcrlf",
+        .summary = "match a regular file whose content ends with CRLF, or is empty (xff)",
+        .details = "TRUE for a regular, readable file whose content ends with CRLF (or is empty). The Windows / "
+                   "-text=windows final terminator, and the CRLF analogue of -eofnl: compose -text=windows -eofcrlf "
+                   "for a well-formed CRLF-terminated file, or -text=windows ! -eofcrlf for the missing final CRLF. "
+                   "Stricter than -eofnl (which any LF-ending file, including CRLF, satisfies). Reads the file "
+                   "(expensive). An xff extension --config=find rejects.",
         .kind = Kind::kTest,
         .arity = 0,
         .style = Style::kXff,
