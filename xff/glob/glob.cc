@@ -32,6 +32,54 @@ void AppendLiteral(std::string& re, char c) {
   re += c;
 }
 
+// Translates a glob `[...]` class starting at `pattern[i] == '['` into `re`, advancing `i` past the
+// closing `]`. Handles glob negation (`[!` -> RE2 `[^`), the POSIX leading-`]`-is-a-literal rule
+// (escaped `\]` for RE2), and POSIX bracket sub-expressions `[:class:]` / `[.collating.]` /
+// `[=equivalence=]` (passed through verbatim, incl. their inner `]`, so RE2 gets `[[:alpha:]]` etc.).
+void AppendCharClass(std::string& re, std::string_view pattern, std::size_t& i) {
+  re += '[';
+  ++i;
+  if (i < pattern.size() && pattern[i] == '!') {  // glob negation `[!` -> RE2 `[^`
+    re += '^';
+    ++i;
+  }
+  if (i < pattern.size() && pattern[i] == ']') {  // a leading `]` is a literal member (POSIX)
+    re += "\\]";
+    ++i;
+  }
+  while (i < pattern.size() && pattern[i] != ']') {
+    if (pattern[i] == '[' && i + 1 < pattern.size()
+        && (pattern[i + 1] == ':' || pattern[i + 1] == '.' || pattern[i + 1] == '=')) {
+      const char kind = pattern[i + 1];
+      re += '[';
+      re += kind;
+      i += 2;
+      while (i + 1 < pattern.size() && (pattern[i] != kind || pattern[i + 1] != ']')) {
+        re += pattern[i];
+        ++i;
+      }
+      if (i + 1 < pattern.size()) {  // the closing `:]` / `.]` / `=]`
+        re += kind;
+        re += ']';
+        i += 2;
+      }
+      continue;
+    }
+    if (pattern[i] == '\\' && i + 1 < pattern.size()) {  // an escaped member (e.g. `\]`)
+      re += '\\';
+      re += pattern[i + 1];
+      i += 2;
+      continue;
+    }
+    re += pattern[i];
+    ++i;
+  }
+  if (i < pattern.size()) {  // the closing `]`
+    re += ']';
+    ++i;
+  }
+}
+
 }  // namespace
 
 std::string GlobToRegex(std::string_view pattern) {
@@ -65,26 +113,7 @@ std::string GlobToRegex(std::string_view pattern) {
       re += "[^/]";
       ++i;
     } else if (c == '[') {
-      re += '[';
-      ++i;
-      if (i < pattern.size() && pattern[i] == '!') {  // negated class -> RE2 `[^`
-        re += '^';
-        ++i;
-      }
-      while (i < pattern.size() && pattern[i] != ']') {
-        if (pattern[i] == '\\' && i + 1 < pattern.size()) {
-          re += '\\';
-          re += pattern[i + 1];
-          i += 2;
-          continue;
-        }
-        re += pattern[i];
-        ++i;
-      }
-      if (i < pattern.size()) {  // closing ']'
-        re += ']';
-        ++i;
-      }
+      AppendCharClass(re, pattern, i);
     } else if (c == '\\' && i + 1 < pattern.size()) {
       AppendLiteral(re, pattern[i + 1]);  // backslash escape: the next char is literal
       i += 2;

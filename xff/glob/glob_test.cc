@@ -38,7 +38,19 @@ TEST_F(GlobTest, DoubleStarSegmentCrossesDirectories) {
 
 TEST_F(GlobTest, CharacterClassAndNegation) {
   EXPECT_THAT(GlobToRegex("[abc]"), "[abc]");
+  EXPECT_THAT(GlobToRegex("[a-z]"), "[a-z]");    // a range passes straight through to RE2
   EXPECT_THAT(GlobToRegex("[!a-z]"), "[^a-z]");  // glob negation `[!` -> RE2 `[^`
+}
+
+TEST_F(GlobTest, PosixClassesAndLiteralClosingBracket) {
+  // POSIX class expressions pass through verbatim (RE2 supports them); the inner `]` that closes
+  // `[:alpha:]` is not mistaken for the class close.
+  EXPECT_THAT(GlobToRegex("[[:alpha:]]"), "[[:alpha:]]");
+  EXPECT_THAT(GlobToRegex("[[:ascii:][:digit:]]"), "[[:ascii:][:digit:]]");
+  EXPECT_THAT(GlobToRegex("![[:space:]]"), "![[:space:]]");  // class after a literal
+  // A `]` as the first class member is a literal (POSIX), escaped for RE2.
+  EXPECT_THAT(GlobToRegex("[]]"), "[\\]]");
+  EXPECT_THAT(GlobToRegex("[!]]"), "[^\\]]");
 }
 
 TEST_F(GlobTest, MetacharactersAreEscapedAndEscapesRespected) {
