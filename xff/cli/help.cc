@@ -318,6 +318,15 @@ std::string RenderCookbook() {
                   "| grep '^author ' | sort | uniq -c | sort -rn",
        .note = "runs git blame on each Python file; the shell pipe tallies lines per author across the "
                "tree. -exec feeds any pipeline the field vocabulary cannot express alone."},
+      {.task = "Author line counts across several trees / repos",
+       .command = "xff src lib -g -type f -lang Python -execdir git blame --line-porcelain {} \\; "
+                  "| awk '/^author /{sub(/^author /,\"\"); n[$0]++} END{for(a in n) printf \"%7d  %s\\n\", n[a], a}' "
+                  "| sort -rn",
+       .note = "aggregates blame into lines-per-contributor over MANY roots at once. Differs from the "
+               "per-file recipe above: one tally spans the whole selection. -execdir runs git in each "
+               "file's own directory, so it works even when the roots live in different repos; -g honors "
+               ".gitignore and skips .git; -lang selects by language. The awk tallies in one pass. A "
+               "native capture -> group-by reduction is planned to fold that pipe into xff."},
       {.task = "Checksum manifest for a tree",
        .command = "xff . -type f -hash=sha256",
        .note = "prints `DIGEST  PATH` per file (like sha256sum); redirect to a file to snapshot a tree, "
