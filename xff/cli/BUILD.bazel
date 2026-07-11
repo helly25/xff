@@ -15,17 +15,8 @@
 
 load("@helly25_bashtest//bashtest:bashtest.bzl", "bashtest")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("//xff:extras.bzl", "XFF_FULL_ONLY")  # target_compatible_with gate for the extras / full build
 load(":golden.bzl", "xff_golden_cases")
-
-# Extras-only targets (the full binary + its full-only tests) are compatible ONLY when a composable
-# extra is enabled (--config=xff_full). In a lean build they are incompatible, so `bazel test //...`
-# skips them automatically (Bazel incompatible-target skipping) - no `manual` tag, and no need to
-# name them in the CI command; a full-mode `bazel test //...` picks them up. (`tags` cannot express
-# this: it is a non-configurable attribute, so it takes no `select()`.)
-XFF_FULL_ONLY = select({
-    "//xff:xff_pcre_enabled": [],
-    "//conditions:default": ["@platforms//:incompatible"],
-})
 
 # main.cc (the CLI entry point, `main()` included) as a library, so the lean `xff` and the extended
 # `xff_full` are both thin binaries over it: main.cc compiles once, neither binary carries its own

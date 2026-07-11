@@ -50,6 +50,11 @@ local_path_override(
 # (--regextype=PCRE2, #85): only //xff/cli:xff_full links @xff_pcre2's backend (via the
 # //xff:xff_pcre select), so bzlmod's laziness means a lean build never fetches or compiles @pcre2.
 # The module depends on @xff_extras_api (resolved by the override above), never on the core.
+#
+# NOTE: because a local_path_override path is INSIDE the main repo tree, the main repo would ALSO
+# glob it as its own package (//extra_modules/pcre2:...) - a dual view whose main-repo side can't see
+# the module's @pcre2 dep. MODULE.bazel (and a REPO.bazel marker) do not stop that; `extra_modules`
+# is in //.bazelignore so only @xff_pcre2 owns the dir. Keep new extra dirs under extra_modules/.
 bazel_dep(name = "xff_pcre2", version = "0.0.0")
 local_path_override(
     module_name = "xff_pcre2",
