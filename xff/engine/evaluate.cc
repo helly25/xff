@@ -946,10 +946,51 @@ std::optional<bool> FileContentIsBinary(const Visit& visit, const vfs::FileSyste
   return prefix.find('\0') != std::string_view::npos;
 }
 
-// xff -text / -binary: classify a regular file's content. -text matches text (no NUL in the sniff
-// window), -binary matches binary; neither matches a non-regular or unreadable entry.
-bool EvalText(const parser::Expr& /*expr*/, EvalContext& ctx) {
-  return FileContentIsBinary(ctx.visit, ctx.fs) == false;
+// Whether `content` satisfies the -text FLAVOR (empty flavor == git). git: no NUL in the first
+// kBinaryNulSniffBytes (the default heuristic, EOL-agnostic). The strict flavors forbid a NUL
+// ANYWHERE and pin the line ending, requiring a final terminator (or an empty file, which is
+// vacuously complete): posix = no CR, ends with LF; windows = CRLF only (no bare CR/LF), ends with
+// CRLF; apple = no LF, ends with CR. A non-empty file with no proper terminator matches only git;
+// mixed endings match only git.
+bool TextMatchesFlavor(std::string_view content, std::string_view flavor) {
+  if (flavor.empty() || flavor == "git") {
+    return content.substr(0, std::min(content.size(), content::kBinaryNulSniffBytes)).find('\0')
+           == std::string_view::npos;
+  }
+  if (content.find('\0') != std::string_view::npos) {
+    return false;  // a strict flavor is not text if a NUL appears anywhere
+  }
+  if (flavor == "posix") {
+    return content.find('\r') == std::string_view::npos && (content.empty() || content.back() == '\n');
+  }
+  if (flavor == "apple") {
+    return content.find('\n') == std::string_view::npos && (content.empty() || content.back() == '\r');
+  }
+  if (flavor == "windows") {  // pure CRLF: no bare CR, no bare LF; ends with CRLF (or empty)
+    for (std::size_t i = 0; i < content.size(); ++i) {
+      const bool bare_cr = content[i] == '\r' && (i + 1 == content.size() || content[i + 1] != '\n');
+      const bool bare_lf = content[i] == '\n' && (i == 0 || content[i - 1] != '\r');
+      if (bare_cr || bare_lf) {
+        return false;
+      }
+    }
+    return content.empty() || (content.size() >= 2 && content[content.size() - 2] == '\r' && content.back() == '\n');
+  }
+  return false;  // unreachable: the parser validates the flavor token
+}
+
+// xff -text[=git|posix|windows|apple] / -binary: classify a regular file's content. -text matches
+// text (bare / =git: the NUL heuristic; the other flavors add a no-NUL-anywhere + line-ending
+// discipline); -binary matches binary. Neither matches a non-regular or unreadable entry.
+bool EvalText(const parser::Expr& expr, EvalContext& ctx) {
+  if (ctx.visit.metadata.type != vfs::FileType::kRegular) {
+    return false;
+  }
+  const absl::StatusOr<std::string> content = ctx.fs.ReadContent(ctx.visit.path);
+  if (!content.ok()) {
+    return false;
+  }
+  return TextMatchesFlavor(*content, expr.text_flavor);
 }
 
 bool EvalBinary(const parser::Expr& /*expr*/, EvalContext& ctx) {

@@ -352,6 +352,23 @@ class ExprParser {
         }
         return node;
       }
+      // A Binding::kText primary (-text) carries an attached =FLAVOR token (git/posix/windows/apple)
+      // and takes no operand. The flavor is validated here and stored raw on the node; a bare -text
+      // (no '=') is not this branch -- it falls through to the default (the git heuristic).
+      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
+          descriptor != nullptr && descriptor->binding == registry::Binding::kText) {
+        const std::string flavor = token.substr(eq + 1);
+        if (flavor != "git" && flavor != "posix" && flavor != "windows" && flavor != "apple") {
+          Fail(absl::StrCat("'", base, "=", flavor, "': unknown text flavor (use git / posix / windows / apple)"));
+          return nullptr;
+        }
+        ++pos_;  // consume the `-text=FLAVOR` token
+        ExprPtr node = MakePredicate(descriptor, {}, grammar_);
+        if (node != nullptr) {
+          node->text_flavor = flavor;
+        }
+        return node;
+      }
     }
     const registry::Descriptor* descriptor = registry::Lookup(token);
     if (descriptor == nullptr) {

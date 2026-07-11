@@ -68,6 +68,9 @@ struct Expr {
   // empty for a bare -hash (which uses the --hash-algorithm / --hash-encoding defaults) and
   // every other node. Validated before the walk (engine::ValidateHashArgs).
   std::string hash_spec;
+  // -text=FLAVOR: the attached text-definition flavor (git/posix/windows/apple); empty for a bare
+  // -text (which is the git heuristic) and every other node. Validated in the parser (kText branch).
+  std::string text_flavor;
   // Case folding forced on by the resolved --case mode (parser::ApplyCaseMode), for the
   // otherwise case-sensitive matchers (-name/-path/-content and, via a recompiled
   // `matcher`, -regex/-rxc/-grep): true under --case=insensitive, or --case=smart when the

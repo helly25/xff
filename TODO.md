@@ -640,13 +640,18 @@ remains below is the design-forked / larger work.
   lint. The two blame cookbook recipes now use `-text` (was a silent `-name '*.py'` / `-lang Python`)
   so their titles match, and `git blame` skips binaries. `-text` is deliberately the search heuristic,
   NOT POSIX conformance (POSIX forbids a NUL anywhere + caps line length + requires newline-termination).
-  - **FOLLOW-UP `-text[=apple|posix|windows]` (#138).** A line-ending-aware flavor on `-text`: bare
-    `-text` stays the loose default (any/mixed EOL); `=posix` requires LF-only + no NUL + final newline
-    (the "for real" check), `=windows` CRLF, `=apple` CR. One valued predicate rather than
-    `-posix-text` / a separate `-eol=` axis. Needs: parser support for an attached `-text=VALUE` on a
-    primary, per-flavor EOL detection (LF/CRLF/CR/mixed), and settling the overlap with `-eofnl`
-    (`=posix` subsumes LF final-newline; `-eofnl` stays the flavor-agnostic primitive). Additive - bare
-    `-text` is unchanged, so it is a clean extension.
+  - **`-text[=git|posix|windows|apple]` flavor (#138) - SHIPPED.** A text-definition value on `-text`,
+    via `Binding::kText` (attached `-text=VALUE`, like `-hash=ALGO` / `-diff=STYLE`; the flavor lives on
+    `Expr::text_flavor`, validated in the parser). Bare `-text` == `=git` = the loose default (no NUL in
+    the first 8000, EOL-agnostic; back-compatible). The strict flavors forbid a NUL ANYWHERE and require
+    a final terminator (empty is vacuously complete): `=posix` LF-only ending in LF; `=windows` CRLF-only;
+    `=apple` CR-only. A no-terminator or mixed-EOL file matches only `git`. `-eofnl` stays the
+    flavor-agnostic "ends in LF" primitive (`=posix` subsumes it). One valued predicate, not
+    `-posix-text` / a separate `-eol=` axis; unknown flavor is a usage error.
+    - **FOLLOW-UP `-eofcr` (and `-eofcrlf`) (#139).** `-eofnl` is LF-centric ("ends with LF"); the
+      CR-terminated (apple) completeness primitive is `-eofcr` ("ends with CR"), and `-eofcrlf` the
+      Windows one, so the standalone final-terminator lint exists per line-ending style (the flavor
+      predicates bundle it; these are the a-la-carte axis). Plus any apple/windows subtlety refinements.
 
 ### Featured ideas (deferred)
 

@@ -175,14 +175,17 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     // directories, symlinks and unreadable files).
     {
         .name = "-text",
-        .summary = "match a regular file whose content is text (no NUL in the first 8 KiB) (xff)",
-        .details = "TRUE for a regular, readable file whose content is text - no NUL byte in the first 8 KiB, the "
-                   "same heuristic -grep / -content use to skip binaries. Reads the file, so it is expensive. A "
-                   "directory, symlink, device or unreadable file is not text (nor binary), so it never matches. "
-                   "The counterpart is -binary; `! -text` is NOT -binary (it also matches non-files). An xff "
-                   "extension --config=find rejects.",
+        .summary = "match a regular text file; -text[=git|posix|windows|apple] picks the definition (xff)",
+        .details = "TRUE for a regular, readable file whose content is text. Bare -text (or =git) is the default "
+                   "heuristic: no NUL byte in the first 8000 bytes (git's buffer_is_binary, also grep/ripgrep), "
+                   "line-ending-agnostic. The strict flavors forbid a NUL ANYWHERE and pin the line ending, "
+                   "requiring a final terminator (an empty file is vacuously complete): =posix = LF only, ends "
+                   "with a newline; =windows = CRLF only; =apple = CR only. Reads the file (expensive). A "
+                   "directory, symlink, device or unreadable file is not text (nor binary), so it never matches - "
+                   "`! -text` is NOT -binary. An xff extension --config=find rejects.",
         .kind = Kind::kTest,
         .arity = 0,
+        .binding = Binding::kText,
         .style = Style::kXff,
         .cost = Cost::kExpensive,
     },

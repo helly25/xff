@@ -138,6 +138,41 @@ test::eofnl_selects_newline_terminated_or_empty_files() {
   rm -rf "${root}"
 }
 
+test::text_flavors_pin_the_line_ending() {
+  # Bare -text (=git) is line-ending-agnostic; =posix/=windows/=apple pin LF / CRLF / CR. Distinct
+  # names (unix/dos/mac) avoid substring collisions in the matchers.
+  local root out
+  root="$(mktemp -d)"
+  printf 'a\nb\n' >"${root}/unix.txt"    # LF
+  printf 'a\r\nb\r\n' >"${root}/dos.txt" # CRLF
+  printf 'a\rb\r' >"${root}/mac.txt"     # CR
+  out="$("$(_xff_bin)" "${root}" -text=posix 2>&1)"
+  expect_matches 'unix\.txt' "${out}"
+  expect_not_matches 'dos\.txt' "${out}"
+  expect_not_matches 'mac\.txt' "${out}"
+  out="$("$(_xff_bin)" "${root}" -text=windows 2>&1)"
+  expect_matches 'dos\.txt' "${out}"
+  expect_not_matches 'unix\.txt' "${out}"
+  out="$("$(_xff_bin)" "${root}" -text=apple 2>&1)"
+  expect_matches 'mac\.txt' "${out}"
+  expect_not_matches 'unix\.txt' "${out}"
+  out="$("$(_xff_bin)" "${root}" -text=git 2>&1)" # git matches every line-ending style
+  expect_matches 'unix\.txt' "${out}"
+  expect_matches 'dos\.txt' "${out}"
+  expect_matches 'mac\.txt' "${out}"
+  rm -rf "${root}"
+}
+
+test::text_unknown_flavor_is_a_usage_error() {
+  local root out rc
+  root="$(mktemp -d)"
+  : >"${root}/f"
+  out="$("$(_xff_bin)" "${root}" -text=dos 2>&1)" && rc=0 || rc=$?
+  rm -rf "${root}"
+  expect_eq "2" "${rc}"
+  expect_matches 'unknown text flavor' "${out}"
+}
+
 test::text_binary_eofnl_are_rejected_in_strict_find_style() {
   # All three are xff extensions; --config=find rejects each (exit 2).
   local root rc
