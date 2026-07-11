@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# The PCRE2 build extra (--regextype=PCRE2, #85) as a standalone Bazel module. It depends only on
+# the shared @xff_extras_api API (the RegexBackend + license-notice seams) and its own external dep
+# @pcre2 - never back into the xff core - so it is fully self-contained. The root MODULE.bazel pulls
+# it via bazel_dep + local_path_override; removing that line (or this whole directory) drops PCRE2
+# from the build entirely. Only //xff/cli:xff_full links its backend (via the //xff:xff_pcre
+# select), so bzlmod's laziness means a lean build never fetches or compiles @pcre2. BSD-3-Clause
+# (same family as re2 / googletest, no new license type). See TODO.md "Extras architecture v2".
+module(
+    name = "xff_pcre2",
+    version = "0.0.0",
+)
+
+bazel_dep(name = "rules_cc", version = "0.2.21")
+bazel_dep(name = "abseil-cpp", version = "20250814.2")
+bazel_dep(name = "pcre2", version = "10.47")
+bazel_dep(name = "xff_extras_api", version = "0.0.0")
+
+# Test-only. helly25_mbo resolves via the root module's git_override (overrides are root-global).
+bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
+bazel_dep(name = "helly25_mbo", version = "0.11.1")

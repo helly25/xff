@@ -15,22 +15,19 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
-# The extra's external dependency lives in pcre2.MODULE.bazel next to this file; the root
-# MODULE.bazel `include()`s it, so it must be exported.
-exports_files(["pcre2.MODULE.bazel"])
-
-# The real PCRE2 regex backend: the --regextype=PCRE2 build extra (#85). ONLY //xff/cli:xff_full
-# links it, via `select({"//xff:xff_pcre_enabled": [...]})`; the lean binary and a default build
-# never reference it (bzlmod also never fetches @pcre2 then). `alwayslink` keeps the self-
-# registration translation unit from being dropped. Deleting this directory removes PCRE2 support
-# entirely: an `--//xff:xff_pcre` build then fails to compile, while the lean build is unaffected.
+# The real PCRE2 regex backend: the --regextype=PCRE2 build extra (#85), a target of the standalone
+# @xff_pcre2 module (this directory's MODULE.bazel). It implements @xff_extras_api's RegexBackend and
+# self-registers via Pcre2Registrar; it depends only on that shared API + @pcre2, never on the xff
+# core. ONLY //xff/cli:xff_full links it, via `select({"//xff:xff_pcre_enabled": [...]})`; the lean
+# binary and a default build never reference it, so bzlmod never fetches @pcre2 then. `alwayslink`
+# keeps the self-registration translation unit from being dropped.
 cc_library(
     name = "pcre2_backend",
     srcs = ["pcre2_backend.cc"],
-    # `manual` so a wildcard `//...` build (the lean CI cells) never builds it or fetches @pcre2;
-    # xff_full's `select` and the test below dep it explicitly, which is unaffected by `manual`.
+    # `manual` so a wildcard build over this module never builds it or fetches @pcre2; xff_full's
+    # `select` and the test below dep it explicitly, which is unaffected by `manual`.
     tags = ["manual"],
-    visibility = ["//xff/cli:__pkg__"],
+    visibility = ["//visibility:public"],
     deps = [
         "@pcre2",
         "@xff_extras_api//:license_notice",
@@ -39,8 +36,11 @@ cc_library(
     alwayslink = True,
 )
 
-# Unit tests for the PCRE2 backend ops. `manual` (it deps the backend + @pcre2), so `//...` skips
-# it; the full CI cell runs it. Deps the backend directly, so the factory is always registered here.
+# Unit tests for the PCRE2 backend ops, exercised through the shared RegexBackend seam
+# (MakePcre2Backend) so this stays module-local - no dependency on the xff core. The Matcher-level
+# routing (Compile(kPcre2) -> this backend) is covered by //xff/cli:full_binary_test. `manual` (it
+# deps the backend + @pcre2); the full CI cell runs it. Deps the backend directly, so the factory
+# is always registered here.
 cc_test(
     name = "pcre2_backend_test",
     size = "small",
@@ -48,10 +48,10 @@ cc_test(
     tags = ["manual"],
     deps = [
         ":pcre2_backend",
-        "//xff/regex:regex_cc",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
         "@helly25_mbo//mbo/testing:status_cc",
+        "@xff_extras_api//:regex_backend",
     ],
 )

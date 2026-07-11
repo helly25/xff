@@ -63,7 +63,7 @@ cc_binary(
     tags = ["manual"],
     visibility = ["//visibility:public"],
     deps = [":main_cc"] + select({
-        "//xff:xff_pcre_enabled": ["//extra_modules/pcre2:pcre2_backend"],
+        "//xff:xff_pcre_enabled": ["@xff_pcre2//:pcre2_backend"],
         "//conditions:default": [],
     }),
 )
