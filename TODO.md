@@ -272,6 +272,26 @@ remains below is the design-forked / larger work.
   kept in the repo by its `.gitkeep` always surfaces it. Implemented in `IgnoreStack::Decide`
   (`xff/engine/run.cc`): a `.gitkeep` short-circuits the gitignore / repo-exclude layers but still
   runs through explicit `--exclude` / `--include`, so a CLI exclude can still override it.
+- **Skip VCS metadata (`-g` drops `.git`; then `--skip-vcs`).** SHIPPED (git slice): when gitignore
+  handling is active (`-g`, or auto in a repo), the `.git` directory (and the `.git` gitlink file a
+  submodule / worktree uses) is pruned at any depth, like ripgrep / fd - git never lists `.git` in a
+  `.gitignore`, so the rules alone never dropped it. Deliberately independent of `--hidden`, so the
+  user's own dotfiles (`.bazelrc`, `.gitignore`) still show; only git's plumbing goes. In
+  `xff/engine/run.cc`'s Walk callback, gated on `gitignore_on`.
+  - **FOLLOW-UP `--skip-vcs[=LIST]` (#131).** Generalize dir-pruning to all known VCS:
+    `.git` / `.hg` / `.svn` / `.jj` / `.bzr` / `_darcs` / `CVS`. Bare = all; `--skip-vcs=git,hg` =
+    an explicit, frozen subset (so adding a VCS to the default set later never changes an explicit
+    invocation's results); `--no-skip-vcs` / `=none` = off. Independent of `--hidden` and of
+    ignore-rule interpretation. `-g` implies `--skip-vcs=git` (today's shipped behavior becomes the
+    git slice of the general mechanism); explicit `--skip-vcs=...` overrides; default off otherwise
+    (find-compat). Tokens: `git,hg,svn,jj,bzr,darcs,cvs`.
+  - **FOLLOW-UP `--ignore-vcs` / `--no-ignore-vcs` (#132).** The rg-style toggle for VCS-provided
+    ignore _files_ (a different axis from `--skip-vcs`'s dirs): `--no-ignore-vcs` drops the VCS
+    ignore-file layer (`.gitignore` + `.git/info/exclude` + global git excludes; later `.hgignore`)
+    while keeping `.ignore` / `.xffignore`. Needs a precedence spec before building:
+    `--no-ignore`/`-u` (all off) > `--no-ignore-vcs` (VCS ignore files off) > `-g`/`--gitignore`.
+    Low urgency: today the only VCS ignore file is `.gitignore`, so it is nearly `--gitignore=off`;
+    it earns its keep once xff reads non-git VCS ignore files.
 - **Color support**: `--color[=auto|always|never]` ships an `ls`-like scheme keyed
   on the filesystem file type (directory, symlink, executable, fifo/socket/device);
   auto colors only a tty and honors `NO_COLOR`. Still open: per-language coloring

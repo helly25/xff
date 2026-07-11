@@ -243,4 +243,53 @@ test::explicit_exclude_overrides_gitkeep_exemption() {
   expect_not_matches "(^|${NL}|/)\.gitkeep(\$|${NL})" "${out}"
 }
 
+# A repo whose .git carries plumbing, alongside a non-git hidden dotfile the user keeps
+# (.bazelrc), the tracked .gitignore itself, and a gitignored file. git never lists .git in a
+# .gitignore (it excludes its own plumbing implicitly), so -g must drop the whole .git tree while
+# leaving the user's other hidden files alone.
+_make_repo_with_dotfiles() {
+  local root
+  root="$(mktemp -d)"
+  mkdir -p "${root}/.git/hooks" "${root}/build"
+  printf 'ref: refs/heads/main\n' >"${root}/.git/HEAD"
+  : >"${root}/.git/hooks/pre-commit.sample"
+  printf 'build/\n' >"${root}/.gitignore"
+  printf 'build --config=foo\n' >"${root}/.bazelrc"
+  : >"${root}/build/out.o"
+  : >"${root}/keep.cc"
+  echo "${root}"
+}
+
+test::dash_g_excludes_gits_own_metadata_tree() {
+  local root out
+  root="$(_make_repo_with_dotfiles)" # has .git -> bare -g auto-on
+  out="$("$(_xff_bin)" -g "${root}" 2>&1)"
+  rm -rf "${root}"
+  expect_not_matches "(^|${NL}|/)\.git(/|\$|${NL})" "${out}" # git's own dir + all its contents gone
+  expect_matches "(^|${NL}|/)\.bazelrc(\$|${NL})" "${out}"   # a non-git hidden file the user keeps: shown
+  expect_matches "(^|${NL}|/)\.gitignore(\$|${NL})" "${out}" # the tracked .gitignore file itself: shown
+  expect_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}"
+  expect_not_matches "(^|${NL}|/)out\.o(\$|${NL})" "${out}" # build/ ignored by .gitignore
+}
+
+test::git_metadata_exclusion_is_independent_of_hidden() {
+  local root out
+  root="$(_make_repo_with_dotfiles)"
+  # -g is git mode, not a hidden toggle: even with --hidden forced on, .git stays out (it is git
+  # plumbing, not a mere dotfile) while the user's own dotfiles show.
+  out="$("$(_xff_bin)" --hidden -g "${root}" 2>&1)"
+  rm -rf "${root}"
+  expect_not_matches "(^|${NL}|/)\.git(/|\$|${NL})" "${out}"
+  expect_matches "(^|${NL}|/)\.bazelrc(\$|${NL})" "${out}"
+}
+
+test::git_metadata_shown_when_gitignore_off() {
+  local root out
+  root="$(_make_repo_with_dotfiles)"
+  # Gitignore off (-g-, find-compatible): xff shows everything, including git's .git tree.
+  out="$("$(_xff_bin)" -g- "${root}" 2>&1)"
+  rm -rf "${root}"
+  expect_matches "(^|${NL}|/)\.git(/|\$|${NL})" "${out}"
+}
+
 test_runner

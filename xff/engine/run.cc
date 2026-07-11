@@ -1915,6 +1915,16 @@ int RunFind(
         if (skip_hidden && visit.depth > 0 && !visit.name.empty() && visit.name.front() == '.') {
           return visit.metadata.type == vfs::FileType::kDirectory ? WalkAction::kPrune : WalkAction::kContinue;
         }
+        // Git metadata filter: when gitignore handling is on, exclude git's own `.git`
+        // directory (and the `.git` gitlink file a submodule / worktree uses) at any depth,
+        // the way ripgrep / fd do. Git never lists `.git` in a .gitignore -- it excludes its
+        // own plumbing implicitly -- so the gitignore rules alone never drop it. This is
+        // deliberately independent of the hidden filter: hidden files the user keeps
+        // (`.bazelrc`, `.gitignore`, ...) still show; only git's plumbing is dropped. Depth 0
+        // is an explicitly named root, always entered, so `xff .git` still descends.
+        if (gitignore_on && visit.depth > 0 && visit.name == ".git") {
+          return visit.metadata.type == vfs::FileType::kDirectory ? WalkAction::kPrune : WalkAction::kContinue;
+        }
         // Ignore filter: drop an ignored entry before any evaluation or output. A
         // matched directory is pruned (its subtree is never walked, so this is also
         // the fast path); a matched file is simply skipped. The search root itself
