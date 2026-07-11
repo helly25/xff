@@ -56,17 +56,17 @@ jobs:
             sudo apt-get update && sudo apt-get install -y mandoc
           fi
           command -v mandoc
-      # Every job builds in full mode (--config=xff_full) plus the manual full-only targets by name,
-      # so the composable extras (the @xff_pcre2 backend) get the SAME asan / tsan coverage as the
-      # core - our PCRE2 C-API wrapper is exactly where a buffer / lifetime / thread bug would hide.
-      # Only the `minimal` job opts out. The lean `xff` binary stays lean here (it has no extras
-      # select), so its tests still assert the extras are absent from it.
+      # Every job builds in full mode (--config=xff_full), so the composable extras (the @xff_pcre2
+      # backend) get the SAME asan / tsan coverage as the core - our PCRE2 C-API wrapper is exactly
+      # where a buffer / lifetime / thread bug would hide. The full-only targets are picked up by
+      # `//...` automatically (target_compatible_with, no names needed); the @xff_pcre2 module's own
+      # tests come via its wildcard. Only the `minimal` job opts out. The lean `xff` binary stays lean
+      # here (no extras select), so its tests still assert the extras are absent from it.
       - name: bazel test
         run: >
-          bazel test
-          //... //xff/cli:full_binary_test //xff/cli:full_extras_test @xff_pcre2//:pcre2_backend_test
-          --config=xff_full --disk_cache=$HOME/.cache/bazel-disk
-          --repository_cache=$HOME/.cache/bazel-repo ${{ matrix.config.flags }}
+          bazel test //... @xff_pcre2//... --config=xff_full
+          --disk_cache=$HOME/.cache/bazel-disk --repository_cache=$HOME/.cache/bazel-repo
+          ${{ matrix.config.flags }}
       # Lint gates run once, on the ubuntu clang-asan cell: its --config=clang
       # build above has already fetched the hermetic clang-format, so
       # tools/clang_format.sh resolves the pinned toolchain version.
@@ -118,9 +118,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y mandoc
       - name: bazel test
         run: >
-          bazel test
-          //... //xff/cli:full_binary_test //xff/cli:full_extras_test @xff_pcre2//:pcre2_backend_test
-          --repository_cache=$HOME/.cache/bazel-repo --config=clang --config=tsan --config=xff_full
+          bazel test //... @xff_pcre2//... --config=xff_full
+          --repository_cache=$HOME/.cache/bazel-repo --config=clang --config=tsan
 
   # Minimal core archive: prove that dropping the WHOLE extra_modules/ directory (plus the extras'
   # bazel_dep + local_path_override lines) still builds the lean core. This is the regression guard

@@ -24,9 +24,6 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 cc_library(
     name = "pcre2_backend",
     srcs = ["pcre2_backend.cc"],
-    # `manual` so a wildcard build over this module never builds it or fetches @pcre2; xff_full's
-    # `select` and the test below dep it explicitly, which is unaffected by `manual`.
-    tags = ["manual"],
     visibility = ["//visibility:public"],
     deps = [
         "@pcre2",
@@ -38,14 +35,14 @@ cc_library(
 
 # Unit tests for the PCRE2 backend ops, exercised through the shared RegexBackend seam
 # (MakePcre2Backend) so this stays module-local - no dependency on the xff core. The Matcher-level
-# routing (Compile(kPcre2) -> this backend) is covered by //xff/cli:full_binary_test. `manual` (it
-# deps the backend + @pcre2); the full CI cell runs it. Deps the backend directly, so the factory
-# is always registered here.
+# routing (Compile(kPcre2) -> this backend) is covered by //xff/cli:full_binary_test. It deps the
+# backend directly (alwayslink), so the factory is always registered and this is config-agnostic;
+# only a `@xff_pcre2//...` invocation (the CI test jobs, all --config=xff_full) reaches it, so no
+# `manual` tag is needed - the xff core's `//...` never sees this separate module.
 cc_test(
     name = "pcre2_backend_test",
     size = "small",
     srcs = ["pcre2_backend_test.cc"],
-    tags = ["manual"],
     deps = [
         ":pcre2_backend",
         "@abseil-cpp//absl/status",
