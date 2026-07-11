@@ -39,6 +39,8 @@ namespace {
 
 using ::testing::AllOf;
 using ::testing::Contains;
+using ::testing::ElementsAre;
+using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Not;
@@ -388,6 +390,41 @@ TEST_F(FieldsTest, RewriteQualifierTransformsTheValue) {
   EXPECT_THAT(Render("{name:s/[aeiou]//g}", "a/b/foo.txt", md, 0), "f.txt");              // g = all matches
   EXPECT_THAT(Render("{path:s#/#_#g}", "a/b/c", md, 0), "a_b_c");                         // alternate delimiter
   EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 1'536), 0), "1.5K");  // non-rewrite intact
+}
+
+TEST_F(FieldsTest, MExtractorYieldsAPerLineValueStream) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  // git-blame --line-porcelain-shaped output: many lines, an `author X` header per source line.
+  const std::map<std::string, std::string> outputs = {
+      {"blame", "author Bob\nauthor-mail <b@x>\nauthor Ann\n\tsource line\nauthor Bob\n"}};
+  const Template compiled = Template::Compile("{capture.blame:m/^author (.+)$/\\1/}");
+  const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
+  // AsExtraction: one value per matching line, non-matching lines dropped, \1 = capture group.
+  ASSERT_TRUE(compiled.AsExtraction(ctx).has_value());
+  EXPECT_THAT(*compiled.AsExtraction(ctx), ElementsAre("Bob", "Ann", "Bob"));
+  // Scalar Render projects the stream as the matches newline-joined.
+  EXPECT_THAT(compiled.Render(ctx), "Bob\nAnn\nBob");
+}
+
+TEST_F(FieldsTest, MExtractorHonorsDelimiterFlagsAndWholeMatch) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const std::map<std::string, std::string> outputs = {{"x", "AUTHOR Bob\nnope\nauthor Ann"}};
+  const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
+  // Alternate ',' delimiter + case-insensitive 'i' flag; \1 keeps the name.
+  EXPECT_THAT(*Template::Compile("{capture.x:m,^author (.+)$,\\1,i}").AsExtraction(ctx), ElementsAre("Bob", "Ann"));
+  // \0 keeps the whole matching line; a non-matching line is dropped.
+  EXPECT_THAT(*Template::Compile("{capture.x:m/nope/\\0/}").AsExtraction(ctx), ElementsAre("nope"));
+}
+
+TEST_F(FieldsTest, MExtractorEmptyStreamVersusNonExtractionTemplate) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  const std::map<std::string, std::string> outputs = {{"x", "aaa\nbbb"}};
+  const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
+  // A well-formed m// that matches nothing is an empty stream (present, but no values).
+  EXPECT_THAT(*Template::Compile("{capture.x:m/zzz/\\0/}").AsExtraction(ctx), IsEmpty());
+  // Anything that is not exactly one m// field is not a value stream.
+  EXPECT_THAT(Template::Compile("{name}").AsExtraction(ctx), Eq(std::nullopt));                  // scalar field
+  EXPECT_THAT(Template::Compile("x {capture.x:m/./\\0/}").AsExtraction(ctx), Eq(std::nullopt));  // a literal present
 }
 
 // The --help=fields SOT guard: FieldDocs() must document exactly the renderable field

@@ -98,6 +98,13 @@ using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier
 // suffix|suffixes|path} -- so any path-valued field composes: {path:name} == {name},
 // {relpath:stem}, {def.B:dir}, {target:ext}.
 //
+// The {field:m<delim>PAT<delim>REPL<delim>flags} qualifier is the LINE-oriented, LIST-producing
+// sibling of s///: it splits the field's (multi-line) value into lines, and for each line that
+// matches PAT emits the RE2 rewrite REPL (\0 whole match, \1..\9 groups; flags g/i). Lines that do
+// not match are dropped -- so it filters as well as transforms. Unlike s/// (scalar -> scalar over
+// the whole value), m// is multi-line -> a value stream, consumed by an aggregation key
+// (AsExtraction below). In a scalar Render context it degrades to the matches newline-joined.
+//
 // Compile parses the template once into literal/field segments; the resulting
 // Template renders against many entries without re-scanning -- the hot path for
 // --template (and -exec), which render every match.
@@ -107,15 +114,25 @@ class Template {
 
   std::string Render(const RenderContext& context) const;
 
+  // The value stream when this template is a single `{field:m<delim>PAT<delim>REPL<delim>flags}`
+  // extraction: the field's multi-line value split into lines, each matching line rewritten by REPL,
+  // non-matching lines dropped. nullopt when the template is not exactly one m// extraction (a
+  // literal, several segments, or a non-m field) -- i.e. it is an ordinary scalar template. Backs
+  // the value-stream aggregation key (--summary of a per-line extraction) without a "list" concept
+  // in the reduction: it just folds the returned values.
+  std::optional<std::vector<std::string>> AsExtraction(const RenderContext& context) const;
+
  private:
   // A literal run (fn == nullptr -> emit `literal`) or a field reference: fn is
   // the renderer and `key` its bound argument (capture index, {env.NAME} var, ...).
   struct Segment {
     // How the qualifier transforms the rendered value: none (the qualifier is the
-    // field's own format argument), a sed-style s/PAT/REPL/ rewrite, or a path-component
-    // extraction ({field:stem} etc.) that treats the value as a path. Rewrite and
-    // component are post-render transforms; the field then renders with no qualifier.
-    enum class PostProcess { kNone, kRewrite, kComponent };
+    // field's own format argument), a sed-style s/PAT/REPL/ rewrite, a path-component
+    // extraction ({field:stem} etc.) that treats the value as a path, or a per-line
+    // m/PAT/REPL/ extraction that yields a value stream (see AsExtraction; in a scalar
+    // Render it is the matches newline-joined). All but kNone are post-render transforms;
+    // the field then renders with no qualifier.
+    enum class PostProcess { kNone, kRewrite, kComponent, kExtract };
     std::string literal;
     detail::FieldFn fn = nullptr;
     std::string key;

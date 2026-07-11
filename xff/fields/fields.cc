@@ -38,6 +38,8 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_join.h"
+#include "absl/strings/str_split.h"
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
 #include "xff/content/line_match.h"
@@ -585,6 +587,47 @@ std::string ApplyRewrite(std::string_view value, std::string_view spec) {
   return matcher->Rewrite(value, replacement, /*global=*/flags.find('g') != std::string_view::npos);
 }
 
+// A qualifier is a per-line extraction when it is `m` followed by a punctuation delimiter
+// (m/.../.../, m,...,...,, ...) -- the line-oriented, list-producing sibling of the `s` rewrite.
+bool IsExtractQualifier(std::string_view qualifier) {
+  return qualifier.size() >= 2 && qualifier[0] == 'm' && std::ispunct(static_cast<unsigned char>(qualifier[1])) != 0;
+}
+
+// Applies a per-line extraction `m<delim>PAT<delim>REPL<delim>[flags]` to `value`: splits it into
+// lines, and for each line that matches PAT emits the RE2 rewrite REPL (flags g=all-on-the-line,
+// i=ignore-case). Non-matching lines are dropped, so this filters as well as transforms. A malformed
+// spec or uncompilable pattern yields an empty list (nothing extracted), matching ApplyRewrite's
+// leave-it-alone stance on bad input.
+std::vector<std::string> ExtractLines(std::string_view value, std::string_view spec) {
+  const char delim = spec[1];  // caller guarantees an extract spec (size >= 2)
+  const std::string_view rest = spec.substr(2);
+  const std::string_view::size_type pat_end = rest.find(delim);
+  if (pat_end == std::string_view::npos) {
+    return {};
+  }
+  const std::string_view pattern = rest.substr(0, pat_end);
+  const std::string_view after = rest.substr(pat_end + 1);
+  const std::string_view::size_type repl_end = after.find(delim);
+  if (repl_end == std::string_view::npos) {
+    return {};
+  }
+  const std::string_view replacement = after.substr(0, repl_end);
+  const std::string_view flags = after.substr(repl_end + 1);
+  const absl::StatusOr<regex::Matcher> matcher =
+      regex::Matcher::Compile(pattern, /*case_insensitive=*/flags.find('i') != std::string_view::npos);
+  if (!matcher.ok()) {
+    return {};
+  }
+  const bool global = flags.find('g') != std::string_view::npos;
+  std::vector<std::string> out;
+  for (const std::string_view line : absl::StrSplit(value, '\n')) {
+    if (matcher->PartialMatch(line)) {  // only lines that match contribute
+      out.push_back(matcher->Rewrite(line, replacement, global));
+    }
+  }
+  return out;
+}
+
 // The path-component qualifier keywords ({field:KEYWORD}). Sorted (for readability).
 constexpr auto kPathComponents = std::to_array<std::string_view>(
     {"basename", "core", "dir", "ext", "extension", "file", "name", "path", "stem", "suffix", "suffixes"});
@@ -659,11 +702,12 @@ Template Template::Compile(std::string_view tmpl) {
       }
       flush_literal();
       auto [fn, key] = ResolveName(name);  // builtin field, {0}..{N} capture, or {env.NAME}
-      // Classify the qualifier: an s/// rewrite or a path-component extraction is a
-      // post-render transform; anything else is the field's own format argument.
-      const Segment::PostProcess post = IsRewriteQualifier(qualifier) ? Segment::PostProcess::kRewrite
-                                        : IsPathComponent(qualifier)  ? Segment::PostProcess::kComponent
-                                                                      : Segment::PostProcess::kNone;
+      // Classify the qualifier: an s/// rewrite, an m/// per-line extraction, or a path-component
+      // extraction is a post-render transform; anything else is the field's own format argument.
+      const Segment::PostProcess post = IsRewriteQualifier(qualifier)   ? Segment::PostProcess::kRewrite
+                                        : IsExtractQualifier(qualifier) ? Segment::PostProcess::kExtract
+                                        : IsPathComponent(qualifier)    ? Segment::PostProcess::kComponent
+                                                                        : Segment::PostProcess::kNone;
       compiled.segments_.push_back({.fn = fn, .key = std::move(key), .qualifier = std::move(qualifier), .post = post});
       i = next;
     } else {
@@ -688,12 +732,31 @@ std::string Template::Render(const RenderContext& context) const {
         case Segment::PostProcess::kComponent: out.append(PathComponent(value, segment.qualifier)); break;
         case Segment::PostProcess::kNone: out.append(value); break;
         case Segment::PostProcess::kRewrite: out.append(ApplyRewrite(value, segment.qualifier)); break;
+        // A per-line extraction has no single scalar value; its scalar projection is the matches
+        // newline-joined. The value-stream use goes through AsExtraction (never Render).
+        case Segment::PostProcess::kExtract:
+          out.append(absl::StrJoin(ExtractLines(value, segment.qualifier), "\n"));
+          break;
       }
     } else {
       out.append(segment.literal);
     }
   }
   return out;
+}
+
+std::optional<std::vector<std::string>> Template::AsExtraction(const RenderContext& context) const {
+  // Only a template that is exactly one `{field:m/.../.../}` extraction is a value stream; anything
+  // else (a literal, several segments, or a non-m field) is an ordinary scalar template.
+  if (segments_.size() != 1) {
+    return std::nullopt;
+  }
+  const Segment& segment = segments_.front();
+  if (segment.fn == nullptr || segment.post != Segment::PostProcess::kExtract) {
+    return std::nullopt;
+  }
+  const std::string value = segment.fn(segment.key, std::string_view{}, context);  // base value, no qualifier
+  return ExtractLines(value, segment.qualifier);
 }
 
 std::string Render(std::string_view tmpl, std::string_view path, const vfs::Metadata& metadata, int depth) {
