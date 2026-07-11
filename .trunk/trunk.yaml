@@ -73,6 +73,15 @@ lint:
     - trivy@0.70.0
     - trufflehog@3.95.3
     - yamllint@1.38.0
+  ignore:
+    # XFF.md is generated (verbatim `xff_full --markdown`, guarded by //xff/cli:xff_markdown_test),
+    # not hand-authored prose. NO linter/formatter may touch it: markdownlint would flag the
+    # renderer's style (MD049 emphasis, MD024 repeated headings like Time under Options and Fields),
+    # and prettier would reformat it (blank lines around headings), both of which would make the
+    # committed file diverge from the binary output and break the diff_test - its sole gate.
+    - linters: [ALL]
+      paths:
+        - XFF.md
 actions:
   enabled:
     - trunk-announce

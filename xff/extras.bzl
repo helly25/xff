@@ -25,10 +25,11 @@ build, so the condition lives in one place instead of being copied per BUILD fil
 # `manual` tag and no explicit naming in the build command. (`tags` cannot express this - it is a
 # non-configurable attribute, so it takes no `select()`; `target_compatible_with` is the right seam.)
 #
-# The full build is identified today by the PCRE2 flag (`--//xff:xff_pcre`, which `--config=xff_full`
-# sets). When a second extra is wired in (archive, #83), turn this into an OR over the per-extra
-# config_settings via `@bazel_skylib//lib:selects` `config_setting_group`.
+# "Is this the full build" lives in ONE place: the `//xff:full_build` config_setting_group (see
+# xff/BUILD.bazel), an OR over the enabled extras (today just PCRE2, which `--config=xff_full` sets;
+# add archive's setting there when #83 lands). Both this gate and the `//xff` alias key on it, so a
+# new extra never needs a matching edit here.
 XFF_FULL_ONLY = select({
-    "//xff:xff_pcre_enabled": [],
+    "//xff:full_build": [],
     "//conditions:default": ["@platforms//:incompatible"],
 })
