@@ -221,6 +221,19 @@ test::m_extraction_rejected_in_a_scalar_render_context() {
   rm -rf "${root}"
 }
 
+test::m_reducer_makes_the_extraction_scalar_valid() {
+  # A terminal join(...) reducer collapses the value stream to one scalar, so the SAME m// is now
+  # valid in a scalar context (--template / -printf) -- the explicit opt-in the #136 error asks for.
+  # Bare m// (no reducer) still errors (covered above).
+  local root out
+  root="$(mktemp -d)"
+  : >"${root}/only.txt"
+  out="$(_run --template='authors={capture.a:m/^author (.+)$/\1/;join(, )}' "${root}" -type f \
+    -capture=a sh -c 'printf "author Bob\nx\nauthor Ann\nauthor Bob\n"' \;)"
+  rm -rf "${root}"
+  expect_matches 'authors=Bob, Ann, Bob' "${out}"
+}
+
 test::summary_mixed_extraction_template_is_a_usage_error() {
   # A key template that mixes an m// extraction with other text has no single key -> exit 2.
   local root out rc

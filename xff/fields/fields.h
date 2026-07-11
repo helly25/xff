@@ -119,21 +119,24 @@ class Template {
   std::string Render(const RenderContext& context) const;
 
   // The value stream when this template is a single `{field:m<delim>PAT<delim>REPL<delim>flags}`
-  // extraction: the field's multi-line value split into lines, each matching line rewritten by REPL,
-  // non-matching lines dropped. nullopt when the template is not exactly one m// extraction (a
-  // literal, several segments, or a non-m field) -- i.e. it is an ordinary scalar template. Backs
-  // the value-stream aggregation key (--summary of a per-line extraction) without a "list" concept
-  // in the reduction: it just folds the returned values.
+  // extraction with NO terminal reducer: the field's multi-line value split into lines, each matching
+  // line rewritten by REPL, non-matching lines dropped. nullopt when the template is not exactly one
+  // unreduced m// extraction (a literal, several segments, a non-m field, or an m// ending in a
+  // reducer such as `;join(...)`, which is scalar-valued) -- i.e. it is an ordinary scalar template.
+  // Backs the value-stream aggregation key (--summary of a per-line extraction) without a "list"
+  // concept in the reduction: it just folds the returned values.
   std::optional<std::vector<std::string>> AsExtraction(const RenderContext& context) const;
 
-  // True when the template is exactly one `{field:m/.../.../}` extraction -- the context-free shape
-  // AsExtraction requires (so a caller can branch stream-vs-scalar before it has a context).
+  // True when the template is exactly one unreduced `{field:m/.../.../}` extraction -- the
+  // context-free shape AsExtraction requires (so a caller can branch stream-vs-scalar before it has a
+  // context). False once a terminal reducer (`;join(...)`) collapses it to a scalar.
   bool IsExtraction() const;
 
-  // True when ANY segment is an m// extraction (including mid-template). A scalar-output context
-  // (-printf / --format / --template / --columns / -exec) uses this to reject a list-valued template
-  // up front, since a value stream has no scalar meaning there.
-  bool HasExtraction() const;
+  // True when ANY segment is an UNREDUCED m// extraction (a value stream, including mid-template). A
+  // scalar-output context (-printf / --format / --template / --columns / -exec) uses this to reject a
+  // list-valued template up front. An m// pipeline that ends in a reducer (`;join(...)`) is scalar-
+  // valued and does NOT trip this, so it is allowed in a scalar context.
+  bool HasUnreducedExtraction() const;
 
  private:
   // A literal run (fn == nullptr -> emit `literal`) or a field reference: fn is

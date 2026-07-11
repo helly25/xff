@@ -1415,17 +1415,18 @@ void CollectCaptureRefs(const parser::Expr& expr, std::vector<std::string>* refs
   }
 }
 
-// The first argument anywhere in `expr` that compiles to a field template carrying an m// extraction
-// (a value stream), or nullopt. An m// extraction is only meaningful as a --summary key; in any
-// per-entry scalar render context (-exec/-printf/-grep/... command and format args) a value stream
-// has no single value, so it is a usage error. Checking EVERY arg is safe: Template::HasExtraction is
-// true only for a known field with a well-formed m// qualifier, which a user writes solely to extract
-// -- a -name glob / -regex / -size value never trips it.
+// The first argument anywhere in `expr` that compiles to a field template carrying an UNREDUCED m//
+// extraction (a value stream), or nullopt. An unreduced extraction is only meaningful as a --summary
+// key; in any per-entry scalar render context (-exec/-printf/-grep/... command and format args) a
+// value stream has no single value, so it is a usage error. A reducer-terminated extraction
+// (`;join(...)`) is scalar-valued and allowed, so it does NOT trip this. Checking EVERY arg is safe:
+// HasUnreducedExtraction is true only for a known field with a well-formed unreduced m// qualifier,
+// which a user writes solely to extract -- a -name glob / -regex / -size value never trips it.
 std::optional<std::string> FindScalarExtraction(const parser::Expr& expr) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate:
       for (const std::string& arg : expr.args) {
-        if (fields::Template::Compile(arg).HasExtraction()) {
+        if (fields::Template::Compile(arg).HasUnreducedExtraction()) {
           return arg;
         }
       }
@@ -1685,14 +1686,14 @@ int RunFind(
     if (expression != nullptr) {
       extraction = FindScalarExtraction(*expression);
     }
-    if (!extraction.has_value() && tmpl.has_value() && fields::Template::Compile(*tmpl).HasExtraction()) {
+    if (!extraction.has_value() && tmpl.has_value() && fields::Template::Compile(*tmpl).HasUnreducedExtraction()) {
       extraction = *tmpl;
     }
     for (const std::string& col : columns) {
       if (extraction.has_value()) {
         break;
       }
-      if (fields::Template::Compile(absl::StrCat("{", col, "}")).HasExtraction()) {
+      if (fields::Template::Compile(absl::StrCat("{", col, "}")).HasUnreducedExtraction()) {
         extraction = col;
       }
     }
@@ -1908,14 +1909,15 @@ int RunFind(
   // --summary: reduce matches to a {count, total size} per group instead of
   // printing each one; the table is emitted after the walk.
   const SummaryMode summary_mode = ResolveSummary(command.globals);
-  // --summary={template}: the group key is a field template, compiled once. An m// extraction key
-  // groups per extracted line (a value stream folded into the counts); any other template one key
-  // per matched entry. A template mixing an m// extraction with other text has no single key and is
-  // a usage error refused before the walk.
+  // --summary={template}: the group key is a field template, compiled once. An unreduced m//
+  // extraction key groups per extracted line (a value stream folded into the counts); any other
+  // template (including a reducer-terminated m// like `;join(...)`, which is scalar) one key per
+  // matched entry. A template mixing an UNREDUCED extraction with other text has no single key and is
+  // a usage error refused before the walk; a reduced extraction is scalar and mixes fine.
   std::optional<fields::Template> summary_template;
   if (summary_mode == SummaryMode::kTemplate) {
     summary_template = fields::Template::Compile(SummaryKeyTemplate(command.globals));
-    if (summary_template->HasExtraction() && !summary_template->IsExtraction()) {
+    if (summary_template->HasUnreducedExtraction() && !summary_template->IsExtraction()) {
       on_error(
           "--summary", absl::InvalidArgumentError(
                            "a --summary key template must be a plain field or exactly one m// extraction, not a mix"));

@@ -641,6 +641,19 @@ remains below is the design-forked / larger work.
     is safe - `Template::HasExtraction` trips only on a known field + valid `m//`) plus the `--template`
     / `--columns` strings, refused before the walk. `--summary` is the sole sanctioned list context.
     Friendlier scalar handling is #134.
+  - **SHIPPED reducer `;join(...)` (#134):** an m// pipeline may end in a terminal REDUCER that
+    collapses the value stream to one scalar, making the SAME extraction valid in a scalar context
+    (the explicit opt-in the #136 error asks for). v1 ships `join` in FUNCTION notation: bare `join`
+    joins with `\n`, `join(SEP)` a custom separator (with `\t \n \\ \)` escapes), `join()`
+    concatenates. Numeric reducers (`sum`/`avg`/`min`/`max`/`count`/`first`/`last`) are reserved for
+    the same terminal slot - per-field, so nothing rules out numeric aggregation later. UNIFORM
+    pipeline model (decided over an alternative that reserved `;` for the reducer): `;` = "next stage",
+    `s///` maps whatever flows (per-line before the reducer, scalar after), so #135's per-line s///
+    after m// is kept (incl. in `--summary`) and a post-reducer `s///` rewrites the joined scalar
+    (`m/.../\1/;s/ /_/g;join(, );s/_/./g`). The scalar-context guard now rejects only an UNREDUCED
+    extraction (`HasUnreducedExtraction`); a reducer in a `--summary` key shifts it from a per-line to
+    a per-entry (joined) key, no special-casing. `SplitPipeline` in `xff/fields/fields.cc`. Delimited
+    `s///`/`m//` stay as-is (regex args are delimiter-hostile); only reducers use function notation.
   - **SHIPPED chained sed rewrites (#135):** an `s///` or `m//` qualifier takes a `;`-separated command
     chain, applied left to right; a command after `;` may omit the leading `s`. `s` chain = scalar
     substitution pipeline (`{name:s/a/b/;s/c/d/}`); `m` chain = the first command filters+extracts each

@@ -398,6 +398,8 @@ The `{field}` placeholder vocabulary, substituted per entry in --template / --fo
 - `{mtime:FMT}` - time format: strftime (%Y-%m-%d) or preset (iso, epoch); see --time-format / --timezone
 - `{size:h}` - human-readable size
 - `{name:s/RE/R/f}` - RE2 rewrite of the value (flags g=all, i=ignore-case; any delimiter)
+- `{cap:m/RE/R/f}` - per-line extraction: a value stream, e.g. a --summary key (m//, s///'s list-producing sibling)
+- `{cap:m/RE/R/;join(SEP)}` - reduce the stream to one scalar (join, SEP default newline) so m// is usable in a scalar context (-printf / --template / -exec); reducers are function-notation, e.g. join(, )
 - `{path:COMP}` - path component of the value: basename|core|dir|ext|extension|file|name|path|stem|suffix|suffixes; any path-valued field composes, e.g. {relpath:stem}, {def.B:dir}
 
 For -printf's own % directives (%p %f %s %t ...) and the `%{field}` escape that bridges them to this vocabulary, see the Printf directives section below.
