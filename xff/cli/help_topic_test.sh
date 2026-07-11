@@ -177,6 +177,9 @@ test::help_fields_lists_the_placeholder_vocabulary() {
   expect_output_contains '{env.NAME}' "${out}"      # a dynamic namespace
   expect_output_contains '{name:s/RE/R/f}' "${out}" # the rewrite qualifier
   expect_output_contains 'stem' "${out}"            # a path-component keyword (read from the SOT)
+  # The m// pipeline span diagram (ASCII ranges under each stage).
+  expect_output_contains '|________| |________| |_______| |________|' "${out}"
+  expect_output_contains 'extract    map each   reduce    rewrite' "${out}"
   # `--help=format` is NOT this topic: it resolves to the --format output-format flag.
   out="$("$(_xff_bin)" --help=format 2>&1)"
   expect_output_contains 'output format' "${out}"

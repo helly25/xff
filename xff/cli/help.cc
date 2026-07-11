@@ -217,9 +217,18 @@ std::string RenderFields() {
   absl::StrAppendFormat(
       &out, "  %-18s%s%s\n", "{path:COMP}",
       "path component of the value: ", absl::StrJoin(fields::PathComponentKeywords(), "|"));
+  absl::StrAppend(&out, "                    any path-valued field composes, e.g. {relpath:stem}, {def.B:dir}\n");
+  // The m// pipeline as a span diagram (ranges under each stage). Kept in sync with the doc_renderer
+  // Fields section (--man / --markdown / --help=full); hand-aligned, so keep the widths as-is.
   absl::StrAppend(
       &out,
-      "                    any path-valued field composes, e.g. {relpath:stem}, {def.B:dir}\n"
+      "\nAn m// extraction is a left-to-right pipeline (s/// maps what flows, join reduces it):\n"
+      "  {cap:m/PAT/REP/;s/PAT/REP/;join(SEP);s/PAT/REP/}\n"
+      "       |________| |________| |_______| |________|\n"
+      "       extract    map each   reduce    rewrite\n"
+      "       per line   line       stream    scalar\n");
+  absl::StrAppend(
+      &out,
       "\nFor -printf's own % directives (%p %f %s %t ...) and the %{field} escape that bridges\n"
       "them to this vocabulary, see `--help=-printf`.\n");
   return out;
