@@ -194,6 +194,20 @@ test::summary_m_extraction_key_counts_per_extracted_line() {
   expect_matches "(^|${NL})total +3" "${out}" # three matching lines in total
 }
 
+test::m_extraction_rejected_in_a_scalar_render_context() {
+  # An m// extraction is a value stream, valid only as a --summary key. A per-entry scalar context
+  # (-printf / --template / an -exec arg) rejects it with a usage error instead of newline-joining.
+  local root out rc
+  root="$(mktemp -d)"
+  : >"${root}/a.txt"
+  out="$("$(_xff_bin)" "${root}" -type f -printf '%{name:m/./\0/}\n' 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_matches 'only valid as a --summary key' "${out}"
+  out="$("$(_xff_bin)" --template='{name:m/./\0/}' "${root}" -type f 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  rm -rf "${root}"
+}
+
 test::summary_mixed_extraction_template_is_a_usage_error() {
   # A key template that mixes an m// extraction with other text has no single key -> exit 2.
   local root out rc

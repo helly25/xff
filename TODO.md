@@ -613,10 +613,12 @@ remains below is the design-forked / larger work.
     key per matched entry (size meaningful); a single `m//` extraction key groups per extracted line
     (count only, size N/A); a template mixing an extraction with other text is a usage error. e2e:
     `--summary='{capture.blame:m/^author (.+)$/\1/}'` = blame lines per author.
-  - **SLICE 3 (pending):** enforce the agreed (i) - an `m//` extraction in a SCALAR context
-    (`-printf` / `--format` / `--template` / `--columns` / `-exec` field) is a usage error, not the
-    current newline-join. Add a `Template::HasExtraction()` guard at each scalar consumer (run.cc +
-    the printf/grep/exec paths in evaluate.cc). Friendlier handling is #134; chained rewrites #135.
+  - **SHIPPED slice 3 (#136):** the agreed (i) - an `m//` extraction in a SCALAR context (any
+    `-exec`/`-printf`/`-grep`/... arg, `--template`, or a `--columns` field) is a usage error (exit 2),
+    not a silent newline-join. One `FindScalarExtraction` walk over the expression (checking every arg
+    is safe - `Template::HasExtraction` trips only on a known field + valid `m//`) plus the `--template`
+    / `--columns` strings, refused before the walk. `--summary` is the sole sanctioned list context.
+    Friendlier scalar handling is #134; chained rewrites #135.
   - **DEFERRED:** `--histogram={template}` (histogram counterpart of the summary key); a numeric
     per-line measure (`{...:m//}` emitting a number + `:sum(...)`), which keeps key and measure at
     the same per-line cardinality.
