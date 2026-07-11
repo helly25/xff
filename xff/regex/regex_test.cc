@@ -15,6 +15,11 @@
 
 #include "xff/regex/regex.h"
 
+#include <array>
+#include <string_view>
+#include <utility>
+#include <vector>
+
 #include "absl/status/status.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -23,11 +28,15 @@
 namespace xff::regex {
 namespace {
 
+using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
 using ::testing::Eq;
+using ::testing::IsEmpty;
+using ::testing::Not;
 using ::testing::Optional;
 using ::testing::Pair;
+using ::testing::SizeIs;
 
 struct RegexTest : ::testing::Test {};
 
@@ -209,6 +218,31 @@ TEST_F(RegexTest, ShglobKeepsGlobPathSemantics) {
   EXPECT_TRUE(matcher.FullMatch("test/a.cc"));
   EXPECT_FALSE(matcher.FullMatch("src/sub/a.cc"));  // '*' does not cross '/'
   EXPECT_FALSE(matcher.FullMatch("lib/a.cc"));
+}
+
+TEST_F(RegexTest, GrammarDocsCoverEveryGrammarInValueOrder) {
+  // Anti-drift for --help=grammars: exactly one doc row per Grammar, in --regextype value order.
+  // kAllGrammars mirrors the enum; adding a Grammar means listing it here (proving it compiles below)
+  // and adding a GrammarDocs row, or the SizeIs check fails.
+  static constexpr std::array<Grammar, 6> kAllGrammars = {
+      Grammar::kRe2, Grammar::kExact, Grammar::kFnmatch, Grammar::kGlob, Grammar::kShglob, Grammar::kPcre2,
+  };
+  const std::vector<std::pair<std::string_view, std::string_view>> docs = GrammarDocs();
+  EXPECT_THAT(docs, SizeIs(kAllGrammars.size()));
+  std::vector<std::string_view> names;
+  for (const auto& [name, description] : docs) {
+    names.push_back(name);
+    EXPECT_THAT(description, Not(IsEmpty()));  // every grammar carries an explanation
+  }
+  EXPECT_THAT(names, ElementsAre("RE2", "EXACT", "FNMATCH", "GLOB", "SHGLOB", "PCRE2"));
+}
+
+TEST_F(RegexTest, EveryGrammarCompilesATrivialPattern) {
+  // The core engines never fail to compile; PCRE2 (a build extra) is the only one that may return
+  // Unimplemented in a lean build, so it is exercised by its own dedicated test above.
+  for (const Grammar grammar : {Grammar::kRe2, Grammar::kExact, Grammar::kFnmatch, Grammar::kGlob, Grammar::kShglob}) {
+    EXPECT_THAT(Matcher::Compile("abc", /*case_insensitive=*/false, grammar), IsOk());
+  }
 }
 
 }  // namespace

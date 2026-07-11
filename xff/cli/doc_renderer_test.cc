@@ -128,7 +128,7 @@ TEST_F(DocRendererTest, ReferenceEmitsTheExpectedTopLevelSections) {
   EXPECT_THAT(
       rec.Texts("section"), ElementsAre(
                                 "Description", "Options", "Expression", "Fields", "Printf directives", "Time formats",
-                                "Size units", "Examples", "Exit status", "See also"));
+                                "Size units", "Regex grammars", "Examples", "Exit status", "See also"));
 }
 
 // Drift guard: the walk hard-codes the sub-vocabulary sections (fields / printf / time / size /
@@ -141,7 +141,7 @@ TEST_F(DocRendererTest, InFullTopicsMatchTheReferenceWalk) {
       in_full.emplace_back(topic.name);
     }
   }
-  EXPECT_THAT(in_full, UnorderedElementsAre("fields", "printf", "time", "size", "cookbook"));
+  EXPECT_THAT(in_full, UnorderedElementsAre("fields", "printf", "time", "size", "grammars", "cookbook"));
 }
 
 // Completeness guards: the shared walk feeds --man and --markdown, so every expression primary
