@@ -278,13 +278,14 @@ remains below is the design-forked / larger work.
   `.gitignore`, so the rules alone never dropped it. Deliberately independent of `--hidden`, so the
   user's own dotfiles (`.bazelrc`, `.gitignore`) still show; only git's plumbing goes. In
   `xff/engine/run.cc`'s Walk callback, gated on `gitignore_on`.
-  - **FOLLOW-UP `--skip-vcs[=LIST]` (#131).** Generalize dir-pruning to all known VCS:
-    `.git` / `.hg` / `.svn` / `.jj` / `.bzr` / `_darcs` / `CVS`. Bare = all; `--skip-vcs=git,hg` =
-    an explicit, frozen subset (so adding a VCS to the default set later never changes an explicit
-    invocation's results); `--no-skip-vcs` / `=none` = off. Independent of `--hidden` and of
-    ignore-rule interpretation. `-g` implies `--skip-vcs=git` (today's shipped behavior becomes the
-    git slice of the general mechanism); explicit `--skip-vcs=...` overrides; default off otherwise
-    (find-compat). Tokens: `git,hg,svn,jj,bzr,darcs,cvs`.
+  - **`--skip-vcs[=LIST]` (#131) - SHIPPED.** Dir-pruning generalized to all known VCS:
+    `.git` / `.hg` / `.svn` / `.jj` / `.bzr` / `_darcs` / `CVS`. Bare (or `=all`) = all; `--skip-vcs=git,hg`
+    = an explicit, frozen subset (adding a VCS to the default set later never changes an explicit
+    invocation's results); `--no-skip-vcs` / `=none` = off; an unknown token is a usage error (exit 2).
+    Independent of `--hidden` and of ignore-rule interpretation. `-g` implies `--skip-vcs=git` (the
+    git slice); an explicit `--skip-vcs=...` overrides; default off otherwise (find-compat). Tokens:
+    `git,hg,svn,jj,bzr,darcs,cvs`. `ResolveSkipVcs` in `xff/engine/run.cc` (last-occurrence-wins);
+    the Walk callback prunes by the resolved name set.
   - **FOLLOW-UP `--ignore-vcs` / `--no-ignore-vcs` (#132).** The rg-style toggle for VCS-provided
     ignore _files_ (a different axis from `--skip-vcs`'s dirs): `--no-ignore-vcs` drops the VCS
     ignore-file layer (`.gitignore` + `.git/info/exclude` + global git excludes; later `.hgignore`)
