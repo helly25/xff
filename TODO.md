@@ -182,6 +182,15 @@ remains below is the design-forked / larger work.
       SEE ALSO) + a `doc_renderer_test` drift guard on the in_full topic set.
       **PR B:** `MarkdownRenderer` over the same walk. **PR C:** `PlainRenderer` for
       `--help=full` (retire the bespoke `FullReference` + the main.cc topic renderers).
+    - **Committed `XFF.md` reference + drift guard - SHIPPED.** `XFF.md` at the repo root is the
+      verbatim `xff_full --markdown` output, checked in as the browsable full reference (there is no
+      README manual; the new `README.md` is a short overview that links to it). It is generated, not
+      hand-edited: `./xff-md-update.sh` rewrites it and `//xff/cli:xff_markdown_test` (a `diff_test`,
+      XFF_FULL_ONLY so it runs under `--config=xff_full` in every CI test job) regenerates and fails
+      on any drift. No auto-update pre-commit hook: regenerating needs the full `xff_full` build
+      (pcre2 / archive extras), too heavy for a git hook - the CI diff_test is the gate, the script
+      the one-command fix (same split as `compile_commands-update.sh`). Also added the `//xff` alias
+      to `//xff/cli:xff` so `bazel run //xff` reaches the stock binary.
   - **`--help` readability + discoverability** (2026-07-04 feedback):
     - **Blank line before each section header** (`Traversal:`, `Matching:`, ...) in the
       `--help` overview, so the groups are visually separated.

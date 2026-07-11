@@ -31,6 +31,14 @@ exports_files(
     visibility = ["//visibility:public"],
 )
 
+# XFF.md is the committed Markdown reference, verbatim `xff_full --markdown` output. It is generated,
+# not hand-written: //xff/cli:xff_markdown_test regenerates it and fails on any drift, and
+# ./xff-md-update.sh rewrites it. Exported so that drift guard can diff against it.
+exports_files(
+    ["XFF.md"],
+    visibility = ["//visibility:public"],
+)
+
 config_setting(
     name = "is_clang",
     define_values = {"is_clang": "true"},

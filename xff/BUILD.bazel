@@ -56,3 +56,11 @@ config_setting(
     name = "xff_pcre_enabled",
     flag_values = {":xff_pcre": "True"},
 )
+
+# `//xff` == the default (lean) binary. A convenience alias so `bazel run //xff -- ...` and
+# `bazel build //xff` reach the stock tool without spelling out the //xff/cli:xff path; the full
+# binary stays the explicit //xff/cli:xff_full.
+alias(
+    name = "xff",
+    actual = "//xff/cli:xff",
+)

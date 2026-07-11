@@ -14,6 +14,7 @@
 # limitations under the License.
 
 load("@helly25_bashtest//bashtest:bashtest.bzl", "bashtest")
+load("@helly25_mbo//mbo/diff:diff.bzl", "diff_test")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load("//xff:extras.bzl", "XFF_FULL_ONLY")  # target_compatible_with gate for the extras / full build
 load(":golden.bzl", "xff_golden_cases")
@@ -165,6 +166,26 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
+)
+
+# The committed //:XFF.md is verbatim `xff_full --markdown`; regenerate it and diff, so the checked-in
+# reference can never silently drift from the binary. `xff_markdown_gen` reruns the full binary (env
+# cleared so no stray .xffrc perturbs it), `xff_markdown_test` diffs the result against //:XFF.md and
+# prints the offending lines on a mismatch. XFF_FULL_ONLY -- `//...` runs it under --config=xff_full
+# (every CI test job), which is the same binary XFF.md is generated from. To refresh: ./xff-md-update.sh.
+genrule(
+    name = "xff_markdown_gen",
+    outs = ["XFF.md.actual"],
+    cmd = "XFF_CONFIG=/nonexistent $(location :xff_full) --markdown > $@",
+    target_compatible_with = XFF_FULL_ONLY,
+    tools = [":xff_full"],
+)
+
+diff_test(
+    name = "xff_markdown_test",
+    file_new = ":XFF.md.actual",
+    file_old = "//:XFF.md",
+    target_compatible_with = XFF_FULL_ONLY,
 )
 
 # The whole-run option vocabulary (the flag counterpart of the registry), enumerated
