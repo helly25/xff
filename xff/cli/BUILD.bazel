@@ -350,6 +350,26 @@ bashtest(
     target_compatible_with = XFF_FULL_ONLY,
 )
 
+# The //xff alias is config-adaptive (lean //xff/cli:xff by default, //xff/cli:xff_full in a full
+# build). This asserts the FULL direction: XFF_FULL_ONLY, so `//...` runs it under --config=xff_full,
+# where //xff must resolve to the full binary (PCRE2 linked) while //xff/cli:xff stays lean. The
+# binaries arrive via $(rootpath ...) args so the test exercises the alias's actual resolution, and
+# it runs them directly (no bazel run -> clean output).
+bashtest(
+    name = "alias_test",
+    size = "small",
+    srcs = ["alias_test.sh"],
+    args = [
+        "$(rootpath //xff)",
+        "$(rootpath //xff/cli:xff)",
+    ],
+    data = [
+        "//xff",
+        "//xff/cli:xff",
+    ],
+    target_compatible_with = XFF_FULL_ONLY,
+)
+
 # End-to-end test of the --exclude / --include run-level filter (ignore family):
 # a gitignore-style glob drops matching files, a matched directory is pruned, and
 # --include re-includes with last-match-wins. Drives the real binary.
