@@ -124,6 +124,17 @@ void WriteFields(DocRenderer& out) {
   out.Subsection("Qualifiers ({field:QUAL})");
   out.Rows(qualifiers);
   out.Prose(
+      "An m// extraction is a left-to-right pipeline: s/// maps whatever is flowing (each line, then "
+      "the scalar), and a terminal reducer such as join collapses the stream to one scalar.");
+  // Hand-aligned ASCII span diagram (ranges under each stage). Rendered verbatim (Example -> a
+  // markdown code fence / roff .nf), so the alignment survives; uses only | _ / ( ) so the Roff()
+  // escaper and mandoc leave it intact. Kept in sync with RenderFields in help.cc (--help=fields).
+  out.Example(
+      "  {cap:m/PAT/REP/;s/PAT/REP/;join(SEP);s/PAT/REP/}\n"
+      "       |________| |________| |_______| |________|\n"
+      "       extract    map each   reduce    rewrite\n"
+      "       per line   line       stream    scalar");
+  out.Prose(
       "For -printf's own % directives (%p %f %s %t ...) and the `%{field}` escape that bridges them "
       "to this vocabulary, see the Printf directives section below.");
 }

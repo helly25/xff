@@ -402,6 +402,15 @@ The `{field}` placeholder vocabulary, substituted per entry in --template / --fo
 - `{cap:m/RE/R/;join(SEP)}` - reduce the stream to one scalar (join, SEP default newline) so m// is usable in a scalar context (-printf / --template / -exec); reducers are function-notation, e.g. join(, )
 - `{path:COMP}` - path component of the value: basename|core|dir|ext|extension|file|name|path|stem|suffix|suffixes; any path-valued field composes, e.g. {relpath:stem}, {def.B:dir}
 
+An m// extraction is a left-to-right pipeline: s/// maps whatever is flowing (each line, then the scalar), and a terminal reducer such as join collapses the stream to one scalar.
+
+```
+  {cap:m/PAT/REP/;s/PAT/REP/;join(SEP);s/PAT/REP/}
+       |________| |________| |_______| |________|
+       extract    map each   reduce    rewrite
+       per line   line       stream    scalar
+```
+
 For -printf's own % directives (%p %f %s %t ...) and the `%{field}` escape that bridges them to this vocabulary, see the Printf directives section below.
 
 ## Printf directives

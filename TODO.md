@@ -666,7 +666,14 @@ remains below is the design-forked / larger work.
     (`m/.../\1/;s/ /_/g;join(, );s/_/./g`). The scalar-context guard now rejects only an UNREDUCED
     extraction (`HasUnreducedExtraction`); a reducer in a `--summary` key shifts it from a per-line to
     a per-entry (joined) key, no special-casing. `SplitPipeline` in `xff/fields/fields.cc`. Delimited
-    `s///`/`m//` stay as-is (regex args are delimiter-hostile); only reducers use function notation.
+    `s///`/`m//` stay as-is (regex args are delimiter-hostile); only reducers use function notation. - **SHIPPED span-diagram help (#143).** The `--help=fields` topic (and the doc*renderer FIELDS
+    section -> `--man` / `--markdown` / `--help=full`) now teach the m// pipeline with a two-line
+    ASCII span diagram (ranges under each stage): `|________|` brackets under `m//`, `s//`, `join`,
+    `s//` with `extract per line / map each line / reduce stream / rewrite scalar` labels. Rendered
+    verbatim via the DocRenderer `Example` primitive (a markdown code fence / roff `.nf`), ASCII-only
+    (`| * / ( )`) so the `Roff()`escaper and mandoc keep the alignment; verified in all three
+renderers + a help_topic_test assertion. The diagram is duplicated in help.cc`RenderFields` and
+    doc_renderer.cc (the pre-existing fields-doc split); unifying those is the deferred #126 work.
   - **SHIPPED chained sed rewrites (#135):** an `s///` or `m//` qualifier takes a `;`-separated command
     chain, applied left to right; a command after `;` may omit the leading `s`. `s` chain = scalar
     substitution pipeline (`{name:s/a/b/;s/c/d/}`); `m` chain = the first command filters+extracts each
