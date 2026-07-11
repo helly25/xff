@@ -48,6 +48,10 @@ xff has two flavors selected by the program name: invoked as `find` it is strict
 - `--ignore-files` - respect per-directory .ignore and .xffignore files (off by default) _(xff)_
 - `--ignore-file=PATH` - read an extra gitignore-format file, rooted at its own directory (repeatable) _(xff)_
 - `--no-ignore, -u` - disable all ignore-file processing (.gitignore/.ignore/.xffignore) _(xff)_
+- `--ignore-vcs` - respect version-control ignore files (.gitignore / .git/info/exclude / core.excludesFile) _(xff)_
+  The rg-style affirmative for the VCS ignore-file layer - today git's (.gitignore at any depth, .git/info/exclude, core.excludesFile), the same layer -g / --gitignore auto enables. Use it to countermand an earlier --no-ignore-vcs or a style default. Independent of --ignore-files (.ignore / .xffignore), which keep their own switch; --no-ignore / -u still turns off every ignore source. Last of the ignore-mode flags wins.
+- `--no-ignore-vcs` - do not respect version-control ignore files (keeps .ignore / .xffignore) _(xff)_
+  Drops the VCS ignore-file layer (git's .gitignore / .git/info/exclude / core.excludesFile) while leaving --ignore-files (.ignore / .xffignore) untouched - that is the difference from --no-ignore / -u, which turns off every ignore source. Today git is the only VCS ignore file xff reads, so this is nearly --gitignore=off. Last of the ignore-mode flags wins.
 - `--hidden` - include hidden dotfiles in the walk (default: find/xff show, rg skips) _(xff)_
 - `--no-hidden` - skip hidden dotfiles (the rg default; opts find/xff out) _(xff)_
 - `--skip-vcs[=git,hg,svn,jj,bzr,darcs,cvs|all|none]` - prune VCS metadata dirs (.git, .hg, ...); bare/=all = every known VCS, =LIST a subset _(xff)_

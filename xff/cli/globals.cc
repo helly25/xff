@@ -230,6 +230,29 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "disable all ignore-file processing (.gitignore/.ignore/.xffignore)",
     },
     {
+        .name = "--ignore-vcs",
+        .display = "--ignore-vcs",
+        .group = "filter",
+        .header = "Filter & Ignore",
+        .summary = "respect version-control ignore files (.gitignore / .git/info/exclude / core.excludesFile)",
+        .details = "The rg-style affirmative for the VCS ignore-file layer - today git's (.gitignore at any depth, "
+                   ".git/info/exclude, core.excludesFile), the same layer -g / --gitignore auto enables. Use it to "
+                   "countermand an earlier --no-ignore-vcs or a style default. Independent of --ignore-files "
+                   "(.ignore / .xffignore), which keep their own switch; --no-ignore / -u still turns off every "
+                   "ignore source. Last of the ignore-mode flags wins.",
+    },
+    {
+        .name = "--no-ignore-vcs",
+        .display = "--no-ignore-vcs",
+        .group = "filter",
+        .header = "Filter & Ignore",
+        .summary = "do not respect version-control ignore files (keeps .ignore / .xffignore)",
+        .details = "Drops the VCS ignore-file layer (git's .gitignore / .git/info/exclude / core.excludesFile) while "
+                   "leaving --ignore-files (.ignore / .xffignore) untouched - that is the difference from "
+                   "--no-ignore / -u, which turns off every ignore source. Today git is the only VCS ignore file xff "
+                   "reads, so this is nearly --gitignore=off. Last of the ignore-mode flags wins.",
+    },
+    {
         .name = "--hidden",
         .display = "--hidden",
         .group = "filter",

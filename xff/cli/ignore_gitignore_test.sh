@@ -132,6 +132,64 @@ test::no_ignore_master_switch_overrides_dash_g() {
   expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
 }
 
+test::ignore_vcs_respects_gitignore_like_dash_g() {
+  local root out
+  root="$(_make_tree)" # repo + .gitignore=*.o; --ignore-vcs == auto (respect in a repo)
+  out="$("$(_xff_bin)" --ignore-vcs "${root}" -type f 2>&1)"
+  rm -rf "${root}"
+  expect_not_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
+  expect_not_matches "(^|${NL}|/)sub/b\.o(\$|${NL})" "${out}"
+  expect_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}"
+}
+
+test::ignore_vcs_flags_are_last_wins() {
+  local root out
+  root="$(_make_tree)"
+  # -g turns the VCS layer on; a trailing --no-ignore-vcs wins -> a.o shows again.
+  out="$("$(_xff_bin)" -g --no-ignore-vcs "${root}" -type f 2>&1)"
+  rm -rf "${root}"
+  expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
+  root="$(_make_tree)"
+  # ... and the reverse order re-enables it (one last-occurrence-wins scan with -g / --gitignore).
+  out="$("$(_xff_bin)" --no-ignore-vcs --ignore-vcs "${root}" -type f 2>&1)"
+  rm -rf "${root}"
+  expect_not_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
+}
+
+# Repo with BOTH a .gitignore (the VCS layer, *.o) and a .ignore (the --ignore-files layer, *.log),
+# so the two axes are separable: keep.cc, a.o (gitignored), b.log (.ignore'd).
+_make_tree_vcs_and_ignore() {
+  local root
+  root="$(mktemp -d)"
+  mkdir -p "${root}/.git"
+  touch "${root}/keep.cc" "${root}/a.o" "${root}/b.log"
+  printf '*.o\n' >"${root}/.gitignore"
+  printf '*.log\n' >"${root}/.ignore"
+  echo "${root}"
+}
+
+test::no_ignore_vcs_drops_only_the_vcs_layer_keeping_ignore_files() {
+  local root out
+  root="$(_make_tree_vcs_and_ignore)"
+  # --no-ignore-vcs drops the VCS (.gitignore) layer, but --ignore-files (.ignore) stays on: a.o
+  # reappears while b.log stays dropped. That is exactly the difference from -u / --no-ignore.
+  out="$("$(_xff_bin)" --no-ignore-vcs --ignore-files "${root}" -type f 2>&1)"
+  rm -rf "${root}"
+  expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"       # VCS layer off
+  expect_not_matches "(^|${NL}|/)b\.log(\$|${NL})" "${out}" # .ignore layer still on
+  expect_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}"
+}
+
+test::no_ignore_master_switch_is_broader_than_no_ignore_vcs() {
+  local root out
+  root="$(_make_tree_vcs_and_ignore)"
+  # -u / --no-ignore turns off EVERY ignore source, so both a.o and b.log show (the broader switch).
+  out="$("$(_xff_bin)" -u --ignore-files "${root}" -type f 2>&1)"
+  rm -rf "${root}"
+  expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"   # .gitignore off
+  expect_matches "(^|${NL}|/)b\.log(\$|${NL})" "${out}" # .ignore off too (unlike --no-ignore-vcs)
+}
+
 test::nested_gitignore_scopes_to_its_subtree() {
   local root out
   root="$(mktemp -d)"
