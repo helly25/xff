@@ -236,8 +236,12 @@ test::help_notice_and_license_reproduce_the_texts() {
   expect_output_contains 'RE2' "${notice}"               # a core component (from the reproduced NOTICE)
   expect_output_contains 'BSD-3-Clause' "${notice}"      # a component's SPDX id in the manifest
   license="$("$(_xff_bin)" --help=license 2>&1)"
-  expect_output_contains 'Apache License' "${license}" # the reproduced LICENSE text, in full
-  expect_output_contains 'Version 2.0' "${license}"    # ditto (not just a pointer to a file)
+  # A complete licensing statement leads with the copyright + grant (Apache's APPENDIX), THEN the
+  # verbatim license body - not the bare boilerplate with no owner.
+  expect_output_contains 'Copyright 2026 Marcus Boerger / helly25' "${license}"
+  expect_matches '^xff - eXtended File Find' "${license}" # copyright block heads the output
+  expect_output_contains 'Apache License' "${license}"    # the reproduced LICENSE text, in full
+  expect_output_contains 'Version 2.0' "${license}"       # ditto (not just a pointer to a file)
   # The plural aliases resolve to the same topics.
   expect_output_contains 'RE2' "$("$(_xff_bin)" --help=notices 2>&1)"
   expect_output_contains 'Apache License' "$("$(_xff_bin)" --help=licenses 2>&1)"

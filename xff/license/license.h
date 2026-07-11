@@ -23,9 +23,17 @@
 
 namespace xff::license {
 
+// xff's copyright + license grant: the "who owns this, and under what license" statement (project,
+// copyright line, Apache-2.0 grant). This is Apache 2.0's own APPENDIX ("How to apply the License to
+// your work") boilerplate filled in for xff, so it is what makes the bare license text a COMPLETE
+// statement of how the work is licensed. One SOT: it heads both --help=notice and --help=license, so
+// the two can never state a different owner.
+std::string_view CopyrightNotice();
+
 // xff's own license, the Apache License 2.0, verbatim (xff holds the copyright). Reproduced so a
 // single-file binary is self-contained; the text is generated from the repo LICENSE file (see the
-// //xff/license:license_text_gen genrule), which stays canonical.
+// //xff/license:license_text_gen genrule), which stays canonical. This is the generic license body
+// only; CopyrightNotice() carries the copyright that completes it.
 std::string_view LicenseText();
 
 // The assembled third-party NOTICE: an xff attribution header followed by each registered component
