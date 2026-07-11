@@ -122,6 +122,15 @@ class Template {
   // in the reduction: it just folds the returned values.
   std::optional<std::vector<std::string>> AsExtraction(const RenderContext& context) const;
 
+  // True when the template is exactly one `{field:m/.../.../}` extraction -- the context-free shape
+  // AsExtraction requires (so a caller can branch stream-vs-scalar before it has a context).
+  bool IsExtraction() const;
+
+  // True when ANY segment is an m// extraction (including mid-template). A scalar-output context
+  // (-printf / --format / --template / --columns / -exec) uses this to reject a list-valued template
+  // up front, since a value stream has no scalar meaning there.
+  bool HasExtraction() const;
+
  private:
   // A literal run (fn == nullptr -> emit `literal`) or a field reference: fn is
   // the renderer and `key` its bound argument (capture index, {env.NAME} var, ...).

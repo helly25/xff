@@ -219,7 +219,7 @@ std::size_t ResolveJobs(const std::vector<std::string>& globals, std::optional<r
 // media type, =user (alias =owner) by owner name, =group by owning group (each a files-per-key
 // histogram); =none / absent is off. The mime/user/group keys reuse the field vocabulary (the
 // {mime}/{user}/{group} renderers), so they cannot drift from the field values.
-enum class SummaryMode : std::uint8_t { kOff, kOverall, kType, kExt, kLanguage, kMime, kUser, kGroup };
+enum class SummaryMode : std::uint8_t { kOff, kOverall, kType, kExt, kLanguage, kMime, kUser, kGroup, kTemplate };
 
 SummaryMode ResolveSummary(const std::vector<std::string>& globals) {
   SummaryMode mode = SummaryMode::kOff;
@@ -240,9 +240,25 @@ SummaryMode ResolveSummary(const std::vector<std::string>& globals) {
       mode = SummaryMode::kGroup;
     } else if (global == "--summary=none") {
       mode = SummaryMode::kOff;
+    } else if (global.starts_with("--summary={")) {
+      mode = SummaryMode::kTemplate;  // group by a {field} template (incl. an m// per-line extraction)
     }
   }
   return mode;
+}
+
+// The `--summary={template}` key template (last occurrence), or empty when no template form was
+// given. The `{...}` groups by an arbitrary field value; an m// extraction key groups per extracted
+// line (a value stream), any other template one key per matched entry.
+std::string SummaryKeyTemplate(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--summary=";
+  std::string tmpl;
+  for (const std::string& global : globals) {
+    if (global.starts_with("--summary={")) {
+      tmpl = global.substr(kPrefix.size());
+    }
+  }
+  return tmpl;
 }
 
 // The readable file-type word used as a --summary=type group key, keyed by file
@@ -1396,8 +1412,12 @@ void CollectCaptureRefs(const parser::Expr& expr, std::vector<std::string>* refs
 }
 
 // Returns a -capture NAME whose {capture.NAME} placeholder appears nowhere (no
-// -exec/-capture command and not the --template), or nullopt when all are used.
-std::optional<std::string> UnusedCaptureName(const parser::Expr& expr, const std::optional<std::string>& tmpl) {
+// -exec/-capture command, not the --template, and not a --summary={...} key), or nullopt when all
+// are used.
+std::optional<std::string> UnusedCaptureName(
+    const parser::Expr& expr,
+    const std::optional<std::string>& tmpl,
+    std::string_view summary_key) {
   std::vector<std::string> names;
   CollectCaptureNames(expr, &names);
   if (names.empty()) {
@@ -1407,6 +1427,9 @@ std::optional<std::string> UnusedCaptureName(const parser::Expr& expr, const std
   CollectCaptureRefs(expr, &refs);
   if (tmpl.has_value()) {
     refs.push_back(*tmpl);
+  }
+  if (!summary_key.empty()) {
+    refs.emplace_back(summary_key);  // --summary={...} references captures too
   }
   for (const std::string& name : names) {
     const std::string closed = absl::StrCat("{capture.", name, "}");
@@ -1600,7 +1623,9 @@ int RunFind(
   // A -capture whose {capture.NAME} is never referenced ran a subprocess for
   // nothing (use -exec for pure side effects); flag it before traversing.
   if (expression != nullptr) {
-    if (const std::optional<std::string> unused = UnusedCaptureName(*expression, tmpl); unused.has_value()) {
+    if (const std::optional<std::string> unused =
+            UnusedCaptureName(*expression, tmpl, SummaryKeyTemplate(command.globals));
+        unused.has_value()) {
       on_error(
           "-capture", absl::FailedPreconditionError(
                           absl::StrCat("-capture '", *unused, "' is never referenced as {capture.", *unused, "}")));
@@ -1819,6 +1844,20 @@ int RunFind(
   // --summary: reduce matches to a {count, total size} per group instead of
   // printing each one; the table is emitted after the walk.
   const SummaryMode summary_mode = ResolveSummary(command.globals);
+  // --summary={template}: the group key is a field template, compiled once. An m// extraction key
+  // groups per extracted line (a value stream folded into the counts); any other template one key
+  // per matched entry. A template mixing an m// extraction with other text has no single key and is
+  // a usage error refused before the walk.
+  std::optional<fields::Template> summary_template;
+  if (summary_mode == SummaryMode::kTemplate) {
+    summary_template = fields::Template::Compile(SummaryKeyTemplate(command.globals));
+    if (summary_template->HasExtraction() && !summary_template->IsExtraction()) {
+      on_error(
+          "--summary", absl::InvalidArgumentError(
+                           "a --summary key template must be a plain field or exactly one m// extraction, not a mix"));
+      return 2;
+    }
+  }
   const std::optional<format::SizeUnits> human =
       ResolveHuman(command.globals, style);  // --human: size units for --summary and -ls (xff -> human)
   std::map<std::string, std::pair<std::uint64_t, std::uint64_t>> summary;  // group -> {count, total size}
@@ -2079,7 +2118,35 @@ int RunFind(
         if (matched && any_reduction) {
           // --summary / --histogram reduce matches instead of printing them; explicit
           // actions (-print/-exec) still ran via Evaluate.
-          if (summary_mode != SummaryMode::kOff) {
+          if (summary_mode == SummaryMode::kTemplate) {
+            // A field-template key. Build the render context once; an m// extraction contributes a
+            // value stream (one count per extracted line, size not attributed -- a per-line key would
+            // double-count the file's size), a plain template one key per matched entry (size
+            // meaningful). {target} in a summary key is unsupported here (link_target left empty).
+            const std::string link;
+            const fields::RenderContext key_ctx{
+                .path = visit.path,
+                .root = visit.root,
+                .link_target = link,
+                .metadata = visit.metadata,
+                .depth = visit.depth,
+                .tz = tz,
+                .time_format = time_format,
+                .hash_algorithm = hash_algorithm,
+                .hash_encoding = hash_encoding,
+                .defines = &defines,
+                .outputs = &outputs};
+            if (const std::optional<std::vector<std::string>> stream = summary_template->AsExtraction(key_ctx);
+                stream.has_value()) {
+              for (const std::string& key : *stream) {
+                summary[key].first += 1;
+              }
+            } else {
+              std::pair<std::uint64_t, std::uint64_t>& agg = summary[summary_template->Render(key_ctx)];
+              agg.first += 1;
+              agg.second += visit.metadata.size;
+            }
+          } else if (summary_mode != SummaryMode::kOff) {
             std::pair<std::uint64_t, std::uint64_t>& agg = summary[SummaryKey(summary_mode, visit)];
             agg.first += 1;
             agg.second += visit.metadata.size;
