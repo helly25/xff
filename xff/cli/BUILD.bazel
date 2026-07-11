@@ -313,6 +313,21 @@ bashtest(
     target_compatible_with = XFF_FULL_ONLY,
 )
 
+# Dual-binary parity: runs core (non-extras) commands through both the lean `xff` and the extended
+# `xff_full` and asserts identical output - they share main_cc, so they must never diverge on
+# non-extension behavior. XFF_FULL_ONLY (it needs xff_full), so `//...` runs it under
+# --config=xff_full (every CI test job builds both binaries) and skips it in a lean build.
+bashtest(
+    name = "parity_test",
+    size = "small",
+    srcs = ["parity_test.sh"],
+    data = [
+        ":xff",
+        ":xff_full",
+    ],
+    target_compatible_with = XFF_FULL_ONLY,
+)
+
 # End-to-end test of the --exclude / --include run-level filter (ignore family):
 # a gitignore-style glob drops matching files, a matched directory is pruned, and
 # --include re-includes with last-match-wins. Drives the real binary.
