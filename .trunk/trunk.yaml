@@ -73,6 +73,14 @@ lint:
     - trivy@0.70.0
     - trufflehog@3.95.3
     - yamllint@1.38.0
+  ignore:
+    # XFF.md is generated (verbatim `xff_full --markdown`, guarded by //xff/cli:xff_markdown_test),
+    # not hand-authored prose. Its emphasis style (_(xff)_) and repeated section headings (e.g. Time
+    # under both Options and Fields) come from the renderer, so markdownlint rules (MD049 emphasis,
+    # MD024 duplicate headings) must not dictate it; the diff_test is its sole gate.
+    - linters: [markdownlint]
+      paths:
+        - XFF.md
 actions:
   enabled:
     - trunk-announce
