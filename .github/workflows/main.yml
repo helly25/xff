@@ -133,7 +133,7 @@ jobs:
       - name: bazel test (xff_full + extras)
         run: >
           bazel test --config=xff_full --repository_cache=$HOME/.cache/bazel-repo
-          //... //xff/cli:full_binary_test @xff_pcre2//:pcre2_backend_test
+          //... //xff/cli:full_binary_test //xff/cli:full_extras_test @xff_pcre2//:pcre2_backend_test
 
   # Minimal core archive: prove that dropping the WHOLE extra_modules/ directory (plus the extras'
   # bazel_dep + local_path_override lines) still builds the lean core. This is the regression guard

@@ -25,6 +25,7 @@ cc_library(
     name = "main_cc",
     srcs = ["main.cc"],
     deps = [
+        ":globals_cc",
         ":help_cc",
         ":manpage_cc",
         ":markdown_cc",
@@ -36,9 +37,11 @@ cc_library(
         "//xff/engine:run_cc",
         "//xff/format:format_cc",
         "//xff/parser:parser_cc",
+        "//xff/regex:regex_cc",
         "//xff/registry:registry_cc",
         "//xff/vfs:local_fs_cc",
         "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
     ],
@@ -297,6 +300,17 @@ bashtest(
     name = "full_binary_test",
     size = "small",
     srcs = ["full_binary_test.sh"],
+    data = [":xff_full"],
+    tags = ["manual"],
+)
+
+# Asserts xff_full actually LINKS every extra --config=xff_full enables (via --help=extras) - the CI
+# guard that a shipping extra is never silently dropped from the full binary. `manual` + run ONLY by
+# the full cell, so its assertions run under --config=xff_full (PCRE2 on) and are unconditional.
+bashtest(
+    name = "full_extras_test",
+    size = "small",
+    srcs = ["full_extras_test.sh"],
     data = [":xff_full"],
     tags = ["manual"],
 )
