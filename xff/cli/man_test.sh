@@ -38,23 +38,36 @@ _xff_bin() {
   echo "${bin}"
 }
 
+# Flattens a formatter's terminal styling to plain text so the assertions match:
+#   - the sed strips ANSI SGR escapes (`ESC[...m`), which newer groff/grotty emit BY DEFAULT; they
+#     split tokens (e.g. `ESC[4mxff ESC[24m(1)`), so `xff(1)` would never match otherwise;
+#   - `col -b` then removes backspace overstriking (mandoc / nroff bold+underline).
+# ORDER MATTERS: the sed must run BEFORE `col -b`. `col -b` mangles an SGR escape (it drops the
+# `ESC[` control prefix but keeps the parameters as literal text, e.g. `ESC[4mxff` -> `4mxff`), so
+# stripping after it is too late -- the ESC anchor is gone. `[[]` matches a literal `[` portably
+# (GNU + BSD sed); `${esc}` is a real ESC byte.
+_flatten() {
+  local esc=$'\033'
+  sed "s/${esc}[[][0-9;]*m//g" | col -b
+}
+
 test::man_renders_through_a_roff_formatter() {
   local roff tmp rendered renderer=""
   roff="$("$(_xff_bin)" --man)"
   tmp="$(mktemp)"
   printf '%s\n' "${roff}" >"${tmp}"
 
-  # Use whatever formatter the host has; col -b flattens bold/underline overstriking
-  # so the assertions match plain text.
+  # Use whatever formatter the host has; _flatten reduces its styling (overstriking AND the
+  # SGR escapes newer groff emits) to plain text so the assertions match.
   if command -v mandoc >/dev/null 2>&1; then
     renderer="mandoc"
-    rendered="$(mandoc -Tascii "${tmp}" 2>/dev/null | col -b)"
+    rendered="$(mandoc -Tascii "${tmp}" 2>/dev/null | _flatten)"
   elif command -v groff >/dev/null 2>&1; then
     renderer="groff"
-    rendered="$(groff -man -Tascii "${tmp}" 2>/dev/null | col -b)"
+    rendered="$(groff -man -Tascii "${tmp}" 2>/dev/null | _flatten)"
   elif command -v nroff >/dev/null 2>&1; then
     renderer="nroff"
-    rendered="$(nroff -man "${tmp}" 2>/dev/null | col -b)"
+    rendered="$(nroff -man "${tmp}" 2>/dev/null | _flatten)"
   fi
   rm -f "${tmp}"
 
