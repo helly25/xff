@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -38,6 +39,7 @@
 #include "xff/engine/run.h"
 #include "xff/format/format.h"
 #include "xff/parser/parser.h"
+#include "xff/regex/regex.h"
 #include "xff/registry/descriptor.h"
 #include "xff/vfs/local_fs.h"
 
@@ -177,6 +179,32 @@ std::string RenderSizeDocs() {
   return out;
 }
 
+// The --help=extras topic: the optional build-time features and whether THIS binary links each.
+// Availability is per-binary, so this is a runtime topic (not folded into the static --help=full /
+// man / markdown reference). PCRE2 is the --regextype value extra (regex::Pcre2Available, from the
+// self-registering @xff_pcre2 backend); the flag-gated extras come from the globals SOT (each
+// distinct GlobalFlag.extra key, ExtraEnabled) so the list cannot drift from the flags.
+std::string RenderExtras() {
+  std::string out =
+      "xff build extras. Optional features compiled in at build time; a lean build omits them, and a "
+      "full build (--config=xff_full, or the installed `xff_full` binary) includes them all. Where an "
+      "extra is not built in, its option stays listed but is a hard error if used.\n\n";
+  const auto row = [&out](std::string_view name, bool built_in, std::string_view rebuild, std::string_view what) {
+    absl::StrAppendFormat(
+        &out, "  %-9s %s\n            %s\n", name,
+        built_in ? "[built into this binary]" : absl::StrCat("[not built in; rebuild with ", rebuild, "]"), what);
+  };
+  row("pcre2", xff::regex::Pcre2Available(), "--//xff:xff_pcre",
+      "--regextype=PCRE2: Perl-compatible regex (lookahead, backreferences, ...)");
+  absl::flat_hash_set<std::string_view> seen;
+  for (const xff::cli::GlobalFlag& flag : xff::cli::Globals()) {
+    if (!flag.extra.empty() && seen.insert(flag.extra).second) {
+      row(flag.extra, xff::cli::ExtraEnabled(flag.extra), absl::StrCat("--//xff:", flag.extra), flag.summary);
+    }
+  }
+  return out;
+}
+
 absl::StatusOr<std::string> RenderTopic(std::string_view topic);  // forward declaration (FullReference recurses)
 
 // The full detailed reference (--help=full / long and --help-full / --help-long): every
@@ -208,6 +236,9 @@ absl::StatusOr<std::string> RenderTopic(std::string_view topic) {
   }
   if (topic == "size") {
     return RenderSizeDocs();
+  }
+  if (topic == "extras") {
+    return RenderExtras();
   }
   if (topic == "full" || topic == "long") {
     return FullReference();

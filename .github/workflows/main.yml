@@ -56,8 +56,17 @@ jobs:
             sudo apt-get update && sudo apt-get install -y mandoc
           fi
           command -v mandoc
+      # Every job builds in full mode (--config=xff_full) plus the manual full-only targets by name,
+      # so the composable extras (the @xff_pcre2 backend) get the SAME asan / tsan coverage as the
+      # core - our PCRE2 C-API wrapper is exactly where a buffer / lifetime / thread bug would hide.
+      # Only the `minimal` job opts out. The lean `xff` binary stays lean here (it has no extras
+      # select), so its tests still assert the extras are absent from it.
       - name: bazel test
-        run: bazel test //... --disk_cache=$HOME/.cache/bazel-disk --repository_cache=$HOME/.cache/bazel-repo ${{ matrix.config.flags }}
+        run: >
+          bazel test
+          //... //xff/cli:full_binary_test //xff/cli:full_extras_test @xff_pcre2//:pcre2_backend_test
+          --config=xff_full --disk_cache=$HOME/.cache/bazel-disk
+          --repository_cache=$HOME/.cache/bazel-repo ${{ matrix.config.flags }}
       # Lint gates run once, on the ubuntu clang-asan cell: its --config=clang
       # build above has already fetched the hermetic clang-format, so
       # tools/clang_format.sh resolves the pinned toolchain version.
@@ -108,39 +117,17 @@ jobs:
       - name: Install roff formatter (mandoc)
         run: sudo apt-get update && sudo apt-get install -y mandoc
       - name: bazel test
-        run: bazel test //... --repository_cache=$HOME/.cache/bazel-repo --config=clang --config=tsan
-
-  # The extended `xff_full` binary and its composable build extras (PCRE2, #85). This is the ONLY
-  # cell that links the extra backends (the @xff_pcre2 module) and fetches @pcre2 - a plain build
-  # never does. It runs the whole suite with the extra on (`--config=xff_full`), then the `manual`
-  # full-only targets by name (wildcards skip `manual`): the full binary's end-to-end test and the
-  # PCRE2 backend unit tests (in the @xff_pcre2 module, so named explicitly). ubuntu-only +
-  # repo-cache-only, like tsan.
-  full:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: bazelbuild/setup-bazelisk@v3
-      - name: Mount Bazel repo cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/bazel-repo
-          key: bazel-repo-full-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
-          restore-keys: |
-            bazel-repo-full-
-      - name: Install roff formatter (mandoc)
-        run: sudo apt-get update && sudo apt-get install -y mandoc
-      - name: bazel test (xff_full + extras)
         run: >
-          bazel test --config=xff_full --repository_cache=$HOME/.cache/bazel-repo
-          //... //xff/cli:full_binary_test @xff_pcre2//:pcre2_backend_test
+          bazel test
+          //... //xff/cli:full_binary_test //xff/cli:full_extras_test @xff_pcre2//:pcre2_backend_test
+          --repository_cache=$HOME/.cache/bazel-repo --config=clang --config=tsan --config=xff_full
 
   # Minimal core archive: prove that dropping the WHOLE extra_modules/ directory (plus the extras'
   # bazel_dep + local_path_override lines) still builds the lean core. This is the regression guard
   # for the "full separation" property (#123) - the shared xff_extras_api base module lives at the
   # top level (not under extra_modules/), and nothing in the core reaches into an extra, so a future
-  # core->extra dependency would fail here. One cell on the single most-default target (lean
-  # //xff/cli:xff, ubuntu default); repo-cache-only, like tsan/full.
+  # core->extra dependency would fail here. The sole job that opts OUT of the extras (every other job
+  # runs --config=xff_full); one cell on the single most-default target (lean //xff/cli:xff, ubuntu).
   minimal:
     runs-on: ubuntu-latest
     steps:
@@ -165,7 +152,7 @@ jobs:
   # workflow job is wired into `needs`, so a newly added job cannot silently
   # escape the gate. Mirrors helly25/mbo.
   done:
-    needs: [test, pre-commit, trunk, tsan, full, minimal]
+    needs: [test, pre-commit, trunk, tsan, minimal]
     if: always()
     runs-on: ubuntu-latest
     steps:

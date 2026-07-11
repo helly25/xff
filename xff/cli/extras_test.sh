@@ -59,4 +59,18 @@ test::disabled_extra_help_topic_marks_it_not_built_in() {
   expect_output_contains "descend into archives" "${out}" # the summary still shows
 }
 
+test::help_extras_lists_every_build_extra_and_availability() {
+  # `--help=extras` enumerates the optional build extras and whether THIS (lean) binary links each.
+  # Neither pcre2 (the --regextype value extra) nor archive (a flag extra) is built in here, and
+  # each names the flag to rebuild with.
+  local out rc
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --help=extras 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_output_contains "build extras" "${out}"
+  expect_matches "pcre2.*not built in" "${out}"
+  expect_output_contains "--//xff:xff_pcre" "${out}"
+  expect_matches "archive.*not built in" "${out}"
+  expect_output_contains "--//xff:archive" "${out}"
+}
+
 test_runner
