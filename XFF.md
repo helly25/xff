@@ -480,8 +480,8 @@ command, and how it works. See --help=fields for {field}s and --help=stats for t
     %s is the size, %p the path; the shell sorts and takes the top ten. -printf builds any columnar line you need.
 
   Disk use per file type
-    xff --summary=ext
-    a count + total size per extension; swap in --histogram=ext for bars, or --histogram='ext:sum(lines)' to rank by lines. See --help=stats.
+    xff . -type f --summary=ext
+    a count + total size per extension; the --summary global reads naturally at the end, after the expression (a --long global may sit anywhere). Swap in --histogram=ext for bars, or --histogram='ext:sum(lines)' to rank by lines. See --help=stats.
 
   Delete stale temp files, safely
     xff . -type f -name '*.tmp' -mtime +7 -delete --dry-run
@@ -496,8 +496,8 @@ command, and how it works. See --help=fields for {field}s and --help=stats for t
     runs git blame on each text file; the shell pipe tallies lines per author across the tree. -text skips binaries (which git blame cannot line-blame). -exec feeds any pipeline the field vocabulary cannot express alone.
 
   Author line counts, natively (no shell pipe)
-    xff -g --summary='{capture.blame:m/^author (.+)$/\1/}' . -text -capturedir=blame git blame --line-porcelain {} \;
-    the recipe above with the awk|sort tail folded into xff. -capturedir runs git blame in each file's own directory (repo-safe, works across nested repos); --summary folds that output via an m// extraction, tallying lines per author across the tree - no external pipe. -g honors .gitignore and skips .git; -text keeps blame off binaries. Pass several roots (a b c ...) to span multiple trees. Globals (--summary, -g) come before the first path.
+    xff -g . -text -capturedir=blame git blame --line-porcelain {} \; --summary='{capture.blame:m/^author (.+)$/\1/}'
+    the recipe above with the awk|sort tail folded into xff. -capturedir runs git blame in each file's own directory (repo-safe, works across nested repos); --summary folds that output via an m// extraction, tallying lines per author across the tree - no external pipe. -g honors .gitignore and skips .git; -text keeps blame off binaries. Pass several roots (a b c ...) to span multiple trees. A single-dash global like -g leads; double-dash globals such as --summary may sit anywhere (before or after the paths).
 
   Checksum manifest for a tree
     xff . -type f -hash=sha256

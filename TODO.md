@@ -315,6 +315,19 @@ remains below is the design-forked / larger work.
     axis (`--ignore-files`), untouched - which is exactly what distinguishes `--no-ignore-vcs` from
     `-u`. Today git is the only VCS ignore file, so `--no-ignore-vcs` is nearly `--gitignore=off`; the
     names earn their keep once xff reads non-git VCS ignore files.
+- **`--` globals are position-independent (#145) - SHIPPED.** A double-dash global may now appear
+  anywhere - before the roots, among them, or in the expression, including the tail
+  (`xff . -type f --summary=ext`) - killing the "unknown predicate: '--summary=ext'" WTH moments.
+  Safe because every primary/operator is single-dash, so a `--`-token at a primary/operator boundary
+  is unambiguously a global; `ExprParser::SkipGlobals()` hoists it there (and the roots loop hoists
+  between roots), while a `--flag` inside a primary's argument run (an `-exec` command, a `-printf`
+  format) stays a literal argument - never stolen from a child command. A bare `--` ends option
+  parsing and disables hoisting; single-dash globals stay leading-only (ambiguous with primaries).
+  Decided FULL permutation (any `--` global) over an output-only allowlist, since `--top`/`--histogram`
+  and any future output global all fall out of the one rule. Grammar-affecting `--regextype` still
+  belongs before the expression (a late one is hoisted but does not retro-recompile matchers). The
+  cookbook/README/usage examples now show `--summary` at the tail; #144 (the `-summary`-as-action
+  idea) is superseded for its positional driver.
 - **Color support**: `--color[=auto|always|never]` ships an `ls`-like scheme keyed
   on the filesystem file type (directory, symlink, executable, fifo/socket/device);
   auto colors only a tty and honors `NO_COLOR`. Still open: per-language coloring

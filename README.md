@@ -55,8 +55,8 @@ cp bazel-bin/xff/cli/xff /usr/local/bin/xff
 # Ten largest files (-printf builds any columnar line; the shell sorts).
 xff . -type f -printf '%s\t%p\n' | sort -rn | head
 
-# Disk use per file type (a count + total size per extension).
-xff --summary=ext
+# Disk use per file type (a --long global like --summary may sit at the end).
+xff . -type f --summary=ext
 
 # Delete stale temp files, safely (prints what -delete WOULD remove).
 xff . -type f -name '*.tmp' -mtime +7 -delete --dry-run

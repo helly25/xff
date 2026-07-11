@@ -221,6 +221,21 @@ test::m_extraction_rejected_in_a_scalar_render_context() {
   rm -rf "${root}"
 }
 
+test::summary_global_may_follow_the_roots_and_expression() {
+  # A --long global is position-independent (#145): --summary works after the roots AND after the
+  # expression (the WTH-killer), not only leading. A --flag inside an -exec command stays literal.
+  local root out
+  root="$(mktemp -d)"
+  : >"${root}/a.txt"
+  : >"${root}/b.log"
+  out="$(_run "${root}" -type f --summary=ext)" # global at the very end, after the expression
+  expect_matches "(^|${NL})txt " "${out}"
+  expect_matches "(^|${NL})log " "${out}"
+  out="$(_run "${root}" --summary=ext -type f)" # global after the root, before the expression
+  expect_matches "(^|${NL})txt " "${out}"
+  rm -rf "${root}"
+}
+
 test::m_reducer_makes_the_extraction_scalar_valid() {
   # A terminal join(...) reducer collapses the value stream to one scalar, so the SAME m// is now
   # valid in a scalar context (--template / -printf) -- the explicit opt-in the #136 error asks for.

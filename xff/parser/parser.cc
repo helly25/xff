@@ -48,6 +48,16 @@ bool StartsExpression(std::string_view arg) {
   return arg == "(" || arg == ")" || arg == "!" || arg == ",";
 }
 
+// A whole-run global written with a double dash (`--summary=ext`, `--sort`, `--top=10`). Every
+// expression primary and operator is single-dash, so a `--`-prefixed token is unambiguously a global
+// wherever it appears (after the roots, in the expression, at the tail) -- never a primary. That lets
+// the parser hoist it out of any primary/operator position (but NOT out of a primary's argument run,
+// e.g. an -exec command or a -printf format, which the ExprParser consumes token-by-token). Bare `--`
+// (exactly two dashes) is the end-of-options delimiter, not a global.
+bool IsHoistableGlobal(std::string_view arg) {
+  return arg.size() > 2 && arg[0] == '-' && arg[1] == '-';
+}
+
 bool IsOr(std::string_view t) {
   return t == "-o" || t == "-or";
 }
@@ -138,7 +148,10 @@ ExprPtr MakeBinary(Expr::Kind kind, ExprPtr lhs, ExprPtr rhs) {
 //   prim := '(' list ')' | PREDICATE arg{arity}
 class ExprParser {
  public:
-  ExprParser(const std::vector<std::string>& tokens, regex::Grammar grammar) : tokens_(tokens), grammar_(grammar) {}
+  // `hoist_globals` = pull double-dash globals out of primary/operator positions into
+  // HoistedGlobals() (off after an explicit `--` end-of-options delimiter).
+  ExprParser(const std::vector<std::string>& tokens, regex::Grammar grammar, bool hoist_globals = true)
+      : tokens_(tokens), grammar_(grammar), hoist_globals_(hoist_globals) {}
 
   absl::StatusOr<ExprPtr> Parse() {
     ExprPtr expr = ParseComma();
@@ -151,10 +164,25 @@ class ExprParser {
     return expr;
   }
 
+  // Double-dash globals lifted out of the expression (see IsHoistableGlobal), in appearance order,
+  // for the caller to append to the command's global list.
+  const std::vector<std::string>& HoistedGlobals() const { return hoisted_globals_; }
+
  private:
   bool AtEnd() const { return pos_ >= tokens_.size(); }
 
   const std::string& Peek() const { return tokens_[pos_]; }
+
+  // At a primary/operator boundary, lift any run of double-dash globals into hoisted_globals_ so the
+  // syntactic checks that follow see the next real primary/operator. Called only from those
+  // boundaries, never while a primary is consuming its raw arguments (an -exec command, a -printf
+  // format), so a `--flag` meant for a child command is left untouched.
+  void SkipGlobals() {
+    while (hoist_globals_ && !AtEnd() && IsHoistableGlobal(tokens_[pos_])) {
+      hoisted_globals_.push_back(tokens_[pos_]);
+      ++pos_;
+    }
+  }
 
   void Fail(std::string message) {
     if (status_.ok()) {
@@ -200,6 +228,9 @@ class ExprParser {
 
   ExprPtr ParseAnd() {
     ExprPtr lhs = ParseUnary();
+    // ParseAnd is the tier directly over the operands, so skipping globals right after each operand
+    // (before the operator check) leaves every higher tier looking at a real operator/terminator.
+    SkipGlobals();
     while (status_.ok() && !AtEnd() && !IsOrTier(Peek()) && !IsXorTier(Peek()) && Peek() != ")" && Peek() != ",") {
       Expr::Kind kind = Expr::Kind::kAnd;
       if (IsNand(Peek())) {
@@ -209,12 +240,14 @@ class ExprParser {
         ++pos_;  // optional explicit -a
       }
       ExprPtr rhs = ParseUnary();
+      SkipGlobals();
       lhs = MakeBinary(kind, std::move(lhs), std::move(rhs));
     }
     return lhs;
   }
 
   ExprPtr ParseUnary() {
+    SkipGlobals();  // a global leading this operand (start of expression, or after an operator)
     if (!AtEnd() && IsNot(Peek())) {
       ++pos_;
       return MakeNot(ParseUnary());
@@ -430,6 +463,8 @@ class ExprParser {
 
   const std::vector<std::string>& tokens_;
   regex::Grammar grammar_;  // the regex grammar for this command's matchers (from --regextype)
+  bool hoist_globals_ = true;
+  std::vector<std::string> hoisted_globals_;
   std::size_t pos_ = 0;
   absl::Status status_ = absl::OkStatus();
 };
@@ -559,12 +594,14 @@ regex::Grammar GrammarFromGlobals(const std::vector<std::string>& globals) {
 absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
   Command cmd;
   std::size_t i = 0;
+  bool options_ended = false;
 
-  // Globals: leading '-'/'+' tokens before the first root; '--' ends them.
+  // Leading globals: '-'/'+' tokens before the first root; a bare '--' ends option parsing.
   for (; i < args.size(); ++i) {
     const std::string& arg = args[i];
     if (arg == "--") {
       ++i;
+      options_ended = true;
       break;
     }
     if (!arg.empty() && (arg[0] == '-' || arg[0] == '+')) {
@@ -573,23 +610,36 @@ absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
       break;
     }
   }
-  // The regex grammar (from --regextype) is fixed for the whole command, so resolve it once here and
-  // compile every matcher with it (below, and on the ApplyCaseMode recompile).
-  cmd.grammar = GrammarFromGlobals(cmd.globals);
 
-  // Roots: operands until the expression begins.
+  // Roots: operands until the expression begins. A double-dash global among the roots is hoisted
+  // (globals are position-independent), so `a --sort=tree b` keeps both roots; an explicit `--`
+  // disables that, taking every following token literally.
   for (; i < args.size(); ++i) {
+    if (!options_ended && IsHoistableGlobal(args[i])) {
+      cmd.globals.push_back(args[i]);
+      continue;
+    }
     if (StartsExpression(args[i])) {
       break;
     }
     cmd.roots.push_back(args[i]);
   }
 
-  // Expression: the remaining tokens, parsed to a tree.
+  // The regex grammar (from --regextype) compiles every matcher, so resolve it from the globals seen
+  // so far -- a leading / among-roots --regextype applies. A --regextype inside the expression is
+  // hoisted below but, sitting after the patterns it would govern, does not retro-recompile them; it
+  // belongs before the expression.
+  cmd.grammar = GrammarFromGlobals(cmd.globals);
+
+  // Expression: the remaining tokens, parsed to a tree. The parser hoists any double-dash globals it
+  // meets at a primary/operator boundary (unless `--` ended options) -- so `. -type f --summary=ext`
+  // works -- and we fold them back into the command's globals, then refresh the grammar.
   const std::vector<std::string> expr_tokens(args.begin() + static_cast<std::ptrdiff_t>(i), args.end());
   if (!expr_tokens.empty()) {
-    ExprParser parser(expr_tokens, cmd.grammar);
+    ExprParser parser(expr_tokens, cmd.grammar, /*hoist_globals=*/!options_ended);
     MBO_ASSIGN_OR_RETURN(cmd.expression, parser.Parse());
+    cmd.globals.insert(cmd.globals.end(), parser.HoistedGlobals().begin(), parser.HoistedGlobals().end());
+    cmd.grammar = GrammarFromGlobals(cmd.globals);
   }
   return cmd;
 }

@@ -46,6 +46,43 @@ TEST_F(ParserTest, GlobalsRootsExpression) {
   EXPECT_THAT(cmd.expression->args, ElementsAre("f"));
 }
 
+TEST_F(ParserTest, DoubleDashGlobalsHoistFromAfterRootsAndTheExpression) {
+  // A `--` global is unambiguous (every primary/operator is single-dash), so it is hoisted to
+  // globals wherever it appears: after the roots, at the tail, and interspersed among operators.
+  ASSERT_OK_AND_ASSIGN(const Command after, Parse({".", "--summary=ext", "-type", "f"}));
+  EXPECT_THAT(after.globals, ElementsAre("--summary=ext"));
+  EXPECT_THAT(after.roots, ElementsAre("."));
+  EXPECT_THAT(after.expression->descriptor->name, "-type");
+
+  ASSERT_OK_AND_ASSIGN(const Command tail, Parse({".", "-type", "f", "--summary=ext"}));
+  EXPECT_THAT(tail.globals, ElementsAre("--summary=ext"));
+  EXPECT_THAT(tail.expression->descriptor->name, "-type");
+
+  ASSERT_OK_AND_ASSIGN(const Command mid, Parse({".", "-type", "f", "--sort=tree", "-o", "-name", "x"}));
+  EXPECT_THAT(mid.globals, ElementsAre("--sort=tree"));
+  EXPECT_THAT(mid.expression->kind, Expr::Kind::kOr);
+}
+
+TEST_F(ParserTest, DoubleDashGlobalHoistsFromBetweenRoots) {
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({"a", "--sort=tree", "b", "-type", "f"}));
+  EXPECT_THAT(cmd.globals, ElementsAre("--sort=tree"));
+  EXPECT_THAT(cmd.roots, ElementsAre("a", "b"));
+}
+
+TEST_F(ParserTest, DoubleDashInsideAnExecCommandIsNotHoisted) {
+  // A --flag between -exec and its ';' belongs to the child command, not xff: it stays an argument.
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-type", "f", "-exec", "echo", "--summary=x", "{}", ";"}));
+  EXPECT_THAT(cmd.globals, ElementsAre());  // nothing hoisted out of the exec args
+  ASSERT_THAT(cmd.expression, NotNull());
+  EXPECT_THAT(cmd.expression->kind, Expr::Kind::kAnd);  // -type f AND -exec ...
+}
+
+TEST_F(ParserTest, LeadingEndOfOptionsDisablesGlobalHoisting) {
+  // A bare `--` stops option parsing, so a later --summary is taken literally (an unknown predicate),
+  // not hoisted -- if it had been hoisted the parse would have succeeded.
+  EXPECT_THAT(Parse({"--", ".", "-type", "f", "--summary=ext"}), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
 TEST_F(ParserTest, NoExpressionIsNull) {
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({"."}));
   EXPECT_THAT(cmd.roots, ElementsAre("."));

@@ -57,7 +57,7 @@ Usage:
 
 No path searches the current directory; no action prints each match (an implicit -print).
 
-Options (whole-run, before the paths):
+Options (whole-run; shown before the paths, but a --long option may appear anywhere):
 )";
 
 // The Expression: section of the usage page, printed after the generated Help: section.
