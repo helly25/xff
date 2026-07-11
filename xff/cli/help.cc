@@ -314,13 +314,13 @@ std::string RenderCookbook() {
        .note = "prints every TODO line as path:lineno:text in C / C++ / C# files; add -c for per-file "
                "counts or --context=2 for surrounding lines."},
       {.task = "Per-file git-blame author line counts",
-       .command = "xff . -type f -text -exec git blame --line-porcelain {} \\; "
+       .command = "xff . -text -exec git blame --line-porcelain {} \\; "
                   "| grep '^author ' | sort | uniq -c | sort -rn",
        .note = "runs git blame on each text file; the shell pipe tallies lines per author across the "
                "tree. -text skips binaries (which git blame cannot line-blame). -exec feeds any pipeline "
                "the field vocabulary cannot express alone."},
       {.task = "Author line counts, gitignore-aware and repo-safe",
-       .command = "xff . -g -type f -text -execdir git blame --line-porcelain {} \\; "
+       .command = "xff . -g -text -execdir git blame --line-porcelain {} \\; "
                   "| awk '/^author /{sub(/^author /,\"\"); n[$0]++} END{for(a in n) printf \"%7d  %s\\n\", n[a], a}' "
                   "| sort -rn",
        .note = "aggregates blame into lines-per-contributor over the whole tree. The robust cousin of the "
