@@ -41,9 +41,24 @@ namespace xff::glob {
 // glued `**` stays within one segment). That is why this is a small self-contained translator and
 // NOT mbo::file::Glob2Re2 - a full filesystem-globbing library with different `**` semantics that xff
 // does not use (xff walks its own VFS engine and here needs only the pure pattern -> RE2 step). Brace
-// expansion `{a,b}` is deliberately NOT handled here (`{`/`}` stay literal); it will be a separate
-// opt-in shell-glob grammar so GLOB / gitignore keep matching literal braces.
+// expansion `{a,b}` is deliberately NOT handled here (`{`/`}` stay literal) so GLOB / gitignore keep
+// matching literal braces; it is the one addition of ShglobToRegex below.
 std::string GlobToRegex(std::string_view pattern);
+
+// Translates a shell glob with brace alternation - the `--regextype=SHGLOB` ("shell glob") grammar.
+// A strict superset of GlobToRegex: everything above, plus `{a,b,c}` -> a RE2 alternation
+// `(?:a|b|c)`. As a matcher (not a shell) the group matches any one alternative rather than expanding
+// to several words, e.g. `*.{cc,h}` -> `[^/]*\.(?:cc|h)`. Rules, matching bash:
+//   - each alternative is itself SHGLOB-translated, so `*`/`?`/`[...]` and nested `{}` work inside
+//     (`{src,test}/**` and `{a,{b,c}}` are fine); an alternative may contain `/`
+//   - a group needs a top-level `,`: a comma-less `{x}` (and an unbalanced `{`) stays a literal brace
+//   - empty alternatives are allowed (`{a,,b}` -> `(?:a||b)`)
+//   - `\{`, `\}`, `\,` are literal (the backslash escape), as are `{`/`}`/`,` inside a `[...]` class
+// Numeric / character sequences (`{1..9}`, `{a..z}`) and bash extglob pattern-lists
+// (`?(...)`/`@(...)`/`!(...)`) are NOT handled (the latter has no clean RE2 form). Brace expansion is
+// why SHGLOB is a separate grammar from GLOB rather than a GLOB feature: GLOB / gitignore must keep
+// matching literal braces.
+std::string ShglobToRegex(std::string_view pattern);
 
 }  // namespace xff::glob
 

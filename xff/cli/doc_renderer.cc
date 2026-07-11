@@ -244,8 +244,9 @@ void WriteReference(DocRenderer& out) {
   out.SeeAlso(
       kSeeAlso,
       "The grammars selected by `--regextype` map to these references: FNMATCH uses fnmatch(3), GLOB "
-      "uses glob(7), and PCRE2 uses pcre2pattern(3). The default RE2 grammar has no man page; its "
-      "syntax is documented at https://github.com/google/re2/wiki/Syntax .");
+      "(and SHGLOB, which adds `{a,b}` brace alternation) use glob(7), and PCRE2 uses pcre2pattern(3). "
+      "The default RE2 grammar has no man page; its syntax is documented at "
+      "https://github.com/google/re2/wiki/Syntax .");
 }
 
 }  // namespace xff::cli

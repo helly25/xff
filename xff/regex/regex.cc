@@ -234,6 +234,10 @@ absl::StatusOr<Matcher> Matcher::Compile(std::string_view pattern, bool case_ins
       // A path-aware shell glob translated to RE2 (via xff/glob), then RE2 provides every op.
       // GlobToRegex escapes all input, so the result is valid RE2 (the error path is unreachable).
       return compile_re2(glob::GlobToRegex(pattern));
+    case Grammar::kShglob:
+      // GLOB plus brace alternation (`{a,b}`), likewise translated to RE2 by xff/glob and always
+      // valid (every literal is escaped, so the compile error path is unreachable here too).
+      return compile_re2(glob::ShglobToRegex(pattern));
     case Grammar::kPcre2: {
       // PCRE2 is a build-time extra: the real backend (extra_modules/pcre2) self-registers a factory
       // in the xff_extras_api slot. MakePcre2Backend invokes it, or returns Unimplemented when no

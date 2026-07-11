@@ -59,5 +59,35 @@ TEST_F(GlobTest, MetacharactersAreEscapedAndEscapesRespected) {
   EXPECT_THAT(GlobToRegex("a\\*b"), "a\\*b");  // an escaped `*` is a literal asterisk, not a wildcard
 }
 
+TEST_F(GlobTest, GlobLeavesBracesLiteral) {
+  // The plain GLOB grammar (and the gitignore engine) never expand braces: `{`/`}`/`,` are literals,
+  // escaped for RE2. This is why brace expansion is a separate SHGLOB grammar.
+  EXPECT_THAT(GlobToRegex("*.{cc,h}"), "[^/]*\\.\\{cc,h\\}");
+  EXPECT_THAT(GlobToRegex("a{b}c"), "a\\{b\\}c");
+}
+
+TEST_F(GlobTest, ShglobExpandsBraceAlternation) {
+  EXPECT_THAT(ShglobToRegex("*.{cc,h}"), "[^/]*\\.(?:cc|h)");        // the motivating case
+  EXPECT_THAT(ShglobToRegex("{a,b,c}"), "(?:a|b|c)");                // three alternatives
+  EXPECT_THAT(ShglobToRegex("{src,test}/*"), "(?:src|test)/[^/]*");  // an alternative before a `/`
+  EXPECT_THAT(ShglobToRegex("f{1,2}.txt"), "f(?:1|2)\\.txt");
+}
+
+TEST_F(GlobTest, ShglobAlternativesAreThemselvesTranslated) {
+  // Each alternative is SHGLOB-translated: wildcards, classes and nested braces all work inside.
+  EXPECT_THAT(ShglobToRegex("{*.cc,[ab]?}"), "(?:[^/]*\\.cc|[ab][^/])");
+  EXPECT_THAT(ShglobToRegex("{a,{b,c}d}"), "(?:a|(?:b|c)d)");               // nesting
+  EXPECT_THAT(ShglobToRegex("{src,test}/**/x"), "(?:src|test)/(?:.*/)?x");  // `**` inside an alt
+  EXPECT_THAT(ShglobToRegex("{a,,b}"), "(?:a||b)");                         // empty alternatives allowed
+}
+
+TEST_F(GlobTest, ShglobLeavesDegenerateBracesLiteral) {
+  // A comma-less group and an unbalanced `{` are not alternations - they stay literal braces (bash).
+  EXPECT_THAT(ShglobToRegex("{a}"), "\\{a\\}");          // no top-level comma
+  EXPECT_THAT(ShglobToRegex("a{bc"), "a\\{bc");          // unbalanced `{`
+  EXPECT_THAT(ShglobToRegex("\\{a,b\\}"), "\\{a,b\\}");  // escaped braces are literal
+  EXPECT_THAT(ShglobToRegex("[{,}]"), "[{,}]");          // `,`/`{`/`}` inside a class are literal
+}
+
 }  // namespace
 }  // namespace xff::glob
