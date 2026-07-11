@@ -1157,9 +1157,13 @@ bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
 // --gitignore / -g ternary. Bare `-g` / `--gitignore` selects AUTO (respect .gitignore
 // only when the traversal is inside a git repo, matching git's own behavior);
 // `--gitignore=on` (or the short `-g+`) forces it on regardless, `--gitignore=off`
-// (short `-g-`) forces it off. Last occurrence wins. Off by default (find-compatible).
-// -u / --no-ignore overrules them all: the master switch over every ignore source is
-// position-independent, not a participant in the last-wins scan.
+// (short `-g-`) forces it off. The rg-style `--ignore-vcs` / `--no-ignore-vcs` are synonyms
+// for the VCS ignore-file layer: `--ignore-vcs` == AUTO (respect it, like bare -g) and
+// `--no-ignore-vcs` == OFF (drop it) -- today git is xff's only VCS ignore file, so
+// --no-ignore-vcs is nearly --gitignore=off. All of these are one last-occurrence-wins scan;
+// `.ignore` / `.xffignore` are a separate axis (--ignore-files), untouched here. Off by
+// default (find-compatible). -u / --no-ignore overrules them all: the master switch over every
+// ignore source is position-independent, not a participant in the last-wins scan.
 enum class GitignoreMode { kOff, kOn, kAuto };
 
 GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals, std::optional<registry::Style> style) {
@@ -1172,11 +1176,11 @@ GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals, std:
   const bool opinionated = style == registry::Style::kRg;
   GitignoreMode mode = opinionated ? GitignoreMode::kOn : GitignoreMode::kOff;
   for (const std::string& global : globals) {
-    if (global == "-g" || global == "--gitignore") {
+    if (global == "-g" || global == "--gitignore" || global == "--ignore-vcs") {
       mode = GitignoreMode::kAuto;
     } else if (global == "-g+" || global == "--gitignore=on") {
       mode = GitignoreMode::kOn;
-    } else if (global == "-g-" || global == "--gitignore=off") {
+    } else if (global == "-g-" || global == "--gitignore=off" || global == "--no-ignore-vcs") {
       mode = GitignoreMode::kOff;
     }
   }

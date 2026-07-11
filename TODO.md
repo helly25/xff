@@ -303,13 +303,18 @@ remains below is the design-forked / larger work.
     git slice); an explicit `--skip-vcs=...` overrides; default off otherwise (find-compat). Tokens:
     `git,hg,svn,jj,bzr,darcs,cvs`. `ResolveSkipVcs` in `xff/engine/run.cc` (last-occurrence-wins);
     the Walk callback prunes by the resolved name set.
-  - **FOLLOW-UP `--ignore-vcs` / `--no-ignore-vcs` (#132).** The rg-style toggle for VCS-provided
-    ignore _files_ (a different axis from `--skip-vcs`'s dirs): `--no-ignore-vcs` drops the VCS
+  - **`--ignore-vcs` / `--no-ignore-vcs` (#132) - SHIPPED.** The rg-style toggle for VCS-provided
+    ignore _files_ (a different axis from `--skip-vcs`'s dirs). `--no-ignore-vcs` drops the VCS
     ignore-file layer (`.gitignore` + `.git/info/exclude` + global git excludes; later `.hgignore`)
-    while keeping `.ignore` / `.xffignore`. Needs a precedence spec before building:
-    `--no-ignore`/`-u` (all off) > `--no-ignore-vcs` (VCS ignore files off) > `-g`/`--gitignore`.
-    Low urgency: today the only VCS ignore file is `.gitignore`, so it is nearly `--gitignore=off`;
-    it earns its keep once xff reads non-git VCS ignore files.
+    while keeping `.ignore` / `.xffignore`; `--ignore-vcs` respects it. Implemented as synonyms in the
+    one gitignore ternary (`ResolveGitignoreMode`, `xff/engine/run.cc`): `--ignore-vcs` == AUTO (like
+    bare `-g`), `--no-ignore-vcs` == OFF, both last-occurrence-wins participants alongside
+    `-g`/`--gitignore`. Precedence settled as last-wins rather than a fixed `--no-ignore-vcs > -g`
+    priority, to match the existing gitignore-flag convention (`-u`/`--no-ignore` stays the
+    position-independent master-off over every ignore source). `.ignore` / `.xffignore` are a separate
+    axis (`--ignore-files`), untouched - which is exactly what distinguishes `--no-ignore-vcs` from
+    `-u`. Today git is the only VCS ignore file, so `--no-ignore-vcs` is nearly `--gitignore=off`; the
+    names earn their keep once xff reads non-git VCS ignore files.
 - **Color support**: `--color[=auto|always|never]` ships an `ls`-like scheme keyed
   on the filesystem file type (directory, symlink, executable, fifo/socket/device);
   auto colors only a tty and honors `NO_COLOR`. Still open: per-language coloring
