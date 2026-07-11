@@ -79,6 +79,15 @@ The generated `--help` / `--man` / `--markdown` then stay complete by constructi
   test or action). Grep / GNU single-dash _globals_ (`-h`, `-help`, `-version`,
   `-q`) are deliberate special-cased compatibility aliases of their `--` form, not
   new primaries.
+- **`--` globals are position-independent.** Because every primary/operator is
+  single-dash, a `--flag` is unambiguous anywhere, so the parser hoists it out of any
+  primary/operator position - before the roots, among them, or in the expression
+  (including the tail: `xff . -type f --summary=ext`). It is NOT hoisted out of a
+  primary's argument run (an `-exec` command's args, a `-printf` format), where a
+  `--flag` is a literal argument to that primary / the child command; a bare `--`
+  ends option parsing and disables hoisting. Single-dash globals stay leading-only
+  (they are ambiguous with primaries). The parser handles this in ExprParser's
+  `SkipGlobals()` + the roots loop.
 - **Flag-only; no subcommands.** xff is a single-purpose tool (like `fd` /
   `ripgrep`), so meta operations are flags (`--help`, `--man`, `--markdown`,
   `--explain`), never `git`-style subcommands; find and xff share one grammar,

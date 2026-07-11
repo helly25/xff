@@ -309,9 +309,10 @@ std::string RenderCookbook() {
        .note = "%s is the size, %p the path; the shell sorts and takes the top ten. -printf builds any "
                "columnar line you need."},
       {.task = "Disk use per file type",
-       .command = "xff --summary=ext",
-       .note = "a count + total size per extension; swap in --histogram=ext for bars, or "
-               "--histogram='ext:sum(lines)' to rank by lines. See --help=stats."},
+       .command = "xff . -type f --summary=ext",
+       .note = "a count + total size per extension; the --summary global reads naturally at the end, "
+               "after the expression (a --long global may sit anywhere). Swap in --histogram=ext for "
+               "bars, or --histogram='ext:sum(lines)' to rank by lines. See --help=stats."},
       {.task = "Delete stale temp files, safely",
        .command = "xff . -type f -name '*.tmp' -mtime +7 -delete --dry-run",
        .note = "lists what -delete WOULD remove (guarded by --dry-run); rerun without it to delete. "
@@ -327,13 +328,14 @@ std::string RenderCookbook() {
                "tree. -text skips binaries (which git blame cannot line-blame). -exec feeds any pipeline "
                "the field vocabulary cannot express alone."},
       {.task = "Author line counts, natively (no shell pipe)",
-       .command = "xff -g --summary='{capture.blame:m/^author (.+)$/\\1/}' . -text "
-                  "-capturedir=blame git blame --line-porcelain {} \\;",
+       .command = "xff -g . -text -capturedir=blame git blame --line-porcelain {} \\; "
+                  "--summary='{capture.blame:m/^author (.+)$/\\1/}'",
        .note = "the recipe above with the awk|sort tail folded into xff. -capturedir runs git blame in each "
                "file's own directory (repo-safe, works across nested repos); --summary folds that output via "
                "an m// extraction, tallying lines per author across the tree - no external pipe. -g honors "
                ".gitignore and skips .git; -text keeps blame off binaries. Pass several roots (a b c ...) to "
-               "span multiple trees. Globals (--summary, -g) come before the first path."},
+               "span multiple trees. A single-dash global like -g leads; double-dash globals such as "
+               "--summary may sit anywhere (before or after the paths)."},
       {.task = "Checksum manifest for a tree",
        .command = "xff . -type f -hash=sha256",
        .note = "prints `DIGEST  PATH` per file (like sha256sum); redirect to a file to snapshot a tree, "
