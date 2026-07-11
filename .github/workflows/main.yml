@@ -135,12 +135,37 @@ jobs:
           bazel test --config=xff_full --repository_cache=$HOME/.cache/bazel-repo
           //... //xff/cli:full_binary_test @xff_pcre2//:pcre2_backend_test
 
+  # Minimal core archive: prove that dropping the WHOLE extra_modules/ directory (plus the extras'
+  # bazel_dep + local_path_override lines) still builds the lean core. This is the regression guard
+  # for the "full separation" property (#123) - the shared xff_extras_api base module lives at the
+  # top level (not under extra_modules/), and nothing in the core reaches into an extra, so a future
+  # core->extra dependency would fail here. One cell on the single most-default target (lean
+  # //xff/cli:xff, ubuntu default); repo-cache-only, like tsan/full.
+  minimal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: bazelbuild/setup-bazelisk@v3
+      - name: Mount Bazel repo cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-minimal-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
+          restore-keys: |
+            bazel-repo-minimal-
+      - name: Strip all extras (simulate a minimal core archive)
+        run: |
+          rm -rf extra_modules
+          sed -i '/bazel_dep(name = "xff_pcre2"/,/^)/d' MODULE.bazel
+      - name: bazel build (lean core, extras removed)
+        run: bazel build //xff/cli:xff --repository_cache=$HOME/.cache/bazel-repo
+
   # Single required status check: one job that gates merge on the whole matrix,
   # so branch protection needs only `done`. A yq/jq step self-checks that every
   # workflow job is wired into `needs`, so a newly added job cannot silently
   # escape the gate. Mirrors helly25/mbo.
   done:
-    needs: [test, pre-commit, trunk, tsan, full]
+    needs: [test, pre-commit, trunk, tsan, full, minimal]
     if: always()
     runs-on: ubuntu-latest
     steps:
