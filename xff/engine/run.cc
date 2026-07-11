@@ -37,6 +37,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
@@ -1183,6 +1184,76 @@ bool ResolveSkipHidden(const std::vector<std::string>& globals, std::optional<re
   return skip;
 }
 
+// The version-control systems whose metadata --skip-vcs can prune: a token (the --skip-vcs= value)
+// mapped to the directory / gitlink-file name to drop. Order matches the --help / display order.
+constexpr std::array<std::pair<std::string_view, std::string_view>, 7> kVcsMetadata = {{
+    {"git", ".git"},
+    {"hg", ".hg"},
+    {"svn", ".svn"},
+    {"jj", ".jj"},
+    {"bzr", ".bzr"},
+    {"darcs", "_darcs"},
+    {"cvs", "CVS"},
+}};
+
+// Resolves the VCS metadata NAMES (`.git`, `.hg`, ...) --skip-vcs should prune from the walk.
+// Explicit --skip-vcs / --no-skip-vcs win, last occurrence: bare or `=all` selects every VCS, `=none`
+// (or --no-skip-vcs) selects none, a comma list selects exactly those tokens (a frozen subset). With
+// no such flag, gitignore mode (`-g`) implies just `.git` (the shipped default), else nothing. An
+// unknown token is an InvalidArgument usage error, refused before the walk.
+absl::StatusOr<absl::flat_hash_set<std::string>> ResolveSkipVcs(
+    const std::vector<std::string>& globals,
+    bool gitignore_on) {
+  constexpr std::string_view kPrefix = "--skip-vcs=";
+  const auto dir_for = [](std::string_view token) -> std::optional<std::string_view> {
+    for (const auto& [tok, dir] : kVcsMetadata) {
+      if (tok == token) {
+        return dir;
+      }
+    }
+    return std::nullopt;
+  };
+  const auto add_all = [](absl::flat_hash_set<std::string>& names) {
+    for (const auto& [tok, dir] : kVcsMetadata) {
+      names.emplace(dir);
+    }
+  };
+  bool saw_flag = false;
+  absl::flat_hash_set<std::string> names;
+  for (const std::string& global : globals) {
+    if (global == "--no-skip-vcs") {
+      saw_flag = true;
+      names.clear();
+    } else if (global == "--skip-vcs") {
+      saw_flag = true;
+      names.clear();
+      add_all(names);
+    } else if (global.starts_with(kPrefix)) {
+      saw_flag = true;
+      names.clear();
+      const std::string_view value = std::string_view(global).substr(kPrefix.size());
+      if (value == "all") {
+        add_all(names);
+      } else if (value != "none") {
+        for (const std::string_view token : absl::StrSplit(value, ',', absl::SkipEmpty())) {
+          const std::optional<std::string_view> dir = dir_for(token);
+          if (!dir.has_value()) {
+            return absl::InvalidArgumentError(
+                absl::StrCat(
+                    "unknown --skip-vcs value '", token,
+                    "'; expected a comma list of git,hg,svn,jj,bzr,darcs,cvs (or all/none)"));
+          }
+          names.emplace(*dir);
+        }
+      }
+    }
+  }
+  if (!saw_flag && gitignore_on) {
+    names.emplace(".git");  // -g implies --skip-vcs=git (the shipped default)
+  }
+  return names;
+}
+
 // -g auto: whether any search root is inside a git working tree, so .gitignore applies.
 bool AnyRootInRepo(const vfs::FileSystem& fs, const std::vector<std::string>& roots) {
   return absl::c_any_of(
@@ -1777,6 +1848,15 @@ int RunFind(
   const GitignoreMode gitignore_mode = ResolveGitignoreMode(command.globals, style);
   const bool gitignore_on = gitignore_mode == GitignoreMode::kOn
                             || (gitignore_mode == GitignoreMode::kAuto && AnyRootInRepo(walk_fs, command.roots));
+  // --skip-vcs[=LIST] / --no-skip-vcs: the VCS metadata dir names to prune. Resolved once (needs
+  // gitignore_on for the -g -> .git default) and validated here, so a bad token is a usage error
+  // (exit 2) refused before the walk.
+  const absl::StatusOr<absl::flat_hash_set<std::string>> skip_vcs = ResolveSkipVcs(command.globals, gitignore_on);
+  if (!skip_vcs.ok()) {
+    on_error("--skip-vcs", skip_vcs.status());
+    return 2;
+  }
+  const absl::flat_hash_set<std::string>& skip_vcs_names = *skip_vcs;
   // git's global excludes (core.excludesFile, else ~/.config/git/ignore): the lowest
   // ignore layer, resolved once when gitignore is on. Read through walk_fs so --dry-run
   // still consults it; empty (a no-op) otherwise.
@@ -1915,14 +1995,14 @@ int RunFind(
         if (skip_hidden && visit.depth > 0 && !visit.name.empty() && visit.name.front() == '.') {
           return visit.metadata.type == vfs::FileType::kDirectory ? WalkAction::kPrune : WalkAction::kContinue;
         }
-        // Git metadata filter: when gitignore handling is on, exclude git's own `.git`
-        // directory (and the `.git` gitlink file a submodule / worktree uses) at any depth,
-        // the way ripgrep / fd do. Git never lists `.git` in a .gitignore -- it excludes its
-        // own plumbing implicitly -- so the gitignore rules alone never drop it. This is
-        // deliberately independent of the hidden filter: hidden files the user keeps
-        // (`.bazelrc`, `.gitignore`, ...) still show; only git's plumbing is dropped. Depth 0
-        // is an explicitly named root, always entered, so `xff .git` still descends.
-        if (gitignore_on && visit.depth > 0 && visit.name == ".git") {
+        // VCS metadata filter: prune version-control plumbing directories (--skip-vcs; `-g` implies
+        // `.git`), like ripgrep / fd. Git never lists `.git` in a .gitignore -- it excludes its own
+        // plumbing implicitly -- so the ignore rules alone never drop it. At any depth and
+        // deliberately independent of the hidden filter, so hidden files the user keeps (`.bazelrc`,
+        // `.gitignore`, ...) still show; only VCS plumbing is dropped. Depth 0 is an explicitly named
+        // root, always entered, so `xff .git` still descends. `skip_vcs_names` holds the metadata
+        // names (`.git`, `.hg`, ...); it is empty (this filter off) unless --skip-vcs or -g is active.
+        if (!skip_vcs_names.empty() && visit.depth > 0 && skip_vcs_names.contains(visit.name)) {
           return visit.metadata.type == vfs::FileType::kDirectory ? WalkAction::kPrune : WalkAction::kContinue;
         }
         // Ignore filter: drop an ignored entry before any evaluation or output. A

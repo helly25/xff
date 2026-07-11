@@ -292,4 +292,67 @@ test::git_metadata_shown_when_gitignore_off() {
   expect_matches "(^|${NL}|/)\.git(/|\$|${NL})" "${out}"
 }
 
+# A tree holding several VCS metadata dirs plus a non-VCS dotfile, so --skip-vcs's scope is testable.
+_make_multi_vcs_tree() {
+  local root
+  root="$(mktemp -d)"
+  mkdir -p "${root}/.git/x" "${root}/.hg/y" "${root}/.svn" "${root}/src"
+  : >"${root}/.git/config"
+  : >"${root}/.hg/store"
+  : >"${root}/.bazelrc"
+  : >"${root}/src/a.cc"
+  echo "${root}"
+}
+
+test::skip_vcs_bare_prunes_every_known_vcs() {
+  local root out
+  root="$(_make_multi_vcs_tree)"
+  out="$("$(_xff_bin)" --skip-vcs "${root}" 2>&1)"
+  rm -rf "${root}"
+  expect_not_matches "(^|${NL}|/)\.git(/|\$|${NL})" "${out}"
+  expect_not_matches "(^|${NL}|/)\.hg(/|\$|${NL})" "${out}"
+  expect_not_matches "(^|${NL}|/)\.svn(/|\$|${NL})" "${out}"
+  expect_matches "(^|${NL}|/)\.bazelrc(\$|${NL})" "${out}" # a non-VCS dotfile is untouched
+  expect_matches "(^|${NL}|/)a\.cc(\$|${NL})" "${out}"
+}
+
+test::skip_vcs_list_is_an_explicit_subset() {
+  local root out
+  root="$(_make_multi_vcs_tree)"
+  # An explicit list prunes exactly those; the others stay. No -g needed - it is standalone.
+  out="$("$(_xff_bin)" --skip-vcs=git,hg "${root}" 2>&1)"
+  rm -rf "${root}"
+  expect_not_matches "(^|${NL}|/)\.git(/|\$|${NL})" "${out}"
+  expect_not_matches "(^|${NL}|/)\.hg(/|\$|${NL})" "${out}"
+  expect_matches "(^|${NL}|/)\.svn(/|\$|${NL})" "${out}" # not listed -> kept
+}
+
+test::skip_vcs_hg_only_leaves_git_when_gitignore_off() {
+  local root out
+  root="$(_make_multi_vcs_tree)"
+  # --skip-vcs=hg without -g: only .hg goes; .git stays (no gitignore -> .git default).
+  out="$("$(_xff_bin)" --skip-vcs=hg "${root}" 2>&1)"
+  rm -rf "${root}"
+  expect_not_matches "(^|${NL}|/)\.hg(/|\$|${NL})" "${out}"
+  expect_matches "(^|${NL}|/)\.git(/|\$|${NL})" "${out}"
+}
+
+test::no_skip_vcs_opts_out_of_the_dash_g_git_default() {
+  local root out
+  root="$(_make_multi_vcs_tree)"
+  # -g would imply --skip-vcs=git; --no-skip-vcs overrides it, so .git shows again.
+  out="$("$(_xff_bin)" -g+ --no-skip-vcs "${root}" 2>&1)"
+  rm -rf "${root}"
+  expect_matches "(^|${NL}|/)\.git(/|\$|${NL})" "${out}"
+}
+
+test::skip_vcs_unknown_token_is_a_usage_error() {
+  local root out rc
+  root="$(_make_multi_vcs_tree)"
+  out="$("$(_xff_bin)" --skip-vcs=bogus "${root}" 2>&1)" && rc=0 || rc=$?
+  rm -rf "${root}"
+  expect_eq "2" "${rc}"
+  expect_matches "unknown --skip-vcs value 'bogus'" "${out}"
+}
+
 test_runner

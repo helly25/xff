@@ -244,6 +244,27 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "skip hidden dotfiles (the rg default; opts find/xff out)",
     },
     {
+        .name = "--skip-vcs",
+        .display = "--skip-vcs[=git,hg,svn,jj,bzr,darcs,cvs|all|none]",
+        .group = "filter",
+        .header = "Filter & Ignore",
+        .summary = "prune VCS metadata dirs (.git, .hg, ...); bare/=all = every known VCS, =LIST a subset",
+        .details = "Prunes version-control metadata directories at any depth (like ripgrep / fd), so a search "
+                   "never wades into repo plumbing. Bare --skip-vcs (or =all) covers every known VCS: git (.git), "
+                   "hg (.hg), svn (.svn), jj (.jj), bzr (.bzr), darcs (_darcs), cvs (CVS). A comma list "
+                   "(--skip-vcs=git,hg) is an explicit, frozen subset - it never changes if a VCS is added to the "
+                   "default set later. --no-skip-vcs (or =none) turns it off. Independent of --hidden, so the "
+                   "user's own dotfiles (.bazelrc, .gitignore) still show. -g / gitignore mode implies "
+                   "--skip-vcs=git (only .git); an explicit --skip-vcs overrides that. Default off otherwise.",
+    },
+    {
+        .name = "--no-skip-vcs",
+        .display = "--no-skip-vcs",
+        .group = "filter",
+        .header = "Filter & Ignore",
+        .summary = "keep VCS metadata dirs in the walk (opts out of --skip-vcs and the -g .git default)",
+    },
+    {
         .name = "--format",
         .display = "--format=plain|nul|jsonl|csv|tsv|aligned|markdown|tree",
         .group = "output",
