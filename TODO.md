@@ -601,6 +601,26 @@ remains below is the design-forked / larger work.
   - **Self-doc (part of done):** a `--histogram` `GlobalFlag` entry + a `--help=stats` topic (or fold
     into a `--help=summary`), and the usage page / man / markdown regenerate from those SOTs.
 
+- **Native capture -> line-explode -> group-by reduction (#133).** Fold "run a command per file,
+  then group its output lines by an extracted key" into xff (git-blame lines per author is the
+  driving case), so the shell `| awk | sort` tail is not needed. The aggregator is a fold over a
+  value stream, so cardinality only matters for the measure (count is cardinality-agnostic; a
+  per-file numeric measure like size double-counts a per-line key, so v1 is count).
+  - **SHIPPED slice 1 (#340):** `{field:m<delim>PAT<delim>REPL<delim>flags}` - the line-oriented,
+    list-producing sibling of `s///`. Per line matching PAT, emit the RE2 rewrite REPL; non-matching
+    lines dropped. `Template::AsExtraction` returns the value stream; scalar `Render` newline-joins.
+  - **SHIPPED slice 2:** `--summary={template}` folds the stream. `{ext}`-style templates group one
+    key per matched entry (size meaningful); a single `m//` extraction key groups per extracted line
+    (count only, size N/A); a template mixing an extraction with other text is a usage error. e2e:
+    `--summary='{capture.blame:m/^author (.+)$/\1/}'` = blame lines per author.
+  - **SLICE 3 (pending):** enforce the agreed (i) - an `m//` extraction in a SCALAR context
+    (`-printf` / `--format` / `--template` / `--columns` / `-exec` field) is a usage error, not the
+    current newline-join. Add a `Template::HasExtraction()` guard at each scalar consumer (run.cc +
+    the printf/grep/exec paths in evaluate.cc). Friendlier handling is #134; chained rewrites #135.
+  - **DEFERRED:** `--histogram={template}` (histogram counterpart of the summary key); a numeric
+    per-line measure (`{...:m//}` emitting a number + `:sum(...)`), which keeps key and measure at
+    the same per-line cardinality.
+
 ### Featured ideas (deferred)
 
 Nice-to-haves parked with a design leaning but not yet scheduled; promote to the roadmap above when a

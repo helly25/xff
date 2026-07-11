@@ -759,6 +759,16 @@ std::optional<std::vector<std::string>> Template::AsExtraction(const RenderConte
   return ExtractLines(value, segment.qualifier);
 }
 
+bool Template::IsExtraction() const {
+  return segments_.size() == 1 && segments_.front().fn != nullptr
+         && segments_.front().post == Segment::PostProcess::kExtract;
+}
+
+bool Template::HasExtraction() const {
+  return absl::c_any_of(
+      segments_, [](const Segment& s) { return s.fn != nullptr && s.post == Segment::PostProcess::kExtract; });
+}
+
 std::string Render(std::string_view tmpl, std::string_view path, const vfs::Metadata& metadata, int depth) {
   return Template::Compile(tmpl).Render(RenderContext{.path = path, .metadata = metadata, .depth = depth});
 }

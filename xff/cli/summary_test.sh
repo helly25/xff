@@ -169,4 +169,41 @@ test::summary_top_keeps_the_largest_groups_by_size() {
   expect_not_matches "(^|${NL})md " "${out}" # the smallest group is dropped
 }
 
+test::summary_template_key_groups_by_a_field_value() {
+  # A {template} key groups per matched entry, like the built-in categories -- here by extension.
+  local root out
+  root="$(_make_tree)"
+  out="$(_run --summary='{ext}' --human=off "${root}" -type f)"
+  rm -rf "${root}"
+  expect_matches 'txt +2 +1,244' "${out}"
+  expect_matches "(^|${NL})md +1 +5" "${out}"
+}
+
+test::summary_m_extraction_key_counts_per_extracted_line() {
+  # The driving case: run a command per file, break its multi-line output into a value stream with
+  # an m// extraction, and count per extracted key. Here a stand-in for `git blame --line-porcelain`
+  # emits repeated `author X` lines; --summary tallies lines per author across the tree.
+  local root out
+  root="$(mktemp -d)"
+  : >"${root}/only.txt"
+  out="$(_run --summary='{capture.a:m/^author (.+)$/\1/}' "${root}" -type f \
+    -capture=a sh -c 'printf "author Bob\nauthor-mail x\nauthor Ann\nauthor Bob\n"' \;)"
+  rm -rf "${root}"
+  expect_matches "(^|${NL})Bob +2" "${out}" # two author-Bob lines
+  expect_matches "(^|${NL})Ann +1" "${out}"
+  expect_matches "(^|${NL})total +3" "${out}" # three matching lines in total
+}
+
+test::summary_mixed_extraction_template_is_a_usage_error() {
+  # A key template that mixes an m// extraction with other text has no single key -> exit 2.
+  local root out rc
+  root="$(mktemp -d)"
+  : >"${root}/only.txt"
+  out="$("$(_xff_bin)" --summary='{capture.a:m/./\0/}{name}' "${root}" -type f \
+    -capture=a sh -c 'echo hi' \; 2>&1)" && rc=0 || rc=$?
+  rm -rf "${root}"
+  expect_eq "2" "${rc}"
+  expect_matches 'not a mix' "${out}"
+}
+
 test_runner
