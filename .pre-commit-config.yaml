@@ -10,6 +10,12 @@
 # mismatch surfaces loudly as a CI clang-format failure rather than silent
 # reformatting churn. This file owns clang-format, shell, YAML, workflow and
 # repo-policy text checks.
+#
+# Pin the Python that pre-commit builds its managed hook environments with to 3.13
+# (the version CI runs via actions/setup-python), so a contributor whose default
+# `python3` is older does not silently validate against an ancient interpreter.
+default_language_version:
+  python: python3.13
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
