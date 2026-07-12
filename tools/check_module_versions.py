@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.13
 # SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
 # SPDX-License-Identifier: Apache-2.0
 #
