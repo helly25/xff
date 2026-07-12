@@ -29,7 +29,8 @@
 #   4. prints the tag's CHANGELOG.md section to stdout (used as the GitHub release
 #      body).
 #
-# Usage: tools/release_prep.sh <tag>   (tag may also come from GITHUB_REF_NAME)
+# Usage: tools/release_prep.sh <tag>   (v-prefixed, e.g. v1.2.3; may also come
+# from GITHUB_REF_NAME). The stamped version drops the `v`.
 
 set -euo pipefail
 
@@ -38,33 +39,36 @@ die() {
   exit 1
 }
 
+# The tag is v-prefixed (e.g. v1.2.3), but the stamped version is always bare: a
+# Bazel `module(version=)` and `xff --version` cannot carry a `v`. Strip it.
 TAG="${1:-${GITHUB_REF_NAME:-}}"
 [ -n "${TAG}" ] || die "no tag given (pass as an argument or set GITHUB_REF_NAME)"
-[[ "${TAG}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "tag '${TAG}' is not an X.Y.Z version"
+VERSION="${TAG#v}"
+[[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "tag '${TAG}' is not a (v)X.Y.Z version"
 
 # Work from the repository root (this script lives in tools/).
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-# 1. The tag must match the newest (top) CHANGELOG heading.
+# 1. The version must match the newest (top) CHANGELOG heading.
 CHANGELOG_VERSION="$(sed -rne 's,^# ([0-9]+([.][0-9]+)+.*)$,\1,p' <CHANGELOG.md | head -n1)"
-[ "${CHANGELOG_VERSION}" = "${TAG}" ] \
-  || die "tag '${TAG}' does not match the top CHANGELOG.md heading '${CHANGELOG_VERSION}'"
+[ "${CHANGELOG_VERSION}" = "${VERSION}" ] \
+  || die "version '${VERSION}' does not match the top CHANGELOG.md heading '${CHANGELOG_VERSION}'"
 
-# 2. Stamp the 0.0.0 sentinel -> TAG at every version location. Only our own
+# 2. Stamp the 0.0.0 sentinel -> VERSION at every version location. Only our own
 #    modules and intra-repo bazel_deps carry version = "0.0.0"; third-party
 #    bazel_deps have real versions, so this never rewrites them.
 while IFS= read -r module; do
-  perl -pi -e "s/version = \"0\\.0\\.0\"/version = \"${TAG}\"/g" "${module}"
+  perl -pi -e "s/version = \"0\\.0\\.0\"/version = \"${VERSION}\"/g" "${module}"
 done < <(find . -name MODULE.bazel -not -path './bazel-*' -not -path '*/external/*')
 # The binary's --version literal: `std::cout << "xff 0.0.0\n";`.
-perl -pi -e "s/xff 0\\.0\\.0/xff ${TAG}/g" xff/cli/main.cc
+perl -pi -e "s/xff 0\\.0\\.0/xff ${VERSION}/g" xff/cli/main.cc
 
 # 3. Fail the release if any version location was missed.
-python3 tools/check_module_versions.py "${TAG}"
+python3 tools/check_module_versions.py "${VERSION}"
 
-# 4. Emit the tag's CHANGELOG section (everything under `# <tag>` up to the next
-#    version heading) as the release body.
-awk -v tag="${TAG}" '
+# 4. Emit the version's CHANGELOG section (everything under `# <version>` up to
+#    the next version heading) as the release body.
+awk -v tag="${VERSION}" '
   $0 ~ ("^# " tag "([[:space:]]|$)") { grab = 1; next }
   grab && /^# [0-9]/ { exit }
   grab { print }

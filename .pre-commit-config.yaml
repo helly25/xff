@@ -129,6 +129,16 @@ repos:
         entry: tools/release_prep_test.sh
         files: ^tools/(release_prep\.sh|release_prep_test\.sh|check_module_versions\.py)$
         pass_filenames: false
+      - id: trigger-release-test
+        name: Test the release trigger next-version logic
+        description: |
+          Runs the trigger_release unit test (next-version default minor bump,
+          explicit override, strictly-greater X.Y.Z check) when the trigger
+          script or its test changes.
+        language: script
+        entry: tools/trigger_release_test.sh
+        files: ^tools/(trigger_release\.sh|trigger_release_test\.sh)$
+        pass_filenames: false
 
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v20.1.8
