@@ -86,12 +86,13 @@ std::string RenderHelpSection();
 // Renders the `--help=TOPIC` help from the registry (the single source of truth, so
 // help can never drift from the parser's vocabulary). An empty topic (or "list")
 // returns the index of the whole vocabulary grouped by kind; "help" the help-system
-// guide; "expressions" the primary vocabulary; "fields"/"format" the {field}
-// vocabulary; "full"/"long"/"all" the full detailed reference. A named topic (e.g.
-// "-regex", "-xor", or the dash-less "regex") returns that entry's detailed help. An
-// unknown topic is a plain `NotFoundError` (the status code is the signal; the caller
-// holds the topic and composes the user-facing message). `styles`/`flavors` are
-// rendered by the CLI (they need the engine), not here.
+// guide; "expressions" the primary vocabulary; "full"/"long"/"all" the full detailed
+// reference. A named topic (e.g. "-regex", "-xor", or the dash-less "regex") returns
+// that entry's detailed help. An unknown topic is a plain `NotFoundError` (the status
+// code is the signal; the caller holds the topic and composes the user-facing message).
+// The `styles`/`flavors` and `fields` topics (plus the sub-vocabularies printf / time /
+// size / grammars / extras) are rendered by the CLI - they need facets above this library
+// (the engine, or the shared DocRenderer walk that produces `fields`) - not here.
 absl::StatusOr<std::string> RenderHelp(std::string_view topic);
 
 }  // namespace xff::cli

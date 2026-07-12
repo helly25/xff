@@ -115,6 +115,11 @@ void WriteMarkdown(DocRenderer& out, std::string_view block);
 // global flag, or an in_full topic flows to every output format through this one function.
 void WriteReference(DocRenderer& out);
 
+// Emits just the FIELDS section (the `{field}` placeholder vocabulary) through `out`. Part of
+// WriteReference()'s walk, and also driven on its own by the plain `--help=fields` topic (via a
+// PlainRenderer), so the topic and the man / Markdown / full reference share this one source.
+void WriteFields(DocRenderer& out);
+
 }  // namespace xff::cli
 
 #endif  // XFF_CLI_DOC_RENDERER_H_

@@ -29,7 +29,6 @@
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "xff/cli/globals.h"
-#include "xff/fields/fields.h"
 #include "xff/license/license.h"
 #include "xff/registry/descriptor.h"
 #include "xff/registry/registry.h"
@@ -166,71 +165,6 @@ std::string RenderExpressions() {
       "xff expression vocabulary (tests, operators, actions applied to each entry). "
       "Use `--help=NAME` for one entry; `--help` for the usage overview.\n";
   AppendExpressions(&out);
-  return out;
-}
-
-// The `--help=fields` topic: the {field} placeholder vocabulary. (Not `--help=format`,
-// which is the --format record-format flag -- a different concept.) The named-field rows
-// come from fields::FieldDocs() (the SOT, covered by
-// a fields_test drift guard) grouped by heading; the dynamic namespaces, qualifiers,
-// and brace rules are prose, and the % directives cross-reference `--help=-printf`.
-std::string RenderFields() {
-  std::string out =
-      "xff {field} placeholder vocabulary. Substituted per entry in --template and --format, "
-      "in -printf via the %{field} escape, and (with --exec-fields) in -exec.\n";
-
-  std::string_view group;
-  for (const fields::FieldDoc& doc : fields::FieldDocs()) {
-    if (doc.group != group) {
-      group = doc.group;
-      absl::StrAppend(&out, "\n", doc.header, ":\n");  // key drives grouping; header is the display
-    }
-    std::string names = absl::StrCat("{", doc.name, "}");
-    for (const std::string_view alias : doc.aliases) {
-      absl::StrAppend(&names, " {", alias, "}");
-    }
-    absl::StrAppendFormat(&out, "  %-18s%s\n", names, doc.summary);
-  }
-
-  absl::StrAppend(
-      &out,
-      "\nBraces:\n"
-      "  {{ and }} emit literal braces; {} is an alias for {path}; an unknown field renders\n"
-      "  empty; a malformed or unterminated { stays literal.\n"
-      "\nDynamic namespaces:\n"
-      "  {0}..{N}          -regex captures ({0} the whole match, {1}..{N} the groups)\n"
-      "  {env.NAME}        a process environment variable\n"
-      "  {def.NAME}        a --define value\n"
-      "  {capture.NAME}    a -capture command result\n"
-      "\nQualifiers ({field:QUAL}):\n"
-      "  {mtime:FMT}       time format: strftime (%Y-%m-%d) or preset (iso, epoch); see "
-      "--time-format / --timezone\n"
-      "  {size:h}          human-readable size\n"
-      "  {name:s/RE/R/f}   RE2 rewrite of the value (flags g=all, i=ignore-case; any delimiter)\n"
-      "  {cap:m/RE/R/f}    per-line extraction: a value stream, e.g. a --summary key (m//, s///'s "
-      "list-producing sibling)\n"
-      "  {cap:m/RE/R/;join(SEP)}\n"
-      "                    reduce the stream to one scalar (join, SEP default newline) so m// is usable "
-      "in a scalar\n"
-      "                    context (-printf / --template / -exec); reducers are function-notation, "
-      "e.g. join(, )\n");
-  absl::StrAppendFormat(
-      &out, "  %-18s%s%s\n", "{path:COMP}",
-      "path component of the value: ", absl::StrJoin(fields::PathComponentKeywords(), "|"));
-  absl::StrAppend(&out, "                    any path-valued field composes, e.g. {relpath:stem}, {def.B:dir}\n");
-  // The m// pipeline as a span diagram (ranges under each stage). Kept in sync with the doc_renderer
-  // Fields section (--man / --markdown / --help=full); hand-aligned, so keep the widths as-is.
-  absl::StrAppend(
-      &out,
-      "\nAn m// extraction is a left-to-right pipeline (s/// maps what flows, join reduces it):\n"
-      "  {cap:m/PAT/REP/;s/PAT/REP/;join(SEP);s/PAT/REP/}\n"
-      "       |________| |________| |_______| |________|\n"
-      "       extract    map each   reduce    rewrite\n"
-      "       per line   line       stream    scalar\n");
-  absl::StrAppend(
-      &out,
-      "\nFor -printf's own % directives (%p %f %s %t ...) and the %{field} escape that bridges\n"
-      "them to this vocabulary, see `--help=-printf`.\n");
   return out;
 }
 
@@ -585,9 +519,6 @@ absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   }
   if (topic == "expressions") {
     return RenderExpressions();  // the annotated Tests/Actions/Operators list, sans globals
-  }
-  if (topic == "fields") {
-    return RenderFields();  // the {field} placeholder vocabulary (--help=format is the --format flag)
   }
   if (topic == "stats") {
     return RenderStats();  // the --summary / --histogram reductions
