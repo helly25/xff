@@ -104,5 +104,4 @@ jobs:
           --title "${GITHUB_REF_NAME}"
           --notes-file release-notes.md
           --verify-tag
-          --prerelease
           dist/*
