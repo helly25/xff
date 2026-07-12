@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Unit test for tools/release_prep.sh. Builds a throwaway fixture repository in a
+# temp directory (release_prep.sh operates relative to its own location, so a
+# self-contained copy exercises it without touching the real tree) and checks the
+# CHANGELOG guard, the version stamping, the consistency verification, and the
+# release-notes output. Run directly (`tools/release_prep_test.sh`) or via
+# pre-commit; no bazel needed.
+
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FAILED=0
+
+fail() {
+  echo "FAIL: ${*}" >&2
+  FAILED=1
+}
+
+# File content as a single string (built-ins only; this is a standalone test, not
+# a helly25/bashtest, so it has no expect_* matchers - and reading files avoids
+# the piped-grep SIGPIPE trap the bashtest lint guards against).
+slurp() { printf '%s' "$(<"$1")"; }
+
+# Count the lines of a file that contain a literal substring.
+count_lines_with() {
+  substr="$1"
+  n=0
+  while IFS= read -r line; do
+    case "${line}" in *"${substr}"*) n=$((n + 1)) ;; esac
+  done <"$2"
+  echo "${n}"
+}
+
+# Build a minimal fixture repo under ${root}: the two real tools, a MODULE.bazel
+# (our module + an intra-repo bazel_dep on it + a third-party dep that must stay
+# untouched), the --version source, and a CHANGELOG whose top version is 1.2.3.
+make_fixture() {
+  root="$1"
+  mkdir -p "${root}/tools" "${root}/xff/cli"
+  cp "${HERE}/release_prep.sh" "${root}/tools/release_prep.sh"
+  cp "${HERE}/check_module_versions.py" "${root}/tools/check_module_versions.py"
+  chmod +x "${root}/tools/release_prep.sh"
+  cat >"${root}/MODULE.bazel" <<'EOF'
+module(
+    name = "test_mod",
+    version = "0.0.0",
+)
+bazel_dep(name = "abseil-cpp", version = "20250814.2")
+bazel_dep(name = "test_mod", version = "0.0.0")
+EOF
+  cat >"${root}/xff/cli/main.cc" <<'EOF'
+int main() { std::cout << "xff 0.0.0\n"; }
+EOF
+  cat >"${root}/CHANGELOG.md" <<'EOF'
+# 1.2.3
+
+Notes for one two three.
+
+## Added
+
+- A thing.
+
+# 0.9.0
+
+Older release, must not leak into 1.2.3 notes.
+EOF
+}
+
+# 1. A tag that does not match the top CHANGELOG heading must fail, and must not
+#    stamp anything.
+test_guard_rejects_mismatched_tag() {
+  root="$(mktemp -d)"
+  trap 'rm -rf "${root}"' RETURN
+  make_fixture "${root}"
+  if out="$("${root}/tools/release_prep.sh" 9.9.9 2>&1)"; then
+    fail "guard: expected non-zero exit for tag 9.9.9"
+  fi
+  case "${out}" in
+    *"does not match the top CHANGELOG"*) ;;
+    *) fail "guard: message did not mention the CHANGELOG mismatch: ${out}" ;;
+  esac
+  case "$(slurp "${root}/MODULE.bazel")" in
+    *9.9.9*) fail "guard: MODULE.bazel was stamped despite the mismatch" ;;
+  esac
+}
+
+# 2. A non X.Y.Z tag must be rejected outright.
+test_guard_rejects_nonversion_tag() {
+  root="$(mktemp -d)"
+  trap 'rm -rf "${root}"' RETURN
+  make_fixture "${root}"
+  if "${root}/tools/release_prep.sh" v1.2.3 >/dev/null 2>&1; then
+    fail "guard: expected non-zero exit for non-numeric tag 'v1.2.3'"
+  fi
+}
+
+# 3. The matching tag stamps every sentinel location, leaves third-party deps
+#    alone, passes the consistency check, and prints the tag's CHANGELOG section.
+test_happy_path_stamps_and_emits_notes() {
+  root="$(mktemp -d)"
+  trap 'rm -rf "${root}"' RETURN
+  make_fixture "${root}"
+  if ! notes="$("${root}/tools/release_prep.sh" 1.2.3)"; then
+    fail "happy: expected zero exit for tag 1.2.3"
+    return
+  fi
+  case "$(slurp "${root}/MODULE.bazel")" in
+    *'version = "1.2.3"'*) ;;
+    *) fail "happy: module version was not stamped to 1.2.3" ;;
+  esac
+  # The intra-repo bazel_dep on our module is stamped too (module + dep = 2 lines).
+  if [ "$(count_lines_with '1.2.3' "${root}/MODULE.bazel")" -ne 2 ]; then
+    fail "happy: expected module version + intra-repo bazel_dep both stamped"
+  fi
+  case "$(slurp "${root}/MODULE.bazel")" in
+    *'version = "20250814.2"'*) ;;
+    *) fail "happy: the third-party bazel_dep version was altered" ;;
+  esac
+  case "$(slurp "${root}/xff/cli/main.cc")" in
+    *'"xff 1.2.3'*) ;;
+    *) fail "happy: the --version literal was not stamped" ;;
+  esac
+  case "${notes}" in
+    *"Notes for one two three."*) ;;
+    *) fail "happy: notes missing the 1.2.3 body: ${notes}" ;;
+  esac
+  case "${notes}" in
+    *"Older release"*) fail "happy: notes leaked the older 0.9.0 section" ;;
+  esac
+}
+
+test_guard_rejects_mismatched_tag
+test_guard_rejects_nonversion_tag
+test_happy_path_stamps_and_emits_notes
+
+if [ "${FAILED}" -ne 0 ]; then
+  echo "release_prep_test: FAILED" >&2
+  exit 1
+fi
+echo "release_prep_test: all tests passed"
