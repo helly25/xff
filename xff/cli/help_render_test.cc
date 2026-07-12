@@ -136,12 +136,13 @@ TEST_F(HelpTest, HelpGuideListsEveryTopic) {
 
 TEST_F(HelpTest, EveryAdvertisedTopicRendersAndAliasesAreSynonyms) {
   // Drift guard: every advertised topic resolves to substantial, newline-terminated
-  // help, and each alias is a pure synonym (byte-identical output). Only `styles` /
-  // `flavors` are excluded -- the CLI renders those (they need the engine).
+  // help, and each alias is a pure synonym (byte-identical output). The CLI-rendered
+  // topics are excluded -- they need facets above this library (the engine / datetime /
+  // regex, or the shared DocRenderer walk that produces `fields`).
   for (const HelpTopic& topic : HelpTopics()) {
-    if (topic.name == "styles" || topic.name == "printf" || topic.name == "time" || topic.name == "size"
-        || topic.name == "grammars" || topic.name == "extras") {
-      continue;  // rendered by the CLI (need the engine / datetime / regex facets), not RenderHelp
+    if (topic.name == "styles" || topic.name == "fields" || topic.name == "printf" || topic.name == "time"
+        || topic.name == "size" || topic.name == "grammars" || topic.name == "extras") {
+      continue;  // rendered by the CLI (need the engine / datetime / regex / doc-walk facets), not RenderHelp
     }
     const absl::StatusOr<std::string> rendered = RenderHelp(topic.name);
     ASSERT_THAT(rendered, IsOk()) << topic.name;

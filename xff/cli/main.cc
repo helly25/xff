@@ -27,10 +27,12 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "xff/cli/doc_renderer.h"
 #include "xff/cli/globals.h"
 #include "xff/cli/help.h"
 #include "xff/cli/manpage.h"
 #include "xff/cli/markdown.h"
+#include "xff/cli/plain_help.h"
 #include "xff/config/config.h"
 #include "xff/config/loader.h"
 #include "xff/config/policy.h"
@@ -190,6 +192,15 @@ std::string RenderRegexDocs() {
   return out;
 }
 
+// The {field} placeholder vocabulary (--help=fields), rendered as plain help through the shared
+// WriteFields() walk (a PlainRenderer) - the same walk that feeds the --man / --markdown /
+// --help=full Fields section, so the topic can never drift from them or hand-mirror their content.
+std::string RenderFieldsDocs() {
+  xff::cli::PlainRenderer renderer;
+  xff::cli::WriteFields(renderer);
+  return renderer.Take();
+}
+
 // The --help=extras topic: the optional build-time features and whether THIS binary links each.
 // Availability is per-binary, so this is a runtime topic (not folded into the static --help=full /
 // man / markdown reference). PCRE2 is the --regextype value extra (regex::Pcre2Available, from the
@@ -238,6 +249,9 @@ std::string FullReference() {
 absl::StatusOr<std::string> RenderTopic(std::string_view topic) {
   if (topic == "styles" || topic == "flavors") {
     return RenderFlavorTable({}, std::nullopt);
+  }
+  if (topic == "fields") {
+    return RenderFieldsDocs();
   }
   if (topic == "printf") {
     return RenderPrintfDocs();

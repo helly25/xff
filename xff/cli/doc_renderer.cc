@@ -59,10 +59,13 @@ constexpr std::array<DocRow, 4> kDynamicNamespaces = {{
     {"{capture.NAME}", "a -capture command result"},
 }};
 
+}  // namespace
+
 // The FIELDS > FIELDS section renders the named {field} vocabulary as grouped subsections of
 // aligned rows, then the brace rules, dynamic namespaces, and qualifiers. The composed
 // "{name} {alias}" terms and the {path:COMP} description are held in local storage (reserved up
 // front so their string_views never dangle) for the duration of the Rows() spans they back.
+// Part of WriteReference()'s walk and also driven standalone by the plain --help=fields topic.
 void WriteFields(DocRenderer& out) {
   out.Section("Fields");
   out.Prose(
@@ -127,8 +130,8 @@ void WriteFields(DocRenderer& out) {
       "An m// extraction is a left-to-right pipeline: s/// maps whatever is flowing (each line, then "
       "the scalar), and a terminal reducer such as join collapses the stream to one scalar.");
   // Hand-aligned ASCII span diagram (ranges under each stage). Rendered verbatim (Example -> a
-  // markdown code fence / roff .nf), so the alignment survives; uses only | _ / ( ) so the Roff()
-  // escaper and mandoc leave it intact. Kept in sync with RenderFields in help.cc (--help=fields).
+  // markdown code fence / roff .nf / plain block), so the alignment survives; uses only | _ / ( )
+  // so the Roff() escaper and mandoc leave it intact.
   out.Example(
       "  {cap:m/PAT/REP/;s/PAT/REP/;join(SEP);s/PAT/REP/}\n"
       "       |________| |________| |_______| |________|\n"
@@ -136,10 +139,8 @@ void WriteFields(DocRenderer& out) {
       "       per line   line       stream    scalar");
   out.Prose(
       "For -printf's own % directives (%p %f %s %t ...) and the `%{field}` escape that bridges them "
-      "to this vocabulary, see the Printf directives section below.");
+      "to this vocabulary, see the Printf directives (`--help=-printf`).");
 }
-
-}  // namespace
 
 void WriteMarkdown(DocRenderer& out, std::string_view block) {
   std::vector<std::string_view> bullets;

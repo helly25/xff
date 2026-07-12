@@ -411,7 +411,7 @@ An m// extraction is a left-to-right pipeline: s/// maps whatever is flowing (ea
        per line   line       stream    scalar
 ```
 
-For -printf's own % directives (%p %f %s %t ...) and the `%{field}` escape that bridges them to this vocabulary, see the Printf directives section below.
+For -printf's own % directives (%p %f %s %t ...) and the `%{field}` escape that bridges them to this vocabulary, see the Printf directives (`--help=-printf`).
 
 ## Printf directives
 
