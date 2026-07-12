@@ -10,6 +10,10 @@ url: false
 whitespace: false
 # CHANGELOG.md uses one top-level heading per version.
 single-h1: false
+# CHANGELOG.md repeats the same section headings (e.g. Added / Fixed) under each
+# version, which is valid; only flag a heading that duplicates a sibling.
+MD024:
+  siblings_only: true
 # xff design docs use bold lead-ins as inline labels (not section headings) and a
 # few language-less fenced blocks (ASCII trees / console output). Disable the two
 # stylistic rules that flag those rather than churn the authored prose.
