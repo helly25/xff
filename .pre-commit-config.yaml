@@ -119,6 +119,16 @@ repos:
         entry: tools/check_module_versions_test.py
         files: ^tools/check_module_versions(_test)?\.py$
         pass_filenames: false
+      - id: release-prep-test
+        name: Test the release prep script
+        description: |
+          Runs the release_prep unit test (CHANGELOG guard, version stamping,
+          consistency check, release-notes output) when the release script, its
+          test, or the version check it calls changes.
+        language: script
+        entry: tools/release_prep_test.sh
+        files: ^tools/(release_prep\.sh|release_prep_test\.sh|check_module_versions\.py)$
+        pass_filenames: false
 
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v20.1.8
