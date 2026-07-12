@@ -67,6 +67,9 @@ follow-up:
   one-line synopsis; `registry_test` enforces presence + shape);
 - a new / changed **global flag** -> its `cli::GlobalFlag` entry in `globals.cc`
   (`globals_test` enforces it; set `alias` / `display` for short or alternate forms);
+- a new / changed **cookbook recipe** (`cli/help.cc` `RenderCookbook`) -> a matching
+  execution case in `//xff/examples:cookbook_test`; its guard case fails CI if a recipe ships
+  without one, so the user-facing examples are run, not just rendered;
 - the hand-maintained `kHelpText` usage page in `cli/main.cc`;
 - any prose docs the change affects (`docs/design-*.md`, `TODO.md`).
 

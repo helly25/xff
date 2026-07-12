@@ -309,8 +309,10 @@ struct Recipe {
 
 // The `--help=cookbook` topic (aliases examples / recipes), folded into --help=full: task-oriented
 // worked examples that compose xff's building blocks end to end. The SOT is the recipe list below;
-// every command is kept runnable as written. This complements the reference topics (--help=fields /
-// --help=stats / --help=NAME), which describe pieces in isolation.
+// every command is kept runnable as written, and is executed end to end by the tests in
+// //xff/examples:cookbook_test - whose guard case fails CI if a recipe is added or reworded here
+// without a matching test, so these examples ship tested, not just rendered. This complements the
+// reference topics (--help=fields / --help=stats / --help=NAME), which describe pieces in isolation.
 std::string RenderCookbook() {
   const std::vector<Recipe> recipes = {
       {.task = "Ten largest files",
