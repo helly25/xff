@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@helly25_bashtest//bashtest:bashtest.bzl", "bashtest")
+
+package(default_visibility = ["//visibility:private"])
+
+# Execution tests for the user-facing examples: every `--help=cookbook` recipe (SOT:
+# xff/cli/help.cc `RenderCookbook`) is RUN here against a fixture tree, not just rendered,
+# so a copy-paste of any recipe actually works. A guard case (cookbook_recipes_are_all_tested)
+# fails if a recipe is added or changed without a matching test here - examples ship tested.
+bashtest(
+    name = "cookbook_test",
+    size = "small",
+    srcs = ["cookbook_test.sh"],
+    data = ["//xff/cli:xff"],
+)
