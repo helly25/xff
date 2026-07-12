@@ -99,24 +99,27 @@ test_guard_rejects_mismatched_tag() {
   esac
 }
 
-# 2. A non X.Y.Z tag must be rejected outright.
+# 2. A tag that is not (v)X.Y.Z must be rejected outright (a `v` prefix IS
+#    accepted and stripped; see the happy path).
 test_guard_rejects_nonversion_tag() {
   root="$(mktemp -d)"
   trap 'rm -rf "${root}"' RETURN
   make_fixture "${root}"
-  if "${root}/tools/release_prep.sh" v1.2.3 >/dev/null 2>&1; then
-    fail "guard: expected non-zero exit for non-numeric tag 'v1.2.3'"
+  if "${root}/tools/release_prep.sh" 1.2 >/dev/null 2>&1; then
+    fail "guard: expected non-zero exit for non-X.Y.Z tag '1.2'"
   fi
 }
 
-# 3. The matching tag stamps every sentinel location, leaves third-party deps
-#    alone, passes the consistency check, and prints the tag's CHANGELOG section.
+# 3. The matching (v-prefixed) tag stamps every sentinel location with the BARE
+#    version, leaves third-party deps alone, passes the consistency check, and
+#    prints the version's CHANGELOG section.
 test_happy_path_stamps_and_emits_notes() {
   root="$(mktemp -d)"
   trap 'rm -rf "${root}"' RETURN
   make_fixture "${root}"
-  if ! notes="$("${root}/tools/release_prep.sh" 1.2.3)"; then
-    fail "happy: expected zero exit for tag 1.2.3"
+  # Pass the real tag form (v1.2.3); release_prep strips the v and stamps 1.2.3.
+  if ! notes="$("${root}/tools/release_prep.sh" v1.2.3)"; then
+    fail "happy: expected zero exit for tag v1.2.3"
     return
   fi
   case "$(slurp "${root}/MODULE.bazel")" in
