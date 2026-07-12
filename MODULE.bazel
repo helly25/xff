@@ -62,20 +62,10 @@ local_path_override(
 )
 
 # helly25/mbo -- utility library and conventions reference, from the Bazel
-# Central Registry. 0.11.1 carries the macOS clang+asan verification (#188) and
-# the StatusIs code-matcher support (#190) our test conventions rely on.
-bazel_dep(name = "helly25_mbo", version = "0.11.1")
-
-# TEMPORARY override for -diff (#88) and -hash (#105): mbo 0.13.0 (not yet in the BCR; 0.12.0 is
-# the latest release) carries mbo/diff's rich API (unified/context/normal/side-by-side formats,
-# myers/naive/direct engines, the empty-time_format git-style header, ignore_missing_final_newline)
-# and mbo/digest (the -hash algorithms). Pinned at the mbo main commit merging helly25/mbo#234.
-# DROP THIS for a plain `bazel_dep(... version = "0.13.0")` bump the moment mbo 0.13.0 hits the BCR.
-git_override(
-    module_name = "helly25_mbo",
-    commit = "55a6b2c8a36df9ab2a5f421e36f4c039478b4d94",
-    remote = "https://github.com/helly25/mbo.git",
-)
+# Central Registry. 0.13.0 adds mbo/diff (the rich diff API behind -diff, #88) and
+# mbo/digest (the hash algorithms behind -hash, #105); it also carries the macOS
+# clang+asan verification (#188) and StatusIs code-matcher support (#190) our tests rely on.
+bazel_dep(name = "helly25_mbo", version = "0.13.0")
 
 # helly25/bashtest -- shell-test runner (expect_* helpers + test_runner) for the
 # binary-level CLI tests. Visible under its canonical name @helly25_bashtest.
