@@ -1,6 +1,8 @@
 <!-- SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com) -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
+# 0.2.0
+
 # 0.1.0
 
 First release of xff (eXtended File Find): a `find(1)`-compatible file finder
