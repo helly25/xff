@@ -728,6 +728,24 @@ renderers + a help_topic_test assertion. The diagram is duplicated in help.cc`Re
         strict flavors and often `git`) and mixed-ending leniency are left as future refinements if a
         real need appears - not built speculatively.
 
+### Help / docs rendering (post-#126)
+
+Follow-ons to #126 (the shared DocRenderer walk + the plain-text PlainRenderer). Both improve the
+rendered `--help` / `--man` / `--markdown` off the one walk.
+
+- **Structured examples: per-recipe heading + own shell block + prose explanation.** The Examples
+  section is emitted as ONE verbatim block (`WriteReference` -> `out.Example(RenderHelp("cookbook"))`),
+  so in Markdown the whole section is a single shell fence and every explanation renders preformatted
+  and never wraps. Model each recipe as structured data (`{name, command, explanation}`) and render it
+  through the DocRenderer: the recipe name as a heading (Subsection / `###`), the command as its own
+  shell code block (Example), and the explanation as flowing prose (Prose). Applies to plain / man /
+  markdown from the one walk. Keep the `cookbook_test` guard (each recipe has a run case).
+- **Text-flow width control in plain `--help`.** PlainRenderer emits Prose as single unwrapped lines,
+  so a long explanation runs off the width. Give the renderer a target width and word-wrap Prose to it
+  (Example blocks stay verbatim; the aligned `{term}` rows keep their layout). Width source to settle
+  during the build: honor the terminal width / `$COLUMNS` on a TTY, fall back to a fixed column (e.g. 80) when piped, optionally a `--width=N` override. Pairs with the structured-examples item - once the
+  explanations are prose, they need this to wrap.
+
 ### Featured ideas (deferred)
 
 Nice-to-haves parked with a design leaning but not yet scheduled; promote to the roadmap above when a
