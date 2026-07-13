@@ -735,11 +735,13 @@ rendered `--help` / `--man` / `--markdown` off the one walk.
 
 - **Structured examples: per-recipe heading + own shell block + prose explanation.** The Examples
   section is emitted as ONE verbatim block (`WriteReference` -> `out.Example(RenderHelp("cookbook"))`),
-  so in Markdown the whole section is a single shell fence and every explanation renders preformatted
-  and never wraps. Model each recipe as structured data (`{name, command, explanation}`) and render it
-  through the DocRenderer: the recipe name as a heading (Subsection / `###`), the command as its own
-  shell code block (Example), and the explanation as flowing prose (Prose). Applies to plain / man /
-  markdown from the one walk. Keep the `cookbook_test` guard (each recipe has a run case).
+  so in Markdown the whole section is a single shell fence, in `--man` one preformatted `.nf` block,
+  and in plain `--help` one unwrapped block - every explanation is preformatted and never wraps in any
+  format. Because the fix lives in the shared walk it corrects all three renderers at once. Model each
+  recipe as structured data (`{name, command, explanation}`) and render it through the DocRenderer so
+  each format emits it natively: the recipe name as a heading (Subsection), the command as its own
+  shell code block (Example), and the explanation as flowing prose (Prose). Keep the `cookbook_test`
+  guard (each recipe has a run case).
 - **Text-flow width control in plain `--help`.** PlainRenderer emits Prose as single unwrapped lines,
   so a long explanation runs off the width. Give the renderer a target width and word-wrap Prose to it
   (Example blocks stay verbatim; the aligned `{term}` rows keep their layout). Width source to settle
