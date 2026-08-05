@@ -15,27 +15,25 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
-# --color resolution (auto/always/never + NO_COLOR + tty) and the ls/fd-style
-# file-type -> ANSI SGR scheme for the colored plain listing.
+# Shared parsing of CLI option values into one permissive vocabulary: yes/true/1
+# and no/false/0 for booleans, plus auto and the always/never color idiom for
+# tri-state flags (--color / --unicode / --help-color, --implicit-print, ...).
 cc_library(
-    name = "color_cc",
-    srcs = ["color.cc"],
-    hdrs = ["color.h"],
+    name = "values_cc",
+    srcs = ["values.cc"],
+    hdrs = ["values.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
-        "//xff/values:values_cc",
-        "//xff/vfs:vfs_cc",
         "@abseil-cpp//absl/strings",
     ],
 )
 
 cc_test(
-    name = "color_test",
+    name = "values_test",
     size = "small",
-    srcs = ["color_test.cc"],
+    srcs = ["values_test.cc"],
     deps = [
-        ":color_cc",
-        "//xff/vfs:vfs_cc",
+        ":values_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

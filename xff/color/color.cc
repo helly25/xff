@@ -16,10 +16,13 @@
 #include "xff/color/color.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include "absl/strings/strip.h"
+#include "xff/values/values.h"
 #include "xff/vfs/entry.h"
 
 namespace xff::color {
@@ -27,12 +30,19 @@ namespace xff::color {
 When ResolveWhen(const std::vector<std::string>& globals) {
   When when = When::kAuto;
   for (const std::string& global : globals) {
-    if (global == "--color" || global == "--color=always") {
-      when = When::kAlways;
-    } else if (global == "--color=auto") {
-      when = When::kAuto;
-    } else if (global == "--color=never") {
-      when = When::kNever;
+    std::string_view value = global;
+    if (value == "--color") {
+      when = When::kAlways;  // a bare --color forces color on
+    } else if (absl::ConsumePrefix(&value, "--color=")) {
+      // The shared vocabulary (auto / always / never plus yes / no / 1 / true / 0 /
+      // false); an unrecognized value is ignored, leaving the prior resolution.
+      if (const std::optional<values::Tristate> tri = values::ParseTristate(value); tri.has_value()) {
+        switch (*tri) {
+          case values::Tristate::kAuto: when = When::kAuto; break;
+          case values::Tristate::kOff: when = When::kNever; break;
+          case values::Tristate::kOn: when = When::kAlways; break;
+        }
+      }
     }
   }
   return when;

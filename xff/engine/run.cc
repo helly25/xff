@@ -64,6 +64,7 @@
 #include "xff/registry/descriptor.h"
 #include "xff/render/render.h"
 #include "xff/repo/repo.h"
+#include "xff/values/values.h"
 #include "xff/vfs/filesystem.h"
 
 namespace xff::engine {
@@ -653,19 +654,27 @@ render::Format ResolveFormat(const std::vector<std::string>& globals) {
 // first set wins), the way --color=auto probes the tty. Last occurrence wins; bare --unicode ==
 // --unicode=always.
 bool ResolveUnicode(const std::vector<std::string>& globals) {
-  enum class When : std::uint8_t { kAuto, kAlways, kNever };
-  When when = When::kAuto;
+  constexpr std::string_view kPrefix = "--unicode=";
+  std::optional<bool> forced;  // an explicit non-auto --unicode value
   for (const std::string& global : globals) {
-    if (global == "--unicode" || global == "--unicode=always") {
-      when = When::kAlways;
-    } else if (global == "--unicode=never") {
-      when = When::kNever;
-    } else if (global == "--unicode=auto") {
-      when = When::kAuto;
+    if (global == "--unicode") {
+      forced = true;  // a bare --unicode forces Unicode on
+    } else if (global.starts_with(kPrefix)) {
+      // The shared vocabulary (auto / always / never plus yes / no / 1 / true / 0 /
+      // false); an unrecognized value is ignored, leaving the prior resolution.
+      if (const std::optional<values::Tristate> tri =
+              values::ParseTristate(std::string_view(global).substr(kPrefix.size()));
+          tri.has_value()) {
+        if (*tri == values::Tristate::kAuto) {
+          forced.reset();
+        } else {
+          forced = *tri == values::Tristate::kOn;
+        }
+      }
     }
   }
-  if (when != When::kAuto) {
-    return when == When::kAlways;
+  if (forced.has_value()) {
+    return *forced;
   }
   for (const char* const var : {"LC_ALL", "LC_CTYPE", "LANG"}) {
     if (const char* const value = std::getenv(var); value != nullptr && *value != '\0') {
@@ -1315,12 +1324,18 @@ std::vector<std::string> ResolveIgnoreFileNames(
 // overriding find's "an action suppresses it" rule. Last occurrence wins;
 // nullopt means no override (use the find default). Bare --implicit-print == =yes.
 std::optional<bool> ResolveImplicitPrint(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--implicit-print=";
   std::optional<bool> result;
   for (const std::string& global : globals) {
-    if (global == "--implicit-print" || global == "--implicit-print=yes") {
-      result = true;
-    } else if (global == "--implicit-print=no") {
-      result = false;
+    if (global == "--implicit-print") {
+      result = true;  // a bare --implicit-print forces the default print on
+    } else if (global.starts_with(kPrefix)) {
+      // The shared bool vocabulary (yes / no / 1 / true / 0 / false); an
+      // unrecognized value is ignored, leaving the prior resolution.
+      if (const std::optional<bool> parsed = values::ParseBool(std::string_view(global).substr(kPrefix.size()));
+          parsed.has_value()) {
+        result = *parsed;
+      }
     }
   }
   return result;
