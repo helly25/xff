@@ -153,6 +153,32 @@ cc_test(
     ],
 )
 
+# The Markdown backend: renders the help model to GitHub-flavored Markdown.
+cc_library(
+    name = "markdown_backend_cc",
+    srcs = ["markdown_backend.cc"],
+    hdrs = ["markdown_backend.h"],
+    deps = [
+        ":help_backend_cc",
+        ":help_model_cc",
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "markdown_backend_test",
+    size = "small",
+    srcs = ["markdown_backend_test.cc"],
+    deps = [
+        ":help_backend_cc",
+        ":help_model_cc",
+        ":markdown_backend_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:matchers_cc",
+    ],
+)
+
 cc_library(
     name = "doc_renderer_cc",
     srcs = ["doc_renderer.cc"],
