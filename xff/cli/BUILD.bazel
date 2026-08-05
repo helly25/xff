@@ -79,6 +79,22 @@ cc_binary(
 # DocRenderer, so --man (roff), --markdown, and --help=full render the same content and
 # cannot drift. Each format is a native renderer over this walk (see manpage.cc / markdown.cc).
 cc_library(
+    name = "help_model_cc",
+    hdrs = ["help_model.h"],
+)
+
+cc_test(
+    name = "help_model_test",
+    size = "small",
+    srcs = ["help_model_test.cc"],
+    deps = [
+        ":help_model_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "doc_renderer_cc",
     srcs = ["doc_renderer.cc"],
     hdrs = ["doc_renderer.h"],

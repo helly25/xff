@@ -1,0 +1,90 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com) -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
+# Help model design
+
+Status: adopted 2026-08-05. Implemented in slices (see the #154 epic in
+[`TODO.md`](../TODO.md)); this document is the decision record.
+
+## Problem
+
+Help generation grew into two parallel systems. The expression `registry` and the
+global-options table are a real content single source of truth, and the
+`WriteReference` walk drives the roff / Markdown / plain backends structurally. But
+plain `--help` and most `--help=TOPIC` bypass all of that: sixteen hand-assembled
+`Render*` functions in `xff/cli/help.cc` plus `kHelpText` / `kHelpTextExpression`
+in `xff/cli/main.cc` build strings directly, with hardcoded prose. The result is
+duplicated rendering logic, prose that cannot wrap to width, cross-references that
+are dead text, and content that drifts (the dead "see the Printf directives section
+below" that #126 had to repair is exactly this failure mode).
+
+## Model
+
+Help is a **semantic document model** (an AST), and every output format is a
+separate **renderer backend** that walks the one model. The model carries meaning,
+never presentation.
+
+### 1. Output independence
+
+Backends: plain text, ANSI-colored text, Markdown, roff (man page), and HTML. The
+same node renders natively per backend (a `Section` is a blank-line heading / a
+bold ANSI line / `##` / `.SH` / `<h2>`). The model has no format-specific strings.
+
+### 2. Width (text backends only)
+
+Width is a text-backend concern; the model is width-agnostic and Markdown / HTML /
+roff never hard-wrap (their consumer reflows: a viewer, the browser, mandoc's fill).
+The plain and color backends take a width, resolved highest-precedence-first:
+
+1. an explicit `--width=N` (or config value);
+2. the detected terminal width when stdout is a TTY (`ioctl(TIOCGWINSZ)`, honoring
+   `$COLUMNS`);
+3. a fallback of 80 columns (piped / redirected / undetectable), so non-TTY output
+   is deterministic.
+
+Per node: `Prose` free-flows to the width; `Row` / `Entry` keep the term column and
+wrap the description with a hanging indent; `Example` is verbatim and never wrapped.
+Width and color live in a small render-options struct passed to the text backend
+(so a test can feed `width=40` and assert the wrap).
+
+### 3. Highlighting, cross-references, index
+
+- **Highlighting** is typed inline runs, not markup baked into strings: a text
+  field is a sequence of `Inline` runs styled `Text` / `Code` / `Emphasis` /
+  `Strong` / `Ref`. Each backend maps a style to its surface (ANSI SGR, `` ` ``,
+  `\fB`, `<code>`); plain drops the styling but keeps the text.
+- **Cross-references** are semantic, never formatted links. A `Ref` run (and
+  `SeeAlso`) carries a `RefTarget {kind, id[, section]}` where kind is `Topic`,
+  `Flag`, `Primary`, `ManPage`, `Url`, or `Anchor`. Backends resolve it: HTML
+  `<a href>`, Markdown `[..](#..)`, roff cross-ref, plain / color the text form
+  (and color / TTY may emit OSC-8 hyperlinks).
+- **Index**: every `Section` / `Subsection` / `Entry` carries a stable `anchor`
+  (auto-slugged from its title / term, overridable). A `BuildIndex` walk collects
+  `{anchor, title, summary, kind, depth}` into an index the backends render (plain
+  `--help=list`, HTML / Markdown a table of contents).
+- Because refs are semantic and the index knows every anchor, a **resolution pass
+  validates every internal cross-reference at build time**: a ref to a topic / flag
+  / primary that does not exist is a build error, not a shipped dead link. This
+  needs the whole document as data walked twice, which is why the model beats the
+  one-pass imperative `WriteReference`.
+
+### 4. Authoring
+
+The model is the interchange format; it is authored in C++, not an external markup.
+
+- **Structured data** (flags, primaries, printf / time / size vocabularies) is
+  built from the `registry` / `globals` SSOT into `Entry` / `Row` nodes. No markup.
+- **Prose and topics** are declarative model data, diff-reviewable beside the code.
+- **The only string markup is backticks** - single `` `code` `` for an inline
+  `Code` run, and a triple-backtick fence for an `Example` (verbatim; an optional
+  info string like ` ```sh ` sets `Example.lang`, which the structured backends use
+  and the text backends ignore). We deliberately do NOT parse Markdown's `#`
+  headings, `-` / `*` bullets, or `*emphasis*`: those sigils are exactly xff's flag,
+  glob, and regex characters, so they would collide with the content. Headings,
+  bullets, entries, rows, refs, and anchors are all typed nodes; a literal backtick
+  is escaped (doubled) in the rare case it appears.
+
+XHTML / Markdown as an authored input was rejected: the content is programmer
+authored, terse, and lives with the code, so an XML layer adds a parser, verbose
+authoring, and a round-trip for no gain. They remain output backends only. Revisit
+only if help ever becomes externally authored by non-coders.
