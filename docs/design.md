@@ -270,16 +270,25 @@ named captures):
 | `stem`  | the logical base name shared by every member; identifies the set                             |
 | `index` | the shard's position within the set (numeric or alpha; padding / base is part of the scheme) |
 | `total` | optional declared count; when present, drives completeness validation                        |
-| `dup`   | optional opaque suffix (e.g. a generation hash); **excluded from identity**, drives dedup    |
+| `dup`   | optional opaque tail (e.g. a generation hash); **excluded from identity**, drives dedup      |
 
 Logical shard identity is `(stem, index, total?)`; the set identity is `(stem, total-or-scheme)`.
+
+**The optional tail (`dup`) is a cross-cutting modifier, not its own scheme.** Any scheme may carry an
+optional trailing tail after the shard name so the same logical shard can be _regenerated_ under a new
+name (redundant generators race, the first to finish wins and the stragglers are killed). Both parts
+of the tail are optional: an optional **separator** (default one of `.` / `-` / `_`, or none at all)
+and an opaque **token** whose charset is a knob - the default is a permissive run of
+`[0-9A-Za-z]` (covers hex and base64url-without-`-_`); `--shard-tail=REGEX` overrides it for other
+alphabets (standard base64 `+/=`, a fixed 16-hex width, ...), and a custom `--shard-pattern` sets it
+per-scheme via its `dup` capture. So `data-00000-of-00010` and `data-00000-of-00010.a1b2c3d4e5f6a1b2`
+are the same logical shard `00000-of-00010`; the tail never enters identity or completeness.
 
 **Built-in catalog** (`--shards[=auto|SCHEME,...]`, default `auto` tries all):
 
 | Scheme        | Example                                         | Notes                                            |
 | :------------ | :---------------------------------------------- | :----------------------------------------------- |
-| `of`          | `data-00000-of-00010`                           | TF/TFRecord; 0-based, declared total             |
-| `google-of`   | `data-00000-of-00010.a1b2c3d4e5f6a1b2`          | `of` + trailing hex `dup` suffix                 |
+| `of`          | `data-00000-of-00010[.<tail>]`                  | TF/TFRecord; 0-based, declared total, opt tail   |
 | `part`        | `part-00000`, `part-r-00000-<uuid>.parquet`     | Spark/Hadoop; optional `r-`/`m-` infix, no total |
 | `webdataset`  | `shard-000042.tar`, `imagenet-train-001281.tar` | bare zero-padded numeric suffix before ext       |
 | `split-alpha` | `xaa`, `prefixab`                               | `split(1)` default; alpha base-26                |
@@ -307,6 +316,8 @@ captures above, e.g.
   representative real path, or just a count.
 - `--shards-dedup=first|mtime|error` - resolve the `dup` case (the same logical shard generated more
   than once by redundant generators): keep the first-seen, the newest, or flag it as an error.
+- `--shard-tail=REGEX` - override the opaque-tail charset for the built-in schemes (default a run of
+  `[0-9A-Za-z]` with an optional `.` / `-` / `_` separator); an empty value disables the tail.
 
 **Completeness is surfaced, not hidden:** when the name encodes a total (`-of-MMM`), a set missing
 members is flagged - `f-???-of-003 (2/3 - INCOMPLETE)` (a data-validation feature). Completeness
