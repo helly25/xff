@@ -1,0 +1,79 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "xff/values/values.h"
+
+#include <optional>
+
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+
+namespace xff::values {
+namespace {
+
+using ::testing::Eq;
+using ::testing::Optional;
+
+struct ValuesTest : ::testing::Test {};
+
+TEST_F(ValuesTest, ParseBoolAcceptsTheTrueSpellings) {
+  EXPECT_THAT(ParseBool("yes"), Optional(true));
+  EXPECT_THAT(ParseBool("true"), Optional(true));
+  EXPECT_THAT(ParseBool("1"), Optional(true));
+}
+
+TEST_F(ValuesTest, ParseBoolAcceptsTheFalseSpellings) {
+  EXPECT_THAT(ParseBool("no"), Optional(false));
+  EXPECT_THAT(ParseBool("false"), Optional(false));
+  EXPECT_THAT(ParseBool("0"), Optional(false));
+}
+
+TEST_F(ValuesTest, ParseBoolIsCaseInsensitive) {
+  EXPECT_THAT(ParseBool("YES"), Optional(true));
+  EXPECT_THAT(ParseBool("True"), Optional(true));
+  EXPECT_THAT(ParseBool("No"), Optional(false));
+}
+
+TEST_F(ValuesTest, ParseBoolRejectsEverythingElse) {
+  EXPECT_THAT(ParseBool("auto"), Eq(std::nullopt));    // auto is tri-state only
+  EXPECT_THAT(ParseBool("always"), Eq(std::nullopt));  // color idiom is tri-state only
+  EXPECT_THAT(ParseBool("2"), Eq(std::nullopt));
+  EXPECT_THAT(ParseBool(""), Eq(std::nullopt));
+  EXPECT_THAT(ParseBool("y"), Eq(std::nullopt));
+}
+
+TEST_F(ValuesTest, ParseTristateAcceptsAuto) {
+  EXPECT_THAT(ParseTristate("auto"), Optional(Tristate::kAuto));
+  EXPECT_THAT(ParseTristate("AUTO"), Optional(Tristate::kAuto));
+}
+
+TEST_F(ValuesTest, ParseTristateMapsOnAndOffSpellings) {
+  EXPECT_THAT(ParseTristate("always"), Optional(Tristate::kOn));
+  EXPECT_THAT(ParseTristate("yes"), Optional(Tristate::kOn));
+  EXPECT_THAT(ParseTristate("true"), Optional(Tristate::kOn));
+  EXPECT_THAT(ParseTristate("1"), Optional(Tristate::kOn));
+  EXPECT_THAT(ParseTristate("never"), Optional(Tristate::kOff));
+  EXPECT_THAT(ParseTristate("no"), Optional(Tristate::kOff));
+  EXPECT_THAT(ParseTristate("false"), Optional(Tristate::kOff));
+  EXPECT_THAT(ParseTristate("0"), Optional(Tristate::kOff));
+}
+
+TEST_F(ValuesTest, ParseTristateRejectsUnknown) {
+  EXPECT_THAT(ParseTristate("sometimes"), Eq(std::nullopt));
+  EXPECT_THAT(ParseTristate(""), Eq(std::nullopt));
+}
+
+}  // namespace
+}  // namespace xff::values
