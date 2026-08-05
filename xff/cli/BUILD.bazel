@@ -116,6 +116,43 @@ cc_test(
     ],
 )
 
+# The render seam for the help model (#154 slice C): RenderDocument walks a
+# Document and drives a HelpBackend, so a new output format is just a new backend.
+cc_library(
+    name = "help_backend_cc",
+    srcs = ["help_backend.cc"],
+    hdrs = ["help_backend.h"],
+    deps = [
+        ":help_model_cc",
+    ],
+)
+
+# The plain-text backend: renders the help model to unadorned terminal text.
+cc_library(
+    name = "plain_backend_cc",
+    srcs = ["plain_backend.cc"],
+    hdrs = ["plain_backend.h"],
+    deps = [
+        ":help_backend_cc",
+        ":help_model_cc",
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "plain_backend_test",
+    size = "small",
+    srcs = ["plain_backend_test.cc"],
+    deps = [
+        ":help_backend_cc",
+        ":help_model_cc",
+        ":plain_backend_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:matchers_cc",
+    ],
+)
+
 cc_library(
     name = "doc_renderer_cc",
     srcs = ["doc_renderer.cc"],
