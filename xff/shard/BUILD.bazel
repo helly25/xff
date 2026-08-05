@@ -43,3 +43,29 @@ cc_test(
         "@helly25_mbo//mbo/testing:status_cc",
     ],
 )
+
+# Grouping (#84 slice B): collapses decoded shard filenames into logical sets, dedups
+# same-index regenerations (differing only by tail), and surfaces completeness gaps.
+cc_library(
+    name = "group_cc",
+    srcs = ["group.cc"],
+    hdrs = ["group.h"],
+    visibility = ["//xff:__subpackages__"],
+    deps = [
+        ":shard_cc",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/types:span",
+    ],
+)
+
+cc_test(
+    name = "group_test",
+    size = "small",
+    srcs = ["group_test.cc"],
+    deps = [
+        ":group_cc",
+        ":shard_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
