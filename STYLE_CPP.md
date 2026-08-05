@@ -385,6 +385,12 @@ substitute for a committed test. Tests use GoogleTest + GoogleMock with these co
   `IsEmpty()` cover size + order + contents in one matcher, instead of an
   `ASSERT_EQ(v.size(), n)` followed by indexed `EXPECT_EQ`s. `ElementsAre` auto-wraps
   each bare element in `Eq`.
+  - **For a longer matcher list, prefer `ElementsAreArray({m1, ..., mN,})` with a
+    trailing comma over `ElementsAre(m1, ..., mN)`.** `ElementsAre` is variadic, so
+    clang-format bin-packs it into an unreadable run; `ElementsAreArray` takes a
+    braced init-list, so the manual trailing comma opts it into one-matcher-per-line
+    (the same trailing-comma lever as any aggregate, see the Formatting section).
+    A short list that reads on one line stays `ElementsAre`.
 - **Size and emptiness: match the container, never extract then match.** Use
   `SizeIs` / `IsEmpty` on the container itself, not `.size()` / `.empty()` fed to a
   scalar matcher or `EXPECT_TRUE` - the matcher form prints the container on failure

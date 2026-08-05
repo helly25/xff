@@ -27,6 +27,7 @@ namespace {
 
 using ::testing::AllOf;
 using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::IsEmpty;
@@ -51,17 +52,21 @@ TEST_F(ParseInlineTest, EmptyIsNoRuns) {
 
 TEST_F(ParseInlineTest, SingleBackticksMakeACodeRun) {
   EXPECT_THAT(
-      ParseInline("run `xff` now"), ElementsAre(
-                                        InlineIs(Inline::Style::kText, "run "), InlineIs(Inline::Style::kCode, "xff"),
-                                        InlineIs(Inline::Style::kText, " now")));
+      ParseInline("run `xff` now"), ElementsAreArray({
+                                        InlineIs(Inline::Style::kText, "run "),
+                                        InlineIs(Inline::Style::kCode, "xff"),
+                                        InlineIs(Inline::Style::kText, " now"),
+                                    }));
 }
 
 TEST_F(ParseInlineTest, CodeSpanAtEachEnd) {
   EXPECT_THAT(ParseInline("`a`"), ElementsAre(InlineIs(Inline::Style::kCode, "a")));
   EXPECT_THAT(
-      ParseInline("`a` b `c`"), ElementsAre(
-                                    InlineIs(Inline::Style::kCode, "a"), InlineIs(Inline::Style::kText, " b "),
-                                    InlineIs(Inline::Style::kCode, "c")));
+      ParseInline("`a` b `c`"), ElementsAreArray({
+                                    InlineIs(Inline::Style::kCode, "a"),
+                                    InlineIs(Inline::Style::kText, " b "),
+                                    InlineIs(Inline::Style::kCode, "c"),
+                                }));
 }
 
 TEST_F(ParseInlineTest, DoubledBacktickIsALiteralBacktick) {
@@ -104,8 +109,10 @@ TEST_F(ParseBlocksTest, InlineCodeFlowsIntoTheParagraph) {
   const Blocks blocks = ParseBlocks("see `-printf`");
   ASSERT_THAT(blocks, SizeIs(1));
   EXPECT_THAT(
-      std::get<Prose>(blocks[0].node).runs,
-      ElementsAre(InlineIs(Inline::Style::kText, "see "), InlineIs(Inline::Style::kCode, "-printf")));
+      std::get<Prose>(blocks[0].node).runs, ElementsAreArray({
+                                                InlineIs(Inline::Style::kText, "see "),
+                                                InlineIs(Inline::Style::kCode, "-printf"),
+                                            }));
 }
 
 TEST_F(ParseBlocksTest, FenceIsAVerbatimExampleWithItsLang) {
@@ -128,8 +135,10 @@ TEST_F(ParseBlocksTest, MixedProseAndFence) {
   const Blocks blocks = ParseBlocks("intro `code`\n\n```\ncmd\n```\n\nmore");
   ASSERT_THAT(blocks, SizeIs(3));
   EXPECT_THAT(
-      std::get<Prose>(blocks[0].node).runs,
-      ElementsAre(InlineIs(Inline::Style::kText, "intro "), InlineIs(Inline::Style::kCode, "code")));
+      std::get<Prose>(blocks[0].node).runs, ElementsAreArray({
+                                                InlineIs(Inline::Style::kText, "intro "),
+                                                InlineIs(Inline::Style::kCode, "code"),
+                                            }));
   EXPECT_THAT(std::get<Example>(blocks[1].node).text, Eq("cmd"));
   EXPECT_THAT(std::get<Prose>(blocks[2].node).runs, ElementsAre(InlineIs(Inline::Style::kText, "more")));
 }
