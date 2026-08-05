@@ -179,6 +179,32 @@ cc_test(
     ],
 )
 
+# The roff (man-page) backend: renders the help model to man-page source.
+cc_library(
+    name = "roff_backend_cc",
+    srcs = ["roff_backend.cc"],
+    hdrs = ["roff_backend.h"],
+    deps = [
+        ":help_backend_cc",
+        ":help_model_cc",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+    ],
+)
+
+cc_test(
+    name = "roff_backend_test",
+    size = "small",
+    srcs = ["roff_backend_test.cc"],
+    deps = [
+        ":help_backend_cc",
+        ":help_model_cc",
+        ":roff_backend_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 # BuildReference (#154 slice D): assembles the whole help_model Document from the SOT
 # (globals + registry + the doc-source vocabularies). The model counterpart of the
 # WriteReference() walk; any HelpBackend renders it.
