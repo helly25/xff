@@ -238,10 +238,103 @@ Content-matching path only (`-contains`/`-grep`); the find side is unaffected.
 - **Input content encoding: UTF-8 by default**, with BOM auto-detect + UTF-16 transcode (rg-style). **`--encoding` / `-E <enc>`** forces an input encoding for BOM-less content; undecodable content → matched as raw bytes (best-effort) or specify `-E`.
 - **Name disambiguation:** `--encoding`/`-E` = _input content_ decoding (rg-aligned, the expected meaning); the #5 _output_ encoding is renamed **`--path-encoding`**. Two distinct concepts, two distinct names.
 
-### Sharded files (review #11)
+### Sharded files (review #11, #84)
 
-- **Off by default; opt-in `--shards`** (find sees separate files → drop-in faithful).
-- **Conventions:** built-in set (`-NNN-of-MMM`, Spark/TF `part-NNNNN[-of-NNNNN]`, `split` `xaa…`, numeric `.NNN`/`_NNN`) + **user-defined custom pattern** (regex capturing index + total) via config/flag.
-- **Collapse = display + stats only; matching/actions stay per real shard** (find-faithful underneath; no ambiguous group-exec). With `--shards`, output is one line per group + shard count + aggregate size; stats can report per-group aggregates.
-- **Completeness is surfaced, not hidden:** when the name encodes a total (`-of-MMM`), missing shards are flagged - `f-???-of-003 (2/3 - INCOMPLETE)` (a data-validation feature). No declared total → collapse contiguous runs, flag detectable gaps.
-- **Representation:** default wildcard `f-???-of-003`; `--shards=first` for the representative real path.
+**Off by default; opt-in `--shards`** (find sees the separate files, so the default stays drop-in
+faithful). v1 is **display + stats only**: `--shards` collapses a shard set into one logical entry
+for _listing and aggregate stats_, while matching and actions stay per real shard (find-faithful
+underneath, no ambiguous group-exec). A **reassembled-content view** (so `-grep` / `-content` /
+`-hash` / `-size` see the concatenated whole) is a **v2 built on the #83 archive vfs backend**, where
+it is most useful (a split archive reassembles, then dives); it is out of scope for v1.
+
+**Sharding is not rotation.** A shard set is _parts of one logical whole_ (concatenate / belong
+together). Rotated logs (`app.log.1`, `app.log-20260101`) and storage segments (SSTables, WAL) are
+_independent_ files, not parts of one entity, and are deliberately **out of scope** - the detector
+must never fold them into a set.
+
+**A shard scheme varies along six axes**, and the model expresses all of them:
+
+1. **Index position** - suffix (`.001`), infix before the extension (`.part1.rar`, `-s001.vmdk`), or
+   replaces the extension (`.z01`).
+2. **Index form** - numeric (with pad width) or alpha base-26 (`aa`); **0-based or 1-based**.
+3. **Declared total** - present (`-of-010`, enables completeness) or absent (contiguity only).
+4. **Special boundary member** - a differently-named first (`.rar`) or last (`.zip`) volume.
+5. **Trailing opaque suffix** - a generation / attempt id excluded from shard identity (see dedup).
+6. **Ordering rule** - numeric ascending, alpha ascending, or "special member sorts first / last".
+
+**Capture vocabulary** (one engine for built-ins and custom patterns; a scheme is defined by these
+named captures):
+
+| Capture | Meaning                                                                                      |
+| :------ | :------------------------------------------------------------------------------------------- |
+| `stem`  | the logical base name shared by every member; identifies the set                             |
+| `index` | the shard's position within the set (numeric or alpha; padding / base is part of the scheme) |
+| `total` | optional declared count; when present, drives completeness validation                        |
+| `dup`   | optional opaque tail (e.g. a generation hash); **excluded from identity**, drives dedup      |
+
+Logical shard identity is `(stem, index, total?)`; the set identity is `(stem, total-or-scheme)`.
+
+**The optional tail (`dup`) is a cross-cutting modifier, not its own scheme.** Any scheme may carry an
+optional trailing tail after the shard name so the same logical shard can be _regenerated_ under a new
+name (redundant generators race, the first to finish wins and the stragglers are killed). The tail is
+described by **one regex** carrying **exactly one capturing group** - that group is the opaque `dup`
+(excluded from identity); everything _outside_ the group is literal context that must match as-is, so
+the separator lives inside the regex rather than being a separate optional knob. The default is
+`` `\.([0-9a-fA-F]{8,})` `` (a literal dot then a run of at least 8 hex digits, matching the common
+Google 16-hex id) - deliberately conservative, so an ordinary extension (`.tfrecord`, `.parquet`) is
+_not_ mistaken for a tail. `--shard-tail=REGEX` overrides it (base64, a fixed width, a `_gen-` prefix,
+...); an empty value disables the tail; a custom `--shard-pattern` instead sets it per-scheme via its
+`dup` capture. The tail is matched against the string immediately after the shard number, and any
+extension after it is preserved separately (it belongs to the set, not the tail). So
+`data-00000-of-00010` and `data-00000-of-00010.a1b2c3d4e5f6a1b2` are the same logical shard
+`00000-of-00010`; the tail never enters identity or completeness.
+
+**Built-in catalog** (`--shards[=auto|SCHEME,...]`, default `auto` tries all):
+
+| Scheme        | Example                                         | Notes                                            |
+| :------------ | :---------------------------------------------- | :----------------------------------------------- |
+| `of`          | `data-00000-of-00010[.<tail>]`                  | TF/TFRecord; 0-based, declared total, opt tail   |
+| `part`        | `part-00000`, `part-r-00000-<uuid>.parquet`     | Spark/Hadoop; optional `r-`/`m-` infix, no total |
+| `webdataset`  | `shard-000042.tar`, `imagenet-train-001281.tar` | bare zero-padded numeric suffix before ext       |
+| `split-alpha` | `xaa`, `prefixab`                               | `split(1)` default; alpha base-26                |
+| `split-num`   | `x00`, `prefix01`                               | `split --numeric-suffixes`                       |
+| `dotnum`      | `foo.tar.001`                                   | 7-Zip volumes / generic; 1-based, min-3-digit    |
+| `underscore`  | `foo_001`                                       | numeric underscore suffix                        |
+| `zip-split`   | `arc.z01, arc.z02, …, arc.zip`                  | **special last member** `.zip` (axis 4)          |
+| `rar-old`     | `arc.rar, arc.r00, arc.r01, …`                  | **special first member** `.rar` (axis 4)         |
+| `rar-part`    | `arc.part1.rar` / `arc.part001.rar`             | index infix before ext, 1-based                  |
+| `vmdk-split`  | `disk-s001.vmdk`                                | index infix `-sNNN` before ext                   |
+
+The special-boundary schemes (`zip-split`, `rar-old`, `rar-part`) are **detected** in v1 (cheap); the
+_reassembly_ that makes a split archive divable is the post-#83 v2.
+
+**Custom pattern** (full-control escape hatch): `--shard-pattern=REGEX`, repeatable, using the named
+captures above, e.g.
+
+```
+--shard-pattern='(?<stem>.*)-(?<index>\d+)-of-(?<total>\d+)(?:\.(?<dup>[0-9a-f]+))?'
+```
+
+**Policy flags** (representation and dedup are orthogonal to enabling / scheme selection):
+
+- `--shards-show=wildcard|first|count` - display the set as a wildcard `f-???-of-003` (default), a
+  representative real path, or just a count.
+- `--shards-dedup=first|mtime|error` - resolve the `dup` case (the same logical shard generated more
+  than once by redundant generators): keep the first-seen, the newest, or flag it as an error.
+- `--shard-tail=REGEX` - override the opaque-tail regex for the built-in schemes; exactly one
+  capturing group (the `dup`), everything else literal (so the separator is in the regex). Default
+  `` `\.([0-9a-fA-F]{8,})` ``; an empty value disables the tail.
+
+**Completeness is surfaced, not hidden:** when the name encodes a total (`-of-MMM`), a set missing
+members is flagged - `f-???-of-003 (2/3 - INCOMPLETE)` (a data-validation feature). Completeness
+counts **distinct indices**, never files, so redundant `dup` copies never mask a gap. With no declared
+total, contiguous runs collapse and detectable gaps are flagged.
+
+**References** (real-world naming conventions surveyed for the built-in catalog):
+
+- Multi-volume archives overview: <https://www.file-extensions.org/article/useful-information-about-multi-volume-archives>
+- WinRAR volumes (`.partN.rar`, `.rNN`): <https://documentation.help/WinRAR/HELPArcVolumes.htm>
+- 7-Zip volume naming (`.001`): <https://sourceforge.net/p/sevenzip/discussion/45797/thread/6599d448/>
+- ZIP split volumes (`.z01` … `.zip`): <https://en.wikipedia.org/wiki/ZIP_(file_format)>
+- WebDataset sharding (`shard-NNNNNN.tar`): <https://rom1504.github.io/webdataset/sharding/>
+- PyTorch large-dataset I/O: <https://pytorch.org/blog/efficient-pytorch-io-library-for-large-datasets-many-files-many-gpus/>
