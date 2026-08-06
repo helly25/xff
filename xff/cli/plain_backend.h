@@ -21,11 +21,13 @@
 #include "xff/cli/help_backend.h"
 #include "xff/cli/help_model.h"
 
-// The plain-text help backend (#154 slice C): renders the help model to
-// unadorned terminal text. Inline emphasis (code / italic / bold) drops its
-// markup; a cross-reference renders as its plain locator (`--help=fields`,
-// `find(1)`, a URL). Free-flow width control and ANSI color are later slices
-// (#153 / the color backend); this backend emits one prose paragraph per line.
+// The plain-text help backend: renders the help model to unadorned terminal text -
+// the `--help` / topic format. Blocks are separated by a blank line; a section
+// heading is upper-cased, a subsection ends in a colon, an entry is a term line
+// with an indented summary, and a vocabulary table aligns on its widest term. Prose
+// drops backtick markup, while a term / row description keeps it (matching the
+// hand-written help). Free-flow width control and ANSI color are later slices
+// (#153 / the color backend).
 namespace xff::cli {
 
 // A HelpBackend that accumulates plain text. Construct, RenderDocument() into it,
@@ -36,6 +38,7 @@ class PlainTextBackend final : public HelpBackend {
   void BeginSection(const Section& section) override;
   void BeginSubsection(const Subsection& subsection) override;
   void BeginEntry(const Entry& entry) override;
+  void EndEntry(const Entry& entry) override;
   void EmitProse(const Prose& prose) override;
   void EmitExample(const Example& example) override;
   void EmitBullets(const Bullets& bullets) override;
@@ -44,7 +47,11 @@ class PlainTextBackend final : public HelpBackend {
   [[nodiscard]] std::string Take() override;
 
  private:
+  // Separates blocks: emits a blank line before the next block unless at the start.
+  void StartBlock();
+
   std::string out_;
+  bool in_entry_ = false;  // an entry's detail prose renders indented under its term, not as free prose
 };
 
 // Renders inline runs to plain text: literal content with emphasis markup dropped
