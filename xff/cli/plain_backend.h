@@ -16,6 +16,7 @@
 #ifndef XFF_CLI_PLAIN_BACKEND_H_
 #define XFF_CLI_PLAIN_BACKEND_H_
 
+#include <cstddef>
 #include <string>
 
 #include "xff/cli/help_backend.h"
@@ -26,14 +27,21 @@
 // heading is upper-cased, a subsection ends in a colon, an entry is a term line
 // with an indented summary, and a vocabulary table aligns on its widest term. Prose
 // drops backtick markup, while a term / row description keeps it (matching the
-// hand-written help). Free-flow width control and ANSI color are later slices
-// (#153 / the color backend).
+// hand-written help). Flowing text (prose, a bullet, an entry summary / detail, a
+// see-also note) word-wraps to the configured `width` (#153 / #164), each
+// continuation line carrying its block's indent; an example block and an aligned
+// row table keep their verbatim layout. A `width` of 0 disables wrapping. ANSI
+// color is a later slice (the color backend).
 namespace xff::cli {
 
-// A HelpBackend that accumulates plain text. Construct, RenderDocument() into it,
-// then Take() the result.
+// A HelpBackend that accumulates plain text. Construct (optionally with a wrap
+// width - 0 means do not wrap), RenderDocument() into it, then Take() the result.
 class PlainTextBackend final : public HelpBackend {
  public:
+  PlainTextBackend() = default;
+
+  explicit PlainTextBackend(std::size_t width) : width_(width) {}
+
   void Preamble(const Document& doc) override;
   void BeginSection(const Section& section) override;
   void BeginSubsection(const Subsection& subsection) override;
@@ -51,6 +59,7 @@ class PlainTextBackend final : public HelpBackend {
   void StartBlock();
 
   std::string out_;
+  std::size_t width_ = 0;  // wrap column for flowing text; 0 disables wrapping (see wrap.h)
   bool in_entry_ = false;  // an entry's detail prose renders indented under its term, not as free prose
 };
 

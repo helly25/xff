@@ -25,6 +25,7 @@
 #include "absl/strings/str_cat.h"
 #include "xff/cli/help.h"
 #include "xff/cli/help_model.h"
+#include "xff/cli/wrap.h"
 
 namespace xff::cli {
 namespace {
@@ -101,7 +102,7 @@ void PlainTextBackend::BeginSubsection(const Subsection& subsection) {
 void PlainTextBackend::BeginEntry(const Entry& entry) {
   StartBlock();
   absl::StrAppend(&out_, entry.term, entry.xff ? "  (xff)" : "", "\n");
-  absl::StrAppend(&out_, "    ", RenderInlinesRaw(entry.summary), "\n");
+  absl::StrAppend(&out_, WrapText(RenderInlinesRaw(entry.summary), width_, "    ", "    "));
   in_entry_ = true;
 }
 
@@ -112,11 +113,11 @@ void PlainTextBackend::EndEntry(const Entry& /*entry*/) {
 void PlainTextBackend::EmitProse(const Prose& prose) {
   if (in_entry_) {
     // An entry's detail line, indented under its term (keeps `code` markup, no blank).
-    absl::StrAppend(&out_, "    ", RenderInlinesRaw(prose.runs), "\n");
+    absl::StrAppend(&out_, WrapText(RenderInlinesRaw(prose.runs), width_, "    ", "    "));
     return;
   }
   StartBlock();
-  absl::StrAppend(&out_, RenderInlinesPlain(prose.runs), "\n");
+  absl::StrAppend(&out_, WrapText(RenderInlinesPlain(prose.runs), width_, "", ""));
 }
 
 void PlainTextBackend::EmitExample(const Example& example) {
@@ -130,7 +131,7 @@ void PlainTextBackend::EmitExample(const Example& example) {
 void PlainTextBackend::EmitBullets(const Bullets& bullets) {
   // Glued directly under its subsection heading (no leading blank line), 2-space indent.
   for (const Inlines& item : bullets.items) {
-    absl::StrAppend(&out_, "  - ", RenderInlinesPlain(item), "\n");
+    absl::StrAppend(&out_, WrapText(RenderInlinesPlain(item), width_, "  - ", "    "));
   }
 }
 
@@ -160,7 +161,7 @@ void PlainTextBackend::EmitSeeAlso(const SeeAlso& see_also) {
   absl::StrAppend(&out_, "\n");
   if (!see_also.note.empty()) {
     StartBlock();
-    absl::StrAppend(&out_, RenderInlinesPlain(see_also.note), "\n");
+    absl::StrAppend(&out_, WrapText(RenderInlinesPlain(see_also.note), width_, "", ""));
   }
 }
 
