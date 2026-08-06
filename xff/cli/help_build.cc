@@ -410,6 +410,24 @@ Document BuildUsage() {
   return doc;
 }
 
+std::optional<Document> IndexReference(std::string_view name) {
+  if (name == "list") {
+    return BuildUsage();  // the whole-vocabulary index is the usage page
+  }
+  Document doc;
+  if (name == "all") {
+    // Every option + primary, summaries only (no detail blocks).
+    doc.sections.push_back(OptionsSection(/*with_details=*/false));
+    doc.sections.push_back(ExpressionSection(/*with_details=*/false));
+  } else if (name == "expressions") {
+    // The expression vocabulary (summaries), without the whole-run global flags.
+    doc.sections.push_back(ExpressionSection(/*with_details=*/false));
+  } else {
+    return std::nullopt;
+  }
+  return doc;
+}
+
 std::optional<Document> TopicReference(std::string_view name) {
   Document doc;
   if (name == "fields") {

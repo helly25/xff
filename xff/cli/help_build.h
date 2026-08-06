@@ -39,6 +39,11 @@ namespace xff::cli {
 // flags + `--help=TOPIC` index. The concise counterpart of BuildReference().
 [[nodiscard]] Document BuildUsage();
 
+// The index topics: `list` (the whole usage page), `all` (every option + primary,
+// summaries only), and `expressions` (the annotated primaries, no global flags).
+// nullopt when NAME is not an index topic.
+[[nodiscard]] std::optional<Document> IndexReference(std::string_view name);
+
 // Just the FIELDS section as a standalone document (no preamble), for the
 // `--help=fields` topic - the same content BuildReference() folds into its Fields
 // section, so the topic can never drift from the full reference.

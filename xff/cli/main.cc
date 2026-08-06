@@ -175,12 +175,18 @@ absl::StatusOr<std::string> RenderTopic(std::string_view topic, xff::cli::HelpRe
   if (topic == "styles" || topic == "flavors") {
     return RenderFlavorTable({}, std::nullopt);
   }
-  // The sub-vocabulary topics (fields / printf / time / size / grammars) render from
-  // the model so they wrap + indent via the context.
-  if (std::optional<xff::cli::Document> topic_doc = xff::cli::TopicReference(topic); topic_doc.has_value()) {
-    xff::cli::PlainTextBackend backend(context);
-    xff::cli::RenderDocument(*topic_doc, backend);
-    return backend.Take();
+  // The sub-vocabulary topics (fields / printf / time / size / grammars) and the index
+  // topics (list / all / expressions) render from the model so they wrap + indent.
+  {
+    std::optional<xff::cli::Document> topic_doc = xff::cli::TopicReference(topic);
+    if (!topic_doc.has_value()) {
+      topic_doc = xff::cli::IndexReference(topic);
+    }
+    if (topic_doc.has_value()) {
+      xff::cli::PlainTextBackend backend(context);
+      xff::cli::RenderDocument(*topic_doc, backend);
+      return backend.Take();
+    }
   }
   if (topic == "extras") {
     return RenderExtras();
