@@ -31,6 +31,11 @@ namespace xff::cli {
 // Assembles the reference Document from the SOT. Called once per help render.
 [[nodiscard]] Document BuildReference();
 
+// Just the FIELDS section as a standalone document (no preamble), for the
+// `--help=fields` topic - the same content BuildReference() folds into its Fields
+// section, so the topic can never drift from the full reference.
+[[nodiscard]] Document FieldsReference();
+
 }  // namespace xff::cli
 
 #endif  // XFF_CLI_HELP_BUILD_H_

@@ -23,14 +23,16 @@
 #include "xff/cli/help_backend.h"
 #include "xff/cli/help_model.h"
 
-// The plain-text help backend (#154 slice C): renders the help model to
-// unadorned terminal text. Inline emphasis (code / italic / bold) drops its
-// markup; a cross-reference renders as its plain locator (`--help=fields`,
-// `find(1)`, a URL). Flowing text (prose, bullets, an entry summary, a see-also
-// note) word-wraps to the configured `width` (#153 / #164), each continuation
-// line carrying its block's indent; an example block and an aligned row table
-// keep their verbatim layout. A `width` of 0 disables wrapping. ANSI color is a
-// later slice (the color backend).
+// The plain-text help backend: renders the help model to unadorned terminal text -
+// the `--help` / topic format. Blocks are separated by a blank line; a section
+// heading is upper-cased, a subsection ends in a colon, an entry is a term line
+// with an indented summary, and a vocabulary table aligns on its widest term. Prose
+// drops backtick markup, while a term / row description keeps it (matching the
+// hand-written help). Flowing text (prose, a bullet, an entry summary / detail, a
+// see-also note) word-wraps to the configured `width` (#153 / #164), each
+// continuation line carrying its block's indent; an example block and an aligned
+// row table keep their verbatim layout. A `width` of 0 disables wrapping. ANSI
+// color is a later slice (the color backend).
 namespace xff::cli {
 
 // A HelpBackend that accumulates plain text. Construct (optionally with a wrap
@@ -45,6 +47,7 @@ class PlainTextBackend final : public HelpBackend {
   void BeginSection(const Section& section) override;
   void BeginSubsection(const Subsection& subsection) override;
   void BeginEntry(const Entry& entry) override;
+  void EndEntry(const Entry& entry) override;
   void EmitProse(const Prose& prose) override;
   void EmitExample(const Example& example) override;
   void EmitBullets(const Bullets& bullets) override;
@@ -53,17 +56,22 @@ class PlainTextBackend final : public HelpBackend {
   [[nodiscard]] std::string Take() override;
 
  private:
+  // Separates blocks: emits a blank line before the next block unless at the start.
+  void StartBlock();
+
   std::string out_;
   std::size_t width_ = 0;  // wrap column for flowing text; 0 disables wrapping
+  bool in_entry_ = false;  // an entry's detail prose renders indented under its term, not as free prose
 };
 
 // Word-wraps `text` into `width` columns, emitting the first line behind
 // `first_indent` and each continuation line behind `cont_indent`. Words split on
 // runs of ASCII whitespace (prose arrives already joined onto one line); a word
 // wider than the remaining budget still takes its own line rather than being split
-// mid-word. A `width` of 0 disables wrapping - the text becomes one
-// `first_indent`-prefixed line. Every emitted line ends in '\n'; empty `text`
-// yields the empty string. Exposed for reuse / testing.
+// mid-word. A `width` of 0 disables wrapping: the text becomes one
+// `first_indent`-prefixed line, emitted even when empty (so it byte-reproduces the
+// pre-wrap output). At a positive width, empty `text` yields the empty string.
+// Every emitted line ends in '\n'. Exposed for reuse / testing.
 [[nodiscard]] std::string WrapText(
     std::string_view text,
     std::size_t width,

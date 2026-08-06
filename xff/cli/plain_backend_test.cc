@@ -78,12 +78,13 @@ TEST_F(RenderInlinesPlainTest, RefWithoutALabelShowsItsLocator) {
 
 struct WrapTextTest : ::testing::Test {};
 
-TEST_F(WrapTextTest, WidthZeroEmitsOneUnwrappedIndentedLine) {
+TEST_F(WrapTextTest, WidthZeroAlwaysEmitsOneIndentedLine) {
   EXPECT_THAT(WrapText("the quick brown fox", 0, "  ", "    "), Eq("  the quick brown fox\n"));
+  // Even empty, so it byte-reproduces the pre-wrap "indent + text + newline" emit.
+  EXPECT_THAT(WrapText("", 0, "  ", "  "), Eq("  \n"));
 }
 
-TEST_F(WrapTextTest, EmptyTextYieldsEmptyString) {
-  EXPECT_THAT(WrapText("", 0, "  ", "  "), Eq(""));
+TEST_F(WrapTextTest, PositiveWidthEmptyTextYieldsEmptyString) {
   EXPECT_THAT(WrapText("", 40, "  ", "  "), Eq(""));
 }
 
@@ -126,7 +127,7 @@ TEST_F(PlainBackendTest, RendersAWholeDocumentInOrder) {
   const Document doc{
       .name = "xff",
       .tagline = "eXtended File Find",
-      .usage = "xff [path...] [expr]",
+      .usage = "[path...] [expr]",
       .sections =
           {
               Section{
@@ -178,18 +179,24 @@ TEST_F(PlainBackendTest, RendersAWholeDocumentInOrder) {
       Usage: xff [path...] [expr]
 
       DESCRIPTION
+
       Find files; see --help=fields.
 
       OPTIONS
-        --summary [xff]
-            group + aggregate
-      more detail.
+
+      --summary  (xff)
+          group + aggregate
+          more detail.
         %p  path
         %f  name
         - first
         - second
-          xff . -type f
-      See also: find(1) the classic.
+
+      xff . -type f
+
+      find(1)
+
+      the classic.
       )out")));
 }
 
