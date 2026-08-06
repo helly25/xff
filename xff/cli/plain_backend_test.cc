@@ -82,7 +82,7 @@ TEST_F(PlainBackendTest, RendersAWholeDocumentInOrder) {
   const Document doc{
       .name = "xff",
       .tagline = "eXtended File Find",
-      .usage = "xff [path...] [expr]",
+      .usage = "[path...] [expr]",
       .sections =
           {
               Section{
@@ -134,18 +134,24 @@ TEST_F(PlainBackendTest, RendersAWholeDocumentInOrder) {
       Usage: xff [path...] [expr]
 
       DESCRIPTION
+
       Find files; see --help=fields.
 
       OPTIONS
-        --summary [xff]
-            group + aggregate
-      more detail.
+
+      --summary  (xff)
+          group + aggregate
+          more detail.
         %p  path
         %f  name
         - first
         - second
-          xff . -type f
-      See also: find(1) the classic.
+
+      xff . -type f
+
+      find(1)
+
+      the classic.
       )out")));
 }
 

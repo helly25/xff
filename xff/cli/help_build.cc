@@ -183,6 +183,12 @@ Section VocabSection(std::string_view title, std::string_view prose, absl::Span<
 
 }  // namespace
 
+Document FieldsReference() {
+  Document doc;
+  doc.sections.push_back(BuildFields());
+  return doc;
+}
+
 Document BuildReference() {
   Document doc{
       .name = "xff",
