@@ -15,11 +15,11 @@
 
 #include "xff/shard/group.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -35,10 +35,10 @@ namespace {
 using SetKey = std::tuple<Scheme, std::string, std::optional<std::int64_t>>;
 
 // Accumulates the raw membership of one set before it is finalized: every matched
-// filename bucketed by its index (same-index files are duplicate regenerations).
+// file bucketed by its index (same-index files are duplicate regenerations).
 struct Accum {
   int width = 0;
-  std::map<std::int64_t, std::vector<std::string>> by_index;
+  std::map<std::int64_t, std::vector<ShardFile>> by_index;
 };
 
 // Fills `out.missing` / `out.complete` from the present indices. With a declared
@@ -68,16 +68,16 @@ void ComputeCompleteness(ShardSet& out) {
 
 }  // namespace
 
-std::vector<ShardSet> GroupShards(absl::Span<const std::string_view> filenames, const Matcher& matcher) {
+std::vector<ShardSet> GroupShards(absl::Span<const ShardFile> files, const Matcher& matcher) {
   std::map<SetKey, Accum> sets;  // ordered, so output is deterministic by (scheme, stem, total)
-  for (const std::string_view filename : filenames) {
-    const std::optional<Match> match = matcher.Decode(filename);
+  for (const ShardFile& file : files) {
+    const std::optional<Match> match = matcher.Decode(file.name);
     if (!match.has_value()) {
       continue;  // not a shard under any scheme
     }
     Accum& accum = sets[SetKey{match->scheme, match->stem, match->total}];
     accum.width = match->width;
-    accum.by_index[match->index].emplace_back(filename);
+    accum.by_index[match->index].push_back(file);
   }
 
   std::vector<ShardSet> result;
@@ -89,11 +89,29 @@ std::vector<ShardSet> GroupShards(absl::Span<const std::string_view> filenames, 
         .total = std::get<2>(key),
         .width = accum.width,
     };
-    for (auto& [index, paths] : accum.by_index) {
-      absl::c_sort(paths);  // deterministic representative + duplicate order
-      ShardMember member{.index = index, .path = std::move(paths.front())};
-      member.duplicates.assign(paths.begin() + 1, paths.end());
+    for (const auto& [index, group] : accum.by_index) {
+      // The lexicographically-first file is the representative (its size / mode
+      // become the shard's); a single min-element scan finds it - no full sort. The
+      // rest are the redundant regenerations, kept in encounter order.
+      const auto representative =
+          absl::c_min_element(group, [](const ShardFile& lhs, const ShardFile& rhs) { return lhs.name < rhs.name; });
+      ShardMember member{
+          .index = index,
+          .path = std::string(representative->name),
+          .size = representative->size,
+          .mode = representative->mode,
+      };
+      for (const ShardFile& file : group) {
+        if (file.name != representative->name) {  // names are unique within a directory
+          member.duplicates.emplace_back(file.name);
+        }
+      }
+      set.total_size += member.size;  // distinct shards only, not the redundant dup copies
       set.members.push_back(std::move(member));
+    }
+    if (!set.members.empty()) {
+      const std::uint32_t mode = set.members.front().mode;
+      set.uniform_mode = absl::c_all_of(set.members, [mode](const ShardMember& member) { return member.mode == mode; });
     }
     // by_index is ordered, so members are already sorted by ascending index.
     ComputeCompleteness(set);

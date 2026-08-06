@@ -764,6 +764,18 @@ rendered `--help` / `--man` / `--markdown` off the one walk.
   (Example blocks stay verbatim; the aligned `{term}` rows keep their layout). Width source to settle
   during the build: honor the terminal width / `$COLUMNS` on a TTY, fall back to a fixed column (e.g. 80) when piped, optionally a `--width=N` override. Pairs with the structured-examples item - once the
   explanations are prose, they need this to wrap.
+  - **Wrapping must be indent-aware.** For the direct help output in particular, a wrapped line must
+    carry the correct indentation on its continuation lines: an entry's detail, a bullet, an aligned
+    row, or a nested subsection wraps under its own first line, not back to the left margin. So the
+    width budget is per-indent-level (width minus the current indent), not a single global column - a
+    first-class requirement of the plain backend, not an afterthought.
+
+- **ASN.1 GeneralizedTime datetime format + timezone-suffix control.** `xff/datetime` is missing the
+  ASN.1 `GeneralizedTime` format `YYYYMMDDHHMMSS`, plus its `Z` (zulu) variant and its explicit
+  `+NNNN` timezone-offset variant - add all three. Separately, add the ability to suppress / explicitly
+  disable the timezone suffix on formats where it is optional, driven by a flag; for inherently-zoned
+  formats (e.g. zulu) suppression is nonsensical and must be rejected or ignored rather than silently
+  dropping the `Z`. Needs a flag-based solution.
 
 ### Featured ideas (deferred)
 

@@ -43,7 +43,12 @@ using ::testing::SizeIs;
 }
 
 std::vector<ShardSet> Group(const std::vector<std::string_view>& names) {
-  return GroupShards(names, *Matcher::Make());
+  std::vector<ShardFile> files;
+  files.reserve(names.size());
+  for (const std::string_view name : names) {
+    files.push_back(ShardFile{.name = name});
+  }
+  return GroupShards(files, *Matcher::Make());
 }
 
 struct GroupShardsTest : ::testing::Test {};
@@ -108,6 +113,33 @@ TEST_F(GroupShardsTest, SeparateStemsAreSeparateSetsSortedByStem) {
   ASSERT_THAT(sets, SizeIs(2));
   EXPECT_THAT(sets[0].stem, Eq("alpha"));
   EXPECT_THAT(sets[1].stem, Eq("zeta"));
+}
+
+TEST_F(GroupShardsTest, AggregatesDistinctShardSizesAndFlagsNonUniformMode) {
+  const std::vector<ShardFile> files = {
+      {.name = "data-00000-of-00002", .size = 100, .mode = 0644},
+      {.name = "data-00001-of-00002", .size = 250, .mode = 0600},  // a different mode
+  };
+  const std::vector<ShardSet> sets = GroupShards(files, *Matcher::Make());
+  ASSERT_THAT(sets, SizeIs(1));
+  EXPECT_THAT(sets[0].total_size, Eq(350U));
+  EXPECT_FALSE(sets[0].uniform_mode);
+  ASSERT_THAT(sets[0].members, SizeIs(2));
+  EXPECT_THAT(sets[0].members[0].size, Eq(100U));
+  EXPECT_THAT(sets[0].members[0].mode, Eq(0644U));
+}
+
+TEST_F(GroupShardsTest, SizeCountsDistinctShardsNotDuplicateCopies) {
+  // The two files are the same logical shard 0 (they differ only by the tail), so
+  // the aggregate size counts the one representative, not both copies.
+  const std::vector<ShardFile> files = {
+      {.name = "d-00000-of-00001.aaaaaaaa", .size = 40, .mode = 0644},
+      {.name = "d-00000-of-00001.bbbbbbbb", .size = 40, .mode = 0644},
+  };
+  const std::vector<ShardSet> sets = GroupShards(files, *Matcher::Make());
+  ASSERT_THAT(sets, SizeIs(1));
+  EXPECT_THAT(sets[0].total_size, Eq(40U));  // not 80 - the dup copy is excluded
+  EXPECT_TRUE(sets[0].uniform_mode);
 }
 
 }  // namespace
