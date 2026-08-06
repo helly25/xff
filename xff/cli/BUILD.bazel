@@ -162,6 +162,7 @@ cc_library(
         ":help_backend_cc",
         ":help_model_cc",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
     ],
 )
 
@@ -302,18 +303,17 @@ cc_test(
     ],
 )
 
-# `xff --markdown`: a GitHub-renderable reference, a MarkdownRenderer over the shared
-# WriteReference() walk (the Markdown counterpart of --man), so it carries the complete
+# `xff --markdown`: a GitHub-renderable reference, the MarkdownBackend driven over the
+# BuildReference() model (the Markdown counterpart of --man), so it carries the complete
 # reference and cannot drift from --man / --help=full.
 cc_library(
     name = "markdown_cc",
     srcs = ["markdown.cc"],
     hdrs = ["markdown.h"],
     deps = [
-        ":doc_renderer_cc",
-        "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/strings:str_format",
-        "@abseil-cpp//absl/types:span",
+        ":help_backend_cc",
+        ":help_build_cc",
+        ":markdown_backend_cc",
     ],
 )
 

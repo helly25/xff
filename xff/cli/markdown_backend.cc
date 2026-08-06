@@ -15,19 +15,19 @@
 
 #include "xff/cli/markdown_backend.h"
 
+#include <cstddef>
 #include <string>
-#include <string_view>
 
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "xff/cli/help_model.h"
 
 namespace xff::cli {
 namespace {
 
-// The GitHub anchor slug for an in-document cross-reference target: lower-cased,
-// leading option dashes dropped, and any run of non-alphanumerics folded to a
-// single '-' (how GitHub derives heading anchors).
+// The GitHub anchor slug for an in-document cross-reference: lower-cased, leading
+// option dashes dropped, and any run of non-alphanumerics folded to a single '-'.
 std::string SlugFor(const RefTarget& target) {
   std::string slug;
   bool pending_dash = false;
@@ -39,7 +39,7 @@ std::string SlugFor(const RefTarget& target) {
       pending_dash = false;
       slug.push_back(absl::ascii_tolower(chr));
     } else {
-      pending_dash = true;  // dashes / other punctuation collapse; leading run is dropped
+      pending_dash = true;
     }
   }
   return slug;
@@ -51,9 +51,7 @@ std::string MarkdownRefLink(const RefTarget& target, const std::string& label) {
   const std::string text = label.empty() ? target.id : label;
   switch (target.kind) {
     case RefTarget::Kind::kUrl: return absl::StrCat("[", text, "](", target.id, ")");
-    case RefTarget::Kind::kManPage:
-      // GitHub has no man-page links; render the conventional name(section) text.
-      return label.empty() ? absl::StrCat(target.id, "(", target.section, ")") : label;
+    case RefTarget::Kind::kManPage: return label.empty() ? absl::StrCat(target.id, "(", target.section, ")") : label;
     case RefTarget::Kind::kTopic:
     case RefTarget::Kind::kFlag:
     case RefTarget::Kind::kPrimary:
@@ -79,77 +77,68 @@ std::string RenderInlinesMarkdown(const Inlines& runs) {
 }
 
 void MarkdownBackend::Preamble(const Document& doc) {
-  if (!doc.name.empty()) {
-    absl::StrAppend(&out_, "# ", doc.name, "\n\n");
-  }
-  if (!doc.tagline.empty()) {
-    absl::StrAppend(&out_, "> ", doc.tagline, "\n\n");
-  }
-  if (!doc.usage.empty()) {
-    absl::StrAppend(&out_, "**Usage:** `", doc.usage, "`\n\n");
-  }
+  absl::StrAppendFormat(&out_, "# %s\n\n%s.\n\n**Usage:** `%s %s`\n", doc.name, doc.tagline, doc.name, doc.usage);
 }
 
 void MarkdownBackend::BeginSection(const Section& section) {
-  absl::StrAppend(&out_, "## ", section.title, "\n\n");
+  absl::StrAppendFormat(&out_, "\n## %s\n", section.title);
 }
 
 void MarkdownBackend::BeginSubsection(const Subsection& subsection) {
-  absl::StrAppend(&out_, "### ", subsection.title, "\n\n");
+  absl::StrAppendFormat(&out_, "\n### %s\n", subsection.title);
 }
 
 void MarkdownBackend::BeginEntry(const Entry& entry) {
-  absl::StrAppend(&out_, "**`", entry.term, "`**", entry.xff ? " _(xff)_" : "");
-  if (!entry.summary.empty()) {
-    absl::StrAppend(&out_, " - ", RenderInlinesMarkdown(entry.summary));
-  }
-  absl::StrAppend(&out_, "\n\n");
+  // A term is backtick-wrapped so its `=NAME` / `[..]` / `|` stay literal.
+  absl::StrAppend(
+      &out_, "- `", entry.term, "` - ", RenderInlinesMarkdown(entry.summary), entry.xff ? " _(xff)_" : "", "\n");
+  in_entry_ = true;
+}
+
+void MarkdownBackend::EndEntry(const Entry& /*entry*/) {
+  in_entry_ = false;
 }
 
 void MarkdownBackend::EmitProse(const Prose& prose) {
-  absl::StrAppend(&out_, RenderInlinesMarkdown(prose.runs), "\n\n");
+  if (in_entry_) {
+    absl::StrAppend(&out_, "  ", RenderInlinesMarkdown(prose.runs), "\n");  // indented bullet continuation
+  } else {
+    absl::StrAppend(&out_, "\n", RenderInlinesMarkdown(prose.runs), "\n");
+  }
 }
 
 void MarkdownBackend::EmitExample(const Example& example) {
-  absl::StrAppend(&out_, "```", example.lang, "\n", example.text, "\n```\n\n");
+  absl::StrAppend(&out_, "\n```", example.lang, "\n", example.text, "\n```\n");
 }
 
 void MarkdownBackend::EmitBullets(const Bullets& bullets) {
+  absl::StrAppend(&out_, "\n");
   for (const Inlines& item : bullets.items) {
     absl::StrAppend(&out_, "- ", RenderInlinesMarkdown(item), "\n");
   }
-  absl::StrAppend(&out_, "\n");
 }
 
 void MarkdownBackend::EmitRows(const Rows& rows) {
-  absl::StrAppend(&out_, "|  |  |\n| :-- | :-- |\n");
-  for (const Row& row : rows.rows) {
-    absl::StrAppend(&out_, "| `", row.term, "` | ", RenderInlinesMarkdown(row.description), " |\n");
-  }
   absl::StrAppend(&out_, "\n");
+  for (const Row& row : rows.rows) {
+    absl::StrAppend(&out_, "- `", row.term, "` - ", RenderInlinesMarkdown(row.description), "\n");
+  }
 }
 
 void MarkdownBackend::EmitSeeAlso(const SeeAlso& see_also) {
-  absl::StrAppend(&out_, "**See also:**");
-  std::string_view sep = " ";
-  for (const RefTarget& ref : see_also.refs) {
-    absl::StrAppend(&out_, sep, MarkdownRefLink(ref, /*label=*/""));
-    sep = ", ";
+  absl::StrAppend(&out_, "\n");
+  for (std::size_t i = 0; i < see_also.refs.size(); ++i) {
+    const RefTarget& ref = see_also.refs[i];
+    absl::StrAppendFormat(&out_, "%s`%s`(%s)", i == 0 ? "" : ", ", ref.id, ref.section);
   }
+  absl::StrAppend(&out_, "\n");
   if (!see_also.note.empty()) {
-    absl::StrAppend(&out_, " ", RenderInlinesMarkdown(see_also.note));
+    absl::StrAppend(&out_, "\n", RenderInlinesMarkdown(see_also.note), "\n");
   }
-  absl::StrAppend(&out_, "\n\n");
 }
 
 std::string MarkdownBackend::Take() {
-  // Every block emits a trailing blank line for separation; collapse the run at the
-  // document end to a single newline so the output ends cleanly.
-  std::string out = out_;
-  while (out.size() >= 2 && out[out.size() - 1] == '\n' && out[out.size() - 2] == '\n') {
-    out.pop_back();
-  }
-  return out;
+  return std::move(out_);
 }
 
 }  // namespace xff::cli

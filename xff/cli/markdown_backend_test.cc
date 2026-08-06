@@ -91,7 +91,7 @@ TEST_F(MarkdownBackendTest, RendersAWholeDocumentAsMarkdown) {
   const Document doc{
       .name = "xff",
       .tagline = "eXtended File Find",
-      .usage = "xff [path...] [expr]",
+      .usage = "[path...] [expr]",
       .sections =
           {
               Section{
@@ -117,23 +117,22 @@ TEST_F(MarkdownBackendTest, RendersAWholeDocumentAsMarkdown) {
   EXPECT_THAT(backend.Take(), WithDropIndent(EqualsText(R"out(
       # xff
 
-      > eXtended File Find
+      eXtended File Find.
 
       **Usage:** `xff [path...] [expr]`
 
       ## OPTIONS
+      - `--summary` - group + aggregate _(xff)_
 
-      **`--summary`** _(xff)_ - group + aggregate
-
-      |  |  |
-      | :-- | :-- |
-      | `%p` | path |
+      - `%p` - path
 
       ```sh
       xff . -type f
       ```
 
-      **See also:** find(1) the classic.
+      `find`(1)
+
+      the classic.
       )out")));
 }
 
