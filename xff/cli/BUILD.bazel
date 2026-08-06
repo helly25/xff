@@ -282,10 +282,9 @@ cc_library(
     srcs = ["manpage.cc"],
     hdrs = ["manpage.h"],
     deps = [
-        ":doc_renderer_cc",
-        "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/strings:str_format",
-        "@abseil-cpp//absl/types:span",
+        ":help_backend_cc",
+        ":help_build_cc",
+        ":roff_backend_cc",
     ],
 )
 
