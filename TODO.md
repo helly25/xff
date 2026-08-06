@@ -74,6 +74,18 @@ intent, not hard dependency. Task numbers reference the agent task list.
   line translator for a semantic-shim on a lib we otherwise do not use. The divergence + rationale now
   live in `xff/glob/glob.h`; no migration. (mbo's FS globbing may still be worth adopting elsewhere.)
 
+- **Sweep for C++ move/forward oversights.** Audit the codebase for missing modern-C++ value
+  idioms: a by-value sink parameter stored into a member without `std::move` (e.g. a ctor taking
+  `T x` then `x_(x)` instead of `x_(std::move(x))`); a forwarding reference `T&&` passed on without
+  `std::forward<T>`; a returned local that would benefit from being a move (usually NRVO handles it,
+  but a returned member or subobject does not); needless copies where a `std::move` on a
+  no-longer-used local applies. Note the trivially-copyable exception: `std::move` on a trivially
+  copyable type is a no-op and clang-tidy's `performance-move-const-arg` flags it, so keep such moves
+  only as a deliberate future-proofing idiom (with a `NOLINT` + comment), else drop them. Prefer a
+  clang-tidy-driven pass (`performance-move-const-arg`, `performance-unnecessary-value-param`,
+  `bugprone-move-forwarding-reference`, `cppcoreguidelines-rvalue-reference-param-not-moved`,
+  `hicpp-move-const-arg`) plus a manual read of the hot constructors. Sized by finding count.
+
 ### find / xff features (roadmap tail)
 
 The standard find predicate surface is complete (the access predicates

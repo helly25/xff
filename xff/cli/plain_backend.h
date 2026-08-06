@@ -16,8 +16,8 @@
 #ifndef XFF_CLI_PLAIN_BACKEND_H_
 #define XFF_CLI_PLAIN_BACKEND_H_
 
-#include <cstddef>
 #include <string>
+#include <utility>
 
 #include "xff/cli/help_backend.h"
 #include "xff/cli/help_model.h"
@@ -34,13 +34,17 @@
 // color is a later slice (the color backend).
 namespace xff::cli {
 
-// A HelpBackend that accumulates plain text. Construct (optionally with a wrap
-// width - 0 means do not wrap), RenderDocument() into it, then Take() the result.
+// A HelpBackend that accumulates plain text. Construct (optionally with a render
+// context - its width drives wrapping, 0 = no wrap), RenderDocument() into it, then
+// Take() the result.
 class PlainTextBackend final : public HelpBackend {
  public:
   PlainTextBackend() = default;
 
-  explicit PlainTextBackend(std::size_t width) : width_(width) {}
+  // std::move keeps the sink-parameter idiom; a no-op while HelpRenderContext is
+  // trivially copyable (see HelpBackend), hence the lint suppression.
+  // NOLINTNEXTLINE(*-move-const-arg)
+  explicit PlainTextBackend(HelpRenderContext context) : HelpBackend(std::move(context)) {}
 
   void Preamble(const Document& doc) override;
   void BeginSection(const Section& section) override;
@@ -59,7 +63,6 @@ class PlainTextBackend final : public HelpBackend {
   void StartBlock();
 
   std::string out_;
-  std::size_t width_ = 0;  // wrap column for flowing text; 0 disables wrapping (see wrap.h)
   bool in_entry_ = false;  // an entry's detail prose renders indented under its term, not as free prose
 };
 

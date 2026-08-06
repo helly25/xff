@@ -197,8 +197,8 @@ std::string RenderRegexDocs() {
 // The {field} placeholder vocabulary (--help=fields), rendered as plain help through the shared
 // WriteFields() walk (a PlainRenderer) - the same walk that feeds the --man / --markdown /
 // --help=full Fields section, so the topic can never drift from them or hand-mirror their content.
-std::string RenderFieldsDocs(std::size_t width) {
-  xff::cli::PlainTextBackend backend(width);
+std::string RenderFieldsDocs(xff::cli::HelpRenderContext context) {
+  xff::cli::PlainTextBackend backend(context);
   xff::cli::RenderDocument(xff::cli::FieldsReference(), backend);
   return backend.Take();
 }
@@ -229,17 +229,18 @@ std::string RenderExtras() {
   return out;
 }
 
-// forward declaration (FullReference recurses); `width` is the plain-help wrap column
-absl::StatusOr<std::string> RenderTopic(std::string_view topic, std::size_t width);
+// forward declaration (FullReference recurses); `context` carries the render meta
+// (wrap width, ...) every model-rendered topic applies.
+absl::StatusOr<std::string> RenderTopic(std::string_view topic, xff::cli::HelpRenderContext context);
 
 // The full detailed reference (--help=full / long and --help-full / --help-long): every
 // option and primary with explanations, then each sub-vocabulary topic marked in_full --
 // so adding a topic auto-includes it here, no hand-maintained list.
-std::string FullReference(std::size_t width) {
+std::string FullReference(xff::cli::HelpRenderContext context) {
   std::string out(xff::cli::RenderHelp("full").value_or(""));
   for (const xff::cli::HelpTopic& topic : xff::cli::HelpTopics()) {
     if (topic.in_full) {
-      absl::StrAppend(&out, "\n", RenderTopic(topic.name, width).value_or(""));
+      absl::StrAppend(&out, "\n", RenderTopic(topic.name, context).value_or(""));
     }
   }
   return out;
@@ -249,12 +250,12 @@ std::string FullReference(std::size_t width) {
 // datetime / flavor facets), else the registry-backed cli::RenderHelp. Shared by the
 // --help= handler, the --help-* shortcuts, and FullReference (which never asks for the
 // self-referential full/long, so there is no recursion).
-absl::StatusOr<std::string> RenderTopic(std::string_view topic, std::size_t width) {
+absl::StatusOr<std::string> RenderTopic(std::string_view topic, xff::cli::HelpRenderContext context) {
   if (topic == "styles" || topic == "flavors") {
     return RenderFlavorTable({}, std::nullopt);
   }
   if (topic == "fields") {
-    return RenderFieldsDocs(width);
+    return RenderFieldsDocs(context);
   }
   if (topic == "printf") {
     return RenderPrintfDocs();
@@ -272,7 +273,7 @@ absl::StatusOr<std::string> RenderTopic(std::string_view topic, std::size_t widt
     return RenderExtras();
   }
   if (topic == "full" || topic == "long") {
-    return FullReference(width);
+    return FullReference(context);
   }
   return xff::cli::RenderHelp(topic);
 }
@@ -299,6 +300,7 @@ int RunMain(int argc, char** argv) {
     std::cerr << "xff: " << help_width.status().message() << "\n";
     return 2;
   }
+  const xff::cli::HelpRenderContext help_context{.width = *help_width};
 
   // Help and version, scanned anywhere in the arguments (find prints usage on a
   // bare --help wherever it lands). xff stays flag-only -- no `help` subcommand --
@@ -316,16 +318,16 @@ int RunMain(int argc, char** argv) {
       return 0;
     }
     if (arg == "--help-all") {
-      std::cout << RenderTopic("all", *help_width).value_or("");  // hyphenated shortcut for --help=all (summaries)
+      std::cout << RenderTopic("all", help_context).value_or("");  // hyphenated shortcut for --help=all (summaries)
       return 0;
     }
     if (arg == "--help-full" || arg == "--help-long") {
-      std::cout << RenderTopic("full", *help_width).value_or("");  // hyphenated shortcut for --help=full (explained)
+      std::cout << RenderTopic("full", help_context).value_or("");  // hyphenated shortcut for --help=full (explained)
       return 0;
     }
     if (arg.starts_with("--help=")) {
       const std::string_view topic = std::string_view(arg).substr(7);
-      const absl::StatusOr<std::string> help = RenderTopic(topic, *help_width);
+      const absl::StatusOr<std::string> help = RenderTopic(topic, help_context);
       if (help.ok()) {
         std::cout << *help;
         return 0;

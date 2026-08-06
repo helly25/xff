@@ -15,6 +15,7 @@
 
 #include "xff/cli/plain_backend.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <string>
 #include <string_view>
@@ -102,7 +103,7 @@ void PlainTextBackend::BeginSubsection(const Subsection& subsection) {
 void PlainTextBackend::BeginEntry(const Entry& entry) {
   StartBlock();
   absl::StrAppend(&out_, entry.term, entry.xff ? "  (xff)" : "", "\n");
-  absl::StrAppend(&out_, WrapText(RenderInlinesRaw(entry.summary), width_, "    ", "    "));
+  absl::StrAppend(&out_, WrapText(RenderInlinesRaw(entry.summary), Context().width, "    ", "    "));
   in_entry_ = true;
 }
 
@@ -113,11 +114,11 @@ void PlainTextBackend::EndEntry(const Entry& /*entry*/) {
 void PlainTextBackend::EmitProse(const Prose& prose) {
   if (in_entry_) {
     // An entry's detail line, indented under its term (keeps `code` markup, no blank).
-    absl::StrAppend(&out_, WrapText(RenderInlinesRaw(prose.runs), width_, "    ", "    "));
+    absl::StrAppend(&out_, WrapText(RenderInlinesRaw(prose.runs), Context().width, "    ", "    "));
     return;
   }
   StartBlock();
-  absl::StrAppend(&out_, WrapText(RenderInlinesPlain(prose.runs), width_, "", ""));
+  absl::StrAppend(&out_, WrapText(RenderInlinesPlain(prose.runs), Context().width, "", ""));
 }
 
 void PlainTextBackend::EmitExample(const Example& example) {
@@ -131,24 +132,43 @@ void PlainTextBackend::EmitExample(const Example& example) {
 void PlainTextBackend::EmitBullets(const Bullets& bullets) {
   // Glued directly under its subsection heading (no leading blank line), 2-space indent.
   for (const Inlines& item : bullets.items) {
-    absl::StrAppend(&out_, WrapText(RenderInlinesPlain(item), width_, "  - ", "    "));
+    absl::StrAppend(&out_, WrapText(RenderInlinesPlain(item), Context().width, "  - ", "    "));
   }
 }
 
 void PlainTextBackend::EmitRows(const Rows& rows) {
-  // The shared {term, description} layout (2-space indent, widest term + 2), so a
-  // vocabulary table aligns exactly like the --help=printf / time / size ones.
+  // The shared {term, description} layout: a 2-space indent, then the description
+  // column two spaces past the widest term - so this table aligns like the
+  // --help=printf / time / size ones.
   std::vector<std::string> descriptions;
   descriptions.reserve(rows.rows.size());
   for (const Row& row : rows.rows) {
     descriptions.push_back(RenderInlinesRaw(row.description));
   }
-  std::vector<std::pair<std::string_view, std::string_view>> doc_rows;
-  doc_rows.reserve(rows.rows.size());
-  for (std::size_t i = 0; i < rows.rows.size(); ++i) {
-    doc_rows.emplace_back(rows.rows[i].term, descriptions[i]);
+  std::size_t term_width = 0;
+  for (const Row& row : rows.rows) {
+    term_width = std::max(term_width, row.term.size());
   }
-  absl::StrAppend(&out_, RenderDocRows("  ", doc_rows));
+  term_width += 2;  // a 2-space gap after the widest term
+
+  if (Context().width == 0) {
+    // No wrapping: the verbatim aligned table (byte-identical to RenderDocRows).
+    std::vector<std::pair<std::string_view, std::string_view>> doc_rows;
+    doc_rows.reserve(rows.rows.size());
+    for (std::size_t i = 0; i < rows.rows.size(); ++i) {
+      doc_rows.emplace_back(rows.rows[i].term, descriptions[i]);
+    }
+    absl::StrAppend(&out_, RenderDocRows("  ", doc_rows));
+    return;
+  }
+  // Wrap each description to the width, its continuation lines hanging under the
+  // description column (2-space indent + the padded term column).
+  const std::string hang(2 + term_width, ' ');
+  for (std::size_t i = 0; i < rows.rows.size(); ++i) {
+    const std::string prefix =
+        absl::StrCat("  ", rows.rows[i].term, std::string(term_width - rows.rows[i].term.size(), ' '));
+    absl::StrAppend(&out_, WrapText(descriptions[i], Context().width, prefix, hang));
+  }
 }
 
 void PlainTextBackend::EmitSeeAlso(const SeeAlso& see_also) {
@@ -161,7 +181,7 @@ void PlainTextBackend::EmitSeeAlso(const SeeAlso& see_also) {
   absl::StrAppend(&out_, "\n");
   if (!see_also.note.empty()) {
     StartBlock();
-    absl::StrAppend(&out_, WrapText(RenderInlinesPlain(see_also.note), width_, "", ""));
+    absl::StrAppend(&out_, WrapText(RenderInlinesPlain(see_also.note), Context().width, "", ""));
   }
 }
 
