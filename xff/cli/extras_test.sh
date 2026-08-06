@@ -41,13 +41,14 @@ test::disabled_extra_flag_is_a_hard_error_when_used() {
   expect_output_contains "--//xff:archive" "${out}" # names what to rebuild with
 }
 
-test::disabled_extra_flag_is_listed_under_the_extras_heading() {
-  # The flag is NOT hidden or reported as unknown: --help lists it under a distinct "Extras" group
-  # with a note on the missing build extra.
+test::disabled_extra_flag_is_listed_with_a_not_built_note() {
+  # The flag is NOT hidden or reported as unknown: --help lists it in its group with a
+  # note that its build extra is absent and what to rebuild with.
   local out
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --help 2>&1)"
-  expect_output_contains "Extras (not built into this binary):" "${out}"
-  expect_matches "\-\-archive.*needs --//xff:archive" "${out}"
+  expect_matches "\-\-archive" "${out}"                        # listed, not hidden
+  expect_output_contains "NOT built into this binary" "${out}"
+  expect_output_contains "--//xff:archive" "${out}"            # names what to rebuild with
 }
 
 test::disabled_extra_help_topic_marks_it_not_built_in() {

@@ -48,40 +48,6 @@
 
 namespace {
 
-// `--help` / `-h` text. Lists the whole-run options (globals) that are actually
-// wired; the find expression vocabulary (tests/operators/actions) follows the
-// roots and is documented in find(1) and docs/.
-constexpr std::string_view kHelpText =
-    R"(xff -- eXtended File Find: a find(1)-compatible file finder with modern extensions.
-
-Usage:
-  xff [option...] [path...] [expression]
-  find [option...] [path...] [expression]   # strict find compatibility, when invoked as `find`
-
-No path searches the current directory; no action prints each match (an implicit -print).
-
-Options (whole-run; shown before the paths, but a --long option may appear anywhere):
-)";
-
-// The Expression: section of the usage page, printed after the generated Help: section.
-// The Help: section (help / doc flags + the --help=TOPIC index) is generated from the
-// cli::HelpFlags() and cli::HelpTopics() SOTs so no help-flag text is hand-maintained
-// here; see cli::RenderHelpSection().
-constexpr std::string_view kHelpTextExpression =
-    R"(
-Expression: tests, operators, and actions applied to each entry, by group. Use
-`--help=expressions` for the full annotated list and `--help=NAME` for one entry
-(e.g. `--help=-regex`):
-  Name / path   -name  -iname  -path  -regex  -lname
-  Type / size   -type  -size  -blocks  -empty  -sparse  -mime (media type by extension)
-  Time          -mtime  -atime  -ctime  -Btime  -newerXY   (units + compound durations)
-  Owner / perm  -user  -group  -uid  -gid  -perm  -readable / -writable / -executable
-  Content       -content / -icontent (literal),  -rxc / -irxc (regex) filter;  -grep[=FMT] prints match lines
-  Compare       -cmp TARGET  (true when byte-identical to TARGET, a field template; e.g. '{def.B}/{relpath}')
-  Operators     -a   -o   !   ( )   ,      xff: -xor  -nand  -nor  -xnor
-  Actions       -print  -print0  -printf  -println  -ls  -exec / -execdir CMD ;|+  -delete  -prune  -quit  -ok
-)";
-
 // Environment variable as an optional (nullopt when unset), for config discovery.
 std::optional<std::string> EnvOpt(const char* name) {
   const char* const value = std::getenv(name);
@@ -274,7 +240,9 @@ int RunMain(int argc, char** argv) {
   //   -version           GNU find compatibility
   for (const std::string& arg : args) {
     if (arg == "--help" || arg == "-help" || arg == "-h") {
-      std::cout << kHelpText << xff::cli::RenderOptions("  ") << xff::cli::RenderHelpSection() << kHelpTextExpression;
+      xff::cli::PlainTextBackend backend(help_context);
+      xff::cli::RenderDocument(xff::cli::BuildUsage(), backend);
+      std::cout << backend.Take();
       return 0;
     }
     if (arg == "--help-all") {

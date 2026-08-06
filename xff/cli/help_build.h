@@ -34,6 +34,11 @@ namespace xff::cli {
 // Assembles the reference Document from the SOT. Called once per help render.
 [[nodiscard]] Document BuildReference();
 
+// The terse usage page (bare `--help`): the description, the whole-run options and the
+// expression primaries as summary-only entries (no detail blocks), and the meta/doc
+// flags + `--help=TOPIC` index. The concise counterpart of BuildReference().
+[[nodiscard]] Document BuildUsage();
+
 // Just the FIELDS section as a standalone document (no preamble), for the
 // `--help=fields` topic - the same content BuildReference() folds into its Fields
 // section, so the topic can never drift from the full reference.

@@ -121,21 +121,26 @@ void AppendInfluence(Blocks* blocks, std::string_view header, const std::vector<
   blocks->push_back(ProseOf(absl::StrCat(header, " ", absl::StrJoin(names, ", "))));
 }
 
-// A definition entry for a global flag: its display, summary, and detail blocks,
-// enriched with the (global, xff|find) tags, a "not built into this binary" note
-// when its build extra is absent, and the Affects / Affected-by influence blocks.
-Content FlagEntry(const GlobalFlag& flag) {
+// A definition entry for a global flag: its display, summary, and (when `with_details`)
+// its detail blocks enriched with a "not built into this binary" note when its build
+// extra is absent and the Affects / Affected-by influence blocks. `with_details` is
+// false for the terse usage page (summary + tags only).
+Content FlagEntry(const GlobalFlag& flag, bool with_details = true) {
   Blocks details;
+  // The not-built note shows even on the terse usage page: a flag whose build extra is
+  // absent is a hard error if used, so the reader must see it up front.
   if (!flag.extra.empty() && !ExtraEnabled(flag.extra)) {
     details.push_back(ProseOf(
         absl::StrCat(
             "NOT built into this binary: rebuild with `--//xff:", flag.extra, "` (used as-is, it is a hard error).")));
   }
-  for (Content& block : ParseBlocks(flag.details)) {
-    details.push_back(std::move(block));
+  if (with_details) {
+    for (Content& block : ParseBlocks(flag.details)) {
+      details.push_back(std::move(block));
+    }
+    AppendInfluence(&details, "Affects:", absl::StrSplit(flag.affects, ',', absl::SkipEmpty()));
+    AppendInfluence(&details, "Affected by:", AffectedByFlags(flag.name));
   }
-  AppendInfluence(&details, "Affects:", absl::StrSplit(flag.affects, ',', absl::SkipEmpty()));
-  AppendInfluence(&details, "Affected by:", AffectedByFlags(flag.name));
   return Content{
       .node = Entry{
           .term = std::string(flag.display),
@@ -146,11 +151,15 @@ Content FlagEntry(const GlobalFlag& flag) {
       }};
 }
 
-// A definition entry for an expression primary: its synopsis, summary, and detail
-// blocks, enriched with the (kind, xff|find, [safety]) tags and the Affected-by block.
-Content PrimaryEntry(const registry::Descriptor& descriptor) {
-  Blocks details = ParseBlocks(descriptor.details);
-  AppendInfluence(&details, "Affected by:", AffectedByFlags(descriptor.name));
+// A definition entry for an expression primary: its synopsis, summary, and (when
+// `with_details`) its detail blocks + the Affected-by block. `with_details` is false
+// for the terse usage page (summary + tags only).
+Content PrimaryEntry(const registry::Descriptor& descriptor, bool with_details = true) {
+  Blocks details;
+  if (with_details) {
+    details = ParseBlocks(descriptor.details);
+    AppendInfluence(&details, "Affected by:", AffectedByFlags(descriptor.name));
+  }
   return Content{
       .node = Entry{
           .term = absl::StrCat(descriptor.name, ArgHint(descriptor)),
@@ -305,11 +314,99 @@ Section BuildExamples() {
   return section;
 }
 
+// DESCRIPTION: the two orientation paragraphs shared by the full reference and the
+// usage page.
+Section DescriptionSection() {
+  Section description{.title = "Description"};
+  description.children.push_back(ProseOf(
+      "xff walks each starting path and acts on the entries matching an expression, like `find`(1). "
+      "With no path it searches the current directory; with no action it prints each match."));
+  description.children.push_back(ProseOf(
+      "xff has two flavors selected by the program name: invoked as `find` it is strict find (only "
+      "the standard vocabulary); invoked as `xff` it enables the modern extensions. An explicit "
+      "`--config=find|xff` overrides the program name. Items marked as xff extensions below are the "
+      "additions over find."));
+  return description;
+}
+
+// OPTIONS: the whole-run flags grouped by header. `with_details` false yields the terse
+// usage-page form (summary + tags only).
+Section OptionsSection(bool with_details) {
+  Section options{.title = "Options"};
+  std::string_view group;
+  Subsection current;
+  bool have_current = false;
+  for (const GlobalFlag& flag : Globals()) {
+    if (flag.group != group) {
+      if (have_current) {
+        options.children.push_back(Content{.node = std::move(current)});
+      }
+      group = flag.group;
+      current = Subsection{.title = std::string(flag.header)};
+      have_current = true;
+    }
+    current.children.push_back(FlagEntry(flag, with_details));
+  }
+  if (have_current) {
+    options.children.push_back(Content{.node = std::move(current)});
+  }
+  return options;
+}
+
+// EXPRESSION: the primaries split into Tests / Actions / Operators. `with_details`
+// false yields the terse usage-page form.
+Section ExpressionSection(bool with_details) {
+  Section expression{.title = "Expression"};
+  for (const KindSection& kind_section : kKindSections) {
+    Subsection sub{.title = std::string(kind_section.title)};
+    for (const registry::Descriptor& descriptor : registry::All()) {
+      if (descriptor.kind == kind_section.kind) {
+        sub.children.push_back(PrimaryEntry(descriptor, with_details));
+      }
+    }
+    expression.children.push_back(Content{.node = std::move(sub)});
+  }
+  return expression;
+}
+
+// HELP: the meta / doc flags and the `--help=TOPIC` index, both from their SOTs
+// (HelpFlags / HelpTopics), for the usage page.
+Section BuildHelpSection() {
+  Section help{.title = "Help"};
+  Rows flags;
+  for (const HelpFlag& flag : HelpFlags()) {
+    flags.rows.push_back(Row{.term = std::string(flag.display), .description = ParseInline(flag.summary)});
+  }
+  help.children.push_back(Content{.node = std::move(flags)});
+
+  Subsection topics{.title = "Topics (--help=TOPIC)"};
+  Rows topic_rows;
+  for (const HelpTopic& topic : HelpTopics()) {
+    topic_rows.rows.push_back(Row{.term = std::string(topic.name), .description = ParseInline(topic.summary)});
+  }
+  topics.children.push_back(Content{.node = std::move(topic_rows)});
+  help.children.push_back(Content{.node = std::move(topics)});
+  return help;
+}
+
 }  // namespace
 
 Document FieldsReference() {
   Document doc;
   doc.sections.push_back(BuildFields());
+  return doc;
+}
+
+Document BuildUsage() {
+  Document doc{
+      .name = "xff",
+      .tagline = "eXtended File Find, a find(1)-compatible file finder with modern extensions",
+      .usage = "[option...] [path...] [expression]",
+  };
+  doc.sections.push_back(DescriptionSection());
+  doc.sections.push_back(OptionsSection(/*with_details=*/false));
+  doc.sections.push_back(ExpressionSection(/*with_details=*/false));
+  doc.sections.push_back(BuildHelpSection());
   return doc;
 }
 
@@ -363,50 +460,9 @@ Document BuildReference() {
       .usage = "[option...] [path...] [expression]",
   };
 
-  Section description{.title = "Description"};
-  description.children.push_back(ProseOf(
-      "xff walks each starting path and acts on the entries matching an expression, like `find`(1). "
-      "With no path it searches the current directory; with no action it prints each match."));
-  description.children.push_back(ProseOf(
-      "xff has two flavors selected by the program name: invoked as `find` it is strict find (only "
-      "the standard vocabulary); invoked as `xff` it enables the modern extensions. An explicit "
-      "`--config=find|xff` overrides the program name. Items marked as xff extensions below are the "
-      "additions over find."));
-  doc.sections.push_back(std::move(description));
-
-  Section options{.title = "Options"};
-  {
-    std::string_view group;
-    Subsection current;
-    bool have_current = false;
-    for (const GlobalFlag& flag : Globals()) {
-      if (flag.group != group) {
-        if (have_current) {
-          options.children.push_back(Content{.node = std::move(current)});
-        }
-        group = flag.group;
-        current = Subsection{.title = std::string(flag.header)};
-        have_current = true;
-      }
-      current.children.push_back(FlagEntry(flag));
-    }
-    if (have_current) {
-      options.children.push_back(Content{.node = std::move(current)});
-    }
-  }
-  doc.sections.push_back(std::move(options));
-
-  Section expression{.title = "Expression"};
-  for (const KindSection& kind_section : kKindSections) {
-    Subsection sub{.title = std::string(kind_section.title)};
-    for (const registry::Descriptor& descriptor : registry::All()) {
-      if (descriptor.kind == kind_section.kind) {
-        sub.children.push_back(PrimaryEntry(descriptor));
-      }
-    }
-    expression.children.push_back(Content{.node = std::move(sub)});
-  }
-  doc.sections.push_back(std::move(expression));
+  doc.sections.push_back(DescriptionSection());
+  doc.sections.push_back(OptionsSection(/*with_details=*/true));
+  doc.sections.push_back(ExpressionSection(/*with_details=*/true));
 
   doc.sections.push_back(BuildFields());
   doc.sections.push_back(PrintfSection());

@@ -43,10 +43,10 @@ test::help_prints_usage_and_options() {
   expect_output_contains 'Usage:' "${out}"
   expect_matches '\-\-config' "${out}" # a shipped global, not the old stub
   expect_matches '\-\-quiet' "${out}"
-  expect_output_contains 'Expression:' "${out}"
-  # The Expression section is a grouped overview that points at the full list.
-  expect_output_contains 'Name / path' "${out}"
-  expect_matches '\-\-help=expressions' "${out}"
+  expect_output_contains 'EXPRESSION' "${out}"
+  # The Expression section groups the primaries (Tests / Actions / Operators).
+  expect_output_contains 'Tests:' "${out}"
+  expect_matches 'expressions' "${out}" # the --help=TOPIC index lists the expressions topic
   local n
   n="$(printf '%s\n' "${out}" | wc -l)"
   # The old stub was two lines; a real page is many more.
