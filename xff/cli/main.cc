@@ -237,13 +237,11 @@ absl::StatusOr<std::string> RenderTopic(std::string_view topic, xff::cli::HelpRe
 // option and primary with explanations, then each sub-vocabulary topic marked in_full --
 // so adding a topic auto-includes it here, no hand-maintained list.
 std::string FullReference(xff::cli::HelpRenderContext context) {
-  std::string out(xff::cli::RenderHelp("full").value_or(""));
-  for (const xff::cli::HelpTopic& topic : xff::cli::HelpTopics()) {
-    if (topic.in_full) {
-      absl::StrAppend(&out, "\n", RenderTopic(topic.name, context).value_or(""));
-    }
-  }
-  return out;
+  // The complete reference is the whole help model (the same Document --man / --markdown
+  // render), in plain text and wrapped to the context width.
+  xff::cli::PlainTextBackend backend(context);
+  xff::cli::RenderDocument(xff::cli::BuildReference(), backend);
+  return backend.Take();
 }
 
 // The single dispatch for `--help=TOPIC`: the CLI-rendered topics (needing the engine /
@@ -275,7 +273,20 @@ absl::StatusOr<std::string> RenderTopic(std::string_view topic, xff::cli::HelpRe
   if (topic == "full" || topic == "long") {
     return FullReference(context);
   }
-  return xff::cli::RenderHelp(topic);
+  // The registry-backed special topics (list, config, stats, ...) take precedence, so
+  // a topic that also names a flag (e.g. `config` vs `--config`) resolves to the topic.
+  absl::StatusOr<std::string> special = xff::cli::RenderHelp(topic);
+  if (special.ok()) {
+    return special;
+  }
+  // Otherwise a single primary / flag entry, rendered from the model so it wraps
+  // (and later colors) via the context.
+  if (std::optional<xff::cli::Document> entry = xff::cli::EntryReference(topic); entry.has_value()) {
+    xff::cli::PlainTextBackend backend(context);
+    xff::cli::RenderDocument(*entry, backend);
+    return backend.Take();
+  }
+  return special.status();  // RenderHelp's not-found; the caller composes the message
 }
 
 }  // namespace

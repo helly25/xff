@@ -36,13 +36,13 @@ TEST_F(ResolveHelpWidthTest, AbsentFlagUsesTheDetectedTerminalWidth) {
   EXPECT_THAT(ResolveHelpWidth(std::nullopt, 120), IsOkAndHolds(Eq(120U)));
 }
 
-TEST_F(ResolveHelpWidthTest, AbsentFlagFallsBackTo80WhenTerminalUnknown) {
-  EXPECT_THAT(ResolveHelpWidth(std::nullopt, 0), IsOkAndHolds(Eq(kFallbackHelpWidth)));
+TEST_F(ResolveHelpWidthTest, AbsentFlagDoesNotWrapWhenTerminalUnknown) {
+  EXPECT_THAT(ResolveHelpWidth(std::nullopt, 0), IsOkAndHolds(Eq(0U)));
 }
 
 TEST_F(ResolveHelpWidthTest, AutoMatchesTheAbsentBehaviorAndIsCaseInsensitive) {
   EXPECT_THAT(ResolveHelpWidth("auto", 100), IsOkAndHolds(Eq(100U)));
-  EXPECT_THAT(ResolveHelpWidth("AUTO", 0), IsOkAndHolds(Eq(kFallbackHelpWidth)));
+  EXPECT_THAT(ResolveHelpWidth("AUTO", 0), IsOkAndHolds(Eq(0U)));
 }
 
 TEST_F(ResolveHelpWidthTest, NoneAndZeroDisableWrapping) {

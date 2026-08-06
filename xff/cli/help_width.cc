@@ -33,7 +33,9 @@
 namespace xff::cli {
 
 absl::StatusOr<std::size_t> ResolveHelpWidth(std::optional<std::string_view> flag, std::size_t detected_cols) {
-  const auto automatic = [detected_cols] { return detected_cols > 0 ? detected_cols : kFallbackHelpWidth; };
+  // auto: wrap to the terminal width when it is known, else do not wrap (0). Piped /
+  // redirected output stays full-width and byte-stable; a real terminal still wraps.
+  const auto automatic = [detected_cols] { return detected_cols; };
   if (!flag.has_value()) {
     return automatic();
   }

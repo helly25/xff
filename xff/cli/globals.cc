@@ -524,12 +524,12 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--width[=auto|none|COLS]",
         .group = "output",
         .header = "Output",
-        .summary = "wrap column for plain --help text: auto (terminal width, else 80), none, or a count",
+        .summary = "wrap column for plain --help text: auto (terminal width, else unwrapped), none, or a count",
         .details = "Wraps the flowing text of --help and --help=TOPIC (option and topic descriptions) to a "
                    "column width. auto uses the terminal width when stdout is a terminal (honoring $COLUMNS), "
-                   "else 80; none (or 0) disables wrapping; a positive integer sets a fixed width. Aligned "
-                   "vocabulary tables and example blocks keep their own layout. Does not affect the file "
-                   "listing, --man, or --markdown.",
+                   "and leaves output unwrapped when it is not (a pipe or file); none (or 0) disables wrapping; "
+                   "a positive integer sets a fixed width. Aligned vocabulary tables and example blocks keep "
+                   "their own layout. Does not affect the file listing, --man, or --markdown.",
     },
     {
         .name = "--quiet",

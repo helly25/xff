@@ -91,6 +91,9 @@ void PlainTextBackend::Preamble(const Document& doc) {
 }
 
 void PlainTextBackend::BeginSection(const Section& section) {
+  if (section.title.empty()) {
+    return;  // a title-less section (e.g. a single-entry --help=NAME) carries no heading
+  }
   // House style: top-level headings are upper-cased (PRINTF DIRECTIVES / TIME FORMATS).
   StartBlock();
   absl::StrAppend(&out_, absl::AsciiStrToUpper(section.title), "\n");

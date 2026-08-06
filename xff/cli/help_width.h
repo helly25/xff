@@ -27,18 +27,14 @@
 // (see wrap.h / plain_backend.h); a resolved 0 means "do not wrap".
 namespace xff::cli {
 
-// The wrap column used when the terminal width is unknown (auto with no detectable
-// terminal). The conventional fallback (fold / fmt / GNU --help), used as a literal
-// budget - a wrapped line may fill all 80 columns.
-inline constexpr std::size_t kFallbackHelpWidth = 80;
-
 // Resolves the plain-help wrap width from the `--width` flag and the terminal.
 //   `flag`          the raw --width value, or nullopt when the flag is absent.
 //   `detected_cols` the known terminal width, or 0 when unknown (DetectTerminalWidth).
-// Values (case-insensitive): "auto" or absent -> `detected_cols` if > 0, else
-// kFallbackHelpWidth; "none" or "0" -> 0 (no wrapping); a positive integer -> that
-// many columns. Any other value is an error. A returned 0 means "do not wrap". This
-// is the pure, tested seam (DetectTerminalWidth reads the environment for it).
+// Values (case-insensitive): "auto" or absent -> `detected_cols` (so a real terminal
+// wraps to its width, but piped / redirected output stays full-width and unwrapped);
+// "none" or "0" -> 0 (no wrapping); a positive integer -> that many columns. Any other
+// value is an error. A returned 0 means "do not wrap". This is the pure, tested seam
+// (DetectTerminalWidth reads the environment for it).
 [[nodiscard]] absl::StatusOr<std::size_t> ResolveHelpWidth(
     std::optional<std::string_view> flag,
     std::size_t detected_cols);

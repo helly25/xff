@@ -31,7 +31,7 @@ xff has two flavors selected by the program name: invoked as `find` it is strict
 - `-L` - follow symlinks everywhere during the walk _(global, find)_
 - `-P` - never follow symlinks (the default) _(global, find)_
 - `--archive` - descend into archives (tar/zip/...) as virtual paths _(global, xff)_
-  Not built into this binary: rebuild with `--//xff:archive` (used as-is, it is a hard error).
+  NOT built into this binary: rebuild with `--//xff:archive` (used as-is, it is a hard error).
   Treats each archive (tar, gz, bzip2, xz, zstd, lz4, zip, ...) as a directory, so the whole expression - including -grep on entry content - matches its entries at virtual paths like `foo.tar.gz/inner/x`. Read-only. A build-time extra: the stock binary is lean and omits it (rebuild with --//xff:archive); using --archive without it is a hard error.
 - `-j N, --jobs=N|all` - worker count for the walk and concurrent -exec (all = every core) _(global, xff)_
 - `--sort[=none|dir|subtree|tree]` - sibling/traversal ordering (default depends on the mode) _(global, xff)_
@@ -107,8 +107,8 @@ xff has two flavors selected by the program name: invoked as `find` it is strict
 - `--human[=si|iec|off]` - size units for -ls / --summary: si (kB/MB, default), iec (KiB/MiB), off (bytes); xff -> si _(global, xff)_
 - `--si` - human sizes in SI (kB/MB, 1000^N); an alias for --human=si (the --human default) _(global, xff)_
 - `--buffer[=auto|off|all|N[kMG]|NMB]` - buffer to size columns (-ls / tables): auto, off, all, N[kMG] rows, or NMB/NMiB bytes _(global, xff)_
-- `--width[=auto|none|COLS]` - wrap column for plain --help text: auto (terminal width, else 80), none, or a count _(global, xff)_
-  Wraps the flowing text of --help and --help=TOPIC (option and topic descriptions) to a column width. auto uses the terminal width when stdout is a terminal (honoring $COLUMNS), else 80; none (or 0) disables wrapping; a positive integer sets a fixed width. Aligned vocabulary tables and example blocks keep their own layout. Does not affect the file listing, --man, or --markdown.
+- `--width[=auto|none|COLS]` - wrap column for plain --help text: auto (terminal width, else unwrapped), none, or a count _(global, xff)_
+  Wraps the flowing text of --help and --help=TOPIC (option and topic descriptions) to a column width. auto uses the terminal width when stdout is a terminal (honoring $COLUMNS), and leaves output unwrapped when it is not (a pipe or file); none (or 0) disables wrapping; a positive integer sets a fixed width. Aligned vocabulary tables and example blocks keep their own layout. Does not affect the file listing, --man, or --markdown.
 
 ### Exit code control
 - `--quiet, -q` - suppress output; exit 0 if anything matched, else 1 (-q: grep-compatible) _(global, xff)_

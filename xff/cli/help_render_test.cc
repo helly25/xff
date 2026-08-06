@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -25,10 +26,27 @@
 #include "mbo/testing/status.h"
 #include "xff/cli/globals.h"
 #include "xff/cli/help.h"
+#include "xff/cli/help_backend.h"
+#include "xff/cli/help_build.h"
+#include "xff/cli/help_model.h"
+#include "xff/cli/plain_backend.h"
 #include "xff/registry/registry.h"
 
 namespace xff::cli {
 namespace {
+
+// Renders the single-entry `--help=NAME` help from the model (the same path the CLI
+// uses), or "" when NAME is not an entry. Single-flag / single-primary help moved off
+// RenderHelp onto EntryReference + the plain backend, so these tests exercise that.
+std::string RenderEntry(std::string_view name) {
+  const std::optional<Document> doc = EntryReference(name);
+  if (!doc.has_value()) {
+    return "";
+  }
+  PlainTextBackend backend;
+  RenderDocument(*doc, backend);
+  return backend.Take();
+}
 
 using ::mbo::testing::IsOk;
 using ::mbo::testing::IsOkAndHolds;
@@ -47,26 +65,26 @@ struct HelpTest : ::testing::Test {};
 
 TEST_F(HelpTest, TopicRendersNameSummaryAndTags) {
   EXPECT_THAT(
-      RenderHelp("-regex"), IsOkAndHolds(AllOf(
-                                HasSubstr("-regex"), HasSubstr("regular expression"),  // the summary
-                                HasSubstr("test"), HasSubstr("find"))));               // kind + style tags
+      RenderEntry("-regex"), AllOf(
+                                 HasSubstr("-regex"), HasSubstr("regular expression"),  // the summary
+                                 HasSubstr("test"), HasSubstr("find")));                // kind + style tags
 }
 
 TEST_F(HelpTest, DashlessTopicResolves) {
   // Friendly: `--help=regex` finds -regex.
-  EXPECT_THAT(RenderHelp("regex"), IsOkAndHolds(HasSubstr("-regex")));
+  EXPECT_THAT(RenderEntry("regex"), HasSubstr("-regex"));
 }
 
 TEST_F(HelpTest, XffOperatorIsTaggedXff) {
-  EXPECT_THAT(RenderHelp("-xor"), IsOkAndHolds(AllOf(HasSubstr("operator"), HasSubstr("xff"))));
+  EXPECT_THAT(RenderEntry("-xor"), AllOf(HasSubstr("operator"), HasSubstr("xff")));
 }
 
 TEST_F(HelpTest, SecurityActionIsTagged) {
-  EXPECT_THAT(RenderHelp("-exec"), IsOkAndHolds(HasSubstr("runs commands")));
+  EXPECT_THAT(RenderEntry("-exec"), HasSubstr("runs commands"));
 }
 
 TEST_F(HelpTest, VariadicArgHintShowsCommandForm) {
-  EXPECT_THAT(RenderHelp("-exec"), IsOkAndHolds(HasSubstr("CMD...")));
+  EXPECT_THAT(RenderEntry("-exec"), HasSubstr("CMD..."));
 }
 
 TEST_F(HelpTest, UnknownTopicIsNotFound) {
@@ -111,8 +129,8 @@ TEST_F(HelpTest, FullIsDetailedAndAllIsShort) {
 
 TEST_F(HelpTest, SingleFlagHelpShowsTheLongExplanation) {
   // `--help=NAME` for a flag with a `details` paragraph shows it (not just the summary).
-  EXPECT_THAT(RenderHelp("--config"), IsOkAndHolds(HasSubstr("A config style sets")));
-  EXPECT_THAT(RenderHelp("--time-format"), IsOkAndHolds(HasSubstr("per-field qualifier")));
+  EXPECT_THAT(RenderEntry("--config"), HasSubstr("A config style sets"));
+  EXPECT_THAT(RenderEntry("--time-format"), HasSubstr("per-field qualifier"));
 }
 
 TEST_F(HelpTest, HelpSectionIsGeneratedFromFlagsAndTopics) {
@@ -176,13 +194,12 @@ TEST_F(HelpTest, StatsTopicDocumentsSummaryAndHistogram) {
 }
 
 TEST_F(HelpTest, GlobalFlagTopicRendersWithGlobalTag) {
-  EXPECT_THAT(
-      RenderHelp("--sort"), IsOkAndHolds(AllOf(HasSubstr("--sort"), HasSubstr("ordering"), HasSubstr("global"))));
+  EXPECT_THAT(RenderEntry("--sort"), AllOf(HasSubstr("--sort"), HasSubstr("ordering"), HasSubstr("global")));
 }
 
 TEST_F(HelpTest, GlobalFlagResolvesByAliasAndDashless) {
-  EXPECT_THAT(RenderHelp("-j"), IsOkAndHolds(HasSubstr("--jobs")));    // alias -> --jobs
-  EXPECT_THAT(RenderHelp("sort"), IsOkAndHolds(HasSubstr("--sort")));  // dash-less -> --sort
+  EXPECT_THAT(RenderEntry("-j"), HasSubstr("--jobs"));    // alias -> --jobs
+  EXPECT_THAT(RenderEntry("sort"), HasSubstr("--sort"));  // dash-less -> --sort
 }
 
 TEST_F(HelpTest, IndexIncludesGlobalGroupsAndEveryFlag) {
@@ -198,25 +215,22 @@ TEST_F(HelpTest, DetailedHelpShowsInfluenceCrossReferences) {
   // A primary's detailed help lists the globals that change it (the reverse of their affects
   // declarations), under an indented "Affected by:" sub-header.
   EXPECT_THAT(
-      RenderHelp("-diff"),
-      IsOkAndHolds(AllOf(
-          HasSubstr("Affected by:"), HasSubstr("--diff-format"), HasSubstr("--diff-context"), HasSubstr("--context"))));
+      RenderEntry("-diff"),
+      AllOf(
+          HasSubstr("Affected by:"), HasSubstr("--diff-format"), HasSubstr("--diff-context"), HasSubstr("--context")));
   EXPECT_THAT(
-      RenderHelp("-grep"),
-      IsOkAndHolds(AllOf(HasSubstr("Affected by:"), HasSubstr("--count"), HasSubstr("--after-context"))));
+      RenderEntry("-grep"), AllOf(HasSubstr("Affected by:"), HasSubstr("--count"), HasSubstr("--after-context")));
   // A flag <-> flag edge points from the feeder to the fed: --context supplies the -diff context
   // when --diff-context is absent, so --context lists --diff-context under "Affects:" and
   // --diff-context shows the reverse "Affected by:" (never the other way around).
   EXPECT_THAT(
-      RenderHelp("--context"),
-      IsOkAndHolds(AllOf(
-          HasSubstr("Affects:"), HasSubstr("-grep"), HasSubstr("--diff-context"), Not(HasSubstr("Affected by:")))));
+      RenderEntry("--context"),
+      AllOf(HasSubstr("Affects:"), HasSubstr("-grep"), HasSubstr("--diff-context"), Not(HasSubstr("Affected by:"))));
   EXPECT_THAT(
-      RenderHelp("--diff-context"),
-      IsOkAndHolds(
-          AllOf(HasSubstr("Affects:"), HasSubstr("-diff"), HasSubstr("Affected by:"), HasSubstr("--context"))));
+      RenderEntry("--diff-context"),
+      AllOf(HasSubstr("Affects:"), HasSubstr("-diff"), HasSubstr("Affected by:"), HasSubstr("--context")));
   // A global that nothing supersedes shows Affects: but no Affected by:.
-  EXPECT_THAT(RenderHelp("--diff-format"), IsOkAndHolds(AllOf(HasSubstr("Affects:"), Not(HasSubstr("Affected by:")))));
+  EXPECT_THAT(RenderEntry("--diff-format"), AllOf(HasSubstr("Affects:"), Not(HasSubstr("Affected by:"))));
 }
 
 TEST_F(HelpTest, InfluenceBlocksAreTheDetailTierOnly) {

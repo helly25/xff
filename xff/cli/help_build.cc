@@ -16,6 +16,7 @@
 #include "xff/cli/help_build.h"
 
 #include <array>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -128,7 +129,7 @@ Content FlagEntry(const GlobalFlag& flag) {
   if (!flag.extra.empty() && !ExtraEnabled(flag.extra)) {
     details.push_back(ProseOf(
         absl::StrCat(
-            "Not built into this binary: rebuild with `--//xff:", flag.extra, "` (used as-is, it is a hard error).")));
+            "NOT built into this binary: rebuild with `--//xff:", flag.extra, "` (used as-is, it is a hard error).")));
   }
   for (Content& block : ParseBlocks(flag.details)) {
     details.push_back(std::move(block));
@@ -263,6 +264,31 @@ Section VocabSection(std::string_view title, std::string_view prose, absl::Span<
 Document FieldsReference() {
   Document doc;
   doc.sections.push_back(BuildFields());
+  return doc;
+}
+
+std::optional<Document> EntryReference(std::string_view name) {
+  // An expression primary / operator / action (leading-dash convenience: regex -> -regex).
+  const registry::Descriptor* descriptor = registry::Lookup(name);
+  if (descriptor == nullptr && !name.empty() && name.front() != '-' && name.front() != '!') {
+    descriptor = registry::Lookup(absl::StrCat("-", name));
+  }
+  // Otherwise a whole-run global flag (leading-dashes convenience: sort -> --sort).
+  const GlobalFlag* flag = nullptr;
+  if (descriptor == nullptr) {
+    flag = LookupGlobal(name);
+    if (flag == nullptr && !name.empty() && name.front() != '-') {
+      flag = LookupGlobal(absl::StrCat("--", name));
+    }
+  }
+  if (descriptor == nullptr && flag == nullptr) {
+    return std::nullopt;
+  }
+  // A title-less section: the single entry renders without a section heading.
+  Section section;
+  section.children.push_back(descriptor != nullptr ? PrimaryEntry(*descriptor) : FlagEntry(*flag));
+  Document doc;
+  doc.sections.push_back(std::move(section));
   return doc;
 }
 

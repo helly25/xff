@@ -535,22 +535,9 @@ absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   if (topic == "license" || topic == "licenses") {
     return RenderLicense();  // xff's own license (Apache-2.0), in full
   }
-  // Expression primary / operator / action (leading-dash convenience: `--help=regex`).
-  const registry::Descriptor* descriptor = registry::Lookup(topic);
-  if (descriptor == nullptr && topic.front() != '-' && topic.front() != '!') {
-    descriptor = registry::Lookup(absl::StrCat("-", topic));
-  }
-  if (descriptor != nullptr) {
-    return RenderOne(*descriptor, /*with_details=*/true);
-  }
-  // Whole-run global option (leading-dashes convenience: `--help=sort`).
-  const GlobalFlag* global = LookupGlobal(topic);
-  if (global == nullptr && topic.front() != '-') {
-    global = LookupGlobal(absl::StrCat("--", topic));
-  }
-  if (global != nullptr) {
-    return RenderGlobalFlag(*global, /*with_details=*/true);  // single-entry help shows the long explanation
-  }
+  // A single expression primary / global flag is NOT rendered here: the caller
+  // (RenderTopic) resolves it from the help model via EntryReference so it wraps and
+  // colors through the render context. Only the special topics above live here.
   return absl::NotFoundError("");  // the caller holds the topic and composes the message
 }
 
