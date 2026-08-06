@@ -31,6 +31,7 @@
 #include "xff/cli/help.h"
 #include "xff/cli/help_backend.h"
 #include "xff/cli/help_build.h"
+#include "xff/cli/help_width.h"
 #include "xff/cli/manpage.h"
 #include "xff/cli/markdown.h"
 #include "xff/cli/plain_backend.h"
@@ -196,8 +197,8 @@ std::string RenderRegexDocs() {
 // The {field} placeholder vocabulary (--help=fields), rendered as plain help through the shared
 // WriteFields() walk (a PlainRenderer) - the same walk that feeds the --man / --markdown /
 // --help=full Fields section, so the topic can never drift from them or hand-mirror their content.
-std::string RenderFieldsDocs() {
-  xff::cli::PlainTextBackend backend;
+std::string RenderFieldsDocs(std::size_t width) {
+  xff::cli::PlainTextBackend backend(width);
   xff::cli::RenderDocument(xff::cli::FieldsReference(), backend);
   return backend.Take();
 }
@@ -228,16 +229,17 @@ std::string RenderExtras() {
   return out;
 }
 
-absl::StatusOr<std::string> RenderTopic(std::string_view topic);  // forward declaration (FullReference recurses)
+// forward declaration (FullReference recurses); `width` is the plain-help wrap column
+absl::StatusOr<std::string> RenderTopic(std::string_view topic, std::size_t width);
 
 // The full detailed reference (--help=full / long and --help-full / --help-long): every
 // option and primary with explanations, then each sub-vocabulary topic marked in_full --
 // so adding a topic auto-includes it here, no hand-maintained list.
-std::string FullReference() {
+std::string FullReference(std::size_t width) {
   std::string out(xff::cli::RenderHelp("full").value_or(""));
   for (const xff::cli::HelpTopic& topic : xff::cli::HelpTopics()) {
     if (topic.in_full) {
-      absl::StrAppend(&out, "\n", RenderTopic(topic.name).value_or(""));
+      absl::StrAppend(&out, "\n", RenderTopic(topic.name, width).value_or(""));
     }
   }
   return out;
@@ -247,12 +249,12 @@ std::string FullReference() {
 // datetime / flavor facets), else the registry-backed cli::RenderHelp. Shared by the
 // --help= handler, the --help-* shortcuts, and FullReference (which never asks for the
 // self-referential full/long, so there is no recursion).
-absl::StatusOr<std::string> RenderTopic(std::string_view topic) {
+absl::StatusOr<std::string> RenderTopic(std::string_view topic, std::size_t width) {
   if (topic == "styles" || topic == "flavors") {
     return RenderFlavorTable({}, std::nullopt);
   }
   if (topic == "fields") {
-    return RenderFieldsDocs();
+    return RenderFieldsDocs(width);
   }
   if (topic == "printf") {
     return RenderPrintfDocs();
@@ -270,7 +272,7 @@ absl::StatusOr<std::string> RenderTopic(std::string_view topic) {
     return RenderExtras();
   }
   if (topic == "full" || topic == "long") {
-    return FullReference();
+    return FullReference(width);
   }
   return xff::cli::RenderHelp(topic);
 }
@@ -279,6 +281,24 @@ absl::StatusOr<std::string> RenderTopic(std::string_view topic) {
 
 int RunMain(int argc, char** argv) {
   const std::vector<std::string> args(argv + 1, argv + argc);
+
+  // The plain-help wrap width (--width), resolved once so every help / topic render
+  // shares it. A bare --width means auto; --width=VALUE carries the value. Scanned
+  // here (like the help flags) since --help short-circuits before the full parse.
+  std::optional<std::string_view> width_flag;
+  for (const std::string& arg : args) {
+    if (arg == "--width") {
+      width_flag = "auto";
+    } else if (arg.starts_with("--width=")) {
+      width_flag = std::string_view(arg).substr(std::string_view("--width=").size());
+    }
+  }
+  const absl::StatusOr<std::size_t> help_width =
+      xff::cli::ResolveHelpWidth(width_flag, xff::cli::DetectTerminalWidth());
+  if (!help_width.ok()) {
+    std::cerr << "xff: " << help_width.status().message() << "\n";
+    return 2;
+  }
 
   // Help and version, scanned anywhere in the arguments (find prints usage on a
   // bare --help wherever it lands). xff stays flag-only -- no `help` subcommand --
@@ -296,16 +316,16 @@ int RunMain(int argc, char** argv) {
       return 0;
     }
     if (arg == "--help-all") {
-      std::cout << RenderTopic("all").value_or("");  // hyphenated shortcut for --help=all (summaries)
+      std::cout << RenderTopic("all", *help_width).value_or("");  // hyphenated shortcut for --help=all (summaries)
       return 0;
     }
     if (arg == "--help-full" || arg == "--help-long") {
-      std::cout << RenderTopic("full").value_or("");  // hyphenated shortcut for --help=full (explained)
+      std::cout << RenderTopic("full", *help_width).value_or("");  // hyphenated shortcut for --help=full (explained)
       return 0;
     }
     if (arg.starts_with("--help=")) {
       const std::string_view topic = std::string_view(arg).substr(7);
-      const absl::StatusOr<std::string> help = RenderTopic(topic);
+      const absl::StatusOr<std::string> help = RenderTopic(topic, *help_width);
       if (help.ok()) {
         std::cout << *help;
         return 0;

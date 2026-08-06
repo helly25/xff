@@ -31,6 +31,7 @@ cc_library(
         ":help_backend_cc",
         ":help_build_cc",
         ":help_cc",
+        ":help_width_cc",
         ":manpage_cc",
         ":markdown_cc",
         ":plain_backend_cc",
@@ -148,6 +149,32 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
         "@helly25_mbo//mbo/testing:matchers_cc",
+    ],
+)
+
+# Resolves the plain-help wrap width from the --width flag and the terminal
+# ($COLUMNS / winsize), else an 80-column fallback (#153 / #164).
+cc_library(
+    name = "help_width_cc",
+    srcs = ["help_width.cc"],
+    hdrs = ["help_width.h"],
+    deps = [
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "help_width_test",
+    size = "small",
+    srcs = ["help_width_test.cc"],
+    deps = [
+        ":help_width_cc",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
     ],
 )
 

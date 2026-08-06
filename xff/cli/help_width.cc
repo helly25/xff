@@ -1,0 +1,75 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "xff/cli/help_width.h"
+
+#include <sys/ioctl.h>  // ioctl, TIOCGWINSZ, struct winsize
+#include <unistd.h>     // isatty, STDOUT_FILENO
+
+#include <cstddef>
+#include <cstdlib>  // getenv
+#include <optional>
+#include <string>
+#include <string_view>
+
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/ascii.h"
+#include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
+
+namespace xff::cli {
+
+absl::StatusOr<std::size_t> ResolveHelpWidth(std::optional<std::string_view> flag, std::size_t detected_cols) {
+  const auto automatic = [detected_cols] { return detected_cols > 0 ? detected_cols : kFallbackHelpWidth; };
+  if (!flag.has_value()) {
+    return automatic();
+  }
+  const std::string value = absl::AsciiStrToLower(*flag);
+  if (value == "auto") {
+    return automatic();
+  }
+  if (value == "none") {
+    return 0;
+  }
+  std::size_t cols = 0;
+  if (!absl::SimpleAtoi(value, &cols)) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("--width: expected 'auto', 'none', or a column count, got '", *flag, "'"));
+  }
+  return cols;  // an explicit --width=0 means no wrapping, same as "none"
+}
+
+std::size_t DetectTerminalWidth() {
+  // $COLUMNS wins when set to a positive integer - the conventional override,
+  // honored even off a tty so a caller can force a width. std::getenv is the C
+  // environment API; keep the raw value at this one boundary only.
+  if (const char* const columns = std::getenv("COLUMNS"); columns != nullptr) {
+    std::size_t cols = 0;
+    if (absl::SimpleAtoi(columns, &cols) && cols > 0) {
+      return cols;
+    }
+  }
+  // Otherwise ask the tty for its width; ioctl / winsize are the C terminal API
+  // (ioctl is variadic - the one place we must call a C vararg function).
+  struct winsize ws = {};
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
+  if (::isatty(STDOUT_FILENO) != 0 && ::ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0) {
+    return ws.ws_col;
+  }
+  return 0;
+}
+
+}  // namespace xff::cli
