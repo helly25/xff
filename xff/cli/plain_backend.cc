@@ -93,25 +93,32 @@ void PlainTextBackend::Preamble(const Document& doc) {
 
 void PlainTextBackend::BeginSection(const Section& section) {
   if (section.title.empty()) {
-    return;  // a title-less section (e.g. a single-entry --help=NAME) carries no heading
+    return;  // a title-less section (e.g. a single-entry --help=NAME) carries no heading or indent
   }
   // House style: top-level headings are upper-cased (PRINTF DIRECTIVES / TIME FORMATS).
   StartBlock();
-  absl::StrAppend(&out_, absl::AsciiStrToUpper(section.title), "\n");
+  absl::StrAppend(&out_, BodyIndent(), absl::AsciiStrToUpper(section.title), "\n");
+  ++depth_;  // the section body indents under its heading
+}
+
+void PlainTextBackend::EndSection(const Section& section) {
+  if (!section.title.empty()) {
+    --depth_;
+  }
 }
 
 std::string PlainTextBackend::BodyIndent() const {
-  return std::string(static_cast<std::size_t>(2 * subsection_depth_), ' ');
+  return std::string(static_cast<std::size_t>(2 * depth_), ' ');
 }
 
 void PlainTextBackend::BeginSubsection(const Subsection& subsection) {
   StartBlock();
   absl::StrAppend(&out_, BodyIndent(), subsection.title, ":\n");
-  ++subsection_depth_;  // the subsection's body content indents one level deeper
+  ++depth_;  // the subsection body indents under its heading
 }
 
 void PlainTextBackend::EndSubsection(const Subsection& /*subsection*/) {
-  --subsection_depth_;
+  --depth_;
 }
 
 void PlainTextBackend::BeginEntry(const Entry& entry) {
@@ -124,23 +131,26 @@ void PlainTextBackend::BeginEntry(const Entry& entry) {
   } else if (entry.xff) {
     tag = "  (xff)";
   }
-  absl::StrAppend(&out_, entry.term, tag, "\n");
-  absl::StrAppend(&out_, WrapText(RenderInlinesRaw(entry.summary), Context().width, "    ", "    "));
+  absl::StrAppend(&out_, BodyIndent(), entry.term, tag, "\n");
+  ++depth_;  // the summary + detail indent under the term
+  const std::string indent = BodyIndent();
+  absl::StrAppend(&out_, WrapText(RenderInlinesRaw(entry.summary), Context().width, indent, indent));
   in_entry_ = true;
 }
 
 void PlainTextBackend::EndEntry(const Entry& /*entry*/) {
   in_entry_ = false;
+  --depth_;
 }
 
 void PlainTextBackend::EmitProse(const Prose& prose) {
+  const std::string indent = BodyIndent();
   if (in_entry_) {
-    // An entry's detail line, indented under its term (keeps `code` markup, no blank).
-    absl::StrAppend(&out_, WrapText(RenderInlinesRaw(prose.runs), Context().width, "    ", "    "));
+    // An entry's detail line, under its term indent (keeps `code` markup, no blank line).
+    absl::StrAppend(&out_, WrapText(RenderInlinesRaw(prose.runs), Context().width, indent, indent));
     return;
   }
   StartBlock();
-  const std::string indent = BodyIndent();
   absl::StrAppend(&out_, WrapText(RenderInlinesPlain(prose.runs), Context().width, indent, indent));
 }
 
@@ -159,16 +169,18 @@ void PlainTextBackend::EmitExample(const Example& example) {
 }
 
 void PlainTextBackend::EmitBullets(const Bullets& bullets) {
-  // Glued directly under its subsection heading (no leading blank line), 2-space indent.
+  // Glued directly under its heading (no leading blank line), at the body indent.
+  const std::string indent = BodyIndent();
   for (const Inlines& item : bullets.items) {
-    absl::StrAppend(&out_, WrapText(RenderInlinesPlain(item), Context().width, "  - ", "    "));
+    absl::StrAppend(&out_, WrapText(RenderInlinesPlain(item), Context().width, indent + "- ", indent + "  "));
   }
 }
 
 void PlainTextBackend::EmitRows(const Rows& rows) {
-  // The shared {term, description} layout: a 2-space indent, then the description
-  // column two spaces past the widest term - so this table aligns like the
-  // --help=printf / time / size ones.
+  // The shared {term, description} layout: the body indent, then the description column
+  // two spaces past the widest term - so this table aligns like the --help=printf /
+  // time / size ones.
+  const std::string indent = BodyIndent();
   std::vector<std::string> descriptions;
   descriptions.reserve(rows.rows.size());
   for (const Row& row : rows.rows) {
@@ -181,27 +193,29 @@ void PlainTextBackend::EmitRows(const Rows& rows) {
   term_width += 2;  // a 2-space gap after the widest term
 
   if (Context().width == 0) {
-    // No wrapping: the verbatim aligned table (byte-identical to RenderDocRows).
+    // No wrapping: the verbatim aligned table.
     std::vector<std::pair<std::string_view, std::string_view>> doc_rows;
     doc_rows.reserve(rows.rows.size());
     for (std::size_t i = 0; i < rows.rows.size(); ++i) {
       doc_rows.emplace_back(rows.rows[i].term, descriptions[i]);
     }
-    absl::StrAppend(&out_, RenderDocRows("  ", doc_rows));
+    absl::StrAppend(&out_, RenderDocRows(indent, doc_rows));
     return;
   }
   // Wrap each description to the width, its continuation lines hanging under the
-  // description column (2-space indent + the padded term column).
-  const std::string hang(2 + term_width, ' ');
+  // description column (the body indent + the padded term column).
+  const std::string hang = indent + std::string(term_width, ' ');
   for (std::size_t i = 0; i < rows.rows.size(); ++i) {
     const std::string prefix =
-        absl::StrCat("  ", rows.rows[i].term, std::string(term_width - rows.rows[i].term.size(), ' '));
+        absl::StrCat(indent, rows.rows[i].term, std::string(term_width - rows.rows[i].term.size(), ' '));
     absl::StrAppend(&out_, WrapText(descriptions[i], Context().width, prefix, hang));
   }
 }
 
 void PlainTextBackend::EmitSeeAlso(const SeeAlso& see_also) {
   StartBlock();
+  const std::string indent = BodyIndent();
+  absl::StrAppend(&out_, indent);
   std::string_view sep;
   for (const RefTarget& ref : see_also.refs) {
     absl::StrAppend(&out_, sep, ref.id, "(", ref.section, ")");
@@ -210,7 +224,7 @@ void PlainTextBackend::EmitSeeAlso(const SeeAlso& see_also) {
   absl::StrAppend(&out_, "\n");
   if (!see_also.note.empty()) {
     StartBlock();
-    absl::StrAppend(&out_, WrapText(RenderInlinesPlain(see_also.note), Context().width, "", ""));
+    absl::StrAppend(&out_, WrapText(RenderInlinesPlain(see_also.note), Context().width, indent, indent));
   }
 }
 

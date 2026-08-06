@@ -27,6 +27,12 @@
 // (see wrap.h / plain_backend.h); a resolved 0 means "do not wrap".
 namespace xff::cli {
 
+// The smallest wrap width we render at: below this, help degenerates to near
+// one-word-per-line, so any positive resolved width is clamped up to it (a terminal
+// or an explicit --width narrower than this wraps here instead). 0 (no wrap) is
+// exempt.
+inline constexpr std::size_t kMinHelpWidth = 40;
+
 // Resolves the plain-help wrap width from the `--width` flag and the terminal.
 //   `flag`          the raw --width value, or nullopt when the flag is absent.
 //   `detected_cols` the known terminal width, or 0 when unknown (DetectTerminalWidth).

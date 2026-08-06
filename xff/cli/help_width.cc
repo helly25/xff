@@ -33,9 +33,14 @@
 namespace xff::cli {
 
 absl::StatusOr<std::size_t> ResolveHelpWidth(std::optional<std::string_view> flag, std::size_t detected_cols) {
+  // A positive width narrower than the minimum wraps at the minimum instead; 0 (no
+  // wrap) is exempt.
+  const auto clamp = [](std::size_t cols) -> std::size_t {
+    return (cols != 0 && cols < kMinHelpWidth) ? kMinHelpWidth : cols;
+  };
   // auto: wrap to the terminal width when it is known, else do not wrap (0). Piped /
   // redirected output stays full-width and byte-stable; a real terminal still wraps.
-  const auto automatic = [detected_cols] { return detected_cols; };
+  const auto automatic = [&clamp, detected_cols] { return clamp(detected_cols); };
   if (!flag.has_value()) {
     return automatic();
   }
@@ -44,14 +49,14 @@ absl::StatusOr<std::size_t> ResolveHelpWidth(std::optional<std::string_view> fla
     return automatic();
   }
   if (value == "none") {
-    return 0;
+    return std::size_t{0};
   }
   std::size_t cols = 0;
   if (!absl::SimpleAtoi(value, &cols)) {
     return absl::InvalidArgumentError(
         absl::StrCat("--width: expected 'auto', 'none', or a column count, got '", *flag, "'"));
   }
-  return cols;  // an explicit --width=0 means no wrapping, same as "none"
+  return clamp(cols);  // an explicit --width=0 means no wrapping, same as "none"
 }
 
 std::size_t DetectTerminalWidth() {

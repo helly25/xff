@@ -55,6 +55,12 @@ TEST_F(ResolveHelpWidthTest, APositiveIntegerIsAFixedWidthIgnoringTheTerminal) {
   EXPECT_THAT(ResolveHelpWidth("72", 120), IsOkAndHolds(Eq(72U)));
 }
 
+TEST_F(ResolveHelpWidthTest, ClampsAPositiveWidthUpToTheMinimum) {
+  EXPECT_THAT(ResolveHelpWidth("20", 0), IsOkAndHolds(Eq(kMinHelpWidth)));           // an explicit narrow width
+  EXPECT_THAT(ResolveHelpWidth(std::nullopt, 25), IsOkAndHolds(Eq(kMinHelpWidth)));  // a narrow terminal
+  EXPECT_THAT(ResolveHelpWidth("none", 0), IsOkAndHolds(Eq(0U)));                    // 0 (no wrap) is exempt
+}
+
 TEST_F(ResolveHelpWidthTest, ANonNumericValueIsAnError) {
   EXPECT_THAT(ResolveHelpWidth("wide", 0), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("--width")));
 }

@@ -135,11 +135,11 @@ TEST_F(PlainBackendTest, RendersAWholeDocumentInOrder) {
 
       DESCRIPTION
 
-      Find files; see --help=fields.
+        Find files; see --help=fields.
 
       OPTIONS
 
-      --summary  (xff)
+        --summary  (xff)
           group + aggregate
           more detail.
         %p  path
@@ -147,11 +147,11 @@ TEST_F(PlainBackendTest, RendersAWholeDocumentInOrder) {
         - first
         - second
 
-      xff . -type f
+        xff . -type f
 
-      find(1)
+        find(1)
 
-      the classic.
+        the classic.
       )out")));
 }
 
