@@ -27,6 +27,7 @@ namespace {
 
 using ::testing::Eq;
 using ::testing::HasSubstr;
+using ::testing::StartsWith;
 
 Inline Text(std::string text) {
   return {.style = Inline::Style::kText, .text = std::move(text)};
@@ -81,12 +82,14 @@ TEST_F(RoffBackendTest, RendersManPageStructure) {
   RoffBackend backend;
   RenderDocument(doc, backend);
   const std::string out = backend.Take();
-  EXPECT_THAT(out, HasSubstr(".TH xff 1"));
-  EXPECT_THAT(out, HasSubstr(".SH NAME\nxff \\- eXtended File Find\n"));
-  EXPECT_THAT(out, HasSubstr(".SH OPTIONS\n"));  // ... upper-cased for roff
-  EXPECT_THAT(out, HasSubstr(".TP\n.B \\-\\-summary\n"));
+  // roff control directives are only valid in the first column, so each check anchors
+  // to a line start: `.TH` opens the file, the rest are preceded by a newline.
+  EXPECT_THAT(out, StartsWith(".TH xff 1"));
+  EXPECT_THAT(out, HasSubstr("\n.SH NAME\nxff \\- eXtended File Find\n"));
+  EXPECT_THAT(out, HasSubstr("\n.SH OPTIONS\n"));  // ... upper-cased for roff
+  EXPECT_THAT(out, HasSubstr("\n.TP\n.B \\-\\-summary\n"));
   EXPECT_THAT(out, HasSubstr("group + \\fBaggregate\\fR (xff extension)"));
-  EXPECT_THAT(out, HasSubstr(".BR find (1)\n"));
+  EXPECT_THAT(out, HasSubstr("\n.BR find (1)\n"));
 }
 
 }  // namespace
