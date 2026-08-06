@@ -259,6 +259,35 @@ Section VocabSection(std::string_view title, std::string_view prose, absl::Span<
   return section;
 }
 
+// The sub-vocabulary sections, each also standalone as its own `--help=TOPIC` (see
+// TopicReference). Named so BuildReference and the topic render share one definition.
+Section PrintfSection() {
+  return VocabSection(
+      "Printf directives", "Directives for -printf / -fprintf / -println FORMAT, and the `%{field}` escape.",
+      engine::PrintfDocs());
+}
+
+Section TimeSection() {
+  return VocabSection(
+      "Time formats", "Presets and strftime patterns for --time-format, --timezone, and time-field {:qualifiers}.",
+      datetime::FormatDocs());
+}
+
+Section SizeSection() {
+  return VocabSection("Size units", "Units for -size / -blocks [+|-]N[unit].", engine::SizeUnitDocs());
+}
+
+Section GrammarsSection() {
+  return VocabSection(
+      "Regex grammars",
+      "The grammar for -regex / -iregex and the content matchers -rxc / -grep, chosen by `--regextype` "
+      "(default RE2). EXACT, FNMATCH, GLOB and SHGLOB are core engines, always built in; PCRE2 is a "
+      "build-time extra (see `--help=extras`). RE2 and PCRE2 have canonical external references, so the "
+      "smaller engines are spelled out in full here: they have no single authoritative man page, and "
+      "FNMATCH delegates to the platform's fnmatch(3), whose class / collation details vary by system.",
+      regex::GrammarDocs());
+}
+
 // EXAMPLES: the cookbook recipes as structured nodes - each a subsection with the
 // verbatim command (an Example, kept copy-pastable) and its explanation (Prose, which
 // wraps). The recipe list is the SOT in help.cc, run end to end by cookbook_test.
@@ -281,6 +310,24 @@ Section BuildExamples() {
 Document FieldsReference() {
   Document doc;
   doc.sections.push_back(BuildFields());
+  return doc;
+}
+
+std::optional<Document> TopicReference(std::string_view name) {
+  Document doc;
+  if (name == "fields") {
+    doc.sections.push_back(BuildFields());
+  } else if (name == "printf") {
+    doc.sections.push_back(PrintfSection());
+  } else if (name == "time") {
+    doc.sections.push_back(TimeSection());
+  } else if (name == "size") {
+    doc.sections.push_back(SizeSection());
+  } else if (name == "grammars") {
+    doc.sections.push_back(GrammarsSection());
+  } else {
+    return std::nullopt;
+  }
   return doc;
 }
 
@@ -362,23 +409,10 @@ Document BuildReference() {
   doc.sections.push_back(std::move(expression));
 
   doc.sections.push_back(BuildFields());
-
-  doc.sections.push_back(VocabSection(
-      "Printf directives", "Directives for -printf / -fprintf / -println FORMAT, and the `%{field}` escape.",
-      engine::PrintfDocs()));
-  doc.sections.push_back(VocabSection(
-      "Time formats", "Presets and strftime patterns for --time-format, --timezone, and time-field {:qualifiers}.",
-      datetime::FormatDocs()));
-  doc.sections.push_back(VocabSection("Size units", "Units for -size / -blocks [+|-]N[unit].", engine::SizeUnitDocs()));
-  doc.sections.push_back(VocabSection(
-      "Regex grammars",
-      "The grammar for -regex / -iregex and the content matchers -rxc / -grep, chosen by `--regextype` "
-      "(default RE2). EXACT, FNMATCH, GLOB and SHGLOB are core engines, always built in; PCRE2 is a "
-      "build-time extra (see `--help=extras`). RE2 and PCRE2 have canonical external references, so the "
-      "smaller engines are spelled out in full here: they have no single authoritative man page, and "
-      "FNMATCH delegates to the platform's fnmatch(3), whose class / collation details vary by system.",
-      regex::GrammarDocs()));
-
+  doc.sections.push_back(PrintfSection());
+  doc.sections.push_back(TimeSection());
+  doc.sections.push_back(SizeSection());
+  doc.sections.push_back(GrammarsSection());
   doc.sections.push_back(BuildExamples());
 
   Section exit_status{.title = "Exit status"};

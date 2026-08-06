@@ -38,7 +38,6 @@
 #include "xff/config/config.h"
 #include "xff/config/loader.h"
 #include "xff/config/policy.h"
-#include "xff/datetime/datetime.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/run.h"
 #include "xff/format/format.h"
@@ -161,48 +160,6 @@ std::string RenderFlavorTable(const std::vector<std::string>& globals, std::opti
   return out;
 }
 
-// The -printf directive reference (--help=printf, and appended to --help=full), rendered
-// from engine::PrintfDocs() through the shared cli::RenderDocRows layout.
-std::string RenderPrintfDocs() {
-  std::string out = "PRINTF DIRECTIVES (-printf / -fprintf / -println FORMAT):\n";
-  absl::StrAppend(&out, xff::cli::RenderDocRows("  ", xff::engine::PrintfDocs()));
-  return out;
-}
-
-// The time-format vocabulary (--help=time), rendered from datetime::FormatDocs().
-std::string RenderTimeDocs() {
-  std::string out = "TIME FORMATS (--time-format=FMT, --timezone, and time-field {:qualifiers}):\n";
-  absl::StrAppend(&out, xff::cli::RenderDocRows("  ", xff::datetime::FormatDocs()));
-  return out;
-}
-
-// The -size unit vocabulary (--help=size), rendered from engine::SizeUnitDocs().
-std::string RenderSizeDocs() {
-  std::string out = "SIZE UNITS (-size / -blocks [+|-]N[unit]):\n";
-  absl::StrAppend(&out, xff::cli::RenderDocRows("  ", xff::engine::SizeUnitDocs()));
-  return out;
-}
-
-// The --regextype grammar reference (--help=grammars), rendered from regex::GrammarDocs(). Documents
-// every grammar in full; RE2 / PCRE2 cite their canonical external references, the core engines
-// (EXACT / FNMATCH / GLOB / SHGLOB) are spelled out here because they have none (and FNMATCH's
-// fnmatch(3) varies by platform). Named "grammars", not "regex" / "regextype", so it does not shadow
-// the -regex primary's or the --regextype flag's own --help= entries.
-std::string RenderRegexDocs() {
-  std::string out = "REGEX GRAMMARS (--regextype=VALUE, for -regex/-iregex/-rxc/-grep):\n";
-  absl::StrAppend(&out, xff::cli::RenderDocRows("  ", xff::regex::GrammarDocs()));
-  return out;
-}
-
-// The {field} placeholder vocabulary (--help=fields), rendered as plain help through the shared
-// WriteFields() walk (a PlainRenderer) - the same walk that feeds the --man / --markdown /
-// --help=full Fields section, so the topic can never drift from them or hand-mirror their content.
-std::string RenderFieldsDocs(xff::cli::HelpRenderContext context) {
-  xff::cli::PlainTextBackend backend(context);
-  xff::cli::RenderDocument(xff::cli::FieldsReference(), backend);
-  return backend.Take();
-}
-
 // The --help=extras topic: the optional build-time features and whether THIS binary links each.
 // Availability is per-binary, so this is a runtime topic (not folded into the static --help=full /
 // man / markdown reference). PCRE2 is the --regextype value extra (regex::Pcre2Available, from the
@@ -252,20 +209,12 @@ absl::StatusOr<std::string> RenderTopic(std::string_view topic, xff::cli::HelpRe
   if (topic == "styles" || topic == "flavors") {
     return RenderFlavorTable({}, std::nullopt);
   }
-  if (topic == "fields") {
-    return RenderFieldsDocs(context);
-  }
-  if (topic == "printf") {
-    return RenderPrintfDocs();
-  }
-  if (topic == "time") {
-    return RenderTimeDocs();
-  }
-  if (topic == "size") {
-    return RenderSizeDocs();
-  }
-  if (topic == "grammars") {
-    return RenderRegexDocs();
+  // The sub-vocabulary topics (fields / printf / time / size / grammars) render from
+  // the model so they wrap + indent via the context.
+  if (std::optional<xff::cli::Document> topic_doc = xff::cli::TopicReference(topic); topic_doc.has_value()) {
+    xff::cli::PlainTextBackend backend(context);
+    xff::cli::RenderDocument(*topic_doc, backend);
+    return backend.Take();
   }
   if (topic == "extras") {
     return RenderExtras();

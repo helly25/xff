@@ -39,6 +39,11 @@ namespace xff::cli {
 // section, so the topic can never drift from the full reference.
 [[nodiscard]] Document FieldsReference();
 
+// The standalone document for a sub-vocabulary `--help=TOPIC` (fields / printf / time
+// / size / grammars) - the same section BuildReference() folds into the full reference,
+// so the topic can never drift from it. nullopt when NAME is not such a topic.
+[[nodiscard]] std::optional<Document> TopicReference(std::string_view name);
+
 // The single-entry document for `--help=NAME` when NAME is an expression primary or
 // a global flag (leading-dash convenience: `--help=sort` finds `--sort`). The entry
 // is the same one BuildReference() folds into its Options / Expression sections, so
