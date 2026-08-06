@@ -23,6 +23,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
+#include "absl/strings/str_split.h"
 #include "absl/types/span.h"
 #include "xff/cli/globals.h"
 #include "xff/cli/help.h"
@@ -72,14 +73,90 @@ Content RowsOf(absl::Span<const DocPair> pairs) {
   return Content{.node = std::move(rows)};
 }
 
-// A definition entry for a flag / primary (summary + optional detail blocks).
-Content EntryOf(std::string term, std::string_view summary, std::string_view details, bool xff) {
+// The classification tags after a flag's term, e.g. (global, xff).
+std::vector<std::string> FlagTags(const GlobalFlag& flag) {
+  return {"global", flag.xff ? "xff" : "find"};
+}
+
+// The classification tags after a primary's term, e.g. (test, find) or
+// (action, xff, runs commands).
+std::vector<std::string> PrimaryTags(const registry::Descriptor& descriptor) {
+  std::vector<std::string> tags;
+  switch (descriptor.kind) {
+    case registry::Kind::kAction: tags.emplace_back("action"); break;
+    case registry::Kind::kOperator: tags.emplace_back("operator"); break;
+    case registry::Kind::kTest: tags.emplace_back("test"); break;
+  }
+  tags.emplace_back(descriptor.style == registry::Style::kXff ? "xff" : "find");
+  if (descriptor.safety == registry::Safety::kSecurity) {
+    tags.emplace_back("runs commands");
+  } else if (descriptor.safety == registry::Safety::kSafety) {
+    tags.emplace_back("modifies the filesystem");
+  }
+  return tags;
+}
+
+// Every global flag whose `affects` list names `name` (a flag or primary), in
+// Globals() display order - the reverse of the forward `affects` declaration, so the
+// "Affected by:" block on any entry stays in lock-step with the flags' declarations.
+std::vector<std::string_view> AffectedByFlags(std::string_view name) {
+  std::vector<std::string_view> out;
+  for (const GlobalFlag& flag : Globals()) {
+    for (const std::string_view token : absl::StrSplit(flag.affects, ',', absl::SkipEmpty())) {
+      if (token == name) {
+        out.push_back(flag.name);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+// Appends an influence detail line ("Header: a, b, c") to `blocks` when non-empty.
+void AppendInfluence(Blocks* blocks, std::string_view header, const std::vector<std::string_view>& names) {
+  if (names.empty()) {
+    return;
+  }
+  blocks->push_back(ProseOf(absl::StrCat(header, " ", absl::StrJoin(names, ", "))));
+}
+
+// A definition entry for a global flag: its display, summary, and detail blocks,
+// enriched with the (global, xff|find) tags, a "not built into this binary" note
+// when its build extra is absent, and the Affects / Affected-by influence blocks.
+Content FlagEntry(const GlobalFlag& flag) {
+  Blocks details;
+  if (!flag.extra.empty() && !ExtraEnabled(flag.extra)) {
+    details.push_back(ProseOf(
+        absl::StrCat(
+            "Not built into this binary: rebuild with `--//xff:", flag.extra, "` (used as-is, it is a hard error).")));
+  }
+  for (Content& block : ParseBlocks(flag.details)) {
+    details.push_back(std::move(block));
+  }
+  AppendInfluence(&details, "Affects:", absl::StrSplit(flag.affects, ',', absl::SkipEmpty()));
+  AppendInfluence(&details, "Affected by:", AffectedByFlags(flag.name));
   return Content{
       .node = Entry{
-          .term = std::move(term),
-          .summary = ParseInline(summary),
-          .details = ParseBlocks(details),
-          .xff = xff,
+          .term = std::string(flag.display),
+          .summary = ParseInline(flag.summary),
+          .details = std::move(details),
+          .xff = flag.xff,
+          .tags = FlagTags(flag),
+      }};
+}
+
+// A definition entry for an expression primary: its synopsis, summary, and detail
+// blocks, enriched with the (kind, xff|find, [safety]) tags and the Affected-by block.
+Content PrimaryEntry(const registry::Descriptor& descriptor) {
+  Blocks details = ParseBlocks(descriptor.details);
+  AppendInfluence(&details, "Affected by:", AffectedByFlags(descriptor.name));
+  return Content{
+      .node = Entry{
+          .term = absl::StrCat(descriptor.name, ArgHint(descriptor)),
+          .summary = ParseInline(descriptor.summary),
+          .details = std::move(details),
+          .xff = descriptor.style == registry::Style::kXff,
+          .tags = PrimaryTags(descriptor),
       }};
 }
 
@@ -221,7 +298,7 @@ Document BuildReference() {
         current = Subsection{.title = std::string(flag.header)};
         have_current = true;
       }
-      current.children.push_back(EntryOf(std::string(flag.display), flag.summary, flag.details, flag.xff));
+      current.children.push_back(FlagEntry(flag));
     }
     if (have_current) {
       options.children.push_back(Content{.node = std::move(current)});
@@ -234,9 +311,7 @@ Document BuildReference() {
     Subsection sub{.title = std::string(kind_section.title)};
     for (const registry::Descriptor& descriptor : registry::All()) {
       if (descriptor.kind == kind_section.kind) {
-        sub.children.push_back(EntryOf(
-            absl::StrCat(descriptor.name, ArgHint(descriptor)), descriptor.summary, descriptor.details,
-            descriptor.style == registry::Style::kXff));
+        sub.children.push_back(PrimaryEntry(descriptor));
       }
     }
     expression.children.push_back(Content{.node = std::move(sub)});

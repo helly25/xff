@@ -48,8 +48,10 @@ TEST_F(MarkdownTest, DocumentsEveryGlobalAndPrimaryAsCode) {
   }
 }
 
-TEST_F(MarkdownTest, TagsXffExtensions) {
-  EXPECT_THAT(MarkdownReference(), HasSubstr("_(xff)_"));
+TEST_F(MarkdownTest, TagsEntriesWithTheirClassification) {
+  // Flags are tagged (global, xff|find); primaries (kind, xff|find, [safety]).
+  EXPECT_THAT(MarkdownReference(), HasSubstr("_(global, xff)_"));
+  EXPECT_THAT(MarkdownReference(), HasSubstr("_(test, find)_"));
 }
 
 }  // namespace
