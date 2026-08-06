@@ -501,43 +501,71 @@ The grammar for -regex / -iregex and the content matchers -rxc / -grep, chosen b
 
 ## Examples
 
+Worked examples that compose xff's building blocks. Each shows a task, its command, and how it works. See `--help=fields` for the {field}s and `--help=stats` for the reductions.
+
+### Ten largest files
+
+```sh
+xff . -type f -printf '%s\t%p\n' | sort -rn | head
 ```
-xff cookbook: worked examples that compose xff's building blocks. Each shows a task, the
-command, and how it works. See --help=fields for {field}s and --help=stats for the reductions.
 
-  Ten largest files
-    xff . -type f -printf '%s\t%p\n' | sort -rn | head
-    %s is the size, %p the path; the shell sorts and takes the top ten. -printf builds any columnar line you need.
+%s is the size, %p the path; the shell sorts and takes the top ten. -printf builds any columnar line you need.
 
-  Disk use per file type
-    xff . -type f --summary=ext
-    a count + total size per extension; the --summary global reads naturally at the end, after the expression (a --long global may sit anywhere). Swap in --histogram=ext for bars, or --histogram='ext:sum(lines)' to rank by lines. See --help=stats.
+### Disk use per file type
 
-  Delete stale temp files, safely
-    xff . -type f -name '*.tmp' -mtime +7 -delete --dry-run
-    lists what -delete WOULD remove (guarded by --dry-run); rerun without it to delete. -delete implies -depth so directories empty first.
-
-  Search code content, filtered by language
-    xff src -lang 'C*' -grep 'TODO'
-    prints every TODO line as path:lineno:text in C / C++ / C# files; add -c for per-file counts or --context=2 for surrounding lines.
-
-  Per-file git-blame author line counts
-    xff . -text -exec git blame --line-porcelain {} \; | grep '^author ' | sort | uniq -c | sort -rn
-    runs git blame on each text file; the shell pipe tallies lines per author across the tree. -text skips binaries (which git blame cannot line-blame). -exec feeds any pipeline the field vocabulary cannot express alone.
-
-  Author line counts, natively (no shell pipe)
-    xff -g . -text -capturedir=blame git blame --line-porcelain {} \; --summary='{capture.blame:m/^author (.+)$/\1/}'
-    the recipe above with the awk|sort tail folded into xff. -capturedir runs git blame in each file's own directory (repo-safe, works across nested repos); --summary folds that output via an m// extraction, tallying lines per author across the tree - no external pipe. -g honors .gitignore and skips .git; -text keeps blame off binaries. Pass several roots (a b c ...) to span multiple trees. A single-dash global like -g leads; double-dash globals such as --summary may sit anywhere (before or after the paths).
-
-  Checksum manifest for a tree
-    xff . -type f -hash=sha256
-    prints `DIGEST  PATH` per file (like sha256sum); redirect to a file to snapshot a tree, then diff two runs to spot changes.
-
-  Recently changed files as machine rows
-    xff . -type f -mtime -1 --format=jsonl
-    everything modified in the last day, one JSON object per file, ready for jq or a script.
-
+```sh
+xff . -type f --summary=ext
 ```
+
+a count + total size per extension; the --summary global reads naturally at the end, after the expression (a --long global may sit anywhere). Swap in --histogram=ext for bars, or --histogram='ext:sum(lines)' to rank by lines. See --help=stats.
+
+### Delete stale temp files, safely
+
+```sh
+xff . -type f -name '*.tmp' -mtime +7 -delete --dry-run
+```
+
+lists what -delete WOULD remove (guarded by --dry-run); rerun without it to delete. -delete implies -depth so directories empty first.
+
+### Search code content, filtered by language
+
+```sh
+xff src -lang 'C*' -grep 'TODO'
+```
+
+prints every TODO line as path:lineno:text in C / C++ / C# files; add -c for per-file counts or --context=2 for surrounding lines.
+
+### Per-file git-blame author line counts
+
+```sh
+xff . -text -exec git blame --line-porcelain {} \; | grep '^author ' | sort | uniq -c | sort -rn
+```
+
+runs git blame on each text file; the shell pipe tallies lines per author across the tree. -text skips binaries (which git blame cannot line-blame). -exec feeds any pipeline the field vocabulary cannot express alone.
+
+### Author line counts, natively (no shell pipe)
+
+```sh
+xff -g . -text -capturedir=blame git blame --line-porcelain {} \; --summary='{capture.blame:m/^author (.+)$/\1/}'
+```
+
+the recipe above with the awk|sort tail folded into xff. -capturedir runs git blame in each file's own directory (repo-safe, works across nested repos); --summary folds that output via an m// extraction, tallying lines per author across the tree - no external pipe. -g honors .gitignore and skips .git; -text keeps blame off binaries. Pass several roots (a b c ...) to span multiple trees. A single-dash global like -g leads; double-dash globals such as --summary may sit anywhere (before or after the paths).
+
+### Checksum manifest for a tree
+
+```sh
+xff . -type f -hash=sha256
+```
+
+prints `DIGEST  PATH` per file (like sha256sum); redirect to a file to snapshot a tree, then diff two runs to spot changes.
+
+### Recently changed files as machine rows
+
+```sh
+xff . -type f -mtime -1 --format=jsonl
+```
+
+everything modified in the last day, one JSON object per file, ready for jq or a script.
 
 ## Exit status
 

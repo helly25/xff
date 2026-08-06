@@ -49,6 +49,7 @@ class PlainTextBackend final : public HelpBackend {
   void Preamble(const Document& doc) override;
   void BeginSection(const Section& section) override;
   void BeginSubsection(const Subsection& subsection) override;
+  void EndSubsection(const Subsection& subsection) override;
   void BeginEntry(const Entry& entry) override;
   void EndEntry(const Entry& entry) override;
   void EmitProse(const Prose& prose) override;
@@ -62,8 +63,13 @@ class PlainTextBackend final : public HelpBackend {
   // Separates blocks: emits a blank line before the next block unless at the start.
   void StartBlock();
 
+  // The body indent for content inside the current subsection nesting (2 spaces per
+  // level), so an example command and its explanation sit under their recipe heading.
+  [[nodiscard]] std::string BodyIndent() const;
+
   std::string out_;
-  bool in_entry_ = false;  // an entry's detail prose renders indented under its term, not as free prose
+  bool in_entry_ = false;     // an entry's detail prose renders indented under its term, not as free prose
+  int subsection_depth_ = 0;  // how many subsections deep the walk currently is
 };
 
 // Renders inline runs to plain text: literal content with emphasis markup dropped

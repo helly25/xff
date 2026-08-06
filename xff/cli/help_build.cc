@@ -259,6 +259,23 @@ Section VocabSection(std::string_view title, std::string_view prose, absl::Span<
   return section;
 }
 
+// EXAMPLES: the cookbook recipes as structured nodes - each a subsection with the
+// verbatim command (an Example, kept copy-pastable) and its explanation (Prose, which
+// wraps). The recipe list is the SOT in help.cc, run end to end by cookbook_test.
+Section BuildExamples() {
+  Section section{.title = "Examples"};
+  section.children.push_back(ProseOf(
+      "Worked examples that compose xff's building blocks. Each shows a task, its command, and how it "
+      "works. See `--help=fields` for the {field}s and `--help=stats` for the reductions."));
+  for (const Recipe& recipe : CookbookRecipes()) {
+    Subsection sub{.title = std::string(recipe.task)};
+    sub.children.push_back(ExampleOf(std::string(recipe.command), "sh"));
+    sub.children.push_back(ProseOf(recipe.note));
+    section.children.push_back(Content{.node = std::move(sub)});
+  }
+  return section;
+}
+
 }  // namespace
 
 Document FieldsReference() {
@@ -362,9 +379,7 @@ Document BuildReference() {
       "FNMATCH delegates to the platform's fnmatch(3), whose class / collation details vary by system.",
       regex::GrammarDocs()));
 
-  Section examples{.title = "Examples"};
-  examples.children.push_back(ExampleOf(RenderHelp("cookbook").value_or("")));
-  doc.sections.push_back(std::move(examples));
+  doc.sections.push_back(BuildExamples());
 
   Section exit_status{.title = "Exit status"};
   exit_status.children.push_back(ProseOf(

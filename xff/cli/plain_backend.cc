@@ -25,6 +25,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
+#include "absl/strings/str_split.h"
 #include "xff/cli/help.h"
 #include "xff/cli/help_model.h"
 #include "xff/cli/wrap.h"
@@ -99,9 +100,18 @@ void PlainTextBackend::BeginSection(const Section& section) {
   absl::StrAppend(&out_, absl::AsciiStrToUpper(section.title), "\n");
 }
 
+std::string PlainTextBackend::BodyIndent() const {
+  return std::string(static_cast<std::size_t>(2 * subsection_depth_), ' ');
+}
+
 void PlainTextBackend::BeginSubsection(const Subsection& subsection) {
   StartBlock();
-  absl::StrAppend(&out_, subsection.title, ":\n");
+  absl::StrAppend(&out_, BodyIndent(), subsection.title, ":\n");
+  ++subsection_depth_;  // the subsection's body content indents one level deeper
+}
+
+void PlainTextBackend::EndSubsection(const Subsection& /*subsection*/) {
+  --subsection_depth_;
 }
 
 void PlainTextBackend::BeginEntry(const Entry& entry) {
@@ -130,14 +140,21 @@ void PlainTextBackend::EmitProse(const Prose& prose) {
     return;
   }
   StartBlock();
-  absl::StrAppend(&out_, WrapText(RenderInlinesPlain(prose.runs), Context().width, "", ""));
+  const std::string indent = BodyIndent();
+  absl::StrAppend(&out_, WrapText(RenderInlinesPlain(prose.runs), Context().width, indent, indent));
 }
 
 void PlainTextBackend::EmitExample(const Example& example) {
   StartBlock();
-  absl::StrAppend(&out_, example.text);
-  if (example.text.empty() || example.text.back() != '\n') {
-    absl::StrAppend(&out_, "\n");
+  const std::string indent = BodyIndent();
+  // Verbatim, but each line carries the current subsection body indent so a recipe's
+  // command sits under its heading.
+  std::string_view text = example.text;
+  if (!text.empty() && text.back() == '\n') {
+    text.remove_suffix(1);  // avoid a trailing indent-only line from a final newline
+  }
+  for (const std::string_view line : absl::StrSplit(text, '\n')) {
+    absl::StrAppend(&out_, indent, line, "\n");
   }
 }
 

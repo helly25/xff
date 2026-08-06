@@ -23,9 +23,22 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
+#include "absl/types/span.h"
 #include "xff/registry/descriptor.h"
 
 namespace xff::cli {
+
+// A cookbook recipe: a task, the exact runnable command, and how it works. The single
+// source for the `--help=cookbook` topic and the model's Examples section; every
+// command is run end to end by //xff/examples:cookbook_test.
+struct Recipe {
+  std::string_view task;
+  std::string_view command;
+  std::string_view note;
+};
+
+// The cookbook recipes, in display order.
+[[nodiscard]] absl::Span<const Recipe> CookbookRecipes();
 
 // Renders {code, description} rows as an aligned indented list:
 // `<indent><code padded to the widest code + 2 spaces><description>`. The shared layout

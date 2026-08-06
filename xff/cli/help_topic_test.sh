@@ -144,7 +144,7 @@ test::help_cookbook_lists_worked_examples() {
   expect_output_contains 'Ten largest files' "${cookbook}"                   # a recipe task heading
   expect_output_contains 'git blame' "$("$(_xff_bin)" --help=examples 2>&1)" # alias resolves
   full="$("$(_xff_bin)" --help=full 2>&1)"
-  expect_output_contains 'xff cookbook' "${full}" # in_full folds it into the full reference
+  expect_output_contains 'Ten largest files' "${full}" # the examples fold into the full reference
 }
 
 test::help_list_shows_grouped_index() {
