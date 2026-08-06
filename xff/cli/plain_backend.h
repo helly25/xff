@@ -18,7 +18,6 @@
 
 #include <cstddef>
 #include <string>
-#include <string_view>
 
 #include "xff/cli/help_backend.h"
 #include "xff/cli/help_model.h"
@@ -60,23 +59,9 @@ class PlainTextBackend final : public HelpBackend {
   void StartBlock();
 
   std::string out_;
-  std::size_t width_ = 0;  // wrap column for flowing text; 0 disables wrapping
+  std::size_t width_ = 0;  // wrap column for flowing text; 0 disables wrapping (see wrap.h)
   bool in_entry_ = false;  // an entry's detail prose renders indented under its term, not as free prose
 };
-
-// Word-wraps `text` into `width` columns, emitting the first line behind
-// `first_indent` and each continuation line behind `cont_indent`. Words split on
-// runs of ASCII whitespace (prose arrives already joined onto one line); a word
-// wider than the remaining budget still takes its own line rather than being split
-// mid-word. A `width` of 0 disables wrapping: the text becomes one
-// `first_indent`-prefixed line, emitted even when empty (so it byte-reproduces the
-// pre-wrap output). At a positive width, empty `text` yields the empty string.
-// Every emitted line ends in '\n'. Exposed for reuse / testing.
-[[nodiscard]] std::string WrapText(
-    std::string_view text,
-    std::size_t width,
-    std::string_view first_indent,
-    std::string_view cont_indent);
 
 // Renders inline runs to plain text: literal content with emphasis markup dropped
 // and each cross-reference shown as its plain locator. Exposed for reuse / testing.

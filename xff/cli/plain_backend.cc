@@ -23,9 +23,9 @@
 
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
-#include "absl/strings/str_split.h"
 #include "xff/cli/help.h"
 #include "xff/cli/help_model.h"
+#include "xff/cli/wrap.h"
 
 namespace xff::cli {
 namespace {
@@ -46,44 +46,6 @@ std::string RenderInlinesRaw(const Inlines& runs) {
 }
 
 }  // namespace
-
-std::string WrapText(
-    std::string_view text,
-    std::size_t width,
-    std::string_view first_indent,
-    std::string_view cont_indent) {
-  std::string out;
-  if (width == 0) {
-    // No wrapping: the whole (already single-line) text on one indented line. Emitted
-    // even when empty so it reproduces the pre-wrap "indent + text + newline" output.
-    absl::StrAppend(&out, first_indent, text, "\n");
-    return out;
-  }
-  std::string_view indent = first_indent;
-  std::string line;
-  const auto flush = [&] {
-    absl::StrAppend(&out, indent, line, "\n");
-    indent = cont_indent;
-    line.clear();
-  };
-  for (const std::string_view word : absl::StrSplit(text, absl::ByAnyChar(" \t\n"), absl::SkipEmpty())) {
-    // The content budget is the columns left once this line's indent is spent; a
-    // fresh line always takes the word (even if it overflows) rather than looping.
-    const std::size_t budget = width > indent.size() ? width - indent.size() : 0;
-    if (line.empty()) {
-      line = std::string(word);
-    } else if (line.size() + 1 + word.size() <= budget) {
-      absl::StrAppend(&line, " ", word);
-    } else {
-      flush();
-      line = std::string(word);
-    }
-  }
-  if (!line.empty()) {
-    flush();
-  }
-  return out;
-}
 
 std::string PlainRefLocator(const RefTarget& target) {
   switch (target.kind) {

@@ -128,6 +128,29 @@ cc_library(
     ],
 )
 
+# Indent-aware word wrapping for the plain help backend (#153 / #164): WrapText
+# reflows flowing text to a column width, carrying each block's indent.
+cc_library(
+    name = "wrap_cc",
+    srcs = ["wrap.cc"],
+    hdrs = ["wrap.h"],
+    deps = [
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "wrap_test",
+    size = "small",
+    srcs = ["wrap_test.cc"],
+    deps = [
+        ":wrap_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:matchers_cc",
+    ],
+)
+
 # The plain-text backend: renders the help model to unadorned terminal text.
 cc_library(
     name = "plain_backend_cc",
@@ -137,6 +160,7 @@ cc_library(
         ":help_backend_cc",
         ":help_cc",
         ":help_model_cc",
+        ":wrap_cc",
         "@abseil-cpp//absl/strings",
     ],
 )
