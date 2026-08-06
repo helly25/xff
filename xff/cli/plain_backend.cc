@@ -37,6 +37,45 @@ std::string PlainRefLocator(const RefTarget& target) {
   return target.id;
 }
 
+std::string WrapText(
+    std::string_view text,
+    std::size_t width,
+    std::string_view first_indent,
+    std::string_view cont_indent) {
+  std::string out;
+  if (width == 0) {
+    // No wrapping: the whole (already single-line) text on one indented line.
+    if (!text.empty()) {
+      absl::StrAppend(&out, first_indent, text, "\n");
+    }
+    return out;
+  }
+  std::string_view indent = first_indent;
+  std::string line;
+  const auto flush = [&] {
+    absl::StrAppend(&out, indent, line, "\n");
+    indent = cont_indent;
+    line.clear();
+  };
+  for (const std::string_view word : absl::StrSplit(text, absl::ByAnyChar(" \t\n"), absl::SkipEmpty())) {
+    // The content budget is the columns left once this line's indent is spent; a
+    // fresh line always takes the word (even if it overflows) rather than looping.
+    const std::size_t budget = width > indent.size() ? width - indent.size() : 0;
+    if (line.empty()) {
+      line = std::string(word);
+    } else if (line.size() + 1 + word.size() <= budget) {
+      absl::StrAppend(&line, " ", word);
+    } else {
+      flush();
+      line = std::string(word);
+    }
+  }
+  if (!line.empty()) {
+    flush();
+  }
+  return out;
+}
+
 std::string RenderInlinesPlain(const Inlines& runs) {
   std::string out;
   for (const Inline& run : runs) {
@@ -75,12 +114,12 @@ void PlainTextBackend::BeginSubsection(const Subsection& subsection) {
 void PlainTextBackend::BeginEntry(const Entry& entry) {
   absl::StrAppend(&out_, "  ", entry.term, entry.xff ? " [xff]" : "", "\n");
   if (!entry.summary.empty()) {
-    absl::StrAppend(&out_, "      ", RenderInlinesPlain(entry.summary), "\n");
+    absl::StrAppend(&out_, WrapText(RenderInlinesPlain(entry.summary), width_, "      ", "      "));
   }
 }
 
 void PlainTextBackend::EmitProse(const Prose& prose) {
-  absl::StrAppend(&out_, RenderInlinesPlain(prose.runs), "\n");
+  absl::StrAppend(&out_, WrapText(RenderInlinesPlain(prose.runs), width_, "", ""));
 }
 
 void PlainTextBackend::EmitExample(const Example& example) {
@@ -91,7 +130,7 @@ void PlainTextBackend::EmitExample(const Example& example) {
 
 void PlainTextBackend::EmitBullets(const Bullets& bullets) {
   for (const Inlines& item : bullets.items) {
-    absl::StrAppend(&out_, "  - ", RenderInlinesPlain(item), "\n");
+    absl::StrAppend(&out_, WrapText(RenderInlinesPlain(item), width_, "  - ", "    "));
   }
 }
 
@@ -108,16 +147,16 @@ void PlainTextBackend::EmitRows(const Rows& rows) {
 }
 
 void PlainTextBackend::EmitSeeAlso(const SeeAlso& see_also) {
-  absl::StrAppend(&out_, "See also:");
+  std::string content = "See also:";
   std::string_view sep = " ";
   for (const RefTarget& ref : see_also.refs) {
-    absl::StrAppend(&out_, sep, PlainRefLocator(ref));
+    absl::StrAppend(&content, sep, PlainRefLocator(ref));
     sep = ", ";
   }
   if (!see_also.note.empty()) {
-    absl::StrAppend(&out_, " ", RenderInlinesPlain(see_also.note));
+    absl::StrAppend(&content, " ", RenderInlinesPlain(see_also.note));
   }
-  absl::StrAppend(&out_, "\n");
+  absl::StrAppend(&out_, WrapText(content, width_, "", "  "));
 }
 
 std::string PlainTextBackend::Take() {
