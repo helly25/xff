@@ -89,18 +89,22 @@ std::vector<ShardSet> GroupShards(absl::Span<const ShardFile> files, const Match
         .total = std::get<2>(key),
         .width = accum.width,
     };
-    for (auto& [index, group] : accum.by_index) {
-      // Deterministic representative + duplicate order: the lexicographically-first
-      // path wins, and its size / mode become the shard's.
-      absl::c_sort(group, [](const ShardFile& lhs, const ShardFile& rhs) { return lhs.name < rhs.name; });
+    for (const auto& [index, group] : accum.by_index) {
+      // The lexicographically-first file is the representative (its size / mode
+      // become the shard's); a single min-element scan finds it - no full sort. The
+      // rest are the redundant regenerations, kept in encounter order.
+      const auto representative =
+          absl::c_min_element(group, [](const ShardFile& lhs, const ShardFile& rhs) { return lhs.name < rhs.name; });
       ShardMember member{
           .index = index,
-          .path = std::string(group.front().name),
-          .size = group.front().size,
-          .mode = group.front().mode,
+          .path = std::string(representative->name),
+          .size = representative->size,
+          .mode = representative->mode,
       };
-      for (std::size_t i = 1; i < group.size(); ++i) {
-        member.duplicates.emplace_back(group[i].name);
+      for (const ShardFile& file : group) {
+        if (file.name != representative->name) {  // names are unique within a directory
+          member.duplicates.emplace_back(file.name);
+        }
       }
       set.total_size += member.size;  // distinct shards only, not the redundant dup copies
       set.members.push_back(std::move(member));
