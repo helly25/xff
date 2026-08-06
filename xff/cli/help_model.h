@@ -109,6 +109,10 @@ struct Entry {
   Inlines summary;
   Blocks details;
   bool xff = false;
+  // Parenthesized classification tokens shown after the term, e.g. {"global", "xff"}
+  // for a flag or {"test", "find", "runs commands"} for a primary. A backend renders
+  // them as "(a, b, c)". When empty, a backend falls back to the bare `xff` tag.
+  std::vector<std::string> tags;
   std::string anchor;
 };
 

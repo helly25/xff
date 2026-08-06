@@ -24,6 +24,7 @@
 
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
 #include "xff/cli/help.h"
 #include "xff/cli/help_model.h"
 #include "xff/cli/wrap.h"
@@ -102,7 +103,15 @@ void PlainTextBackend::BeginSubsection(const Subsection& subsection) {
 
 void PlainTextBackend::BeginEntry(const Entry& entry) {
   StartBlock();
-  absl::StrAppend(&out_, entry.term, entry.xff ? "  (xff)" : "", "\n");
+  // Classification tags after the term: the explicit list when present, else the
+  // bare xff marker (kept until every entry carries tags).
+  std::string tag;
+  if (!entry.tags.empty()) {
+    tag = absl::StrCat("  (", absl::StrJoin(entry.tags, ", "), ")");
+  } else if (entry.xff) {
+    tag = "  (xff)";
+  }
+  absl::StrAppend(&out_, entry.term, tag, "\n");
   absl::StrAppend(&out_, WrapText(RenderInlinesRaw(entry.summary), Context().width, "    ", "    "));
   in_entry_ = true;
 }
