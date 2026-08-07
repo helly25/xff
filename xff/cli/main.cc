@@ -31,13 +31,13 @@
 #include "xff/cli/help.h"
 #include "xff/cli/help_backend.h"
 #include "xff/cli/help_build.h"
+#include "xff/cli/help_width.h"
 #include "xff/cli/manpage.h"
 #include "xff/cli/markdown.h"
 #include "xff/cli/plain_backend.h"
 #include "xff/config/config.h"
 #include "xff/config/loader.h"
 #include "xff/config/policy.h"
-#include "xff/datetime/datetime.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/run.h"
 #include "xff/format/format.h"
@@ -47,40 +47,6 @@
 #include "xff/vfs/local_fs.h"
 
 namespace {
-
-// `--help` / `-h` text. Lists the whole-run options (globals) that are actually
-// wired; the find expression vocabulary (tests/operators/actions) follows the
-// roots and is documented in find(1) and docs/.
-constexpr std::string_view kHelpText =
-    R"(xff -- eXtended File Find: a find(1)-compatible file finder with modern extensions.
-
-Usage:
-  xff [option...] [path...] [expression]
-  find [option...] [path...] [expression]   # strict find compatibility, when invoked as `find`
-
-No path searches the current directory; no action prints each match (an implicit -print).
-
-Options (whole-run; shown before the paths, but a --long option may appear anywhere):
-)";
-
-// The Expression: section of the usage page, printed after the generated Help: section.
-// The Help: section (help / doc flags + the --help=TOPIC index) is generated from the
-// cli::HelpFlags() and cli::HelpTopics() SOTs so no help-flag text is hand-maintained
-// here; see cli::RenderHelpSection().
-constexpr std::string_view kHelpTextExpression =
-    R"(
-Expression: tests, operators, and actions applied to each entry, by group. Use
-`--help=expressions` for the full annotated list and `--help=NAME` for one entry
-(e.g. `--help=-regex`):
-  Name / path   -name  -iname  -path  -regex  -lname
-  Type / size   -type  -size  -blocks  -empty  -sparse  -mime (media type by extension)
-  Time          -mtime  -atime  -ctime  -Btime  -newerXY   (units + compound durations)
-  Owner / perm  -user  -group  -uid  -gid  -perm  -readable / -writable / -executable
-  Content       -content / -icontent (literal),  -rxc / -irxc (regex) filter;  -grep[=FMT] prints match lines
-  Compare       -cmp TARGET  (true when byte-identical to TARGET, a field template; e.g. '{def.B}/{relpath}')
-  Operators     -a   -o   !   ( )   ,      xff: -xor  -nand  -nor  -xnor
-  Actions       -print  -print0  -printf  -println  -ls  -exec / -execdir CMD ;|+  -delete  -prune  -quit  -ok
-)";
 
 // Environment variable as an optional (nullopt when unset), for config discovery.
 std::optional<std::string> EnvOpt(const char* name) {
@@ -160,48 +126,6 @@ std::string RenderFlavorTable(const std::vector<std::string>& globals, std::opti
   return out;
 }
 
-// The -printf directive reference (--help=printf, and appended to --help=full), rendered
-// from engine::PrintfDocs() through the shared cli::RenderDocRows layout.
-std::string RenderPrintfDocs() {
-  std::string out = "PRINTF DIRECTIVES (-printf / -fprintf / -println FORMAT):\n";
-  absl::StrAppend(&out, xff::cli::RenderDocRows("  ", xff::engine::PrintfDocs()));
-  return out;
-}
-
-// The time-format vocabulary (--help=time), rendered from datetime::FormatDocs().
-std::string RenderTimeDocs() {
-  std::string out = "TIME FORMATS (--time-format=FMT, --timezone, and time-field {:qualifiers}):\n";
-  absl::StrAppend(&out, xff::cli::RenderDocRows("  ", xff::datetime::FormatDocs()));
-  return out;
-}
-
-// The -size unit vocabulary (--help=size), rendered from engine::SizeUnitDocs().
-std::string RenderSizeDocs() {
-  std::string out = "SIZE UNITS (-size / -blocks [+|-]N[unit]):\n";
-  absl::StrAppend(&out, xff::cli::RenderDocRows("  ", xff::engine::SizeUnitDocs()));
-  return out;
-}
-
-// The --regextype grammar reference (--help=grammars), rendered from regex::GrammarDocs(). Documents
-// every grammar in full; RE2 / PCRE2 cite their canonical external references, the core engines
-// (EXACT / FNMATCH / GLOB / SHGLOB) are spelled out here because they have none (and FNMATCH's
-// fnmatch(3) varies by platform). Named "grammars", not "regex" / "regextype", so it does not shadow
-// the -regex primary's or the --regextype flag's own --help= entries.
-std::string RenderRegexDocs() {
-  std::string out = "REGEX GRAMMARS (--regextype=VALUE, for -regex/-iregex/-rxc/-grep):\n";
-  absl::StrAppend(&out, xff::cli::RenderDocRows("  ", xff::regex::GrammarDocs()));
-  return out;
-}
-
-// The {field} placeholder vocabulary (--help=fields), rendered as plain help through the shared
-// WriteFields() walk (a PlainRenderer) - the same walk that feeds the --man / --markdown /
-// --help=full Fields section, so the topic can never drift from them or hand-mirror their content.
-std::string RenderFieldsDocs() {
-  xff::cli::PlainTextBackend backend;
-  xff::cli::RenderDocument(xff::cli::FieldsReference(), backend);
-  return backend.Take();
-}
-
 // The --help=extras topic: the optional build-time features and whether THIS binary links each.
 // Availability is per-binary, so this is a runtime topic (not folded into the static --help=full /
 // man / markdown reference). PCRE2 is the --regextype value extra (regex::Pcre2Available, from the
@@ -228,57 +152,87 @@ std::string RenderExtras() {
   return out;
 }
 
-absl::StatusOr<std::string> RenderTopic(std::string_view topic);  // forward declaration (FullReference recurses)
+// forward declaration (FullReference recurses); `context` carries the render meta
+// (wrap width, ...) every model-rendered topic applies.
+absl::StatusOr<std::string> RenderTopic(std::string_view topic, xff::cli::HelpRenderContext context);
 
 // The full detailed reference (--help=full / long and --help-full / --help-long): every
 // option and primary with explanations, then each sub-vocabulary topic marked in_full --
 // so adding a topic auto-includes it here, no hand-maintained list.
-std::string FullReference() {
-  std::string out(xff::cli::RenderHelp("full").value_or(""));
-  for (const xff::cli::HelpTopic& topic : xff::cli::HelpTopics()) {
-    if (topic.in_full) {
-      absl::StrAppend(&out, "\n", RenderTopic(topic.name).value_or(""));
-    }
-  }
-  return out;
+std::string FullReference(xff::cli::HelpRenderContext context) {
+  // The complete reference is the whole help model (the same Document --man / --markdown
+  // render), in plain text and wrapped to the context width.
+  xff::cli::PlainTextBackend backend(context);
+  xff::cli::RenderDocument(xff::cli::BuildReference(), backend);
+  return backend.Take();
 }
 
 // The single dispatch for `--help=TOPIC`: the CLI-rendered topics (needing the engine /
 // datetime / flavor facets), else the registry-backed cli::RenderHelp. Shared by the
 // --help= handler, the --help-* shortcuts, and FullReference (which never asks for the
 // self-referential full/long, so there is no recursion).
-absl::StatusOr<std::string> RenderTopic(std::string_view topic) {
+absl::StatusOr<std::string> RenderTopic(std::string_view topic, xff::cli::HelpRenderContext context) {
   if (topic == "styles" || topic == "flavors") {
     return RenderFlavorTable({}, std::nullopt);
   }
-  if (topic == "fields") {
-    return RenderFieldsDocs();
-  }
-  if (topic == "printf") {
-    return RenderPrintfDocs();
-  }
-  if (topic == "time") {
-    return RenderTimeDocs();
-  }
-  if (topic == "size") {
-    return RenderSizeDocs();
-  }
-  if (topic == "grammars") {
-    return RenderRegexDocs();
+  // The sub-vocabulary topics (fields / printf / time / size / grammars) and the index
+  // topics (list / all / expressions) render from the model so they wrap + indent.
+  {
+    std::optional<xff::cli::Document> topic_doc = xff::cli::TopicReference(topic);
+    if (!topic_doc.has_value()) {
+      topic_doc = xff::cli::IndexReference(topic);
+    }
+    if (topic_doc.has_value()) {
+      xff::cli::PlainTextBackend backend(context);
+      xff::cli::RenderDocument(*topic_doc, backend);
+      return backend.Take();
+    }
   }
   if (topic == "extras") {
     return RenderExtras();
   }
   if (topic == "full" || topic == "long") {
-    return FullReference();
+    return FullReference(context);
   }
-  return xff::cli::RenderHelp(topic);
+  // The registry-backed special topics (list, config, stats, ...) take precedence, so
+  // a topic that also names a flag (e.g. `config` vs `--config`) resolves to the topic.
+  absl::StatusOr<std::string> special = xff::cli::RenderHelp(topic);
+  if (special.ok()) {
+    return special;
+  }
+  // Otherwise a single primary / flag entry, rendered from the model so it wraps
+  // (and later colors) via the context.
+  if (std::optional<xff::cli::Document> entry = xff::cli::EntryReference(topic); entry.has_value()) {
+    xff::cli::PlainTextBackend backend(context);
+    xff::cli::RenderDocument(*entry, backend);
+    return backend.Take();
+  }
+  return special.status();  // RenderHelp's not-found; the caller composes the message
 }
 
 }  // namespace
 
 int RunMain(int argc, char** argv) {
   const std::vector<std::string> args(argv + 1, argv + argc);
+
+  // The plain-help wrap width (--width), resolved once so every help / topic render
+  // shares it. A bare --width means auto; --width=VALUE carries the value. Scanned
+  // here (like the help flags) since --help short-circuits before the full parse.
+  std::optional<std::string_view> width_flag;
+  for (const std::string& arg : args) {
+    if (arg == "--width") {
+      width_flag = "auto";
+    } else if (arg.starts_with("--width=")) {
+      width_flag = std::string_view(arg).substr(std::string_view("--width=").size());
+    }
+  }
+  const absl::StatusOr<std::size_t> help_width =
+      xff::cli::ResolveHelpWidth(width_flag, xff::cli::DetectTerminalWidth());
+  if (!help_width.ok()) {
+    std::cerr << "xff: " << help_width.status().message() << "\n";
+    return 2;
+  }
+  const xff::cli::HelpRenderContext help_context{.width = *help_width};
 
   // Help and version, scanned anywhere in the arguments (find prints usage on a
   // bare --help wherever it lands). xff stays flag-only -- no `help` subcommand --
@@ -292,20 +246,22 @@ int RunMain(int argc, char** argv) {
   //   -version           GNU find compatibility
   for (const std::string& arg : args) {
     if (arg == "--help" || arg == "-help" || arg == "-h") {
-      std::cout << kHelpText << xff::cli::RenderOptions("  ") << xff::cli::RenderHelpSection() << kHelpTextExpression;
+      xff::cli::PlainTextBackend backend(help_context);
+      xff::cli::RenderDocument(xff::cli::BuildUsage(), backend);
+      std::cout << backend.Take();
       return 0;
     }
     if (arg == "--help-all") {
-      std::cout << RenderTopic("all").value_or("");  // hyphenated shortcut for --help=all (summaries)
+      std::cout << RenderTopic("all", help_context).value_or("");  // hyphenated shortcut for --help=all (summaries)
       return 0;
     }
     if (arg == "--help-full" || arg == "--help-long") {
-      std::cout << RenderTopic("full").value_or("");  // hyphenated shortcut for --help=full (explained)
+      std::cout << RenderTopic("full", help_context).value_or("");  // hyphenated shortcut for --help=full (explained)
       return 0;
     }
     if (arg.starts_with("--help=")) {
       const std::string_view topic = std::string_view(arg).substr(7);
-      const absl::StatusOr<std::string> help = RenderTopic(topic);
+      const absl::StatusOr<std::string> help = RenderTopic(topic, help_context);
       if (help.ok()) {
         std::cout << *help;
         return 0;

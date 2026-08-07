@@ -62,8 +62,10 @@ TEST_F(ManPageTest, DocumentsEveryGlobalAndPrimary) {
   }
 }
 
-TEST_F(ManPageTest, MarksXffExtensions) {
-  EXPECT_THAT(ManPage(), HasSubstr("(xff extension)"));
+TEST_F(ManPageTest, TagsEntriesWithTheirClassification) {
+  // Flags are tagged (global, xff|find); primaries (kind, xff|find, [safety]).
+  EXPECT_THAT(ManPage(), HasSubstr("(global, xff)"));
+  EXPECT_THAT(ManPage(), HasSubstr("(test, find)"));
 }
 
 }  // namespace

@@ -16,7 +16,9 @@
 #ifndef XFF_CLI_HELP_BACKEND_H_
 #define XFF_CLI_HELP_BACKEND_H_
 
+#include <cstddef>
 #include <string>
+#include <utility>
 
 #include "xff/cli/help_model.h"
 
@@ -32,14 +34,32 @@
 // re-parse. See docs/design-help-model.md.
 namespace xff::cli {
 
+// The render context: presentation meta resolved once at the CLI boundary (from the
+// flags + terminal) and held by the backend base as a constant, so every backend and
+// the RenderDocument walk see the same settings and refer to them as needed. The
+// help model (Document) stays pure content; how it is presented lives here.
+struct HelpRenderContext {
+  std::size_t width = 0;  // wrap column for flowing text; 0 = do not wrap
+  bool color = false;     // emit ANSI color (resolved from --color at the boundary)
+};
+
 // Emits one output format from the help model. RenderDocument() calls these in
 // document order; container nodes (section, subsection, entry) are bracketed by
 // Begin/End so a backend can open and close nesting. The default End* hooks do
 // nothing, so a flat backend only overrides what it needs. Inline runs are handed
 // over whole (as Inlines) so each backend maps Style / RefTarget to its own form.
+//
+// The base holds the HelpRenderContext (width / color / ...); every backend reads it
+// via Context(). It is set at construction and constant thereafter.
 class HelpBackend {
  public:
   HelpBackend() = default;
+
+  // std::move is a no-op while HelpRenderContext is trivially copyable, but keeps the
+  // sink-parameter idiom for when it gains a non-trivial field (e.g. a color palette).
+  // NOLINTNEXTLINE(*-move-const-arg)
+  explicit HelpBackend(HelpRenderContext context) : context_(std::move(context)) {}
+
   virtual ~HelpBackend() = default;
   HelpBackend(const HelpBackend&) = delete;
   HelpBackend& operator=(const HelpBackend&) = delete;
@@ -74,6 +94,13 @@ class HelpBackend {
 
   // The accumulated document.
   [[nodiscard]] virtual std::string Take() = 0;
+
+ protected:
+  // The render context, constant for the backend's lifetime; every backend reads it.
+  [[nodiscard]] const HelpRenderContext& Context() const { return context_; }
+
+ private:
+  const HelpRenderContext context_;
 };
 
 // Walks `doc` in document order and drives `backend`, recursing into subsection

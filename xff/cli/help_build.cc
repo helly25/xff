@@ -16,6 +16,7 @@
 #include "xff/cli/help_build.h"
 
 #include <array>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -23,6 +24,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
+#include "absl/strings/str_split.h"
 #include "absl/types/span.h"
 #include "xff/cli/globals.h"
 #include "xff/cli/help.h"
@@ -72,14 +74,99 @@ Content RowsOf(absl::Span<const DocPair> pairs) {
   return Content{.node = std::move(rows)};
 }
 
-// A definition entry for a flag / primary (summary + optional detail blocks).
-Content EntryOf(std::string term, std::string_view summary, std::string_view details, bool xff) {
+// The classification tags after a flag's term, e.g. (global, xff).
+std::vector<std::string> FlagTags(const GlobalFlag& flag) {
+  return {"global", flag.xff ? "xff" : "find"};
+}
+
+// The classification tags after a primary's term, e.g. (test, find) or
+// (action, xff, runs commands).
+std::vector<std::string> PrimaryTags(const registry::Descriptor& descriptor) {
+  std::vector<std::string> tags;
+  switch (descriptor.kind) {
+    case registry::Kind::kAction: tags.emplace_back("action"); break;
+    case registry::Kind::kOperator: tags.emplace_back("operator"); break;
+    case registry::Kind::kTest: tags.emplace_back("test"); break;
+  }
+  tags.emplace_back(descriptor.style == registry::Style::kXff ? "xff" : "find");
+  if (descriptor.safety == registry::Safety::kSecurity) {
+    tags.emplace_back("runs commands");
+  } else if (descriptor.safety == registry::Safety::kSafety) {
+    tags.emplace_back("modifies the filesystem");
+  }
+  return tags;
+}
+
+// Every global flag whose `affects` list names `name` (a flag or primary), in
+// Globals() display order - the reverse of the forward `affects` declaration, so the
+// "Affected by:" block on any entry stays in lock-step with the flags' declarations.
+std::vector<std::string_view> AffectedByFlags(std::string_view name) {
+  std::vector<std::string_view> out;
+  for (const GlobalFlag& flag : Globals()) {
+    for (const std::string_view token : absl::StrSplit(flag.affects, ',', absl::SkipEmpty())) {
+      if (token == name) {
+        out.push_back(flag.name);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+// Appends an influence detail line ("Header: a, b, c") to `blocks` when non-empty.
+void AppendInfluence(Blocks* blocks, std::string_view header, const std::vector<std::string_view>& names) {
+  if (names.empty()) {
+    return;
+  }
+  blocks->push_back(ProseOf(absl::StrCat(header, " ", absl::StrJoin(names, ", "))));
+}
+
+// A definition entry for a global flag: its display, summary, and (when `with_details`)
+// its detail blocks enriched with a "not built into this binary" note when its build
+// extra is absent and the Affects / Affected-by influence blocks. `with_details` is
+// false for the terse usage page (summary + tags only).
+Content FlagEntry(const GlobalFlag& flag, bool with_details = true) {
+  Blocks details;
+  // The not-built note shows even on the terse usage page: a flag whose build extra is
+  // absent is a hard error if used, so the reader must see it up front.
+  if (!flag.extra.empty() && !ExtraEnabled(flag.extra)) {
+    details.push_back(ProseOf(
+        absl::StrCat(
+            "NOT built into this binary: rebuild with `--//xff:", flag.extra, "` (used as-is, it is a hard error).")));
+  }
+  if (with_details) {
+    for (Content& block : ParseBlocks(flag.details)) {
+      details.push_back(std::move(block));
+    }
+    AppendInfluence(&details, "Affects:", absl::StrSplit(flag.affects, ',', absl::SkipEmpty()));
+    AppendInfluence(&details, "Affected by:", AffectedByFlags(flag.name));
+  }
   return Content{
       .node = Entry{
-          .term = std::move(term),
-          .summary = ParseInline(summary),
-          .details = ParseBlocks(details),
-          .xff = xff,
+          .term = std::string(flag.display),
+          .summary = ParseInline(flag.summary),
+          .details = std::move(details),
+          .xff = flag.xff,
+          .tags = FlagTags(flag),
+      }};
+}
+
+// A definition entry for an expression primary: its synopsis, summary, and (when
+// `with_details`) its detail blocks + the Affected-by block. `with_details` is false
+// for the terse usage page (summary + tags only).
+Content PrimaryEntry(const registry::Descriptor& descriptor, bool with_details = true) {
+  Blocks details;
+  if (with_details) {
+    details = ParseBlocks(descriptor.details);
+    AppendInfluence(&details, "Affected by:", AffectedByFlags(descriptor.name));
+  }
+  return Content{
+      .node = Entry{
+          .term = absl::StrCat(descriptor.name, ArgHint(descriptor)),
+          .summary = ParseInline(descriptor.summary),
+          .details = std::move(details),
+          .xff = descriptor.style == registry::Style::kXff,
+          .tags = PrimaryTags(descriptor),
       }};
 }
 
@@ -181,11 +268,206 @@ Section VocabSection(std::string_view title, std::string_view prose, absl::Span<
   return section;
 }
 
+// The sub-vocabulary sections, each also standalone as its own `--help=TOPIC` (see
+// TopicReference). Named so BuildReference and the topic render share one definition.
+Section PrintfSection() {
+  return VocabSection(
+      "Printf directives", "Directives for -printf / -fprintf / -println FORMAT, and the `%{field}` escape.",
+      engine::PrintfDocs());
+}
+
+Section TimeSection() {
+  return VocabSection(
+      "Time formats", "Presets and strftime patterns for --time-format, --timezone, and time-field {:qualifiers}.",
+      datetime::FormatDocs());
+}
+
+Section SizeSection() {
+  return VocabSection("Size units", "Units for -size / -blocks [+|-]N[unit].", engine::SizeUnitDocs());
+}
+
+Section GrammarsSection() {
+  return VocabSection(
+      "Regex grammars",
+      "The grammar for -regex / -iregex and the content matchers -rxc / -grep, chosen by `--regextype` "
+      "(default RE2). EXACT, FNMATCH, GLOB and SHGLOB are core engines, always built in; PCRE2 is a "
+      "build-time extra (see `--help=extras`). RE2 and PCRE2 have canonical external references, so the "
+      "smaller engines are spelled out in full here: they have no single authoritative man page, and "
+      "FNMATCH delegates to the platform's fnmatch(3), whose class / collation details vary by system.",
+      regex::GrammarDocs());
+}
+
+// EXAMPLES: the cookbook recipes as structured nodes - each a subsection with the
+// verbatim command (an Example, kept copy-pastable) and its explanation (Prose, which
+// wraps). The recipe list is the SOT in help.cc, run end to end by cookbook_test.
+Section BuildExamples() {
+  Section section{.title = "Examples"};
+  section.children.push_back(ProseOf(
+      "Worked examples that compose xff's building blocks. Each shows a task, its command, and how it "
+      "works. See `--help=fields` for the {field}s and `--help=stats` for the reductions."));
+  for (const Recipe& recipe : CookbookRecipes()) {
+    Subsection sub{.title = std::string(recipe.task)};
+    sub.children.push_back(ExampleOf(std::string(recipe.command), "sh"));
+    sub.children.push_back(ProseOf(recipe.note));
+    section.children.push_back(Content{.node = std::move(sub)});
+  }
+  return section;
+}
+
+// DESCRIPTION: the two orientation paragraphs shared by the full reference and the
+// usage page.
+Section DescriptionSection() {
+  Section description{.title = "Description"};
+  description.children.push_back(ProseOf(
+      "xff walks each starting path and acts on the entries matching an expression, like `find`(1). "
+      "With no path it searches the current directory; with no action it prints each match."));
+  description.children.push_back(ProseOf(
+      "xff has two flavors selected by the program name: invoked as `find` it is strict find (only "
+      "the standard vocabulary); invoked as `xff` it enables the modern extensions. An explicit "
+      "`--config=find|xff` overrides the program name. Items marked as xff extensions below are the "
+      "additions over find."));
+  return description;
+}
+
+// OPTIONS: the whole-run flags grouped by header. `with_details` false yields the terse
+// usage-page form (summary + tags only).
+Section OptionsSection(bool with_details) {
+  Section options{.title = "Options"};
+  std::string_view group;
+  Subsection current;
+  bool have_current = false;
+  for (const GlobalFlag& flag : Globals()) {
+    if (flag.group != group) {
+      if (have_current) {
+        options.children.push_back(Content{.node = std::move(current)});
+      }
+      group = flag.group;
+      current = Subsection{.title = std::string(flag.header)};
+      have_current = true;
+    }
+    current.children.push_back(FlagEntry(flag, with_details));
+  }
+  if (have_current) {
+    options.children.push_back(Content{.node = std::move(current)});
+  }
+  return options;
+}
+
+// EXPRESSION: the primaries split into Tests / Actions / Operators. `with_details`
+// false yields the terse usage-page form.
+Section ExpressionSection(bool with_details) {
+  Section expression{.title = "Expression"};
+  for (const KindSection& kind_section : kKindSections) {
+    Subsection sub{.title = std::string(kind_section.title)};
+    for (const registry::Descriptor& descriptor : registry::All()) {
+      if (descriptor.kind == kind_section.kind) {
+        sub.children.push_back(PrimaryEntry(descriptor, with_details));
+      }
+    }
+    expression.children.push_back(Content{.node = std::move(sub)});
+  }
+  return expression;
+}
+
+// HELP: the meta / doc flags and the `--help=TOPIC` index, both from their SOTs
+// (HelpFlags / HelpTopics), for the usage page.
+Section BuildHelpSection() {
+  Section help{.title = "Help"};
+  Rows flags;
+  for (const HelpFlag& flag : HelpFlags()) {
+    flags.rows.push_back(Row{.term = std::string(flag.display), .description = ParseInline(flag.summary)});
+  }
+  help.children.push_back(Content{.node = std::move(flags)});
+
+  Subsection topics{.title = "Topics (--help=TOPIC)"};
+  Rows topic_rows;
+  for (const HelpTopic& topic : HelpTopics()) {
+    topic_rows.rows.push_back(Row{.term = std::string(topic.name), .description = ParseInline(topic.summary)});
+  }
+  topics.children.push_back(Content{.node = std::move(topic_rows)});
+  help.children.push_back(Content{.node = std::move(topics)});
+  return help;
+}
+
 }  // namespace
 
 Document FieldsReference() {
   Document doc;
   doc.sections.push_back(BuildFields());
+  return doc;
+}
+
+Document BuildUsage() {
+  Document doc{
+      .name = "xff",
+      .tagline = "eXtended File Find, a find(1)-compatible file finder with modern extensions",
+      .usage = "[option...] [path...] [expression]",
+  };
+  doc.sections.push_back(DescriptionSection());
+  doc.sections.push_back(OptionsSection(/*with_details=*/false));
+  doc.sections.push_back(ExpressionSection(/*with_details=*/false));
+  doc.sections.push_back(BuildHelpSection());
+  return doc;
+}
+
+std::optional<Document> IndexReference(std::string_view name) {
+  if (name == "list") {
+    return BuildUsage();  // the whole-vocabulary index is the usage page
+  }
+  Document doc;
+  if (name == "all") {
+    // Every option + primary, summaries only (no detail blocks).
+    doc.sections.push_back(OptionsSection(/*with_details=*/false));
+    doc.sections.push_back(ExpressionSection(/*with_details=*/false));
+  } else if (name == "expressions") {
+    // The expression vocabulary (summaries), without the whole-run global flags.
+    doc.sections.push_back(ExpressionSection(/*with_details=*/false));
+  } else {
+    return std::nullopt;
+  }
+  return doc;
+}
+
+std::optional<Document> TopicReference(std::string_view name) {
+  Document doc;
+  if (name == "fields") {
+    doc.sections.push_back(BuildFields());
+  } else if (name == "printf") {
+    doc.sections.push_back(PrintfSection());
+  } else if (name == "time") {
+    doc.sections.push_back(TimeSection());
+  } else if (name == "size") {
+    doc.sections.push_back(SizeSection());
+  } else if (name == "grammars") {
+    doc.sections.push_back(GrammarsSection());
+  } else {
+    return std::nullopt;
+  }
+  return doc;
+}
+
+std::optional<Document> EntryReference(std::string_view name) {
+  // An expression primary / operator / action (leading-dash convenience: regex -> -regex).
+  const registry::Descriptor* descriptor = registry::Lookup(name);
+  if (descriptor == nullptr && !name.empty() && name.front() != '-' && name.front() != '!') {
+    descriptor = registry::Lookup(absl::StrCat("-", name));
+  }
+  // Otherwise a whole-run global flag (leading-dashes convenience: sort -> --sort).
+  const GlobalFlag* flag = nullptr;
+  if (descriptor == nullptr) {
+    flag = LookupGlobal(name);
+    if (flag == nullptr && !name.empty() && name.front() != '-') {
+      flag = LookupGlobal(absl::StrCat("--", name));
+    }
+  }
+  if (descriptor == nullptr && flag == nullptr) {
+    return std::nullopt;
+  }
+  // A title-less section: the single entry renders without a section heading.
+  Section section;
+  section.children.push_back(descriptor != nullptr ? PrimaryEntry(*descriptor) : FlagEntry(*flag));
+  Document doc;
+  doc.sections.push_back(std::move(section));
   return doc;
 }
 
@@ -196,74 +478,16 @@ Document BuildReference() {
       .usage = "[option...] [path...] [expression]",
   };
 
-  Section description{.title = "Description"};
-  description.children.push_back(ProseOf(
-      "xff walks each starting path and acts on the entries matching an expression, like `find`(1). "
-      "With no path it searches the current directory; with no action it prints each match."));
-  description.children.push_back(ProseOf(
-      "xff has two flavors selected by the program name: invoked as `find` it is strict find (only "
-      "the standard vocabulary); invoked as `xff` it enables the modern extensions. An explicit "
-      "`--config=find|xff` overrides the program name. Items marked as xff extensions below are the "
-      "additions over find."));
-  doc.sections.push_back(std::move(description));
-
-  Section options{.title = "Options"};
-  {
-    std::string_view group;
-    Subsection current;
-    bool have_current = false;
-    for (const GlobalFlag& flag : Globals()) {
-      if (flag.group != group) {
-        if (have_current) {
-          options.children.push_back(Content{.node = std::move(current)});
-        }
-        group = flag.group;
-        current = Subsection{.title = std::string(flag.header)};
-        have_current = true;
-      }
-      current.children.push_back(EntryOf(std::string(flag.display), flag.summary, flag.details, flag.xff));
-    }
-    if (have_current) {
-      options.children.push_back(Content{.node = std::move(current)});
-    }
-  }
-  doc.sections.push_back(std::move(options));
-
-  Section expression{.title = "Expression"};
-  for (const KindSection& kind_section : kKindSections) {
-    Subsection sub{.title = std::string(kind_section.title)};
-    for (const registry::Descriptor& descriptor : registry::All()) {
-      if (descriptor.kind == kind_section.kind) {
-        sub.children.push_back(EntryOf(
-            absl::StrCat(descriptor.name, ArgHint(descriptor)), descriptor.summary, descriptor.details,
-            descriptor.style == registry::Style::kXff));
-      }
-    }
-    expression.children.push_back(Content{.node = std::move(sub)});
-  }
-  doc.sections.push_back(std::move(expression));
+  doc.sections.push_back(DescriptionSection());
+  doc.sections.push_back(OptionsSection(/*with_details=*/true));
+  doc.sections.push_back(ExpressionSection(/*with_details=*/true));
 
   doc.sections.push_back(BuildFields());
-
-  doc.sections.push_back(VocabSection(
-      "Printf directives", "Directives for -printf / -fprintf / -println FORMAT, and the `%{field}` escape.",
-      engine::PrintfDocs()));
-  doc.sections.push_back(VocabSection(
-      "Time formats", "Presets and strftime patterns for --time-format, --timezone, and time-field {:qualifiers}.",
-      datetime::FormatDocs()));
-  doc.sections.push_back(VocabSection("Size units", "Units for -size / -blocks [+|-]N[unit].", engine::SizeUnitDocs()));
-  doc.sections.push_back(VocabSection(
-      "Regex grammars",
-      "The grammar for -regex / -iregex and the content matchers -rxc / -grep, chosen by `--regextype` "
-      "(default RE2). EXACT, FNMATCH, GLOB and SHGLOB are core engines, always built in; PCRE2 is a "
-      "build-time extra (see `--help=extras`). RE2 and PCRE2 have canonical external references, so the "
-      "smaller engines are spelled out in full here: they have no single authoritative man page, and "
-      "FNMATCH delegates to the platform's fnmatch(3), whose class / collation details vary by system.",
-      regex::GrammarDocs()));
-
-  Section examples{.title = "Examples"};
-  examples.children.push_back(ExampleOf(RenderHelp("cookbook").value_or("")));
-  doc.sections.push_back(std::move(examples));
+  doc.sections.push_back(PrintfSection());
+  doc.sections.push_back(TimeSection());
+  doc.sections.push_back(SizeSection());
+  doc.sections.push_back(GrammarsSection());
+  doc.sections.push_back(BuildExamples());
 
   Section exit_status{.title = "Exit status"};
   exit_status.children.push_back(ProseOf(

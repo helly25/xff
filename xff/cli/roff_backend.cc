@@ -23,6 +23,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/str_join.h"
 #include "xff/cli/help_model.h"
 
 namespace xff::cli {
@@ -81,7 +82,13 @@ void RoffBackend::BeginSubsection(const Subsection& subsection) {
 void RoffBackend::BeginEntry(const Entry& entry) {
   absl::StrAppend(&out_, ".TP\n.B ", RoffEscape(entry.term), "\n");
   EmitInline(entry.summary);
-  absl::StrAppend(&out_, entry.xff ? " (xff extension)" : "", "\n");
+  std::string tag;
+  if (!entry.tags.empty()) {
+    tag = absl::StrCat(" (", absl::StrJoin(entry.tags, ", "), ")");
+  } else if (entry.xff) {
+    tag = " (xff extension)";
+  }
+  absl::StrAppend(&out_, tag, "\n");
   para_ = false;
 }
 

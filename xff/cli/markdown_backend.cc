@@ -21,6 +21,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/str_join.h"
 #include "xff/cli/help_model.h"
 
 namespace xff::cli {
@@ -90,8 +91,13 @@ void MarkdownBackend::BeginSubsection(const Subsection& subsection) {
 
 void MarkdownBackend::BeginEntry(const Entry& entry) {
   // A term is backtick-wrapped so its `=NAME` / `[..]` / `|` stay literal.
-  absl::StrAppend(
-      &out_, "- `", entry.term, "` - ", RenderInlinesMarkdown(entry.summary), entry.xff ? " _(xff)_" : "", "\n");
+  std::string tag;
+  if (!entry.tags.empty()) {
+    tag = absl::StrCat(" _(", absl::StrJoin(entry.tags, ", "), ")_");
+  } else if (entry.xff) {
+    tag = " _(xff)_";
+  }
+  absl::StrAppend(&out_, "- `", entry.term, "` - ", RenderInlinesMarkdown(entry.summary), tag, "\n");
   in_entry_ = true;
 }
 

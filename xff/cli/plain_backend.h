@@ -16,8 +16,8 @@
 #ifndef XFF_CLI_PLAIN_BACKEND_H_
 #define XFF_CLI_PLAIN_BACKEND_H_
 
-#include <cstddef>
 #include <string>
+#include <utility>
 
 #include "xff/cli/help_backend.h"
 #include "xff/cli/help_model.h"
@@ -34,17 +34,23 @@
 // color is a later slice (the color backend).
 namespace xff::cli {
 
-// A HelpBackend that accumulates plain text. Construct (optionally with a wrap
-// width - 0 means do not wrap), RenderDocument() into it, then Take() the result.
+// A HelpBackend that accumulates plain text. Construct (optionally with a render
+// context - its width drives wrapping, 0 = no wrap), RenderDocument() into it, then
+// Take() the result.
 class PlainTextBackend final : public HelpBackend {
  public:
   PlainTextBackend() = default;
 
-  explicit PlainTextBackend(std::size_t width) : width_(width) {}
+  // std::move keeps the sink-parameter idiom; a no-op while HelpRenderContext is
+  // trivially copyable (see HelpBackend), hence the lint suppression.
+  // NOLINTNEXTLINE(*-move-const-arg)
+  explicit PlainTextBackend(HelpRenderContext context) : HelpBackend(std::move(context)) {}
 
   void Preamble(const Document& doc) override;
   void BeginSection(const Section& section) override;
+  void EndSection(const Section& section) override;
   void BeginSubsection(const Subsection& subsection) override;
+  void EndSubsection(const Subsection& subsection) override;
   void BeginEntry(const Entry& entry) override;
   void EndEntry(const Entry& entry) override;
   void EmitProse(const Prose& prose) override;
@@ -58,9 +64,13 @@ class PlainTextBackend final : public HelpBackend {
   // Separates blocks: emits a blank line before the next block unless at the start.
   void StartBlock();
 
+  // The body indent for content at the current nesting depth (2 spaces per level), so
+  // every section / subsection / entry visibly owns the content indented beneath it.
+  [[nodiscard]] std::string BodyIndent() const;
+
   std::string out_;
-  std::size_t width_ = 0;  // wrap column for flowing text; 0 disables wrapping (see wrap.h)
-  bool in_entry_ = false;  // an entry's detail prose renders indented under its term, not as free prose
+  bool in_entry_ = false;  // an entry's detail prose renders under its (deeper) term indent
+  int depth_ = 0;          // nesting depth: each Begin* heading/term increments, each End* decrements
 };
 
 // Renders inline runs to plain text: literal content with emphasis markup dropped

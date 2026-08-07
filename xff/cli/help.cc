@@ -234,12 +234,7 @@ std::string RenderConfig() {
   return out;
 }
 
-// One cookbook recipe: a task, the command that does it, and a one-line note on how it works.
-struct Recipe {
-  std::string_view task;     // what the recipe accomplishes
-  std::string_view command;  // the exact command (correct as written; users copy it)
-  std::string_view note;     // how it works / which building blocks it composes
-};
+}  // namespace
 
 // The `--help=cookbook` topic (aliases examples / recipes), folded into --help=full: task-oriented
 // worked examples that compose xff's building blocks end to end. The SOT is the recipe list below;
@@ -247,8 +242,8 @@ struct Recipe {
 // //xff/examples:cookbook_test - whose guard case fails CI if a recipe is added or reworded here
 // without a matching test, so these examples ship tested, not just rendered. This complements the
 // reference topics (--help=fields / --help=stats / --help=NAME), which describe pieces in isolation.
-std::string RenderCookbook() {
-  const std::vector<Recipe> recipes = {
+absl::Span<const Recipe> CookbookRecipes() {
+  static const std::vector<Recipe>* const kRecipes = new std::vector<Recipe>{
       {.task = "Ten largest files",
        .command = "xff . -type f -printf '%s\\t%p\\n' | sort -rn | head",
        .note = "%s is the size, %p the path; the shell sorts and takes the top ten. -printf builds any "
@@ -289,10 +284,16 @@ std::string RenderCookbook() {
        .command = "xff . -type f -mtime -1 --format=jsonl",
        .note = "everything modified in the last day, one JSON object per file, ready for jq or a script."},
   };
+  return *kRecipes;
+}
+
+namespace {
+
+std::string RenderCookbook() {
   std::string out =
       "xff cookbook: worked examples that compose xff's building blocks. Each shows a task, the\n"
       "command, and how it works. See --help=fields for {field}s and --help=stats for the reductions.\n";
-  for (const Recipe& recipe : recipes) {
+  for (const Recipe& recipe : CookbookRecipes()) {
     absl::StrAppend(&out, "\n  ", recipe.task, "\n    ", recipe.command, "\n    ", recipe.note, "\n");
   }
   return out;
@@ -535,22 +536,9 @@ absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   if (topic == "license" || topic == "licenses") {
     return RenderLicense();  // xff's own license (Apache-2.0), in full
   }
-  // Expression primary / operator / action (leading-dash convenience: `--help=regex`).
-  const registry::Descriptor* descriptor = registry::Lookup(topic);
-  if (descriptor == nullptr && topic.front() != '-' && topic.front() != '!') {
-    descriptor = registry::Lookup(absl::StrCat("-", topic));
-  }
-  if (descriptor != nullptr) {
-    return RenderOne(*descriptor, /*with_details=*/true);
-  }
-  // Whole-run global option (leading-dashes convenience: `--help=sort`).
-  const GlobalFlag* global = LookupGlobal(topic);
-  if (global == nullptr && topic.front() != '-') {
-    global = LookupGlobal(absl::StrCat("--", topic));
-  }
-  if (global != nullptr) {
-    return RenderGlobalFlag(*global, /*with_details=*/true);  // single-entry help shows the long explanation
-  }
+  // A single expression primary / global flag is NOT rendered here: the caller
+  // (RenderTopic) resolves it from the help model via EntryReference so it wraps and
+  // colors through the render context. Only the special topics above live here.
   return absl::NotFoundError("");  // the caller holds the topic and composes the message
 }
 
