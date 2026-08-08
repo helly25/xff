@@ -498,6 +498,21 @@ Section BuildHelpSection() {
   return help;
 }
 
+// The `--help=help` topic: a guide to the (subcommand-free) help system. Reuses
+// BuildHelpSection (the SOT flags + topic index) with the framing prose prepended, so
+// the guide can never drift from the actual help flags / topics.
+Section GuideSection() {
+  Section help = BuildHelpSection();
+  help.children.insert(
+      help.children.begin(),
+      ProseOf(
+          "xff has no subcommands; every kind of help is a flag. `--help` is this usage overview; "
+          "`--help=NAME` documents one option or primary (e.g. `--help=-regex`, `--help=--sort`); "
+          "`--help=TOPIC` opens one of the topics below; `--help=full` is the complete detailed reference; "
+          "`--man` emits the roff man page and `--markdown` a Markdown reference."));
+  return help;
+}
+
 }  // namespace
 
 Document FieldsReference() {
@@ -559,6 +574,8 @@ std::optional<Document> TopicReference(std::string_view name) {
     doc.sections.push_back(NoticeSection());
   } else if (name == "license" || name == "licenses") {
     doc.sections.push_back(LicenseSection());
+  } else if (name == "help") {
+    doc.sections.push_back(GuideSection());
   } else {
     return std::nullopt;
   }

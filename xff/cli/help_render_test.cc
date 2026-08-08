@@ -156,12 +156,12 @@ TEST_F(HelpTest, HelpSectionIsGeneratedFromFlagsAndTopics) {
 }
 
 TEST_F(HelpTest, HelpGuideListsEveryTopic) {
-  // `--help=help` is the help-system guide; it lists every topic from the SOT.
-  const absl::StatusOr<std::string> guide = RenderHelp("help");
-  ASSERT_THAT(guide, IsOk());
-  EXPECT_THAT(*guide, HasSubstr("Topics"));
+  // `--help=help` is the help-system guide, rendered from the model (TopicReference reusing
+  // BuildHelpSection); it lists every topic from the SOT.
+  const std::string guide = RenderTopicDoc("help");
+  EXPECT_THAT(guide, HasSubstr("Topics"));
   for (const HelpTopic& topic : HelpTopics()) {
-    EXPECT_THAT(*guide, HasSubstr(topic.name)) << topic.name;
+    EXPECT_THAT(guide, HasSubstr(topic.name)) << topic.name;
   }
 }
 
@@ -173,7 +173,8 @@ TEST_F(HelpTest, EveryAdvertisedTopicRendersAndAliasesAreSynonyms) {
   for (const HelpTopic& topic : HelpTopics()) {
     if (topic.name == "styles" || topic.name == "fields" || topic.name == "printf" || topic.name == "time"
         || topic.name == "size" || topic.name == "grammars" || topic.name == "extras" || topic.name == "stats"
-        || topic.name == "config" || topic.name == "cookbook" || topic.name == "notice" || topic.name == "license") {
+        || topic.name == "config" || topic.name == "cookbook" || topic.name == "notice" || topic.name == "license"
+        || topic.name == "help") {
       continue;  // rendered from the model (TopicReference) or the CLI facets, not RenderHelp
     }
     const absl::StatusOr<std::string> rendered = RenderHelp(topic.name);

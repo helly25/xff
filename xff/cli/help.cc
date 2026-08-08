@@ -222,23 +222,6 @@ absl::Span<const Recipe> CookbookRecipes() {
 
 namespace {
 
-// The `--help=help` topic: a guide to the (subcommand-free) help system, then the
-// generated topic index. So there is one place a user can ask "how do I get help?".
-std::string RenderHelpGuide() {
-  std::string out =
-      "xff help system. xff has no subcommands; every kind of help is a flag:\n"
-      "\n"
-      "  xff --help              this usage overview (also -h)\n"
-      "  xff --help=NAME         full help for one option or primary (e.g. --help=-regex, --help=--sort)\n"
-      "  xff --help=TOPIC        one of the topics below\n"
-      "  xff --help=full         the full detailed reference (also --help-full / --help-long / --help-all)\n"
-      "  xff --man               the man page (roff; pipe to `mandoc`, or `man -l -` on GNU/Linux)\n"
-      "  xff --markdown          a Markdown reference of every option and primary\n"
-      "\nTopics (--help=TOPIC):\n";
-  absl::StrAppend(&out, RenderTopicIndex("  "));
-  return out;
-}
-
 // The `--help=full` (aliases long / all) topic: the full detailed reference -- every
 // whole-run option and every expression primary, each rendered like `--help=NAME`.
 // Reuses RenderGlobalFlag / RenderOne so the detail cannot drift from per-entry help.
@@ -406,9 +389,6 @@ std::string RenderHelpSection() {
 absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   if (topic.empty() || topic == "list") {
     return RenderIndex();
-  }
-  if (topic == "help") {
-    return RenderHelpGuide();  // the help-system guide + topic index
   }
   if (topic == "all") {
     return RenderFull(/*detailed=*/false);  // every option + primary, summaries only
