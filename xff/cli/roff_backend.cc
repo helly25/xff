@@ -75,6 +75,9 @@ void RoffBackend::BeginSection(const Section& section) {
 }
 
 void RoffBackend::BeginSubsection(const Subsection& subsection) {
+  if (subsection.title.empty()) {
+    return;  // a title-less subsection only groups/indents in plain text; no heading here
+  }
   absl::StrAppendFormat(&out_, ".SS %s\n", RoffEscape(subsection.title));
   para_ = false;
 }

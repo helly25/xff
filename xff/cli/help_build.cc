@@ -158,7 +158,10 @@ Content FlagEntry(const GlobalFlag& flag, bool with_details = true) {
       for (const ValueDoc& value : flag.values) {
         rows.rows.push_back(Row{.term = std::string(value.value), .description = ParseInline(value.meaning)});
       }
-      details.push_back(Content{.node = std::move(rows)});
+      // A title-less subsection nests the value table one level deeper than its label.
+      Subsection group;
+      group.children.push_back(Content{.node = std::move(rows)});
+      details.push_back(Content{.node = std::move(group)});
     }
     for (Content& block : ParseBlocks(flag.details)) {
       details.push_back(std::move(block));

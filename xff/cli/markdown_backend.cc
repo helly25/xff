@@ -86,6 +86,9 @@ void MarkdownBackend::BeginSection(const Section& section) {
 }
 
 void MarkdownBackend::BeginSubsection(const Subsection& subsection) {
+  if (subsection.title.empty()) {
+    return;  // a title-less subsection only groups/indents in plain text; no heading here
+  }
   absl::StrAppendFormat(&out_, "\n### %s\n", subsection.title);
 }
 
