@@ -31,22 +31,17 @@ cc_binary(
 
 _SYMBOLIZER = "@llvm_toolchain_llvm//:llvm-symbolizer"
 
-# Bake the hermetic llvm-symbolizer path into the run-under wrapper under
-# --config=clang; otherwise fall back to autodetection ("auto").
+# Bake the hermetic llvm-symbolizer's RUNFILES path (an rlocation string) into the
+# run-under wrapper under --config=clang; otherwise "auto" (system autodetection).
+# A runfiles path stays valid when the LLVM toolchain is re-fetched to a new
+# location each run, unlike a `readlink -f` absolute repository-cache path.
 genrule(
     name = "generate_run_under_script",
     srcs = [":run_under_symbolizer.sh.in"],
     outs = ["run_under_symbolizer.sh"],
     cmd = select({
-        "//:is_clang": """
-            LLVM_SYMBOLIZER_PATH="$$(readlink -f $${{PWD}}/$(location {SYMBOLIZER}))"
-            sed "s,%%LLVM_SYMBOLIZER_PATH%%,$${{LLVM_SYMBOLIZER_PATH}}," $< > $@
-        """.format(
-            SYMBOLIZER = _SYMBOLIZER,
-        ),
-        "//conditions:default": """
-            sed "s,%%LLVM_SYMBOLIZER_PATH%%,auto," $< > $@
-        """,
+        "//:is_clang": "sed 's,%%SYMBOLIZER_RLOCATION%%,$(rlocationpath " + _SYMBOLIZER + "),' $< > $@",
+        "//conditions:default": "sed 's,%%SYMBOLIZER_RLOCATION%%,auto,' $< > $@",
     }),
     executable = True,
     tags = ["manual"],
@@ -64,4 +59,5 @@ sh_binary(
         "//conditions:default": [],
     }),
     tags = ["manual"],
+    deps = ["@bazel_tools//tools/bash/runfiles"],
 )
