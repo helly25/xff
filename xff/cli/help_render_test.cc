@@ -172,7 +172,8 @@ TEST_F(HelpTest, EveryAdvertisedTopicRendersAndAliasesAreSynonyms) {
   // regex, or the shared DocRenderer walk that produces `fields`).
   for (const HelpTopic& topic : HelpTopics()) {
     if (topic.name == "styles" || topic.name == "fields" || topic.name == "printf" || topic.name == "time"
-        || topic.name == "size" || topic.name == "grammars" || topic.name == "extras" || topic.name == "stats") {
+        || topic.name == "size" || topic.name == "grammars" || topic.name == "extras" || topic.name == "stats"
+        || topic.name == "config") {
       continue;  // rendered from the model (TopicReference) or the CLI facets, not RenderHelp
     }
     const absl::StatusOr<std::string> rendered = RenderHelp(topic.name);
@@ -204,6 +205,15 @@ TEST_F(HelpTest, StatsTopicDocumentsSummaryAndHistogram) {
       RenderTopicDoc("stats"),
       AllOf(
           HasSubstr("--summary"), HasSubstr("--histogram"), HasSubstr("sum(lines)"), HasSubstr("needs an aggregator")));
+}
+
+TEST_F(HelpTest, ConfigTopicDocumentsTiersStyleAndArming) {
+  // `--help=config` renders from the model (TopicReference): the layered tiers, style
+  // selection (--config / argv[0]), and the arming rule for dangerous --xffrc directives.
+  EXPECT_THAT(
+      RenderTopicDoc("config"), AllOf(
+                                    HasSubstr("system config"), HasSubstr("command line"), HasSubstr("--config"),
+                                    HasSubstr("argv[0]"), HasSubstr("--allow-exec")));
 }
 
 TEST_F(HelpTest, GlobalFlagTopicRendersWithGlobalTag) {
