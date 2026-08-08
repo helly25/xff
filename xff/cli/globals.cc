@@ -75,6 +75,25 @@ constexpr std::array kPagerValues = std::to_array<ValueDoc>({
     {.value = "always", .meaning = "always page, even through a pipe"},
     {.value = "never", .meaning = "never page (same as --no-pager)"},
 });
+// The digest names, in xff/hash's sorted AlgorithmNames() order; a globals_test guard keeps
+// this list identical to that SOT so it cannot drift.
+constexpr std::array kHashAlgorithmValues = std::to_array<ValueDoc>({
+    {.value = "blake2b", .meaning = "BLAKE2b, 512-bit"},
+    {.value = "blake2b_256", .meaning = "BLAKE2b, 256-bit"},
+    {.value = "blake3", .meaning = "BLAKE3 (fast, parallel)"},
+    {.value = "md5", .meaning = "128-bit legacy (fast, collision-broken)"},
+    {.value = "sha1", .meaning = "160-bit legacy (collision-broken)"},
+    {.value = "sha224", .meaning = "SHA-2, 224-bit"},
+    {.value = "sha256", .meaning = "SHA-2, 256-bit (the default)"},
+    {.value = "sha384", .meaning = "SHA-2, 384-bit"},
+    {.value = "sha3_224", .meaning = "SHA-3 (Keccak), 224-bit"},
+    {.value = "sha3_256", .meaning = "SHA-3 (Keccak), 256-bit"},
+    {.value = "sha3_384", .meaning = "SHA-3 (Keccak), 384-bit"},
+    {.value = "sha3_512", .meaning = "SHA-3 (Keccak), 512-bit"},
+    {.value = "sha512", .meaning = "SHA-2, 512-bit"},
+    {.value = "sha512_224", .meaning = "SHA-2, 512/224 truncated"},
+    {.value = "sha512_256", .meaning = "SHA-2, 512/256 truncated"},
+});
 
 // The whole-run options, in the order the --help usage page groups them. `--help` /
 // `--version` and their aliases are deliberately omitted: they are special-cased in
@@ -407,10 +426,13 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--hash-algorithm",
-        .display = "--hash-algorithm=ALGO",
+        .display = "--hash-algorithm=<ALGO>",
         .group = "output",
         .header = "Output",
         .summary = "default digest for -hash / {hash} (sha256 default; md5, sha512, blake3, and more)",
+        .details = "Sets the default digest algorithm for the -hash action and the {hash} field. sha256 is the "
+                   "default; a `-hash=ALGO` spec or a `{hash:ALGO}` qualifier overrides it per use.",
+        .values = kHashAlgorithmValues,
     },
     {
         .name = "--hash-encoding",

@@ -15,12 +15,17 @@
 
 #include "xff/cli/globals.h"
 
+#include <string_view>
+#include <vector>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "xff/hash/hash.h"
 
 namespace xff::cli {
 namespace {
 
+using ::testing::ElementsAreArray;
 using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
@@ -47,6 +52,20 @@ TEST_F(GlobalsTest, EveryGlobalIsWellFormed) {
     EXPECT_THAT(flag.name.front(), Eq('-')) << flag.name;          // an option starts with a dash
     EXPECT_THAT(flag.display, HasSubstr(flag.name)) << flag.name;  // the header shows the canonical name
   }
+}
+
+TEST_F(GlobalsTest, HashAlgorithmValuesMatchTheHashLib) {
+  // The documented --hash-algorithm value table must stay identical to xff/hash's
+  // AlgorithmNames() SOT (same members, same order), so the help cannot drift from the
+  // algorithms the -hash action / {hash} field actually accept.
+  const GlobalFlag* const flag = LookupGlobal("--hash-algorithm");
+  ASSERT_THAT(flag, NotNull());
+  std::vector<std::string_view> documented;
+  documented.reserve(flag->values.size());
+  for (const ValueDoc& value : flag->values) {
+    documented.push_back(value.value);
+  }
+  EXPECT_THAT(documented, ElementsAreArray(hash::AlgorithmNames()));
 }
 
 TEST_F(GlobalsTest, LookupResolvesNameAndAlias) {

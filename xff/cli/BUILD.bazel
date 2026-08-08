@@ -403,6 +403,7 @@ cc_test(
     srcs = ["globals_test.cc"],
     deps = [
         ":globals_cc",
+        "//xff/hash:hash_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
