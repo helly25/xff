@@ -45,8 +45,8 @@ void AppendJsonEscaped(std::string_view path, std::string* out) {
       default:
         if (byte < 0x20) {
           out->append("\\u00");
-          out->push_back(kHex[byte >> 4]);
-          out->push_back(kHex[byte & 0x0F]);
+          out->push_back(kHex[static_cast<unsigned>(byte) >> 4U]);
+          out->push_back(kHex[static_cast<unsigned>(byte) & 0x0FU]);
         } else {
           out->push_back(ch);
         }
@@ -70,8 +70,8 @@ void AppendCEscaped(std::string_view path, std::string* out) {
       default:
         if (byte < 0x20 || byte == 0x7F) {
           out->append("\\x");
-          out->push_back(kHex[byte >> 4]);
-          out->push_back(kHex[byte & 0x0F]);
+          out->push_back(kHex[static_cast<unsigned>(byte) >> 4U]);
+          out->push_back(kHex[static_cast<unsigned>(byte) & 0x0FU]);
         } else {
           out->push_back(ch);
         }

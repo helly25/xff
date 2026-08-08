@@ -78,8 +78,12 @@ class PatternList {
   // pattern wins.
   Decision Match(std::string_view relpath, bool is_dir) const;
 
+  // STL-style accessors deliberately mirror the standard containers (lower_case), not our
+  // CamelCase method convention, so PatternList reads like the vector it wraps.
+  // NOLINTNEXTLINE(readability-identifier-naming)
   bool empty() const { return patterns_.empty(); }
 
+  // NOLINTNEXTLINE(readability-identifier-naming)
   std::size_t size() const { return patterns_.size(); }
 
   // Move-only: the pattern list is built once and handed off, never copied.

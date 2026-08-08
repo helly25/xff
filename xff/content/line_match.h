@@ -36,8 +36,8 @@ inline constexpr std::size_t kBinaryNulSniffBytes = 8'000;
 // 1-based number and its text. Backs the `-grep` action's `{line}` / `{text}`
 // fields.
 struct LineMatch {
-  std::size_t number = 0;   // 1-based line number
-  std::string_view text{};  // the line's text, trailing '\r' stripped; aliases the searched content
+  std::size_t number = 0;  // 1-based line number
+  std::string_view text;   // the line's text, trailing '\r' stripped; aliases the searched content
 };
 
 // Splits `content` into lines and returns, in order, each line for which `matches`
@@ -53,7 +53,7 @@ std::vector<LineMatch> CollectLineMatches(
 // whether it is a match (vs a surrounding context line), and its group index.
 struct ContextLine {
   std::size_t number = 0;
-  std::string_view text{};
+  std::string_view text;
   bool is_match = false;
   // 0-based group index; increments at each gap between emitted lines, so a caller prints a
   // group separator ("--") before every group after the first.
