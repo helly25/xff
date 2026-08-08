@@ -28,23 +28,31 @@ namespace xff::cli {
 // file listing - that is what a shell pipe to a pager is for.
 enum class PagerWhen { kAuto, kAlways, kNever };
 
+// The kind of meta output being paged, which picks the default pager. kText is the
+// already-terminal-ready surfaces (--help / --markdown / ...). kMan is --man, whose roff
+// SOURCE needs formatting first, so its default runs it through a roff formatter.
+enum class PagerKind { kText, kMan };
+
 // Resolves the --pager=WHEN globals from the raw args (scanned before the parse, like
 // --color / --width): last occurrence wins; bare --pager == =always; --no-pager ==
 // =never; an absent or unrecognised value is kAuto.
 PagerWhen ResolvePagerWhen(const std::vector<std::string>& args);
 
-// The pager command line: $XFF_PAGER, else $PAGER, else the built-in "less -FRX"
-// (-F quits if it fits one screen, -R keeps our ANSI color, -X leaves short output on
-// the normal screen). An environment variable that is set but empty means "no pager"
-// and yields "" - EmitPaged then writes straight to stdout (the git / aws convention).
-std::string ResolvePagerCommand();
+// The pager command line for `kind`. kText: $XFF_PAGER, else $PAGER, else the built-in
+// "less -FRX" (-F quits if it fits one screen, -R keeps our ANSI color, -X leaves short
+// output on the normal screen). kMan: $XFF_MANPAGER, else a built-in that formats the
+// roff with `mandoc` and pages it (honoring $PAGER, else less -FRX); when mandoc is
+// absent the built-in exits non-zero so EmitPaged falls back to the raw roff. An
+// environment variable that is set but empty means "no pager" and yields "".
+std::string ResolvePagerCommand(PagerKind kind = PagerKind::kText);
 
 // Writes `text` to stdout, paging it when `when` + `stdout_is_tty` call for a pager
-// and a command is available; otherwise straight to std::cout. Paging runs the command
+// and a command is available; otherwise straight to std::cout. `kind` selects the
+// default pager (kMan formats roff, see ResolvePagerCommand). Paging runs the command
 // through `sh -c` (so a $PAGER with args or a pipeline works) with `text` on its stdin.
 // A missing TTY, an empty command, or a fork / pipe failure falls back to std::cout so
 // the output is never lost.
-void EmitPaged(std::string_view text, PagerWhen when, bool stdout_is_tty);
+void EmitPaged(std::string_view text, PagerWhen when, bool stdout_is_tty, PagerKind kind = PagerKind::kText);
 
 }  // namespace xff::cli
 

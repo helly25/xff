@@ -74,6 +74,33 @@ test::no_pager_alias_is_accepted_on_a_real_search() {
   expect_output_contains "a.txt" "${out}"
 }
 
+test::man_pager_never_emits_raw_roff() {
+  # --pager=never keeps --man as raw roff source (for `mandoc` / redirect / install),
+  # so the roff title macro is present verbatim.
+  expect_output_contains ".TH " "$("$(_xff_bin)" --pager=never --man 2>&1)"
+}
+
+test::man_pager_always_routes_through_the_man_pager_verbatim() {
+  # A cat man-pager is a pass-through, so --pager=always --man feeds the roff through it
+  # unchanged - identical to the raw --pager=never roff. Proves the man path is taken and
+  # uses $XFF_MANPAGER (not the mandoc default, so the test does not depend on mandoc).
+  local bin paged raw
+  bin="$(_xff_bin)"
+  paged="$(XFF_MANPAGER='cat' "${bin}" --pager=always --man 2>&1)"
+  raw="$("${bin}" --pager=never --man 2>&1)"
+  expect_eq "${raw}" "${paged}"
+}
+
+test::man_pager_auto_stays_raw_off_a_tty() {
+  # Default (auto): captured stdout is a pipe, so --man is not paged/formatted and stays
+  # raw roff. A blocking man-pager (sleep) would deadlock the test if auto paged here.
+  local bin auto raw
+  bin="$(_xff_bin)"
+  auto="$(XFF_MANPAGER='sleep 30' "${bin}" --man 2>&1)"
+  raw="$("${bin}" --pager=never --man 2>&1)"
+  expect_eq "${raw}" "${auto}"
+}
+
 test::help_documents_pager() {
   # Self-documentation: the --help usage page lists --pager in the Output group.
   expect_output_contains "--pager" "$("$(_xff_bin)" --help 2>&1)"
