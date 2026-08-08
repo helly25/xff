@@ -305,9 +305,22 @@ Section PrintfSection() {
 }
 
 Section TimeSection() {
-  return VocabSection(
+  Section section = VocabSection(
       "Time formats", "Presets and strftime patterns for --time-format, --timezone, and time-field {:qualifiers}.",
       datetime::FormatDocs());
+  section.children.push_back(ProseOf(
+      "Time zone. `--timezone=ZONE` (alias `--tz`) sets the zone every time is interpreted and rendered in: "
+      "`local` (the default), `utc` (also `z` / `zulu`), an IANA name like `Europe/London`, or a fixed offset "
+      "like `+02:00` / `-0800`. It shifts the wall-clock digits of every time field and governs `-newerXt` "
+      "comparisons; it does not by itself add or remove the printed zone suffix."));
+  section.children.push_back(ProseOf(
+      "Zone suffix. `--time-zone-suffix=never` drops the trailing offset (`+0100`, `+01:00`) from a preset that "
+      "shows it by default (`space`, `iso` / `iso8601-*`, `rfc3339`); `always` forces one on, even onto `asctime` "
+      "which omits it; `auto` (the default) keeps each preset's built-in behavior. `true` / `false` are accepted "
+      "for `always` / `never`. Two things it never touches: `zulu` / `zulu-dense` keep their mandatory `Z` (UTC "
+      "is the format's identity), and a custom strftime `--time-format` is left exactly as written - control its "
+      "zone there with `%z` / `%Ez` / `%Z` yourself."));
+  return section;
 }
 
 Section SizeSection() {

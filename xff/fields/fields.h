@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "absl/time/time.h"
+#include "xff/datetime/datetime.h"
 #include "xff/vfs/entry.h"
 
 namespace xff::fields {
@@ -38,6 +39,9 @@ struct RenderContext {
   int depth = 0;                              // 0 for a root operand, +1 per directory level
   absl::TimeZone tz = absl::LocalTimeZone();  // zone for {atime}/{mtime}/{ctime}/{btime} formatting; --timezone
   std::string_view time_format;               // default format for a time field with no {:qualifier}; --time-format
+  // --time-zone-suffix: whether a named preset renders its zone suffix (kAuto keeps the
+  // preset default, kNever suppresses the optional offset, kAlways forces one).
+  datetime::ZoneSuffix zone_suffix = datetime::ZoneSuffix::kAuto;
   // --hash-algorithm / --hash-encoding: defaults for a bare {hash} (empty -> sha256 / hex); a
   // {hash:ALGO[/ENCODING]} qualifier overrides per use. Only {hash} reads them.
   std::string_view hash_algorithm;

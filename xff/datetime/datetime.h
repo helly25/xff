@@ -16,6 +16,7 @@
 #ifndef XFF_DATETIME_DATETIME_H_
 #define XFF_DATETIME_DATETIME_H_
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -25,6 +26,13 @@
 #include "absl/time/time.h"
 
 namespace xff::datetime {
+
+// Whether FormatTime renders a named preset's zone suffix (--time-zone-suffix):
+// kAuto keeps each preset's built-in default, kAlways forces the offset (appending it
+// to a preset that omits one, e.g. asctime), kNever drops the optional offset. It never
+// touches the mandatory `Z` of zulu / zulu-dense, and never alters a custom (non-preset)
+// strftime pattern - the user's own `%z` there is authoritative.
+enum class ZoneSuffix : std::uint8_t { kAuto, kAlways, kNever };
 
 // Parses a human time string into an absolute instant, backing find's -newerXt
 // (and reusable wherever a time argument is accepted). Recognized forms:
@@ -83,8 +91,14 @@ bool ParseTimeZone(std::string_view spec, absl::TimeZone* out);
 //   "zulu-dense"             Zulu, no separators:            20260622T143000Z
 //   "epoch"                  Unix seconds:                   1781612345
 //   <pattern>           used verbatim as an absl::FormatTime() pattern
-// `tz` defaults to the local zone; tests pass a fixed zone for determinism.
-std::string FormatTime(absl::Time time, std::string_view spec = {}, absl::TimeZone tz = absl::LocalTimeZone());
+// `tz` defaults to the local zone; tests pass a fixed zone for determinism. `suffix`
+// controls the preset zone suffix (see ZoneSuffix); it applies only to the named presets,
+// never to a custom `<pattern>`.
+std::string FormatTime(
+    absl::Time time,
+    std::string_view spec = {},
+    absl::TimeZone tz = absl::LocalTimeZone(),
+    ZoneSuffix suffix = ZoneSuffix::kAuto);
 
 // The time-format vocabulary for `--help=time`, as {name, description} rows: the preset
 // names (kNamedFormats plus the special epoch / zulu / zulu-dense forms), and a note that

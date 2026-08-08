@@ -219,6 +219,13 @@ TEST_F(HelpTest, HelpGuideListsTheDisplayFlags) {
                  HasSubstr("paged")));
 }
 
+TEST_F(HelpTest, TimeTopicExplainsZoneControlAndSuffix) {
+  // `--help=time` documents --timezone and the --time-zone-suffix control (drop / force
+  // the zone suffix), including that a custom pattern is left alone.
+  const std::string time = RenderTopicDoc("time");
+  EXPECT_THAT(time, AllOf(HasSubstr("--timezone"), HasSubstr("--time-zone-suffix"), HasSubstr("custom strftime")));
+}
+
 TEST_F(HelpTest, EnvironmentTopicListsTheVariables) {
   // `--help=environment` (env) documents the variables xff reads, and the alias resolves.
   const std::string env = RenderTopicDoc("environment");

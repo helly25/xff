@@ -24,7 +24,9 @@
 #include <vector>
 
 #include "absl/strings/ascii.h"
+#include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/time/civil_time.h"
 #include "absl/time/time.h"
@@ -177,19 +179,55 @@ constexpr auto kNamedFormats = mbo::container::MakeLimitedMap(
     std::pair<std::string_view, std::string_view>{"rfc3339", "%Y-%m-%dT%H:%M:%S%Ez"},        // RFC 3339 (colon offset)
     std::pair<std::string_view, std::string_view>{"space", kSpace});  // readable default (primary)
 
-std::string FormatTime(absl::Time time, std::string_view spec, absl::TimeZone tz) {
-  if (spec == "epoch") {
-    return std::to_string(absl::ToUnixSeconds(time));
+namespace {
+
+// True if `pattern` already carries a zone token (`%z`, `%Ez`, or `%Z`). Note `%Ez` does
+// not contain `%z` as a substring (the 'E' is between), so both are checked.
+bool HasZoneToken(std::string_view pattern) {
+  return absl::StrContains(pattern, "%z") || absl::StrContains(pattern, "%Ez") || absl::StrContains(pattern, "%Z");
+}
+
+// Drops a trailing zone token (`%Ez` for rfc3339, else `%z`) and the separator space that
+// precedes it in the readable "space" preset, so the preset renders with no zone suffix.
+std::string WithoutZoneSuffix(std::string_view pattern) {
+  std::string out(pattern);
+  if (absl::EndsWith(out, "%Ez")) {
+    out.resize(out.size() - 3);
+  } else if (absl::EndsWith(out, "%z")) {
+    out.resize(out.size() - 2);
+  } else {
+    return out;  // no trailing zone token (e.g. asctime)
   }
+  if (absl::EndsWith(out, " ")) {
+    out.pop_back();
+  }
+  return out;
+}
+
+}  // namespace
+
+std::string FormatTime(absl::Time time, std::string_view spec, absl::TimeZone tz, ZoneSuffix suffix) {
+  if (spec == "epoch") {
+    return std::to_string(absl::ToUnixSeconds(time));  // seconds; no zone to add or drop
+  }
+  // zulu / zulu-dense are UTC-by-definition: the 'Z' is the format's identity, so the
+  // suffix control never removes it (--time-zone-suffix=never leaves them as-is).
   if (spec == "zulu") {  // UTC with a 'Z' designator (extended), regardless of `tz`
     return absl::FormatTime("%Y-%m-%dT%H:%M:%SZ", time, absl::UTCTimeZone());
   }
   if (spec == "zulu-dense") {  // UTC 'Z', no separators (compact)
     return absl::FormatTime("%Y%m%dT%H%M%SZ", time, absl::UTCTimeZone());
   }
-  std::string_view pattern = spec.empty() ? std::string_view("space") : spec;
-  if (const auto it = kNamedFormats.find(pattern); it != kNamedFormats.end()) {
-    pattern = it->second;  // a preset name resolves to its pattern; anything else is used verbatim
+  const std::string_view name = spec.empty() ? std::string_view("space") : spec;
+  const auto it = kNamedFormats.find(name);
+  if (it == kNamedFormats.end()) {
+    return absl::FormatTime(name, time, tz);  // a custom pattern is verbatim; `suffix` never touches it
+  }
+  std::string pattern(it->second);  // a preset name resolves to its pattern
+  if (suffix == ZoneSuffix::kNever) {
+    pattern = WithoutZoneSuffix(pattern);
+  } else if (suffix == ZoneSuffix::kAlways && !HasZoneToken(pattern)) {
+    absl::StrAppend(&pattern, " %z");  // force an offset onto a preset that omits one (asctime)
   }
   return absl::FormatTime(pattern, time, tz);
 }

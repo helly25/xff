@@ -75,6 +75,11 @@ constexpr std::array kPagerValues = std::to_array<ValueDoc>({
     {.value = "always", .meaning = "always page, even through a pipe"},
     {.value = "never", .meaning = "never page (same as --no-pager)"},
 });
+constexpr std::array kZoneSuffixValues = std::to_array<ValueDoc>({
+    {.value = "auto", .meaning = "each format's built-in default (the default)"},
+    {.value = "always", .meaning = "force the offset, even on a format that omits it (also true / yes / on)"},
+    {.value = "never", .meaning = "drop the optional offset (also false / no / off)"},
+});
 // The digest names, in xff/hash's sorted AlgorithmNames() order; a globals_test guard keeps
 // this list identical to that SOT so it cannot drift.
 constexpr std::array kHashAlgorithmValues = std::to_array<ValueDoc>({
@@ -707,6 +712,20 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "zone for interpreting/formatting times (local, utc, an IANA name, or +HH:MM)",
         .details = "The zone used to interpret and format every time. Accepts local, utc, an IANA name like "
                    "Europe/London, or a fixed offset like +02:00. Affects time fields and -newerXt comparisons.",
+    },
+    {
+        .name = "--time-zone-suffix",
+        .display = "--time-zone-suffix[=auto|always|never]",
+        .group = "time",
+        .header = "Time",
+        .summary = "show the zone offset on a time field: auto (per format), always, or never",
+        .details = "Controls whether a time field's named preset renders its trailing zone (+0100, +01:00). "
+                   "auto keeps each preset's default (space / iso / rfc3339 show it, asctime / epoch omit it); "
+                   "never drops it; always forces it, even on a preset that omits one. Accepts true / yes / on "
+                   "(= always) and false / no / off (= never). zulu / zulu-dense always keep their mandatory Z, "
+                   "and a custom strftime --time-format is never altered - control its zone with %z / %Ez / %Z "
+                   "yourself.",
+        .values = kZoneSuffixValues,
     },
 });
 
