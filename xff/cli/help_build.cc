@@ -529,6 +529,8 @@ std::optional<Document> TopicReference(std::string_view name) {
     doc.sections.push_back(StatsSection());
   } else if (name == "config") {
     doc.sections.push_back(ConfigSection());
+  } else if (name == "cookbook" || name == "examples" || name == "recipes") {
+    doc.sections.push_back(BuildExamples());
   } else {
     return std::nullopt;
   }

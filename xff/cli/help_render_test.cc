@@ -173,7 +173,7 @@ TEST_F(HelpTest, EveryAdvertisedTopicRendersAndAliasesAreSynonyms) {
   for (const HelpTopic& topic : HelpTopics()) {
     if (topic.name == "styles" || topic.name == "fields" || topic.name == "printf" || topic.name == "time"
         || topic.name == "size" || topic.name == "grammars" || topic.name == "extras" || topic.name == "stats"
-        || topic.name == "config") {
+        || topic.name == "config" || topic.name == "cookbook") {
       continue;  // rendered from the model (TopicReference) or the CLI facets, not RenderHelp
     }
     const absl::StatusOr<std::string> rendered = RenderHelp(topic.name);
