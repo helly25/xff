@@ -79,7 +79,7 @@ TEST_F(BuildReferenceTest, SectionsAppearInReferenceOrder) {
       SectionTitles(doc),
       ElementsAre(
           "Description", "Configuration", "Options", "Expression", "Fields", "Printf directives", "Time formats",
-          "Size units", "Regex grammars", "Statistics", "Examples", "Exit status", "See also"));
+          "Size units", "Regex grammars", "Statistics", "Environment", "Examples", "Exit status", "See also"));
 }
 
 TEST_F(BuildReferenceTest, ExpressionHasTheThreeKindSubsections) {

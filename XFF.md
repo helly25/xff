@@ -667,6 +667,22 @@ xff --summary=type --histogram=ext --format=jsonl
 
 both, as machine rows
 
+## Environment
+
+Environment variables xff reads. An explicit command-line flag generally overrides the matching variable.
+
+- `NO_COLOR` - when set (any value), disables color like `--color=never`; `--color=always` still wins (https://no-color.org)
+- `XFF_PAGER` - the pager for the long `--help` / `--markdown` output (see `--pager`); overrides `$PAGER`; set empty to disable paging
+- `PAGER` - the pager used when `$XFF_PAGER` is unset
+- `XFF_MANPAGER` - the pager / formatter for `--man`; overrides the built-in `mandoc` pipeline; set empty to disable
+- `COLUMNS` - terminal width used to wrap plain `--help` text for `--width=auto` when the tty size is unknown
+- `XFF_CONFIG` - explicit path to the config file, taking precedence over the XDG / HOME search (see `--help=config`)
+- `XDG_CONFIG_HOME` - config search root: `$XDG_CONFIG_HOME/xff/config` (see `--help=config`)
+- `HOME` - config fallback: `$HOME/.config/xff/config` when `$XDG_CONFIG_HOME` is unset
+- `LC_ALL, LC_CTYPE, LANG` - locale for `--unicode=auto`: a UTF-8 locale selects the Unicode `--format=tree` connectors, else ASCII
+
+Any process environment variable is also readable in the field vocabulary as `{env.NAME}` (see `--help=fields`).
+
 ## Examples
 
 Worked examples that compose xff's building blocks. Each shows a task, its command, and how it works. See `--help=fields` for the {field}s and `--help=stats` for the reductions.

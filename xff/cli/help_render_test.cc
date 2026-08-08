@@ -219,6 +219,16 @@ TEST_F(HelpTest, HelpGuideListsTheDisplayFlags) {
                  HasSubstr("paged")));
 }
 
+TEST_F(HelpTest, EnvironmentTopicListsTheVariables) {
+  // `--help=environment` (env) documents the variables xff reads, and the alias resolves.
+  const std::string env = RenderTopicDoc("environment");
+  EXPECT_THAT(
+      env, AllOf(
+               HasSubstr("NO_COLOR"), HasSubstr("XFF_PAGER"), HasSubstr("XFF_MANPAGER"), HasSubstr("COLUMNS"),
+               HasSubstr("XFF_CONFIG"), HasSubstr("{env.NAME}")));
+  EXPECT_THAT(RenderTopicDoc("env"), Eq(env));  // the alias renders identically
+}
+
 TEST_F(HelpTest, EveryAdvertisedTopicResolvesInTheModel) {
   // Drift guard: every advertised topic resolves to a non-empty model document via
   // TopicReference or IndexReference, and each alias renders identically. styles /

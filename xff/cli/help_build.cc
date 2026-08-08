@@ -325,6 +325,39 @@ Section GrammarsSection() {
       regex::GrammarDocs());
 }
 
+// ENVIRONMENT: the variables xff honors. Hand-authored - the getenv sites are scattered across
+// color / pager / help-width / config with no single registry - and kept honest by help_render_test.
+// Standalone as `--help=environment` (env) and folded into the full reference / man page.
+Section EnvironmentSection() {
+  Section env{.title = "Environment"};
+  env.children.push_back(ProseOf(
+      "Environment variables xff reads. An explicit command-line flag generally overrides the matching "
+      "variable."));
+  static constexpr auto kVars = std::to_array<DocPair>({
+      {"NO_COLOR",
+       "when set (any value), disables color like `--color=never`; `--color=always` still wins "
+       "(https://no-color.org)"},
+      {"XFF_PAGER",
+       "the pager for the long `--help` / `--markdown` output (see `--pager`); overrides `$PAGER`; set empty "
+       "to disable paging"},
+      {"PAGER", "the pager used when `$XFF_PAGER` is unset"},
+      {"XFF_MANPAGER",
+       "the pager / formatter for `--man`; overrides the built-in `mandoc` pipeline; set empty to disable"},
+      {"COLUMNS", "terminal width used to wrap plain `--help` text for `--width=auto` when the tty size is unknown"},
+      {"XFF_CONFIG",
+       "explicit path to the config file, taking precedence over the XDG / HOME search (see `--help=config`)"},
+      {"XDG_CONFIG_HOME", "config search root: `$XDG_CONFIG_HOME/xff/config` (see `--help=config`)"},
+      {"HOME", "config fallback: `$HOME/.config/xff/config` when `$XDG_CONFIG_HOME` is unset"},
+      {"LC_ALL, LC_CTYPE, LANG",
+       "locale for `--unicode=auto`: a UTF-8 locale selects the Unicode `--format=tree` connectors, else ASCII"},
+  });
+  env.children.push_back(RowsOf(kVars));
+  env.children.push_back(ProseOf(
+      "Any process environment variable is also readable in the field vocabulary as `{env.NAME}` (see "
+      "`--help=fields`)."));
+  return env;
+}
+
 // STATISTICS: the two terminal reductions (--summary / --histogram). The flags are
 // pulled from the globals SOT via the "stats" topic tag so the list cannot drift, then
 // worked examples. Standalone as `--help=stats` (see TopicReference) and folded into
@@ -610,6 +643,8 @@ std::optional<Document> TopicReference(std::string_view name) {
     doc.sections.push_back(StatsSection());
   } else if (name == "config") {
     doc.sections.push_back(ConfigSection());
+  } else if (name == "environment" || name == "env") {
+    doc.sections.push_back(EnvironmentSection());
   } else if (name == "cookbook" || name == "examples" || name == "recipes") {
     doc.sections.push_back(BuildExamples());
   } else if (name == "notice" || name == "notices") {
@@ -667,6 +702,7 @@ Document BuildReference() {
   doc.sections.push_back(SizeSection());
   doc.sections.push_back(GrammarsSection());
   doc.sections.push_back(StatsSection());
+  doc.sections.push_back(EnvironmentSection());
   doc.sections.push_back(BuildExamples());
 
   Section exit_status{.title = "Exit status"};
