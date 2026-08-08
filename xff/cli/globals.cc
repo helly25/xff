@@ -157,7 +157,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--case",
-        .display = "--case=sensitive|insensitive|smart, -i, -s[+|-]",
+        .display = "--case=<MODE>, -i, -s[+|-]",
         .group = "matching",
         .header = "Matching",
         .summary = "letter case for matchers: -i insensitive, -s/-s+ smart, -s- sensitive (rg -> smart)",
@@ -167,7 +167,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--regextype",
-        .display = "--regextype=RE2|EXACT|FNMATCH|GLOB|SHGLOB|PCRE2",
+        .display = "--regextype=<GRAMMAR>",
         .group = "matching",
         .header = "Matching",
         .summary = "match engine: RE2, EXACT, FNMATCH, GLOB, SHGLOB (GLOB + {a,b}), or PCRE2 (a build extra)",
@@ -268,7 +268,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--skip-vcs",
-        .display = "--skip-vcs[=git,hg,svn,jj,bzr,darcs,cvs|all|none]",
+        .display = "--skip-vcs[=<LIST>]",
         .group = "filter",
         .header = "Filter & Ignore",
         .summary = "prune VCS metadata dirs (.git, .hg, ...); bare/=all = every known VCS, =LIST a subset",
@@ -289,7 +289,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--format",
-        .display = "--format=plain|nul|jsonl|csv|tsv|aligned|markdown|tree",
+        .display = "--format=<FORMAT>",
         .group = "output",
         .header = "Output",
         .summary = "output format: plain, nul, jsonl, csv, tsv, aligned, markdown (md), tree; default plain",
@@ -385,7 +385,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--summary",
-        .display = "--summary[=overall|type|ext|lang|mime|user|group|{template}]",
+        .display = "--summary[=<GROUP>]",
         .group = "output",
         .header = "Output",
         .summary = "aligned count + size table (or --format=jsonl rows) instead of each match; repeatable",
