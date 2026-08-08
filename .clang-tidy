@@ -9,8 +9,15 @@
 # fight documented conventions: llvm-prefer-static-over-anonymous-namespace (the
 # codebase groups internal-linkage helpers in an anonymous namespace, not per-
 # function `static`) and llvm-header-guard (STYLE_CPP mandates `{PATH}_{FILE}_`
-# guards, not LLVM's path-derived style). The genuine checks (const-correctness,
-# avoid-c-arrays, member-init, ...) stay on.
+# guards, not LLVM's path-derived style). Three more, noisy new-in-clang-22 checks
+# are off for the same reason: cppcoreguidelines-pro-bounds-avoid-unchecked-container-access
+# (fires on every `operator[]`), readability-use-concise-preprocessor-directives (wants
+# `#elifdef` over the compound `#if defined(...)` the code uses deliberately), and
+# misc-include-cleaner (mis-maps standard headers under the hermetic libc++, flagging
+# clearly-used `<vector>` / `<utility>` as unused, and does not track concept usage - too
+# many false positives to gate on). If run by hand for an IWYU pass, do NOT blindly drop
+# what it flags: keep concept- and std-providing headers, marking them `// IWYU pragma: keep`
+# where needed. The genuine checks (const-correctness, avoid-c-arrays, member-init, ...) stay on.
 Checks: >
   *,
   abseil-*,
@@ -47,11 +54,14 @@ Checks: >
   -bugprone-easily-swappable-parameters,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-init-variables,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
   -hicpp-named-parameter,
   -llvm-header-guard,
   -llvm-prefer-static-over-anonymous-namespace,
+  -misc-include-cleaner,
   -readability-magic-numbers,
   -readability-named-parameter,
+  -readability-use-concise-preprocessor-directives,
 
 WarningsAsErrors: '*'
 FormatStyle:       '.clang-format'
