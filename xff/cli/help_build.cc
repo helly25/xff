@@ -331,6 +331,57 @@ Section StatsSection() {
   return section;
 }
 
+// CONFIGURATION: how options resolve (layered tiers + the command line), how a style is
+// chosen (--config / argv[0]), and how dangerous --xffrc directives are armed. The flags
+// are pulled from the globals SOT via the "config" topic tag so the list cannot drift;
+// the layering / argv[0] / arming rules are prose. Standalone as `--help=config` (see
+// TopicReference) and folded into the full reference.
+Section ConfigSection() {
+  Section section{.title = "Configuration"};
+  section.children.push_back(ProseOf(
+      "xff configuration. Options resolve from layered config tiers, then the command line; later "
+      "layers win. A style (find / xff / rg) sets the baseline defaults, which the tiers and the "
+      "command line then adjust. Run `--explain` to print exactly what resolved."));
+
+  static constexpr std::array<DocPair, 4> kLayers = {{
+      {"system config", "machine-wide defaults (+ a root-owned [policy] that can hard-deny arming)"},
+      {"user config", "your personal defaults"},
+      {"--xffrc=FILE", "an explicitly named file (repeatable) - a NON-ARMING tier"},
+      {"command line", "flags and --config, highest"},
+  }};
+  Subsection layers{.title = "Layers (lowest to highest precedence)"};
+  layers.children.push_back(RowsOf(kLayers));
+  layers.children.push_back(ProseOf(
+      "There is no project / ancestor .xffrc discovery: config comes from the system and user files "
+      "plus any `--xffrc` you name. `--no-config` ignores the discovered system/user files."));
+  section.children.push_back(Content{.node = std::move(layers)});
+
+  Subsection style{.title = "Choosing a style"};
+  style.children.push_back(ProseOf(
+      "`--config=NAME` selects find / xff / rg (repeatable, last wins); see `--help=styles` for the "
+      "table. The invocation name (argv[0]) is the leading selector, so a symlink named `find` runs the "
+      "strict find style and `rg` the rg style; any other name (e.g. a `mytool` symlink) activates a "
+      "same-named config block over the xff default. An explicit `--config` still stacks on top."));
+  section.children.push_back(Content{.node = std::move(style)});
+
+  Subsection arming{.title = "Arming dangerous directives"};
+  arming.children.push_back(ProseOf(
+      "A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) carried by an "
+      "--xffrc file is inert unless `--allow-exec` is set from a TRUSTED tier (the command line or the "
+      "system/user config, never an --xffrc file itself). Unarmed lines are dropped with a warning; the "
+      "root system [policy] can hard-deny even `--allow-exec`."));
+  section.children.push_back(Content{.node = std::move(arming)});
+
+  Subsection flags{.title = "Config flags"};
+  for (const GlobalFlag& flag : Globals()) {
+    if (flag.topic == "config") {
+      flags.children.push_back(FlagEntry(flag));
+    }
+  }
+  section.children.push_back(Content{.node = std::move(flags)});
+  return section;
+}
+
 // EXAMPLES: the cookbook recipes as structured nodes - each a subsection with the
 // verbatim command (an Example, kept copy-pastable) and its explanation (Prose, which
 // wraps). The recipe list is the SOT in help.cc, run end to end by cookbook_test.
@@ -476,6 +527,8 @@ std::optional<Document> TopicReference(std::string_view name) {
     doc.sections.push_back(GrammarsSection());
   } else if (name == "stats") {
     doc.sections.push_back(StatsSection());
+  } else if (name == "config") {
+    doc.sections.push_back(ConfigSection());
   } else {
     return std::nullopt;
   }
@@ -515,6 +568,7 @@ Document BuildReference() {
   };
 
   doc.sections.push_back(DescriptionSection());
+  doc.sections.push_back(ConfigSection());
   doc.sections.push_back(OptionsSection(/*with_details=*/true));
   doc.sections.push_back(ExpressionSection(/*with_details=*/true));
 

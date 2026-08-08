@@ -10,6 +10,41 @@ xff walks each starting path and acts on the entries matching an expression, lik
 
 xff has two flavors selected by the program name: invoked as `find` it is strict find (only the standard vocabulary); invoked as `xff` it enables the modern extensions. An explicit `--config=find|xff` overrides the program name. Items marked as xff extensions below are the additions over find.
 
+## Configuration
+
+xff configuration. Options resolve from layered config tiers, then the command line; later layers win. A style (find / xff / rg) sets the baseline defaults, which the tiers and the command line then adjust. Run `--explain` to print exactly what resolved.
+
+### Layers (lowest to highest precedence)
+
+- `system config` - machine-wide defaults (+ a root-owned [policy] that can hard-deny arming)
+- `user config` - your personal defaults
+- `--xffrc=FILE` - an explicitly named file (repeatable) - a NON-ARMING tier
+- `command line` - flags and --config, highest
+
+There is no project / ancestor .xffrc discovery: config comes from the system and user files plus any `--xffrc` you name. `--no-config` ignores the discovered system/user files.
+
+### Choosing a style
+
+`--config=NAME` selects find / xff / rg (repeatable, last wins); see `--help=styles` for the table. The invocation name (argv[0]) is the leading selector, so a symlink named `find` runs the strict find style and `rg` the rg style; any other name (e.g. a `mytool` symlink) activates a same-named config block over the xff default. An explicit `--config` still stacks on top.
+
+### Arming dangerous directives
+
+A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) carried by an --xffrc file is inert unless `--allow-exec` is set from a TRUSTED tier (the command line or the system/user config, never an --xffrc file itself). Unarmed lines are dropped with a warning; the root system [policy] can hard-deny even `--allow-exec`.
+
+### Config flags
+- `--config=NAME` - select a config style: find (strict), xff (evolved), rg (opinionated); repeatable _(global, xff)_
+  A config style sets the defaults for ignore files, hidden files, sizes, sort order, and case. find is strict find compatibility; xff keeps find's grammar but sorts and prints human sizes; rg is opinionated (respect .gitignore, skip hidden, smart case). Repeatable and layered, last one wins. See --help=styles for the per-style defaults.
+- `--no-config` - ignore discovered .xffrc files _(global, xff)_
+- `--xffrc=FILE` - also load a specific config file (a non-arming tier; see --allow-exec) _(global, xff)_
+  Loads FILE as a config tier above the user config (naming it is consent to LOAD it). It is a NON-ARMING tier: safe directives apply, but a dangerous one - the exec family (-exec/-execdir/-ok, -capture) or -delete - is inert unless --allow-exec is set from a trusted tier (the CLI or the user/system config, never from an --xffrc file itself). An unarmed dangerous line is dropped with a one-line warning. Repeatable; later files win.
+  Affects: --allow-exec
+  Affected by: --allow-exec
+- `--allow-exec` - arm dangerous directives loaded from an --xffrc file (exec family, -delete) _(global, xff)_
+  Permits the sensitive/destructive directives (the exec family -exec/-execdir/-ok and -capture, and the destructive -delete) carried by an --xffrc-loaded file to actually run. Honored only from a trusted tier - typed on the CLI, or set in the user/system config - never from an --xffrc file (so a named config cannot authorize itself). The root-owned system [policy] can hard-deny even this. Without it, such lines are inert (dropped + warned); -delete still obeys its own --safe/--dry-run guards.
+  Affects: --xffrc
+  Affected by: --xffrc
+- `--explain` - print the resolved configuration and exit _(global, xff)_
+
 ## Options
 
 ### Config
