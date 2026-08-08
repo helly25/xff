@@ -181,7 +181,13 @@ absl::StatusOr<std::vector<Entry>> LocalFs::ReadDir(std::string_view dir) const 
 
   std::vector<Entry> entries;
   errno = 0;
+  // Thread-safe here: each directory is opened and iterated by exactly one worker, so this DIR* is
+  // never shared across threads. readdir is only unsafe for threads sharing a stream (readdir_r, the
+  // per-stream alternative, is deprecated).
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
   for (const struct dirent* de = ::readdir(dirp); de != nullptr; de = ::readdir(dirp)) {
+    // d_name is a fixed C char[] field; the array-to-pointer decay is inherent to reading it.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay,hicpp-no-array-decay)
     const std::string_view name(de->d_name);
     if (name == "." || name == "..") {
       errno = 0;
@@ -250,6 +256,8 @@ absl::StatusOr<std::string> LocalFs::FsType(std::string_view path) const {
     return absl::ErrnoToStatus(errno, absl::StrCat("statfs('", path, "')"));
   }
 #if defined(__APPLE__)
+  // f_fstypename is a fixed C char[] field; the array-to-pointer decay is inherent to reading it.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay,hicpp-no-array-decay)
   return std::string(sfs.f_fstypename);  // BSD/macOS report the type name directly
 #else
   const std::uint64_t magic = static_cast<std::uint64_t>(sfs.f_type) & 0xFFFF'FFFFULL;
@@ -291,12 +299,14 @@ absl::StatusOr<bool> LocalFs::IsCaseSensitive(std::string_view path) const {
 
 absl::StatusOr<std::string> LocalFs::ReadContent(std::string_view path) const {
   const std::string path_str(path);
-  const int fd = ::open(path_str.c_str(), O_RDONLY);
+  // O_CLOEXEC so the fd is not leaked into -exec'd children; open() is variadic by declaration.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
+  const int fd = ::open(path_str.c_str(), O_RDONLY | O_CLOEXEC);
   if (fd < 0) {
     return absl::ErrnoToStatus(errno, absl::StrCat("open('", path, "')"));
   }
   std::string content;
-  std::array<char, 64 * 1'024> buffer{};
+  std::array<char, std::size_t{64} * 1'024> buffer{};
   for (;;) {
     const ssize_t count = ::read(fd, buffer.data(), buffer.size());
     if (count < 0) {

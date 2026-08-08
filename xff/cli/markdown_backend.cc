@@ -49,7 +49,9 @@ std::string SlugFor(const RefTarget& target) {
 }  // namespace
 
 std::string MarkdownRefLink(const RefTarget& target, const std::string& label) {
-  const std::string text = label.empty() ? target.id : label;
+  // STYLE_CPP: a by-value std::string_view is never const (const only disables its own API).
+  // NOLINTNEXTLINE(misc-const-correctness)
+  std::string_view text = label.empty() ? target.id : label;
   switch (target.kind) {
     case RefTarget::Kind::kUrl: return absl::StrCat("[", text, "](", target.id, ")");
     case RefTarget::Kind::kManPage: return label.empty() ? absl::StrCat(target.id, "(", target.section, ")") : label;
@@ -58,7 +60,7 @@ std::string MarkdownRefLink(const RefTarget& target, const std::string& label) {
     case RefTarget::Kind::kPrimary:
     case RefTarget::Kind::kAnchor: return absl::StrCat("[", text, "](#", SlugFor(target), ")");
   }
-  return text;
+  return std::string(text);
 }
 
 std::string RenderInlinesMarkdown(const Inlines& runs) {

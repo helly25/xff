@@ -109,10 +109,14 @@ namespace {
 
 // The text pager: $XFF_PAGER, else $PAGER, else the built-in. A variable that is set
 // (even to "") is authoritative, so an empty value means "no pager".
+// Thread-safe: xff never mutates the environment (no setenv/putenv), so concurrent getenv reads
+// cannot race; each value is consumed immediately.
 std::string ResolveTextPager() {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
   if (const char* xff_pager = std::getenv("XFF_PAGER"); xff_pager != nullptr) {
     return xff_pager;
   }
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
   if (const char* pager = std::getenv("PAGER"); pager != nullptr) {
     return pager;
   }
@@ -125,6 +129,8 @@ std::string ResolvePagerCommand(PagerKind kind) {
   if (kind == PagerKind::kMan) {
     // $XFF_MANPAGER wins outright (empty disables), so a user can plug in any roff
     // viewer, e.g. `groff -mandoc -Tutf8 | less -R`.
+    // Thread-safe: xff never mutates the environment (no setenv/putenv), so this getenv cannot race.
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
     if (const char* man_pager = std::getenv("XFF_MANPAGER"); man_pager != nullptr) {
       return man_pager;
     }

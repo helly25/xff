@@ -144,7 +144,7 @@ std::string Renderer::Record(std::string_view path, std::string_view color) cons
       return record;
     }
     case Format::kJsonl: {
-      std::string record = "{\"path\":\"";
+      std::string record = R"({"path":")";
       AppendJsonEscaped(path, &record);
       record.append("\"}\n");
       return record;
@@ -241,11 +241,8 @@ TableStream::TableStream(
       with_header_(with_header),
       window_(window),
       byte_budget_(byte_budget),
-      buffered_bytes_(0),
       widths_(columns_, md_ ? 3 : 0),
-      buffering_(window != 0),
-      header_done_(false),
-      flushed_(false) {
+      buffering_(window != 0) {
   header_.reserve(columns_);
   for (std::size_t col = 0; col < columns_; ++col) {
     header_.push_back(md_ ? MarkdownCell(header[col]) : std::move(header[col]));
@@ -387,6 +384,8 @@ void Tree::Add(std::string_view path) {
   }
 }
 
+// Deliberate recursion: the tree renderer descends into each node's children by design.
+// NOLINTNEXTLINE(misc-no-recursion)
 void Tree::RenderChildren(const Node& node, std::string_view prefix, std::string* out) const {
   // Box-drawing connectors when unicode_: tee (U+251C), elbow (U+2514), and vertical (U+2502)
   // with horizontals (U+2500), as literal UTF-8; else the ASCII forms.

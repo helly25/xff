@@ -132,8 +132,8 @@ class ColumnBuffer {
   std::vector<Align> aligns_;
   std::vector<std::size_t> widths_;  // starts at the mins; grows to the widest cell seen
   std::size_t window_;
-  std::size_t byte_budget_;     // 0 = no byte cap; else flush the window at this many buffered bytes
-  std::size_t buffered_bytes_;  // running total of buffered cell bytes (while buffering_)
+  std::size_t byte_budget_;         // 0 = no byte cap; else flush the window at this many buffered bytes
+  std::size_t buffered_bytes_ = 0;  // running total of buffered cell bytes (while buffering_)
   bool buffering_;
   std::vector<std::vector<std::string>> buffer_;
 };

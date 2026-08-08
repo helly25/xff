@@ -71,7 +71,9 @@ pid_t SpawnNoWait(const std::vector<std::string>& args, std::string_view dir) {
   std::vector<char*> argv;
   argv.reserve(args.size() + 1);
   for (const std::string& arg : args) {
-    argv.push_back(const_cast<char*>(arg.c_str()));  // posix_spawnp wants char* const*; it does not modify argv
+    // posix_spawnp takes char* const*; it does not modify argv, so this const_cast is safe interop.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+    argv.push_back(const_cast<char*>(arg.c_str()));
   }
   argv.push_back(nullptr);
 
@@ -116,12 +118,14 @@ bool RunBatched(const std::vector<std::string>& command, const std::vector<std::
   for (const std::string& token : prefix) {
     prefix_bytes += token.size() + 1;  // +1 for the argv NUL terminator
   }
-  constexpr std::size_t kMaxArgBytes = 128 * 1'024;  // conservative, well under ARG_MAX
+  constexpr std::size_t kMaxArgBytes = std::size_t{128} * 1'024;  // conservative, well under ARG_MAX
   bool all_ok = true;
   for (std::size_t i = 0; i < items.size();) {
     std::vector<std::string> args = prefix;
     std::size_t bytes = prefix_bytes;
-    do {  // always take at least one item so an oversized one still makes progress
+    // A do-while is deliberate: always take at least one item so an oversized one still makes progress.
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-do-while)
+    do {
       bytes += items[i].size() + 1;
       args.push_back(items[i]);
       ++i;
@@ -176,6 +180,8 @@ void ParallelExec::Launch(const std::vector<std::string>& command, std::string_v
 void ParallelExec::ReapOne() {
   int status = 0;
   pid_t reaped = 0;
+  // A do-while is the natural shape for a syscall EINTR retry: call once, repeat only on EINTR.
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-do-while)
   do {
     reaped = ::waitpid(-1, &status, 0);
   } while (reaped < 0 && errno == EINTR);
@@ -214,6 +220,9 @@ std::optional<std::string> CaptureOutput(const std::vector<std::string>& args, s
     return std::nullopt;
   }
   std::array<int, 2> pipe_fds = {-1, -1};
+  // pipe2(O_CLOEXEC) is not available on macOS; the fds are closed explicitly around the spawn below
+  // and the child inherits only the dup'd write end via posix_spawn_file_actions.
+  // NOLINTNEXTLINE(android-cloexec-pipe)
   if (::pipe(pipe_fds.data()) != 0) {
     return std::nullopt;
   }
@@ -232,7 +241,9 @@ std::optional<std::string> CaptureOutput(const std::vector<std::string>& args, s
   std::vector<char*> argv;
   argv.reserve(args.size() + 1);
   for (const std::string& arg : args) {
-    argv.push_back(const_cast<char*>(arg.c_str()));  // posix_spawnp wants char* const*; it does not modify argv
+    // posix_spawnp takes char* const*; it does not modify argv, so this const_cast is safe interop.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+    argv.push_back(const_cast<char*>(arg.c_str()));
   }
   argv.push_back(nullptr);
 
@@ -248,12 +259,12 @@ std::optional<std::string> CaptureOutput(const std::vector<std::string>& args, s
   // Drain the pipe before waiting, so a child writing more than the pipe buffer
   // cannot deadlock against our waitpid.
   std::string output;
-  std::array<char, 4'096> buffer;
+  std::array<char, 4'096> buffer{};
   for (;;) {
-    const ssize_t n = ::read(pipe_fds[0], buffer.data(), buffer.size());
-    if (n > 0) {
-      output.append(buffer.data(), static_cast<std::size_t>(n));
-    } else if (n == 0 || errno != EINTR) {
+    const ssize_t bytes_read = ::read(pipe_fds[0], buffer.data(), buffer.size());
+    if (bytes_read > 0) {
+      output.append(buffer.data(), static_cast<std::size_t>(bytes_read));
+    } else if (bytes_read == 0 || errno != EINTR) {
       break;  // EOF, or a non-retryable read error
     }
   }

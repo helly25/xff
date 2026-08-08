@@ -63,6 +63,9 @@ std::size_t DetectTerminalWidth() {
   // $COLUMNS wins when set to a positive integer - the conventional override,
   // honored even off a tty so a caller can force a width. std::getenv is the C
   // environment API; keep the raw value at this one boundary only.
+  // Thread-safe here: xff never mutates the environment (no setenv/putenv), so concurrent getenv
+  // reads cannot race, and the value is consumed immediately below.
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
   if (const char* const columns = std::getenv("COLUMNS"); columns != nullptr) {
     std::size_t cols = 0;
     if (absl::SimpleAtoi(columns, &cols) && cols > 0) {
@@ -72,7 +75,7 @@ std::size_t DetectTerminalWidth() {
   // Otherwise ask the tty for its width; ioctl / winsize are the C terminal API
   // (ioctl is variadic - the one place we must call a C vararg function).
   struct winsize ws = {};
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
   if (::isatty(STDOUT_FILENO) != 0 && ::ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0) {
     return ws.ws_col;
   }

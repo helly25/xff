@@ -38,7 +38,12 @@ enum class AccessMode { kRead, kWrite, kExecute };
 // the engine traverses in parallel (design.md "Determinism" / "Parallel exec").
 class FileSystem {
  public:
+  FileSystem() = default;
   virtual ~FileSystem() = default;
+  FileSystem(const FileSystem&) = default;
+  FileSystem& operator=(const FileSystem&) = default;
+  FileSystem(FileSystem&&) noexcept = default;
+  FileSystem& operator=(FileSystem&&) noexcept = default;
 
   // Lists the direct children of `dir`: no recursion, and excluding `.`/`..`.
   // Order is unspecified (the engine imposes `--sort` when determinism is
