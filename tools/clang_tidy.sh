@@ -112,23 +112,6 @@ for CXX_V1 in \
   "${OUTPUT_BASE}/external/llvm_toolchain_llvm/include/c++/v1"; do
   if [ -d "${CXX_V1}" ]; then
     EXTRA_ARGS+=("--extra-arg-before=-isystem${CXX_V1}")
-    # libc++'s <__config> does `#include <__config_site>`, a generated per-target
-    # header. On Linux the hermetic install places it in a target-triple subdir
-    # (include/<triple>/c++/v1/__config_site), NOT next to <__config> in c++/v1;
-    # macOS puts both in c++/v1. Prepending only c++/v1 above then wins the search
-    # for <__config> but LOSES <__config_site>, so libc++ fails to configure and the
-    # whole parse collapses - std::string_view resolves to `int` and clang-tidy
-    # emits a flood of spurious findings (member-init, convert-to-static on override
-    # methods, implicit-bool 'string_view -> int', ...). Prepend the directory that
-    # actually holds __config_site too, located wherever the install puts it.
-    INCLUDE_ROOT="${CXX_V1%/c++/v1}"
-    CONFIG_SITE="$(find "${INCLUDE_ROOT}" -name __config_site -print -quit 2>/dev/null || true)"
-    if [ -n "${CONFIG_SITE}" ]; then
-      CONFIG_SITE_DIR="$(dirname "${CONFIG_SITE}")"
-      if [ "${CONFIG_SITE_DIR}" != "${CXX_V1}" ]; then
-        EXTRA_ARGS+=("--extra-arg-before=-isystem${CONFIG_SITE_DIR}")
-      fi
-    fi
     break
   fi
 done

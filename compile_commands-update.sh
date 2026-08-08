@@ -71,6 +71,18 @@ fi
 # exec configuration keep their command, so nothing leaves the compile DB.
 declare -a BCCE_ARGS=("--bcce-compiler=${CLANG}" "--bcce-prefer-target-config")
 
+# Force libc++ in the compile DB so clang-tidy / clangd ALWAYS parse against the
+# hermetic clang's own libc++, on every platform. Without this the recorded
+# commands inherit the toolchain default, which is libc++ on macOS but the system
+# libstdc++ on Linux. tools/clang_tidy.sh then prepends the hermetic libc++
+# `include/c++/v1` (so `#include <version>` beats helly25_mbo's plain-text `version`
+# file, which its -isystem'd repo root would otherwise shadow) - injecting libc++
+# headers into a libstdc++ parse. That stdlib mix silently corrupts clang-tidy's
+# type/member analysis (std::string_view resolving to int, phantom
+# const-correctness / convert-to-static / member-init findings). Pinning libc++
+# here makes the parse self-consistent everywhere, matching the clean macOS run.
+BCCE_ARGS+=("--bcce-copt=-stdlib=libc++")
+
 # The hermetic clang carries its own libc++ but no system C headers: without the
 # SDK sysroot its <locale> support headers fail on `'time.h' file not found`.
 # The bazel `--config=clang` toolchain supplies this itself; the extracted
