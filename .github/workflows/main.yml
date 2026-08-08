@@ -240,6 +240,22 @@ jobs:
         # compile_commands-update.sh runs bazel internally (--config=clang); feed it the disk cache
         # via the try-import'd .bazelrc.user. LLVM re-fetches each run (deliberately not cached).
         run: echo "common --disk_cache=$HOME/.cache/bazel-disk" >.bazelrc.user
+      - name: Materialize the headers the compile DB references
+        # A translation unit only needs its GENERATED / virtual-include headers to
+        # parse - xff/license/notice.h and xff/regex/backend.h come from the local
+        # @xff_extras_api module and are served through bazel-out `_virtual_includes`
+        # symlink forests that only exist once the owning cc_library is built. The
+        # compile DB records those bazel-out include paths but does not build them,
+        # so on a fresh runner clang-tidy aborts with `'xff/.../foo.h' file not
+        # found` and the fallout reads as phantom findings rather than the build gap
+        # it is (the "some sources were not generated" symptom). A plain `bazel build
+        # //...` (NOT --config=clang) materializes every genrule output and
+        # _virtual_includes forest at the DEFAULT-config path the DB uses -
+        # compile_commands-update.sh runs refresh_all without --config=clang, so the
+        # DB references `<cpu>-fastbuild`, and --config=clang would place the forests
+        # under a different, mismatched output dir. Headers do not depend on which
+        # compiler compiles the .cc, so the default toolchain build is correct here.
+        run: bazel build //...
       - name: Generate compile_commands.json
         # A gitignored local artifact, so build it here. The script fetches the hermetic LLVM and
         # records ITS clang, which is what makes the commands parseable by the matching clang-tidy.
