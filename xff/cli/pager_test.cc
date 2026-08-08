@@ -26,6 +26,7 @@ namespace xff::cli {
 namespace {
 
 using ::testing::Eq;
+using ::testing::HasSubstr;
 
 struct PagerWhenTest : ::testing::Test {};
 
@@ -58,13 +59,16 @@ struct PagerCommandTest : ::testing::Test {
   void SetUp() override {
     Save("XFF_PAGER", saved_xff_, has_xff_);
     Save("PAGER", saved_pager_, has_pager_);
+    Save("XFF_MANPAGER", saved_manpager_, has_manpager_);
     ::unsetenv("XFF_PAGER");
     ::unsetenv("PAGER");
+    ::unsetenv("XFF_MANPAGER");
   }
 
   void TearDown() override {
     Restore("XFF_PAGER", saved_xff_, has_xff_);
     Restore("PAGER", saved_pager_, has_pager_);
+    Restore("XFF_MANPAGER", saved_manpager_, has_manpager_);
   }
 
   static void Save(const char* name, std::string& into, bool& present) {
@@ -85,8 +89,10 @@ struct PagerCommandTest : ::testing::Test {
 
   std::string saved_xff_;
   std::string saved_pager_;
+  std::string saved_manpager_;
   bool has_xff_ = false;
   bool has_pager_ = false;
+  bool has_manpager_ = false;
 };
 
 TEST_F(PagerCommandTest, DefaultsToLessWithColorSafeFlags) {
@@ -108,6 +114,29 @@ TEST_F(PagerCommandTest, EmptyEnvDisablesPaging) {
   // An explicitly-empty variable means "no pager" - it wins over the built-in default.
   ::setenv("XFF_PAGER", "", 1);
   EXPECT_THAT(ResolvePagerCommand(), Eq(""));
+}
+
+TEST_F(PagerCommandTest, ManDefaultFormatsWithMandoc) {
+  // The kMan default is a roff formatter, not the plain text pager: it runs mandoc.
+  EXPECT_THAT(ResolvePagerCommand(PagerKind::kMan), HasSubstr("mandoc"));
+}
+
+TEST_F(PagerCommandTest, XffManPagerOverridesTheManDefault) {
+  ::setenv("XFF_MANPAGER", "groff -mandoc -Tutf8 | less -R", 1);
+  EXPECT_THAT(ResolvePagerCommand(PagerKind::kMan), Eq("groff -mandoc -Tutf8 | less -R"));
+}
+
+TEST_F(PagerCommandTest, EmptyManPagerEnvDisablesManPaging) {
+  ::setenv("XFF_MANPAGER", "", 1);
+  EXPECT_THAT(ResolvePagerCommand(PagerKind::kMan), Eq(""));
+}
+
+TEST_F(PagerCommandTest, ManPagerIsIndependentOfTheTextPager) {
+  // $XFF_PAGER selects the text pager but must not become the man command (which needs a
+  // roff formatter); the man default stays mandoc-based.
+  ::setenv("XFF_PAGER", "most", 1);
+  EXPECT_THAT(ResolvePagerCommand(PagerKind::kText), Eq("most"));
+  EXPECT_THAT(ResolvePagerCommand(PagerKind::kMan), HasSubstr("mandoc"));
 }
 
 }  // namespace

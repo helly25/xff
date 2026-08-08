@@ -60,10 +60,9 @@ void WriteToStdout(std::string_view text) {
     ::close(read_fd);
     ::close(write_fd);
     // execlp needs a C string at the exec boundary; `sh -c` handles args / pipelines.
-    ::execlp(
-        "sh", "sh", "-c", command.c_str(),
-        static_cast<char*>(nullptr));  // NOLINT(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
-    ::_exit(127);                      // exec failed: nothing was consumed yet, so the parent still has the text
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
+    ::execlp("sh", "sh", "-c", command.c_str(), static_cast<char*>(nullptr));
+    ::_exit(127);  // exec failed: nothing was consumed yet, so the parent still has the text
   }
   // Parent: feed the text to the pager, ignoring SIGPIPE so an early quit (a closed read
   // end) surfaces as a write error we can stop on rather than killing the process.
@@ -106,8 +105,11 @@ PagerWhen ResolvePagerWhen(const std::vector<std::string>& args) {
   return when;
 }
 
-std::string ResolvePagerCommand() {
-  // A variable that is set (even to "") is authoritative: empty means "no pager".
+namespace {
+
+// The text pager: $XFF_PAGER, else $PAGER, else the built-in. A variable that is set
+// (even to "") is authoritative, so an empty value means "no pager".
+std::string ResolveTextPager() {
   if (const char* xff_pager = std::getenv("XFF_PAGER"); xff_pager != nullptr) {
     return xff_pager;
   }
@@ -117,13 +119,31 @@ std::string ResolvePagerCommand() {
   return "less -FRX";
 }
 
-void EmitPaged(std::string_view text, PagerWhen when, bool stdout_is_tty) {
+}  // namespace
+
+std::string ResolvePagerCommand(PagerKind kind) {
+  if (kind == PagerKind::kMan) {
+    // $XFF_MANPAGER wins outright (empty disables), so a user can plug in any roff
+    // viewer, e.g. `groff -mandoc -Tutf8 | less -R`.
+    if (const char* man_pager = std::getenv("XFF_MANPAGER"); man_pager != nullptr) {
+      return man_pager;
+    }
+    // The built-in formats the roff with mandoc (the portable roff formatter --man's own
+    // help points at) and pages it, honoring $PAGER like man does, else less -FRX. If
+    // mandoc is absent it exits 127, so EmitPaged falls back to the raw roff rather than
+    // showing an empty page. Runs via `sh -c`, so the pipeline / ${PAGER:-...} expand.
+    return "if command -v mandoc >/dev/null 2>&1; then mandoc | ${PAGER:-less -FRX}; else exit 127; fi";
+  }
+  return ResolveTextPager();
+}
+
+void EmitPaged(std::string_view text, PagerWhen when, bool stdout_is_tty, PagerKind kind) {
   const bool page = when == PagerWhen::kAlways || (when == PagerWhen::kAuto && stdout_is_tty);
   if (!page) {
     WriteToStdout(text);
     return;
   }
-  const std::string command = ResolvePagerCommand();
+  const std::string command = ResolvePagerCommand(kind);
   if (command.empty() || !PipeThroughPager(text, command)) {
     WriteToStdout(text);
   }

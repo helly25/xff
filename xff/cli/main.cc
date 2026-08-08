@@ -284,8 +284,9 @@ int RunMain(int argc, char** argv) {
       return 0;
     }
     if (arg == "--man") {
-      // roff(1); pipe to `mandoc` (or GNU `man -l -`), or install as xff.1
-      xff::cli::EmitPaged(xff::cli::ManPage(), pager_when, stdout_is_tty);
+      // roff(1); on a tty the man kind formats it (mandoc) so it reads like `man xff`,
+      // while a redirect stays raw roff for `mandoc` / `man -l -` / installing as xff.1.
+      xff::cli::EmitPaged(xff::cli::ManPage(), pager_when, stdout_is_tty, xff::cli::PagerKind::kMan);
       return 0;
     }
     if (arg == "--markdown") {
