@@ -37,11 +37,11 @@ TEST_F(ColorTest, ResolveWhenLastOccurrenceWins) {
 }
 
 TEST_F(ColorTest, EnabledCombinesModeTtyAndNoColor) {
-  EXPECT_TRUE(Enabled(When::kAlways, /*tty=*/false, /*no_color=*/true));  // explicit wins over NO_COLOR
-  EXPECT_FALSE(Enabled(When::kNever, /*tty=*/true, /*no_color=*/false));
-  EXPECT_TRUE(Enabled(When::kAuto, /*tty=*/true, /*no_color=*/false));
-  EXPECT_FALSE(Enabled(When::kAuto, /*tty=*/false, /*no_color=*/false));  // not a terminal
-  EXPECT_FALSE(Enabled(When::kAuto, /*tty=*/true, /*no_color=*/true));    // NO_COLOR set
+  EXPECT_TRUE(Enabled(When::kAlways, /*stdout_is_tty=*/false, /*no_color_env=*/true));  // explicit wins over NO_COLOR
+  EXPECT_FALSE(Enabled(When::kNever, /*stdout_is_tty=*/true, /*no_color_env=*/false));
+  EXPECT_TRUE(Enabled(When::kAuto, /*stdout_is_tty=*/true, /*no_color_env=*/false));
+  EXPECT_FALSE(Enabled(When::kAuto, /*stdout_is_tty=*/false, /*no_color_env=*/false));  // not a terminal
+  EXPECT_FALSE(Enabled(When::kAuto, /*stdout_is_tty=*/true, /*no_color_env=*/true));    // NO_COLOR set
 }
 
 TEST_F(ColorTest, CodeForTypeUsesLsLikeScheme) {

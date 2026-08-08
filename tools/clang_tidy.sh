@@ -116,7 +116,39 @@ for CXX_V1 in \
   fi
 done
 
+# Checks with no meaning in test code, disabled for `*_test.cc` only (mirrors
+# helly25/mbo). Stating the rule once here - rather than a NOLINT repeated on every
+# test - keeps it in one place and covers new tests without anyone remembering to
+# annotate. `--checks` with only `-name` entries APPENDS to .clang-tidy's `Checks`
+# (removing those), so every other check still applies to tests.
+#   * readability-function-cognitive-complexity: a gtest TestBody's score comes from
+#     EXPECT_*/ASSERT_* macros expanding to branches, not from refactorable logic.
+#   * misc-override-with-different-visibility: our fixtures are `struct`s (AGENTS.md),
+#     so their SetUp()/TearDown() overrides are public while ::testing::Test declares
+#     them protected - a visibility change forced by convention, on every fixture.
+# concurrency-mt-unsafe is deliberately NOT disabled here: a test that touches process
+# environment (getenv/setenv) still carries a real MT hazard, so those few sites keep a
+# targeted, commented NOLINT rather than a blanket exemption for the whole test tree.
+readonly TEST_DISABLED_CHECKS='-readability-function-cognitive-complexity,-misc-override-with-different-visibility'
+
+declare -a SOURCES=()
+declare -a TESTS=()
+for FILE in "${@}"; do
+  case "${FILE}" in
+    *_test.cc | *_test.cpp | *_test.cxx) TESTS+=("${FILE}") ;;
+    *) SOURCES+=("${FILE}") ;;
+  esac
+done
+
 # Report only: --header-filter restricts diagnostics to this repo's own headers
 # (not the toolchain's force-included / system headers), -p points at the compile
-# DB. WarningsAsErrors in .clang-tidy makes any finding a non-zero exit.
-exec "${CLANG_TIDY}" --header-filter='(^|/)xff/' "${EXTRA_ARGS[@]}" -p . "${@}"
+# DB. WarningsAsErrors in .clang-tidy makes any finding a non-zero exit. Both groups
+# must run and a finding in either has to fail, so no `exec` (which would run one).
+STATUS=0
+if [ "${#SOURCES[@]}" -gt 0 ]; then
+  "${CLANG_TIDY}" --header-filter='(^|/)xff/' "${EXTRA_ARGS[@]}" -p . "${SOURCES[@]}" || STATUS=1
+fi
+if [ "${#TESTS[@]}" -gt 0 ]; then
+  "${CLANG_TIDY}" --header-filter='(^|/)xff/' --checks="${TEST_DISABLED_CHECKS}" "${EXTRA_ARGS[@]}" -p . "${TESTS[@]}" || STATUS=1
+fi
+exit "${STATUS}"

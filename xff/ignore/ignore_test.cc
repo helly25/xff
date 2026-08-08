@@ -106,7 +106,7 @@ TEST_F(IgnoreTest, LiteralDotIsNotAWildcard) {
 }
 
 TEST_F(IgnoreTest, CommentsAndBlankLinesAreSkipped) {
-  PatternList list = PatternList::Parse("# a comment\n\n  \n*.tmp\n");
+  const PatternList list = PatternList::Parse("# a comment\n\n  \n*.tmp\n");
   EXPECT_THAT(list.size(), 1U);
   EXPECT_THAT(list.Match("x.tmp", false), Decision::kIgnore);
 }
@@ -117,11 +117,11 @@ TEST_F(IgnoreTest, EscapedLeadingHashAndBangAreLiteral) {
 }
 
 TEST_F(IgnoreTest, NegationReincludesAndLastMatchWins) {
-  PatternList list = PatternList::Parse("*.log\n!keep.log\n");
+  const PatternList list = PatternList::Parse("*.log\n!keep.log\n");
   EXPECT_THAT(list.Match("a.log", false), Decision::kIgnore);
   EXPECT_THAT(list.Match("keep.log", false), Decision::kInclude);  // negation re-includes
   // Order matters: a later ignore overrides an earlier negation.
-  PatternList reordered = PatternList::Parse("!keep.log\n*.log\n");
+  const PatternList reordered = PatternList::Parse("!keep.log\n*.log\n");
   EXPECT_THAT(reordered.Match("keep.log", false), Decision::kIgnore);
 }
 
@@ -136,14 +136,14 @@ TEST_F(IgnoreTest, AddNegateStartsAsReinclude) {
 }
 
 TEST_F(IgnoreTest, NoMatchIsDefault) {
-  PatternList list = PatternList::Parse("*.log\n");
+  const PatternList list = PatternList::Parse("*.log\n");
   EXPECT_THAT(list.Match("main.cc", false), Decision::kDefault);
   EXPECT_THAT(list.empty(), IsFalse());
   EXPECT_THAT(PatternList().empty(), IsTrue());
 }
 
 TEST_F(IgnoreTest, CrlfLinesAreTolerated) {
-  PatternList list = PatternList::Parse("*.log\r\n!keep.log\r\n");
+  const PatternList list = PatternList::Parse("*.log\r\n!keep.log\r\n");
   EXPECT_THAT(list.size(), 2U);
   EXPECT_THAT(list.Match("keep.log", false), Decision::kInclude);
 }

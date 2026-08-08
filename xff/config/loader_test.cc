@@ -79,7 +79,7 @@ TEST_F(LoaderTest, DiscoverAppliesSystemThenUserLayersWithActiveConfig) {
   DiscoveryOptions opts;
   opts.home = "/home/u";
   opts.configs = {"xff"};  // the find: line stays inert
-  const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
+  const ConfigInputs in = Discover(opts, [&fs](std::string_view path) { return fs.Read(path); });
   EXPECT_THAT(
       ResolveConfig(in), ElementsAre(
                              FlagIs("--color=auto", Source::kSystem), FlagIs("--sort", Source::kUser),
@@ -92,7 +92,7 @@ TEST_F(LoaderTest, ExplicitXffrcFilesFormTheirOwnTierInOrder) {
   fs.files["/extra.rc"] = "common: --color=never\n";
   DiscoveryOptions opts;
   opts.xffrc_files = {"/proj/.xffrc", "/extra.rc"};
-  const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
+  const ConfigInputs in = Discover(opts, [&fs](std::string_view path) { return fs.Read(path); });
   // --xffrc files land in the xffrc tier (not the user layer), in order.
   EXPECT_THAT(
       ResolveConfig(in), ElementsAre(FlagIs("--threads=2", Source::kXffrc), FlagIs("--color=never", Source::kXffrc)));
@@ -105,7 +105,7 @@ TEST_F(LoaderTest, NoConfigSkipsUserAndDefaultsButStillReadsSystemPolicy) {
   DiscoveryOptions opts;
   opts.home = "/home/u";
   opts.no_config = true;
-  const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
+  const ConfigInputs in = Discover(opts, [&fs](std::string_view path) { return fs.Read(path); });
   EXPECT_THAT(in.system.policy, SizeIs(1));   // policy still parsed for the gate (phase C)
   EXPECT_THAT(ResolveConfig(in), IsEmpty());  // defaults + user dropped
 }
@@ -114,7 +114,7 @@ TEST_F(LoaderTest, MissingFilesYieldEmptyLayers) {
   FakeFs fs;  // nothing on disk
   DiscoveryOptions opts;
   opts.home = "/home/u";
-  const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
+  const ConfigInputs in = Discover(opts, [&fs](std::string_view path) { return fs.Read(path); });
   EXPECT_THAT(in.system.defaults, IsEmpty());
   EXPECT_THAT(ResolveConfig(in), IsEmpty());
 }
@@ -134,7 +134,7 @@ TEST_F(LoaderTest, DiscoverRecordsConsultedSourcesForExplain) {
   DiscoveryOptions opts;
   opts.home = "/home/u";             // user path computed, but the file is absent
   opts.xffrc_files = {"/extra.rc"};  // explicit file, present
-  const ConfigInputs in = Discover(opts, [&fs](std::string_view p) { return fs.Read(p); });
+  const ConfigInputs in = Discover(opts, [&fs](std::string_view path) { return fs.Read(path); });
   // Every consulted path is recorded in precedence order with its found/absent state. There is no
   // project cascade: only system, the user path, and the explicit --xffrc file are consulted.
   EXPECT_THAT(

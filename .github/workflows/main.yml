@@ -240,6 +240,22 @@ jobs:
         # compile_commands-update.sh runs bazel internally (--config=clang); feed it the disk cache
         # via the try-import'd .bazelrc.user. LLVM re-fetches each run (deliberately not cached).
         run: echo "common --disk_cache=$HOME/.cache/bazel-disk" >.bazelrc.user
+      - name: Materialize the headers the compile DB references
+        # A translation unit only needs its GENERATED / virtual-include headers to
+        # parse - xff/license/notice.h and xff/regex/backend.h come from the local
+        # @xff_extras_api module and are served through bazel-out `_virtual_includes`
+        # symlink forests that only exist once the owning cc_library is built. The
+        # compile DB records those bazel-out include paths but does not build them,
+        # so on a fresh runner clang-tidy aborts with `'xff/.../foo.h' file not
+        # found` and the fallout reads as phantom findings rather than the build gap
+        # it is (the "some sources were not generated" symptom). A plain `bazel build
+        # //...` (NOT --config=clang) materializes every genrule output and
+        # _virtual_includes forest at the DEFAULT-config path the DB uses -
+        # compile_commands-update.sh runs refresh_all without --config=clang, so the
+        # DB references `<cpu>-fastbuild`, and --config=clang would place the forests
+        # under a different, mismatched output dir. Headers do not depend on which
+        # compiler compiles the .cc, so the default toolchain build is correct here.
+        run: bazel build //...
       - name: Generate compile_commands.json
         # A gitignored local artifact, so build it here. The script fetches the hermetic LLVM and
         # records ITS clang, which is what makes the commands parseable by the matching clang-tidy.
@@ -265,14 +281,11 @@ jobs:
             echo "| Lint scope | \`${CLANG_TIDY_SCOPE}\` |"
           } >>"${GITHUB_STEP_SUMMARY}"
       - uses: pre-commit/action@v3.0.1
-        # Report-only until the remaining (test-file) findings are swept: .clang-tidy is
-        # WarningsAsErrors '*' and the test tree is not clean yet. Scoped to this step so a failed
-        # compile DB above still fails the job. Drop continue-on-error to promote to a hard gate.
-        continue-on-error: true
+        # Hard gate: .clang-tidy is WarningsAsErrors '*' and the tree is clang-tidy-clean, so any new
+        # finding fails this job (and thus `done`). The compile-DB build above gates too.
         with:
-          # Only the clang-tidy hook (every other hook ran in the pre-commit job). --hook-stage
-          # manual while the hook is opt-in; harmless once it becomes an automatic gate. Scope comes
-          # from the step above: changed sources on a branch, the whole tree on main.
+          # Only the clang-tidy hook (every other hook ran in the pre-commit job). Scope comes from
+          # the step above: changed sources on a branch, the whole tree on main.
           extra_args: clang-tidy --hook-stage manual ${{ env.CLANG_TIDY_SCOPE }}
 
   # Single required status check: one job that gates merge on the whole matrix,

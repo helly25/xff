@@ -71,120 +71,120 @@ TEST_F(DateTimeTest, NowKeywordIsCaseInsensitive) {
 TEST_F(DateTimeTest, DayKeywords) {
   // find's get_date day words: today == the reference instant; yesterday/tomorrow
   // are one fixed 24h day before/after it. Case-insensitive, like "now".
-  const absl::Time t = Now();
-  EXPECT_THAT(ParseTimeString("today", t), Optional(Eq(t)));
-  EXPECT_THAT(ParseTimeString("Today", t), Optional(Eq(t)));
-  EXPECT_THAT(ParseTimeString("yesterday", t), Optional(Eq(t - absl::Hours(24))));
-  EXPECT_THAT(ParseTimeString("tomorrow", t), Optional(Eq(t + absl::Hours(24))));
+  const absl::Time now = Now();
+  EXPECT_THAT(ParseTimeString("today", now), Optional(Eq(now)));
+  EXPECT_THAT(ParseTimeString("Today", now), Optional(Eq(now)));
+  EXPECT_THAT(ParseTimeString("yesterday", now), Optional(Eq(now - absl::Hours(24))));
+  EXPECT_THAT(ParseTimeString("tomorrow", now), Optional(Eq(now + absl::Hours(24))));
 }
 
 TEST_F(DateTimeTest, RelativeDurationUnits) {
-  const absl::Time t = Now();
-  EXPECT_THAT(ParseTimeString("30 seconds ago", t), Optional(Eq(t - absl::Seconds(30))));
-  EXPECT_THAT(ParseTimeString("5 minutes ago", t), Optional(Eq(t - absl::Minutes(5))));
-  EXPECT_THAT(ParseTimeString("2 hours ago", t), Optional(Eq(t - absl::Hours(2))));
-  EXPECT_THAT(ParseTimeString("3 days ago", t), Optional(Eq(t - absl::Hours(72))));
-  EXPECT_THAT(ParseTimeString("1 week ago", t), Optional(Eq(t - absl::Hours(24 * 7))));
+  const absl::Time now = Now();
+  EXPECT_THAT(ParseTimeString("30 seconds ago", now), Optional(Eq(now - absl::Seconds(30))));
+  EXPECT_THAT(ParseTimeString("5 minutes ago", now), Optional(Eq(now - absl::Minutes(5))));
+  EXPECT_THAT(ParseTimeString("2 hours ago", now), Optional(Eq(now - absl::Hours(2))));
+  EXPECT_THAT(ParseTimeString("3 days ago", now), Optional(Eq(now - absl::Hours(72))));
+  EXPECT_THAT(ParseTimeString("1 week ago", now), Optional(Eq(now - absl::Hours(24 * 7))));
 }
 
 TEST_F(DateTimeTest, RelativeCalendarUnits) {
   const absl::TimeZone zone = absl::LocalTimeZone();
-  const absl::Time t = Now();  // 2021-03-15 12:30:00 local
+  const absl::Time now = Now();  // 2021-03-15 12:30:00 local
   EXPECT_THAT(
-      ParseTimeString("1 month ago", t),
+      ParseTimeString("1 month ago", now),
       Optional(Eq(absl::FromCivil(absl::CivilSecond(2'021, 2, 15, 12, 30, 0), zone))));
   EXPECT_THAT(
-      ParseTimeString("13 months ago", t),  // crosses the year boundary
+      ParseTimeString("13 months ago", now),  // crosses the year boundary
       Optional(Eq(absl::FromCivil(absl::CivilSecond(2'020, 2, 15, 12, 30, 0), zone))));
   EXPECT_THAT(
-      ParseTimeString("2 years ago", t),
+      ParseTimeString("2 years ago", now),
       Optional(Eq(absl::FromCivil(absl::CivilSecond(2'019, 3, 15, 12, 30, 0), zone))));
 }
 
 TEST_F(DateTimeTest, SignAndAgoSelectDirection) {
-  const absl::Time t = Now();
+  const absl::Time now = Now();
   // Past: leading '-', or trailing "ago", or both (the redundant case stays past).
-  EXPECT_THAT(ParseTimeString("3 days ago", t), Optional(Eq(t - absl::Hours(72))));
-  EXPECT_THAT(ParseTimeString("-3 days", t), Optional(Eq(t - absl::Hours(72))));
-  EXPECT_THAT(ParseTimeString("-3 days ago", t), Optional(Eq(t - absl::Hours(72))));
+  EXPECT_THAT(ParseTimeString("3 days ago", now), Optional(Eq(now - absl::Hours(72))));
+  EXPECT_THAT(ParseTimeString("-3 days", now), Optional(Eq(now - absl::Hours(72))));
+  EXPECT_THAT(ParseTimeString("-3 days ago", now), Optional(Eq(now - absl::Hours(72))));
   // Future: '+' or no sign, and no "ago".
-  EXPECT_THAT(ParseTimeString("3 days", t), Optional(Eq(t + absl::Hours(72))));
-  EXPECT_THAT(ParseTimeString("+3 days", t), Optional(Eq(t + absl::Hours(72))));
+  EXPECT_THAT(ParseTimeString("3 days", now), Optional(Eq(now + absl::Hours(72))));
+  EXPECT_THAT(ParseTimeString("+3 days", now), Optional(Eq(now + absl::Hours(72))));
 }
 
 TEST_F(DateTimeTest, CompoundDurations) {
   const absl::TimeZone zone = absl::LocalTimeZone();
-  const absl::Time t = Now();  // 2021-03-15 12:30:00 local
+  const absl::Time now = Now();  // 2021-03-15 12:30:00 local
   // Multiple fixed-duration terms sum into one offset; the leading sign or "ago"
   // applies to the whole sum.
-  EXPECT_THAT(ParseTimeString("3 weeks 3 hours", t), Optional(Eq(t + absl::Hours(24 * 7 * 3) + absl::Hours(3))));
-  EXPECT_THAT(ParseTimeString("-3 weeks 3 hours", t), Optional(Eq(t - absl::Hours(24 * 7 * 3) - absl::Hours(3))));
+  EXPECT_THAT(ParseTimeString("3 weeks 3 hours", now), Optional(Eq(now + absl::Hours(24 * 7 * 3) + absl::Hours(3))));
+  EXPECT_THAT(ParseTimeString("-3 weeks 3 hours", now), Optional(Eq(now - absl::Hours(24 * 7 * 3) - absl::Hours(3))));
   EXPECT_THAT(
-      ParseTimeString("1 day 2 hours 30 minutes ago", t),
-      Optional(Eq(t - absl::Hours(24) - absl::Hours(2) - absl::Minutes(30))));
+      ParseTimeString("1 day 2 hours 30 minutes ago", now),
+      Optional(Eq(now - absl::Hours(24) - absl::Hours(2) - absl::Minutes(30))));
   // Calendar and fixed-duration terms combine: shift the civil date, then offset.
   EXPECT_THAT(
-      ParseTimeString("1 year 2 days ago", t),
+      ParseTimeString("1 year 2 days ago", now),
       Optional(Eq(absl::FromCivil(absl::CivilSecond(2'020, 3, 15, 12, 30, 0), zone) - absl::Hours(48))));
   // A dangling count (an odd run of tokens) is rejected.
-  EXPECT_THAT(ParseTimeString("3 weeks 3", t), Eq(std::nullopt));
+  EXPECT_THAT(ParseTimeString("3 weeks 3", now), Eq(std::nullopt));
 }
 
 TEST_F(DateTimeTest, PluralSingularAliasesAndCase) {
-  const absl::Time t = Now();
-  EXPECT_THAT(ParseTimeString("1 day ago", t), Optional(Eq(t - absl::Hours(24))));
-  EXPECT_THAT(ParseTimeString("1 DAY AGO", t), Optional(Eq(t - absl::Hours(24))));
-  EXPECT_THAT(ParseTimeString("90 sec ago", t), Optional(Eq(t - absl::Seconds(90))));
-  EXPECT_THAT(ParseTimeString("90 secs ago", t), Optional(Eq(t - absl::Seconds(90))));
-  EXPECT_THAT(ParseTimeString("2 hr ago", t), Optional(Eq(t - absl::Hours(2))));
+  const absl::Time now = Now();
+  EXPECT_THAT(ParseTimeString("1 day ago", now), Optional(Eq(now - absl::Hours(24))));
+  EXPECT_THAT(ParseTimeString("1 DAY AGO", now), Optional(Eq(now - absl::Hours(24))));
+  EXPECT_THAT(ParseTimeString("90 sec ago", now), Optional(Eq(now - absl::Seconds(90))));
+  EXPECT_THAT(ParseTimeString("90 secs ago", now), Optional(Eq(now - absl::Seconds(90))));
+  EXPECT_THAT(ParseTimeString("2 hr ago", now), Optional(Eq(now - absl::Hours(2))));
 }
 
 TEST_F(DateTimeTest, UnparseableReturnsNullopt) {
-  const absl::Time t = Now();
-  EXPECT_THAT(ParseTimeString("", t), Eq(std::nullopt));
-  EXPECT_THAT(ParseTimeString("someday", t), Eq(std::nullopt));  // not a recognized day keyword
-  EXPECT_THAT(ParseTimeString("next tuesday", t), Eq(std::nullopt));
-  EXPECT_THAT(ParseTimeString("1 day 5 fortnights", t), Eq(std::nullopt));  // unknown unit in a later term
-  EXPECT_THAT(ParseTimeString("5 fortnights", t), Eq(std::nullopt));        // unknown unit
-  EXPECT_THAT(ParseTimeString("days ago", t), Eq(std::nullopt));            // missing count
+  const absl::Time now = Now();
+  EXPECT_THAT(ParseTimeString("", now), Eq(std::nullopt));
+  EXPECT_THAT(ParseTimeString("someday", now), Eq(std::nullopt));  // not a recognized day keyword
+  EXPECT_THAT(ParseTimeString("next tuesday", now), Eq(std::nullopt));
+  EXPECT_THAT(ParseTimeString("1 day 5 fortnights", now), Eq(std::nullopt));  // unknown unit in a later term
+  EXPECT_THAT(ParseTimeString("5 fortnights", now), Eq(std::nullopt));        // unknown unit
+  EXPECT_THAT(ParseTimeString("days ago", now), Eq(std::nullopt));            // missing count
 }
 
 TEST_F(DateTimeTest, FormatTimePresetsAndCustomPatterns) {
   const absl::TimeZone utc = absl::UTCTimeZone();
-  const absl::Time t = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13 12:26:40 UTC (a Sunday)
-  EXPECT_THAT(FormatTime(t, "epoch", utc), "1600000000");
-  EXPECT_THAT(FormatTime(t, "iso8601", utc), "2020-09-13T12:26:40+0000");
-  EXPECT_THAT(FormatTime(t, "iso", utc), "2020-09-13T12:26:40+0000");  // "iso" aliases iso8601
-  EXPECT_THAT(FormatTime(t, "iso8601-basic", utc), "20200913T122640+0000");
-  EXPECT_THAT(FormatTime(t, "iso8601-full", utc), "2020-09-13T12:26:40.000000000+0000");   // sub-second
-  EXPECT_THAT(FormatTime(t, "rfc3339", utc), "2020-09-13T12:26:40+00:00");                 // colon offset
-  EXPECT_THAT(FormatTime(t, "space", utc), "2020-09-13 12:26:40 +0000");                   // space before offset
-  EXPECT_THAT(FormatTime(t, "human", utc), "2020-09-13 12:26:40 +0000");                   // alias of space
-  EXPECT_THAT(FormatTime(t, "", utc), "2020-09-13 12:26:40 +0000");                        // empty -> space default
-  EXPECT_THAT(FormatTime(t, "asctime", utc), "Sun Sep 13 12:26:40 2020");                  // find's default %t
-  EXPECT_THAT(FormatTime(t, "zulu", utc), "2020-09-13T12:26:40Z");                         // UTC, Z
-  EXPECT_THAT(FormatTime(t, "zulu", absl::FixedTimeZone(3'600)), "2020-09-13T12:26:40Z");  // zulu forces UTC
-  EXPECT_THAT(FormatTime(t, "zulu-dense", utc), "20200913T122640Z");                       // Zulu, no separators
-  EXPECT_THAT(FormatTime(t, "%Y/%m/%d", utc), "2020/09/13");                               // custom pattern
+  const absl::Time now = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13 12:26:40 UTC (a Sunday)
+  EXPECT_THAT(FormatTime(now, "epoch", utc), "1600000000");
+  EXPECT_THAT(FormatTime(now, "iso8601", utc), "2020-09-13T12:26:40+0000");
+  EXPECT_THAT(FormatTime(now, "iso", utc), "2020-09-13T12:26:40+0000");  // "iso" aliases iso8601
+  EXPECT_THAT(FormatTime(now, "iso8601-basic", utc), "20200913T122640+0000");
+  EXPECT_THAT(FormatTime(now, "iso8601-full", utc), "2020-09-13T12:26:40.000000000+0000");   // sub-second
+  EXPECT_THAT(FormatTime(now, "rfc3339", utc), "2020-09-13T12:26:40+00:00");                 // colon offset
+  EXPECT_THAT(FormatTime(now, "space", utc), "2020-09-13 12:26:40 +0000");                   // space before offset
+  EXPECT_THAT(FormatTime(now, "human", utc), "2020-09-13 12:26:40 +0000");                   // alias of space
+  EXPECT_THAT(FormatTime(now, "", utc), "2020-09-13 12:26:40 +0000");                        // empty -> space default
+  EXPECT_THAT(FormatTime(now, "asctime", utc), "Sun Sep 13 12:26:40 2020");                  // find's default %now
+  EXPECT_THAT(FormatTime(now, "zulu", utc), "2020-09-13T12:26:40Z");                         // UTC, Z
+  EXPECT_THAT(FormatTime(now, "zulu", absl::FixedTimeZone(3'600)), "2020-09-13T12:26:40Z");  // zulu forces UTC
+  EXPECT_THAT(FormatTime(now, "zulu-dense", utc), "20200913T122640Z");                       // Zulu, no separators
+  EXPECT_THAT(FormatTime(now, "%Y/%m/%d", utc), "2020/09/13");                               // custom pattern
 }
 
 TEST_F(DateTimeTest, FormatTimeZoneSuffixControl) {
   const absl::TimeZone utc = absl::UTCTimeZone();
-  const absl::Time t = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13 12:26:40 UTC
+  const absl::Time now = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13 12:26:40 UTC
   using enum ZoneSuffix;
   // kNever drops the optional offset from a preset that shows one (space / iso / rfc3339)...
-  EXPECT_THAT(FormatTime(t, "space", utc, kNever), "2020-09-13 12:26:40");
-  EXPECT_THAT(FormatTime(t, "iso", utc, kNever), "2020-09-13T12:26:40");
-  EXPECT_THAT(FormatTime(t, "rfc3339", utc, kNever), "2020-09-13T12:26:40");
+  EXPECT_THAT(FormatTime(now, "space", utc, kNever), "2020-09-13 12:26:40");
+  EXPECT_THAT(FormatTime(now, "iso", utc, kNever), "2020-09-13T12:26:40");
+  EXPECT_THAT(FormatTime(now, "rfc3339", utc, kNever), "2020-09-13T12:26:40");
   // ...but never removes zulu's mandatory Z, and leaves asctime (no offset) alone.
-  EXPECT_THAT(FormatTime(t, "zulu", utc, kNever), "2020-09-13T12:26:40Z");
-  EXPECT_THAT(FormatTime(t, "asctime", utc, kNever), "Sun Sep 13 12:26:40 2020");
+  EXPECT_THAT(FormatTime(now, "zulu", utc, kNever), "2020-09-13T12:26:40Z");
+  EXPECT_THAT(FormatTime(now, "asctime", utc, kNever), "Sun Sep 13 12:26:40 2020");
   // kAlways forces an offset, even onto asctime which omits it by default.
-  EXPECT_THAT(FormatTime(t, "asctime", utc, kAlways), "Sun Sep 13 12:26:40 2020 +0000");
-  EXPECT_THAT(FormatTime(t, "space", utc, kAlways), "2020-09-13 12:26:40 +0000");  // already had one
+  EXPECT_THAT(FormatTime(now, "asctime", utc, kAlways), "Sun Sep 13 12:26:40 2020 +0000");
+  EXPECT_THAT(FormatTime(now, "space", utc, kAlways), "2020-09-13 12:26:40 +0000");  // already had one
   // A custom pattern is never touched by the suffix control - the user's own %z stands.
-  EXPECT_THAT(FormatTime(t, "%Y %z", utc, kNever), "2020 +0000");
-  EXPECT_THAT(FormatTime(t, "%Y", utc, kAlways), "2020");  // no offset appended to a custom pattern
+  EXPECT_THAT(FormatTime(now, "%Y %z", utc, kNever), "2020 +0000");
+  EXPECT_THAT(FormatTime(now, "%Y", utc, kAlways), "2020");  // no offset appended to a custom pattern
 }
 
 TEST_F(DateTimeTest, ParseTimeZoneAcceptsLocalUtcAndNamedZones) {
@@ -257,7 +257,7 @@ TEST_F(DateTimeTest, TimeZoneArgInterpretsCalendarFormsButNotAbsoluteOnes) {
   // Midnight in UTC is one hour after midnight in UTC+1 (same wall-clock date).
   EXPECT_THAT(
       ParseTimeString("2020-01-02", Now(), utc),
-      Optional(Eq(*ParseTimeString("2020-01-02", Now(), plus1) + absl::Hours(1))));
+      Optional(Eq(absl::FromCivil(absl::CivilSecond(2'020, 1, 2, 0, 0, 0), plus1) + absl::Hours(1))));
   // @epoch is an absolute instant: the zone must not shift it.
   EXPECT_THAT(ParseTimeString("@1600000000", Now(), plus1), Optional(Eq(absl::FromUnixSeconds(1'600'000'000))));
 }

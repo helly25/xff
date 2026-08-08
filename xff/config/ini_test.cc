@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-FileCopyrightText: Copyright (cfg) The helly25 authors (helly25.com)
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,41 +44,41 @@ Matcher<PolicyRule> PolicyRuleIs(
 }
 
 TEST_F(IniTest, DefaultsRenderToCliTokens) {
-  const SystemConfig c = ParseIni("[defaults]\n--color = auto\n--warn\n");
-  EXPECT_THAT(c.defaults, ElementsAre("--color=auto", "--warn"));
-  EXPECT_THAT(c.policy, IsEmpty());
+  const SystemConfig cfg = ParseIni("[defaults]\n--color = auto\n--warn\n");
+  EXPECT_THAT(cfg.defaults, ElementsAre("--color=auto", "--warn"));
+  EXPECT_THAT(cfg.policy, IsEmpty());
 }
 
 TEST_F(IniTest, PolicyAllowDenyAndClassTokens) {
-  const SystemConfig c = ParseIni(
+  const SystemConfig cfg = ParseIni(
       "[policy]\n"
       "project.allow = --sort, --color, --format\n"
       "project.deny  = --threads\n"
       "user.allow    = @sensitive\n");
   EXPECT_THAT(
-      c.policy, ElementsAre(
-                    PolicyRuleIs("project", true, ElementsAre("--sort", "--color", "--format")),
-                    PolicyRuleIs("project", false, ElementsAre("--threads")),
-                    PolicyRuleIs("user", true, ElementsAre("@sensitive"))));
+      cfg.policy, ElementsAre(
+                      PolicyRuleIs("project", true, ElementsAre("--sort", "--color", "--format")),
+                      PolicyRuleIs("project", false, ElementsAre("--threads")),
+                      PolicyRuleIs("user", true, ElementsAre("@sensitive"))));
 }
 
 TEST_F(IniTest, CommentsBlanksAndBothSections) {
-  const SystemConfig c =
+  const SystemConfig cfg =
       ParseIni("; a comment\n# another\n[defaults]\n\n--color = never\n[policy]\nproject.allow = --sort\n");
-  EXPECT_THAT(c.defaults, ElementsAre("--color=never"));
-  EXPECT_THAT(c.policy, ElementsAre(PolicyRuleIs("project", true, ElementsAre("--sort"))));
+  EXPECT_THAT(cfg.defaults, ElementsAre("--color=never"));
+  EXPECT_THAT(cfg.policy, ElementsAre(PolicyRuleIs("project", true, ElementsAre("--sort"))));
 }
 
 TEST_F(IniTest, MalformedPolicyLinesIgnored) {
   // No '=', no '.', and an unknown kind are each ignored (forgiving parse).
-  const SystemConfig c = ParseIni("[policy]\nnonsense\nproject = x\nproject.maybe = x\n");
-  EXPECT_THAT(c.policy, IsEmpty());
+  const SystemConfig cfg = ParseIni("[policy]\nnonsense\nproject = x\nproject.maybe = x\n");
+  EXPECT_THAT(cfg.policy, IsEmpty());
 }
 
 TEST_F(IniTest, LinesOutsideKnownSectionsIgnored) {
-  const SystemConfig c = ParseIni("--color = auto\n[unknown]\n--foo = bar\n");
-  EXPECT_THAT(c.defaults, IsEmpty());
-  EXPECT_THAT(c.policy, IsEmpty());
+  const SystemConfig cfg = ParseIni("--color = auto\n[unknown]\n--foo = bar\n");
+  EXPECT_THAT(cfg.defaults, IsEmpty());
+  EXPECT_THAT(cfg.policy, IsEmpty());
 }
 
 }  // namespace

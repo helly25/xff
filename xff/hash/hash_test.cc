@@ -69,9 +69,9 @@ TEST_F(HashTest, ParseEncoding) {
 }
 
 TEST_F(HashTest, IsAlgorithmAndNames) {
-  EXPECT_THAT(IsAlgorithm("sha256"), ::testing::IsTrue());
-  EXPECT_THAT(IsAlgorithm("blake3"), ::testing::IsTrue());
-  EXPECT_THAT(IsAlgorithm("crc32"), ::testing::IsFalse());
+  EXPECT_THAT(IsAlgorithm("sha256"), IsTrue());
+  EXPECT_THAT(IsAlgorithm("blake3"), IsTrue());
+  EXPECT_THAT(IsAlgorithm("crc32"), IsFalse());
   // The full fixed-size set is exposed, sorted, and every name round-trips through IsAlgorithm.
   EXPECT_THAT(
       AlgorithmNames(), IsSupersetOf(
@@ -87,7 +87,7 @@ TEST_F(HashTest, HashFileReadsAndHashesContent) {
       HashFile("sha256", path), Optional(Eq("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")));
   EXPECT_THAT(
       HashFile("sha256", path, Encoding::kBase64), Optional(Eq("ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=")));
-  std::remove(path.c_str());
+  (void)std::remove(path.c_str());
 }
 
 TEST_F(HashTest, HashFileMissingOrBadAlgorithmIsNullopt) {
@@ -95,7 +95,7 @@ TEST_F(HashTest, HashFileMissingOrBadAlgorithmIsNullopt) {
   const std::string path = std::string(::testing::TempDir()) + "/xff_hash_test_bad";
   { std::ofstream(path) << "abc"; }
   EXPECT_THAT(HashFile("crc32", path), Eq(std::nullopt));  // unknown algo -> nullopt even for a readable file
-  std::remove(path.c_str());
+  (void)std::remove(path.c_str());
 }
 
 }  // namespace

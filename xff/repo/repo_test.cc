@@ -117,12 +117,12 @@ TEST_F(RepoTest, FindsARepoAtTheFilesystemRoot) {
 }
 
 TEST_F(RepoTest, ReturnsNulloptWhenNoAncestorHasGit) {
-  StatOnlyFs fs;
+  const StatOnlyFs fs;
   EXPECT_THAT(FindRepoRoot(fs, "/a/b/c"), Eq(std::nullopt));
 }
 
 TEST_F(RepoTest, ReturnsNulloptFromTheRootWithNoGit) {
-  StatOnlyFs fs;
+  const StatOnlyFs fs;
   EXPECT_THAT(FindRepoRoot(fs, "/"), Eq(std::nullopt));
 }
 
@@ -145,7 +145,7 @@ TEST_F(RepoTest, GlobalExcludesKeyAndSectionAreCaseInsensitive) {
 }
 
 TEST_F(RepoTest, GlobalExcludesDefaultsToXdgGitIgnoreWhenUnset) {
-  FakeFs fs;  // no config files at all
+  const FakeFs fs;  // no config files at all
   EXPECT_THAT(GlobalExcludesPath(fs, {.home = "/home/u"}), Optional(Eq("/home/u/.config/git/ignore")));
 }
 
@@ -163,7 +163,7 @@ TEST_F(RepoTest, GlobalExcludesGitconfigWinsOverXdg) {
 }
 
 TEST_F(RepoTest, GlobalExcludesIsNulloptWithoutHomeOrXdg) {
-  FakeFs fs;
+  const FakeFs fs;
   EXPECT_THAT(GlobalExcludesPath(fs, {}), Eq(std::nullopt));
 }
 
