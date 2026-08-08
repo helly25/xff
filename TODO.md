@@ -59,17 +59,28 @@ intent, not hard dependency. Task numbers reference the agent task list.
   (mirrors `clang_format.sh`), version-gates it, requires the compile DB, and reports only
   (no `--fix`). It is `stages: [manual]` (opt-in via `pre-commit run clang-tidy`) until the
   follow-ups below; promote it to an automatic gate by dropping `stages`:
-  1. **Fix the generated compile DB's include-path ordering.** clang-tidy-22 aborts
-     ("too many errors, stopping now") on any TU that pulls `<version>` - the cdb lists
-     mbo's include dir ahead of libc++, so `#include <version>` resolves to mbo's plain-text
-     `version` file (and abseil's `std::result_of` reference then fails). Fix the extractor /
-     path ordering so the hermetic libc++ wins.
-  2. **Sweep the clang-tidy-22 finding set across `xff/`.** Beyond the two convention-conflict
-     checks already disabled (`llvm-header-guard`, `llvm-prefer-static-over-anonymous-namespace`),
-     triage `misc-include-cleaner` (umbrella-header attribution), `misc-const-correctness`,
-     `performance-unnecessary-value-param`, `concurrency-mt-unsafe` (getenv), `hicpp-vararg`
-     (ioctl) - fix or narrowly suppress, then re-tune `.clang-tidy`.
-  3. Once the codebase is clean, drop `stages: [manual]` so the hook gates every commit.
+  1. **Fix the generated compile DB - ROOT CAUSE FOUND, port from mbo #270 (merged 2026-08-08).**
+     The abort ("too many errors" / `'concepts'` / `'time.h' file not found`) was NOT the
+     `<version>`-shadowing theory. `compile_commands-update.sh` runs
+     `bazel run @…//:refresh_all --config=clang`, but `--config=clang` only configures the build
+     of the _extractor tool_ and never reaches the internal `aquery`, so every recorded command
+     named the autodetected **Apple clang**, not the hermetic toolchain clang-tidy uses. Port mbo's
+     fix: bump the extractor pin `75ba4c3` -> `6eb3ff1` (`bazelmod/dev.MODULE.bazel`; adds
+     `--bcce-prefer-target-config`), replace the script to resolve the hermetic `clang++` and pass
+     `--bcce-compiler=<clang++>` + `--bcce-prefer-target-config` **after `--`** (bazel eats them
+     otherwise), plus Darwin-only `--bcce-copt=-isysroot$(xcrun --show-sdk-path)` (hermetic clang
+     has libc++ but no system C headers); add a probe target to materialize the toolchain on a
+     fresh checkout. No `--extra-arg` hack in `clang_tidy.sh` is then needed. Also fix the still-
+     misspelled `.clang-tidy` `bugprone-signed-char-misuse.CharTypdefsToIgnore` ->
+     `CharTypedefsToIgnore` (`WarningsAsErrors: '*'` + the header-guard disables are already done).
+  2. **Add a report-only CI job** (`continue-on-error: true`) that builds the DB + runs the manual
+     hook, so the ubuntu path gets exercised without gating - mirrors mbo #270.
+  3. **Sweep the clang-tidy-22 finding set across `xff/`** on the now-clean parse: `misc-include-cleaner`,
+     `misc-const-correctness`, `performance-unnecessary-value-param`, `concurrency-mt-unsafe` (getenv),
+     `hicpp-vararg` (ioctl / exec), and the noisy new-in-22
+     `cppcoreguidelines-pro-bounds-avoid-unchecked-container-access` (fires on every `operator[]`;
+     mbo saw ~80% of findings from it - re-tune `.clang-tidy` for it) - fix or narrowly suppress.
+  4. Once clean, drop `stages: [manual]` + `continue-on-error` so the hook gates every commit.
 - **Adopt pre-commit.** `.pre-commit-config.yaml` (+ `.pre-commit/` scripts) and a
   CI `pre-commit` job: clang-format (mirrors-clang-format), shfmt, shellcheck,
   actionlint, and the local hooks (`no-do-not-merge`, `no-todos-without-context`,
