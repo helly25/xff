@@ -99,7 +99,24 @@ done
 # Nothing to check (pre-commit may invoke with no matching files).
 [ "${#}" -gt 0 ] || exit 0
 
+# mbo is exposed on the `-isystem` search path (so `#include "mbo/..."` resolves), and it
+# ships a plain-text file literally named `version` at its repo root. An explicit -isystem
+# is searched before the compiler's builtin libc++, so `#include <version>` (from libc++ /
+# abseil) picks up mbo's `version` and the parse collapses. Put the HERMETIC libc++ dir on
+# -isystem *before* the recorded command so the real `<version>` wins. It must be the
+# hermetic libc++ (matching the DB's clang), not the SDK's, or its mbstate_t/_CTYPE differ.
+declare -a EXTRA_ARGS=()
+for CXX_V1 in \
+  "${OUTPUT_BASE}/external/toolchains_llvm++llvm+llvm_toolchain_llvm_llvm/include/c++/v1" \
+  "${OUTPUT_BASE}/external/toolchains_llvm~~llvm~llvm_toolchain_llvm_llvm/include/c++/v1" \
+  "${OUTPUT_BASE}/external/llvm_toolchain_llvm/include/c++/v1"; do
+  if [ -d "${CXX_V1}" ]; then
+    EXTRA_ARGS+=("--extra-arg-before=-isystem${CXX_V1}")
+    break
+  fi
+done
+
 # Report only: --header-filter restricts diagnostics to this repo's own headers
 # (not the toolchain's force-included / system headers), -p points at the compile
 # DB. WarningsAsErrors in .clang-tidy makes any finding a non-zero exit.
-exec "${CLANG_TIDY}" --header-filter='(^|/)xff/' -p . "${@}"
+exec "${CLANG_TIDY}" --header-filter='(^|/)xff/' "${EXTRA_ARGS[@]}" -p . "${@}"
