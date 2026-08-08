@@ -824,3 +824,22 @@ concrete need appears.
   disables. Paging runs via `sh -c` (args / pipelines work), with a stdout fallback on any failure.
   Rejected: a help-scoped `--help-pager` name and a `--help=paged` content topic - paging is an
   orthogonal behavior, not a content selector.
+- **Fuzzy finding + near-duplicate detection** (design open). Two distinct capabilities that share the
+  "approximate match" theme; split them, do not conflate:
+  1. **Fuzzy name/path matching** - an fzf/fd-style approximate match over the path or basename, as its
+     own primary (single-dash, e.g. `-fuzzy PATTERN` / `-ifuzzy`) rather than overloading `-name`.
+     Decide the algorithm: subsequence match (fzf-style: characters of PATTERN appear in order, with a
+     rank score) vs bounded edit distance (Levenshtein <= k). Ranking implies output ordering, so it
+     ties into `--sort` (a `--sort=score` mode) and a possible `--top=N`; a bare boolean predicate can
+     also just gate at a score threshold. xff-flavor only (kXff-gated); find flavor rejects it.
+  2. **Content near-duplicate / similarity** via **w-shingling**
+     (https://en.wikipedia.org/wiki/W-shingling): represent each text file as the set of its
+     contiguous w-token shingles (w-word or w-character k-grams), and score similarity as the Jaccard
+     overlap of two shingle sets; **MinHash** approximates Jaccard cheaply so it scales to a whole
+     tree without O(n^2) full-set comparisons. Use cases: "find files similar to X" (a per-entry
+     matcher against a reference file via the field vocabulary, like `-cmp`/`-diff` take a target),
+     and grouping near-duplicates across the walk (a reduction, like `--summary`, emitting clusters).
+     Design against the existing content/text machinery (`-text` gating, the content readers) and the
+     hashing lib (MinHash wants a fast hash; reuse xff/hash or mbo::digest). Open: shingle width w and
+     the similarity threshold as flags; whether v1 is the pairwise matcher only, deferring the
+     cross-tree clustering reduction. Likely a build-time extra if it pulls weight.
