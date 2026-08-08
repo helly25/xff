@@ -194,20 +194,16 @@ absl::StatusOr<std::string> RenderTopic(std::string_view topic, xff::cli::HelpRe
   if (topic == "full" || topic == "long") {
     return FullReference(context);
   }
-  // The registry-backed special topics (list, config, stats, ...) take precedence, so
-  // a topic that also names a flag (e.g. `config` vs `--config`) resolves to the topic.
-  absl::StatusOr<std::string> special = xff::cli::RenderHelp(topic);
-  if (special.ok()) {
-    return special;
-  }
-  // Otherwise a single primary / flag entry, rendered from the model so it wraps
-  // (and later colors) via the context.
+  // Otherwise a single primary / flag entry, rendered from the model so it wraps (and
+  // later colors) via the context. Topic names take precedence over same-named flags
+  // (e.g. `config` resolves to the topic above, not the `--config` flag) because the
+  // TopicReference / IndexReference branches run first.
   if (std::optional<xff::cli::Document> entry = xff::cli::EntryReference(topic); entry.has_value()) {
     xff::cli::PlainTextBackend backend(context);
     xff::cli::RenderDocument(*entry, backend);
     return backend.Take();
   }
-  return special.status();  // RenderHelp's not-found; the caller composes the message
+  return absl::NotFoundError("");  // unknown topic; the caller composes the user-facing message
 }
 
 }  // namespace
