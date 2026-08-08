@@ -69,5 +69,22 @@ TEST_F(WrapTextTest, CollapsesWhitespaceRunsBetweenWords) {
   EXPECT_THAT(WrapText("one   two\tthree", 40, "", ""), Eq("one two three\n"));
 }
 
+TEST_F(WrapTextTest, AnsiEscapesAreZeroWidthForWrapping) {
+  // Each word is wrapped in a color escape ("\x1b[36m" ... "\x1b[0m") whose bytes are
+  // zero visible columns. At width 11 the three 3-letter words wrap exactly as their
+  // uncolored counterparts would ("one two" = 7 cols fits, + "six" = 11 fits): so
+  // wrapping is driven by the visible width, not the (much longer) byte length.
+  EXPECT_THAT(
+      WrapText("\x1b[36mone\x1b[0m \x1b[36mtwo\x1b[0m \x1b[36msix\x1b[0m", 11, "", ""),
+      Eq("\x1b[36mone\x1b[0m \x1b[36mtwo\x1b[0m \x1b[36msix\x1b[0m\n"));
+}
+
+TEST_F(WrapTextTest, AnsiInIndentCountsAsZeroWidthBudget) {
+  // A colored indent spends only its visible columns (the 2 spaces), not its 8 bytes.
+  // At width 7 the visible budget is 7 - 2 = 5, so "ab cd" (5 cols) fits on one line;
+  // had the 8 escape bytes counted, the budget would be 0 and every word would wrap.
+  EXPECT_THAT(WrapText("ab cd", 7, "\x1b[1m  \x1b[0m", "  "), Eq("\x1b[1m  \x1b[0mab cd\n"));
+}
+
 }  // namespace
 }  // namespace xff::cli

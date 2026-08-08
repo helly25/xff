@@ -778,28 +778,24 @@ renderers + a help_topic_test assertion. The diagram is duplicated in help.cc`Re
 
 ### Help / docs rendering (post-#126)
 
-Follow-ons to #126 (the shared DocRenderer walk + the plain-text PlainRenderer). Both improve the
-rendered `--help` / `--man` / `--markdown` off the one walk.
+The generalized help model (EPIC #154) is **DONE**: one SOT model (`help_model.h`: Document ->
+Section -> Content) built by `help_build.cc`, rendered by the plain / markdown / roff backends off a
+single `RenderDocument` walk. The imperative `RenderHelp` cluster is retired; `--help` / `--man` /
+`--markdown` all render from the model, so they cannot drift. The follow-ons below shipped as part of
+it:
 
-- **Structured examples: per-recipe heading + own shell block + prose explanation.** The Examples
-  section is emitted as ONE verbatim block (`WriteReference` -> `out.Example(RenderHelp("cookbook"))`),
-  so in Markdown the whole section is a single shell fence, in `--man` one preformatted `.nf` block,
-  and in plain `--help` one unwrapped block - every explanation is preformatted and never wraps in any
-  format. Because the fix lives in the shared walk it corrects all three renderers at once. Model each
-  recipe as structured data (`{name, command, explanation}`) and render it through the DocRenderer so
-  each format emits it natively: the recipe name as a heading (Subsection), the command as its own
-  shell code block (Example), and the explanation as flowing prose (Prose). Keep the `cookbook_test`
-  guard (each recipe has a run case).
-- **Text-flow width control in plain `--help`.** PlainRenderer emits Prose as single unwrapped lines,
-  so a long explanation runs off the width. Give the renderer a target width and word-wrap Prose to it
-  (Example blocks stay verbatim; the aligned `{term}` rows keep their layout). Width source to settle
-  during the build: honor the terminal width / `$COLUMNS` on a TTY, fall back to a fixed column (e.g. 80) when piped, optionally a `--width=N` override. Pairs with the structured-examples item - once the
-  explanations are prose, they need this to wrap.
-  - **Wrapping must be indent-aware.** For the direct help output in particular, a wrapped line must
-    carry the correct indentation on its continuation lines: an entry's detail, a bullet, an aligned
-    row, or a nested subsection wraps under its own first line, not back to the left margin. So the
-    width budget is per-indent-level (width minus the current indent), not a single global column - a
-    first-class requirement of the plain backend, not an afterthought.
+- **Structured examples** (SHIPPED): recipes are structured data (`{task, command, note}`); the model
+  emits each as a Subsection heading + an Example block + Prose, so every backend renders it natively
+  (Markdown fence, roff `.nf`, plain verbatim). `cookbook_test` still guards one run case per recipe.
+- **Text-flow width control** (SHIPPED #393-#395 and prior): `WrapText` word-wraps Prose to a target
+  width (`--width=N`, else the TTY width / `$COLUMNS`, else unrestricted when piped); Example blocks
+  stay verbatim and aligned `{term}` rows keep their layout. Wrapping is **indent-aware** - the budget
+  is per-indent-level (width minus the current visible indent), so continuation lines hang under their
+  own first line, not the left margin.
+- **Color** (SHIPPED #396): the plain backend colors headings (bold), flag/primary names (bold cyan),
+  value/item terms (cyan), and verbatim example code (green), gated on `--color=auto|always|never` +
+  `NO_COLOR` resolved at the CLI boundary. `WrapText` is ANSI-aware (escapes are zero visible width).
+  Color off is byte-identical to before; `--markdown` / `--man` are unaffected.
 
 - **ASN.1 GeneralizedTime datetime format + timezone-suffix control.** `xff/datetime` is missing the
   ASN.1 `GeneralizedTime` format `YYYYMMDDHHMMSS`, plus its `Z` (zulu) variant and its explicit
@@ -820,3 +816,14 @@ concrete need appears.
 - **Custom histogram bucket edges / counts** (#81): explicit numeric-range boundaries or a target
   bucket count (e.g. `--histogram-buckets=...`) in place of the automatic log / linear ranging.
   Deferred until the auto ranging proves insufficient in practice.
+- **Pager for long help / reference output** (`--pager=CMD`). Now that `--help` is colored and
+  wraps, a git-style pager makes the long reference (`--help=full`, `--man`, `--markdown`) actually
+  readable. Design leaning: `--pager=CMD` pipes the meta-output through `CMD`; default is auto - use a
+  pager only when stdout is a TTY, honoring `$PAGER` then falling back to `less -FRX` (`-R` keeps our
+  ANSI color, `-F` quits if it fits one screen, `-X` avoids clearing); `--pager=none` / `--no-pager`
+  disables. Because auto-pager implies a TTY, it also flips help `--color` to on by default there, so
+  the two features pair. Scope is fork/exec the pager, dup stdout onto its stdin, wait, and handle
+  `SIGPIPE` / a missing pager binary gracefully; it only pages xff's own emitted text (so `--markdown`
+  and plain/colored `--help` benefit directly - paging raw `--man` roff is only useful if the user's
+  `CMD` runs `mandoc`, which is their choice, e.g. `--pager='mandoc | less -R'`). Confirm the default
+  (auto vs off) before building - it changes behavior for every interactive `--help`.

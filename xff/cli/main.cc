@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -35,6 +37,7 @@
 #include "xff/cli/manpage.h"
 #include "xff/cli/markdown.h"
 #include "xff/cli/plain_backend.h"
+#include "xff/color/color.h"
 #include "xff/config/config.h"
 #include "xff/config/loader.h"
 #include "xff/config/policy.h"
@@ -228,7 +231,11 @@ int RunMain(int argc, char** argv) {
     std::cerr << "xff: " << help_width.status().message() << "\n";
     return 2;
   }
-  const xff::cli::HelpRenderContext help_context{.width = *help_width};
+  // --color drives help color too (auto = a tty with NO_COLOR unset; always overrides).
+  // Scanned from argv like --width, since --help short-circuits before the full parse.
+  const bool help_color = xff::color::Enabled(
+      xff::color::ResolveWhen(args), ::isatty(STDOUT_FILENO) != 0, std::getenv("NO_COLOR") != nullptr);
+  const xff::cli::HelpRenderContext help_context{.width = *help_width, .color = help_color};
 
   // Help and version, scanned anywhere in the arguments (find prints usage on a
   // bare --help wherever it lands). xff stays flag-only -- no `help` subcommand --

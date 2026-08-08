@@ -23,6 +23,32 @@
 #include "absl/strings/str_split.h"
 
 namespace xff::cli {
+namespace {
+
+// The visible column width of `s`, skipping ANSI SGR escape sequences ("\x1b[...m"). So a
+// colored word or indent wraps by its on-screen width, not its byte length - the escapes
+// are zero-width. Used for every width comparison below; the raw (colored) bytes are still
+// what gets emitted.
+std::size_t VisibleWidth(std::string_view text) {
+  std::size_t width = 0;
+  for (std::size_t i = 0; i < text.size();) {
+    if (text[i] == '\x1b' && i + 1 < text.size() && text[i + 1] == '[') {
+      i += 2;
+      while (i < text.size() && (text[i] < '@' || text[i] > '~')) {
+        ++i;  // CSI parameter / intermediate bytes
+      }
+      if (i < text.size()) {
+        ++i;  // the final byte (e.g. 'm')
+      }
+    } else {
+      ++width;
+      ++i;
+    }
+  }
+  return width;
+}
+
+}  // namespace
 
 std::string WrapText(
     std::string_view text,
@@ -46,10 +72,13 @@ std::string WrapText(
   for (const std::string_view word : absl::StrSplit(text, absl::ByAnyChar(" \t\n"), absl::SkipEmpty())) {
     // The content budget is the columns left once this line's indent is spent; a
     // fresh line always takes the word (even if it overflows) rather than looping.
-    const std::size_t budget = width > indent.size() ? width - indent.size() : 0;
+    // Widths are visible widths (ANSI escapes are zero-width) so colored words / indents
+    // wrap by their on-screen size.
+    const std::size_t indent_width = VisibleWidth(indent);
+    const std::size_t budget = width > indent_width ? width - indent_width : 0;
     if (line.empty()) {
       line = std::string(word);
-    } else if (line.size() + 1 + word.size() <= budget) {
+    } else if (VisibleWidth(line) + 1 + VisibleWidth(word) <= budget) {
       absl::StrAppend(&line, " ", word);
     } else {
       flush();

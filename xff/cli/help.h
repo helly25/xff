@@ -18,7 +18,6 @@
 
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 #include "absl/types/span.h"
@@ -37,13 +36,6 @@ struct Recipe {
 
 // The cookbook recipes, in display order. Rendered as model nodes by BuildExamples().
 [[nodiscard]] absl::Span<const Recipe> CookbookRecipes();
-
-// Renders {code, description} rows as an aligned indented list:
-// `<indent><code padded to the widest code + 2 spaces><description>`. Used by the plain
-// help backend so every code list indents and aligns the same way.
-std::string RenderDocRows(
-    std::string_view indent,
-    const std::vector<std::pair<std::string_view, std::string_view>>& rows);
 
 // The argument-shape hint shown after a primary's name: " ARG" (arity 1), " ARG ARG"
 // (arity 2), " CMD... ;" (variadic), "=NAME[=REGEX] CMD... ;" (a binding action), or

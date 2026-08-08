@@ -157,6 +157,29 @@ TEST_F(HelpTest, ValuedFlagDocumentsItsPlaceholderValues) {
                      HasSubstr("linear-time"), HasSubstr("PCRE2")));
 }
 
+TEST_F(HelpTest, ColorContextEmitsThePalette) {
+  // The full reference exercises every colored node kind. With color on, the plain
+  // backend emits the palette: bold headings, bold-cyan entry terms (flag / primary
+  // names), cyan value-table terms, and green verbatim example code. (auto vs always is
+  // resolved at the CLI boundary; the backend only sees the resolved bool.)
+  const Document doc = BuildReference();
+  PlainTextBackend colored(HelpRenderContext{.color = true});
+  RenderDocument(doc, colored);
+  const std::string out = colored.Take();
+  EXPECT_THAT(out, HasSubstr("\x1b[1m"));     // headings: bold
+  EXPECT_THAT(out, HasSubstr("\x1b[1;36m"));  // names: bold cyan
+  EXPECT_THAT(out, HasSubstr("\x1b[36m"));    // values / items: cyan
+  EXPECT_THAT(out, HasSubstr("\x1b[32m"));    // example code: green
+}
+
+TEST_F(HelpTest, PlainContextEmitsNoAnsi) {
+  // The default (color off) renders byte-for-byte the same as before: zero escapes.
+  const Document doc = BuildReference();
+  PlainTextBackend plain(HelpRenderContext{.color = false});
+  RenderDocument(doc, plain);
+  EXPECT_THAT(plain.Take(), Not(HasSubstr("\x1b[")));
+}
+
 TEST_F(HelpTest, UsagePageHelpSectionListsFlagsAndTopics) {
   // The usage page's Help section is built from HelpFlags() + the topic index (the model's
   // BuildHelpSection), not a hand-written string: the meta/doc flags plus the nested topics.

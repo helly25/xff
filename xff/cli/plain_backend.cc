@@ -26,12 +26,26 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
-#include "xff/cli/help.h"
 #include "xff/cli/help_model.h"
 #include "xff/cli/wrap.h"
 
 namespace xff::cli {
 namespace {
+
+// The help color palette (ANSI SGR). WrapText measures visible width (skipping these
+// escapes), so colored words wrap by their on-screen size; still, applied per line /
+// per whole-line element so a reset never straddles a newline.
+constexpr std::string_view kReset = "\x1b[0m";
+constexpr std::string_view kHeading = "\x1b[1m";   // section / subsection headings: bold
+constexpr std::string_view kName = "\x1b[1;36m";   // flag / primary names (entry terms): bold cyan
+constexpr std::string_view kValue = "\x1b[36m";    // value-table values / items: cyan
+constexpr std::string_view kExample = "\x1b[32m";  // verbatim example / command code: green
+
+// Wraps `text` in `code` (+ reset) when `color`, else returns it unchanged. Resolving
+// auto vs always (and NO_COLOR) happens at the CLI boundary; here `color` is the decision.
+std::string Sgr(std::string_view text, std::string_view code, bool color) {
+  return color ? absl::StrCat(code, text, kReset) : std::string(text);
+}
 
 // Reconstructs the authored inline string, keeping `code` backticks - a term, a row
 // description, and an entry's summary / detail pass through with their markup (as the
@@ -97,7 +111,7 @@ void PlainTextBackend::BeginSection(const Section& section) {
   }
   // House style: top-level headings are upper-cased (PRINTF DIRECTIVES / TIME FORMATS).
   StartBlock();
-  absl::StrAppend(&out_, BodyIndent(), absl::AsciiStrToUpper(section.title), "\n");
+  absl::StrAppend(&out_, BodyIndent(), Sgr(absl::AsciiStrToUpper(section.title), kHeading, Context().color), "\n");
   ++depth_;  // the section body indents under its heading
 }
 
@@ -119,7 +133,7 @@ void PlainTextBackend::BeginSubsection(const Subsection& subsection) {
     return;
   }
   StartBlock();
-  absl::StrAppend(&out_, BodyIndent(), subsection.title, ":\n");
+  absl::StrAppend(&out_, BodyIndent(), Sgr(absl::StrCat(subsection.title, ":"), kHeading, Context().color), "\n");
   ++depth_;  // the subsection body indents under its heading
 }
 
@@ -137,7 +151,7 @@ void PlainTextBackend::BeginEntry(const Entry& entry) {
   } else if (entry.xff) {
     tag = "  (xff)";
   }
-  absl::StrAppend(&out_, BodyIndent(), entry.term, tag, "\n");
+  absl::StrAppend(&out_, BodyIndent(), Sgr(entry.term, kName, Context().color), tag, "\n");
   ++depth_;  // the summary + detail indent under the term
   const std::string indent = BodyIndent();
   absl::StrAppend(&out_, WrapText(RenderInlinesRaw(entry.summary), Context().width, indent, indent));
@@ -170,7 +184,7 @@ void PlainTextBackend::EmitExample(const Example& example) {
     text.remove_suffix(1);  // avoid a trailing indent-only line from a final newline
   }
   for (const std::string_view line : absl::StrSplit(text, '\n')) {
-    absl::StrAppend(&out_, indent, line, "\n");
+    absl::StrAppend(&out_, indent, Sgr(line, kExample, Context().color), "\n");
   }
 }
 
@@ -198,22 +212,16 @@ void PlainTextBackend::EmitRows(const Rows& rows) {
   }
   term_width += 2;  // a 2-space gap after the widest term
 
-  if (Context().width == 0) {
-    // No wrapping: the verbatim aligned table.
-    std::vector<std::pair<std::string_view, std::string_view>> doc_rows;
-    doc_rows.reserve(rows.rows.size());
-    for (std::size_t i = 0; i < rows.rows.size(); ++i) {
-      doc_rows.emplace_back(rows.rows[i].term, descriptions[i]);
-    }
-    absl::StrAppend(&out_, RenderDocRows(indent, doc_rows));
-    return;
-  }
-  // Wrap each description to the width, its continuation lines hanging under the
-  // description column (the body indent + the padded term column).
+  // The description column hangs under the padded term column. WrapText with width==0
+  // emits the verbatim aligned line (prefix + description); width>0 wraps the description
+  // with its continuation lines under the same column. The term is colored as a value /
+  // item; padding uses the raw term length (the color escapes are zero-width) so the
+  // column still lines up, and WrapText measures visible width for the same reason.
   const std::string hang = indent + std::string(term_width, ' ');
   for (std::size_t i = 0; i < rows.rows.size(); ++i) {
+    const std::string_view term = rows.rows[i].term;
     const std::string prefix =
-        absl::StrCat(indent, rows.rows[i].term, std::string(term_width - rows.rows[i].term.size(), ' '));
+        absl::StrCat(indent, Sgr(term, kValue, Context().color), std::string(term_width - term.size(), ' '));
     absl::StrAppend(&out_, WrapText(descriptions[i], Context().width, prefix, hang));
   }
 }
