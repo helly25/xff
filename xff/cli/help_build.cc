@@ -122,6 +122,18 @@ void AppendInfluence(Blocks* blocks, std::string_view header, const std::vector<
   blocks->push_back(ProseOf(absl::StrCat(header, " ", absl::StrJoin(names, ", "))));
 }
 
+// The `<PLACEHOLDER>` name from a flag display (e.g. "--summary[=<GROUP>]" -> "GROUP"),
+// used to head the flag's value table so its rows read as the values of that placeholder.
+// Falls back to "One of" if the display carries no placeholder.
+std::string_view ValueLabel(std::string_view display) {
+  const auto open = display.find('<');
+  const auto close = display.find('>', open + 1);
+  if (open != std::string_view::npos && close != std::string_view::npos) {
+    return display.substr(open + 1, close - open - 1);
+  }
+  return "One of";
+}
+
 // A definition entry for a global flag: its display, summary, and (when `with_details`)
 // its detail blocks enriched with a "not built into this binary" note when its build
 // extra is absent and the Affects / Affected-by influence blocks. `with_details` is
@@ -137,8 +149,10 @@ Content FlagEntry(const GlobalFlag& flag, bool with_details = true) {
   }
   if (with_details) {
     // The allowed-value table (for a flag whose synopsis collapsed a value grammar to a
-    // `<PLACEHOLDER>`) leads, as an aligned wrapping `value  meaning` list, before the prose.
+    // `<PLACEHOLDER>`) leads, before the prose: a "<LABEL> is one of:" heading line so the
+    // rows read as that placeholder's values, then the aligned wrapping `value  meaning` list.
     if (!flag.values.empty()) {
+      details.push_back(ProseOf(absl::StrCat(ValueLabel(flag.display), " is one of:")));
       Rows rows;
       rows.rows.reserve(flag.values.size());
       for (const ValueDoc& value : flag.values) {

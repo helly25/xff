@@ -148,12 +148,13 @@ TEST_F(HelpTest, ValuedFlagDocumentsItsPlaceholderValues) {
   const std::string summary = RenderEntry("--summary");
   EXPECT_THAT(
       summary, AllOf(
-                   HasSubstr("--summary[=<GROUP>]"), HasSubstr("ext"), HasSubstr("by extension"), HasSubstr("lang"),
-                   HasSubstr("{template}")));
+                   HasSubstr("--summary[=<GROUP>]"), HasSubstr("GROUP is one of:"), HasSubstr("ext"),
+                   HasSubstr("by extension"), HasSubstr("lang"), HasSubstr("{template}")));
   const std::string regextype = RenderEntry("--regextype");
   EXPECT_THAT(
-      regextype,
-      AllOf(HasSubstr("--regextype=<GRAMMAR>"), HasSubstr("RE2"), HasSubstr("linear-time"), HasSubstr("PCRE2")));
+      regextype, AllOf(
+                     HasSubstr("--regextype=<GRAMMAR>"), HasSubstr("GRAMMAR is one of:"), HasSubstr("RE2"),
+                     HasSubstr("linear-time"), HasSubstr("PCRE2")));
 }
 
 TEST_F(HelpTest, UsagePageHelpSectionListsFlagsAndTopics) {

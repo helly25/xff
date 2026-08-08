@@ -76,12 +76,14 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--block-size=SIZE` - bytes per -size block for a bare -size N / -size Nb (default 512) _(global, xff)_
 - `--exact` - match -name/-path byte-exact, opting out of the xff FS-native case default _(global, xff)_
 - `--case=<MODE>, -i, -s[+|-]` - letter case for matchers: -i insensitive, -s/-s+ smart, -s- sensitive (rg -> smart) _(global, xff)_
+  MODE is one of:
 
 - `sensitive` - match exactly (-s-)
 - `insensitive` - fold case (-i)
 - `smart` - fold case only when the pattern is all lower case (-s / -s+)
   Controls case for -name/-path/-regex and the content matchers. sensitive matches exactly; insensitive (-i) folds case; smart (-s / -s+) folds only when the pattern is all lower case and matches exactly otherwise; -s- forces sensitive. rg defaults to smart.
 - `--regextype=<GRAMMAR>` - match engine: RE2, EXACT, FNMATCH, GLOB, SHGLOB (GLOB + {a,b}), or PCRE2 (a build extra) _(global, xff)_
+  GRAMMAR is one of:
 
 - `RE2` - linear-time regular expressions (the default)
 - `EXACT` - a literal string; metacharacters are plain text
@@ -106,6 +108,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--hidden` - include hidden dotfiles in the walk (default: find/xff show, rg skips) _(global, xff)_
 - `--no-hidden` - skip hidden dotfiles (the rg default; opts find/xff out) _(global, xff)_
 - `--skip-vcs[=<LIST>]` - prune VCS metadata dirs (.git, .hg, ...); bare/=all = every known VCS, =LIST a subset _(global, xff)_
+  LIST is one of:
 
 - `git` - .git
 - `hg` - .hg
@@ -121,6 +124,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 
 ### Output
 - `--format=<FORMAT>` - output format: plain, nul, jsonl, csv, tsv, aligned, markdown (md), tree; default plain _(global, xff)_
+  FORMAT is one of:
 
 - `plain` - one path per line (the default)
 - `nul` - NUL-separated paths (for xargs -0)
@@ -149,6 +153,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--template=TEMPLATE` - render each match through a field template ({path}, {name}, ...) _(global, xff)_
 - `--implicit-print=yes|no` - force the default -print on or off _(global, xff)_
 - `--summary[=<GROUP>]` - aligned count + size table (or --format=jsonl rows) instead of each match; repeatable _(global, xff)_
+  GROUP is one of:
 
 - `overall` - one row aggregated over all matches
 - `type` - by file type
@@ -577,6 +582,7 @@ The grammar for -regex / -iregex and the content matchers -rxc / -grep, chosen b
 
 xff statistics reductions. `--summary` and `--histogram` replace the per-match listing with an aggregate over all matches; they are independent and combinable (one walk feeds both), and an explicit action (`-print` / `-exec`) still runs. `--format=jsonl` emits machine rows instead.
 - `--summary[=<GROUP>]` - aligned count + size table (or --format=jsonl rows) instead of each match; repeatable _(global, xff)_
+  GROUP is one of:
 
 - `overall` - one row aggregated over all matches
 - `type` - by file type
