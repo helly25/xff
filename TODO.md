@@ -59,17 +59,28 @@ intent, not hard dependency. Task numbers reference the agent task list.
   (mirrors `clang_format.sh`), version-gates it, requires the compile DB, and reports only
   (no `--fix`). It is `stages: [manual]` (opt-in via `pre-commit run clang-tidy`) until the
   follow-ups below; promote it to an automatic gate by dropping `stages`:
-  1. **Fix the generated compile DB's include-path ordering.** clang-tidy-22 aborts
-     ("too many errors, stopping now") on any TU that pulls `<version>` - the cdb lists
-     mbo's include dir ahead of libc++, so `#include <version>` resolves to mbo's plain-text
-     `version` file (and abseil's `std::result_of` reference then fails). Fix the extractor /
-     path ordering so the hermetic libc++ wins.
-  2. **Sweep the clang-tidy-22 finding set across `xff/`.** Beyond the two convention-conflict
-     checks already disabled (`llvm-header-guard`, `llvm-prefer-static-over-anonymous-namespace`),
-     triage `misc-include-cleaner` (umbrella-header attribution), `misc-const-correctness`,
-     `performance-unnecessary-value-param`, `concurrency-mt-unsafe` (getenv), `hicpp-vararg`
-     (ioctl) - fix or narrowly suppress, then re-tune `.clang-tidy`.
-  3. Once the codebase is clean, drop `stages: [manual]` so the hook gates every commit.
+  1. **Fix the generated compile DB - ROOT CAUSE FOUND, port from mbo #270 (merged 2026-08-08).**
+     The abort ("too many errors" / `'concepts'` / `'time.h' file not found`) was NOT the
+     `<version>`-shadowing theory. `compile_commands-update.sh` runs
+     `bazel run @…//:refresh_all --config=clang`, but `--config=clang` only configures the build
+     of the _extractor tool_ and never reaches the internal `aquery`, so every recorded command
+     named the autodetected **Apple clang**, not the hermetic toolchain clang-tidy uses. Port mbo's
+     fix: bump the extractor pin `75ba4c3` -> `6eb3ff1` (`bazelmod/dev.MODULE.bazel`; adds
+     `--bcce-prefer-target-config`), replace the script to resolve the hermetic `clang++` and pass
+     `--bcce-compiler=<clang++>` + `--bcce-prefer-target-config` **after `--`** (bazel eats them
+     otherwise), plus Darwin-only `--bcce-copt=-isysroot$(xcrun --show-sdk-path)` (hermetic clang
+     has libc++ but no system C headers); add a probe target to materialize the toolchain on a
+     fresh checkout. No `--extra-arg` hack in `clang_tidy.sh` is then needed. Also fix the still-
+     misspelled `.clang-tidy` `bugprone-signed-char-misuse.CharTypdefsToIgnore` ->
+     `CharTypedefsToIgnore` (`WarningsAsErrors: '*'` + the header-guard disables are already done).
+  2. **Add a report-only CI job** (`continue-on-error: true`) that builds the DB + runs the manual
+     hook, so the ubuntu path gets exercised without gating - mirrors mbo #270.
+  3. **Sweep the clang-tidy-22 finding set across `xff/`** on the now-clean parse: `misc-include-cleaner`,
+     `misc-const-correctness`, `performance-unnecessary-value-param`, `concurrency-mt-unsafe` (getenv),
+     `hicpp-vararg` (ioctl / exec), and the noisy new-in-22
+     `cppcoreguidelines-pro-bounds-avoid-unchecked-container-access` (fires on every `operator[]`;
+     mbo saw ~80% of findings from it - re-tune `.clang-tidy` for it) - fix or narrowly suppress.
+  4. Once clean, drop `stages: [manual]` + `continue-on-error` so the hook gates every commit.
 - **Adopt pre-commit.** `.pre-commit-config.yaml` (+ `.pre-commit/` scripts) and a
   CI `pre-commit` job: clang-format (mirrors-clang-format), shfmt, shellcheck,
   actionlint, and the local hooks (`no-do-not-merge`, `no-todos-without-context`,
@@ -824,3 +835,36 @@ concrete need appears.
   disables. Paging runs via `sh -c` (args / pipelines work), with a stdout fallback on any failure.
   Rejected: a help-scoped `--help-pager` name and a `--help=paged` content topic - paging is an
   orthogonal behavior, not a content selector.
+- **Fuzzy finding + near-duplicate detection** (design open). Two distinct capabilities that share the
+  "approximate match" theme; split them, do not conflate:
+  1. **Fuzzy name/path matching** - an fzf/fd-style approximate match over the path or basename, as its
+     own primary (single-dash, e.g. `-fuzzy PATTERN` / `-ifuzzy`) rather than overloading `-name`.
+     Decide the algorithm: subsequence match (fzf-style: characters of PATTERN appear in order, with a
+     rank score) vs bounded edit distance (Levenshtein <= k). Ranking implies output ordering, so it
+     ties into `--sort` (a `--sort=score` mode) and a possible `--top=N`; a bare boolean predicate can
+     also just gate at a score threshold. xff-flavor only (kXff-gated); find flavor rejects it.
+  2. **Content near-duplicate / similarity** via **w-shingling**
+     (https://en.wikipedia.org/wiki/W-shingling): represent each text file as the set of its
+     contiguous w-token shingles (w-word or w-character k-grams), and score similarity as the Jaccard
+     overlap of two shingle sets; **MinHash** approximates Jaccard cheaply so it scales to a whole
+     tree without O(n^2) full-set comparisons. Use cases: "find files similar to X" (a per-entry
+     matcher against a reference file via the field vocabulary, like `-cmp`/`-diff` take a target),
+     and grouping near-duplicates across the walk (a reduction, like `--summary`, emitting clusters).
+     Design against the existing content/text machinery (`-text` gating, the content readers) and the
+     hashing lib (MinHash wants a fast hash; reuse xff/hash or mbo::digest). Open: shingle width w and
+     the similarity threshold as flags; whether v1 is the pairwise matcher only, deferring the
+     cross-tree clustering reduction. Likely a build-time extra if it pulls weight.
+- **Evaluate MemorySanitizer (MSan)** as a fourth sanitizer alongside asan / tsan / (ubsan). MSan
+  catches reads of uninitialized memory, which asan does not. Feasibility check, not a commitment:
+  - **macOS: out.** MSan is Clang-only and effectively Linux/x86-64 only; there is no macOS support, so
+    at most a Linux CI cell (`ubuntu`), never the macOS one.
+  - **The blocker is an instrumented libc++.** MSan reports false positives on any code it did not
+    instrument, so the C++ standard library must itself be built with `-fsanitize=memory`. Everything
+    else we build from source under bazel (abseil, re2, pcre2, mbo), so a `--config=msan` propagates the
+    flag to them for free; the standard library is the hard part. Check whether the hermetic LLVM
+    toolchain can supply (or be made to build) an MSan-instrumented libc++ / libc++abi, or whether that
+    is prohibitively heavy in CI.
+  - **If viable:** add a `--config=msan` (mirroring the asan / tsan configs) plus a Linux-only CI cell
+    (the matrix already dropped the macOS asan cell, so this fits the "Linux carries the sanitizers"
+    shape). **If not:** record here that MSan needs an instrumented libc++ we do not have, and that
+    asan + tsan + ubsan are the coverage, so the question is not re-litigated each time.
