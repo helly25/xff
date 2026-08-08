@@ -34,6 +34,7 @@ cc_library(
         ":help_width_cc",
         ":manpage_cc",
         ":markdown_cc",
+        ":pager_cc",
         ":plain_backend_cc",
         "//xff/color:color_cc",
         "//xff/config:config_cc",
@@ -149,6 +150,25 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
         "@helly25_mbo//mbo/testing:matchers_cc",
+    ],
+)
+
+# Pages the long meta / doc output (--help / --man / --markdown) through a pager on a
+# terminal, controlled by --pager=auto|always|never; never touches the file listing.
+cc_library(
+    name = "pager_cc",
+    srcs = ["pager.cc"],
+    hdrs = ["pager.h"],
+)
+
+cc_test(
+    name = "pager_test",
+    size = "small",
+    srcs = ["pager_test.cc"],
+    deps = [
+        ":pager_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -477,6 +497,16 @@ bashtest(
     name = "color_test",
     size = "small",
     srcs = ["color_test.sh"],
+    data = [":xff"],
+)
+
+# End-to-end test of --pager: never prints to stdout, always pipes through the pager
+# verbatim (cat pass-through), auto stays unpaged off a tty, an empty pager env
+# disables it, --no-pager is accepted on a real search, and --help documents the flag.
+bashtest(
+    name = "pager_test_sh",
+    size = "small",
+    srcs = ["pager_test.sh"],
     data = [":xff"],
 )
 

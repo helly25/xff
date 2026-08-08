@@ -70,6 +70,11 @@ constexpr std::array kSummaryValues = std::to_array<ValueDoc>({
     {.value = "group", .meaning = "by owning group"},
     {.value = "{template}", .meaning = "by any field value, e.g. `--summary='{ext}-{type}'`"},
 });
+constexpr std::array kPagerValues = std::to_array<ValueDoc>({
+    {.value = "auto", .meaning = "page only when stdout is a terminal (the default)"},
+    {.value = "always", .meaning = "always page, even through a pipe"},
+    {.value = "never", .meaning = "never page (same as --no-pager)"},
+});
 
 // The whole-run options, in the order the --help usage page groups them. `--help` /
 // `--version` and their aliases are deliberately omitted: they are special-cased in
@@ -583,6 +588,26 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "and leaves output unwrapped when it is not (a pipe or file); none (or 0) disables wrapping; "
                    "a positive integer sets a fixed width. Aligned vocabulary tables and example blocks keep "
                    "their own layout. Does not affect the file listing, --man, or --markdown.",
+    },
+    {
+        .name = "--pager",
+        .display = "--pager[=auto|always|never]",
+        .group = "output",
+        .header = "Output",
+        .summary = "page the long help / man / markdown output: auto (a tty), always, or never (--no-pager)",
+        .details = "Pages the long meta output (--help, --help=TOPIC, --man, --markdown) through a pager. auto "
+                   "pages only when stdout is a terminal; always pages even through a pipe; never (or --no-pager) "
+                   "disables it. The pager command is $XFF_PAGER, else $PAGER, else `less -FRX`; set either "
+                   "variable to empty to disable. Does not affect the file listing - pipe that to a pager "
+                   "yourself.",
+        .values = kPagerValues,
+    },
+    {
+        .name = "--no-pager",
+        .display = "--no-pager",
+        .group = "output",
+        .header = "Output",
+        .summary = "never page the help / man / markdown output (an alias for --pager=never)",
     },
     {
         .name = "--quiet",

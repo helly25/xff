@@ -36,6 +36,7 @@
 #include "xff/cli/help_width.h"
 #include "xff/cli/manpage.h"
 #include "xff/cli/markdown.h"
+#include "xff/cli/pager.h"
 #include "xff/cli/plain_backend.h"
 #include "xff/color/color.h"
 #include "xff/config/config.h"
@@ -231,11 +232,15 @@ int RunMain(int argc, char** argv) {
     std::cerr << "xff: " << help_width.status().message() << "\n";
     return 2;
   }
+  const bool stdout_is_tty = ::isatty(STDOUT_FILENO) != 0;
   // --color drives help color too (auto = a tty with NO_COLOR unset; always overrides).
   // Scanned from argv like --width, since --help short-circuits before the full parse.
-  const bool help_color = xff::color::Enabled(
-      xff::color::ResolveWhen(args), ::isatty(STDOUT_FILENO) != 0, std::getenv("NO_COLOR") != nullptr);
+  const bool help_color =
+      xff::color::Enabled(xff::color::ResolveWhen(args), stdout_is_tty, std::getenv("NO_COLOR") != nullptr);
   const xff::cli::HelpRenderContext help_context{.width = *help_width, .color = help_color};
+  // --pager pages the long meta / doc output below (help / man / markdown) on a terminal;
+  // resolved from argv like the two above, and applied only to those surfaces.
+  const xff::cli::PagerWhen pager_when = xff::cli::ResolvePagerWhen(args);
 
   // Help and version, scanned anywhere in the arguments (find prints usage on a
   // bare --help wherever it lands). xff stays flag-only -- no `help` subcommand --
@@ -251,37 +256,41 @@ int RunMain(int argc, char** argv) {
     if (arg == "--help" || arg == "-help" || arg == "-h") {
       xff::cli::PlainTextBackend backend(help_context);
       xff::cli::RenderDocument(xff::cli::BuildUsage(), backend);
-      std::cout << backend.Take();
+      xff::cli::EmitPaged(backend.Take(), pager_when, stdout_is_tty);
       return 0;
     }
     if (arg == "--help-all") {
-      std::cout << RenderTopic("all", help_context).value_or("");  // hyphenated shortcut for --help=all (summaries)
+      // hyphenated shortcut for --help=all (summaries)
+      xff::cli::EmitPaged(RenderTopic("all", help_context).value_or(""), pager_when, stdout_is_tty);
       return 0;
     }
     if (arg == "--help-full" || arg == "--help-long") {
-      std::cout << RenderTopic("full", help_context).value_or("");  // hyphenated shortcut for --help=full (explained)
+      // hyphenated shortcut for --help=full (explained)
+      xff::cli::EmitPaged(RenderTopic("full", help_context).value_or(""), pager_when, stdout_is_tty);
       return 0;
     }
     if (arg.starts_with("--help=")) {
       const std::string_view topic = std::string_view(arg).substr(7);
       const absl::StatusOr<std::string> help = RenderTopic(topic, help_context);
       if (help.ok()) {
-        std::cout << *help;
+        xff::cli::EmitPaged(*help, pager_when, stdout_is_tty);
         return 0;
       }
       std::cerr << "xff: no help topic '" << topic << "'\n";  // RenderTopic's only failure is unknown-topic
       return 2;
     }
     if (arg == "--version" || arg == "-version") {
-      std::cout << "xff 0.0.0\n";
+      std::cout << "xff 0.0.0\n";  // short and machine-scraped: never paged
       return 0;
     }
     if (arg == "--man") {
-      std::cout << xff::cli::ManPage();  // roff(1); pipe to `mandoc` (or GNU `man -l -`), or install as xff.1
+      // roff(1); pipe to `mandoc` (or GNU `man -l -`), or install as xff.1
+      xff::cli::EmitPaged(xff::cli::ManPage(), pager_when, stdout_is_tty);
       return 0;
     }
     if (arg == "--markdown") {
-      std::cout << xff::cli::MarkdownReference();  // GitHub-renderable vocabulary reference
+      // GitHub-renderable vocabulary reference
+      xff::cli::EmitPaged(xff::cli::MarkdownReference(), pager_when, stdout_is_tty);
       return 0;
     }
   }
