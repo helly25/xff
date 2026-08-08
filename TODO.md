@@ -843,3 +843,17 @@ concrete need appears.
      hashing lib (MinHash wants a fast hash; reuse xff/hash or mbo::digest). Open: shingle width w and
      the similarity threshold as flags; whether v1 is the pairwise matcher only, deferring the
      cross-tree clustering reduction. Likely a build-time extra if it pulls weight.
+- **Evaluate MemorySanitizer (MSan)** as a fourth sanitizer alongside asan / tsan / (ubsan). MSan
+  catches reads of uninitialized memory, which asan does not. Feasibility check, not a commitment:
+  - **macOS: out.** MSan is Clang-only and effectively Linux/x86-64 only; there is no macOS support, so
+    at most a Linux CI cell (`ubuntu`), never the macOS one.
+  - **The blocker is an instrumented libc++.** MSan reports false positives on any code it did not
+    instrument, so the C++ standard library must itself be built with `-fsanitize=memory`. Everything
+    else we build from source under bazel (abseil, re2, pcre2, mbo), so a `--config=msan` propagates the
+    flag to them for free; the standard library is the hard part. Check whether the hermetic LLVM
+    toolchain can supply (or be made to build) an MSan-instrumented libc++ / libc++abi, or whether that
+    is prohibitively heavy in CI.
+  - **If viable:** add a `--config=msan` (mirroring the asan / tsan configs) plus a Linux-only CI cell
+    (the matrix already dropped the macOS asan cell, so this fits the "Linux carries the sanitizers"
+    shape). **If not:** record here that MSan needs an instrumented libc++ we do not have, and that
+    asan + tsan + ubsan are the coverage, so the question is not re-litigated each time.
