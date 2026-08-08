@@ -282,7 +282,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     },
     {
         .name = "-type",
-        .summary = "match the file type (f/d/l/b/c/p/s)",
+        .summary = "match the file type (f, d, l, b, c, p, s)",
         .details = "Matches the entry's type by letter: f=regular file, d=directory, l=symlink, b/c=block / char "
                    "device, p=FIFO, s=socket. A GNU-style comma list is any-of, so `-type f,l` matches regular files "
                    "or symlinks. Under the default -P a symlink is type l; -xtype tests its target's type instead.",
@@ -324,7 +324,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     },
     {
         .name = "-size",
-        .summary = "match the apparent size (unit suffix c/w/k/M/G/T/P/E)",
+        .summary = "match the apparent size (unit suffix c, w, k, M, G, T, P, E)",
         .details = "Compares the file's apparent size. A bare number counts 512-byte blocks (find default); a unit "
                    "suffix sets the scale - c=bytes, w=2 bytes, k/M/G/T/P, plus the xff-only E. A leading + / - means "
                    "greater / less than. Following GNU, the size is rounded up to whole units, so `-size +100M` means "

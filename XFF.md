@@ -206,7 +206,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-eofcrlf` - match a regular file whose content ends with CRLF, or is empty (xff) _(test, xff)_
   TRUE for a regular, readable file whose content ends with CRLF (or is empty). The Windows / -text=windows final terminator, and the CRLF analogue of -eofnl: compose -text=windows -eofcrlf for a well-formed CRLF-terminated file, or -text=windows ! -eofcrlf for the missing final CRLF. Stricter than -eofnl (which any LF-ending file, including CRLF, satisfies). Reads the file (expensive). An xff extension --config=find rejects.
 - `-cmp ARG` - true when the file's content is byte-identical to TARGET (a field template) (xff) _(test, xff)_
-- `-type ARG` - match the file type (f/d/l/b/c/p/s) _(test, find)_
+- `-type ARG` - match the file type (f, d, l, b, c, p, s) _(test, find)_
   Matches the entry's type by letter: f=regular file, d=directory, l=symlink, b/c=block / char device, p=FIFO, s=socket. A GNU-style comma list is any-of, so `-type f,l` matches regular files or symlinks. Under the default -P a symlink is type l; -xtype tests its target's type instead.
 - `-xtype ARG` - match the file type of a symlink's target _(test, find)_
   Like -type, but for a symlink it tests the type of the link's TARGET (the link is followed). A broken symlink has no target, so it reports as a symlink and `-xtype l` matches it, matching GNU find under the default -P. On a non-symlink it is identical to -type.
@@ -214,7 +214,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   xff extension: matches the media (MIME) type derived from the filename extension (a fast, dependency-free table - no content sniffing) against a shell glob, so `image/*` matches png/jpg/... and `text/plain` is exact. The same value is the {mime} field. Matching is always case-insensitive (MIME names are case-insensitive per RFC 2045/6838), so `IMAGE/*` behaves like `image/*`; --case / -i / -s do not affect it.
 - `-lang ARG` - match the language by extension/filename against a glob, e.g. -lang 'C*' (xff) _(test, xff)_
   xff extension: matches the programming language inferred from the extension/filename (github-linguist data) against a shell glob, so `C*` matches C / C++ / C#. The same value is the {lang} field. Matching is always case-insensitive (`c++` matches the canonical `C++`) and unaffected by --case / -i / -s.
-- `-size ARG` - match the apparent size (unit suffix c/w/k/M/G/T/P/E) _(test, find)_
+- `-size ARG` - match the apparent size (unit suffix c, w, k, M, G, T, P, E) _(test, find)_
   Compares the file's apparent size. A bare number counts 512-byte blocks (find default); a unit suffix sets the scale - c=bytes, w=2 bytes, k/M/G/T/P, plus the xff-only E. A leading + / - means greater / less than. Following GNU, the size is rounded up to whole units, so `-size +100M` means "larger than 100 MB". (See -blocks for allocated space.)
 - `-blocks ARG` - match the allocated size (st_blocks); xff's disk-occupancy counterpart to -size _(test, xff)_
 - `-links ARG` - match the hard-link count _(test, find)_
