@@ -125,6 +125,9 @@ void PlainTextBackend::EndSection(const Section& section) {
 }
 
 std::string PlainTextBackend::BodyIndent() const {
+  // The (count, char) constructor is intended; a braced `{count, ' '}` would list-initialize as
+  // initializer_list<char> (the classic std::string gotcha), not repeat the space.
+  // NOLINTNEXTLINE(modernize-return-braced-init-list)
   return std::string(static_cast<std::size_t>(2 * depth_), ' ');
 }
 
