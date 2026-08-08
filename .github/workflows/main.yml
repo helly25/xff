@@ -87,8 +87,8 @@ jobs:
             | xargs -0 tools/clang_format.sh --dry-run -Werror
 
   # trunk (https://trunk.io) runs the heavier linters: buildifier, markdownlint,
-  # prettier, yamllint, the security scanners, and clang-tidy (local only;
-  # CI-skipped without a compile DB, so CI relies on the bazel -Werror gate).
+  # prettier, yamllint, and the security scanners. (clang-tidy is a local-only
+  # pre-commit hook now, not a trunk linter; CI relies on the bazel -Werror gate.)
   # Mirrors helly25/mbo.
   trunk:
     runs-on: ubuntu-latest
@@ -98,7 +98,8 @@ jobs:
         uses: trunk-io/trunk-action@v1
 
   # pre-commit hooks (clang-format, shfmt, shellcheck, actionlint, and the
-  # repo-policy text checks incl. no-em-dashes). Mirrors helly25/mbo.
+  # repo-policy text checks incl. no-em-dashes). The local-only clang-tidy hook
+  # self-skips here (no compile DB on the runner). Mirrors helly25/mbo.
   pre-commit:
     runs-on: ubuntu-latest
     steps:

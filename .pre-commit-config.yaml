@@ -3,8 +3,9 @@
 #
 # pre-commit configuration (https://pre-commit.com). Mirrors helly25/mbo's set,
 # trimmed to what xff uses. Install once with `pre-commit install`; run over the
-# whole tree with `pre-commit run -a`. clang-tidy and the broader linters live in
-# trunk (.trunk/trunk.yaml). clang-format here is pinned to v20.1.8 to match the
+# whole tree with `pre-commit run -a`. clang-tidy runs here too (the local-only
+# `clang-tidy` hook, via tools/clang_tidy.sh using the hermetic clang-22); the
+# broader linters live in trunk (.trunk/trunk.yaml). clang-format here is pinned to v20.1.8 to match the
 # hermetic toolchain clang-format (tools/clang_format.sh + the CI test step)
 # byte-for-byte; keep this pin in lockstep with the LLVM toolchain version. A
 # mismatch surfaces loudly as a CI clang-format failure rather than silent
@@ -139,6 +140,25 @@ repos:
         entry: tools/trigger_release_test.sh
         files: ^tools/(trigger_release\.sh|trigger_release_test\.sh)$
         pass_filenames: false
+      - id: clang-tidy
+        name: clang-tidy (local-only, opt-in)
+        description: |
+          Runs clang-tidy over the given C++ sources via tools/clang_tidy.sh, a report-only
+          pass (no --fix, so it never rewrites the tree). It is a LOCAL-ONLY aid: it needs a
+          compile_commands.json (a gitignored local artifact) and a clang-tidy new enough for
+          this C++23 codebase, and SKIPS cleanly when either is missing - so it is a no-op on a
+          CI runner (no compile DB) and never forces the hermetic toolchain download. CI's hard
+          gate stays the bazel -Werror matrix. Run it explicitly with
+          `pre-commit run clang-tidy --all-files` (or on specific files with `--files ...`).
+          `stages: [manual]` keeps it OFF the automatic commit gate for now: the generated
+          compile DB still mis-orders an include path so clang-tidy aborts on files that pull
+          `<version>` / abseil headers (tracked in TODO.md). Once that and the clang-tidy-22
+          finding sweep land, drop `stages` to promote it to an automatic gate.
+        language: script
+        entry: tools/clang_tidy.sh
+        types_or: [c++]
+        files: \.(cc|cpp|cxx)$
+        stages: [manual]
 
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v20.1.8

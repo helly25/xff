@@ -5,8 +5,12 @@
 # (readability-identifier-length minimum lowered to 2 below), block-size/mode
 # magic numbers (avoid-magic-numbers), adjacent same-type params
 # (easily-swappable-parameters), and intentionally unnamed unused parameters
-# (named-parameter). The genuine checks (const-correctness, avoid-c-arrays,
-# member-init, ...) stay on.
+# (named-parameter). Two checks new in clang-tidy 18+ are also off because they
+# fight documented conventions: llvm-prefer-static-over-anonymous-namespace (the
+# codebase groups internal-linkage helpers in an anonymous namespace, not per-
+# function `static`) and llvm-header-guard (STYLE_CPP mandates `{PATH}_{FILE}_`
+# guards, not LLVM's path-derived style). The genuine checks (const-correctness,
+# avoid-c-arrays, member-init, ...) stay on.
 Checks: >
   *,
   abseil-*,
@@ -44,10 +48,12 @@ Checks: >
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-init-variables,
   -hicpp-named-parameter,
+  -llvm-header-guard,
+  -llvm-prefer-static-over-anonymous-namespace,
   -readability-magic-numbers,
   -readability-named-parameter,
 
-WarningsAsErrors: true
+WarningsAsErrors: '*'
 FormatStyle:       '.clang-format'
 CheckOptions:
   - key:             bugprone-signed-char-misuse.CharTypdefsToIgnore
