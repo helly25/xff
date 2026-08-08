@@ -172,6 +172,16 @@ TEST_F(HelpTest, ColorContextEmitsThePalette) {
   EXPECT_THAT(out, HasSubstr("\x1b[32m"));    // example code: green
 }
 
+TEST_F(HelpTest, ColorContextColorsThePreamble) {
+  // The identity line colors the program name (bold cyan); the Usage line colors the
+  // whole `name synopsis` command as code (green). BuildUsage carries a preamble.
+  PlainTextBackend colored(HelpRenderContext{.color = true});
+  RenderDocument(BuildUsage(), colored);
+  const std::string out = colored.Take();
+  EXPECT_THAT(out, HasSubstr("\x1b[1;36mxff\x1b[0m - "));  // name bold cyan, tagline plain
+  EXPECT_THAT(out, HasSubstr("Usage: \x1b[32mxff "));      // usage command green
+}
+
 TEST_F(HelpTest, PlainContextEmitsNoAnsi) {
   // The default (color off) renders byte-for-byte the same as before: zero escapes.
   const Document doc = BuildReference();

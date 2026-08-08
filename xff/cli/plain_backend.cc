@@ -101,8 +101,11 @@ void PlainTextBackend::Preamble(const Document& doc) {
     return;  // a section-only render (e.g. a single help topic) carries no preamble
   }
   StartBlock();
-  absl::StrAppend(&out_, doc.name, " - ", doc.tagline, "\n");
-  absl::StrAppend(&out_, "\nUsage: ", doc.name, " ", doc.usage, "\n");
+  // The identity line: the program name reads as a name (bold cyan), the tagline plain.
+  const bool color = Context().color;
+  absl::StrAppend(&out_, Sgr(doc.name, kName, color), " - ", doc.tagline, "\n");
+  // The usage synopsis is a command template, so the whole `name synopsis` reads as code.
+  absl::StrAppend(&out_, "\nUsage: ", Sgr(absl::StrCat(doc.name, " ", doc.usage), kExample, color), "\n");
 }
 
 void PlainTextBackend::BeginSection(const Section& section) {
