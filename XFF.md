@@ -151,7 +151,26 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--diff-context=N` - default -diff context lines (3); overrides --context for -diff, and -diff=uN overrides it _(global, xff)_
   Affects: -diff
   Affected by: --context
-- `--hash-algorithm=ALGO` - default digest for -hash / {hash} (sha256 default; md5, sha512, blake3, and more) _(global, xff)_
+- `--hash-algorithm=<ALGO>` - default digest for -hash / {hash} (sha256 default; md5, sha512, blake3, and more) _(global, xff)_
+  ALGO is one of:
+
+  - `blake2b` - BLAKE2b, 512-bit
+  - `blake2b_256` - BLAKE2b, 256-bit
+  - `blake3` - BLAKE3 (fast, parallel)
+  - `md5` - 128-bit legacy (fast, collision-broken)
+  - `sha1` - 160-bit legacy (collision-broken)
+  - `sha224` - SHA-2, 224-bit
+  - `sha256` - SHA-2, 256-bit (the default)
+  - `sha384` - SHA-2, 384-bit
+  - `sha3_224` - SHA-3 (Keccak), 224-bit
+  - `sha3_256` - SHA-3 (Keccak), 256-bit
+  - `sha3_384` - SHA-3 (Keccak), 384-bit
+  - `sha3_512` - SHA-3 (Keccak), 512-bit
+  - `sha512` - SHA-2, 512-bit
+  - `sha512_224` - SHA-2, 512/224 truncated
+  - `sha512_256` - SHA-2, 512/256 truncated
+
+  Sets the default digest algorithm for the -hash action and the {hash} field. sha256 is the default; a `-hash=ALGO` spec or a `{hash:ALGO}` qualifier overrides it per use.
 - `--hash-encoding=hex|base64` - default -hash / {hash} rendering: hex (default) or base64 _(global, xff)_
 - `--path-encoding=raw|escape` - plain-output path byte encoding: raw (verbatim, default) or escape (C-escape controls) _(global, xff)_
 - `--template=TEMPLATE` - render each match through a field template ({path}, {name}, ...) _(global, xff)_
