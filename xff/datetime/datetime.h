@@ -68,7 +68,7 @@ std::optional<absl::Time> ParseTimeString(
 // -mmin, -atime, ...) measure from when -daystart is given, instead of the run's
 // start time. `tz` defaults to the local zone (--timezone overrides it, matching
 // the time tests).
-absl::Time StartOfDay(absl::Time t, absl::TimeZone tz = absl::LocalTimeZone());
+absl::Time StartOfDay(absl::Time time, absl::TimeZone tz = absl::LocalTimeZone());
 
 // Resolves a --timezone spec to an absl::TimeZone, writing it to *out and
 // returning true on success. Accepts "" or "local" (the host's local zone),

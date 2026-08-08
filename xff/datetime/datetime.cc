@@ -121,8 +121,8 @@ std::optional<absl::Time> ParseTimeString(std::string_view text, absl::Time now,
   return result + sign * offset;
 }
 
-absl::Time StartOfDay(absl::Time t, absl::TimeZone tz) {
-  return absl::FromCivil(absl::ToCivilDay(t, tz), tz);  // midnight of t's civil day in tz
+absl::Time StartOfDay(absl::Time time, absl::TimeZone tz) {
+  return absl::FromCivil(absl::ToCivilDay(time, tz), tz);  // midnight of time's civil day in tz
 }
 
 bool ParseTimeZone(std::string_view spec, absl::TimeZone* out) {

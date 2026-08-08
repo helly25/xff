@@ -21,168 +21,170 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/match.h"
+
 namespace xff::glob {
 namespace {
 
-// Appends `c` to `re` as a literal, escaping the RE2 metacharacters. `*`, `?` and `[` are consumed
+// Appends `chr` to `re` as a literal, escaping the RE2 metacharacters. `*`, `?` and `[` are consumed
 // by GlobToRegex before reaching here, so a bare one arriving as a literal (e.g. an unterminated
 // class's `[`) is still escaped defensively.
-void AppendLiteral(std::string& re, char c) {
-  if (std::string_view(".+*?()|[]{}^$\\").find(c) != std::string_view::npos) {
+void AppendLiteral(std::string& re, char chr) {
+  if (absl::StrContains(std::string_view(".+*?()|[]{}^$\\"), chr)) {
     re += '\\';
   }
-  re += c;
+  re += chr;
 }
 
-// Translates a glob `[...]` class starting at `pattern[i] == '['` into `re`, advancing `i` past the
+// Translates a glob `[...]` class starting at `pattern[pos] == '['` into `re`, advancing `pos` past the
 // closing `]`. Handles glob negation (`[!` -> RE2 `[^`), the POSIX leading-`]`-is-a-literal rule
 // (escaped `\]` for RE2), and POSIX bracket sub-expressions `[:class:]` / `[.collating.]` /
 // `[=equivalence=]` (passed through verbatim, incl. their inner `]`, so RE2 gets `[[:alpha:]]` etc.).
-void AppendCharClass(std::string& re, std::string_view pattern, std::size_t& i) {
+void AppendCharClass(std::string& re, std::string_view pattern, std::size_t& pos) {
   re += '[';
-  ++i;
-  if (i < pattern.size() && pattern[i] == '!') {  // glob negation `[!` -> RE2 `[^`
+  ++pos;
+  if (pos < pattern.size() && pattern[pos] == '!') {  // glob negation `[!` -> RE2 `[^`
     re += '^';
-    ++i;
+    ++pos;
   }
-  if (i < pattern.size() && pattern[i] == ']') {  // a leading `]` is a literal member (POSIX)
+  if (pos < pattern.size() && pattern[pos] == ']') {  // a leading `]` is a literal member (POSIX)
     re += "\\]";
-    ++i;
+    ++pos;
   }
-  while (i < pattern.size() && pattern[i] != ']') {
-    if (pattern[i] == '[' && i + 1 < pattern.size()
-        && (pattern[i + 1] == ':' || pattern[i + 1] == '.' || pattern[i + 1] == '=')) {
-      const char kind = pattern[i + 1];
+  while (pos < pattern.size() && pattern[pos] != ']') {
+    if (pattern[pos] == '[' && pos + 1 < pattern.size()
+        && (pattern[pos + 1] == ':' || pattern[pos + 1] == '.' || pattern[pos + 1] == '=')) {
+      const char kind = pattern[pos + 1];
       re += '[';
       re += kind;
-      i += 2;
-      while (i + 1 < pattern.size() && (pattern[i] != kind || pattern[i + 1] != ']')) {
-        re += pattern[i];
-        ++i;
+      pos += 2;
+      while (pos + 1 < pattern.size() && (pattern[pos] != kind || pattern[pos + 1] != ']')) {
+        re += pattern[pos];
+        ++pos;
       }
-      if (i + 1 < pattern.size()) {  // the closing `:]` / `.]` / `=]`
+      if (pos + 1 < pattern.size()) {  // the closing `:]` / `.]` / `=]`
         re += kind;
         re += ']';
-        i += 2;
+        pos += 2;
       }
       continue;
     }
-    if (pattern[i] == '\\' && i + 1 < pattern.size()) {  // an escaped member (e.g. `\]`)
+    if (pattern[pos] == '\\' && pos + 1 < pattern.size()) {  // an escaped member (e.g. `\]`)
       re += '\\';
-      re += pattern[i + 1];
-      i += 2;
+      re += pattern[pos + 1];
+      pos += 2;
       continue;
     }
-    re += pattern[i];
-    ++i;
+    re += pattern[pos];
+    ++pos;
   }
-  if (i < pattern.size()) {  // the closing `]`
+  if (pos < pattern.size()) {  // the closing `]`
     re += ']';
-    ++i;
+    ++pos;
   }
 }
 
-// Advances `i` past the `[...]` class starting at `pattern[i] == '['` without emitting, mirroring
+// Advances `pos` past the `[...]` class starting at `pattern[pos] == '['` without emitting, mirroring
 // AppendCharClass's traversal rules (leading `!` / `]`, POSIX `[:class:]` sub-expressions, escapes).
 // Used by the brace scanner so a `,` or `}` sitting inside a class is not mistaken for a structural
 // alternation separator or group close.
-void SkipCharClass(std::string_view pattern, std::size_t& i) {
-  ++i;
-  if (i < pattern.size() && pattern[i] == '!') {
-    ++i;
+void SkipCharClass(std::string_view pattern, std::size_t& pos) {
+  ++pos;
+  if (pos < pattern.size() && pattern[pos] == '!') {
+    ++pos;
   }
-  if (i < pattern.size() && pattern[i] == ']') {  // a leading `]` is a literal member, not the close
-    ++i;
+  if (pos < pattern.size() && pattern[pos] == ']') {  // a leading `]` is a literal member, not the close
+    ++pos;
   }
-  while (i < pattern.size() && pattern[i] != ']') {
-    if (pattern[i] == '[' && i + 1 < pattern.size()
-        && (pattern[i + 1] == ':' || pattern[i + 1] == '.' || pattern[i + 1] == '=')) {
-      const char kind = pattern[i + 1];
-      i += 2;
-      while (i + 1 < pattern.size() && (pattern[i] != kind || pattern[i + 1] != ']')) {
-        ++i;
+  while (pos < pattern.size() && pattern[pos] != ']') {
+    if (pattern[pos] == '[' && pos + 1 < pattern.size()
+        && (pattern[pos + 1] == ':' || pattern[pos + 1] == '.' || pattern[pos + 1] == '=')) {
+      const char kind = pattern[pos + 1];
+      pos += 2;
+      while (pos + 1 < pattern.size() && (pattern[pos] != kind || pattern[pos + 1] != ']')) {
+        ++pos;
       }
-      if (i + 1 < pattern.size()) {
-        i += 2;
+      if (pos + 1 < pattern.size()) {
+        pos += 2;
       }
       continue;
     }
-    if (pattern[i] == '\\' && i + 1 < pattern.size()) {
-      i += 2;
+    if (pattern[pos] == '\\' && pos + 1 < pattern.size()) {
+      pos += 2;
       continue;
     }
-    ++i;
+    ++pos;
   }
-  if (i < pattern.size()) {
-    ++i;
+  if (pos < pattern.size()) {
+    ++pos;
   }
 }
 
-// Translates a `*` run starting at `pattern[i] == '*'`, advancing `i` past it. A lone `*` is one
+// Translates a `*` run starting at `pattern[pos] == '*'`, advancing `pos` past it. A lone `*` is one
 // segment's worth of non-slash (`[^/]*`); a `**` that is a WHOLE path segment crosses directories
 // (gitignore semantics), otherwise a glued `**` degrades to a single `*`.
-void AppendStar(std::string& re, std::string_view pattern, std::size_t& i) {
-  if (i + 1 >= pattern.size() || pattern[i + 1] != '*') {
+void AppendStar(std::string& re, std::string_view pattern, std::size_t& pos) {
+  if (pos + 1 >= pattern.size() || pattern[pos + 1] != '*') {
     re += "[^/]*";
-    ++i;
+    ++pos;
     return;
   }
-  std::size_t j = i;
-  while (j < pattern.size() && pattern[j] == '*') {
-    ++j;
+  std::size_t scan = pos;
+  while (scan < pattern.size() && pattern[scan] == '*') {
+    ++scan;
   }
-  const bool slash_before = i == 0 || pattern[i - 1] == '/';
-  const bool slash_after = j == pattern.size() || pattern[j] == '/';
+  const bool slash_before = pos == 0 || pattern[pos - 1] == '/';
+  const bool slash_after = scan == pattern.size() || pattern[scan] == '/';
   if (!slash_before || !slash_after) {
     re += "[^/]*";  // a `**` glued to other chars is just `*`
-  } else if (j == pattern.size()) {
+  } else if (scan == pattern.size()) {
     re += ".*";  // trailing `/**` (or a bare `**`): everything below
   } else {
     re += "(?:.*/)?";  // `**/`: zero or more leading directories
-    ++j;               // also consume the separator that closed the segment
+    ++scan;            // also consume the separator that closed the segment
   }
-  i = j;
+  pos = scan;
 }
 
 // The shared glob -> RE2 translation. `braces` enables the SHGLOB brace-alternation extension (`{a,b}`
 // -> `(?:a|b)`); with it off this is the plain path-glob translator (GLOB / gitignore).
 void TranslateInto(std::string& re, std::string_view pattern, bool braces);
 
-// Attempts to translate a brace alternation `{a,b,...}` starting at `pattern[i] == '{'`. On success
-// appends `(?:...)` (each alternative recursively translated) and advances `i` past the closing `}`,
-// returning true. Returns false with `i` unchanged when there is no matching top-level `}` or no
+// Attempts to translate a brace alternation `{a,b,...}` starting at `pattern[pos] == '{'`. On success
+// appends `(?:...)` (each alternative recursively translated) and advances `pos` past the closing `}`,
+// returning true. Returns false with `pos` unchanged when there is no matching top-level `}` or no
 // top-level `,` - matching bash, a comma-less `{x}` (or an unbalanced `{`) is then a literal, so the
 // caller emits the `{` as an ordinary character. `[...]` classes and `\`-escapes are skipped so their
 // inner `,` / `}` / `{` are not treated as structure.
-bool TryBraceGroup(std::string& re, std::string_view pattern, std::size_t& i) {
+bool TryBraceGroup(std::string& re, std::string_view pattern, std::size_t& pos) {
   std::vector<std::pair<std::size_t, std::size_t>> alts;  // [start, end) of each alternative
-  std::size_t start = i + 1;
-  std::size_t j = i + 1;
+  std::size_t start = pos + 1;
+  std::size_t scan = pos + 1;
   int depth = 0;
   bool saw_comma = false;
   std::size_t end = std::string_view::npos;
-  while (j < pattern.size()) {
-    const char c = pattern[j];
-    if (c == '\\' && j + 1 < pattern.size()) {
-      j += 2;
-    } else if (c == '[') {
-      SkipCharClass(pattern, j);
-    } else if (c == '{') {
+  while (scan < pattern.size()) {
+    const char chr = pattern[scan];
+    if (chr == '\\' && scan + 1 < pattern.size()) {
+      scan += 2;
+    } else if (chr == '[') {
+      SkipCharClass(pattern, scan);
+    } else if (chr == '{') {
       ++depth;
-      ++j;
-    } else if (c == '}' && depth > 0) {
+      ++scan;
+    } else if (chr == '}' && depth > 0) {
       --depth;
-      ++j;
-    } else if (c == '}') {
-      end = j;
+      ++scan;
+    } else if (chr == '}') {
+      end = scan;
       break;
-    } else if (c == ',' && depth == 0) {
-      alts.emplace_back(start, j);
-      start = j + 1;
+    } else if (chr == ',' && depth == 0) {
+      alts.emplace_back(start, scan);
+      start = scan + 1;
       saw_comma = true;
-      ++j;
+      ++scan;
     } else {
-      ++j;
+      ++scan;
     }
   }
   if (end == std::string_view::npos || !saw_comma) {
@@ -190,36 +192,36 @@ bool TryBraceGroup(std::string& re, std::string_view pattern, std::size_t& i) {
   }
   alts.emplace_back(start, end);
   re += "(?:";
-  for (std::size_t k = 0; k < alts.size(); ++k) {
-    if (k != 0) {
+  for (std::size_t idx = 0; idx < alts.size(); ++idx) {
+    if (idx != 0) {
       re += '|';
     }
-    TranslateInto(re, pattern.substr(alts[k].first, alts[k].second - alts[k].first), true);
+    TranslateInto(re, pattern.substr(alts[idx].first, alts[idx].second - alts[idx].first), true);
   }
   re += ')';
-  i = end + 1;
+  pos = end + 1;
   return true;
 }
 
 void TranslateInto(std::string& re, std::string_view pattern, bool braces) {
-  for (std::size_t i = 0; i < pattern.size();) {
-    const char c = pattern[i];
-    if (c == '*') {
-      AppendStar(re, pattern, i);
-    } else if (c == '?') {
+  for (std::size_t pos = 0; pos < pattern.size();) {
+    const char chr = pattern[pos];
+    if (chr == '*') {
+      AppendStar(re, pattern, pos);
+    } else if (chr == '?') {
       re += "[^/]";
-      ++i;
-    } else if (c == '[') {
-      AppendCharClass(re, pattern, i);
-    } else if (c == '{' && braces && TryBraceGroup(re, pattern, i)) {
-      // TryBraceGroup emitted the alternation and advanced `i`; a false return falls through to the
+      ++pos;
+    } else if (chr == '[') {
+      AppendCharClass(re, pattern, pos);
+    } else if (chr == '{' && braces && TryBraceGroup(re, pattern, pos)) {
+      // TryBraceGroup emitted the alternation and advanced `pos`; a false return falls through to the
       // literal `{` below (a comma-less or unbalanced group).
-    } else if (c == '\\' && i + 1 < pattern.size()) {
-      AppendLiteral(re, pattern[i + 1]);  // backslash escape: the next char is literal
-      i += 2;
+    } else if (chr == '\\' && pos + 1 < pattern.size()) {
+      AppendLiteral(re, pattern[pos + 1]);  // backslash escape: the next char is literal
+      pos += 2;
     } else {
-      AppendLiteral(re, c);
-      ++i;
+      AppendLiteral(re, chr);
+      ++pos;
     }
   }
 }
