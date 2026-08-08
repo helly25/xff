@@ -223,16 +223,6 @@ absl::Span<const Recipe> CookbookRecipes() {
 
 namespace {
 
-std::string RenderCookbook() {
-  std::string out =
-      "xff cookbook: worked examples that compose xff's building blocks. Each shows a task, the\n"
-      "command, and how it works. See --help=fields for {field}s and --help=stats for the reductions.\n";
-  for (const Recipe& recipe : CookbookRecipes()) {
-    absl::StrAppend(&out, "\n  ", recipe.task, "\n    ", recipe.command, "\n    ", recipe.note, "\n");
-  }
-  return out;
-}
-
 // The `--help=licenses` topic: a minimum-viable license summary. xff's own license, the core
 // libraries always linked in, and the build extras with whether THIS binary has them (via
 // ExtraEnabled, so it reflects the actual build). Full notice texts live in the NOTICE file; this
@@ -454,9 +444,6 @@ absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   }
   if (topic == "expressions") {
     return RenderExpressions();  // the annotated Tests/Actions/Operators list, sans globals
-  }
-  if (topic == "cookbook" || topic == "examples" || topic == "recipes") {
-    return RenderCookbook();  // worked examples composing the building blocks end to end
   }
   if (topic == "notice" || topic == "notices") {
     return RenderNotice();  // third-party component manifest + what this binary contains

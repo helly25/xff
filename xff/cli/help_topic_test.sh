@@ -138,7 +138,7 @@ test::help_cookbook_lists_worked_examples() {
   # carries a runnable command. It also folds into --help=full.
   local cookbook full
   cookbook="$("$(_xff_bin)" --help=cookbook 2>&1)"
-  expect_output_contains 'xff cookbook' "${cookbook}"
+  expect_output_contains 'Worked examples' "${cookbook}"
   expect_output_contains 'git blame' "${cookbook}"                           # the flagship -exec recipe
   expect_output_contains 'xff . -type f --summary=ext' "${cookbook}"         # a runnable command (global at the tail)
   expect_output_contains 'Ten largest files' "${cookbook}"                   # a recipe task heading
