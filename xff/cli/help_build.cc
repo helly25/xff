@@ -33,6 +33,7 @@
 #include "xff/datetime/datetime.h"
 #include "xff/engine/evaluate.h"
 #include "xff/fields/fields.h"
+#include "xff/license/license.h"
 #include "xff/regex/regex.h"
 #include "xff/registry/descriptor.h"
 #include "xff/registry/registry.h"
@@ -382,6 +383,29 @@ Section ConfigSection() {
   return section;
 }
 
+// The `--help=notice` topic (alias notices): the one build-dependent line (which extras THIS
+// binary contains, via ExtraEnabled) then the third-party component manifest, reproduced
+// verbatim from the compiled-in repo NOTICE so a single-file release is self-contained. A
+// title-less section renders the manifest verbatim at column 0 (an Example is never wrapped).
+Section NoticeSection() {
+  Section section;  // title-less: no heading, body at column 0
+  section.children.push_back(ProseOf(
+      absl::StrCat(
+          "Build extras compiled into this binary: ", ExtraEnabled("archive") ? "archive" : "none (lean build)")));
+  section.children.push_back(Content{.node = Example{.text = license::NoticeText()}});
+  return section;
+}
+
+// The `--help=license` topic (alias licenses): xff's own license (Apache-2.0) in full, led by
+// the copyright + grant statement (task #142). Legal text renders verbatim and must not reflow,
+// so it is a title-less section holding a single Example (column 0, byte-exact, unwrapped).
+Section LicenseSection() {
+  Section section;  // title-less: the copyright leads, then the license body, verbatim
+  section.children.push_back(
+      Content{.node = Example{.text = absl::StrCat(license::CopyrightNotice(), license::LicenseText())}});
+  return section;
+}
+
 // EXAMPLES: the cookbook recipes as structured nodes - each a subsection with the
 // verbatim command (an Example, kept copy-pastable) and its explanation (Prose, which
 // wraps). The recipe list is the SOT in help.cc, run end to end by cookbook_test.
@@ -531,6 +555,10 @@ std::optional<Document> TopicReference(std::string_view name) {
     doc.sections.push_back(ConfigSection());
   } else if (name == "cookbook" || name == "examples" || name == "recipes") {
     doc.sections.push_back(BuildExamples());
+  } else if (name == "notice" || name == "notices") {
+    doc.sections.push_back(NoticeSection());
+  } else if (name == "license" || name == "licenses") {
+    doc.sections.push_back(LicenseSection());
   } else {
     return std::nullopt;
   }

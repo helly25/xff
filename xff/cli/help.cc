@@ -29,7 +29,6 @@
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "xff/cli/globals.h"
-#include "xff/license/license.h"
 #include "xff/registry/descriptor.h"
 #include "xff/registry/registry.h"
 
@@ -222,31 +221,6 @@ absl::Span<const Recipe> CookbookRecipes() {
 }
 
 namespace {
-
-// The `--help=licenses` topic: a minimum-viable license summary. xff's own license, the core
-// libraries always linked in, and the build extras with whether THIS binary has them (via
-// ExtraEnabled, so it reflects the actual build). Full notice texts live in the NOTICE file; this
-// is the at-a-glance answer to "what is in this binary, and under what licenses?".
-// `--help=notice` (alias notices): the third-party component manifest, reproduced verbatim from the
-// repo NOTICE compiled into the binary (see notices.h) so a single-file release is self-contained,
-// prefixed with the one build-dependent line -- which extras THIS binary actually contains.
-std::string RenderNotice() {
-  std::string out = "Build extras compiled into this binary: ";
-  absl::StrAppend(&out, ExtraEnabled("archive") ? "archive" : "none (lean build)", "\n\n");
-  absl::StrAppend(&out, license::NoticeText());
-  return out;
-}
-
-// `--help=license` (alias licenses): the copyright + grant (CopyrightNotice, so --help=license and
-// --help=notice can never state a different owner) that COMPLETES the licensing statement per Apache
-// 2.0's own APPENDIX, followed by xff's own license (Apache-2.0) reproduced verbatim from the repo
-// LICENSE compiled into the binary. Separate from `--help=notice`, which is the third-party
-// attribution; a user asking for either gets the full text, never a pointer to a file.
-std::string RenderLicense() {
-  // LicenseText() already opens with a blank line, so the copyright block and the license body are
-  // separated by exactly one blank line with no extra separator here.
-  return absl::StrCat(license::CopyrightNotice(), license::LicenseText());
-}
 
 // The `--help=help` topic: a guide to the (subcommand-free) help system, then the
 // generated topic index. So there is one place a user can ask "how do I get help?".
@@ -444,12 +418,6 @@ absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   }
   if (topic == "expressions") {
     return RenderExpressions();  // the annotated Tests/Actions/Operators list, sans globals
-  }
-  if (topic == "notice" || topic == "notices") {
-    return RenderNotice();  // third-party component manifest + what this binary contains
-  }
-  if (topic == "license" || topic == "licenses") {
-    return RenderLicense();  // xff's own license (Apache-2.0), in full
   }
   // A single expression primary / global flag is NOT rendered here: the caller
   // (RenderTopic) resolves it from the help model via EntryReference so it wraps and

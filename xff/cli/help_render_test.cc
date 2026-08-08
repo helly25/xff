@@ -173,7 +173,7 @@ TEST_F(HelpTest, EveryAdvertisedTopicRendersAndAliasesAreSynonyms) {
   for (const HelpTopic& topic : HelpTopics()) {
     if (topic.name == "styles" || topic.name == "fields" || topic.name == "printf" || topic.name == "time"
         || topic.name == "size" || topic.name == "grammars" || topic.name == "extras" || topic.name == "stats"
-        || topic.name == "config" || topic.name == "cookbook") {
+        || topic.name == "config" || topic.name == "cookbook" || topic.name == "notice" || topic.name == "license") {
       continue;  // rendered from the model (TopicReference) or the CLI facets, not RenderHelp
     }
     const absl::StatusOr<std::string> rendered = RenderHelp(topic.name);
@@ -214,6 +214,21 @@ TEST_F(HelpTest, ConfigTopicDocumentsTiersStyleAndArming) {
       RenderTopicDoc("config"), AllOf(
                                     HasSubstr("system config"), HasSubstr("command line"), HasSubstr("--config"),
                                     HasSubstr("argv[0]"), HasSubstr("--allow-exec")));
+}
+
+TEST_F(HelpTest, NoticeTopicReproducesTheManifestVerbatim) {
+  // `--help=notice` renders from the model: the build-dependent extras line, then the
+  // verbatim third-party NOTICE manifest (reproduced, not a file pointer).
+  const std::string notice = RenderTopicDoc("notice");
+  EXPECT_THAT(notice, AllOf(HasSubstr("Build extras compiled into this binary"), HasSubstr("RE2")));
+}
+
+TEST_F(HelpTest, LicenseTopicLeadsWithCopyrightThenTheText) {
+  // `--help=license` renders from the model (a title-less verbatim block): the copyright
+  // + grant lead (task #142), then the full Apache-2.0 text.
+  EXPECT_THAT(
+      RenderTopicDoc("license"),
+      AllOf(HasSubstr("eXtended File Find"), HasSubstr("Apache License"), HasSubstr("Version 2.0")));
 }
 
 TEST_F(HelpTest, GlobalFlagTopicRendersWithGlobalTag) {
