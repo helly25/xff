@@ -22,6 +22,7 @@ cc_library(
     srcs = ["glob.cc"],
     hdrs = ["glob.h"],
     visibility = ["//xff:__subpackages__"],
+    deps = ["@abseil-cpp//absl/strings"],
 )
 
 cc_test(

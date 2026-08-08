@@ -100,12 +100,15 @@ CheckOptions:
     value:           '25'
   - key:             readability-braces-around-statements.ShortStatementLines
     value:           '1'
+  # r/w/x are the chmod-standard permission-bit names (fields.cc's access-string triples);
+  # a longer name would not read better, so allow them alongside the existing i/it/n/os/v.
+  # Other short names (t, c, i/j/k cursors) are renamed to descriptive ones instead.
   - key:             readability-identifier-length.IgnoredLoopCounterNames
     value:           'i|it|n'
   - key:             readability-identifier-length.IgnoredParameterNames
-    value:           'os|v'
+    value:           'os|r|v|w|x'
   - key:             readability-identifier-length.IgnoredVariableNames
-    value:           'os|v|it'
+    value:           'it|os|v'
   - key:             readability-identifier-length.MinimumParameterNameLength
     value:           '2'
   - key:             readability-identifier-length.MinimumVariableNameLength

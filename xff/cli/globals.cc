@@ -18,6 +18,7 @@
 #include <array>
 #include <string_view>
 
+#include "absl/strings/match.h"
 #include "absl/types/span.h"
 
 namespace xff::cli {
@@ -765,7 +766,7 @@ bool IsKnownGlobal(std::string_view arg) {
   // `--sort=tree` / `--define=A=B` are accepted (only the key before the first '=').
   if (const std::string_view::size_type eq = arg.find('='); eq != std::string_view::npos) {
     const GlobalFlag* const flag = LookupGlobal(arg.substr(0, eq));
-    return flag != nullptr && flag->display.find('=') != std::string_view::npos;
+    return flag != nullptr && absl::StrContains(flag->display, '=');
   }
   return false;
 }

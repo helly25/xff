@@ -394,7 +394,10 @@ cc_library(
     name = "globals_cc",
     srcs = ["globals.cc"],
     hdrs = ["globals.h"],
-    deps = ["@abseil-cpp//absl/types:span"],
+    deps = [
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:span",
+    ],
 )
 
 cc_test(
