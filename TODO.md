@@ -816,14 +816,11 @@ concrete need appears.
 - **Custom histogram bucket edges / counts** (#81): explicit numeric-range boundaries or a target
   bucket count (e.g. `--histogram-buckets=...`) in place of the automatic log / linear ranging.
   Deferred until the auto ranging proves insufficient in practice.
-- **Pager for long help / reference output** (`--pager=CMD`). Now that `--help` is colored and
-  wraps, a git-style pager makes the long reference (`--help=full`, `--man`, `--markdown`) actually
-  readable. Design leaning: `--pager=CMD` pipes the meta-output through `CMD`; default is auto - use a
-  pager only when stdout is a TTY, honoring `$PAGER` then falling back to `less -FRX` (`-R` keeps our
-  ANSI color, `-F` quits if it fits one screen, `-X` avoids clearing); `--pager=none` / `--no-pager`
-  disables. Because auto-pager implies a TTY, it also flips help `--color` to on by default there, so
-  the two features pair. Scope is fork/exec the pager, dup stdout onto its stdin, wait, and handle
-  `SIGPIPE` / a missing pager binary gracefully; it only pages xff's own emitted text (so `--markdown`
-  and plain/colored `--help` benefit directly - paging raw `--man` roff is only useful if the user's
-  `CMD` runs `mandoc`, which is their choice, e.g. `--pager='mandoc | less -R'`). Confirm the default
-  (auto vs off) before building - it changes behavior for every interactive `--help`.
+- **Pager for long help / reference output** (SHIPPED #397): `--pager[=auto|always|never]` mirrors
+  `--color`'s tri-state (bare == always, `--no-pager` == never, default auto = page only on a tty); it
+  pages the long meta surfaces (`--help`, `--help=TOPIC`, `--man`, `--markdown`) and never the file
+  listing. The command is `$XFF_PAGER` -> `$PAGER` -> built-in `less -FRX` (`-F` so short help never
+  traps, `-R` keeps the color, `-X` keeps short output on the normal screen); an empty env value
+  disables. Paging runs via `sh -c` (args / pipelines work), with a stdout fallback on any failure.
+  Rejected: a help-scoped `--help-pager` name and a `--help=paged` content topic - paging is an
+  orthogonal behavior, not a content selector.
