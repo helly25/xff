@@ -164,14 +164,14 @@ TEST_F(LineCountTest, FileLineCountReadsAndCounts) {
   EXPECT_THAT(FileLineCount(path), Optional(Eq(std::size_t{1})));
   { std::ofstream(path) << ""; }  // truncate to empty
   EXPECT_THAT(FileLineCount(path), Optional(Eq(std::size_t{0})));
-  std::remove(path.c_str());
+  (void)std::remove(path.c_str());
 }
 
 TEST_F(LineCountTest, FileLineCountSkipsBinaryAndUnreadable) {
   const std::string path = std::string(::testing::TempDir()) + "/xff_line_count_bin";
   { std::ofstream(path, std::ios::binary).write("a\0b\n", 4); }  // a NUL byte in the content
   EXPECT_THAT(FileLineCount(path), Eq(std::nullopt));            // a NUL byte marks the file binary
-  std::remove(path.c_str());
+  (void)std::remove(path.c_str());
   EXPECT_THAT(FileLineCount(std::string(::testing::TempDir()) + "/xff_line_count_absent"), Eq(std::nullopt));
 }
 

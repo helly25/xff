@@ -39,6 +39,12 @@
 namespace xff::engine {
 namespace {
 
+// gtest struct-fixture idioms suppressed file-wide: SetUp/TearDown are public overrides of the
+// base's protected hooks; fixture state carries the private-style `_` suffix; and the data-heavy
+// TEST_F bodies plus trivial local names (a one-line path lambda) trip cognitive-complexity and
+// identifier-length. All are test conventions, not defects.
+// NOLINTBEGIN(misc-override-with-different-visibility,readability-identifier-naming,readability-function-cognitive-complexity,readability-identifier-length)
+
 namespace fs = std::filesystem;
 
 using ::mbo::testing::IsOk;
@@ -114,7 +120,7 @@ class FakeFs : public vfs::FileSystem {
   }
 
   // Resolves one symlink level (sufficient for these tests).
-  std::string Resolve(std::string path) const {
+  std::string Resolve(const std::string& path) const {
     const auto it = targets_.find(path);
     return it == targets_.end() ? path : it->second;
   }
@@ -165,14 +171,14 @@ struct WalkTest : ::testing::Test {
     absl::Status status;
   };
 
-  Result Run(const WalkOptions& options, absl::FunctionRef<WalkAction(const Visit&)> control) {
+  Result Run(const WalkOptions& options, absl::FunctionRef<WalkAction(const Visit&)> control) const {
     return RunRoots({root_.string()}, options, control);
   }
 
   Result RunRoots(
       const std::vector<std::string>& roots,
       const WalkOptions& options,
-      absl::FunctionRef<WalkAction(const Visit&)> control) {
+      absl::FunctionRef<WalkAction(const Visit&)> control) const {
     Result result;
     result.status = Walk(
         fs_, roots, options,
@@ -225,6 +231,7 @@ TEST_F(WalkTest, SortModesOrderUnderWorkers) {
   const auto p = [&](const std::string& rel) { return (root_ / "order" / rel).string(); };
   const auto paths = [](const Result& result) {
     std::vector<std::string> out;
+    out.reserve(result.seen.size());
     for (const auto& [path, depth] : result.seen) {
       out.push_back(path);
     }
@@ -304,9 +311,9 @@ TEST_F(WalkTest, DepthVisitsPostOrder) {
   ASSERT_THAT(result.seen, Not(IsEmpty()));
   EXPECT_THAT(result.seen.back(), Pair(root_.string(), 0));
   const auto index_of = [&](std::string_view path) -> int {
-    for (int i = 0; i < static_cast<int>(result.seen.size()); ++i) {
+    for (std::size_t i = 0; i < result.seen.size(); ++i) {
       if (result.seen[i].first == path) {
-        return i;
+        return static_cast<int>(i);
       }
     }
     return -1;
@@ -321,7 +328,7 @@ struct WalkFakeFsTest : ::testing::Test {
     const absl::Status status = Walk(
         fs_, {"/r"}, options,
         [&](const Visit& visit) {
-          out.push_back(std::string(visit.path));
+          out.emplace_back(visit.path);
           return WalkAction::kContinue;
         },
         [&](std::string_view, absl::Status) { ++errors_; });
@@ -413,5 +420,6 @@ TEST_F(WalkFakeFsTest, CarriesOriginatingRootPerEntry) {
                 Pair("/s/c", "/s")));
 }
 
+// NOLINTEND(misc-override-with-different-visibility,readability-identifier-naming,readability-function-cognitive-complexity,readability-identifier-length)
 }  // namespace
 }  // namespace xff::engine

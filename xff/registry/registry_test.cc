@@ -103,6 +103,7 @@ TEST_F(RegistryTest, ExtendedLogicalOperatorsAreOperators) {
   }
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): a flat per-descriptor validation sweep.
 TEST_F(RegistryTest, EveryDescriptorCarriesAWellFormedSummary) {
   // The help system, generated --help, and the planned man-page / .md doc
   // generators all read `summary`, so every descriptor must carry a one-line

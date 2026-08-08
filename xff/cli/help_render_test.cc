@@ -58,6 +58,19 @@ std::string RenderTopicDoc(std::string_view name) {
   return backend.Take();
 }
 
+// Renders a `--help=list` / `--help=all` / `--help=expressions` index document (IndexReference +
+// the plain backend), the same path the CLI uses, or "" when NAME is not an index. Keeps the
+// optional behind an if-guard so callers work with the rendered string directly.
+std::string RenderIndex(std::string_view name) {
+  const std::optional<Document> doc = IndexReference(name);
+  if (!doc.has_value()) {
+    return "";
+  }
+  PlainTextBackend backend;
+  RenderDocument(*doc, backend);
+  return backend.Take();
+}
+
 // Renders any model Document to plain text (the CLI path), for the index / full-reference
 // drift guards below.
 std::string RenderDoc(const Document& doc) {
@@ -71,7 +84,6 @@ using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Lt;
-using ::testing::Ne;
 using ::testing::Not;
 using ::testing::SizeIs;
 
@@ -112,9 +124,7 @@ TEST_F(HelpTest, UnknownTopicResolvesToNothingInTheModel) {
 TEST_F(HelpTest, ListIndexRendersEveryPrimaryAndTheTopicMap) {
   // `--help=list` is the whole-vocabulary index (the usage page): every expression
   // primary grouped by kind, plus the `--help=TOPIC` map.
-  const std::optional<Document> list = IndexReference("list");
-  ASSERT_THAT(list, Ne(std::nullopt));
-  const std::string out = RenderDoc(*list);
+  const std::string out = RenderIndex("list");
   EXPECT_THAT(out, AllOf(HasSubstr("Tests"), HasSubstr("Actions"), HasSubstr("Operators")));
   for (const registry::Descriptor& descriptor : registry::All()) {
     EXPECT_THAT(out, HasSubstr(descriptor.name)) << descriptor.name;
@@ -126,9 +136,7 @@ TEST_F(HelpTest, FullReferenceHasDetailsAllIndexIsSummariesOnly) {
   // The full reference (BuildReference, = --help=full) carries the long per-entry
   // explanations; `--help=all` is the same set summaries-only -- strictly shorter.
   const std::string full = RenderDoc(BuildReference());
-  const std::optional<Document> all_doc = IndexReference("all");
-  ASSERT_THAT(all_doc, Ne(std::nullopt));
-  const std::string all = RenderDoc(*all_doc);
+  const std::string all = RenderIndex("all");
   EXPECT_THAT(full, AllOf(HasSubstr("--sort"), HasSubstr("-regex"), HasSubstr("A config style sets")));
   EXPECT_THAT(all, AllOf(HasSubstr("--sort"), HasSubstr("-regex")));
   EXPECT_THAT(all, Not(HasSubstr("A config style sets")));  // summaries only, no detail prose
@@ -236,6 +244,7 @@ TEST_F(HelpTest, EnvironmentTopicListsTheVariables) {
   EXPECT_THAT(RenderTopicDoc("env"), Eq(env));  // the alias renders identically
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): a flat per-topic drift sweep.
 TEST_F(HelpTest, EveryAdvertisedTopicResolvesInTheModel) {
   // Drift guard: every advertised topic resolves to a non-empty model document via
   // TopicReference or IndexReference, and each alias renders identically. styles /
@@ -267,9 +276,7 @@ TEST_F(HelpTest, EveryAdvertisedTopicResolvesInTheModel) {
 TEST_F(HelpTest, ExpressionsIndexListsEveryPrimaryWithoutGlobals) {
   // `--help=expressions` is the annotated Tests/Actions/Operators list -- every
   // expression primary with its summary, but not the whole-run global flags.
-  const std::optional<Document> expr_doc = IndexReference("expressions");
-  ASSERT_THAT(expr_doc, Ne(std::nullopt));
-  const std::string expr = RenderDoc(*expr_doc);
+  const std::string expr = RenderIndex("expressions");
   EXPECT_THAT(expr, AllOf(HasSubstr("Tests"), HasSubstr("Actions"), HasSubstr("Operators")));
   for (const registry::Descriptor& descriptor : registry::All()) {
     EXPECT_THAT(expr, HasSubstr(descriptor.name)) << descriptor.name;
@@ -322,9 +329,7 @@ TEST_F(HelpTest, GlobalFlagResolvesByAliasAndDashless) {
 TEST_F(HelpTest, ListIndexIncludesGlobalGroupsAndEveryFlag) {
   // `--help=list` (the usage-page index) groups the whole-run flags by header and lists
   // every one, including a not-built extra flag (which carries its rebuild note).
-  const std::optional<Document> list = IndexReference("list");
-  ASSERT_THAT(list, Ne(std::nullopt));
-  const std::string index = RenderDoc(*list);
+  const std::string index = RenderIndex("list");
   EXPECT_THAT(index, AllOf(HasSubstr("Config"), HasSubstr("Traversal")));
   for (const GlobalFlag& flag : Globals()) {
     EXPECT_THAT(index, HasSubstr(flag.name)) << flag.name;
@@ -355,10 +360,8 @@ TEST_F(HelpTest, DetailedHelpShowsInfluenceCrossReferences) {
 
 TEST_F(HelpTest, InfluenceBlocksAreTheDetailTierOnly) {
   // The full reference (detailed tier) carries the influence blocks; --help=all (summaries) omits them.
-  const std::optional<Document> all_doc = IndexReference("all");
-  ASSERT_THAT(all_doc, Ne(std::nullopt));
   EXPECT_THAT(RenderDoc(BuildReference()), HasSubstr("Affected by:"));
-  EXPECT_THAT(RenderDoc(*all_doc), Not(HasSubstr("Affected by:")));
+  EXPECT_THAT(RenderIndex("all"), Not(HasSubstr("Affected by:")));
 }
 
 TEST_F(HelpTest, EveryAffectsTokenResolvesToARealEntry) {

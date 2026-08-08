@@ -41,11 +41,14 @@ using ::testing::StartsWith;
 
 // Reads a data-dep file from the test's runfiles, or an empty optional if unavailable.
 std::string ReadRunfile(std::string_view relative) {
+  // Bazel's runfiles env vars, read once in a single-threaded test; getenv is safe here.
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
   const char* const srcdir = std::getenv("TEST_SRCDIR");
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
   const char* const workspace = std::getenv("TEST_WORKSPACE");
   EXPECT_THAT(srcdir, NotNull());
   EXPECT_THAT(workspace, NotNull());
-  std::ifstream file(absl::StrCat(srcdir, "/", workspace, "/", relative));
+  const std::ifstream file(absl::StrCat(srcdir, "/", workspace, "/", relative));
   EXPECT_THAT(file.is_open(), IsTrue()) << relative;
   std::stringstream buffer;
   buffer << file.rdbuf();
@@ -72,9 +75,8 @@ TEST_F(LicenseTest, NoticesIncludeTheAlwaysLinkedCoreDeps) {
 TEST_F(LicenseTest, NoticesAreSortedByComponentForDeterministicOutput) {
   const std::vector<Notice> notices = Notices();
   EXPECT_THAT(
-      std::is_sorted(
-          notices.begin(), notices.end(),
-          [](const Notice& lhs, const Notice& rhs) { return lhs.component < rhs.component; }),
+      std::ranges::is_sorted(
+          notices, [](const Notice& lhs, const Notice& rhs) { return lhs.component < rhs.component; }),
       IsTrue());
 }
 

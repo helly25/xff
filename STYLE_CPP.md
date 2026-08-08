@@ -11,13 +11,17 @@ an AI assistant) can follow them without reverse-engineering the tooling.
   best-effort basis.
 - **`clang-format`** with [`.clang-format`](.clang-format) formats all C++ code. Run
   it; do not hand-format against it. CI rejects any reformatting diff.
-- **`clang-tidy`** with [`.clang-tidy`](.clang-tidy) (`WarningsAsErrors: true`) runs **locally**
-  via `trunk` (a `trunk check` and the editor daemon) against a `compile_commands.json` you
-  generate with `bazel run @bazel_compile_commands_extractor//:refresh_all`. **CI does not run it** (no
-  compile DB there), so CI's hard gate is the compiler `-Werror` in the bazel matrix; still treat
-  a clang-tidy finding as a must-fix before pushing. The enabled set is broad: `abseil-*`,
-  `bugprone-*`, `cppcoreguidelines-*`, `google-*`, `misc-*`, `modernize-*`, `performance-*`,
-  `portability-*`, `readability-*`.
+- **`clang-tidy`** with [`.clang-tidy`](.clang-tidy) (`WarningsAsErrors: '*'`) runs via the
+  opt-in `clang-tidy` pre-commit hook (`pre-commit run clang-tidy --all-files --hook-stage manual`,
+  which shells out to [`tools/clang_tidy.sh`](tools/clang_tidy.sh)) against a `compile_commands.json`
+  you generate with [`./compile_commands-update.sh`](compile_commands-update.sh). It is report-only
+  (never `--fix`) and needs a hermetic clang-tidy (>= clang-22 for this C++23 code); it skips cleanly
+  when either is missing. It is **not** run by `trunk` (trunk pinned clang-tidy 16, which mis-parses
+  C++23 and auto-applied build-breaking fixes - do not re-add it there). In **CI** the dedicated
+  `clang-tidy` job owns it: it builds the compile DB (`compile_commands-update.sh`, hermetic clang)
+  and runs this hook, report-only (`continue-on-error`) until the finding sweep lands, then a hard
+  gate. The enabled set is broad: `abseil-*`, `bugprone-*`, `cppcoreguidelines-*`, `google-*`,
+  `misc-*`, `modernize-*`, `performance-*`, `portability-*`, `readability-*`.
 
 ### What `.clang-format` decides (do not fight it)
 

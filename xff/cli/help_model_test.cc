@@ -34,6 +34,7 @@ using ::testing::SizeIs;
 
 // A std::visit overload set, so the walker below reads as one case per node kind.
 template<typename... Ts>
+// NOLINTNEXTLINE(misc-multiple-inheritance): the std overloaded-visitor idiom for std::visit.
 struct Overloaded : Ts... {
   using Ts::operator()...;
 };

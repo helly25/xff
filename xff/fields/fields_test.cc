@@ -44,6 +44,7 @@ using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Not;
+using ::testing::Optional;
 using ::testing::UnorderedElementsAreArray;
 
 struct FieldsTest : ::testing::Test {
@@ -153,7 +154,7 @@ TEST_F(FieldsTest, HashFieldDigestsFileContent) {
   // An unknown algorithm or encoding renders empty (the field convention).
   EXPECT_THAT(Template::Compile("[{hash:crc32}]").Render(RenderContext{.path = path, .metadata = md}), "[]");
   EXPECT_THAT(Template::Compile("[{hash:sha256/b64}]").Render(RenderContext{.path = path, .metadata = md}), "[]");
-  std::remove(path.c_str());
+  (void)std::remove(path.c_str());
 }
 
 TEST_F(FieldsTest, HashFieldOfUnreadableFileIsEmpty) {
@@ -171,7 +172,7 @@ TEST_F(FieldsTest, LinesFieldCountsTextLines) {
   EXPECT_THAT(Template::Compile("{lines}").Render(RenderContext{.path = path, .metadata = md}), "1");
   { std::ofstream(path) << ""; }  // truncate: an empty file is zero lines
   EXPECT_THAT(Template::Compile("{lines}").Render(RenderContext{.path = path, .metadata = md}), "0");
-  std::remove(path.c_str());
+  (void)std::remove(path.c_str());
 }
 
 TEST_F(FieldsTest, LinesFieldIsEmptyForBinaryUnreadableOrNonRegular) {
@@ -186,7 +187,7 @@ TEST_F(FieldsTest, LinesFieldIsEmptyForBinaryUnreadableOrNonRegular) {
   // A non-regular entry is never counted, even at a readable path.
   const vfs::Metadata dir = Meta(vfs::FileType::kDirectory, 0);
   EXPECT_THAT(Template::Compile("[{lines}]").Render(RenderContext{.path = path, .metadata = dir}), "[]");
-  std::remove(path.c_str());
+  (void)std::remove(path.c_str());
 }
 
 TEST_F(FieldsTest, TimeFieldQualifiers) {
@@ -359,8 +360,11 @@ TEST_F(FieldsTest, NumericPlaceholdersRenderRegexCaptures) {
 
 TEST_F(FieldsTest, EnvNamespaceReadsEnvironment) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  // Single-threaded test exercising {env.NAME}; the setenv/unsetenv pair is safe here.
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
   ::setenv("XFF_TEST_ENV_VAR", "hello", 1);
   EXPECT_THAT(Render("{env.XFF_TEST_ENV_VAR}", "p", md, 0), "hello");
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
   ::unsetenv("XFF_TEST_ENV_VAR");
   EXPECT_THAT(Render("{env.XFF_TEST_ENV_VAR}", "p", md, 0), "");  // unset -> empty
 }
@@ -401,7 +405,7 @@ TEST_F(FieldsTest, MExtractorYieldsAPerLineValueStream) {
   const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
   // AsExtraction: one value per matching line, non-matching lines dropped, \1 = capture group.
   ASSERT_TRUE(compiled.AsExtraction(ctx).has_value());
-  EXPECT_THAT(*compiled.AsExtraction(ctx), ElementsAre("Bob", "Ann", "Bob"));
+  EXPECT_THAT(compiled.AsExtraction(ctx), Optional(ElementsAre("Bob", "Ann", "Bob")));
   // Scalar Render projects the stream as the matches newline-joined.
   EXPECT_THAT(compiled.Render(ctx), "Bob\nAnn\nBob");
 }
@@ -411,9 +415,10 @@ TEST_F(FieldsTest, MExtractorHonorsDelimiterFlagsAndWholeMatch) {
   const std::map<std::string, std::string> outputs = {{"x", "AUTHOR Bob\nnope\nauthor Ann"}};
   const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
   // Alternate ',' delimiter + case-insensitive 'i' flag; \1 keeps the name.
-  EXPECT_THAT(*Template::Compile("{capture.x:m,^author (.+)$,\\1,i}").AsExtraction(ctx), ElementsAre("Bob", "Ann"));
+  EXPECT_THAT(
+      Template::Compile("{capture.x:m,^author (.+)$,\\1,i}").AsExtraction(ctx), Optional(ElementsAre("Bob", "Ann")));
   // \0 keeps the whole matching line; a non-matching line is dropped.
-  EXPECT_THAT(*Template::Compile("{capture.x:m/nope/\\0/}").AsExtraction(ctx), ElementsAre("nope"));
+  EXPECT_THAT(Template::Compile("{capture.x:m/nope/\\0/}").AsExtraction(ctx), Optional(ElementsAre("nope")));
 }
 
 TEST_F(FieldsTest, RewriteChainAppliesCommandsInSequence) {
@@ -433,7 +438,7 @@ TEST_F(FieldsTest, MExtractorChainFiltersThenSubstitutes) {
   const Template compiled = Template::Compile("{capture.blame:m/^author (.+)$/\\1/;s/ /_/g}");
   const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
   ASSERT_TRUE(compiled.AsExtraction(ctx).has_value());
-  EXPECT_THAT(*compiled.AsExtraction(ctx), ElementsAre("Bob_Smith", "Ann_Lee"));
+  EXPECT_THAT(compiled.AsExtraction(ctx), Optional(ElementsAre("Bob_Smith", "Ann_Lee")));
 }
 
 TEST_F(FieldsTest, MReducerJoinCollapsesTheStreamToAScalar) {
@@ -476,7 +481,7 @@ TEST_F(FieldsTest, MExtractorEmptyStreamVersusNonExtractionTemplate) {
   const std::map<std::string, std::string> outputs = {{"x", "aaa\nbbb"}};
   const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
   // A well-formed m// that matches nothing is an empty stream (present, but no values).
-  EXPECT_THAT(*Template::Compile("{capture.x:m/zzz/\\0/}").AsExtraction(ctx), IsEmpty());
+  EXPECT_THAT(Template::Compile("{capture.x:m/zzz/\\0/}").AsExtraction(ctx), Optional(IsEmpty()));
   // Anything that is not exactly one m// field is not a value stream.
   EXPECT_THAT(Template::Compile("{name}").AsExtraction(ctx), Eq(std::nullopt));                  // scalar field
   EXPECT_THAT(Template::Compile("x {capture.x:m/./\\0/}").AsExtraction(ctx), Eq(std::nullopt));  // a literal present

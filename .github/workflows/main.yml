@@ -265,14 +265,11 @@ jobs:
             echo "| Lint scope | \`${CLANG_TIDY_SCOPE}\` |"
           } >>"${GITHUB_STEP_SUMMARY}"
       - uses: pre-commit/action@v3.0.1
-        # Report-only until the remaining (test-file) findings are swept: .clang-tidy is
-        # WarningsAsErrors '*' and the test tree is not clean yet. Scoped to this step so a failed
-        # compile DB above still fails the job. Drop continue-on-error to promote to a hard gate.
-        continue-on-error: true
+        # Hard gate: .clang-tidy is WarningsAsErrors '*' and the tree is clang-tidy-clean, so any new
+        # finding fails this job (and thus `done`). The compile-DB build above gates too.
         with:
-          # Only the clang-tidy hook (every other hook ran in the pre-commit job). --hook-stage
-          # manual while the hook is opt-in; harmless once it becomes an automatic gate. Scope comes
-          # from the step above: changed sources on a branch, the whole tree on main.
+          # Only the clang-tidy hook (every other hook ran in the pre-commit job). Scope comes from
+          # the step above: changed sources on a branch, the whole tree on main.
           extra_args: clang-tidy --hook-stage manual ${{ env.CLANG_TIDY_SCOPE }}
 
   # Single required status check: one job that gates merge on the whole matrix,

@@ -25,6 +25,13 @@
 namespace xff::cli {
 namespace {
 
+// This file's fixture deliberately mutates the process environment (setenv/unsetenv/getenv) to
+// exercise pager resolution, saving and restoring each variable around a single-threaded test - so
+// the env calls are safe here. It is a gtest struct fixture, so SetUp/TearDown override the base's
+// protected members from a public scope and the saved-state members carry the private-style `_`
+// suffix. All three are test-fixture idioms, suppressed file-wide rather than per line.
+// NOLINTBEGIN(concurrency-mt-unsafe,misc-override-with-different-visibility,readability-identifier-naming)
+
 using ::testing::Eq;
 using ::testing::HasSubstr;
 
@@ -139,5 +146,6 @@ TEST_F(PagerCommandTest, ManPagerIsIndependentOfTheTextPager) {
   EXPECT_THAT(ResolvePagerCommand(PagerKind::kMan), HasSubstr("mandoc"));
 }
 
+// NOLINTEND(concurrency-mt-unsafe,misc-override-with-different-visibility,readability-identifier-naming)
 }  // namespace
 }  // namespace xff::cli

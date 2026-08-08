@@ -141,19 +141,19 @@ repos:
         files: ^tools/(trigger_release\.sh|trigger_release_test\.sh)$
         pass_filenames: false
       - id: clang-tidy
-        name: clang-tidy (local-only, opt-in)
+        name: clang-tidy (opt-in locally; gated by the CI clang-tidy job)
         description: |
           Runs clang-tidy over the given C++ sources via tools/clang_tidy.sh, a report-only
-          pass (no --fix, so it never rewrites the tree). It is a LOCAL-ONLY aid: it needs a
-          compile_commands.json (a gitignored local artifact) and a clang-tidy new enough for
-          this C++23 codebase, and SKIPS cleanly when either is missing - so it is a no-op on a
-          CI runner (no compile DB) and never forces the hermetic toolchain download. CI's hard
-          gate stays the bazel -Werror matrix. Run it explicitly with
-          `pre-commit run clang-tidy --all-files` (or on specific files with `--files ...`).
-          `stages: [manual]` keeps it OFF the automatic commit gate for now: the generated
-          compile DB still mis-orders an include path so clang-tidy aborts on files that pull
-          `<version>` / abseil headers (tracked in TODO.md). Once that and the clang-tidy-22
-          finding sweep land, drop `stages` to promote it to an automatic gate.
+          pass (no --fix, so it never rewrites the tree). It needs a compile_commands.json (a
+          gitignored local artifact; build it with ./compile_commands-update.sh) and a hermetic
+          clang-tidy (>= clang-22 for this C++23 codebase); it SKIPS cleanly when either is
+          missing, so it never forces the toolchain download on a fresh checkout.
+          `stages: [manual]` keeps it off the local commit hook (run it explicitly with
+          `pre-commit run clang-tidy --all-files --hook-stage manual`), but the dedicated CI
+          `clang-tidy` job owns it as a HARD GATE: that job builds the compile DB and runs this
+          hook with `--hook-stage manual`, and `.clang-tidy` is `WarningsAsErrors: '*'`, so any
+          finding fails CI. It is not run by trunk (trunk pinned clang-tidy 16, which mis-parses
+          C++23 - do not re-add it there).
         language: script
         entry: tools/clang_tidy.sh
         types_or: [c++]

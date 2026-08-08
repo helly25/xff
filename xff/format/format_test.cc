@@ -79,9 +79,9 @@ TEST_F(FormatTest, SizeColumnsSplitsNumberAndSuffixWithFixedFraction) {
 TEST_F(FormatTest, SizeColumnsBlanksTheFractionAreaForExactBytes) {
   // Exact bytes render as the integer; the fraction columns (point + digits) become
   // spaces so a right-aligned number column still lines the (absent) point up.
-  const SizeParts b = SizeColumns(56, SizeUnits::kIec, 2);
-  EXPECT_THAT(b.number, "56   ");  // "56" + three blanks standing in for ".DD"
-  EXPECT_THAT(b.suffix, "B");
+  const SizeParts parts = SizeColumns(56, SizeUnits::kIec, 2);
+  EXPECT_THAT(parts.number, "56   ");  // "56" + three blanks standing in for ".DD"
+  EXPECT_THAT(parts.suffix, "B");
   // A one-digit byte and a one-digit scaled value share a number width, so right-aligning
   // the column lines the point (present or blanked) up.
   EXPECT_THAT(SizeColumns(5, SizeUnits::kIec, 2).number, "5   ");
