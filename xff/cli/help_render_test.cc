@@ -209,6 +209,16 @@ TEST_F(HelpTest, HelpGuideListsEveryTopic) {
   }
 }
 
+TEST_F(HelpTest, HelpGuideListsTheDisplayFlags) {
+  // The guide surfaces the output globals that shape how help itself renders, and explains
+  // that --pager pages --help / --man on a terminal.
+  const std::string guide = RenderTopicDoc("help");
+  EXPECT_THAT(
+      guide, AllOf(
+                 HasSubstr("Display options"), HasSubstr("--color"), HasSubstr("--pager"), HasSubstr("--width"),
+                 HasSubstr("paged")));
+}
+
 TEST_F(HelpTest, EveryAdvertisedTopicResolvesInTheModel) {
   // Drift guard: every advertised topic resolves to a non-empty model document via
   // TopicReference or IndexReference, and each alias renders identically. styles /

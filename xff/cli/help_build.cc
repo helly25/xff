@@ -536,7 +536,22 @@ Section GuideSection() {
           "xff has no subcommands; every kind of help is a flag. `--help` is this usage overview; "
           "`--help=NAME` documents one option or primary (e.g. `--help=-regex`, `--help=--sort`); "
           "`--help=TOPIC` opens one of the topics below; `--help=full` is the complete detailed reference; "
-          "`--man` emits the roff man page and `--markdown` a Markdown reference."));
+          "`--man` emits the roff man page and `--markdown` a Markdown reference. On a terminal this help "
+          "(and `--man`) is paged per `--pager`, and `--man` is formatted like a man page, so long output "
+          "scrolls instead of scrolling off; through a pipe or redirect it stays unpaged (and `--man` stays "
+          "raw roff for `mandoc` / installing). `--color` and `--width` control its coloring and wrap width; "
+          "see the display options below."));
+  // The output globals that shape how this help itself renders, pulled from the globals SOT so the
+  // guide cannot drift from the actual flags.
+  Subsection display{.title = "Display options (how help is shown)"};
+  Rows display_rows;
+  for (const std::string_view name : {"--color", "--pager", "--width"}) {
+    if (const GlobalFlag* const flag = LookupGlobal(name); flag != nullptr) {
+      display_rows.rows.push_back(Row{.term = std::string(flag->display), .description = ParseInline(flag->summary)});
+    }
+  }
+  display.children.push_back(Content{.node = std::move(display_rows)});
+  help.children.push_back(Content{.node = std::move(display)});
   return help;
 }
 

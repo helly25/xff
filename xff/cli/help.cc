@@ -127,7 +127,8 @@ std::vector<HelpFlag> HelpFlags() {
       {.display = "--help=NAME", .summary = "full help for one option or primary (e.g. --help=-regex, --help=--sort)"},
       {.display = "--help=TOPIC", .summary = "detailed help for a topic:"},
       {.display = "--help-full", .summary = "the full detailed reference (also --help-long); --help-all = --help=all"},
-      {.display = "--man", .summary = "print the man page (roff; pipe to `mandoc` or GNU `man -l -`) and exit"},
+      {.display = "--man",
+       .summary = "print the man page: formatted on a terminal (see --pager), else raw roff, and exit"},
       {.display = "--markdown", .summary = "print a Markdown reference of all options and primaries and exit"},
       {.display = "--version, -version", .summary = "print the version and exit"},
   };
