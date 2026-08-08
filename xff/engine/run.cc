@@ -824,6 +824,26 @@ std::string ResolveTimeFormat(const std::vector<std::string>& globals) {
   return format;
 }
 
+// --time-zone-suffix=auto|always|never controls whether a time field's named preset
+// renders its zone suffix. Uses the shared tri-state parser, so true/yes/on == always
+// and false/no/off == never; last occurrence wins, and an absent or unrecognized value
+// keeps kAuto (each preset's built-in default).
+datetime::ZoneSuffix ResolveZoneSuffix(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--time-zone-suffix=";
+  datetime::ZoneSuffix suffix = datetime::ZoneSuffix::kAuto;
+  for (const std::string& global : globals) {
+    if (!global.starts_with(kPrefix)) {
+      continue;
+    }
+    if (const std::optional<values::Tristate> tri = values::ParseTristate(global.substr(kPrefix.size()))) {
+      suffix = *tri == values::Tristate::kOn    ? datetime::ZoneSuffix::kAlways
+               : *tri == values::Tristate::kOff ? datetime::ZoneSuffix::kNever
+                                                : datetime::ZoneSuffix::kAuto;
+    }
+  }
+  return suffix;
+}
+
 // Wraps a FileSystem so Remove previews (emits the path) instead of deleting:
 // backs --dry-run for -delete. ReadDir/Stat pass through unchanged.
 class DryRunFileSystem : public vfs::FileSystem {
@@ -1787,6 +1807,7 @@ int RunFind(
   const absl::Time now = daystart ? datetime::StartOfDay(absl::Now(), tz) : absl::Now();
   // --time-format=NAME: default spec for a time field with no {:qualifier}.
   const std::string time_format = ResolveTimeFormat(command.globals);
+  const datetime::ZoneSuffix zone_suffix = ResolveZoneSuffix(command.globals);
   // --block-size=SIZE: bytes per -size block (a bare value / the 'b' suffix); find's
   // historical default is 512. A malformed SIZE is a usage error, refused here.
   std::uint64_t block_size = 512;
@@ -2181,6 +2202,7 @@ int RunFind(
             .now = now,
             .tz = tz,
             .time_format = time_format,
+            .zone_suffix = zone_suffix,
             .block_size = block_size,
             .fold_name_case = fold_name_case,
             .grep_count = grep_count,
@@ -2222,6 +2244,7 @@ int RunFind(
               .depth = visit.depth,
               .tz = tz,
               .time_format = time_format,
+              .zone_suffix = zone_suffix,
               .hash_algorithm = hash_algorithm,
               .hash_encoding = hash_encoding,
               .defines = &defines,
@@ -2298,6 +2321,7 @@ int RunFind(
                 .depth = visit.depth,
                 .tz = tz,
                 .time_format = time_format,
+                .zone_suffix = zone_suffix,
                 .hash_algorithm = hash_algorithm,
                 .hash_encoding = hash_encoding,
                 .defines = &defines,

@@ -168,6 +168,25 @@ TEST_F(DateTimeTest, FormatTimePresetsAndCustomPatterns) {
   EXPECT_THAT(FormatTime(t, "%Y/%m/%d", utc), "2020/09/13");                               // custom pattern
 }
 
+TEST_F(DateTimeTest, FormatTimeZoneSuffixControl) {
+  const absl::TimeZone utc = absl::UTCTimeZone();
+  const absl::Time t = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13 12:26:40 UTC
+  using enum ZoneSuffix;
+  // kNever drops the optional offset from a preset that shows one (space / iso / rfc3339)...
+  EXPECT_THAT(FormatTime(t, "space", utc, kNever), "2020-09-13 12:26:40");
+  EXPECT_THAT(FormatTime(t, "iso", utc, kNever), "2020-09-13T12:26:40");
+  EXPECT_THAT(FormatTime(t, "rfc3339", utc, kNever), "2020-09-13T12:26:40");
+  // ...but never removes zulu's mandatory Z, and leaves asctime (no offset) alone.
+  EXPECT_THAT(FormatTime(t, "zulu", utc, kNever), "2020-09-13T12:26:40Z");
+  EXPECT_THAT(FormatTime(t, "asctime", utc, kNever), "Sun Sep 13 12:26:40 2020");
+  // kAlways forces an offset, even onto asctime which omits it by default.
+  EXPECT_THAT(FormatTime(t, "asctime", utc, kAlways), "Sun Sep 13 12:26:40 2020 +0000");
+  EXPECT_THAT(FormatTime(t, "space", utc, kAlways), "2020-09-13 12:26:40 +0000");  // already had one
+  // A custom pattern is never touched by the suffix control - the user's own %z stands.
+  EXPECT_THAT(FormatTime(t, "%Y %z", utc, kNever), "2020 +0000");
+  EXPECT_THAT(FormatTime(t, "%Y", utc, kAlways), "2020");  // no offset appended to a custom pattern
+}
+
 TEST_F(DateTimeTest, ParseTimeZoneAcceptsLocalUtcAndNamedZones) {
   absl::TimeZone zone;
   EXPECT_THAT(ParseTimeZone("", &zone), IsTrue());  // empty -> local

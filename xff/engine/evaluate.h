@@ -30,6 +30,7 @@
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "mbo/diff/diff_options.h"
+#include "xff/datetime/datetime.h"
 #include "xff/engine/walk.h"
 #include "xff/format/format.h"
 #include "xff/parser/ast.h"
@@ -86,7 +87,10 @@ struct EvalContext {
   absl::Time now;                             // single reference instant for age tests (-mtime/-mmin)
   absl::TimeZone tz = absl::LocalTimeZone();  // zone for interpreting time-string args (-newerXt); --timezone
   std::string_view time_format;               // --time-format: default for a time field with no {:qualifier}
-  std::uint64_t block_size = 512;             // --block-size: bytes per -size block (bare value / 'b'); find's 512
+  // --time-zone-suffix: whether a time field's named preset renders its zone suffix; forwarded to the
+  // fields RenderContext (kAuto keeps the preset default, kNever suppresses, kAlways forces one).
+  datetime::ZoneSuffix zone_suffix = datetime::ZoneSuffix::kAuto;
+  std::uint64_t block_size = 512;  // --block-size: bytes per -size block (bare value / 'b'); find's 512
   // FS-native name matching: when true, the case-sensitive name predicates
   // (-name/-path) fold case for this entry because it lives on a case-folding
   // volume and the xff-style default is in effect (no --exact). The driver

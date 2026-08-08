@@ -134,8 +134,12 @@ std::string GroupName(std::uint32_t gid) {
 // Formats a timestamp for a time field. The qualifier is a datetime preset name
 // (find/iso/space/epoch) or a custom absl::FormatTime pattern; empty defaults to
 // the "space" ISO form. Rendered in `tz` (the local zone unless --timezone).
-std::string FormatTimeField(absl::Time time, std::string_view qualifier, absl::TimeZone tz) {
-  return datetime::FormatTime(time, qualifier, tz);
+std::string FormatTimeField(
+    absl::Time time,
+    std::string_view qualifier,
+    absl::TimeZone tz,
+    datetime::ZoneSuffix suffix) {
+  return datetime::FormatTime(time, qualifier, tz, suffix);
 }
 
 // Human-readable size ({size:h}): bytes under 1 KiB as a plain count, otherwise
@@ -326,20 +330,20 @@ std::string LinksField(std::string_view, std::string_view, const RenderContext& 
 // A bare {mtime} (no {:qualifier}) uses the --time-format default (ctx.time_format,
 // itself empty -> "space"); an explicit {mtime:iso} qualifier always wins.
 std::string MtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
-  return FormatTimeField(ctx.metadata.mtime, qualifier.empty() ? ctx.time_format : qualifier, ctx.tz);
+  return FormatTimeField(ctx.metadata.mtime, qualifier.empty() ? ctx.time_format : qualifier, ctx.tz, ctx.zone_suffix);
 }
 
 std::string AtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
-  return FormatTimeField(ctx.metadata.atime, qualifier.empty() ? ctx.time_format : qualifier, ctx.tz);
+  return FormatTimeField(ctx.metadata.atime, qualifier.empty() ? ctx.time_format : qualifier, ctx.tz, ctx.zone_suffix);
 }
 
 std::string CtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
-  return FormatTimeField(ctx.metadata.ctime, qualifier.empty() ? ctx.time_format : qualifier, ctx.tz);
+  return FormatTimeField(ctx.metadata.ctime, qualifier.empty() ? ctx.time_format : qualifier, ctx.tz, ctx.zone_suffix);
 }
 
 std::string BtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   const std::string_view spec = qualifier.empty() ? ctx.time_format : qualifier;
-  return ctx.metadata.btime.has_value() ? FormatTimeField(*ctx.metadata.btime, spec, ctx.tz) : "";
+  return ctx.metadata.btime.has_value() ? FormatTimeField(*ctx.metadata.btime, spec, ctx.tz, ctx.zone_suffix) : "";
 }
 
 std::string ModeField(std::string_view, std::string_view, const RenderContext& ctx) {
