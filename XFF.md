@@ -76,8 +76,23 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--block-size=SIZE` - bytes per -size block for a bare -size N / -size Nb (default 512) _(global, xff)_
 - `--exact` - match -name/-path byte-exact, opting out of the xff FS-native case default _(global, xff)_
 - `--case=<MODE>, -i, -s[+|-]` - letter case for matchers: -i insensitive, -s/-s+ smart, -s- sensitive (rg -> smart) _(global, xff)_
+  MODE is one of:
+
+  - `sensitive` - match exactly (-s-)
+  - `insensitive` - fold case (-i)
+  - `smart` - fold case only when the pattern is all lower case (-s / -s+)
+
   Controls case for -name/-path/-regex and the content matchers. sensitive matches exactly; insensitive (-i) folds case; smart (-s / -s+) folds only when the pattern is all lower case and matches exactly otherwise; -s- forces sensitive. rg defaults to smart.
 - `--regextype=<GRAMMAR>` - match engine: RE2, EXACT, FNMATCH, GLOB, SHGLOB (GLOB + {a,b}), or PCRE2 (a build extra) _(global, xff)_
+  GRAMMAR is one of:
+
+  - `RE2` - linear-time regular expressions (the default)
+  - `EXACT` - a literal string; metacharacters are plain text
+  - `FNMATCH` - flat shell wildcard; `*` matches any character including `/`
+  - `GLOB` - path-aware shell glob; `*`/`?` stop at `/`, `**` crosses directories
+  - `SHGLOB` - GLOB plus `{a,b}` brace alternation, so `*.{cc,h}` matches either
+  - `PCRE2` - Perl syntax (lookaround, backreferences); a build extra
+
   Selects the grammar for -regex/-iregex and the content matchers -rxc/-grep. RE2 (the default) is linear-time regular expressions; EXACT is a literal string (metacharacters are plain text); FNMATCH is a flat shell wildcard where * matches any character including /; GLOB is a path-aware shell glob where */? stop at / and ** crosses directories (gitignore semantics), with [...] classes; SHGLOB is GLOB plus {a,b} brace alternation, so *.{cc,h} matches either. PCRE2 (Perl syntax: lookaround, backreferences) is the one build-time extra: it is present only in a full build, and selecting it in a lean build is a hard error, never a silent fall back to RE2. RE2/EXACT/FNMATCH/GLOB/SHGLOB are always built in; run xff --help=extras to see whether THIS binary includes PCRE2. See --help=grammars for a full description of each grammar (GLOB/SHGLOB are xff's own, not POSIX glob(7)).
 
 ### Filter & Ignore
@@ -95,11 +110,34 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--hidden` - include hidden dotfiles in the walk (default: find/xff show, rg skips) _(global, xff)_
 - `--no-hidden` - skip hidden dotfiles (the rg default; opts find/xff out) _(global, xff)_
 - `--skip-vcs[=<LIST>]` - prune VCS metadata dirs (.git, .hg, ...); bare/=all = every known VCS, =LIST a subset _(global, xff)_
+  LIST is one of:
+
+  - `git` - .git
+  - `hg` - .hg
+  - `svn` - .svn
+  - `jj` - .jj
+  - `bzr` - .bzr
+  - `darcs` - _darcs
+  - `cvs` - CVS
+  - `all` - every known VCS (the bare-flag default)
+  - `none` - off (same as --no-skip-vcs)
+
   Prunes version-control metadata directories at any depth (like ripgrep / fd), so a search never wades into repo plumbing. Bare --skip-vcs (or =all) covers every known VCS: git (.git), hg (.hg), svn (.svn), jj (.jj), bzr (.bzr), darcs (_darcs), cvs (CVS). A comma list (--skip-vcs=git,hg) is an explicit, frozen subset - it never changes if a VCS is added to the default set later. --no-skip-vcs (or =none) turns it off. Independent of --hidden, so the user's own dotfiles (.bazelrc, .gitignore) still show. -g / gitignore mode implies --skip-vcs=git (only .git); an explicit --skip-vcs overrides that. Default off otherwise.
 - `--no-skip-vcs` - keep VCS metadata dirs in the walk (opts out of --skip-vcs and the -g .git default) _(global, xff)_
 
 ### Output
 - `--format=<FORMAT>` - output format: plain, nul, jsonl, csv, tsv, aligned, markdown (md), tree; default plain _(global, xff)_
+  FORMAT is one of:
+
+  - `plain` - one path per line (the default)
+  - `nul` - NUL-separated paths (for xargs -0)
+  - `jsonl` - one JSON object per match
+  - `csv` - comma-separated columns
+  - `tsv` - tab-separated columns
+  - `aligned` - column-aligned table
+  - `markdown` - a Markdown table (also `md`)
+  - `tree` - an indented directory tree
+
 - `--no-header` - omit the header row from tabular --format (csv/tsv/aligned/markdown; on by default) _(global, xff)_
 - `--columns=FIELD,...` - columns for tabular --format, from the {field} vocabulary (e.g. path,size,mtime) _(global, xff)_
 - `--diff-algorithm=naive|direct|myers` - diff engine for -diff: naive, direct, or myers (the default, minimal like git) _(global, xff)_
@@ -119,6 +157,17 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--template=TEMPLATE` - render each match through a field template ({path}, {name}, ...) _(global, xff)_
 - `--implicit-print=yes|no` - force the default -print on or off _(global, xff)_
 - `--summary[=<GROUP>]` - aligned count + size table (or --format=jsonl rows) instead of each match; repeatable _(global, xff)_
+  GROUP is one of:
+
+  - `overall` - one row aggregated over all matches
+  - `type` - by file type
+  - `ext` - by extension
+  - `lang` - by programming language
+  - `mime` - by media (MIME) type
+  - `user` - by owner
+  - `group` - by owning group
+  - `{template}` - by any field value, e.g. `--summary='{ext}-{type}'`
+
   Replaces the per-match listing with an aggregate table: match count and total size per group (overall, by type, extension, programming language, media (MIME) type, user (owner), or owning group). The categorical keys reuse the {mime}/{user}/{group} field vocabulary. A {template} key groups by any field value (e.g. --summary='{ext}-{type}'); a single m// extraction key (--summary='{capture.NAME:m/re/\1/}') groups per extracted line, so a per-file command's multi-line output tallies per key (e.g. git-blame lines per author) - the size column is not meaningful there. Repeatable: each --summary is its own table (e.g. --summary=ext --summary=type), printed in order. --top=N limits the rows of each, --summary-precision sets the scaled-size digits, and --format=jsonl emits one object per group for scripts.
 - `--histogram=BUCKET[:MEASURE]` - bar chart per bucket: a count or sum/mean/min/max of size|lines (repeatable) _(global, xff)_
   A terminal reduction like --summary, drawn as bars. BUCKET groups the matches - a category (overall, type, ext, lang, mime, user (owner), or group) or a numeric-range field (size / lines by order of magnitude, depth per level, drawn as an ascending distribution). The optional :MEASURE is the bar's value - `count` (the default) or an aggregate `sum(FIELD)` / `mean(FIELD)` / `min(FIELD)` / `max(FIELD)` over a numeric FIELD (size or lines). A numeric metric needs an aggregator (`ext:lines` is an error; `ext:sum(lines)` is not). Repeatable and combinable with --summary - both are fed by one walk and replace the per-match listing. Bars scale to the tallest, use Unicode block characters on a UTF-8 locale (see --unicode) or ASCII '#' otherwise; --top=N keeps the N tallest and --format=jsonl emits one object per bar for scripts.
@@ -538,6 +587,17 @@ The grammar for -regex / -iregex and the content matchers -rxc / -grep, chosen b
 
 xff statistics reductions. `--summary` and `--histogram` replace the per-match listing with an aggregate over all matches; they are independent and combinable (one walk feeds both), and an explicit action (`-print` / `-exec`) still runs. `--format=jsonl` emits machine rows instead.
 - `--summary[=<GROUP>]` - aligned count + size table (or --format=jsonl rows) instead of each match; repeatable _(global, xff)_
+  GROUP is one of:
+
+  - `overall` - one row aggregated over all matches
+  - `type` - by file type
+  - `ext` - by extension
+  - `lang` - by programming language
+  - `mime` - by media (MIME) type
+  - `user` - by owner
+  - `group` - by owning group
+  - `{template}` - by any field value, e.g. `--summary='{ext}-{type}'`
+
   Replaces the per-match listing with an aggregate table: match count and total size per group (overall, by type, extension, programming language, media (MIME) type, user (owner), or owning group). The categorical keys reuse the {mime}/{user}/{group} field vocabulary. A {template} key groups by any field value (e.g. --summary='{ext}-{type}'); a single m// extraction key (--summary='{capture.NAME:m/re/\1/}') groups per extracted line, so a per-file command's multi-line output tallies per key (e.g. git-blame lines per author) - the size column is not meaningful there. Repeatable: each --summary is its own table (e.g. --summary=ext --summary=type), printed in order. --top=N limits the rows of each, --summary-precision sets the scaled-size digits, and --format=jsonl emits one object per group for scripts.
 - `--histogram=BUCKET[:MEASURE]` - bar chart per bucket: a count or sum/mean/min/max of size|lines (repeatable) _(global, xff)_
   A terminal reduction like --summary, drawn as bars. BUCKET groups the matches - a category (overall, type, ext, lang, mime, user (owner), or group) or a numeric-range field (size / lines by order of magnitude, depth per level, drawn as an ascending distribution). The optional :MEASURE is the bar's value - `count` (the default) or an aggregate `sum(FIELD)` / `mean(FIELD)` / `min(FIELD)` / `max(FIELD)` over a numeric FIELD (size or lines). A numeric metric needs an aggregator (`ext:lines` is an error; `ext:sum(lines)` is not). Repeatable and combinable with --summary - both are fed by one walk and replace the per-match listing. Bars scale to the tallest, use Unicode block characters on a UTF-8 locale (see --unicode) or ASCII '#' otherwise; --top=N keeps the N tallest and --format=jsonl emits one object per bar for scripts.

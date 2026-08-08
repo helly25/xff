@@ -86,6 +86,9 @@ void MarkdownBackend::BeginSection(const Section& section) {
 }
 
 void MarkdownBackend::BeginSubsection(const Subsection& subsection) {
+  if (subsection.title.empty()) {
+    return;  // a title-less subsection only groups/indents in plain text; no heading here
+  }
   absl::StrAppendFormat(&out_, "\n### %s\n", subsection.title);
 }
 
@@ -125,9 +128,16 @@ void MarkdownBackend::EmitBullets(const Bullets& bullets) {
 }
 
 void MarkdownBackend::EmitRows(const Rows& rows) {
+  // Inside a flag entry the rows are a value table nested under the flag's bullet: indent
+  // them to match the entry's 2-space continuation prose, and close with a blank line so
+  // the following prose is not absorbed as a lazy continuation of the last list item.
+  const std::string prefix = in_entry_ ? "  - `" : "- `";
   absl::StrAppend(&out_, "\n");
   for (const Row& row : rows.rows) {
-    absl::StrAppend(&out_, "- `", row.term, "` - ", RenderInlinesMarkdown(row.description), "\n");
+    absl::StrAppend(&out_, prefix, row.term, "` - ", RenderInlinesMarkdown(row.description), "\n");
+  }
+  if (in_entry_) {
+    absl::StrAppend(&out_, "\n");
   }
 }
 

@@ -112,6 +112,12 @@ std::string PlainTextBackend::BodyIndent() const {
 }
 
 void PlainTextBackend::BeginSubsection(const Subsection& subsection) {
+  // A title-less subsection carries no heading; it just indents its children one level
+  // deeper (e.g. a flag's value table nested under its "<LABEL> is one of:" line).
+  if (subsection.title.empty()) {
+    ++depth_;
+    return;
+  }
   StartBlock();
   absl::StrAppend(&out_, BodyIndent(), subsection.title, ":\n");
   ++depth_;  // the subsection body indents under its heading

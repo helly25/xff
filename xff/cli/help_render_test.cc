@@ -141,6 +141,22 @@ TEST_F(HelpTest, SingleFlagHelpShowsTheLongExplanation) {
   EXPECT_THAT(RenderEntry("--time-format"), HasSubstr("per-field qualifier"));
 }
 
+TEST_F(HelpTest, ValuedFlagDocumentsItsPlaceholderValues) {
+  // A flag whose synopsis collapses a value grammar to a `<PLACEHOLDER>` documents each
+  // allowed value + meaning as a table in its detail tier, so the literal tokens are not
+  // lost from the shortened synopsis.
+  const std::string summary = RenderEntry("--summary");
+  EXPECT_THAT(
+      summary, AllOf(
+                   HasSubstr("--summary[=<GROUP>]"), HasSubstr("GROUP is one of:"), HasSubstr("ext"),
+                   HasSubstr("by extension"), HasSubstr("lang"), HasSubstr("{template}")));
+  const std::string regextype = RenderEntry("--regextype");
+  EXPECT_THAT(
+      regextype, AllOf(
+                     HasSubstr("--regextype=<GRAMMAR>"), HasSubstr("GRAMMAR is one of:"), HasSubstr("RE2"),
+                     HasSubstr("linear-time"), HasSubstr("PCRE2")));
+}
+
 TEST_F(HelpTest, UsagePageHelpSectionListsFlagsAndTopics) {
   // The usage page's Help section is built from HelpFlags() + the topic index (the model's
   // BuildHelpSection), not a hand-written string: the meta/doc flags plus the nested topics.

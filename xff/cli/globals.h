@@ -22,6 +22,16 @@
 
 namespace xff::cli {
 
+// One allowed value of a flag that takes a `<PLACEHOLDER>` argument: the literal token
+// and a short one-line meaning. A flag whose synopsis collapses a long value grammar to a
+// placeholder (e.g. `--summary[=<GROUP>]`) lists its values here; the detail tier renders
+// them as an aligned, wrapping `value  meaning` table, so the values stay documented
+// without bloating the (never-wrapped) synopsis line.
+struct ValueDoc {
+  std::string_view value;    // the literal token, e.g. "ext"
+  std::string_view meaning;  // one-line explanation, lower-case, no trailing period
+};
+
 // One whole-run option ("global"), the flag counterpart of registry::Descriptor.
 // Globals are processed by config / main, not by the expression parser, so they
 // live here rather than in the registry; the help system and the planned man-page /
@@ -37,6 +47,11 @@ struct GlobalFlag {
   // Optional multi-sentence explanation shown by `--help=NAME` and `--help=full` (the
   // long tier); empty falls back to the summary. `--help=all` shows the summary only.
   std::string_view details;
+  // Optional allowed-value vocabulary for a flag whose synopsis carries a `<PLACEHOLDER>`
+  // (e.g. `--summary[=<GROUP>]`). The detail tier renders these as an aligned, wrapping
+  // `value  meaning` table above the explanation, so the value grammar stays off the
+  // (never-wrapped) synopsis yet is fully documented. Empty = no value list.
+  absl::Span<const ValueDoc> values;
   // The single source of truth for cross-references in the help system: a comma-separated
   // list of the expression primaries and other global flags whose behavior this flag changes
   // (e.g. "-diff" for --diff-format, "-grep,-diff" for --context). Detailed help derives an
