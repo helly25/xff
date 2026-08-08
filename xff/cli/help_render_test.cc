@@ -18,12 +18,9 @@
 #include <string_view>
 #include <vector>
 
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "absl/strings/str_split.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "mbo/testing/status.h"
 #include "xff/cli/globals.h"
 #include "xff/cli/help.h"
 #include "xff/cli/help_backend.h"
@@ -61,16 +58,20 @@ std::string RenderTopicDoc(std::string_view name) {
   return backend.Take();
 }
 
-using ::mbo::testing::IsOk;
-using ::mbo::testing::IsOkAndHolds;
-using ::mbo::testing::StatusIs;
+// Renders any model Document to plain text (the CLI path), for the index / full-reference
+// drift guards below.
+std::string RenderDoc(const Document& doc) {
+  PlainTextBackend backend;
+  RenderDocument(doc, backend);
+  return backend.Take();
+}
+
 using ::testing::AllOf;
-using ::testing::EndsWith;
 using ::testing::Eq;
-using ::testing::Gt;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Lt;
+using ::testing::Ne;
 using ::testing::Not;
 using ::testing::SizeIs;
 
@@ -100,44 +101,38 @@ TEST_F(HelpTest, VariadicArgHintShowsCommandForm) {
   EXPECT_THAT(RenderEntry("-exec"), HasSubstr("CMD..."));
 }
 
-TEST_F(HelpTest, UnknownTopicIsNotFound) {
-  // RenderHelp signals unknown-topic with the status code only; the user-facing
-  // message is the caller's to compose (verified end to end in help_topic_test.sh).
-  EXPECT_THAT(RenderHelp("-bogus"), StatusIs(absl::StatusCode::kNotFound));
+TEST_F(HelpTest, UnknownTopicResolvesToNothingInTheModel) {
+  // An unknown topic matches no model reference (entry / topic / index), so the CLI
+  // reports unknown-topic (verified end to end in help_topic_test.sh).
+  EXPECT_THAT(EntryReference("-bogus"), Eq(std::nullopt));
+  EXPECT_THAT(TopicReference("-bogus"), Eq(std::nullopt));
+  EXPECT_THAT(IndexReference("-bogus"), Eq(std::nullopt));
 }
 
-TEST_F(HelpTest, IndexGroupsByKindAndListsEveryDescriptor) {
-  const absl::StatusOr<std::string> index = RenderHelp("");
-  ASSERT_THAT(index, IsOk());
-  EXPECT_THAT(*index, AllOf(HasSubstr("Tests:"), HasSubstr("Actions:"), HasSubstr("Operators:")));
+TEST_F(HelpTest, ListIndexRendersEveryPrimaryAndTheTopicMap) {
+  // `--help=list` is the whole-vocabulary index (the usage page): every expression
+  // primary grouped by kind, plus the `--help=TOPIC` map.
+  const std::optional<Document> list = IndexReference("list");
+  ASSERT_THAT(list, Ne(std::nullopt));
+  const std::string out = RenderDoc(*list);
+  EXPECT_THAT(out, AllOf(HasSubstr("Tests"), HasSubstr("Actions"), HasSubstr("Operators")));
   for (const registry::Descriptor& descriptor : registry::All()) {
-    EXPECT_THAT(*index, HasSubstr(descriptor.name)) << descriptor.name;
+    EXPECT_THAT(out, HasSubstr(descriptor.name)) << descriptor.name;
   }
+  EXPECT_THAT(out, HasSubstr("--help=TOPIC"));  // the help / topic map
 }
 
-TEST_F(HelpTest, ListIsAnIndexAliasEndingWithTheTopicMap) {
-  // `--help=list` renders the same index as the empty topic, and the index ends with
-  // the generated help-topic map (so `--help=list` is also the help-system map).
-  const absl::StatusOr<std::string> index = RenderHelp("");
-  ASSERT_THAT(index, IsOk());
-  EXPECT_THAT(RenderHelp("list"), IsOkAndHolds(*index));
-  EXPECT_THAT(*index, HasSubstr("Help topics"));
-}
-
-TEST_F(HelpTest, FullIsDetailedAndAllIsShort) {
-  // `full` (alias long) carries the long per-flag explanations; `all` is the same set
-  // (every option + primary) but summaries only -- strictly shorter, no detail prose.
-  const absl::StatusOr<std::string> full = RenderHelp("full");
-  const absl::StatusOr<std::string> all = RenderHelp("all");
-  ASSERT_THAT(full, IsOk());
-  ASSERT_THAT(all, IsOk());
-  EXPECT_THAT(*full, AllOf(HasSubstr("--sort"), HasSubstr("-regex"), HasSubstr("EXPRESSION")));
-  EXPECT_THAT(*all, AllOf(HasSubstr("--sort"), HasSubstr("-regex")));
-  EXPECT_THAT(RenderHelp("long"), IsOkAndHolds(*full));           // long is a synonym of full
-  EXPECT_THAT(*full, HasSubstr("A config style sets"));           // a seeded --config detail paragraph
-  EXPECT_THAT(*all, Not(HasSubstr("A config style sets")));       // all omits the long explanations
-  EXPECT_THAT(*all, SizeIs(Lt(full->size())));                    // strictly shorter than full
-  EXPECT_THAT(RenderHelp("list"), IsOkAndHolds(Not(Eq(*full))));  // and neither is the terse index
+TEST_F(HelpTest, FullReferenceHasDetailsAllIndexIsSummariesOnly) {
+  // The full reference (BuildReference, = --help=full) carries the long per-entry
+  // explanations; `--help=all` is the same set summaries-only -- strictly shorter.
+  const std::string full = RenderDoc(BuildReference());
+  const std::optional<Document> all_doc = IndexReference("all");
+  ASSERT_THAT(all_doc, Ne(std::nullopt));
+  const std::string all = RenderDoc(*all_doc);
+  EXPECT_THAT(full, AllOf(HasSubstr("--sort"), HasSubstr("-regex"), HasSubstr("A config style sets")));
+  EXPECT_THAT(all, AllOf(HasSubstr("--sort"), HasSubstr("-regex")));
+  EXPECT_THAT(all, Not(HasSubstr("A config style sets")));  // summaries only, no detail prose
+  EXPECT_THAT(all, SizeIs(Lt(full.size())));                // strictly shorter than the full reference
 }
 
 TEST_F(HelpTest, SingleFlagHelpShowsTheLongExplanation) {
@@ -146,13 +141,13 @@ TEST_F(HelpTest, SingleFlagHelpShowsTheLongExplanation) {
   EXPECT_THAT(RenderEntry("--time-format"), HasSubstr("per-field qualifier"));
 }
 
-TEST_F(HelpTest, HelpSectionIsGeneratedFromFlagsAndTopics) {
-  // The usage-page Help: section is built from HelpFlags() + the topic index, not a
-  // hand-written string. It shows the meta/doc flags and nests the topic list.
+TEST_F(HelpTest, UsagePageHelpSectionListsFlagsAndTopics) {
+  // The usage page's Help section is built from HelpFlags() + the topic index (the model's
+  // BuildHelpSection), not a hand-written string: the meta/doc flags plus the nested topics.
   EXPECT_THAT(HelpFlags(), Not(IsEmpty()));
-  const std::string section = RenderHelpSection();
-  EXPECT_THAT(section, AllOf(HasSubstr("--help=TOPIC"), HasSubstr("--man"), HasSubstr("--version")));
-  EXPECT_THAT(section, HasSubstr("fields"));  // the topic index (HelpTopics) is nested in
+  const std::string usage = RenderDoc(BuildUsage());
+  EXPECT_THAT(usage, AllOf(HasSubstr("--help=TOPIC"), HasSubstr("--man"), HasSubstr("--version")));
+  EXPECT_THAT(usage, HasSubstr("fields"));  // the topic index (HelpTopics) is nested in
 }
 
 TEST_F(HelpTest, HelpGuideListsEveryTopic) {
@@ -165,38 +160,45 @@ TEST_F(HelpTest, HelpGuideListsEveryTopic) {
   }
 }
 
-TEST_F(HelpTest, EveryAdvertisedTopicRendersAndAliasesAreSynonyms) {
-  // Drift guard: every advertised topic resolves to substantial, newline-terminated
-  // help, and each alias is a pure synonym (byte-identical output). The CLI-rendered
-  // topics are excluded -- they need facets above this library (the engine / datetime /
-  // regex, or the shared DocRenderer walk that produces `fields`).
-  for (const HelpTopic& topic : HelpTopics()) {
-    if (topic.name == "styles" || topic.name == "fields" || topic.name == "printf" || topic.name == "time"
-        || topic.name == "size" || topic.name == "grammars" || topic.name == "extras" || topic.name == "stats"
-        || topic.name == "config" || topic.name == "cookbook" || topic.name == "notice" || topic.name == "license"
-        || topic.name == "help") {
-      continue;  // rendered from the model (TopicReference) or the CLI facets, not RenderHelp
+TEST_F(HelpTest, EveryAdvertisedTopicResolvesInTheModel) {
+  // Drift guard: every advertised topic resolves to a non-empty model document via
+  // TopicReference or IndexReference, and each alias renders identically. styles /
+  // extras are CLI-runtime topics (they need facets above this library), so excluded.
+  const auto render = [](std::string_view name) -> std::string {
+    if (name == "full" || name == "long") {
+      return RenderDoc(BuildReference());  // the full reference (FullReference in the CLI)
     }
-    const absl::StatusOr<std::string> rendered = RenderHelp(topic.name);
-    ASSERT_THAT(rendered, IsOk()) << topic.name;
-    EXPECT_THAT(*rendered, AllOf(SizeIs(Gt(10)), EndsWith("\n"))) << topic.name;
+    if (const std::optional<Document> doc = TopicReference(name); doc.has_value()) {
+      return RenderDoc(*doc);
+    }
+    if (const std::optional<Document> doc = IndexReference(name); doc.has_value()) {
+      return RenderDoc(*doc);
+    }
+    return "";
+  };
+  for (const HelpTopic& topic : HelpTopics()) {
+    if (topic.name == "styles" || topic.name == "extras") {
+      continue;  // CLI-runtime topics, rendered above this library
+    }
+    const std::string out = render(topic.name);
+    EXPECT_THAT(out, Not(IsEmpty())) << topic.name;
     for (const std::string_view alias : topic.aliases) {
-      EXPECT_THAT(RenderHelp(alias), IsOkAndHolds(*rendered)) << alias;
+      EXPECT_THAT(render(alias), Eq(out)) << alias;  // an alias is a pure synonym
     }
   }
 }
 
-TEST_F(HelpTest, ExpressionsListsEveryPrimaryGroupedWithoutGlobals) {
+TEST_F(HelpTest, ExpressionsIndexListsEveryPrimaryWithoutGlobals) {
   // `--help=expressions` is the annotated Tests/Actions/Operators list -- every
   // expression primary with its summary, but not the whole-run global flags.
-  const absl::StatusOr<std::string> expr = RenderHelp("expressions");
-  ASSERT_THAT(expr, IsOk());
-  EXPECT_THAT(*expr, AllOf(HasSubstr("Tests:"), HasSubstr("Actions:"), HasSubstr("Operators:")));
+  const std::optional<Document> expr_doc = IndexReference("expressions");
+  ASSERT_THAT(expr_doc, Ne(std::nullopt));
+  const std::string expr = RenderDoc(*expr_doc);
+  EXPECT_THAT(expr, AllOf(HasSubstr("Tests"), HasSubstr("Actions"), HasSubstr("Operators")));
   for (const registry::Descriptor& descriptor : registry::All()) {
-    EXPECT_THAT(*expr, HasSubstr(descriptor.name)) << descriptor.name;
+    EXPECT_THAT(expr, HasSubstr(descriptor.name)) << descriptor.name;
   }
-  // The global-flag groups from the full index are absent (e.g. the "Traversal:" header).
-  EXPECT_THAT(*expr, Not(HasSubstr("Traversal:")));
+  EXPECT_THAT(expr, Not(HasSubstr("Traversal")));  // no whole-run global-flag groups
 }
 
 TEST_F(HelpTest, StatsTopicDocumentsSummaryAndHistogram) {
@@ -241,12 +243,15 @@ TEST_F(HelpTest, GlobalFlagResolvesByAliasAndDashless) {
   EXPECT_THAT(RenderEntry("sort"), HasSubstr("--sort"));  // dash-less -> --sort
 }
 
-TEST_F(HelpTest, IndexIncludesGlobalGroupsAndEveryFlag) {
-  const absl::StatusOr<std::string> index = RenderHelp("");
-  ASSERT_THAT(index, IsOk());
-  EXPECT_THAT(*index, AllOf(HasSubstr("Config:"), HasSubstr("Traversal:")));
+TEST_F(HelpTest, ListIndexIncludesGlobalGroupsAndEveryFlag) {
+  // `--help=list` (the usage-page index) groups the whole-run flags by header and lists
+  // every one, including a not-built extra flag (which carries its rebuild note).
+  const std::optional<Document> list = IndexReference("list");
+  ASSERT_THAT(list, Ne(std::nullopt));
+  const std::string index = RenderDoc(*list);
+  EXPECT_THAT(index, AllOf(HasSubstr("Config"), HasSubstr("Traversal")));
   for (const GlobalFlag& flag : Globals()) {
-    EXPECT_THAT(*index, HasSubstr(flag.name)) << flag.name;
+    EXPECT_THAT(index, HasSubstr(flag.name)) << flag.name;
   }
 }
 
@@ -273,9 +278,11 @@ TEST_F(HelpTest, DetailedHelpShowsInfluenceCrossReferences) {
 }
 
 TEST_F(HelpTest, InfluenceBlocksAreTheDetailTierOnly) {
-  // --help=full (the detailed tier) carries the influence blocks; --help=all (summaries) omits them.
-  EXPECT_THAT(RenderHelp("full"), IsOkAndHolds(HasSubstr("Affected by:")));
-  EXPECT_THAT(RenderHelp("all"), IsOkAndHolds(Not(HasSubstr("Affected by:"))));
+  // The full reference (detailed tier) carries the influence blocks; --help=all (summaries) omits them.
+  const std::optional<Document> all_doc = IndexReference("all");
+  ASSERT_THAT(all_doc, Ne(std::nullopt));
+  EXPECT_THAT(RenderDoc(BuildReference()), HasSubstr("Affected by:"));
+  EXPECT_THAT(RenderDoc(*all_doc), Not(HasSubstr("Affected by:")));
 }
 
 TEST_F(HelpTest, EveryAffectsTokenResolvesToARealEntry) {

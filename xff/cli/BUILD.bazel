@@ -396,12 +396,9 @@ cc_library(
     srcs = ["help.cc"],
     hdrs = ["help.h"],
     deps = [
-        ":globals_cc",
         "//xff/registry:registry_cc",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/types:span",
     ],
 )
 
@@ -417,11 +414,8 @@ cc_test(
         ":help_model_cc",
         ":plain_backend_cc",
         "//xff/registry:registry_cc",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:statusor",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:status_cc",
     ],
 )
 
