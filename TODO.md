@@ -49,8 +49,27 @@ intent, not hard dependency. Task numbers reference the agent task list.
   to produce `compile_commands.json`, run `clang-tidy` across `xff/`, and fix the
   findings (likely several PRs sized by finding count).
 - **Adopt trunk.** `.trunk/trunk.yaml` (+ `configs/`) and a CI `trunk` job
-  mirroring mbo: clang-tidy (CI-skipped without a compile DB, gated locally),
-  buildifier, markdownlint, prettier, yamllint, trivy/trufflehog, git-diff-check.
+  mirroring mbo: buildifier, markdownlint, prettier, yamllint,
+  trivy/trufflehog, git-diff-check.
+- **clang-tidy moved from trunk to a local-only pre-commit hook** (`tools/clang_tidy.sh`,
+  the `clang-tidy` hook). trunk pinned clang-tidy 16, too old for this C++23 codebase - it
+  mis-parsed and emitted false-positive fixes (const-on-mutated-local, convert-to-static,
+  identifier renames) that trunk's `monitor`/export-fixes auto-applied and broke the build;
+  trunk.io 403s any modern clang-tidy download. The hook resolves the hermetic clang-22
+  (mirrors `clang_format.sh`), version-gates it, requires the compile DB, and reports only
+  (no `--fix`). It is `stages: [manual]` (opt-in via `pre-commit run clang-tidy`) until the
+  follow-ups below; promote it to an automatic gate by dropping `stages`:
+  1. **Fix the generated compile DB's include-path ordering.** clang-tidy-22 aborts
+     ("too many errors, stopping now") on any TU that pulls `<version>` - the cdb lists
+     mbo's include dir ahead of libc++, so `#include <version>` resolves to mbo's plain-text
+     `version` file (and abseil's `std::result_of` reference then fails). Fix the extractor /
+     path ordering so the hermetic libc++ wins.
+  2. **Sweep the clang-tidy-22 finding set across `xff/`.** Beyond the two convention-conflict
+     checks already disabled (`llvm-header-guard`, `llvm-prefer-static-over-anonymous-namespace`),
+     triage `misc-include-cleaner` (umbrella-header attribution), `misc-const-correctness`,
+     `performance-unnecessary-value-param`, `concurrency-mt-unsafe` (getenv), `hicpp-vararg`
+     (ioctl) - fix or narrowly suppress, then re-tune `.clang-tidy`.
+  3. Once the codebase is clean, drop `stages: [manual]` so the hook gates every commit.
 - **Adopt pre-commit.** `.pre-commit-config.yaml` (+ `.pre-commit/` scripts) and a
   CI `pre-commit` job: clang-format (mirrors-clang-format), shfmt, shellcheck,
   actionlint, and the local hooks (`no-do-not-merge`, `no-todos-without-context`,
