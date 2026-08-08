@@ -35,6 +35,7 @@ cc_library(
         ":manpage_cc",
         ":markdown_cc",
         ":plain_backend_cc",
+        "//xff/color:color_cc",
         "//xff/config:config_cc",
         "//xff/config:loader_cc",
         "//xff/config:policy_cc",
@@ -75,10 +76,10 @@ cc_binary(
     }),
 )
 
-# The single SOT traversal behind every generated reference: WriteReference() walks the
-# global flags + the expression registry + the in_full help topics once and drives a
-# DocRenderer, so --man (roff), --markdown, and --help=full render the same content and
-# cannot drift. Each format is a native renderer over this walk (see manpage.cc / markdown.cc).
+# The single SOT behind every generated reference: BuildReference() (help_build.cc) assembles
+# one help_model Document from the global flags + the expression registry + the in_full help
+# topics, and each backend (PlainTextBackend / MarkdownBackend / RoffBackend) renders it, so
+# --help, --man (roff), and --markdown cannot drift. See manpage.cc / markdown.cc.
 cc_library(
     name = "help_model_cc",
     hdrs = ["help_model.h"],
@@ -258,9 +259,8 @@ cc_test(
     ],
 )
 
-# BuildReference (#154 slice D): assembles the whole help_model Document from the SOT
-# (globals + registry + the doc-source vocabularies). The model counterpart of the
-# WriteReference() walk; any HelpBackend renders it.
+# BuildReference: assembles the whole help_model Document from the SOT (globals + registry
+# + the doc-source vocabularies). Any HelpBackend renders it (plain / markdown / roff).
 cc_library(
     name = "help_build_cc",
     srcs = ["help_build.cc"],

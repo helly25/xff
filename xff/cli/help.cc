@@ -15,11 +15,7 @@
 
 #include "xff/cli/help.h"
 
-#include <algorithm>
-#include <cstddef>
 #include <string>
-#include <string_view>
-#include <utility>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
@@ -123,21 +119,6 @@ std::vector<HelpTopic> HelpTopics() {
       {.name = "license", .aliases = {"licenses"}, .summary = "xff's license in full (Apache-2.0)"},
       {.name = "full", .aliases = {"long"}, .summary = "every option and primary, with the long explanations"},
   };
-}
-
-std::string RenderDocRows(
-    std::string_view indent,
-    const std::vector<std::pair<std::string_view, std::string_view>>& rows) {
-  std::size_t width = 0;
-  for (const auto& [code, detail] : rows) {
-    width = std::max(width, code.size());
-  }
-  width += 2;  // a 2-space gap after the widest code
-  std::string out;
-  for (const auto& [code, detail] : rows) {
-    absl::StrAppend(&out, indent, code, std::string(width - code.size(), ' '), detail, "\n");
-  }
-  return out;
 }
 
 std::vector<HelpFlag> HelpFlags() {
