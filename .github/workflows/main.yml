@@ -41,33 +41,23 @@ jobs:
       - uses: actions/checkout@v6
       # bazelisk launches the Bazel release pinned in .bazelversion (9.1.1).
       - uses: bazelbuild/setup-bazelisk@v3
-      # Persist Bazel's disk cache (compiled action outputs) so each run reuses prior
-      # work instead of rebuilding from scratch. Keyed by os/config + the lockfile hash
-      # only: a per-run github.sha suffix used to mint a fresh cache on every commit, so
-      # caches were evicted before they could be reused. A stable key keeps one entry per
-      # os/config/lockfile (the hash busts it when deps change); the restore-key seeds a
-      # warm base from a previous lockfile after a bump.
-      - name: Mount Bazel disk cache
+      # Persist Bazel's repository cache (downloaded external deps) and disk cache
+      # (compiled action outputs) so each run reuses prior work instead of fetching
+      # and rebuilding from scratch. Keyed by os/config + the lockfile hash only:
+      # a per-run github.sha suffix used to mint a fresh ~5 GB asan cache on every
+      # commit, and two asan cells alone overflowed GitHub's 10 GB/repo limit, so
+      # caches were evicted before they could be reused. A stable key keeps one
+      # entry per os/config/lockfile (the hash busts it when deps change); the
+      # restore-key seeds a warm base from a previous lockfile after a bump.
+      - name: Mount Bazel caches
         uses: actions/cache@v4
         with:
-          path: ~/.cache/bazel-disk
-          key: bazel-disk-${{ matrix.os }}-${{ matrix.config.name }}-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
+          path: |
+            ~/.cache/bazel-disk
+            ~/.cache/bazel-repo
+          key: bazel-${{ matrix.os }}-${{ matrix.config.name }}-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
           restore-keys: |
-            bazel-disk-${{ matrix.os }}-${{ matrix.config.name }}-
-      # Cache the repository cache (downloaded external deps) only for the non-clang cells.
-      # A --config=clang cell drops a ~4.4 GB hermetic-LLVM archive here; caching that
-      # against GitHub's 10 GB/repo limit is pointless (two clang cells alone overflowed
-      # it, evicting everything), and LLVM re-downloads quickly from its release. So the
-      # clang cell re-fetches LLVM each run and persists only its instrumented outputs
-      # above; the non-clang cells keep their small (LLVM-free) repo cache.
-      - name: Mount Bazel repo cache
-        if: matrix.config.name != 'clang-asan'
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ matrix.os }}-${{ matrix.config.name }}-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
-          restore-keys: |
-            bazel-repo-${{ matrix.os }}-${{ matrix.config.name }}-
+            bazel-${{ matrix.os }}-${{ matrix.config.name }}-
       # man_test renders `xff --man` through a roff formatter; it is a required test
       # dependency (no skip). macOS ships mandoc; install it on Linux.
       - name: Install roff formatter (mandoc)
@@ -120,31 +110,28 @@ jobs:
       - uses: pre-commit/action@v3.0.1
 
   # ThreadSanitizer for the parallel walk (issue #43; mutually exclusive with the
-  # asan cell). ubuntu-only. Like the asan cell this uses --config=clang, which
-  # downloads a ~4.4 GB hermetic LLVM: we deliberately do NOT cache that (it would
-  # eat almost half of GitHub's 10 GB/repo limit and re-downloads quickly from the
-  # LLVM release). Instead we cache the disk (instrumented compiled outputs), the
-  # expensive recurring work that previously rebuilt from scratch every run; LLVM
-  # re-fetches each run.
+  # asan cell). ubuntu-only and repo-cache-only (no multi-GB disk cache) so the
+  # total Actions cache stays under GitHub's 10 GB limit next to the asan caches;
+  # the instrumented objects rebuild each run.
   tsan:
     needs: [pre-commit, trunk, xff-md]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: bazelbuild/setup-bazelisk@v3
-      - name: Mount Bazel disk cache
+      - name: Mount Bazel repo cache
         uses: actions/cache@v4
         with:
-          path: ~/.cache/bazel-disk
-          key: bazel-disk-tsan-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-tsan-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
           restore-keys: |
-            bazel-disk-tsan-
+            bazel-repo-tsan-
       - name: Install roff formatter (mandoc)
         run: sudo apt-get update && sudo apt-get install -y mandoc
       - name: bazel test
         run: >
           bazel test //... @xff_pcre2//... --config=xff_full
-          --disk_cache=$HOME/.cache/bazel-disk --config=clang --config=tsan
+          --repository_cache=$HOME/.cache/bazel-repo --config=clang --config=tsan
 
   # Minimal core archive: prove that dropping the WHOLE extra_modules/ directory (plus the extras'
   # bazel_dep + local_path_override lines) still builds the lean core. This is the regression guard
