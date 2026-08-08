@@ -15,9 +15,19 @@
 
 """helly25_xff/tools (mirrors helly25/mbo)."""
 
+load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
 package(default_visibility = ["//visibility:private"])
+
+# The smallest cc target there is: compile_commands-update.sh builds it under --config=clang to
+# materialize the hermetic LLVM toolchain on a fresh checkout (so the extractor can point the DB
+# at it). `manual` keeps it out of `//...`. Also prints the compiler, as a diagnostic.
+cc_binary(
+    name = "show_compiler",
+    srcs = ["show_compiler.cc"],
+    tags = ["manual"],
+)
 
 _SYMBOLIZER = "@llvm_toolchain_llvm//:llvm-symbolizer"
 

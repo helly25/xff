@@ -56,7 +56,7 @@ Checks: >
 WarningsAsErrors: '*'
 FormatStyle:       '.clang-format'
 CheckOptions:
-  - key:             bugprone-signed-char-misuse.CharTypdefsToIgnore
+  - key:             bugprone-signed-char-misuse.CharTypedefsToIgnore
     value:           'int8_t'
   - key:             google-readability-braces-around-statements.ShortStatementLines
     value:           '1'
