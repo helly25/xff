@@ -499,6 +499,51 @@ The grammar for -regex / -iregex and the content matchers -rxc / -grep, chosen b
 - `SHGLOB` - GLOB plus brace alternation: {a,b,c} matches any one alternative, so *.{cc,h} matches either. Alternatives may nest and may be empty; each is itself SHGLOB-translated. \{ \} \, and braces inside a [...] class are literal. Everything else is exactly GLOB.
 - `PCRE2` - Perl-Compatible Regular Expressions (lookaround, backreferences, ...). A build-time extra: present only in a full build - run `xff --help=extras` to see whether THIS binary has it. Full syntax: pcre2pattern(3).
 
+## Statistics
+
+xff statistics reductions. `--summary` and `--histogram` replace the per-match listing with an aggregate over all matches; they are independent and combinable (one walk feeds both), and an explicit action (`-print` / `-exec`) still runs. `--format=jsonl` emits machine rows instead.
+- `--summary[=overall|type|ext|lang|mime|user|group|{template}]` - aligned count + size table (or --format=jsonl rows) instead of each match; repeatable _(global, xff)_
+  Replaces the per-match listing with an aggregate table: match count and total size per group (overall, by type, extension, programming language, media (MIME) type, user (owner), or owning group). The categorical keys reuse the {mime}/{user}/{group} field vocabulary. A {template} key groups by any field value (e.g. --summary='{ext}-{type}'); a single m// extraction key (--summary='{capture.NAME:m/re/\1/}') groups per extracted line, so a per-file command's multi-line output tallies per key (e.g. git-blame lines per author) - the size column is not meaningful there. Repeatable: each --summary is its own table (e.g. --summary=ext --summary=type), printed in order. --top=N limits the rows of each, --summary-precision sets the scaled-size digits, and --format=jsonl emits one object per group for scripts.
+- `--histogram=BUCKET[:MEASURE]` - bar chart per bucket: a count or sum/mean/min/max of size|lines (repeatable) _(global, xff)_
+  A terminal reduction like --summary, drawn as bars. BUCKET groups the matches - a category (overall, type, ext, lang, mime, user (owner), or group) or a numeric-range field (size / lines by order of magnitude, depth per level, drawn as an ascending distribution). The optional :MEASURE is the bar's value - `count` (the default) or an aggregate `sum(FIELD)` / `mean(FIELD)` / `min(FIELD)` / `max(FIELD)` over a numeric FIELD (size or lines). A numeric metric needs an aggregator (`ext:lines` is an error; `ext:sum(lines)` is not). Repeatable and combinable with --summary - both are fed by one walk and replace the per-match listing. Bars scale to the tallest, use Unicode block characters on a UTF-8 locale (see --unicode) or ASCII '#' otherwise; --top=N keeps the N tallest and --format=jsonl emits one object per bar for scripts.
+  Affected by: --histogram-width
+- `--top=N` - with --summary or --histogram, keep only the N largest/tallest groups _(global, xff)_
+- `--histogram-width=N` - cell width the tallest --histogram bar fills (default 40) _(global, xff)_
+  Affects: --histogram
+- `--summary-precision=N` - with --summary --human: fraction digits for scaled sizes (default 2; bytes stay integer) _(global, xff)_
+
+### Examples
+
+```sh
+xff --summary=ext
+```
+
+files + total size per extension
+
+```sh
+xff --histogram=ext
+```
+
+a bar chart of files per extension
+
+```sh
+xff --histogram='ext:sum(lines)'
+```
+
+total lines per extension
+
+```sh
+xff --histogram=size
+```
+
+the file-size distribution
+
+```sh
+xff --summary=type --histogram=ext --format=jsonl
+```
+
+both, as machine rows
+
 ## Examples
 
 Worked examples that compose xff's building blocks. Each shows a task, its command, and how it works. See `--help=fields` for the {field}s and `--help=stats` for the reductions.

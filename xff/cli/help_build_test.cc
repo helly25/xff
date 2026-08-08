@@ -78,7 +78,7 @@ TEST_F(BuildReferenceTest, SectionsAppearInReferenceOrder) {
   EXPECT_THAT(
       SectionTitles(doc), ElementsAre(
                               "Description", "Options", "Expression", "Fields", "Printf directives", "Time formats",
-                              "Size units", "Regex grammars", "Examples", "Exit status", "See also"));
+                              "Size units", "Regex grammars", "Statistics", "Examples", "Exit status", "See also"));
 }
 
 TEST_F(BuildReferenceTest, ExpressionHasTheThreeKindSubsections) {
