@@ -113,6 +113,8 @@ registry::Style ActiveStyle(const std::vector<std::string>& configs) {
   return style;
 }
 
+namespace {
+
 // The active style's name for --explain output.
 std::string_view StyleName(registry::Style style) {
   switch (style) {
@@ -122,6 +124,8 @@ std::string_view StyleName(registry::Style style) {
   }
   return "xff";
 }
+
+}  // namespace
 
 std::string_view DefaultStyleForProgram(std::string_view argv0) {
   if (const std::string_view::size_type slash = argv0.rfind('/'); slash != std::string_view::npos) {

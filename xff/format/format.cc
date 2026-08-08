@@ -74,12 +74,14 @@ Scaled ScaleSize(std::uint64_t bytes, SizeUnits units) {
   if (static_cast<double>(bytes) < base) {
     return {.exact = true, .unit = suffix[0]};  // exact bytes below one unit
   }
-  double value = static_cast<double>(bytes);
+  auto value = static_cast<double>(bytes);
   std::size_t unit = 0;
   while (value >= base && unit + 1 < suffix.size()) {
     value /= base;
     ++unit;
   }
+  // `unit` is bounded by the loop guard (`unit + 1 < suffix.size()`), so this index is in range.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   return {.exact = false, .value = value, .unit = suffix[unit]};
 }
 
@@ -91,7 +93,7 @@ std::string Int(std::uint64_t value, char group_sep) {
     return digits;
   }
   std::string out;
-  out.reserve(digits.size() + (digits.size() - 1) / 3);
+  out.reserve(digits.size() + ((digits.size() - 1) / 3));
   for (std::size_t i = 0; i < digits.size(); ++i) {
     // A separator precedes digit `i` when the digits remaining (including it) are a
     // positive multiple of three -- grouping from the right without unsigned wrap.
@@ -169,7 +171,6 @@ ColumnBuffer::ColumnBuffer(
       widths_(std::move(mins)),
       window_(window),
       byte_budget_(byte_budget),
-      buffered_bytes_(0),
       buffering_(window != 0) {
   widths_.resize(aligns_.size(), 0);  // one width per column, seeded from the mins
 }

@@ -156,6 +156,9 @@ void TranslateInto(std::string& re, std::string_view pattern, bool braces);
 // top-level `,` - matching bash, a comma-less `{x}` (or an unbalanced `{`) is then a literal, so the
 // caller emits the `{` as an ordinary character. `[...]` classes and `\`-escapes are skipped so their
 // inner `,` / `}` / `{` are not treated as structure.
+// Deliberate mutual recursion with TranslateInto to expand nested `{...}` groups; the depth is bounded
+// by the pattern's brace nesting (a short, user-supplied string).
+// NOLINTNEXTLINE(misc-no-recursion)
 bool TryBraceGroup(std::string& re, std::string_view pattern, std::size_t& pos) {
   std::vector<std::pair<std::size_t, std::size_t>> alts;  // [start, end) of each alternative
   std::size_t start = pos + 1;
@@ -203,6 +206,7 @@ bool TryBraceGroup(std::string& re, std::string_view pattern, std::size_t& pos) 
   return true;
 }
 
+// NOLINTNEXTLINE(misc-no-recursion): mutual recursion with TryBraceGroup for nested `{...}` (see above).
 void TranslateInto(std::string& re, std::string_view pattern, bool braces) {
   for (std::size_t pos = 0; pos < pattern.size();) {
     const char chr = pattern[pos];

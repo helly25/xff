@@ -112,13 +112,13 @@ class TableStream {
   bool with_header_;
   std::size_t window_;
   std::size_t byte_budget_;          // 0 = no byte cap; else flush the window at this many buffered bytes
-  std::size_t buffered_bytes_;       // running total of buffered cell bytes (while buffering_)
+  std::size_t buffered_bytes_ = 0;   // running total of buffered cell bytes (while buffering_)
   std::vector<std::string> header_;  // already encoded (md-escaped) column names
   std::vector<std::size_t> widths_;
   std::vector<std::vector<std::string>> buffer_;  // encoded rows held while still buffering
   bool buffering_;
-  bool header_done_;
-  bool flushed_;
+  bool header_done_ = false;
+  bool flushed_ = false;
 };
 
 // Renders a whole buffered table at once: the convenience wrapper over TableStream with

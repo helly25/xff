@@ -93,12 +93,6 @@ class Matcher {
   std::unique_ptr<const RegexBackend> backend_;
 };
 
-// Whether the PCRE2 grammar (kPcre2) is available in this binary, i.e. the real PCRE2 backend is
-// linked and self-registered. False in the lean build (RE2 only), true in the full build. Drives
-// the help "regex grammars" presence line and the Compile(kPcre2) availability check; -regextype=pcre
-// on a binary where this is false is a clean error, never a silent RE2 fallback.
-bool Pcre2Available();
-
 // The `--regextype` grammar reference: one row per Grammar, `{VALUE, what it is}`, in --regextype
 // value order. The single source of truth behind `--help=regex` (and the "Regex grammars" section of
 // --help=full / --man / --markdown), so the documented grammars cannot drift from the enum -

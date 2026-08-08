@@ -24,6 +24,7 @@
 #include <string_view>
 #include <utility>
 
+#include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/numbers.h"
@@ -42,12 +43,7 @@ constexpr std::string_view kOfPattern = R"(^(.+)-(\d+)-of-(\d+)(.*)$)";
   if (text.empty()) {
     return false;
   }
-  for (const char chr : text) {
-    if (chr < '0' || chr > '9') {
-      return false;
-    }
-  }
-  return true;
+  return absl::c_all_of(text, [](char chr) { return chr >= '0' && chr <= '9'; });
 }
 
 // Parses an all-digit run to an integer, saturating benignly to 0 on overflow (a

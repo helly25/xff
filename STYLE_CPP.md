@@ -159,17 +159,20 @@ clang-format picks a layout per line; these habits steer it toward the readable 
   narrows what callers may pass. Keep `const std::string&` (or `std::string` by value) only
   when the body genuinely needs a `std::string` - it calls `.c_str()` for a C API, stores or
   moves the argument, or passes it to something that itself wants `const std::string&`.
-- **A by-value `std::string_view` is never `const`.** The characters it views are already
-  `const`; making the view itself `const` only disables the view's own API
-  (`remove_prefix`, `remove_suffix`, reassignment) for no benefit. This applies to locals
-  and range-`for` variables. (Not to `std::string_view::size_type`, which is a `size_t`,
-  nor to `absl::Span<const std::string_view>`, where `const` is the element type of an
-  immutable span.) **Corollary: when a loop view needs trimming, iterate a mutable by-value
-  view and mutate it in place - never `const` the loop view and then copy it to a mutable
-  local just to mutate the copy.**
+- **A by-value `std::string_view` follows ordinary const-correctness: `const` when you never
+  mutate the view, non-`const` only when you do.** The characters it views are already `const`,
+  but the view itself is a normal local: `const` documents that you never reslice or reassign it,
+  and `misc-const-correctness` (enabled) flags a never-mutated view that is not `const`. Drop the
+  `const` exactly when you mutate the view in place - `remove_prefix`, `remove_suffix`, or
+  reassignment. (This concerns the view; not `std::string_view::size_type`, which is a `size_t`,
+  nor `absl::Span<const std::string_view>`, where `const` is the span's element type.)
+  **Corollary: when a loop view needs trimming, iterate a mutable (non-`const`) by-value view and
+  mutate it in place - never `const` the loop view and then copy it to a mutable local just to
+  mutate the copy.**
 
   ```cpp
-  for (std::string_view line : absl::StrSplit(text, '\n')) {   // yes: mutate in place
+  const std::string_view name = label.empty() ? id : label;      // read-only: const
+  for (std::string_view line : absl::StrSplit(text, '\n')) {      // mutated: non-const, trim in place
     if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
   }
   for (const std::string_view raw : absl::StrSplit(text, '\n')) {  // no: const + copy-to-mutate

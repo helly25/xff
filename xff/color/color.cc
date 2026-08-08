@@ -59,12 +59,12 @@ bool Enabled(When when, bool stdout_is_tty, bool no_color_env) {
 
 std::string_view CodeForType(vfs::FileType type, std::uint32_t mode) {
   switch (type) {
-    case vfs::FileType::kDirectory: return "1;34";    // bold blue
-    case vfs::FileType::kSymlink: return "1;36";      // bold cyan
-    case vfs::FileType::kFifo: return "33";           // yellow
-    case vfs::FileType::kSocket: return "1;35";       // bold magenta
-    case vfs::FileType::kBlockDevice: return "1;33";  // bold yellow
-    case vfs::FileType::kCharDevice: return "1;33";   // bold yellow
+    case vfs::FileType::kDirectory: return "1;34";  // bold blue
+    case vfs::FileType::kSymlink: return "1;36";    // bold cyan
+    case vfs::FileType::kFifo: return "33";         // yellow
+    case vfs::FileType::kSocket: return "1;35";     // bold magenta
+    case vfs::FileType::kBlockDevice:
+    case vfs::FileType::kCharDevice: return "1;33";  // bold yellow (block / char device)
     case vfs::FileType::kRegular:
       return (mode & 0111U) != 0U ? std::string_view("1;32") : std::string_view();  // bold green if executable
     case vfs::FileType::kUnknown: return {};

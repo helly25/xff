@@ -82,8 +82,12 @@ class PatternList {
 
   std::size_t size() const { return patterns_.size(); }
 
-  PatternList(PatternList&&) = default;
-  PatternList& operator=(PatternList&&) = default;
+  // Move-only: the pattern list is built once and handed off, never copied.
+  ~PatternList() = default;
+  PatternList(const PatternList&) = delete;
+  PatternList& operator=(const PatternList&) = delete;
+  PatternList(PatternList&&) noexcept = default;
+  PatternList& operator=(PatternList&&) noexcept = default;
 
  private:
   std::vector<Pattern> patterns_;
