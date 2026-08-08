@@ -23,6 +23,54 @@
 namespace xff::cli {
 namespace {
 
+// Allowed-value tables for the flags whose synopsis collapses a long value grammar to a
+// `<PLACEHOLDER>` (e.g. `--summary[=<GROUP>]`). Rendered by the detail tier as an aligned,
+// wrapping `value  meaning` table, so the values stay documented off the synopsis line.
+constexpr std::array kCaseValues = std::to_array<ValueDoc>({
+    {.value = "sensitive", .meaning = "match exactly (-s-)"},
+    {.value = "insensitive", .meaning = "fold case (-i)"},
+    {.value = "smart", .meaning = "fold case only when the pattern is all lower case (-s / -s+)"},
+});
+constexpr std::array kRegextypeValues = std::to_array<ValueDoc>({
+    {.value = "RE2", .meaning = "linear-time regular expressions (the default)"},
+    {.value = "EXACT", .meaning = "a literal string; metacharacters are plain text"},
+    {.value = "FNMATCH", .meaning = "flat shell wildcard; `*` matches any character including `/`"},
+    {.value = "GLOB", .meaning = "path-aware shell glob; `*`/`?` stop at `/`, `**` crosses directories"},
+    {.value = "SHGLOB", .meaning = "GLOB plus `{a,b}` brace alternation, so `*.{cc,h}` matches either"},
+    {.value = "PCRE2", .meaning = "Perl syntax (lookaround, backreferences); a build extra"},
+});
+constexpr std::array kSkipVcsValues = std::to_array<ValueDoc>({
+    {.value = "git", .meaning = ".git"},
+    {.value = "hg", .meaning = ".hg"},
+    {.value = "svn", .meaning = ".svn"},
+    {.value = "jj", .meaning = ".jj"},
+    {.value = "bzr", .meaning = ".bzr"},
+    {.value = "darcs", .meaning = "_darcs"},
+    {.value = "cvs", .meaning = "CVS"},
+    {.value = "all", .meaning = "every known VCS (the bare-flag default)"},
+    {.value = "none", .meaning = "off (same as --no-skip-vcs)"},
+});
+constexpr std::array kFormatValues = std::to_array<ValueDoc>({
+    {.value = "plain", .meaning = "one path per line (the default)"},
+    {.value = "nul", .meaning = "NUL-separated paths (for xargs -0)"},
+    {.value = "jsonl", .meaning = "one JSON object per match"},
+    {.value = "csv", .meaning = "comma-separated columns"},
+    {.value = "tsv", .meaning = "tab-separated columns"},
+    {.value = "aligned", .meaning = "column-aligned table"},
+    {.value = "markdown", .meaning = "a Markdown table (also `md`)"},
+    {.value = "tree", .meaning = "an indented directory tree"},
+});
+constexpr std::array kSummaryValues = std::to_array<ValueDoc>({
+    {.value = "overall", .meaning = "one row aggregated over all matches"},
+    {.value = "type", .meaning = "by file type"},
+    {.value = "ext", .meaning = "by extension"},
+    {.value = "lang", .meaning = "by programming language"},
+    {.value = "mime", .meaning = "by media (MIME) type"},
+    {.value = "user", .meaning = "by owner"},
+    {.value = "group", .meaning = "by owning group"},
+    {.value = "{template}", .meaning = "by any field value, e.g. `--summary='{ext}-{type}'`"},
+});
+
 // The whole-run options, in the order the --help usage page groups them. `--help` /
 // `--version` and their aliases are deliberately omitted: they are special-cased in
 // main.cc and self-evident, and `--help=--help` would be circular.
@@ -164,6 +212,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .details = "Controls case for -name/-path/-regex and the content matchers. sensitive matches exactly; "
                    "insensitive (-i) folds case; smart (-s / -s+) folds only when the pattern is all lower case and "
                    "matches exactly otherwise; -s- forces sensitive. rg defaults to smart.",
+        .values = kCaseValues,
     },
     {
         .name = "--regextype",
@@ -181,6 +230,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "error, never a silent fall back to RE2. RE2/EXACT/FNMATCH/GLOB/SHGLOB are always built in; "
                    "run xff --help=extras to see whether THIS binary includes PCRE2. See --help=grammars for "
                    "a full description of each grammar (GLOB/SHGLOB are xff's own, not POSIX glob(7)).",
+        .values = kRegextypeValues,
     },
     {
         .name = "--exclude",
@@ -279,6 +329,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "default set later. --no-skip-vcs (or =none) turns it off. Independent of --hidden, so the "
                    "user's own dotfiles (.bazelrc, .gitignore) still show. -g / gitignore mode implies "
                    "--skip-vcs=git (only .git); an explicit --skip-vcs overrides that. Default off otherwise.",
+        .values = kSkipVcsValues,
     },
     {
         .name = "--no-skip-vcs",
@@ -293,6 +344,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "output format: plain, nul, jsonl, csv, tsv, aligned, markdown (md), tree; default plain",
+        .values = kFormatValues,
     },
     {
         .name = "--no-header",
@@ -399,6 +451,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "--summary=ext --summary=type), printed in order. --top=N limits the rows of each, "
                    "--summary-precision sets the scaled-size digits, and --format=jsonl emits one object per group "
                    "for scripts.",
+        .values = kSummaryValues,
         .topic = "stats",
     },
     {

@@ -136,6 +136,16 @@ Content FlagEntry(const GlobalFlag& flag, bool with_details = true) {
             "NOT built into this binary: rebuild with `--//xff:", flag.extra, "` (used as-is, it is a hard error).")));
   }
   if (with_details) {
+    // The allowed-value table (for a flag whose synopsis collapsed a value grammar to a
+    // `<PLACEHOLDER>`) leads, as an aligned wrapping `value  meaning` list, before the prose.
+    if (!flag.values.empty()) {
+      Rows rows;
+      rows.rows.reserve(flag.values.size());
+      for (const ValueDoc& value : flag.values) {
+        rows.rows.push_back(Row{.term = std::string(value.value), .description = ParseInline(value.meaning)});
+      }
+      details.push_back(Content{.node = std::move(rows)});
+    }
     for (Content& block : ParseBlocks(flag.details)) {
       details.push_back(std::move(block));
     }
