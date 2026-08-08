@@ -48,6 +48,19 @@ std::string RenderEntry(std::string_view name) {
   return backend.Take();
 }
 
+// Renders a `--help=TOPIC` topic from the model (TopicReference + the plain backend),
+// the same path the CLI uses, or "" when NAME is not a model topic. Sub-vocabulary and
+// prose topics (fields / stats / ...) render this way rather than through RenderHelp.
+std::string RenderTopicDoc(std::string_view name) {
+  const std::optional<Document> doc = TopicReference(name);
+  if (!doc.has_value()) {
+    return "";
+  }
+  PlainTextBackend backend;
+  RenderDocument(*doc, backend);
+  return backend.Take();
+}
+
 using ::mbo::testing::IsOk;
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
@@ -159,8 +172,8 @@ TEST_F(HelpTest, EveryAdvertisedTopicRendersAndAliasesAreSynonyms) {
   // regex, or the shared DocRenderer walk that produces `fields`).
   for (const HelpTopic& topic : HelpTopics()) {
     if (topic.name == "styles" || topic.name == "fields" || topic.name == "printf" || topic.name == "time"
-        || topic.name == "size" || topic.name == "grammars" || topic.name == "extras") {
-      continue;  // rendered by the CLI (need the engine / datetime / regex / doc-walk facets), not RenderHelp
+        || topic.name == "size" || topic.name == "grammars" || topic.name == "extras" || topic.name == "stats") {
+      continue;  // rendered from the model (TopicReference) or the CLI facets, not RenderHelp
     }
     const absl::StatusOr<std::string> rendered = RenderHelp(topic.name);
     ASSERT_THAT(rendered, IsOk()) << topic.name;
@@ -185,12 +198,12 @@ TEST_F(HelpTest, ExpressionsListsEveryPrimaryGroupedWithoutGlobals) {
 }
 
 TEST_F(HelpTest, StatsTopicDocumentsSummaryAndHistogram) {
-  // `--help=stats` covers both reductions: --summary, --histogram, the numeric-metric grammar,
-  // and the no-bare-metric rule.
+  // `--help=stats` renders from the model (TopicReference) and covers both reductions:
+  // --summary, --histogram, the numeric-metric grammar, and the no-bare-metric rule.
   EXPECT_THAT(
-      RenderHelp("stats"), IsOkAndHolds(AllOf(
-                               HasSubstr("--summary"), HasSubstr("--histogram"), HasSubstr("sum(lines)"),
-                               HasSubstr("needs an aggregator"))));
+      RenderTopicDoc("stats"),
+      AllOf(
+          HasSubstr("--summary"), HasSubstr("--histogram"), HasSubstr("sum(lines)"), HasSubstr("needs an aggregator")));
 }
 
 TEST_F(HelpTest, GlobalFlagTopicRendersWithGlobalTag) {

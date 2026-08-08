@@ -297,6 +297,40 @@ Section GrammarsSection() {
       regex::GrammarDocs());
 }
 
+// STATISTICS: the two terminal reductions (--summary / --histogram). The flags are
+// pulled from the globals SOT via the "stats" topic tag so the list cannot drift, then
+// worked examples. Standalone as `--help=stats` (see TopicReference) and folded into
+// the full reference.
+Section StatsSection() {
+  Section section{.title = "Statistics"};
+  section.children.push_back(ProseOf(
+      "xff statistics reductions. `--summary` and `--histogram` replace the per-match listing with an "
+      "aggregate over all matches; they are independent and combinable (one walk feeds both), and an "
+      "explicit action (`-print` / `-exec`) still runs. `--format=jsonl` emits machine rows instead."));
+  for (const GlobalFlag& flag : Globals()) {
+    if (flag.topic == "stats") {
+      section.children.push_back(FlagEntry(flag));
+    }
+  }
+  static constexpr std::array<DocPair, 5> kExamples = {{
+      {"xff --summary=ext", "files + total size per extension"},
+      {"xff --histogram=ext", "a bar chart of files per extension"},
+      {"xff --histogram='ext:sum(lines)'", "total lines per extension"},
+      {"xff --histogram=size", "the file-size distribution"},
+      {"xff --summary=type --histogram=ext --format=jsonl", "both, as machine rows"},
+  }};
+  Subsection examples{.title = "Examples"};
+  // Each example is a verbatim (copy-pastable) command with its explanation as prose,
+  // which wraps to the width - the cookbook pattern, not a term/desc table whose wide
+  // command column squeezes the explanation to one word per line at narrow widths.
+  for (const auto& [command, explanation] : kExamples) {
+    examples.children.push_back(ExampleOf(std::string(command), "sh"));
+    examples.children.push_back(ProseOf(explanation));
+  }
+  section.children.push_back(Content{.node = std::move(examples)});
+  return section;
+}
+
 // EXAMPLES: the cookbook recipes as structured nodes - each a subsection with the
 // verbatim command (an Example, kept copy-pastable) and its explanation (Prose, which
 // wraps). The recipe list is the SOT in help.cc, run end to end by cookbook_test.
@@ -440,6 +474,8 @@ std::optional<Document> TopicReference(std::string_view name) {
     doc.sections.push_back(SizeSection());
   } else if (name == "grammars") {
     doc.sections.push_back(GrammarsSection());
+  } else if (name == "stats") {
+    doc.sections.push_back(StatsSection());
   } else {
     return std::nullopt;
   }
@@ -487,6 +523,7 @@ Document BuildReference() {
   doc.sections.push_back(TimeSection());
   doc.sections.push_back(SizeSection());
   doc.sections.push_back(GrammarsSection());
+  doc.sections.push_back(StatsSection());
   doc.sections.push_back(BuildExamples());
 
   Section exit_status{.title = "Exit status"};

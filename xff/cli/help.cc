@@ -168,32 +168,6 @@ std::string RenderExpressions() {
   return out;
 }
 
-// The `--help=stats` topic: the two terminal reductions, --summary and --histogram. Both replace
-// the per-match listing with an aggregate over the whole walk; they are independent and combinable.
-std::string RenderStats() {
-  // The flags (and the bucket/measure grammar, which lives in --histogram's details) are pulled
-  // from the globals SOT via the "stats" topic tag, so this body cannot drift from the flags.
-  std::string out =
-      "xff statistics reductions. --summary and --histogram replace the per-match listing with an\n"
-      "aggregate over all matches; they are independent and combinable (one walk feeds both), and\n"
-      "an explicit action (-print / -exec) still runs. --format=jsonl emits machine rows instead.\n"
-      "\n";
-  for (const GlobalFlag& flag : Globals()) {
-    if (flag.topic == "stats") {
-      absl::StrAppend(&out, RenderGlobalFlag(flag, /*with_details=*/true), "\n");
-    }
-  }
-  absl::StrAppend(
-      &out,
-      "Examples:\n"
-      "  xff --summary=ext                                   files + total size per extension\n"
-      "  xff --histogram=ext                                 a bar chart of files per extension\n"
-      "  xff --histogram='ext:sum(lines)'                    total lines per extension\n"
-      "  xff --histogram=size                                the file-size distribution\n"
-      "  xff --summary=type --histogram=ext --format=jsonl   both, as machine rows\n");
-  return out;
-}
-
 // The `--help=config` topic: how xff resolves options (layered tiers + the command line), how a
 // style is chosen (--config and the argv[0] invocation name), and how dangerous --xffrc directives
 // are armed. The config flags are pulled from the globals SOT via the "config" topic tag, so the
@@ -520,9 +494,6 @@ absl::StatusOr<std::string> RenderHelp(std::string_view topic) {
   }
   if (topic == "expressions") {
     return RenderExpressions();  // the annotated Tests/Actions/Operators list, sans globals
-  }
-  if (topic == "stats") {
-    return RenderStats();  // the --summary / --histogram reductions
   }
   if (topic == "config") {
     return RenderConfig();  // config tiers, style selection, and arming
