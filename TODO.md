@@ -296,11 +296,14 @@ remains below is the design-forked / larger work.
   checks a sidecar value and `! -hasheq …` selects drift); `-hasheq=ALGO[/ENCODING]` shares the
   `-hash` spec grammar, and hex comparison folds case. **Dedup grouping shipped** as the first-class
   `--summary=hash` mode (identical files collapse into one bucket; also spellable `--summary={hash}`).
-  **Still to build:** `--summary` tallies of verified vs failed - the reduction-side aggregation over
-  the matcher's result, which needs the `-hasheq` verdict exposed as a group key (e.g. a `{hasheq}`
-  field rendering ok/fail) without re-hashing every file. **Deferred producer:** a sidecar-manifest
-  reader that populates `{def.X}` from a `sha256sum`-style file, so `-hasheq` needs no bespoke
-  manifest parser.
+  **Deferred refinement (single-pass tally):** a one-pass verified-vs-failed count. Both viable
+  designs (a `{hasheq}` verdict field feeding `--summary`, or run-level ok/fail counters) converge on
+  stashing the per-entry `-hasheq` verdict into the reduction feed, which must be done thread-safely
+  for the parallel walk (the tsan cell). Not worth a half-baked version: the two-run idiom
+  (`-hasheq` / `! -hasheq`) plus `--summary=hash` already covers the workflow. Build the single-pass
+  tally when a concrete need appears, wiring the verdict through the same per-entry reduction feed the
+  summary/histogram sinks use. **Deferred producer:** a sidecar-manifest reader that populates
+  `{def.X}` from a `sha256sum`-style file, so `-hasheq` needs no bespoke manifest parser.
 - **Smart-case matching (`--smart-case`) - [DISCUSS].** The rg / fd convention: an all-lowercase
   pattern matches case-insensitively, a pattern with any uppercase matches case-sensitively.
   Already referenced as an rg-flavor default (the `xfd`-drop and flavor-table notes below) but
