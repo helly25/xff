@@ -99,6 +99,20 @@ test::summary_overall_is_a_single_total_row() {
   expect_matches '\{"group":"total","count":3,"bytes":1249\}' "${out}"
 }
 
+test::summary_hash_groups_identical_files_into_one_bucket() {
+  local root out
+  root="$(mktemp -d)"
+  printf 'abc' >"${root}/a" # sha256(abc) = ba7816...
+  printf 'abc' >"${root}/b" # identical content -> same digest bucket
+  printf 'xyz' >"${root}/c" # a different digest
+  out="$(_run --summary=hash --format=jsonl "${root}" -type f)"
+  rm -rf "${root}"
+  # The two identical files collapse into one bucket with count 2 (the dedup view); the
+  # group key is the file's sha256 digest, reusing the {hash} field.
+  expect_matches '\{"group":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad","count":2,"bytes":6\}' "${out}"
+  expect_matches '\{"group":"total","count":3,"bytes":9\}' "${out}"
+}
+
 # A 5,872,025-byte file to exercise human size units (5.6 MiB / 5.9 MB).
 _make_big() {
   local root

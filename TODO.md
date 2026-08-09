@@ -294,13 +294,13 @@ remains below is the design-forked / larger work.
   (#105) and now the `-hasheq EXPECTED` matcher are in: `-hasheq` computes the file's digest and is
   true when it equals EXPECTED, a `{field}` template rendered per entry (so `-hasheq {def.SUMS}`
   checks a sidecar value and `! -hasheq …` selects drift); `-hasheq=ALGO[/ENCODING]` shares the
-  `-hash` spec grammar, and hex comparison folds case. **Dedup grouping already works** via the
-  template summary `--summary={hash}` (identical files land in one bucket). **Still to build:**
-  `--summary` tallies of verified vs failed - the reduction-side aggregation over the matcher's
-  result, which needs the verdict exposed as a group key without re-hashing; and optionally a
-  first-class `--summary=hash` named mode aliasing `--summary={hash}`. **Deferred producer:** a
-  sidecar-manifest reader that populates `{def.X}` from a `sha256sum`-style file, so `-hasheq` needs
-  no bespoke manifest parser.
+  `-hash` spec grammar, and hex comparison folds case. **Dedup grouping shipped** as the first-class
+  `--summary=hash` mode (identical files collapse into one bucket; also spellable `--summary={hash}`).
+  **Still to build:** `--summary` tallies of verified vs failed - the reduction-side aggregation over
+  the matcher's result, which needs the `-hasheq` verdict exposed as a group key (e.g. a `{hasheq}`
+  field rendering ok/fail) without re-hashing every file. **Deferred producer:** a sidecar-manifest
+  reader that populates `{def.X}` from a `sha256sum`-style file, so `-hasheq` needs no bespoke
+  manifest parser.
 - **Smart-case matching (`--smart-case`) - [DISCUSS].** The rg / fd convention: an all-lowercase
   pattern matches case-insensitively, a pattern with any uppercase matches case-sensitively.
   Already referenced as an rg-flavor default (the `xfd`-drop and flavor-table notes below) but
