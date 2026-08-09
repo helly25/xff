@@ -100,18 +100,14 @@ SRC_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_V
 echo "build_msan_libcxx: downloading ${SRC_URL} ..."
 curl -fsSL --retry 3 -o "${WORK}/${SRC_TARBALL}" "${SRC_URL}" || die "download failed: ${SRC_URL}"
 
-# Only the runtimes and the cmake glue they need - not the whole monorepo.
+# Extract the whole source release rather than a hand-picked subset. Picking directories looked
+# cheaper but is a losing game: the runtimes build reaches into llvm/utils for llvm-lit, and libcxx
+# includes shared headers from libc (`shared/fp_bits.h`), so each attempt just surfaced the next
+# missing directory. Extraction is a few seconds; the whole thing is thrown away afterwards and the
+# INSTALLED result is what CI caches.
 SRC_DIR="llvm-project-${LLVM_VERSION}.src"
-echo "build_msan_libcxx: extracting the runtimes ..."
-tar -xJf "${WORK}/${SRC_TARBALL}" -C "${WORK}" \
-  "${SRC_DIR}/runtimes" \
-  "${SRC_DIR}/libcxx" \
-  "${SRC_DIR}/libcxxabi" \
-  "${SRC_DIR}/libunwind" \
-  "${SRC_DIR}/cmake" \
-  "${SRC_DIR}/llvm/cmake" \
-  "${SRC_DIR}/llvm/utils" \
-  "${SRC_DIR}/third-party"
+echo "build_msan_libcxx: extracting the source release ..."
+tar -xJf "${WORK}/${SRC_TARBALL}" -C "${WORK}"
 
 # MemoryWithOrigins (not plain Memory) so a report names where the poison came from;
 # the extra cost is fine for a CI-only cell and makes findings actionable.
