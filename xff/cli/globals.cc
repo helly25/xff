@@ -72,6 +72,11 @@ constexpr std::array kSummaryValues = std::to_array<ValueDoc>({
     {.value = "hash", .meaning = "by file digest (dedup: identical files share a bucket; reads every file)"},
     {.value = "{template}", .meaning = "by any field value, e.g. `--summary='{ext}-{type}'`"},
 });
+constexpr std::array kArchiveValues = std::to_array<ValueDoc>({
+    {.value = "none", .meaning = "an archive is one plain file (find behavior; the find-style default)"},
+    {.value = "roots", .meaning = "dive only when a search root is itself an archive (the xff-family default)"},
+    {.value = "all", .meaning = "also dive archives found during the walk (what bare `--archive` selects)"},
+});
 constexpr std::array kShardsValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "recognize every built-in scheme (the default when bare `--shards`)"},
     {.value = "of", .meaning = "only `<stem>-<index>-of-<total>` (TFRecord-style)"},
@@ -208,14 +213,22 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--archive",
-        .display = "--archive",
+        .alias = "-z",
+        .display = "--archive[=none|roots|all], -z[+|-]",
         .group = "traversal",
         .header = "Traversal",
-        .summary = "descend into archives (tar/zip/...) as virtual paths",
+        .summary = "descend into archives: -z- none, -z roots only, -z+ / bare --archive all",
         .details = "Treats each archive (tar, gz, bzip2, xz, zstd, lz4, zip, ...) as a directory, so the whole "
                    "expression - including -grep on entry content - matches its entries at virtual paths like "
-                   "`foo.tar.gz/inner/x`. Read-only. A build-time extra: the stock binary is lean and omits it "
-                   "(rebuild with --//xff:archive); using --archive without it is a hard error.",
+                   "`foo.tar.gz/inner/x`. The three modes are nested: none keeps find's behavior (an archive is one "
+                   "plain file); roots dives only when a search root is itself an archive (pointing xff AT an "
+                   "archive implies looking inside); all also dives archives discovered during the walk. Bare "
+                   "--archive means all, and the short form carries chmod-style suffix signs (-z- none, -z roots, "
+                   "-z+ all). The find style defaults to none, every xff-family style to roots. Members are "
+                   "read-only, so -delete and the exec family refuse them rather than silently skipping. A "
+                   "build-time extra: the stock binary is lean and omits it (rebuild with --//xff:archive); asking "
+                   "for archive handling without it is a hard error.",
+        .values = kArchiveValues,
         .extra = "archive",
     },
     {
@@ -819,9 +832,11 @@ const GlobalFlag* LookupGlobal(std::string_view name) {
 
 bool IsKnownGlobal(std::string_view arg) {
   // Compat aliases that are not table rows: -0 (= --format=nul), the -g+/-g- short
-  // gitignore forms (= --gitignore=on/off), and the short case forms -i (insensitive),
-  // -s/-s+ (smart), -s- (sensitive) (= --case=...).
-  if (arg == "-0" || arg == "-g+" || arg == "-g-" || arg == "-i" || arg == "-s" || arg == "-s+" || arg == "-s-") {
+  // gitignore forms (= --gitignore=on/off), the short case forms -i (insensitive),
+  // -s/-s+ (smart), -s- (sensitive) (= --case=...), and the -z+/-z- short archive forms
+  // (= --archive=all/none; bare -z is a table row via the alias).
+  if (arg == "-0" || arg == "-g+" || arg == "-g-" || arg == "-i" || arg == "-s" || arg == "-s+" || arg == "-s-"
+      || arg == "-z+" || arg == "-z-") {
     return true;
   }
   // The short jobs form carries its value attached: -j4, -jall (the "=" form --jobs=N

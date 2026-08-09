@@ -666,6 +666,16 @@ bashtest(
 # End-to-end test of -hasheq (the manifest-verification companion of -hash): TRUE when the file's
 # digest equals the EXPECTED field template; -hasheq=ALGO[/ENCODING]; hex case-folding;
 # `! -hasheq` selects drift; the bad-spec usage error; and the find-style rejection.
+# End-to-end test of the --archive / -z control surface: every spelling that REQUESTS diving is a
+# hard, self-documenting error in a build without the archive extra, while `none` / `-z-` (find's
+# behavior, which needs no extra) walks normally. Pins the surface before the diving lands.
+bashtest(
+    name = "archive_test",
+    size = "small",
+    srcs = ["archive_test.sh"],
+    data = [":xff"],
+)
+
 bashtest(
     name = "hasheq_test",
     size = "small",

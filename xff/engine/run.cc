@@ -1232,6 +1232,75 @@ GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals, std:
   return mode;
 }
 
+// --archive / -z: how far archive diving descends. The three modes are NESTED
+// (none subset roots subset all), so one ordered enum expresses two separately-wanted
+// behaviors: diving into an archive named AS A ROOT, and diving into archives met
+// mid-walk. `none` keeps find's behavior (an archive is one plain file), `roots` dives
+// only when a search root is itself an archive (pointing xff AT an archive implies
+// looking inside), `all` also dives archives discovered during the walk. Bare --archive
+// is `all`; the short form takes chmod-style suffix signs like the -g gitignore trio
+// (-z- none, -z roots, -z+ all). Last occurrence wins. The default is style-scoped: the
+// find style stays at `none` for drop-in fidelity, every xff-family style starts at
+// `roots`.
+enum class ArchiveMode : std::uint8_t { kNone, kRoots, kAll };
+
+ArchiveMode ResolveArchiveMode(const std::vector<std::string>& globals, std::optional<registry::Style> style) {
+  // find keeps archives opaque; the xff family looks inside one it was pointed at.
+  ArchiveMode mode = style == registry::Style::kFind ? ArchiveMode::kNone : ArchiveMode::kRoots;
+  for (const std::string& global : globals) {
+    if (global == "--archive" || global == "--archive=all" || global == "-z+") {
+      mode = ArchiveMode::kAll;
+    } else if (global == "--archive=roots" || global == "-z") {
+      mode = ArchiveMode::kRoots;
+    } else if (global == "--archive=none" || global == "-z-") {
+      mode = ArchiveMode::kNone;
+    }
+  }
+  return mode;
+}
+
+// True when the run EXPLICITLY asked for archive handling (any spelling), as opposed to
+// inheriting a style default. The not-yet-implemented guard fires only on an explicit
+// request, so the xff family's `roots` default cannot break an ordinary walk.
+bool HasArchiveFlag(const std::vector<std::string>& globals) {
+  return absl::c_any_of(globals, [](std::string_view global) {
+    return global == "--archive" || global.starts_with("--archive=") || global == "-z" || global == "-z+"
+           || global == "-z-";
+  });
+}
+
+std::string_view ArchiveModeName(ArchiveMode mode) {
+  switch (mode) {
+    case ArchiveMode::kAll: return "all";
+    case ArchiveMode::kRoots: return "roots";
+    case ArchiveMode::kNone: return "none";
+  }
+  return "none";
+}
+
+// --hash-algorithm=ALGO / --hash-encoding=hex|base64: the defaults a bare -hash action and a
+// bare {hash} field use. Last occurrence wins; an empty value means "unset" and the reader
+// downstream falls back to sha256 / hex. Only READS them - the caller validates, so each bad
+// value can name its own flag in the usage error.
+struct HashDefaults {
+  std::string algorithm;
+  std::string encoding;
+};
+
+HashDefaults ReadHashDefaults(const std::vector<std::string>& globals) {
+  constexpr std::string_view kHashAlgo = "--hash-algorithm=";
+  constexpr std::string_view kHashEncoding = "--hash-encoding=";
+  HashDefaults defaults;
+  for (const std::string& global : globals) {
+    if (global.starts_with(kHashAlgo)) {
+      defaults.algorithm = global.substr(kHashAlgo.size());
+    } else if (global.starts_with(kHashEncoding)) {
+      defaults.encoding = global.substr(kHashEncoding.size());
+    }
+  }
+  return defaults;
+}
+
 // --hidden / --no-hidden: whether to skip hidden dotfiles (a path component starting with
 // '.'). Default is style-scoped: find and the conservative xff style show them
 // (find-compatible), the opinionated style (rg) skips them (fd-like, less dotclutter).
@@ -2039,21 +2108,30 @@ int RunFind(
       }
     }
   }
+  // --archive / -z: the flag surface and its style-scoped default are live, but the diving
+  // itself is not built yet. Fail loudly rather than accept the flag and silently walk as if
+  // it were absent - a silent no-op would look like "xff cannot see into this archive". The
+  // wording is deliberately distinct from the lean build's "not built in" extras error, so
+  // "this build lacks the extra" and "nobody implemented it yet" never look the same. Only an
+  // EXPLICIT request errors: the xff-family default of `roots` must not break every plain run.
+  if (const ArchiveMode archive_mode = ResolveArchiveMode(command.globals, style);
+      archive_mode != ArchiveMode::kNone && HasArchiveFlag(command.globals)) {
+    on_error(
+        "--archive",
+        absl::UnimplementedError(
+            absl::StrCat(
+                "archive diving is not yet implemented in this build (requested mode '", ArchiveModeName(archive_mode),
+                "'); use --archive=none / -z- to walk archives as "
+                "plain files")));
+    return 2;
+  }
   // --hash-algorithm=ALGO / --hash-encoding=hex|base64: defaults for a bare -hash action and a
   // bare {hash} field (last occurrence wins; empty -> sha256 / hex). Validated here so a bad value
   // is a usage error (exit 2) before the walk; the explicit -hash=ALGO[/ENCODING] specs in the
   // expression are validated by ValidateHashArgs below.
-  std::string hash_algorithm;
-  std::string hash_encoding;
-  for (const std::string& global : command.globals) {
-    constexpr std::string_view kHashAlgo = "--hash-algorithm=";
-    constexpr std::string_view kHashEncoding = "--hash-encoding=";
-    if (global.starts_with(kHashAlgo)) {
-      hash_algorithm = global.substr(kHashAlgo.size());
-    } else if (global.starts_with(kHashEncoding)) {
-      hash_encoding = global.substr(kHashEncoding.size());
-    }
-  }
+  const HashDefaults hash_defaults = ReadHashDefaults(command.globals);
+  const std::string& hash_algorithm = hash_defaults.algorithm;
+  const std::string& hash_encoding = hash_defaults.encoding;
   if (!hash_algorithm.empty() && !hash::IsAlgorithm(hash_algorithm)) {
     on_error(
         "--hash-algorithm", absl::InvalidArgumentError(
