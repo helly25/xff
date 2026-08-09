@@ -2661,32 +2661,32 @@ int RunFind(
   // list the non-shard matches unchanged. A file whose scheme is not selected is treated as non-shard.
   // v1 shows each set's first shard as its representative line; the --shards-show policy (slice D)
   // adds the wildcard / count forms and completeness annotation.
-  if (shards.enabled) {
-    const auto scheme_allowed = [&](shard::Scheme scheme) {
-      return shards.schemes.empty() || absl::c_linear_search(shards.schemes, scheme);
-    };
-    for (const auto& [dir, files] : shard_buckets) {
-      const std::string prefix = dir.empty() ? std::string() : absl::StrCat(dir, "/");
-      std::vector<shard::ShardFile> shard_files;  // allowed-scheme shards -> grouped into sets
-      std::vector<std::string_view> passthrough;  // non-shards (or unselected schemes) -> listed as-is
-      for (const ShardBufFile& file : files) {
-        const std::optional<shard::Match> match = shard_matcher->Decode(file.name);
-        if (match.has_value() && scheme_allowed(match->scheme)) {
-          shard_files.push_back({.name = file.name, .size = file.size, .mode = file.mode});
-        } else {
-          passthrough.push_back(file.name);
-        }
-      }
-      for (const shard::ShardSet& set : shard::GroupShards(shard_files, *shard_matcher)) {
-        emit(absl::StrCat(prefix, set.members.front().path, "\n"));  // representative = lowest-index shard
-      }
-      absl::c_sort(passthrough);
-      for (const std::string_view name : passthrough) {
-        emit(absl::StrCat(prefix, name, "\n"));
+  if (!shards.enabled) {
+    return errors;
+  }
+  const auto scheme_allowed = [&](shard::Scheme scheme) {
+    return shards.schemes.empty() || absl::c_linear_search(shards.schemes, scheme);
+  };
+  for (const auto& [dir, files] : shard_buckets) {
+    const std::string prefix = dir.empty() ? std::string() : absl::StrCat(dir, "/");
+    std::vector<shard::ShardFile> shard_files;  // allowed-scheme shards -> grouped into sets
+    std::vector<std::string_view> passthrough;  // non-shards (or unselected schemes) -> listed as-is
+    for (const ShardBufFile& file : files) {
+      const std::optional<shard::Match> match = shard_matcher->Decode(file.name);
+      if (match.has_value() && scheme_allowed(match->scheme)) {
+        shard_files.push_back({.name = file.name, .size = file.size, .mode = file.mode});
+      } else {
+        passthrough.push_back(file.name);
       }
     }
+    for (const shard::ShardSet& set : shard::GroupShards(shard_files, *shard_matcher)) {
+      emit(absl::StrCat(prefix, set.members.front().path, "\n"));  // representative = lowest-index shard
+    }
+    absl::c_sort(passthrough);
+    for (const std::string_view name : passthrough) {
+      emit(absl::StrCat(prefix, name, "\n"));
+    }
   }
-
   return errors;
 }
 
