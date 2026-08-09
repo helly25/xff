@@ -82,6 +82,11 @@ constexpr std::array kShardsShowValues = std::to_array<ValueDoc>({
     {.value = "wildcard", .meaning = "the masked-index name, e.g. `arc.???` (or `f-` idx `-of-003`)"},
     {.value = "count", .meaning = "the wildcard name plus the shard count, e.g. `arc.??? (3 shards)`"},
 });
+constexpr std::array kShardsDedupValues = std::to_array<ValueDoc>({
+    {.value = "first", .meaning = "keep the lexicographically-first name among same-index copies (the default)"},
+    {.value = "mtime", .meaning = "keep the newest by modification time (ties break on name)"},
+    {.value = "error", .meaning = "treat a same-index duplicate as an error (non-zero exit)"},
+});
 constexpr std::array kPagerValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "page only when stdout is a terminal (the default)"},
     {.value = "always", .meaning = "always page, even through a pipe"},
@@ -542,6 +547,19 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "plus the shard count. An incomplete set is always annotated `(present/expected - "
                    "INCOMPLETE)`. Only meaningful with --shards.",
         .values = kShardsShowValues,
+        .topic = "stats",
+    },
+    {
+        .name = "--shards-dedup",
+        .display = "--shards-dedup=first|mtime|error",
+        .group = "output",
+        .header = "Output",
+        .summary = "how same-index shard duplicates are resolved (default first)",
+        .details = "When two files are the same logical shard (they differ only by an opaque tail, e.g. a "
+                   "regeneration id), --shards-dedup picks which is the representative: first keeps the "
+                   "lexicographically-first name; mtime keeps the newest; error treats the duplicate as an "
+                   "error and fails the run (non-zero exit). Only meaningful with --shards.",
+        .values = kShardsDedupValues,
         .topic = "stats",
     },
     {

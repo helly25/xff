@@ -33,12 +33,21 @@
 // The CLI (`--shards`) and stats layer on top. See docs/design.md "Sharded files".
 namespace xff::shard {
 
-// A candidate file for grouping: its name plus the metadata a set needs to
-// aggregate size and check access-right consistency across its shards.
+// How same-index duplicates (redundant regenerations, differing only by tail) pick
+// their representative shard. kFirst keeps the lexicographically-first name (stable,
+// no metadata needed); kMtime keeps the newest by mtime (ties break lexicographically);
+// kError picks like kFirst but marks the run: a duplicate is treated as an error by the
+// caller. Grouping itself never fails - the CLI decides what kError means for the exit.
+enum class Dedup : std::uint8_t { kFirst, kMtime, kError };
+
+// A candidate file for grouping: its name plus the metadata a set needs to aggregate
+// size, check access-right consistency across its shards, and pick a representative by
+// mtime (kMtime dedup).
 struct ShardFile {
   std::string_view name;
   std::uint64_t size = 0;
   std::uint32_t mode = 0;  // st_mode permission/type bits
+  std::int64_t mtime = 0;  // modification time (for kMtime dedup); unit is the caller's, compared only
 
   friend bool operator==(const ShardFile&, const ShardFile&) = default;
 };
@@ -81,10 +90,14 @@ struct ShardSet {
 // Groups `files` into logical shard sets with `matcher`. Non-shard names are
 // ignored. Sets are sorted by (stem, scheme, total); within a set, members are
 // sorted by index and same-index files (differing only by tail) collapse to one
-// member - the lexicographically-first path is kept, the rest recorded as its
-// duplicates. Completeness counts distinct indices, so redundant tails never mask
-// a gap.
-[[nodiscard]] std::vector<ShardSet> GroupShards(absl::Span<const ShardFile> files, const Matcher& matcher);
+// member - `dedup` chooses which file is kept (kFirst / kError: the
+// lexicographically-first name; kMtime: the newest, ties lexicographic), the rest
+// recorded as its duplicates. Completeness counts distinct indices, so redundant
+// tails never mask a gap.
+[[nodiscard]] std::vector<ShardSet> GroupShards(
+    absl::Span<const ShardFile> files,
+    const Matcher& matcher,
+    Dedup dedup = Dedup::kFirst);
 
 }  // namespace xff::shard
 

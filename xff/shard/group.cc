@@ -69,7 +69,7 @@ void ComputeCompleteness(ShardSet& out) {
 
 }  // namespace
 
-std::vector<ShardSet> GroupShards(absl::Span<const ShardFile> files, const Matcher& matcher) {
+std::vector<ShardSet> GroupShards(absl::Span<const ShardFile> files, const Matcher& matcher, Dedup dedup) {
   std::map<SetKey, Accum> sets;  // ordered, so output is deterministic by (scheme, stem, total)
   for (const ShardFile& file : files) {
     const std::optional<Match> match = matcher.Decode(file.name);
@@ -93,11 +93,18 @@ std::vector<ShardSet> GroupShards(absl::Span<const ShardFile> files, const Match
         .wildcard = accum.wildcard,
     };
     for (const auto& [index, group] : accum.by_index) {
-      // The lexicographically-first file is the representative (its size / mode
-      // become the shard's); a single min-element scan finds it - no full sort. The
-      // rest are the redundant regenerations, kept in encounter order.
+      // Pick the representative (its size / mode become the shard's) per `dedup`: kMtime keeps
+      // the newest (ties break on the lexicographically-first name, so it stays deterministic);
+      // kFirst / kError keep the lexicographically-first name. A single min/max scan, no full
+      // sort. The rest are the redundant regenerations, kept in encounter order.
+      const auto by_name = [](const ShardFile& lhs, const ShardFile& rhs) { return lhs.name < rhs.name; };
       const auto representative =
-          absl::c_min_element(group, [](const ShardFile& lhs, const ShardFile& rhs) { return lhs.name < rhs.name; });
+          dedup == Dedup::kMtime ? absl::c_max_element(
+                                       group,
+                                       [](const ShardFile& lhs, const ShardFile& rhs) {
+                                         return lhs.mtime != rhs.mtime ? lhs.mtime < rhs.mtime : lhs.name > rhs.name;
+                                       })
+                                 : absl::c_min_element(group, by_name);
       ShardMember member{
           .index = index,
           .path = std::string(representative->name),

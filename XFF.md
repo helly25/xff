@@ -194,6 +194,14 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `count` - the wildcard name plus the shard count, e.g. `arc.??? (3 shards)`
 
   Picks each collapsed set's display: first = the representative (lowest-index) shard's path; wildcard = the masked-index name (the index digits shown as `???`); count = the wildcard plus the shard count. An incomplete set is always annotated `(present/expected - INCOMPLETE)`. Only meaningful with --shards.
+- `--shards-dedup=first|mtime|error` - how same-index shard duplicates are resolved (default first) _(global, xff)_
+  One of is one of:
+
+  - `first` - keep the lexicographically-first name among same-index copies (the default)
+  - `mtime` - keep the newest by modification time (ties break on name)
+  - `error` - treat a same-index duplicate as an error (non-zero exit)
+
+  When two files are the same logical shard (they differ only by an opaque tail, e.g. a regeneration id), --shards-dedup picks which is the representative: first keeps the lexicographically-first name; mtime keeps the newest; error treats the duplicate as an error and fails the run (non-zero exit). Only meaningful with --shards.
 - `--count, -c` - with -grep, print a per-file matching-line count (path:count) instead of the lines _(global, xff)_
   Affects: -grep
 - `--context=SPEC` - -grep context lines: N both sides, or A:N,B:N,C:N for after/before/both (grep -C/-A/-B) _(global, xff)_
