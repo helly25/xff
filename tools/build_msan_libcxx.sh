@@ -110,6 +110,7 @@ tar -xJf "${WORK}/${SRC_TARBALL}" -C "${WORK}" \
   "${SRC_DIR}/libunwind" \
   "${SRC_DIR}/cmake" \
   "${SRC_DIR}/llvm/cmake" \
+  "${SRC_DIR}/llvm/utils" \
   "${SRC_DIR}/third-party"
 
 # MemoryWithOrigins (not plain Memory) so a report names where the poison came from;
@@ -124,6 +125,7 @@ cmake -G Ninja \
   -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
   -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind" \
   -DLLVM_USE_SANITIZER=MemoryWithOrigins \
+  -DLLVM_INCLUDE_TESTS=OFF \
   -DLIBCXX_CXX_ABI=libcxxabi \
   -DLIBCXX_ENABLE_SHARED=ON \
   -DLIBCXXABI_ENABLE_SHARED=ON \
