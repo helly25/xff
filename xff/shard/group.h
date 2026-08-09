@@ -67,7 +67,8 @@ struct ShardSet {
   Scheme scheme = Scheme::kOf;
   std::string stem;
   std::optional<std::int64_t> total;
-  int width = 0;  // index digit width, for wildcard rendering (e.g. f-???-of-003)
+  int width = 0;         // index digit width, for wildcard rendering (e.g. f-???-of-003)
+  std::string wildcard;  // the set's canonical name with the index field masked (`f-???-of-003`)
   std::vector<ShardMember> members;
   std::vector<std::int64_t> missing;
   bool complete = true;

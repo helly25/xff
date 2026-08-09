@@ -38,6 +38,7 @@ using SetKey = std::tuple<Scheme, std::string, std::optional<std::int64_t>>;
 // file bucketed by its index (same-index files are duplicate regenerations).
 struct Accum {
   int width = 0;
+  std::string wildcard;  // the masked-index name; identical for every member of the set
   std::map<std::int64_t, std::vector<ShardFile>> by_index;
 };
 
@@ -77,6 +78,7 @@ std::vector<ShardSet> GroupShards(absl::Span<const ShardFile> files, const Match
     }
     Accum& accum = sets[SetKey{match->scheme, match->stem, match->total}];
     accum.width = match->width;
+    accum.wildcard = match->wildcard;  // identical across the set's members (masked index)
     accum.by_index[match->index].push_back(file);
   }
 
@@ -88,6 +90,7 @@ std::vector<ShardSet> GroupShards(absl::Span<const ShardFile> files, const Match
         .stem = std::get<1>(key),
         .total = std::get<2>(key),
         .width = accum.width,
+        .wildcard = accum.wildcard,
     };
     for (const auto& [index, group] : accum.by_index) {
       // The lexicographically-first file is the representative (its size / mode

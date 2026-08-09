@@ -17,9 +17,11 @@
 
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <string_view>
 
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
@@ -90,6 +92,21 @@ TEST_F(ShardMatcherTest, OfPreservesAnExtensionSeparatelyFromTheStem) {
   EXPECT_THAT(match, ShardIs(Scheme::kOf, "part", 3));
   EXPECT_THAT(match, Optional(Field("ext", &Match::ext, Eq(".tfrecord"))));
   EXPECT_THAT(match, Optional(Field("tail", &Match::tail, IsEmpty())));
+}
+
+TEST_F(ShardMatcherTest, WildcardMasksTheIndexKeepingTotalExtDroppingTail) {
+  // kOf: index -> `?` * width, total padding preserved, extension kept, tail dropped. The masked
+  // names are built with StrCat so the source carries no `??-` (which C++ reads as a trigraph).
+  const std::string mask5 = std::string(5, '?');
+  EXPECT_THAT(
+      matcher.Decode("part-00003-of-00042.tfrecord"),
+      Optional(Field("wildcard", &Match::wildcard, Eq(absl::StrCat("part-", mask5, "-of-00042.tfrecord")))));
+  EXPECT_THAT(
+      matcher.Decode("data-00000-of-00010.deadbeefdeadbeef.tfrecord"),
+      Optional(Field("wildcard", &Match::wildcard, Eq(absl::StrCat("data-", mask5, "-of-00010.tfrecord")))));
+  // Suffix schemes: the separator is reused and the digits masked (these carry no trigraph).
+  EXPECT_THAT(matcher.Decode("arc.001"), Optional(Field("wildcard", &Match::wildcard, Eq("arc.???"))));
+  EXPECT_THAT(matcher.Decode("vol_07"), Optional(Field("wildcard", &Match::wildcard, Eq("vol_??"))));
 }
 
 TEST_F(ShardMatcherTest, OfCapturesTheHexTailAndExcludesItFromExt) {

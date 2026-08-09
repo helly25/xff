@@ -62,6 +62,8 @@ struct Match {
   std::string tail;                   // opaque generation id; EXCLUDED from identity
   std::string ext;                    // trailing extension after the number/tail; part of the set
   int width = 0;                      // digit count of the index field, for wildcard rendering
+  std::string wildcard;               // the name with the index field replaced by `?` * width, tail
+                                      // dropped (e.g. `f-???-of-003`); the set's canonical display name
 
   friend bool operator==(const Match&, const Match&) = default;
 };

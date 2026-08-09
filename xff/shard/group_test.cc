@@ -20,6 +20,7 @@
 #include <string_view>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "xff/shard/shard.h"
@@ -63,6 +64,7 @@ TEST_F(GroupShardsTest, GroupsAnOfSetAndReportsItComplete) {
   EXPECT_THAT(sets[0].stem, Eq("data"));
   EXPECT_THAT(sets[0].total, Optional(Eq(3)));
   EXPECT_THAT(sets[0].width, Eq(5));
+  EXPECT_THAT(sets[0].wildcard, Eq(absl::StrCat("data-", std::string(5, '?'), "-of-00003")));
   EXPECT_TRUE(sets[0].complete);
   EXPECT_THAT(sets[0].missing, IsEmpty());
   EXPECT_THAT(
