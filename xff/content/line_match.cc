@@ -83,8 +83,8 @@ std::vector<ContextLine> CollectLineMatchesWithContext(
     }
     const std::size_t lo = i > before ? i - before : 0;
     const std::size_t hi = after < count - i ? i + after : count - 1;  // count > 0 inside this loop
-    for (std::size_t j = lo; j <= hi; ++j) {
-      emit[j] = true;
+    for (std::size_t pos = lo; pos <= hi; ++pos) {
+      emit[pos] = true;
     }
   }
   // Emit selected lines in order, opening a new group after each gap so a caller can separate
@@ -121,7 +121,7 @@ std::optional<std::size_t> FileLineCount(std::string_view path) {
     return std::nullopt;  // unreadable / missing -> nothing to count
   }
   const std::string_view content = artefact->data;
-  if (content.substr(0, std::min(content.size(), kBinaryNulSniffBytes)).find('\0') != std::string_view::npos) {
+  if (content.substr(0, std::min(content.size(), kBinaryNulSniffBytes)).contains('\0')) {
     return std::nullopt;  // a NUL in the sniff window marks the file binary; skip it (like content search)
   }
   return CountLines(content);

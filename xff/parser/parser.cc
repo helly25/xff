@@ -25,6 +25,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "mbo/status/status_macros.h"
 #include "xff/fields/fields.h"
@@ -58,33 +59,33 @@ bool IsHoistableGlobal(std::string_view arg) {
   return arg.size() > 2 && arg[0] == '-' && arg[1] == '-';
 }
 
-bool IsOr(std::string_view t) {
-  return t == "-o" || t == "-or";
+bool IsOr(std::string_view token) {
+  return token == "-o" || token == "-or";
 }
 
-bool IsAnd(std::string_view t) {
-  return t == "-a" || t == "-and";
+bool IsAnd(std::string_view token) {
+  return token == "-a" || token == "-and";
 }
 
-bool IsNot(std::string_view t) {
-  return t == "!" || t == "-not";
+bool IsNot(std::string_view token) {
+  return token == "!" || token == "-not";
 }
 
 // xff extensions: -nand binds at the AND tier, -nor at the OR tier, and -xor /
 // -xnor form a new tier between them (NOT > AND > XOR > OR), matching the
 // conventional boolean / C bitwise (& ^ |) precedence.
-bool IsNand(std::string_view t) {
-  return t == "-nand";
+bool IsNand(std::string_view token) {
+  return token == "-nand";
 }
 
 // Operators at the OR tier (the lowest binary tier): -o / -or / -nor.
-bool IsOrTier(std::string_view t) {
-  return IsOr(t) || t == "-nor";
+bool IsOrTier(std::string_view token) {
+  return IsOr(token) || token == "-nor";
 }
 
 // Operators at the XOR tier (between AND and OR): -xor / -xnor.
-bool IsXorTier(std::string_view t) {
-  return t == "-xor" || t == "-xnor";
+bool IsXorTier(std::string_view token) {
+  return token == "-xor" || token == "-xnor";
 }
 
 // Pre-compiles a node's regex at parse time so evaluation reads it lock-free:
@@ -184,9 +185,9 @@ class ExprParser {
     }
   }
 
-  void Fail(std::string message) {
+  void Fail(std::string_view message) {
     if (status_.ok()) {
-      status_ = absl::InvalidArgumentError(std::move(message));
+      status_ = absl::InvalidArgumentError(message);
     }
   }
 
@@ -255,6 +256,7 @@ class ExprParser {
     return ParsePrimary();
   }
 
+  // NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
   ExprPtr ParsePrimary() {
     if (AtEnd()) {
       Fail("expected a predicate or '('");
@@ -502,7 +504,7 @@ const Expr* FirstXffDurationValue(const Expr* expr) {
     }
     const std::string_view name = descriptor->name;
     const bool day_time = name == "-mtime" || name == "-atime" || name == "-ctime";
-    return day_time && !expr->args.empty() && expr->args.front().find(' ') != std::string::npos ? expr : nullptr;
+    return day_time && !expr->args.empty() && absl::StrContains(expr->args.front(), ' ') ? expr : nullptr;
   }
   if (const Expr* const found = FirstXffDurationValue(expr->lhs.get()); found != nullptr) {
     return found;
@@ -547,7 +549,7 @@ const Expr* FirstXffPrintfField(const Expr* expr) {
       const bool is_fprintf = name == "-fprintf";
       const std::size_t fmt_index = is_fprintf ? 1 : 0;
       if ((name == "-printf" || is_fprintf) && expr->args.size() > fmt_index
-          && expr->args[fmt_index].find("%{") != std::string_view::npos) {
+          && absl::StrContains(expr->args[fmt_index], "%{")) {
         return expr;
       }
     }
@@ -593,14 +595,14 @@ regex::Grammar GrammarFromGlobals(const std::vector<std::string>& globals) {
 
 absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
   Command cmd;
-  std::size_t i = 0;
+  std::size_t idx = 0;
   bool options_ended = false;
 
   // Leading globals: '-'/'+' tokens before the first root; a bare '--' ends option parsing.
-  for (; i < args.size(); ++i) {
-    const std::string& arg = args[i];
+  for (; idx < args.size(); ++idx) {
+    const std::string& arg = args[idx];
     if (arg == "--") {
-      ++i;
+      ++idx;
       options_ended = true;
       break;
     }
@@ -614,15 +616,15 @@ absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
   // Roots: operands until the expression begins. A double-dash global among the roots is hoisted
   // (globals are position-independent), so `a --sort=tree b` keeps both roots; an explicit `--`
   // disables that, taking every following token literally.
-  for (; i < args.size(); ++i) {
-    if (!options_ended && IsHoistableGlobal(args[i])) {
-      cmd.globals.push_back(args[i]);
+  for (; idx < args.size(); ++idx) {
+    if (!options_ended && IsHoistableGlobal(args[idx])) {
+      cmd.globals.push_back(args[idx]);
       continue;
     }
-    if (StartsExpression(args[i])) {
+    if (StartsExpression(args[idx])) {
       break;
     }
-    cmd.roots.push_back(args[i]);
+    cmd.roots.push_back(args[idx]);
   }
 
   // The regex grammar (from --regextype) compiles every matcher, so resolve it from the globals seen
@@ -634,7 +636,7 @@ absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
   // Expression: the remaining tokens, parsed to a tree. The parser hoists any double-dash globals it
   // meets at a primary/operator boundary (unless `--` ended options) -- so `. -type f --summary=ext`
   // works -- and we fold them back into the command's globals, then refresh the grammar.
-  const std::vector<std::string> expr_tokens(args.begin() + static_cast<std::ptrdiff_t>(i), args.end());
+  const std::vector<std::string> expr_tokens(args.begin() + static_cast<std::ptrdiff_t>(idx), args.end());
   if (!expr_tokens.empty()) {
     ExprParser parser(expr_tokens, cmd.grammar, /*hoist_globals=*/!options_ended);
     MBO_ASSIGN_OR_RETURN(cmd.expression, parser.Parse());

@@ -122,7 +122,7 @@ struct RunTest : ::testing::Test {
 
   // Runs the bare root under `style` to exercise the mode-scoped traversal
   // defaults (RunFind's `style`), returning records with the terminator stripped.
-  std::vector<std::string> RunStyled(registry::Style style) {
+  std::vector<std::string> RunStyled(registry::Style style) const {
     const auto command = parser::Parse({root_.string()});
     EXPECT_THAT(command, IsOk());
     std::vector<std::string> records;
@@ -255,7 +255,7 @@ TEST_F(RunTest, ExecPlusBatchesAllMatchesIntoOneRun) {
   const std::string out = (fs::path(::testing::TempDir()) / "xff_execplus_out.lst").string();
   std::error_code ec;
   fs::remove(out, ec);
-  const std::string script = "echo RUN >> '" + out + "'; for p in \"$@\"; do echo \"$p\" >> '" + out + "'; done";
+  const std::string script = "echo RUN >> '" + out + R"('; for p in "$@"; do echo "$p" >> ')" + out + "'; done";
   RunExpr({"-name", "*.txt", "-exec", "sh", "-c", script, "_", "{}", "+"});
   EXPECT_THAT(last_errors_, 0);
   std::ifstream in(out, std::ios::binary);
@@ -275,7 +275,7 @@ TEST_F(RunTest, ExecdirPlusBatchesPerDirectory) {
   const std::string out = (fs::path(::testing::TempDir()) / "xff_execdirplus_out.lst").string();
   std::error_code ec;
   fs::remove(out, ec);
-  const std::string script = "echo RUN >> '" + out + "'; for p in \"$@\"; do echo \"$p\" >> '" + out + "'; done";
+  const std::string script = "echo RUN >> '" + out + R"('; for p in "$@"; do echo "$p" >> ')" + out + "'; done";
   RunExpr({"-name", "*.txt", "-execdir", "sh", "-c", script, "_", "{}", "+"});
   EXPECT_THAT(last_errors_, 0);
   std::ifstream in(out, std::ios::binary);
@@ -1018,7 +1018,7 @@ TEST_F(RunTest, ExecFieldsSubstitutesRegexCaptures) {
   // to a marker beside the file ({path} keeps the marker absolute for cleanup).
   const auto command = parser::Parse(
       {"--exec-fields", root_.string(), "-regex", ".*/(a)\\.(txt)", "-exec", "/bin/sh", "-c",
-       "printf '%s' \"{1}.{2}\" > \"{path}.cap\"", ";"});
+       R"(printf '%s' "{1}.{2}" > "{path}.cap")", ";"});
   ASSERT_THAT(command, IsOk());
   RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
   const fs::path marker = root_ / "a.txt.cap";

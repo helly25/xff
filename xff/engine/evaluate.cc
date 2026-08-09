@@ -154,7 +154,7 @@ std::string OctalPerm(std::uint32_t mode) {
   const unsigned bits = mode & 07777U;
   std::string out;
   for (int shift = 9; shift >= 0; shift -= 3) {
-    const unsigned digit = (bits >> shift) & 7U;
+    const unsigned digit = (bits >> static_cast<unsigned>(shift)) & 7U;
     if (!out.empty() || digit != 0) {
       out.push_back(static_cast<char>('0' + digit));
     }
@@ -178,7 +178,7 @@ std::string SymbolicPerms(vfs::FileType type, std::uint32_t mode) {
   }
   static constexpr std::string_view kRwx = "rwx";
   for (int i = 0; i < 9; ++i) {
-    if ((mode & (1U << (8 - i))) != 0U) {
+    if ((mode & (1U << static_cast<unsigned>(8 - i))) != 0U) {
       out[1 + i] = kRwx[i % 3];
     }
   }
@@ -204,6 +204,7 @@ std::string LsTime(absl::Time mtime, absl::Time now, absl::TimeZone tz) {
 // find's %u/%g: the owner/group name, or the numeric id when the user/group
 // database has no entry for it (the reverse of ResolveUid/ResolveGid).
 std::string UserName(std::uint32_t uid) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
   if (const struct passwd* const pw = ::getpwuid(uid); pw != nullptr) {
     return pw->pw_name;
   }
@@ -211,6 +212,7 @@ std::string UserName(std::uint32_t uid) {
 }
 
 std::string GroupName(std::uint32_t gid) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
   if (const struct group* const gr = ::getgrgid(gid); gr != nullptr) {
     return gr->gr_name;
   }
@@ -285,8 +287,9 @@ std::string LinkTarget(const EvalContext& ctx);
 // braces) and an unterminated `%{` is emitted literally, matching the field template's own
 // lenient handling; the strict find style rejects `%{...}` before the walk (EnforceStyle).
 // Unknown %/\ directives are emitted literally.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
 std::string FormatPrintf(std::string_view format, const EvalContext& ctx) {
-  const bool has_field = format.find("%{") != std::string_view::npos;
+  const bool has_field = absl::StrContains(format, "%{");
   const std::string link = has_field ? LinkTarget(ctx) : std::string();  // backs {target}
   const fields::RenderContext field_ctx{
       .path = ctx.visit.path,
@@ -404,7 +407,7 @@ absl::StatusOr<SizeSpec> ParseSizeSpec(std::string_view arg, std::uint64_t block
     } else {
       const auto it = kSizeUnits.find(suffix);
       if (it == kSizeUnits.end()) {
-        if (kOversizedUnits.find(suffix) != std::string_view::npos) {
+        if (absl::StrContains(kOversizedUnits, suffix)) {
           return absl::InvalidArgumentError(
               absl::StrCat(
                   "'", original, "': size unit '", std::string(1, suffix),
@@ -463,7 +466,7 @@ bool MatchesNumeric(std::string_view arg, std::uint64_t value) {
     if (digit < '0' || digit > '9') {
       return false;
     }
-    want = want * 10 + static_cast<std::uint64_t>(digit - '0');
+    want = (want * 10) + static_cast<std::uint64_t>(digit - '0');
   }
   if (compare == '+') {
     return value > want;
@@ -491,7 +494,7 @@ bool MatchesSignedNumeric(std::string_view arg, std::int64_t value) {
     if (digit < '0' || digit > '9') {
       return false;
     }
-    want = want * 10 + static_cast<std::int64_t>(digit - '0');
+    want = (want * 10) + static_cast<std::int64_t>(digit - '0');
   }
   if (compare == '+') {
     return value > want;
@@ -510,13 +513,14 @@ bool MatchesSignedNumeric(std::string_view arg, std::int64_t value) {
 // into `want`, applied from find's zero base with no umask. Returns false on a
 // syntax error. 'X' is treated as 'x' (find resolves -perm with no per-file
 // context, so the conditional-execute form degenerates to plain execute).
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
 bool ApplyPermClause(std::string_view clause, std::uint32_t* want) {
   bool user = false;
   bool group = false;
   bool other = false;
-  std::size_t i = 0;
-  for (; i < clause.size(); ++i) {
-    const char who = clause[i];
+  std::size_t idx = 0;
+  for (; idx < clause.size(); ++idx) {
+    const char who = clause[idx];
     if (who == 'u') {
       user = true;
     } else if (who == 'g') {
@@ -532,10 +536,10 @@ bool ApplyPermClause(std::string_view clause, std::uint32_t* want) {
   if (!user && !group && !other) {
     user = group = other = true;  // an omitted "who" behaves as 'a' (find applies no umask)
   }
-  if (i >= clause.size()) {
+  if (idx >= clause.size()) {
     return false;  // missing operator
   }
-  const char op = clause[i++];
+  const char op = clause[idx++];
   if (op != '+' && op != '-' && op != '=') {
     return false;
   }
@@ -544,8 +548,8 @@ bool ApplyPermClause(std::string_view clause, std::uint32_t* want) {
   bool exec = false;
   bool setid = false;
   bool sticky = false;
-  for (; i < clause.size(); ++i) {
-    switch (clause[i]) {
+  for (; idx < clause.size(); ++idx) {
+    switch (clause[idx]) {
       case 'X':
       case 'x': exec = true; break;
       case 'r': read = true; break;
@@ -617,7 +621,7 @@ bool MatchesPerm(std::string_view arg, std::uint32_t mode) {
   std::uint32_t want = 0;
   if (arg.find_first_not_of("01234567") == std::string_view::npos) {
     for (const char digit : arg) {
-      want = want * 8 + static_cast<std::uint32_t>(digit - '0');
+      want = (want * 8) + static_cast<std::uint32_t>(digit - '0');
     }
   } else {
     const std::optional<std::uint32_t> symbolic = ParseSymbolicPerm(arg);
@@ -735,9 +739,9 @@ bool MatchesTime(std::string_view arg, absl::Time mtime, absl::Time now, absl::D
     if (digit < '0' || digit > '9') {
       return false;
     }
-    want = want * 10 + (digit - '0');
+    want = (want * 10) + (digit - '0');
   }
-  const std::int64_t units = static_cast<std::int64_t>((now - mtime) / unit);
+  const auto units = static_cast<std::int64_t>((now - mtime) / unit);
   if (compare == '+') {
     return units > want;
   }
@@ -772,11 +776,11 @@ std::optional<std::uint32_t> ParseId(std::string_view text) {
     return std::nullopt;
   }
   std::uint32_t id = 0;
-  for (const char c : text) {
-    if (c < '0' || c > '9') {
+  for (const char ch : text) {
+    if (ch < '0' || ch > '9') {
       return std::nullopt;
     }
-    id = id * 10 + static_cast<std::uint32_t>(c - '0');
+    id = (id * 10) + static_cast<std::uint32_t>(ch - '0');
   }
   return id;
 }
@@ -786,6 +790,7 @@ std::optional<std::uint32_t> ParseId(std::string_view text) {
 // taken as a literal id (GNU find behaviour); an unknown non-numeric name yields
 // no match here (failing the run on it is deferred to the exit-code work).
 std::optional<std::uint32_t> ResolveUid(std::string_view name) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
   if (const struct passwd* const pw = ::getpwnam(std::string(name).c_str()); pw != nullptr) {
     return static_cast<std::uint32_t>(pw->pw_uid);
   }
@@ -793,6 +798,7 @@ std::optional<std::uint32_t> ResolveUid(std::string_view name) {
 }
 
 std::optional<std::uint32_t> ResolveGid(std::string_view name) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
   if (const struct group* const gr = ::getgrnam(std::string(name).c_str()); gr != nullptr) {
     return static_cast<std::uint32_t>(gr->gr_gid);
   }
@@ -924,7 +930,7 @@ std::optional<std::string> ContentToSearch(const Visit& visit, const vfs::FileSy
     return std::nullopt;  // unreadable: a non-match here (the walk surfaces the read error itself)
   }
   const std::string_view prefix(content->data(), std::min(content->size(), content::kBinaryNulSniffBytes));
-  if (prefix.find('\0') != std::string_view::npos) {
+  if (absl::StrContains(prefix, '\0')) {
     return std::nullopt;  // a NUL in the sniff window marks the file binary; skip it
   }
   return *std::move(content);
@@ -944,7 +950,7 @@ std::optional<bool> FileContentIsBinary(const Visit& visit, const vfs::FileSyste
     return std::nullopt;
   }
   const std::string_view prefix(content->data(), std::min(content->size(), content::kBinaryNulSniffBytes));
-  return prefix.find('\0') != std::string_view::npos;
+  return absl::StrContains(prefix, '\0');
 }
 
 // Whether `content` satisfies the -text FLAVOR (empty flavor == git). git: no NUL in the first
@@ -955,17 +961,16 @@ std::optional<bool> FileContentIsBinary(const Visit& visit, const vfs::FileSyste
 // mixed endings match only git.
 bool TextMatchesFlavor(std::string_view content, std::string_view flavor) {
   if (flavor.empty() || flavor == "git") {
-    return content.substr(0, std::min(content.size(), content::kBinaryNulSniffBytes)).find('\0')
-           == std::string_view::npos;
+    return !absl::StrContains(content.substr(0, std::min(content.size(), content::kBinaryNulSniffBytes)), '\0');
   }
-  if (content.find('\0') != std::string_view::npos) {
+  if (absl::StrContains(content, '\0')) {
     return false;  // a strict flavor is not text if a NUL appears anywhere
   }
   if (flavor == "posix") {
-    return content.find('\r') == std::string_view::npos && (content.empty() || content.back() == '\n');
+    return !absl::StrContains(content, '\r') && (content.empty() || content.back() == '\n');
   }
   if (flavor == "apple") {
-    return content.find('\n') == std::string_view::npos && (content.empty() || content.back() == '\r');
+    return !absl::StrContains(content, '\n') && (content.empty() || content.back() == '\r');
   }
   if (flavor == "windows") {  // pure CRLF: no bare CR, no bare LF; ends with CRLF (or empty)
     for (std::size_t i = 0; i < content.size(); ++i) {
@@ -1135,7 +1140,7 @@ DiffStyle ParseDiffStyle(std::string_view style) {
 // A file looks binary when a NUL byte appears in its leading bytes (like GNU diff / grep):
 // -diff text-diffs only, so a binary side is byte-compared with a stderr note instead.
 bool LooksBinary(std::string_view data) {
-  return data.substr(0, content::kBinaryNulSniffBytes).find('\0') != std::string_view::npos;
+  return absl::StrContains(data.substr(0, content::kBinaryNulSniffBytes), '\0');
 }
 
 // One --diff-ignore token's effect: sets its normalization bool on the DiffOptions.
@@ -1151,15 +1156,17 @@ using DiffIgnoreSetter = void (*)(mbo::diff::DiffOptions&);
 // whitespace.) An unknown token is a usage error.
 constexpr auto kDiffIgnoreTokens = mbo::container::MakeLimitedMap(
     std::pair<std::string_view, DiffIgnoreSetter>{
-        "blank", [](mbo::diff::DiffOptions& o) { o.ignore_blank_lines = true; }},
-    std::pair<std::string_view, DiffIgnoreSetter>{"case", [](mbo::diff::DiffOptions& o) { o.ignore_case = true; }},
+        "blank", [](mbo::diff::DiffOptions& opts) { opts.ignore_blank_lines = true; }},
     std::pair<std::string_view, DiffIgnoreSetter>{
-        "change", [](mbo::diff::DiffOptions& o) { o.ignore_consecutive_space = true; }},
+        "case", [](mbo::diff::DiffOptions& opts) { opts.ignore_case = true; }},
     std::pair<std::string_view, DiffIgnoreSetter>{
-        "eofnl", [](mbo::diff::DiffOptions& o) { o.ignore_missing_final_newline = true; }},
+        "change", [](mbo::diff::DiffOptions& opts) { opts.ignore_consecutive_space = true; }},
     std::pair<std::string_view, DiffIgnoreSetter>{
-        "trail", [](mbo::diff::DiffOptions& o) { o.ignore_trailing_space = true; }},
-    std::pair<std::string_view, DiffIgnoreSetter>{"ws", [](mbo::diff::DiffOptions& o) { o.ignore_all_space = true; }});
+        "eofnl", [](mbo::diff::DiffOptions& opts) { opts.ignore_missing_final_newline = true; }},
+    std::pair<std::string_view, DiffIgnoreSetter>{
+        "trail", [](mbo::diff::DiffOptions& opts) { opts.ignore_trailing_space = true; }},
+    std::pair<std::string_view, DiffIgnoreSetter>{
+        "ws", [](mbo::diff::DiffOptions& opts) { opts.ignore_all_space = true; }});
 
 // Applies the --diff-ignore token list and --diff-ignore-matching regex onto `options`.
 // Each token runs its setter via kDiffIgnoreTokens; an unknown token is an InvalidArgument
@@ -1487,10 +1494,12 @@ bool EvalGroup(const parser::Expr& expr, EvalContext& ctx) {
 // find's -nouser / -nogroup: the entry's owner uid / group gid has no entry in
 // the passwd / group database (an orphaned id).
 bool EvalNouser(const parser::Expr&, EvalContext& ctx) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
   return ::getpwuid(ctx.visit.metadata.uid) == nullptr;
 }
 
 bool EvalNogroup(const parser::Expr&, EvalContext& ctx) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
   return ::getgrgid(ctx.visit.metadata.gid) == nullptr;
 }
 
@@ -1550,16 +1559,16 @@ bool EvalNewerXY(const parser::Expr& expr, EvalContext& ctx) {
     return false;
   }
   const std::string_view name = expr.descriptor->name;
-  const char x = name[6];
-  if (x == 'B' && !ctx.visit.metadata.btime.has_value()) {
+  const char letter = name[6];
+  if (letter == 'B' && !ctx.visit.metadata.btime.has_value()) {
     return ReportNoBtime(ctx);  // the walked entry's birth time is required but absent
   }
   if (name[7] == 't') {
     const std::optional<absl::Time> ref = datetime::ParseTimeString(expr.args.front(), ctx.now, ctx.tz);
-    const std::optional<absl::Time> field = TimeField(ctx.visit.metadata, x);
+    const std::optional<absl::Time> field = TimeField(ctx.visit.metadata, letter);
     return ref.has_value() && field.has_value() && *field > *ref;
   }
-  return IsNewerXY(ctx.visit, x, name[7], expr.args.front(), ctx.fs);
+  return IsNewerXY(ctx.visit, letter, name[7], expr.args.front(), ctx.fs);
 }
 
 // find's -anewer/-cnewer: the entry's access/change time is newer than the
@@ -1578,7 +1587,7 @@ bool EvalMtime(const parser::Expr& expr, EvalContext& ctx) {
     return false;
   }
   const std::string_view arg = expr.args.front();
-  if (arg.find(' ') != std::string_view::npos) {  // xff word/compound duration (e.g. "-3 weeks 3 hours")
+  if (absl::StrContains(arg, ' ')) {  // xff word/compound duration (e.g. "-3 weeks 3 hours")
     return MatchesAge(arg, ctx.visit.metadata.mtime, ctx.now, ctx.tz);
   }
   return MatchesTime(arg, ctx.visit.metadata.mtime, ctx.now, absl::Hours(24), /*allow_unit_suffix=*/true);
@@ -1595,7 +1604,7 @@ bool EvalAtime(const parser::Expr& expr, EvalContext& ctx) {
     return false;
   }
   const std::string_view arg = expr.args.front();
-  if (arg.find(' ') != std::string_view::npos) {  // xff word/compound duration
+  if (absl::StrContains(arg, ' ')) {  // xff word/compound duration
     return MatchesAge(arg, ctx.visit.metadata.atime, ctx.now, ctx.tz);
   }
   return MatchesTime(arg, ctx.visit.metadata.atime, ctx.now, absl::Hours(24), /*allow_unit_suffix=*/true);
@@ -1612,7 +1621,7 @@ bool EvalCtime(const parser::Expr& expr, EvalContext& ctx) {
     return false;
   }
   const std::string_view arg = expr.args.front();
-  if (arg.find(' ') != std::string_view::npos) {  // xff word/compound duration
+  if (absl::StrContains(arg, ' ')) {  // xff word/compound duration
     return MatchesAge(arg, ctx.visit.metadata.ctime, ctx.now, ctx.tz);
   }
   return MatchesTime(arg, ctx.visit.metadata.ctime, ctx.now, absl::Hours(24), /*allow_unit_suffix=*/true);
@@ -1636,7 +1645,7 @@ bool EvalBtime(const parser::Expr& expr, EvalContext& ctx) {
     return ReportNoBtime(ctx);
   }
   const std::string_view arg = expr.args.front();
-  if (arg.find(' ') != std::string_view::npos) {  // xff word/compound duration
+  if (absl::StrContains(arg, ' ')) {  // xff word/compound duration
     return MatchesAge(arg, *ctx.visit.metadata.btime, ctx.now, ctx.tz);
   }
   return MatchesTime(arg, *ctx.visit.metadata.btime, ctx.now, absl::Hours(24), /*allow_unit_suffix=*/true);
@@ -2118,15 +2127,15 @@ std::vector<std::string> LsCells(
 
 std::vector<LsColumn> LsColumns() {
   return {
-      {format::Align::kRight, 8},  // inode
-      {format::Align::kRight, 5},  // 1 KiB blocks
-      {format::Align::kLeft, 10},  // symbolic permissions (fixed width)
-      {format::Align::kRight, 2},  // link count
-      {format::Align::kLeft, 8},   // owner
-      {format::Align::kLeft, 8},   // group
-      {format::Align::kRight, 8},  // size (bytes)
-      {format::Align::kLeft, 12},  // time
-      {format::Align::kLeft, 0},   // path (trailing, unpadded)
+      {.align = format::Align::kRight, .min_width = 8},  // inode
+      {.align = format::Align::kRight, .min_width = 5},  // 1 KiB blocks
+      {.align = format::Align::kLeft, .min_width = 10},  // symbolic permissions (fixed width)
+      {.align = format::Align::kRight, .min_width = 2},  // link count
+      {.align = format::Align::kLeft, .min_width = 8},   // owner
+      {.align = format::Align::kLeft, .min_width = 8},   // group
+      {.align = format::Align::kRight, .min_width = 8},  // size (bytes)
+      {.align = format::Align::kLeft, .min_width = 12},  // time
+      {.align = format::Align::kLeft, .min_width = 0},   // path (trailing, unpadded)
   };
 }
 
@@ -2317,7 +2326,7 @@ std::vector<std::pair<std::string_view, std::string_view>> PrintfDocs() {
       {"%a %c %t", "access / change / modification time (asctime form)"},
       {"%Ak %Ck %Tk", "atime / ctime / mtime via strftime conversion k (e.g. %TY, %Tj)"},
       {"%%", "a literal percent"},
-      {"\\n \\t \\r \\\\ \\0", "newline, tab, carriage return, backslash, NUL"},
+      {R"(\n \t \r \\ \0)", "newline, tab, carriage return, backslash, NUL"},
       {"%{NAME}", "xff: the {field} vocabulary (%{relpath}, %{size:h}, %{def.X}); see --help=fields"},
       {"%{NAME:qual}",
        "xff: a field with a :qualifier -- time format, {size:h}, s/// rewrite, or path component "

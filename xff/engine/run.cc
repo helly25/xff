@@ -80,7 +80,7 @@ bool ParseNonNegInt(std::string_view text, int* out) {
     if (digit < '0' || digit > '9') {
       return false;
     }
-    value = value * 10 + (digit - '0');
+    value = (value * 10) + (digit - '0');
   }
   *out = value;
   return true;
@@ -438,7 +438,7 @@ std::optional<std::pair<std::string, std::string>> HistBucketKey(const Histogram
           BucketModePair{HistBucket::kGroup, SummaryMode::kGroup});
       const auto it = kBucketModes.find(spec.bucket);
       const SummaryMode mode = it == kBucketModes.end() ? SummaryMode::kOverall : it->second;
-      std::string key = SummaryKey(mode, visit);
+      const std::string key = SummaryKey(mode, visit);
       return std::make_pair(key, key);
     }
     case HistBucket::kSizeRange: return MagnitudeBucket(visit.metadata.size);
@@ -455,7 +455,7 @@ std::optional<std::pair<std::string, std::string>> HistBucketKey(const Histogram
 absl::StatusOr<std::vector<HistogramSpec>> ResolveHistograms(const std::vector<std::string>& globals) {
   constexpr std::string_view kFlag = "--histogram";
   std::vector<HistogramSpec> specs;
-  for (std::string_view global : globals) {
+  for (const std::string_view global : globals) {
     if (global != kFlag && !absl::StartsWith(global, absl::StrCat(kFlag, "="))) {
       continue;
     }
@@ -509,6 +509,7 @@ absl::StatusOr<std::vector<HistogramSpec>> ResolveHistograms(const std::vector<s
 std::string HistogramBar(double fraction, std::size_t width, bool unicode) {
   fraction = std::clamp(fraction, 0.0, 1.0);
   if (!unicode) {
+    // NOLINTNEXTLINE(modernize-return-braced-init-list): braces would narrow
     return std::string(static_cast<std::size_t>(std::llround(fraction * static_cast<double>(width))), '#');
   }
   constexpr std::array<std::string_view, 8> kPartials = {"", "▏", "▎", "▍", "▌", "▋", "▊", "▉"};
@@ -677,6 +678,7 @@ bool ResolveUnicode(const std::vector<std::string>& globals) {
     return *forced;
   }
   for (const char* const var : {"LC_ALL", "LC_CTYPE", "LANG"}) {
+    // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
     if (const char* const value = std::getenv(var); value != nullptr && *value != '\0') {
       return absl::StrContains(absl::AsciiStrToUpper(value), "UTF");  // en_US.UTF-8, C.UTF-8, ...
     }
@@ -919,7 +921,7 @@ std::string_view RelativeTo(std::string_view path, std::string_view root) {
   if (path == root || root.empty()) {
     return path == root ? std::string_view() : path;
   }
-  if (path.size() > root.size() && path.substr(0, root.size()) == root) {
+  if (path.size() > root.size() && path.starts_with(root)) {
     std::string_view rest = path.substr(root.size());
     while (!rest.empty() && rest.front() == '/') {
       rest.remove_prefix(1);
@@ -981,7 +983,7 @@ class IgnoreFileCache {
         gitignore_on_(gitignore_on),
         global_excludes_(std::move(global_excludes)) {}
 
-  bool active() const { return !filenames_.empty(); }
+  bool Active() const { return !filenames_.empty(); }
 
   ignore::Decision Decide(std::string_view path, std::string_view root, bool is_dir) {
     const Scope& scope = ScopeFor(root);
@@ -1001,7 +1003,7 @@ class IgnoreFileCache {
     // A `.gitkeep` intentionally keeps its (otherwise-empty) directory in the repo, so the gitignore
     // layers never ignore it - it is always kept, as if by a top-precedence `!.gitkeep`. Explicit
     // --exclude / --include (global_excludes_) still decide, so a user can still override it.
-    if (active() && rel.substr(rel.rfind('/') + 1) == ".gitkeep") {
+    if (Active() && rel.substr(rel.rfind('/') + 1) == ".gitkeep") {
       return global_excludes_.Match(rel, is_dir);
     }
     // Walk the ancestor directories of the entry, deepest first: for rel "a/b/c" that is
@@ -1136,7 +1138,7 @@ class RootedIgnoreFiles {
     return out;
   }
 
-  bool active() const { return !sources_.empty(); }
+  bool Active() const { return !sources_.empty(); }
 
   // The decision for an entry given its absolute, normalized path. Each source whose root
   // contains the entry contributes; the last non-default decision wins (later --ignore-file
@@ -1169,7 +1171,7 @@ class RootedIgnoreFiles {
     if (abs_path == root) {
       return std::string_view();
     }
-    if (abs_path.size() > root.size() && abs_path.substr(0, root.size()) == root && abs_path[root.size()] == '/') {
+    if (abs_path.size() > root.size() && abs_path.starts_with(root) && abs_path[root.size()] == '/') {
       return abs_path.substr(root.size() + 1);
     }
     return std::nullopt;
@@ -1179,12 +1181,7 @@ class RootedIgnoreFiles {
 };
 
 bool HasGlobal(const std::vector<std::string>& globals, std::string_view flag) {
-  for (const std::string& global : globals) {
-    if (global == flag) {
-      return true;
-    }
-  }
-  return false;
+  return absl::c_any_of(globals, [flag](std::string_view global) { return global == flag; });
 }
 
 // --gitignore / -g ternary. Bare `-g` / `--gitignore` selects AUTO (respect .gitignore
@@ -1254,6 +1251,7 @@ constexpr std::array<std::pair<std::string_view, std::string_view>, 7> kVcsMetad
 // (or --no-skip-vcs) selects none, a comma list selects exactly those tokens (a frozen subset). With
 // no such flag, gitignore mode (`-g`) implies just `.git` (the shipped default), else nothing. An
 // unknown token is an InvalidArgument usage error, refused before the walk.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
 absl::StatusOr<absl::flat_hash_set<std::string>> ResolveSkipVcs(
     const std::vector<std::string>& globals,
     bool gitignore_on) {
@@ -1354,7 +1352,7 @@ std::optional<bool> ResolveImplicitPrint(const std::vector<std::string>& globals
       // unrecognized value is ignored, leaving the prior resolution.
       if (const std::optional<bool> parsed = values::ParseBool(std::string_view(global).substr(kPrefix.size()));
           parsed.has_value()) {
-        result = *parsed;
+        result = parsed;
       }
     }
   }
@@ -1510,7 +1508,7 @@ std::optional<std::string> UnusedCaptureName(
     const std::string closed = absl::StrCat("{capture.", name, "}");
     const std::string qualified = absl::StrCat("{capture.", name, ":");
     const bool used = std::any_of(refs.begin(), refs.end(), [&](const std::string& ref) {
-      return ref.find(closed) != std::string::npos || ref.find(qualified) != std::string::npos;
+      return ref.contains(closed) || ref.contains(qualified);
     });
     if (!used) {
       return name;
@@ -1520,6 +1518,9 @@ std::optional<std::string> UnusedCaptureName(
 }
 
 }  // namespace
+
+// Internal helpers for RunFind's global-flag resolution + JSON key quoting (TU-local).
+namespace {
 
 // --human[=iec|si|off] (and the --si alias): how sizes render in -ls and --summary. si = decimal
 // (kB/MB, 1000^N) - the default, since it reads most human; iec = binary (KiB/MiB, 1024^N); off =
@@ -1533,7 +1534,7 @@ std::optional<format::SizeUnits> ResolveHuman(
   if (style.has_value() && *style != registry::Style::kFind) {
     units = format::SizeUnits::kSi;  // the modern styles (xff, rg) default to human sizes (SI)
   }
-  for (std::string_view global : globals) {
+  for (const std::string_view global : globals) {
     if (global == "--human" || global == "--human=si" || global == "--human=1000" || global == "--si") {
       units = format::SizeUnits::kSi;  // bare --human defaults to SI (KB/MB); --si is its alias
     } else if (global == "--human=iec" || global == "--human=1024") {
@@ -1653,6 +1654,9 @@ std::string JsonQuote(std::string_view text) {
   return out;
 }
 
+}  // namespace
+
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
 int RunFind(
     const parser::Command& command,
     const vfs::FileSystem& fs,
@@ -1693,7 +1697,8 @@ int RunFind(
   const bool colorize =
       format == render::Format::kPlain
       && color::Enabled(
-          color::ResolveWhen(command.globals), ::isatty(STDOUT_FILENO) != 0, std::getenv("NO_COLOR") != nullptr);
+          color::ResolveWhen(command.globals), ::isatty(STDOUT_FILENO) != 0,
+          std::getenv("NO_COLOR") != nullptr);  // NOLINT(concurrency-mt-unsafe): single-threaded CLI path
   const std::optional<std::string> tmpl = ResolveTemplate(command.globals);
   // A -capture whose {capture.NAME} is never referenced ran a subprocess for
   // nothing (use -exec for pure side effects); flag it before traversing.
@@ -1903,8 +1908,8 @@ int RunFind(
     constexpr std::string_view kDiffContext = "--diff-context=";
     if (global.starts_with(kDiffContext)) {
       const std::string_view value = std::string_view(global).substr(kDiffContext.size());
-      if (std::size_t n = 0; absl::SimpleAtoi(value, &n)) {
-        diff_context = n;
+      if (std::size_t parsed = 0; absl::SimpleAtoi(value, &parsed)) {
+        diff_context = parsed;
       } else {
         on_error("--diff-context", absl::InvalidArgumentError(absl::StrCat("bad --diff-context value '", value, "'")));
         return 2;
@@ -2012,7 +2017,9 @@ int RunFind(
   // still consults it; empty (a no-op) otherwise.
   ignore::PatternList global_excludes;
   if (gitignore_on) {
+    // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
     const char* const home = std::getenv("HOME");
+    // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
     const char* const xdg = std::getenv("XDG_CONFIG_HOME");
     const repo::GitConfigEnv env{.home = home == nullptr ? "" : home, .xdg_config_home = xdg == nullptr ? "" : xdg};
     if (const std::optional<std::string> path = repo::GlobalExcludesPath(walk_fs, env)) {
@@ -2137,6 +2144,7 @@ int RunFind(
 
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
+      // NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
       [&](const Visit& visit) {
         // Hidden filter: unless hidden files are included, drop a dotfile (basename
         // starting with '.') before any evaluation or output. A hidden directory is
@@ -2162,15 +2170,15 @@ int RunFind(
         // --exclude/--include has highest precedence, then explicit --ignore-file sources
         // (rooted at the file's own dir), then the auto per-directory ignore-file stack
         // (--ignore-files / -g); each later layer decides only where the earlier ones are silent.
-        if (!ignore_patterns.empty() || rooted_ignore_files.active() || ignore_files.active()) {
+        if (!ignore_patterns.empty() || rooted_ignore_files.Active() || ignore_files.Active()) {
           const bool is_dir = visit.metadata.type == vfs::FileType::kDirectory;
           const std::string_view rel = RelativeTo(visit.path, visit.root);
           if (!rel.empty()) {
             ignore::Decision decision = ignore_patterns.Match(rel, is_dir);
-            if (decision == ignore::Decision::kDefault && rooted_ignore_files.active()) {
+            if (decision == ignore::Decision::kDefault && rooted_ignore_files.Active()) {
               decision = rooted_ignore_files.Decide(AbsoluteDir(visit.path), is_dir);
             }
-            if (decision == ignore::Decision::kDefault && ignore_files.active()) {
+            if (decision == ignore::Decision::kDefault && ignore_files.Active()) {
               decision = ignore_files.Decide(visit.path, visit.root, is_dir);
             }
             if (decision == ignore::Decision::kIgnore) {
@@ -2619,22 +2627,24 @@ std::vector<FlavorFacet> FlavorFacets() {
   return {
       {.behavior = "ignore files (.gitignore/.ignore)",
        .flag = "-g / --gitignore, --no-ignore",
-       .value = [](const std::vector<std::string>& g,
-                   registry::Style s) { return GitignoreName(ResolveGitignoreMode(g, s)); }},
+       .value = [](const std::vector<std::string>& globals,
+                   registry::Style style) { return GitignoreName(ResolveGitignoreMode(globals, style)); }},
       {.behavior = "hidden dotfiles",
        .flag = "--hidden / --no-hidden",
-       .value = [](const std::vector<std::string>& g,
-                   registry::Style s) { return HiddenName(ResolveSkipHidden(g, s)); }},
+       .value = [](const std::vector<std::string>& globals,
+                   registry::Style style) { return HiddenName(ResolveSkipHidden(globals, style)); }},
       {.behavior = "sizes",
        .flag = "--human",
-       .value = [](const std::vector<std::string>& g, registry::Style s) { return HumanName(ResolveHuman(g, s)); }},
+       .value = [](const std::vector<std::string>& globals,
+                   registry::Style style) { return HumanName(ResolveHuman(globals, style)); }},
       {.behavior = "traversal order",
        .flag = "--sort",
-       .value = [](const std::vector<std::string>& g, registry::Style s) { return SortName(ResolveSort(g, s)); }},
+       .value = [](const std::vector<std::string>& globals,
+                   registry::Style style) { return SortName(ResolveSort(globals, style)); }},
       {.behavior = "letter case",
        .flag = "--case, -i, -s[+|-]",
-       .value = [](const std::vector<std::string>& g,
-                   registry::Style s) { return CaseName(parser::ResolveCaseMode(g, s)); }},
+       .value = [](const std::vector<std::string>& globals,
+                   registry::Style style) { return CaseName(parser::ResolveCaseMode(globals, style)); }},
   };
 }
 

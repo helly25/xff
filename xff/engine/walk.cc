@@ -87,6 +87,8 @@ class ReadPool {
 
   ReadPool(const ReadPool&) = delete;
   ReadPool& operator=(const ReadPool&) = delete;
+  ReadPool(ReadPool&&) = delete;
+  ReadPool& operator=(ReadPool&&) = delete;
 
   // Enqueues a read job (or runs it inline with no workers). Caller must NOT
   // hold `mutex_`.
@@ -170,7 +172,7 @@ class Walker {
 
   // A read job: list `dir` and stat every child. Pure - safe to run on a worker.
   Listing ReadDir(const std::string& dir) const {
-    MBO_ASSIGN_OR_RETURN(std::vector<vfs::Entry> entries, fs_.ReadDir(dir));
+    MBO_ASSIGN_OR_RETURN(const std::vector<vfs::Entry> entries, fs_.ReadDir(dir));
     std::vector<Stated> children;
     children.reserve(entries.size());
     for (const vfs::Entry& entry : entries) {
@@ -262,7 +264,7 @@ class Walker {
       return;
     }
     if (options_.sort != SortOrder::kNone) {
-      absl::c_sort(*listing, [](const Stated& a, const Stated& b) { return a.path < b.path; });
+      absl::c_sort(*listing, [](const Stated& lhs, const Stated& rhs) { return lhs.path < rhs.path; });
     }
     HandleChildren(*listing, depth + 1);
     ancestors_.erase(id);
@@ -272,6 +274,9 @@ class Walker {
   // in how a subdirectory's entry is grouped relative to its subtree. Reads for
   // the descendable subdirectories are submitted as a batch up front so the pool
   // overlaps their IO while the coordinator visits in order.
+  // NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
+  // subtree/tree) is inherently branchy; splitting it would scatter one cohesive traversal.
+  // NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
   void HandleChildren(const std::vector<Stated>& children, int depth) {
     // Inline DFS at each entry's position. kTree emits a subtree in its sorted
     // place; post-order (`-depth`) always uses this shape (descend then visit).

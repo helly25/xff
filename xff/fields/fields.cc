@@ -38,6 +38,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "absl/time/time.h"
@@ -78,7 +79,7 @@ std::string OctalPerm(std::uint32_t mode) {
   const unsigned bits = mode & 07777U;
   std::string out;
   for (int shift = 9; shift >= 0; shift -= 3) {
-    const unsigned digit = (bits >> shift) & 7U;
+    const unsigned digit = (bits >> static_cast<unsigned>(shift)) & 7U;
     if (!out.empty() || digit != 0) {
       out.push_back(static_cast<char>('0' + digit));
     }
@@ -118,6 +119,7 @@ std::string AccessString(vfs::FileType type, std::uint32_t mode) {
 // Owner / group name from the password / group database, falling back to the
 // numeric id when there is no entry (matching find's %u/%g).
 std::string OwnerName(std::uint32_t uid) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
   if (const struct passwd* const pw = ::getpwuid(uid); pw != nullptr) {
     return pw->pw_name;
   }
@@ -125,6 +127,7 @@ std::string OwnerName(std::uint32_t uid) {
 }
 
 std::string GroupName(std::uint32_t gid) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
   if (const struct group* const gr = ::getgrgid(gid); gr != nullptr) {
     return gr->gr_name;
   }
@@ -157,7 +160,7 @@ std::string HumanSize(std::uint64_t bytes) {
   }
   std::string out = std::to_string(bytes / scale);
   out.push_back('.');
-  out.push_back(static_cast<char>('0' + (bytes % scale) * 10 / scale));
+  out.push_back(static_cast<char>('0' + ((bytes % scale) * 10 / scale)));
   out.push_back(kUnits[unit]);
   return out;
 }
@@ -192,7 +195,7 @@ std::string RelpathField(std::string_view, std::string_view, const RenderContext
   if (root.empty() || path == root) {
     return path == root ? std::string() : std::string(path);
   }
-  if (path.size() > root.size() && path.substr(0, root.size()) == root) {
+  if (path.size() > root.size() && path.starts_with(root)) {
     std::string_view rest = path.substr(root.size());
     while (!rest.empty() && rest.front() == '/') {
       rest.remove_prefix(1);
@@ -316,6 +319,7 @@ std::string BlocksField(std::string_view, std::string_view qualifier, const Rend
 }
 
 std::string TypeField(std::string_view, std::string_view, const RenderContext& ctx) {
+  // NOLINTNEXTLINE(modernize-return-braced-init-list): braces would build initializer_list<char>{1,c}
   return std::string(1, TypeLetter(ctx.metadata.type));
 }
 
@@ -496,7 +500,7 @@ int CaptureIndex(std::string_view name) {
     if (ch < '0' || ch > '9') {
       return -1;
     }
-    value = value * 10 + (ch - '0');
+    value = (value * 10) + (ch - '0');
   }
   return value;
 }
@@ -506,7 +510,7 @@ int CaptureIndex(std::string_view name) {
 // when captures are unset or the index is out of range.
 std::string CaptureField(std::string_view key, std::string_view, const RenderContext& ctx) {
   const int index = CaptureIndex(key);
-  if (ctx.captures == nullptr || index < 0 || index >= static_cast<int>(ctx.captures->size())) {
+  if (ctx.captures == nullptr || index < 0 || std::cmp_greater_equal(index, ctx.captures->size())) {
     return "";
   }
   return (*ctx.captures)[static_cast<std::size_t>(index)];
@@ -516,6 +520,7 @@ std::string CaptureField(std::string_view key, std::string_view, const RenderCon
 // when unset. std::getenv is standard C++ (no POSIX feature-test needed).
 std::string EnvField(std::string_view key, std::string_view, const RenderContext&) {
   const std::string name(key);
+  // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
   const char* const value = std::getenv(name.c_str());
   return value == nullptr ? "" : value;
 }
@@ -632,7 +637,7 @@ std::optional<std::vector<regex::Matcher>> CompileChain(const std::vector<Rewrit
   matchers.reserve(ops.size());
   for (const RewriteOp& op : ops) {
     absl::StatusOr<regex::Matcher> matcher =
-        regex::Matcher::Compile(op.pattern, /*case_insensitive=*/op.flags.find('i') != std::string_view::npos);
+        regex::Matcher::Compile(op.pattern, /*case_insensitive=*/absl::StrContains(op.flags, 'i'));
     if (!matcher.ok()) {
       return std::nullopt;
     }
@@ -652,7 +657,7 @@ std::string ApplyRewrite(std::string_view value, std::string_view spec) {
   }
   std::string out(value);
   for (std::size_t i = 0; i < ops.size(); ++i) {
-    out = (*matchers)[i].Rewrite(out, ops[i].replacement, /*global=*/ops[i].flags.find('g') != std::string_view::npos);
+    out = (*matchers)[i].Rewrite(out, ops[i].replacement, /*global=*/absl::StrContains(ops[i].flags, 'g'));
   }
   return out;
 }
@@ -674,7 +679,7 @@ std::vector<std::string> ExtractLines(std::string_view value, std::string_view s
   if (ops.empty() || !matchers.has_value()) {
     return {};
   }
-  const bool first_global = ops.front().flags.find('g') != std::string_view::npos;
+  const bool first_global = absl::StrContains(ops.front().flags, 'g');
   std::vector<std::string> out;
   for (const std::string_view line : absl::StrSplit(value, '\n')) {
     if (!matchers->front().PartialMatch(line)) {
@@ -682,8 +687,7 @@ std::vector<std::string> ExtractLines(std::string_view value, std::string_view s
     }
     std::string current = matchers->front().Rewrite(line, ops.front().replacement, first_global);
     for (std::size_t i = 1; i < ops.size(); ++i) {  // remaining commands substitute on the survivor
-      current = (*matchers)[i].Rewrite(
-          current, ops[i].replacement, /*global=*/ops[i].flags.find('g') != std::string_view::npos);
+      current = (*matchers)[i].Rewrite(current, ops[i].replacement, /*global=*/absl::StrContains(ops[i].flags, 'g'));
     }
     out.push_back(std::move(current));
   }
@@ -736,38 +740,39 @@ std::string_view LeadingWord(std::string_view spec, std::size_t pos) {
 // reducer segment is a keyword optionally followed by `(ARG)` (with `\)` escaping inside); a rewrite
 // segment is `[sm]?<delim>PAT<delim>REPL<delim>flags`, where a ';' is a boundary only AFTER the third
 // delimiter -- so a ';' inside PAT/REPL is protected, matching ParseRewriteChain.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
 std::size_t SegmentEnd(std::string_view spec, std::size_t pos) {
   if (IsReducerKeyword(LeadingWord(spec, pos))) {
-    std::size_t p = pos + LeadingWord(spec, pos).size();
-    if (p < spec.size() && spec[p] == '(') {
-      for (++p; p < spec.size() && spec[p] != ')';) {
-        p += (spec[p] == '\\' && p + 1 < spec.size()) ? 2 : 1;
+    std::size_t cursor = pos + LeadingWord(spec, pos).size();
+    if (cursor < spec.size() && spec[cursor] == '(') {
+      for (++cursor; cursor < spec.size() && spec[cursor] != ')';) {
+        cursor += (spec[cursor] == '\\' && cursor + 1 < spec.size()) ? 2 : 1;
       }
-      if (p < spec.size()) {
-        ++p;  // consume ')'
+      if (cursor < spec.size()) {
+        ++cursor;  // consume ')'
       }
     }
-    while (p < spec.size() && spec[p] != ';') {
-      ++p;
+    while (cursor < spec.size() && spec[cursor] != ';') {
+      ++cursor;
     }
-    return p;
+    return cursor;
   }
-  std::size_t p = pos;
-  if (p < spec.size() && (spec[p] == 's' || spec[p] == 'm')) {
-    ++p;
+  std::size_t cursor = pos;
+  if (cursor < spec.size() && (spec[cursor] == 's' || spec[cursor] == 'm')) {
+    ++cursor;
   }
-  if (p >= spec.size()) {
+  if (cursor >= spec.size()) {
     return spec.size();
   }
-  const char delim = spec[p];
+  const char delim = spec[cursor];
   int delims = 1;
-  for (++p; p < spec.size(); ++p) {
+  for (++cursor; cursor < spec.size(); ++cursor) {
     if (delims < 3) {
-      if (spec[p] == delim) {
+      if (spec[cursor] == delim) {
         ++delims;
       }
-    } else if (spec[p] == ';') {
-      return p;
+    } else if (spec[cursor] == ';') {
+      return cursor;
     }
   }
   return spec.size();
@@ -785,6 +790,7 @@ struct Pipeline {
   std::string_view scalar;
 };
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
 Pipeline SplitPipeline(std::string_view spec) {
   for (std::size_t pos = 0; pos < spec.size();) {
     const std::size_t end = SegmentEnd(spec, pos);

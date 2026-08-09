@@ -54,6 +54,7 @@ namespace {
 
 // Environment variable as an optional (nullopt when unset), for config discovery.
 std::optional<std::string> EnvOpt(const char* name) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
   const char* const value = std::getenv(name);
   if (value == nullptr) {
     return std::nullopt;
@@ -210,10 +211,14 @@ absl::StatusOr<std::string> RenderTopic(std::string_view topic, xff::cli::HelpRe
   return absl::NotFoundError("");  // unknown topic; the caller composes the user-facing message
 }
 
-}  // namespace
-
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
+// resolve config, dispatch meta flags, build + run the expression) is one cohesive sequence.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
 int RunMain(int argc, char** argv) {
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic): intentional
   const std::vector<std::string> args(argv + 1, argv + argc);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic): intentional
+  const char* const program = argv[0];
 
   // The plain-help wrap width (--width), resolved once so every help / topic render
   // shares it. A bare --width means auto; --width=VALUE carries the value. Scanned
@@ -235,8 +240,9 @@ int RunMain(int argc, char** argv) {
   const bool stdout_is_tty = ::isatty(STDOUT_FILENO) != 0;
   // --color drives help color too (auto = a tty with NO_COLOR unset; always overrides).
   // Scanned from argv like --width, since --help short-circuits before the full parse.
-  const bool help_color =
-      xff::color::Enabled(xff::color::ResolveWhen(args), stdout_is_tty, std::getenv("NO_COLOR") != nullptr);
+  const bool help_color = xff::color::Enabled(
+      xff::color::ResolveWhen(args), stdout_is_tty,
+      std::getenv("NO_COLOR") != nullptr);  // NOLINT(concurrency-mt-unsafe): single-threaded CLI startup
   const xff::cli::HelpRenderContext help_context{.width = *help_width, .color = help_color};
   // --pager pages the long meta / doc output below (help / man / markdown) on a terminal;
   // resolved from argv like the two above, and applied only to those surfaces.
@@ -300,7 +306,7 @@ int RunMain(int argc, char** argv) {
   // for one out of git/cargo habit would otherwise have the word silently taken as a
   // path to search, so (in the xff flavor only; find must keep `find help` meaning
   // "search ./help") catch a leading operand that names one and point at the flag.
-  if (xff::config::DefaultStyleForProgram(argv[0]) != "find") {
+  if (xff::config::DefaultStyleForProgram(program) != "find") {
     for (const std::string& arg : args) {
       if (arg == "--") {
         break;  // explicit end-of-options: the next token is deliberately an operand
@@ -340,7 +346,7 @@ int RunMain(int argc, char** argv) {
   // A composable-extra flag (e.g. --archive) is always recognized, but if the extra it needs is not
   // compiled into this binary, using it is a hard immediate error naming what to rebuild with - never
   // a silent no-op. Derived from the flag's SOT `extra` key + the compile-time ExtraEnabled map.
-  for (std::string_view global : command.globals) {
+  for (const std::string_view global : command.globals) {
     const std::string_view name = global.substr(0, global.find('='));
     const xff::cli::GlobalFlag* const flag = xff::cli::LookupGlobal(name);
     if (flag != nullptr && !flag->extra.empty() && !xff::cli::ExtraEnabled(flag->extra)) {
@@ -357,7 +363,7 @@ int RunMain(int argc, char** argv) {
   // strict find; as `xff` or any other alias -> modern xff) as the lowest-precedence
   // selector, so an explicit --config still overrides it (design-config.md "CLI
   // selectors"). Prepended before discovery so find:/xff: .xffrc lines gate on it too.
-  opts.configs.insert(opts.configs.begin(), std::string(xff::config::DefaultStyleForProgram(argv[0])));
+  opts.configs.insert(opts.configs.begin(), std::string(xff::config::DefaultStyleForProgram(program)));
   opts.xff_config = EnvOpt("XFF_CONFIG");
   opts.xdg_config_home = EnvOpt("XDG_CONFIG_HOME");
   opts.home = EnvOpt("HOME");
@@ -449,6 +455,8 @@ int RunMain(int argc, char** argv) {
 // would flush the stream -- otherwise truncates large output (a partial `--man` or
 // `--help=list`). Flushing here, before returning into the C++ exit sequence,
 // guarantees the bytes are written regardless of what the exit path does next.
+}  // namespace
+
 int main(int argc, char** argv) {
   const int exit_code = RunMain(argc, argv);
   std::cout.flush();

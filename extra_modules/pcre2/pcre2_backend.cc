@@ -118,7 +118,7 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
       captures.reserve(capture_count_ + 1);
       for (std::uint32_t group = 0; group <= capture_count_; ++group) {  // [0] = whole match, [1..] = groups
         const PCRE2_SIZE start = ovector[2 * group];
-        const PCRE2_SIZE end = ovector[2 * group + 1];
+        const PCRE2_SIZE end = ovector[(2 * group) + 1];
         if (start == PCRE2_UNSET) {
           captures.emplace_back();  // a group that did not participate is empty (mirrors RE2)
         } else {

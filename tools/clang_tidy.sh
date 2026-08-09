@@ -126,10 +126,14 @@ done
 #   * misc-override-with-different-visibility: our fixtures are `struct`s (AGENTS.md),
 #     so their SetUp()/TearDown() overrides are public while ::testing::Test declares
 #     them protected - a visibility change forced by convention, on every fixture.
+#   * readability-identifier-naming: gtest `struct` fixtures hold their state in
+#     `_`-suffixed public members (the fixture's own state, mirroring the production
+#     private-member convention), and the TEST_F macro expands to functions whose
+#     names the check rejects - both are mandated test scaffolding, not defects.
 # concurrency-mt-unsafe is deliberately NOT disabled here: a test that touches process
 # environment (getenv/setenv) still carries a real MT hazard, so those few sites keep a
 # targeted, commented NOLINT rather than a blanket exemption for the whole test tree.
-readonly TEST_DISABLED_CHECKS='-readability-function-cognitive-complexity,-misc-override-with-different-visibility'
+readonly TEST_DISABLED_CHECKS='-readability-function-cognitive-complexity,-misc-override-with-different-visibility,-readability-identifier-naming'
 
 declare -a SOURCES=()
 declare -a TESTS=()
