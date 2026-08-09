@@ -49,9 +49,18 @@ test::asking_for_archive_handling_is_a_hard_error_without_the_extra() {
     out="$("$(_xff_bin)" "${spelling}" "${root}" 2>&1)" && rc=0 || rc=$?
     expect_eq "2" "${rc}"
     expect_output_contains "no archive support" "${out}"
-    expect_output_contains "--//xff:archive" "${out}"
+    # The hint must name the REAL Bazel flag (`xff_archive`, not `archive`): an error telling the
+    # user to rebuild with a flag that does not exist is worse than no hint at all.
+    expect_output_contains "--//xff:xff_archive" "${out}"
   done
   rm -rf "${root}"
+}
+
+test::the_extras_topic_names_real_build_flags() {
+  local out
+  out="$("$(_xff_bin)" --help=extras 2>&1)"
+  expect_output_contains "--//xff:xff_archive" "${out}"
+  expect_output_contains "--//xff:xff_pcre" "${out}"
 }
 
 test::asking_for_find_behavior_needs_no_extra() {

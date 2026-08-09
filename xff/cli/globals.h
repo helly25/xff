@@ -64,7 +64,7 @@ struct GlobalFlag {
   // topic straight from this table, so the topic's flag list is the SOT and cannot drift. Empty
   // means the flag belongs to no topic body (it still appears in the grouped `--help` options).
   std::string_view topic;
-  // The build-time "composable extra" this flag needs, e.g. "archive" (the `//xff:archive` Bazel
+  // The build-time "composable extra" this flag needs, e.g. "archive" (the `//xff:xff_archive` Bazel
   // flag + its `XFF_WITH_ARCHIVE` define). Empty = a core flag, always available. When set and that
   // extra is NOT compiled in (ExtraEnabled), the flag stays listed but is a hard error if used, and
   // the help system routes it into a separate "Extras (not built in)" group noting what to rebuild
@@ -78,6 +78,11 @@ struct GlobalFlag {
 // The single point that maps an extra key to its compile-time availability, shared by main (the
 // used-but-unavailable hard error) and the help system (the "Extras (not built in)" grouping).
 bool ExtraEnabled(std::string_view key);
+
+// The Bazel flag label that turns the extra `key` on, e.g. "--//xff:xff_archive" - what an error
+// message tells the user to rebuild with. Empty for an unknown extra, so a caller omits the hint
+// rather than naming a flag that does not exist. Kept beside ExtraEnabled so the two cannot drift.
+std::string_view ExtraBuildFlag(std::string_view key);
 
 // All global options, in display order. The single enumeration point for the help
 // system and the planned doc generators.

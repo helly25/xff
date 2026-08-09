@@ -859,9 +859,9 @@ bool IsKnownGlobal(std::string_view arg) {
 }
 
 bool ExtraEnabled(std::string_view key) {
-  // Each build-time extra maps to an XFF_WITH_* define added (via select) by its `//xff:<extra>`
-  // Bazel flag. In the lean default build no such define is set, so every extra reads as off. New
-  // extras add a branch here (and #83 wires libarchive behind archive).
+  // Each build-time extra maps to an XFF_WITH_* define added (via select) by its Bazel flag (see
+  // ExtraBuildFlag for the flag's exact label). In the lean default build no such define is set, so
+  // every extra reads as off. New extras add a branch here and in ExtraBuildFlag.
   if (key == "archive") {
 #ifdef XFF_WITH_ARCHIVE
     return true;
@@ -870,6 +870,20 @@ bool ExtraEnabled(std::string_view key) {
 #endif
   }
   return false;  // unknown / not-yet-wired extra
+}
+
+std::string_view ExtraBuildFlag(std::string_view key) {
+  // The label a user must actually pass to rebuild with the extra. Spelled out per extra rather
+  // than derived from the key: the Bazel flags carry an `xff_` prefix that the human-facing key
+  // does not (`archive` -> `//xff:xff_archive`), and pcre2's flag is `xff_pcre`, so any derivation
+  // rule would print a flag that does not exist - which is worse than useless in an error message.
+  if (key == "archive") {
+    return "--//xff:xff_archive";
+  }
+  if (key == "pcre2") {
+    return "--//xff:xff_pcre";
+  }
+  return {};  // unknown extra: the caller omits the rebuild hint rather than inventing a flag
 }
 
 }  // namespace xff::cli
