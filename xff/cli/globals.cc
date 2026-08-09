@@ -69,6 +69,7 @@ constexpr std::array kSummaryValues = std::to_array<ValueDoc>({
     {.value = "mime", .meaning = "by media (MIME) type"},
     {.value = "user", .meaning = "by owner"},
     {.value = "group", .meaning = "by owning group"},
+    {.value = "hash", .meaning = "by file digest (dedup: identical files share a bucket; reads every file)"},
     {.value = "{template}", .meaning = "by any field value, e.g. `--summary='{ext}-{type}'`"},
 });
 constexpr std::array kShardsValues = std::to_array<ValueDoc>({
@@ -491,8 +492,10 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .header = "Output",
         .summary = "aligned count + size table (or --format=jsonl rows) instead of each match; repeatable",
         .details = "Replaces the per-match listing with an aggregate table: match count and total size per group "
-                   "(overall, by type, extension, programming language, media (MIME) type, user (owner), or "
-                   "owning group). The categorical keys reuse the {mime}/{user}/{group} field vocabulary. A "
+                   "(overall, by type, extension, programming language, media (MIME) type, user (owner), owning "
+                   "group, or file digest). The categorical keys reuse the {mime}/{user}/{group}/{hash} field "
+                   "vocabulary; --summary=hash groups identical files into one bucket (a dedup count, reading every "
+                   "file). A "
                    "{template} key groups by any field value (e.g. --summary='{ext}-{type}'); a single m// "
                    "extraction key (--summary='{capture.NAME:m/re/\\1/}') groups per extracted line, so a "
                    "per-file command's multi-line output tallies per key (e.g. git-blame lines per author) - the "

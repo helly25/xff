@@ -222,7 +222,18 @@ std::size_t ResolveJobs(const std::vector<std::string>& globals, std::optional<r
 // media type, =user (alias =owner) by owner name, =group by owning group (each a files-per-key
 // histogram); =none / absent is off. The mime/user/group keys reuse the field vocabulary (the
 // {mime}/{user}/{group} renderers), so they cannot drift from the field values.
-enum class SummaryMode : std::uint8_t { kOff, kOverall, kType, kExt, kLanguage, kMime, kUser, kGroup, kTemplate };
+enum class SummaryMode : std::uint8_t {
+  kOff,
+  kOverall,
+  kType,
+  kExt,
+  kLanguage,
+  kMime,
+  kUser,
+  kGroup,
+  kHash,
+  kTemplate
+};
 
 // One --summary sink: a group-by mode plus the {template} string (mode == kTemplate only). --summary
 // is repeatable, like --histogram, so a run can carry several independent summary tables.
@@ -238,10 +249,10 @@ std::vector<SummarySpec> ResolveSummaries(const std::vector<std::string>& global
   using ModePair = std::pair<std::string_view, SummaryMode>;
   static constexpr auto kModes = mbo::container::MakeLimitedMap(
       ModePair{"--summary", SummaryMode::kOverall}, ModePair{"--summary=ext", SummaryMode::kExt},
-      ModePair{"--summary=group", SummaryMode::kGroup}, ModePair{"--summary=lang", SummaryMode::kLanguage},
-      ModePair{"--summary=mime", SummaryMode::kMime}, ModePair{"--summary=overall", SummaryMode::kOverall},
-      ModePair{"--summary=owner", SummaryMode::kUser}, ModePair{"--summary=type", SummaryMode::kType},
-      ModePair{"--summary=user", SummaryMode::kUser});
+      ModePair{"--summary=group", SummaryMode::kGroup}, ModePair{"--summary=hash", SummaryMode::kHash},
+      ModePair{"--summary=lang", SummaryMode::kLanguage}, ModePair{"--summary=mime", SummaryMode::kMime},
+      ModePair{"--summary=overall", SummaryMode::kOverall}, ModePair{"--summary=owner", SummaryMode::kUser},
+      ModePair{"--summary=type", SummaryMode::kType}, ModePair{"--summary=user", SummaryMode::kUser});
   constexpr std::string_view kPrefix = "--summary=";
   std::vector<SummarySpec> specs;
   for (const std::string& global : globals) {
@@ -311,6 +322,9 @@ std::string SummaryKey(SummaryMode mode, const Visit& visit) {
     case SummaryMode::kMime: return fields::Render("{mime}", visit.path, visit.metadata, visit.depth);
     case SummaryMode::kUser: return fields::Render("{user}", visit.path, visit.metadata, visit.depth);
     case SummaryMode::kGroup: return fields::Render("{group}", visit.path, visit.metadata, visit.depth);
+    // Digest of the whole file (default sha256/hex): identical files land in one bucket, so the
+    // count column reads as a dedup histogram. Reuses the {hash} field renderer, so it cannot drift.
+    case SummaryMode::kHash: return fields::Render("{hash}", visit.path, visit.metadata, visit.depth);
     default: return "total";  // kOverall: a single bucket
   }
 }
