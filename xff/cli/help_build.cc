@@ -374,15 +374,17 @@ Section EnvironmentSection() {
 // STATISTICS: the two terminal reductions (--summary / --histogram). The flags are
 // pulled from the globals SOT via the "stats" topic tag so the list cannot drift, then
 // worked examples. Standalone as `--help=stats` (see TopicReference) and folded into
-// the full reference.
-Section StatsSection() {
+// the full reference. `in_full` (the folded-in case) omits the per-flag entries: the
+// full reference already documents every flag in its grouped Options section, so
+// repeating them here is pure duplication - the narrative + examples are what add value.
+Section StatsSection(bool in_full) {
   Section section{.title = "Statistics"};
   section.children.push_back(ProseOf(
       "xff statistics reductions. `--summary` and `--histogram` replace the per-match listing with an "
       "aggregate over all matches; they are independent and combinable (one walk feeds both), and an "
       "explicit action (`-print` / `-exec`) still runs. `--format=jsonl` emits machine rows instead."));
   for (const GlobalFlag& flag : Globals()) {
-    if (flag.topic == "stats") {
+    if (!in_full && flag.topic == "stats") {
       section.children.push_back(FlagEntry(flag));
     }
   }
@@ -409,8 +411,10 @@ Section StatsSection() {
 // chosen (--config / argv[0]), and how dangerous --xffrc directives are armed. The flags
 // are pulled from the globals SOT via the "config" topic tag so the list cannot drift;
 // the layering / argv[0] / arming rules are prose. Standalone as `--help=config` (see
-// TopicReference) and folded into the full reference.
-Section ConfigSection() {
+// TopicReference) and folded into the full reference. `in_full` (the folded-in case) drops
+// the per-flag "Config flags" subsection: the full reference's grouped Options section
+// already documents each flag, so the layering / style / arming prose is all that adds value.
+Section ConfigSection(bool in_full) {
   Section section{.title = "Configuration"};
   section.children.push_back(ProseOf(
       "xff configuration. Options resolve from layered config tiers, then the command line; later "
@@ -446,13 +450,15 @@ Section ConfigSection() {
       "root system [policy] can hard-deny even `--allow-exec`."));
   section.children.push_back(Content{.node = std::move(arming)});
 
-  Subsection flags{.title = "Config flags"};
-  for (const GlobalFlag& flag : Globals()) {
-    if (flag.topic == "config") {
-      flags.children.push_back(FlagEntry(flag));
+  if (!in_full) {
+    Subsection flags{.title = "Config flags"};
+    for (const GlobalFlag& flag : Globals()) {
+      if (flag.topic == "config") {
+        flags.children.push_back(FlagEntry(flag));
+      }
     }
+    section.children.push_back(Content{.node = std::move(flags)});
   }
-  section.children.push_back(Content{.node = std::move(flags)});
   return section;
 }
 
@@ -653,9 +659,9 @@ std::optional<Document> TopicReference(std::string_view name) {
   } else if (name == "grammars") {
     doc.sections.push_back(GrammarsSection());
   } else if (name == "stats") {
-    doc.sections.push_back(StatsSection());
+    doc.sections.push_back(StatsSection(/*in_full=*/false));
   } else if (name == "config") {
-    doc.sections.push_back(ConfigSection());
+    doc.sections.push_back(ConfigSection(/*in_full=*/false));
   } else if (name == "environment" || name == "env") {
     doc.sections.push_back(EnvironmentSection());
   } else if (name == "cookbook" || name == "examples" || name == "recipes") {
@@ -705,7 +711,7 @@ Document BuildReference() {
   };
 
   doc.sections.push_back(DescriptionSection());
-  doc.sections.push_back(ConfigSection());
+  doc.sections.push_back(ConfigSection(/*in_full=*/true));
   doc.sections.push_back(OptionsSection(/*with_details=*/true));
   doc.sections.push_back(ExpressionSection(/*with_details=*/true));
 
@@ -714,7 +720,7 @@ Document BuildReference() {
   doc.sections.push_back(TimeSection());
   doc.sections.push_back(SizeSection());
   doc.sections.push_back(GrammarsSection());
-  doc.sections.push_back(StatsSection());
+  doc.sections.push_back(StatsSection(/*in_full=*/true));
   doc.sections.push_back(EnvironmentSection());
   doc.sections.push_back(BuildExamples());
 

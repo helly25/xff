@@ -31,20 +31,6 @@ There is no project / ancestor .xffrc discovery: config comes from the system an
 
 A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) carried by an --xffrc file is inert unless `--allow-exec` is set from a TRUSTED tier (the command line or the system/user config, never an --xffrc file itself). Unarmed lines are dropped with a warning; the root system [policy] can hard-deny even `--allow-exec`.
 
-### Config flags
-- `--config=NAME` - select a config style: find (strict), xff (evolved), rg (opinionated); repeatable _(global, xff)_
-  A config style sets the defaults for ignore files, hidden files, sizes, sort order, and case. find is strict find compatibility; xff keeps find's grammar but sorts and prints human sizes; rg is opinionated (respect .gitignore, skip hidden, smart case). Repeatable and layered, last one wins. See --help=styles for the per-style defaults.
-- `--no-config` - ignore discovered .xffrc files _(global, xff)_
-- `--xffrc=FILE` - also load a specific config file (a non-arming tier; see --allow-exec) _(global, xff)_
-  Loads FILE as a config tier above the user config (naming it is consent to LOAD it). It is a NON-ARMING tier: safe directives apply, but a dangerous one - the exec family (-exec/-execdir/-ok, -capture) or -delete - is inert unless --allow-exec is set from a trusted tier (the CLI or the user/system config, never from an --xffrc file itself). An unarmed dangerous line is dropped with a one-line warning. Repeatable; later files win.
-  Affects: --allow-exec
-  Affected by: --allow-exec
-- `--allow-exec` - arm dangerous directives loaded from an --xffrc file (exec family, -delete) _(global, xff)_
-  Permits the sensitive/destructive directives (the exec family -exec/-execdir/-ok and -capture, and the destructive -delete) carried by an --xffrc-loaded file to actually run. Honored only from a trusted tier - typed on the CLI, or set in the user/system config - never from an --xffrc file (so a named config cannot authorize itself). The root-owned system [policy] can hard-deny even this. Without it, such lines are inert (dropped + warned); -delete still obeys its own --safe/--dry-run guards.
-  Affects: --xffrc
-  Affected by: --xffrc
-- `--explain` - print the resolved configuration and exit _(global, xff)_
-
 ## Options
 
 ### Config
@@ -643,43 +629,6 @@ The grammar for -regex / -iregex and the content matchers -rxc / -grep, chosen b
 ## Statistics
 
 xff statistics reductions. `--summary` and `--histogram` replace the per-match listing with an aggregate over all matches; they are independent and combinable (one walk feeds both), and an explicit action (`-print` / `-exec`) still runs. `--format=jsonl` emits machine rows instead.
-- `--summary[=<GROUP>]` - aligned count + size table (or --format=jsonl rows) instead of each match; repeatable _(global, xff)_
-  GROUP is one of:
-
-  - `overall` - one row aggregated over all matches
-  - `type` - by file type
-  - `ext` - by extension
-  - `lang` - by programming language
-  - `mime` - by media (MIME) type
-  - `user` - by owner
-  - `group` - by owning group
-  - `{template}` - by any field value, e.g. `--summary='{ext}-{type}'`
-
-  Replaces the per-match listing with an aggregate table: match count and total size per group (overall, by type, extension, programming language, media (MIME) type, user (owner), or owning group). The categorical keys reuse the {mime}/{user}/{group} field vocabulary. A {template} key groups by any field value (e.g. --summary='{ext}-{type}'); a single m// extraction key (--summary='{capture.NAME:m/re/\1/}') groups per extracted line, so a per-file command's multi-line output tallies per key (e.g. git-blame lines per author) - the size column is not meaningful there. Repeatable: each --summary is its own table (e.g. --summary=ext --summary=type), printed in order. --top=N limits the rows of each, --summary-precision sets the scaled-size digits, and --format=jsonl emits one object per group for scripts.
-- `--histogram=BUCKET[:MEASURE]` - bar chart per bucket: a count or sum/mean/min/max of size|lines (repeatable) _(global, xff)_
-  A terminal reduction like --summary, drawn as bars. BUCKET groups the matches - a category (overall, type, ext, lang, mime, user (owner), or group) or a numeric-range field (size / lines by order of magnitude, depth per level, drawn as an ascending distribution). The optional :MEASURE is the bar's value - `count` (the default) or an aggregate `sum(FIELD)` / `mean(FIELD)` / `min(FIELD)` / `max(FIELD)` over a numeric FIELD (size or lines). A numeric metric needs an aggregator (`ext:lines` is an error; `ext:sum(lines)` is not). Repeatable and combinable with --summary - both are fed by one walk and replace the per-match listing. Bars scale to the tallest, use Unicode block characters on a UTF-8 locale (see --unicode) or ASCII '#' otherwise; --top=N keeps the N tallest and --format=jsonl emits one object per bar for scripts.
-  Affected by: --histogram-width
-- `--shards[=auto|SCHEME,...]` - collapse each set of sharded files (e.g. data-00000-of-00010) to one line _(global, xff)_
-  One of is one of:
-
-  - `auto` - recognize every built-in scheme (the default when bare `--shards`)
-  - `of` - only `<stem>-<index>-of-<total>` (TFRecord-style)
-  - `dotnum` - only `<stem>.<NNN>` (7-Zip-style volumes)
-  - `underscore` - only `<stem>_<NNN>`
-
-  Recognizes sharded-file naming conventions and collapses each logical set to a single line instead of listing every shard. Bare --shards (or =auto) enables all built-in schemes: `<stem>-<index>-of-<total>` (of), `<stem>.<NNN>` (dotnum), and `<stem>_<NNN>` (underscore). Restrict to specific schemes with a comma list, e.g. --shards=of,dotnum. Grouping is per-directory; files that match no scheme are listed unchanged. Off by default.
-- `--shards-show=first|wildcard|count` - how a collapsed shard set's line reads (default first) _(global, xff)_
-  One of is one of:
-
-  - `first` - the representative (lowest-index) shard's path (the default)
-  - `wildcard` - the masked-index name, e.g. `arc.???` (or `f-` idx `-of-003`)
-  - `count` - the wildcard name plus the shard count, e.g. `arc.??? (3 shards)`
-
-  Picks each collapsed set's display: first = the representative (lowest-index) shard's path; wildcard = the masked-index name (the index digits shown as `???`); count = the wildcard plus the shard count. An incomplete set is always annotated `(present/expected - INCOMPLETE)`. Only meaningful with --shards.
-- `--top=N` - with --summary or --histogram, keep only the N largest/tallest groups _(global, xff)_
-- `--histogram-width=N` - cell width the tallest --histogram bar fills (default 40) _(global, xff)_
-  Affects: --histogram
-- `--summary-precision=N` - with --summary --human: fraction digits for scaled sizes (default 2; bytes stay integer) _(global, xff)_
 
 ### Examples
 
