@@ -63,6 +63,18 @@ common:clang --cxxopt=-gmlt --host_cxxopt=-gmlt
 common:clang --linkopt=-fuse-ld=lld --host_linkopt=-fuse-ld=lld
 common:clang --define is_clang=true
 
+# --config=clang-tidy : the configuration we DEVELOP in, and the one the compile
+# DB (compile_commands.json) is extracted in - so clang-tidy / clangd parse with
+# exactly the compiler, standard library, include paths and feature macros the
+# `--config=clang` builds use, not whatever toolchain bazel would autodetect. The
+# stdlib is pinned to libc++ ON PURPOSE: the hermetic clang defaults to libc++ on
+# macOS but the system libstdc++ on Linux, and that per-platform mix silently
+# corrupted clang-tidy's type/member analysis. Making it explicit keeps the parse
+# self-consistent everywhere. compile_commands-update.sh extracts under this config.
+common:clang-tidy --config=clang
+common:clang-tidy --cxxopt=-stdlib=libc++
+common:clang-tidy --linkopt=-stdlib=libc++
+
 common:symbolizer --strip=never
 common:symbolizer --run_under=//tools:run_under_symbolizer
 
