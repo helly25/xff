@@ -197,8 +197,9 @@ jobs:
   # clang-tidy (hermetic clang-22) over the compile DB. Mirrors helly25/mbo's job and OWNS clang-tidy
   # in CI: it needs a compile_commands.json this job builds (the pre-commit / trunk jobs skip the
   # local-only hook, which has no compile DB there). Scoped to sources changed against main on a
-  # branch; the whole tree on main. Uses --config=clang, so it pulls the hermetic LLVM each run (not
-  # cached, like the sanitizer jobs); only a small disk cache of build outputs is persisted.
+  # branch; the whole tree on main. The compile DB is extracted in --config=clang-tidy (the develop
+  # config: hermetic clang + libc++), so it pulls the hermetic LLVM each run (not cached, like the
+  # sanitizer jobs); only a small disk cache of build outputs is persisted.
   # Report-only for now (continue-on-error on the lint STEP): .clang-tidy sets WarningsAsErrors '*'
   # and the test tree is not clang-tidy-clean yet. Building the compile DB still gates (no job-level
   # continue-on-error). Drop the step's continue-on-error to promote this to a hard gate once the
@@ -238,15 +239,16 @@ jobs:
           restore-keys: |
             bazel-disk-clang-tidy-
       - name: Route bazel at the disk cache
-        # compile_commands-update.sh runs bazel internally (--config=clang); feed it the disk cache
-        # via the try-import'd .bazelrc.user. LLVM re-fetches each run (deliberately not cached).
+        # compile_commands-update.sh runs bazel internally (--config=clang-tidy); feed it the disk
+        # cache via the try-import'd .bazelrc.user. LLVM re-fetches each run (deliberately not cached).
         run: echo "common --disk_cache=$HOME/.cache/bazel-disk" >.bazelrc.user
       - name: Generate compile_commands.json
-        # A gitignored local artifact, so build it here. The script fetches the hermetic LLVM and
-        # records ITS clang, which is what makes the commands parseable by the matching clang-tidy.
-        # It also runs `bazel build //...` first (same default config as its aquery) to materialize
-        # the generated / virtual-include headers the recorded commands reference - without which
-        # clang-tidy would abort on `'xff/license/notice.h' file not found` on a fresh runner.
+        # A gitignored local artifact, so build it here. The script extracts the DB in
+        # --config=clang-tidy and names the hermetic clang++, which is what makes the commands
+        # parseable by the matching clang-tidy. It also runs `bazel build --config=clang-tidy //...`
+        # first (the same config as its aquery) to materialize the generated / virtual-include
+        # headers the recorded commands reference - without which clang-tidy would abort on
+        # `'xff/license/notice.h' file not found` on a fresh runner.
         run: ./compile_commands-update.sh
       - name: Summarize the compile DB
         run: |
