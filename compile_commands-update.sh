@@ -94,5 +94,21 @@ if [ "$(uname -s)" = "Darwin" ]; then
   BCCE_ARGS+=("--bcce-copt=-isysroot${SDKROOT_PATH}")
 fi
 
+# Materialize the generated / virtual-include headers the recorded commands will
+# reference (e.g. xff/license/notice.h, xff/regex/backend.h from the local
+# @xff_extras_api module, served through bazel-out `_virtual_includes` symlink
+# forests that exist only once their cc_library is built). refresh_all records
+# those include paths but does not build them, so a fresh checkout / CI runner has
+# the paths but not the files and clang-tidy aborts with `'xff/.../foo.h' file not
+# found`. Build them in the SAME (default) config the aquery below runs in - the
+# `--bcce-*` args are extractor tool args, not bazel build flags, so they never
+# change this config, which guarantees the outputs land exactly where the DB
+# points. Headers are compiler-independent, so the default toolchain is correct;
+# do NOT add `--config=clang` here (it would place the forests under a different,
+# mismatched output dir).
+echo "Building generated / virtual-include headers so the compile DB resolves ..." 1>&2
+bazel build //... >/dev/null \
+  || die "'bazel build //...' failed; cannot materialize the headers the compile DB references"
+
 bazel run @bazel_compile_commands_extractor//:refresh_all -- "${BCCE_ARGS[@]}"
 echo "OK"

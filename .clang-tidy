@@ -17,10 +17,15 @@
 # clearly-used `<vector>` / `<utility>` as unused, and does not track concept usage - too
 # many false positives to gate on). If run by hand for an IWYU pass, do NOT blindly drop
 # what it flags: keep concept- and std-providing headers, marking them `// IWYU pragma: keep`
-# where needed. The genuine checks (const-correctness, avoid-c-arrays, member-init, ...) stay on.
+# where needed. The genuine checks (const-correctness, avoid-c-arrays, ...) stay on.
+# abseil-unchecked-statusor-access is off because clang-tidy 22.1.7 SEGFAULTS in it: its dataflow
+# analysis (runTypeErasedDataflowAnalysis) crashes on our StatusOr access patterns (e.g. an
+# mbo::testing::IsOk() over absl::StatusOr<regex::Matcher>). Matches helly25/mbo; re-test on a
+# future LLVM and re-enable if fixed.
 Checks: >
   *,
   abseil-*,
+  -abseil-unchecked-statusor-access,
   -altera-*,
   -boost-*,
   bugprone-*,
