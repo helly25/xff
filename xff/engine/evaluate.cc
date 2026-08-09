@@ -1291,14 +1291,14 @@ bool EvalHash(const parser::Expr& expr, EvalContext& ctx) {
   return true;
 }
 
-// xff -verify EXPECTED: TRUE when the entry's digest equals EXPECTED, the manifest-verification
-// companion of -hash. EXPECTED is a field template rendered per entry (so `-verify {def.SUMS}`
-// checks against a sidecar value, and `! -verify {def.SUMS}` lists drift). The algorithm / encoding
-// come from `-verify=ALGO[/ENCODING]` (or the --hash-algorithm / --hash-encoding defaults), exactly
-// like -hash; the hex comparison is case-insensitive since sha256sum and SRI differ only in case.
-// An empty EXPECTED, an unreadable file, or a bad spec is FALSE (no match), so drift-selection is
-// safe. Cost::kExpensive (reads the whole file).
-bool EvalVerify(const parser::Expr& expr, EvalContext& ctx) {
+// xff -hasheq EXPECTED: TRUE when the entry's digest equals EXPECTED, the manifest-verification
+// companion of -hash. EXPECTED is a field template rendered per entry (so `-hasheq {def.SUMS}`
+// checks against a sidecar value, and `! -hasheq {def.SUMS}` lists drift). The algorithm / encoding
+// come from `-hasheq=ALGO[/ENCODING]` (or the --hash-algorithm / --hash-encoding defaults), exactly
+// like -hash; the hex comparison folds case since sha256sum and SRI differ only in case. An empty
+// EXPECTED, an unreadable file, or a bad spec is FALSE (no match), so drift-selection is safe.
+// Cost::kExpensive (reads the whole file).
+bool EvalHasheq(const parser::Expr& expr, EvalContext& ctx) {
   if (expr.args.empty()) {
     return false;
   }
@@ -1330,7 +1330,7 @@ bool EvalVerify(const parser::Expr& expr, EvalContext& ctx) {
   }
   const std::optional<std::string> digest = hash::HashFile(spec->algo, ctx.visit.path, spec->encoding);
   if (!digest.has_value()) {
-    return false;  // unreadable / non-regular file -> mismatch (selected by `! -verify`)
+    return false;  // unreadable / non-regular file -> mismatch (selected by `! -hasheq`)
   }
   // Hex digests fold case (sha256sum lowercases, some SRI-style tools upper-case), but base64 is
   // case-sensitive by definition (A-Z and a-z are distinct symbols), so only hex compares loosely.
@@ -2080,6 +2080,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-grep", {&EvalGrep}},
     DispatchPair{"-group", {&EvalGroup}},
     DispatchPair{"-hash", {&EvalHash}},
+    DispatchPair{"-hasheq", {&EvalHasheq}},
     DispatchPair{"-icontent", {&EvalContent}},
     DispatchPair{"-ilname", {&EvalLname}},
     DispatchPair{"-iname", {&EvalName}},
@@ -2142,7 +2143,6 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-uid", {&EvalUid}},
     DispatchPair{"-used", {&EvalUsed}},
     DispatchPair{"-user", {&EvalUser}},
-    DispatchPair{"-verify", {&EvalVerify}},
     DispatchPair{"-wholename", {&EvalPath}},
     DispatchPair{"-writable", {&EvalWritable}},
     DispatchPair{"-xtype", {&EvalXtype}});
@@ -2291,8 +2291,8 @@ absl::Status ValidateSizeArgs(const parser::Expr& expr) {
 
 absl::Status ValidateHashArgs(const parser::Expr& expr) {
   if (expr.kind == parser::Expr::Kind::kPredicate) {
-    // -hash and -verify share the =ALGO[/ENCODING] spec grammar (Binding::kHash), so both validate here.
-    if (expr.descriptor != nullptr && (expr.descriptor->name == "-hash" || expr.descriptor->name == "-verify")
+    // -hash and -hasheq share the =ALGO[/ENCODING] spec grammar (Binding::kHash), so both validate here.
+    if (expr.descriptor != nullptr && (expr.descriptor->name == "-hash" || expr.descriptor->name == "-hasheq")
         && !expr.hash_spec.empty()) {
       // Only the spec's explicit parts matter here, so validate against a concrete default.
       if (!hash::ParseSpec(expr.hash_spec, "sha256", hash::Encoding::kHex).has_value()) {

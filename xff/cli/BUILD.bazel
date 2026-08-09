@@ -663,13 +663,13 @@ bashtest(
     data = [":xff"],
 )
 
-# End-to-end test of -verify (the manifest-verification companion of -hash): TRUE when the file's
-# digest equals the EXPECTED field template; -verify=ALGO[/ENCODING]; hex case-insensitivity;
-# `! -verify` selects drift; the bad-spec usage error; and the find-style rejection.
+# End-to-end test of -hasheq (the manifest-verification companion of -hash): TRUE when the file's
+# digest equals the EXPECTED field template; -hasheq=ALGO[/ENCODING]; hex case-folding;
+# `! -hasheq` selects drift; the bad-spec usage error; and the find-style rejection.
 bashtest(
-    name = "verify_test",
+    name = "hasheq_test",
     size = "small",
-    srcs = ["verify_test.sh"],
+    srcs = ["hasheq_test.sh"],
     data = [":xff"],
 )
 
