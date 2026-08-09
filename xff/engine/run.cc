@@ -1702,6 +1702,32 @@ absl::StatusOr<ShardShow> ResolveShardShow(const std::vector<std::string>& globa
   return show;
 }
 
+// --shards-dedup=first|mtime|error: how same-index duplicates (redundant regenerations differing
+// only by tail) are resolved. first (default) keeps the lexicographically-first name; mtime keeps
+// the newest; error fails the run when any set has duplicates. Last occurrence wins; an unknown
+// value is a usage error.
+absl::StatusOr<shard::Dedup> ResolveShardDedup(const std::vector<std::string>& globals) {
+  shard::Dedup dedup = shard::Dedup::kFirst;
+  for (const std::string& global : globals) {
+    constexpr std::string_view kPrefix = "--shards-dedup=";
+    if (!global.starts_with(kPrefix)) {
+      continue;
+    }
+    const std::string_view value = std::string_view(global).substr(kPrefix.size());
+    if (value == "first") {
+      dedup = shard::Dedup::kFirst;
+    } else if (value == "mtime") {
+      dedup = shard::Dedup::kMtime;
+    } else if (value == "error") {
+      dedup = shard::Dedup::kError;
+    } else {
+      return absl::InvalidArgumentError(
+          absl::StrCat("unknown --shards-dedup value '", value, "' (want first, mtime, or error)"));
+    }
+  }
+  return dedup;
+}
+
 // One output line for a collapsed shard set: the `prefix` (its directory) + the chosen display body,
 // then a completeness / count annotation. An incomplete set always shows `(present/expected -
 // INCOMPLETE)`; a complete set adds `(N shards)` only under `count`.
@@ -2083,6 +2109,12 @@ int RunFind(
     return 2;
   }
   const ShardShow shard_show = *shard_show_or;
+  absl::StatusOr<shard::Dedup> shard_dedup_or = ResolveShardDedup(command.globals);
+  if (!shard_dedup_or.ok()) {
+    on_error("--shards-dedup", shard_dedup_or.status());
+    return 2;
+  }
+  const shard::Dedup shard_dedup = *shard_dedup_or;
   // Matcher over all built-in schemes (scheme restriction is applied per set below); Make() with the
   // default tail cannot fail, but propagate a bad-status defensively rather than crash on `.value()`.
   std::optional<shard::Matcher> shard_matcher;
@@ -2101,6 +2133,7 @@ int RunFind(
     std::string name;
     std::uint64_t size = 0;
     std::uint32_t mode = 0;
+    std::int64_t mtime = 0;  // Unix nanos, for --shards-dedup=mtime
   };
 
   std::map<std::string, std::vector<ShardBufFile>> shard_buckets;  // dir -> its matched files
@@ -2361,7 +2394,10 @@ int RunFind(
             const std::string_view dir = slash == std::string_view::npos ? std::string_view() : path.substr(0, slash);
             const std::string_view base = slash == std::string_view::npos ? path : path.substr(slash + 1);
             shard_buckets[std::string(dir)].push_back(
-                {.name = std::string(base), .size = visit.metadata.size, .mode = visit.metadata.mode});
+                {.name = std::string(base),
+                 .size = visit.metadata.size,
+                 .mode = visit.metadata.mode,
+                 .mtime = absl::ToUnixNanos(visit.metadata.mtime)});
           }
           // --summary / --histogram reduce matches instead of printing them; explicit
           // actions (-print/-exec) still ran via Evaluate.
@@ -2720,12 +2756,25 @@ int RunFind(
     for (const ShardBufFile& file : files) {
       const std::optional<shard::Match> match = shard_matcher->Decode(file.name);
       if (match.has_value() && scheme_allowed(match->scheme)) {
-        shard_files.push_back({.name = file.name, .size = file.size, .mode = file.mode});
+        shard_files.push_back({.name = file.name, .size = file.size, .mode = file.mode, .mtime = file.mtime});
       } else {
         passthrough.push_back(file.name);
       }
     }
-    for (const shard::ShardSet& set : shard::GroupShards(shard_files, *shard_matcher)) {
+    for (const shard::ShardSet& set : shard::GroupShards(shard_files, *shard_matcher, shard_dedup)) {
+      // --shards-dedup=error: a same-index duplicate (a member with `duplicates`) is ambiguous, so
+      // report it and fail the run. The set line still prints (the representative was chosen like
+      // `first`) so the listing is not lost; the diagnostic names the conflict.
+      if (shard_dedup == shard::Dedup::kError) {
+        for (const shard::ShardMember& member : set.members) {
+          if (!member.duplicates.empty()) {
+            std::cerr << absl::StreamFormat(
+                "xff: --shards-dedup=error: shard set '%s%s' has duplicate copies of shard %d: %s, %s\n", prefix,
+                set.wildcard, member.index, member.path, absl::StrJoin(member.duplicates, ", "));
+            ++errors;
+          }
+        }
+      }
       emit(absl::StrCat(RenderShardSet(set, prefix, shard_show), "\n"));
     }
     absl::c_sort(passthrough);

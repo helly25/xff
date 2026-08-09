@@ -1664,5 +1664,22 @@ TEST_F(RunTest, ShardsShowUnknownValueIsAUsageError) {
   EXPECT_THAT(last_errors_, 2);
 }
 
+TEST_F(RunTest, ShardsDedupErrorFlagsADuplicate) {
+  // Two files are the same logical shard 0 (differ only by hex tail): --shards-dedup=error fails.
+  { std::ofstream(root_ / "data-00000-of-00001.aaaaaaaa") << ""; }
+  { std::ofstream(root_ / "data-00000-of-00001.bbbbbbbb") << ""; }
+  // The set still collapses to one line (representative), but the conflict is counted as an error
+  // (one conflicting set -> one error; the CLI maps any non-zero count to a failing exit).
+  EXPECT_THAT(
+      RunArgvRecords({root_.string(), "-type", "f", "--shards", "--shards-dedup=error"}),
+      UnorderedElementsAre(Path("data-00000-of-00001.aaaaaaaa"), Path("a.txt"), Path("b.md"), Path("sub/c.txt")));
+  EXPECT_THAT(last_errors_, 1);
+}
+
+TEST_F(RunTest, ShardsDedupUnknownValueIsAUsageError) {
+  EXPECT_THAT(RunArgvRecords({root_.string(), "--shards", "--shards-dedup=bogus"}), IsEmpty());
+  EXPECT_THAT(last_errors_, 2);
+}
+
 }  // namespace
 }  // namespace xff::engine
