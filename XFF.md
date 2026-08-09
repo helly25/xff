@@ -191,6 +191,15 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--histogram=BUCKET[:MEASURE]` - bar chart per bucket: a count or sum/mean/min/max of size|lines (repeatable) _(global, xff)_
   A terminal reduction like --summary, drawn as bars. BUCKET groups the matches - a category (overall, type, ext, lang, mime, user (owner), or group) or a numeric-range field (size / lines by order of magnitude, depth per level, drawn as an ascending distribution). The optional :MEASURE is the bar's value - `count` (the default) or an aggregate `sum(FIELD)` / `mean(FIELD)` / `min(FIELD)` / `max(FIELD)` over a numeric FIELD (size or lines). A numeric metric needs an aggregator (`ext:lines` is an error; `ext:sum(lines)` is not). Repeatable and combinable with --summary - both are fed by one walk and replace the per-match listing. Bars scale to the tallest, use Unicode block characters on a UTF-8 locale (see --unicode) or ASCII '#' otherwise; --top=N keeps the N tallest and --format=jsonl emits one object per bar for scripts.
   Affected by: --histogram-width
+- `--shards[=auto|SCHEME,...]` - collapse each set of sharded files (e.g. data-00000-of-00010) to one line _(global, xff)_
+  One of is one of:
+
+  - `auto` - recognize every built-in scheme (the default when bare `--shards`)
+  - `of` - only `<stem>-<index>-of-<total>` (TFRecord-style)
+  - `dotnum` - only `<stem>.<NNN>` (7-Zip-style volumes)
+  - `underscore` - only `<stem>_<NNN>`
+
+  Recognizes sharded-file naming conventions and collapses each logical set to a single line instead of listing every shard. Bare --shards (or =auto) enables all built-in schemes: `<stem>-<index>-of-<total>` (of), `<stem>.<NNN>` (dotnum), and `<stem>_<NNN>` (underscore). Restrict to specific schemes with a comma list, e.g. --shards=of,dotnum. Grouping is per-directory; files that match no scheme are listed unchanged. Off by default.
 - `--count, -c` - with -grep, print a per-file matching-line count (path:count) instead of the lines _(global, xff)_
   Affects: -grep
 - `--context=SPEC` - -grep context lines: N both sides, or A:N,B:N,C:N for after/before/both (grep -C/-A/-B) _(global, xff)_
@@ -642,6 +651,15 @@ xff statistics reductions. `--summary` and `--histogram` replace the per-match l
 - `--histogram=BUCKET[:MEASURE]` - bar chart per bucket: a count or sum/mean/min/max of size|lines (repeatable) _(global, xff)_
   A terminal reduction like --summary, drawn as bars. BUCKET groups the matches - a category (overall, type, ext, lang, mime, user (owner), or group) or a numeric-range field (size / lines by order of magnitude, depth per level, drawn as an ascending distribution). The optional :MEASURE is the bar's value - `count` (the default) or an aggregate `sum(FIELD)` / `mean(FIELD)` / `min(FIELD)` / `max(FIELD)` over a numeric FIELD (size or lines). A numeric metric needs an aggregator (`ext:lines` is an error; `ext:sum(lines)` is not). Repeatable and combinable with --summary - both are fed by one walk and replace the per-match listing. Bars scale to the tallest, use Unicode block characters on a UTF-8 locale (see --unicode) or ASCII '#' otherwise; --top=N keeps the N tallest and --format=jsonl emits one object per bar for scripts.
   Affected by: --histogram-width
+- `--shards[=auto|SCHEME,...]` - collapse each set of sharded files (e.g. data-00000-of-00010) to one line _(global, xff)_
+  One of is one of:
+
+  - `auto` - recognize every built-in scheme (the default when bare `--shards`)
+  - `of` - only `<stem>-<index>-of-<total>` (TFRecord-style)
+  - `dotnum` - only `<stem>.<NNN>` (7-Zip-style volumes)
+  - `underscore` - only `<stem>_<NNN>`
+
+  Recognizes sharded-file naming conventions and collapses each logical set to a single line instead of listing every shard. Bare --shards (or =auto) enables all built-in schemes: `<stem>-<index>-of-<total>` (of), `<stem>.<NNN>` (dotnum), and `<stem>_<NNN>` (underscore). Restrict to specific schemes with a comma list, e.g. --shards=of,dotnum. Grouping is per-directory; files that match no scheme are listed unchanged. Off by default.
 - `--top=N` - with --summary or --histogram, keep only the N largest/tallest groups _(global, xff)_
 - `--histogram-width=N` - cell width the tallest --histogram bar fills (default 40) _(global, xff)_
   Affects: --histogram

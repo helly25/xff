@@ -1590,5 +1590,40 @@ TEST_F(RunTest, GrepCountEmitsPerFileCount) {
       ElementsAre(Path("a.txt") + ":2"));
 }
 
+TEST_F(RunTest, ShardsCollapsesEachSetToOneLineAndPassesNonShardsThrough) {
+  { std::ofstream(root_ / "data-00000-of-00003.tfrecord") << ""; }
+  { std::ofstream(root_ / "data-00001-of-00003.tfrecord") << ""; }
+  { std::ofstream(root_ / "data-00002-of-00003.tfrecord") << ""; }
+  { std::ofstream(root_ / "vol.1") << ""; }  // dotnum scheme
+  { std::ofstream(root_ / "vol.2") << ""; }
+  // --shards (auto): each set collapses to its lowest-index representative; a.txt / b.md / sub/c.txt
+  // (from SetUp) are non-shards and list unchanged.
+  EXPECT_THAT(
+      RunArgvRecords({root_.string(), "-type", "f", "--shards"}),
+      UnorderedElementsAre(
+          Path("data-00000-of-00003.tfrecord"), Path("vol.1"), Path("a.txt"), Path("b.md"), Path("sub/c.txt")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardsSchemeRestrictionTreatsUnselectedSchemesAsNonShards) {
+  { std::ofstream(root_ / "data-00000-of-00003.tfrecord") << ""; }
+  { std::ofstream(root_ / "data-00001-of-00003.tfrecord") << ""; }
+  { std::ofstream(root_ / "data-00002-of-00003.tfrecord") << ""; }
+  { std::ofstream(root_ / "vol.1") << ""; }
+  { std::ofstream(root_ / "vol.2") << ""; }
+  // --shards=of collapses only the -of- set; the dotnum vol.1 / vol.2 are listed unchanged.
+  EXPECT_THAT(
+      RunArgvRecords({root_.string(), "-type", "f", "--shards=of"}),
+      UnorderedElementsAre(
+          Path("data-00000-of-00003.tfrecord"), Path("vol.1"), Path("vol.2"), Path("a.txt"), Path("b.md"),
+          Path("sub/c.txt")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardsUnknownSchemeIsAUsageError) {
+  EXPECT_THAT(RunArgvRecords({root_.string(), "--shards=bogus"}), IsEmpty());
+  EXPECT_THAT(last_errors_, 2);
+}
+
 }  // namespace
 }  // namespace xff::engine
