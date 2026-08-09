@@ -364,6 +364,14 @@ TEST_F(FieldsTest, EnvNamespaceReadsEnvironment) {
   env::ClearForTesting();
 }
 
+TEST_F(FieldsTest, ShardFieldRendersTheSetShardCount) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  // Present (a collapsed shard set): renders the shard count. Absent (a normal entry): empty, so
+  // it no-ops in a template.
+  EXPECT_THAT(Template::Compile("{shard}").Render(RenderContext{.path = "p", .metadata = md, .shard_count = 3}), "3");
+  EXPECT_THAT(Template::Compile("[{shard}]").Render(RenderContext{.path = "p", .metadata = md}), "[]");
+}
+
 TEST_F(FieldsTest, DefNamespaceReadsDefines) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   const std::map<std::string, std::string> defines = {{"greeting", "hi"}, {"n", "42"}};

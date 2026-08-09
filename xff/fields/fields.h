@@ -17,6 +17,7 @@
 #define XFF_FIELDS_FIELDS_H_
 
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <string>
@@ -59,6 +60,10 @@ struct RenderContext {
   // -grep=FORMAT computes it), so they no-op elsewhere.
   std::string_view match_text;
   std::optional<std::size_t> match_column;
+  // --shards: when this render represents a collapsed shard set, `{shard}` is the number of shards
+  // in the set and size-like fields aggregate across them (the RenderContext's metadata.size is the
+  // set total). Unset for a normal entry, so `{shard}` no-ops there.
+  std::optional<std::int64_t> shard_count;
 };
 
 namespace detail {

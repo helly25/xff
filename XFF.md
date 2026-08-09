@@ -509,6 +509,7 @@ The `{field}` placeholder vocabulary, substituted per entry in --template / --fo
 
 - `{hash}` - file digest; {hash:ALGO[/ENCODING]} picks the algorithm (default sha256) and hex/base64
 - `{lines}` - text line count (empty for a binary/unreadable file); reads the file
+- `{shard}` - with --shards, the number of shards in the set (empty otherwise); size-like fields then aggregate across the set
 
 ### Owner & mode
 
