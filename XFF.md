@@ -202,6 +202,8 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `error` - treat a same-index duplicate as an error (non-zero exit)
 
   When two files are the same logical shard (they differ only by an opaque tail, e.g. a regeneration id), --shards-dedup picks which is the representative: first keeps the lexicographically-first name; mtime keeps the newest; error treats the duplicate as an error and fails the run (non-zero exit). Only meaningful with --shards.
+- `--shard-pattern=REGEX` - a custom shard scheme via a named-capture regex (repeatable); the escape hatch _(global, xff)_
+  Defines a custom sharded-file scheme for --shards when the built-ins do not fit. REGEX is an RE2 pattern with named groups: `(?P<stem>...)` and `(?P<index>...)` are required, `(?P<total>...)` and `(?P<dup>...)` are optional. Repeatable; the patterns are tried in order, before the built-in schemes. Only meaningful with --shards.
 - `--count, -c` - with -grep, print a per-file matching-line count (path:count) instead of the lines _(global, xff)_
   Affects: -grep
 - `--context=SPEC` - -grep context lines: N both sides, or A:N,B:N,C:N for after/before/both (grep -C/-A/-B) _(global, xff)_

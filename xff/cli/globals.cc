@@ -563,6 +563,18 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .topic = "stats",
     },
     {
+        .name = "--shard-pattern",
+        .display = "--shard-pattern=REGEX",
+        .group = "output",
+        .header = "Output",
+        .summary = "a custom shard scheme via a named-capture regex (repeatable); the escape hatch",
+        .details = "Defines a custom sharded-file scheme for --shards when the built-ins do not fit. REGEX is "
+                   "an RE2 pattern with named groups: `(?P<stem>...)` and `(?P<index>...)` are required, "
+                   "`(?P<total>...)` and `(?P<dup>...)` are optional. Repeatable; the patterns are tried in "
+                   "order, before the built-in schemes. Only meaningful with --shards.",
+        .topic = "stats",
+    },
+    {
         .name = "--count",
         .alias = "-c",
         .display = "--count, -c",

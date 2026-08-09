@@ -21,8 +21,10 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "absl/status/statusor.h"
+#include "absl/types/span.h"
 
 // Forward-declared so the header need not pull in <re2/re2.h>. RE2 lives in
 // namespace re2 (re2.h then adds a global `using re2::RE2`); the members hold
@@ -46,6 +48,7 @@ enum class Scheme : std::uint8_t {
   kOf,          // <stem>-<index>-of-<total>[<tail>][<ext>] - TF/TFRecord, generic; 0-based
   kDotNum,      // <stem>.<NNN>                             - 7-Zip volumes, generic; 1-based
   kUnderscore,  // <stem>_<NNN>                             - numeric underscore suffix
+  kCustom,      // a user `--shard-pattern=REGEX` (named captures stem/index/total?/dup?)
 };
 
 // The human-readable name of a scheme (matches the `--shards=SCHEME` spelling).
@@ -81,9 +84,15 @@ struct TailSpec {
 // instance is reused across a whole traversal. Move-only (it owns compiled RE2).
 class Matcher {
  public:
-  // Builds a matcher over all built-in schemes with the given tail spec. Fails if
-  // the tail pattern is not a valid regex with exactly one capturing group.
-  static absl::StatusOr<Matcher> Make(const TailSpec& tail = {});
+  // A compiled custom `--shard-pattern` (defined in the .cc; the header only forward-declares it so
+  // it need not pull in RE2). Held by unique_ptr so the incomplete type is fine here.
+  struct CustomPattern;
+
+  // Builds a matcher over all built-in schemes with the given tail spec, plus any `custom_patterns`
+  // (RE2 with named groups: `stem` and `index` required, `total` and `dup` optional). Custom
+  // patterns are tried before the built-ins, in order. Fails if the tail pattern is not a valid
+  // one-group regex, or a custom pattern does not compile / lacks the required named groups.
+  static absl::StatusOr<Matcher> Make(const TailSpec& tail = {}, absl::Span<const std::string> custom_patterns = {});
 
   Matcher(Matcher&&) noexcept;
   Matcher& operator=(Matcher&&) noexcept;
@@ -95,13 +104,20 @@ class Matcher {
   [[nodiscard]] std::optional<Match> Decode(std::string_view filename) const;
 
  private:
-  Matcher(std::unique_ptr<re2::RE2> of_re, std::unique_ptr<re2::RE2> tail_re);
+  Matcher(
+      std::unique_ptr<re2::RE2> of_re,
+      std::unique_ptr<re2::RE2> tail_re,
+      std::vector<std::unique_ptr<CustomPattern>> custom);
 
   // Splits `rest` (everything after the shard number) into `tail` + `ext` on `out`.
   void ApplyTail(std::string_view rest, Match& out) const;
 
+  // Tries the custom patterns in order; returns the first match, or nullopt.
+  [[nodiscard]] std::optional<Match> DecodeCustom(std::string_view filename) const;
+
   std::unique_ptr<re2::RE2> of_re_;
-  std::unique_ptr<re2::RE2> tail_re_;  // null when the tail is disabled
+  std::unique_ptr<re2::RE2> tail_re_;                   // null when the tail is disabled
+  std::vector<std::unique_ptr<CustomPattern>> custom_;  // user --shard-pattern, tried before built-ins
 };
 
 }  // namespace xff::shard

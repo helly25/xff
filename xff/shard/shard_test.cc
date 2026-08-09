@@ -19,6 +19,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
@@ -34,6 +35,7 @@ using ::mbo::testing::StatusIs;
 using ::testing::AllOf;
 using ::testing::Eq;
 using ::testing::Field;
+using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Optional;
 
@@ -92,6 +94,45 @@ TEST_F(ShardMatcherTest, OfPreservesAnExtensionSeparatelyFromTheStem) {
   EXPECT_THAT(match, ShardIs(Scheme::kOf, "part", 3));
   EXPECT_THAT(match, Optional(Field("ext", &Match::ext, Eq(".tfrecord"))));
   EXPECT_THAT(match, Optional(Field("tail", &Match::tail, IsEmpty())));
+}
+
+TEST_F(ShardMatcherTest, CustomPatternDecodesNamedGroups) {
+  const Matcher custom =
+      *Matcher::Make({}, std::vector<std::string>{R"((?P<stem>.*)_part(?P<index>\d+)of(?P<total>\d+))"});
+  const std::optional<Match> match = custom.Decode("data_part02of05");
+  EXPECT_THAT(match, ShardIs(Scheme::kCustom, "data", 2));
+  EXPECT_THAT(match, Optional(Field("total", &Match::total, Optional(Eq(5)))));
+  EXPECT_THAT(match, Optional(Field("width", &Match::width, Eq(2))));
+  // Wildcard masks the index span in place (total kept verbatim).
+  EXPECT_THAT(
+      match, Optional(Field("wildcard", &Match::wildcard, Eq(absl::StrCat("data_part", std::string(2, '?'), "of05")))));
+}
+
+TEST_F(ShardMatcherTest, CustomPatternDupGroupIsExcludedFromIdentity) {
+  const Matcher custom =
+      *Matcher::Make({}, std::vector<std::string>{R"((?P<stem>.*)\.(?P<index>\d+)\.(?P<dup>[a-f0-9]+))"});
+  const std::optional<Match> match = custom.Decode("blob.003.deadbeef");
+  EXPECT_THAT(match, ShardIs(Scheme::kCustom, "blob", 3));
+  EXPECT_THAT(match, Optional(Field("tail", &Match::tail, Eq("deadbeef"))));
+}
+
+TEST_F(ShardMatcherTest, CustomPatternWinsOverBuiltins) {
+  // `data-00000-of-00003` is a built-in kOf name, but a custom pattern is tried first.
+  const Matcher custom =
+      *Matcher::Make({}, std::vector<std::string>{R"((?P<stem>.*)-(?P<index>\d+)-of-(?P<total>\d+))"});
+  EXPECT_THAT(custom.Decode("data-00000-of-00003"), ShardIs(Scheme::kCustom, "data", 0));
+}
+
+TEST_F(ShardMatcherTest, CustomPatternRequiresStemAndIndexGroups) {
+  EXPECT_THAT(
+      Matcher::Make({}, std::vector<std::string>{R"((?P<stem>.*)-(\d+))"}).status(),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("index")));
+}
+
+TEST_F(ShardMatcherTest, CustomPatternInvalidRegexIsAnError) {
+  EXPECT_THAT(
+      Matcher::Make({}, std::vector<std::string>{"(?P<stem>.*)(?P<index>["}).status(),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("--shard-pattern")));
 }
 
 TEST_F(ShardMatcherTest, WildcardMasksTheIndexKeepingTotalExtDroppingTail) {

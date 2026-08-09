@@ -2115,13 +2115,22 @@ int RunFind(
     return 2;
   }
   const shard::Dedup shard_dedup = *shard_dedup_or;
-  // Matcher over all built-in schemes (scheme restriction is applied per set below); Make() with the
-  // default tail cannot fail, but propagate a bad-status defensively rather than crash on `.value()`.
+  // --shard-pattern=REGEX (repeatable): user custom schemes, tried before the built-ins. Collected
+  // in order so the first-listed pattern wins on overlap.
+  std::vector<std::string> shard_patterns;
+  for (const std::string& global : command.globals) {
+    constexpr std::string_view kPrefix = "--shard-pattern=";
+    if (global.starts_with(kPrefix)) {
+      shard_patterns.emplace_back(std::string_view(global).substr(kPrefix.size()));
+    }
+  }
+  // Matcher over the custom patterns plus all built-in schemes (scheme restriction is applied per set
+  // below). Make() can fail on a bad custom pattern; surface it as a usage error.
   std::optional<shard::Matcher> shard_matcher;
   if (shards.enabled) {
-    absl::StatusOr<shard::Matcher> matcher_or = shard::Matcher::Make();
+    absl::StatusOr<shard::Matcher> matcher_or = shard::Matcher::Make({}, shard_patterns);
     if (!matcher_or.ok()) {
-      on_error("--shards", matcher_or.status());
+      on_error("--shard-pattern", matcher_or.status());
       return 2;
     }
     shard_matcher = *std::move(matcher_or);
@@ -2747,7 +2756,9 @@ int RunFind(
     return errors;
   }
   const auto scheme_allowed = [&](shard::Scheme scheme) {
-    return shards.schemes.empty() || absl::c_linear_search(shards.schemes, scheme);
+    // A custom --shard-pattern match is opt-in by its own flag, so it is always active; the
+    // --shards=SCHEME list only restricts the built-in schemes.
+    return scheme == shard::Scheme::kCustom || shards.schemes.empty() || absl::c_linear_search(shards.schemes, scheme);
   };
   for (const auto& [dir, files] : shard_buckets) {
     const std::string prefix = dir.empty() ? std::string() : absl::StrCat(dir, "/");
