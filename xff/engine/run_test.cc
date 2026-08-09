@@ -1625,5 +1625,44 @@ TEST_F(RunTest, ShardsUnknownSchemeIsAUsageError) {
   EXPECT_THAT(last_errors_, 2);
 }
 
+TEST_F(RunTest, ShardsShowWildcardMasksTheIndex) {
+  { std::ofstream(root_ / "data-00000-of-00003.tfrecord") << ""; }
+  { std::ofstream(root_ / "data-00001-of-00003.tfrecord") << ""; }
+  { std::ofstream(root_ / "data-00002-of-00003.tfrecord") << ""; }
+  // The child is built with StrCat so the source carries no `??-` (a C++ trigraph).
+  const std::string wildcard = absl::StrCat("data-", std::string(5, '?'), "-of-00003.tfrecord");
+  EXPECT_THAT(
+      RunArgvRecords({root_.string(), "-type", "f", "--shards", "--shards-show=wildcard"}),
+      UnorderedElementsAre(Path(wildcard), Path("a.txt"), Path("b.md"), Path("sub/c.txt")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardsShowCountAppendsTheShardCount) {
+  { std::ofstream(root_ / "data-00000-of-00003.tfrecord") << ""; }
+  { std::ofstream(root_ / "data-00001-of-00003.tfrecord") << ""; }
+  { std::ofstream(root_ / "data-00002-of-00003.tfrecord") << ""; }
+  const std::string line = absl::StrCat("data-", std::string(5, '?'), "-of-00003.tfrecord (3 shards)");
+  EXPECT_THAT(
+      RunArgvRecords({root_.string(), "-type", "f", "--shards", "--shards-show=count"}),
+      UnorderedElementsAre(Path(line), Path("a.txt"), Path("b.md"), Path("sub/c.txt")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardsAnnotateAnIncompleteSet) {
+  // Shard 1 of 3 is missing: the set is flagged INCOMPLETE with its present/expected count.
+  { std::ofstream(root_ / "data-00000-of-00003.tfrecord") << ""; }
+  { std::ofstream(root_ / "data-00002-of-00003.tfrecord") << ""; }
+  EXPECT_THAT(
+      RunArgvRecords({root_.string(), "-type", "f", "--shards"}),
+      UnorderedElementsAre(
+          Path("data-00000-of-00003.tfrecord (2/3 - INCOMPLETE)"), Path("a.txt"), Path("b.md"), Path("sub/c.txt")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardsShowUnknownValueIsAUsageError) {
+  EXPECT_THAT(RunArgvRecords({root_.string(), "--shards", "--shards-show=bogus"}), IsEmpty());
+  EXPECT_THAT(last_errors_, 2);
+}
+
 }  // namespace
 }  // namespace xff::engine

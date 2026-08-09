@@ -77,6 +77,11 @@ constexpr std::array kShardsValues = std::to_array<ValueDoc>({
     {.value = "dotnum", .meaning = "only `<stem>.<NNN>` (7-Zip-style volumes)"},
     {.value = "underscore", .meaning = "only `<stem>_<NNN>`"},
 });
+constexpr std::array kShardsShowValues = std::to_array<ValueDoc>({
+    {.value = "first", .meaning = "the representative (lowest-index) shard's path (the default)"},
+    {.value = "wildcard", .meaning = "the masked-index name, e.g. `arc.???` (or `f-` idx `-of-003`)"},
+    {.value = "count", .meaning = "the wildcard name plus the shard count, e.g. `arc.??? (3 shards)`"},
+});
 constexpr std::array kPagerValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "page only when stdout is a terminal (the default)"},
     {.value = "always", .meaning = "always page, even through a pipe"},
@@ -524,6 +529,19 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "Restrict to specific schemes with a comma list, e.g. --shards=of,dotnum. Grouping is "
                    "per-directory; files that match no scheme are listed unchanged. Off by default.",
         .values = kShardsValues,
+        .topic = "stats",
+    },
+    {
+        .name = "--shards-show",
+        .display = "--shards-show=first|wildcard|count",
+        .group = "output",
+        .header = "Output",
+        .summary = "how a collapsed shard set's line reads (default first)",
+        .details = "Picks each collapsed set's display: first = the representative (lowest-index) shard's path; "
+                   "wildcard = the masked-index name (the index digits shown as `???`); count = the wildcard "
+                   "plus the shard count. An incomplete set is always annotated `(present/expected - "
+                   "INCOMPLETE)`. Only meaningful with --shards.",
+        .values = kShardsShowValues,
         .topic = "stats",
     },
     {

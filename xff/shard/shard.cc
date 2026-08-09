@@ -72,13 +72,16 @@ constexpr std::string_view kOfPattern = R"(^(.+)-(\d+)-of-(\d+)(.*)$)";
   return std::make_pair(name.substr(0, pos), digits);
 }
 
-// Builds a Match for a `<stem><sep><digits>` suffix scheme (kDotNum / kUnderscore).
-[[nodiscard]] Match SuffixMatch(Scheme scheme, std::string_view stem, std::string_view digits) {
+// Builds a Match for a `<stem><sep><digits>` suffix scheme (kDotNum / kUnderscore);
+// `sep` is the literal separator ('.' / '_'), reused to render the wildcard name.
+[[nodiscard]] Match SuffixMatch(Scheme scheme, std::string_view stem, std::string_view digits, char sep) {
+  const auto width = static_cast<int>(digits.size());
   return Match{
       .scheme = scheme,
       .stem = std::string(stem),
       .index = ToInt(digits),
-      .width = static_cast<int>(digits.size()),
+      .width = width,
+      .wildcard = absl::StrCat(stem, std::string_view(&sep, 1), std::string(width, '?')),
   };
 }
 
@@ -147,15 +150,18 @@ std::optional<Match> Matcher::Decode(std::string_view filename) const {
         .width = static_cast<int>(subs[2].size()),
     };
     ApplyTail(subs[4], match);
+    // Rebuild with the index digits (subs[2]) replaced by `?` * width, keeping the verbatim total
+    // (subs[3], padding preserved) and the extension, but dropping the opaque tail.
+    match.wildcard = absl::StrCat(subs[1], "-", std::string(match.width, '?'), "-of-", subs[3], match.ext);
     return match;
   }
   // kDotNum: a trailing `.<digits>` (7-Zip volumes, generic).
   if (const auto split = TrailingDigits(filename, '.'); split.has_value()) {
-    return SuffixMatch(Scheme::kDotNum, split->first, split->second);
+    return SuffixMatch(Scheme::kDotNum, split->first, split->second, '.');
   }
   // kUnderscore: a trailing `_<digits>`.
   if (const auto split = TrailingDigits(filename, '_'); split.has_value()) {
-    return SuffixMatch(Scheme::kUnderscore, split->first, split->second);
+    return SuffixMatch(Scheme::kUnderscore, split->first, split->second, '_');
   }
   return std::nullopt;
 }

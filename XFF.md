@@ -200,6 +200,14 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `underscore` - only `<stem>_<NNN>`
 
   Recognizes sharded-file naming conventions and collapses each logical set to a single line instead of listing every shard. Bare --shards (or =auto) enables all built-in schemes: `<stem>-<index>-of-<total>` (of), `<stem>.<NNN>` (dotnum), and `<stem>_<NNN>` (underscore). Restrict to specific schemes with a comma list, e.g. --shards=of,dotnum. Grouping is per-directory; files that match no scheme are listed unchanged. Off by default.
+- `--shards-show=first|wildcard|count` - how a collapsed shard set's line reads (default first) _(global, xff)_
+  One of is one of:
+
+  - `first` - the representative (lowest-index) shard's path (the default)
+  - `wildcard` - the masked-index name, e.g. `arc.???` (or `f-` idx `-of-003`)
+  - `count` - the wildcard name plus the shard count, e.g. `arc.??? (3 shards)`
+
+  Picks each collapsed set's display: first = the representative (lowest-index) shard's path; wildcard = the masked-index name (the index digits shown as `???`); count = the wildcard plus the shard count. An incomplete set is always annotated `(present/expected - INCOMPLETE)`. Only meaningful with --shards.
 - `--count, -c` - with -grep, print a per-file matching-line count (path:count) instead of the lines _(global, xff)_
   Affects: -grep
 - `--context=SPEC` - -grep context lines: N both sides, or A:N,B:N,C:N for after/before/both (grep -C/-A/-B) _(global, xff)_
@@ -660,6 +668,14 @@ xff statistics reductions. `--summary` and `--histogram` replace the per-match l
   - `underscore` - only `<stem>_<NNN>`
 
   Recognizes sharded-file naming conventions and collapses each logical set to a single line instead of listing every shard. Bare --shards (or =auto) enables all built-in schemes: `<stem>-<index>-of-<total>` (of), `<stem>.<NNN>` (dotnum), and `<stem>_<NNN>` (underscore). Restrict to specific schemes with a comma list, e.g. --shards=of,dotnum. Grouping is per-directory; files that match no scheme are listed unchanged. Off by default.
+- `--shards-show=first|wildcard|count` - how a collapsed shard set's line reads (default first) _(global, xff)_
+  One of is one of:
+
+  - `first` - the representative (lowest-index) shard's path (the default)
+  - `wildcard` - the masked-index name, e.g. `arc.???` (or `f-` idx `-of-003`)
+  - `count` - the wildcard name plus the shard count, e.g. `arc.??? (3 shards)`
+
+  Picks each collapsed set's display: first = the representative (lowest-index) shard's path; wildcard = the masked-index name (the index digits shown as `???`); count = the wildcard plus the shard count. An incomplete set is always annotated `(present/expected - INCOMPLETE)`. Only meaningful with --shards.
 - `--top=N` - with --summary or --histogram, keep only the N largest/tallest groups _(global, xff)_
 - `--histogram-width=N` - cell width the tallest --histogram bar fills (default 40) _(global, xff)_
   Affects: --histogram

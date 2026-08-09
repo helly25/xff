@@ -1674,6 +1674,50 @@ absl::StatusOr<ShardsConfig> ResolveShards(const std::vector<std::string>& globa
   return cfg;
 }
 
+// --shards-show=first|wildcard|count: how a collapsed shard set's one line reads. `first` (default)
+// shows the representative (lowest-index) shard's path; `wildcard` shows the masked-index name
+// (`f-???-of-003`); `count` shows the wildcard plus the shard count. Last occurrence wins; an
+// unknown value is a usage error.
+enum class ShardShow : std::uint8_t { kFirst, kWildcard, kCount };
+
+absl::StatusOr<ShardShow> ResolveShardShow(const std::vector<std::string>& globals) {
+  ShardShow show = ShardShow::kFirst;
+  for (const std::string& global : globals) {
+    constexpr std::string_view kPrefix = "--shards-show=";
+    if (!global.starts_with(kPrefix)) {
+      continue;
+    }
+    const std::string_view value = std::string_view(global).substr(kPrefix.size());
+    if (value == "first") {
+      show = ShardShow::kFirst;
+    } else if (value == "wildcard") {
+      show = ShardShow::kWildcard;
+    } else if (value == "count") {
+      show = ShardShow::kCount;
+    } else {
+      return absl::InvalidArgumentError(
+          absl::StrCat("unknown --shards-show value '", value, "' (want first, wildcard, or count)"));
+    }
+  }
+  return show;
+}
+
+// One output line for a collapsed shard set: the `prefix` (its directory) + the chosen display body,
+// then a completeness / count annotation. An incomplete set always shows `(present/expected -
+// INCOMPLETE)`; a complete set adds `(N shards)` only under `count`.
+std::string RenderShardSet(const shard::ShardSet& set, std::string_view prefix, ShardShow show) {
+  const std::string_view display =
+      show == ShardShow::kFirst ? std::string_view(set.members.front().path) : std::string_view(set.wildcard);
+  std::string line = absl::StrCat(prefix, display);
+  const std::size_t present = set.members.size();
+  if (!set.complete) {
+    absl::StrAppend(&line, " (", present, "/", present + set.missing.size(), " - INCOMPLETE)");
+  } else if (show == ShardShow::kCount) {
+    absl::StrAppend(&line, " (", present, " shards)");
+  }
+  return line;
+}
+
 std::string JsonQuote(std::string_view text) {
   std::string out = "\"";
   for (const char ch : text) {
@@ -2033,6 +2077,12 @@ int RunFind(
     return 2;
   }
   const ShardsConfig shards = *std::move(shards_or);
+  absl::StatusOr<ShardShow> shard_show_or = ResolveShardShow(command.globals);
+  if (!shard_show_or.ok()) {
+    on_error("--shards-show", shard_show_or.status());
+    return 2;
+  }
+  const ShardShow shard_show = *shard_show_or;
   // Matcher over all built-in schemes (scheme restriction is applied per set below); Make() with the
   // default tail cannot fail, but propagate a bad-status defensively rather than crash on `.value()`.
   std::optional<shard::Matcher> shard_matcher;
@@ -2655,8 +2705,8 @@ int RunFind(
 
   // --shards: collapse each directory's matched files into logical shard sets (one line per set) and
   // list the non-shard matches unchanged. A file whose scheme is not selected is treated as non-shard.
-  // v1 shows each set's first shard as its representative line; the --shards-show policy (slice D)
-  // adds the wildcard / count forms and completeness annotation.
+  // --shards-show picks each set's line (representative path / wildcard / wildcard + count), and an
+  // incomplete set is annotated `(present/expected - INCOMPLETE)`; see RenderShardSet.
   if (!shards.enabled) {
     return errors;
   }
@@ -2676,7 +2726,7 @@ int RunFind(
       }
     }
     for (const shard::ShardSet& set : shard::GroupShards(shard_files, *shard_matcher)) {
-      emit(absl::StrCat(prefix, set.members.front().path, "\n"));  // representative = lowest-index shard
+      emit(absl::StrCat(RenderShardSet(set, prefix, shard_show), "\n"));
     }
     absl::c_sort(passthrough);
     for (const std::string_view name : passthrough) {
