@@ -118,4 +118,36 @@ common:tsan --features=tsan
 common:tsan --action_env=TSAN_OPTIONS=halt_on_error=1:second_deadlock_stack=1:symbolize=1:color=always
 common:tsan --test_env=TSAN_OPTIONS=halt_on_error=1:second_deadlock_stack=1:symbolize=1:color=always
 
+# --config=msan : MemorySanitizer (reads of uninitialized memory - what asan does NOT
+# catch), run with `--config=clang --config=msan`. LINUX ONLY (there is no macOS MSan),
+# so this is a single Linux CI cell.
+#
+# MSan false-positives on anything it did not instrument, so EVERY library linked in must
+# be instrumented. Our deps all build from source under bazel, so the copt below reaches
+# them; the exception is the C++ standard library, which ships prebuilt (uninstrumented)
+# inside the hermetic LLVM distribution. `tools/build_msan_libcxx.sh` builds an
+# instrumented libc++ / libc++abi into .msan-libcxx/ and the -nostdinc++/-nostdlib++ pair
+# below swaps it in for the prebuilt one. Run that script before using this config.
+common:msan --config=symbolizer
+common:msan --copt=-g
+common:msan --copt=-fsanitize=memory
+common:msan --copt=-fsanitize-memory-track-origins=2
+common:msan --copt=-fno-omit-frame-pointer
+common:msan --copt=-DMEMORY_SANITIZER
+common:msan --linkopt=-fsanitize=memory
+# Replace the prebuilt (uninstrumented) libc++ with the instrumented build. The two
+# -isystem tokens must stay adjacent and in this order: bazel forwards cxxopts verbatim.
+common:msan --cxxopt=-nostdinc++
+common:msan --cxxopt=-isystem
+common:msan --cxxopt=%workspace%/.msan-libcxx/include/c++/v1
+common:msan --linkopt=-nostdlib++
+common:msan --linkopt=-L%workspace%/.msan-libcxx/lib
+common:msan --linkopt=-Wl,-rpath,%workspace%/.msan-libcxx/lib
+common:msan --linkopt=-lc++
+common:msan --linkopt=-lc++abi
+common:msan --build_tag_filters=-no_san  # skip targets tagged no_san
+common:msan --test_tag_filters=-no_san
+common:msan --action_env=MSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1
+common:msan --test_env=MSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1
+
 try-import %workspace%/.bazelrc.user.end

@@ -146,6 +146,48 @@ jobs:
           bazel test //... @xff_pcre2//... --config=xff_full
           --disk_cache=$HOME/.cache/bazel-disk --config=clang --config=tsan
 
+  # MemorySanitizer: reads of UNINITIALIZED memory, which asan does not catch. Linux only
+  # (MSan is effectively Linux/x86-64 Clang; there is no macOS support), so this is a single
+  # ubuntu cell and never joins the macOS matrix.
+  #
+  # MSan false-positives on any code it did not instrument. Everything we link builds from
+  # source under bazel, so --config=msan's -fsanitize=memory reaches it - EXCEPT the C++
+  # standard library, which ships prebuilt (uninstrumented) in the hermetic LLVM. So the
+  # first step builds an instrumented libc++/libc++abi from the matching LLVM source release
+  # (tools/build_msan_libcxx.sh) and --config=msan swaps it in. That build is the expensive
+  # part, so it is cached on the LLVM version + the script's own hash (the script stamps the
+  # prefix and re-uses a matching one, so a cache hit costs nothing).
+  #
+  # continue-on-error while the first findings are triaged, exactly how the clang-tidy cell
+  # was introduced; flip to a hard gate (and add it to `done`'s needs) once it is green.
+  msan:
+    needs: [pre-commit, trunk]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: bazelbuild/setup-bazelisk@v3
+      - name: Mount Bazel disk cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel-disk
+          key: bazel-disk-msan-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
+          restore-keys: |
+            bazel-disk-msan-
+      - name: Mount the instrumented libc++
+        uses: actions/cache@v4
+        with:
+          path: .msan-libcxx
+          key: msan-libcxx-${{ hashFiles('bazelmod/llvm.MODULE.bazel', 'tools/build_msan_libcxx.sh') }}
+      - name: Install build tools (cmake/ninja for the runtimes, mandoc for the roff test)
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build mandoc
+      - name: Build the MSan-instrumented libc++ (cached)
+        run: tools/build_msan_libcxx.sh
+      - name: bazel test
+        run: >
+          bazel test //... @xff_pcre2//... --config=xff_full
+          --disk_cache=$HOME/.cache/bazel-disk --config=clang --config=msan
+
   # Minimal core archive: prove that dropping the WHOLE extra_modules/ directory (plus the extras'
   # bazel_dep + local_path_override lines) still builds the lean core. This is the regression guard
   # for the "full separation" property (#123) - the shared xff_extras_api base module lives at the
