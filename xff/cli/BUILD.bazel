@@ -42,6 +42,7 @@ cc_library(
         "//xff/config:policy_cc",
         "//xff/engine:evaluate_cc",
         "//xff/engine:run_cc",
+        "//xff/env:env_cc",
         "//xff/format:format_cc",
         "//xff/parser:parser_cc",
         "//xff/regex:regex_cc",
@@ -51,6 +52,7 @@ cc_library(
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/types:span",
     ],
 )
 
@@ -159,6 +161,9 @@ cc_library(
     name = "pager_cc",
     srcs = ["pager.cc"],
     hdrs = ["pager.h"],
+    deps = [
+        "//xff/env:env_cc",
+    ],
 )
 
 cc_test(
@@ -167,6 +172,7 @@ cc_test(
     srcs = ["pager_test.cc"],
     deps = [
         ":pager_cc",
+        "//xff/env:env_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -179,6 +185,7 @@ cc_library(
     srcs = ["help_width.cc"],
     hdrs = ["help_width.h"],
     deps = [
+        "//xff/env:env_cc",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",

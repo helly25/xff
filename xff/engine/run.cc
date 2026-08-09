@@ -22,7 +22,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -52,6 +51,7 @@
 #include "xff/datetime/datetime.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/walk.h"
+#include "xff/env/env.h"
 #include "xff/exec/exec.h"
 #include "xff/fields/fields.h"
 #include "xff/format/format.h"
@@ -679,10 +679,9 @@ bool ResolveUnicode(const std::vector<std::string>& globals) {
   if (forced.has_value()) {
     return *forced;
   }
-  for (const char* const var : {"LC_ALL", "LC_CTYPE", "LANG"}) {
-    // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
-    if (const char* const value = std::getenv(var); value != nullptr && *value != '\0') {
-      return absl::StrContains(absl::AsciiStrToUpper(value), "UTF");  // en_US.UTF-8, C.UTF-8, ...
+  for (const std::string_view var : {"LC_ALL", "LC_CTYPE", "LANG"}) {
+    if (const std::optional<std::string> value = env::Get(var); value.has_value() && !value->empty()) {
+      return absl::StrContains(absl::AsciiStrToUpper(*value), "UTF");  // en_US.UTF-8, C.UTF-8, ...
     }
   }
   return false;  // no locale set -> ASCII is the safe default
@@ -1738,9 +1737,7 @@ int RunFind(
   // captured stdout) is not a tty, so it stays plain unless --color=always forces it.
   const bool colorize =
       format == render::Format::kPlain
-      && color::Enabled(
-          color::ResolveWhen(command.globals), ::isatty(STDOUT_FILENO) != 0,
-          std::getenv("NO_COLOR") != nullptr);  // NOLINT(concurrency-mt-unsafe): single-threaded CLI path
+      && color::Enabled(color::ResolveWhen(command.globals), ::isatty(STDOUT_FILENO) != 0, env::Has("NO_COLOR"));
   const std::optional<std::string> tmpl = ResolveTemplate(command.globals);
   // A -capture whose {capture.NAME} is never referenced ran a subprocess for
   // nothing (use -exec for pure side effects); flag it before traversing.
@@ -2088,12 +2085,11 @@ int RunFind(
   // still consults it; empty (a no-op) otherwise.
   ignore::PatternList global_excludes;
   if (gitignore_on) {
-    // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
-    const char* const home = std::getenv("HOME");
-    // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
-    const char* const xdg = std::getenv("XDG_CONFIG_HOME");
-    const repo::GitConfigEnv env{.home = home == nullptr ? "" : home, .xdg_config_home = xdg == nullptr ? "" : xdg};
-    if (const std::optional<std::string> path = repo::GlobalExcludesPath(walk_fs, env)) {
+    const repo::GitConfigEnv git_env{
+        .home = env::Get("HOME").value_or(""),
+        .xdg_config_home = env::Get("XDG_CONFIG_HOME").value_or(""),
+    };
+    if (const std::optional<std::string> path = repo::GlobalExcludesPath(walk_fs, git_env)) {
       if (const absl::StatusOr<std::string> content = walk_fs.ReadContent(*path); content.ok()) {
         global_excludes = ignore::PatternList::Parse(*content);
       }

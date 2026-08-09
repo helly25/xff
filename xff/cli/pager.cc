@@ -21,11 +21,13 @@
 #include <array>
 #include <csignal>
 #include <cstddef>
-#include <cstdlib>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "xff/env/env.h"
 
 namespace xff::cli {
 namespace {
@@ -109,16 +111,12 @@ namespace {
 
 // The text pager: $XFF_PAGER, else $PAGER, else the built-in. A variable that is set
 // (even to "") is authoritative, so an empty value means "no pager".
-// Thread-safe: xff never mutates the environment (no setenv/putenv), so concurrent getenv reads
-// cannot race; each value is consumed immediately.
 std::string ResolveTextPager() {
-  // NOLINTNEXTLINE(concurrency-mt-unsafe)
-  if (const char* xff_pager = std::getenv("XFF_PAGER"); xff_pager != nullptr) {
-    return xff_pager;
+  if (const std::optional<std::string> xff_pager = env::Get("XFF_PAGER")) {
+    return *xff_pager;
   }
-  // NOLINTNEXTLINE(concurrency-mt-unsafe)
-  if (const char* pager = std::getenv("PAGER"); pager != nullptr) {
-    return pager;
+  if (const std::optional<std::string> pager = env::Get("PAGER")) {
+    return *pager;
   }
   return "less -FRX";
 }
@@ -129,10 +127,8 @@ std::string ResolvePagerCommand(PagerKind kind) {
   if (kind == PagerKind::kMan) {
     // $XFF_MANPAGER wins outright (empty disables), so a user can plug in any roff
     // viewer, e.g. `groff -mandoc -Tutf8 | less -R`.
-    // Thread-safe: xff never mutates the environment (no setenv/putenv), so this getenv cannot race.
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    if (const char* man_pager = std::getenv("XFF_MANPAGER"); man_pager != nullptr) {
-      return man_pager;
+    if (const std::optional<std::string> man_pager = env::Get("XFF_MANPAGER")) {
+      return *man_pager;
     }
     // The built-in formats the roff with mandoc (the portable roff formatter --man's own
     // help points at) and pages it, honoring $PAGER like man does, else less -FRX. If

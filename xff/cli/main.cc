@@ -15,7 +15,8 @@
 
 #include <unistd.h>
 
-#include <cstdlib>
+#include <array>
+#include <cstddef>
 #include <fstream>
 #include <iostream>
 #include <optional>
@@ -29,6 +30,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/types/span.h"
 #include "xff/cli/globals.h"
 #include "xff/cli/help.h"
 #include "xff/cli/help_backend.h"
@@ -44,6 +46,7 @@
 #include "xff/config/policy.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/run.h"
+#include "xff/env/env.h"
 #include "xff/format/format.h"
 #include "xff/parser/parser.h"
 #include "xff/regex/regex.h"
@@ -53,13 +56,8 @@
 namespace {
 
 // Environment variable as an optional (nullopt when unset), for config discovery.
-std::optional<std::string> EnvOpt(const char* name) {
-  // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
-  const char* const value = std::getenv(name);
-  if (value == nullptr) {
-    return std::nullopt;
-  }
-  return std::string(value);
+std::optional<std::string> EnvOpt(std::string_view name) {
+  return xff::env::Get(name);
 }
 
 // Reads a whole file, or nullopt if it cannot be opened: the config FileReader.
@@ -220,6 +218,15 @@ int RunMain(int argc, char** argv) {
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic): intentional
   const char* const program = argv[0];
 
+  // Read the fixed set of environment variables xff consults into the env cache up front, in one
+  // locked pass, so every later read is a pure cache hit. Dynamic {env.NAME} field references are
+  // not here (they are user-supplied); env::Get caches those lazily on first use.
+  static constexpr std::array<std::string_view, 10> kKnownEnv = {
+      "COLUMNS",         "HOME",       "LANG",      "LC_ALL", "LC_CTYPE", "NO_COLOR", "PAGER",
+      "XDG_CONFIG_HOME", "XFF_CONFIG", "XFF_PAGER",
+  };
+  xff::env::Prewarm(absl::MakeConstSpan(kKnownEnv));
+
   // The plain-help wrap width (--width), resolved once so every help / topic render
   // shares it. A bare --width means auto; --width=VALUE carries the value. Scanned
   // here (like the help flags) since --help short-circuits before the full parse.
@@ -240,9 +247,7 @@ int RunMain(int argc, char** argv) {
   const bool stdout_is_tty = ::isatty(STDOUT_FILENO) != 0;
   // --color drives help color too (auto = a tty with NO_COLOR unset; always overrides).
   // Scanned from argv like --width, since --help short-circuits before the full parse.
-  const bool help_color = xff::color::Enabled(
-      xff::color::ResolveWhen(args), stdout_is_tty,
-      std::getenv("NO_COLOR") != nullptr);  // NOLINT(concurrency-mt-unsafe): single-threaded CLI startup
+  const bool help_color = xff::color::Enabled(xff::color::ResolveWhen(args), stdout_is_tty, xff::env::Has("NO_COLOR"));
   const xff::cli::HelpRenderContext help_context{.width = *help_width, .color = help_color};
   // --pager pages the long meta / doc output below (help / man / markdown) on a terminal;
   // resolved from argv like the two above, and applied only to those surfaces.

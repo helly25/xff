@@ -15,36 +15,28 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
-# Named-field template rendering: {field} substitution for --format and -exec.
+# Centralized, mutex-guarded, read-once access to the process environment: the single getenv
+# site in the codebase (see env.h). Every other module reads the environment through this.
 cc_library(
-    name = "fields_cc",
-    srcs = ["fields.cc"],
-    hdrs = ["fields.h"],
+    name = "env_cc",
+    srcs = ["env.cc"],
+    hdrs = ["env.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
-        "//xff/content:line_match_cc",
-        "//xff/datetime:datetime_cc",
-        "//xff/env:env_cc",
-        "//xff/hash:hash_cc",
-        "//xff/language:language_cc",
-        "//xff/mime:mime_cc",
-        "//xff/regex:regex_cc",
-        "//xff/vfs:vfs_cc",
-        "@abseil-cpp//absl/status:statusor",
-        "@abseil-cpp//absl/time",
-        "@helly25_mbo//mbo/container:limited_map_cc",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/types:span",
     ],
 )
 
 cc_test(
-    name = "fields_test",
+    name = "env_test",
     size = "small",
-    srcs = ["fields_test.cc"],
+    srcs = ["env_test.cc"],
     deps = [
-        ":fields_cc",
-        "//xff/env:env_cc",
-        "//xff/vfs:vfs_cc",
-        "@abseil-cpp//absl/time",
+        ":env_cc",
+        "@abseil-cpp//absl/types:span",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
