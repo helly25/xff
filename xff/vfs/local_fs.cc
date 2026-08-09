@@ -161,13 +161,18 @@ struct FsMagic {
 // depend on a given kernel header exposing every one. An unrecognised magic
 // falls back to a hex string, so `-fstype` simply will not match a name we do
 // not know -- which is the correct outcome rather than a wrong match.
-constexpr FsMagic kFsMagics[] = {
-    {0x0000'6969, "nfs"},    {0x0000'9660, "iso9660"},   {0x0000'9FA0, "proc"},    {0x0000'4D44, "msdos"},
-    {0x0000'1CD1, "devpts"}, {0x0000'EF53, "ext2/ext3"}, {0x0027'E0EB, "cgroup"},  {0x0102'1994, "tmpfs"},
-    {0x5846'5342, "xfs"},    {0x6265'6572, "sysfs"},     {0x6367'7270, "cgroup2"}, {0x6462'6720, "debugfs"},
-    {0x6573'7546, "fuse"},   {0x7371'7368, "squashfs"},  {0x794C'7630, "overlay"}, {0x8584'58F6, "ramfs"},
-    {0x9123'683E, "btrfs"},  {0xCAFE'4A11, "bpf"},       {0xF2F5'2010, "f2fs"},
-};
+constexpr auto kFsMagics = std::to_array<FsMagic>({
+    {.magic = 0x0000'6969, .name = "nfs"},     {.magic = 0x0000'9660, .name = "iso9660"},
+    {.magic = 0x0000'9FA0, .name = "proc"},    {.magic = 0x0000'4D44, .name = "msdos"},
+    {.magic = 0x0000'1CD1, .name = "devpts"},  {.magic = 0x0000'EF53, .name = "ext2/ext3"},
+    {.magic = 0x0027'E0EB, .name = "cgroup"},  {.magic = 0x0102'1994, .name = "tmpfs"},
+    {.magic = 0x5846'5342, .name = "xfs"},     {.magic = 0x6265'6572, .name = "sysfs"},
+    {.magic = 0x6367'7270, .name = "cgroup2"}, {.magic = 0x6462'6720, .name = "debugfs"},
+    {.magic = 0x6573'7546, .name = "fuse"},    {.magic = 0x7371'7368, .name = "squashfs"},
+    {.magic = 0x794C'7630, .name = "overlay"}, {.magic = 0x8584'58F6, .name = "ramfs"},
+    {.magic = 0x9123'683E, .name = "btrfs"},   {.magic = 0xCAFE'4A11, .name = "bpf"},
+    {.magic = 0xF2F5'2010, .name = "f2fs"},
+});
 #endif
 
 }  // namespace

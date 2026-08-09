@@ -37,6 +37,7 @@
 // `environ` is the process environment handed to spawned children -- a global
 // provided by the C runtime. Declared directly for portability (macOS does not
 // expose it via <unistd.h>); a compatible redeclaration where it already is.
+// NOLINTNEXTLINE(readability-redundant-declaration): required on macOS; only redundant on Linux (unistd.h)
 extern "C" char** environ;
 
 namespace xff::exec {
