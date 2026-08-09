@@ -3,6 +3,10 @@
 
 # 0.2.0
 
+- Added the `-verify EXPECTED` matcher (#109): true when the file's digest equals EXPECTED, a
+  `{field}` template rendered per entry (so `-verify {def.SUMS}` checks a sidecar value and
+  `! -verify …` selects drift). `-verify=ALGO[/ENCODING]` shares the `-hash` spec grammar; hex
+  comparison folds case.
 - Added ASN.1 `GeneralizedTime` time-format presets: `asn1` (aka `generalizedtime`,
   `YYYYMMDDHHMMSS` in local time, its optional zone added by `--time-zone-suffix=always`)
   and `asn1z` (UTC with a mandatory `Z`).

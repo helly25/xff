@@ -280,6 +280,23 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .style = Style::kXff,
         .cost = Cost::kExpensive,
     },
+    // xff -verify EXPECTED: true when the file's digest equals EXPECTED (a field template rendered
+    // per entry, so it can name a sidecar value like `{def.SUMS}` or a capture). `-verify=ALGO
+    // [/ENCODING]` picks the algorithm / encoding, like -hash. `! -verify` selects files that drift.
+    {
+        .name = "-verify",
+        .summary = "true when the digest equals EXPECTED (a field template); -verify=ALGO[/ENC] (xff)",
+        .details = "Computes the file's digest and is true when it equals EXPECTED - a {field} template evaluated per "
+                   "entry, so it can name a sidecar value like `{def.SUMS}` or a capture. `-verify=ALGO[/ENCODING]` "
+                   "picks the algorithm (sha256 default; also sha1/sha512/...) and encoding (hex default, or base64); "
+                   "the same grammar as -hash / {hash}. The hex comparison is case-insensitive. `! -verify` selects "
+                   "files whose digest differs (drift / corruption). Reads the whole file, so it is expensive.",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .binding = Binding::kHash,
+        .style = Style::kXff,
+        .cost = Cost::kExpensive,
+    },
     {
         .name = "-type",
         .summary = "match the file type (f, d, l, b, c, p, s)",

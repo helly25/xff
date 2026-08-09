@@ -663,6 +663,16 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of -verify (the manifest-verification companion of -hash): TRUE when the file's
+# digest equals the EXPECTED field template; -verify=ALGO[/ENCODING]; hex case-insensitivity;
+# `! -verify` selects drift; the bad-spec usage error; and the find-style rejection.
+bashtest(
+    name = "verify_test",
+    size = "small",
+    srcs = ["verify_test.sh"],
+    data = [":xff"],
+)
+
 # End-to-end test of --histogram: ASCII vs Unicode bars (--unicode), count-per-bucket sorted by
 # height, suppression of the per-match listing, combining with --summary, and the bad-bucket error.
 bashtest(

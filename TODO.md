@@ -290,13 +290,14 @@ remains below is the design-forked / larger work.
   non-regular file (`content::FileLineCount` + `CountLines`, reusing the grep NUL-byte binary
   heuristic). **Remaining:** surfacing it as an aggregate (sum + a distribution across matches),
   which is the `lines` metric of the histograms work (#81), not a separate item.
-- **Hash-verification workflow (#109) - [DISCUSS].** The hashing primitives shipped (#105:
-  `xff/hash` + the `{hash}` / `{hash:sha256}` field + the `-hash` action + hex/base64 via
-  `mbo::digest`). Still to design and build: read an expected hash into a variable, an
-  `-eval`-style matcher that compares a computed `{hash}` against it (verify a manifest, detect
-  drift), and `--summary` tallies of verified vs failed (plus `--summary=hash` grouping for
-  dedup). **Open:** where expected hashes come from (a sidecar manifest file, a `{def.X}` value,
-  or a per-entry target like `-cmp`) and the matcher's spelling / polarity. Not yet designed.
+- **Hash-verification workflow (#109) - matcher SHIPPED, tallies remain.** The hashing primitives
+  (#105) and now the `-verify EXPECTED` matcher are in: `-verify` computes the file's digest and is
+  true when it equals EXPECTED, a `{field}` template rendered per entry (so `-verify {def.SUMS}`
+  checks a sidecar value and `! -verify …` selects drift); `-verify=ALGO[/ENCODING]` shares the
+  `-hash` spec grammar, and hex comparison folds case. **Still to build:** `--summary` tallies of
+  verified vs failed (and `--summary=hash` grouping for dedup) - the reduction-side aggregation over
+  the matcher's result. **Deferred producer:** a sidecar-manifest reader that populates `{def.X}`
+  from a `sha256sum`-style file, so `-verify` needs no bespoke manifest parser.
 - **Smart-case matching (`--smart-case`) - [DISCUSS].** The rg / fd convention: an all-lowercase
   pattern matches case-insensitively, a pattern with any uppercase matches case-sensitively.
   Already referenced as an rg-flavor default (the `xfd`-drop and flavor-table notes below) but

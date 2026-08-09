@@ -304,6 +304,8 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-eofcrlf` - match a regular file whose content ends with CRLF, or is empty (xff) _(test, xff)_
   TRUE for a regular, readable file whose content ends with CRLF (or is empty). The Windows / -text=windows final terminator, and the CRLF analogue of -eofnl: compose -text=windows -eofcrlf for a well-formed CRLF-terminated file, or -text=windows ! -eofcrlf for the missing final CRLF. Stricter than -eofnl (which any LF-ending file, including CRLF, satisfies). Reads the file (expensive). An xff extension --config=find rejects.
 - `-cmp ARG` - true when the file's content is byte-identical to TARGET (a field template) (xff) _(test, xff)_
+- `-verify ARG` - true when the digest equals EXPECTED (a field template); -verify=ALGO[/ENC] (xff) _(test, xff)_
+  Computes the file's digest and is true when it equals EXPECTED - a {field} template evaluated per entry, so it can name a sidecar value like `{def.SUMS}` or a capture. `-verify=ALGO[/ENCODING]` picks the algorithm (sha256 default; also sha1/sha512/...) and encoding (hex default, or base64); the same grammar as -hash / {hash}. The hex comparison is case-insensitive. `! -verify` selects files whose digest differs (drift / corruption). Reads the whole file, so it is expensive.
 - `-type ARG` - match the file type (f, d, l, b, c, p, s) _(test, find)_
   Matches the entry's type by letter: f=regular file, d=directory, l=symlink, b/c=block / char device, p=FIFO, s=socket. A GNU-style comma list is any-of, so `-type f,l` matches regular files or symlinks. Under the default -P a symlink is type l; -xtype tests its target's type instead.
 - `-xtype ARG` - match the file type of a symlink's target _(test, find)_
