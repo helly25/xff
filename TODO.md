@@ -290,7 +290,7 @@ remains below is the design-forked / larger work.
   non-regular file (`content::FileLineCount` + `CountLines`, reusing the grep NUL-byte binary
   heuristic). **Remaining:** surfacing it as an aggregate (sum + a distribution across matches),
   which is the `lines` metric of the histograms work (#81), not a separate item.
-- **Hash-verification workflow (#109) - matcher SHIPPED, tallies remain.** The hashing primitives
+- **Hash-verification workflow (#109) - DONE (single-pass tally deferred).** The hashing primitives
   (#105) and now the `-hasheq EXPECTED` matcher are in: `-hasheq` computes the file's digest and is
   true when it equals EXPECTED, a `{field}` template rendered per entry (so `-hasheq {def.SUMS}`
   checks a sidecar value and `! -hasheq …` selects drift); `-hasheq=ALGO[/ENCODING]` shares the
