@@ -15,6 +15,7 @@
 
 #include "xff/cli/markdown.h"
 
+#include <cstddef>
 #include <string>
 
 #include "absl/strings/str_cat.h"
@@ -27,6 +28,7 @@ namespace xff::cli {
 namespace {
 
 using ::testing::AllOf;
+using ::testing::Eq;
 using ::testing::HasSubstr;
 
 struct MarkdownTest : ::testing::Test {};
@@ -52,6 +54,28 @@ TEST_F(MarkdownTest, TagsEntriesWithTheirClassification) {
   // Flags are tagged (global, xff|find); primaries (kind, xff|find, [safety]).
   EXPECT_THAT(MarkdownReference(), HasSubstr("_(global, xff)_"));
   EXPECT_THAT(MarkdownReference(), HasSubstr("_(test, find)_"));
+}
+
+TEST_F(MarkdownTest, TopicFlagsAreNotDuplicatedInTheFullReference) {
+  // A topic-tagged flag is documented once - in its grouped Options entry. The topic section
+  // folded into the full reference contributes narrative + examples, not a second per-flag entry
+  // (an entry begins with "- `<display>`"; inline prose mentions differ). Checked on the stats
+  // flags: the config topic's "Layers" table intentionally names `--xffrc=FILE` as a tier row,
+  // which is separate explanatory narrative, not the flag-list duplication this guards against.
+  const std::string doc = MarkdownReference();
+  const auto entry_count = [&doc](const GlobalFlag& flag) {
+    const std::string entry = absl::StrCat("- `", flag.display, "`");
+    std::size_t count = 0;
+    for (std::size_t pos = doc.find(entry); pos != std::string::npos; pos = doc.find(entry, pos + 1)) {
+      ++count;
+    }
+    return count;
+  };
+  for (const GlobalFlag& flag : Globals()) {
+    if (flag.topic == "stats") {
+      EXPECT_THAT(entry_count(flag), Eq(std::size_t{1})) << flag.name;
+    }
+  }
 }
 
 }  // namespace
