@@ -47,3 +47,24 @@ cc_library(
         "@abseil-cpp//absl/algorithm:container",
     ],
 )
+
+# The virtual-filesystem seam: the read-only FileSystem interface plus the Entry / Metadata types
+# every backend produces. It lives here rather than in the core for the same reason the others do -
+# an extra that implements a filesystem (archive diving, #83; remote later) must not depend back
+# into the core. Header-only, and its only deps are abseil status/time, so hosting it costs the
+# base module nothing. //xff/vfs re-exports it, so core code keeps including "xff/vfs/entry.h" and
+# "xff/vfs/filesystem.h" unchanged.
+cc_library(
+    name = "vfs",
+    hdrs = [
+        "entry.h",
+        "filesystem.h",
+    ],
+    include_prefix = "xff/vfs",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/time",
+    ],
+)
