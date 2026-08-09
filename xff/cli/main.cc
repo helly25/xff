@@ -144,12 +144,12 @@ std::string RenderExtras() {
         &out, "  %-9s %s\n            %s\n", name,
         built_in ? "[built into this binary]" : absl::StrCat("[not built in; rebuild with ", rebuild, "]"), what);
   };
-  row("pcre2", xff::regex::Pcre2Available(), "--//xff:xff_pcre",
+  row("pcre2", xff::regex::Pcre2Available(), xff::cli::ExtraBuildFlag("pcre2"),
       "--regextype=PCRE2: Perl-compatible regex (lookahead, backreferences, ...)");
   absl::flat_hash_set<std::string_view> seen;
   for (const xff::cli::GlobalFlag& flag : xff::cli::Globals()) {
     if (!flag.extra.empty() && seen.insert(flag.extra).second) {
-      row(flag.extra, xff::cli::ExtraEnabled(flag.extra), absl::StrCat("--//xff:", flag.extra), flag.summary);
+      row(flag.extra, xff::cli::ExtraEnabled(flag.extra), xff::cli::ExtraBuildFlag(flag.extra), flag.summary);
     }
   }
   return out;
@@ -373,8 +373,11 @@ int RunMain(int argc, char** argv) {
     if (suffix_off || value == "none" || value == "off") {
       continue;
     }
-    std::cerr << "xff: " << flag->name << ": this build has no " << flag->extra
-              << " support; rebuild with --//xff:" << flag->extra << "\n";
+    std::cerr << "xff: " << flag->name << ": this build has no " << flag->extra << " support";
+    if (const std::string_view rebuild = xff::cli::ExtraBuildFlag(flag->extra); !rebuild.empty()) {
+      std::cerr << "; rebuild with " << rebuild;
+    }
+    std::cerr << "\n";
     return 2;
   }
 
