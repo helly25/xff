@@ -56,35 +56,50 @@ using DigestFn = std::string (*)(std::string_view data, Encoding encoding);
 // algorithm set: IsAlgorithm / AlgorithmNames / HashData all read it.
 constexpr auto kAlgorithms = mbo::container::MakeLimitedMap(
     std::pair<std::string_view, DigestFn>{
-        "blake2b", [](std::string_view d, Encoding e) { return Encode(mbo::digest::blake2b::Digest(d), e); }},
+        "blake2b",
+        [](std::string_view data, Encoding encoding) { return Encode(mbo::digest::blake2b::Digest(data), encoding); }},
     std::pair<std::string_view, DigestFn>{
-        "blake2b_256", [](std::string_view d, Encoding e) { return Encode(mbo::digest::blake2b_256::Digest(d), e); }},
+        "blake2b_256", [](std::string_view data,
+                          Encoding encoding) { return Encode(mbo::digest::blake2b_256::Digest(data), encoding); }},
     std::pair<std::string_view, DigestFn>{
-        "blake3", [](std::string_view d, Encoding e) { return Encode(mbo::digest::blake3::Digest(d), e); }},
+        "blake3",
+        [](std::string_view data, Encoding encoding) { return Encode(mbo::digest::blake3::Digest(data), encoding); }},
     std::pair<std::string_view, DigestFn>{
-        "md5", [](std::string_view d, Encoding e) { return Encode(mbo::digest::md5::Digest(d), e); }},
+        "md5",
+        [](std::string_view data, Encoding encoding) { return Encode(mbo::digest::md5::Digest(data), encoding); }},
     std::pair<std::string_view, DigestFn>{
-        "sha1", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha1::Digest(d), e); }},
+        "sha1",
+        [](std::string_view data, Encoding encoding) { return Encode(mbo::digest::sha1::Digest(data), encoding); }},
     std::pair<std::string_view, DigestFn>{
-        "sha224", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha224::Digest(d), e); }},
+        "sha224",
+        [](std::string_view data, Encoding encoding) { return Encode(mbo::digest::sha224::Digest(data), encoding); }},
     std::pair<std::string_view, DigestFn>{
-        "sha256", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha256::Digest(d), e); }},
+        "sha256",
+        [](std::string_view data, Encoding encoding) { return Encode(mbo::digest::sha256::Digest(data), encoding); }},
     std::pair<std::string_view, DigestFn>{
-        "sha3_224", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha3_224::Digest(d), e); }},
+        "sha3_224",
+        [](std::string_view data, Encoding encoding) { return Encode(mbo::digest::sha3_224::Digest(data), encoding); }},
     std::pair<std::string_view, DigestFn>{
-        "sha3_256", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha3_256::Digest(d), e); }},
+        "sha3_256",
+        [](std::string_view data, Encoding encoding) { return Encode(mbo::digest::sha3_256::Digest(data), encoding); }},
     std::pair<std::string_view, DigestFn>{
-        "sha3_384", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha3_384::Digest(d), e); }},
+        "sha3_384",
+        [](std::string_view data, Encoding encoding) { return Encode(mbo::digest::sha3_384::Digest(data), encoding); }},
     std::pair<std::string_view, DigestFn>{
-        "sha3_512", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha3_512::Digest(d), e); }},
+        "sha3_512",
+        [](std::string_view data, Encoding encoding) { return Encode(mbo::digest::sha3_512::Digest(data), encoding); }},
     std::pair<std::string_view, DigestFn>{
-        "sha384", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha384::Digest(d), e); }},
+        "sha384",
+        [](std::string_view data, Encoding encoding) { return Encode(mbo::digest::sha384::Digest(data), encoding); }},
     std::pair<std::string_view, DigestFn>{
-        "sha512", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha512::Digest(d), e); }},
+        "sha512",
+        [](std::string_view data, Encoding encoding) { return Encode(mbo::digest::sha512::Digest(data), encoding); }},
     std::pair<std::string_view, DigestFn>{
-        "sha512_224", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha512_224::Digest(d), e); }},
-    std::pair<std::string_view, DigestFn>{
-        "sha512_256", [](std::string_view d, Encoding e) { return Encode(mbo::digest::sha512_256::Digest(d), e); }});
+        "sha512_224", [](std::string_view data,
+                         Encoding encoding) { return Encode(mbo::digest::sha512_224::Digest(data), encoding); }},
+    std::pair<std::string_view, DigestFn>{"sha512_256", [](std::string_view data, Encoding encoding) {
+                                            return Encode(mbo::digest::sha512_256::Digest(data), encoding);
+                                          }});
 
 }  // namespace
 
@@ -127,16 +142,18 @@ bool IsAlgorithm(std::string_view algo) {
 }
 
 absl::Span<const std::string_view> AlgorithmNames() {
-  // Built once from the (sorted) table, so the name list never drifts from kAlgorithms.
-  static const std::vector<std::string_view>* const kNames = [] {
-    auto* names = new std::vector<std::string_view>();
-    names->reserve(kAlgorithms.size());
+  // Built once from the (sorted) table, so the name list never drifts from kAlgorithms. The views
+  // point into the constexpr kAlgorithms keys, which outlive everything, so a function-local static
+  // (no heap owner) is safe.
+  static const std::vector<std::string_view> kNames = [] {
+    std::vector<std::string_view> names;
+    names.reserve(kAlgorithms.size());
     for (const auto& [name, fn] : kAlgorithms) {
-      names->push_back(name);
+      names.push_back(name);
     }
     return names;
   }();
-  return *kNames;
+  return kNames;
 }
 
 std::optional<std::string> HashData(std::string_view algo, std::string_view data, Encoding encoding) {

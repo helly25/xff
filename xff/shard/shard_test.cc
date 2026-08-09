@@ -75,11 +75,10 @@ TEST_F(ShardMatcherTest, PlainFileIsNotAShard) {
 TEST_F(ShardMatcherTest, OfDecodesStemIndexTotalAndWidth) {
   const std::optional<Match> match = matcher.Decode("data-00000-of-00010");
   EXPECT_THAT(match, ShardIs(Scheme::kOf, "data", 0));
-  ASSERT_TRUE(match.has_value());
-  EXPECT_THAT(match->total, Optional(Eq(10)));
-  EXPECT_THAT(match->width, Eq(5));
-  EXPECT_THAT(match->tail, IsEmpty());
-  EXPECT_THAT(match->ext, IsEmpty());
+  EXPECT_THAT(match, Optional(Field("total", &Match::total, Optional(Eq(10)))));
+  EXPECT_THAT(match, Optional(Field("width", &Match::width, Eq(5))));
+  EXPECT_THAT(match, Optional(Field("tail", &Match::tail, IsEmpty())));
+  EXPECT_THAT(match, Optional(Field("ext", &Match::ext, IsEmpty())));
 }
 
 TEST_F(ShardMatcherTest, OfStemIsGreedySoTheLastOfBinds) {
@@ -89,48 +88,42 @@ TEST_F(ShardMatcherTest, OfStemIsGreedySoTheLastOfBinds) {
 TEST_F(ShardMatcherTest, OfPreservesAnExtensionSeparatelyFromTheStem) {
   const std::optional<Match> match = matcher.Decode("part-00003-of-00042.tfrecord");
   EXPECT_THAT(match, ShardIs(Scheme::kOf, "part", 3));
-  ASSERT_TRUE(match.has_value());
-  EXPECT_THAT(match->ext, Eq(".tfrecord"));
-  EXPECT_THAT(match->tail, IsEmpty());
+  EXPECT_THAT(match, Optional(Field("ext", &Match::ext, Eq(".tfrecord"))));
+  EXPECT_THAT(match, Optional(Field("tail", &Match::tail, IsEmpty())));
 }
 
 TEST_F(ShardMatcherTest, OfCapturesTheHexTailAndExcludesItFromExt) {
   const std::optional<Match> match = matcher.Decode("data-00000-of-00010.a1b2c3d4e5f6a1b2");
   EXPECT_THAT(match, ShardIs(Scheme::kOf, "data", 0));
-  ASSERT_TRUE(match.has_value());
-  EXPECT_THAT(match->tail, Eq("a1b2c3d4e5f6a1b2"));
-  EXPECT_THAT(match->ext, IsEmpty());
+  EXPECT_THAT(match, Optional(Field("tail", &Match::tail, Eq("a1b2c3d4e5f6a1b2"))));
+  EXPECT_THAT(match, Optional(Field("ext", &Match::ext, IsEmpty())));
 }
 
 TEST_F(ShardMatcherTest, OfKeepsTailBeforeExtensionSeparate) {
   const std::optional<Match> match = matcher.Decode("data-00000-of-00010.deadbeefdeadbeef.tfrecord");
-  ASSERT_TRUE(match.has_value());
-  EXPECT_THAT(match->tail, Eq("deadbeefdeadbeef"));
-  EXPECT_THAT(match->ext, Eq(".tfrecord"));
+  EXPECT_THAT(match, Optional(Field("tail", &Match::tail, Eq("deadbeefdeadbeef"))));
+  EXPECT_THAT(match, Optional(Field("ext", &Match::ext, Eq(".tfrecord"))));
 }
 
 TEST_F(ShardMatcherTest, OfDoesNotMistakeAShortExtensionForATail) {
   // `.parquet` is 7 non-hex chars: not a tail, so it stays the extension.
   const std::optional<Match> match = matcher.Decode("data-00000-of-00010.parquet");
-  ASSERT_TRUE(match.has_value());
-  EXPECT_THAT(match->tail, IsEmpty());
-  EXPECT_THAT(match->ext, Eq(".parquet"));
+  EXPECT_THAT(match, Optional(Field("tail", &Match::tail, IsEmpty())));
+  EXPECT_THAT(match, Optional(Field("ext", &Match::ext, Eq(".parquet"))));
 }
 
 TEST_F(ShardMatcherTest, DisabledTailLeavesTheTailTextInExt) {
   const Matcher no_tail = *Matcher::Make(TailSpec{.enabled = false});
   const std::optional<Match> match = no_tail.Decode("data-00000-of-00010.a1b2c3d4e5f6a1b2");
-  ASSERT_TRUE(match.has_value());
-  EXPECT_THAT(match->tail, IsEmpty());
-  EXPECT_THAT(match->ext, Eq(".a1b2c3d4e5f6a1b2"));
+  EXPECT_THAT(match, Optional(Field("tail", &Match::tail, IsEmpty())));
+  EXPECT_THAT(match, Optional(Field("ext", &Match::ext, Eq(".a1b2c3d4e5f6a1b2"))));
 }
 
 TEST_F(ShardMatcherTest, CustomTailRegexCarriesItsOwnSeparator) {
   const Matcher custom = *Matcher::Make(TailSpec{.pattern = R"(_gen-([0-9]+))"});
   const std::optional<Match> match = custom.Decode("data-00000-of-00010_gen-7.bin");
-  ASSERT_TRUE(match.has_value());
-  EXPECT_THAT(match->tail, Eq("7"));
-  EXPECT_THAT(match->ext, Eq(".bin"));
+  EXPECT_THAT(match, Optional(Field("tail", &Match::tail, Eq("7"))));
+  EXPECT_THAT(match, Optional(Field("ext", &Match::ext, Eq(".bin"))));
 }
 
 // ---- kDotNum / kUnderscore ----
@@ -138,9 +131,8 @@ TEST_F(ShardMatcherTest, CustomTailRegexCarriesItsOwnSeparator) {
 TEST_F(ShardMatcherTest, DotNumDecodesA7ZipStyleVolume) {
   const std::optional<Match> match = matcher.Decode("backup.tar.001");
   EXPECT_THAT(match, ShardIs(Scheme::kDotNum, "backup.tar", 1));
-  ASSERT_TRUE(match.has_value());
-  EXPECT_THAT(match->width, Eq(3));
-  EXPECT_THAT(match->total, Eq(std::nullopt));
+  EXPECT_THAT(match, Optional(Field("width", &Match::width, Eq(3))));
+  EXPECT_THAT(match, Optional(Field("total", &Match::total, Eq(std::nullopt))));
 }
 
 TEST_F(ShardMatcherTest, UnderscoreDecodesANumericUnderscoreSuffix) {

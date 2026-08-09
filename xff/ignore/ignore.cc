@@ -36,7 +36,7 @@ namespace {
 // Strips trailing unescaped spaces (gitignore ignores them unless backslash-quoted).
 std::string_view RstripSpaces(std::string_view line) {
   std::size_t end = line.size();
-  while (end > 0 && line[end - 1] == ' ' && !(end >= 2 && line[end - 2] == '\\')) {
+  while (end > 0 && line[end - 1] == ' ' && (end < 2 || line[end - 2] != '\\')) {
     --end;
   }
   return line.substr(0, end);
@@ -66,7 +66,7 @@ bool PatternList::Add(std::string_view pattern, bool negate) {
     anchored = true;  // a leading '/' anchors to the base and is otherwise dropped
     body.remove_prefix(1);
   }
-  if (body.find('/') != std::string_view::npos) {
+  if (body.contains('/')) {
     anchored = true;  // a separator anywhere else also anchors (gitignore rule)
   }
   if (body.empty()) {

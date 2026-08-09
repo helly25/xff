@@ -98,7 +98,7 @@ struct ConformanceTest : ::testing::Test {
     fs::remove_all(root_, ec);
   }
 
-  void PinMtime(std::string_view rel, fs::file_time_type when) {
+  void PinMtime(std::string_view rel, fs::file_time_type when) const {
     std::error_code ec;
     fs::last_write_time(root_ / rel, when, ec);
     ASSERT_FALSE(ec) << "pin mtime " << rel << ": " << ec.message();
@@ -334,6 +334,7 @@ TEST_F(ConformanceTest, GidMatchesCurrentGroup) {
 }
 
 TEST_F(ConformanceTest, UserMatchesCurrentUser) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
   const struct passwd* const pw = ::getpwuid(::geteuid());
   if (pw == nullptr) {
     GTEST_SKIP() << "no passwd entry for euid";
@@ -342,6 +343,7 @@ TEST_F(ConformanceTest, UserMatchesCurrentUser) {
 }
 
 TEST_F(ConformanceTest, GroupMatchesCurrentGroup) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
   const struct group* const gr = ::getgrgid(::getegid());
   if (gr == nullptr) {
     GTEST_SKIP() << "no group entry for egid";
