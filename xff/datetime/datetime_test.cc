@@ -165,7 +165,25 @@ TEST_F(DateTimeTest, FormatTimePresetsAndCustomPatterns) {
   EXPECT_THAT(FormatTime(now, "zulu", utc), "2020-09-13T12:26:40Z");                         // UTC, Z
   EXPECT_THAT(FormatTime(now, "zulu", absl::FixedTimeZone(3'600)), "2020-09-13T12:26:40Z");  // zulu forces UTC
   EXPECT_THAT(FormatTime(now, "zulu-dense", utc), "20200913T122640Z");                       // Zulu, no separators
+  EXPECT_THAT(FormatTime(now, "asn1", utc), "20200913122640");                               // ASN.1, local, no zone
+  EXPECT_THAT(FormatTime(now, "generalizedtime", utc), "20200913122640");                    // alias of asn1
+  EXPECT_THAT(FormatTime(now, "asn1z", utc), "20200913122640Z");                             // ASN.1, UTC Z
+  EXPECT_THAT(FormatTime(now, "asn1z", absl::FixedTimeZone(3'600)), "20200913122640Z");      // asn1z forces UTC
   EXPECT_THAT(FormatTime(now, "%Y/%m/%d", utc), "2020/09/13");                               // custom pattern
+}
+
+TEST_F(DateTimeTest, Asn1GeneralizedTimeZoneSuffixControl) {
+  const absl::Time now = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13 12:26:40 UTC
+  const absl::TimeZone plus_one = absl::FixedTimeZone(3'600);   // +0100
+  using enum ZoneSuffix;
+  // asn1's zone is optional: kAlways appends the numeric offset ASN.1-style (no separator),
+  // kNever / kAuto leave the base form bare, rendered in the given zone.
+  EXPECT_THAT(FormatTime(now, "asn1", plus_one, kAuto), "20200913132640");
+  EXPECT_THAT(FormatTime(now, "asn1", plus_one, kNever), "20200913132640");
+  EXPECT_THAT(FormatTime(now, "asn1", plus_one, kAlways), "20200913132640+0100");
+  // asn1z is inherently zoned: the mandatory Z is its identity, so the suffix control is ignored.
+  EXPECT_THAT(FormatTime(now, "asn1z", plus_one, kNever), "20200913122640Z");
+  EXPECT_THAT(FormatTime(now, "asn1z", plus_one, kAlways), "20200913122640Z");
 }
 
 TEST_F(DateTimeTest, FormatTimeZoneSuffixControl) {

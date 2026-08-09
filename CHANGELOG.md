@@ -3,6 +3,10 @@
 
 # 0.2.0
 
+- Added ASN.1 `GeneralizedTime` time-format presets: `asn1` (aka `generalizedtime`,
+  `YYYYMMDDHHMMSS` in local time, its optional zone added by `--time-zone-suffix=always`)
+  and `asn1z` (UTC with a mandatory `Z`).
+
 # 0.1.0
 
 First release of xff (eXtended File Find): a `find(1)`-compatible file finder

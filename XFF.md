@@ -261,7 +261,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `always` - force the offset, even on a format that omits it (also true / yes / on)
   - `never` - drop the optional offset (also false / no / off)
 
-  Controls whether a time field's named preset renders its trailing zone (+0100, +01:00). auto keeps each preset's default (space / iso / rfc3339 show it, asctime / epoch omit it); never drops it; always forces it, even on a preset that omits one. Accepts true / yes / on (= always) and false / no / off (= never). zulu / zulu-dense always keep their mandatory Z, and a custom strftime --time-format is never altered - control its zone with %z / %Ez / %Z yourself.
+  Controls whether a time field's named preset renders its trailing zone (+0100, +01:00). auto keeps each preset's default (space / iso / rfc3339 show it, asctime / epoch omit it); never drops it; always forces it, even on a preset that omits one. Accepts true / yes / on (= always) and false / no / off (= never). The inherently-zoned zulu / zulu-dense / asn1z always keep their mandatory Z, and a custom strftime --time-format is never altered - control its zone with %z / %Ez / %Z yourself. asn1's zone is optional: always adds its ASN.1-style offset (+0100, no separator), never / auto leave it bare.
 
 ## Expression
 
@@ -605,11 +605,13 @@ Presets and strftime patterns for --time-format, --timezone, and time-field {:qu
 - `epoch` - seconds since the Unix epoch
 - `zulu` - UTC with a Z designator (2020-09-13T12:26:40Z)
 - `zulu-dense` - UTC Z, no separators (20200913T122640Z)
+- `asn1, generalizedtime` - ASN.1 GeneralizedTime, local (20200913122640); =always adds +0000
+- `asn1z` - ASN.1 GeneralizedTime, UTC Z (20200913122640Z)
 - `<strftime>` - any other value is used as an strftime(3) pattern, e.g. %Y-%m-%d
 
 Time zone. `--timezone=ZONE` (alias `--tz`) sets the zone every time is interpreted and rendered in: `local` (the default), `utc` (also `z` / `zulu`), an IANA name like `Europe/London`, or a fixed offset like `+02:00` / `-0800`. It shifts the wall-clock digits of every time field and governs `-newerXt` comparisons; it does not by itself add or remove the printed zone suffix.
 
-Zone suffix. `--time-zone-suffix=never` drops the trailing offset (`+0100`, `+01:00`) from a preset that shows it by default (`space`, `iso` / `iso8601-*`, `rfc3339`); `always` forces one on, even onto `asctime` which omits it; `auto` (the default) keeps each preset's built-in behavior. `true` / `false` are accepted for `always` / `never`. Two things it never touches: `zulu` / `zulu-dense` keep their mandatory `Z` (UTC is the format's identity), and a custom strftime `--time-format` is left exactly as written - control its zone there with `%z` / `%Ez` / `%Z` yourself.
+Zone suffix. `--time-zone-suffix=never` drops the trailing offset (`+0100`, `+01:00`) from a preset that shows it by default (`space`, `iso` / `iso8601-*`, `rfc3339`); `always` forces one on, even onto `asctime` which omits it; `auto` (the default) keeps each preset's built-in behavior. `true` / `false` are accepted for `always` / `never`. Two things it never touches: the inherently-zoned `zulu` / `zulu-dense` / `asn1z` keep their mandatory `Z` (UTC is the format's identity), and a custom strftime `--time-format` is left exactly as written - control its zone there with `%z` / `%Ez` / `%Z` yourself. `asn1`'s zone is optional, so `always` appends its ASN.1-style offset (`+0100`, no separator) and `never` / `auto` leave it bare.
 
 ## Size units
 
