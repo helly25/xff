@@ -19,7 +19,7 @@ jobs:
     name: ${{ matrix.os }} / ${{ matrix.config.name }}
     # Gate the heavy matrix behind the fast pre-flight checks (lint + the XFF.md drift guard), so a
     # stale reference or a lint failure fails in minutes instead of after the full asan build.
-    needs: [pre-commit, trunk, xff-md]
+    needs: [pre-commit, trunk]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -127,7 +127,7 @@ jobs:
   # expensive recurring work that previously rebuilt from scratch every run; LLVM
   # re-fetches each run.
   tsan:
-    needs: [pre-commit, trunk, xff-md]
+    needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -153,7 +153,7 @@ jobs:
   # core->extra dependency would fail here. The sole job that opts OUT of the extras (every other job
   # runs --config=xff_full); one cell on the single most-default target (lean //xff/cli:xff, ubuntu).
   minimal:
-    needs: [pre-commit, trunk, xff-md]
+    needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -177,6 +177,7 @@ jobs:
   # builds only xff_full + the diff_test (no asan/tsan, no full suite) and is repo-cache-only (like
   # tsan/minimal), so it is one of the cheap checks the matrix waits on, alongside pre-commit/trunk.
   xff-md:
+    needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -203,7 +204,7 @@ jobs:
   # continue-on-error). Drop the step's continue-on-error to promote this to a hard gate once the
   # remaining (test-file) findings are swept.
   clang-tidy:
-    needs: [pre-commit, trunk, xff-md]
+    needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
