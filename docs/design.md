@@ -67,7 +67,7 @@ _Captured from Marcus's list - discussion deferred._
 
 ## Non-Goals
 
-_Explicitly out of scope. (TBD.)_
+_Explicitly out of scope._
 
 - First-class Windows support (may happen to work, but not a target).
 - In-place content replacement / sed-like editing (and similar content-mutating abilities) - **at least for now** (revisitable).
@@ -75,7 +75,7 @@ _Explicitly out of scope. (TBD.)_
 ## Open Questions
 
 - ~~**Scope:** pure file-finder vs. find + integrated content search?~~ **Resolved** (by the content-filtering feature): xff is a **find + content-search hybrid**. To discuss: this puts xff in `ripgrep`/`sift` territory as well as `fd`/`find`'s.
-- **External / remote filesystems (e.g. SFTP):** in scope? The archive-diving feature already implies a pluggable filesystem-source abstraction (a VFS seam); SFTP / remote would be another backend behind it. Leaning: build the VFS seam now, add remote backends incrementally (likely post-v1). _(Discuss.)_
+- ~~**External / remote filesystems (e.g. SFTP):** in scope?~~ **Resolved as planned:** the VFS seam was built (`xff/vfs`, local backend today; archive diving adds the second backend). Remote backends (SFTP / object stores) stay **post-v1** - the seam makes them additive, so nothing in the current surface has to anticipate them.
 
 ## Notes / Decisions
 
@@ -158,7 +158,7 @@ Archive members and remote files have **no real filesystem path**. The VFS tags 
 
 - **Representation:** machine output (JSON) uses structured fields (`container` + `member`); human output uses the JAR-style marker `container!member`. The separator doubles as a relative/absolute indicator: `pkg.tar!foo/bar` (relative member, normal) vs `pkg.tar!/foo/bar` (**absolute** stored path - unusual, and exactly the Zip-Slip red flag → flagged). `!` needs shell-quoting and is escaped if it occurs in a real name.
 - **Actions are FS-only.** Virtual entries are read-only ⇒ excluded from `-delete`/`-exec`/`-execdir` with a self-documenting skip ("read-only archive member, action skipped [safety]"). **Tests/matching/printing/stats do apply** (content matching reads member bytes). Extract-to-temp for `-exec` is opt-in, **post-v1**.
-- **Diving is opt-in, OFF by default** (find-compat: an archive is one file). When on (flag TBD, e.g. `--archives`/`-z`), members enumerate as virtual entries. **Size = uncompressed (logical)** in human output; compressed exposed in JSON. Stats label uncompressed totals (which can dwarf disk usage).
+- **Diving is opt-in** (find-compat: an archive is one file). The control is the ordered enum `--archive[=none|roots|all]` with the short `-z-` / `-z` / `-z+` (bare `--archive` = `all`); `find` defaults to `none`, the xff-family flavors to `roots` (a named archive root dives, mid-walk ones need `all`). When on, members enumerate as virtual entries. **Size = uncompressed (logical)** in human output; compressed exposed in JSON. Stats label uncompressed totals (which can dwarf disk usage).
 - **Security (untrusted input - prime goal):** decompression-bomb limits (max expansion ratio / total bytes / member count / nesting depth); Zip-Slip sanitization (reject/flag `..`-escaping and absolute member paths); never follow archive symlinks out of bounds.
 - **Streaming:** virtual entries are sequential (no `mmap`); content + negative-match (#6) stream/decompress fully. Remote = network stream.
 - **Remote (SFTP, deferred) uses the same model:** `remote` source, read-only, URI scheme (`sftp://host/path`), actions FS-only.
@@ -168,7 +168,7 @@ Archive members and remote files have **no real filesystem path**. The VFS tags 
 - **Two engines only; `std::regex` dropped** (slow, stdlib-inconsistent, ReDoS-prone, no unique capability). The ECMAScript-familiar syntax C++ devs expect is offered as a PCRE2 flavor, not a separate engine.
 - **RE2 = default** - linear-time, Unicode, ReDoS-immune (the safe default per the prime goal); no backrefs/lookaround.
 - **PCRE2 = opt-in power engine** (backrefs, lookaround) with **configurable safety limits** - match limit / backtracking-depth limit / heap limit (`pcre2_set_match_limit` / `set_depth_limit` / `set_heap_limit`). Sane default bounds ReDoS; raise or lower via flags + config. Limit-exceeded errors self-document ("PCRE2 match limit exceeded - pathological pattern, or raise `--pcre-match-limit` [safety]").
-- **Explicit selection; no silent fallback** - opt into PCRE2 (`--pcre` / `--regex-engine=pcre2`, spelling TBD); a pattern needing PCRE2-only features under RE2 → clear error + suggestion, never a silent switch.
+- **Explicit selection; no silent fallback** - opt into PCRE2 with `--regextype=PCRE2` (the one grammar selector, shared with RE2 / EXACT / FNMATCH / GLOB / SHGLOB); a pattern needing PCRE2-only features under RE2 → clear error + suggestion, never a silent switch. A build without the PCRE2 extra linked says so self-documentingly.
 - **find's `-regex`/`-regextype` (its own grammar; tier 1)** backed by **RE2 via grammar translation** (BRE/ERE/egrep/awk → RE2), PCRE2 for exotic/Emacs constructs; cross-platform-consistent, fidelity validated by the Phase-1 conformance suite, deviations documented.
 - Patterns are **not portable** across engines (documented).
 

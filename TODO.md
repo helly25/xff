@@ -304,14 +304,14 @@ remains below is the design-forked / larger work.
   tally when a concrete need appears, wiring the verdict through the same per-entry reduction feed the
   summary/histogram sinks use. **Deferred producer:** a sidecar-manifest reader that populates
   `{def.X}` from a `sha256sum`-style file, so `-hasheq` needs no bespoke manifest parser.
-- **Smart-case matching (`--smart-case`) - [DISCUSS].** The rg / fd convention: an all-lowercase
-  pattern matches case-insensitively, a pattern with any uppercase matches case-sensitively.
-  Already referenced as an rg-flavor default (the `xfd`-drop and flavor-table notes below) but
-  never defined as its own work item. Build `--smart-case` + an off switch, with the per-style
-  default (on for rg, off for find / xff). **Sequence this BEFORE the flavor feature-map help
-  row** - that table stays incomplete until smart-case is a real facet. **Open:** interaction
-  with `--exact` and the FS case-fold probe, and whether it applies uniformly to `-name` globs,
-  `-regex`, and `-grep`.
+- **Smart-case matching (#116) - SHIPPED as a `--case` value, not a boolean flag.** The rg / fd
+  convention (an all-lowercase pattern folds case, any uppercase forces case-sensitive) is
+  `--case=smart`, with the short spellings `-s` / `-s+`; `-s-` / `--case=sensitive` and `-i` /
+  `--case=insensitive` are the other two modes. The rg style defaults to smart, find / xff to
+  sensitive (`ResolveCaseMode`). It deliberately did NOT become a `--smart-case` boolean: case is one
+  three-valued setting, so it stays a valued flag (the same reasoning that keeps `--feature` unbuilt).
+  It applies uniformly to `-name` / `-path` / `-regex` and the content matchers; `--exact` still
+  forces byte-exact matching, since that is the FS-encoding escape hatch and outranks the case mode.
 - **`-mime` / `-lang` vocabulary: richer per-type data + table overrides - deferred.** Matching is
   now always case-insensitive (MIME type/subtype names are case-insensitive per RFC 2045/6838;
   language names keep a canonical case for the `{mime}`/`{lang}` display), independent of
@@ -514,17 +514,35 @@ remains below is the design-forked / larger work.
     GPL arms), and link lz4's **library** (BSD-2), not its GPL-2.0 CLI. With those arms pinned there
     is no copyleft. Ship a third-party-notices file carrying each permissive notice; extend it as
     the codec set grows (minimal variant needs only BSD-2 + Zlib + bzip2).
-  - **Scope: recurse into any archive found, not roots-only (decided 2026-07-09).** `--archive` is
-    opt-in (default off = archives are plain files everywhere; `find .` unchanged). When on, an
-    archive is transparently a directory WHEREVER it appears - a named root (`xff --archive foo.tgz`)
-    AND every archive met during a walk (`xff --archive . -grep TODO` searches inside all of them).
-    One uniform rule (archive == directory), not special-cased roots (roots-only can't do the walk
-    case, which is the point). Entry path = the archive path as a directory prefix
-    (`foo.tgz/dir/file.txt`; globs / `{relpath}` compose). Nested archives recurse with a DEPTH CAP;
-    a size/depth cost guard is a follow-up knob (opt-in, so the cost is the user's choice). The
-    archive VFS is READ-ONLY: `-delete` / `-exec` / `-execdir` on an archive entry is a clean error,
-    never a silent no-op (`-exec` extract-to-temp deferred). Encrypted archives: `-encrypted`
-    detection only, no `--password` decryption.
+  - **Control surface: `--archive[=none|roots|all]` + `-z` (RATIFIED 2026-08-05; supersedes the
+    2026-07-09 "always recurse" framing).** Diving into a NAMED ARCHIVE ROOT and diving into archives
+    MET MID-WALK are two separately-wanted behaviors, so they are one ordered enum
+    (`none` subset `roots` subset `all`) rather than a single boolean:
+    - `none` = find-compat, an archive is one plain file; `roots` = dive only when a given root path
+      is itself an archive; `all` = dive archives anywhere (roots plus ones discovered mid-walk).
+    - Bare `--archive` = `all`. Short flag `-z` carries chmod-style suffix-signs, the same family as
+      the `-g` gitignore trio: `-z-` = none, `-z` = roots, `-z+` = all.
+    - **Flavor defaults:** `find` -> `none` (drop-in fidelity); every xff-family flavor (xff / xfd /
+      rg) -> `roots`, because pointing xff AT an archive strongly implies "look inside", while
+      silently descending every archive in a tree is a cost the user should opt into.
+    - Entry path = the archive path as a directory prefix (`foo.tgz/dir/file.txt`), so globs and
+      `{relpath}` compose.
+    - **Container identity is dual:** the archive keeps its real-FS identity (real `-type f`,
+      deletable / actionable) AND parents its members; this falls out of the existing VFS
+      source-tagging (container = real fs, members = archive member).
+    - **Nesting has its own cap `--archive-depth=1`** (decompression-bomb risk), independent of
+      `-maxdepth`; members still count toward `-maxdepth` normally.
+    - **Detection** = libarchive content sniff, but in `all` mode the sniff is gated by a
+      known-archive extension / magic peek so a whole tree is not sniffed byte-wise;
+      `--archive-any` forces sniff-everything (expensive, opt-in).
+    - Raw-compressed single files (`.gz` / `.xz` / `.zst` / `.bz2`) are one-member archives whose
+      member is the inner name.
+    - The archive VFS is READ-ONLY: `-delete` / `-exec` / `-execdir` on an archive member is a clean
+      error, never a silent no-op (`-exec` extract-to-temp deferred). Encrypted archives get
+      `-encrypted` detection only, no `--password` decryption.
+    - Read-only member semantics, the `container!member` representation with the `!/` Zip-Slip red
+      flag, uncompressed logical size, and the streaming / bomb limits were already specified in
+      `docs/design.md` "Virtual entries".
 
 - **Third `-regextype` grammar: shell-glob (#121, task-tracked).** Once PCRE2 proves the third-backend
   path, add `Grammar::kGlob` + a `GlobBackend` on the `xff/regex` `RegexBackend` abstraction,
@@ -644,8 +662,11 @@ remains below is the design-forked / larger work.
     `-encrypted` detection predicate (no crypto needed).
   - **What CHANGES when the real modules land:** committed `NOTICE` becomes the FULL set (regenerated
     from the full binary); a drift check runs `--config=xff_full` only; CI gains a full cell (builds/tests
-    both lean and full). **Open detail:** what `--archive` does in a full build before real diving
-    exists (avoid a silent no-op; "not yet implemented" is distinct from the minimal "not built in").
+    both lean and full). **Decided (was an open detail):** before the real diving lands, a full build
+    must NOT silently accept `--archive`. The flag parses and validates its value, then fails with a
+    distinct "archive diving is not yet implemented in this build" usage error (exit 2) - deliberately
+    different wording from the lean build's "not built in" extras error, so the two states are never
+    confused. That guard ships as the first archive slice and is replaced by real behavior later.
 
 - **PCRE2 backend (#85, `-regextype`): SHIPPED as a composable extra - decided 2026-07-06.**
   **Done:** PR3 recognized `--regextype=PCRE2` + guaranteed the "not built in" error; PR4 the
@@ -864,7 +885,13 @@ concrete need appears.
     flag to them for free; the standard library is the hard part. Check whether the hermetic LLVM
     toolchain can supply (or be made to build) an MSan-instrumented libc++ / libc++abi, or whether that
     is prohibitively heavy in CI.
-  - **If viable:** add a `--config=msan` (mirroring the asan / tsan configs) plus a Linux-only CI cell
-    (the matrix already dropped the macOS asan cell, so this fits the "Linux carries the sanitizers"
-    shape). **If not:** record here that MSan needs an instrumented libc++ we do not have, and that
-    asan + tsan + ubsan are the coverage, so the question is not re-litigated each time.
+  - **DECIDED 2026-08-09: build it, in CI.** The instrumented libc++ is not a blocker, just work:
+    `tools/build_msan_libcxx.sh` builds libc++ / libc++abi / libunwind from the LLVM source release
+    matching `bazelmod/llvm.MODULE.bazel`'s `llvm_version`, with `-DLLVM_USE_SANITIZER=MemoryWithOrigins`
+    and the hermetic clang as the compiler, into `.msan-libcxx/` (gitignored). `--config=msan` swaps it
+    in via `-nostdinc++ -isystem .../include/c++/v1` + `-nostdlib++ -L.../lib -Wl,-rpath,...`; every
+    other dep is built from source under bazel so `-fsanitize=memory` instruments it for free.
+  - **CI:** one `msan` cell (ubuntu only) mirroring `tsan`, with the instrumented libc++ cached on the
+    LLVM version + the script hash (the script stamps its prefix and reuses a matching one). It starts
+    `continue-on-error` while the first findings are triaged - the same introduction path the
+    `clang-tidy` cell took - then becomes a hard gate in `done`'s `needs`.

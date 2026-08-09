@@ -10,6 +10,9 @@
 /.cache/
 /.vscode/
 
+# MSan-instrumented libc++ built by tools/build_msan_libcxx.sh (--config=msan).
+/.msan-libcxx/
+
 /.bazelrc.user
 /.bazelrc.user.end
 /MODULE.bazel.lock
