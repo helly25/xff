@@ -291,13 +291,16 @@ remains below is the design-forked / larger work.
   heuristic). **Remaining:** surfacing it as an aggregate (sum + a distribution across matches),
   which is the `lines` metric of the histograms work (#81), not a separate item.
 - **Hash-verification workflow (#109) - matcher SHIPPED, tallies remain.** The hashing primitives
-  (#105) and now the `-verify EXPECTED` matcher are in: `-verify` computes the file's digest and is
-  true when it equals EXPECTED, a `{field}` template rendered per entry (so `-verify {def.SUMS}`
-  checks a sidecar value and `! -verify …` selects drift); `-verify=ALGO[/ENCODING]` shares the
-  `-hash` spec grammar, and hex comparison folds case. **Still to build:** `--summary` tallies of
-  verified vs failed (and `--summary=hash` grouping for dedup) - the reduction-side aggregation over
-  the matcher's result. **Deferred producer:** a sidecar-manifest reader that populates `{def.X}`
-  from a `sha256sum`-style file, so `-verify` needs no bespoke manifest parser.
+  (#105) and now the `-hasheq EXPECTED` matcher are in: `-hasheq` computes the file's digest and is
+  true when it equals EXPECTED, a `{field}` template rendered per entry (so `-hasheq {def.SUMS}`
+  checks a sidecar value and `! -hasheq …` selects drift); `-hasheq=ALGO[/ENCODING]` shares the
+  `-hash` spec grammar, and hex comparison folds case. **Dedup grouping already works** via the
+  template summary `--summary={hash}` (identical files land in one bucket). **Still to build:**
+  `--summary` tallies of verified vs failed - the reduction-side aggregation over the matcher's
+  result, which needs the verdict exposed as a group key without re-hashing; and optionally a
+  first-class `--summary=hash` named mode aliasing `--summary={hash}`. **Deferred producer:** a
+  sidecar-manifest reader that populates `{def.X}` from a `sha256sum`-style file, so `-hasheq` needs
+  no bespoke manifest parser.
 - **Smart-case matching (`--smart-case`) - [DISCUSS].** The rg / fd convention: an all-lowercase
   pattern matches case-insensitively, a pattern with any uppercase matches case-sensitively.
   Already referenced as an rg-flavor default (the `xfd`-drop and flavor-table notes below) but

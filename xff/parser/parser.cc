@@ -375,7 +375,7 @@ class ExprParser {
         return node;
       }
       // A Binding::kHash primary carries an attached =ALGO[/ENCODING] token, then its arity operands
-      // (none for -hash, the EXPECTED template for -verify). The spec is stored raw and validated
+      // (none for -hash, the EXPECTED template for -hasheq). The spec is stored raw and validated
       // before the walk (engine::ValidateHashArgs); a bare `<name>` (no '=') falls through to the
       // default (--hash-algorithm / --hash-encoding).
       if (const registry::Descriptor* const descriptor = registry::Lookup(base);
