@@ -1219,6 +1219,18 @@ TEST_F(RunTest, SummaryTopKeepsTheLargestGroupsBySize) {
       ElementsAre(R"({"group":"txt","count":2,"bytes":2})", R"({"group":"total","count":3,"bytes":3})"));
 }
 
+TEST_F(RunTest, SummaryOmitsSizeWhenNothingSizeWorthyIsAggregated) {
+  // Empty files -> the summary has no size dimension, so it reports counts only: no spurious
+  // `0 B` column in the human table and no `bytes:0` field in the jsonl rows (#156).
+  { std::ofstream(root_ / "e1.log"); }  // 0 bytes
+  { std::ofstream(root_ / "e2.log"); }
+  EXPECT_THAT(
+      RunArgvRecords({"--summary=ext", "--format=jsonl", root_.string(), "-name", "*.log"}),
+      ElementsAre(R"({"group":"log","count":2})", R"({"group":"total","count":2})"));
+  // The human (default) table is count-only: no size unit column anywhere.
+  EXPECT_THAT(RunArgvRecords({"--summary=ext", root_.string(), "-name", "*.log"}), Not(Contains(HasSubstr(" B"))));
+}
+
 TEST_F(RunTest, HistogramByExtensionCountsPerBucketSortedByCount) {
   // --histogram=ext: txt (a.txt, sub/c.txt) has 2, md (b.md) has 1; bars sort by count
   // descending, so txt leads. No total row (a histogram is just bars). The jsonl rows are
