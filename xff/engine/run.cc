@@ -2756,13 +2756,34 @@ int RunFind(
   if (!summaries.empty()) {
     const std::optional<std::size_t> summary_top = ResolveTop(command.globals);
     const unsigned precision = ResolveSummaryPrecision(command.globals);
+
+    struct Row {
+      std::string key;
+      std::uint64_t count = 0;
+      std::uint64_t size = 0;
+    };
+
+    // The human size table: label left, grouped count, then the size as a right-aligned number and a
+    // left-aligned unit (so decimal points line up). Extracted so emit_summary just dispatches.
+    const auto emit_sized_table = [&](const std::vector<Row>& rows) {
+      std::vector<format::SizeParts> sizes;
+      sizes.reserve(rows.size());
+      std::size_t number_width = 0;
+      for (const Row& row : rows) {
+        format::SizeParts parts = format::SizeColumns(row.size, *human, precision);
+        number_width = std::max(number_width, parts.number.size());
+        sizes.push_back(std::move(parts));
+      }
+      format::Table table({format::Align::kLeft, format::Align::kRight, format::Align::kLeft});
+      for (std::size_t i = 0; i < rows.size(); ++i) {
+        table.AddRow(
+            {rows[i].key, format::Int(rows[i].count, ','),
+             absl::StrCat(format::PadLeft(sizes[i].number, number_width), " ", sizes[i].suffix)});
+      }
+      emit(table.Render());
+    };
     const auto emit_summary = [&](SummaryMode mode,
                                   const std::map<std::string, std::pair<std::uint64_t, std::uint64_t>>& cells) {
-      struct Row {
-        std::string key;
-        std::uint64_t count = 0;
-        std::uint64_t size = 0;
-      };
       std::vector<Row> rows;
       std::uint64_t total_count = 0;
       std::uint64_t total_size = 0;
@@ -2771,6 +2792,10 @@ int RunFind(
         total_count += agg.first;
         total_size += agg.second;
       }
+      // Some summaries carry no size dimension (an m// extraction tallies keys, never bytes); a
+      // total of zero means there is nothing size-worthy to show, so drop the size column / field
+      // rather than print a spurious `0 B` (or a `bytes:0` jsonl field).
+      const bool has_size = total_size > 0;
       // --top=N: keep the N largest groups by size (count, then key, break ties); the total row
       // still reflects every matched group. Absent => all groups in the map's alphabetical order.
       if (summary_top.has_value() && mode != SummaryMode::kOverall) {
@@ -2792,29 +2817,22 @@ int RunFind(
       }
       if (format == render::Format::kJsonl) {
         for (const Row& row : rows) {
-          emit(
-              absl::StrCat(
-                  "{\"group\":", JsonQuote(row.key), ",\"count\":", row.count, ",\"bytes\":", row.size, "}\n"));
+          std::string obj = absl::StrCat("{\"group\":", JsonQuote(row.key), ",\"count\":", row.count);
+          if (has_size) {
+            absl::StrAppend(&obj, ",\"bytes\":", row.size);
+          }
+          absl::StrAppend(&obj, "}\n");
+          emit(obj);
         }
-      } else if (human.has_value()) {
-        // Label left, grouped count right, size as two aligned columns -- a right-aligned number
-        // (fixed fraction area, so decimal points line up) and a left-aligned unit suffix, e.g.
-        // "12.34 MiB" over "512    B". The Table carries the per-column max-width context.
-        std::vector<format::SizeParts> sizes;
-        sizes.reserve(rows.size());
-        std::size_t number_width = 0;
+      } else if (!has_size) {
+        // Count-only: a two-column label / count table (no size dimension to report).
+        format::Table table({format::Align::kLeft, format::Align::kRight});
         for (const Row& row : rows) {
-          format::SizeParts parts = format::SizeColumns(row.size, *human, precision);
-          number_width = std::max(number_width, parts.number.size());
-          sizes.push_back(std::move(parts));
-        }
-        format::Table table({format::Align::kLeft, format::Align::kRight, format::Align::kLeft});
-        for (std::size_t i = 0; i < rows.size(); ++i) {
-          table.AddRow(
-              {rows[i].key, format::Int(rows[i].count, ','),
-               absl::StrCat(format::PadLeft(sizes[i].number, number_width), " ", sizes[i].suffix)});
+          table.AddRow({row.key, format::Int(row.count, ',')});
         }
         emit(table.Render());
+      } else if (human.has_value()) {
+        emit_sized_table(rows);
       } else {
         format::Table table({format::Align::kLeft, format::Align::kRight, format::Align::kRight});
         for (const Row& row : rows) {
