@@ -325,7 +325,11 @@ jobs:
   # workflow job is wired into `needs`, so a newly added job cannot silently
   # escape the gate. Mirrors helly25/mbo.
   done:
-    needs: [test, pre-commit, trunk, tsan, minimal, xff-md, clang-tidy]
+    # Every declared job must appear here (the step below enforces exactly that). `msan` is wired in
+    # like the rest even though it is still `continue-on-error`: this gate only checks that the job
+    # is WIRED, never its result, and a continue-on-error job cannot fail the run - so listing it
+    # keeps the completeness invariant intact without letting a red msan block a merge.
+    needs: [test, pre-commit, trunk, tsan, msan, minimal, xff-md, clang-tidy]
     if: always()
     runs-on: ubuntu-latest
     steps:
