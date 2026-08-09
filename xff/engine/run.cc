@@ -64,6 +64,8 @@
 #include "xff/registry/descriptor.h"
 #include "xff/render/render.h"
 #include "xff/repo/repo.h"
+#include "xff/shard/group.h"
+#include "xff/shard/shard.h"
 #include "xff/values/values.h"
 #include "xff/vfs/filesystem.h"
 
@@ -1633,6 +1635,46 @@ unsigned ResolveSummaryPrecision(const std::vector<std::string>& globals) {
 // A JSON string literal for `text` (quotes included): escapes the JSON-significant
 // characters and any control byte as \uXXXX. Used for the --summary=jsonl group key
 // (type/extension names, which are normally plain but may carry odd bytes).
+// --shards[=auto|SCHEME,...]: enable sharded-file collapsing and (optionally) restrict the schemes.
+// Off unless a --shards appears; bare --shards / =auto recognizes every scheme (empty `schemes`);
+// a comma list selects a subset. Last occurrence wins. An unknown scheme name is a usage error.
+struct ShardsConfig {
+  bool enabled = false;
+  std::vector<shard::Scheme> schemes;  // empty = all schemes (auto)
+};
+
+absl::StatusOr<ShardsConfig> ResolveShards(const std::vector<std::string>& globals) {
+  ShardsConfig cfg;
+  for (const std::string& global : globals) {
+    constexpr std::string_view kPrefix = "--shards";
+    if (global != kPrefix && !global.starts_with("--shards=")) {
+      continue;
+    }
+    cfg.enabled = true;
+    cfg.schemes.clear();  // last --shards wins, and re-selects the scheme set
+    if (global == kPrefix) {
+      continue;  // bare --shards == auto (all schemes)
+    }
+    const std::string_view value = std::string_view(global).substr(std::string_view("--shards=").size());
+    if (value == "auto") {
+      continue;
+    }
+    for (const std::string_view name : absl::StrSplit(value, ',')) {
+      if (name == "of") {
+        cfg.schemes.push_back(shard::Scheme::kOf);
+      } else if (name == "dotnum") {
+        cfg.schemes.push_back(shard::Scheme::kDotNum);
+      } else if (name == "underscore") {
+        cfg.schemes.push_back(shard::Scheme::kUnderscore);
+      } else {
+        return absl::InvalidArgumentError(
+            absl::StrCat("unknown --shards scheme '", name, "' (want auto, of, dotnum, or underscore)"));
+      }
+    }
+  }
+  return cfg;
+}
+
 std::string JsonQuote(std::string_view text) {
   std::string out = "\"";
   for (const char ch : text) {
@@ -1986,7 +2028,36 @@ int RunFind(
   }
   const std::vector<HistogramSpec> histograms = *std::move(histograms_or);
   std::vector<std::map<std::string, HistCell>> histogram_cells(histograms.size());  // one per spec
-  const bool any_reduction = !summaries.empty() || !histograms.empty();
+  // --shards: collapse each sharded-file set to one line. Like --summary it defers the listing
+  // (buffered per directory, grouped after the walk), so it joins `any_reduction`.
+  absl::StatusOr<ShardsConfig> shards_or = ResolveShards(command.globals);
+  if (!shards_or.ok()) {
+    on_error("--shards", shards_or.status());
+    return 2;
+  }
+  const ShardsConfig shards = *std::move(shards_or);
+  // Matcher over all built-in schemes (scheme restriction is applied per set below); Make() with the
+  // default tail cannot fail, but propagate a bad-status defensively rather than crash on `.value()`.
+  std::optional<shard::Matcher> shard_matcher;
+  if (shards.enabled) {
+    absl::StatusOr<shard::Matcher> matcher_or = shard::Matcher::Make();
+    if (!matcher_or.ok()) {
+      on_error("--shards", matcher_or.status());
+      return 2;
+    }
+    shard_matcher = *std::move(matcher_or);
+  }
+
+  // A matched file buffered for shard grouping: basename + metadata, bucketed by directory (grouping
+  // is per-directory). `name` owns the basename so a ShardFile view into it stays valid post-walk.
+  struct ShardBufFile {
+    std::string name;
+    std::uint64_t size = 0;
+    std::uint32_t mode = 0;
+  };
+
+  std::map<std::string, std::vector<ShardBufFile>> shard_buckets;  // dir -> its matched files
+  const bool any_reduction = !summaries.empty() || !histograms.empty() || shards.enabled;
   int errors = 0;
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
@@ -2236,6 +2307,16 @@ int RunFind(
           *any_match = true;  // grep-style "found anything" -- the expression's truth, not output
         }
         if (matched && any_reduction) {
+          // --shards buffers each match by its directory (grouping is per-directory); the sets are
+          // formed and emitted after the walk. The basename is stored so a ShardFile view stays valid.
+          if (shards.enabled) {
+            const std::string_view path = visit.path;
+            const std::string_view::size_type slash = path.rfind('/');
+            const std::string_view dir = slash == std::string_view::npos ? std::string_view() : path.substr(0, slash);
+            const std::string_view base = slash == std::string_view::npos ? path : path.substr(slash + 1);
+            shard_buckets[std::string(dir)].push_back(
+                {.name = std::string(base), .size = visit.metadata.size, .mode = visit.metadata.mode});
+          }
           // --summary / --histogram reduce matches instead of printing them; explicit
           // actions (-print/-exec) still ran via Evaluate.
           // Accumulate this entry into each --summary sink. The field-template render context is
@@ -2576,6 +2657,36 @@ int RunFind(
     }
   }
 
+  // --shards: collapse each directory's matched files into logical shard sets (one line per set) and
+  // list the non-shard matches unchanged. A file whose scheme is not selected is treated as non-shard.
+  // v1 shows each set's first shard as its representative line; the --shards-show policy (slice D)
+  // adds the wildcard / count forms and completeness annotation.
+  if (!shards.enabled) {
+    return errors;
+  }
+  const auto scheme_allowed = [&](shard::Scheme scheme) {
+    return shards.schemes.empty() || absl::c_linear_search(shards.schemes, scheme);
+  };
+  for (const auto& [dir, files] : shard_buckets) {
+    const std::string prefix = dir.empty() ? std::string() : absl::StrCat(dir, "/");
+    std::vector<shard::ShardFile> shard_files;  // allowed-scheme shards -> grouped into sets
+    std::vector<std::string_view> passthrough;  // non-shards (or unselected schemes) -> listed as-is
+    for (const ShardBufFile& file : files) {
+      const std::optional<shard::Match> match = shard_matcher->Decode(file.name);
+      if (match.has_value() && scheme_allowed(match->scheme)) {
+        shard_files.push_back({.name = file.name, .size = file.size, .mode = file.mode});
+      } else {
+        passthrough.push_back(file.name);
+      }
+    }
+    for (const shard::ShardSet& set : shard::GroupShards(shard_files, *shard_matcher)) {
+      emit(absl::StrCat(prefix, set.members.front().path, "\n"));  // representative = lowest-index shard
+    }
+    absl::c_sort(passthrough);
+    for (const std::string_view name : passthrough) {
+      emit(absl::StrCat(prefix, name, "\n"));
+    }
+  }
   return errors;
 }
 

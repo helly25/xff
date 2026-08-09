@@ -71,6 +71,12 @@ constexpr std::array kSummaryValues = std::to_array<ValueDoc>({
     {.value = "group", .meaning = "by owning group"},
     {.value = "{template}", .meaning = "by any field value, e.g. `--summary='{ext}-{type}'`"},
 });
+constexpr std::array kShardsValues = std::to_array<ValueDoc>({
+    {.value = "auto", .meaning = "recognize every built-in scheme (the default when bare `--shards`)"},
+    {.value = "of", .meaning = "only `<stem>-<index>-of-<total>` (TFRecord-style)"},
+    {.value = "dotnum", .meaning = "only `<stem>.<NNN>` (7-Zip-style volumes)"},
+    {.value = "underscore", .meaning = "only `<stem>_<NNN>`"},
+});
 constexpr std::array kPagerValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "page only when stdout is a terminal (the default)"},
     {.value = "always", .meaning = "always page, even through a pipe"},
@@ -504,6 +510,20 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "listing. Bars scale to the tallest, use Unicode block characters on a UTF-8 locale (see "
                    "--unicode) or ASCII '#' otherwise; --top=N keeps the N tallest and --format=jsonl emits one "
                    "object per bar for scripts.",
+        .topic = "stats",
+    },
+    {
+        .name = "--shards",
+        .display = "--shards[=auto|SCHEME,...]",
+        .group = "output",
+        .header = "Output",
+        .summary = "collapse each set of sharded files (e.g. data-00000-of-00010) to one line",
+        .details = "Recognizes sharded-file naming conventions and collapses each logical set to a single line "
+                   "instead of listing every shard. Bare --shards (or =auto) enables all built-in schemes: "
+                   "`<stem>-<index>-of-<total>` (of), `<stem>.<NNN>` (dotnum), and `<stem>_<NNN>` (underscore). "
+                   "Restrict to specific schemes with a comma list, e.g. --shards=of,dotnum. Grouping is "
+                   "per-directory; files that match no scheme are listed unchanged. Off by default.",
+        .values = kShardsValues,
         .topic = "stats",
     },
     {
