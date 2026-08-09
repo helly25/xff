@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# The archive build extra (--archive / -z, #83) as a standalone Bazel module. Like the PCRE2
+# extra it depends only on the shared @xff_extras_api seams and its own external dep
+# (@libarchive) - never back into the xff core - so it is fully self-contained and the root can
+# drop it by removing one bazel_dep + local_path_override pair (or this directory).
+#
+# libarchive is a first-class BCR module (no vendoring, no rules_foreign_cc) and covers
+# tar/zip/cpio/ar/iso plus the gz/bz2/xz/zstd/lz4 filters behind one streaming reader API.
+#
+# LICENSES: libarchive itself is BSD-2-Clause. Its codec closure adds Zlib (zlib),
+# bzip2-1.0.6, 0BSD (xz/liblzma), BSD-2-Clause (lz4) and BSD-3-Clause (zstd, whose dual
+# license we take on the BSD arm, never the GPL one). All permissive, no copyleft. mbedtls is
+# deliberately left OFF (use_mbedtls), so no Apache-2.0/GPL crypto arm is pulled in either.
+# Every notice ships through the license-notice registry in @xff_extras_api.
+module(
+    name = "xff_archive",
+    version = "0.0.0",
+)
+
+bazel_dep(name = "rules_cc", version = "0.2.21")
+bazel_dep(name = "abseil-cpp", version = "20250814.2")
+bazel_dep(name = "libarchive", version = "3.8.1.bcr.2")
+bazel_dep(name = "xff_extras_api", version = "0.0.0")
+
+# Test-only. helly25_mbo resolves via the root module's override (overrides are root-global).
+bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
+bazel_dep(name = "helly25_mbo", version = "0.13.0")
