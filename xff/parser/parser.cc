@@ -374,14 +374,23 @@ class ExprParser {
         }
         return node;
       }
-      // A Binding::kHash primary (-hash) carries an attached =ALGO[/ENCODING] token and takes no
-      // operand. The spec is stored raw and validated before the walk (engine::ValidateHashArgs);
-      // a bare -hash (no '=') falls through to the default (--hash-algorithm / --hash-encoding).
+      // A Binding::kHash primary carries an attached =ALGO[/ENCODING] token, then its arity operands
+      // (none for -hash, the EXPECTED template for -verify). The spec is stored raw and validated
+      // before the walk (engine::ValidateHashArgs); a bare `<name>` (no '=') falls through to the
+      // default (--hash-algorithm / --hash-encoding).
       if (const registry::Descriptor* const descriptor = registry::Lookup(base);
           descriptor != nullptr && descriptor->binding == registry::Binding::kHash) {
         const std::string spec = token.substr(eq + 1);
         ++pos_;  // consume the `<name>=SPEC` token
-        ExprPtr node = MakePredicate(descriptor, {}, grammar_);
+        std::vector<std::string> args;
+        for (int i = 0; i < descriptor->arity; ++i) {
+          if (AtEnd()) {
+            Fail(absl::StrCat("predicate '", base, "' is missing an argument"));
+            return nullptr;
+          }
+          args.push_back(tokens_[pos_++]);
+        }
+        ExprPtr node = MakePredicate(descriptor, std::move(args), grammar_);
         if (node != nullptr) {
           node->hash_spec = spec;
         }

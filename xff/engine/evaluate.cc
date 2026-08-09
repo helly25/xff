@@ -1291,6 +1291,52 @@ bool EvalHash(const parser::Expr& expr, EvalContext& ctx) {
   return true;
 }
 
+// xff -verify EXPECTED: TRUE when the entry's digest equals EXPECTED, the manifest-verification
+// companion of -hash. EXPECTED is a field template rendered per entry (so `-verify {def.SUMS}`
+// checks against a sidecar value, and `! -verify {def.SUMS}` lists drift). The algorithm / encoding
+// come from `-verify=ALGO[/ENCODING]` (or the --hash-algorithm / --hash-encoding defaults), exactly
+// like -hash; the hex comparison is case-insensitive since sha256sum and SRI differ only in case.
+// An empty EXPECTED, an unreadable file, or a bad spec is FALSE (no match), so drift-selection is
+// safe. Cost::kExpensive (reads the whole file).
+bool EvalVerify(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.args.empty()) {
+    return false;
+  }
+  const std::string link = LinkTarget(ctx);  // owns the {target} text for the render below
+  const std::string expected = fields::Template::Compile(expr.args.front())
+                                   .Render(
+                                       fields::RenderContext{
+                                           .path = ctx.visit.path,
+                                           .root = ctx.visit.root,
+                                           .link_target = link,
+                                           .metadata = ctx.visit.metadata,
+                                           .depth = ctx.visit.depth,
+                                           .tz = ctx.tz,
+                                           .time_format = ctx.time_format,
+                                           .zone_suffix = ctx.zone_suffix,
+                                           .hash_algorithm = ctx.hash_algorithm,
+                                           .hash_encoding = ctx.hash_encoding,
+                                           .captures = ctx.captures,
+                                           .defines = ctx.defines,
+                                           .outputs = ctx.outputs});
+  if (expected.empty()) {
+    return false;  // no expected hash resolved (e.g. an unset {def.X}) -> treat as a mismatch
+  }
+  const std::string_view default_algo = ctx.hash_algorithm.empty() ? "sha256" : ctx.hash_algorithm;
+  const hash::Encoding default_encoding = hash::ParseEncoding(ctx.hash_encoding).value_or(hash::Encoding::kHex);
+  const std::optional<hash::AlgoEncoding> spec = hash::ParseSpec(expr.hash_spec, default_algo, default_encoding);
+  if (!spec.has_value()) {
+    return false;  // defensively no-op; ValidateHashArgs rejects a bad spec before the walk
+  }
+  const std::optional<std::string> digest = hash::HashFile(spec->algo, ctx.visit.path, spec->encoding);
+  if (!digest.has_value()) {
+    return false;  // unreadable / non-regular file -> mismatch (selected by `! -verify`)
+  }
+  // Hex digests fold case (sha256sum lowercases, some SRI-style tools upper-case), but base64 is
+  // case-sensitive by definition (A-Z and a-z are distinct symbols), so only hex compares loosely.
+  return spec->encoding == hash::Encoding::kHex ? absl::EqualsIgnoreCase(*digest, expected) : *digest == expected;
+}
+
 // xff -grep PATTERN: the line-output companion of -rxc. Prints each line of the
 // file's content that matches, as `path:lineno:text` (grep's piped form). The
 // pattern is pre-compiled by the parser under the run's --regextype grammar (RE2 by
@@ -2096,6 +2142,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-uid", {&EvalUid}},
     DispatchPair{"-used", {&EvalUsed}},
     DispatchPair{"-user", {&EvalUser}},
+    DispatchPair{"-verify", {&EvalVerify}},
     DispatchPair{"-wholename", {&EvalPath}},
     DispatchPair{"-writable", {&EvalWritable}},
     DispatchPair{"-xtype", {&EvalXtype}});
@@ -2244,12 +2291,14 @@ absl::Status ValidateSizeArgs(const parser::Expr& expr) {
 
 absl::Status ValidateHashArgs(const parser::Expr& expr) {
   if (expr.kind == parser::Expr::Kind::kPredicate) {
-    if (expr.descriptor != nullptr && expr.descriptor->name == "-hash" && !expr.hash_spec.empty()) {
+    // -hash and -verify share the =ALGO[/ENCODING] spec grammar (Binding::kHash), so both validate here.
+    if (expr.descriptor != nullptr && (expr.descriptor->name == "-hash" || expr.descriptor->name == "-verify")
+        && !expr.hash_spec.empty()) {
       // Only the spec's explicit parts matter here, so validate against a concrete default.
       if (!hash::ParseSpec(expr.hash_spec, "sha256", hash::Encoding::kHex).has_value()) {
         return absl::InvalidArgumentError(
             absl::StrCat(
-                "'-hash=", expr.hash_spec,
+                "'", expr.descriptor->name, "=", expr.hash_spec,
                 "': unknown algorithm or encoding (ALGO[/ENCODING]; encoding is hex or base64)"));
       }
     }
