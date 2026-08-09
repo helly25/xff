@@ -61,6 +61,15 @@ local_path_override(
     path = "extra_modules/pcre2",
 )
 
+# Archive diving (--archive / -z, #83): the libarchive-backed reader, same standalone-module shape
+# as PCRE2 above. @libarchive comes from the BCR (no vendoring); its codec closure is permissive
+# only (see extra_modules/archive/MODULE.bazel for the license set), and mbedtls stays off.
+bazel_dep(name = "xff_archive", version = "0.0.0")
+local_path_override(
+    module_name = "xff_archive",
+    path = "extra_modules/archive",
+)
+
 # helly25/mbo -- utility library and conventions reference, from the Bazel
 # Central Registry. 0.13.0 adds mbo/diff (the rich diff API behind -diff, #88) and
 # mbo/digest (the hash algorithms behind -hash, #105); it also carries the macOS
