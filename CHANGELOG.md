@@ -3,16 +3,74 @@
 
 # 0.2.0
 
-- Added `--summary=hash`: a first-class summary mode grouping matches by file digest, so
-  identical files collapse into one bucket (a dedup count). Equivalent to `--summary={hash}`, now
-  named and documented.
-- Added the `-hasheq EXPECTED` matcher: true when the file's digest equals EXPECTED, a
-  `{field}` template rendered per entry (so `-hasheq {def.SUMS}` checks a sidecar value and
-  `! -hasheq …` selects drift). `-hasheq=ALGO[/ENCODING]` shares the `-hash` spec grammar; hex
-  comparison folds case.
-- Added ASN.1 `GeneralizedTime` time-format presets: `asn1` (aka `generalizedtime`,
-  `YYYYMMDDHHMMSS` in local time, its optional zone added by `--time-zone-suffix=always`)
-  and `asn1z` (UTC with a mandatory `Z`).
+Sharded-file awareness, hash verification, and a help system that is generated end to
+end from one source of truth. The complete, always-current reference is
+[XFF.md](XFF.md).
+
+## Sharded files
+
+A sharded set (`data-000-of-003`, `data-001-of-003`, ...) is one logical file, and xff
+can now treat it that way instead of listing every shard.
+
+- `--shards[=auto|of|dotnum|underscore,...]` collapses each set to a single entry.
+  `auto` (the bare flag) recognizes every built-in scheme: `<stem>-<i>-of-<n>`,
+  7-Zip-style `<stem>.<NNN>` volumes, and `<stem>_<NNN>`.
+- `--shards-show=first|wildcard|count` picks how a collapsed set is displayed - the
+  representative shard's path, the masked name (`arc.???`), or the masked name plus the
+  shard count. Incomplete sets are annotated, so a missing shard is visible rather than
+  silently ignored.
+- `--shards-dedup=first|mtime|error` decides what happens when two files claim the same
+  index: keep the lexicographically first, keep the newest, or fail.
+- `--shard-pattern=REGEX` registers a custom scheme for layouts the built-ins miss.
+- `{shard}` renders the number of shards in the set, and the size / statistics fields
+  aggregate across the whole set, so `--summary` and `--histogram` count logical files.
+
+## Hashing and verification
+
+- `-hasheq EXPECTED` is true when the file's digest equals EXPECTED, a `{field}` template
+  rendered per entry. `-hasheq {def.SUMS}` checks a manifest value and
+  `! -hasheq {def.SUMS}` selects drift or corruption. `-hasheq=ALGO[/ENCODING]` shares the
+  `-hash` spec grammar (sha256 / hex by default); hex comparison folds case.
+- `--summary=hash` groups matches by digest, so identical files collapse into one bucket
+  and the count column reads as a duplicate report.
+
+## Time formats
+
+- `--time-zone-suffix=auto|always|never` controls whether a time preset renders its
+  trailing zone offset. Formats whose zone is part of their identity (`zulu`,
+  `zulu-dense`, `asn1z`) always keep their `Z`.
+- ASN.1 `GeneralizedTime` presets: `asn1` (also spelled `generalizedtime`) is
+  `YYYYMMDDHHMMSS` in local time with an optional offset, and `asn1z` is the UTC form
+  with a mandatory `Z`.
+
+## Help and documentation
+
+- `--help`, `--help=TOPIC`, `--man` and `--markdown` are now rendered from a single help
+  document built out of the flag and expression registries, so they cannot drift from
+  each other or from the implementation.
+- New topics `--help=environment` (every variable xff reads) and `--help=help` (how the
+  help system itself is organized), alongside the existing topic set.
+- Plain help is colorized, word-wrapped with correct indentation, and respects `--width`
+  as well as the terminal size.
+- Valued flags document their values as an aligned table instead of an unreadable inline
+  synopsis.
+- `--pager[=auto|always|never]` (with `--no-pager`) pages the long documentation surfaces
+  and never the file listing; `--man` is formatted through a roff formatter first, so it
+  reads like `man xff`.
+
+## Fixes
+
+- `--summary` no longer prints a size column when nothing size-worthy was aggregated: a
+  count-only summary now reports just the count.
+- A topic's flags are no longer listed twice in the full reference.
+
+## Internal
+
+- Sanitizer and lint coverage grew: clang-tidy runs as a hard CI gate over the whole
+  tree, and MemorySanitizer joins AddressSanitizer and ThreadSanitizer on Linux (built
+  against an instrumented libc++).
+- Environment access is centralized behind one read-once, mutex-guarded cache, and flag
+  values share a single option-value parser.
 
 # 0.1.0
 

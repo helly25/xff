@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Builds an MSan-instrumented libc++ / libc++abi / libunwind into `.msan-libcxx/`,
+# the one prerequisite `--config=msan` cannot get from the prebuilt toolchain.
+#
+# WHY: MemorySanitizer reports a false positive for every read of memory written by
+# code it did not instrument. Everything else we link is built from source under
+# bazel (abseil, re2, googletest, mbo, pcre2), so `--config=msan`'s -fsanitize=memory
+# reaches it for free - but the C++ standard library ships prebuilt inside the
+# hermetic LLVM distribution and is NOT instrumented. So we build just the runtimes
+# from the matching LLVM source release with -DLLVM_USE_SANITIZER=MemoryWithOrigins
+# and point --config=msan at the result.
+#
+# LINUX ONLY: MSan is effectively Linux/x86-64 (+aarch64) Clang; there is no macOS
+# support. This exits cleanly (skip, 0) elsewhere so it is safe in any local runner.
+#
+# The LLVM version is read from bazelmod/llvm.MODULE.bazel, so the runtimes can never
+# drift from the toolchain that compiles against them.
+#
+# Usage: tools/build_msan_libcxx.sh [PREFIX]   (default PREFIX: <workspace>/.msan-libcxx)
+# Idempotent: an existing PREFIX with the expected stamp is reused (CI caches it).
+
+set -euo pipefail
+
+die() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
+
+if [[ "$(uname -s)" != "Linux" ]]; then
+  echo "build_msan_libcxx: MSan is Linux-only; nothing to do on $(uname -s) (skipping)."
+  exit 0
+fi
+
+WORKSPACE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PREFIX="${1:-${WORKSPACE}/.msan-libcxx}"
+
+# The single source of truth for the toolchain version: the same llvm_version the
+# bazel toolchain downloads. Runtimes must match the compiler that uses them.
+LLVM_VERSION="$(sed -n 's/^ *llvm_version = "\([^"]*\)".*/\1/p' "${WORKSPACE}/bazelmod/llvm.MODULE.bazel" | head -1)"
+[[ -n "${LLVM_VERSION}" ]] || die "cannot read llvm_version from bazelmod/llvm.MODULE.bazel"
+
+# A stamp ties the built artifacts to the version AND this script, so a cached
+# PREFIX from an older recipe is rebuilt rather than silently reused.
+STAMP_EXPECTED="${LLVM_VERSION} $(sha256sum "${BASH_SOURCE[0]}" | cut -d' ' -f1)"
+STAMP_FILE="${PREFIX}/.xff-msan-stamp"
+if [[ -r "${STAMP_FILE}" ]] && [[ "$(cat "${STAMP_FILE}")" == "${STAMP_EXPECTED}" ]]; then
+  echo "build_msan_libcxx: reusing ${PREFIX} (LLVM ${LLVM_VERSION}, stamp matches)."
+  exit 0
+fi
+
+command -v cmake >/dev/null || die "cmake is required (apt-get install -y cmake)"
+command -v ninja >/dev/null || die "ninja is required (apt-get install -y ninja-build)"
+
+# The hermetic clang that bazel uses, so the runtimes are built by the very compiler
+# that will consume them. Same discovery as compile_commands-update.sh (the external
+# repo name varies with the bzlmod mangling scheme, so try each known spelling).
+OUTPUT_BASE="$(bazel info output_base 2>/dev/null || true)"
+[[ -n "${OUTPUT_BASE}" ]] || die "'bazel info output_base' failed; is bazel on PATH?"
+
+declare -a CLANG_LOCS=(
+  "${OUTPUT_BASE}/external/toolchains_llvm++llvm+llvm_toolchain_llvm_llvm/bin/clang"
+  "${OUTPUT_BASE}/external/toolchains_llvm~~llvm~llvm_toolchain_llvm_llvm/bin/clang"
+  "${OUTPUT_BASE}/external/llvm_toolchain_llvm/bin/clang"
+)
+CLANG=""
+for _attempt in 1 2; do
+  for LOC in "${CLANG_LOCS[@]}"; do
+    if [[ -x "${LOC}" ]]; then
+      CLANG="${LOC}"
+      break 2
+    fi
+  done
+  # Not fetched yet: a cheap --config=clang build materializes the toolchain.
+  echo "build_msan_libcxx: fetching the hermetic LLVM toolchain ..."
+  bazel build --config=clang --nobuild //xff/cli:xff >/dev/null 2>&1 || true
+done
+[[ -n "${CLANG}" ]] || die "cannot find the hermetic clang under ${OUTPUT_BASE}/external"
+
+WORK="$(mktemp -d)"
+trap 'rm -rf "${WORK}"' EXIT
+
+SRC_TARBALL="llvm-project-${LLVM_VERSION}.src.tar.xz"
+SRC_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/${SRC_TARBALL}"
+echo "build_msan_libcxx: downloading ${SRC_URL} ..."
+curl -fsSL --retry 3 -o "${WORK}/${SRC_TARBALL}" "${SRC_URL}" || die "download failed: ${SRC_URL}"
+
+# Extract the whole source release rather than a hand-picked subset. Picking directories looked
+# cheaper but is a losing game: the runtimes build reaches into llvm/utils for llvm-lit, and libcxx
+# includes shared headers from libc (`shared/fp_bits.h`), so each attempt just surfaced the next
+# missing directory. Extraction is a few seconds; the whole thing is thrown away afterwards and the
+# INSTALLED result is what CI caches.
+SRC_DIR="llvm-project-${LLVM_VERSION}.src"
+echo "build_msan_libcxx: extracting the source release ..."
+tar -xJf "${WORK}/${SRC_TARBALL}" -C "${WORK}"
+
+# MemoryWithOrigins (not plain Memory) so a report names where the poison came from;
+# the extra cost is fine for a CI-only cell and makes findings actionable.
+echo "build_msan_libcxx: configuring (LLVM ${LLVM_VERSION}, clang: ${CLANG}) ..."
+cmake -G Ninja \
+  -S "${WORK}/${SRC_DIR}/runtimes" \
+  -B "${WORK}/build" \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER="${CLANG}" \
+  -DCMAKE_CXX_COMPILER="${CLANG}++" \
+  -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+  -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind" \
+  -DLLVM_USE_SANITIZER=MemoryWithOrigins \
+  -DLLVM_INCLUDE_TESTS=OFF \
+  -DLIBCXX_CXX_ABI=libcxxabi \
+  -DLIBCXX_ENABLE_SHARED=ON \
+  -DLIBCXXABI_ENABLE_SHARED=ON \
+  -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
+  -DLIBCXX_INCLUDE_TESTS=OFF \
+  -DLIBCXXABI_INCLUDE_TESTS=OFF \
+  -DLIBUNWIND_INCLUDE_TESTS=OFF
+
+echo "build_msan_libcxx: building ..."
+rm -rf "${PREFIX}"
+ninja -C "${WORK}/build" cxx cxxabi unwind
+ninja -C "${WORK}/build" install-cxx install-cxxabi install-unwind
+
+[[ -r "${PREFIX}/include/c++/v1/vector" ]] || die "install produced no headers under ${PREFIX}"
+echo "${STAMP_EXPECTED}" >"${STAMP_FILE}"
+echo "build_msan_libcxx: done -> ${PREFIX} (LLVM ${LLVM_VERSION})"
