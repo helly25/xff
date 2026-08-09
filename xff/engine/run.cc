@@ -2136,13 +2136,18 @@ int RunFind(
     shard_matcher = *std::move(matcher_or);
   }
 
-  // A matched file buffered for shard grouping: basename + metadata, bucketed by directory (grouping
-  // is per-directory). `name` owns the basename so a ShardFile view into it stays valid post-walk.
+  // A matched file buffered for shard grouping, bucketed by directory (grouping is per-directory).
+  // `name` owns the basename so a ShardFile view into it stays valid post-walk; `root` / `depth` /
+  // `metadata` are the entry's, kept so a per-set reduction (--summary / --histogram in shard mode)
+  // can synthesize a Visit from the representative shard.
   struct ShardBufFile {
     std::string name;
     std::uint64_t size = 0;
     std::uint32_t mode = 0;
     std::int64_t mtime = 0;  // Unix nanos, for --shards-dedup=mtime
+    std::string root;
+    int depth = 0;
+    vfs::Metadata metadata;
   };
 
   std::map<std::string, std::vector<ShardBufFile>> shard_buckets;  // dir -> its matched files
@@ -2406,76 +2411,82 @@ int RunFind(
                 {.name = std::string(base),
                  .size = visit.metadata.size,
                  .mode = visit.metadata.mode,
-                 .mtime = absl::ToUnixNanos(visit.metadata.mtime)});
+                 .mtime = absl::ToUnixNanos(visit.metadata.mtime),
+                 .root = std::string(visit.root),
+                 .depth = visit.depth,
+                 .metadata = visit.metadata});
           }
           // --summary / --histogram reduce matches instead of printing them; explicit
-          // actions (-print/-exec) still ran via Evaluate.
-          // Accumulate this entry into each --summary sink. The field-template render context is
-          // built once and shared: an m// extraction contributes a value stream (one count per
-          // extracted line, size not attributed -- a per-line key would double-count the file's
-          // size), a plain template one key per matched entry (size meaningful). {target} in a
-          // summary key is unsupported here (link_target left empty).
-          const std::string link;
-          const fields::RenderContext key_ctx{
-              .path = visit.path,
-              .root = visit.root,
-              .link_target = link,
-              .metadata = visit.metadata,
-              .depth = visit.depth,
-              .tz = tz,
-              .time_format = time_format,
-              .zone_suffix = zone_suffix,
-              .hash_algorithm = hash_algorithm,
-              .hash_encoding = hash_encoding,
-              .defines = &defines,
-              .outputs = &outputs};
-          for (std::size_t i = 0; i < summaries.size(); ++i) {
-            std::map<std::string, std::pair<std::uint64_t, std::uint64_t>>& cells = summary_cells[i];
-            if (summaries[i].mode == SummaryMode::kTemplate) {
-              const fields::Template& tmpl = *summary_templates[i];
-              if (const std::optional<std::vector<std::string>> stream = tmpl.AsExtraction(key_ctx);
-                  stream.has_value()) {
-                for (const std::string& key : *stream) {
-                  cells[key].first += 1;
+          // actions (-print/-exec) still ran via Evaluate. In --shards mode the reductions
+          // aggregate per logical set instead (fed post-walk), so skip the per-file feed here.
+          if (!shards.enabled) {
+            // Accumulate this entry into each --summary sink. The field-template render context is
+            // built once and shared: an m// extraction contributes a value stream (one count per
+            // extracted line, size not attributed -- a per-line key would double-count the file's
+            // size), a plain template one key per matched entry (size meaningful). {target} in a
+            // summary key is unsupported here (link_target left empty).
+            const std::string link;
+            const fields::RenderContext key_ctx{
+                .path = visit.path,
+                .root = visit.root,
+                .link_target = link,
+                .metadata = visit.metadata,
+                .depth = visit.depth,
+                .tz = tz,
+                .time_format = time_format,
+                .zone_suffix = zone_suffix,
+                .hash_algorithm = hash_algorithm,
+                .hash_encoding = hash_encoding,
+                .defines = &defines,
+                .outputs = &outputs};
+            for (std::size_t i = 0; i < summaries.size(); ++i) {
+              std::map<std::string, std::pair<std::uint64_t, std::uint64_t>>& cells = summary_cells[i];
+              if (summaries[i].mode == SummaryMode::kTemplate) {
+                const fields::Template& tmpl = *summary_templates[i];
+                if (const std::optional<std::vector<std::string>> stream = tmpl.AsExtraction(key_ctx);
+                    stream.has_value()) {
+                  for (const std::string& key : *stream) {
+                    cells[key].first += 1;
+                  }
+                } else {
+                  std::pair<std::uint64_t, std::uint64_t>& agg = cells[tmpl.Render(key_ctx)];
+                  agg.first += 1;
+                  agg.second += visit.metadata.size;
                 }
               } else {
-                std::pair<std::uint64_t, std::uint64_t>& agg = cells[tmpl.Render(key_ctx)];
+                std::pair<std::uint64_t, std::uint64_t>& agg = cells[SummaryKey(summaries[i].mode, visit)];
                 agg.first += 1;
                 agg.second += visit.metadata.size;
               }
-            } else {
-              std::pair<std::uint64_t, std::uint64_t>& agg = cells[SummaryKey(summaries[i].mode, visit)];
-              agg.first += 1;
-              agg.second += visit.metadata.size;
             }
-          }
-          for (std::size_t i = 0; i < histograms.size(); ++i) {
-            const HistogramSpec& spec = histograms[i];
-            const std::optional<std::pair<std::string, std::string>> bucket = HistBucketKey(spec, visit);
-            if (!bucket.has_value()) {
-              continue;  // the bucket field is unavailable here (e.g. a lines bucket for a binary file)
-            }
-            std::optional<std::uint64_t> value = 1;  // kCount: each match contributes one
-            if (spec.agg != HistAgg::kCount) {
-              if (spec.metric == HistMetric::kSize) {
-                value = visit.metadata.size;
-              } else {  // kLines: content-derived, absent for a non-regular or binary file
-                value =
-                    visit.metadata.type == vfs::FileType::kRegular ? content::FileLineCount(visit.path) : std::nullopt;
+            for (std::size_t i = 0; i < histograms.size(); ++i) {
+              const HistogramSpec& spec = histograms[i];
+              const std::optional<std::pair<std::string, std::string>> bucket = HistBucketKey(spec, visit);
+              if (!bucket.has_value()) {
+                continue;  // the bucket field is unavailable here (e.g. a lines bucket for a binary file)
               }
+              std::optional<std::uint64_t> value = 1;  // kCount: each match contributes one
+              if (spec.agg != HistAgg::kCount) {
+                if (spec.metric == HistMetric::kSize) {
+                  value = visit.metadata.size;
+                } else {  // kLines: content-derived, absent for a non-regular or binary file
+                  value = visit.metadata.type == vfs::FileType::kRegular ? content::FileLineCount(visit.path)
+                                                                         : std::nullopt;
+                }
+              }
+              if (!value.has_value()) {
+                continue;  // no value for this metric on this entry (e.g. a binary file for lines)
+              }
+              HistCell& cell = histogram_cells[i][bucket->first];
+              if (cell.count == 0) {
+                cell.label = bucket->second;  // display text, set once when the bucket is first seen
+              }
+              cell.min = cell.count == 0 ? *value : std::min(cell.min, *value);
+              cell.max = cell.count == 0 ? *value : std::max(cell.max, *value);
+              cell.sum += *value;
+              cell.count += 1;
             }
-            if (!value.has_value()) {
-              continue;  // no value for this metric on this entry (e.g. a binary file for lines)
-            }
-            HistCell& cell = histogram_cells[i][bucket->first];
-            if (cell.count == 0) {
-              cell.label = bucket->second;  // display text, set once when the bucket is first seen
-            }
-            cell.min = cell.count == 0 ? *value : std::min(cell.min, *value);
-            cell.max = cell.count == 0 ? *value : std::max(cell.max, *value);
-            cell.sum += *value;
-            cell.count += 1;
-          }
+          }  // end if (!shards.enabled)
         } else if (matched && implicit_print) {
           if (is_tree) {
             tree->Add(visit.path);  // splice into the tree; rendered whole after the walk
@@ -2595,6 +2606,145 @@ int RunFind(
         ++errors;
         on_error(node->descriptor->name, absl::UnknownError("batched command exited non-zero"));
       }
+    }
+  }
+
+  // --shards: group each directory's matches into logical sets once (reused by the listing below).
+  // When --summary / --histogram are also active, each set feeds them as ONE aggregated unit (its
+  // size is the set total, {shard} its shard count) and each non-shard file as itself, so the
+  // reductions aggregate per logical set. The walk skipped the per-file feed in shard mode.
+  struct GroupedDir {
+    std::string prefix;
+    std::vector<shard::ShardSet> sets;
+    std::vector<std::string> passthrough;  // non-shard basenames (owned), sorted
+  };
+
+  std::vector<GroupedDir> shard_groups;
+  if (shards.enabled) {
+    const auto scheme_allowed = [&](shard::Scheme scheme) {
+      return scheme == shard::Scheme::kCustom || shards.schemes.empty()
+             || absl::c_linear_search(shards.schemes, scheme);
+    };
+    // Accumulate one logical unit into the summary / histogram sinks, mirroring the per-file feed the
+    // walk skips in shard mode. `visit` carries the unit's size (a set's total); `shard_count`
+    // populates {shard} (nullopt for a non-shard file). A kLines histogram reads the representative
+    // only (per-set line summing is a v2 concern with the reassembled view).
+    const auto feed_summaries = [&](const fields::RenderContext& key_ctx, const Visit& visit) {
+      for (std::size_t i = 0; i < summaries.size(); ++i) {
+        std::map<std::string, std::pair<std::uint64_t, std::uint64_t>>& cells = summary_cells[i];
+        if (summaries[i].mode != SummaryMode::kTemplate) {
+          std::pair<std::uint64_t, std::uint64_t>& agg = cells[SummaryKey(summaries[i].mode, visit)];
+          agg.first += 1;
+          agg.second += visit.metadata.size;
+          continue;
+        }
+        const fields::Template& tmpl = *summary_templates[i];
+        const std::optional<std::vector<std::string>> stream = tmpl.AsExtraction(key_ctx);
+        if (stream.has_value()) {
+          for (const std::string& key : *stream) {
+            cells[key].first += 1;
+          }
+        } else {
+          std::pair<std::uint64_t, std::uint64_t>& agg = cells[tmpl.Render(key_ctx)];
+          agg.first += 1;
+          agg.second += visit.metadata.size;
+        }
+      }
+    };
+    const auto feed_histograms = [&](const Visit& visit) {
+      for (std::size_t i = 0; i < histograms.size(); ++i) {
+        const HistogramSpec& spec = histograms[i];
+        const std::optional<std::pair<std::string, std::string>> bucket = HistBucketKey(spec, visit);
+        if (!bucket.has_value()) {
+          continue;
+        }
+        std::optional<std::uint64_t> value = 1;  // kCount: one unit
+        if (spec.agg != HistAgg::kCount) {
+          value = spec.metric == HistMetric::kSize ? std::optional<std::uint64_t>(visit.metadata.size)
+                  : visit.metadata.type == vfs::FileType::kRegular
+                      ? std::optional<std::uint64_t>(content::FileLineCount(visit.path))
+                      : std::nullopt;  // kLines: representative only, absent for a non-regular file
+        }
+        if (!value.has_value()) {
+          continue;
+        }
+        HistCell& cell = histogram_cells[i][bucket->first];
+        if (cell.count == 0) {
+          cell.label = bucket->second;
+        }
+        cell.min = cell.count == 0 ? *value : std::min(cell.min, *value);
+        cell.max = cell.count == 0 ? *value : std::max(cell.max, *value);
+        cell.sum += *value;
+        cell.count += 1;
+      }
+    };
+    // Feed one logical unit (a set, or a non-shard file) into both sinks; `shard_count` -> {shard}.
+    const auto feed_unit = [&](const Visit& visit, std::optional<std::int64_t> shard_count) {
+      const std::string link;
+      const fields::RenderContext key_ctx{
+          .path = visit.path,
+          .root = visit.root,
+          .link_target = link,
+          .metadata = visit.metadata,
+          .depth = visit.depth,
+          .tz = tz,
+          .time_format = time_format,
+          .zone_suffix = zone_suffix,
+          .hash_algorithm = hash_algorithm,
+          .hash_encoding = hash_encoding,
+          .defines = &defines,
+          .shard_count = shard_count};
+      feed_summaries(key_ctx, visit);
+      feed_histograms(visit);
+    };
+    const bool feed = !summaries.empty() || !histograms.empty();
+    for (const auto& [dir, files] : shard_buckets) {
+      GroupedDir group;
+      group.prefix = dir.empty() ? std::string() : absl::StrCat(dir, "/");
+      std::vector<shard::ShardFile> shard_files;
+      std::map<std::string_view, const ShardBufFile*> by_name;
+      for (const ShardBufFile& file : files) {
+        by_name.emplace(file.name, &file);
+        const std::optional<shard::Match> match = shard_matcher->Decode(file.name);
+        if (match.has_value() && scheme_allowed(match->scheme)) {
+          shard_files.push_back({.name = file.name, .size = file.size, .mode = file.mode, .mtime = file.mtime});
+        } else {
+          group.passthrough.push_back(file.name);
+        }
+      }
+      group.sets = shard::GroupShards(shard_files, *shard_matcher, shard_dedup);
+      const auto synth = [](const ShardBufFile& rec, std::string_view path, const vfs::Metadata& md) {
+        return Visit{.path = path, .name = rec.name, .root = rec.root, .depth = rec.depth, .metadata = md};
+      };
+      for (const shard::ShardSet& set : group.sets) {
+        // --shards-dedup=error: a same-index duplicate is ambiguous, so report it and fail the run.
+        if (shard_dedup == shard::Dedup::kError) {
+          for (const shard::ShardMember& member : set.members) {
+            if (!member.duplicates.empty()) {
+              std::cerr << absl::StreamFormat(
+                  "xff: --shards-dedup=error: shard set '%s%s' has duplicate copies of shard %d: %s, %s\n",
+                  group.prefix, set.wildcard, member.index, member.path, absl::StrJoin(member.duplicates, ", "));
+              ++errors;
+            }
+          }
+        }
+        if (feed) {
+          const ShardBufFile& rec = *by_name.at(set.members.front().path);
+          vfs::Metadata md = rec.metadata;
+          md.size = set.total_size;  // {size} and size-based buckets aggregate across the set
+          const std::string path = absl::StrCat(group.prefix, rec.name);
+          feed_unit(synth(rec, path, md), static_cast<std::int64_t>(set.members.size()));
+        }
+      }
+      if (feed) {
+        for (const std::string& name : group.passthrough) {
+          const ShardBufFile& rec = *by_name.at(name);
+          const std::string path = absl::StrCat(group.prefix, rec.name);
+          feed_unit(synth(rec, path, rec.metadata), std::nullopt);
+        }
+      }
+      absl::c_sort(group.passthrough);
+      shard_groups.push_back(std::move(group));
     }
   }
 
@@ -2755,42 +2905,19 @@ int RunFind(
   if (!shards.enabled) {
     return errors;
   }
-  const auto scheme_allowed = [&](shard::Scheme scheme) {
-    // A custom --shard-pattern match is opt-in by its own flag, so it is always active; the
-    // --shards=SCHEME list only restricts the built-in schemes.
-    return scheme == shard::Scheme::kCustom || shards.schemes.empty() || absl::c_linear_search(shards.schemes, scheme);
-  };
-  for (const auto& [dir, files] : shard_buckets) {
-    const std::string prefix = dir.empty() ? std::string() : absl::StrCat(dir, "/");
-    std::vector<shard::ShardFile> shard_files;  // allowed-scheme shards -> grouped into sets
-    std::vector<std::string_view> passthrough;  // non-shards (or unselected schemes) -> listed as-is
-    for (const ShardBufFile& file : files) {
-      const std::optional<shard::Match> match = shard_matcher->Decode(file.name);
-      if (match.has_value() && scheme_allowed(match->scheme)) {
-        shard_files.push_back({.name = file.name, .size = file.size, .mode = file.mode, .mtime = file.mtime});
-      } else {
-        passthrough.push_back(file.name);
-      }
+  // The one-line listing prints only when no --summary / --histogram is active; those aggregate the
+  // sets and are the terminal output (like --summary replacing the plain listing). The sets were
+  // grouped once above (shard_groups), so this just renders them per --shards-show and lists the
+  // non-shard matches unchanged.
+  if (!summaries.empty() || !histograms.empty()) {
+    return errors;
+  }
+  for (const GroupedDir& group : shard_groups) {
+    for (const shard::ShardSet& set : group.sets) {
+      emit(absl::StrCat(RenderShardSet(set, group.prefix, shard_show), "\n"));
     }
-    for (const shard::ShardSet& set : shard::GroupShards(shard_files, *shard_matcher, shard_dedup)) {
-      // --shards-dedup=error: a same-index duplicate (a member with `duplicates`) is ambiguous, so
-      // report it and fail the run. The set line still prints (the representative was chosen like
-      // `first`) so the listing is not lost; the diagnostic names the conflict.
-      if (shard_dedup == shard::Dedup::kError) {
-        for (const shard::ShardMember& member : set.members) {
-          if (!member.duplicates.empty()) {
-            std::cerr << absl::StreamFormat(
-                "xff: --shards-dedup=error: shard set '%s%s' has duplicate copies of shard %d: %s, %s\n", prefix,
-                set.wildcard, member.index, member.path, absl::StrJoin(member.duplicates, ", "));
-            ++errors;
-          }
-        }
-      }
-      emit(absl::StrCat(RenderShardSet(set, prefix, shard_show), "\n"));
-    }
-    absl::c_sort(passthrough);
-    for (const std::string_view name : passthrough) {
-      emit(absl::StrCat(prefix, name, "\n"));
+    for (const std::string& name : group.passthrough) {  // already sorted
+      emit(absl::StrCat(group.prefix, name, "\n"));
     }
   }
   return errors;

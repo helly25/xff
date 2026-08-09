@@ -1700,5 +1700,28 @@ TEST_F(RunTest, ShardPatternMissingRequiredGroupIsAUsageError) {
   EXPECT_THAT(last_errors_, 2);
 }
 
+TEST_F(RunTest, ShardsSummaryAggregatesPerLogicalSet) {
+  // Three shards of one set (sizes 4+2+1) plus one non-shard file. --summary=ext in shard mode
+  // counts the set once and sums its size (7 bytes), not three separate files.
+  { std::ofstream(root_ / "data-000-of-003.tfrecord") << "aaaa"; }
+  { std::ofstream(root_ / "data-001-of-003.tfrecord") << "bb"; }
+  { std::ofstream(root_ / "data-002-of-003.tfrecord") << "c"; }
+  const std::vector<std::string> rows =
+      RunArgvRecords({root_.string(), "-name", "*.tfrecord", "--shards", "--summary=ext"});
+  // The tfrecord row aggregates the set into one unit of 7 bytes.
+  EXPECT_THAT(rows, Contains(AllOf(HasSubstr("tfrecord"), HasSubstr("7"))));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardsSummaryByShardCountGroupsSets) {
+  { std::ofstream(root_ / "data-000-of-002.bin") << ""; }
+  { std::ofstream(root_ / "data-001-of-002.bin") << ""; }
+  // --summary={shard} groups by each set's shard count; the 2-shard set lands in a "2" bucket.
+  const std::vector<std::string> rows =
+      RunArgvRecords({root_.string(), "-name", "*.bin", "--shards", "--summary={shard}"});
+  EXPECT_THAT(rows, Contains(HasSubstr("2")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
 }  // namespace
 }  // namespace xff::engine

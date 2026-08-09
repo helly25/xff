@@ -295,6 +295,13 @@ std::string LinesField(std::string_view, std::string_view, const RenderContext& 
   return lines.has_value() ? std::to_string(*lines) : "";
 }
 
+// {shard}: the number of shards in a collapsed --shards set; empty outside shard mode (so it
+// no-ops in a normal -printf / --template, like {line}). Size-like fields aggregate across the
+// set separately (the context's metadata.size is the set total).
+std::string ShardField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return ctx.shard_count.has_value() ? std::to_string(*ctx.shard_count) : "";
+}
+
 // {lang} / {language}: the entry's programming/markup language (github-linguist name, e.g. "C++",
 // "Python"), from its filename/extension via the language table; empty when unrecognized. Content
 // is not read, so it is cheap; composes with --summary group-by to tally files per language.
@@ -423,6 +430,7 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"perm", &ModeField},
     FieldEntry{"relpath", &RelpathField},
     FieldEntry{"root", &RootField},
+    FieldEntry{"shard", &ShardField},
     FieldEntry{"size", &SizeField},
     FieldEntry{"stem", &StemField},
     FieldEntry{"suffix", &SuffixField},
@@ -1086,6 +1094,14 @@ std::vector<FieldDoc> FieldDocs() {
        .group = "content",
        .header = "Content",
        .summary = "text line count (empty for a binary/unreadable file); reads the file"},
+      {
+          .name = "shard",
+          .aliases = {},
+          .group = "content",
+          .header = "Content",
+          .summary = "with --shards, the number of shards in the set (empty otherwise); size-like fields "
+                     "then aggregate across the set",
+      },
       // Owner & mode.
       {.name = "user",
        .aliases = {"owner"},
