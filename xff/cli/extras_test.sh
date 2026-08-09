@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 # End-to-end test of the composable-extras UX in a lean (default) build: a flag whose build extra
-# is not compiled in (--archive, needing --//xff:archive) stays present and listed, is grouped under
+# is not compiled in (--archive, needing --//xff:xff_archive) stays present and listed, is grouped under
 # a distinct "Extras" heading in --help with a note on what to rebuild with, is documented as NOT
 # built in by --help=NAME, and is a hard immediate error (exit 2) when actually used - never a silent
 # no-op. Drives the real (lean) binary.
@@ -38,7 +38,7 @@ test::disabled_extra_flag_is_a_hard_error_when_used() {
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --archive . 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
   expect_output_contains "no archive support" "${out}"
-  expect_output_contains "--//xff:archive" "${out}" # names what to rebuild with
+  expect_output_contains "--//xff:xff_archive" "${out}" # names what to rebuild with
 }
 
 test::disabled_extra_flag_is_listed_with_a_not_built_note() {
@@ -48,7 +48,7 @@ test::disabled_extra_flag_is_listed_with_a_not_built_note() {
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --help 2>&1)"
   expect_matches "\-\-archive" "${out}" # listed, not hidden
   expect_output_contains "NOT built into this binary" "${out}"
-  expect_output_contains "--//xff:archive" "${out}" # names what to rebuild with
+  expect_output_contains "--//xff:xff_archive" "${out}" # names what to rebuild with
 }
 
 test::disabled_extra_help_topic_marks_it_not_built_in() {
@@ -71,7 +71,7 @@ test::help_extras_lists_every_build_extra_and_availability() {
   expect_matches "pcre2.*not built in" "${out}"
   expect_output_contains "--//xff:xff_pcre" "${out}"
   expect_matches "archive.*not built in" "${out}"
-  expect_output_contains "--//xff:archive" "${out}"
+  expect_output_contains "--//xff:xff_archive" "${out}"
 }
 
 test_runner
