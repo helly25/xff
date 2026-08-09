@@ -226,8 +226,8 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "--archive means all, and the short form carries chmod-style suffix signs (-z- none, -z roots, "
                    "-z+ all). The find style defaults to none, every xff-family style to roots. Members are "
                    "read-only, so -delete and the exec family refuse them rather than silently skipping. A "
-                   "build-time extra: the stock binary is lean and omits it (rebuild with --//xff:archive); asking "
-                   "for archive handling without it is a hard error.",
+                   "build-time extra: the stock binary is lean and omits it (rebuild with --//xff:xff_archive); "
+                   "asking for archive handling without it is a hard error.",
         .values = kArchiveValues,
         .extra = "archive",
     },

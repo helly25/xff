@@ -145,7 +145,8 @@ Content FlagEntry(const GlobalFlag& flag, bool with_details = true) {
   if (!flag.extra.empty() && !ExtraEnabled(flag.extra)) {
     details.push_back(ProseOf(
         absl::StrCat(
-            "NOT built into this binary: rebuild with `--//xff:", flag.extra, "` (used as-is, it is a hard error).")));
+            "NOT built into this binary: rebuild with `", ExtraBuildFlag(flag.extra),
+            "` (used as-is, it is a hard error).")));
   }
   if (with_details) {
     // The allowed-value table (for a flag whose synopsis collapsed a value grammar to a

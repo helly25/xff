@@ -462,7 +462,7 @@ bashtest(
 
 # End-to-end test of the composable-extras UX in the lean (default) build: a disabled extra flag
 # (--archive) stays listed under a distinct "Extras" heading, is documented as not built in, and is
-# a hard error when used. See xff/BUILD.bazel (the //xff:archive flag) and cli/globals ExtraEnabled.
+# a hard error when used. See xff/BUILD.bazel (the //xff:xff_archive flag) and cli/globals ExtraEnabled.
 bashtest(
     name = "extras_test",
     size = "small",

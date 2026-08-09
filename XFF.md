@@ -52,14 +52,14 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-L` - follow symlinks everywhere during the walk _(global, find)_
 - `-P` - never follow symlinks (the default) _(global, find)_
 - `--archive[=none|roots|all], -z[+|-]` - descend into archives: -z- none, -z roots only, -z+ / bare --archive all _(global, xff)_
-  NOT built into this binary: rebuild with `--//xff:archive` (used as-is, it is a hard error).
+  NOT built into this binary: rebuild with `--//xff:xff_archive` (used as-is, it is a hard error).
   One of is one of:
 
   - `none` - an archive is one plain file (find behavior; the find-style default)
   - `roots` - dive only when a search root is itself an archive (the xff-family default)
   - `all` - also dive archives found during the walk (what bare `--archive` selects)
 
-  Treats each archive (tar, gz, bzip2, xz, zstd, lz4, zip, ...) as a directory, so the whole expression - including -grep on entry content - matches its entries at virtual paths like `foo.tar.gz/inner/x`. The three modes are nested: none keeps find's behavior (an archive is one plain file); roots dives only when a search root is itself an archive (pointing xff AT an archive implies looking inside); all also dives archives discovered during the walk. Bare --archive means all, and the short form carries chmod-style suffix signs (-z- none, -z roots, -z+ all). The find style defaults to none, every xff-family style to roots. Members are read-only, so -delete and the exec family refuse them rather than silently skipping. A build-time extra: the stock binary is lean and omits it (rebuild with --//xff:archive); asking for archive handling without it is a hard error.
+  Treats each archive (tar, gz, bzip2, xz, zstd, lz4, zip, ...) as a directory, so the whole expression - including -grep on entry content - matches its entries at virtual paths like `foo.tar.gz/inner/x`. The three modes are nested: none keeps find's behavior (an archive is one plain file); roots dives only when a search root is itself an archive (pointing xff AT an archive implies looking inside); all also dives archives discovered during the walk. Bare --archive means all, and the short form carries chmod-style suffix signs (-z- none, -z roots, -z+ all). The find style defaults to none, every xff-family style to roots. Members are read-only, so -delete and the exec family refuse them rather than silently skipping. A build-time extra: the stock binary is lean and omits it (rebuild with --//xff:xff_archive); asking for archive handling without it is a hard error.
 - `-j N, --jobs=N|all` - worker count for the walk and concurrent -exec (all = every core) _(global, xff)_
 - `--sort[=none|dir|subtree|tree]` - sibling/traversal ordering (default depends on the mode) _(global, xff)_
   none leaves entries in filesystem order (fastest); dir sorts each directory's entries; subtree and tree give a deterministic order across the whole walk. The default is per style: xff sorts per directory, while find and rg leave the order unspecified.
