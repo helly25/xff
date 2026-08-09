@@ -18,17 +18,20 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "absl/types/span.h"
 #include "re2/re2.h"
 
 namespace xff::shard {
@@ -92,18 +95,32 @@ std::string_view SchemeName(Scheme scheme) {
     case Scheme::kOf: return "of";
     case Scheme::kDotNum: return "dotnum";
     case Scheme::kUnderscore: return "underscore";
+    case Scheme::kCustom: return "custom";
   }
   return "unknown";
 }
 
-Matcher::Matcher(std::unique_ptr<re2::RE2> of_re, std::unique_ptr<re2::RE2> tail_re)
-    : of_re_(std::move(of_re)), tail_re_(std::move(tail_re)) {}
+// A compiled custom `--shard-pattern`: the RE2 plus the 1-based capture indices of its named
+// groups (`total_idx` / `dup_idx` are -1 when the pattern omits that optional group).
+struct Matcher::CustomPattern {
+  std::unique_ptr<re2::RE2> re;
+  int stem_idx = 0;
+  int index_idx = 0;
+  int total_idx = -1;
+  int dup_idx = -1;
+};
+
+Matcher::Matcher(
+    std::unique_ptr<re2::RE2> of_re,
+    std::unique_ptr<re2::RE2> tail_re,
+    std::vector<std::unique_ptr<CustomPattern>> custom)
+    : of_re_(std::move(of_re)), tail_re_(std::move(tail_re)), custom_(std::move(custom)) {}
 
 Matcher::Matcher(Matcher&&) noexcept = default;
 Matcher& Matcher::operator=(Matcher&&) noexcept = default;
 Matcher::~Matcher() = default;
 
-absl::StatusOr<Matcher> Matcher::Make(const TailSpec& tail) {
+absl::StatusOr<Matcher> Matcher::Make(const TailSpec& tail, absl::Span<const std::string> custom_patterns) {
   auto of_re = std::make_unique<RE2>(kOfPattern);
   if (!of_re->ok()) {
     return absl::InternalError(absl::StrCat("shard 'of' pattern failed to compile: ", of_re->error()));
@@ -121,7 +138,35 @@ absl::StatusOr<Matcher> Matcher::Make(const TailSpec& tail) {
               tail_re->NumberOfCapturingGroups()));
     }
   }
-  return Matcher(std::move(of_re), std::move(tail_re));
+  std::vector<std::unique_ptr<CustomPattern>> custom;
+  for (const std::string& pattern : custom_patterns) {
+    auto re = std::make_unique<RE2>(pattern);
+    if (!re->ok()) {
+      return absl::InvalidArgumentError(absl::StrCat("invalid --shard-pattern regex '", pattern, "': ", re->error()));
+    }
+    // Named groups are the contract (RE2 uses `(?P<name>...)`); `stem` and `index` are required.
+    const std::map<std::string, int>& groups = re->NamedCapturingGroups();
+    const auto find = [&groups](std::string_view name) {
+      const auto it = groups.find(std::string(name));
+      return it == groups.end() ? -1 : it->second;
+    };
+    const int stem_idx = find("stem");
+    const int index_idx = find("index");
+    if (stem_idx < 0 || index_idx < 0) {
+      return absl::InvalidArgumentError(
+          absl::StrCat(
+              "--shard-pattern '", pattern, "' must define the named groups (?P<stem>...) and (?P<index>...)"));
+    }
+    custom.push_back(
+        std::make_unique<CustomPattern>(CustomPattern{
+            .re = std::move(re),
+            .stem_idx = stem_idx,
+            .index_idx = index_idx,
+            .total_idx = find("total"),
+            .dup_idx = find("dup"),
+        }));
+  }
+  return Matcher(std::move(of_re), std::move(tail_re), std::move(custom));
 }
 
 void Matcher::ApplyTail(std::string_view rest, Match& out) const {
@@ -138,7 +183,46 @@ void Matcher::ApplyTail(std::string_view rest, Match& out) const {
   out.ext = std::string(rest);
 }
 
+std::optional<Match> Matcher::DecodeCustom(std::string_view filename) const {
+  for (const std::unique_ptr<CustomPattern>& pat : custom_) {
+    const auto ngroups = static_cast<std::size_t>(pat->re->NumberOfCapturingGroups());
+    std::vector<std::string_view> subs(ngroups + 1);
+    if (!pat->re->Match(filename, 0, filename.size(), RE2::ANCHOR_BOTH, subs.data(), static_cast<int>(subs.size()))) {
+      continue;
+    }
+    const std::string_view index_sv = subs[static_cast<std::size_t>(pat->index_idx)];
+    if (index_sv.data() == nullptr) {
+      continue;  // the required `index` group did not participate in this match
+    }
+    Match match{
+        .scheme = Scheme::kCustom,
+        .stem = std::string(subs[static_cast<std::size_t>(pat->stem_idx)]),
+        .index = ToInt(index_sv),
+        .width = static_cast<int>(index_sv.size()),
+    };
+    if (pat->total_idx >= 0) {
+      if (const std::string_view total_sv = subs[static_cast<std::size_t>(pat->total_idx)]; !total_sv.empty()) {
+        match.total = ToInt(total_sv);
+      }
+    }
+    if (pat->dup_idx >= 0) {
+      match.tail = std::string(subs[static_cast<std::size_t>(pat->dup_idx)]);  // dup excluded from identity
+    }
+    // Wildcard: mask the index group's span with `?` * width, in place. The group is a view into
+    // `filename`, so its byte offset is known; everything else (including any dup) is kept verbatim.
+    const auto off = static_cast<std::size_t>(index_sv.data() - filename.data());
+    match.wildcard =
+        absl::StrCat(filename.substr(0, off), std::string(match.width, '?'), filename.substr(off + index_sv.size()));
+    return match;
+  }
+  return std::nullopt;
+}
+
 std::optional<Match> Matcher::Decode(std::string_view filename) const {
+  // A user --shard-pattern wins over the built-ins (explicit intent), tried in order.
+  if (std::optional<Match> custom = DecodeCustom(filename); custom.has_value()) {
+    return custom;
+  }
   // kOf: the self-describing `-of-` scheme, tried first (most specific).
   std::array<std::string_view, 5> subs;
   if (of_re_->Match(filename, 0, filename.size(), RE2::ANCHOR_BOTH, subs.data(), subs.size())) {

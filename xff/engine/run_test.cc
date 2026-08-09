@@ -1681,5 +1681,24 @@ TEST_F(RunTest, ShardsDedupUnknownValueIsAUsageError) {
   EXPECT_THAT(last_errors_, 2);
 }
 
+TEST_F(RunTest, ShardPatternCustomSchemeCollapsesASet) {
+  // A naming the built-ins do not recognize (`img_NNN_vX.raw`); a custom pattern groups it,
+  // with the version treated as the dup (excluded from identity).
+  { std::ofstream(root_ / "img_001_v3.raw") << ""; }
+  { std::ofstream(root_ / "img_002_v3.raw") << ""; }
+  { std::ofstream(root_ / "img_003_v3.raw") << ""; }
+  EXPECT_THAT(
+      RunArgvRecords(
+          {root_.string(), "-type", "f", "--shards",
+           R"(--shard-pattern=(?P<stem>.*)_(?P<index>\d+)_v(?P<dup>\d+)\.raw)"}),
+      UnorderedElementsAre(Path("img_001_v3.raw"), Path("a.txt"), Path("b.md"), Path("sub/c.txt")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardPatternMissingRequiredGroupIsAUsageError) {
+  EXPECT_THAT(RunArgvRecords({root_.string(), "--shards", R"(--shard-pattern=(?P<stem>.*)_(\d+))"}), IsEmpty());
+  EXPECT_THAT(last_errors_, 2);
+}
+
 }  // namespace
 }  // namespace xff::engine
