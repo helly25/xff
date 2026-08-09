@@ -3,10 +3,10 @@
 
 # 0.2.0
 
-- Added `--summary=hash` (#109): a first-class summary mode grouping matches by file digest, so
+- Added `--summary=hash`: a first-class summary mode grouping matches by file digest, so
   identical files collapse into one bucket (a dedup count). Equivalent to `--summary={hash}`, now
   named and documented.
-- Added the `-hasheq EXPECTED` matcher (#109): true when the file's digest equals EXPECTED, a
+- Added the `-hasheq EXPECTED` matcher: true when the file's digest equals EXPECTED, a
   `{field}` template rendered per entry (so `-hasheq {def.SUMS}` checks a sidecar value and
   `! -hasheq …` selects drift). `-hasheq=ALGO[/ENCODING]` shares the `-hash` spec grammar; hex
   comparison folds case.
