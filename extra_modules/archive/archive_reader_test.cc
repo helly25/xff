@@ -19,11 +19,14 @@
 #include <archive_entry.h>
 
 #include <cstddef>
+#include <cstdio>
+#include <fstream>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
@@ -102,6 +105,30 @@ TEST_F(ArchiveReaderTest, ReportsMemberMetadata) {
   EXPECT_THAT(members->front().mode, 0644);
   EXPECT_THAT(members->front().is_directory, ::testing::IsFalse());
   EXPECT_THAT(members->front().is_symlink, ::testing::IsFalse());
+}
+
+TEST_F(ArchiveReaderTest, ListsMembersOfAnArchiveOnDisk) {
+  // The streaming path is the one the walk will use (an archive is a file on disk, not bytes we
+  // already hold), so it needs its own coverage: the memory path passing proves nothing about the
+  // filename open.
+  const std::string tar = MakeArchive({{.path = "on/disk.txt", .content = "content"}});
+  const std::string path = absl::StrCat(::testing::TempDir(), "/xff_archive_reader_test.tar");
+  {
+    std::ofstream out(path, std::ios::binary);
+    out.write(tar.data(), static_cast<std::streamsize>(tar.size()));
+  }
+  EXPECT_THAT(
+      ListMembersOfFile(path),
+      IsOkAndHolds(ElementsAre(AllOf(Field("path", &Member::path, "on/disk.txt"), Field("size", &Member::size, 7)))));
+  std::remove(path.c_str());
+}
+
+TEST_F(ArchiveReaderTest, AMissingFileIsNotAnArchive) {
+  // A path that cannot be opened must report the same "not an archive" status as unreadable data,
+  // so the walk keeps treating it as an ordinary (unreadable) file rather than a corrupt archive.
+  EXPECT_THAT(
+      ListMembersOfFile(absl::StrCat(::testing::TempDir(), "/xff_archive_no_such_file.tar")),
+      StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST_F(ArchiveReaderTest, PlainDataIsNotAnArchive) {
