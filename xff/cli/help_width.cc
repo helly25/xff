@@ -19,7 +19,6 @@
 #include <unistd.h>     // isatty, STDOUT_FILENO
 
 #include <cstddef>
-#include <cstdlib>  // getenv
 #include <optional>
 #include <string>
 #include <string_view>
@@ -29,6 +28,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "xff/env/env.h"
 
 namespace xff::cli {
 
@@ -61,14 +61,10 @@ absl::StatusOr<std::size_t> ResolveHelpWidth(std::optional<std::string_view> fla
 
 std::size_t DetectTerminalWidth() {
   // $COLUMNS wins when set to a positive integer - the conventional override,
-  // honored even off a tty so a caller can force a width. std::getenv is the C
-  // environment API; keep the raw value at this one boundary only.
-  // Thread-safe here: xff never mutates the environment (no setenv/putenv), so concurrent getenv
-  // reads cannot race, and the value is consumed immediately below.
-  // NOLINTNEXTLINE(concurrency-mt-unsafe)
-  if (const char* const columns = std::getenv("COLUMNS"); columns != nullptr) {
+  // honored even off a tty so a caller can force a width. Read through the env cache.
+  if (const std::optional<std::string> columns = env::Get("COLUMNS")) {
     std::size_t cols = 0;
-    if (absl::SimpleAtoi(columns, &cols) && cols > 0) {
+    if (absl::SimpleAtoi(*columns, &cols) && cols > 0) {
       return cols;
     }
   }

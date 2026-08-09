@@ -15,22 +15,16 @@
 
 #include "xff/cli/pager.h"
 
-#include <cstdlib>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "xff/env/env.h"
 
 namespace xff::cli {
 namespace {
-
-// This file's fixture deliberately mutates the process environment (setenv/unsetenv/getenv) to
-// exercise pager resolution, saving and restoring each variable around a single-threaded test - so
-// the env calls are safe here. It is a gtest struct fixture, so SetUp/TearDown override the base's
-// protected members from a public scope and the saved-state members carry the private-style `_`
-// suffix. All three are test-fixture idioms, suppressed file-wide rather than per line.
-// NOLINTBEGIN(concurrency-mt-unsafe,misc-override-with-different-visibility,readability-identifier-naming)
 
 using ::testing::Eq;
 using ::testing::HasSubstr;
@@ -60,46 +54,18 @@ TEST_F(PagerWhenTest, LastOccurrenceWins) {
   EXPECT_THAT(ResolvePagerWhen({"--no-pager", "--pager"}), Eq(PagerWhen::kAlways));
 }
 
-// Mutates XFF_PAGER / PAGER in the environment; restores them on teardown so the cases
-// do not leak into one another.
+// Pager resolution reads XFF_PAGER / PAGER / XFF_MANPAGER through the xff/env cache; inject them
+// via its test seam. Start each case from a clean, fully-unset cache so real environment values
+// and prior cases do not leak in.
 struct PagerCommandTest : ::testing::Test {
   void SetUp() override {
-    Save("XFF_PAGER", saved_xff_, has_xff_);
-    Save("PAGER", saved_pager_, has_pager_);
-    Save("XFF_MANPAGER", saved_manpager_, has_manpager_);
-    ::unsetenv("XFF_PAGER");
-    ::unsetenv("PAGER");
-    ::unsetenv("XFF_MANPAGER");
+    env::ClearForTesting();
+    env::SetForTesting("XFF_PAGER", std::nullopt);
+    env::SetForTesting("PAGER", std::nullopt);
+    env::SetForTesting("XFF_MANPAGER", std::nullopt);
   }
 
-  void TearDown() override {
-    Restore("XFF_PAGER", saved_xff_, has_xff_);
-    Restore("PAGER", saved_pager_, has_pager_);
-    Restore("XFF_MANPAGER", saved_manpager_, has_manpager_);
-  }
-
-  static void Save(const char* name, std::string& into, bool& present) {
-    const char* value = std::getenv(name);
-    present = value != nullptr;
-    if (present) {
-      into = value;
-    }
-  }
-
-  static void Restore(const char* name, const std::string& value, bool present) {
-    if (present) {
-      ::setenv(name, value.c_str(), 1);
-    } else {
-      ::unsetenv(name);
-    }
-  }
-
-  std::string saved_xff_;
-  std::string saved_pager_;
-  std::string saved_manpager_;
-  bool has_xff_ = false;
-  bool has_pager_ = false;
-  bool has_manpager_ = false;
+  void TearDown() override { env::ClearForTesting(); }
 };
 
 TEST_F(PagerCommandTest, DefaultsToLessWithColorSafeFlags) {
@@ -107,19 +73,19 @@ TEST_F(PagerCommandTest, DefaultsToLessWithColorSafeFlags) {
 }
 
 TEST_F(PagerCommandTest, PagerEnvIsUsed) {
-  ::setenv("PAGER", "more", 1);
+  env::SetForTesting("PAGER", "more");
   EXPECT_THAT(ResolvePagerCommand(), Eq("more"));
 }
 
 TEST_F(PagerCommandTest, XffPagerOverridesPager) {
-  ::setenv("PAGER", "more", 1);
-  ::setenv("XFF_PAGER", "bat --paging=always", 1);
+  env::SetForTesting("PAGER", "more");
+  env::SetForTesting("XFF_PAGER", "bat --paging=always");
   EXPECT_THAT(ResolvePagerCommand(), Eq("bat --paging=always"));
 }
 
 TEST_F(PagerCommandTest, EmptyEnvDisablesPaging) {
   // An explicitly-empty variable means "no pager" - it wins over the built-in default.
-  ::setenv("XFF_PAGER", "", 1);
+  env::SetForTesting("XFF_PAGER", "");
   EXPECT_THAT(ResolvePagerCommand(), Eq(""));
 }
 
@@ -129,23 +95,22 @@ TEST_F(PagerCommandTest, ManDefaultFormatsWithMandoc) {
 }
 
 TEST_F(PagerCommandTest, XffManPagerOverridesTheManDefault) {
-  ::setenv("XFF_MANPAGER", "groff -mandoc -Tutf8 | less -R", 1);
+  env::SetForTesting("XFF_MANPAGER", "groff -mandoc -Tutf8 | less -R");
   EXPECT_THAT(ResolvePagerCommand(PagerKind::kMan), Eq("groff -mandoc -Tutf8 | less -R"));
 }
 
 TEST_F(PagerCommandTest, EmptyManPagerEnvDisablesManPaging) {
-  ::setenv("XFF_MANPAGER", "", 1);
+  env::SetForTesting("XFF_MANPAGER", "");
   EXPECT_THAT(ResolvePagerCommand(PagerKind::kMan), Eq(""));
 }
 
 TEST_F(PagerCommandTest, ManPagerIsIndependentOfTheTextPager) {
   // $XFF_PAGER selects the text pager but must not become the man command (which needs a
   // roff formatter); the man default stays mandoc-based.
-  ::setenv("XFF_PAGER", "most", 1);
+  env::SetForTesting("XFF_PAGER", "most");
   EXPECT_THAT(ResolvePagerCommand(PagerKind::kText), Eq("most"));
   EXPECT_THAT(ResolvePagerCommand(PagerKind::kMan), HasSubstr("mandoc"));
 }
 
-// NOLINTEND(concurrency-mt-unsafe,misc-override-with-different-visibility,readability-identifier-naming)
 }  // namespace
 }  // namespace xff::cli

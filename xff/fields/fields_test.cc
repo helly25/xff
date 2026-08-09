@@ -13,18 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// setenv()/unsetenv() are POSIX, hidden by glibc under strict -std=c++23; request
-// them explicitly for the {env.NAME} test. No effect on macOS.
-#if defined(__linux__) && !defined(_GNU_SOURCE)
-# define _GNU_SOURCE 1
-#endif
-
 #include "xff/fields/fields.h"
 
 #include <cstdint>
-#include <cstdlib>
 #include <fstream>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -32,6 +26,7 @@
 #include "absl/time/time.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "xff/env/env.h"
 #include "xff/vfs/entry.h"
 
 namespace xff::fields {
@@ -360,13 +355,13 @@ TEST_F(FieldsTest, NumericPlaceholdersRenderRegexCaptures) {
 
 TEST_F(FieldsTest, EnvNamespaceReadsEnvironment) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
-  // Single-threaded test exercising {env.NAME}; the setenv/unsetenv pair is safe here.
-  // NOLINTNEXTLINE(concurrency-mt-unsafe)
-  ::setenv("XFF_TEST_ENV_VAR", "hello", 1);
+  // {env.NAME} reads through the xff/env cache; inject values via its test seam rather than
+  // mutating the real process environment.
+  env::SetForTesting("XFF_TEST_ENV_VAR", "hello");
   EXPECT_THAT(Render("{env.XFF_TEST_ENV_VAR}", "p", md, 0), "hello");
-  // NOLINTNEXTLINE(concurrency-mt-unsafe)
-  ::unsetenv("XFF_TEST_ENV_VAR");
+  env::SetForTesting("XFF_TEST_ENV_VAR", std::nullopt);
   EXPECT_THAT(Render("{env.XFF_TEST_ENV_VAR}", "p", md, 0), "");  // unset -> empty
+  env::ClearForTesting();
 }
 
 TEST_F(FieldsTest, DefNamespaceReadsDefines) {

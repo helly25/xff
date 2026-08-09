@@ -28,7 +28,6 @@
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -45,6 +44,7 @@
 #include "mbo/container/limited_map.h"
 #include "xff/content/line_match.h"
 #include "xff/datetime/datetime.h"
+#include "xff/env/env.h"
 #include "xff/hash/hash.h"
 #include "xff/language/language.h"
 #include "xff/mime/mime.h"
@@ -517,12 +517,9 @@ std::string CaptureField(std::string_view key, std::string_view, const RenderCon
 }
 
 // Renders {env.NAME}: `key` is NAME; the process environment value, or empty
-// when unset. std::getenv is standard C++ (no POSIX feature-test needed).
+// when unset. Read through the env cache (the single getenv site, xff/env).
 std::string EnvField(std::string_view key, std::string_view, const RenderContext&) {
-  const std::string name(key);
-  // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded CLI/test path
-  const char* const value = std::getenv(name.c_str());
-  return value == nullptr ? "" : value;
+  return env::Get(key).value_or("");
 }
 
 // Renders {def.NAME}: `key` is NAME; the --define value, or empty when undefined.
