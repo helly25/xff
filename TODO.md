@@ -808,13 +808,6 @@ it:
   `NO_COLOR` resolved at the CLI boundary. `WrapText` is ANSI-aware (escapes are zero visible width).
   Color off is byte-identical to before; `--markdown` / `--man` are unaffected.
 
-- **ASN.1 GeneralizedTime datetime format + timezone-suffix control.** `xff/datetime` is missing the
-  ASN.1 `GeneralizedTime` format `YYYYMMDDHHMMSS`, plus its `Z` (zulu) variant and its explicit
-  `+NNNN` timezone-offset variant - add all three. Separately, add the ability to suppress / explicitly
-  disable the timezone suffix on formats where it is optional, driven by a flag; for inherently-zoned
-  formats (e.g. zulu) suppression is nonsensical and must be rejected or ignored rather than silently
-  dropping the `Z`. Needs a flag-based solution.
-
 ### Featured ideas (deferred)
 
 Nice-to-haves parked with a design leaning but not yet scheduled; promote to the roadmap above when a

@@ -791,9 +791,10 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .details = "Controls whether a time field's named preset renders its trailing zone (+0100, +01:00). "
                    "auto keeps each preset's default (space / iso / rfc3339 show it, asctime / epoch omit it); "
                    "never drops it; always forces it, even on a preset that omits one. Accepts true / yes / on "
-                   "(= always) and false / no / off (= never). zulu / zulu-dense always keep their mandatory Z, "
-                   "and a custom strftime --time-format is never altered - control its zone with %z / %Ez / %Z "
-                   "yourself.",
+                   "(= always) and false / no / off (= never). The inherently-zoned zulu / zulu-dense / asn1z "
+                   "always keep their mandatory Z, and a custom strftime --time-format is never altered - control "
+                   "its zone with %z / %Ez / %Z yourself. asn1's zone is optional: always adds its ASN.1-style "
+                   "offset (+0100, no separator), never / auto leave it bare.",
         .values = kZoneSuffixValues,
     },
 });

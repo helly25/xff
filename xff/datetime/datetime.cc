@@ -235,6 +235,21 @@ std::string FormatTime(absl::Time time, std::string_view spec, absl::TimeZone tz
   if (spec == "zulu-dense") {  // UTC 'Z', no separators (compact)
     return absl::FormatTime("%Y%m%dT%H%M%SZ", time, absl::UTCTimeZone());
   }
+  // ASN.1 GeneralizedTime (X.680) YYYYMMDDHHMMSS in local time, no separators. Its zone is
+  // OPTIONAL: --time-zone-suffix=always appends the numeric offset ASN.1-style (no separator,
+  // `+0100`), never/auto leave it bare. The UTC 'Z' form is the separate "asn1z" preset.
+  if (spec == "asn1" || spec == "generalizedtime") {
+    std::string pattern = "%Y%m%d%H%M%S";
+    if (suffix == ZoneSuffix::kAlways) {
+      absl::StrAppend(&pattern, "%z");
+    }
+    return absl::FormatTime(pattern, time, tz);
+  }
+  // ASN.1 GeneralizedTime, UTC with a mandatory 'Z' - inherently zoned, so `suffix` is ignored
+  // (like zulu): the 'Z' is the format's identity and is never dropped or offset.
+  if (spec == "asn1z") {
+    return absl::FormatTime("%Y%m%d%H%M%SZ", time, absl::UTCTimeZone());
+  }
   const std::string_view name = spec.empty() ? std::string_view("space") : spec;
   const auto it = kNamedFormats.find(name);
   if (it == kNamedFormats.end()) {
@@ -269,6 +284,8 @@ std::vector<std::pair<std::string_view, std::string_view>> FormatDocs() {
       {"epoch", "seconds since the Unix epoch"},
       {"zulu", "UTC with a Z designator (2020-09-13T12:26:40Z)"},
       {"zulu-dense", "UTC Z, no separators (20200913T122640Z)"},
+      {"asn1, generalizedtime", "ASN.1 GeneralizedTime, local (20200913122640); =always adds +0000"},
+      {"asn1z", "ASN.1 GeneralizedTime, UTC Z (20200913122640Z)"},
       {"<strftime>", "any other value is used as an strftime(3) pattern, e.g. %Y-%m-%d"},
   };
 }

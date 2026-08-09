@@ -317,9 +317,10 @@ Section TimeSection() {
       "Zone suffix. `--time-zone-suffix=never` drops the trailing offset (`+0100`, `+01:00`) from a preset that "
       "shows it by default (`space`, `iso` / `iso8601-*`, `rfc3339`); `always` forces one on, even onto `asctime` "
       "which omits it; `auto` (the default) keeps each preset's built-in behavior. `true` / `false` are accepted "
-      "for `always` / `never`. Two things it never touches: `zulu` / `zulu-dense` keep their mandatory `Z` (UTC "
-      "is the format's identity), and a custom strftime `--time-format` is left exactly as written - control its "
-      "zone there with `%z` / `%Ez` / `%Z` yourself."));
+      "for `always` / `never`. Two things it never touches: the inherently-zoned `zulu` / `zulu-dense` / `asn1z` "
+      "keep their mandatory `Z` (UTC is the format's identity), and a custom strftime `--time-format` is left "
+      "exactly as written - control its zone there with `%z` / `%Ez` / `%Z` yourself. `asn1`'s zone is optional, "
+      "so `always` appends its ASN.1-style offset (`+0100`, no separator) and `never` / `auto` leave it bare."));
   return section;
 }
 
