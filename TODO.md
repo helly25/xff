@@ -34,6 +34,28 @@ shipped one way but not yet settled.
   earlier subtree-scoping question (now moot). Full record + the `--xffrc` arming restriction
   are in the roadmap tail below ("Config: drop the project `.xffrc` layer").
 
+- **INVESTIGATE (GATES 1.0.0): `--flag:modifier` instead of `--flag=modifier value`.**
+  Several globals spend their `=value` slot on a _modifier_ (a key, a mode, a dimension) and
+  then take the actual value separately, so `=` no longer means "here is the value". The
+  proposal is to separate the modifier with a colon - `--flag:modifier` - which frees `=`
+  for the value and makes the whole thing expressible in one token:
+  `--flag:modifier=value`. Today's spellings that motivate it:
+  - `--define=NAME=VALUE` - two `=` in one flag, the clearest case
+    (`--define:NAME=VALUE` reads unambiguously);
+  - `--capture=NAME CMD... \;` / `--capturedir=NAME ...` - modifier in the flag, value
+    (the command) in the following arguments;
+  - `--histogram=BUCKET[:MEASURE]` and `--shards[=auto|SCHEME,...]` - a modifier plus a
+    sub-selector, already using `:` _inside_ the value.
+    The investigation has to settle, at minimum: (a) which flags are genuinely
+    modifier-plus-value versus plain valued flags that must keep `=`; (b) the collision with
+    `:` as xff's existing _sub_-separator inside values (`BUCKET:MEASURE`,
+    `%{field:qualifier}`, `{field:s/pat/repl/}`) - promoting `:` to the flag separator may
+    make `--histogram:size:count` unreadable or ambiguous; (c) whether both spellings are
+    accepted (`=` as a deprecated alias) or it is a hard switch; (d) the knock-on effects on
+    `.xffrc` lines, `--explain`, the generated help / `XFF.md`, and shell completion.
+    **Blocking for 1.0.0**: it changes the surface of shipped flags, so after 1.0.0 it would
+    be a breaking change rather than a refinement.
+
 ## Remaining work
 
 The backlog of features and infrastructure not yet built. Ordered by current
