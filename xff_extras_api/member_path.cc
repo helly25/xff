@@ -19,6 +19,7 @@
 #include <string>
 #include <string_view>
 
+#include "absl/functional/function_ref.h"
 #include "absl/strings/str_cat.h"
 
 namespace xff::archive {
@@ -37,27 +38,49 @@ std::string JoinMemberPath(std::string_view container, std::string_view member, 
   return absl::StrCat(kUriScheme, authority, container, options.separator, member);
 }
 
+namespace {
+
+// Strips whatever `options.prefix` says this path carries. Returns false when the required prefix is
+// absent: the flag states what the spelling IS, so a bare path must not also be accepted.
+bool StripPrefix(std::string_view& path, const MemberPathOptions& options) {
+  if (options.prefix == kUriPrefix) {
+    if (!path.starts_with(kUriScheme)) {
+      return false;
+    }
+    path.remove_prefix(kUriScheme.size());
+    // Accept both forms Join renders: `archive://<abs>` and the opaque `archive:<relative>`.
+    if (path.starts_with(kUriAuthority)) {
+      path.remove_prefix(kUriAuthority.size());
+    }
+    return true;
+  }
+  if (options.prefix.empty()) {
+    return true;
+  }
+  if (!path.starts_with(options.prefix)) {
+    return false;
+  }
+  path.remove_prefix(options.prefix.size());
+  return true;
+}
+
+}  // namespace
+
 std::optional<MemberPathParts> SplitMemberPath(std::string_view path, const MemberPathOptions& options) {
   if (options.separator.empty()) {
     // An empty separator would make every path a member path with an empty container.
     return std::nullopt;
   }
-  if (options.prefix == kUriPrefix) {
-    if (!path.starts_with(kUriScheme)) {
-      return std::nullopt;
-    }
-    path.remove_prefix(kUriScheme.size());
-    // Accept both forms this renders: `archive://<abs>` and the opaque `archive:<relative>`.
-    if (path.starts_with(kUriAuthority)) {
-      path.remove_prefix(kUriAuthority.size());
-    }
-  } else if (!options.prefix.empty()) {
-    // A literal prefix must be present, for the same reason the URI form is strict: the flag states
-    // what the spelling IS, so accepting a bare path too would make the two silently interchange.
-    if (!path.starts_with(options.prefix)) {
-      return std::nullopt;
-    }
-    path.remove_prefix(options.prefix.size());
+  if (options.separator.find_first_not_of('/') == std::string_view::npos) {
+    // A separator made ONLY of slashes turns every directory boundary into a candidate, so the
+    // container boundary is not decidable from the string: `/abs/a.phar/inner/x` would split at the
+    // leading slash. Refuse rather than answer wrongly - the probing overload resolves it the way a
+    // walk does. Note `!/` and `#/` are NOT affected: their `!` / `#` still distinguishes them from
+    // a plain boundary, so first-occurrence works there exactly as it does for `!`.
+    return std::nullopt;
+  }
+  if (!StripPrefix(path, options)) {
+    return std::nullopt;
   }
   const std::string_view::size_type at = path.find(options.separator);
   if (at == std::string_view::npos) {
@@ -69,6 +92,35 @@ std::optional<MemberPathParts> SplitMemberPath(std::string_view path, const Memb
       .container = path.substr(0, at),
       .member = path.substr(at + options.separator.size()),
   };
+}
+
+std::optional<MemberPathParts> SplitMemberPath(
+    std::string_view path,
+    const MemberPathOptions& options,
+    absl::FunctionRef<bool(std::string_view)> is_container) {
+  if (options.separator.empty()) {
+    return std::nullopt;
+  }
+  if (!StripPrefix(path, options)) {
+    return std::nullopt;
+  }
+  // Try every separator occurrence left to right and let the filesystem decide, exactly as a walk
+  // does: the first prefix that IS an openable archive is the container. Left to right means the
+  // OUTERMOST container wins, which is the same outside-in order --archive-depth nests in.
+  for (std::string_view::size_type at = path.find(options.separator); at != std::string_view::npos;
+       at = path.find(options.separator, at + 1)) {
+    const std::string_view container = path.substr(0, at);
+    if (container.empty()) {
+      continue;  // a leading separator names no container
+    }
+    if (is_container(container)) {
+      return MemberPathParts{
+          .container = container,
+          .member = path.substr(at + options.separator.size()),
+      };
+    }
+  }
+  return std::nullopt;
 }
 
 bool IsMemberPath(std::string_view path, const MemberPathOptions& options) {

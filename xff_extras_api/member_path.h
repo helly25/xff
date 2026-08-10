@@ -34,11 +34,22 @@
 //
 // Splitting is the exact inverse: cut at the FIRST occurrence of the separator and take the
 // remainder verbatim, so a path xff printed round-trips through xff unchanged.
+//
+// One nuance, and it is an INCONVENIENCE rather than a flaw: a separator that can also occur inside a
+// container path - `/` above all - cannot be located by string inspection alone, since `/abs/a.phar`
+// contains slashes of its own. A bare `/` is nonetheless a perfectly legitimate spelling; the visible
+// cues `!` and `#` are conventions people adopted, not a correctness requirement. What `/` needs is
+// filesystem CONTEXT, which a traversal has for free: walking top-down, xff meets `a.phar` as a real
+// FILE, sniffs it, and descends - so nothing is ambiguous there, and no directory can share the name
+// (one path is either a file or a directory, never both). Offline the same answer comes from probing:
+// the longest leading component sequence that IS an openable archive is the container. Hence two
+// overloads below - the pure-string one, and one taking that probe.
 
-#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
+
+#include "absl/functional/function_ref.h"
 
 namespace xff::archive {
 
@@ -70,10 +81,10 @@ inline constexpr std::string_view kUriPrefix = "URI";
 struct MemberPathOptions {
   // Any string, not a fixed menu, so xff can emit what another system accepts.
   std::string_view separator = kDefaultSeparator;
-  // EMPTY (the default) means no prefix. `kUriPrefix` ("URI") selects URI rendering. Any other
-  // string is used LITERALLY, so a system expecting its own marker can be fed one without a code
-  // change - the same "any string" freedom `separator` has.
-  std::string_view prefix = {};
+  // EMPTY (the default - a default-constructed view) means no prefix. `kUriPrefix` ("URI") selects
+  // URI rendering. Any other string is used LITERALLY, so a system expecting its own marker can be
+  // fed one without a code change - the same "any string" freedom `separator` has.
+  std::string_view prefix;
 };
 
 // A member path split into its two halves. `member` is verbatim, including any leading slash.
@@ -88,12 +99,35 @@ struct MemberPathParts {
     std::string_view member,
     const MemberPathOptions& options = {});
 
-// The inverse of JoinMemberPath: splits at the FIRST separator, after stripping the URI scheme when
+// The inverse of JoinMemberPath: splits at the FIRST separator, after stripping the prefix when
 // `options.prefix` asks for it. Returns nullopt when `path` holds no separator (an ordinary path),
 // or when the separator is empty (which would make every path a member path).
+//
+// ALSO returns nullopt when the separator is made ONLY of slashes (`/`, `//`). Not because such a
+// spelling is wrong, but
+// because THIS function has no filesystem context: `/abs/a.phar/inner/x` under separator `/` would cut
+// at the leading slash and report an empty container, because every directory boundary looks like a
+// separator. The boundary is perfectly well defined, just not from the string - so use the probing
+// overload below, which resolves it the way a walk does. Refusing here rather than guessing keeps a
+// wrong split from passing for a right one.
+//
+// `!`, `#`, `!/` and `#/` are unaffected, but be precise about why: they are not impossible in a real
+// path - a directory really can be named `foo!` - so first-occurrence is a HEURISTIC there. It is
+// accepted because such names are rare, and because a walk resolves the truth regardless: a path
+// containing a literal `!/` simply is not an archive, so the walk finds nothing to descend and the
+// split point only ever served as a convenient marker.
 [[nodiscard]] std::optional<MemberPathParts> SplitMemberPath(
     std::string_view path,
     const MemberPathOptions& options = {});
+
+// Splits with a filesystem oracle, which is what makes an all-slash separator work. `is_container` answers "is this
+// path a file xff can open as an archive?" - during a walk that is already known; offline it is a stat plus a format
+// sniff. Each separator occurrence is tried left to right and the FIRST prefix the probe accepts wins, so the outermost
+// container is chosen, matching --archive-depth's outside-in nesting.
+[[nodiscard]] std::optional<MemberPathParts> SplitMemberPath(
+    std::string_view path,
+    const MemberPathOptions& options,
+    absl::FunctionRef<bool(std::string_view)> is_container);
 
 // True when `path` spells a member path under `options` (i.e. SplitMemberPath would succeed).
 [[nodiscard]] bool IsMemberPath(std::string_view path, const MemberPathOptions& options = {});

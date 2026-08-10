@@ -45,6 +45,7 @@ cc_library(
     include_prefix = "xff/archive",
     visibility = ["//visibility:public"],
     deps = [
+        "@abseil-cpp//absl/functional:function_ref",
         "@abseil-cpp//absl/strings",
     ],
 )

@@ -624,12 +624,17 @@ remains below is the design-forked / larger work.
         itself a legal separator, so where does the keyword end?).
       - Known per-format mapping to start from: phar -> `/` (PHP's `phar:///a.phar/inner/x`), Java
         jar/war/ear -> `!` (JAR URLs), everything else -> the fallback.
-      - **Decide deliberately: `AUTO` can select a LOSSY spelling.** With `/`, `a.phar/inner` is
-        indistinguishable from a real directory named `a.phar` - exactly why `/` can never be the
-        global default. Under `AUTO` it would become the default for phar, by PHP's choice rather than
-        ours. Options: accept it (interop wins, and it is what other phar tooling prints), or have
-        `AUTO` never pick a lossy separator unless the user opts in. Not implemented either way; it
-        also needs container-format detection, which arrives with the reader/backend slice.
+      - **A bare `/` is NOT lossy - correcting an earlier note here.** A walk is never ambiguous: it
+        meets `a.phar` as a real FILE, sniffs it and descends, and one path cannot be both a file and a
+        directory. The only inconvenience is that a `/` boundary is not locatable by string inspection
+        alone, and even that is solvable WITHOUT the filesystem: scanning for a known container
+        EXTENSION works, which is how PHP resolves `phar:///path/a.phar/inner` and why `.phar/` is
+        itself a split point. So splitting stays offline-capable and a printed path round-trips.
+        `SplitMemberPath`'s oracle overload covers all three (walk knowledge, stat + sniff, or a purely
+        lexical extension test); the string-only overload refuses an all-slash separator rather than
+        cutting at the leading slash. Note the marker separators are heuristics too: a directory really
+        can be named `foo!`, so `!/` and `#/` can occur in a real path - they just fail to be archives,
+        so a walk finds nothing and the marker only ever served as a convenient split point.
     - **Container identity is dual:** the archive keeps its real-FS identity (real `-type f`,
       deletable / actionable) AND parents its members; this falls out of the existing VFS
       source-tagging (container = real fs, members = archive member).

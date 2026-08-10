@@ -128,7 +128,8 @@ TEST_F(MemberPathTest, AnEmptyPrefixMeansNoPrefixAndIsTheDefault) {
 
 TEST_F(MemberPathTest, EverySeparatorSpellingRoundTrips) {
   // The property that matters in practice: a path xff printed parses back to the same two halves.
-  const std::vector<std::string_view> separators = {"!", "#", "!/", "#/", "::", "/"};
+  // No "/" here: that separator needs filesystem context, and its own tests below cover it.
+  const std::vector<std::string_view> separators = {"!", "#", "!/", "#/", "::"};
   const std::vector<std::string_view> members = {"inner/x", "/rooted", "no-slash", "a b/c"};
   for (const std::string_view separator : separators) {
     for (const std::string_view member : members) {
@@ -138,6 +139,52 @@ TEST_F(MemberPathTest, EverySeparatorSpellingRoundTrips) {
           << "separator='" << separator << "' member='" << member << "' joined='" << joined << "'";
     }
   }
+}
+
+TEST_F(MemberPathTest, ASlashSeparatorNeedsFilesystemContextAndSaysSoInsteadOfGuessing) {
+  const MemberPathOptions slash{.separator = "/"};
+  // Rendering is fine - `/` is a legitimate spelling (PHP's phar:///a.phar/inner/x uses exactly it).
+  EXPECT_THAT(JoinMemberPath("/abs/a.phar", "inner/x", slash), "/abs/a.phar/inner/x");
+  // The string-only split REFUSES rather than cutting at the leading slash and reporting an empty
+  // container, which is what a first-occurrence rule would do here.
+  EXPECT_THAT(SplitMemberPath("/abs/a.phar/inner/x", slash), Eq(std::nullopt));
+}
+
+TEST_F(MemberPathTest, TheProbingSplitResolvesASlashSeparatorLikeAWalkDoes) {
+  // The probe is what a traversal knows for free: walking down, `a.phar` IS a file it can open.
+  const auto is_container = [](std::string_view path) { return path == "/abs/a.phar"; };
+  const MemberPathOptions slash{.separator = "/"};
+  EXPECT_THAT(
+      SplitMemberPath("/abs/a.phar/inner/x", slash, is_container), Optional(PartsAre("/abs/a.phar", "inner/x")));
+  // A path through no container is not a member path, however many separators it holds.
+  EXPECT_THAT(SplitMemberPath("/abs/plain/dir/file", slash, is_container), Eq(std::nullopt));
+}
+
+TEST_F(MemberPathTest, TheOracleCanBePurelyLexicalSoSplittingNeedsNoFilesystem) {
+  // How PHP resolves `phar:///path/a.phar/inner`: the EXTENSION is the split point, so `.phar/`
+  // works with no stat at all and a printed path round-trips offline.
+  const auto ends_in_phar = [](std::string_view path) { return path.ends_with(".phar"); };
+  const MemberPathOptions slash{.separator = "/"};
+  EXPECT_THAT(
+      SplitMemberPath("/srv/app/a.phar/lib/x.php", slash, ends_in_phar),
+      Optional(PartsAre("/srv/app/a.phar", "lib/x.php")));
+  EXPECT_THAT(SplitMemberPath("/srv/app/plain/lib/x.php", slash, ends_in_phar), Eq(std::nullopt));
+}
+
+TEST_F(MemberPathTest, TheProbingSplitPicksTheOUTERMOSTContainer) {
+  // Nested archives: left-to-right means the outer one wins, matching --archive-depth's outside-in
+  // nesting. Choosing the innermost would silently reinterpret which archive is being addressed.
+  const auto is_container = [](std::string_view path) { return path == "outer.tar" || path == "outer.tar/inner.zip"; };
+  EXPECT_THAT(
+      SplitMemberPath("outer.tar/inner.zip/x", {.separator = "/"}, is_container),
+      Optional(PartsAre("outer.tar", "inner.zip/x")));
+}
+
+TEST_F(MemberPathTest, TheProbingSplitStillHonoursThePrefix) {
+  const auto is_container = [](std::string_view path) { return path == "a.phar"; };
+  const MemberPathOptions uri_slash{.separator = "/", .prefix = kUriPrefix};
+  EXPECT_THAT(SplitMemberPath("archive:a.phar/inner", uri_slash, is_container), Optional(PartsAre("a.phar", "inner")));
+  EXPECT_THAT(SplitMemberPath("a.phar/inner", uri_slash, is_container), Eq(std::nullopt));
 }
 
 TEST_F(MemberPathTest, AUriRoundTripsToo) {
