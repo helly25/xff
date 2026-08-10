@@ -144,12 +144,12 @@ std::string RenderExtras() {
         &out, "  %-9s %s\n            %s\n", name,
         built_in ? "[built into this binary]" : absl::StrCat("[not built in; rebuild with ", rebuild, "]"), what);
   };
-  row("pcre2", xff::regex::Pcre2Available(), "--//xff:xff_pcre",
+  row("pcre2", xff::regex::Pcre2Available(), xff::cli::ExtraBuildFlag("pcre2"),
       "--regextype=PCRE2: Perl-compatible regex (lookahead, backreferences, ...)");
   absl::flat_hash_set<std::string_view> seen;
   for (const xff::cli::GlobalFlag& flag : xff::cli::Globals()) {
     if (!flag.extra.empty() && seen.insert(flag.extra).second) {
-      row(flag.extra, xff::cli::ExtraEnabled(flag.extra), absl::StrCat("--//xff:", flag.extra), flag.summary);
+      row(flag.extra, xff::cli::ExtraEnabled(flag.extra), xff::cli::ExtraBuildFlag(flag.extra), flag.summary);
     }
   }
   return out;
@@ -352,13 +352,33 @@ int RunMain(int argc, char** argv) {
   // compiled into this binary, using it is a hard immediate error naming what to rebuild with - never
   // a silent no-op. Derived from the flag's SOT `extra` key + the compile-time ExtraEnabled map.
   for (const std::string_view global : command.globals) {
-    const std::string_view name = global.substr(0, global.find('='));
-    const xff::cli::GlobalFlag* const flag = xff::cli::LookupGlobal(name);
-    if (flag != nullptr && !flag->extra.empty() && !xff::cli::ExtraEnabled(flag->extra)) {
-      std::cerr << "xff: " << flag->name << ": this build has no " << flag->extra
-                << " support; rebuild with --//xff:" << flag->extra << "\n";
-      return 2;
+    std::string_view name = global.substr(0, global.find('='));
+    // A chmod-style suffix sign is part of the VALUE, not the name (`-z+` is the short
+    // `--archive=all`), so strip it before the lookup or the short forms would slip past
+    // this gate entirely and fail later with a confusing message.
+    const bool suffix_off = name.size() > 1 && name.back() == '-';
+    if (name.size() > 1 && (name.back() == '+' || name.back() == '-')) {
+      name.remove_suffix(1);
     }
+    const xff::cli::GlobalFlag* const flag = xff::cli::LookupGlobal(name);
+    if (flag == nullptr || flag->extra.empty() || xff::cli::ExtraEnabled(flag->extra)) {
+      continue;
+    }
+    // Explicitly turning the capability OFF needs no extra: `--archive=none` / `-z-` asks
+    // for the plain (find) behavior a lean build already has, so demanding a rebuild there
+    // would be nonsense. Only a request for the capability itself is a hard error.
+    const std::string_view value = global.substr(0, global.find('=')) == global
+                                       ? std::string_view()
+                                       : std::string_view(global).substr(global.find('=') + 1);
+    if (suffix_off || value == "none" || value == "off") {
+      continue;
+    }
+    std::cerr << "xff: " << flag->name << ": this build has no " << flag->extra << " support";
+    if (const std::string_view rebuild = xff::cli::ExtraBuildFlag(flag->extra); !rebuild.empty()) {
+      std::cerr << "; rebuild with " << rebuild;
+    }
+    std::cerr << "\n";
+    return 2;
   }
 
   // Load the layered config (system + user + explicit --xffrc) and resolve the

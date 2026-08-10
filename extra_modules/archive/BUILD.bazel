@@ -1,0 +1,61 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
+# The libarchive-backed archive reader: the archive build extra (#83), a target of the standalone
+# @xff_archive module (this directory's MODULE.bazel). It depends only on @libarchive and the
+# shared @xff_extras_api license-notice seam - never on the xff core - so the core keeps no
+# knowledge of it and deleting this directory drops the extra entirely.
+#
+# This slice is the reader alone (headers -> Members). The VFS backend that turns those members
+# into virtual entries, and the --archive wiring that mounts it, are later slices; the CLI surface
+# already exists and errors self-documentingly until they land.
+#
+# `alwayslink` keeps the license-notice registration TU from being dropped by the linker.
+cc_library(
+    name = "archive_reader",
+    srcs = ["archive_reader.cc"],
+    hdrs = ["archive_reader.h"],
+    include_prefix = "xff/archive",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@libarchive//libarchive",
+        "@xff_extras_api//:license_notice",
+    ],
+    alwayslink = True,
+)
+
+# Round-trips real archives through libarchive: the test WRITES a tar (and a gzip-filtered tar) with
+# libarchive's write API, then reads it back through our reader, so it proves the dependency links,
+# the format/filter detection works, and the header fields map correctly - without committing binary
+# fixtures. Also pins the two distinct error states (not an archive vs. corrupt archive).
+cc_test(
+    name = "archive_reader_test",
+    size = "small",
+    srcs = ["archive_reader_test.cc"],
+    deps = [
+        ":archive_reader",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+        "@libarchive//libarchive",
+        "@xff_extras_api//:license_notice",
+    ],
+)
