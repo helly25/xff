@@ -152,18 +152,14 @@ jobs:
   #
   # MSan false-positives on any code it did not instrument. Everything we link builds from
   # source under bazel, so --config=msan's -fsanitize=memory reaches it - EXCEPT the C++
-  # standard library, which ships prebuilt (uninstrumented) in the hermetic LLVM. So the
-  # first step builds an instrumented libc++/libc++abi from the matching LLVM source release
-  # (tools/build_msan_libcxx.sh) and --config=msan swaps it in. That build is the expensive
-  # part, so it is cached on the LLVM version + the script's own hash (the script stamps the
-  # prefix and re-uses a matching one, so a cache hit costs nothing).
-  #
-  # continue-on-error while the first findings are triaged, exactly how the clang-tidy cell
-  # was introduced; flip to a hard gate (and add it to `done`'s needs) once it is green.
+  # standard library, which ships prebuilt (uninstrumented) in the hermetic LLVM. That one
+  # exception is handled by the TOOLCHAIN: --config=msan turns on toolchains_llvm's `msan`
+  # feature, which swaps in the instrumented libc++ overlay the `libcxx_url` attribute in
+  # bazelmod/llvm.MODULE.bazel fetches. So this cell needs no extra build step and no
+  # cmake/ninja - it is a plain `bazel test`, exactly like the tsan cell above.
   msan:
     needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v6
       - uses: bazelbuild/setup-bazelisk@v3
@@ -174,15 +170,8 @@ jobs:
           key: bazel-disk-msan-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
           restore-keys: |
             bazel-disk-msan-
-      - name: Mount the instrumented libc++
-        uses: actions/cache@v4
-        with:
-          path: .msan-libcxx
-          key: msan-libcxx-${{ hashFiles('bazelmod/llvm.MODULE.bazel', 'tools/build_msan_libcxx.sh') }}
-      - name: Install build tools (cmake/ninja for the runtimes, mandoc for the roff test)
-        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build mandoc
-      - name: Build the MSan-instrumented libc++ (cached)
-        run: tools/build_msan_libcxx.sh
+      - name: Install roff formatter (mandoc)
+        run: sudo apt-get update && sudo apt-get install -y mandoc
       - name: bazel test
         run: >
           bazel test //... @xff_pcre2//... --config=xff_full
@@ -347,10 +336,7 @@ jobs:
   # workflow job is wired into `needs`, so a newly added job cannot silently
   # escape the gate. Mirrors helly25/mbo.
   done:
-    # Every declared job must appear here (the step below enforces exactly that). `msan` is wired in
-    # like the rest even though it is still `continue-on-error`: this gate only checks that the job
-    # is WIRED, never its result, and a continue-on-error job cannot fail the run - so listing it
-    # keeps the completeness invariant intact without letting a red msan block a merge.
+    # Every declared job must appear here (the step below enforces exactly that).
     needs: [test, pre-commit, trunk, tsan, msan, minimal, xff-md, clang-tidy]
     if: always()
     runs-on: ubuntu-latest
