@@ -34,6 +34,38 @@ cc_library(
     ],
 )
 
+# How an archive member is spelled as one path (`<container><separator><member>`), under the control
+# of --archive-separator / --archive-prefix. It lives here because BOTH sides need it and an extra
+# must not depend on the core: the archive extra RENDERS member paths, and the core PARSES one handed
+# back in (a -cmp target, a {def.X}). Header-only deps beyond absl/strings.
+cc_library(
+    name = "member_path_cc",
+    srcs = ["member_path.cc"],
+    hdrs = ["member_path.h"],
+    include_prefix = "xff/archive",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/functional:function_ref",
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+# Pins the composition rules the design ratified, because each one is a decision rather than an
+# implementation detail: plain concatenation (so an ABSOLUTE stored member keeps its leading slash,
+# which is the Zip-Slip red flag), splitting at the FIRST separator with a verbatim remainder (so a
+# member containing the separator survives), an arbitrary multi-character separator, and round-trip
+# through Join -> Split for every separator spelling the ecosystem uses.
+cc_test(
+    name = "member_path_test",
+    size = "small",
+    srcs = ["member_path_test.cc"],
+    deps = [
+        ":member_path_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 # The license-notice registration seam: components self-register a Notice via a file-scope
 # Registrar, and Notices() returns them sorted. The xff core (//xff/license) registers its own
 # deps and assembles NoticeText() on top; each extra self-registers its notice from its own TU.

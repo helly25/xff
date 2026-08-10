@@ -77,6 +77,11 @@ constexpr std::array kArchiveValues = std::to_array<ValueDoc>({
     {.value = "roots", .meaning = "dive only when a search root is itself an archive (the xff-family default)"},
     {.value = "all", .meaning = "also dive archives found during the walk (what bare `--archive` selects)"},
 });
+constexpr std::array kArchivePrefixValues = std::to_array<ValueDoc>({
+    {.value = "(empty)", .meaning = "no prefix - a bare path, `a.tgz!inner/x` (the default)"},
+    {.value = "URI", .meaning = "`archive:///abs/a.tar!x` when the container is absolute, else `archive:a.tgz!x`"},
+    {.value = "STRING", .meaning = "any other value is used literally, e.g. `--archive-prefix=vfs:`"},
+});
 constexpr std::array kShardsValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "recognize every built-in scheme (the default when bare `--shards`)"},
     {.value = "of", .meaning = "only `<stem>-<index>-of-<total>` (TFRecord-style)"},
@@ -229,6 +234,44 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "build-time extra: the stock binary is lean and omits it (rebuild with --//xff:xff_archive); "
                    "asking for archive handling without it is a hard error.",
         .values = kArchiveValues,
+        .extra = "archive",
+    },
+    {
+        .name = "--archive-separator",
+        .display = "--archive-separator=STRING",
+        .group = "traversal",
+        .header = "Traversal",
+        .summary = "string between container and member in a member path (default `!`)",
+        .details = "A member path is `<container><separator><member>`, and there is no single ecosystem "
+                   "convention - `!` (JAR / Java URLs), `#` (fragment style), and the multi-character `!/` or "
+                   "`#/` other tools print all exist - so this is a presentation choice rather than something "
+                   "hard-coded. ANY string is accepted, not a fixed menu, so xff can emit what another system "
+                   "accepts. Rendering is plain concatenation and xff adds or removes no slash, so a member "
+                   "stored with a leading slash keeps it: `a.tgz!/rooted` (and with `--archive-separator=!/`, "
+                   "the doubled `a.tgz!//rooted`, which is why plain `!` is the better default). Parsing splits "
+                   "at the FIRST occurrence and takes the remainder verbatim, so a path xff printed round-trips. "
+                   "A plain `/` is allowed and composes with globs, but is lossy - a real directory named x.tar "
+                   "becomes indistinguishable from an archive - so it is never the default.",
+        .extra = "archive",
+    },
+    {
+        .name = "--archive-prefix",
+        .display = "--archive-prefix=[URI|STRING]",
+        .group = "traversal",
+        .header = "Traversal",
+        .summary = "prefix a member path: empty (default), URI, or any literal string",
+        .details = "Empty (the default) prints the bare path, `a.tgz!inner/x`. `URI` renders a well-formed "
+                   "URI for handing to tools that read archive URLs: `archive:///abs/a.tar!x` for an absolute "
+                   "container (empty authority then the path, as `file:///...` does) and the opaque "
+                   "`archive:a.tgz!x` for a relative one - `archive://a.tgz` would be WRONG, since `//` starts "
+                   "the authority and would make `a.tgz` a host name. Any other value is used LITERALLY (e.g. "
+                   "`--archive-prefix=vfs:`), the same freedom --archive-separator has; `URI` is the one keyword, "
+                   "spelled in caps like RE2 / PCRE2 / GLOB. There is deliberately no `none` value: it would be "
+                   "indistinguishable from a literal prefix spelled `none`, which is why empty means no prefix. "
+                   "Applies to PARSING too - under a prefix, a bare path is not accepted as a member path, so the "
+                   "spellings never silently interchange. Whether the scheme should be per-format (`tar:` / "
+                   "`zip:` / PHP's `phar:`) rather than the generic `archive:` is still open (see TODO.md).",
+        .values = kArchivePrefixValues,
         .extra = "archive",
     },
     {
