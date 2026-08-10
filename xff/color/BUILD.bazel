@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("//xff:cc.bzl", "cc_library", "cc_test")
 
 # --color resolution (auto/always/never + NO_COLOR + tty) and the ls/fd-style
 # file-type -> ANSI SGR scheme for the colored plain listing.

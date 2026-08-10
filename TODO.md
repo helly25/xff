@@ -972,17 +972,51 @@ concrete need appears.
   is meant to swap in. So the `ref.tmp` temporary is built by code MSan never saw, no shadow is
   written, and the `==` in `RegisterFlag` reads it as uninitialized. It fires at static init in
   `absl/flags/parse.cc`, which is why literally every test hits it. Nothing in xff or absl is wrong.
-  - **Shipped:** `tools/msan_ignorelist.txt` (loaded by `--copt=-fsanitize-ignorelist=` in the msan
-    config), scoped to that one translation unit, so any OTHER uninitialized read - real ones
-    included - still fails. Verified the flag is honored, not silently dropped: a deliberately
-    malformed file makes clang fail with `malformed sanitizer ignorelist`.
-  - **Not** a runtime `MSAN_OPTIONS=suppressions=` file: MSan's runtime suppressions only understand
-    `interceptor_via_fun` / `interceptor_via_lib`, i.e. reports raised through an intercepted libc
-    call. This one comes from instrumented inline code, so a runtime suppression cannot match it.
-  - **Root cause still open:** why the toolchain's builtin include dirs outrank the `-nostdinc++`
-    plus `.msan-libcxx` `-isystem` pair. Fixing that instruments libc++ properly and lets the
-    ignore-list entry be deleted; the hermetic-llvm toolchain (which recompiles runtimes under a
-    sanitizer config) is the candidate. Hard-gating the `msan` cell waits until it is green.
+  - **Shipped:** `tools/msan_suppressions.txt`, a RUNTIME suppression file. MSan reads it at process
+    start (`MSAN_OPTIONS=suppressions=`), so it travels as a declared **runfile**: the `cc_binary` /
+    `cc_test` wrappers in `xff/cc.bzl` add `//tools:msan_suppressions` to `data` under
+    `--config=msan` (gated by `--//xff:xff_msan`), and `MSAN_OPTIONS` names it runfiles-relative,
+    since a test runs with its runfiles tree as the working directory.
+  - **Why not a `--copt=-fsanitize-ignorelist=`:** a bare copt is not a declared input. Bazel then
+    does not know the file exists, so editing it invalidates nothing; `%workspace%` is not expanded
+    inside a copt VALUE (a literal `%workspace%/...` reached clang and every compile failed); an
+    absolute include-ish path is rejected as "outside of the execution root"; and it only works by
+    reading a file the action never declared, which a stricter sandbox or remote execution refuses.
+  - **Coverage gap, deliberate:** the three `xff_extras_api` tests do NOT route through the wrappers,
+    so they carry no suppression file. That module is built both as `//xff_extras_api:...` (it is not
+    in `.bazelignore`) and as its own `@xff_extras_api`, and in the latter a `//xff:cc.bzl` label does
+    not exist - loading it would also invert the "an extra never depends on the core" rule. The
+    `no-raw-rules-cc-load` hook exempts that directory for the same reason. If those tests need the
+    suppression, the file has to be hosted by the shared API module itself.
+  - **Format caveat, still to be proven in CI:** MSan's runtime suppressions understand only
+    `interceptor_via_fun` / `interceptor_via_lib` (reports raised through an intercepted libc call).
+    This report comes from inline `std::string` code, so it is not certain the entry matches. If the
+    `msan` cell still reports after this, the remaining options are patching abseil (a declared,
+    hermetic input) or fixing the cause below.
+  - **BLOCKED, and now proven so (2026-08-10).** The swap chain was fixed step by step: `%workspace%`
+    is not expanded in a copt value (so it silently did nothing), an absolute `-isystem` is rejected
+    as outside the execroot, and `-cxx-isystem` from a generated bazelrc finally worked - the headers
+    do come from `.msan-libcxx`, and the false positive DISAPPEARS. But the compile then fails,
+    because two libc++ copies end up on the search path:
+
+    ```
+    .msan-libcxx/include/c++/v1/__functional/hash.h:40:8: error: reference to unresolved using declaration
+       std::memcpy(std::addressof(__r), __p, sizeof(__r));
+    .msan-libcxx/include/c++/v1/cstring:82:1: note: using declaration annotated with 'using_if_exists' here
+    .msan-libcxx/include/c++/v1/cwchar:136:9: error: target of using declaration conflicts with declaration already in scope
+    ```
+
+    `bazel`'s `cc_toolchain` passes its OWN libc++ include dir explicitly, and `-nostdinc++` cannot
+    remove what the toolchain adds by hand, so `#include_next` resolves across two different libc++
+    trees. A hand-built stdlib therefore cannot be swapped in under `toolchains_llvm` at all.
+
+  - **Conclusion: MSan is parked.** Both routes are closed - the stdlib cannot be swapped (above), and
+    the resulting false positive cannot be suppressed at runtime (interceptor-only format). The only
+    real fix is a toolchain that builds its runtimes in-bazel under a sanitizer config, i.e.
+    hermeticbuild/hermetic-llvm and its `//config:msan_enabled` runtimes. Until then the `msan` cell
+    stays report-only (`continue-on-error`) and must not be hard-gated. Everything the attempt DID
+    leave behind is worth keeping: the runtime-suppression plumbing, the `msan` tag, the
+    `no-raw-rules-cc-load` enforcement, and `MSAN_SYMBOLIZER_PATH` in the run-under wrapper.
 
 - **INVESTIGATE: the `clang-tidy` CI cell is ~5x slower than helly25/mbo's (opened 2026-08-10).**
   Measured on 2026-08-10: xff ~34 min per run on main (07:07:17 -> 07:41:34, and 00:03 -> 00:37),

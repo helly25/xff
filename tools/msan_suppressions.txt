@@ -1,0 +1,34 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# MemorySanitizer RUNTIME suppression file, loaded by MSAN_OPTIONS=suppressions=... (see
+# .bazelrc --config=msan). MSan reads it when a test PROCESS starts, so it reaches the
+# binary as a runfile: xff/cc.bzl's cc_test / cc_binary wrappers add it to `data` under
+# --config=msan, which is what puts it next to the test at run time.
+#
+# NOTE on what this format can express: MSan's runtime suppressions understand only
+# `interceptor_via_fun` and `interceptor_via_lib` (reports raised through an intercepted
+# libc call). There is no general `fun:` / `src:` form here - those exist only in the
+# compile-time -fsanitize-ignorelist.
+#
+# ---------------------------------------------------------------------------------------
+# absl's flag registry, hit by EVERY test at static-init time:
+#
+#   #0 std::__1::basic_string<...>::__is_long()   toolchains_llvm.../include/c++/v1/string
+#   #1 std::__1::basic_string<...>::size()        toolchains_llvm.../include/c++/v1/string
+#   #2 std::__1::operator==<char, ...>(...)       toolchains_llvm.../include/c++/v1/string
+#   #3 absl::flags_internal::FlagRegistry::RegisterFlag(...)  absl/flags/reflection.cc:119
+#   #6 __cxx_global_var_init                                  absl/flags/parse.cc:111
+#   Uninitialized value was created by an allocation of 'ref.tmp' in RegisterFlag
+#
+# A KNOWN FALSE POSITIVE, and the stack says why: the `std::string` frames resolve to
+# `external/toolchains_llvm.../include/c++/v1/string`, the PREBUILT (uninstrumented) libc++
+# from the hermetic LLVM distribution, not the instrumented `.msan-libcxx` copy that
+# --config=msan swaps in. The `ref.tmp` temporary is built by code MSan never saw, so no
+# shadow is written for it and the `==` in RegisterFlag reads it as uninitialized. Nothing
+# in xff or in absl is wrong here.
+#
+# The proper fix is instrumenting libc++ itself, after which this entry can be deleted;
+# tracked in TODO.md under the MSan investigation.
+interceptor_via_fun:*FlagRegistry*RegisterFlag*
+interceptor_via_lib:libc++.so

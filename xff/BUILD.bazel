@@ -45,6 +45,20 @@ config_setting(
     flag_values = {":xff_archive": "True"},
 )
 
+# --//xff:xff_msan -- set by --config=msan (see .bazelrc). It exists so the cc_* wrappers in
+# xff/cc.bzl can `select()` the MSan ignore list into copts + additional_compiler_inputs ONLY in an
+# MSan build: -fsanitize-ignorelist is meaningless without -fsanitize=memory, and declaring the input
+# unconditionally would add it to every action in every configuration.
+bool_flag(
+    name = "xff_msan",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "xff_msan_enabled",
+    flag_values = {":xff_msan": "True"},
+)
+
 # --//xff:xff_pcre -- link the PCRE2 regex backend (extra_modules/pcre2; wired in #85). Default off, so
 # only `xff_full` built with the extra on (`--config=xff_full`, or `--//xff:xff_pcre`) links it. Without
 # it, `--regextype=PCRE2` is a usage error (never a silent RE2 fallback).

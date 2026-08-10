@@ -15,7 +15,7 @@
 
 load("@helly25_bashtest//bashtest:bashtest.bzl", "bashtest")
 load("@helly25_mbo//mbo/diff:diff.bzl", "diff_test")
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("//xff:cc.bzl", "cc_binary", "cc_library", "cc_test")
 load("//xff:extras.bzl", "XFF_FULL_ONLY")  # target_compatible_with gate for the extras / full build
 load(":golden.bzl", "xff_golden_cases")
 
@@ -382,6 +382,13 @@ cc_test(
 # (every CI test job), which is the same binary XFF.md is generated from. To refresh: ./xff-md-update.sh.
 genrule(
     name = "xff_markdown_gen",
+    # Under --config=msan the suppression file has to be an input here too: this action RUNS the
+    # instrumented binary, and a genrule's working directory is the execroot, which is the path
+    # MSAN_OPTIONS=suppressions= names (see .bazelrc).
+    srcs = select({
+        "//xff:xff_msan_enabled": ["//tools:msan_suppressions"],
+        "//conditions:default": [],
+    }),
     outs = ["XFF.md.actual"],
     cmd = "XFF_CONFIG=/nonexistent $(location :xff_full) --markdown > $@",
     target_compatible_with = XFF_FULL_ONLY,

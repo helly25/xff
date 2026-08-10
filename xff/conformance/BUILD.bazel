@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_test")
+load("//xff:cc.bzl", "cc_test")
 
 # Conformance gate: asserts xff's OWN defined output over a fixed fixture tree
 # (not differential against a system `find`, which varies by platform). See the
