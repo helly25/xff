@@ -905,6 +905,25 @@ concrete need appears.
      hashing lib (MinHash wants a fast hash; reuse xff/hash or mbo::digest). Open: shingle width w and
      the similarity threshold as flags; whether v1 is the pairwise matcher only, deferring the
      cross-tree clustering reduction. Likely a build-time extra if it pulls weight.
+- **Untested `cc_library` targets + a lint to keep them from reappearing (opened 2026-08-10).**
+  STYLE_CPP says all exported code is tested at every level, but nothing enforced it, so gaps
+  accumulated quietly. Audited every `cc_library` for a `cc_test` in the same package depending on
+  it: **4 of 50 had none**, and 3 of those are in the shared extras API - the worst possible place,
+  since it is the module other modules implement.
+  - `xff_extras_api:regex_backend` - the RegexBackend interface + PCRE2 registration slot. A break
+    here surfaces inside an extra rather than at the seam that caused it.
+  - `xff_extras_api:license_notice` - `Register` / `Registrar` / `Notices`. Its documented contract
+    (`Notices()` sorted by component regardless of static-init order) is exactly the kind of thing
+    that regresses silently. Only indirect coverage today: the archive reader's test asserts its own
+    notice appears.
+  - `xff_extras_api:vfs_cc` - FIXED: it now has a contract test that implements the interface with a
+    fake backend built from nothing but that module.
+  - `xff/cli:main_cc` - arguably not a gap: it is `main()` plus wiring, covered end to end by the
+    `xff` / `xff_full` bashtests. It should carry a comment saying so, so the lint below records a
+    justified exception instead of looking like an oversight.
+  - **Enforce it, do not just fix it:** add a pre-commit / CI check that every `cc_library` has a
+    test depending on it, with an explicit allowlist for justified exceptions. Pairs with the `_cc`
+    naming lint - both are BUILD hygiene a reviewer should not have to remember.
 - **INVESTIGATE: the MSan finding (opened 2026-08-10).** With the instrumented libc++ in place, the
   very first working MSan run reported `use-of-uninitialized-value` in the `xff` binary, hit by many
   tests at what looks like one shared site (the same instruction offset each time), and it also
