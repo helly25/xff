@@ -79,3 +79,18 @@ bazel_dep(name = "helly25_mbo", version = "0.13.0")
 # helly25/bashtest -- shell-test runner (expect_* helpers + test_runner) for the
 # binary-level CLI tests. Visible under its canonical name @helly25_bashtest.
 bazel_dep(name = "helly25_bashtest", version = "0.5.0")
+
+# @msan_libcxx -- the MSan-instrumented libc++ that tools/build_msan_libcxx.sh installs into
+# .msan-libcxx/ (Linux, --config=msan). It is a repository rather than a set of copts because a
+# cc_library's `includes` emits an EXECROOT-RELATIVE -isystem in the ordinary include chain: an
+# absolute one is rejected ("outside of the execution root"), and a -cxx-isystem one breaks libc++'s
+# C-header shims, which reach glibc through `#include_next` (that failure looked like "unresolved
+# using declaration" on ::memcpy). Fetched LAZILY: only the //xff:cc.bzl wrappers depend on it, and
+# only under --//xff:xff_msan, so a normal build never looks for the directory.
+new_local_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:local.bzl", "new_local_repository")
+
+new_local_repository(
+    name = "msan_libcxx",
+    build_file = "//bazelmod:msan_libcxx.BUILD",
+    path = ".msan-libcxx",
+)
