@@ -87,3 +87,39 @@ cc_test(
         "@helly25_mbo//mbo/testing:status_cc",
     ],
 )
+
+# The license-notice seam's contract: notices sort by component regardless of the static-init order
+# they were registered in (otherwise the generated NOTICE file would reorder itself between builds and
+# the committed copy would drift), a Registrar contributes the whole notice (name + SPDX id + text,
+# since a NOTICE must reproduce all of it), and Notices() hands back a copy so a caller assembling
+# text cannot corrupt the registry.
+cc_test(
+    name = "notice_test",
+    size = "small",
+    srcs = ["notice_test.cc"],
+    deps = [
+        ":license_notice",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# The RegexBackend seam's contract, exercised by implementing it with a trivial literal backend -
+# again using nothing but this module, which is the property the extras split exists to guarantee.
+# Also pins the registration slot: UNREGISTERED reports Unimplemented ("not built into this binary",
+# never confused with a bad pattern and never a silent RE2 fallback), and after a factory registers,
+# the grammar reports available, receives case_insensitive, and a rejected pattern stays
+# InvalidArgument.
+cc_test(
+    name = "backend_test",
+    size = "small",
+    srcs = ["backend_test.cc"],
+    deps = [
+        ":regex_backend",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)
