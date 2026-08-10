@@ -916,6 +916,32 @@ concrete need appears.
   and decide real-bug vs instrumentation gap. Only after that does the cell become a hard gate. Treat
   as potentially real until proven otherwise: an uninitialized read is undefined behavior, and the
   perturbed output suggests it actually influences a value.
+- **INVESTIGATE: the `clang-tidy` CI cell is ~5x slower than helly25/mbo's (opened 2026-08-10).**
+  Measured on 2026-08-10: xff ~34 min per run on main (07:07:17 -> 07:41:34, and 00:03 -> 00:37),
+  while mbo's equivalent job is ~6 min warm (09:18:29 -> 09:24:19; 22:57 -> 23:04) with one ~36 min
+  outlier that looks like a cold cache. So mbo's cold cost matches ours and its WARM cost does not,
+  which points at cache reuse rather than at clang-tidy itself. Two concrete differences found by
+  diffing the two workflows - both plausible, neither yet proven:
+  1. **Our cache is written once and then frozen.** We use the combined `actions/cache@v4` with a
+     STABLE key (`bazel-disk-clang-tidy-<hash of MODULE.bazel.lock + .bazelversion>`). The combined
+     action only SAVES when the key missed, so after the first run the key always hits and the entry
+     is never refreshed - it stays at the first run's contents while the tree keeps growing. mbo
+     instead uses `actions/cache/restore@v5` with a per-commit key
+     (`clang-tidy-<ref>-<sha>`) plus a restore-keys ladder (`clang-tidy-<ref>`,
+     `clang-tidy-refs/heads/main`, `clang-tidy`) and an explicit
+     `actions/cache/save@v5` guarded by `cache-hit != 'true'`, so nearly every run stores a fully
+     warm cache for the next one.
+  2. **We cache far less.** We cache only `~/.cache/bazel-disk` (the disk cache); mbo caches the
+     whole `~/.cache/bazel` bazel root, so it also reuses the output base and skips analysis. That
+     matters here because our job runs `compile_commands-update.sh`, which does a full
+     `bazel build --config=clang-tidy //...` - the expensive part, and the part a warm output base
+     would mostly skip.
+     **Tension to resolve, not ignore:** the stable key was a deliberate earlier fix - a per-run key
+     minted a fresh cache every commit and the entries were evicted before reuse under GitHub's
+     10 GB/repo limit. And caching the whole bazel root would pull in the extracted ~4.4 GB hermetic
+     LLVM, which we deliberately do NOT cache for exactly that reason. So the fix is a size-aware
+     version of mbo's shape (e.g. per-ref rather than per-SHA keys, an explicit save, and excluding the
+     LLVM external dir), measured against the cache budget - not a copy-paste of mbo's job.
 - **Evaluate MemorySanitizer (MSan)** as a fourth sanitizer alongside asan / tsan / (ubsan). MSan
   catches reads of uninitialized memory, which asan does not. Feasibility check, not a commitment:
   - **macOS: out.** MSan is Clang-only and effectively Linux/x86-64 only; there is no macOS support, so
