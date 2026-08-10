@@ -50,6 +50,10 @@ fi
 
 export ASAN_SYMBOLIZER_PATH="${LLVM_SYMBOLIZER_PATH}"
 export TSAN_SYMBOLIZER_PATH="${LLVM_SYMBOLIZER_PATH}"
+# MSan needs its own variable; without it a MemorySanitizer report is a list of raw
+# addresses, which is unusable for triage (the whole point of the report is the frame
+# that read the uninitialized value).
+export MSAN_SYMBOLIZER_PATH="${LLVM_SYMBOLIZER_PATH}"
 
 BIN="$(realpath "${PWD}/${1}")"
 
