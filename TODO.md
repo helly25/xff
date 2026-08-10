@@ -34,7 +34,45 @@ shipped one way but not yet settled.
   earlier subtree-scoping question (now moot). Full record + the `--xffrc` arming restriction
   are in the roadmap tail below ("Config: drop the project `.xffrc` layer").
 
-- **INVESTIGATE (GATES 1.0.0): `--flag:modifier` instead of `--flag=modifier value`.**
+- **INVESTIGATED (GATES 1.0.0): `--flag:modifier` instead of `--flag=modifier value`. Findings below,
+  decision still open.** The surveyed surface is far narrower than the proposal assumes, and one
+  example in the original note was simply wrong.
+
+  **Surveyed every global's value grammar.** Only these have any internal structure:
+
+  | flag                           | shape                | is it "modifier + value"?                    |
+  | :----------------------------- | :------------------- | :------------------------------------------- |
+  | `--define=NAME=VALUE`          | two `=`              | YES - the one genuine case                   |
+  | `--histogram=BUCKET[:MEASURE]` | `:` INSIDE the value | no - a sub-selector, and it already owns `:` |
+  | `--columns=FIELD,...`          | comma list           | no - a plain valued flag                     |
+  | `--diff-ignore=TOKEN,...`      | comma list           | no - a plain valued flag                     |
+  | `--timezone=ZONE, --tz=ZONE`   | single value         | no                                           |
+
+  **Correction to the original note:** `-capture=NAME ... \;` and `-capturedir` are NOT globals. They
+  are expression PRIMARIES (single dash, `=payload` binding), so they belong to the primary grammar,
+  not the `--flag` surface. Respelling those would be a much larger change to the expression language
+  and is not what this item proposed.
+
+  **The collision is real and already shipped.** `:` is xff's established SUB-separator INSIDE a value:
+  `--histogram=size:count`, the `-printf` bridge `%{size:h}`, and the rewrite qualifier
+  `{field:s/pat/repl/}`. Promoting `:` to the flag/modifier separator would put two meanings of `:` in
+  one token - `--histogram:size:count` - which is worse than the `=` it replaces.
+
+  **So the proposal buys clarity for exactly one flag** (`--define`), at the cost of a second meaning
+  for `:`. Three ways to close it:
+  1. **Do nothing.** `--define=NAME=VALUE` stays; it is unambiguous to the parser (split at the FIRST
+     `=`) and matches `make`, `cmake -D`, and `bazel --define`. Zero churn, and the precedent argument
+     is strong: users have seen `NAME=VALUE` after an `=` before.
+  2. **Accept `--define:NAME=VALUE` as an alias**, keeping `=` working. Narrow, no other flag changes,
+     no new meaning of `:` inside a value. Costs one alias and its docs.
+  3. **Blanket switch** for all valued flags - NOT recommended: it breaks every shipped spelling and
+     collides with the sub-separator above.
+
+  **Recommendation: (1), or (2) if the double `=` is what grates** - the decision is yours; nothing is
+  implemented. Whichever way, it stops gating 1.0.0 once recorded, because (1) is a no-op and (2) is
+  additive (an alias can land after 1.0.0 without breaking anyone).
+
+- **Original proposal (kept for the rationale):**
   Several globals spend their `=value` slot on a _modifier_ (a key, a mode, a dimension) and
   then take the actual value separately, so `=` no longer means "here is the value". The
   proposal is to separate the modifier with a colon - `--flag:modifier` - which frees `=`
