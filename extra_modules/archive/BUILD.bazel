@@ -26,7 +26,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 #
 # `alwayslink` keeps the license-notice registration TU from being dropped by the linker.
 cc_library(
-    name = "archive_reader",
+    name = "archive_reader_cc",
     srcs = ["archive_reader.cc"],
     hdrs = ["archive_reader.h"],
     include_prefix = "xff/archive",
@@ -36,7 +36,7 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@libarchive//libarchive",
-        "@xff_extras_api//:license_notice",
+        "@xff_extras_api//:license_notice_cc",
     ],
     alwayslink = True,
 )
@@ -50,12 +50,12 @@ cc_test(
     size = "small",
     srcs = ["archive_reader_test.cc"],
     deps = [
-        ":archive_reader",
+        ":archive_reader_cc",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
         "@helly25_mbo//mbo/testing:status_cc",
         "@libarchive//libarchive",
-        "@xff_extras_api//:license_notice",
+        "@xff_extras_api//:license_notice_cc",
     ],
 )

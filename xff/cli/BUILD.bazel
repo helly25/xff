@@ -74,7 +74,7 @@ cc_binary(
     target_compatible_with = XFF_FULL_ONLY,
     visibility = ["//visibility:public"],
     deps = [":main_cc"] + select({
-        "//xff:xff_pcre_enabled": ["@xff_pcre2//:pcre2_backend"],
+        "//xff:xff_pcre_enabled": ["@xff_pcre2//:pcre2_backend_cc"],
         "//conditions:default": [],
     }),
 )

@@ -48,6 +48,12 @@ an AI assistant) can follow them without reverse-engineering the tooling.
 ## Code organization
 
 - All exported code lives under the top library directory (in xff: `xff/`).
+- **A `cc_library` target is named `<thing>_cc`** (`glob_cc`, `license_cc`, `vfs_cc`), so a
+  label reads as "the C++ library for `<thing>`" and never collides with the directory,
+  header, or binary of the same name. `cc_test` keeps its `_test` suffix, and a `cc_binary`
+  keeps the plain program name (`xff`). Enforced by the `check-cc-target-naming` pre-commit
+  hook ([`tools/check_cc_target_naming.py`](tools/check_cc_target_naming.py)), so the
+  convention cannot drift back the way four extras targets did.
 - Each subdirectory uses namespace `xff::{dir}` (and `xff::{dir}::{sub}`).
   - Internal-only code: `xff::{dir}::{sub}_internal`. No namespace component is ever
     just `internal`.
