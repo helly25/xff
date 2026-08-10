@@ -133,10 +133,40 @@ repos:
         files: (^|/)BUILD(\.bazel)?$
       - id: check-cc-target-naming-test
         name: Test the cc_library naming check
-        description: Runs the naming-check unit tests when the tool or its test changes.
+        description: |
+          Runs the naming-check unit tests when the tool, its test, or the shared BUILD
+          reader it is built on (tools/build_rules.py) changes.
         language: script
         entry: tools/check_cc_target_naming_test.py
-        files: ^tools/check_cc_target_naming(_test)?\.py$
+        files: ^tools/(check_cc_target_naming(_test)?|build_rules)\.py$
+        pass_filenames: false
+      - id: check-cc-library-tested
+        name: Every cc_library has a test
+        description: |
+          Project rule (STYLE_CPP.md): all exported code is tested, at every level. This
+          fails on a `cc_library` that no `*_test` rule in its own package depends on -
+          transitive coverage and non-test dependents (a cc_binary, a bashtest) do not
+          count. A library with genuinely no testable surface goes in the tool's
+          _ALLOWLIST together with the reason. To skip once, run
+          `SKIP="check-cc-library-tested" pre-commit`.
+        language: script
+        entry: tools/check_cc_library_tested.py
+        files: (^|/)BUILD(\.bazel)?$
+      - id: check-cc-library-tested-test
+        name: Test the library-has-a-test check
+        description: |
+          Runs the coverage-check unit tests when the tool, its test, or the shared BUILD
+          reader it is built on (tools/build_rules.py) changes.
+        language: script
+        entry: tools/check_cc_library_tested_test.py
+        files: ^tools/(check_cc_library_tested(_test)?|build_rules)\.py$
+        pass_filenames: false
+      - id: build-rules-test
+        name: Test the shared BUILD reader
+        description: Runs the BUILD-reader unit tests when it or its test changes.
+        language: script
+        entry: tools/build_rules_test.py
+        files: ^tools/build_rules(_test)?\.py$
         pass_filenames: false
       - id: release-prep-test
         name: Test the release prep script
