@@ -599,6 +599,14 @@ remains below is the design-forked / larger work.
         covered the absolute case, which is exactly why the bug hid - both forms are pinned now.
       - There is no `none` value: with a string-valued prefix it would be indistinguishable from a
         literal prefix spelled `none`. Keywords are ALL CAPS (`URI`), matching RE2 / PCRE2 / GLOB.
+    - **Why phar is the easy case: `.phar/` is self-marking.** A path component ending in `.phar`
+      followed by `/` is, in practice, never anything but a phar archive plus a sub-path - so the
+      LEXICAL oracle (scan for the extension) is reliable for phar without a stat, which is exactly
+      what PHP's own stream wrapper relies on. Consequences worth stating: phar can render AND parse
+      member paths with no filesystem access, offline round-tripping included; and `AUTO` can safely
+      pick `/` for phar, because the split point is carried by the container's own name rather than by
+      a marker. The residual case - a real DIRECTORY named `x.phar` - is pathological, and a walk gets
+      it right anyway: it finds a directory, not a file, so there is nothing to open as an archive.
     - **OPEN: per-format schemes, and PHAR support (raised 2026-08-11).** PHP's phar has its own
       established URL form, `phar:///path/to/a.phar/inner/x` - a per-format scheme AND a plain `/`
       separator with no marker at all. That is real evidence AGAINST the generic `archive:` scheme and
