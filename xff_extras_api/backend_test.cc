@@ -33,7 +33,6 @@ namespace xff::regex {
 namespace {
 
 using ::mbo::testing::IsOk;
-using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
 using ::testing::IsFalse;
@@ -49,7 +48,7 @@ class LiteralBackend : public RegexBackend {
 
   bool FullMatch(std::string_view text) const override { return text == pattern_; }
 
-  bool PartialMatch(std::string_view text) const override { return text.find(pattern_) != std::string_view::npos; }
+  bool PartialMatch(std::string_view text) const override { return text.contains(pattern_); }
 
   std::optional<std::pair<std::size_t, std::size_t>> FindFirst(std::string_view text) const override {
     const std::size_t at = text.find(pattern_);
