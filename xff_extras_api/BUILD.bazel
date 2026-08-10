@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 # The shared extras API, one target per seam. Both the xff core and each removable extra depend on
 # these, so an extra never depends back into the core (which would be a cycle). `include_prefix`
@@ -55,7 +55,7 @@ cc_library(
 # base module nothing. //xff/vfs re-exports it, so core code keeps including "xff/vfs/entry.h" and
 # "xff/vfs/filesystem.h" unchanged.
 cc_library(
-    name = "vfs",
+    name = "vfs_cc",
     hdrs = [
         "entry.h",
         "filesystem.h",
@@ -66,5 +66,24 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
+    ],
+)
+
+# The seam's contract, exercised by implementing it: the fake backend in this test is written using
+# NOTHING but this module, which is the property that lets an extra provide a filesystem without
+# depending on the xff core. It also pins the behaviours the engine relies on - per-path failures are
+# statuses (so a walk continues), a read-only backend REFUSES removal instead of silently ignoring
+# it, and an unset Entry/Metadata field means "ordinary real-filesystem entry" (read_only false).
+cc_test(
+    name = "vfs_test",
+    size = "small",
+    srcs = ["vfs_test.cc"],
+    deps = [
+        ":vfs_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
     ],
 )

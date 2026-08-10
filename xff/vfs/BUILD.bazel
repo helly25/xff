@@ -21,7 +21,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 # `//xff/vfs:vfs_cc` dep and every `#include "xff/vfs/entry.h"` working unchanged.
 alias(
     name = "vfs_cc",
-    actual = "@xff_extras_api//:vfs",
+    actual = "@xff_extras_api//:vfs_cc",
     visibility = ["//xff:__subpackages__"],
 )
 
