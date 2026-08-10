@@ -16,6 +16,7 @@
 #ifndef XFF_CLI_HELP_BUILD_H_
 #define XFF_CLI_HELP_BUILD_H_
 
+#include <cstdint>
 #include <optional>
 #include <string_view>
 
