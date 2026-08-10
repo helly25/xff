@@ -13,8 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//xff:cc.bzl", "cc_test")
+load("//xff:cc.bzl", "cc_library", "cc_test")
 
 # Visible to //extra_modules too: a build extra (e.g. extra_modules/pcre2) self-registers its notice
 # here via license::Registrar, the same way core deps do.

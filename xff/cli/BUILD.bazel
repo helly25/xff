@@ -15,8 +15,7 @@
 
 load("@helly25_bashtest//bashtest:bashtest.bzl", "bashtest")
 load("@helly25_mbo//mbo/diff:diff.bzl", "diff_test")
-load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//xff:cc.bzl", "cc_binary", "cc_test")
+load("//xff:cc.bzl", "cc_binary", "cc_library", "cc_test")
 load("//xff:extras.bzl", "XFF_FULL_ONLY")  # target_compatible_with gate for the extras / full build
 load(":golden.bzl", "xff_golden_cases")
 

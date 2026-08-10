@@ -13,8 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//xff:cc.bzl", "cc_test")
+load("//xff:cc.bzl", "cc_library", "cc_test")
 
 # Source-agnostic interface: Entry/Metadata + the FileSystem abstraction.
 # The VFS seam now lives in the shared @xff_extras_api base module (so an extra can implement a

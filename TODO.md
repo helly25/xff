@@ -982,6 +982,12 @@ concrete need appears.
     inside a copt VALUE (a literal `%workspace%/...` reached clang and every compile failed); an
     absolute include-ish path is rejected as "outside of the execution root"; and it only works by
     reading a file the action never declared, which a stricter sandbox or remote execution refuses.
+  - **Coverage gap, deliberate:** the three `xff_extras_api` tests do NOT route through the wrappers,
+    so they carry no suppression file. That module is built both as `//xff_extras_api:...` (it is not
+    in `.bazelignore`) and as its own `@xff_extras_api`, and in the latter a `//xff:cc.bzl` label does
+    not exist - loading it would also invert the "an extra never depends on the core" rule. The
+    `no-raw-rules-cc-load` hook exempts that directory for the same reason. If those tests need the
+    suppression, the file has to be hosted by the shared API module itself.
   - **Format caveat, still to be proven in CI:** MSan's runtime suppressions understand only
     `interceptor_via_fun` / `interceptor_via_lib` (reports raised through an intercepted libc call).
     This report comes from inline `std::string` code, so it is not certain the entry matches. If the

@@ -13,8 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//xff:cc.bzl", "cc_test")
+load("//xff:cc.bzl", "cc_library", "cc_test")
 
 # The .xffrc grammar parser (bazel-rc-style flag bundles with base:config:
 # selectors). Parse-only; the config loader and policy gate build on it.

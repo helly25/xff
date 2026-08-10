@@ -13,8 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//xff:cc.bzl", "cc_test")
+load("//xff:cc.bzl", "cc_library", "cc_test")
 
 # File / data digests over mbo::digest, behind a name-keyed algorithm table shared by the
 # `{hash}` field and the `-hash` action. Hex or base64 output.

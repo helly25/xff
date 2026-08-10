@@ -13,8 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//xff:cc.bzl", "cc_test")
+load("//xff:cc.bzl", "cc_library", "cc_test")
 
 # Shared parsing of CLI option values into one permissive vocabulary: yes/true/1
 # and no/false/0 for booleans, plus auto and the always/never color idiom for
