@@ -609,6 +609,27 @@ remains below is the design-forked / larger work.
       `archive_reader` shape - which is what the extras architecture is for, and the member-path
       spelling is format-agnostic so nothing there changes. Check the existing phar work for a reusable
       manifest parser before writing one.
+    - **OPEN (design sketched 2026-08-11): `--archive-separator=AUTO+<fallback>`, a per-format
+      separator.** Once the scheme can be per-format, the SEPARATOR has to follow the format too, since
+      phar's convention is a bare `/` with no marker while JAR-style URLs use `!`. `AUTO` alone cannot
+      decide between `!` and `#` for the formats that have no convention, so it needs a fallback,
+      spelled compactly as one value:
+      - `AUTO+!` - derive from the container format, and use `!` where the format dictates nothing.
+      - Bare `AUTO` means `AUTO+!` (the current default fallback), so the short form stays useful.
+      - ALL CAPS because that is now the keyword convention (`URI`); any other string stays a literal
+        separator, so a literal `auto` is still expressible and unambiguous.
+      - The `+` reads as "with fallback". Note it is a mild overload: `+` elsewhere in xff is the
+        chmod-style "more/on" suffix (`-z+`, `-g+`, `-s+`). Alternatives considered and rejected:
+        `AUTO:!` (`:` already means sub-separator inside a value) and `AUTO!` (unparseable - `!` is
+        itself a legal separator, so where does the keyword end?).
+      - Known per-format mapping to start from: phar -> `/` (PHP's `phar:///a.phar/inner/x`), Java
+        jar/war/ear -> `!` (JAR URLs), everything else -> the fallback.
+      - **Decide deliberately: `AUTO` can select a LOSSY spelling.** With `/`, `a.phar/inner` is
+        indistinguishable from a real directory named `a.phar` - exactly why `/` can never be the
+        global default. Under `AUTO` it would become the default for phar, by PHP's choice rather than
+        ours. Options: accept it (interop wins, and it is what other phar tooling prints), or have
+        `AUTO` never pick a lossy separator unless the user opts in. Not implemented either way; it
+        also needs container-format detection, which arrives with the reader/backend slice.
     - **Container identity is dual:** the archive keeps its real-FS identity (real `-type f`,
       deletable / actionable) AND parents its members; this falls out of the existing VFS
       source-tagging (container = real fs, members = archive member).
