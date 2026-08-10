@@ -52,7 +52,6 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-L` - follow symlinks everywhere during the walk _(global, find)_
 - `-P` - never follow symlinks (the default) _(global, find)_
 - `--archive[=none|roots|all], -z[+|-]` - descend into archives: -z- none, -z roots only, -z+ / bare --archive all _(global, xff)_
-  NOT built into this binary: rebuild with `--//xff:xff_archive` (used as-is, it is a hard error).
   One of is one of:
 
   - `none` - an archive is one plain file (find behavior; the find-style default)

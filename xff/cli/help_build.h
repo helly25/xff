@@ -32,7 +32,16 @@
 namespace xff::cli {
 
 // Assembles the reference Document from the SOT. Called once per help render.
-[[nodiscard]] Document BuildReference();
+// Whether a rendered reference describes THIS binary or the tool as a whole. The difference is one
+// note: a flag whose build extra is absent normally carries "NOT built into this binary", which is
+// true of the binary in hand and misleading in a published document - the reference should document
+// all functionality and let each such flag's own text say it is a build extra.
+enum class Audience : std::uint8_t {
+  kThisBinary,  // --help / --man: what YOUR build can do
+  kPublished,   // --markdown / XFF.md: what xff can do
+};
+
+[[nodiscard]] Document BuildReference(Audience audience = Audience::kThisBinary);
 
 // The terse usage page (bare `--help`): the description, the whole-run options and the
 // expression primaries as summary-only entries (no detail blocks), and the meta/doc

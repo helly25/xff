@@ -253,9 +253,11 @@ jobs:
           key: bazel-repo-xff-md-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
           restore-keys: |
             bazel-repo-xff-md-
-      - name: Verify XFF.md matches xff_full --markdown
+      - name: Verify XFF.md matches the all-extras --markdown
+        # --config=xff_docs (every extra on), matching xff-md-update.sh: the committed reference
+        # documents the whole tool, not just what one build links.
         run: >
-          bazel test //xff/cli:xff_markdown_test --config=xff_full
+          bazel test //xff/cli:xff_markdown_test --config=xff_docs
           --repository_cache=$HOME/.cache/bazel-repo
 
   # clang-tidy (hermetic clang-22) over the compile DB. Mirrors helly25/mbo's job and OWNS clang-tidy
