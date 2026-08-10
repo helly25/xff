@@ -135,16 +135,20 @@ common:msan --copt=-fsanitize-memory-track-origins=2
 common:msan --copt=-fno-omit-frame-pointer
 common:msan --copt=-DMEMORY_SANITIZER
 common:msan --linkopt=-fsanitize=memory
-# Replace the prebuilt (uninstrumented) libc++ with the instrumented build. The two
-# -isystem tokens must stay adjacent and in this order: bazel forwards cxxopts verbatim.
-common:msan --cxxopt=-nostdinc++
-common:msan --cxxopt=-isystem
-common:msan --cxxopt=%workspace%/.msan-libcxx/include/c++/v1
-common:msan --linkopt=-nostdlib++
-common:msan --linkopt=-L%workspace%/.msan-libcxx/lib
-common:msan --linkopt=-Wl,-rpath,%workspace%/.msan-libcxx/lib
-common:msan --linkopt=-lc++
-common:msan --linkopt=-lc++abi
+# Replacing the prebuilt (uninstrumented) libc++ with the instrumented build needs
+# ABSOLUTE paths, so those flags live in a GENERATED bazelrc that the build script writes
+# (see below). They cannot be written here: bazel expands %workspace% in import /
+# try-import statements but NOT inside a --copt / --cxxopt / --linkopt VALUE, so
+# `--cxxopt=%workspace%/.msan-libcxx/include/c++/v1` reached clang as that literal string.
+# An unusable -isystem / -L is silently ignored (unlike, say, -fsanitize-ignorelist, which
+# errors), so this config LOOKED correct while every compile kept using the toolchain's
+# uninstrumented libc++ - which is exactly why MSan reported uninitialized reads inside
+# std::string (absl's flag registry comparing a temporary MSan had no shadow for).
+# That generated file also carries -fsanitize-ignorelist=<absolute path to
+# tools/msan_ignorelist.txt> (known false positives, documented in the file itself) plus a
+# -D of its sha256, so editing the ignore list invalidates the compile actions that used
+# it. Same reason it cannot live here: %workspace% is not expanded inside a --copt value.
+try-import %workspace%/.msan-libcxx.bazelrc
 common:msan --build_tag_filters=-no_san  # skip targets tagged no_san
 common:msan --test_tag_filters=-no_san
 common:msan --action_env=MSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1

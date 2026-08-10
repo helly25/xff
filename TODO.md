@@ -954,17 +954,36 @@ concrete need appears.
     invisible, and `deps` reached through a variable is not resolved. A finding is therefore "prove
     it or allowlist it"; `bazel query` is the authority if the two ever disagree. The reader is
     cross-checked against it today - both see exactly 50 `cc_library` targets.
-- **INVESTIGATE: the MSan finding (opened 2026-08-10).** With the instrumented libc++ in place, the
-  very first working MSan run reported `use-of-uninitialized-value` in the `xff` binary, hit by many
-  tests at what looks like one shared site (the same instruction offset each time), and it also
-  perturbs output (a golden expecting `{` got an empty string). It is NOT yet known whether this is a
-  real uninitialized read in xff or a false positive from something still uninstrumented - the first
-  reports were unsymbolized, because the run_under wrapper set `ASAN_SYMBOLIZER_PATH` /
-  `TSAN_SYMBOLIZER_PATH` but not `MSAN_SYMBOLIZER_PATH` (fixed separately). Next steps: read the now
-  symbolized frames from the `msan` cell, reproduce narrowly (run the smallest failing test alone),
-  and decide real-bug vs instrumentation gap. Only after that does the cell become a hard gate. Treat
-  as potentially real until proven otherwise: an uninitialized read is undefined behavior, and the
-  perturbed output suggests it actually influences a value.
+- **The MSan finding: DIAGNOSED as a false positive, ignore-listed (opened 2026-08-10; diagnosed
+  2026-08-10).** The symbolized frames (once `MSAN_SYMBOLIZER_PATH` was set) show every test failing
+  at the same single site, and identify it as an instrumentation gap rather than a bug:
+
+  ```
+  #0 std::__1::basic_string<...>::__is_long()  external/toolchains_llvm.../include/c++/v1/string:2142
+  #1 std::__1::basic_string<...>::size()       external/toolchains_llvm.../include/c++/v1/string:1290
+  #2 std::__1::operator==<char, ...>(...)      external/toolchains_llvm.../include/c++/v1/string:3564
+  #3 absl::flags_internal::FlagRegistry::RegisterFlag(...)  absl/flags/reflection.cc:119
+  #6 __cxx_global_var_init                                  absl/flags/parse.cc:111
+  Uninitialized value was created by an allocation of 'ref.tmp' in RegisterFlag
+  ```
+
+  The `std::string` frames resolve to `external/toolchains_llvm.../include/c++/v1/string`, the
+  PREBUILT (uninstrumented) libc++, **not** to the instrumented `.msan-libcxx` copy `--config=msan`
+  is meant to swap in. So the `ref.tmp` temporary is built by code MSan never saw, no shadow is
+  written, and the `==` in `RegisterFlag` reads it as uninitialized. It fires at static init in
+  `absl/flags/parse.cc`, which is why literally every test hits it. Nothing in xff or absl is wrong.
+  - **Shipped:** `tools/msan_ignorelist.txt` (loaded by `--copt=-fsanitize-ignorelist=` in the msan
+    config), scoped to that one translation unit, so any OTHER uninitialized read - real ones
+    included - still fails. Verified the flag is honored, not silently dropped: a deliberately
+    malformed file makes clang fail with `malformed sanitizer ignorelist`.
+  - **Not** a runtime `MSAN_OPTIONS=suppressions=` file: MSan's runtime suppressions only understand
+    `interceptor_via_fun` / `interceptor_via_lib`, i.e. reports raised through an intercepted libc
+    call. This one comes from instrumented inline code, so a runtime suppression cannot match it.
+  - **Root cause still open:** why the toolchain's builtin include dirs outrank the `-nostdinc++`
+    plus `.msan-libcxx` `-isystem` pair. Fixing that instruments libc++ properly and lets the
+    ignore-list entry be deleted; the hermetic-llvm toolchain (which recompiles runtimes under a
+    sanitizer config) is the candidate. Hard-gating the `msan` cell waits until it is green.
+
 - **INVESTIGATE: the `clang-tidy` CI cell is ~5x slower than helly25/mbo's (opened 2026-08-10).**
   Measured on 2026-08-10: xff ~34 min per run on main (07:07:17 -> 07:41:34, and 00:03 -> 00:37),
   while mbo's equivalent job is ~6 min warm (09:18:29 -> 09:24:19; 22:57 -> 23:04) with one ~36 min
