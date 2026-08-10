@@ -146,6 +146,14 @@ common:msan --linkopt=-fsanitize=memory
 # shape (inside the sandbox, cache-correct, no per-target boilerplate) - unlike a --copt
 # naming a path bazel knows nothing about. MSAN_OPTIONS below points at the runfiles path.
 common:msan --//xff:xff_msan=true
+# Drop the TOOLCHAIN's libc++ from the include path for our own sources, so only the
+# instrumented tree is seen. Without this both trees are searched: their include guards differ
+# (_LIBCPP_CWCHAR from one, from the other), so libc++'s `using ::wint_t _LIBCPP_USING_IF_EXISTS`
+# is emitted twice and the compile fails with "target of using declaration conflicts with
+# declaration already in scope". Scoped with per_file_copt rather than a blanket --cxxopt because
+# the separate extras modules (xff_extras_api, extra_modules/*) cannot depend on the root module's
+# @msan_libcxx, so a global -nostdinc++ would leave them with no standard library at all.
+common:msan --per_file_copt=^xff/.*@-nostdinc++
 common:msan --build_tag_filters=-no_san  # skip targets tagged no_san
 common:msan --test_tag_filters=-no_san
 # Build ACTIONS that run the instrumented binary (the golden generators, xff_markdown_gen) need the
