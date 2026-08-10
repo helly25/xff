@@ -35,11 +35,12 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
     name = "libcxx",
+    # Wildcards on purpose (buildifier rejects a constant glob pattern), and allow_empty
+    # because which archives the runtimes build produces depends on its cmake options.
     srcs = glob(
         [
-            "lib/libc++.a",
-            "lib/libc++abi.a",
-            "lib/libunwind.a",
+            "lib/libc++*.a",
+            "lib/libunwind*.a",
         ],
         allow_empty = True,
     ),
