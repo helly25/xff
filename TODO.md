@@ -993,12 +993,30 @@ concrete need appears.
     This report comes from inline `std::string` code, so it is not certain the entry matches. If the
     `msan` cell still reports after this, the remaining options are patching abseil (a declared,
     hermetic input) or fixing the cause below.
-  - **Root cause still open:** the libc++ swap silently did nothing because of the same `%workspace%`
-    bug, and an absolute `-isystem` is rejected outright, so the header path now goes through
-    `-cxx-isystem` from a generated bazelrc. If that makes libc++ genuinely instrumented, the false
-    positive disappears and the suppression entry can be deleted. The hermetic-llvm toolchain, which
-    recompiles its runtimes under a sanitizer config as ordinary bazel deps, is the clean fix.
-    Hard-gating the `msan` cell waits until it is actually green.
+  - **BLOCKED, and now proven so (2026-08-10).** The swap chain was fixed step by step: `%workspace%`
+    is not expanded in a copt value (so it silently did nothing), an absolute `-isystem` is rejected
+    as outside the execroot, and `-cxx-isystem` from a generated bazelrc finally worked - the headers
+    do come from `.msan-libcxx`, and the false positive DISAPPEARS. But the compile then fails,
+    because two libc++ copies end up on the search path:
+
+    ```
+    .msan-libcxx/include/c++/v1/__functional/hash.h:40:8: error: reference to unresolved using declaration
+       std::memcpy(std::addressof(__r), __p, sizeof(__r));
+    .msan-libcxx/include/c++/v1/cstring:82:1: note: using declaration annotated with 'using_if_exists' here
+    .msan-libcxx/include/c++/v1/cwchar:136:9: error: target of using declaration conflicts with declaration already in scope
+    ```
+
+    `bazel`'s `cc_toolchain` passes its OWN libc++ include dir explicitly, and `-nostdinc++` cannot
+    remove what the toolchain adds by hand, so `#include_next` resolves across two different libc++
+    trees. A hand-built stdlib therefore cannot be swapped in under `toolchains_llvm` at all.
+
+  - **Conclusion: MSan is parked.** Both routes are closed - the stdlib cannot be swapped (above), and
+    the resulting false positive cannot be suppressed at runtime (interceptor-only format). The only
+    real fix is a toolchain that builds its runtimes in-bazel under a sanitizer config, i.e.
+    hermeticbuild/hermetic-llvm and its `//config:msan_enabled` runtimes. Until then the `msan` cell
+    stays report-only (`continue-on-error`) and must not be hard-gated. Everything the attempt DID
+    leave behind is worth keeping: the runtime-suppression plumbing, the `msan` tag, the
+    `no-raw-rules-cc-load` enforcement, and `MSAN_SYMBOLIZER_PATH` in the run-under wrapper.
 
 - **INVESTIGATE: the `clang-tidy` CI cell is ~5x slower than helly25/mbo's (opened 2026-08-10).**
   Measured on 2026-08-10: xff ~34 min per run on main (07:07:17 -> 07:41:34, and 00:03 -> 00:37),
