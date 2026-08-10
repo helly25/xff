@@ -525,8 +525,32 @@ remains below is the design-forked / larger work.
     - **Flavor defaults:** `find` -> `none` (drop-in fidelity); every xff-family flavor (xff / xfd /
       rg) -> `roots`, because pointing xff AT an archive strongly implies "look inside", while
       silently descending every archive in a tree is a cost the user should opt into.
-    - Entry path = the archive path as a directory prefix (`foo.tgz/dir/file.txt`), so globs and
-      `{relpath}` compose.
+    - **Member path spelling: a FLAG, because there is no single convention (decided 2026-08-10).**
+      The prior docs disagreed (`docs/design.md` said the JAR-style `pkg.tar!foo/bar`, an older scope
+      note said a plain directory prefix `foo.tgz/dir/file.txt`) - and neither is "right", because
+      the ecosystem genuinely uses several: `!` (JAR / Java URLs), `#` (fragment style), and URI
+      forms (`tar://…`). So the SEPARATOR is a presentation choice under user control, not something
+      to hard-code:
+      TWO orthogonal knobs, not one:
+      - **`--archive-separator=!|#` (default `!`)** - the character between container and member.
+        Both are established (`!` from JAR / Java URLs, `#` from fragment style). A plain `/`
+        directory-prefix value is worth considering as a third ("it just looks like a directory", so
+        globs and `{relpath}` compose with no new rules), but it is lossy: a real directory named
+        `x.tar` becomes indistinguishable from an archive, so it cannot be the default.
+      - **`--archive-prefix=none|uri` (default `none`)** - whether the whole path is rendered as a
+        URI (`tar:///abs/path/a.tar!/inner/x`) instead of a bare path. The point is INTEROP: a URI
+        can be handed to other tools that understand archive URLs, which a bare path cannot. Open
+        sub-detail: whether the scheme is per-format (`tar:` / `zip:`) or one generic scheme, and
+        whether `file:` wraps the container path as Java's `jar:file:/…!/…` does.
+      - Both flags apply to RENDERING and to PARSING a member path handed back in (a `-cmp` /
+        `{def.X}` target), so a path xff printed always round-trips through xff.
+      - The find flavor is unaffected: with `--archive=none` no member path is ever produced.
+    - **The trailing `/` after the separator is DATA, not style.** `pkg.tar!foo/bar` (relative stored
+      path, normal) vs `pkg.tar!/foo/bar` (ABSOLUTE stored path - unusual, and exactly the Zip-Slip
+      red flag) is a property of what the ARCHIVE stored, so it is reported, never chosen: the same
+      distinction applies to `#` vs `#/`. Note this is a deliberate, documented divergence from JAR /
+      ZIP URL syntax, where `!/` is the unconditional separator and carries no such meaning - xff
+      uses the slash to surface an absolute member path because that is the security-relevant fact.
     - **Container identity is dual:** the archive keeps its real-FS identity (real `-type f`,
       deletable / actionable) AND parents its members; this falls out of the existing VFS
       source-tagging (container = real fs, members = archive member).
@@ -875,6 +899,17 @@ concrete need appears.
      hashing lib (MinHash wants a fast hash; reuse xff/hash or mbo::digest). Open: shingle width w and
      the similarity threshold as flags; whether v1 is the pairwise matcher only, deferring the
      cross-tree clustering reduction. Likely a build-time extra if it pulls weight.
+- **INVESTIGATE: the MSan finding (opened 2026-08-10).** With the instrumented libc++ in place, the
+  very first working MSan run reported `use-of-uninitialized-value` in the `xff` binary, hit by many
+  tests at what looks like one shared site (the same instruction offset each time), and it also
+  perturbs output (a golden expecting `{` got an empty string). It is NOT yet known whether this is a
+  real uninitialized read in xff or a false positive from something still uninstrumented - the first
+  reports were unsymbolized, because the run_under wrapper set `ASAN_SYMBOLIZER_PATH` /
+  `TSAN_SYMBOLIZER_PATH` but not `MSAN_SYMBOLIZER_PATH` (fixed separately). Next steps: read the now
+  symbolized frames from the `msan` cell, reproduce narrowly (run the smallest failing test alone),
+  and decide real-bug vs instrumentation gap. Only after that does the cell become a hard gate. Treat
+  as potentially real until proven otherwise: an uninitialized read is undefined behavior, and the
+  perturbed output suggests it actually influences a value.
 - **Evaluate MemorySanitizer (MSan)** as a fourth sanitizer alongside asan / tsan / (ubsan). MSan
   catches reads of uninitialized memory, which asan does not. Feasibility check, not a commitment:
   - **macOS: out.** MSan is Clang-only and effectively Linux/x86-64 only; there is no macOS support, so
