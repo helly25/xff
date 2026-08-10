@@ -60,8 +60,22 @@ TEST_F(MemberPathTest, AnyStringWorksAsASeparatorNotAFixedMenu) {
   EXPECT_THAT(JoinMemberPath("a.tgz", "x", {.separator = "::"}), "a.tgz::x");
 }
 
-TEST_F(MemberPathTest, TheUriPrefixWrapsTheWholePathForInterop) {
-  EXPECT_THAT(JoinMemberPath("/abs/a.tar", "/inner/x", {.prefix = PathPrefix::kUri}), "archive:///abs/a.tar!/inner/x");
+TEST_F(MemberPathTest, AnAbsoluteContainerRendersWithAnEmptyUriAuthority) {
+  // `archive://` + an absolute path = empty authority + path, exactly as `file:///...` works.
+  EXPECT_THAT(JoinMemberPath("/abs/a.tar", "/inner/x", {.prefix = kUriPrefix}), "archive:///abs/a.tar!/inner/x");
+}
+
+TEST_F(MemberPathTest, ARelativeContainerRendersAsAnOpaqueUriNotAnAuthority) {
+  // The bug this pins: `archive://a.tgz!x` would parse `a.tgz` as a HOST NAME, because `//`
+  // introduces the authority. A relative container must therefore take the opaque form.
+  EXPECT_THAT(JoinMemberPath("a.tgz", "inner/x", {.prefix = kUriPrefix}), "archive:a.tgz!inner/x");
+  EXPECT_THAT(JoinMemberPath("sub/dir/a.tgz", "x", {.prefix = kUriPrefix}), "archive:sub/dir/a.tgz!x");
+}
+
+TEST_F(MemberPathTest, BothUriFormsParseBack) {
+  const MemberPathOptions uri{.prefix = kUriPrefix};
+  EXPECT_THAT(SplitMemberPath("archive:///abs/a.tar!/inner/x", uri), Optional(PartsAre("/abs/a.tar", "/inner/x")));
+  EXPECT_THAT(SplitMemberPath("archive:a.tgz!inner/x", uri), Optional(PartsAre("a.tgz", "inner/x")));
 }
 
 TEST_F(MemberPathTest, SplitIsTheInverseOfJoin) {
@@ -88,10 +102,28 @@ TEST_F(MemberPathTest, AnEmptySeparatorNeverMatches) {
 }
 
 TEST_F(MemberPathTest, UriParsingRequiresTheSchemeItRenders) {
-  EXPECT_THAT(SplitMemberPath("archive://a.tgz!x", {.prefix = PathPrefix::kUri}), Optional(PartsAre("a.tgz", "x")));
+  EXPECT_THAT(SplitMemberPath("archive://a.tgz!x", {.prefix = kUriPrefix}), Optional(PartsAre("a.tgz", "x")));
   // Under --archive-prefix=uri a bare path is NOT a member path: the flag says what the spelling is,
   // so accepting both would make the two forms silently interchangeable.
-  EXPECT_THAT(SplitMemberPath("a.tgz!x", {.prefix = PathPrefix::kUri}), Eq(std::nullopt));
+  EXPECT_THAT(SplitMemberPath("a.tgz!x", {.prefix = kUriPrefix}), Eq(std::nullopt));
+}
+
+TEST_F(MemberPathTest, AnyOtherPrefixIsUsedLiterally) {
+  // `prefix` is a string like `separator` is, so a system expecting its own marker can be fed one
+  // with no code change. "URI" is the ONE keyword; nothing else is interpreted.
+  EXPECT_THAT(JoinMemberPath("a.tgz", "x", {.prefix = "vfs:"}), "vfs:a.tgz!x");
+  EXPECT_THAT(SplitMemberPath("vfs:a.tgz!x", {.prefix = "vfs:"}), Optional(PartsAre("a.tgz", "x")));
+  // Strict both ways, for the same reason the URI form is: the flag says what the spelling IS.
+  EXPECT_THAT(SplitMemberPath("a.tgz!x", {.prefix = "vfs:"}), Eq(std::nullopt));
+}
+
+TEST_F(MemberPathTest, AnEmptyPrefixMeansNoPrefixAndIsTheDefault) {
+  // Empty, not the word "none": with a string-valued prefix, "none" would be indistinguishable from
+  // a literal prefix spelled `none`.
+  EXPECT_THAT(JoinMemberPath("a.tgz", "x", {.prefix = ""}), "a.tgz!x");
+  EXPECT_THAT(JoinMemberPath("a.tgz", "x"), "a.tgz!x");
+  EXPECT_THAT(SplitMemberPath("a.tgz!x", {.prefix = ""}), Optional(PartsAre("a.tgz", "x")));
+  EXPECT_THAT(JoinMemberPath("none-dir/a.tgz", "x", {.prefix = "none"}), "nonenone-dir/a.tgz!x");
 }
 
 TEST_F(MemberPathTest, EverySeparatorSpellingRoundTrips) {
@@ -109,7 +141,7 @@ TEST_F(MemberPathTest, EverySeparatorSpellingRoundTrips) {
 }
 
 TEST_F(MemberPathTest, AUriRoundTripsToo) {
-  const MemberPathOptions options{.separator = "!/", .prefix = PathPrefix::kUri};
+  const MemberPathOptions options{.separator = "!/", .prefix = kUriPrefix};
   const std::string joined = JoinMemberPath("/abs/a.tar", "/inner/x", options);
   EXPECT_THAT(joined, "archive:///abs/a.tar!//inner/x");
   EXPECT_THAT(SplitMemberPath(joined, options), Optional(PartsAre("/abs/a.tar", "/inner/x")));

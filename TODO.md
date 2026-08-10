@@ -550,10 +550,10 @@ remains below is the design-forked / larger work.
     - **Slice SHIPPED (2026-08-10): the spelling library + both flags.**
       `@xff_extras_api//:member_path_cc` (`xff/archive/member_path.h`) implements the ratified rules -
       `JoinMemberPath` is plain concatenation, `SplitMemberPath` cuts at the FIRST separator and keeps
-      the remainder verbatim, an empty separator never matches, and `--archive-prefix=uri` parses only
+      the remainder verbatim, an empty separator never matches, and `--archive-prefix=URI` parses only
       the URI form so the two spellings cannot silently interchange. It lives in the shared API module
       because both sides need it (the extra renders, the core parses a member path handed back) and an
-      extra must not depend on the core. `--archive-separator=STRING` and `--archive-prefix=none|uri`
+      extra must not depend on the core. `--archive-separator=STRING` and `--archive-prefix=[URI|STRING]`
       are registered globals (help + `XFF.md` regenerated), gated on the archive extra like
       `--archive`. STILL TO COME with the VFS backend: actually rendering walk output through them,
       and the reserved `{relpath}`-style interaction. The URI scheme is the generic `archive://` for
@@ -572,7 +572,7 @@ remains below is the design-forked / larger work.
         looks like a directory", so globs and `{relpath}` compose with no new rules) but is lossy - a
         real directory named `x.tar` becomes indistinguishable from an archive - so it can never be
         the default.
-      - **`--archive-prefix=none|uri` (default `none`)** - whether the whole path is rendered as a
+      - **`--archive-prefix=[URI|STRING]` (default empty)** - whether the whole path is rendered as a
         URI (`tar:///abs/path/a.tar!/inner/x`) instead of a bare path. The point is INTEROP: a URI
         can be handed to other tools that understand archive URLs, which a bare path cannot. Open
         sub-detail: whether the scheme is per-format (`tar:` / `zip:`) or one generic scheme, and
@@ -590,6 +590,25 @@ remains below is the design-forked / larger work.
         an odd `!//`)
         Parsing splits at the first occurrence of the configured separator and takes the remainder
         verbatim, so an absolute member round-trips instead of being normalized away.
+    - **`--archive-prefix` is string-valued, with `URI` as the one keyword (refined 2026-08-11).**
+      Empty means no prefix; `URI` renders a WELL-FORMED URI; anything else is used literally (e.g.
+      `--archive-prefix=vfs:`), the same freedom the separator has. Two corrections came out of review:
+      - `archive://a.tgz!x` was WRONG. `//` introduces the URI authority, so a relative container would
+        parse as a HOST NAME. Absolute containers now render `archive:///abs/a.tar!x` (empty authority,
+        as `file:///...` does) and relative ones the opaque `archive:a.tgz!x`. The original test only
+        covered the absolute case, which is exactly why the bug hid - both forms are pinned now.
+      - There is no `none` value: with a string-valued prefix it would be indistinguishable from a
+        literal prefix spelled `none`. Keywords are ALL CAPS (`URI`), matching RE2 / PCRE2 / GLOB.
+    - **OPEN: per-format schemes, and PHAR support (raised 2026-08-11).** PHP's phar has its own
+      established URL form, `phar:///path/to/a.phar/inner/x` - a per-format scheme AND a plain `/`
+      separator with no marker at all. That is real evidence AGAINST the generic `archive:` scheme and
+      for per-format ones (`tar:` / `zip:` / `phar:`), the open sub-detail above; if per-format wins, the
+      scheme becomes a property of the detected container format rather than one constant.
+      Supporting phar itself is a separate slice: libarchive does NOT read phar (stub + manifest +
+      optional per-entry compression + signature), so it needs its own reader behind the same
+      `archive_reader` shape - which is what the extras architecture is for, and the member-path
+      spelling is format-agnostic so nothing there changes. Check the existing phar work for a reusable
+      manifest parser before writing one.
     - **Container identity is dual:** the archive keeps its real-FS identity (real `-type f`,
       deletable / actionable) AND parents its members; this falls out of the existing VFS
       source-tagging (container = real fs, members = archive member).

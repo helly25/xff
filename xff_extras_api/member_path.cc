@@ -26,8 +26,15 @@ namespace xff::archive {
 std::string JoinMemberPath(std::string_view container, std::string_view member, const MemberPathOptions& options) {
   // Plain concatenation, deliberately: the member is reproduced exactly as the archive stored it, so
   // an absolute member keeps its leading slash (`a.tgz!/rooted`) instead of being normalized away.
-  const std::string_view scheme = options.prefix == PathPrefix::kUri ? kUriScheme : std::string_view{};
-  return absl::StrCat(scheme, container, options.separator, member);
+  if (options.prefix != kUriPrefix) {
+    // Empty prefix -> a bare path; any other string is prepended verbatim.
+    return absl::StrCat(options.prefix, container, options.separator, member);
+  }
+  // `//` is the URI authority marker, so it may only precede an ABSOLUTE path (leaving the authority
+  // empty, as `file:///...` does). A relative container takes the opaque form instead; writing
+  // `archive://a.tgz` would declare `a.tgz` a host name.
+  const std::string_view authority = container.starts_with('/') ? kUriAuthority : std::string_view{};
+  return absl::StrCat(kUriScheme, authority, container, options.separator, member);
 }
 
 std::optional<MemberPathParts> SplitMemberPath(std::string_view path, const MemberPathOptions& options) {
@@ -35,11 +42,22 @@ std::optional<MemberPathParts> SplitMemberPath(std::string_view path, const Memb
     // An empty separator would make every path a member path with an empty container.
     return std::nullopt;
   }
-  if (options.prefix == PathPrefix::kUri) {
+  if (options.prefix == kUriPrefix) {
     if (!path.starts_with(kUriScheme)) {
       return std::nullopt;
     }
     path.remove_prefix(kUriScheme.size());
+    // Accept both forms this renders: `archive://<abs>` and the opaque `archive:<relative>`.
+    if (path.starts_with(kUriAuthority)) {
+      path.remove_prefix(kUriAuthority.size());
+    }
+  } else if (!options.prefix.empty()) {
+    // A literal prefix must be present, for the same reason the URI form is strict: the flag states
+    // what the spelling IS, so accepting a bare path too would make the two silently interchange.
+    if (!path.starts_with(options.prefix)) {
+      return std::nullopt;
+    }
+    path.remove_prefix(options.prefix.size());
   }
   const std::string_view::size_type at = path.find(options.separator);
   if (at == std::string_view::npos) {

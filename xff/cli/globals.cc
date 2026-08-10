@@ -78,8 +78,9 @@ constexpr std::array kArchiveValues = std::to_array<ValueDoc>({
     {.value = "all", .meaning = "also dive archives found during the walk (what bare `--archive` selects)"},
 });
 constexpr std::array kArchivePrefixValues = std::to_array<ValueDoc>({
-    {.value = "none", .meaning = "a bare path: `a.tgz!inner/x` (the default)"},
-    {.value = "uri", .meaning = "a URI: `archive://a.tgz!inner/x`, for handing to tools that read archive URLs"},
+    {.value = "(empty)", .meaning = "no prefix - a bare path, `a.tgz!inner/x` (the default)"},
+    {.value = "URI", .meaning = "`archive:///abs/a.tar!x` when the container is absolute, else `archive:a.tgz!x`"},
+    {.value = "STRING", .meaning = "any other value is used literally, e.g. `--archive-prefix=vfs:`"},
 });
 constexpr std::array kShardsValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "recognize every built-in scheme (the default when bare `--shards`)"},
@@ -255,16 +256,21 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--archive-prefix",
-        .display = "--archive-prefix=none|uri",
+        .display = "--archive-prefix=[URI|STRING]",
         .group = "traversal",
         .header = "Traversal",
-        .summary = "render a member path bare (default) or as a URI, for tool interop",
-        .details = "`none` prints the bare path (`a.tgz!inner/x`). `uri` wraps the whole thing as "
-                   "`archive://a.tgz!inner/x`, which can be handed to other tools that understand archive "
-                   "URLs - the point is interop, not decoration. Applies to PARSING as well: under `uri` a bare "
-                   "path is not accepted as a member path, so the two spellings never silently interchange. "
-                   "Whether the scheme should instead be per-format (`tar:` / `zip:`) or wrap the container the "
-                   "way Java's `jar:file:/...!/...` does is still open (see TODO.md).",
+        .summary = "prefix a member path: empty (default), URI, or any literal string",
+        .details = "Empty (the default) prints the bare path, `a.tgz!inner/x`. `URI` renders a well-formed "
+                   "URI for handing to tools that read archive URLs: `archive:///abs/a.tar!x` for an absolute "
+                   "container (empty authority then the path, as `file:///...` does) and the opaque "
+                   "`archive:a.tgz!x` for a relative one - `archive://a.tgz` would be WRONG, since `//` starts "
+                   "the authority and would make `a.tgz` a host name. Any other value is used LITERALLY (e.g. "
+                   "`--archive-prefix=vfs:`), the same freedom --archive-separator has; `URI` is the one keyword, "
+                   "spelled in caps like RE2 / PCRE2 / GLOB. There is deliberately no `none` value: it would be "
+                   "indistinguishable from a literal prefix spelled `none`, which is why empty means no prefix. "
+                   "Applies to PARSING too - under a prefix, a bare path is not accepted as a member path, so the "
+                   "spellings never silently interchange. Whether the scheme should be per-format (`tar:` / "
+                   "`zip:` / PHP's `phar:`) rather than the generic `archive:` is still open (see TODO.md).",
         .values = kArchivePrefixValues,
         .extra = "archive",
     },

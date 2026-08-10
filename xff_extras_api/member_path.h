@@ -42,25 +42,38 @@
 
 namespace xff::archive {
 
-// Whether a rendered member path is a bare path or a URI (for handing to other tools).
-enum class PathPrefix : std::uint8_t {
-  kNone,  // `a.tgz!inner/x` - the default
-  kUri,   // `archive://a.tgz!inner/x`
-};
-
 // The default separator: a plain `!`, as JAR and Java archive URLs use. Preferred over `!/` because
 // an absolute member then reads as the odd-looking `!//` (see the header comment).
 inline constexpr std::string_view kDefaultSeparator = "!";
 
-// The URI scheme used by PathPrefix::kUri. Generic on purpose for now; whether it should instead be
+// The URI scheme used by the `URI` prefix keyword. Generic on purpose for now; whether it should instead be
 // per-format (`tar:` / `zip:`) or wrap the container as Java's `jar:file:/...!/...` is still open
 // (see TODO.md), and only this constant plus its docs change when it is settled.
-inline constexpr std::string_view kUriScheme = "archive://";
+//
+// Note the deliberate absence of `//`: in a URI `//` introduces the AUTHORITY, so `archive://a.tgz!x`
+// would parse `a.tgz` as a HOST NAME rather than a path. An absolute container therefore renders as
+// `archive:///abs/a.tar!x` - empty authority, then the absolute path, exactly as `file:///...` does -
+// and a relative container as the opaque `archive:a.tgz!x`. Both are well-formed; one blanket
+// `archive://` prefix is not.
+inline constexpr std::string_view kUriScheme = "archive:";
+
+// The authority marker inserted after the scheme when, and only when, the container is absolute.
+inline constexpr std::string_view kUriAuthority = "//";
+
+// The one KEYWORD `prefix` accepts, spelled in caps like xff's other keyword values (`RE2`,
+// `PCRE2`, `GLOB`). It has to be a keyword rather than a literal because URI rendering carries
+// LOGIC no literal can express: the `//` authority marker appears only for an absolute container.
+// Caps also keep it apart from a literal prefix, which is why "none" is NOT a value here - it
+// would be indistinguishable from a literal prefix spelled `none`. Empty means no prefix.
+inline constexpr std::string_view kUriPrefix = "URI";
 
 struct MemberPathOptions {
   // Any string, not a fixed menu, so xff can emit what another system accepts.
   std::string_view separator = kDefaultSeparator;
-  PathPrefix prefix = PathPrefix::kNone;
+  // EMPTY (the default) means no prefix. `kUriPrefix` ("URI") selects URI rendering. Any other
+  // string is used LITERALLY, so a system expecting its own marker can be fed one without a code
+  // change - the same "any string" freedom `separator` has.
+  std::string_view prefix = {};
 };
 
 // A member path split into its two halves. `member` is verbatim, including any leading slash.
