@@ -145,6 +145,12 @@ common:msan --linkopt=-L%workspace%/.msan-libcxx/lib
 common:msan --linkopt=-Wl,-rpath,%workspace%/.msan-libcxx/lib
 common:msan --linkopt=-lc++
 common:msan --linkopt=-lc++abi
+# Known false positives, one translation unit each, documented in the file itself. Needed
+# because the libc++ swap above is not yet winning over the toolchain's builtin include
+# dirs, so `std::string`'s inline code stays uninstrumented and absl's flag registry reads
+# a temporary MSan has no shadow for. A runtime `MSAN_OPTIONS=suppressions=` file cannot
+# express this: MSan only suppresses reports raised through an intercepted libc call.
+common:msan --copt=-fsanitize-ignorelist=%workspace%/tools/msan_ignorelist.txt
 common:msan --build_tag_filters=-no_san  # skip targets tagged no_san
 common:msan --test_tag_filters=-no_san
 common:msan --action_env=MSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1
