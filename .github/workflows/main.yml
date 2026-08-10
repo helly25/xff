@@ -207,10 +207,32 @@ jobs:
           key: bazel-repo-minimal-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
           restore-keys: |
             bazel-repo-minimal-
+      # Derive the extras to strip from what is actually under extra_modules/ (each module names
+      # itself in its own MODULE.bazel), rather than hard-coding them. The previous version named
+      # xff_pcre2 literally, so adding the archive extra left its bazel_dep + local_path_override
+      # pointing at a directory this step had just deleted, and the job failed for a bookkeeping
+      # reason instead of a real separation regression. Deriving keeps the guard correct as extras
+      # come and go.
       - name: Strip all extras (simulate a minimal core archive)
         run: |
+          python3 - <<'PY'
+          import pathlib, re
+          root = pathlib.Path(".")
+          names = []
+          for module in sorted(root.glob("extra_modules/*/MODULE.bazel")):
+              found = re.search(r'^\s*name = "([^"]+)"', module.read_text(), re.M)
+              if found:
+                  names.append(found.group(1))
+          text = (root / "MODULE.bazel").read_text()
+          for name in names:
+              quoted = re.escape(name)
+              text = re.sub(r'bazel_dep\(name = "%s".*?\)\n' % quoted, "", text, flags=re.S)
+              text = re.sub(r'local_path_override\(\s*module_name = "%s",.*?\)\n' % quoted, "", text, flags=re.S)
+          (root / "MODULE.bazel").write_text(text)
+          print("stripped extras:", ", ".join(names) or "(none found)")
+          PY
           rm -rf extra_modules
-          sed -i '/bazel_dep(name = "xff_pcre2"/,/^)/d' MODULE.bazel
+          ! grep -qE 'name = "xff_(pcre2|archive)"' MODULE.bazel
       - name: bazel build (lean core, extras removed)
         run: bazel build //xff/cli:xff --repository_cache=$HOME/.cache/bazel-repo
 
