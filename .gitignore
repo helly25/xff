@@ -10,8 +10,10 @@
 /.cache/
 /.vscode/
 
-# MSan-instrumented libc++ built by tools/build_msan_libcxx.sh (--config=msan).
+# MSan-instrumented libc++ built by tools/build_msan_libcxx.sh (--config=msan), plus the
+# bazelrc that script generates to point --config=msan at it with absolute paths.
 /.msan-libcxx/
+/.msan-libcxx.bazelrc
 
 /.bazelrc.user
 /.bazelrc.user.end

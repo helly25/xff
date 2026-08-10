@@ -1,9 +1,18 @@
 # SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
 # SPDX-License-Identifier: Apache-2.0
 #
-# MemorySanitizer ignore list (clang -fsanitize-ignorelist, loaded by --config=msan in
-# .bazelrc). Code matched here is compiled WITHOUT MSan instrumentation, so MSan raises no
-# report from it. Keep it minimal: every entry is a place we have decided not to check.
+# MemorySanitizer ignore list (clang -fsanitize-ignorelist). Code matched here is compiled
+# WITHOUT MSan instrumentation, so MSan raises no report from it. Keep it minimal: every
+# entry is a place we have decided not to check.
+#
+# HOW IT REACHES THE COMPILER: tools/build_msan_libcxx.sh writes an ABSOLUTE path to this
+# file into the generated .msan-libcxx.bazelrc, which .bazelrc try-imports. It cannot be a
+# %workspace% path in .bazelrc (bazel does not expand that inside a --copt value), and it
+# is not a declared bazel input - declaring it would mean `additional_compiler_inputs` on
+# every single target. The one real consequence of not being an input is that editing this
+# file would not invalidate cached compile actions; the generated bazelrc therefore also
+# passes -DXFF_MSAN_IGNORELIST_SHA=<sha256 of this file>, so a content change changes every
+# compile's command line and everything affected rebuilds.
 #
 # Why an ignore list and not `MSAN_OPTIONS=suppressions=`: MSan's runtime suppression file
 # only understands `interceptor_via_fun` / `interceptor_via_lib`, i.e. reports raised

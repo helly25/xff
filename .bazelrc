@@ -135,16 +135,16 @@ common:msan --copt=-fsanitize-memory-track-origins=2
 common:msan --copt=-fno-omit-frame-pointer
 common:msan --copt=-DMEMORY_SANITIZER
 common:msan --linkopt=-fsanitize=memory
-# Replace the prebuilt (uninstrumented) libc++ with the instrumented build. The two
-# -isystem tokens must stay adjacent and in this order: bazel forwards cxxopts verbatim.
-common:msan --cxxopt=-nostdinc++
-common:msan --cxxopt=-isystem
-common:msan --cxxopt=%workspace%/.msan-libcxx/include/c++/v1
-common:msan --linkopt=-nostdlib++
-common:msan --linkopt=-L%workspace%/.msan-libcxx/lib
-common:msan --linkopt=-Wl,-rpath,%workspace%/.msan-libcxx/lib
-common:msan --linkopt=-lc++
-common:msan --linkopt=-lc++abi
+# Replacing the prebuilt (uninstrumented) libc++ with the instrumented build needs
+# ABSOLUTE paths, so those flags live in a GENERATED bazelrc that the build script writes
+# (see below). They cannot be written here: bazel expands %workspace% in import /
+# try-import statements but NOT inside a --copt / --cxxopt / --linkopt VALUE, so
+# `--cxxopt=%workspace%/.msan-libcxx/include/c++/v1` reached clang as that literal string.
+# An unusable -isystem / -L is silently ignored (unlike, say, -fsanitize-ignorelist, which
+# errors), so this config LOOKED correct while every compile kept using the toolchain's
+# uninstrumented libc++ - which is exactly why MSan reported uninitialized reads inside
+# std::string (absl's flag registry comparing a temporary MSan had no shadow for).
+try-import %workspace%/.msan-libcxx.bazelrc
 # Known false positives, one translation unit each, documented in the file itself. Needed
 # because the libc++ swap above is not yet winning over the toolchain's builtin include
 # dirs, so `std::string`'s inline code stays uninstrumented and absl's flag registry reads
