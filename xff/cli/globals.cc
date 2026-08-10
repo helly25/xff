@@ -77,6 +77,10 @@ constexpr std::array kArchiveValues = std::to_array<ValueDoc>({
     {.value = "roots", .meaning = "dive only when a search root is itself an archive (the xff-family default)"},
     {.value = "all", .meaning = "also dive archives found during the walk (what bare `--archive` selects)"},
 });
+constexpr std::array kArchivePrefixValues = std::to_array<ValueDoc>({
+    {.value = "none", .meaning = "a bare path: `a.tgz!inner/x` (the default)"},
+    {.value = "uri", .meaning = "a URI: `archive://a.tgz!inner/x`, for handing to tools that read archive URLs"},
+});
 constexpr std::array kShardsValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "recognize every built-in scheme (the default when bare `--shards`)"},
     {.value = "of", .meaning = "only `<stem>-<index>-of-<total>` (TFRecord-style)"},
@@ -229,6 +233,39 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "build-time extra: the stock binary is lean and omits it (rebuild with --//xff:xff_archive); "
                    "asking for archive handling without it is a hard error.",
         .values = kArchiveValues,
+        .extra = "archive",
+    },
+    {
+        .name = "--archive-separator",
+        .display = "--archive-separator=STRING",
+        .group = "traversal",
+        .header = "Traversal",
+        .summary = "string between container and member in a member path (default `!`)",
+        .details = "A member path is `<container><separator><member>`, and there is no single ecosystem "
+                   "convention - `!` (JAR / Java URLs), `#` (fragment style), and the multi-character `!/` or "
+                   "`#/` other tools print all exist - so this is a presentation choice rather than something "
+                   "hard-coded. ANY string is accepted, not a fixed menu, so xff can emit what another system "
+                   "accepts. Rendering is plain concatenation and xff adds or removes no slash, so a member "
+                   "stored with a leading slash keeps it: `a.tgz!/rooted` (and with `--archive-separator=!/`, "
+                   "the doubled `a.tgz!//rooted`, which is why plain `!` is the better default). Parsing splits "
+                   "at the FIRST occurrence and takes the remainder verbatim, so a path xff printed round-trips. "
+                   "A plain `/` is allowed and composes with globs, but is lossy - a real directory named x.tar "
+                   "becomes indistinguishable from an archive - so it is never the default.",
+        .extra = "archive",
+    },
+    {
+        .name = "--archive-prefix",
+        .display = "--archive-prefix=none|uri",
+        .group = "traversal",
+        .header = "Traversal",
+        .summary = "render a member path bare (default) or as a URI, for tool interop",
+        .details = "`none` prints the bare path (`a.tgz!inner/x`). `uri` wraps the whole thing as "
+                   "`archive://a.tgz!inner/x`, which can be handed to other tools that understand archive "
+                   "URLs - the point is interop, not decoration. Applies to PARSING as well: under `uri` a bare "
+                   "path is not accepted as a member path, so the two spellings never silently interchange. "
+                   "Whether the scheme should instead be per-format (`tar:` / `zip:`) or wrap the container the "
+                   "way Java's `jar:file:/...!/...` does is still open (see TODO.md).",
+        .values = kArchivePrefixValues,
         .extra = "archive",
     },
     {

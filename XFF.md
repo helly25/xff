@@ -60,6 +60,17 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `all` - also dive archives found during the walk (what bare `--archive` selects)
 
   Treats each archive (tar, gz, bzip2, xz, zstd, lz4, zip, ...) as a directory, so the whole expression - including -grep on entry content - matches its entries at virtual paths like `foo.tar.gz/inner/x`. The three modes are nested: none keeps find's behavior (an archive is one plain file); roots dives only when a search root is itself an archive (pointing xff AT an archive implies looking inside); all also dives archives discovered during the walk. Bare --archive means all, and the short form carries chmod-style suffix signs (-z- none, -z roots, -z+ all). The find style defaults to none, every xff-family style to roots. Members are read-only, so -delete and the exec family refuse them rather than silently skipping. A build-time extra: the stock binary is lean and omits it (rebuild with --//xff:xff_archive); asking for archive handling without it is a hard error.
+- `--archive-separator=STRING` - string between container and member in a member path (default `!`) _(global, xff)_
+  NOT built into this binary: rebuild with `--//xff:xff_archive` (used as-is, it is a hard error).
+  A member path is `<container><separator><member>`, and there is no single ecosystem convention - `!` (JAR / Java URLs), `#` (fragment style), and the multi-character `!/` or `#/` other tools print all exist - so this is a presentation choice rather than something hard-coded. ANY string is accepted, not a fixed menu, so xff can emit what another system accepts. Rendering is plain concatenation and xff adds or removes no slash, so a member stored with a leading slash keeps it: `a.tgz!/rooted` (and with `--archive-separator=!/`, the doubled `a.tgz!//rooted`, which is why plain `!` is the better default). Parsing splits at the FIRST occurrence and takes the remainder verbatim, so a path xff printed round-trips. A plain `/` is allowed and composes with globs, but is lossy - a real directory named x.tar becomes indistinguishable from an archive - so it is never the default.
+- `--archive-prefix=none|uri` - render a member path bare (default) or as a URI, for tool interop _(global, xff)_
+  NOT built into this binary: rebuild with `--//xff:xff_archive` (used as-is, it is a hard error).
+  One of is one of:
+
+  - `none` - a bare path: `a.tgz!inner/x` (the default)
+  - `uri` - a URI: `archive://a.tgz!inner/x`, for handing to tools that read archive URLs
+
+  `none` prints the bare path (`a.tgz!inner/x`). `uri` wraps the whole thing as `archive://a.tgz!inner/x`, which can be handed to other tools that understand archive URLs - the point is interop, not decoration. Applies to PARSING as well: under `uri` a bare path is not accepted as a member path, so the two spellings never silently interchange. Whether the scheme should instead be per-format (`tar:` / `zip:`) or wrap the container the way Java's `jar:file:/...!/...` does is still open (see TODO.md).
 - `-j N, --jobs=N|all` - worker count for the walk and concurrent -exec (all = every core) _(global, xff)_
 - `--sort[=none|dir|subtree|tree]` - sibling/traversal ordering (default depends on the mode) _(global, xff)_
   none leaves entries in filesystem order (fastest); dir sorts each directory's entries; subtree and tree give a deterministic order across the whole walk. The default is per style: xff sorts per directory, while find and rg leave the order unspecified.

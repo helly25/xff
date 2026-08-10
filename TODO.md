@@ -547,6 +547,17 @@ remains below is the design-forked / larger work.
     - **Flavor defaults:** `find` -> `none` (drop-in fidelity); every xff-family flavor (xff / xfd /
       rg) -> `roots`, because pointing xff AT an archive strongly implies "look inside", while
       silently descending every archive in a tree is a cost the user should opt into.
+    - **Slice SHIPPED (2026-08-10): the spelling library + both flags.**
+      `@xff_extras_api//:member_path_cc` (`xff/archive/member_path.h`) implements the ratified rules -
+      `JoinMemberPath` is plain concatenation, `SplitMemberPath` cuts at the FIRST separator and keeps
+      the remainder verbatim, an empty separator never matches, and `--archive-prefix=uri` parses only
+      the URI form so the two spellings cannot silently interchange. It lives in the shared API module
+      because both sides need it (the extra renders, the core parses a member path handed back) and an
+      extra must not depend on the core. `--archive-separator=STRING` and `--archive-prefix=none|uri`
+      are registered globals (help + `XFF.md` regenerated), gated on the archive extra like
+      `--archive`. STILL TO COME with the VFS backend: actually rendering walk output through them,
+      and the reserved `{relpath}`-style interaction. The URI scheme is the generic `archive://` for
+      now - per-format (`tar:` / `zip:`) vs `jar:file:` wrapping is the one open sub-detail below.
     - **Member path spelling: a FLAG, because there is no single convention (decided 2026-08-10).**
       The prior docs disagreed (`docs/design.md` said the JAR-style `pkg.tar!foo/bar`, an older scope
       note said a plain directory prefix `foo.tgz/dir/file.txt`) - and neither is "right", because
