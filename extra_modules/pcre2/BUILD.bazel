@@ -22,13 +22,13 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 # binary and a default build never reference it, so bzlmod never fetches @pcre2 then. `alwayslink`
 # keeps the self-registration translation unit from being dropped.
 cc_library(
-    name = "pcre2_backend",
+    name = "pcre2_backend_cc",
     srcs = ["pcre2_backend.cc"],
     visibility = ["//visibility:public"],
     deps = [
         "@pcre2",
-        "@xff_extras_api//:license_notice",
-        "@xff_extras_api//:regex_backend",
+        "@xff_extras_api//:license_notice_cc",
+        "@xff_extras_api//:regex_backend_cc",
     ],
     alwayslink = True,
 )
@@ -44,11 +44,11 @@ cc_test(
     size = "small",
     srcs = ["pcre2_backend_test.cc"],
     deps = [
-        ":pcre2_backend",
+        ":pcre2_backend_cc",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
         "@helly25_mbo//mbo/testing:status_cc",
-        "@xff_extras_api//:regex_backend",
+        "@xff_extras_api//:regex_backend_cc",
     ],
 )

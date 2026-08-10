@@ -120,6 +120,24 @@ repos:
         entry: tools/check_module_versions_test.py
         files: ^tools/check_module_versions(_test)?\.py$
         pass_filenames: false
+      - id: check-cc-target-naming
+        name: cc_library targets end in _cc
+        description: |
+          Project convention (STYLE_CPP.md): a C++ library target is named `<thing>_cc`
+          (glob_cc, license_cc, vfs_cc), so a label reads as "the C++ library for <thing>"
+          and never collides with the directory, header or binary of the same name. Tests
+          keep their `_test` suffix and are not checked. To skip once, run
+          `SKIP="check-cc-target-naming" pre-commit`.
+        language: script
+        entry: tools/check_cc_target_naming.py
+        files: (^|/)BUILD(\.bazel)?$
+      - id: check-cc-target-naming-test
+        name: Test the cc_library naming check
+        description: Runs the naming-check unit tests when the tool or its test changes.
+        language: script
+        entry: tools/check_cc_target_naming_test.py
+        files: ^tools/check_cc_target_naming(_test)?\.py$
+        pass_filenames: false
       - id: release-prep-test
         name: Test the release prep script
         description: |

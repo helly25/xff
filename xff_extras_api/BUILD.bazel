@@ -23,7 +23,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 # interface (Matcher::Compile(kPcre2) calls MakePcre2Backend); an extra backend implements
 # RegexBackend and self-registers via Pcre2Registrar.
 cc_library(
-    name = "regex_backend",
+    name = "regex_backend_cc",
     srcs = ["backend.cc"],
     hdrs = ["backend.h"],
     include_prefix = "xff/regex",
@@ -38,7 +38,7 @@ cc_library(
 # Registrar, and Notices() returns them sorted. The xff core (//xff/license) registers its own
 # deps and assembles NoticeText() on top; each extra self-registers its notice from its own TU.
 cc_library(
-    name = "license_notice",
+    name = "license_notice_cc",
     srcs = ["notice.cc"],
     hdrs = ["notice.h"],
     include_prefix = "xff/license",
@@ -98,7 +98,7 @@ cc_test(
     size = "small",
     srcs = ["notice_test.cc"],
     deps = [
-        ":license_notice",
+        ":license_notice_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -115,7 +115,7 @@ cc_test(
     size = "small",
     srcs = ["backend_test.cc"],
     deps = [
-        ":regex_backend",
+        ":regex_backend_cc",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@googletest//:gtest",
