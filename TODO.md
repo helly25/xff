@@ -532,11 +532,13 @@ remains below is the design-forked / larger work.
       forms (`tar://…`). So the SEPARATOR is a presentation choice under user control, not something
       to hard-code:
       TWO orthogonal knobs, not one:
-      - **`--archive-separator=!|#` (default `!`)** - the character between container and member.
-        Both are established (`!` from JAR / Java URLs, `#` from fragment style). A plain `/`
-        directory-prefix value is worth considering as a third ("it just looks like a directory", so
-        globs and `{relpath}` compose with no new rules), but it is lossy: a real directory named
-        `x.tar` becomes indistinguishable from an archive, so it cannot be the default.
+      - **`--archive-separator=STRING` (default `!`)** - the string placed between container and
+        member. Any string is accepted, not a fixed menu: `!` (JAR / Java URLs), `#` (fragment
+        style), and the multi-character `!/` or `#/` that other systems spell it as must all just
+        work, so xff can produce paths those systems accept. A plain `/` is possible too ("it just
+        looks like a directory", so globs and `{relpath}` compose with no new rules) but is lossy - a
+        real directory named `x.tar` becomes indistinguishable from an archive - so it can never be
+        the default.
       - **`--archive-prefix=none|uri` (default `none`)** - whether the whole path is rendered as a
         URI (`tar:///abs/path/a.tar!/inner/x`) instead of a bare path. The point is INTEROP: a URI
         can be handed to other tools that understand archive URLs, which a bare path cannot. Open
@@ -545,12 +547,16 @@ remains below is the design-forked / larger work.
       - Both flags apply to RENDERING and to PARSING a member path handed back in (a `-cmp` /
         `{def.X}` target), so a path xff printed always round-trips through xff.
       - The find flavor is unaffected: with `--archive=none` no member path is ever produced.
-    - **The trailing `/` after the separator is DATA, not style.** `pkg.tar!foo/bar` (relative stored
-      path, normal) vs `pkg.tar!/foo/bar` (ABSOLUTE stored path - unusual, and exactly the Zip-Slip
-      red flag) is a property of what the ARCHIVE stored, so it is reported, never chosen: the same
-      distinction applies to `#` vs `#/`. Note this is a deliberate, documented divergence from JAR /
-      ZIP URL syntax, where `!/` is the unconditional separator and carries no such meaning - xff
-      uses the slash to surface an absolute member path because that is the security-relevant fact.
+    - **Rendering is plain concatenation, so an ABSOLUTE stored member keeps its own leading slash.**
+      `container + separator + member`, with the member reproduced exactly as the archive stored it.
+      xff never adds or removes a slash - an archive may legitimately contain absolute member paths,
+      and those must remain visible (that is the Zip-Slip red flag). It follows mechanically:
+      - separator `!` -> `a.tgz!relative` vs `a.tgz!/rooted`
+      - separator `!/` -> `a.tgz!/relative` vs `a.tgz!//rooted` (the doubled slash is correct, and
+        the reason the plain `!` or `#` is the better default: with `!/` an absolute member reads as
+        an odd `!//`)
+        Parsing splits at the first occurrence of the configured separator and takes the remainder
+        verbatim, so an absolute member round-trips instead of being normalized away.
     - **Container identity is dual:** the archive keeps its real-FS identity (real `-type f`,
       deletable / actionable) AND parents its members; this falls out of the existing VFS
       source-tagging (container = real fs, members = archive member).
