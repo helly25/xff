@@ -55,6 +55,16 @@ common --copt=-fno-exceptions
 # here once #83 wires its backend target.)
 common:xff_full --//xff:xff_pcre=True
 
+# --config=xff_docs : the FULL DOCUMENTED SURFACE - every composable extra on. The committed XFF.md
+# (and the drift guard that checks it) use this, deliberately, so the online reference documents all
+# functionality rather than only what one build happens to link. A reader whose binary lacks an extra
+# is not misled: each such flag's help says so in static text ("a build-time extra ... rebuild with
+# --//xff:xff_<name>"), and `--help=extras` reports what the binary in hand actually has. Only the
+# dynamic "NOT built into this binary" line differs, and that is a property of the binary, not of the
+# feature. Add every new extra here as it lands.
+common:xff_docs --config=xff_full
+common:xff_docs --//xff:xff_archive=True
+
 # Register the hermetic LLVM/clang toolchain ONLY for `--config=clang`. Bazel 9
 # always resolves C++ toolchains, so `--extra_toolchains` (higher priority than
 # the autodetected local toolchain) keeps gcc/native builds on the local compiler.
