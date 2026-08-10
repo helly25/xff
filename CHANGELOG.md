@@ -1,6 +1,8 @@
 <!-- SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com) -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
+# 0.3.0
+
 # 0.2.0
 
 Sharded-file awareness, hash verification, and a help system that is generated end to
