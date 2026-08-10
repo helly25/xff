@@ -57,6 +57,11 @@ PREFIX="${1:-${WORKSPACE}/.msan-libcxx}"
 # the swap below appeared to work while the build kept using the toolchain's prebuilt,
 # UNINSTRUMENTED libc++ - which is what made MSan report uninitialized reads inside
 # std::string. Writing absolute paths here is what makes the swap actually take effect.
+#
+# The header path uses clang's -cxx-isystem, not -isystem, on purpose: bazel VALIDATES
+# include paths and rejects one outside the execution root ("references a path outside of
+# the execution root"), and PREFIX lives at the workspace root, which is not the execroot.
+# -cxx-isystem sets the C++ header search path without tripping that validation.
 BAZELRC="${WORKSPACE}/.msan-libcxx.bazelrc"
 IGNORELIST="${WORKSPACE}/tools/msan_ignorelist.txt"
 
@@ -72,7 +77,7 @@ write_bazelrc() {
 # Absolute paths into the instrumented libc++ built at ${PREFIX}.
 # .bazelrc try-imports this file; regenerate it by re-running the script.
 common:msan --cxxopt=-nostdinc++
-common:msan --cxxopt=-isystem
+common:msan --cxxopt=-cxx-isystem
 common:msan --cxxopt=${PREFIX}/include/c++/v1
 common:msan --linkopt=-nostdlib++
 common:msan --linkopt=-L${PREFIX}/lib
