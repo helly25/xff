@@ -462,7 +462,7 @@ bashtest(
 
 # End-to-end test of the composable-extras UX in the lean (default) build: a disabled extra flag
 # (--archive) stays listed under a distinct "Extras" heading, is documented as not built in, and is
-# a hard error when used. See xff/BUILD.bazel (the //xff:archive flag) and cli/globals ExtraEnabled.
+# a hard error when used. See xff/BUILD.bazel (the //xff:xff_archive flag) and cli/globals ExtraEnabled.
 bashtest(
     name = "extras_test",
     size = "small",
@@ -666,6 +666,16 @@ bashtest(
 # End-to-end test of -hasheq (the manifest-verification companion of -hash): TRUE when the file's
 # digest equals the EXPECTED field template; -hasheq=ALGO[/ENCODING]; hex case-folding;
 # `! -hasheq` selects drift; the bad-spec usage error; and the find-style rejection.
+# End-to-end test of the --archive / -z control surface: every spelling that REQUESTS diving is a
+# hard, self-documenting error in a build without the archive extra, while `none` / `-z-` (find's
+# behavior, which needs no extra) walks normally. Pins the surface before the diving lands.
+bashtest(
+    name = "archive_test",
+    size = "small",
+    srcs = ["archive_test.sh"],
+    data = [":xff"],
+)
+
 bashtest(
     name = "hasheq_test",
     size = "small",
