@@ -144,14 +144,19 @@ common:msan --linkopt=-fsanitize=memory
 # errors), so this config LOOKED correct while every compile kept using the toolchain's
 # uninstrumented libc++ - which is exactly why MSan reported uninitialized reads inside
 # std::string (absl's flag registry comparing a temporary MSan had no shadow for).
-# That generated file also carries -fsanitize-ignorelist=<absolute path to
-# tools/msan_ignorelist.txt> (known false positives, documented in the file itself) plus a
-# -D of its sha256, so editing the ignore list invalidates the compile actions that used
-# it. Same reason it cannot live here: %workspace% is not expanded inside a --copt value.
 try-import %workspace%/.msan-libcxx.bazelrc
+# Turns on the `data` select in xff/cc.bzl's cc_binary / cc_test wrappers, which put
+# tools/msan_suppressions.txt into each executable's runfiles. MSan is a RUNTIME sanitizer:
+# it reads the suppression file when the process starts, so a declared runfile is the right
+# shape (inside the sandbox, cache-correct, no per-target boilerplate) - unlike a --copt
+# naming a path bazel knows nothing about. MSAN_OPTIONS below points at the runfiles path.
+common:msan --//xff:xff_msan=true
 common:msan --build_tag_filters=-no_san  # skip targets tagged no_san
 common:msan --test_tag_filters=-no_san
 common:msan --action_env=MSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1
-common:msan --test_env=MSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1
+# `suppressions=` is runfiles-relative on purpose: a test runs with its runfiles tree as the
+# working directory, and the cc_test wrapper puts the file at that path, so no absolute or
+# workspace path is needed. Documented known false positives live in the file itself.
+common:msan --test_env=MSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1:suppressions=tools/msan_suppressions.txt
 
 try-import %workspace%/.bazelrc.user.end

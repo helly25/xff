@@ -972,17 +972,27 @@ concrete need appears.
   is meant to swap in. So the `ref.tmp` temporary is built by code MSan never saw, no shadow is
   written, and the `==` in `RegisterFlag` reads it as uninitialized. It fires at static init in
   `absl/flags/parse.cc`, which is why literally every test hits it. Nothing in xff or absl is wrong.
-  - **Shipped:** `tools/msan_ignorelist.txt` (loaded by `--copt=-fsanitize-ignorelist=` in the msan
-    config), scoped to that one translation unit, so any OTHER uninitialized read - real ones
-    included - still fails. Verified the flag is honored, not silently dropped: a deliberately
-    malformed file makes clang fail with `malformed sanitizer ignorelist`.
-  - **Not** a runtime `MSAN_OPTIONS=suppressions=` file: MSan's runtime suppressions only understand
-    `interceptor_via_fun` / `interceptor_via_lib`, i.e. reports raised through an intercepted libc
-    call. This one comes from instrumented inline code, so a runtime suppression cannot match it.
-  - **Root cause still open:** why the toolchain's builtin include dirs outrank the `-nostdinc++`
-    plus `.msan-libcxx` `-isystem` pair. Fixing that instruments libc++ properly and lets the
-    ignore-list entry be deleted; the hermetic-llvm toolchain (which recompiles runtimes under a
-    sanitizer config) is the candidate. Hard-gating the `msan` cell waits until it is green.
+  - **Shipped:** `tools/msan_suppressions.txt`, a RUNTIME suppression file. MSan reads it at process
+    start (`MSAN_OPTIONS=suppressions=`), so it travels as a declared **runfile**: the `cc_binary` /
+    `cc_test` wrappers in `xff/cc.bzl` add `//tools:msan_suppressions` to `data` under
+    `--config=msan` (gated by `--//xff:xff_msan`), and `MSAN_OPTIONS` names it runfiles-relative,
+    since a test runs with its runfiles tree as the working directory.
+  - **Why not a `--copt=-fsanitize-ignorelist=`:** a bare copt is not a declared input. Bazel then
+    does not know the file exists, so editing it invalidates nothing; `%workspace%` is not expanded
+    inside a copt VALUE (a literal `%workspace%/...` reached clang and every compile failed); an
+    absolute include-ish path is rejected as "outside of the execution root"; and it only works by
+    reading a file the action never declared, which a stricter sandbox or remote execution refuses.
+  - **Format caveat, still to be proven in CI:** MSan's runtime suppressions understand only
+    `interceptor_via_fun` / `interceptor_via_lib` (reports raised through an intercepted libc call).
+    This report comes from inline `std::string` code, so it is not certain the entry matches. If the
+    `msan` cell still reports after this, the remaining options are patching abseil (a declared,
+    hermetic input) or fixing the cause below.
+  - **Root cause still open:** the libc++ swap silently did nothing because of the same `%workspace%`
+    bug, and an absolute `-isystem` is rejected outright, so the header path now goes through
+    `-cxx-isystem` from a generated bazelrc. If that makes libc++ genuinely instrumented, the false
+    positive disappears and the suppression entry can be deleted. The hermetic-llvm toolchain, which
+    recompiles its runtimes under a sanitizer config as ordinary bazel deps, is the clean fix.
+    Hard-gating the `msan` cell waits until it is actually green.
 
 - **INVESTIGATE: the `clang-tidy` CI cell is ~5x slower than helly25/mbo's (opened 2026-08-10).**
   Measured on 2026-08-10: xff ~34 min per run on main (07:07:17 -> 07:41:34, and 00:03 -> 00:37),
