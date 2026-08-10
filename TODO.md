@@ -916,6 +916,29 @@ concrete need appears.
   and decide real-bug vs instrumentation gap. Only after that does the cell become a hard gate. Treat
   as potentially real until proven otherwise: an uninitialized read is undefined behavior, and the
   perturbed output suggests it actually influences a value.
+  - **Consider switching the toolchain to `hermeticbuild/hermetic-llvm` (raised 2026-08-10).** It has
+    first-class MSan support and - the decisive part - `toolchain/runtimes/args/BUILD.bazel`
+    recompiles the RUNTIMES with the msan compiler flags under `//config:msan_enabled`, i.e. it
+    builds an instrumented libc++ from source inside Bazel. That is exactly the piece that forced
+    our bespoke `tools/build_msan_libcxx.sh`, so adopting it would delete that script, its CI cache
+    step, and the cmake / ninja dependency, and turn `--config=msan` into a toolchain feature instead
+    of a hand-rolled `-nostdinc++` / `-nostdlib++` swap. It also exposes `compiler-rt`, `libc++`,
+    `libc++abi`, `libunwind` and the sanitizer runtimes as Bazel targets, and ships an
+    `e2e/rules_cc/msan_fail.cc` that asserts MSan actually reports, plus a sanitizer compatibility
+    matrix (`runtimes/README.md`).
+    - **Second reason it matters here:** with every runtime instrumented, a leftover uninstrumented
+      library stops being a plausible cause - which is precisely the ambiguity blocking the finding
+      above. It could turn "real bug or false positive?" into a definite answer.
+    - **Costs / risks, to weigh before committing:** it is a whole-toolchain migration, so the blast
+      radius is every config (`clang`, `clang-tidy`, `asan`, `tsan`, macOS + Linux) plus the places
+      that hard-code the toolchain's external repo path (`compile_commands-update.sh`,
+      `tools/clang_format.sh`, `tools/build_msan_libcxx.sh`'s clang discovery). Its own README warns
+      that configuration "may change, especially around some of the configuration options
+      (sanitizers, ...)". Needs Bazel 7.7+ (8.5+ recommended); we are on 9.1.1, so that is fine.
+      Confirm our pinned clang rung (22.1.7) is available as a prebuilt, since building the compiler
+      from source in CI would be far too slow.
+    - Sequence it AFTER the finding is triaged with the current setup, so the two variables (is the
+      finding real / does the toolchain change) never move at once.
 - **Evaluate MemorySanitizer (MSan)** as a fourth sanitizer alongside asan / tsan / (ubsan). MSan
   catches reads of uninitialized memory, which asan does not. Feasibility check, not a commitment:
   - **macOS: out.** MSan is Clang-only and effectively Linux/x86-64 only; there is no macOS support, so
