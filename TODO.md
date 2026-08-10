@@ -927,11 +927,11 @@ concrete need appears.
      hashing lib (MinHash wants a fast hash; reuse xff/hash or mbo::digest). Open: shingle width w and
      the similarity threshold as flags; whether v1 is the pairwise matcher only, deferring the
      cross-tree clustering reduction. Likely a build-time extra if it pulls weight.
-- **Untested `cc_library` targets + a lint to keep them from reappearing (opened 2026-08-10).**
-  STYLE_CPP says all exported code is tested at every level, but nothing enforced it, so gaps
-  accumulated quietly. Audited every `cc_library` for a `cc_test` in the same package depending on
-  it: **4 of 50 had none**, and 3 of those are in the shared extras API - the worst possible place,
-  since it is the module other modules implement.
+- **Untested `cc_library` targets + a lint to keep them from reappearing (opened 2026-08-10; RESOLVED
+  2026-08-10).** STYLE_CPP says all exported code is tested at every level, but nothing enforced it,
+  so gaps accumulated quietly. Audited every `cc_library` for a `cc_test` in the same package
+  depending on it: **4 of 50 had none**, and 3 of those are in the shared extras API - the worst
+  possible place, since it is the module other modules implement.
   - `xff_extras_api:regex_backend_cc` - FIXED: `backend_test` implements the seam with a literal
     backend built from nothing but that module, and pins the registration slot (unregistered reports
     `Unimplemented`, never a bad-pattern `InvalidArgument` and never a silent RE2 fallback).
@@ -941,14 +941,19 @@ concrete need appears.
     archive reader's test asserting its own notice appears.
   - `xff_extras_api:vfs_cc` - FIXED: it now has a contract test that implements the interface with a
     fake backend built from nothing but that module.
-  - `xff/cli:main_cc` - arguably not a gap: it is `main()` plus wiring, covered end to end by the
-    `xff` / `xff_full` bashtests. It should carry a comment saying so, so the lint below records a
-    justified exception instead of looking like an oversight.
-  - **Enforce it, do not just fix it:** add a pre-commit / CI check that every `cc_library` has a
-    test depending on it, with an explicit allowlist for justified exceptions (`xff/cli:main_cc`
-    above is the first entry). STILL OPEN. Its sibling, the `_cc` **naming** lint, has shipped
-    (`tools/check_cc_target_naming.py` + the `check-cc-target-naming` hook), so model the
-    has-a-test check on it - both are BUILD hygiene a reviewer should not have to remember.
+  - `xff/cli:main_cc` - not a gap: it is `main()` plus argv wiring, covered end to end by the
+    `xff` / `xff_full` bashtests. It is now the lint's single allowlist entry, with that reason
+    recorded in the tool, so it reads as a justified exception rather than an oversight.
+  - **Enforce it, do not just fix it:** SHIPPED. `tools/check_cc_library_tested.py` + the
+    `check-cc-library-tested` hook fail on a `cc_library` that no `*_test` rule in its own package
+    depends on. Transitive coverage and non-test dependents (a `cc_binary`, a `bashtest`) do not
+    count, since neither exercises the unit directly. It shares one tested BUILD reader
+    (`tools/build_rules.py`) with the `_cc` naming lint so the two cannot disagree about what a
+    rule is. Both are BUILD hygiene a reviewer should not have to remember.
+  - Known limits of the textual reader, deliberate: a target built by a macro or a comprehension is
+    invisible, and `deps` reached through a variable is not resolved. A finding is therefore "prove
+    it or allowlist it"; `bazel query` is the authority if the two ever disagree. The reader is
+    cross-checked against it today - both see exactly 50 `cc_library` targets.
 - **INVESTIGATE: the MSan finding (opened 2026-08-10).** With the instrumented libc++ in place, the
   very first working MSan run reported `use-of-uninitialized-value` in the `xff` binary, hit by many
   tests at what looks like one shared site (the same instruction offset each time), and it also

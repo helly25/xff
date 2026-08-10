@@ -54,6 +54,17 @@ an AI assistant) can follow them without reverse-engineering the tooling.
   keeps the plain program name (`xff`). Enforced by the `check-cc-target-naming` pre-commit
   hook ([`tools/check_cc_target_naming.py`](tools/check_cc_target_naming.py)), so the
   convention cannot drift back the way four extras targets did.
+- **Every `cc_library` has a test in its own package depending on it.** This is the
+  Testing section's "all exported code must be tested" stated as a build rule, and it is
+  enforced by the `check-cc-library-tested` pre-commit hook
+  ([`tools/check_cc_library_tested.py`](tools/check_cc_library_tested.py)). Two things
+  deliberately do **not** count: _transitive_ coverage (a test of a library that merely
+  deps yours) and a non-test dependent (a `cc_binary`, a `bashtest`) - neither exercises
+  your unit directly. Same-package is part of the rule too: the test belongs next to the
+  code it covers. A library with genuinely no testable surface goes into the tool's
+  `_ALLOWLIST` **with its reason recorded there** (today's single entry is
+  `xff/cli:main_cc`, which is `main()` plus argv wiring and is covered end to end by the
+  `xff` / `xff_full` bashtests).
 - Each subdirectory uses namespace `xff::{dir}` (and `xff::{dir}::{sub}`).
   - Internal-only code: `xff::{dir}::{sub}_internal`. No namespace component is ever
     just `internal`.
