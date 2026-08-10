@@ -125,9 +125,9 @@ common:tsan --test_env=TSAN_OPTIONS=halt_on_error=1:second_deadlock_stack=1:symb
 # MSan false-positives on anything it did not instrument, so EVERY library linked in must
 # be instrumented. Our deps all build from source under bazel, so the copt below reaches
 # them; the exception is the C++ standard library, which ships prebuilt (uninstrumented)
-# inside the hermetic LLVM distribution. `tools/build_msan_libcxx.sh` builds an
-# instrumented libc++ / libc++abi into .msan-libcxx/ and the -nostdinc++/-nostdlib++ pair
-# below swaps it in for the prebuilt one. Run that script before using this config.
+# inside the hermetic LLVM distribution. `tools/build_msan_libcxx.sh` builds an instrumented
+# libc++ / libc++abi into .msan-libcxx/, which is consumed as the @msan_libcxx repository
+# (see below). Run that script before using this config.
 common:msan --config=symbolizer
 common:msan --copt=-g
 common:msan --copt=-fsanitize=memory
@@ -135,16 +135,11 @@ common:msan --copt=-fsanitize-memory-track-origins=2
 common:msan --copt=-fno-omit-frame-pointer
 common:msan --copt=-DMEMORY_SANITIZER
 common:msan --linkopt=-fsanitize=memory
-# Replacing the prebuilt (uninstrumented) libc++ with the instrumented build needs
-# ABSOLUTE paths, so those flags live in a GENERATED bazelrc that the build script writes
-# (see below). They cannot be written here: bazel expands %workspace% in import /
-# try-import statements but NOT inside a --copt / --cxxopt / --linkopt VALUE, so
-# `--cxxopt=%workspace%/.msan-libcxx/include/c++/v1` reached clang as that literal string.
-# An unusable -isystem / -L is silently ignored (unlike, say, -fsanitize-ignorelist, which
-# errors), so this config LOOKED correct while every compile kept using the toolchain's
-# uninstrumented libc++ - which is exactly why MSan reported uninitialized reads inside
-# std::string (absl's flag registry comparing a temporary MSan had no shadow for).
-try-import %workspace%/.msan-libcxx.bazelrc
+# The instrumented libc++ arrives as a DEPENDENCY, not as flags: xff/cc.bzl's wrappers add
+# @msan_libcxx//:libcxx to every cc_* target under --//xff:xff_msan. Its cc_library `includes`
+# emits an execroot-relative -isystem in the ordinary include chain (an absolute one is rejected,
+# and -cxx-isystem breaks libc++'s C-header shims that reach glibc via #include_next), and its
+# `srcs` are the instrumented archives. Run tools/build_msan_libcxx.sh first to populate it.
 # Turns on the `data` select in xff/cc.bzl's cc_binary / cc_test wrappers, which put
 # tools/msan_suppressions.txt into each executable's runfiles. MSan is a RUNTIME sanitizer:
 # it reads the suppression file when the process starts, so a declared runfile is the right
