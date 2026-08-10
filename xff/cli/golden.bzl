@@ -90,7 +90,15 @@ def xff_golden_cases(name, setup, cases, sort = "tree", normalize = None):
         native.genrule(
             name = "{}_{}_gen".format(name, label),
             testonly = True,
-            srcs = [setup],
+            # The MSan suppression file is a source input under --config=msan so it exists at its
+            # workspace-relative path in this action's sandbox: a genrule runs with the execroot as
+            # its working directory, which is what MSAN_OPTIONS=suppressions= (set in .bazelrc) names.
+            # Without it the instrumented `xff` this action RUNS would report the known absl
+            # flag-registry false positive and fail the generation step, not a test.
+            srcs = [setup] + select({
+                "//xff:xff_msan_enabled": ["//tools:msan_suppressions"],
+                "//conditions:default": [],
+            }),
             outs = [actual],
             tools = ["//xff/cli:xff"],
             cmd = cmd,

@@ -383,6 +383,13 @@ cc_test(
 # (every CI test job), which is the same binary XFF.md is generated from. To refresh: ./xff-md-update.sh.
 genrule(
     name = "xff_markdown_gen",
+    # Under --config=msan the suppression file has to be an input here too: this action RUNS the
+    # instrumented binary, and a genrule's working directory is the execroot, which is the path
+    # MSAN_OPTIONS=suppressions= names (see .bazelrc).
+    srcs = select({
+        "//xff:xff_msan_enabled": ["//tools:msan_suppressions"],
+        "//conditions:default": [],
+    }),
     outs = ["XFF.md.actual"],
     cmd = "XFF_CONFIG=/nonexistent $(location :xff_full) --markdown > $@",
     target_compatible_with = XFF_FULL_ONLY,

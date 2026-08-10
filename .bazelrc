@@ -153,7 +153,10 @@ try-import %workspace%/.msan-libcxx.bazelrc
 common:msan --//xff:xff_msan=true
 common:msan --build_tag_filters=-no_san  # skip targets tagged no_san
 common:msan --test_tag_filters=-no_san
-common:msan --action_env=MSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1
+# Build ACTIONS that run the instrumented binary (the golden generators, xff_markdown_gen) need the
+# suppressions too. A genrule's working directory is the execroot, so the same relative path works -
+# provided the file is an input of the action, which those genrules declare under //xff:xff_msan.
+common:msan --action_env=MSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1:suppressions=tools/msan_suppressions.txt
 # `suppressions=` is runfiles-relative on purpose: a test runs with its runfiles tree as the
 # working directory, and the cc_test wrapper puts the file at that path, so no absolute or
 # workspace path is needed. Documented known false positives live in the file itself.
