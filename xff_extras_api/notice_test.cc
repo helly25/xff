@@ -1,0 +1,82 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "xff/license/notice.h"
+
+#include <string_view>
+#include <vector>
+
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+
+namespace xff::license {
+namespace {
+
+using ::testing::Contains;
+using ::testing::ElementsAre;
+using ::testing::Field;
+using ::testing::IsTrue;
+
+// Registered at FILE SCOPE, out of alphabetical order on purpose: this is how real components
+// register (a file-scope Registrar per translation unit), and the sort below must not depend on the
+// order registration happened in.
+const Registrar kZulu{{.component = "zulu-codec", .spdx = "MIT", .text = "Copyright (c) Zulu."}};
+const Registrar kAlpha{{.component = "alpha-codec", .spdx = "BSD-2-Clause", .text = "Copyright (c) Alpha."}};
+
+struct NoticeTest : ::testing::Test {};
+
+TEST_F(NoticeTest, NoticesAreSortedByComponentRegardlessOfRegistrationOrder) {
+  // The whole point of sorting: static-init order across translation units is unspecified, so
+  // without this the generated NOTICE file would reorder itself between builds and the committed
+  // copy would drift for no reason.
+  std::vector<std::string_view> components;
+  for (const Notice& notice : Notices()) {
+    components.push_back(notice.component);
+  }
+  EXPECT_THAT(components, ElementsAre("alpha-codec", "zulu-codec"));
+}
+
+TEST_F(NoticeTest, ARegistrarContributesTheWholeNotice) {
+  // Not just the name: the SPDX id and the notice text are what a NOTICE file must reproduce, so a
+  // component registering only half of it would be a compliance bug.
+  EXPECT_THAT(
+      Notices(),
+      Contains(
+          ::testing::AllOf(
+              Field("component", &Notice::component, "alpha-codec"), Field("spdx", &Notice::spdx, "BSD-2-Clause"),
+              Field("text", &Notice::text, "Copyright (c) Alpha."))));
+}
+
+TEST_F(NoticeTest, RegisterAddsToTheProcessWideSetAndStaysSorted) {
+  // Register() is the non-Registrar entry point; a later registration must slot into the sort order
+  // rather than append, so ordering cannot depend on when a component was linked in.
+  Register({.component = "middle-codec", .spdx = "Zlib", .text = "Copyright (c) Middle."});
+  std::vector<std::string_view> components;
+  for (const Notice& notice : Notices()) {
+    components.push_back(notice.component);
+  }
+  EXPECT_THAT(components, ElementsAre("alpha-codec", "middle-codec", "zulu-codec"));
+}
+
+TEST_F(NoticeTest, NoticesReturnsACopySoCallersCannotCorruptTheRegistry) {
+  // Callers assemble text from this; mutating their copy must not affect the next caller.
+  std::vector<Notice> first = Notices();
+  const std::vector<Notice>::size_type before = first.size();
+  first.clear();
+  EXPECT_THAT(Notices().size() == before, IsTrue());
+}
+
+}  // namespace
+}  // namespace xff::license
