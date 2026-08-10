@@ -55,7 +55,7 @@ cc_library(
 # base module nothing. //xff/vfs re-exports it, so core code keeps including "xff/vfs/entry.h" and
 # "xff/vfs/filesystem.h" unchanged.
 cc_library(
-    name = "vfs",
+    name = "vfs_cc",
     hdrs = [
         "entry.h",
         "filesystem.h",
