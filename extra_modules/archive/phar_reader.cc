@@ -142,19 +142,34 @@ constexpr std::size_t kMinManifestBytes = 18;
 // hold, which is what tells a real phar apart from a file that merely contains the halt token.
 constexpr std::size_t kMinEntryBytes = 4 + 1 + (5 * 4) + 4;
 
-// Where the manifest starts, given the offset just past a halt token: the token may be followed by an
-// optional ` ?>` and one line ending, all of which still belong to the stub.
+// Where the manifest starts, given the offset just past a halt token.
+//
+// This follows PHP exactly, which is the specification in practice (php-src ext/phar/phar.c,
+// phar_open_from_fp):
+//
+//     if ((*buffer == ' ' || *buffer == '\n') && *(buffer + 1) == '?' && *(buffer + 2) == '>') {
+//         halt_offset += 3;   /* then an optional \n, or \r\n */
+//
+// So the close tag is consumed ONLY as the three-byte sequence `" ?>"` or `"\n?>"`: exactly one space
+// or exactly one newline, then `?>`, then at most one line ending. A bare `?>` with no separator, a
+// tab, two spaces, a trailing space after `?>`, `\r\n?>`, or a lone line ending are all NOT skipped -
+// the manifest is then taken to start immediately after the `;`, which is itself the legal minimal
+// spelling, and the manifest-header check below decides whether that was right.
+//
+// (One deliberate difference: after `?>` PHP treats a `\r` not followed by `\n` as corruption, while
+// here it simply leaves the offset unskipped, so such a file reports "not a phar" rather than
+// "corrupt". Our contract prefers that for anything whose manifest does not check out.)
 std::size_t SkipStubTail(std::string_view bytes, std::size_t at) {
-  while (at < bytes.size() && (bytes[at] == ' ' || bytes[at] == '\t')) {
-    ++at;
+  const std::string_view tail = bytes.substr(at);
+  if (!tail.starts_with(" ?>") && !tail.starts_with("\n?>")) {
+    return at;
   }
-  if (bytes.substr(at).starts_with("?>")) {
-    at += 2;
-  }
+  at += 3;
   if (bytes.substr(at).starts_with("\r\n")) {
-    at += 2;
-  } else if (bytes.substr(at).starts_with("\n")) {
-    ++at;
+    return at + 2;
+  }
+  if (bytes.substr(at).starts_with("\n")) {
+    return at + 1;
   }
   return at;
 }
