@@ -1040,9 +1040,52 @@ concrete need appears.
     invisible, and `deps` reached through a variable is not resolved. A finding is therefore "prove
     it or allowlist it"; `bazel query` is the authority if the two ever disagree. The reader is
     cross-checked against it today - both see exactly 50 `cc_library` targets.
-- **The MSan finding: DIAGNOSED as a false positive, ignore-listed (opened 2026-08-10; diagnosed
-  2026-08-10).** The symbolized frames (once `MSAN_SYMBOLIZER_PATH` was set) show every test failing
-  at the same single site, and identify it as an instrumentation gap rather than a bug:
+- **The MSan finding: DIAGNOSED as a false positive, then FIXED AT THE ROOT - the toolchain swaps in
+  the instrumented libc++ itself (opened 2026-08-10; diagnosed 2026-08-10; RESOLVED 2026-08-11).**
+  - **The fix, and why the earlier "structurally blocked" verdict was wrong.** `toolchains_llvm`
+    **1.8.0 - the version xff already depended on** - ships first-class MemorySanitizer support, so
+    none of the hand-rolled machinery below was ever needed.
+  - **The overlay:** `llvm.toolchain(libcxx_url = ..., libcxx_sha256 = ...)` unpacks a prebuilt
+    **instrumented libc++** into `libcxx-msan/` inside the LLVM distribution repo, and its headers
+    and archives join the toolchain's own filegroups, so they are declared compile and link inputs.
+  - **The switch:** `--features=msan` (Linux only) is the toolchain's MSan feature. It turns on the
+    sanitizer **and** moves the whole standard library over to that overlay in one step:
+
+    ```
+    -fsanitize=memory -fsanitize-memory-track-origins -fsanitize-link-c++-runtime
+    -cxx-isystem .../libcxx-msan/include/c++/v1   -L .../libcxx-msan/lib
+    -stdlib=libc++ -rtlib=compiler-rt -l:libc++.a -l:libc++abi.a -l:libunwind.a
+    ```
+
+    Critically, the ORDINARY stdlib flags live in a mutually exclusive `..._nomsan_stdlib` feature
+    that is gated off when `msan` is on.
+
+  - **That gating is the whole difference.** Our attempt ADDED the instrumented tree (as `-isystem`,
+    then as a `cc_library` dep) while the toolchain's own libc++ stayed on the search path, which is
+    what produced the duplicate-`using` / `#include_next` errors recorded below. The conclusion drawn
+    from that - "a hand-built stdlib cannot be swapped in under `toolchains_llvm` at all" - was right
+    about the METHOD and wrong about the toolchain: swapping is exactly what `--features=msan` does,
+    and it is what upstream's own end-to-end `msan_test` CI job exercises.
+  - **A `--features` flag is also the correct shape for a sanitizer:** bazel resets `--features` to
+    `--host_features` in the exec configuration, so build tools stay uninstrumented for free.
+  - **Where the instrumented libc++ comes from.** LLVM publishes no instrumented libc++, so we point
+    `libcxx_url` at the same third-party build `toolchains_llvm`'s own MSan test uses
+    (`RealtimeRoboticsGroup/toolchains`, 3.9 MB, `include/c++/v1` + `lib/libc++*.a` - the exact layout
+    `libcxx-msan/` expects). Nothing is built locally: `tools/build_msan_libcxx.sh` (cmake + ninja +
+    a full LLVM source download) and the `@msan_libcxx` repository are DELETED, and the CI cell lost
+    its cmake/ninja install, its libc++ build step and its second cache mount - it is now a plain
+    `bazel test`, the same shape as the `tsan` cell.
+  - **Kept:** the `xff/cc.bzl` wrappers (single load site, the `msan` tag, the suppression file in
+    runfiles), the `no-raw-rules-cc-load` / `check-cc-target-naming` / `check-cc-library-tested`
+    hooks, and `MSAN_SYMBOLIZER_PATH` in the run-under wrapper. The wrappers no longer inject a
+    libc++ dep - that was the part that could not work, since a dep's include path is additive.
+  - **Not needed: a switch to `hermeticbuild/hermetic-llvm`.** The parked note below named it as the
+    only real fix. It is not required, because the capability it was wanted for (runtimes built under
+    a sanitizer config) is available in the toolchain we already use.
+
+  The original diagnosis, kept because it is what identified the cause. The symbolized frames (once
+  `MSAN_SYMBOLIZER_PATH` was set) showed every test failing at the same single site, and identified
+  it as an instrumentation gap rather than a bug:
 
   ```
   #0 std::__1::basic_string<...>::__is_long()  external/toolchains_llvm.../include/c++/v1/string:2142
@@ -1068,22 +1111,25 @@ concrete need appears.
     inside a copt VALUE (a literal `%workspace%/...` reached clang and every compile failed); an
     absolute include-ish path is rejected as "outside of the execution root"; and it only works by
     reading a file the action never declared, which a stricter sandbox or remote execution refuses.
-  - **Coverage gap, deliberate:** the three `xff_extras_api` tests do NOT route through the wrappers,
-    so they carry no suppression file. That module is built both as `//xff_extras_api:...` (it is not
-    in `.bazelignore`) and as its own `@xff_extras_api`, and in the latter a `//xff:cc.bzl` label does
-    not exist - loading it would also invert the "an extra never depends on the core" rule. The
-    `no-raw-rules-cc-load` hook exempts that directory for the same reason. If those tests need the
-    suppression, the file has to be hosted by the shared API module itself.
-  - **Format caveat, still to be proven in CI:** MSan's runtime suppressions understand only
-    `interceptor_via_fun` / `interceptor_via_lib` (reports raised through an intercepted libc call).
-    This report comes from inline `std::string` code, so it is not certain the entry matches. If the
-    `msan` cell still reports after this, the remaining options are patching abseil (a declared,
-    hermetic input) or fixing the cause below.
-  - **BLOCKED, and now proven so (2026-08-10).** The swap chain was fixed step by step: `%workspace%`
-    is not expanded in a copt value (so it silently did nothing), an absolute `-isystem` is rejected
-    as outside the execroot, and `-cxx-isystem` from a generated bazelrc finally worked - the headers
-    do come from `.msan-libcxx`, and the false positive DISAPPEARS. But the compile then fails,
-    because two libc++ copies end up on the search path:
+  - **Coverage gap, deliberate - and now much smaller:** the three `xff_extras_api` tests do NOT route
+    through the wrappers, so they carry no suppression file. That module is built both as
+    `//xff_extras_api:...` (it is not in `.bazelignore`) and as its own `@xff_extras_api`, and in the
+    latter a `//xff:cc.bzl` label does not exist - loading it would also invert the "an extra never
+    depends on the core" rule. The `no-raw-rules-cc-load` hook exempts that directory for the same
+    reason. What they miss is now only the (empty) suppression file: the INSTRUMENTED LIBC++ reaches
+    them anyway, because it comes from the toolchain, which every module in the build shares. That is
+    a second, quieter win of moving the swap into the toolchain - a per-target `deps` swap could never
+    have covered a module that is forbidden from naming a core label.
+  - **Format caveat (now moot):** MSan's runtime suppressions understand only `interceptor_via_fun` /
+    `interceptor_via_lib` (reports raised through an intercepted libc call), and this report came from
+    inline `std::string` code - so the entry may never have matched. With the real libc++ instrumented
+    the report is gone at its source, and `tools/msan_suppressions.txt` is empty of real entries; the
+    plumbing that carries it stays, so a genuine future false positive has a home.
+  - **The dead end, recorded so it is not retried.** Every attempt to bolt the instrumented tree on
+    from OUTSIDE the toolchain failed, each in its own way: `%workspace%` is not expanded in a copt
+    value (so it silently did nothing), an absolute `-isystem` is rejected as outside the execroot,
+    a `-cxx-isystem` breaks libc++'s C-header shims (they reach glibc via `#include_next`), and a
+    `cc_library` dep is additive, so the toolchain's own libc++ stayed alongside ours:
 
     ```
     .msan-libcxx/include/c++/v1/__functional/hash.h:40:8: error: reference to unresolved using declaration
@@ -1092,17 +1138,9 @@ concrete need appears.
     .msan-libcxx/include/c++/v1/cwchar:136:9: error: target of using declaration conflicts with declaration already in scope
     ```
 
-    `bazel`'s `cc_toolchain` passes its OWN libc++ include dir explicitly, and `-nostdinc++` cannot
-    remove what the toolchain adds by hand, so `#include_next` resolves across two different libc++
-    trees. A hand-built stdlib therefore cannot be swapped in under `toolchains_llvm` at all.
-
-  - **Conclusion: MSan is parked.** Both routes are closed - the stdlib cannot be swapped (above), and
-    the resulting false positive cannot be suppressed at runtime (interceptor-only format). The only
-    real fix is a toolchain that builds its runtimes in-bazel under a sanitizer config, i.e.
-    hermeticbuild/hermetic-llvm and its `//config:msan_enabled` runtimes. Until then the `msan` cell
-    stays report-only (`continue-on-error`) and must not be hard-gated. Everything the attempt DID
-    leave behind is worth keeping: the runtime-suppression plumbing, the `msan` tag, the
-    `no-raw-rules-cc-load` enforcement, and `MSAN_SYMBOLIZER_PATH` in the run-under wrapper.
+    The lesson generalizes past MSan: **the standard library is the toolchain's to choose.** Anything
+    that changes it belongs in the `cc_toolchain` (a feature that swaps both the include and the link
+    flags, and turns the old ones off), never in per-target flags or deps.
 
 - **RESOLVED (2026-08-10): the `clang-tidy` CI cell was ~5x slower than helly25/mbo's.** Cause found
   and fixed: `actions/cache@v4` only SAVES on a key MISS, and the key changed only with
@@ -1149,13 +1187,10 @@ concrete need appears.
     flag to them for free; the standard library is the hard part. Check whether the hermetic LLVM
     toolchain can supply (or be made to build) an MSan-instrumented libc++ / libc++abi, or whether that
     is prohibitively heavy in CI.
-  - **DECIDED 2026-08-09: build it, in CI.** The instrumented libc++ is not a blocker, just work:
-    `tools/build_msan_libcxx.sh` builds libc++ / libc++abi / libunwind from the LLVM source release
-    matching `bazelmod/llvm.MODULE.bazel`'s `llvm_version`, with `-DLLVM_USE_SANITIZER=MemoryWithOrigins`
-    and the hermetic clang as the compiler, into `.msan-libcxx/` (gitignored). `--config=msan` swaps it
-    in via `-nostdinc++ -isystem .../include/c++/v1` + `-nostdlib++ -L.../lib -Wl,-rpath,...`; every
-    other dep is built from source under bazel so `-fsanitize=memory` instruments it for free.
-  - **CI:** one `msan` cell (ubuntu only) mirroring `tsan`, with the instrumented libc++ cached on the
-    LLVM version + the script hash (the script stamps its prefix and reuses a matching one). It starts
-    `continue-on-error` while the first findings are triaged - the same introduction path the
-    `clang-tidy` cell took - then becomes a hard gate in `done`'s `needs`.
+  - **DONE 2026-08-11: the toolchain supplies it.** The answer to the question above is the first
+    option: `toolchains_llvm` >= 1.8.0 CAN supply an instrumented libc++, through the `libcxx_url`
+    overlay plus its `msan` cc_feature (`--features=msan`). Nothing is built in CI, so the cost is a
+    3.9 MB download rather than a cached cmake/ninja LLVM-runtimes build. See the resolved entry
+    above for the mechanism, and for the dead end that came first.
+  - **CI:** one `msan` cell (ubuntu only) mirroring `tsan` - a plain `bazel test`, hard-gated in
+    `done`'s `needs` like every other cell.

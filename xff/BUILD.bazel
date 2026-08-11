@@ -46,9 +46,10 @@ config_setting(
 )
 
 # --//xff:xff_msan -- set by --config=msan (see .bazelrc). It exists so the cc_* wrappers in
-# xff/cc.bzl can `select()` the MSan ignore list into copts + additional_compiler_inputs ONLY in an
-# MSan build: -fsanitize-ignorelist is meaningless without -fsanitize=memory, and declaring the input
-# unconditionally would add it to every action in every configuration.
+# xff/cc.bzl (and the two genrules that RUN the instrumented binary) can `select()` the MSan runtime
+# suppression file in ONLY in an MSan build: it is meaningless without -fsanitize=memory, and
+# declaring the input unconditionally would add it to every action in every configuration.
+# It does NOT gate the instrumented libc++ - that is the toolchain's `--features=msan`.
 bool_flag(
     name = "xff_msan",
     build_setting_default = False,
