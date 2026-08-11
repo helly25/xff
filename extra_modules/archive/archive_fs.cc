@@ -25,6 +25,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
+#include "mbo/status/status_macros.h"
 #include "xff/archive/archive_reader.h"
 #include "xff/archive/member_path.h"
 #include "xff/vfs/entry.h"
@@ -68,14 +69,11 @@ vfs::Metadata DirectoryMetadata() {
 }  // namespace
 
 absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::Open(std::string_view container, MemberPathOptions options) {
-  absl::StatusOr<std::vector<Member>> members = ListMembersOfFile(container);
-  if (!members.ok()) {
-    // Passed through unchanged: "not a readable archive" and "corrupt archive" are different
-    // answers and the caller decides what to do with each.
-    return members.status();
-  }
+  // The reader's status passes through unchanged: "not a readable archive" and "corrupt archive" are
+  // different answers and the caller decides what to do with each.
+  MBO_ASSIGN_OR_RETURN(const std::vector<Member> members, ListMembersOfFile(container));
   ArchiveFileSystem fs(std::string(container), options);
-  for (const Member& member : *members) {
+  for (const Member& member : members) {
     const bool is_dir = member.path.ends_with('/') || member.is_directory;
     const std::string key = IndexKey(member.path);
     if (key.empty()) {

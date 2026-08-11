@@ -76,6 +76,7 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/time",
+        "@helly25_mbo//mbo/status:status_macros_cc",
         "@xff_extras_api//:member_path_cc",
         "@xff_extras_api//:vfs_cc",
     ],
@@ -117,6 +118,7 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
+        "@helly25_mbo//mbo/status:status_macros_cc",
         "@xff_extras_api//:member_path_cc",
     ],
 )
@@ -196,6 +198,7 @@ cc_library(
     deps = [
         ":archive_fs_cc",
         "@abseil-cpp//absl/status:statusor",
+        "@helly25_mbo//mbo/status:status_macros_cc",
         "@xff_extras_api//:archive_backend_cc",
         "@xff_extras_api//:member_path_cc",
         "@xff_extras_api//:vfs_cc",

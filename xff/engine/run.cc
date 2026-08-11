@@ -46,6 +46,7 @@
 #include "absl/time/time.h"
 #include "mbo/container/limited_map.h"
 #include "mbo/diff/diff_options.h"
+#include "mbo/status/status_macros.h"
 #include "xff/color/color.h"
 #include "xff/content/line_match.h"
 #include "xff/datetime/datetime.h"
@@ -507,12 +508,9 @@ absl::StatusOr<std::vector<HistogramSpec>> ResolveHistograms(const std::vector<s
               "'; use overall, type, ext, lang, mime, user, group, size, lines, or depth"));
     }
     if (colon != std::string_view::npos && value.substr(colon + 1) != "count") {
-      const absl::StatusOr<std::pair<HistAgg, HistMetric>> measure = ParseHistMeasure(value.substr(colon + 1));
-      if (!measure.ok()) {
-        return measure.status();
-      }
-      spec.agg = measure->first;
-      spec.metric = measure->second;
+      MBO_MOVE_TO_OR_RETURN(ParseHistMeasure(value.substr(colon + 1)), const auto [agg, metric]);
+      spec.agg = agg;
+      spec.metric = metric;
     }
     specs.push_back(std::move(spec));
   }
@@ -792,11 +790,8 @@ absl::Status ResolveBlockSize(const std::vector<std::string>& globals, std::uint
   if (!spec.has_value()) {
     return absl::OkStatus();
   }
-  const absl::StatusOr<std::uint64_t> bytes = ParseBlockSize(*spec);
-  if (!bytes.ok()) {
-    return bytes.status();
-  }
-  *block_size = *bytes;
+  MBO_ASSIGN_OR_RETURN(const std::uint64_t bytes, ParseBlockSize(*spec));
+  *block_size = bytes;
   return absl::OkStatus();
 }
 
