@@ -92,7 +92,7 @@ test::all_dives_into_an_archive_found_mid_walk() {
     out="$("$(_xff_bin)" "${spelling}" "${root}")"
     expect_output_contains "a.tar!one.txt" "${out}"
     expect_output_contains "a.tar!dir/two.txt" "${out}"
-    expect_output_contains "${root}/b.txt" "${out}"  # an ordinary file is untouched by diving
+    expect_output_contains "${root}/b.txt" "${out}" # an ordinary file is untouched by diving
   done
   rm -rf "${root}"
 }
@@ -106,7 +106,7 @@ test::members_are_ordinary_entries_for_the_expression() {
   expect_output_contains "a.tar!one.txt" "${out}"
   expect_output_contains "a.tar!dir/two.txt" "${out}"
   # Exactly those two: the container is not a `.txt`, and `dir` is not a file.
-  expect_eq "2" "$(grep -c . <<<"${out}")"
+  expect_eq "2" "$(wc -l <<<"${out}" | tr -d ' ')"
   rm -rf "${root}"
 }
 
