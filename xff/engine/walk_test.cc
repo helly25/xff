@@ -424,5 +424,141 @@ TEST_F(WalkFakeFsTest, CarriesOriginatingRootPerEntry) {
 }
 
 // NOLINTEND(misc-override-with-different-visibility,readability-identifier-naming,readability-function-cognitive-complexity,readability-identifier-length)
+
+// Archive diving. The walk knows nothing about archives beyond calling the mounter, so the container's
+// contents are just another FakeFs - what is under test is the WALK's half of the contract.
+struct WalkMountTest : ::testing::Test {
+  // A mounted filesystem holding `a.tar!one.txt`, `a.tar!dir` and `a.tar!dir/two.txt`, with the member
+  // identities a real archive filesystem provides: one device, distinct inodes.
+  static std::unique_ptr<const vfs::FileSystem> MountedTar() {
+    auto mounted = std::make_unique<FakeFs>();
+    mounted->AddDir("a.tar", 99, {Entry("a.tar!dir", vfs::FileType::kDirectory), Entry("a.tar!one.txt")});
+    mounted->AddFile("a.tar!one.txt", 99);
+    mounted->AddDir("a.tar!dir", 99, {Entry("a.tar!dir/two.txt")});
+    mounted->AddFile("a.tar!dir/two.txt", 99);
+    return mounted;
+  }
+
+  static vfs::Entry Entry(std::string path, vfs::FileType type = vfs::FileType::kRegular) {
+    const std::string::size_type slash = path.find_last_of("/!");
+    std::string name = slash == std::string::npos ? path : path.substr(slash + 1);
+    return vfs::Entry{.path = std::move(path), .name = std::move(name), .type = type};
+  }
+
+  // Walks `roots` with diving armed, recording each visit and counting reported errors.
+  std::vector<std::pair<std::string, int>> Walked(
+      const std::vector<std::string>& roots,
+      const WalkOptions& options,
+      absl::FunctionRef<WalkAction(const Visit&)> control,
+      ContainerMounter mount) {
+    std::vector<std::pair<std::string, int>> seen;
+    const absl::Status status = Walk(
+        fs_, roots, options,
+        [&](const Visit& visit) {
+          seen.emplace_back(std::string(visit.path), visit.depth);
+          return control(visit);
+        },
+        [&](std::string_view, absl::Status) { ++errors_; }, mount);
+    EXPECT_THAT(status, IsOk());
+    return seen;
+  }
+
+  static WalkAction Keep(const Visit&) { return WalkAction::kContinue; }
+
+  FakeFs fs_;
+  int errors_ = 0;
+};
+
+TEST_F(WalkMountTest, AContainerNamedAsARootIsWalkedAsWellAsVisited) {
+  // Dual identity: the container is still visited as the FILE it is, and its members follow one level
+  // below - so an expression matching the tar by name or size behaves exactly as without diving.
+  fs_.AddFile("a.tar", 1);
+  EXPECT_THAT(
+      Walked(
+          {"a.tar"}, WalkOptions{.sort = SortOrder::kDir, .archive = ArchiveDive::kRoots}, Keep,
+          [](std::string_view) { return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar()); }),
+      // kDir order: a level's entries first, then each subtree - the members obey the same --sort the
+      // rest of the walk does, because they go through the same child handling.
+      ElementsAre(Pair("a.tar", 0), Pair("a.tar!dir", 1), Pair("a.tar!one.txt", 1), Pair("a.tar!dir/two.txt", 2)));
+  EXPECT_THAT(errors_, 0);
+}
+
+TEST_F(WalkMountTest, NotAnArchiveIsNotAnError) {
+  // InvalidArgument is the answer for every ordinary file the walk offers, so it must be silent: the
+  // file was already visited as itself, and reporting here would make every plain file an error.
+  fs_.AddFile("notes.txt", 1);
+  EXPECT_THAT(
+      Walked(
+          {"notes.txt"}, WalkOptions{.archive = ArchiveDive::kRoots}, Keep,
+          [](std::string_view) {
+            return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(absl::InvalidArgumentError("not an archive"));
+          }),
+      ElementsAre(Pair("notes.txt", 0)));
+  EXPECT_THAT(errors_, 0);
+}
+
+TEST_F(WalkMountTest, AnUnreadableArchiveIsReported) {
+  // The other half of that contract: a file that IS an archive but cannot be read is a real error.
+  fs_.AddFile("broken.tar", 1);
+  EXPECT_THAT(
+      Walked(
+          {"broken.tar"}, WalkOptions{.archive = ArchiveDive::kRoots}, Keep,
+          [](std::string_view) {
+            return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(absl::DataLossError("corrupt"));
+          }),
+      ElementsAre(Pair("broken.tar", 0)));
+  EXPECT_THAT(errors_, 1);
+}
+
+TEST_F(WalkMountTest, RootsModeDoesNotDiveIntoArchivesFoundMidWalk) {
+  // `roots` means "the archive I pointed you AT", not every archive in the tree - that is `all`, a
+  // later slice. Counting mounts proves the gate, not just the output.
+  fs_.AddDir("top", 1, {Entry("top/a.tar")});
+  fs_.AddFile("top/a.tar", 1);
+  int mounts = 0;
+  EXPECT_THAT(
+      Walked(
+          {"top"}, WalkOptions{.archive = ArchiveDive::kRoots}, Keep,
+          [&mounts](std::string_view) {
+            ++mounts;
+            return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar());
+          }),
+      ElementsAre(Pair("top", 0), Pair("top/a.tar", 1)));
+  EXPECT_THAT(mounts, 0);
+}
+
+TEST_F(WalkMountTest, PruningTheContainerSkipsItsMembersButKeepsTheFile) {
+  // `-name '*.tar' -prune` must skip the diving without hiding the tar itself, exactly as pruning a
+  // directory keeps the directory.
+  fs_.AddFile("a.tar", 1);
+  EXPECT_THAT(
+      Walked(
+          {"a.tar"}, WalkOptions{.archive = ArchiveDive::kRoots}, [](const Visit&) { return WalkAction::kPrune; },
+          [](std::string_view) { return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar()); }),
+      ElementsAre(Pair("a.tar", 0)));
+}
+
+TEST_F(WalkMountTest, QuittingInsideAnArchiveStopsTheWholeWalk) {
+  // -quit is global: stopping inside a container must not merely end that container's listing.
+  fs_.AddFile("a.tar", 1);
+  fs_.AddFile("b.txt", 1);
+  EXPECT_THAT(
+      Walked(
+          {"a.tar", "b.txt"}, WalkOptions{.sort = SortOrder::kDir, .archive = ArchiveDive::kRoots},
+          [](const Visit& visit) { return visit.path == "a.tar!dir" ? WalkAction::kStop : WalkAction::kContinue; },
+          [](std::string_view) { return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar()); }),
+      ElementsAre(Pair("a.tar", 0), Pair("a.tar!dir", 1)));
+}
+
+TEST_F(WalkMountTest, MaxDepthCountsMemberLevels) {
+  // Members are ordinary depth: -maxdepth 1 stops at the container's immediate members.
+  fs_.AddFile("a.tar", 1);
+  EXPECT_THAT(
+      Walked(
+          {"a.tar"}, WalkOptions{.max_depth = 1, .sort = SortOrder::kDir, .archive = ArchiveDive::kRoots}, Keep,
+          [](std::string_view) { return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar()); }),
+      ElementsAre(Pair("a.tar", 0), Pair("a.tar!dir", 1), Pair("a.tar!one.txt", 1)));
+}
+
 }  // namespace
 }  // namespace xff::engine

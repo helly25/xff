@@ -17,6 +17,8 @@
 #define XFF_ENGINE_WALK_H_
 
 #include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -45,6 +47,11 @@ enum class SymlinkMode { kNever, kRoots, kAll };
 enum class SortOrder { kNone, kDir, kSubtree, kTree };
 
 // Traversal limits and parallelism (see docs/design-parallel.md).
+// How far archive diving descends, mirroring `--archive=none|roots|all`. The three are NESTED, not a
+// boolean: diving into an archive NAMED as a search root and diving into archives met mid-walk are
+// separately wanted (design.md, ratified 2026-08-05).
+enum class ArchiveDive : std::uint8_t { kNone, kRoots, kAll };
+
 struct WalkOptions {
   // Entries shallower than `min_depth` are traversed but not visited (find
   // `-mindepth`). A root operand is depth 0.
@@ -72,6 +79,9 @@ struct WalkOptions {
   // walk. The visitor always runs on a single coordinator thread, so evaluation
   // and emission stay single-threaded; only `readdir`+`lstat` run in parallel.
   std::size_t workers = 1;
+  // How far to descend INTO containers (xff `--archive` / `-z`), given a mounter to open one with.
+  // `kNone` is find's behaviour, where an archive is one plain file. See `ContainerMounter`.
+  ArchiveDive archive = ArchiveDive::kNone;
 };
 
 // One visited entry handed to the `Visitor`. `path`/`name` reference storage
@@ -90,6 +100,16 @@ enum class WalkAction { kContinue, kPrune, kStop };
 
 using Visitor = absl::FunctionRef<WalkAction(const Visit&)>;
 
+// Opens `container` as a read-only filesystem over its members, or fails when it is not one this
+// build can open. The walk calls this and nothing else about archives: a mounted container's members
+// are ordinary entries, so every predicate and action applies to them unchanged.
+//
+// InvalidArgument means "not an archive", and the walk then treats the path as the plain file it is -
+// which is why the two statuses must stay distinct all the way from the reader (see
+// xff_extras_api/archive_backend.h). Any OTHER failure is reported through `WalkErrorFn`: a container
+// that IS an archive but cannot be read is a real error, not a file to walk past silently.
+using ContainerMounter = absl::FunctionRef<absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(std::string_view)>;
+
 // Reports a per-path traversal failure (unreadable directory, failed stat, ...).
 // The walk continues; the engine maps these to exit code 2 later (design.md
 // "Exit-code model").
@@ -107,6 +127,22 @@ absl::Status Walk(
     const WalkOptions& options,
     Visitor visit,
     WalkErrorFn on_error);
+
+// As above, plus archive diving: when `options.archive` allows it, a FILE the walk meets is offered to
+// `mount_container`, and a container that opens is descended into as though it were a directory - its
+// members visited at the depth below it, through the mounted filesystem.
+//
+// The container itself is still visited as the file it is (dual identity: a real file on disk AND the
+// root of its members), so an expression matching it by name, size or type behaves exactly as without
+// diving. Everything the walk enforces keeps applying inside: `-maxdepth`, `-mindepth`, `-prune`,
+// `-quit`, and post-order all count member levels as ordinary depth.
+absl::Status Walk(
+    const vfs::FileSystem& fs,
+    absl::Span<const std::string> roots,
+    const WalkOptions& options,
+    Visitor visit,
+    WalkErrorFn on_error,
+    ContainerMounter mount_container);
 
 }  // namespace xff::engine
 

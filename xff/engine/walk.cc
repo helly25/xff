@@ -134,13 +134,77 @@ class ReadPool {
 
 class Walker {
  public:
-  Walker(const vfs::FileSystem& fs, const WalkOptions& options, Visitor visit, WalkErrorFn on_error)
+  Walker(
+      const vfs::FileSystem& fs,
+      const WalkOptions& options,
+      Visitor visit,
+      WalkErrorFn on_error,
+      const ContainerMounter* mount_container)
       : fs_(fs),
         options_(options),
         visit_(visit),
         on_error_(on_error),
+        mount_container_(mount_container),
         follow_children_(options.symlinks == SymlinkMode::kAll),
         pool_(options.workers > 1 ? options.workers : std::size_t{0}) {}
+
+  // Whether `stated` is a FILE this walk should try to open as a container. `kRoots` offers only the
+  // paths named on the command line (depth 0), `kAll` offers every file met; `kNone` never asks.
+  bool ShouldTryMount(const Stated& stated, int depth) const {
+    if (mount_container_ == nullptr || options_.archive == ArchiveDive::kNone) {
+      return false;
+    }
+    if (!stated.ok || stated.metadata.type != vfs::FileType::kRegular) {
+      return false;
+    }
+    return options_.archive == ArchiveDive::kAll || depth == 0;
+  }
+
+  // Opens `container` and walks its members as children of it, at `depth` + 1.
+  //
+  // A failed mount is not automatically an error: InvalidArgument means "not an archive", which is the
+  // common case for every ordinary file the walk offers, and the file has already been visited as
+  // itself. Any other failure IS reported - an archive that cannot be read is a real problem.
+  void DescendContainer(const Stated& container, int depth) {
+    absl::StatusOr<std::unique_ptr<const vfs::FileSystem>> mounted = (*mount_container_)(container.path);
+    if (!mounted.ok()) {
+      if (!absl::IsInvalidArgument(mounted.status())) {
+        on_error_(container.path, mounted.status());
+      }
+      return;
+    }
+    // A nested walker over the mounted filesystem: members are ordinary entries to it, so every rule
+    // the outer walk enforces (max_depth, min_depth, prune, quit, post_order, sort) applies unchanged.
+    // Diving is NOT re-armed inside, so a container within a container needs --archive-depth, which is
+    // a later slice rather than accidental recursion here.
+    WalkOptions inner_options = options_;
+    inner_options.archive = ArchiveDive::kNone;
+    Walker inner(**mounted, inner_options, visit_, on_error_, /*mount_container=*/nullptr);
+    inner.current_root_ = current_root_;
+    inner.root_dev_ = container.metadata.dev;
+    inner.DescendMembers(container.path, depth);
+    if (inner.stopped_) {
+      stopped_ = true;  // a -quit inside the archive stops the whole walk, as it would in a directory
+    }
+  }
+
+  // Lists `container` through the mounted filesystem and walks each member at `depth` + 1. Separate
+  // from Descend() because a container is NOT a directory to stat: it keeps its real-file identity, so
+  // there is nothing to loop-guard here and the listing is the entry point.
+  void DescendMembers(const std::string& container, int depth) {
+    if (options_.max_depth >= 0 && depth >= options_.max_depth) {
+      return;
+    }
+    Listing listing = SubmitRead(container).get();
+    if (!listing.ok()) {
+      on_error_(container, listing.status());
+      return;
+    }
+    if (options_.sort != SortOrder::kNone) {
+      absl::c_sort(*listing, [](const Stated& lhs, const Stated& rhs) { return lhs.path < rhs.path; });
+    }
+    HandleChildren(*listing, depth + 1);
+  }
 
   void WalkRoots(absl::Span<const std::string> roots) {
     for (const std::string& root : roots) {
@@ -231,9 +295,12 @@ class Walker {
       return;
     }
     const bool descend = Descendable(stated, depth);
+    const bool dive = ShouldTryMount(stated, depth);
     if (options_.post_order) {
       if (descend) {
         Descend(stated, depth, prefetched);
+      } else if (dive) {
+        DescendContainer(stated, depth);
       }
       if (!stopped_) {
         VisitOne(stated, depth);
@@ -241,8 +308,15 @@ class Walker {
       return;
     }
     const WalkAction action = VisitOne(stated, depth);
-    if (!stopped_ && descend && action != WalkAction::kPrune) {
+    if (stopped_ || action == WalkAction::kPrune) {
+      return;
+    }
+    if (descend) {
       Descend(stated, depth, prefetched);
+    } else if (dive) {
+      // A container is a FILE, so it never reaches Descend; -prune above still applies to it, which is
+      // what makes `-name '*.tar' -prune` skip diving without skipping the file itself.
+      DescendContainer(stated, depth);
     }
   }
 
@@ -352,6 +426,9 @@ class Walker {
   const WalkOptions& options_;
   Visitor visit_;
   WalkErrorFn on_error_;
+  // Null when archive diving is off, and always null inside a mounted container: nesting is
+  // --archive-depth's business, not something to fall into by recursion.
+  const ContainerMounter* mount_container_ = nullptr;
   const bool follow_children_;
   ReadPool pool_;
   bool stopped_ = false;
@@ -368,7 +445,19 @@ absl::Status Walk(
     const WalkOptions& options,
     Visitor visit,
     WalkErrorFn on_error) {
-  Walker walker(fs, options, visit, on_error);
+  Walker walker(fs, options, visit, on_error, /*mount_container=*/nullptr);
+  walker.WalkRoots(roots);
+  return absl::OkStatus();
+}
+
+absl::Status Walk(
+    const vfs::FileSystem& fs,
+    absl::Span<const std::string> roots,
+    const WalkOptions& options,
+    Visitor visit,
+    WalkErrorFn on_error,
+    ContainerMounter mount_container) {
+  Walker walker(fs, options, visit, on_error, &mount_container);
   walker.WalkRoots(roots);
   return absl::OkStatus();
 }
