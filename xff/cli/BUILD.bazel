@@ -388,6 +388,7 @@ genrule(
     # instrumented binary, and a genrule's working directory is the execroot, which is the path
     # MSAN_OPTIONS=suppressions= names (see .bazelrc).
     srcs = select({
+        "//xff:xff_msan_enabled": ["//tools:msan_suppressions"],
         "//conditions:default": [],
     }),
     outs = ["XFF.md.actual"],
