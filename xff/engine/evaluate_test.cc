@@ -15,6 +15,7 @@
 
 #include "xff/engine/evaluate.h"
 
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <ios>
@@ -386,7 +387,14 @@ TEST_F(EvaluateTest, ValidateSizeArgsRejectsBadUnits) {
   // Valid units (incl. the T/P/E continuation) pass; an over-64-bit unit (Z/Y/...)
   // or an unknown unit is rejected with a self-documenting message, so the driver
   // fails before traversing rather than silently matching nothing.
-  for (const std::string_view good : {"+1T", "2P", "-3E", "5c", "1k"}) {
+  static constexpr std::array kValidSizeArgs = std::to_array<std::string_view>({
+      "+1T",
+      "2P",
+      "-3E",
+      "5c",
+      "1k",
+  });
+  for (const std::string_view good : kValidSizeArgs) {
     const auto command = parser::Parse({".", "-size", std::string(good)});
     ASSERT_THAT(command, IsOk());
     EXPECT_THAT(ValidateSizeArgs(*command->expression), IsOk()) << good;

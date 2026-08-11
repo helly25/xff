@@ -15,6 +15,8 @@
 
 #include "xff/parser/parser.h"
 
+#include <array>
+
 #include "absl/status/status.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -409,7 +411,13 @@ TEST_F(ParserTest, XnorParsesAsItsOwnNode) {
 TEST_F(ParserTest, EnforceStyleRejectsXffOperatorsUnderFind) {
   // The new logical operators are xff extensions; the strict find style refuses
   // them even though they are interior nodes with no descriptor.
-  for (const char* const op : {"-xor", "-nand", "-nor", "-xnor"}) {
+  static constexpr std::array kXffOperators = std::to_array<const char*>({
+      "-xor",
+      "-nand",
+      "-nor",
+      "-xnor",
+  });
+  for (const char* const op : kXffOperators) {
     ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-name", "a", op, "-name", "b"}));
     const absl::Status status = EnforceStyle(cmd, registry::Style::kFind);
     EXPECT_THAT(status, StatusIs(absl::StatusCode::kInvalidArgument)) << op;

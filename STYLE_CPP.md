@@ -154,6 +154,30 @@ clang-format picks a layout per line; these habits steer it toward the readable 
 - **Pass `absl::Status` by value**, not `const&`: it is a tagged pointer, and
   `.clang-tidy performance-unnecessary-value-param` allowlists it (with `absl::StatusOr`
   and `std::string_view`). `StatusOr<T>`'s cost depends on `T`.
+- **Never range-iterate an inline braced-init-list; iterate a NAMED `constexpr std::array`.** A loop
+  over `{a, b, c}` hides what the set IS behind the mechanics of visiting it, gives the reader nothing
+  to grep for, and puts the data at the point of use so the next case that needs the same set copies it
+  instead of sharing it. Build the set with `std::to_array<T>({...})` (a trailing comma on the last
+  element, so `clang-format` breaks it one per line - see the Formatting section) and give it a `k`
+  name that says what the set is, not what the loop does. `static constexpr` inside a function when it
+  is used once; at namespace scope in the anonymous namespace when more than one case needs it.
+  Deducing `std::array` from `to_array` also keeps the element type in exactly one place, and an
+  explicit type stops a literal from being deduced as `const char*` where `std::string_view` was meant.
+
+  ```cpp
+  // POSIX precedence: LC_ALL overrides LC_CTYPE, which overrides LANG.
+  static constexpr std::array kLocaleVars = std::to_array<std::string_view>({
+      "LC_ALL",
+      "LC_CTYPE",
+      "LANG",
+  });
+  for (const std::string_view var : kLocaleVars) {  // not: for (... : {"LC_ALL", "LC_CTYPE", "LANG"})
+  ```
+
+  Enforced by the `no-braced-init-list-loop` pre-commit hook, so it cannot drift back. This is about a
+  RANGE-FOR over a literal list; passing a braced list as an argument (`ElementsAre`, a `std::vector`
+  initializer, an aggregate) is untouched by the rule.
+
 - **Prefer container algorithms** from `absl/algorithm/container.h` (`absl::c_contains`,
   `c_any_of`, `c_find`, `c_equal`, `c_sort`, ...) or C++23 `std::ranges` over hand-rolled
   loops: range-based (no begin/end), well-named, constexpr-friendly. A loop that returns

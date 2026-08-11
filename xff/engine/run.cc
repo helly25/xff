@@ -693,7 +693,13 @@ bool ResolveUnicode(const std::vector<std::string>& globals) {
   if (forced.has_value()) {
     return *forced;
   }
-  for (const std::string_view var : {"LC_ALL", "LC_CTYPE", "LANG"}) {
+  // POSIX precedence: LC_ALL overrides LC_CTYPE, which overrides LANG.
+  static constexpr std::array kLocaleVars = std::to_array<std::string_view>({
+      "LC_ALL",
+      "LC_CTYPE",
+      "LANG",
+  });
+  for (const std::string_view var : kLocaleVars) {
     if (const std::optional<std::string> value = env::Get(var); value.has_value() && !value->empty()) {
       return absl::StrContains(absl::AsciiStrToUpper(*value), "UTF");  // en_US.UTF-8, C.UTF-8, ...
     }
@@ -752,7 +758,11 @@ std::optional<std::string> ResolveTemplate(const std::vector<std::string>& globa
 bool ResolveTimeZone(const std::vector<std::string>& globals, absl::TimeZone* tz, std::string* bad) {
   std::optional<std::string> spec;
   for (const std::string& global : globals) {
-    for (const std::string_view prefix : {std::string_view("--timezone="), std::string_view("--tz=")}) {
+    static constexpr std::array kTimezonePrefixes = std::to_array<std::string_view>({
+        "--timezone=",
+        "--tz=",
+    });
+    for (const std::string_view prefix : kTimezonePrefixes) {
       if (global.starts_with(prefix)) {
         spec = global.substr(prefix.size());  // last occurrence of either spelling wins
       }

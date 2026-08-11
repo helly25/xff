@@ -15,6 +15,7 @@
 
 #include "xff/archive/phar_reader.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
@@ -197,8 +198,12 @@ bool LooksLikeManifestAt(std::string_view bytes, std::size_t at) {
   }
   // The two variable-length header fields must fit inside the DECLARED manifest (not inside what
   // happens to be present, per the comment above).
+  static constexpr std::array kHeaderFields = std::to_array<std::string_view>({
+      "alias",
+      "container metadata",
+  });
   std::uint64_t used = kMinManifestBytes;
-  for (const std::string_view field : {std::string_view("alias"), std::string_view("container metadata")}) {
+  for (const std::string_view field : kHeaderFields) {
     const absl::StatusOr<std::uint32_t> length = cursor.Uint32(field);
     if (!length.ok()) {
       return false;

@@ -15,6 +15,7 @@
 
 #include "xff/engine/walk.h"
 
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -238,7 +239,9 @@ TEST_F(WalkTest, SortModesOrderUnderWorkers) {
     return out;
   };
 
-  for (const std::size_t workers : {std::size_t{1}, std::size_t{4}}) {
+  // Sequential and parallel: the ordering guarantee must not depend on the worker count.
+  static constexpr std::array kWorkerCounts = std::to_array<std::size_t>({1, 4});
+  for (const std::size_t workers : kWorkerCounts) {
     EXPECT_THAT(
         paths(RunRoots({base}, WalkOptions{.sort = SortOrder::kTree, .workers = workers}, Continue)),
         ElementsAre(base, p("a.txt"), p("m1"), p("m1/x.txt"), p("m2"), p("m2/y.txt"), p("z.txt")))

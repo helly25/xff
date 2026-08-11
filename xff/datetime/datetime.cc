@@ -15,6 +15,7 @@
 
 #include "xff/datetime/datetime.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -114,7 +115,13 @@ std::optional<absl::Time> ParseTimeString(std::string_view text, absl::Time now,
     }
     return absl::FromUnixSeconds(seconds);
   }
-  for (const std::string_view format : {"%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"}) {
+  // Tried in order, most specific first: a bare date must not win over a full timestamp.
+  static constexpr std::array kAcceptedFormats = std::to_array<std::string_view>({
+      "%Y-%m-%dT%H:%M:%S",
+      "%Y-%m-%d %H:%M:%S",
+      "%Y-%m-%d",
+  });
+  for (const std::string_view format : kAcceptedFormats) {
     absl::Time time;
     std::string error;
     if (absl::ParseTime(format, text, tz, &time, &error)) {
