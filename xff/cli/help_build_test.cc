@@ -15,6 +15,7 @@
 
 #include "xff/cli/help_build.h"
 
+#include <array>
 #include <string>
 #include <variant>
 #include <vector>
@@ -118,7 +119,11 @@ TEST_F(BuildReferenceTest, ThisBinaryReferenceKeepsTheNotBuiltNoteForAMissingExt
 
 TEST_F(BuildReferenceTest, BothAudiencesStillDocumentTheExtraItself) {
   // The callout a reader needs is the STATIC one, and it survives in both audiences.
-  for (const Audience audience : {Audience::kPublished, Audience::kThisBinary}) {
+  static constexpr std::array kAudiences = std::to_array<Audience>({
+      Audience::kPublished,
+      Audience::kThisBinary,
+  });
+  for (const Audience audience : kAudiences) {
     const std::string options = ProseTextOf(SectionNamed(BuildReference(audience), "Options").children);
     EXPECT_THAT(options, HasSubstr("--//xff:xff_archive")) << "audience " << static_cast<int>(audience);
   }

@@ -79,6 +79,16 @@ repos:
         exclude: ^[.]pre-commit-config\.yaml$|\.(phar|tar|tgz|gz|bz2|xz|zst|zip|jar|war|ear|apk|aab|whl|egg|nupkg|vsix|xpi|crx|jmod|deb|rpm|gem|crate|asar|7z)$
         entry: (#|//|/[*]).*(FIXME|TODO)[(](?!(((\w|\w[.-]\w)+@(\w|-)+([.](\w|-)+)*)|(https?://[^)]+))(,[^)]+)?)[)]
         types: [text]
+      - id: no-braced-init-list-loop
+        name: No range-for over an inline braced-init-list
+        description: |
+          Project convention (STYLE_CPP.md): iterate a NAMED `constexpr std::array` built with
+          `std::to_array<T>({...})`, never an inline `for (x : {a, b, c})`. The named form says
+          what the set IS, is greppable, and can be shared by a second case instead of copied.
+          To skip once, run `SKIP="no-braced-init-list-loop" pre-commit`.
+        language: pygrep
+        entry: 'for\s*\([^)]*:\s*\{'
+        files: \.(cc|h)$
       - id: no-shell-grep-in-bashtests
         name: No hand-rolled grep in bashtests
         description: |
