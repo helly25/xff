@@ -20,6 +20,13 @@ module(
     version = "0.0.0",
 )
 
+# The extras, exposed to Starlark. //:refresh_compile_commands must name every extra module, and
+# `//...` does not match another module, so the list is DERIVED from the local_path_override entries
+# below rather than hand-kept - see tools/extras_repo.bzl (and tools/extras.py, which derives the same
+# list for the shell).
+extras_extension = use_extension("//tools:extras_repo.bzl", "extras_extension")
+use_repo(extras_extension, "xff_extras")
+
 # Local-development modules: hermetic LLVM toolchain + clangd compile-commands.
 # (Mirrors helly25/mbo; dev-only, not propagated to dependents.)
 include("//bazelmod:dev.MODULE.bazel")

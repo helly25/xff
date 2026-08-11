@@ -657,14 +657,16 @@ remains below is the design-forked / larger work.
     payload). `.gem` and `.conda` read one layer deep, the inner `data.tar.gz` needing
     `--archive-depth` > 1. None of this needs a reader - it needs committed fixtures asserting we
     really do read them, which is behaviour we already ship and currently do not test.
-  - **PREFIXED PAYLOAD: one mechanism, several formats.** CRX3 (`Cr24` + header + zip), JMOD (`JM` +
-    zip), AppImage (ELF stub + payload), PyInstaller one-file, self-extracting installers: all are
-    "skip a prefix, then hand the rest to a reader we already have". VERIFY FIRST - libarchive's zip
-    reader locates the end-of-central-directory by seeking from the end and its source explicitly
-    mentions SFX files, so prefixed zips may already work, in which case this is a fixture test and
-    not a mechanism. phar's stub scan is an instance of the same idea, but moving phar onto a shared
-    mechanism is a LATER question and not to be done while phar works: phar is itself several formats
-    (native stub+manifest, tar-based, zip-based), so the refactor is not a one-liner.
+  - **PREFIXED PAYLOAD: ANSWERED 2026-08-11, no mechanism needed.** CRX3 (`Cr24` + header + zip), JMOD
+    (`JM` + zip), self-extracting installers and by extension AppImage / PyInstaller are all "skip a
+    prefix, then hand the rest to a reader we already have" - and libarchive already does it. Its zip
+    reader locates the end-of-central-directory by seeking from the end and derives the offset delta,
+    so all three committed fixtures read: `sfx-example.zip` (absolute offsets, the real SFX shape) and
+    `example.crx` / `example.jmod` (a zip appended verbatim, so every recorded offset is short by the
+    header length - measured at 41 and 4 bytes). Pinned by `//:format_fixture_test`; nothing of ours to
+    build. phar's stub scan is an instance of the same idea, but moving phar onto a shared mechanism
+    stays a LATER question and not while phar works: phar is itself several formats (native
+    stub+manifest, tar-based, zip-based), so the refactor is not a one-liner.
   - **ASAR (Electron), BLOCKED on a JSON reader in helly25/mbo.** The one genuinely missing format
     that is both easy and widespread: every Electron app ships `app.asar` (VS Code, Slack, Discord,
     Teams) and that is where the JS lives, so reading inside it is a real want. Shape is phar's
@@ -676,6 +678,25 @@ remains below is the design-forked / larger work.
     (libarchive already links zlib / xz / zstd / lz4), but metadata block tables and fragment
     handling make it a real slice, and a snap is not somewhere people usually grep. Revisit when
     something concretely asks.
+  - **OPEN (design sketched 2026-08-11, needs ratification): the PREFIX itself as a listed entry.** A
+    prefix is real content - a phar stub is a working PHP bootstrap, an SFX prefix a shell script, an
+    AppImage prefix a multi-megabyte ELF runtime, a CRX3 header a signature block - and today the walk
+    lists the members and silently drops everything before them, so "find phars whose stub requires X"
+    cannot be asked. It wants a synthesized entry, and the naming question has three candidate answers:
+    an EMPTY name (rejected: the member path then equals the container path, which is already both a
+    file and a directory), REPEATING the container name (rejected: reads as a nested copy and can
+    collide with a real member), or an artificial name in a reserved, format-named dot-directory
+    (preferred). phar decides it for us: the tar- and zip-based variants already store these as REAL
+    members with fixed names (`.phar/stub.php`, `.phar/signature.bin`, `.phar/alias.txt`,
+    `.phar/.metadata.bin`), which we read today, so a native phar synthesizing the SAME names makes all
+    three variants list identically. By extension `.crx/header.pb`, `.sfx/prefix.bin`,
+    `.appimage/runtime`; JMOD needs none (4 bytes of magic, no content). Two consequences to ratify
+    with it: VISIBILITY (a dot-directory is already governed by the skip-hidden rules, so find shows
+    them and xfd / rg hide them until `--hidden`, rather than adding a flag - the alternative is an
+    explicit `--archive-parts=none|meta|all`), and COLLISION (a real member owning the synthesized path
+    wins and the synthesized entry is suppressed, never shadowing stored bytes). Note this is the one
+    thing that DOES need prefix-offset detection, which reading does not: phar knows its stub length
+    already, and for any prefixed zip the length falls out of the end-of-central-directory record.
   - **REJECTED as not worth it:** MSI (OLE2/CFB sector chains, Windows-centric), DMG (UDIF plus
     HFS+/APFS), WIM, Nix NAR (trivial format, tiny audience), py2exe.
 

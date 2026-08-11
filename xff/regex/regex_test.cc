@@ -238,7 +238,14 @@ TEST_F(RegexTest, GrammarDocsCoverEveryGrammarInValueOrder) {
 TEST_F(RegexTest, EveryGrammarCompilesATrivialPattern) {
   // The core engines never fail to compile; PCRE2 (a build extra) is the only one that may return
   // Unimplemented in a lean build, so it is exercised by its own dedicated test above.
-  for (const Grammar grammar : {Grammar::kRe2, Grammar::kExact, Grammar::kFnmatch, Grammar::kGlob, Grammar::kShglob}) {
+  static constexpr std::array kAllGrammars = std::to_array<Grammar>({
+      Grammar::kRe2,
+      Grammar::kExact,
+      Grammar::kFnmatch,
+      Grammar::kGlob,
+      Grammar::kShglob,
+  });
+  for (const Grammar grammar : kAllGrammars) {
     EXPECT_THAT(Matcher::Compile("abc", /*case_insensitive=*/false, grammar), IsOk());
   }
 }

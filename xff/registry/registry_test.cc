@@ -15,6 +15,8 @@
 
 #include "xff/registry/registry.h"
 
+#include <array>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "xff/registry/descriptor.h"
@@ -66,7 +68,15 @@ TEST_F(RegistryTest, SecurityRelevantPrimariesAreClassified) {
   // The exec family runs arbitrary commands (kSecurity); -delete loses data
   // (kSafety); everything else is unclassified (kNone). The config policy gate
   // (phase C) keys its safe-by-default deny off this.
-  for (const char* const name : {"-exec", "-execdir", "-ok", "-okdir", "-capture", "-capturedir"}) {
+  static constexpr std::array kSecurityPrimaries = std::to_array<const char*>({
+      "-exec",
+      "-execdir",
+      "-ok",
+      "-okdir",
+      "-capture",
+      "-capturedir",
+  });
+  for (const char* const name : kSecurityPrimaries) {
     EXPECT_THAT(Lookup(name), Pointee(Field("safety", &Descriptor::safety, Safety::kSecurity))) << name;
   }
   EXPECT_THAT(Lookup("-delete"), Pointee(Field("safety", &Descriptor::safety, Safety::kSafety)));
@@ -90,7 +100,14 @@ TEST_F(RegistryTest, XffExtensionsAreStyleTagged) {
        {"-println", "-printfln", "-capture", "-capturedir", "-xor", "-nand", "-nor", "-xnor"}) {
     EXPECT_THAT(Lookup(name), Pointee(Field("style", &Descriptor::style, Style::kXff))) << name;
   }
-  for (const char* const name : {"-print", "-printf", "-name", "-exec", "-delete"}) {
+  static constexpr std::array kFindStylePrimaries = std::to_array<const char*>({
+      "-print",
+      "-printf",
+      "-name",
+      "-exec",
+      "-delete",
+  });
+  for (const char* const name : kFindStylePrimaries) {
     EXPECT_THAT(Lookup(name), Pointee(Field("style", &Descriptor::style, Style::kFind))) << name;
   }
 }
@@ -98,7 +115,13 @@ TEST_F(RegistryTest, XffExtensionsAreStyleTagged) {
 TEST_F(RegistryTest, ExtendedLogicalOperatorsAreOperators) {
   // -xor/-nand/-nor/-xnor are xff logical operators (the style tagging is asserted
   // above); confirm they are classified as operators, not tests/actions.
-  for (const char* const name : {"-xor", "-nand", "-nor", "-xnor"}) {
+  static constexpr std::array kXffOperators = std::to_array<const char*>({
+      "-xor",
+      "-nand",
+      "-nor",
+      "-xnor",
+  });
+  for (const char* const name : kXffOperators) {
     EXPECT_THAT(Lookup(name), Pointee(Field("kind", &Descriptor::kind, Kind::kOperator))) << name;
   }
 }

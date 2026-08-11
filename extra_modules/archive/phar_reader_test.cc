@@ -15,6 +15,7 @@
 
 #include "xff/archive/phar_reader.h"
 
+#include <array>
 #include <cstdint>
 #include <fstream>
 #include <ios>
@@ -23,6 +24,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -32,6 +34,7 @@
 namespace xff::archive {
 namespace {
 
+using ::mbo::testing::IsOk;
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
 using ::testing::AllOf;
@@ -40,9 +43,47 @@ using ::testing::Field;
 using ::testing::HasSubstr;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
+using ::testing::Not;
 
 // PHP's own compression flags, so the test names the same bits the format does.
 constexpr std::uint32_t kCompressedGz = 0x00001000;
+
+// What may sit between `__HALT_COMPILER();` and the manifest, and what may not.
+//
+// Every case here was handed to PHP as raw bytes to see whether PHP itself opens the container, and
+// the results match php-src's rule exactly (ext/phar/phar.c, `phar_parse_pharfile`): the close tag is
+// consumed ONLY as the three-byte sequence `" ?>"` or `"\n?>"` - one single space or one newline -
+// followed by at most one line ending. Hence a bare `?>`, a tab, two spaces, a trailing space, a lone
+// line ending and `\r\n?>` are all rejected, while the empty tail is the legal minimal spelling. A `\r`
+// after the marker is only accepted with its `\n`, mirroring PHP's "if we have an \r we require an \n
+// as well".
+struct StubTail {
+  std::string_view tail;
+  bool readable;
+};
+
+constexpr std::array kStubTails = std::to_array<StubTail>({
+    {.tail = "", .readable = true},
+    {.tail = " ?>", .readable = true},
+    {.tail = " ?>\n", .readable = true},
+    {.tail = " ?>\r\n", .readable = true},
+    {.tail = "\n?>", .readable = true},
+    {.tail = "\n?>\n", .readable = true},
+    {.tail = "\n?>\r\n", .readable = true},
+    {.tail = "?>", .readable = false},
+    {.tail = "?>\n", .readable = false},
+    {.tail = "\t?>\n", .readable = false},
+    {.tail = "  ?>\n", .readable = false},
+    {.tail = " ?> \n", .readable = false},
+    {.tail = "\r\n?>", .readable = false},
+    // A `\r` that no `\n` follows: PHP calls this a truncated manifest, so it must not read.
+    {.tail = " ?>\r", .readable = false},
+    {.tail = "\n?>\r", .readable = false},
+    {.tail = " ?>\r\r\n", .readable = false},
+    {.tail = "\n", .readable = false},
+    {.tail = "\r\n", .readable = false},
+    {.tail = " ", .readable = false},
+});
 
 // One member to place into a generated phar. `name` is stored verbatim, so a directory is spelled
 // with the trailing slash the format uses.
@@ -140,19 +181,27 @@ TEST_F(PharReaderTest, AnAliasAndMetadataFieldsAreSkippedNotMisread) {
   EXPECT_THAT(ListPharMembers(phar), IsOkAndHolds(ElementsAre(Field("path", &Member::path, "a.txt"))));
 }
 
-TEST_F(PharReaderTest, StubVariantsAllLocateTheManifest) {
-  // The stub ends in the token plus an OPTIONAL ` ?>` and one line ending, in any combination.
-  for (const std::string_view stub : {
-           std::string_view("<?php __HALT_COMPILER(); ?>\n"),
-           std::string_view("<?php __HALT_COMPILER(); ?>\r\n"),
-           std::string_view("<?php __HALT_COMPILER();"),
-           std::string_view("#!/usr/bin/env php\n<?php require 'x'; __HALT_COMPILER(); ?>"),
-       }) {
-    EXPECT_THAT(
-        ListPharMembers(MakePhar({{.name = "a.txt", .content = "a"}}, stub)),
-        IsOkAndHolds(ElementsAre(Field("path", &Member::path, "a.txt"))))
-        << "stub: " << stub;
+TEST_F(PharReaderTest, TheStubTailIsExactlyWhatPhpAccepts) {
+  // Both directions matter. Accepting less than PHP means MISSING real phars (the `"\n?>"` spelling was
+  // missed until this table existed); accepting more means claiming to read a container PHP itself
+  // calls corrupt.
+  for (const StubTail& stub : kStubTails) {
+    const std::string phar =
+        MakePhar({{.name = "a.txt", .content = "a"}}, absl::StrCat("<?php echo 'x';__HALT_COMPILER();", stub.tail));
+    const auto members = ListPharMembers(phar);
+    if (stub.readable) {
+      EXPECT_THAT(members, IsOkAndHolds(ElementsAre(Field("path", &Member::path, "a.txt"))))
+          << "tail: " << absl::CEscape(stub.tail);
+    } else {
+      EXPECT_THAT(members, Not(IsOk())) << "tail: " << absl::CEscape(stub.tail);
+    }
   }
+}
+
+TEST_F(PharReaderTest, AStubMayBeAnyPhpSourceBeforeTheToken) {
+  const std::string phar = MakePhar(
+      {{.name = "a.txt", .content = "a"}}, "#!/usr/bin/env php\n<?php require 'bootstrap.php'; __HALT_COMPILER(); ?>");
+  EXPECT_THAT(ListPharMembers(phar), IsOkAndHolds(ElementsAre(Field("path", &Member::path, "a.txt"))));
 }
 
 TEST_F(PharReaderTest, PlainPhpWithoutTheHaltTokenIsNotAPhar) {

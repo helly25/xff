@@ -602,7 +602,13 @@ Section GuideSection() {
   // guide cannot drift from the actual flags.
   Subsection display{.title = "Display options (how help is shown)"};
   Rows display_rows;
-  for (const std::string_view name : {"--color", "--pager", "--width"}) {
+  // The display-affecting globals, in the order the section presents them.
+  static constexpr std::array kDisplayFlags = std::to_array<std::string_view>({
+      "--color",
+      "--pager",
+      "--width",
+  });
+  for (const std::string_view name : kDisplayFlags) {
     if (const GlobalFlag* const flag = LookupGlobal(name); flag != nullptr) {
       display_rows.rows.push_back(Row{.term = std::string(flag->display), .description = ParseInline(flag->summary)});
     }

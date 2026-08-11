@@ -15,6 +15,7 @@
 
 #include "xff/archive/phar_reader.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
@@ -141,19 +142,42 @@ constexpr std::size_t kMinManifestBytes = 18;
 // hold, which is what tells a real phar apart from a file that merely contains the halt token.
 constexpr std::size_t kMinEntryBytes = 4 + 1 + (5 * 4) + 4;
 
-// Where the manifest starts, given the offset just past a halt token: the token may be followed by an
-// optional ` ?>` and one line ending, all of which still belong to the stub.
+// Where the manifest starts, given the offset just past a halt token.
+//
+// This follows PHP exactly, which is the specification in practice. From php-src
+// ext/phar/phar.c, in `phar_parse_pharfile` (around line 764) - NOT in `phar_open_from_fp`, which only
+// locates the token and passes the offset down:
+//
+//     if ((*buffer == ' ' || *buffer == '\n') && *(buffer + 1) == '?' && *(buffer + 2) == '>') {
+//         halt_offset += 3;   /* then an optional \n, or \r\n */
+//
+// So the close tag is consumed ONLY as the three-byte sequence `" ?>"` or `"\n?>"`: exactly one space
+// or exactly one newline, then `?>`, then at most one line ending. A bare `?>` with no separator, a
+// tab, two spaces, a trailing space after `?>`, `\r\n?>`, or a lone line ending are all NOT skipped -
+// the manifest is then taken to start immediately after the `;`, which is itself the legal minimal
+// spelling, and the manifest-header check below decides whether that was right.
+//
+// (One deliberate difference: after `?>` PHP treats a `\r` not followed by `\n` as corruption, while
+// here it simply leaves the offset unskipped, so such a file reports "not a phar" rather than
+// "corrupt". Our contract prefers that for anything whose manifest does not check out.)
 std::size_t SkipStubTail(std::string_view bytes, std::size_t at) {
-  while (at < bytes.size() && (bytes[at] == ' ' || bytes[at] == '\t')) {
-    ++at;
+  const std::string_view tail = bytes.substr(at);
+  if (!tail.starts_with(" ?>") && !tail.starts_with("\n?>")) {
+    // No marker: the manifest starts immediately after the `;`, the legal minimal spelling.
+    return at;
   }
-  if (bytes.substr(at).starts_with("?>")) {
-    at += 2;
+  at += 3;
+  // PHP's line ending handling, mirrored: it reads ONE character, and its `\n` test is NOT an
+  // `else if`, so the `\r` branch reassigns that character to `\n` and falls THROUGH to be counted
+  // again - which is how `\r\n` ends up advancing by two. A `\r` not followed by `\n` is
+  // "truncated manifest at stub end" to PHP (verified against it), where this leaves the offset at the
+  // `\r` instead, so the manifest check below reports "not a phar" rather than "corrupt".
+  const std::string_view after_marker = bytes.substr(at);
+  if (after_marker.starts_with('\r')) {
+    return after_marker.starts_with("\r\n") ? at + 2 : at;
   }
-  if (bytes.substr(at).starts_with("\r\n")) {
-    at += 2;
-  } else if (bytes.substr(at).starts_with("\n")) {
-    ++at;
+  if (after_marker.starts_with('\n')) {
+    return at + 1;
   }
   return at;
 }
@@ -197,8 +221,12 @@ bool LooksLikeManifestAt(std::string_view bytes, std::size_t at) {
   }
   // The two variable-length header fields must fit inside the DECLARED manifest (not inside what
   // happens to be present, per the comment above).
+  static constexpr std::array kHeaderFields = std::to_array<std::string_view>({
+      "alias",
+      "container metadata",
+  });
   std::uint64_t used = kMinManifestBytes;
-  for (const std::string_view field : {std::string_view("alias"), std::string_view("container metadata")}) {
+  for (const std::string_view field : kHeaderFields) {
     const absl::StatusOr<std::uint32_t> length = cursor.Uint32(field);
     if (!length.ok()) {
       return false;

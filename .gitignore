@@ -14,3 +14,10 @@
 /.bazelrc.user.end
 /MODULE.bazel.lock
 .DS_Store
+
+# Committed BINARY test fixtures. A contributor's GLOBAL gitignore very commonly ignores archive
+# extensions (`*.jar`, `*.zip`, `*.tar`, `*.gz`, ...), and a global ignore silently drops such a file
+# from `git add` - it happened: four phar fixtures were missing from the repo while every local test
+# still passed, because the files were present on disk. A repo-level negation outranks the global
+# file, so these are always trackable.
+!extra_modules/archive/test_data/**
