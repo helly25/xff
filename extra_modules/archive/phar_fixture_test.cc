@@ -22,6 +22,7 @@
 // libarchive reader instead). Where a variant is not supported yet, the case pins the ERROR, so the
 // gap is visible here rather than asserted in prose.
 
+#include <array>
 #include <cstdlib>
 #include <fstream>
 #include <ios>
@@ -58,6 +59,38 @@ constexpr std::string_view kUtilPhp = "lib/util.php";
 constexpr std::string_view kReadme = "data/readme.txt";
 constexpr std::string_view kReadmeContent = "This is the xff phar fixture.\nfindable-needle\n";
 
+// The fixture groups, by what a reader has to do with them. Named rather than spelled inline at each
+// use, so adding a variant is one edit and a case reads as the behaviour it asserts.
+//
+// Uncompressed native containers: the signature's `GBMB` trailer is the last four bytes, so a text
+// tool that "fixes" a trailing newline is detectable.
+constexpr std::array kNativeFixtures = std::to_array<std::string_view>({
+    "entrybz2.phar",
+    "entrygz.phar",
+    "plain.phar",
+    "sha256.phar",
+});
+
+// Native, but with per-MEMBER compression: the manifest is plain, so listing works and reading does
+// not (yet).
+constexpr std::array kEntryCompressedFixtures = std::to_array<std::string_view>({
+    "entrybz2.phar",
+    "entrygz.phar",
+});
+
+// The WHOLE FILE is compressed, so even the halt token is inside the compressed stream.
+constexpr std::array kWholeFileCompressedFixtures = std::to_array<std::string_view>({
+    "wholebz2.phar.bz2",
+    "wholegz.phar.gz",
+});
+
+// Not native at all: ordinary tars and zips, which the libarchive reader handles.
+constexpr std::array kArchiveBasedPhars = std::to_array<std::string_view>({
+    "tarbased.phar.tar",
+    "targz.phar.tar.gz",
+    "zipbased.phar.zip",
+});
+
 struct PharFixtureTest : ::testing::Test {
   // The fixture directory, from the `data` dep. Bazel hands the test one fixture's runfiles path in
   // the environment (see the BUILD file) because this test lives in an EXTERNAL module: the runfiles
@@ -86,12 +119,7 @@ TEST_F(PharFixtureTest, TheNativeFixturesAreStillByteIntactContainers) {
   // variants the trailer sits inside the compressed stream or behind the format's own end record, and
   // those files are binary from byte 0 anyway - it is precisely a container that STARTS with text
   // (`<?php`) that a text tool mistakes for editable.
-  for (const std::string_view fixture : {
-           std::string_view("plain.phar"),
-           std::string_view("sha256.phar"),
-           std::string_view("entrygz.phar"),
-           std::string_view("entrybz2.phar"),
-       }) {
+  for (const std::string_view fixture : kNativeFixtures) {
     std::ifstream file(Fixture(fixture), std::ios::binary);
     ASSERT_THAT(file.is_open(), IsTrue()) << fixture;
     std::string trailer(4, '\0');
@@ -142,7 +170,7 @@ TEST_F(PharFixtureTest, ASignedPharIsReadTheSameWay) {
 TEST_F(PharFixtureTest, PerMemberCompressionListsButDoesNotReadYet) {
   // The manifest is plain in these, so listing is fully supported and reports the UNCOMPRESSED size.
   // Reading is refused rather than returning deflate / bzip2 bytes as if they were content.
-  for (const std::string_view fixture : {std::string_view("entrygz.phar"), std::string_view("entrybz2.phar")}) {
+  for (const std::string_view fixture : kEntryCompressedFixtures) {
     const std::string path = Fixture(fixture);
     EXPECT_THAT(ListPharMembersOfFile(path), IsOkAndHolds(Contains(Field("path", &Member::path, kReadme)))) << fixture;
     EXPECT_THAT(ReadPharMemberOfFile(path, kReadme), StatusIs(absl::StatusCode::kUnimplemented)) << fixture;
@@ -154,7 +182,7 @@ TEST_F(PharFixtureTest, AWholeFileCompressedPharIsNotYetRecognized) {
   // inside the compressed stream. Until the reader decompresses the container first, this is
   // correctly reported as "not a phar" (the walk then treats it as an ordinary file) rather than as
   // a corrupt one.
-  for (const std::string_view fixture : {std::string_view("wholegz.phar.gz"), std::string_view("wholebz2.phar.bz2")}) {
+  for (const std::string_view fixture : kWholeFileCompressedFixtures) {
     EXPECT_THAT(
         ListPharMembersOfFile(Fixture(fixture)),
         StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("__HALT_COMPILER")))
@@ -167,11 +195,7 @@ TEST_F(PharFixtureTest, TheTarAndZipBasedVariantsNeedNoPharCodeAtAll) {
   // `.phar.tar` / `.phar.tgz` / `.phar.zip` work without the phar reader being involved. PHP stores
   // its own bookkeeping as members (`.phar/stub.php`, `.phar/signature.bin`), which is why the
   // assertion is Contains rather than an exact list.
-  for (const std::string_view fixture : {
-           std::string_view("tarbased.phar.tar"),
-           std::string_view("targz.phar.tar.gz"),
-           std::string_view("zipbased.phar.zip"),
-       }) {
+  for (const std::string_view fixture : kArchiveBasedPhars) {
     const std::string path = Fixture(fixture);
     EXPECT_THAT(ListMembersOfFile(path), IsOkAndHolds(Contains(Field("path", &Member::path, kReadme)))) << fixture;
     EXPECT_THAT(ReadMemberOfFile(path, kReadme), IsOkAndHolds(kReadmeContent)) << fixture;

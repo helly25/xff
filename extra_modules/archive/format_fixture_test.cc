@@ -26,6 +26,7 @@
 // libarchive finds a payload that does not start at byte 0, in both the absolute-offset shape a real
 // SFX has and the appended-verbatim shape CRX and JMOD actually use.
 
+#include <array>
 #include <cstdlib>
 #include <string>
 #include <string_view>
@@ -53,6 +54,20 @@ using ::testing::SizeIs;
 // The file every fixture carries, so one assertion works across formats.
 constexpr std::string_view kCommon = "data/readme.txt";
 constexpr std::string_view kCommonContent = "This is the xff archive fixture.\nfindable-needle\n";
+
+// Every fixture tools/make_archive_fixtures.py writes. Named here so a case can assert something of
+// the whole set rather than repeating the list.
+constexpr std::array kAllFixtures = std::to_array<std::string_view>({
+    "example.crx",
+    "example.deb",
+    "example.gem",
+    "example.jar",
+    "example.jmod",
+    "example.rpm",
+    "example.whl",
+    "npm-example.tgz",
+    "sfx-example.zip",
+});
 
 struct FormatFixtureTest : ::testing::Test {
   // As in phar_fixture_test: the BUILD file hands over one fixture's runfiles path, because this test
@@ -145,17 +160,7 @@ TEST_F(FormatFixtureTest, TheFixturesAreReproducible) {
   // The generator writes fixed timestamps and no gzip mtime, so these bytes are stable: regenerating
   // without a content change produces no diff, and a diff in review therefore means something. The
   // cheap proxy for "still the bytes we generated" is that every fixture still opens.
-  for (const std::string_view fixture : {
-           std::string_view("example.jar"),
-           std::string_view("example.whl"),
-           std::string_view("npm-example.tgz"),
-           std::string_view("example.gem"),
-           std::string_view("example.deb"),
-           std::string_view("example.rpm"),
-           std::string_view("sfx-example.zip"),
-           std::string_view("example.crx"),
-           std::string_view("example.jmod"),
-       }) {
+  for (const std::string_view fixture : kAllFixtures) {
     EXPECT_THAT(ListMembersOfFile(Fixture(fixture)).ok(), IsTrue()) << fixture;
   }
 }

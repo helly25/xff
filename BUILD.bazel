@@ -27,9 +27,11 @@ package(default_visibility = ["//visibility:private"])
 # found`) and its findings there were meaningless. Each extra also needs its own build flag, which is
 # what the per-target value in this dict is for - without the flag the extra's targets do not build.
 #
-# Keep this list in step with the `bazel_dep` + `local_path_override` extras in MODULE.bazel: a new
-# extra that is not listed here is invisible to clang-tidy, which fails open (looks clean) rather
-# than loud.
+# This list stays literal because it needs each extra's BUILD FLAG, and a flag name is not derivable
+# from a module name (`xff_pcre2`'s flag is `--//xff:xff_pcre`). Everywhere else the extras are derived
+# from MODULE.bazel by tools/extras.py; here the `check-extras-covered` pre-commit hook asserts this
+# dict still covers exactly the extras MODULE.bazel declares, because an extra missing from it is
+# invisible to clang-tidy and clangd, which fails OPEN - it looks clean rather than loud.
 refresh_compile_commands(
     name = "refresh_compile_commands",
     targets = {
