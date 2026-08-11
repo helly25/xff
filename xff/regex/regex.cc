@@ -36,6 +36,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "mbo/status/status_macros.h"
 #include "re2/re2.h"
 #include "xff/glob/glob.h"
 #include "xff/regex/backend.h"
@@ -243,11 +244,8 @@ absl::StatusOr<Matcher> Matcher::Compile(std::string_view pattern, bool case_ins
       // in the xff_extras_api slot. MakePcre2Backend invokes it, or returns Unimplemented when no
       // PCRE2 backend is linked (lean build) -- a distinct state from an InvalidArgument bad pattern,
       // and never a silent fallback to RE2.
-      absl::StatusOr<std::unique_ptr<const RegexBackend>> backend = MakePcre2Backend(pattern, case_insensitive);
-      if (!backend.ok()) {
-        return backend.status();
-      }
-      return Matcher(*std::move(backend));
+      MBO_ASSIGN_OR_RETURN(std::unique_ptr<const RegexBackend> backend, MakePcre2Backend(pattern, case_insensitive));
+      return Matcher(std::move(backend));
     }
   }
   return absl::InternalError("unknown regex grammar");  // unreachable: the enum is exhaustive
