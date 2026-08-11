@@ -226,8 +226,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "descend into archives: -z- none, -z roots only, -z+ / bare --archive all",
         .details = "Treats each archive (tar, gz, bzip2, xz, zstd, lz4, zip, ...) as a directory, so a member is an "
                    "ordinary entry at a member path like `foo.tar.gz!inner/x` and the expression matches it with "
-                   "the same -name / -type / -size / -newer every other entry gets (predicates that READ a member's "
-                   "content, -grep / -content / {hash}, wait on the reader's extraction support). "
+                   "the same -name / -type / -size / -newer every other entry gets - and the predicates and "
+                   "fields that READ an entry (-grep, -content, -hash, {hash}, {lines}) read the member out of "
+                   "its container. "
                    "The three modes are nested: none keeps find's behavior (an archive is one "
                    "plain file); roots dives only when a search root is itself an archive (pointing xff AT an "
                    "archive implies looking inside); all also dives archives discovered during the walk. Bare "

@@ -53,6 +53,10 @@ std::string_view Basename(std::string_view path) {
 // One child of a directory, already stat'd by a read job.
 struct Stated {
   std::string path;
+  // The entry's own final component, as the LISTING reported it. Not derivable from `path` in
+  // general: an archive member's path is `a.tar!one.txt`, whose name is `one.txt`, not the whole
+  // string a slash-based basename would yield. Empty only for a root operand, which has no listing.
+  std::string name;
   vfs::Metadata metadata;
   bool ok = false;
   absl::Status status;
@@ -223,15 +227,18 @@ class Walker {
  private:
   // lstat (or stat, when following) a single path into a Stated, with the
   // dangling-symlink fallback to the link itself.
-  Stated StatNode(const std::string& path, bool follow) const {
+  Stated StatNode(const std::string& path, bool follow, std::string_view name = {}) const {
+    // A path with no listing behind it (a root operand) falls back to the slash-based basename,
+    // which is right for every real filesystem path.
+    std::string entry_name = name.empty() ? std::string(Basename(path)) : std::string(name);
     absl::StatusOr<vfs::Metadata> metadata = fs_.Stat(path, follow);
     if (!metadata.ok() && follow) {
       metadata = fs_.Stat(path, /*follow_symlinks=*/false);
     }
     if (!metadata.ok()) {
-      return Stated{.path = path, .ok = false, .status = metadata.status()};
+      return Stated{.path = path, .name = std::move(entry_name), .ok = false, .status = metadata.status()};
     }
-    return Stated{.path = path, .metadata = *metadata, .ok = true};
+    return Stated{.path = path, .name = std::move(entry_name), .metadata = *metadata, .ok = true};
   }
 
   // A read job: list `dir` and stat every child. Pure - safe to run on a worker.
@@ -240,7 +247,7 @@ class Walker {
     std::vector<Stated> children;
     children.reserve(entries.size());
     for (const vfs::Entry& entry : entries) {
-      children.push_back(StatNode(entry.path, follow_children_));
+      children.push_back(StatNode(entry.path, follow_children_, entry.name));
     }
     return children;
   }
@@ -273,7 +280,7 @@ class Walker {
     }
     const Visit visit{
         .path = stated.path,
-        .name = Basename(stated.path),
+        .name = stated.name,
         .root = current_root_,
         .depth = depth,
         .metadata = stated.metadata,

@@ -62,14 +62,33 @@ struct ArchiveDeleter {
 
 using ArchivePtr = std::unique_ptr<struct ::archive, ArchiveDeleter>;
 
-// A reader with every format and filter libarchive was built with enabled; the format is detected
-// from the content, so callers never name it.
+// A reader with every filter and every format we WANT enabled; the format is detected from the
+// content, so callers never name it.
+//
+// Deliberately NOT `archive_read_support_format_all`: that set includes `mtree`, a plain-text
+// format with no magic number, which happily accepts ordinary text. With it on, `xff notes.txt`
+// (the xff family dives a named root by default) reports a bogus member named after the file's
+// first word. A false "this is an archive" is far worse than missing an exotic format, so the set
+// is spelled out and mtree stays out. `raw` is out for the same reason - it accepts anything.
 ArchivePtr NewReader() {
   ArchivePtr handle{::archive_read_new()};
-  if (handle != nullptr) {
-    ::archive_read_support_filter_all(handle.get());
-    ::archive_read_support_format_all(handle.get());
+  if (handle == nullptr) {
+    return handle;
   }
+  ::archive_read_support_filter_all(handle.get());
+  ::archive_read_support_format_7zip(handle.get());
+  ::archive_read_support_format_ar(handle.get());
+  ::archive_read_support_format_cab(handle.get());
+  ::archive_read_support_format_cpio(handle.get());
+  ::archive_read_support_format_empty(handle.get());
+  ::archive_read_support_format_iso9660(handle.get());
+  ::archive_read_support_format_lha(handle.get());
+  ::archive_read_support_format_rar(handle.get());
+  ::archive_read_support_format_rar5(handle.get());
+  ::archive_read_support_format_tar(handle.get());
+  ::archive_read_support_format_warc(handle.get());
+  ::archive_read_support_format_xar(handle.get());
+  ::archive_read_support_format_zip(handle.get());
   return handle;
 }
 

@@ -279,7 +279,29 @@ std::string HashField(std::string_view, std::string_view qualifier, const Render
   if (!spec.has_value()) {
     return "";  // unknown algorithm or encoding -> empty, like an unknown field
   }
-  return hash::HashFile(spec->algo, ctx.path, spec->encoding).value_or("");
+  if (ctx.fs == nullptr) {
+    return hash::HashFile(spec->algo, ctx.path, spec->encoding).value_or("");
+  }
+  // Through the entry's own filesystem when there is one: a member's bytes live in its container,
+  // and HashFile would find nothing at `a.tar!x`. Both routes read the whole entry either way.
+  const absl::StatusOr<std::string> content = ctx.fs->ReadContent(ctx.path);
+  if (!content.ok()) {
+    return "";  // unreadable -> empty, the field convention
+  }
+  return hash::HashData(spec->algo, *content, spec->encoding).value_or("");
+}
+
+// The line count of the entry, read the same way {hash} reads it: through the filesystem the entry
+// came from when there is one (so an archive member counts its own lines), else by path.
+std::optional<std::size_t> ReadEntryLineCount(const RenderContext& ctx) {
+  if (ctx.fs == nullptr) {
+    return content::FileLineCount(ctx.path);
+  }
+  const absl::StatusOr<std::string> content = ctx.fs->ReadContent(ctx.path);
+  if (!content.ok()) {
+    return std::nullopt;
+  }
+  return content::ContentLineCount(*content);
 }
 
 // {lines}: the number of text lines in the entry's file content (like `wc -l`, but also counting a
@@ -291,7 +313,7 @@ std::string LinesField(std::string_view, std::string_view, const RenderContext& 
   if (ctx.metadata.type != vfs::FileType::kRegular) {
     return "";  // only regular files have countable content
   }
-  const std::optional<std::size_t> lines = content::FileLineCount(ctx.path);
+  const std::optional<std::size_t> lines = ReadEntryLineCount(ctx);
   return lines.has_value() ? std::to_string(*lines) : "";
 }
 

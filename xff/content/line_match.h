@@ -77,10 +77,15 @@ std::vector<ContextLine> CollectLineMatchesWithContext(
 // unterminated final line.
 std::size_t CountLines(std::string_view content);
 
-// CountLines for the regular file at `path`, or nullopt when there is nothing to count: an
-// unreadable file, or a binary one (a NUL byte in the first 8 KiB, grep/ripgrep's heuristic - the
-// same rule content search uses to skip binaries). Reads the whole file, so it is expensive. The
-// caller is responsible for restricting this to regular files.
+// CountLines for `content`, or nullopt when it is binary (a NUL byte in the first 8 KiB,
+// grep/ripgrep's heuristic - the same rule content search uses to skip binaries). Split out of
+// FileLineCount so a caller that ALREADY has the bytes - an archive member, read through its own
+// filesystem - counts them by the identical rule instead of re-reading by path.
+std::optional<std::size_t> ContentLineCount(std::string_view content);
+
+// ContentLineCount for the regular file at `path`, or nullopt when it is unreadable as well. Reads
+// the whole file, so it is expensive. The caller is responsible for restricting this to regular
+// files.
 std::optional<std::size_t> FileLineCount(std::string_view path);
 
 }  // namespace xff::content

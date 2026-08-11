@@ -628,10 +628,15 @@ remains below is the design-forked / larger work.
     slot rather than a compile define, so it cannot drift from what is linked. CI now tests with
     `--config=xff_docs` (every extra on), which is the only config where the archive-gated end-to-end
     tests (`XFF_ARCHIVE_ONLY`) exist at all.
-  - **Remaining for #83:** the FIELD vocabulary still reads by path, so `{hash}` and `{lines}` render
-    empty on a member while `-grep` / `-content` (which go through the entry's filesystem) work -
-    `fields::RenderContext` needs the same filesystem the walk now carries. Then `--archive-depth`
-    and the sniff-gating that keeps `all` from byte-sniffing a whole tree.
+  - **Reads all go through the entry's filesystem.** `fields::RenderContext` and the `-hash` /
+    `-hasheq` evaluators take the walk's per-entry filesystem, so `{hash}`, `{lines}` and the hash
+    actions render a member's own bytes; `content::ContentLineCount` was split out of
+    `FileLineCount` so an in-memory member counts lines by the identical binary-sniff rule. The walk
+    also carries each entry's LISTED name (`a.tar!one.txt` is named `one.txt`), which a slash-based
+    basename got wrong - `-name '*.txt'` matched a member while `-name one.txt` did not.
+  - **Remaining for #83:** `--archive-depth` (nesting cap) and the sniff-gating that keeps `all`
+    from byte-sniffing a whole tree, plus the `mtree`-style detection question for the formats that
+    stay off (see the reader's explicit format set).
   - **Container identity is dual:** the archive keeps its real-FS identity (a real `-type f`,
     deletable and actionable) AND parents its members. This falls out of the VFS source tagging -
     container is local-fs, members are archive-member.

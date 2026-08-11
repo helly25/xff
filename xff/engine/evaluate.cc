@@ -297,6 +297,7 @@ std::string FormatPrintf(std::string_view format, const EvalContext& ctx) {
       .link_target = link,
       .metadata = ctx.visit.metadata,
       .depth = ctx.visit.depth,
+      .fs = &ctx.fs,
       .tz = ctx.tz,
       .time_format = ctx.time_format,
       .zone_suffix = ctx.zone_suffix,
@@ -1085,6 +1086,7 @@ bool EvalCmp(const parser::Expr& expr, EvalContext& ctx) {
                                          .link_target = link,
                                          .metadata = ctx.visit.metadata,
                                          .depth = ctx.visit.depth,
+                                         .fs = &ctx.fs,
                                          .tz = ctx.tz,
                                          .time_format = ctx.time_format,
                                          .zone_suffix = ctx.zone_suffix,
@@ -1216,6 +1218,7 @@ bool EvalDiff(const parser::Expr& expr, EvalContext& ctx) {
                                          .link_target = link,
                                          .metadata = ctx.visit.metadata,
                                          .depth = ctx.visit.depth,
+                                         .fs = &ctx.fs,
                                          .tz = ctx.tz,
                                          .time_format = ctx.time_format,
                                          .zone_suffix = ctx.zone_suffix,
@@ -1271,6 +1274,17 @@ bool EvalDiff(const parser::Expr& expr, EvalContext& ctx) {
   return false;  // differ
 }
 
+// The entry's digest, read through the filesystem the entry came FROM. That indirection is what
+// lets -hash / -hasheq work on an archive member: hashing by path would look for `a.tar!x` on the
+// real filesystem and find nothing. Both routes read the whole entry anyway.
+std::optional<std::string> DigestOfEntry(const EvalContext& ctx, const hash::AlgoEncoding& spec) {
+  const absl::StatusOr<std::string> content = ctx.fs.ReadContent(ctx.visit.path);
+  if (!content.ok()) {
+    return std::nullopt;  // unreadable / non-regular -> no digest, which every caller treats as a miss
+  }
+  return hash::HashData(spec.algo, *content, spec.encoding);
+}
+
 // xff -hash[=ALGO[/ENCODING]]: an ACTION that prints the entry's digest and path as
 // `<digest>  <path>` (the `sha256sum` layout, so the output feeds `<algo>sum -c`). The spec
 // picks the algorithm and hex/base64 rendering; empty parts fall back to --hash-algorithm /
@@ -1284,7 +1298,7 @@ bool EvalHash(const parser::Expr& expr, EvalContext& ctx) {
   if (!spec.has_value()) {
     return true;
   }
-  const std::optional<std::string> digest = hash::HashFile(spec->algo, ctx.visit.path, spec->encoding);
+  const std::optional<std::string> digest = DigestOfEntry(ctx, *spec);
   if (digest.has_value()) {
     ctx.emit(absl::StrCat(*digest, "  ", ctx.visit.path, "\n"));
   }
@@ -1311,6 +1325,7 @@ bool EvalHasheq(const parser::Expr& expr, EvalContext& ctx) {
                                            .link_target = link,
                                            .metadata = ctx.visit.metadata,
                                            .depth = ctx.visit.depth,
+                                           .fs = &ctx.fs,
                                            .tz = ctx.tz,
                                            .time_format = ctx.time_format,
                                            .zone_suffix = ctx.zone_suffix,
@@ -1328,7 +1343,7 @@ bool EvalHasheq(const parser::Expr& expr, EvalContext& ctx) {
   if (!spec.has_value()) {
     return false;  // defensively no-op; ValidateHashArgs rejects a bad spec before the walk
   }
-  const std::optional<std::string> digest = hash::HashFile(spec->algo, ctx.visit.path, spec->encoding);
+  const std::optional<std::string> digest = DigestOfEntry(ctx, *spec);
   if (!digest.has_value()) {
     return false;  // unreadable / non-regular file -> mismatch (selected by `! -hasheq`)
   }
@@ -1412,6 +1427,7 @@ bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
                 .link_target = link,
                 .metadata = ctx.visit.metadata,
                 .depth = ctx.visit.depth,
+                .fs = &ctx.fs,
                 .tz = ctx.tz,
                 .time_format = ctx.time_format,
                 .zone_suffix = ctx.zone_suffix,
@@ -1835,6 +1851,7 @@ std::vector<std::string> RenderExecArgv(const parser::Expr& expr, const EvalCont
       .link_target = link,
       .metadata = ctx.visit.metadata,
       .depth = ctx.visit.depth,
+      .fs = &ctx.fs,
       .tz = ctx.tz,
       .time_format = ctx.time_format,
       .zone_suffix = ctx.zone_suffix,
@@ -1984,6 +2001,7 @@ bool RunCapture(const parser::Expr& expr, EvalContext& ctx, std::string_view dir
       .link_target = link,
       .metadata = ctx.visit.metadata,
       .depth = ctx.visit.depth,
+      .fs = &ctx.fs,
       .tz = ctx.tz,
       .time_format = ctx.time_format,
       .zone_suffix = ctx.zone_suffix,
