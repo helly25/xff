@@ -1104,7 +1104,16 @@ concrete need appears.
     leave behind is worth keeping: the runtime-suppression plumbing, the `msan` tag, the
     `no-raw-rules-cc-load` enforcement, and `MSAN_SYMBOLIZER_PATH` in the run-under wrapper.
 
-- **INVESTIGATE: the `clang-tidy` CI cell is ~5x slower than helly25/mbo's (opened 2026-08-10).**
+- **RESOLVED (2026-08-10): the `clang-tidy` CI cell was ~5x slower than helly25/mbo's.** Cause found
+  and fixed: `actions/cache@v4` only SAVES on a key MISS, and the key changed only with
+  `MODULE.bazel.lock` / `.bazelversion` - so after the very first run every run was a cache hit that
+  never updated, freezing the disk cache and recompiling all of xff each time. Fixed by splitting
+  restore/save (`actions/cache/restore` + `actions/cache/save`) with a rolling `github.sha` key, saving
+  only on `main` so branches read main's warm cache without each PR writing its own, plus
+  `--experimental_disk_cache_gc_max_size=4G` so a rolling cache cannot eat the 10 GB repo budget and
+  evict other jobs' entries. Confirm the win by comparing the next few main runs against the ~34 min
+  baseline below.
+- **Original investigation notes (kept for the measurements):**
   Measured on 2026-08-10: xff ~34 min per run on main (07:07:17 -> 07:41:34, and 00:03 -> 00:37),
   while mbo's equivalent job is ~6 min warm (09:18:29 -> 09:24:19; 22:57 -> 23:04) with one ~36 min
   outlier that looks like a cold cache. So mbo's cold cost matches ours and its WARM cost does not,
