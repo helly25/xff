@@ -23,6 +23,8 @@
 // gap is visible here rather than asserted in prose.
 
 #include <cstdlib>
+#include <fstream>
+#include <ios>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -73,6 +75,32 @@ struct PharFixtureTest : ::testing::Test {
   }
 };
 
+TEST_F(PharFixtureTest, TheNativeFixturesAreStillByteIntactContainers) {
+  // Not paranoia: an end-of-file "fixer" appended a newline to three of these containers, and every
+  // functional test below still passed - a byte at EOF moves neither the manifest nor any member's
+  // data. PHP, however, rejects the result: the signature covers the whole file and its `GBMB` magic
+  // must be the LAST four bytes. So the fixtures had quietly stopped being what they claim to be, with
+  // nothing to say so.
+  //
+  // Only the uncompressed native fixtures are checked. In the whole-file compressed and the tar / zip
+  // variants the trailer sits inside the compressed stream or behind the format's own end record, and
+  // those files are binary from byte 0 anyway - it is precisely a container that STARTS with text
+  // (`<?php`) that a text tool mistakes for editable.
+  for (const std::string_view fixture : {
+           std::string_view("plain.phar"),
+           std::string_view("sha256.phar"),
+           std::string_view("entrygz.phar"),
+           std::string_view("entrybz2.phar"),
+       }) {
+    std::ifstream file(Fixture(fixture), std::ios::binary);
+    ASSERT_THAT(file.is_open(), IsTrue()) << fixture;
+    std::string trailer(4, '\0');
+    file.seekg(-4, std::ios::end);
+    file.read(trailer.data(), 4);
+    EXPECT_THAT(trailer, "GBMB") << fixture << ": signature trailer is not at the end of the file";
+  }
+}
+
 TEST_F(PharFixtureTest, ANativePharFromPhpListsTheMembersWeExpect) {
   // The one case that proves the format was read correctly rather than consistently: these bytes
   // came out of PHP, and every field offset in the manifest had to be right to get here.
@@ -94,9 +122,9 @@ TEST_F(PharFixtureTest, AnExplicitEmptyDirectoryIsADirectoryMember) {
   const auto members = ListPharMembersOfFile(Fixture("plain.phar"));
   ASSERT_THAT(members, IsOkAndHolds(Not(::testing::IsEmpty())));
   EXPECT_THAT(
-      *members, Contains(AllOf(
-                    Field("path", &Member::path, "var/empty"),
-                    Field("is_directory", &Member::is_directory, IsTrue()))));
+      *members,
+      Contains(
+          AllOf(Field("path", &Member::path, "var/empty"), Field("is_directory", &Member::is_directory, IsTrue()))));
 }
 
 TEST_F(PharFixtureTest, AStoredMemberReadsBackByteForByte) {
@@ -116,8 +144,7 @@ TEST_F(PharFixtureTest, PerMemberCompressionListsButDoesNotReadYet) {
   // Reading is refused rather than returning deflate / bzip2 bytes as if they were content.
   for (const std::string_view fixture : {std::string_view("entrygz.phar"), std::string_view("entrybz2.phar")}) {
     const std::string path = Fixture(fixture);
-    EXPECT_THAT(ListPharMembersOfFile(path), IsOkAndHolds(Contains(Field("path", &Member::path, kReadme))))
-        << fixture;
+    EXPECT_THAT(ListPharMembersOfFile(path), IsOkAndHolds(Contains(Field("path", &Member::path, kReadme)))) << fixture;
     EXPECT_THAT(ReadPharMemberOfFile(path, kReadme), StatusIs(absl::StatusCode::kUnimplemented)) << fixture;
   }
 }
@@ -130,7 +157,8 @@ TEST_F(PharFixtureTest, AWholeFileCompressedPharIsNotYetRecognized) {
   for (const std::string_view fixture : {std::string_view("wholegz.phar.gz"), std::string_view("wholebz2.phar.bz2")}) {
     EXPECT_THAT(
         ListPharMembersOfFile(Fixture(fixture)),
-        StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("__HALT_COMPILER"))) << fixture;
+        StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("__HALT_COMPILER")))
+        << fixture;
   }
 }
 
@@ -159,8 +187,7 @@ TEST_F(PharFixtureTest, TheNativeVariantsAreNotArchivesToLibarchive) {
 TEST_F(PharFixtureTest, ATarBasedPharIsNotANativeOne) {
   // And the phar reader must not claim the tar-based variant: the two readers partition the space
   // instead of both guessing at it.
-  EXPECT_THAT(
-      ListPharMembersOfFile(Fixture("tarbased.phar.tar")), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(ListPharMembersOfFile(Fixture("tarbased.phar.tar")), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 }  // namespace

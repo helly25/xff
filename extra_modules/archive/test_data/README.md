@@ -15,6 +15,13 @@ They are committed rather than built during the test, on purpose:
 - The tests must not need a PHP interpreter, and CI must not install one. The files are tiny (each
   well under 10 KiB), so checking them in costs less than the dependency would.
 
+These are binary containers that BEGIN with PHP source, so a content sniff calls them text: the
+`end-of-file-fixer` / `trailing-whitespace` pre-commit hooks appended a newline and silently broke
+three of them (every functional test still passed - a byte at EOF moves nothing the reader looks at,
+but the signature covers the whole file). Those hooks now exclude archive extensions, and
+`phar_fixture_test` asserts the signature's `GBMB` trailer is still the last four bytes of each
+uncompressed native fixture, so the same accident fails loudly next time.
+
 Regenerate only when a fixture genuinely has to change, and say why in the commit. Timestamps and
 signatures make the bytes differ on every run, so a gratuitous regeneration is pure diff noise.
 
