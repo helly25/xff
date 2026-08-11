@@ -39,6 +39,7 @@ namespace xff::archive {
 namespace {
 
 using ::mbo::testing::IsOk;
+using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
 using ::testing::Eq;
@@ -204,10 +205,25 @@ TEST_F(ArchiveFsTest, ReadLinkResolvesASymlinkMemberAndRefusesOthers) {
   EXPECT_THAT(fs.ReadLink(JoinMemberPath(*tar_, "top.txt")), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
-TEST_F(ArchiveFsTest, ReadContentIsUnimplementedNotEmpty) {
-  // Deliberate for this slice: an empty string would make -grep / -content silently match nothing.
+TEST_F(ArchiveFsTest, ReadContentYieldsTheMembersOwnBytes) {
+  // The read that makes -grep / -content / {hash} work on a member: the bytes come out of the
+  // container, addressed by the same member path the listing printed.
   const ArchiveFileSystem fs = Fs();
-  EXPECT_THAT(fs.ReadContent(JoinMemberPath(*tar_, "top.txt")), StatusIs(absl::StatusCode::kUnimplemented));
+  EXPECT_THAT(fs.ReadContent(JoinMemberPath(*tar_, "top.txt")), IsOkAndHolds("top"));
+  EXPECT_THAT(fs.ReadContent(JoinMemberPath(*tar_, "dir/sub/deep.txt")), IsOkAndHolds("deep!"));
+}
+
+TEST_F(ArchiveFsTest, ReadContentDistinguishesItsThreeRefusals) {
+  // Each answer is a different question the caller may need to tell apart: a path that is not in
+  // this container at all, a member that does not exist, and one that exists with nothing to read
+  // (a synthesized directory). None of them may come back as empty content, which would make a
+  // content predicate silently match nothing.
+  const ArchiveFileSystem fs = Fs();
+  EXPECT_THAT(fs.ReadContent("/elsewhere/other.txt"), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(fs.ReadContent(JoinMemberPath(*tar_, "nope.txt")), StatusIs(absl::StatusCode::kNotFound));
+  EXPECT_THAT(fs.ReadContent(JoinMemberPath(*tar_, "dir/sub")), StatusIs(absl::StatusCode::kFailedPrecondition));
+  // The container itself is a directory here, so it has no content of its own either.
+  EXPECT_THAT(fs.ReadContent(*tar_), StatusIs(absl::StatusCode::kFailedPrecondition));
 }
 
 TEST_F(ArchiveFsTest, FsTypeAndCaseSensitivityDescribeTheArchiveNotTheHost) {

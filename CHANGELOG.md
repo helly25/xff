@@ -15,6 +15,9 @@
   they do everywhere else. Without the extra, asking for diving remains a hard error.
 - `--archive-separator` / `--archive-prefix` now reach the walk, so printed member paths
   round-trip through the flags that produced them.
+- Content predicates work on members: `-content`, `-icontent`, `-rxc` and `-grep` read a
+  member's bytes out of its container. (`{hash}` / `{lines}` still read by path and stay
+  empty on a member; that is the next slice.)
 
 ## Internal
 
