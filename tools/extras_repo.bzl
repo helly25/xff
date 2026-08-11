@@ -48,7 +48,7 @@ def _extra_modules(module_bazel):
     return sorted(modules)
 
 def _xff_extras_impl(repository_ctx):
-    module_bazel = repository_ctx.read(Label("@@//:MODULE.bazel"))
+    module_bazel = repository_ctx.read(Label("//:MODULE.bazel"))
     modules = _extra_modules(module_bazel)
     if not modules:
         fail("no extras found in MODULE.bazel: the local_path_override parse must have broken")
@@ -70,7 +70,7 @@ _xff_extras = repository_rule(
     implementation = _xff_extras_impl,
     doc = "Generates @xff_extras//:extras.bzl listing the extras declared in MODULE.bazel.",
     # Re-run whenever the source of truth changes, so the generated list cannot go stale.
-    attrs = {"_module_bazel": attr.label(default = Label("@@//:MODULE.bazel"), allow_single_file = True)},
+    attrs = {"_module_bazel": attr.label(default = Label("//:MODULE.bazel"), allow_single_file = True)},
 )
 
 def _extras_extension_impl(_module_ctx):
