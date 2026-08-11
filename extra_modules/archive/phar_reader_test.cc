@@ -15,6 +15,7 @@
 
 #include "xff/archive/phar_reader.h"
 
+#include <array>
 #include <cstdint>
 #include <fstream>
 #include <ios>
@@ -43,6 +44,15 @@ using ::testing::IsTrue;
 
 // PHP's own compression flags, so the test names the same bits the format does.
 constexpr std::uint32_t kCompressedGz = 0x00001000;
+
+// The stub spellings a phar may end with: the halt token, then an OPTIONAL ` ?>` and one line ending,
+// in any combination, and the stub may be any PHP source at all before that.
+constexpr std::array kStubVariants = std::to_array<std::string_view>({
+    "<?php __HALT_COMPILER(); ?>\n",
+    "<?php __HALT_COMPILER(); ?>\r\n",
+    "<?php __HALT_COMPILER();",
+    "#!/usr/bin/env php\n<?php require 'x'; __HALT_COMPILER(); ?>",
+});
 
 // One member to place into a generated phar. `name` is stored verbatim, so a directory is spelled
 // with the trailing slash the format uses.
@@ -141,13 +151,7 @@ TEST_F(PharReaderTest, AnAliasAndMetadataFieldsAreSkippedNotMisread) {
 }
 
 TEST_F(PharReaderTest, StubVariantsAllLocateTheManifest) {
-  // The stub ends in the token plus an OPTIONAL ` ?>` and one line ending, in any combination.
-  for (const std::string_view stub : {
-           std::string_view("<?php __HALT_COMPILER(); ?>\n"),
-           std::string_view("<?php __HALT_COMPILER(); ?>\r\n"),
-           std::string_view("<?php __HALT_COMPILER();"),
-           std::string_view("#!/usr/bin/env php\n<?php require 'x'; __HALT_COMPILER(); ?>"),
-       }) {
+  for (const std::string_view stub : kStubVariants) {
     EXPECT_THAT(
         ListPharMembers(MakePhar({{.name = "a.txt", .content = "a"}}, stub)),
         IsOkAndHolds(ElementsAre(Field("path", &Member::path, "a.txt"))))

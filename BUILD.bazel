@@ -14,6 +14,7 @@
 # limitations under the License.
 
 load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile_commands")
+load("@xff_extras//:extras.bzl", "EXTRAS_TARGETS")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -27,16 +28,15 @@ package(default_visibility = ["//visibility:private"])
 # found`) and its findings there were meaningless. Each extra also needs its own build flag, which is
 # what the per-target value in this dict is for - without the flag the extra's targets do not build.
 #
-# Keep this list in step with the `bazel_dep` + `local_path_override` extras in MODULE.bazel: a new
-# extra that is not listed here is invisible to clang-tidy, which fails open (looks clean) rather
-# than loud.
+# The extras are DERIVED from MODULE.bazel (tools/extras_repo.bzl), not listed here: an extra missing
+# from this target is invisible to clang-tidy and clangd, and that failure is silent - it looks clean.
+# No per-extra build flag is needed, which is what makes the list derivable at all: `--//xff:xff_<extra>`
+# gates whether the CORE links an extra, not whether the extra itself builds, and the extractor is
+# pointed straight at the extra's own targets. (Verified: the database gets the same entries with and
+# without those flags.)
 refresh_compile_commands(
     name = "refresh_compile_commands",
-    targets = {
-        "//...": "",
-        "@xff_archive//...": "--//xff:xff_archive",
-        "@xff_pcre2//...": "--//xff:xff_pcre",
-    },
+    targets = ["//..."] + EXTRAS_TARGETS,
 )
 
 filegroup(
