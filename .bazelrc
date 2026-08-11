@@ -154,21 +154,24 @@ common:msan --features=msan
 common:msan --copt=-g
 common:msan --copt=-fno-omit-frame-pointer
 common:msan --copt=-DMEMORY_SANITIZER
-# Turns on the `data` select in xff/cc.bzl's cc_binary / cc_test wrappers, which put
-# tools/msan_suppressions.txt into each executable's runfiles. MSan is a RUNTIME sanitizer:
-# it reads the suppression file when the process starts, so a declared runfile is the right
-# shape (inside the sandbox, cache-correct, no per-target boilerplate) - unlike a --copt
-# naming a path bazel knows nothing about. MSAN_OPTIONS below points at the runfiles path.
-common:msan --//xff:xff_msan=true
 common:msan --build_tag_filters=-no_san  # skip targets tagged no_san
 common:msan --test_tag_filters=-no_san
-# Build ACTIONS that run the instrumented binary (the golden generators, xff_markdown_gen) need the
-# suppressions too. A genrule's working directory is the execroot, so the same relative path works -
-# provided the file is an input of the action, which those genrules declare under //xff:xff_msan.
-common:msan --action_env=MSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1:suppressions=tools/msan_suppressions.txt
-# `suppressions=` is runfiles-relative on purpose: a test runs with its runfiles tree as the
-# working directory, and the cc_test wrapper puts the file at that path, so no absolute or
-# workspace path is needed. Documented known false positives live in the file itself.
-common:msan --test_env=MSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1:suppressions=tools/msan_suppressions.txt
+# MSAN_OPTIONS reaches both build ACTIONS that run the instrumented binary (the golden generators,
+# xff_markdown_gen) and the tests themselves.
+#
+# There is deliberately NO `suppressions=` here. MSan has no runtime suppression support at all:
+# `suppressions=` is a sanitizer_common flag that MSan parses and never consumes (compiler-rt's msan
+# sources contain no suppression machinery - only the tools that build a SuppressionContext, namely
+# ASan's interceptors, LSan, TSan and UBSan, act on it). We carried a suppression file and the runfiles
+# plumbing to deliver it for a while; nothing ever read it, and a missing file would have been fatal
+# (`failed to read suppressions file` then Die()), which is how we know: tests in the extras modules
+# passed under MSan with no such file in their runfiles.
+#
+# So the mechanism for a genuine future false positive is the COMPILE-time ignore list:
+#   common:msan --copt=-fsanitize-ignorelist=<file>   # `fun:` / `src:` entries, needs an input dep
+# and the fix of first resort remains instrumenting the code that MSan cannot see (which is what
+# --features=msan plus the libcxx_url overlay above did for the one report we had).
+common:msan --action_env=MSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1
+common:msan --test_env=MSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:symbolize=1
 
 try-import %workspace%/.bazelrc.user.end

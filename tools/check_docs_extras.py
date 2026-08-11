@@ -41,9 +41,11 @@ _DOCS_CONFIG = "xff_docs"
 
 # Build flags that are not composable extras, and why. A `bool_flag` here is a build knob, not a
 # feature the reference should document as available.
-_NOT_EXTRAS: dict[str, str] = {
-    "xff_msan": "a sanitizer knob (gates the instrumented libc++ dep), not a user-facing feature",
-}
+# Flags that are NOT composable extras, so --config=xff_docs need not enable them, each with the
+# reason recorded. EMPTY today: its only entry was `xff_msan`, removed together with the MSan runtime
+# suppression plumbing it gated (MSan has no runtime suppressions - see .bazelrc). Kept because the next
+# non-extra bool_flag needs somewhere to say so, and an unexplained exemption is worse than none.
+_NOT_EXTRAS: dict[str, str] = {}
 
 _BOOL_FLAG = re.compile(r'bool_flag\(\s*name\s*=\s*"([^"]+)"', re.DOTALL)
 

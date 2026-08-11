@@ -20,16 +20,6 @@ load("//xff:cc.bzl", "cc_binary")
 
 package(default_visibility = ["//visibility:private"])
 
-# The MSan RUNTIME suppression file, exposed so xff/cc.bzl's cc_binary / cc_test wrappers can put it
-# in each executable's `data` (runfiles) under --config=msan. MSan reads it at process start, so a
-# runfile is exactly the right shape: declared, cache-correct, and inside the sandbox. Public because
-# every package's binaries and tests reference it through those macros.
-filegroup(
-    name = "msan_suppressions",
-    srcs = ["msan_suppressions.txt"],
-    visibility = ["//visibility:public"],
-)
-
 # The smallest cc target there is: compile_commands-update.sh builds it under --config=clang to
 # materialize the hermetic LLVM toolchain on a fresh checkout (so the extractor can point the DB
 # at it). `manual` keeps it out of `//...`. Also prints the compiler, as a diagnostic.

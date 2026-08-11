@@ -18,20 +18,20 @@
 from __future__ import annotations
 
 import os
+import pathlib
 import sys
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import check_docs_extras as cde  # noqa: E402
 
+# The repo's real flag list, for the one case that must not use a synthetic fixture: an allowlist entry
+# naming a flag that no longer exists exempts nothing and hides the next real one.
+_REAL_BUILD = (pathlib.Path(__file__).resolve().parent.parent / "xff" / "BUILD.bazel").read_text()
+
 _BUILD = '''
 bool_flag(
     name = "xff_archive",
-    build_setting_default = False,
-)
-
-bool_flag(
-    name = "xff_msan",
     build_setting_default = False,
 )
 
@@ -43,13 +43,28 @@ bool_flag(
 
 
 class DeclaredExtrasTest(unittest.TestCase):
+    def test_an_allowlisted_flag_is_not_demanded_of_the_docs_config(self):
+        # The allowlist is empty today, so exercise the FILTER rather than a real exemption: a flag
+        # named in _NOT_EXTRAS must drop out, which is what lets a future sanitizer-style knob exist
+        # without --config=xff_docs having to turn it on.
+        build = _BUILD + '\nbool_flag(\n    name = "xff_knob",\n    build_setting_default = False,\n)\n'
+        self.assertIn("xff_knob", cde.declared_extras(build))
+        original = dict(cde._NOT_EXTRAS)
+        cde._NOT_EXTRAS["xff_knob"] = "a test-only knob"
+        try:
+            self.assertNotIn("xff_knob", cde.declared_extras(build))
+        finally:
+            cde._NOT_EXTRAS.clear()
+            cde._NOT_EXTRAS.update(original)
+
     def test_every_bool_flag_counts_as_an_extra(self):
         self.assertEqual(cde.declared_extras(_BUILD), ["xff_archive", "xff_pcre"])
 
     def test_the_allowlist_drops_non_extras_and_records_why(self):
-        # xff_msan gates the instrumented libc++ dependency; it is not a documented feature.
-        self.assertNotIn("xff_msan", cde.declared_extras(_BUILD))
-        self.assertIn("sanitizer", cde._NOT_EXTRAS["xff_msan"])
+        # Every flag the real allowlist names must exist as a bool_flag; a stale entry silently
+        # exempts nothing and hides the next real one.
+        for flag in cde._NOT_EXTRAS:
+            self.assertIn(flag, cde._BOOL_FLAG.findall(_REAL_BUILD), f"{flag} is allowlisted but gone")
 
 
 class EnabledFlagsTest(unittest.TestCase):

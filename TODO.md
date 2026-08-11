@@ -1120,30 +1120,23 @@ concrete need appears.
   is meant to swap in. So the `ref.tmp` temporary is built by code MSan never saw, no shadow is
   written, and the `==` in `RegisterFlag` reads it as uninitialized. It fires at static init in
   `absl/flags/parse.cc`, which is why literally every test hits it. Nothing in xff or absl is wrong.
-  - **Shipped:** `tools/msan_suppressions.txt`, a RUNTIME suppression file. MSan reads it at process
-    start (`MSAN_OPTIONS=suppressions=`), so it travels as a declared **runfile**: the `cc_binary` /
-    `cc_test` wrappers in `xff/cc.bzl` add `//tools:msan_suppressions` to `data` under
-    `--config=msan` (gated by `--//xff:xff_msan`), and `MSAN_OPTIONS` names it runfiles-relative,
-    since a test runs with its runfiles tree as the working directory.
-  - **Why not a `--copt=-fsanitize-ignorelist=`:** a bare copt is not a declared input. Bazel then
-    does not know the file exists, so editing it invalidates nothing; `%workspace%` is not expanded
-    inside a copt VALUE (a literal `%workspace%/...` reached clang and every compile failed); an
-    absolute include-ish path is rejected as "outside of the execution root"; and it only works by
-    reading a file the action never declared, which a stricter sandbox or remote execution refuses.
-  - **Coverage gap, deliberate - and now much smaller:** the three `xff_extras_api` tests do NOT route
-    through the wrappers, so they carry no suppression file. That module is built both as
-    `//xff_extras_api:...` (it is not in `.bazelignore`) and as its own `@xff_extras_api`, and in the
-    latter a `//xff:cc.bzl` label does not exist - loading it would also invert the "an extra never
-    depends on the core" rule. The `no-raw-rules-cc-load` hook exempts that directory for the same
-    reason. What they miss is now only the (empty) suppression file: the INSTRUMENTED LIBC++ reaches
-    them anyway, because it comes from the toolchain, which every module in the build shares. That is
-    a second, quieter win of moving the swap into the toolchain - a per-target `deps` swap could never
-    have covered a module that is forbidden from naming a core label.
-  - **Format caveat (now moot):** MSan's runtime suppressions understand only `interceptor_via_fun` /
-    `interceptor_via_lib` (reports raised through an intercepted libc call), and this report came from
-    inline `std::string` code - so the entry may never have matched. With the real libc++ instrumented
-    the report is gone at its source, and `tools/msan_suppressions.txt` is empty of real entries; the
-    plumbing that carries it stays, so a genuine future false positive has a home.
+  - **REMOVED 2026-08-11, built on a false premise: MSan HAS NO RUNTIME SUPPRESSIONS.** We shipped
+    `tools/msan_suppressions.txt` plus the plumbing to deliver it (a `data` select in xff/cc.bzl's
+    wrappers, the `--//xff:xff_msan` flag and its config_setting, genrule inputs, and
+    `suppressions=` in MSAN_OPTIONS). None of it ever did anything: `suppressions=` is a
+    sanitizer_common flag that MSan PARSES AND NEVER CONSUMES. compiler-rt's msan sources contain no
+    suppression machinery at all - grep msan.cpp / msan_flags.inc / msan_interceptors.cpp /
+    msan_report.cpp for "suppress" and there is nothing; only the tools that build a
+    SuppressionContext (ASan's interceptors, LSan, TSan, UBSan) act on it.
+  - **How we know, rather than believe it:** a MISSING suppressions file is fatal to a sanitizer that
+    does read one - `SuppressionContext::ParseFromFile` prints "failed to read suppressions file" and
+    calls `Die()`, and its only fallback is exec-relative. The tests in the EXTRAS modules
+    (`@xff_archive//...`, added to the msan cell in #462) have no such file in their runfiles, because
+    an extra cannot load `//xff:cc.bzl`. They pass under MSan. Therefore nothing opened the file.
+  - **What replaces it:** for a genuine future false positive, the COMPILE-time
+    `-fsanitize-ignorelist` (`fun:` / `src:` entries, and the file must be a declared input of the
+    compile action). The fix of first resort stays instrumenting whatever MSan cannot see, which is
+    what the toolchain's `--features=msan` plus the `libcxx_url` overlay did for the one report we had.
   - **The dead end, recorded so it is not retried.** Every attempt to bolt the instrumented tree on
     from OUTSIDE the toolchain failed, each in its own way: `%workspace%` is not expanded in a copt
     value (so it silently did nothing), an absolute `-isystem` is rejected as outside the execroot,
@@ -1211,5 +1204,10 @@ concrete need appears.
     overlay plus its `msan` cc_feature (`--features=msan`). Nothing is built in CI, so the cost is a
     3.9 MB download rather than a cached cmake/ninja LLVM-runtimes build. See the resolved entry
     above for the mechanism, and for the dead end that came first.
-  - **CI:** one `msan` cell (ubuntu only) mirroring `tsan` - a plain `bazel test`, hard-gated in
-    `done`'s `needs` like every other cell.
+  - **CI: DONE and hard-gated.** One `msan` cell (ubuntu only) mirroring `tsan` - a plain
+    `bazel test`, in `done`'s `needs` with no `continue-on-error`, so a finding fails the build.
+    Measured: ~6 minutes per run (382s / 377s on the two runs that first included the extras). No
+    target carries `no_san`, so nothing is excluded, and since #462 the cell covers
+    `@xff_pcre2//...` and `@xff_archive//...` as well - libarchive and its whole codec closure are
+    built from source and therefore instrumented, and they come up clean. Both MSan tasks are closed
+    with that.

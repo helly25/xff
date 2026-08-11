@@ -96,7 +96,6 @@ def xff_golden_cases(name, setup, cases, sort = "tree", normalize = None):
             # Without it the instrumented `xff` this action RUNS would report the known absl
             # flag-registry false positive and fail the generation step, not a test.
             srcs = [setup] + select({
-                "//xff:xff_msan_enabled": ["//tools:msan_suppressions"],
                 "//conditions:default": [],
             }),
             outs = [actual],
