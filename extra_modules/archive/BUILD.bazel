@@ -164,3 +164,24 @@ cc_test(
         "@helly25_mbo//mbo/testing:status_cc",
     ],
 )
+
+# Coverage for the PACKAGE formats that need no reader of their own - jar / wheel / npm tgz / gem /
+# deb / rpm are zip, tar, ar or cpio wrappers, so libarchive already reads them and xff already dives
+# into them. That was shipped behaviour with no test. Also records what libarchive does with a payload
+# sitting BEHIND a prefix (self-extracting zips, CRX3, JMOD), which decides whether those formats need
+# any mechanism of ours at all.
+cc_test(
+    name = "format_fixture_test",
+    size = "small",
+    srcs = ["format_fixture_test.cc"],
+    data = glob(["test_data/*"]),
+    env = {"XFF_ARCHIVE_FIXTURE_ANCHOR": "$(rootpath test_data/example.jar)"},
+    deps = [
+        ":archive_reader_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)
