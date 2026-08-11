@@ -647,6 +647,38 @@ remains below is the design-forked / larger work.
     format-agnostic, so nothing there changes. Check the existing phar work for a reusable manifest
     parser first. Tracked as task #176.
 
+- **EPIC: container formats beyond phar (raised 2026-08-11).** Survey outcome: almost every "package
+  format" is a zip or a tar underneath, so libarchive already reads it and the work is coverage, not
+  code. Compiled-in today: `tar, zip, 7zip, cpio, ar, cab, iso9660, lha, rar/rar5, xar, warc, mtree`
+  plus the `rpm` filter and every common compressor. Ordered by value per unit of work:
+  - **FREE ALREADY, so pin it with fixtures (own slice).** JAR/WAR/EAR, APK/AAB, wheel/egg, nupkg,
+    vsix, xpi, docx/odt and Maven / Composer bundles are zip; npm `.tgz`, Cargo `.crate` and OCI
+    layers are tar; `.deb` is an `ar`; `.rpm` reads through the rpm FILTER (it exposes the cpio
+    payload). `.gem` and `.conda` read one layer deep, the inner `data.tar.gz` needing
+    `--archive-depth` > 1. None of this needs a reader - it needs committed fixtures asserting we
+    really do read them, which is behaviour we already ship and currently do not test.
+  - **PREFIXED PAYLOAD: one mechanism, several formats.** CRX3 (`Cr24` + header + zip), JMOD (`JM` +
+    zip), AppImage (ELF stub + payload), PyInstaller one-file, self-extracting installers: all are
+    "skip a prefix, then hand the rest to a reader we already have". VERIFY FIRST - libarchive's zip
+    reader locates the end-of-central-directory by seeking from the end and its source explicitly
+    mentions SFX files, so prefixed zips may already work, in which case this is a fixture test and
+    not a mechanism. phar's stub scan is an instance of the same idea, but moving phar onto a shared
+    mechanism is a LATER question and not to be done while phar works: phar is itself several formats
+    (native stub+manifest, tar-based, zip-based), so the refactor is not a one-liner.
+  - **ASAR (Electron), BLOCKED on a JSON reader in helly25/mbo.** The one genuinely missing format
+    that is both easy and widespread: every Electron app ships `app.asar` (VS Code, Slack, Discord,
+    Teams) and that is where the JS lives, so reading inside it is a real want. Shape is phar's
+    cousin - a JSON directory tree (offsets / sizes as strings, an `unpacked` flag for files kept
+    outside, an integrity block in newer versions) then concatenated payload, no compression.
+    REQUIREMENT: a JSON reader in helly25/mbo (we have a writer, no reader). Until mbo grows one,
+    this stays unstarted rather than taking a JSON dependency here.
+  - **DEFERRED: squashfs.** Snap payloads, AppImage payloads, firmware images. No new codec deps
+    (libarchive already links zlib / xz / zstd / lz4), but metadata block tables and fragment
+    handling make it a real slice, and a snap is not somewhere people usually grep. Revisit when
+    something concretely asks.
+  - **REJECTED as not worth it:** MSI (OLE2/CFB sector chains, Windows-centric), DMG (UDIF plus
+    HFS+/APFS), WIM, Nix NAR (trivial format, tiny audience), py2exe.
+
 - **Third `-regextype` grammar: shell-glob (#121, task-tracked).** Once PCRE2 proves the third-backend
   path, add `Grammar::kGlob` + a `GlobBackend` on the `xff/regex` `RegexBackend` abstraction,
   selectable via `--regextype=GLOB` (and later the find `-regextype` primary). Fits `-regex`/`-iregex`
