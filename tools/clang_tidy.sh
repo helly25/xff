@@ -18,7 +18,7 @@
 # Run clang-tidy over the given C++ source files (a report-only pass: no --fix,
 # so it never rewrites the tree). clang-tidy is a LOCAL-ONLY developer aid, not a
 # CI gate: it needs a compile_commands.json (a local artifact, generated with
-# `bazel run @bazel_compile_commands_extractor//:refresh_all`) and a clang-tidy new
+# `./compile_commands-update.sh`) and a clang-tidy new
 # enough for this C++23 codebase. When either is missing - a fresh checkout, or a
 # CI runner without the compile DB - this SKIPS cleanly (exit 0) rather than
 # failing, so it never blocks a commit or forces the hermetic toolchain download
@@ -42,7 +42,7 @@ function skip() {
 
 # A compile DB is mandatory; without it clang-tidy cannot resolve include paths.
 [ -f "compile_commands.json" ] \
-  || skip "no compile_commands.json; generate it with 'bazel run @bazel_compile_commands_extractor//:refresh_all'"
+  || skip "no compile_commands.json; generate it with './compile_commands-update.sh'"
 
 # The `bazel-<repo>` convenience link points at the execroot; fall back to cwd.
 BAZEL_OUTPUT="bazel-$(basename "${PWD}")"

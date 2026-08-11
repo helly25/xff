@@ -15,7 +15,13 @@
 
 """Extra development modules (mirrors helly25/mbo @ 1d17cc9)."""
 
-bazel_dep(name = "hedron_compile_commands", dev_dependency = True, repo_name = "bazel_compile_commands_extractor")
+# Kept under its CANONICAL module name, no repo_name alias: the extractor's own
+# `refresh_compile_commands` macro hard-codes `@hedron_compile_commands//:print_args` as a plain
+# string, which bazel resolves in the CALLING repo's mapping - so under an alias, a
+# `refresh_compile_commands` target in this repo fails to load ("no repository visible as
+# '@hedron_compile_commands'"). //:refresh_compile_commands needs that macro, hence the canonical
+# name here. (Diverges from helly25/mbo's copy for exactly this reason.)
+bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
 git_override(
     module_name = "hedron_compile_commands",
     # The helly25 fork; compile_commands-update.sh relies on its `--bcce-*` runtime flags.
