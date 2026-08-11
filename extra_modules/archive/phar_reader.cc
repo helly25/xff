@@ -29,6 +29,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "mbo/status/status_macros.h"
 #include "xff/archive/archive_reader.h"
 #include "xff/archive/member_path.h"
 
@@ -110,11 +111,8 @@ class Cursor {
 
   // Reads a `[4 byte length][payload]` pair, the shape every variable-length manifest field uses.
   [[nodiscard]] absl::StatusOr<std::string_view> LengthPrefixed(std::string_view field) {
-    absl::StatusOr<std::uint32_t> length = Uint32(absl::StrCat(field, " length"));
-    if (!length.ok()) {
-      return length.status();
-    }
-    return Bytes(*length, field);
+    MBO_ASSIGN_OR_RETURN(const std::uint32_t length, Uint32(absl::StrCat(field, " length")));
+    return Bytes(length, field);
   }
 
  private:
@@ -262,88 +260,52 @@ std::optional<std::size_t> ManifestOffset(std::string_view bytes) {
 // which the caller knows and this function does not.
 absl::StatusOr<std::vector<Entry>> ParseManifest(std::string_view manifest, std::uint64_t data_offset) {
   Cursor cursor(manifest);
-  absl::StatusOr<std::uint32_t> count = cursor.Uint32("member count");
-  if (!count.ok()) {
-    return count.status();
-  }
+  MBO_ASSIGN_OR_RETURN(const std::uint32_t count, cursor.Uint32("member count"));
   // The manifest API version, nibble-packed big-endian (0x11 0x10 is 1.1.1). Every version so far
   // shares this layout, so it is consumed rather than branched on - but it must be consumed, or every
   // field after it is read two bytes off.
-  absl::StatusOr<std::uint32_t> api_version = cursor.Uint16BigEndian("API version");
-  if (!api_version.ok()) {
-    return api_version.status();
-  }
+  MBO_ASSIGN_OR_RETURN(const std::uint32_t api_version, cursor.Uint16BigEndian("API version"));
   // The global flags carry a container-wide compression hint and a "signature present" bit. Neither
   // changes how members are located, so they are read past rather than acted on here.
-  absl::StatusOr<std::uint32_t> global_flags = cursor.Uint32("global flags");
-  if (!global_flags.ok()) {
-    return global_flags.status();
-  }
+  MBO_ASSIGN_OR_RETURN(const std::uint32_t global_flags, cursor.Uint32("global flags"));
   // The container's own alias (`phar://app.phar/...` names it). Not needed to locate members, but
   // its length field must be honoured for the same reason.
-  absl::StatusOr<std::string_view> alias = cursor.LengthPrefixed("alias");
-  if (!alias.ok()) {
-    return alias.status();
-  }
-  absl::StatusOr<std::string_view> metadata = cursor.LengthPrefixed("container metadata");
-  if (!metadata.ok()) {
-    return metadata.status();
-  }
+  MBO_ASSIGN_OR_RETURN(const std::string_view alias, cursor.LengthPrefixed("alias"));
+  MBO_ASSIGN_OR_RETURN(const std::string_view metadata, cursor.LengthPrefixed("container metadata"));
 
   std::vector<Entry> entries;
-  entries.reserve(*count);
+  entries.reserve(count);
   std::uint64_t next_data_offset = data_offset;
-  for (std::uint32_t index = 0; index < *count; ++index) {
-    absl::StatusOr<std::string_view> name = cursor.LengthPrefixed("member name");
-    if (!name.ok()) {
-      return name.status();
-    }
-    absl::StatusOr<std::uint32_t> size = cursor.Uint32("member size");
-    if (!size.ok()) {
-      return size.status();
-    }
-    absl::StatusOr<std::uint32_t> mtime = cursor.Uint32("member timestamp");
-    if (!mtime.ok()) {
-      return mtime.status();
-    }
-    absl::StatusOr<std::uint32_t> stored_size = cursor.Uint32("member stored size");
-    if (!stored_size.ok()) {
-      return stored_size.status();
-    }
+  for (std::uint32_t index = 0; index < count; ++index) {
+    MBO_ASSIGN_OR_RETURN(const std::string_view name, cursor.LengthPrefixed("member name"));
+    MBO_ASSIGN_OR_RETURN(const std::uint32_t size, cursor.Uint32("member size"));
+    MBO_ASSIGN_OR_RETURN(const std::uint32_t mtime, cursor.Uint32("member timestamp"));
+    MBO_ASSIGN_OR_RETURN(const std::uint32_t stored_size, cursor.Uint32("member stored size"));
     // The CRC32 of the uncompressed content. Verifying it needs the content, so it belongs with the
     // read path; this slice reads past it rather than storing an unused field.
-    absl::StatusOr<std::uint32_t> crc32 = cursor.Uint32("member CRC32");
-    if (!crc32.ok()) {
-      return crc32.status();
-    }
-    absl::StatusOr<std::uint32_t> flags = cursor.Uint32("member flags");
-    if (!flags.ok()) {
-      return flags.status();
-    }
-    absl::StatusOr<std::string_view> member_metadata = cursor.LengthPrefixed("member metadata");
-    if (!member_metadata.ok()) {
-      return member_metadata.status();
-    }
-    if (name->empty()) {
+    MBO_ASSIGN_OR_RETURN(const std::uint32_t crc32, cursor.Uint32("member CRC32"));
+    MBO_ASSIGN_OR_RETURN(const std::uint32_t flags, cursor.Uint32("member flags"));
+    MBO_ASSIGN_OR_RETURN(const std::string_view member_metadata, cursor.LengthPrefixed("member metadata"));
+    if (name.empty()) {
       return absl::DataLossError("phar manifest holds a member with an empty name");
     }
     // A trailing `/` is how phar spells a directory: there is no flag bit for it.
-    const bool is_directory = name->ends_with('/');
+    const bool is_directory = name.ends_with('/');
     Entry entry{
         .member{
-            .path = std::string(is_directory ? name->substr(0, name->size() - 1) : *name),
-            .size = static_cast<std::int64_t>(*size),
-            .mtime = static_cast<std::int64_t>(*mtime),
-            .mode = *flags & kFlagPermissionMask,
+            .path = std::string(is_directory ? name.substr(0, name.size() - 1) : name),
+            .size = static_cast<std::int64_t>(size),
+            .mtime = static_cast<std::int64_t>(mtime),
+            .mode = flags & kFlagPermissionMask,
             .is_directory = is_directory,
             // phar has no symlink member type: the format stores file data and directories only.
             .is_symlink = false,
         },
         .data_offset = next_data_offset,
-        .stored_size = *stored_size,
-        .flags = *flags,
+        .stored_size = stored_size,
+        .flags = flags,
     };
-    next_data_offset += *stored_size;
+    next_data_offset += stored_size;
     entries.push_back(std::move(entry));
   }
   return entries;
@@ -357,19 +319,17 @@ absl::StatusOr<std::vector<Entry>> ParseWholePhar(std::string_view bytes) {
     return absl::InvalidArgumentError("not a phar: no __HALT_COMPILER(); token in the stub");
   }
   Cursor length_cursor(bytes.substr(*manifest_at));
-  absl::StatusOr<std::uint32_t> manifest_length = length_cursor.Uint32("manifest length");
-  if (!manifest_length.ok()) {
-    // The token is there but not even the length field fits, so this is a phar-shaped truncation.
-    return manifest_length.status();
-  }
+  // The token is there, so a length field that does not fit is a phar-shaped truncation, not "some
+  // other file" - the macro propagates the reader's DataLoss unchanged.
+  MBO_ASSIGN_OR_RETURN(const std::uint32_t manifest_length, length_cursor.Uint32("manifest length"));
   const std::size_t manifest_start = *manifest_at + 4;
-  if (manifest_start + *manifest_length > bytes.size()) {
+  if (manifest_start + manifest_length > bytes.size()) {
     return absl::DataLossError(
         absl::StrCat(
-            "phar manifest is truncated: declares ", *manifest_length, " bytes, only ", bytes.size() - manifest_start,
+            "phar manifest is truncated: declares ", manifest_length, " bytes, only ", bytes.size() - manifest_start,
             " remain"));
   }
-  return ParseManifest(bytes.substr(manifest_start, *manifest_length), manifest_start + *manifest_length);
+  return ParseManifest(bytes.substr(manifest_start, manifest_length), manifest_start + manifest_length);
 }
 
 std::vector<Member> MembersOf(std::vector<Entry> entries) {
@@ -433,26 +393,20 @@ absl::StatusOr<std::string> ReadFileRange(std::string_view path, std::uint64_t o
 // Read in two steps because the manifest length is itself in the file - first the scan window, then
 // exactly as much more as the manifest declares.
 absl::StatusOr<std::string> ReadHeader(std::string_view path) {
-  absl::StatusOr<std::string> prefix = ReadFileRange(path, 0, kStubScanLimit);
-  if (!prefix.ok()) {
-    return prefix;
-  }
-  const std::optional<std::size_t> manifest_at = ManifestOffset(*prefix);
+  MBO_ASSIGN_OR_RETURN(std::string prefix, ReadFileRange(path, 0, kStubScanLimit));
+  const std::optional<std::size_t> manifest_at = ManifestOffset(prefix);
   if (!manifest_at.has_value()) {
     return absl::InvalidArgumentError(
         absl::StrCat("not a phar: no __HALT_COMPILER(); token in the first ", kStubScanLimit, " bytes of ", path));
   }
-  Cursor cursor(std::string_view(*prefix).substr(*manifest_at));
-  absl::StatusOr<std::uint32_t> manifest_length = cursor.Uint32("manifest length");
-  if (!manifest_length.ok()) {
-    return manifest_length.status();
-  }
-  if (*manifest_length > kMaxManifestBytes) {
+  Cursor cursor(std::string_view(prefix).substr(*manifest_at));
+  MBO_ASSIGN_OR_RETURN(const std::uint32_t manifest_length, cursor.Uint32("manifest length"));
+  if (manifest_length > kMaxManifestBytes) {
     return absl::DataLossError(
-        absl::StrCat("phar manifest declares ", *manifest_length, " bytes, over the ", kMaxManifestBytes, " cap"));
+        absl::StrCat("phar manifest declares ", manifest_length, " bytes, over the ", kMaxManifestBytes, " cap"));
   }
-  const std::size_t needed = *manifest_at + 4 + *manifest_length;
-  if (needed <= prefix->size()) {
+  const std::size_t needed = *manifest_at + 4 + manifest_length;
+  if (needed <= prefix.size()) {
     return prefix;
   }
   return ReadFileRange(path, 0, needed);
@@ -461,66 +415,36 @@ absl::StatusOr<std::string> ReadHeader(std::string_view path) {
 }  // namespace
 
 absl::StatusOr<std::vector<Member>> ListPharMembers(std::string_view bytes) {
-  absl::StatusOr<std::vector<Entry>> manifest = ParseWholePhar(bytes);
-  if (!manifest.ok()) {
-    return manifest.status();
-  }
-  return MembersOf(*std::move(manifest));
+  MBO_ASSIGN_OR_RETURN(std::vector<Entry> entries, ParseWholePhar(bytes));
+  return MembersOf(std::move(entries));
 }
 
 absl::StatusOr<std::vector<Member>> ListPharMembersOfFile(std::string_view path) {
-  absl::StatusOr<std::string> header = ReadHeader(path);
-  if (!header.ok()) {
-    return header.status();
-  }
-  return ListPharMembers(*header);
+  MBO_ASSIGN_OR_RETURN(const std::string header, ReadHeader(path));
+  return ListPharMembers(header);
 }
 
 absl::StatusOr<std::string> ReadPharMember(std::string_view bytes, std::string_view member, std::uint64_t max_bytes) {
-  absl::StatusOr<std::vector<Entry>> manifest = ParseWholePhar(bytes);
-  if (!manifest.ok()) {
-    return manifest.status();
-  }
-  absl::StatusOr<const Entry*> entry = FindEntry(*manifest, member);
-  if (!entry.ok()) {
-    return entry.status();
-  }
-  const absl::Status limit = CheckLimit((*entry)->stored_size, max_bytes, member);
-  if (!limit.ok()) {
-    return limit;
-  }
-  if ((*entry)->data_offset + (*entry)->stored_size > bytes.size()) {
+  MBO_ASSIGN_OR_RETURN(const std::vector<Entry> entries, ParseWholePhar(bytes));
+  MBO_ASSIGN_OR_RETURN(const Entry* const entry, FindEntry(entries, member));
+  MBO_RETURN_IF_ERROR(CheckLimit(entry->stored_size, max_bytes, member));
+  if (entry->data_offset + entry->stored_size > bytes.size()) {
     return absl::DataLossError(absl::StrCat("phar member data runs past the end of the container: ", member));
   }
-  return std::string(bytes.substr((*entry)->data_offset, (*entry)->stored_size));
+  return std::string(bytes.substr(entry->data_offset, entry->stored_size));
 }
 
 absl::StatusOr<std::string> ReadPharMemberOfFile(
     std::string_view path,
     std::string_view member,
     std::uint64_t max_bytes) {
-  absl::StatusOr<std::string> header = ReadHeader(path);
-  if (!header.ok()) {
-    return header.status();
-  }
-  absl::StatusOr<std::vector<Entry>> manifest = ParseWholePhar(*header);
-  if (!manifest.ok()) {
-    return manifest.status();
-  }
-  absl::StatusOr<const Entry*> entry = FindEntry(*manifest, member);
-  if (!entry.ok()) {
-    return entry.status();
-  }
-  const absl::Status limit = CheckLimit((*entry)->stored_size, max_bytes, member);
-  if (!limit.ok()) {
-    return limit;
-  }
-  absl::StatusOr<std::string> content =
-      ReadFileRange(path, (*entry)->data_offset, static_cast<std::size_t>((*entry)->stored_size));
-  if (!content.ok()) {
-    return content;
-  }
-  if (content->size() < (*entry)->stored_size) {
+  MBO_ASSIGN_OR_RETURN(const std::string header, ReadHeader(path));
+  MBO_ASSIGN_OR_RETURN(const std::vector<Entry> entries, ParseWholePhar(header));
+  MBO_ASSIGN_OR_RETURN(const Entry* const entry, FindEntry(entries, member));
+  MBO_RETURN_IF_ERROR(CheckLimit(entry->stored_size, max_bytes, member));
+  MBO_ASSIGN_OR_RETURN(
+      std::string content, ReadFileRange(path, entry->data_offset, static_cast<std::size_t>(entry->stored_size)));
+  if (content.size() < entry->stored_size) {
     return absl::DataLossError(absl::StrCat("phar member data runs past the end of the container: ", member));
   }
   return content;
