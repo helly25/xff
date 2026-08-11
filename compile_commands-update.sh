@@ -108,48 +108,28 @@ echo "Building generated / virtual-include headers in --config=clang-tidy so the
 bazel build --config=clang-tidy //... >/dev/null \
   || die "'bazel build --config=clang-tidy //...' failed; cannot materialize the headers the compile DB references"
 
-bazel run @bazel_compile_commands_extractor//:refresh_all -- --config=clang-tidy "${BCCE_ARGS[@]}"
+# The composable extras are separate modules, so `//...` does not reach them and each needs its own
+# build flag. Without this their virtual-include forests are missing exactly as the core's would be,
+# and clang-tidy cannot resolve an extra's own header. Keep in step with //:refresh_compile_commands.
+for EXTRA in "@xff_archive//...:--//xff:xff_archive" "@xff_pcre2//...:--//xff:xff_pcre"; do
+  EXTRA_TARGETS="${EXTRA%%:*}"
+  EXTRA_FLAG="${EXTRA#*:}"
+  echo "Building ${EXTRA_TARGETS} (${EXTRA_FLAG}) so the compile DB resolves its headers ..." 1>&2
+  bazel build --config=clang-tidy "${EXTRA_FLAG}" "${EXTRA_TARGETS}" >/dev/null \
+    || die "'bazel build --config=clang-tidy ${EXTRA_FLAG} ${EXTRA_TARGETS}' failed"
+done
 
-# macOS only: the `--config=clang` toolchain (toolchains_llvm) points libc++ at the Xcode SDK by
-# emitting `-nostdinc++ -cxx-isystem <SDK>/usr/include/c++/v1`, while `-resource-dir` is the
-# hermetic clang's. clang-tidy parses with the hermetic clang++ (see --bcce-compiler), so that SDK
-# libc++ against a hermetic resource dir is a mismatch that silently degrades its analysis (spurious
-# unused-variable / const-correctness findings). The hermetic clang++ finds its OWN libc++ when left
-# to its default search, so drop just those two flags from the DB; `-isysroot` stays for the system
-# C headers. Linux never emits the SDK `-cxx-isystem`, so this is a no-op there and stays gated.
-if [ "$(uname -s)" = "Darwin" ]; then
-  echo "macOS: dropping the SDK libc++ -cxx-isystem so the hermetic clang++ uses its own libc++ ..." 1>&2
-  python3 - compile_commands.json <<'PY'
-import json
-import sys
+# //:refresh_compile_commands, not the extractor's stock :refresh_all - the latter covers `//...`
+# only, which silently omits every extras source file. See the target's comment in //BUILD.bazel.
+bazel run //:refresh_compile_commands -- --config=clang-tidy "${BCCE_ARGS[@]}"
 
-path = sys.argv[1]
-with open(path, encoding="utf-8") as f:
-    entries = json.load(f)
+# Post-process the extracted database (tools/fix_compile_commands.py documents both passes):
+# the composable extras are separate bazel modules, so their sources are recorded under the execroot
+# spelling `external/xff_archive+/...` while every tool asks about `extra_modules/archive/...` - a
+# lookup is by path, so those entries were unreachable and clang-tidy could not resolve an extra's own
+# header. On macOS it also drops the SDK libc++ `-nostdinc++ -cxx-isystem` pair, which mismatches the
+# hermetic clang++ that clang-tidy parses with.
+python3 tools/fix_compile_commands.py compile_commands.json MODULE.bazel --system="$(uname -s)" \
+  || die "post-processing compile_commands.json failed"
 
-
-def strip(args):
-    out = []
-    skip = False
-    for i, arg in enumerate(args):
-        if skip:
-            skip = False
-            continue
-        if arg == "-nostdinc++":
-            continue
-        nxt = args[i + 1] if i + 1 < len(args) else ""
-        if arg == "-cxx-isystem" and nxt.endswith("/c++/v1") and "MacOSX.sdk" in nxt:
-            skip = True  # also drop the path argument that follows
-            continue
-        out.append(arg)
-    return out
-
-
-for entry in entries:
-    entry["arguments"] = strip(entry["arguments"])
-with open(path, "w", encoding="utf-8") as f:
-    json.dump(entries, f, indent=2)
-    f.write("\n")
-PY
-fi
 echo "OK"

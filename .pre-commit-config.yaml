@@ -202,6 +202,17 @@ repos:
         entry: tools/build_rules_test.py
         files: ^tools/build_rules(_test)?\.py$
         pass_filenames: false
+      - id: fix-compile-commands-test
+        name: Test the compile-database post-processor
+        description: |
+          Runs the compile_commands.json post-processor's unit tests (local-module source-path
+          remapping, macOS SDK libc++ flag stripping) when it or its test changes. The remapping
+          is what makes clang-tidy / clangd see the composable extras at all, and it fails
+          OPEN - a broken remap looks like clean code rather than an error - so it is tested.
+        language: script
+        entry: tools/fix_compile_commands_test.py
+        files: ^tools/fix_compile_commands(_test)?\.py$
+        pass_filenames: false
       - id: release-prep-test
         name: Test the release prep script
         description: |
