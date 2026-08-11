@@ -3,6 +3,19 @@
 
 # 0.3.0
 
+## Archives
+
+- `--archive` / `-z` dives for real in a build with the archive extra
+  (`--//xff:xff_archive`): a container is visited as the file it is and then descends like
+  a directory, so its members are ordinary entries at `container!member` paths that
+  `-name`, `-type`, `-size` and friends match unchanged. `--archive=roots` (the xff-family
+  default) dives only an archive named as a search root; `--archive=all` (`-z+`, or bare
+  `--archive`) also dives archives met mid-walk, at the position a directory of that name
+  would take under every `--sort`. `-prune`, `-quit` and `-maxdepth` apply to members as
+  they do everywhere else. Without the extra, asking for diving remains a hard error.
+- `--archive-separator` / `--archive-prefix` now reach the walk, so printed member paths
+  round-trip through the flags that produced them.
+
 ## Internal
 
 - MemorySanitizer is a hard CI gate on Linux. The instrumented C++ standard library it

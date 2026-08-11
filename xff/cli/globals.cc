@@ -20,6 +20,7 @@
 
 #include "absl/strings/match.h"
 #include "absl/types/span.h"
+#include "xff/archive/archive_backend.h"
 
 namespace xff::cli {
 namespace {
@@ -223,9 +224,11 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "traversal",
         .header = "Traversal",
         .summary = "descend into archives: -z- none, -z roots only, -z+ / bare --archive all",
-        .details = "Treats each archive (tar, gz, bzip2, xz, zstd, lz4, zip, ...) as a directory, so the whole "
-                   "expression - including -grep on entry content - matches its entries at virtual paths like "
-                   "`foo.tar.gz/inner/x`. The three modes are nested: none keeps find's behavior (an archive is one "
+        .details = "Treats each archive (tar, gz, bzip2, xz, zstd, lz4, zip, ...) as a directory, so a member is an "
+                   "ordinary entry at a member path like `foo.tar.gz!inner/x` and the expression matches it with "
+                   "the same -name / -type / -size / -newer every other entry gets (predicates that READ a member's "
+                   "content, -grep / -content / {hash}, wait on the reader's extraction support). "
+                   "The three modes are nested: none keeps find's behavior (an archive is one "
                    "plain file); roots dives only when a search root is itself an archive (pointing xff AT an "
                    "archive implies looking inside); all also dives archives discovered during the walk. Bare "
                    "--archive means all, and the short form carries chmod-style suffix signs (-z- none, -z roots, "
@@ -902,15 +905,12 @@ bool IsKnownGlobal(std::string_view arg) {
 }
 
 bool ExtraEnabled(std::string_view key) {
-  // Each build-time extra maps to an XFF_WITH_* define added (via select) by its Bazel flag (see
-  // ExtraBuildFlag for the flag's exact label). In the lean default build no such define is set, so
-  // every extra reads as off. New extras add a branch here and in ExtraBuildFlag.
+  // Answered by the LINKER, not by a parallel define: an extra registers itself into its backend slot
+  // at static init, so asking the slot cannot drift from what the binary actually contains (the same
+  // question `Pcre2Available()` answers for the regex slot). In the lean default build nothing
+  // registers and every extra reads as off. New extras add a branch here and in ExtraBuildFlag.
   if (key == "archive") {
-#ifdef XFF_WITH_ARCHIVE
-    return true;
-#else
-    return false;
-#endif
+    return archive::ContainerSupportAvailable();
   }
   return false;  // unknown / not-yet-wired extra
 }

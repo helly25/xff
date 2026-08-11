@@ -276,7 +276,8 @@ class Walker {
         .name = Basename(stated.path),
         .root = current_root_,
         .depth = depth,
-        .metadata = stated.metadata};
+        .metadata = stated.metadata,
+        .fs = &fs_};
     const WalkAction action = visit_(visit);
     if (action == WalkAction::kStop) {
       stopped_ = true;
@@ -381,6 +382,10 @@ class Walker {
         }
         if (IsDir(children[i])) {
           VisitSubtree(children[i], depth, reads[i].valid() ? &reads[i] : nullptr);
+        } else if (ShouldTryMount(children[i], depth)) {
+          // A container groups its members like a directory, so under kSubtree it belongs in the
+          // subtree block rather than the flat block its own entry was emitted in.
+          DescendContainer(children[i], depth);
         }
       }
       return;
@@ -399,8 +404,15 @@ class Walker {
       if (stopped_) {
         return;
       }
-      if (Descendable(children[i], depth) && !pruned[i]) {
+      if (pruned[i]) {
+        continue;
+      }
+      if (Descendable(children[i], depth)) {
         Descend(children[i], depth, reads[i].valid() ? &reads[i] : nullptr);  // entry already visited above
+      } else if (ShouldTryMount(children[i], depth)) {
+        // `--archive=all`: a container met mid-walk descends exactly where a directory would, and
+        // after its own visit, so a prune on the container still skips its members.
+        DescendContainer(children[i], depth);
       }
     }
   }

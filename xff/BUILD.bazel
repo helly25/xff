@@ -75,15 +75,18 @@ config_setting(
 )
 
 # The single "is this the full / extras build" condition. Full mode is whatever set of extras is on,
-# NOT any one extra: today that is just PCRE2 (`--config=xff_full` sets --//xff:xff_pcre), but when
-# archive (#83) or a later extra lands, add its `:xff_<extra>_enabled` here (match_any = logical OR)
-# and every consumer follows. Both XFF_FULL_ONLY (xff_full's own compatibility gate, //xff:extras.bzl)
+# NOT any one extra: today that is PCRE2 (`--config=xff_full` sets --//xff:xff_pcre) or archive
+# (`--config=xff_docs` adds --//xff:xff_archive). When a later extra lands, add its
+# `:xff_<extra>_enabled` here (match_any = logical OR) and every consumer follows. Both XFF_FULL_ONLY (xff_full's own compatibility gate, //xff:extras.bzl)
 # and the //xff alias below key on THIS, so "full mode" is defined in exactly one place. (Linking a
 # specific backend, e.g. the pcre select in //xff/cli:xff_full, stays keyed on that extra's own
 # :xff_<extra>_enabled - that is "is pcre on", a different question from "is this the full build".)
 selects.config_setting_group(
     name = "full_build",
-    match_any = [":xff_pcre_enabled"],
+    match_any = [
+        ":xff_archive_enabled",
+        ":xff_pcre_enabled",
+    ],
 )
 
 # `//xff` == the right binary for the active build config: the extended //xff/cli:xff_full in a full

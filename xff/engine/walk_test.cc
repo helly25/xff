@@ -430,13 +430,29 @@ TEST_F(WalkFakeFsTest, CarriesOriginatingRootPerEntry) {
 struct WalkMountTest : ::testing::Test {
   // A mounted filesystem holding `a.tar!one.txt`, `a.tar!dir` and `a.tar!dir/two.txt`, with the member
   // identities a real archive filesystem provides: one device, distinct inodes.
-  static std::unique_ptr<const vfs::FileSystem> MountedTar() {
+  static std::unique_ptr<const vfs::FileSystem> MountedTar() { return MountedTarAt("a.tar"); }
+
+  // The same three members under an arbitrary container path, because a mounted filesystem is keyed
+  // on the path the walk asked for: mid-walk that is `top/a.tar`, not the bare name.
+  static std::unique_ptr<const vfs::FileSystem> MountedTarAt(std::string_view container) {
+    const std::string dir = absl::StrCat(container, "!dir");
+    const std::string one = absl::StrCat(container, "!one.txt");
+    const std::string two = absl::StrCat(container, "!dir/two.txt");
     auto mounted = std::make_unique<FakeFs>();
-    mounted->AddDir("a.tar", 99, {Entry("a.tar!dir", vfs::FileType::kDirectory), Entry("a.tar!one.txt")});
-    mounted->AddFile("a.tar!one.txt", 99);
-    mounted->AddDir("a.tar!dir", 99, {Entry("a.tar!dir/two.txt")});
-    mounted->AddFile("a.tar!dir/two.txt", 99);
+    mounted->AddDir(std::string(container), 99, {Entry(dir, vfs::FileType::kDirectory), Entry(one)});
+    mounted->AddFile(one, 99);
+    mounted->AddDir(dir, 99, {Entry(two)});
+    mounted->AddFile(two, 99);
     return mounted;
+  }
+
+  // A mounter with a real backend's manners: only a `.tar` is a container, everything else answers
+  // InvalidArgument ("not an archive"), which is what keeps an ordinary file an ordinary file.
+  static absl::StatusOr<std::unique_ptr<const vfs::FileSystem>> MountTars(std::string_view container) {
+    if (!container.ends_with(".tar")) {
+      return absl::InvalidArgumentError("not an archive");
+    }
+    return MountedTarAt(container);
   }
 
   static vfs::Entry Entry(std::string path, vfs::FileType type = vfs::FileType::kRegular) {
@@ -511,8 +527,8 @@ TEST_F(WalkMountTest, AnUnreadableArchiveIsReported) {
 }
 
 TEST_F(WalkMountTest, RootsModeDoesNotDiveIntoArchivesFoundMidWalk) {
-  // `roots` means "the archive I pointed you AT", not every archive in the tree - that is `all`, a
-  // later slice. Counting mounts proves the gate, not just the output.
+  // `roots` means "the archive I pointed you AT", not every archive in the tree - that is `all`.
+  // Counting mounts proves the gate, not just the output.
   fs_.AddDir("top", 1, {Entry("top/a.tar")});
   fs_.AddFile("top/a.tar", 1);
   int mounts = 0;
@@ -525,6 +541,57 @@ TEST_F(WalkMountTest, RootsModeDoesNotDiveIntoArchivesFoundMidWalk) {
           }),
       ElementsAre(Pair("top", 0), Pair("top/a.tar", 1)));
   EXPECT_THAT(mounts, 0);
+}
+
+TEST_F(WalkMountTest, AllModeDivesIntoAnArchiveFoundMidWalk) {
+  // The other half of the nesting: `all` mounts a container the walk MET, at the position a
+  // directory of the same name would occupy. kDir order puts the level's entries first, so the tar
+  // is listed with its siblings and its members follow as its subtree.
+  fs_.AddDir("top", 1, {Entry("top/a.tar"), Entry("top/b.txt")});
+  fs_.AddFile("top/a.tar", 1);
+  fs_.AddFile("top/b.txt", 1);
+  EXPECT_THAT(
+      Walked(
+          {"top"}, WalkOptions{.sort = SortOrder::kDir, .archive = ArchiveDive::kAll}, Keep,
+          [](std::string_view container) { return MountTars(container); }),
+      ElementsAre(
+          Pair("top", 0), Pair("top/a.tar", 1), Pair("top/b.txt", 1), Pair("top/a.tar!dir", 2),
+          Pair("top/a.tar!one.txt", 2), Pair("top/a.tar!dir/two.txt", 3)));
+  EXPECT_THAT(errors_, 0);
+}
+
+TEST_F(WalkMountTest, PruningAMidWalkContainerSkipsItsMembers) {
+  // A container met mid-walk obeys -prune the same way one named as a root does, which is what lets
+  // `-name '*.tar' -prune` mean "do not look inside" under `all` too.
+  fs_.AddDir("top", 1, {Entry("top/a.tar")});
+  fs_.AddFile("top/a.tar", 1);
+  int mounts = 0;
+  EXPECT_THAT(
+      Walked(
+          {"top"}, WalkOptions{.sort = SortOrder::kDir, .archive = ArchiveDive::kAll},
+          [](const Visit& visit) { return visit.path == "top/a.tar" ? WalkAction::kPrune : WalkAction::kContinue; },
+          [&mounts](std::string_view) {
+            ++mounts;
+            return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar());
+          }),
+      ElementsAre(Pair("top", 0), Pair("top/a.tar", 1)));
+  EXPECT_THAT(mounts, 0);
+}
+
+TEST_F(WalkMountTest, UnderSubtreeSortAMidWalkContainerLeadsItsOwnBlock) {
+  // --sort=subtree emits the flat entries first and then each subtree contiguously. A container is a
+  // subtree, so its members belong in the second block, not spliced into the first.
+  fs_.AddDir("top", 1, {Entry("top/a.tar"), Entry("top/b.txt")});
+  fs_.AddFile("top/a.tar", 1);
+  fs_.AddFile("top/b.txt", 1);
+  EXPECT_THAT(
+      Walked(
+          {"top"}, WalkOptions{.sort = SortOrder::kSubtree, .archive = ArchiveDive::kAll}, Keep,
+          [](std::string_view container) { return MountTars(container); }),
+      // ... and the members obey kSubtree in turn: the flat `one.txt` before the `dir` subtree.
+      ElementsAre(
+          Pair("top", 0), Pair("top/a.tar", 1), Pair("top/b.txt", 1), Pair("top/a.tar!one.txt", 2),
+          Pair("top/a.tar!dir", 2), Pair("top/a.tar!dir/two.txt", 3)));
 }
 
 TEST_F(WalkMountTest, PruningTheContainerSkipsItsMembersButKeepsTheFile) {
