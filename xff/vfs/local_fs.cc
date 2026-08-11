@@ -111,7 +111,12 @@ std::optional<absl::Time> BirthTime(
 #if defined(__APPLE__)
   return absl::TimeFromTimespec(st.st_birthtimespec);
 #elif defined(__linux__) && defined(STATX_BTIME)
-  struct statx stx;
+  // Zero-initialized on purpose, for MemorySanitizer. `statx` has no MSan interceptor (unlike
+  // `stat` / `lstat` / `fstat`), so the sanitizer never learns that the kernel filled `stx` in
+  // and every read below - starting with `stx.stx_mask` - is reported as use-of-uninitialized.
+  // Pre-initializing gives the shadow a defined state; the kernel then overwrites the bytes with
+  // the real values, so the result is unchanged and only the false report goes away.
+  struct statx stx = {};
   const int flags = follow_symlinks ? 0 : AT_SYMLINK_NOFOLLOW;
   if (::statx(AT_FDCWD, path.c_str(), flags, STATX_BTIME, &stx) == 0 && (stx.stx_mask & STATX_BTIME) != 0U) {
     struct timespec ts;

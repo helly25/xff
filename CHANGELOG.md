@@ -3,6 +3,14 @@
 
 # 0.3.0
 
+## Internal
+
+- MemorySanitizer is a hard CI gate on Linux. The instrumented C++ standard library it
+  needs now comes from the toolchain itself (`toolchains_llvm`'s `--features=msan` plus a
+  prebuilt instrumented-libc++ overlay) instead of a cmake/ninja build of the LLVM
+  runtimes in CI, so the cell is a plain `bazel test` and needs no suppression file.
+- The hermetic LLVM toolchain moved to 22.1.8, matching that instrumented libc++.
+
 # 0.2.0
 
 Sharded-file awareness, hash verification, and a help system that is generated end to
