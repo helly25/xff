@@ -163,13 +163,20 @@ constexpr std::size_t kMinEntryBytes = 4 + 1 + (5 * 4) + 4;
 std::size_t SkipStubTail(std::string_view bytes, std::size_t at) {
   const std::string_view tail = bytes.substr(at);
   if (!tail.starts_with(" ?>") && !tail.starts_with("\n?>")) {
+    // No marker: the manifest starts immediately after the `;`, the legal minimal spelling.
     return at;
   }
   at += 3;
-  if (bytes.substr(at).starts_with("\r\n")) {
-    return at + 2;
+  // PHP's line ending handling, mirrored: it reads ONE character, and its `\n` test is NOT an
+  // `else if`, so the `\r` branch reassigns that character to `\n` and falls THROUGH to be counted
+  // again - which is how `\r\n` ends up advancing by two. A `\r` not followed by `\n` is
+  // "truncated manifest at stub end" to PHP (verified against it), where this leaves the offset at the
+  // `\r` instead, so the manifest check below reports "not a phar" rather than "corrupt".
+  const std::string_view after_marker = bytes.substr(at);
+  if (after_marker.starts_with('\r')) {
+    return after_marker.starts_with("\r\n") ? at + 2 : at;
   }
-  if (bytes.substr(at).starts_with("\n")) {
+  if (after_marker.starts_with('\n')) {
     return at + 1;
   }
   return at;
