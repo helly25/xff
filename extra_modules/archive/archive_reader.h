@@ -52,6 +52,27 @@ absl::StatusOr<std::vector<Member>> ListMembers(std::string_view bytes);
 // whole archive in memory (the form the walk uses). Same error contract as ListMembers.
 absl::StatusOr<std::vector<Member>> ListMembersOfFile(std::string_view path);
 
+// Reads ONE member's uncompressed content out of the archive file at `path`. This is what lets the
+// content predicates (`-grep`, `-content`, `{hash}`) work on members; listing alone cannot, since it
+// deliberately never touches member data.
+//
+// `member` is matched against the stored path in normalized form: a leading `./` is ignored on either
+// side, and so is a trailing `/`, because tar writes the same member several ways (`dir/x` vs
+// `./dir/x`, and a directory as `dir/`). So a lookup for `dir` FINDS the directory and is told it has
+// no content, rather than misreporting "no such member". Streaming, single pass, stopping at the
+// match, so reading an early member of a huge archive does not decompress the rest.
+//
+// Errors, all distinguishable on purpose: InvalidArgument when `path` is not an archive libarchive
+// can open, NotFound when the archive has no such member, FailedPrecondition when the member exists
+// but is not a regular file (a directory or symlink has no content to read), DataLoss when the
+// archive opens but the read fails part way, and ResourceExhausted when `max_bytes` (0 = unlimited)
+// would be exceeded - a decompression-bomb guard, since a small member header can promise a huge
+// expansion.
+absl::StatusOr<std::string> ReadMemberOfFile(
+    std::string_view path,
+    std::string_view member,
+    std::uint64_t max_bytes = 0);
+
 }  // namespace xff::archive
 
 #endif  // XFF_ARCHIVE_ARCHIVE_READER_H_
