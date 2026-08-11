@@ -73,6 +73,11 @@ absl::StatusOr<std::string> ReadMemberOfFile(
     std::string_view member,
     std::uint64_t max_bytes = 0);
 
+// ReadMemberOfFile over bytes already in memory, with identical semantics and errors. This is what
+// a container INSIDE a container needs: its own bytes come out of its parent, so there is no path to
+// open. Empty input is not an archive, as in ListMembers.
+absl::StatusOr<std::string> ReadMember(std::string_view bytes, std::string_view member, std::uint64_t max_bytes = 0);
+
 }  // namespace xff::archive
 
 #endif  // XFF_ARCHIVE_ARCHIVE_READER_H_

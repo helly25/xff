@@ -158,6 +158,9 @@ class Walker {
     if (mount_container_ == nullptr || options_.archive == ArchiveDive::kNone) {
       return false;
     }
+    if (container_depth_ >= options_.archive_depth) {
+      return false;  // --archive-depth: this walk is already as many containers deep as allowed
+    }
     if (!stated.ok || stated.metadata.type != vfs::FileType::kRegular) {
       return false;
     }
@@ -170,7 +173,7 @@ class Walker {
   // common case for every ordinary file the walk offers, and the file has already been visited as
   // itself. Any other failure IS reported - an archive that cannot be read is a real problem.
   void DescendContainer(const Stated& container, int depth) {
-    absl::StatusOr<std::unique_ptr<const vfs::FileSystem>> mounted = (*mount_container_)(container.path);
+    absl::StatusOr<std::unique_ptr<const vfs::FileSystem>> mounted = (*mount_container_)(container.path, fs_);
     if (!mounted.ok()) {
       if (!absl::IsInvalidArgument(mounted.status())) {
         on_error_(container.path, mounted.status());
@@ -179,11 +182,11 @@ class Walker {
     }
     // A nested walker over the mounted filesystem: members are ordinary entries to it, so every rule
     // the outer walk enforces (max_depth, min_depth, prune, quit, post_order, sort) applies unchanged.
-    // Diving is NOT re-armed inside, so a container within a container needs --archive-depth, which is
-    // a later slice rather than accidental recursion here.
-    WalkOptions inner_options = options_;
-    inner_options.archive = ArchiveDive::kNone;
-    Walker inner(**mounted, inner_options, visit_, on_error_, /*mount_container=*/nullptr);
+    // The mounter is passed on, so a container inside a container dives too - bounded by
+    // --archive-depth through `container_depth_`. Under `roots` that bound never binds: a member is
+    // never at depth 0, so the mode itself already says "only the archive I was pointed at".
+    Walker inner(**mounted, options_, visit_, on_error_, mount_container_);
+    inner.container_depth_ = container_depth_ + 1;
     inner.current_root_ = current_root_;
     inner.root_dev_ = container.metadata.dev;
     inner.DescendMembers(container.path, depth);
@@ -452,6 +455,8 @@ class Walker {
   ReadPool pool_;
   bool stopped_ = false;
   std::uint64_t root_dev_ = 0;
+  // How many containers this walker is already inside; 0 for the walk over the real filesystem.
+  int container_depth_ = 0;
   std::string_view current_root_;
   std::set<std::pair<std::uint64_t, std::uint64_t>> ancestors_;
 };

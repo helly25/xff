@@ -16,6 +16,7 @@
 #include "xff/archive/archive_backend.h"
 
 #include <memory>
+#include <optional>
 #include <string_view>
 #include <utility>
 
@@ -51,7 +52,17 @@ absl::StatusOr<std::unique_ptr<vfs::FileSystem>> OpenContainer(std::string_view 
     // look inside it. The CLI turns this into the "not built into this binary" message.
     return absl::UnimplementedError("this binary was built without archive support");
   }
-  return ContainerOpenerSlot()(container, options);
+  return ContainerOpenerSlot()(container, std::nullopt, options);
+}
+
+absl::StatusOr<std::unique_ptr<vfs::FileSystem>> OpenContainerBytes(
+    std::string_view container,
+    std::string_view bytes,
+    MemberPathOptions options) {
+  if (!ContainerSupportAvailable()) {
+    return absl::UnimplementedError("this binary was built without archive support");
+  }
+  return ContainerOpenerSlot()(container, bytes, options);
 }
 
 }  // namespace xff::archive

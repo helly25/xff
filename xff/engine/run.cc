@@ -2165,6 +2165,25 @@ int RunFind(
   } else {
     options.archive = ArchiveDiveOf(archive_mode);
   }
+  // --archive-depth=N: how many containers deep diving goes (see WalkOptions::archive_depth). A bad
+  // or zero value is a usage error rather than a silent clamp - "0" most likely means "off", which
+  // --archive=none spells, and guessing which was meant would be worse than saying so.
+  for (const std::string& global : command.globals) {
+    constexpr std::string_view kArchiveDepth = "--archive-depth=";
+    if (!global.starts_with(kArchiveDepth)) {
+      continue;
+    }
+    const std::string_view value = std::string_view(global).substr(kArchiveDepth.size());
+    if (int parsed = 0; absl::SimpleAtoi(value, &parsed) && parsed >= 1) {
+      options.archive_depth = parsed;
+    } else {
+      on_error(
+          "--archive-depth",
+          absl::InvalidArgumentError(
+              absl::StrCat("bad --archive-depth value '", value, "': expected a whole number of 1 or more")));
+      return 2;
+    }
+  }
   // The member-path spelling the mounted filesystem renders with, so what a run prints round-trips
   // through the same flags that produced it. The views point into `command.globals`, which outlives
   // the walk.
@@ -2446,7 +2465,17 @@ int RunFind(
   // or the InvalidArgument that means "an ordinary file after all". Passed unconditionally because
   // `options.archive` decides whether it is ever called.
   const auto mount_container =
-      [&member_path_options](std::string_view container) -> absl::StatusOr<std::unique_ptr<const vfs::FileSystem>> {
+      [&member_path_options, &walk_fs](
+          std::string_view container,
+          const vfs::FileSystem& source) -> absl::StatusOr<std::unique_ptr<const vfs::FileSystem>> {
+    if (&source != &walk_fs) {
+      // A container inside a container: it has no path of its own, so its bytes come out of its
+      // parent first and the mounted filesystem keeps them. How deep this goes is --archive-depth.
+      MBO_ASSIGN_OR_RETURN(const std::string bytes, source.ReadContent(container));
+      MBO_ASSIGN_OR_RETURN(
+          std::unique_ptr<vfs::FileSystem> nested, archive::OpenContainerBytes(container, bytes, member_path_options));
+      return nested;
+    }
     MBO_ASSIGN_OR_RETURN(
         std::unique_ptr<vfs::FileSystem> mounted, archive::OpenContainer(container, member_path_options));
     return mounted;

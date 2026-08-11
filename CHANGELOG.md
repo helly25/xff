@@ -18,6 +18,11 @@
 - Everything that reads an entry works on members: `-content`, `-icontent`, `-rxc`,
   `-grep`, `-hash`, `-hasheq`, `{hash}` and `{lines}` read a member's bytes out of its
   container, so a member's digest equals the digest of the same bytes on disk.
+- `--archive-depth=N` bounds how many CONTAINERS deep diving goes (default 1, so an
+  archive inside an archive stays a plain member). A nested container has no path of its
+  own, so its bytes are read out of its parent and mounted from memory; `-grep` and the
+  rest then work at any depth. The cap is its own knob rather than part of `-maxdepth`,
+  because nesting is where a decompression bomb lives.
 - A plain text file is no longer mistaken for an archive. libarchive's "every format"
   set includes `mtree`, a magic-less text format, so `xff notes.txt` could report a
   bogus member; the reader now enables its formats explicitly and leaves `mtree` out.

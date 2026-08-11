@@ -241,6 +241,22 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .extra = "archive",
     },
     {
+        .name = "--archive-depth",
+        .display = "--archive-depth=N",
+        .group = "traversal",
+        .header = "Traversal",
+        .summary = "how many containers deep --archive dives (default 1)",
+        .details = "Counted in CONTAINERS, not directory levels: the default 1 opens an archive but leaves an "
+                   "archive INSIDE it a plain member, so a `.gem` shows its `data.tar.gz` without unpacking it. "
+                   "`--archive-depth=2` opens that one too. Its own knob rather than part of -maxdepth because "
+                   "nesting is where a decompression bomb lives - a few kilobytes can promise gigabytes per level "
+                   "- while -maxdepth keeps counting member levels as the ordinary depth they are. Only `all` "
+                   "nests: under `roots` a member is never a search root, so nothing inside the container is "
+                   "dived whatever the value. N must be at least 1; use --archive=none / -z- to stop diving.",
+        .affects = "--archive",
+        .extra = "archive",
+    },
+    {
         .name = "--archive-separator",
         .display = "--archive-separator=STRING",
         .group = "traversal",

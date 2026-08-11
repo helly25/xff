@@ -30,6 +30,7 @@
 // in the engine needs to know a container is involved beyond deciding to mount one.
 
 #include <memory>
+#include <optional>
 #include <string_view>
 
 #include "absl/functional/any_invocable.h"
@@ -46,8 +47,11 @@ namespace xff::archive {
 // Must return InvalidArgumentError when the file is not an archive it can open, and DataLossError when
 // it opens but is corrupt: the walk treats the first as an ordinary file and only reports the second,
 // so collapsing them would turn every non-archive into an error.
-using ContainerOpener =
-    absl::AnyInvocable<absl::StatusOr<std::unique_ptr<vfs::FileSystem>>(std::string_view, MemberPathOptions) const>;
+// `bytes`, when present, IS the container's content: a container nested in another one has no path
+// of its own, so its parent hands over what it read and `container` is only the label member paths
+// are rendered with. Absent means "open the path".
+using ContainerOpener = absl::AnyInvocable<absl::StatusOr<
+    std::unique_ptr<vfs::FileSystem>>(std::string_view, std::optional<std::string_view>, MemberPathOptions) const>;
 
 // Registers the process-wide container opener. Called once, at static init, from the real backend's
 // TU - see ContainerRegistrar. A second registration replaces the first, which keeps a test able to
@@ -71,6 +75,13 @@ struct ContainerRegistrar {
 // a crash.
 [[nodiscard]] absl::StatusOr<std::unique_ptr<vfs::FileSystem>> OpenContainer(
     std::string_view container,
+    MemberPathOptions options = {});
+
+// OpenContainer for a container whose bytes are already in hand (one nested inside another), with
+// the same errors. `container` is the label, not a path that has to exist.
+[[nodiscard]] absl::StatusOr<std::unique_ptr<vfs::FileSystem>> OpenContainerBytes(
+    std::string_view container,
+    std::string_view bytes,
     MemberPathOptions options = {});
 
 }  // namespace xff::archive

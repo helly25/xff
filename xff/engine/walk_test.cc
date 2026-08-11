@@ -21,6 +21,7 @@
 #include <fstream>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -30,6 +31,7 @@
 #include "absl/functional/function_ref.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
@@ -492,7 +494,9 @@ TEST_F(WalkMountTest, AContainerNamedAsARootIsWalkedAsWellAsVisited) {
   EXPECT_THAT(
       Walked(
           {"a.tar"}, WalkOptions{.sort = SortOrder::kDir, .archive = ArchiveDive::kRoots}, Keep,
-          [](std::string_view) { return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar()); }),
+          [](std::string_view, const vfs::FileSystem&) {
+            return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar());
+          }),
       // kDir order: a level's entries first, then each subtree - the members obey the same --sort the
       // rest of the walk does, because they go through the same child handling.
       ElementsAre(Pair("a.tar", 0), Pair("a.tar!dir", 1), Pair("a.tar!one.txt", 1), Pair("a.tar!dir/two.txt", 2)));
@@ -512,7 +516,9 @@ TEST_F(WalkMountTest, AMembersNameIsItsOwnLastComponent) {
         return WalkAction::kContinue;
       },
       [](std::string_view, absl::Status) {},
-      [](std::string_view) { return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar()); });
+      [](std::string_view, const vfs::FileSystem&) {
+        return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar());
+      });
   EXPECT_THAT(status, IsOk());
   EXPECT_THAT(names, ElementsAre("a.tar", "dir", "one.txt", "two.txt"));
 }
@@ -524,7 +530,7 @@ TEST_F(WalkMountTest, NotAnArchiveIsNotAnError) {
   EXPECT_THAT(
       Walked(
           {"notes.txt"}, WalkOptions{.archive = ArchiveDive::kRoots}, Keep,
-          [](std::string_view) {
+          [](std::string_view, const vfs::FileSystem&) {
             return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(absl::InvalidArgumentError("not an archive"));
           }),
       ElementsAre(Pair("notes.txt", 0)));
@@ -537,7 +543,7 @@ TEST_F(WalkMountTest, AnUnreadableArchiveIsReported) {
   EXPECT_THAT(
       Walked(
           {"broken.tar"}, WalkOptions{.archive = ArchiveDive::kRoots}, Keep,
-          [](std::string_view) {
+          [](std::string_view, const vfs::FileSystem&) {
             return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(absl::DataLossError("corrupt"));
           }),
       ElementsAre(Pair("broken.tar", 0)));
@@ -553,7 +559,7 @@ TEST_F(WalkMountTest, RootsModeDoesNotDiveIntoArchivesFoundMidWalk) {
   EXPECT_THAT(
       Walked(
           {"top"}, WalkOptions{.archive = ArchiveDive::kRoots}, Keep,
-          [&mounts](std::string_view) {
+          [&mounts](std::string_view, const vfs::FileSystem&) {
             ++mounts;
             return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar());
           }),
@@ -571,10 +577,38 @@ TEST_F(WalkMountTest, AllModeDivesIntoAnArchiveFoundMidWalk) {
   EXPECT_THAT(
       Walked(
           {"top"}, WalkOptions{.sort = SortOrder::kDir, .archive = ArchiveDive::kAll}, Keep,
-          [](std::string_view container) { return MountTars(container); }),
+          [](std::string_view container, const vfs::FileSystem&) { return MountTars(container); }),
       ElementsAre(
           Pair("top", 0), Pair("top/a.tar", 1), Pair("top/b.txt", 1), Pair("top/a.tar!dir", 2),
           Pair("top/a.tar!one.txt", 2), Pair("top/a.tar!dir/two.txt", 3)));
+  EXPECT_THAT(errors_, 0);
+}
+
+TEST_F(WalkMountTest, ArchiveDepthBoundsNestedContainers) {
+  // --archive-depth counts CONTAINERS: at 1 the tar inside the tar stays a plain member, at 2 it is
+  // opened in turn. The bound is what keeps a decompression bomb from unpacking itself level after
+  // level, so it is pinned rather than left to the mounter's discretion.
+  fs_.AddFile("a.tar", 1);
+  const auto mount_nested = [](std::string_view container, const vfs::FileSystem&) {
+    // Every `.tar` mounts, including `a.tar!one.tar`, so the depth cap is the ONLY thing that stops
+    // the recursion here.
+    if (!container.ends_with(".tar")) {
+      return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(absl::InvalidArgumentError("not an archive"));
+    }
+    auto mounted = std::make_unique<FakeFs>();
+    const std::string one = absl::StrCat(container, "!one.tar");
+    mounted->AddDir(std::string(container), 99, {Entry(one)});
+    mounted->AddFile(one, 99);
+    return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(std::move(mounted));
+  };
+  EXPECT_THAT(
+      Walked({"a.tar"}, WalkOptions{.sort = SortOrder::kDir, .archive = ArchiveDive::kAll}, Keep, mount_nested),
+      ElementsAre(Pair("a.tar", 0), Pair("a.tar!one.tar", 1)));
+  EXPECT_THAT(
+      Walked(
+          {"a.tar"}, WalkOptions{.sort = SortOrder::kDir, .archive = ArchiveDive::kAll, .archive_depth = 2}, Keep,
+          mount_nested),
+      ElementsAre(Pair("a.tar", 0), Pair("a.tar!one.tar", 1), Pair("a.tar!one.tar!one.tar", 2)));
   EXPECT_THAT(errors_, 0);
 }
 
@@ -588,7 +622,7 @@ TEST_F(WalkMountTest, PruningAMidWalkContainerSkipsItsMembers) {
       Walked(
           {"top"}, WalkOptions{.sort = SortOrder::kDir, .archive = ArchiveDive::kAll},
           [](const Visit& visit) { return visit.path == "top/a.tar" ? WalkAction::kPrune : WalkAction::kContinue; },
-          [&mounts](std::string_view) {
+          [&mounts](std::string_view, const vfs::FileSystem&) {
             ++mounts;
             return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar());
           }),
@@ -605,7 +639,7 @@ TEST_F(WalkMountTest, UnderSubtreeSortAMidWalkContainerLeadsItsOwnBlock) {
   EXPECT_THAT(
       Walked(
           {"top"}, WalkOptions{.sort = SortOrder::kSubtree, .archive = ArchiveDive::kAll}, Keep,
-          [](std::string_view container) { return MountTars(container); }),
+          [](std::string_view container, const vfs::FileSystem&) { return MountTars(container); }),
       // ... and the members obey kSubtree in turn: the flat `one.txt` before the `dir` subtree.
       ElementsAre(
           Pair("top", 0), Pair("top/a.tar", 1), Pair("top/b.txt", 1), Pair("top/a.tar!one.txt", 2),
@@ -619,7 +653,9 @@ TEST_F(WalkMountTest, PruningTheContainerSkipsItsMembersButKeepsTheFile) {
   EXPECT_THAT(
       Walked(
           {"a.tar"}, WalkOptions{.archive = ArchiveDive::kRoots}, [](const Visit&) { return WalkAction::kPrune; },
-          [](std::string_view) { return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar()); }),
+          [](std::string_view, const vfs::FileSystem&) {
+            return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar());
+          }),
       ElementsAre(Pair("a.tar", 0)));
 }
 
@@ -631,7 +667,9 @@ TEST_F(WalkMountTest, QuittingInsideAnArchiveStopsTheWholeWalk) {
       Walked(
           {"a.tar", "b.txt"}, WalkOptions{.sort = SortOrder::kDir, .archive = ArchiveDive::kRoots},
           [](const Visit& visit) { return visit.path == "a.tar!dir" ? WalkAction::kStop : WalkAction::kContinue; },
-          [](std::string_view) { return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar()); }),
+          [](std::string_view, const vfs::FileSystem&) {
+            return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar());
+          }),
       ElementsAre(Pair("a.tar", 0), Pair("a.tar!dir", 1)));
 }
 
@@ -641,7 +679,9 @@ TEST_F(WalkMountTest, MaxDepthCountsMemberLevels) {
   EXPECT_THAT(
       Walked(
           {"a.tar"}, WalkOptions{.max_depth = 1, .sort = SortOrder::kDir, .archive = ArchiveDive::kRoots}, Keep,
-          [](std::string_view) { return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar()); }),
+          [](std::string_view, const vfs::FileSystem&) {
+            return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar());
+          }),
       ElementsAre(Pair("a.tar", 0), Pair("a.tar!dir", 1), Pair("a.tar!one.txt", 1)));
 }
 

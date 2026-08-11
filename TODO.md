@@ -634,9 +634,14 @@ remains below is the design-forked / larger work.
     `FileLineCount` so an in-memory member counts lines by the identical binary-sniff rule. The walk
     also carries each entry's LISTED name (`a.tar!one.txt` is named `one.txt`), which a slash-based
     basename got wrong - `-name '*.txt'` matched a member while `-name one.txt` did not.
-  - **Remaining for #83:** `--archive-depth` (nesting cap) and the sniff-gating that keeps `all`
-    from byte-sniffing a whole tree, plus the `mtree`-style detection question for the formats that
-    stay off (see the reader's explicit format set).
+  - **Nesting SHIPPED: `--archive-depth=N` (default 1), counted in containers.** A nested container
+    has no path, so the mounter reads its bytes out of its parent and `ArchiveFileSystem::OpenBytes`
+    indexes them from memory (`ReadMember` is the reader's memory twin of `ReadMemberOfFile`); the
+    walk carries a `container_depth_` that the cap compares against, and `MemberKeyOf` resolves a
+    member against its KNOWN container instead of splitting at the first separator - a nested
+    container's own path contains one (`outer.tar!inner.tar`).
+  - **Remaining for #83:** the sniff-gating that keeps `all` from opening every ordinary file it
+    meets (an extension / magic peek before the reader is asked), and `--archive-any` as its opt-out.
   - **Container identity is dual:** the archive keeps its real-FS identity (a real `-type f`,
     deletable and actionable) AND parents its members. This falls out of the VFS source tagging -
     container is local-fs, members are archive-member.

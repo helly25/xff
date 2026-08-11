@@ -226,6 +226,23 @@ TEST_F(ArchiveFsTest, ReadContentDistinguishesItsThreeRefusals) {
   EXPECT_THAT(fs.ReadContent(*tar_), StatusIs(absl::StatusCode::kFailedPrecondition));
 }
 
+TEST_F(ArchiveFsTest, OpenBytesIndexesAContainerThatHasNoPath) {
+  // A container nested in another one: its bytes come from its parent, and `container` is only the
+  // label its members render under. Everything else - listing, stat, content - behaves as on disk.
+  std::ifstream in(*tar_, std::ios::binary);
+  const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  const absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::OpenBytes("outer.tar!nested.tar", bytes);
+  ASSERT_THAT(fs, IsOk());
+  EXPECT_THAT(
+      fs->ReadDir("outer.tar!nested.tar"),
+      IsOkAndHolds(
+          UnorderedElementsAre(Field("name", &vfs::Entry::name, "dir"), Field("name", &vfs::Entry::name, "top.txt"))));
+  EXPECT_THAT(fs->ReadContent("outer.tar!nested.tar!top.txt"), IsOkAndHolds("top"));
+  // The nested label contains a separator itself, so resolving a member must not attribute it to
+  // the outer archive by splitting at the first one.
+  EXPECT_THAT(fs->ReadContent("outer.tar!other.txt"), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
 TEST_F(ArchiveFsTest, FsTypeAndCaseSensitivityDescribeTheArchiveNotTheHost) {
   const ArchiveFileSystem fs = Fs();
   const absl::StatusOr<std::string> type = fs.FsType(*tar_);
