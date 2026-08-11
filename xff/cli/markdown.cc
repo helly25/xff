@@ -25,7 +25,12 @@ namespace xff::cli {
 
 std::string MarkdownReference() {
   MarkdownBackend backend;
-  RenderDocument(BuildReference(), backend);
+  // Audience::kPublished: XFF.md documents the whole tool, so a flag whose build extra is absent from
+  // the binary that generated this file is still documented in full. Its details still say it is a
+  // build extra and name the flag to rebuild with, and `--help=extras` reports what a given binary
+  // actually links - so a reader is told what they may not have, without the reference pretending the
+  // feature does not exist.
+  RenderDocument(BuildReference(Audience::kPublished), backend);
   return backend.Take();
 }
 

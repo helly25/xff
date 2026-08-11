@@ -15,12 +15,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Regenerate the committed Markdown reference XFF.md from the full binary. Run this after any change
-# that alters the help surface (a registry Descriptor, a global flag, help prose). //xff/cli:xff_markdown_test
-# fails until XFF.md matches this output.
+# Regenerate the committed Markdown reference XFF.md. Run this after any change that alters the help
+# surface (a registry Descriptor, a global flag, help prose). //xff/cli:xff_markdown_test fails until
+# XFF.md matches this output.
+#
+# Built with --config=xff_docs (every extra ON), not just --config=xff_full: the published reference
+# should document the WHOLE tool. Readers whose build omits an extra are told so by that flag's own
+# help text ("a build-time extra ... rebuild with --//xff:xff_<name>") and by `--help=extras`, which
+# reports what their binary actually links.
 
 set -euo pipefail
 
 cd "$(dirname "$0")"
-bazel run --config=xff_full //xff/cli:xff_full -- --markdown >XFF.md
+bazel run --config=xff_docs //xff/cli:xff_full -- --markdown >XFF.md
 echo "Wrote XFF.md"

@@ -55,6 +55,16 @@ common --copt=-fno-exceptions
 # here once #83 wires its backend target.)
 common:xff_full --//xff:xff_pcre=True
 
+# --config=xff_docs : the FULL DOCUMENTED SURFACE - every composable extra on. The committed XFF.md
+# (and the drift guard that checks it) use this, deliberately, so the online reference documents all
+# functionality rather than only what one build happens to link. A reader whose binary lacks an extra
+# is not misled: each such flag's help says so in static text ("a build-time extra ... rebuild with
+# --//xff:xff_<name>"), and `--help=extras` reports what the binary in hand actually has. Only the
+# dynamic "NOT built into this binary" line differs, and that is a property of the binary, not of the
+# feature. Add every new extra here as it lands.
+common:xff_docs --config=xff_full
+common:xff_docs --//xff:xff_archive=True
+
 # Register the hermetic LLVM/clang toolchain ONLY for `--config=clang`. Bazel 9
 # always resolves C++ toolchains, so `--extra_toolchains` (higher priority than
 # the autodetected local toolchain) keeps gcc/native builds on the local compiler.
@@ -123,37 +133,33 @@ common:tsan --test_env=TSAN_OPTIONS=halt_on_error=1:second_deadlock_stack=1:symb
 # so this is a single Linux CI cell.
 #
 # MSan false-positives on anything it did not instrument, so EVERY library linked in must
-# be instrumented. Our deps all build from source under bazel, so the copt below reaches
-# them; the exception is the C++ standard library, which ships prebuilt (uninstrumented)
-# inside the hermetic LLVM distribution. `tools/build_msan_libcxx.sh` builds an instrumented
-# libc++ / libc++abi into .msan-libcxx/, which is consumed as the @msan_libcxx repository
-# (see below). Run that script before using this config.
+# be instrumented. Our deps all build from source under bazel, so `-fsanitize=memory` reaches
+# them for free; the exception is the C++ standard library, which ships PREBUILT (and
+# uninstrumented) inside the hermetic LLVM distribution.
+#
+# That last piece is handled by the TOOLCHAIN, not by us: `--features=msan` is toolchains_llvm's
+# own MemorySanitizer feature (Linux only, >= 1.8.0). It adds `-fsanitize=memory
+# -fsanitize-memory-track-origins -fsanitize-link-c++-runtime` AND swaps the whole standard
+# library over to the instrumented libc++ overlay that `libcxx_url` fetches into the
+# distribution (see bazelmod/llvm.MODULE.bazel) - headers (`-cxx-isystem .../libcxx-msan/...`),
+# archives (`-l:libc++.a -l:libc++abi.a`) and `-stdlib=libc++ -rtlib=compiler-rt` in one step,
+# with the ORDINARY stdlib flags gated off. Gating the ordinary flags off is the part that makes
+# it work: bolting the instrumented tree on as extra include paths (what we tried first) leaves
+# two libc++ trees on the search path and breaks libc++'s `#include_next` C-header shims.
+#
+# A `--features` flag is also the right shape for a sanitizer: bazel resets it to
+# `--host_features` in the exec configuration, so build tools stay uninstrumented.
 common:msan --config=symbolizer
+common:msan --features=msan
 common:msan --copt=-g
-common:msan --copt=-fsanitize=memory
-common:msan --copt=-fsanitize-memory-track-origins=2
 common:msan --copt=-fno-omit-frame-pointer
 common:msan --copt=-DMEMORY_SANITIZER
-common:msan --linkopt=-fsanitize=memory
-# The instrumented libc++ arrives as a DEPENDENCY, not as flags: xff/cc.bzl's wrappers add
-# @msan_libcxx//:libcxx to every cc_* target under --//xff:xff_msan. Its cc_library `includes`
-# emits an execroot-relative -isystem in the ordinary include chain (an absolute one is rejected,
-# and -cxx-isystem breaks libc++'s C-header shims that reach glibc via #include_next), and its
-# `srcs` are the instrumented archives. Run tools/build_msan_libcxx.sh first to populate it.
 # Turns on the `data` select in xff/cc.bzl's cc_binary / cc_test wrappers, which put
 # tools/msan_suppressions.txt into each executable's runfiles. MSan is a RUNTIME sanitizer:
 # it reads the suppression file when the process starts, so a declared runfile is the right
 # shape (inside the sandbox, cache-correct, no per-target boilerplate) - unlike a --copt
 # naming a path bazel knows nothing about. MSAN_OPTIONS below points at the runfiles path.
 common:msan --//xff:xff_msan=true
-# Drop the TOOLCHAIN's libc++ from the include path for our own sources, so only the
-# instrumented tree is seen. Without this both trees are searched: their include guards differ
-# (_LIBCPP_CWCHAR from one, from the other), so libc++'s `using ::wint_t _LIBCPP_USING_IF_EXISTS`
-# is emitted twice and the compile fails with "target of using declaration conflicts with
-# declaration already in scope". Scoped with per_file_copt rather than a blanket --cxxopt because
-# the separate extras modules (xff_extras_api, extra_modules/*) cannot depend on the root module's
-# @msan_libcxx, so a global -nostdinc++ would leave them with no standard library at all.
-common:msan --per_file_copt=^xff/.*@-nostdinc++
 common:msan --build_tag_filters=-no_san  # skip targets tagged no_san
 common:msan --test_tag_filters=-no_san
 # Build ACTIONS that run the instrumented binary (the golden generators, xff_markdown_gen) need the

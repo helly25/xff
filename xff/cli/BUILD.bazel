@@ -313,8 +313,10 @@ cc_test(
     size = "small",
     srcs = ["help_build_test.cc"],
     deps = [
+        ":globals_cc",
         ":help_build_cc",
         ":help_model_cc",
+        "@abseil-cpp//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
