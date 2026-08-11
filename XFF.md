@@ -52,7 +52,6 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-L` - follow symlinks everywhere during the walk _(global, find)_
 - `-P` - never follow symlinks (the default) _(global, find)_
 - `--archive[=none|roots|all], -z[+|-]` - descend into archives: -z- none, -z roots only, -z+ / bare --archive all _(global, xff)_
-  NOT built into this binary: rebuild with `--//xff:xff_archive` (used as-is, it is a hard error).
   One of is one of:
 
   - `none` - an archive is one plain file (find behavior; the find-style default)
@@ -61,10 +60,8 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 
   Treats each archive (tar, gz, bzip2, xz, zstd, lz4, zip, ...) as a directory, so the whole expression - including -grep on entry content - matches its entries at virtual paths like `foo.tar.gz/inner/x`. The three modes are nested: none keeps find's behavior (an archive is one plain file); roots dives only when a search root is itself an archive (pointing xff AT an archive implies looking inside); all also dives archives discovered during the walk. Bare --archive means all, and the short form carries chmod-style suffix signs (-z- none, -z roots, -z+ all). The find style defaults to none, every xff-family style to roots. Members are read-only, so -delete and the exec family refuse them rather than silently skipping. A build-time extra: the stock binary is lean and omits it (rebuild with --//xff:xff_archive); asking for archive handling without it is a hard error.
 - `--archive-separator=STRING` - string between container and member in a member path (default `!`) _(global, xff)_
-  NOT built into this binary: rebuild with `--//xff:xff_archive` (used as-is, it is a hard error).
   A member path is `<container><separator><member>`, and there is no single ecosystem convention - `!` (JAR / Java URLs), `#` (fragment style), and the multi-character `!/` or `#/` other tools print all exist - so this is a presentation choice rather than something hard-coded. ANY string is accepted, not a fixed menu, so xff can emit what another system accepts. Rendering is plain concatenation and xff adds or removes no slash, so a member stored with a leading slash keeps it: `a.tgz!/rooted` (and with `--archive-separator=!/`, the doubled `a.tgz!//rooted`, which is why plain `!` is the better default). Parsing splits at the FIRST occurrence and takes the remainder verbatim, so a path xff printed round-trips. A plain `/` is allowed and composes with globs, but is lossy - a real directory named x.tar becomes indistinguishable from an archive - so it is never the default.
 - `--archive-prefix=[URI|STRING]` - prefix a member path: empty (default), URI, or any literal string _(global, xff)_
-  NOT built into this binary: rebuild with `--//xff:xff_archive` (used as-is, it is a hard error).
   One of is one of:
 
   - `(empty)` - no prefix - a bare path, `a.tgz!inner/x` (the default)
