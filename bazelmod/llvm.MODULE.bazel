@@ -20,15 +20,46 @@
 # macOS + clang-22 + asan works straight from the release.
 bazel_dep(name = "toolchains_llvm", version = "1.8.0")
 
+# The MemorySanitizer-instrumented libc++ (`--config=msan`, Linux only). MSan reports a
+# false positive for every read of memory written by code it did not instrument, and the
+# C++ standard library ships PREBUILT (uninstrumented) inside the LLVM distribution - so
+# it is the one dependency `-fsanitize=memory` cannot reach on its own.
+#
+# toolchains_llvm >= 1.8.0 solves this natively: `libcxx_url` overlays an instrumented
+# libc++ into `libcxx-msan/` next to the regular toolchain, and the `msan` cc_feature
+# (`--features=msan`) swaps the whole standard library over to it - headers, archives and
+# link flags together, with the ordinary stdlib flags gated OFF. That last part is what
+# makes it work at all: our own earlier attempt bolted the instrumented tree on as extra
+# include paths, which left TWO libc++ trees on the search path and broke `#include_next`.
+# There is no need to build the runtimes ourselves any more.
+#
+# LLVM publishes no instrumented libc++, so the overlay comes from the same third-party build that
+# `toolchains_llvm`'s own end-to-end MSan test uses. If that host ever goes away, the fallback is to
+# build the runtimes once per LLVM release (cmake on `llvm-project/runtimes` with
+# `-DLLVM_USE_SANITIZER=MemoryWithOrigins`, per the MemorySanitizerLibcxxHowTo) and publish the
+# resulting `include/` + `lib/` tree as a release asset of our own: the overlay is 3.9 MB and the
+# attribute takes any URL.
+#
+# The URL takes its version from LLVM_VERSION rather than spelling one of its own, because the
+# instrumented libc++ and the clang that compiles against it MUST be the same LLVM release. A
+# version bump is therefore: LLVM_VERSION, `libcxx_sha256`, and the four distribution checksums,
+# all together.
+MSAN_LIBCXX_URL = "https://github.com/RealtimeRoboticsGroup/toolchains/releases/download/{v}/libcxx-msan-{v}-x86_64-linux-gnu-ubuntu-22.04.tar.zst"
+
+# clang-22 is the minimum (and only) supported toolchain rung.
+LLVM_VERSION = "22.1.8"
+
 llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm", dev_dependency = True)
 llvm.toolchain(
     name = "llvm_toolchain_llvm",
-    llvm_version = "22.1.7",  # clang-22 is the minimum (and only) supported toolchain rung.
+    libcxx_sha256 = "fd1ac49eeda4edc6deeda2037998e558718a63a5054fff4fdace7751b270217a",
+    libcxx_url = MSAN_LIBCXX_URL.format(v = LLVM_VERSION),
+    llvm_version = LLVM_VERSION,
     extra_llvm_distributions = {
-        "LLVM-22.1.7-Linux-ARM64.tar.xz": "118ca2d3ad9da34367e05735317854e7977db45dc4c02a32af58da64c23b8789",
-        "LLVM-22.1.7-Linux-X64.tar.xz": "edb0522b41e261819c06ea437d249f9b8acfa413d3805bc9920eec6fb76ff830",
-        "LLVM-22.1.7-macOS-ARM64.tar.xz": "4177245188b0a30a6539c96b361dea56f253485756bfd8927a6a59e7301e7806",
-        "clang+llvm-22.1.7-aarch64-pc-windows-msvc.tar.xz": "9957fee5aeba5f88369c37e127a07034eaa806c2e9e996b14ce5a32a9320653f",
+        "LLVM-22.1.8-Linux-ARM64.tar.xz": "805efad2bb91cb4967fa569e0881d10c0f69c04461cf671cccbae19f547acc34",
+        "LLVM-22.1.8-Linux-X64.tar.xz": "df0e1ecf16caf3489a272a5eea4eec9b0d82878f6477fa309504f918a0006384",
+        "LLVM-22.1.8-macOS-ARM64.tar.xz": "f260f4f7c0d430828a81ae8a3826a1d63fc0963ec2459489308cc23b1f7eab4f",
+        "clang+llvm-22.1.8-aarch64-pc-windows-msvc.tar.xz": "de718c58ebbc5f61d58c17b90457fcf42983bc2c4a4aba3e010d108713bfd7f1",
     },
 )
 use_repo(llvm, "llvm_toolchain_llvm")

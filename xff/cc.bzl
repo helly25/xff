@@ -38,20 +38,17 @@ What the wrappers do:
 * `cc_library` is a plain PASSTHROUGH. A library has no runfiles and starts no process, so
   there is nothing to give it - it exists so that every BUILD file has ONE load site for
   cc rules, which is what lets the hook forbid the raw ones outright.
+
+Note what these wrappers deliberately do NOT do: swap in the MSan-instrumented C++ standard
+library. That is the TOOLCHAIN's job, via toolchains_llvm's `--features=msan` and the
+`libcxx_url` overlay (see `.bazelrc` and `bazelmod/llvm.MODULE.bazel`). An earlier version of
+this file added the instrumented libc++ to every target's `deps`, which cannot work: a dep's
+include path is additive, so the toolchain's own libc++ stays on the search path alongside it.
 """
 
 load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_library = "cc_library", _cc_test = "cc_test")
 
 _SUPPRESSIONS = "//tools:msan_suppressions"
-
-# The MSan-instrumented libc++ (tools/build_msan_libcxx.sh -> .msan-libcxx, exposed as a
-# repository). Depending on it is how the instrumented standard library actually gets used:
-# its `includes` emits an execroot-relative -isystem in the ORDINARY include chain, which is
-# what libc++'s C-header shims need (they reach glibc via #include_next), and its `srcs` are
-# the instrumented archives. Naming the directory in copts/linkopts instead failed three
-# different ways - unexpanded %workspace%, "outside of the execution root", and broken
-# #include_next - all recorded in TODO.md.
-_LIBCXX = "@msan_libcxx//:libcxx"
 
 _MSAN = "//xff:xff_msan_enabled"
 
@@ -65,41 +62,27 @@ def _suppressions_data():
         "//conditions:default": [],
     })
 
-def _libcxx_deps():
-    return select({
-        _MSAN: [_LIBCXX],
-        "//conditions:default": [],
-    })
-
-def cc_binary(name, data = [], tags = [], deps = [], **kwargs):
-    """`cc_binary`: MSan suppression file in runfiles, instrumented libc++ in deps."""
+def cc_binary(name, data = [], tags = [], **kwargs):
+    """`cc_binary` carrying the MSan suppression file in its runfiles."""
     _cc_binary(
         name = name,
         data = data + _suppressions_data(),
-        deps = deps + _libcxx_deps(),
         tags = tags + [_MSAN_TAG],
         **kwargs
     )
 
-def cc_test(name, data = [], tags = [], deps = [], **kwargs):
-    """`cc_test`: MSan suppression file in runfiles, instrumented libc++ in deps."""
+def cc_test(name, data = [], tags = [], **kwargs):
+    """`cc_test` carrying the MSan suppression file in its runfiles."""
     _cc_test(
         name = name,
         data = data + _suppressions_data(),
-        deps = deps + _libcxx_deps(),
         tags = tags + [_MSAN_TAG],
         **kwargs
     )
 
-def cc_library(name, deps = [], **kwargs):
-    """`cc_library` compiled against the instrumented libc++ under --config=msan.
-
-    A library has no runfiles and starts no process, so it gets no suppression file - but its
-    translation units are where most of our code is compiled, so it does need the instrumented
-    standard library's headers, which arrive through this dep.
-    """
+def cc_library(name, **kwargs):
+    """`cc_library`: a passthrough, so every BUILD file has ONE load site for cc rules."""
     _cc_library(
         name = name,
-        deps = deps + _libcxx_deps(),
         **kwargs
     )

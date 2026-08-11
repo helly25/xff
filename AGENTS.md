@@ -7,7 +7,8 @@ The full **C++ coding style** is [`STYLE_CPP.md`](STYLE_CPP.md); project-level r
 [`RULES.md`](RULES.md); the contribution flow is [`CONTRIBUTING.md`](CONTRIBUTING.md). The
 GoogleTest section below is the quick reference; `STYLE_CPP.md` is canonical.
 
-Build & test: `bazel test //...` · sanitizers: `bazel test //... --config=clang --config=asan`.
+Build & test: `bazel test //...` · sanitizers: `bazel test //... --config=clang --config=asan`
+(also `--config=tsan`, and `--config=msan` on Linux).
 Toolchain: clang-22 minimum (hermetic LLVM under `--config=clang`).
 
 ## Writing tests (GoogleTest)

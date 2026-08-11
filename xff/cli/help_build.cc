@@ -138,11 +138,13 @@ std::string_view ValueLabel(std::string_view display) {
 // its detail blocks enriched with a "not built into this binary" note when its build
 // extra is absent and the Affects / Affected-by influence blocks. `with_details` is
 // false for the terse usage page (summary + tags only).
-Content FlagEntry(const GlobalFlag& flag, bool with_details = true) {
+Content FlagEntry(const GlobalFlag& flag, bool with_details = true, Audience audience = Audience::kThisBinary) {
   Blocks details;
   // The not-built note shows even on the terse usage page: a flag whose build extra is
-  // absent is a hard error if used, so the reader must see it up front.
-  if (!flag.extra.empty() && !ExtraEnabled(flag.extra)) {
+  // absent is a hard error if used, so the reader must see it up front. It is OMITTED for a
+  // published reference, which documents the tool rather than whichever binary generated it -
+  // the flag's own details still say it is a build extra and name the flag to rebuild with.
+  if (audience == Audience::kThisBinary && !flag.extra.empty() && !ExtraEnabled(flag.extra)) {
     details.push_back(ProseOf(
         absl::StrCat(
             "NOT built into this binary: rebuild with `", ExtraBuildFlag(flag.extra),
@@ -520,8 +522,9 @@ Section DescriptionSection() {
 }
 
 // OPTIONS: the whole-run flags grouped by header. `with_details` false yields the terse
-// usage-page form (summary + tags only).
-Section OptionsSection(bool with_details) {
+// usage-page form (summary + tags only). `audience` decides whether a flag whose build extra is
+// missing carries the per-binary "NOT built into this binary" note.
+Section OptionsSection(bool with_details, Audience audience = Audience::kThisBinary) {
   Section options{.title = "Options"};
   std::string_view group;
   Subsection current;
@@ -535,7 +538,7 @@ Section OptionsSection(bool with_details) {
       current = Subsection{.title = std::string(flag.header)};
       have_current = true;
     }
-    current.children.push_back(FlagEntry(flag, with_details));
+    current.children.push_back(FlagEntry(flag, with_details, audience));
   }
   if (have_current) {
     options.children.push_back(Content{.node = std::move(current)});
@@ -705,7 +708,7 @@ std::optional<Document> EntryReference(std::string_view name) {
   return doc;
 }
 
-Document BuildReference() {
+Document BuildReference(Audience audience) {
   Document doc{
       .name = "xff",
       .tagline = "eXtended File Find, a find(1)-compatible file finder with modern extensions",
@@ -714,7 +717,7 @@ Document BuildReference() {
 
   doc.sections.push_back(DescriptionSection());
   doc.sections.push_back(ConfigSection(/*in_full=*/true));
-  doc.sections.push_back(OptionsSection(/*with_details=*/true));
+  doc.sections.push_back(OptionsSection(/*with_details=*/true, audience));
   doc.sections.push_back(ExpressionSection(/*with_details=*/true));
 
   doc.sections.push_back(BuildFields());
