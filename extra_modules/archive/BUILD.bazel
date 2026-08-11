@@ -59,3 +59,44 @@ cc_test(
         "@xff_extras_api//:license_notice_cc",
     ],
 )
+
+# The VFS backend: presents ONE archive as a read-only filesystem, so the whole expression grammar
+# matches its members at virtual paths. Implements @xff_extras_api's seam (never the xff core), and
+# spells member paths through member_path_cc so --archive-separator / --archive-prefix apply.
+cc_library(
+    name = "archive_fs_cc",
+    srcs = ["archive_fs.cc"],
+    hdrs = ["archive_fs.h"],
+    include_prefix = "xff/archive",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":archive_reader_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/time",
+        "@xff_extras_api//:member_path_cc",
+        "@xff_extras_api//:vfs_cc",
+    ],
+)
+
+# Round-trips a real tar through the backend: the test WRITES an archive with libarchive (including
+# a nested member whose parent directories are NOT stored), then walks it through the seam. That is
+# what proves the decisions hold - synthesized parents, read-only + kArchiveMember tagging, a
+# refusing Remove, and ReadContent reporting Unimplemented rather than an empty string.
+cc_test(
+    name = "archive_fs_test",
+    size = "small",
+    srcs = ["archive_fs_test.cc"],
+    deps = [
+        ":archive_fs_cc",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+        "@libarchive//libarchive",
+        "@xff_extras_api//:member_path_cc",
+        "@xff_extras_api//:vfs_cc",
+    ],
+)
