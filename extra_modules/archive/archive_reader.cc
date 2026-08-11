@@ -30,6 +30,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "xff/archive/member_path.h"
 #include "xff/license/notice.h"
 
 namespace xff::archive {
@@ -144,22 +145,7 @@ absl::StatusOr<std::vector<Member>> ListMembersOfFile(std::string_view path) {
   return ReadMembers(handle.get());
 }
 
-namespace {
-
-// The member name in comparable form. Tar writes the SAME member several ways: `dir/x` and `./dir/x`
-// for a file, and a directory as `dir/` with a trailing slash - so a lookup for `dir` must find it
-// (and then be told it has no content, rather than "no such member").
-std::string_view NormalizedMemberName(std::string_view path) {
-  while (path.starts_with("./")) {
-    path.remove_prefix(2);
-  }
-  while (path.size() > 1 && path.ends_with('/')) {
-    path.remove_suffix(1);
-  }
-  return path;
-}
-
-}  // namespace
+namespace {}  // namespace
 
 absl::StatusOr<std::string> ReadMemberOfFile(std::string_view path, std::string_view member, std::uint64_t max_bytes) {
   const ArchivePtr handle = NewReader();
@@ -170,7 +156,7 @@ absl::StatusOr<std::string> ReadMemberOfFile(std::string_view path, std::string_
   if (::archive_read_open_filename(handle.get(), path_string.c_str(), kBlockSize) != ARCHIVE_OK) {
     return absl::InvalidArgumentError(absl::StrCat("not a readable archive: ", LastError(handle.get())));
   }
-  const std::string_view wanted = NormalizedMemberName(member);
+  const std::string_view wanted = NormalizeMemberName(member);
   struct ::archive_entry* entry = nullptr;
   while (true) {
     const int status = ::archive_read_next_header(handle.get(), &entry);
@@ -181,7 +167,7 @@ absl::StatusOr<std::string> ReadMemberOfFile(std::string_view path, std::string_
       return absl::DataLossError(absl::StrCat("archive read failed: ", LastError(handle.get())));
     }
     const char* const stored = ::archive_entry_pathname(entry);
-    if (stored == nullptr || NormalizedMemberName(stored) != wanted) {
+    if (stored == nullptr || NormalizeMemberName(stored) != wanted) {
       continue;  // not this one; libarchive skips its data on the next header read
     }
     if (::archive_entry_filetype(entry) != AE_IFREG) {

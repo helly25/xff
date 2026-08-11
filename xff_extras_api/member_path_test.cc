@@ -194,5 +194,23 @@ TEST_F(MemberPathTest, AUriRoundTripsToo) {
   EXPECT_THAT(SplitMemberPath(joined, options), Optional(PartsAre("/abs/a.tar", "/inner/x")));
 }
 
+TEST_F(MemberPathTest, NormalizeMemberNameStripsTheSpellingsAContainerVaries) {
+  // The three shapes one member can arrive in, from a tar / phar or from a user.
+  EXPECT_THAT(NormalizeMemberName("dir/x"), "dir/x");
+  EXPECT_THAT(NormalizeMemberName("./dir/x"), "dir/x");
+  EXPECT_THAT(NormalizeMemberName(".././dir/x"), ".././dir/x");  // only a LEADING `./` is noise
+  EXPECT_THAT(NormalizeMemberName("././dir/x"), "dir/x");
+  EXPECT_THAT(NormalizeMemberName("dir/"), "dir");
+  EXPECT_THAT(NormalizeMemberName("dir///"), "dir");
+  EXPECT_THAT(NormalizeMemberName("./dir/"), "dir");
+}
+
+TEST_F(MemberPathTest, NormalizeMemberNameLeavesRootAndEmptyAlone) {
+  // Reducing `/` to the empty name would turn "the root of the container" into "no member at all".
+  EXPECT_THAT(NormalizeMemberName("/"), "/");
+  EXPECT_THAT(NormalizeMemberName(""), "");
+  EXPECT_THAT(NormalizeMemberName("/abs/x"), "/abs/x");
+}
+
 }  // namespace
 }  // namespace xff::archive
