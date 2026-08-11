@@ -72,6 +72,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":archive_reader_cc",
+        "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
@@ -91,6 +92,7 @@ cc_test(
     srcs = ["archive_fs_test.cc"],
     deps = [
         ":archive_fs_cc",
+        "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest",

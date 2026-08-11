@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/hash/hash.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -65,6 +66,17 @@ vfs::Metadata DirectoryMetadata() {
   };
 }
 
+// A synthetic device id for one container, so that every member of it shares a device and members of
+// two containers do not. Derived from the container path rather than counted, so the value is stable
+// across runs (a walk that prints it, or compares it between invocations, sees no churn).
+//
+// The high bit is set to keep it clear of real device numbers, which are small: a member must never
+// compare equal to a file on a real filesystem.
+std::uint64_t SyntheticDevice(std::string_view container) {
+  constexpr std::uint64_t kVirtualDeviceBit = std::uint64_t{1} << 63U;
+  return kVirtualDeviceBit | absl::HashOf(container);
+}
+
 }  // namespace
 
 absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::Open(std::string_view container, MemberPathOptions options) {
@@ -75,6 +87,13 @@ absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::Open(std::string_view conta
     return members.status();
   }
   ArchiveFileSystem fs(std::string(container), options);
+  const std::uint64_t device = SyntheticDevice(container);
+  // Inode numbers are handed out in index order, starting at 1 so that 0 stays "unset". They have to
+  // be DISTINCT per member: the walk's loop detector keys on (dev, ino) and reports "filesystem loop
+  // detected" the second time it sees a pair, so members all reporting {0, 0} would make the second
+  // directory in any archive look like a cycle. Synthesizing them also makes `-xdev` do the right
+  // thing - one device per container, so a walk that started on a real filesystem stops at it.
+  std::uint64_t next_ino = 1;
   for (const Member& member : *members) {
     const bool is_dir = member.path.ends_with('/') || member.is_directory;
     const std::string key = IndexKey(member.path);
@@ -89,6 +108,9 @@ absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::Open(std::string_view conta
     node.metadata.size = static_cast<std::uint64_t>(member.size < 0 ? 0 : member.size);
     node.metadata.mode = member.mode != 0 ? member.mode : (is_dir ? 0555U : 0444U);
     node.metadata.mtime = absl::FromUnixSeconds(member.mtime);
+    node.metadata.dev = device;
+    node.metadata.ino = next_ino++;
+    node.metadata.nlink = 1;
     node.link_target = member.link_target;
     fs.nodes_[key] = std::move(node);
 
@@ -99,7 +121,11 @@ absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::Open(std::string_view conta
       if (fs.nodes_.contains(parent_key)) {
         break;  // this ancestor exists, so all further ancestors do too
       }
-      fs.nodes_[parent_key] = Node{.metadata = DirectoryMetadata(), .synthesized = true};
+      Node parent_node{.metadata = DirectoryMetadata(), .synthesized = true};
+      parent_node.metadata.dev = device;
+      parent_node.metadata.ino = next_ino++;
+      parent_node.metadata.nlink = 1;
+      fs.nodes_[parent_key] = std::move(parent_node);
     }
   }
   return fs;

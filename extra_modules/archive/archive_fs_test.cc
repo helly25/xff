@@ -15,12 +15,14 @@
 
 #include "xff/archive/archive_fs.h"
 
+#include <array>
 #include <cstdlib>
 #include <fstream>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
@@ -39,9 +41,12 @@ namespace {
 using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
+using ::testing::Eq;
 using ::testing::Field;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
+using ::testing::Ne;
+using ::testing::SizeIs;
 using ::testing::UnorderedElementsAre;
 
 // Writes a tar whose directories are DELIBERATELY not stored: only `dir/sub/deep.txt` and
@@ -240,6 +245,45 @@ TEST_F(ArchiveFsTest, AMissingMemberIsNotFoundNotAnEmptyListing) {
   EXPECT_THAT(fs.ReadDir(JoinMemberPath(*tar_, "nope")), StatusIs(absl::StatusCode::kNotFound));
   // A file is not a directory, and saying so beats returning nothing.
   EXPECT_THAT(fs.ReadDir(JoinMemberPath(*tar_, "top.txt")), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+// The fixture's members, stored and synthesized alike - every one must carry an identity.
+constexpr std::array kIdentifiedMembers = std::to_array<std::string_view>({
+    "dir",
+    "dir/sub",
+    "dir/sub/deep.txt",
+    "top.txt",
+});
+
+TEST_F(ArchiveFsTest, EveryMemberGetsItsOwnInodeOnOneSyntheticDevice) {
+  // Not cosmetic: the walk's loop detector keys on (dev, ino) and reports "filesystem loop detected"
+  // the second time it meets a pair, so members all reporting {0, 0} would make the second directory
+  // in any archive look like a cycle. One device per container also makes `-xdev` stop AT the
+  // container, which is what a walk that started on a real filesystem should see.
+  const ArchiveFileSystem fs = Fs();
+  absl::flat_hash_set<std::uint64_t> inodes;
+  absl::flat_hash_set<std::uint64_t> devices;
+  for (const std::string_view member : kIdentifiedMembers) {
+    const absl::StatusOr<vfs::Metadata> metadata = fs.Stat(absl::StrCat(*tar_, "!", member), false);
+    ASSERT_THAT(metadata, IsOk()) << member;
+    EXPECT_THAT(metadata->ino, Ne(0U)) << member << " has no inode";
+    EXPECT_THAT(inodes.insert(metadata->ino).second, IsTrue()) << member << " reuses inode " << metadata->ino;
+    devices.insert(metadata->dev);
+  }
+  // One container is one device, and it must not collide with a real filesystem's - hence the top
+  // bit, which real device numbers never carry.
+  ASSERT_THAT(devices, SizeIs(1));
+  EXPECT_THAT(*devices.begin() >> 63U, Eq(1U));
+}
+
+TEST_F(ArchiveFsTest, ASynthesizedParentIsIdentifiedToo) {
+  // `dir` and `dir/sub` are NOT stored in the fixture tar - they are synthesized. A synthesized node
+  // with no identity would defeat the loop detector just as thoroughly as a stored one.
+  const ArchiveFileSystem fs = Fs();
+  const absl::StatusOr<vfs::Metadata> parent = fs.Stat(absl::StrCat(*tar_, "!dir"), false);
+  ASSERT_THAT(parent, IsOk());
+  EXPECT_THAT(parent->ino, Ne(0U));
+  EXPECT_THAT(parent->nlink, Eq(1U));
 }
 
 }  // namespace
