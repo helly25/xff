@@ -1,0 +1,78 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef XFF_ARCHIVE_ARCHIVE_BACKEND_H_
+#define XFF_ARCHIVE_ARCHIVE_BACKEND_H_
+
+// The seam through which the core opens an archive container, without depending on the extra that
+// can do it.
+//
+// Same shape as the PCRE2 backend slot next door (`RegisterPcre2Backend` / `Pcre2Available`), and for
+// the same reason: the archive reader lives in a REMOVABLE module (`extra_modules/archive`), so the
+// core cannot name it. The extra self-registers an opener at static init; a build without the extra
+// registers nothing, `ContainerSupportAvailable()` answers false, and `--archive` can then say "this
+// binary was not built with it" instead of failing obscurely somewhere in the walk.
+//
+// The opener yields a `vfs::FileSystem` over ONE container, which is what lets the walk treat members
+// as ordinary entries: the whole predicate and action vocabulary works on them unchanged, and nothing
+// in the engine needs to know a container is involved beyond deciding to mount one.
+
+#include <memory>
+#include <string_view>
+
+#include "absl/functional/any_invocable.h"
+#include "absl/status/statusor.h"
+#include "xff/archive/member_path.h"
+#include "xff/vfs/filesystem.h"
+
+namespace xff::archive {
+
+// Opens `container` (a real filesystem path) as a read-only filesystem over its members. `options`
+// carries the member-path spelling (`--archive-separator` / `--archive-prefix`) so rendered paths
+// round-trip through the same flags the user set.
+//
+// Must return InvalidArgumentError when the file is not an archive it can open, and DataLossError when
+// it opens but is corrupt: the walk treats the first as an ordinary file and only reports the second,
+// so collapsing them would turn every non-archive into an error.
+using ContainerOpener =
+    absl::AnyInvocable<absl::StatusOr<std::unique_ptr<vfs::FileSystem>>(std::string_view, MemberPathOptions) const>;
+
+// Registers the process-wide container opener. Called once, at static init, from the real backend's
+// TU - see ContainerRegistrar. A second registration replaces the first, which keeps a test able to
+// install a stub.
+void RegisterContainerOpener(ContainerOpener opener);
+
+// Self-registers `opener` on construction. Declare one at namespace scope in the backend's TU, in a
+// target marked `alwayslink` so the linker cannot drop it:
+//
+//   const xff::archive::ContainerRegistrar kRegisterArchive{&OpenArchiveContainer};
+struct ContainerRegistrar {
+  explicit ContainerRegistrar(ContainerOpener opener) { RegisterContainerOpener(std::move(opener)); }
+};
+
+// Whether this binary has an archive backend linked at all. False in the lean build, where the
+// `--archive` surface still exists (it is always documented) but cannot do anything.
+[[nodiscard]] bool ContainerSupportAvailable();
+
+// Opens `container` through the registered backend. Returns UnimplementedError when no backend is
+// linked, so a caller that skipped ContainerSupportAvailable() still gets a clear answer rather than
+// a crash.
+[[nodiscard]] absl::StatusOr<std::unique_ptr<vfs::FileSystem>> OpenContainer(
+    std::string_view container,
+    MemberPathOptions options = {});
+
+}  // namespace xff::archive
+
+#endif  // XFF_ARCHIVE_ARCHIVE_BACKEND_H_
