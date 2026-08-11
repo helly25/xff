@@ -132,6 +132,16 @@ struct MemberPathParts {
 // True when `path` spells a member path under `options` (i.e. SplitMemberPath would succeed).
 [[nodiscard]] bool IsMemberPath(std::string_view path, const MemberPathOptions& options = {});
 
+// A MEMBER NAME (the part after the separator) in comparable form: without any leading `./` and
+// without a trailing `/`. Containers spell the same member several ways, so neither the stored name
+// nor the name a user typed can be authoritative - a reader has to normalize both sides before
+// comparing them:
+//   - tar writes both `dir/x` and `./dir/x` for one member, depending on how it was created;
+//   - a DIRECTORY member is spelled `dir/` in tar and phar alike, so a lookup for `dir` must find
+//     it, and then report that it has no content rather than that it does not exist.
+// Root (`/`) is left alone rather than reduced to the empty name.
+[[nodiscard]] std::string_view NormalizeMemberName(std::string_view member);
+
 }  // namespace xff::archive
 
 #endif  // XFF_ARCHIVE_MEMBER_PATH_H_

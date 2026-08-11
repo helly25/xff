@@ -59,3 +59,41 @@ cc_test(
         "@xff_extras_api//:license_notice_cc",
     ],
 )
+
+# PHP's NATIVE phar format, which libarchive does not read at all: a PHP stub ending in
+# `__HALT_COMPILER();` followed by a binary manifest and the member data. Same `Member` shape as the
+# libarchive reader, so the VFS backend and the walk stay format-agnostic. The tar- and zip-based
+# phar variants need nothing here - they are ordinary tars / zips for `:archive_reader_cc`.
+cc_library(
+    name = "phar_reader_cc",
+    srcs = ["phar_reader.cc"],
+    hdrs = ["phar_reader.h"],
+    include_prefix = "xff/archive",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":archive_reader_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@xff_extras_api//:member_path_cc",
+    ],
+)
+
+# There is no phar WRITER to lean on, so the test builds containers byte by byte: the fixture is the
+# format specification, and every field offset the reader relies on is pinned by a case that would
+# read garbage if it were wrong (a non-empty alias, a second member's data offset, a lying member
+# count).
+cc_test(
+    name = "phar_reader_test",
+    size = "small",
+    srcs = ["phar_reader_test.cc"],
+    deps = [
+        ":archive_reader_cc",
+        ":phar_reader_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)

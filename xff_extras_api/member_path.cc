@@ -127,4 +127,14 @@ bool IsMemberPath(std::string_view path, const MemberPathOptions& options) {
   return SplitMemberPath(path, options).has_value();
 }
 
+std::string_view NormalizeMemberName(std::string_view member) {
+  while (member.starts_with("./")) {
+    member.remove_prefix(2);
+  }
+  while (member.size() > 1 && member.ends_with('/')) {
+    member.remove_suffix(1);
+  }
+  return member;
+}
+
 }  // namespace xff::archive
