@@ -1,0 +1,227 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "xff/archive/archive_fs.h"
+
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
+#include "absl/time/time.h"
+#include "xff/archive/archive_reader.h"
+#include "xff/archive/member_path.h"
+#include "xff/vfs/entry.h"
+
+namespace xff::archive {
+namespace {
+
+// A stored member path, normalized for indexing: no leading "./", no trailing slash. The trailing
+// slash is how tar marks a directory, so it is information - the caller records the type before
+// stripping it, and an ABSOLUTE member keeps its leading slash (see member_path.h: hiding it would
+// hide the Zip-Slip red flag).
+std::string IndexKey(std::string_view stored) {
+  std::string_view key = stored;
+  while (key.starts_with("./")) {
+    key.remove_prefix(2);
+  }
+  while (key.size() > 1 && key.ends_with('/')) {
+    key.remove_suffix(1);
+  }
+  return std::string(key);
+}
+
+std::string_view ParentOf(std::string_view key) {
+  const std::string_view::size_type slash = key.rfind('/');
+  return slash == std::string_view::npos ? std::string_view{} : key.substr(0, slash);
+}
+
+std::string_view NameOf(std::string_view key) {
+  const std::string_view::size_type slash = key.rfind('/');
+  return slash == std::string_view::npos ? key : key.substr(slash + 1);
+}
+
+vfs::Metadata DirectoryMetadata() {
+  return vfs::Metadata{
+      .type = vfs::FileType::kDirectory,
+      // 0555: readable and traversable, never writable - members cannot be modified.
+      .mode = 0555,
+  };
+}
+
+}  // namespace
+
+absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::Open(std::string_view container, MemberPathOptions options) {
+  absl::StatusOr<std::vector<Member>> members = ListMembersOfFile(container);
+  if (!members.ok()) {
+    // Passed through unchanged: "not a readable archive" and "corrupt archive" are different
+    // answers and the caller decides what to do with each.
+    return members.status();
+  }
+  ArchiveFileSystem fs(std::string(container), options);
+  for (const Member& member : *members) {
+    const bool is_dir = member.path.ends_with('/') || member.is_directory;
+    const std::string key = IndexKey(member.path);
+    if (key.empty()) {
+      continue;  // the archive's own root, which the container path already names
+    }
+    Node node;
+    // The reader reports the type explicitly, so trust it rather than inferring from link_target.
+    node.metadata.type = is_dir              ? vfs::FileType::kDirectory
+                         : member.is_symlink ? vfs::FileType::kSymlink
+                                             : vfs::FileType::kRegular;
+    node.metadata.size = static_cast<std::uint64_t>(member.size < 0 ? 0 : member.size);
+    node.metadata.mode = member.mode != 0 ? member.mode : (is_dir ? 0555U : 0444U);
+    node.metadata.mtime = absl::FromUnixSeconds(member.mtime);
+    node.link_target = member.link_target;
+    fs.nodes_[key] = std::move(node);
+
+    // Synthesize every missing ancestor: tar streams routinely omit directory entries, and a walk
+    // that trusted the stored list would never descend into them.
+    for (std::string_view parent = ParentOf(key); !parent.empty(); parent = ParentOf(parent)) {
+      const std::string parent_key(parent);
+      if (fs.nodes_.contains(parent_key)) {
+        break;  // this ancestor exists, so all further ancestors do too
+      }
+      fs.nodes_[parent_key] = Node{.metadata = DirectoryMetadata(), .synthesized = true};
+    }
+  }
+  return fs;
+}
+
+std::optional<std::string> ArchiveFileSystem::MemberKeyOf(std::string_view path) const {
+  if (path == container_) {
+    return std::string{};  // the container itself: the archive's root directory
+  }
+  const std::optional<MemberPathParts> parts = SplitMemberPath(path, options_);
+  if (!parts.has_value() || parts->container != container_) {
+    return std::nullopt;
+  }
+  return IndexKey(parts->member);
+}
+
+absl::StatusOr<std::vector<vfs::Entry>> ArchiveFileSystem::ReadDir(std::string_view dir) const {
+  const std::optional<std::string> key = MemberKeyOf(dir);
+  if (!key.has_value()) {
+    return absl::InvalidArgumentError(absl::StrCat("not a path in ", container_, ": ", dir));
+  }
+  if (!key->empty()) {
+    const auto found = nodes_.find(*key);
+    if (found == nodes_.end()) {
+      return absl::NotFoundError(absl::StrCat("no such member: ", *key));
+    }
+    if (found->second.metadata.type != vfs::FileType::kDirectory) {
+      return absl::InvalidArgumentError(absl::StrCat("not a directory: ", *key));
+    }
+  }
+  std::vector<vfs::Entry> entries;
+  for (const auto& [member_key, node] : nodes_) {
+    if (ParentOf(member_key) != *key) {
+      continue;  // only direct children; the walk recurses for the rest
+    }
+    entries.push_back(
+        vfs::Entry{
+            .path = JoinMemberPath(container_, member_key, options_),
+            .name = std::string(NameOf(member_key)),
+            .type = node.metadata.type,
+            // Both fields matter downstream: kArchiveMember tags the origin, and read_only is what
+            // makes -delete and the exec family refuse rather than silently skip.
+            .source = vfs::Source::kArchiveMember,
+            .read_only = true,
+        });
+  }
+  return entries;
+}
+
+absl::StatusOr<vfs::Metadata> ArchiveFileSystem::Stat(std::string_view path, bool /*follow_symlinks*/) const {
+  const std::optional<std::string> key = MemberKeyOf(path);
+  if (!key.has_value()) {
+    return absl::InvalidArgumentError(absl::StrCat("not a path in ", container_, ": ", path));
+  }
+  if (key->empty()) {
+    // The container presents as a directory here so a walk can enter it. Its real-filesystem
+    // identity (size, mode, times of the archive FILE) comes from the local backend, not this one.
+    return DirectoryMetadata();
+  }
+  const auto found = nodes_.find(*key);
+  if (found == nodes_.end()) {
+    return absl::NotFoundError(absl::StrCat("no such member: ", *key));
+  }
+  return found->second.metadata;
+}
+
+absl::Status ArchiveFileSystem::Remove(std::string_view path) const {
+  // A refusal, never a silent success: an archive member cannot be deleted in place, and reporting
+  // success would make `-delete` look like it worked.
+  return absl::PermissionDeniedError(absl::StrCat("archive members are read-only, cannot remove: ", path));
+}
+
+bool ArchiveFileSystem::Access(std::string_view path, vfs::AccessMode mode) const {
+  if (mode == vfs::AccessMode::kWrite) {
+    return false;  // read-only, unconditionally
+  }
+  const std::optional<std::string> key = MemberKeyOf(path);
+  if (!key.has_value()) {
+    return false;
+  }
+  if (key->empty()) {
+    return true;  // the archive root is readable and traversable
+  }
+  const auto found = nodes_.find(*key);
+  if (found == nodes_.end()) {
+    return false;
+  }
+  const std::uint32_t bits = found->second.metadata.mode;
+  // Any of user/group/other suffices: xff reports what the archive stored, and a member has no
+  // meaningful owner on the reading machine.
+  return mode == vfs::AccessMode::kRead ? (bits & 0444U) != 0 : (bits & 0111U) != 0;
+}
+
+absl::StatusOr<std::string> ArchiveFileSystem::ReadLink(std::string_view path) const {
+  const std::optional<std::string> key = MemberKeyOf(path);
+  if (!key.has_value() || key->empty()) {
+    return absl::InvalidArgumentError(absl::StrCat("not a member path: ", path));
+  }
+  const auto found = nodes_.find(*key);
+  if (found == nodes_.end()) {
+    return absl::NotFoundError(absl::StrCat("no such member: ", *key));
+  }
+  if (found->second.metadata.type != vfs::FileType::kSymlink) {
+    return absl::InvalidArgumentError(absl::StrCat("not a symlink: ", *key));
+  }
+  return found->second.link_target;
+}
+
+absl::StatusOr<std::string> ArchiveFileSystem::FsType(std::string_view /*path*/) const {
+  return std::string("archive");
+}
+
+absl::StatusOr<bool> ArchiveFileSystem::IsCaseSensitive(std::string_view /*path*/) const {
+  // Stored member names are bytes, compared byte-wise, whatever the host filesystem does.
+  return true;
+}
+
+absl::StatusOr<std::string> ArchiveFileSystem::ReadContent(std::string_view path) const {
+  // Deliberate in this slice: the reader lists members but does not extract data. An explicit
+  // Unimplemented keeps a content predicate (-grep / -content / {hash}) from silently matching
+  // nothing, which is what returning an empty string would do.
+  return absl::UnimplementedError(absl::StrCat("reading archive member content is not implemented yet: ", path));
+}
+
+}  // namespace xff::archive
