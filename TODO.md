@@ -557,130 +557,95 @@ remains below is the design-forked / larger work.
     only from a trusted tier (CLI, or user/system config via `ArmedFromTrustedTier`) - never from
     an `--xffrc` file itself - and the system `[policy]` can still hard-deny an armed line.
 
-- **Archive diving (#83, `--archive`): use libarchive - decided 2026-07-06.** Descend into archives
-  and match/list their entries as virtual paths (`foo.tar.gz/inner/file.txt`) via a read-only
-  `vfs::FileSystem` backend, so the whole predicate/action set (incl. `-grep` on entry content)
-  works unchanged. Engine = **libarchive** via its BCR module
-  (`bazel_dep(name = "libarchive", version = "3.8.1.bcr.2")`) - a clean first-class dep (no
-  vendoring / rules_foreign_cc), less code than hand-rolling, covers tar/zip/cpio/ar/iso + the
-  gz/bz2/xz/zstd/lz4 filters behind one streaming API. Detect by extension + magic under `--archive`.
-  - **Two build variants planned:** _minimal_ (tar + gz + bz2; disable xz/zstd/lz4/mbedtls at the
-    libarchive build config) and _extended_ (add xz/zstd/zip/...). The license/NOTICE footprint
+- **Archive diving (#83, `--archive`): libarchive, decided 2026-07-06.** Descend into archives and
+  match/list their members as virtual paths via a read-only `vfs::FileSystem` backend, so the whole
+  predicate/action set works unchanged. Engine is **libarchive** via its BCR module
+  (`bazel_dep(name = "libarchive", version = "3.8.1.bcr.2")`): no vendoring, less code than
+  hand-rolling, and it covers tar/zip/cpio/ar/iso plus the gz/bz2/xz/zstd/lz4 filters behind one
+  streaming API.
+  - **Two build variants planned:** _minimal_ (tar + gz + bz2, with xz/zstd/lz4/mbedtls disabled at
+    libarchive's build config) and _extended_ (adds xz/zstd/zip/...). The license/NOTICE footprint
     scales with the enabled codec set.
-  - **NOTICE obligations (all permissive; must be maintained).** libarchive's closure adds bzip2,
-    lz4, xz, zlib, zstd, mbedtls. Net-new license types vs our Apache-2.0 / BSD-3-Clause baseline:
-    **BSD-2-Clause** (libarchive, lz4), **Zlib**, **bzip2-1.0.6**, **0BSD** (xz - no notice needed).
-    Two are dual-licensed: **pin zstd -> BSD-3-Clause** and **mbedtls -> Apache-2.0** (never their
-    GPL arms), and link lz4's **library** (BSD-2), not its GPL-2.0 CLI. With those arms pinned there
-    is no copyleft. Ship a third-party-notices file carrying each permissive notice; extend it as
-    the codec set grows (minimal variant needs only BSD-2 + Zlib + bzip2).
-  - **Control surface: `--archive[=none|roots|all]` + `-z` (RATIFIED 2026-08-05; supersedes the
-    2026-07-09 "always recurse" framing).** Diving into a NAMED ARCHIVE ROOT and diving into archives
-    MET MID-WALK are two separately-wanted behaviors, so they are one ordered enum
-    (`none` subset `roots` subset `all`) rather than a single boolean: - `none` = find-compat, an archive is one plain file; `roots` = dive only when a given root path
-    is itself an archive; `all` = dive archives anywhere (roots plus ones discovered mid-walk). - Bare `--archive` = `all`. Short flag `-z` carries chmod-style suffix-signs, the same family as
-    the `-g` gitignore trio: `-z-` = none, `-z` = roots, `-z+` = all. - **Flavor defaults:** `find` -> `none` (drop-in fidelity); every xff-family flavor (xff / xfd /
-    rg) -> `roots`, because pointing xff AT an archive strongly implies "look inside", while
-    silently descending every archive in a tree is a cost the user should opt into. - **Slice SHIPPED (2026-08-10): the spelling library + both flags.**
-    `@xff_extras_api//:member_path_cc` (`xff/archive/member_path.h`) implements the ratified rules -
-    `JoinMemberPath` is plain concatenation, `SplitMemberPath` cuts at the FIRST separator and keeps
-    the remainder verbatim, an empty separator never matches, and `--archive-prefix=URI` parses only
-    the URI form so the two spellings cannot silently interchange. It lives in the shared API module
-    because both sides need it (the extra renders, the core parses a member path handed back) and an
-    extra must not depend on the core. `--archive-separator=STRING` and `--archive-prefix=[URI|STRING]`
-    are registered globals (help + `XFF.md` regenerated), gated on the archive extra like
-    `--archive`. STILL TO COME with the VFS backend: actually rendering walk output through them,
-    and the reserved `{relpath}`-style interaction. The URI scheme is the generic `archive://` for
-    now - per-format (`tar:` / `zip:`) vs `jar:file:` wrapping is the one open sub-detail below. - **Member path spelling: a FLAG, because there is no single convention (decided 2026-08-10).**
-    The prior docs disagreed (`docs/design.md` said the JAR-style `pkg.tar!foo/bar`, an older scope
-    note said a plain directory prefix `foo.tgz/dir/file.txt`) - and neither is "right", because
-    the ecosystem genuinely uses several: `!` (JAR / Java URLs), `#` (fragment style), and URI
-    forms (`tar://…`). So the SEPARATOR is a presentation choice under user control, not something
-    to hard-code:
-    TWO orthogonal knobs, not one: - **`--archive-separator=STRING` (default `!`)** - the string placed between container and
-    member. Any string is accepted, not a fixed menu: `!` (JAR / Java URLs), `#` (fragment
-    style), and the multi-character `!/` or `#/` that other systems spell it as must all just
-    work, so xff can produce paths those systems accept. A plain `/` is possible too ("it just
-    looks like a directory", so globs and `{relpath}` compose with no new rules) but is lossy - a
-    real directory named `x.tar` becomes indistinguishable from an archive - so it can never be
-    the default. - **`--archive-prefix=[URI|STRING]` (default empty)** - whether the whole path is rendered as a
-    URI (`tar:///abs/path/a.tar!/inner/x`) instead of a bare path. The point is INTEROP: a URI
-    can be handed to other tools that understand archive URLs, which a bare path cannot. Open
-    sub-detail: whether the scheme is per-format (`tar:` / `zip:`) or one generic scheme, and
-    whether `file:` wraps the container path as Java's `jar:file:/…!/…` does. - Both flags apply to RENDERING and to PARSING a member path handed back in (a `-cmp` /
-    `{def.X}` target), so a path xff printed always round-trips through xff. - The find flavor is unaffected: with `--archive=none` no member path is ever produced. - **Rendering is plain concatenation, so an ABSOLUTE stored member keeps its own leading slash.**
-    `container + separator + member`, with the member reproduced exactly as the archive stored it.
-    xff never adds or removes a slash - an archive may legitimately contain absolute member paths,
-    and those must remain visible (that is the Zip-Slip red flag). It follows mechanically: - separator `!` -> `a.tgz!relative` vs `a.tgz!/rooted` - separator `!/` -> `a.tgz!/relative` vs `a.tgz!//rooted` (the doubled slash is correct, and
-    the reason the plain `!` or `#` is the better default: with `!/` an absolute member reads as
-    an odd `!//`)
-    Parsing splits at the first occurrence of the configured separator and takes the remainder
-    verbatim, so an absolute member round-trips instead of being normalized away. - **`--archive-prefix` is string-valued, with `URI` as the one keyword (refined 2026-08-11).**
-    Empty means no prefix; `URI` renders a WELL-FORMED URI; anything else is used literally (e.g.
-    `--archive-prefix=vfs:`), the same freedom the separator has. Two corrections came out of review: - `archive://a.tgz!x` was WRONG. `//` introduces the URI authority, so a relative container would
-    parse as a HOST NAME. Absolute containers now render `archive:///abs/a.tar!x` (empty authority,
-    as `file:///...` does) and relative ones the opaque `archive:a.tgz!x`. The original test only
-    covered the absolute case, which is exactly why the bug hid - both forms are pinned now. - There is no `none` value: with a string-valued prefix it would be indistinguishable from a
-    literal prefix spelled `none`. Keywords are ALL CAPS (`URI`), matching RE2 / PCRE2 / GLOB. - **Why phar is the easy case: `.phar/` is self-marking.** A path component ending in `.phar`
-    followed by `/` is, in practice, never anything but a phar archive plus a sub-path - so the
-    LEXICAL oracle (scan for the extension) is reliable for phar without a stat, which is exactly
-    what PHP's own stream wrapper relies on. Consequences worth stating: phar can render AND parse
-    member paths with no filesystem access, offline round-tripping included; and `AUTO` can safely
-    pick `/` for phar, because the split point is carried by the container's own name rather than by
-    a marker. The residual case - a real DIRECTORY named `x.phar` - is pathological, and a walk gets
-    it right anyway: it finds a directory, not a file, so there is nothing to open as an archive. - **OPEN: per-format schemes, and PHAR support (raised 2026-08-11).** PHP's phar has its own
-    established URL form, `phar:///path/to/a.phar/inner/x` - a per-format scheme AND a plain `/`
-    separator with no marker at all. That is real evidence AGAINST the generic `archive:` scheme and
-    for per-format ones (`tar:` / `zip:` / `phar:`), the open sub-detail above; if per-format wins, the
-    scheme becomes a property of the detected container format rather than one constant.
-    Supporting phar itself is a separate slice: libarchive does NOT read phar (stub + manifest +
-    optional per-entry compression + signature), so it needs its own reader behind the same
-    `archive_reader` shape - which is what the extras architecture is for, and the member-path
-    spelling is format-agnostic so nothing there changes. Check the existing phar work for a reusable
-    manifest parser before writing one. - **OPEN (design sketched 2026-08-11): `--archive-separator=AUTO+<fallback>`, a per-format
-    separator.** Once the scheme can be per-format, the SEPARATOR has to follow the format too, since
-    phar's convention is a bare `/` with no marker while JAR-style URLs use `!`. `AUTO` alone cannot
-    decide between `!` and `#` for the formats that have no convention, so it needs a fallback,
-    spelled compactly as one value: - `AUTO+!` - derive from the container format, and use `!` where the format dictates nothing. - Bare `AUTO` means `AUTO+!` (the current default fallback), so the short form stays useful. - ALL CAPS because that is now the keyword convention (`URI`); any other string stays a literal
-    separator, so a literal `auto` is still expressible and unambiguous. - The `+` reads as "with fallback". Note it is a mild overload: `+` elsewhere in xff is the
-    chmod-style "more/on" suffix (`-z+`, `-g+`, `-s+`). Alternatives considered and rejected:
-    `AUTO:!` (`:` already means sub-separator inside a value) and `AUTO!` (unparseable - `!` is
-    itself a legal separator, so where does the keyword end?). - Known per-format mapping to start from: phar -> `/` (PHP's `phar:///a.phar/inner/x`), Java
-    jar/war/ear -> `!` (JAR URLs), everything else -> the fallback. - **A bare `/` is NOT lossy - correcting an earlier note here.** A walk is never ambiguous: it
-    meets `a.phar` as a real FILE, sniffs it and descends, and one path cannot be both a file and a
-    directory. The only inconvenience is that a `/` boundary is not locatable by string inspection
-    alone, and even that is solvable WITHOUT the filesystem: scanning for a known container
-    EXTENSION works, which is how PHP resolves `phar:///path/a.phar/inner` and why `.phar/` is
-    itself a split point. So splitting stays offline-capable and a printed path round-trips.
-    `SplitMemberPath`'s oracle overload covers all three (walk knowledge, stat + sniff, or a purely
-    lexical extension test); the string-only overload refuses an all-slash separator rather than
-    cutting at the leading slash. Note the marker separators are heuristics too: a directory really
-    can be named `foo!`, so `!/` and `#/` can occur in a real path - they just fail to be archives,
-    so a walk finds nothing and the marker only ever served as a convenient split point. - **NEXT SLICE, mapped onto the seam (2026-08-11): `ArchiveFileSystem : vfs::FileSystem` in
-    @xff_archive.** Both pieces it needs now exist - `archive_reader_cc` (headers -> `Member{path,
-size, mtime, mode, link_target}`) and `member_path_cc` (the spelling). The seam has nine methods,
-    so the slice is bounded; the mapping, so it need not be re-derived: - `ReadDir(dir)` - `dir` is either the container's own path (list top-level members) or a member
-    path; split it with `SplitMemberPath`. Tar streams often omit explicit directory entries, so
-    implicit parent directories MUST be synthesized or a walk finds nothing. - `Stat(path, follow)` - members map from `Member` to `Metadata{type, size, mode, mtime}`. The
-    CONTAINER keeps its real-filesystem identity (the dual-identity rule above), so only member
-    paths resolve through here. - `Entry.read_only = true` and `Entry.source = Source::kArchiveMember` on every member: that is
-    what makes `-delete` and the exec family REFUSE them instead of silently skipping. - `Remove` -> a refusal status, never silent success. `Access` -> read/execute from the stored
-    mode bits, never write. `ReadLink` -> `Member::link_target`. `FsType` -> "archive".
-    `IsCaseSensitive` -> true (stored names are bytes). - `ReadContent` is the ONE gap: the reader lists members but does not extract data yet, so this
-    slice returns `Unimplemented` with a clear message (test-pinned) and the next adds
-    `ReadMemberOfFile`. Content predicates (`-grep`, `-content`, `{hash}`) light up only then -
-    deliberate ordering, not an oversight. - The walk is also what supplies `SplitMemberPath`'s container oracle for free: descending, it
-    already knows which path IS an openable archive. - **Container identity is dual:** the archive keeps its real-FS identity (real `-type f`,
-    deletable / actionable) AND parents its members; this falls out of the existing VFS
-    source-tagging (container = real fs, members = archive member). - **Nesting has its own cap `--archive-depth=1`** (decompression-bomb risk), independent of
-    `-maxdepth`; members still count toward `-maxdepth` normally. - **Detection** = libarchive content sniff, but in `all` mode the sniff is gated by a
-    known-archive extension / magic peek so a whole tree is not sniffed byte-wise;
-    `--archive-any` forces sniff-everything (expensive, opt-in). - Raw-compressed single files (`.gz` / `.xz` / `.zst` / `.bz2`) are one-member archives whose
-    member is the inner name. - The archive VFS is READ-ONLY: `-delete` / `-exec` / `-execdir` on an archive member is a clean
-    error, never a silent no-op (`-exec` extract-to-temp deferred). Encrypted archives get
-    `-encrypted` detection only, no `--password` decryption. - Read-only member semantics, the `container!member` representation with the `!/` Zip-Slip red
-    flag, uncompressed logical size, and the streaming / bomb limits were already specified in
+  - **NOTICE obligations, all permissive but must be maintained.** libarchive's closure adds bzip2,
+    lz4, xz, zlib, zstd, mbedtls. Net-new license types over our Apache-2.0 / BSD-3-Clause baseline:
+    BSD-2-Clause (libarchive, lz4), Zlib, bzip2-1.0.6, 0BSD (xz, no notice needed). Two are
+    dual-licensed, so pin the permissive arms: zstd -> BSD-3-Clause, mbedtls -> Apache-2.0, and link
+    lz4's library (BSD-2), never its GPL-2.0 CLI. With those pinned there is no copyleft.
+  - **Control surface `--archive[=none|roots|all]` + `-z`, RATIFIED 2026-08-05.** Diving into a NAMED
+    archive root and diving into archives met MID-WALK are separately-wanted behaviours, so this is
+    one ordered enum (`none` subset `roots` subset `all`), not a boolean. Bare `--archive` = `all`;
+    `-z` carries the chmod-style suffix signs (`-z-` none, `-z` roots, `-z+` all) like the `-g`
+    trio. Flavor defaults: `find` -> `none` for drop-in fidelity, every xff-family flavor ->
+    `roots`, because pointing xff AT an archive implies looking inside while silently descending
+    every archive in a tree is a cost to opt into.
+  - **Member-path spelling is a FLAG, SHIPPED 2026-08-10/11.** No single convention exists (`!` for
+    JAR / Java URLs, `#` for fragments, the multi-character `!/` and `#/`, plus URI forms), so it is
+    a presentation choice: `--archive-separator=STRING` (default `!`) and
+    `--archive-prefix=[URI|STRING]` (default empty). `@xff_extras_api//:member_path_cc` implements
+    it, hosted in the shared API module because both sides need it - the extra renders, the core
+    parses a member path handed back in - and an extra must not depend on the core.
+  - **The spelling rules, each test-pinned.** Rendering is plain concatenation, so an ABSOLUTE stored
+    member keeps its leading slash (`a.tgz!/rooted`, and the correct doubled `a.tgz!//rooted` under
+    separator `!/`) - xff adds and removes no slash, because hiding an absolute member would hide the
+    Zip-Slip red flag. Splitting cuts at the FIRST separator and takes the remainder verbatim, so a
+    printed path round-trips. An empty separator never matches. A prefix is strict in both
+    directions, so the two spellings never silently interchange. `URI` is the one keyword (ALL CAPS,
+    matching RE2 / PCRE2 / GLOB) and renders a well-formed URI: `archive:///abs/a.tar!x` for an
+    absolute container (empty authority, as `file:///...`) and the opaque `archive:a.tgz!x` for a
+    relative one - a blanket `archive://a.tgz` would parse the container as a HOST NAME. Any other
+    prefix value is literal; there is deliberately no `none`, which would be indistinguishable from a
+    literal prefix spelled `none`.
+  - **A bare `/` separator is legitimate, just context-dependent.** A walk is never ambiguous: it
+    meets `a.phar` as a real FILE, sniffs it, descends, and one path cannot be both file and
+    directory. Only string-only splitting needs help, and even that works without the filesystem by
+    scanning for a known container EXTENSION - which is how PHP resolves
+    `phar:///path/a.phar/inner`, and why `.phar/` is self-marking. `SplitMemberPath`'s oracle
+    overload covers all three sources (walk knowledge, stat + sniff, or a purely lexical extension
+    test); the string-only overload refuses an all-slash separator rather than cutting at the leading
+    slash. The marker separators are heuristics too - a directory really can be named `foo!` - they
+    simply fail to be archives, so a walk finds nothing and the marker was only ever a convenience.
+  - **VFS backend SHIPPED (#455): `ArchiveFileSystem` over one container, read/stat only.** 14 tests
+    over a tar the test writes itself pin the decisions: implicit parent directories ARE synthesized
+    (the fixture stores `dir/sub/deep.txt` with no `dir/` entry, as real tars do); every member is
+    `read_only` + `Source::kArchiveMember`, which is what makes `-delete` and the exec family REFUSE
+    them; `Remove` returns PermissionDenied rather than silent success; `Access` is never writable
+    and otherwise follows the stored bits; `ReadLink` resolves a symlink member and refuses a regular
+    one; `FsType` is "archive" and `IsCaseSensitive` is true; a path outside the container, a missing
+    member and "not a directory" are three DISTINCT errors, not an empty listing; and the configured
+    separator is used for rendering AND parsing. `ReadContent` returns Unimplemented deliberately -
+    the reader lists but does not extract, and an empty string would make `-grep` / `-content`
+    silently match nothing.
+  - **Remaining for #83:** `ReadMemberOfFile` in the reader (then the content predicates light up),
+    and engine-side mounting when `--archive` selects a container, which is where `--archive-depth`
+    and the sniff-gating land.
+  - **Container identity is dual:** the archive keeps its real-FS identity (a real `-type f`,
+    deletable and actionable) AND parents its members. This falls out of the VFS source tagging -
+    container is local-fs, members are archive-member.
+  - **Nesting has its own cap `--archive-depth=1`** (decompression-bomb risk), independent of
+    `-maxdepth`; members still count toward `-maxdepth` normally.
+  - **Detection** is a libarchive content sniff, but in `all` mode it is gated by a known-archive
+    extension / magic peek so a whole tree is not sniffed byte-wise. `--archive-any` forces
+    sniff-everything (expensive, opt-in). Raw-compressed single files (`.gz` / `.xz` / `.zst` /
+    `.bz2`) are one-member archives whose member is the inner name.
+  - **The archive VFS is READ-ONLY:** `-delete` / `-exec` / `-execdir` on a member is a clean error,
+    never a silent no-op (`-exec` extract-to-temp deferred). Encrypted archives get `-encrypted`
+    detection only, no `--password` decryption. Read-only member semantics, the `container!member`
+    representation, uncompressed logical size and the streaming / bomb limits are specified in
     `docs/design.md` "Virtual entries".
+  - **OPEN (needs a decision): per-format schemes and `--archive-separator=AUTO+<fallback>`.** PHP
+    spells phar `phar:///path/to/a.phar/inner/x` - a per-format scheme AND a bare `/` separator -
+    which is evidence against one generic `archive:` scheme. If per-format wins, the scheme becomes a
+    property of the detected format, and the separator must follow the format too: `AUTO` cannot
+    choose between `!` and `#` where a format dictates nothing, hence a fallback in one value
+    (`AUTO+!`, with bare `AUTO` meaning `AUTO+!`). ALL CAPS keeps a literal separator spelled `auto`
+    expressible; `AUTO:!` is out (`:` is the sub-separator inside values) and `AUTO!` is unparseable
+    (`!` is itself a legal separator). Starting map: phar -> `/`, Java jar/war/ear -> `!`, everything
+    else -> the fallback. Tracked as task #177.
+  - **OPEN (own slice): phar support.** libarchive does NOT read phar (stub + manifest + optional
+    per-entry compression + signature), so it needs its own reader behind the same `archive_reader`
+    shape - which is what the extras architecture is for, and the member-path spelling is
+    format-agnostic, so nothing there changes. Check the existing phar work for a reusable manifest
+    parser first. Tracked as task #176.
 
 - **Third `-regextype` grammar: shell-glob (#121, task-tracked).** Once PCRE2 proves the third-backend
   path, add `Grammar::kGlob` + a `GlobBackend` on the `xff/regex` `RegexBackend` abstraction,
@@ -901,14 +866,15 @@ size, mtime, mode, link_target}`) and `member_path_cc` (the spelling). The seam 
     (`m/.../\1/;s/ /_/g;join(, );s/_/./g`). The scalar-context guard now rejects only an UNREDUCED
     extraction (`HasUnreducedExtraction`); a reducer in a `--summary` key shifts it from a per-line to
     a per-entry (joined) key, no special-casing. `SplitPipeline` in `xff/fields/fields.cc`. Delimited
-    `s///`/`m//` stay as-is (regex args are delimiter-hostile); only reducers use function notation. - **SHIPPED span-diagram help (#143).** The `--help=fields` topic (and the doc*renderer FIELDS
-    section -> `--man` / `--markdown` / `--help=full`) now teach the m// pipeline with a two-line
-    ASCII span diagram (ranges under each stage): `|________|` brackets under `m//`, `s//`, `join`,
-    `s//` with `extract per line / map each line / reduce stream / rewrite scalar` labels. Rendered
-    verbatim via the DocRenderer `Example` primitive (a markdown code fence / roff `.nf`), ASCII-only
-    (`| * / ( )`) so the `Roff()`escaper and mandoc keep the alignment; verified in all three
+    `s///`/`m//` stay as-is (regex args are delimiter-hostile); only reducers use function notation.
+- **SHIPPED span-diagram help (#143).** The `--help=fields` topic (and the doc*renderer FIELDS
+  section -> `--man` / `--markdown` / `--help=full`) now teach the m// pipeline with a two-line
+  ASCII span diagram (ranges under each stage): `|________|` brackets under `m//`, `s//`, `join`,
+  `s//` with `extract per line / map each line / reduce stream / rewrite scalar` labels. Rendered
+  verbatim via the DocRenderer `Example` primitive (a markdown code fence / roff `.nf`), ASCII-only
+  (`| * / ( )`) so the `Roff()`escaper and mandoc keep the alignment; verified in all three
 renderers + a help_topic_test assertion. The diagram is duplicated in help.cc`RenderFields` and
-    doc_renderer.cc (the pre-existing fields-doc split); unifying those is the deferred #126 work.
+  doc_renderer.cc (the pre-existing fields-doc split); unifying those is the deferred #126 work.
   - **SHIPPED chained sed rewrites (#135):** an `s///` or `m//` qualifier takes a `;`-separated command
     chain, applied left to right; a command after `;` may omit the leading `s`. `s` chain = scalar
     substitution pipeline (`{name:s/a/b/;s/c/d/}`); `m` chain = the first command filters+extracts each
