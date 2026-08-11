@@ -36,8 +36,8 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@libarchive//libarchive",
-        "@xff_extras_api//:member_path_cc",
         "@xff_extras_api//:license_notice_cc",
+        "@xff_extras_api//:member_path_cc",
     ],
     alwayslink = True,
 )
