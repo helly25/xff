@@ -197,8 +197,8 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":archive_fs_cc",
-        "@helly25_mbo//mbo/status:status_macros_cc",
         "@abseil-cpp//absl/status:statusor",
+        "@helly25_mbo//mbo/status:status_macros_cc",
         "@xff_extras_api//:archive_backend_cc",
         "@xff_extras_api//:member_path_cc",
         "@xff_extras_api//:vfs_cc",
