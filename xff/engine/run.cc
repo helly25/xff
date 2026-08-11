@@ -1314,6 +1314,33 @@ std::string_view ArchiveModeName(ArchiveMode mode) {
   return "none";
 }
 
+// The whole `--archive` family, resolved into the walk options: how far to dive, and the member-path
+// spelling a mounted container renders with (returned, because only the mounter needs it).
+//
+// Diving needs the archive extra, which a lean build does not link, so an EXPLICIT request there is
+// an error rather than a silent no-op - "xff cannot see into this archive" is exactly the wrong
+// impression to leave. A STYLE default (`roots` for the xff family) must never break an ordinary
+// run, so it degrades quietly to walking archives as the plain files they are.
+//
+// The returned views point into `globals`, which outlives the walk.
+absl::StatusOr<archive::MemberPathOptions> ResolveArchiveOptions(
+    const std::vector<std::string>& globals,
+    std::optional<registry::Style> style,
+    WalkOptions* options) {
+  const ArchiveMode archive_mode = ResolveArchiveMode(globals, style);
+  if (archive_mode != ArchiveMode::kNone && !archive::ContainerSupportAvailable()) {
+    if (HasArchiveFlag(globals)) {
+      return absl::UnimplementedError(
+          absl::StrCat(
+              "archive diving (requested mode '", ArchiveModeName(archive_mode),
+              "') is not built into this binary; use --archive=none / -z- to walk archives as plain files"));
+    }
+  } else {
+    options->archive = ArchiveDiveOf(archive_mode);
+  }
+  return ReadMemberPathOptions(globals);
+}
+
 // --hash-algorithm=ALGO / --hash-encoding=hex|base64: the defaults a bare -hash action and a
 // bare {hash} field use. Last occurrence wins; an empty value means "unset" and the reader
 // downstream falls back to sha256 / hex. Only READS them - the caller validates, so each bad
@@ -2144,31 +2171,14 @@ int RunFind(
       }
     }
   }
-  // --archive / -z: hand the walk an ArchiveDive plus a mounter, and a container it meets becomes a
-  // directory of its members. Diving needs the archive extra, which a lean build does not link, so
-  // an EXPLICIT request in such a build is an error rather than a silent no-op - "xff cannot see
-  // into this archive" is exactly the wrong impression to leave. The style default (`roots` for the
-  // xff family) must never break an ordinary run, so it degrades quietly to walking archives as the
-  // plain files they are.
-  const ArchiveMode archive_mode = ResolveArchiveMode(command.globals, style);
-  const bool archive_available = archive::ContainerSupportAvailable();
-  if (archive_mode != ArchiveMode::kNone && !archive_available) {
-    if (HasArchiveFlag(command.globals)) {
-      on_error(
-          "--archive",
-          absl::UnimplementedError(
-              absl::StrCat(
-                  "archive diving (requested mode '", ArchiveModeName(archive_mode),
-                  "') is not built into this binary; use --archive=none / -z- to walk archives as plain files")));
-      return 2;
-    }
-  } else {
-    options.archive = ArchiveDiveOf(archive_mode);
+  // The whole --archive surface, resolved into `options` in one place (see ResolveArchiveOptions).
+  const absl::StatusOr<archive::MemberPathOptions> member_paths =
+      ResolveArchiveOptions(command.globals, style, &options);
+  if (!member_paths.ok()) {
+    on_error("--archive", member_paths.status());
+    return 2;
   }
-  // The member-path spelling the mounted filesystem renders with, so what a run prints round-trips
-  // through the same flags that produced it. The views point into `command.globals`, which outlives
-  // the walk.
-  const archive::MemberPathOptions member_path_options = ReadMemberPathOptions(command.globals);
+  const archive::MemberPathOptions member_path_options = *member_paths;
   // --hash-algorithm=ALGO / --hash-encoding=hex|base64: defaults for a bare -hash action and a
   // bare {hash} field (last occurrence wins; empty -> sha256 / hex). Validated here so a bad value
   // is a usage error (exit 2) before the walk; the explicit -hash=ALGO[/ENCODING] specs in the
