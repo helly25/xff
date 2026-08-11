@@ -87,8 +87,7 @@ TEST_F(FormatFixtureTest, AGzipFilteredTarReadsWithNoFilterSpelledOut) {
   // The npm / Cargo `.crate` / OCI-layer shape. The caller never names tar or gzip: detection is by
   // content, which is what lets one --archive flag cover every packaging in this file.
   EXPECT_THAT(
-      ReadMemberOfFile(Fixture("npm-example.tgz"), absl::StrCat("package/", kCommon)),
-      IsOkAndHolds(kCommonContent));
+      ReadMemberOfFile(Fixture("npm-example.tgz"), absl::StrCat("package/", kCommon)), IsOkAndHolds(kCommonContent));
 }
 
 TEST_F(FormatFixtureTest, AnArBasedDebianPackageReadsItsThreeMembers) {
@@ -109,8 +108,7 @@ TEST_F(FormatFixtureTest, AnRpmReadsThroughTheRpmFilterIntoItsCpioPayload) {
   ASSERT_THAT(members, IsOkAndHolds(Not(::testing::IsEmpty())));
   EXPECT_THAT(*members, Contains(Field("path", &Member::path, "./usr/bin/xff-fixture")));
   EXPECT_THAT(
-      ReadMemberOfFile(Fixture("example.rpm"), absl::StrCat("usr/share/doc/", kCommon)),
-      IsOkAndHolds(kCommonContent));
+      ReadMemberOfFile(Fixture("example.rpm"), absl::StrCat("usr/share/doc/", kCommon)), IsOkAndHolds(kCommonContent));
 }
 
 TEST_F(FormatFixtureTest, ANestedPackageShowsOneLayerAtATime) {
@@ -119,8 +117,7 @@ TEST_F(FormatFixtureTest, ANestedPackageShowsOneLayerAtATime) {
   // one-layer boundary is a stated behaviour rather than an accident.
   const auto members = ListMembersOfFile(Fixture("example.gem"));
   ASSERT_THAT(members, IsOkAndHolds(SizeIs(2)));
-  EXPECT_THAT(
-      *members, Contains(Field("is_directory", &Member::is_directory, ::testing::IsFalse())));
+  EXPECT_THAT(*members, Contains(Field("is_directory", &Member::is_directory, ::testing::IsFalse())));
   EXPECT_THAT(*members, Contains(Field("path", &Member::path, "data.tar.gz")));
   EXPECT_THAT(ReadMemberOfFile(Fixture("example.gem"), kCommon), StatusIs(absl::StatusCode::kNotFound));
 }
@@ -138,12 +135,10 @@ TEST_F(FormatFixtureTest, AnAppendedZipBehindAFormatHeaderIsAlsoFound) {
   // length and the reader has to derive the delta. That it works is the reason those formats need no
   // reader of their own: a `.crx` or `.jmod` is readable today, and only the file extension differs.
   EXPECT_THAT(
-      ListMembersOfFile(Fixture("example.crx")),
-      IsOkAndHolds(Contains(Field("path", &Member::path, "manifest.json"))));
+      ListMembersOfFile(Fixture("example.crx")), IsOkAndHolds(Contains(Field("path", &Member::path, "manifest.json"))));
   EXPECT_THAT(ReadMemberOfFile(Fixture("example.crx"), kCommon), IsOkAndHolds(kCommonContent));
   EXPECT_THAT(
-      ReadMemberOfFile(Fixture("example.jmod"), absl::StrCat("classes/", kCommon)),
-      IsOkAndHolds(kCommonContent));
+      ReadMemberOfFile(Fixture("example.jmod"), absl::StrCat("classes/", kCommon)), IsOkAndHolds(kCommonContent));
 }
 
 TEST_F(FormatFixtureTest, TheFixturesAreReproducible) {
