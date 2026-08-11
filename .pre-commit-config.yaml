@@ -24,8 +24,14 @@ repos:
       - id: check-added-large-files
       - id: check-merge-conflict
       - id: check-yaml
+      # BINARY_TYPES below: archive containers are binary but can START with text (a phar begins with
+      # PHP source), so pre-commit's content sniff calls them text and these two hooks "fix" a
+      # trailing newline INSIDE the container, corrupting it silently. It happened to the phar
+      # fixtures. Excluded by TYPE, not by location, so it holds wherever such a file is added.
       - id: end-of-file-fixer
+        exclude: \.(phar|tar|tgz|gz|bz2|xz|zst|zip|jar|7z)$
       - id: trailing-whitespace
+        exclude: \.(phar|tar|tgz|gz|bz2|xz|zst|zip|jar|7z)$
 
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.7
@@ -50,7 +56,7 @@ repos:
         language: pygrep
         args: [-i]
         entry: DO([ _]?NOT|N'T)[ _]?(SUBMIT|MERGE)
-        exclude: ^.pre-commit-config.yaml$
+        exclude: ^\.pre-commit-config\.yaml$|\.(phar|tar|tgz|gz|bz2|xz|zst|zip|jar|7z)$
         types: [text]
       - id: no-em-dashes
         name: No em-dashes
@@ -59,7 +65,7 @@ repos:
           commit messages). Use a spaced hyphen instead.
         language: pygrep
         entry: "—"
-        exclude: ^.pre-commit-config.yaml$
+        exclude: ^\.pre-commit-config\.yaml$|\.(phar|tar|tgz|gz|bz2|xz|zst|zip|jar|7z)$
         types: [text]
       - id: no-todos-without-context
         name: No TODOs without context
@@ -70,7 +76,7 @@ repos:
           `SKIP="no-todos-without-context" pre-commit`.
         language: pygrep
         args: [-i]
-        exclude: ^[.]pre-commit-config.yaml$
+        exclude: ^[.]pre-commit-config\.yaml$|\.(phar|tar|tgz|gz|bz2|xz|zst|zip|jar|7z)$
         entry: (#|//|/[*]).*(FIXME|TODO)[(](?!(((\w|\w[.-]\w)+@(\w|-)+([.](\w|-)+)*)|(https?://[^)]+))(,[^)]+)?)[)]
         types: [text]
       - id: no-shell-grep-in-bashtests
