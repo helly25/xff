@@ -73,10 +73,10 @@ def main() -> int:
     group.add_argument("--modules", action="store_true", help="print each extra's module name")
     args = parser.parse_args()
 
+    # An empty result is legitimate: a minimal source tree has extra_modules/ deleted and the extras
+    # stripped from MODULE.bazel (the `minimal` CI cell does exactly that), and then there is nothing to
+    # name. Callers word-split this, so printing nothing is the right answer.
     declared = extras((_REPO_ROOT / "MODULE.bazel").read_text(encoding="utf-8"))
-    if not declared:
-        print("no extras found in MODULE.bazel; the local_path_override parse must have broken", file=sys.stderr)
-        return 1
 
     if args.wildcards:
         print(" ".join(f"@{module}//..." for module in declared))

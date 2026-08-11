@@ -17,6 +17,7 @@
 """Tests for tools/extras.py."""
 
 import os
+import re
 import sys
 import unittest
 
@@ -61,6 +62,13 @@ class ExtrasTest(unittest.TestCase):
     def test_is_sorted_so_the_derived_command_line_is_stable(self):
         # A CI command that reorders between runs makes cache keys and diffs noisy for no reason.
         self.assertEqual(list(extras.extras(_MODULE_BAZEL)), ["xff_archive", "xff_pcre2"])
+
+    def test_a_stripped_minimal_tree_has_no_extras(self):
+        # What the `minimal` CI cell produces: extra_modules/ deleted and the extras' bazel_dep +
+        # local_path_override lines stripped from MODULE.bazel. Zero extras is then the CORRECT answer,
+        # so neither derivation may treat it as a parse failure - a fail() there broke that job once.
+        stripped = re.sub(r"local_path_override\(\s*[^)]*extra_modules/[^)]*\)", "", _MODULE_BAZEL)
+        self.assertEqual(extras.extras(stripped), {})
 
     def test_ignores_a_bazel_dep_without_a_local_override(self):
         self.assertEqual(extras.extras('bazel_dep(name = "re2", version = "1")'), {})

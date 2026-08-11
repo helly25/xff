@@ -50,8 +50,11 @@ def _extra_modules(module_bazel):
 def _xff_extras_impl(repository_ctx):
     module_bazel = repository_ctx.read(Label("//:MODULE.bazel"))
     modules = _extra_modules(module_bazel)
-    if not modules:
-        fail("no extras found in MODULE.bazel: the local_path_override parse must have broken")
+
+    # An EMPTY list is a legitimate configuration, not a parse failure: the `minimal` CI cell deletes
+    # extra_modules/ and strips the extras' bazel_dep + local_path_override lines to prove the lean core
+    # still builds with the optional parts gone. A `fail()` here broke exactly that job. Correctness of
+    # the parse is the unit test's business (tools/extras_test.py), not a runtime guess.
     targets = ["\"@{}//...\"".format(module) for module in modules]
     repository_ctx.file("WORKSPACE", "")
     repository_ctx.file("BUILD.bazel", "")
