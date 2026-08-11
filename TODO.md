@@ -1151,6 +1151,20 @@ concrete need appears.
     them anyway, because it comes from the toolchain, which every module in the build shares. That is
     a second, quieter win of moving the swap into the toolchain - a per-target `deps` swap could never
     have covered a module that is forbidden from naming a core label.
+  - **CORRECTION (2026-08-12): MSAN ITSELF NEVER READS IT, and the plumbing stays anyway.** MSan has no
+    runtime suppression support: `suppressions=` is a sanitizer_common flag MSan parses and never
+    consumes (compiler-rt's msan sources contain no suppression machinery - only the tools that build a
+    SuppressionContext act on it), so this file has never been opened. Deleting it was proposed and
+    REJECTED: TSan, LSan and UBSan do consume `suppressions=`, so the delivery mechanism is wanted
+    regardless, and rebuilding it under pressure would be worse. What was actually missing is a test,
+    now `//xff:suppressions_delivery_test`: for every `*_OPTIONS` variable naming a suppressions file,
+    the file must resolve from the test's working directory (its runfiles tree). It skips in an ordinary
+    build and bites in the sanitizer cells.
+  - **Known gap the test documents:** an extras-module test cannot load xff/cc.bzl, so it carries no
+    suppressions file. Harmless while only MSan (which ignores the option) names one; FATAL the moment
+    TSan does, because a missing file makes compiler-rt print "failed to read suppressions file" and
+    Die(). Fix that when wiring TSan suppressions - the file wants to live somewhere both the core and
+    the extras can depend on.
   - **Format caveat (now moot):** MSan's runtime suppressions understand only `interceptor_via_fun` /
     `interceptor_via_lib` (reports raised through an intercepted libc call), and this report came from
     inline `std::string` code - so the entry may never have matched. With the real libc++ instrumented
