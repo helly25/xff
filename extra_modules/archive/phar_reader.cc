@@ -251,9 +251,10 @@ absl::StatusOr<std::vector<Entry>> ParseWholePhar(std::string_view bytes) {
   }
   const std::size_t manifest_start = *manifest_at + 4;
   if (manifest_start + *manifest_length > bytes.size()) {
-    return absl::DataLossError(absl::StrCat(
-        "phar manifest is truncated: declares ", *manifest_length, " bytes, only ",
-        bytes.size() - manifest_start, " remain"));
+    return absl::DataLossError(
+        absl::StrCat(
+            "phar manifest is truncated: declares ", *manifest_length, " bytes, only ", bytes.size() - manifest_start,
+            " remain"));
   }
   return ParseManifest(bytes.substr(manifest_start, *manifest_length), manifest_start + *manifest_length);
 }
@@ -276,13 +277,12 @@ absl::StatusOr<const Entry*> FindEntry(const std::vector<Entry>& entries, std::s
       continue;
     }
     if (entry.member.is_directory) {
-      return absl::FailedPreconditionError(
-          absl::StrCat("phar member is a directory and has no content: ", member));
+      return absl::FailedPreconditionError(absl::StrCat("phar member is a directory and has no content: ", member));
     }
     if ((entry.flags & kFlagCompressionMask) != 0) {
       const std::string_view how = (entry.flags & kFlagCompressedGz) != 0    ? "deflate"
                                    : (entry.flags & kFlagCompressedBz2) != 0 ? "bzip2"
-                                                                            : "an unknown method";
+                                                                             : "an unknown method";
       return absl::UnimplementedError(
           absl::StrCat("phar member is compressed with ", how, ", which this reader cannot yet decompress: ", member));
     }

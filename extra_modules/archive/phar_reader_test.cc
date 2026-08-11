@@ -113,14 +113,13 @@ TEST_F(PharReaderTest, ListsMembersWithTheirPathsSizesModesAndTimes) {
       {.name = "lib/x.txt", .content = "xyz", .flags = 0600},
   });
   EXPECT_THAT(
-      ListPharMembers(phar),
-      IsOkAndHolds(ElementsAre(
-          AllOf(
-              Field("path", &Member::path, "bin/run.php"), Field("size", &Member::size, 13),
-              Field("mode", &Member::mode, 0644), Field("mtime", &Member::mtime, 1'700'000'000)),
-          AllOf(
-              Field("path", &Member::path, "lib/x.txt"), Field("size", &Member::size, 3),
-              Field("mode", &Member::mode, 0600)))));
+      ListPharMembers(phar), IsOkAndHolds(ElementsAre(
+                                 AllOf(
+                                     Field("path", &Member::path, "bin/run.php"), Field("size", &Member::size, 13),
+                                     Field("mode", &Member::mode, 0644), Field("mtime", &Member::mtime, 1'700'000'000)),
+                                 AllOf(
+                                     Field("path", &Member::path, "lib/x.txt"), Field("size", &Member::size, 3),
+                                     Field("mode", &Member::mode, 0600)))));
 }
 
 TEST_F(PharReaderTest, ADirectoryMemberIsTheTrailingSlashSpelling) {
@@ -128,10 +127,10 @@ TEST_F(PharReaderTest, ADirectoryMemberIsTheTrailingSlashSpelling) {
   // reported path drops it so member paths compose like any other path.
   const std::string phar = MakePhar({{.name = "lib/", .content = "", .flags = 0755}});
   EXPECT_THAT(
-      ListPharMembers(phar), IsOkAndHolds(ElementsAre(AllOf(
-                                 Field("path", &Member::path, "lib"),
-                                 Field("is_directory", &Member::is_directory, IsTrue()),
-                                 Field("is_symlink", &Member::is_symlink, IsFalse())))));
+      ListPharMembers(phar),
+      IsOkAndHolds(ElementsAre(AllOf(
+          Field("path", &Member::path, "lib"), Field("is_directory", &Member::is_directory, IsTrue()),
+          Field("is_symlink", &Member::is_symlink, IsFalse())))));
 }
 
 TEST_F(PharReaderTest, AnAliasAndMetadataFieldsAreSkippedNotMisread) {
@@ -165,8 +164,7 @@ TEST_F(PharReaderTest, PlainPhpWithoutTheHaltTokenIsNotAPhar) {
 TEST_F(PharReaderTest, ATruncatedManifestIsCorruption) {
   const std::string phar = MakePhar({{.name = "a.txt", .content = "aaaa"}});
   EXPECT_THAT(
-      ListPharMembers(phar.substr(0, phar.size() - 12)),
-      StatusIs(absl::StatusCode::kDataLoss, HasSubstr("truncated")));
+      ListPharMembers(phar.substr(0, phar.size() - 12)), StatusIs(absl::StatusCode::kDataLoss, HasSubstr("truncated")));
 }
 
 TEST_F(PharReaderTest, AManifestPromisingMoreMembersThanItHoldsIsCorruption) {
@@ -212,9 +210,9 @@ TEST_F(PharReaderTest, ADirectoryMemberHasNoContentToRead) {
 TEST_F(PharReaderTest, ACompressedMemberIsRefusedRatherThanReturnedRaw) {
   // Per-member deflate is not implemented yet. Returning the compressed bytes would be worse than
   // refusing: `-grep` would silently match nothing on a member that does contain the pattern.
-  const std::string phar = MakePhar({{.name = "z.txt", .content = "not really deflated", .flags = std::uint32_t{0644} | kCompressedGz}});
-  EXPECT_THAT(
-      ReadPharMember(phar, "z.txt"), StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("deflate")));
+  const std::string phar =
+      MakePhar({{.name = "z.txt", .content = "not really deflated", .flags = std::uint32_t{0644} | kCompressedGz}});
+  EXPECT_THAT(ReadPharMember(phar, "z.txt"), StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("deflate")));
   // Listing it still works: the manifest carries the metadata regardless of the member encoding.
   EXPECT_THAT(ListPharMembers(phar), IsOkAndHolds(ElementsAre(Field("path", &Member::path, "z.txt"))));
 }
@@ -240,9 +238,8 @@ TEST_F(PharReaderTest, TheFileEntryPointsSeeTheSameContainer) {
       },
       "app.phar");
   EXPECT_THAT(
-      ListPharMembersOfFile(path), IsOkAndHolds(ElementsAre(
-                                       Field("path", &Member::path, "bin"),
-                                       Field("path", &Member::path, "bin/run.php"))));
+      ListPharMembersOfFile(path),
+      IsOkAndHolds(ElementsAre(Field("path", &Member::path, "bin"), Field("path", &Member::path, "bin/run.php"))));
   EXPECT_THAT(ReadPharMemberOfFile(path, "bin/run.php"), IsOkAndHolds("<?php echo 'hi';"));
   EXPECT_THAT(ReadPharMemberOfFile(path, "bin"), StatusIs(absl::StatusCode::kFailedPrecondition));
   EXPECT_THAT(ReadPharMemberOfFile(path, "missing"), StatusIs(absl::StatusCode::kNotFound));
