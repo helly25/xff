@@ -34,7 +34,45 @@ shipped one way but not yet settled.
   earlier subtree-scoping question (now moot). Full record + the `--xffrc` arming restriction
   are in the roadmap tail below ("Config: drop the project `.xffrc` layer").
 
-- **INVESTIGATE (GATES 1.0.0): `--flag:modifier` instead of `--flag=modifier value`.**
+- **INVESTIGATED (GATES 1.0.0): `--flag:modifier` instead of `--flag=modifier value`. Findings below,
+  decision still open.** The surveyed surface is far narrower than the proposal assumes, and one
+  example in the original note was simply wrong.
+
+  **Surveyed every global's value grammar.** Only these have any internal structure:
+
+  | flag                           | shape                | is it "modifier + value"?                    |
+  | :----------------------------- | :------------------- | :------------------------------------------- |
+  | `--define=NAME=VALUE`          | two `=`              | YES - the one genuine case                   |
+  | `--histogram=BUCKET[:MEASURE]` | `:` INSIDE the value | no - a sub-selector, and it already owns `:` |
+  | `--columns=FIELD,...`          | comma list           | no - a plain valued flag                     |
+  | `--diff-ignore=TOKEN,...`      | comma list           | no - a plain valued flag                     |
+  | `--timezone=ZONE, --tz=ZONE`   | single value         | no                                           |
+
+  **Correction to the original note:** `-capture=NAME ... \;` and `-capturedir` are NOT globals. They
+  are expression PRIMARIES (single dash, `=payload` binding), so they belong to the primary grammar,
+  not the `--flag` surface. Respelling those would be a much larger change to the expression language
+  and is not what this item proposed.
+
+  **The collision is real and already shipped.** `:` is xff's established SUB-separator INSIDE a value:
+  `--histogram=size:count`, the `-printf` bridge `%{size:h}`, and the rewrite qualifier
+  `{field:s/pat/repl/}`. Promoting `:` to the flag/modifier separator would put two meanings of `:` in
+  one token - `--histogram:size:count` - which is worse than the `=` it replaces.
+
+  **So the proposal buys clarity for exactly one flag** (`--define`), at the cost of a second meaning
+  for `:`. Three ways to close it:
+  1. **Do nothing.** `--define=NAME=VALUE` stays; it is unambiguous to the parser (split at the FIRST
+     `=`) and matches `make`, `cmake -D`, and `bazel --define`. Zero churn, and the precedent argument
+     is strong: users have seen `NAME=VALUE` after an `=` before.
+  2. **Accept `--define:NAME=VALUE` as an alias**, keeping `=` working. Narrow, no other flag changes,
+     no new meaning of `:` inside a value. Costs one alias and its docs.
+  3. **Blanket switch** for all valued flags - NOT recommended: it breaks every shipped spelling and
+     collides with the sub-separator above.
+
+  **Recommendation: (1), or (2) if the double `=` is what grates** - the decision is yours; nothing is
+  implemented. Whichever way, it stops gating 1.0.0 once recorded, because (1) is a no-op and (2) is
+  additive (an alias can land after 1.0.0 without breaking anyone).
+
+- **Original proposal (kept for the rationale):**
   Several globals spend their `=value` slot on a _modifier_ (a key, a mode, a dimension) and
   then take the actual value separately, so `=` no longer means "here is the value". The
   proposal is to separate the modifier with a colon - `--flag:modifier` - which frees `=`
@@ -547,6 +585,17 @@ remains below is the design-forked / larger work.
     - **Flavor defaults:** `find` -> `none` (drop-in fidelity); every xff-family flavor (xff / xfd /
       rg) -> `roots`, because pointing xff AT an archive strongly implies "look inside", while
       silently descending every archive in a tree is a cost the user should opt into.
+    - **Slice SHIPPED (2026-08-10): the spelling library + both flags.**
+      `@xff_extras_api//:member_path_cc` (`xff/archive/member_path.h`) implements the ratified rules -
+      `JoinMemberPath` is plain concatenation, `SplitMemberPath` cuts at the FIRST separator and keeps
+      the remainder verbatim, an empty separator never matches, and `--archive-prefix=URI` parses only
+      the URI form so the two spellings cannot silently interchange. It lives in the shared API module
+      because both sides need it (the extra renders, the core parses a member path handed back) and an
+      extra must not depend on the core. `--archive-separator=STRING` and `--archive-prefix=[URI|STRING]`
+      are registered globals (help + `XFF.md` regenerated), gated on the archive extra like
+      `--archive`. STILL TO COME with the VFS backend: actually rendering walk output through them,
+      and the reserved `{relpath}`-style interaction. The URI scheme is the generic `archive://` for
+      now - per-format (`tar:` / `zip:`) vs `jar:file:` wrapping is the one open sub-detail below.
     - **Member path spelling: a FLAG, because there is no single convention (decided 2026-08-10).**
       The prior docs disagreed (`docs/design.md` said the JAR-style `pkg.tar!foo/bar`, an older scope
       note said a plain directory prefix `foo.tgz/dir/file.txt`) - and neither is "right", because
@@ -561,7 +610,7 @@ remains below is the design-forked / larger work.
         looks like a directory", so globs and `{relpath}` compose with no new rules) but is lossy - a
         real directory named `x.tar` becomes indistinguishable from an archive - so it can never be
         the default.
-      - **`--archive-prefix=none|uri` (default `none`)** - whether the whole path is rendered as a
+      - **`--archive-prefix=[URI|STRING]` (default empty)** - whether the whole path is rendered as a
         URI (`tar:///abs/path/a.tar!/inner/x`) instead of a bare path. The point is INTEROP: a URI
         can be handed to other tools that understand archive URLs, which a bare path cannot. Open
         sub-detail: whether the scheme is per-format (`tar:` / `zip:`) or one generic scheme, and
@@ -579,6 +628,59 @@ remains below is the design-forked / larger work.
         an odd `!//`)
         Parsing splits at the first occurrence of the configured separator and takes the remainder
         verbatim, so an absolute member round-trips instead of being normalized away.
+    - **`--archive-prefix` is string-valued, with `URI` as the one keyword (refined 2026-08-11).**
+      Empty means no prefix; `URI` renders a WELL-FORMED URI; anything else is used literally (e.g.
+      `--archive-prefix=vfs:`), the same freedom the separator has. Two corrections came out of review:
+      - `archive://a.tgz!x` was WRONG. `//` introduces the URI authority, so a relative container would
+        parse as a HOST NAME. Absolute containers now render `archive:///abs/a.tar!x` (empty authority,
+        as `file:///...` does) and relative ones the opaque `archive:a.tgz!x`. The original test only
+        covered the absolute case, which is exactly why the bug hid - both forms are pinned now.
+      - There is no `none` value: with a string-valued prefix it would be indistinguishable from a
+        literal prefix spelled `none`. Keywords are ALL CAPS (`URI`), matching RE2 / PCRE2 / GLOB.
+    - **Why phar is the easy case: `.phar/` is self-marking.** A path component ending in `.phar`
+      followed by `/` is, in practice, never anything but a phar archive plus a sub-path - so the
+      LEXICAL oracle (scan for the extension) is reliable for phar without a stat, which is exactly
+      what PHP's own stream wrapper relies on. Consequences worth stating: phar can render AND parse
+      member paths with no filesystem access, offline round-tripping included; and `AUTO` can safely
+      pick `/` for phar, because the split point is carried by the container's own name rather than by
+      a marker. The residual case - a real DIRECTORY named `x.phar` - is pathological, and a walk gets
+      it right anyway: it finds a directory, not a file, so there is nothing to open as an archive.
+    - **OPEN: per-format schemes, and PHAR support (raised 2026-08-11).** PHP's phar has its own
+      established URL form, `phar:///path/to/a.phar/inner/x` - a per-format scheme AND a plain `/`
+      separator with no marker at all. That is real evidence AGAINST the generic `archive:` scheme and
+      for per-format ones (`tar:` / `zip:` / `phar:`), the open sub-detail above; if per-format wins, the
+      scheme becomes a property of the detected container format rather than one constant.
+      Supporting phar itself is a separate slice: libarchive does NOT read phar (stub + manifest +
+      optional per-entry compression + signature), so it needs its own reader behind the same
+      `archive_reader` shape - which is what the extras architecture is for, and the member-path
+      spelling is format-agnostic so nothing there changes. Check the existing phar work for a reusable
+      manifest parser before writing one.
+    - **OPEN (design sketched 2026-08-11): `--archive-separator=AUTO+<fallback>`, a per-format
+      separator.** Once the scheme can be per-format, the SEPARATOR has to follow the format too, since
+      phar's convention is a bare `/` with no marker while JAR-style URLs use `!`. `AUTO` alone cannot
+      decide between `!` and `#` for the formats that have no convention, so it needs a fallback,
+      spelled compactly as one value:
+      - `AUTO+!` - derive from the container format, and use `!` where the format dictates nothing.
+      - Bare `AUTO` means `AUTO+!` (the current default fallback), so the short form stays useful.
+      - ALL CAPS because that is now the keyword convention (`URI`); any other string stays a literal
+        separator, so a literal `auto` is still expressible and unambiguous.
+      - The `+` reads as "with fallback". Note it is a mild overload: `+` elsewhere in xff is the
+        chmod-style "more/on" suffix (`-z+`, `-g+`, `-s+`). Alternatives considered and rejected:
+        `AUTO:!` (`:` already means sub-separator inside a value) and `AUTO!` (unparseable - `!` is
+        itself a legal separator, so where does the keyword end?).
+      - Known per-format mapping to start from: phar -> `/` (PHP's `phar:///a.phar/inner/x`), Java
+        jar/war/ear -> `!` (JAR URLs), everything else -> the fallback.
+      - **A bare `/` is NOT lossy - correcting an earlier note here.** A walk is never ambiguous: it
+        meets `a.phar` as a real FILE, sniffs it and descends, and one path cannot be both a file and a
+        directory. The only inconvenience is that a `/` boundary is not locatable by string inspection
+        alone, and even that is solvable WITHOUT the filesystem: scanning for a known container
+        EXTENSION works, which is how PHP resolves `phar:///path/a.phar/inner` and why `.phar/` is
+        itself a split point. So splitting stays offline-capable and a printed path round-trips.
+        `SplitMemberPath`'s oracle overload covers all three (walk knowledge, stat + sniff, or a purely
+        lexical extension test); the string-only overload refuses an all-slash separator rather than
+        cutting at the leading slash. Note the marker separators are heuristics too: a directory really
+        can be named `foo!`, so `!/` and `#/` can occur in a real path - they just fail to be archives,
+        so a walk finds nothing and the marker only ever served as a convenient split point.
     - **Container identity is dual:** the archive keeps its real-FS identity (real `-type f`,
       deletable / actionable) AND parents its members; this falls out of the existing VFS
       source-tagging (container = real fs, members = archive member).
