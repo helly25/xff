@@ -1,0 +1,255 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "xff/archive/phar_reader.h"
+
+#include <cstdint>
+#include <fstream>
+#include <ios>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+#include "mbo/testing/status.h"
+#include "xff/archive/archive_reader.h"
+
+namespace xff::archive {
+namespace {
+
+using ::mbo::testing::IsOkAndHolds;
+using ::mbo::testing::StatusIs;
+using ::testing::AllOf;
+using ::testing::ElementsAre;
+using ::testing::Field;
+using ::testing::HasSubstr;
+using ::testing::IsFalse;
+using ::testing::IsTrue;
+
+// PHP's own compression flags, so the test names the same bits the format does.
+constexpr std::uint32_t kCompressedGz = 0x00001000;
+
+// One member to place into a generated phar. `name` is stored verbatim, so a directory is spelled
+// with the trailing slash the format uses.
+struct PharSpec {
+  std::string name;
+  std::string content;
+  std::uint32_t flags = 0644;
+};
+
+struct PharReaderTest : ::testing::Test {
+  static void AppendUint32(std::string& out, std::uint32_t value) {
+    out.push_back(static_cast<char>(value & 0xFFU));
+    out.push_back(static_cast<char>(value >> 8U & 0xFFU));
+    out.push_back(static_cast<char>(value >> 16U & 0xFFU));
+    out.push_back(static_cast<char>(value >> 24U & 0xFFU));
+  }
+
+  static void AppendLengthPrefixed(std::string& out, std::string_view value) {
+    AppendUint32(out, static_cast<std::uint32_t>(value.size()));
+    out.append(value);
+  }
+
+  // Builds a native phar by hand. There is no phar writer to lean on (that is the point of the
+  // reader), so the test IS the format specification: stub, 4-byte manifest length, manifest,
+  // then the member data in manifest order.
+  static std::string MakePhar(
+      const std::vector<PharSpec>& members,
+      std::string_view stub = "<?php __HALT_COMPILER(); ?>\n",
+      std::string_view alias = "",
+      std::uint32_t mtime = 1'700'000'000) {
+    std::string manifest;
+    AppendUint32(manifest, static_cast<std::uint32_t>(members.size()));
+    manifest.push_back('\x11');  // API version 1.1.1, nibble-packed big-endian
+    manifest.push_back('\x10');
+    AppendUint32(manifest, 0);  // global flags
+    AppendLengthPrefixed(manifest, alias);
+    AppendLengthPrefixed(manifest, "");  // container metadata
+    std::string data;
+    for (const PharSpec& member : members) {
+      AppendLengthPrefixed(manifest, member.name);
+      AppendUint32(manifest, static_cast<std::uint32_t>(member.content.size()));
+      AppendUint32(manifest, mtime);
+      AppendUint32(manifest, static_cast<std::uint32_t>(member.content.size()));  // stored size
+      AppendUint32(manifest, 0);                                                  // CRC32, unchecked here
+      AppendUint32(manifest, member.flags);
+      AppendLengthPrefixed(manifest, "");  // member metadata
+      data.append(member.content);
+    }
+    std::string phar(stub);
+    AppendUint32(phar, static_cast<std::uint32_t>(manifest.size()));
+    phar.append(manifest);
+    phar.append(data);
+    return phar;
+  }
+
+  // The same bytes on disk, for the file-based entry points.
+  static std::string WritePhar(const std::vector<PharSpec>& members, std::string_view name) {
+    const std::string path = absl::StrCat(::testing::TempDir(), "/", name);
+    const std::string bytes = MakePhar(members);
+    std::ofstream(path, std::ios::binary).write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    return path;
+  }
+};
+
+TEST_F(PharReaderTest, ListsMembersWithTheirPathsSizesModesAndTimes) {
+  const std::string phar = MakePhar({
+      {.name = "bin/run.php", .content = "<?php echo 1;"},
+      {.name = "lib/x.txt", .content = "xyz", .flags = 0600},
+  });
+  EXPECT_THAT(
+      ListPharMembers(phar), IsOkAndHolds(ElementsAre(
+                                 AllOf(
+                                     Field("path", &Member::path, "bin/run.php"), Field("size", &Member::size, 13),
+                                     Field("mode", &Member::mode, 0644), Field("mtime", &Member::mtime, 1'700'000'000)),
+                                 AllOf(
+                                     Field("path", &Member::path, "lib/x.txt"), Field("size", &Member::size, 3),
+                                     Field("mode", &Member::mode, 0600)))));
+}
+
+TEST_F(PharReaderTest, ADirectoryMemberIsTheTrailingSlashSpelling) {
+  // phar has no is-directory flag bit: the trailing `/` on the stored name IS the marker, and the
+  // reported path drops it so member paths compose like any other path.
+  const std::string phar = MakePhar({{.name = "lib/", .content = "", .flags = 0755}});
+  EXPECT_THAT(
+      ListPharMembers(phar),
+      IsOkAndHolds(ElementsAre(AllOf(
+          Field("path", &Member::path, "lib"), Field("is_directory", &Member::is_directory, IsTrue()),
+          Field("is_symlink", &Member::is_symlink, IsFalse())))));
+}
+
+TEST_F(PharReaderTest, AnAliasAndMetadataFieldsAreSkippedNotMisread) {
+  // The alias sits between the flags and the first member, so a reader that ignores its length
+  // reads garbage for every member. A non-empty alias pins that it is consumed.
+  const std::string phar = MakePhar({{.name = "a.txt", .content = "a"}}, "<?php __HALT_COMPILER(); ?>\n", "app.phar");
+  EXPECT_THAT(ListPharMembers(phar), IsOkAndHolds(ElementsAre(Field("path", &Member::path, "a.txt"))));
+}
+
+TEST_F(PharReaderTest, StubVariantsAllLocateTheManifest) {
+  // The stub ends in the token plus an OPTIONAL ` ?>` and one line ending, in any combination.
+  for (const std::string_view stub : {
+           std::string_view("<?php __HALT_COMPILER(); ?>\n"),
+           std::string_view("<?php __HALT_COMPILER(); ?>\r\n"),
+           std::string_view("<?php __HALT_COMPILER();"),
+           std::string_view("#!/usr/bin/env php\n<?php require 'x'; __HALT_COMPILER(); ?>"),
+       }) {
+    EXPECT_THAT(
+        ListPharMembers(MakePhar({{.name = "a.txt", .content = "a"}}, stub)),
+        IsOkAndHolds(ElementsAre(Field("path", &Member::path, "a.txt"))))
+        << "stub: " << stub;
+  }
+}
+
+TEST_F(PharReaderTest, PlainPhpWithoutTheHaltTokenIsNotAPhar) {
+  // "Not a phar" must stay distinguishable from "corrupt phar": the walk treats the first as an
+  // ordinary file and only reports the second.
+  EXPECT_THAT(ListPharMembers("<?php echo 'just a script';\n"), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(PharReaderTest, ATruncatedManifestIsCorruption) {
+  const std::string phar = MakePhar({{.name = "a.txt", .content = "aaaa"}});
+  EXPECT_THAT(
+      ListPharMembers(phar.substr(0, phar.size() - 12)), StatusIs(absl::StatusCode::kDataLoss, HasSubstr("truncated")));
+}
+
+TEST_F(PharReaderTest, AManifestPromisingMoreMembersThanItHoldsIsCorruption) {
+  // The member count is a declared number, so it can lie. Parsing sequentially turns the lie into a
+  // truncation error rather than a wild read.
+  constexpr std::string_view kStub = "<?php __HALT_COMPILER(); ?>\n";
+  std::string phar = MakePhar({{.name = "a.txt", .content = "a"}}, kStub);
+  // The count is the manifest's first field, so it sits right behind the stub and the 4-byte
+  // manifest length; its low byte alone is enough to inflate it.
+  phar[kStub.size() + 4] = '\x09';
+  EXPECT_THAT(ListPharMembers(phar), StatusIs(absl::StatusCode::kDataLoss));
+}
+
+TEST_F(PharReaderTest, ReadsMemberContentAtItsOffset) {
+  // Members are concatenated in manifest order with no per-member header, so the offset of the
+  // SECOND member is only right if the first member's stored size was accounted for.
+  const std::string phar = MakePhar({
+      {.name = "first.txt", .content = "one"},
+      {.name = "second.txt", .content = "two-two"},
+  });
+  EXPECT_THAT(ReadPharMember(phar, "first.txt"), IsOkAndHolds("one"));
+  EXPECT_THAT(ReadPharMember(phar, "second.txt"), IsOkAndHolds("two-two"));
+}
+
+TEST_F(PharReaderTest, MemberLookupIsNormalizedOnBothSides) {
+  const std::string phar = MakePhar({{.name = "dir/a.txt", .content = "content"}});
+  EXPECT_THAT(ReadPharMember(phar, "./dir/a.txt"), IsOkAndHolds("content"));
+}
+
+TEST_F(PharReaderTest, ReportsAMissingMemberAsNotFound) {
+  const std::string phar = MakePhar({{.name = "a.txt", .content = "a"}});
+  EXPECT_THAT(ReadPharMember(phar, "nope.txt"), StatusIs(absl::StatusCode::kNotFound));
+}
+
+TEST_F(PharReaderTest, ADirectoryMemberHasNoContentToRead) {
+  // Found, but nothing to read - and reached through the un-slashed spelling, which is the point of
+  // normalizing: a content predicate must not see this as "no such member".
+  const std::string phar = MakePhar({{.name = "lib/", .content = "", .flags = 0755}});
+  EXPECT_THAT(ReadPharMember(phar, "lib"), StatusIs(absl::StatusCode::kFailedPrecondition));
+  EXPECT_THAT(ReadPharMember(phar, "lib/"), StatusIs(absl::StatusCode::kFailedPrecondition));
+}
+
+TEST_F(PharReaderTest, ACompressedMemberIsRefusedRatherThanReturnedRaw) {
+  // Per-member deflate is not implemented yet. Returning the compressed bytes would be worse than
+  // refusing: `-grep` would silently match nothing on a member that does contain the pattern.
+  const std::string phar =
+      MakePhar({{.name = "z.txt", .content = "not really deflated", .flags = std::uint32_t{0644} | kCompressedGz}});
+  EXPECT_THAT(ReadPharMember(phar, "z.txt"), StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("deflate")));
+  // Listing it still works: the manifest carries the metadata regardless of the member encoding.
+  EXPECT_THAT(ListPharMembers(phar), IsOkAndHolds(ElementsAre(Field("path", &Member::path, "z.txt"))));
+}
+
+TEST_F(PharReaderTest, EnforcesTheByteLimit) {
+  const std::string phar = MakePhar({{.name = "a.txt", .content = "123456"}});
+  EXPECT_THAT(ReadPharMember(phar, "a.txt", /*max_bytes=*/2), StatusIs(absl::StatusCode::kResourceExhausted));
+  // The limit is inclusive: content exactly at the limit is fine.
+  EXPECT_THAT(ReadPharMember(phar, "a.txt", /*max_bytes=*/6), IsOkAndHolds("123456"));
+}
+
+TEST_F(PharReaderTest, ReadsAMemberWhoseDataRunsPastTheContainerAsCorruption) {
+  std::string phar = MakePhar({{.name = "a.txt", .content = "0123456789"}});
+  phar.resize(phar.size() - 4);
+  EXPECT_THAT(ReadPharMember(phar, "a.txt"), StatusIs(absl::StatusCode::kDataLoss));
+}
+
+TEST_F(PharReaderTest, TheFileEntryPointsSeeTheSameContainer) {
+  const std::string path = WritePhar(
+      {
+          {.name = "bin/", .content = "", .flags = 0755},
+          {.name = "bin/run.php", .content = "<?php echo 'hi';"},
+      },
+      "app.phar");
+  EXPECT_THAT(
+      ListPharMembersOfFile(path),
+      IsOkAndHolds(ElementsAre(Field("path", &Member::path, "bin"), Field("path", &Member::path, "bin/run.php"))));
+  EXPECT_THAT(ReadPharMemberOfFile(path, "bin/run.php"), IsOkAndHolds("<?php echo 'hi';"));
+  EXPECT_THAT(ReadPharMemberOfFile(path, "bin"), StatusIs(absl::StatusCode::kFailedPrecondition));
+  EXPECT_THAT(ReadPharMemberOfFile(path, "missing"), StatusIs(absl::StatusCode::kNotFound));
+}
+
+TEST_F(PharReaderTest, AMissingFileIsNotAPhar) {
+  EXPECT_THAT(
+      ListPharMembersOfFile(absl::StrCat(::testing::TempDir(), "/does-not-exist.phar")),
+      StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+}  // namespace
+}  // namespace xff::archive
