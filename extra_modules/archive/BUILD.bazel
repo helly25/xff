@@ -139,3 +139,28 @@ cc_test(
         "@helly25_mbo//mbo/testing:status_cc",
     ],
 )
+
+# Reads the COMMITTED fixtures, which PHP itself wrote (test_data/README.md explains why they are
+# checked in rather than generated during the test: a fixture from our own writer would only prove the
+# reader is self-consistent, and the tests must not need a PHP interpreter).
+#
+# The `env` entry hands the test one fixture's runfiles path so it can derive the directory. That
+# indirection is needed because this test lives in an EXTERNAL bazel module: its runfiles sit under
+# the module's canonical repo directory, whose name (`xff_archive+`) is a bazel implementation detail
+# a test must not hard-code, and $(rootpath) is the supported way to be told it.
+cc_test(
+    name = "phar_fixture_test",
+    size = "small",
+    srcs = ["phar_fixture_test.cc"],
+    data = glob(["test_data/*"]),
+    env = {"XFF_PHAR_FIXTURE_ANCHOR": "$(rootpath test_data/plain.phar)"},
+    deps = [
+        ":archive_reader_cc",
+        ":phar_reader_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)

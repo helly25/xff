@@ -98,6 +98,15 @@ class Cursor {
     return value;
   }
 
+  // Advances past `length` bytes, or returns false when they are not there.
+  [[nodiscard]] bool Skip(std::uint32_t length) {
+    if (at_ + length > bytes_.size()) {
+      return false;
+    }
+    at_ += length;
+    return true;
+  }
+
   // Reads a `[4 byte length][payload]` pair, the shape every variable-length manifest field uses.
   [[nodiscard]] absl::StatusOr<std::string_view> LengthPrefixed(std::string_view field) {
     absl::StatusOr<std::uint32_t> length = Uint32(absl::StrCat(field, " length"));
@@ -122,26 +131,102 @@ class Cursor {
   std::size_t at_ = 0;
 };
 
-// The offset at which the manifest begins, or nullopt when `prefix` holds no halt token. The token
-// may be followed by an optional ` ?>` and one line ending, all of which belong to the stub.
-std::optional<std::size_t> ManifestOffset(std::string_view prefix) {
-  const std::string_view::size_type token = prefix.find(kHaltToken);
-  if (token == std::string_view::npos) {
-    return std::nullopt;
-  }
-  std::size_t at = token + kHaltToken.size();
-  while (at < prefix.size() && (prefix[at] == ' ' || prefix[at] == '\t')) {
+// The manifest's fixed header: member count (4), API version (2), global flags (4), and the length
+// fields of the alias and the container metadata (4 each). The smallest possible manifest is exactly
+// this, with both variable parts empty.
+constexpr std::size_t kMinManifestBytes = 18;
+
+// The smallest a member entry can be: a one-character name (4 + 1), five 4-byte fields, and a
+// metadata length of 0. Used to reject a member count that the declared manifest could not possibly
+// hold, which is what tells a real phar apart from a file that merely contains the halt token.
+constexpr std::size_t kMinEntryBytes = 4 + 1 + (5 * 4) + 4;
+
+// Where the manifest starts, given the offset just past a halt token: the token may be followed by an
+// optional ` ?>` and one line ending, all of which still belong to the stub.
+std::size_t SkipStubTail(std::string_view bytes, std::size_t at) {
+  while (at < bytes.size() && (bytes[at] == ' ' || bytes[at] == '\t')) {
     ++at;
   }
-  if (prefix.substr(at).starts_with("?>")) {
+  if (bytes.substr(at).starts_with("?>")) {
     at += 2;
   }
-  if (prefix.substr(at).starts_with("\r\n")) {
+  if (bytes.substr(at).starts_with("\r\n")) {
     at += 2;
-  } else if (prefix.substr(at).starts_with("\n")) {
+  } else if (bytes.substr(at).starts_with("\n")) {
     ++at;
   }
   return at;
+}
+
+// Whether a manifest plausibly starts at `at` (the 4-byte manifest length, then the header).
+//
+// This check is what makes the halt token INSUFFICIENT evidence on its own, and it is not
+// hypothetical: a tar- or zip-based phar stores the stub as an ordinary member (`.phar/stub.php`), so
+// the token appears inside a perfectly good tar. Committing on the token alone reported that tar as a
+// CORRUPT phar - worse than not recognising it, because the walk reports an error instead of treating
+// the file as the archive it is.
+//
+// Only the fixed header is required to be present, deliberately: if the header is plausible but the
+// file ends inside the declared manifest, that is a truncated phar (DataLoss), not "some other file".
+bool LooksLikeManifestAt(std::string_view bytes, std::size_t at) {
+  if (at + 4 > bytes.size()) {
+    return false;
+  }
+  Cursor cursor(bytes.substr(at));
+  const absl::StatusOr<std::uint32_t> manifest_length = cursor.Uint32("manifest length");
+  if (!manifest_length.ok() || *manifest_length < kMinManifestBytes || *manifest_length > kMaxManifestBytes) {
+    return false;
+  }
+  const absl::StatusOr<std::uint32_t> count = cursor.Uint32("member count");
+  if (!count.ok()) {
+    return false;
+  }
+  // A count the declared manifest cannot hold means these bytes are not a manifest.
+  if (static_cast<std::uint64_t>(*count) * kMinEntryBytes + kMinManifestBytes > *manifest_length) {
+    return false;
+  }
+  const absl::StatusOr<std::uint32_t> api_version = cursor.Uint16BigEndian("API version");
+  // The version is nibble-packed with a non-zero major (1.x.y to date), so a zero high nibble - what
+  // tar's NUL padding after the stub member yields - is not a version.
+  if (!api_version.ok() || (*api_version >> 12U) == 0) {
+    return false;
+  }
+  const absl::StatusOr<std::uint32_t> global_flags = cursor.Uint32("global flags");
+  if (!global_flags.ok()) {
+    return false;
+  }
+  // The two variable-length header fields must fit inside the DECLARED manifest (not inside what
+  // happens to be present, per the comment above).
+  std::uint64_t used = kMinManifestBytes;
+  for (const std::string_view field : {std::string_view("alias"), std::string_view("container metadata")}) {
+    const absl::StatusOr<std::uint32_t> length = cursor.Uint32(field);
+    if (!length.ok()) {
+      return false;
+    }
+    used += *length;
+    if (used > *manifest_length) {
+      return false;
+    }
+    if (!cursor.Skip(*length)) {
+      // Beyond what is present: the header itself is plausible, so let the parse decide.
+      return true;
+    }
+  }
+  return true;
+}
+
+// The offset at which the manifest begins, or nullopt when `bytes` holds no halt token FOLLOWED BY a
+// plausible manifest. Every token occurrence is tried, since the first one can belong to a stub stored
+// as a member of some other archive.
+std::optional<std::size_t> ManifestOffset(std::string_view bytes) {
+  for (std::string_view::size_type token = bytes.find(kHaltToken); token != std::string_view::npos;
+       token = bytes.find(kHaltToken, token + 1)) {
+    const std::size_t at = SkipStubTail(bytes, token + kHaltToken.size());
+    if (LooksLikeManifestAt(bytes, at)) {
+      return at;
+    }
+  }
+  return std::nullopt;
 }
 
 // Parses the manifest region (everything after the 4-byte manifest length), turning each entry into
