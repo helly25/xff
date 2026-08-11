@@ -167,15 +167,29 @@ TEST_F(PharReaderTest, ATruncatedManifestIsCorruption) {
       ListPharMembers(phar.substr(0, phar.size() - 12)), StatusIs(absl::StatusCode::kDataLoss, HasSubstr("truncated")));
 }
 
-TEST_F(PharReaderTest, AManifestPromisingMoreMembersThanItHoldsIsCorruption) {
-  // The member count is a declared number, so it can lie. Parsing sequentially turns the lie into a
-  // truncation error rather than a wild read.
+TEST_F(PharReaderTest, AMemberCountTheManifestCannotHoldMeansThisIsNotAPhar) {
+  // The member count is a declared number, so it can lie - and a count the declared manifest LENGTH
+  // could not possibly hold is the check that makes the halt token insufficient evidence on its own.
+  // That matters concretely: a tar- or zip-based phar stores the stub as an ordinary member, so the
+  // token appears inside a perfectly good tar, and committing on the token alone reported that tar as
+  // a CORRUPT phar - worse than not recognising it, since the walk then reports an error instead of
+  // reading the archive. So this is InvalidArgument ("not a phar"), not DataLoss.
   constexpr std::string_view kStub = "<?php __HALT_COMPILER(); ?>\n";
   std::string phar = MakePhar({{.name = "a.txt", .content = "a"}}, kStub);
   // The count is the manifest's first field, so it sits right behind the stub and the 4-byte
   // manifest length; its low byte alone is enough to inflate it.
   phar[kStub.size() + 4] = '\x09';
-  EXPECT_THAT(ListPharMembers(phar), StatusIs(absl::StatusCode::kDataLoss));
+  EXPECT_THAT(ListPharMembers(phar), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(PharReaderTest, AStrayHaltTokenBeforeTheRealOneIsSkipped) {
+  // The corollary of the check above: a stub may legitimately MENTION the token (in a string, or
+  // because the file embeds another stub), so detection tries every occurrence and takes the first
+  // one actually followed by a manifest.
+  const std::string phar = MakePhar(
+      {{.name = "a.txt", .content = "a"}},
+      "<?php $marker = '__HALT_COMPILER();'; /* not the end */ __HALT_COMPILER(); ?>\n");
+  EXPECT_THAT(ListPharMembers(phar), IsOkAndHolds(ElementsAre(Field("path", &Member::path, "a.txt"))));
 }
 
 TEST_F(PharReaderTest, ReadsMemberContentAtItsOffset) {
