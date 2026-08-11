@@ -19,11 +19,14 @@
 #include <archive_entry.h>
 
 #include <cstddef>
+#include <cstdlib>
+#include <fstream>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
@@ -76,6 +79,34 @@ struct ArchiveReaderTest : ::testing::Test {
     buffer.resize(used);
     return buffer;
   }
+
+  // The same bytes on disk: ReadMemberOfFile / ListMembersOfFile stream from a path, so a file is
+  // needed - built from MakeArchive so both entry points see byte-identical input.
+  static std::string WriteArchive(const std::vector<FileSpec>& files, std::string_view name) {
+    const char* const tmp = std::getenv("TEST_TMPDIR");
+    const std::string path = absl::StrCat(tmp != nullptr ? tmp : "/tmp", "/", name);
+    const std::string bytes = MakeArchive(files);
+    std::ofstream(path, std::ios::binary).write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    return path;
+  }
+
+  // A tar carrying an explicit DIRECTORY member, for the "no content to read" case.
+  static std::string WriteArchiveWithDirectory(std::string_view name) {
+    const char* const tmp = std::getenv("TEST_TMPDIR");
+    const std::string path = absl::StrCat(tmp != nullptr ? tmp : "/tmp", "/", name);
+    struct ::archive* out = ::archive_write_new();
+    ::archive_write_set_format_pax_restricted(out);
+    ::archive_write_open_filename(out, path.c_str());
+    struct ::archive_entry* dir = ::archive_entry_new();
+    ::archive_entry_set_pathname(dir, "dir");
+    ::archive_entry_set_filetype(dir, AE_IFDIR);
+    ::archive_entry_set_perm(dir, 0755);
+    ::archive_write_header(out, dir);
+    ::archive_entry_free(dir);
+    ::archive_write_close(out);
+    ::archive_write_free(out);
+    return path;
+  }
 };
 
 TEST_F(ArchiveReaderTest, ListsTarMembersWithTheirPathsAndSizes) {
@@ -118,6 +149,44 @@ TEST_F(ArchiveReaderTest, RegistersItsLicenseNotice) {
   // Linking the extra must contribute libarchive's notice, so --help=notice / the NOTICE file stay
   // complete by construction rather than by anyone remembering to update them.
   EXPECT_THAT(license::Notices(), Contains(Field("component", &license::Notice::component, "libarchive")));
+}
+
+// ReadMemberOfFile: the entry point the content predicates need. Each error state is distinct on
+// purpose, so a caller can tell "no such member" from "member has no content" from "bomb guard".
+TEST_F(ArchiveReaderTest, ReadMemberOfFileReturnsTheMemberContent) {
+  const std::string tar = WriteArchive({{.path = "hello.txt", .content = "hello\n"}}, "read.tar");
+  EXPECT_THAT(ReadMemberOfFile(tar, "hello.txt"), IsOkAndHolds("hello\n"));
+}
+
+TEST_F(ArchiveReaderTest, ReadMemberOfFileIgnoresALeadingDotSlashOnEitherSide) {
+  // Tar streams write both spellings for the same member, so neither side may be authoritative.
+  const std::string tar = WriteArchive({{.path = "hello.txt", .content = "hello\n"}}, "dotslash.tar");
+  EXPECT_THAT(ReadMemberOfFile(tar, "./hello.txt"), IsOkAndHolds("hello\n"));
+}
+
+TEST_F(ArchiveReaderTest, ReadMemberOfFileReportsAMissingMemberAsNotFound) {
+  const std::string tar = WriteArchive({{.path = "hello.txt", .content = "hello\n"}}, "missing.tar");
+  EXPECT_THAT(ReadMemberOfFile(tar, "nope.txt"), StatusIs(absl::StatusCode::kNotFound));
+}
+
+TEST_F(ArchiveReaderTest, ReadMemberOfFileRefusesSomethingWithNoContent) {
+  // A directory member: FailedPrecondition, not an empty string - a content predicate could not
+  // distinguish an empty string here from a genuinely empty file.
+  const std::string tar = WriteArchiveWithDirectory("dir.tar");
+  EXPECT_THAT(ReadMemberOfFile(tar, "dir"), StatusIs(absl::StatusCode::kFailedPrecondition));
+}
+
+TEST_F(ArchiveReaderTest, ReadMemberOfFileRejectsANonArchive) {
+  EXPECT_THAT(ReadMemberOfFile("/etc/hosts", "anything"), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(ArchiveReaderTest, ReadMemberOfFileEnforcesTheByteLimit) {
+  // The bomb guard: a small header can promise a huge expansion, so the LOOP bounds the read rather
+  // than trusting the declared size.
+  const std::string tar = WriteArchive({{.path = "hello.txt", .content = "hello\n"}}, "limit.tar");
+  EXPECT_THAT(ReadMemberOfFile(tar, "hello.txt", /*max_bytes=*/2), StatusIs(absl::StatusCode::kResourceExhausted));
+  // The limit is inclusive: content exactly at the limit is fine.
+  EXPECT_THAT(ReadMemberOfFile(tar, "hello.txt", /*max_bytes=*/6), IsOkAndHolds("hello\n"));
 }
 
 }  // namespace
