@@ -66,23 +66,5 @@ class ExtrasTest(unittest.TestCase):
         self.assertEqual(extras.extras('bazel_dep(name = "re2", version = "1")'), {})
 
 
-class CompileDbModulesTest(unittest.TestCase):
-    def test_reads_the_modules_out_of_the_targets_dict(self):
-        build = """
-refresh_compile_commands(
-    name = "refresh_compile_commands",
-    targets = {
-        "//...": "",
-        "@xff_archive//...": "--//xff:xff_archive",
-        "@xff_pcre2//...": "--//xff:xff_pcre",
-    },
-)
-"""
-        self.assertEqual(extras.compile_db_modules(build), {"xff_archive", "xff_pcre2"})
-
-    def test_finds_nothing_when_no_module_wildcards_are_present(self):
-        self.assertEqual(extras.compile_db_modules('targets = {"//...": ""}'), set())
-
-
 if __name__ == "__main__":
     unittest.main()

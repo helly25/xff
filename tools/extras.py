@@ -14,11 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The composable extras, derived from MODULE.bazel. Also the `check-extras-covered` hook.
+"""The composable extras, derived from MODULE.bazel.
 
     tools/extras.py --wildcards   # @xff_archive//... @xff_pcre2//...
     tools/extras.py --modules     # xff_archive xff_pcre2
-    tools/extras.py --check       # fail if a consumer's hard-coded extras list has drifted
 
 Every extra is a separate bazel MODULE under `extra_modules/`, declared in MODULE.bazel with a
 `bazel_dep` + `local_path_override` pair. That makes MODULE.bazel the single source of truth for
@@ -30,11 +29,10 @@ missing from all three test cells until 2026-08-11, which is how a PR merged gre
 test fixtures absent from the repo. Enumerating by hand in three workflow steps only postpones the
 next instance of that, so CI asks this tool instead.
 
-One consumer genuinely cannot: `//:refresh_compile_commands` needs each extra's BUILD FLAG as well
-(`--//xff:xff_archive`), and a flag name is not derivable from a module name - `xff_pcre2`'s flag is
-`--//xff:xff_pcre`. Its list stays literal Starlark and `--check` asserts it still covers exactly the
-extras MODULE.bazel declares, so adding an extra fails loudly instead of silently dropping it from
-clang-tidy's view.
+Starlark cannot read MODULE.bazel from a BUILD file, so //:refresh_compile_commands derives the same
+list through a repository rule instead (tools/extras_repo.bzl). Two readers of one source of truth,
+rather than a list anyone has to remember: no per-extra BUILD FLAG is needed for either, because
+`--//xff:xff_<extra>` gates whether the CORE links an extra, not whether the extra itself builds.
 """
 
 from __future__ import annotations
@@ -68,17 +66,11 @@ def extras(module_bazel: str) -> dict[str, str]:
     return dict(sorted(found.items()))
 
 
-def compile_db_modules(build_bazel: str) -> set[str]:
-    """The modules named in //:refresh_compile_commands's `targets` dict."""
-    return set(re.findall(r'"@(\w+)//\.\.\."', build_bazel))
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--wildcards", action="store_true", help="print `@module//...` for each extra")
     group.add_argument("--modules", action="store_true", help="print each extra's module name")
-    group.add_argument("--check", action="store_true", help="verify hard-coded lists still match")
     args = parser.parse_args()
 
     declared = extras((_REPO_ROOT / "MODULE.bazel").read_text(encoding="utf-8"))
@@ -88,32 +80,8 @@ def main() -> int:
 
     if args.wildcards:
         print(" ".join(f"@{module}//..." for module in declared))
-        return 0
-    if args.modules:
+    else:
         print(" ".join(declared))
-        return 0
-
-    # --check: the one consumer that cannot derive its list, because it also needs each extra's build
-    # flag, which is not derivable from the module name.
-    in_compile_db = compile_db_modules((_REPO_ROOT / "BUILD.bazel").read_text(encoding="utf-8"))
-    missing = set(declared) - in_compile_db
-    if missing:
-        print(
-            "//:refresh_compile_commands does not cover these extras: "
-            + ", ".join(sorted(missing))
-            + "\nAdd each with its build flag, e.g. `\"@xff_archive//...\": \"--//xff:xff_archive\"`,"
-            " or clang-tidy and clangd will silently not see the extra at all.",
-            file=sys.stderr,
-        )
-        return 1
-    stale = in_compile_db - set(declared)
-    if stale:
-        print(
-            "//:refresh_compile_commands names modules MODULE.bazel no longer declares as extras: "
-            + ", ".join(sorted(stale)),
-            file=sys.stderr,
-        )
-        return 1
     return 0
 
 
