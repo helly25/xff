@@ -79,6 +79,20 @@ repos:
         exclude: ^[.]pre-commit-config\.yaml$|\.(phar|tar|tgz|gz|bz2|xz|zst|zip|jar|war|ear|apk|aab|whl|egg|nupkg|vsix|xpi|crx|jmod|deb|rpm|gem|crate|asar|7z)$
         entry: (#|//|/[*]).*(FIXME|TODO)[(](?!(((\w|\w[.-]\w)+@(\w|-)+([.](\w|-)+)*)|(https?://[^)]+))(,[^)]+)?)[)]
         types: [text]
+      - id: no-hand-rolled-status-propagation
+        name: No hand-written status propagation
+        description: |
+          Project convention (STYLE_CPP.md): propagate with the MBO status macros
+          (MBO_ASSIGN_OR_RETURN / MBO_RETURN_IF_ERROR / MBO_MOVE_TO_OR_RETURN), never a
+          hand-written `if (!x.ok()) { return x.status(); }`. Matches only that two-line shape, so
+          a legitimate `return f().status();` (converting a StatusOr call into a Status return) and
+          a recovery branch that inspects `.ok()` without propagating are both untouched. A
+          bool-returning function is the documented exception and cannot match either, since it
+          returns `false`. To skip once, run `SKIP="no-hand-rolled-status-propagation" pre-commit`.
+        language: pygrep
+        args: [--multiline]
+        entry: 'if \(![\w.()]+\.ok\(\)\) \{\s*\n\s*return [\w.()]+\.status\(\);'
+        files: \.(cc|h)$
       - id: no-braced-init-list-loop
         name: No range-for over an inline braced-init-list
         description: |

@@ -26,6 +26,7 @@
 #include <utility>
 
 #include "absl/status/statusor.h"
+#include "mbo/status/status_macros.h"
 #include "xff/archive/archive_backend.h"
 #include "xff/archive/archive_fs.h"
 #include "xff/archive/member_path.h"
@@ -41,11 +42,8 @@ namespace {
 absl::StatusOr<std::unique_ptr<vfs::FileSystem>> OpenArchiveContainer(
     std::string_view container,
     MemberPathOptions options) {
-  absl::StatusOr<ArchiveFileSystem> archive_fs = ArchiveFileSystem::Open(container, options);
-  if (!archive_fs.ok()) {
-    return archive_fs.status();
-  }
-  return std::make_unique<ArchiveFileSystem>(*std::move(archive_fs));
+  MBO_ASSIGN_OR_RETURN(ArchiveFileSystem archive_fs, ArchiveFileSystem::Open(container, options));
+  return std::make_unique<ArchiveFileSystem>(std::move(archive_fs));
 }
 
 const ContainerRegistrar kRegisterArchiveContainer{&OpenArchiveContainer};

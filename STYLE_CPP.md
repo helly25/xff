@@ -280,6 +280,10 @@ absl::StatusOr<Report> Build(std::string_view path) {
   `absl::IsNotFound(s)` -> return a default value), a function that returns `bool`/`int`
   rather than a status, or a CLI path that prints a message and returns an exit code.
 - Pass `absl::Status` by value (see Idioms).
+- The hand-written shape this replaces is rejected by the `no-hand-rolled-status-propagation`
+  pre-commit hook, which matches `if (!x.ok()) { return x.status(); }` and nothing else - so a
+  `return f().status();` that converts a `StatusOr` call into a `Status` return, and a recovery branch
+  that inspects `.ok()` without propagating, both stay legal.
 
 ## Output, logging, and `AbslStringify`
 
