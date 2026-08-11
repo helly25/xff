@@ -51,7 +51,7 @@ constexpr std::uint32_t kCompressedGz = 0x00001000;
 // What may sit between `__HALT_COMPILER();` and the manifest, and what may not.
 //
 // Every case here was handed to PHP as raw bytes to see whether PHP itself opens the container, and
-// the results match php-src's rule exactly (ext/phar/phar.c, phar_open_from_fp): the close tag is
+// the results match php-src's rule exactly (ext/phar/phar.c, `phar_parse_pharfile`): the close tag is
 // consumed ONLY as the three-byte sequence `" ?>"` or `"\n?>"` - one single space or one newline -
 // followed by at most one line ending. Hence a bare `?>`, a tab, two spaces, a trailing space, a lone
 // line ending and `\r\n?>` are all rejected, while the empty tail is the legal minimal spelling.

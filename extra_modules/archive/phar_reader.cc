@@ -144,8 +144,9 @@ constexpr std::size_t kMinEntryBytes = 4 + 1 + (5 * 4) + 4;
 
 // Where the manifest starts, given the offset just past a halt token.
 //
-// This follows PHP exactly, which is the specification in practice (php-src ext/phar/phar.c,
-// phar_open_from_fp):
+// This follows PHP exactly, which is the specification in practice. From php-src
+// ext/phar/phar.c, in `phar_parse_pharfile` (around line 764) - NOT in `phar_open_from_fp`, which only
+// locates the token and passes the offset down:
 //
 //     if ((*buffer == ' ' || *buffer == '\n') && *(buffer + 1) == '?' && *(buffer + 2) == '>') {
 //         halt_offset += 3;   /* then an optional \n, or \r\n */
