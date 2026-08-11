@@ -297,17 +297,29 @@ jobs:
             echo "Linting sources changed against origin/main:"
             git diff --name-only origin/main...HEAD -- '*.cc' '*.cpp' '*.cxx' | sed 's/^/  /'
           fi
-      - name: Mount Bazel disk cache
-        uses: actions/cache@v4
+      - name: Restore the Bazel disk cache
+        # SPLIT restore/save on purpose. With a single actions/cache@v4 and a key that only changes
+        # when MODULE.bazel.lock / .bazelversion do, the first run saves and every later run is a
+        # cache HIT - and a hit never saves, so the cache freezes at that first content and every run
+        # recompiles all of xff from scratch. That is why this cell took ~34 min while helly25/mbo's
+        # equivalent ran ~6 min warm.
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/bazel-disk
-          key: bazel-disk-clang-tidy-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
+          key: bazel-disk-clang-tidy-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}-${{ github.sha }}
           restore-keys: |
+            bazel-disk-clang-tidy-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}-
             bazel-disk-clang-tidy-
       - name: Route bazel at the disk cache
         # compile_commands-update.sh runs bazel internally (--config=clang-tidy); feed it the disk
         # cache via the try-import'd .bazelrc.user. LLVM re-fetches each run (deliberately not cached).
-        run: echo "common --disk_cache=$HOME/.cache/bazel-disk" >.bazelrc.user
+        # The GC cap keeps a rolling cache from growing without bound: GitHub allows 10 GB per repo
+        # across ALL caches, and evicting other jobs' entries would trade this speedup for theirs.
+        run: |
+          {
+            echo "common --disk_cache=$HOME/.cache/bazel-disk"
+            echo "common --experimental_disk_cache_gc_max_size=4G"
+          } >.bazelrc.user
       - name: Generate compile_commands.json
         # A gitignored local artifact, so build it here. The script extracts the DB in
         # --config=clang-tidy and names the hermetic clang++, which is what makes the commands
@@ -316,6 +328,15 @@ jobs:
         # headers the recorded commands reference - without which clang-tidy would abort on
         # `'xff/license/notice.h' file not found` on a fresh runner.
         run: ./compile_commands-update.sh
+      - name: Save the Bazel disk cache
+        # Only on main: one rolling entry per main commit (GitHub evicts LRU), while branch runs stay
+        # restore-only. Branches therefore get main's warm cache without each PR writing its own copy
+        # and churning the 10 GB budget. `if: always()` so a red lint still preserves the compile work.
+        if: always() && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/bazel-disk
+          key: bazel-disk-clang-tidy-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}-${{ github.sha }}
       - name: Summarize the compile DB
         run: |
           set -euo pipefail
