@@ -2072,7 +2072,6 @@ void FeedHistograms(
   }
 }
 
-
 }  // namespace
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
