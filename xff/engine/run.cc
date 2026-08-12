@@ -53,6 +53,7 @@
 #include "xff/content/line_match.h"
 #include "xff/datetime/datetime.h"
 #include "xff/engine/evaluate.h"
+#include "xff/engine/extract.h"
 #include "xff/engine/walk.h"
 #include "xff/env/env.h"
 #include "xff/exec/exec.h"
@@ -2390,6 +2391,11 @@ int RunFind(
   };
 
   std::map<std::string, std::vector<ShardBufFile>> shard_buckets;  // dir -> its matched files
+  // --archive-extract: an exec-family action on an archive member writes the member to a temporary
+  // file and hands the child that. Lives for the whole run because a `-exec ... +` batch and a -j
+  // child both outlive the entry, and removes everything it made when the run ends.
+  const bool archive_extract = HasGlobal(command.globals, "--archive-extract");
+  ExtractedMembers extracted_members;
   const bool any_reduction = !summaries.empty() || !histograms.empty() || shards.enabled;
   // --archive-aggregate: what a reduction counts when the walk dives. Only `members` needs the walk to
   // open a container before its own entry is visited (see WalkOptions::mount_before_visit), and only
@@ -2650,7 +2656,9 @@ int RunFind(
             .outputs = &outputs,
             .confirm = confirm,
             .exec_batches = &exec_batches,
-            .parallel_exec = options.workers > 1 ? &parallel_exec : nullptr};
+            .parallel_exec = options.workers > 1 ? &parallel_exec : nullptr,
+            .extract = archive_extract ? &extracted_members : nullptr,
+        };
         const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
         if (matched && any_match != nullptr) {
           *any_match = true;  // grep-style "found anything" -- the expression's truth, not output

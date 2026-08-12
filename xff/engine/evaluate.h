@@ -31,6 +31,7 @@
 #include "absl/time/time.h"
 #include "mbo/diff/diff_options.h"
 #include "xff/datetime/datetime.h"
+#include "xff/engine/extract.h"
 #include "xff/engine/walk.h"
 #include "xff/format/format.h"
 #include "xff/parser/ast.h"
@@ -61,6 +62,16 @@ struct Control {
   // warning, skipping the entry. (Rule: fail when correctness is impossible; warn
   // when degraded-but-correct.) The predicate also returns false (it cannot match).
   std::string_view unsupported;
+  // Storage for a reason that is COMPOSED rather than static (it names the action, or carries the
+  // error that made the task impossible). Set `unsupported` to view this after assigning it; a
+  // static reason needs neither. Kept separate so the common case stays a bare view of a literal.
+  std::string unsupported_storage;
+
+  // Records a composed reason, keeping it alive for as long as the Control lives.
+  void SetUnsupported(std::string reason) {
+    unsupported_storage = std::move(reason);
+    unsupported = unsupported_storage;
+  }
 };
 
 // Per-evaluation environment threaded through Evaluate for one visited entry.
@@ -143,6 +154,10 @@ struct EvalContext {
   // running it synchronously. Null -> the action runs synchronously (find's default,
   // and -j1). The `+` batch forms always go through exec_batches, never this.
   exec::ParallelExec* parallel_exec = nullptr;
+  // --archive-extract: where an exec-family action may write an archive member so a child process can
+  // open it (see ExtractedMembers). Null - the default - keeps -exec / -execdir / -ok / -okdir a clean
+  // refusal on a member, because there is no path to hand the child.
+  ExtractedMembers* extract = nullptr;
 };
 
 // Evaluates a parsed find expression against one visited entry and returns its

@@ -727,8 +727,14 @@ remains below is the design-forked / larger work.
     extension / magic peek so a whole tree is not sniffed byte-wise. `--archive-any` forces
     sniff-everything (expensive, opt-in). Raw-compressed single files (`.gz` / `.xz` / `.zst` /
     `.bz2`) are one-member archives whose member is the inner name.
-  - **The archive VFS is READ-ONLY:** `-delete` / `-exec` / `-execdir` on a member is a clean error,
-    never a silent no-op (`-exec` extract-to-temp deferred). Encrypted archives get `-encrypted`
+  - **The archive VFS is READ-ONLY:** `-delete` on a member is a clean error, never a silent no-op.
+    The exec family (`-exec` / `-execdir` / `-ok` / `-okdir`) is a clean error too by default, and
+    `--archive-extract` is the way past it: the member is written to its own temporary directory
+    under its own name and the child is handed that path (`{}` and `{path}` render as the copy,
+    -execdir runs in the copy's directory, -ok shows it in the prompt). Each copy goes as soon as its
+    child finishes - for a `+` batch or a -j child, when the run ends. Opt-in because the child edits
+    a COPY: an in-place tool reports success and changes nothing in the archive. `-delete` stays
+    refused whatever the flag says, since removing the copy would be a no-op dressed as a deletion. Encrypted archives get `-encrypted`
     detection only, no `--password` decryption. Read-only member semantics, the `container!member`
     representation, uncompressed logical size and the streaming / bomb limits are specified in
     `docs/design.md` "Virtual entries".

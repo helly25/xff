@@ -1843,6 +1843,43 @@ bool EvalFprintfln(const parser::Expr& expr, EvalContext& ctx) {
 // the entry under --skip-unsupported - rather than a silent no-op or a command that fails obscurely.
 //
 // Returns true when the action must NOT proceed, having recorded the reason.
+// The path an exec-family action should hand its child for this entry, or nullopt when there is none
+// and the action must be refused (which this reports, naming the entry's problem).
+//
+// For an ordinary file that is the entry's own path. For an archive MEMBER there is no path a process
+// can open, so `--archive-extract` (ctx.extract) is what makes the action possible at all: the member
+// is written to a temporary file and the child is handed that. Without the flag the action is refused
+// exactly as before - extracting behind the user's back would silently turn "run this over the files
+// you matched" into "run it over copies", which changes what an in-place tool edits.
+//
+// The returned path stays valid until `ctx.extract` releases it (the caller, after a synchronous
+// child) or the run ends (a `+` batch or a -j child, neither of which has finished here).
+std::optional<std::string> ExecTargetPath(EvalContext& ctx, std::string_view action) {
+  if (ctx.visit.metadata.source == vfs::Source::kLocalFs) {
+    return std::string(ctx.visit.path);
+  }
+  if (ctx.extract == nullptr) {
+    ctx.control.SetUnsupported(
+        absl::StrCat(
+            action,
+            " cannot run on an archive member: a member has no path a process can open"
+            " (use --archive-extract to run it on a temporary copy)"));
+    return std::nullopt;
+  }
+  absl::StatusOr<std::string> extracted = ctx.extract->Extract(ctx.fs, ctx.visit.path);
+  if (!extracted.ok()) {
+    ctx.control.SetUnsupported(absl::StrCat(action, " could not extract the member: ", extracted.status().message()));
+    return std::nullopt;
+  }
+  return *std::move(extracted);
+}
+
+// Whether `path` is a temporary copy this action made (rather than the entry's own path), so the
+// caller knows to release it once the child it was made for has finished.
+bool IsExtracted(const EvalContext& ctx, std::string_view path) {
+  return ctx.extract != nullptr && path != ctx.visit.path;
+}
+
 bool RefuseOnVirtualEntry(EvalContext& ctx, std::string_view reason) {
   if (ctx.visit.metadata.source == vfs::Source::kLocalFs) {
     return false;
@@ -1861,10 +1898,12 @@ bool EvalDelete(const parser::Expr&, EvalContext& ctx) {
 
 // Renders every -exec/-execdir token through the field vocabulary ({}, {name},
 // {path}, {root}, {capture.*}, ...) for --exec-fields, yielding the final argv.
-std::vector<std::string> RenderExecArgv(const parser::Expr& expr, const EvalContext& ctx) {
+// `path` is what {} and {path} render as: the entry's own path, or the temporary copy an extracted
+// member was written to (the child can only open the latter).
+std::vector<std::string> RenderExecArgv(const parser::Expr& expr, const EvalContext& ctx, std::string_view path) {
   const std::string link = LinkTarget(ctx);  // outlives render_ctx (its {target} view)
   const fields::RenderContext render_ctx{
-      .path = ctx.visit.path,
+      .path = path,
       .root = ctx.visit.root,
       .link_target = link,
       .metadata = ctx.visit.metadata,
@@ -1887,35 +1926,41 @@ std::vector<std::string> RenderExecArgv(const parser::Expr& expr, const EvalCont
 }
 
 bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
-  if (RefuseOnVirtualEntry(ctx, "-exec cannot run on an archive member: a member has no path a process can open")) {
+  const std::optional<std::string> target = ExecTargetPath(ctx, "-exec");
+  if (!target.has_value()) {
     return false;
   }
   if (expr.exec_batch) {
     // `-exec ... +`: queue the full path in the single global ("") bucket; the
     // command runs at end-of-walk (RunFind flushes each batch node in ARG_MAX
-    // chunks). The action is true per entry.
+    // chunks). The action is true per entry. An extracted member stays extracted
+    // until the run ends, because that is when its command finally runs.
     if (ctx.exec_batches != nullptr) {
-      (*ctx.exec_batches)[&expr][""].emplace_back(ctx.visit.path);
+      (*ctx.exec_batches)[&expr][""].emplace_back(*target);
     }
     return true;
   }
   if (ctx.parallel_exec != nullptr) {
     // -j>1: launch the child on the bounded runner. find-exact substitutes {} ->
     // path inside Launch; --exec-fields renders first (no {} remains, empty target).
-    // True per entry -- the exit status is collected at the end-of-walk Drain.
+    // True per entry -- the exit status is collected at the end-of-walk Drain. An
+    // extracted member is not released here either: the child is still running.
     if (ctx.exec_fields) {
-      ctx.parallel_exec->Launch(RenderExecArgv(expr, ctx), /*target=*/{}, /*dir=*/{});
+      ctx.parallel_exec->Launch(RenderExecArgv(expr, ctx, *target), /*target=*/{}, /*dir=*/{});
     } else {
-      ctx.parallel_exec->Launch(expr.args, ctx.visit.path, /*dir=*/{});
+      ctx.parallel_exec->Launch(expr.args, *target, /*dir=*/{});
     }
     return true;
   }
-  if (!ctx.exec_fields) {
-    return exec::Execute(expr.args, ctx.visit.path);  // find-exact: only {} is substituted (-> path)
+  // find-exact substitutes only {} (-> path); --exec-fields renders each token through the field
+  // vocabulary first. Either way the child has finished when this returns, so a temporary copy made
+  // for it can go.
+  const bool ok =
+      ctx.exec_fields ? exec::ExecuteArgs(RenderExecArgv(expr, ctx, *target)) : exec::Execute(expr.args, *target);
+  if (IsExtracted(ctx, *target)) {
+    ctx.extract->Release(*target);
   }
-  // --exec-fields: render each token through the field vocabulary, then spawn the
-  // already-substituted argv.
-  return exec::ExecuteArgs(RenderExecArgv(expr, ctx));  // true iff the child exits 0
+  return ok;
 }
 
 // Splits an entry path into the directory that -execdir/-okdir run the child in
@@ -1955,12 +2000,14 @@ std::string OkPrompt(const std::vector<std::string>& args, std::string_view subs
 }
 
 bool EvalExecdir(const parser::Expr& expr, EvalContext& ctx) {
-  if (RefuseOnVirtualEntry(ctx, "-execdir cannot run on an archive member: a member has no directory to run in")) {
+  const std::optional<std::string> path = ExecTargetPath(ctx, "-execdir");
+  if (!path.has_value()) {
     return false;
   }
   // Like -exec, but the child runs with its working directory set to the directory
-  // containing the matched entry, and find-exact {} expands to "./<basename>".
-  const ExecDir target = SplitExecDir(ctx.visit.path);
+  // containing the matched entry, and find-exact {} expands to "./<basename>". An extracted member's
+  // directory is the temporary one it was written to, which is the only directory it has.
+  const ExecDir target = SplitExecDir(*path);
   if (expr.exec_batch) {
     // `-execdir ... +`: queue the "./<basename>" under its directory; RunFind runs
     // the command once per directory (cwd = that dir) at end-of-walk.
@@ -1973,46 +2020,51 @@ bool EvalExecdir(const parser::Expr& expr, EvalContext& ctx) {
     // -j>1: launch in the entry's directory (cwd = target.dir). find-exact maps {}
     // -> ./basename inside Launch; --exec-fields renders first (no {} remains).
     if (ctx.exec_fields) {
-      ctx.parallel_exec->Launch(RenderExecArgv(expr, ctx), /*target=*/{}, target.dir);
+      ctx.parallel_exec->Launch(RenderExecArgv(expr, ctx, *path), /*target=*/{}, target.dir);
     } else {
       ctx.parallel_exec->Launch(expr.args, target.brace, target.dir);
     }
     return true;
   }
-  if (!ctx.exec_fields) {
-    return exec::ExecuteInDir(expr.args, target.dir, target.brace);  // find-exact: {} -> ./basename
+  // find-exact maps {} -> ./basename; --exec-fields renders each token through the field vocabulary
+  // (which still sees the full path/root) and spawns in the entry's directory.
+  const bool ok = ctx.exec_fields ? exec::ExecuteArgsInDir(RenderExecArgv(expr, ctx, *path), target.dir)
+                                  : exec::ExecuteInDir(expr.args, target.dir, target.brace);
+  if (IsExtracted(ctx, *path)) {
+    ctx.extract->Release(*path);
   }
-  // --exec-fields: render each token through the field vocabulary (which still
-  // sees the full path/root), then spawn in the entry's directory.
-  return exec::ExecuteArgsInDir(RenderExecArgv(expr, ctx), target.dir);
+  return ok;
 }
 
 bool EvalOk(const parser::Expr& expr, EvalContext& ctx) {
-  if (RefuseOnVirtualEntry(ctx, "-ok cannot run on an archive member: a member has no path a process can open")) {
+  const std::optional<std::string> target = ExecTargetPath(ctx, "-ok");
+  if (!target.has_value()) {
     return false;
   }
   // Like -exec, but prompt on stderr (find-exact: {} -> path) and run only on an
-  // affirmative reply. Declined, or no confirmer wired -> false, per find.
-  if (!ctx.confirm || !ctx.confirm(OkPrompt(expr.args, ctx.visit.path))) {
-    return false;
+  // affirmative reply. Declined, or no confirmer wired -> false, per find. The prompt shows the path
+  // the child will get, so an extracted member is visibly a temporary copy before anything runs.
+  const bool ok = ctx.confirm && ctx.confirm(OkPrompt(expr.args, *target)) && exec::Execute(expr.args, *target);
+  if (IsExtracted(ctx, *target)) {
+    ctx.extract->Release(*target);
   }
-  return exec::Execute(expr.args, ctx.visit.path);  // substitutes {} -> path; true iff the child exits 0
+  return ok;
 }
 
 bool EvalOkdir(const parser::Expr& expr, EvalContext& ctx) {
-  if (RefuseOnVirtualEntry(ctx, "-okdir cannot run on an archive member: a member has no directory to run in")) {
+  const std::optional<std::string> path = ExecTargetPath(ctx, "-okdir");
+  if (!path.has_value()) {
     return false;
   }
   // -okdir is to -execdir what -ok is to -exec: prompt (showing {} -> ./basename),
   // then on an affirmative reply run the command in the matched entry's directory.
-  if (!ctx.confirm) {
-    return false;
+  const ExecDir target = SplitExecDir(*path);
+  const bool ok = ctx.confirm && ctx.confirm(OkPrompt(expr.args, target.brace))
+                  && exec::ExecuteInDir(expr.args, target.dir, target.brace);
+  if (IsExtracted(ctx, *path)) {
+    ctx.extract->Release(*path);
   }
-  const ExecDir target = SplitExecDir(ctx.visit.path);
-  if (!ctx.confirm(OkPrompt(expr.args, target.brace))) {
-    return false;  // declined -> not run; -okdir is false
-  }
-  return exec::ExecuteInDir(expr.args, target.dir, target.brace);
+  return ok;
 }
 
 // Shared body of -capture/-capturedir: render the command through the field

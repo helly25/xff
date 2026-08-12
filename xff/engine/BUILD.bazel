@@ -35,6 +35,38 @@ cc_library(
     ],
 )
 
+# Gives an archive member a real path for the length of one run (--archive-extract), so a child
+# process can open what is otherwise only bytes inside a container.
+cc_library(
+    name = "extract_cc",
+    srcs = ["extract.cc"],
+    hdrs = ["extract.h"],
+    visibility = ["//xff:__subpackages__"],
+    deps = [
+        "//xff/vfs:vfs_cc",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@helly25_mbo//mbo/status:status_macros_cc",
+    ],
+)
+
+cc_test(
+    name = "extract_test",
+    size = "small",
+    srcs = ["extract_test.cc"],
+    deps = [
+        ":extract_cc",
+        "//xff/vfs:vfs_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)
+
 cc_test(
     name = "walk_test",
     size = "small",
@@ -60,6 +92,7 @@ cc_library(
     hdrs = ["evaluate.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
+        ":extract_cc",
         ":walk_cc",
         "//xff/content:line_match_cc",
         "//xff/datetime:datetime_cc",
@@ -92,6 +125,7 @@ cc_test(
     srcs = ["evaluate_test.cc"],
     deps = [
         ":evaluate_cc",
+        ":extract_cc",
         ":walk_cc",
         "//xff/parser:parser_cc",
         "//xff/vfs:local_fs_cc",
@@ -111,6 +145,7 @@ cc_library(
     visibility = ["//xff:__subpackages__"],
     deps = [
         ":evaluate_cc",
+        ":extract_cc",
         ":walk_cc",
         "//xff/color:color_cc",
         "//xff/content:line_match_cc",
