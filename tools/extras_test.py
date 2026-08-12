@@ -72,5 +72,7 @@ class ExtrasTest(unittest.TestCase):
 
     def test_ignores_a_bazel_dep_without_a_local_override(self):
         self.assertEqual(extras.extras('bazel_dep(name = "re2", version = "1")'), {})
+
+
 if __name__ == "__main__":
     unittest.main()
