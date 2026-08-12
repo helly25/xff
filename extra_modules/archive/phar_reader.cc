@@ -15,6 +15,9 @@
 
 #include "xff/archive/phar_reader.h"
 
+#include <bzlib.h>
+#include <zlib.h>
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -352,12 +355,12 @@ absl::StatusOr<const Entry*> FindEntry(const std::vector<Entry>& entries, std::s
     if (entry.member.is_directory) {
       return absl::FailedPreconditionError(absl::StrCat("phar member is a directory and has no content: ", member));
     }
-    if ((entry.flags & kFlagCompressionMask) != 0) {
-      const std::string_view how = (entry.flags & kFlagCompressedGz) != 0    ? "deflate"
-                                   : (entry.flags & kFlagCompressedBz2) != 0 ? "bzip2"
-                                                                             : "an unknown method";
+    const std::uint32_t how = entry.flags & kFlagCompressionMask;
+    if (how != 0 && how != kFlagCompressedGz && how != kFlagCompressedBz2) {
+      // A method PHP does not currently write. Saying so beats handing back compressed bytes that
+      // would read as binary garbage.
       return absl::UnimplementedError(
-          absl::StrCat("phar member is compressed with ", how, ", which this reader cannot yet decompress: ", member));
+          absl::StrCat("phar member uses an unknown compression method ", how, ": ", member));
     }
     return &entry;
   }
@@ -412,6 +415,63 @@ absl::StatusOr<std::string> ReadHeader(std::string_view path) {
   return ReadFileRange(path, 0, needed);
 }
 
+// A phar compresses a MEMBER, not the container: the manifest says which method and the bytes sit at an
+// offset as a bare stream, so neither libarchive format nor filter applies and the reader inflates it
+// itself. The manifest's uncompressed size is the output length - it is untrusted, so both paths cap
+// the output at exactly that many bytes and report a mismatch rather than growing without bound.
+// Declared here, defined after the two decompressors: what the manifest's flags say the member's
+// STORED bytes are, turned into its content. Uncompressed is the common case and copies nothing extra.
+absl::StatusOr<std::string> Decompress(const Entry& entry, std::string_view stored, std::string_view member);
+
+absl::StatusOr<std::string> Inflate(std::string_view compressed, std::uint64_t expected_size) {
+  // windowBits = -15: a RAW deflate stream, no zlib or gzip wrapper, which is what PHP writes.
+  ::z_stream stream{};
+  if (::inflateInit2(&stream, -15) != Z_OK) {
+    return absl::ResourceExhaustedError("cannot initialize the deflate decompressor");
+  }
+  std::string out(expected_size, '\0');
+  stream.next_in = reinterpret_cast<::Bytef*>(const_cast<char*>(compressed.data()));
+  stream.avail_in = static_cast<::uInt>(compressed.size());
+  stream.next_out = reinterpret_cast<::Bytef*>(out.data());
+  stream.avail_out = static_cast<::uInt>(out.size());
+  const int status = ::inflate(&stream, Z_FINISH);
+  const std::size_t produced = out.size() - stream.avail_out;
+  ::inflateEnd(&stream);
+  if (status != Z_STREAM_END || produced != expected_size) {
+    return absl::DataLossError(
+        absl::StrCat(
+            "deflate member did not decompress to its declared ", expected_size, " bytes (got ", produced, ")"));
+  }
+  return out;
+}
+
+absl::StatusOr<std::string> Bunzip2(std::string_view compressed, std::uint64_t expected_size) {
+  std::string out(expected_size, '\0');
+  unsigned int produced = static_cast<unsigned int>(out.size());
+  const int status = ::BZ2_bzBuffToBuffDecompress(
+      out.data(), &produced, const_cast<char*>(compressed.data()), static_cast<unsigned int>(compressed.size()), 0, 0);
+  if (status != BZ_OK || produced != expected_size) {
+    return absl::DataLossError(
+        absl::StrCat("bzip2 member did not decompress to its declared ", expected_size, " bytes (got ", produced, ")"));
+  }
+  return out;
+}
+
+absl::StatusOr<std::string> Decompress(const Entry& entry, std::string_view stored, std::string_view member) {
+  const std::uint32_t how = entry.flags & kFlagCompressionMask;
+  if (how == 0) {
+    return std::string(stored);
+  }
+  const std::uint64_t size = static_cast<std::uint64_t>(entry.member.size < 0 ? 0 : entry.member.size);
+  if (how == kFlagCompressedGz) {
+    return Inflate(stored, size);
+  }
+  if (how == kFlagCompressedBz2) {
+    return Bunzip2(stored, size);
+  }
+  return absl::UnimplementedError(absl::StrCat("phar member uses an unknown compression method ", how, ": ", member));
+}
+
 }  // namespace
 
 absl::StatusOr<std::vector<Member>> ListPharMembers(std::string_view bytes) {
@@ -431,7 +491,8 @@ absl::StatusOr<std::string> ReadPharMember(std::string_view bytes, std::string_v
   if (entry->data_offset + entry->stored_size > bytes.size()) {
     return absl::DataLossError(absl::StrCat("phar member data runs past the end of the container: ", member));
   }
-  return std::string(bytes.substr(entry->data_offset, entry->stored_size));
+  const std::string_view stored = bytes.substr(entry->data_offset, entry->stored_size);
+  return Decompress(*entry, stored, member);
 }
 
 absl::StatusOr<std::string> ReadPharMemberOfFile(
@@ -447,7 +508,7 @@ absl::StatusOr<std::string> ReadPharMemberOfFile(
   if (content.size() < entry->stored_size) {
     return absl::DataLossError(absl::StrCat("phar member data runs past the end of the container: ", member));
   }
-  return content;
+  return Decompress(*entry, content, member);
 }
 
 }  // namespace xff::archive

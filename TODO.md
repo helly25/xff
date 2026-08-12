@@ -660,10 +660,12 @@ remains below is the design-forked / larger work.
       guess with another parser. Member reads go back to whichever reader indexed the container, since
       a phar's data offsets come from its own manifest. `plain.phar` and `sha256.phar` now list 3
       members and `-grep` finds the needle; a `.phar.tar` still goes to libarchive, which is pinned so
-      the fallback order cannot become an accident. Remaining phar gaps: per-entry deflate/bzip2
-      members (listing works, reading says Unimplemented - needs zlib raw-inflate + bzip2), and
-      whole-file-compressed `.phar.gz` / `.phar.bz2`, which needs the same decompress-then-parse step
-      as a bare compressed single file below.
+      the fallback order cannot become an accident. Per-entry deflate/bzip2 members now
+      decompress too (raw inflate via zlib with windowBits -15, plus BZ2_bzBuffToBuffDecompress; the
+      manifest's uncompressed size IS the output length, so a stream that ends short or long is a
+      DataLoss rather than silently truncated content). Remaining phar gap: whole-file-compressed
+      `.phar.gz` / `.phar.bz2`, which needs the same decompress-then-parse step as a bare compressed
+      single file below.
     - ~~**Native phar never dives from the CLI.**~~ `ArchiveFileSystem::Open` asks libarchive and nothing
       else, so a native `.phar` (and a whole-file-compressed `.phar.gz` / `.phar.bz2`) is "not an
       archive" and the phar reader - which passes its own tests - is unreachable in a real run. Only

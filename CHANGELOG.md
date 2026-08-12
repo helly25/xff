@@ -32,8 +32,10 @@
   bogus member; the reader now enables its formats explicitly and leaves `mtree` out.
 
 - Native PHP phar archives dive: the mount path tries libarchive and then the phar reader,
-  so an uncompressed `.phar` lists its members and content predicates search them. Per-entry
-  compressed members report that they are not supported yet instead of appearing empty.
+  so a `.phar` lists its members and content predicates search them - including members
+  compressed with deflate or bzip2, which the reader inflates itself (a phar compresses the
+  member, not the container, so no libarchive format or filter applies). A member whose bytes
+  do not match its declared uncompressed size is reported as corrupt rather than truncated.
 
 ## Internal
 
