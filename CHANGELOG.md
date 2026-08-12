@@ -37,6 +37,12 @@
   member, not the container, so no libarchive format or filter applies). A member whose bytes
   do not match its declared uncompressed size is reported as corrupt rather than truncated.
 
+- A write action on an archive member is refused instead of quietly doing nothing: `-delete`,
+  `-exec`, `-execdir`, `-ok` and `-okdir` report that the member is read-only (exit 2, naming
+  the path) or skip it under `--skip-unsupported`. Previously `-delete` exited 0 having deleted
+  nothing and `-exec` handed the child a `container!member` path it could not open. The
+  container itself is a real file, so actions on it still work.
+
 ## Internal
 
 - `--//xff:xff_all` turns on every composable extra at once. Each extra links when its own
