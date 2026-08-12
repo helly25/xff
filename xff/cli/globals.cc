@@ -234,7 +234,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "archive implies looking inside); all also dives archives discovered during the walk. Bare "
                    "--archive means all, and the short form carries chmod-style suffix signs (-z- none, -z roots, "
                    "-z+ all). The find style defaults to none, every xff-family style to roots. Members are "
-                   "read-only, so -delete and the exec family refuse them rather than silently skipping. A "
+                   "read-only, so -delete and the exec family refuse them rather than silently skipping. "
+                   "Under `all`, a file met mid-walk is offered to the reader only if its NAME looks like "
+                   "a container (see --archive-any); one named on the command line always is. A "
                    "build-time extra: the stock binary is lean and omits it (rebuild with --//xff:xff_archive); "
                    "asking for archive handling without it is a hard error.",
         .values = kArchiveValues,
@@ -253,6 +255,24 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "- while -maxdepth keeps counting member levels as the ordinary depth they are. Only `all` "
                    "nests: under `roots` a member is never a search root, so nothing inside the container is "
                    "dived whatever the value. N must be at least 1; use --archive=none / -z- to stop diving.",
+        .affects = "--archive",
+        .extra = "archive",
+    },
+    {
+        .name = "--archive-any",
+        .display = "--archive-any",
+        .group = "traversal",
+        .header = "Traversal",
+        .summary = "under --archive=all, offer EVERY file to the reader, not only likely names",
+        .details = "By default `all` only opens a file the walk met whose NAME looks like a container "
+                   "(`.tar`, `.tgz`, `.zip`, `.jar`, `.phar`, ... - the reader's formats plus the "
+                   "packages that are one of them underneath). Without that gate, walking a source tree "
+                   "would open and format-bid every `.cc` and every binary in it, so the cost of diving "
+                   "would fall on runs that dive nothing. The name is only a heuristic, and this flag is "
+                   "the way out of it: an archive called `blob` or `backup.dat` is found with "
+                   "--archive-any and missed without. It costs a read of every candidate file, which is "
+                   "why it is not the default. A file NAMED on the command line is always opened - "
+                   "pointing xff at it is the request - so this flag changes nothing for `--archive=roots`.",
         .affects = "--archive",
         .extra = "archive",
     },

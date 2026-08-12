@@ -121,8 +121,12 @@ using Visitor = absl::FunctionRef<WalkAction(const Visit&)>;
 // `source` is the filesystem the container itself lives on: the real one for a container on disk,
 // the parent container's for one nested inside another. The mounter needs it because a nested
 // container has no path to open - its bytes have to be read out of its parent first.
-using ContainerMounter =
-    absl::FunctionRef<absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(std::string_view, const vfs::FileSystem&)>;
+// `depth` is the container's own depth in the walk: 0 means it was NAMED on the command line, which is
+// the difference between "the user pointed at this file" and "the walk happened to meet it" - a mounter
+// may gate the second (a cheap name check before the reader opens anything) and must never gate the
+// first.
+using ContainerMounter = absl::FunctionRef<
+    absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(std::string_view, const vfs::FileSystem&, int)>;
 
 // Reports a per-path traversal failure (unreadable directory, failed stat, ...).
 // The walk continues; the engine maps these to exit code 2 later (design.md

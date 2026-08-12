@@ -23,8 +23,8 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
-#include "absl/strings/match.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/match.h"
 #include "xff/archive/member_path.h"
 #include "xff/vfs/filesystem.h"
 
@@ -50,11 +50,10 @@ void RegisterContainerOpener(ContainerOpener opener) {
 // shouted `ARCHIVE.ZIP` matches too. Compound suffixes (`.tar.gz`) need no entry: their last
 // component (`.gz`) is already here.
 constexpr std::array kContainerSuffixes = std::to_array<std::string_view>({
-    ".7z",    ".aab",  ".apk",  ".ar",    ".bz2",   ".cab",  ".cbz",  ".crate", ".crx",  ".deb",
-    ".ear",   ".egg",  ".epub", ".gem",   ".gz",    ".iso",  ".jar",  ".jmod",  ".lha",  ".lz4",
-    ".lzh",   ".lzma", ".nupkg", ".odp",  ".ods",   ".odt",  ".phar", ".pptx",  ".rar",  ".rpm",
-    ".tar",   ".taz",  ".tbz",  ".tbz2",  ".tgz",   ".txz",  ".tz2",  ".vsix",  ".war",  ".whl",
-    ".xar",   ".xpi",  ".xz",   ".zip",   ".zst",   ".zstd",
+    ".7z",   ".aab",  ".apk",  ".ar",   ".bz2", ".cab",  ".cbz", ".crate", ".crx", ".deb",  ".ear",   ".egg",
+    ".epub", ".gem",  ".gz",   ".iso",  ".jar", ".jmod", ".lha", ".lz4",   ".lzh", ".lzma", ".nupkg", ".odp",
+    ".ods",  ".odt",  ".phar", ".pptx", ".rar", ".rpm",  ".tar", ".taz",   ".tbz", ".tbz2", ".tgz",   ".txz",
+    ".tz2",  ".vsix", ".war",  ".whl",  ".xar", ".xpi",  ".xz",  ".zip",   ".zst", ".zstd",
 });
 
 bool ContainerSupportAvailable() {
@@ -63,13 +62,14 @@ bool ContainerSupportAvailable() {
 
 bool LooksLikeContainerName(std::string_view name) {
   const std::string::size_type dot = name.rfind('.');
-  if (dot == std::string_view::npos || dot + 1 == name.size()) {
-    return false;  // no suffix at all (a Makefile, a compiled binary): not offered by name
+  if (dot == std::string_view::npos || dot == 0 || dot + 1 == name.size()) {
+    // No suffix at all (a Makefile, a compiled binary), a trailing dot, or a name that IS the suffix:
+    // `.gz` is a dotfile, not a gzip called something.
+    return false;
   }
   const std::string_view suffix = name.substr(dot);
-  return absl::c_any_of(kContainerSuffixes, [suffix](std::string_view known) {
-    return absl::EqualsIgnoreCase(suffix, known);
-  });
+  return absl::c_any_of(
+      kContainerSuffixes, [suffix](std::string_view known) { return absl::EqualsIgnoreCase(suffix, known); });
 }
 
 absl::StatusOr<std::unique_ptr<vfs::FileSystem>> OpenContainer(std::string_view container, MemberPathOptions options) {
