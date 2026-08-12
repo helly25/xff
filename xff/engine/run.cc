@@ -2002,6 +2002,77 @@ std::string JsonQuote(std::string_view text) {
   return out;
 }
 
+// One accumulator per --summary sink: {group key -> {count, total size}}.
+using SummaryCells = std::map<std::string, std::pair<std::uint64_t, std::uint64_t>>;
+
+// Accumulates one matched unit into every --summary sink. A {template} key that is an m// EXTRACTION
+// contributes a value stream (one count per extracted line, size not attributed - a per-line key
+// would double-count the file's size); every other key contributes one entry, whose size is
+// meaningful. Shared by the two feeds a run has: the per-entry one during the walk, and the
+// post-walk --shards one, where a whole logical set arrives as a single unit.
+void FeedSummaries(
+    const std::vector<SummarySpec>& specs,
+    const std::vector<std::optional<fields::Template>>& templates,
+    std::vector<SummaryCells>& cells_per_sink,
+    const fields::RenderContext& key_ctx,
+    const Visit& visit) {
+  for (std::size_t i = 0; i < specs.size(); ++i) {
+    SummaryCells& cells = cells_per_sink[i];
+    if (specs[i].mode != SummaryMode::kTemplate) {
+      std::pair<std::uint64_t, std::uint64_t>& agg = cells[SummaryKey(specs[i].mode, visit)];
+      agg.first += 1;
+      agg.second += visit.metadata.size;
+      continue;
+    }
+    const fields::Template& tmpl = *templates[i];
+    const std::optional<std::vector<std::string>> stream = tmpl.AsExtraction(key_ctx);
+    if (!stream.has_value()) {
+      std::pair<std::uint64_t, std::uint64_t>& agg = cells[tmpl.Render(key_ctx)];
+      agg.first += 1;
+      agg.second += visit.metadata.size;
+      continue;
+    }
+    for (const std::string& key : *stream) {
+      cells[key].first += 1;
+    }
+  }
+}
+
+// Accumulates one matched unit into every --histogram sink. An entry with no value for a spec is
+// skipped rather than bucketed as zero: the bucket field may be unavailable (a lines bucket for a
+// binary file), and so may the metric.
+void FeedHistograms(
+    const std::vector<HistogramSpec>& specs,
+    std::vector<std::map<std::string, HistCell>>& cells_per_sink,
+    const Visit& visit) {
+  for (std::size_t i = 0; i < specs.size(); ++i) {
+    const HistogramSpec& spec = specs[i];
+    const std::optional<std::pair<std::string, std::string>> bucket = HistBucketKey(spec, visit);
+    if (!bucket.has_value()) {
+      continue;
+    }
+    std::optional<std::uint64_t> value = 1;  // kCount: each match contributes one
+    if (spec.agg != HistAgg::kCount) {
+      value = spec.metric == HistMetric::kSize ? std::optional<std::uint64_t>(visit.metadata.size)
+              : visit.metadata.type == vfs::FileType::kRegular
+                  ? std::optional<std::uint64_t>(content::FileLineCount(visit.path))
+                  : std::nullopt;  // kLines: content-derived, absent for a non-regular or binary file
+    }
+    if (!value.has_value()) {
+      continue;
+    }
+    HistCell& cell = cells_per_sink[i][bucket->first];
+    if (cell.count == 0) {
+      cell.label = bucket->second;  // display text, set once when the bucket is first seen
+    }
+    cell.min = cell.count == 0 ? *value : std::min(cell.min, *value);
+    cell.max = cell.count == 0 ? *value : std::max(cell.max, *value);
+    cell.sum += *value;
+    cell.count += 1;
+  }
+}
+
+
 }  // namespace
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
@@ -2325,7 +2396,7 @@ int RunFind(
   const std::optional<format::SizeUnits> human =
       ResolveHuman(command.globals, style);  // --human: size units for --summary and -ls (xff -> human)
   // One {group -> {count, total size}} accumulator per --summary sink.
-  std::vector<std::map<std::string, std::pair<std::uint64_t, std::uint64_t>>> summary_cells(summaries.size());
+  std::vector<SummaryCells> summary_cells(summaries.size());
   // --histogram (repeatable): a bar chart of the count per bucket, alongside or instead of
   // --summary. Both are reductions fed by one walk; a run with either suppresses the listing.
   absl::StatusOr<std::vector<HistogramSpec>> histograms_or = ResolveHistograms(command.globals);
@@ -2711,53 +2782,8 @@ int RunFind(
                 .hash_encoding = hash_encoding,
                 .defines = &defines,
                 .outputs = &outputs};
-            for (std::size_t i = 0; i < summaries.size(); ++i) {
-              std::map<std::string, std::pair<std::uint64_t, std::uint64_t>>& cells = summary_cells[i];
-              if (summaries[i].mode == SummaryMode::kTemplate) {
-                const fields::Template& tmpl = *summary_templates[i];
-                if (const std::optional<std::vector<std::string>> stream = tmpl.AsExtraction(key_ctx);
-                    stream.has_value()) {
-                  for (const std::string& key : *stream) {
-                    cells[key].first += 1;
-                  }
-                } else {
-                  std::pair<std::uint64_t, std::uint64_t>& agg = cells[tmpl.Render(key_ctx)];
-                  agg.first += 1;
-                  agg.second += visit.metadata.size;
-                }
-              } else {
-                std::pair<std::uint64_t, std::uint64_t>& agg = cells[SummaryKey(summaries[i].mode, visit)];
-                agg.first += 1;
-                agg.second += visit.metadata.size;
-              }
-            }
-            for (std::size_t i = 0; i < histograms.size(); ++i) {
-              const HistogramSpec& spec = histograms[i];
-              const std::optional<std::pair<std::string, std::string>> bucket = HistBucketKey(spec, visit);
-              if (!bucket.has_value()) {
-                continue;  // the bucket field is unavailable here (e.g. a lines bucket for a binary file)
-              }
-              std::optional<std::uint64_t> value = 1;  // kCount: each match contributes one
-              if (spec.agg != HistAgg::kCount) {
-                if (spec.metric == HistMetric::kSize) {
-                  value = visit.metadata.size;
-                } else {  // kLines: content-derived, absent for a non-regular or binary file
-                  value = visit.metadata.type == vfs::FileType::kRegular ? content::FileLineCount(visit.path)
-                                                                         : std::nullopt;
-                }
-              }
-              if (!value.has_value()) {
-                continue;  // no value for this metric on this entry (e.g. a binary file for lines)
-              }
-              HistCell& cell = histogram_cells[i][bucket->first];
-              if (cell.count == 0) {
-                cell.label = bucket->second;  // display text, set once when the bucket is first seen
-              }
-              cell.min = cell.count == 0 ? *value : std::min(cell.min, *value);
-              cell.max = cell.count == 0 ? *value : std::max(cell.max, *value);
-              cell.sum += *value;
-              cell.count += 1;
-            }
+            FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
+            FeedHistograms(histograms, histogram_cells, visit);
           }  // end if (!shards.enabled && counted)
         } else if (matched && implicit_print) {
           if (is_tree) {
@@ -2904,54 +2930,9 @@ int RunFind(
     // populates {shard} (nullopt for a non-shard file). A kLines histogram reads the representative
     // only (per-set line summing is a v2 concern with the reassembled view).
     const auto feed_summaries = [&](const fields::RenderContext& key_ctx, const Visit& visit) {
-      for (std::size_t i = 0; i < summaries.size(); ++i) {
-        std::map<std::string, std::pair<std::uint64_t, std::uint64_t>>& cells = summary_cells[i];
-        if (summaries[i].mode != SummaryMode::kTemplate) {
-          std::pair<std::uint64_t, std::uint64_t>& agg = cells[SummaryKey(summaries[i].mode, visit)];
-          agg.first += 1;
-          agg.second += visit.metadata.size;
-          continue;
-        }
-        const fields::Template& tmpl = *summary_templates[i];
-        const std::optional<std::vector<std::string>> stream = tmpl.AsExtraction(key_ctx);
-        if (stream.has_value()) {
-          for (const std::string& key : *stream) {
-            cells[key].first += 1;
-          }
-        } else {
-          std::pair<std::uint64_t, std::uint64_t>& agg = cells[tmpl.Render(key_ctx)];
-          agg.first += 1;
-          agg.second += visit.metadata.size;
-        }
-      }
+      FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
     };
-    const auto feed_histograms = [&](const Visit& visit) {
-      for (std::size_t i = 0; i < histograms.size(); ++i) {
-        const HistogramSpec& spec = histograms[i];
-        const std::optional<std::pair<std::string, std::string>> bucket = HistBucketKey(spec, visit);
-        if (!bucket.has_value()) {
-          continue;
-        }
-        std::optional<std::uint64_t> value = 1;  // kCount: one unit
-        if (spec.agg != HistAgg::kCount) {
-          value = spec.metric == HistMetric::kSize ? std::optional<std::uint64_t>(visit.metadata.size)
-                  : visit.metadata.type == vfs::FileType::kRegular
-                      ? std::optional<std::uint64_t>(content::FileLineCount(visit.path))
-                      : std::nullopt;  // kLines: representative only, absent for a non-regular file
-        }
-        if (!value.has_value()) {
-          continue;
-        }
-        HistCell& cell = histogram_cells[i][bucket->first];
-        if (cell.count == 0) {
-          cell.label = bucket->second;
-        }
-        cell.min = cell.count == 0 ? *value : std::min(cell.min, *value);
-        cell.max = cell.count == 0 ? *value : std::max(cell.max, *value);
-        cell.sum += *value;
-        cell.count += 1;
-      }
-    };
+    const auto feed_histograms = [&](const Visit& visit) { FeedHistograms(histograms, histogram_cells, visit); };
     // Feed one logical unit (a set, or a non-shard file) into both sinks; `shard_count` -> {shard}.
     const auto feed_unit = [&](const Visit& visit, std::optional<std::int64_t> shard_count) {
       const std::string link;
