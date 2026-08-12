@@ -110,6 +110,19 @@ test::members_are_ordinary_entries_for_the_expression() {
   rm -rf "${root}"
 }
 
+test::content_predicates_read_a_members_own_bytes() {
+  local root out
+  root="$(_tree)"
+  # The payoff of member reads: -content and -grep search INSIDE the archive, and only the member
+  # that holds the needle matches (the container is a tar, so it never matches as text).
+  out="$("$(_xff_bin)" --archive=roots "${root}/a.tar" -content needle)"
+  expect_output_contains "a.tar!one.txt" "${out}"
+  expect_eq "1" "$(wc -l <<<"${out}" | tr -d ' ')" # and nothing else in the archive holds it
+  out="$("$(_xff_bin)" --archive=roots "${root}/a.tar" -grep needle)"
+  expect_output_contains "a.tar!one.txt:1:needle" "${out}"
+  rm -rf "${root}"
+}
+
 test::pruning_the_container_keeps_the_file_and_skips_the_members() {
   local root out
   root="$(_tree)"

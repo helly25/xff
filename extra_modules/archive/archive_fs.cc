@@ -242,10 +242,27 @@ absl::StatusOr<bool> ArchiveFileSystem::IsCaseSensitive(std::string_view /*path*
 }
 
 absl::StatusOr<std::string> ArchiveFileSystem::ReadContent(std::string_view path) const {
-  // Deliberate in this slice: the reader lists members but does not extract data. An explicit
-  // Unimplemented keeps a content predicate (-grep / -content / {hash}) from silently matching
-  // nothing, which is what returning an empty string would do.
-  return absl::UnimplementedError(absl::StrCat("reading archive member content is not implemented yet: ", path));
+  // What makes -grep / -content / {hash} work on a member: the bytes come out of the container, one
+  // streamed pass per read. The index is consulted FIRST so this filesystem's own errors (not mine,
+  // no such member, has no content) are answered from what it already knows, and libarchive is only
+  // asked to extract something that is really there.
+  const std::optional<std::string> key = MemberKeyOf(path);
+  if (!key.has_value()) {
+    return absl::InvalidArgumentError(absl::StrCat("not a path in ", container_, ": ", path));
+  }
+  if (key->empty()) {
+    // The container itself: as a directory here (see Stat), it has no content of its own. Reading
+    // the archive FILE is the local backend's job, and the walk asks that one for it.
+    return absl::FailedPreconditionError(absl::StrCat("not a regular file: ", container_));
+  }
+  const auto found = nodes_.find(*key);
+  if (found == nodes_.end()) {
+    return absl::NotFoundError(absl::StrCat("no such member: ", *key));
+  }
+  if (found->second.metadata.type != vfs::FileType::kRegular) {
+    return absl::FailedPreconditionError(absl::StrCat("not a regular file: ", *key));
+  }
+  return ReadMemberOfFile(container_, *key);
 }
 
 }  // namespace xff::archive

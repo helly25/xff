@@ -612,9 +612,10 @@ remains below is the design-forked / larger work.
     and otherwise follows the stored bits; `ReadLink` resolves a symlink member and refuses a regular
     one; `FsType` is "archive" and `IsCaseSensitive` is true; a path outside the container, a missing
     member and "not a directory" are three DISTINCT errors, not an empty listing; and the configured
-    separator is used for rendering AND parsing. `ReadContent` returns Unimplemented deliberately -
-    the reader lists but does not extract, and an empty string would make `-grep` / `-content`
-    silently match nothing.
+    separator is used for rendering AND parsing. `ReadContent` extracts a member's bytes through
+    `ReadMemberOfFile` (one streamed pass per read) and keeps its three refusals distinct - not this
+    container, no such member, nothing to read (a directory) - because an empty string would make
+    `-grep` / `-content` silently match nothing.
   - **Engine mounting SHIPPED: `--archive=roots` and `--archive=all` dive for real.** The walk takes
     a `ContainerMounter` and an `ArchiveDive` (`xff/engine/walk.h`); `run.cc` resolves the mode, hands
     over `archive::OpenContainer` with the `--archive-separator` / `--archive-prefix` spelling, and
@@ -627,9 +628,10 @@ remains below is the design-forked / larger work.
     slot rather than a compile define, so it cannot drift from what is linked. CI now tests with
     `--config=xff_docs` (every extra on), which is the only config where the archive-gated end-to-end
     tests (`XFF_ARCHIVE_ONLY`) exist at all.
-  - **Remaining for #83:** `ArchiveFileSystem::ReadContent` on top of `ReadMemberOfFile` (then
-    `-grep` / `-content` / `{hash}` light up on members), then `--archive-depth` and the sniff-gating
-    that keeps `all` from byte-sniffing a whole tree.
+  - **Remaining for #83:** the FIELD vocabulary still reads by path, so `{hash}` and `{lines}` render
+    empty on a member while `-grep` / `-content` (which go through the entry's filesystem) work -
+    `fields::RenderContext` needs the same filesystem the walk now carries. Then `--archive-depth`
+    and the sniff-gating that keeps `all` from byte-sniffing a whole tree.
   - **Container identity is dual:** the archive keeps its real-FS identity (a real `-type f`,
     deletable and actionable) AND parents its members. This falls out of the VFS source tagging -
     container is local-fs, members are archive-member.
