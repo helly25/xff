@@ -33,3 +33,13 @@ XFF_FULL_ONLY = select({
     "//xff:full_build": [],
     "//conditions:default": ["@platforms//:incompatible"],
 })
+
+# `target_compatible_with` for a target that needs the ARCHIVE extra specifically (rather than any
+# full build): the end-to-end tests that dive into a container only mean anything in a binary that
+# links a reader, so `--config=xff_full` (PCRE2 only) must skip them and `--config=xff_docs` runs
+# them. Keyed on the extra's own flag, which is the "is archive on" question - a different one from
+# XFF_FULL_ONLY's "is this the full build".
+XFF_ARCHIVE_ONLY = select({
+    "//xff:xff_archive_enabled": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})

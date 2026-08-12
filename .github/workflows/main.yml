@@ -76,9 +76,11 @@ jobs:
             sudo apt-get update && sudo apt-get install -y mandoc
           fi
           command -v mandoc
-      # Every job builds in full mode (--config=xff_full), so the composable extras get the SAME asan /
-      # tsan coverage as the core - our PCRE2 C-API wrapper and the archive readers are exactly where a
-      # buffer / lifetime / thread bug would hide, and the archive ones parse untrusted binary headers.
+      # Every job builds with EVERY extra on (--config=xff_docs, which is --config=xff_full plus the
+      # archive extra), so the composable extras get the SAME asan / tsan coverage as the core - our
+      # PCRE2 C-API wrapper and the archive readers are exactly where a buffer / lifetime / thread bug
+      # would hide, and the archive ones parse untrusted binary headers. It is also the only config in
+      # which the archive-gated end-to-end tests (XFF_ARCHIVE_ONLY) exist at all.
       #
       # The full-only targets are picked up by `//...` automatically (target_compatible_with, no names
       # needed), but each extra is its own bazel MODULE and `//...` does NOT match another module - so
@@ -92,7 +94,7 @@ jobs:
       - name: bazel test
         run: |
           # shellcheck disable=SC2046  # deliberate word splitting: the tool prints bazel target patterns
-          bazel test //... $(tools/extras.py --wildcards) --config=xff_full \
+          bazel test //... $(tools/extras.py --wildcards) --config=xff_docs \
             --disk_cache=$HOME/.cache/bazel-disk --repository_cache=$HOME/.cache/bazel-repo \
             ${{ matrix.config.flags }}
       # Lint gates run once, on the ubuntu clang-asan cell: its --config=clang
@@ -152,7 +154,7 @@ jobs:
       - name: bazel test
         run: |
           # shellcheck disable=SC2046  # deliberate word splitting: the tool prints bazel target patterns
-          bazel test //... $(tools/extras.py --wildcards) --config=xff_full \
+          bazel test //... $(tools/extras.py --wildcards) --config=xff_docs \
             --disk_cache=$HOME/.cache/bazel-disk --config=clang --config=tsan
 
   # MemorySanitizer: reads of UNINITIALIZED memory, which asan does not catch. Linux only
@@ -184,7 +186,7 @@ jobs:
       - name: bazel test
         run: |
           # shellcheck disable=SC2046  # deliberate word splitting: the tool prints bazel target patterns
-          bazel test //... $(tools/extras.py --wildcards) --config=xff_full \
+          bazel test //... $(tools/extras.py --wildcards) --config=xff_docs \
             --disk_cache=$HOME/.cache/bazel-disk --config=clang --config=msan
 
   # Minimal core archive: prove that dropping the WHOLE extra_modules/ directory (plus the extras'

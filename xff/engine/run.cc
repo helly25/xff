@@ -47,6 +47,8 @@
 #include "mbo/container/limited_map.h"
 #include "mbo/diff/diff_options.h"
 #include "mbo/status/status_macros.h"
+#include "xff/archive/archive_backend.h"
+#include "xff/archive/member_path.h"
 #include "xff/color/color.h"
 #include "xff/content/line_match.h"
 #include "xff/datetime/datetime.h"
@@ -1274,6 +1276,35 @@ bool HasArchiveFlag(const std::vector<std::string>& globals) {
   });
 }
 
+// The walk's spelling of the same three modes. Two enums exist because the walk knows nothing about
+// flags and the CLI knows nothing about traversal; this is the one place they meet.
+ArchiveDive ArchiveDiveOf(ArchiveMode mode) {
+  switch (mode) {
+    case ArchiveMode::kAll: return ArchiveDive::kAll;
+    case ArchiveMode::kNone: return ArchiveDive::kNone;
+    case ArchiveMode::kRoots: return ArchiveDive::kRoots;
+  }
+  return ArchiveDive::kNone;
+}
+
+// --archive-separator=STRING / --archive-prefix=[URI|STRING]: how a mounted container spells its
+// member paths. Any string is accepted for either (see globals.cc), so there is nothing to validate;
+// last occurrence wins, and an absent flag keeps the library default. The returned views point into
+// `globals`, which must outlive the result.
+archive::MemberPathOptions ReadMemberPathOptions(const std::vector<std::string>& globals) {
+  archive::MemberPathOptions options;
+  constexpr std::string_view kSeparator = "--archive-separator=";
+  constexpr std::string_view kPrefix = "--archive-prefix=";
+  for (const std::string& global : globals) {
+    if (global.starts_with(kSeparator)) {
+      options.separator = std::string_view(global).substr(kSeparator.size());
+    } else if (global.starts_with(kPrefix)) {
+      options.prefix = std::string_view(global).substr(kPrefix.size());
+    }
+  }
+  return options;
+}
+
 std::string_view ArchiveModeName(ArchiveMode mode) {
   switch (mode) {
     case ArchiveMode::kAll: return "all";
@@ -1281,6 +1312,33 @@ std::string_view ArchiveModeName(ArchiveMode mode) {
     case ArchiveMode::kNone: return "none";
   }
   return "none";
+}
+
+// The whole `--archive` family, resolved into the walk options: how far to dive, and the member-path
+// spelling a mounted container renders with (returned, because only the mounter needs it).
+//
+// Diving needs the archive extra, which a lean build does not link, so an EXPLICIT request there is
+// an error rather than a silent no-op - "xff cannot see into this archive" is exactly the wrong
+// impression to leave. A STYLE default (`roots` for the xff family) must never break an ordinary
+// run, so it degrades quietly to walking archives as the plain files they are.
+//
+// The returned views point into `globals`, which outlives the walk.
+absl::StatusOr<archive::MemberPathOptions> ResolveArchiveOptions(
+    const std::vector<std::string>& globals,
+    std::optional<registry::Style> style,
+    WalkOptions* options) {
+  const ArchiveMode archive_mode = ResolveArchiveMode(globals, style);
+  if (archive_mode != ArchiveMode::kNone && !archive::ContainerSupportAvailable()) {
+    if (HasArchiveFlag(globals)) {
+      return absl::UnimplementedError(
+          absl::StrCat(
+              "archive diving (requested mode '", ArchiveModeName(archive_mode),
+              "') is not built into this binary; use --archive=none / -z- to walk archives as plain files"));
+    }
+  } else {
+    options->archive = ArchiveDiveOf(archive_mode);
+  }
+  return ReadMemberPathOptions(globals);
 }
 
 // --hash-algorithm=ALGO / --hash-encoding=hex|base64: the defaults a bare -hash action and a
@@ -2113,23 +2171,14 @@ int RunFind(
       }
     }
   }
-  // --archive / -z: the flag surface and its style-scoped default are live, but the diving
-  // itself is not built yet. Fail loudly rather than accept the flag and silently walk as if
-  // it were absent - a silent no-op would look like "xff cannot see into this archive". The
-  // wording is deliberately distinct from the lean build's "not built in" extras error, so
-  // "this build lacks the extra" and "nobody implemented it yet" never look the same. Only an
-  // EXPLICIT request errors: the xff-family default of `roots` must not break every plain run.
-  if (const ArchiveMode archive_mode = ResolveArchiveMode(command.globals, style);
-      archive_mode != ArchiveMode::kNone && HasArchiveFlag(command.globals)) {
-    on_error(
-        "--archive",
-        absl::UnimplementedError(
-            absl::StrCat(
-                "archive diving is not yet implemented in this build (requested mode '", ArchiveModeName(archive_mode),
-                "'); use --archive=none / -z- to walk archives as "
-                "plain files")));
+  // The whole --archive surface, resolved into `options` in one place (see ResolveArchiveOptions).
+  const absl::StatusOr<archive::MemberPathOptions> member_paths =
+      ResolveArchiveOptions(command.globals, style, &options);
+  if (!member_paths.ok()) {
+    on_error("--archive", member_paths.status());
     return 2;
   }
+  const archive::MemberPathOptions member_path_options = *member_paths;
   // --hash-algorithm=ALGO / --hash-encoding=hex|base64: defaults for a bare -hash action and a
   // bare {hash} field (last occurrence wins; empty -> sha256 / hex). Validated here so a bad value
   // is a usage error (exit 2) before the walk; the explicit -hash=ALGO[/ENCODING] specs in the
@@ -2403,6 +2452,15 @@ int RunFind(
     }
   }
 
+  // The walk's whole view of archives: hand it a container path, get a filesystem over the members
+  // or the InvalidArgument that means "an ordinary file after all". Passed unconditionally because
+  // `options.archive` decides whether it is ever called.
+  const auto mount_container =
+      [&member_path_options](std::string_view container) -> absl::StatusOr<std::unique_ptr<const vfs::FileSystem>> {
+    MBO_ASSIGN_OR_RETURN(
+        std::unique_ptr<vfs::FileSystem> mounted, archive::OpenContainer(container, member_path_options));
+    return mounted;
+  };
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
       // NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
@@ -2467,7 +2525,9 @@ int RunFind(
             .emit_file = emit_file,
             .emit_ls_row = emit_ls_row,
             .ls_size_units = human,
-            .fs = walk_fs,
+            // The entry's OWN filesystem, so a predicate that reads a member reads it out of the
+            // container rather than looking for `a.tar!x` on disk and finding nothing.
+            .fs = visit.fs != nullptr ? *visit.fs : walk_fs,
             .now = now,
             .tz = tz,
             .time_format = time_format,
@@ -2656,7 +2716,8 @@ int RunFind(
       [&](std::string_view path, absl::Status error_status) {
         ++errors;
         on_error(path, error_status);
-      });
+      },
+      mount_container);
   if (!status.ok()) {
     ++errors;  // Fatal traversal error (none today; per-path errors handled above).
   }

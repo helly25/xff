@@ -615,9 +615,21 @@ remains below is the design-forked / larger work.
     separator is used for rendering AND parsing. `ReadContent` returns Unimplemented deliberately -
     the reader lists but does not extract, and an empty string would make `-grep` / `-content`
     silently match nothing.
-  - **Remaining for #83:** `ReadMemberOfFile` in the reader (then the content predicates light up),
-    and engine-side mounting when `--archive` selects a container, which is where `--archive-depth`
-    and the sniff-gating land.
+  - **Engine mounting SHIPPED: `--archive=roots` and `--archive=all` dive for real.** The walk takes
+    a `ContainerMounter` and an `ArchiveDive` (`xff/engine/walk.h`); `run.cc` resolves the mode, hands
+    over `archive::OpenContainer` with the `--archive-separator` / `--archive-prefix` spelling, and
+    `//xff/cli:xff_full` links `@xff_archive//:archive_register_cc` behind `--//xff:xff_archive`. A
+    container is visited as the FILE it is and then descends like a directory, so `-prune`, `-quit`
+    and `-maxdepth` apply to members unchanged; `roots` dives only a named root, `all` also dives
+    mid-walk (at the position a directory of that name would take, under every `--sort`). Each
+    `Visit` now carries the filesystem it came FROM, so a read-predicate on a member reads out of the
+    container instead of looking for `a.tar!x` on disk. `ExtraEnabled("archive")` asks the backend
+    slot rather than a compile define, so it cannot drift from what is linked. CI now tests with
+    `--config=xff_docs` (every extra on), which is the only config where the archive-gated end-to-end
+    tests (`XFF_ARCHIVE_ONLY`) exist at all.
+  - **Remaining for #83:** `ArchiveFileSystem::ReadContent` on top of `ReadMemberOfFile` (then
+    `-grep` / `-content` / `{hash}` light up on members), then `--archive-depth` and the sniff-gating
+    that keeps `all` from byte-sniffing a whole tree.
   - **Container identity is dual:** the archive keeps its real-FS identity (a real `-type f`,
     deletable and actionable) AND parents its members. This falls out of the VFS source tagging -
     container is local-fs, members are archive-member.

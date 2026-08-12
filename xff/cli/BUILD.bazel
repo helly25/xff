@@ -16,7 +16,7 @@
 load("@helly25_bashtest//bashtest:bashtest.bzl", "bashtest")
 load("@helly25_mbo//mbo/diff:diff.bzl", "diff_test")
 load("//xff:cc.bzl", "cc_binary", "cc_library", "cc_test")
-load("//xff:extras.bzl", "XFF_FULL_ONLY")  # target_compatible_with gate for the extras / full build
+load("//xff:extras.bzl", "XFF_ARCHIVE_ONLY", "XFF_FULL_ONLY")  # target_compatible_with gates for the extras builds
 load(":golden.bzl", "xff_golden_cases")
 
 # main.cc (the CLI entry point, `main()` included) as a library, so the lean `xff` and the extended
@@ -74,6 +74,9 @@ cc_binary(
     target_compatible_with = XFF_FULL_ONLY,
     visibility = ["//visibility:public"],
     deps = [":main_cc"] + select({
+        "//xff:xff_archive_enabled": ["@xff_archive//:archive_register_cc"],
+        "//conditions:default": [],
+    }) + select({
         "//xff:xff_pcre_enabled": ["@xff_pcre2//:pcre2_backend_cc"],
         "//conditions:default": [],
     }),
@@ -413,6 +416,7 @@ cc_library(
     deps = [
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
+        "@xff_extras_api//:archive_backend_cc",
     ],
 )
 
@@ -683,6 +687,17 @@ bashtest(
     size = "small",
     srcs = ["archive_test.sh"],
     data = [":xff"],
+)
+
+# The diving half of the --archive surface, in a binary that HAS the reader (XFF_ARCHIVE_ONLY, so a
+# lean build skips it and --config=xff_docs runs it): the three modes on a real tar, member paths,
+# and that an ordinary file is neither dived nor reported.
+bashtest(
+    name = "archive_dive_test",
+    size = "small",
+    srcs = ["archive_dive_test.sh"],
+    data = [":xff_full"],
+    target_compatible_with = XFF_ARCHIVE_ONLY,
 )
 
 bashtest(

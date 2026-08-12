@@ -92,6 +92,11 @@ struct Visit {
   std::string_view root;          // command-line search root this entry was reached from (find %H)
   int depth;                      // 0 for a root operand, +1 per directory level
   const vfs::Metadata& metadata;  // lstat of `path`
+  // The filesystem this entry came FROM: the walk's own, except inside a mounted container, where it
+  // is the container's. A predicate that READS the entry (content, hash, diff) must go through this
+  // one, or a member would read as empty - `a.tar!x` is not a path the real filesystem has. Null
+  // only for a Visit synthesized outside a walk, where the caller's own filesystem is the answer.
+  const vfs::FileSystem* fs = nullptr;
 };
 
 // Visitor control flow, mirroring find: keep traversing, do not descend into
