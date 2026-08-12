@@ -83,5 +83,17 @@ class EnabledFlagsTest(unittest.TestCase):
         self.assertEqual(cde.enabled_flags(rc, "a"), {"xff_pcre"})
 
 
+class TheBlanketFlagTest(unittest.TestCase):
+    def test_xff_all_counts_as_enabling_every_extra(self):
+        # The whole point of --//xff:xff_all: one line in .bazelrc keeps the docs config complete for
+        # extras that do not exist yet, so this check has nothing per-extra to maintain.
+        self.assertIn("xff_all", cde.enabled_flags("common:xff_docs --//xff:xff_all=True\n", "xff_docs"))
+
+    def test_the_blanket_flag_is_not_itself_an_extra(self):
+        # It is a knob, not a feature, so it must not appear in the list of things that must be enabled -
+        # otherwise the check would demand that the docs config enable its own switch.
+        self.assertNotIn("xff_all", cde.declared_extras('bool_flag(name = "xff_all")'))
+
+
 if __name__ == "__main__":
     unittest.main()

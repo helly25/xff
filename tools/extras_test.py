@@ -72,58 +72,5 @@ class ExtrasTest(unittest.TestCase):
 
     def test_ignores_a_bazel_dep_without_a_local_override(self):
         self.assertEqual(extras.extras('bazel_dep(name = "re2", version = "1")'), {})
-    def test_check_configured_accepts_a_fully_wired_extra(self):
-        self.assertEqual(
-            extras.check_configured(
-                'local_path_override(module_name = "xff_zip", path = "extra_modules/zip")',
-                'XFF_EXTRAS = [struct(module = "xff_zip", flag = "xff_zip", target = "@xff_zip//:z")]',
-                "common:xff_docs --//xff:xff_zip=True\n",
-            ),
-            [],
-        )
-
-    def test_check_configured_accepts_a_flag_named_unlike_its_module(self):
-        # `xff_pcre2` is gated by `--//xff:xff_pcre`: the pairing is what XFF_EXTRAS exists for, so a
-        # check that assumed the names match would reject the real repo.
-        self.assertEqual(
-            extras.check_configured(
-                'local_path_override(module_name = "xff_pcre2", path = "extra_modules/pcre2")',
-                'XFF_EXTRAS = [struct(module = "xff_pcre2", flag = "xff_pcre", target = "@xff_pcre2//:p")]',
-                "common:xff_full --//xff:xff_pcre=True\n",  # xff_docs inherits xff_full
-            ),
-            [],
-        )
-
-    def test_check_configured_reports_an_extra_missing_from_the_list(self):
-        complaints = extras.check_configured(
-            'local_path_override(module_name = "xff_zip", path = "extra_modules/zip")',
-            "XFF_EXTRAS = []",
-            "",
-        )
-        self.assertEqual(len(complaints), 1)
-        self.assertIn("missing from XFF_EXTRAS", complaints[0])
-
-    def test_check_configured_reports_an_extra_absent_from_the_docs_config(self):
-        # The failure this hook exists for: the extra builds and links, but --config=xff_docs does not
-        # enable it, so the committed reference documents less than the tool does.
-        complaints = extras.check_configured(
-            'local_path_override(module_name = "xff_zip", path = "extra_modules/zip")',
-            'XFF_EXTRAS = [struct(module = "xff_zip", flag = "xff_zip", target = "@xff_zip//:z")]',
-            "common:xff_docs --config=xff_full\n",
-        )
-        self.assertEqual(len(complaints), 1)
-        self.assertIn("--config=xff_docs", complaints[0])
-
-    def test_check_configured_reports_a_list_entry_with_no_module(self):
-        complaints = extras.check_configured(
-            "",
-            'XFF_EXTRAS = [struct(module = "xff_gone", flag = "xff_gone", target = "@xff_gone//:g")]',
-            "common:xff_docs --//xff:xff_gone=True\n",
-        )
-        self.assertEqual(len(complaints), 1)
-        self.assertIn("MODULE.bazel does not declare", complaints[0])
-
-
-
 if __name__ == "__main__":
     unittest.main()

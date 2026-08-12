@@ -55,20 +55,16 @@ common --copt=-fno-exceptions
 # here once #83 wires its backend target.)
 common:xff_full --//xff:xff_pcre=True
 
-# --config=xff_docs : the FULL DOCUMENTED SURFACE - every composable extra on. The committed XFF.md
-# (and the drift guard that checks it) use this, deliberately, so the online reference documents all
-# functionality rather than only what one build happens to link. A reader whose binary lacks an extra
-# is not misled: each such flag's help says so in static text ("a build-time extra ... rebuild with
-# --//xff:xff_<name>"), and `--help=extras` reports what the binary in hand actually has. Only the
-# dynamic "NOT built into this binary" line differs, and that is a property of the binary, not of the
-# feature.
-#
-# Every extra needs a line here, because a .bazelrc cannot loop over XFF_EXTRAS (xff/extras.bzl) the
-# way the BUILD files do. So this is the one place an extra can be forgotten, and
-# `tools/extras.py --check-configured` (the `extras-all-wired` pre-commit hook) fails when it is:
-# "the full documented surface" is enforced, not remembered.
+# --config=xff_docs : the FULL DOCUMENTED SURFACE - every composable extra on, via the single
+# --//xff:xff_all flag rather than one line per extra. The committed XFF.md (and the drift guard that
+# checks it) use this, deliberately, so the online reference documents all functionality rather than
+# only what one build happens to link. A reader whose binary lacks an extra is not misled: each such
+# flag's help says so in static text ("a build-time extra ... rebuild with --//xff:xff_<name>"), and
+# `--help=extras` reports what the binary in hand actually has. Only the dynamic "NOT built into this
+# binary" line differs, and that is a property of the binary, not of the feature. A new extra is
+# covered here the moment it has a `:xff_<flag>_on` group in xff/BUILD.bazel - nothing to add.
 common:xff_docs --config=xff_full
-common:xff_docs --//xff:xff_archive=True
+common:xff_docs --//xff:xff_all=True
 
 # Register the hermetic LLVM/clang toolchain ONLY for `--config=clang`. Bazel 9
 # always resolves C++ toolchains, so `--extra_toolchains` (higher priority than

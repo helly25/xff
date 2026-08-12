@@ -254,19 +254,6 @@ repos:
         entry: tools/extras_test.py
         files: ^tools/extras(_test)?\.py$
         pass_filenames: false
-      - id: extras-all-wired
-        name: Every extra is wired and in --config=xff_docs
-        description: |
-          MODULE.bazel says which composable extras exist; XFF_EXTRAS (xff/extras.bzl) pairs each
-          with its build flag and GENERATES the flags, conditions, :full_build and
-          //xff:all_extras_cc; .bazelrc turns them all on for --config=xff_docs, the config the
-          committed XFF.md is generated from. A .bazelrc cannot loop, so that one line is written by
-          hand - and an extra missing from it means the published reference silently documents less
-          than the tool does. This is the gate that catches it.
-        language: system
-        entry: tools/extras.py --check-configured
-        files: ^(MODULE\.bazel|\.bazelrc|xff/extras\.bzl)$
-        pass_filenames: false
       - id: release-prep-test
         name: Test the release prep script
         description: |
