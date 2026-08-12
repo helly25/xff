@@ -269,6 +269,36 @@ test::a_tar_gz_is_still_read_as_a_tar() {
   rm -rf "${root}"
 }
 
+test::write_actions_on_a_member_refuse_loudly() {
+  local root out rc
+  root="$(_tree)"
+  # A member exists only inside its container: there is nothing to unlink and no path a child process
+  # can open. Both must SAY so (exit 2, naming the path) rather than exit 0 having done nothing, which
+  # is what -delete used to do while -exec handed the child `a.tar!one.txt`.
+  out="$("$(_xff_bin)" --archive=roots "${root}/a.tar" -name 'one.txt' -delete 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "archive member" "${out}"
+  out="$("$(_xff_bin)" --archive=roots "${root}/a.tar" -name 'one.txt' -exec echo GOT {} \; 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "archive member" "${out}"
+  expect_output_not_contains "GOT" "${out}" # the child never ran
+  # The tar itself is a real file, so a write action on IT is not refused: `-delete` on the container is
+  # a legitimate request, which is why the guard keys on the entry rather than on "diving is on".
+  out="$("$(_xff_bin)" --archive=roots "${root}/a.tar" -name 'a.tar' -exec echo GOT {} \; 2>&1)"
+  expect_output_contains "GOT ${root}/a.tar" "${out}"
+  rm -rf "${root}"
+}
+
+test::skip_unsupported_downgrades_a_refused_member_to_a_warning() {
+  local root out rc
+  root="$(_tree)"
+  # The standing escape hatch for an impossible task: keep walking, skip the entry, exit 0. That is what
+  # makes `xff -z+ . -delete` usable over a tree that happens to contain archives.
+  out="$("$(_xff_bin)" --archive=roots --skip-unsupported "${root}/a.tar" -delete 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  rm -rf "${root}"
+}
+
 test::an_ordinary_file_that_is_not_an_archive_is_no_error() {
   local root out rc
   root="$(_tree)"

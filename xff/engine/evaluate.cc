@@ -1836,7 +1836,25 @@ bool EvalFprintfln(const parser::Expr& expr, EvalContext& ctx) {
   return true;
 }
 
+// A write action on a VIRTUAL entry (an archive member today) cannot be carried out: the path exists
+// only inside its container, so removing it is impossible and handing it to a child process would hand
+// over a path no `open()` can resolve. Refusing through `control.unsupported` puts it on the same
+// footing as any other impossible task - a hard error naming the path (exit 2), or a warning that skips
+// the entry under --skip-unsupported - rather than a silent no-op or a command that fails obscurely.
+//
+// Returns true when the action must NOT proceed, having recorded the reason.
+bool RefuseOnVirtualEntry(EvalContext& ctx, std::string_view reason) {
+  if (ctx.visit.metadata.source == vfs::Source::kLocalFs) {
+    return false;
+  }
+  ctx.control.unsupported = reason;
+  return true;
+}
+
 bool EvalDelete(const parser::Expr&, EvalContext& ctx) {
+  if (RefuseOnVirtualEntry(ctx, "-delete cannot remove an archive member: members are read-only")) {
+    return false;  // nothing was deleted, so the action is false as well as reported
+  }
   static_cast<void>(ctx.fs.Remove(ctx.visit.path));  // failures set a nonzero exit; wired in the exit-code work
   return true;
 }
@@ -1869,6 +1887,9 @@ std::vector<std::string> RenderExecArgv(const parser::Expr& expr, const EvalCont
 }
 
 bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
+  if (RefuseOnVirtualEntry(ctx, "-exec cannot run on an archive member: a member has no path a process can open")) {
+    return false;
+  }
   if (expr.exec_batch) {
     // `-exec ... +`: queue the full path in the single global ("") bucket; the
     // command runs at end-of-walk (RunFind flushes each batch node in ARG_MAX
@@ -1934,6 +1955,9 @@ std::string OkPrompt(const std::vector<std::string>& args, std::string_view subs
 }
 
 bool EvalExecdir(const parser::Expr& expr, EvalContext& ctx) {
+  if (RefuseOnVirtualEntry(ctx, "-execdir cannot run on an archive member: a member has no directory to run in")) {
+    return false;
+  }
   // Like -exec, but the child runs with its working directory set to the directory
   // containing the matched entry, and find-exact {} expands to "./<basename>".
   const ExecDir target = SplitExecDir(ctx.visit.path);
@@ -1964,6 +1988,9 @@ bool EvalExecdir(const parser::Expr& expr, EvalContext& ctx) {
 }
 
 bool EvalOk(const parser::Expr& expr, EvalContext& ctx) {
+  if (RefuseOnVirtualEntry(ctx, "-ok cannot run on an archive member: a member has no path a process can open")) {
+    return false;
+  }
   // Like -exec, but prompt on stderr (find-exact: {} -> path) and run only on an
   // affirmative reply. Declined, or no confirmer wired -> false, per find.
   if (!ctx.confirm || !ctx.confirm(OkPrompt(expr.args, ctx.visit.path))) {
@@ -1973,6 +2000,9 @@ bool EvalOk(const parser::Expr& expr, EvalContext& ctx) {
 }
 
 bool EvalOkdir(const parser::Expr& expr, EvalContext& ctx) {
+  if (RefuseOnVirtualEntry(ctx, "-okdir cannot run on an archive member: a member has no directory to run in")) {
+    return false;
+  }
   // -okdir is to -execdir what -ok is to -exec: prompt (showing {} -> ./basename),
   // then on an affirmative reply run the command in the matched entry's directory.
   if (!ctx.confirm) {

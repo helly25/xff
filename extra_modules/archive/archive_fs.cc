@@ -63,6 +63,7 @@ std::string_view NameOf(std::string_view key) {
 vfs::Metadata DirectoryMetadata() {
   return vfs::Metadata{
       .type = vfs::FileType::kDirectory,
+      .source = vfs::Source::kArchiveMember,
       // 0555: readable and traversable, never writable - members cannot be modified.
       .mode = 0555,
   };
@@ -201,6 +202,10 @@ absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::Index(
     node.metadata.dev = device;
     node.metadata.ino = next_ino++;
     node.metadata.nlink = 1;
+    // What makes -delete and the exec family refuse this entry rather than act on a path no process
+    // can open. The listing's Entry already says read_only; this is the same fact where the walk and
+    // the evaluator can see it.
+    node.metadata.source = vfs::Source::kArchiveMember;
     node.link_target = member.link_target;
     fs.nodes_[key] = std::move(node);
 

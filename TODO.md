@@ -660,10 +660,12 @@ remains below is the design-forked / larger work.
       guess with another parser. Member reads go back to whichever reader indexed the container, since
       a phar's data offsets come from its own manifest. `plain.phar` and `sha256.phar` now list 3
       members and `-grep` finds the needle; a `.phar.tar` still goes to libarchive, which is pinned so
-      the fallback order cannot become an accident. Remaining phar gaps: per-entry deflate/bzip2
-      members (listing works, reading says Unimplemented - needs zlib raw-inflate + bzip2), and
-      whole-file-compressed `.phar.gz` / `.phar.bz2`, which needs the same decompress-then-parse step
-      as a bare compressed single file below.
+      the fallback order cannot become an accident. Per-entry deflate/bzip2 members now
+      decompress too (raw inflate via zlib with windowBits -15, plus BZ2_bzBuffToBuffDecompress; the
+      manifest's uncompressed size IS the output length, so a stream that ends short or long is a
+      DataLoss rather than silently truncated content). Remaining phar gap: whole-file-compressed
+      `.phar.gz` / `.phar.bz2`, which needs the same decompress-then-parse step as a bare compressed
+      single file below.
     - ~~**Native phar never dives from the CLI.**~~ `ArchiveFileSystem::Open` asks libarchive and nothing
       else, so a native `.phar` (and a whole-file-compressed `.phar.gz` / `.phar.bz2`) is "not an
       archive" and the phar reader - which passes its own tests - is unreachable in a real run. Only
@@ -671,7 +673,20 @@ remains below is the design-forked / larger work.
       fixtures list 0 members, `tarbased/targz/zipbased` list 6/6/5. FIX: the mount path tries
       libarchive, then the phar reader, then (for a compressed container) decompresses and retries.
       The fixtures already exist, so this is wiring plus one CLI test per variant.
-    - **`-delete` on a member silently does nothing** (exit 0, no output, no error) and **`-exec`
+    - **Write actions REFUSE a member now (FIXED 2026-08-12).** `vfs::Metadata` carries the entry's
+      `Source` (the listing's `Entry` always did, but the walk hands the evaluator a Metadata), the
+      archive filesystem stamps `kArchiveMember` on every node, and `-delete` / `-exec` / `-execdir` /
+      `-ok` / `-okdir` report an impossible task through `control.unsupported`: a hard error naming the
+      path (exit 2), or a skip under `--skip-unsupported`. A write action on the CONTAINER is untouched -
+      the guard keys on the entry, not on "diving is on".
+    - **NEXT, two opt-in flags rather than refusals (user, 2026-08-12):** `-delete` COULD remove a
+      member by rewriting the container (straightforward for the libarchive formats; harder for the ones
+      we parse ourselves, phar above all, where the manifest, offsets and signature all move), and
+      `-exec` COULD materialize the member to a temp file and pass that path. Both change a read-only
+      view into a writing tool, so both need their own control flag and neither may be the default;
+      `-exec` also needs a decision on what `{}` renders as (the temp path the child can open, or the
+      member path the user typed) and on cleanup after a failed child.
+    - ~~**`-delete` on a member silently does nothing**~~ (exit 0, no output, no error) and **`-exec`
       hands the child a member path** (`echo a.tar!a.txt`), which no process can open. The design says
       members are read-only and both must REFUSE; the VFS already returns PermissionDenied, so the
       engine is dropping it. Extract-to-temp for `-exec` stays deferred, but the silent no-op cannot.

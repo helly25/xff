@@ -32,8 +32,16 @@
   bogus member; the reader now enables its formats explicitly and leaves `mtree` out.
 
 - Native PHP phar archives dive: the mount path tries libarchive and then the phar reader,
-  so an uncompressed `.phar` lists its members and content predicates search them. Per-entry
-  compressed members report that they are not supported yet instead of appearing empty.
+  so a `.phar` lists its members and content predicates search them - including members
+  compressed with deflate or bzip2, which the reader inflates itself (a phar compresses the
+  member, not the container, so no libarchive format or filter applies). A member whose bytes
+  do not match its declared uncompressed size is reported as corrupt rather than truncated.
+
+- A write action on an archive member is refused instead of quietly doing nothing: `-delete`,
+  `-exec`, `-execdir`, `-ok` and `-okdir` report that the member is read-only (exit 2, naming
+  the path) or skip it under `--skip-unsupported`. Previously `-delete` exited 0 having deleted
+  nothing and `-exec` handed the child a `container!member` path it could not open. The
+  container itself is a real file, so actions on it still work.
 
 - A compressed single file dives: `notes.txt.gz` presents one member named `notes.txt` (the
   name `gzip -d` restores) with its uncompressed size, and content predicates read it. A text

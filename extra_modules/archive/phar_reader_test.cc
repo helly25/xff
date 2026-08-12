@@ -15,10 +15,13 @@
 
 #include "xff/archive/phar_reader.h"
 
+#include <zlib.h>
+
 #include <array>
 #include <cstdint>
 #include <fstream>
 #include <ios>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -91,6 +94,10 @@ struct PharSpec {
   std::string name;
   std::string content;
   std::uint32_t flags = 0644;
+  // The member's UNCOMPRESSED length. Equal to `content.size()` unless the member is compressed, where
+  // `content` is the stored (compressed) stream and this is what it must inflate to - the manifest
+  // carries both, and the reader uses this one as the output length.
+  std::optional<std::size_t> uncompressed_size;
 };
 
 struct PharReaderTest : ::testing::Test {
@@ -104,6 +111,29 @@ struct PharReaderTest : ::testing::Test {
   static void AppendLengthPrefixed(std::string& out, std::string_view value) {
     AppendUint32(out, static_cast<std::uint32_t>(value.size()));
     out.append(value);
+  }
+
+  // Raw deflate (windowBits = -15: no zlib or gzip wrapper), the encoding PHP stores a compressed phar
+  // member as. Compressing here rather than committing a blob keeps the fixture readable and makes the
+  // round trip - this test deflates, the reader inflates - the actual assertion.
+  static std::string RawDeflate(std::string_view content) {
+    ::z_stream stream{};
+    if (::deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
+      return {};
+    }
+    std::string out(content.size() + 64, '\0');
+    stream.next_in = reinterpret_cast<::Bytef*>(const_cast<char*>(content.data()));
+    stream.avail_in = static_cast<::uInt>(content.size());
+    stream.next_out = reinterpret_cast<::Bytef*>(out.data());
+    stream.avail_out = static_cast<::uInt>(out.size());
+    const int status = ::deflate(&stream, Z_FINISH);
+    const std::size_t produced = out.size() - stream.avail_out;
+    ::deflateEnd(&stream);
+    if (status != Z_STREAM_END) {
+      return {};
+    }
+    out.resize(produced);
+    return out;
   }
 
   // Builds a native phar by hand. There is no phar writer to lean on (that is the point of the
@@ -124,7 +154,7 @@ struct PharReaderTest : ::testing::Test {
     std::string data;
     for (const PharSpec& member : members) {
       AppendLengthPrefixed(manifest, member.name);
-      AppendUint32(manifest, static_cast<std::uint32_t>(member.content.size()));
+      AppendUint32(manifest, static_cast<std::uint32_t>(member.uncompressed_size.value_or(member.content.size())));
       AppendUint32(manifest, mtime);
       AppendUint32(manifest, static_cast<std::uint32_t>(member.content.size()));  // stored size
       AppendUint32(manifest, 0);                                                  // CRC32, unchecked here
@@ -270,14 +300,30 @@ TEST_F(PharReaderTest, ADirectoryMemberHasNoContentToRead) {
   EXPECT_THAT(ReadPharMember(phar, "lib/"), StatusIs(absl::StatusCode::kFailedPrecondition));
 }
 
-TEST_F(PharReaderTest, ACompressedMemberIsRefusedRatherThanReturnedRaw) {
-  // Per-member deflate is not implemented yet. Returning the compressed bytes would be worse than
-  // refusing: `-grep` would silently match nothing on a member that does contain the pattern.
+TEST_F(PharReaderTest, AMemberWhoseFlagsLieAboutDeflateIsDataLossNotGarbage) {
+  // The flags say deflate; the bytes are not a deflate stream. Reporting DataLoss beats handing back
+  // whatever fell out: `-grep` would then silently miss a member that does contain the pattern, and a
+  // hash would be computed over rubbish. The manifest's uncompressed size is also the OUTPUT length, so
+  // a stream that ends early or late is caught rather than truncated silently.
   const std::string phar =
       MakePhar({{.name = "z.txt", .content = "not really deflated", .flags = std::uint32_t{0644} | kCompressedGz}});
-  EXPECT_THAT(ReadPharMember(phar, "z.txt"), StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("deflate")));
+  EXPECT_THAT(ReadPharMember(phar, "z.txt"), StatusIs(absl::StatusCode::kDataLoss, HasSubstr("deflate")));
   // Listing it still works: the manifest carries the metadata regardless of the member encoding.
   EXPECT_THAT(ListPharMembers(phar), IsOkAndHolds(ElementsAre(Field("path", &Member::path, "z.txt"))));
+}
+
+TEST_F(PharReaderTest, ARealDeflatedMemberDecompresses) {
+  // The positive case at reader level, with a stream this test compresses itself: raw deflate, no zlib
+  // or gzip wrapper, which is what PHP writes into a phar.
+  const std::string content = "findable-needle in a compressed phar member\n";
+  const std::string deflated = RawDeflate(content);
+  ASSERT_THAT(deflated.empty(), IsFalse());
+  const std::string phar = MakePhar(
+      {{.name = "z.txt",
+        .content = deflated,
+        .flags = std::uint32_t{0644} | kCompressedGz,
+        .uncompressed_size = content.size()}});
+  EXPECT_THAT(ReadPharMember(phar, "z.txt"), IsOkAndHolds(content));
 }
 
 TEST_F(PharReaderTest, EnforcesTheByteLimit) {

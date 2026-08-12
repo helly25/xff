@@ -1100,6 +1100,38 @@ TEST_F(EvaluateTest, CommaEvaluatesBothValueIsRight) {
   EXPECT_THAT(emitted_, "f\nf\n");
 }
 
+TEST_F(EvaluateTest, WriteActionsRefuseAVirtualEntryInsteadOfActingOnIt) {
+  // An archive member exists only inside its container: there is no path to unlink and none a child
+  // process could open. Before this, -delete silently did nothing (exit 0, no message) and -exec handed
+  // the child `a.tar!x`. Each write action must instead report an impossible task, which the driver
+  // turns into a hard error naming the path - or, under --skip-unsupported, a warning that skips it.
+  vfs::Metadata member;
+  member.type = vfs::FileType::kRegular;
+  member.source = vfs::Source::kArchiveMember;
+  // A named list rather than an inline braced-init-list (STYLE_CPP), and `static` rather than
+  // `constexpr` because a vector of strings is not a constant expression.
+  static const std::array<std::vector<std::string>, 4> kWriteActions{
+      std::vector<std::string>{"-delete"},
+      std::vector<std::string>{"-exec", "true", ";"},
+      std::vector<std::string>{"-exec", "true", "{}", "+"},
+      std::vector<std::string>{"-execdir", "true", ";"},
+  };
+  for (const std::vector<std::string>& action : kWriteActions) {
+    const std::string label = action.front();
+    EXPECT_FALSE(Match(action, Visit{.path = "a.tar!x", .name = "x", .depth = 1, .metadata = member})) << label;
+    EXPECT_THAT(control_.unsupported, HasSubstr("archive member")) << label;
+  }
+}
+
+TEST_F(EvaluateTest, WriteActionsStillActOnARealFile) {
+  // The guard keys on the entry's SOURCE, so an ordinary file is untouched by it: -exec still runs and
+  // reports true, and nothing is recorded as unsupported.
+  vfs::Metadata real;
+  real.type = vfs::FileType::kRegular;
+  EXPECT_TRUE(Match({"-exec", "true", ";"}, Visit{.path = "f", .name = "f", .depth = 1, .metadata = real}));
+  EXPECT_THAT(control_.unsupported, IsEmpty());
+}
+
 TEST_F(EvaluateTest, PruneAndQuitSetControl) {
   vfs::Metadata md;
   md.type = vfs::FileType::kDirectory;
