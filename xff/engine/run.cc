@@ -1314,6 +1314,40 @@ std::string_view ArchiveModeName(ArchiveMode mode) {
   return "none";
 }
 
+// What a reduction (--summary / --histogram) counts when the walk dives into containers. Diving makes
+// one byte visible twice - once as the container's own size, once as its members' - so a total that
+// adds both describes no filesystem that exists.
+enum class ArchiveAggregate {
+  kBoth,       // count the container AND its members: the archive plus what unpacking it would give
+  kContainer,  // count containers, never their members: sizes as they sit on disk
+  kMembers,    // the default: count the members of a dived container instead of the container
+};
+
+// --archive-aggregate=both|container|members (last occurrence wins), the reduction's view of a dived
+// container. Only reductions are affected: what gets PRINTED is the walk's business, so a member is
+// still listed under `container` and the container still listed under `members`.
+absl::StatusOr<ArchiveAggregate> ResolveArchiveAggregate(const std::vector<std::string>& globals) {
+  using ModePair = std::pair<std::string_view, ArchiveAggregate>;
+  static constexpr auto kModes = mbo::container::MakeLimitedMap(
+      ModePair{"both", ArchiveAggregate::kBoth}, ModePair{"container", ArchiveAggregate::kContainer},
+      ModePair{"members", ArchiveAggregate::kMembers});
+  ArchiveAggregate result = ArchiveAggregate::kMembers;
+  constexpr std::string_view kFlag = "--archive-aggregate=";
+  for (const std::string& global : globals) {
+    if (!global.starts_with(kFlag)) {
+      continue;
+    }
+    const std::string_view value = std::string_view(global).substr(kFlag.size());
+    const auto it = kModes.find(value);
+    if (it == kModes.end()) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("bad --archive-aggregate value '", value, "': expected both, container, or members"));
+    }
+    result = it->second;
+  }
+  return result;
+}
+
 // The whole `--archive` family, resolved into the walk options: how far to dive, and the member-path
 // spelling a mounted container renders with (returned, because only the mounter needs it).
 //
@@ -2357,6 +2391,17 @@ int RunFind(
 
   std::map<std::string, std::vector<ShardBufFile>> shard_buckets;  // dir -> its matched files
   const bool any_reduction = !summaries.empty() || !histograms.empty() || shards.enabled;
+  // --archive-aggregate: what a reduction counts when the walk dives. Only `members` needs the walk to
+  // open a container before its own entry is visited (see WalkOptions::mount_before_visit), and only
+  // when there is a reduction to feed, so an ordinary run never pays for it.
+  const absl::StatusOr<ArchiveAggregate> archive_aggregate = ResolveArchiveAggregate(command.globals);
+  if (!archive_aggregate.ok()) {
+    on_error("--archive-aggregate", archive_aggregate.status());
+    return 2;
+  }
+  if (any_reduction && options.archive != ArchiveDive::kNone && *archive_aggregate == ArchiveAggregate::kMembers) {
+    options.mount_before_visit = true;
+  }
   int errors = 0;
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
@@ -2627,10 +2672,17 @@ int RunFind(
                  .depth = visit.depth,
                  .metadata = visit.metadata});
           }
+          // --archive-aggregate: `members` drops the container whose members follow (its bytes are
+          // about to be counted as theirs), `container` drops the members instead. `both` counts
+          // everything, which is what unpacking the archive next to it would give.
+          const bool counted = *archive_aggregate == ArchiveAggregate::kBoth
+                               || (*archive_aggregate == ArchiveAggregate::kMembers && !visit.dived)
+                               || (*archive_aggregate == ArchiveAggregate::kContainer
+                                   && visit.metadata.source != vfs::Source::kArchiveMember);
           // --summary / --histogram reduce matches instead of printing them; explicit
           // actions (-print/-exec) still ran via Evaluate. In --shards mode the reductions
           // aggregate per logical set instead (fed post-walk), so skip the per-file feed here.
-          if (!shards.enabled) {
+          if (!shards.enabled && counted) {
             // Accumulate this entry into each --summary sink. The field-template render context is
             // built once and shared: an m// extraction contributes a value stream (one count per
             // extracted line, size not attributed -- a per-line key would double-count the file's
@@ -2698,7 +2750,7 @@ int RunFind(
               cell.sum += *value;
               cell.count += 1;
             }
-          }  // end if (!shards.enabled)
+          }  // end if (!shards.enabled && counted)
         } else if (matched && implicit_print) {
           if (is_tree) {
             tree->Add(visit.path);  // splice into the tree; rendered whole after the walk

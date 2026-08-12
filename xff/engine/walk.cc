@@ -167,31 +167,59 @@ class Walker {
     return options_.archive == ArchiveDive::kAll || depth == 0;
   }
 
-  // Opens `container` and walks its members as children of it, at `depth` + 1.
-  //
-  // A failed mount is not automatically an error: InvalidArgument means "not an archive", which is the
-  // common case for every ordinary file the walk offers, and the file has already been visited as
-  // itself. Any other failure IS reported - an archive that cannot be read is a real problem.
-  void DescendContainer(const Stated& container, int depth) {
+  // Opens `container`, or answers null. A failed open is not automatically an error: InvalidArgument
+  // means "not an archive", the answer for every ordinary file the walk offers, and the file is simply
+  // walked as itself; any other failure IS reported, because an archive that cannot be read is a real
+  // problem. Reported at most once per container: a probe that fails is never retried.
+  std::unique_ptr<const vfs::FileSystem> MountContainer(const Stated& container, int depth) {
     absl::StatusOr<std::unique_ptr<const vfs::FileSystem>> mounted = (*mount_container_)(container.path, fs_, depth);
-    if (!mounted.ok()) {
-      if (!absl::IsInvalidArgument(mounted.status())) {
-        on_error_(container.path, mounted.status());
-      }
-      return;
+    if (mounted.ok()) {
+      return *std::move(mounted);
     }
+    if (!absl::IsInvalidArgument(mounted.status())) {
+      on_error_(container.path, mounted.status());
+    }
+    return nullptr;
+  }
+
+  // Answers whether `container` can be dived, keeping no open archive afterwards. Used by the
+  // mid-walk sites under `mount_before_visit`, which need the answer for a whole listing block before
+  // the first dive: retaining each child's mount until then would hold a directory's worth of open
+  // archives at once (a compressed single file is decompressed into memory, so that is unbounded),
+  // so this trades a second open at dive time for a peak of one.
+  bool ProbeMountable(const Stated& container, int depth) { return MountContainer(container, depth) != nullptr; }
+
+  // Whether the mid-walk sites will dive `child`, answered before its own entry is emitted. Without
+  // `mount_before_visit` that is just "may we try" - the open, and therefore the answer, comes later.
+  bool WillDive(const Stated& child, int depth) {
+    if (!ShouldTryMount(child, depth)) {
+      return false;
+    }
+    return !options_.mount_before_visit || ProbeMountable(child, depth);
+  }
+
+  // Walks an ALREADY-OPEN container's members as children of it, at `depth` + 1.
+  void DescendMounted(const vfs::FileSystem& mounted, const Stated& container, int depth) {
     // A nested walker over the mounted filesystem: members are ordinary entries to it, so every rule
     // the outer walk enforces (max_depth, min_depth, prune, quit, post_order, sort) applies unchanged.
     // The mounter is passed on, so a container inside a container dives too - bounded by
     // --archive-depth through `container_depth_`. Under `roots` that bound never binds: a member is
     // never at depth 0, so the mode itself already says "only the archive I was pointed at".
-    Walker inner(**mounted, options_, visit_, on_error_, mount_container_);
+    Walker inner(mounted, options_, visit_, on_error_, mount_container_);
     inner.container_depth_ = container_depth_ + 1;
     inner.current_root_ = current_root_;
     inner.root_dev_ = container.metadata.dev;
     inner.DescendMembers(container.path, depth);
     if (inner.stopped_) {
       stopped_ = true;  // a -quit inside the archive stops the whole walk, as it would in a directory
+    }
+  }
+
+  // Opens a container and walks its members, for the callers that visit it before descending.
+  void DescendContainer(const Stated& container, int depth) {
+    const std::unique_ptr<const vfs::FileSystem> mounted = MountContainer(container, depth);
+    if (mounted != nullptr) {
+      DescendMounted(*mounted, container, depth);
     }
   }
 
@@ -269,7 +297,7 @@ class Walker {
   // Reports `stated` to the visitor (pre/post order handled by the caller).
   // Returns the visitor's action, or kContinue when the entry is below
   // `min_depth` (traversed but not visited) or failed to stat.
-  WalkAction VisitOne(const Stated& stated, int depth) {
+  WalkAction VisitOne(const Stated& stated, int depth, bool dived = false) {
     if (!stated.ok) {
       // -ignore_readdir_race: an entry that vanished after readdir (ENOENT) is a
       // race, not an error worth reporting; other stat failures still surface.
@@ -287,6 +315,7 @@ class Walker {
         .root = current_root_,
         .depth = depth,
         .metadata = stated.metadata,
+        .dived = dived,
         .fs = &fs_};
     const WalkAction action = visit_(visit);
     if (action == WalkAction::kStop) {
@@ -307,26 +336,36 @@ class Walker {
     }
     const bool descend = Descendable(stated, depth);
     const bool dive = ShouldTryMount(stated, depth);
+    // Under `mount_before_visit` the container is opened here, so the visit can be told whether its
+    // members follow; the open is kept and reused for the dive below. Otherwise the open happens at
+    // the dive, which is what lets `-prune` skip it altogether.
+    const std::unique_ptr<const vfs::FileSystem> mounted =
+        dive && options_.mount_before_visit ? MountContainer(stated, depth) : nullptr;
+    const bool dived = dive && (!options_.mount_before_visit || mounted != nullptr);
     if (options_.post_order) {
       if (descend) {
         Descend(stated, depth, prefetched);
-      } else if (dive) {
+      } else if (mounted != nullptr) {
+        DescendMounted(*mounted, stated, depth);
+      } else if (dive && !options_.mount_before_visit) {
         DescendContainer(stated, depth);
       }
       if (!stopped_) {
-        VisitOne(stated, depth);
+        VisitOne(stated, depth, options_.mount_before_visit && dived);
       }
       return;
     }
-    const WalkAction action = VisitOne(stated, depth);
+    const WalkAction action = VisitOne(stated, depth, options_.mount_before_visit && dived);
     if (stopped_ || action == WalkAction::kPrune) {
       return;
     }
     if (descend) {
       Descend(stated, depth, prefetched);
-    } else if (dive) {
+    } else if (mounted != nullptr) {
       // A container is a FILE, so it never reaches Descend; -prune above still applies to it, which is
       // what makes `-name '*.tar' -prune` skip diving without skipping the file itself.
+      DescendMounted(*mounted, stated, depth);
+    } else if (dive && !options_.mount_before_visit) {
       DescendContainer(stated, depth);
     }
   }
@@ -377,12 +416,14 @@ class Walker {
     }
     if (options_.sort == SortOrder::kSubtree) {
       // Non-directory entries first (sorted block), then each subtree contiguous.
-      for (const Stated& child : children) {
+      std::vector<bool> dived(children.size(), false);
+      for (std::size_t i = 0; i < children.size(); ++i) {
         if (stopped_) {
           return;
         }
-        if (!IsDir(child)) {
-          VisitOne(child, depth);
+        if (!IsDir(children[i])) {
+          dived[i] = WillDive(children[i], depth);
+          VisitOne(children[i], depth, options_.mount_before_visit && dived[i]);
         }
       }
       std::vector<std::future<Listing>> reads = SubmitSubdirReads(children, depth);
@@ -392,7 +433,7 @@ class Walker {
         }
         if (IsDir(children[i])) {
           VisitSubtree(children[i], depth, reads[i].valid() ? &reads[i] : nullptr);
-        } else if (ShouldTryMount(children[i], depth)) {
+        } else if (dived[i]) {
           // A container groups its members like a directory, so under kSubtree it belongs in the
           // subtree block rather than the flat block its own entry was emitted in.
           DescendContainer(children[i], depth);
@@ -403,11 +444,13 @@ class Walker {
     // kDir / kNone: emit the whole listing block, then recurse the subdirectories.
     // The per-child action is captured so a pruned directory is not descended into.
     std::vector<bool> pruned(children.size(), false);
+    std::vector<bool> dived(children.size(), false);
     for (std::size_t i = 0; i < children.size(); ++i) {
       if (stopped_) {
         return;
       }
-      pruned[i] = VisitOne(children[i], depth) == WalkAction::kPrune;
+      dived[i] = WillDive(children[i], depth);
+      pruned[i] = VisitOne(children[i], depth, options_.mount_before_visit && dived[i]) == WalkAction::kPrune;
     }
     std::vector<std::future<Listing>> reads = SubmitSubdirReads(children, depth);
     for (std::size_t i = 0; i < children.size(); ++i) {
@@ -419,7 +462,7 @@ class Walker {
       }
       if (Descendable(children[i], depth)) {
         Descend(children[i], depth, reads[i].valid() ? &reads[i] : nullptr);  // entry already visited above
-      } else if (ShouldTryMount(children[i], depth)) {
+      } else if (dived[i]) {
         // `--archive=all`: a container met mid-walk descends exactly where a directory would, and
         // after its own visit, so a prune on the container still skips its members.
         DescendContainer(children[i], depth);

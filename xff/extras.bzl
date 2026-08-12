@@ -37,9 +37,11 @@ XFF_FULL_ONLY = select({
 # `target_compatible_with` for a target that needs the ARCHIVE extra specifically (rather than any
 # full build): the end-to-end tests that dive into a container only mean anything in a binary that
 # links a reader, so `--config=xff_full` (PCRE2 only) must skip them and `--config=xff_docs` runs
-# them. Keyed on the extra's own flag, which is the "is archive on" question - a different one from
-# XFF_FULL_ONLY's "is this the full build".
+# them. Keyed on `//xff:xff_archive_on` - "is archive on", by its own flag OR by --//xff:xff_all -
+# which is a different question from XFF_FULL_ONLY's "is this the full build". The `_on` group and not
+# the bare flag: --config=xff_docs enables the extras through xff_all, and keying on the flag alone
+# made every test here incompatible (silently skipped) in exactly the config built to run them.
 XFF_ARCHIVE_ONLY = select({
-    "//xff:xff_archive_enabled": [],
+    "//xff:xff_archive_on": [],
     "//conditions:default": ["@platforms//:incompatible"],
 })

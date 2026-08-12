@@ -310,4 +310,57 @@ test::an_ordinary_file_that_is_not_an_archive_is_no_error() {
   rm -rf "${root}"
 }
 
+test::a_summary_counts_the_members_of_a_dived_container_not_the_container() {
+  local root members both container
+  root="$(_tree)"
+  # The default (`members`): diving makes one byte visible twice, so a total that adds the tar AND
+  # what is in it describes no filesystem that exists. The tar is several kilobytes of blocked
+  # padding and its two members are a handful of bytes, so the counts separate the modes cleanly.
+  members="$("$(_xff_bin)" --archive=roots --summary "${root}/a.tar")"
+  both="$("$(_xff_bin)" --archive=roots --summary --archive-aggregate=both "${root}/a.tar")"
+  container="$("$(_xff_bin)" --archive=roots --summary --archive-aggregate=container "${root}/a.tar")"
+  # 3 members (one.txt, dir, dir/two.txt); +1 for the tar itself under `both`; only the tar under
+  # `container`, which is exactly what the same run without diving reports.
+  expect_matches "total +3 " "${members}"
+  expect_matches "total +4 " "${both}"
+  expect_matches "total +1 " "${container}"
+  expect_eq "$("$(_xff_bin)" --archive=none --summary "${root}/a.tar")" "${container}"
+  rm -rf "${root}"
+}
+
+test::archive_aggregate_leaves_the_printed_entries_alone() {
+  local root out
+  root="$(_tree)"
+  # Only the REDUCTIONS are affected. A mode that drops the container from a total must not drop it
+  # from the listing, or `--summary` would silently change what a run finds.
+  for mode in members container both; do
+    out="$("$(_xff_bin)" --archive=roots "--archive-aggregate=${mode}" "${root}/a.tar")"
+    expect_output_contains "${root}/a.tar" "${out}"
+    expect_output_contains "a.tar!one.txt" "${out}"
+  done
+  rm -rf "${root}"
+}
+
+test::a_bad_archive_aggregate_value_is_a_usage_error() {
+  local root out rc
+  root="$(_tree)"
+  out="$("$(_xff_bin)" --archive-aggregate=nope --summary "${root}" 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "--archive-aggregate" "${out}"
+  rm -rf "${root}"
+}
+
+test::a_mid_walk_container_is_dropped_from_the_total_too() {
+  local root members both
+  root="$(_tree)"
+  # `all` meets the tar during the walk, where its own entry is emitted with a whole listing block
+  # before anything is dived - so the answer has to be known ahead of the entry, not after it.
+  members="$("$(_xff_bin)" --archive=all --summary "${root}")"
+  both="$("$(_xff_bin)" --archive=all --summary --archive-aggregate=both "${root}")"
+  # root + b.txt + 3 members = 5, and `both` adds the tar back.
+  expect_matches "total +5 " "${members}"
+  expect_matches "total +6 " "${both}"
+  rm -rf "${root}"
+}
+
 test_runner
