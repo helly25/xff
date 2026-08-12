@@ -121,8 +121,10 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
+        "@bzip2//:bz2",
         "@helly25_mbo//mbo/status:status_macros_cc",
         "@xff_extras_api//:member_path_cc",
+        "@zlib",
     ],
 )
 
@@ -142,6 +144,7 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
         "@helly25_mbo//mbo/testing:status_cc",
+        "@zlib",
     ],
 )
 

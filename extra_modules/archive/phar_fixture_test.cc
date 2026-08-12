@@ -171,13 +171,15 @@ TEST_F(PharFixtureTest, ASignedPharIsReadTheSameWay) {
   EXPECT_THAT(ListPharMembersOfFile(Fixture("sha256.phar")), IsOkAndHolds(Not(::testing::IsEmpty())));
 }
 
-TEST_F(PharFixtureTest, PerMemberCompressionListsButDoesNotReadYet) {
-  // The manifest is plain in these, so listing is fully supported and reports the UNCOMPRESSED size.
-  // Reading is refused rather than returning deflate / bzip2 bytes as if they were content.
+TEST_F(PharFixtureTest, PerMemberCompressionListsAndReads) {
+  // The manifest is plain in these, so listing reports the UNCOMPRESSED size; reading inflates the
+  // member itself (a phar compresses the MEMBER, at an offset, with no libarchive format or filter to
+  // lean on) and must yield exactly what the uncompressed fixture holds. Both methods PHP writes -
+  // deflate and bzip2 - are covered by the fixture list.
   for (const std::string_view fixture : kEntryCompressedFixtures) {
     const std::string path = Fixture(fixture);
     EXPECT_THAT(ListPharMembersOfFile(path), IsOkAndHolds(Contains(Field("path", &Member::path, kReadme)))) << fixture;
-    EXPECT_THAT(ReadPharMemberOfFile(path, kReadme), StatusIs(absl::StatusCode::kUnimplemented)) << fixture;
+    EXPECT_THAT(ReadPharMemberOfFile(path, kReadme), IsOkAndHolds(kReadmeContent)) << fixture;
   }
 }
 
@@ -246,16 +248,26 @@ TEST_F(PharFixtureTest, TheFilesystemStillPrefersLibarchiveForATarBasedPhar) {
       IsOkAndHolds(HasSubstr("findable-needle")));
 }
 
-TEST_F(PharFixtureTest, APerEntryCompressedMemberFailsLoudlyThroughTheFilesystem) {
-  // Deflate / bzip2 per-entry compression is not implemented yet. The point of this test is that the
-  // limit surfaces as Unimplemented all the way out - listing works, reading says why - rather than as
-  // empty content, which a content predicate could not tell from an empty file.
-  const absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::Open(Fixture("entrygz.phar"));
-  ASSERT_THAT(fs, IsOk());
-  EXPECT_THAT(fs->ReadDir(Fixture("entrygz.phar")), IsOkAndHolds(Contains(Field("name", &vfs::Entry::name, "data"))));
-  EXPECT_THAT(
-      fs->ReadContent(JoinMemberPath(Fixture("entrygz.phar"), "data/readme.txt")),
-      StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("deflate")));
+TEST_F(PharFixtureTest, PerEntryCompressedMembersDecompressToTheSameContent) {
+  // A phar compresses a MEMBER, not the container: the manifest names the method and the bytes are a
+  // bare stream at an offset, so no libarchive format or filter applies and the reader inflates them
+  // itself. Both methods PHP writes must yield what the uncompressed fixture holds, byte for byte - the
+  // same logical file stored three ways reads back identical, which is the strongest statement
+  // available without hard-coding content here.
+  const absl::StatusOr<ArchiveFileSystem> plain = ArchiveFileSystem::Open(Fixture("plain.phar"));
+  ASSERT_THAT(plain, IsOk());
+  const absl::StatusOr<std::string> expected =
+      plain->ReadContent(JoinMemberPath(Fixture("plain.phar"), "data/readme.txt"));
+  ASSERT_THAT(expected, IsOkAndHolds(HasSubstr("findable-needle")));
+  constexpr std::array kCompressed = std::to_array<std::string_view>({"entrygz.phar", "entrybz2.phar"});
+  for (const std::string_view fixture : kCompressed) {
+    const absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::Open(Fixture(fixture));
+    ASSERT_THAT(fs, IsOk()) << fixture;
+    EXPECT_THAT(fs->ReadDir(Fixture(fixture)), IsOkAndHolds(Contains(Field("name", &vfs::Entry::name, "data"))))
+        << fixture;
+    EXPECT_THAT(fs->ReadContent(JoinMemberPath(Fixture(fixture), "data/readme.txt")), IsOkAndHolds(*expected))
+        << fixture;
+  }
 }
 
 }  // namespace xff::archive
