@@ -640,6 +640,13 @@ remains below is the design-forked / larger work.
     walk carries a `container_depth_` that the cap compares against, and `MemberKeyOf` resolves a
     member against its KNOWN container instead of splitting at the first separator - a nested
     container's own path contains one (`outer.tar!inner.tar`).
+  - **Extras are wired in ONE place (2026-08-12).** `XFF_EXTRAS` in `xff/extras.bzl` pairs each
+    removable module with its build flag and registration target; the `--//xff:xff_<flag>` flags,
+    their `config_setting`s, `:full_build` and `//xff:all_extras_cc` (all `xff_full` links) are
+    generated from it, so a new extra is: MODULE.bazel dep + one struct + one `.bazelrc` line. The
+    `.bazelrc` line is the only hand-written half (a bazelrc cannot loop), and
+    `tools/extras.py --check-configured` fails when it is missing - `--config=xff_docs` really is the
+    full documented surface rather than the extras someone remembered.
   - **Remaining for #83:** the sniff-gating that keeps `all` from opening every ordinary file it
     meets (an extension / magic peek before the reader is asked), and `--archive-any` as its opt-out.
   - **Container identity is dual:** the archive keeps its real-FS identity (a real `-type f`,

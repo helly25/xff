@@ -51,6 +51,13 @@ from build_rules import display_path, find_build_files, parse_rules  # noqa: E40
 # Every entry is a judgement call that a reviewer should be able to check, so each one
 # carries its reason here rather than in a commit message.
 _ALLOWLIST: dict[str, str] = {
+    "xff:all_extras_cc": (
+        "no code at all: a generated sum of one `select` per composable extra (XFF_EXTRAS in "
+        "xff/extras.bzl), so `xff_full` links every extra that is on without naming any. What it "
+        "resolves to is covered by the extras-all-wired hook (every declared extra is in the list and "
+        "in --config=xff_docs), by //xff:alias_test, and by the full-binary bashtests, which run a "
+        "binary built through it and assert `--help=extras` reports each extra as built in"
+    ),
     "xff/cli:main_cc": (
         "main() plus argv wiring, with no separately testable surface: it is covered end to end by the "
         "xff / xff_full bashtests (binary_test, full_binary_test, parity_test) which run the built binary"

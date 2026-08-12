@@ -30,22 +30,31 @@
 
 load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("//xff:cc.bzl", "cc_test")
+load("//xff:cc.bzl", "cc_library", "cc_test")
+load("//xff:extras.bzl", "XFF_EXTRAS", "all_extras_deps")
 
 package(default_visibility = ["//visibility:public"])
 
-# --//xff:xff_archive -- link the archive-diving backend (libarchive, plus a hand-written reader for
-# PHP's native phar format, which libarchive does not handle; wired in #83). Default off.
+# One `--//xff:xff_<flag>` per composable extra, plus its `:xff_<flag>_enabled` condition, GENERATED
+# from the XFF_EXTRAS list (//xff:extras.bzl) rather than written out per extra: the list is the single
+# place an extra is wired, so a new one cannot arrive with a flag but no condition, or a condition the
+# full build forgets. Default off, which is what makes `//xff/cli:xff` lean.
 # (Build flags carry the `xff_` package prefix, like the library flags in STYLE_CPP.md.)
-bool_flag(
-    name = "xff_archive",
-    build_setting_default = False,
-)
+[
+    bool_flag(
+        name = extra.flag,
+        build_setting_default = False,
+    )
+    for extra in XFF_EXTRAS
+]
 
-config_setting(
-    name = "xff_archive_enabled",
-    flag_values = {":xff_archive": "True"},
-)
+[
+    config_setting(
+        name = extra.flag + "_enabled",
+        flag_values = {":" + extra.flag: "True"},
+    )
+    for extra in XFF_EXTRAS
+]
 
 # --//xff:xff_msan -- set by --config=msan (see .bazelrc). It exists so the cc_* wrappers in
 # xff/cc.bzl (and the two genrules that RUN the instrumented binary) can `select()` the MSan runtime
@@ -62,32 +71,24 @@ config_setting(
     flag_values = {":xff_msan": "True"},
 )
 
-# --//xff:xff_pcre -- link the PCRE2 regex backend (extra_modules/pcre2; wired in #85). Default off, so
-# only `xff_full` built with the extra on (`--config=xff_full`, or `--//xff:xff_pcre`) links it. Without
-# it, `--regextype=PCRE2` is a usage error (never a silent RE2 fallback).
-bool_flag(
-    name = "xff_pcre",
-    build_setting_default = False,
-)
-
-config_setting(
-    name = "xff_pcre_enabled",
-    flag_values = {":xff_pcre": "True"},
-)
-
-# The single "is this the full / extras build" condition. Full mode is whatever set of extras is on,
-# NOT any one extra: today that is PCRE2 (`--config=xff_full` sets --//xff:xff_pcre) or archive
-# (`--config=xff_docs` adds --//xff:xff_archive). When a later extra lands, add its
-# `:xff_<extra>_enabled` here (match_any = logical OR) and every consumer follows. Both XFF_FULL_ONLY (xff_full's own compatibility gate, //xff:extras.bzl)
+# The single "is this the full / extras build" condition: an OR over every extra's own condition, so
+# it needs no edit when one lands. Both XFF_FULL_ONLY (xff_full's compatibility gate, //xff:extras.bzl)
 # and the //xff alias below key on THIS, so "full mode" is defined in exactly one place. (Linking a
-# specific backend, e.g. the pcre select in //xff/cli:xff_full, stays keyed on that extra's own
-# :xff_<extra>_enabled - that is "is pcre on", a different question from "is this the full build".)
+# specific backend stays keyed on that extra's `:xff_<flag>_enabled` - "is pcre on" is a different
+# question from "is this the full build".)
 selects.config_setting_group(
     name = "full_build",
-    match_any = [
-        ":xff_archive_enabled",
-        ":xff_pcre_enabled",
-    ],
+    match_any = [":" + extra.flag + "_enabled" for extra in XFF_EXTRAS],
+)
+
+# What `xff_full` links: every extra that is turned ON, and nothing about them anywhere else. One
+# `select` per extra keyed on its own flag, generated from XFF_EXTRAS - so `--config=xff_docs` (all
+# extras) and `--config=xff_full --//xff:xff_pcre=false` (drop one) both fall out, and a binary never
+# needs to name an extra. `alwayslink` lives on each extra's own registration target, which is what
+# makes the static-init self-registration survive linking.
+cc_library(
+    name = "all_extras_cc",
+    deps = all_extras_deps(),
 )
 
 # `//xff` == the right binary for the active build config: the extended //xff/cli:xff_full in a full

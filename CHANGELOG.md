@@ -29,6 +29,12 @@
 
 ## Internal
 
+- The composable extras are wired in one place: `XFF_EXTRAS` (`xff/extras.bzl`) generates
+  every `--//xff:xff_<flag>` flag, its condition, the "is this the full build" group and
+  `//xff:all_extras_cc`, which is what `xff_full` links. `--config=xff_docs` enabling every
+  extra - what the committed reference is generated from - is now enforced by a hook instead
+  of a comment asking to remember.
+
 - MemorySanitizer is a hard CI gate on Linux. The instrumented C++ standard library it
   needs now comes from the toolchain itself (`toolchains_llvm`'s `--features=msan` plus a
   prebuilt instrumented-libc++ overlay) instead of a cmake/ninja build of the LLVM
