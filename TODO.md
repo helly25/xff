@@ -645,8 +645,13 @@ remains below is the design-forked / larger work.
     so `--config=xff_docs` - the config the committed XFF.md is generated from, and which must show
     the FULL surface - is one line that cannot fall behind the extras list. It replaced a derived
     XFF_EXTRAS list plus a completeness checker: making the state unrepresentable beats policing it.
-  - **Remaining for #83:** the sniff-gating that keeps `all` from opening every ordinary file it
-    meets (an extension / magic peek before the reader is asked), and `--archive-any` as its opt-out.
+  - **Sniff-gating SHIPPED: a NAME gate in front of the reader, `--archive-any` to drop it.** Under
+    `all` a file the walk MET is offered to the reader only if its basename carries a container suffix
+    (`archive::LooksLikeContainerName`, the reader's formats plus the packages that are one of them
+    underneath); a file NAMED on the command line always is, which is why the mounter now receives the
+    container's depth (0 = named). `--archive-any` offers everything, for an archive called `blob`.
+    Remaining option, deliberately not built: a magic PEEK for the gated case, which needs a
+    partial-read VFS operation (`ReadContent` reads the whole file, which is what the gate avoids).
   - **Container identity is dual:** the archive keeps its real-FS identity (a real `-type f`,
     deletable and actionable) AND parents its members. This falls out of the VFS source tagging -
     container is local-fs, members are archive-member.

@@ -13,6 +13,10 @@
   `--archive`) also dives archives met mid-walk, at the position a directory of that name
   would take under every `--sort`. `-prune`, `-quit` and `-maxdepth` apply to members as
   they do everywhere else. Without the extra, asking for diving remains a hard error.
+- Under `--archive=all`, a file the walk meets is opened only if its NAME looks like a
+  container (`.tar`, `.tgz`, `.zip`, `.jar`, `.phar`, ...), so walking a source tree no longer
+  offers every `.cc` and every binary to the reader. `--archive-any` drops the gate, for an
+  archive whose name says nothing. A file named on the command line is always opened.
 - `--archive-separator` / `--archive-prefix` now reach the walk, so printed member paths
   round-trip through the flags that produced them.
 - Everything that reads an entry works on members: `-content`, `-icontent`, `-rxc`,

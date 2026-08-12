@@ -185,6 +185,46 @@ test::a_bad_archive_depth_is_a_usage_error() {
   rm -rf "${root}"
 }
 
+test::all_only_opens_files_whose_name_looks_like_a_container() {
+  local root out
+  root="$(_tree)"
+  # The gate: `blob` IS a tar, byte for byte, but nothing in its name says so. Under `all` the walk
+  # leaves it closed - otherwise every file in a source tree would be opened and format-bid - while the
+  # `.tar` beside it is dived as before.
+  cp "${root}/a.tar" "${root}/blob"
+  out="$("$(_xff_bin)" --archive=all "${root}")"
+  expect_output_contains "a.tar!one.txt" "${out}"
+  expect_output_contains "${root}/blob" "${out}"
+  expect_output_not_contains "blob!" "${out}"
+  rm -rf "${root}"
+}
+
+test::archive_any_offers_every_file_to_the_reader() {
+  local root out
+  root="$(_tree)"
+  # The way out of the name gate, for a tree of archives named anything at all.
+  cp "${root}/a.tar" "${root}/blob"
+  out="$("$(_xff_bin)" --archive=all --archive-any "${root}")"
+  expect_output_contains "blob!one.txt" "${out}"
+  # And an ordinary file offered to the reader is still just a file, not an error.
+  expect_output_contains "${root}/b.txt" "${out}"
+  expect_output_not_contains "xff:" "${out}"
+  rm -rf "${root}"
+}
+
+test::a_container_named_on_the_command_line_is_never_gated_by_its_name() {
+  local root out
+  root="$(_tree)"
+  # Pointing xff AT a file is the request to look inside it, so `roots` (and `all`) open it whatever it
+  # is called - the gate exists for files the walk merely met.
+  cp "${root}/a.tar" "${root}/blob"
+  out="$("$(_xff_bin)" --archive=roots "${root}/blob")"
+  expect_output_contains "blob!one.txt" "${out}"
+  out="$("$(_xff_bin)" --archive=all "${root}/blob")"
+  expect_output_contains "blob!one.txt" "${out}"
+  rm -rf "${root}"
+}
+
 test::an_ordinary_file_that_is_not_an_archive_is_no_error() {
   local root out rc
   root="$(_tree)"

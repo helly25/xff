@@ -66,6 +66,19 @@ struct ContainerRegistrar {
   explicit ContainerRegistrar(ContainerOpener opener) { RegisterContainerOpener(std::move(opener)); }
 };
 
+// Whether `name` (a basename, not a whole path) looks like a container by NAME alone: a cheap gate
+// in front of the reader, which otherwise reads and format-bids on every file it is offered.
+//
+// `--archive=all` offers every regular file in the tree, so without a gate a plain `xff -z+ .` opens
+// each one - the cost of diving would fall on runs that dive nothing. Names are only a heuristic in
+// both directions: an archive with no extension is missed (that is what `--archive-any` is for), and
+// a `.zip` that is really text is still rejected by the reader. The heuristic decides who gets ASKED,
+// never who is an archive.
+//
+// Lives here rather than in the extra because the CORE decides whom to offer, and the answer must be
+// the same in a lean build (where it simply never matters).
+[[nodiscard]] bool LooksLikeContainerName(std::string_view name);
+
 // Whether this binary has an archive backend linked at all. False in the lean build, where the
 // `--archive` surface still exists (it is always documented) but cannot do anything.
 [[nodiscard]] bool ContainerSupportAvailable();

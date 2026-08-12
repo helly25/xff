@@ -15,6 +15,7 @@
 
 #include "xff/archive/archive_backend.h"
 
+#include <array>
 #include <memory>
 #include <optional>
 #include <string>
@@ -34,6 +35,7 @@ namespace {
 
 using ::mbo::testing::StatusIs;
 using ::testing::HasSubstr;
+using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::NotNull;
 
@@ -80,6 +82,47 @@ TEST_F(ArchiveBackendTest, WithNoBackendThereIsNoSupportAndOpeningSaysWhy) {
   EXPECT_THAT(ContainerSupportAvailable(), ::testing::IsFalse());
   EXPECT_THAT(
       OpenContainer("some.tar"), StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("without archive support")));
+}
+
+TEST_F(ArchiveBackendTest, TheNameGateAcceptsFormatsAndPackagesAlike) {
+  // The gate in front of the reader under `--archive=all`: a name is enough to be OFFERED, never
+  // enough to be an archive. Both a bare format suffix and a package that is one underneath count,
+  // and the comparison folds case because filesystems shout.
+  constexpr std::array kOffered = std::to_array<std::string_view>({
+      "a.tar",
+      "a.tar.gz",
+      "a.tgz",
+      "a.zip",
+      "A.ZIP",
+      "x.jar",
+      "x.whl",
+      "x.phar",
+      "x.rpm",
+      "x.7z",
+  });
+  for (const std::string_view name : kOffered) {
+    EXPECT_THAT(LooksLikeContainerName(name), IsTrue()) << name;
+  }
+}
+
+TEST_F(ArchiveBackendTest, TheNameGateRejectsEverydayFiles) {
+  // What the gate is FOR: walking a source tree must not open and format-bid every file in it. A name
+  // with no suffix, or one that is not a container suffix, is not offered - `--archive-any` is the way
+  // to reach an archive whose name says nothing.
+  constexpr std::array kNotOffered = std::to_array<std::string_view>({
+      "walk.cc",
+      "walk.h",
+      "BUILD.bazel",
+      "Makefile",
+      "notes",
+      "blob",
+      "backup.dat",
+      "a.tar.",
+      ".gz",
+  });
+  for (const std::string_view name : kNotOffered) {
+    EXPECT_THAT(LooksLikeContainerName(name), IsFalse()) << name;
+  }
 }
 
 TEST_F(ArchiveBackendTest, ARegisteredOpenerIsUsedAndSeesTheMemberPathOptions) {

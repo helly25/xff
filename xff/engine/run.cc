@@ -1361,10 +1361,28 @@ absl::StatusOr<archive::MemberPathOptions> ResolveArchiveOptions(
 // found on, and get back a filesystem over its members (or the InvalidArgument that means "an
 // ordinary file after all"). Returned as a value the caller keeps alive across the walk; the walk
 // only calls it when `options.archive` allows diving.
-auto MakeContainerMounter(const vfs::FileSystem& walk_fs, const archive::MemberPathOptions& member_path_options) {
-  return [&member_path_options, &walk_fs](
-             std::string_view container,
-             const vfs::FileSystem& source) -> absl::StatusOr<std::unique_ptr<const vfs::FileSystem>> {
+// The final path component, for the name gate. A member path's separator does not matter here: the
+// gate only applies mid-walk on the real filesystem, where components are slash-separated.
+std::string_view BasenameOf(std::string_view path) {
+  const std::string_view::size_type slash = path.rfind('/');
+  return slash == std::string_view::npos ? path : path.substr(slash + 1);
+}
+
+auto MakeContainerMounter(
+    const vfs::FileSystem& walk_fs,
+    const archive::MemberPathOptions& member_path_options,
+    bool sniff_any) {
+  return [&member_path_options, &walk_fs, sniff_any](
+             std::string_view container, const vfs::FileSystem& source,
+             int depth) -> absl::StatusOr<std::unique_ptr<const vfs::FileSystem>> {
+    // `--archive=all` offers every regular file in the tree, and asking the reader means opening one
+    // and letting libarchive bid every format on it. So a file the walk MET (depth > 0) has to look
+    // like a container by NAME first; a file the user NAMED (depth 0) is always opened, because
+    // pointing xff at it is the request. `--archive-any` drops the gate, which is how an archive whose
+    // name says nothing is still found.
+    if (depth > 0 && !sniff_any && !archive::LooksLikeContainerName(BasenameOf(container))) {
+      return absl::InvalidArgumentError(absl::StrCat("not a container by name: ", container));
+    }
     if (&source != &walk_fs) {
       // A container inside a container: it has no path of its own, so its bytes come out of its
       // parent first and the mounted filesystem keeps them. How deep this goes is --archive-depth.
@@ -2217,6 +2235,9 @@ int RunFind(
     return 2;
   }
   const archive::MemberPathOptions member_path_options = *member_paths;
+  // --archive-any: offer every file to the reader instead of only those whose name looks like a
+  // container. Expensive by design (every file is opened and format-bid), so it is opt-in.
+  const bool archive_any = absl::c_contains(command.globals, "--archive-any");
   // --hash-algorithm=ALGO / --hash-encoding=hex|base64: defaults for a bare -hash action and a
   // bare {hash} field (last occurrence wins; empty -> sha256 / hex). Validated here so a bad value
   // is a usage error (exit 2) before the walk; the explicit -hash=ALGO[/ENCODING] specs in the
@@ -2493,7 +2514,7 @@ int RunFind(
   // The walk's whole view of archives: hand it a container path, get a filesystem over the members
   // or the InvalidArgument that means "an ordinary file after all". Passed unconditionally because
   // `options.archive` decides whether it is ever called.
-  const auto mount_container = MakeContainerMounter(walk_fs, member_path_options);
+  const auto mount_container = MakeContainerMounter(walk_fs, member_path_options, archive_any);
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
       // NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch

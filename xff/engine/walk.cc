@@ -173,7 +173,7 @@ class Walker {
   // common case for every ordinary file the walk offers, and the file has already been visited as
   // itself. Any other failure IS reported - an archive that cannot be read is a real problem.
   void DescendContainer(const Stated& container, int depth) {
-    absl::StatusOr<std::unique_ptr<const vfs::FileSystem>> mounted = (*mount_container_)(container.path, fs_);
+    absl::StatusOr<std::unique_ptr<const vfs::FileSystem>> mounted = (*mount_container_)(container.path, fs_, depth);
     if (!mounted.ok()) {
       if (!absl::IsInvalidArgument(mounted.status())) {
         on_error_(container.path, mounted.status());
