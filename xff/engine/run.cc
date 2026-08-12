@@ -2023,10 +2023,13 @@ void FeedSummaries(
       agg.second += visit.metadata.size;
       continue;
     }
-    const fields::Template& tmpl = *templates[i];
-    const std::optional<std::vector<std::string>> stream = tmpl.AsExtraction(key_ctx);
+    const std::optional<fields::Template>& tmpl = templates[i];
+    if (!tmpl.has_value()) {
+      continue;  // a kTemplate sink always carries its compiled template, but the type allows the gap
+    }
+    const std::optional<std::vector<std::string>> stream = tmpl->AsExtraction(key_ctx);
     if (!stream.has_value()) {
-      std::pair<std::uint64_t, std::uint64_t>& agg = cells[tmpl.Render(key_ctx)];
+      std::pair<std::uint64_t, std::uint64_t>& agg = cells[tmpl->Render(key_ctx)];
       agg.first += 1;
       agg.second += visit.metadata.size;
       continue;
