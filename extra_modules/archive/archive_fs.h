@@ -112,6 +112,10 @@ class ArchiveFileSystem : public vfs::FileSystem {
   // accepted it. Member reads must go back to the same one, since a phar's data offsets come from its
   // manifest rather than from any format libarchive knows.
   bool phar_ = false;
+  // A compressed SINGLE file (`notes.txt.gz`): one member, whose content is decompressed once at open
+  // and kept here. There is no member list in such a container and no second read to make.
+  bool single_ = false;
+  std::string single_file_content_;
   MemberPathOptions options_;
   // Keyed by member path as stored, without a trailing slash. Ordered so ReadDir output is stable
   // without a sort, which keeps a walk's ordering reproducible.

@@ -17,6 +17,7 @@
 #define XFF_ARCHIVE_ARCHIVE_READER_H_
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -46,6 +47,23 @@ struct Member {
 // when it opens but fails part way (a truncated or corrupt archive), so a caller can tell "not an
 // archive" from "a broken archive" - the walk treats the first as a plain file and reports the
 // second. Never reads member CONTENT, only the headers, so listing a huge archive stays cheap.
+// A COMPRESSED SINGLE FILE - `notes.txt.gz`, not a `.tar.gz` - decompressed whole, or nullopt when the
+// file is not one. This is the case libarchive's `raw` format exists for, and the case the reader
+// deliberately does not register it for: `raw` accepts ANY bytes, so with it on every text file in a
+// tree would present as a one-member archive. Here the decision is made from the NAME (a known
+// compression suffix) and then confirmed by libarchive actually applying a filter other than `none`, so
+// a `.gz` that is really text is still refused.
+//
+// The single member's name is the container's, minus the compression suffix (`notes.txt.gz` holds
+// `notes.txt`), which is what gzip itself does with `-d`. Nothing else can be recovered: a bare
+// compressed stream carries no member list.
+[[nodiscard]] std::optional<std::string> CompressionSuffixStripped(std::string_view name);
+
+// The decompressed content of a compressed single file at `path`, or InvalidArgument when it is not one
+// (no compression suffix, or no filter applied). `max_bytes` (0 = unlimited) caps the output, the
+// decompression-bomb guard every read here shares.
+absl::StatusOr<std::string> ReadCompressedSingleFile(std::string_view path, std::uint64_t max_bytes = 0);
+
 absl::StatusOr<std::vector<Member>> ListMembers(std::string_view bytes);
 
 // Lists the members of the archive file at `path`, streaming it from disk rather than requiring the

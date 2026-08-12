@@ -225,6 +225,50 @@ test::a_container_named_on_the_command_line_is_never_gated_by_its_name() {
   rm -rf "${root}"
 }
 
+test::a_compressed_single_file_dives_to_the_name_inside() {
+  local root out
+  root="$(_tree)"
+  # `notes.txt.gz` is not an archive of many members: it is ONE file, compressed. Its member takes the
+  # container's name minus the suffix - what `gzip -d` restores - and content search reads it.
+  printf 'findable-needle\n' >"${root}/notes.txt"
+  gzip -c "${root}/notes.txt" >"${root}/notes.txt.gz"
+  out="$("$(_xff_bin)" --archive=roots "${root}/notes.txt.gz")"
+  expect_output_contains "notes.txt.gz!notes.txt" "${out}"
+  out="$("$(_xff_bin)" --archive=roots "${root}/notes.txt.gz" -grep findable-needle)"
+  expect_output_contains "notes.txt.gz!notes.txt:1:findable-needle" "${out}"
+  # And the MEMBER's size is the uncompressed one, since that is what the entry holds - the container
+  # keeps its own (compressed) size, so both are listed and only the member's is checked here.
+  out="$("$(_xff_bin)" --archive=roots "${root}/notes.txt.gz" -name 'notes.txt' -printfln '%s')"
+  expect_eq "16" "${out}"
+  rm -rf "${root}"
+}
+
+test::a_text_file_named_gz_is_not_a_container() {
+  local root out
+  root="$(_tree)"
+  # The guard on the guard: libarchive's `raw` format bids on anything, so a name claiming compression
+  # is not enough - a real codec must have applied. Otherwise every mis-named text file would present as
+  # a one-member archive.
+  printf 'just text, no gzip header\n' >"${root}/liar.gz"
+  out="$("$(_xff_bin)" --archive=roots "${root}/liar.gz")"
+  expect_output_contains "${root}/liar.gz" "${out}"
+  expect_output_not_contains "liar.gz!" "${out}"
+  rm -rf "${root}"
+}
+
+test::a_tar_gz_is_still_read_as_a_tar() {
+  local root out
+  root="$(_tree)"
+  # The distinction that matters: `.tar.gz` is a compressed ARCHIVE (libarchive reads it whole, members
+  # and all), while `.txt.gz` is a compressed FILE. Both end in `.gz`.
+  mkdir -p "${root}/pack"
+  printf 'inner\n' >"${root}/pack/inner.txt"
+  COPYFILE_DISABLE=1 tar -czf "${root}/pack.tar.gz" -C "${root}/pack" inner.txt
+  out="$("$(_xff_bin)" --archive=roots "${root}/pack.tar.gz")"
+  expect_output_contains "pack.tar.gz!inner.txt" "${out}"
+  rm -rf "${root}"
+}
+
 test::an_ordinary_file_that_is_not_an_archive_is_no_error() {
   local root out rc
   root="$(_tree)"
