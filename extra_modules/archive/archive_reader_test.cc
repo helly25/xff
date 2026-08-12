@@ -18,6 +18,7 @@
 #include <archive.h>
 #include <archive_entry.h>
 
+#include <array>
 #include <cstddef>
 #include <cstdlib>
 #include <fstream>
@@ -143,6 +144,20 @@ TEST_F(ArchiveReaderTest, PlainDataIsNotAnArchive) {
 
 TEST_F(ArchiveReaderTest, EmptyInputIsNotAnArchive) {
   EXPECT_THAT(ListMembers(""), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(ArchiveReaderTest, TextThatMtreeWouldClaimIsStillNotAnArchive) {
+  // mtree is a plain-text format with no magic, so `archive_read_support_format_all` accepts
+  // ordinary text as an "archive" whose members are named after its words. That made `xff notes.txt`
+  // (the xff family dives a named root by default) invent a member, so the reader enables its
+  // formats explicitly and leaves mtree out. Each line below is text a walk really meets.
+  constexpr std::array kTextThatIsNotAnArchive = std::to_array<std::string_view>({
+      "needle\n", "hello world\n", "./relative/path/looking/line\n",
+      "#mtree\n./notes type=file\n",  // even the real mtree preamble stays a text file to us
+  });
+  for (const std::string_view text : kTextThatIsNotAnArchive) {
+    EXPECT_THAT(ListMembers(text), StatusIs(absl::StatusCode::kInvalidArgument)) << text;
+  }
 }
 
 TEST_F(ArchiveReaderTest, RegistersItsLicenseNotice) {

@@ -27,17 +27,23 @@
 #include "absl/time/time.h"
 #include "xff/datetime/datetime.h"
 #include "xff/vfs/entry.h"
+#include "xff/vfs/filesystem.h"
 
 namespace xff::fields {
 
 // The per-entry inputs a field renderer reads. Bundled into a context so new
 // fields can draw on more inputs without changing every renderer's signature.
 struct RenderContext {
-  std::string_view path;                      // path as traversed
-  std::string_view root;                      // command-line search root it was reached from (find %H); may be empty
-  std::string_view link_target;               // {target}: a symlink's target (find %l); empty for non-symlinks
-  const vfs::Metadata& metadata;              // the entry's metadata
-  int depth = 0;                              // 0 for a root operand, +1 per directory level
+  std::string_view path;          // path as traversed
+  std::string_view root;          // command-line search root it was reached from (find %H); may be empty
+  std::string_view link_target;   // {target}: a symlink's target (find %l); empty for non-symlinks
+  const vfs::Metadata& metadata;  // the entry's metadata
+  int depth = 0;                  // 0 for a root operand, +1 per directory level
+  // The filesystem the entry came FROM, for the fields that READ it ({hash}, {lines}). Inside a
+  // mounted container that is the container's, so a member renders its own bytes rather than nothing
+  // (`a.tar!x` is not a path the real filesystem has). Null means "read by path", which is what a
+  // caller with no walk behind it (a bare Render) wants.
+  const vfs::FileSystem* fs = nullptr;
   absl::TimeZone tz = absl::LocalTimeZone();  // zone for {atime}/{mtime}/{ctime}/{btime} formatting; --timezone
   std::string_view time_format;               // default format for a time field with no {:qualifier}; --time-format
   // --time-zone-suffix: whether a named preset renders its zone suffix (kAuto keeps the

@@ -115,16 +115,19 @@ std::size_t CountLines(std::string_view content) {
   return lines;
 }
 
+std::optional<std::size_t> ContentLineCount(std::string_view content) {
+  if (content.substr(0, std::min(content.size(), kBinaryNulSniffBytes)).contains('\0')) {
+    return std::nullopt;  // a NUL in the sniff window marks the file binary; skip it (like content search)
+  }
+  return CountLines(content);
+}
+
 std::optional<std::size_t> FileLineCount(std::string_view path) {
   const absl::StatusOr<mbo::file::Artefact> artefact = mbo::file::Artefact::Read(path);
   if (!artefact.ok()) {
     return std::nullopt;  // unreadable / missing -> nothing to count
   }
-  const std::string_view content = artefact->data;
-  if (content.substr(0, std::min(content.size(), kBinaryNulSniffBytes)).contains('\0')) {
-    return std::nullopt;  // a NUL in the sniff window marks the file binary; skip it (like content search)
-  }
-  return CountLines(content);
+  return ContentLineCount(artefact->data);
 }
 
 }  // namespace xff::content

@@ -499,6 +499,24 @@ TEST_F(WalkMountTest, AContainerNamedAsARootIsWalkedAsWellAsVisited) {
   EXPECT_THAT(errors_, 0);
 }
 
+TEST_F(WalkMountTest, AMembersNameIsItsOwnLastComponent) {
+  // The name comes from the LISTING, not from splitting the path at '/': a top-level member's path
+  // is `a.tar!one.txt`, so a slash-based basename would call it "a.tar!one.txt" and `-name one.txt`
+  // would never match it (while `-name '*.txt'` would, which is how the bug hid).
+  fs_.AddFile("a.tar", 1);
+  std::vector<std::string> names;
+  const absl::Status status = Walk(
+      fs_, {"a.tar"}, WalkOptions{.sort = SortOrder::kDir, .archive = ArchiveDive::kRoots},
+      [&names](const Visit& visit) {
+        names.emplace_back(visit.name);
+        return WalkAction::kContinue;
+      },
+      [](std::string_view, absl::Status) {},
+      [](std::string_view) { return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(MountedTar()); });
+  EXPECT_THAT(status, IsOk());
+  EXPECT_THAT(names, ElementsAre("a.tar", "dir", "one.txt", "two.txt"));
+}
+
 TEST_F(WalkMountTest, NotAnArchiveIsNotAnError) {
   // InvalidArgument is the answer for every ordinary file the walk offers, so it must be silent: the
   // file was already visited as itself, and reporting here would make every plain file an error.

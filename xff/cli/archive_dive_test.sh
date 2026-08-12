@@ -123,6 +123,18 @@ test::content_predicates_read_a_members_own_bytes() {
   rm -rf "${root}"
 }
 
+test::hash_and_line_fields_render_for_a_member() {
+  local root member plain
+  root="$(_tree)"
+  # A member's digest must be the digest of its CONTENT, so it equals the digest of a loose file
+  # holding the same bytes - the check a manifest (`-hasheq`) over an archive depends on.
+  echo "needle" >"${root}/copy.txt"
+  member="$("$(_xff_bin)" --archive=roots "${root}/a.tar" -name 'one.txt' -printfln '%{hash} %{lines}')"
+  plain="$("$(_xff_bin)" "${root}/copy.txt" -printfln '%{hash} %{lines}')"
+  expect_eq "${plain}" "${member}"
+  rm -rf "${root}"
+}
+
 test::pruning_the_container_keeps_the_file_and_skips_the_members() {
   local root out
   root="$(_tree)"
