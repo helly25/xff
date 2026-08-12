@@ -652,6 +652,31 @@ remains below is the design-forked / larger work.
     container's depth (0 = named). `--archive-any` offers everything, for an archive called `blob`.
     Remaining option, deliberately not built: a magic PEEK for the gated case, which needs a
     partial-read VFS operation (`ReadContent` reads the whole file, which is what the gate avoids).
+  - **STILL OPEN after the diving slices (audited 2026-08-12, all four verified against the built
+    binary, not read off the code):**
+    - **Native phar never dives from the CLI.** `ArchiveFileSystem::Open` asks libarchive and nothing
+      else, so a native `.phar` (and a whole-file-compressed `.phar.gz` / `.phar.bz2`) is "not an
+      archive" and the phar reader - which passes its own tests - is unreachable in a real run. Only
+      the tar/zip-based variants work: `plain/entrygz/entrybz2/sha256.phar` and both whole-file
+      fixtures list 0 members, `tarbased/targz/zipbased` list 6/6/5. FIX: the mount path tries
+      libarchive, then the phar reader, then (for a compressed container) decompresses and retries.
+      The fixtures already exist, so this is wiring plus one CLI test per variant.
+    - **`-delete` on a member silently does nothing** (exit 0, no output, no error) and **`-exec`
+      hands the child a member path** (`echo a.tar!a.txt`), which no process can open. The design says
+      members are read-only and both must REFUSE; the VFS already returns PermissionDenied, so the
+      engine is dropping it. Extract-to-temp for `-exec` stays deferred, but the silent no-op cannot.
+    - **A bare compressed single file does not dive.** `one.txt.gz` (a gzip of one file, not a tar)
+      lists no members. libarchive's `raw` reader was deliberately left out with `mtree` (both accept
+      anything), so the fix is narrow: only when the name carries a compression suffix AND a real
+      filter applies, present one member named by stripping the suffix - a text file's filter is
+      `none`, so nothing else can be claimed.
+    - **Aggregation double counts a dived container.** A 56 kB tar holding a 53 kB file reports
+      109.66 kB under `--summary`: the container's compressed bytes PLUS its members' uncompressed
+      bytes. Options: aggregate MEMBERS only (a dived container aggregates like the directory it acts
+      as - recommended, needs no flag), aggregate the CONTAINER only (disk usage), or keep both (what
+      unpacking beside the original would give) behind a knob. Same question for `--histogram`,
+      `-size` totals and `{size}` sums. Listing is not affected: the dual identity means the container
+      is a real entry and its members are entries too.
   - **Container identity is dual:** the archive keeps its real-FS identity (a real `-type f`,
     deletable and actionable) AND parents its members. This falls out of the VFS source tagging -
     container is local-fs, members are archive-member.
