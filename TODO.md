@@ -682,7 +682,15 @@ remains below is the design-forked / larger work.
       anything), so the fix is narrow: only when the name carries a compression suffix AND a real
       filter applies, present one member named by stripping the suffix - a text file's filter is
       `none`, so nothing else can be claimed.
-    - **Aggregation double counts a dived container.** A 56 kB tar holding a 53 kB file reports
+    - **Aggregation double counts a dived container** (still open; one constraint now known). A 56 kB
+      tar holding a 53 kB file reports 109.66 kB under `--summary`. Recommended fix: a container the
+      walk DIVED contributes no size of its own, because its members are counted. The obstacle is
+      knowing that at the right moment: in pre-order the container is visited BEFORE
+      `DescendContainer` runs, so "was it dived" is not decidable at visit time. Mounting first and
+      visiting after makes the flag exact and changes nothing observable (a container that fails to
+      mount is visited exactly as now), so the walk should hoist the mount above `VisitOne` and pass
+      the outcome on the `Visit`. Alternative kept for a flag rather than a default: count both, which
+      is what unpacking beside the original would give. A 56 kB tar holding a 53 kB file reports
       109.66 kB under `--summary`: the container's compressed bytes PLUS its members' uncompressed
       bytes. Options: aggregate MEMBERS only (a dived container aggregates like the directory it acts
       as - recommended, needs no flag), aggregate the CONTAINER only (disk usage), or keep both (what
