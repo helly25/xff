@@ -1357,6 +1357,28 @@ absl::StatusOr<archive::MemberPathOptions> ResolveArchiveOptions(
   return ReadMemberPathOptions(globals);
 }
 
+// The walk's whole view of archives: hand it a container path and the filesystem that container was
+// found on, and get back a filesystem over its members (or the InvalidArgument that means "an
+// ordinary file after all"). Returned as a value the caller keeps alive across the walk; the walk
+// only calls it when `options.archive` allows diving.
+auto MakeContainerMounter(const vfs::FileSystem& walk_fs, const archive::MemberPathOptions& member_path_options) {
+  return [&member_path_options, &walk_fs](
+             std::string_view container,
+             const vfs::FileSystem& source) -> absl::StatusOr<std::unique_ptr<const vfs::FileSystem>> {
+    if (&source != &walk_fs) {
+      // A container inside a container: it has no path of its own, so its bytes come out of its
+      // parent first and the mounted filesystem keeps them. How deep this goes is --archive-depth.
+      MBO_ASSIGN_OR_RETURN(const std::string bytes, source.ReadContent(container));
+      MBO_ASSIGN_OR_RETURN(
+          std::unique_ptr<vfs::FileSystem> nested, archive::OpenContainerBytes(container, bytes, member_path_options));
+      return nested;
+    }
+    MBO_ASSIGN_OR_RETURN(
+        std::unique_ptr<vfs::FileSystem> mounted, archive::OpenContainer(container, member_path_options));
+    return mounted;
+  };
+}
+
 // --hash-algorithm=ALGO / --hash-encoding=hex|base64: the defaults a bare -hash action and a
 // bare {hash} field use. Last occurrence wins; an empty value means "unset" and the reader
 // downstream falls back to sha256 / hex. Only READS them - the caller validates, so each bad
@@ -2471,22 +2493,7 @@ int RunFind(
   // The walk's whole view of archives: hand it a container path, get a filesystem over the members
   // or the InvalidArgument that means "an ordinary file after all". Passed unconditionally because
   // `options.archive` decides whether it is ever called.
-  const auto mount_container =
-      [&member_path_options, &walk_fs](
-          std::string_view container,
-          const vfs::FileSystem& source) -> absl::StatusOr<std::unique_ptr<const vfs::FileSystem>> {
-    if (&source != &walk_fs) {
-      // A container inside a container: it has no path of its own, so its bytes come out of its
-      // parent first and the mounted filesystem keeps them. How deep this goes is --archive-depth.
-      MBO_ASSIGN_OR_RETURN(const std::string bytes, source.ReadContent(container));
-      MBO_ASSIGN_OR_RETURN(
-          std::unique_ptr<vfs::FileSystem> nested, archive::OpenContainerBytes(container, bytes, member_path_options));
-      return nested;
-    }
-    MBO_ASSIGN_OR_RETURN(
-        std::unique_ptr<vfs::FileSystem> mounted, archive::OpenContainer(container, member_path_options));
-    return mounted;
-  };
+  const auto mount_container = MakeContainerMounter(walk_fs, member_path_options);
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
       // NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
