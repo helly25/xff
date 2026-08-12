@@ -31,6 +31,10 @@
   set includes `mtree`, a magic-less text format, so `xff notes.txt` could report a
   bogus member; the reader now enables its formats explicitly and leaves `mtree` out.
 
+- Native PHP phar archives dive: the mount path tries libarchive and then the phar reader,
+  so an uncompressed `.phar` lists its members and content predicates search them. Per-entry
+  compressed members report that they are not supported yet instead of appearing empty.
+
 ## Internal
 
 - `--//xff:xff_all` turns on every composable extra at once. Each extra links when its own

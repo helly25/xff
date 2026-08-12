@@ -29,6 +29,7 @@
 #include "mbo/status/status_macros.h"
 #include "xff/archive/archive_reader.h"
 #include "xff/archive/member_path.h"
+#include "xff/archive/phar_reader.h"
 #include "xff/vfs/entry.h"
 
 namespace xff::archive {
@@ -83,8 +84,27 @@ std::uint64_t SyntheticDevice(std::string_view container) {
 absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::Open(std::string_view container, MemberPathOptions options) {
   // The reader's status passes through unchanged: "not a readable archive" and "corrupt archive" are
   // different answers and the caller decides what to do with each.
-  MBO_ASSIGN_OR_RETURN(const std::vector<Member> members, ListMembersOfFile(container));
-  return Index(std::string(container), std::string(), members, options);
+  // libarchive first, the phar reader second. A native phar is a PHP stub followed by a manifest
+  // libarchive knows nothing about, so it answers InvalidArgument ("not an archive") - and without this
+  // fallback the reader that DOES understand it is unreachable from a real run, which is exactly what
+  // happened: every native fixture listed zero members while the tar/zip-based ones worked. Only
+  // InvalidArgument falls through: a corrupt archive (DataLoss) is an answer, not a reason to guess
+  // again with a different parser.
+  absl::StatusOr<std::vector<Member>> members = ListMembersOfFile(container);
+  bool phar = false;
+  if (absl::IsInvalidArgument(members.status())) {
+    absl::StatusOr<std::vector<Member>> phar_members = ListPharMembersOfFile(container);
+    if (phar_members.ok()) {
+      members = std::move(phar_members);
+      phar = true;
+    } else if (!absl::IsInvalidArgument(phar_members.status())) {
+      return phar_members.status();  // it IS a phar, and a broken one: say so
+    }
+  }
+  MBO_RETURN_IF_ERROR(members.status());
+  MBO_ASSIGN_OR_RETURN(ArchiveFileSystem fs, Index(std::string(container), std::string(), *members, options));
+  fs.phar_ = phar;
+  return fs;
 }
 
 absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::OpenBytes(
@@ -93,8 +113,21 @@ absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::OpenBytes(
     MemberPathOptions options) {
   // A container INSIDE a container: its bytes came out of its parent, so there is no path to open
   // and the filesystem keeps them for as long as it lives (member reads stream from them).
-  MBO_ASSIGN_OR_RETURN(const std::vector<Member> members, ListMembers(bytes));
-  return Index(std::string(container), std::move(bytes), members, options);
+  absl::StatusOr<std::vector<Member>> members = ListMembers(bytes);
+  bool phar = false;
+  if (absl::IsInvalidArgument(members.status())) {
+    absl::StatusOr<std::vector<Member>> phar_members = ListPharMembers(bytes);
+    if (phar_members.ok()) {
+      members = std::move(phar_members);
+      phar = true;
+    } else if (!absl::IsInvalidArgument(phar_members.status())) {
+      return phar_members.status();
+    }
+  }
+  MBO_RETURN_IF_ERROR(members.status());
+  MBO_ASSIGN_OR_RETURN(ArchiveFileSystem fs, Index(std::string(container), std::move(bytes), *members, options));
+  fs.phar_ = phar;
+  return fs;
 }
 
 // The shared indexing pass: whatever the source, a member list becomes nodes the same way.
@@ -285,6 +318,11 @@ absl::StatusOr<std::string> ArchiveFileSystem::ReadContent(std::string_view path
   }
   if (found->second.metadata.type != vfs::FileType::kRegular) {
     return absl::FailedPreconditionError(absl::StrCat("not a regular file: ", *key));
+  }
+  // Whichever reader indexed this container also extracts from it: a phar's data lies at offsets its
+  // own manifest gives, which libarchive cannot compute.
+  if (phar_) {
+    return bytes_.empty() ? ReadPharMemberOfFile(container_, *key) : ReadPharMember(bytes_, *key);
   }
   return bytes_.empty() ? ReadMemberOfFile(container_, *key) : ReadMember(bytes_, *key);
 }

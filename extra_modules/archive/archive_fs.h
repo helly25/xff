@@ -108,6 +108,10 @@ class ArchiveFileSystem : public vfs::FileSystem {
   // The container's own bytes, for a nested container; empty when `container_` is a real path and
   // reads stream from the file instead.
   std::string bytes_;
+  // Which reader owns this container: the phar reader when libarchive declined it and the phar parser
+  // accepted it. Member reads must go back to the same one, since a phar's data offsets come from its
+  // manifest rather than from any format libarchive knows.
+  bool phar_ = false;
   MemberPathOptions options_;
   // Keyed by member path as stored, without a trailing slash. Ordered so ReadDir output is stable
   // without a sort, which keeps a walk's ordering reproducible.
