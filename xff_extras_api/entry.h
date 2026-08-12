@@ -54,6 +54,11 @@ enum class Source {
 // "macOS / cross-platform correctness").
 struct Metadata {
   FileType type = FileType::kUnknown;
+  // Where this entry lives. `kLocalFs` is a real file the process may act on; anything else is a
+  // virtual, read-only entry (an archive member today), which is what lets the engine REFUSE a write
+  // action instead of attempting it: `Entry` has carried this since the VFS seam landed, but the walk
+  // hands the evaluator a Metadata, so the fact has to travel here too.
+  Source source = Source::kLocalFs;
   std::uint64_t size = 0;    // logical size in bytes
   std::uint64_t blocks = 0;  // 512-byte blocks actually allocated (st_blocks); backs -ls
   std::uint32_t mode = 0;    // permission + type bits (st_mode), masked by the engine

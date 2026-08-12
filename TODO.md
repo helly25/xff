@@ -673,7 +673,20 @@ remains below is the design-forked / larger work.
       fixtures list 0 members, `tarbased/targz/zipbased` list 6/6/5. FIX: the mount path tries
       libarchive, then the phar reader, then (for a compressed container) decompresses and retries.
       The fixtures already exist, so this is wiring plus one CLI test per variant.
-    - **`-delete` on a member silently does nothing** (exit 0, no output, no error) and **`-exec`
+    - **Write actions REFUSE a member now (FIXED 2026-08-12).** `vfs::Metadata` carries the entry's
+      `Source` (the listing's `Entry` always did, but the walk hands the evaluator a Metadata), the
+      archive filesystem stamps `kArchiveMember` on every node, and `-delete` / `-exec` / `-execdir` /
+      `-ok` / `-okdir` report an impossible task through `control.unsupported`: a hard error naming the
+      path (exit 2), or a skip under `--skip-unsupported`. A write action on the CONTAINER is untouched -
+      the guard keys on the entry, not on "diving is on".
+    - **NEXT, two opt-in flags rather than refusals (user, 2026-08-12):** `-delete` COULD remove a
+      member by rewriting the container (straightforward for the libarchive formats; harder for the ones
+      we parse ourselves, phar above all, where the manifest, offsets and signature all move), and
+      `-exec` COULD materialize the member to a temp file and pass that path. Both change a read-only
+      view into a writing tool, so both need their own control flag and neither may be the default;
+      `-exec` also needs a decision on what `{}` renders as (the temp path the child can open, or the
+      member path the user typed) and on cleanup after a failed child.
+    - ~~**`-delete` on a member silently does nothing**~~ (exit 0, no output, no error) and **`-exec`
       hands the child a member path** (`echo a.tar!a.txt`), which no process can open. The design says
       members are read-only and both must REFUSE; the VFS already returns PermissionDenied, so the
       engine is dropping it. Extract-to-temp for `-exec` stays deferred, but the silent no-op cannot.
