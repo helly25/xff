@@ -51,9 +51,11 @@ cc_library(
     deps = [
         ":member_path_cc",
         ":vfs_cc",
+        "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
     ],
 )
 
