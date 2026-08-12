@@ -43,6 +43,12 @@
   nothing and `-exec` handed the child a `container!member` path it could not open. The
   container itself is a real file, so actions on it still work.
 
+- A compressed single file dives: `notes.txt.gz` presents one member named `notes.txt` (the
+  name `gzip -d` restores) with its uncompressed size, and content predicates read it. A text
+  file merely named `.gz` is not claimed, and `.tar.gz` is still read as the archive it is.
+- A whole-file-compressed phar (`.phar.gz`, `.phar.bz2`) shows its members: the container is
+  decompressed first and then offered to the readers again, so what is inside decides.
+
 ## Internal
 
 - `--//xff:xff_all` turns on every composable extra at once. Each extra links when its own

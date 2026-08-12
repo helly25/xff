@@ -183,15 +183,19 @@ TEST_F(PharFixtureTest, PerMemberCompressionListsAndReads) {
   }
 }
 
-TEST_F(PharFixtureTest, AWholeFileCompressedPharIsNotYetRecognized) {
-  // `Phar::compress()` wraps the ENTIRE container, so the stub - and with it the halt token - is
-  // inside the compressed stream. Until the reader decompresses the container first, this is
-  // correctly reported as "not a phar" (the walk then treats it as an ordinary file) rather than as
-  // a corrupt one.
+TEST_F(PharFixtureTest, AWholeFileCompressedPharIsOpenedThroughItsCompression) {
+  // `Phar::compress()` wraps the ENTIRE container, so the stub - and with it the halt token - is inside
+  // the compressed stream and no parser can see a phar. The mount path therefore decompresses first and
+  // asks again what the bytes ARE: libarchive, then the phar reader. That is the same step a bare
+  // `notes.txt.gz` needs, which is why one mechanism serves both.
   for (const std::string_view fixture : kWholeFileCompressedFixtures) {
+    const absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::Open(Fixture(fixture));
+    ASSERT_THAT(fs, IsOk()) << fixture;
+    EXPECT_THAT(fs->ReadDir(Fixture(fixture)), IsOkAndHolds(Contains(Field("name", &vfs::Entry::name, "data"))))
+        << fixture;
     EXPECT_THAT(
-        ListPharMembersOfFile(Fixture(fixture)),
-        StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("__HALT_COMPILER")))
+        fs->ReadContent(JoinMemberPath(Fixture(fixture), "data/readme.txt")),
+        IsOkAndHolds(HasSubstr("findable-needle")))
         << fixture;
   }
 }

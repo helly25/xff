@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -41,6 +42,7 @@ using ::mbo::testing::StatusIs;
 using ::testing::AllOf;
 using ::testing::Contains;
 using ::testing::ElementsAre;
+using ::testing::Eq;
 using ::testing::Field;
 using ::testing::IsTrue;
 using ::testing::SizeIs;
@@ -88,6 +90,33 @@ struct ArchiveReaderTest : ::testing::Test {
     const std::string path = absl::StrCat(tmp != nullptr ? tmp : "/tmp", "/", name);
     const std::string bytes = MakeArchive(files);
     std::ofstream(path, std::ios::binary).write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    return path;
+  }
+
+  // A real gzip stream on disk, written through libarchive so the test needs no external tool.
+  static std::string WriteGzip(std::string_view name, std::string_view content) {
+    const char* const tmp = std::getenv("TEST_TMPDIR");
+    const std::string path = absl::StrCat(tmp != nullptr ? tmp : "/tmp", "/", name);
+    struct ::archive* out = ::archive_write_new();
+    ::archive_write_set_format_raw(out);
+    ::archive_write_add_filter_gzip(out);
+    ::archive_write_open_filename(out, path.c_str());
+    struct ::archive_entry* entry = ::archive_entry_new();
+    ::archive_entry_set_pathname(entry, "data");
+    ::archive_entry_set_size(entry, static_cast<std::int64_t>(content.size()));
+    ::archive_entry_set_filetype(entry, AE_IFREG);
+    ::archive_write_header(out, entry);
+    ::archive_write_data(out, content.data(), content.size());
+    ::archive_entry_free(entry);
+    ::archive_write_close(out);
+    ::archive_write_free(out);
+    return path;
+  }
+
+  static std::string WritePlain(std::string_view name, std::string_view content) {
+    const char* const tmp = std::getenv("TEST_TMPDIR");
+    const std::string path = absl::StrCat(tmp != nullptr ? tmp : "/tmp", "/", name);
+    std::ofstream(path, std::ios::binary).write(content.data(), static_cast<std::streamsize>(content.size()));
     return path;
   }
 
@@ -158,6 +187,43 @@ TEST_F(ArchiveReaderTest, TextThatMtreeWouldClaimIsStillNotAnArchive) {
   for (const std::string_view text : kTextThatIsNotAnArchive) {
     EXPECT_THAT(ListMembers(text), StatusIs(absl::StatusCode::kInvalidArgument)) << text;
   }
+}
+
+TEST_F(ArchiveReaderTest, TheCompressionSuffixNamesTheSingleMemberInside) {
+  // `notes.txt.gz` holds `notes.txt` - the same name gzip -d restores, and the only name recoverable
+  // from a bare compressed stream, which carries no member list at all.
+  EXPECT_THAT(CompressionSuffixStripped("notes.txt.gz"), ::testing::Optional(std::string("notes.txt")));
+  EXPECT_THAT(CompressionSuffixStripped("dump.sql.bz2"), ::testing::Optional(std::string("dump.sql")));
+  EXPECT_THAT(CompressionSuffixStripped("data.XZ"), ::testing::Optional(std::string("data")));  // case folds
+  // Not single-file compression: a tar shorthand (`.tgz`) is an archive libarchive reads by itself and
+  // is deliberately absent from the table, a name that is ONLY a suffix is a dotfile, and everything
+  // else has nothing to strip.
+  constexpr std::array kNotSingleFileCompressed = std::to_array<std::string_view>({
+      "a.tgz",
+      ".gz",
+      "notes.txt",
+      "Makefile",
+  });
+  for (const std::string_view name : kNotSingleFileCompressed) {
+    EXPECT_THAT(CompressionSuffixStripped(name), Eq(std::nullopt)) << name;
+  }
+}
+
+TEST_F(ArchiveReaderTest, ACompressedSingleFileReadsWholeAndTextNamedGzDoesNot) {
+  // The narrow use of libarchive's `raw` format: it bids on ANYTHING, so it is registered only for a
+  // file whose NAME claims compression, and then the read is confirmed by a real filter having applied.
+  // A text file called `notes.gz` therefore stays a text file rather than becoming a one-member archive.
+  const std::string path = WriteGzip("single.txt.gz", "findable-needle\n");
+  EXPECT_THAT(ReadCompressedSingleFile(path), IsOkAndHolds("findable-needle\n"));
+  const std::string liar = WritePlain("liar.gz", "just text, no gzip header\n");
+  EXPECT_THAT(ReadCompressedSingleFile(liar), StatusIs(absl::StatusCode::kInvalidArgument));
+  const std::string unnamed = WriteGzip("no-suffix", "compressed but unnamed\n");
+  EXPECT_THAT(ReadCompressedSingleFile(unnamed), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(ArchiveReaderTest, ACompressedSingleFileHonoursTheByteLimit) {
+  const std::string path = WriteGzip("big.txt.gz", "0123456789");
+  EXPECT_THAT(ReadCompressedSingleFile(path, 4), StatusIs(absl::StatusCode::kResourceExhausted));
 }
 
 TEST_F(ArchiveReaderTest, RegistersItsLicenseNotice) {

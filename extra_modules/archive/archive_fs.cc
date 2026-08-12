@@ -102,9 +102,48 @@ absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::Open(std::string_view conta
       return phar_members.status();  // it IS a phar, and a broken one: say so
     }
   }
+  bool single = false;
+  if (absl::IsInvalidArgument(members.status())) {
+    // Third and last: a COMPRESSED SINGLE FILE (`notes.txt.gz`, not a `.tar.gz`). It has no member
+    // list to read, so the content is decompressed once here and the filesystem holds it - which also
+    // makes the size it reports the real, uncompressed one.
+    absl::StatusOr<std::string> content = ReadCompressedSingleFile(container);
+    if (content.ok()) {
+      // What the decompressed bytes turn out to BE decides this. `Phar::compress()` wraps a whole phar,
+      // and `.tar.gz` is a whole tar, so a container can hide inside the compression: OpenBytes asks
+      // libarchive and then the phar reader about the decompressed bytes, and when either claims them
+      // the members are the real answer. Only when nothing claims them is this a single compressed FILE.
+      absl::StatusOr<ArchiveFileSystem> inner = OpenBytes(container, *content, options);
+      if (inner.ok()) {
+        return inner;
+      }
+      if (!absl::IsInvalidArgument(inner.status())) {
+        return inner.status();
+      }
+      const std::string_view::size_type slash = container.rfind('/');
+      const std::string_view name = slash == std::string_view::npos ? container : container.substr(slash + 1);
+      const std::optional<std::string> stem = CompressionSuffixStripped(name);
+      MBO_ASSIGN_OR_RETURN(
+          ArchiveFileSystem fs, Index(
+                                    std::string(container), std::string(),
+                                    {Member{
+                                        .path = stem.value_or(std::string(name)),
+                                        .size = static_cast<std::int64_t>(content->size()),
+                                        .mode = 0444,
+                                    }},
+                                    options));
+      fs.single_file_content_ = *std::move(content);
+      fs.single_ = true;
+      return fs;
+    }
+    if (!absl::IsInvalidArgument(content.status())) {
+      return content.status();
+    }
+  }
   MBO_RETURN_IF_ERROR(members.status());
   MBO_ASSIGN_OR_RETURN(ArchiveFileSystem fs, Index(std::string(container), std::string(), *members, options));
   fs.phar_ = phar;
+  fs.single_ = single;
   return fs;
 }
 
@@ -326,6 +365,9 @@ absl::StatusOr<std::string> ArchiveFileSystem::ReadContent(std::string_view path
   }
   // Whichever reader indexed this container also extracts from it: a phar's data lies at offsets its
   // own manifest gives, which libarchive cannot compute.
+  if (single_) {
+    return single_file_content_;  // one member, already decompressed when the container was opened
+  }
   if (phar_) {
     return bytes_.empty() ? ReadPharMemberOfFile(container_, *key) : ReadPharMember(bytes_, *key);
   }

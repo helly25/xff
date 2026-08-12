@@ -690,7 +690,17 @@ remains below is the design-forked / larger work.
       hands the child a member path** (`echo a.tar!a.txt`), which no process can open. The design says
       members are read-only and both must REFUSE; the VFS already returns PermissionDenied, so the
       engine is dropping it. Extract-to-temp for `-exec` stays deferred, but the silent no-op cannot.
-    - **A bare compressed single file does not dive.** `one.txt.gz` (a gzip of one file, not a tar)
+    - **A bare compressed single file dives now, and so does a whole-file-compressed phar (FIXED
+      2026-08-12).** `ReadCompressedSingleFile` uses libarchive's `raw` format on a reader of its own,
+      registered ONLY for a file whose name carries a whole-file compression suffix (`.gz`, `.bz2`,
+      `.xz`, `.zst`, `.lz4`, ...; tar shorthands like `.tgz` are excluded, being archives already), and
+      then confirms a real filter applied - so `liar.gz` holding text stays a text file. The single
+      member takes the container's name minus the suffix (`notes.txt.gz` holds `notes.txt`, as
+      `gzip -d` would restore) and reports the UNCOMPRESSED size, since the content is decompressed once
+      at open. Before presenting one member, the decompressed bytes are offered to `OpenBytes`
+      (libarchive, then the phar reader): that is what makes `.phar.gz` / `.phar.bz2` show their real
+      members, and a `.tar.gz` keeps going straight to libarchive. All 18 committed fixtures now dive.
+    - ~~**A bare compressed single file does not dive.**~~ `one.txt.gz` (a gzip of one file, not a tar)
       lists no members. libarchive's `raw` reader was deliberately left out with `mtree` (both accept
       anything), so the fix is narrow: only when the name carries a compression suffix AND a real
       filter applies, present one member named by stripping the suffix - a text file's filter is
