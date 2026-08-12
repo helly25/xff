@@ -34,8 +34,22 @@ load("//xff:cc.bzl", "cc_test")
 
 package(default_visibility = ["//visibility:public"])
 
+# --//xff:xff_all -- turn on EVERY composable extra at once, whatever the set happens to be. It exists
+# so `--config=xff_docs` (the config the committed XFF.md is generated from, and which must document
+# the full surface) is a single line that cannot fall behind: each extra is linked when its OWN flag is
+# set OR this one is, so a new extra is covered the moment it has a `:xff_<flag>_on` group below.
+bool_flag(
+    name = "xff_all",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "xff_all_enabled",
+    flag_values = {":xff_all": "True"},
+)
+
 # --//xff:xff_archive -- link the archive-diving backend (libarchive, plus a hand-written reader for
-# PHP's native phar format, which libarchive does not handle; wired in #83). Default off.
+# PHP's native phar format, which libarchive does not handle; #83). Default off.
 # (Build flags carry the `xff_` package prefix, like the library flags in STYLE_CPP.md.)
 bool_flag(
     name = "xff_archive",
@@ -45,6 +59,37 @@ bool_flag(
 config_setting(
     name = "xff_archive_enabled",
     flag_values = {":xff_archive": "True"},
+)
+
+# --//xff:xff_pcre -- link the PCRE2 regex backend (extra_modules/pcre2; #85). Default off, so only
+# `xff_full` built with the extra on links it. Without it, `--regextype=PCRE2` is a usage error (never
+# a silent RE2 fallback).
+bool_flag(
+    name = "xff_pcre",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "xff_pcre_enabled",
+    flag_values = {":xff_pcre": "True"},
+)
+
+# "Is this extra linked": its own flag OR --//xff:xff_all. Every consumer selects on THESE, never on
+# the bare `_enabled` setting, which is what makes `xff_all` reach a new extra with no further edits.
+selects.config_setting_group(
+    name = "xff_archive_on",
+    match_any = [
+        ":xff_archive_enabled",
+        ":xff_all_enabled",
+    ],
+)
+
+selects.config_setting_group(
+    name = "xff_pcre_on",
+    match_any = [
+        ":xff_pcre_enabled",
+        ":xff_all_enabled",
+    ],
 )
 
 # --//xff:xff_msan -- set by --config=msan (see .bazelrc). It exists so the cc_* wrappers in
@@ -62,31 +107,14 @@ config_setting(
     flag_values = {":xff_msan": "True"},
 )
 
-# --//xff:xff_pcre -- link the PCRE2 regex backend (extra_modules/pcre2; wired in #85). Default off, so
-# only `xff_full` built with the extra on (`--config=xff_full`, or `--//xff:xff_pcre`) links it. Without
-# it, `--regextype=PCRE2` is a usage error (never a silent RE2 fallback).
-bool_flag(
-    name = "xff_pcre",
-    build_setting_default = False,
-)
-
-config_setting(
-    name = "xff_pcre_enabled",
-    flag_values = {":xff_pcre": "True"},
-)
-
-# The single "is this the full / extras build" condition. Full mode is whatever set of extras is on,
-# NOT any one extra: today that is PCRE2 (`--config=xff_full` sets --//xff:xff_pcre) or archive
-# (`--config=xff_docs` adds --//xff:xff_archive). When a later extra lands, add its
-# `:xff_<extra>_enabled` here (match_any = logical OR) and every consumer follows. Both XFF_FULL_ONLY (xff_full's own compatibility gate, //xff:extras.bzl)
-# and the //xff alias below key on THIS, so "full mode" is defined in exactly one place. (Linking a
-# specific backend, e.g. the pcre select in //xff/cli:xff_full, stays keyed on that extra's own
-# :xff_<extra>_enabled - that is "is pcre on", a different question from "is this the full build".)
+# The single "is this the full / extras build" condition: any extra on, however it was turned on. Both
+# XFF_FULL_ONLY (xff_full's compatibility gate, //xff:extras.bzl) and the //xff alias below key on it,
+# so "full mode" is defined in exactly one place.
 selects.config_setting_group(
     name = "full_build",
     match_any = [
-        ":xff_archive_enabled",
-        ":xff_pcre_enabled",
+        ":xff_archive_on",
+        ":xff_pcre_on",
     ],
 )
 
