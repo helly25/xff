@@ -30,6 +30,7 @@
 
 load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("//xff:cc.bzl", "cc_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -102,4 +103,18 @@ alias(
         ":full_build": "//xff/cli:xff_full",
         "//conditions:default": "//xff/cli:xff",
     }),
+)
+
+# The delivery half of the suppression plumbing, which nothing tested: a `*_OPTIONS` variable naming a
+# suppressions file must find that file at run time. Uses the cc.bzl wrapper deliberately - the wrapper
+# is what puts the file in the runfiles, so a test declared any other way would prove nothing.
+cc_test(
+    name = "suppressions_delivery_test",
+    size = "small",
+    srcs = ["suppressions_delivery_test.cc"],
+    deps = [
+        "@abseil-cpp//absl/strings",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
 )
