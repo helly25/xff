@@ -82,6 +82,11 @@ struct WalkOptions {
   // How far to descend INTO containers (xff `--archive` / `-z`), given a mounter to open one with.
   // `kNone` is find's behaviour, where an archive is one plain file. See `ContainerMounter`.
   ArchiveDive archive = ArchiveDive::kNone;
+  // How many containers deep diving may go (xff `--archive-depth`), counted in CONTAINERS, not
+  // directory levels: 1 (the default) opens an archive but not an archive inside it. Its own knob
+  // because nesting is a decompression-bomb risk that has nothing to do with -maxdepth, which keeps
+  // counting member levels as ordinary depth.
+  int archive_depth = 1;
 };
 
 // One visited entry handed to the `Visitor`. `path`/`name` reference storage
@@ -113,7 +118,11 @@ using Visitor = absl::FunctionRef<WalkAction(const Visit&)>;
 // which is why the two statuses must stay distinct all the way from the reader (see
 // xff_extras_api/archive_backend.h). Any OTHER failure is reported through `WalkErrorFn`: a container
 // that IS an archive but cannot be read is a real error, not a file to walk past silently.
-using ContainerMounter = absl::FunctionRef<absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(std::string_view)>;
+// `source` is the filesystem the container itself lives on: the real one for a container on disk,
+// the parent container's for one nested inside another. The mounter needs it because a nested
+// container has no path to open - its bytes have to be read out of its parent first.
+using ContainerMounter =
+    absl::FunctionRef<absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(std::string_view, const vfs::FileSystem&)>;
 
 // Reports a per-path traversal failure (unreadable directory, failed stat, ...).
 // The walk continues; the engine maps these to exit code 2 later (design.md

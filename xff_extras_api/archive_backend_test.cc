@@ -16,6 +16,7 @@
 #include "xff/archive/archive_backend.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -86,11 +87,12 @@ TEST_F(ArchiveBackendTest, ARegisteredOpenerIsUsedAndSeesTheMemberPathOptions) {
   // with the default separator instead of the one the user asked for.
   std::string opened;
   std::string separator;
-  RegisterContainerOpener([&opened, &separator](std::string_view container, MemberPathOptions options) {
-    opened = std::string(container);
-    separator = std::string(options.separator);
-    return std::make_unique<StubFileSystem>();
-  });
+  RegisterContainerOpener(
+      [&opened, &separator](std::string_view container, std::optional<std::string_view>, MemberPathOptions options) {
+        opened = std::string(container);
+        separator = std::string(options.separator);
+        return std::make_unique<StubFileSystem>();
+      });
   EXPECT_THAT(ContainerSupportAvailable(), IsTrue());
   const auto opened_fs = OpenContainer("a.tar", MemberPathOptions{.separator = "#"});
   ASSERT_THAT(opened_fs, ::mbo::testing::IsOk());
@@ -103,7 +105,7 @@ TEST_F(ArchiveBackendTest, TheBackendsErrorReachesTheCallerUnchanged) {
   // "Not an archive" and "corrupt archive" must stay distinguishable through the seam: the walk treats
   // the first as an ordinary file and reports only the second, so a seam that flattened them would
   // turn every non-archive into an error.
-  RegisterContainerOpener([](std::string_view container, MemberPathOptions) {
+  RegisterContainerOpener([](std::string_view container, std::optional<std::string_view>, MemberPathOptions) {
     if (container == "broken.tar") {
       return absl::StatusOr<std::unique_ptr<vfs::FileSystem>>(absl::DataLossError("corrupt"));
     }
@@ -113,12 +115,31 @@ TEST_F(ArchiveBackendTest, TheBackendsErrorReachesTheCallerUnchanged) {
   EXPECT_THAT(OpenContainer("notes.txt"), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
+TEST_F(ArchiveBackendTest, OpenContainerBytesHandsTheContentToTheBackend) {
+  // The nested-container path: there is no file to open, so the caller passes the bytes it already
+  // read out of the parent and the label the members render under.
+  std::string label;
+  std::string content;
+  RegisterContainerOpener(
+      [&label, &content](std::string_view container, std::optional<std::string_view> bytes, MemberPathOptions) {
+        label = std::string(container);
+        content = bytes.has_value() ? std::string(*bytes) : std::string("<no bytes>");
+        return std::make_unique<StubFileSystem>();
+      });
+  EXPECT_THAT(OpenContainerBytes("outer.tar!inner.tar", "TARBYTES"), ::mbo::testing::IsOk());
+  EXPECT_THAT(label, "outer.tar!inner.tar");
+  EXPECT_THAT(content, "TARBYTES");
+  // And the path form still says "no bytes", so a backend can tell the two apart.
+  EXPECT_THAT(OpenContainer("a.tar"), ::mbo::testing::IsOk());
+  EXPECT_THAT(content, "<no bytes>");
+}
+
 TEST_F(ArchiveBackendTest, RegisteringAgainReplacesTheOpener) {
   // Last registration wins, which is what lets a test install a stub over whatever the binary linked.
-  RegisterContainerOpener([](std::string_view, MemberPathOptions) {
+  RegisterContainerOpener([](std::string_view, std::optional<std::string_view>, MemberPathOptions) {
     return absl::StatusOr<std::unique_ptr<vfs::FileSystem>>(absl::DataLossError("first"));
   });
-  RegisterContainerOpener([](std::string_view, MemberPathOptions) {
+  RegisterContainerOpener([](std::string_view, std::optional<std::string_view>, MemberPathOptions) {
     return absl::StatusOr<std::unique_ptr<vfs::FileSystem>>(absl::AbortedError("second"));
   });
   EXPECT_THAT(OpenContainer("a.tar"), StatusIs(absl::StatusCode::kAborted));

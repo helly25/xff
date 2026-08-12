@@ -46,6 +46,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "xff/archive/archive_reader.h"
 #include "xff/archive/member_path.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/filesystem.h"
@@ -58,6 +59,15 @@ class ArchiveFileSystem : public vfs::FileSystem {
   // unchanged when the file is not a readable archive, so "not an archive" and "corrupt archive"
   // stay distinguishable to the caller.
   static absl::StatusOr<ArchiveFileSystem> Open(std::string_view container, MemberPathOptions options = {});
+
+  // Opens a container whose BYTES are already in hand rather than on disk - a container nested in
+  // another one, whose parent handed over its content. `container` is only the label the member
+  // paths are rendered with; the bytes are kept for the filesystem's lifetime, since every member
+  // read streams from them.
+  static absl::StatusOr<ArchiveFileSystem> OpenBytes(
+      std::string_view container,
+      std::string bytes,
+      MemberPathOptions options = {});
 
   [[nodiscard]] absl::StatusOr<std::vector<vfs::Entry>> ReadDir(std::string_view dir) const override;
   [[nodiscard]] absl::StatusOr<vfs::Metadata> Stat(std::string_view path, bool follow_symlinks) const override;
@@ -82,11 +92,22 @@ class ArchiveFileSystem : public vfs::FileSystem {
   ArchiveFileSystem(std::string container, MemberPathOptions options)
       : container_(std::move(container)), options_(options) {}
 
+  // Builds the node index from a member list, whatever the source. `bytes` is empty for a
+  // path-backed container.
+  static absl::StatusOr<ArchiveFileSystem> Index(
+      std::string container,
+      std::string bytes,
+      const std::vector<Member>& members,
+      MemberPathOptions options);
+
   // Resolves an incoming path to a member key: empty means the container itself (the archive's
   // root), nullopt means the path does not belong to this filesystem at all.
   [[nodiscard]] std::optional<std::string> MemberKeyOf(std::string_view path) const;
 
   std::string container_;
+  // The container's own bytes, for a nested container; empty when `container_` is a real path and
+  // reads stream from the file instead.
+  std::string bytes_;
   MemberPathOptions options_;
   // Keyed by member path as stored, without a trailing slash. Ordered so ReadDir output is stable
   // without a sort, which keeps a walk's ordering reproducible.

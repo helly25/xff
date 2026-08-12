@@ -154,6 +154,37 @@ test::the_member_path_separator_and_prefix_are_the_users_choice() {
   rm -rf "${root}"
 }
 
+test::archive_depth_bounds_nesting() {
+  local root out
+  root="$(_tree)"
+  # A tar holding a tar. The default depth of 1 leaves the inner one a plain member; --archive-depth=2
+  # opens it, and its member is then an ordinary entry the expression reads like any other.
+  mkdir -p "${root}/nest"
+  COPYFILE_DISABLE=1 tar -c -f "${root}/nest/inner.tar" -C "${root}" a.tar
+  COPYFILE_DISABLE=1 tar -c -f "${root}/outer.tar" -C "${root}/nest" inner.tar
+  out="$("$(_xff_bin)" --archive=all "${root}/outer.tar")"
+  expect_output_contains "outer.tar!inner.tar" "${out}"
+  expect_output_not_contains "outer.tar!inner.tar!" "${out}"
+  out="$("$(_xff_bin)" --archive=all --archive-depth=3 "${root}/outer.tar")"
+  expect_output_contains "outer.tar!inner.tar!a.tar" "${out}"
+  # Three containers deep, the innermost member is still just an entry with readable content.
+  out="$("$(_xff_bin)" --archive=all --archive-depth=3 "${root}/outer.tar" -grep needle)"
+  expect_output_contains "outer.tar!inner.tar!a.tar!one.txt:1:needle" "${out}"
+  rm -rf "${root}"
+}
+
+test::a_bad_archive_depth_is_a_usage_error() {
+  local root out rc
+  root="$(_tree)"
+  # 0 most likely means "off", which --archive=none spells; guessing would be worse than saying so.
+  out="$("$(_xff_bin)" --archive=all --archive-depth=0 "${root}" 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "--archive-depth" "${out}"
+  out="$("$(_xff_bin)" --archive=all --archive-depth=lots "${root}" 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  rm -rf "${root}"
+}
+
 test::an_ordinary_file_that_is_not_an_archive_is_no_error() {
   local root out rc
   root="$(_tree)"

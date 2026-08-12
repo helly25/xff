@@ -131,6 +131,59 @@ absl::StatusOr<std::vector<Member>> ReadMembers(struct ::archive* handle) {
   }
 }
 
+// The member-extraction loop over an ALREADY-OPEN reader. Shared by the file and memory entry
+// points, which differ only in the open call - so a container inside a container (read out of its
+// parent into memory) extracts by exactly the same rules as one on disk.
+absl::StatusOr<std::string> ReadMemberOfOpened(
+    struct ::archive* handle,
+    std::string_view label,
+    std::string_view member,
+    std::uint64_t max_bytes) {
+  const std::string_view path = label;
+  const std::string_view wanted = NormalizeMemberName(member);
+  struct ::archive_entry* entry = nullptr;
+  while (true) {
+    const int status = ::archive_read_next_header(handle, &entry);
+    if (status == ARCHIVE_EOF) {
+      return absl::NotFoundError(absl::StrCat("no such member in ", path, ": ", member));
+    }
+    if (status != ARCHIVE_OK && status != ARCHIVE_WARN) {
+      return absl::DataLossError(absl::StrCat("archive read failed: ", LastError(handle)));
+    }
+    const char* const stored = ::archive_entry_pathname(entry);
+    if (stored == nullptr || NormalizeMemberName(stored) != wanted) {
+      continue;  // not this one; libarchive skips its data on the next header read
+    }
+    if (::archive_entry_filetype(entry) != AE_IFREG) {
+      // A directory or symlink has no content. Saying so beats returning an empty string, which a
+      // content predicate could not distinguish from a genuinely empty file.
+      return absl::FailedPreconditionError(absl::StrCat("member is not a regular file: ", member));
+    }
+    std::string contents;
+    // The header's size is a HINT for reserve() only - never a trusted length. A crafted archive can
+    // understate it, so the loop below is what actually bounds the read.
+    const std::int64_t hint = ::archive_entry_size(entry);
+    if (hint > 0) {
+      const std::uint64_t reserve = static_cast<std::uint64_t>(hint);
+      contents.reserve(max_bytes != 0 ? std::min<std::uint64_t>(reserve, max_bytes) : reserve);
+    }
+    std::array<char, kBlockSize> buffer{};
+    while (true) {
+      const ::ssize_t read = ::archive_read_data(handle, buffer.data(), buffer.size());
+      if (read == 0) {
+        return contents;  // end of this member's data
+      }
+      if (read < 0) {
+        return absl::DataLossError(absl::StrCat("reading member ", member, " failed: ", LastError(handle)));
+      }
+      if (max_bytes != 0 && contents.size() + static_cast<std::uint64_t>(read) > max_bytes) {
+        return absl::ResourceExhaustedError(absl::StrCat("member ", member, " exceeds the ", max_bytes, " byte limit"));
+      }
+      contents.append(buffer.data(), static_cast<std::size_t>(read));
+    }
+  }
+}
+
 }  // namespace
 
 absl::StatusOr<std::vector<Member>> ListMembers(std::string_view bytes) {
@@ -164,8 +217,6 @@ absl::StatusOr<std::vector<Member>> ListMembersOfFile(std::string_view path) {
   return ReadMembers(handle.get());
 }
 
-namespace {}  // namespace
-
 absl::StatusOr<std::string> ReadMemberOfFile(std::string_view path, std::string_view member, std::uint64_t max_bytes) {
   const ArchivePtr handle = NewReader();
   if (handle == nullptr) {
@@ -175,48 +226,23 @@ absl::StatusOr<std::string> ReadMemberOfFile(std::string_view path, std::string_
   if (::archive_read_open_filename(handle.get(), path_string.c_str(), kBlockSize) != ARCHIVE_OK) {
     return absl::InvalidArgumentError(absl::StrCat("not a readable archive: ", LastError(handle.get())));
   }
-  const std::string_view wanted = NormalizeMemberName(member);
-  struct ::archive_entry* entry = nullptr;
-  while (true) {
-    const int status = ::archive_read_next_header(handle.get(), &entry);
-    if (status == ARCHIVE_EOF) {
-      return absl::NotFoundError(absl::StrCat("no such member in ", path, ": ", member));
-    }
-    if (status != ARCHIVE_OK && status != ARCHIVE_WARN) {
-      return absl::DataLossError(absl::StrCat("archive read failed: ", LastError(handle.get())));
-    }
-    const char* const stored = ::archive_entry_pathname(entry);
-    if (stored == nullptr || NormalizeMemberName(stored) != wanted) {
-      continue;  // not this one; libarchive skips its data on the next header read
-    }
-    if (::archive_entry_filetype(entry) != AE_IFREG) {
-      // A directory or symlink has no content. Saying so beats returning an empty string, which a
-      // content predicate could not distinguish from a genuinely empty file.
-      return absl::FailedPreconditionError(absl::StrCat("member is not a regular file: ", member));
-    }
-    std::string contents;
-    // The header's size is a HINT for reserve() only - never a trusted length. A crafted archive can
-    // understate it, so the loop below is what actually bounds the read.
-    const std::int64_t hint = ::archive_entry_size(entry);
-    if (hint > 0) {
-      const std::uint64_t reserve = static_cast<std::uint64_t>(hint);
-      contents.reserve(max_bytes != 0 ? std::min<std::uint64_t>(reserve, max_bytes) : reserve);
-    }
-    std::array<char, kBlockSize> buffer{};
-    while (true) {
-      const ::ssize_t read = ::archive_read_data(handle.get(), buffer.data(), buffer.size());
-      if (read == 0) {
-        return contents;  // end of this member's data
-      }
-      if (read < 0) {
-        return absl::DataLossError(absl::StrCat("reading member ", member, " failed: ", LastError(handle.get())));
-      }
-      if (max_bytes != 0 && contents.size() + static_cast<std::uint64_t>(read) > max_bytes) {
-        return absl::ResourceExhaustedError(absl::StrCat("member ", member, " exceeds the ", max_bytes, " byte limit"));
-      }
-      contents.append(buffer.data(), static_cast<std::size_t>(read));
-    }
+  return ReadMemberOfOpened(handle.get(), path, member, max_bytes);
+}
+
+absl::StatusOr<std::string> ReadMember(std::string_view bytes, std::string_view member, std::uint64_t max_bytes) {
+  // Same guard as ListMembers: libarchive reports EOF on zero bytes, which would make an empty
+  // input look like an archive with no members rather than the plain file it is.
+  if (bytes.empty()) {
+    return absl::InvalidArgumentError("not an archive: empty input");
   }
+  const ArchivePtr handle = NewReader();
+  if (handle == nullptr) {
+    return absl::ResourceExhaustedError("cannot allocate a libarchive reader");
+  }
+  if (::archive_read_open_memory(handle.get(), bytes.data(), bytes.size()) != ARCHIVE_OK) {
+    return absl::InvalidArgumentError(absl::StrCat("not a readable archive: ", LastError(handle.get())));
+  }
+  return ReadMemberOfOpened(handle.get(), "<memory>", member, max_bytes);
 }
 
 }  // namespace xff::archive

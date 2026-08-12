@@ -84,8 +84,28 @@ absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::Open(std::string_view conta
   // The reader's status passes through unchanged: "not a readable archive" and "corrupt archive" are
   // different answers and the caller decides what to do with each.
   MBO_ASSIGN_OR_RETURN(const std::vector<Member> members, ListMembersOfFile(container));
-  ArchiveFileSystem fs(std::string(container), options);
-  const std::uint64_t device = SyntheticDevice(container);
+  return Index(std::string(container), std::string(), members, options);
+}
+
+absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::OpenBytes(
+    std::string_view container,
+    std::string bytes,
+    MemberPathOptions options) {
+  // A container INSIDE a container: its bytes came out of its parent, so there is no path to open
+  // and the filesystem keeps them for as long as it lives (member reads stream from them).
+  MBO_ASSIGN_OR_RETURN(const std::vector<Member> members, ListMembers(bytes));
+  return Index(std::string(container), std::move(bytes), members, options);
+}
+
+// The shared indexing pass: whatever the source, a member list becomes nodes the same way.
+absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::Index(
+    std::string container,
+    std::string bytes,
+    const std::vector<Member>& members,
+    MemberPathOptions options) {
+  ArchiveFileSystem fs(std::move(container), options);
+  fs.bytes_ = std::move(bytes);
+  const std::uint64_t device = SyntheticDevice(fs.container_);
   // Inode numbers are handed out in index order, starting at 1 so that 0 stays "unset". They have to
   // be DISTINCT per member: the walk's loop detector keys on (dev, ino) and reports "filesystem loop
   // detected" the second time it sees a pair, so members all reporting {0, 0} would make the second
@@ -133,8 +153,12 @@ std::optional<std::string> ArchiveFileSystem::MemberKeyOf(std::string_view path)
   if (path == container_) {
     return std::string{};  // the container itself: the archive's root directory
   }
-  const std::optional<MemberPathParts> parts = SplitMemberPath(path, options_);
-  if (!parts.has_value() || parts->container != container_) {
+  // The probing split, with the answer already known: this filesystem's container is the only one it
+  // can be. A plain first-separator split would be wrong for a NESTED container, whose own path
+  // contains a separator (`outer.tar!inner.tar`) and would be attributed to the outer archive.
+  const std::optional<MemberPathParts> parts =
+      SplitMemberPath(path, options_, [this](std::string_view candidate) { return candidate == container_; });
+  if (!parts.has_value()) {
     return std::nullopt;
   }
   return IndexKey(parts->member);
@@ -262,7 +286,7 @@ absl::StatusOr<std::string> ArchiveFileSystem::ReadContent(std::string_view path
   if (found->second.metadata.type != vfs::FileType::kRegular) {
     return absl::FailedPreconditionError(absl::StrCat("not a regular file: ", *key));
   }
-  return ReadMemberOfFile(container_, *key);
+  return bytes_.empty() ? ReadMemberOfFile(container_, *key) : ReadMember(bytes_, *key);
 }
 
 }  // namespace xff::archive

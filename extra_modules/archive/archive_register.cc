@@ -22,6 +22,8 @@
 // the process-wide slot being touched).
 
 #include <memory>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -41,8 +43,14 @@ namespace {
 // archive" (DataLoss) all the way out to the walk.
 absl::StatusOr<std::unique_ptr<vfs::FileSystem>> OpenArchiveContainer(
     std::string_view container,
+    std::optional<std::string_view> bytes,
     MemberPathOptions options) {
-  MBO_ASSIGN_OR_RETURN(ArchiveFileSystem archive_fs, ArchiveFileSystem::Open(container, options));
+  // With bytes, the container is nested and `container` is only the label its members render under;
+  // without them it is a real path. Both index identically once opened.
+  MBO_ASSIGN_OR_RETURN(
+      ArchiveFileSystem archive_fs, bytes.has_value()
+                                        ? ArchiveFileSystem::OpenBytes(container, std::string(*bytes), options)
+                                        : ArchiveFileSystem::Open(container, options));
   return std::make_unique<ArchiveFileSystem>(std::move(archive_fs));
 }
 
