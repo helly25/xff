@@ -640,6 +640,11 @@ remains below is the design-forked / larger work.
     walk carries a `container_depth_` that the cap compares against, and `MemberKeyOf` resolves a
     member against its KNOWN container instead of splitting at the first separator - a nested
     container's own path contains one (`outer.tar!inner.tar`).
+  - **`--//xff:xff_all` turns on every extra (2026-08-12).** Each extra is linked when its own flag
+    OR `xff_all` is set (`:xff_<flag>_on` in xff/BUILD.bazel, which is what the binaries select on),
+    so `--config=xff_docs` - the config the committed XFF.md is generated from, and which must show
+    the FULL surface - is one line that cannot fall behind the extras list. It replaced a derived
+    XFF_EXTRAS list plus a completeness checker: making the state unrepresentable beats policing it.
   - **Sniff-gating SHIPPED: a NAME gate in front of the reader, `--archive-any` to drop it.** Under
     `all` a file the walk MET is offered to the reader only if its basename carries a container suffix
     (`archive::LooksLikeContainerName`, the reader's formats plus the packages that are one of them

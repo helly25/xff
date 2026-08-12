@@ -33,6 +33,11 @@
 
 ## Internal
 
+- `--//xff:xff_all` turns on every composable extra at once. Each extra links when its own
+  flag or that one is set, so `--config=xff_docs` (which the committed reference is generated
+  from, and which must document the full surface) is a single line instead of one per extra
+  plus a comment asking whoever adds the next extra to remember.
+
 - MemorySanitizer is a hard CI gate on Linux. The instrumented C++ standard library it
   needs now comes from the toolchain itself (`toolchains_llvm`'s `--features=msan` plus a
   prebuilt instrumented-libc++ overlay) instead of a cmake/ninja build of the LLVM
