@@ -72,6 +72,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":archive_reader_cc",
+        ":phar_reader_cc",
         "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
@@ -159,6 +160,7 @@ cc_test(
     data = glob(["test_data/*"]),
     env = {"XFF_PHAR_FIXTURE_ANCHOR": "$(rootpath test_data/plain.phar)"},
     deps = [
+        ":archive_fs_cc",
         ":archive_reader_cc",
         ":phar_reader_cc",
         "@abseil-cpp//absl/status",

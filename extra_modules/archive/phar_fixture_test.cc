@@ -35,11 +35,15 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
+#include "xff/archive/archive_fs.h"
 #include "xff/archive/archive_reader.h"
 #include "xff/archive/phar_reader.h"
+#include "xff/vfs/entry.h"
 
 namespace xff::archive {
 namespace {
+
+using ::mbo::testing::IsOk;
 
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
@@ -215,4 +219,39 @@ TEST_F(PharFixtureTest, ATarBasedPharIsNotANativeOne) {
 }
 
 }  // namespace
+
+// The wiring the CLI depends on: ArchiveFileSystem must reach the phar reader. Before this, Open()
+// asked libarchive and nothing else, so every native phar listed zero members in a real run while the
+// reader's own tests passed - the reader was unreachable, which no reader-level test could catch.
+TEST_F(PharFixtureTest, TheFilesystemOpensANativePharLibarchiveRejects) {
+  const absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::Open(Fixture("plain.phar"));
+  ASSERT_THAT(fs, IsOk());
+  EXPECT_THAT(fs->ReadDir(Fixture("plain.phar")), IsOkAndHolds(Contains(Field("name", &vfs::Entry::name, "data"))));
+  EXPECT_THAT(
+      fs->ReadContent(JoinMemberPath(Fixture("plain.phar"), "data/readme.txt")),
+      IsOkAndHolds(HasSubstr("findable-needle")));
+}
+
+TEST_F(PharFixtureTest, TheFilesystemStillPrefersLibarchiveForATarBasedPhar) {
+  // The fallback order matters: a `.phar.tar` IS a tar, so libarchive must claim it and the phar parser
+  // must never see it. Both readers succeeding on the same file would make which one wins an accident.
+  const absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::Open(Fixture("tarbased.phar.tar"));
+  ASSERT_THAT(fs, IsOk());
+  EXPECT_THAT(
+      fs->ReadContent(JoinMemberPath(Fixture("tarbased.phar.tar"), "data/readme.txt")),
+      IsOkAndHolds(HasSubstr("findable-needle")));
+}
+
+TEST_F(PharFixtureTest, APerEntryCompressedMemberFailsLoudlyThroughTheFilesystem) {
+  // Deflate / bzip2 per-entry compression is not implemented yet. The point of this test is that the
+  // limit surfaces as Unimplemented all the way out - listing works, reading says why - rather than as
+  // empty content, which a content predicate could not tell from an empty file.
+  const absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::Open(Fixture("entrygz.phar"));
+  ASSERT_THAT(fs, IsOk());
+  EXPECT_THAT(fs->ReadDir(Fixture("entrygz.phar")), IsOkAndHolds(Contains(Field("name", &vfs::Entry::name, "data"))));
+  EXPECT_THAT(
+      fs->ReadContent(JoinMemberPath(Fixture("entrygz.phar"), "data/readme.txt")),
+      StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("deflate")));
+}
+
 }  // namespace xff::archive

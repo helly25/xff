@@ -654,7 +654,17 @@ remains below is the design-forked / larger work.
     partial-read VFS operation (`ReadContent` reads the whole file, which is what the gate avoids).
   - **STILL OPEN after the diving slices (audited 2026-08-12, all four verified against the built
     binary, not read off the code):**
-    - **Native phar never dives from the CLI.** `ArchiveFileSystem::Open` asks libarchive and nothing
+    - **Native phar dives now (FIXED 2026-08-12).** `ArchiveFileSystem::Open` / `OpenBytes` try
+      libarchive first and the phar reader when libarchive answers InvalidArgument ("not an archive");
+      only that status falls through, so a corrupt archive is still an answer rather than a reason to
+      guess with another parser. Member reads go back to whichever reader indexed the container, since
+      a phar's data offsets come from its own manifest. `plain.phar` and `sha256.phar` now list 3
+      members and `-grep` finds the needle; a `.phar.tar` still goes to libarchive, which is pinned so
+      the fallback order cannot become an accident. Remaining phar gaps: per-entry deflate/bzip2
+      members (listing works, reading says Unimplemented - needs zlib raw-inflate + bzip2), and
+      whole-file-compressed `.phar.gz` / `.phar.bz2`, which needs the same decompress-then-parse step
+      as a bare compressed single file below.
+    - ~~**Native phar never dives from the CLI.**~~ `ArchiveFileSystem::Open` asks libarchive and nothing
       else, so a native `.phar` (and a whole-file-compressed `.phar.gz` / `.phar.bz2`) is "not an
       archive" and the phar reader - which passes its own tests - is unreachable in a real run. Only
       the tar/zip-based variants work: `plain/entrygz/entrybz2/sha256.phar` and both whole-file
