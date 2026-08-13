@@ -1749,8 +1749,9 @@ std::string Print0Record(const Visit& visit) {
 // permissions, link count, owner, group, size, time, and path -- rendered in `tz`.
 // The single-space-joined fallback when no aligning row sink is wired (e.g. -fls,
 // in-process callers); the aligned stdout path goes through LsCells + ColumnBuffer.
-std::string LsRecord(const Visit& visit, absl::Time now, absl::TimeZone tz) {
-  return absl::StrCat(absl::StrJoin(LsCells(visit, now, tz, std::nullopt), " "), "\n");  // fallback: raw bytes
+std::string LsRecord(const Visit& visit, absl::Time now, absl::TimeZone tz, std::string_view color = {}) {
+  // fallback: raw bytes, and the same name-only colouring the aligned path applies
+  return absl::StrCat(absl::StrJoin(LsCells(visit, now, tz, std::nullopt, color), " "), "\n");
 }
 
 bool EvalPrint(const parser::Expr&, EvalContext& ctx) {
@@ -1767,9 +1768,9 @@ bool EvalLs(const parser::Expr&, EvalContext& ctx) {
   // Aligned path: hand the columns to the driver's ColumnBuffer. Without a row sink
   // (in-process callers, no --buffer wiring) fall back to the single-spaced line.
   if (ctx.emit_ls_row) {
-    ctx.emit_ls_row(LsCells(ctx.visit, ctx.now, ctx.tz, ctx.ls_size_units));
+    ctx.emit_ls_row(LsCells(ctx.visit, ctx.now, ctx.tz, ctx.ls_size_units, ctx.ls_color));
   } else {
-    ctx.emit(LsRecord(ctx.visit, ctx.now, ctx.tz));
+    ctx.emit(LsRecord(ctx.visit, ctx.now, ctx.tz, ctx.ls_color));
   }
   return true;
 }
@@ -2274,14 +2275,17 @@ std::vector<std::string> LsCells(
     const Visit& visit,
     absl::Time now,
     absl::TimeZone tz,
-    std::optional<format::SizeUnits> size_units) {
+    std::optional<format::SizeUnits> size_units,
+    std::string_view color) {
   const vfs::Metadata& md = visit.metadata;
   const std::uint64_t blocks_1k = (md.blocks + 1) / 2;  // 512-byte blocks -> 1 KiB blocks (rounded up)
   std::string size = size_units.has_value() ? format::Size(md.size, *size_units) : std::to_string(md.size);
+  // The NAME carries the colour and the metadata never does, as in `ls -l`; empty means plain.
+  std::string name = color.empty() ? std::string(visit.path) : absl::StrCat("\033[", color, "m", visit.path, "\033[0m");
   return {
       std::to_string(md.ino),   std::to_string(blocks_1k), SymbolicPerms(md.type, md.mode),
       std::to_string(md.nlink), UserName(md.uid),          GroupName(md.gid),
-      std::move(size),          LsTime(md.mtime, now, tz), std::string(visit.path),
+      std::move(size),          LsTime(md.mtime, now, tz), std::move(name),
   };
 }
 

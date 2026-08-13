@@ -2786,11 +2786,16 @@ int RunFind(
           }
           fold_name_case = !it->second;
         }
+        // The entry's colour, from the one palette this run resolved: used by the plain listing below
+        // and by -ls's name column, so the two cannot disagree about what a file looks like.
+        const std::string_view entry_color =
+            colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();
         EvalContext eval_context{
             .visit = visit,
             .emit = emit,
             .emit_file = emit_file,
             .emit_ls_row = emit_ls_row,
+            .ls_color = entry_color,
             .ls_size_units = human,
             // The entry's OWN filesystem, so a predicate that reads a member reads it out of the
             // container rather than looking for `a.tar!x` on disk and finding nothing.
@@ -2923,9 +2928,7 @@ int RunFind(
               emit(compiled_tmpl->Render(ctx) + "\n");
             }
           } else {
-            const std::string_view color =
-                colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();
-            emit(render::Renderer(format, path_encoding).Record(visit.path, color));
+            emit(render::Renderer(format, path_encoding).Record(visit.path, entry_color));
           }
         }
         if (!control.unsupported.empty() && !unsupported_reported) {

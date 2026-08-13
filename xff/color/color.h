@@ -63,7 +63,7 @@ enum class Scheme : std::uint8_t {
 //
 // The spellings follow logic's own algebra, where `+` is OR and the merge is AND:
 //   auto == ls+xff == ls-or-xff == default   the theme OR xff's scheme, decided per VARIABLE
-//   ls-and-xff                               the theme AND xff's scheme, merged per KEY
+//   merged == ls-and-xff                     the theme AND xff's scheme, merged per KEY
 // (`ls&xff` is deliberately NOT accepted: an unquoted `&` backgrounds the command in every shell, and
 // a spelling that only works quoted is a trap, the same reason `-z*` was rejected for the archive
 // umbrella.) `default` is there so a config file can name the default without hard-coding which
