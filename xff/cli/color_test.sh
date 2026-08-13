@@ -81,9 +81,54 @@ test::color_always_leaves_plain_files_uncolored() {
   expect_not_matches $'\033\\[' "${out}"
 }
 
+test::the_ls_theme_is_the_default_palette() {
+  # The colours a user expects are the ones their terminal is themed with, so $LS_COLORS is read by
+  # default: `di=01;35` here must beat xff's own bold blue.
+  local root out
+  root="$(_make_tree)"
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "${root}" -type d 2>&1)"
+  rm -rf "${root}"
+  expect_matches $'\033\\[01;35m' "${out}"
+}
+
+test::an_extension_entry_from_the_theme_colours_a_plain_file() {
+  # xff's own scheme has nothing per-extension, so this is only possible through the theme - and it is
+  # the case a themed terminal notices first.
+  local root out
+  root="$(_make_tree)"
+  out="$(LS_COLORS='*.txt=33' "$(_xff_bin)" --color=always "${root}" -name a.txt 2>&1)"
+  rm -rf "${root}"
+  expect_matches $'\033\\[33m' "${out}"
+}
+
+test::color_scheme_xff_ignores_the_theme() {
+  # The way back: --color-scheme=xff uses the built-in scheme even with a theme set.
+  local root out
+  root="$(_make_tree)"
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=xff "${root}" -type d 2>&1)"
+  rm -rf "${root}"
+  expect_matches "${DIR_COLOR}" "${out}"
+  expect_not_matches $'\033\\[01;35m' "${out}"
+}
+
+test::a_theme_that_says_nothing_about_a_type_keeps_xffs_colour() {
+  # Falling back per KEY rather than per variable: a theme naming only directories must not strip the
+  # colour from symlinks.
+  local root out
+  root="$(_make_tree)"
+  ln -s a.txt "${root}/link"
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "${root}" -type l 2>&1)"
+  rm -rf "${root}"
+  expect_matches $'\033\\[1;36m' "${out}" # xff's symlink colour survives
+}
+
 test::help_documents_color() {
   # Self-documentation: the --help usage page lists --color in the Output group.
   expect_output_contains "--color" "$("$(_xff_bin)" --help 2>&1)"
+  # And the palette flag, whose help has to say where the colours come from.
+  out="$("$(_xff_bin)" --help=--color-scheme 2>&1)"
+  expect_output_contains "LS_COLORS" "${out}"
+  expect_output_contains "xff" "${out}"
 }
 
 test_runner

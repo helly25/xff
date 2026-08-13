@@ -21,6 +21,7 @@
 #include <string_view>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "xff/vfs/entry.h"
 
 namespace xff::color {
@@ -42,7 +43,49 @@ bool Enabled(When when, bool stdout_is_tty, bool no_color_env);
 // ls/fd-style: directory bold blue, symlink bold cyan, executable bold green, and so
 // on. Empty for a plain regular file (rendered without color). `mode` is the raw
 // st_mode; only the permission bits are consulted.
+//
+// xff's BUILT-IN scheme. `Palette` below is what a run actually consults, because the colours a user
+// expects are usually the ones their `ls` already uses.
 std::string_view CodeForType(vfs::FileType type, std::uint32_t mode);
+
+// Which palette a run colours with (`--color-scheme`).
+enum class Scheme : std::uint8_t {
+  kLs,   // $LS_COLORS (dircolors) where it says something, xff's scheme for the rest - the default
+  kXff,  // xff's built-in scheme, ignoring $LS_COLORS
+};
+
+// Resolves `--color-scheme=ls|xff` (last occurrence wins); an absent or unrecognised value leaves
+// kLs, so a themed terminal is honoured without asking.
+Scheme ResolveScheme(const std::vector<std::string>& globals);
+
+// The colours one run uses. Built once (colours are a whole-run choice, not a per-entry one) and
+// consulted by every colourised surface, so the plain listing and `-ls` cannot disagree.
+//
+// A palette is more than a type -> code table because `$LS_COLORS` colours by NAME as well: its
+// `*.tar=01;31` entries are per-extension, which xff's own scheme has no equivalent for. Hence
+// `CodeFor` takes the name, and the lookup follows `ls`: a non-regular file by its type, a regular
+// one by executable-bit first and then by extension.
+class Palette {
+ public:
+  // xff's built-in scheme only (`--color-scheme=xff`, or kLs with no $LS_COLORS set).
+  Palette() = default;
+
+  // The built-in scheme overlaid with `ls_colors`, the raw `$LS_COLORS` value
+  // (`key=value:key=value:...`). Unparsable entries are skipped rather than failing the run: a
+  // malformed variable is not worth refusing to list files over, and `ls` itself ignores them.
+  static Palette FromLsColors(std::string_view ls_colors);
+
+  // The SGR parameter for one entry, or empty for "print it uncoloured". `mode` is the raw st_mode.
+  [[nodiscard]] std::string_view CodeFor(std::string_view name, vfs::FileType type, std::uint32_t mode) const;
+
+ private:
+  // The two-letter dircolors type keys this honours, resolved at parse time so the lookup is a
+  // single hash probe. Empty (not absent) means "$LS_COLORS says: no colour for this".
+  absl::flat_hash_map<std::string, std::string> types_;
+  // `*.ext` entries, keyed by the LOWERCASED extension including its dot, since a themed terminal
+  // should colour `A.TAR` like `a.tar`.
+  absl::flat_hash_map<std::string, std::string> extensions_;
+};
 
 }  // namespace xff::color
 

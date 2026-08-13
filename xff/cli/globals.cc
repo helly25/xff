@@ -78,6 +78,10 @@ constexpr std::array kArchiveValues = std::to_array<ValueDoc>({
     {.value = "roots", .meaning = "dive only when a search root is itself an archive (the xff-family default)"},
     {.value = "all", .meaning = "also dive archives found during the walk (what bare `--archive` selects)"},
 });
+constexpr std::array kColorSchemeValues = std::to_array<ValueDoc>({
+    {.value = "ls", .meaning = "the terminal's own theme: $LS_COLORS, xff's scheme for what it omits (default)"},
+    {.value = "xff", .meaning = "xff's built-in type scheme, ignoring $LS_COLORS"},
+});
 constexpr std::array kArchiveAggregateValues = std::to_array<ValueDoc>({
     {.value = "members", .meaning = "count what is INSIDE a dived container, not the container (the default)"},
     {.value = "container", .meaning = "count containers as the files they are on disk, never their members"},
@@ -853,6 +857,25 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .details = "Colorizes the plain listing by file type. auto colorizes only when stdout is a terminal; always "
                    "forces color even through a pipe or pager; never disables it. The NO_COLOR environment variable "
                    "always wins.",
+    },
+    {
+        .name = "--color-scheme",
+        .display = "--color-scheme=<SCHEME>",
+        .group = "output",
+        .header = "Output",
+        .summary = "which palette colour comes from: the terminal's ls theme, or xff's own",
+        .details = "Colour is a whole-run choice, so this one palette is used by every surface that "
+                   "colours - the plain listing and -ls alike; they cannot disagree. `ls` (the default) "
+                   "reads $LS_COLORS, the same variable `ls` and `dircolors` use, so a themed terminal "
+                   "gets the colours it is themed for: its two-letter type keys (di, ln, ex, pi, so, "
+                   "bd, cd, fi) and its per-extension `*.tar=` entries both apply, and xff's built-in "
+                   "colour stands in for anything the theme does not name (an EMPTY value, `di=`, is "
+                   "the theme saying \"leave these plain\" and is honoured as such). A malformed "
+                   "$LS_COLORS entry is skipped rather than failing the run, as in ls. `xff` ignores "
+                   "$LS_COLORS entirely and uses the built-in scheme. Whether colour is emitted at "
+                   "all is --color's business, not this flag's.",
+        .values = kColorSchemeValues,
+        .affects = "--color",
     },
     {
         .name = "--unicode",

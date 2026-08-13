@@ -262,6 +262,15 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--summary-precision=N` - with --summary --human: fraction digits for scaled sizes (default 2; bytes stay integer) _(global, xff)_
 - `--color[=auto|always|never]` - colorize the plain listing by file type: auto (a tty), always, or never; honors NO_COLOR _(global, xff)_
   Colorizes the plain listing by file type. auto colorizes only when stdout is a terminal; always forces color even through a pipe or pager; never disables it. The NO_COLOR environment variable always wins.
+  Affected by: --color-scheme
+- `--color-scheme=<SCHEME>` - which palette colour comes from: the terminal's ls theme, or xff's own _(global, xff)_
+  SCHEME is one of:
+
+  - `ls` - the terminal's own theme: $LS_COLORS, xff's scheme for what it omits (default)
+  - `xff` - xff's built-in type scheme, ignoring $LS_COLORS
+
+  Colour is a whole-run choice, so this one palette is used by every surface that colours - the plain listing and -ls alike; they cannot disagree. `ls` (the default) reads $LS_COLORS, the same variable `ls` and `dircolors` use, so a themed terminal gets the colours it is themed for: its two-letter type keys (di, ln, ex, pi, so, bd, cd, fi) and its per-extension `*.tar=` entries both apply, and xff's built-in colour stands in for anything the theme does not name (an EMPTY value, `di=`, is the theme saying "leave these plain" and is honoured as such). A malformed $LS_COLORS entry is skipped rather than failing the run, as in ls. `xff` ignores $LS_COLORS entirely and uses the built-in scheme. Whether colour is emitted at all is --color's business, not this flag's.
+  Affects: --color
 - `--unicode[=auto|always|never]` - --format=tree connectors: auto (a UTF-8 locale), always (Unicode), or never (ASCII) _(global, xff)_
   Selects the box-drawing characters --format=tree connects nodes with. auto uses Unicode when the locale (LC_ALL / LC_CTYPE / LANG) is UTF-8, else ASCII; always forces the Unicode connectors; never forces the ASCII ones.
 - `--human[=si|iec|off]` - size units for -ls / --summary: si (kB/MB, default), iec (KiB/MiB), off (bytes); xff -> si _(global, xff)_
@@ -788,6 +797,7 @@ Environment variables xff reads. An explicit command-line flag generally overrid
 - `XDG_CONFIG_HOME` - config search root: `$XDG_CONFIG_HOME/xff/config` (see `--help=config`)
 - `HOME` - config fallback: `$HOME/.config/xff/config` when `$XDG_CONFIG_HOME` is unset
 - `LC_ALL, LC_CTYPE, LANG` - locale for `--unicode=auto`: a UTF-8 locale selects the Unicode `--format=tree` connectors, else ASCII
+- `LS_COLORS` - the terminal's colour theme, as `ls` / `dircolors` set it: type keys (`di`, `ln`, `ex`, ...) and per-extension `*.tar=` entries, used by default (see `--color-scheme`)
 - `XDG_RUNTIME_DIR` - preferred directory for a member extracted by `--archive-extract`: it is a memory-backed tmpfs, so the copy never reaches a disk (`/dev/shm` is tried next)
 - `TMPDIR` - where a temporary file goes when no memory-backed directory fits it: an extracted member (`--archive-extract`) and the in-progress rewrite of a container (`--archive-delete`)
 
