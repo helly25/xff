@@ -35,6 +35,7 @@ using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Not;
+using ::testing::NotNull;
 using ::testing::SizeIs;
 
 std::vector<std::string> SectionTitles(const Document& doc) {
@@ -151,7 +152,7 @@ TEST_F(BuildReferenceTest, OptionsGroupsFlagsIntoNonEmptySubsections) {
   const Section& options = SectionNamed(doc, "Options");
   ASSERT_THAT(options.children, Not(IsEmpty()));
   const auto* first = std::get_if<Subsection>(&options.children.front().node);
-  ASSERT_NE(first, nullptr);
+  ASSERT_THAT(first, NotNull());
   // Each grouped flag is an Entry nested under its subsection.
   bool has_entry = false;
   for (const Content& child : first->children) {
@@ -171,7 +172,7 @@ TEST_F(BuildReferenceTest, SeeAlsoCarriesManPageCrossReferences) {
   const Section& see_also = SectionNamed(doc, "See also");
   ASSERT_THAT(see_also.children, SizeIs(1));
   const auto* block = std::get_if<SeeAlso>(&see_also.children.front().node);
-  ASSERT_NE(block, nullptr);
+  ASSERT_THAT(block, NotNull());
   EXPECT_THAT(block->refs, Not(IsEmpty()));
   EXPECT_THAT(block->refs.front().id, Eq("find"));
 }

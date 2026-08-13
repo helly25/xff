@@ -53,6 +53,7 @@ namespace fs = std::filesystem;
 using ::mbo::testing::IsOk;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
+using ::testing::Lt;
 using ::testing::Not;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
@@ -323,7 +324,7 @@ TEST_F(WalkTest, DepthVisitsPostOrder) {
     }
     return -1;
   };
-  EXPECT_LT(index_of(Path("sub/b.txt")), index_of(Path("sub")));
+  EXPECT_THAT(index_of(Path("sub/b.txt")), Lt(index_of(Path("sub"))));
 }
 
 struct WalkFakeFsTest : ::testing::Test {
