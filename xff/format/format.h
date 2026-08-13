@@ -52,6 +52,13 @@ struct SizeParts {
   std::string suffix;
 };
 
+// Like Size, but with the UNIT right-aligned in the width of this system's prefixed suffixes
+// (2 for SI's kB / MB, 3 for IEC's KiB / MiB), so a bare byte count gets the extra space its
+// missing prefix letter would occupy: "991  B" lines its `B` up under the `B` of "1.2 kB". For a
+// size COLUMN that is right-aligned as a whole (`-ls`), where Size alone would align the last
+// letter but leave the numbers ragged. Size stays the scalar spelling, for prose and fields.
+std::string SizeAligned(std::uint64_t bytes, SizeUnits units);
+
 // Like Size, but split for two-column alignment. `number` carries a fixed-width fraction
 // area -- `fraction_digits` decimals for a scaled unit ("12.34"), or, for an exact byte
 // count, the integer with that area blanked ("12   ") -- so right-aligning the number
