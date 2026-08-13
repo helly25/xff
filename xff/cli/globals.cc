@@ -132,6 +132,58 @@ constexpr std::array kGitignoreValues = std::to_array<ValueDoc>({
     {.value = "on", .meaning = "respect it anywhere, git repository or not (also -g+, yes / true / 1)"},
     {.value = "off", .meaning = "ignore .gitignore files entirely (also -g-, no / false / 0)"},
 });
+constexpr std::array kColorValues = std::to_array<ValueDoc>({
+    {.value = "auto", .meaning = "colour only when stdout is a terminal (the default; a bare --color is always)"},
+    {.value = "always", .meaning = "colour even through a pipe or pager (also on / yes / true / 1)"},
+    {.value = "never", .meaning = "no colour at all (also off / no / false / 0)"},
+});
+constexpr std::array kUnicodeValues = std::to_array<ValueDoc>({
+    {.value = "auto", .meaning = "Unicode connectors when the locale is UTF-8, else ASCII (the default)"},
+    {.value = "always", .meaning = "force the Unicode connectors (also on / yes / true / 1)"},
+    {.value = "never", .meaning = "force the ASCII connectors (also off / no / false / 0)"},
+});
+constexpr std::array kHumanValues = std::to_array<ValueDoc>({
+    {.value = "si", .meaning = "powers of 1000: kB, MB, GB (the default; also 1000, --si, a bare --human)"},
+    {.value = "iec", .meaning = "powers of 1024: KiB, MiB, GiB (also 1024)"},
+    {.value = "off", .meaning = "plain byte counts, no unit suffix"},
+    {.value = "1000", .meaning = "", .hidden = true},  // named in `si`'s meaning
+    {.value = "1024", .meaning = "", .hidden = true},  // named in `iec`'s meaning
+});
+constexpr std::array kImplicitPrintValues = std::to_array<ValueDoc>({
+    {.value = "yes", .meaning = "print every match even when the expression has its own action (also on / true / 1)"},
+    {.value = "no", .meaning = "never add the default print (also off / false / 0)"},
+});
+constexpr std::array kPathEncodingValues = std::to_array<ValueDoc>({
+    {.value = "raw", .meaning = "the path's bytes verbatim, as find writes them (the default)"},
+    {.value = "escape", .meaning = "C-escape control bytes, so a newline in a name cannot forge a line"},
+});
+constexpr std::array kHashEncodingValues = std::to_array<ValueDoc>({
+    {.value = "hex", .meaning = "lower-case hex digits, as the sha256sum family prints (the default)"},
+    {.value = "base64", .meaning = "standard padded base64 (RFC 4648), the Subresource-Integrity spelling"},
+});
+constexpr std::array kDiffFormatValues = std::to_array<ValueDoc>({
+    {.value = "u", .meaning = "unified, the diff -u shape (the default; also spelled unified)"},
+    {.value = "c", .meaning = "context, the diff -c shape (also context)"},
+    {.value = "n", .meaning = "normal, the plain diff shape (also normal)"},
+    {.value = "y", .meaning = "side by side, the diff -y shape (also side-by-side)"},
+    // The long spellings each row already names.
+    {.value = "unified", .meaning = "", .hidden = true},
+    {.value = "context", .meaning = "", .hidden = true},
+    {.value = "normal", .meaning = "", .hidden = true},
+    {.value = "side-by-side", .meaning = "", .hidden = true},
+});
+constexpr std::array kDiffAlgorithmValues = std::to_array<ValueDoc>({
+    {.value = "myers", .meaning = "minimal diff, as git computes it (the default)"},
+    {.value = "direct", .meaning = "line-by-line, no alignment search"},
+    {.value = "naive", .meaning = "the simple longest-common-subsequence walk"},
+});
+constexpr std::array kSortValues = std::to_array<ValueDoc>({
+    {.value = "none", .meaning = "filesystem order, whatever the directory yields (fastest)"},
+    {.value = "dir", .meaning = "sort each directory's entries (a bare --sort; also spelled name)"},
+    {.value = "subtree", .meaning = "sorted entries with each subtree inlined contiguously"},
+    {.value = "tree", .meaning = "one path-ordered result across the whole walk (buffers everything)"},
+    {.value = "name", .meaning = "", .hidden = true},  // `dir`'s meaning already names it
+});
 constexpr std::array kPagerValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "page the help / man / markdown output on a terminal (the default)"},
     {.value = "always", .meaning = "page that meta output even through a pipe"},
@@ -475,6 +527,8 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .details = "none leaves entries in filesystem order (fastest); dir sorts each directory's entries; subtree "
                    "and tree give a deterministic order across the whole walk. The default is per style: xff sorts "
                    "per directory, while find and rg leave the order unspecified.",
+        .values = kSortValues,
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--block-size",
@@ -658,7 +712,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "diff engine for -diff: naive, direct, or myers (the default, minimal like git)",
+        .values = kDiffAlgorithmValues,
         .affects = "-diff",
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--diff-ignore",
@@ -682,7 +738,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "default -diff format: u/unified (default), c/context, n/normal, y/side-by-side",
+        .values = kDiffFormatValues,
         .affects = "-diff",
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--diff-context",
@@ -709,6 +767,8 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "default -hash / {hash} rendering: hex (default) or base64",
+        .values = kHashEncodingValues,
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--path-encoding",
@@ -716,6 +776,8 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "plain-output path byte encoding: raw (verbatim, default) or escape (C-escape controls)",
+        .values = kPathEncodingValues,
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--template",
@@ -730,6 +792,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "force the default -print on or off",
+        .values = kImplicitPrintValues,
         .value_check = GlobalFlag::ValueCheck::kBool,
     },
     {
@@ -898,6 +961,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .details = "Colorizes the plain listing by file type. auto colorizes only when stdout is a terminal; always "
                    "forces color even through a pipe or pager; never disables it. The NO_COLOR environment variable "
                    "always wins.",
+        .values = kColorValues,
         .value_check = GlobalFlag::ValueCheck::kTristate,
     },
     {
@@ -947,6 +1011,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .details = "Selects the box-drawing characters --format=tree connects nodes with. auto uses Unicode when the "
                    "locale (LC_ALL / LC_CTYPE / LANG) is UTF-8, else ASCII; always forces the Unicode connectors; "
                    "never forces the ASCII ones.",
+        .values = kUnicodeValues,
         .value_check = GlobalFlag::ValueCheck::kTristate,
     },
     {
@@ -955,6 +1020,8 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "size units for -ls / --summary: si (kB/MB, default), iec (KiB/MiB), off (bytes); xff -> si",
+        .values = kHumanValues,
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--si",

@@ -99,6 +99,13 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   Empty (the default) prints the bare path, `a.tgz!inner/x`. `URI` renders a well-formed URI for handing to tools that read archive URLs: `archive:///abs/a.tar!x` for an absolute container (empty authority then the path, as `file:///...` does) and the opaque `archive:a.tgz!x` for a relative one - `archive://a.tgz` would be WRONG, since `//` starts the authority and would make `a.tgz` a host name. Any other value is used LITERALLY (e.g. `--archive-prefix=vfs:`), the same freedom --archive-separator has; `URI` is the one keyword, spelled in caps like RE2 / PCRE2 / GLOB. There is deliberately no `none` value: it would be indistinguishable from a literal prefix spelled `none`, which is why empty means no prefix. Applies to PARSING too - under a prefix, a bare path is not accepted as a member path, so the spellings never silently interchange. Whether the scheme should be per-format (`tar:` / `zip:` / PHP's `phar:`) rather than the generic `archive:` is still open (see TODO.md).
 - `-j N, --jobs=N|all` - worker count for the walk and concurrent -exec (all = every core) _(global, xff)_
 - `--sort[=none|dir|subtree|tree]` - sibling/traversal ordering (default depends on the mode) _(global, xff)_
+  One of:
+
+  - `none` - filesystem order, whatever the directory yields (fastest)
+  - `dir` - sort each directory's entries (a bare --sort; also spelled name)
+  - `subtree` - sorted entries with each subtree inlined contiguously
+  - `tree` - one path-ordered result across the whole walk (buffers everything)
+
   none leaves entries in filesystem order (fastest); dir sorts each directory's entries; subtree and tree give a deterministic order across the whole walk. The default is per style: xff sorts per directory, while find and rg leave the order unspecified.
 
 ### Matching
@@ -176,12 +183,25 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--no-header` - omit the header row from tabular --format (csv/tsv/aligned/markdown; on by default) _(global, xff)_
 - `--columns=FIELD,...` - columns for tabular --format, from the {field} vocabulary (e.g. path,size,mtime) _(global, xff)_
 - `--diff-algorithm=naive|direct|myers` - diff engine for -diff: naive, direct, or myers (the default, minimal like git) _(global, xff)_
+  One of:
+
+  - `myers` - minimal diff, as git computes it (the default)
+  - `direct` - line-by-line, no alignment search
+  - `naive` - the simple longest-common-subsequence walk
+
   Affects: -diff
 - `--diff-ignore=TOKEN,...` - normalize -diff comparison: ws, change, trail, blank, case, eofnl (comma-separated) _(global, xff)_
   Affects: -diff
 - `--diff-ignore-matching=REGEX` - -diff ignores lines matching this regex (RE2) _(global, xff)_
   Affects: -diff
 - `--diff-format=u|c|n|y` - default -diff format: u/unified (default), c/context, n/normal, y/side-by-side _(global, xff)_
+  One of:
+
+  - `u` - unified, the diff -u shape (the default; also spelled unified)
+  - `c` - context, the diff -c shape (also context)
+  - `n` - normal, the plain diff shape (also normal)
+  - `y` - side by side, the diff -y shape (also side-by-side)
+
   Affects: -diff
 - `--diff-context=N` - default -diff context lines (3); overrides --context for -diff, and -diff=uN overrides it _(global, xff)_
   Affects: -diff
@@ -207,9 +227,24 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 
   Sets the default digest algorithm for the -hash action and the {hash} field. sha256 is the default; a `-hash=ALGO` spec or a `{hash:ALGO}` qualifier overrides it per use.
 - `--hash-encoding=hex|base64` - default -hash / {hash} rendering: hex (default) or base64 _(global, xff)_
+  One of:
+
+  - `hex` - lower-case hex digits, as the sha256sum family prints (the default)
+  - `base64` - standard padded base64 (RFC 4648), the Subresource-Integrity spelling
+
 - `--path-encoding=raw|escape` - plain-output path byte encoding: raw (verbatim, default) or escape (C-escape controls) _(global, xff)_
+  One of:
+
+  - `raw` - the path's bytes verbatim, as find writes them (the default)
+  - `escape` - C-escape control bytes, so a newline in a name cannot forge a line
+
 - `--template=TEMPLATE` - render each match through a field template ({path}, {name}, ...) _(global, xff)_
 - `--implicit-print=yes|no` - force the default -print on or off _(global, xff)_
+  One of:
+
+  - `yes` - print every match even when the expression has its own action (also on / true / 1)
+  - `no` - never add the default print (also off / false / 0)
+
 - `--summary[=<GROUP>]` - aligned count + size table (or --format=jsonl rows) instead of each match; repeatable _(global, xff)_
   GROUP is one of:
 
@@ -268,6 +303,12 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   Affects: --histogram
 - `--summary-precision=N` - with --summary --human: fraction digits for scaled sizes (default 2; bytes stay integer) _(global, xff)_
 - `--color[=auto|always|never]` - colorize the plain listing by file type: auto (a tty), always, or never; honors NO_COLOR _(global, xff)_
+  One of:
+
+  - `auto` - colour only when stdout is a terminal (the default; a bare --color is always)
+  - `always` - colour even through a pipe or pager (also on / yes / true / 1)
+  - `never` - no colour at all (also off / no / false / 0)
+
   Colorizes the plain listing by file type. auto colorizes only when stdout is a terminal; always forces color even through a pipe or pager; never disables it. The NO_COLOR environment variable always wins.
   Affected by: --color-scheme
 - `--color-scheme=<SCHEME>` - which palette colour comes from: the terminal's ls theme, or xff's own _(global, xff)_
@@ -281,8 +322,20 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   Colour is a whole-run choice, so this one palette is used by every surface that colours - the plain listing and -ls alike; they cannot disagree. $LS_COLORS is the variable `ls` and `dircolors` use, and xff reads the same keys: the two-letter types (di, ln, ex, pi, so, bd, cd, fi) and the per-extension `*.tar=` entries. Where only BSD's $LSCOLORS is set - the macOS case - that is read instead: its 11 letter pairs carry the same types in a fixed order, with no way to say "leave this plain" and no per-extension entries, so `merged` is the interesting scheme there. $LS_COLORS wins when both are set, being the richer format. Both variables are read on every platform rather than one per OS: which one is SET is better evidence than which system this is (a macOS shell with GNU coreutils is themed through $LS_COLORS, and $LSCOLORS is not macOS-only), and the fixed 22-character shape makes the BSD one self-validating. "Use ls's colours" turns out to mean three different things, so each has its own name, spelled the way logic spells it: `+` is OR, and the merge is AND. `auto` (the default, also `ls+xff` or `ls-or-xff`) is the theme OR xff's scheme - a theme that is set at all is the whole answer, and with none set xff's scheme is, so the decision is per VARIABLE; `default` is a fourth spelling of it, for a config file that wants whatever the default currently is. `ls` is the theme ALONE, so a type it never mentions prints uncoloured exactly as in a real ls listing (and with no theme set, nothing is coloured). `merged` (also `ls-and-xff`) is the theme AND xff's scheme, merged per KEY: the theme where it speaks, xff's colour for every key it omits - for a sparse theme you want filled in. (`ls&xff` is deliberately not accepted: an unquoted `&` backgrounds the command.) `xff` ignores $LS_COLORS entirely. An EMPTY value in the theme (`di=`) is it saying "leave these plain" and is honoured as such; a malformed entry is skipped rather than failing the run, as in ls. Whether colour is emitted at all is --color's business, not this flag's.
   Affects: --color
 - `--unicode[=auto|always|never]` - --format=tree connectors: auto (a UTF-8 locale), always (Unicode), or never (ASCII) _(global, xff)_
+  One of:
+
+  - `auto` - Unicode connectors when the locale is UTF-8, else ASCII (the default)
+  - `always` - force the Unicode connectors (also on / yes / true / 1)
+  - `never` - force the ASCII connectors (also off / no / false / 0)
+
   Selects the box-drawing characters --format=tree connects nodes with. auto uses Unicode when the locale (LC_ALL / LC_CTYPE / LANG) is UTF-8, else ASCII; always forces the Unicode connectors; never forces the ASCII ones.
 - `--human[=si|iec|off]` - size units for -ls / --summary: si (kB/MB, default), iec (KiB/MiB), off (bytes); xff -> si _(global, xff)_
+  One of:
+
+  - `si` - powers of 1000: kB, MB, GB (the default; also 1000, --si, a bare --human)
+  - `iec` - powers of 1024: KiB, MiB, GiB (also 1024)
+  - `off` - plain byte counts, no unit suffix
+
 - `--si` - human sizes in SI (kB/MB, 1000^N); an alias for --human=si (the --human default) _(global, xff)_
 - `--buffer[=auto|off|all|N[kMG]|NMB]` - buffer to size columns (-ls / tables): auto, off, all, N[kMG] rows, or NMB/NMiB bytes _(global, xff)_
 - `--width[=auto|none|COLS]` - wrap column for plain --help text: auto (terminal width, else unwrapped), none, or a count _(global, xff)_
