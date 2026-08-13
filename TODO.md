@@ -6,6 +6,17 @@ shipped one way but not yet settled.
 
 ## Open decisions
 
+- **OPEN (raised 2026-08-13): should `-ls` colour its name column?** Today `--color` colours the plain
+  listing and `-ls` prints an entirely uncoloured row, which is the inconsistency: the same run
+  colours `xff .` and not `xff . -ls`. `ls -l` colours only the NAME, never the metadata, and in
+  xff's `-ls` layout the path is the LAST column, so ANSI escapes cannot disturb the computed widths
+  - a small change using the scheme that already exists. Leaning: do it, name column only.
+  - **Separate and larger: honouring `LS_COLORS` / `dircolors`,** which is what "the colours ls does"
+    literally means. xff has its own type scheme (#91); reading `LS_COLORS` needs a dircolors parser
+    (per-extension entries, `*.ext=` globs, the `di`/`ln`/`ex`/... type keys) and a newly documented
+    environment variable. Worth doing for people whose terminals are themed, but it is its own slice
+    and should not be smuggled in with the `-ls` fix.
+
 - **BUG (help text): `-grep` context has only its LONG flags (raised 2026-08-13, FIXED).**
   `--context=SPEC`, `--after-context=N` and `--before-context=N` all work; the single-dash `-A` / `-B`
   / `-C` that #99 reserved were never added, and the flag help cited grep's spellings ("grep -A",
@@ -344,10 +355,28 @@ remains below is the design-forked / larger work.
   feature = name + one-line summary + default-per-style) so unknown `--feature=X`
   errors and `--help` / `--man` / `--markdown` list features automatically;
   `--explain` shows each feature's resolved value + origin; a style is just a named
-  bundle of feature defaults (design-config.md L162-165). **Trigger (also in
-  AGENTS.md):** the first boolean user-toggleable capability that is neither a style
-  behavior nor a valued option must be built as the first `--feature`, not a bespoke
-  flag.
+  bundle of feature defaults (design-config.md L162-165).
+  - **VERDICT (2026-08-13): do not build the general registry; the trigger was wrong.** The rule said
+    the first boolean user-toggleable capability must become the first `--feature`. Since then xff has
+    shipped 22 boolean globals (`--archive-extract`, `--archive-delete`, `--archive-any`,
+    `--exec-fields`, `--dry-run`, `--safe`, `--exact`, `--hidden` / `--no-hidden`, ...) and not one
+    of them wanted the mechanism: each read better as a NAMED MEMBER of its family (the
+    `--archive-*` set, which `--help=archive` then gathers) or as a VALUE on an existing flag
+    (`--case=smart`, not `--smart-case`). Two spellings for one switch is a real cost, and the
+    registry's payoff needs several customers it never got.
+  - **The one case that remains compelling: gating UNSTABLE features so their spelling is not a
+    promise.** `-fuzzy` ranking (#168) and the FUSE mount (#183) are exactly features worth shipping
+    before their flag names are settled. That is narrower than a capability registry, and it is
+    better spelled as one list - `--unstable=NAME[,NAME]`, everything in it documented as subject to
+    change - than as a namespace that looks permanent.
+  - **The other two cases are covered or not yet real.** Post-1.0 behaviour-migration windows
+    (`--feature=no-size-round-up` while a default changes) are a genuine use, but xff has no legacy
+    to carry before 1.0. Admin capability DENIAL is already the config `[policy]` tier's job, which
+    knows flag names and needs no parallel capability namespace.
+  - **So:** AGENTS.md's trigger is replaced by the rule the practice validated (prefer a named family
+    member or a value on an existing flag), and `--feature` stays unbuilt. Revisit it after 1.0 if
+    migration windows accumulate; build `--unstable=` instead the first time a feature needs to ship
+    without committing its name.
 - **Grow `xff/datetime` into a parse+format lib** (#70): named formats, field
   modifiers, and the `--time-format` / `--timezone` global flags have shipped, as
   have the last deferred pieces -- the `--tz` short alias and fixed-offset zone
