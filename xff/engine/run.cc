@@ -1228,13 +1228,23 @@ GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals, std:
   // still overrides.
   const bool opinionated = style == registry::Style::kRg;
   GitignoreMode mode = opinionated ? GitignoreMode::kOn : GitignoreMode::kOff;
+  constexpr std::string_view kPrefix = "--gitignore=";
   for (const std::string& global : globals) {
     if (global == "-g" || global == "--gitignore" || global == "--ignore-vcs") {
       mode = GitignoreMode::kAuto;
-    } else if (global == "-g+" || global == "--gitignore=on") {
+    } else if (global == "-g+") {
       mode = GitignoreMode::kOn;
-    } else if (global == "-g-" || global == "--gitignore=off" || global == "--no-ignore-vcs") {
+    } else if (global == "-g-" || global == "--no-ignore-vcs") {
       mode = GitignoreMode::kOff;
+    } else if (global.starts_with(kPrefix)) {
+      // The shared vocabulary (on / off / auto plus yes / no / true / false / 1 / 0), so this flag
+      // spells its values the way every other tri-state does; an unrecognized value is ignored,
+      // leaving the prior resolution.
+      if (const std::optional<values::Tristate> tri = values::ParseTristate(global.substr(kPrefix.size()))) {
+        mode = *tri == values::Tristate::kOn    ? GitignoreMode::kOn
+               : *tri == values::Tristate::kOff ? GitignoreMode::kOff
+                                                : GitignoreMode::kAuto;
+      }
     }
   }
   return mode;
