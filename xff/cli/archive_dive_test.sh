@@ -487,4 +487,47 @@ test::the_container_itself_is_still_an_ordinary_file_to_delete() {
   rm -rf "${root}"
 }
 
+test::the_z_plus_plus_umbrella_dives_everywhere_and_arms_writing() {
+  local root out
+  root="$(_tree)"
+  # `-z++` continues the sign ladder (-z- none, -z roots, -z+ all) with "all, and writable": one
+  # spelling for --archive=all --archive-extract --archive-delete, which is the combination a run that
+  # means to change an archive always wants.
+  out="$("$(_xff_bin)" -z++ "${root}/a.tar" -name 'one.txt' -exec cat {} \;)"
+  expect_output_contains "needle" "${out}" # extraction armed
+  out="$("$(_xff_bin)" -z++ "${root}/a.tar" -name 'one.txt' -delete 2>&1)"
+  expect_eq "" "${out}"
+  out="$("$(_xff_bin)" --archive=roots "${root}/a.tar")"
+  expect_output_not_contains "a.tar!one.txt" "${out}" # deletion armed, and it happened
+  # It also dives mid-walk, which plain `-z` does not.
+  out="$("$(_xff_bin)" -z++ "${root}")"
+  expect_output_contains "a.tar!dir/two.txt" "${out}"
+  rm -rf "${root}"
+}
+
+test::archive_write_arms_the_flags_without_changing_the_dive_mode() {
+  local root out
+  root="$(_tree)"
+  # The long spelling says WRITE and only that: the mode stays whatever it was, so a mid-walk archive
+  # is still left closed under the default `roots`.
+  out="$("$(_xff_bin)" --archive-write "${root}")"
+  expect_output_not_contains "a.tar!" "${out}"
+  out="$("$(_xff_bin)" --archive-write --archive=roots "${root}/a.tar" -name 'one.txt' -exec cat {} \;)"
+  expect_output_contains "needle" "${out}"
+  rm -rf "${root}"
+}
+
+test::only_the_plus_ladder_spells_the_umbrella() {
+  local root out rc
+  root="$(_tree)"
+  # The ladder stops at ++, and the star form was deliberately not taken: a bare `-z*` errors in zsh
+  # and silently expands in bash, so it must not be a spelling xff answers to either.
+  for spelling in "-z+++" "-z*"; do
+    out="$("$(_xff_bin)" "${spelling}" "${root}" 2>&1)" && rc=0 || rc=$?
+    expect_eq "2" "${rc}"
+    expect_output_contains "unknown option" "${out}"
+  done
+  rm -rf "${root}"
+}
+
 test_runner
