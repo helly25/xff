@@ -505,16 +505,6 @@ test::the_z_plus_plus_umbrella_dives_everywhere_and_arms_writing() {
   rm -rf "${root}"
 }
 
-test::the_z_star_spelling_is_the_same_umbrella() {
-  local root out
-  root="$(_tree)"
-  # Accepted as an alternative, though it needs quoting where an unmatched glob is an error (zsh),
-  # which is why the help leads with -z++.
-  out="$("$(_xff_bin)" '-z*' "${root}/a.tar" -name 'one.txt' -exec cat {} \;)"
-  expect_output_contains "needle" "${out}"
-  rm -rf "${root}"
-}
-
 test::archive_write_arms_the_flags_without_changing_the_dive_mode() {
   local root out
   root="$(_tree)"
@@ -527,13 +517,16 @@ test::archive_write_arms_the_flags_without_changing_the_dive_mode() {
   rm -rf "${root}"
 }
 
-test::a_longer_z_ladder_is_still_an_unknown_option() {
+test::only_the_plus_ladder_spells_the_umbrella() {
   local root out rc
   root="$(_tree)"
-  # The ladder stops at ++: a typo must not be read as "even more archive".
-  out="$("$(_xff_bin)" -z+++ "${root}" 2>&1)" && rc=0 || rc=$?
-  expect_eq "2" "${rc}"
-  expect_output_contains "unknown option" "${out}"
+  # The ladder stops at ++, and the star form was deliberately not taken: a bare `-z*` errors in zsh
+  # and silently expands in bash, so it must not be a spelling xff answers to either.
+  for spelling in "-z+++" "-z*"; do
+    out="$("$(_xff_bin)" "${spelling}" "${root}" 2>&1)" && rc=0 || rc=$?
+    expect_eq "2" "${rc}"
+    expect_output_contains "unknown option" "${out}"
+  done
   rm -rf "${root}"
 }
 

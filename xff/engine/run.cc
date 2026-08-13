@@ -1256,8 +1256,8 @@ ArchiveMode ResolveArchiveMode(const std::vector<std::string>& globals, std::opt
   // find keeps archives opaque; the xff family looks inside one it was pointed at.
   ArchiveMode mode = style == registry::Style::kFind ? ArchiveMode::kNone : ArchiveMode::kRoots;
   for (const std::string& global : globals) {
-    if (global == "--archive" || global == "--archive=all" || global == "-z+" || global == "-z++" || global == "-z*") {
-      // `-z++` / `-z*` are "all, plus the write flags": the mode half is `all`, and the write half is
+    if (global == "--archive" || global == "--archive=all" || global == "-z+" || global == "-z++") {
+      // `-z++` is "all, plus the write flags": the mode half is `all`, and the write half is
       // read by ArchiveWriteArmed below - one spelling, two independent effects.
       mode = ArchiveMode::kAll;
     } else if (global == "--archive=roots" || global == "-z") {
@@ -1284,7 +1284,7 @@ struct ArchiveWrite {
 ArchiveWrite ResolveArchiveWrite(const std::vector<std::string>& globals) {
   ArchiveWrite write;
   for (const std::string& global : globals) {
-    if (global == "--archive-write" || global == "-z++" || global == "-z*") {
+    if (global == "--archive-write" || global == "-z++") {
       write = ArchiveWrite{.extract = true, .remove = true};
     } else if (global == "--archive-extract") {
       write.extract = true;
@@ -1301,7 +1301,7 @@ ArchiveWrite ResolveArchiveWrite(const std::vector<std::string>& globals) {
 bool HasArchiveFlag(const std::vector<std::string>& globals) {
   return absl::c_any_of(globals, [](std::string_view global) {
     return global == "--archive" || global.starts_with("--archive=") || global == "-z" || global == "-z+"
-           || global == "-z++" || global == "-z*" || global == "-z-";
+           || global == "-z++" || global == "-z-";
   });
 }
 

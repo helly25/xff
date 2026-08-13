@@ -349,9 +349,10 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "--archive-delete so -delete can remove one. It is exactly those two flags and nothing "
                    "else - the dive MODE is untouched, so pair it with --archive=all / -z+ when you also "
                    "want containers met mid-walk. The short `-z++` continues the -z sign ladder (-z- none, "
-                   "-z roots, -z+ all) with \"all, and writable\"; `-z*` is accepted as the same thing, but "
-                   "needs quoting in a shell that errors on an unmatched glob (zsh), which is why `-z++` is "
-                   "the spelling to prefer. Nothing here bypasses a refusal: a container xff cannot rewrite "
+                   "-z roots, -z+ all) with \"all, and writable\", and it is the only short form: `-z*` was "
+                   "considered and rejected, because a bare `-z*` errors in zsh (unmatched glob) and in "
+                   "default bash silently expands if any file happens to match. Nothing here bypasses a "
+                   "refusal: a container xff cannot rewrite "
                    "and a member no child can be handed still say so, and --dry-run still previews.",
         .affects = "--archive-delete,--archive-extract",
         .topic = "archive",
@@ -1026,7 +1027,7 @@ bool IsKnownGlobal(std::string_view arg) {
   // -s/-s+ (smart), -s- (sensitive) (= --case=...), and the -z+/-z- short archive forms
   // (= --archive=all/none; bare -z is a table row via the alias).
   if (arg == "-0" || arg == "-g+" || arg == "-g-" || arg == "-i" || arg == "-s" || arg == "-s+" || arg == "-s-"
-      || arg == "-z+" || arg == "-z++" || arg == "-z*" || arg == "-z-") {
+      || arg == "-z+" || arg == "-z++" || arg == "-z-") {
     return true;
   }
   // The short jobs form carries its value attached: -j4, -jall (the "=" form --jobs=N

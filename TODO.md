@@ -14,10 +14,10 @@ shipped one way but not yet settled.
   also the proposed archive umbrella.
 
 - **RESOLVED (2026-08-13): `-A` stays free for grep context; the archive umbrella extends `-z`.**
-  The user ratified `-z++` (and `-z*` as an accepted alternative) for "all archive features plus
-  write", so the archive axis keeps one letter and the grep family keeps `-A` / `-B` / `-C`.
-  `-z++` is the spelling to lead with: an unmatched `-z*` is a hard error in zsh (`no matches found`),
-  so the star form needs quoting the `++` form does not. The long spelling that SAYS write
+  The user ratified `-z++` for "all archive features plus write", so the archive axis keeps one letter
+  and the grep family keeps `-A` / `-B` / `-C`. `-z*` was considered and REJECTED (2026-08-13): a bare
+  `-z*` is a hard error in zsh (`no matches found`) and in default bash silently expands if any file
+  happens to match, and no other punctuation reads as "more than +", so `-z++` is the only short. The long spelling that SAYS write
   (`--archive-write`, arming `--archive-extract` + `--archive-delete` without touching the dive mode)
   is what `-z++` expands to, so the short stays a convenience over a named behaviour rather than a
   magic letter. The rejected alternative, kept for the record:
@@ -29,7 +29,7 @@ shipped one way but not yet settled.
     but it is also already spelled on another letter: `-z-` / `-z` / `-z+` are none / roots / all
     today, so the only missing level is "+ write", which `-z++` would add on the knob that already
     exists. That leaves `-A` free for the grep family.
-    So: `-z-` none, `-z` roots, `-z+` all, `-z++` (or `-z*`) all + write, and `-A` / `-B` / `-C` are
+    So: `-z-` none, `-z` roots, `-z+` all, `-z++` all + write, and `-A` / `-B` / `-C` are
     left for the grep family to claim.
 
 - **Short primaries `-n` / `-p` for `-name` / `-path` (raised 2026-08-13)?** Note what fd's letters
@@ -63,7 +63,7 @@ shipped one way but not yet settled.
     ranked, since `^`/`$`/`!` without ranking are just a clumsier `-name` / `!`.
 
 - **A shortcut for "all archive features" (raised 2026-08-13; the WRITE half SHIPPED as
-  `--archive-write` / `-z++` / `-z*`, `--archive-any` is still its own flag).** The read side is a fair
+  `--archive-write` / `-z++`, `--archive-any` is still its own flag).** The read side is a fair
   convenience:
   `--archive=all --archive-any` is a mouthful for "look everywhere, inside everything". The spelling
   question is the `-A` / `-z` one above. Two constraints whatever the letter: the WRITE flags are
