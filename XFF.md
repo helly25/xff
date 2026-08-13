@@ -126,7 +126,13 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 ### Filter & Ignore
 - `--exclude=GLOB` - skip paths matching a gitignore-style glob (repeatable; a matched directory is pruned) _(global, xff)_
 - `--include=GLOB` - re-include paths a --exclude would skip, matching a gitignore-style glob (repeatable) _(global, xff)_
-- `--gitignore[=on|off], -g[+|-]` - respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never _(global, xff)_
+- `--gitignore[=auto|on|off], -g[+|-]` - respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never _(global, xff)_
+  One of:
+
+  - `auto` - respect .gitignore only inside a git working tree (a bare -g / --gitignore)
+  - `on` - respect it anywhere, git repository or not (also -g+, yes / true / 1)
+  - `off` - ignore .gitignore files entirely (also -g-, no / false / 0)
+
   Reads .gitignore rules while walking, including nested .gitignore files, .git/info/exclude, and core.excludesFile. -g / auto activates only inside a git working tree; -g+ / =on forces it anywhere; -g- / =off disables it. Independent of --ignore-files (.ignore / .xffignore).
 - `--ignore-files` - respect per-directory .ignore and .xffignore files (off by default) _(global, xff)_
 - `--ignore-file=PATH` - read an extra gitignore-format file, rooted at its own directory (repeatable) _(global, xff)_
@@ -314,8 +320,8 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   One of:
 
   - `auto` - each format's built-in default (the default)
-  - `always` - force the offset, even on a format that omits it (also true / yes / on)
-  - `never` - drop the optional offset (also false / no / off)
+  - `always` - force the offset, even on a format that omits it (also on / yes / true / 1)
+  - `never` - drop the optional offset (also off / no / false / 0)
 
   Controls whether a time field's named preset renders its trailing zone (+0100, +01:00). auto keeps each preset's default (space / iso / rfc3339 show it, asctime / epoch omit it); never drops it; always forces it, even on a preset that omits one. Accepts true / yes / on (= always) and false / no / off (= never). The inherently-zoned zulu / zulu-dense / asn1z always keep their mandatory Z, and a custom strftime --time-format is never altered - control its zone with %z / %Ez / %Z yourself. asn1's zone is optional: always adds its ASN.1-style offset (+0100, no separator), never / auto leave it bare.
 

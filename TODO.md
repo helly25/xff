@@ -17,7 +17,17 @@ shipped one way but not yet settled.
   Two things to settle first: the tri-state / bare forms that intentionally accept several spellings
   must keep doing so (the `values` table is already the SOT for those), and the resolvers that run
   BEFORE the parse (`--color`, `--width`, `--pager`, scanned straight from argv) need somewhere to
-  report the error from, since they currently cannot fail.
+  report the error from, since they currently cannot fail. Precedent for the strict side already
+  exists: `--skip-vcs` rejects an unknown token as a usage error (and has a test saying so), so the
+  question is really which behaviour the rest should match.
+
+- **FIXED (2026-08-13): `on` / `off` were documented but not accepted.** `--time-zone-suffix`'s help
+  listed `on` / `off` as synonyms of `always` / `never`, and the shared value parser did not accept
+  them, so `--time-zone-suffix=off` silently kept the offset. `--gitignore` had the mirror problem: it
+  compared the two literal strings `on` / `off` itself instead of using the shared parser, so
+  `--gitignore=yes` silently did nothing and `=auto` was not accepted at all. Both now go through
+  `values::ParseTristate`, which gained `on` / `off` - the spelling a switch-shaped flag reads best
+  in, and the one the help had been promising.
 
 - **DECIDED (user, 2026-08-13): colour comes from ONE resolved palette, `ls`-derived by default, and
   `-ls` uses it too.** Three statements, one design:

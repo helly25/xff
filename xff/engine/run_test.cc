@@ -51,6 +51,7 @@ using ::testing::IsEmpty;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::MatchesRegex;
+using ::testing::Ne;
 using ::testing::Not;
 using ::testing::UnorderedElementsAre;
 
@@ -893,6 +894,31 @@ TEST_F(RunTest, TimezoneAppliesToTimeFieldFormatting) {
       },
       [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, UnorderedElementsAre("+0000"));
+}
+
+TEST_F(RunTest, TheZoneSuffixSwitchSpellingsWork) {
+  // --time-zone-suffix documented on / off as synonyms of always / never while the shared parser
+  // rejected them, so =off silently kept the default (the offset stayed). Both spellings of each
+  // side must reach the same result.
+  const auto run = [&](std::string_view flag) {
+    const auto command = parser::Parse({std::string(flag), "--template={mtime}", root_.string(), "-name", "a.txt"});
+    EXPECT_THAT(command, IsOk());
+    std::vector<std::string> records;
+    RunFind(
+        *command, fs_,
+        [&](std::string_view record) {
+          std::string text(record);
+          if (!text.empty() && text.back() == '\n') {
+            text.pop_back();
+          }
+          records.push_back(std::move(text));
+        },
+        [](std::string_view, absl::Status) {});
+    return records.size() == 1 ? records.front() : std::string();
+  };
+  EXPECT_THAT(run("--time-zone-suffix=off"), Eq(run("--time-zone-suffix=never")));
+  EXPECT_THAT(run("--time-zone-suffix=on"), Eq(run("--time-zone-suffix=always")));
+  EXPECT_THAT(run("--time-zone-suffix=off"), Ne(run("--time-zone-suffix=on")));
 }
 
 TEST_F(RunTest, TzIsAnAliasForTimezone) {
