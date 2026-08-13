@@ -52,26 +52,32 @@ TEST_F(ColorTest, CodeForTypeUsesLsLikeScheme) {
   EXPECT_THAT(CodeForType(vfs::FileType::kRegular, 0644), IsEmpty());   // plain file: no color
 }
 
-TEST_F(ColorTest, TheSchemeDefaultsToLsPlusXffAndTheFlagPicks) {
-  // Default kLsXff: the theme where it speaks, xff's colour where it does not - the honest name for
-  // what a themed terminal wants without silently dropping colour the theme forgot.
-  EXPECT_THAT(ResolveScheme({}), Scheme::kLsXff);
-  EXPECT_THAT(ResolveScheme({"--color-scheme=xff"}), Scheme::kXff);
-  EXPECT_THAT(ResolveScheme({"--color-scheme=ls"}), Scheme::kLs);
-  EXPECT_THAT(ResolveScheme({"--color-scheme=ls+xff"}), Scheme::kLsXff);
+TEST_F(ColorTest, TheSchemeDefaultsToAutoAndTheFlagPicks) {
+  // Default kAuto - ls OR xff: the theme when there is one, xff's scheme when there is not. The
+  // spellings follow logic's algebra (`+` is OR, the merge is AND), and `default` names whatever the
+  // default is, so a config file need not hard-code which scheme that currently is.
+  EXPECT_THAT(ResolveScheme({}), Scheme::kAuto);
   EXPECT_THAT(ResolveScheme({"--color-scheme=auto"}), Scheme::kAuto);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=ls+xff"}), Scheme::kAuto);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=ls-or-xff"}), Scheme::kAuto);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=default"}), Scheme::kAuto);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=ls"}), Scheme::kLs);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=ls-and-xff"}), Scheme::kLsAndXff);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=xff"}), Scheme::kXff);
   EXPECT_THAT(ResolveScheme({"--color-scheme=xff", "--color-scheme=ls"}), Scheme::kLs);  // last wins
-  EXPECT_THAT(ResolveScheme({"--color-scheme=nonsense"}), Scheme::kLsXff);               // unknown leaves the default
+  EXPECT_THAT(ResolveScheme({"--color-scheme=nonsense"}), Scheme::kAuto);                // unknown leaves the default
+  // `ls&xff` is not a spelling: an unquoted `&` backgrounds the command, so it must not silently work.
+  EXPECT_THAT(ResolveScheme({"--color-scheme=ls&xff"}), Scheme::kAuto);
 }
 
 TEST_F(ColorTest, LsAloneLeavesWhatTheThemeOmitsUncoloured) {
   // The difference between the two ls readings, in one assertion pair: under `ls` a type the theme
-  // never mentions prints plain (what a real ls does), under `ls+xff` it keeps xff's colour.
+  // never mentions prints plain (what a real ls does), under `ls-and-xff` it keeps xff's colour.
   const Palette strict = PaletteFor(Scheme::kLs, "di=01;35");
   EXPECT_THAT(strict.CodeFor("dir", vfs::FileType::kDirectory, 0755), "01;35");
   EXPECT_THAT(strict.CodeFor("link", vfs::FileType::kSymlink, 0777), IsEmpty());
-  const Palette hybrid = PaletteFor(Scheme::kLsXff, "di=01;35");
-  EXPECT_THAT(hybrid.CodeFor("link", vfs::FileType::kSymlink, 0777), CodeForType(vfs::FileType::kSymlink, 0777));
+  const Palette merged = PaletteFor(Scheme::kLsAndXff, "di=01;35");
+  EXPECT_THAT(merged.CodeFor("link", vfs::FileType::kSymlink, 0777), CodeForType(vfs::FileType::kSymlink, 0777));
 }
 
 TEST_F(ColorTest, AutoDecidesPerVariableNotPerKey) {

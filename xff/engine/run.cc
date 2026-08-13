@@ -2196,8 +2196,8 @@ int RunFind(
       format == render::Format::kPlain
       && color::Enabled(color::ResolveWhen(command.globals), ::isatty(STDOUT_FILENO) != 0, env::Has("NO_COLOR"));
   // --color-scheme: the palette every colourised surface uses, resolved ONCE because colour is a
-  // whole-run choice. The default (`ls+xff`) honours the terminal's own theme through $LS_COLORS and
-  // keeps xff's built-in colour for whatever the theme does not name; see color::Scheme for the four.
+  // whole-run choice. The default (`auto`, i.e. ls OR xff) takes the terminal's own theme through
+  // $LS_COLORS when there is one and xff's built-in scheme when there is not; see color::Scheme.
   const color::Palette palette =
       color::PaletteFor(color::ResolveScheme(command.globals), env::Get("LS_COLORS").value_or(""));
   const std::optional<std::string> tmpl = ResolveTemplate(command.globals);

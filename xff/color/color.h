@@ -51,15 +51,23 @@ std::string_view CodeForType(vfs::FileType type, std::uint32_t mode);
 // Which palette a run colours with (`--color-scheme`). Four distinct answers, because "use ls's
 // colours" turns out to mean three different things and each deserves its own name:
 enum class Scheme : std::uint8_t {
-  kLs,     // $LS_COLORS ALONE: what it does not name is printed uncoloured, as in a real ls listing
-  kLsXff,  // $LS_COLORS where it speaks, xff's colour for every key it omits - the default
-  kAuto,   // $LS_COLORS alone when the variable is set at all, else xff's scheme alone
-  kXff,    // xff's built-in scheme, ignoring $LS_COLORS
+  kAuto,      // ls OR xff: the theme when $LS_COLORS is set at all, else xff's scheme - the DEFAULT
+  kLs,        // $LS_COLORS ALONE: what it does not name prints uncoloured, as in a real ls listing
+  kLsAndXff,  // ls AND xff: the theme where it speaks, xff's colour for every key it omits
+  kXff,       // xff's built-in scheme, ignoring $LS_COLORS
 };
 
-// Resolves `--color-scheme=ls|ls+xff|auto|xff` (last occurrence wins); an absent or unrecognised value
-// leaves the default, kLsXff, so a themed terminal is honoured without asking and nothing that the
-// theme happens to omit loses its colour.
+// Resolves `--color-scheme=auto|ls|ls-and-xff|xff` (last occurrence wins); an absent or unrecognised
+// value leaves the default, kAuto, so a themed terminal is honoured without asking and a machine with
+// no theme still gets colour.
+//
+// The spellings follow logic's own algebra, where `+` is OR and the merge is AND:
+//   auto == ls+xff == ls-or-xff == default   the theme OR xff's scheme, decided per VARIABLE
+//   ls-and-xff                               the theme AND xff's scheme, merged per KEY
+// (`ls&xff` is deliberately NOT accepted: an unquoted `&` backgrounds the command in every shell, and
+// a spelling that only works quoted is a trap, the same reason `-z*` was rejected for the archive
+// umbrella.) `default` is there so a config file can name the default without hard-coding which
+// scheme that currently is.
 Scheme ResolveScheme(const std::vector<std::string>& globals);
 
 // The palette `scheme` describes, given the raw `$LS_COLORS` value (empty when unset). The one place
@@ -90,13 +98,22 @@ class Palette {
   [[nodiscard]] std::string_view CodeFor(std::string_view name, vfs::FileType type, std::uint32_t mode) const;
 
  private:
+  // The theme's code for a two-letter dircolors key, or null when it named none. Null and EMPTY are
+  // different answers: empty is the theme saying "leave these plain".
+  [[nodiscard]] const std::string* Themed(std::string_view key) const;
+
+  // A regular file's colour, which is the only case with an order rather than a single key: the
+  // executable bit (`ex`), then the extension table, then `fi`. Split out so CodeFor stays a
+  // type-to-key lookup.
+  [[nodiscard]] std::string_view RegularCode(std::string_view name, std::uint32_t mode) const;
+
   // The two-letter dircolors type keys this honours, resolved at parse time so the lookup is a
   // single hash probe. Empty (not absent) means "$LS_COLORS says: no colour for this".
   absl::flat_hash_map<std::string, std::string> types_;
   // `*.ext` entries, keyed by the LOWERCASED extension including its dot, since a themed terminal
   // should colour `A.TAR` like `a.tar`.
   absl::flat_hash_map<std::string, std::string> extensions_;
-  // Whether a key `$LS_COLORS` did not name keeps xff's built-in colour (kLsXff) or is left
+  // Whether a key `$LS_COLORS` did not name keeps xff's built-in colour (kLsAndXff) or is left
   // uncoloured (kLs). A default-constructed palette IS the built-in scheme, so this is true there
   // too, and every lookup ends in CodeForType.
   bool fall_back_ = true;

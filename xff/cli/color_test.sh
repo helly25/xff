@@ -83,7 +83,7 @@ test::color_always_leaves_plain_files_uncolored() {
 
 test::the_ls_theme_is_the_default_palette() {
   # The colours a user expects are the ones their terminal is themed with, so $LS_COLORS is read by
-  # default (`ls+xff`): `di=01;35` here must beat xff's own bold blue.
+  # default (`auto`, i.e. ls OR xff): `di=01;35` here must beat xff's own bold blue.
   local root out
   root="$(_make_tree)"
   out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "${root}" -type d 2>&1)"
@@ -111,26 +111,28 @@ test::color_scheme_xff_ignores_the_theme() {
   expect_not_matches $'\033\\[01;35m' "${out}"
 }
 
-test::a_theme_that_says_nothing_about_a_type_keeps_xffs_colour() {
-  # Falling back per KEY rather than per variable: a theme naming only directories must not strip the
-  # colour from symlinks.
+test::ls_and_xff_fills_in_what_the_theme_omits() {
+  # The per-KEY merge, which is NOT the default: a theme naming only directories keeps xff's colour
+  # for symlinks. Under the default (ls OR xff) the same theme is the whole answer.
   local root out
   root="$(_make_tree)"
   ln -s a.txt "${root}/link"
-  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "${root}" -type l 2>&1)"
-  rm -rf "${root}"
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=ls-and-xff "${root}" -type l 2>&1)"
   expect_matches $'\033\\[1;36m' "${out}" # xff's symlink colour survives
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "${root}" -type l 2>&1)"
+  expect_not_matches $'\033\\[' "${out}" # the default takes the theme whole
+  rm -rf "${root}"
 }
 
-test::ls_alone_and_the_hybrid_differ_on_what_the_theme_omits() {
+test::ls_alone_and_the_merge_differ_on_what_the_theme_omits() {
   # The two readings of "use ls colours", side by side on the same theme: `ls` leaves a symlink the
-  # theme never mentions uncoloured (as a real ls does), `ls+xff` keeps xff's colour for it.
+  # theme never mentions uncoloured (as a real ls does), `ls-and-xff` keeps xff's colour for it.
   local root out
   root="$(_make_tree)"
   ln -s a.txt "${root}/link"
   out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=ls "${root}" -type l 2>&1)"
   expect_not_matches $'\033\\[' "${out}"
-  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=ls+xff "${root}" -type l 2>&1)"
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=ls-and-xff "${root}" -type l 2>&1)"
   expect_matches $'\033\\[1;36m' "${out}"
   rm -rf "${root}"
 }
@@ -145,6 +147,11 @@ test::auto_takes_the_theme_whole_or_not_at_all() {
   expect_not_matches $'\033\\[' "${out}"
   out="$(env -u LS_COLORS "$(_xff_bin)" --color=always --color-scheme=auto "${root}" -type l 2>&1)"
   expect_matches $'\033\\[1;36m' "${out}"
+  # The synonyms are one value, which is what lets a config file name the default.
+  for spelling in "ls+xff" "ls-or-xff" "default"; do
+    out="$(env -u LS_COLORS "$(_xff_bin)" --color=always "--color-scheme=${spelling}" "${root}" -type l 2>&1)"
+    expect_matches $'\033\\[1;36m' "${out}"
+  done
   rm -rf "${root}"
 }
 

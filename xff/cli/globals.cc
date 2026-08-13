@@ -79,9 +79,11 @@ constexpr std::array kArchiveValues = std::to_array<ValueDoc>({
     {.value = "all", .meaning = "also dive archives found during the walk (what bare `--archive` selects)"},
 });
 constexpr std::array kColorSchemeValues = std::to_array<ValueDoc>({
-    {.value = "ls+xff", .meaning = "$LS_COLORS where it speaks, xff's colour for the keys it omits (default)"},
+    {.value = "auto",
+     .meaning = "ls OR xff: the theme when $LS_COLORS is set, else xff's scheme (the default; also "
+                "spelled `ls+xff`, `ls-or-xff` or `default`)"},
     {.value = "ls", .meaning = "$LS_COLORS alone: what it does not name prints uncoloured, as in ls"},
-    {.value = "auto", .meaning = "$LS_COLORS alone when the variable is set at all, else xff alone"},
+    {.value = "ls-and-xff", .meaning = "the theme where it speaks, xff's colour for every key it omits (per-key)"},
     {.value = "xff", .meaning = "xff's built-in type scheme, ignoring $LS_COLORS"},
 });
 constexpr std::array kArchiveAggregateValues = std::to_array<ValueDoc>({
@@ -871,15 +873,20 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "variable `ls` and `dircolors` use, and xff reads the same keys: the two-letter "
                    "types (di, ln, ex, pi, so, bd, cd, fi) and the per-extension `*.tar=` entries. "
                    "\"Use ls's colours\" turns out to mean three different things, so each has its "
-                   "own name: `ls+xff` (the default) takes the theme where it speaks and keeps xff's "
-                   "colour for every key it omits; `ls` is the theme ALONE, so a type it never "
-                   "mentions prints uncoloured exactly as in a real ls listing; `auto` decides per "
-                   "VARIABLE rather than per key - a theme that is set at all is the whole answer, an "
-                   "unset one leaves xff's scheme untouched. `xff` ignores $LS_COLORS entirely. An "
-                   "EMPTY value in the theme (`di=`) is it saying \"leave these plain\" and is "
-                   "honoured as such under `ls+xff` too; a malformed entry is skipped rather than "
-                   "failing the run, as in ls. Whether colour is emitted at all is --color's "
-                   "business, not this flag's.",
+                   "own name, spelled the way logic spells it: `+` is OR, and the merge is AND. "
+                   "`auto` (the default, also `ls+xff` or `ls-or-xff`) is the theme OR xff's scheme - "
+                   "a theme that is set at all is the whole answer, and with none set xff's scheme is, "
+                   "so the decision is per VARIABLE; `default` is a fourth spelling of it, for a "
+                   "config file that wants whatever the default currently is. `ls` is the theme "
+                   "ALONE, so a type it never mentions prints uncoloured exactly as in a real ls "
+                   "listing (and with no theme set, nothing is coloured). `ls-and-xff` is the theme "
+                   "AND xff's scheme, merged per KEY: the theme where it speaks, xff's colour for "
+                   "every key it omits - for a sparse theme you want filled in. (`ls&xff` is "
+                   "deliberately not accepted: an unquoted `&` backgrounds the command.) `xff` "
+                   "ignores $LS_COLORS entirely. An EMPTY value in the theme (`di=`) is it "
+                   "saying \"leave these plain\" and is honoured as such; a malformed entry is "
+                   "skipped rather than failing the run, as in ls. Whether colour is emitted at all "
+                   "is --color's business, not this flag's.",
         .values = kColorSchemeValues,
         .affects = "--color",
     },
