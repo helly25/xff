@@ -207,6 +207,14 @@ test::help_styles_shows_the_flavor_comparison() {
   expect_output_contains "Where the styles differ:" "${out}"
   # hidden: find/xff show, rg skips (one row, so the whole-text regex stays on that line).
   expect_matches 'hidden dotfiles.*show.*show.*skip' "${out}"
+  # The tail maps other finders' spellings onto xff's, which is the other half of "which flavor am I
+  # in": every claim here is a real xff spelling, so a rename would break this test rather than
+  # silently mislead someone arriving from fd.
+  expect_output_contains "Coming from fd:" "${out}"
+  expect_output_contains "-name PATTERN" "${out}"
+  expect_output_contains "the primary IS the choice" "${out}" # why there is no --glob
+  expect_output_contains "--no-hidden" "${out}"
+  expect_output_contains "Coming from ripgrep:" "${out}"
 }
 
 test::explain_adds_the_current_flavor_column() {
