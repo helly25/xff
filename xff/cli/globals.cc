@@ -78,6 +78,11 @@ constexpr std::array kArchiveValues = std::to_array<ValueDoc>({
     {.value = "roots", .meaning = "dive only when a search root is itself an archive (the xff-family default)"},
     {.value = "all", .meaning = "also dive archives found during the walk (what bare `--archive` selects)"},
 });
+constexpr std::array kArchiveAggregateValues = std::to_array<ValueDoc>({
+    {.value = "members", .meaning = "count what is INSIDE a dived container, not the container (the default)"},
+    {.value = "container", .meaning = "count containers as the files they are on disk, never their members"},
+    {.value = "both", .meaning = "count each container AND its members - the archive plus its unpacked copy"},
+});
 constexpr std::array kArchivePrefixValues = std::to_array<ValueDoc>({
     {.value = "(empty)", .meaning = "no prefix - a bare path, `a.tgz!inner/x` (the default)"},
     {.value = "URI", .meaning = "`archive:///abs/a.tar!x` when the container is absolute, else `archive:a.tgz!x`"},
@@ -255,6 +260,26 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "- while -maxdepth keeps counting member levels as the ordinary depth they are. Only `all` "
                    "nests: under `roots` a member is never a search root, so nothing inside the container is "
                    "dived whatever the value. N must be at least 1; use --archive=none / -z- to stop diving.",
+        .affects = "--archive",
+        .extra = "archive",
+    },
+    {
+        .name = "--archive-aggregate",
+        .display = "--archive-aggregate=MODE",
+        .group = "traversal",
+        .header = "Traversal",
+        .summary = "what --summary / --histogram count when the walk dives (default members)",
+        .details = "Diving makes one byte visible twice - once as the container's own size, once as its "
+                   "members' - so a total that adds both describes no filesystem that exists. `members` (the "
+                   "default) counts a dived container's members instead of the container, which is what "
+                   "unpacking it and measuring the result would give; `container` counts the archives and "
+                   "never what is in them, which is what the disk holds; `both` counts everything, the "
+                   "archive AND its unpacked copy, for when the doubling is the point. Only the REDUCTIONS "
+                   "are affected: -print and every action still see every entry the walk visits, so a member "
+                   "is listed under `container` and the container is listed under `members`. `members` needs "
+                   "the walk to open a container before deciding, so a `-prune` on a container no longer "
+                   "avoids opening it - use another mode, or no reduction, to keep that.",
+        .values = kArchiveAggregateValues,
         .affects = "--archive",
         .extra = "archive",
     },

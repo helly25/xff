@@ -662,6 +662,79 @@ TEST_F(WalkMountTest, UnderSubtreeSortAMidWalkContainerLeadsItsOwnBlock) {
           Pair("top/a.tar!dir", 2), Pair("top/a.tar!dir/two.txt", 3)));
 }
 
+TEST_F(WalkMountTest, WithoutMountBeforeVisitNoEntryClaimsToBeDived) {
+  // The default order opens a container only after its own entry was visited, so at visit time the
+  // answer does not exist yet and the flag stays false even for the container that IS dived. That is
+  // what keeps `-prune` able to skip the open entirely.
+  fs_.AddFile("a.tar", 1);
+  std::vector<std::pair<std::string, bool>> dived;
+  Walked(
+      {"a.tar"}, WalkOptions{.archive = ArchiveDive::kRoots},
+      [&dived](const Visit& visit) {
+        dived.emplace_back(std::string(visit.path), visit.dived);
+        return WalkAction::kContinue;
+      },
+      [](std::string_view container, const vfs::FileSystem&, int) { return MountTars(container); });
+  EXPECT_THAT(
+      dived, ElementsAre(
+                 Pair("a.tar", false), Pair("a.tar!dir", false), Pair("a.tar!one.txt", false),
+                 Pair("a.tar!dir/two.txt", false)));
+}
+
+TEST_F(WalkMountTest, MountBeforeVisitTellsTheContainerItsMembersFollow) {
+  // With the option on, the container is opened first, so its own entry knows the members follow -
+  // which is what lets a reduction count them instead of it. Only the container says so: a member is
+  // not itself a dived container, and neither is a plain file that is not an archive.
+  fs_.AddDir("top", 1, {Entry("top/a.tar"), Entry("top/b.txt")});
+  fs_.AddFile("top/a.tar", 1);
+  fs_.AddFile("top/b.txt", 1);
+  std::vector<std::pair<std::string, bool>> dived;
+  Walked(
+      {"top"}, WalkOptions{.sort = SortOrder::kDir, .archive = ArchiveDive::kAll, .mount_before_visit = true},
+      [&dived](const Visit& visit) {
+        dived.emplace_back(std::string(visit.path), visit.dived);
+        return WalkAction::kContinue;
+      },
+      [](std::string_view container, const vfs::FileSystem&, int) { return MountTars(container); });
+  EXPECT_THAT(
+      dived, ElementsAre(
+                 Pair("top", false), Pair("top/a.tar", true), Pair("top/b.txt", false), Pair("top/a.tar!dir", false),
+                 Pair("top/a.tar!one.txt", false), Pair("top/a.tar!dir/two.txt", false)));
+}
+
+TEST_F(WalkMountTest, MountBeforeVisitSaysFalseWhenTheFileIsNotAnArchive) {
+  // The answer is the OPEN's, not the name's: a `.tar` that will not open is walked as the plain file
+  // it is, and must not claim members are coming.
+  fs_.AddFile("broken.tar", 1);
+  std::vector<bool> dived;
+  Walked(
+      {"broken.tar"}, WalkOptions{.archive = ArchiveDive::kRoots, .mount_before_visit = true},
+      [&dived](const Visit& visit) {
+        dived.push_back(visit.dived);
+        return WalkAction::kContinue;
+      },
+      [](std::string_view, const vfs::FileSystem&, int) {
+        return absl::StatusOr<std::unique_ptr<const vfs::FileSystem>>(absl::InvalidArgumentError("not an archive"));
+      });
+  EXPECT_THAT(dived, ElementsAre(false));
+}
+
+TEST_F(WalkMountTest, MountBeforeVisitOpensEachContainerOncePerDive) {
+  // The hoist must not turn one dive into two opens on the roots path: the open taken to answer the
+  // visit is the one the dive then walks.
+  fs_.AddFile("a.tar", 1);
+  int mounts = 0;
+  EXPECT_THAT(
+      Walked(
+          {"a.tar"}, WalkOptions{.archive = ArchiveDive::kRoots, .mount_before_visit = true}, Keep,
+          [&mounts](std::string_view container, const vfs::FileSystem&, int) {
+            ++mounts;
+            return MountTars(container);
+          }),
+      ElementsAre(Pair("a.tar", 0), Pair("a.tar!dir", 1), Pair("a.tar!one.txt", 1), Pair("a.tar!dir/two.txt", 2)));
+  EXPECT_THAT(mounts, 1);
+}
+
 TEST_F(WalkMountTest, PruningTheContainerSkipsItsMembersButKeepsTheFile) {
   // `-name '*.tar' -prune` must skip the diving without hiding the tar itself, exactly as pruning a
   // directory keeps the directory.

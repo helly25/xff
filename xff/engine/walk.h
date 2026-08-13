@@ -87,6 +87,14 @@ struct WalkOptions {
   // because nesting is a decompression-bomb risk that has nothing to do with -maxdepth, which keeps
   // counting member levels as ordinary depth.
   int archive_depth = 1;
+  // Open a container BEFORE its own entry is visited, so `Visit::dived` is exact (see there).
+  //
+  // Off by default because it costs: a container is normally opened only after the visit, so
+  // `-name '*.tar' -prune` skips the open entirely, and mid-walk the answer is needed for a whole
+  // listing block at once (so the walk opens each container once to ask and again to walk it, rather
+  // than holding a directory's worth of open archives). Only a caller that needs the answer at visit
+  // time - a reduction that must not count both a container and its members - turns this on.
+  bool mount_before_visit = false;
 };
 
 // One visited entry handed to the `Visitor`. `path`/`name` reference storage
@@ -97,6 +105,11 @@ struct Visit {
   std::string_view root;          // command-line search root this entry was reached from (find %H)
   int depth;                      // 0 for a root operand, +1 per directory level
   const vfs::Metadata& metadata;  // lstat of `path`
+  // True when this entry is a container the walk OPENED, so its members follow as entries of their
+  // own and its bytes are already represented by them. Always false unless
+  // `WalkOptions::mount_before_visit` is set, because otherwise the container is opened after this
+  // visit and the answer does not exist yet.
+  bool dived = false;
   // The filesystem this entry came FROM: the walk's own, except inside a mounted container, where it
   // is the container's. A predicate that READS the entry (content, hash, diff) must go through this
   // one, or a member would read as empty - `a.tar!x` is not a path the real filesystem has. Null
