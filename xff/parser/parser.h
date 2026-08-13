@@ -59,6 +59,14 @@ CaseMode ResolveCaseMode(const std::vector<std::string>& globals, registry::Styl
 // no uppercase). kSensitive is a no-op; the -i variants are left as they are (already fold).
 void ApplyCaseMode(Command& command, CaseMode mode);
 
+// Whether `expr` contains a primary that may take the TERMINAL for itself: -ok / -okdir prompt and
+// read a reply, and -exec / -execdir hand our stdin / stdout to a child that might (an editor).
+// Read from the registry (Descriptor::terminal), never from a name list here, so a new primary of
+// that shape is covered by declaring it. A null expression is false.
+//
+// The caller is the CLI's listing pager, which must not sit between such a primary and the user.
+[[nodiscard]] bool TakesTerminal(const Expr* expr);
+
 }  // namespace xff::parser
 
 #endif  // XFF_PARSER_PARSER_H_
