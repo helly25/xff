@@ -105,6 +105,10 @@ The generated `--help` / `--man` / `--markdown` then stay complete by constructi
   set, which `--help=archive` then gathers) or as a value on a flag that already exists
   (`--case=smart`, not `--smart-case`). So when adding a boolean: name it into its family if it has
   one, fold it into a valued flag if that reads naturally, and only then consider a standalone
-  boolean. The verdict and the one remaining `--feature`-shaped case (gating UNSTABLE features,
-  which would be a single `--unstable=NAME` list rather than a registry) are recorded in
-  [`TODO.md`](TODO.md) under #73.
+  boolean. The verdict is recorded in [`TODO.md`](TODO.md) under #73.
+- **A feature whose SPELLING is not settled ships behind `--unstable=NAME`, not under a provisional
+  flag name.** That is the one `--feature`-shaped mechanism xff adopts (design in
+  [`TODO.md`](TODO.md) under #73): one repeatable, comma-separated list; an unknown name is a usage
+  error; the gated flag's own help says it is unstable; graduation means DELETING the gate rather
+  than keeping an alias. It gates spelling only - a destructive capability keeps its own explicit
+  flag and is never armed by list.

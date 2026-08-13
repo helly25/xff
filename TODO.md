@@ -6,16 +6,26 @@ shipped one way but not yet settled.
 
 ## Open decisions
 
-- **OPEN (raised 2026-08-13): should `-ls` colour its name column?** Today `--color` colours the plain
-  listing and `-ls` prints an entirely uncoloured row, which is the inconsistency: the same run
-  colours `xff .` and not `xff . -ls`. `ls -l` colours only the NAME, never the metadata, and in
-  xff's `-ls` layout the path is the LAST column, so ANSI escapes cannot disturb the computed widths
-  - a small change using the scheme that already exists. Leaning: do it, name column only.
-  - **Separate and larger: honouring `LS_COLORS` / `dircolors`,** which is what "the colours ls does"
-    literally means. xff has its own type scheme (#91); reading `LS_COLORS` needs a dircolors parser
-    (per-extension entries, `*.ext=` globs, the `di`/`ln`/`ex`/... type keys) and a newly documented
-    environment variable. Worth doing for people whose terminals are themed, but it is its own slice
-    and should not be smuggled in with the `-ls` fix.
+- **DECIDED (user, 2026-08-13): colour comes from ONE resolved palette, `ls`-derived by default, and
+  `-ls` uses it too.** Three statements, one design:
+  1. if `xff .` colourises, `xff . -ls` must colourise as well - the same run colouring one and not
+     the other is the bug;
+  2. the colours should be _the ones `ls` uses_, i.e. `$LS_COLORS` (dircolors) is the DEFAULT source;
+  3. a user may want xff's own scheme back - and, symmetrically, someone who likes the `ls` palette
+     wants the plain listing to use it too. So the palette is a run-wide CHOICE, not a per-action one.
+  - **Shape:** `--color-scheme=ls|xff` (spelling to confirm), resolved once per run beside
+    `--color=WHEN`, and consulted by every colourised surface (the plain listing, `-ls`, and any
+    future tabular output). `ls` means: parse `$LS_COLORS`, fall back to xff's built-in type scheme
+    for anything it does not specify (and entirely, when the variable is unset); `xff` means the
+    built-in scheme regardless. Default `ls`, per (2) - which is a BEHAVIOUR CHANGE for anyone whose
+    `$LS_COLORS` differs from xff's scheme, and is the point.
+  - **`-ls` colours the NAME column only,** as `ls -l` does; the metadata stays plain. Safe by
+    construction: the path is the last column, so ANSI escapes cannot disturb the computed widths.
+  - **Work:** a dircolors parser (the `key=value:` list: the two-letter type keys `di` / `ln` / `ex`
+    / `fi` / `so` / `pi` / `bd` / `cd` / `or` / `mi` / `su` / `sg` / `tw` / `ow` / `st` / `ca`, plus
+    the `*.ext=` per-extension entries, which xff's scheme has nothing equivalent to), the
+    `$LS_COLORS` env var documented (the `check-env-documented` hook enforces it), the flag, and the
+    `-ls` wiring. Two slices: the palette (parser + flag + plain listing), then `-ls`.
 
 - **BUG (help text): `-grep` context has only its LONG flags (raised 2026-08-13, FIXED).**
   `--context=SPEC`, `--after-context=N` and `--before-context=N` all work; the single-dash `-A` / `-B`
@@ -364,11 +374,22 @@ remains below is the design-forked / larger work.
     `--archive-*` set, which `--help=archive` then gathers) or as a VALUE on an existing flag
     (`--case=smart`, not `--smart-case`). Two spellings for one switch is a real cost, and the
     registry's payoff needs several customers it never got.
-  - **The one case that remains compelling: gating UNSTABLE features so their spelling is not a
-    promise.** `-fuzzy` ranking (#168) and the FUSE mount (#183) are exactly features worth shipping
-    before their flag names are settled. That is narrower than a capability registry, and it is
-    better spelled as one list - `--unstable=NAME[,NAME]`, everything in it documented as subject to
-    change - than as a namespace that looks permanent.
+  - **ADOPTED INSTEAD (user, 2026-08-13): `--unstable=NAME[,NAME]`.** The one case that remains
+    compelling is gating UNSTABLE features so their spelling is not a promise - `-fuzzy` ranking
+    (#168) and the FUSE mount (#183) are exactly features worth shipping before their flag names are
+    settled. One list beats a capability namespace that looks permanent. Design, to build the first
+    time a feature needs it:
+    - **repeatable and comma-separated**, resolved once before the walk; an unknown name is a usage
+      error naming the known set, exactly as a bad `--summary` value is (never a silent no-op);
+    - **a registry mirroring the globals SOT** - name + one-line summary + what it gates - so
+      `--help=unstable` lists them without a hand-maintained page, and `--explain` shows which are on;
+    - **every gated surface says "unstable" in its own help**, so a user reading `--help=NAME` for
+      the flag it enables cannot miss that it may change or vanish;
+    - **graduation is deleting the gate,** not adding an alias: when a name settles, the flag becomes
+      ordinary and the `--unstable` entry disappears (with a CHANGELOG line, since a run that named
+      it then errors - which is the honest outcome for something documented as subject to change);
+    - **it gates SPELLING, never safety.** A destructive capability stays behind its own explicit
+      flag (`--archive-delete`); `--unstable` is not a way to arm something dangerous by list.
   - **The other two cases are covered or not yet real.** Post-1.0 behaviour-migration windows
     (`--feature=no-size-round-up` while a default changes) are a genuine use, but xff has no legacy
     to carry before 1.0. Admin capability DENIAL is already the config `[policy]` tier's job, which
