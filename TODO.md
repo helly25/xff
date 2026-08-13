@@ -26,6 +26,18 @@ shipped one way but not yet settled.
     the `*.ext=` per-extension entries, which xff's scheme has nothing equivalent to), the
     `$LS_COLORS` env var documented (the `check-env-documented` hook enforces it), the flag, and the
     `-ls` wiring. Two slices: the palette (parser + flag + plain listing), then `-ls`.
+  - **SHIPPED** as `--color-scheme=auto|ls|merged|xff` (`auto` default; `ls+xff` / `ls-or-xff` /
+    `default` name `auto`, `ls-and-xff` names `merged`), with `-ls` colouring the name column.
+  - **`$LSCOLORS` (BSD / macOS) is read too, SHIPPED.** A macOS user who themes `ls` has BSD's
+    variable and no dircolors setup at all, so reading only `$LS_COLORS` made "the colours ls uses"
+    false on that platform. It is 11 fixed-position fg/bg letter pairs (`di` `ln` `so` `pi` `ex` `bd`
+    `cd` `su` `sg` `tw` `ow`), letters `a`..`h` for the eight ANSI colours, uppercase = bold
+    foreground / bright background, `x` = terminal default. `$LS_COLORS` WINS when both are set,
+    being the richer format. Two consequences worth remembering: a value of any other length is
+    ignored WHOLE (position is the key, so a short value would shift every later type by one) and
+    then counts as no theme rather than an empty one; and BSD has no per-extension entries and no
+    `fi` slot, so `merged` is the interesting scheme there - `ls` alone leaves every regular file
+    plain.
 
 - **BUG (help text): `-grep` context has only its LONG flags (raised 2026-08-13, FIXED).**
   `--context=SPEC`, `--after-context=N` and `--before-context=N` all work; the single-dash `-A` / `-B`

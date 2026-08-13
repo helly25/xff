@@ -262,6 +262,7 @@ int RunMain(int argc, char** argv) {
       "LANG",
       "LC_ALL",
       "LC_CTYPE",
+      "LSCOLORS",
       "LS_COLORS",
       "NO_COLOR",
       "PAGER",

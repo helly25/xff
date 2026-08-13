@@ -80,9 +80,9 @@ constexpr std::array kArchiveValues = std::to_array<ValueDoc>({
 });
 constexpr std::array kColorSchemeValues = std::to_array<ValueDoc>({
     {.value = "auto",
-     .meaning = "ls OR xff: the theme when $LS_COLORS is set, else xff's scheme (the default; also "
-                "spelled `ls+xff`, `ls-or-xff` or `default`)"},
-    {.value = "ls", .meaning = "$LS_COLORS alone: what it does not name prints uncoloured, as in ls"},
+     .meaning = "ls OR xff: the theme when $LS_COLORS / $LSCOLORS is set, else xff's scheme (the "
+                "default; also spelled `ls+xff`, `ls-or-xff` or `default`)"},
+    {.value = "ls", .meaning = "the theme alone ($LS_COLORS, else $LSCOLORS): what it omits prints plain, as in ls"},
     {.value = "merged",
      .meaning = "the theme where it speaks, xff's colour for every key it omits, per key (also `ls-and-xff`)"},
     {.value = "xff", .meaning = "xff's built-in type scheme, ignoring $LS_COLORS"},
@@ -873,6 +873,10 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "colours - the plain listing and -ls alike; they cannot disagree. $LS_COLORS is the "
                    "variable `ls` and `dircolors` use, and xff reads the same keys: the two-letter "
                    "types (di, ln, ex, pi, so, bd, cd, fi) and the per-extension `*.tar=` entries. "
+                   "Where only BSD's $LSCOLORS is set - the macOS case - that is read instead: its 11 "
+                   "letter pairs carry the same types in a fixed order, with no way to say \"leave "
+                   "this plain\" and no per-extension entries, so `merged` is the interesting scheme "
+                   "there. $LS_COLORS wins when both are set, being the richer format. "
                    "\"Use ls's colours\" turns out to mean three different things, so each has its "
                    "own name, spelled the way logic spells it: `+` is OR, and the merge is AND. "
                    "`auto` (the default, also `ls+xff` or `ls-or-xff`) is the theme OR xff's scheme - "

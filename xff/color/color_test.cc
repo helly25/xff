@@ -142,5 +142,82 @@ TEST_F(ColorTest, AMalformedLsColorsIsIgnoredEntryByEntry) {
   EXPECT_THAT(palette.CodeFor("a.txt", vfs::FileType::kRegular, 0644), IsEmpty());
 }
 
+TEST_F(ColorTest, BsdLsColorsMapsLetterPairsInTheirFixedOrder) {
+  // macOS's default LSCOLORS. Position is the key: pair 1 is `di`, pair 2 is `ln`, and so on.
+  const Palette palette = Palette::FromBsdLsColors("exfxcxdxbxegedabagacad");
+  EXPECT_THAT(palette.CodeFor("dir", vfs::FileType::kDirectory, 0755), "34");       // `ex` -> blue on default
+  EXPECT_THAT(palette.CodeFor("link", vfs::FileType::kSymlink, 0777), "35");        // `fx` -> magenta
+  EXPECT_THAT(palette.CodeFor("sock", vfs::FileType::kSocket, 0644), "32");         // `cx` -> green
+  EXPECT_THAT(palette.CodeFor("pipe", vfs::FileType::kFifo, 0644), "33");           // `dx` -> brown
+  EXPECT_THAT(palette.CodeFor("run", vfs::FileType::kRegular, 0755), "31");         // `bx` -> red
+  EXPECT_THAT(palette.CodeFor("blk", vfs::FileType::kBlockDevice, 0644), "34;46");  // `eg` -> blue on cyan
+}
+
+TEST_F(ColorTest, BsdUppercaseIsBoldForegroundAndBrightBackground) {
+  const Palette palette = Palette::FromBsdLsColors("ExfBxxxxxxxxxxxxxxxxxx");
+  // Brightness is spelled differently per role, as BSD ls renders it: bold for a foreground, the
+  // high-intensity range for a background.
+  EXPECT_THAT(palette.CodeFor("dir", vfs::FileType::kDirectory, 0755), "1;34");   // `Ex` -> bold blue
+  EXPECT_THAT(palette.CodeFor("link", vfs::FileType::kSymlink, 0777), "35;101");  // `fB` -> on bright red
+}
+
+TEST_F(ColorTest, BsdDefaultPairIsTheTerminalDefault) {
+  // `xx` is BSD's only way of saying "leave this type alone". Unlike $LS_COLORS's empty value it is
+  // not a deliberate silence - every position is always present - so under `merged` it reads as "no
+  // opinion" and xff's colour stands; under `ls` it prints plain, as ls does.
+  const Palette palette = Palette::FromBsdLsColors("xxxxxxxxxxxxxxxxxxxxxx", /*fall_back=*/false);
+  EXPECT_THAT(palette.CodeFor("dir", vfs::FileType::kDirectory, 0755), IsEmpty());
+  EXPECT_THAT(palette.CodeFor("pipe", vfs::FileType::kFifo, 0644), IsEmpty());
+  EXPECT_THAT(
+      Palette::FromBsdLsColors("xxxxxxxxxxxxxxxxxxxxxx").CodeFor("dir", vfs::FileType::kDirectory, 0755),
+      CodeForType(vfs::FileType::kDirectory, 0755));
+}
+
+TEST_F(ColorTest, BsdFallBackKeepsXffsSchemeForWhatTheVariableCannotSay) {
+  // LSCOLORS has no per-extension entries and no `fi` slot, so `merged` is the interesting scheme
+  // here: regular files keep xff's colours because the variable simply cannot speak about them.
+  const Palette palette = Palette::FromBsdLsColors("exfxcxdxbxegedabagacad", /*fall_back=*/true);
+  EXPECT_THAT(palette.CodeFor("dir", vfs::FileType::kDirectory, 0755), "34");
+  EXPECT_THAT(palette.CodeFor("a.txt", vfs::FileType::kRegular, 0644), CodeForType(vfs::FileType::kRegular, 0644));
+}
+
+TEST_F(ColorTest, AMisSizedBsdLsColorsIsIgnoredWhole) {
+  // A short value would shift every later type's colour by a position, which is worse than no theme
+  // at all - so unlike $LS_COLORS (entry by entry), a malformed $LSCOLORS is dropped entirely.
+  EXPECT_THAT(
+      Palette::FromBsdLsColors("exfx", /*fall_back=*/false).CodeFor("dir", vfs::FileType::kDirectory, 0755), IsEmpty());
+  // Long, and with a garbage tail: still all or nothing.
+  EXPECT_THAT(
+      Palette::FromBsdLsColors("exfxcxdxbxegedabagacadZZ", /*fall_back=*/false)
+          .CodeFor("dir", vfs::FileType::kDirectory, 0755),
+      IsEmpty());
+  // Under `merged` an ignored variable is simply no theme, so xff's own scheme stands.
+  EXPECT_THAT(
+      Palette::FromBsdLsColors("exfx").CodeFor("dir", vfs::FileType::kDirectory, 0755),
+      CodeForType(vfs::FileType::kDirectory, 0755));
+  // And `auto` must reach xff's scheme too rather than treating "unreadable" as "plain".
+  EXPECT_THAT(
+      PaletteFor(Scheme::kAuto, "", "exfx").CodeFor("dir", vfs::FileType::kDirectory, 0755),
+      CodeForType(vfs::FileType::kDirectory, 0755));
+}
+
+TEST_F(ColorTest, LsColorsWinsOverLscolorsWhenBothAreSet) {
+  const Palette both = PaletteFor(Scheme::kLs, "di=01;35", "exfxcxdxbxegedabagacad");
+  EXPECT_THAT(both.CodeFor("dir", vfs::FileType::kDirectory, 0755), "01;35");
+  const Palette bsd_only = PaletteFor(Scheme::kLs, "", "exfxcxdxbxegedabagacad");
+  EXPECT_THAT(bsd_only.CodeFor("dir", vfs::FileType::kDirectory, 0755), "34");
+}
+
+TEST_F(ColorTest, AutoTakesTheBsdThemeWhenThatIsTheOnlyOneSet) {
+  // The macOS case: no dircolors setup at all, yet `ls` is themed - `auto` must follow it.
+  const Palette palette = PaletteFor(Scheme::kAuto, "", "exfxcxdxbxegedabagacad");
+  EXPECT_THAT(palette.CodeFor("dir", vfs::FileType::kDirectory, 0755), "34");
+  EXPECT_THAT(palette.CodeFor("a.txt", vfs::FileType::kRegular, 0644), IsEmpty());
+  // With neither variable set `auto` is xff's own scheme, unchanged.
+  EXPECT_THAT(
+      PaletteFor(Scheme::kAuto, "", "").CodeFor("dir", vfs::FileType::kDirectory, 0755),
+      CodeForType(vfs::FileType::kDirectory, 0755));
+}
+
 }  // namespace
 }  // namespace xff::color

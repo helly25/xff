@@ -24,6 +24,10 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# The theme variables are inputs under test, so they are cleared once here and set per case. A
+# themed shell (a macOS $LSCOLORS in particular) would otherwise change what the unthemed cases see.
+unset LS_COLORS LSCOLORS
+
 _xff_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
   if [[ ! -x "${bin}" ]]; then
@@ -157,13 +161,32 @@ test::auto_takes_the_theme_whole_or_not_at_all() {
   rm -rf "${root}"
 }
 
+test::bsd_lscolors_themes_the_listing_on_macos() {
+  # BSD's variable in BSD's spelling: 11 fg/bg letter pairs, position as the key. This is the only
+  # theme a macOS user who ran no dircolors setup has, so ignoring it made "the colours ls uses"
+  # false on that platform.
+  local root out
+  root="$(_make_tree)"
+  out="$(LSCOLORS='ExFxCxDxBxegedabagacad' "$(_xff_bin)" --color=always "${root}" -type d 2>&1)"
+  expect_matches $'\033\\[1;34m' "${out}" # `Ex` -> bold blue, the macOS default directory colour
+  # $LS_COLORS is the richer format, so it wins wherever both are set.
+  out="$(LS_COLORS='di=01;35' LSCOLORS='ExFxCxDxBxegedabagacad' "$(_xff_bin)" --color=always "${root}" -type d 2>&1)"
+  expect_matches $'\033\\[01;35m' "${out}"
+  # A mis-sized value is ignored whole rather than shifting every later type by a position, which
+  # leaves xff's own scheme in place under the default scheme.
+  out="$(LSCOLORS='Ex' "$(_xff_bin)" --color=always "${root}" -type d 2>&1)"
+  expect_matches "${DIR_COLOR}" "${out}"
+  rm -rf "${root}"
+}
+
 test::help_documents_color() {
   # Self-documentation: the --help usage page lists --color in the Output group.
   expect_output_contains "--color" "$("$(_xff_bin)" --help 2>&1)"
   # And the palette flag, whose help has to say where the colours come from.
   out="$("$(_xff_bin)" --help=--color-scheme 2>&1)"
   expect_output_contains "LS_COLORS" "${out}"
-  expect_output_contains "ls+xff" "${out}" # each reading of "ls colours" is named
+  expect_output_contains "LSCOLORS" "${out}" # BSD / macOS spelling of the same theme
+  expect_output_contains "ls+xff" "${out}"   # each reading of "ls colours" is named
   expect_output_contains "auto" "${out}"
 }
 

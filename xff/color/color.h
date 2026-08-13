@@ -63,6 +63,7 @@ enum class Scheme : std::uint8_t {
 //
 // The spellings follow logic's own algebra, where `+` is OR and the merge is AND:
 //   auto == ls+xff == ls-or-xff == default   the theme OR xff's scheme, decided per VARIABLE
+// ("the theme" is `$LS_COLORS` or, where only it is set, `$LSCOLORS` - see PaletteFor.)
 //   merged == ls-and-xff                     the theme AND xff's scheme, merged per KEY
 // (`ls&xff` is deliberately NOT accepted: an unquoted `&` backgrounds the command in every shell, and
 // a spelling that only works quoted is a trap, the same reason `-z*` was rejected for the archive
@@ -70,10 +71,16 @@ enum class Scheme : std::uint8_t {
 // scheme that currently is.
 Scheme ResolveScheme(const std::vector<std::string>& globals);
 
-// The palette `scheme` describes, given the raw `$LS_COLORS` value (empty when unset). The one place
-// the four schemes turn into a lookup, so a caller never has to know which of them falls back how.
+// The palette `scheme` describes, given the terminal's theme as the environment states it: `ls_colors`
+// is `$LS_COLORS` (GNU / dircolors) and `bsd_lscolors` is `$LSCOLORS` (BSD, and so the one a macOS
+// user actually has); either may be empty for unset. The one place the four schemes turn into a
+// lookup, so a caller never has to know which of them falls back how.
+//
+// `$LS_COLORS` wins when both are set: it is the richer format (per-extension entries, explicit
+// "leave this plain"), and a machine with both usually has GNU coreutils installed alongside the
+// system ls, which is the ls whose colours the richer variable describes.
 class Palette;
-[[nodiscard]] Palette PaletteFor(Scheme scheme, std::string_view ls_colors);
+[[nodiscard]] Palette PaletteFor(Scheme scheme, std::string_view ls_colors, std::string_view bsd_lscolors = {});
 
 // The colours one run uses. Built once (colours are a whole-run choice, not a per-entry one) and
 // consulted by every colourised surface, so the plain listing and `-ls` cannot disagree.
@@ -93,6 +100,15 @@ class Palette {
   // skipped rather than failing the run: a malformed variable is not worth refusing to list files
   // over, and `ls` itself ignores them.
   static Palette FromLsColors(std::string_view ls_colors, bool fall_back = true);
+
+  // `$LSCOLORS` (BSD / macOS) as the palette: 11 consecutive foreground+background LETTER pairs, in
+  // the fixed order directory, symlink, socket, fifo, executable, block device, char device, setuid,
+  // setgid, other-writable-with-sticky, other-writable - so position IS the key, and there is no way
+  // to say "leave this plain" or to colour an extension. `a`..`h` are black, red, green, brown, blue,
+  // magenta, cyan and light grey; an UPPERCASE letter is the bold / bright variant; `x` is the
+  // terminal default. A value that is not 22 characters is ignored entirely rather than half-read,
+  // because position is the key: a short value would silently shift every later type's colour.
+  static Palette FromBsdLsColors(std::string_view bsd_lscolors, bool fall_back = true);
 
   // The SGR parameter for one entry, or empty for "print it uncoloured". `mode` is the raw st_mode.
   [[nodiscard]] std::string_view CodeFor(std::string_view name, vfs::FileType type, std::uint32_t mode) const;
