@@ -47,8 +47,9 @@ test::help_full_shows_per_primary_details() {
   local full expr
   full="$("$(_xff_bin)" --help=full 2>&1)"
   expr="$("$(_xff_bin)" --help=expressions 2>&1)"
-  expect_output_contains 'batches as many paths' "${full}"                 # from -exec details
-  expect_output_contains 'needs --allow-exec' "${full}"                    # -exec sensitivity note in the details
+  expect_output_contains 'batches as many paths' "${full}" # from -exec details
+  # shellcheck disable=SC2016  # the backticks are the help's inline-code markup, not a subshell
+  expect_output_contains 'needs `--allow-exec`' "${full}"                  # -exec sensitivity note in the details
   expect_output_contains 'reaches back a full relative duration' "${full}" # from -mtime details
   expect_output_not_contains 'batches as many paths' "${expr}"
   expect_output_not_contains 'reaches back a full relative duration' "${expr}"
@@ -60,7 +61,8 @@ test::help_time_primary_shows_details() {
   local out
   out="$("$(_xff_bin)" --help=mtime 2>&1)"
   expect_output_contains 'reaches back a full relative duration' "${out}"
-  expect_output_contains 'rejected by --config=find' "${out}"
+  # shellcheck disable=SC2016  # the backticks are the help's inline-code markup, not a subshell
+  expect_output_contains 'rejected by `--config=find`' "${out}"
 }
 
 test::help_matching_primaries_show_details() {
@@ -89,7 +91,8 @@ test::help_action_primaries_show_details() {
   print="$("$(_xff_bin)" --help=print 2>&1)"
   expect_output_contains 'DEFAULT action' "${print}"
   grep="$("$(_xff_bin)" --help=grep 2>&1)"
-  expect_output_contains 'line-output companion of -rxc' "${grep}"
+  # shellcheck disable=SC2016  # the backticks are the help's inline-code markup, not a subshell
+  expect_output_contains 'line-output companion of `-rxc`' "${grep}"
   fprint="$("$(_xff_bin)" --help=fprint 2>&1)"
   expect_output_contains 'opened once' "${fprint}"
 }
