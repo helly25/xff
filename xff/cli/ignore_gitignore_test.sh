@@ -95,6 +95,23 @@ test::gitignore_on_forces_even_outside_a_repo() {
   expect_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}"
 }
 
+test::gitignore_takes_the_whole_shared_value_vocabulary() {
+  # One vocabulary across flags: =on / =yes / =true / =1 all force it, =off / =no / =false / =0 all
+  # disable it, and =auto is the bare -g behaviour spelled out. Before this the flag compared the
+  # two literal strings on / off, so =yes silently did nothing.
+  local root out spelling
+  root="$(_make_tree_no_repo)" # no .git, so only a forcing value can hide a.o
+  for spelling in on yes true 1; do
+    out="$("$(_xff_bin)" "--gitignore=${spelling}" "${root}" -type f 2>&1)"
+    expect_not_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
+  done
+  for spelling in off no false 0 auto; do
+    out="$("$(_xff_bin)" "--gitignore=${spelling}" "${root}" -type f 2>&1)"
+    expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}" # not forced: outside a repo nothing is ignored
+  done
+  rm -rf "${root}"
+}
+
 test::gitignore_off_value_disables() {
   local root out
   root="$(_make_tree)"

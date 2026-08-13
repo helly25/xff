@@ -22,8 +22,8 @@
 
 // Shared parsing of CLI option values into one permissive, uniform vocabulary, so
 // every boolean-ish flag accepts the same spellings. A boolean flag accepts
-// yes / true / 1 (true) and no / false / 0 (false); a tri-state flag additionally
-// accepts auto, plus the color-family idiom always (on) and never (off). All
+// yes / true / on / 1 (true) and no / false / off / 0 (false); a tri-state flag
+// additionally accepts auto, plus the color-family idiom always / never. All
 // case-insensitive.
 namespace xff::values {
 
@@ -31,8 +31,13 @@ namespace xff::values {
 // (typically: on iff stdout is a terminal).
 enum class Tristate : std::uint8_t { kOff, kOn, kAuto };
 
-// Parses a boolean option value. Accepts (case-insensitive) yes / true / 1 as true
-// and no / false / 0 as false; returns nullopt for anything else.
+// Parses a boolean option value. Accepts (case-insensitive) yes / true / on / 1 as
+// true and no / false / off / 0 as false; returns nullopt for anything else.
+//
+// on / off are in the vocabulary because a switch-shaped flag reads best that way
+// (--gitignore=on), and because leaving them out made the help lie: several flags
+// documented them as synonyms while the parser rejected the value and silently kept
+// the default.
 [[nodiscard]] std::optional<bool> ParseBool(std::string_view value);
 
 // Parses a tri-state option value: auto as kAuto, and everything ParseBool accepts

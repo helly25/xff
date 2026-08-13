@@ -113,6 +113,11 @@ constexpr std::array kShardsDedupValues = std::to_array<ValueDoc>({
     {.value = "mtime", .meaning = "keep the newest by modification time (ties break on name)"},
     {.value = "error", .meaning = "treat a same-index duplicate as an error (non-zero exit)"},
 });
+constexpr std::array kGitignoreValues = std::to_array<ValueDoc>({
+    {.value = "auto", .meaning = "respect .gitignore only inside a git working tree (a bare -g / --gitignore)"},
+    {.value = "on", .meaning = "respect it anywhere, git repository or not (also -g+, yes / true / 1)"},
+    {.value = "off", .meaning = "ignore .gitignore files entirely (also -g-, no / false / 0)"},
+});
 constexpr std::array kPagerValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "page the help / man / markdown output on a terminal (the default)"},
     {.value = "always", .meaning = "page that meta output even through a pipe"},
@@ -121,8 +126,8 @@ constexpr std::array kPagerValues = std::to_array<ValueDoc>({
 });
 constexpr std::array kZoneSuffixValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "each format's built-in default (the default)"},
-    {.value = "always", .meaning = "force the offset, even on a format that omits it (also true / yes / on)"},
-    {.value = "never", .meaning = "drop the optional offset (also false / no / off)"},
+    {.value = "always", .meaning = "force the offset, even on a format that omits it (also on / yes / true / 1)"},
+    {.value = "never", .meaning = "drop the optional offset (also off / no / false / 0)"},
 });
 // The digest names, in xff/hash's sorted AlgorithmNames() order; a globals_test guard keeps
 // this list identical to that SOT so it cannot drift.
@@ -510,13 +515,14 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     {
         .name = "--gitignore",
         .alias = "-g",
-        .display = "--gitignore[=on|off], -g[+|-]",
+        .display = "--gitignore[=auto|on|off], -g[+|-]",
         .group = "filter",
         .header = "Filter & Ignore",
         .summary = "respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never",
         .details = "Reads .gitignore rules while walking, including nested .gitignore files, .git/info/exclude, and "
                    "core.excludesFile. -g / auto activates only inside a git working tree; -g+ / =on forces it "
                    "anywhere; -g- / =off disables it. Independent of --ignore-files (.ignore / .xffignore).",
+        .values = kGitignoreValues,
     },
     {
         .name = "--ignore-files",
