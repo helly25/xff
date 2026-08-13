@@ -302,10 +302,16 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "gzipped tar) and every surviving member keeps its name, mode, times and content; "
                    "it is written beside the original and renamed over it only when complete, so an "
                    "interrupted run leaves the container as it was. `--dry-run` lists the members "
-                   "that would go and writes nothing. Refused, with the reason named: a format this "
-                   "build reads but cannot write (7-Zip, RAR, ISO), a container xff parses itself (a "
-                   "phar's manifest, offsets and signature all move), and a member of a container "
-                   "nested inside another one.",
+                   "that would go and writes nothing. A NATIVE phar is rewritten too, by xff's own "
+                   "writer: the manifest and data section are rebuilt from the surviving entries "
+                   "verbatim (so per-member gz / bz2 compression is untouched) and the trailing "
+                   "signature is recomputed (md5 / sha1 / sha256 / sha512). Refused, with the reason "
+                   "named: a format this build reads but cannot write (7-Zip, RAR, ISO); a TAR-based "
+                   "or ZIP-based phar, whose signature is a MEMBER computed over the rest of the "
+                   "container, so a rewrite would leave it stale and PHP would reject the result; an "
+                   "OpenSSL-signed phar, which cannot be re-signed without its private key; a "
+                   "compressed single file, which has no member list to rewrite; and a member of a "
+                   "container nested inside another one.",
         .affects = "--archive",
         .topic = "archive",
         .extra = "archive",
