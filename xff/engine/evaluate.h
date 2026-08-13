@@ -158,6 +158,11 @@ struct EvalContext {
   // open it (see ExtractedMembers). Null - the default - keeps -exec / -execdir / -ok / -okdir a clean
   // refusal on a member, because there is no path to hand the child.
   ExtractedMembers* extract = nullptr;
+  // --archive-delete: where `-delete` records an archive MEMBER it should remove. Collected rather
+  // than removed on the spot, because removing one means rewriting the whole container - which the
+  // walk is reading from at that moment - so the driver applies them per container after the walk.
+  // Null - the default - keeps `-delete` a clean refusal on a member.
+  std::vector<std::string>* archive_deletions = nullptr;
 };
 
 // Evaluates a parsed find expression against one visited entry and returns its

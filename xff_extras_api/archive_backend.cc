@@ -18,8 +18,10 @@
 #include <array>
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
@@ -39,10 +41,32 @@ ContainerOpener& ContainerOpenerSlot() {
   return slot;
 }
 
+// The process-wide member remover, empty when no backend registered one - which is the answer for a
+// build without archive support AND for a backend that can only read.
+ContainerMemberRemover& ContainerMemberRemoverSlot() {
+  static ContainerMemberRemover slot;
+  return slot;
+}
+
 }  // namespace
 
 void RegisterContainerOpener(ContainerOpener opener) {
   ContainerOpenerSlot() = std::move(opener);
+}
+
+void RegisterContainerMemberRemover(ContainerMemberRemover remover) {
+  ContainerMemberRemoverSlot() = std::move(remover);
+}
+
+bool ContainerRemovalAvailable() {
+  return static_cast<bool>(ContainerMemberRemoverSlot());
+}
+
+absl::Status RemoveContainerMembers(std::string_view container, const std::vector<std::string>& members) {
+  if (!ContainerRemovalAvailable()) {
+    return absl::UnimplementedError("this binary was built without archive support");
+  }
+  return ContainerMemberRemoverSlot()(container, members);
 }
 
 // Every suffix the reader has a format or filter for, plus the package extensions that are one of

@@ -1880,17 +1880,19 @@ bool IsExtracted(const EvalContext& ctx, std::string_view path) {
   return ctx.extract != nullptr && path != ctx.visit.path;
 }
 
-bool RefuseOnVirtualEntry(EvalContext& ctx, std::string_view reason) {
-  if (ctx.visit.metadata.source == vfs::Source::kLocalFs) {
-    return false;
-  }
-  ctx.control.unsupported = reason;
-  return true;
-}
-
 bool EvalDelete(const parser::Expr&, EvalContext& ctx) {
-  if (RefuseOnVirtualEntry(ctx, "-delete cannot remove an archive member: members are read-only")) {
-    return false;  // nothing was deleted, so the action is false as well as reported
+  if (ctx.visit.metadata.source != vfs::Source::kLocalFs) {
+    if (ctx.archive_deletions == nullptr) {
+      ctx.control.SetUnsupported(
+          "-delete cannot remove an archive member: members are read-only"
+          " (use --archive-delete to rewrite the container without it)");
+      return false;  // nothing was deleted, so the action is false as well as reported
+    }
+    // Recorded, not removed: the container is open and being walked right now, and removing a member
+    // means writing the container again from its remaining members. The driver does that per
+    // container once the walk is done, so `-delete` is true here in the same sense `-exec ... +` is.
+    ctx.archive_deletions->emplace_back(ctx.visit.path);
+    return true;
   }
   static_cast<void>(ctx.fs.Remove(ctx.visit.path));  // failures set a nonzero exit; wired in the exit-code work
   return true;

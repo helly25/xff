@@ -284,6 +284,29 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .extra = "archive",
     },
     {
+        .name = "--archive-delete",
+        .display = "--archive-delete",
+        .group = "traversal",
+        .header = "Traversal",
+        .summary = "let -delete remove an archive member, rewriting its container",
+        .details = "There is no such thing as removing a member in place: an archive is a stream of "
+                   "header and data records, so the container is written again from the members that "
+                   "survive. That is why this is opt-in and why `-delete` refuses a member without it "
+                   "- an action that silently rewrites a whole archive is not one to do by default. "
+                   "The rewrite happens after the walk, once per container however many of its "
+                   "members matched, because the walk is reading that same container while it runs. "
+                   "The new archive keeps the original's format and compression (a `.tar.gz` stays a "
+                   "gzipped tar) and every surviving member keeps its name, mode, times and content; "
+                   "it is written beside the original and renamed over it only when complete, so an "
+                   "interrupted run leaves the container as it was. `--dry-run` lists the members "
+                   "that would go and writes nothing. Refused, with the reason named: a format this "
+                   "build reads but cannot write (7-Zip, RAR, ISO), a container xff parses itself (a "
+                   "phar's manifest, offsets and signature all move), and a member of a container "
+                   "nested inside another one.",
+        .affects = "--archive",
+        .extra = "archive",
+    },
+    {
         .name = "--archive-extract",
         .display = "--archive-extract",
         .group = "traversal",

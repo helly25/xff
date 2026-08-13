@@ -2002,6 +2002,55 @@ std::string JsonQuote(std::string_view text) {
   return out;
 }
 
+// Rewrites each container without the members `-delete` matched (--archive-delete), returning the
+// number of containers that could not be done - the driver's error count, so a failed rewrite is an
+// exit code rather than a silent no-op.
+//
+// Grouped by container and applied once per container: a rewrite reads the whole archive and writes a
+// new one, so doing it per member would rewrite the same file N times, each rewrite another window in
+// which an interrupt leaves work half done.
+//
+// A member of a NESTED container is refused: its container is itself bytes inside another one, so
+// rewriting it would mean rewriting the outer container around the new inner bytes - a different
+// operation, and not one to do implicitly.
+int FlushArchiveDeletions(
+    const std::vector<std::string>& members,
+    const archive::MemberPathOptions& member_path_options,
+    bool dry_run,
+    EmitFn emit,
+    WalkErrorFn on_error) {
+  std::map<std::string, std::vector<std::string>> by_container;
+  int errors = 0;
+  for (const std::string& path : members) {
+    const std::optional<archive::MemberPathParts> parts = archive::SplitMemberPath(path, member_path_options);
+    if (!parts.has_value()) {
+      ++errors;
+      on_error(path, absl::InternalError("not a member path, so no container to rewrite"));
+      continue;
+    }
+    if (archive::IsMemberPath(parts->container, member_path_options)) {
+      ++errors;
+      on_error(path, absl::UnimplementedError("a member of a container inside another container cannot be removed"));
+      continue;
+    }
+    by_container[std::string(parts->container)].emplace_back(parts->member);
+  }
+  for (const auto& [container, names] : by_container) {
+    if (dry_run) {
+      // The same shape --dry-run uses for an ordinary -delete: say what would go, touch nothing.
+      for (const std::string& name : names) {
+        emit(absl::StrCat(container, member_path_options.separator, name, "\n"));
+      }
+      continue;
+    }
+    if (const absl::Status status = archive::RemoveContainerMembers(container, names); !status.ok()) {
+      ++errors;
+      on_error(container, status);
+    }
+  }
+  return errors;
+}
+
 // One accumulator per --summary sink: {group key -> {count, total size}}.
 using SummaryCells = std::map<std::string, std::pair<std::uint64_t, std::uint64_t>>;
 
@@ -2469,6 +2518,11 @@ int RunFind(
   // child both outlive the entry, and removes everything it made when the run ends.
   const bool archive_extract = HasGlobal(command.globals, "--archive-extract");
   ExtractedMembers extracted_members;
+  // --archive-delete: `-delete` on a member records it here instead of refusing; the containers are
+  // rewritten after the walk (see the flush below), because a member cannot be removed from a
+  // container the walk is reading at that moment.
+  const bool archive_delete = HasGlobal(command.globals, "--archive-delete");
+  std::vector<std::string> archive_deletions;
   const bool any_reduction = !summaries.empty() || !histograms.empty() || shards.enabled;
   // --archive-aggregate: what a reduction counts when the walk dives. Only `members` needs the walk to
   // open a container before its own entry is visited (see WalkOptions::mount_before_visit), and only
@@ -2486,7 +2540,8 @@ int RunFind(
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
   // what it would remove without touching the filesystem.
   const DryRunFileSystem dry_run_fs(fs, emit);
-  const vfs::FileSystem& walk_fs = HasGlobal(command.globals, "--dry-run") ? dry_run_fs : fs;
+  const bool dry_run = HasGlobal(command.globals, "--dry-run");
+  const vfs::FileSystem& walk_fs = dry_run ? dry_run_fs : fs;
   // --ignore-files: honor per-directory .ignore / .xffignore files (off by default,
   // find-compatible; -u / --no-ignore forces it off). Reads through walk_fs, so a
   // --dry-run still consults them. Inactive is zero overhead.
@@ -2731,6 +2786,7 @@ int RunFind(
             .exec_batches = &exec_batches,
             .parallel_exec = options.workers > 1 ? &parallel_exec : nullptr,
             .extract = archive_extract ? &extracted_members : nullptr,
+            .archive_deletions = archive_delete ? &archive_deletions : nullptr,
         };
         const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
         if (matched && any_match != nullptr) {
@@ -2909,6 +2965,13 @@ int RunFind(
         on_error(node->descriptor->name, absl::UnknownError("batched command exited non-zero"));
       }
     }
+  }
+
+  // --archive-delete: rewrite each container without the members `-delete` matched. Grouped by
+  // container and applied once per container, so an archive is rewritten a single time however many
+  // of its members matched - and only now, with the walk (and its open readers) finished.
+  if (!archive_deletions.empty()) {
+    errors += FlushArchiveDeletions(archive_deletions, member_path_options, dry_run, emit, on_error);
   }
 
   // --shards: group each directory's matches into logical sets once (reused by the listing below).

@@ -26,11 +26,15 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "mbo/status/status_macros.h"
 #include "xff/archive/archive_backend.h"
 #include "xff/archive/archive_fs.h"
+#include "xff/archive/archive_writer.h"
 #include "xff/archive/member_path.h"
 #include "xff/vfs/filesystem.h"
 
@@ -55,6 +59,25 @@ absl::StatusOr<std::unique_ptr<vfs::FileSystem>> OpenArchiveContainer(
 }
 
 const ContainerRegistrar kRegisterArchiveContainer{&OpenArchiveContainer};
+
+// The write half, registered separately because it answers for FEWER containers than the opener: a
+// phar or a compressed single file opens here and cannot be rewritten, and the writer says so.
+absl::Status RemoveArchiveMembers(std::string_view container, const std::vector<std::string>& members) {
+  const absl::Status status = RemoveMembersOfFile(container, members);
+  if (!absl::IsInvalidArgument(status)) {
+    return status;
+  }
+  // The caller reached this through a container xff DIVED into, so "not an archive" would be a
+  // contradiction: what it means here is that some OTHER reader opened it - the phar reader, or the
+  // compressed-single-file path - and only libarchive can write one back.
+  return absl::UnimplementedError(
+      absl::StrCat(
+          "xff can read ", container,
+          " but not rewrite it: only the libarchive formats can be written back, not a phar or a"
+          " compressed single file"));
+}
+
+const ContainerRemoverRegistrar kRegisterArchiveRemover{&RemoveArchiveMembers};
 
 }  // namespace
 }  // namespace xff::archive
