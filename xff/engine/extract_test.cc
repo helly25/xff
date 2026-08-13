@@ -15,6 +15,7 @@
 
 #include "xff/engine/extract.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <ios>
@@ -45,6 +46,7 @@ using ::testing::IsEmpty;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Ne;
+using ::testing::Not;
 using ::testing::SizeIs;
 
 // A filesystem that answers content by path and nothing else, standing in for a mounted container:
@@ -95,6 +97,42 @@ struct ExtractTest : ::testing::Test {
 
   MemberFs fs_;
 };
+
+TEST_F(ExtractTest, TheFirstWritableCandidateWithRoomWins) {
+  // The preference exists so a member can be written to a memory-backed directory (tmpfs) instead of a
+  // disk. The candidates are injected here rather than probed, so the test describes a layout instead
+  // of depending on the machine it runs on: a nonexistent candidate is skipped, a real one is taken.
+  const std::string real(::testing::TempDir());
+  EXPECT_THAT(
+      ChooseExtractDirectory(/*member_size=*/16, std::vector<std::string>{"/nonexistent-xff-candidate", real}), real);
+}
+
+TEST_F(ExtractTest, TheLastCandidateIsTheFallbackEvenWhenItLooksTooSmall) {
+  // The final candidate is the ordinary temporary directory: by then there is nowhere else to go, so it
+  // is used whatever it reports free and a write that fails reports the real error.
+  const std::string real(::testing::TempDir());
+  const std::uint64_t huge = std::uint64_t{1} << 62U;
+  EXPECT_THAT(ChooseExtractDirectory(huge, std::vector<std::string>{real}), real);
+}
+
+TEST_F(ExtractTest, AMemberTooLargeForACandidateFallsThroughToTheNext) {
+  // A tmpfs is RAM shared with the whole machine, so a member that would take most of it must land on
+  // disk instead - the check is what keeps the preference from being a way to fill memory.
+  const std::string real(::testing::TempDir());
+  const std::uint64_t huge = std::uint64_t{1} << 62U;
+  EXPECT_THAT(
+      ChooseExtractDirectory(huge, std::vector<std::string>{real, "/nonexistent-xff-fallback"}),
+      "/nonexistent-xff-fallback");
+}
+
+TEST_F(ExtractTest, TheDefaultCandidatesEndAtTheOrdinaryTemporaryDirectory) {
+  // Whatever the platform offers, the list must end somewhere that exists: /dev/shm is Linux-only and
+  // XDG_RUNTIME_DIR is often unset, so the fallback is the one candidate always present.
+  const std::vector<std::string> candidates = DefaultExtractDirectories();
+  ASSERT_THAT(candidates, Not(IsEmpty()));
+  EXPECT_THAT(candidates.back(), Not(IsEmpty()));
+  EXPECT_THAT(stdfs::is_directory(candidates.back()), IsTrue());
+}
 
 TEST_F(ExtractTest, AnExtractedMemberIsARealFileWithTheMembersNameAndBytes) {
   // The whole point: after this, a child process opens an ordinary path and needs to know nothing

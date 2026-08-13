@@ -16,14 +16,35 @@
 #ifndef XFF_ENGINE_EXTRACT_H_
 #define XFF_ENGINE_EXTRACT_H_
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "absl/status/statusor.h"
+#include "absl/types/span.h"
 #include "xff/vfs/filesystem.h"
 
 namespace xff::engine {
+
+// Picks the directory an extracted member should be written to, preferring a MEMORY-backed one.
+//
+// The point of the preference: on Linux `$XDG_RUNTIME_DIR` and `/dev/shm` are tmpfs, so a member
+// written there never reaches a disk, while the child process still gets an ordinary path - which is
+// the whole reason extraction exists. It is a directory choice, not a mechanism: nothing else about
+// extraction changes, and a platform without a tmpfs (macOS) simply falls through to `$TMPDIR`.
+//
+// A tmpfs is RAM, though, and a shared, capped one: writing a huge member there can fail or squeeze
+// everything else on the machine. So a candidate is only taken when the member comfortably fits in the
+// space it reports free - otherwise the next candidate is tried, and the last one (the ordinary
+// temporary directory) is used whether it fits or not, because by then there is nowhere else to go.
+//
+// `candidates` is injectable so a test can describe a filesystem layout instead of depending on the
+// machine it runs on; the default order is
+// `$XDG_RUNTIME_DIR` (user-private tmpfs), `/dev/shm`, `std::filesystem::temp_directory_path()`.
+[[nodiscard]] std::vector<std::string> DefaultExtractDirectories();
+
+[[nodiscard]] std::string ChooseExtractDirectory(std::uint64_t member_size, absl::Span<const std::string> candidates);
 
 // Gives an archive member a real path for the length of one run (`--archive-extract`).
 //
