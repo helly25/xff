@@ -13,6 +13,7 @@ shipped one way but not yet settled.
   failure mode is worse for values: `--case=insensitve` matches case-sensitively and the run looks
   like it worked. Recommendation: reject an unknown value with the same usage error, listing the
   accepted values from the flag's own `values` SOT (so the message is generated, not written twice).
+<<<<<<< HEAD
   Both obstacles resolved rather than worked around: a flag now DECLARES how its value is checked
   (`GlobalFlag::ValueCheck` = none / enum / bool / tri-state), so the tri-state flags keep the whole
   shared vocabulary while the enumerated ones check against their own `values` table - the same
@@ -21,6 +22,14 @@ shipped one way but not yet settled.
   it cover `--color` / `--width` / `--pager`, which are scanned from raw argv before the parse and
   have nowhere to report from. `kNone` stays the default, so free-text flags (paths, formats,
   regexes, comma lists that validate themselves) are untouched.
+=======
+  Two things to settle first: the tri-state / bare forms that intentionally accept several spellings
+  must keep doing so (the `values` table is already the SOT for those), and the resolvers that run
+  BEFORE the parse (`--color`, `--width`, `--pager`, scanned straight from argv) need somewhere to
+  report the error from, since they currently cannot fail. Precedent for the strict side already
+  exists: `--skip-vcs` rejects an unknown token as a usage error (and has a test saying so), so the
+  question is really which behaviour the rest should match.
+>>>>>>> main
 
 - **FIXED (2026-08-13): `on` / `off` were documented but not accepted.** `--time-zone-suffix`'s help
   listed `on` / `off` as synonyms of `always` / `never`, and the shared value parser did not accept
