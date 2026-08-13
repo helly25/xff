@@ -225,7 +225,11 @@ repos:
           Both directions fail. To skip once, run `SKIP="check-env-documented" pre-commit`.
         language: script
         entry: tools/check_env_documented.py
-        files: (^xff/.*\.(cc|h)$|^xff_extras_api/.*\.(cc|h)$|^extra_modules/.*\.(cc|h)$)
+        # The trigger mirrors what the tool reads: production sources under the three module roots,
+        # never a *_test.cc (a test may name any variable it likes, and the tool skips them), so a
+        # test-only edit does not schedule a run that then ignores it.
+        files: ^(xff|xff_extras_api|extra_modules)/.*\.(cc|h)$
+        exclude: _test\.cc$
         pass_filenames: false
       - id: check-cc-library-tested
         name: Every cc_library has a test
