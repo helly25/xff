@@ -52,5 +52,95 @@ TEST_F(ColorTest, CodeForTypeUsesLsLikeScheme) {
   EXPECT_THAT(CodeForType(vfs::FileType::kRegular, 0644), IsEmpty());   // plain file: no color
 }
 
+TEST_F(ColorTest, TheSchemeDefaultsToAutoAndTheFlagPicks) {
+  // Default kAuto - ls OR xff: the theme when there is one, xff's scheme when there is not. The
+  // spellings follow logic's algebra (`+` is OR, the merge is AND), and `default` names whatever the
+  // default is, so a config file need not hard-code which scheme that currently is.
+  EXPECT_THAT(ResolveScheme({}), Scheme::kAuto);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=auto"}), Scheme::kAuto);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=ls+xff"}), Scheme::kAuto);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=ls-or-xff"}), Scheme::kAuto);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=default"}), Scheme::kAuto);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=ls"}), Scheme::kLs);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=ls-and-xff"}), Scheme::kLsAndXff);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=merged"}), Scheme::kLsAndXff);  // the plain word for it
+  EXPECT_THAT(ResolveScheme({"--color-scheme=xff"}), Scheme::kXff);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=xff", "--color-scheme=ls"}), Scheme::kLs);  // last wins
+  EXPECT_THAT(ResolveScheme({"--color-scheme=nonsense"}), Scheme::kAuto);                // unknown leaves the default
+  // `ls&xff` is not a spelling: an unquoted `&` backgrounds the command, so it must not silently work.
+  EXPECT_THAT(ResolveScheme({"--color-scheme=ls&xff"}), Scheme::kAuto);
+}
+
+TEST_F(ColorTest, LsAloneLeavesWhatTheThemeOmitsUncoloured) {
+  // The difference between the two ls readings, in one assertion pair: under `ls` a type the theme
+  // never mentions prints plain (what a real ls does), under `ls-and-xff` it keeps xff's colour.
+  const Palette strict = PaletteFor(Scheme::kLs, "di=01;35");
+  EXPECT_THAT(strict.CodeFor("dir", vfs::FileType::kDirectory, 0755), "01;35");
+  EXPECT_THAT(strict.CodeFor("link", vfs::FileType::kSymlink, 0777), IsEmpty());
+  const Palette merged = PaletteFor(Scheme::kLsAndXff, "di=01;35");
+  EXPECT_THAT(merged.CodeFor("link", vfs::FileType::kSymlink, 0777), CodeForType(vfs::FileType::kSymlink, 0777));
+}
+
+TEST_F(ColorTest, AutoDecidesPerVariableNotPerKey) {
+  // `auto` is the third reading: a theme that is set at all is the whole answer, an unset one leaves
+  // xff's scheme entirely intact.
+  const Palette themed = PaletteFor(Scheme::kAuto, "di=01;35");
+  EXPECT_THAT(themed.CodeFor("dir", vfs::FileType::kDirectory, 0755), "01;35");
+  EXPECT_THAT(themed.CodeFor("link", vfs::FileType::kSymlink, 0777), IsEmpty());  // theme alone
+  const Palette unset = PaletteFor(Scheme::kAuto, "");
+  EXPECT_THAT(unset.CodeFor("link", vfs::FileType::kSymlink, 0777), CodeForType(vfs::FileType::kSymlink, 0777));
+  EXPECT_THAT(unset.CodeFor("dir", vfs::FileType::kDirectory, 0755), CodeForType(vfs::FileType::kDirectory, 0755));
+}
+
+TEST_F(ColorTest, TheXffSchemeIgnoresTheThemeEntirely) {
+  const Palette palette = PaletteFor(Scheme::kXff, "di=01;35:*.txt=33");
+  EXPECT_THAT(palette.CodeFor("dir", vfs::FileType::kDirectory, 0755), CodeForType(vfs::FileType::kDirectory, 0755));
+  EXPECT_THAT(palette.CodeFor("a.txt", vfs::FileType::kRegular, 0644), IsEmpty());
+}
+
+TEST_F(ColorTest, ADefaultPaletteIsTheBuiltInScheme) {
+  const Palette palette;
+  EXPECT_THAT(palette.CodeFor("dir", vfs::FileType::kDirectory, 0755), CodeForType(vfs::FileType::kDirectory, 0755));
+  EXPECT_THAT(palette.CodeFor("a.txt", vfs::FileType::kRegular, 0644), IsEmpty());
+}
+
+TEST_F(ColorTest, LsColorsOverridesTheTypeItNames) {
+  const Palette palette = Palette::FromLsColors("di=01;35:ln=04;36");
+  EXPECT_THAT(palette.CodeFor("dir", vfs::FileType::kDirectory, 0755), "01;35");
+  EXPECT_THAT(palette.CodeFor("link", vfs::FileType::kSymlink, 0777), "04;36");
+  // A type $LS_COLORS says nothing about keeps the built-in colour rather than losing it.
+  EXPECT_THAT(palette.CodeFor("pipe", vfs::FileType::kFifo, 0644), CodeForType(vfs::FileType::kFifo, 0644));
+}
+
+TEST_F(ColorTest, AnExtensionEntryColoursARegularFileAndFoldsCase) {
+  const Palette palette = Palette::FromLsColors("*.tar=01;31:*.md=32");
+  EXPECT_THAT(palette.CodeFor("archive.tar", vfs::FileType::kRegular, 0644), "01;31");
+  EXPECT_THAT(palette.CodeFor("ARCHIVE.TAR", vfs::FileType::kRegular, 0644), "01;31");  // themed both ways
+  EXPECT_THAT(palette.CodeFor("notes.md", vfs::FileType::kRegular, 0644), "32");
+  EXPECT_THAT(palette.CodeFor("notes.rst", vfs::FileType::kRegular, 0644), IsEmpty());
+}
+
+TEST_F(ColorTest, TheExecutableBitWinsOverAnExtension) {
+  // ls's own order: `ex` is consulted before the extension table, so an executable `*.sh` is
+  // coloured as an executable rather than as a script file.
+  const Palette palette = Palette::FromLsColors("ex=01;32:*.sh=33");
+  EXPECT_THAT(palette.CodeFor("run.sh", vfs::FileType::kRegular, 0755), "01;32");
+  EXPECT_THAT(palette.CodeFor("run.sh", vfs::FileType::kRegular, 0644), "33");
+}
+
+TEST_F(ColorTest, AnEmptyValueMeansNoColourRatherThanNoOpinion) {
+  // `fi=` / `di=` is how a theme says "leave these plain"; it must not fall back to xff's scheme.
+  const Palette palette = Palette::FromLsColors("di=:fi=");
+  EXPECT_THAT(palette.CodeFor("dir", vfs::FileType::kDirectory, 0755), IsEmpty());
+  EXPECT_THAT(palette.CodeFor("a.txt", vfs::FileType::kRegular, 0644), IsEmpty());
+}
+
+TEST_F(ColorTest, AMalformedLsColorsIsIgnoredEntryByEntry) {
+  // A broken variable is not worth refusing to list files over, and ls ignores such entries too.
+  const Palette palette = Palette::FromLsColors("garbage:di=01;35:=nokey:*=nodot:");
+  EXPECT_THAT(palette.CodeFor("dir", vfs::FileType::kDirectory, 0755), "01;35");
+  EXPECT_THAT(palette.CodeFor("a.txt", vfs::FileType::kRegular, 0644), IsEmpty());
+}
+
 }  // namespace
 }  // namespace xff::color

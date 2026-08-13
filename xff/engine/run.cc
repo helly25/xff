@@ -2195,6 +2195,11 @@ int RunFind(
   const bool colorize =
       format == render::Format::kPlain
       && color::Enabled(color::ResolveWhen(command.globals), ::isatty(STDOUT_FILENO) != 0, env::Has("NO_COLOR"));
+  // --color-scheme: the palette every colourised surface uses, resolved ONCE because colour is a
+  // whole-run choice. The default (`auto`, i.e. ls OR xff) takes the terminal's own theme through
+  // $LS_COLORS when there is one and xff's built-in scheme when there is not; see color::Scheme.
+  const color::Palette palette =
+      color::PaletteFor(color::ResolveScheme(command.globals), env::Get("LS_COLORS").value_or(""));
   const std::optional<std::string> tmpl = ResolveTemplate(command.globals);
   // A -capture whose {capture.NAME} is never referenced ran a subprocess for
   // nothing (use -exec for pure side effects); flag it before traversing.
@@ -2781,11 +2786,16 @@ int RunFind(
           }
           fold_name_case = !it->second;
         }
+        // The entry's colour, from the one palette this run resolved: used by the plain listing below
+        // and by -ls's name column, so the two cannot disagree about what a file looks like.
+        const std::string_view entry_color =
+            colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();
         EvalContext eval_context{
             .visit = visit,
             .emit = emit,
             .emit_file = emit_file,
             .emit_ls_row = emit_ls_row,
+            .ls_color = entry_color,
             .ls_size_units = human,
             // The entry's OWN filesystem, so a predicate that reads a member reads it out of the
             // container rather than looking for `a.tar!x` on disk and finding nothing.
@@ -2918,9 +2928,7 @@ int RunFind(
               emit(compiled_tmpl->Render(ctx) + "\n");
             }
           } else {
-            const std::string_view color =
-                colorize ? color::CodeForType(visit.metadata.type, visit.metadata.mode) : std::string_view();
-            emit(render::Renderer(format, path_encoding).Record(visit.path, color));
+            emit(render::Renderer(format, path_encoding).Record(visit.path, entry_color));
           }
         }
         if (!control.unsupported.empty() && !unsupported_reported) {

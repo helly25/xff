@@ -262,6 +262,17 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--summary-precision=N` - with --summary --human: fraction digits for scaled sizes (default 2; bytes stay integer) _(global, xff)_
 - `--color[=auto|always|never]` - colorize the plain listing by file type: auto (a tty), always, or never; honors NO_COLOR _(global, xff)_
   Colorizes the plain listing by file type. auto colorizes only when stdout is a terminal; always forces color even through a pipe or pager; never disables it. The NO_COLOR environment variable always wins.
+  Affected by: --color-scheme
+- `--color-scheme=<SCHEME>` - which palette colour comes from: the terminal's ls theme, or xff's own _(global, xff)_
+  SCHEME is one of:
+
+  - `auto` - ls OR xff: the theme when $LS_COLORS is set, else xff's scheme (the default; also spelled `ls+xff`, `ls-or-xff` or `default`)
+  - `ls` - $LS_COLORS alone: what it does not name prints uncoloured, as in ls
+  - `merged` - the theme where it speaks, xff's colour for every key it omits, per key (also `ls-and-xff`)
+  - `xff` - xff's built-in type scheme, ignoring $LS_COLORS
+
+  Colour is a whole-run choice, so this one palette is used by every surface that colours - the plain listing and -ls alike; they cannot disagree. $LS_COLORS is the variable `ls` and `dircolors` use, and xff reads the same keys: the two-letter types (di, ln, ex, pi, so, bd, cd, fi) and the per-extension `*.tar=` entries. "Use ls's colours" turns out to mean three different things, so each has its own name, spelled the way logic spells it: `+` is OR, and the merge is AND. `auto` (the default, also `ls+xff` or `ls-or-xff`) is the theme OR xff's scheme - a theme that is set at all is the whole answer, and with none set xff's scheme is, so the decision is per VARIABLE; `default` is a fourth spelling of it, for a config file that wants whatever the default currently is. `ls` is the theme ALONE, so a type it never mentions prints uncoloured exactly as in a real ls listing (and with no theme set, nothing is coloured). `merged` (also `ls-and-xff`) is the theme AND xff's scheme, merged per KEY: the theme where it speaks, xff's colour for every key it omits - for a sparse theme you want filled in. (`ls&xff` is deliberately not accepted: an unquoted `&` backgrounds the command.) `xff` ignores $LS_COLORS entirely. An EMPTY value in the theme (`di=`) is it saying "leave these plain" and is honoured as such; a malformed entry is skipped rather than failing the run, as in ls. Whether colour is emitted at all is --color's business, not this flag's.
+  Affects: --color
 - `--unicode[=auto|always|never]` - --format=tree connectors: auto (a UTF-8 locale), always (Unicode), or never (ASCII) _(global, xff)_
   Selects the box-drawing characters --format=tree connects nodes with. auto uses Unicode when the locale (LC_ALL / LC_CTYPE / LANG) is UTF-8, else ASCII; always forces the Unicode connectors; never forces the ASCII ones.
 - `--human[=si|iec|off]` - size units for -ls / --summary: si (kB/MB, default), iec (KiB/MiB), off (bytes); xff -> si _(global, xff)_
@@ -788,6 +799,7 @@ Environment variables xff reads. An explicit command-line flag generally overrid
 - `XDG_CONFIG_HOME` - config search root: `$XDG_CONFIG_HOME/xff/config` (see `--help=config`)
 - `HOME` - config fallback: `$HOME/.config/xff/config` when `$XDG_CONFIG_HOME` is unset
 - `LC_ALL, LC_CTYPE, LANG` - locale for `--unicode=auto`: a UTF-8 locale selects the Unicode `--format=tree` connectors, else ASCII
+- `LS_COLORS` - the terminal's colour theme, as `ls` / `dircolors` set it: type keys (`di`, `ln`, `ex`, ...) and per-extension `*.tar=` entries, used by default (see `--color-scheme`)
 - `XDG_RUNTIME_DIR` - preferred directory for a member extracted by `--archive-extract`: it is a memory-backed tmpfs, so the copy never reaches a disk (`/dev/shm` is tried next)
 - `TMPDIR` - where a temporary file goes when no memory-backed directory fits it: an extracted member (`--archive-extract`) and the in-progress rewrite of a container (`--archive-delete`)
 

@@ -81,9 +81,90 @@ test::color_always_leaves_plain_files_uncolored() {
   expect_not_matches $'\033\\[' "${out}"
 }
 
+test::the_ls_theme_is_the_default_palette() {
+  # The colours a user expects are the ones their terminal is themed with, so $LS_COLORS is read by
+  # default (`auto`, i.e. ls OR xff): `di=01;35` here must beat xff's own bold blue.
+  local root out
+  root="$(_make_tree)"
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "${root}" -type d 2>&1)"
+  rm -rf "${root}"
+  expect_matches $'\033\\[01;35m' "${out}"
+}
+
+test::an_extension_entry_from_the_theme_colours_a_plain_file() {
+  # xff's own scheme has nothing per-extension, so this is only possible through the theme - and it is
+  # the case a themed terminal notices first.
+  local root out
+  root="$(_make_tree)"
+  out="$(LS_COLORS='*.txt=33' "$(_xff_bin)" --color=always "${root}" -name a.txt 2>&1)"
+  rm -rf "${root}"
+  expect_matches $'\033\\[33m' "${out}"
+}
+
+test::color_scheme_xff_ignores_the_theme() {
+  # The way back: --color-scheme=xff uses the built-in scheme even with a theme set.
+  local root out
+  root="$(_make_tree)"
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=xff "${root}" -type d 2>&1)"
+  rm -rf "${root}"
+  expect_matches "${DIR_COLOR}" "${out}"
+  expect_not_matches $'\033\\[01;35m' "${out}"
+}
+
+test::ls_and_xff_fills_in_what_the_theme_omits() {
+  # The per-KEY merge, which is NOT the default: a theme naming only directories keeps xff's colour
+  # for symlinks. Under the default (ls OR xff) the same theme is the whole answer.
+  local root out
+  root="$(_make_tree)"
+  ln -s a.txt "${root}/link"
+  for spelling in "ls-and-xff" "merged"; do # the algebra name and the plain word are one value
+    out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "--color-scheme=${spelling}" "${root}" -type l 2>&1)"
+    expect_matches $'\033\\[1;36m' "${out}" # xff's symlink colour survives
+  done
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "${root}" -type l 2>&1)"
+  expect_not_matches $'\033\\[' "${out}" # the default takes the theme whole
+  rm -rf "${root}"
+}
+
+test::ls_alone_and_the_merge_differ_on_what_the_theme_omits() {
+  # The two readings of "use ls colours", side by side on the same theme: `ls` leaves a symlink the
+  # theme never mentions uncoloured (as a real ls does), `ls-and-xff` keeps xff's colour for it.
+  local root out
+  root="$(_make_tree)"
+  ln -s a.txt "${root}/link"
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=ls "${root}" -type l 2>&1)"
+  expect_not_matches $'\033\\[' "${out}"
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=ls-and-xff "${root}" -type l 2>&1)"
+  expect_matches $'\033\\[1;36m' "${out}"
+  rm -rf "${root}"
+}
+
+test::auto_takes_the_theme_whole_or_not_at_all() {
+  # The third reading: with a theme set, `auto` is that theme alone; with none set it is xff's scheme
+  # alone - a per-variable decision rather than the per-key fallback of ls+xff.
+  local root out
+  root="$(_make_tree)"
+  ln -s a.txt "${root}/link"
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=auto "${root}" -type l 2>&1)"
+  expect_not_matches $'\033\\[' "${out}"
+  out="$(env -u LS_COLORS "$(_xff_bin)" --color=always --color-scheme=auto "${root}" -type l 2>&1)"
+  expect_matches $'\033\\[1;36m' "${out}"
+  # The synonyms are one value, which is what lets a config file name the default.
+  for spelling in "ls+xff" "ls-or-xff" "default"; do
+    out="$(env -u LS_COLORS "$(_xff_bin)" --color=always "--color-scheme=${spelling}" "${root}" -type l 2>&1)"
+    expect_matches $'\033\\[1;36m' "${out}"
+  done
+  rm -rf "${root}"
+}
+
 test::help_documents_color() {
   # Self-documentation: the --help usage page lists --color in the Output group.
   expect_output_contains "--color" "$("$(_xff_bin)" --help 2>&1)"
+  # And the palette flag, whose help has to say where the colours come from.
+  out="$("$(_xff_bin)" --help=--color-scheme 2>&1)"
+  expect_output_contains "LS_COLORS" "${out}"
+  expect_output_contains "ls+xff" "${out}" # each reading of "ls colours" is named
+  expect_output_contains "auto" "${out}"
 }
 
 test_runner

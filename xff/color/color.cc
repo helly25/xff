@@ -21,7 +21,10 @@
 #include <string_view>
 #include <vector>
 
+#include "absl/strings/ascii.h"
+#include "absl/strings/str_split.h"
 #include "absl/strings/strip.h"
+#include "mbo/container/limited_map.h"
 #include "xff/values/values.h"
 #include "xff/vfs/entry.h"
 
@@ -70,6 +73,117 @@ std::string_view CodeForType(vfs::FileType type, std::uint32_t mode) {
     case vfs::FileType::kUnknown: return {};
   }
   return {};
+}
+
+Scheme ResolveScheme(const std::vector<std::string>& globals) {
+  // The accepted spellings, following logic's algebra: `+` is OR (the per-variable default), and the
+  // per-key merge is AND. `default` is a synonym for whatever the default is, for a config file.
+  // `ls&xff` is deliberately absent: an unquoted `&` backgrounds the command.
+  static constexpr auto kSchemes = mbo::container::MakeLimitedMap(
+      std::pair{std::string_view("auto"), Scheme::kAuto}, std::pair{std::string_view("default"), Scheme::kAuto},
+      std::pair{std::string_view("ls"), Scheme::kLs}, std::pair{std::string_view("ls+xff"), Scheme::kAuto},
+      std::pair{std::string_view("ls-and-xff"), Scheme::kLsAndXff},
+      std::pair{std::string_view("ls-or-xff"), Scheme::kAuto}, std::pair{std::string_view("merged"), Scheme::kLsAndXff},
+      std::pair{std::string_view("xff"), Scheme::kXff});
+  Scheme scheme = Scheme::kAuto;
+  for (const std::string& global : globals) {
+    std::string_view value = global;
+    if (!absl::ConsumePrefix(&value, "--color-scheme=")) {
+      continue;
+    }
+    // Anything unrecognised leaves the prior resolution, matching how --color treats a bad value.
+    if (const auto it = kSchemes.find(value); it != kSchemes.end()) {
+      scheme = it->second;
+    }
+  }
+  return scheme;
+}
+
+Palette PaletteFor(Scheme scheme, std::string_view ls_colors) {
+  switch (scheme) {
+    case Scheme::kXff: return {};
+    case Scheme::kLs: return Palette::FromLsColors(ls_colors, /*fall_back=*/false);
+    case Scheme::kLsAndXff: return Palette::FromLsColors(ls_colors, /*fall_back=*/true);
+    case Scheme::kAuto:
+      // Per-VARIABLE rather than per-key: a set theme is taken as the whole answer, an unset one
+      // leaves xff's scheme untouched.
+      return ls_colors.empty() ? Palette() : Palette::FromLsColors(ls_colors, /*fall_back=*/false);
+  }
+  return {};
+}
+
+Palette Palette::FromLsColors(std::string_view ls_colors, bool fall_back) {
+  Palette palette;
+  palette.fall_back_ = fall_back;
+  for (const std::string_view entry : absl::StrSplit(ls_colors, ':', absl::SkipEmpty())) {
+    const std::string_view::size_type equals = entry.find('=');
+    if (equals == std::string_view::npos) {
+      continue;  // not a key=value pair; ls ignores it too
+    }
+    const std::string_view key = entry.substr(0, equals);
+    const std::string_view code = entry.substr(equals + 1);
+    if (key.size() > 1 && key.front() == '*') {
+      // `*.tar=01;31`: keyed by the lowercased suffix (including the dot), so a themed terminal
+      // colours `A.TAR` the way it colours `a.tar`.
+      palette.extensions_.insert_or_assign(absl::AsciiStrToLower(key.substr(1)), std::string(code));
+      continue;
+    }
+    if (key.size() == 2) {
+      palette.types_.insert_or_assign(std::string(key), std::string(code));
+    }
+    // Everything else (`rs`, `lc`, `rc`, `ec`, `no`, multi-letter keys) is deliberately unread: xff
+    // emits its own reset and never uses the surrounding-code customisation.
+  }
+  return palette;
+}
+
+const std::string* Palette::Themed(std::string_view key) const {
+  const auto it = types_.find(key);
+  return it == types_.end() ? nullptr : &it->second;
+}
+
+std::string_view Palette::RegularCode(std::string_view name, std::uint32_t mode) const {
+  // ls's order for a regular file: the executable bit first, then the extension, then `fi`. So a
+  // themed `*.sh` loses to `ex` on an executable script, exactly as in a real ls listing.
+  if ((mode & 0111U) != 0U) {
+    const std::string* const executable = Themed("ex");
+    return executable != nullptr ? std::string_view(*executable)
+                                 : (fall_back_ ? CodeForType(vfs::FileType::kRegular, mode) : std::string_view());
+  }
+  if (!extensions_.empty()) {
+    const std::string_view::size_type dot = name.rfind('.');
+    if (dot != std::string_view::npos && dot + 1 < name.size()) {
+      const auto it = extensions_.find(absl::AsciiStrToLower(name.substr(dot)));
+      if (it != extensions_.end()) {
+        return it->second;
+      }
+    }
+  }
+  const std::string* const plain = Themed("fi");
+  return plain != nullptr ? std::string_view(*plain)
+                          : (fall_back_ ? CodeForType(vfs::FileType::kRegular, mode) : std::string_view());
+}
+
+std::string_view Palette::CodeFor(std::string_view name, vfs::FileType type, std::uint32_t mode) const {
+  if (type == vfs::FileType::kRegular) {
+    return RegularCode(name, mode);
+  }
+  // Every other type is one dircolors key, so the lookup is a table rather than a branch per case.
+  static constexpr auto kKeys = mbo::container::MakeLimitedMap(
+      std::pair{vfs::FileType::kBlockDevice, std::string_view("bd")},
+      std::pair{vfs::FileType::kCharDevice, std::string_view("cd")},
+      std::pair{vfs::FileType::kDirectory, std::string_view("di")},
+      std::pair{vfs::FileType::kFifo, std::string_view("pi")},
+      std::pair{vfs::FileType::kSocket, std::string_view("so")},
+      std::pair{vfs::FileType::kSymlink, std::string_view("ln")});
+  if (const auto key = kKeys.find(type); key != kKeys.end()) {
+    if (const std::string* const themed = Themed(key->second)) {
+      return *themed;
+    }
+  }
+  // Nothing in the theme answered. kLsAndXff keeps xff's colour here; kLs leaves it uncoloured,
+  // which is what a real ls does with a type its $LS_COLORS never mentions.
+  return fall_back_ ? CodeForType(type, mode) : std::string_view();
 }
 
 }  // namespace xff::color

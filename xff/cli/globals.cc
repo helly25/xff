@@ -78,6 +78,15 @@ constexpr std::array kArchiveValues = std::to_array<ValueDoc>({
     {.value = "roots", .meaning = "dive only when a search root is itself an archive (the xff-family default)"},
     {.value = "all", .meaning = "also dive archives found during the walk (what bare `--archive` selects)"},
 });
+constexpr std::array kColorSchemeValues = std::to_array<ValueDoc>({
+    {.value = "auto",
+     .meaning = "ls OR xff: the theme when $LS_COLORS is set, else xff's scheme (the default; also "
+                "spelled `ls+xff`, `ls-or-xff` or `default`)"},
+    {.value = "ls", .meaning = "$LS_COLORS alone: what it does not name prints uncoloured, as in ls"},
+    {.value = "merged",
+     .meaning = "the theme where it speaks, xff's colour for every key it omits, per key (also `ls-and-xff`)"},
+    {.value = "xff", .meaning = "xff's built-in type scheme, ignoring $LS_COLORS"},
+});
 constexpr std::array kArchiveAggregateValues = std::to_array<ValueDoc>({
     {.value = "members", .meaning = "count what is INSIDE a dived container, not the container (the default)"},
     {.value = "container", .meaning = "count containers as the files they are on disk, never their members"},
@@ -853,6 +862,35 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .details = "Colorizes the plain listing by file type. auto colorizes only when stdout is a terminal; always "
                    "forces color even through a pipe or pager; never disables it. The NO_COLOR environment variable "
                    "always wins.",
+    },
+    {
+        .name = "--color-scheme",
+        .display = "--color-scheme=<SCHEME>",
+        .group = "output",
+        .header = "Output",
+        .summary = "which palette colour comes from: the terminal's ls theme, or xff's own",
+        .details = "Colour is a whole-run choice, so this one palette is used by every surface that "
+                   "colours - the plain listing and -ls alike; they cannot disagree. $LS_COLORS is the "
+                   "variable `ls` and `dircolors` use, and xff reads the same keys: the two-letter "
+                   "types (di, ln, ex, pi, so, bd, cd, fi) and the per-extension `*.tar=` entries. "
+                   "\"Use ls's colours\" turns out to mean three different things, so each has its "
+                   "own name, spelled the way logic spells it: `+` is OR, and the merge is AND. "
+                   "`auto` (the default, also `ls+xff` or `ls-or-xff`) is the theme OR xff's scheme - "
+                   "a theme that is set at all is the whole answer, and with none set xff's scheme is, "
+                   "so the decision is per VARIABLE; `default` is a fourth spelling of it, for a "
+                   "config file that wants whatever the default currently is. `ls` is the theme "
+                   "ALONE, so a type it never mentions prints uncoloured exactly as in a real ls "
+                   "listing (and with no theme set, nothing is coloured). `merged` (also "
+                   "`ls-and-xff`) is the theme "
+                   "AND xff's scheme, merged per KEY: the theme where it speaks, xff's colour for "
+                   "every key it omits - for a sparse theme you want filled in. (`ls&xff` is "
+                   "deliberately not accepted: an unquoted `&` backgrounds the command.) `xff` "
+                   "ignores $LS_COLORS entirely. An EMPTY value in the theme (`di=`) is it "
+                   "saying \"leave these plain\" and is honoured as such; a malformed entry is "
+                   "skipped rather than failing the run, as in ls. Whether colour is emitted at all "
+                   "is --color's business, not this flag's.",
+        .values = kColorSchemeValues,
+        .affects = "--color",
     },
     {
         .name = "--unicode",

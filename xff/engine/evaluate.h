@@ -91,6 +91,12 @@ struct EvalContext {
   // (inode, blocks, perms, ...) for the driver to feed to a format::ColumnBuffer.
   // Empty -> -ls falls back to a single-space-joined line (in-process callers).
   std::function<void(std::vector<std::string>)> emit_ls_row;
+  // --color + --color-scheme, for the NAME column of -ls / -fls: the SGR parameter for THIS entry, or
+  // empty for "print it plain". Resolved by the driver, which already resolves the palette once per
+  // run - so -ls colours exactly what the plain listing colours, from the same theme, and the
+  // evaluator needs no colour library. Only the name is wrapped, as `ls -l` does, and the name is the
+  // LAST column, so the escapes cannot disturb the computed widths.
+  std::string_view ls_color;
   // -ls size-column rendering: human units (iec/si) or, when nullopt, raw bytes.
   // The driver resolves it from --human + the style (xff -> human, find -> bytes).
   std::optional<format::SizeUnits> ls_size_units;
@@ -227,7 +233,8 @@ std::vector<std::string> LsCells(
     const Visit& visit,
     absl::Time now,
     absl::TimeZone tz,
-    std::optional<format::SizeUnits> size_units);
+    std::optional<format::SizeUnits> size_units,
+    std::string_view color = {});
 
 // One `-ls` column's alignment and minimum (also fixed, when --buffer=off) width.
 struct LsColumn {

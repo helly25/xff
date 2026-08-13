@@ -36,7 +36,10 @@ from pathlib import Path
 
 # `env::Get("NAME")`, `env::Has("NAME")`, and the string literals of the prewarm table.
 _READ = re.compile(r'env::(?:Get|Has)\(\s*"([A-Za-z_][A-Za-z0-9_]*)"')
-_PREWARM_BLOCK = re.compile(r"kKnownEnv\s*=\s*\{(.*?)\};", re.DOTALL)
+# The prewarm table, whether it is written as a sized array (`= {...}`) or a deduced one
+# (`= std::to_array<std::string_view>({...})`); the latter is preferred, since a hand-written size
+# silently pads the array when it drifts.
+_PREWARM_BLOCK = re.compile(r"kKnownEnv\s*=\s*(?:std::to_array<[^>]*>\()?\s*\{(.*?)\}", re.DOTALL)
 _DOC_BLOCK = re.compile(r"kVars\s*=\s*std::to_array<DocPair>\(\{(.*?)\}\);", re.DOTALL)
 _DOC_TERM = re.compile(r'\{\s*"([^"]+)"')
 _LITERAL = re.compile(r'"([A-Za-z_][A-Za-z0-9_]*)"')
@@ -63,12 +66,17 @@ def _sources(root: Path) -> list[Path]:
 
 def main(argv: list[str]) -> int:
     root = Path(argv[1]) if len(argv) > 1 else Path()
-    read: set[str] = set()
+    # Three DISTINCT sets, deliberately: an earlier version folded the prewarm table into `read`,
+    # which made the "is the known set complete" check below vacuous - a prewarmed name counted as a
+    # read of itself, so it could never be missing.
+    read: set[str] = set()  # env::Get("X") / env::Has("X") literals: what the code demonstrably reads
+    prewarmed: set[str] = set()  # the kKnownEnv table: what a run claims to read up front
     for path in _sources(root):
-        text = path.read_text(encoding="utf-8")
-        read.update(_READ.findall(text))
-        for block in _PREWARM_BLOCK.findall(text):
-            read.update(_LITERAL.findall(block))
+        read.update(_READ.findall(path.read_text(encoding="utf-8")))
+    main_cc = root / "xff/cli/main.cc"
+    if main_cc.is_file():
+        for block in _PREWARM_BLOCK.findall(main_cc.read_text(encoding="utf-8")):
+            prewarmed.update(_LITERAL.findall(block))
 
     help_build = root / "xff/cli/help_build.cc"
     if not help_build.is_file():
@@ -80,6 +88,7 @@ def main(argv: list[str]) -> int:
             documented.update(name.strip() for name in term.split(","))
 
     status = 0
+    # 1. Every name the code reads is documented - the promise --help=environment makes.
     for name in sorted(read - documented - _DYNAMIC_OK):
         print(
             f"{name}: read by the code but missing from the --help=environment table "
@@ -87,10 +96,22 @@ def main(argv: list[str]) -> int:
             file=sys.stderr,
         )
         status = 1
-    for name in sorted(documented - read):
+    # 2. Every documented name is read somewhere, or at least declared in the prewarm table (a name
+    #    read through a loop over a named array reaches the code that way rather than as a literal).
+    for name in sorted(documented - read - prewarmed):
         print(
-            f"{name}: documented in --help=environment but never read "
+            f"{name}: documented in --help=environment but neither read nor prewarmed "
             f"(remove the kVars row, or fix the name on either side)",
+            file=sys.stderr,
+        )
+        status = 1
+    # 3. The prewarm table claims to BE the set a run reads, and it drifted twice: XFF_MANPAGER was
+    #    never in it, and LS_COLORS was lost to a hand-written array size that no longer matched the
+    #    contents. A missing name still works (env::Get caches lazily), so this is hygiene, not a bug.
+    for name in sorted(read - prewarmed - _DYNAMIC_OK):
+        print(
+            f"{name}: read by the code but missing from the kKnownEnv prewarm table in xff/cli/main.cc "
+            f"(that table is meant to be the complete set a run reads)",
             file=sys.stderr,
         )
         status = 1

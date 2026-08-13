@@ -87,4 +87,22 @@ test::help_topic_documents_buffer() {
   expect_output_contains 'buffer' "$(_run --help=--buffer)"
 }
 
+test::ls_colours_the_name_column_like_the_plain_listing() {
+  local root out
+  root="$(mktemp -d)"
+  mkdir -p "${root}/sub"
+  # The bug this fixes: `xff . --color` coloured and `xff . -ls --color` did not, in the same run. Only
+  # the NAME is wrapped, as `ls -l` does, so the metadata columns stay plain.
+  out="$("$(_xff_bin)" --color=always "${root}" -ls -type d 2>&1)"
+  expect_matches $'\033\\[1;34m' "${out}"     # xff's directory colour, on the path
+  expect_matches $'drwx[^\033]*\033' "${out}" # the permissions column comes BEFORE any escape
+  # And the theme is the same source the plain listing reads.
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "${root}" -ls -type d 2>&1)"
+  expect_matches $'\033\\[01;35m' "${out}"
+  # Colour off means no escapes at all, as before.
+  out="$("$(_xff_bin)" --color=never "${root}" -ls -type d 2>&1)"
+  expect_not_matches $'\033\\[' "${out}"
+  rm -rf "${root}"
+}
+
 test_runner

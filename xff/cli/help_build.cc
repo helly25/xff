@@ -370,6 +370,9 @@ Section EnvironmentSection() {
       {"HOME", "config fallback: `$HOME/.config/xff/config` when `$XDG_CONFIG_HOME` is unset"},
       {"LC_ALL, LC_CTYPE, LANG",
        "locale for `--unicode=auto`: a UTF-8 locale selects the Unicode `--format=tree` connectors, else ASCII"},
+      {"LS_COLORS",
+       "the terminal's colour theme, as `ls` / `dircolors` set it: type keys (`di`, `ln`, `ex`, ...) and "
+       "per-extension `*.tar=` entries, used by default (see `--color-scheme`)"},
       {"XDG_RUNTIME_DIR",
        "preferred directory for a member extracted by `--archive-extract`: it is a memory-backed tmpfs, so "
        "the copy never reaches a disk (`/dev/shm` is tried next)"},
