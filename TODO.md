@@ -1126,12 +1126,20 @@ concrete need appears.
   orthogonal behavior, not a content selector.
 - **Fuzzy finding + near-duplicate detection** (design open). Two distinct capabilities that share the
   "approximate match" theme; split them, do not conflate:
-  1. **Fuzzy name/path matching** - an fzf/fd-style approximate match over the path or basename, as its
-     own primary (single-dash, e.g. `-fuzzy PATTERN` / `-ifuzzy`) rather than overloading `-name`.
-     Decide the algorithm: subsequence match (fzf-style: characters of PATTERN appear in order, with a
-     rank score) vs bounded edit distance (Levenshtein <= k). Ranking implies output ordering, so it
-     ties into `--sort` (a `--sort=score` mode) and a possible `--top=N`; a bare boolean predicate can
-     also just gate at a score threshold. xff-flavor only (kXff-gated); find flavor rejects it.
+  1. **Fuzzy name matching - v1 SHIPPED as `-fuzzy` / `-ifuzzy`** (subsequence over the BASENAME,
+     kXff-gated, `//xff/fuzzy`). The algorithm question is answered for this half: a SUBSEQUENCE
+     match (fzf / quick-open: the characters of PATTERN appear in order, gaps free), because that is
+     the question a file finder asks - "can I type a few letters and find the file" - while bounded
+     edit distance answers a spell-checker's "is this a typo of that" and would miss `tmh` ->
+     `the_main_header.h` entirely. Deliberately NOT built yet, each because it needs a decision
+     rather than more code:
+     - **Ranking.** A score implies an output ORDER, so it needs `--sort=score` (and probably
+       `--top=N`) and an alignment search rather than the greedy scan - a bigger change than the
+       matcher. Today every match is equal and the walk order is untouched.
+     - **A path-matching variant** (`-fuzzypath`?), the `-path` to this `-name`. The basename is the
+       fzf-ish default; matching whole paths without ranking tends to match nearly everything.
+     - **A score threshold** as the gate for the boolean form, which only means something once
+       there is a score.
   2. **Content near-duplicate / similarity** via **w-shingling**
      (https://en.wikipedia.org/wiki/W-shingling): represent each text file as the set of its
      contiguous w-token shingles (w-word or w-character k-grams), and score similarity as the Jaccard

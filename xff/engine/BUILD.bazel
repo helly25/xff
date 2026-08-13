@@ -99,6 +99,7 @@ cc_library(
         "//xff/exec:exec_cc",
         "//xff/fields:fields_cc",
         "//xff/format:format_cc",
+        "//xff/fuzzy:fuzzy_cc",
         "//xff/hash:hash_cc",
         "//xff/language:language_cc",
         "//xff/mime:mime_cc",
