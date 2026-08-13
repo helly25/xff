@@ -394,6 +394,15 @@ int RunMain(int argc, char** argv) {
                 << "Try 'xff --help' for usage, or 'xff --help=NAME' for one option.\n";
       return 2;
     }
+    // And the VALUE, for a flag whose vocabulary is closed: a typo used to select the default
+    // silently, so the run looked like it worked. Checked here rather than in each resolver
+    // because several of them (--color, --width, --pager) run before the parse, from raw argv,
+    // with nowhere to report an error; by the time this loop runs every global is in hand.
+    if (const absl::Status status = xff::cli::ValidateGlobalValue(global); !status.ok()) {
+      std::cerr << "xff: " << status.message() << "\n"
+                << "Try 'xff --help=" << std::string_view(global).substr(0, global.find('=')) << "' for its values.\n";
+      return 2;
+    }
   }
 
   // A composable-extra flag (e.g. --archive) is always recognized, but if the extra it needs is not

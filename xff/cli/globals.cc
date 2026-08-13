@@ -16,11 +16,16 @@
 #include "xff/cli/globals.h"
 
 #include <array>
+#include <string>
 #include <string_view>
 
+#include "absl/algorithm/container.h"
+#include "absl/status/status.h"
 #include "absl/strings/match.h"
+#include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
 #include "xff/archive/archive_backend.h"
+#include "xff/values/values.h"
 
 namespace xff::cli {
 namespace {
@@ -40,6 +45,9 @@ constexpr std::array kRegextypeValues = std::to_array<ValueDoc>({
     {.value = "GLOB", .meaning = "path-aware shell glob; `*`/`?` stop at `/`, `**` crosses directories"},
     {.value = "SHGLOB", .meaning = "GLOB plus `{a,b}` brace alternation, so `*.{cc,h}` matches either"},
     {.value = "PCRE2", .meaning = "Perl syntax (lookaround, backreferences); a build extra"},
+    // Reserved: accepted here so the resolver's "reserved and not supported yet" error is what the
+    // user sees, rather than a generic unknown-value one.
+    {.value = "MATCH", .meaning = "", .hidden = true},
 });
 constexpr std::array kSkipVcsValues = std::to_array<ValueDoc>({
     {.value = "git", .meaning = ".git"},
@@ -61,6 +69,7 @@ constexpr std::array kFormatValues = std::to_array<ValueDoc>({
     {.value = "aligned", .meaning = "column-aligned table"},
     {.value = "markdown", .meaning = "a Markdown table (also `md`)"},
     {.value = "tree", .meaning = "an indented directory tree"},
+    {.value = "md", .meaning = "", .hidden = true},  // the alias `markdown`'s meaning already names
 });
 constexpr std::array kSummaryValues = std::to_array<ValueDoc>({
     {.value = "overall", .meaning = "one row aggregated over all matches"},
@@ -87,6 +96,10 @@ constexpr std::array kColorSchemeValues = std::to_array<ValueDoc>({
     {.value = "merged",
      .meaning = "the theme where it speaks, xff's colour for every key it omits, per key (also `ls-and-xff`)"},
     {.value = "xff", .meaning = "xff's built-in type scheme, ignoring $LS_COLORS"},
+    {.value = "default", .meaning = "", .hidden = true},     // spelled out in `auto`'s meaning
+    {.value = "ls+xff", .meaning = "", .hidden = true},      // ditto
+    {.value = "ls-or-xff", .meaning = "", .hidden = true},   // ditto
+    {.value = "ls-and-xff", .meaning = "", .hidden = true},  // spelled out in `merged`'s meaning
 });
 constexpr std::array kArchiveAggregateValues = std::to_array<ValueDoc>({
     {.value = "members", .meaning = "count what is INSIDE a dived container, not the container (the default)"},
@@ -269,6 +282,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .values = kArchiveValues,
         .topic = "archive",
         .extra = "archive",
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--archive-depth",
@@ -307,6 +321,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .affects = "--archive",
         .topic = "archive",
         .extra = "archive",
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--archive-delete",
@@ -485,6 +500,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "insensitive (-i) folds case; smart (-s / -s+) folds only when the pattern is all lower case and "
                    "matches exactly otherwise; -s- forces sensitive. rg defaults to smart.",
         .values = kCaseValues,
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--regextype",
@@ -503,6 +519,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "run xff --help=extras to see whether THIS binary includes PCRE2. See --help=grammars for "
                    "a full description of each grammar (GLOB/SHGLOB are xff's own, not POSIX glob(7)).",
         .values = kRegextypeValues,
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--exclude",
@@ -529,6 +546,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "core.excludesFile. -g / auto activates only inside a git working tree; -g+ / =on forces it "
                    "anywhere; -g- / =off disables it. Independent of --ignore-files (.ignore / .xffignore).",
         .values = kGitignoreValues,
+        .value_check = GlobalFlag::ValueCheck::kTristate,
     },
     {
         .name = "--ignore-files",
@@ -618,6 +636,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .header = "Output",
         .summary = "output format: plain, nul, jsonl, csv, tsv, aligned, markdown (md), tree; default plain",
         .values = kFormatValues,
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--no-header",
@@ -682,6 +701,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .details = "Sets the default digest algorithm for the -hash action and the {hash} field. sha256 is the "
                    "default; a `-hash=ALGO` spec or a `{hash:ALGO}` qualifier overrides it per use.",
         .values = kHashAlgorithmValues,
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--hash-encoding",
@@ -710,6 +730,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "force the default -print on or off",
+        .value_check = GlobalFlag::ValueCheck::kBool,
     },
     {
         .name = "--summary",
@@ -777,6 +798,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "INCOMPLETE)`. Only meaningful with --shards.",
         .values = kShardsShowValues,
         .topic = "stats",
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--shards-dedup",
@@ -790,6 +812,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "error and fails the run (non-zero exit). Only meaningful with --shards.",
         .values = kShardsDedupValues,
         .topic = "stats",
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--shard-pattern",
@@ -875,6 +898,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .details = "Colorizes the plain listing by file type. auto colorizes only when stdout is a terminal; always "
                    "forces color even through a pipe or pager; never disables it. The NO_COLOR environment variable "
                    "always wins.",
+        .value_check = GlobalFlag::ValueCheck::kTristate,
     },
     {
         .name = "--color-scheme",
@@ -912,6 +936,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "is --color's business, not this flag's.",
         .values = kColorSchemeValues,
         .affects = "--color",
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--unicode",
@@ -922,6 +947,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .details = "Selects the box-drawing characters --format=tree connects nodes with. auto uses Unicode when the "
                    "locale (LC_ALL / LC_CTYPE / LANG) is UTF-8, else ASCII; always forces the Unicode connectors; "
                    "never forces the ASCII ones.",
+        .value_check = GlobalFlag::ValueCheck::kTristate,
     },
     {
         .name = "--human",
@@ -973,6 +999,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "-okdir, -exec, -execdir, which can hand the terminal to an editor) and for --quiet, which "
                    "prints nothing to page; those runs are simply unpaged.",
         .values = kPagerValues,
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--no-pager",
@@ -1072,6 +1099,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "its zone with %z / %Ez / %Z yourself. asn1's zone is optional: always adds its ASN.1-style "
                    "offset (+0100, no separator), never / auto leave it bare.",
         .values = kZoneSuffixValues,
+        .value_check = GlobalFlag::ValueCheck::kTristate,
     },
 });
 
@@ -1088,6 +1116,54 @@ const GlobalFlag* LookupGlobal(std::string_view name) {
     }
   }
   return nullptr;
+}
+
+absl::Status ValidateGlobalValue(std::string_view arg) {
+  const std::string_view::size_type equals = arg.find('=');
+  if (equals == std::string_view::npos) {
+    return absl::OkStatus();  // a bare or sign-suffixed form carries no value to check
+  }
+  const std::string_view name = arg.substr(0, equals);
+  const std::string_view value = arg.substr(equals + 1);
+  const GlobalFlag* const flag = LookupGlobal(name);
+  if (flag == nullptr) {
+    return absl::OkStatus();  // unknown flag: IsKnownGlobal reports it, with a better message
+  }
+  switch (flag->value_check) {
+    case GlobalFlag::ValueCheck::kNone: return absl::OkStatus();
+    case GlobalFlag::ValueCheck::kBool:
+      if (values::ParseBool(value).has_value()) {
+        return absl::OkStatus();
+      }
+      break;
+    case GlobalFlag::ValueCheck::kTristate:
+      if (values::ParseTristate(value).has_value()) {
+        return absl::OkStatus();
+      }
+      break;
+    case GlobalFlag::ValueCheck::kEnum:
+      if (absl::c_any_of(flag->values, [value](const ValueDoc& doc) { return doc.value == value; })) {
+        return absl::OkStatus();
+      }
+      break;
+  }
+  // The accepted list comes from the same table the help prints (or from the shared vocabulary),
+  // so the error and the documentation cannot disagree.
+  std::string accepted;
+  if (flag->value_check == GlobalFlag::ValueCheck::kEnum) {
+    for (const ValueDoc& doc : flag->values) {
+      if (doc.hidden) {
+        continue;  // accepted, but not something to suggest
+      }
+      absl::StrAppend(&accepted, accepted.empty() ? "" : ", ", doc.value);
+    }
+  } else {
+    accepted = flag->value_check == GlobalFlag::ValueCheck::kBool
+                   ? "yes, no, on, off, true, false, 1, 0"
+                   : "auto, always, never, on, off, yes, no, true, false, 1, 0";
+  }
+  return absl::InvalidArgumentError(
+      absl::StrCat("unknown value '", value, "' for ", flag->name, " (accepted: ", accepted, ")"));
 }
 
 bool IsKnownGlobal(std::string_view arg) {

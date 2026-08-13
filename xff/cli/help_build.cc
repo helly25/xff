@@ -162,6 +162,9 @@ Content FlagEntry(const GlobalFlag& flag, bool with_details = true, Audience aud
       Rows rows;
       rows.rows.reserve(flag.values.size());
       for (const ValueDoc& value : flag.values) {
+        if (value.hidden) {
+          continue;  // an alias or reserved name: accepted by the check, not listed here
+        }
         rows.rows.push_back(Row{.term = std::string(value.value), .description = ParseInline(value.meaning)});
       }
       // A title-less subsection nests the value table one level deeper than its label.

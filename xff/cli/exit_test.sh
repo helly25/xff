@@ -116,6 +116,41 @@ test::unknown_global_flag_is_a_usage_error() {
   expect_output_contains "--bogus-flag" "${out}"   # names the offending flag
 }
 
+test::unknown_flag_value_is_a_usage_error() {
+  # A typo in a VALUE used to select the default silently: `--case=insensitve` matched
+  # case-sensitively and the run looked like it worked. Now it is a usage error naming the flag,
+  # the bad value, and what the flag accepts.
+  local dir out rc
+  dir="$(_tree unknownvalue)"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --case=insensitve "${dir}" 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "unknown value" "${out}"
+  expect_output_contains "insensitve" "${out}" # names the offending value
+  expect_output_contains "--case" "${out}"     # and the flag
+  expect_output_contains "sensitive" "${out}"  # and what it accepts, from the flag's own table
+}
+
+test::a_free_text_value_is_never_rejected() {
+  # Most valued flags take a path / format / regex, so the check must stay out of their way.
+  local dir rc
+  dir="$(_tree freetext)"
+  XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --define=A=B --template='{path}' "${dir}" >/dev/null 2>&1 \
+    && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+}
+
+test::the_shared_vocabulary_spellings_are_accepted() {
+  # A tri-state flag takes more than its table documents (yes / 1 beside on), so the check must
+  # use the shared parser rather than the table.
+  local dir rc spelling
+  dir="$(_tree vocabulary)"
+  for spelling in on off yes no true false 1 0 auto; do
+    XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "--gitignore=${spelling}" "${dir}" >/dev/null 2>&1 \
+      && rc=0 || rc=$?
+    expect_eq "0" "${rc}"
+  done
+}
+
 test::known_global_flag_is_accepted() {
   local dir rc
   dir="$(_tree knownflag)"
