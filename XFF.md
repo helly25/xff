@@ -788,6 +788,8 @@ Environment variables xff reads. An explicit command-line flag generally overrid
 - `XDG_CONFIG_HOME` - config search root: `$XDG_CONFIG_HOME/xff/config` (see `--help=config`)
 - `HOME` - config fallback: `$HOME/.config/xff/config` when `$XDG_CONFIG_HOME` is unset
 - `LC_ALL, LC_CTYPE, LANG` - locale for `--unicode=auto`: a UTF-8 locale selects the Unicode `--format=tree` connectors, else ASCII
+- `XDG_RUNTIME_DIR` - preferred directory for a member extracted by `--archive-extract`: it is a memory-backed tmpfs, so the copy never reaches a disk (`/dev/shm` is tried next)
+- `TMPDIR` - where a temporary file goes when no memory-backed directory fits it: an extracted member (`--archive-extract`) and the in-progress rewrite of a container (`--archive-delete`)
 
 Any process environment variable is also readable in the field vocabulary as `{env.NAME}` (see `--help=fields`).
 

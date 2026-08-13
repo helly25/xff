@@ -221,9 +221,9 @@ int RunMain(int argc, char** argv) {
   // Read the fixed set of environment variables xff consults into the env cache up front, in one
   // locked pass, so every later read is a pure cache hit. Dynamic {env.NAME} field references are
   // not here (they are user-supplied); env::Get caches those lazily on first use.
-  static constexpr std::array<std::string_view, 10> kKnownEnv = {
-      "COLUMNS",         "HOME",       "LANG",      "LC_ALL", "LC_CTYPE", "NO_COLOR", "PAGER",
-      "XDG_CONFIG_HOME", "XFF_CONFIG", "XFF_PAGER",
+  static constexpr std::array<std::string_view, 13> kKnownEnv = {
+      "COLUMNS", "HOME",       "LANG",         "LC_ALL",    "LC_CTYPE",        "NO_COLOR",        "PAGER",
+      "TMPDIR",  "XFF_CONFIG", "XFF_MANPAGER", "XFF_PAGER", "XDG_CONFIG_HOME", "XDG_RUNTIME_DIR",
   };
   xff::env::Prewarm(absl::MakeConstSpan(kKnownEnv));
 

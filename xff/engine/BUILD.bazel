@@ -43,6 +43,7 @@ cc_library(
     hdrs = ["extract.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
+        "//xff/env:env_cc",
         "//xff/vfs:vfs_cc",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/status",

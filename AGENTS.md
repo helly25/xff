@@ -71,6 +71,9 @@ follow-up:
 - a new / changed **cookbook recipe** (`cli/help.cc` `RenderCookbook`) -> a matching
   execution case in `//xff/examples:cookbook_test`; its guard case fails CI if a recipe ships
   without one, so the user-facing examples are run, not just rendered;
+- a new **environment variable** the code reads -> a row in `cli/help_build.cc`'s `kVars` table
+  (`--help=environment`), enforced by the `check-env-documented` pre-commit hook, which also fails on
+  a documented name nothing reads;
 - the hand-maintained `kHelpText` usage page in `cli/main.cc`;
 - any prose docs the change affects (`docs/design-*.md`, `TODO.md`).
 
