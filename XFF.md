@@ -71,7 +71,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `container` - count containers as the files they are on disk, never their members
   - `both` - count each container AND its members - the archive plus its unpacked copy
 
-  Diving makes one byte visible twice - once as the container's own size, once as its members' - so a total that adds both describes no filesystem that exists. `members` (the default) counts a dived container's members instead of the container, which is what unpacking it and measuring the result would give; `container` counts the archives and never what is in them, which is what the disk holds; `both` counts everything, the archive AND its unpacked copy, for when the doubling is the point. Only the REDUCTIONS are affected: -print and every action still see every entry the walk visits, so a member is listed under `container` and the container is listed under `members`. `members` needs the walk to open a container before deciding, so a `-prune` on a container no longer avoids opening it - use another mode, or no reduction, to keep that.
+  Diving makes one byte visible twice - once as the container's own size, once as its members' - so a total that adds `both` describes no filesystem that exists. `members` (the default) counts a dived container's members instead of the container itself, which is what unpacking it and measuring the result would give; `container` counts the archives and never what is in them, which is what the disk holds; `both` counts everything, the archive AND its unpacked copy, for when the doubling is the point. Only the REDUCTIONS are affected: -print and every action still see every entry the walk visits, so a member is listed under `container` and the container is listed under `members`. `members` needs the walk to open a container before deciding, so a `-prune` on a container no longer avoids opening it - use another mode, or no reduction, to keep that.
   Affects: --archive
 - `--archive-delete` - let -delete remove an archive member, rewriting its container _(global, xff)_
   There is no such thing as removing a member in place: an archive is a stream of header and data records, so the container is written again from the members that survive. That is why this is opt-in and why `-delete` refuses a member without it - an action that silently rewrites a whole archive is not one to do by default. The rewrite happens after the walk, once per container however many of its members matched, because the walk is reading that same container while it runs. The new archive keeps the original's format and compression (a `.tar.gz` stays a gzipped tar) and every surviving member keeps its name, mode, times and content; it is written beside the original and renamed over it only when complete, so an interrupted run leaves the container as it was. `--dry-run` lists the members that would go and writes nothing. A NATIVE phar is rewritten too, by xff's own writer: the manifest and data section are rebuilt from the surviving entries verbatim (so per-member gz / bz2 compression is untouched) and the trailing signature is recomputed (md5 / sha1 / sha256 / sha512). Refused, with the reason named: a format this build reads but cannot write (7-Zip, RAR, ISO); a TAR-based or ZIP-based phar, whose signature is a MEMBER computed over the rest of the container, so a rewrite would leave it stale and PHP would reject the result; an OpenSSL-signed phar, which cannot be re-signed without its private key; a compressed single file, which has no member list to rewrite; and a member of a container nested inside another one.
@@ -96,10 +96,10 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `URI` - `archive:///abs/a.tar!x` when the container is absolute, else `archive:a.tgz!x`
   - `STRING` - any other value is used literally, e.g. `--archive-prefix=vfs:`
 
-  Empty (the default) prints the bare path, `a.tgz!inner/x`. `URI` renders a well-formed URI for handing to tools that read archive URLs: `archive:///abs/a.tar!x` for an absolute container (empty authority then the path, as `file:///...` does) and the opaque `archive:a.tgz!x` for a relative one - `archive://a.tgz` would be WRONG, since `//` starts the authority and would make `a.tgz` a host name. Any other value is used LITERALLY (e.g. `--archive-prefix=vfs:`), the same freedom --archive-separator has; `URI` is the one keyword, spelled in caps like RE2 / PCRE2 / GLOB. There is deliberately no `none` value: it would be indistinguishable from a literal prefix spelled `none`, which is why empty means no prefix. Applies to PARSING too - under a prefix, a bare path is not accepted as a member path, so the spellings never silently interchange. Whether the scheme should be per-format (`tar:` / `zip:` / PHP's `phar:`) rather than the generic `archive:` is still open (see TODO.md).
+  Empty (the default) prints the bare path, `a.tgz!inner/x`. `URI` renders a well-formed URI for handing to tools that read archive URLs: `archive:///abs/a.tar!x` for an absolute container (empty authority then the path, as `file:///...` does) and the opaque `archive:a.tgz!x` for a relative one - `archive://a.tgz` would be WRONG, since `//` starts the authority and would make `a.tgz` a host name. Any other value is used LITERALLY (e.g. `--archive-prefix=vfs:`), the same freedom `--archive-separator` has; `URI` is the one keyword, spelled in caps like `RE2` / `PCRE2` / `GLOB`. There is deliberately no `none` value: it would be indistinguishable from a literal prefix spelled `none`, which is why empty means no prefix. Applies to PARSING too - under a prefix, a bare path is not accepted as a member path, so the spellings never silently interchange. Whether the scheme should be per-format (`tar:` / `zip:` / PHP's `phar:`) rather than the generic `archive:` is still open (see TODO.md).
 - `-j N, --jobs=N|all` - worker count for the walk and concurrent -exec (all = every core) _(global, xff)_
 - `--sort[=none|dir|subtree|tree]` - sibling/traversal ordering (default depends on the mode) _(global, xff)_
-  none leaves entries in filesystem order (fastest); dir sorts each directory's entries; subtree and tree give a deterministic order across the whole walk. The default is per style: xff sorts per directory, while find and rg leave the order unspecified.
+  `none` leaves entries in filesystem order (fastest); `dir` sorts each directory's entries; `subtree` and `tree` give a deterministic order across the whole walk. The default is per style: xff sorts per directory, while find and rg leave the order unspecified.
 
 ### Matching
 - `--block-size=SIZE` - bytes per -size block for a bare -size N / -size Nb (default 512) _(global, xff)_
@@ -111,7 +111,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `insensitive` - fold case (-i)
   - `smart` - fold case only when the pattern is all lower case (-s / -s+)
 
-  Controls case for -name/-path/-regex and the content matchers. sensitive matches exactly; insensitive (-i) folds case; smart (-s / -s+) folds only when the pattern is all lower case and matches exactly otherwise; -s- forces sensitive. rg defaults to smart.
+  Controls case for `-name`/`-path`/`-regex` and the content matchers. `sensitive` matches exactly; `insensitive` (`-i`) folds case; `smart` (`-s` / `-s+`) folds only when the pattern is all lower case and matches exactly otherwise; `-s-` forces `sensitive`. rg defaults to `smart`.
 - `--regextype=<GRAMMAR>` - match engine: RE2, EXACT, FNMATCH, GLOB, SHGLOB (GLOB + {a,b}), or PCRE2 (a build extra) _(global, xff)_
   GRAMMAR is one of:
 
@@ -122,7 +122,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `SHGLOB` - GLOB plus `{a,b}` brace alternation, so `*.{cc,h}` matches either
   - `PCRE2` - Perl syntax (lookaround, backreferences); a build extra
 
-  Selects the grammar for -regex/-iregex and the content matchers -rxc/-grep. RE2 (the default) is linear-time regular expressions; EXACT is a literal string (metacharacters are plain text); FNMATCH is a flat shell wildcard where * matches any character including /; GLOB is a path-aware shell glob where */? stop at / and ** crosses directories (gitignore semantics), with [...] classes; SHGLOB is GLOB plus {a,b} brace alternation, so *.{cc,h} matches either. PCRE2 (Perl syntax: lookaround, backreferences) is the one build-time extra: it is present only in a full build, and selecting it in a lean build is a hard error, never a silent fall back to RE2. RE2/EXACT/FNMATCH/GLOB/SHGLOB are always built in; run xff --help=extras to see whether THIS binary includes PCRE2. See --help=grammars for a full description of each grammar (GLOB/SHGLOB are xff's own, not POSIX glob(7)).
+  Selects the grammar for `-regex`/`-iregex` and the content matchers `-rxc`/`-grep`. `RE2` (the default) is linear-time regular expressions; `EXACT` is a literal string (metacharacters are plain text); `FNMATCH` is a flat shell wildcard where `*` matches any character including `/`; `GLOB` is a path-aware shell glob where `*`/`?` stop at `/` and `**` crosses directories (gitignore semantics), with `[...]` classes; `SHGLOB` is `GLOB` plus `{a,b}` brace alternation, so `*.{cc,h}` matches either. `PCRE2` (Perl syntax: lookaround, backreferences) is the one build-time extra: it is present only in a full build, and selecting it in a lean build is a hard error, never a silent fall back to `RE2`. `RE2`/`EXACT`/`FNMATCH`/`GLOB`/`SHGLOB` are always built in; run `xff --help=extras` to see whether THIS binary includes `PCRE2`. See `--help=grammars` for a full description of each grammar (`GLOB`/`SHGLOB` are xff's own, not POSIX glob(7)).
 
 ### Filter & Ignore
 - `--exclude=GLOB` - skip paths matching a gitignore-style glob (repeatable; a matched directory is pruned) _(global, xff)_
@@ -134,7 +134,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `on` - respect it anywhere, git repository or not (also -g+, yes / true / 1)
   - `off` - ignore .gitignore files entirely (also -g-, no / false / 0)
 
-  Reads .gitignore rules while walking, including nested .gitignore files, .git/info/exclude, and core.excludesFile. -g / auto activates only inside a git working tree; -g+ / =on forces it anywhere; -g- / =off disables it. Independent of --ignore-files (.ignore / .xffignore).
+  Reads .gitignore rules while walking, including nested .gitignore files, .git/info/exclude, and core.excludesFile. `-g` / `auto` activates only inside a git working tree; `-g+` / `=on` forces it anywhere; `-g-` / `=off` disables it. Independent of `--ignore-files` (.ignore / .xffignore).
 - `--ignore-files` - respect per-directory .ignore and .xffignore files (off by default) _(global, xff)_
 - `--ignore-file=PATH` - read an extra gitignore-format file, rooted at its own directory (repeatable) _(global, xff)_
 - `--no-ignore, -u` - disable all ignore-file processing (.gitignore/.ignore/.xffignore) _(global, xff)_
@@ -157,7 +157,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `all` - every known VCS (the bare-flag default)
   - `none` - off (same as --no-skip-vcs)
 
-  Prunes version-control metadata directories at any depth (like ripgrep / fd), so a search never wades into repo plumbing. Bare --skip-vcs (or =all) covers every known VCS: git (.git), hg (.hg), svn (.svn), jj (.jj), bzr (.bzr), darcs (_darcs), cvs (CVS). A comma list (--skip-vcs=git,hg) is an explicit, frozen subset - it never changes if a VCS is added to the default set later. --no-skip-vcs (or =none) turns it off. Independent of --hidden, so the user's own dotfiles (.bazelrc, .gitignore) still show. -g / gitignore mode implies --skip-vcs=git (only .git); an explicit --skip-vcs overrides that. Default off otherwise.
+  Prunes version-control metadata directories at any depth (like ripgrep / fd), so a search never wades into repo plumbing. Bare `--skip-vcs` (or `=all`) covers every known VCS: `git` (.git), `hg` (.hg), `svn` (.svn), `jj` (.jj), `bzr` (.bzr), `darcs` (_darcs), `cvs` (CVS). A comma list (`--skip-vcs=git,hg`) is an explicit, frozen subset - it never changes if a VCS is added to the default set later. `--no-skip-vcs` (or `=none`) turns it off. Independent of `--hidden`, so the user's own dotfiles (.bazelrc, .gitignore) still show. `-g` / gitignore mode implies `--skip-vcs=git` (only .git); an explicit `--skip-vcs` overrides that. Default off otherwise.
 - `--no-skip-vcs` - keep VCS metadata dirs in the walk (opts out of --skip-vcs and the -g .git default) _(global, xff)_
 
 ### Output
@@ -205,7 +205,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `sha512_224` - SHA-2, 512/224 truncated
   - `sha512_256` - SHA-2, 512/256 truncated
 
-  Sets the default digest algorithm for the -hash action and the {hash} field. sha256 is the default; a `-hash=ALGO` spec or a `{hash:ALGO}` qualifier overrides it per use.
+  Sets the default digest algorithm for the `-hash` action and the `{hash}` field. `sha256` is the default; a `-hash=ALGO` spec or a `{hash:ALGO}` qualifier overrides it per use.
 - `--hash-encoding=hex|base64` - default -hash / {hash} rendering: hex (default) or base64 _(global, xff)_
 - `--path-encoding=raw|escape` - plain-output path byte encoding: raw (verbatim, default) or escape (C-escape controls) _(global, xff)_
 - `--template=TEMPLATE` - render each match through a field template ({path}, {name}, ...) _(global, xff)_
@@ -235,7 +235,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `dotnum` - only `<stem>.<NNN>` (7-Zip-style volumes)
   - `underscore` - only `<stem>_<NNN>`
 
-  Recognizes sharded-file naming conventions and collapses each logical set to a single line instead of listing every shard. Bare --shards (or =auto) enables all built-in schemes: `<stem>-<index>-of-<total>` (of), `<stem>.<NNN>` (dotnum), and `<stem>_<NNN>` (underscore). Restrict to specific schemes with a comma list, e.g. --shards=of,dotnum. Grouping is per-directory; files that match no scheme are listed unchanged. Off by default.
+  Recognizes sharded-file naming conventions and collapses each logical set to a single line instead of listing every shard. Bare `--shards` (or `=auto`) enables all built-in schemes: `<stem>-<index>-of-<total>` (`of`), `<stem>.<NNN>` (`dotnum`), and `<stem>_<NNN>` (`underscore`). Restrict to specific schemes with a comma list, e.g. `--shards=of,dotnum`. Grouping is per-directory; files that match no scheme are listed unchanged. Off by default.
 - `--shards-show=first|wildcard|count` - how a collapsed shard set's line reads (default first) _(global, xff)_
   One of:
 
@@ -243,7 +243,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `wildcard` - the masked-index name, e.g. `arc.???` (or `f-` idx `-of-003`)
   - `count` - the wildcard name plus the shard count, e.g. `arc.??? (3 shards)`
 
-  Picks each collapsed set's display: first = the representative (lowest-index) shard's path; wildcard = the masked-index name (the index digits shown as `???`); count = the wildcard plus the shard count. An incomplete set is always annotated `(present/expected - INCOMPLETE)`. Only meaningful with --shards.
+  Picks each collapsed set's display: `first` = the representative (lowest-index) shard's path; `wildcard` = the masked-index name (the index digits shown as `???`); `count` = the `wildcard` name plus the shard count. An incomplete set is always annotated `(present/expected - INCOMPLETE)`. Only meaningful with `--shards`.
 - `--shards-dedup=first|mtime|error` - how same-index shard duplicates are resolved (default first) _(global, xff)_
   One of:
 
@@ -251,7 +251,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `mtime` - keep the newest by modification time (ties break on name)
   - `error` - treat a same-index duplicate as an error (non-zero exit)
 
-  When two files are the same logical shard (they differ only by an opaque tail, e.g. a regeneration id), --shards-dedup picks which is the representative: first keeps the lexicographically-first name; mtime keeps the newest; error treats the duplicate as an error and fails the run (non-zero exit). Only meaningful with --shards.
+  When two files are the same logical shard (they differ only by an opaque tail, e.g. a regeneration id), `--shards-dedup` picks which is the representative: `first` keeps the lexicographically-first name; `mtime` keeps the newest; `error` treats the duplicate as an error and fails the run (non-zero exit). Only meaningful with `--shards`.
 - `--shard-pattern=REGEX` - a custom shard scheme via a named-capture regex (repeatable); the escape hatch _(global, xff)_
   Defines a custom sharded-file scheme for --shards when the built-ins do not fit. REGEX is an RE2 pattern with named groups: `(?P<stem>...)` and `(?P<index>...)` are required, `(?P<total>...)` and `(?P<dup>...)` are optional. Repeatable; the patterns are tried in order, before the built-in schemes. Only meaningful with --shards.
 - `--count, -c` - with -grep, print a per-file matching-line count (path:count) instead of the lines _(global, xff)_
@@ -268,7 +268,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   Affects: --histogram
 - `--summary-precision=N` - with --summary --human: fraction digits for scaled sizes (default 2; bytes stay integer) _(global, xff)_
 - `--color[=auto|always|never]` - colorize the plain listing by file type: auto (a tty), always, or never; honors NO_COLOR _(global, xff)_
-  Colorizes the plain listing by file type. auto colorizes only when stdout is a terminal; always forces color even through a pipe or pager; never disables it. The NO_COLOR environment variable always wins.
+  Colorizes the plain listing by file type. `auto` colorizes only when stdout is a terminal; `always` forces color even through a pipe or pager; `never` disables it. The NO_COLOR environment variable always wins.
   Affected by: --color-scheme
 - `--color-scheme=<SCHEME>` - which palette colour comes from: the terminal's ls theme, or xff's own _(global, xff)_
   SCHEME is one of:
@@ -278,10 +278,10 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `merged` - the theme where it speaks, xff's colour for every key it omits, per key (also `ls-and-xff`)
   - `xff` - xff's built-in type scheme, ignoring $LS_COLORS
 
-  Colour is a whole-run choice, so this one palette is used by every surface that colours - the plain listing and -ls alike; they cannot disagree. $LS_COLORS is the variable `ls` and `dircolors` use, and xff reads the same keys: the two-letter types (di, ln, ex, pi, so, bd, cd, fi) and the per-extension `*.tar=` entries. Where only BSD's $LSCOLORS is set - the macOS case - that is read instead: its 11 letter pairs carry the same types in a fixed order, with no way to say "leave this plain" and no per-extension entries, so `merged` is the interesting scheme there. $LS_COLORS wins when both are set, being the richer format. Both variables are read on every platform rather than one per OS: which one is SET is better evidence than which system this is (a macOS shell with GNU coreutils is themed through $LS_COLORS, and $LSCOLORS is not macOS-only), and the fixed 22-character shape makes the BSD one self-validating. "Use ls's colours" turns out to mean three different things, so each has its own name, spelled the way logic spells it: `+` is OR, and the merge is AND. `auto` (the default, also `ls+xff` or `ls-or-xff`) is the theme OR xff's scheme - a theme that is set at all is the whole answer, and with none set xff's scheme is, so the decision is per VARIABLE; `default` is a fourth spelling of it, for a config file that wants whatever the default currently is. `ls` is the theme ALONE, so a type it never mentions prints uncoloured exactly as in a real ls listing (and with no theme set, nothing is coloured). `merged` (also `ls-and-xff`) is the theme AND xff's scheme, merged per KEY: the theme where it speaks, xff's colour for every key it omits - for a sparse theme you want filled in. (`ls&xff` is deliberately not accepted: an unquoted `&` backgrounds the command.) `xff` ignores $LS_COLORS entirely. An EMPTY value in the theme (`di=`) is it saying "leave these plain" and is honoured as such; a malformed entry is skipped rather than failing the run, as in ls. Whether colour is emitted at all is --color's business, not this flag's.
+  Colour is a whole-run choice, so this one palette is used by every surface that colours - the plain listing and -ls alike; they cannot disagree. $LS_COLORS is the variable `ls` and `dircolors` use, and xff reads the same keys: the two-letter types (`di`, `ln`, `ex`, `pi`, `so`, `bd`, `cd`, `fi`) and the per-extension `*.tar=` entries. Where only BSD's $LSCOLORS is set - the macOS case - that is read instead: its 11 letter pairs carry the same types in a fixed order, with no way to say "leave this plain" and no per-extension entries, so `merged` is the interesting scheme there. $LS_COLORS wins when both are set, being the richer format. Both variables are read on every platform rather than one per OS: which one is SET is better evidence than which system this is (a macOS shell with GNU coreutils is themed through $LS_COLORS, and $LSCOLORS is not macOS-only), and the fixed 22-character shape makes the BSD one self-validating. "Use ls's colours" turns out to mean three different things, so each has its own name, spelled the way logic spells it: `+` is OR, and the merge is AND. `auto` (the default, also `ls+xff` or `ls-or-xff`) is the theme OR xff's scheme - a theme that is set at all is the whole answer, and with none set xff's scheme is, so the decision is per VARIABLE; `default` is a fourth spelling of it, for a config file that wants whatever the default currently is. `ls` is the theme ALONE, so a type it never mentions prints uncoloured exactly as in a real ls listing (and with no theme set, nothing is coloured). `merged` (also `ls-and-xff`) is the theme AND xff's scheme, merged per KEY: the theme where it speaks, xff's colour for every key it omits - for a sparse theme you want filled in. (`ls&xff` is deliberately not accepted: an unquoted `&` backgrounds the command.) `xff` ignores $LS_COLORS entirely. An EMPTY value in the theme (`di=`) is it saying "leave these plain" and is honoured as such; a malformed entry is skipped rather than failing the run, as in ls. Whether colour is emitted at all is --color's business, not this flag's.
   Affects: --color
 - `--unicode[=auto|always|never]` - --format=tree connectors: auto (a UTF-8 locale), always (Unicode), or never (ASCII) _(global, xff)_
-  Selects the box-drawing characters --format=tree connects nodes with. auto uses Unicode when the locale (LC_ALL / LC_CTYPE / LANG) is UTF-8, else ASCII; always forces the Unicode connectors; never forces the ASCII ones.
+  Selects the box-drawing characters `--format=tree` connects nodes with. `auto` uses Unicode when the locale (LC_ALL / LC_CTYPE / LANG) is UTF-8, else ASCII; `always` forces the Unicode connectors; `never` forces the ASCII ones.
 - `--human[=si|iec|off]` - size units for -ls / --summary: si (kB/MB, default), iec (KiB/MiB), off (bytes); xff -> si _(global, xff)_
 - `--si` - human sizes in SI (kB/MB, 1000^N); an alias for --human=si (the --human default) _(global, xff)_
 - `--buffer[=auto|off|all|N[kMG]|NMB]` - buffer to size columns (-ls / tables): auto, off, all, N[kMG] rows, or NMB/NMiB bytes _(global, xff)_
@@ -292,10 +292,10 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 
   - `auto` - page the help / man / markdown output on a terminal (the default)
   - `always` - page that meta output even through a pipe
-  - `all` - auto, plus the file listing (on a terminal)
-  - `never` - never page (same as --no-pager)
+  - `all` - `auto`, plus the file listing (on a terminal)
+  - `never` - never page (same as `--no-pager`)
 
-  Pages the long meta output (--help, --help=TOPIC, --man, --markdown) through a pager. auto pages only when stdout is a terminal; always pages even through a pipe; never (or --no-pager) disables it. The pager command is $XFF_PAGER, else $PAGER, else `less -FRX`; set either variable to empty to disable. all additionally pages the FILE LISTING: the pager is started once and the whole walk streams into it, so the first screen appears while the walk is still running and quitting it ends the run quietly. Unlike always, all stays terminal-only - a listing forced through a pager in a pipeline would feed the pager's screen handling to the next command. It also steps aside for an expression that needs the terminal itself (-ok, -okdir, -exec, -execdir, which can hand the terminal to an editor) and for --quiet, which prints nothing to page; those runs are simply unpaged.
+  Pages the long meta output (`--help`, `--help=TOPIC`, `--man`, `--markdown`) through a pager. `auto` pages only when stdout is a terminal; `always` pages even through a pipe; `never` (or `--no-pager`) disables it. The pager command is $XFF_PAGER, else $PAGER, else `less -FRX`; set either variable to empty to disable. `all` additionally pages the FILE LISTING: the pager is started once and the whole walk streams into it, so the first screen appears while the walk is still running and quitting it ends the run quietly. Unlike `always`, `all` stays terminal-only - a listing forced through a pager in a pipeline would feed the pager's screen handling to the next command. It also steps aside for an expression that needs the terminal itself (`-ok`, `-okdir`, `-exec`, `-execdir`, which can hand the terminal to an editor) and for `--quiet`, which prints nothing to page; those runs are simply unpaged.
 - `--no-pager` - never page the help / man / markdown output (an alias for --pager=never) _(global, xff)_
 
 ### Exit code control
@@ -324,7 +324,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `always` - force the offset, even on a format that omits it (also on / yes / true / 1)
   - `never` - drop the optional offset (also off / no / false / 0)
 
-  Controls whether a time field's named preset renders its trailing zone (+0100, +01:00). auto keeps each preset's default (space / iso / rfc3339 show it, asctime / epoch omit it); never drops it; always forces it, even on a preset that omits one. Accepts true / yes / on (= always) and false / no / off (= never). The inherently-zoned zulu / zulu-dense / asn1z always keep their mandatory Z, and a custom strftime --time-format is never altered - control its zone with %z / %Ez / %Z yourself. asn1's zone is optional: always adds its ASN.1-style offset (+0100, no separator), never / auto leave it bare.
+  Controls whether a time field's named preset renders its trailing zone (+0100, +01:00). `auto` keeps each preset's default (`space` / `iso` / `rfc3339` show it, `asctime` / `epoch` omit it); `never` drops it; `always` forces it, even on a preset that omits one. Accepts `true` / `yes` / `on` (= `always`) and `false` / `no` / `off` (= `never`). The inherently-zoned `zulu` / `zulu-dense` / `asn1z` always keep their mandatory Z, and a custom strftime `--time-format` is never altered - control its zone with %z / %Ez / %Z yourself. `asn1`'s zone is optional: `always` adds its ASN.1-style offset (+0100, no separator), `never` / `auto` leave it bare.
 
 ## Expression
 

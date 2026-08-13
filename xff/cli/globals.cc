@@ -135,8 +135,8 @@ constexpr std::array kGitignoreValues = std::to_array<ValueDoc>({
 constexpr std::array kPagerValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "page the help / man / markdown output on a terminal (the default)"},
     {.value = "always", .meaning = "page that meta output even through a pipe"},
-    {.value = "all", .meaning = "auto, plus the file listing (on a terminal)"},
-    {.value = "never", .meaning = "never page (same as --no-pager)"},
+    {.value = "all", .meaning = "`auto`, plus the file listing (on a terminal)"},
+    {.value = "never", .meaning = "never page (same as `--no-pager`)"},
 });
 constexpr std::array kZoneSuffixValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "each format's built-in default (the default)"},
@@ -308,8 +308,8 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .header = "Traversal",
         .summary = "what --summary / --histogram count when the walk dives (default members)",
         .details = "Diving makes one byte visible twice - once as the container's own size, once as its "
-                   "members' - so a total that adds both describes no filesystem that exists. `members` (the "
-                   "default) counts a dived container's members instead of the container, which is what "
+                   "members' - so a total that adds `both` describes no filesystem that exists. `members` (the "
+                   "default) counts a dived container's members instead of the container itself, which is what "
                    "unpacking it and measuring the result would give; `container` counts the archives and "
                    "never what is in them, which is what the disk holds; `both` counts everything, the "
                    "archive AND its unpacked copy, for when the doubling is the point. Only the REDUCTIONS "
@@ -448,8 +448,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "container (empty authority then the path, as `file:///...` does) and the opaque "
                    "`archive:a.tgz!x` for a relative one - `archive://a.tgz` would be WRONG, since `//` starts "
                    "the authority and would make `a.tgz` a host name. Any other value is used LITERALLY (e.g. "
-                   "`--archive-prefix=vfs:`), the same freedom --archive-separator has; `URI` is the one keyword, "
-                   "spelled in caps like RE2 / PCRE2 / GLOB. There is deliberately no `none` value: it would be "
+                   "`--archive-prefix=vfs:`), the same freedom `--archive-separator` has; `URI` is the one keyword, "
+                   "spelled in caps like `RE2` / `PCRE2` / `GLOB`. There is deliberately no `none` value: it "
+                   "would be "
                    "indistinguishable from a literal prefix spelled `none`, which is why empty means no prefix. "
                    "Applies to PARSING too - under a prefix, a bare path is not accepted as a member path, so the "
                    "spellings never silently interchange. Whether the scheme should be per-format (`tar:` / "
@@ -472,8 +473,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "traversal",
         .header = "Traversal",
         .summary = "sibling/traversal ordering (default depends on the mode)",
-        .details = "none leaves entries in filesystem order (fastest); dir sorts each directory's entries; subtree "
-                   "and tree give a deterministic order across the whole walk. The default is per style: xff sorts "
+        .details = "`none` leaves entries in filesystem order (fastest); `dir` sorts each directory's entries; "
+                   "`subtree` and `tree` give a deterministic order across the whole walk. The default is per "
+                   "style: xff sorts "
                    "per directory, while find and rg leave the order unspecified.",
     },
     {
@@ -496,9 +498,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "matching",
         .header = "Matching",
         .summary = "letter case for matchers: -i insensitive, -s/-s+ smart, -s- sensitive (rg -> smart)",
-        .details = "Controls case for -name/-path/-regex and the content matchers. sensitive matches exactly; "
-                   "insensitive (-i) folds case; smart (-s / -s+) folds only when the pattern is all lower case and "
-                   "matches exactly otherwise; -s- forces sensitive. rg defaults to smart.",
+        .details = "Controls case for `-name`/`-path`/`-regex` and the content matchers. `sensitive` matches exactly; "
+                   "`insensitive` (`-i`) folds case; `smart` (`-s` / `-s+`) folds only when the pattern is all "
+                   "lower case and matches exactly otherwise; `-s-` forces `sensitive`. rg defaults to `smart`.",
         .values = kCaseValues,
         .value_check = GlobalFlag::ValueCheck::kEnum,
     },
@@ -508,16 +510,17 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "matching",
         .header = "Matching",
         .summary = "match engine: RE2, EXACT, FNMATCH, GLOB, SHGLOB (GLOB + {a,b}), or PCRE2 (a build extra)",
-        .details = "Selects the grammar for -regex/-iregex and the content matchers -rxc/-grep. RE2 (the "
-                   "default) is linear-time regular expressions; EXACT is a literal string (metacharacters are "
-                   "plain text); FNMATCH is a flat shell wildcard where * matches any character including /; "
-                   "GLOB is a path-aware shell glob where */? stop at / and ** crosses directories (gitignore "
-                   "semantics), with [...] classes; SHGLOB is GLOB plus {a,b} brace alternation, so *.{cc,h} "
-                   "matches either. PCRE2 (Perl syntax: lookaround, backreferences) is the one build-time "
-                   "extra: it is present only in a full build, and selecting it in a lean build is a hard "
-                   "error, never a silent fall back to RE2. RE2/EXACT/FNMATCH/GLOB/SHGLOB are always built in; "
-                   "run xff --help=extras to see whether THIS binary includes PCRE2. See --help=grammars for "
-                   "a full description of each grammar (GLOB/SHGLOB are xff's own, not POSIX glob(7)).",
+        .details = "Selects the grammar for `-regex`/`-iregex` and the content matchers `-rxc`/`-grep`. `RE2` "
+                   "(the default) is linear-time regular expressions; `EXACT` is a literal string "
+                   "(metacharacters are plain text); `FNMATCH` is a flat shell wildcard where `*` matches any "
+                   "character including `/`; `GLOB` is a path-aware shell glob where `*`/`?` stop at `/` and "
+                   "`**` crosses directories (gitignore semantics), with `[...]` classes; `SHGLOB` is `GLOB` "
+                   "plus `{a,b}` brace alternation, so `*.{cc,h}` matches either. `PCRE2` (Perl syntax: "
+                   "lookaround, backreferences) is the one build-time extra: it is present only in a full "
+                   "build, and selecting it in a lean build is a hard error, never a silent fall back to `RE2`. "
+                   "`RE2`/`EXACT`/`FNMATCH`/`GLOB`/`SHGLOB` are always built in; run `xff --help=extras` to "
+                   "see whether THIS binary includes `PCRE2`. See `--help=grammars` for a full description of "
+                   "each grammar (`GLOB`/`SHGLOB` are xff's own, not POSIX glob(7)).",
         .values = kRegextypeValues,
         .value_check = GlobalFlag::ValueCheck::kEnum,
     },
@@ -543,8 +546,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .header = "Filter & Ignore",
         .summary = "respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never",
         .details = "Reads .gitignore rules while walking, including nested .gitignore files, .git/info/exclude, and "
-                   "core.excludesFile. -g / auto activates only inside a git working tree; -g+ / =on forces it "
-                   "anywhere; -g- / =off disables it. Independent of --ignore-files (.ignore / .xffignore).",
+                   "core.excludesFile. `-g` / `auto` activates only inside a git working tree; `-g+` / `=on` forces "
+                   "it anywhere; `-g-` / `=off` disables it. Independent of `--ignore-files` (.ignore / "
+                   ".xffignore).",
         .values = kGitignoreValues,
         .value_check = GlobalFlag::ValueCheck::kTristate,
     },
@@ -614,12 +618,13 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .header = "Filter & Ignore",
         .summary = "prune VCS metadata dirs (.git, .hg, ...); bare/=all = every known VCS, =LIST a subset",
         .details = "Prunes version-control metadata directories at any depth (like ripgrep / fd), so a search "
-                   "never wades into repo plumbing. Bare --skip-vcs (or =all) covers every known VCS: git (.git), "
-                   "hg (.hg), svn (.svn), jj (.jj), bzr (.bzr), darcs (_darcs), cvs (CVS). A comma list "
-                   "(--skip-vcs=git,hg) is an explicit, frozen subset - it never changes if a VCS is added to the "
-                   "default set later. --no-skip-vcs (or =none) turns it off. Independent of --hidden, so the "
-                   "user's own dotfiles (.bazelrc, .gitignore) still show. -g / gitignore mode implies "
-                   "--skip-vcs=git (only .git); an explicit --skip-vcs overrides that. Default off otherwise.",
+                   "never wades into repo plumbing. Bare `--skip-vcs` (or `=all`) covers every known VCS: `git` "
+                   "(.git), `hg` (.hg), `svn` (.svn), `jj` (.jj), `bzr` (.bzr), `darcs` (_darcs), `cvs` (CVS). A "
+                   "comma list (`--skip-vcs=git,hg`) is an explicit, frozen subset - it never changes if a VCS "
+                   "is added to the default set later. `--no-skip-vcs` (or `=none`) turns it off. Independent of "
+                   "`--hidden`, so the user's own dotfiles (.bazelrc, .gitignore) still show. `-g` / gitignore "
+                   "mode implies `--skip-vcs=git` (only .git); an explicit `--skip-vcs` overrides that. Default "
+                   "off otherwise.",
         .values = kSkipVcsValues,
     },
     {
@@ -698,8 +703,8 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "default digest for -hash / {hash} (sha256 default; md5, sha512, blake3, and more)",
-        .details = "Sets the default digest algorithm for the -hash action and the {hash} field. sha256 is the "
-                   "default; a `-hash=ALGO` spec or a `{hash:ALGO}` qualifier overrides it per use.",
+        .details = "Sets the default digest algorithm for the `-hash` action and the `{hash}` field. `sha256` is "
+                   "the default; a `-hash=ALGO` spec or a `{hash:ALGO}` qualifier overrides it per use.",
         .values = kHashAlgorithmValues,
         .value_check = GlobalFlag::ValueCheck::kEnum,
     },
@@ -779,9 +784,10 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .header = "Output",
         .summary = "collapse each set of sharded files (e.g. data-00000-of-00010) to one line",
         .details = "Recognizes sharded-file naming conventions and collapses each logical set to a single line "
-                   "instead of listing every shard. Bare --shards (or =auto) enables all built-in schemes: "
-                   "`<stem>-<index>-of-<total>` (of), `<stem>.<NNN>` (dotnum), and `<stem>_<NNN>` (underscore). "
-                   "Restrict to specific schemes with a comma list, e.g. --shards=of,dotnum. Grouping is "
+                   "instead of listing every shard. Bare `--shards` (or `=auto`) enables all built-in schemes: "
+                   "`<stem>-<index>-of-<total>` (`of`), `<stem>.<NNN>` (`dotnum`), and `<stem>_<NNN>` "
+                   "(`underscore`). Restrict to specific schemes with a comma list, e.g. `--shards=of,dotnum`. "
+                   "Grouping is "
                    "per-directory; files that match no scheme are listed unchanged. Off by default.",
         .values = kShardsValues,
         .topic = "stats",
@@ -792,10 +798,10 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "how a collapsed shard set's line reads (default first)",
-        .details = "Picks each collapsed set's display: first = the representative (lowest-index) shard's path; "
-                   "wildcard = the masked-index name (the index digits shown as `???`); count = the wildcard "
-                   "plus the shard count. An incomplete set is always annotated `(present/expected - "
-                   "INCOMPLETE)`. Only meaningful with --shards.",
+        .details = "Picks each collapsed set's display: `first` = the representative (lowest-index) shard's "
+                   "path; `wildcard` = the masked-index name (the index digits shown as `???`); `count` = the "
+                   "`wildcard` name plus the shard count. An incomplete set is always annotated "
+                   "`(present/expected - INCOMPLETE)`. Only meaningful with `--shards`.",
         .values = kShardsShowValues,
         .topic = "stats",
         .value_check = GlobalFlag::ValueCheck::kEnum,
@@ -807,9 +813,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .header = "Output",
         .summary = "how same-index shard duplicates are resolved (default first)",
         .details = "When two files are the same logical shard (they differ only by an opaque tail, e.g. a "
-                   "regeneration id), --shards-dedup picks which is the representative: first keeps the "
-                   "lexicographically-first name; mtime keeps the newest; error treats the duplicate as an "
-                   "error and fails the run (non-zero exit). Only meaningful with --shards.",
+                   "regeneration id), `--shards-dedup` picks which is the representative: `first` keeps the "
+                   "lexicographically-first name; `mtime` keeps the newest; `error` treats the duplicate as an "
+                   "error and fails the run (non-zero exit). Only meaningful with `--shards`.",
         .values = kShardsDedupValues,
         .topic = "stats",
         .value_check = GlobalFlag::ValueCheck::kEnum,
@@ -895,9 +901,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "colorize the plain listing by file type: auto (a tty), always, or never; honors NO_COLOR",
-        .details = "Colorizes the plain listing by file type. auto colorizes only when stdout is a terminal; always "
-                   "forces color even through a pipe or pager; never disables it. The NO_COLOR environment variable "
-                   "always wins.",
+        .details = "Colorizes the plain listing by file type. `auto` colorizes only when stdout is a terminal; "
+                   "`always` forces color even through a pipe or pager; `never` disables it. The NO_COLOR "
+                   "environment variable always wins.",
         .value_check = GlobalFlag::ValueCheck::kTristate,
     },
     {
@@ -909,7 +915,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .details = "Colour is a whole-run choice, so this one palette is used by every surface that "
                    "colours - the plain listing and -ls alike; they cannot disagree. $LS_COLORS is the "
                    "variable `ls` and `dircolors` use, and xff reads the same keys: the two-letter "
-                   "types (di, ln, ex, pi, so, bd, cd, fi) and the per-extension `*.tar=` entries. "
+                   "types (`di`, `ln`, `ex`, `pi`, `so`, `bd`, `cd`, `fi`) and the per-extension `*.tar=` entries. "
                    "Where only BSD's $LSCOLORS is set - the macOS case - that is read instead: its 11 "
                    "letter pairs carry the same types in a fixed order, with no way to say \"leave "
                    "this plain\" and no per-extension entries, so `merged` is the interesting scheme "
@@ -944,9 +950,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "--format=tree connectors: auto (a UTF-8 locale), always (Unicode), or never (ASCII)",
-        .details = "Selects the box-drawing characters --format=tree connects nodes with. auto uses Unicode when the "
-                   "locale (LC_ALL / LC_CTYPE / LANG) is UTF-8, else ASCII; always forces the Unicode connectors; "
-                   "never forces the ASCII ones.",
+        .details = "Selects the box-drawing characters `--format=tree` connects nodes with. `auto` uses Unicode when "
+                   "the locale (LC_ALL / LC_CTYPE / LANG) is UTF-8, else ASCII; `always` forces the Unicode "
+                   "connectors; `never` forces the ASCII ones.",
         .value_check = GlobalFlag::ValueCheck::kTristate,
     },
     {
@@ -988,16 +994,17 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "page output: auto (help / man / markdown on a tty), all (plus the listing), always, never",
-        .details = "Pages the long meta output (--help, --help=TOPIC, --man, --markdown) through a pager. auto "
-                   "pages only when stdout is a terminal; always pages even through a pipe; never (or --no-pager) "
-                   "disables it. The pager command is $XFF_PAGER, else $PAGER, else `less -FRX`; set either "
-                   "variable to empty to disable. all additionally pages the FILE LISTING: the pager is started "
-                   "once and the whole walk streams into it, so the first screen appears while the walk is still "
-                   "running and quitting it ends the run quietly. Unlike always, all stays terminal-only - a "
-                   "listing forced through a pager in a pipeline would feed the pager's screen handling to the "
-                   "next command. It also steps aside for an expression that needs the terminal itself (-ok, "
-                   "-okdir, -exec, -execdir, which can hand the terminal to an editor) and for --quiet, which "
-                   "prints nothing to page; those runs are simply unpaged.",
+        .details = "Pages the long meta output (`--help`, `--help=TOPIC`, `--man`, `--markdown`) through a "
+                   "pager. `auto` pages only when stdout is a terminal; `always` pages even through a pipe; "
+                   "`never` (or `--no-pager`) disables it. The pager command is $XFF_PAGER, else $PAGER, else "
+                   "`less -FRX`; set either variable to empty to disable. `all` additionally pages the FILE "
+                   "LISTING: the pager is started once and the whole walk streams into it, so the first screen "
+                   "appears while the walk is still running and quitting it ends the run quietly. Unlike "
+                   "`always`, `all` stays terminal-only - a listing forced through a pager in a pipeline would "
+                   "feed the pager's screen handling to the next command. It also steps aside for an expression "
+                   "that needs the terminal itself (`-ok`, `-okdir`, `-exec`, `-execdir`, which can hand the "
+                   "terminal to an editor) and for `--quiet`, which prints nothing to page; those runs are "
+                   "simply unpaged.",
         .values = kPagerValues,
         .value_check = GlobalFlag::ValueCheck::kEnum,
     },
@@ -1092,12 +1099,13 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .header = "Time",
         .summary = "show the zone offset on a time field: auto (per format), always, or never",
         .details = "Controls whether a time field's named preset renders its trailing zone (+0100, +01:00). "
-                   "auto keeps each preset's default (space / iso / rfc3339 show it, asctime / epoch omit it); "
-                   "never drops it; always forces it, even on a preset that omits one. Accepts true / yes / on "
-                   "(= always) and false / no / off (= never). The inherently-zoned zulu / zulu-dense / asn1z "
-                   "always keep their mandatory Z, and a custom strftime --time-format is never altered - control "
-                   "its zone with %z / %Ez / %Z yourself. asn1's zone is optional: always adds its ASN.1-style "
-                   "offset (+0100, no separator), never / auto leave it bare.",
+                   "`auto` keeps each preset's default (`space` / `iso` / `rfc3339` show it, `asctime` / `epoch` "
+                   "omit it); `never` drops it; `always` forces it, even on a preset that omits one. Accepts "
+                   "`true` / `yes` / `on` (= `always`) and `false` / `no` / `off` (= `never`). The "
+                   "inherently-zoned `zulu` / `zulu-dense` / `asn1z` always keep their mandatory Z, and a custom "
+                   "strftime `--time-format` is never altered - control its zone with %z / %Ez / %Z yourself. "
+                   "`asn1`'s zone is optional: `always` adds its ASN.1-style offset (+0100, no separator), "
+                   "`never` / `auto` leave it bare.",
         .values = kZoneSuffixValues,
         .value_check = GlobalFlag::ValueCheck::kTristate,
     },
