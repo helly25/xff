@@ -75,12 +75,13 @@ shipped one way but not yet settled.
   the answer splits:
   - **An IN-PROCESS filesystem cannot serve `-exec`** - a child needs a path the kernel resolves - but
     a MOUNTED memory filesystem can, and one is usually already there (user, 2026-08-13):
-    - **`/dev/shm` (and `$XDG_RUNTIME_DIR`) are tmpfs on Linux**, so extracting there is
-      memory-backed with a real path and no disk write. This is a temp-DIRECTORY choice, not new
-      machinery: prefer a tmpfs directory when one exists, fall back to `$TMPDIR`. Caveats: the tmpfs
-      size cap (commonly half of RAM, and shared with everything else on the machine), so a large
-      member must still be allowed to land on disk; and it is Linux / BSD only - macOS has no default
-      equivalent, and an `hdiutil attach ram://` disk is a heavyweight per-run setup.
+    - **`/dev/shm` (and `$XDG_RUNTIME_DIR`) are tmpfs on Linux (SHIPPED),** so extracting there is
+      memory-backed with a real path and no disk write. A temp-DIRECTORY choice, not new machinery:
+      `ChooseExtractDirectory` tries `$XDG_RUNTIME_DIR`, then `/dev/shm`, then the ordinary temporary
+      directory, and takes a candidate only when the member fits in a quarter of the space it reports
+      free - a tmpfs is RAM shared with the whole machine, so a large member still lands on disk. macOS
+      has no default equivalent and falls straight through; an `hdiutil attach ram://` disk would be a
+      heavyweight per-run setup and is not attempted.
     - **`memfd_create` + `/proc/self/fd/N`** avoids a filesystem entirely and is seekable, but any
       tool that reopens the path by NAME or keys on the extension breaks, and it is Linux-only. Not a
       default; at most an opt-in for pipelines known to cope.
