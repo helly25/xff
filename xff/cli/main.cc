@@ -129,6 +129,39 @@ std::string RenderFlavorTable(const std::vector<std::string>& globals, std::opti
   return out;
 }
 
+// The tail of --help=styles: what to type when you arrive from another finder. Not a facet table -
+// these are not style-scoped behaviours xff resolves, they are OTHER tools' spellings - so it is a
+// plain mapping, and it lives with the style comparison because "which flavor am I in" and "how do I
+// say what I used to say" are the same question to a new user.
+//
+// fd is the interesting case: its single positional pattern is a REGEX by default and `--glob`
+// switches THAT pattern to glob semantics, so the flag has no counterpart here - xff has no
+// positional pattern, and the primary is the choice. (`-g` is xff's gitignore toggle, and would be
+// the wrong letter anyway.)
+std::string RenderComingFrom() {
+  static constexpr std::array<std::pair<std::string_view, std::string_view>, 10> kFromFd = {{
+      {"PATTERN (fd's default: a regex)", "-regex PATTERN, or -name '*glob*' for a glob"},
+      {"-g / --glob PATTERN", "-name PATTERN (the primary IS the choice; there is no mode to switch)"},
+      {"-p / --full-path", "-path (matches the whole path, where -name matches the basename)"},
+      {"-e / --extension EXT", "-name '*.EXT' (a glob on the basename)"},
+      {"-t / --type f|d|l|x", "-type f|d|l, and -perm /111 for executable"},
+      {"-H / --hidden", "the default; --no-hidden (or --config=rg) skips dotfiles"},
+      {"-I / --no-ignore", "-u / --no-ignore (xff also starts with ignore files OFF)"},
+      {"-x / --exec CMD", "-exec CMD \\;   (and -X / --exec-batch is -exec CMD +)"},
+      {"--changed-within 1d", "-mtime -1d (see --help=time)"},
+      {"-d / --max-depth N", "-maxdepth N (find's spelling; -mindepth too)"},
+  }};
+  std::string out = "Coming from fd:\n";
+  for (const auto& [theirs, ours] : kFromFd) {
+    absl::StrAppendFormat(&out, "  %-32s %s\n", theirs, ours);
+  }
+  absl::StrAppend(
+      &out,
+      "\nComing from ripgrep: -grep PATTERN is rg's search (with --count, --context, --color), and\n"
+      "--config=rg starts from rg's defaults - ignore files honored, dotfiles skipped, smart case.\n");
+  return out;
+}
+
 // The --help=extras topic: the optional build-time features and whether THIS binary links each.
 // Availability is per-binary, so this is a runtime topic (not folded into the static --help=full /
 // man / markdown reference). PCRE2 is the --regextype value extra (regex::Pcre2Available, from the
@@ -176,7 +209,7 @@ std::string FullReference(xff::cli::HelpRenderContext context) {
 // self-referential full/long, so there is no recursion).
 absl::StatusOr<std::string> RenderTopic(std::string_view topic, xff::cli::HelpRenderContext context) {
   if (topic == "styles" || topic == "flavors") {
-    return RenderFlavorTable({}, std::nullopt);
+    return absl::StrCat(RenderFlavorTable({}, std::nullopt), "\n", RenderComingFrom());
   }
   // The sub-vocabulary topics (fields / printf / time / size / grammars) and the index
   // topics (list / all / expressions) render from the model so they wrap + indent.
