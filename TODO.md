@@ -6,20 +6,21 @@ shipped one way but not yet settled.
 
 ## Open decisions
 
-- **BUG-shaped gap: an unknown VALUE on a known global is silently ignored (found 2026-08-13 while
-  verifying `--pager=all`).** `--color=bogus`, `--sort=bogus`, `--case=bogus`, `--color-scheme=bogus`
+- **FIXED (2026-08-13): an unknown VALUE on a known global was silently ignored.** `--color=bogus`, `--sort=bogus`, `--case=bogus`, `--color-scheme=bogus`
   and `--pager=bogus` all exit 0 and behave as the default. It is uniform, so it is a design choice
   rather than one flag's oversight - but it is the opposite of the choice #102 made for unknown flag
   NAMES ("unknown option" is a usage error precisely so a typo cannot be silently ignored), and the
   failure mode is worse for values: `--case=insensitve` matches case-sensitively and the run looks
   like it worked. Recommendation: reject an unknown value with the same usage error, listing the
   accepted values from the flag's own `values` SOT (so the message is generated, not written twice).
-  Two things to settle first: the tri-state / bare forms that intentionally accept several spellings
-  must keep doing so (the `values` table is already the SOT for those), and the resolvers that run
-  BEFORE the parse (`--color`, `--width`, `--pager`, scanned straight from argv) need somewhere to
-  report the error from, since they currently cannot fail. Precedent for the strict side already
-  exists: `--skip-vcs` rejects an unknown token as a usage error (and has a test saying so), so the
-  question is really which behaviour the rest should match.
+  Both obstacles resolved rather than worked around: a flag now DECLARES how its value is checked
+  (`GlobalFlag::ValueCheck` = none / enum / bool / tri-state), so the tri-state flags keep the whole
+  shared vocabulary while the enumerated ones check against their own `values` table - the same
+  table the help prints, so the error and the documentation cannot disagree. And the check runs in
+  ONE place in main, over the parsed globals, rather than inside each resolver: that is what lets
+  it cover `--color` / `--width` / `--pager`, which are scanned from raw argv before the parse and
+  have nowhere to report from. `kNone` stays the default, so free-text flags (paths, formats,
+  regexes, comma lists that validate themselves) are untouched.
 
 - **FIXED (2026-08-13): `on` / `off` were documented but not accepted.** `--time-zone-suffix`'s help
   listed `on` / `off` as synonyms of `always` / `never`, and the shared value parser did not accept
