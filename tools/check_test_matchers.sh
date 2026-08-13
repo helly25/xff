@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Guard (pre-commit): a C++ test asserts with EXPECT_THAT / ASSERT_THAT and a gmock matcher,
+# not with the comparison macros EXPECT_EQ / NE / GT / LT / GE / LE (or their ASSERT_ forms).
+# Matchers compose and print far better failures: a container mismatch names the element, a
+# multi-line string diffs line by line through mbo::testing::EqualsText, and a status carries
+# its code and message. See STYLE_CPP.md ("Assertions: gmock matchers, not EXPECT_EQ").
+#
+# EXPECT_TRUE / EXPECT_FALSE are NOT flagged: the style guide keeps them as the one accepted
+# exception, since they read fine on their own.
+set -euo pipefail
+
+readonly PATTERN='\b(EXPECT|ASSERT)_(EQ|NE|GT|LT|GE|LE)\('
+
+check_status=0
+for file in "$@"; do
+  # Strip comments so prose ("prefer EXPECT_THAT over EXPECT_EQ") is not flagged; a stripped
+  # `//` inside a string literal can only cause a miss, never a false positive.
+  hits="$(sed 's|//.*||' "${file}" | grep -nE "${PATTERN}" || true)"
+  if [[ -n "${hits}" ]]; then
+    echo "${file}: use EXPECT_THAT / ASSERT_THAT with a matcher (EqualsText for multi-line text,"
+    echo "  ElementsAre / SizeIs for containers, IsOkAndHolds / StatusIs for status) - see STYLE_CPP.md:"
+    while IFS= read -r hit; do
+      echo "  ${file}:${hit}"
+    done <<<"${hits}"
+    check_status=1
+  fi
+done
+exit "${check_status}"

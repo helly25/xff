@@ -29,6 +29,7 @@
 #include "absl/time/time.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "mbo/testing/matchers.h"
 #include "mbo/testing/status.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/parser.h"
@@ -38,6 +39,7 @@
 namespace xff::engine {
 namespace {
 
+using ::mbo::testing::EqualsText;
 using ::mbo::testing::IsOk;
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
@@ -727,7 +729,7 @@ TEST_F(EvaluateTest, GrepEmitsMatchingLinesAsPathLineText) {
   vfs::Metadata md;
   const Visit visit = MakeVisit(path, "grep.txt", vfs::FileType::kRegular, md);
   EXPECT_TRUE(Match({"-grep", "TODO"}, visit));  // returns true because a line matched
-  EXPECT_EQ(emitted_, absl::StrCat(path, ":1:first TODO line\n", path, ":3:another TODO here\n"));
+  EXPECT_THAT(emitted_, EqualsText(absl::StrCat(path, ":1:first TODO line\n", path, ":3:another TODO here\n")));
 }
 
 TEST_F(EvaluateTest, GrepUsesRegexNotLiteral) {
@@ -735,7 +737,7 @@ TEST_F(EvaluateTest, GrepUsesRegexNotLiteral) {
   vfs::Metadata md;
   const Visit visit = MakeVisit(path, "grep_rx.txt", vfs::FileType::kRegular, md);
   EXPECT_TRUE(Match({"-grep", "id=[0-9]+"}, visit));
-  EXPECT_EQ(emitted_, absl::StrCat(path, ":1:id=12345\n"));
+  EXPECT_THAT(emitted_, EqualsText(absl::StrCat(path, ":1:id=12345\n")));
 }
 
 TEST_F(EvaluateTest, GrepWithNoMatchingLineIsFalseAndSilent) {
@@ -762,7 +764,7 @@ TEST_F(EvaluateTest, GrepExactModeMatchesLiterally) {
   const Visit visit = MakeVisit(path, "grep_exact.txt", vfs::FileType::kRegular, md);
   regextype_ = "EXACT";
   EXPECT_TRUE(Match({"-grep", "3.50"}, visit));
-  EXPECT_EQ(emitted_, absl::StrCat(path, ":1:price 3.50\n"));  // only the literal 3.50, not 3X50
+  EXPECT_THAT(emitted_, EqualsText(absl::StrCat(path, ":1:price 3.50\n")));  // only the literal 3.50, not 3X50
 }
 
 TEST_F(EvaluateTest, GrepExactModeAcceptsRegexMetacharactersAsLiterals) {
@@ -772,7 +774,7 @@ TEST_F(EvaluateTest, GrepExactModeAcceptsRegexMetacharactersAsLiterals) {
   const Visit visit = MakeVisit(path, "grep_lit.txt", vfs::FileType::kRegular, md);
   regextype_ = "EXACT";
   EXPECT_TRUE(Match({"-grep", "foo(bar"}, visit));
-  EXPECT_EQ(emitted_, absl::StrCat(path, ":1:call foo(bar) now\n"));
+  EXPECT_THAT(emitted_, EqualsText(absl::StrCat(path, ":1:call foo(bar) now\n")));
 }
 
 TEST_F(EvaluateTest, GrepFormatRendersTemplatePerMatchLine) {
@@ -781,7 +783,7 @@ TEST_F(EvaluateTest, GrepFormatRendersTemplatePerMatchLine) {
   vfs::Metadata md;
   const Visit visit = MakeVisit(path, "grep_fmt.txt", vfs::FileType::kRegular, md);
   EXPECT_TRUE(Match({"-grep={line}: {text}", "hit"}, visit));
-  EXPECT_EQ(emitted_, "2: hit one\n4: hit two\n");
+  EXPECT_THAT(emitted_, EqualsText("2: hit one\n4: hit two\n"));
 }
 
 TEST_F(EvaluateTest, GrepFormatCanReferenceEntryFields) {
@@ -790,7 +792,7 @@ TEST_F(EvaluateTest, GrepFormatCanReferenceEntryFields) {
   vfs::Metadata md;
   const Visit visit = MakeVisit(path, "grep_fmt2.txt", vfs::FileType::kRegular, md);
   EXPECT_TRUE(Match({"-grep={path}#{line}", "hit"}, visit));
-  EXPECT_EQ(emitted_, absl::StrCat(path, "#1\n"));
+  EXPECT_THAT(emitted_, EqualsText(absl::StrCat(path, "#1\n")));
 }
 
 TEST_F(EvaluateTest, GrepFormatMatchAndColumnExtractTheMatch) {
@@ -799,7 +801,7 @@ TEST_F(EvaluateTest, GrepFormatMatchAndColumnExtractTheMatch) {
   vfs::Metadata md;
   const Visit visit = MakeVisit(path, "grep_o.txt", vfs::FileType::kRegular, md);
   EXPECT_TRUE(Match({"-grep={column}:{match}", "E[0-9]+"}, visit));
-  EXPECT_EQ(emitted_, "6:E42\n");  // E42 starts at column 6 (after "code ")
+  EXPECT_THAT(emitted_, EqualsText("6:E42\n"));  // E42 starts at column 6 (after "code ")
 }
 
 TEST_F(EvaluateTest, GrepFormatMatchInExactModeUsesTheLiteralSpan) {
@@ -808,7 +810,7 @@ TEST_F(EvaluateTest, GrepFormatMatchInExactModeUsesTheLiteralSpan) {
   const Visit visit = MakeVisit(path, "grep_o2.txt", vfs::FileType::kRegular, md);
   regextype_ = "EXACT";
   EXPECT_TRUE(Match({"-grep={column} {match}", "X"}, visit));
-  EXPECT_EQ(emitted_, "2 X\n");  // first literal X at column 2
+  EXPECT_THAT(emitted_, EqualsText("2 X\n"));  // first literal X at column 2
 }
 
 TEST_F(EvaluateTest, GrepCountEmitsPerFileMatchLineCount) {
@@ -818,7 +820,7 @@ TEST_F(EvaluateTest, GrepCountEmitsPerFileMatchLineCount) {
   const Visit visit = MakeVisit(path, "grep_c.txt", vfs::FileType::kRegular, md);
   grep_count_ = true;
   EXPECT_TRUE(Match({"-grep={line}", "TODO"}, visit));  // FORMAT is superseded by --count
-  EXPECT_EQ(emitted_, absl::StrCat(path, ":3\n"));
+  EXPECT_THAT(emitted_, EqualsText(absl::StrCat(path, ":3\n")));
 }
 
 TEST_F(EvaluateTest, GrepCountEmitsNothingWhenNoLineMatches) {
