@@ -110,12 +110,19 @@ TEST_F(GlobalsTest, IsKnownGlobalAcceptsValuedFormsAndCompatAliases) {
   EXPECT_TRUE(IsKnownGlobal("-0"));              // compat: --format=nul
   EXPECT_TRUE(IsKnownGlobal("-g+"));             // compat: --gitignore=on
   EXPECT_TRUE(IsKnownGlobal("-g-"));             // compat: --gitignore=off
+  EXPECT_TRUE(IsKnownGlobal("-z++"));            // the top read rung (= --archive=any)
+  EXPECT_TRUE(IsKnownGlobal("-Z"));              // the same rungs with writing armed
+  EXPECT_TRUE(IsKnownGlobal("-Z+"));
+  EXPECT_TRUE(IsKnownGlobal("-Z++"));
+  // `-Z-` is known so the engine can explain the contradiction rather than have it reported as an
+  // unknown option; it is still a usage error.
+  EXPECT_TRUE(IsKnownGlobal("-Z-"));
 }
 
 TEST_F(GlobalsTest, IsKnownGlobalRejectsUnknownFlagsAndBadValuedKeys) {
   EXPECT_FALSE(IsKnownGlobal("--bogus"));
-  EXPECT_FALSE(IsKnownGlobal("--srot"));  // a typo of --sort
-  EXPECT_FALSE(IsKnownGlobal("-Z"));
+  EXPECT_FALSE(IsKnownGlobal("--srot"));     // a typo of --sort
+  EXPECT_FALSE(IsKnownGlobal("-Y"));         // an unclaimed letter (-Z is the write archive ladder)
   EXPECT_FALSE(IsKnownGlobal("--safe=x"));   // --safe takes no value, so a valued form is unknown
   EXPECT_FALSE(IsKnownGlobal("--bogus=1"));  // unknown key with a value
 }

@@ -405,8 +405,16 @@ int RunMain(int argc, char** argv) {
     // `--archive=all`), so strip it before the lookup or the short forms would slip past
     // this gate entirely and fail later with a confusing message.
     const bool suffix_off = name.size() > 1 && name.back() == '-';
-    if (name.size() > 1 && (name.back() == '+' || name.back() == '-')) {
+    // A whole RUN of signs, not one: the archive ladder spells its top rung `-z++`, so stripping a
+    // single character would leave `-z+`, which is not a flag name, and the run would miss this gate
+    // and fail later with a wordier message.
+    while (name.size() > 1 && (name.back() == '+' || name.back() == '-')) {
       name.remove_suffix(1);
+    }
+    // The upper-case archive family is the lower-case one with writing armed, so it needs the same
+    // extra; the table knows it under the flag that arms writing.
+    if (name == "-Z") {
+      name = "--archive-write";
     }
     const xff::cli::GlobalFlag* const flag = xff::cli::LookupGlobal(name);
     if (flag == nullptr || flag->extra.empty() || xff::cli::ExtraEnabled(flag->extra)) {
