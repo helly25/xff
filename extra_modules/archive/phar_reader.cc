@@ -66,6 +66,12 @@ struct Entry {
   std::uint64_t data_offset = 0;  // absolute offset of the member's stored bytes in the container
   std::uint64_t stored_size = 0;  // bytes occupied there (== member.size unless compressed)
   std::uint32_t flags = 0;
+  // This member's own manifest entry, as a byte range RELATIVE to the manifest region. Only a writer
+  // needs it (removing a member copies every other entry through verbatim), but it is free to record
+  // while parsing and impossible to recover afterwards.
+  std::size_t entry_offset = 0;
+  std::size_t entry_size = 0;
+  std::string stored_name;  // the name as stored, so a directory keeps its trailing `/`
 };
 
 // A cursor over the manifest bytes. Every read is bounds-checked and a short read is a DataLoss:
@@ -102,6 +108,9 @@ class Cursor {
     at_ += length;
     return value;
   }
+
+  // The cursor's position, which a writer needs to record where each manifest entry begins and ends.
+  [[nodiscard]] std::size_t At() const { return at_; }
 
   // Advances past `length` bytes, or returns false when they are not there.
   [[nodiscard]] bool Skip(std::uint32_t length) {
@@ -261,7 +270,12 @@ std::optional<std::size_t> ManifestOffset(std::string_view bytes) {
 // Parses the manifest region (everything after the 4-byte manifest length), turning each entry into
 // a `Member` plus the offsets its data occupies. `data_offset` is where the data section starts,
 // which the caller knows and this function does not.
-absl::StatusOr<std::vector<Entry>> ParseManifest(std::string_view manifest, std::uint64_t data_offset) {
+// `header_size` reports how much of the manifest precedes the first member entry (the fixed header
+// plus the alias and the container metadata), which a writer keeps verbatim.
+absl::StatusOr<std::vector<Entry>> ParseManifest(
+    std::string_view manifest,
+    std::uint64_t data_offset,
+    std::size_t& header_size) {
   Cursor cursor(manifest);
   MBO_ASSIGN_OR_RETURN(const std::uint32_t count, cursor.Uint32("member count"));
   // The manifest API version, nibble-packed big-endian (0x11 0x10 is 1.1.1). Every version so far
@@ -279,7 +293,9 @@ absl::StatusOr<std::vector<Entry>> ParseManifest(std::string_view manifest, std:
   std::vector<Entry> entries;
   entries.reserve(count);
   std::uint64_t next_data_offset = data_offset;
+  const std::size_t entries_at = cursor.At();  // the fixed header, the alias and the metadata end here
   for (std::uint32_t index = 0; index < count; ++index) {
+    const std::size_t entry_at = cursor.At();
     MBO_ASSIGN_OR_RETURN(const std::string_view name, cursor.LengthPrefixed("member name"));
     MBO_ASSIGN_OR_RETURN(const std::uint32_t size, cursor.Uint32("member size"));
     MBO_ASSIGN_OR_RETURN(const std::uint32_t mtime, cursor.Uint32("member timestamp"));
@@ -307,16 +323,29 @@ absl::StatusOr<std::vector<Entry>> ParseManifest(std::string_view manifest, std:
         .data_offset = next_data_offset,
         .stored_size = stored_size,
         .flags = flags,
+        .entry_offset = entry_at,
+        .entry_size = cursor.At() - entry_at,
+        .stored_name = std::string(name),
     };
     next_data_offset += stored_size;
     entries.push_back(std::move(entry));
   }
+  header_size = entries_at;
   return entries;
 }
 
-// Splits `bytes` into the manifest region and the absolute offset of the data section, so both entry
-// points share one notion of "where the manifest is".
-absl::StatusOr<std::vector<Entry>> ParseWholePhar(std::string_view bytes) {
+// Where the manifest is and what it holds, in one place, so every entry point (list, read, and the
+// layout a writer needs) shares one notion of it.
+struct WholePhar {
+  std::vector<Entry> entries;
+  std::size_t manifest_length_at = 0;
+  std::size_t manifest_start = 0;
+  std::size_t manifest_size = 0;
+  std::size_t entries_offset = 0;  // absolute: where the first member entry begins
+  std::uint32_t global_flags = 0;
+};
+
+absl::StatusOr<WholePhar> ParseWholePharLayout(std::string_view bytes) {
   const std::optional<std::size_t> manifest_at = ManifestOffset(bytes.substr(0, kStubScanLimit));
   if (!manifest_at.has_value()) {
     return absl::InvalidArgumentError("not a phar: no __HALT_COMPILER(); token in the stub");
@@ -332,7 +361,27 @@ absl::StatusOr<std::vector<Entry>> ParseWholePhar(std::string_view bytes) {
             "phar manifest is truncated: declares ", manifest_length, " bytes, only ", bytes.size() - manifest_start,
             " remain"));
   }
-  return ParseManifest(bytes.substr(manifest_start, manifest_length), manifest_start + manifest_length);
+  const std::string_view manifest = bytes.substr(manifest_start, manifest_length);
+  std::size_t header_size = 0;
+  MBO_ASSIGN_OR_RETURN(
+      std::vector<Entry> entries, ParseManifest(manifest, manifest_start + manifest_length, header_size));
+  // The global flags live right after the member count and the API version, and only a writer needs
+  // them (the signature bit says whether one has to be recomputed).
+  Cursor flags_cursor(manifest.substr(4 + 2));
+  MBO_ASSIGN_OR_RETURN(const std::uint32_t global_flags, flags_cursor.Uint32("global flags"));
+  return WholePhar{
+      .entries = std::move(entries),
+      .manifest_length_at = *manifest_at,
+      .manifest_start = manifest_start,
+      .manifest_size = manifest_length,
+      .entries_offset = manifest_start + header_size,
+      .global_flags = global_flags,
+  };
+}
+
+absl::StatusOr<std::vector<Entry>> ParseWholePhar(std::string_view bytes) {
+  MBO_ASSIGN_OR_RETURN(WholePhar whole, ParseWholePharLayout(bytes));
+  return std::move(whole.entries);
 }
 
 std::vector<Member> MembersOf(std::vector<Entry> entries) {
@@ -473,6 +522,38 @@ absl::StatusOr<std::string> Decompress(const Entry& entry, std::string_view stor
 }
 
 }  // namespace
+
+absl::StatusOr<PharLayout> ParsePharLayout(std::string_view bytes) {
+  MBO_ASSIGN_OR_RETURN(const WholePhar whole, ParseWholePharLayout(bytes));
+  PharLayout layout{
+      .manifest_length_at = whole.manifest_length_at,
+      .manifest_start = whole.manifest_start,
+      .manifest_size = whole.manifest_size,
+      .entries_offset = whole.entries_offset,
+      .data_offset = whole.manifest_start + whole.manifest_size,
+      .data_end = whole.manifest_start + whole.manifest_size,
+      .global_flags = whole.global_flags,
+  };
+  layout.members.reserve(whole.entries.size());
+  for (const Entry& entry : whole.entries) {
+    layout.members.push_back(
+        PharMemberLayout{
+            .name = entry.stored_name,
+            .entry_offset = whole.manifest_start + entry.entry_offset,
+            .entry_size = entry.entry_size,
+            .data_offset = entry.data_offset,
+            .stored_size = entry.stored_size,
+        });
+    layout.data_end = entry.data_offset + entry.stored_size;
+  }
+  if (layout.data_end > bytes.size()) {
+    return absl::DataLossError(
+        absl::StrCat(
+            "phar data section is truncated: members end at ", layout.data_end, ", the file has ", bytes.size(),
+            " bytes"));
+  }
+  return layout;
+}
 
 absl::StatusOr<std::vector<Member>> ListPharMembers(std::string_view bytes) {
   MBO_ASSIGN_OR_RETURN(std::vector<Entry> entries, ParseWholePhar(bytes));

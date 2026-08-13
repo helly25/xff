@@ -59,6 +59,35 @@ namespace xff::archive {
 //   - the low 9 bits of the member flags are the POSIX permission bits; `0` means the phar never
 //     stored any, not mode 0.
 
+// Where the pieces of a native phar SIT, for a caller that has to write one back (removing a member
+// means rebuilding the manifest and the data section). Byte ranges rather than values: every surviving
+// member's manifest entry and stored bytes are copied verbatim, so nothing is re-encoded and nothing
+// is re-compressed.
+//
+// All offsets are absolute in the container.
+struct PharMemberLayout {
+  std::string name;              // as STORED, so a directory keeps its trailing `/`
+  std::size_t entry_offset = 0;  // this member's manifest entry
+  std::size_t entry_size = 0;
+  std::uint64_t data_offset = 0;  // this member's stored (possibly compressed) bytes
+  std::uint64_t stored_size = 0;
+};
+
+struct PharLayout {
+  std::size_t manifest_length_at = 0;  // the 4-byte manifest length, i.e. the end of the stub
+  std::size_t manifest_start = 0;      // first manifest byte (the member count)
+  std::size_t manifest_size = 0;       // as declared by the length field
+  std::size_t entries_offset = 0;      // first member entry: the fixed header + alias + metadata end here
+  std::size_t data_offset = 0;         // manifest_start + manifest_size
+  std::size_t data_end = 0;            // past the last member's stored bytes: where a signature starts
+  std::uint32_t global_flags = 0;      // bit 0x10000 is "signed"
+  std::vector<PharMemberLayout> members;
+};
+
+// Parses `bytes` into the layout above, with the same error contract as ListPharMembers
+// (InvalidArgument = not a phar, DataLoss = a phar whose manifest does not check out).
+absl::StatusOr<PharLayout> ParsePharLayout(std::string_view bytes);
+
 // Lists the members of the phar in `bytes` (a whole in-memory phar).
 //
 // Returns InvalidArgumentError when the data is not a native phar (no `__HALT_COMPILER();` token

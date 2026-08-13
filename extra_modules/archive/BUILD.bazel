@@ -42,6 +42,44 @@ cc_library(
     alwayslink = True,
 )
 
+# The write half of the phar reader: rewriting a native phar without some of its members. Its own
+# target for the same reason the reader is - the format is hand-written, and libarchive cannot write it.
+cc_library(
+    name = "phar_writer_cc",
+    srcs = ["phar_writer.cc"],
+    hdrs = ["phar_writer.h"],
+    include_prefix = "xff/archive",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":archive_reader_cc",
+        ":phar_reader_cc",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@helly25_mbo//mbo/digest:digest_cc",
+        "@helly25_mbo//mbo/status:status_macros_cc",
+        "@xff_extras_api//:member_path_cc",
+    ],
+)
+
+cc_test(
+    name = "phar_writer_test",
+    size = "small",
+    srcs = ["phar_writer_test.cc"],
+    data = glob(["test_data/*"]),
+    env = {"XFF_PHAR_FIXTURE_ANCHOR": "$(rootpath test_data/plain.phar)"},
+    deps = [
+        ":phar_reader_cc",
+        ":phar_writer_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)
+
 # The one WRITE path: rewriting a container without some of its members (--archive-delete). Separate
 # from the reader because reading a format does not imply writing it, and because a build that only
 # ever lists archives should not link a writer.
@@ -242,7 +280,9 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":archive_fs_cc",
+        ":archive_reader_cc",
         ":archive_writer_cc",
+        ":phar_writer_cc",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",

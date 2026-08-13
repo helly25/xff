@@ -685,9 +685,17 @@ remains below is the design-forked / larger work.
       its child finishes. The `-delete` half SHIPPED as `--archive-delete`: the container is
       rewritten from the members that survive, once per container after the walk (the walk is reading
       that same container while it runs), keeping the original's format and compression, written
-      beside it and renamed over it only when complete. Refused with the reason named for a format
-      libarchive reads but cannot write, for a container xff parses itself (phar, compressed single
-      file), and for a member of a container nested inside another one. A container left empty is
+      beside it and renamed over it only when complete. A NATIVE phar is rewritten by xff's own writer
+      (`phar_writer.cc`): the manifest has no absolute offsets, so the surviving entries and their
+      stored bytes are copied verbatim, the member count and manifest length are patched, and the
+      trailing signature is recomputed (md5 / sha1 / sha256 / sha512). Verified against PHP itself: it
+      opens a rewritten fixture and counts the remaining members. Refused with the reason named for a
+      format libarchive reads but cannot write; for a TAR-based or ZIP-based phar, whose signature is a
+      MEMBER (`.phar/signature.bin`) computed over the rest of the container, so a plain tar / zip
+      rewrite would leave it stale and PHP would reject the result; for an OpenSSL-signed phar (no
+      private key to re-sign with); for a compressed single file (no member list to rewrite, and a
+      whole-file-compressed container would have to be recompressed around the change); and for a
+      member of a container nested inside another one. A container left empty is
       kept: an archive with no members is legal, and deleting the FILE was never what `-delete` on a
       member asked for.
     - ~~**`-delete` on a member silently does nothing**~~ (exit 0, no output, no error) and **`-exec`
