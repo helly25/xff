@@ -52,7 +52,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-L` - follow symlinks everywhere during the walk _(global, find)_
 - `-P` - never follow symlinks (the default) _(global, find)_
 - `--archive[=none|roots|all], -z[+|-]` - descend into archives: -z- none, -z roots only, -z+ / bare --archive all _(global, xff)_
-  One of is one of:
+  One of:
 
   - `none` - an archive is one plain file (find behavior; the find-style default)
   - `roots` - dive only when a search root is itself an archive (the xff-family default)
@@ -63,8 +63,8 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--archive-depth=N` - how many containers deep --archive dives (default 1) _(global, xff)_
   Counted in CONTAINERS, not directory levels: the default 1 opens an archive but leaves an archive INSIDE it a plain member, so a `.gem` shows its `data.tar.gz` without unpacking it. `--archive-depth=2` opens that one too. Its own knob rather than part of -maxdepth because nesting is where a decompression bomb lives - a few kilobytes can promise gigabytes per level - while -maxdepth keeps counting member levels as the ordinary depth they are. Only `all` nests: under `roots` a member is never a search root, so nothing inside the container is dived whatever the value. N must be at least 1; use --archive=none / -z- to stop diving.
   Affects: --archive
-- `--archive-aggregate=MODE` - what --summary / --histogram count when the walk dives (default members) _(global, xff)_
-  One of is one of:
+- `--archive-aggregate=<MODE>` - what --summary / --histogram count when the walk dives (default members) _(global, xff)_
+  MODE is one of:
 
   - `members` - count what is INSIDE a dived container, not the container (the default)
   - `container` - count containers as the files they are on disk, never their members
@@ -84,7 +84,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--archive-separator=STRING` - string between container and member in a member path (default `!`) _(global, xff)_
   A member path is `<container><separator><member>`, and there is no single ecosystem convention - `!` (JAR / Java URLs), `#` (fragment style), and the multi-character `!/` or `#/` other tools print all exist - so this is a presentation choice rather than something hard-coded. ANY string is accepted, not a fixed menu, so xff can emit what another system accepts. Rendering is plain concatenation and xff adds or removes no slash, so a member stored with a leading slash keeps it: `a.tgz!/rooted` (and with `--archive-separator=!/`, the doubled `a.tgz!//rooted`, which is why plain `!` is the better default). Parsing splits at the FIRST occurrence and takes the remainder verbatim, so a path xff printed round-trips. A plain `/` is allowed and composes with globs, but is lossy - a real directory named x.tar becomes indistinguishable from an archive - so it is never the default.
 - `--archive-prefix=[URI|STRING]` - prefix a member path: empty (default), URI, or any literal string _(global, xff)_
-  One of is one of:
+  One of:
 
   - `(empty)` - no prefix - a bare path, `a.tgz!inner/x` (the default)
   - `URI` - `archive:///abs/a.tar!x` when the container is absolute, else `archive:a.tgz!x`
@@ -216,7 +216,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   A terminal reduction like --summary, drawn as bars. BUCKET groups the matches - a category (overall, type, ext, lang, mime, user (owner), or group) or a numeric-range field (size / lines by order of magnitude, depth per level, drawn as an ascending distribution). The optional :MEASURE is the bar's value - `count` (the default) or an aggregate `sum(FIELD)` / `mean(FIELD)` / `min(FIELD)` / `max(FIELD)` over a numeric FIELD (size or lines). A numeric metric needs an aggregator (`ext:lines` is an error; `ext:sum(lines)` is not). Repeatable and combinable with --summary - both are fed by one walk and replace the per-match listing. Bars scale to the tallest, use Unicode block characters on a UTF-8 locale (see --unicode) or ASCII '#' otherwise; --top=N keeps the N tallest and --format=jsonl emits one object per bar for scripts.
   Affected by: --histogram-width
 - `--shards[=auto|SCHEME,...]` - collapse each set of sharded files (e.g. data-00000-of-00010) to one line _(global, xff)_
-  One of is one of:
+  One of:
 
   - `auto` - recognize every built-in scheme (the default when bare `--shards`)
   - `of` - only `<stem>-<index>-of-<total>` (TFRecord-style)
@@ -225,7 +225,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 
   Recognizes sharded-file naming conventions and collapses each logical set to a single line instead of listing every shard. Bare --shards (or =auto) enables all built-in schemes: `<stem>-<index>-of-<total>` (of), `<stem>.<NNN>` (dotnum), and `<stem>_<NNN>` (underscore). Restrict to specific schemes with a comma list, e.g. --shards=of,dotnum. Grouping is per-directory; files that match no scheme are listed unchanged. Off by default.
 - `--shards-show=first|wildcard|count` - how a collapsed shard set's line reads (default first) _(global, xff)_
-  One of is one of:
+  One of:
 
   - `first` - the representative (lowest-index) shard's path (the default)
   - `wildcard` - the masked-index name, e.g. `arc.???` (or `f-` idx `-of-003`)
@@ -233,7 +233,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 
   Picks each collapsed set's display: first = the representative (lowest-index) shard's path; wildcard = the masked-index name (the index digits shown as `???`); count = the wildcard plus the shard count. An incomplete set is always annotated `(present/expected - INCOMPLETE)`. Only meaningful with --shards.
 - `--shards-dedup=first|mtime|error` - how same-index shard duplicates are resolved (default first) _(global, xff)_
-  One of is one of:
+  One of:
 
   - `first` - keep the lexicographically-first name among same-index copies (the default)
   - `mtime` - keep the newest by modification time (ties break on name)
@@ -264,7 +264,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--width[=auto|none|COLS]` - wrap column for plain --help text: auto (terminal width, else unwrapped), none, or a count _(global, xff)_
   Wraps the flowing text of --help and --help=TOPIC (option and topic descriptions) to a column width. auto uses the terminal width when stdout is a terminal (honoring $COLUMNS), and leaves output unwrapped when it is not (a pipe or file); none (or 0) disables wrapping; a positive integer sets a fixed width. Aligned vocabulary tables and example blocks keep their own layout. Does not affect the file listing, --man, or --markdown.
 - `--pager[=auto|always|never]` - page the long help / man / markdown output: auto (a tty), always, or never (--no-pager) _(global, xff)_
-  One of is one of:
+  One of:
 
   - `auto` - page only when stdout is a terminal (the default)
   - `always` - always page, even through a pipe
@@ -293,7 +293,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--timezone=ZONE, --tz=ZONE` - zone for interpreting/formatting times (local, utc, an IANA name, or +HH:MM) _(global, xff)_
   The zone used to interpret and format every time. Accepts local, utc, an IANA name like Europe/London, or a fixed offset like +02:00. Affects time fields and -newerXt comparisons.
 - `--time-zone-suffix[=auto|always|never]` - show the zone offset on a time field: auto (per format), always, or never _(global, xff)_
-  One of is one of:
+  One of:
 
   - `auto` - each format's built-in default (the default)
   - `always` - force the offset, even on a format that omits it (also true / yes / on)
@@ -682,6 +682,56 @@ The grammar for -regex / -iregex and the content matchers -rxc / -grep, chosen b
 - `GLOB` - xff's own path-aware shell glob (gitignore-flavored, compiled to RE2 - NOT POSIX glob(7)): * and ? match within one path segment (they stop at /); ** is a whole-segment cross-directory wildcard (leading **/ = zero or more directories, trailing /** = everything below, a glued ** degrades to *); [...] is a class with [a-z] ranges, [[:alpha:]] POSIX classes, a leading ! negating and a leading ] literal; { } are literal. Because it compiles to RE2, -grep / -rxc partial matching and match spans work.
 - `SHGLOB` - GLOB plus brace alternation: {a,b,c} matches any one alternative, so *.{cc,h} matches either. Alternatives may nest and may be empty; each is itself SHGLOB-translated. \{ \} \, and braces inside a [...] class are literal. Everything else is exactly GLOB.
 - `PCRE2` - Perl-Compatible Regular Expressions (lookaround, backreferences, ...). A build-time extra: present only in a full build - run `xff --help=extras` to see whether THIS binary has it. Full syntax: pcre2pattern(3).
+
+## Archives
+
+With `--archive`, an archive is a directory: xff opens it and walks its members as ordinary entries, so every predicate and action applies to them unchanged - `-name`, `-type`, `-grep`, `{hash}`, `--summary`. Nothing in the expression vocabulary knows about archives. Needs the archive extra; `--help=extras` says whether this binary has it.
+
+### How far diving goes
+
+- `none` - an archive is one plain file (find's behaviour, and the find-style default)
+- `roots` - dive only when a search root IS an archive (the xff-family default)
+- `all` - dive archives met during the walk too (what a bare `--archive` selects)
+
+Under `all` a file is only opened when its NAME looks like a container, so walking a source tree does not read every file in it; `--archive-any` drops that gate. Nesting has its own cap (`--archive-depth`, default 1) because a container inside a container is where a decompression bomb lives - `-maxdepth` keeps counting member levels as ordinary depth.
+
+### A member is an entry, a container is still a file
+
+A member's path is the container's, the separator, then the member: `a.tar!dir/two.txt` (`--archive-separator` / `--archive-prefix` spell it differently). The container keeps its own identity at the same time - it is a real `-type f` you can match and delete - so a dive shows you both, which is also why `--archive-aggregate` exists: a reduction that counted the container AND its members would describe no filesystem that exists.
+
+Members are READ-ONLY by default. `-delete` and the exec family refuse one rather than silently doing nothing, because a member has no path a process can open and no way to be unlinked; `--archive-extract` runs the child over a temporary copy, and `--archive-delete` rewrites the container without the member. Both are opt-in, and both say so in the refusal you get without them.
+
+### Examples
+
+```sh
+xff --archive=roots a.tar
+```
+
+list the archive and its members
+
+```sh
+xff -z+ . -grep TODO
+```
+
+search inside every archive met in the tree
+
+```sh
+xff --archive=roots a.tgz --summary
+```
+
+count what is INSIDE, not the compressed container
+
+```sh
+xff --archive=roots --archive-extract a.tar -name '*.json' -exec jq . {} \;
+```
+
+run a tool over a member, via a temporary copy
+
+```sh
+xff --archive=roots --archive-delete a.tar -name '*.bak' -delete
+```
+
+rewrite the archive without those members
 
 ## Statistics
 

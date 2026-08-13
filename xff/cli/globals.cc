@@ -245,6 +245,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "build-time extra: the stock binary is lean and omits it (rebuild with --//xff:xff_archive); "
                    "asking for archive handling without it is a hard error.",
         .values = kArchiveValues,
+        .topic = "archive",
         .extra = "archive",
     },
     {
@@ -261,11 +262,12 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "nests: under `roots` a member is never a search root, so nothing inside the container is "
                    "dived whatever the value. N must be at least 1; use --archive=none / -z- to stop diving.",
         .affects = "--archive",
+        .topic = "archive",
         .extra = "archive",
     },
     {
         .name = "--archive-aggregate",
-        .display = "--archive-aggregate=MODE",
+        .display = "--archive-aggregate=<MODE>",
         .group = "traversal",
         .header = "Traversal",
         .summary = "what --summary / --histogram count when the walk dives (default members)",
@@ -281,6 +283,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "avoids opening it - use another mode, or no reduction, to keep that.",
         .values = kArchiveAggregateValues,
         .affects = "--archive",
+        .topic = "archive",
         .extra = "archive",
     },
     {
@@ -304,6 +307,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "phar's manifest, offsets and signature all move), and a member of a container "
                    "nested inside another one.",
         .affects = "--archive",
+        .topic = "archive",
         .extra = "archive",
     },
     {
@@ -325,6 +329,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "deletion. The container itself is an ordinary file, so an action on IT never "
                    "needed this.",
         .affects = "--archive",
+        .topic = "archive",
         .extra = "archive",
     },
     {
@@ -343,6 +348,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "why it is not the default. A file NAMED on the command line is always opened - "
                    "pointing xff at it is the request - so this flag changes nothing for `--archive=roots`.",
         .affects = "--archive",
+        .topic = "archive",
         .extra = "archive",
     },
     {
@@ -361,6 +367,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "at the FIRST occurrence and takes the remainder verbatim, so a path xff printed round-trips. "
                    "A plain `/` is allowed and composes with globs, but is lossy - a real directory named x.tar "
                    "becomes indistinguishable from an archive - so it is never the default.",
+        .topic = "archive",
         .extra = "archive",
     },
     {
@@ -381,6 +388,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "spellings never silently interchange. Whether the scheme should be per-format (`tar:` / "
                    "`zip:` / PHP's `phar:`) rather than the generic `archive:` is still open (see TODO.md).",
         .values = kArchivePrefixValues,
+        .topic = "archive",
         .extra = "archive",
     },
     {

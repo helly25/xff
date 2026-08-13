@@ -137,10 +137,10 @@ TEST_F(BuildReferenceTest, PreambleComesFromTheSot) {
 
 TEST_F(BuildReferenceTest, SectionsAppearInReferenceOrder) {
   EXPECT_THAT(
-      SectionTitles(doc),
-      ElementsAre(
-          "Description", "Configuration", "Options", "Expression", "Fields", "Printf directives", "Time formats",
-          "Size units", "Regex grammars", "Statistics", "Environment", "Examples", "Exit status", "See also"));
+      SectionTitles(doc), ElementsAre(
+                              "Description", "Configuration", "Options", "Expression", "Fields", "Printf directives",
+                              "Time formats", "Size units", "Regex grammars", "Archives", "Statistics", "Environment",
+                              "Examples", "Exit status", "See also"));
 }
 
 TEST_F(BuildReferenceTest, ExpressionHasTheThreeKindSubsections) {
