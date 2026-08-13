@@ -443,18 +443,35 @@ Section ArchiveSection(bool in_full) {
       "`-grep`, `{hash}`, `--summary`. Nothing in the expression vocabulary knows about archives. "
       "Needs the archive extra; `--help=extras` says whether this binary has it."));
 
-  static constexpr std::array<DocPair, 3> kModes = {{
+  static constexpr std::array<DocPair, 4> kModes = {{
       {"none", "an archive is one plain file (find's behaviour, and the find-style default)"},
       {"roots", "dive only when a search root IS an archive (the xff-family default)"},
       {"all", "dive archives met during the walk too (what a bare `--archive` selects)"},
+      {"any", "`all`, and offer EVERY file to the reader rather than only container-looking names"},
   }};
   Subsection modes{.title = "How far diving goes"};
   modes.children.push_back(RowsOf(kModes));
   modes.children.push_back(ProseOf(
+      "Two axes, spelled independently: the RUNG says how much to look at, the CASE of the short "
+      "form says whether writing is armed. So a slipped shift key changes the capability, never the "
+      "level - and arming is not doing: something still has to ask for a write, and `--safe` / "
+      "`--dry-run` still apply."));
+  modes.children.push_back(
+      Content{
+          .node = Example{
+              .text = "                   read only    + write (--archive-write)\n"
+                      "  none              -z-          (error: -Z- contradicts itself)\n"
+                      "  roots (default)   -z           -Z\n"
+                      "  all               -z+          -Z+\n"
+                      "  any               -z++         -Z++",
+              .lang = "text"}});
+  modes.children.push_back(ProseOf(
       "Under `all` a file is only opened when its NAME looks like a container, so walking a source "
-      "tree does not read every file in it; `--archive-any` drops that gate. Nesting has its own cap "
-      "(`--archive-depth`, default 1) because a container inside a container is where a "
-      "decompression bomb lives - `-maxdepth` keeps counting member levels as ordinary depth."));
+      "tree does not read every file in it; `any` (also spelled `--archive-any`) drops that gate. "
+      "Nesting has its own cap (`--archive-depth`, default 1) because a container inside a container "
+      "is where a decompression bomb lives - and it is deliberately NOT part of any rung, since "
+      "raising the bomb cap is a different decision from looking in more places. `-maxdepth` keeps "
+      "counting member levels as ordinary depth."));
   section.children.push_back(Content{.node = std::move(modes)});
 
   Subsection identity{.title = "A member is an entry, a container is still a file"};

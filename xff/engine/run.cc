@@ -1260,17 +1260,20 @@ GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals, std:
 // (-z- none, -z roots, -z+ all). Last occurrence wins. The default is style-scoped: the
 // find style stays at `none` for drop-in fidelity, every xff-family style starts at
 // `roots`.
-enum class ArchiveMode : std::uint8_t { kNone, kRoots, kAll };
+enum class ArchiveMode : std::uint8_t { kNone, kRoots, kAll, kAny };
 
 ArchiveMode ResolveArchiveMode(const std::vector<std::string>& globals, std::optional<registry::Style> style) {
   // find keeps archives opaque; the xff family looks inside one it was pointed at.
   ArchiveMode mode = style == registry::Style::kFind ? ArchiveMode::kNone : ArchiveMode::kRoots;
   for (const std::string& global : globals) {
-    if (global == "--archive" || global == "--archive=all" || global == "-z+" || global == "-z++") {
-      // `-z++` is "all, plus the write flags": the mode half is `all`, and the write half is
-      // read by ArchiveWriteArmed below - one spelling, two independent effects.
+    // The short forms come in a lower-case (read) and an upper-case (read + write) family whose
+    // RUNGS are identical, so both spellings of a rung are read here and only ResolveArchiveWrite
+    // cares about the case. `-Z-` does not exist: see ArchiveShortFormError.
+    if (global == "--archive=any" || global == "--archive-any" || global == "-z++" || global == "-Z++") {
+      mode = ArchiveMode::kAny;
+    } else if (global == "--archive" || global == "--archive=all" || global == "-z+" || global == "-Z+") {
       mode = ArchiveMode::kAll;
-    } else if (global == "--archive=roots" || global == "-z") {
+    } else if (global == "--archive=roots" || global == "-z" || global == "-Z") {
       mode = ArchiveMode::kRoots;
     } else if (global == "--archive=none" || global == "-z-") {
       mode = ArchiveMode::kNone;
@@ -1294,7 +1297,10 @@ struct ArchiveWrite {
 ArchiveWrite ResolveArchiveWrite(const std::vector<std::string>& globals) {
   ArchiveWrite write;
   for (const std::string& global : globals) {
-    if (global == "--archive-write" || global == "-z++") {
+    // The UPPER-case short family is the write one, at every rung: `-Z` is `-z` plus the write
+    // flags, `-Z+` is `-z+` plus them, and so on. Case carries the capability, the signs carry the
+    // level, so neither axis can be reached by accident while aiming at the other.
+    if (global == "--archive-write" || global == "-Z" || global == "-Z+" || global == "-Z++") {
       write = ArchiveWrite{.extract = true, .remove = true};
     } else if (global == "--archive-extract") {
       write.extract = true;
@@ -1311,7 +1317,7 @@ ArchiveWrite ResolveArchiveWrite(const std::vector<std::string>& globals) {
 bool HasArchiveFlag(const std::vector<std::string>& globals) {
   return absl::c_any_of(globals, [](std::string_view global) {
     return global == "--archive" || global.starts_with("--archive=") || global == "-z" || global == "-z+"
-           || global == "-z++" || global == "-z-";
+           || global == "-z++" || global == "-z-" || global == "-Z" || global == "-Z+" || global == "-Z++";
   });
 }
 
@@ -1319,11 +1325,25 @@ bool HasArchiveFlag(const std::vector<std::string>& globals) {
 // flags and the CLI knows nothing about traversal; this is the one place they meet.
 ArchiveDive ArchiveDiveOf(ArchiveMode mode) {
   switch (mode) {
-    case ArchiveMode::kAll: return ArchiveDive::kAll;
+    // `any` is `all` on the DIVE axis: the extra it adds is dropping the name gate on detection,
+    // which the walk reads separately (see the sniff-everything option below).
+    case ArchiveMode::kAll:
+    case ArchiveMode::kAny: return ArchiveDive::kAll;
     case ArchiveMode::kNone: return ArchiveDive::kNone;
     case ArchiveMode::kRoots: return ArchiveDive::kRoots;
   }
   return ArchiveDive::kNone;
+}
+
+// `-Z-` is refused rather than accepted as a synonym of `-z-`: "arm writing" and "do not look inside
+// anything" contradict each other, and it is the one upper-case spelling whose capital would do
+// nothing. Returns the message, or empty when the globals carry no such form.
+std::string ArchiveShortFormError(const std::vector<std::string>& globals) {
+  if (absl::c_contains(globals, "-Z-")) {
+    return "-Z- would arm archive writing while turning archives off; use -z- for none, or -Z for "
+           "the writable form of -z";
+  }
+  return "";
 }
 
 // --archive-separator=STRING / --archive-prefix=[URI|STRING]: how a mounted container spells its
@@ -1347,6 +1367,7 @@ archive::MemberPathOptions ReadMemberPathOptions(const std::vector<std::string>&
 std::string_view ArchiveModeName(ArchiveMode mode) {
   switch (mode) {
     case ArchiveMode::kAll: return "all";
+    case ArchiveMode::kAny: return "any";
     case ArchiveMode::kRoots: return "roots";
     case ArchiveMode::kNone: return "none";
   }
@@ -1400,6 +1421,9 @@ absl::StatusOr<archive::MemberPathOptions> ResolveArchiveOptions(
     const std::vector<std::string>& globals,
     std::optional<registry::Style> style,
     WalkOptions* options) {
+  if (const std::string bad_short = ArchiveShortFormError(globals); !bad_short.empty()) {
+    return absl::InvalidArgumentError(bad_short);
+  }
   const ArchiveMode archive_mode = ResolveArchiveMode(globals, style);
   if (archive_mode != ArchiveMode::kNone && !archive::ContainerSupportAvailable()) {
     if (HasArchiveFlag(globals)) {
@@ -2438,7 +2462,11 @@ int RunFind(
   const archive::MemberPathOptions member_path_options = *member_paths;
   // --archive-any: offer every file to the reader instead of only those whose name looks like a
   // container. Expensive by design (every file is opened and format-bid), so it is opt-in.
-  const bool archive_any = absl::c_contains(command.globals, "--archive-any");
+  // `--archive=any` / `-z++` / `-Z++` is the top rung: dive like `all` AND drop the name gate.
+  // `--archive-any` is the older spelling of the same thing.
+  const bool archive_any = absl::c_contains(command.globals, "--archive-any")
+                           || absl::c_contains(command.globals, "--archive=any")
+                           || absl::c_contains(command.globals, "-z++") || absl::c_contains(command.globals, "-Z++");
   // --hash-algorithm=ALGO / --hash-encoding=hex|base64: defaults for a bare -hash action and a
   // bare {hash} field (last occurrence wins; empty -> sha256 / hex). Validated here so a bad value
   // is a usage error (exit 2) before the walk; the explicit -hash=ALGO[/ENCODING] specs in the

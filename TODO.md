@@ -76,24 +76,29 @@ shipped one way but not yet settled.
   and which is grep's. Whether the shorts should EXIST is the open question below, because `-A` is
   also the proposed archive umbrella.
 
-- **RESOLVED (2026-08-13): `-A` stays free for grep context; the archive umbrella extends `-z`.**
-  The user ratified `-z++` for "all archive features plus write", so the archive axis keeps one letter
-  and the grep family keeps `-A` / `-B` / `-C`. `-z*` was considered and REJECTED (2026-08-13): a bare
-  `-z*` is a hard error in zsh (`no matches found`) and in default bash silently expands if any file
-  happens to match, and no other punctuation reads as "more than +", so `-z++` is the only short. The long spelling that SAYS write
-  (`--archive-write`, arming `--archive-extract` + `--archive-delete` without touching the dive mode)
-  is what `-z++` expands to, so the short stays a convenience over a named behaviour rather than a
-  magic letter. The rejected alternative, kept for the record:
-  - **grep-family context** (`-A N` after, `-B N` before, `-C N` both). Every tool in that family
-    spells it this way - grep, rg, ag - and `--config=rg` makes that muscle memory an explicit goal.
-    Giving `-A` away leaves `-B` / `-C` orphaned, which is worse than having no shorts at all.
-  - **the archive umbrella** (user, 2026-08-13): `-A-` all archive features off, `-A` the standard
-    features on, `-A+` all plus the WRITE flags. The suffix-sign shape is right and already ours -
-    but it is also already spelled on another letter: `-z-` / `-z` / `-z+` are none / roots / all
-    today, so the only missing level is "+ write", which `-z++` would add on the knob that already
-    exists. That leaves `-A` free for the grep family.
-    So: `-z-` none, `-z` roots, `-z+` all, `-z++` all + write, and `-A` / `-B` / `-C` are
-    left for the grep family to claim.
+- **RESOLVED (2026-08-13, user): the archive shorts are TWO families - `-z` reads, `-Z` writes.**
+  The sign ladder measures ONE axis (how much to look at) and the CASE carries the capability:
+
+  ```
+                     read only    + write (--archive-write)
+    none              -z-          (error: -Z- contradicts itself)
+    roots (default)   -z           -Z
+    all               -z+          -Z+
+    any               -z++         -Z++
+  ```
+
+  This replaces the earlier `-z++` = "all, and writable", which mixed the axes: adding a `+` must
+  never arm a destructive capability (the same principle #73 records for `--feature`), and a slipped
+  shift key must change which axis you asked for, not both. It also frees the top read rung for
+  `any` = `all` without the name gate (the older spelling `--archive-any` stays as a hidden alias),
+  which is the "look everywhere, inside everything" convenience #185 asked for.
+  - Arming is not doing: a `-Z` run still needs an action that writes (`-delete`, or `-exec` over an
+    extracted copy), and `--safe` / `--dry-run` still apply. That is what makes case-as-capability
+    acceptable here; if arming alone could destroy something it would need a whole word.
+  - `-A` / `-B` / `-C` stay free for the grep family, as before. `-z*` stays rejected (a bare `-z*`
+    errors in zsh and silently expands in bash), and the ladder stops at `++` in both families.
+  - `--archive-depth` is deliberately NOT part of any rung: raising the decompression-bomb cap is a
+    different decision from looking in more places.
 
 - **Short primaries `-n` / `-p` for `-name` / `-path` (raised 2026-08-13)?** Note what fd's letters
   actually mean before copying them: fd's `-p` is `--full-path` (a MODE flag that makes its single
@@ -170,7 +175,20 @@ shipped one way but not yet settled.
     macFUSE on macOS (a kernel extension the USER installs, so the extra must degrade to extraction
     when it is absent rather than fail). Read-only first; a writable mount would be how `-delete` on a
     member and an in-place editor could work later, and it is a separate decision.
-  - **What needs deciding before building:** the mount lifecycle (mount per run under a per-pid
+  - **DECIDED (2026-08-13, user): explicit flag, in-process server, and the rest as proposed.**
+    A mount is process-global state other programs can see, it needs a user-installed kernel
+    component on macOS, and not everyone will get it running - so it is an explicit `--archive-mount`
+    rather than implicit-when-available, and the same command cannot behave differently on two
+    machines by accident. The server runs in-process (a background FUSE thread) with one mount point
+    per RUN under `$XDG_RUNTIME_DIR/xff/<pid>/` (else `$TMPDIR`), one subdirectory per container,
+    read-only; unmount by RAII at exit plus a signal handler (INT / TERM / HUP) that unmounts and
+    re-raises, `fusermount3 -uz` / `umount -f` as the crash path, and a startup sweep of our own
+    `xff/<pid>` directories whose pid is gone. Mounts do NOT nest (only the outer container is
+    mounted; an inner one is read by xff's own reader, since mounting it would mean materialising its
+    bytes), and the WALK does not read through the mount - it keeps using the VFS, so a mount failure
+    can change what `-exec` can reach but never what xff finds. Revisit any of it if it proves wrong
+    in practice.
+  - **What was on the list to decide:** the mount lifecycle (mount per run under a per-pid
     directory, unmounted at exit AND on a signal, with `fusermount -uz` / `umount -f` as the crash
     path, since a stale mount is worse than a stale temp file); whether the mount is implicit when
     available or an explicit flag (a mount is process-global state other programs can see, which argues
@@ -959,15 +977,14 @@ remains below is the design-forked / larger work.
     detection only, no `--password` decryption. Read-only member semantics, the `container!member`
     representation, uncompressed logical size and the streaming / bomb limits are specified in
     `docs/design.md` "Virtual entries".
-  - **OPEN (needs a decision): per-format schemes and `--archive-separator=AUTO+<fallback>`.** PHP
-    spells phar `phar:///path/to/a.phar/inner/x` - a per-format scheme AND a bare `/` separator -
-    which is evidence against one generic `archive:` scheme. If per-format wins, the scheme becomes a
-    property of the detected format, and the separator must follow the format too: `AUTO` cannot
-    choose between `!` and `#` where a format dictates nothing, hence a fallback in one value
-    (`AUTO+!`, with bare `AUTO` meaning `AUTO+!`). ALL CAPS keeps a literal separator spelled `auto`
-    expressible; `AUTO:!` is out (`:` is the sub-separator inside values) and `AUTO!` is unparseable
-    (`!` is itself a legal separator). Starting map: phar -> `/`, Java jar/war/ear -> `!`, everything
-    else -> the fallback. Tracked as task #177.
+  - **DECIDED (2026-08-13, user): NO `AUTO` separator; per-format spelling belongs to the PREFIX.**
+    A member path's value is that you can read it and paste it back, and a per-format separator
+    breaks both: phar's own `/` makes `a.phar/inner/x` ambiguous - you cannot tell where the
+    container ends without opening it, and a real directory of that shape can exist. One separator
+    (`!` by default, `--archive-separator` to change) keeps that property. Per-format schemes are
+    right on the axis that is EXPLICITLY an interop artifact: `--archive-prefix=URI` can emit
+    `phar:///abs/a.phar/inner/x` and `jar:file:///abs/a.jar!/inner` while the bare path stays
+    unambiguous. Task #177 is closed by this; the per-format URI work is its own follow-up.
   - **OPEN (own slice): phar support.** libarchive does NOT read phar (stub + manifest + optional
     per-entry compression + signature), so it needs its own reader behind the same `archive_reader`
     shape - which is what the extras architecture is for, and the member-path spelling is
