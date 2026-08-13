@@ -15,6 +15,7 @@
 
 #include "xff/color/color.h"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -22,6 +23,7 @@
 #include <vector>
 
 #include "absl/strings/ascii.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/strip.h"
 #include "mbo/container/limited_map.h"
@@ -99,17 +101,101 @@ Scheme ResolveScheme(const std::vector<std::string>& globals) {
   return scheme;
 }
 
-Palette PaletteFor(Scheme scheme, std::string_view ls_colors) {
+// $LSCOLORS is 11 fixed-position fg/bg letter pairs, so its length is the whole validity test: a
+// value of any other size cannot be read at all (see Palette::FromBsdLsColors).
+constexpr std::size_t kBsdLsColorsSize = 22;
+
+Palette PaletteFor(Scheme scheme, std::string_view ls_colors, std::string_view bsd_lscolors) {
+  // An unreadable $LSCOLORS is no theme rather than an empty one, so `auto` still reaches xff's own
+  // scheme instead of printing everything plain.
+  if (bsd_lscolors.size() != kBsdLsColorsSize) {
+    bsd_lscolors = {};
+  }
+  // $LS_COLORS wins when both are set (it is the richer format); $LSCOLORS is what a macOS user
+  // actually has, so reading only the former would make "use the colours ls uses" false there.
+  const auto themed = [&](bool fall_back) {
+    return !ls_colors.empty() ? Palette::FromLsColors(ls_colors, fall_back)
+                              : Palette::FromBsdLsColors(bsd_lscolors, fall_back);
+  };
   switch (scheme) {
     case Scheme::kXff: return {};
-    case Scheme::kLs: return Palette::FromLsColors(ls_colors, /*fall_back=*/false);
-    case Scheme::kLsAndXff: return Palette::FromLsColors(ls_colors, /*fall_back=*/true);
+    case Scheme::kLs: return themed(/*fall_back=*/false);
+    case Scheme::kLsAndXff: return themed(/*fall_back=*/true);
     case Scheme::kAuto:
-      // Per-VARIABLE rather than per-key: a set theme is taken as the whole answer, an unset one
-      // leaves xff's scheme untouched.
-      return ls_colors.empty() ? Palette() : Palette::FromLsColors(ls_colors, /*fall_back=*/false);
+      // Per-VARIABLE rather than per-key: a set theme is taken as the whole answer, and with neither
+      // variable set xff's scheme is left untouched.
+      return ls_colors.empty() && bsd_lscolors.empty() ? Palette() : themed(/*fall_back=*/false);
   }
   return {};
+}
+
+// One BSD colour letter as an SGR parameter piece: `a`..`h` are the eight ANSI colours in that order,
+// an uppercase letter is the bold / bright variant, and `x` is the terminal default (no parameter).
+// `base` is 30 for a foreground and 40 for a background.
+namespace {
+
+std::string BsdColorCode(char letter, int base) {
+  if (letter == 'x' || letter == 'X') {
+    return {};  // default: say nothing rather than emit a colour
+  }
+  const bool bright = absl::ascii_isupper(static_cast<unsigned char>(letter));
+  const char lower = absl::ascii_tolower(static_cast<unsigned char>(letter));
+  if (lower < 'a' || lower > 'h') {
+    return {};  // not a colour letter; ignore it rather than emit nonsense
+  }
+  const int code = base + (lower - 'a');
+  // Brightness is spelled differently per role: a bold attribute for the foreground (what BSD ls
+  // does), and the high-intensity background range for the background.
+  if (!bright) {
+    return absl::StrCat(code);
+  }
+  return base == 30 ? absl::StrCat("1;", code) : absl::StrCat(code + 60);
+}
+
+}  // namespace
+
+Palette Palette::FromBsdLsColors(std::string_view bsd_lscolors, bool fall_back) {
+  Palette palette;
+  palette.fall_back_ = fall_back;
+  // Position IS the key here, in BSD ls's fixed order. `su` / `sg` / `tw` / `ow` are parsed for
+  // completeness but never looked up yet: they need the setuid / sticky distinctions the walk does not
+  // carry (the same reason their $LS_COLORS keys are unread).
+  static constexpr std::array kBsdOrder = std::to_array<std::string_view>({
+      "di",
+      "ln",
+      "so",
+      "pi",
+      "ex",
+      "bd",
+      "cd",
+      "su",
+      "sg",
+      "tw",
+      "ow",
+  });
+  // 22 characters exactly: a short value would silently shift every later type's colour, so a
+  // malformed variable is ignored whole rather than half-read.
+  static_assert(kBsdOrder.size() * 2 == kBsdLsColorsSize);
+  if (bsd_lscolors.size() != kBsdLsColorsSize) {
+    return palette;
+  }
+  // Consumed pair by pair rather than by index, so the reading order and the key order cannot drift.
+  std::string_view pairs = bsd_lscolors;
+  for (const std::string_view key : kBsdOrder) {
+    const std::string foreground = BsdColorCode(pairs.front(), 30);
+    pairs.remove_prefix(1);
+    const std::string background = BsdColorCode(pairs.front(), 40);
+    pairs.remove_prefix(1);
+    if (foreground.empty() && background.empty()) {
+      continue;  // `xx`: this type is the terminal default, which is xff's "no opinion" too
+    }
+    std::string code = foreground;
+    if (!background.empty()) {
+      absl::StrAppend(&code, code.empty() ? "" : ";", background);
+    }
+    palette.types_.insert_or_assign(std::string(key), std::move(code));
+  }
+  return palette;
 }
 
 Palette Palette::FromLsColors(std::string_view ls_colors, bool fall_back) {

@@ -370,6 +370,9 @@ Section EnvironmentSection() {
       {"HOME", "config fallback: `$HOME/.config/xff/config` when `$XDG_CONFIG_HOME` is unset"},
       {"LC_ALL, LC_CTYPE, LANG",
        "locale for `--unicode=auto`: a UTF-8 locale selects the Unicode `--format=tree` connectors, else ASCII"},
+      {"LSCOLORS",
+       "the same theme in BSD / macOS spelling (11 letter pairs); read when `$LS_COLORS` is unset, which "
+       "is what makes a themed macOS shell work (see `--color-scheme`)"},
       {"LS_COLORS",
        "the terminal's colour theme, as `ls` / `dircolors` set it: type keys (`di`, `ln`, `ex`, ...) and "
        "per-extension `*.tar=` entries, used by default (see `--color-scheme`)"},
