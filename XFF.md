@@ -244,11 +244,12 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   Defines a custom sharded-file scheme for --shards when the built-ins do not fit. REGEX is an RE2 pattern with named groups: `(?P<stem>...)` and `(?P<index>...)` are required, `(?P<total>...)` and `(?P<dup>...)` are optional. Repeatable; the patterns are tried in order, before the built-in schemes. Only meaningful with --shards.
 - `--count, -c` - with -grep, print a per-file matching-line count (path:count) instead of the lines _(global, xff)_
   Affects: -grep
-- `--context=SPEC` - -grep context lines: N both sides, or A:N,B:N,C:N for after/before/both (grep -C/-A/-B) _(global, xff)_
+- `--context=SPEC` - -grep context lines: N both sides, or A:N,B:N,C:N for after/before/both _(global, xff)_
+  `--context=2` is grep's `-C 2` (two lines either side); the A / B / C keys inside the value select one side (`--context=A:3,B:1`), which is what `--after-context` and `--before-context` spell one at a time. xff has NO single-dash `-A` / `-B` / `-C`: those letters are unclaimed for now (see TODO.md), and a single-dash flag would be an expression primary under xff's dash-count rule rather than a whole-run option.
   Affects: -grep, -diff, --diff-context
-- `--after-context=N` - with -grep, print N lines of context after each match (grep -A; = --context=A:N) _(global, xff)_
+- `--after-context=N` - with -grep, print N lines of context after each match (= --context=A:N) _(global, xff)_
   Affects: -grep
-- `--before-context=N` - with -grep, print N lines of context before each match (grep -B; = --context=B:N) _(global, xff)_
+- `--before-context=N` - with -grep, print N lines of context before each match (= --context=B:N) _(global, xff)_
   Affects: -grep
 - `--top=N` - with --summary or --histogram, keep only the N largest/tallest groups _(global, xff)_
 - `--histogram-width=N` - cell width the tallest --histogram bar fills (default 40) _(global, xff)_

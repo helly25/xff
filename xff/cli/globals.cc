@@ -764,7 +764,12 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--context=SPEC",
         .group = "output",
         .header = "Output",
-        .summary = "-grep context lines: N both sides, or A:N,B:N,C:N for after/before/both (grep -C/-A/-B)",
+        .summary = "-grep context lines: N both sides, or A:N,B:N,C:N for after/before/both",
+        .details = "`--context=2` is grep's `-C 2` (two lines either side); the A / B / C keys inside the "
+                   "value select one side (`--context=A:3,B:1`), which is what `--after-context` and "
+                   "`--before-context` spell one at a time. xff has NO single-dash `-A` / `-B` / `-C`: those "
+                   "letters are unclaimed for now (see TODO.md), and a single-dash flag would be an "
+                   "expression primary under xff's dash-count rule rather than a whole-run option.",
         .affects = "-grep,-diff,--diff-context",
     },
     {
@@ -772,7 +777,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--after-context=N",
         .group = "output",
         .header = "Output",
-        .summary = "with -grep, print N lines of context after each match (grep -A; = --context=A:N)",
+        .summary = "with -grep, print N lines of context after each match (= --context=A:N)",
         .affects = "-grep",
     },
     {
@@ -780,7 +785,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--before-context=N",
         .group = "output",
         .header = "Output",
-        .summary = "with -grep, print N lines of context before each match (grep -B; = --context=B:N)",
+        .summary = "with -grep, print N lines of context before each match (= --context=B:N)",
         .affects = "-grep",
     },
     {

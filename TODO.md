@@ -6,14 +6,31 @@ shipped one way but not yet settled.
 
 ## Open decisions
 
-- **BUG: `-grep` context has only its LONG flags (raised 2026-08-13).** `--context=SPEC`,
-  `--after-context=N` and `--before-context=N` all work; the single-dash `-A` / `-B` / `-C` that #99
-  reserved were never added, and the flag help mentions grep's spellings ("grep -A", "grep -C/-A/-B")
-  in a way that reads as if xff had them. **Fix:** add them as leading-only single-dash compat
-  aliases, the way `-g` / `-q` / `-h` / `-help` / `-version` already are (the dash-count rule says a
-  single-dash flag is a per-file primary, and these are the deliberate grep/GNU-compatibility
-  exceptions). Each takes a value (`-A 2`), so they are aliases of the valued globals rather than new
-  primaries; `-C` maps to `--context=N`. Until then the help text should not imply they exist.
+- **BUG (help text): `-grep` context has only its LONG flags (raised 2026-08-13, FIXED).**
+  `--context=SPEC`, `--after-context=N` and `--before-context=N` all work; the single-dash `-A` / `-B`
+  / `-C` that #99 reserved were never added, and the flag help cited grep's spellings ("grep -A",
+  "grep -C/-A/-B") in a way that read as if xff had them. The help now says which spelling is xff's
+  and which is grep's. Whether the shorts should EXIST is the open question below, because `-A` is
+  also the proposed archive umbrella.
+
+- **RESOLVED (2026-08-13): `-A` stays free for grep context; the archive umbrella extends `-z`.**
+  The user ratified `-z++` (and `-z*` as an accepted alternative) for "all archive features plus
+  write", so the archive axis keeps one letter and the grep family keeps `-A` / `-B` / `-C`.
+  `-z++` is the spelling to lead with: an unmatched `-z*` is a hard error in zsh (`no matches found`),
+  so the star form needs quoting the `++` form does not. The long spelling that SAYS write
+  (`--archive-write`, arming `--archive-extract` + `--archive-delete` without touching the dive mode)
+  is what `-z++` expands to, so the short stays a convenience over a named behaviour rather than a
+  magic letter. The rejected alternative, kept for the record:
+  - **grep-family context** (`-A N` after, `-B N` before, `-C N` both). Every tool in that family
+    spells it this way - grep, rg, ag - and `--config=rg` makes that muscle memory an explicit goal.
+    Giving `-A` away leaves `-B` / `-C` orphaned, which is worse than having no shorts at all.
+  - **the archive umbrella** (user, 2026-08-13): `-A-` all archive features off, `-A` the standard
+    features on, `-A+` all plus the WRITE flags. The suffix-sign shape is right and already ours -
+    but it is also already spelled on another letter: `-z-` / `-z` / `-z+` are none / roots / all
+    today, so the only missing level is "+ write", which `-z++` would add on the knob that already
+    exists. That leaves `-A` free for the grep family.
+    So: `-z-` none, `-z` roots, `-z+` all, `-z++` (or `-z*`) all + write, and `-A` / `-B` / `-C` are
+    left for the grep family to claim.
 
 - **Short primaries `-n` / `-p` for `-name` / `-path` (raised 2026-08-13)?** Note what fd's letters
   actually mean before copying them: fd's `-p` is `--full-path` (a MODE flag that makes its single
@@ -34,22 +51,39 @@ shipped one way but not yet settled.
 - **fzf-style scoring for `-fuzzy` (raised 2026-08-13).** fzf ranks with a Smith-Waterman-ish
   alignment score and takes an extended pattern syntax (`^prefix`, `suffix$`, `'exact`, `!negate`,
   space = AND, `|` = OR). Two separate questions:
-  - **Where the pattern ends is NOT a problem.** A pattern is one argv token, exactly like
-    `-name '*.cc'`, so the shell's ordinary quoting delimits it; there is nothing to invent and no
-    "lame" extra quoting. (A multi-token form, e.g. terminated by `;` like `-exec`, would be the odd
-    one out here.)
+  - **Where the pattern ends is NOT a problem.** fzf's query is itself ONE argument whose terms are
+    space-separated inside it (`fzf --query "^src .cc$ !test"`), so the xff spelling is
+    `-fuzzy '^src .cc$ !test'` - exactly the quoting `-name '*.cc'` already needs, with the term
+    grammar living inside the token. An UNQUOTED multi-term form would need an `-exec`-style `;`
+    terminator, which for a matcher reads worse than quoting and would be the only primary in the
+    vocabulary to work that way.
   - **Scoring is the real work**, and it is the same open decision #168 already records: a score
     implies an output ORDER, so it needs `--sort=score` plus probably `--top=N`, and an alignment
     search instead of today's greedy scan. The extended syntax is worth having only once matches are
     ranked, since `^`/`$`/`!` without ranking are just a clumsier `-name` / `!`.
 
-- **A shortcut for "all archive features" (raised 2026-08-13)?** The read side is a fair convenience:
-  `--archive=all --archive-any --archive-depth=N` is a mouthful for "look everywhere, inside
-  everything". The write side must NOT be in it: `--archive-extract` and `--archive-delete` are opt-in
-  precisely because they run children over copies and rewrite containers, and arming those through a
-  convenience alias is how a shortcut becomes a footgun. Open: the spelling (`-z++`? `--archive=any`?
-  `--archive-all`?) and whether `--archive-depth` belongs in it at all, since the depth cap is the
-  decompression-bomb guard.
+- **A shortcut for "all archive features" (raised 2026-08-13).** The read side is a fair convenience:
+  `--archive=all --archive-any` is a mouthful for "look everywhere, inside everything". The spelling
+  question is the `-A` / `-z` one above. Two constraints whatever the letter: the WRITE flags are
+  armed only by a spelling that says write (see above), and `--archive-depth` stays OUT of any
+  "everything on" alias - it is the decompression-bomb cap, and raising it is a separate, deliberate
+  decision from "look inside more places".
+
+- **An in-memory filesystem for unpacking (raised 2026-08-13).** What it can and cannot do, because
+  the answer splits:
+  - **It cannot serve `-exec`.** A child process needs a path the KERNEL resolves; an in-process
+    filesystem is invisible to it. `/proc/self/fd/N` is Linux-only, a FIFO is not seekable, and a
+    macOS equivalent does not exist - so `--archive-extract`'s temporary file is not a shortcut, it is
+    the only portable answer. (A future `--archive-extract=memfd` for Linux could avoid the disk, at
+    the price of a platform-specific path spelling the user sees.)
+  - **It already serves nesting.** A container inside a container has no path of its own, so
+    `OpenContainerBytes` hands the inner reader the bytes its parent read - an in-memory container in
+    all but name. Same for the phar rewrite, which is built in memory and written once.
+  - **Where a real `vfs::MemoryFileSystem` WOULD pay:** a bounded member CACHE. Today `-grep`,
+    `{hash}` and `-cmp` on the same member each decompress it again, and a member read twice is
+    common in a composed expression. That is a cache with a size cap (the same
+    decompression-bomb concern as everywhere else), not a filesystem - so build it as one, keyed by
+    (container, member), rather than as a general in-memory VFS with no second customer.
 
 - **Modern (non-`find`) default time format: resolved to `space`.**
   `space` (`2026-06-22 14:30:00 +0100`) is the default: human-first (it matches
