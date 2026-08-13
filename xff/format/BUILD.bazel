@@ -36,5 +36,6 @@ cc_test(
         ":format_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:matchers_cc",
     ],
 )
