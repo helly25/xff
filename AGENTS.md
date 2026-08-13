@@ -99,11 +99,16 @@ The generated `--help` / `--man` / `--markdown` then stay complete by constructi
   `ripgrep`), so meta operations are flags (`--help`, `--man`, `--markdown`,
   `--explain`), never `git`-style subcommands; find and xff share one grammar,
   differing only in vocabulary. (Decided 2026-06-28.)
-- **A user-toggleable boolean capability is a `--feature`, not a bespoke flag.**
-  `--feature=NAME` / `--feature=no-NAME` is the parked mechanism (full design in
-  [`TODO.md`](TODO.md) under #73); it has no concrete customer yet, so it is
-  unbuilt. **Trigger:** the first time you would add a boolean on/off capability
-  that is neither a whole-style behavior nor a valued option (valued ones stay
-  dedicated flags, e.g. `--implicit-print=no`), build the `--feature` mechanism per
-  the #73 design and register the capability there - do not add a one-off boolean
-  flag.
+- **A boolean capability belongs to a FAMILY or to an existing flag's value set - not to a
+  `--feature` namespace.** The `--feature=NAME` mechanism (#73) stays unbuilt: 22 boolean globals
+  later, every one of them read better either as a named member of its family (the `--archive-*`
+  set, which `--help=archive` then gathers) or as a value on a flag that already exists
+  (`--case=smart`, not `--smart-case`). So when adding a boolean: name it into its family if it has
+  one, fold it into a valued flag if that reads naturally, and only then consider a standalone
+  boolean. The verdict is recorded in [`TODO.md`](TODO.md) under #73.
+- **A feature whose SPELLING is not settled ships behind `--unstable=NAME`, not under a provisional
+  flag name.** That is the one `--feature`-shaped mechanism xff adopts (design in
+  [`TODO.md`](TODO.md) under #73): one repeatable, comma-separated list; an unknown name is a usage
+  error; the gated flag's own help says it is unstable; graduation means DELETING the gate rather
+  than keeping an alias. It gates spelling only - a destructive capability keeps its own explicit
+  flag and is never armed by list.
