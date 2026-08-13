@@ -6,6 +6,19 @@ shipped one way but not yet settled.
 
 ## Open decisions
 
+- **BUG-shaped gap: an unknown VALUE on a known global is silently ignored (found 2026-08-13 while
+  verifying `--pager=all`).** `--color=bogus`, `--sort=bogus`, `--case=bogus`, `--color-scheme=bogus`
+  and `--pager=bogus` all exit 0 and behave as the default. It is uniform, so it is a design choice
+  rather than one flag's oversight - but it is the opposite of the choice #102 made for unknown flag
+  NAMES ("unknown option" is a usage error precisely so a typo cannot be silently ignored), and the
+  failure mode is worse for values: `--case=insensitve` matches case-sensitively and the run looks
+  like it worked. Recommendation: reject an unknown value with the same usage error, listing the
+  accepted values from the flag's own `values` SOT (so the message is generated, not written twice).
+  Two things to settle first: the tri-state / bare forms that intentionally accept several spellings
+  must keep doing so (the `values` table is already the SOT for those), and the resolvers that run
+  BEFORE the parse (`--color`, `--width`, `--pager`, scanned straight from argv) need somewhere to
+  report the error from, since they currently cannot fail.
+
 - **DECIDED (user, 2026-08-13): colour comes from ONE resolved palette, `ls`-derived by default, and
   `-ls` uses it too.** Three statements, one design:
   1. if `xff .` colourises, `xff . -ls` must colourise as well - the same run colouring one and not
