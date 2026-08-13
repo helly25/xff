@@ -378,7 +378,11 @@ substitute for a committed test. Tests use GoogleTest + GoogleMock with these co
   `EXPECT_EQ` / `NE` / `GT` / `LT` / `GE` / `LE` (and their `ASSERT_` forms): matchers compose and
   give far better failure messages. The accepted exception is the boolean `EXPECT_TRUE` /
   `EXPECT_FALSE` (and `ASSERT_TRUE` / `ASSERT_FALSE`), which read fine on their own. Within a
-  single test keep one style - do not mix, say, `EXPECT_TRUE(x)` and `EXPECT_THAT(y, IsTrue())`.
+  single test keep one style - do not mix, say, `EXPECT_TRUE(x)` and `EXPECT_THAT(y, IsTrue())`. This
+  is **enforced** by the `no-comparison-macros-in-cc-tests` pre-commit hook
+  ([`tools/check_test_matchers.sh`](tools/check_test_matchers.sh)), which fails on any of those macros
+  in a `*_test.cc`: a null check is `ASSERT_THAT(p, NotNull())`, an ordering one
+  `EXPECT_THAT(a, Lt(b))`, and multi-line text `EXPECT_THAT(out, EqualsText(golden))`.
 - **Name matchers unqualified - never the `::testing::` prefix inline.** Bring each matcher in with
   a `using ::testing::Foo;` (or `using ::mbo::testing::Foo;`) in the test file's anonymous namespace
   and use the bare name in the `EXPECT_THAT` / `ASSERT_THAT` expression; a `::testing::Foo(...)`

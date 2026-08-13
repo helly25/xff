@@ -20,10 +20,12 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "mbo/testing/matchers.h"
 
 namespace xff::format {
 namespace {
 
+using ::mbo::testing::EqualsText;
 using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
@@ -112,7 +114,7 @@ TEST_F(FormatTest, TableAlignsColumnsToTheirWidestCell) {
   table.AddRow({"total", "3", "1,295"});
   // Label left-padded to 5 ("total"); count right-aligned to 1; size right to 5.
   // Two-space gaps; the right-most (right-aligned) column leaves no trailing space.
-  EXPECT_EQ(table.Render(), "md     1     56\ntxt    2  1,239\ntotal  3  1,295\n");
+  EXPECT_THAT(table.Render(), EqualsText("md     1     56\ntxt    2  1,239\ntotal  3  1,295\n"));
   EXPECT_THAT(table.RowCount(), 3U);
 }
 
@@ -121,7 +123,7 @@ TEST_F(FormatTest, TableLeftColumnHasNoTrailingWhitespaceWhenLast) {
   table.AddRow({"1", "a"});
   table.AddRow({"200", "bb"});
   // Right column is last + left-aligned, so it is emitted without trailing padding.
-  EXPECT_EQ(table.Render(), "  1  a\n200  bb\n");
+  EXPECT_THAT(table.Render(), EqualsText("  1  a\n200  bb\n"));
 }
 
 TEST_F(FormatTest, ColumnBufferAllAlignsAcrossEveryRow) {
@@ -129,24 +131,25 @@ TEST_F(FormatTest, ColumnBufferAllAlignsAcrossEveryRow) {
   EXPECT_THAT(buf.Add({"a", "1"}), "");     // buffered, nothing emitted yet
   EXPECT_THAT(buf.Add({"bb", "200"}), "");  // buffered
   // Flush aligns to the widest cells: col0 width 2, col1 width 3 (two-space gap).
-  EXPECT_EQ(buf.Flush(), "a     1\nbb  200\n");
+  EXPECT_THAT(buf.Flush(), EqualsText("a     1\nbb  200\n"));
   EXPECT_THAT(buf.Flush(), "");  // idempotent
 }
 
 TEST_F(FormatTest, ColumnBufferWindowFlushesThenStreamsAndGrows) {
   ColumnBuffer buf({Align::kLeft, Align::kRight}, {0, 0}, /*window=*/2);
-  EXPECT_THAT(buf.Add({"a", "1"}), "");                  // still buffering (1 < window)
-  EXPECT_EQ(buf.Add({"bb", "20"}), "a    1\nbb  20\n");  // window full -> flush both at widths 2/2
+  EXPECT_THAT(buf.Add({"a", "1"}), "");  // still buffering (1 < window)
+  // window full -> flush both at widths 2/2
+  EXPECT_THAT(buf.Add({"bb", "20"}), EqualsText("a    1\nbb  20\n"));
   // Streaming now: a wider row grows the columns for itself (the flushed rows are out).
-  EXPECT_EQ(buf.Add({"ccc", "300"}), "ccc  300\n");
+  EXPECT_THAT(buf.Add({"ccc", "300"}), EqualsText("ccc  300\n"));
   EXPECT_THAT(buf.Flush(), "");
 }
 
 TEST_F(FormatTest, ColumnBufferOffStreamsEachRowAtMinWidths) {
   ColumnBuffer buf({Align::kLeft, Align::kRight}, {3, 4}, /*window=*/0);
   // No buffering: each row emitted immediately, padded to the fixed minimum widths.
-  EXPECT_EQ(buf.Add({"a", "1"}), "a       1\n");
-  EXPECT_EQ(buf.Add({"bb", "200"}), "bb    200\n");
+  EXPECT_THAT(buf.Add({"a", "1"}), EqualsText("a       1\n"));
+  EXPECT_THAT(buf.Add({"bb", "200"}), EqualsText("bb    200\n"));
   EXPECT_THAT(buf.Flush(), "");
 }
 
