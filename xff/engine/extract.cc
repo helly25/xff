@@ -17,6 +17,7 @@
 
 #include <unistd.h>
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <ios>
@@ -62,7 +63,7 @@ absl::StatusOr<std::string> ExtractedMembers::Extract(const vfs::FileSystem& fs,
   MBO_ASSIGN_OR_RETURN(const std::string content, fs.ReadContent(member));
   std::error_code error;
   const stdfs::path dir =
-      stdfs::temp_directory_path(error) / absl::StrCat("xff-", static_cast<long>(::getpid()), "-", next_++);
+      stdfs::temp_directory_path(error) / absl::StrCat("xff-", static_cast<std::int64_t>(::getpid()), "-", next_++);
   if (error) {
     return absl::UnavailableError(absl::StrCat("no temporary directory for an extracted member: ", error.message()));
   }

@@ -87,7 +87,7 @@ class MemberFs : public vfs::FileSystem {
 
 struct ExtractTest : ::testing::Test {
   static std::string Read(const std::string& path) {
-    std::ifstream in(path, std::ios::binary);
+    const std::ifstream in(path, std::ios::binary);
     std::ostringstream out;
     out << in.rdbuf();
     return out.str();
