@@ -120,6 +120,100 @@ TEST_F(PagerCommandTest, ManPagerIsIndependentOfTheTextPager) {
   EXPECT_THAT(ResolvePagerCommand(PagerKind::kMan), HasSubstr("mandoc"));
 }
 
+struct PagerStreamTest : ::testing::Test {
+  void SetUp() override {
+    env::ClearForTesting();
+    env::SetForTesting("XFF_PAGER", std::nullopt);
+    env::SetForTesting("PAGER", std::nullopt);
+  }
+
+  void TearDown() override { env::ClearForTesting(); }
+
+  // Runs `body` with a PagerStream built from `when` / `stdout_is_tty` / `suppressed` and a pager
+  // that writes what it reads to `sink_path`, then returns what the pager received. An INACTIVE
+  // stream writes nothing there (it never redirects stdout), which is exactly the distinction the
+  // tests below need.
+  static std::string PagedThrough(
+      PagerWhen when,
+      bool stdout_is_tty,
+      bool suppressed,
+      const std::string& sink_path,
+      const std::function<void()>& body) {
+    env::SetForTesting("XFF_PAGER", absl::StrCat("cat > ", sink_path));
+    {
+      const PagerStream pager(when, stdout_is_tty, suppressed);
+      body();
+    }  // the destructor restores stdout and waits for the pager, so the file is complete here
+    std::ifstream in(sink_path);
+    return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+  }
+
+  static std::string SinkPath() {
+    return absl::StrCat(::testing::TempDir(), "/", ::testing::UnitTest::GetInstance()->current_test_info()->name());
+  }
+};
+
+TEST_F(PagerStreamTest, AllPagesEverythingWrittenToStdoutDuringItsLifetime) {
+  // The whole point of the streaming form: the writer does not know it is being paged, so the
+  // listing needs no pager-aware code path of its own.
+  EXPECT_THAT(
+      PagedThrough(
+          PagerWhen::kAll, /*stdout_is_tty=*/true, /*suppressed=*/false, SinkPath(), [] { std::cout << "one\ntwo\n"; }),
+      Eq("one\ntwo\n"));
+}
+
+TEST_F(PagerStreamTest, EveryOtherWhenLeavesStdoutAlone) {
+  // auto / always / never page the META output only; the listing is untouched by all three.
+  static constexpr std::array kMetaOnly = std::to_array({PagerWhen::kAuto, PagerWhen::kAlways, PagerWhen::kNever});
+  for (const PagerWhen when : kMetaOnly) {
+    const std::string sink = absl::StrCat(SinkPath(), static_cast<int>(when));
+    EXPECT_THAT(
+        PagedThrough(when, /*stdout_is_tty=*/true, /*suppressed=*/false, sink, [] { std::cout << "x" << std::flush; }),
+        IsEmpty());
+  }
+}
+
+TEST_F(PagerStreamTest, NoTerminalMeansNoPager) {
+  // A listing forced through a pager in a pipeline would hand the pager's screen handling to the
+  // next command, so kAll is terminal-only (unlike kAlways for meta output).
+  EXPECT_THAT(
+      PagedThrough(
+          PagerWhen::kAll, /*stdout_is_tty=*/false, /*suppressed=*/false, SinkPath(),
+          [] { std::cout << "x" << std::flush; }),
+      IsEmpty());
+}
+
+TEST_F(PagerStreamTest, SuppressedMeansNoPager) {
+  // The caller's veto for -ok / -exec and --quiet: the pager must not sit between the primary and
+  // the user.
+  EXPECT_THAT(
+      PagedThrough(
+          PagerWhen::kAll, /*stdout_is_tty=*/true, /*suppressed=*/true, SinkPath(),
+          [] { std::cout << "x" << std::flush; }),
+      IsEmpty());
+}
+
+TEST_F(PagerStreamTest, AnEmptyPagerVariableDisablesPagingRatherThanLosingOutput) {
+  // "$XFF_PAGER set to empty means no pager" is the contract EmitPaged has; the streaming form
+  // must not differ, and must leave stdout usable.
+  env::SetForTesting("XFF_PAGER", "");
+  const PagerStream pager(PagerWhen::kAll, /*stdout_is_tty=*/true, /*suppressed=*/false);
+  EXPECT_THAT(pager.Active(), false);
+}
+
+TEST_F(PagerStreamTest, FinishIsIdempotentAndRestoresStdout) {
+  const std::string sink = SinkPath();
+  env::SetForTesting("XFF_PAGER", absl::StrCat("cat > ", sink));
+  PagerStream pager(PagerWhen::kAll, /*stdout_is_tty=*/true, /*suppressed=*/false);
+  EXPECT_THAT(pager.Active(), true);
+  std::cout << "paged\n";
+  pager.Finish();
+  EXPECT_THAT(pager.Active(), false);
+  pager.Finish();  // a second call (and the destructor after it) must be harmless
+  std::ifstream in(sink);
+  EXPECT_THAT(std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()), Eq("paged\n"));
+}
+
 }  // namespace
 
 struct PagerStreamTest : ::testing::Test {
