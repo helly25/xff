@@ -71,11 +71,23 @@ shipped one way but not yet settled.
 
 - **An in-memory filesystem for unpacking (raised 2026-08-13).** What it can and cannot do, because
   the answer splits:
-  - **It cannot serve `-exec`.** A child process needs a path the KERNEL resolves; an in-process
-    filesystem is invisible to it. `/proc/self/fd/N` is Linux-only, a FIFO is not seekable, and a
-    macOS equivalent does not exist - so `--archive-extract`'s temporary file is not a shortcut, it is
-    the only portable answer. (A future `--archive-extract=memfd` for Linux could avoid the disk, at
-    the price of a platform-specific path spelling the user sees.)
+  - **An IN-PROCESS filesystem cannot serve `-exec`** - a child needs a path the kernel resolves - but
+    a MOUNTED memory filesystem can, and one is usually already there (user, 2026-08-13):
+    - **`/dev/shm` (and `$XDG_RUNTIME_DIR`) are tmpfs on Linux**, so extracting there is
+      memory-backed with a real path and no disk write. This is a temp-DIRECTORY choice, not new
+      machinery: prefer a tmpfs directory when one exists, fall back to `$TMPDIR`. Caveats: the tmpfs
+      size cap (commonly half of RAM, and shared with everything else on the machine), so a large
+      member must still be allowed to land on disk; and it is Linux / BSD only - macOS has no default
+      equivalent, and an `hdiutil attach ram://` disk is a heavyweight per-run setup.
+    - **`memfd_create` + `/proc/self/fd/N`** avoids a filesystem entirely and is seekable, but any
+      tool that reopens the path by NAME or keys on the extension breaks, and it is Linux-only. Not a
+      default; at most an opt-in for pipelines known to cope.
+    - **A FUSE mount of the CONTAINER** (the fuse-archive / archivemount shape) is the general answer:
+      every tool gets a path into the archive and nothing is extracted at all. It is also a different
+      product shape - libfuse / macFUSE dependency, a mount lifecycle, unmount-on-crash - so it belongs
+      as its own large optional extra rather than inside `--archive-extract`.
+      So the shipped temporary file stays the portable default, and the cheap first improvement is
+      choosing a tmpfs directory for it where the platform has one.
   - **It already serves nesting.** A container inside a container has no path of its own, so
     `OpenContainerBytes` hands the inner reader the bytes its parent read - an in-memory container in
     all but name. Same for the phar rewrite, which is built in memory and written once.
