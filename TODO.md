@@ -682,10 +682,14 @@ remains below is the design-forked / larger work.
     - **Two opt-in flags rather than refusals (user, 2026-08-12).** The `-exec` half SHIPPED as
       `--archive-extract` (see the READ-ONLY entry below): `{}` renders as the temporary copy, because
       a path the child cannot open is what the refusal was about, and each copy is removed as soon as
-      its child finishes. The `-delete` half is still open: removing a member means REWRITING the
-      container (straightforward for the libarchive formats, which can write; harder for the ones we
-      parse ourselves, phar above all, where the manifest, offsets and signature all move). It needs
-      its own flag, never a default, and a decision on what happens to a container that becomes empty.
+      its child finishes. The `-delete` half SHIPPED as `--archive-delete`: the container is
+      rewritten from the members that survive, once per container after the walk (the walk is reading
+      that same container while it runs), keeping the original's format and compression, written
+      beside it and renamed over it only when complete. Refused with the reason named for a format
+      libarchive reads but cannot write, for a container xff parses itself (phar, compressed single
+      file), and for a member of a container nested inside another one. A container left empty is
+      kept: an archive with no members is legal, and deleting the FILE was never what `-delete` on a
+      member asked for.
     - ~~**`-delete` on a member silently does nothing**~~ (exit 0, no output, no error) and **`-exec`
       hands the child a member path** (`echo a.tar!a.txt`), which no process can open. The design says
       members are read-only and both must REFUSE; the VFS already returns PermissionDenied, so the
@@ -727,7 +731,8 @@ remains below is the design-forked / larger work.
     extension / magic peek so a whole tree is not sniffed byte-wise. `--archive-any` forces
     sniff-everything (expensive, opt-in). Raw-compressed single files (`.gz` / `.xz` / `.zst` /
     `.bz2`) are one-member archives whose member is the inner name.
-  - **The archive VFS is READ-ONLY:** `-delete` on a member is a clean error, never a silent no-op.
+  - **The archive VFS is READ-ONLY by default:** `-delete` on a member is a clean error until
+    `--archive-delete` arms the container rewrite (above), never a silent no-op.
     The exec family (`-exec` / `-execdir` / `-ok` / `-okdir`) is a clean error too by default, and
     `--archive-extract` is the way past it: the member is written to its own temporary directory
     under its own name and the child is handed that path (`{}` and `{path}` render as the copy,

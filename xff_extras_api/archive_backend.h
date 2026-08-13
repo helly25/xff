@@ -31,9 +31,12 @@
 
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "absl/functional/any_invocable.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "xff/archive/member_path.h"
 #include "xff/vfs/filesystem.h"
@@ -96,6 +99,35 @@ struct ContainerRegistrar {
     std::string_view container,
     std::string_view bytes,
     MemberPathOptions options = {});
+
+// Removes `members` (member NAMES, as the container stores them) from `container`, which is a real
+// filesystem path. The only WRITE the archive surface has, and the reason it is a separate seam from
+// the opener: a container that can be read is not necessarily one that can be rewritten.
+//
+// Must return UnimplementedError for a format it cannot write back - the answer for a container xff
+// parses itself (a phar's manifest, offsets and signature all move) and for one that is a single
+// compressed file rather than an archive. A member it cannot find is NotFound; anything else is the
+// error that stopped it. The rewrite must be all-or-nothing: on failure `container` is unchanged.
+using ContainerMemberRemover =
+    absl::AnyInvocable<absl::Status(std::string_view, const std::vector<std::string>&) const>;
+
+// Registers the process-wide member remover, like RegisterContainerOpener. Separate registrations so
+// a backend that can only read simply does not register this one.
+void RegisterContainerMemberRemover(ContainerMemberRemover remover);
+
+// Self-registers `remover` on construction; see ContainerRegistrar.
+struct ContainerRemoverRegistrar {
+  explicit ContainerRemoverRegistrar(ContainerMemberRemover remover) {
+    RegisterContainerMemberRemover(std::move(remover));
+  }
+};
+
+// Whether this binary can rewrite a container at all (a backend registered a remover).
+[[nodiscard]] bool ContainerRemovalAvailable();
+
+// Removes `members` from `container` through the registered remover, or UnimplementedError when none
+// is linked.
+[[nodiscard]] absl::Status RemoveContainerMembers(std::string_view container, const std::vector<std::string>& members);
 
 }  // namespace xff::archive
 

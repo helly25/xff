@@ -42,6 +42,44 @@ cc_library(
     alwayslink = True,
 )
 
+# The one WRITE path: rewriting a container without some of its members (--archive-delete). Separate
+# from the reader because reading a format does not imply writing it, and because a build that only
+# ever lists archives should not link a writer.
+cc_library(
+    name = "archive_writer_cc",
+    srcs = ["archive_writer.cc"],
+    hdrs = ["archive_writer.h"],
+    include_prefix = "xff/archive",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+        "@libarchive//libarchive",
+        "@xff_extras_api//:member_path_cc",
+    ],
+)
+
+# Writes a real archive with libarchive, removes a member through our writer, and reads the result
+# back: the round trip is what proves the surviving members keep their content and the container
+# keeps its format and compression. Also pins the refusals (a format libarchive cannot write, a
+# member that is not there) and that a failed rewrite leaves the original untouched.
+cc_test(
+    name = "archive_writer_test",
+    size = "small",
+    srcs = ["archive_writer_test.cc"],
+    deps = [
+        ":archive_reader_cc",
+        ":archive_writer_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+        "@libarchive//libarchive",
+    ],
+)
+
 # Round-trips real archives through libarchive: the test WRITES a tar (and a gzip-filtered tar) with
 # libarchive's write API, then reads it back through our reader, so it proves the dependency links,
 # the format/filter detection works, and the header fields map correctly - without committing binary
@@ -204,7 +242,10 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":archive_fs_cc",
+        ":archive_writer_cc",
+        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
         "@helly25_mbo//mbo/status:status_macros_cc",
         "@xff_extras_api//:archive_backend_cc",
         "@xff_extras_api//:member_path_cc",

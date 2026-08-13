@@ -424,4 +424,67 @@ test::archive_extract_leaves_nothing_behind() {
   rm -rf "${root}"
 }
 
+test::archive_delete_rewrites_the_container_without_the_member() {
+  local root out
+  root="$(_tree)"
+  # The member is gone from the listing afterwards, and the OTHER member is still readable - a
+  # rewrite that lost content would still pass a name-only check.
+  out="$("$(_xff_bin)" --archive=roots --archive-delete "${root}/a.tar" -name 'one.txt' -delete 2>&1)"
+  expect_eq "" "${out}"
+  out="$("$(_xff_bin)" --archive=roots "${root}/a.tar")"
+  expect_output_not_contains "a.tar!one.txt" "${out}"
+  expect_output_contains "a.tar!dir/two.txt" "${out}"
+  out="$("$(_xff_bin)" --archive=roots "${root}/a.tar" -name 'two.txt' -grep two)"
+  expect_output_contains "a.tar!dir/two.txt:1:two" "${out}"
+  rm -rf "${root}"
+}
+
+test::archive_delete_needs_the_flag_and_says_so() {
+  local root out rc
+  root="$(_tree)"
+  # Rewriting a whole archive is not something to do by default, so the refusal stands - and names
+  # the way past it rather than being a dead end.
+  out="$("$(_xff_bin)" --archive=roots "${root}/a.tar" -name 'one.txt' -delete 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "--archive-delete" "${out}"
+  out="$("$(_xff_bin)" --archive=roots "${root}/a.tar")"
+  expect_output_contains "a.tar!one.txt" "${out}" # and nothing was removed
+  rm -rf "${root}"
+}
+
+test::archive_delete_under_dry_run_writes_nothing() {
+  local root out
+  root="$(_tree)"
+  out="$("$(_xff_bin)" --archive=roots --archive-delete --dry-run "${root}/a.tar" -name 'one.txt' -delete)"
+  expect_output_contains "a.tar!one.txt" "${out}" # what WOULD go
+  out="$("$(_xff_bin)" --archive=roots "${root}/a.tar")"
+  expect_output_contains "a.tar!one.txt" "${out}" # still there
+  rm -rf "${root}"
+}
+
+test::archive_delete_refuses_a_container_it_cannot_rewrite() {
+  local root out rc
+  root="$(_tree)"
+  # A compressed single file is read through a path libarchive cannot write back, so this has to be a
+  # named refusal rather than a rewrite that silently changes the file's format.
+  printf 'plain\n' >"${root}/notes.txt"
+  gzip -f "${root}/notes.txt"
+  out="$("$(_xff_bin)" --archive=roots --archive-delete "${root}/notes.txt.gz" -name 'notes.txt' -delete 2>&1)" \
+    && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "not rewrite it" "${out}"
+  rm -rf "${root}"
+}
+
+test::the_container_itself_is_still_an_ordinary_file_to_delete() {
+  local root out
+  root="$(_tree)"
+  # `-delete` on the archive means the archive, not its members: the dual identity has to survive the
+  # flag that makes members deletable.
+  out="$("$(_xff_bin)" --archive=roots --archive-delete "${root}/a.tar" -name 'a.tar' -delete 2>&1)"
+  expect_eq "" "${out}"
+  expect_eq "0" "$(find "${root}" -name 'a.tar' | wc -l | tr -d ' ')"
+  rm -rf "${root}"
+}
+
 test_runner
