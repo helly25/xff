@@ -358,8 +358,8 @@ Section EnvironmentSection() {
        "when set (any value), disables color like `--color=never`; `--color=always` still wins "
        "(https://no-color.org)"},
       {"XFF_PAGER",
-       "the pager for the long `--help` / `--markdown` output (see `--pager`); overrides `$PAGER`; set empty "
-       "to disable paging"},
+       "the pager for the long `--help` / `--markdown` output, and for the file listing under "
+       "`--pager=all` (see `--pager`); overrides `$PAGER`; set empty to disable paging"},
       {"PAGER", "the pager used when `$XFF_PAGER` is unset"},
       {"XFF_MANPAGER",
        "the pager / formatter for `--man`; overrides the built-in `mandoc` pipeline; set empty to disable"},

@@ -502,6 +502,12 @@ int RunMain(int argc, char** argv) {
   // outranks match status (exit 2).
   const bool quiet = absl::c_contains(command.globals, "--quiet") || absl::c_contains(command.globals, "-q");
   const bool match_sensitive = quiet || absl::c_contains(command.globals, "--exit-match");
+  // --pager=all pages the listing too, for the whole walk rather than per line: stdout is redirected
+  // into the pager here and restored when `pager` goes out of scope below. Inactive under every other
+  // --pager value, off a terminal, and when the expression needs the terminal itself (-ok / -exec and
+  // friends) or --quiet means there is nothing to page.
+  const xff::cli::PagerStream pager(
+      pager_when, stdout_is_tty, quiet || xff::parser::TakesTerminal(command.expression.get()));
   const xff::vfs::LocalFs fs;
   bool matched = false;
   const int errors = xff::engine::RunFind(

@@ -759,4 +759,14 @@ void ApplyCaseMode(Command& command, CaseMode mode) {
   ApplyCaseModeToNode(command.expression.get(), mode, command.grammar);
 }
 
+bool TakesTerminal(const Expr* expr) {
+  if (expr == nullptr) {
+    return false;
+  }
+  if (expr->descriptor != nullptr && expr->descriptor->terminal) {
+    return true;
+  }
+  return TakesTerminal(expr->lhs.get()) || TakesTerminal(expr->rhs.get());
+}
+
 }  // namespace xff::parser

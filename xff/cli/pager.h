@@ -16,17 +16,24 @@
 #ifndef XFF_CLI_PAGER_H_
 #define XFF_CLI_PAGER_H_
 
+#include <sys/types.h>
+
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace xff::cli {
 
-// --pager=auto|always|never: whether to page the long meta / doc output (--help,
+// --pager=auto|always|never|all: whether to page the long meta / doc output (--help,
 // --help=TOPIC, --man, --markdown). kAuto (the default) pages only on a terminal;
-// this mirrors --color's tri-state so the two read the same. It never affects the
-// file listing - that is what a shell pipe to a pager is for.
-enum class PagerWhen { kAuto, kAlways, kNever };
+// this mirrors --color's tri-state so the two read the same. kAll is kAuto PLUS the
+// file listing, which is the one value that pages ordinary output.
+//
+// kAll stays terminal-gated on purpose (there is no "always page the listing"): a
+// listing forced through a pager in a pipeline would feed the pager's own screen
+// handling to the next command, which is never what a pipeline wants. Meta output can
+// afford kAlways because it is a document a user asked to read.
+enum class PagerWhen { kAuto, kAlways, kNever, kAll };
 
 // The kind of meta output being paged, which picks the default pager. kText is the
 // already-terminal-ready surfaces (--help / --markdown / ...). kMan is --man, whose roff
@@ -53,6 +60,48 @@ std::string ResolvePagerCommand(PagerKind kind = PagerKind::kText);
 // A missing TTY, an empty command, or a fork / pipe failure falls back to std::cout so
 // the output is never lost.
 void EmitPaged(std::string_view text, PagerWhen when, bool stdout_is_tty, PagerKind kind = PagerKind::kText);
+
+// Pages the FILE LISTING, which unlike the meta surfaces is produced incrementally over a
+// whole walk - so it cannot be buffered into an EmitPaged call. Instead the pager is started
+// once and this process's stdout is redirected into it for the object's lifetime, which means
+// every writer (std::cout, a renderer, a child process xff spawns) lands in the pager without
+// knowing about it, and the first screen appears while the walk is still running.
+//
+// Constructing with anything but `PagerWhen::kAll`, without a terminal, with `suppressed`, or
+// with no pager command leaves the object INACTIVE and stdout untouched - so the constructor
+// is always safe to run and the caller needs no branch of its own.
+//
+// `suppressed` is the caller's veto for an expression that needs the terminal itself: -ok /
+// -okdir prompt and read a reply, and -exec / -execdir can hand the terminal to a child (an
+// editor), none of which works with a pager sitting on stdout.
+//
+// Quitting the pager early closes the pipe. SIGPIPE is ignored for the lifetime of the object
+// and the resulting write errors are swallowed, so quitting `less` at the first screen ends the
+// run quietly instead of printing an I/O error - the same contract EmitPaged has.
+class PagerStream {
+ public:
+  PagerStream(PagerWhen when, bool stdout_is_tty, bool suppressed);
+  ~PagerStream();
+
+  // Neither copyable nor movable: it owns a process, a pipe and the process-wide stdout.
+  PagerStream(const PagerStream&) = delete;
+  PagerStream& operator=(const PagerStream&) = delete;
+  PagerStream(PagerStream&&) = delete;
+  PagerStream& operator=(PagerStream&&) = delete;
+
+  // Whether a pager was actually started (false means stdout is untouched).
+  [[nodiscard]] bool Active() const { return active_; }
+
+  // Restores stdout and waits for the pager, which is what blocks until the user quits it.
+  // The destructor calls this; it is idempotent, so a caller that wants the wait at a
+  // specific point (before printing to stderr, say) can call it early.
+  void Finish();
+
+ private:
+  bool active_ = false;
+  int saved_stdout_ = -1;
+  ::pid_t pid_ = -1;
+};
 
 }  // namespace xff::cli
 

@@ -102,6 +102,8 @@ PagerWhen ResolvePagerWhen(const std::vector<std::string>& args) {
       when = PagerWhen::kAlways;
     } else if (arg == "--pager=auto") {
       when = PagerWhen::kAuto;
+    } else if (arg == "--pager=all") {
+      when = PagerWhen::kAll;
     }
   }
   return when;
@@ -140,7 +142,10 @@ std::string ResolvePagerCommand(PagerKind kind) {
 }
 
 void EmitPaged(std::string_view text, PagerWhen when, bool stdout_is_tty, PagerKind kind) {
-  const bool page = when == PagerWhen::kAlways || (when == PagerWhen::kAuto && stdout_is_tty);
+  // kAll is kAuto for the meta surfaces: it only ADDS the listing, it does not change how a
+  // help page is paged.
+  const bool page =
+      when == PagerWhen::kAlways || ((when == PagerWhen::kAuto || when == PagerWhen::kAll) && stdout_is_tty);
   if (!page) {
     WriteToStdout(text);
     return;
@@ -149,6 +154,86 @@ void EmitPaged(std::string_view text, PagerWhen when, bool stdout_is_tty, PagerK
   if (command.empty() || !PipeThroughPager(text, command)) {
     WriteToStdout(text);
   }
+}
+
+namespace {
+
+// SIGPIPE is ignored while a streaming pager is attached, so a quit at the first screen turns
+// into failing writes we can swallow rather than a signal death mid-walk. The previous
+// disposition is restored when the pager is finished.
+struct ::sigaction g_previous_sigpipe;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+
+}  // namespace
+
+PagerStream::PagerStream(PagerWhen when, bool stdout_is_tty, bool suppressed) {
+  // Everything that says "no pager here" is one condition: kAll is the only value that pages a
+  // listing, a pager needs a terminal to page onto, and the caller can veto outright.
+  if (when != PagerWhen::kAll || !stdout_is_tty || suppressed) {
+    return;
+  }
+  const std::string command = ResolvePagerCommand(PagerKind::kText);
+  if (command.empty()) {
+    return;  // $XFF_PAGER / $PAGER set to empty means "no pager", as for the meta surfaces
+  }
+  std::array<int, 2> fds{};
+  // macOS has no pipe2(), so no CLOEXEC here; the child closes both raw ends before exec.
+  if (::pipe(fds.data()) != 0) {  // NOLINT(android-cloexec-pipe)
+    return;
+  }
+  const int read_fd = fds[0];
+  const int write_fd = fds[1];
+  const ::pid_t pid = ::fork();
+  if (pid < 0) {
+    ::close(read_fd);
+    ::close(write_fd);
+    return;  // could not fork: run unpaged rather than not at all
+  }
+  if (pid == 0) {
+    // Child: our stdout becomes its stdin; it draws on the terminal we still share.
+    ::dup2(read_fd, STDIN_FILENO);
+    ::close(read_fd);
+    ::close(write_fd);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
+    ::execlp("sh", "sh", "-c", command.c_str(), static_cast<char*>(nullptr));
+    ::_exit(127);
+  }
+  // Parent: from here on, THIS process's stdout is the pipe, so every writer is paged without
+  // being told - std::cout, the renderers, and any child that inherits our descriptors.
+  ::close(read_fd);
+  std::cout.flush();
+  // A plain dup, not F_DUPFD_CLOEXEC: this fd exists to be restored onto STDOUT_FILENO, and any
+  // child xff spawns while the pager is attached should inherit the paged stdout, not lose it.
+  saved_stdout_ = ::dup(STDOUT_FILENO);  // NOLINT(android-cloexec-dup)
+  ::dup2(write_fd, STDOUT_FILENO);
+  ::close(write_fd);
+  struct ::sigaction ignore{};
+  ignore.sa_handler = SIG_IGN;
+  ::sigaction(SIGPIPE, &ignore, &g_previous_sigpipe);
+  pid_ = pid;
+  active_ = true;
+}
+
+void PagerStream::Finish() {
+  if (!active_) {
+    return;
+  }
+  active_ = false;
+  // Flushing before the swap is what actually delivers the tail of the listing. A failed flush
+  // (the user quit the pager) is deliberately ignored, and the stream's error state cleared, so
+  // anything printed after the restore still reaches the terminal.
+  std::cout.flush();
+  std::cout.clear();
+  ::dup2(saved_stdout_, STDOUT_FILENO);  // also closes the pipe, so the pager sees EOF
+  ::close(saved_stdout_);
+  saved_stdout_ = -1;
+  ::sigaction(SIGPIPE, &g_previous_sigpipe, nullptr);
+  int status = 0;
+  ::waitpid(pid_, &status, 0);  // blocks until the user quits the pager, as a pager should
+  pid_ = -1;
+}
+
+PagerStream::~PagerStream() {
+  Finish();
 }
 
 }  // namespace xff::cli

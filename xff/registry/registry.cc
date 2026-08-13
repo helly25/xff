@@ -1001,6 +1001,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .kind = Kind::kAction,
         .arity = -1,
         .safety = Safety::kSecurity,
+        .terminal = true,
     },
     {
         .name = "-execdir",
@@ -1011,6 +1012,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .kind = Kind::kAction,
         .arity = -1,
         .safety = Safety::kSecurity,
+        .terminal = true,
     },
     {
         .name = "-ok",
@@ -1021,6 +1023,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .kind = Kind::kAction,
         .arity = -1,
         .safety = Safety::kSecurity,
+        .terminal = true,
     },
     {
         .name = "-okdir",
@@ -1030,6 +1033,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .kind = Kind::kAction,
         .arity = -1,
         .safety = Safety::kSecurity,
+        .terminal = true,
     },
     {
         // -capture=NAME[=REGEX] cmd... ;
