@@ -83,7 +83,7 @@ test::color_always_leaves_plain_files_uncolored() {
 
 test::the_ls_theme_is_the_default_palette() {
   # The colours a user expects are the ones their terminal is themed with, so $LS_COLORS is read by
-  # default: `di=01;35` here must beat xff's own bold blue.
+  # default (`ls+xff`): `di=01;35` here must beat xff's own bold blue.
   local root out
   root="$(_make_tree)"
   out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "${root}" -type d 2>&1)"
@@ -122,13 +122,40 @@ test::a_theme_that_says_nothing_about_a_type_keeps_xffs_colour() {
   expect_matches $'\033\\[1;36m' "${out}" # xff's symlink colour survives
 }
 
+test::ls_alone_and_the_hybrid_differ_on_what_the_theme_omits() {
+  # The two readings of "use ls colours", side by side on the same theme: `ls` leaves a symlink the
+  # theme never mentions uncoloured (as a real ls does), `ls+xff` keeps xff's colour for it.
+  local root out
+  root="$(_make_tree)"
+  ln -s a.txt "${root}/link"
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=ls "${root}" -type l 2>&1)"
+  expect_not_matches $'\033\\[' "${out}"
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=ls+xff "${root}" -type l 2>&1)"
+  expect_matches $'\033\\[1;36m' "${out}"
+  rm -rf "${root}"
+}
+
+test::auto_takes_the_theme_whole_or_not_at_all() {
+  # The third reading: with a theme set, `auto` is that theme alone; with none set it is xff's scheme
+  # alone - a per-variable decision rather than the per-key fallback of ls+xff.
+  local root out
+  root="$(_make_tree)"
+  ln -s a.txt "${root}/link"
+  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=auto "${root}" -type l 2>&1)"
+  expect_not_matches $'\033\\[' "${out}"
+  out="$(env -u LS_COLORS "$(_xff_bin)" --color=always --color-scheme=auto "${root}" -type l 2>&1)"
+  expect_matches $'\033\\[1;36m' "${out}"
+  rm -rf "${root}"
+}
+
 test::help_documents_color() {
   # Self-documentation: the --help usage page lists --color in the Output group.
   expect_output_contains "--color" "$("$(_xff_bin)" --help 2>&1)"
   # And the palette flag, whose help has to say where the colours come from.
   out="$("$(_xff_bin)" --help=--color-scheme 2>&1)"
   expect_output_contains "LS_COLORS" "${out}"
-  expect_output_contains "xff" "${out}"
+  expect_output_contains "ls+xff" "${out}" # each reading of "ls colours" is named
+  expect_output_contains "auto" "${out}"
 }
 
 test_runner

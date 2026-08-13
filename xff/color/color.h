@@ -48,15 +48,24 @@ bool Enabled(When when, bool stdout_is_tty, bool no_color_env);
 // expects are usually the ones their `ls` already uses.
 std::string_view CodeForType(vfs::FileType type, std::uint32_t mode);
 
-// Which palette a run colours with (`--color-scheme`).
+// Which palette a run colours with (`--color-scheme`). Four distinct answers, because "use ls's
+// colours" turns out to mean three different things and each deserves its own name:
 enum class Scheme : std::uint8_t {
-  kLs,   // $LS_COLORS (dircolors) where it says something, xff's scheme for the rest - the default
-  kXff,  // xff's built-in scheme, ignoring $LS_COLORS
+  kLs,     // $LS_COLORS ALONE: what it does not name is printed uncoloured, as in a real ls listing
+  kLsXff,  // $LS_COLORS where it speaks, xff's colour for every key it omits - the default
+  kAuto,   // $LS_COLORS alone when the variable is set at all, else xff's scheme alone
+  kXff,    // xff's built-in scheme, ignoring $LS_COLORS
 };
 
-// Resolves `--color-scheme=ls|xff` (last occurrence wins); an absent or unrecognised value leaves
-// kLs, so a themed terminal is honoured without asking.
+// Resolves `--color-scheme=ls|ls+xff|auto|xff` (last occurrence wins); an absent or unrecognised value
+// leaves the default, kLsXff, so a themed terminal is honoured without asking and nothing that the
+// theme happens to omit loses its colour.
 Scheme ResolveScheme(const std::vector<std::string>& globals);
+
+// The palette `scheme` describes, given the raw `$LS_COLORS` value (empty when unset). The one place
+// the four schemes turn into a lookup, so a caller never has to know which of them falls back how.
+class Palette;
+[[nodiscard]] Palette PaletteFor(Scheme scheme, std::string_view ls_colors);
 
 // The colours one run uses. Built once (colours are a whole-run choice, not a per-entry one) and
 // consulted by every colourised surface, so the plain listing and `-ls` cannot disagree.
@@ -70,10 +79,12 @@ class Palette {
   // xff's built-in scheme only (`--color-scheme=xff`, or kLs with no $LS_COLORS set).
   Palette() = default;
 
-  // The built-in scheme overlaid with `ls_colors`, the raw `$LS_COLORS` value
-  // (`key=value:key=value:...`). Unparsable entries are skipped rather than failing the run: a
-  // malformed variable is not worth refusing to list files over, and `ls` itself ignores them.
-  static Palette FromLsColors(std::string_view ls_colors);
+  // `ls_colors` (the raw `$LS_COLORS` value, `key=value:key=value:...`) as the palette, with or
+  // without xff's scheme behind it: `fall_back` = true is kLsXff (an omitted key keeps xff's colour),
+  // false is kLs (an omitted key means uncoloured, as in a real ls listing). Unparsable entries are
+  // skipped rather than failing the run: a malformed variable is not worth refusing to list files
+  // over, and `ls` itself ignores them.
+  static Palette FromLsColors(std::string_view ls_colors, bool fall_back = true);
 
   // The SGR parameter for one entry, or empty for "print it uncoloured". `mode` is the raw st_mode.
   [[nodiscard]] std::string_view CodeFor(std::string_view name, vfs::FileType type, std::uint32_t mode) const;
@@ -85,6 +96,10 @@ class Palette {
   // `*.ext` entries, keyed by the LOWERCASED extension including its dot, since a themed terminal
   // should colour `A.TAR` like `a.tar`.
   absl::flat_hash_map<std::string, std::string> extensions_;
+  // Whether a key `$LS_COLORS` did not name keeps xff's built-in colour (kLsXff) or is left
+  // uncoloured (kLs). A default-constructed palette IS the built-in scheme, so this is true there
+  // too, and every lookup ends in CodeForType.
+  bool fall_back_ = true;
 };
 
 }  // namespace xff::color

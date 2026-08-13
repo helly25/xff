@@ -2196,11 +2196,10 @@ int RunFind(
       format == render::Format::kPlain
       && color::Enabled(color::ResolveWhen(command.globals), ::isatty(STDOUT_FILENO) != 0, env::Has("NO_COLOR"));
   // --color-scheme: the palette every colourised surface uses, resolved ONCE because colour is a
-  // whole-run choice. `ls` (the default) honours the terminal's own theme through $LS_COLORS and
-  // falls back to xff's built-in scheme for whatever the theme does not name.
-  const color::Palette palette = color::ResolveScheme(command.globals) == color::Scheme::kLs
-                                     ? color::Palette::FromLsColors(env::Get("LS_COLORS").value_or(""))
-                                     : color::Palette();
+  // whole-run choice. The default (`ls+xff`) honours the terminal's own theme through $LS_COLORS and
+  // keeps xff's built-in colour for whatever the theme does not name; see color::Scheme for the four.
+  const color::Palette palette =
+      color::PaletteFor(color::ResolveScheme(command.globals), env::Get("LS_COLORS").value_or(""));
   const std::optional<std::string> tmpl = ResolveTemplate(command.globals);
   // A -capture whose {capture.NAME} is never referenced ran a subprocess for
   // nothing (use -exec for pure side effects); flag it before traversing.

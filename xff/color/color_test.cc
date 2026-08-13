@@ -52,14 +52,43 @@ TEST_F(ColorTest, CodeForTypeUsesLsLikeScheme) {
   EXPECT_THAT(CodeForType(vfs::FileType::kRegular, 0644), IsEmpty());   // plain file: no color
 }
 
-TEST_F(ColorTest, TheSchemeDefaultsToLsAndTheFlagPicks) {
-  // Default kLs, because the colours a user expects are the ones their terminal is already themed
-  // with; `xff` is the way back to the built-in scheme.
-  EXPECT_THAT(ResolveScheme({}), Scheme::kLs);
+TEST_F(ColorTest, TheSchemeDefaultsToLsPlusXffAndTheFlagPicks) {
+  // Default kLsXff: the theme where it speaks, xff's colour where it does not - the honest name for
+  // what a themed terminal wants without silently dropping colour the theme forgot.
+  EXPECT_THAT(ResolveScheme({}), Scheme::kLsXff);
   EXPECT_THAT(ResolveScheme({"--color-scheme=xff"}), Scheme::kXff);
   EXPECT_THAT(ResolveScheme({"--color-scheme=ls"}), Scheme::kLs);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=ls+xff"}), Scheme::kLsXff);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=auto"}), Scheme::kAuto);
   EXPECT_THAT(ResolveScheme({"--color-scheme=xff", "--color-scheme=ls"}), Scheme::kLs);  // last wins
-  EXPECT_THAT(ResolveScheme({"--color-scheme=nonsense"}), Scheme::kLs);                  // unknown leaves the default
+  EXPECT_THAT(ResolveScheme({"--color-scheme=nonsense"}), Scheme::kLsXff);               // unknown leaves the default
+}
+
+TEST_F(ColorTest, LsAloneLeavesWhatTheThemeOmitsUncoloured) {
+  // The difference between the two ls readings, in one assertion pair: under `ls` a type the theme
+  // never mentions prints plain (what a real ls does), under `ls+xff` it keeps xff's colour.
+  const Palette strict = PaletteFor(Scheme::kLs, "di=01;35");
+  EXPECT_THAT(strict.CodeFor("dir", vfs::FileType::kDirectory, 0755), "01;35");
+  EXPECT_THAT(strict.CodeFor("link", vfs::FileType::kSymlink, 0777), IsEmpty());
+  const Palette hybrid = PaletteFor(Scheme::kLsXff, "di=01;35");
+  EXPECT_THAT(hybrid.CodeFor("link", vfs::FileType::kSymlink, 0777), CodeForType(vfs::FileType::kSymlink, 0777));
+}
+
+TEST_F(ColorTest, AutoDecidesPerVariableNotPerKey) {
+  // `auto` is the third reading: a theme that is set at all is the whole answer, an unset one leaves
+  // xff's scheme entirely intact.
+  const Palette themed = PaletteFor(Scheme::kAuto, "di=01;35");
+  EXPECT_THAT(themed.CodeFor("dir", vfs::FileType::kDirectory, 0755), "01;35");
+  EXPECT_THAT(themed.CodeFor("link", vfs::FileType::kSymlink, 0777), IsEmpty());  // theme alone
+  const Palette unset = PaletteFor(Scheme::kAuto, "");
+  EXPECT_THAT(unset.CodeFor("link", vfs::FileType::kSymlink, 0777), CodeForType(vfs::FileType::kSymlink, 0777));
+  EXPECT_THAT(unset.CodeFor("dir", vfs::FileType::kDirectory, 0755), CodeForType(vfs::FileType::kDirectory, 0755));
+}
+
+TEST_F(ColorTest, TheXffSchemeIgnoresTheThemeEntirely) {
+  const Palette palette = PaletteFor(Scheme::kXff, "di=01;35:*.txt=33");
+  EXPECT_THAT(palette.CodeFor("dir", vfs::FileType::kDirectory, 0755), CodeForType(vfs::FileType::kDirectory, 0755));
+  EXPECT_THAT(palette.CodeFor("a.txt", vfs::FileType::kRegular, 0644), IsEmpty());
 }
 
 TEST_F(ColorTest, ADefaultPaletteIsTheBuiltInScheme) {

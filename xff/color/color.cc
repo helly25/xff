@@ -75,7 +75,7 @@ std::string_view CodeForType(vfs::FileType type, std::uint32_t mode) {
 }
 
 Scheme ResolveScheme(const std::vector<std::string>& globals) {
-  Scheme scheme = Scheme::kLs;
+  Scheme scheme = Scheme::kLsXff;
   for (const std::string& global : globals) {
     std::string_view value = global;
     if (!absl::ConsumePrefix(&value, "--color-scheme=")) {
@@ -85,14 +85,32 @@ Scheme ResolveScheme(const std::vector<std::string>& globals) {
       scheme = Scheme::kXff;
     } else if (value == "ls") {
       scheme = Scheme::kLs;
+    } else if (value == "ls+xff") {
+      scheme = Scheme::kLsXff;
+    } else if (value == "auto") {
+      scheme = Scheme::kAuto;
     }
     // Anything else leaves the prior resolution, matching how --color treats an unknown value.
   }
   return scheme;
 }
 
-Palette Palette::FromLsColors(std::string_view ls_colors) {
+Palette PaletteFor(Scheme scheme, std::string_view ls_colors) {
+  switch (scheme) {
+    case Scheme::kXff: return Palette();
+    case Scheme::kLs: return Palette::FromLsColors(ls_colors, /*fall_back=*/false);
+    case Scheme::kLsXff: return Palette::FromLsColors(ls_colors, /*fall_back=*/true);
+    case Scheme::kAuto:
+      // Per-VARIABLE rather than per-key: a set theme is taken as the whole answer, an unset one
+      // leaves xff's scheme untouched.
+      return ls_colors.empty() ? Palette() : Palette::FromLsColors(ls_colors, /*fall_back=*/false);
+  }
+  return Palette();
+}
+
+Palette Palette::FromLsColors(std::string_view ls_colors, bool fall_back) {
   Palette palette;
+  palette.fall_back_ = fall_back;
   for (std::string_view entry : absl::StrSplit(ls_colors, ':', absl::SkipEmpty())) {
     const std::string_view::size_type equals = entry.find('=');
     if (equals == std::string_view::npos) {
@@ -178,7 +196,9 @@ std::string_view Palette::CodeFor(std::string_view name, vfs::FileType type, std
     }
     case vfs::FileType::kUnknown: break;
   }
-  return CodeForType(type, mode);
+  // Nothing in the theme answered. kLsXff keeps xff's colour here; kLs leaves the entry uncoloured,
+  // which is what a real ls does with a type its $LS_COLORS never mentions.
+  return fall_back_ ? CodeForType(type, mode) : std::string_view();
 }
 
 }  // namespace xff::color

@@ -79,7 +79,9 @@ constexpr std::array kArchiveValues = std::to_array<ValueDoc>({
     {.value = "all", .meaning = "also dive archives found during the walk (what bare `--archive` selects)"},
 });
 constexpr std::array kColorSchemeValues = std::to_array<ValueDoc>({
-    {.value = "ls", .meaning = "the terminal's own theme: $LS_COLORS, xff's scheme for what it omits (default)"},
+    {.value = "ls+xff", .meaning = "$LS_COLORS where it speaks, xff's colour for the keys it omits (default)"},
+    {.value = "ls", .meaning = "$LS_COLORS alone: what it does not name prints uncoloured, as in ls"},
+    {.value = "auto", .meaning = "$LS_COLORS alone when the variable is set at all, else xff alone"},
     {.value = "xff", .meaning = "xff's built-in type scheme, ignoring $LS_COLORS"},
 });
 constexpr std::array kArchiveAggregateValues = std::to_array<ValueDoc>({
@@ -865,15 +867,19 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .header = "Output",
         .summary = "which palette colour comes from: the terminal's ls theme, or xff's own",
         .details = "Colour is a whole-run choice, so this one palette is used by every surface that "
-                   "colours - the plain listing and -ls alike; they cannot disagree. `ls` (the default) "
-                   "reads $LS_COLORS, the same variable `ls` and `dircolors` use, so a themed terminal "
-                   "gets the colours it is themed for: its two-letter type keys (di, ln, ex, pi, so, "
-                   "bd, cd, fi) and its per-extension `*.tar=` entries both apply, and xff's built-in "
-                   "colour stands in for anything the theme does not name (an EMPTY value, `di=`, is "
-                   "the theme saying \"leave these plain\" and is honoured as such). A malformed "
-                   "$LS_COLORS entry is skipped rather than failing the run, as in ls. `xff` ignores "
-                   "$LS_COLORS entirely and uses the built-in scheme. Whether colour is emitted at "
-                   "all is --color's business, not this flag's.",
+                   "colours - the plain listing and -ls alike; they cannot disagree. $LS_COLORS is the "
+                   "variable `ls` and `dircolors` use, and xff reads the same keys: the two-letter "
+                   "types (di, ln, ex, pi, so, bd, cd, fi) and the per-extension `*.tar=` entries. "
+                   "\"Use ls's colours\" turns out to mean three different things, so each has its "
+                   "own name: `ls+xff` (the default) takes the theme where it speaks and keeps xff's "
+                   "colour for every key it omits; `ls` is the theme ALONE, so a type it never "
+                   "mentions prints uncoloured exactly as in a real ls listing; `auto` decides per "
+                   "VARIABLE rather than per key - a theme that is set at all is the whole answer, an "
+                   "unset one leaves xff's scheme untouched. `xff` ignores $LS_COLORS entirely. An "
+                   "EMPTY value in the theme (`di=`) is it saying \"leave these plain\" and is "
+                   "honoured as such under `ls+xff` too; a malformed entry is skipped rather than "
+                   "failing the run, as in ls. Whether colour is emitted at all is --color's "
+                   "business, not this flag's.",
         .values = kColorSchemeValues,
         .affects = "--color",
     },
