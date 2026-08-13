@@ -117,8 +117,10 @@ test::ls_and_xff_fills_in_what_the_theme_omits() {
   local root out
   root="$(_make_tree)"
   ln -s a.txt "${root}/link"
-  out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=ls-and-xff "${root}" -type l 2>&1)"
-  expect_matches $'\033\\[1;36m' "${out}" # xff's symlink colour survives
+  for spelling in "ls-and-xff" "merged"; do # the algebra name and the plain word are one value
+    out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "--color-scheme=${spelling}" "${root}" -type l 2>&1)"
+    expect_matches $'\033\\[1;36m' "${out}" # xff's symlink colour survives
+  done
   out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "${root}" -type l 2>&1)"
   expect_not_matches $'\033\\[' "${out}" # the default takes the theme whole
   rm -rf "${root}"

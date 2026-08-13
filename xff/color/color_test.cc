@@ -63,6 +63,7 @@ TEST_F(ColorTest, TheSchemeDefaultsToAutoAndTheFlagPicks) {
   EXPECT_THAT(ResolveScheme({"--color-scheme=default"}), Scheme::kAuto);
   EXPECT_THAT(ResolveScheme({"--color-scheme=ls"}), Scheme::kLs);
   EXPECT_THAT(ResolveScheme({"--color-scheme=ls-and-xff"}), Scheme::kLsAndXff);
+  EXPECT_THAT(ResolveScheme({"--color-scheme=merged"}), Scheme::kLsAndXff);  // the plain word for it
   EXPECT_THAT(ResolveScheme({"--color-scheme=xff"}), Scheme::kXff);
   EXPECT_THAT(ResolveScheme({"--color-scheme=xff", "--color-scheme=ls"}), Scheme::kLs);  // last wins
   EXPECT_THAT(ResolveScheme({"--color-scheme=nonsense"}), Scheme::kAuto);                // unknown leaves the default

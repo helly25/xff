@@ -83,7 +83,8 @@ constexpr std::array kColorSchemeValues = std::to_array<ValueDoc>({
      .meaning = "ls OR xff: the theme when $LS_COLORS is set, else xff's scheme (the default; also "
                 "spelled `ls+xff`, `ls-or-xff` or `default`)"},
     {.value = "ls", .meaning = "$LS_COLORS alone: what it does not name prints uncoloured, as in ls"},
-    {.value = "ls-and-xff", .meaning = "the theme where it speaks, xff's colour for every key it omits (per-key)"},
+    {.value = "merged",
+     .meaning = "the theme where it speaks, xff's colour for every key it omits, per key (also `ls-and-xff`)"},
     {.value = "xff", .meaning = "xff's built-in type scheme, ignoring $LS_COLORS"},
 });
 constexpr std::array kArchiveAggregateValues = std::to_array<ValueDoc>({
@@ -879,7 +880,8 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "so the decision is per VARIABLE; `default` is a fourth spelling of it, for a "
                    "config file that wants whatever the default currently is. `ls` is the theme "
                    "ALONE, so a type it never mentions prints uncoloured exactly as in a real ls "
-                   "listing (and with no theme set, nothing is coloured). `ls-and-xff` is the theme "
+                   "listing (and with no theme set, nothing is coloured). `merged` (also "
+                   "`ls-and-xff`) is the theme "
                    "AND xff's scheme, merged per KEY: the theme where it speaks, xff's colour for "
                    "every key it omits - for a sparse theme you want filled in. (`ls&xff` is "
                    "deliberately not accepted: an unquoted `&` backgrounds the command.) `xff` "

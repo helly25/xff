@@ -83,7 +83,8 @@ Scheme ResolveScheme(const std::vector<std::string>& globals) {
       std::pair{std::string_view("auto"), Scheme::kAuto}, std::pair{std::string_view("default"), Scheme::kAuto},
       std::pair{std::string_view("ls"), Scheme::kLs}, std::pair{std::string_view("ls+xff"), Scheme::kAuto},
       std::pair{std::string_view("ls-and-xff"), Scheme::kLsAndXff},
-      std::pair{std::string_view("ls-or-xff"), Scheme::kAuto}, std::pair{std::string_view("xff"), Scheme::kXff});
+      std::pair{std::string_view("ls-or-xff"), Scheme::kAuto}, std::pair{std::string_view("merged"), Scheme::kLsAndXff},
+      std::pair{std::string_view("xff"), Scheme::kXff});
   Scheme scheme = Scheme::kAuto;
   for (const std::string& global : globals) {
     std::string_view value = global;
