@@ -460,8 +460,6 @@ TEST_F(ParserTest, RegextypeSelectsTheMatcherGrammar) {
   EXPECT_THAT(last.grammar, regex::Grammar::kRe2);
 }
 
-}  // namespace
-
 struct TakesTerminalTest : ::testing::Test {};
 
 TEST_F(TakesTerminalTest, TheExecAndPromptFamilyTakesTheTerminal) {
@@ -489,4 +487,5 @@ TEST_F(TakesTerminalTest, ItFindsThePrimaryAnywhereInTheTree) {
   EXPECT_THAT(TakesTerminal(command->expression.get()), true);
 }
 
+}  // namespace
 }  // namespace xff::parser

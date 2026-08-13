@@ -120,8 +120,6 @@ TEST_F(PagerCommandTest, ManPagerIsIndependentOfTheTextPager) {
   EXPECT_THAT(ResolvePagerCommand(PagerKind::kMan), HasSubstr("mandoc"));
 }
 
-}  // namespace
-
 struct PagerStreamTest : ::testing::Test {
   void SetUp() override {
     env::ClearForTesting();
@@ -147,10 +145,10 @@ struct PagerStreamTest : ::testing::Test {
       body();
     }  // the destructor restores stdout and waits for the pager, so the file is complete here
     std::ifstream in(sink_path);
-    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
   }
 
-  std::string SinkPath() const {
+  static std::string SinkPath() {
     return absl::StrCat(::testing::TempDir(), "/", ::testing::UnitTest::GetInstance()->current_test_info()->name());
   }
 };
@@ -200,20 +198,21 @@ TEST_F(PagerStreamTest, AnEmptyPagerVariableDisablesPagingRatherThanLosingOutput
   // must not differ, and must leave stdout usable.
   env::SetForTesting("XFF_PAGER", "");
   const PagerStream pager(PagerWhen::kAll, /*stdout_is_tty=*/true, /*suppressed=*/false);
-  EXPECT_THAT(pager.active(), false);
+  EXPECT_THAT(pager.Active(), false);
 }
 
 TEST_F(PagerStreamTest, FinishIsIdempotentAndRestoresStdout) {
   const std::string sink = SinkPath();
   env::SetForTesting("XFF_PAGER", absl::StrCat("cat > ", sink));
   PagerStream pager(PagerWhen::kAll, /*stdout_is_tty=*/true, /*suppressed=*/false);
-  EXPECT_THAT(pager.active(), true);
+  EXPECT_THAT(pager.Active(), true);
   std::cout << "paged\n";
   pager.Finish();
-  EXPECT_THAT(pager.active(), false);
+  EXPECT_THAT(pager.Active(), false);
   pager.Finish();  // a second call (and the destructor after it) must be harmless
   std::ifstream in(sink);
   EXPECT_THAT(std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()), Eq("paged\n"));
 }
 
+}  // namespace
 }  // namespace xff::cli

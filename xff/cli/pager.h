@@ -90,7 +90,7 @@ class PagerStream {
   PagerStream& operator=(PagerStream&&) = delete;
 
   // Whether a pager was actually started (false means stdout is untouched).
-  [[nodiscard]] bool active() const { return active_; }
+  [[nodiscard]] bool Active() const { return active_; }
 
   // Restores stdout and waits for the pager, which is what blocks until the user quits it.
   // The destructor calls this; it is idempotent, so a caller that wants the wait at a
