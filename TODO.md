@@ -82,15 +82,37 @@ shipped one way but not yet settled.
     - **`memfd_create` + `/proc/self/fd/N`** avoids a filesystem entirely and is seekable, but any
       tool that reopens the path by NAME or keys on the extension breaks, and it is Linux-only. Not a
       default; at most an opt-in for pipelines known to cope.
-    - **A FUSE mount of the CONTAINER** (the fuse-archive / archivemount shape) is the general answer:
-      every tool gets a path into the archive and nothing is extracted at all. It is also a different
-      product shape - libfuse / macFUSE dependency, a mount lifecycle, unmount-on-crash - so it belongs
-      as its own large optional extra rather than inside `--archive-extract`.
-      So the shipped temporary file stays the portable default, and the cheap first improvement is
-      choosing a tmpfs directory for it where the platform has one.
+    - **A FUSE mount of the CONTAINER is the DIRECTION (user, 2026-08-13):** the fuse-archive /
+      archivemount shape, where every tool gets a real path into the archive and nothing is extracted
+      at all. See the dedicated item below; the shipped temporary file stays the portable fallback, and
+      the cheap interim improvement is choosing a tmpfs directory for it where the platform has one.
   - **It already serves nesting.** A container inside a container has no path of its own, so
     `OpenContainerBytes` hands the inner reader the bytes its parent read - an in-memory container in
     all but name. Same for the phar rewrite, which is built in memory and written once.
+- **DIRECTION (user, 2026-08-13): mount a container with FUSE (`@xff_fuse`), rather than extracting.**
+  A mounted container is the answer the extraction flags approximate: `-exec`, `-execdir` and any
+  external tool get a real path INTO the archive, `{}` renders as that path, no copy is made, and the
+  "your child edited a copy" surprise disappears (a read-only mount makes an in-place editor fail
+  honestly instead of succeeding against a temporary file). It is also the only shape that makes a
+  member usable by a tool xff never launched.
+  - **Our own FUSE server, not a shell-out to `fuse-archive`.** Delegating looks cheaper but loses
+    exactly the formats xff added: fuse-archive reads what libarchive reads, so a native phar, a
+    prefixed payload and the compressed-single-file case all fall out - and xff's reader already
+    handles them behind `vfs::FileSystem`. A FUSE server over that interface serves every container xff
+    can open, by construction, and keeps one notion of member paths.
+  - **Shape:** a build-time extra (`--//xff:xff_fuse`, the `@xff_archive` pattern), libfuse on Linux and
+    macFUSE on macOS (a kernel extension the USER installs, so the extra must degrade to extraction
+    when it is absent rather than fail). Read-only first; a writable mount would be how `-delete` on a
+    member and an in-place editor could work later, and it is a separate decision.
+  - **What needs deciding before building:** the mount lifecycle (mount per run under a per-pid
+    directory, unmounted at exit AND on a signal, with `fusermount -uz` / `umount -f` as the crash
+    path, since a stale mount is worse than a stale temp file); whether the mount is implicit when
+    available or an explicit flag (a mount is process-global state other programs can see, which argues
+    for explicit); how `--archive-depth` maps onto nested mounts; and whether the walk itself should
+    read through the mount (simpler: it keeps using the reader, and only child processes see the mount).
+  - **Relation to the shipped flags:** `--archive-extract` becomes the portable fallback rather than the
+    only mechanism, and `--archive-aggregate` / `--archive-delete` are unaffected.
+
   - **Where a real `vfs::MemoryFileSystem` WOULD pay:** a bounded member CACHE. Today `-grep`,
     `{hash}` and `-cmp` on the same member each decompress it again, and a member read twice is
     common in a composed expression. That is a cache with a size cap (the same
