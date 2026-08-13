@@ -122,16 +122,18 @@ void AppendInfluence(Blocks* blocks, std::string_view header, const std::vector<
   blocks->push_back(ProseOf(absl::StrCat(header, " ", absl::StrJoin(names, ", "))));
 }
 
-// The `<PLACEHOLDER>` name from a flag display (e.g. "--summary[=<GROUP>]" -> "GROUP"),
-// used to head the flag's value table so its rows read as the values of that placeholder.
-// Falls back to "One of" if the display carries no placeholder.
-std::string_view ValueLabel(std::string_view display) {
+// The heading line above a flag's value table: "GROUP is one of:" for a display that collapsed its
+// value grammar to a `<PLACEHOLDER>` (e.g. "--summary[=<GROUP>]"), so the rows read as that
+// placeholder's values. A display that spells its values inline instead (`--archive[=none|roots|all]`)
+// has no placeholder to name, and gets the bare "One of:" - naming a placeholder that is not there
+// used to read as the nonsense "One of is one of:".
+std::string ValueHeading(std::string_view display) {
   const auto open = display.find('<');
   const auto close = display.find('>', open + 1);
-  if (open != std::string_view::npos && close != std::string_view::npos) {
-    return display.substr(open + 1, close - open - 1);
+  if (open == std::string_view::npos || close == std::string_view::npos) {
+    return "One of:";
   }
-  return "One of";
+  return absl::StrCat(display.substr(open + 1, close - open - 1), " is one of:");
 }
 
 // A definition entry for a global flag: its display, summary, and (when `with_details`)
@@ -152,10 +154,11 @@ Content FlagEntry(const GlobalFlag& flag, bool with_details = true, Audience aud
   }
   if (with_details) {
     // The allowed-value table (for a flag whose synopsis collapsed a value grammar to a
-    // `<PLACEHOLDER>`) leads, before the prose: a "<LABEL> is one of:" heading line so the
+    // `<PLACEHOLDER>`) leads, before the prose: a "<LABEL> is one of:" heading line (see
+    // ValueHeading) so the
     // rows read as that placeholder's values, then the aligned wrapping `value  meaning` list.
     if (!flag.values.empty()) {
-      details.push_back(ProseOf(absl::StrCat(ValueLabel(flag.display), " is one of:")));
+      details.push_back(ProseOf(ValueHeading(flag.display)));
       Rows rows;
       rows.rows.reserve(flag.values.size());
       for (const ValueDoc& value : flag.values) {
@@ -403,6 +406,72 @@ Section StatsSection(bool in_full) {
   // Each example is a verbatim (copy-pastable) command with its explanation as prose,
   // which wraps to the width - the cookbook pattern, not a term/desc table whose wide
   // command column squeezes the explanation to one word per line at narrow widths.
+  for (const auto& [command, explanation] : kExamples) {
+    examples.children.push_back(ExampleOf(std::string(command), "sh"));
+    examples.children.push_back(ProseOf(explanation));
+  }
+  section.children.push_back(Content{.node = std::move(examples)});
+  return section;
+}
+
+// ARCHIVES: what it means to walk INTO a container, and the whole `--archive` family. The flags are
+// pulled from the globals SOT via the "archive" topic tag so the list cannot drift; the identity /
+// read-only / cost rules are prose, because they are what a reader needs before the flags mean
+// anything. Standalone as `--help=archive` (see TopicReference) and folded into the full reference.
+// `in_full` (the folded-in case) omits the per-flag entries, which the grouped Options section
+// already carries.
+Section ArchiveSection(bool in_full) {
+  Section section{.title = "Archives"};
+  section.children.push_back(ProseOf(
+      "With `--archive`, an archive is a directory: xff opens it and walks its members as ordinary "
+      "entries, so every predicate and action applies to them unchanged - `-name`, `-type`, "
+      "`-grep`, `{hash}`, `--summary`. Nothing in the expression vocabulary knows about archives. "
+      "Needs the archive extra; `--help=extras` says whether this binary has it."));
+
+  static constexpr std::array<DocPair, 3> kModes = {{
+      {"none", "an archive is one plain file (find's behaviour, and the find-style default)"},
+      {"roots", "dive only when a search root IS an archive (the xff-family default)"},
+      {"all", "dive archives met during the walk too (what a bare `--archive` selects)"},
+  }};
+  Subsection modes{.title = "How far diving goes"};
+  modes.children.push_back(RowsOf(kModes));
+  modes.children.push_back(ProseOf(
+      "Under `all` a file is only opened when its NAME looks like a container, so walking a source "
+      "tree does not read every file in it; `--archive-any` drops that gate. Nesting has its own cap "
+      "(`--archive-depth`, default 1) because a container inside a container is where a "
+      "decompression bomb lives - `-maxdepth` keeps counting member levels as ordinary depth."));
+  section.children.push_back(Content{.node = std::move(modes)});
+
+  Subsection identity{.title = "A member is an entry, a container is still a file"};
+  identity.children.push_back(ProseOf(
+      "A member's path is the container's, the separator, then the member: `a.tar!dir/two.txt` "
+      "(`--archive-separator` / `--archive-prefix` spell it differently). The container keeps its own "
+      "identity at the same time - it is a real `-type f` you can match and delete - so a dive shows "
+      "you both, which is also why `--archive-aggregate` exists: a reduction that counted the "
+      "container AND its members would describe no filesystem that exists."));
+  identity.children.push_back(ProseOf(
+      "Members are READ-ONLY by default. `-delete` and the exec family refuse one rather than "
+      "silently doing nothing, because a member has no path a process can open and no way to be "
+      "unlinked; `--archive-extract` runs the child over a temporary copy, and `--archive-delete` "
+      "rewrites the container without the member. Both are opt-in, and both say so in the refusal "
+      "you get without them."));
+  section.children.push_back(Content{.node = std::move(identity)});
+
+  for (const GlobalFlag& flag : Globals()) {
+    if (!in_full && flag.topic == "archive") {
+      section.children.push_back(FlagEntry(flag));
+    }
+  }
+
+  static constexpr std::array<DocPair, 5> kExamples = {{
+      {"xff --archive=roots a.tar", "list the archive and its members"},
+      {"xff -z+ . -grep TODO", "search inside every archive met in the tree"},
+      {"xff --archive=roots a.tgz --summary", "count what is INSIDE, not the compressed container"},
+      {"xff --archive=roots --archive-extract a.tar -name '*.json' -exec jq . {} \\;",
+       "run a tool over a member, via a temporary copy"},
+      {"xff --archive=roots --archive-delete a.tar -name '*.bak' -delete", "rewrite the archive without those members"},
+  }};
+  Subsection examples{.title = "Examples"};
   for (const auto& [command, explanation] : kExamples) {
     examples.children.push_back(ExampleOf(std::string(command), "sh"));
     examples.children.push_back(ProseOf(explanation));
@@ -669,6 +738,8 @@ std::optional<Document> TopicReference(std::string_view name) {
     doc.sections.push_back(SizeSection());
   } else if (name == "grammars") {
     doc.sections.push_back(GrammarsSection());
+  } else if (name == "archive" || name == "archives") {
+    doc.sections.push_back(ArchiveSection(/*in_full=*/false));
   } else if (name == "stats") {
     doc.sections.push_back(StatsSection(/*in_full=*/false));
   } else if (name == "config") {
@@ -731,6 +802,7 @@ Document BuildReference(Audience audience) {
   doc.sections.push_back(TimeSection());
   doc.sections.push_back(SizeSection());
   doc.sections.push_back(GrammarsSection());
+  doc.sections.push_back(ArchiveSection(/*in_full=*/true));
   doc.sections.push_back(StatsSection(/*in_full=*/true));
   doc.sections.push_back(EnvironmentSection());
   doc.sections.push_back(BuildExamples());

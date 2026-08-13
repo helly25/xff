@@ -198,6 +198,35 @@ test::help_stats_documents_the_reductions() {
   expect_output_contains 'needs an aggregator' "${out}" # the no-bare-metric rule
 }
 
+test::help_archive_documents_diving_and_what_is_writable() {
+  # `--help=archive` gathers the whole --archive family: the flags come from the SOT via the
+  # "archive" topic tag, and the prose carries what the flags alone cannot say - that a member is an
+  # ordinary entry, that the container keeps its own identity, and which actions are refused.
+  local out rc
+  out="$("$(_xff_bin)" --help=archive 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_matches '\-\-archive' "${out}"
+  expect_matches '\-\-archive-aggregate' "${out}" # every flag of the family, not just the entry point
+  expect_matches '\-\-archive-extract' "${out}"
+  expect_matches '\-\-archive-delete' "${out}"
+  expect_output_contains "READ-ONLY" "${out}" # the rule the two write flags are exceptions to
+  expect_output_contains "a.tar!dir/two.txt" "${out}"
+  out="$("$(_xff_bin)" --help=archives 2>&1)" # the plural alias resolves to the same topic
+  expect_output_contains "READ-ONLY" "${out}"
+}
+
+test::a_value_table_heading_names_the_placeholder_or_nothing() {
+  # A flag whose synopsis collapses its values to a <PLACEHOLDER> heads the table with that name; one
+  # that spells them inline has no name to use and gets the bare "One of:" - it used to read as the
+  # nonsense "One of is one of:".
+  local out
+  out="$("$(_xff_bin)" --help=--summary 2>&1)"
+  expect_output_contains "GROUP is one of:" "${out}"
+  out="$("$(_xff_bin)" --help=--archive 2>&1)"
+  expect_output_contains "One of:" "${out}"
+  expect_output_not_contains "One of is one of:" "${out}"
+}
+
 test::help_printf_lists_the_directive_vocabulary() {
   # `--help=printf` prints the % directive table (from engine::PrintfDocs) plus the
   # %{field} escape; --help=full folds the same table in so the full reference is exhaustive.
