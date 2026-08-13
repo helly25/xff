@@ -241,6 +241,31 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .style = Style::kXff,
         .cost = Cost::kExpensive,
     },
+    // xff -fuzzy: approximate NAME matching, the fzf/fd style of "type a few letters and find it".
+    {
+        .name = "-fuzzy",
+        .summary = "match the basename loosely: PATTERN's characters in order, gaps allowed (xff)",
+        .details = "TRUE when every character of PATTERN appears in the entry's basename IN ORDER, with anything "
+                   "at all in between - `-fuzzy tmh` finds `the_main_header.h`. This is a SUBSEQUENCE match (fzf, "
+                   "fd's interactive cousins, an editor's quick-open), not a bounded edit distance: it answers "
+                   "\"can I type a few letters and find the file\", not \"is this a typo of that\". Matching is "
+                   "cheap (no regex, no allocation) and unanchored, so the letters may start anywhere in the name. "
+                   "Case follows --case like -name does; -ifuzzy always folds. There is no ranking yet - this is a "
+                   "test, so every match is equal and the walk order is unchanged. Use -name for a glob and -regex "
+                   "for a pattern. An xff extension --config=find rejects. Example: `xff . -fuzzy rdme`.",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .style = Style::kXff,
+    },
+    {
+        .name = "-ifuzzy",
+        .summary = "match the basename loosely, case-insensitively (xff)",
+        .details = "The always-case-insensitive -fuzzy: folds ASCII case regardless of --case or the volume.",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .fold_case = true,
+        .style = Style::kXff,
+    },
     // xff -cmp: content comparison. TRUE when the file is byte-for-byte identical to
     // TARGET (a field template rendered per entry, e.g. '{def.B}/{relpath}'); byte-exact
     // and binary-safe, so `! -cmp` selects files that differ from a parallel tree.

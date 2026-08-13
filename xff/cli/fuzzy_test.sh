@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# End-to-end test of -fuzzy / -ifuzzy: the subsequence match, its case rules, and the find-style
+# rejection. Runs with --exact throughout where case matters, because the xff default folds case on
+# a case-folding volume (APFS / NTFS) and the result would otherwise differ per platform.
+
+set -euo pipefail
+
+# shellcheck disable=SC1090,SC1091,SC2154
+source "${helly25_bashtest}"
+
+_xff_bin() {
+  local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
+  if [[ ! -x "${bin}" ]]; then
+    bin="$(find "${TEST_SRCDIR}" -type f -name xff -path '*xff/cli/xff' 2>/dev/null | head -1)"
+  fi
+  echo "${bin}"
+}
+
+# Names chosen so one tree shows all three answers: a hit through gaps, a hit only when case folds,
+# and a name whose letters are present but in the wrong order.
+_make_tree() {
+  local root
+  root="$(mktemp -d)"
+  : >"${root}/the_main_header.h"
+  : >"${root}/README.md"
+  : >"${root}/hamster.txt"
+  echo "${root}"
+}
+
+test::fuzzy_matches_characters_in_order_with_gaps() {
+  local root out
+  root="$(_make_tree)"
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy tmh)"
+  expect_output_contains "the_main_header.h" "${out}"
+  expect_eq "1" "$(wc -l <<<"${out}" | tr -d ' ')"
+  rm -rf "${root}"
+}
+
+test::fuzzy_is_not_an_anagram_match() {
+  local root out
+  root="$(_make_tree)"
+  # `hmt` uses the same letters as `tmh` but in another order, and `hamster.txt` holds them in yet
+  # another - a subsequence match is about ORDER, which is what separates it from a bag of letters.
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy hmt)"
+  expect_output_not_contains "the_main_header.h" "${out}"
+  rm -rf "${root}"
+}
+
+test::case_follows_exact_and_ifuzzy_always_folds() {
+  local root out
+  root="$(_make_tree)"
+  # Under --exact the letters have to match byte for byte, so lowercase `rdme` misses README.md;
+  # -ifuzzy folds regardless.
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy rdme)"
+  expect_output_not_contains "README.md" "${out}"
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy RDME)"
+  expect_output_contains "README.md" "${out}"
+  out="$("$(_xff_bin)" --exact "${root}" -type f -ifuzzy rdme)"
+  expect_output_contains "README.md" "${out}"
+  rm -rf "${root}"
+}
+
+test::fuzzy_matches_the_basename_not_the_whole_path() {
+  local root out
+  root="$(_make_tree)"
+  # The directory components are not part of the subject, so letters that only appear in the leading
+  # path do not help - that is what makes -fuzzy the loose counterpart of -name rather than of -path.
+  mkdir -p "${root}/zzq"
+  : >"${root}/zzq/plain.txt"
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy zzq)"
+  expect_output_not_contains "plain.txt" "${out}"
+  rm -rf "${root}"
+}
+
+test::fuzzy_is_an_xff_extension_the_find_style_rejects() {
+  local root out rc
+  root="$(_make_tree)"
+  out="$("$(_xff_bin)" --config=find "${root}" -fuzzy tmh 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "xff extension" "${out}"
+  rm -rf "${root}"
+}
+
+test_runner

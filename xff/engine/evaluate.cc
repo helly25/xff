@@ -57,6 +57,7 @@
 #include "xff/engine/walk.h"
 #include "xff/exec/exec.h"
 #include "xff/fields/fields.h"
+#include "xff/fuzzy/fuzzy.h"
 #include "xff/hash/hash.h"
 #include "xff/language/language.h"
 #include "xff/mime/mime.h"
@@ -877,6 +878,14 @@ bool EvalFalse(const parser::Expr&, EvalContext&) {
 bool EvalName(const parser::Expr& expr, EvalContext& ctx) {
   const int flags = (expr.descriptor->fold_case || ctx.fold_name_case || expr.case_fold) ? FNM_CASEFOLD : 0;
   return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.name, flags);
+}
+
+// -fuzzy / -ifuzzy: the basename, matched as a subsequence of PATTERN (see //xff/fuzzy). Case
+// follows the same three-way rule -name uses: the always-folding variant, the FS-native default, or
+// an explicit --case.
+bool EvalFuzzy(const parser::Expr& expr, EvalContext& ctx) {
+  const bool fold = expr.descriptor->fold_case || ctx.fold_name_case || expr.case_fold;
+  return !expr.args.empty() && fuzzy::Matches(expr.args.front(), ctx.visit.name, fold);
 }
 
 bool EvalPath(const parser::Expr& expr, EvalContext& ctx) {
@@ -2198,6 +2207,8 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-mime", {&EvalMime}},
     DispatchPair{"-mmin", {&EvalMmin}},
     DispatchPair{"-mtime", {&EvalMtime}},
+    DispatchPair{"-fuzzy", {&EvalFuzzy}},
+    DispatchPair{"-ifuzzy", {&EvalFuzzy}},
     DispatchPair{"-name", {&EvalName}},
     DispatchPair{"-newer", {&EvalNewer}},
     DispatchPair{"-newerBB", {&EvalNewerXY}},  // birthtime -newerXY combos (BSD-compat)
