@@ -1,0 +1,72 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef XFF_ENGINE_EXTRACT_H_
+#define XFF_ENGINE_EXTRACT_H_
+
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "absl/status/statusor.h"
+#include "xff/vfs/filesystem.h"
+
+namespace xff::engine {
+
+// Gives an archive member a real path for the length of one run (`--archive-extract`).
+//
+// A member is bytes inside a container: there is no path a child process can open, which is why
+// -exec on one is refused by default. Extracting it to a temporary file is the way to run a tool
+// over it anyway, and the temporary file is exactly as real as any other - so the child needs no
+// knowledge of archives, and a member reads as the file it would be if unpacked.
+//
+// Each member gets its OWN directory (`<tmp>/xff-<pid>-<n>/`) holding a file with the member's own
+// basename: two members named `README` in different containers cannot collide, and a tool that
+// keys on the name or the extension sees what it expects. Everything created is removed by
+// `Release` or, for anything still held (a `+` batch runs after the walk), by the destructor - so
+// nothing survives the run even when the child fails or a signal ends the walk early.
+//
+// Not thread-safe: the evaluator is single-threaded, and a `-j` child is launched from that same
+// thread.
+class ExtractedMembers {
+ public:
+  ExtractedMembers() = default;
+  ~ExtractedMembers();
+
+  ExtractedMembers(const ExtractedMembers&) = delete;
+  ExtractedMembers& operator=(const ExtractedMembers&) = delete;
+  ExtractedMembers(ExtractedMembers&&) = delete;
+  ExtractedMembers& operator=(ExtractedMembers&&) = delete;
+
+  // Reads `member` through `fs` (the container's filesystem, not the local one) and writes it to a
+  // fresh temporary file, returning that file's path. The bytes are the member's real, decompressed
+  // content, so the temporary file's size is the size xff reports for the member.
+  absl::StatusOr<std::string> Extract(const vfs::FileSystem& fs, std::string_view member);
+
+  // Removes one extracted file and its directory. A path this instance did not hand out is ignored,
+  // so a caller may release unconditionally.
+  void Release(std::string_view path);
+
+  // Extracted files not yet released, for tests and for the end-of-run sweep.
+  [[nodiscard]] std::vector<std::string> Held() const;
+
+ private:
+  std::vector<std::string> held_;  // full paths, each the only file in its own directory
+  int next_ = 0;                   // per-instance counter, so two extractions never share a directory
+};
+
+}  // namespace xff::engine
+
+#endif  // XFF_ENGINE_EXTRACT_H_

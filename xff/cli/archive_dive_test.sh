@@ -363,4 +363,65 @@ test::a_mid_walk_container_is_dropped_from_the_total_too() {
   rm -rf "${root}"
 }
 
+test::archive_extract_runs_a_child_over_a_temporary_copy_of_the_member() {
+  local root out
+  root="$(_tree)"
+  # `one.txt` holds "needle". Without a path a child can open, -exec is a refusal (asserted above);
+  # with --archive-extract the child reads the member's real bytes out of a temporary file.
+  out="$("$(_xff_bin)" --archive=roots --archive-extract "${root}/a.tar" -name 'one.txt' -exec cat {} \;)"
+  expect_output_contains "needle" "${out}"
+  # The temporary keeps the member's own name, so a tool that keys on the extension still works, and
+  # -execdir runs in the directory holding it.
+  out="$("$(_xff_bin)" --archive=roots --archive-extract "${root}/a.tar" -name 'one.txt' -execdir basename {} \;)"
+  expect_output_contains "one.txt" "${out}"
+  rm -rf "${root}"
+}
+
+test::archive_extract_covers_the_batch_and_field_forms_too() {
+  local root out
+  root="$(_tree)"
+  # `-exec ... +` runs after the walk, so its copies have to outlive the entry that made them; and
+  # --exec-fields renders {path} as the copy, not the member path the child could not open.
+  out="$("$(_xff_bin)" --archive=roots --archive-extract "${root}/a.tar" -name 'one.txt' -exec cat {} +)"
+  expect_output_contains "needle" "${out}"
+  out="$("$(_xff_bin)" --archive=roots --archive-extract --exec-fields "${root}/a.tar" -name 'one.txt' \
+    -exec cat '{path}' \;)"
+  expect_output_contains "needle" "${out}"
+  rm -rf "${root}"
+}
+
+test::the_refusal_without_archive_extract_names_the_way_out() {
+  local root out rc
+  root="$(_tree)"
+  # A refusal that does not say what to do instead is a dead end; the flag is the answer here.
+  out="$("$(_xff_bin)" --archive=roots "${root}/a.tar" -name 'one.txt' -exec cat {} \; 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "--archive-extract" "${out}"
+  rm -rf "${root}"
+}
+
+test::archive_extract_does_not_make_delete_possible() {
+  local root out rc
+  root="$(_tree)"
+  # Deleting a temporary copy would be a no-op dressed as a deletion, so -delete stays a refusal
+  # whatever this flag says.
+  out="$("$(_xff_bin)" --archive=roots --archive-extract "${root}/a.tar" -name 'one.txt' -delete 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "read-only" "${out}"
+  rm -rf "${root}"
+}
+
+test::archive_extract_leaves_nothing_behind() {
+  local root out before after
+  root="$(_tree)"
+  # Every copy is removed when its child finishes (or when the run ends, for a batch), so a run over
+  # an archive must not grow the temporary directory.
+  before="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'xff-*' 2>/dev/null | wc -l | tr -d ' ')"
+  out="$("$(_xff_bin)" --archive=roots --archive-extract "${root}/a.tar" -type f -exec cat {} \;)"
+  expect_output_contains "needle" "${out}"
+  after="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'xff-*' 2>/dev/null | wc -l | tr -d ' ')"
+  expect_eq "${before}" "${after}"
+  rm -rf "${root}"
+}
+
 test_runner

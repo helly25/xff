@@ -284,6 +284,27 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .extra = "archive",
     },
     {
+        .name = "--archive-extract",
+        .display = "--archive-extract",
+        .group = "traversal",
+        .header = "Traversal",
+        .summary = "let -exec / -ok run on an archive member, via a temporary copy",
+        .details = "A member is bytes inside a container, so there is no path a child process can "
+                   "open and the exec family refuses one by default. With this flag the member is "
+                   "written to its own temporary directory under the same name it has inside the "
+                   "archive, and the child is handed THAT path: `{}` renders as the temporary file, "
+                   "-execdir runs in the temporary directory, and -ok shows the copy in its prompt "
+                   "before anything runs. Each copy is removed as soon as its child finishes (for a "
+                   "`+` batch or a -j child, when the run ends), so nothing is left behind. It is "
+                   "opt-in because the child is editing a COPY: a formatter or a patch tool will "
+                   "report success and change nothing in the archive. -delete stays refused whatever "
+                   "this flag says - removing a temporary copy would be a no-op dressed as a "
+                   "deletion. The container itself is an ordinary file, so an action on IT never "
+                   "needed this.",
+        .affects = "--archive",
+        .extra = "archive",
+    },
+    {
         .name = "--archive-any",
         .display = "--archive-any",
         .group = "traversal",

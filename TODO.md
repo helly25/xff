@@ -679,13 +679,13 @@ remains below is the design-forked / larger work.
       `-ok` / `-okdir` report an impossible task through `control.unsupported`: a hard error naming the
       path (exit 2), or a skip under `--skip-unsupported`. A write action on the CONTAINER is untouched -
       the guard keys on the entry, not on "diving is on".
-    - **NEXT, two opt-in flags rather than refusals (user, 2026-08-12):** `-delete` COULD remove a
-      member by rewriting the container (straightforward for the libarchive formats; harder for the ones
-      we parse ourselves, phar above all, where the manifest, offsets and signature all move), and
-      `-exec` COULD materialize the member to a temp file and pass that path. Both change a read-only
-      view into a writing tool, so both need their own control flag and neither may be the default;
-      `-exec` also needs a decision on what `{}` renders as (the temp path the child can open, or the
-      member path the user typed) and on cleanup after a failed child.
+    - **Two opt-in flags rather than refusals (user, 2026-08-12).** The `-exec` half SHIPPED as
+      `--archive-extract` (see the READ-ONLY entry below): `{}` renders as the temporary copy, because
+      a path the child cannot open is what the refusal was about, and each copy is removed as soon as
+      its child finishes. The `-delete` half is still open: removing a member means REWRITING the
+      container (straightforward for the libarchive formats, which can write; harder for the ones we
+      parse ourselves, phar above all, where the manifest, offsets and signature all move). It needs
+      its own flag, never a default, and a decision on what happens to a container that becomes empty.
     - ~~**`-delete` on a member silently does nothing**~~ (exit 0, no output, no error) and **`-exec`
       hands the child a member path** (`echo a.tar!a.txt`), which no process can open. The design says
       members are read-only and both must REFUSE; the VFS already returns PermissionDenied, so the
@@ -727,8 +727,14 @@ remains below is the design-forked / larger work.
     extension / magic peek so a whole tree is not sniffed byte-wise. `--archive-any` forces
     sniff-everything (expensive, opt-in). Raw-compressed single files (`.gz` / `.xz` / `.zst` /
     `.bz2`) are one-member archives whose member is the inner name.
-  - **The archive VFS is READ-ONLY:** `-delete` / `-exec` / `-execdir` on a member is a clean error,
-    never a silent no-op (`-exec` extract-to-temp deferred). Encrypted archives get `-encrypted`
+  - **The archive VFS is READ-ONLY:** `-delete` on a member is a clean error, never a silent no-op.
+    The exec family (`-exec` / `-execdir` / `-ok` / `-okdir`) is a clean error too by default, and
+    `--archive-extract` is the way past it: the member is written to its own temporary directory
+    under its own name and the child is handed that path (`{}` and `{path}` render as the copy,
+    -execdir runs in the copy's directory, -ok shows it in the prompt). Each copy goes as soon as its
+    child finishes - for a `+` batch or a -j child, when the run ends. Opt-in because the child edits
+    a COPY: an in-place tool reports success and changes nothing in the archive. `-delete` stays
+    refused whatever the flag says, since removing the copy would be a no-op dressed as a deletion. Encrypted archives get `-encrypted`
     detection only, no `--password` decryption. Read-only member semantics, the `container!member`
     representation, uncompressed logical size and the streaming / bomb limits are specified in
     `docs/design.md` "Virtual entries".
