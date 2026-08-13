@@ -86,6 +86,7 @@ constexpr std::array kArchiveValues = std::to_array<ValueDoc>({
     {.value = "none", .meaning = "an archive is one plain file (find behavior; the find-style default)"},
     {.value = "roots", .meaning = "dive only when a search root is itself an archive (the xff-family default)"},
     {.value = "all", .meaning = "also dive archives found during the walk (what bare `--archive` selects)"},
+    {.value = "any", .meaning = "`all`, plus offer EVERY file to the reader, not only container-looking names"},
 });
 constexpr std::array kColorSchemeValues = std::to_array<ValueDoc>({
     {.value = "auto",
@@ -253,7 +254,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     {
         .name = "--archive",
         .alias = "-z",
-        .display = "--archive[=none|roots|all], -z[+|++|-]",
+        .display = "--archive[=none|roots|all|any], -z[+|++|-], -Z[+|++]",
         .group = "traversal",
         .header = "Traversal",
         .summary = "descend into archives: -z- none, -z roots only, -z+ / bare --archive all",
@@ -262,14 +263,20 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "the same -name / -type / -size / -newer every other entry gets - and the predicates and "
                    "fields that READ an entry (-grep, -content, -hash, {hash}, {lines}) read the member out of "
                    "its container. "
-                   "The three modes are nested: none keeps find's behavior (an archive is one "
-                   "plain file); roots dives only when a search root is itself an archive (pointing xff AT an "
-                   "archive implies looking inside); all also dives archives discovered during the walk. Bare "
-                   "--archive means all, and the short form carries chmod-style suffix signs (-z- none, -z roots, "
-                   "-z+ all). The find style defaults to none, every xff-family style to roots. Members are "
-                   "read-only, so -delete and the exec family refuse them rather than silently skipping. "
+                   "The modes are nested: `none` keeps find's behavior (an archive is one plain file); "
+                   "`roots` dives only when a search root is itself an archive (pointing xff AT an archive "
+                   "implies looking inside); `all` also dives archives discovered during the walk; `any` is "
+                   "`all` without the name gate, offering every file to the reader (the older spelling is "
+                   "`--archive-any`). Bare `--archive` means `all`, and the short form carries chmod-style "
+                   "suffix signs (`-z-` none, `-z` roots, `-z+` all, `-z++` any). The UPPER-case family is the "
+                   "same ladder with writing armed (`-Z` is `-z` plus `--archive-write`, `-Z+` is `-z+` plus "
+                   "it, `-Z++` is `-z++` plus it): the case carries the capability and the signs carry the "
+                   "level, so aiming at one cannot reach the other, and `-Z-` is a usage error because arming "
+                   "writes while turning archives off contradicts itself. The find style defaults to `none`, "
+                   "every xff-family style to `roots`. Members are read-only until a write spelling arms them, "
+                   "so `-delete` and the exec family refuse them rather than silently skipping. "
                    "Under `all`, a file met mid-walk is offered to the reader only if its NAME looks like "
-                   "a container (see --archive-any); one named on the command line always is. A "
+                   "a container (`any` drops that gate); one named on the command line always is. A "
                    "build-time extra: the stock binary is lean and omits it (rebuild with --//xff:xff_archive); "
                    "asking for archive handling without it is a hard error.",
         .values = kArchiveValues,
@@ -375,20 +382,19 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--archive-write",
-        .display = "--archive-write, -z++",
+        .display = "--archive-write, -Z[+|++]",
         .group = "traversal",
         .header = "Traversal",
         .summary = "arm both archive write flags (--archive-extract + --archive-delete)",
         .details = "One spelling for \"let actions touch members\", because the two write flags are almost "
-                   "always wanted together: --archive-extract so -exec / -ok can run over a member, and "
-                   "--archive-delete so -delete can remove one. It is exactly those two flags and nothing "
-                   "else - the dive MODE is untouched, so pair it with --archive=all / -z+ when you also "
-                   "want containers met mid-walk. The short `-z++` continues the -z sign ladder (-z- none, "
-                   "-z roots, -z+ all) with \"all, and writable\", and it is the only short form: `-z*` was "
-                   "considered and rejected, because a bare `-z*` errors in zsh (unmatched glob) and in "
-                   "default bash silently expands if any file happens to match. Nothing here bypasses a "
-                   "refusal: a container xff cannot rewrite "
-                   "and a member no child can be handed still say so, and --dry-run still previews.",
+                   "always wanted together: `--archive-extract` so `-exec` / `-ok` can run over a member, and "
+                   "`--archive-delete` so `-delete` can remove one. It is exactly those two flags and nothing "
+                   "else - the dive MODE is untouched. The short form is the UPPER-case archive ladder: `-Z` is "
+                   "`-z` with writing armed, `-Z+` is `-z+` with it, `-Z++` is `-z++` with it. Case carries the "
+                   "capability and the signs carry the level, so a slipped shift key changes which of the two "
+                   "you asked for, never both - and arming is not doing, since an action still has to ask for "
+                   "the write and `--safe` / `--dry-run` still apply. `-Z-` is a usage error: arming writes "
+                   "while turning archives off contradicts itself.",
         .affects = "--archive-delete,--archive-extract",
         .topic = "archive",
         .extra = "archive",
@@ -1163,10 +1169,14 @@ absl::Status ValidateGlobalValue(std::string_view arg) {
 bool IsKnownGlobal(std::string_view arg) {
   // Compat aliases that are not table rows: -0 (= --format=nul), the -g+/-g- short
   // gitignore forms (= --gitignore=on/off), the short case forms -i (insensitive),
-  // -s/-s+ (smart), -s- (sensitive) (= --case=...), and the -z+/-z- short archive forms
-  // (= --archive=all/none; bare -z is a table row via the alias).
+  // -s/-s+ (smart), -s- (sensitive) (= --case=...), and the short archive ladder. The archive
+  // shorts come in two families whose rungs match: lower case reads (-z- none, -z roots, -z+ all,
+  // -z++ any; bare -z is a table row via the alias) and upper case is the same rung with writing
+  // armed (-Z, -Z+, -Z++). `-Z-` is deliberately absent - it is accepted here so the engine can
+  // explain the contradiction rather than have it reported as an unknown option.
   if (arg == "-0" || arg == "-g+" || arg == "-g-" || arg == "-i" || arg == "-s" || arg == "-s+" || arg == "-s-"
-      || arg == "-z+" || arg == "-z++" || arg == "-z-") {
+      || arg == "-z+" || arg == "-z++" || arg == "-z-" || arg == "-Z" || arg == "-Z+" || arg == "-Z++"
+      || arg == "-Z-") {
     return true;
   }
   // The short jobs form carries its value attached: -j4, -jall (the "=" form --jobs=N
