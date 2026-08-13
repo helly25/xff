@@ -679,13 +679,13 @@ remains below is the design-forked / larger work.
       `-ok` / `-okdir` report an impossible task through `control.unsupported`: a hard error naming the
       path (exit 2), or a skip under `--skip-unsupported`. A write action on the CONTAINER is untouched -
       the guard keys on the entry, not on "diving is on".
-    - **NEXT, two opt-in flags rather than refusals (user, 2026-08-12):** `-delete` COULD remove a
-      member by rewriting the container (straightforward for the libarchive formats; harder for the ones
-      we parse ourselves, phar above all, where the manifest, offsets and signature all move), and
-      `-exec` COULD materialize the member to a temp file and pass that path. Both change a read-only
-      view into a writing tool, so both need their own control flag and neither may be the default;
-      `-exec` also needs a decision on what `{}` renders as (the temp path the child can open, or the
-      member path the user typed) and on cleanup after a failed child.
+    - **Two opt-in flags rather than refusals (user, 2026-08-12).** The `-exec` half SHIPPED as
+      `--archive-extract` (see the READ-ONLY entry below): `{}` renders as the temporary copy, because
+      a path the child cannot open is what the refusal was about, and each copy is removed as soon as
+      its child finishes. The `-delete` half is still open: removing a member means REWRITING the
+      container (straightforward for the libarchive formats, which can write; harder for the ones we
+      parse ourselves, phar above all, where the manifest, offsets and signature all move). It needs
+      its own flag, never a default, and a decision on what happens to a container that becomes empty.
     - ~~**`-delete` on a member silently does nothing**~~ (exit 0, no output, no error) and **`-exec`
       hands the child a member path** (`echo a.tar!a.txt`), which no process can open. The design says
       members are read-only and both must REFUSE; the VFS already returns PermissionDenied, so the
