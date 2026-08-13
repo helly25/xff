@@ -16,8 +16,10 @@
 #ifndef XFF_CLI_GLOBALS_H_
 #define XFF_CLI_GLOBALS_H_
 
+#include <cstdint>
 #include <string_view>
 
+#include "absl/status/status.h"
 #include "absl/types/span.h"
 
 namespace xff::cli {
@@ -30,6 +32,11 @@ namespace xff::cli {
 struct ValueDoc {
   std::string_view value;    // the literal token, e.g. "ext"
   std::string_view meaning;  // one-line explanation, lower-case, no trailing period
+  // Accepted but not LISTED: an alias whose canonical spelling is already shown (`md` for
+  // `markdown`), or a name reserved for a better error elsewhere (`--regextype=MATCH`). The value
+  // check accepts these; the help omits them, so one table stays the single source of truth for
+  // both without the listing growing every synonym.
+  bool hidden = false;
 };
 
 // One whole-run option ("global"), the flag counterpart of registry::Descriptor.
@@ -70,6 +77,17 @@ struct GlobalFlag {
   // the help system routes it into a separate "Extras (not built in)" group noting what to rebuild
   // with. The key alone is the SOT; the `--//xff:<extra>` hint is derived from it.
   std::string_view extra;
+  // How a `name=VALUE` form is CHECKED, so a typo is a usage error rather than a silent default
+  // (`--case=insensitve` used to match case-sensitively and look like it worked). Only kNone
+  // accepts anything: it is the default because most valued flags take free text (a path, a
+  // format, a regex, a comma list they validate themselves).
+  //
+  // kEnum checks against this flag's own `values` table, which is therefore the SOT for both the
+  // help and the check - they cannot disagree. kBool / kTristate check against the shared
+  // vocabulary (values::ParseBool / ParseTristate), which accepts more spellings than the table
+  // documents (`yes` / `1` beside `on`), so those must NOT be checked as an enum.
+  enum class ValueCheck : std::uint8_t { kNone, kEnum, kBool, kTristate };
+  ValueCheck value_check = ValueCheck::kNone;
   bool xff = true;  // false for a find-native option (-H/-L/-P); true for an xff extension
 };
 
@@ -99,6 +117,15 @@ const GlobalFlag* LookupGlobal(std::string_view name);
 // aliases not in the table (`-0`, `-g+`, `-g-`). The meta flags `--help` / `--version`
 // / `--man` / `--markdown` are consumed before parsing and are not checked here.
 bool IsKnownGlobal(std::string_view arg);
+
+// Checks the VALUE of one `name=VALUE` global against the flag's declared vocabulary, so a
+// mistyped value fails the run instead of silently selecting the default. Returns OK for a flag
+// that takes free text (ValueCheck::kNone), for a token with no '=' (a bare or sign-suffixed
+// form), and for an unknown flag (IsKnownGlobal reports that, with its own message).
+//
+// The error message lists the accepted values, generated from the flag's `values` table (or the
+// shared vocabulary for a bool / tri-state), so it cannot drift from what the help prints.
+absl::Status ValidateGlobalValue(std::string_view arg);
 
 }  // namespace xff::cli
 
