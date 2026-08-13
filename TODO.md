@@ -62,7 +62,9 @@ shipped one way but not yet settled.
     search instead of today's greedy scan. The extended syntax is worth having only once matches are
     ranked, since `^`/`$`/`!` without ranking are just a clumsier `-name` / `!`.
 
-- **A shortcut for "all archive features" (raised 2026-08-13).** The read side is a fair convenience:
+- **A shortcut for "all archive features" (raised 2026-08-13; the WRITE half SHIPPED as
+  `--archive-write` / `-z++` / `-z*`, `--archive-any` is still its own flag).** The read side is a fair
+  convenience:
   `--archive=all --archive-any` is a mouthful for "look everywhere, inside everything". The spelling
   question is the `-A` / `-z` one above. Two constraints whatever the letter: the WRITE flags are
   armed only by a spelling that says write (see above), and `--archive-depth` stays OUT of any

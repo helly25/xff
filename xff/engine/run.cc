@@ -1256,7 +1256,9 @@ ArchiveMode ResolveArchiveMode(const std::vector<std::string>& globals, std::opt
   // find keeps archives opaque; the xff family looks inside one it was pointed at.
   ArchiveMode mode = style == registry::Style::kFind ? ArchiveMode::kNone : ArchiveMode::kRoots;
   for (const std::string& global : globals) {
-    if (global == "--archive" || global == "--archive=all" || global == "-z+") {
+    if (global == "--archive" || global == "--archive=all" || global == "-z+" || global == "-z++" || global == "-z*") {
+      // `-z++` / `-z*` are "all, plus the write flags": the mode half is `all`, and the write half is
+      // read by ArchiveWriteArmed below - one spelling, two independent effects.
       mode = ArchiveMode::kAll;
     } else if (global == "--archive=roots" || global == "-z") {
       mode = ArchiveMode::kRoots;
@@ -1267,13 +1269,39 @@ ArchiveMode ResolveArchiveMode(const std::vector<std::string>& globals, std::opt
   return mode;
 }
 
+// Whether the run armed the archive WRITE surface: the two flags that let an action touch a member
+// (`--archive-extract`, `--archive-delete`), or the umbrella that arms both.
+//
+// The umbrella is a spelling of the two flags rather than a third mechanism, so `-z++ file.tar` and
+// `--archive=all --archive-extract --archive-delete` are the same run. It is a separate question from
+// the dive MODE, which is why the check is its own function: `--archive-write` arms writing without
+// touching how far the walk dives, and `-z++` does both because that is what the short means.
+struct ArchiveWrite {
+  bool extract = false;
+  bool remove = false;
+};
+
+ArchiveWrite ResolveArchiveWrite(const std::vector<std::string>& globals) {
+  ArchiveWrite write;
+  for (const std::string& global : globals) {
+    if (global == "--archive-write" || global == "-z++" || global == "-z*") {
+      write = ArchiveWrite{.extract = true, .remove = true};
+    } else if (global == "--archive-extract") {
+      write.extract = true;
+    } else if (global == "--archive-delete") {
+      write.remove = true;
+    }
+  }
+  return write;
+}
+
 // True when the run EXPLICITLY asked for archive handling (any spelling), as opposed to
 // inheriting a style default. The not-yet-implemented guard fires only on an explicit
 // request, so the xff family's `roots` default cannot break an ordinary walk.
 bool HasArchiveFlag(const std::vector<std::string>& globals) {
   return absl::c_any_of(globals, [](std::string_view global) {
     return global == "--archive" || global.starts_with("--archive=") || global == "-z" || global == "-z+"
-           || global == "-z-";
+           || global == "-z++" || global == "-z*" || global == "-z-";
   });
 }
 
@@ -2516,12 +2544,13 @@ int RunFind(
   // --archive-extract: an exec-family action on an archive member writes the member to a temporary
   // file and hands the child that. Lives for the whole run because a `-exec ... +` batch and a -j
   // child both outlive the entry, and removes everything it made when the run ends.
-  const bool archive_extract = HasGlobal(command.globals, "--archive-extract");
+  const ArchiveWrite archive_write = ResolveArchiveWrite(command.globals);
+  const bool archive_extract = archive_write.extract;
   ExtractedMembers extracted_members;
   // --archive-delete: `-delete` on a member records it here instead of refusing; the containers are
   // rewritten after the walk (see the flush below), because a member cannot be removed from a
   // container the walk is reading at that moment.
-  const bool archive_delete = HasGlobal(command.globals, "--archive-delete");
+  const bool archive_delete = archive_write.remove;
   std::vector<std::string> archive_deletions;
   const bool any_reduction = !summaries.empty() || !histograms.empty() || shards.enabled;
   // --archive-aggregate: what a reduction counts when the walk dives. Only `members` needs the walk to
