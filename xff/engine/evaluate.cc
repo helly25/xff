@@ -2279,7 +2279,9 @@ std::vector<std::string> LsCells(
     std::string_view color) {
   const vfs::Metadata& md = visit.metadata;
   const std::uint64_t blocks_1k = (md.blocks + 1) / 2;  // 512-byte blocks -> 1 KiB blocks (rounded up)
-  std::string size = size_units.has_value() ? format::Size(md.size, *size_units) : std::to_string(md.size);
+  // SizeAligned, not Size: the cell is right-aligned as a whole, so the unit needs its own
+  // right-alignment for a bare-byte row to line its `B` up under the `B` of `kB`.
+  std::string size = size_units.has_value() ? format::SizeAligned(md.size, *size_units) : std::to_string(md.size);
   // The NAME carries the colour and the metadata never does, as in `ls -l`; empty means plain.
   std::string name = color.empty() ? std::string(visit.path) : absl::StrCat("\033[", color, "m", visit.path, "\033[0m");
   return {

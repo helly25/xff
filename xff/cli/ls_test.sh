@@ -105,4 +105,26 @@ test::ls_colours_the_name_column_like_the_plain_listing() {
   rm -rf "${root}"
 }
 
+test::ls_size_units_line_up_across_rows() {
+  # A bare byte count has no prefix letter, so without padding its `B` sits one column left of the
+  # `B` in `kB` while the numbers line up - or the reverse if the whole cell is right-aligned. The
+  # size column pads the unit, so both the numbers and the unit letters align.
+  local root out bytes_column kilo_column
+  root="$(mktemp -d)"
+  printf '%*s' 991 x >"${root}/small"
+  printf '%*s' 1200 y >"${root}/large"
+  out="$("$(_xff_bin)" --human=si "${root}" -type f -ls 2>&1)"
+  expect_output_contains '991  B' "${out}" # the bare byte count pads where the prefix letter would be
+  expect_output_contains '1.2 kB' "${out}"
+  # And the `B` itself lands in the same column on both rows: one past the space in " B ", one past
+  # the `k` in "kB " (awk selects the row and reports the offset in one pass).
+  bytes_column="$(awk '/ B /{print index($0, " B ") + 1}' <<<"${out}")"
+  kilo_column="$(awk '/kB /{print index($0, "kB ") + 1}' <<<"${out}")"
+  expect_eq "${bytes_column}" "${kilo_column}"
+  # IEC prefixes are a letter longer, so the byte row pads by two there.
+  out="$("$(_xff_bin)" --human=iec "${root}" -type f -ls 2>&1)"
+  expect_matches '991   B' "${out}"
+  rm -rf "${root}"
+}
+
 test_runner

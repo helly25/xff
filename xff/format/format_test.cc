@@ -15,7 +15,9 @@
 
 #include "xff/format/format.h"
 
+#include <array>
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 
 #include "gmock/gmock.h"
@@ -26,6 +28,7 @@ namespace xff::format {
 namespace {
 
 using ::mbo::testing::EqualsText;
+using ::testing::EndsWith;
 using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
@@ -65,6 +68,29 @@ TEST_F(FormatTest, SizeSiUsesDecimalUnits) {
   EXPECT_THAT(Size(1'000, SizeUnits::kSi), "1.0 kB");
   EXPECT_THAT(Size(5'872'025, SizeUnits::kSi), "5.9 MB");
   EXPECT_THAT(Size(2'000'000'000, SizeUnits::kSi), "2.0 GB");
+}
+
+TEST_F(FormatTest, SizeAlignedPadsTheBareByteUnitIntoThePrefixColumn) {
+  // The point of the extra space: in a right-aligned column, `B` has to land under the `B` of
+  // `kB`, which it cannot do while the prefix letter is simply absent.
+  EXPECT_THAT(SizeAligned(991, SizeUnits::kSi), Eq("991  B"));
+  EXPECT_THAT(SizeAligned(1'200, SizeUnits::kSi), Eq("1.2 kB"));
+  EXPECT_THAT(SizeAligned(2'500'000, SizeUnits::kSi), Eq("2.5 MB"));
+  // IEC prefixes are a letter wider, so the byte row pads by two.
+  EXPECT_THAT(SizeAligned(991, SizeUnits::kIec), Eq("991   B"));
+  EXPECT_THAT(SizeAligned(2'048, SizeUnits::kIec), Eq("2.0 KiB"));
+}
+
+TEST_F(FormatTest, SizeAlignedKeepsTheUnitsRightAlignedAcrossRows) {
+  // The property that matters is a column one: every rendering ends its unit in the same place,
+  // so right-aligning the whole cell aligns the numbers AND the unit.
+  static constexpr auto kSizes = std::to_array<std::uint64_t>({0, 1, 999, 1'000, 1'048'576, 9'999'999'999});
+  for (const std::uint64_t bytes : kSizes) {
+    const std::string rendered = SizeAligned(bytes, SizeUnits::kSi);
+    EXPECT_THAT(rendered, EndsWith("B")) << bytes;
+    // number + space + a 2-wide unit field: the unit starts a fixed distance from the end.
+    EXPECT_THAT(rendered.substr(rendered.size() - 3, 1), Eq(" ")) << rendered;
+  }
 }
 
 TEST_F(FormatTest, SizeColumnsSplitsNumberAndSuffixWithFixedFraction) {
