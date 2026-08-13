@@ -19,7 +19,6 @@
 #include <unistd.h>
 
 #include <cstdint>
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <ios>
@@ -35,6 +34,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "mbo/status/status_macros.h"
+#include "xff/env/env.h"
 #include "xff/vfs/filesystem.h"
 
 namespace xff::engine {
@@ -78,11 +78,11 @@ std::string_view MemberName(std::string_view member) {
 std::vector<std::string> DefaultExtractDirectories() {
   std::vector<std::string> candidates;
   // XDG_RUNTIME_DIR first: it is a tmpfs owned by this user (mode 0700), so it is both memory-backed
-  // and private, where /dev/shm is world-writable and shared.
-  // Bazel's / the user's environment, read once per run; getenv is safe here.
-  // NOLINTNEXTLINE(concurrency-mt-unsafe)
-  if (const char* const runtime_dir = std::getenv("XDG_RUNTIME_DIR"); runtime_dir != nullptr) {
-    candidates.emplace_back(runtime_dir);
+  // and private, where /dev/shm is world-writable and shared. Read through the env cache (xff/env),
+  // which is the codebase's single getenv site.
+  if (const std::optional<std::string> runtime_dir = env::Get("XDG_RUNTIME_DIR");
+      runtime_dir.has_value() && !runtime_dir->empty()) {
+    candidates.push_back(*runtime_dir);
   }
   candidates.emplace_back("/dev/shm");
   std::error_code error;

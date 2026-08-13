@@ -216,6 +216,17 @@ repos:
         entry: tools/check_cc_target_naming_test.py
         files: ^tools/(check_cc_target_naming(_test)?|build_rules)\.py$
         pass_filenames: false
+      - id: check-env-documented
+        name: Every environment variable xff reads is documented
+        description: |
+          Project rule (self-documenting features): `--help=environment` promises to list the
+          variables xff reads, so a new `env::Get("NAME")` needs a row in the kVars table in
+          xff/cli/help_build.cc - and a documented name nothing reads is a stale promise.
+          Both directions fail. To skip once, run `SKIP="check-env-documented" pre-commit`.
+        language: script
+        entry: tools/check_env_documented.py
+        files: (^xff/.*\.(cc|h)$|^xff_extras_api/.*\.(cc|h)$|^extra_modules/.*\.(cc|h)$)
+        pass_filenames: false
       - id: check-cc-library-tested
         name: Every cc_library has a test
         description: |
