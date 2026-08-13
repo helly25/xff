@@ -1310,6 +1310,19 @@ concrete need appears.
   disables. Paging runs via `sh -c` (args / pipelines work), with a stdout fallback on any failure.
   Rejected: a help-scoped `--help-pager` name and a `--help=paged` content topic - paging is an
   orthogonal behavior, not a content selector.
+  - **The FILE LISTING can be paged too, SHIPPED as `--pager=all` (asked 2026-08-13).** `auto` stays
+    meta-only; `all` adds the listing, and is the one value that touches ordinary output. It is
+    STREAMED rather than buffered: the pager is started once and this process's stdout is redirected
+    into it for the whole walk, so the first screen appears while the walk is still running and every
+    writer (the renderers, a child process) is paged without knowing about it. Three deliberate
+    edges: `all` is terminal-only (there is no "always page the listing" - through a pipe the pager's
+    screen handling would become the next command's input); it steps aside for an expression that
+    needs the terminal itself, read from the registry (`Descriptor::terminal` on `-exec` /
+    `-execdir` / `-ok` / `-okdir`) rather than a name list in the CLI, and for `--quiet`; and
+    quitting the pager early ends the run quietly (SIGPIPE ignored, the failing writes swallowed).
+    The spelling was the open part - `--pager=all` reads as "page all of it" and keeps one flag with
+    one axis, against a second `--pager-scope=meta|all` flag that would have split the axes at the
+    cost of a knob.
 - **Fuzzy finding + near-duplicate detection** (design open). Two distinct capabilities that share the
   "approximate match" theme; split them, do not conflate:
   1. **Fuzzy name matching - v1 SHIPPED as `-fuzzy` / `-ifuzzy`** (subsequence over the BASENAME,

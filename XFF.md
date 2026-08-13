@@ -280,14 +280,15 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--buffer[=auto|off|all|N[kMG]|NMB]` - buffer to size columns (-ls / tables): auto, off, all, N[kMG] rows, or NMB/NMiB bytes _(global, xff)_
 - `--width[=auto|none|COLS]` - wrap column for plain --help text: auto (terminal width, else unwrapped), none, or a count _(global, xff)_
   Wraps the flowing text of --help and --help=TOPIC (option and topic descriptions) to a column width. auto uses the terminal width when stdout is a terminal (honoring $COLUMNS), and leaves output unwrapped when it is not (a pipe or file); none (or 0) disables wrapping; a positive integer sets a fixed width. Aligned vocabulary tables and example blocks keep their own layout. Does not affect the file listing, --man, or --markdown.
-- `--pager[=auto|always|never]` - page the long help / man / markdown output: auto (a tty), always, or never (--no-pager) _(global, xff)_
+- `--pager[=auto|always|all|never]` - page output: auto (help / man / markdown on a tty), all (plus the listing), always, never _(global, xff)_
   One of:
 
-  - `auto` - page only when stdout is a terminal (the default)
-  - `always` - always page, even through a pipe
+  - `auto` - page the help / man / markdown output on a terminal (the default)
+  - `always` - page that meta output even through a pipe
+  - `all` - auto, plus the file listing (on a terminal)
   - `never` - never page (same as --no-pager)
 
-  Pages the long meta output (--help, --help=TOPIC, --man, --markdown) through a pager. auto pages only when stdout is a terminal; always pages even through a pipe; never (or --no-pager) disables it. The pager command is $XFF_PAGER, else $PAGER, else `less -FRX`; set either variable to empty to disable. Does not affect the file listing - pipe that to a pager yourself.
+  Pages the long meta output (--help, --help=TOPIC, --man, --markdown) through a pager. auto pages only when stdout is a terminal; always pages even through a pipe; never (or --no-pager) disables it. The pager command is $XFF_PAGER, else $PAGER, else `less -FRX`; set either variable to empty to disable. all additionally pages the FILE LISTING: the pager is started once and the whole walk streams into it, so the first screen appears while the walk is still running and quitting it ends the run quietly. Unlike always, all stays terminal-only - a listing forced through a pager in a pipeline would feed the pager's screen handling to the next command. It also steps aside for an expression that needs the terminal itself (-ok, -okdir, -exec, -execdir, which can hand the terminal to an editor) and for --quiet, which prints nothing to page; those runs are simply unpaged.
 - `--no-pager` - never page the help / man / markdown output (an alias for --pager=never) _(global, xff)_
 
 ### Exit code control

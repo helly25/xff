@@ -81,6 +81,10 @@ struct Descriptor {
   Style style = Style::kFind;  // find-native by default; set kXff to mark an xff extension
   Cost cost = Cost::kCheap;
   bool pure = true;  // side-effect-free (reorderable within a conjunction)
+  // The primary may take the TERMINAL for itself: it prompts and reads a reply (-ok / -okdir), or it
+  // hands our stdin / stdout to a child that might (an editor under -exec / -execdir). Read by the
+  // CLI to suppress the listing pager, which would otherwise sit between that primary and the user.
+  bool terminal = false;
 };
 
 }  // namespace xff::registry

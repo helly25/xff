@@ -101,9 +101,27 @@ test::man_pager_auto_stays_raw_off_a_tty() {
   expect_eq "${raw}" "${auto}"
 }
 
+test::pager_all_leaves_a_piped_listing_alone() {
+  # The listing value is terminal-only: captured stdout is a pipe, so --pager=all must not start a
+  # pager (a blocking one would deadlock this test) and the listing must arrive verbatim.
+  local root bin all plain
+  root="$(mktemp -d)"
+  printf 'x\n' >"${root}/a.txt"
+  bin="$(_xff_bin)"
+  all="$(XFF_PAGER='sleep 30' "${bin}" --pager=all "${root}" -type f 2>&1)"
+  plain="$("${bin}" --pager=never "${root}" -type f 2>&1)"
+  expect_eq "${plain}" "${all}"
+  rm -rf "${root}"
+}
+
 test::help_documents_pager() {
   # Self-documentation: the --help usage page lists --pager in the Output group.
   expect_output_contains "--pager" "$("$(_xff_bin)" --help 2>&1)"
+  # And the listing value, whose help has to say what it adds and when it steps aside.
+  local out
+  out="$("$(_xff_bin)" --help=--pager 2>&1)"
+  expect_output_contains "all" "${out}"
+  expect_output_contains "-ok" "${out}" # the primaries that suppress it
 }
 
 test_runner
