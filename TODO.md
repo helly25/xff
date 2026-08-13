@@ -6,6 +6,51 @@ shipped one way but not yet settled.
 
 ## Open decisions
 
+- **BUG: `-grep` context has only its LONG flags (raised 2026-08-13).** `--context=SPEC`,
+  `--after-context=N` and `--before-context=N` all work; the single-dash `-A` / `-B` / `-C` that #99
+  reserved were never added, and the flag help mentions grep's spellings ("grep -A", "grep -C/-A/-B")
+  in a way that reads as if xff had them. **Fix:** add them as leading-only single-dash compat
+  aliases, the way `-g` / `-q` / `-h` / `-help` / `-version` already are (the dash-count rule says a
+  single-dash flag is a per-file primary, and these are the deliberate grep/GNU-compatibility
+  exceptions). Each takes a value (`-A 2`), so they are aliases of the valued globals rather than new
+  primaries; `-C` maps to `--context=N`. Until then the help text should not imply they exist.
+
+- **Short primaries `-n` / `-p` for `-name` / `-path` (raised 2026-08-13)?** Note what fd's letters
+  actually mean before copying them: fd's `-p` is `--full-path` (a MODE flag that makes its single
+  positional pattern match the whole path), and fd has no `-n` at all - so this is not "be like fd",
+  it is "add xff shorthands". Argument for: `-name` is by far the most-typed primary. Arguments
+  against: `-p` sits one letter from `-print`, `-prune` and `-printf`, and a mistyped `-p` that
+  silently means "path" is a nasty failure mode; xff also has no other one-letter PRIMARY, so it
+  would be a new class. Leaning: skip `-p`, consider `-n` only if a shorthand family (`-n`, `-t` for
+  `-type`?) is designed as a set rather than one letter at a time.
+
+- **fd's `-g` / `--glob`: what is it, and do we need it (raised 2026-08-13)?** fd matches its single
+  positional pattern as a REGEX by default; `--glob` switches that one pattern to glob semantics.
+  xff has no positional pattern - the choice IS the primary (`-name` / `-path` glob, `-regex` /
+  `-rxc` regex, `-regextype` to pick the grammar) - so the flag has nothing to switch. Also `-g` is
+  already xff's gitignore toggle, and `--glob` would collide conceptually with `--regextype=GLOB`.
+  Leaning: nothing to add; worth one line in `--help=styles` so an fd user finds the mapping.
+
+- **fzf-style scoring for `-fuzzy` (raised 2026-08-13).** fzf ranks with a Smith-Waterman-ish
+  alignment score and takes an extended pattern syntax (`^prefix`, `suffix$`, `'exact`, `!negate`,
+  space = AND, `|` = OR). Two separate questions:
+  - **Where the pattern ends is NOT a problem.** A pattern is one argv token, exactly like
+    `-name '*.cc'`, so the shell's ordinary quoting delimits it; there is nothing to invent and no
+    "lame" extra quoting. (A multi-token form, e.g. terminated by `;` like `-exec`, would be the odd
+    one out here.)
+  - **Scoring is the real work**, and it is the same open decision #168 already records: a score
+    implies an output ORDER, so it needs `--sort=score` plus probably `--top=N`, and an alignment
+    search instead of today's greedy scan. The extended syntax is worth having only once matches are
+    ranked, since `^`/`$`/`!` without ranking are just a clumsier `-name` / `!`.
+
+- **A shortcut for "all archive features" (raised 2026-08-13)?** The read side is a fair convenience:
+  `--archive=all --archive-any --archive-depth=N` is a mouthful for "look everywhere, inside
+  everything". The write side must NOT be in it: `--archive-extract` and `--archive-delete` are opt-in
+  precisely because they run children over copies and rewrite containers, and arming those through a
+  convenience alias is how a shortcut becomes a footgun. Open: the spelling (`-z++`? `--archive=any`?
+  `--archive-all`?) and whether `--archive-depth` belongs in it at all, since the depth cap is the
+  decompression-bomb guard.
+
 - **Modern (non-`find`) default time format: resolved to `space`.**
   `space` (`2026-06-22 14:30:00 +0100`) is the default: human-first (it matches
   GNU `ls --time-style=long-iso`/`full-iso` and `git log --date=iso`), still ISO-
