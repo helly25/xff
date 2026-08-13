@@ -254,10 +254,24 @@ int RunMain(int argc, char** argv) {
   // Read the fixed set of environment variables xff consults into the env cache up front, in one
   // locked pass, so every later read is a pure cache hit. Dynamic {env.NAME} field references are
   // not here (they are user-supplied); env::Get caches those lazily on first use.
-  static constexpr std::array<std::string_view, 14> kKnownEnv = {
-      "COLUMNS", "HOME",       "LANG",         "LC_ALL",    "LC_CTYPE",        "NO_COLOR",        "PAGER",
-      "TMPDIR",  "XFF_CONFIG", "XFF_MANPAGER", "XFF_PAGER", "XDG_CONFIG_HOME", "XDG_RUNTIME_DIR",
-  };
+  // Deduced rather than sized: a hand-written count silently pads the array with an empty name when it
+  // does not match, which is exactly what happened here (14 declared, 13 written, LS_COLORS missing).
+  static constexpr auto kKnownEnv = std::to_array<std::string_view>({
+      "COLUMNS",
+      "HOME",
+      "LANG",
+      "LC_ALL",
+      "LC_CTYPE",
+      "LS_COLORS",
+      "NO_COLOR",
+      "PAGER",
+      "TMPDIR",
+      "XDG_CONFIG_HOME",
+      "XDG_RUNTIME_DIR",
+      "XFF_CONFIG",
+      "XFF_MANPAGER",
+      "XFF_PAGER",
+  });
   xff::env::Prewarm(absl::MakeConstSpan(kKnownEnv));
 
   // The plain-help wrap width (--width), resolved once so every help / topic render
