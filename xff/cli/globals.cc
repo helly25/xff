@@ -135,9 +135,10 @@ constexpr std::array kShardsDedupValues = std::to_array<ValueDoc>({
     {.value = "error", .meaning = "treat a same-index duplicate as an error (non-zero exit)"},
 });
 constexpr std::array kGitignoreValues = std::to_array<ValueDoc>({
-    {.value = "auto", .meaning = "respect .gitignore only inside a git working tree (a bare -g / --gitignore)"},
-    {.value = "on", .meaning = "respect it anywhere, git repository or not (also -g+, yes / true / 1)"},
-    {.value = "off", .meaning = "ignore .gitignore files entirely (also -g-, no / false / 0)"},
+    // Listed low to high, the same order the short ladder reads in: `-g-`, `-g`, `-g+`.
+    {.value = "off", .meaning = "ignore .gitignore files entirely (also `-g-`, no / false / 0)"},
+    {.value = "auto", .meaning = "respect .gitignore only inside a git working tree (a bare `-g` / `--gitignore`)"},
+    {.value = "on", .meaning = "respect it anywhere, git repository or not (also `-g+`, yes / true / 1)"},
 });
 constexpr std::array kColorValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "colour only when stdout is a terminal (the default; a bare --color is always)"},
@@ -605,7 +606,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     {
         .name = "--gitignore",
         .alias = "-g",
-        .display = "--gitignore[=auto|on|off], -g[-|+]",
+        .display = "--gitignore[=off|auto|on], -g[-|+]",
         .group = "filter",
         .header = "Filter & Ignore",
         .summary = "respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never",

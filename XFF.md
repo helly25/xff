@@ -134,12 +134,12 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 ### Filter & Ignore
 - `--exclude=GLOB` - skip paths matching a gitignore-style glob (repeatable; a matched directory is pruned) _(global, xff)_
 - `--include=GLOB` - re-include paths a --exclude would skip, matching a gitignore-style glob (repeatable) _(global, xff)_
-- `--gitignore[=auto|on|off], -g[-|+]` - respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never _(global, xff)_
+- `--gitignore[=off|auto|on], -g[-|+]` - respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never _(global, xff)_
   One of:
 
-  - `auto` - respect .gitignore only inside a git working tree (a bare -g / --gitignore)
-  - `on` - respect it anywhere, git repository or not (also -g+, yes / true / 1)
-  - `off` - ignore .gitignore files entirely (also -g-, no / false / 0)
+  - `off` - ignore .gitignore files entirely (also `-g-`, no / false / 0)
+  - `auto` - respect .gitignore only inside a git working tree (a bare `-g` / `--gitignore`)
+  - `on` - respect it anywhere, git repository or not (also `-g+`, yes / true / 1)
 
   Reads .gitignore rules while walking, including nested .gitignore files, .git/info/exclude, and core.excludesFile. `-g` / `auto` activates only inside a git working tree; `-g+` / `=on` forces it anywhere; `-g-` / `=off` disables it. Independent of `--ignore-files` (.ignore / .xffignore).
 - `--ignore-files` - respect per-directory .ignore and .xffignore files (off by default) _(global, xff)_
