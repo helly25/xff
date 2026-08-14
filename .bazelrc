@@ -12,7 +12,15 @@ common:macos --linkopt=-framework --linkopt=CoreFoundation --host_linkopt=-frame
 common:macos --linkopt=-Wl,-undefined,dynamic_lookup --host_linkopt=-Wl,-undefined,dynamic_lookup
 # Apple Silicon: 11.0 is the earliest arm64 macOS and clears libc++'s
 # std::filesystem availability gate.
-common:macos --cxxopt=-mmacosx-version-min=11.0 --host_cxxopt=-mmacosx-version-min=11.0
+#
+# `copt`, not `cxxopt`: the deployment target has to reach C compiles too. With cxxopt alone a C
+# dependency (pcre2 is C) compiled against the host SDK - 26.0 on current runners - while the link
+# asked for 11.0, and the linker said so for every object:
+#   ld: warning: object file (libpcre2.a[30](pcre2_valid_utf.o)) was built for newer 'macOS'
+#   version (26.0) than being linked (11.0)
+# The host_* twin covers the exec configuration, which is where that pcre2 archive was built (the
+# generated reference runs xff_full as a tool).
+common:macos --copt=-mmacosx-version-min=11.0 --host_copt=-mmacosx-version-min=11.0
 common:macos --linkopt=-mmacosx-version-min=11.0 --host_linkopt=-mmacosx-version-min=11.0
 
 try-import %workspace%/.bazelrc.user
