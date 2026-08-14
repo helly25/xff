@@ -77,6 +77,15 @@ struct GlobalFlag {
   // the help system routes it into a separate "Extras (not built in)" group noting what to rebuild
   // with. The key alone is the SOT; the `--//xff:<extra>` hint is derived from it.
   std::string_view extra;
+  // The chmod-style suffix signs a SHORT form accepts, as the literal spellings ("-z", "-z+",
+  // "-z++"). IsKnownGlobal derives the accepted tokens from this, so a new sign-suffixed flag is
+  // recognised by DECLARING it rather than by also editing a literal list somewhere else - the
+  // drift that made `-Z` an "unknown option" until someone remembered.
+  //
+  // The suffix carries a LEVEL and nothing else (`-` off, none auto, `+` on, `++` on plus the
+  // extra step); what each level MEANS is the flag's own business, and the families differ: `-g`
+  // is a tri-state, `-z` is a nested ladder, `-Z` is that ladder with a capability added.
+  absl::Span<const std::string_view> sign_forms;
   // How a `name=VALUE` form is CHECKED, so a typo is a usage error rather than a silent default
   // (`--case=insensitve` used to match case-sensitively and look like it worked). Only kNone
   // accepts anything: it is the default because most valued flags take free text (a path, a

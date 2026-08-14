@@ -30,6 +30,7 @@ namespace {
 
 using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
+using ::testing::Contains;
 using ::testing::ElementsAreArray;
 using ::testing::Eq;
 using ::testing::HasSubstr;
@@ -183,6 +184,39 @@ TEST_F(GlobalsTest, AFreeTextFlagIsNeverRejected) {
   EXPECT_THAT(ValidateGlobalValue("--sort"), IsOk());     // no '=': nothing to check
   EXPECT_THAT(ValidateGlobalValue("-z++"), IsOk());       // a sign-suffixed short, likewise
   EXPECT_THAT(ValidateGlobalValue("--bogus=x"), IsOk());  // unknown flag: IsKnownGlobal's job
+}
+
+TEST_F(GlobalsTest, EveryDeclaredSignFormIsAccepted) {
+  // The point of declaring them: IsKnownGlobal derives its answer from the flags, so a form that a
+  // flag advertises can never be reported as an unknown option (which is what `-Z` was until the
+  // literal list caught up).
+  for (const GlobalFlag& flag : Globals()) {
+    for (const std::string_view form : flag.sign_forms) {
+      EXPECT_TRUE(IsKnownGlobal(form)) << flag.name << " declares " << form;
+    }
+  }
+}
+
+TEST_F(GlobalsTest, ASignFormNamesItsOwnFlagAndBelongsToOnlyOne) {
+  // Two cross-checks against drift: the ladder's base has to appear in the flag's own synopsis (so
+  // the help shows what the parser takes), and no two flags may claim the same spelling.
+  std::vector<std::string_view> seen;
+  for (const GlobalFlag& flag : Globals()) {
+    for (const std::string_view form : flag.sign_forms) {
+      const std::string_view base = form.substr(0, 2);  // "-z" of "-z++"
+      EXPECT_THAT(flag.display, HasSubstr(base)) << flag.name << " hides " << form;
+      EXPECT_THAT(seen, Not(Contains(form))) << form << " is claimed twice";
+      seen.push_back(form);
+    }
+  }
+}
+
+TEST_F(GlobalsTest, AnUndeclaredSignFormStaysUnknown) {
+  // The ladders stop where they are declared; a longer run of signs is a typo, not a rung.
+  EXPECT_FALSE(IsKnownGlobal("-z+++"));
+  EXPECT_FALSE(IsKnownGlobal("-Z+++"));
+  EXPECT_FALSE(IsKnownGlobal("-g++"));
+  EXPECT_FALSE(IsKnownGlobal("-s++"));
 }
 
 }  // namespace

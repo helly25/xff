@@ -51,7 +51,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-H` - follow symlinks named on the command line, not while walking _(global, find)_
 - `-L` - follow symlinks everywhere during the walk _(global, find)_
 - `-P` - never follow symlinks (the default) _(global, find)_
-- `--archive[=none|roots|all|any], -z[+|++|-], -Z[+|++]` - descend into archives: -z- none, -z roots only, -z+ / bare --archive all _(global, xff)_
+- `--archive[=none|roots|all|any], -z[-|+|++], -Z[-|+|++]` - descend into archives: -z- none, -z roots only, -z+ / bare --archive all _(global, xff)_
   One of:
 
   - `none` - an archive is one plain file (find behavior; the find-style default)
@@ -81,7 +81,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   A member is bytes inside a container, so there is no path a child process can open and the exec family refuses one by default. With this flag the member is written to its own temporary directory under the same name it has inside the archive, and the child is handed THAT path: `{}` renders as the temporary file, -execdir runs in the temporary directory, and -ok shows the copy in its prompt before anything runs. Each copy is removed as soon as its child finishes (for a `+` batch or a -j child, when the run ends), so nothing is left behind. It is The copy goes to a MEMORY-BACKED directory where the platform has one ($XDG_RUNTIME_DIR or /dev/shm on Linux, both tmpfs), so a member never reaches a disk and the child still gets an ordinary path; a member too large for the space that directory reports free lands in the temporary directory instead, since a tmpfs is RAM shared with the whole machine. It is opt-in because the child is editing a COPY: a formatter or a patch tool will report success and change nothing in the archive. -delete stays refused whatever this flag says - removing a temporary copy would be a no-op dressed as a deletion. The container itself is an ordinary file, so an action on IT never needed this.
   Affects: --archive
   Affected by: --archive-write
-- `--archive-write, -Z[+|++]` - arm both archive write flags (--archive-extract + --archive-delete) _(global, xff)_
+- `--archive-write, -Z[-|+|++]` - arm both archive write flags (--archive-extract + --archive-delete) _(global, xff)_
   One spelling for "let actions touch members", because the two write flags are almost always wanted together: `--archive-extract` so `-exec` / `-ok` can run over a member, and `--archive-delete` so `-delete` can remove one. It is exactly those two flags and nothing else - the dive MODE is untouched. The short form is the UPPER-case archive ladder: `-Z` is `-z` with writing armed, `-Z+` is `-z+` with it, `-Z++` is `-z++` with it. Case carries the capability and the signs carry the level, so a slipped shift key changes which of the two you asked for, never both - and arming is not doing, since an action still has to ask for the write and `--safe` / `--dry-run` still apply. `-Z-` is a usage error: arming writes while turning archives off contradicts itself.
   Affects: --archive-delete, --archive-extract
 - `--archive-any` - under --archive=all, offer EVERY file to the reader, not only likely names _(global, xff)_
@@ -111,7 +111,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 ### Matching
 - `--block-size=SIZE` - bytes per -size block for a bare -size N / -size Nb (default 512) _(global, xff)_
 - `--exact` - match -name/-path byte-exact, opting out of the xff FS-native case default _(global, xff)_
-- `--case=<MODE>, -i, -s[+|-]` - letter case for matchers: -i insensitive, -s/-s+ smart, -s- sensitive (rg -> smart) _(global, xff)_
+- `--case=<MODE>, -i, -s[-|+]` - letter case for matchers: -i insensitive, -s/-s+ smart, -s- sensitive (rg -> smart) _(global, xff)_
   MODE is one of:
 
   - `sensitive` - match exactly (-s-)
@@ -134,12 +134,12 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 ### Filter & Ignore
 - `--exclude=GLOB` - skip paths matching a gitignore-style glob (repeatable; a matched directory is pruned) _(global, xff)_
 - `--include=GLOB` - re-include paths a --exclude would skip, matching a gitignore-style glob (repeatable) _(global, xff)_
-- `--gitignore[=auto|on|off], -g[+|-]` - respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never _(global, xff)_
+- `--gitignore[=off|auto|on], -g[-|+]` - respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never _(global, xff)_
   One of:
 
-  - `auto` - respect .gitignore only inside a git working tree (a bare -g / --gitignore)
-  - `on` - respect it anywhere, git repository or not (also -g+, yes / true / 1)
-  - `off` - ignore .gitignore files entirely (also -g-, no / false / 0)
+  - `off` - ignore .gitignore files entirely (also `-g-`, no / false / 0)
+  - `auto` - respect .gitignore only inside a git working tree (a bare `-g` / `--gitignore`)
+  - `on` - respect it anywhere, git repository or not (also `-g+`, yes / true / 1)
 
   Reads .gitignore rules while walking, including nested .gitignore files, .git/info/exclude, and core.excludesFile. `-g` / `auto` activates only inside a git working tree; `-g+` / `=on` forces it anywhere; `-g-` / `=off` disables it. Independent of `--ignore-files` (.ignore / .xffignore).
 - `--ignore-files` - respect per-directory .ignore and .xffignore files (off by default) _(global, xff)_

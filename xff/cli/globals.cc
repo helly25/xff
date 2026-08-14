@@ -82,6 +82,13 @@ constexpr std::array kSummaryValues = std::to_array<ValueDoc>({
     {.value = "hash", .meaning = "by file digest (dedup: identical files share a bucket; reads every file)"},
     {.value = "{template}", .meaning = "by any field value, e.g. `--summary='{ext}-{type}'`"},
 });
+// The short sign ladders, each spelled out so IsKnownGlobal needs no literal list of its own. The
+// level is the only shared part; see GlobalFlag::sign_forms.
+constexpr std::array kArchiveShorts = std::to_array<std::string_view>({"-z", "-z+", "-z++", "-z-"});
+constexpr std::array kArchiveWriteShorts = std::to_array<std::string_view>({"-Z", "-Z+", "-Z++", "-Z-"});
+constexpr std::array kGitignoreShorts = std::to_array<std::string_view>({"-g", "-g+", "-g-"});
+constexpr std::array kCaseShorts = std::to_array<std::string_view>({"-s", "-s+", "-s-"});
+
 constexpr std::array kArchiveValues = std::to_array<ValueDoc>({
     {.value = "none", .meaning = "an archive is one plain file (find behavior; the find-style default)"},
     {.value = "roots", .meaning = "dive only when a search root is itself an archive (the xff-family default)"},
@@ -128,9 +135,10 @@ constexpr std::array kShardsDedupValues = std::to_array<ValueDoc>({
     {.value = "error", .meaning = "treat a same-index duplicate as an error (non-zero exit)"},
 });
 constexpr std::array kGitignoreValues = std::to_array<ValueDoc>({
-    {.value = "auto", .meaning = "respect .gitignore only inside a git working tree (a bare -g / --gitignore)"},
-    {.value = "on", .meaning = "respect it anywhere, git repository or not (also -g+, yes / true / 1)"},
-    {.value = "off", .meaning = "ignore .gitignore files entirely (also -g-, no / false / 0)"},
+    // Listed low to high, the same order the short ladder reads in: `-g-`, `-g`, `-g+`.
+    {.value = "off", .meaning = "ignore .gitignore files entirely (also `-g-`, no / false / 0)"},
+    {.value = "auto", .meaning = "respect .gitignore only inside a git working tree (a bare `-g` / `--gitignore`)"},
+    {.value = "on", .meaning = "respect it anywhere, git repository or not (also `-g+`, yes / true / 1)"},
 });
 constexpr std::array kColorValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "colour only when stdout is a terminal (the default; a bare --color is always)"},
@@ -306,7 +314,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     {
         .name = "--archive",
         .alias = "-z",
-        .display = "--archive[=none|roots|all|any], -z[+|++|-], -Z[+|++]",
+        .display = "--archive[=none|roots|all|any], -z[-|+|++], -Z[-|+|++]",
         .group = "traversal",
         .header = "Traversal",
         .summary = "descend into archives: -z- none, -z roots only, -z+ / bare --archive all",
@@ -334,6 +342,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .values = kArchiveValues,
         .topic = "archive",
         .extra = "archive",
+        .sign_forms = kArchiveShorts,
         .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
@@ -434,7 +443,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--archive-write",
-        .display = "--archive-write, -Z[+|++]",
+        .display = "--archive-write, -Z[-|+|++]",
         .group = "traversal",
         .header = "Traversal",
         .summary = "arm both archive write flags (--archive-extract + --archive-delete)",
@@ -450,6 +459,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .affects = "--archive-delete,--archive-extract",
         .topic = "archive",
         .extra = "archive",
+        .sign_forms = kArchiveWriteShorts,
     },
     {
         .name = "--archive-any",
@@ -548,7 +558,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--case",
-        .display = "--case=<MODE>, -i, -s[+|-]",
+        .display = "--case=<MODE>, -i, -s[-|+]",
         .group = "matching",
         .header = "Matching",
         .summary = "letter case for matchers: -i insensitive, -s/-s+ smart, -s- sensitive (rg -> smart)",
@@ -556,6 +566,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "`insensitive` (`-i`) folds case; `smart` (`-s` / `-s+`) folds only when the pattern is all "
                    "lower case and matches exactly otherwise; `-s-` forces `sensitive`. rg defaults to `smart`.",
         .values = kCaseValues,
+        .sign_forms = kCaseShorts,
         .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
@@ -595,7 +606,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     {
         .name = "--gitignore",
         .alias = "-g",
-        .display = "--gitignore[=auto|on|off], -g[+|-]",
+        .display = "--gitignore[=off|auto|on], -g[-|+]",
         .group = "filter",
         .header = "Filter & Ignore",
         .summary = "respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never",
@@ -604,6 +615,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "it anywhere; `-g-` / `=off` disables it. Independent of `--ignore-files` (.ignore / "
                    ".xffignore).",
         .values = kGitignoreValues,
+        .sign_forms = kGitignoreShorts,
         .value_check = GlobalFlag::ValueCheck::kTristate,
     },
     {
@@ -1242,16 +1254,16 @@ absl::Status ValidateGlobalValue(std::string_view arg) {
 }
 
 bool IsKnownGlobal(std::string_view arg) {
-  // Compat aliases that are not table rows: -0 (= --format=nul), the -g+/-g- short
-  // gitignore forms (= --gitignore=on/off), the short case forms -i (insensitive),
-  // -s/-s+ (smart), -s- (sensitive) (= --case=...), and the short archive ladder. The archive
-  // shorts come in two families whose rungs match: lower case reads (-z- none, -z roots, -z+ all,
-  // -z++ any; bare -z is a table row via the alias) and upper case is the same rung with writing
-  // armed (-Z, -Z+, -Z++). `-Z-` is deliberately absent - it is accepted here so the engine can
-  // explain the contradiction rather than have it reported as an unknown option.
-  if (arg == "-0" || arg == "-g+" || arg == "-g-" || arg == "-i" || arg == "-s" || arg == "-s+" || arg == "-s-"
-      || arg == "-z+" || arg == "-z++" || arg == "-z-" || arg == "-Z" || arg == "-Z+" || arg == "-Z++"
-      || arg == "-Z-") {
+  // The sign ladders come from the flags themselves (GlobalFlag::sign_forms), so a new one is
+  // recognised by declaring it rather than by also editing a list here.
+  for (const GlobalFlag& flag : Globals()) {
+    if (absl::c_contains(flag.sign_forms, arg)) {
+      return true;
+    }
+  }
+  // What is left are the compat aliases that carry no sign: -0 (= --format=nul) and -i
+  // (= --case=insensitive).
+  if (arg == "-0" || arg == "-i") {
     return true;
   }
   // The short jobs form carries its value attached: -j4, -jall (the "=" form --jobs=N
