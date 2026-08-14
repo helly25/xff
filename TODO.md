@@ -95,6 +95,14 @@ shipped one way but not yet settled.
   - Arming is not doing: a `-Z` run still needs an action that writes (`-delete`, or `-exec` over an
     extracted copy), and `--safe` / `--dry-run` still apply. That is what makes case-as-capability
     acceptable here; if arming alone could destroy something it would need a whole word.
+  - **Later wins per AXIS, and the axes stay independent (user, 2026-08-14).** `-z+ -Z++` widens the
+    rung to `any` and arms writing; `-z++ -Z` narrows back to `roots`. A lower-case form never
+    disarms, so `-Z++ -z-` means "writing armed, reading OFF" - which reads as pointless today (no
+    dive, so no member to touch) but is exactly the shape a CREATE / pack action wants: produce an
+    archive without diving into existing ones to harvest their members. `-Z-` is therefore not an
+    error (the earlier draft refused it) but the full RESET: reading off and writing disarmed,
+    overriding an earlier flag or a config file. Its disarm is only observable once reading is turned
+    back on (`-Z -Z- -z`), which is how the test pins it.
   - `-A` / `-B` / `-C` stay free for the grep family, as before. `-z*` stays rejected (a bare `-z*`
     errors in zsh and silently expands in bash), and the ladder stops at `++` in both families.
   - `--archive-depth` is deliberately NOT part of any rung: raising the decompression-bomb cap is a
@@ -1370,6 +1378,19 @@ concrete need appears.
     The spelling was the open part - `--pager=all` reads as "page all of it" and keeps one flag with
     one axis, against a second `--pager-scope=meta|all` flag that would have split the axes at the
     cost of a knob.
+- **CREATING archives (raised by the user 2026-08-14; task #193): "another killer feature if done
+  right."** xff already walks, matches and (with `-Z`) rewrites containers; packing the matched set
+  into a NEW archive is the missing direction, and it composes with the whole expression vocabulary -
+  `xff src -name '*.cc' -newer x` becomes a tar/zip of exactly that set, with no intermediate file
+  list and no shell plumbing. Open questions before building: the spelling (an ACTION like `-pack
+FILE`, which reads per-match, versus a reduction like `--summary`, which is what a single shared
+  output really is); format from the output NAME with an explicit override; member naming (relative
+  to the root, the cwd, or a stripped prefix - a wrong default bakes absolute paths into archives);
+  the read/write interaction (`-Z++ -z-` is precisely "pack without harvesting from existing
+  containers", while `-z+ -Z...` is the deliberate repack); refusing an output path that lies inside
+  the walk (it would feed itself); and reproducibility (deterministic `--sort` order plus
+  mtime/uid/gid normalisation). Start with tar (+ compression) and zip.
+
 - **Fuzzy finding + near-duplicate detection** (design open). Two distinct capabilities that share the
   "approximate match" theme; split them, do not conflate:
   1. **Fuzzy name matching - v1 SHIPPED as `-fuzzy` / `-ifuzzy`** (subsequence over the BASENAME,

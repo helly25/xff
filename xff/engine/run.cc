@@ -1268,14 +1268,15 @@ ArchiveMode ResolveArchiveMode(const std::vector<std::string>& globals, std::opt
   for (const std::string& global : globals) {
     // The short forms come in a lower-case (read) and an upper-case (read + write) family whose
     // RUNGS are identical, so both spellings of a rung are read here and only ResolveArchiveWrite
-    // cares about the case. `-Z-` does not exist: see ArchiveShortFormError.
+    // cares about the case. `-Z-` is the none rung in both families, and additionally disarms
+    // writing (see ResolveArchiveWrite).
     if (global == "--archive=any" || global == "--archive-any" || global == "-z++" || global == "-Z++") {
       mode = ArchiveMode::kAny;
     } else if (global == "--archive" || global == "--archive=all" || global == "-z+" || global == "-Z+") {
       mode = ArchiveMode::kAll;
     } else if (global == "--archive=roots" || global == "-z" || global == "-Z") {
       mode = ArchiveMode::kRoots;
-    } else if (global == "--archive=none" || global == "-z-") {
+    } else if (global == "--archive=none" || global == "-z-" || global == "-Z-") {
       mode = ArchiveMode::kNone;
     }
   }
@@ -1300,7 +1301,16 @@ ArchiveWrite ResolveArchiveWrite(const std::vector<std::string>& globals) {
     // The UPPER-case short family is the write one, at every rung: `-Z` is `-z` plus the write
     // flags, `-Z+` is `-z+` plus them, and so on. Case carries the capability, the signs carry the
     // level, so neither axis can be reached by accident while aiming at the other.
-    if (global == "--archive-write" || global == "-Z" || global == "-Z+" || global == "-Z++") {
+    //
+    // The axes stay INDEPENDENT even where one looks pointless: `-Z++ -z-` arms writing with
+    // reading off, which today can do nothing (no dive means no members to touch) but is the exact
+    // shape a create / pack action would want - producing an archive reads none. So a lower-case
+    // form never disarms; only `-Z-` does.
+    if (global == "-Z-") {
+      // The reset: `-Z-` is `-z-` said out loud about writing, so it clears what any earlier
+      // spelling armed (a config file's `-Z+`, or an earlier flag on the same line).
+      write = ArchiveWrite{};
+    } else if (global == "--archive-write" || global == "-Z" || global == "-Z+" || global == "-Z++") {
       write = ArchiveWrite{.extract = true, .remove = true};
     } else if (global == "--archive-extract") {
       write.extract = true;
@@ -1333,17 +1343,6 @@ ArchiveDive ArchiveDiveOf(ArchiveMode mode) {
     case ArchiveMode::kRoots: return ArchiveDive::kRoots;
   }
   return ArchiveDive::kNone;
-}
-
-// `-Z-` is refused rather than accepted as a synonym of `-z-`: "arm writing" and "do not look inside
-// anything" contradict each other, and it is the one upper-case spelling whose capital would do
-// nothing. Returns the message, or empty when the globals carry no such form.
-std::string ArchiveShortFormError(const std::vector<std::string>& globals) {
-  if (absl::c_contains(globals, "-Z-")) {
-    return "-Z- would arm archive writing while turning archives off; use -z- for none, or -Z for "
-           "the writable form of -z";
-  }
-  return "";
 }
 
 // --archive-separator=STRING / --archive-prefix=[URI|STRING]: how a mounted container spells its
@@ -1421,9 +1420,6 @@ absl::StatusOr<archive::MemberPathOptions> ResolveArchiveOptions(
     const std::vector<std::string>& globals,
     std::optional<registry::Style> style,
     WalkOptions* options) {
-  if (const std::string bad_short = ArchiveShortFormError(globals); !bad_short.empty()) {
-    return absl::InvalidArgumentError(bad_short);
-  }
   const ArchiveMode archive_mode = ResolveArchiveMode(globals, style);
   if (archive_mode != ArchiveMode::kNone && !archive::ContainerSupportAvailable()) {
     if (HasArchiveFlag(globals)) {
