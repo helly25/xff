@@ -115,7 +115,7 @@ constexpr std::array kArchiveAggregateValues = std::to_array<ValueDoc>({
 });
 constexpr std::array kArchivePrefixValues = std::to_array<ValueDoc>({
     {.value = "(empty)", .meaning = "no prefix - a bare path, `a.tgz!inner/x` (the default)"},
-    {.value = "URI", .meaning = "`archive:///abs/a.tar!x` when the container is absolute, else `archive:a.tgz!x`"},
+    {.value = "URI", .meaning = "the receiving ecosystem's own URL: `phar://`, `jar:file:...!/`, else `archive:`"},
     {.value = "STRING", .meaning = "any other value is used literally, e.g. `--archive-prefix=vfs:`"},
 });
 constexpr std::array kShardsValues = std::to_array<ValueDoc>({
@@ -505,18 +505,22 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "traversal",
         .header = "Traversal",
         .summary = "prefix a member path: empty (default), URI, or any literal string",
-        .details = "Empty (the default) prints the bare path, `a.tgz!inner/x`. `URI` renders a well-formed "
-                   "URI for handing to tools that read archive URLs: `archive:///abs/a.tar!x` for an absolute "
-                   "container (empty authority then the path, as `file:///...` does) and the opaque "
-                   "`archive:a.tgz!x` for a relative one - `archive://a.tgz` would be WRONG, since `//` starts "
-                   "the authority and would make `a.tgz` a host name. Any other value is used LITERALLY (e.g. "
-                   "`--archive-prefix=vfs:`), the same freedom `--archive-separator` has; `URI` is the one keyword, "
-                   "spelled in caps like `RE2` / `PCRE2` / `GLOB`. There is deliberately no `none` value: it "
-                   "would be "
-                   "indistinguishable from a literal prefix spelled `none`, which is why empty means no prefix. "
-                   "Applies to PARSING too - under a prefix, a bare path is not accepted as a member path, so the "
-                   "spellings never silently interchange. Whether the scheme should be per-format (`tar:` / "
-                   "`zip:` / PHP's `phar:`) rather than the generic `archive:` is still open (see TODO.md).",
+        .details = "Empty (the default) prints the bare path, `a.tgz!inner/x`. `URI` renders a URL the "
+                   "RECEIVING tool will accept, which means the ecosystem's own where one owns the format: a "
+                   "`.phar` as PHP's `phar:///abs/a.phar/inner/x`, a `.jar` / `.war` / `.ear` as Java's "
+                   "`jar:file:/abs/a.jar!/pkg/C.class`, and everything else as `archive:///abs/a.tar!x` for an "
+                   "absolute container or the opaque `archive:a.tgz!x` for a relative one - `archive://a.tgz` "
+                   "would be WRONG, since `//` starts the authority and would make `a.tgz` a host name. The "
+                   "choice is by EXTENSION, because that is what the claim is: a jar IS a zip, and only its "
+                   "name says which readers expect it. Those two spellings fix the separator as well, so "
+                   "`--archive-separator` does not reach them; the BARE path keeps one separator whatever the "
+                   "container is, since being re-pasteable matters more there than matching a foreign form. "
+                   "Any other value is used LITERALLY (e.g. `--archive-prefix=vfs:`), the same freedom "
+                   "`--archive-separator` has; `URI` is the one keyword, spelled in caps like `RE2` / `PCRE2` "
+                   "/ `GLOB`. There is deliberately no `none` value: it would be indistinguishable from a "
+                   "literal prefix spelled `none`, which is why empty means no prefix. Applies to PARSING too "
+                   "- under a prefix, a bare path is not accepted as a member path, so the spellings never "
+                   "silently interchange.",
         .values = kArchivePrefixValues,
         .topic = "archive",
         .extra = "archive",

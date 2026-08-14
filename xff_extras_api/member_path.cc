@@ -20,9 +20,25 @@
 #include <string_view>
 
 #include "absl/functional/function_ref.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 
 namespace xff::archive {
+
+namespace {
+
+// The lower-cased extension of `container`, without the dot ("phar", "jar", ""). Only the last one
+// counts: `a.tar.gz` is "gz", which claims nothing, so it takes the generic scheme.
+std::string ContainerExtension(std::string_view container) {
+  const std::string_view::size_type dot = container.find_last_of('.');
+  const std::string_view::size_type slash = container.find_last_of('/');
+  if (dot == std::string_view::npos || (slash != std::string_view::npos && dot < slash)) {
+    return "";
+  }
+  return absl::AsciiStrToLower(container.substr(dot + 1));
+}
+
+}  // namespace
 
 std::string JoinMemberPath(std::string_view container, std::string_view member, const MemberPathOptions& options) {
   // Plain concatenation, deliberately: the member is reproduced exactly as the archive stored it, so
@@ -30,6 +46,18 @@ std::string JoinMemberPath(std::string_view container, std::string_view member, 
   if (options.prefix != kUriPrefix) {
     // Empty prefix -> a bare path; any other string is prepended verbatim.
     return absl::StrCat(options.prefix, container, options.separator, member);
+  }
+  // Where an ecosystem OWNS the spelling, use its own - a URI exists to be handed to a tool that
+  // will parse it, and PHP and Java each parse only their form. Both fix the separator too, so
+  // `--archive-separator` does not apply to these two.
+  const std::string extension = ContainerExtension(container);
+  if (extension == "phar") {
+    // `phar:///abs/a.phar/inner`: the scheme already ends in `//`, so an absolute container's own
+    // leading slash completes the empty authority, exactly as the generic branch does by hand.
+    return absl::StrCat(kPharScheme, container, "/", member);
+  }
+  if (extension == "jar" || extension == "war" || extension == "ear") {
+    return absl::StrCat(kJarScheme, container, kJarSeparator, member);
   }
   // `//` is the URI authority marker, so it may only precede an ABSOLUTE path (leaving the authority
   // empty, as `file:///...` does). A relative container takes the opaque form instead; writing
@@ -66,7 +94,39 @@ bool StripPrefix(std::string_view& path, const MemberPathOptions& options) {
 
 }  // namespace
 
+// The inverse of the two ecosystem spellings Join emits. They carry their own separator, so they are
+// split before the generic path, and only when the prefix asks for URI rendering.
+std::optional<MemberPathParts> SplitEcosystemUri(std::string_view path) {
+  if (path.starts_with(kJarScheme)) {
+    const std::string_view rest = path.substr(kJarScheme.size());
+    const std::string_view::size_type at = rest.find(kJarSeparator);
+    if (at == std::string_view::npos) {
+      return std::nullopt;
+    }
+    return MemberPathParts{.container = rest.substr(0, at), .member = rest.substr(at + kJarSeparator.size())};
+  }
+  if (path.starts_with(kPharScheme)) {
+    const std::string_view rest = path.substr(kPharScheme.size());
+    // The container ends at the `.phar` component, since phar's own URL uses a plain `/` from there
+    // on. Same heuristic class as `!` in a bare path: a directory could be named `x.phar`, which is
+    // rare, and a walk resolves the truth regardless.
+    static constexpr std::string_view kPharBoundary = ".phar/";
+    const std::string_view::size_type at = rest.find(kPharBoundary);
+    if (at == std::string_view::npos) {
+      return std::nullopt;
+    }
+    const std::string_view::size_type member_at = at + kPharBoundary.size();
+    return MemberPathParts{.container = rest.substr(0, member_at - 1), .member = rest.substr(member_at)};
+  }
+  return std::nullopt;
+}
+
 std::optional<MemberPathParts> SplitMemberPath(std::string_view path, const MemberPathOptions& options) {
+  if (options.prefix == kUriPrefix) {
+    if (const std::optional<MemberPathParts> parts = SplitEcosystemUri(path); parts.has_value()) {
+      return parts;
+    }
+  }
   if (options.separator.empty()) {
     // An empty separator would make every path a member path with an empty container.
     return std::nullopt;
@@ -98,6 +158,15 @@ std::optional<MemberPathParts> SplitMemberPath(
     std::string_view path,
     const MemberPathOptions& options,
     absl::FunctionRef<bool(std::string_view)> is_container) {
+  // The ecosystem URLs carry their own separator, so they are recognised here too - the walk uses
+  // THIS overload to map a rendered path back to a member, and a form only the other overload knew
+  // would render paths the walk could not then look up.
+  if (options.prefix == kUriPrefix) {
+    if (const std::optional<MemberPathParts> parts = SplitEcosystemUri(path);
+        parts.has_value() && is_container(parts->container)) {
+      return parts;
+    }
+  }
   if (options.separator.empty()) {
     return std::nullopt;
   }

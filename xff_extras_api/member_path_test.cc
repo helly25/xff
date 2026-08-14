@@ -213,4 +213,39 @@ TEST_F(MemberPathTest, NormalizeMemberNameLeavesRootAndEmptyAlone) {
 }
 
 }  // namespace
+
+TEST_F(MemberPathTest, APharRendersPhpsOwnUrl) {
+  // PHP parses only `phar://`, with a plain `/` before the member - so a URI meant for PHP has to
+  // be spelled PHP's way, whatever --archive-separator says for the bare path.
+  EXPECT_THAT(JoinMemberPath("/abs/a.phar", "inner/x", {.prefix = kUriPrefix}), "phar:///abs/a.phar/inner/x");
+  EXPECT_THAT(JoinMemberPath("a.phar", "inner/x", {.prefix = kUriPrefix}), "phar://a.phar/inner/x");
+  // The separator flag does not reach this form.
+  EXPECT_THAT(JoinMemberPath("/abs/a.phar", "x", {.separator = "#", .prefix = kUriPrefix}), "phar:///abs/a.phar/x");
+}
+
+TEST_F(MemberPathTest, AJarRendersJavasNestedUrl) {
+  EXPECT_THAT(JoinMemberPath("/abs/a.jar", "pkg/C.class", {.prefix = kUriPrefix}), "jar:file:/abs/a.jar!/pkg/C.class");
+  // war and ear are the same container kind under different names.
+  EXPECT_THAT(
+      JoinMemberPath("/abs/a.war", "WEB-INF/web.xml", {.prefix = kUriPrefix}), "jar:file:/abs/a.war!/WEB-INF/web.xml");
+  EXPECT_THAT(JoinMemberPath("/abs/a.ear", "META-INF/x", {.prefix = kUriPrefix}), "jar:file:/abs/a.ear!/META-INF/x");
+}
+
+TEST_F(MemberPathTest, AnUnclaimedContainerKeepsTheGenericScheme) {
+  // Only the extensions an ecosystem claims switch; `a.tar.gz` is a "gz", which claims nothing.
+  EXPECT_THAT(JoinMemberPath("/abs/a.tar.gz", "x", {.prefix = kUriPrefix}), "archive:///abs/a.tar.gz!x");
+  EXPECT_THAT(JoinMemberPath("/abs/a.zip", "x", {.prefix = kUriPrefix}), "archive:///abs/a.zip!x");
+  // A dot in a DIRECTORY name is not an extension of the container.
+  EXPECT_THAT(JoinMemberPath("/has.dots/plain", "x", {.prefix = kUriPrefix}), "archive:///has.dots/plain!x");
+}
+
+TEST_F(MemberPathTest, TheEcosystemFormsParseBackToo) {
+  // Join and Split stay inverse for these forms as well, or a path xff printed would not round-trip.
+  const MemberPathOptions uri{.prefix = kUriPrefix};
+  EXPECT_THAT(SplitMemberPath("phar:///abs/a.phar/inner/x", uri), Optional(PartsAre("/abs/a.phar", "inner/x")));
+  EXPECT_THAT(SplitMemberPath("phar://a.phar/inner/x", uri), Optional(PartsAre("a.phar", "inner/x")));
+  EXPECT_THAT(
+      SplitMemberPath("jar:file:/abs/a.jar!/pkg/C.class", uri), Optional(PartsAre("/abs/a.jar", "pkg/C.class")));
+}
+
 }  // namespace xff::archive

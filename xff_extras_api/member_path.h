@@ -57,9 +57,16 @@ namespace xff::archive {
 // an absolute member then reads as the odd-looking `!//` (see the header comment).
 inline constexpr std::string_view kDefaultSeparator = "!";
 
-// The URI scheme used by the `URI` prefix keyword. Generic on purpose for now; whether it should instead be
-// per-format (`tar:` / `zip:`) or wrap the container as Java's `jar:file:/...!/...` is still open
-// (see TODO.md), and only this constant plus its docs change when it is settled.
+// The URI scheme used by the `URI` prefix keyword for a container no ecosystem has claimed. Two do,
+// and the point of a URI is that the receiving tool accepts it, so those are rendered their way
+// (see UriSchemeFor): a `.phar` as PHP's `phar://`, a `.jar` / `.war` / `.ear` as Java's
+// `jar:file:...!/`. The choice is by EXTENSION, not by sniffed format, because that is what the
+// claim is: a jar IS a zip, and only its name says which convention its readers expect.
+//
+// The BARE path is unaffected and keeps one separator whatever the container is (see the header
+// comment): being readable and re-pasteable is worth more there than matching a foreign spelling,
+// and phar's `/` would make `a.phar/inner/x` ambiguous. A URI is the opposite trade - it exists to
+// be handed to someone else - which is why the format-specific spelling lives on this axis only.
 //
 // Note the deliberate absence of `//`: in a URI `//` introduces the AUTHORITY, so `archive://a.tgz!x`
 // would parse `a.tgz` as a HOST NAME rather than a path. An absolute container therefore renders as
@@ -67,6 +74,16 @@ inline constexpr std::string_view kDefaultSeparator = "!";
 // and a relative container as the opaque `archive:a.tgz!x`. Both are well-formed; one blanket
 // `archive://` prefix is not.
 inline constexpr std::string_view kUriScheme = "archive:";
+
+// PHP spells a phar member `phar:///abs/a.phar/inner/x`: its own scheme, and a plain `/` between
+// container and member rather than a marker. The separator is part of the convention, so the URI
+// rendering uses it and ignores `--archive-separator` for this container kind.
+inline constexpr std::string_view kPharScheme = "phar://";
+
+// Java spells a jar member `jar:file:/abs/a.jar!/inner`: a nested URL, then `!/`. Both halves are
+// fixed by the JAR URL syntax, so the same reasoning applies.
+inline constexpr std::string_view kJarScheme = "jar:file:";
+inline constexpr std::string_view kJarSeparator = "!/";
 
 // The authority marker inserted after the scheme when, and only when, the container is absolute.
 inline constexpr std::string_view kUriAuthority = "//";

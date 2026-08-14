@@ -985,14 +985,23 @@ remains below is the design-forked / larger work.
     detection only, no `--password` decryption. Read-only member semantics, the `container!member`
     representation, uncompressed logical size and the streaming / bomb limits are specified in
     `docs/design.md` "Virtual entries".
-  - **DECIDED (2026-08-13, user): NO `AUTO` separator; per-format spelling belongs to the PREFIX.**
-    A member path's value is that you can read it and paste it back, and a per-format separator
-    breaks both: phar's own `/` makes `a.phar/inner/x` ambiguous - you cannot tell where the
-    container ends without opening it, and a real directory of that shape can exist. One separator
-    (`!` by default, `--archive-separator` to change) keeps that property. Per-format schemes are
-    right on the axis that is EXPLICITLY an interop artifact: `--archive-prefix=URI` can emit
-    `phar:///abs/a.phar/inner/x` and `jar:file:///abs/a.jar!/inner` while the bare path stays
-    unambiguous. Task #177 is closed by this; the per-format URI work is its own follow-up.
+  - **SHIPPED: per-format URI schemes on the PREFIX axis.** `--archive-prefix=URI` now renders the
+    spelling the receiving ecosystem parses: a `.phar` as PHP's `phar:///abs/a.phar/inner/x`, a `.jar`
+    / `.war` / `.ear` as Java's `jar:file:/abs/a.jar!/pkg/C.class`, everything else as the generic
+    `archive:`. By EXTENSION, not sniffed format, because that is what the claim is - a jar IS a zip,
+    and only its name says which readers expect it. Both forms fix the separator too, so
+    `--archive-separator` does not reach them. Split learned the same two forms, in BOTH overloads:
+    the walk maps a rendered path back through the probing one, so teaching only the string overload
+    rendered paths the walk could not look up (caught by running the binary, not by the tests).
+
+- **DECIDED (2026-08-13, user): NO `AUTO` separator; per-format spelling belongs to the PREFIX.**
+  A member path's value is that you can read it and paste it back, and a per-format separator
+  breaks both: phar's own `/` makes `a.phar/inner/x` ambiguous - you cannot tell where the
+  container ends without opening it, and a real directory of that shape can exist. One separator
+  (`!` by default, `--archive-separator` to change) keeps that property. Per-format schemes are
+  right on the axis that is EXPLICITLY an interop artifact: `--archive-prefix=URI` can emit
+  `phar:///abs/a.phar/inner/x` and `jar:file:///abs/a.jar!/inner` while the bare path stays
+  unambiguous. Task #177 is closed by this; the per-format URI work is its own follow-up.
   - **OPEN (own slice): phar support.** libarchive does NOT read phar (stub + manifest + optional
     per-entry compression + signature), so it needs its own reader behind the same `archive_reader`
     shape - which is what the extras architecture is for, and the member-path spelling is
