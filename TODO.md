@@ -1399,6 +1399,21 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
   containers", while `-z+ -Z...` is the deliberate repack); refusing an output path that lies inside
   the walk (it would feed itself); and reproducibility (deterministic `--sort` order plus
   mtime/uid/gid normalisation). Start with tar (+ compression) and zip.
+  - **Answered, and SHIPPED as the first slice:** a reduction, not an action (one archive per run is a
+    sink like `--summary`, so it replaces the listing while explicit actions still run); format from
+    the output name, checked before the walk; member names relative to the search root the entry came
+    from; the output file skipped when the walk meets it, the way `tar` skips the archive it writes;
+    an archive MEMBER refused outright, since harvesting from one container to pack into another is
+    the separate feature `-Z++ -z-` reserves; times preserved, ownership pinned at 0:0 for
+    reproducibility; and one knob, `--pack-level=N`, validated against each format's own range.
+  - **NEXT: `--pack-option=NAME=VALUE` (repeatable), with an XFF-OWNED vocabulary.** Settled with the
+    user 2026-08-15: the mechanism is right and extends cleanly (a `@file.json` form is the same
+    vocabulary read from elsewhere), but only if `NAME` is xff's and the backend TRANSLATES it. A raw
+    passthrough to libarchive would put names that change between its versions into a surface the
+    help cannot generate and nothing can validate. So: a table of names in the extra mapping to each
+    format's writer option, an unknown name a usage error, the list generated into `--help=archive`,
+    and `--pack-level` kept as the shortcut for the one knob every compressed format has (the same
+    relationship `-Z` has to `--archive-write`).
 
 - **Fuzzy finding + near-duplicate detection** (design open). Two distinct capabilities that share the
   "approximate match" theme; split them, do not conflate:

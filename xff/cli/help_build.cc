@@ -494,19 +494,38 @@ Section ArchiveSection(bool in_full) {
       "you get without them."));
   section.children.push_back(Content{.node = std::move(identity)});
 
+  Subsection creating{.title = "Creating one"};
+  creating.children.push_back(ProseOf(
+      "`--pack=FILE` turns the walk around: every match is written into a NEW archive instead of "
+      "being listed, so the member list is an expression rather than a pipeline into `tar`. The "
+      "output name picks the format, each member keeps the path it had relative to its search root, "
+      "and `--sort` decides the order inside. It is a sink like `--summary`, the archive appears only "
+      "when the walk finished, and a member of another container is refused - harvesting files out of "
+      "one archive to re-pack them into another is a separate feature, which is also what `-Z++ -z-` "
+      "is reserved for."));
+  creating.children.push_back(ProseOf(
+      "PHP phars are the exception: xff reads them and can rewrite one to remove members, but it does "
+      "not CREATE one, because a phar is a PHP program with a stub, a manifest and a signature rather "
+      "than a container of files. Build one with `box` (box-project/box) or PHP's own `Phar` class, "
+      "and verify or install one with `phive` (phar-io/phive), which checks the signature xff will "
+      "not forge."));
+  section.children.push_back(Content{.node = std::move(creating)});
+
   for (const GlobalFlag& flag : Globals()) {
     if (!in_full && flag.topic == "archive") {
       section.children.push_back(FlagEntry(flag));
     }
   }
 
-  static constexpr std::array<DocPair, 5> kExamples = {{
+  static constexpr std::array<DocPair, 6> kExamples = {{
       {"xff --archive=roots a.tar", "list the archive and its members"},
       {"xff -z+ . -grep TODO", "search inside every archive met in the tree"},
       {"xff --archive=roots a.tgz --summary", "count what is INSIDE, not the compressed container"},
       {"xff --archive=roots --archive-extract a.tar -name '*.json' -exec jq . {} \\;",
        "run a tool over a member, via a temporary copy"},
       {"xff --archive=roots --archive-delete a.tar -name '*.bak' -delete", "rewrite the archive without those members"},
+      {"xff . -name '*.cc' -newer VERSION --pack=changed.tar.gz",
+       "pack what the expression matched into a new archive"},
   }};
   Subsection examples{.title = "Examples"};
   for (const auto& [command, explanation] : kExamples) {

@@ -26,7 +26,9 @@
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
+#include "absl/strings/str_cat.h"
 #include "xff/archive/member_path.h"
 #include "xff/vfs/filesystem.h"
 
@@ -45,6 +47,17 @@ ContainerOpener& ContainerOpenerSlot() {
 // build without archive support AND for a backend that can only read.
 ContainerMemberRemover& ContainerMemberRemoverSlot() {
   static ContainerMemberRemover slot;
+  return slot;
+}
+
+// The process-wide packer and the formats it accepts, both empty when no backend registered one.
+ContainerPacker& ContainerPackerSlot() {
+  static ContainerPacker slot;
+  return slot;
+}
+
+std::vector<std::string>& ContainerPackFormatsSlot() {
+  static std::vector<std::string> slot;
   return slot;
 }
 
@@ -67,6 +80,37 @@ absl::Status RemoveContainerMembers(std::string_view container, const std::vecto
     return absl::UnimplementedError("this binary was built without archive support");
   }
   return ContainerMemberRemoverSlot()(container, members);
+}
+
+void RegisterContainerPacker(ContainerPacker packer, std::vector<std::string> formats) {
+  ContainerPackerSlot() = std::move(packer);
+  ContainerPackFormatsSlot() = std::move(formats);
+}
+
+bool ContainerPackingAvailable() {
+  return static_cast<bool>(ContainerPackerSlot());
+}
+
+std::vector<std::string> ContainerPackFormats() {
+  return ContainerPackFormatsSlot();
+}
+
+std::string ContainerPackFormatFor(std::string_view path) {
+  const std::string lower = absl::AsciiStrToLower(path);
+  std::string best;
+  for (const std::string& format : ContainerPackFormatsSlot()) {
+    if (format.size() > best.size() && std::string_view(lower).ends_with(absl::StrCat(".", format))) {
+      best = format;
+    }
+  }
+  return best;
+}
+
+absl::Status PackContainer(std::string_view path, const std::vector<PackFile>& files, const PackOptions& options) {
+  if (!ContainerPackingAvailable()) {
+    return absl::UnimplementedError("this binary was built without archive support");
+  }
+  return ContainerPackerSlot()(path, files, options);
 }
 
 // Every suffix the reader has a format or filter for, plus the package extensions that are one of

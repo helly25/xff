@@ -59,7 +59,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `all` - also dive archives found during the walk (what bare `--archive` selects)
   - `any` - `all`, plus offer EVERY file to the reader, not only container-looking names
 
-  Treats each archive (tar, gz, bzip2, xz, zstd, lz4, zip, ...) as a directory, so a member is an ordinary entry at a member path like `foo.tar.gz!inner/x` and the expression matches it with the same -name / -type / -size / -newer every other entry gets - and the predicates and fields that READ an entry (-grep, -content, -hash, {hash}, {lines}) read the member out of its container. The modes are nested: `none` keeps find's behavior (an archive is one plain file); `roots` dives only when a search root is itself an archive (pointing xff AT an archive implies looking inside); `all` also dives archives discovered during the walk; `any` is `all` without the name gate, offering every file to the reader (the older spelling is `--archive-any`). Bare `--archive` means `all`, and the short form carries chmod-style suffix signs (`-z-` none, `-z` roots, `-z+` all, `-z++` any). The UPPER-case family is the same ladder with writing armed (`-Z` is `-z` plus `--archive-write`, `-Z+` is `-z+` plus it, `-Z++` is `-z++` plus it): the case carries the capability and the signs carry the level, so aiming at one cannot reach the other, and `-Z-` is a usage error because arming writes while turning archives off contradicts itself. The find style defaults to `none`, every xff-family style to `roots`. Members are read-only until a write spelling arms them, so `-delete` and the exec family refuse them rather than silently skipping. Under `all`, a file met mid-walk is offered to the reader only if its NAME looks like a container (`any` drops that gate); one named on the command line always is. A build-time extra: the stock binary is lean and omits it (rebuild with --//xff:xff_archive); asking for archive handling without it is a hard error.
+  Treats each archive (tar, gz, bzip2, xz, zstd, lz4, zip, ...) as a directory, so a member is an ordinary entry at a member path like `foo.tar.gz!inner/x` and the expression matches it with the same -name / -type / -size / -newer every other entry gets - and the predicates and fields that READ an entry (-grep, -content, -hash, {hash}, {lines}) read the member out of its container. The modes are nested: `none` keeps find's behavior (an archive is one plain file); `roots` dives only when a search root is itself an archive (pointing xff AT an archive implies looking inside); `all` also dives archives discovered during the walk; `any` is `all` without the name gate, offering every file to the reader (the older spelling is `--archive-any`). Bare `--archive` means `all`, and the short form carries chmod-style suffix signs (`-z-` none, `-z` roots, `-z+` all, `-z++` any). The UPPER-case family is the same ladder with writing armed (`-Z` is `-z` plus `--archive-write`, `-Z+` is `-z+` plus it, `-Z++` is `-z++` plus it): the case carries the capability and the signs carry the level, so aiming at one cannot reach the other. The two axes resolve independently and later wins, so `-Z++ -z-` arms writing with reading off, while `-Z-` is the full reset (reading off AND writing disarmed). The find style defaults to `none`, every xff-family style to `roots`. Members are read-only until a write spelling arms them, so `-delete` and the exec family refuse them rather than silently skipping. Under `all`, a file met mid-walk is offered to the reader only if its NAME looks like a container (`any` drops that gate); one named on the command line always is. A build-time extra: the stock binary is lean and omits it (rebuild with --//xff:xff_archive); asking for archive handling without it is a hard error.
   Affected by: --archive-depth, --archive-aggregate, --archive-delete, --archive-extract, --archive-any
 - `--archive-depth=N` - how many containers deep --archive dives (default 1) _(global, xff)_
   Counted in CONTAINERS, not directory levels: the default 1 opens an archive but leaves an archive INSIDE it a plain member, so a `.gem` shows its `data.tar.gz` without unpacking it. `--archive-depth=2` opens that one too. Its own knob rather than part of -maxdepth because nesting is where a decompression bomb lives - a few kilobytes can promise gigabytes per level - while -maxdepth keeps counting member levels as the ordinary depth they are. Only `all` nests: under `roots` a member is never a search root, so nothing inside the container is dived whatever the value. N must be at least 1; use --archive=none / -z- to stop diving.
@@ -82,7 +82,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   Affects: --archive
   Affected by: --archive-write
 - `--archive-write, -Z[-|+|++]` - arm both archive write flags (--archive-extract + --archive-delete) _(global, xff)_
-  One spelling for "let actions touch members", because the two write flags are almost always wanted together: `--archive-extract` so `-exec` / `-ok` can run over a member, and `--archive-delete` so `-delete` can remove one. It is exactly those two flags and nothing else - the dive MODE is untouched. The short form is the UPPER-case archive ladder: `-Z` is `-z` with writing armed, `-Z+` is `-z+` with it, `-Z++` is `-z++` with it. Case carries the capability and the signs carry the level, so a slipped shift key changes which of the two you asked for, never both - and arming is not doing, since an action still has to ask for the write and `--safe` / `--dry-run` still apply. `-Z-` is a usage error: arming writes while turning archives off contradicts itself.
+  One spelling for "let actions touch members", because the two write flags are almost always wanted together: `--archive-extract` so `-exec` / `-ok` can run over a member, and `--archive-delete` so `-delete` can remove one. It is exactly those two flags and nothing else - the dive MODE is untouched. The short form is the UPPER-case archive ladder: `-Z` is `-z` with writing armed, `-Z+` is `-z+` with it, `-Z++` is `-z++` with it. Case carries the capability and the signs carry the level, so a slipped shift key changes which of the two you asked for, never both - and arming is not doing, since an action still has to ask for the write and `--safe` / `--dry-run` still apply. The level and the arming resolve as separate axes with later winning, so `-Z++ -z-` keeps writing armed with diving off; `-Z-` is the full reset, disarming writing and turning diving off together.
   Affects: --archive-delete, --archive-extract
 - `--archive-any` - under --archive=all, offer EVERY file to the reader, not only likely names _(global, xff)_
   By default `all` only opens a file the walk met whose NAME looks like a container (`.tar`, `.tgz`, `.zip`, `.jar`, `.phar`, ... - the reader's formats plus the packages that are one of them underneath). Without that gate, walking a source tree would open and format-bid every `.cc` and every binary in it, so the cost of diving would fall on runs that dive nothing. The name is only a heuristic, and this flag is the way out of it: an archive called `blob` or `backup.dat` is found with --archive-any and missed without. It costs a read of every candidate file, which is why it is not the default. A file NAMED on the command line is always opened - pointing xff at it is the request - so this flag changes nothing for `--archive=roots`.
@@ -107,6 +107,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `tree` - one path-ordered result across the whole walk (buffers everything)
 
   `none` leaves entries in filesystem order (fastest); `dir` sorts each directory's entries; `subtree` and `tree` give a deterministic order across the whole walk. The default is per style: xff sorts per directory, while find and rg leave the order unspecified.
+  Affected by: --pack
 
 ### Matching
 - `--block-size=SIZE` - bytes per -size block for a bare -size N / -size Nb (default 512) _(global, xff)_
@@ -245,6 +246,13 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `yes` - print every match even when the expression has its own action (also on / true / 1)
   - `no` - never add the default print (also off / false / 0)
 
+- `--pack=FILE` - write every match into a new archive at FILE instead of listing them _(global, xff)_
+  The counterpart of `--archive`: instead of reading a container the walk BUILDS one, so the member list comes from the whole expression vocabulary rather than from a shell pipeline into `tar`. The output NAME picks the format (`.tar`, `.tar.gz`, `.tgz`, `.tar.bz2`, `.tar.xz`, `.tar.zst`, `.zip`); a name carrying none is a usage error reported BEFORE the walk, since finding out afterwards would waste the traversal. Each member is stored under the entry's path relative to the search root it was found under, in the order the walk produced it - so `--sort` decides the order inside the archive, and nothing is renamed or re-rooted behind your back. Like `--summary` it is a sink: it replaces the per-match listing, while explicit actions still run, so add `-print` to watch what goes in. The archive is written after the walk and renamed into place only when complete, so an interrupted run leaves no half archive and an existing FILE survives a failed one. A file the walk meets that IS the output is skipped rather than packed into itself. An archive MEMBER cannot be packed: reading files out of one container to re-pack them into another is its own feature, and until it exists the run is refused rather than quietly short. A build-time extra, like `--archive`.
+  Affects: --sort
+  Affected by: --pack-level
+- `--pack-level=N` - compression level for `--pack` (gzip / bzip2 / xz 0-9, zstd 1-22, zip 0-9) _(global, xff)_
+  How hard the compressor works, on the scale the chosen format uses; left alone it is the format's own default. On a plain `.tar` it is a usage error rather than a no-op, because there is no compressor to set a level on and a silently ignored level reads as a smaller archive that never arrives. Only the level is exposed: libarchive's remaining per-format tuning changes between its versions, so it would be a surface xff could neither document from its own tables nor promise across releases.
+  Affects: --pack
 - `--summary[=<GROUP>]` - aligned count + size table (or --format=jsonl rows) instead of each match; repeatable _(global, xff)_
   GROUP is one of:
 
@@ -792,6 +800,12 @@ A member's path is the container's, the separator, then the member: `a.tar!dir/t
 
 Members are READ-ONLY by default. `-delete` and the exec family refuse one rather than silently doing nothing, because a member has no path a process can open and no way to be unlinked; `--archive-extract` runs the child over a temporary copy, and `--archive-delete` rewrites the container without the member. Both are opt-in, and both say so in the refusal you get without them.
 
+### Creating one
+
+`--pack=FILE` turns the walk around: every match is written into a NEW archive instead of being listed, so the member list is an expression rather than a pipeline into `tar`. The output name picks the format, each member keeps the path it had relative to its search root, and `--sort` decides the order inside. It is a sink like `--summary`, the archive appears only when the walk finished, and a member of another container is refused - harvesting files out of one archive to re-pack them into another is a separate feature, which is also what `-Z++ -z-` is reserved for.
+
+PHP phars are the exception: xff reads them and can rewrite one to remove members, but it does not CREATE one, because a phar is a PHP program with a stub, a manifest and a signature rather than a container of files. Build one with `box` (box-project/box) or PHP's own `Phar` class, and verify or install one with `phive` (phar-io/phive), which checks the signature xff will not forge.
+
 ### Examples
 
 ```sh
@@ -823,6 +837,12 @@ xff --archive=roots --archive-delete a.tar -name '*.bak' -delete
 ```
 
 rewrite the archive without those members
+
+```sh
+xff . -name '*.cc' -newer VERSION --pack=changed.tar.gz
+```
+
+pack what the expression matched into a new archive
 
 ## Statistics
 

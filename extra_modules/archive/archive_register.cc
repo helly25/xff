@@ -34,6 +34,7 @@
 #include "mbo/status/status_macros.h"
 #include "xff/archive/archive_backend.h"
 #include "xff/archive/archive_fs.h"
+#include "xff/archive/archive_pack.h"
 #include "xff/archive/archive_reader.h"
 #include "xff/archive/archive_writer.h"
 #include "xff/archive/member_path.h"
@@ -99,6 +100,22 @@ absl::Status RemoveArchiveMembers(std::string_view container, const std::vector<
 }
 
 const ContainerRemoverRegistrar kRegisterArchiveRemover{&RemoveArchiveMembers};
+
+// The create half. A third registration rather than a mode on the second because the capabilities
+// differ: this backend can CREATE a tar or zip it could never rewrite in place.
+absl::Status PackArchiveContainer(
+    std::string_view path,
+    const std::vector<PackFile>& files,
+    const PackOptions& options) {
+  std::vector<PackEntry> entries;
+  entries.reserve(files.size());
+  for (const PackFile& file : files) {
+    entries.push_back(PackEntry{.source = file.source, .name = file.name});
+  }
+  return PackFiles(path, entries, PackSettings{.level = options.level});
+}
+
+const ContainerPackerRegistrar kRegisterArchivePacker{&PackArchiveContainer, PackFormats()};
 
 }  // namespace
 }  // namespace xff::archive

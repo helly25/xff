@@ -83,6 +83,40 @@ cc_test(
 # The one WRITE path: rewriting a container without some of its members (--archive-delete). Separate
 # from the reader because reading a format does not imply writing it, and because a build that only
 # ever lists archives should not link a writer.
+# Writes a NEW archive from a list of files the walk matched: the counterpart of the reader, so an
+# archive can be built from an expression rather than from a file list piped into tar. Format comes
+# from the output NAME; entry naming and ordering are the caller's, since only it knows the roots.
+cc_library(
+    name = "archive_pack_cc",
+    srcs = ["archive_pack.cc"],
+    hdrs = ["archive_pack.h"],
+    include_prefix = "xff/archive",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+        "@libarchive//libarchive",
+    ],
+)
+
+# Packs real files and reads the archive back: the round trip is what proves names, content, types
+# and the format chosen from the output name. Also pins the refusals (an unknown output suffix, a
+# missing source) and that a failure leaves no half archive behind.
+cc_test(
+    name = "archive_pack_test",
+    size = "small",
+    srcs = ["archive_pack_test.cc"],
+    deps = [
+        ":archive_pack_cc",
+        ":archive_reader_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)
+
 cc_library(
     name = "archive_writer_cc",
     srcs = ["archive_writer.cc"],
@@ -280,6 +314,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":archive_fs_cc",
+        ":archive_pack_cc",
         ":archive_reader_cc",
         ":archive_writer_cc",
         ":phar_writer_cc",
