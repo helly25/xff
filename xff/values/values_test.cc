@@ -31,12 +31,14 @@ struct ValuesTest : ::testing::Test {};
 TEST_F(ValuesTest, ParseBoolAcceptsTheTrueSpellings) {
   EXPECT_THAT(ParseBool("yes"), Optional(true));
   EXPECT_THAT(ParseBool("true"), Optional(true));
+  EXPECT_THAT(ParseBool("on"), Optional(true));  // switch-shaped flags spell it this way
   EXPECT_THAT(ParseBool("1"), Optional(true));
 }
 
 TEST_F(ValuesTest, ParseBoolAcceptsTheFalseSpellings) {
   EXPECT_THAT(ParseBool("no"), Optional(false));
   EXPECT_THAT(ParseBool("false"), Optional(false));
+  EXPECT_THAT(ParseBool("off"), Optional(false));
   EXPECT_THAT(ParseBool("0"), Optional(false));
 }
 
@@ -76,4 +78,15 @@ TEST_F(ValuesTest, ParseTristateRejectsUnknown) {
 }
 
 }  // namespace
+
+TEST_F(ValuesTest, TheSwitchSpellingsReachTheTristateToo) {
+  // The whole point of one shared vocabulary: a flag documented as on / off is not a different
+  // parser from one documented as always / never. Before this, several flags' help listed on / off
+  // as synonyms while the parser rejected them and silently kept the default.
+  EXPECT_THAT(ParseTristate("on"), Optional(Tristate::kOn));
+  EXPECT_THAT(ParseTristate("off"), Optional(Tristate::kOff));
+  EXPECT_THAT(ParseTristate("ON"), Optional(Tristate::kOn));
+  EXPECT_THAT(ParseTristate("Off"), Optional(Tristate::kOff));
+}
+
 }  // namespace xff::values

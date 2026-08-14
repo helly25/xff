@@ -460,5 +460,32 @@ TEST_F(ParserTest, RegextypeSelectsTheMatcherGrammar) {
   EXPECT_THAT(last.grammar, regex::Grammar::kRe2);
 }
 
+struct TakesTerminalTest : ::testing::Test {};
+
+TEST_F(TakesTerminalTest, TheExecAndPromptFamilyTakesTheTerminal) {
+  // -ok / -okdir prompt and read a reply; -exec / -execdir can hand the terminal to a child.
+  static constexpr std::array kTerminalPrimaries =
+      std::to_array<std::string_view>({"-exec", "-execdir", "-ok", "-okdir"});
+  for (const std::string_view primary : kTerminalPrimaries) {
+    const absl::StatusOr<Command> command = Parse({".", std::string(primary), "echo", "{}", ";"});
+    ASSERT_THAT(command, IsOk()) << primary;
+    EXPECT_THAT(TakesTerminal(command->expression.get()), true) << primary;
+  }
+}
+
+TEST_F(TakesTerminalTest, AnOrdinaryExpressionDoesNot) {
+  const absl::StatusOr<Command> command = Parse({".", "-type", "f", "-o", "-name", "*.cc"});
+  ASSERT_THAT(command, IsOk());
+  EXPECT_THAT(TakesTerminal(command->expression.get()), false);
+  EXPECT_THAT(TakesTerminal(nullptr), false);  // no expression at all
+}
+
+TEST_F(TakesTerminalTest, ItFindsThePrimaryAnywhereInTheTree) {
+  // The walk has to reach both operands and through a negation, or a nested -ok would slip past.
+  const absl::StatusOr<Command> command = Parse({".", "!", "-name", "x", "-o", "-ok", "rm", "{}", ";"});
+  ASSERT_THAT(command, IsOk());
+  EXPECT_THAT(TakesTerminal(command->expression.get()), true);
+}
+
 }  // namespace
 }  // namespace xff::parser

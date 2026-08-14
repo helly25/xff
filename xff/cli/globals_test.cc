@@ -18,13 +18,18 @@
 #include <string_view>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "mbo/testing/status.h"
 #include "xff/hash/hash.h"
 
 namespace xff::cli {
 namespace {
 
+using ::mbo::testing::IsOk;
+using ::mbo::testing::StatusIs;
 using ::testing::ElementsAreArray;
 using ::testing::Eq;
 using ::testing::HasSubstr;
@@ -110,14 +115,74 @@ TEST_F(GlobalsTest, IsKnownGlobalAcceptsValuedFormsAndCompatAliases) {
   EXPECT_TRUE(IsKnownGlobal("-0"));              // compat: --format=nul
   EXPECT_TRUE(IsKnownGlobal("-g+"));             // compat: --gitignore=on
   EXPECT_TRUE(IsKnownGlobal("-g-"));             // compat: --gitignore=off
+  EXPECT_TRUE(IsKnownGlobal("-z++"));            // the top read rung (= --archive=any)
+  EXPECT_TRUE(IsKnownGlobal("-Z"));              // the same rungs with writing armed
+  EXPECT_TRUE(IsKnownGlobal("-Z+"));
+  EXPECT_TRUE(IsKnownGlobal("-Z++"));
+  // `-Z-` is known so the engine can explain the contradiction rather than have it reported as an
+  // unknown option; it is still a usage error.
+  EXPECT_TRUE(IsKnownGlobal("-Z-"));
 }
 
 TEST_F(GlobalsTest, IsKnownGlobalRejectsUnknownFlagsAndBadValuedKeys) {
   EXPECT_FALSE(IsKnownGlobal("--bogus"));
-  EXPECT_FALSE(IsKnownGlobal("--srot"));  // a typo of --sort
-  EXPECT_FALSE(IsKnownGlobal("-Z"));
+  EXPECT_FALSE(IsKnownGlobal("--srot"));     // a typo of --sort
+  EXPECT_FALSE(IsKnownGlobal("-Y"));         // an unclaimed letter (-Z is the write archive ladder)
   EXPECT_FALSE(IsKnownGlobal("--safe=x"));   // --safe takes no value, so a valued form is unknown
   EXPECT_FALSE(IsKnownGlobal("--bogus=1"));  // unknown key with a value
+}
+
+TEST_F(GlobalsTest, EveryEnumCheckedFlagHasAValueTableToCheckAgainst) {
+  // kEnum matches against the flag's own `values` table, so an EMPTY table would reject every
+  // value while reporting an empty accepted-list - which is exactly what happened when a flag was
+  // marked kEnum before its table existed.
+  for (const GlobalFlag& flag : Globals()) {
+    if (flag.value_check == GlobalFlag::ValueCheck::kEnum) {
+      EXPECT_THAT(flag.values, Not(IsEmpty())) << flag.name;
+    }
+  }
+}
+
+TEST_F(GlobalsTest, AnEnumFlagAcceptsEveryValueItDocumentsAndRejectsATypo) {
+  // The table is the SOT for the help AND the check, so what is printed is what is accepted.
+  for (const GlobalFlag& flag : Globals()) {
+    if (flag.value_check != GlobalFlag::ValueCheck::kEnum) {
+      continue;
+    }
+    for (const ValueDoc& value : flag.values) {
+      EXPECT_THAT(ValidateGlobalValue(absl::StrCat(flag.name, "=", value.value)), IsOk())
+          << flag.name << "=" << value.value;
+    }
+    EXPECT_THAT(
+        ValidateGlobalValue(absl::StrCat(flag.name, "=zznotavalue")),
+        StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("unknown value")))
+        << flag.name;
+  }
+}
+
+TEST_F(GlobalsTest, TheSharedVocabularyFlagsTakeEverySpellingOfIt) {
+  // A tri-state flag accepts more than it documents (yes / 1 beside on), so it must not be
+  // checked as an enum - that would reject spellings the shared parser handles.
+  static constexpr auto kTristateSpellings =
+      std::to_array<std::string_view>({"auto", "always", "never", "on", "off", "yes", "no", "true", "false", "1", "0"});
+  for (const GlobalFlag& flag : Globals()) {
+    if (flag.value_check != GlobalFlag::ValueCheck::kTristate) {
+      continue;
+    }
+    for (const std::string_view spelling : kTristateSpellings) {
+      EXPECT_THAT(ValidateGlobalValue(absl::StrCat(flag.name, "=", spelling)), IsOk()) << flag.name << "=" << spelling;
+    }
+  }
+}
+
+TEST_F(GlobalsTest, AFreeTextFlagIsNeverRejected) {
+  // Most valued flags take a path, a format or a regex; the check must stay out of their way.
+  EXPECT_THAT(ValidateGlobalValue("--define=A=B"), IsOk());
+  EXPECT_THAT(ValidateGlobalValue("--template={path}"), IsOk());
+  EXPECT_THAT(ValidateGlobalValue("--xffrc=/tmp/x"), IsOk());
+  EXPECT_THAT(ValidateGlobalValue("--sort"), IsOk());     // no '=': nothing to check
+  EXPECT_THAT(ValidateGlobalValue("-z++"), IsOk());       // a sign-suffixed short, likewise
+  EXPECT_THAT(ValidateGlobalValue("--bogus=x"), IsOk());  // unknown flag: IsKnownGlobal's job
 }
 
 }  // namespace

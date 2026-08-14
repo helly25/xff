@@ -6,6 +6,36 @@ shipped one way but not yet settled.
 
 ## Open decisions
 
+- **FIXED (2026-08-13): an unknown VALUE on a known global was silently ignored.** `--color=bogus`,
+  `--sort=bogus`, `--case=bogus` and `--pager=bogus` all exited 0 and behaved as the default. It was
+  uniform, so it read as a design choice rather than one flag's oversight - but it was the opposite
+  of the choice #102 made for unknown flag NAMES ("unknown option" is a usage error precisely so a
+  typo cannot be silently ignored), and the failure mode is worse for values: `--case=insensitve`
+  matched case-sensitively and the run looked like it worked.
+  - Both obstacles are resolved rather than worked around. A flag now DECLARES how its value is
+    checked (`GlobalFlag::ValueCheck` = none / enum / bool / tri-state), so the tri-state flags keep
+    the whole shared vocabulary while the enumerated ones check against their own `values` table -
+    the same table the help prints, so the error and the documentation cannot disagree. And the check
+    runs in ONE place in main, over the parsed globals, rather than inside each resolver: that is
+    what lets it cover `--color` / `--width` / `--pager`, which are scanned from raw argv before the
+    parse and have nowhere to report from. `kNone` stays the default, so free-text flags (paths,
+    formats, regexes, comma lists that validate themselves) are untouched.
+  - Precedent for the strict side already existed: `--skip-vcs`, `--diff-format`, `--diff-algorithm`
+    and `--timezone` each rejected an unknown value, which is what made the silence elsewhere an
+    inconsistency rather than a policy.
+  - Writing it turned up three flags that accept MORE than they document (`--color-scheme`'s alias
+    spellings, `--format=md`, and the reserved `--regextype=MATCH`, whose own error is better than a
+    generic one). `ValueDoc.hidden` marks those: accepted by the check, omitted from the listing, so
+    one table stays the source for both.
+
+- **FIXED (2026-08-13): `on` / `off` were documented but not accepted.** `--time-zone-suffix`'s help
+  listed `on` / `off` as synonyms of `always` / `never`, and the shared value parser did not accept
+  them, so `--time-zone-suffix=off` silently kept the offset. `--gitignore` had the mirror problem: it
+  compared the two literal strings `on` / `off` itself instead of using the shared parser, so
+  `--gitignore=yes` silently did nothing and `=auto` was not accepted at all. Both now go through
+  `values::ParseTristate`, which gained `on` / `off` - the spelling a switch-shaped flag reads best
+  in, and the one the help had been promising.
+
 - **DECIDED (user, 2026-08-13): colour comes from ONE resolved palette, `ls`-derived by default, and
   `-ls` uses it too.** Three statements, one design:
   1. if `xff .` colourises, `xff . -ls` must colourise as well - the same run colouring one and not
@@ -46,24 +76,37 @@ shipped one way but not yet settled.
   and which is grep's. Whether the shorts should EXIST is the open question below, because `-A` is
   also the proposed archive umbrella.
 
-- **RESOLVED (2026-08-13): `-A` stays free for grep context; the archive umbrella extends `-z`.**
-  The user ratified `-z++` for "all archive features plus write", so the archive axis keeps one letter
-  and the grep family keeps `-A` / `-B` / `-C`. `-z*` was considered and REJECTED (2026-08-13): a bare
-  `-z*` is a hard error in zsh (`no matches found`) and in default bash silently expands if any file
-  happens to match, and no other punctuation reads as "more than +", so `-z++` is the only short. The long spelling that SAYS write
-  (`--archive-write`, arming `--archive-extract` + `--archive-delete` without touching the dive mode)
-  is what `-z++` expands to, so the short stays a convenience over a named behaviour rather than a
-  magic letter. The rejected alternative, kept for the record:
-  - **grep-family context** (`-A N` after, `-B N` before, `-C N` both). Every tool in that family
-    spells it this way - grep, rg, ag - and `--config=rg` makes that muscle memory an explicit goal.
-    Giving `-A` away leaves `-B` / `-C` orphaned, which is worse than having no shorts at all.
-  - **the archive umbrella** (user, 2026-08-13): `-A-` all archive features off, `-A` the standard
-    features on, `-A+` all plus the WRITE flags. The suffix-sign shape is right and already ours -
-    but it is also already spelled on another letter: `-z-` / `-z` / `-z+` are none / roots / all
-    today, so the only missing level is "+ write", which `-z++` would add on the knob that already
-    exists. That leaves `-A` free for the grep family.
-    So: `-z-` none, `-z` roots, `-z+` all, `-z++` all + write, and `-A` / `-B` / `-C` are
-    left for the grep family to claim.
+- **RESOLVED (2026-08-13, user): the archive shorts are TWO families - `-z` reads, `-Z` writes.**
+  The sign ladder measures ONE axis (how much to look at) and the CASE carries the capability:
+
+  ```
+                     read only    + write (--archive-write)
+    none              -z-          (error: -Z- contradicts itself)
+    roots (default)   -z           -Z
+    all               -z+          -Z+
+    any               -z++         -Z++
+  ```
+
+  This replaces the earlier `-z++` = "all, and writable", which mixed the axes: adding a `+` must
+  never arm a destructive capability (the same principle #73 records for `--feature`), and a slipped
+  shift key must change which axis you asked for, not both. It also frees the top read rung for
+  `any` = `all` without the name gate (the older spelling `--archive-any` stays as a hidden alias),
+  which is the "look everywhere, inside everything" convenience #185 asked for.
+  - Arming is not doing: a `-Z` run still needs an action that writes (`-delete`, or `-exec` over an
+    extracted copy), and `--safe` / `--dry-run` still apply. That is what makes case-as-capability
+    acceptable here; if arming alone could destroy something it would need a whole word.
+  - **Later wins per AXIS, and the axes stay independent (user, 2026-08-14).** `-z+ -Z++` widens the
+    rung to `any` and arms writing; `-z++ -Z` narrows back to `roots`. A lower-case form never
+    disarms, so `-Z++ -z-` means "writing armed, reading OFF" - which reads as pointless today (no
+    dive, so no member to touch) but is exactly the shape a CREATE / pack action wants: produce an
+    archive without diving into existing ones to harvest their members. `-Z-` is therefore not an
+    error (the earlier draft refused it) but the full RESET: reading off and writing disarmed,
+    overriding an earlier flag or a config file. Its disarm is only observable once reading is turned
+    back on (`-Z -Z- -z`), which is how the test pins it.
+  - `-A` / `-B` / `-C` stay free for the grep family, as before. `-z*` stays rejected (a bare `-z*`
+    errors in zsh and silently expands in bash), and the ladder stops at `++` in both families.
+  - `--archive-depth` is deliberately NOT part of any rung: raising the decompression-bomb cap is a
+    different decision from looking in more places.
 
 - **Short primaries `-n` / `-p` for `-name` / `-path` (raised 2026-08-13)?** Note what fd's letters
   actually mean before copying them: fd's `-p` is `--full-path` (a MODE flag that makes its single
@@ -140,7 +183,20 @@ shipped one way but not yet settled.
     macFUSE on macOS (a kernel extension the USER installs, so the extra must degrade to extraction
     when it is absent rather than fail). Read-only first; a writable mount would be how `-delete` on a
     member and an in-place editor could work later, and it is a separate decision.
-  - **What needs deciding before building:** the mount lifecycle (mount per run under a per-pid
+  - **DECIDED (2026-08-13, user): explicit flag, in-process server, and the rest as proposed.**
+    A mount is process-global state other programs can see, it needs a user-installed kernel
+    component on macOS, and not everyone will get it running - so it is an explicit `--archive-mount`
+    rather than implicit-when-available, and the same command cannot behave differently on two
+    machines by accident. The server runs in-process (a background FUSE thread) with one mount point
+    per RUN under `$XDG_RUNTIME_DIR/xff/<pid>/` (else `$TMPDIR`), one subdirectory per container,
+    read-only; unmount by RAII at exit plus a signal handler (INT / TERM / HUP) that unmounts and
+    re-raises, `fusermount3 -uz` / `umount -f` as the crash path, and a startup sweep of our own
+    `xff/<pid>` directories whose pid is gone. Mounts do NOT nest (only the outer container is
+    mounted; an inner one is read by xff's own reader, since mounting it would mean materialising its
+    bytes), and the WALK does not read through the mount - it keeps using the VFS, so a mount failure
+    can change what `-exec` can reach but never what xff finds. Revisit any of it if it proves wrong
+    in practice.
+  - **What was on the list to decide:** the mount lifecycle (mount per run under a per-pid
     directory, unmounted at exit AND on a signal, with `fusermount -uz` / `umount -f` as the crash
     path, since a stale mount is worse than a stale temp file); whether the mount is implicit when
     available or an explicit flag (a mount is process-global state other programs can see, which argues
@@ -929,15 +985,14 @@ remains below is the design-forked / larger work.
     detection only, no `--password` decryption. Read-only member semantics, the `container!member`
     representation, uncompressed logical size and the streaming / bomb limits are specified in
     `docs/design.md` "Virtual entries".
-  - **OPEN (needs a decision): per-format schemes and `--archive-separator=AUTO+<fallback>`.** PHP
-    spells phar `phar:///path/to/a.phar/inner/x` - a per-format scheme AND a bare `/` separator -
-    which is evidence against one generic `archive:` scheme. If per-format wins, the scheme becomes a
-    property of the detected format, and the separator must follow the format too: `AUTO` cannot
-    choose between `!` and `#` where a format dictates nothing, hence a fallback in one value
-    (`AUTO+!`, with bare `AUTO` meaning `AUTO+!`). ALL CAPS keeps a literal separator spelled `auto`
-    expressible; `AUTO:!` is out (`:` is the sub-separator inside values) and `AUTO!` is unparseable
-    (`!` is itself a legal separator). Starting map: phar -> `/`, Java jar/war/ear -> `!`, everything
-    else -> the fallback. Tracked as task #177.
+  - **DECIDED (2026-08-13, user): NO `AUTO` separator; per-format spelling belongs to the PREFIX.**
+    A member path's value is that you can read it and paste it back, and a per-format separator
+    breaks both: phar's own `/` makes `a.phar/inner/x` ambiguous - you cannot tell where the
+    container ends without opening it, and a real directory of that shape can exist. One separator
+    (`!` by default, `--archive-separator` to change) keeps that property. Per-format schemes are
+    right on the axis that is EXPLICITLY an interop artifact: `--archive-prefix=URI` can emit
+    `phar:///abs/a.phar/inner/x` and `jar:file:///abs/a.jar!/inner` while the bare path stays
+    unambiguous. Task #177 is closed by this; the per-format URI work is its own follow-up.
   - **OPEN (own slice): phar support.** libarchive does NOT read phar (stub + manifest + optional
     per-entry compression + signature), so it needs its own reader behind the same `archive_reader`
     shape - which is what the extras architecture is for, and the member-path spelling is
@@ -1310,6 +1365,32 @@ concrete need appears.
   disables. Paging runs via `sh -c` (args / pipelines work), with a stdout fallback on any failure.
   Rejected: a help-scoped `--help-pager` name and a `--help=paged` content topic - paging is an
   orthogonal behavior, not a content selector.
+  - **The FILE LISTING can be paged too, SHIPPED as `--pager=all` (asked 2026-08-13).** `auto` stays
+    meta-only; `all` adds the listing, and is the one value that touches ordinary output. It is
+    STREAMED rather than buffered: the pager is started once and this process's stdout is redirected
+    into it for the whole walk, so the first screen appears while the walk is still running and every
+    writer (the renderers, a child process) is paged without knowing about it. Three deliberate
+    edges: `all` is terminal-only (there is no "always page the listing" - through a pipe the pager's
+    screen handling would become the next command's input); it steps aside for an expression that
+    needs the terminal itself, read from the registry (`Descriptor::terminal` on `-exec` /
+    `-execdir` / `-ok` / `-okdir`) rather than a name list in the CLI, and for `--quiet`; and
+    quitting the pager early ends the run quietly (SIGPIPE ignored, the failing writes swallowed).
+    The spelling was the open part - `--pager=all` reads as "page all of it" and keeps one flag with
+    one axis, against a second `--pager-scope=meta|all` flag that would have split the axes at the
+    cost of a knob.
+- **CREATING archives (raised by the user 2026-08-14; task #193): "another killer feature if done
+  right."** xff already walks, matches and (with `-Z`) rewrites containers; packing the matched set
+  into a NEW archive is the missing direction, and it composes with the whole expression vocabulary -
+  `xff src -name '*.cc' -newer x` becomes a tar/zip of exactly that set, with no intermediate file
+  list and no shell plumbing. Open questions before building: the spelling (an ACTION like `-pack
+FILE`, which reads per-match, versus a reduction like `--summary`, which is what a single shared
+  output really is); format from the output NAME with an explicit override; member naming (relative
+  to the root, the cwd, or a stripped prefix - a wrong default bakes absolute paths into archives);
+  the read/write interaction (`-Z++ -z-` is precisely "pack without harvesting from existing
+  containers", while `-z+ -Z...` is the deliberate repack); refusing an output path that lies inside
+  the walk (it would feed itself); and reproducibility (deterministic `--sort` order plus
+  mtime/uid/gid normalisation). Start with tar (+ compression) and zip.
+
 - **Fuzzy finding + near-duplicate detection** (design open). Two distinct capabilities that share the
   "approximate match" theme; split them, do not conflate:
   1. **Fuzzy name matching - v1 SHIPPED as `-fuzzy` / `-ifuzzy`** (subsequence over the BASENAME,

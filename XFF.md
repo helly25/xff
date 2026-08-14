@@ -51,14 +51,15 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-H` - follow symlinks named on the command line, not while walking _(global, find)_
 - `-L` - follow symlinks everywhere during the walk _(global, find)_
 - `-P` - never follow symlinks (the default) _(global, find)_
-- `--archive[=none|roots|all], -z[+|++|-]` - descend into archives: -z- none, -z roots only, -z+ / bare --archive all _(global, xff)_
+- `--archive[=none|roots|all|any], -z[+|++|-], -Z[+|++]` - descend into archives: -z- none, -z roots only, -z+ / bare --archive all _(global, xff)_
   One of:
 
   - `none` - an archive is one plain file (find behavior; the find-style default)
   - `roots` - dive only when a search root is itself an archive (the xff-family default)
   - `all` - also dive archives found during the walk (what bare `--archive` selects)
+  - `any` - `all`, plus offer EVERY file to the reader, not only container-looking names
 
-  Treats each archive (tar, gz, bzip2, xz, zstd, lz4, zip, ...) as a directory, so a member is an ordinary entry at a member path like `foo.tar.gz!inner/x` and the expression matches it with the same -name / -type / -size / -newer every other entry gets - and the predicates and fields that READ an entry (-grep, -content, -hash, {hash}, {lines}) read the member out of its container. The three modes are nested: none keeps find's behavior (an archive is one plain file); roots dives only when a search root is itself an archive (pointing xff AT an archive implies looking inside); all also dives archives discovered during the walk. Bare --archive means all, and the short form carries chmod-style suffix signs (-z- none, -z roots, -z+ all). The find style defaults to none, every xff-family style to roots. Members are read-only, so -delete and the exec family refuse them rather than silently skipping. Under `all`, a file met mid-walk is offered to the reader only if its NAME looks like a container (see --archive-any); one named on the command line always is. A build-time extra: the stock binary is lean and omits it (rebuild with --//xff:xff_archive); asking for archive handling without it is a hard error.
+  Treats each archive (tar, gz, bzip2, xz, zstd, lz4, zip, ...) as a directory, so a member is an ordinary entry at a member path like `foo.tar.gz!inner/x` and the expression matches it with the same -name / -type / -size / -newer every other entry gets - and the predicates and fields that READ an entry (-grep, -content, -hash, {hash}, {lines}) read the member out of its container. The modes are nested: `none` keeps find's behavior (an archive is one plain file); `roots` dives only when a search root is itself an archive (pointing xff AT an archive implies looking inside); `all` also dives archives discovered during the walk; `any` is `all` without the name gate, offering every file to the reader (the older spelling is `--archive-any`). Bare `--archive` means `all`, and the short form carries chmod-style suffix signs (`-z-` none, `-z` roots, `-z+` all, `-z++` any). The UPPER-case family is the same ladder with writing armed (`-Z` is `-z` plus `--archive-write`, `-Z+` is `-z+` plus it, `-Z++` is `-z++` plus it): the case carries the capability and the signs carry the level, so aiming at one cannot reach the other, and `-Z-` is a usage error because arming writes while turning archives off contradicts itself. The find style defaults to `none`, every xff-family style to `roots`. Members are read-only until a write spelling arms them, so `-delete` and the exec family refuse them rather than silently skipping. Under `all`, a file met mid-walk is offered to the reader only if its NAME looks like a container (`any` drops that gate); one named on the command line always is. A build-time extra: the stock binary is lean and omits it (rebuild with --//xff:xff_archive); asking for archive handling without it is a hard error.
   Affected by: --archive-depth, --archive-aggregate, --archive-delete, --archive-extract, --archive-any
 - `--archive-depth=N` - how many containers deep --archive dives (default 1) _(global, xff)_
   Counted in CONTAINERS, not directory levels: the default 1 opens an archive but leaves an archive INSIDE it a plain member, so a `.gem` shows its `data.tar.gz` without unpacking it. `--archive-depth=2` opens that one too. Its own knob rather than part of -maxdepth because nesting is where a decompression bomb lives - a few kilobytes can promise gigabytes per level - while -maxdepth keeps counting member levels as the ordinary depth they are. Only `all` nests: under `roots` a member is never a search root, so nothing inside the container is dived whatever the value. N must be at least 1; use --archive=none / -z- to stop diving.
@@ -70,7 +71,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `container` - count containers as the files they are on disk, never their members
   - `both` - count each container AND its members - the archive plus its unpacked copy
 
-  Diving makes one byte visible twice - once as the container's own size, once as its members' - so a total that adds both describes no filesystem that exists. `members` (the default) counts a dived container's members instead of the container, which is what unpacking it and measuring the result would give; `container` counts the archives and never what is in them, which is what the disk holds; `both` counts everything, the archive AND its unpacked copy, for when the doubling is the point. Only the REDUCTIONS are affected: -print and every action still see every entry the walk visits, so a member is listed under `container` and the container is listed under `members`. `members` needs the walk to open a container before deciding, so a `-prune` on a container no longer avoids opening it - use another mode, or no reduction, to keep that.
+  Diving makes one byte visible twice - once as the container's own size, once as its members' - so a total that adds `both` describes no filesystem that exists. `members` (the default) counts a dived container's members instead of the container itself, which is what unpacking it and measuring the result would give; `container` counts the archives and never what is in them, which is what the disk holds; `both` counts everything, the archive AND its unpacked copy, for when the doubling is the point. Only the REDUCTIONS are affected: -print and every action still see every entry the walk visits, so a member is listed under `container` and the container is listed under `members`. `members` needs the walk to open a container before deciding, so a `-prune` on a container no longer avoids opening it - use another mode, or no reduction, to keep that.
   Affects: --archive
 - `--archive-delete` - let -delete remove an archive member, rewriting its container _(global, xff)_
   There is no such thing as removing a member in place: an archive is a stream of header and data records, so the container is written again from the members that survive. That is why this is opt-in and why `-delete` refuses a member without it - an action that silently rewrites a whole archive is not one to do by default. The rewrite happens after the walk, once per container however many of its members matched, because the walk is reading that same container while it runs. The new archive keeps the original's format and compression (a `.tar.gz` stays a gzipped tar) and every surviving member keeps its name, mode, times and content; it is written beside the original and renamed over it only when complete, so an interrupted run leaves the container as it was. `--dry-run` lists the members that would go and writes nothing. A NATIVE phar is rewritten too, by xff's own writer: the manifest and data section are rebuilt from the surviving entries verbatim (so per-member gz / bz2 compression is untouched) and the trailing signature is recomputed (md5 / sha1 / sha256 / sha512). Refused, with the reason named: a format this build reads but cannot write (7-Zip, RAR, ISO); a TAR-based or ZIP-based phar, whose signature is a MEMBER computed over the rest of the container, so a rewrite would leave it stale and PHP would reject the result; an OpenSSL-signed phar, which cannot be re-signed without its private key; a compressed single file, which has no member list to rewrite; and a member of a container nested inside another one.
@@ -80,8 +81,8 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   A member is bytes inside a container, so there is no path a child process can open and the exec family refuses one by default. With this flag the member is written to its own temporary directory under the same name it has inside the archive, and the child is handed THAT path: `{}` renders as the temporary file, -execdir runs in the temporary directory, and -ok shows the copy in its prompt before anything runs. Each copy is removed as soon as its child finishes (for a `+` batch or a -j child, when the run ends), so nothing is left behind. It is The copy goes to a MEMORY-BACKED directory where the platform has one ($XDG_RUNTIME_DIR or /dev/shm on Linux, both tmpfs), so a member never reaches a disk and the child still gets an ordinary path; a member too large for the space that directory reports free lands in the temporary directory instead, since a tmpfs is RAM shared with the whole machine. It is opt-in because the child is editing a COPY: a formatter or a patch tool will report success and change nothing in the archive. -delete stays refused whatever this flag says - removing a temporary copy would be a no-op dressed as a deletion. The container itself is an ordinary file, so an action on IT never needed this.
   Affects: --archive
   Affected by: --archive-write
-- `--archive-write, -z++` - arm both archive write flags (--archive-extract + --archive-delete) _(global, xff)_
-  One spelling for "let actions touch members", because the two write flags are almost always wanted together: --archive-extract so -exec / -ok can run over a member, and --archive-delete so -delete can remove one. It is exactly those two flags and nothing else - the dive MODE is untouched, so pair it with --archive=all / -z+ when you also want containers met mid-walk. The short `-z++` continues the -z sign ladder (-z- none, -z roots, -z+ all) with "all, and writable", and it is the only short form: `-z*` was considered and rejected, because a bare `-z*` errors in zsh (unmatched glob) and in default bash silently expands if any file happens to match. Nothing here bypasses a refusal: a container xff cannot rewrite and a member no child can be handed still say so, and --dry-run still previews.
+- `--archive-write, -Z[+|++]` - arm both archive write flags (--archive-extract + --archive-delete) _(global, xff)_
+  One spelling for "let actions touch members", because the two write flags are almost always wanted together: `--archive-extract` so `-exec` / `-ok` can run over a member, and `--archive-delete` so `-delete` can remove one. It is exactly those two flags and nothing else - the dive MODE is untouched. The short form is the UPPER-case archive ladder: `-Z` is `-z` with writing armed, `-Z+` is `-z+` with it, `-Z++` is `-z++` with it. Case carries the capability and the signs carry the level, so a slipped shift key changes which of the two you asked for, never both - and arming is not doing, since an action still has to ask for the write and `--safe` / `--dry-run` still apply. `-Z-` is a usage error: arming writes while turning archives off contradicts itself.
   Affects: --archive-delete, --archive-extract
 - `--archive-any` - under --archive=all, offer EVERY file to the reader, not only likely names _(global, xff)_
   By default `all` only opens a file the walk met whose NAME looks like a container (`.tar`, `.tgz`, `.zip`, `.jar`, `.phar`, ... - the reader's formats plus the packages that are one of them underneath). Without that gate, walking a source tree would open and format-bid every `.cc` and every binary in it, so the cost of diving would fall on runs that dive nothing. The name is only a heuristic, and this flag is the way out of it: an archive called `blob` or `backup.dat` is found with --archive-any and missed without. It costs a read of every candidate file, which is why it is not the default. A file NAMED on the command line is always opened - pointing xff at it is the request - so this flag changes nothing for `--archive=roots`.
@@ -95,10 +96,17 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `URI` - `archive:///abs/a.tar!x` when the container is absolute, else `archive:a.tgz!x`
   - `STRING` - any other value is used literally, e.g. `--archive-prefix=vfs:`
 
-  Empty (the default) prints the bare path, `a.tgz!inner/x`. `URI` renders a well-formed URI for handing to tools that read archive URLs: `archive:///abs/a.tar!x` for an absolute container (empty authority then the path, as `file:///...` does) and the opaque `archive:a.tgz!x` for a relative one - `archive://a.tgz` would be WRONG, since `//` starts the authority and would make `a.tgz` a host name. Any other value is used LITERALLY (e.g. `--archive-prefix=vfs:`), the same freedom --archive-separator has; `URI` is the one keyword, spelled in caps like RE2 / PCRE2 / GLOB. There is deliberately no `none` value: it would be indistinguishable from a literal prefix spelled `none`, which is why empty means no prefix. Applies to PARSING too - under a prefix, a bare path is not accepted as a member path, so the spellings never silently interchange. Whether the scheme should be per-format (`tar:` / `zip:` / PHP's `phar:`) rather than the generic `archive:` is still open (see TODO.md).
+  Empty (the default) prints the bare path, `a.tgz!inner/x`. `URI` renders a well-formed URI for handing to tools that read archive URLs: `archive:///abs/a.tar!x` for an absolute container (empty authority then the path, as `file:///...` does) and the opaque `archive:a.tgz!x` for a relative one - `archive://a.tgz` would be WRONG, since `//` starts the authority and would make `a.tgz` a host name. Any other value is used LITERALLY (e.g. `--archive-prefix=vfs:`), the same freedom `--archive-separator` has; `URI` is the one keyword, spelled in caps like `RE2` / `PCRE2` / `GLOB`. There is deliberately no `none` value: it would be indistinguishable from a literal prefix spelled `none`, which is why empty means no prefix. Applies to PARSING too - under a prefix, a bare path is not accepted as a member path, so the spellings never silently interchange. Whether the scheme should be per-format (`tar:` / `zip:` / PHP's `phar:`) rather than the generic `archive:` is still open (see TODO.md).
 - `-j N, --jobs=N|all` - worker count for the walk and concurrent -exec (all = every core) _(global, xff)_
 - `--sort[=none|dir|subtree|tree]` - sibling/traversal ordering (default depends on the mode) _(global, xff)_
-  none leaves entries in filesystem order (fastest); dir sorts each directory's entries; subtree and tree give a deterministic order across the whole walk. The default is per style: xff sorts per directory, while find and rg leave the order unspecified.
+  One of:
+
+  - `none` - filesystem order, whatever the directory yields (fastest)
+  - `dir` - sort each directory's entries (a bare --sort; also spelled name)
+  - `subtree` - sorted entries with each subtree inlined contiguously
+  - `tree` - one path-ordered result across the whole walk (buffers everything)
+
+  `none` leaves entries in filesystem order (fastest); `dir` sorts each directory's entries; `subtree` and `tree` give a deterministic order across the whole walk. The default is per style: xff sorts per directory, while find and rg leave the order unspecified.
 
 ### Matching
 - `--block-size=SIZE` - bytes per -size block for a bare -size N / -size Nb (default 512) _(global, xff)_
@@ -110,7 +118,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `insensitive` - fold case (-i)
   - `smart` - fold case only when the pattern is all lower case (-s / -s+)
 
-  Controls case for -name/-path/-regex and the content matchers. sensitive matches exactly; insensitive (-i) folds case; smart (-s / -s+) folds only when the pattern is all lower case and matches exactly otherwise; -s- forces sensitive. rg defaults to smart.
+  Controls case for `-name`/`-path`/`-regex` and the content matchers. `sensitive` matches exactly; `insensitive` (`-i`) folds case; `smart` (`-s` / `-s+`) folds only when the pattern is all lower case and matches exactly otherwise; `-s-` forces `sensitive`. rg defaults to `smart`.
 - `--regextype=<GRAMMAR>` - match engine: RE2, EXACT, FNMATCH, GLOB, SHGLOB (GLOB + {a,b}), or PCRE2 (a build extra) _(global, xff)_
   GRAMMAR is one of:
 
@@ -121,13 +129,19 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `SHGLOB` - GLOB plus `{a,b}` brace alternation, so `*.{cc,h}` matches either
   - `PCRE2` - Perl syntax (lookaround, backreferences); a build extra
 
-  Selects the grammar for -regex/-iregex and the content matchers -rxc/-grep. RE2 (the default) is linear-time regular expressions; EXACT is a literal string (metacharacters are plain text); FNMATCH is a flat shell wildcard where * matches any character including /; GLOB is a path-aware shell glob where */? stop at / and ** crosses directories (gitignore semantics), with [...] classes; SHGLOB is GLOB plus {a,b} brace alternation, so *.{cc,h} matches either. PCRE2 (Perl syntax: lookaround, backreferences) is the one build-time extra: it is present only in a full build, and selecting it in a lean build is a hard error, never a silent fall back to RE2. RE2/EXACT/FNMATCH/GLOB/SHGLOB are always built in; run xff --help=extras to see whether THIS binary includes PCRE2. See --help=grammars for a full description of each grammar (GLOB/SHGLOB are xff's own, not POSIX glob(7)).
+  Selects the grammar for `-regex`/`-iregex` and the content matchers `-rxc`/`-grep`. `RE2` (the default) is linear-time regular expressions; `EXACT` is a literal string (metacharacters are plain text); `FNMATCH` is a flat shell wildcard where `*` matches any character including `/`; `GLOB` is a path-aware shell glob where `*`/`?` stop at `/` and `**` crosses directories (gitignore semantics), with `[...]` classes; `SHGLOB` is `GLOB` plus `{a,b}` brace alternation, so `*.{cc,h}` matches either. `PCRE2` (Perl syntax: lookaround, backreferences) is the one build-time extra: it is present only in a full build, and selecting it in a lean build is a hard error, never a silent fall back to `RE2`. `RE2`/`EXACT`/`FNMATCH`/`GLOB`/`SHGLOB` are always built in; run `xff --help=extras` to see whether THIS binary includes `PCRE2`. See `--help=grammars` for a full description of each grammar (`GLOB`/`SHGLOB` are xff's own, not POSIX glob(7)).
 
 ### Filter & Ignore
 - `--exclude=GLOB` - skip paths matching a gitignore-style glob (repeatable; a matched directory is pruned) _(global, xff)_
 - `--include=GLOB` - re-include paths a --exclude would skip, matching a gitignore-style glob (repeatable) _(global, xff)_
-- `--gitignore[=on|off], -g[+|-]` - respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never _(global, xff)_
-  Reads .gitignore rules while walking, including nested .gitignore files, .git/info/exclude, and core.excludesFile. -g / auto activates only inside a git working tree; -g+ / =on forces it anywhere; -g- / =off disables it. Independent of --ignore-files (.ignore / .xffignore).
+- `--gitignore[=auto|on|off], -g[+|-]` - respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never _(global, xff)_
+  One of:
+
+  - `auto` - respect .gitignore only inside a git working tree (a bare -g / --gitignore)
+  - `on` - respect it anywhere, git repository or not (also -g+, yes / true / 1)
+  - `off` - ignore .gitignore files entirely (also -g-, no / false / 0)
+
+  Reads .gitignore rules while walking, including nested .gitignore files, .git/info/exclude, and core.excludesFile. `-g` / `auto` activates only inside a git working tree; `-g+` / `=on` forces it anywhere; `-g-` / `=off` disables it. Independent of `--ignore-files` (.ignore / .xffignore).
 - `--ignore-files` - respect per-directory .ignore and .xffignore files (off by default) _(global, xff)_
 - `--ignore-file=PATH` - read an extra gitignore-format file, rooted at its own directory (repeatable) _(global, xff)_
 - `--no-ignore, -u` - disable all ignore-file processing (.gitignore/.ignore/.xffignore) _(global, xff)_
@@ -150,7 +164,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `all` - every known VCS (the bare-flag default)
   - `none` - off (same as --no-skip-vcs)
 
-  Prunes version-control metadata directories at any depth (like ripgrep / fd), so a search never wades into repo plumbing. Bare --skip-vcs (or =all) covers every known VCS: git (.git), hg (.hg), svn (.svn), jj (.jj), bzr (.bzr), darcs (_darcs), cvs (CVS). A comma list (--skip-vcs=git,hg) is an explicit, frozen subset - it never changes if a VCS is added to the default set later. --no-skip-vcs (or =none) turns it off. Independent of --hidden, so the user's own dotfiles (.bazelrc, .gitignore) still show. -g / gitignore mode implies --skip-vcs=git (only .git); an explicit --skip-vcs overrides that. Default off otherwise.
+  Prunes version-control metadata directories at any depth (like ripgrep / fd), so a search never wades into repo plumbing. Bare `--skip-vcs` (or `=all`) covers every known VCS: `git` (.git), `hg` (.hg), `svn` (.svn), `jj` (.jj), `bzr` (.bzr), `darcs` (_darcs), `cvs` (CVS). A comma list (`--skip-vcs=git,hg`) is an explicit, frozen subset - it never changes if a VCS is added to the default set later. `--no-skip-vcs` (or `=none`) turns it off. Independent of `--hidden`, so the user's own dotfiles (.bazelrc, .gitignore) still show. `-g` / gitignore mode implies `--skip-vcs=git` (only .git); an explicit `--skip-vcs` overrides that. Default off otherwise.
 - `--no-skip-vcs` - keep VCS metadata dirs in the walk (opts out of --skip-vcs and the -g .git default) _(global, xff)_
 
 ### Output
@@ -169,12 +183,25 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--no-header` - omit the header row from tabular --format (csv/tsv/aligned/markdown; on by default) _(global, xff)_
 - `--columns=FIELD,...` - columns for tabular --format, from the {field} vocabulary (e.g. path,size,mtime) _(global, xff)_
 - `--diff-algorithm=naive|direct|myers` - diff engine for -diff: naive, direct, or myers (the default, minimal like git) _(global, xff)_
+  One of:
+
+  - `myers` - minimal diff, as git computes it (the default)
+  - `direct` - line-by-line, no alignment search
+  - `naive` - the simple longest-common-subsequence walk
+
   Affects: -diff
 - `--diff-ignore=TOKEN,...` - normalize -diff comparison: ws, change, trail, blank, case, eofnl (comma-separated) _(global, xff)_
   Affects: -diff
 - `--diff-ignore-matching=REGEX` - -diff ignores lines matching this regex (RE2) _(global, xff)_
   Affects: -diff
 - `--diff-format=u|c|n|y` - default -diff format: u/unified (default), c/context, n/normal, y/side-by-side _(global, xff)_
+  One of:
+
+  - `u` - unified, the diff -u shape (the default; also spelled unified)
+  - `c` - context, the diff -c shape (also context)
+  - `n` - normal, the plain diff shape (also normal)
+  - `y` - side by side, the diff -y shape (also side-by-side)
+
   Affects: -diff
 - `--diff-context=N` - default -diff context lines (3); overrides --context for -diff, and -diff=uN overrides it _(global, xff)_
   Affects: -diff
@@ -198,11 +225,26 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `sha512_224` - SHA-2, 512/224 truncated
   - `sha512_256` - SHA-2, 512/256 truncated
 
-  Sets the default digest algorithm for the -hash action and the {hash} field. sha256 is the default; a `-hash=ALGO` spec or a `{hash:ALGO}` qualifier overrides it per use.
+  Sets the default digest algorithm for the `-hash` action and the `{hash}` field. `sha256` is the default; a `-hash=ALGO` spec or a `{hash:ALGO}` qualifier overrides it per use.
 - `--hash-encoding=hex|base64` - default -hash / {hash} rendering: hex (default) or base64 _(global, xff)_
+  One of:
+
+  - `hex` - lower-case hex digits, as the sha256sum family prints (the default)
+  - `base64` - standard padded base64 (RFC 4648), the Subresource-Integrity spelling
+
 - `--path-encoding=raw|escape` - plain-output path byte encoding: raw (verbatim, default) or escape (C-escape controls) _(global, xff)_
+  One of:
+
+  - `raw` - the path's bytes verbatim, as find writes them (the default)
+  - `escape` - C-escape control bytes, so a newline in a name cannot forge a line
+
 - `--template=TEMPLATE` - render each match through a field template ({path}, {name}, ...) _(global, xff)_
 - `--implicit-print=yes|no` - force the default -print on or off _(global, xff)_
+  One of:
+
+  - `yes` - print every match even when the expression has its own action (also on / true / 1)
+  - `no` - never add the default print (also off / false / 0)
+
 - `--summary[=<GROUP>]` - aligned count + size table (or --format=jsonl rows) instead of each match; repeatable _(global, xff)_
   GROUP is one of:
 
@@ -228,7 +270,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `dotnum` - only `<stem>.<NNN>` (7-Zip-style volumes)
   - `underscore` - only `<stem>_<NNN>`
 
-  Recognizes sharded-file naming conventions and collapses each logical set to a single line instead of listing every shard. Bare --shards (or =auto) enables all built-in schemes: `<stem>-<index>-of-<total>` (of), `<stem>.<NNN>` (dotnum), and `<stem>_<NNN>` (underscore). Restrict to specific schemes with a comma list, e.g. --shards=of,dotnum. Grouping is per-directory; files that match no scheme are listed unchanged. Off by default.
+  Recognizes sharded-file naming conventions and collapses each logical set to a single line instead of listing every shard. Bare `--shards` (or `=auto`) enables all built-in schemes: `<stem>-<index>-of-<total>` (`of`), `<stem>.<NNN>` (`dotnum`), and `<stem>_<NNN>` (`underscore`). Restrict to specific schemes with a comma list, e.g. `--shards=of,dotnum`. Grouping is per-directory; files that match no scheme are listed unchanged. Off by default.
 - `--shards-show=first|wildcard|count` - how a collapsed shard set's line reads (default first) _(global, xff)_
   One of:
 
@@ -236,7 +278,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `wildcard` - the masked-index name, e.g. `arc.???` (or `f-` idx `-of-003`)
   - `count` - the wildcard name plus the shard count, e.g. `arc.??? (3 shards)`
 
-  Picks each collapsed set's display: first = the representative (lowest-index) shard's path; wildcard = the masked-index name (the index digits shown as `???`); count = the wildcard plus the shard count. An incomplete set is always annotated `(present/expected - INCOMPLETE)`. Only meaningful with --shards.
+  Picks each collapsed set's display: `first` = the representative (lowest-index) shard's path; `wildcard` = the masked-index name (the index digits shown as `???`); `count` = the `wildcard` name plus the shard count. An incomplete set is always annotated `(present/expected - INCOMPLETE)`. Only meaningful with `--shards`.
 - `--shards-dedup=first|mtime|error` - how same-index shard duplicates are resolved (default first) _(global, xff)_
   One of:
 
@@ -244,7 +286,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `mtime` - keep the newest by modification time (ties break on name)
   - `error` - treat a same-index duplicate as an error (non-zero exit)
 
-  When two files are the same logical shard (they differ only by an opaque tail, e.g. a regeneration id), --shards-dedup picks which is the representative: first keeps the lexicographically-first name; mtime keeps the newest; error treats the duplicate as an error and fails the run (non-zero exit). Only meaningful with --shards.
+  When two files are the same logical shard (they differ only by an opaque tail, e.g. a regeneration id), `--shards-dedup` picks which is the representative: `first` keeps the lexicographically-first name; `mtime` keeps the newest; `error` treats the duplicate as an error and fails the run (non-zero exit). Only meaningful with `--shards`.
 - `--shard-pattern=REGEX` - a custom shard scheme via a named-capture regex (repeatable); the escape hatch _(global, xff)_
   Defines a custom sharded-file scheme for --shards when the built-ins do not fit. REGEX is an RE2 pattern with named groups: `(?P<stem>...)` and `(?P<index>...)` are required, `(?P<total>...)` and `(?P<dup>...)` are optional. Repeatable; the patterns are tried in order, before the built-in schemes. Only meaningful with --shards.
 - `--count, -c` - with -grep, print a per-file matching-line count (path:count) instead of the lines _(global, xff)_
@@ -261,6 +303,12 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   Affects: --histogram
 - `--summary-precision=N` - with --summary --human: fraction digits for scaled sizes (default 2; bytes stay integer) _(global, xff)_
 - `--color[=auto|always|never]` - colorize the plain listing by file type: auto (a tty), always, or never; honors NO_COLOR _(global, xff)_
+  One of:
+
+  - `auto` - colour only when stdout is a terminal (the default; a bare --color is always)
+  - `always` - colour even through a pipe or pager (also on / yes / true / 1)
+  - `never` - no colour at all (also off / no / false / 0)
+
   Colorizes the plain listing by file type. auto colorizes only when stdout is a terminal; always forces color even through a pipe or pager; never disables it. The NO_COLOR environment variable always wins.
   Affected by: --color-scheme
 - `--color-scheme=<SCHEME>` - which palette colour comes from: the terminal's ls theme, or xff's own _(global, xff)_
@@ -271,23 +319,36 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `merged` - the theme where it speaks, xff's colour for every key it omits, per key (also `ls-and-xff`)
   - `xff` - xff's built-in type scheme, ignoring $LS_COLORS
 
-  Colour is a whole-run choice, so this one palette is used by every surface that colours - the plain listing and -ls alike; they cannot disagree. $LS_COLORS is the variable `ls` and `dircolors` use, and xff reads the same keys: the two-letter types (di, ln, ex, pi, so, bd, cd, fi) and the per-extension `*.tar=` entries. Where only BSD's $LSCOLORS is set - the macOS case - that is read instead: its 11 letter pairs carry the same types in a fixed order, with no way to say "leave this plain" and no per-extension entries, so `merged` is the interesting scheme there. $LS_COLORS wins when both are set, being the richer format. Both variables are read on every platform rather than one per OS: which one is SET is better evidence than which system this is (a macOS shell with GNU coreutils is themed through $LS_COLORS, and $LSCOLORS is not macOS-only), and the fixed 22-character shape makes the BSD one self-validating. "Use ls's colours" turns out to mean three different things, so each has its own name, spelled the way logic spells it: `+` is OR, and the merge is AND. `auto` (the default, also `ls+xff` or `ls-or-xff`) is the theme OR xff's scheme - a theme that is set at all is the whole answer, and with none set xff's scheme is, so the decision is per VARIABLE; `default` is a fourth spelling of it, for a config file that wants whatever the default currently is. `ls` is the theme ALONE, so a type it never mentions prints uncoloured exactly as in a real ls listing (and with no theme set, nothing is coloured). `merged` (also `ls-and-xff`) is the theme AND xff's scheme, merged per KEY: the theme where it speaks, xff's colour for every key it omits - for a sparse theme you want filled in. (`ls&xff` is deliberately not accepted: an unquoted `&` backgrounds the command.) `xff` ignores $LS_COLORS entirely. An EMPTY value in the theme (`di=`) is it saying "leave these plain" and is honoured as such; a malformed entry is skipped rather than failing the run, as in ls. Whether colour is emitted at all is --color's business, not this flag's.
+  Colour is a whole-run choice, so this one palette is used by every surface that colours - the plain listing and -ls alike; they cannot disagree. $LS_COLORS is the variable `ls` and `dircolors` use, and xff reads the same keys: the two-letter types (`di`, `ln`, `ex`, `pi`, `so`, `bd`, `cd`, `fi`) and the per-extension `*.tar=` entries. Where only BSD's $LSCOLORS is set - the macOS case - that is read instead: its 11 letter pairs carry the same types in a fixed order, with no way to say "leave this plain" and no per-extension entries, so `merged` is the interesting scheme there. $LS_COLORS wins when both are set, being the richer format. Both variables are read on every platform rather than one per OS: which one is SET is better evidence than which system this is (a macOS shell with GNU coreutils is themed through $LS_COLORS, and $LSCOLORS is not macOS-only), and the fixed 22-character shape makes the BSD one self-validating. "Use ls's colours" turns out to mean three different things, so each has its own name, spelled the way logic spells it: `+` is OR, and the merge is AND. `auto` (the default, also `ls+xff` or `ls-or-xff`) is the theme OR xff's scheme - a theme that is set at all is the whole answer, and with none set xff's scheme is, so the decision is per VARIABLE; `default` is a fourth spelling of it, for a config file that wants whatever the default currently is. `ls` is the theme ALONE, so a type it never mentions prints uncoloured exactly as in a real ls listing (and with no theme set, nothing is coloured). `merged` (also `ls-and-xff`) is the theme AND xff's scheme, merged per KEY: the theme where it speaks, xff's colour for every key it omits - for a sparse theme you want filled in. (`ls&xff` is deliberately not accepted: an unquoted `&` backgrounds the command.) `xff` ignores $LS_COLORS entirely. An EMPTY value in the theme (`di=`) is it saying "leave these plain" and is honoured as such; a malformed entry is skipped rather than failing the run, as in ls. Whether colour is emitted at all is --color's business, not this flag's.
   Affects: --color
 - `--unicode[=auto|always|never]` - --format=tree connectors: auto (a UTF-8 locale), always (Unicode), or never (ASCII) _(global, xff)_
+  One of:
+
+  - `auto` - Unicode connectors when the locale is UTF-8, else ASCII (the default)
+  - `always` - force the Unicode connectors (also on / yes / true / 1)
+  - `never` - force the ASCII connectors (also off / no / false / 0)
+
   Selects the box-drawing characters --format=tree connects nodes with. auto uses Unicode when the locale (LC_ALL / LC_CTYPE / LANG) is UTF-8, else ASCII; always forces the Unicode connectors; never forces the ASCII ones.
 - `--human[=si|iec|off]` - size units for -ls / --summary: si (kB/MB, default), iec (KiB/MiB), off (bytes); xff -> si _(global, xff)_
+  One of:
+
+  - `si` - powers of 1000: kB, MB, GB (the default; also 1000, --si, a bare --human)
+  - `iec` - powers of 1024: KiB, MiB, GiB (also 1024)
+  - `off` - plain byte counts, no unit suffix
+
 - `--si` - human sizes in SI (kB/MB, 1000^N); an alias for --human=si (the --human default) _(global, xff)_
 - `--buffer[=auto|off|all|N[kMG]|NMB]` - buffer to size columns (-ls / tables): auto, off, all, N[kMG] rows, or NMB/NMiB bytes _(global, xff)_
 - `--width[=auto|none|COLS]` - wrap column for plain --help text: auto (terminal width, else unwrapped), none, or a count _(global, xff)_
   Wraps the flowing text of --help and --help=TOPIC (option and topic descriptions) to a column width. auto uses the terminal width when stdout is a terminal (honoring $COLUMNS), and leaves output unwrapped when it is not (a pipe or file); none (or 0) disables wrapping; a positive integer sets a fixed width. Aligned vocabulary tables and example blocks keep their own layout. Does not affect the file listing, --man, or --markdown.
-- `--pager[=auto|always|never]` - page the long help / man / markdown output: auto (a tty), always, or never (--no-pager) _(global, xff)_
+- `--pager[=auto|always|all|never]` - page output: auto (help / man / markdown on a tty), all (plus the listing), always, never _(global, xff)_
   One of:
 
-  - `auto` - page only when stdout is a terminal (the default)
-  - `always` - always page, even through a pipe
-  - `never` - never page (same as --no-pager)
+  - `auto` - page the help / man / markdown output on a terminal (the default)
+  - `always` - page that meta output even through a pipe
+  - `all` - `auto`, plus the file listing (on a terminal)
+  - `never` - never page (same as `--no-pager`)
 
-  Pages the long meta output (--help, --help=TOPIC, --man, --markdown) through a pager. auto pages only when stdout is a terminal; always pages even through a pipe; never (or --no-pager) disables it. The pager command is $XFF_PAGER, else $PAGER, else `less -FRX`; set either variable to empty to disable. Does not affect the file listing - pipe that to a pager yourself.
+  Pages the long meta output (`--help`, `--help=TOPIC`, `--man`, `--markdown`) through a pager. `auto` pages only when stdout is a terminal; `always` pages even through a pipe; `never` (or `--no-pager`) disables it. The pager command is $XFF_PAGER, else $PAGER, else `less -FRX`; set either variable to empty to disable. `all` additionally pages the FILE LISTING: the pager is started once and the whole walk streams into it, so the first screen appears while the walk is still running and quitting it ends the run quietly. Unlike `always`, `all` stays terminal-only - a listing forced through a pager in a pipeline would feed the pager's screen handling to the next command. It also steps aside for an expression that needs the terminal itself (`-ok`, `-okdir`, `-exec`, `-execdir`, which can hand the terminal to an editor) and for `--quiet`, which prints nothing to page; those runs are simply unpaged.
 - `--no-pager` - never page the help / man / markdown output (an alias for --pager=never) _(global, xff)_
 
 ### Exit code control
@@ -313,68 +374,68 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   One of:
 
   - `auto` - each format's built-in default (the default)
-  - `always` - force the offset, even on a format that omits it (also true / yes / on)
-  - `never` - drop the optional offset (also false / no / off)
+  - `always` - force the offset, even on a format that omits it (also on / yes / true / 1)
+  - `never` - drop the optional offset (also off / no / false / 0)
 
-  Controls whether a time field's named preset renders its trailing zone (+0100, +01:00). auto keeps each preset's default (space / iso / rfc3339 show it, asctime / epoch omit it); never drops it; always forces it, even on a preset that omits one. Accepts true / yes / on (= always) and false / no / off (= never). The inherently-zoned zulu / zulu-dense / asn1z always keep their mandatory Z, and a custom strftime --time-format is never altered - control its zone with %z / %Ez / %Z yourself. asn1's zone is optional: always adds its ASN.1-style offset (+0100, no separator), never / auto leave it bare.
+  Controls whether a time field's named preset renders its trailing zone (+0100, +01:00). `auto` keeps each preset's default (`space` / `iso` / `rfc3339` show it, `asctime` / `epoch` omit it); `never` drops it; `always` forces it, even on a preset that omits one. Accepts `true` / `yes` / `on` (= `always`) and `false` / `no` / `off` (= `never`). The inherently-zoned `zulu` / `zulu-dense` / `asn1z` always keep their mandatory Z, and a custom strftime `--time-format` is never altered - control its zone with %z / %Ez / %Z yourself. `asn1`'s zone is optional: `always` adds its ASN.1-style offset (+0100, no separator), `never` / `auto` leave it bare.
 
 ## Expression
 
 ### Tests
 - `-name ARG` - match the basename against a shell glob _(test, find)_
-  Globs the entry's basename (last path component): `*` matches any run including none, `?` one character, `[...]` a class. Unlike the shell a leading dot is matched literally. Case follows --case - the xff default folds when the volume does (APFS / HFS+ / NTFS), while --exact or --config=find forces a byte-exact compare; -iname always folds. Contrast -path (whole path) and -regex (anchored pattern). Example: `xff . -name '*.log'`.
+  Globs the entry's basename (last path component): `*` matches any run including none, `?` one character, `[...]` a class. Unlike the shell a leading dot is matched literally. Case follows `--case` - the xff default folds when the volume does (APFS / HFS+ / NTFS), while `--exact` or `--config=find` forces a byte-exact compare; `-iname` always folds. Contrast `-path` (whole path) and `-regex` (anchored pattern). Example: `xff . -name '*.log'`.
 - `-iname ARG` - match the basename against a shell glob, case-insensitively _(test, find)_
-  The always-case-insensitive -name: folds case regardless of --case or the volume.
+  The always-case-insensitive `-name`: folds case regardless of `--case` or the volume.
 - `-path ARG` - match the whole path against a shell glob _(test, find)_
-  Globs the whole path as printed (from the start point down), not just the basename. Unlike the shell, `*` and `?` DO match `/`, so `-path '*/build/*'` matches a build directory at any depth. Wildcards and case handling are -name's. GNU spells this -wholename.
+  Globs the whole path as printed (from the start point down), not just the basename. Unlike the shell, `*` and `?` DO match `/`, so `-path '*/build/*'` matches a build directory at any depth. Wildcards and case handling are `-name`'s. GNU spells this `-wholename`.
 - `-ipath ARG` - match the whole path against a shell glob, case-insensitively _(test, find)_
-  The always-case-insensitive -path (whole-path glob).
+  The always-case-insensitive `-path` (whole-path glob).
 - `-wholename ARG` - GNU synonym for -path _(test, find)_
 - `-iwholename ARG` - GNU synonym for -ipath _(test, find)_
 - `-lname ARG` - match the symlink target against a shell glob _(test, find)_
-  Globs the symlink's target text - the path the link points AT, never the resolved destination - so a link matches even when its target is missing. Only a symbolic link can match, and with the default -P (or -H) a symlink is seen as itself. Wildcards and case handling are -name's; -ilname always folds.
+  Globs the symlink's target text - the path the link points AT, never the resolved destination - so a link matches even when its target is missing. Only a symbolic link can match, and with the default `-P` (or `-H`) a symlink is seen as itself. Wildcards and case handling are `-name`'s; `-ilname` always folds.
 - `-ilname ARG` - match the symlink target against a shell glob, case-insensitively _(test, find)_
-  The always-case-insensitive -lname (symlink-target glob).
+  The always-case-insensitive `-lname` (symlink-target glob).
 - `-regex ARG` - match the whole path against a regular expression _(test, find)_
-  Matches when the pattern matches the WHOLE path (anchored both ends, like find), not just a substring - use `.*` to match anywhere. Dialect is chosen by -regextype (RE2 by default); capture groups become `{1}`..`{N}` for a following -exec / -printf. Example: `xff . -regex '.*/[0-9]+\.log'`.
+  Matches when the pattern matches the WHOLE path (anchored both ends, like find), not just a substring - use `.*` to match anywhere. Dialect is chosen by `-regextype` (RE2 by default); capture groups become `{1}`..`{N}` for a following `-exec` / `-printf`. Example: `xff . -regex '.*/[0-9]+\.log'`.
 - `-iregex ARG` - match the whole path against a regular expression, case-insensitively _(test, find)_
-  The case-insensitive -regex: same whole-path anchoring and capture-group binding, matching without regard to case.
+  The case-insensitive `-regex`: same whole-path anchoring and capture-group binding, matching without regard to case.
 - `-regextype ARG` - select the regex dialect for the following -regex/-iregex _(test, find)_
 - `-content ARG` - match a literal substring in the file's content (xff) _(test, xff)_
-  Matches when the file contains SUBSTRING literally (no regex metacharacters - the literal pair sidesteps grep's flavor ambiguity). Reads the file, so it is expensive; a non-regular, unreadable, or binary file (a NUL byte in the first 8 KiB) never matches. -icontent folds ASCII case. Use -rxc for a pattern. This is an xff extension --config=find rejects.
+  Matches when the file contains SUBSTRING literally (no regex metacharacters - the literal pair sidesteps grep's flavor ambiguity). Reads the file, so it is expensive; a non-regular, unreadable, or binary file (a NUL byte in the first 8 KiB) never matches. `-icontent` folds ASCII case. Use `-rxc` for a pattern. This is an xff extension `--config=find` rejects.
 - `-icontent ARG` - match a literal substring in the file's content, case-insensitively (xff) _(test, xff)_
-  The case-insensitive -content: folds ASCII case on the literal substring search.
+  The case-insensitive `-content`: folds ASCII case on the literal substring search.
 - `-rxc ARG` - match the file's content against a regular expression (xff) _(test, xff)_
-  The regex counterpart of -content: matches when the RE2 pattern is found ANYWHERE in the content (unanchored, like grep - use `^` / `$` to anchor), not the whole-file anchoring -regex applies to the path. Same expensive read and non-regular / unreadable / binary skip; -irxc folds case. An xff extension --config=find rejects.
+  The regex counterpart of `-content`: matches when the RE2 pattern is found ANYWHERE in the content (unanchored, like grep - use `^` / `$` to anchor), not the whole-file anchoring `-regex` applies to the path. Same expensive read and non-regular / unreadable / binary skip; `-irxc` folds case. An xff extension `--config=find` rejects.
 - `-irxc ARG` - match the file's content against a regular expression, case-insensitively (xff) _(test, xff)_
-  The case-insensitive -rxc: folds case on the content regex search.
+  The case-insensitive `-rxc`: folds case on the content regex search.
 - `-text` - match a regular text file; -text[=git|posix|windows|apple] picks the definition (xff) _(test, xff)_
-  TRUE for a regular, readable file whose content is text. Bare -text (or =git) is the default heuristic: no NUL byte in the first 8000 bytes (git's buffer_is_binary, also grep/ripgrep), line-ending-agnostic. The strict flavors forbid a NUL ANYWHERE and pin the line ending, requiring a final terminator (an empty file is vacuously complete): =posix = LF only, ends with a newline; =windows = CRLF only; =apple = CR only. Reads the file (expensive). A directory, symlink, device or unreadable file is not text (nor binary), so it never matches - `! -text` is NOT -binary. An xff extension --config=find rejects.
+  TRUE for a regular, readable file whose content is text. Bare `-text` (or `=git`) is the default heuristic: no NUL byte in the first 8000 bytes (git's buffer_is_binary, also grep/ripgrep), line-ending-agnostic. The strict flavors forbid a NUL ANYWHERE and pin the line ending, requiring a final terminator (an empty file is vacuously complete): `=posix` = LF only, ends with a newline; `=windows` = CRLF only; `=apple` = CR only. Reads the file (expensive). A directory, symlink, device or unreadable file is not text (nor binary), so it never matches - `! -text` is NOT `-binary`. An xff extension `--config=find` rejects.
 - `-binary` - match a regular file whose content is binary (a NUL in the first 8 KiB) (xff) _(test, xff)_
-  TRUE for a regular, readable file whose content is binary - a NUL byte in the first 8 KiB. The precise complement of -text WITHIN regular files: a directory, symlink, device or unreadable file is neither, so `-binary` is not `! -text`. Reads the file (expensive). An xff extension --config=find rejects.
+  TRUE for a regular, readable file whose content is binary - a NUL byte in the first 8 KiB. The precise complement of `-text` WITHIN regular files: a directory, symlink, device or unreadable file is neither, so `-binary` is not `! -text`. Reads the file (expensive). An xff extension `--config=find` rejects.
 - `-eofnl` - match a regular file whose content ends with a newline (LF), or is empty (xff) _(test, xff)_
-  TRUE for a regular, readable file whose content ends with a newline / LF (or is empty - a zero-line file is complete). Tests ONLY the final terminator, the other axis from -text/-binary: compose -text -eofnl for a well-formed (POSIX-style) text file, or -text ! -eofnl for the common lint 'a text file missing its final newline'. A CRLF file ends with LF too, so it also matches -eofnl; -eofcrlf is the strict CRLF form. Reads the file (expensive). An xff extension --config=find rejects.
+  TRUE for a regular, readable file whose content ends with a newline / LF (or is empty - a zero-line file is complete). Tests ONLY the final terminator, the other axis from `-text`/-binary: compose `-text` `-eofnl` for a well-formed (POSIX-style) text file, or `-text` ! `-eofnl` for the common lint 'a text file missing its final newline'. A CRLF file ends with LF too, so it also matches `-eofnl`; `-eofcrlf` is the strict CRLF form. Reads the file (expensive). An xff extension `--config=find` rejects.
 - `-eofcr` - match a regular file whose content ends with a bare CR, or is empty (xff) _(test, xff)_
-  TRUE for a regular, readable file whose content ends with a bare carriage return / CR (or is empty). The classic-Mac / -text=apple final terminator, and the CR analogue of -eofnl: compose -text=apple -eofcr for a well-formed CR-terminated file, or -text=apple ! -eofcr for the missing final CR. A CRLF file ends with LF (not a bare CR), so it does NOT match -eofcr. Reads the file (expensive). An xff extension --config=find rejects.
+  TRUE for a regular, readable file whose content ends with a bare carriage return / CR (or is empty). The classic-Mac / `-text=apple` final terminator, and the CR analogue of `-eofnl`: compose `-text=apple` `-eofcr` for a well-formed CR-terminated file, or `-text=apple` ! `-eofcr` for the missing final CR. A CRLF file ends with LF (not a bare CR), so it does NOT match `-eofcr`. Reads the file (expensive). An xff extension `--config=find` rejects.
 - `-eofcrlf` - match a regular file whose content ends with CRLF, or is empty (xff) _(test, xff)_
-  TRUE for a regular, readable file whose content ends with CRLF (or is empty). The Windows / -text=windows final terminator, and the CRLF analogue of -eofnl: compose -text=windows -eofcrlf for a well-formed CRLF-terminated file, or -text=windows ! -eofcrlf for the missing final CRLF. Stricter than -eofnl (which any LF-ending file, including CRLF, satisfies). Reads the file (expensive). An xff extension --config=find rejects.
+  TRUE for a regular, readable file whose content ends with CRLF (or is empty). The Windows / `-text=windows` final terminator, and the CRLF analogue of `-eofnl`: compose `-text=windows` `-eofcrlf` for a well-formed CRLF-terminated file, or `-text=windows` ! `-eofcrlf` for the missing final CRLF. Stricter than `-eofnl` (which any LF-ending file, including CRLF, satisfies). Reads the file (expensive). An xff extension `--config=find` rejects.
 - `-fuzzy ARG` - match the basename loosely: PATTERN's characters in order, gaps allowed (xff) _(test, xff)_
-  TRUE when every character of PATTERN appears in the entry's basename IN ORDER, with anything at all in between - `-fuzzy tmh` finds `the_main_header.h`. This is a SUBSEQUENCE match (fzf, fd's interactive cousins, an editor's quick-open), not a bounded edit distance: it answers "can I type a few letters and find the file", not "is this a typo of that". Matching is cheap (no regex, no allocation) and unanchored, so the letters may start anywhere in the name. Case follows --case like -name does; -ifuzzy always folds. There is no ranking yet - this is a test, so every match is equal and the walk order is unchanged. Use -name for a glob and -regex for a pattern. An xff extension --config=find rejects. Example: `xff . -fuzzy rdme`.
+  TRUE when every character of PATTERN appears in the entry's basename IN ORDER, with anything at all in between - `-fuzzy tmh` finds `the_main_header.h`. This is a SUBSEQUENCE match (fzf, fd's interactive cousins, an editor's quick-open), not a bounded edit distance: it answers "can I type a few letters and find the file", not "is this a typo of that". Matching is cheap (no regex, no allocation) and unanchored, so the letters may start anywhere in the name. Case follows `--case` like `-name` does; `-ifuzzy` always folds. There is no ranking yet - this is a test, so every match is equal and the walk order is unchanged. Use `-name` for a glob and `-regex` for a pattern. An xff extension `--config=find` rejects. Example: `xff . -fuzzy rdme`.
 - `-ifuzzy ARG` - match the basename loosely, case-insensitively (xff) _(test, xff)_
-  The always-case-insensitive -fuzzy: folds ASCII case regardless of --case or the volume.
+  The always-case-insensitive `-fuzzy`: folds ASCII case regardless of `--case` or the volume.
 - `-cmp ARG` - true when the file's content is byte-identical to TARGET (a field template) (xff) _(test, xff)_
 - `-hasheq ARG` - true when the digest equals EXPECTED (a field template); -hasheq=ALGO[/ENC] (xff) _(test, xff)_
-  Computes the file's digest and is true when it equals EXPECTED - a {field} template evaluated per entry, so it can name a sidecar value like `{def.SUMS}` or a capture. `-hasheq=ALGO[/ENCODING]` picks the algorithm (sha256 default; also sha1/sha512/...) and encoding (hex default, or base64); the same grammar as -hash / {hash}. It is a strict equality test (hex folds case). `! -hasheq` selects files whose digest differs (drift / corruption). Reads the whole file, so it is expensive.
+  Computes the file's digest and is true when it equals EXPECTED - a {field} template evaluated per entry, so it can name a sidecar value like `{def.SUMS}` or a capture. `-hasheq=ALGO[/ENCODING]` picks the algorithm (sha256 default; also sha1/sha512/...) and encoding (hex default, or base64); the same grammar as `-hash` / {hash}. It is a strict equality test (hex folds case). `! -hasheq` selects files whose digest differs (drift / corruption). Reads the whole file, so it is expensive.
 - `-type ARG` - match the file type (f, d, l, b, c, p, s) _(test, find)_
-  Matches the entry's type by letter: f=regular file, d=directory, l=symlink, b/c=block / char device, p=FIFO, s=socket. A GNU-style comma list is any-of, so `-type f,l` matches regular files or symlinks. Under the default -P a symlink is type l; -xtype tests its target's type instead.
+  Matches the entry's type by letter: `f`=regular file, `d`=directory, `l`=symlink, `b`/`c`=block / char device, `p`=FIFO, `s`=socket. A GNU-style comma list is any-of, so `-type f,l` matches regular files or symlinks. Under the default `-P` a symlink is type `l`; `-xtype` tests its target's type instead.
 - `-xtype ARG` - match the file type of a symlink's target _(test, find)_
-  Like -type, but for a symlink it tests the type of the link's TARGET (the link is followed). A broken symlink has no target, so it reports as a symlink and `-xtype l` matches it, matching GNU find under the default -P. On a non-symlink it is identical to -type.
+  Like `-type`, but for a symlink it tests the type of the link's TARGET (the link is followed). A broken symlink has no target, so it reports as a symlink and `-xtype l` matches it, matching GNU find under the default `-P`. On a non-symlink it is identical to `-type`.
 - `-mime ARG` - match the media type by extension against a glob, e.g. -mime 'image/*' (xff) _(test, xff)_
-  xff extension: matches the media (MIME) type derived from the filename extension (a fast, dependency-free table - no content sniffing) against a shell glob, so `image/*` matches png/jpg/... and `text/plain` is exact. The same value is the {mime} field. Matching is always case-insensitive (MIME names are case-insensitive per RFC 2045/6838), so `IMAGE/*` behaves like `image/*`; --case / -i / -s do not affect it.
+  xff extension: matches the media (MIME) type derived from the filename extension (a fast, dependency-free table - no content sniffing) against a shell glob, so `image/*` matches png/jpg/... and `text/plain` is exact. The same value is the {mime} field. Matching is always case-insensitive (MIME names are case-insensitive per RFC 2045/6838), so `IMAGE/*` behaves like `image/*`; `--case` / -i / -s do not affect it.
 - `-lang ARG` - match the language by extension/filename against a glob, e.g. -lang 'C*' (xff) _(test, xff)_
-  xff extension: matches the programming language inferred from the extension/filename (github-linguist data) against a shell glob, so `C*` matches C / C++ / C#. The same value is the {lang} field. Matching is always case-insensitive (`c++` matches the canonical `C++`) and unaffected by --case / -i / -s.
+  xff extension: matches the programming language inferred from the extension/filename (github-linguist data) against a shell glob, so `C*` matches C / C++ / C#. The same value is the {lang} field. Matching is always case-insensitive (`c++` matches the canonical `C++`) and unaffected by `--case` / -i / -s.
 - `-size ARG` - match the apparent size (unit suffix c, w, k, M, G, T, P, E) _(test, find)_
-  Compares the file's apparent size. A bare number counts 512-byte blocks (find default); a unit suffix sets the scale - c=bytes, w=2 bytes, k/M/G/T/P, plus the xff-only E. A leading + / - means greater / less than. Following GNU, the size is rounded up to whole units, so `-size +100M` means "larger than 100 MB". (See -blocks for allocated space.)
+  Compares the file's apparent size. A bare number counts 512-byte blocks (find default); a unit suffix sets the scale - c=bytes, w=2 bytes, k/M/G/T/P, plus the xff-only E. A leading + / - means greater / less than. Following GNU, the size is rounded up to whole units, so `-size +100M` means "larger than 100 MB". (See `-blocks` for allocated space.)
 - `-blocks ARG` - match the allocated size (st_blocks); xff's disk-occupancy counterpart to -size _(test, xff)_
 - `-links ARG` - match the hard-link count _(test, find)_
 - `-inum ARG` - match the inode number _(test, find)_
@@ -382,23 +443,23 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-fstype ARG` - match the filesystem type (statfs) _(test, find)_
   Matches when the filesystem holding the entry has the given type name (e.g. `apfs`, `ext2/ext3`, `tmpfs`, `nfs`). The recognized names are platform-specific - macOS / BSD report `f_fstypename` verbatim, Linux maps the statfs magic to a find-compatible name - so a portable expression usually cannot assume one name across OSes.
 - `-uid ARG` - match the numeric owner id _(test, find)_
-  Matches the owner's numeric user id. Like find's numeric tests it accepts `+N` (greater than), `-N` (less than), or a bare N (exact). Match by login name with -user instead.
+  Matches the owner's numeric user id. Like find's numeric tests it accepts `+N` (greater than), `-N` (less than), or a bare N (exact). Match by login name with `-user` instead.
 - `-gid ARG` - match the numeric group id _(test, find)_
-  The group counterpart of -uid: the numeric group id, with `+N` / `-N` / bare-N. Match by group name with -group instead.
+  The group counterpart of `-uid`: the numeric group id, with `+N` / `-N` / bare-N. Match by group name with `-group` instead.
 - `-user ARG` - match the owner by name _(test, find)_
   Matches the owner by login name, resolved through the passwd database. A name with no passwd entry never matches, but a bare numeric argument is taken as a uid, so `-user 0` behaves like `-uid 0`. Exact match only (no `+` / `-`).
 - `-group ARG` - match the group by name _(test, find)_
-  The group counterpart of -user: matches by group name (via the group database), falling back to a numeric gid. Exact match only.
+  The group counterpart of `-user`: matches by group name (via the group database), falling back to a numeric gid. Exact match only.
 - `-nouser` - match when the owner uid has no passwd entry _(test, find)_
-  Matches when the entry's owner uid has NO entry in the passwd database - an orphaned owner, e.g. from a deleted account or an archive unpacked with foreign ids. Takes no argument. See -nogroup for the group side.
+  Matches when the entry's owner uid has NO entry in the passwd database - an orphaned owner, e.g. from a deleted account or an archive unpacked with foreign ids. Takes no argument. See `-nogroup` for the group side.
 - `-nogroup` - match when the group gid has no group entry _(test, find)_
-  Matches when the entry's group gid has no entry in the group database (the group side of -nouser).
+  Matches when the entry's group gid has no entry in the group database (the group side of `-nouser`).
 - `-newer ARG` - match when mtime is newer than the reference file's mtime _(test, find)_
-  Matches when the entry's mtime is strictly newer than reference FILE's mtime. FILE is stat'd following symlinks; a missing or unreadable reference makes it false. This is the base of the -newerXY family: `-newerXY FILE` compares the entry's X time against the reference's Y time, where each of X and Y is a=access, c=status-change, m=modification, or B=birth - so `-newerac` is the entry's atime vs the reference's ctime. -anewer / -cnewer are the classic aliases. When Y is `t` the operand is a TIME STRING, not a file (see -newermt). A birth time the filesystem never recorded makes an X=B test a hard error and a Y=B reference a silent no-match.
+  Matches when the entry's mtime is strictly newer than reference FILE's mtime. FILE is stat'd following symlinks; a missing or unreadable reference makes it false. This is the base of the -newerXY family: `-newerXY FILE` compares the entry's X time against the reference's Y time, where each of X and Y is a=access, c=status-change, m=modification, or B=birth - so `-newerac` is the entry's atime vs the reference's ctime. `-anewer` / `-cnewer` are the classic aliases. When Y is `t` the operand is a TIME STRING, not a file (see `-newermt`). A birth time the filesystem never recorded makes an X=B test a hard error and a Y=B reference a silent no-match.
 - `-anewer ARG` - match when atime is newer than the reference file's mtime (== -neweram) _(test, find)_
-  find's classic spelling of -neweram: the entry's access time is newer than the reference file's modification time. See -newer for the -newerXY family.
+  find's classic spelling of `-neweram`: the entry's access time is newer than the reference file's modification time. See `-newer` for the -newerXY family.
 - `-cnewer ARG` - match when ctime is newer than the reference file's mtime (== -newercm) _(test, find)_
-  find's classic spelling of -newercm: the entry's status-change time is newer than the reference file's modification time. See -newer for the -newerXY family.
+  find's classic spelling of `-newercm`: the entry's status-change time is newer than the reference file's modification time. See `-newer` for the -newerXY family.
 - `-neweraa ARG` - match when atime is newer than the reference file's atime _(test, find)_
 - `-newerac ARG` - match when atime is newer than the reference file's ctime _(test, find)_
 - `-neweram ARG` - match when atime is newer than the reference file's mtime _(test, find)_
@@ -411,7 +472,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-newerat ARG` - match when atime is newer than a time string _(test, find)_
 - `-newerct ARG` - match when ctime is newer than a time string _(test, find)_
 - `-newermt ARG` - match when mtime is newer than a time string _(test, find)_
-  The `-newerXt` time-string form: matches when the entry's mtime is newer than TIME - a timestamp xff parses (an ISO date / date-time, @epoch, or a relative span), interpreted in --timezone - rather than a reference file. -newerat / -newerct / -newerBt are the access / status-change / birth-time counterparts; the file-reference forms are -newerXY (see -newer).
+  The `-newerXt` time-string form: matches when the entry's mtime is newer than TIME - a timestamp xff parses (an ISO date / date-time, @epoch, or a relative span), interpreted in `--timezone` - rather than a reference file. `-newerat` / `-newerct` / `-newerBt` are the access / status-change / birth-time counterparts; the file-reference forms are -newerXY (see `-newer`).
 - `-newerBa ARG` - match when birth time is newer than the reference file's atime _(test, find)_
 - `-newerBc ARG` - match when birth time is newer than the reference file's ctime _(test, find)_
 - `-newerBm ARG` - match when birth time is newer than the reference file's mtime _(test, find)_
@@ -421,50 +482,50 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-newercB ARG` - match when ctime is newer than the reference file's birth time _(test, find)_
 - `-newermB ARG` - match when mtime is newer than the reference file's birth time _(test, find)_
 - `-mtime ARG` - match the data-modification age in days _(test, find)_
-  Matches the data-modification age. A bare integer N counts 24-hour periods with any fraction floored (a 2.9-day file is 2); `+N` matches strictly older than N units, `-N` strictly younger. A trailing s/m/h/d/w overrides the unit BSD-style (`-mtime -1h` = under an hour old). The xff-only word/compound span (`-mtime "-3 weeks 3 hours"`, sign required) reaches back a full relative duration and is rejected by --config=find. See -mmin for the minute scale, -atime / -ctime / -Btime for the other time axes.
+  Matches the data-modification age. A bare integer N counts 24-hour periods with any fraction floored (a 2.9-day file is 2); `+N` matches strictly older than N units, `-N` strictly younger. A trailing s/m/h/d/w overrides the unit BSD-style (`-mtime -1h` = under an hour old). The xff-only word/compound span (`-mtime "-3 weeks 3 hours"`, sign required) reaches back a full relative duration and is rejected by `--config=find`. See `-mmin` for the minute scale, `-atime` / `-ctime` / `-Btime` for the other time axes.
 - `-mmin ARG` - match the data-modification age in minutes _(test, find)_
-  The minute-scale -mtime: N counts whole minutes (floored), `+N` / `-N` for older / younger. Integer only - no unit suffix and no compound span (use -mtime for those).
+  The minute-scale `-mtime`: N counts whole minutes (floored), `+N` / `-N` for older / younger. Integer only - no unit suffix and no compound span (use `-mtime` for those).
 - `-atime ARG` - match the access age in days _(test, find)_
-  -mtime measured on the access time (atime): same N-day scale, `+N` / `-N` polarity, BSD unit suffix, and xff compound span. Note atime is often unreliable - many mounts use relatime or noatime, so a read may not update it.
+  `-mtime` measured on the access time (atime): same N-day scale, `+N` / `-N` polarity, BSD unit suffix, and xff compound span. Note atime is often unreliable - many mounts use relatime or noatime, so a read may not update it.
 - `-amin ARG` - match the access age in minutes _(test, find)_
-  The minute-scale -atime (access time): integer minutes, `+N` / `-N`, no suffix. See -mmin.
+  The minute-scale `-atime` (access time): integer minutes, `+N` / `-N`, no suffix. See `-mmin`.
 - `-ctime ARG` - match the status-change age in days _(test, find)_
-  -mtime measured on the status-change time (ctime) - when the inode metadata last changed (permissions, ownership, link count, rename), which a content edit also bumps. Same N-day scale, `+N` / `-N` polarity, BSD unit suffix, and xff compound span. This is not a creation time; see -Btime for that.
+  `-mtime` measured on the status-change time (ctime) - when the inode metadata last changed (permissions, ownership, link count, rename), which a content edit also bumps. Same N-day scale, `+N` / `-N` polarity, BSD unit suffix, and xff compound span. This is not a creation time; see `-Btime` for that.
 - `-cmin ARG` - match the status-change age in minutes _(test, find)_
-  The minute-scale -ctime (status-change time): integer minutes, `+N` / `-N`, no suffix. See -mmin.
+  The minute-scale `-ctime` (status-change time): integer minutes, `+N` / `-N`, no suffix. See `-mmin`.
 - `-Btime ARG` - match the birth (creation) age in days _(test, find)_
-  -mtime measured on the birth (creation) time: same N-day scale, `+N` / `-N` polarity, BSD unit suffix, and xff compound span. Birth time is not recorded on every filesystem or kernel - where it is absent the test cannot be evaluated and is a hard error (exit 2); --skip-unsupported downgrades that to a warning and skips the entry.
+  `-mtime` measured on the birth (creation) time: same N-day scale, `+N` / `-N` polarity, BSD unit suffix, and xff compound span. Birth time is not recorded on every filesystem or kernel - where it is absent the test cannot be evaluated and is a hard error (exit 2); `--skip-unsupported` downgrades that to a warning and skips the entry.
 - `-Bmin ARG` - match the birth (creation) age in minutes _(test, find)_
-  The minute-scale -Btime (birth time): integer minutes, `+N` / `-N`, no suffix. Same unrecorded-birth-time handling as -Btime (hard error, or a skip under --skip-unsupported).
+  The minute-scale `-Btime` (birth time): integer minutes, `+N` / `-N`, no suffix. Same unrecorded-birth-time handling as `-Btime` (hard error, or a skip under `--skip-unsupported`).
 - `-used ARG` - match the whole days between atime and ctime _(test, find)_
-  Matches the whole days between an entry's last status change and its last access (atime minus ctime) - roughly how long after its metadata changed it was next read. `+N` / `-N` for more / fewer days. Shares atime's relatime / noatime caveat (see -atime).
+  Matches the whole days between an entry's last status change and its last access (atime minus ctime) - roughly how long after its metadata changed it was next read. `+N` / `-N` for more / fewer days. Shares atime's relatime / noatime caveat (see `-atime`).
 - `-perm ARG` - match the permission bits (octal or symbolic mode) _(test, find)_
-  Matches the permission (and setuid / setgid / sticky) bits. MODE is octal (`644`, `0755`) or a chmod-style symbolic mode (`u+w`, `go=r`, comma-separated clauses). A bare MODE matches exactly; `-MODE` matches when ALL the listed bits are set; `/MODE` (GNU) when ANY are. BSD `+octal` is any-of like `/`, while a symbolic `+r` stays exact. Example: `-perm -u+x` = owner-executable. Contrast -readable / -writable / -executable, which probe the effective user's real access.
+  Matches the permission (and setuid / setgid / sticky) bits. MODE is octal (`644`, `0755`) or a chmod-style symbolic mode (`u+w`, `go=r`, comma-separated clauses). A bare MODE matches exactly; `-MODE` matches when ALL the listed bits are set; `/MODE` (GNU) when ANY are. BSD `+octal` is any-of like `/`, while a symbolic `+r` stays exact. Example: `-perm -u+x` = owner-executable. Contrast `-readable` / `-writable` / `-executable`, which probe the effective user's real access.
 - `-maxdepth ARG` - descend at most N directory levels below each start _(test, find)_
-  Limits traversal to at most N levels below each start point: level 0 is a start point itself, 1 its immediate children. Like find this is a global positional option - it applies to the whole run wherever it sits in the expression, not just to what follows it. Pair with -mindepth to bound both ends.
+  Limits traversal to at most N levels below each start point: level 0 is a start point itself, 1 its immediate children. Like find this is a global positional option - it applies to the whole run wherever it sits in the expression, not just to what follows it. Pair with `-mindepth` to bound both ends.
 - `-mindepth ARG` - skip entries fewer than N levels below each start _(test, find)_
-  Skips entries fewer than N levels below a start point, so -mindepth 1 excludes the start points themselves. A global positional option like -maxdepth (applies run-wide).
+  Skips entries fewer than N levels below a start point, so `-mindepth` 1 excludes the start points themselves. A global positional option like `-maxdepth` (applies run-wide).
 - `-depth` - process a directory's contents before the directory _(test, find)_
-  Visits a directory's contents BEFORE the directory itself (post-order), so a directory is acted on only after everything within it - what -delete needs, and -delete turns this on for you. A global positional option; -d is the BSD/GNU short spelling.
+  Visits a directory's contents BEFORE the directory itself (post-order), so a directory is acted on only after everything within it - what `-delete` needs, and `-delete` turns this on for you. A global positional option; `-d` is the BSD/GNU short spelling.
 - `-d` - BSD/GNU short spelling of -depth _(test, find)_
 - `-xdev` - do not descend into other filesystems _(test, find)_
-  Confines the walk to the filesystem of each start point: it will not descend into a directory that lives on a different mounted device. A global positional option; -mount and -x are synonyms.
+  Confines the walk to the filesystem of each start point: it will not descend into a directory that lives on a different mounted device. A global positional option; `-mount` and `-x` are synonyms.
 - `-mount` - GNU/BSD synonym for -xdev _(test, find)_
 - `-x` - BSD synonym for -xdev _(test, find)_
 - `-daystart` - measure age tests from today's local midnight _(test, find)_
-  Measures the day- and minute-scale age tests (-mtime / -atime / -ctime / -Btime and their -min forms) from the start of today (local midnight) instead of from the exact current instant, matching GNU find's -daystart. Unlike find, where it only affects tests to its right, in xff it applies run-wide regardless of where it appears in the expression.
+  Measures the day- and minute-scale age tests (`-mtime` / `-atime` / `-ctime` / `-Btime` and their -min forms) from the start of today (local midnight) instead of from the exact current instant, matching GNU find's `-daystart`. Unlike find, where it only affects tests to its right, in xff it applies run-wide regardless of where it appears in the expression.
 - `-ignore_readdir_race` - skip entries that vanish during the walk (ENOENT) _(test, find)_
 - `-noignore_readdir_race` - report vanished entries as errors (default) _(test, find)_
 - `-empty` - match an empty regular file or empty directory _(test, find)_
   Matches an empty regular file (size 0) or a directory with no entries; other types never match. The directory case reads the directory to check, so it costs a syscall.
 - `-sparse` - match a file with holes (allocated blocks < apparent size) _(test, find)_
-  Matches a file stored sparsely - fewer 512-byte blocks are allocated than its apparent size would need (`st_blocks * 512 < st_size`), i.e. it has holes. A zero-size file is never sparse. Compare -blocks (allocated space) against -size (apparent size).
+  Matches a file stored sparsely - fewer 512-byte blocks are allocated than its apparent size would need (`st_blocks * 512 < st_size`), i.e. it has holes. A zero-size file is never sparse. Compare `-blocks` (allocated space) against `-size` (apparent size).
 - `-readable` - match entries the current user can read _(test, find)_
-  Matches when the entry is readable by the CURRENT (effective) user, via a real access(2) probe rather than a guess from the mode bits - so it reflects ownership and ACLs and can differ from -perm. See -writable / -executable for the other access modes.
+  Matches when the entry is readable by the CURRENT (effective) user, via a real access(2) probe rather than a guess from the mode bits - so it reflects ownership and ACLs and can differ from `-perm`. See `-writable` / `-executable` for the other access modes.
 - `-writable` - match entries the current user can write _(test, find)_
-  The write-mode -readable: a real access(2) probe for the effective user (see -readable).
+  The write-mode `-readable`: a real access(2) probe for the effective user (see `-readable`).
 - `-executable` - match entries the current user can execute _(test, find)_
-  The execute/search-mode -readable: a real access(2) probe for the effective user. On a directory this means search (traverse) permission. See -readable.
+  The execute/search-mode `-readable`: a real access(2) probe for the effective user. On a directory this means search (traverse) permission. See `-readable`.
 - `-true` - always match _(test, find)_
 - `-false` - never match _(test, find)_
 
@@ -475,63 +536,63 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-hash` - print the file digest and path; -hash=ALGO[/ENCODING], sha256 hex default (xff) _(action, xff)_
   Prints `DIGEST  PATH` for each match (an action). `-hash=ALGO[/ENCODING]` picks the algorithm (sha256 default; also sha1/sha512/...) and encoding (hex default, or base64). Reads the whole file, so it is expensive; the same digest is available as the {hash} field.
 - `-ls` - print an `ls -dils` style line per entry _(action, find)_
-  Prints one `ls -dils`-style line per match: inode, blocks, mode, links, owner, group, size, time, name (find's -ls). Columns align to ls/BSD width defaults. For a custom layout use -printf; for aligned columns of {field}s use --format=aligned.
+  Prints one `ls -dils`-style line per match: inode, blocks, mode, links, owner, group, size, time, name (find's `-ls`). Columns align to ls/BSD width defaults. For a custom layout use `-printf`; for aligned columns of {field}s use `--format=aligned`.
 - `-print` - print the path followed by a newline _(action, find)_
-  Prints the path then a newline. This is the DEFAULT action: with no action anywhere in the expression xff prints each match, exactly as if -print were appended. Naming any action (including -print itself) suppresses that implicit default; --implicit-print=yes|no forces it on or off.
+  Prints the path then a newline. This is the DEFAULT action: with no action anywhere in the expression xff prints each match, exactly as if `-print` were appended. Naming any action (including `-print` itself) suppresses that implicit default; `--implicit-print=yes`|no forces it on or off.
 - `-print0` - print the path followed by a NUL _(action, find)_
-  Prints the path then a NUL byte instead of a newline, so paths containing spaces or newlines survive a pipe into `xargs -0`. The machine-readable counterpart of -print; see also --format=jsonl.
+  Prints the path then a NUL byte instead of a newline, so paths containing spaces or newlines survive a pipe into `xargs -0`. The machine-readable counterpart of `-print`; see also `--format=jsonl`.
 - `-printf ARG` - print a custom format string (%{field} expands the xff field vocabulary) _(action, find)_
-  Prints FORMAT for each match, expanding find's `%` directives (%p path, %f name, %s size, %t/%Ak times, ...) and C escapes (\n, \t). xff adds `%{NAME}` to reach the full {field} vocabulary and its qualifiers (see --help=fields, --help=printf). No trailing newline unless you write one; -printfln adds the OS line ending. Example: `xff . -printf '%s\t%p\n'`.
+  Prints FORMAT for each match, expanding find's `%` directives (%p path, %f name, %s size, %t/%Ak times, ...) and C escapes (\n, \t). xff adds `%{NAME}` to reach the full {field} vocabulary and its qualifiers (see --help=fields, --help=printf). No trailing newline unless you write one; `-printfln` adds the OS line ending. Example: `xff . -printf '%s\t%p\n'`.
 - `-println` - print the path with the OS line ending (xff) _(action, xff)_
-  -print but terminated with the OS-native line ending (CRLF on Windows, LF elsewhere) rather than always LF. An xff extension --config=find rejects.
+  `-print` but terminated with the OS-native line ending (CRLF on Windows, LF elsewhere) rather than always LF. An xff extension `--config=find` rejects.
 - `-printfln ARG` - print a custom format with the OS line ending (xff) _(action, xff)_
-  -printf plus the OS line ending appended, so you write FORMAT without a trailing `\n`. An xff extension --config=find rejects; see -printf for the directive vocabulary.
+  `-printf` plus the OS line ending appended, so you write FORMAT without a trailing `\n`. An xff extension `--config=find` rejects; see `-printf` for the directive vocabulary.
 - `-grep ARG` - print each content line matching a regex; -grep=FORMAT for a template (xff) _(action, xff)_
-  The line-output companion of -rxc: `-grep PATTERN` prints every content line matching the RE2 PATTERN as `path:lineno:text` (grep's piped form; a literal substring under --regextype=EXACT). `-grep=FORMAT PATTERN` renders a {line}/{text}/{match}/{column} template instead. Honors -c / --count (one `path:count` per file) and -A / -B / --context (surrounding lines, grep-style). Reads the file (expensive); non-regular / unreadable / binary files yield nothing. Its truth is "matched a line", so it composes with -o / -q. An xff extension --config=find rejects.
+  The line-output companion of `-rxc`: `-grep PATTERN` prints every content line matching the RE2 PATTERN as `path:lineno:text` (grep's piped form; a literal substring under `--regextype=EXACT`). `-grep=FORMAT PATTERN` renders a {line}/{text}/{match}/{column} template instead. Honors `-c` / `--count` (one `path:count` per file) and -A / -B / `--context` (surrounding lines, grep-style). Reads the file (expensive); non-regular / unreadable / binary files yield nothing. Its truth is "matched a line", so it composes with `-o` / `-q`. An xff extension `--config=find` rejects.
   Affected by: --count, --context, --after-context, --before-context
 - `-fprint ARG` - write -print output to a named file _(action, find)_
-  Writes what -print would emit to FILE instead of stdout. FILE is opened once (truncating any existing content) and held open for the whole walk, so matches append to it in visit order. This is the anchor of the -f* family - each mirrors a stdout action: -fprint0, -fprintf, -fls, and the xff -fprintln / -fprintfln.
+  Writes what `-print` would emit to FILE instead of stdout. FILE is opened once (truncating any existing content) and held open for the whole walk, so matches append to it in visit order. This is the anchor of the -f* family - each mirrors a stdout action: `-fprint0`, `-fprintf`, `-fls`, and the xff `-fprintln` / `-fprintfln`.
 - `-fprintln ARG` - write -println output to a named file (xff) _(action, xff)_
-  The file form of -println (-fprint with the OS line ending). See -fprint for the file handling; an xff extension --config=find rejects.
+  The file form of `-println` (`-fprint` with the OS line ending). See `-fprint` for the file handling; an xff extension `--config=find` rejects.
 - `-fprint0 ARG` - write -print0 output to a named file _(action, find)_
-  The file form of -print0 (NUL-terminated paths). See -fprint for the file handling.
+  The file form of `-print0` (NUL-terminated paths). See `-fprint` for the file handling.
 - `-fprintf ARG ARG` - write -printf output to a named file _(action, find)_
-  The file form of -printf: `-fprintf FILE FORMAT` (FILE first, then the format). See -printf for the directive vocabulary and -fprint for the file handling.
+  The file form of `-printf`: `-fprintf FILE FORMAT` (FILE first, then the format). See `-printf` for the directive vocabulary and `-fprint` for the file handling.
 - `-fprintfln ARG ARG` - write -printfln output to a named file (xff) _(action, xff)_
-  The file form of -printfln: `-fprintfln FILE FORMAT` with the OS line ending appended. An xff extension --config=find rejects; see -fprint for the file handling.
+  The file form of `-printfln`: `-fprintfln FILE FORMAT` with the OS line ending appended. An xff extension `--config=find` rejects; see `-fprint` for the file handling.
 - `-fls ARG` - write -ls output to a named file _(action, find)_
-  The file form of -ls (the `ls -dils` line). See -fprint for the file handling.
+  The file form of `-ls` (the `ls -dils` line). See `-fprint` for the file handling.
 - `-delete` - delete the matched entry _(action, find, modifies the filesystem)_
-  Deletes the matched file or (empty) directory, and implies -depth so a directory's contents are removed before the directory itself. Destructive, so it is guarded: --dry-run previews (prints what would be deleted, removes nothing) and --safe refuses risky targets. Example: `xff . -name '*.tmp' -delete`.
+  Deletes the matched file or (empty) directory, and implies `-depth` so a directory's contents are removed before the directory itself. Destructive, so it is guarded: `--dry-run` previews (prints what would be deleted, removes nothing) and `--safe` refuses risky targets. Example: `xff . -name '*.tmp' -delete`.
 - `-prune` - do not descend into the matched directory _(action, find)_
-  When the matched entry is a directory, do not descend into it (evaluates true). Usually paired with -o to skip a subtree while still processing everything else: `xff . -name .git -prune -o -print`.
+  When the matched entry is a directory, do not descend into it (evaluates true). Usually paired with `-o` to skip a subtree while still processing everything else: `xff . -name .git -prune -o -print`.
 - `-quit` - stop the search immediately _(action, find)_
   Stops the whole search as soon as it is reached (after actions on the current entry have run). Handy to emit just the first match: `xff . -name target -print -quit`.
 - `-exec CMD... ;` - run a command per match (;) or batched (+) _(action, find, runs commands)_
-  Runs the command up to a terminator: `;` runs it once per match, `+` batches as many paths as fit per invocation (like xargs). `{}` expands to the path; xff also binds `{1}`..`{N}` from -regex capture groups and the whole {field} vocabulary. Serial by default; `-j N` runs invocations in parallel. Sensitive: loaded from an --xffrc file it needs --allow-exec. Example: `xff . -name '*.o' -exec rm {} +`.
+  Runs the command up to a terminator: `;` runs it once per match, `+` batches as many paths as fit per invocation (like xargs). `{}` expands to the path; xff also binds `{1}`..`{N}` from `-regex` capture groups and the whole {field} vocabulary. Serial by default; `-j N` runs invocations in parallel. Sensitive: loaded from an `--xffrc` file it needs `--allow-exec`. Example: `xff . -name '*.o' -exec rm {} +`.
 - `-execdir CMD... ;` - run a command in the matched entry's directory _(action, find, runs commands)_
-  Like -exec, but each command runs with its working directory set to the matched entry's parent and `{}` is the basename - safer against path injection and directory races. `;` per match or `+` batched (a batch shares one directory). Example: `xff . -name '*.log' -execdir gzip {} ;`.
+  Like `-exec`, but each command runs with its working directory set to the matched entry's parent and `{}` is the basename - safer against path injection and directory races. `;` per match or `+` batched (a batch shares one directory). Example: `xff . -name '*.log' -execdir gzip {} ;`.
 - `-ok CMD... ;` - like -exec, but prompt before each command _(action, find, runs commands)_
-  Like -exec but prompts on stderr before each command and runs it only when the reply begins with 'y'; a declined or EOF answer skips that entry. `;`-terminated only (no `+` batching, since each run needs its own prompt).
+  Like `-exec` but prompts on stderr before each command and runs it only when the reply begins with 'y'; a declined or EOF answer skips that entry. `;`-terminated only (no `+` batching, since each run needs its own prompt).
 - `-okdir CMD... ;` - like -execdir, but prompt before each command _(action, find, runs commands)_
-  Like -execdir (runs in the matched entry's directory, `{}` is the basename) but prompts before each command, exactly as -ok does.
+  Like `-execdir` (runs in the matched entry's directory, `{}` is the basename) but prompts before each command, exactly as `-ok` does.
 - `-capture=NAME[=REGEX] CMD... ;` - run a command and bind its output to {capture.NAME} (xff) _(action, xff, runs commands)_
-  xff extension: runs the `;`-terminated command and binds its stdout to `{capture.NAME}` for a later -printf / --format field; `-capture=NAME=REGEX` keeps only REGEX's first capture group. Sensitive: from an --xffrc file it needs --allow-exec. Example: `-capture=branch git rev-parse --abbrev-ref HEAD ; -printf '{relpath}\t{capture.branch}\n'`.
+  xff extension: runs the `;`-terminated command and binds its stdout to `{capture.NAME}` for a later `-printf` / `--format` field; `-capture=NAME=REGEX` keeps only REGEX's first capture group. Sensitive: from an `--xffrc` file it needs `--allow-exec`. Example: `-capture=branch git rev-parse --abbrev-ref HEAD ; -printf '{relpath}\t{capture.branch}\n'`.
 - `-capturedir=NAME[=REGEX] CMD... ;` - run -capture in the matched entry's directory (xff) _(action, xff, runs commands)_
-  The -execdir counterpart of -capture: runs the command in the matched entry's directory and binds its stdout to `{capture.NAME}`. Same `NAME[=REGEX]` binding and --allow-exec gating.
+  The `-execdir` counterpart of `-capture`: runs the command in the matched entry's directory and binds its stdout to `{capture.NAME}`. Same `NAME[=REGEX]` binding and `--allow-exec` gating.
 
 ### Operators
 - `-a` - logical AND (implicit between predicates) _(operator, find)_
-  Logical AND of two predicates (`-and` is the long spelling). It is also IMPLICIT between juxtaposed predicates, so `-type f -name '*.c'` means `-type f -a -name '*.c'`. Precedence, tightest to loosest: -not, then -a, then (xff) -xor, then -o, then the `,` comma operator; parentheses `( ... )` override it. Evaluation short-circuits.
+  Logical AND of two predicates (`-and` is the long spelling). It is also IMPLICIT between juxtaposed predicates, so `-type f -name '*.c'` means `-type f -a -name '*.c'`. Precedence, tightest to loosest: `-not`, then `-a`, then (xff) `-xor`, then `-o`, then the `,` comma operator; parentheses `( ... )` override it. Evaluation short-circuits.
 - `-and` - logical AND (implicit between predicates) _(operator, find)_
 - `-o` - logical OR _(operator, find)_
-  Logical OR of two predicates (`-or` is the long spelling); binds looser than -a, so `A -o B -a C` is `A -o (B -a C)`. Short-circuits: the right side is skipped when the left already matched. See -a for the full precedence order.
+  Logical OR of two predicates (`-or` is the long spelling); binds looser than `-a`, so `A -o B -a C` is `A -o (B -a C)`. Short-circuits: the right side is skipped when the left already matched. See `-a` for the full precedence order.
 - `-or` - logical OR _(operator, find)_
 - `-not` - logical negation _(operator, find)_
-  Negates the predicate that follows (`!` is the synonym). Binds tightest of the operators, so `-not -type d -o -name x` is `(-not -type d) -o -name x`. See -a for the full precedence order.
+  Negates the predicate that follows (`!` is the synonym). Binds tightest of the operators, so `-not -type d -o -name x` is `(-not -type d) -o -name x`. See `-a` for the full precedence order.
 - `!` - logical negation _(operator, find)_
 - `-xor` - logical XOR; matches exactly one side (xff) _(operator, xff)_
-  Matches when exactly ONE side is true (never both). One of four xff-only operators find lacks: -xor, and the negations -nand (not both), -nor (neither), -xnor (both agree). They sit between -a and -o in precedence (-not > -a / -nand > -xor / -xnor > -o / -nor) and, like all xff-only operators, are rejected by --config=find.
+  Matches when exactly ONE side is true (never both). One of four xff-only operators find lacks: `-xor`, and the negations `-nand` (not both), `-nor` (neither), `-xnor` (both agree). They sit between `-a` and `-o` in precedence (`-not` > `-a` / `-nand` > `-xor` / `-xnor` > `-o` / `-nor`) and, like all xff-only operators, are rejected by `--config=find`.
 - `-nand` - logical NAND; ! (lhs -a rhs) (xff) _(operator, xff)_
 - `-nor` - logical NOR; ! (lhs -o rhs) (xff) _(operator, xff)_
 - `-xnor` - logical XNOR; matches when both sides agree (xff) _(operator, xff)_
@@ -709,8 +770,21 @@ With `--archive`, an archive is a directory: xff opens it and walks its members 
 - `none` - an archive is one plain file (find's behaviour, and the find-style default)
 - `roots` - dive only when a search root IS an archive (the xff-family default)
 - `all` - dive archives met during the walk too (what a bare `--archive` selects)
+- `any` - `all`, and offer EVERY file to the reader rather than only container-looking names
 
-Under `all` a file is only opened when its NAME looks like a container, so walking a source tree does not read every file in it; `--archive-any` drops that gate. Nesting has its own cap (`--archive-depth`, default 1) because a container inside a container is where a decompression bomb lives - `-maxdepth` keeps counting member levels as ordinary depth.
+Two axes, spelled independently: the RUNG says how much to look at, the CASE of the short form says whether writing is armed. So a slipped shift key changes the capability, never the level - and arming is not doing: something still has to ask for a write, and `--safe` / `--dry-run` still apply.
+
+Later wins, per axis, which is what makes the two useful together: `-Z++ -z-` arms writing with reading OFF - write archives without diving into existing ones to harvest members - while `-Z-` is the full reset, turning reading off AND disarming writing whatever an earlier flag or a config file asked for. A lower-case form never disarms; only `-Z-` does.
+
+```text
+                   read only    + write (--archive-write)
+  none              -z-          -Z-  (also disarms writing)
+  roots (default)   -z           -Z
+  all               -z+          -Z+
+  any               -z++         -Z++
+```
+
+Under `all` a file is only opened when its NAME looks like a container, so walking a source tree does not read every file in it; `any` (also spelled `--archive-any`) drops that gate. Nesting has its own cap (`--archive-depth`, default 1) because a container inside a container is where a decompression bomb lives - and it is deliberately NOT part of any rung, since raising the bomb cap is a different decision from looking in more places. `-maxdepth` keeps counting member levels as ordinary depth.
 
 ### A member is an entry, a container is still a file
 
@@ -791,7 +865,7 @@ both, as machine rows
 Environment variables xff reads. An explicit command-line flag generally overrides the matching variable.
 
 - `NO_COLOR` - when set (any value), disables color like `--color=never`; `--color=always` still wins (https://no-color.org)
-- `XFF_PAGER` - the pager for the long `--help` / `--markdown` output (see `--pager`); overrides `$PAGER`; set empty to disable paging
+- `XFF_PAGER` - the pager for the long `--help` / `--markdown` output, and for the file listing under `--pager=all` (see `--pager`); overrides `$PAGER`; set empty to disable paging
 - `PAGER` - the pager used when `$XFF_PAGER` is unset
 - `XFF_MANPAGER` - the pager / formatter for `--man`; overrides the built-in `mandoc` pipeline; set empty to disable
 - `COLUMNS` - terminal width used to wrap plain `--help` text for `--width=auto` when the tty size is unknown

@@ -113,6 +113,15 @@ std::string Size(std::uint64_t bytes, SizeUnits units) {
   return absl::StrFormat("%.1f %s", scaled.value, scaled.unit);
 }
 
+std::string SizeAligned(std::uint64_t bytes, SizeUnits units) {
+  // The prefixed suffixes are "kB".."EB" (2) and "KiB".."EiB" (3); the unprefixed "B" is the only
+  // short one, so right-aligning to that width is what puts every `B` in one column.
+  const std::size_t unit_width = units == SizeUnits::kSi ? 2 : 3;
+  const Scaled scaled = ScaleSize(bytes, units);
+  const std::string number = scaled.exact ? absl::StrCat(bytes) : absl::StrFormat("%.1f", scaled.value);
+  return absl::StrCat(number, " ", PadLeft(scaled.unit, unit_width));
+}
+
 SizeParts SizeColumns(std::uint64_t bytes, SizeUnits units, unsigned fraction_digits) {
   const Scaled scaled = ScaleSize(bytes, units);
   SizeParts parts{.number = "", .suffix = std::string(scaled.unit)};

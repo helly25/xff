@@ -1228,13 +1228,23 @@ GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals, std:
   // still overrides.
   const bool opinionated = style == registry::Style::kRg;
   GitignoreMode mode = opinionated ? GitignoreMode::kOn : GitignoreMode::kOff;
+  constexpr std::string_view kPrefix = "--gitignore=";
   for (const std::string& global : globals) {
     if (global == "-g" || global == "--gitignore" || global == "--ignore-vcs") {
       mode = GitignoreMode::kAuto;
-    } else if (global == "-g+" || global == "--gitignore=on") {
+    } else if (global == "-g+") {
       mode = GitignoreMode::kOn;
-    } else if (global == "-g-" || global == "--gitignore=off" || global == "--no-ignore-vcs") {
+    } else if (global == "-g-" || global == "--no-ignore-vcs") {
       mode = GitignoreMode::kOff;
+    } else if (global.starts_with(kPrefix)) {
+      // The shared vocabulary (on / off / auto plus yes / no / true / false / 1 / 0), so this flag
+      // spells its values the way every other tri-state does; an unrecognized value is ignored,
+      // leaving the prior resolution.
+      if (const std::optional<values::Tristate> tri = values::ParseTristate(global.substr(kPrefix.size()))) {
+        mode = *tri == values::Tristate::kOn    ? GitignoreMode::kOn
+               : *tri == values::Tristate::kOff ? GitignoreMode::kOff
+                                                : GitignoreMode::kAuto;
+      }
     }
   }
   return mode;
@@ -1250,19 +1260,23 @@ GitignoreMode ResolveGitignoreMode(const std::vector<std::string>& globals, std:
 // (-z- none, -z roots, -z+ all). Last occurrence wins. The default is style-scoped: the
 // find style stays at `none` for drop-in fidelity, every xff-family style starts at
 // `roots`.
-enum class ArchiveMode : std::uint8_t { kNone, kRoots, kAll };
+enum class ArchiveMode : std::uint8_t { kNone, kRoots, kAll, kAny };
 
 ArchiveMode ResolveArchiveMode(const std::vector<std::string>& globals, std::optional<registry::Style> style) {
   // find keeps archives opaque; the xff family looks inside one it was pointed at.
   ArchiveMode mode = style == registry::Style::kFind ? ArchiveMode::kNone : ArchiveMode::kRoots;
   for (const std::string& global : globals) {
-    if (global == "--archive" || global == "--archive=all" || global == "-z+" || global == "-z++") {
-      // `-z++` is "all, plus the write flags": the mode half is `all`, and the write half is
-      // read by ArchiveWriteArmed below - one spelling, two independent effects.
+    // The short forms come in a lower-case (read) and an upper-case (read + write) family whose
+    // RUNGS are identical, so both spellings of a rung are read here and only ResolveArchiveWrite
+    // cares about the case. `-Z-` is the none rung in both families, and additionally disarms
+    // writing (see ResolveArchiveWrite).
+    if (global == "--archive=any" || global == "--archive-any" || global == "-z++" || global == "-Z++") {
+      mode = ArchiveMode::kAny;
+    } else if (global == "--archive" || global == "--archive=all" || global == "-z+" || global == "-Z+") {
       mode = ArchiveMode::kAll;
-    } else if (global == "--archive=roots" || global == "-z") {
+    } else if (global == "--archive=roots" || global == "-z" || global == "-Z") {
       mode = ArchiveMode::kRoots;
-    } else if (global == "--archive=none" || global == "-z-") {
+    } else if (global == "--archive=none" || global == "-z-" || global == "-Z-") {
       mode = ArchiveMode::kNone;
     }
   }
@@ -1284,7 +1298,19 @@ struct ArchiveWrite {
 ArchiveWrite ResolveArchiveWrite(const std::vector<std::string>& globals) {
   ArchiveWrite write;
   for (const std::string& global : globals) {
-    if (global == "--archive-write" || global == "-z++") {
+    // The UPPER-case short family is the write one, at every rung: `-Z` is `-z` plus the write
+    // flags, `-Z+` is `-z+` plus them, and so on. Case carries the capability, the signs carry the
+    // level, so neither axis can be reached by accident while aiming at the other.
+    //
+    // The axes stay INDEPENDENT even where one looks pointless: `-Z++ -z-` arms writing with
+    // reading off, which today can do nothing (no dive means no members to touch) but is the exact
+    // shape a create / pack action would want - producing an archive reads none. So a lower-case
+    // form never disarms; only `-Z-` does.
+    if (global == "-Z-") {
+      // The reset: `-Z-` is `-z-` said out loud about writing, so it clears what any earlier
+      // spelling armed (a config file's `-Z+`, or an earlier flag on the same line).
+      write = ArchiveWrite{};
+    } else if (global == "--archive-write" || global == "-Z" || global == "-Z+" || global == "-Z++") {
       write = ArchiveWrite{.extract = true, .remove = true};
     } else if (global == "--archive-extract") {
       write.extract = true;
@@ -1301,7 +1327,7 @@ ArchiveWrite ResolveArchiveWrite(const std::vector<std::string>& globals) {
 bool HasArchiveFlag(const std::vector<std::string>& globals) {
   return absl::c_any_of(globals, [](std::string_view global) {
     return global == "--archive" || global.starts_with("--archive=") || global == "-z" || global == "-z+"
-           || global == "-z++" || global == "-z-";
+           || global == "-z++" || global == "-z-" || global == "-Z" || global == "-Z+" || global == "-Z++";
   });
 }
 
@@ -1309,7 +1335,10 @@ bool HasArchiveFlag(const std::vector<std::string>& globals) {
 // flags and the CLI knows nothing about traversal; this is the one place they meet.
 ArchiveDive ArchiveDiveOf(ArchiveMode mode) {
   switch (mode) {
-    case ArchiveMode::kAll: return ArchiveDive::kAll;
+    // `any` is `all` on the DIVE axis: the extra it adds is dropping the name gate on detection,
+    // which the walk reads separately (see the sniff-everything option below).
+    case ArchiveMode::kAll:
+    case ArchiveMode::kAny: return ArchiveDive::kAll;
     case ArchiveMode::kNone: return ArchiveDive::kNone;
     case ArchiveMode::kRoots: return ArchiveDive::kRoots;
   }
@@ -1337,6 +1366,7 @@ archive::MemberPathOptions ReadMemberPathOptions(const std::vector<std::string>&
 std::string_view ArchiveModeName(ArchiveMode mode) {
   switch (mode) {
     case ArchiveMode::kAll: return "all";
+    case ArchiveMode::kAny: return "any";
     case ArchiveMode::kRoots: return "roots";
     case ArchiveMode::kNone: return "none";
   }
@@ -2428,7 +2458,11 @@ int RunFind(
   const archive::MemberPathOptions member_path_options = *member_paths;
   // --archive-any: offer every file to the reader instead of only those whose name looks like a
   // container. Expensive by design (every file is opened and format-bid), so it is opt-in.
-  const bool archive_any = absl::c_contains(command.globals, "--archive-any");
+  // `--archive=any` / `-z++` / `-Z++` is the top rung: dive like `all` AND drop the name gate.
+  // `--archive-any` is the older spelling of the same thing.
+  const bool archive_any = absl::c_contains(command.globals, "--archive-any")
+                           || absl::c_contains(command.globals, "--archive=any")
+                           || absl::c_contains(command.globals, "-z++") || absl::c_contains(command.globals, "-Z++");
   // --hash-algorithm=ALGO / --hash-encoding=hex|base64: defaults for a bare -hash action and a
   // bare {hash} field (last occurrence wins; empty -> sha256 / hex). Validated here so a bad value
   // is a usage error (exit 2) before the walk; the explicit -hash=ALGO[/ENCODING] specs in the

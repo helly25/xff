@@ -417,6 +417,15 @@ int RunMain(int argc, char** argv) {
                 << "Try 'xff --help' for usage, or 'xff --help=NAME' for one option.\n";
       return 2;
     }
+    // And the VALUE, for a flag whose vocabulary is closed: a typo used to select the default
+    // silently, so the run looked like it worked. Checked here rather than in each resolver
+    // because several of them (--color, --width, --pager) run before the parse, from raw argv,
+    // with nowhere to report an error; by the time this loop runs every global is in hand.
+    if (const absl::Status status = xff::cli::ValidateGlobalValue(global); !status.ok()) {
+      std::cerr << "xff: " << status.message() << "\n"
+                << "Try 'xff --help=" << std::string_view(global).substr(0, global.find('=')) << "' for its values.\n";
+      return 2;
+    }
   }
 
   // A composable-extra flag (e.g. --archive) is always recognized, but if the extra it needs is not
@@ -428,8 +437,16 @@ int RunMain(int argc, char** argv) {
     // `--archive=all`), so strip it before the lookup or the short forms would slip past
     // this gate entirely and fail later with a confusing message.
     const bool suffix_off = name.size() > 1 && name.back() == '-';
-    if (name.size() > 1 && (name.back() == '+' || name.back() == '-')) {
+    // A whole RUN of signs, not one: the archive ladder spells its top rung `-z++`, so stripping a
+    // single character would leave `-z+`, which is not a flag name, and the run would miss this gate
+    // and fail later with a wordier message.
+    while (name.size() > 1 && (name.back() == '+' || name.back() == '-')) {
       name.remove_suffix(1);
+    }
+    // The upper-case archive family is the lower-case one with writing armed, so it needs the same
+    // extra; the table knows it under the flag that arms writing.
+    if (name == "-Z") {
+      name = "--archive-write";
     }
     const xff::cli::GlobalFlag* const flag = xff::cli::LookupGlobal(name);
     if (flag == nullptr || flag->extra.empty() || xff::cli::ExtraEnabled(flag->extra)) {
@@ -525,6 +542,12 @@ int RunMain(int argc, char** argv) {
   // outranks match status (exit 2).
   const bool quiet = absl::c_contains(command.globals, "--quiet") || absl::c_contains(command.globals, "-q");
   const bool match_sensitive = quiet || absl::c_contains(command.globals, "--exit-match");
+  // --pager=all pages the listing too, for the whole walk rather than per line: stdout is redirected
+  // into the pager here and restored when `pager` goes out of scope below. Inactive under every other
+  // --pager value, off a terminal, and when the expression needs the terminal itself (-ok / -exec and
+  // friends) or --quiet means there is nothing to page.
+  const xff::cli::PagerStream pager(
+      pager_when, stdout_is_tty, quiet || xff::parser::TakesTerminal(command.expression.get()));
   const xff::vfs::LocalFs fs;
   bool matched = false;
   const int errors = xff::engine::RunFind(

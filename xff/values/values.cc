@@ -25,10 +25,10 @@ namespace xff::values {
 
 std::optional<bool> ParseBool(std::string_view value) {
   const std::string lower = absl::AsciiStrToLower(value);
-  if (lower == "yes" || lower == "true" || lower == "1") {
+  if (lower == "yes" || lower == "true" || lower == "on" || lower == "1") {
     return true;
   }
-  if (lower == "no" || lower == "false" || lower == "0") {
+  if (lower == "no" || lower == "false" || lower == "off" || lower == "0") {
     return false;
   }
   return std::nullopt;
