@@ -774,9 +774,11 @@ With `--archive`, an archive is a directory: xff opens it and walks its members 
 
 Two axes, spelled independently: the RUNG says how much to look at, the CASE of the short form says whether writing is armed. So a slipped shift key changes the capability, never the level - and arming is not doing: something still has to ask for a write, and `--safe` / `--dry-run` still apply.
 
+Later wins, per axis, which is what makes the two useful together: `-Z++ -z-` arms writing with reading OFF - write archives without diving into existing ones to harvest members - while `-Z-` is the full reset, turning reading off AND disarming writing whatever an earlier flag or a config file asked for. A lower-case form never disarms; only `-Z-` does.
+
 ```text
                    read only    + write (--archive-write)
-  none              -z-          (error: -Z- contradicts itself)
+  none              -z-          -Z-  (also disarms writing)
   roots (default)   -z           -Z
   all               -z+          -Z+
   any               -z++         -Z++

@@ -530,15 +530,35 @@ test::the_upper_case_rungs_match_the_lower_case_ones() {
   rm -rf "${root}"
 }
 
-test::the_write_ladder_has_no_off_rung() {
-  local root out rc
+test::the_capital_minus_is_a_full_reset() {
+  local root out
   root="$(_tree)"
-  # `-Z-` would mean "arm writing, and also do not look inside anything" - the one upper-case
-  # spelling whose capital could do nothing, so it is refused rather than silently taken as -z-.
-  out="$("$(_xff_bin)" -Z- "${root}" 2>&1)" && rc=0 || rc=$?
-  expect_eq "2" "${rc}"
-  expect_output_contains "-Z-" "${out}"
-  expect_output_contains "-z-" "${out}" # and it names what to use instead
+  # `-Z-` is the none rung AND a disarm, so it overrides whatever an earlier flag (or a config file)
+  # asked for. Its disarm is only observable once reading is turned back on, so the case does that:
+  # -Z arms, -Z- resets, -z reads again, and the member write must be refused as if -Z never ran.
+  out="$("$(_xff_bin)" -Z- "${root}")"
+  expect_output_not_contains "a.tar!" "${out}" # reading off
+  out="$("$(_xff_bin)" -Z -Z- -z "${root}/a.tar" -name 'one.txt' -delete 2>&1)"
+  expect_output_contains "cannot remove an archive member" "${out}"
+  out="$("$(_xff_bin)" --archive=roots "${root}/a.tar")"
+  expect_output_contains "a.tar!one.txt" "${out}" # and the member is still there
+  rm -rf "${root}"
+}
+
+test::the_two_axes_resolve_independently_and_later_wins() {
+  local root out
+  root="$(_tree)"
+  cp "${root}/a.tar" "${root}/noextension"
+  # `-z+ -Z++` widens the rung to `any` and arms writing; `-z++ -Z` narrows back to roots.
+  out="$("$(_xff_bin)" -z+ -Z++ "${root}")"
+  expect_output_contains "noextension!dir/two.txt" "${out}"
+  out="$("$(_xff_bin)" -z++ -Z "${root}")"
+  expect_output_not_contains "a.tar!dir/two.txt" "${out}" # roots again
+  # `-Z++ -z-` is the pack shape: writing armed, reading off, so no existing container is opened
+  # (and nothing is harvested out of one).
+  out="$("$(_xff_bin)" -Z++ -z- "${root}")"
+  expect_output_not_contains "a.tar!" "${out}"
+  expect_output_contains "a.tar" "${out}" # the container is still an ordinary file
   rm -rf "${root}"
 }
 

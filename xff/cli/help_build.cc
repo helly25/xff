@@ -456,11 +456,16 @@ Section ArchiveSection(bool in_full) {
       "form says whether writing is armed. So a slipped shift key changes the capability, never the "
       "level - and arming is not doing: something still has to ask for a write, and `--safe` / "
       "`--dry-run` still apply."));
+  modes.children.push_back(ProseOf(
+      "Later wins, per axis, which is what makes the two useful together: `-Z++ -z-` arms writing "
+      "with reading OFF - write archives without diving into existing ones to harvest members - "
+      "while `-Z-` is the full reset, turning reading off AND disarming writing whatever an earlier "
+      "flag or a config file asked for. A lower-case form never disarms; only `-Z-` does."));
   modes.children.push_back(
       Content{
           .node = Example{
               .text = "                   read only    + write (--archive-write)\n"
-                      "  none              -z-          (error: -Z- contradicts itself)\n"
+                      "  none              -z-          -Z-  (also disarms writing)\n"
                       "  roots (default)   -z           -Z\n"
                       "  all               -z+          -Z+\n"
                       "  any               -z++         -Z++",
