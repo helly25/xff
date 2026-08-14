@@ -79,6 +79,25 @@ follow-up:
 
 The generated `--help` / `--man` / `--markdown` then stay complete by construction.
 
+### Markup in help prose
+
+Help text is authored in a small inline markup (`ParseInline`), and the backends render it per
+target: the plain backend keeps the backticks, roff bolds the span, Markdown makes it a code span.
+So **write concrete literals as `` `code` ``** in `details`, in `ValueDoc.meaning`, and in topic
+bodies: option values (`` `auto` ``, `` `all` ``), flag names (`` `--no-pager` ``), primaries
+(`` `-exec` ``), and literal tokens (`` `*.{cc,h}` ``). A reader should be able to tell a value from
+a word without parsing the sentence.
+
+Two limits, both about noise:
+
+- **`summary` stays plain.** Summaries appear in dense list views (`--help`, `--help=list`), where
+  literal backticks on every row cost more than they explain. The exception is a literal that is
+  unreadable bare, such as punctuation (`` `!` ``).
+- **Never mark a word used in its English sense**, even when a value shares its spelling: "all
+  archive features", "treats the duplicate as an error", "a git working tree", and "`ls`'s own
+  colours" (the tool, not the `ls` value) all stay plain. This is why the sweep is done by hand -
+  mechanical backticking gets exactly these wrong.
+
 ## CLI conventions
 
 - **Flag scope by dash count.** `--flag` is a whole-run global (a config / output /
