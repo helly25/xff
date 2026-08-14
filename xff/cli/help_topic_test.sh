@@ -310,4 +310,28 @@ test::bare_help_operand_passes_through_in_find_mode() {
   expect_output_not_contains 'not a subcommand' "${out}"
 }
 
+test::single_help_pages_end_with_the_help_pointer() {
+  # A user who runs `--help=-regex` has never seen the help system's map: the usage page lists the
+  # topics, but the entry page says nothing about the index or the help topic. One trailer, on the
+  # pages that lack that context only.
+  local bin tip
+  bin="$(_xff_bin)"
+  tip="xff --help=help"
+  expect_output_contains "${tip}" "$("${bin}" --help=-regex 2>&1)"  # a primary entry
+  expect_output_contains "${tip}" "$("${bin}" --help=--sort 2>&1)"  # a flag entry
+  expect_output_contains "${tip}" "$("${bin}" --help=fields 2>&1)"  # a vocabulary topic
+  expect_output_contains "${tip}" "$("${bin}" --help=archive 2>&1)" # a CLI-rendered topic
+}
+
+test::the_maps_and_the_documents_carry_no_pointer() {
+  # The pages that ARE the map do not need pointing at themselves, and a document that gets
+  # installed or published must not carry a terminal tip.
+  local bin tip page
+  bin="$(_xff_bin)"
+  tip="xff --help=help"
+  for page in --help --help=help --help=list --help=all --help=full --help=expressions --markdown; do
+    expect_output_not_contains "${tip}" "$("${bin}" "${page}" 2>&1)"
+  done
+}
+
 test_runner

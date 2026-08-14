@@ -188,6 +188,28 @@ std::string RenderExtras() {
   return out;
 }
 
+// The one-line pointer at the foot of a SINGLE help page (`--help=NAME`, `--help=TOPIC`). Those
+// are the pages a user lands on without having seen the help system's own map: the usage page
+// lists the topics, but nothing on `--help=-regex` says the index or this topic exist.
+//
+// Deliberately NOT on: the usage page (which already explains all of this and lists the topics),
+// `--help=help` itself, the `list` / `all` / `full` aggregates (they ARE the map), and never in
+// `--man` / `--markdown`, where a tip would be embedded in a document people install or publish.
+// A trailer on every surface is a trailer nobody reads.
+std::string HelpTip(const xff::cli::HelpRenderContext& context) {
+  static constexpr std::string_view kTip =
+      "Tip: 'xff --help=help' explains the help system; 'xff --help=list' indexes every option and primary.";
+  // Dim when colour is on, so it reads as a footnote rather than as part of the entry.
+  return context.color ? absl::StrCat("\n\033[2m", kTip, "\033[0m\n") : absl::StrCat("\n", kTip, "\n");
+}
+
+// Whether `topic` gets that trailer: everything except the maps and the self-referential page.
+bool TopicTakesTip(std::string_view topic) {
+  static constexpr auto kNoTip =
+      std::to_array<std::string_view>({"all", "expressions", "full", "help", "list", "long"});
+  return !absl::c_linear_search(kNoTip, topic);
+}
+
 // forward declaration (FullReference recurses); `context` carries the render meta
 // (wrap width, ...) every model-rendered topic applies.
 absl::StatusOr<std::string> RenderTopic(std::string_view topic, xff::cli::HelpRenderContext context);
@@ -332,7 +354,8 @@ int RunMain(int argc, char** argv) {
       const std::string_view topic = std::string_view(arg).substr(7);
       const absl::StatusOr<std::string> help = RenderTopic(topic, help_context);
       if (help.ok()) {
-        xff::cli::EmitPaged(*help, pager_when, stdout_is_tty);
+        const std::string tip = TopicTakesTip(topic) ? HelpTip(help_context) : std::string();
+        xff::cli::EmitPaged(absl::StrCat(*help, tip), pager_when, stdout_is_tty);
         return 0;
       }
       std::cerr << "xff: no help topic '" << topic << "'\n";  // RenderTopic's only failure is unknown-topic
