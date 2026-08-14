@@ -92,8 +92,6 @@ bool StripPrefix(std::string_view& path, const MemberPathOptions& options) {
   return true;
 }
 
-}  // namespace
-
 // The inverse of the two ecosystem spellings Join emits. They carry their own separator, so they are
 // split before the generic path, and only when the prefix asks for URI rendering.
 std::optional<MemberPathParts> SplitEcosystemUri(std::string_view path) {
@@ -120,6 +118,7 @@ std::optional<MemberPathParts> SplitEcosystemUri(std::string_view path) {
   }
   return std::nullopt;
 }
+}  // namespace
 
 std::optional<MemberPathParts> SplitMemberPath(std::string_view path, const MemberPathOptions& options) {
   if (options.prefix == kUriPrefix) {
