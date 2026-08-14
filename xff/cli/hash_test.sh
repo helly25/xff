@@ -81,7 +81,9 @@ test::hash_bad_spec_and_find_style_are_usage_errors() {
   # A bad --hash-encoding is a usage error.
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --hash-encoding=b64 "${dir}" -name f.txt -hash 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
-  expect_output_contains 'unknown hash encoding' "${out}"
+  # The shared value check reports it first, naming the flag and its accepted values.
+  expect_output_contains 'unknown value' "${out}"
+  expect_output_contains '--hash-encoding' "${out}"
   # -hash is an xff extension; the find style rejects it.
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --config=find "${dir}" -hash 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"

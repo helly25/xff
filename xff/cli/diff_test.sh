@@ -104,7 +104,10 @@ test::diff_binary_notes_on_stderr_and_bad_inputs_are_usage_errors() {
   # A bad --diff-algorithm is a usage error.
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-algorithm=bogus "${dir}" -name p.bin -diff "${dir}/q.bin" 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
-  expect_output_contains 'unknown diff algorithm' "${out}"
+  # The shared value check fires before the diff resolver's own message, and lists the accepted
+  # values from the flag's table - so this asserts the generic wording plus the offending value.
+  expect_output_contains 'unknown value' "${out}"
+  expect_output_contains '--diff-algorithm' "${out}"
 }
 
 test::diff_format_and_context_globals() {
@@ -123,7 +126,8 @@ test::diff_format_and_context_globals() {
   # A bad --diff-format is a usage error.
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-format=bogus "${dir}" -name one.txt -diff "${dir}/two.txt" 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
-  expect_output_contains 'unknown diff format' "${out}"
+  expect_output_contains 'unknown value' "${out}"
+  expect_output_contains '--diff-format' "${out}"
   # A bad --diff-context is a usage error.
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-context=x "${dir}" -name one.txt -diff "${dir}/two.txt" 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
