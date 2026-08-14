@@ -313,7 +313,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     {
         .name = "--archive",
         .alias = "-z",
-        .display = "--archive[=none|roots|all|any], -z[+|++|-], -Z[+|++]",
+        .display = "--archive[=none|roots|all|any], -z[-|+|++], -Z[-|+|++]",
         .group = "traversal",
         .header = "Traversal",
         .summary = "descend into archives: -z- none, -z roots only, -z+ / bare --archive all",
@@ -442,7 +442,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--archive-write",
-        .display = "--archive-write, -Z[+|++|-]",
+        .display = "--archive-write, -Z[-|+|++]",
         .group = "traversal",
         .header = "Traversal",
         .summary = "arm both archive write flags (--archive-extract + --archive-delete)",
@@ -557,7 +557,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--case",
-        .display = "--case=<MODE>, -i, -s[+|-]",
+        .display = "--case=<MODE>, -i, -s[-|+]",
         .group = "matching",
         .header = "Matching",
         .summary = "letter case for matchers: -i insensitive, -s/-s+ smart, -s- sensitive (rg -> smart)",
@@ -605,7 +605,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     {
         .name = "--gitignore",
         .alias = "-g",
-        .display = "--gitignore[=auto|on|off], -g[+|-]",
+        .display = "--gitignore[=auto|on|off], -g[-|+]",
         .group = "filter",
         .header = "Filter & Ignore",
         .summary = "respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never",
