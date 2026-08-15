@@ -3158,11 +3158,16 @@ int RunFind(
                             " supported yet; narrow the expression or turn diving off with -z-")));
     } else if (dry_run) {
       emit(absl::StrCat("would pack ", pack_files.size(), " entries into ", *pack_target, "\n"));
-    } else if (const absl::Status packed =
-                   archive::PackContainer(*pack_target, pack_files, archive::PackOptions{.level = *pack_level});
-               !packed.ok()) {
-      ++errors;
-      on_error("--pack", packed);
+    } else {
+      // Kept out of the `else if` condition: an init-statement with an initializer this long is the
+      // one construct the pinned and the hermetic clang-format lay out differently, so each undoes
+      // the other's work.
+      const absl::Status packed =
+          archive::PackContainer(*pack_target, pack_files, archive::PackOptions{.level = *pack_level});
+      if (!packed.ok()) {
+        ++errors;
+        on_error("--pack", packed);
+      }
     }
   }
 
