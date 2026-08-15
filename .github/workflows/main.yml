@@ -276,6 +276,11 @@ jobs:
   clang-tidy:
     needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
+    permissions:
+      # actions:write for the cache-cleanup step (`gh cache delete`); the workflow default
+      # (read-all) stays in force for every other job.
+      actions: write
+      contents: read
     steps:
       - uses: actions/checkout@v6
         with:
@@ -340,6 +345,23 @@ jobs:
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-clang-tidy-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}-${{ github.sha }}
+      - name: Delete the superseded disk caches
+        # The per-commit key above ACCUMULATES ~0.35 GB per main commit and nothing deleted them:
+        # measured 2026-08-15 they held 9.8 of the 10 GB repo budget, one LRU eviction away from
+        # eating the matrix cells' caches. Keep the two newest entries (the one just saved plus one
+        # fallback), delete the rest. Adopted from helly25/mbo's cleanup step (theirs is ref-scoped;
+        # this key is main-only so the bare prefix is the scope).
+        if: always() && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          stale=$(gh cache list --limit 250 --json id,key,createdAt             --jq 'map(select(.key|startswith("bazel-disk-clang-tidy-")))|sort_by(.createdAt)|.[:-2]|.[].id')
+          for cache_id in ${stale}; do
+            echo "Deleting cache ${cache_id}"
+            gh cache delete "${cache_id}" || echo "Could not delete ${cache_id}"
+          done
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
       - name: Summarize the compile DB
         run: |
           set -euo pipefail
