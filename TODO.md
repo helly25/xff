@@ -351,6 +351,14 @@ intent, not hard dependency. Task numbers reference the agent task list.
 
 ### Small slices in flight (task ledger)
 
+- **#202 (open, user-requested 2026-08-15)**: a FORMATS TABLE under `--help=archive` - format,
+  recognized extensions, and whether read and write support is in this binary. The write side is
+  already SOT data (`ContainerPackFormats()` + the writer's suffix table with the `.tgz`-family
+  shortcuts); the READ side needs the same shape: the linked reader registers its format names and
+  recognized suffixes (the pinned libarchive set, phar, the compressed-single-file case) through
+  the seam, so the table is generated and cannot drift. The lean binary renders the standard
+  not-built note. Next code slice after the open chain drains, ahead of FUSE 3b (user priority).
+
 - **#201 (open, user-requested 2026-08-15)**: extras license TEXTS. `--help=license` renders only
   xff's own Apache-2.0 and `--help=notice` inventories the linked components without their full
   texts - so a binary containing zstd (BSD-3) or, once the fuse extra links, libfuse (LGPL-2.1)
