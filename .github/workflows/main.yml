@@ -103,7 +103,9 @@ jobs:
       - name: clang-format
         if: matrix.os == 'ubuntu-latest' && matrix.config.name == 'clang-asan'
         run: |
-          find xff -type f \( -name '*.cc' -o -name '*.h' \) -print0 \
+          # Every first-party C++ tree, extras included: sweeping only xff/ let
+          # extra_modules/ drift, since nothing else checks it.
+          find xff extra_modules xff_extras_api -type f \( -name '*.cc' -o -name '*.h' \) -print0 \
             | xargs -0 tools/clang_format.sh --dry-run -Werror
 
   # trunk (https://trunk.io) runs the heavier linters: buildifier, markdownlint,
