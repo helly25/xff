@@ -126,6 +126,17 @@ repos:
         language: script
         entry: tools/check_test_matchers.sh
         files: _test\.cc$
+      - id: no-isok-assert-then-deref
+        name: No ASSERT_THAT(x, IsOk()) followed by dereferencing x
+        description: |
+          Project convention (STYLE_CPP.md): asserting a StatusOr OK and then dereferencing it
+          (*x / x->) splits one fact over two statements. MBO_ASSERT_OK_AND_ASSIGN binds the
+          value in one step; IsOkAndHolds(m) says it in a single matcher when the value is only
+          inspected once. ASSERT_THAT on a plain Status, or on a StatusOr never dereferenced,
+          stays legal. To skip once, run `SKIP="no-isok-assert-then-deref" pre-commit`.
+        language: script
+        entry: tools/check_status_assert.py
+        files: _test\.cc$
       - id: align-markdown-tables
         name: Align Markdown tables
         description: |

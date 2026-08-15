@@ -467,9 +467,9 @@ TEST_F(TakesTerminalTest, TheExecAndPromptFamilyTakesTheTerminal) {
   static constexpr std::array kTerminalPrimaries =
       std::to_array<std::string_view>({"-exec", "-execdir", "-ok", "-okdir"});
   for (const std::string_view primary : kTerminalPrimaries) {
-    const absl::StatusOr<Command> command = Parse({".", std::string(primary), "echo", "{}", ";"});
-    ASSERT_THAT(command, IsOk()) << primary;
-    EXPECT_THAT(TakesTerminal(command->expression.get()), true) << primary;
+    SCOPED_TRACE(primary);
+    MBO_ASSERT_OK_AND_ASSIGN(const Command command, Parse({".", std::string(primary), "echo", "{}", ";"}));
+    EXPECT_THAT(TakesTerminal(command.expression.get()), true) << primary;
   }
 }
 

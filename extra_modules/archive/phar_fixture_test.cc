@@ -189,13 +189,12 @@ TEST_F(PharFixtureTest, AWholeFileCompressedPharIsOpenedThroughItsCompression) {
   // asks again what the bytes ARE: libarchive, then the phar reader. That is the same step a bare
   // `notes.txt.gz` needs, which is why one mechanism serves both.
   for (const std::string_view fixture : kWholeFileCompressedFixtures) {
-    const absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::Open(Fixture(fixture));
-    ASSERT_THAT(fs, IsOk()) << fixture;
-    EXPECT_THAT(fs->ReadDir(Fixture(fixture)), IsOkAndHolds(Contains(Field("name", &vfs::Entry::name, "data"))))
+    SCOPED_TRACE(fixture);
+    MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(Fixture(fixture)));
+    EXPECT_THAT(fs.ReadDir(Fixture(fixture)), IsOkAndHolds(Contains(Field("name", &vfs::Entry::name, "data"))))
         << fixture;
     EXPECT_THAT(
-        fs->ReadContent(JoinMemberPath(Fixture(fixture), "data/readme.txt")),
-        IsOkAndHolds(HasSubstr("findable-needle")))
+        fs.ReadContent(JoinMemberPath(Fixture(fixture), "data/readme.txt")), IsOkAndHolds(HasSubstr("findable-needle")))
         << fixture;
   }
 }
@@ -258,11 +257,11 @@ TEST_F(PharFixtureTest, PerEntryCompressedMembersDecompressToTheSameContent) {
   ASSERT_THAT(expected, IsOkAndHolds(HasSubstr("findable-needle")));
   constexpr std::array kCompressed = std::to_array<std::string_view>({"entrygz.phar", "entrybz2.phar"});
   for (const std::string_view fixture : kCompressed) {
-    const absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::Open(Fixture(fixture));
-    ASSERT_THAT(fs, IsOk()) << fixture;
-    EXPECT_THAT(fs->ReadDir(Fixture(fixture)), IsOkAndHolds(Contains(Field("name", &vfs::Entry::name, "data"))))
+    SCOPED_TRACE(fixture);
+    MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(Fixture(fixture)));
+    EXPECT_THAT(fs.ReadDir(Fixture(fixture)), IsOkAndHolds(Contains(Field("name", &vfs::Entry::name, "data"))))
         << fixture;
-    EXPECT_THAT(fs->ReadContent(JoinMemberPath(Fixture(fixture), "data/readme.txt")), IsOkAndHolds(*expected))
+    EXPECT_THAT(fs.ReadContent(JoinMemberPath(Fixture(fixture), "data/readme.txt")), IsOkAndHolds(*expected))
         << fixture;
   }
 }

@@ -290,11 +290,12 @@ TEST_F(ArchiveFsTest, EveryMemberGetsItsOwnInodeOnOneSyntheticDevice) {
   absl::flat_hash_set<std::uint64_t> inodes;
   absl::flat_hash_set<std::uint64_t> devices;
   for (const std::string_view member : kIdentifiedMembers) {
-    const absl::StatusOr<vfs::Metadata> metadata = fs.Stat(absl::StrCat(ArchiveFsTest::Tar(), "!", member), false);
-    ASSERT_THAT(metadata, IsOk()) << member;
-    EXPECT_THAT(metadata->ino, Ne(0U)) << member << " has no inode";
-    EXPECT_THAT(inodes.insert(metadata->ino).second, IsTrue()) << member << " reuses inode " << metadata->ino;
-    devices.insert(metadata->dev);
+    SCOPED_TRACE(member);
+    MBO_ASSERT_OK_AND_ASSIGN(
+        const vfs::Metadata metadata, fs.Stat(absl::StrCat(ArchiveFsTest::Tar(), "!", member), false));
+    EXPECT_THAT(metadata.ino, Ne(0U)) << member << " has no inode";
+    EXPECT_THAT(inodes.insert(metadata.ino).second, IsTrue()) << member << " reuses inode " << metadata.ino;
+    devices.insert(metadata.dev);
   }
   // One container is one device, and it must not collide with a real filesystem's - hence the top
   // bit, which real device numbers never carry.
