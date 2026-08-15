@@ -143,23 +143,52 @@ void MarkdownBackend::EmitRows(const Rows& rows) {
 }
 
 void MarkdownBackend::EmitTable(const Table& table) {
-  // A GFM pipe table; cells are plain text by the model's contract, so only `|` needs escaping.
+  // A GFM pipe table, VERTICALLY ALIGNED at the source level: every cell padded to its column's
+  // widest member, the separator row dashed to the same width - the repo convention the
+  // align-markdown-tables hook enforces on committed markdown, produced here so the generated
+  // XFF.md is already in the enforced form. Cells are plain text by the model's contract, so only
+  // `|` needs escaping (before widths, so padding counts what is printed).
   const auto escape = [](std::string_view cell) { return absl::StrReplaceAll(cell, {{"|", "\\|"}}); };
-  absl::StrAppend(&out_, "\n|");
+  std::vector<std::string> header;
+  header.reserve(table.header.size());
   for (const std::string& cell : table.header) {
-    absl::StrAppend(&out_, " ", escape(cell), " |");
+    header.push_back(escape(cell));
   }
-  absl::StrAppend(&out_, "\n|");
-  for (std::size_t i = 0; i < table.header.size(); ++i) {
-    absl::StrAppend(&out_, " --- |");
-  }
-  absl::StrAppend(&out_, "\n");
+  std::vector<std::vector<std::string>> rows;
+  rows.reserve(table.cells.size());
   for (const std::vector<std::string>& row : table.cells) {
-    absl::StrAppend(&out_, "|");
+    std::vector<std::string> cells;
+    cells.reserve(row.size());
     for (const std::string& cell : row) {
-      absl::StrAppend(&out_, " ", escape(cell), " |");
+      cells.push_back(escape(cell));
+    }
+    rows.push_back(std::move(cells));
+  }
+  std::vector<std::size_t> widths(header.size(), 3);  // >= 3 so the `---` separator always fits
+  for (std::size_t i = 0; i < header.size(); ++i) {
+    widths[i] = std::max(widths[i], header[i].size());
+  }
+  for (const std::vector<std::string>& row : rows) {
+    for (std::size_t i = 0; i < row.size() && i < widths.size(); ++i) {
+      widths[i] = std::max(widths[i], row[i].size());
+    }
+  }
+  const auto emit_row = [&](const std::vector<std::string>& row) {
+    absl::StrAppend(&out_, "|");
+    for (std::size_t i = 0; i < row.size(); ++i) {
+      absl::StrAppend(&out_, " ", row[i], std::string(widths[i] - row[i].size(), ' '), " |");
     }
     absl::StrAppend(&out_, "\n");
+  };
+  absl::StrAppend(&out_, "\n");
+  emit_row(header);
+  absl::StrAppend(&out_, "|");
+  for (const std::size_t width : widths) {
+    absl::StrAppend(&out_, " ", std::string(width, '-'), " |");
+  }
+  absl::StrAppend(&out_, "\n");
+  for (const std::vector<std::string>& row : rows) {
+    emit_row(row);
   }
   absl::StrAppend(&out_, "\n");
 }
