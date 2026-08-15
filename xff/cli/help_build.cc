@@ -564,6 +564,47 @@ Section ArchiveSection(bool in_full) {
   return section;
 }
 
+// CONTENT: what it means to read INSIDE files, and the whole content-matching family. The primaries
+// are pulled from the registry SOT via Descriptor.topic and the flags via GlobalFlag.topic, so the
+// lists cannot drift; the cross-cutting rules are prose, because they are what a reader needs before
+// the family means anything. Standalone as `--help=content` and folded into the full reference.
+Section ContentSection(bool in_full) {
+  Section section{.title = "Content"};
+  section.children.push_back(ProseOf(
+      "These primaries read the entry's BYTES, not its metadata: `-grep` prints matching lines the "
+      "way ripgrep does, `-content` / `-icontent` test for a literal, `-rxc` / `-irxc` for a regex "
+      "(grammar per `--regextype`, see `--help=grammars`), and `-text` / `-eofcr` / `-eofcrlf` "
+      "classify line endings and completeness. `{lines}`, `{text}`, `{line}`, `{match}` and "
+      "`{column}` carry the results into templates (`--help=fields`)."));
+  section.children.push_back(ProseOf(
+      "Every one of them reads through the entry's OWN filesystem, so under `--archive` a member is "
+      "searched inside its container exactly like a plain file - `a.tar!notes.txt` greps without "
+      "unpacking anything. Reading is per entry and streamed, so a match in a huge tree costs the "
+      "bytes of the files visited, not of the tree."));
+  for (const registry::Descriptor& descriptor : registry::All()) {
+    if (!in_full && descriptor.topic == "content") {
+      section.children.push_back(PrimaryEntry(descriptor));
+    }
+  }
+  for (const GlobalFlag& flag : Globals()) {
+    if (!in_full && flag.topic == "content") {
+      section.children.push_back(FlagEntry(flag));
+    }
+  }
+  static constexpr std::array<DocPair, 3> kExamples = {{
+      {"xff src -name '*.cc' -grep 'TODO\\('", "matching lines, rg-style, from the files an expression picked"},
+      {"xff . -type f ! -text", "the files that are NOT line-oriented text"},
+      {"xff -z logs.tar -grep ERROR --count", "per-member match counts inside an archive"},
+  }};
+  Subsection examples{.title = "Examples"};
+  for (const auto& [command, explanation] : kExamples) {
+    examples.children.push_back(ExampleOf(std::string(command), "sh"));
+    examples.children.push_back(ProseOf(explanation));
+  }
+  section.children.push_back(Content{.node = std::move(examples)});
+  return section;
+}
+
 // CONFIGURATION: how options resolve (layered tiers + the command line), how a style is
 // chosen (--config / argv[0]), and how dangerous --xffrc directives are armed. The flags
 // are pulled from the globals SOT via the "config" topic tag so the list cannot drift;
@@ -844,8 +885,10 @@ std::optional<Document> TopicReference(std::string_view name) {
     doc.sections.push_back(TimeSection());
   } else if (name == "size") {
     doc.sections.push_back(SizeSection());
-  } else if (name == "grammars") {
+  } else if (name == "grammars" || name == "regex" || name == "regexp") {
     doc.sections.push_back(GrammarsSection());
+  } else if (name == "content") {
+    doc.sections.push_back(ContentSection(/*in_full=*/false));
   } else if (name == "archive" || name == "archives") {
     doc.sections.push_back(ArchiveSection(/*in_full=*/false));
   } else if (name == "stats") {
@@ -910,6 +953,7 @@ Document BuildReference(Audience audience) {
   doc.sections.push_back(TimeSection());
   doc.sections.push_back(SizeSection());
   doc.sections.push_back(GrammarsSection());
+  doc.sections.push_back(ContentSection(/*in_full=*/true));
   doc.sections.push_back(ArchiveSection(/*in_full=*/true));
   doc.sections.push_back(StatsSection(/*in_full=*/true));
   doc.sections.push_back(EnvironmentSection());

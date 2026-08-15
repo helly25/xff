@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <array>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -84,6 +85,7 @@ using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Lt;
+using ::testing::Ne;
 using ::testing::Not;
 using ::testing::SizeIs;
 
@@ -119,6 +121,48 @@ TEST_F(HelpTest, UnknownTopicResolvesToNothingInTheModel) {
   EXPECT_THAT(EntryReference("-bogus"), Eq(std::nullopt));
   EXPECT_THAT(TopicReference("-bogus"), Eq(std::nullopt));
   EXPECT_THAT(IndexReference("-bogus"), Eq(std::nullopt));
+}
+
+TEST_F(HelpTest, ContentTopicGathersTheTaggedFamilyFromBothSots) {
+  // The content page pulls primaries via Descriptor.topic and flags via GlobalFlag.topic, so a
+  // primary added with the tag appears here with no help edit - the same no-drift construction the
+  // archive topic uses. The assertions iterate the SOTs rather than naming the family by hand.
+  const std::optional<Document> doc = TopicReference("content");
+  ASSERT_THAT(doc, Ne(std::nullopt));
+  PlainTextBackend backend;
+  RenderDocument(*doc, backend);
+  const std::string out = backend.Take();
+  for (const registry::Descriptor& descriptor : registry::All()) {
+    if (descriptor.topic == "content") {
+      EXPECT_THAT(out, HasSubstr(descriptor.name)) << descriptor.name;
+    }
+  }
+  for (const GlobalFlag& flag : Globals()) {
+    if (flag.topic == "content") {
+      EXPECT_THAT(out, HasSubstr(flag.name)) << flag.name;
+    }
+  }
+  EXPECT_THAT(out, HasSubstr("OWN filesystem"));  // the cross-cutting rule the page exists to state
+}
+
+TEST_F(HelpTest, RegexAliasesRenderTheGrammarsTopic) {
+  // `--help=regex` is what someone wondering about regex actually types; it and `regexp` open the
+  // grammars reference rather than erroring.
+  const std::optional<Document> grammars = TopicReference("grammars");
+  ASSERT_THAT(grammars, Ne(std::nullopt));
+  static constexpr std::array kAliases = std::to_array<std::string_view>({
+      "regex",
+      "regexp",
+  });
+  for (const std::string_view alias : kAliases) {
+    const std::optional<Document> doc = TopicReference(alias);
+    ASSERT_THAT(doc, Ne(std::nullopt)) << alias;
+    PlainTextBackend want;
+    RenderDocument(*grammars, want);
+    PlainTextBackend got;
+    RenderDocument(*doc, got);
+    EXPECT_THAT(got.Take(), Eq(want.Take())) << alias;
+  }
 }
 
 TEST_F(HelpTest, ListRendersTheTopicListUnderEverySpelling) {
