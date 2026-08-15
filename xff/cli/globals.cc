@@ -982,6 +982,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .header = "Output",
         .summary = "with -grep, print a per-file matching-line count (path:count) instead of the lines",
         .affects = "-grep",
+        .topic = "content",
     },
     {
         .name = "--context",
@@ -995,6 +996,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "letters are unclaimed for now (see TODO.md), and a single-dash flag would be an "
                    "expression primary under xff's dash-count rule rather than a whole-run option.",
         .affects = "-grep,-diff,--diff-context",
+        .topic = "content",
     },
     {
         .name = "--after-context",
