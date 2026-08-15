@@ -22,7 +22,10 @@ cc_library(
     srcs = ["fuzzy.cc"],
     hdrs = ["fuzzy.h"],
     visibility = ["//xff:__subpackages__"],
-    deps = ["@abseil-cpp//absl/strings"],
+    deps = [
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/strings",
+    ],
 )
 
 cc_test(

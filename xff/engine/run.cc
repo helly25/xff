@@ -2726,6 +2726,10 @@ int RunFind(
     options.mount_before_visit = true;
   }
   int errors = 0;
+  // The last -fuzzy / -ifuzzy score for the entry being evaluated, filled by the evaluator and read
+  // by {fuzzy} when the entry is rendered. Run-scoped rather than per-entry so the two phases can
+  // share it; the walk clears it before each evaluation.
+  std::optional<int> fuzzy_score;
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
   // what it would remove without touching the filesystem.
@@ -2946,6 +2950,9 @@ int RunFind(
         // and by -ls's name column, so the two cannot disagree about what a file looks like.
         const std::string_view entry_color =
             colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();
+        // -fuzzy / -ifuzzy leave their score here for {fuzzy}; cleared per entry so a name that runs
+        // no fuzzy test renders empty rather than inheriting the previous entry's score.
+        fuzzy_score.reset();
         EvalContext eval_context{
             .visit = visit,
             .emit = emit,
@@ -2962,6 +2969,7 @@ int RunFind(
             .zone_suffix = zone_suffix,
             .block_size = block_size,
             .fold_name_case = fold_name_case,
+            .fuzzy_score = &fuzzy_score,
             .grep_count = grep_count,
             .grep_before = grep_before,
             .grep_after = grep_after,
@@ -3049,7 +3057,8 @@ int RunFind(
                 .hash_algorithm = hash_algorithm,
                 .hash_encoding = hash_encoding,
                 .defines = &defines,
-                .outputs = &outputs};
+                .outputs = &outputs,
+                .fuzzy_score = fuzzy_score};
             FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
             FeedHistograms(histograms, histogram_cells, visit);
           }  // end if (!shards.enabled && counted)
@@ -3083,7 +3092,8 @@ int RunFind(
                 .hash_algorithm = hash_algorithm,
                 .hash_encoding = hash_encoding,
                 .defines = &defines,
-                .outputs = &outputs};
+                .outputs = &outputs,
+                .fuzzy_score = fuzzy_score};
             if (!column_templates.empty()) {  // --columns: a tabular row of field values
               std::vector<std::string> cells;
               cells.reserve(column_templates.size());

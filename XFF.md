@@ -431,7 +431,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-eofcrlf` - match a regular file whose content ends with CRLF, or is empty (xff) _(test, xff)_
   TRUE for a regular, readable file whose content ends with CRLF (or is empty). The Windows / `-text=windows` final terminator, and the CRLF analogue of `-eofnl`: compose `-text=windows` `-eofcrlf` for a well-formed CRLF-terminated file, or `-text=windows` ! `-eofcrlf` for the missing final CRLF. Stricter than `-eofnl` (which any LF-ending file, including CRLF, satisfies). Reads the file (expensive). An xff extension `--config=find` rejects.
 - `-fuzzy ARG` - match the basename loosely: PATTERN's characters in order, gaps allowed (xff) _(test, xff)_
-  TRUE when every character of PATTERN appears in the entry's basename IN ORDER, with anything at all in between - `-fuzzy tmh` finds `the_main_header.h`. This is a SUBSEQUENCE match (fzf, fd's interactive cousins, an editor's quick-open), not a bounded edit distance: it answers "can I type a few letters and find the file", not "is this a typo of that". Matching is cheap (no regex, no allocation) and unanchored, so the letters may start anywhere in the name. Case follows `--case` like `-name` does; `-ifuzzy` always folds. There is no ranking yet - this is a test, so every match is equal and the walk order is unchanged. Use `-name` for a glob and `-regex` for a pattern. An xff extension `--config=find` rejects. Example: `xff . -fuzzy rdme`.
+  TRUE when every character of PATTERN appears in the entry's basename IN ORDER, with anything at all in between - `-fuzzy tmh` finds `the_main_header.h`. This is a SUBSEQUENCE match (fzf, fd's interactive cousins, an editor's quick-open), not a bounded edit distance: it answers "can I type a few letters and find the file", not "is this a typo of that". Matching is cheap (no regex, no allocation) and unanchored, so the letters may start anywhere in the name. Case follows `--case` like `-name` does; `-ifuzzy` always folds. As a TEST every match is equal and the walk order is unchanged, but the match is also SCORED: `{fuzzy}` renders how well this entry matched, so `--columns=fuzzy,path` plus a numeric sort is a ranking (characters at a word start, matched consecutively, and matched early all score higher). Use `-name` for a glob and `-regex` for a pattern. An xff extension `--config=find` rejects. Example: `xff . -fuzzy rdme --columns=fuzzy,path`.
 - `-ifuzzy ARG` - match the basename loosely, case-insensitively (xff) _(test, xff)_
   The always-case-insensitive `-fuzzy`: folds ASCII case regardless of `--case` or the volume.
 - `-cmp ARG` - true when the file's content is byte-identical to TARGET (a field template) (xff) _(test, xff)_
@@ -642,6 +642,7 @@ The `{field}` placeholder vocabulary, substituted per entry in --template / --fo
 
 - `{hash}` - file digest; {hash:ALGO[/ENCODING]} picks the algorithm (default sha256) and hex/base64
 - `{lines}` - text line count (empty for a binary/unreadable file); reads the file
+- `{fuzzy}` - how well the last `-fuzzy` / `-ifuzzy` matched this entry (empty without one); higher is better, and only comparable within one pattern
 - `{shard}` - with --shards, the number of shards in the set (empty otherwise); size-like fields then aggregate across the set
 
 ### Owner & mode

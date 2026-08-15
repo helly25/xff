@@ -1428,13 +1428,24 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
      edit distance answers a spell-checker's "is this a typo of that" and would miss `tmh` ->
      `the_main_header.h` entirely. Deliberately NOT built yet, each because it needs a decision
      rather than more code:
-     - **Ranking.** A score implies an output ORDER, so it needs `--sort=score` (and probably
-       `--top=N`) and an alignment search rather than the greedy scan - a bigger change than the
-       matcher. Today every match is equal and the walk order is untouched.
+     - **Ranking - the SCORE half is SHIPPED (2026-08-15).** `fuzzy::Score` does the alignment search
+       the greedy scan could not (the earliest match for each character is always A match and often
+       not the BEST one), rewarding word starts, consecutive runs and early matches; `{fuzzy}` renders
+       it, so `--columns=fuzzy,path` plus a numeric sort is already a ranking. The score is stored per
+       entry by the evaluator and cleared before each one, so it cannot leak between entries.
+       - **Still open: making the ORDER xff's own** (`--sort=score`, probably `--top=N`). That is a
+         different change from scoring: every other `--sort` mode is a traversal order the walk can
+         stream, while ranking has to buffer the whole result set before it can emit anything. Decide
+         what `--sort=score` does when no `-fuzzy` ran (leaning: a usage error, since sorting by a
+         value nothing produced is a mistake, not an empty ordering) and whether `--top=N` is
+         fuzzy-specific or a general "first N after sorting".
      - **A path-matching variant** (`-fuzzypath`?), the `-path` to this `-name`. The basename is the
        fzf-ish default; matching whole paths without ranking tends to match nearly everything.
-     - **A score threshold** as the gate for the boolean form, which only means something once
-       there is a score.
+     - **A score threshold** as the gate for the boolean form. Now possible (there is a score), still
+       unspelled: the value is only comparable within one pattern, so an absolute `-fuzzy=N PATTERN`
+       cut-off would be a number users cannot reason about. A relative gate (a fraction of the best
+       score in the run) needs the whole result set, so it belongs with `--sort=score` rather than
+       before it.
   2. **Content near-duplicate / similarity** via **w-shingling**
      (https://en.wikipedia.org/wiki/W-shingling): represent each text file as the set of its
      contiguous w-token shingles (w-word or w-character k-grams), and score similarity as the Jaccard

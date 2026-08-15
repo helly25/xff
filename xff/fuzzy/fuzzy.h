@@ -16,6 +16,7 @@
 #ifndef XFF_FUZZY_FUZZY_H_
 #define XFF_FUZZY_FUZZY_H_
 
+#include <optional>
 #include <string_view>
 
 namespace xff::fuzzy {
@@ -33,6 +34,25 @@ namespace xff::fuzzy {
 //
 // An EMPTY pattern matches everything, exactly as an empty glob would: it constrains nothing.
 [[nodiscard]] bool Matches(std::string_view pattern, std::string_view text, bool fold_case);
+
+// How WELL `pattern` matches `text`, or nullopt when it does not match at all (so the boolean answer
+// is `Score(...).has_value()`, and a matching empty pattern scores 0 rather than being confused with
+// no match). Higher is better; the numbers have no meaning on their own, only against each other for
+// the same pattern, which is why nothing promises a range.
+//
+// Two matches of the same characters are not equally good, and this is what says so: `-fuzzy tmh`
+// should rank `the_main_header.h` above `automath.hpp`. What it rewards, in the order it matters:
+//
+//   - characters that land at a WORD START (the beginning, after `_ - . / ` or a space, or at a
+//     camelCase hump), because that is what a person typing an abbreviation means;
+//   - characters matched CONSECUTIVELY, since `tmh` in `tmhandler` is a stronger signal than the
+//     same three letters scattered;
+//   - matching EARLY, via a small penalty per skipped character.
+//
+// Unlike Matches, this needs a real alignment search rather than the greedy left-to-right scan: the
+// earliest match for each character is always A match, but it is often not the BEST one, and a
+// ranking built on the greedy answer would rank by accident.
+[[nodiscard]] std::optional<int> Score(std::string_view pattern, std::string_view text, bool fold_case);
 
 }  // namespace xff::fuzzy
 
