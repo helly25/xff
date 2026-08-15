@@ -32,7 +32,6 @@
 namespace xff::regex {
 namespace {
 
-using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
 using ::testing::IsFalse;
@@ -118,14 +117,12 @@ TEST_F(RegexBackendSeamTest, BRegisteringAFactoryMakesTheGrammarAvailableAndIsUs
       });
   EXPECT_THAT(Pcre2Available(), IsTrue());
 
-  const auto backend = MakePcre2Backend("ab", /*case_insensitive=*/false);
-  ASSERT_THAT(backend, IsOk());
-  EXPECT_THAT((*backend)->FullMatch("ab"), IsTrue());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto backend, MakePcre2Backend("ab", /*case_insensitive=*/false));
+  EXPECT_THAT((backend)->FullMatch("ab"), IsTrue());
 
   // The factory receives case_insensitive, so a caller's fold request reaches the engine.
-  const auto folded = MakePcre2Backend("ab", /*case_insensitive=*/true);
-  ASSERT_THAT(folded, IsOk());
-  EXPECT_THAT((*folded)->FullMatch("CASELESS"), IsTrue());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto folded, MakePcre2Backend("ab", /*case_insensitive=*/true));
+  EXPECT_THAT((folded)->FullMatch("CASELESS"), IsTrue());
 
   // A pattern the engine rejects is InvalidArgument, distinct from the Unimplemented above.
   EXPECT_THAT(MakePcre2Backend("", /*case_insensitive=*/false), StatusIs(absl::StatusCode::kInvalidArgument));

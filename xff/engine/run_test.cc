@@ -345,11 +345,10 @@ TEST_F(RunTest, SortNameVisitsSiblingsInDeterministicOrder) {
   // --sort=name orders each directory's entries by name, so the whole walk is
   // deterministic: root first, then a.txt < b.md < sub, then sub/c.txt. ElementsAre
   // (not UnorderedElementsAre) asserts the exact sequence.
-  const auto command = parser::Parse({"--sort", root_.string()});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"--sort", root_.string()}));
   std::vector<std::string> records;
   RunFind(
-      *command, fs_,
+      command, fs_,
       [&](std::string_view record) {
         std::string text(record);
         if (!text.empty() && text.back() == '\n') {
@@ -423,11 +422,10 @@ TEST_F(RunTest, LangMatchesAndRendersTheLanguage) {
 
 TEST_F(RunTest, MissingRootCountsError) {
   const std::vector<std::string> argv = {(root_ / "absent").string(), "-print"};
-  const auto command = parser::Parse(argv);
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse(argv));
   std::vector<std::string> records;
   const int errors = RunFind(
-      *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
+      command, fs_, [&](std::string_view record) { records.emplace_back(record); },
       [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, IsEmpty());
   EXPECT_THAT(errors, 1);
@@ -459,11 +457,10 @@ TEST_F(RunTest, SymlinkLModeFollowsDirectorySymlink) {
   ASSERT_FALSE(ec);
   // `find -L <root> -name c.txt`: -L follows the directory symlink lnk -> sub, so
   // c.txt is reachable both directly (sub/c.txt) and through the link (lnk/c.txt).
-  const auto command = parser::Parse({"-L", root_.string(), "-name", "c.txt"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"-L", root_.string(), "-name", "c.txt"}));
   std::vector<std::string> out;
   RunFind(
-      *command, fs_,
+      command, fs_,
       [&](std::string_view record) {
         std::string text(record);
         if (!text.empty() && (text.back() == '\n' || text.back() == '\0')) {
@@ -476,21 +473,19 @@ TEST_F(RunTest, SymlinkLModeFollowsDirectorySymlink) {
 }
 
 TEST_F(RunTest, FormatJsonlRendersImplicitPrintAsJson) {
-  const auto command = parser::Parse({"--format=jsonl", root_.string(), "-name", "a.txt"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"--format=jsonl", root_.string(), "-name", "a.txt"}));
   std::vector<std::string> records;
   RunFind(
-      *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
+      command, fs_, [&](std::string_view record) { records.emplace_back(record); },
       [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, UnorderedElementsAre(Eq(std::string("{\"path\":\"") + Path("a.txt") + "\"}\n")));
 }
 
 TEST_F(RunTest, FormatNulViaDashZero) {
-  const auto command = parser::Parse({"-0", root_.string(), "-name", "a.txt"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"-0", root_.string(), "-name", "a.txt"}));
   std::vector<std::string> records;
   RunFind(
-      *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
+      command, fs_, [&](std::string_view record) { records.emplace_back(record); },
       [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, UnorderedElementsAre(Eq(Path("a.txt") + std::string("\0", 1))));
 }
@@ -601,12 +596,13 @@ TEST_F(RunTest, DiffIgnoreNormalizesComparison) {
 
 TEST_F(RunTest, DiffIgnoreRejectsUnknownToken) {
   // An unknown --diff-ignore token is a pre-walk usage error (exit 2), not a silent no-op.
-  const auto command = parser::Parse({"--diff-ignore=bogus", root_.string(), "-name", "a.txt", "-diff", Path("b.md")});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command,
+      parser::Parse({"--diff-ignore=bogus", root_.string(), "-name", "a.txt", "-diff", Path("b.md")}));
   std::vector<std::string> records;
   absl::Status reported;
   const int errors = RunFind(
-      *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
+      command, fs_, [&](std::string_view record) { records.emplace_back(record); },
       [&](std::string_view, absl::Status status) { reported = status; });
   EXPECT_THAT(records, IsEmpty());
   EXPECT_THAT(errors, 2);
@@ -665,12 +661,11 @@ TEST_F(RunTest, PerActionDiffStyleOverridesTheGlobals) {
 
 TEST_F(RunTest, DiffFormatAndContextRejectBadValues) {
   const auto run_expect_usage_error = [&](const std::vector<std::string>& argv, std::string_view message) {
-    const auto command = parser::Parse(argv);
-    ASSERT_THAT(command, IsOk());
+    MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse(argv));
     std::vector<std::string> records;
     absl::Status reported;
     const int errors = RunFind(
-        *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
+        command, fs_, [&](std::string_view record) { records.emplace_back(record); },
         [&](std::string_view, absl::Status status) { reported = status; });
     EXPECT_THAT(records, IsEmpty());
     EXPECT_THAT(errors, 2);
@@ -732,12 +727,11 @@ TEST_F(RunTest, HashAlgorithmGlobalSetsTheDefaultForActionAndField) {
 
 TEST_F(RunTest, HashRejectsUnknownSpec) {
   // A bad -hash=ALGO[/ENCODING] spec is a pre-walk usage error (exit 2), not a silent no-op.
-  const auto command = parser::Parse({root_.string(), "-name", "a.txt", "-hash=crc32"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({root_.string(), "-name", "a.txt", "-hash=crc32"}));
   std::vector<std::string> records;
   absl::Status reported;
   const int errors = RunFind(
-      *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
+      command, fs_, [&](std::string_view record) { records.emplace_back(record); },
       [&](std::string_view, absl::Status status) { reported = status; });
   EXPECT_THAT(records, IsEmpty());
   EXPECT_THAT(errors, 2);
@@ -758,11 +752,11 @@ TEST_F(RunTest, DeleteRemovesMatchedFiles) {
 }
 
 TEST_F(RunTest, DeleteDryRunPreviewsWithoutDeleting) {
-  const auto command = parser::Parse({"--dry-run", root_.string(), "-name", "a.txt", "-delete"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command, parser::Parse({"--dry-run", root_.string(), "-name", "a.txt", "-delete"}));
   std::vector<std::string> records;
   RunFind(
-      *command, fs_,
+      command, fs_,
       [&](std::string_view record) {
         std::string text(record);
         if (!text.empty() && text.back() == '\n') {
@@ -776,9 +770,8 @@ TEST_F(RunTest, DeleteDryRunPreviewsWithoutDeleting) {
 }
 
 TEST_F(RunTest, SafeRefusesDelete) {
-  const auto command = parser::Parse({"--safe", root_.string(), "-delete"});
-  ASSERT_THAT(command, IsOk());
-  const int errors = RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"--safe", root_.string(), "-delete"}));
+  const int errors = RunFind(command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
   EXPECT_THAT(errors, 2);
   EXPECT_TRUE(fs::exists(root_ / "a.txt"));  // refused: nothing deleted
 }
@@ -790,9 +783,10 @@ TEST_F(RunTest, ExecRunsCommandPerMatch) {
 }
 
 TEST_F(RunTest, SafeRefusesExec) {
-  const auto command = parser::Parse({"--safe", root_.string(), "-exec", "/bin/sh", "-c", "echo > \"{}.ran\"", ";"});
-  ASSERT_THAT(command, IsOk());
-  const int errors = RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command,
+      parser::Parse({"--safe", root_.string(), "-exec", "/bin/sh", "-c", "echo > \"{}.ran\"", ";"}));
+  const int errors = RunFind(command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
   EXPECT_THAT(errors, 2);
   EXPECT_FALSE(fs::exists(root_ / "a.txt.ran"));  // refused: command not run
 }
@@ -800,13 +794,12 @@ TEST_F(RunTest, SafeRefusesExec) {
 TEST_F(RunTest, UnknownTimezoneIsRefusedBeforeTraversal) {
   // An unknown --timezone is a usage error refused before the walk (exit 2), like
   // the --safe guards above: reported via on_error, emitting nothing.
-  const auto command = parser::Parse({"--timezone=Not/AZone", root_.string()});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"--timezone=Not/AZone", root_.string()}));
   std::string err_path;
   absl::Status err_status;
   bool emitted = false;
   const int errors = RunFind(
-      *command, fs_, [&](std::string_view) { emitted = true; },
+      command, fs_, [&](std::string_view) { emitted = true; },
       [&](std::string_view path, absl::Status status) {
         err_path = std::string(path);
         err_status = status;
@@ -820,12 +813,11 @@ TEST_F(RunTest, UnknownTimezoneIsRefusedBeforeTraversal) {
 TEST_F(RunTest, OversizedSizeUnitIsRefusedBeforeTraversal) {
   // -size with an over-64-bit unit (Z/Y/...) is a usage error refused before the
   // walk (exit 2), naming the limit -- not a silent per-entry no-match.
-  const auto command = parser::Parse({root_.string(), "-size", "+1Z"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({root_.string(), "-size", "+1Z"}));
   absl::Status err_status;
   bool emitted = false;
   const int errors = RunFind(
-      *command, fs_, [&](std::string_view) { emitted = true; },
+      command, fs_, [&](std::string_view) { emitted = true; },
       [&](std::string_view, absl::Status status) { err_status = status; });
   EXPECT_THAT(errors, 2);
   EXPECT_THAT(err_status, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("E (exabyte)")));
@@ -845,12 +837,11 @@ TEST_F(RunTest, BlockSizeRedefinesTheBareSizeUnit) {
 }
 
 TEST_F(RunTest, InvalidBlockSizeIsRefusedBeforeTraversal) {
-  const auto command = parser::Parse({"--block-size=0", root_.string()});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"--block-size=0", root_.string()}));
   absl::Status err_status;
   bool emitted = false;
   const int errors = RunFind(
-      *command, fs_, [&](std::string_view) { emitted = true; },
+      command, fs_, [&](std::string_view) { emitted = true; },
       [&](std::string_view, absl::Status status) { err_status = status; });
   EXPECT_THAT(errors, 2);
   EXPECT_THAT(err_status, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("positive")));
@@ -860,11 +851,10 @@ TEST_F(RunTest, InvalidBlockSizeIsRefusedBeforeTraversal) {
 TEST_F(RunTest, ValidTimezoneIsAcceptedAndTheRunProceeds) {
   // A valid --timezone resolves and the run proceeds normally (here it does not
   // change the result, just proving the flag is accepted end to end).
-  const auto command = parser::Parse({"--timezone=UTC", root_.string(), "-name", "a.txt"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"--timezone=UTC", root_.string(), "-name", "a.txt"}));
   std::vector<std::string> records;
   const int errors = RunFind(
-      *command, fs_,
+      command, fs_,
       [&](std::string_view record) {
         std::string text(record);
         if (!text.empty() && text.back() == '\n') {
@@ -880,11 +870,11 @@ TEST_F(RunTest, ValidTimezoneIsAcceptedAndTheRunProceeds) {
 TEST_F(RunTest, TimezoneAppliesToTimeFieldFormatting) {
   // --timezone reaches time-field formatting too: {mtime:%z} is the numeric zone
   // offset, so under --timezone=UTC it is "+0000" regardless of the host's zone.
-  const auto command = parser::Parse({"--timezone=UTC", "--template={mtime:%z}", root_.string(), "-name", "a.txt"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command, parser::Parse({"--timezone=UTC", "--template={mtime:%z}", root_.string(), "-name", "a.txt"}));
   std::vector<std::string> records;
   RunFind(
-      *command, fs_,
+      command, fs_,
       [&](std::string_view record) {
         std::string text(record);
         if (!text.empty() && text.back() == '\n') {
@@ -940,18 +930,16 @@ TEST_F(RunTest, FixedOffsetTimezoneAppliesToFormatting) {
 }
 
 TEST_F(RunTest, AnyMatchIsTrueWhenExpressionMatches) {
-  const auto command = parser::Parse({root_.string(), "-name", "a.txt"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({root_.string(), "-name", "a.txt"}));
   bool matched = false;
-  RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {}, std::nullopt, &matched);
+  RunFind(command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {}, std::nullopt, &matched);
   EXPECT_THAT(matched, IsTrue());
 }
 
 TEST_F(RunTest, AnyMatchIsFalseWhenNothingMatches) {
-  const auto command = parser::Parse({root_.string(), "-name", "no-such-file.zzz"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({root_.string(), "-name", "no-such-file.zzz"}));
   bool matched = false;
-  RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {}, std::nullopt, &matched);
+  RunFind(command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {}, std::nullopt, &matched);
   EXPECT_THAT(matched, IsFalse());
 }
 
@@ -959,12 +947,12 @@ TEST_F(RunTest, AnyMatchReflectsExpressionNotEmittedOutput) {
   // any_match is the expression's truth, not output: with --implicit-print=no, a.txt
   // matches but nothing is emitted, yet any_match is still true (so --quiet on an
   // action-only expression like `-exec` still reports the match).
-  const auto command = parser::Parse({"--implicit-print=no", root_.string(), "-name", "a.txt"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command, parser::Parse({"--implicit-print=no", root_.string(), "-name", "a.txt"}));
   std::vector<std::string> records;
   bool matched = false;
   RunFind(
-      *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
+      command, fs_, [&](std::string_view record) { records.emplace_back(record); },
       [](std::string_view, absl::Status) {}, std::nullopt, &matched);
   EXPECT_THAT(records, IsEmpty());
   EXPECT_THAT(matched, IsTrue());
@@ -973,11 +961,12 @@ TEST_F(RunTest, AnyMatchReflectsExpressionNotEmittedOutput) {
 TEST_F(RunTest, TimeFormatGlobalSetsTheBareTimeFieldDefault) {
   // --time-format=epoch makes a bare {mtime} render as Unix seconds (all digits,
   // no date dashes), proving the global threads through to time-field formatting.
-  const auto command = parser::Parse({"--time-format=epoch", "--template={mtime}", root_.string(), "-name", "a.txt"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command,
+      parser::Parse({"--time-format=epoch", "--template={mtime}", root_.string(), "-name", "a.txt"}));
   std::vector<std::string> records;
   RunFind(
-      *command, fs_,
+      command, fs_,
       [&](std::string_view record) {
         std::string text(record);
         if (!text.empty() && text.back() == '\n') {
@@ -992,11 +981,11 @@ TEST_F(RunTest, TimeFormatGlobalSetsTheBareTimeFieldDefault) {
 }
 
 TEST_F(RunTest, TemplateRendersImplicitPrint) {
-  const auto command = parser::Parse({"--template={name}:{type}", root_.string(), "-name", "a.txt"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command, parser::Parse({"--template={name}:{type}", root_.string(), "-name", "a.txt"}));
   std::vector<std::string> records;
   RunFind(
-      *command, fs_,
+      command, fs_,
       [&](std::string_view record) {
         std::string text(record);
         if (!text.empty() && text.back() == '\n') {
@@ -1012,11 +1001,11 @@ TEST_F(RunTest, TemplateRootFieldReportsTheSearchOperand) {
   // {root} is the command-line operand a match descends from (find %H); a nested
   // match (sub/c.txt) still reports the operand, exercising run.cc's wiring of
   // Visit::root into the render context.
-  const auto command = parser::Parse({"--template={root}|{name}", root_.string(), "-name", "c.txt"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command, parser::Parse({"--template={root}|{name}", root_.string(), "-name", "c.txt"}));
   std::vector<std::string> records;
   RunFind(
-      *command, fs_,
+      command, fs_,
       [&](std::string_view record) {
         std::string text(record);
         if (!text.empty() && text.back() == '\n') {
@@ -1032,21 +1021,22 @@ TEST_F(RunTest, ExecFieldsRendersNamedPlaceholders) {
   // --exec-fields routes -exec tokens through the field vocabulary: {path} is the
   // full path, so the marker lands beside the matched file (vs. a literal "{path}"
   // file in the cwd without the flag).
-  const auto command = parser::Parse(
-      {"--exec-fields", root_.string(), "-name", "a.txt", "-exec", "/bin/sh", "-c", "echo > \"{path}.fld\"", ";"});
-  ASSERT_THAT(command, IsOk());
-  RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command,
+      parser::Parse(
+          {"--exec-fields", root_.string(), "-name", "a.txt", "-exec", "/bin/sh", "-c", "echo > \"{path}.fld\"", ";"}));
+  RunFind(command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
   EXPECT_TRUE(fs::exists(root_ / "a.txt.fld"));
 }
 
 TEST_F(RunTest, ExecFieldsSubstitutesRegexCaptures) {
   // --exec-fields + a -regex match: {1}/{2} resolve to the capture groups, written
   // to a marker beside the file ({path} keeps the marker absolute for cleanup).
-  const auto command = parser::Parse(
-      {"--exec-fields", root_.string(), "-regex", ".*/(a)\\.(txt)", "-exec", "/bin/sh", "-c",
-       R"(printf '%s' "{1}.{2}" > "{path}.cap")", ";"});
-  ASSERT_THAT(command, IsOk());
-  RunFind(*command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command, parser::Parse(
+                              {"--exec-fields", root_.string(), "-regex", ".*/(a)\\.(txt)", "-exec", "/bin/sh", "-c",
+                               R"(printf '%s' "{1}.{2}" > "{path}.cap")", ";"}));
+  RunFind(command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
   const fs::path marker = root_ / "a.txt.cap";
   ASSERT_TRUE(fs::exists(marker));
   std::ifstream in(marker);
@@ -1057,12 +1047,13 @@ TEST_F(RunTest, ExecFieldsSubstitutesRegexCaptures) {
 
 TEST_F(RunTest, DefinePopulatesDefNamespace) {
   // --define=NAME=VALUE surfaces as {def.NAME} in --template output (last wins).
-  const auto command = parser::Parse(
-      {"--define=label=old", "--define=label=new", "--template={def.label}:{name}", root_.string(), "-name", "a.txt"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command, parser::Parse(
+                              {"--define=label=old", "--define=label=new", "--template={def.label}:{name}",
+                               root_.string(), "-name", "a.txt"}));
   std::vector<std::string> records;
   RunFind(
-      *command, fs_,
+      command, fs_,
       [&](std::string_view record) {
         std::string text(record);
         if (!text.empty() && text.back() == '\n') {
@@ -1077,13 +1068,13 @@ TEST_F(RunTest, DefinePopulatesDefNamespace) {
 TEST_F(RunTest, CaptureBindsOutputForTemplate) {
   // -capture runs a command per match (with {} -> path) and binds its stdout to
   // {capture.NAME}; --template then prints it.
-  const auto command = parser::Parse(
-      {"--template={capture.base}", root_.string(), "-name", "a.txt", "-capture=base", "/bin/sh", "-c", "basename {}",
-       ";"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command, parser::Parse(
+                              {"--template={capture.base}", root_.string(), "-name", "a.txt", "-capture=base",
+                               "/bin/sh", "-c", "basename {}", ";"}));
   std::vector<std::string> records;
   RunFind(
-      *command, fs_,
+      command, fs_,
       [&](std::string_view record) {
         std::string text(record);
         if (!text.empty() && text.back() == '\n') {
@@ -1097,13 +1088,13 @@ TEST_F(RunTest, CaptureBindsOutputForTemplate) {
 
 TEST_F(RunTest, CaptureChainsPriorOutputs) {
   // A later -capture command references an earlier capture's {capture.*}.
-  const auto command = parser::Parse(
-      {"--template={capture.b}", root_.string(), "-name", "a.txt", "-capture=a", "/bin/sh", "-c", "printf X", ";",
-       "-capture=b", "/bin/sh", "-c", "printf {capture.a}Y", ";"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command, parser::Parse(
+                              {"--template={capture.b}", root_.string(), "-name", "a.txt", "-capture=a", "/bin/sh",
+                               "-c", "printf X", ";", "-capture=b", "/bin/sh", "-c", "printf {capture.a}Y", ";"}));
   std::vector<std::string> records;
   RunFind(
-      *command, fs_,
+      command, fs_,
       [&](std::string_view record) {
         std::string text(record);
         if (!text.empty() && text.back() == '\n') {
@@ -1118,23 +1109,25 @@ TEST_F(RunTest, CaptureChainsPriorOutputs) {
 TEST_F(RunTest, DuplicateCaptureNameIsErrorByDefault) {
   // Two -capture actions binding the same NAME, no --capture-override -> exit 2,
   // reported before traversal (silent clobbering would mean wrong data).
-  const auto command = parser::Parse(
-      {root_.string(), "-capture=x", "/bin/sh", "-c", "printf a", ";", "-capture=x", "/bin/sh", "-c", "printf b", ";"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command, parser::Parse(
+                              {root_.string(), "-capture=x", "/bin/sh", "-c", "printf a", ";", "-capture=x", "/bin/sh",
+                               "-c", "printf b", ";"}));
   int errors = 0;
-  const int code = RunFind(*command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
+  const int code = RunFind(command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
   EXPECT_THAT(code, 2);
   EXPECT_THAT(errors, 1);
 }
 
 TEST_F(RunTest, CaptureOverrideAllowsDuplicateNameLastWins) {
-  const auto command = parser::Parse(
-      {"--capture-override", "--template={capture.x}", root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh", "-c",
-       "printf a", ";", "-capture=x", "/bin/sh", "-c", "printf b", ";"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command,
+      parser::Parse(
+          {"--capture-override", "--template={capture.x}", root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh",
+           "-c", "printf a", ";", "-capture=x", "/bin/sh", "-c", "printf b", ";"}));
   std::vector<std::string> records;
   RunFind(
-      *command, fs_,
+      command, fs_,
       [&](std::string_view record) {
         std::string text(record);
         if (!text.empty() && text.back() == '\n') {
@@ -1148,46 +1141,46 @@ TEST_F(RunTest, CaptureOverrideAllowsDuplicateNameLastWins) {
 
 TEST_F(RunTest, UnusedCaptureIsError) {
   // -capture=x but {capture.x} is referenced nowhere -> exit 2 before traversal.
-  const auto command =
-      parser::Parse({root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh", "-c", "printf a", ";"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command,
+      parser::Parse({root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh", "-c", "printf a", ";"}));
   int errors = 0;
-  const int code = RunFind(*command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
+  const int code = RunFind(command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
   EXPECT_THAT(code, 2);
   EXPECT_THAT(errors, 1);
 }
 
 TEST_F(RunTest, CaptureUsedByLaterExecIsNotFlagged) {
   // {capture.x} referenced in a later -exec counts as used -> no unused error.
-  const auto command = parser::Parse(
-      {"--exec-fields", root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh", "-c", "printf a", ";", "-exec",
-       "/bin/sh", "-c", "test \"{capture.x}\" = a", ";"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command, parser::Parse(
+                              {"--exec-fields", root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh", "-c",
+                               "printf a", ";", "-exec", "/bin/sh", "-c", "test \"{capture.x}\" = a", ";"}));
   int errors = 0;
-  const int code = RunFind(*command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
+  const int code = RunFind(command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
   EXPECT_THAT(code, 0);  // used by the -exec, so not flagged
   EXPECT_THAT(errors, 0);
 }
 
 TEST_F(RunTest, ImplicitPrintNoSuppressesDefaultPrint) {
   // No action, so find would print -- --implicit-print=no forces it off.
-  const auto command = parser::Parse({"--implicit-print=no", root_.string(), "-name", "a.txt"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command, parser::Parse({"--implicit-print=no", root_.string(), "-name", "a.txt"}));
   std::vector<std::string> records;
   RunFind(
-      *command, fs_, [&](std::string_view record) { records.emplace_back(record); },
+      command, fs_, [&](std::string_view record) { records.emplace_back(record); },
       [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, IsEmpty());
 }
 
 TEST_F(RunTest, ImplicitPrintYesPrintsAlongsideAction) {
   // -exec would suppress the implicit print; --implicit-print=yes forces it on.
-  const auto command =
-      parser::Parse({"--implicit-print=yes", root_.string(), "-name", "a.txt", "-exec", "/bin/sh", "-c", "true", ";"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command,
+      parser::Parse({"--implicit-print=yes", root_.string(), "-name", "a.txt", "-exec", "/bin/sh", "-c", "true", ";"}));
   std::vector<std::string> records;
   RunFind(
-      *command, fs_,
+      command, fs_,
       [&](std::string_view record) {
         std::string text(record);
         if (!text.empty() && text.back() == '\n') {
@@ -1445,12 +1438,11 @@ TEST_F(RunTest, BtimeOnEntryWithoutBirthtimeFailsByDefault) {
   // Impossible task: -Btime against a filesystem that does not record birth time is
   // a hard error (exit 2), reported once with a self-documenting message.
   const NoBtimeFs fs("/fake");
-  const auto command = parser::Parse({"/fake", "-Btime", "1"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"/fake", "-Btime", "1"}));
   int reports = 0;
   std::string message;
   const int errors = RunFind(
-      *command, fs, [](std::string_view) {},
+      command, fs, [](std::string_view) {},
       [&](std::string_view, absl::Status status) {
         ++reports;
         message = std::string(status.message());
@@ -1464,10 +1456,9 @@ TEST_F(RunTest, SkipUnsupportedDowngradesImpossibleBtimeToWarnAndSkip) {
   // --skip-unsupported turns the same impossible task into a warning + skip: the
   // run still reports once (so the user knows), but it is not an error (exit 0).
   const NoBtimeFs fs("/fake");
-  const auto command = parser::Parse({"--skip-unsupported", "/fake", "-Btime", "1"});
-  ASSERT_THAT(command, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"--skip-unsupported", "/fake", "-Btime", "1"}));
   int reports = 0;
-  const int errors = RunFind(*command, fs, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++reports; });
+  const int errors = RunFind(command, fs, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++reports; });
   EXPECT_THAT(errors, 0);   // skipped -> not an error
   EXPECT_THAT(reports, 1);  // but warned once
 }

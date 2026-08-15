@@ -70,18 +70,16 @@ struct LocalFsTest : ::testing::Test {
 };
 
 TEST_F(LocalFsTest, ReadDirListsChildren) {
-  const auto entries = local_fs_.ReadDir(root_.string());
-  ASSERT_THAT(entries, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto entries, local_fs_.ReadDir(root_.string()));
   EXPECT_THAT(
-      *entries,
+      entries,
       UnorderedElementsAre(
           Field(&Entry::name, Eq("file.txt")), Field(&Entry::name, Eq("sub")), Field(&Entry::name, Eq("link"))));
 }
 
 TEST_F(LocalFsTest, ReadDirTagsEntriesAsWritableLocal) {
-  const auto entries = local_fs_.ReadDir(root_.string());
-  ASSERT_THAT(entries, IsOk());
-  for (const Entry& entry : *entries) {
+  MBO_ASSERT_OK_AND_ASSIGN(const auto entries, local_fs_.ReadDir(root_.string()));
+  for (const Entry& entry : entries) {
     EXPECT_THAT(entry.source, Source::kLocalFs);
     EXPECT_FALSE(entry.read_only);
     EXPECT_THAT(entry.path, Path(entry.name));
@@ -97,30 +95,26 @@ TEST_F(LocalFsTest, ReadDirOnRegularFileFails) {
 }
 
 TEST_F(LocalFsTest, StatRegularFile) {
-  const auto md = local_fs_.Stat(Path("file.txt"), /*follow_symlinks=*/false);
-  ASSERT_THAT(md, IsOk());
-  EXPECT_THAT(md->type, FileType::kRegular);
-  EXPECT_THAT(md->size, 5U);
-  EXPECT_THAT(md->nlink, Gt(0U));
+  MBO_ASSERT_OK_AND_ASSIGN(const auto md, local_fs_.Stat(Path("file.txt"), /*follow_symlinks=*/false));
+  EXPECT_THAT(md.type, FileType::kRegular);
+  EXPECT_THAT(md.size, 5U);
+  EXPECT_THAT(md.nlink, Gt(0U));
   // mtime is populated (well after 2020-01-01, not a zero/epoch default).
-  EXPECT_THAT(md->mtime, Gt(absl::FromUnixSeconds(1'577'836'800)));
+  EXPECT_THAT(md.mtime, Gt(absl::FromUnixSeconds(1'577'836'800)));
 }
 
 TEST_F(LocalFsTest, StatDirectory) {
-  const auto md = local_fs_.Stat(Path("sub"), /*follow_symlinks=*/false);
-  ASSERT_THAT(md, IsOk());
-  EXPECT_THAT(md->type, FileType::kDirectory);
+  MBO_ASSERT_OK_AND_ASSIGN(const auto md, local_fs_.Stat(Path("sub"), /*follow_symlinks=*/false));
+  EXPECT_THAT(md.type, FileType::kDirectory);
 }
 
 TEST_F(LocalFsTest, StatSymlinkRespectsFollow) {
-  const auto link = local_fs_.Stat(Path("link"), /*follow_symlinks=*/false);
-  ASSERT_THAT(link, IsOk());
-  EXPECT_THAT(link->type, FileType::kSymlink);
+  MBO_ASSERT_OK_AND_ASSIGN(const auto link, local_fs_.Stat(Path("link"), /*follow_symlinks=*/false));
+  EXPECT_THAT(link.type, FileType::kSymlink);
 
-  const auto target = local_fs_.Stat(Path("link"), /*follow_symlinks=*/true);
-  ASSERT_THAT(target, IsOk());
-  EXPECT_THAT(target->type, FileType::kRegular);
-  EXPECT_THAT(target->size, 5U);
+  MBO_ASSERT_OK_AND_ASSIGN(const auto target, local_fs_.Stat(Path("link"), /*follow_symlinks=*/true));
+  EXPECT_THAT(target.type, FileType::kRegular);
+  EXPECT_THAT(target.size, 5U);
 }
 
 TEST_F(LocalFsTest, StatMissingPathIsNotFound) {

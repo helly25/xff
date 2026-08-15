@@ -474,17 +474,15 @@ TEST_F(TakesTerminalTest, TheExecAndPromptFamilyTakesTheTerminal) {
 }
 
 TEST_F(TakesTerminalTest, AnOrdinaryExpressionDoesNot) {
-  const absl::StatusOr<Command> command = Parse({".", "-type", "f", "-o", "-name", "*.cc"});
-  ASSERT_THAT(command, IsOk());
-  EXPECT_THAT(TakesTerminal(command->expression.get()), false);
+  MBO_ASSERT_OK_AND_ASSIGN(const Command command, Parse({".", "-type", "f", "-o", "-name", "*.cc"}));
+  EXPECT_THAT(TakesTerminal(command.expression.get()), false);
   EXPECT_THAT(TakesTerminal(nullptr), false);  // no expression at all
 }
 
 TEST_F(TakesTerminalTest, ItFindsThePrimaryAnywhereInTheTree) {
   // The walk has to reach both operands and through a negation, or a nested -ok would slip past.
-  const absl::StatusOr<Command> command = Parse({".", "!", "-name", "x", "-o", "-ok", "rm", "{}", ";"});
-  ASSERT_THAT(command, IsOk());
-  EXPECT_THAT(TakesTerminal(command->expression.get()), true);
+  MBO_ASSERT_OK_AND_ASSIGN(const Command command, Parse({".", "!", "-name", "x", "-o", "-ok", "rm", "{}", ";"}));
+  EXPECT_THAT(TakesTerminal(command.expression.get()), true);
 }
 
 }  // namespace

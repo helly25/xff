@@ -176,12 +176,10 @@ TEST_F(PharWriterTest, ATarOrZipBasedPharIsRecognisedByItsSignatureMember) {
   // Those variants are ordinary tars / zips, so the libarchive writer WOULD rewrite them - and the
   // result is a container PHP rejects, because their signature is a member computed over everything
   // else. This is the check that stops it; a container with no signature member is not flagged.
-  const absl::StatusOr<std::vector<Member>> tar_based = ListMembersOfFile(Fixture("tarbased.phar.tar"));
-  ASSERT_THAT(tar_based, IsOk());
-  EXPECT_THAT(IsSignedTarOrZipPhar(*tar_based), IsTrue());
-  const absl::StatusOr<std::vector<Member>> zip_based = ListMembersOfFile(Fixture("zipbased.phar.zip"));
-  ASSERT_THAT(zip_based, IsOk());
-  EXPECT_THAT(IsSignedTarOrZipPhar(*zip_based), IsTrue());
+  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<Member> tar_based, ListMembersOfFile(Fixture("tarbased.phar.tar")));
+  EXPECT_THAT(IsSignedTarOrZipPhar(tar_based), IsTrue());
+  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<Member> zip_based, ListMembersOfFile(Fixture("zipbased.phar.zip")));
+  EXPECT_THAT(IsSignedTarOrZipPhar(zip_based), IsTrue());
   EXPECT_THAT(IsSignedTarOrZipPhar({Member{.path = "bin/run.php"}, Member{.path = ".phar/stub.php"}}), IsFalse());
 }
 
@@ -190,13 +188,12 @@ TEST_F(PharWriterTest, TheLayoutMatchesTheFileItWasReadFrom) {
   // after the stub, the data section after the manifest, and the members' bytes end where the
   // signature begins.
   const std::string bytes = Read(Fixture("plain.phar"));
-  const absl::StatusOr<PharLayout> layout = ParsePharLayout(bytes);
-  ASSERT_THAT(layout, IsOk());
-  EXPECT_THAT(layout->members, SizeIs(MemberNames(Fixture("plain.phar")).size()));
-  EXPECT_THAT(layout->manifest_start > layout->manifest_length_at, IsTrue());
-  EXPECT_THAT(layout->data_offset, layout->manifest_start + layout->manifest_size);
-  EXPECT_THAT(layout->entries_offset > layout->manifest_start, IsTrue());
-  EXPECT_THAT(layout->data_end < bytes.size(), IsTrue());  // the signature trailer follows
+  MBO_ASSERT_OK_AND_ASSIGN(const PharLayout layout, ParsePharLayout(bytes));
+  EXPECT_THAT(layout.members, SizeIs(MemberNames(Fixture("plain.phar")).size()));
+  EXPECT_THAT(layout.manifest_start > layout.manifest_length_at, IsTrue());
+  EXPECT_THAT(layout.data_offset, layout.manifest_start + layout.manifest_size);
+  EXPECT_THAT(layout.entries_offset > layout.manifest_start, IsTrue());
+  EXPECT_THAT(layout.data_end < bytes.size(), IsTrue());  // the signature trailer follows
 }
 
 }  // namespace
