@@ -238,6 +238,15 @@ clang-format picks a layout per line; these habits steer it toward the readable 
   method returning `*this` for chaining, or a mutator that also returns the previous value as a
   convenience. We disable `modernize-use-nodiscard` in `.clang-tidy` precisely because it would
   blanket-annotate every const method - apply `[[nodiscard]]` by judgment instead.
+- **Comparison functions name their parameters `lhs` and `rhs`** - a sort comparator, an
+  `operator==`/`operator<=>`, any two-things-of-one-type predicate. Never `a`/`b` (which
+  `readability-identifier-length` rejects at under 2 characters) and not `x`/`y` either: `lhs`/`rhs`
+  names the ROLE, so `lhs.name < rhs.name` reads as the ordering it implements.
+
+  ```cpp
+  absl::c_sort(topics, [](const HelpTopic& lhs, const HelpTopic& rhs) { return lhs.name < rhs.name; });
+  ```
+
 - **switch / case**: order case labels alphabetically. Where the cases are a uniform
   mapping (key -> handler or value), prefer a constexpr `mbo::container::LimitedMap`
   lookup over a switch.
