@@ -90,7 +90,7 @@ struct ArchivePackXzTest : ::testing::Test {
 TEST_F(ArchivePackXzTest, AnXzArchiveReadsBackWithItsNamesAndContent) {
   // That it reads back at all is what proves the format and the filter were set: a wrong filter
   // yields bytes libarchive cannot parse.
-  const std::string out = (root_ / "packed.tar.xz").string();
+  const std::string out = (root_ / "packed.txz").string();  // the shortcut, not the long spelling
   ASSERT_THAT(PackFiles(out, Entries()), IsOk());
   EXPECT_THAT(
       ListMembersOfFile(out),

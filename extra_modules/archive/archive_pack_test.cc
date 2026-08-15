@@ -107,10 +107,16 @@ TEST_F(ArchivePackTest, TheOutputNameChoosesTheFormat) {
   // alone can be tagged `no_san` (liblzma trips UBSan's `function` check).
   static constexpr std::array kNames = std::to_array<std::string_view>({
       "packed.tar.gz",
-      "packed.tgz",
       "packed.tar.bz2",
       "packed.tar.zst",
       "packed.zip",
+      // The single-word shortcuts GNU tar recognises, which people type: each must reach the same
+      // format its long spelling does. `.tar.xz` and `.txz` live in archive_pack_xz_test (no_san).
+      "packed.tgz",
+      "packed.tbz2",
+      "packed.tbz",
+      "packed.tz2",
+      "packed.tzst",
   });
   for (const std::string_view name : kNames) {
     const std::string out = Output(name);
@@ -302,6 +308,20 @@ TEST_F(ArchivePackTest, ThePackedMemberKeepsItsModificationTime) {
 }
 
 struct PackFormatsTest : ::testing::Test {};
+
+TEST_F(PackFormatsTest, TheSingleWordShortcutsResolveLikeTheirLongSpellings) {
+  // `.tgz` was the only shortcut the writer knew, so `--pack=x.txz` was refused as if it named no
+  // format at all. These are the abbreviations GNU tar itself recognises.
+  EXPECT_THAT(FormatFromName("a.tgz"), Eq("tgz"));
+  EXPECT_THAT(FormatFromName("a.txz"), Eq("txz"));
+  EXPECT_THAT(FormatFromName("a.tbz2"), Eq("tbz2"));
+  EXPECT_THAT(FormatFromName("a.tbz"), Eq("tbz"));
+  EXPECT_THAT(FormatFromName("a.tz2"), Eq("tz2"));
+  EXPECT_THAT(FormatFromName("a.tzst"), Eq("tzst"));
+  // `.taz` (tar.Z) and `.tlz` (tar.lzma) would mean adding compressors this table does not write.
+  EXPECT_THAT(FormatFromName("a.taz"), IsEmpty());
+  EXPECT_THAT(FormatFromName("a.tlz"), IsEmpty());
+}
 
 TEST_F(PackFormatsTest, FormatFromNameIsCaseInsensitiveAndPrefersTheLongestSuffix) {
   EXPECT_THAT(FormatFromName("a.tar.gz"), Eq("tar.gz"));  // not "gz" and not "tar"

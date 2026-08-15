@@ -2702,8 +2702,8 @@ int RunFind(
       on_error(
           "--pack", absl::InvalidArgumentError(
                         absl::StrCat(
-                            "cannot tell the archive format from '", *pack_target, "'; expected a name ending in ",
-                            absl::StrJoin(archive::ContainerPackFormats(), ", "))));
+                            "cannot tell the archive format from '", *pack_target, "'; expected a name ending in .",
+                            absl::StrJoin(archive::ContainerPackFormats(), ", ."))));
       return 2;
     }
     if (const absl::Status names = CheckPackOptionNames(*pack_options); !names.ok()) {

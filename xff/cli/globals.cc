@@ -826,8 +826,10 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "write every match into a new archive at FILE instead of listing them",
         .details = "The counterpart of `--archive`: instead of reading a container the walk BUILDS one, so the "
                    "member list comes from the whole expression vocabulary rather than from a shell pipeline "
-                   "into `tar`. The output NAME picks the format (`.tar`, `.tar.gz`, `.tgz`, `.tar.bz2`, "
-                   "`.tar.xz`, `.tar.zst`, `.zip`); a name carrying none is a usage error reported BEFORE the "
+                   "into `tar`. The output NAME picks the format - `--help=archive` lists exactly what this "
+                   "binary writes, from the writer's own table rather than a copy kept here, and the single-word "
+                   "shortcuts (`.tgz`, `.txz`, `.tbz2`, `.tzst`) mean what they do everywhere else; a name "
+                   "carrying no format is a usage error reported BEFORE the "
                    "walk, since finding out afterwards would waste the traversal. "
                    "Each member is stored under the entry's path relative to the search root it was found "
                    "under, in the order the walk produced it - so `--sort` decides the order inside the "

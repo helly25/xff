@@ -131,10 +131,10 @@ absl::Status PackContainer(std::string_view path, const std::vector<PackFile>& f
 // shouted `ARCHIVE.ZIP` matches too. Compound suffixes (`.tar.gz`) need no entry: their last
 // component (`.gz`) is already here.
 constexpr std::array kContainerSuffixes = std::to_array<std::string_view>({
-    ".7z",   ".aab",  ".apk",  ".ar",   ".bz2", ".cab",  ".cbz", ".crate", ".crx", ".deb",  ".ear",   ".egg",
-    ".epub", ".gem",  ".gz",   ".iso",  ".jar", ".jmod", ".lha", ".lz4",   ".lzh", ".lzma", ".nupkg", ".odp",
-    ".ods",  ".odt",  ".phar", ".pptx", ".rar", ".rpm",  ".tar", ".taz",   ".tbz", ".tbz2", ".tgz",   ".txz",
-    ".tz2",  ".vsix", ".war",  ".whl",  ".xar", ".xpi",  ".xz",  ".zip",   ".zst", ".zstd",
+    ".7z",   ".aab", ".apk",  ".ar",   ".bz2", ".cab",  ".cbz", ".crate", ".crx", ".deb",  ".ear",   ".egg",
+    ".epub", ".gem", ".gz",   ".iso",  ".jar", ".jmod", ".lha", ".lz4",   ".lzh", ".lzma", ".nupkg", ".odp",
+    ".ods",  ".odt", ".phar", ".pptx", ".rar", ".rpm",  ".tar", ".taz",   ".tbz", ".tbz2", ".tgz",   ".txz",
+    ".tlz",  ".tz2", ".tzst", ".vsix", ".war", ".whl",  ".xar", ".xpi",   ".xz",  ".zip",  ".zst",   ".zstd",
 });
 
 bool ContainerSupportAvailable() {

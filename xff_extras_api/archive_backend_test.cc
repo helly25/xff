@@ -106,6 +106,12 @@ TEST_F(ArchiveBackendTest, TheNameGateAcceptsFormatsAndPackagesAlike) {
       "x.phar",
       "x.rpm",
       "x.7z",
+      // The single-word tar shortcuts: `.tzst` was missing, so a `.tzst` met mid-walk under
+      // `--archive=all` was never even offered to the reader.
+      "x.txz",
+      "x.tbz2",
+      "x.tzst",
+      "x.tlz",
   });
   for (const std::string_view name : kOffered) {
     EXPECT_THAT(LooksLikeContainerName(name), IsTrue()) << name;
