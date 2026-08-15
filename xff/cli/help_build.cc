@@ -706,6 +706,17 @@ Section ExpressionSection(bool with_details) {
   return expression;
 }
 
+// The `--help=TOPIC` index as a subsection, shared by the usage page and the guide.
+Subsection TopicsSubsection() {
+  Subsection topics{.title = "Topics (--help=TOPIC)"};
+  Rows topic_rows;
+  for (const HelpTopic& topic : HelpTopics()) {
+    topic_rows.rows.push_back(Row{.term = std::string(topic.name), .description = ParseInline(topic.summary)});
+  }
+  topics.children.push_back(Content{.node = std::move(topic_rows)});
+  return topics;
+}
+
 // HELP: the meta / doc flags and the `--help=TOPIC` index, both from their SOTs
 // (HelpFlags / HelpTopics), for the usage page.
 Section BuildHelpSection() {
@@ -716,14 +727,24 @@ Section BuildHelpSection() {
   }
   help.children.push_back(Content{.node = std::move(flags)});
 
-  Subsection topics{.title = "Topics (--help=TOPIC)"};
+  help.children.push_back(Content{.node = TopicsSubsection()});
+  return help;
+}
+
+// The topics table alone: `--help=list` / `--help=topic` / `--help=topics` render exactly this, so
+// "what can I ask for?" has an answer that is only the answer. Also embedded in the usage page and
+// the `--help=help` guide via BuildHelpSection, all from the HelpTopics SOT.
+Section TopicsSection() {
+  // The flag spelling lives in prose, not the title: the plain backend uppercases titles, and
+  // `--HELP=TOPIC` is not a thing anyone can type.
+  Section section{.title = "Help topics"};
+  section.children.push_back(ProseOf("Open one with `--help=TOPIC`; `--help=help` explains the help system."));
   Rows topic_rows;
   for (const HelpTopic& topic : HelpTopics()) {
     topic_rows.rows.push_back(Row{.term = std::string(topic.name), .description = ParseInline(topic.summary)});
   }
-  topics.children.push_back(Content{.node = std::move(topic_rows)});
-  help.children.push_back(Content{.node = std::move(topics)});
-  return help;
+  section.children.push_back(Content{.node = std::move(topic_rows)});
+  return section;
 }
 
 // The `--help=help` topic: a guide to the (subcommand-free) help system. Reuses
@@ -784,10 +805,13 @@ Document BuildUsage() {
 }
 
 std::optional<Document> IndexReference(std::string_view name) {
-  if (name == "list") {
-    return BuildUsage();  // the whole-vocabulary index is the usage page
-  }
   Document doc;
+  if (name == "list" || name == "topic" || name == "topics") {
+    // The list OF TOPICS, not the usage page it used to alias: `list`'s table row promised an index
+    // and delivered plain --help, which reads as "does not work".
+    doc.sections.push_back(TopicsSection());
+    return doc;
+  }
   if (name == "all") {
     // Every option + primary, summaries only (no detail blocks).
     doc.sections.push_back(OptionsSection(/*with_details=*/false));

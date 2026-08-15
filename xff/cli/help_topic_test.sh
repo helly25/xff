@@ -150,9 +150,25 @@ test::help_cookbook_lists_worked_examples() {
   expect_output_contains 'Ten largest files' "${full}" # the examples fold into the full reference
 }
 
-test::help_list_shows_grouped_index() {
+test::help_list_topic_topics_show_the_topic_list_in_any_case() {
+  # `--help=list` used to alias the usage page, which its own table row ("index of every option and
+  # expression primary") did not describe - it read as "does not work". It, `topic` and `topics`, in
+  # any case, now return the topic list and NOTHING else, byte-identical across all spellings.
+  local ref out spelling
+  ref="$("$(_xff_bin)" --help=list 2>&1)"
+  expect_output_contains 'HELP TOPICS' "${ref}"
+  expect_output_contains 'cookbook' "${ref}"     # a topic row
+  expect_output_not_contains '-execdir' "${ref}" # not the primaries index (that is --help=all)
+  for spelling in topic topics LIST TOPIC TOPICS List Topics; do
+    out="$("$(_xff_bin)" --help=${spelling} 2>&1)"
+    expect_eq "${ref}" "${out}"
+  done
+}
+
+test::help_all_shows_grouped_index() {
+  # The grouped every-option-and-primary index is --help=all (list is the topic list above).
   local out
-  out="$("$(_xff_bin)" --help=list 2>&1)"
+  out="$("$(_xff_bin)" --help=all 2>&1)"
   expect_output_contains 'Tests:' "${out}"
   expect_output_contains 'Actions:' "${out}"
   expect_output_contains 'Operators:' "${out}"
@@ -287,6 +303,7 @@ test::help_unknown_topic_exits_two() {
   out="$("$(_xff_bin)" --help=-nonesuch 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
   expect_output_contains 'no help topic' "${out}"
+  expect_output_contains "--help=topics" "${out}"
 }
 
 test::bare_help_operand_is_guided_not_a_subcommand() {

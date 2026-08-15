@@ -94,7 +94,7 @@ std::string ArgHint(const registry::Descriptor& descriptor) {
 std::vector<HelpTopic> HelpTopics() {
   return {
       {.name = "help", .aliases = {}, .summary = "how the help system works, and the topics here"},
-      {.name = "list", .aliases = {}, .summary = "index of every option and expression primary"},
+      {.name = "list", .aliases = {"topic", "topics"}, .summary = "this list of help topics"},
       {.name = "all", .aliases = {}, .summary = "every option and primary, summaries only"},
       {.name = "expressions", .aliases = {}, .summary = "the expression vocabulary: tests, operators, actions"},
       {.name = "fields", .aliases = {}, .summary = "the {field} placeholder vocabulary", .in_full = true},

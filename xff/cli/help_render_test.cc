@@ -121,15 +121,20 @@ TEST_F(HelpTest, UnknownTopicResolvesToNothingInTheModel) {
   EXPECT_THAT(IndexReference("-bogus"), Eq(std::nullopt));
 }
 
-TEST_F(HelpTest, ListIndexRendersEveryPrimaryAndTheTopicMap) {
-  // `--help=list` is the whole-vocabulary index (the usage page): every expression
-  // primary grouped by kind, plus the `--help=TOPIC` map.
+TEST_F(HelpTest, ListRendersTheTopicListUnderEverySpelling) {
+  // `--help=list` / `topic` / `topics` all answer "what can I ask for?" with the topics table and
+  // nothing else. It used to alias the usage page, which its own table row promised was an index -
+  // a promise plain --help already broke by grouping the expression overview.
   const std::string out = RenderIndex("list");
-  EXPECT_THAT(out, AllOf(HasSubstr("Tests"), HasSubstr("Actions"), HasSubstr("Operators")));
-  for (const registry::Descriptor& descriptor : registry::All()) {
-    EXPECT_THAT(out, HasSubstr(descriptor.name)) << descriptor.name;
+  for (const HelpTopic& topic : HelpTopics()) {
+    EXPECT_THAT(out, HasSubstr(topic.name)) << topic.name;
   }
-  EXPECT_THAT(out, HasSubstr("--help=TOPIC"));  // the help / topic map
+  EXPECT_THAT(out, HasSubstr("--help=TOPIC"));
+  // The aliases render the identical document.
+  EXPECT_THAT(RenderIndex("topic"), Eq(out));
+  EXPECT_THAT(RenderIndex("topics"), Eq(out));
+  // And it is ONLY the topic list: no per-primary rows (that is --help=all / the usage page).
+  EXPECT_THAT(out, Not(HasSubstr("-execdir")));
 }
 
 TEST_F(HelpTest, FullReferenceHasDetailsAllIndexIsSummariesOnly) {
@@ -326,10 +331,11 @@ TEST_F(HelpTest, GlobalFlagResolvesByAliasAndDashless) {
   EXPECT_THAT(RenderEntry("sort"), HasSubstr("--sort"));  // dash-less -> --sort
 }
 
-TEST_F(HelpTest, ListIndexIncludesGlobalGroupsAndEveryFlag) {
-  // `--help=list` (the usage-page index) groups the whole-run flags by header and lists
-  // every one, including a not-built extra flag (which carries its rebuild note).
-  const std::string index = RenderIndex("list");
+TEST_F(HelpTest, AllIndexIncludesGlobalGroupsAndEveryFlag) {
+  // `--help=all` groups the whole-run flags by header and lists every one, including a not-built
+  // extra flag (which carries its rebuild note). This assertion lived on `list` while `list`
+  // aliased the usage page; `all` is the index now that `list` is the topic list.
+  const std::string index = RenderIndex("all");
   EXPECT_THAT(index, AllOf(HasSubstr("Config"), HasSubstr("Traversal")));
   for (const GlobalFlag& flag : Globals()) {
     EXPECT_THAT(index, HasSubstr(flag.name)) << flag.name;
