@@ -220,11 +220,13 @@ shipped one way but not yet settled.
        CI images tend to have libfuse3, macOS does not): they pin the invariants of both states.
        fuse2-only installations (older macFUSE) report unavailable by design; revisit when a real
        macFUSE user appears.
-    2. **Mount lifecycle**: the per-RUN root `$XDG_RUNTIME_DIR/xff/<pid>/` (else `$TMPDIR`), one
-       subdirectory per container, RAII unmount + signal handler (INT/TERM/HUP re-raises after
-       unmounting), `fusermount3 -uz` / `umount -f` crash path, and the startup sweep of stale
-       `xff/<pid>` roots whose pid is gone. Testable without FUSE (the sweep and dirs are plain
-       filesystem work).
+    2. **Mount lifecycle (SHIPPED, directory half)**: `MountRoot` owns the per-RUN root
+       `$XDG_RUNTIME_DIR/xff/<pid>/` (else tempdir) with RAII removal, per-container mount points
+       (basename + counter on collision), and `StaleRoots()`/`SweepStaleRoots(unmounter)` - the
+       sweep reports and removes dead-pid roots, calling an INJECTED unmounter per mount point so
+       the process-spawning `fusermount3 -uz` / `umount -f` crash path and the signal handler land
+       with the server (slice 3), which owns actual mounts. All plain-filesystem, tested without
+       FUSE.
     3. **The read-only FUSE server over `vfs::FileSystem`**: lookup/getattr/readdir/open/read from
        the already-open `ArchiveFileSystem`, one background thread per mount. Integration-tested on
        Linux CI (runners allow unprivileged FUSE via fusermount3); macOS CI exercises the degrade.
