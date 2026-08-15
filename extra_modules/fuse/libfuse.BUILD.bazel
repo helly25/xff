@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# The BUILD overlay @xff_fuse's MODULE.bazel applies to the fetched libfuse release: the API headers
+# as an INTERFACE-ONLY library. No libfuse source is compiled and nothing is linked - the runtime
+# library is dlopened per machine (see fuse_loader) - so this target is exactly the type
+# declarations the server compiles against.
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# meson generates libfuse_config.h at build time; for interface use only the version macros matter
+# (fuse_common.h builds FUSE_VERSION from them, fuse_lowlevel.h names them in fuse_lowlevel_version).
+# Keep in step with the fetched release.
+genrule(
+    name = "libfuse_config_h",
+    outs = ["include/libfuse_config.h"],
+    cmd = """cat > $@ <<'CFG'
+#define FUSE_MAJOR_VERSION 3
+#define FUSE_MINOR_VERSION 18
+#define FUSE_HOTFIX_VERSION 2
+CFG""",
+)
+
+cc_library(
+    name = "fuse3_headers",
+    hdrs = [
+        "include/fuse_common.h",
+        "include/fuse_log.h",
+        "include/fuse_lowlevel.h",
+        "include/fuse_opt.h",
+        ":libfuse_config_h",
+    ],
+    # The lowlevel API refuses to compile without an API-version choice; 30 is the base fuse3 API,
+    # the widest match for whatever libfuse3 the loader finds at runtime.
+    defines = ["FUSE_USE_VERSION=30"],
+    includes = ["include"],
+    visibility = ["//visibility:public"],
+)

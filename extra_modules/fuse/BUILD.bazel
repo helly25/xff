@@ -30,6 +30,36 @@ cc_library(
     ],
 )
 
+# The typed fuse3 call surface: the loader's void* symbols cast ONCE into the real function types
+# from the fetched headers. The server calls through this; nothing else casts.
+cc_library(
+    name = "fuse_api_cc",
+    srcs = ["fuse_api.cc"],
+    hdrs = ["fuse_api.h"],
+    include_prefix = "xff/fuse",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":fuse_loader_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@libfuse//:fuse3_headers",
+    ],
+)
+
+cc_test(
+    name = "fuse_api_test",
+    size = "small",
+    srcs = ["fuse_api_test.cc"],
+    deps = [
+        ":fuse_api_cc",
+        ":fuse_loader_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)
+
 cc_library(
     name = "mount_root_cc",
     srcs = ["mount_root.cc"],
