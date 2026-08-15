@@ -229,15 +229,17 @@ shipped one way but not yet settled.
        FUSE.
     3. **The read-only FUSE server over `vfs::FileSystem`**, split again on inspection - the fuse3
        ABI surface is the risk, not the callbacks:
-       - **3a. The fuse3 API headers, vendored (`third_party/libfuse`)**. `fuse_lowlevel_ops` is
-         ~40 function pointers whose ORDER is the ABI and whose size `fuse_session_new` validates -
-         hand-declaring that from documentation is a subtle-corruption trap, so the real
-         `fuse_lowlevel.h` family gets vendored per the third_party convention. LICENSING: libfuse
-         is **LGPL-2.1**; using its headers as the interface to a runtime-dlopened library is the
-         textbook dynamic-linking case, but LGPL text lands in the repo, so the NOTICE system gains
-         a fuse-extra-gated component entry. This is the decision to veto at the 3a PR if the
-         LGPL-in-tree is unwanted (the fallback - own ABI-matching declarations - trades licensing
-         for layout risk). On top: a typed symbol table casting the loader's `void*`s once.
+       - **3a. The fuse3 API headers, FETCHED from git into the fuse module (decided with the
+         user, 2026-08-15)**. `fuse_lowlevel_ops` is ~40 function pointers whose ORDER is the ABI
+         and whose size `fuse_session_new` validates - hand-declaring that from documentation is a
+         subtle-corruption trap, so the real `fuse_lowlevel.h` family is the source. NOT vendored:
+         nothing outside `extra_modules/fuse` ever touches libfuse (the core reaches the extra only
+         through the seam), so the module's own MODULE.bazel fetches the pinned libfuse release
+         (`http_archive` via `use_repo_rule`, tag + sha256) with a BUILD overlay we supply exposing
+         a HEADERS-ONLY `cc_library` (plus whatever config-header stub the includes need). No LGPL
+         text enters the tree; the licensing footprint is the NOTICE component the built binary
+         owes anyway (interface-only use of a runtime-dlopened LGPL-2.1 library), gated on the
+         extra. On top: a typed symbol table casting the loader's `void*`s once.
        - **3b. The server itself**: lookup/getattr/readdir/open/read from the already-open
          `ArchiveFileSystem`, one background thread per mount, RAII + INT/TERM/HUP unmount, the
          `fusermount3 -uz` / `umount -f` crash path plugged into slice 2's sweep seam.
