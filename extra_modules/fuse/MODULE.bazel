@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# The FUSE mount build extra (--archive-mount, epic #183) as a standalone Bazel module - the
+# @xff_pcre2 / @xff_archive pattern. It carries NO build-time libfuse dependency on purpose: the
+# ratified design loads the platform's FUSE library at RUNTIME (dlopen), because mounting is a
+# per-machine capability (macFUSE is a user-installed kernel component) and one binary must run
+# everywhere, degrading to extraction where FUSE is absent. See TODO.md's #183 build plan.
+
+module(
+    name = "xff_fuse",
+    version = "0.0.0",
+)
+
+bazel_dep(name = "rules_cc", version = "0.2.21")
+bazel_dep(name = "abseil-cpp", version = "20250814.2")
+bazel_dep(name = "googletest", version = "1.17.0.bcr.2")

@@ -77,6 +77,15 @@ local_path_override(
     path = "extra_modules/archive",
 )
 
+# FUSE mounting (--archive-mount, epic #183): the runtime loader for the platform's fuse3 library.
+# Deliberately NO build-time libfuse dependency - mounting is a per-machine capability, dlopen'ed at
+# first use and degrading to extraction where absent. See extra_modules/fuse/MODULE.bazel.
+bazel_dep(name = "xff_fuse", version = "0.0.0")
+local_path_override(
+    module_name = "xff_fuse",
+    path = "extra_modules/fuse",
+)
+
 # helly25/mbo -- utility library and conventions reference, from the Bazel
 # Central Registry. 0.13.0 adds mbo/diff (the rich diff API behind -diff, #88) and
 # mbo/digest (the hash algorithms behind -hash, #105); it also carries the macOS
