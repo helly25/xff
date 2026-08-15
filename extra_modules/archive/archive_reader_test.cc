@@ -181,8 +181,11 @@ TEST_F(ArchiveReaderTest, TextThatMtreeWouldClaimIsStillNotAnArchive) {
   // (the xff family dives a named root by default) invent a member, so the reader enables its
   // formats explicitly and leaves mtree out. Each line below is text a walk really meets.
   constexpr std::array kTextThatIsNotAnArchive = std::to_array<std::string_view>({
-      "needle\n", "hello world\n", "./relative/path/looking/line\n",
-      "#mtree\n./notes type=file\n",  // even the real mtree preamble stays a text file to us
+      "needle\n",
+      "hello world\n",
+      "./relative/path/looking/line\n",
+      // Even the real mtree preamble stays a text file to us.
+      "#mtree\n./notes type=file\n",
   });
   for (const std::string_view text : kTextThatIsNotAnArchive) {
     EXPECT_THAT(ListMembers(text), StatusIs(absl::StatusCode::kInvalidArgument)) << text;
