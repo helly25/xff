@@ -319,6 +319,13 @@ intent, not hard dependency. Task numbers reference the agent task list.
     5 pointer arithmetic, 4 `misc-const-correctness`, 4 implicit widening, 3 cognitive complexity,
     3 `hicpp-use-auto`, 3 const_cast, 2 `performance-no-automatic-move`, and a tail of singles.
     Worst files: `archive_writer_test.cc` (18), `pcre2_backend.cc` (15), `phar_reader.cc` (14).
+  - **STATUS 2026-08-15: 81 -> 3.** Everything mechanical and every C-API boundary is done. What is
+    left is three functions over the cognitive-complexity threshold, each needing a real extraction
+    rather than a tidy-up: `ArchiveFileSystem::Open` (26 - the compressed-single-file path wants to
+    move out, but it touches private state so it needs a header change, i.e. a private static member
+    rather than a free helper), `RemoveMembersOfFile` (28 - a `MatchWriterToReader` split already
+    took it from 29, so the remaining excess is the missing-member reporting and the first-header
+    peek), and `RemovePharMembersOfFile` (29). The exclusion drops with those.
   - **Sequence**: fix per file (the reinterpret-casts in the binary readers and the
     `concurrency-mt-unsafe` hits want judgement, not a blanket rewrite), then DROP the exclusion in
     the last slice - not before, since the CI clang-tidy job is a hard gate and would go red on the

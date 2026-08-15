@@ -40,7 +40,7 @@ namespace {
 
 // The streaming block size for both the header walk and the content read: one value, so the two
 // entry points cannot drift apart.
-constexpr std::size_t kBlockSize = 64 * 1'024;
+constexpr std::size_t kBlockSize = std::size_t{64} * 1'024;
 
 // libarchive's BSD-2-Clause notice, plus the permissive codec closure it links (zlib, bzip2,
 // liblzma, lz4, zstd). Registered from this TU, so the notice appears exactly in the builds that
@@ -156,7 +156,7 @@ absl::StatusOr<std::string> ReadPositionedEntry(
   // understate it, so the loop below is what actually bounds the read.
   const std::int64_t hint = ::archive_entry_size(entry);
   if (hint > 0) {
-    const std::uint64_t reserve = static_cast<std::uint64_t>(hint);
+    const auto reserve = static_cast<std::uint64_t>(hint);
     contents.reserve(max_bytes != 0 ? std::min<std::uint64_t>(reserve, max_bytes) : reserve);
   }
   std::array<char, kBlockSize> buffer{};
@@ -233,7 +233,7 @@ absl::StatusOr<std::string> ReadCompressedSingleFile(std::string_view path, std:
   }
   // `raw` is registered on THIS reader only, never on the shared one: it bids on anything, so it may
   // only ever see a file whose name already claimed to be compressed.
-  ArchivePtr handle{::archive_read_new()};
+  const ArchivePtr handle{::archive_read_new()};
   if (handle == nullptr) {
     return absl::ResourceExhaustedError("cannot allocate a libarchive reader");
   }

@@ -102,7 +102,6 @@ absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::Open(std::string_view conta
       return phar_members.status();  // it IS a phar, and a broken one: say so
     }
   }
-  bool single = false;
   if (absl::IsInvalidArgument(members.status())) {
     // Third and last: a COMPRESSED SINGLE FILE (`notes.txt.gz`, not a `.tar.gz`). It has no member
     // list to read, so the content is decompressed once here and the filesystem holds it - which also
@@ -143,7 +142,8 @@ absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::Open(std::string_view conta
   MBO_RETURN_IF_ERROR(members.status());
   MBO_ASSIGN_OR_RETURN(ArchiveFileSystem fs, Index(std::string(container), std::string(), *members, options));
   fs.phar_ = phar;
-  fs.single_ = single;
+  // Not single_: the only path that sets it returns from inside the branch above, so reaching here
+  // means this container HAS a member list and the field keeps its false default.
   return fs;
 }
 

@@ -31,6 +31,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
+#include "mbo/status/status_macros.h"
 #include "xff/archive/member_path.h"
 
 namespace xff::archive {
@@ -38,7 +39,7 @@ namespace {
 
 namespace stdfs = std::filesystem;
 
-constexpr std::size_t kBlockSize = 64 * 1'024;
+constexpr std::size_t kBlockSize = std::size_t{64} * 1'024;
 
 // `archive_read_free` / `archive_write_free` for a unique_ptr, so every early return releases the
 // handle - and, for the writer, closes it first, since a format like zip writes its directory at
@@ -156,6 +157,39 @@ absl::Status RewriteWithout(
   }
 }
 
+// Points `writer` at `temporary` with the same format and compression the reader found, which is what
+// keeps a rewrite from quietly changing the container. Split out of RemoveMembersOfFile: it is the one
+// cohesive step in it that answers a different question ("can this be written back at all?"), and
+// leaving it inline put that function past the complexity the style guide allows.
+absl::Status MatchWriterToReader(
+    struct ::archive* reader,
+    struct ::archive* writer,
+    const stdfs::path& temporary,
+    std::string_view path) {
+  // Reading a format does not imply writing it: libarchive reads 7-Zip, RAR, ISO and cab, and writes
+  // only some of those. Refusing here (rather than producing a tar named `.7z`) is the point.
+  if (::archive_write_set_format(writer, ::archive_format(reader)) != ARCHIVE_OK) {
+    return absl::UnimplementedError(
+        absl::StrCat(
+            "this build cannot write the ", ::archive_format_name(reader),
+            " format back, so a member cannot be removed from ", path));
+  }
+  // Filter 0 is the outermost compression the reader applied, and the innermost is always `none`.
+  // Carrying it over is what keeps a `.tar.gz` gzipped rather than silently expanding it.
+  for (int i = ::archive_filter_count(reader) - 2; i >= 0; --i) {
+    if (::archive_write_add_filter(writer, ::archive_filter_code(reader, i)) != ARCHIVE_OK) {
+      return absl::UnimplementedError(
+          absl::StrCat(
+              "this build cannot write the ", ::archive_filter_name(reader, i),
+              " compression back, so a member cannot be removed from ", path));
+    }
+  }
+  if (::archive_write_open_filename(writer, temporary.string().c_str()) != ARCHIVE_OK) {
+    return absl::UnavailableError(absl::StrCat("cannot write ", temporary.string(), ": ", LastError(writer)));
+  }
+  return absl::OkStatus();
+}
+
 }  // namespace
 
 absl::Status RemoveMembersOfFile(std::string_view path, const std::vector<std::string>& members) {
@@ -184,28 +218,7 @@ absl::Status RemoveMembersOfFile(std::string_view path, const std::vector<std::s
     if (writer == nullptr) {
       return absl::UnavailableError("cannot create a libarchive writer");
     }
-    // Reading a format does not imply writing it: libarchive reads 7-Zip, RAR, ISO and cab, and
-    // writes only some of those. Refusing here (rather than producing a tar named `.7z`) is what
-    // keeps a rewrite from quietly changing the container's format.
-    if (::archive_write_set_format(writer.get(), ::archive_format(reader.get())) != ARCHIVE_OK) {
-      return absl::UnimplementedError(
-          absl::StrCat(
-              "this build cannot write the ", ::archive_format_name(reader.get()),
-              " format back, so a member cannot be removed from ", path));
-    }
-    // Filter 0 is the outermost compression the reader applied, and the innermost is always `none`.
-    // Carrying it over is what keeps a `.tar.gz` gzipped rather than silently expanding it.
-    for (int i = ::archive_filter_count(reader.get()) - 2; i >= 0; --i) {
-      if (::archive_write_add_filter(writer.get(), ::archive_filter_code(reader.get(), i)) != ARCHIVE_OK) {
-        return absl::UnimplementedError(
-            absl::StrCat(
-                "this build cannot write the ", ::archive_filter_name(reader.get(), i),
-                " compression back, so a member cannot be removed from ", path));
-      }
-    }
-    if (::archive_write_open_filename(writer.get(), temporary.string().c_str()) != ARCHIVE_OK) {
-      return absl::UnavailableError(absl::StrCat("cannot write ", temporary.string(), ": ", LastError(writer.get())));
-    }
+    MBO_RETURN_IF_ERROR(MatchWriterToReader(reader.get(), writer.get(), temporary, path));
     std::vector<bool> removed(members.size(), false);
     // The peeked header is the first member, so handle it before the loop takes over the rest.
     absl::Status status = absl::OkStatus();

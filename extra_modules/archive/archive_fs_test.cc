@@ -55,8 +55,7 @@ using ::testing::UnorderedElementsAre;
 // parents load-bearing - without them a walk finds nothing to descend into.
 // A path in the test's own temp dir, so nothing leaks between runs or between tests.
 std::string TempPath(std::string_view name) {
-  const char* const tmp = std::getenv("TEST_TMPDIR");
-  return absl::StrCat(tmp != nullptr ? tmp : "/tmp", "/", name);
+  return absl::StrCat(::testing::TempDir(), "/", name);  // TEST_TMPDIR or /tmp, without the getenv
 }
 
 std::string WriteFixtureTar() {
@@ -95,22 +94,22 @@ std::string WriteFixtureTar() {
 }
 
 struct ArchiveFsTest : ::testing::Test {
-  static void SetUpTestSuite() { tar_ = new std::string(WriteFixtureTar()); }
-
-  static void TearDownTestSuite() { delete tar_; }
-
-  static std::string* tar_;
+  // Built once for the whole suite (WriteFixtureTar touches the disk), without the raw new/delete
+  // pair the old SetUpTestSuite/TearDownTestSuite used: a function-local static does the same thing
+  // and owns itself.
+  static const std::string& Tar() {
+    static const std::string* const tar = new std::string(WriteFixtureTar());
+    return *tar;
+  }
 
   // Every test opens its own filesystem: Open() indexes eagerly, so this is cheap and keeps the
   // tests independent.
-  ArchiveFileSystem Fs(MemberPathOptions options = {}) {
-    absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::Open(*tar_, options);
+  static ArchiveFileSystem Fs(MemberPathOptions options = {}) {
+    absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::Open(Tar(), options);
     CHECK_OK(fs) << "opening the fixture tar must succeed";
     return std::move(*fs);
   }
 };
-
-std::string* ArchiveFsTest::tar_ = nullptr;
 
 TEST_F(ArchiveFsTest, OpenRejectsSomethingThatIsNotAnArchive) {
   // A file with non-archive CONTENT: libarchive rejects it and Open passes that status through
@@ -139,7 +138,7 @@ TEST_F(ArchiveFsTest, TheContainerItselfReadsAsTheArchiveRoot) {
   // A walk enters the archive by ReadDir'ing the container path, so that must list the top level -
   // including `dir`, which the tar never stored as an entry.
   const ArchiveFileSystem fs = Fs();
-  const absl::StatusOr<std::vector<vfs::Entry>> entries = fs.ReadDir(*tar_);
+  const absl::StatusOr<std::vector<vfs::Entry>> entries = fs.ReadDir(ArchiveFsTest::Tar());
   ASSERT_THAT(entries, IsOk());
   EXPECT_THAT(
       *entries,
@@ -149,13 +148,13 @@ TEST_F(ArchiveFsTest, TheContainerItselfReadsAsTheArchiveRoot) {
 TEST_F(ArchiveFsTest, ImplicitParentDirectoriesAreSynthesized) {
   // `dir` and `dir/sub` have no stored entries; without synthesis the deep member is unreachable.
   const ArchiveFileSystem fs = Fs();
-  EXPECT_THAT(fs.Stat(JoinMemberPath(*tar_, "dir"), false), IsOk());
-  EXPECT_THAT(fs.Stat(JoinMemberPath(*tar_, "dir/sub"), false), IsOk());
-  const absl::StatusOr<vfs::Metadata> dir = fs.Stat(JoinMemberPath(*tar_, "dir"), false);
+  EXPECT_THAT(fs.Stat(JoinMemberPath(ArchiveFsTest::Tar(), "dir"), false), IsOk());
+  EXPECT_THAT(fs.Stat(JoinMemberPath(ArchiveFsTest::Tar(), "dir/sub"), false), IsOk());
+  const absl::StatusOr<vfs::Metadata> dir = fs.Stat(JoinMemberPath(ArchiveFsTest::Tar(), "dir"), false);
   ASSERT_THAT(dir, IsOk());
   EXPECT_THAT(dir->type, vfs::FileType::kDirectory);
 
-  const absl::StatusOr<std::vector<vfs::Entry>> sub = fs.ReadDir(JoinMemberPath(*tar_, "dir/sub"));
+  const absl::StatusOr<std::vector<vfs::Entry>> sub = fs.ReadDir(JoinMemberPath(ArchiveFsTest::Tar(), "dir/sub"));
   ASSERT_THAT(sub, IsOk());
   EXPECT_THAT(*sub, ElementsAre(Field("name", &vfs::Entry::name, "deep.txt")));
 }
@@ -163,7 +162,7 @@ TEST_F(ArchiveFsTest, ImplicitParentDirectoriesAreSynthesized) {
 TEST_F(ArchiveFsTest, EveryMemberIsReadOnlyAndTaggedAsAnArchiveMember) {
   // This pair is what makes -delete and the exec family REFUSE members instead of skipping them.
   const ArchiveFileSystem fs = Fs();
-  const absl::StatusOr<std::vector<vfs::Entry>> entries = fs.ReadDir(*tar_);
+  const absl::StatusOr<std::vector<vfs::Entry>> entries = fs.ReadDir(ArchiveFsTest::Tar());
   ASSERT_THAT(entries, IsOk());
   for (const vfs::Entry& entry : *entries) {
     EXPECT_THAT(entry.read_only, IsTrue()) << entry.path;
@@ -173,7 +172,7 @@ TEST_F(ArchiveFsTest, EveryMemberIsReadOnlyAndTaggedAsAnArchiveMember) {
 
 TEST_F(ArchiveFsTest, StatReportsTheStoredSizeModeAndType) {
   const ArchiveFileSystem fs = Fs();
-  const absl::StatusOr<vfs::Metadata> deep = fs.Stat(JoinMemberPath(*tar_, "dir/sub/deep.txt"), false);
+  const absl::StatusOr<vfs::Metadata> deep = fs.Stat(JoinMemberPath(ArchiveFsTest::Tar(), "dir/sub/deep.txt"), false);
   ASSERT_THAT(deep, IsOk());
   EXPECT_THAT(deep->type, vfs::FileType::kRegular);
   EXPECT_THAT(deep->size, 5U);             // "deep!"
@@ -183,34 +182,36 @@ TEST_F(ArchiveFsTest, StatReportsTheStoredSizeModeAndType) {
 TEST_F(ArchiveFsTest, RemoveRefusesRatherThanSilentlySucceeding) {
   // Silent success would make `-delete` look like it worked on a member.
   const ArchiveFileSystem fs = Fs();
-  EXPECT_THAT(fs.Remove(JoinMemberPath(*tar_, "top.txt")), StatusIs(absl::StatusCode::kPermissionDenied));
+  EXPECT_THAT(
+      fs.Remove(JoinMemberPath(ArchiveFsTest::Tar(), "top.txt")), StatusIs(absl::StatusCode::kPermissionDenied));
 }
 
 TEST_F(ArchiveFsTest, AccessIsNeverWritableAndFollowsTheStoredBits) {
   const ArchiveFileSystem fs = Fs();
-  const std::string top = JoinMemberPath(*tar_, "top.txt");
+  const std::string top = JoinMemberPath(ArchiveFsTest::Tar(), "top.txt");
   EXPECT_THAT(fs.Access(top, vfs::AccessMode::kRead), IsTrue());
   EXPECT_THAT(fs.Access(top, vfs::AccessMode::kWrite), IsFalse());
   // 0644 has no execute bit, so this is the stored answer rather than a blanket yes.
   EXPECT_THAT(fs.Access(top, vfs::AccessMode::kExecute), IsFalse());
-  EXPECT_THAT(fs.Access(*tar_, vfs::AccessMode::kWrite), IsFalse());
+  EXPECT_THAT(fs.Access(ArchiveFsTest::Tar(), vfs::AccessMode::kWrite), IsFalse());
 }
 
 TEST_F(ArchiveFsTest, ReadLinkResolvesASymlinkMemberAndRefusesOthers) {
   const ArchiveFileSystem fs = Fs();
-  EXPECT_THAT(fs.ReadLink(JoinMemberPath(*tar_, "dir/link")), IsOk());
-  const absl::StatusOr<std::string> target = fs.ReadLink(JoinMemberPath(*tar_, "dir/link"));
+  EXPECT_THAT(fs.ReadLink(JoinMemberPath(ArchiveFsTest::Tar(), "dir/link")), IsOk());
+  const absl::StatusOr<std::string> target = fs.ReadLink(JoinMemberPath(ArchiveFsTest::Tar(), "dir/link"));
   ASSERT_THAT(target, IsOk());
   EXPECT_THAT(*target, "sub/deep.txt");
-  EXPECT_THAT(fs.ReadLink(JoinMemberPath(*tar_, "top.txt")), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(
+      fs.ReadLink(JoinMemberPath(ArchiveFsTest::Tar(), "top.txt")), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST_F(ArchiveFsTest, ReadContentYieldsTheMembersOwnBytes) {
   // The read that makes -grep / -content / {hash} work on a member: the bytes come out of the
   // container, addressed by the same member path the listing printed.
   const ArchiveFileSystem fs = Fs();
-  EXPECT_THAT(fs.ReadContent(JoinMemberPath(*tar_, "top.txt")), IsOkAndHolds("top"));
-  EXPECT_THAT(fs.ReadContent(JoinMemberPath(*tar_, "dir/sub/deep.txt")), IsOkAndHolds("deep!"));
+  EXPECT_THAT(fs.ReadContent(JoinMemberPath(ArchiveFsTest::Tar(), "top.txt")), IsOkAndHolds("top"));
+  EXPECT_THAT(fs.ReadContent(JoinMemberPath(ArchiveFsTest::Tar(), "dir/sub/deep.txt")), IsOkAndHolds("deep!"));
 }
 
 TEST_F(ArchiveFsTest, ReadContentDistinguishesItsThreeRefusals) {
@@ -220,16 +221,17 @@ TEST_F(ArchiveFsTest, ReadContentDistinguishesItsThreeRefusals) {
   // content predicate silently match nothing.
   const ArchiveFileSystem fs = Fs();
   EXPECT_THAT(fs.ReadContent("/elsewhere/other.txt"), StatusIs(absl::StatusCode::kInvalidArgument));
-  EXPECT_THAT(fs.ReadContent(JoinMemberPath(*tar_, "nope.txt")), StatusIs(absl::StatusCode::kNotFound));
-  EXPECT_THAT(fs.ReadContent(JoinMemberPath(*tar_, "dir/sub")), StatusIs(absl::StatusCode::kFailedPrecondition));
+  EXPECT_THAT(fs.ReadContent(JoinMemberPath(ArchiveFsTest::Tar(), "nope.txt")), StatusIs(absl::StatusCode::kNotFound));
+  EXPECT_THAT(
+      fs.ReadContent(JoinMemberPath(ArchiveFsTest::Tar(), "dir/sub")), StatusIs(absl::StatusCode::kFailedPrecondition));
   // The container itself is a directory here, so it has no content of its own either.
-  EXPECT_THAT(fs.ReadContent(*tar_), StatusIs(absl::StatusCode::kFailedPrecondition));
+  EXPECT_THAT(fs.ReadContent(ArchiveFsTest::Tar()), StatusIs(absl::StatusCode::kFailedPrecondition));
 }
 
 TEST_F(ArchiveFsTest, OpenBytesIndexesAContainerThatHasNoPath) {
   // A container nested in another one: its bytes come from its parent, and `container` is only the
   // label its members render under. Everything else - listing, stat, content - behaves as on disk.
-  std::ifstream in(*tar_, std::ios::binary);
+  std::ifstream in(ArchiveFsTest::Tar(), std::ios::binary);
   const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
   const absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::OpenBytes("outer.tar!nested.tar", bytes);
   ASSERT_THAT(fs, IsOk());
@@ -245,11 +247,11 @@ TEST_F(ArchiveFsTest, OpenBytesIndexesAContainerThatHasNoPath) {
 
 TEST_F(ArchiveFsTest, FsTypeAndCaseSensitivityDescribeTheArchiveNotTheHost) {
   const ArchiveFileSystem fs = Fs();
-  const absl::StatusOr<std::string> type = fs.FsType(*tar_);
+  const absl::StatusOr<std::string> type = fs.FsType(ArchiveFsTest::Tar());
   ASSERT_THAT(type, IsOk());
   EXPECT_THAT(*type, "archive");
   // Stored names are bytes, so this is true even on a case-insensitive host filesystem.
-  const absl::StatusOr<bool> sensitive = fs.IsCaseSensitive(*tar_);
+  const absl::StatusOr<bool> sensitive = fs.IsCaseSensitive(ArchiveFsTest::Tar());
   ASSERT_THAT(sensitive, IsOk());
   EXPECT_THAT(*sensitive, IsTrue());
 }
@@ -264,7 +266,7 @@ TEST_F(ArchiveFsTest, TheConfiguredSeparatorIsUsedForBothRenderingAndParsing) {
   // The spelling is under user control (--archive-separator), so the backend must both EMIT and
   // ACCEPT it - a path it printed has to be one it can stat back.
   const ArchiveFileSystem fs = Fs({.separator = "#"});
-  const absl::StatusOr<std::vector<vfs::Entry>> entries = fs.ReadDir(*tar_);
+  const absl::StatusOr<std::vector<vfs::Entry>> entries = fs.ReadDir(ArchiveFsTest::Tar());
   ASSERT_THAT(entries, IsOk());
   for (const vfs::Entry& entry : *entries) {
     EXPECT_THAT(entry.path, ::testing::HasSubstr("#")) << entry.path;
@@ -274,10 +276,11 @@ TEST_F(ArchiveFsTest, TheConfiguredSeparatorIsUsedForBothRenderingAndParsing) {
 
 TEST_F(ArchiveFsTest, AMissingMemberIsNotFoundNotAnEmptyListing) {
   const ArchiveFileSystem fs = Fs();
-  EXPECT_THAT(fs.Stat(JoinMemberPath(*tar_, "nope.txt"), false), StatusIs(absl::StatusCode::kNotFound));
-  EXPECT_THAT(fs.ReadDir(JoinMemberPath(*tar_, "nope")), StatusIs(absl::StatusCode::kNotFound));
+  EXPECT_THAT(fs.Stat(JoinMemberPath(ArchiveFsTest::Tar(), "nope.txt"), false), StatusIs(absl::StatusCode::kNotFound));
+  EXPECT_THAT(fs.ReadDir(JoinMemberPath(ArchiveFsTest::Tar(), "nope")), StatusIs(absl::StatusCode::kNotFound));
   // A file is not a directory, and saying so beats returning nothing.
-  EXPECT_THAT(fs.ReadDir(JoinMemberPath(*tar_, "top.txt")), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(
+      fs.ReadDir(JoinMemberPath(ArchiveFsTest::Tar(), "top.txt")), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 // The fixture's members, stored and synthesized alike - every one must carry an identity.
@@ -297,7 +300,7 @@ TEST_F(ArchiveFsTest, EveryMemberGetsItsOwnInodeOnOneSyntheticDevice) {
   absl::flat_hash_set<std::uint64_t> inodes;
   absl::flat_hash_set<std::uint64_t> devices;
   for (const std::string_view member : kIdentifiedMembers) {
-    const absl::StatusOr<vfs::Metadata> metadata = fs.Stat(absl::StrCat(*tar_, "!", member), false);
+    const absl::StatusOr<vfs::Metadata> metadata = fs.Stat(absl::StrCat(ArchiveFsTest::Tar(), "!", member), false);
     ASSERT_THAT(metadata, IsOk()) << member;
     EXPECT_THAT(metadata->ino, Ne(0U)) << member << " has no inode";
     EXPECT_THAT(inodes.insert(metadata->ino).second, IsTrue()) << member << " reuses inode " << metadata->ino;
@@ -313,7 +316,7 @@ TEST_F(ArchiveFsTest, ASynthesizedParentIsIdentifiedToo) {
   // `dir` and `dir/sub` are NOT stored in the fixture tar - they are synthesized. A synthesized node
   // with no identity would defeat the loop detector just as thoroughly as a stored one.
   const ArchiveFileSystem fs = Fs();
-  const absl::StatusOr<vfs::Metadata> parent = fs.Stat(absl::StrCat(*tar_, "!dir"), false);
+  const absl::StatusOr<vfs::Metadata> parent = fs.Stat(absl::StrCat(ArchiveFsTest::Tar(), "!dir"), false);
   ASSERT_THAT(parent, IsOk());
   EXPECT_THAT(parent->ino, Ne(0U));
   EXPECT_THAT(parent->nlink, Eq(1U));

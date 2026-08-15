@@ -19,7 +19,6 @@
 #include <archive_entry.h>
 
 #include <cstdint>
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <ios>
@@ -44,7 +43,6 @@ using ::mbo::testing::IsOk;
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
-using ::testing::Field;
 using ::testing::HasSubstr;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
@@ -60,8 +58,9 @@ struct ArchiveWriterTest : ::testing::Test {
   // fixture and no external tool. `gzip` adds the gz filter, which is what proves the rewrite carries
   // the container's compression over rather than expanding it.
   static std::string WriteArchive(const std::vector<FileSpec>& files, std::string_view name, bool gzip = false) {
-    const char* const tmp = std::getenv("TEST_TMPDIR");
-    const std::string path = absl::StrCat(tmp != nullptr ? tmp : "/tmp", "/", name);
+    // ::testing::TempDir() is exactly this test's old hand-rolled TEST_TMPDIR-or-/tmp, minus the
+    // std::getenv that clang-tidy flags as thread-unsafe.
+    const std::string path = absl::StrCat(::testing::TempDir(), "/", name);
     struct ::archive* out = ::archive_write_new();
     EXPECT_THAT(out != nullptr, IsTrue());
     ::archive_write_set_format_pax_restricted(out);
@@ -97,15 +96,14 @@ struct ArchiveWriterTest : ::testing::Test {
   }
 
   static std::string Bytes(const std::string& path) {
-    std::ifstream in(path, std::ios::binary);
+    const std::ifstream in(path, std::ios::binary);
     std::ostringstream out;
     out << in.rdbuf();
     return out.str();
   }
 
   static std::string PlainFile(std::string_view name, std::string_view content) {
-    const char* const tmp = std::getenv("TEST_TMPDIR");
-    const std::string path = absl::StrCat(tmp != nullptr ? tmp : "/tmp", "/", name);
+    const std::string path = absl::StrCat(::testing::TempDir(), "/", name);
     std::ofstream(path, std::ios::binary).write(content.data(), static_cast<std::streamsize>(content.size()));
     return path;
   }
@@ -114,7 +112,11 @@ struct ArchiveWriterTest : ::testing::Test {
 TEST_F(ArchiveWriterTest, RemovingAMemberLeavesTheOthersIntact) {
   // The whole contract: the named member is gone, every other member is still there AND still holds
   // its own bytes - a rewrite that lost content would still pass a name-only check.
-  const std::string path = WriteArchive({{"one.txt", "one\n"}, {"two.txt", "two\n"}, {"three.txt", "3\n"}}, "r1.tar");
+  const std::string path = WriteArchive(
+      {{.path = "one.txt", .content = "one\n"},
+       {.path = "two.txt", .content = "two\n"},
+       {.path = "three.txt", .content = "3\n"}},
+      "r1.tar");
   EXPECT_THAT(RemoveMembersOfFile(path, {"two.txt"}), IsOk());
   EXPECT_THAT(MemberNames(path), UnorderedElementsAre("one.txt", "three.txt"));
   EXPECT_THAT(ReadMemberOfFile(path, "one.txt"), IsOkAndHolds("one\n"));
@@ -125,7 +127,12 @@ TEST_F(ArchiveWriterTest, RemovingAMemberLeavesTheOthersIntact) {
 TEST_F(ArchiveWriterTest, SeveralMembersGoInOneRewrite) {
   // A run deletes what its expression matched, which is a set, not one name - and rewriting the
   // container once per member would be both slow and a wider window for an interrupted write.
-  const std::string path = WriteArchive({{"a", "a"}, {"b", "b"}, {"c", "c"}, {"d", "d"}}, "r2.tar");
+  const std::string path = WriteArchive(
+      {{.path = "a", .content = "a"},
+       {.path = "b", .content = "b"},
+       {.path = "c", .content = "c"},
+       {.path = "d", .content = "d"}},
+      "r2.tar");
   EXPECT_THAT(RemoveMembersOfFile(path, {"a", "c"}), IsOk());
   EXPECT_THAT(MemberNames(path), UnorderedElementsAre("b", "d"));
 }
@@ -133,7 +140,9 @@ TEST_F(ArchiveWriterTest, SeveralMembersGoInOneRewrite) {
 TEST_F(ArchiveWriterTest, TheContainerKeepsItsCompression) {
   // A `.tar.gz` that came back as a plain tar would still list correctly, so the check is that the
   // rewritten file is STILL gzip-filtered when read back.
-  const std::string path = WriteArchive({{"one.txt", "one\n"}, {"two.txt", "two\n"}}, "r3.tgz", /*gzip=*/true);
+  const std::string path = WriteArchive(
+      {{.path = "one.txt", .content = "one\n"}, {.path = "two.txt", .content = "two\n"}}, "r3.tgz",
+      /*gzip=*/true);
   EXPECT_THAT(RemoveMembersOfFile(path, {"one.txt"}), IsOk());
   EXPECT_THAT(MemberNames(path), ElementsAre("two.txt"));
   // Gzip's magic, read straight off the file: the rewrite did not expand the container.
@@ -146,7 +155,8 @@ TEST_F(ArchiveWriterTest, TheContainerKeepsItsCompression) {
 TEST_F(ArchiveWriterTest, AMemberThatIsNotThereIsNotFoundAndChangesNothing) {
   // Half a deletion is worse than none: a typo must leave the archive exactly as it was, so the
   // rewrite is discarded rather than renamed over the original.
-  const std::string path = WriteArchive({{"one.txt", "one\n"}, {"two.txt", "two\n"}}, "r4.tar");
+  const std::string path =
+      WriteArchive({{.path = "one.txt", .content = "one\n"}, {.path = "two.txt", .content = "two\n"}}, "r4.tar");
   const std::uintmax_t before = stdfs::file_size(path);
   EXPECT_THAT(
       RemoveMembersOfFile(path, {"one.txt", "nope.txt"}), StatusIs(absl::StatusCode::kNotFound, HasSubstr("nope.txt")));
@@ -158,7 +168,8 @@ TEST_F(ArchiveWriterTest, AMemberThatIsNotThereIsNotFoundAndChangesNothing) {
 TEST_F(ArchiveWriterTest, MemberNamesMatchTheWayTheReaderMatchesThem) {
   // tar stores the same member as `dir/x` or `./dir/x` depending on how it was written, so the name
   // xff printed has to work here whichever spelling is stored.
-  const std::string path = WriteArchive({{"./dir/x", "x"}, {"other", "o"}}, "r5.tar");
+  const std::string path =
+      WriteArchive({{.path = "./dir/x", .content = "x"}, {.path = "other", .content = "o"}}, "r5.tar");
   EXPECT_THAT(RemoveMembersOfFile(path, {"dir/x"}), IsOk());
   EXPECT_THAT(MemberNames(path), ElementsAre("other"));
 }
@@ -173,7 +184,7 @@ TEST_F(ArchiveWriterTest, APlainFileIsNotAnArchive) {
 TEST_F(ArchiveWriterTest, RemovingNothingIsNotAWrite) {
   // An empty set is not an error and must not rewrite the file: `-delete` that matched nothing
   // should leave the container's bytes (and its mtime) alone.
-  const std::string path = WriteArchive({{"one.txt", "one\n"}}, "r6.tar");
+  const std::string path = WriteArchive({{.path = "one.txt", .content = "one\n"}}, "r6.tar");
   const std::string before = Bytes(path);
   EXPECT_THAT(RemoveMembersOfFile(path, {}), IsOk());
   EXPECT_THAT(Bytes(path), before);  // byte for byte the same file, not merely an equivalent archive
