@@ -1,41 +1,22 @@
 ---
-# Base ruleset is helly25/mbo's. xff additionally relaxes a handful of checks that
-# fight this codebase's established idioms: declare-then-fill locals
-# (cppcoreguidelines-init-variables), domain 2-char names like md/st/rc/ec
-# (readability-identifier-length minimum lowered to 2 below), block-size/mode
-# magic numbers (avoid-magic-numbers), adjacent same-type params
-# (easily-swappable-parameters), and intentionally unnamed unused parameters
-# (named-parameter). Two checks new in clang-tidy 18+ are also off because they
-# fight documented conventions: llvm-prefer-static-over-anonymous-namespace (the
-# codebase groups internal-linkage helpers in an anonymous namespace, not per-
-# function `static`) and llvm-header-guard (STYLE_CPP mandates `{PATH}_{FILE}_`
-# guards, not LLVM's path-derived style). Three more, noisy new-in-clang-22 checks
-# are off for the same reason: cppcoreguidelines-pro-bounds-avoid-unchecked-container-access
-# (fires on every `operator[]`), readability-use-concise-preprocessor-directives (wants
-# `#elifdef` over the compound `#if defined(...)` the code uses deliberately), and
-# misc-include-cleaner (mis-maps standard headers under the hermetic libc++, flagging
-# clearly-used `<vector>` / `<utility>` as unused, and does not track concept usage - too
-# many false positives to gate on). If run by hand for an IWYU pass, do NOT blindly drop
-# what it flags: keep concept- and std-providing headers, marking them `// IWYU pragma: keep`
-# where needed. The genuine checks (const-correctness, avoid-c-arrays, ...) stay on.
-# abseil-unchecked-statusor-access is off because clang-tidy 22.1.7 SEGFAULTS in it: its dataflow
-# analysis (runTypeErasedDataflowAnalysis) crashes on our StatusOr access patterns (e.g. an
-# mbo::testing::IsOk() over absl::StatusOr<regex::Matcher>). Matches helly25/mbo; re-test on a
-# future LLVM and re-enable if fixed.
-# clang-analyzer-optin.performance.Padding is off: it is an opt-in micro-optimization that flags
-# struct field ordering (e.g. EvalContext with N padding bytes). Our context/option structs are
-# instantiated once per run and passed by reference, never mass-allocated, so padding is
-# irrelevant; their fields are grouped by concern with explanatory comments, and reordering them
-# purely to reclaim padding would wreck that grouping for no real benefit.
-# clang-analyzer-optin.core.EnumCastOutOfRange is off: it flags casts to bitmask/flag enums whose
-# combined value is not a single named enumerator (e.g. static_cast<std::filesystem::perms>(0644)),
-# a legitimate and common pattern here; it is an opt-in analyzer and a false-positive source for us.
-# modernize-use-ranges is off FOR NOW: in clang-tidy 22 it is not fully working (it misfires /
-# offers incomplete rewrites on this codebase's abseil + std iterator usage). Revisit and re-enable
-# on a later LLVM once it is reliable.
-# misc-no-recursion is off: xff is built around a recursive-descent parser (ParseComma/Or/Xor/And/
-# Unary/Primary), grammar lookahead helpers, and AST / expression-tree walks - recursion is the
-# intended, idiomatic design, not a smell, so the check is pure noise here.
+# Base ruleset is helly25/mbo's; xff relaxes checks that fight its documented idioms or are
+# broken on this toolchain. Sorted alphabetically, ignoring the leading `-` (order matters:
+# a disable must follow the glob that enables it). Why each disable:
+# - Idiom conflicts: init-variables (declare-then-fill locals), avoid-magic-numbers
+#   (block sizes/modes), easily-swappable-parameters, named-parameter (deliberately unnamed
+#   unused params), llvm-prefer-static-over-anonymous-namespace (anonymous namespace is the
+#   convention), llvm-header-guard (STYLE_CPP mandates `{PATH}_{FILE}_`), misc-no-recursion
+#   (recursive-descent parser and tree walks are the design). Identifier-length minimum is
+#   lowered to 2 in CheckOptions for domain names like md/st/rc/ec.
+# - Noisy on clang-22: pro-bounds-avoid-unchecked-container-access (every `operator[]`),
+#   readability-use-concise-preprocessor-directives (wants `#elifdef`), misc-include-cleaner
+#   (mis-maps std headers under hermetic libc++, misses concepts; on a manual IWYU pass keep
+#   concept-/std-providing headers via `// IWYU pragma: keep`), modernize-use-ranges
+#   (incomplete rewrites - revisit on a later LLVM), clang-analyzer-optin.core.EnumCastOutOfRange
+#   (flags legitimate bitmask-enum casts), clang-analyzer-optin.performance.Padding (opt-in
+#   micro-optimization; our option/context structs are built once per run, field grouping wins).
+# - Broken: abseil-unchecked-statusor-access SEGFAULTS in clang-tidy 22.1.7 (dataflow analysis
+#   crashes on our StatusOr patterns). Matches helly25/mbo; re-test on a future LLVM.
 Checks: >
   *,
   abseil-*,
@@ -43,21 +24,35 @@ Checks: >
   -altera-*,
   -boost-*,
   bugprone-*,
+  -bugprone-easily-swappable-parameters,
   -bugprone-exception-escape,
   -cert-err58-cpp,
   clang*,
   clang-analyzer-*,
+  -clang-analyzer-optin.core.EnumCastOutOfRange,
+  -clang-analyzer-optin.performance.Padding,
   clang-diagnostic-*,
   cppcoreguidelines-*,
   -cppcoreguidelines-avoid-const-or-ref-data-members,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-init-variables,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
+  -cppcoreguidelines-pro-type-member-init,
   -fuchsia*,
   google-*,
   -google-build-using-namespace,
+  -hicpp-member-init,
+  -hicpp-named-parameter,
   -hicpp-no-assembler,
   -llvm-else-after-return,
+  -llvm-header-guard,
   -llvm-include-order,
+  -llvm-prefer-static-over-anonymous-namespace,
+  -llvm-use-ranges,
   -llvmlibc-*,
   misc-*,
+  -misc-include-cleaner,
+  -misc-no-recursion,
   modernize-*,
   -modernize-use-nodiscard,
   -modernize-use-ranges,
@@ -69,23 +64,9 @@ Checks: >
   readability-*,
   -readability-avoid-nested-conditional-operator,
   -readability-else-after-return,
-  -readability-redundant-inline-specifier,
-  -bugprone-easily-swappable-parameters,
-  -cppcoreguidelines-avoid-magic-numbers,
-  -cppcoreguidelines-init-variables,
-  -clang-analyzer-optin.core.EnumCastOutOfRange,
-  -clang-analyzer-optin.performance.Padding,
-  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
-  -cppcoreguidelines-pro-type-member-init,
-  -hicpp-member-init,
-  -hicpp-named-parameter,
-  -llvm-header-guard,
-  -llvm-use-ranges,
-  -llvm-prefer-static-over-anonymous-namespace,
-  -misc-include-cleaner,
-  -misc-no-recursion,
   -readability-magic-numbers,
   -readability-named-parameter,
+  -readability-redundant-inline-specifier,
   -readability-use-concise-preprocessor-directives,
 
 WarningsAsErrors: '*'
