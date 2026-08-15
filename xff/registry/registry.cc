@@ -135,6 +135,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .arity = 1,
         .style = Style::kXff,
         .cost = Cost::kExpensive,
+        .topic = "content",
     },
     {
         .name = "-icontent",
@@ -145,6 +146,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .fold_case = true,
         .style = Style::kXff,
         .cost = Cost::kExpensive,
+        .topic = "content",
     },
     {
         .name = "-rxc",
@@ -157,6 +159,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .arity = 1,
         .style = Style::kXff,
         .cost = Cost::kExpensive,
+        .topic = "content",
     },
     {
         .name = "-irxc",
@@ -167,6 +170,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .fold_case = true,
         .style = Style::kXff,
         .cost = Cost::kExpensive,
+        .topic = "content",
     },
     // xff content-type predicates: is the file's CONTENT text or binary? Both read the file and use
     // the same NUL-in-first-8-KiB heuristic as the content search above, so they classify a file the
@@ -189,6 +193,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .binding = Binding::kText,
         .style = Style::kXff,
         .cost = Cost::kExpensive,
+        .topic = "content",
     },
     {
         .name = "-binary",
@@ -228,6 +233,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .arity = 0,
         .style = Style::kXff,
         .cost = Cost::kExpensive,
+        .topic = "content",
     },
     {
         .name = "-eofcrlf",
@@ -241,6 +247,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .arity = 0,
         .style = Style::kXff,
         .cost = Cost::kExpensive,
+        .topic = "content",
     },
     // xff -fuzzy: approximate NAME matching, the fzf/fd style of "type a few letters and find it".
     {
@@ -919,6 +926,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .binding = Binding::kFormat,
         .style = Style::kXff,
         .cost = Cost::kExpensive,
+        .topic = "content",
     },
     {
         .name = "-fprint",

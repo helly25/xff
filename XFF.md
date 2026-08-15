@@ -773,6 +773,32 @@ The grammar for -regex / -iregex and the content matchers -rxc / -grep, chosen b
 - `SHGLOB` - GLOB plus brace alternation: {a,b,c} matches any one alternative, so *.{cc,h} matches either. Alternatives may nest and may be empty; each is itself SHGLOB-translated. \{ \} \, and braces inside a [...] class are literal. Everything else is exactly GLOB.
 - `PCRE2` - Perl-Compatible Regular Expressions (lookaround, backreferences, ...). A build-time extra: present only in a full build - run `xff --help=extras` to see whether THIS binary has it. Full syntax: pcre2pattern(3).
 
+## Content
+
+These primaries read the entry's BYTES, not its metadata: `-grep` prints matching lines the way ripgrep does, `-content` / `-icontent` test for a literal, `-rxc` / `-irxc` for a regex (grammar per `--regextype`, see `--help=grammars`), and `-text` / `-eofcr` / `-eofcrlf` classify line endings and completeness. `{lines}`, `{text}`, `{line}`, `{match}` and `{column}` carry the results into templates (`--help=fields`).
+
+Every one of them reads through the entry's OWN filesystem, so under `--archive` a member is searched inside its container exactly like a plain file - `a.tar!notes.txt` greps without unpacking anything. Reading is per entry and streamed, so a match in a huge tree costs the bytes of the files visited, not of the tree.
+
+### Examples
+
+```sh
+xff src -name '*.cc' -grep 'TODO\('
+```
+
+matching lines, rg-style, from the files an expression picked
+
+```sh
+xff . -type f ! -text
+```
+
+the files that are NOT line-oriented text
+
+```sh
+xff -z logs.tar -grep ERROR --count
+```
+
+per-member match counts inside an archive
+
 ## Archives
 
 With `--archive`, an archive is a directory: xff opens it and walks its members as ordinary entries, so every predicate and action applies to them unchanged - `-name`, `-type`, `-grep`, `{hash}`, `--summary`. Nothing in the expression vocabulary knows about archives. Needs the archive extra; `--help=extras` says whether this binary has it.
