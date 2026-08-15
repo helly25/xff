@@ -496,6 +496,39 @@ Section ArchiveSection(bool in_full) {
       "you get without them."));
   section.children.push_back(Content{.node = std::move(identity)});
 
+  const std::vector<archive::ReadFormatInfo> read_formats = archive::ContainerReadFormats();
+  Subsection formats{.title = "Formats this binary understands"};
+  if (read_formats.empty()) {
+    // The extras convention: a lean binary still documents the surface and says what is absent,
+    // rather than silently dropping the subsection (the rest of this topic does the same).
+    formats.children.push_back(ProseOf(
+        absl::StrCat(
+            "NOT built into this binary: rebuild with `", ExtraBuildFlag("archive"),
+            "`. A build with the archive extra lists every readable format, its extensions, and "
+            "whether `--pack` can write it, in a table here.")));
+    section.children.push_back(Content{.node = std::move(formats)});
+  } else {
+    formats.children.push_back(ProseOf(
+        "Reading is decided by CONTENT (the reader sniffs the bytes), so the extensions are what "
+        "the name gate dives on under `all` and how the format is usually spelled - a container "
+        "with an unlisted name still reads under `any`. Package extensions ride their underlying "
+        "format: a `.jar` is a zip, a `.deb` an ar, an `.rpm` a cpio, `.crate` and `.gem` are "
+        "tars, and `file` is a compressed SINGLE file (`notes.txt.gz`, one member). Write means "
+        "`--pack` can create it."));
+    Table table{.header = {"format", "read", "write", "extensions"}};
+    table.cells.reserve(read_formats.size());
+    for (const archive::ReadFormatInfo& format : read_formats) {
+      // A format is writable when any of its suffixes names a registered pack format; the writer's
+      // own suffix rule (longest dotted match, case folded) decides, so the two cannot disagree.
+      const bool writable = absl::c_any_of(format.suffixes, [](const std::string& suffix) {
+        return !archive::ContainerPackFormatFor(absl::StrCat("x", suffix)).empty();
+      });
+      table.cells.push_back({format.name, "yes", writable ? "yes" : "no", absl::StrJoin(format.suffixes, ", ")});
+    }
+    formats.children.push_back(Content{.node = std::move(table)});
+    section.children.push_back(Content{.node = std::move(formats)});
+  }
+
   Subsection creating{.title = "Creating one"};
   creating.children.push_back(ProseOf(
       "`--pack=FILE` turns the walk around: every match is written into a NEW archive instead of "

@@ -52,6 +52,7 @@ cc_library(
         ":member_path_cc",
         ":vfs_cc",
         "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",

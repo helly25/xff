@@ -37,6 +37,8 @@ void RenderBlocks(const Blocks& blocks, HelpBackend& backend) {
             backend.EmitBullets(node);
           } else if constexpr (std::is_same_v<Node, Rows>) {
             backend.EmitRows(node);
+          } else if constexpr (std::is_same_v<Node, Table>) {
+            backend.EmitTable(node);
           } else if constexpr (std::is_same_v<Node, SeeAlso>) {
             backend.EmitSeeAlso(node);
           } else if constexpr (std::is_same_v<Node, Entry>) {
