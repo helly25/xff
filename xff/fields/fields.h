@@ -70,6 +70,9 @@ struct RenderContext {
   // in the set and size-like fields aggregate across them (the RenderContext's metadata.size is the
   // set total). Unset for a normal entry, so `{shard}` no-ops there.
   std::optional<std::int64_t> shard_count;
+  // {fuzzy}: how well the last -fuzzy / -ifuzzy in the expression matched THIS entry (see
+  // //xff/fuzzy). Unset when no fuzzy test ran, so it no-ops in a -printf / --template that has none.
+  std::optional<int> fuzzy_score;
 };
 
 namespace detail {

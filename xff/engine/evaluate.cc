@@ -885,7 +885,17 @@ bool EvalName(const parser::Expr& expr, EvalContext& ctx) {
 // an explicit --case.
 bool EvalFuzzy(const parser::Expr& expr, EvalContext& ctx) {
   const bool fold = expr.descriptor->fold_case || ctx.fold_name_case || expr.case_fold;
-  return !expr.args.empty() && fuzzy::Matches(expr.args.front(), ctx.visit.name, fold);
+  if (expr.args.empty()) {
+    return false;
+  }
+  if (ctx.fuzzy_score == nullptr) {
+    return fuzzy::Matches(expr.args.front(), ctx.visit.name, fold);  // truth only: the cheap scan
+  }
+  // Something wants {fuzzy}, so pay for the alignment search. A later test overwrites an earlier
+  // one's score, which is what makes {fuzzy} "the last -fuzzy" rather than an arbitrary one.
+  const std::optional<int> score = fuzzy::Score(expr.args.front(), ctx.visit.name, fold);
+  *ctx.fuzzy_score = score;
+  return score.has_value();
 }
 
 bool EvalPath(const parser::Expr& expr, EvalContext& ctx) {

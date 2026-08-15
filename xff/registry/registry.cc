@@ -251,9 +251,12 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
                    "interactive cousins, an editor's quick-open), not a bounded edit distance: it answers \"can I "
                    "type a few letters and find the file\", not \"is this a typo of that\". Matching is cheap (no "
                    "regex, no allocation) and unanchored, so the letters may start anywhere in the name. Case "
-                   "follows `--case` like `-name` does; `-ifuzzy` always folds. There is no ranking yet - this is a "
-                   "test, so every match is equal and the walk order is unchanged. Use `-name` for a glob and "
-                   "`-regex` for a pattern. An xff extension `--config=find` rejects. Example: `xff . -fuzzy rdme`.",
+                   "follows `--case` like `-name` does; `-ifuzzy` always folds. As a TEST every match is equal and "
+                   "the walk order is unchanged, but the match is also SCORED: `{fuzzy}` renders how well this "
+                   "entry matched, so `--columns=fuzzy,path` plus a numeric sort is a ranking (characters at a "
+                   "word start, matched consecutively, and matched early all score higher). Use `-name` for a "
+                   "glob and `-regex` for a pattern. An xff extension `--config=find` rejects. Example: "
+                   "`xff . -fuzzy rdme --columns=fuzzy,path`.",
         .kind = Kind::kTest,
         .arity = 1,
         .style = Style::kXff,

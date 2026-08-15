@@ -372,6 +372,14 @@ TEST_F(FieldsTest, ShardFieldRendersTheSetShardCount) {
   EXPECT_THAT(Template::Compile("[{shard}]").Render(RenderContext{.path = "p", .metadata = md}), "[]");
 }
 
+TEST_F(FieldsTest, FuzzyFieldRendersTheScoreOfTheLastFuzzyTest) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  // Present (a -fuzzy ran): renders the score. Absent (no fuzzy test in the expression): empty, so
+  // it no-ops in a template, like {shard} outside shard mode.
+  EXPECT_THAT(Template::Compile("{fuzzy}").Render(RenderContext{.path = "p", .metadata = md, .fuzzy_score = 65}), "65");
+  EXPECT_THAT(Template::Compile("[{fuzzy}]").Render(RenderContext{.path = "p", .metadata = md}), "[]");
+}
+
 TEST_F(FieldsTest, DefNamespaceReadsDefines) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   const std::map<std::string, std::string> defines = {{"greeting", "hi"}, {"n", "42"}};

@@ -324,6 +324,14 @@ std::string ShardField(std::string_view, std::string_view, const RenderContext& 
   return ctx.shard_count.has_value() ? std::to_string(*ctx.shard_count) : "";
 }
 
+// {fuzzy}: the score of the last -fuzzy / -ifuzzy test on this entry; empty when the expression has
+// none (so it no-ops like {shard} does outside shard mode). Higher is better, and the numbers only
+// mean anything relative to each other for the same pattern - which is what makes `--columns` plus a
+// numeric sort a ranking.
+std::string FuzzyField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return ctx.fuzzy_score.has_value() ? std::to_string(*ctx.fuzzy_score) : "";
+}
+
 // {lang} / {language}: the entry's programming/markup language (github-linguist name, e.g. "C++",
 // "Python"), from its filename/extension via the language table; empty when unrecognized. Content
 // is not read, so it is cheap; composes with --summary group-by to tally files per language.
@@ -433,6 +441,7 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"ext", &ExtField},
     FieldEntry{"extension", &ExtField},
     FieldEntry{"file", &NameField},
+    FieldEntry{"fuzzy", &FuzzyField},
     FieldEntry{"gid", &GidField},
     FieldEntry{"group", &GroupField},
     FieldEntry{"hash", &HashField},
@@ -1116,6 +1125,14 @@ std::vector<FieldDoc> FieldDocs() {
        .group = "content",
        .header = "Content",
        .summary = "text line count (empty for a binary/unreadable file); reads the file"},
+      {
+          .name = "fuzzy",
+          .aliases = {},
+          .group = "content",
+          .header = "Content",
+          .summary = "how well the last `-fuzzy` / `-ifuzzy` matched this entry (empty without one); "
+                     "higher is better, and only comparable within one pattern",
+      },
       {
           .name = "shard",
           .aliases = {},

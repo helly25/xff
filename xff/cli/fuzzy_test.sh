@@ -87,6 +87,43 @@ test::fuzzy_matches_the_basename_not_the_whole_path() {
   rm -rf "${root}"
 }
 
+test::the_fuzzy_field_ranks_matches_of_the_same_pattern() {
+  local root out ranked
+  root="$(mktemp -d)"
+  : >"${root}/tmh.txt"           # the pattern itself: consecutive, at the start
+  : >"${root}/the_main_header.h" # three word-start initials
+  : >"${root}/themainheader.txt" # the same letters, no word starts
+  : >"${root}/automath.hpp"      # buried mid-word
+  # The score is only comparable within one pattern, so the assertion is the ORDER a numeric sort
+  # puts them in - which is the ranking a user actually gets out of {fuzzy}.
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy tmh --template='{fuzzy} {name}')"
+  ranked="$(sort -rn <<<"${out}" | cut -d' ' -f2 | tr '\n' ' ')"
+  expect_eq "tmh.txt the_main_header.h themainheader.txt automath.hpp " "${ranked}"
+  rm -rf "${root}"
+}
+
+test::the_fuzzy_field_is_empty_without_a_fuzzy_test() {
+  local root out
+  root="$(_make_tree)"
+  # Like {shard} outside shard mode: it renders nothing rather than inventing a score.
+  out="$("$(_xff_bin)" --exact "${root}" -type f -name 'README.md' --template='[{fuzzy}]')"
+  expect_eq "[]" "${out}"
+  rm -rf "${root}"
+}
+
+test::the_fuzzy_score_does_not_leak_from_one_entry_to_the_next() {
+  local root out
+  root="$(mktemp -d)"
+  : >"${root}/tmh.txt"
+  : >"${root}/zzz.txt"
+  # Both entries are listed (the fuzzy test is one arm of an OR), but only the matching one has a
+  # score: a run-scoped slot that was not cleared per entry would give zzz.txt tmh.txt's number.
+  out="$("$(_xff_bin)" --exact "${root}" -type f \( -fuzzy tmh -o -name 'zzz.txt' \) --template='{name}=[{fuzzy}]' | sort)"
+  expect_output_contains "zzz.txt=[]" "${out}"
+  expect_not_matches "zzz.txt=\[[0-9]" "${out}"
+  rm -rf "${root}"
+}
+
 test::fuzzy_is_an_xff_extension_the_find_style_rejects() {
   local root out rc
   root="$(_make_tree)"

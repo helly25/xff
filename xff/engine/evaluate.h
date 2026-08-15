@@ -115,6 +115,10 @@ struct EvalContext {
   // false in the find style and under --exact (byte-exact matching). The `i`
   // variants (-iname/-ipath) fold regardless.
   bool fold_name_case = false;
+  // Where -fuzzy / -ifuzzy leave their score for {fuzzy} to render, or null when nothing asked for
+  // one - in which case the primary takes the cheap subsequence scan instead of the alignment search.
+  // Reset by the driver per entry, so a stale score cannot leak onto the next one.
+  std::optional<int>* fuzzy_score = nullptr;
   // --count / -c: -grep prints one `path:count` per file (its matching-line count)
   // instead of the lines, rg -c style; supersedes -grep=FORMAT. Only -grep reads it.
   bool grep_count = false;
