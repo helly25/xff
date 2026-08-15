@@ -29,11 +29,26 @@ common --define absl=1
 # xff is a C++23 project.
 common --cxxopt=-std=c++23 --host_cxxopt=-std=c++23 --cxxopt=-Werror
 
-# Keep -Werror strict for our code but not third-party (external) code:
-#  - external_include_paths: external repo headers become -isystem.
-#  - per_file_copt on external/*: downgrades -Werror when compiling external sources.
+# Warnings policy: everything we control compiles with ALL warnings as errors (-Wextra and
+# -Wpedantic on top of the toolchain's -Wall), while genuinely third-party code keeps its warnings
+# non-fatal. "We control" includes the composable extras and the shared extras API: they are
+# local_path_override modules, so their sources compile under the external/xff_*+ spelling - the
+# blanket external/* downgrade used to EXEMPT them from -Werror entirely, which is the hole the
+# exclusion filter closes.
+#  - external_include_paths: external repo headers become -isystem, so a third-party header
+#    included by our TU never trips our -Wpedantic.
+#  - the -Wno-error downgrade applies to external/* EXCEPT our own external/xff_* modules.
 common --features=external_include_paths
-common --per_file_copt=external/.*@-Wno-error
+common --per_file_copt=external/.*,-external/xff_.*@-Wno-error
+# Carve-outs, each with its reason (gcc quietly ignores the -Wno- spellings it lacks on a clean
+# compile, so the union is safe on both compilers):
+#  - nullability-extension: absl's CHECK/LOG macros expand the `_Nonnull` clang extension into OUR
+#    translation units, which -Wpedantic would flag at every use.
+#  - missing-(designated-)field-initializers: partial designated initializers ARE the codebase
+#    idiom (the registry and globals tables name only the fields that matter; the standard
+#    value-initializes the rest). gcc spells the -Wextra member one way, clang 22+ the other.
+common --per_file_copt=.*,-external/.*@-Wextra,-Wpedantic,-Wno-nullability-extension,-Wno-missing-field-initializers,-Wno-missing-designated-field-initializers
+common --per_file_copt=external/xff_.*@-Wextra,-Wpedantic,-Wno-nullability-extension,-Wno-missing-field-initializers,-Wno-missing-designated-field-initializers
 
 test --test_output=errors
 
@@ -41,22 +56,18 @@ common --copt=-fdiagnostics-color=always
 common --copt=-fno-exceptions
 
 # --config=xff_full : build the extended "full" binary (`//xff/cli:xff_full`, a `manual` target) with
-# every composable extra linked in. Each extra is off by default (see xff/BUILD.bazel); this config
-# turns them on. Drop one from an otherwise-full build by overriding on the command line, e.g.
-# `bazel build --config=xff_full --//xff:xff_pcre=false //xff/cli:xff_full`. (--//xff:xff_archive joins
-# here once #83 wires its backend target.)
-common:xff_full --//xff:xff_pcre=True
+# EVERY composable extra linked in, via the single --//xff:xff_all flag - so the config keeps its
+# promise as extras are added, with nothing to update here (it used to set only xff_pcre, a stale
+# leftover from before #83 wired the archive backend). Drop one extra from an otherwise-full build by
+# overriding on the command line, e.g. `bazel build --config=xff_full --//xff:xff_archive=false
+# //xff/cli:xff_full`.
+common:xff_full --//xff:xff_all=True
 
-# --config=xff_docs : the FULL DOCUMENTED SURFACE - every composable extra on, via the single
-# --//xff:xff_all flag rather than one line per extra. The committed XFF.md (and the drift guard that
-# checks it) use this, deliberately, so the online reference documents all functionality rather than
-# only what one build happens to link. A reader whose binary lacks an extra is not misled: each such
-# flag's help says so in static text ("a build-time extra ... rebuild with --//xff:xff_<name>"), and
-# `--help=extras` reports what the binary in hand actually has. Only the dynamic "NOT built into this
-# binary" line differs, and that is a property of the binary, not of the feature. A new extra is
-# covered here the moment it has a `:xff_<flag>_on` group in xff/BUILD.bazel - nothing to add.
+# --config=xff_docs : the FULL DOCUMENTED SURFACE, the stable name CI and the XFF.md drift guard
+# build with. Since xff_full now turns every extra on itself, this is an alias kept for those
+# callers; the two being identical is the point - the published reference documents exactly what a
+# full build contains.
 common:xff_docs --config=xff_full
-common:xff_docs --//xff:xff_all=True
 
 # Register the hermetic LLVM/clang toolchain ONLY for `--config=clang`. Bazel 9
 # always resolves C++ toolchains, so `--extra_toolchains` (higher priority than
