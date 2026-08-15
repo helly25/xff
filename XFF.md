@@ -834,21 +834,21 @@ Members are READ-ONLY by default. `-delete` and the exec family refuse one rathe
 
 Reading is decided by CONTENT (the reader sniffs the bytes), so the extensions are what the name gate dives on under `all` and how the format is usually spelled - a container with an unlisted name still reads under `any`. Package extensions ride their underlying format: a `.jar` is a zip, a `.deb` an ar, an `.rpm` a cpio, `.crate` and `.gem` are tars, and `file` is a compressed SINGLE file (`notes.txt.gz`, one member). Write means `--pack` can create it.
 
-| format  | read | write | extensions                                                                                                                           |
-| ------- | ---- | ----- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| 7z      | yes  | no    | .7z                                                                                                                                  |
-| ar      | yes  | no    | .ar, .deb                                                                                                                            |
-| cab     | yes  | no    | .cab                                                                                                                                 |
-| cpio    | yes  | no    | .cpio, .rpm                                                                                                                          |
-| iso9660 | yes  | no    | .iso                                                                                                                                 |
-| lha     | yes  | no    | .lha, .lzh                                                                                                                           |
-| rar     | yes  | no    | .rar                                                                                                                                 |
-| tar     | yes  | yes   | .tar, .tar.gz, .tgz, .taz, .crate, .gem, .tar.bz2, .tbz, .tbz2, .tz2, .tar.xz, .txz, .tlz, .tar.zst, .tzst                           |
-| warc    | yes  | no    | .warc                                                                                                                                |
-| xar     | yes  | no    | .xar                                                                                                                                 |
-| zip     | yes  | yes   | .zip, .jar, .war, .ear, .whl, .egg, .apk, .aab, .cbz, .crx, .docx, .epub, .jmod, .nupkg, .odp, .ods, .odt, .pptx, .vsix, .xlsx, .xpi |
-| phar    | yes  | no    | .phar                                                                                                                                |
-| file    | yes  | no    | .gz, .bz2, .xz, .zst, .zstd, .lz4, .lzma                                                                                             |
+| format | read | write | extensions |
+| --- | --- | --- | --- |
+| 7z | yes | no | .7z |
+| ar | yes | no | .ar, .deb |
+| cab | yes | no | .cab |
+| cpio | yes | no | .cpio, .rpm |
+| iso9660 | yes | no | .iso |
+| lha | yes | no | .lha, .lzh |
+| rar | yes | no | .rar |
+| tar | yes | yes | .tar, .tar.gz, .tgz, .taz, .crate, .gem, .tar.bz2, .tbz, .tbz2, .tz2, .tar.xz, .txz, .tlz, .tar.zst, .tzst |
+| warc | yes | no | .warc |
+| xar | yes | no | .xar |
+| zip | yes | yes | .zip, .jar, .war, .ear, .whl, .egg, .apk, .aab, .cbz, .crx, .docx, .epub, .jmod, .nupkg, .odp, .ods, .odt, .pptx, .vsix, .xlsx, .xpi |
+| phar | yes | no | .phar |
+| file | yes | no | .gz, .bz2, .xz, .zst, .zstd, .lz4, .lzma |
 
 
 ### Creating one
