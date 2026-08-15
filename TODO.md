@@ -304,6 +304,22 @@ shipped one way but not yet settled.
 The backlog of features and infrastructure not yet built. Ordered by current
 intent, not hard dependency. Task numbers reference the agent task list.
 
+### Small slices in flight (task ledger)
+
+- **#196 (open)**: enforce `MBO_ASSERT_OK_AND_ASSIGN` over `ASSERT_THAT(x, IsOk())` + deref
+  (78 sites: `run_test.cc` ~45, `archive_fs_test` 14, `local_fs_test` 6, `extract_test` 5,
+  `phar_fixture_test` 5, `evaluate_test` 4, and a tail), plus a `check_status_assert.py`
+  pre-commit hook and a sharpened STYLE_CPP rule.
+- **#197 (this change)**: `PackOptionSpec.values` / `.formats` as `absl::Span<const
+std::string_view>` over named constexpr arrays instead of comma-joined strings re-split at
+  every use.
+- **#198 (shipped, PR #525)**: removed the 5 avoidable reinterpret_casts (buffers declared in the
+  C API's element type); 3 remain as single funneled NOLINT boundaries.
+- **#199 (shipped, PR #524)**: `--help=content` topic gathering the tagged family from both SOTs
+  (`Descriptor.topic`) + `regex`/`regexp` aliases for the grammars topic.
+- **#200 (shipped, PR #526)**: `--help=topics` index alphabetized at render time; informative
+  aliases continue the name in the term column; guessable plurals suppressed.
+
 ### Lint / CI / style adoption (from helly25/mbo)
 
 - **clang-tidy does not cover `extra_modules/` (measured 2026-08-15; 81 findings behind the

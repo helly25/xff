@@ -39,7 +39,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
-#include "absl/strings/str_split.h"
+#include "absl/types/span.h"
 #include "mbo/status/status_macros.h"
 
 namespace xff::archive {
@@ -213,18 +213,44 @@ struct PackOptionSpec {
   std::string_view name;           // xff's name, the only one a user ever types
   std::string_view writer_option;  // what libarchive calls it
   PackValue kind;
-  std::string_view values;   // kEnum: the accepted set; empty otherwise
-  std::string_view formats;  // output names it applies to
-  std::string_view detail;   // one line, rendered into --help=archive
+  absl::Span<const std::string_view> values;   // kEnum: the accepted set; empty otherwise
+  absl::Span<const std::string_view> formats;  // output names it applies to
+  std::string_view detail;                     // one line, rendered into --help=archive
 };
+
+// The backing sets for the spans above. Named so the table reads as WHAT applies, and shared where
+// two options genuinely mean the same set (zip-only), not merely coincide.
+constexpr std::array kZipCompressionValues = std::to_array<std::string_view>({
+    "store",
+    "deflate",
+});
+constexpr std::array kZipOnlyFormats = std::to_array<std::string_view>({
+    "zip",
+});
+constexpr std::array kLevelFormats = std::to_array<std::string_view>({
+    "tar.gz",
+    "tar.bz2",
+    "tar.xz",
+    "tar.zst",
+    "tgz",
+    "zip",
+});
+constexpr std::array kThreadsFormats = std::to_array<std::string_view>({
+    "tar.xz",
+    "tar.zst",
+});
+constexpr std::array kGzipHeaderFormats = std::to_array<std::string_view>({
+    "tar.gz",
+    "tgz",
+});
 
 constexpr std::array kPackOptions = std::to_array<PackOptionSpec>({
     {
         .name = "compression",
         .writer_option = "compression",
         .kind = PackValue::kEnum,
-        .values = "store,deflate",
-        .formats = "zip",
+        .values = kZipCompressionValues,
+        .formats = kZipOnlyFormats,
         .detail = "`store` writes members uncompressed, which is what an archive of already-compressed "
                   "payloads (images, other archives) wants",
     },
@@ -232,8 +258,8 @@ constexpr std::array kPackOptions = std::to_array<PackOptionSpec>({
         .name = "level",
         .writer_option = "compression-level",
         .kind = PackValue::kInt,
-        .values = "",
-        .formats = "tar.gz,tar.bz2,tar.xz,tar.zst,tgz,zip",
+        .values = {},
+        .formats = kLevelFormats,
         .detail = "how hard the compressor works, on the scale the format uses (also spelled "
                   "`--pack-level`)",
     },
@@ -241,16 +267,16 @@ constexpr std::array kPackOptions = std::to_array<PackOptionSpec>({
         .name = "threads",
         .writer_option = "threads",
         .kind = PackValue::kInt,
-        .values = "",
-        .formats = "tar.xz,tar.zst",
+        .values = {},
+        .formats = kThreadsFormats,
         .detail = "compressor threads; `0` lets the compressor pick from the machine",
     },
     {
         .name = "timestamp",
         .writer_option = "timestamp",
         .kind = PackValue::kBool,
-        .values = "",
-        .formats = "tar.gz,tgz",
+        .values = {},
+        .formats = kGzipHeaderFormats,
         .detail = "store the modification time in the gzip header; `no` is what makes two runs over "
                   "the same input byte-identical",
     },
@@ -258,8 +284,8 @@ constexpr std::array kPackOptions = std::to_array<PackOptionSpec>({
         .name = "zip64",
         .writer_option = "zip64",
         .kind = PackValue::kBool,
-        .values = "",
-        .formats = "zip",
+        .values = {},
+        .formats = kZipOnlyFormats,
         .detail = "force the zip64 extensions, which lift the 4 GiB member and archive limits",
     },
 });
@@ -271,7 +297,7 @@ const PackOptionSpec* PackOptionSpecFor(std::string_view name) {
 }
 
 bool AppliesTo(const PackOptionSpec& spec, std::string_view format) {
-  return absl::c_linear_search(absl::StrSplit(spec.formats, ','), format);
+  return absl::c_linear_search(spec.formats, format);
 }
 
 // Validates one option against the vocabulary AND the chosen format, and renders what libarchive
@@ -290,7 +316,7 @@ absl::StatusOr<std::string> TranslateOption(const PackSetting& option, const For
     return absl::InvalidArgumentError(
         absl::StrCat(
             "pack option '", spec->name, "' does not apply to ", format.name, "; it applies to ",
-            absl::StrJoin(absl::StrSplit(spec->formats, ','), ", ")));
+            absl::StrJoin(spec->formats, ", ")));
   }
   switch (spec->kind) {
     case PackValue::kBool: {
@@ -302,11 +328,11 @@ absl::StatusOr<std::string> TranslateOption(const PackSetting& option, const For
       return option.value == "yes" ? std::string(spec->writer_option) : absl::StrCat("!", spec->writer_option);
     }
     case PackValue::kEnum: {
-      if (!absl::c_linear_search(absl::StrSplit(spec->values, ','), option.value)) {
+      if (!absl::c_linear_search(spec->values, option.value)) {
         return absl::InvalidArgumentError(
             absl::StrCat(
-                "pack option '", spec->name, "' takes one of ", absl::StrJoin(absl::StrSplit(spec->values, ','), ", "),
-                ", got '", option.value, "'"));
+                "pack option '", spec->name, "' takes one of ", absl::StrJoin(spec->values, ", "), ", got '",
+                option.value, "'"));
       }
       return absl::StrCat(spec->writer_option, "=", option.value);
     }
@@ -428,13 +454,13 @@ std::vector<PackOptionDoc> PackOptionDocs() {
     std::string syntax;
     switch (spec.kind) {
       case PackValue::kBool: syntax = "yes|no"; break;
-      case PackValue::kEnum: syntax = absl::StrJoin(absl::StrSplit(spec.values, ','), "|"); break;
+      case PackValue::kEnum: syntax = absl::StrJoin(spec.values, "|"); break;
       case PackValue::kInt: syntax = "N"; break;
     }
     docs.push_back(
         {.name = std::string(spec.name),
          .value_syntax = std::move(syntax),
-         .formats = absl::StrJoin(absl::StrSplit(spec.formats, ','), ", "),
+         .formats = absl::StrJoin(spec.formats, ", "),
          .detail = std::string(spec.detail)});
   }
   return docs;
