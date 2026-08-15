@@ -306,6 +306,22 @@ intent, not hard dependency. Task numbers reference the agent task list.
 
 ### Lint / CI / style adoption (from helly25/mbo)
 
+- **clang-tidy does not cover `extra_modules/` (measured 2026-08-15).** The hook excludes them
+  (`exclude: ^extra_modules/` in `.pre-commit-config.yaml`) and the reason is still real: the compile
+  DB entry for an extras source does not carry every include path its bazel target has, so a run
+  reports `'mbo/status/status_macros.h' file not found` and the degraded AST then produces bogus
+  `misc-use-internal-linkage` findings for functions that ARE declared in their header. Everything
+  else parses.
+  - **What it cost:** running it by hand over `archive_pack.cc` (new in #511/#512, so never linted)
+    found real issues no gate would have caught - an implicit widening in `64 * 1'024`, a signed
+    bitwise on `perms`, and a `std::fopen` that clang-tidy flagged twice (owning-memory,
+    missing `e`/O_CLOEXEC) and that `STYLE_CPP.md` disallows anyway. Fixed; the read now streams
+    through an `ifstream` that closes itself on every path out.
+  - **The fix is in the compile DB, not the filter:** teach `compile_commands-update.sh` to emit the
+    extras entries with their full include set (they come from a different bazel config), then drop
+    the exclusion and let the CI clang-tidy job gate them like everything else. Sized as its own
+    slice because it is a DB-generation change, not a one-line filter edit.
+
 - **Style docs + `.clang-tidy`** (this change). `.clang-tidy` (mbo's rule set),
   `STYLE_CPP.md`, `RULES.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and an
   `AGENTS.md` pointer. The `bazel-compile-commands-extractor` dev module is
