@@ -67,13 +67,8 @@ common:clang --linkopt=-fuse-ld=lld --host_linkopt=-fuse-ld=lld
 common:clang --define is_clang=true
 
 # --config=clang-tidy : the configuration we DEVELOP in, and the one the compile
-# DB (compile_commands.json) is extracted in - so clang-tidy / clangd parse with
-# exactly the compiler, standard library, include paths and feature macros the
-# `--config=clang` builds use, not whatever toolchain bazel would autodetect.
-# Adds no stdlib flags: the toolchain handles libc++ itself (see the git_override
-# in bazelmod/llvm.MODULE.bazel), so repeating -stdlib=libc++ here put it on the
-# command line twice and warned as unused. compile_commands-update.sh extracts
-# under this config.
+# Named config the compile DB is generated in (compile_commands-update.sh). Adds no
+# flags: the toolchain handles libc++ itself (see git_override in bazelmod/llvm.MODULE.bazel).
 common:clang-tidy --config=clang
 
 common:symbolizer --strip=never

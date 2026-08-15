@@ -20,10 +20,8 @@
 # macOS + clang-22 + asan works straight from the release.
 bazel_dep(name = "toolchains_llvm", version = "1.8.0")
 
-# Fork fix (adopted from helly25/mbo#309): upstream passes -stdlib=libc++ to COMPILES, where it is
-# unused (headers come via -cxx-isystem), warning on every object file. The fork drops it from the
-# compile flags at source, which is what lets the -Wno-unused-command-line-argument suppression and
-# the clang-tidy diagnostic exclusion below go away instead of hiding the warning.
+# Fork fix: upstream passes -stdlib=libc++ to compiles where it is unused (headers
+# come via -cxx-isystem), warning on every object file. See helly25/toolchains_llvm c3ac93f.
 git_override(
     module_name = "toolchains_llvm",
     commit = "c3ac93f5c61cb78487765d2e81e7485ad3f8bf2c",
