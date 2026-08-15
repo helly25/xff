@@ -85,7 +85,6 @@ using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Lt;
-using ::testing::Ne;
 using ::testing::Not;
 using ::testing::SizeIs;
 
@@ -127,11 +126,8 @@ TEST_F(HelpTest, ContentTopicGathersTheTaggedFamilyFromBothSots) {
   // The content page pulls primaries via Descriptor.topic and flags via GlobalFlag.topic, so a
   // primary added with the tag appears here with no help edit - the same no-drift construction the
   // archive topic uses. The assertions iterate the SOTs rather than naming the family by hand.
-  const std::optional<Document> doc = TopicReference("content");
-  ASSERT_THAT(doc, Ne(std::nullopt));
-  PlainTextBackend backend;
-  RenderDocument(*doc, backend);
-  const std::string out = backend.Take();
+  const std::string out = RenderTopicDoc("content");
+  ASSERT_THAT(out, Not(IsEmpty()));
   for (const registry::Descriptor& descriptor : registry::All()) {
     if (descriptor.topic == "content") {
       EXPECT_THAT(out, HasSubstr(descriptor.name)) << descriptor.name;
@@ -148,20 +144,14 @@ TEST_F(HelpTest, ContentTopicGathersTheTaggedFamilyFromBothSots) {
 TEST_F(HelpTest, RegexAliasesRenderTheGrammarsTopic) {
   // `--help=regex` is what someone wondering about regex actually types; it and `regexp` open the
   // grammars reference rather than erroring.
-  const std::optional<Document> grammars = TopicReference("grammars");
-  ASSERT_THAT(grammars, Ne(std::nullopt));
+  const std::string want = RenderTopicDoc("grammars");
+  ASSERT_THAT(want, Not(IsEmpty()));
   static constexpr std::array kAliases = std::to_array<std::string_view>({
       "regex",
       "regexp",
   });
   for (const std::string_view alias : kAliases) {
-    const std::optional<Document> doc = TopicReference(alias);
-    ASSERT_THAT(doc, Ne(std::nullopt)) << alias;
-    PlainTextBackend want;
-    RenderDocument(*grammars, want);
-    PlainTextBackend got;
-    RenderDocument(*doc, got);
-    EXPECT_THAT(got.Take(), Eq(want.Take())) << alias;
+    EXPECT_THAT(RenderTopicDoc(alias), Eq(want)) << alias;
   }
 }
 
