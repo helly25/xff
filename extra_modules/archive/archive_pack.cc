@@ -22,6 +22,8 @@
 #include <chrono>
 #include <cstddef>
 #include <filesystem>
+#include <fstream>
+#include <ios>
 #include <memory>
 #include <optional>
 #include <string>
@@ -45,7 +47,7 @@ namespace {
 
 namespace stdfs = std::filesystem;
 
-constexpr std::size_t kBlockSize = 64 * 1'024;
+constexpr std::size_t kBlockSize = std::size_t{64} * 1'024;
 
 // std::filesystem::file_time_type has an unspecified epoch, and C++20's file_clock::to_sys is not
 // available on every platform this builds on, so the offset is measured once against a known point.
@@ -259,7 +261,9 @@ absl::Status WriteOne(struct ::archive* writer, const PackEntry& entry) {
     return absl::UnavailableError("out of memory building an archive entry");
   }
   ::archive_entry_set_pathname(header.get(), entry.name.c_str());
-  ::archive_entry_set_perm(header.get(), static_cast<::mode_t>(status.permissions()) & 0777);
+  // Masked as filesystem perms rather than as an int, which keeps the bit operation off a signed
+  // type; `perms::all` is the 0777 the archive header wants.
+  ::archive_entry_set_perm(header.get(), static_cast<::mode_t>(status.permissions() & stdfs::perms::all));
   // The modification time travels with the file; without it every member unpacks stamped 1970, which
   // breaks the make / rsync comparisons an archive of source files exists for. Ownership deliberately
   // does NOT travel: it is stored as 0:0, the reproducible-archive convention, so unpacking as root
@@ -294,26 +298,23 @@ absl::Status WriteOne(struct ::archive* writer, const PackEntry& entry) {
   if (!stdfs::is_regular_file(status)) {
     return absl::OkStatus();  // a directory or link has a header and no content
   }
-  // Streamed in blocks: an archive may hold files far larger than memory.
-  std::FILE* const file = std::fopen(entry.source.c_str(), "rb");
-  if (file == nullptr) {
+  // Streamed in blocks: an archive may hold files far larger than memory. A stream rather than
+  // stdio because it closes itself on every path out of here, including the error returns below.
+  std::ifstream file(source, std::ios::binary);
+  if (!file.is_open()) {
     return absl::NotFoundError(absl::StrCat("cannot open '", entry.source, "'"));
   }
   std::array<char, kBlockSize> buffer{};
-  for (;;) {
-    const std::size_t read = std::fread(buffer.data(), 1, buffer.size(), file);
-    if (read == 0) {
+  while (file.read(buffer.data(), static_cast<std::streamsize>(buffer.size())) || file.gcount() > 0) {
+    const std::streamsize read = file.gcount();
+    if (read <= 0) {
       break;
     }
-    if (::archive_write_data(writer, buffer.data(), read) < 0) {
-      const std::string message(::archive_error_string(writer));
-      (void)std::fclose(file);
-      return absl::UnavailableError(absl::StrCat("cannot write '", entry.name, "': ", message));
+    if (::archive_write_data(writer, buffer.data(), static_cast<std::size_t>(read)) < 0) {
+      return absl::UnavailableError(absl::StrCat("cannot write '", entry.name, "': ", ::archive_error_string(writer)));
     }
   }
-  const bool failed = std::ferror(file) != 0;
-  (void)std::fclose(file);
-  if (failed) {
+  if (file.bad()) {
     return absl::DataLossError(absl::StrCat("read failed part way through '", entry.source, "'"));
   }
   return absl::OkStatus();
