@@ -30,6 +30,32 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "mount_root_cc",
+    srcs = ["mount_root.cc"],
+    hdrs = ["mount_root.h"],
+    include_prefix = "xff/fuse",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/functional:function_ref",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "mount_root_test",
+    size = "small",
+    srcs = ["mount_root_test.cc"],
+    deps = [
+        ":mount_root_cc",
+        "@abseil-cpp//absl/strings",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)
+
 cc_test(
     name = "fuse_loader_test",
     size = "small",
