@@ -96,11 +96,14 @@ TEST_F(ArchivePackTest, PackedFilesReadBackWithTheirNamesAndContent) {
 TEST_F(ArchivePackTest, TheOutputNameChoosesTheFormat) {
   // Each suffix produces a container the reader opens; that it reads back at all is what proves the
   // format and filter were set, since a wrong filter yields bytes libarchive cannot parse.
+  // Every writable format except `.tar.xz`, which lives in archive_pack_xz_test so that target
+  // alone can be tagged `no_san` (liblzma trips UBSan's `function` check).
   static constexpr std::array kNames = std::to_array<std::string_view>({
       "packed.tar.gz",
       "packed.tgz",
+      "packed.tar.bz2",
+      "packed.tar.zst",
       "packed.zip",
-      "packed.tar.xz",
   });
   for (const std::string_view name : kNames) {
     const std::string out = Output(name);

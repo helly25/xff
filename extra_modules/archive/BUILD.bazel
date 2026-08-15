@@ -102,6 +102,25 @@ cc_library(
 # Packs real files and reads the archive back: the round trip is what proves names, content, types
 # and the format chosen from the output name. Also pins the refusals (an unknown output suffix, a
 # missing source) and that a failure leaves no half archive behind.
+# The xz slice of the pack coverage, split out ONLY to carry `no_san`: liblzma dispatches through a
+# generically-typed function pointer, which UBSan's `function` check (clang 17+ applies it to C too)
+# reports as UB inside xz. Probed format by format locally under -fsanitize=function - xz is the only
+# one that trips it - so the quarantine is one target instead of the check being off repo-wide, and
+# the pack writer keeps full ASan/UBSan coverage through every other format.
+cc_test(
+    name = "archive_pack_xz_test",
+    size = "small",
+    srcs = ["archive_pack_xz_test.cc"],
+    tags = ["no_san"],
+    deps = [
+        ":archive_pack_cc",
+        ":archive_reader_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)
+
 cc_test(
     name = "archive_pack_test",
     size = "small",
