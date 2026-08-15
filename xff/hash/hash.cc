@@ -39,10 +39,10 @@ namespace {
 template<std::size_t N>
 std::string Encode(const std::array<uint8_t, N>& digest, Encoding encoding) {
   if (encoding == Encoding::kBase64) {
-    // char aliases any object type, so viewing the byte array as chars for Base64Escape is
-    // well-defined; there is no std::byte / uint8_t overload of Base64Escape to use instead.
-    return absl::Base64Escape(
-        std::string_view(reinterpret_cast<const char*>(digest.data()), digest.size()));  // NOLINT(*-reinterpret-cast)
+    // Converted element-wise rather than viewed through a cast: a digest is at most 64 bytes, so the
+    // copy is nothing, and it keeps this file free of reinterpret_cast entirely (string_view has no
+    // uint8_t form, so the only alternatives are this or the cast).
+    return absl::Base64Escape(std::string(digest.begin(), digest.end()));
   }
   return mbo::digest::ToHexString(digest);
 }
