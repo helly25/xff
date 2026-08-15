@@ -82,6 +82,11 @@ using WritePtr = std::unique_ptr<struct ::archive, WriteDeleter>;
 using EntryPtr = std::unique_ptr<struct ::archive_entry, EntryDeleter>;
 
 // One output suffix and what it selects. Longest suffix first, so `.tar.gz` is not read as `.gz`.
+//
+// The single-word forms (`.tgz`, `.txz`, `.tbz2`, `.tbz`, `.tz2`, `.tzst`) are the shortcuts GNU tar
+// recognises for the same thing, and people type them: `--pack=x.txz` meaning `x.tar.xz` is not a
+// typo to refuse. Only shortcuts for formats this table already writes are listed - `.taz` (tar.Z)
+// and `.tlz` (tar.lzma) would mean adding compressors, which is a different decision.
 struct FormatSuffix {
   std::string_view suffix;
   std::string_view name;  // what PackFormats / the help calls it
@@ -126,6 +131,46 @@ constexpr std::array kFormats = std::to_array<FormatSuffix>({
         .filter = ARCHIVE_FILTER_ZSTD,
         .level_min = 1,
         .level_max = 22,
+    },
+    {
+        .suffix = ".tbz2",
+        .name = "tbz2",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_BZIP2,
+        .level_min = 1,
+        .level_max = 9,
+    },
+    {
+        .suffix = ".tzst",
+        .name = "tzst",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_ZSTD,
+        .level_min = 1,
+        .level_max = 22,
+    },
+    {
+        .suffix = ".tbz",
+        .name = "tbz",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_BZIP2,
+        .level_min = 1,
+        .level_max = 9,
+    },
+    {
+        .suffix = ".tz2",
+        .name = "tz2",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_BZIP2,
+        .level_min = 1,
+        .level_max = 9,
+    },
+    {
+        .suffix = ".txz",
+        .name = "txz",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_XZ,
+        .level_min = 0,
+        .level_max = 9,
     },
     {
         .suffix = ".tgz",

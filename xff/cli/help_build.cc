@@ -504,6 +504,13 @@ Section ArchiveSection(bool in_full) {
       "when the walk finished, and a member of another container is refused - harvesting files out of "
       "one archive to re-pack them into another is a separate feature, which is also what `-Z++ -z-` "
       "is reserved for."));
+  // Same rule as the option table below: the formats come from the LINKED writer, so a format added
+  // to the extra cannot leave this list behind.
+  const std::vector<std::string> pack_formats = archive::ContainerPackFormats();
+  if (!pack_formats.empty()) {
+    creating.children.push_back(
+        ProseOf(absl::StrCat("Output names this binary writes: `", absl::StrJoin(pack_formats, "`, `"), "`.")));
+  }
   // The vocabulary comes from the LINKED writer, never from a list kept here: a lean binary then
   // simply has no table (it has no packer either), and adding an option to the extra cannot leave the
   // documentation behind.
