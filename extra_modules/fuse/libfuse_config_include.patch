@@ -1,0 +1,11 @@
+The meson build generates libfuse_config.h; this interface-only use supplies the three version
+macros as cc_library defines instead (see libfuse.BUILD.bazel), so the include becomes conditional
+rather than a hard requirement clang-tidy's parse cannot satisfy for a generated header. The hunk
+context is deliberately minimal: a unified diff renders an empty context line as a lone space,
+which the trim-trailing-whitespace hook would strip, corrupting the patch.
+--- a/include/fuse_common.h
++++ b/include/fuse_common.h
+@@ -21,1 +21,3 @@
++#if __has_include("libfuse_config.h")
+ #include "libfuse_config.h"
++#endif

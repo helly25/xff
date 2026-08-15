@@ -20,19 +20,6 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
-# meson generates libfuse_config.h at build time; for interface use only the version macros matter
-# (fuse_common.h builds FUSE_VERSION from them, fuse_lowlevel.h names them in fuse_lowlevel_version).
-# Keep in step with the fetched release.
-genrule(
-    name = "libfuse_config_h",
-    outs = ["include/libfuse_config.h"],
-    cmd = """cat > $@ <<'CFG'
-#define FUSE_MAJOR_VERSION 3
-#define FUSE_MINOR_VERSION 18
-#define FUSE_HOTFIX_VERSION 2
-CFG""",
-)
-
 cc_library(
     name = "fuse3_headers",
     hdrs = [
@@ -40,11 +27,17 @@ cc_library(
         "include/fuse_log.h",
         "include/fuse_lowlevel.h",
         "include/fuse_opt.h",
-        ":libfuse_config_h",
     ],
     # The lowlevel API refuses to compile without an API-version choice; 30 is the base fuse3 API,
-    # the widest match for whatever libfuse3 the loader finds at runtime.
-    defines = ["FUSE_USE_VERSION=30"],
+    # the widest match for whatever libfuse3 the loader finds at runtime. The three version macros
+    # replace the meson-generated libfuse_config.h (its include is patched to be conditional -
+    # libfuse_config_include.patch - so no generated header exists for a lint parse to miss).
+    defines = [
+        "FUSE_USE_VERSION=30",
+        "FUSE_MAJOR_VERSION=3",
+        "FUSE_MINOR_VERSION=18",
+        "FUSE_HOTFIX_VERSION=2",
+    ],
     includes = ["include"],
     visibility = ["//visibility:public"],
 )

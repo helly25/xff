@@ -43,8 +43,6 @@
 namespace xff::archive {
 namespace {
 
-using ::mbo::testing::IsOk;
-
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
 using ::testing::AllOf;

@@ -46,7 +46,10 @@ absl::StatusOr<FuseApi> FuseApi::Resolve() {
   if (!loader.available()) {
     return absl::UnavailableError(loader.error());
   }
-  FuseApi api;
+  // Mutated through the reference parameter of Assign below, which misc-const-correctness cannot
+  // see through the template - the NOLINT documents the false positive rather than restructuring
+  // the one honest builder this struct has.
+  FuseApi api;  // NOLINT(misc-const-correctness)
   absl::Status status = Assign(loader, "fuse_session_new", api.session_new);
   status.Update(Assign(loader, "fuse_session_mount", api.session_mount));
   status.Update(Assign(loader, "fuse_session_loop", api.session_loop));

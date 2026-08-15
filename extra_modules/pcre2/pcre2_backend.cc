@@ -27,6 +27,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -167,7 +168,7 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
       return std::string(text);  // on any error, leave the text unchanged (defensive)
     }
     // out_len is the result length (excluding the trailing NUL).
-    return std::string(out.begin(), out.begin() + static_cast<std::ptrdiff_t>(out_len));
+    return {out.begin(), out.begin() + static_cast<std::ptrdiff_t>(out_len)};
   }
 
  private:
@@ -220,7 +221,7 @@ absl::StatusOr<std::unique_ptr<const xff::regex::RegexBackend>> CompilePcre2(
     // Converted element-wise (uchar -> char is a value conversion the constructor performs), so no
     // cast; a negative length means PCRE2 could not render the message at all.
     const std::string message =
-        length > 0 ? std::string(buffer.begin(), buffer.begin() + length) : std::string("unknown error");
+        length > 0 ? std::string(buffer.begin(), std::next(buffer.begin(), length)) : std::string("unknown error");
     return absl::InvalidArgumentError(absl::StrCat("invalid PCRE2 pattern at offset ", error_offset, ": ", message));
   }
   pcre2_match_context* match_context = pcre2_match_context_create(nullptr);

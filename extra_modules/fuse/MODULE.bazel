@@ -39,6 +39,8 @@ http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "ht
 http_archive(
     name = "libfuse",
     build_file = "//:libfuse.BUILD.bazel",
+    patch_args = ["-p1"],
+    patches = ["//:libfuse_config_include.patch"],
     sha256 = "f01de85717e20adf5f98aff324acd85dd73d61a5ca3834d573dcf0bd6e54a298",
     strip_prefix = "fuse-3.18.2",
     urls = ["https://github.com/libfuse/libfuse/releases/download/fuse-3.18.2/fuse-3.18.2.tar.gz"],
