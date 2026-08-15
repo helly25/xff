@@ -766,7 +766,7 @@ Section ExpressionSection(bool with_details) {
 // its curated order, which composes the full reference.
 Rows TopicRows() {
   std::vector<HelpTopic> topics = HelpTopics();
-  absl::c_sort(topics, [](const HelpTopic& a, const HelpTopic& b) { return a.name < b.name; });
+  absl::c_sort(topics, [](const HelpTopic& lhs, const HelpTopic& rhs) { return lhs.name < rhs.name; });
   Rows rows;
   for (const HelpTopic& topic : topics) {
     std::string term(topic.name);
