@@ -230,21 +230,19 @@ TEST_F(PharFixtureTest, ATarBasedPharIsNotANativeOne) {
 // asked libarchive and nothing else, so every native phar listed zero members in a real run while the
 // reader's own tests passed - the reader was unreachable, which no reader-level test could catch.
 TEST_F(PharFixtureTest, TheFilesystemOpensANativePharLibarchiveRejects) {
-  const absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::Open(Fixture("plain.phar"));
-  ASSERT_THAT(fs, IsOk());
-  EXPECT_THAT(fs->ReadDir(Fixture("plain.phar")), IsOkAndHolds(Contains(Field("name", &vfs::Entry::name, "data"))));
+  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(Fixture("plain.phar")));
+  EXPECT_THAT(fs.ReadDir(Fixture("plain.phar")), IsOkAndHolds(Contains(Field("name", &vfs::Entry::name, "data"))));
   EXPECT_THAT(
-      fs->ReadContent(JoinMemberPath(Fixture("plain.phar"), "data/readme.txt")),
+      fs.ReadContent(JoinMemberPath(Fixture("plain.phar"), "data/readme.txt")),
       IsOkAndHolds(HasSubstr("findable-needle")));
 }
 
 TEST_F(PharFixtureTest, TheFilesystemStillPrefersLibarchiveForATarBasedPhar) {
   // The fallback order matters: a `.phar.tar` IS a tar, so libarchive must claim it and the phar parser
   // must never see it. Both readers succeeding on the same file would make which one wins an accident.
-  const absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::Open(Fixture("tarbased.phar.tar"));
-  ASSERT_THAT(fs, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(Fixture("tarbased.phar.tar")));
   EXPECT_THAT(
-      fs->ReadContent(JoinMemberPath(Fixture("tarbased.phar.tar"), "data/readme.txt")),
+      fs.ReadContent(JoinMemberPath(Fixture("tarbased.phar.tar"), "data/readme.txt")),
       IsOkAndHolds(HasSubstr("findable-needle")));
 }
 
@@ -254,10 +252,9 @@ TEST_F(PharFixtureTest, PerEntryCompressedMembersDecompressToTheSameContent) {
   // itself. Both methods PHP writes must yield what the uncompressed fixture holds, byte for byte - the
   // same logical file stored three ways reads back identical, which is the strongest statement
   // available without hard-coding content here.
-  const absl::StatusOr<ArchiveFileSystem> plain = ArchiveFileSystem::Open(Fixture("plain.phar"));
-  ASSERT_THAT(plain, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem plain, ArchiveFileSystem::Open(Fixture("plain.phar")));
   const absl::StatusOr<std::string> expected =
-      plain->ReadContent(JoinMemberPath(Fixture("plain.phar"), "data/readme.txt"));
+      plain.ReadContent(JoinMemberPath(Fixture("plain.phar"), "data/readme.txt"));
   ASSERT_THAT(expected, IsOkAndHolds(HasSubstr("findable-needle")));
   constexpr std::array kCompressed = std::to_array<std::string_view>({"entrygz.phar", "entrybz2.phar"});
   for (const std::string_view fixture : kCompressed) {

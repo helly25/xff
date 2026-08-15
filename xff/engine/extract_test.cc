@@ -139,10 +139,9 @@ TEST_F(ExtractTest, AnExtractedMemberIsARealFileWithTheMembersNameAndBytes) {
   // about archives. The NAME carries over too, so a tool keying on the extension still works.
   fs_.Add("a.tar!dir/two.txt", "two\n");
   ExtractedMembers extracted;
-  const absl::StatusOr<std::string> path = extracted.Extract(fs_, "a.tar!dir/two.txt");
-  ASSERT_THAT(path, IsOk());
-  EXPECT_THAT(*path, EndsWith("/two.txt"));
-  EXPECT_THAT(Read(*path), "two\n");
+  MBO_ASSERT_OK_AND_ASSIGN(const std::string path, extracted.Extract(fs_, "a.tar!dir/two.txt"));
+  EXPECT_THAT(path, EndsWith("/two.txt"));
+  EXPECT_THAT(Read(path), "two\n");
   EXPECT_THAT(extracted.Held(), SizeIs(1));
 }
 
@@ -152,26 +151,23 @@ TEST_F(ExtractTest, TwoMembersWithTheSameNameGetTheirOwnDirectories) {
   fs_.Add("a.tar!README", "from a\n");
   fs_.Add("b.tar!README", "from b\n");
   ExtractedMembers extracted;
-  const absl::StatusOr<std::string> first = extracted.Extract(fs_, "a.tar!README");
-  const absl::StatusOr<std::string> second = extracted.Extract(fs_, "b.tar!README");
-  ASSERT_THAT(first, IsOk());
-  ASSERT_THAT(second, IsOk());
-  EXPECT_THAT(*first, Ne(*second));
-  EXPECT_THAT(Read(*first), "from a\n");
-  EXPECT_THAT(Read(*second), "from b\n");
+  MBO_ASSERT_OK_AND_ASSIGN(const std::string first, extracted.Extract(fs_, "a.tar!README"));
+  MBO_ASSERT_OK_AND_ASSIGN(const std::string second, extracted.Extract(fs_, "b.tar!README"));
+  EXPECT_THAT(first, Ne(second));
+  EXPECT_THAT(Read(first), "from a\n");
+  EXPECT_THAT(Read(second), "from b\n");
 }
 
 TEST_F(ExtractTest, ReleaseRemovesTheFileAndItsDirectory) {
   fs_.Add("a.tar!one.txt", "one\n");
   ExtractedMembers extracted;
-  const absl::StatusOr<std::string> path = extracted.Extract(fs_, "a.tar!one.txt");
-  ASSERT_THAT(path, IsOk());
-  const stdfs::path dir = stdfs::path(*path).parent_path();
-  extracted.Release(*path);
-  EXPECT_THAT(stdfs::exists(*path), IsFalse());
+  MBO_ASSERT_OK_AND_ASSIGN(const std::string path, extracted.Extract(fs_, "a.tar!one.txt"));
+  const stdfs::path dir = stdfs::path(path).parent_path();
+  extracted.Release(path);
+  EXPECT_THAT(stdfs::exists(path), IsFalse());
   EXPECT_THAT(stdfs::exists(dir), IsFalse());
   EXPECT_THAT(extracted.Held(), IsEmpty());
-  extracted.Release(*path);  // releasing twice is not an error: the caller may release unconditionally
+  extracted.Release(path);  // releasing twice is not an error: the caller may release unconditionally
   EXPECT_THAT(extracted.Held(), IsEmpty());
 }
 
@@ -182,9 +178,8 @@ TEST_F(ExtractTest, WhatIsStillHeldIsRemovedWhenTheRunEnds) {
   std::string path;
   {
     ExtractedMembers extracted;
-    const absl::StatusOr<std::string> extracted_path = extracted.Extract(fs_, "a.tar!one.txt");
-    ASSERT_THAT(extracted_path, IsOk());
-    path = *extracted_path;
+    MBO_ASSERT_OK_AND_ASSIGN(const std::string extracted_path, extracted.Extract(fs_, "a.tar!one.txt"));
+    path = extracted_path;
     EXPECT_THAT(stdfs::exists(path), IsTrue());
   }
   EXPECT_THAT(stdfs::exists(path), IsFalse());

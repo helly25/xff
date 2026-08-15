@@ -127,21 +127,18 @@ TEST_F(ArchiveFsTest, AnEmptyFileOpensAsAnArchiveWithNoMembers) {
   // backend simply presents whatever the reader returns.
   const std::string empty = TempPath("empty.tar");
   std::ofstream(empty).flush();
-  const absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::Open(empty);
-  ASSERT_THAT(fs, IsOk());
-  const absl::StatusOr<std::vector<vfs::Entry>> entries = fs->ReadDir(empty);
-  ASSERT_THAT(entries, IsOk());
-  EXPECT_THAT(*entries, ::testing::IsEmpty());
+  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(empty));
+  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> entries, fs.ReadDir(empty));
+  EXPECT_THAT(entries, ::testing::IsEmpty());
 }
 
 TEST_F(ArchiveFsTest, TheContainerItselfReadsAsTheArchiveRoot) {
   // A walk enters the archive by ReadDir'ing the container path, so that must list the top level -
   // including `dir`, which the tar never stored as an entry.
   const ArchiveFileSystem fs = Fs();
-  const absl::StatusOr<std::vector<vfs::Entry>> entries = fs.ReadDir(ArchiveFsTest::Tar());
-  ASSERT_THAT(entries, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> entries, fs.ReadDir(ArchiveFsTest::Tar()));
   EXPECT_THAT(
-      *entries,
+      entries,
       UnorderedElementsAre(Field("name", &vfs::Entry::name, "dir"), Field("name", &vfs::Entry::name, "top.txt")));
 }
 
@@ -150,21 +147,19 @@ TEST_F(ArchiveFsTest, ImplicitParentDirectoriesAreSynthesized) {
   const ArchiveFileSystem fs = Fs();
   EXPECT_THAT(fs.Stat(JoinMemberPath(ArchiveFsTest::Tar(), "dir"), false), IsOk());
   EXPECT_THAT(fs.Stat(JoinMemberPath(ArchiveFsTest::Tar(), "dir/sub"), false), IsOk());
-  const absl::StatusOr<vfs::Metadata> dir = fs.Stat(JoinMemberPath(ArchiveFsTest::Tar(), "dir"), false);
-  ASSERT_THAT(dir, IsOk());
-  EXPECT_THAT(dir->type, vfs::FileType::kDirectory);
+  MBO_ASSERT_OK_AND_ASSIGN(const vfs::Metadata dir, fs.Stat(JoinMemberPath(ArchiveFsTest::Tar(), "dir"), false));
+  EXPECT_THAT(dir.type, vfs::FileType::kDirectory);
 
-  const absl::StatusOr<std::vector<vfs::Entry>> sub = fs.ReadDir(JoinMemberPath(ArchiveFsTest::Tar(), "dir/sub"));
-  ASSERT_THAT(sub, IsOk());
-  EXPECT_THAT(*sub, ElementsAre(Field("name", &vfs::Entry::name, "deep.txt")));
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const std::vector<vfs::Entry> sub, fs.ReadDir(JoinMemberPath(ArchiveFsTest::Tar(), "dir/sub")));
+  EXPECT_THAT(sub, ElementsAre(Field("name", &vfs::Entry::name, "deep.txt")));
 }
 
 TEST_F(ArchiveFsTest, EveryMemberIsReadOnlyAndTaggedAsAnArchiveMember) {
   // This pair is what makes -delete and the exec family REFUSE members instead of skipping them.
   const ArchiveFileSystem fs = Fs();
-  const absl::StatusOr<std::vector<vfs::Entry>> entries = fs.ReadDir(ArchiveFsTest::Tar());
-  ASSERT_THAT(entries, IsOk());
-  for (const vfs::Entry& entry : *entries) {
+  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> entries, fs.ReadDir(ArchiveFsTest::Tar()));
+  for (const vfs::Entry& entry : entries) {
     EXPECT_THAT(entry.read_only, IsTrue()) << entry.path;
     EXPECT_THAT(entry.source, vfs::Source::kArchiveMember) << entry.path;
   }
@@ -172,11 +167,11 @@ TEST_F(ArchiveFsTest, EveryMemberIsReadOnlyAndTaggedAsAnArchiveMember) {
 
 TEST_F(ArchiveFsTest, StatReportsTheStoredSizeModeAndType) {
   const ArchiveFileSystem fs = Fs();
-  const absl::StatusOr<vfs::Metadata> deep = fs.Stat(JoinMemberPath(ArchiveFsTest::Tar(), "dir/sub/deep.txt"), false);
-  ASSERT_THAT(deep, IsOk());
-  EXPECT_THAT(deep->type, vfs::FileType::kRegular);
-  EXPECT_THAT(deep->size, 5U);             // "deep!"
-  EXPECT_THAT(deep->mode & 0777U, 0600U);  // as stored, not as the host would default
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const vfs::Metadata deep, fs.Stat(JoinMemberPath(ArchiveFsTest::Tar(), "dir/sub/deep.txt"), false));
+  EXPECT_THAT(deep.type, vfs::FileType::kRegular);
+  EXPECT_THAT(deep.size, 5U);             // "deep!"
+  EXPECT_THAT(deep.mode & 0777U, 0600U);  // as stored, not as the host would default
 }
 
 TEST_F(ArchiveFsTest, RemoveRefusesRatherThanSilentlySucceeding) {
@@ -199,9 +194,8 @@ TEST_F(ArchiveFsTest, AccessIsNeverWritableAndFollowsTheStoredBits) {
 TEST_F(ArchiveFsTest, ReadLinkResolvesASymlinkMemberAndRefusesOthers) {
   const ArchiveFileSystem fs = Fs();
   EXPECT_THAT(fs.ReadLink(JoinMemberPath(ArchiveFsTest::Tar(), "dir/link")), IsOk());
-  const absl::StatusOr<std::string> target = fs.ReadLink(JoinMemberPath(ArchiveFsTest::Tar(), "dir/link"));
-  ASSERT_THAT(target, IsOk());
-  EXPECT_THAT(*target, "sub/deep.txt");
+  MBO_ASSERT_OK_AND_ASSIGN(const std::string target, fs.ReadLink(JoinMemberPath(ArchiveFsTest::Tar(), "dir/link")));
+  EXPECT_THAT(target, "sub/deep.txt");
   EXPECT_THAT(
       fs.ReadLink(JoinMemberPath(ArchiveFsTest::Tar(), "top.txt")), StatusIs(absl::StatusCode::kInvalidArgument));
 }
@@ -233,27 +227,24 @@ TEST_F(ArchiveFsTest, OpenBytesIndexesAContainerThatHasNoPath) {
   // label its members render under. Everything else - listing, stat, content - behaves as on disk.
   std::ifstream in(ArchiveFsTest::Tar(), std::ios::binary);
   const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  const absl::StatusOr<ArchiveFileSystem> fs = ArchiveFileSystem::OpenBytes("outer.tar!nested.tar", bytes);
-  ASSERT_THAT(fs, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::OpenBytes("outer.tar!nested.tar", bytes));
   EXPECT_THAT(
-      fs->ReadDir("outer.tar!nested.tar"),
+      fs.ReadDir("outer.tar!nested.tar"),
       IsOkAndHolds(
           UnorderedElementsAre(Field("name", &vfs::Entry::name, "dir"), Field("name", &vfs::Entry::name, "top.txt"))));
-  EXPECT_THAT(fs->ReadContent("outer.tar!nested.tar!top.txt"), IsOkAndHolds("top"));
+  EXPECT_THAT(fs.ReadContent("outer.tar!nested.tar!top.txt"), IsOkAndHolds("top"));
   // The nested label contains a separator itself, so resolving a member must not attribute it to
   // the outer archive by splitting at the first one.
-  EXPECT_THAT(fs->ReadContent("outer.tar!other.txt"), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(fs.ReadContent("outer.tar!other.txt"), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST_F(ArchiveFsTest, FsTypeAndCaseSensitivityDescribeTheArchiveNotTheHost) {
   const ArchiveFileSystem fs = Fs();
-  const absl::StatusOr<std::string> type = fs.FsType(ArchiveFsTest::Tar());
-  ASSERT_THAT(type, IsOk());
-  EXPECT_THAT(*type, "archive");
+  MBO_ASSERT_OK_AND_ASSIGN(const std::string type, fs.FsType(ArchiveFsTest::Tar()));
+  EXPECT_THAT(type, "archive");
   // Stored names are bytes, so this is true even on a case-insensitive host filesystem.
-  const absl::StatusOr<bool> sensitive = fs.IsCaseSensitive(ArchiveFsTest::Tar());
-  ASSERT_THAT(sensitive, IsOk());
-  EXPECT_THAT(*sensitive, IsTrue());
+  MBO_ASSERT_OK_AND_ASSIGN(const bool sensitive, fs.IsCaseSensitive(ArchiveFsTest::Tar()));
+  EXPECT_THAT(sensitive, IsTrue());
 }
 
 TEST_F(ArchiveFsTest, APathOutsideThisContainerIsRejected) {
@@ -266,9 +257,8 @@ TEST_F(ArchiveFsTest, TheConfiguredSeparatorIsUsedForBothRenderingAndParsing) {
   // The spelling is under user control (--archive-separator), so the backend must both EMIT and
   // ACCEPT it - a path it printed has to be one it can stat back.
   const ArchiveFileSystem fs = Fs({.separator = "#"});
-  const absl::StatusOr<std::vector<vfs::Entry>> entries = fs.ReadDir(ArchiveFsTest::Tar());
-  ASSERT_THAT(entries, IsOk());
-  for (const vfs::Entry& entry : *entries) {
+  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> entries, fs.ReadDir(ArchiveFsTest::Tar()));
+  for (const vfs::Entry& entry : entries) {
     EXPECT_THAT(entry.path, ::testing::HasSubstr("#")) << entry.path;
     EXPECT_THAT(fs.Stat(entry.path, false), IsOk()) << entry.path;
   }
@@ -316,10 +306,9 @@ TEST_F(ArchiveFsTest, ASynthesizedParentIsIdentifiedToo) {
   // `dir` and `dir/sub` are NOT stored in the fixture tar - they are synthesized. A synthesized node
   // with no identity would defeat the loop detector just as thoroughly as a stored one.
   const ArchiveFileSystem fs = Fs();
-  const absl::StatusOr<vfs::Metadata> parent = fs.Stat(absl::StrCat(ArchiveFsTest::Tar(), "!dir"), false);
-  ASSERT_THAT(parent, IsOk());
-  EXPECT_THAT(parent->ino, Ne(0U));
-  EXPECT_THAT(parent->nlink, Eq(1U));
+  MBO_ASSERT_OK_AND_ASSIGN(const vfs::Metadata parent, fs.Stat(absl::StrCat(ArchiveFsTest::Tar(), "!dir"), false));
+  EXPECT_THAT(parent.ino, Ne(0U));
+  EXPECT_THAT(parent.nlink, Eq(1U));
 }
 
 }  // namespace

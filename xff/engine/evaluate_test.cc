@@ -397,18 +397,15 @@ TEST_F(EvaluateTest, ValidateSizeArgsRejectsBadUnits) {
       "1k",
   });
   for (const std::string_view good : kValidSizeArgs) {
-    const auto command = parser::Parse({".", "-size", std::string(good)});
-    ASSERT_THAT(command, IsOk());
-    EXPECT_THAT(ValidateSizeArgs(*command->expression), IsOk()) << good;
+    MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({".", "-size", std::string(good)}));
+    EXPECT_THAT(ValidateSizeArgs(*command.expression), IsOk()) << good;
   }
-  const auto zetta = parser::Parse({".", "-size", "+1Z"});
-  ASSERT_THAT(zetta, IsOk());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto zetta, parser::Parse({".", "-size", "+1Z"}));
   EXPECT_THAT(
-      ValidateSizeArgs(*zetta->expression), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("E (exabyte)")));
-  const auto unknown = parser::Parse({".", "-size", "1q"});
-  ASSERT_THAT(unknown, IsOk());
+      ValidateSizeArgs(*zetta.expression), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("E (exabyte)")));
+  MBO_ASSERT_OK_AND_ASSIGN(const auto unknown, parser::Parse({".", "-size", "1q"}));
   EXPECT_THAT(
-      ValidateSizeArgs(*unknown->expression),
+      ValidateSizeArgs(*unknown.expression),
       StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("unknown size unit")));
 }
 
@@ -1237,9 +1234,8 @@ TEST_F(EvaluateTest, NewerMbComparesMtimeToReferenceBirthTime) {
   const stdfs::path ref = stdfs::temp_directory_path() / "xff_newermb_ref.tmp";
   { std::ofstream(ref) << "r"; }  // birth time is ~now (between the two fixed times below)
   const std::string ref_path = ref.string();
-  const absl::StatusOr<vfs::Metadata> ref_md = fs_.Stat(ref_path, /*follow_symlinks=*/true);
-  ASSERT_THAT(ref_md, IsOk());
-  if (ref_md->btime.has_value()) {
+  MBO_ASSERT_OK_AND_ASSIGN(const vfs::Metadata ref_md, fs_.Stat(ref_path, /*follow_symlinks=*/true));
+  if (ref_md.btime.has_value()) {
     vfs::Metadata md;
     md.type = vfs::FileType::kRegular;
     md.mtime = absl::FromUnixSeconds(2'000'000'000);  // 2033, after the reference's birth time
