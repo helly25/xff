@@ -74,6 +74,41 @@ bool SameChar(char have, char want, bool fold_case) {
   return have == want || (fold_case && absl::ascii_tolower(have) == absl::ascii_tolower(want));
 }
 
+// One row of the search: the best score for the pattern prefix whose LAST character is `want`, with
+// that character placed at each position of `text`. `previous` is the same row for the prefix one
+// character shorter (all kUnmatched when `want` is the first character), and the result lands in
+// `best`. Split out of Score because the nesting, not the idea, is what made it hard to read.
+void ScoreRow(
+    std::string_view text,
+    char want,
+    bool fold_case,
+    bool first,
+    const std::vector<int>& previous,
+    std::vector<int>& best) {
+  // `reachable` carries the best score of any earlier alignment of the previous character, already
+  // charged the gap penalty for the distance travelled. Updating it as the position advances is what
+  // keeps this linear in the text rather than quadratic.
+  int reachable = kUnmatched;
+  for (std::string_view::size_type at = 0; at < text.size(); ++at) {
+    if (at > 0) {
+      reachable = std::max(reachable - kGap, previous[at - 1]);
+    }
+    if (!SameChar(text[at], want, fold_case)) {
+      best[at] = kUnmatched;
+      continue;
+    }
+    const int here = kMatch + (IsWordStart(text, at) ? kWordStart : 0);
+    if (first) {
+      // The first character may start anywhere, but the later it starts the worse it scores.
+      best[at] = here - (kGap * static_cast<int>(at));
+      continue;
+    }
+    const int consecutive = at > 0 && previous[at - 1] != kUnmatched ? previous[at - 1] + kConsecutive : kUnmatched;
+    const int from = std::max(reachable, consecutive);
+    best[at] = from == kUnmatched ? kUnmatched : from + here;
+  }
+}
+
 }  // namespace
 
 std::optional<int> Score(std::string_view pattern, std::string_view text, bool fold_case) {
@@ -83,34 +118,11 @@ std::optional<int> Score(std::string_view pattern, std::string_view text, bool f
   if (pattern.size() > text.size()) {
     return std::nullopt;
   }
-  // best[j] is the best score for the pattern prefix ending with its last character AT text[j];
-  // `previous` is the same for the prefix one character shorter. Two rows are enough because a
-  // pattern character can only follow the one before it.
+  // Two rows are enough, because a pattern character can only follow the one before it.
   std::vector<int> previous(text.size(), kUnmatched);
   std::vector<int> best(text.size(), kUnmatched);
   for (std::string_view::size_type i = 0; i < pattern.size(); ++i) {
-    // `reachable` carries the best score of any earlier alignment of the previous character, already
-    // charged the gap penalty for the distance travelled. Updating it as j advances is what keeps
-    // this O(pattern * text) instead of quadratic in the text.
-    int reachable = kUnmatched;
-    for (std::string_view::size_type j = 0; j < text.size(); ++j) {
-      if (j > 0) {
-        reachable = std::max(reachable - kGap, previous[j - 1]);
-      }
-      if (!SameChar(text[j], pattern[i], fold_case)) {
-        best[j] = kUnmatched;
-        continue;
-      }
-      const int here = kMatch + (IsWordStart(text, j) ? kWordStart : 0);
-      if (i == 0) {
-        // The first character may start anywhere, but the later it starts the worse it scores.
-        best[j] = here - kGap * static_cast<int>(j);
-        continue;
-      }
-      const int consecutive = j > 0 && previous[j - 1] != kUnmatched ? previous[j - 1] + kConsecutive : kUnmatched;
-      const int from = std::max(reachable, consecutive);
-      best[j] = from == kUnmatched ? kUnmatched : from + here;
-    }
+    ScoreRow(text, pattern[i], fold_case, /*first=*/i == 0, previous, best);
     previous.swap(best);
   }
   const auto found = absl::c_max_element(previous);
