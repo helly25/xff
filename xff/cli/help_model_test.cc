@@ -53,6 +53,7 @@ void CollectKinds(const Blocks& blocks, std::vector<std::string>& out) {
             [&](const Example&) { out.emplace_back("Example"); },
             [&](const Bullets&) { out.emplace_back("Bullets"); },
             [&](const Rows&) { out.emplace_back("Rows"); },
+            [&](const Table&) { out.emplace_back("Table"); },
             [&](const Entry& entry) {
               out.emplace_back("Entry");
               CollectKinds(entry.details, out);

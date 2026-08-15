@@ -27,6 +27,7 @@
 #include "xff/cli/help_backend.h"
 #include "xff/cli/help_build.h"
 #include "xff/cli/help_model.h"
+#include "xff/cli/markdown_backend.h"
 #include "xff/cli/plain_backend.h"
 #include "xff/registry/registry.h"
 
@@ -139,6 +140,28 @@ TEST_F(HelpTest, ContentTopicGathersTheTaggedFamilyFromBothSots) {
     }
   }
   EXPECT_THAT(out, HasSubstr("OWN filesystem"));  // the cross-cutting rule the page exists to state
+}
+
+TEST_F(HelpTest, ATableRendersAlignedInEveryBackend) {
+  // The Table contract: plain and roff align columns by width; markdown emits a GFM pipe table that
+  // is ALREADY vertically aligned at the source level (the align-markdown-tables hook enforces that
+  // form on committed markdown, so the generated XFF.md must be born in it).
+  Table table{.header = {"name", "ok"}};
+  table.cells.push_back({"tar", "yes"});
+  table.cells.push_back({"iso9660", "no"});
+  Document doc{.name = "T"};
+  Section section{.title = "S"};
+  section.children.push_back(Content{.node = table});
+  doc.sections.push_back(std::move(section));
+
+  PlainTextBackend plain;
+  RenderDocument(doc, plain);
+  EXPECT_THAT(plain.Take(), HasSubstr("name     ok\n  -------  --\n  tar      yes\n  iso9660  no\n"));
+
+  MarkdownBackend markdown;
+  RenderDocument(doc, markdown);
+  EXPECT_THAT(
+      markdown.Take(), HasSubstr("| name    | ok  |\n| ------- | --- |\n| tar     | yes |\n| iso9660 | no  |\n"));
 }
 
 TEST_F(HelpTest, RegexAliasesRenderTheGrammarsTopic) {

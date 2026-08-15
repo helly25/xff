@@ -232,6 +232,49 @@ void PlainTextBackend::EmitRows(const Rows& rows) {
   }
 }
 
+void PlainTextBackend::EmitTable(const Table& table) {
+  // Width-aligned columns under the body indent: every column but the LAST is padded to its widest
+  // cell (2-space gap), the last wraps to the page width with continuation lines hanging under its
+  // own column - the model's contract that the prose-length column goes last. A dash rule under the
+  // header marks it without stealing a color.
+  StartBlock();
+  const std::string indent = BodyIndent();
+  std::vector<std::size_t> widths(table.header.size(), 0);
+  for (std::size_t i = 0; i < table.header.size(); ++i) {
+    widths[i] = table.header[i].size();
+  }
+  for (const std::vector<std::string>& row : table.cells) {
+    for (std::size_t i = 0; i + 1 < row.size() && i < widths.size(); ++i) {
+      widths[i] = std::max(widths[i], row[i].size());
+    }
+  }
+  std::size_t hang_width = 0;
+  for (std::size_t i = 0; i + 1 < widths.size(); ++i) {
+    hang_width += widths[i] + 2;
+  }
+  const std::string hang = indent + std::string(hang_width, ' ');
+  const auto emit_row = [&](const std::vector<std::string>& row, bool colored) {
+    std::string prefix = indent;
+    for (std::size_t i = 0; i + 1 < row.size(); ++i) {
+      const std::string_view cell = row[i];
+      absl::StrAppend(
+          &prefix, colored ? Sgr(cell, kValue, Context().color) : std::string(cell),
+          std::string(widths[i] + 2 - cell.size(), ' '));
+    }
+    absl::StrAppend(&out_, WrapText(row.back(), Context().width, prefix, hang));
+  };
+  emit_row(table.header, /*colored=*/true);
+  std::vector<std::string> rule;
+  rule.reserve(widths.size());
+  for (const std::size_t width : widths) {
+    rule.emplace_back(width, '-');
+  }
+  emit_row(rule, /*colored=*/false);
+  for (const std::vector<std::string>& row : table.cells) {
+    emit_row(row, /*colored=*/false);
+  }
+}
+
 void PlainTextBackend::EmitSeeAlso(const SeeAlso& see_also) {
   StartBlock();
   const std::string indent = BodyIndent();

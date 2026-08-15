@@ -830,6 +830,27 @@ A member's path is the container's, the separator, then the member: `a.tar!dir/t
 
 Members are READ-ONLY by default. `-delete` and the exec family refuse one rather than silently doing nothing, because a member has no path a process can open and no way to be unlinked; `--archive-extract` runs the child over a temporary copy, and `--archive-delete` rewrites the container without the member. Both are opt-in, and both say so in the refusal you get without them.
 
+### Formats this binary understands
+
+Reading is decided by CONTENT (the reader sniffs the bytes), so the extensions are what the name gate dives on under `all` and how the format is usually spelled - a container with an unlisted name still reads under `any`. Package extensions ride their underlying format: a `.jar` is a zip, a `.deb` an ar, an `.rpm` a cpio, `.crate` and `.gem` are tars, and `file` is a compressed SINGLE file (`notes.txt.gz`, one member). Write means `--pack` can create it.
+
+| format  | read | write | extensions                                                                                                                           |
+| ------- | ---- | ----- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| 7z      | yes  | no    | .7z                                                                                                                                  |
+| ar      | yes  | no    | .ar, .deb                                                                                                                            |
+| cab     | yes  | no    | .cab                                                                                                                                 |
+| cpio    | yes  | no    | .cpio, .rpm                                                                                                                          |
+| iso9660 | yes  | no    | .iso                                                                                                                                 |
+| lha     | yes  | no    | .lha, .lzh                                                                                                                           |
+| rar     | yes  | no    | .rar                                                                                                                                 |
+| tar     | yes  | yes   | .tar, .tar.gz, .tgz, .taz, .crate, .gem, .tar.bz2, .tbz, .tbz2, .tz2, .tar.xz, .txz, .tlz, .tar.zst, .tzst                           |
+| warc    | yes  | no    | .warc                                                                                                                                |
+| xar     | yes  | no    | .xar                                                                                                                                 |
+| zip     | yes  | yes   | .zip, .jar, .war, .ear, .whl, .egg, .apk, .aab, .cbz, .crx, .docx, .epub, .jmod, .nupkg, .odp, .ods, .odt, .pptx, .vsix, .xlsx, .xpi |
+| phar    | yes  | no    | .phar                                                                                                                                |
+| file    | yes  | no    | .gz, .bz2, .xz, .zst, .zstd, .lz4, .lzma                                                                                             |
+
+
 ### Creating one
 
 `--pack=FILE` turns the walk around: every match is written into a NEW archive instead of being listed, so the member list is an expression rather than a pipeline into `tar`. The output name picks the format, each member keeps the path it had relative to its search root, and `--sort` decides the order inside. It is a sink like `--summary`, the archive appears only when the walk finished, and a member of another container is refused - harvesting files out of one archive to re-pack them into another is a separate feature, which is also what `-Z++ -z-` is reserved for.
