@@ -34,10 +34,15 @@ namespace xff::archive {
 namespace {
 
 using ::mbo::testing::StatusIs;
+using ::testing::ElementsAre;
+using ::testing::Eq;
+using ::testing::Field;
 using ::testing::HasSubstr;
+using ::testing::IsEmpty;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::NotNull;
+using ::testing::Optional;
 
 // A filesystem that answers nothing: this test is about the SLOT, not about any backend. Only
 // FsType is given a value, so a test can tell the stub apart from a real one.
@@ -73,7 +78,10 @@ class StubFileSystem : public vfs::FileSystem {
 // The registration slot is process-wide, so a test that installs an opener has to put the slot back
 // the way it found it - otherwise the case order decides what the next case sees.
 struct ArchiveBackendTest : ::testing::Test {
-  void TearDown() override { RegisterContainerOpener(ContainerOpener()); }
+  void TearDown() override {
+    RegisterContainerOpener(ContainerOpener());
+    RegisterContainerPacker(ContainerPacker(), {});
+  }
 };
 
 TEST_F(ArchiveBackendTest, WithNoBackendThereIsNoSupportAndOpeningSaysWhy) {
@@ -186,6 +194,52 @@ TEST_F(ArchiveBackendTest, RegisteringAgainReplacesTheOpener) {
     return absl::StatusOr<std::unique_ptr<vfs::FileSystem>>(absl::AbortedError("second"));
   });
   EXPECT_THAT(OpenContainer("a.tar"), StatusIs(absl::StatusCode::kAborted));
+}
+
+TEST_F(ArchiveBackendTest, WithNoPackerNothingCanBeCreatedAndNoFormatIsOffered) {
+  EXPECT_THAT(ContainerPackingAvailable(), IsFalse());
+  EXPECT_THAT(ContainerPackFormats(), IsEmpty());
+  EXPECT_THAT(ContainerPackFormatFor("out.tar.gz"), IsEmpty());
+  EXPECT_THAT(
+      PackContainer("out.tar", {}), StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("without archive support")));
+}
+
+TEST_F(ArchiveBackendTest, ARegisteredPackerReceivesThePathAndTheFilesUnchanged) {
+  // Names and order are the caller's decision (the walk knows the roots and honours --sort), so the
+  // seam must hand them through untouched.
+  std::string packed;
+  std::vector<PackFile> seen;
+  std::optional<int> level;
+  RegisterContainerPacker(
+      [&packed, &seen, &level](std::string_view path, const std::vector<PackFile>& files, const PackOptions& options) {
+        packed = std::string(path);
+        seen = files;
+        level = options.level;
+        return absl::OkStatus();
+      },
+      {"tar", "tar.gz"});
+  EXPECT_THAT(ContainerPackingAvailable(), IsTrue());
+  EXPECT_THAT(
+      PackContainer(
+          "out.tar", {PackFile{.source = "/tmp/b", .name = "b"}, PackFile{.source = "/tmp/a", .name = "a"}},
+          PackOptions{.level = 9}),
+      ::mbo::testing::IsOk());
+  EXPECT_THAT(level, Optional(Eq(9)));  // the level travels too, or --pack-level would do nothing
+  EXPECT_THAT(packed, "out.tar");
+  EXPECT_THAT(seen, ElementsAre(Field("name", &PackFile::name, "b"), Field("name", &PackFile::name, "a")));
+}
+
+TEST_F(ArchiveBackendTest, TheFormatProbeTakesTheLongestRegisteredNameAndFoldsCase) {
+  // What the CLI checks an output name against before spending a walk: `out.tar.gz` is a `tar.gz`,
+  // never a `gz` or a `tar`, and an unregistered suffix names no format at all.
+  RegisterContainerPacker(
+      [](std::string_view, const std::vector<PackFile>&, const PackOptions&) { return absl::OkStatus(); },
+      {"tar", "gz", "tar.gz", "zip"});
+  EXPECT_THAT(ContainerPackFormatFor("out.tar.gz"), "tar.gz");
+  EXPECT_THAT(ContainerPackFormatFor("OUT.TAR.GZ"), "tar.gz");
+  EXPECT_THAT(ContainerPackFormatFor("out.zip"), "zip");
+  EXPECT_THAT(ContainerPackFormatFor("out.rar"), IsEmpty());
+  EXPECT_THAT(ContainerPackFormatFor("zip"), IsEmpty());  // the dot is required: a bare `zip` is a name
 }
 
 }  // namespace

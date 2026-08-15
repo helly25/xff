@@ -1363,6 +1363,60 @@ archive::MemberPathOptions ReadMemberPathOptions(const std::vector<std::string>&
   return options;
 }
 
+// --pack=FILE: where the walk's matches are written instead of listed. Last occurrence wins, like
+// every other valued global; absent means no packing at all.
+std::optional<std::string> ReadPackTarget(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--pack=";
+  std::optional<std::string> target;
+  for (const std::string& global : globals) {
+    if (global.starts_with(kPrefix)) {
+      target = std::string(std::string_view(global).substr(kPrefix.size()));
+    }
+  }
+  return target;
+}
+
+// --pack-level=N: the compressor's level, validated as a NUMBER here so a typo is a usage error
+// before the walk. What counts as a legal level is the format's business (gzip 0-9, zstd 1-22, ...),
+// so the range is not checked twice: the writer owns that and names the range it accepts.
+absl::StatusOr<std::optional<int>> ReadPackLevel(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--pack-level=";
+  std::optional<int> level;
+  for (const std::string& global : globals) {
+    if (!global.starts_with(kPrefix)) {
+      continue;
+    }
+    const std::string_view value = std::string_view(global).substr(kPrefix.size());
+    int parsed = 0;
+    if (!absl::SimpleAtoi(value, &parsed)) {
+      return absl::InvalidArgumentError(absl::StrCat("expected a number, got '", value, "'"));
+    }
+    level = parsed;
+  }
+  return level;
+}
+
+// The name a packed entry gets INSIDE the archive: its path relative to the search root it was found
+// under, so `xff src -name '*.cc' --pack=x.tar` stores `sub/a.cc` and not `src/sub/a.cc`. An entry
+// that IS its root (a file named on the command line) keeps its basename, since a full path stored as
+// a member name would unpack into an absolute or dot-prefixed place nobody asked for.
+std::string PackMemberName(std::string_view path, std::string_view root) {
+  if (path.size() > root.size() + 1 && path.starts_with(root) && path[root.size()] == '/') {
+    return std::string(path.substr(root.size() + 1));
+  }
+  const std::string_view::size_type slash = path.rfind('/');
+  return std::string(slash == std::string_view::npos ? path : path.substr(slash + 1));
+}
+
+// A path in a form two spellings of the same file compare equal in, used only to keep the archive
+// being written out of itself. Weakly canonical because the output does not exist yet; on failure the
+// path is returned unchanged, which still catches the ordinary `--pack=out.tar` case.
+std::string PackIdentity(std::string_view path) {
+  std::error_code error;
+  const std::filesystem::path canonical = std::filesystem::weakly_canonical(std::filesystem::path(path), error);
+  return error ? std::string(path) : canonical.string();
+}
+
 std::string_view ArchiveModeName(ArchiveMode mode) {
   switch (mode) {
     case ArchiveMode::kAll: return "all";
@@ -2592,7 +2646,41 @@ int RunFind(
   // container the walk is reading at that moment.
   const bool archive_delete = archive_write.remove;
   std::vector<std::string> archive_deletions;
-  const bool any_reduction = !summaries.empty() || !histograms.empty() || shards.enabled;
+  // --pack=FILE: the matches become a NEW archive rather than a listing, so it is a sink like
+  // --summary. Everything that can be checked without walking is checked here: a missing extra and an
+  // output name that carries no writable format both cost a whole traversal if found out afterwards.
+  const std::optional<std::string> pack_target = ReadPackTarget(command.globals);
+  const absl::StatusOr<std::optional<int>> pack_level = ReadPackLevel(command.globals);
+  if (!pack_level.ok()) {
+    on_error("--pack-level", pack_level.status());
+    return 2;
+  }
+  std::vector<archive::PackFile> pack_files;
+  // The output's own identity, so the walk never packs the archive into itself. The basename is kept
+  // beside the resolved path as a cheap gate: canonicalizing every match would put a syscall on the
+  // hot path to answer a question almost every entry answers "no" to by name alone.
+  std::string pack_identity;
+  std::string_view pack_basename;
+  bool pack_saw_member = false;
+  if (pack_target.has_value()) {
+    if (!archive::ContainerPackingAvailable()) {
+      on_error("--pack", absl::UnimplementedError("this binary was built without archive support"));
+      return 2;
+    }
+    if (archive::ContainerPackFormatFor(*pack_target).empty()) {
+      on_error(
+          "--pack", absl::InvalidArgumentError(
+                        absl::StrCat(
+                            "cannot tell the archive format from '", *pack_target, "'; expected a name ending in ",
+                            absl::StrJoin(archive::ContainerPackFormats(), ", "))));
+      return 2;
+    }
+    pack_identity = PackIdentity(*pack_target);
+    const std::string_view::size_type slash = pack_identity.rfind('/');
+    pack_basename = slash == std::string_view::npos ? std::string_view(pack_identity)
+                                                    : std::string_view(pack_identity).substr(slash + 1);
+  }
+  const bool any_reduction = !summaries.empty() || !histograms.empty() || shards.enabled || pack_target.has_value();
   // --archive-aggregate: what a reduction counts when the walk dives. Only `members` needs the walk to
   // open a container before its own entry is visited (see WalkOptions::mount_before_visit), and only
   // when there is a reduction to feed, so an ordinary run never pays for it.
@@ -2867,6 +2955,16 @@ int RunFind(
           *any_match = true;  // grep-style "found anything" -- the expression's truth, not output
         }
         if (matched && any_reduction) {
+          // --pack: this match becomes a member. A member of ANOTHER container has no path a writer
+          // could read, so it is remembered and refused after the walk rather than silently dropped;
+          // the output file itself is skipped, the way tar skips the archive it is writing.
+          if (pack_target.has_value()) {
+            if (visit.metadata.source == vfs::Source::kArchiveMember) {
+              pack_saw_member = true;
+            } else if (visit.name != pack_basename || PackIdentity(visit.path) != pack_identity) {
+              pack_files.push_back({.source = std::string(visit.path), .name = PackMemberName(visit.path, visit.root)});
+            }
+          }
           // --shards buffers each match by its directory (grouping is per-directory); the sets are
           // formed and emitted after the walk. The basename is stored so a ShardFile view stays valid.
           if (shards.enabled) {
@@ -3044,6 +3142,33 @@ int RunFind(
   // of its members matched - and only now, with the walk (and its open readers) finished.
   if (!archive_deletions.empty()) {
     errors += FlushArchiveDeletions(archive_deletions, member_path_options, dry_run, emit, on_error);
+  }
+
+  // --pack: write the archive, now that the walk has produced every member and released the readers
+  // it held. All or nothing by construction (the writer renames into place), so an error here leaves
+  // no file behind and an existing one untouched.
+  if (pack_target.has_value()) {
+    if (pack_saw_member) {
+      ++errors;
+      on_error(
+          "--pack", absl::UnimplementedError(
+                        absl::StrCat(
+                            "refusing to write ", *pack_target,
+                            ": the expression matched a member of another archive, and re-packing members is not"
+                            " supported yet; narrow the expression or turn diving off with -z-")));
+    } else if (dry_run) {
+      emit(absl::StrCat("would pack ", pack_files.size(), " entries into ", *pack_target, "\n"));
+    } else {
+      // Kept out of the `else if` condition: an init-statement with an initializer this long is the
+      // one construct the pinned and the hermetic clang-format lay out differently, so each undoes
+      // the other's work.
+      const absl::Status packed =
+          archive::PackContainer(*pack_target, pack_files, archive::PackOptions{.level = *pack_level});
+      if (!packed.ok()) {
+        ++errors;
+        on_error("--pack", packed);
+      }
+    }
   }
 
   // --shards: group each directory's matches into logical sets once (reused by the listing below).

@@ -717,6 +717,17 @@ bashtest(
     target_compatible_with = XFF_ARCHIVE_ONLY,
 )
 
+# The creating half of the archive surface (--pack), in a binary that HAS the writer: member naming
+# relative to the search root, the sink replacing the listing, the pre-walk format and level checks,
+# and that the archive being written is never packed into itself. Read back with the system `tar`.
+bashtest(
+    name = "archive_pack_test",
+    size = "small",
+    srcs = ["archive_pack_test.sh"],
+    data = [":xff_full"],
+    target_compatible_with = XFF_ARCHIVE_ONLY,
+)
+
 bashtest(
     name = "hasheq_test",
     size = "small",

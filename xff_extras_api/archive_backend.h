@@ -129,6 +129,63 @@ struct ContainerRemoverRegistrar {
 // is linked.
 [[nodiscard]] absl::Status RemoveContainerMembers(std::string_view container, const std::vector<std::string>& members);
 
+// One file to write into a NEW container: the path to read, and the name it gets inside. The two are
+// separate because only the caller knows what a member should be called - the walk knows roots and
+// the user's ordering, the backend knows neither.
+struct PackFile {
+  std::string source;
+  std::string name;
+};
+
+// How the container is written, beyond what the output name decides. `level` is the compressor's
+// level (gzip / bzip2 / xz 0-9, zstd 1-22, zip 0-9); unset keeps the format's default, and setting it
+// for a format with no compressor is an error rather than a silent no-op.
+struct PackOptions {
+  std::optional<int> level;
+};
+
+// Writes `files` into a NEW container at `path`, format chosen from the output NAME. The third seam
+// rather than a mode on the second: rewriting a container that exists and creating one that does not
+// are different capabilities, and a backend may have either.
+//
+// Contract for a backend: names and order are stored exactly as given; the write is all-or-nothing,
+// so a failure leaves any existing file at `path` untouched; an output name carrying no writable
+// format is InvalidArgument, and an unreadable source is NotFound with nothing written.
+using ContainerPacker =
+    absl::AnyInvocable<absl::Status(std::string_view, const std::vector<PackFile>&, const PackOptions&) const>;
+
+// Registers the process-wide packer, like the other two. Separate again: a backend that can read and
+// rewrite need not be able to create. `formats` are the output names it accepts ("tar", "tar.gz",
+// "zip", ...) and travel WITH the packer so a backend cannot register one without the other - the CLI
+// needs them to reject an impossible output name before the walk rather than after it.
+void RegisterContainerPacker(ContainerPacker packer, std::vector<std::string> formats);
+
+// Self-registers `packer` on construction; see ContainerRegistrar.
+struct ContainerPackerRegistrar {
+  ContainerPackerRegistrar(ContainerPacker packer, std::vector<std::string> formats) {
+    RegisterContainerPacker(std::move(packer), std::move(formats));
+  }
+};
+
+// Whether this binary can create a container at all (a backend registered a packer).
+[[nodiscard]] bool ContainerPackingAvailable();
+
+// The output names the registered packer accepts, for the usage error and the help. Empty when no
+// packer is linked.
+[[nodiscard]] std::vector<std::string> ContainerPackFormats();
+
+// The format an output NAME asks for (the longest registered name it ends with, after a dot, folding
+// case), or empty when it names none. Lets the CLI reject an impossible output before spending a walk
+// on it; the backend applies the same rule to the same list, which its own test pins.
+[[nodiscard]] std::string ContainerPackFormatFor(std::string_view path);
+
+// Writes `files` into `path` through the registered packer, or UnimplementedError when none is
+// linked.
+[[nodiscard]] absl::Status PackContainer(
+    std::string_view path,
+    const std::vector<PackFile>& files,
+    const PackOptions& options = {});
+
 }  // namespace xff::archive
 
 #endif  // XFF_ARCHIVE_ARCHIVE_BACKEND_H_

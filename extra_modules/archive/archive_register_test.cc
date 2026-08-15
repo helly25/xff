@@ -30,6 +30,7 @@ namespace xff::archive {
 namespace {
 
 using ::mbo::testing::StatusIs;
+using ::testing::Contains;
 using ::testing::IsTrue;
 
 struct ArchiveRegisterTest : ::testing::Test {};
@@ -43,6 +44,18 @@ TEST_F(ArchiveRegisterTest, TheSeamReachesTheRealReaderAndKeepsItsErrors) {
   // as an ordinary file). Reaching the real reader is the point: with no registrar the seam would
   // answer Unimplemented instead.
   EXPECT_THAT(OpenContainer("/etc/hosts"), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(ArchiveRegisterTest, LinkingTheExtraGivesTheCoreContainerCreation) {
+  EXPECT_THAT(ContainerPackingAvailable(), IsTrue());
+  // The formats travel with the packer, so the CLI's pre-walk check sees the real set.
+  EXPECT_THAT(ContainerPackFormats(), Contains("tar.gz"));
+}
+
+TEST_F(ArchiveRegisterTest, TheSeamReachesTheRealWriterAndKeepsItsErrors) {
+  // An output name carrying no writable format is InvalidArgument; with no registrar the seam would
+  // answer Unimplemented instead, which is the regression this guards.
+  EXPECT_THAT(PackContainer("/tmp/xff-register.rar", {}), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 }  // namespace

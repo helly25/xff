@@ -331,8 +331,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "suffix signs (`-z-` none, `-z` roots, `-z+` all, `-z++` any). The UPPER-case family is the "
                    "same ladder with writing armed (`-Z` is `-z` plus `--archive-write`, `-Z+` is `-z+` plus "
                    "it, `-Z++` is `-z++` plus it): the case carries the capability and the signs carry the "
-                   "level, so aiming at one cannot reach the other, and `-Z-` is a usage error because arming "
-                   "writes while turning archives off contradicts itself. The find style defaults to `none`, "
+                   "level, so aiming at one cannot reach the other. The two axes resolve independently and "
+                   "later wins, so `-Z++ -z-` arms writing with reading off, while `-Z-` is the full reset "
+                   "(reading off AND writing disarmed). The find style defaults to `none`, "
                    "every xff-family style to `roots`. Members are read-only until a write spelling arms them, "
                    "so `-delete` and the exec family refuse them rather than silently skipping. "
                    "Under `all`, a file met mid-walk is offered to the reader only if its NAME looks like "
@@ -454,8 +455,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "`-z` with writing armed, `-Z+` is `-z+` with it, `-Z++` is `-z++` with it. Case carries the "
                    "capability and the signs carry the level, so a slipped shift key changes which of the two "
                    "you asked for, never both - and arming is not doing, since an action still has to ask for "
-                   "the write and `--safe` / `--dry-run` still apply. `-Z-` is a usage error: arming writes "
-                   "while turning archives off contradicts itself.",
+                   "the write and `--safe` / `--dry-run` still apply. The level and the arming resolve as "
+                   "separate axes with later winning, so `-Z++ -z-` keeps writing armed with diving off; "
+                   "`-Z-` is the full reset, disarming writing and turning diving off together.",
         .affects = "--archive-delete,--archive-extract",
         .topic = "archive",
         .extra = "archive",
@@ -815,6 +817,47 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "force the default -print on or off",
         .values = kImplicitPrintValues,
         .value_check = GlobalFlag::ValueCheck::kBool,
+    },
+    {
+        .name = "--pack",
+        .display = "--pack=FILE",
+        .group = "output",
+        .header = "Output",
+        .summary = "write every match into a new archive at FILE instead of listing them",
+        .details = "The counterpart of `--archive`: instead of reading a container the walk BUILDS one, so the "
+                   "member list comes from the whole expression vocabulary rather than from a shell pipeline "
+                   "into `tar`. The output NAME picks the format (`.tar`, `.tar.gz`, `.tgz`, `.tar.bz2`, "
+                   "`.tar.xz`, `.tar.zst`, `.zip`); a name carrying none is a usage error reported BEFORE the "
+                   "walk, since finding out afterwards would waste the traversal. "
+                   "Each member is stored under the entry's path relative to the search root it was found "
+                   "under, in the order the walk produced it - so `--sort` decides the order inside the "
+                   "archive, and nothing is renamed or re-rooted behind your back. "
+                   "Like `--summary` it is a sink: it replaces the per-match listing, while explicit actions "
+                   "still run, so add `-print` to watch what goes in. The archive is written after the walk "
+                   "and renamed into place only when complete, so an interrupted run leaves no half archive "
+                   "and an existing FILE survives a failed one. A file the walk meets that IS the output is "
+                   "skipped rather than packed into itself. An archive MEMBER cannot be packed: reading files "
+                   "out of one container to re-pack them into another is its own feature, and until it exists "
+                   "the run is refused rather than quietly short. A build-time extra, like `--archive`.",
+        .affects = "--sort",
+        .topic = "archive",
+        .extra = "archive",
+    },
+    {
+        .name = "--pack-level",
+        .display = "--pack-level=N",
+        .group = "output",
+        .header = "Output",
+        .summary = "compression level for `--pack` (gzip / bzip2 / xz 0-9, zstd 1-22, zip 0-9)",
+        .details = "How hard the compressor works, on the scale the chosen format uses; left alone it is the "
+                   "format's own default. On a plain `.tar` it is a usage error rather than a no-op, because "
+                   "there is no compressor to set a level on and a silently ignored level reads as a smaller "
+                   "archive that never arrives. Only the level is exposed: libarchive's remaining per-format "
+                   "tuning changes between its versions, so it would be a surface xff could neither document "
+                   "from its own tables nor promise across releases.",
+        .affects = "--pack",
+        .topic = "archive",
+        .extra = "archive",
     },
     {
         .name = "--summary",
