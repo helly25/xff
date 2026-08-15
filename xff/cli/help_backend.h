@@ -72,17 +72,17 @@ class HelpBackend {
   // A top-level section and its close.
   virtual void BeginSection(const Section& section) = 0;
 
-  virtual void EndSection(const Section& section) {}
+  virtual void EndSection(const Section& /*section*/) {}
 
   // A nested subsection and its close.
   virtual void BeginSubsection(const Subsection& subsection) = 0;
 
-  virtual void EndSubsection(const Subsection& subsection) {}
+  virtual void EndSubsection(const Subsection& /*subsection*/) {}
 
   // A definition entry (its detail blocks are walked between Begin and End).
   virtual void BeginEntry(const Entry& entry) = 0;
 
-  virtual void EndEntry(const Entry& entry) {}
+  virtual void EndEntry(const Entry& /*entry*/) {}
 
   // Leaf blocks. Named Emit* so the method names do not collide with the model's
   // node type names (Prose, Example, ...) they take by reference.

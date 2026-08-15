@@ -29,11 +29,22 @@ common --define absl=1
 # xff is a C++23 project.
 common --cxxopt=-std=c++23 --host_cxxopt=-std=c++23 --cxxopt=-Werror
 
-# Keep -Werror strict for our code but not third-party (external) code:
-#  - external_include_paths: external repo headers become -isystem.
-#  - per_file_copt on external/*: downgrades -Werror when compiling external sources.
+# Warnings policy: everything we control compiles with ALL warnings as errors (-Wextra and
+# -Wpedantic on top of the toolchain's -Wall), while genuinely third-party code keeps its warnings
+# non-fatal. "We control" includes the composable extras and the shared extras API: they are
+# local_path_override modules, so their sources compile under the external/xff_*+ spelling - the
+# blanket external/* downgrade used to EXEMPT them from -Werror entirely, which is the hole the
+# exclusion filter closes.
+#  - external_include_paths: external repo headers become -isystem, so a third-party header
+#    included by our TU never trips our -Wpedantic.
+#  - the -Wno-error downgrade applies to external/* EXCEPT our own external/xff_* modules.
 common --features=external_include_paths
-common --per_file_copt=external/.*@-Wno-error
+common --per_file_copt=external/.*,-external/xff_.*@-Wno-error
+# -Wno-nullability-extension: absl's CHECK/LOG macros expand the `_Nonnull` clang extension into
+# OUR translation units, which -Wpedantic would flag at every use; the carve-out keeps pedantic on
+# for everything else. (gcc ignores the unknown -Wno- option on a clean compile.)
+common --per_file_copt=.*,-external/.*@-Wextra,-Wpedantic,-Wno-nullability-extension
+common --per_file_copt=external/xff_.*@-Wextra,-Wpedantic,-Wno-nullability-extension
 
 test --test_output=errors
 
