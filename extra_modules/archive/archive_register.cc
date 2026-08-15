@@ -78,14 +78,15 @@ absl::Status RemoveArchiveMembers(std::string_view container, const std::vector<
             ": it is a tar-based or zip-based phar whose signature is a member (.phar/signature.bin),"
             " and removing anything would leave that signature stale, so PHP would reject the result"));
   }
-  const absl::Status libarchive = RemoveMembersOfFile(container, members);
+  // Not const: it is returned by value, and a const local cannot move out of the function.
+  absl::Status libarchive = RemoveMembersOfFile(container, members);
   if (!absl::IsInvalidArgument(libarchive)) {
     return libarchive;
   }
   // libarchive said "not an archive", which for a container xff DIVED into means another reader opened
   // it. The native phar is the one such format xff can also write, so it gets its own attempt; its own
   // InvalidArgument then means neither reader owns this file as a rewritable archive.
-  const absl::Status phar = RemovePharMembersOfFile(container, members);
+  absl::Status phar = RemovePharMembersOfFile(container, members);  // not const: see above
   if (!absl::IsInvalidArgument(phar)) {
     return phar;
   }

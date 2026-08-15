@@ -95,13 +95,62 @@ struct FormatSuffix {
 };
 
 constexpr std::array kFormats = std::to_array<FormatSuffix>({
-    {".tar.gz", "tar.gz", ARCHIVE_FORMAT_TAR_PAX_RESTRICTED, ARCHIVE_FILTER_GZIP, 0, 9},
-    {".tar.bz2", "tar.bz2", ARCHIVE_FORMAT_TAR_PAX_RESTRICTED, ARCHIVE_FILTER_BZIP2, 1, 9},
-    {".tar.xz", "tar.xz", ARCHIVE_FORMAT_TAR_PAX_RESTRICTED, ARCHIVE_FILTER_XZ, 0, 9},
-    {".tar.zst", "tar.zst", ARCHIVE_FORMAT_TAR_PAX_RESTRICTED, ARCHIVE_FILTER_ZSTD, 1, 22},
-    {".tgz", "tgz", ARCHIVE_FORMAT_TAR_PAX_RESTRICTED, ARCHIVE_FILTER_GZIP, 0, 9},
-    {".tar", "tar", ARCHIVE_FORMAT_TAR_PAX_RESTRICTED, ARCHIVE_FILTER_NONE, 0, 0},
-    {".zip", "zip", ARCHIVE_FORMAT_ZIP, ARCHIVE_FILTER_NONE, 0, 9},
+    {
+        .suffix = ".tar.gz",
+        .name = "tar.gz",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_GZIP,
+        .level_min = 0,
+        .level_max = 9,
+    },
+    {
+        .suffix = ".tar.bz2",
+        .name = "tar.bz2",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_BZIP2,
+        .level_min = 1,
+        .level_max = 9,
+    },
+    {
+        .suffix = ".tar.xz",
+        .name = "tar.xz",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_XZ,
+        .level_min = 0,
+        .level_max = 9,
+    },
+    {
+        .suffix = ".tar.zst",
+        .name = "tar.zst",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_ZSTD,
+        .level_min = 1,
+        .level_max = 22,
+    },
+    {
+        .suffix = ".tgz",
+        .name = "tgz",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_GZIP,
+        .level_min = 0,
+        .level_max = 9,
+    },
+    {
+        .suffix = ".tar",
+        .name = "tar",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_NONE,
+        .level_min = 0,
+        .level_max = 0,
+    },
+    {
+        .suffix = ".zip",
+        .name = "zip",
+        .format = ARCHIVE_FORMAT_ZIP,
+        .filter = ARCHIVE_FILTER_NONE,
+        .level_min = 0,
+        .level_max = 9,
+    },
 });
 
 // How an option's value is spelled, which decides both the validation and the translation: libarchive
@@ -171,7 +220,8 @@ constexpr std::array kPackOptions = std::to_array<PackOptionSpec>({
 });
 
 const PackOptionSpec* PackOptionSpecFor(std::string_view name) {
-  const auto found = absl::c_find_if(kPackOptions, [name](const PackOptionSpec& spec) { return spec.name == name; });
+  const auto* const found =
+      absl::c_find_if(kPackOptions, [name](const PackOptionSpec& spec) { return spec.name == name; });
   return found == kPackOptions.end() ? nullptr : &*found;
 }
 
