@@ -333,7 +333,6 @@ repos:
         # Skip the composable build extras (extra_modules/<name>): each is a flag-gated optional
         # local module whose external deps (e.g. pcre2.h) are absent from a lean build, so the core
         # clang-tidy gate cannot parse them. They get linted under their own build config, not here.
-        exclude: ^extra_modules/
         stages: [manual]
 
   - repo: https://github.com/pre-commit/mirrors-clang-format

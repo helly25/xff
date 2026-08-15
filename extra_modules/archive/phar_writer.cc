@@ -130,23 +130,12 @@ absl::Status WriteWholeFile(const stdfs::path& path, std::string_view bytes) {
   return absl::OkStatus();
 }
 
-}  // namespace
-
-bool IsSignedTarOrZipPhar(const std::vector<Member>& members) {
-  return absl::c_any_of(
-      members, [](const Member& member) { return NormalizeMemberName(member.path) == kPharSignatureMember; });
-}
-
-absl::Status RemovePharMembersOfFile(std::string_view path, const std::vector<std::string>& members) {
-  if (members.empty()) {
-    return absl::OkStatus();
-  }
-  const std::string path_string(path);
-  MBO_ASSIGN_OR_RETURN(const std::string bytes, ReadWholeFile(path_string));
-  MBO_ASSIGN_OR_RETURN(const PharLayout layout, ParsePharLayout(bytes));
-
-  // Which manifest entries survive, and which requested names were never there. A name that is not
-  // in the archive stops the whole rewrite: half a deletion is worse than none.
+// SELECT: which manifest entries survive the removal. A requested name that is not in the archive
+// stops the whole rewrite (NotFound naming every such member): half a deletion is worse than none.
+absl::StatusOr<std::vector<const PharMemberLayout*>> SelectSurvivors(
+    std::string_view path,
+    const PharLayout& layout,
+    const std::vector<std::string>& members) {
   std::vector<bool> requested_found(members.size(), false);
   std::vector<const PharMemberLayout*> survivors;
   survivors.reserve(layout.members.size());
@@ -162,20 +151,26 @@ absl::Status RemovePharMembersOfFile(std::string_view path, const std::vector<st
       survivors.push_back(&member);
     }
   }
-  if (!absl::c_all_of(requested_found, [](bool found) { return found; })) {
-    std::vector<std::string> missing;
-    for (std::size_t i = 0; i < members.size(); ++i) {
-      if (!requested_found[i]) {
-        missing.push_back(members[i]);
-      }
-    }
-    return absl::NotFoundError(absl::StrCat("no such member in ", path, ": ", absl::StrJoin(missing, ", ")));
+  if (absl::c_all_of(requested_found, [](bool found) { return found; })) {
+    return survivors;
   }
+  std::vector<std::string> missing;
+  for (std::size_t i = 0; i < members.size(); ++i) {
+    if (!requested_found[i]) {
+      missing.push_back(members[i]);
+    }
+  }
+  return absl::NotFoundError(absl::StrCat("no such member in ", path, ": ", absl::StrJoin(missing, ", ")));
+}
 
-  // The rebuild. The manifest's fixed header (member count, API version, global flags, alias and
-  // container metadata) is copied whole and only its count is patched; each surviving entry and each
-  // surviving member's stored bytes are copied verbatim, in the same order, which is what keeps the
-  // per-member compression and CRC valid without touching a codec.
+// REBUILD: the manifest's fixed header (member count, API version, global flags, alias and container
+// metadata) is copied whole and only its count is patched; each surviving entry and each surviving
+// member's stored bytes are copied verbatim, in the same order, which is what keeps the per-member
+// compression and CRC valid without touching a codec.
+std::string RebuildPhar(
+    const std::string& bytes,
+    const PharLayout& layout,
+    const std::vector<const PharMemberLayout*>& survivors) {
   const std::size_t header_size = layout.entries_offset - layout.manifest_start;
   std::string manifest(bytes, layout.manifest_start, header_size);
   manifest.replace(0, 4, LittleEndian32(static_cast<std::uint32_t>(survivors.size())));
@@ -184,33 +179,62 @@ absl::Status RemovePharMembersOfFile(std::string_view path, const std::vector<st
     manifest.append(bytes, member->entry_offset, member->entry_size);
     data.append(bytes, member->data_offset, static_cast<std::size_t>(member->stored_size));
   }
-
   std::string rebuilt(bytes, 0, layout.manifest_length_at);  // the stub, up to the manifest length
   rebuilt.append(LittleEndian32(static_cast<std::uint32_t>(manifest.size())));
   rebuilt.append(manifest);
   rebuilt.append(data);
+  return rebuilt;
+}
 
-  // The signature is a digest over everything before it, so it cannot be copied - it has to be taken
-  // again over the file just rebuilt.
-  if ((layout.global_flags & kGlobalFlagSigned) != 0) {
-    if (bytes.size() < layout.data_end + kSignatureTailBytes
-        || std::string_view(bytes).substr(bytes.size() - kSignatureMagic.size()) != kSignatureMagic) {
-      return absl::DataLossError(
-          absl::StrCat("phar ", path, " declares a signature but has no GBMB trailer to read its type from"));
-    }
-    const std::uint32_t type =
-        ReadLittleEndian32(std::string_view(bytes).substr(bytes.size() - kSignatureTailBytes, 4));
-    const std::optional<std::string> signature = SignatureFor(type, rebuilt);
-    if (!signature.has_value()) {
-      return absl::UnimplementedError(
-          absl::StrCat(
-              "phar ", path, " is signed with ", SignatureName(type),
-              ", which xff cannot recompute, so removing a member would leave it unverifiable"));
-    }
-    rebuilt.append(*signature);
-    rebuilt.append(LittleEndian32(type));
-    rebuilt.append(kSignatureMagic);
+// RE-SIGN: the signature is a digest over everything before it, so it cannot be copied - it has to
+// be taken again over the file just rebuilt. A no-op for an unsigned phar.
+absl::Status AppendSignature(
+    std::string_view path,
+    const std::string& bytes,
+    const PharLayout& layout,
+    std::string& rebuilt) {
+  if ((layout.global_flags & kGlobalFlagSigned) == 0) {
+    return absl::OkStatus();
   }
+  if (bytes.size() < layout.data_end + kSignatureTailBytes
+      || std::string_view(bytes).substr(bytes.size() - kSignatureMagic.size()) != kSignatureMagic) {
+    return absl::DataLossError(
+        absl::StrCat("phar ", path, " declares a signature but has no GBMB trailer to read its type from"));
+  }
+  const std::uint32_t type = ReadLittleEndian32(std::string_view(bytes).substr(bytes.size() - kSignatureTailBytes, 4));
+  const std::optional<std::string> signature = SignatureFor(type, rebuilt);
+  if (!signature.has_value()) {
+    return absl::UnimplementedError(
+        absl::StrCat(
+            "phar ", path, " is signed with ", SignatureName(type),
+            ", which xff cannot recompute, so removing a member would leave it unverifiable"));
+  }
+  rebuilt.append(*signature);
+  rebuilt.append(LittleEndian32(type));
+  rebuilt.append(kSignatureMagic);
+  return absl::OkStatus();
+}
+
+}  // namespace
+
+bool IsSignedTarOrZipPhar(const std::vector<Member>& members) {
+  return absl::c_any_of(
+      members, [](const Member& member) { return NormalizeMemberName(member.path) == kPharSignatureMember; });
+}
+
+absl::Status RemovePharMembersOfFile(std::string_view path, const std::vector<std::string>& members) {
+  if (members.empty()) {
+    return absl::OkStatus();
+  }
+  const std::string path_string(path);
+  MBO_ASSIGN_OR_RETURN(const std::string bytes, ReadWholeFile(path_string));
+  MBO_ASSIGN_OR_RETURN(const PharLayout layout, ParsePharLayout(bytes));
+
+  // The three stages carry the layout facts between them: SELECT decides survival, REBUILD copies
+  // the surviving bytes verbatim, RE-SIGN digests the result when the original was signed.
+  MBO_ASSIGN_OR_RETURN(const std::vector<const PharMemberLayout*> survivors, SelectSurvivors(path, layout, members));
+  std::string rebuilt = RebuildPhar(bytes, layout, survivors);
+  MBO_RETURN_IF_ERROR(AppendSignature(path, bytes, layout, rebuilt));
 
   const stdfs::path target(path_string);
   const stdfs::path temporary = stdfs::path(target).replace_filename(target.filename().string() + ".xff-rewrite");
