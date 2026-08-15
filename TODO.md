@@ -227,9 +227,22 @@ shipped one way but not yet settled.
        the process-spawning `fusermount3 -uz` / `umount -f` crash path and the signal handler land
        with the server (slice 3), which owns actual mounts. All plain-filesystem, tested without
        FUSE.
-    3. **The read-only FUSE server over `vfs::FileSystem`**: lookup/getattr/readdir/open/read from
-       the already-open `ArchiveFileSystem`, one background thread per mount. Integration-tested on
-       Linux CI (runners allow unprivileged FUSE via fusermount3); macOS CI exercises the degrade.
+    3. **The read-only FUSE server over `vfs::FileSystem`**, split again on inspection - the fuse3
+       ABI surface is the risk, not the callbacks:
+       - **3a. The fuse3 API headers, vendored (`third_party/libfuse`)**. `fuse_lowlevel_ops` is
+         ~40 function pointers whose ORDER is the ABI and whose size `fuse_session_new` validates -
+         hand-declaring that from documentation is a subtle-corruption trap, so the real
+         `fuse_lowlevel.h` family gets vendored per the third_party convention. LICENSING: libfuse
+         is **LGPL-2.1**; using its headers as the interface to a runtime-dlopened library is the
+         textbook dynamic-linking case, but LGPL text lands in the repo, so the NOTICE system gains
+         a fuse-extra-gated component entry. This is the decision to veto at the 3a PR if the
+         LGPL-in-tree is unwanted (the fallback - own ABI-matching declarations - trades licensing
+         for layout risk). On top: a typed symbol table casting the loader's `void*`s once.
+       - **3b. The server itself**: lookup/getattr/readdir/open/read from the already-open
+         `ArchiveFileSystem`, one background thread per mount, RAII + INT/TERM/HUP unmount, the
+         `fusermount3 -uz` / `umount -f` crash path plugged into slice 2's sweep seam.
+         Integration-tested on Linux CI (runners allow unprivileged FUSE via fusermount3); macOS
+         CI exercises the degrade.
     4. **CLI**: explicit `--archive-mount` (extra-gated; absent extra = the standard hard error,
        absent RUNTIME library = one-line note + extraction fallback), `{}` rendering as the mounted
        path for `-exec`/`-execdir`, help/XFF.md, bashtests for both the mounted and degraded paths.
