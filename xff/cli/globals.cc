@@ -844,17 +844,35 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .extra = "archive",
     },
     {
+        .name = "--pack-option",
+        .display = "--pack-option=NAME=VALUE",
+        .group = "output",
+        .header = "Output",
+        .summary = "tune how `--pack` writes: repeatable, last value for a NAME wins",
+        .details = "The general knob behind `--pack-level`. NAME is XFF's own vocabulary, not the archive "
+                   "library's: each name is translated to whatever the linked writer calls the same thing, "
+                   "so an unknown name is a usage error rather than a silent no-op, the accepted set is "
+                   "listed by `--help=archive` straight from the writer's table, and swapping or upgrading "
+                   "that library changes a translation table instead of the flags you type. A name that "
+                   "exists but does not apply to the chosen output format is refused too, naming the formats "
+                   "it does apply to - `zip64` is a zip idea, `threads` is not a gzip one. Everything is "
+                   "checked before the walk starts, so a typo costs no traversal and writes no file.",
+        .affects = "--pack",
+        .topic = "archive",
+        .extra = "archive",
+    },
+    {
         .name = "--pack-level",
         .display = "--pack-level=N",
         .group = "output",
         .header = "Output",
         .summary = "compression level for `--pack` (gzip / bzip2 / xz 0-9, zstd 1-22, zip 0-9)",
         .details = "How hard the compressor works, on the scale the chosen format uses; left alone it is the "
-                   "format's own default. On a plain `.tar` it is a usage error rather than a no-op, because "
+                   "format's own default. Exactly `--pack-option=level=N`, kept as its own spelling because it "
+                   "is the one knob every compressed format has - the same relationship `-Z` has to "
+                   "`--archive-write`. On a plain `.tar` it is a usage error rather than a no-op, because "
                    "there is no compressor to set a level on and a silently ignored level reads as a smaller "
-                   "archive that never arrives. Only the level is exposed: libarchive's remaining per-format "
-                   "tuning changes between its versions, so it would be a surface xff could neither document "
-                   "from its own tables nor promise across releases.",
+                   "archive that never arrives.",
         .affects = "--pack",
         .topic = "archive",
         .extra = "archive",

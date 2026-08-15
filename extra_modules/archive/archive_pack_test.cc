@@ -35,6 +35,7 @@ namespace stdfs = std::filesystem;
 using ::mbo::testing::IsOk;
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
+using ::testing::AllOf;
 using ::testing::Contains;
 using ::testing::Each;
 using ::testing::ElementsAre;
@@ -77,6 +78,11 @@ struct ArchivePackTest : ::testing::Test {
   }
 
   [[nodiscard]] std::string Output(std::string_view name) const { return (root_ / name).string(); }
+
+  [[nodiscard]] static std::string Read(std::string_view path) {
+    std::ifstream in(std::string(path), std::ios::binary);
+    return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  }
 
   stdfs::path root_;
 };
@@ -179,31 +185,109 @@ TEST_F(ArchivePackTest, TheCompressionLevelReachesTheCompressor) {
   const std::vector<PackEntry> entries = {PackEntry{.source = (root_ / "big.txt").string(), .name = "big.txt"}};
   const std::string fast = Output("fast.tar.gz");
   const std::string small = Output("small.tar.gz");
-  ASSERT_THAT(PackFiles(fast, entries, PackSettings{.level = 1}), IsOk());
-  ASSERT_THAT(PackFiles(small, entries, PackSettings{.level = 9}), IsOk());
+  ASSERT_THAT(PackFiles(fast, entries, PackSettings{.options = {{.name = "level", .value = "1"}}}), IsOk());
+  ASSERT_THAT(PackFiles(small, entries, PackSettings{.options = {{.name = "level", .value = "9"}}}), IsOk());
   EXPECT_THAT(stdfs::file_size(small), Lt(stdfs::file_size(fast)));
   // And the content survives whichever level was used.
   EXPECT_THAT(ReadMemberOfFile(small, "big.txt"), IsOkAndHolds(SizeIs(200'001)));
+}
+
+TEST_F(ArchivePackTest, AnUnknownOptionNameIsRefusedNamingTheVocabulary) {
+  // The whole reason the names are xff's own: one that is not in the table is a usage error rather
+  // than something forwarded to a library that may or may not recognise it.
+  EXPECT_THAT(
+      PackFiles(Output("x.tar.gz"), Entries(), PackSettings{.options = {{.name = "squish", .value = "9"}}}),
+      StatusIs(absl::StatusCode::kInvalidArgument, AllOf(HasSubstr("squish"), HasSubstr("level"))));
+}
+
+TEST_F(ArchivePackTest, AnOptionIsRefusedForAFormatItDoesNotApplyTo) {
+  // `zip64` is a zip idea and `timestamp` a gzip one; applying either elsewhere would be a silent
+  // no-op, so the refusal names where the option does belong.
+  EXPECT_THAT(
+      PackFiles(Output("x.tar.gz"), Entries(), PackSettings{.options = {{.name = "zip64", .value = "yes"}}}),
+      StatusIs(absl::StatusCode::kInvalidArgument, AllOf(HasSubstr("tar.gz"), HasSubstr("zip"))));
+  EXPECT_THAT(
+      PackFiles(Output("x.zip"), Entries(), PackSettings{.options = {{.name = "threads", .value = "2"}}}),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("tar.xz")));
+}
+
+TEST_F(ArchivePackTest, AnOptionValueOfTheWrongShapeIsRefused) {
+  EXPECT_THAT(
+      PackFiles(Output("x.tar.gz"), Entries(), PackSettings{.options = {{.name = "timestamp", .value = "maybe"}}}),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("yes or no")));
+  EXPECT_THAT(
+      PackFiles(Output("x.zip"), Entries(), PackSettings{.options = {{.name = "compression", .value = "lzma"}}}),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("store")));
+  EXPECT_THAT(
+      PackFiles(Output("x.tar.gz"), Entries(), PackSettings{.options = {{.name = "level", .value = "high"}}}),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("takes a number")));
+}
+
+TEST_F(ArchivePackTest, TurningTheTimestampOffMakesTwoRunsByteIdentical) {
+  // The observable proof that a BOOLEAN option is translated correctly: libarchive spells a boolean
+  // by presence (`!timestamp`), so a value forwarded as `timestamp=no` would silently mean "on".
+  const std::string first = Output("first.tar.gz");
+  const std::string second = Output("second.tar.gz");
+  const PackSettings no_timestamp{.options = {{.name = "timestamp", .value = "no"}}};
+  ASSERT_THAT(PackFiles(first, Entries(), no_timestamp), IsOk());
+  ASSERT_THAT(PackFiles(second, Entries(), no_timestamp), IsOk());
+  EXPECT_THAT(Read(first), Eq(Read(second)));
+}
+
+TEST_F(ArchivePackTest, ZipStoresMembersUncompressedWhenAsked) {
+  // The enum option, proven by size: `store` must leave the payload alone.
+  Write(root_ / "big.txt", std::string(200'000, 'a') + "\n");
+  const std::vector<PackEntry> entries = {PackEntry{.source = (root_ / "big.txt").string(), .name = "big.txt"}};
+  const std::string stored = Output("stored.zip");
+  const std::string deflated = Output("deflated.zip");
+  ASSERT_THAT(PackFiles(stored, entries, PackSettings{.options = {{.name = "compression", .value = "store"}}}), IsOk());
+  ASSERT_THAT(
+      PackFiles(deflated, entries, PackSettings{.options = {{.name = "compression", .value = "deflate"}}}), IsOk());
+  EXPECT_THAT(stdfs::file_size(deflated), Lt(stdfs::file_size(stored)));
+  EXPECT_THAT(ReadMemberOfFile(stored, "big.txt"), IsOkAndHolds(SizeIs(200'001)));
+}
+
+TEST_F(ArchivePackTest, TheLastValueForAnOptionNameWins) {
+  Write(root_ / "big.txt", std::string(200'000, 'a') + "\n");
+  const std::vector<PackEntry> entries = {PackEntry{.source = (root_ / "big.txt").string(), .name = "big.txt"}};
+  const std::string mixed = Output("mixed.tar.gz");
+  const std::string plain = Output("plain.tar.gz");
+  ASSERT_THAT(
+      PackFiles(
+          mixed, entries, PackSettings{.options = {{.name = "level", .value = "1"}, {.name = "level", .value = "9"}}}),
+      IsOk());
+  ASSERT_THAT(PackFiles(plain, entries, PackSettings{.options = {{.name = "level", .value = "9"}}}), IsOk());
+  EXPECT_THAT(stdfs::file_size(mixed), Eq(stdfs::file_size(plain)));
+}
+
+TEST_F(ArchivePackTest, ARejectedOptionWritesNothing) {
+  const std::string out = Output("x.tar.gz");
+  EXPECT_THAT(
+      PackFiles(out, Entries(), PackSettings{.options = {{.name = "squish", .value = "9"}}}),
+      StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_FALSE(stdfs::exists(out));
 }
 
 TEST_F(ArchivePackTest, ALevelOutOfTheFormatsRangeIsRefusedNamingTheRange) {
   // libarchive answers an out-of-range level with "Undefined option", which sends the reader looking
   // for a misspelled flag; the range check has to happen here.
   EXPECT_THAT(
-      PackFiles(Output("x.tar.gz"), Entries(), PackSettings{.level = 99}),
+      PackFiles(Output("x.tar.gz"), Entries(), PackSettings{.options = {{.name = "level", .value = "99"}}}),
       StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("accepts 0-9")));
   EXPECT_THAT(
-      PackFiles(Output("x.tar.zst"), Entries(), PackSettings{.level = 99}),
+      PackFiles(Output("x.tar.zst"), Entries(), PackSettings{.options = {{.name = "level", .value = "99"}}}),
       StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("accepts 1-22")));
 }
 
 TEST_F(ArchivePackTest, ALevelOnAnUncompressedFormatIsAnErrorNotANoOp) {
-  // A level that silently did nothing reads as a smaller archive that never arrives.
+  // A level that silently did nothing reads as a smaller archive that never arrives. `tar` is simply
+  // not among the formats the option applies to, and the refusal says which ones are.
   EXPECT_THAT(
-      PackFiles(Output("x.tar"), Entries(), PackSettings{.level = 9}),
-      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("not compressed")));
+      PackFiles(Output("x.tar"), Entries(), PackSettings{.options = {{.name = "level", .value = "9"}}}),
+      StatusIs(absl::StatusCode::kInvalidArgument, AllOf(HasSubstr("does not apply to tar"), HasSubstr("tar.gz"))));
   // Zip compresses, so it takes one.
-  EXPECT_THAT(PackFiles(Output("x.zip"), Entries(), PackSettings{.level = 9}), IsOk());
+  EXPECT_THAT(
+      PackFiles(Output("x.zip"), Entries(), PackSettings{.options = {{.name = "level", .value = "9"}}}), IsOk());
 }
 
 TEST_F(ArchivePackTest, ThePackedMemberKeepsItsModificationTime) {

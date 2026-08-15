@@ -249,9 +249,12 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--pack=FILE` - write every match into a new archive at FILE instead of listing them _(global, xff)_
   The counterpart of `--archive`: instead of reading a container the walk BUILDS one, so the member list comes from the whole expression vocabulary rather than from a shell pipeline into `tar`. The output NAME picks the format (`.tar`, `.tar.gz`, `.tgz`, `.tar.bz2`, `.tar.xz`, `.tar.zst`, `.zip`); a name carrying none is a usage error reported BEFORE the walk, since finding out afterwards would waste the traversal. Each member is stored under the entry's path relative to the search root it was found under, in the order the walk produced it - so `--sort` decides the order inside the archive, and nothing is renamed or re-rooted behind your back. Like `--summary` it is a sink: it replaces the per-match listing, while explicit actions still run, so add `-print` to watch what goes in. The archive is written after the walk and renamed into place only when complete, so an interrupted run leaves no half archive and an existing FILE survives a failed one. A file the walk meets that IS the output is skipped rather than packed into itself. An archive MEMBER cannot be packed: reading files out of one container to re-pack them into another is its own feature, and until it exists the run is refused rather than quietly short. A build-time extra, like `--archive`.
   Affects: --sort
-  Affected by: --pack-level
+  Affected by: --pack-option, --pack-level
+- `--pack-option=NAME=VALUE` - tune how `--pack` writes: repeatable, last value for a NAME wins _(global, xff)_
+  The general knob behind `--pack-level`. NAME is XFF's own vocabulary, not the archive library's: each name is translated to whatever the linked writer calls the same thing, so an unknown name is a usage error rather than a silent no-op, the accepted set is listed by `--help=archive` straight from the writer's table, and swapping or upgrading that library changes a translation table instead of the flags you type. A name that exists but does not apply to the chosen output format is refused too, naming the formats it does apply to - `zip64` is a zip idea, `threads` is not a gzip one. Everything is checked before the walk starts, so a typo costs no traversal and writes no file.
+  Affects: --pack
 - `--pack-level=N` - compression level for `--pack` (gzip / bzip2 / xz 0-9, zstd 1-22, zip 0-9) _(global, xff)_
-  How hard the compressor works, on the scale the chosen format uses; left alone it is the format's own default. On a plain `.tar` it is a usage error rather than a no-op, because there is no compressor to set a level on and a silently ignored level reads as a smaller archive that never arrives. Only the level is exposed: libarchive's remaining per-format tuning changes between its versions, so it would be a surface xff could neither document from its own tables nor promise across releases.
+  How hard the compressor works, on the scale the chosen format uses; left alone it is the format's own default. Exactly `--pack-option=level=N`, kept as its own spelling because it is the one knob every compressed format has - the same relationship `-Z` has to `--archive-write`. On a plain `.tar` it is a usage error rather than a no-op, because there is no compressor to set a level on and a silently ignored level reads as a smaller archive that never arrives.
   Affects: --pack
 - `--summary[=<GROUP>]` - aligned count + size table (or --format=jsonl rows) instead of each match; repeatable _(global, xff)_
   GROUP is one of:
@@ -803,6 +806,14 @@ Members are READ-ONLY by default. `-delete` and the exec family refuse one rathe
 ### Creating one
 
 `--pack=FILE` turns the walk around: every match is written into a NEW archive instead of being listed, so the member list is an expression rather than a pipeline into `tar`. The output name picks the format, each member keeps the path it had relative to its search root, and `--sort` decides the order inside. It is a sink like `--summary`, the archive appears only when the walk finished, and a member of another container is refused - harvesting files out of one archive to re-pack them into another is a separate feature, which is also what `-Z++ -z-` is reserved for.
+
+`--pack-option=NAME=VALUE` (repeatable, last value for a NAME wins) tunes the writer. The names are xff's own and are translated for whichever library does the writing, so an unknown one is a usage error and this list is exactly what THIS binary accepts:
+
+- `compression=store|deflate` - `store` writes members uncompressed, which is what an archive of already-compressed payloads (images, other archives) wants (zip)
+- `level=N` - how hard the compressor works, on the scale the format uses (also spelled `--pack-level`) (tar.gz, tar.bz2, tar.xz, tar.zst, tgz, zip)
+- `threads=N` - compressor threads; `0` lets the compressor pick from the machine (tar.xz, tar.zst)
+- `timestamp=yes|no` - store the modification time in the gzip header; `no` is what makes two runs over the same input byte-identical (tar.gz, tgz)
+- `zip64=yes|no` - force the zip64 extensions, which lift the 4 GiB member and archive limits (zip)
 
 PHP phars are the exception: xff reads them and can rewrite one to remove members, but it does not CREATE one, because a phar is a PHP program with a stub, a manifest and a signature rather than a container of files. Build one with `box` (box-project/box) or PHP's own `Phar` class, and verify or install one with `phive` (phar-io/phive), which checks the signature xff will not forge.
 

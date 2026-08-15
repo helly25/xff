@@ -93,8 +93,12 @@ cc_library(
     include_prefix = "xff/archive",
     visibility = ["//visibility:public"],
     deps = [
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
+        "@helly25_mbo//mbo/status:status_macros_cc",
         "@libarchive//libarchive",
     ],
 )

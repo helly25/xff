@@ -1406,14 +1406,18 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
     an archive MEMBER refused outright, since harvesting from one container to pack into another is
     the separate feature `-Z++ -z-` reserves; times preserved, ownership pinned at 0:0 for
     reproducibility; and one knob, `--pack-level=N`, validated against each format's own range.
-  - **NEXT: `--pack-option=NAME=VALUE` (repeatable), with an XFF-OWNED vocabulary.** Settled with the
-    user 2026-08-15: the mechanism is right and extends cleanly (a `@file.json` form is the same
-    vocabulary read from elsewhere), but only if `NAME` is xff's and the backend TRANSLATES it. A raw
-    passthrough to libarchive would put names that change between its versions into a surface the
-    help cannot generate and nothing can validate. So: a table of names in the extra mapping to each
-    format's writer option, an unknown name a usage error, the list generated into `--help=archive`,
-    and `--pack-level` kept as the shortcut for the one knob every compressed format has (the same
-    relationship `-Z` has to `--archive-write`).
+  - **`--pack-option=NAME=VALUE` (repeatable), with an XFF-OWNED vocabulary - SHIPPED.** Settled with
+    the user 2026-08-15 and built the same day: `NAME` is xff's and the backend TRANSLATES it, so an
+    unknown name is a usage error, a name that does not apply to the chosen format is refused naming
+    the ones it does, and `--help=archive` renders the table from the LINKED writer rather than a
+    copy. First vocabulary: `compression` (zip store/deflate), `level`, `threads` (xz/zstd),
+    `timestamp` (gzip header, `no` makes two runs byte-identical), `zip64`. `--pack-level` stays as
+    the shortcut for the one knob every compressed format has, the relationship `-Z` has to
+    `--archive-write`. A raw passthrough of libarchive's own option names was rejected: they change
+    between its versions and could be neither validated nor generated into the help.
+  - **Still open: a `@file.json` form** (`--pack-option=@opts.json`), which is the same vocabulary
+    read from elsewhere. Cheap now that the table exists; wants a JSON reader (see the ASAR entry,
+    blocked on one in helly25/mbo) rather than a hand-rolled parser.
 
 - **Fuzzy finding + near-duplicate detection** (design open). Two distinct capabilities that share the
   "approximate match" theme; split them, do not conflate:

@@ -1376,24 +1376,53 @@ std::optional<std::string> ReadPackTarget(const std::vector<std::string>& global
   return target;
 }
 
-// --pack-level=N: the compressor's level, validated as a NUMBER here so a typo is a usage error
-// before the walk. What counts as a legal level is the format's business (gzip 0-9, zstd 1-22, ...),
-// so the range is not checked twice: the writer owns that and names the range it accepts.
-absl::StatusOr<std::optional<int>> ReadPackLevel(const std::vector<std::string>& globals) {
-  constexpr std::string_view kPrefix = "--pack-level=";
-  std::optional<int> level;
+// --pack-option=NAME=VALUE (repeatable) and its one-knob spelling --pack-level=N, collected in the
+// order given so the writer's "last value for a NAME wins" rule falls out of the order alone. Only
+// the SHAPE is checked here; what the names mean belongs to the backend, which owns the vocabulary.
+absl::StatusOr<std::vector<archive::PackOption>> ReadPackOptions(const std::vector<std::string>& globals) {
+  constexpr std::string_view kOption = "--pack-option=";
+  constexpr std::string_view kLevel = "--pack-level=";
+  std::vector<archive::PackOption> options;
   for (const std::string& global : globals) {
-    if (!global.starts_with(kPrefix)) {
+    if (global.starts_with(kLevel)) {
+      options.push_back({.name = "level", .value = std::string(std::string_view(global).substr(kLevel.size()))});
       continue;
     }
-    const std::string_view value = std::string_view(global).substr(kPrefix.size());
-    int parsed = 0;
-    if (!absl::SimpleAtoi(value, &parsed)) {
-      return absl::InvalidArgumentError(absl::StrCat("expected a number, got '", value, "'"));
+    if (!global.starts_with(kOption)) {
+      continue;
     }
-    level = parsed;
+    const std::string_view spec = std::string_view(global).substr(kOption.size());
+    const std::string_view::size_type equals = spec.find('=');
+    if (equals == std::string_view::npos || equals == 0) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("expected NAME=VALUE, got '", spec, "'; see --help=archive for the names"));
+    }
+    options.push_back({.name = std::string(spec.substr(0, equals)), .value = std::string(spec.substr(equals + 1))});
   }
-  return level;
+  return options;
+}
+
+// Whether every option NAME is one the linked writer knows. Done before the walk because the writer
+// only sees them once there is something to write, and a typo should not cost a traversal. What an
+// option MEANS (which formats take it, what values are legal) stays the writer's call.
+absl::Status CheckPackOptionNames(const std::vector<archive::PackOption>& options) {
+  const std::vector<archive::PackOptionInfo> vocabulary = archive::ContainerPackVocabulary();
+  for (const archive::PackOption& option : options) {
+    const bool known = absl::c_any_of(vocabulary, [&option](const archive::PackOptionInfo& known_option) {
+      return known_option.name == option.name;
+    });
+    if (known) {
+      continue;
+    }
+    std::vector<std::string> names;
+    names.reserve(vocabulary.size());
+    for (const archive::PackOptionInfo& known_option : vocabulary) {
+      names.push_back(known_option.name);
+    }
+    return absl::InvalidArgumentError(
+        absl::StrCat("unknown pack option '", option.name, "'; known options are ", absl::StrJoin(names, ", ")));
+  }
+  return absl::OkStatus();
 }
 
 // The name a packed entry gets INSIDE the archive: its path relative to the search root it was found
@@ -2650,9 +2679,9 @@ int RunFind(
   // --summary. Everything that can be checked without walking is checked here: a missing extra and an
   // output name that carries no writable format both cost a whole traversal if found out afterwards.
   const std::optional<std::string> pack_target = ReadPackTarget(command.globals);
-  const absl::StatusOr<std::optional<int>> pack_level = ReadPackLevel(command.globals);
-  if (!pack_level.ok()) {
-    on_error("--pack-level", pack_level.status());
+  const absl::StatusOr<std::vector<archive::PackOption>> pack_options = ReadPackOptions(command.globals);
+  if (!pack_options.ok()) {
+    on_error("--pack-option", pack_options.status());
     return 2;
   }
   std::vector<archive::PackFile> pack_files;
@@ -2673,6 +2702,10 @@ int RunFind(
                         absl::StrCat(
                             "cannot tell the archive format from '", *pack_target, "'; expected a name ending in ",
                             absl::StrJoin(archive::ContainerPackFormats(), ", "))));
+      return 2;
+    }
+    if (const absl::Status names = CheckPackOptionNames(*pack_options); !names.ok()) {
+      on_error("--pack-option", names);
       return 2;
     }
     pack_identity = PackIdentity(*pack_target);
@@ -2961,6 +2994,11 @@ int RunFind(
           if (pack_target.has_value()) {
             if (visit.metadata.source == vfs::Source::kArchiveMember) {
               pack_saw_member = true;
+            } else if (visit.path == visit.root && visit.metadata.type == vfs::FileType::kDirectory) {
+              // The search root itself has no name RELATIVE to itself, and storing its basename would
+              // put a stray `src` entry beside the `a.cc` its children are stored as - one that
+              // extracts as an empty directory nothing is in. A root that is a FILE is different: it
+              // is content the user pointed at, and keeps its basename below.
             } else if (visit.name != pack_basename || PackIdentity(visit.path) != pack_identity) {
               pack_files.push_back({.source = std::string(visit.path), .name = PackMemberName(visit.path, visit.root)});
             }
@@ -3163,7 +3201,7 @@ int RunFind(
       // one construct the pinned and the hermetic clang-format lay out differently, so each undoes
       // the other's work.
       const absl::Status packed =
-          archive::PackContainer(*pack_target, pack_files, archive::PackOptions{.level = *pack_level});
+          archive::PackContainer(*pack_target, pack_files, archive::PackOptions{.options = *pack_options});
       if (!packed.ok()) {
         ++errors;
         on_error("--pack", packed);

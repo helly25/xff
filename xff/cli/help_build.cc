@@ -26,6 +26,7 @@
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "absl/types/span.h"
+#include "xff/archive/archive_backend.h"
 #include "xff/cli/globals.h"
 #include "xff/cli/help.h"
 #include "xff/cli/help_model.h"
@@ -503,6 +504,24 @@ Section ArchiveSection(bool in_full) {
       "when the walk finished, and a member of another container is refused - harvesting files out of "
       "one archive to re-pack them into another is a separate feature, which is also what `-Z++ -z-` "
       "is reserved for."));
+  // The vocabulary comes from the LINKED writer, never from a list kept here: a lean binary then
+  // simply has no table (it has no packer either), and adding an option to the extra cannot leave the
+  // documentation behind.
+  const std::vector<archive::PackOptionInfo> pack_options = archive::ContainerPackVocabulary();
+  if (!pack_options.empty()) {
+    creating.children.push_back(ProseOf(
+        "`--pack-option=NAME=VALUE` (repeatable, last value for a NAME wins) tunes the writer. The "
+        "names are xff's own and are translated for whichever library does the writing, so an unknown "
+        "one is a usage error and this list is exactly what THIS binary accepts:"));
+    Rows rows;
+    rows.rows.reserve(pack_options.size());
+    for (const archive::PackOptionInfo& option : pack_options) {
+      rows.rows.push_back(
+          Row{.term = absl::StrCat(option.name, "=", option.value_syntax),
+              .description = ParseInline(absl::StrCat(option.detail, " (", option.formats, ")"))});
+    }
+    creating.children.push_back(Content{.node = std::move(rows)});
+  }
   creating.children.push_back(ProseOf(
       "PHP phars are the exception: xff reads them and can rewrite one to remove members, but it does "
       "not CREATE one, because a phar is a PHP program with a stub, a manifest and a signature rather "

@@ -33,15 +33,35 @@ struct PackEntry {
   std::string name;    // the member name to store, exactly as given
 };
 
-// How the archive is written, beyond what the output name already decides. Empty means libarchive's
-// defaults, which is what a caller that has no opinion should pass.
-struct PackSettings {
-  // The compressor's level, as libarchive's `compression-level`: gzip / bzip2 / xz take 0-9, zstd
-  // 1-22, zip's deflate 0-9. Unset leaves the format's default. Setting it for a format with no
-  // compressor (a plain `.tar`) is an error rather than a no-op, because a level that silently did
-  // nothing would read as a smaller archive that never arrives.
-  std::optional<int> level;
+// One writer setting, in XFF's vocabulary rather than libarchive's. The names here are xff's own and
+// are TRANSLATED per format (see PackOptionDocs): that is the whole point of the indirection, because
+// libarchive's own option names differ between its versions and between its writers, and a name xff
+// passed through unchecked could be neither documented from a table nor validated.
+struct PackSetting {
+  std::string name;
+  std::string value;
 };
+
+// How the archive is written, beyond what the output name already decides. An empty list means
+// libarchive's defaults, which is what a caller with no opinion should pass. The last value given for
+// a name wins, so a caller can append without first removing.
+struct PackSettings {
+  std::vector<PackSetting> options;
+};
+
+// One entry of the option vocabulary, for the usage error and for the generated help. `formats` is
+// the comma-joined list of output names the option applies to, so a reader can see at a glance that
+// `zip64` is a zip thing and `threads` is not a gzip one.
+struct PackOptionDoc {
+  std::string name;
+  std::string value_syntax;  // "N", "yes|no", "store|deflate"
+  std::string formats;
+  std::string detail;
+};
+
+// The whole vocabulary, in the order the help lists it. The SOT for the check, the error message and
+// the documentation together, so they cannot disagree.
+[[nodiscard]] std::vector<PackOptionDoc> PackOptionDocs();
 
 // Writes `entries` into a NEW archive at `path`, format chosen from the output NAME (see
 // FormatFromName). This is the counterpart of the reader: xff walks, matches, and hands the result
@@ -55,9 +75,11 @@ struct PackSettings {
 // only after every entry is written, so a failure part way leaves no half archive behind - and an
 // existing file at `path` survives an attempt that fails.
 //
-// Errors: InvalidArgument when the output name carries no format this build can write; NotFound
-// when a source path cannot be opened (nothing is written then, so a mistyped root cannot silently
-// produce a partial archive); Unavailable when the temporary file or the rename fails.
+// Errors: InvalidArgument when the output name carries no format this build can write, when an
+// option name is not in the vocabulary, when it does not apply to the chosen format, or when its
+// value is the wrong shape; NotFound when a source path cannot be opened (nothing is written then, so
+// a mistyped root cannot silently produce a partial archive); Unavailable when the temporary file or
+// the rename fails. Every option is checked BEFORE the first entry is written.
 [[nodiscard]] absl::Status PackFiles(
     std::string_view path,
     const std::vector<PackEntry>& entries,

@@ -137,11 +137,28 @@ struct PackFile {
   std::string name;
 };
 
-// How the container is written, beyond what the output name decides. `level` is the compressor's
-// level (gzip / bzip2 / xz 0-9, zstd 1-22, zip 0-9); unset keeps the format's default, and setting it
-// for a format with no compressor is an error rather than a silent no-op.
+// One writer setting in XFF's vocabulary, which the backend TRANSLATES to whatever its library calls
+// the same thing. The indirection is the point: libarchive's own option names differ between writers
+// and between its versions, so a name passed through unchecked could be neither validated nor
+// documented from a table.
+struct PackOption {
+  std::string name;
+  std::string value;
+};
+
+// How the container is written, beyond what the output name decides. An empty list keeps the format's
+// defaults; the last value given for a name wins.
 struct PackOptions {
-  std::optional<int> level;
+  std::vector<PackOption> options;
+};
+
+// One entry of the vocabulary the linked backend accepts, for the pre-walk check and for the help
+// that is generated from it. Empty when no packer is linked.
+struct PackOptionInfo {
+  std::string name;
+  std::string value_syntax;  // "N", "yes|no", "store|deflate"
+  std::string formats;       // the output names it applies to, comma-joined
+  std::string detail;
 };
 
 // Writes `files` into a NEW container at `path`, format chosen from the output NAME. The third seam
@@ -157,13 +174,21 @@ using ContainerPacker =
 // Registers the process-wide packer, like the other two. Separate again: a backend that can read and
 // rewrite need not be able to create. `formats` are the output names it accepts ("tar", "tar.gz",
 // "zip", ...) and travel WITH the packer so a backend cannot register one without the other - the CLI
-// needs them to reject an impossible output name before the walk rather than after it.
-void RegisterContainerPacker(ContainerPacker packer, std::vector<std::string> formats);
+// needs them to reject an impossible output name before the walk rather than after it. `vocabulary`
+// travels for the same reason: an unknown option name must be a usage error before the traversal, and
+// `--help=archive` lists exactly what this binary accepts rather than a hand-kept copy.
+void RegisterContainerPacker(
+    ContainerPacker packer,
+    std::vector<std::string> formats,
+    std::vector<PackOptionInfo> vocabulary);
 
 // Self-registers `packer` on construction; see ContainerRegistrar.
 struct ContainerPackerRegistrar {
-  ContainerPackerRegistrar(ContainerPacker packer, std::vector<std::string> formats) {
-    RegisterContainerPacker(std::move(packer), std::move(formats));
+  ContainerPackerRegistrar(
+      ContainerPacker packer,
+      std::vector<std::string> formats,
+      std::vector<PackOptionInfo> vocabulary) {
+    RegisterContainerPacker(std::move(packer), std::move(formats), std::move(vocabulary));
   }
 };
 
@@ -178,6 +203,10 @@ struct ContainerPackerRegistrar {
 // case), or empty when it names none. Lets the CLI reject an impossible output before spending a walk
 // on it; the backend applies the same rule to the same list, which its own test pins.
 [[nodiscard]] std::string ContainerPackFormatFor(std::string_view path);
+
+// The writer-option vocabulary the linked backend accepts. Empty when no packer is linked, which is
+// what makes a lean build's `--help=archive` simply not carry the table.
+[[nodiscard]] std::vector<PackOptionInfo> ContainerPackVocabulary();
 
 // Writes `files` into `path` through the registered packer, or UnimplementedError when none is
 // linked.

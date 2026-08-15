@@ -91,8 +91,8 @@ TEST_F(ArchivePackXzTest, TheXzCompressionLevelReachesTheCompressor) {
   const std::vector<PackEntry> entries = {PackEntry{.source = (root_ / "big.txt").string(), .name = "big.txt"}};
   const std::string fast = (root_ / "fast.tar.xz").string();
   const std::string small = (root_ / "small.tar.xz").string();
-  ASSERT_THAT(PackFiles(fast, entries, PackSettings{.level = 0}), IsOk());
-  ASSERT_THAT(PackFiles(small, entries, PackSettings{.level = 9}), IsOk());
+  ASSERT_THAT(PackFiles(fast, entries, PackSettings{.options = {{.name = "level", .value = "0"}}}), IsOk());
+  ASSERT_THAT(PackFiles(small, entries, PackSettings{.options = {{.name = "level", .value = "9"}}}), IsOk());
   EXPECT_THAT(stdfs::file_size(small), ::testing::Lt(stdfs::file_size(fast)));
 }
 

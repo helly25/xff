@@ -30,7 +30,10 @@ namespace xff::archive {
 namespace {
 
 using ::mbo::testing::StatusIs;
+using ::testing::AllOf;
 using ::testing::Contains;
+using ::testing::Field;
+using ::testing::HasSubstr;
 using ::testing::IsTrue;
 
 struct ArchiveRegisterTest : ::testing::Test {};
@@ -50,6 +53,15 @@ TEST_F(ArchiveRegisterTest, LinkingTheExtraGivesTheCoreContainerCreation) {
   EXPECT_THAT(ContainerPackingAvailable(), IsTrue());
   // The formats travel with the packer, so the CLI's pre-walk check sees the real set.
   EXPECT_THAT(ContainerPackFormats(), Contains("tar.gz"));
+}
+
+TEST_F(ArchiveRegisterTest, TheOptionVocabularyReachesTheCoreThroughTheSeam) {
+  // What the CLI checks a `--pack-option` name against, and what `--help=archive` renders. Reading it
+  // from the seam is the point: a name added to the writer must reach both without a second list.
+  EXPECT_THAT(
+      ContainerPackVocabulary(), Contains(AllOf(
+                                     Field("name", &PackOptionInfo::name, "level"),
+                                     Field("formats", &PackOptionInfo::formats, HasSubstr("zip")))));
 }
 
 TEST_F(ArchiveRegisterTest, TheSeamReachesTheRealWriterAndKeepsItsErrors) {
