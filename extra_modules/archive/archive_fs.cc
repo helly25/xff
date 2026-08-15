@@ -370,10 +370,19 @@ absl::StatusOr<std::string> ArchiveFileSystem::ReadContent(std::string_view path
   if (single_) {
     return single_file_content_;  // one member, already decompressed when the container was opened
   }
-  if (phar_) {
-    return bytes_.empty() ? ReadPharMemberOfFile(container_, *key) : ReadPharMember(bytes_, *key);
+  if (std::optional<std::string> cached = member_cache_->Get(*key); cached.has_value()) {
+    return *std::move(cached);
   }
-  return bytes_.empty() ? ReadMemberOfFile(container_, *key) : ReadMember(bytes_, *key);
+  absl::StatusOr<std::string> content;
+  if (phar_) {
+    content = bytes_.empty() ? ReadPharMemberOfFile(container_, *key) : ReadPharMember(bytes_, *key);
+  } else {
+    content = bytes_.empty() ? ReadMemberOfFile(container_, *key) : ReadMember(bytes_, *key);
+  }
+  if (content.ok()) {
+    member_cache_->Put(*key, *content);
+  }
+  return content;
 }
 
 }  // namespace xff::archive
