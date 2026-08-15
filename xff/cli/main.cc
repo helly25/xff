@@ -334,51 +334,100 @@ int RunMain(int argc, char** argv) {
   //   --help= / =list    xff: the whole-vocabulary index
   //   --version          version
   //   -version           GNU find compatibility
+  //
+  // A meta flag is NOTED here and rendered only after the remaining arguments parse
+  // and validate: `xff --help=archive --bogus` is a broken command line, and the
+  // one-line unknown-option error serves better than pages of help hiding the typo.
+  // The meta tokens themselves are removed from what the parser sees, so the
+  // single-dash compat forms (-h / -help / -version) cannot be mistaken for
+  // primaries.
+  enum class Meta : std::uint8_t { kNone, kUsage, kTopic, kVersion, kMan, kMarkdown };
+  Meta meta = Meta::kNone;
+  std::string meta_topic;
+  std::vector<std::string> run_args;
+  run_args.reserve(args.size());
+  const auto note = [&meta, &meta_topic](Meta kind, std::string topic = {}) {
+    if (meta == Meta::kNone) {  // the first meta wins, like the old first-return
+      meta = kind;
+      meta_topic = std::move(topic);
+    }
+  };
   for (const std::string& arg : args) {
     if (arg == "--help" || arg == "-help" || arg == "-h") {
-      xff::cli::PlainTextBackend backend(help_context);
-      xff::cli::RenderDocument(xff::cli::BuildUsage(), backend);
-      xff::cli::EmitPaged(backend.Take(), pager_when, stdout_is_tty);
-      return 0;
-    }
-    if (arg == "--help-all") {
-      // hyphenated shortcut for --help=all (summaries)
-      xff::cli::EmitPaged(RenderTopic("all", help_context).value_or(""), pager_when, stdout_is_tty);
-      return 0;
-    }
-    if (arg == "--help-full" || arg == "--help-long") {
-      // hyphenated shortcut for --help=full (explained)
-      xff::cli::EmitPaged(RenderTopic("full", help_context).value_or(""), pager_when, stdout_is_tty);
-      return 0;
-    }
-    if (arg.starts_with("--help=")) {
+      note(Meta::kUsage);
+    } else if (arg == "--help-all") {
+      note(Meta::kTopic, "all");  // hyphenated shortcut for --help=all (summaries)
+    } else if (arg == "--help-full" || arg == "--help-long") {
+      note(Meta::kTopic, "full");  // hyphenated shortcut for --help=full (explained)
+    } else if (arg.starts_with("--help=")) {
       // Folded once here, so every consumer (the renderer, the tip gate, the error) agrees on the
       // spelling: --help=LIST and --help=Topics are the same ask as --help=list.
-      const std::string topic = absl::AsciiStrToLower(std::string_view(arg).substr(7));
-      const absl::StatusOr<std::string> help = RenderTopic(topic, help_context);
-      if (help.ok()) {
-        const std::string tip = TopicTakesTip(topic) ? HelpTip(help_context) : std::string();
-        xff::cli::EmitPaged(absl::StrCat(*help, tip), pager_when, stdout_is_tty);
+      note(Meta::kTopic, absl::AsciiStrToLower(std::string_view(arg).substr(7)));
+    } else if (arg == "--version" || arg == "-version") {
+      note(Meta::kVersion);
+    } else if (arg == "--man") {
+      note(Meta::kMan);
+    } else if (arg == "--markdown") {
+      note(Meta::kMarkdown);
+    } else {
+      run_args.push_back(arg);
+      continue;
+    }
+  }
+
+  if (meta != Meta::kNone) {
+    // Bad flags are hard errors even when help was asked for: parse and validate what remains of
+    // the command line first (an empty rest parses to an empty command). Ignoring the arguments
+    // because help "wins" is how a typo silently vanishes behind 200 lines of output.
+    if (const absl::StatusOr<xff::parser::Command> rest = xff::parser::Parse(run_args); !rest.ok()) {
+      std::cerr << "xff: " << rest.status().message() << "\n";
+      return 2;
+    } else {  // NOLINT(readability-else-after-return): the StatusOr scope wants the else
+      for (const std::string& global : rest->globals) {
+        if (!xff::cli::IsKnownGlobal(global)) {
+          std::cerr << "xff: unknown option '" << global << "'\n"
+                    << "Try 'xff --help' for usage, or 'xff --help=NAME' for one option.\n";
+          return 2;
+        }
+        if (const absl::Status status = xff::cli::ValidateGlobalValue(global); !status.ok()) {
+          std::cerr << "xff: " << status.message() << "\n"
+                    << "Try 'xff --help=" << std::string_view(global).substr(0, global.find('='))
+                    << "' for its values.\n";
+          return 2;
+        }
+      }
+    }
+    switch (meta) {
+      case Meta::kUsage: {
+        xff::cli::PlainTextBackend backend(help_context);
+        xff::cli::RenderDocument(xff::cli::BuildUsage(), backend);
+        xff::cli::EmitPaged(backend.Take(), pager_when, stdout_is_tty);
         return 0;
       }
-      // RenderTopic's only failure is unknown-topic; point at the list instead of a bare error.
-      std::cerr << "xff: no help topic '" << topic << "'; 'xff --help=topics' lists them\n";
-      return 2;
-    }
-    if (arg == "--version" || arg == "-version") {
-      std::cout << "xff 0.0.0\n";  // short and machine-scraped: never paged
-      return 0;
-    }
-    if (arg == "--man") {
-      // roff(1); on a tty the man kind formats it (mandoc) so it reads like `man xff`,
-      // while a redirect stays raw roff for `mandoc` / `man -l -` / installing as xff.1.
-      xff::cli::EmitPaged(xff::cli::ManPage(), pager_when, stdout_is_tty, xff::cli::PagerKind::kMan);
-      return 0;
-    }
-    if (arg == "--markdown") {
-      // GitHub-renderable vocabulary reference
-      xff::cli::EmitPaged(xff::cli::MarkdownReference(), pager_when, stdout_is_tty);
-      return 0;
+      case Meta::kTopic: {
+        const absl::StatusOr<std::string> help = RenderTopic(meta_topic, help_context);
+        if (help.ok()) {
+          const std::string tip = TopicTakesTip(meta_topic) ? HelpTip(help_context) : std::string();
+          xff::cli::EmitPaged(absl::StrCat(*help, tip), pager_when, stdout_is_tty);
+          return 0;
+        }
+        // RenderTopic's only failure is unknown-topic; point at the list instead of a bare error.
+        std::cerr << "xff: no help topic '" << meta_topic << "'; 'xff --help=topics' lists them\n";
+        return 2;
+      }
+      case Meta::kVersion:
+        std::cout << "xff 0.0.0\n";  // short and machine-scraped: never paged
+        return 0;
+      case Meta::kMan:
+        // roff(1); on a tty the man kind formats it (mandoc) so it reads like `man xff`,
+        // while a redirect stays raw roff for `mandoc` / `man -l -` / installing as xff.1.
+        xff::cli::EmitPaged(xff::cli::ManPage(), pager_when, stdout_is_tty, xff::cli::PagerKind::kMan);
+        return 0;
+      case Meta::kMarkdown:
+        // GitHub-renderable vocabulary reference
+        xff::cli::EmitPaged(xff::cli::MarkdownReference(), pager_when, stdout_is_tty);
+        return 0;
+      case Meta::kNone: break;  // unreachable; keeps the switch exhaustive
     }
   }
 

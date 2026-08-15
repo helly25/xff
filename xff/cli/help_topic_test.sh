@@ -316,6 +316,22 @@ test::bare_help_operand_is_guided_not_a_subcommand() {
   expect_matches '\-\-help' "${out}"
 }
 
+test::bad_flags_are_hard_errors_even_with_help() {
+  # A broken command line must never vanish behind pages of help: the meta flags are rendered only
+  # after the REST of the arguments parse and validate, so the one-line error keeps the typo visible.
+  local bin out
+  bin="$(_xff_bin)"
+  out="$("${bin}" --help=archive --//xff:xff_full 2>&1)" && fail "unknown flag with help must exit non-zero"
+  expect_output_contains "unknown option '--//xff:xff_full'" "${out}"
+  expect_output_not_contains 'Archives' "${out}"
+  out="$("${bin}" --help --color=bogus 2>&1)" && fail "bad value with help must exit non-zero"
+  expect_output_contains "unknown value 'bogus'" "${out}"
+  # And a CLEAN help invocation still renders, with the compat single-dash forms intact.
+  "${bin}" --help >/dev/null || fail "--help must succeed"
+  "${bin}" -help >/dev/null || fail "-help must succeed"
+  "${bin}" --help=archive >/dev/null || fail "--help=archive must succeed"
+}
+
 test::bare_help_operand_passes_through_in_find_mode() {
   # Invoked as `find`, `help` must stay a path operand (find compatibility), so the
   # xff guiding error must NOT fire.
