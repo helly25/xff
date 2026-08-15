@@ -29,14 +29,6 @@ common --define absl=1
 # xff is a C++23 project.
 common --cxxopt=-std=c++23 --host_cxxopt=-std=c++23 --cxxopt=-Werror
 
-# Some Clang versions warn that '-c' is unused when a tool re-runs the compile
-# command in preprocess-only mode (clang-tidy / compile_commands include-scanning
-# appends -M): https://github.com/llvm/llvm-project/issues/100909. Suppress it in
-# every config (not just :clang) so the generated compile_commands.json works with
-# clang-tidy via trunk. It is a no-op for the normal build (no unused args there),
-# and gcc silently accepts an unknown -Wno-* option.
-common --cxxopt=-Wno-unused-command-line-argument
-
 # Keep -Werror strict for our code but not third-party (external) code:
 #  - external_include_paths: external repo headers become -isystem.
 #  - per_file_copt on external/*: downgrades -Werror when compiling external sources.
@@ -75,16 +67,9 @@ common:clang --linkopt=-fuse-ld=lld --host_linkopt=-fuse-ld=lld
 common:clang --define is_clang=true
 
 # --config=clang-tidy : the configuration we DEVELOP in, and the one the compile
-# DB (compile_commands.json) is extracted in - so clang-tidy / clangd parse with
-# exactly the compiler, standard library, include paths and feature macros the
-# `--config=clang` builds use, not whatever toolchain bazel would autodetect. The
-# stdlib is pinned to libc++ ON PURPOSE: the hermetic clang defaults to libc++ on
-# macOS but the system libstdc++ on Linux, and that per-platform mix silently
-# corrupted clang-tidy's type/member analysis. Making it explicit keeps the parse
-# self-consistent everywhere. compile_commands-update.sh extracts under this config.
+# Named config the compile DB is generated in (compile_commands-update.sh). Adds no
+# flags: the toolchain handles libc++ itself (see git_override in bazelmod/llvm.MODULE.bazel).
 common:clang-tidy --config=clang
-common:clang-tidy --cxxopt=-stdlib=libc++
-common:clang-tidy --linkopt=-stdlib=libc++
 
 common:symbolizer --strip=never
 common:symbolizer --run_under=//tools:run_under_symbolizer
