@@ -508,8 +508,10 @@ Section ArchiveSection(bool in_full) {
   // to the extra cannot leave this list behind.
   const std::vector<std::string> pack_formats = archive::ContainerPackFormats();
   if (!pack_formats.empty()) {
-    creating.children.push_back(
-        ProseOf(absl::StrCat("Output names this binary writes: `", absl::StrJoin(pack_formats, "`, `"), "`.")));
+    // Rendered WITH the leading dot: these are the filename suffixes a user types after `--pack=`,
+    // and the dotless form is the one spelling nobody writes.
+    creating.children.push_back(ProseOf(
+        absl::StrCat("Output filename suffixes this binary writes: `.", absl::StrJoin(pack_formats, "`, `."), "`.")));
   }
   // The vocabulary comes from the LINKED writer, never from a list kept here: a lean binary then
   // simply has no table (it has no packer either), and adding an option to the extra cannot leave the

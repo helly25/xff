@@ -808,7 +808,7 @@ Members are READ-ONLY by default. `-delete` and the exec family refuse one rathe
 
 `--pack=FILE` turns the walk around: every match is written into a NEW archive instead of being listed, so the member list is an expression rather than a pipeline into `tar`. The output name picks the format, each member keeps the path it had relative to its search root, and `--sort` decides the order inside. It is a sink like `--summary`, the archive appears only when the walk finished, and a member of another container is refused - harvesting files out of one archive to re-pack them into another is a separate feature, which is also what `-Z++ -z-` is reserved for.
 
-Output names this binary writes: `tar.gz`, `tar.bz2`, `tar.xz`, `tar.zst`, `tbz2`, `tzst`, `tbz`, `tz2`, `txz`, `tgz`, `tar`, `zip`.
+Output filename suffixes this binary writes: `.tar.gz`, `.tar.bz2`, `.tar.xz`, `.tar.zst`, `.tbz2`, `.tzst`, `.tbz`, `.tz2`, `.txz`, `.tgz`, `.tar`, `.zip`.
 
 `--pack-option=NAME=VALUE` (repeatable, last value for a NAME wins) tunes the writer. The names are xff's own and are translated for whichever library does the writing, so an unknown one is a usage error and this list is exactly what THIS binary accepts:
 

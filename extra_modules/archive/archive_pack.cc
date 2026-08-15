@@ -455,8 +455,8 @@ absl::Status PackFiles(std::string_view path, const std::vector<PackEntry>& entr
   if (format == nullptr) {
     return absl::InvalidArgumentError(
         absl::StrCat(
-            "cannot tell the archive format from '", path, "'; expected one ending in ",
-            absl::StrJoin(PackFormats(), ", ")));
+            "cannot tell the archive format from '", path, "'; expected one ending in .",
+            absl::StrJoin(PackFormats(), ", .")));
   }
   // Written beside the target and renamed over it, so a failure part way leaves no half archive -
   // and an existing file survives an attempt that fails. Same contract as the member rewrite.
