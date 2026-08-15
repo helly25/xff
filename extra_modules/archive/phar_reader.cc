@@ -216,7 +216,7 @@ bool LooksLikeManifestAt(std::string_view bytes, std::size_t at) {
     return false;
   }
   // A count the declared manifest cannot hold means these bytes are not a manifest.
-  if (static_cast<std::uint64_t>(*count) * kMinEntryBytes + kMinManifestBytes > *manifest_length) {
+  if ((static_cast<std::uint64_t>(*count) * kMinEntryBytes) + kMinManifestBytes > *manifest_length) {
     return false;
   }
   const absl::StatusOr<std::uint32_t> api_version = cursor.Uint16BigEndian("API version");
@@ -272,6 +272,45 @@ std::optional<std::size_t> ManifestOffset(std::string_view bytes) {
 // which the caller knows and this function does not.
 // `header_size` reports how much of the manifest precedes the first member entry (the fixed header
 // plus the alias and the container metadata), which a writer keeps verbatim.
+// One member entry, read from `cursor` at its current position. Split out of ParseManifest because
+// the manifest header and the per-member record are two different formats that happen to be adjacent;
+// keeping them in one function also put it well past the complexity the style guide allows.
+// `data_offset` is where this member's data starts, which the caller advances by the stored size.
+absl::StatusOr<Entry> ParseEntry(Cursor& cursor, std::uint64_t data_offset) {
+  const std::size_t entry_at = cursor.At();
+  MBO_ASSIGN_OR_RETURN(const std::string_view name, cursor.LengthPrefixed("member name"));
+  MBO_ASSIGN_OR_RETURN(const std::uint32_t size, cursor.Uint32("member size"));
+  MBO_ASSIGN_OR_RETURN(const std::uint32_t mtime, cursor.Uint32("member timestamp"));
+  MBO_ASSIGN_OR_RETURN(const std::uint32_t stored_size, cursor.Uint32("member stored size"));
+  // The CRC32 of the uncompressed content. Verifying it needs the content, so it belongs with the
+  // read path; this slice reads past it rather than storing an unused field.
+  MBO_RETURN_IF_ERROR(cursor.Uint32("member CRC32"));
+  MBO_ASSIGN_OR_RETURN(const std::uint32_t flags, cursor.Uint32("member flags"));
+  MBO_RETURN_IF_ERROR(cursor.LengthPrefixed("member metadata"));
+  if (name.empty()) {
+    return absl::DataLossError("phar manifest holds a member with an empty name");
+  }
+  // A trailing `/` is how phar spells a directory: there is no flag bit for it.
+  const bool is_directory = name.ends_with('/');
+  return Entry{
+      .member{
+          .path = std::string(is_directory ? name.substr(0, name.size() - 1) : name),
+          .size = static_cast<std::int64_t>(size),
+          .mtime = static_cast<std::int64_t>(mtime),
+          .mode = flags & kFlagPermissionMask,
+          .is_directory = is_directory,
+          // phar has no symlink member type: the format stores file data and directories only.
+          .is_symlink = false,
+      },
+      .data_offset = data_offset,
+      .stored_size = stored_size,
+      .flags = flags,
+      .entry_offset = entry_at,
+      .entry_size = cursor.At() - entry_at,
+      .stored_name = std::string(name),
+  };
+}
+
 absl::StatusOr<std::vector<Entry>> ParseManifest(
     std::string_view manifest,
     std::uint64_t data_offset,
@@ -281,53 +320,22 @@ absl::StatusOr<std::vector<Entry>> ParseManifest(
   // The manifest API version, nibble-packed big-endian (0x11 0x10 is 1.1.1). Every version so far
   // shares this layout, so it is consumed rather than branched on - but it must be consumed, or every
   // field after it is read two bytes off.
-  MBO_ASSIGN_OR_RETURN(const std::uint32_t api_version, cursor.Uint16BigEndian("API version"));
+  MBO_RETURN_IF_ERROR(cursor.Uint16BigEndian("API version"));
   // The global flags carry a container-wide compression hint and a "signature present" bit. Neither
   // changes how members are located, so they are read past rather than acted on here.
-  MBO_ASSIGN_OR_RETURN(const std::uint32_t global_flags, cursor.Uint32("global flags"));
+  MBO_RETURN_IF_ERROR(cursor.Uint32("global flags"));
   // The container's own alias (`phar://app.phar/...` names it). Not needed to locate members, but
   // its length field must be honoured for the same reason.
-  MBO_ASSIGN_OR_RETURN(const std::string_view alias, cursor.LengthPrefixed("alias"));
-  MBO_ASSIGN_OR_RETURN(const std::string_view metadata, cursor.LengthPrefixed("container metadata"));
+  MBO_RETURN_IF_ERROR(cursor.LengthPrefixed("alias"));
+  MBO_RETURN_IF_ERROR(cursor.LengthPrefixed("container metadata"));
 
   std::vector<Entry> entries;
   entries.reserve(count);
   std::uint64_t next_data_offset = data_offset;
   const std::size_t entries_at = cursor.At();  // the fixed header, the alias and the metadata end here
   for (std::uint32_t index = 0; index < count; ++index) {
-    const std::size_t entry_at = cursor.At();
-    MBO_ASSIGN_OR_RETURN(const std::string_view name, cursor.LengthPrefixed("member name"));
-    MBO_ASSIGN_OR_RETURN(const std::uint32_t size, cursor.Uint32("member size"));
-    MBO_ASSIGN_OR_RETURN(const std::uint32_t mtime, cursor.Uint32("member timestamp"));
-    MBO_ASSIGN_OR_RETURN(const std::uint32_t stored_size, cursor.Uint32("member stored size"));
-    // The CRC32 of the uncompressed content. Verifying it needs the content, so it belongs with the
-    // read path; this slice reads past it rather than storing an unused field.
-    MBO_ASSIGN_OR_RETURN(const std::uint32_t crc32, cursor.Uint32("member CRC32"));
-    MBO_ASSIGN_OR_RETURN(const std::uint32_t flags, cursor.Uint32("member flags"));
-    MBO_ASSIGN_OR_RETURN(const std::string_view member_metadata, cursor.LengthPrefixed("member metadata"));
-    if (name.empty()) {
-      return absl::DataLossError("phar manifest holds a member with an empty name");
-    }
-    // A trailing `/` is how phar spells a directory: there is no flag bit for it.
-    const bool is_directory = name.ends_with('/');
-    Entry entry{
-        .member{
-            .path = std::string(is_directory ? name.substr(0, name.size() - 1) : name),
-            .size = static_cast<std::int64_t>(size),
-            .mtime = static_cast<std::int64_t>(mtime),
-            .mode = flags & kFlagPermissionMask,
-            .is_directory = is_directory,
-            // phar has no symlink member type: the format stores file data and directories only.
-            .is_symlink = false,
-        },
-        .data_offset = next_data_offset,
-        .stored_size = stored_size,
-        .flags = flags,
-        .entry_offset = entry_at,
-        .entry_size = cursor.At() - entry_at,
-        .stored_name = std::string(name),
-    };
-    next_data_offset += stored_size;
+    MBO_ASSIGN_OR_RETURN(Entry entry, ParseEntry(cursor, next_data_offset));
+    next_data_offset += entry.stored_size;
     entries.push_back(std::move(entry));
   }
   header_size = entries_at;
@@ -479,8 +487,12 @@ absl::StatusOr<std::string> Inflate(std::string_view compressed, std::uint64_t e
     return absl::ResourceExhaustedError("cannot initialize the deflate decompressor");
   }
   std::string out(expected_size, '\0');
+  // zlib's next_in is a non-const Bytef* even though inflate only READS it, so the input needs both
+  // casts; the output is ours and needs only the char/uchar one. Both are the zlib boundary.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-type-const-cast)
   stream.next_in = reinterpret_cast<::Bytef*>(const_cast<char*>(compressed.data()));
   stream.avail_in = static_cast<::uInt>(compressed.size());
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   stream.next_out = reinterpret_cast<::Bytef*>(out.data());
   stream.avail_out = static_cast<::uInt>(out.size());
   const int status = ::inflate(&stream, Z_FINISH);
@@ -496,9 +508,12 @@ absl::StatusOr<std::string> Inflate(std::string_view compressed, std::uint64_t e
 
 absl::StatusOr<std::string> Bunzip2(std::string_view compressed, std::uint64_t expected_size) {
   std::string out(expected_size, '\0');
-  unsigned int produced = static_cast<unsigned int>(out.size());
-  const int status = ::BZ2_bzBuffToBuffDecompress(
-      out.data(), &produced, const_cast<char*>(compressed.data()), static_cast<unsigned int>(compressed.size()), 0, 0);
+  auto produced = static_cast<unsigned int>(out.size());
+  // Same story as zlib: the source is read-only to bzip2 but its signature does not say so.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+  char* const source = const_cast<char*>(compressed.data());
+  const int status =
+      ::BZ2_bzBuffToBuffDecompress(out.data(), &produced, source, static_cast<unsigned int>(compressed.size()), 0, 0);
   if (status != BZ_OK || produced != expected_size) {
     return absl::DataLossError(
         absl::StrCat("bzip2 member did not decompress to its declared ", expected_size, " bytes (got ", produced, ")"));
@@ -511,7 +526,7 @@ absl::StatusOr<std::string> Decompress(const Entry& entry, std::string_view stor
   if (how == 0) {
     return std::string(stored);
   }
-  const std::uint64_t size = static_cast<std::uint64_t>(entry.member.size < 0 ? 0 : entry.member.size);
+  const auto size = static_cast<std::uint64_t>(entry.member.size < 0 ? 0 : entry.member.size);
   if (how == kFlagCompressedGz) {
     return Inflate(stored, size);
   }
@@ -585,7 +600,7 @@ absl::StatusOr<std::string> ReadPharMemberOfFile(
   MBO_ASSIGN_OR_RETURN(const Entry* const entry, FindEntry(entries, member));
   MBO_RETURN_IF_ERROR(CheckLimit(entry->stored_size, max_bytes, member));
   MBO_ASSIGN_OR_RETURN(
-      std::string content, ReadFileRange(path, entry->data_offset, static_cast<std::size_t>(entry->stored_size)));
+      const std::string content, ReadFileRange(path, entry->data_offset, static_cast<std::size_t>(entry->stored_size)));
   if (content.size() < entry->stored_size) {
     return absl::DataLossError(absl::StrCat("phar member data runs past the end of the container: ", member));
   }
