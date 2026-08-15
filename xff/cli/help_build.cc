@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
@@ -756,14 +757,34 @@ Section ExpressionSection(bool with_details) {
   return expression;
 }
 
+// The topic table rows: ALPHABETICAL (the list is long enough that SOT order reads as random), with
+// each topic's informative aliases continuing the name in the term column - the same shape as flag
+// aliases (`--help, -h`), so they share the term colour instead of blending into the summary prose.
+// A bare plural (`archives` for `archive`) is omitted: it is guessable, lands on the same page
+// anyway, and would only repeat the name - while an alias a reader cannot guess (`regex` for
+// `grammars`, `env` for `environment`) is real functionality worth the width. The SOT vector keeps
+// its curated order, which composes the full reference.
+Rows TopicRows() {
+  std::vector<HelpTopic> topics = HelpTopics();
+  absl::c_sort(topics, [](const HelpTopic& a, const HelpTopic& b) { return a.name < b.name; });
+  Rows rows;
+  for (const HelpTopic& topic : topics) {
+    std::string term(topic.name);
+    for (const std::string_view alias : topic.aliases) {
+      if (alias == absl::StrCat(topic.name, "s")) {
+        continue;  // the guessable plural
+      }
+      absl::StrAppend(&term, ", ", alias);
+    }
+    rows.rows.push_back(Row{.term = std::move(term), .description = ParseInline(topic.summary)});
+  }
+  return rows;
+}
+
 // The `--help=TOPIC` index as a subsection, shared by the usage page and the guide.
 Subsection TopicsSubsection() {
   Subsection topics{.title = "Topics (--help=TOPIC)"};
-  Rows topic_rows;
-  for (const HelpTopic& topic : HelpTopics()) {
-    topic_rows.rows.push_back(Row{.term = std::string(topic.name), .description = ParseInline(topic.summary)});
-  }
-  topics.children.push_back(Content{.node = std::move(topic_rows)});
+  topics.children.push_back(Content{.node = TopicRows()});
   return topics;
 }
 
@@ -789,11 +810,7 @@ Section TopicsSection() {
   // `--HELP=TOPIC` is not a thing anyone can type.
   Section section{.title = "Help topics"};
   section.children.push_back(ProseOf("Open one with `--help=TOPIC`; `--help=help` explains the help system."));
-  Rows topic_rows;
-  for (const HelpTopic& topic : HelpTopics()) {
-    topic_rows.rows.push_back(Row{.term = std::string(topic.name), .description = ParseInline(topic.summary)});
-  }
-  section.children.push_back(Content{.node = std::move(topic_rows)});
+  section.children.push_back(Content{.node = TopicRows()});
   return section;
 }
 
