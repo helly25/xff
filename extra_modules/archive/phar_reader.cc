@@ -486,14 +486,14 @@ absl::StatusOr<std::string> Inflate(std::string_view compressed, std::uint64_t e
   if (::inflateInit2(&stream, -15) != Z_OK) {
     return absl::ResourceExhaustedError("cannot initialize the deflate decompressor");
   }
-  std::string out(expected_size, '\0');
-  // zlib's next_in is a non-const Bytef* even though inflate only READS it, so the input needs both
-  // casts; the output is ours and needs only the char/uchar one. Both are the zlib boundary.
+  // The output buffer is OURS, so it is declared in zlib's own element type and converted to a
+  // std::string once at the end - no cast at all. The input is a view of someone else's chars, so it
+  // still needs one (plus a const_cast: next_in is non-const even though inflate only reads it).
+  std::vector<::Bytef> out(expected_size);
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-type-const-cast)
   stream.next_in = reinterpret_cast<::Bytef*>(const_cast<char*>(compressed.data()));
   stream.avail_in = static_cast<::uInt>(compressed.size());
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-  stream.next_out = reinterpret_cast<::Bytef*>(out.data());
+  stream.next_out = out.data();
   stream.avail_out = static_cast<::uInt>(out.size());
   const int status = ::inflate(&stream, Z_FINISH);
   const std::size_t produced = out.size() - stream.avail_out;
@@ -503,7 +503,7 @@ absl::StatusOr<std::string> Inflate(std::string_view compressed, std::uint64_t e
         absl::StrCat(
             "deflate member did not decompress to its declared ", expected_size, " bytes (got ", produced, ")"));
   }
-  return out;
+  return std::string(out.begin(), out.end());
 }
 
 absl::StatusOr<std::string> Bunzip2(std::string_view compressed, std::uint64_t expected_size) {

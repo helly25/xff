@@ -152,7 +152,9 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
     const std::uint32_t options =
         PCRE2_SUBSTITUTE_OVERFLOW_LENGTH | (global ? PCRE2_SUBSTITUTE_GLOBAL : std::uint32_t{0});
     pcre2_match_data* data = pcre2_match_data_create_from_pattern(code_, nullptr);
-    std::string out(text.size() + 16, '\0');  // initial guess; grown once on overflow
+    // The output buffer is OURS, so it is declared in PCRE2's own element type and converted to a
+    // std::string once at the end, which removes the char/uchar cast the std::string form needed.
+    std::vector<PCRE2_UCHAR> out(text.size() + 16);  // initial guess; grown once on overflow
     PCRE2_SIZE out_len = out.size();
     int rc = Substitute(text, pcre2_replacement, options, data, out, &out_len);
     if (rc == PCRE2_ERROR_NOMEMORY) {
@@ -164,8 +166,8 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
     if (rc < 0) {
       return std::string(text);  // on any error, leave the text unchanged (defensive)
     }
-    out.resize(out_len);  // out_len is the result length (excluding the trailing NUL)
-    return out;
+    // out_len is the result length (excluding the trailing NUL).
+    return std::string(out.begin(), out.begin() + static_cast<std::ptrdiff_t>(out_len));
   }
 
  private:
@@ -187,12 +189,11 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
       const std::string& replacement,
       std::uint32_t options,
       pcre2_match_data* data,
-      std::string& out,
+      std::vector<PCRE2_UCHAR>& out,
       PCRE2_SIZE* out_len) const {
     return pcre2_substitute(
         code_, Sptr(text), text.size(), 0, options, data, match_context_, Sptr(replacement), replacement.size(),
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast): char/uchar, as in Sptr.
-        reinterpret_cast<PCRE2_UCHAR*>(out.data()), out_len);
+        out.data(), out_len);
   }
 
   pcre2_code* code_;
@@ -215,9 +216,11 @@ absl::StatusOr<std::unique_ptr<const xff::regex::RegexBackend>> CompilePcre2(
   pcre2_code* code = pcre2_compile(Sptr(pattern), pattern.size(), options, &error_code, &error_offset, nullptr);
   if (code == nullptr) {
     std::array<PCRE2_UCHAR, 256> buffer{};
-    pcre2_get_error_message(error_code, buffer.data(), buffer.size());
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast): char/uchar, as in Sptr.
-    const auto* const message = reinterpret_cast<const char*>(buffer.data());
+    const int length = pcre2_get_error_message(error_code, buffer.data(), buffer.size());
+    // Converted element-wise (uchar -> char is a value conversion the constructor performs), so no
+    // cast; a negative length means PCRE2 could not render the message at all.
+    const std::string message =
+        length > 0 ? std::string(buffer.begin(), buffer.begin() + length) : std::string("unknown error");
     return absl::InvalidArgumentError(absl::StrCat("invalid PCRE2 pattern at offset ", error_offset, ": ", message));
   }
   pcre2_match_context* match_context = pcre2_match_context_create(nullptr);

@@ -121,13 +121,13 @@ struct PharReaderTest : ::testing::Test {
     if (::deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
       return {};
     }
-    std::string out(content.size() + 64, '\0');
-    // zlib takes non-const byte pointers to buffers it only reads; same boundary as phar_reader.cc.
+    // The output buffer is ours, so it lives in zlib's own element type (see phar_reader.cc); only
+    // the foreign input still needs the char/uchar cast plus a const_cast for the non-const next_in.
+    std::vector<::Bytef> out(content.size() + 64);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-type-const-cast)
     stream.next_in = reinterpret_cast<::Bytef*>(const_cast<char*>(content.data()));
     stream.avail_in = static_cast<::uInt>(content.size());
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    stream.next_out = reinterpret_cast<::Bytef*>(out.data());
+    stream.next_out = out.data();
     stream.avail_out = static_cast<::uInt>(out.size());
     const int status = ::deflate(&stream, Z_FINISH);
     const std::size_t produced = out.size() - stream.avail_out;
@@ -136,7 +136,7 @@ struct PharReaderTest : ::testing::Test {
       return {};
     }
     out.resize(produced);
-    return out;
+    return std::string(out.begin(), out.end());
   }
 
   // Builds a native phar by hand. There is no phar writer to lean on (that is the point of the
