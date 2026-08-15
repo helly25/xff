@@ -94,7 +94,8 @@ TEST_F(ArchivePackTest, PackedFilesReadBackWithTheirNamesAndContent) {
   ASSERT_THAT(PackFiles(out, Entries()), IsOk());
   EXPECT_THAT(
       ListMembersOfFile(out),
-      IsOkAndHolds(UnorderedElementsAre(Field(&Member::path, "one.txt"), Field(&Member::path, "dir/two.txt"))));
+      IsOkAndHolds(
+          UnorderedElementsAre(Field("path", &Member::path, "one.txt"), Field("path", &Member::path, "dir/two.txt"))));
   EXPECT_THAT(ReadMemberOfFile(out, "one.txt"), IsOkAndHolds(Eq("first\n")));
   EXPECT_THAT(ReadMemberOfFile(out, "dir/two.txt"), IsOkAndHolds(Eq("second\n")));
 }
@@ -156,19 +157,21 @@ TEST_F(ArchivePackTest, DirectoriesAndSymlinksKeepTheirType) {
   entries.push_back(PackEntry{.source = (root_ / "dir").string(), .name = "dir"});
   entries.push_back(PackEntry{.source = (root_ / "link").string(), .name = "link"});
   ASSERT_THAT(PackFiles(out, entries), IsOk());
-  const absl::StatusOr<std::vector<Member>> members = ListMembersOfFile(out);
-  ASSERT_THAT(members, IsOk());
-  EXPECT_THAT(*members, Contains(Field(&Member::is_directory, true)));
-  EXPECT_THAT(*members, Contains(AllOf(Field(&Member::is_symlink, true), Field(&Member::link_target, "one.txt"))));
+  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<Member> members, ListMembersOfFile(out));
+  EXPECT_THAT(members, Contains(Field("is_directory", &Member::is_directory, true)));
+  EXPECT_THAT(
+      members,
+      Contains(AllOf(
+          Field("is_symlink", &Member::is_symlink, true), Field("link_target", &Member::link_target, "one.txt"))));
 }
 
 TEST_F(ArchivePackTest, TheOrderGivenIsTheOrderStored) {
   // Ordering is the caller's business (it honours --sort), so the writer must not reorder.
   const std::string out = Output("packed.tar");
   ASSERT_THAT(PackFiles(out, Entries()), IsOk());
-  const absl::StatusOr<std::vector<Member>> members = ListMembersOfFile(out);
-  ASSERT_THAT(members, IsOk());
-  EXPECT_THAT(*members, ElementsAre(Field(&Member::path, "one.txt"), Field(&Member::path, "dir/two.txt")));
+  EXPECT_THAT(
+      ListMembersOfFile(out),
+      IsOkAndHolds(ElementsAre(Field("path", &Member::path, "one.txt"), Field("path", &Member::path, "dir/two.txt"))));
 }
 
 TEST_F(ArchivePackTest, PackingNothingStillProducesAValidEmptyArchive) {
@@ -295,9 +298,7 @@ TEST_F(ArchivePackTest, ThePackedMemberKeepsItsModificationTime) {
   // archive of source files exists for.
   const std::string out = Output("stamped.tar");
   ASSERT_THAT(PackFiles(out, Entries()), IsOk());
-  const absl::StatusOr<std::vector<Member>> members = ListMembersOfFile(out);
-  ASSERT_THAT(members, IsOk());
-  EXPECT_THAT(*members, Each(Field("mtime", &Member::mtime, Gt(0))));
+  EXPECT_THAT(ListMembersOfFile(out), IsOkAndHolds(Each(Field("mtime", &Member::mtime, Gt(0)))));
 }
 
 struct PackFormatsTest : ::testing::Test {};

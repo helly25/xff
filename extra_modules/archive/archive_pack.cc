@@ -234,13 +234,12 @@ bool AppliesTo(const PackOptionSpec& spec, std::string_view format) {
 absl::StatusOr<std::string> TranslateOption(const PackSetting& option, const FormatSuffix& format) {
   const PackOptionSpec* const spec = PackOptionSpecFor(option.name);
   if (spec == nullptr) {
-    std::vector<std::string_view> names;
-    names.reserve(kPackOptions.size());
-    for (const PackOptionSpec& known : kPackOptions) {
-      names.push_back(known.name);
-    }
+    // Joined with a projection rather than copied into a vector first: the names are only needed to
+    // build this one message.
+    const std::string known_names = absl::StrJoin(
+        kPackOptions, ", ", [](std::string* out, const PackOptionSpec& known) { absl::StrAppend(out, known.name); });
     return absl::InvalidArgumentError(
-        absl::StrCat("unknown pack option '", option.name, "'; known options are ", absl::StrJoin(names, ", ")));
+        absl::StrCat("unknown pack option '", option.name, "'; known options are ", known_names));
   }
   if (!AppliesTo(*spec, format.name)) {
     return absl::InvalidArgumentError(
