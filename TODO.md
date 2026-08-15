@@ -306,21 +306,24 @@ intent, not hard dependency. Task numbers reference the agent task list.
 
 ### Lint / CI / style adoption (from helly25/mbo)
 
-- **clang-tidy does not cover `extra_modules/` (measured 2026-08-15).** The hook excludes them
-  (`exclude: ^extra_modules/` in `.pre-commit-config.yaml`) and the reason is still real: the compile
-  DB entry for an extras source does not carry every include path its bazel target has, so a run
-  reports `'mbo/status/status_macros.h' file not found` and the degraded AST then produces bogus
-  `misc-use-internal-linkage` findings for functions that ARE declared in their header. Everything
-  else parses.
-  - **What it cost:** running it by hand over `archive_pack.cc` (new in #511/#512, so never linted)
-    found real issues no gate would have caught - an implicit widening in `64 * 1'024`, a signed
-    bitwise on `perms`, and a `std::fopen` that clang-tidy flagged twice (owning-memory,
-    missing `e`/O_CLOEXEC) and that `STYLE_CPP.md` disallows anyway. Fixed; the read now streams
-    through an `ifstream` that closes itself on every path out.
-  - **The fix is in the compile DB, not the filter:** teach `compile_commands-update.sh` to emit the
-    extras entries with their full include set (they come from a different bazel config), then drop
-    the exclusion and let the CI clang-tidy job gate them like everything else. Sized as its own
-    slice because it is a DB-generation change, not a one-line filter edit.
+- **clang-tidy does not cover `extra_modules/` (measured 2026-08-15; 81 findings behind the
+  exclusion).** The hook skips them (`exclude: ^extra_modules/` in `.pre-commit-config.yaml`) and the
+  CI job inherits that, so nothing has ever linted an extras source.
+  - **The exclusion's stated reason no longer holds.** It says the extras cannot be parsed because
+    their deps are absent from a lean build. With a FRESHLY GENERATED compile DB they parse fine -
+    the `'mbo/status/status_macros.h' file not found` seen while investigating was a STALE DB (a dep
+    added in #512 without re-running `./compile_commands-update.sh`), not a missing include set.
+    Re-generate before concluding anything about a compile-DB symptom.
+  - **What the exclusion has been hiding**, by check: 21 `modernize-use-designated-initializers`,
+    7 `cppcoreguidelines-pro-type-reinterpret-cast`, 7 `concurrency-mt-unsafe`, 6 unused variables,
+    5 pointer arithmetic, 4 `misc-const-correctness`, 4 implicit widening, 3 cognitive complexity,
+    3 `hicpp-use-auto`, 3 const_cast, 2 `performance-no-automatic-move`, and a tail of singles.
+    Worst files: `archive_writer_test.cc` (18), `pcre2_backend.cc` (15), `phar_reader.cc` (14).
+  - **Sequence**: fix per file (the reinterpret-casts in the binary readers and the
+    `concurrency-mt-unsafe` hits want judgement, not a blanket rewrite), then DROP the exclusion in
+    the last slice - not before, since the CI clang-tidy job is a hard gate and would go red on the
+    first one. `archive_pack.cc` / `archive_register.cc` are already clean (fixed in #515 and the
+    follow-up).
 
 - **Style docs + `.clang-tidy`** (this change). `.clang-tidy` (mbo's rule set),
   `STYLE_CPP.md`, `RULES.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and an
