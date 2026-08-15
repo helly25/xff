@@ -27,6 +27,7 @@
 #include <iostream>
 #include <map>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -1367,13 +1368,14 @@ archive::MemberPathOptions ReadMemberPathOptions(const std::vector<std::string>&
 // every other valued global; absent means no packing at all.
 std::optional<std::string> ReadPackTarget(const std::vector<std::string>& globals) {
   constexpr std::string_view kPrefix = "--pack=";
-  std::optional<std::string> target;
-  for (const std::string& global : globals) {
+  // Last occurrence wins, so scan from the back and stop at the first hit: a forward loop that
+  // overwrites its way to the same answer says the rule backwards and keeps looking after it knows.
+  for (const std::string& global : std::ranges::reverse_view(globals)) {
     if (global.starts_with(kPrefix)) {
-      target = std::string(std::string_view(global).substr(kPrefix.size()));
+      return global.substr(kPrefix.size());
     }
   }
-  return target;
+  return std::nullopt;
 }
 
 // --pack-option=NAME=VALUE (repeatable) and its one-knob spelling --pack-level=N, collected in the
@@ -1385,7 +1387,7 @@ absl::StatusOr<std::vector<archive::PackOption>> ReadPackOptions(const std::vect
   std::vector<archive::PackOption> options;
   for (const std::string& global : globals) {
     if (global.starts_with(kLevel)) {
-      options.push_back({.name = "level", .value = std::string(std::string_view(global).substr(kLevel.size()))});
+      options.push_back({.name = "level", .value = global.substr(kLevel.size())});
       continue;
     }
     if (!global.starts_with(kOption)) {
@@ -1414,13 +1416,13 @@ absl::Status CheckPackOptionNames(const std::vector<archive::PackOption>& option
     if (known) {
       continue;
     }
-    std::vector<std::string> names;
-    names.reserve(vocabulary.size());
-    for (const archive::PackOptionInfo& known_option : vocabulary) {
-      names.push_back(known_option.name);
-    }
+    // Joined with a projection rather than copied into a vector first: the names are only needed to
+    // build this one message.
+    const std::string known_names = absl::StrJoin(
+        vocabulary, ", ",
+        [](std::string* out, const archive::PackOptionInfo& known_option) { absl::StrAppend(out, known_option.name); });
     return absl::InvalidArgumentError(
-        absl::StrCat("unknown pack option '", option.name, "'; known options are ", absl::StrJoin(names, ", ")));
+        absl::StrCat("unknown pack option '", option.name, "'; known options are ", known_names));
   }
   return absl::OkStatus();
 }
