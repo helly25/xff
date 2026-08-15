@@ -204,6 +204,30 @@ shipped one way but not yet settled.
     read through the mount (simpler: it keeps using the reader, and only child processes see the mount).
   - **Relation to the shipped flags:** `--archive-extract` becomes the portable fallback rather than the
     only mechanism, and `--archive-aggregate` / `--archive-delete` are unaffected.
+  - **BUILD PLAN (2026-08-15, epic #183; each bullet one PR).** The one open architectural choice is
+    how the extra reaches libfuse, and the ratified "degrade when absent" semantics decide it:
+    **dlopen at runtime against vendored API headers** (`fuse_lowlevel.h` interface, permissive
+    license), probing `libfuse3.so.3` on Linux and macFUSE's `libfuse.2.dylib` on macOS. Rejected:
+    system `linkopts = ["-lfuse3"]` (breaks the hermetic build AND makes absence a startup failure
+    instead of a degrade) and vendoring libfuse as a third_party module (its build wants a
+    configure-generated config.h per platform, and macFUSE ships its OWN libfuse fork, so a vendored
+    Linux build still needs the runtime path on macOS - all cost, no reuse). dlopen is the only shape
+    where one binary runs everywhere and mounting is a capability probed per machine.
+    1. **@xff_fuse skeleton + runtime loader**: the extra module (pcre2/archive pattern), a
+       `FuseLoader` that dlopens the platform library and resolves the handful of lowlevel symbols,
+       and `FuseAvailable()`; unit tests cover the unavailable path (CI has no FUSE) and symbol-set
+       completeness against the vendored header.
+    2. **Mount lifecycle**: the per-RUN root `$XDG_RUNTIME_DIR/xff/<pid>/` (else `$TMPDIR`), one
+       subdirectory per container, RAII unmount + signal handler (INT/TERM/HUP re-raises after
+       unmounting), `fusermount3 -uz` / `umount -f` crash path, and the startup sweep of stale
+       `xff/<pid>` roots whose pid is gone. Testable without FUSE (the sweep and dirs are plain
+       filesystem work).
+    3. **The read-only FUSE server over `vfs::FileSystem`**: lookup/getattr/readdir/open/read from
+       the already-open `ArchiveFileSystem`, one background thread per mount. Integration-tested on
+       Linux CI (runners allow unprivileged FUSE via fusermount3); macOS CI exercises the degrade.
+    4. **CLI**: explicit `--archive-mount` (extra-gated; absent extra = the standard hard error,
+       absent RUNTIME library = one-line note + extraction fallback), `{}` rendering as the mounted
+       path for `-exec`/`-execdir`, help/XFF.md, bashtests for both the mounted and degraded paths.
 
   - **Bounded member CACHE (SHIPPED).** `-grep`, `{hash}` and `-cmp` on the same member used to
     each decompress it again. `MemberCache` (`member_cache.{h,cc}`) is a mutex-guarded LRU with a
