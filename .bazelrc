@@ -40,11 +40,15 @@ common --cxxopt=-std=c++23 --host_cxxopt=-std=c++23 --cxxopt=-Werror
 #  - the -Wno-error downgrade applies to external/* EXCEPT our own external/xff_* modules.
 common --features=external_include_paths
 common --per_file_copt=external/.*,-external/xff_.*@-Wno-error
-# -Wno-nullability-extension: absl's CHECK/LOG macros expand the `_Nonnull` clang extension into
-# OUR translation units, which -Wpedantic would flag at every use; the carve-out keeps pedantic on
-# for everything else. (gcc ignores the unknown -Wno- option on a clean compile.)
-common --per_file_copt=.*,-external/.*@-Wextra,-Wpedantic,-Wno-nullability-extension
-common --per_file_copt=external/xff_.*@-Wextra,-Wpedantic,-Wno-nullability-extension
+# Carve-outs, each with its reason (gcc quietly ignores the -Wno- spellings it lacks on a clean
+# compile, so the union is safe on both compilers):
+#  - nullability-extension: absl's CHECK/LOG macros expand the `_Nonnull` clang extension into OUR
+#    translation units, which -Wpedantic would flag at every use.
+#  - missing-(designated-)field-initializers: partial designated initializers ARE the codebase
+#    idiom (the registry and globals tables name only the fields that matter; the standard
+#    value-initializes the rest). gcc spells the -Wextra member one way, clang 22+ the other.
+common --per_file_copt=.*,-external/.*@-Wextra,-Wpedantic,-Wno-nullability-extension,-Wno-missing-field-initializers,-Wno-missing-designated-field-initializers
+common --per_file_copt=external/xff_.*@-Wextra,-Wpedantic,-Wno-nullability-extension,-Wno-missing-field-initializers,-Wno-missing-designated-field-initializers
 
 test --test_output=errors
 
