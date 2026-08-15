@@ -21,6 +21,7 @@
 #include <string>
 
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
@@ -34,7 +35,9 @@ using ::testing::AllOf;
 using ::testing::Contains;
 using ::testing::Field;
 using ::testing::HasSubstr;
+using ::testing::IsEmpty;
 using ::testing::IsTrue;
+using ::testing::Not;
 
 struct ArchiveRegisterTest : ::testing::Test {};
 
@@ -47,6 +50,21 @@ TEST_F(ArchiveRegisterTest, TheSeamReachesTheRealReaderAndKeepsItsErrors) {
   // as an ordinary file). Reaching the real reader is the point: with no registrar the seam would
   // answer Unimplemented instead.
   EXPECT_THAT(OpenContainer("/etc/hosts"), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(ArchiveRegisterTest, TheDiveGateIsDerivedFromTheDeclaredReadFormats) {
+  // ONE extension SOT: the gate is built from the registration, so every declared suffix dives (by
+  // its last dotted component, which is how compounds like `.tar.gz` gate) and an undeclared name
+  // does not. There is no second list left to drift.
+  const std::vector<ReadFormatInfo> formats = ContainerReadFormats();
+  ASSERT_THAT(formats, Not(IsEmpty()));
+  for (const ReadFormatInfo& format : formats) {
+    for (const std::string& suffix : format.suffixes) {
+      EXPECT_TRUE(LooksLikeContainerName(absl::StrCat("x", suffix))) << format.name << " declares " << suffix;
+    }
+  }
+  EXPECT_FALSE(LooksLikeContainerName("notes.txt"));
+  EXPECT_FALSE(LooksLikeContainerName("Makefile"));
 }
 
 TEST_F(ArchiveRegisterTest, LinkingTheExtraGivesTheCoreContainerCreation) {

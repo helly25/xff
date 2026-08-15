@@ -131,6 +131,37 @@ void RoffBackend::EmitRows(const Rows& rows) {
   para_ = false;
 }
 
+void RoffBackend::EmitTable(const Table& table) {
+  // Width-aligned columns in a no-fill block; man pages have the width for the whole line, so no
+  // wrapping - the plain backend is the width-constrained rendering.
+  std::vector<std::size_t> widths(table.header.size(), 0);
+  for (std::size_t i = 0; i < table.header.size(); ++i) {
+    widths[i] = table.header[i].size();
+  }
+  for (const std::vector<std::string>& row : table.cells) {
+    for (std::size_t i = 0; i + 1 < row.size() && i < widths.size(); ++i) {
+      widths[i] = std::max(widths[i], row[i].size());
+    }
+  }
+  absl::StrAppend(&out_, ".nf\n");
+  const auto emit_row = [&](const std::vector<std::string>& row) {
+    std::string line;
+    for (std::size_t i = 0; i < row.size(); ++i) {
+      absl::StrAppend(&line, row[i]);
+      if (i + 1 < row.size()) {
+        absl::StrAppend(&line, std::string(widths[i] + 2 - row[i].size(), ' '));
+      }
+    }
+    absl::StrAppend(&out_, RoffEscape(line), "\n");
+  };
+  emit_row(table.header);
+  for (const std::vector<std::string>& row : table.cells) {
+    emit_row(row);
+  }
+  absl::StrAppend(&out_, ".fi\n");
+  para_ = false;
+}
+
 void RoffBackend::EmitSeeAlso(const SeeAlso& see_also) {
   for (std::size_t i = 0; i < see_also.refs.size(); ++i) {
     const RefTarget& ref = see_also.refs[i];
