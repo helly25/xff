@@ -830,6 +830,24 @@ A member's path is the container's, the separator, then the member: `a.tar!dir/t
 
 Members are READ-ONLY by default. `-delete` and the exec family refuse one rather than silently doing nothing, because a member has no path a process can open and no way to be unlinked; `--archive-extract` runs the child over a temporary copy, and `--archive-delete` rewrites the container without the member. Both are opt-in, and both say so in the refusal you get without them.
 
+### Formats this binary understands
+
+Reading is decided by CONTENT (the reader sniffs the bytes), so the extensions listed are what the name gate dives on under `all` and how the format is usually spelled - a container with an unlisted name still reads under `any`. Write means `--pack` can create it.
+
+- `7z` - read - `.7z`; 7-Zip archives
+- `ar` - read - `.ar`, `.deb`; Unix ar archives; a `.deb` is one
+- `cab` - read - `.cab`; Microsoft cabinet archives
+- `cpio` - read - `.cpio`, `.rpm`; cpio archives; an `.rpm`'s payload is one
+- `iso9660` - read - `.iso`; ISO 9660 disc images
+- `lha` - read - `.lha`, `.lzh`; LHA/LZH archives
+- `rar` - read - `.rar`; RAR 4 and RAR 5 archives
+- `tar` - read+write - `.tar`, `.tar.gz`, `.tgz`, `.taz`, `.crate`, `.gem`, `.tar.bz2`, `.tbz`, `.tbz2`, `.tz2`, `.tar.xz`, `.txz`, `.tlz`, `.tar.zst`, `.tzst`; tar archives, plain or through any compression filter; `.crate` and `.gem` are tars
+- `warc` - read - `.warc`; web archives
+- `xar` - read - `.xar`; xar archives
+- `zip` - read+write - `.zip`, `.jar`, `.war`, `.ear`, `.whl`, `.egg`, `.apk`, `.aab`, `.cbz`, `.crx`, `.docx`, `.epub`, `.jmod`, `.nupkg`, `.odp`, `.ods`, `.odt`, `.pptx`, `.vsix`, `.xlsx`, `.xpi`; zip archives and the package formats that are zips underneath
+- `phar` - read - `.phar`; PHP phar archives (xff's own reader)
+- `file` - read - `.gz`, `.bz2`, `.xz`, `.zst`, `.zstd`, `.lz4`, `.lzma`; a compressed SINGLE file (`notes.txt.gz`): one member, decompressed at open
+
 ### Creating one
 
 `--pack=FILE` turns the walk around: every match is written into a NEW archive instead of being listed, so the member list is an expression rather than a pipeline into `tar`. The output name picks the format, each member keeps the path it had relative to its search root, and `--sort` decides the order inside. It is a sink like `--summary`, the archive appears only when the walk finished, and a member of another container is refused - harvesting files out of one archive to re-pack them into another is a separate feature, which is also what `-Z++ -z-` is reserved for.

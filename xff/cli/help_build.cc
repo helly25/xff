@@ -496,6 +496,32 @@ Section ArchiveSection(bool in_full) {
       "you get without them."));
   section.children.push_back(Content{.node = std::move(identity)});
 
+  const std::vector<archive::ReadFormatInfo> read_formats = archive::ContainerReadFormats();
+  if (!read_formats.empty()) {
+    Subsection formats{.title = "Formats this binary understands"};
+    formats.children.push_back(ProseOf(
+        "Reading is decided by CONTENT (the reader sniffs the bytes), so the extensions listed are "
+        "what the name gate dives on under `all` and how the format is usually spelled - a container "
+        "with an unlisted name still reads under `any`. Write means `--pack` can create it."));
+    Rows rows;
+    rows.rows.reserve(read_formats.size());
+    for (const archive::ReadFormatInfo& format : read_formats) {
+      // A format is writable when any of its suffixes names a registered pack format; the writer's
+      // own suffix rule (longest dotted match, case folded) decides, so the two cannot disagree.
+      const bool writable = absl::c_any_of(format.suffixes, [](const std::string& suffix) {
+        return !archive::ContainerPackFormatFor(absl::StrCat("x", suffix)).empty();
+      });
+      std::string description =
+          absl::StrCat(writable ? "read+write" : "read", " - `", absl::StrJoin(format.suffixes, "`, `"), "`");
+      if (!format.detail.empty()) {
+        absl::StrAppend(&description, "; ", format.detail);
+      }
+      rows.rows.push_back(Row{.term = format.name, .description = ParseInline(description)});
+    }
+    formats.children.push_back(Content{.node = std::move(rows)});
+    section.children.push_back(Content{.node = std::move(formats)});
+  }
+
   Subsection creating{.title = "Creating one"};
   creating.children.push_back(ProseOf(
       "`--pack=FILE` turns the walk around: every match is written into a NEW archive instead of "

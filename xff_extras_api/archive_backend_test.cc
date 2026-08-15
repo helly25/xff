@@ -201,6 +201,19 @@ TEST_F(ArchiveBackendTest, RegisteringAgainReplacesTheOpener) {
   EXPECT_THAT(OpenContainer("a.tar"), StatusIs(absl::StatusCode::kAborted));
 }
 
+TEST_F(ArchiveBackendTest, WithNoBackendThereAreNoReadFormatsAndRegistrationInstallsThem) {
+  // A lean build's --help=archive simply has no formats table; a registered vocabulary is returned
+  // as given. This test target links no backend, so it exercises both sides directly.
+  EXPECT_THAT(ContainerReadFormats(), IsEmpty());
+  RegisterContainerReadFormats({{.name = "tar", .suffixes = {".tar"}, .detail = "tape archives"}});
+  EXPECT_THAT(
+      ContainerReadFormats(), ElementsAre(AllOf(
+                                  Field("name", &ReadFormatInfo::name, "tar"),
+                                  Field("suffixes", &ReadFormatInfo::suffixes, ElementsAre(".tar")))));
+  RegisterContainerReadFormats({});  // reset for the other tests in this process
+  EXPECT_THAT(ContainerReadFormats(), IsEmpty());
+}
+
 TEST_F(ArchiveBackendTest, WithNoPackerNothingCanBeCreatedAndNoFormatIsOffered) {
   EXPECT_THAT(ContainerPackingAvailable(), IsFalse());
   EXPECT_THAT(ContainerPackFormats(), IsEmpty());

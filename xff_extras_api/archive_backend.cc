@@ -29,6 +29,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "absl/types/span.h"
 #include "xff/archive/member_path.h"
 #include "xff/vfs/filesystem.h"
 
@@ -131,11 +132,34 @@ absl::Status PackContainer(std::string_view path, const std::vector<PackFile>& f
 // shouted `ARCHIVE.ZIP` matches too. Compound suffixes (`.tar.gz`) need no entry: their last
 // component (`.gz`) is already here.
 constexpr std::array kContainerSuffixes = std::to_array<std::string_view>({
-    ".7z",   ".aab", ".apk",  ".ar",   ".bz2", ".cab",  ".cbz", ".crate", ".crx", ".deb",  ".ear",   ".egg",
-    ".epub", ".gem", ".gz",   ".iso",  ".jar", ".jmod", ".lha", ".lz4",   ".lzh", ".lzma", ".nupkg", ".odp",
-    ".ods",  ".odt", ".phar", ".pptx", ".rar", ".rpm",  ".tar", ".taz",   ".tbz", ".tbz2", ".tgz",   ".txz",
-    ".tlz",  ".tz2", ".tzst", ".vsix", ".war", ".whl",  ".xar", ".xpi",   ".xz",  ".zip",  ".zst",   ".zstd",
+    ".7z",  ".aab",  ".apk",  ".ar",   ".bz2",  ".cab", ".cbz",  ".cpio", ".crate", ".crx",  ".deb",  ".docx",  ".ear",
+    ".egg", ".epub", ".gem",  ".gz",   ".iso",  ".jar", ".jmod", ".lha",  ".lz4",   ".lzh",  ".lzma", ".nupkg", ".odp",
+    ".ods", ".odt",  ".phar", ".pptx", ".rar",  ".rpm", ".tar",  ".taz",  ".tbz",   ".tbz2", ".tgz",  ".tlz",   ".txz",
+    ".tz2", ".tzst", ".vsix", ".war",  ".warc", ".whl", ".xar",  ".xlsx", ".xpi",   ".xz",   ".zip",  ".zst",   ".zstd",
 });
+
+namespace {
+
+// The linked reader's declared formats; empty until a backend registers. Same slot pattern as the
+// opener/packer: set once at static-init time by the registrar, read-only afterwards.
+std::vector<ReadFormatInfo>& ReadFormatsSlot() {
+  static std::vector<ReadFormatInfo> slot;
+  return slot;
+}
+
+}  // namespace
+
+void RegisterContainerReadFormats(std::vector<ReadFormatInfo> formats) {
+  ReadFormatsSlot() = std::move(formats);
+}
+
+std::vector<ReadFormatInfo> ContainerReadFormats() {
+  return ReadFormatsSlot();
+}
+
+absl::Span<const std::string_view> ContainerNameSuffixes() {
+  return kContainerSuffixes;
+}
 
 bool ContainerSupportAvailable() {
   return static_cast<bool>(ContainerOpenerSlot());

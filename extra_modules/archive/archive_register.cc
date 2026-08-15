@@ -63,6 +63,44 @@ absl::StatusOr<std::unique_ptr<vfs::FileSystem>> OpenArchiveContainer(
 
 const ContainerRegistrar kRegisterArchiveContainer{&OpenArchiveContainer};
 
+// The formats this reader understands, for the --help=archive table and the seam's name gate.
+// Reading is SNIFF-based (archive_reader.cc's curated libarchive set + the phar parser + the
+// compressed-single-file probe); the suffixes are what the name gate dives on and what the docs
+// show. Package extensions ride their underlying format (.jar is a zip, .crate a tar.gz, .deb an
+// ar, .rpm a cpio). Keep in step with NewReader() - archive_register_test pins BOTH directions
+// against LooksLikeContainerName, so a drift fails the build.
+std::vector<ReadFormatInfo> ReadFormats() {
+  return {
+      {.name = "7z", .suffixes = {".7z"}, .detail = "7-Zip archives"},
+      {.name = "ar", .suffixes = {".ar", ".deb"}, .detail = "Unix ar archives; a `.deb` is one"},
+      {.name = "cab", .suffixes = {".cab"}, .detail = "Microsoft cabinet archives"},
+      {.name = "cpio", .suffixes = {".cpio", ".rpm"}, .detail = "cpio archives; an `.rpm`'s payload is one"},
+      {.name = "iso9660", .suffixes = {".iso"}, .detail = "ISO 9660 disc images"},
+      {.name = "lha", .suffixes = {".lha", ".lzh"}, .detail = "LHA/LZH archives"},
+      {.name = "rar", .suffixes = {".rar"}, .detail = "RAR 4 and RAR 5 archives"},
+      {.name = "tar",
+       .suffixes =
+           {".tar", ".tar.gz", ".tgz", ".taz", ".crate", ".gem", ".tar.bz2", ".tbz", ".tbz2", ".tz2", ".tar.xz", ".txz",
+            ".tlz", ".tar.zst", ".tzst"},
+       .detail = "tar archives, plain or through any compression filter; `.crate` and `.gem` are tars"},
+      {.name = "warc", .suffixes = {".warc"}, .detail = "web archives"},
+      {.name = "xar", .suffixes = {".xar"}, .detail = "xar archives"},
+      {.name = "zip",
+       .suffixes = {".zip",  ".jar",  ".war",   ".ear", ".whl", ".egg", ".apk",  ".aab",  ".cbz",  ".crx", ".docx",
+                    ".epub", ".jmod", ".nupkg", ".odp", ".ods", ".odt", ".pptx", ".vsix", ".xlsx", ".xpi"},
+       .detail = "zip archives and the package formats that are zips underneath"},
+      {.name = "phar", .suffixes = {".phar"}, .detail = "PHP phar archives (xff's own reader)"},
+      {.name = "file",
+       .suffixes = {".gz", ".bz2", ".xz", ".zst", ".zstd", ".lz4", ".lzma"},
+       .detail = "a compressed SINGLE file (`notes.txt.gz`): one member, decompressed at open"},
+  };
+}
+
+// NOLINTNEXTLINE(fuchsia-statically-constructed-objects,cert-err58-cpp)
+const struct ReadFormatsRegistrar {
+  ReadFormatsRegistrar() { RegisterContainerReadFormats(ReadFormats()); }
+} kRegisterReadFormats;
+
 // The write half, registered separately because it answers for FEWER containers than the opener: a
 // phar or a compressed single file opens here and cannot be rewritten, and the writer says so.
 absl::Status RemoveArchiveMembers(std::string_view container, const std::vector<std::string>& members) {

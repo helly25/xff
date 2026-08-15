@@ -38,6 +38,7 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/types/span.h"
 #include "xff/archive/member_path.h"
 #include "xff/vfs/filesystem.h"
 
@@ -191,6 +192,28 @@ struct ContainerPackerRegistrar {
     RegisterContainerPacker(std::move(packer), std::move(formats), std::move(vocabulary));
   }
 };
+
+// One format the linked READER understands, for the `--help=archive` formats table. `suffixes` are
+// the dotted file endings associated with the format (a `.jar` is a zip, a `.crate` a tar.gz);
+// reading itself stays sniff-based, so a suffix here is about the NAME GATE and the docs, never a
+// parsing requirement. Registered with the opener so the table cannot exist without the reader.
+struct ReadFormatInfo {
+  std::string name;
+  std::vector<std::string> suffixes;
+  std::string detail;
+};
+
+// Registers the read-format vocabulary of the linked backend (called from the same registrar that
+// installs the opener). The table `--help=archive` renders comes from here.
+void RegisterContainerReadFormats(std::vector<ReadFormatInfo> formats);
+
+// The read formats the linked backend declared, in its own (documentation) order. Empty when no
+// backend is linked, which is how a lean build's help simply has no table.
+[[nodiscard]] std::vector<ReadFormatInfo> ContainerReadFormats();
+
+// The suffixes LooksLikeContainerName dives on, exposed so a backend's test can pin its declared
+// read formats against the gate in both directions - the drift THIS existed to prevent.
+[[nodiscard]] absl::Span<const std::string_view> ContainerNameSuffixes();
 
 // Whether this binary can create a container at all (a backend registered a packer).
 [[nodiscard]] bool ContainerPackingAvailable();
