@@ -108,15 +108,16 @@ echo "Building generated / virtual-include headers in --config=clang-tidy so the
 bazel build --config=clang-tidy //... >/dev/null \
   || die "'bazel build --config=clang-tidy //...' failed; cannot materialize the headers the compile DB references"
 
-# The composable extras are separate modules, so `//...` does not reach them and each needs its own
-# build flag. Without this their virtual-include forests are missing exactly as the core's would be,
-# and clang-tidy cannot resolve an extra's own header. Keep in step with //:refresh_compile_commands.
-for EXTRA in "@xff_archive//...:--//xff:xff_archive" "@xff_pcre2//...:--//xff:xff_pcre"; do
-  EXTRA_TARGETS="${EXTRA%%:*}"
-  EXTRA_FLAG="${EXTRA#*:}"
-  echo "Building ${EXTRA_TARGETS} (${EXTRA_FLAG}) so the compile DB resolves its headers ..." 1>&2
-  bazel build --config=clang-tidy "${EXTRA_FLAG}" "${EXTRA_TARGETS}" >/dev/null \
-    || die "'bazel build --config=clang-tidy ${EXTRA_FLAG} ${EXTRA_TARGETS}' failed"
+# The composable extras are separate modules, so `//...` does not reach them: without this build
+# their virtual-include forests are missing exactly as the core's would be, and clang-tidy cannot
+# resolve an extra's own header. The list is DERIVED from MODULE.bazel (tools/extras.py), the same
+# source //:refresh_compile_commands uses - a hardcoded list here is how @xff_fuse shipped with a
+# compile DB whose headers did not exist (PR #534's CI). No --//xff:xff_<extra> flag: that gates
+# whether the CORE links an extra, not whether the extra itself builds (see //BUILD.bazel).
+for EXTRA_TARGETS in $(tools/extras.py --wildcards); do
+  echo "Building ${EXTRA_TARGETS} so the compile DB resolves its headers ..." 1>&2
+  bazel build --config=clang-tidy "${EXTRA_TARGETS}" >/dev/null \
+    || die "'bazel build --config=clang-tidy ${EXTRA_TARGETS}' failed"
 done
 
 # //:refresh_compile_commands, not the extractor's stock :refresh_all - the latter covers `//...`
