@@ -25,6 +25,9 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# expect_matches compares against the WHOLE text, so a per-line anchor needs a real newline.
+NL=$'\n'
+
 _xff_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff_full"
   if [[ ! -x "${bin}" ]]; then
@@ -57,6 +60,25 @@ test::packed_members_are_named_relative_to_their_search_root() {
   expect_output_contains "sub/b.cc" "${members}"
   expect_output_not_contains "c.txt" "${members}"
   expect_output_not_contains "${root}" "${members}"
+}
+
+test::the_search_root_directory_is_not_stored_beside_its_own_children() {
+  local root members
+  root="$(_tree)"
+  members="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar" >/dev/null && tar -tf "${root}/out.tar")"
+  # Children are named relative to the root, so a `src` entry alongside them would extract as an
+  # empty stray directory. Nested directories DO travel: they have a name relative to the root.
+  expect_output_contains "a.cc" "${members}"
+  expect_output_contains "sub/" "${members}"
+  expect_not_matches "(^|${NL})src/?($|${NL})" "${members}"
+}
+
+test::a_root_that_is_a_file_keeps_its_basename() {
+  local root members
+  root="$(_tree)"
+  members="$("$(_xff_bin)" "${root}/src/a.cc" --pack="${root}/one.tar" >/dev/null && tar -tf "${root}/one.tar")"
+  # Unlike a directory root, a file named on the command line IS content, so it is stored.
+  expect_eq "a.cc" "${members}"
 }
 
 test::an_explicit_print_still_lists_what_goes_in() {
@@ -93,11 +115,88 @@ test::a_compression_level_the_format_rejects_is_a_usage_error() {
   out="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar.gz" --pack-level=99 2>&1)" || status=$?
   expect_eq 2 "${status}"
   expect_output_contains "accepts 0-9" "${out}"
-  # And a plain tar has nothing to set a level on, which is an error rather than a silent no-op.
+  # And a plain tar has nothing to set a level on, which is an error rather than a silent no-op; the
+  # message names the formats that DO take it instead of leaving the reader to guess.
   status=0
   out="$("$(_xff_bin)" "${root}/src" --pack="${root}/plain.tar" --pack-level=9 2>&1)" || status=$?
   expect_eq 2 "${status}"
-  expect_output_contains "not compressed" "${out}"
+  expect_output_contains "does not apply to tar" "${out}"
+  expect_output_contains "tar.gz" "${out}"
+}
+
+test::an_unknown_pack_option_is_refused_before_the_walk() {
+  local root status out
+  root="$(_tree)"
+  status=0
+  out="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar.gz" --pack-option=squish=9 2>&1)" || status=$?
+  expect_eq 2 "${status}"
+  expect_output_contains "unknown pack option 'squish'" "${out}"
+  # The accepted vocabulary is named, and nothing was written.
+  expect_output_contains "level" "${out}"
+  expect_eq "0" "$(find "${root}" -maxdepth 1 -name 'out.tar.gz' | wc -l | tr -d ' ')"
+}
+
+test::a_malformed_pack_option_is_a_usage_error() {
+  local root status out
+  root="$(_tree)"
+  status=0
+  out="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar.gz" --pack-option=level 2>&1)" || status=$?
+  expect_eq 2 "${status}"
+  expect_output_contains "expected NAME=VALUE" "${out}"
+}
+
+test::a_pack_option_that_does_not_apply_to_the_format_is_refused() {
+  local root status out
+  root="$(_tree)"
+  status=0
+  out="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar.gz" --pack-option=zip64=yes 2>&1)" || status=$?
+  expect_eq 2 "${status}"
+  expect_output_contains "does not apply to tar.gz" "${out}"
+  expect_output_contains "zip" "${out}"
+}
+
+test::a_pack_option_reaches_the_writer() {
+  local root first second
+  root="$(_tree)"
+  # timestamp=no is the one option with an exactly checkable effect: without the header timestamp two
+  # runs over the same input are byte-identical, which is what a reproducible build needs.
+  "$(_xff_bin)" "${root}/src" --pack="${root}/r1.tar.gz" --pack-option=timestamp=no
+  sleep 1
+  "$(_xff_bin)" "${root}/src" --pack="${root}/r2.tar.gz" --pack-option=timestamp=no
+  first="$(cksum <"${root}/r1.tar.gz")"
+  second="$(cksum <"${root}/r2.tar.gz")"
+  expect_eq "${first}" "${second}"
+}
+
+test::pack_level_is_the_same_thing_as_the_level_option() {
+  local root sugar spelled
+  root="$(_tree)"
+  head -c 200000 /dev/zero | tr '\0' 'a' >"${root}/src/big.txt"
+  "$(_xff_bin)" "${root}/src" -name 'big.txt' --pack="${root}/sugar.tar.gz" --pack-level=9
+  "$(_xff_bin)" "${root}/src" -name 'big.txt' --pack="${root}/spelled.tar.gz" --pack-option=level=9
+  sugar="$(wc -c <"${root}/sugar.tar.gz")"
+  spelled="$(wc -c <"${root}/spelled.tar.gz")"
+  expect_eq "${sugar}" "${spelled}"
+}
+
+test::the_last_value_for_a_pack_option_wins() {
+  local root mixed plain
+  root="$(_tree)"
+  head -c 200000 /dev/zero | tr '\0' 'a' >"${root}/src/big.txt"
+  "$(_xff_bin)" "${root}/src" -name 'big.txt' --pack="${root}/mixed.tar.gz" --pack-option=level=1 --pack-option=level=9
+  "$(_xff_bin)" "${root}/src" -name 'big.txt' --pack="${root}/plain.tar.gz" --pack-option=level=9
+  mixed="$(wc -c <"${root}/mixed.tar.gz")"
+  plain="$(wc -c <"${root}/plain.tar.gz")"
+  expect_eq "${plain}" "${mixed}"
+}
+
+test::the_archive_help_lists_the_vocabulary_the_binary_accepts() {
+  local out
+  out="$("$(_xff_bin)" --help=archive --width=100)"
+  # Generated from the linked writer's own table, so this is what proves the two cannot drift.
+  expect_output_contains "--pack-option=NAME=VALUE" "${out}"
+  expect_output_contains "timestamp=yes|no" "${out}"
+  expect_output_contains "zip64=yes|no" "${out}"
 }
 
 test::a_level_that_works_produces_a_smaller_archive() {

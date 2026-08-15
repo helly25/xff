@@ -29,10 +29,16 @@
 #include <system_error>
 #include <vector>
 
+#include "absl/algorithm/container.h"
+#include "absl/container/btree_map.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
+#include "absl/strings/str_split.h"
+#include "mbo/status/status_macros.h"
 
 namespace xff::archive {
 namespace {
@@ -95,6 +101,138 @@ constexpr std::array kFormats = std::to_array<FormatSuffix>({
     {".tar", "tar", ARCHIVE_FORMAT_TAR_PAX_RESTRICTED, ARCHIVE_FILTER_NONE, 0, 0},
     {".zip", "zip", ARCHIVE_FORMAT_ZIP, ARCHIVE_FILTER_NONE, 0, 9},
 });
+
+// How an option's value is spelled, which decides both the validation and the translation: libarchive
+// spells a boolean by PRESENCE (`name` on, `!name` off) rather than by value, so a bool cannot simply
+// be forwarded as `name=value`.
+enum class PackValue {
+  kBool,
+  kEnum,
+  kInt,
+};
+
+// One entry of xff's writer vocabulary and what it becomes for libarchive. Alphabetical by xff name,
+// which is also the order the help lists them.
+struct PackOptionSpec {
+  std::string_view name;           // xff's name, the only one a user ever types
+  std::string_view writer_option;  // what libarchive calls it
+  PackValue kind;
+  std::string_view values;   // kEnum: the accepted set; empty otherwise
+  std::string_view formats;  // output names it applies to
+  std::string_view detail;   // one line, rendered into --help=archive
+};
+
+constexpr std::array kPackOptions = std::to_array<PackOptionSpec>({
+    {
+        .name = "compression",
+        .writer_option = "compression",
+        .kind = PackValue::kEnum,
+        .values = "store,deflate",
+        .formats = "zip",
+        .detail = "`store` writes members uncompressed, which is what an archive of already-compressed "
+                  "payloads (images, other archives) wants",
+    },
+    {
+        .name = "level",
+        .writer_option = "compression-level",
+        .kind = PackValue::kInt,
+        .values = "",
+        .formats = "tar.gz,tar.bz2,tar.xz,tar.zst,tgz,zip",
+        .detail = "how hard the compressor works, on the scale the format uses (also spelled "
+                  "`--pack-level`)",
+    },
+    {
+        .name = "threads",
+        .writer_option = "threads",
+        .kind = PackValue::kInt,
+        .values = "",
+        .formats = "tar.xz,tar.zst",
+        .detail = "compressor threads; `0` lets the compressor pick from the machine",
+    },
+    {
+        .name = "timestamp",
+        .writer_option = "timestamp",
+        .kind = PackValue::kBool,
+        .values = "",
+        .formats = "tar.gz,tgz",
+        .detail = "store the modification time in the gzip header; `no` is what makes two runs over "
+                  "the same input byte-identical",
+    },
+    {
+        .name = "zip64",
+        .writer_option = "zip64",
+        .kind = PackValue::kBool,
+        .values = "",
+        .formats = "zip",
+        .detail = "force the zip64 extensions, which lift the 4 GiB member and archive limits",
+    },
+});
+
+const PackOptionSpec* PackOptionSpecFor(std::string_view name) {
+  const auto found = absl::c_find_if(kPackOptions, [name](const PackOptionSpec& spec) { return spec.name == name; });
+  return found == kPackOptions.end() ? nullptr : &*found;
+}
+
+bool AppliesTo(const PackOptionSpec& spec, std::string_view format) {
+  return absl::c_linear_search(absl::StrSplit(spec.formats, ','), format);
+}
+
+// Validates one option against the vocabulary AND the chosen format, and renders what libarchive
+// should be told. Booleans become a presence/absence spelling, which is how libarchive reads them.
+absl::StatusOr<std::string> TranslateOption(const PackSetting& option, const FormatSuffix& format) {
+  const PackOptionSpec* const spec = PackOptionSpecFor(option.name);
+  if (spec == nullptr) {
+    std::vector<std::string_view> names;
+    names.reserve(kPackOptions.size());
+    for (const PackOptionSpec& known : kPackOptions) {
+      names.push_back(known.name);
+    }
+    return absl::InvalidArgumentError(
+        absl::StrCat("unknown pack option '", option.name, "'; known options are ", absl::StrJoin(names, ", ")));
+  }
+  if (!AppliesTo(*spec, format.name)) {
+    return absl::InvalidArgumentError(
+        absl::StrCat(
+            "pack option '", spec->name, "' does not apply to ", format.name, "; it applies to ",
+            absl::StrJoin(absl::StrSplit(spec->formats, ','), ", ")));
+  }
+  switch (spec->kind) {
+    case PackValue::kBool: {
+      if (option.value != "yes" && option.value != "no") {
+        return absl::InvalidArgumentError(
+            absl::StrCat("pack option '", spec->name, "' takes yes or no, got '", option.value, "'"));
+      }
+      // Presence is the value: libarchive reads `name` as on and `!name` as off.
+      return option.value == "yes" ? std::string(spec->writer_option) : absl::StrCat("!", spec->writer_option);
+    }
+    case PackValue::kEnum: {
+      if (!absl::c_linear_search(absl::StrSplit(spec->values, ','), option.value)) {
+        return absl::InvalidArgumentError(
+            absl::StrCat(
+                "pack option '", spec->name, "' takes one of ", absl::StrJoin(absl::StrSplit(spec->values, ','), ", "),
+                ", got '", option.value, "'"));
+      }
+      return absl::StrCat(spec->writer_option, "=", option.value);
+    }
+    case PackValue::kInt: {
+      int parsed = 0;
+      if (!absl::SimpleAtoi(option.value, &parsed)) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("pack option '", spec->name, "' takes a number, got '", option.value, "'"));
+      }
+      // Only `level` has a range, and it is the FORMAT's, which is why it cannot live in the option
+      // table: gzip stops at 9 where zstd goes to 22.
+      if (spec->name == "level" && (parsed < format.level_min || parsed > format.level_max)) {
+        return absl::InvalidArgumentError(
+            absl::StrCat(
+                "compression level ", parsed, " is out of range for ", format.name, ", which accepts ",
+                format.level_min, "-", format.level_max));
+      }
+      return absl::StrCat(spec->writer_option, "=", parsed);
+    }
+  }
+  return absl::InternalError("unhandled pack option kind");
+}
 
 const FormatSuffix* FormatEntryFor(std::string_view path) {
   const std::string lower = absl::AsciiStrToLower(path);
@@ -188,6 +326,25 @@ std::string FormatFromName(std::string_view path) {
   return found == nullptr ? std::string() : std::string(found->name);
 }
 
+std::vector<PackOptionDoc> PackOptionDocs() {
+  std::vector<PackOptionDoc> docs;
+  docs.reserve(kPackOptions.size());
+  for (const PackOptionSpec& spec : kPackOptions) {
+    std::string syntax;
+    switch (spec.kind) {
+      case PackValue::kBool: syntax = "yes|no"; break;
+      case PackValue::kEnum: syntax = absl::StrJoin(absl::StrSplit(spec.values, ','), "|"); break;
+      case PackValue::kInt: syntax = "N"; break;
+    }
+    docs.push_back(
+        {.name = std::string(spec.name),
+         .value_syntax = std::move(syntax),
+         .formats = absl::StrJoin(absl::StrSplit(spec.formats, ','), ", "),
+         .detail = std::string(spec.detail)});
+  }
+  return docs;
+}
+
 std::vector<std::string> PackFormats() {
   std::vector<std::string> names;
   names.reserve(kFormats.size());
@@ -220,22 +377,19 @@ absl::Status PackFiles(std::string_view path, const std::vector<PackEntry>& entr
       return absl::InvalidArgumentError(
           absl::StrCat("this build cannot write ", format->name, ": ", ::archive_error_string(writer.get())));
     }
-    if (options.level.has_value()) {
-      if (format->level_max == 0) {
-        return absl::InvalidArgumentError(
-            absl::StrCat(format->name, " is not compressed, so there is no compression level to set"));
-      }
-      if (*options.level < format->level_min || *options.level > format->level_max) {
-        return absl::InvalidArgumentError(
-            absl::StrCat(
-                "compression level ", *options.level, " is out of range for ", format->name, ", which accepts ",
-                format->level_min, "-", format->level_max));
-      }
-      const std::string setting = absl::StrCat("compression-level=", *options.level);
+    // Options are translated and applied before anything is written, so a rejected one costs no file.
+    // Last value for a name wins, which is what lets a caller append rather than rewrite its list.
+    absl::btree_map<std::string, std::string> resolved;
+    for (const PackSetting& option : options.options) {
+      resolved[option.name] = option.value;
+    }
+    for (const auto& [name, value] : resolved) {
+      MBO_ASSIGN_OR_RETURN(
+          const std::string setting, TranslateOption(PackSetting{.name = name, .value = value}, *format));
       if (::archive_write_set_options(writer.get(), setting.c_str()) != ARCHIVE_OK) {
         return absl::InvalidArgumentError(
             absl::StrCat(
-                "cannot set the ", format->name, " compression level to ", *options.level, ": ",
+                "this build cannot set '", name, "=", value, "' on ", format->name, ": ",
                 ::archive_error_string(writer.get())));
       }
     }

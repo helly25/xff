@@ -61,6 +61,11 @@ std::vector<std::string>& ContainerPackFormatsSlot() {
   return slot;
 }
 
+std::vector<PackOptionInfo>& ContainerPackVocabularySlot() {
+  static std::vector<PackOptionInfo> slot;
+  return slot;
+}
+
 }  // namespace
 
 void RegisterContainerOpener(ContainerOpener opener) {
@@ -82,9 +87,13 @@ absl::Status RemoveContainerMembers(std::string_view container, const std::vecto
   return ContainerMemberRemoverSlot()(container, members);
 }
 
-void RegisterContainerPacker(ContainerPacker packer, std::vector<std::string> formats) {
+void RegisterContainerPacker(
+    ContainerPacker packer,
+    std::vector<std::string> formats,
+    std::vector<PackOptionInfo> vocabulary) {
   ContainerPackerSlot() = std::move(packer);
   ContainerPackFormatsSlot() = std::move(formats);
+  ContainerPackVocabularySlot() = std::move(vocabulary);
 }
 
 bool ContainerPackingAvailable() {
@@ -93,6 +102,10 @@ bool ContainerPackingAvailable() {
 
 std::vector<std::string> ContainerPackFormats() {
   return ContainerPackFormatsSlot();
+}
+
+std::vector<PackOptionInfo> ContainerPackVocabulary() {
+  return ContainerPackVocabularySlot();
 }
 
 std::string ContainerPackFormatFor(std::string_view path) {

@@ -34,15 +34,14 @@ namespace xff::archive {
 namespace {
 
 using ::mbo::testing::StatusIs;
+using ::testing::AllOf;
 using ::testing::ElementsAre;
-using ::testing::Eq;
 using ::testing::Field;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::NotNull;
-using ::testing::Optional;
 
 // A filesystem that answers nothing: this test is about the SLOT, not about any backend. Only
 // FsType is given a value, so a test can tell the stub apart from a real one.
@@ -80,7 +79,7 @@ class StubFileSystem : public vfs::FileSystem {
 struct ArchiveBackendTest : ::testing::Test {
   void TearDown() override {
     RegisterContainerOpener(ContainerOpener());
-    RegisterContainerPacker(ContainerPacker(), {});
+    RegisterContainerPacker(ContainerPacker(), {}, {});
   }
 };
 
@@ -199,6 +198,7 @@ TEST_F(ArchiveBackendTest, RegisteringAgainReplacesTheOpener) {
 TEST_F(ArchiveBackendTest, WithNoPackerNothingCanBeCreatedAndNoFormatIsOffered) {
   EXPECT_THAT(ContainerPackingAvailable(), IsFalse());
   EXPECT_THAT(ContainerPackFormats(), IsEmpty());
+  EXPECT_THAT(ContainerPackVocabulary(), IsEmpty());
   EXPECT_THAT(ContainerPackFormatFor("out.tar.gz"), IsEmpty());
   EXPECT_THAT(
       PackContainer("out.tar", {}), StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("without archive support")));
@@ -209,22 +209,29 @@ TEST_F(ArchiveBackendTest, ARegisteredPackerReceivesThePathAndTheFilesUnchanged)
   // seam must hand them through untouched.
   std::string packed;
   std::vector<PackFile> seen;
-  std::optional<int> level;
+  std::vector<PackOption> forwarded;
   RegisterContainerPacker(
-      [&packed, &seen, &level](std::string_view path, const std::vector<PackFile>& files, const PackOptions& options) {
+      [&packed, &seen, &forwarded](
+          std::string_view path, const std::vector<PackFile>& files, const PackOptions& options) {
         packed = std::string(path);
         seen = files;
-        level = options.level;
+        forwarded = options.options;
         return absl::OkStatus();
       },
-      {"tar", "tar.gz"});
+      {"tar", "tar.gz"},
+      {PackOptionInfo{.name = "level", .value_syntax = "N", .formats = "tar.gz", .detail = "how hard"}});
   EXPECT_THAT(ContainerPackingAvailable(), IsTrue());
   EXPECT_THAT(
       PackContainer(
           "out.tar", {PackFile{.source = "/tmp/b", .name = "b"}, PackFile{.source = "/tmp/a", .name = "a"}},
-          PackOptions{.level = 9}),
+          PackOptions{.options = {{.name = "level", .value = "9"}}}),
       ::mbo::testing::IsOk());
-  EXPECT_THAT(level, Optional(Eq(9)));  // the level travels too, or --pack-level would do nothing
+  // The options travel verbatim: the seam does not interpret a vocabulary it does not own.
+  EXPECT_THAT(
+      forwarded,
+      ElementsAre(AllOf(Field("name", &PackOption::name, "level"), Field("value", &PackOption::value, "9"))));
+  // And so does the vocabulary, which is what the CLI checks names against before walking.
+  EXPECT_THAT(ContainerPackVocabulary(), ElementsAre(Field("name", &PackOptionInfo::name, "level")));
   EXPECT_THAT(packed, "out.tar");
   EXPECT_THAT(seen, ElementsAre(Field("name", &PackFile::name, "b"), Field("name", &PackFile::name, "a")));
 }
@@ -234,7 +241,7 @@ TEST_F(ArchiveBackendTest, TheFormatProbeTakesTheLongestRegisteredNameAndFoldsCa
   // never a `gz` or a `tar`, and an unregistered suffix names no format at all.
   RegisterContainerPacker(
       [](std::string_view, const std::vector<PackFile>&, const PackOptions&) { return absl::OkStatus(); },
-      {"tar", "gz", "tar.gz", "zip"});
+      {"tar", "gz", "tar.gz", "zip"}, {});
   EXPECT_THAT(ContainerPackFormatFor("out.tar.gz"), "tar.gz");
   EXPECT_THAT(ContainerPackFormatFor("OUT.TAR.GZ"), "tar.gz");
   EXPECT_THAT(ContainerPackFormatFor("out.zip"), "zip");

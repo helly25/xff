@@ -112,10 +112,26 @@ absl::Status PackArchiveContainer(
   for (const PackFile& file : files) {
     entries.push_back(PackEntry{.source = file.source, .name = file.name});
   }
-  return PackFiles(path, entries, PackSettings{.level = options.level});
+  PackSettings settings;
+  settings.options.reserve(options.options.size());
+  for (const PackOption& option : options.options) {
+    settings.options.push_back({.name = option.name, .value = option.value});
+  }
+  return PackFiles(path, entries, settings);
 }
 
-const ContainerPackerRegistrar kRegisterArchivePacker{&PackArchiveContainer, PackFormats()};
+// The vocabulary travels with the packer, so the CLI's pre-walk check and `--help=archive` both read
+// the writer's own table rather than a copy that could drift from it.
+std::vector<PackOptionInfo> PackVocabulary() {
+  std::vector<PackOptionInfo> vocabulary;
+  for (const PackOptionDoc& doc : PackOptionDocs()) {
+    vocabulary.push_back(
+        {.name = doc.name, .value_syntax = doc.value_syntax, .formats = doc.formats, .detail = doc.detail});
+  }
+  return vocabulary;
+}
+
+const ContainerPackerRegistrar kRegisterArchivePacker{&PackArchiveContainer, PackFormats(), PackVocabulary()};
 
 }  // namespace
 }  // namespace xff::archive
