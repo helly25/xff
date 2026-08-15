@@ -92,6 +92,11 @@ class ArchiveFileSystem : public vfs::FileSystem {
   ArchiveFileSystem(std::string container, MemberPathOptions options)
       : container_(std::move(container)), options_(options) {}
 
+  // The third probe in Open's chain: a COMPRESSED SINGLE FILE (`notes.txt.gz`, not `.tar.gz`).
+  // InvalidArgument keeps Open's own convention: "not mine, try the next explanation"; any other
+  // error is an answer. On success the filesystem holds the decompressed content.
+  static absl::StatusOr<ArchiveFileSystem> OpenCompressedSingle(std::string_view container, MemberPathOptions options);
+
   // Builds the node index from a member list, whatever the source. `bytes` is empty for a
   // path-backed container.
   static absl::StatusOr<ArchiveFileSystem> Index(
