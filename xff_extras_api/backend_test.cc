@@ -32,7 +32,6 @@
 namespace xff::regex {
 namespace {
 
-using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
 using ::testing::IsFalse;

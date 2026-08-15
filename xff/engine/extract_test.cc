@@ -39,7 +39,6 @@ namespace {
 
 namespace stdfs = std::filesystem;
 
-using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
 using ::testing::EndsWith;
 using ::testing::IsEmpty;
