@@ -136,7 +136,7 @@ struct PharReaderTest : ::testing::Test {
       return {};
     }
     out.resize(produced);
-    return std::string(out.begin(), out.end());
+    return {out.begin(), out.end()};
   }
 
   // Builds a native phar by hand. There is no phar writer to lean on (that is the point of the
