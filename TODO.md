@@ -322,8 +322,15 @@ intent, not hard dependency. Task numbers reference the agent task list.
   - **Sequence**: fix per file (the reinterpret-casts in the binary readers and the
     `concurrency-mt-unsafe` hits want judgement, not a blanket rewrite), then DROP the exclusion in
     the last slice - not before, since the CI clang-tidy job is a hard gate and would go red on the
-    first one. `archive_pack.cc` / `archive_register.cc` are already clean (fixed in #515 and the
-    follow-up).
+    first one. `archive_pack.cc` / `archive_register.cc` are already clean (#515, #516), as is the
+    whole pcre2 extra.
+  - **What a C-API binding taught us (pcre2, done):** most of its findings were the boundary itself -
+    `PCRE2_SPTR` is `const unsigned char*` where callers hold `const char*`, and the ovector comes
+    back as a bare pointer. The answer is not to suppress in bulk: funnel the casts through the one
+    function that exists to do them (`Sptr`) and NOLINT it there with the reason, span the ovector so
+    offsets are indexed rather than pointer-walked, and fix everything else for real (`std::array`
+    for the error buffer, deleted copy/move on the handle-owning class). Expect the same split in
+    `phar_reader.cc` and `archive_writer.cc`.
 
 - **Style docs + `.clang-tidy`** (this change). `.clang-tidy` (mbo's rule set),
   `STYLE_CPP.md`, `RULES.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and an
