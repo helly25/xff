@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
@@ -127,17 +128,6 @@ absl::Status PackContainer(std::string_view path, const std::vector<PackFile>& f
   return ContainerPackerSlot()(path, files, options);
 }
 
-// Every suffix the reader has a format or filter for, plus the package extensions that are one of
-// those underneath (a `.jar` is a zip, a `.crate` a tar.gz). Lower case; the comparison folds, so a
-// shouted `ARCHIVE.ZIP` matches too. Compound suffixes (`.tar.gz`) need no entry: their last
-// component (`.gz`) is already here.
-constexpr std::array kContainerSuffixes = std::to_array<std::string_view>({
-    ".7z",  ".aab",  ".apk",  ".ar",   ".bz2",  ".cab", ".cbz",  ".cpio", ".crate", ".crx",  ".deb",  ".docx",  ".ear",
-    ".egg", ".epub", ".gem",  ".gz",   ".iso",  ".jar", ".jmod", ".lha",  ".lz4",   ".lzh",  ".lzma", ".nupkg", ".odp",
-    ".ods", ".odt",  ".phar", ".pptx", ".rar",  ".rpm", ".tar",  ".taz",  ".tbz",   ".tbz2", ".tgz",  ".tlz",   ".txz",
-    ".tz2", ".tzst", ".vsix", ".war",  ".warc", ".whl", ".xar",  ".xlsx", ".xpi",   ".xz",   ".zip",  ".zst",   ".zstd",
-});
-
 namespace {
 
 // The linked reader's declared formats; empty until a backend registers. Same slot pattern as the
@@ -147,18 +137,31 @@ std::vector<ReadFormatInfo>& ReadFormatsSlot() {
   return slot;
 }
 
+// The dive gate DERIVED from the registered formats: the lower-cased LAST dotted component of every
+// declared suffix (a compound `.tar.gz` gates by `.gz`, which the single-file row declares anyway).
+// One source of truth: there is no second extension list to drift - the reader's declaration IS the
+// gate, and with no backend registered nothing dives (nothing could be opened either).
+absl::flat_hash_set<std::string>& GateSuffixesSlot() {
+  static absl::flat_hash_set<std::string> slot;
+  return slot;
+}
+
 }  // namespace
 
 void RegisterContainerReadFormats(std::vector<ReadFormatInfo> formats) {
   ReadFormatsSlot() = std::move(formats);
+  absl::flat_hash_set<std::string>& gate = GateSuffixesSlot();
+  gate.clear();
+  for (const ReadFormatInfo& format : ReadFormatsSlot()) {
+    for (const std::string& suffix : format.suffixes) {
+      const std::string::size_type dot = suffix.rfind('.');
+      gate.insert(absl::AsciiStrToLower(dot == 0 ? suffix : suffix.substr(dot)));
+    }
+  }
 }
 
 std::vector<ReadFormatInfo> ContainerReadFormats() {
   return ReadFormatsSlot();
-}
-
-absl::Span<const std::string_view> ContainerNameSuffixes() {
-  return kContainerSuffixes;
 }
 
 bool ContainerSupportAvailable() {
@@ -172,9 +175,7 @@ bool LooksLikeContainerName(std::string_view name) {
     // `.gz` is a dotfile, not a gzip called something.
     return false;
   }
-  const std::string_view suffix = name.substr(dot);
-  return absl::c_any_of(
-      kContainerSuffixes, [suffix](std::string_view known) { return absl::EqualsIgnoreCase(suffix, known); });
+  return GateSuffixesSlot().contains(absl::AsciiStrToLower(name.substr(dot)));
 }
 
 absl::StatusOr<std::unique_ptr<vfs::FileSystem>> OpenContainer(std::string_view container, MemberPathOptions options) {

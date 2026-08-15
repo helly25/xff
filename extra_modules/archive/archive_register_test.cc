@@ -20,7 +20,6 @@
 
 #include <string>
 
-#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
@@ -53,28 +52,19 @@ TEST_F(ArchiveRegisterTest, TheSeamReachesTheRealReaderAndKeepsItsErrors) {
   EXPECT_THAT(OpenContainer("/etc/hosts"), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
-TEST_F(ArchiveRegisterTest, ReadFormatsAndTheNameGateAgreeInBothDirections) {
-  // The formats table (--help=archive) and the dive name gate must describe the same reader.
-  // Forward: every declared suffix dives. Reverse: every gate suffix is owned by a declared format
-  // (matched whole or by its last dotted component, which is how the gate itself matches
-  // compounds) - so a suffix added to either side without the other fails here, which is the drift
-  // this table exists to prevent.
+TEST_F(ArchiveRegisterTest, TheDiveGateIsDerivedFromTheDeclaredReadFormats) {
+  // ONE extension SOT: the gate is built from the registration, so every declared suffix dives (by
+  // its last dotted component, which is how compounds like `.tar.gz` gate) and an undeclared name
+  // does not. There is no second list left to drift.
   const std::vector<ReadFormatInfo> formats = ContainerReadFormats();
   ASSERT_THAT(formats, Not(IsEmpty()));
-  absl::flat_hash_set<std::string> declared;
   for (const ReadFormatInfo& format : formats) {
     for (const std::string& suffix : format.suffixes) {
       EXPECT_TRUE(LooksLikeContainerName(absl::StrCat("x", suffix))) << format.name << " declares " << suffix;
-      declared.insert(suffix);
-      const std::string::size_type dot = suffix.rfind('.');
-      if (dot != 0) {
-        declared.insert(suffix.substr(dot));
-      }
     }
   }
-  for (const std::string_view gate : ContainerNameSuffixes()) {
-    EXPECT_TRUE(declared.contains(gate)) << gate << " dives but no read format declares it";
-  }
+  EXPECT_FALSE(LooksLikeContainerName("notes.txt"));
+  EXPECT_FALSE(LooksLikeContainerName("Makefile"));
 }
 
 TEST_F(ArchiveRegisterTest, LinkingTheExtraGivesTheCoreContainerCreation) {

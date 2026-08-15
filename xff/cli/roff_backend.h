@@ -42,6 +42,8 @@ class RoffBackend final : public HelpBackend {
   void EmitExample(const Example& example) override;
   void EmitBullets(const Bullets& bullets) override;
   void EmitRows(const Rows& rows) override;
+
+  void EmitTable(const Table& table) override;
   void EmitSeeAlso(const SeeAlso& see_also) override;
   [[nodiscard]] std::string Take() override;
 

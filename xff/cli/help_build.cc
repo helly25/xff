@@ -500,25 +500,23 @@ Section ArchiveSection(bool in_full) {
   if (!read_formats.empty()) {
     Subsection formats{.title = "Formats this binary understands"};
     formats.children.push_back(ProseOf(
-        "Reading is decided by CONTENT (the reader sniffs the bytes), so the extensions listed are "
-        "what the name gate dives on under `all` and how the format is usually spelled - a container "
-        "with an unlisted name still reads under `any`. Write means `--pack` can create it."));
-    Rows rows;
-    rows.rows.reserve(read_formats.size());
+        "Reading is decided by CONTENT (the reader sniffs the bytes), so the extensions are what "
+        "the name gate dives on under `all` and how the format is usually spelled - a container "
+        "with an unlisted name still reads under `any`. Package extensions ride their underlying "
+        "format: a `.jar` is a zip, a `.deb` an ar, an `.rpm` a cpio, `.crate` and `.gem` are "
+        "tars, and `file` is a compressed SINGLE file (`notes.txt.gz`, one member). Write means "
+        "`--pack` can create it."));
+    Table table{.header = {"format", "read", "write", "extensions"}};
+    table.cells.reserve(read_formats.size());
     for (const archive::ReadFormatInfo& format : read_formats) {
       // A format is writable when any of its suffixes names a registered pack format; the writer's
       // own suffix rule (longest dotted match, case folded) decides, so the two cannot disagree.
       const bool writable = absl::c_any_of(format.suffixes, [](const std::string& suffix) {
         return !archive::ContainerPackFormatFor(absl::StrCat("x", suffix)).empty();
       });
-      std::string description =
-          absl::StrCat(writable ? "read+write" : "read", " - `", absl::StrJoin(format.suffixes, "`, `"), "`");
-      if (!format.detail.empty()) {
-        absl::StrAppend(&description, "; ", format.detail);
-      }
-      rows.rows.push_back(Row{.term = format.name, .description = ParseInline(description)});
+      table.cells.push_back({format.name, "yes", writable ? "yes" : "no", absl::StrJoin(format.suffixes, ", ")});
     }
-    formats.children.push_back(Content{.node = std::move(rows)});
+    formats.children.push_back(Content{.node = std::move(table)});
     section.children.push_back(Content{.node = std::move(formats)});
   }
 

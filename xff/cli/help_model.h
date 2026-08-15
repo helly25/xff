@@ -90,6 +90,15 @@ struct Bullets {
   std::vector<Inlines> items;
 };
 
+// A real multi-column table: one header row plus data rows, every cell PLAIN text (inline markup
+// in cells would fight column alignment in the plain backend). Markdown renders a GFM pipe table;
+// plain and roff render width-aligned columns, the LAST column wrapping to the page width - so put
+// the prose-length column (extensions, notes) last.
+struct Table {
+  std::vector<std::string> header;
+  std::vector<std::vector<std::string>> cells;
+};
+
 // A {term, description} vocabulary row (printf directive, time preset, field, ...).
 struct Row {
   std::string term;
@@ -133,7 +142,7 @@ struct Subsection {
 // wrapping the variant (rather than a bare alias) so it can be forward declared
 // and hold itself via Blocks (Entry.details / Subsection.children).
 struct Content {
-  std::variant<Prose, Example, Bullets, Rows, Entry, SeeAlso, Subsection> node;
+  std::variant<Prose, Example, Bullets, Rows, Table, Entry, SeeAlso, Subsection> node;
 };
 
 // ========== Top-level document ========== //

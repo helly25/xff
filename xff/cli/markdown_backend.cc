@@ -22,6 +22,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
+#include "absl/strings/str_replace.h"
 #include "xff/cli/help_model.h"
 
 namespace xff::cli {
@@ -139,6 +140,28 @@ void MarkdownBackend::EmitRows(const Rows& rows) {
   if (in_entry_) {
     absl::StrAppend(&out_, "\n");
   }
+}
+
+void MarkdownBackend::EmitTable(const Table& table) {
+  // A GFM pipe table; cells are plain text by the model's contract, so only `|` needs escaping.
+  const auto escape = [](std::string_view cell) { return absl::StrReplaceAll(cell, {{"|", "\\|"}}); };
+  absl::StrAppend(&out_, "\n|");
+  for (const std::string& cell : table.header) {
+    absl::StrAppend(&out_, " ", escape(cell), " |");
+  }
+  absl::StrAppend(&out_, "\n|");
+  for (std::size_t i = 0; i < table.header.size(); ++i) {
+    absl::StrAppend(&out_, " --- |");
+  }
+  absl::StrAppend(&out_, "\n");
+  for (const std::vector<std::string>& row : table.cells) {
+    absl::StrAppend(&out_, "|");
+    for (const std::string& cell : row) {
+      absl::StrAppend(&out_, " ", escape(cell), " |");
+    }
+    absl::StrAppend(&out_, "\n");
+  }
+  absl::StrAppend(&out_, "\n");
 }
 
 void MarkdownBackend::EmitSeeAlso(const SeeAlso& see_also) {

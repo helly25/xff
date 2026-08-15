@@ -90,6 +90,8 @@ class HelpBackend {
   virtual void EmitExample(const Example& example) = 0;
   virtual void EmitBullets(const Bullets& bullets) = 0;
   virtual void EmitRows(const Rows& rows) = 0;
+
+  virtual void EmitTable(const Table& table) = 0;
   virtual void EmitSeeAlso(const SeeAlso& see_also) = 0;
 
   // The accumulated document.

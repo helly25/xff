@@ -93,8 +93,18 @@ TEST_F(ArchiveBackendTest, WithNoBackendThereIsNoSupportAndOpeningSaysWhy) {
 
 TEST_F(ArchiveBackendTest, TheNameGateAcceptsFormatsAndPackagesAlike) {
   // The gate in front of the reader under `--archive=all`: a name is enough to be OFFERED, never
-  // enough to be an archive. Both a bare format suffix and a package that is one underneath count,
-  // and the comparison folds case because filesystems shout.
+  // enough to be an archive. The gate is DERIVED from the registered read formats - there is no
+  // second extension list - so this test registers a representative vocabulary first; the real
+  // reader's declaration is pinned by @xff_archive's own register test. Both a bare format suffix
+  // and a package that is one underneath count, and the comparison folds case because filesystems
+  // shout.
+  RegisterContainerReadFormats({
+      {.name = "7z", .suffixes = {".7z"}},
+      {.name = "cpio", .suffixes = {".rpm"}},
+      {.name = "phar", .suffixes = {".phar"}},
+      {.name = "tar", .suffixes = {".tar", ".tar.gz", ".tgz", ".txz", ".tbz2", ".tzst", ".tlz"}},
+      {.name = "zip", .suffixes = {".zip", ".jar", ".whl"}},
+  });
   constexpr std::array kOffered = std::to_array<std::string_view>({
       "a.tar",
       "a.tar.gz",
@@ -116,12 +126,19 @@ TEST_F(ArchiveBackendTest, TheNameGateAcceptsFormatsAndPackagesAlike) {
   for (const std::string_view name : kOffered) {
     EXPECT_THAT(LooksLikeContainerName(name), IsTrue()) << name;
   }
+  RegisterContainerReadFormats({});  // reset: with nothing registered, nothing dives
+  EXPECT_THAT(LooksLikeContainerName("a.tar"), IsFalse());
 }
 
 TEST_F(ArchiveBackendTest, TheNameGateRejectsEverydayFiles) {
   // What the gate is FOR: walking a source tree must not open and format-bid every file in it. A name
   // with no suffix, or one that is not a container suffix, is not offered - `--archive-any` is the way
-  // to reach an archive whose name says nothing.
+  // to reach an archive whose name says nothing. Registered formats are PRESENT here, so rejection
+  // is a decision, not an empty gate.
+  RegisterContainerReadFormats({
+      {.name = "tar", .suffixes = {".tar", ".tar.gz"}},
+      {.name = "zip", .suffixes = {".zip"}},
+  });
   constexpr std::array kNotOffered = std::to_array<std::string_view>({
       "walk.cc",
       "walk.h",
@@ -136,6 +153,7 @@ TEST_F(ArchiveBackendTest, TheNameGateRejectsEverydayFiles) {
   for (const std::string_view name : kNotOffered) {
     EXPECT_THAT(LooksLikeContainerName(name), IsFalse()) << name;
   }
+  RegisterContainerReadFormats({});  // reset for the other tests in this process
 }
 
 TEST_F(ArchiveBackendTest, ARegisteredOpenerIsUsedAndSeesTheMemberPathOptions) {

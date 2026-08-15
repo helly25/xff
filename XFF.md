@@ -832,21 +832,24 @@ Members are READ-ONLY by default. `-delete` and the exec family refuse one rathe
 
 ### Formats this binary understands
 
-Reading is decided by CONTENT (the reader sniffs the bytes), so the extensions listed are what the name gate dives on under `all` and how the format is usually spelled - a container with an unlisted name still reads under `any`. Write means `--pack` can create it.
+Reading is decided by CONTENT (the reader sniffs the bytes), so the extensions are what the name gate dives on under `all` and how the format is usually spelled - a container with an unlisted name still reads under `any`. Package extensions ride their underlying format: a `.jar` is a zip, a `.deb` an ar, an `.rpm` a cpio, `.crate` and `.gem` are tars, and `file` is a compressed SINGLE file (`notes.txt.gz`, one member). Write means `--pack` can create it.
 
-- `7z` - read - `.7z`; 7-Zip archives
-- `ar` - read - `.ar`, `.deb`; Unix ar archives; a `.deb` is one
-- `cab` - read - `.cab`; Microsoft cabinet archives
-- `cpio` - read - `.cpio`, `.rpm`; cpio archives; an `.rpm`'s payload is one
-- `iso9660` - read - `.iso`; ISO 9660 disc images
-- `lha` - read - `.lha`, `.lzh`; LHA/LZH archives
-- `rar` - read - `.rar`; RAR 4 and RAR 5 archives
-- `tar` - read+write - `.tar`, `.tar.gz`, `.tgz`, `.taz`, `.crate`, `.gem`, `.tar.bz2`, `.tbz`, `.tbz2`, `.tz2`, `.tar.xz`, `.txz`, `.tlz`, `.tar.zst`, `.tzst`; tar archives, plain or through any compression filter; `.crate` and `.gem` are tars
-- `warc` - read - `.warc`; web archives
-- `xar` - read - `.xar`; xar archives
-- `zip` - read+write - `.zip`, `.jar`, `.war`, `.ear`, `.whl`, `.egg`, `.apk`, `.aab`, `.cbz`, `.crx`, `.docx`, `.epub`, `.jmod`, `.nupkg`, `.odp`, `.ods`, `.odt`, `.pptx`, `.vsix`, `.xlsx`, `.xpi`; zip archives and the package formats that are zips underneath
-- `phar` - read - `.phar`; PHP phar archives (xff's own reader)
-- `file` - read - `.gz`, `.bz2`, `.xz`, `.zst`, `.zstd`, `.lz4`, `.lzma`; a compressed SINGLE file (`notes.txt.gz`): one member, decompressed at open
+| format  | read | write | extensions                                                                                                                           |
+| ------- | ---- | ----- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| 7z      | yes  | no    | .7z                                                                                                                                  |
+| ar      | yes  | no    | .ar, .deb                                                                                                                            |
+| cab     | yes  | no    | .cab                                                                                                                                 |
+| cpio    | yes  | no    | .cpio, .rpm                                                                                                                          |
+| iso9660 | yes  | no    | .iso                                                                                                                                 |
+| lha     | yes  | no    | .lha, .lzh                                                                                                                           |
+| rar     | yes  | no    | .rar                                                                                                                                 |
+| tar     | yes  | yes   | .tar, .tar.gz, .tgz, .taz, .crate, .gem, .tar.bz2, .tbz, .tbz2, .tz2, .tar.xz, .txz, .tlz, .tar.zst, .tzst                           |
+| warc    | yes  | no    | .warc                                                                                                                                |
+| xar     | yes  | no    | .xar                                                                                                                                 |
+| zip     | yes  | yes   | .zip, .jar, .war, .ear, .whl, .egg, .apk, .aab, .cbz, .crx, .docx, .epub, .jmod, .nupkg, .odp, .ods, .odt, .pptx, .vsix, .xlsx, .xpi |
+| phar    | yes  | no    | .phar                                                                                                                                |
+| file    | yes  | no    | .gz, .bz2, .xz, .zst, .zstd, .lz4, .lzma                                                                                             |
+
 
 ### Creating one
 

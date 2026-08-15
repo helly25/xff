@@ -389,7 +389,6 @@ cc_test(
     srcs = ["archive_register_test.cc"],
     deps = [
         ":archive_register_cc",
-        "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

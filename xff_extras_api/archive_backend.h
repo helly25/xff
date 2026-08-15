@@ -211,10 +211,6 @@ void RegisterContainerReadFormats(std::vector<ReadFormatInfo> formats);
 // backend is linked, which is how a lean build's help simply has no table.
 [[nodiscard]] std::vector<ReadFormatInfo> ContainerReadFormats();
 
-// The suffixes LooksLikeContainerName dives on, exposed so a backend's test can pin its declared
-// read formats against the gate in both directions - the drift THIS existed to prevent.
-[[nodiscard]] absl::Span<const std::string_view> ContainerNameSuffixes();
-
 // Whether this binary can create a container at all (a backend registered a packer).
 [[nodiscard]] bool ContainerPackingAvailable();
 
