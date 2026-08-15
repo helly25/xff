@@ -307,6 +307,7 @@ cc_library(
         "//xff/license:license_cc",
         "//xff/regex:regex_cc",
         "//xff/registry:registry_cc",
+        "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
         "@xff_extras_api//:archive_backend_cc",
