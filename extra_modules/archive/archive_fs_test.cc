@@ -132,6 +132,17 @@ TEST_F(ArchiveFsTest, AnEmptyFileOpensAsAnArchiveWithNoMembers) {
   EXPECT_THAT(entries, ::testing::IsEmpty());
 }
 
+TEST_F(ArchiveFsTest, RepeatedContentReadsAreIdenticalThroughTheCache) {
+  // The second read is served from the member cache rather than a fresh decompression pass; what
+  // this pins is that the cached bytes ARE the member's bytes, read after read.
+  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(Tar()));
+  const std::string member = absl::StrCat(Tar(), "!dir/sub/deep.txt");
+  MBO_ASSERT_OK_AND_ASSIGN(const std::string first, fs.ReadContent(member));
+  MBO_ASSERT_OK_AND_ASSIGN(const std::string second, fs.ReadContent(member));
+  EXPECT_THAT(second, Eq(first));
+  EXPECT_THAT(fs.ReadContent(member), IsOkAndHolds(Eq(first)));
+}
+
 TEST_F(ArchiveFsTest, TheContainerItselfReadsAsTheArchiveRoot) {
   // A walk enters the archive by ReadDir'ing the container path, so that must list the top level -
   // including `dir`, which the tar never stored as an entry.

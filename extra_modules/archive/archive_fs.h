@@ -40,6 +40,7 @@
 
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -47,6 +48,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "xff/archive/archive_reader.h"
+#include "xff/archive/member_cache.h"
 #include "xff/archive/member_path.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/filesystem.h"
@@ -121,6 +123,10 @@ class ArchiveFileSystem : public vfs::FileSystem {
   // and kept here. There is no member list in such a container and no second read to make.
   bool single_ = false;
   std::string single_file_content_;
+  // Extracted-member content, so a composed expression (`-grep` + `{hash}` + `-cmp`) does not
+  // decompress the same member once per predicate. Behind a pointer because `absl::Mutex` is not
+  // movable and this filesystem is returned by value; mutable because a read is logically const.
+  mutable std::unique_ptr<MemberCache> member_cache_ = std::make_unique<MemberCache>();
   MemberPathOptions options_;
   // Keyed by member path as stored, without a trailing slash. Ordered so ReadDir output is stable
   // without a sort, which keeps a walk's ordering reproducible.

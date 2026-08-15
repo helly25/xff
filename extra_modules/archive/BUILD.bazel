@@ -201,6 +201,30 @@ cc_test(
 # matches its members at virtual paths. Implements @xff_extras_api's seam (never the xff core), and
 # spells member paths through member_path_cc so --archive-separator / --archive-prefix apply.
 cc_library(
+    name = "member_cache_cc",
+    srcs = ["member_cache.cc"],
+    hdrs = ["member_cache.h"],
+    include_prefix = "xff/archive",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/synchronization",
+    ],
+)
+
+cc_test(
+    name = "member_cache_test",
+    size = "small",
+    srcs = ["member_cache_test.cc"],
+    deps = [
+        ":member_cache_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "archive_fs_cc",
     srcs = ["archive_fs.cc"],
     hdrs = ["archive_fs.h"],
@@ -208,6 +232,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":archive_reader_cc",
+        ":member_cache_cc",
         ":phar_reader_cc",
         "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/status",

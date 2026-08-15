@@ -205,11 +205,12 @@ shipped one way but not yet settled.
   - **Relation to the shipped flags:** `--archive-extract` becomes the portable fallback rather than the
     only mechanism, and `--archive-aggregate` / `--archive-delete` are unaffected.
 
-  - **Where a real `vfs::MemoryFileSystem` WOULD pay:** a bounded member CACHE. Today `-grep`,
-    `{hash}` and `-cmp` on the same member each decompress it again, and a member read twice is
-    common in a composed expression. That is a cache with a size cap (the same
-    decompression-bomb concern as everywhere else), not a filesystem - so build it as one, keyed by
-    (container, member), rather than as a general in-memory VFS with no second customer.
+  - **Bounded member CACHE (SHIPPED).** `-grep`, `{hash}` and `-cmp` on the same member used to
+    each decompress it again. `MemberCache` (`member_cache.{h,cc}`) is a mutex-guarded LRU with a
+    64 MiB byte cap per open container - the cap is the decompression-bomb concern, so oversized
+    content is served but never stored - consulted by `ArchiveFileSystem::ReadContent`. Built as a
+    cache keyed by member (the container is the filesystem instance), not as a general in-memory
+    VFS with no second customer.
 
 - **Modern (non-`find`) default time format: resolved to `space`.**
   `space` (`2026-06-22 14:30:00 +0100`) is the default: human-first (it matches
