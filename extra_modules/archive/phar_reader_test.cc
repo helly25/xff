@@ -122,8 +122,11 @@ struct PharReaderTest : ::testing::Test {
       return {};
     }
     std::string out(content.size() + 64, '\0');
+    // zlib takes non-const byte pointers to buffers it only reads; same boundary as phar_reader.cc.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-type-const-cast)
     stream.next_in = reinterpret_cast<::Bytef*>(const_cast<char*>(content.data()));
     stream.avail_in = static_cast<::uInt>(content.size());
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     stream.next_out = reinterpret_cast<::Bytef*>(out.data());
     stream.avail_out = static_cast<::uInt>(out.size());
     const int status = ::deflate(&stream, Z_FINISH);

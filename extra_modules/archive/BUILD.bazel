@@ -151,6 +151,7 @@ cc_library(
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
+        "@helly25_mbo//mbo/status:status_macros_cc",
         "@libarchive//libarchive",
         "@xff_extras_api//:member_path_cc",
     ],

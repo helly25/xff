@@ -81,7 +81,7 @@ struct ArchivePackTest : ::testing::Test {
 
   [[nodiscard]] static std::string Read(std::string_view path) {
     std::ifstream in(std::string(path), std::ios::binary);
-    return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    return {(std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>()};
   }
 
   stdfs::path root_;

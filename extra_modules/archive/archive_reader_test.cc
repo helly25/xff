@@ -20,7 +20,6 @@
 
 #include <array>
 #include <cstddef>
-#include <cstdlib>
 #include <fstream>
 #include <optional>
 #include <string>
@@ -64,7 +63,7 @@ struct ArchiveReaderTest : ::testing::Test {
     if (gzip) {
       ::archive_write_add_filter_gzip(out);
     }
-    std::string buffer(64 * 1'024, '\0');
+    std::string buffer(std::size_t{64} * 1'024, '\0');
     std::size_t used = 0;
     ::archive_write_open_memory(out, buffer.data(), buffer.size(), &used);
     for (const FileSpec& file : files) {
@@ -86,8 +85,7 @@ struct ArchiveReaderTest : ::testing::Test {
   // The same bytes on disk: ReadMemberOfFile / ListMembersOfFile stream from a path, so a file is
   // needed - built from MakeArchive so both entry points see byte-identical input.
   static std::string WriteArchive(const std::vector<FileSpec>& files, std::string_view name) {
-    const char* const tmp = std::getenv("TEST_TMPDIR");
-    const std::string path = absl::StrCat(tmp != nullptr ? tmp : "/tmp", "/", name);
+    const std::string path = absl::StrCat(::testing::TempDir(), "/", name);
     const std::string bytes = MakeArchive(files);
     std::ofstream(path, std::ios::binary).write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
     return path;
@@ -95,8 +93,7 @@ struct ArchiveReaderTest : ::testing::Test {
 
   // A real gzip stream on disk, written through libarchive so the test needs no external tool.
   static std::string WriteGzip(std::string_view name, std::string_view content) {
-    const char* const tmp = std::getenv("TEST_TMPDIR");
-    const std::string path = absl::StrCat(tmp != nullptr ? tmp : "/tmp", "/", name);
+    const std::string path = absl::StrCat(::testing::TempDir(), "/", name);
     struct ::archive* out = ::archive_write_new();
     ::archive_write_set_format_raw(out);
     ::archive_write_add_filter_gzip(out);
@@ -114,16 +111,14 @@ struct ArchiveReaderTest : ::testing::Test {
   }
 
   static std::string WritePlain(std::string_view name, std::string_view content) {
-    const char* const tmp = std::getenv("TEST_TMPDIR");
-    const std::string path = absl::StrCat(tmp != nullptr ? tmp : "/tmp", "/", name);
+    const std::string path = absl::StrCat(::testing::TempDir(), "/", name);
     std::ofstream(path, std::ios::binary).write(content.data(), static_cast<std::streamsize>(content.size()));
     return path;
   }
 
   // A tar carrying an explicit DIRECTORY member, for the "no content to read" case.
   static std::string WriteArchiveWithDirectory(std::string_view name) {
-    const char* const tmp = std::getenv("TEST_TMPDIR");
-    const std::string path = absl::StrCat(tmp != nullptr ? tmp : "/tmp", "/", name);
+    const std::string path = absl::StrCat(::testing::TempDir(), "/", name);
     struct ::archive* out = ::archive_write_new();
     ::archive_write_set_format_pax_restricted(out);
     ::archive_write_open_filename(out, path.c_str());
