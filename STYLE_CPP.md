@@ -485,6 +485,16 @@ substitute for a committed test. Tests use GoogleTest + GoogleMock with these co
 - **`IsOkAndHolds(m)`** matches an OK `StatusOr` whose value matches `m` - prefer it over
   `IsOk()` followed by dereferencing: `EXPECT_THAT(Parse(in), IsOkAndHolds(SizeIs(3)))`.
 - `MBO_ASSERT_OK_AND_ASSIGN(const auto value, MakeThing())` asserts OK and binds in one step.
+- **Never `ASSERT_THAT(x, IsOk())` on a `StatusOr` local you then dereference** (`*x`, `x->`,
+  `x.value()`): that splits one fact over two statements, and every later use re-dereferences a
+  value whose validity hangs on an assertion lines above. Bind it once with
+  `MBO_ASSERT_OK_AND_ASSIGN(const T x, expr)` - the local's type becomes the payload - or say the
+  whole thing in one matcher with `IsOkAndHolds(m)` when the value is inspected once. In a loop
+  body, put the iteration context in `SCOPED_TRACE(item)` (the macro takes no `<<` stream).
+  `ASSERT_THAT` on a plain `absl::Status`, or on a `StatusOr` never dereferenced, stays correct.
+  **Enforced** by the `no-isok-assert-then-deref` pre-commit hook
+  ([`tools/check_status_assert.py`](tools/check_status_assert.py)) - this held as prose-only
+  guidance for exactly 78 violations before the hook existed.
 - `MBO_ASSERT_OK_AND_MOVE_TO(MakePair(), auto [a, b])` is the move variant whose target may
   contain commas (so the expression comes first) - the test mirror of `MBO_MOVE_TO_OR_RETURN`,
   for structured bindings and move-only types.

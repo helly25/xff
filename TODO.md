@@ -306,10 +306,11 @@ intent, not hard dependency. Task numbers reference the agent task list.
 
 ### Small slices in flight (task ledger)
 
-- **#196 (open)**: enforce `MBO_ASSERT_OK_AND_ASSIGN` over `ASSERT_THAT(x, IsOk())` + deref
-  (78 sites: `run_test.cc` ~45, `archive_fs_test` 14, `local_fs_test` 6, `extract_test` 5,
-  `phar_fixture_test` 5, `evaluate_test` 4, and a tail), plus a `check_status_assert.py`
-  pre-commit hook and a sharpened STYLE_CPP rule.
+- **#196 (this change completes it)**: enforce `MBO_ASSERT_OK_AND_ASSIGN` over
+  `ASSERT_THAT(x, IsOk())` + deref. The 77-site conversion shipped in PR #528 (+ 4 loop-body
+  stragglers here, with `SCOPED_TRACE` carrying the iteration context); this change adds the
+  `no-isok-assert-then-deref` pre-commit hook (`tools/check_status_assert.py`) and the explicit
+  STYLE_CPP rule.
 - **#197 (this change)**: `PackOptionSpec.values` / `.formats` as `absl::Span<const
 std::string_view>` over named constexpr arrays instead of comma-joined strings re-split at
   every use.
