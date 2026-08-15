@@ -29,6 +29,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
 #include "xff/cli/globals.h"
@@ -198,7 +199,7 @@ std::string RenderExtras() {
 // A trailer on every surface is a trailer nobody reads.
 std::string HelpTip(const xff::cli::HelpRenderContext& context) {
   static constexpr std::string_view kTip =
-      "Tip: 'xff --help=help' explains the help system; 'xff --help=list' indexes every option and primary.";
+      "Tip: 'xff --help=help' explains the help system; 'xff --help=topics' lists the help topics.";
   // Dim when colour is on, so it reads as a footnote rather than as part of the entry.
   return context.color ? absl::StrCat("\n\033[2m", kTip, "\033[0m\n") : absl::StrCat("\n", kTip, "\n");
 }
@@ -206,7 +207,7 @@ std::string HelpTip(const xff::cli::HelpRenderContext& context) {
 // Whether `topic` gets that trailer: everything except the maps and the self-referential page.
 bool TopicTakesTip(std::string_view topic) {
   static constexpr auto kNoTip =
-      std::to_array<std::string_view>({"all", "expressions", "full", "help", "list", "long"});
+      std::to_array<std::string_view>({"all", "expressions", "full", "help", "list", "long", "topic", "topics"});
   return !absl::c_linear_search(kNoTip, topic);
 }
 
@@ -351,14 +352,17 @@ int RunMain(int argc, char** argv) {
       return 0;
     }
     if (arg.starts_with("--help=")) {
-      const std::string_view topic = std::string_view(arg).substr(7);
+      // Folded once here, so every consumer (the renderer, the tip gate, the error) agrees on the
+      // spelling: --help=LIST and --help=Topics are the same ask as --help=list.
+      const std::string topic = absl::AsciiStrToLower(std::string_view(arg).substr(7));
       const absl::StatusOr<std::string> help = RenderTopic(topic, help_context);
       if (help.ok()) {
         const std::string tip = TopicTakesTip(topic) ? HelpTip(help_context) : std::string();
         xff::cli::EmitPaged(absl::StrCat(*help, tip), pager_when, stdout_is_tty);
         return 0;
       }
-      std::cerr << "xff: no help topic '" << topic << "'\n";  // RenderTopic's only failure is unknown-topic
+      // RenderTopic's only failure is unknown-topic; point at the list instead of a bare error.
+      std::cerr << "xff: no help topic '" << topic << "'; 'xff --help=topics' lists them\n";
       return 2;
     }
     if (arg == "--version" || arg == "-version") {
