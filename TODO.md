@@ -229,17 +229,15 @@ shipped one way but not yet settled.
        FUSE.
     3. **The read-only FUSE server over `vfs::FileSystem`**, split again on inspection - the fuse3
        ABI surface is the risk, not the callbacks:
-       - **3a. The fuse3 API headers, FETCHED from git into the fuse module (decided with the
-         user, 2026-08-15)**. `fuse_lowlevel_ops` is ~40 function pointers whose ORDER is the ABI
-         and whose size `fuse_session_new` validates - hand-declaring that from documentation is a
-         subtle-corruption trap, so the real `fuse_lowlevel.h` family is the source. NOT vendored:
-         nothing outside `extra_modules/fuse` ever touches libfuse (the core reaches the extra only
-         through the seam), so the module's own MODULE.bazel fetches the pinned libfuse release
-         (`http_archive` via `use_repo_rule`, tag + sha256) with a BUILD overlay we supply exposing
-         a HEADERS-ONLY `cc_library` (plus whatever config-header stub the includes need). No LGPL
-         text enters the tree; the licensing footprint is the NOTICE component the built binary
-         owes anyway (interface-only use of a runtime-dlopened LGPL-2.1 library), gated on the
-         extra. On top: a typed symbol table casting the loader's `void*`s once.
+       - **3a. The fuse3 API headers, FETCHED from git into the fuse module (SHIPPED)**. The
+         module's MODULE.bazel pins libfuse's **fuse-3.18.2 release asset** (sha256-verified) with
+         a BUILD overlay (`libfuse.BUILD.bazel`) exposing the interface-only `fuse3_headers`
+         library - a genrule stubs the meson-generated `libfuse_config.h` (version macros only),
+         `FUSE_USE_VERSION=30` picks the base fuse3 API for the widest runtime match. `FuseApi`
+         is the typed call surface: every loader symbol cast ONCE (the funneled dlsym-contract
+         NOLINT) into the function types from libfuse's own headers, so `fuse_lowlevel_ops`'s
+         layout is never transcribed. No LGPL text in the tree; the NOTICE component lands with
+         the slice that links the extra into `xff_full`.
        - **3b. The server itself**: lookup/getattr/readdir/open/read from the already-open
          `ArchiveFileSystem`, one background thread per mount, RAII + INT/TERM/HUP unmount, the
          `fusermount3 -uz` / `umount -f` crash path plugged into slice 2's sweep seam.
