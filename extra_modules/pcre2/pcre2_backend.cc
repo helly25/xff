@@ -19,9 +19,12 @@
 // xff::regex::Pcre2Available() flips true and Matcher::Compile(kPcre2) works) and its BSD-3 notice
 // with xff/license, exactly the way the core engines register - the core never references PCRE2.
 
+// pcre2.h REQUIRES this before the include: it selects the 8-bit code-unit API, and there is no
+// constant form of it. NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define PCRE2_CODE_UNIT_WIDTH 8
 #include <pcre2.h>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -34,6 +37,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/types/span.h"
 #include "xff/license/notice.h"
 #include "xff/regex/backend.h"
 
@@ -46,9 +50,12 @@ constexpr std::uint32_t kMatchLimit = 1'000'000;
 constexpr std::uint32_t kDepthLimit = 10'000;
 
 // A non-null, NUL-terminated pointer for PCRE2, even for an empty view (whose data() may be null).
+// PCRE2_SPTR is `const unsigned char*` while every caller holds `const char*`, so the cast is the
+// whole job of this function - it exists precisely so the reinterpret_cast happens in ONE place.
 PCRE2_SPTR Sptr(std::string_view text) {
-  static constexpr char kEmpty[] = "";
-  return reinterpret_cast<PCRE2_SPTR>(text.empty() ? kEmpty : text.data());
+  static constexpr std::array<char, 1> kEmpty = {'\0'};
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast): the char/uchar boundary, see above.
+  return reinterpret_cast<PCRE2_SPTR>(text.empty() ? kEmpty.data() : text.data());
 }
 
 // Translates an RE2-style replacement (the Matcher::Rewrite contract: `\1`..`\9` backrefs, `\\` a
@@ -56,8 +63,8 @@ PCRE2_SPTR Sptr(std::string_view text) {
 std::string Re2ReplacementToPcre2(std::string_view replacement) {
   std::string out;
   for (std::size_t i = 0; i < replacement.size(); ++i) {
-    const char c = replacement[i];
-    if (c == '\\' && i + 1 < replacement.size()) {
+    const char chr = replacement[i];
+    if (chr == '\\' && i + 1 < replacement.size()) {
       const char next = replacement[i + 1];
       if (next >= '0' && next <= '9') {
         out += '$';  // \N -> $N
@@ -66,10 +73,10 @@ std::string Re2ReplacementToPcre2(std::string_view replacement) {
         out += next;  // \\ -> \, and any other \x -> literal x
       }
       ++i;
-    } else if (c == '$') {
+    } else if (chr == '$') {
       out += "$$";  // a literal `$` must be escaped for PCRE2 substitution
     } else {
-      out += c;
+      out += chr;
     }
   }
   return out;
@@ -82,6 +89,13 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
  public:
   Pcre2Backend(pcre2_code* code, pcre2_match_context* match_context, std::uint32_t capture_count)
       : code_(code), match_context_(match_context), capture_count_(capture_count) {}
+
+  // Owns two raw PCRE2 handles it frees below, so copying would double-free and moving would need a
+  // null-out dance nothing here wants: the factory hands each instance straight to a unique_ptr.
+  Pcre2Backend(const Pcre2Backend&) = delete;
+  Pcre2Backend& operator=(const Pcre2Backend&) = delete;
+  Pcre2Backend(Pcre2Backend&&) = delete;
+  Pcre2Backend& operator=(Pcre2Backend&&) = delete;
 
   ~Pcre2Backend() override {
     pcre2_match_context_free(match_context_);
@@ -100,7 +114,9 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
     const int rc = pcre2_match(code_, Sptr(text), text.size(), 0, 0, data, match_context_);
     std::optional<std::pair<std::size_t, std::size_t>> result;
     if (rc >= 0) {
-      const PCRE2_SIZE* ovector = pcre2_get_ovector_pointer(data);
+      // A span rather than the bare pointer PCRE2 hands back: the offsets are then indexed, which is
+      // both checkable and what the style guide asks for instead of pointer arithmetic.
+      const absl::Span<const PCRE2_SIZE> ovector = Ovector(data, 1);
       result = std::make_pair(static_cast<std::size_t>(ovector[0]), static_cast<std::size_t>(ovector[1] - ovector[0]));
     }
     pcre2_match_data_free(data);
@@ -113,10 +129,10 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
         pcre2_match(code_, Sptr(text), text.size(), 0, PCRE2_ANCHORED | PCRE2_ENDANCHORED, data, match_context_);
     std::optional<std::vector<std::string>> result;
     if (rc >= 0) {
-      const PCRE2_SIZE* ovector = pcre2_get_ovector_pointer(data);
+      const absl::Span<const PCRE2_SIZE> ovector = Ovector(data, capture_count_ + 1);
       std::vector<std::string> captures;
       captures.reserve(capture_count_ + 1);
-      for (std::uint32_t group = 0; group <= capture_count_; ++group) {  // [0] = whole match, [1..] = groups
+      for (std::size_t group = 0; group <= capture_count_; ++group) {  // [0] = whole match, [1..] = groups
         const PCRE2_SIZE start = ovector[2 * group];
         const PCRE2_SIZE end = ovector[(2 * group) + 1];
         if (start == PCRE2_UNSET) {
@@ -153,6 +169,12 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
   }
 
  private:
+  // PCRE2's ovector as a span of `pairs` start/end offsets, so callers index it instead of walking a
+  // raw pointer. `pairs` is what the match data was created for, which is what bounds the array.
+  static absl::Span<const PCRE2_SIZE> Ovector(pcre2_match_data* data, std::size_t pairs) {
+    return absl::MakeConstSpan(pcre2_get_ovector_pointer(data), 2 * pairs);
+  }
+
   bool Matches(std::string_view text, std::uint32_t options) const {
     pcre2_match_data* data = pcre2_match_data_create(1, nullptr);
     const int rc = pcre2_match(code_, Sptr(text), text.size(), 0, options, data, match_context_);
@@ -169,6 +191,7 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
       PCRE2_SIZE* out_len) const {
     return pcre2_substitute(
         code_, Sptr(text), text.size(), 0, options, data, match_context_, Sptr(replacement), replacement.size(),
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast): char/uchar, as in Sptr.
         reinterpret_cast<PCRE2_UCHAR*>(out.data()), out_len);
   }
 
@@ -191,10 +214,11 @@ absl::StatusOr<std::unique_ptr<const xff::regex::RegexBackend>> CompilePcre2(
   PCRE2_SIZE error_offset = 0;
   pcre2_code* code = pcre2_compile(Sptr(pattern), pattern.size(), options, &error_code, &error_offset, nullptr);
   if (code == nullptr) {
-    PCRE2_UCHAR buffer[256];
-    pcre2_get_error_message(error_code, buffer, sizeof(buffer) / sizeof(buffer[0]));
-    return absl::InvalidArgumentError(
-        absl::StrCat("invalid PCRE2 pattern at offset ", error_offset, ": ", reinterpret_cast<const char*>(buffer)));
+    std::array<PCRE2_UCHAR, 256> buffer{};
+    pcre2_get_error_message(error_code, buffer.data(), buffer.size());
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast): char/uchar, as in Sptr.
+    const auto* const message = reinterpret_cast<const char*>(buffer.data());
+    return absl::InvalidArgumentError(absl::StrCat("invalid PCRE2 pattern at offset ", error_offset, ": ", message));
   }
   pcre2_match_context* match_context = pcre2_match_context_create(nullptr);
   pcre2_set_match_limit(match_context, kMatchLimit);

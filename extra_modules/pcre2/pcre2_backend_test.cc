@@ -70,9 +70,11 @@ TEST_F(Pcre2BackendTest, FullMatchAnchorsBothEnds) {
 
 TEST_F(Pcre2BackendTest, FullMatchCapturesReturnsGroups) {
   ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> backend, MakePcre2Backend("(\\w+)@(\\w+)", false));
-  const auto captures = backend->FullMatchCaptures("user@host");
-  ASSERT_TRUE(captures.has_value());
-  EXPECT_THAT(*captures, ElementsAre("user@host", "user", "host"));  // [0]=whole, then groups
+  // Optional() rather than has_value() + a deref: it says the same thing in one matcher, and the
+  // deref is what bugprone-unchecked-optional-access cannot see through.
+  EXPECT_THAT(
+      backend->FullMatchCaptures("user@host"),
+      Optional(ElementsAre("user@host", "user", "host")));  // [0]=whole, then groups
   EXPECT_FALSE(backend->FullMatchCaptures("nope").has_value());
 }
 
