@@ -213,10 +213,13 @@ shipped one way but not yet settled.
     configure-generated config.h per platform, and macFUSE ships its OWN libfuse fork, so a vendored
     Linux build still needs the runtime path on macOS - all cost, no reuse). dlopen is the only shape
     where one binary runs everywhere and mounting is a capability probed per machine.
-    1. **@xff_fuse skeleton + runtime loader**: the extra module (pcre2/archive pattern), a
-       `FuseLoader` that dlopens the platform library and resolves the handful of lowlevel symbols,
-       and `FuseAvailable()`; unit tests cover the unavailable path (CI has no FUSE) and symbol-set
-       completeness against the vendored header.
+    1. **@xff_fuse skeleton + runtime loader (SHIPPED)**: the extra module (pcre2/archive pattern,
+       picked up by `tools/extras.py --wildcards` automatically), `FuseLoader` dlopening the
+       platform fuse3 library and eagerly resolving the mount server's 12-symbol set - so
+       "available" MEANS mountable - and `FuseAvailable()`. Tests are environment-AGNOSTIC (Linux
+       CI images tend to have libfuse3, macOS does not): they pin the invariants of both states.
+       fuse2-only installations (older macFUSE) report unavailable by design; revisit when a real
+       macFUSE user appears.
     2. **Mount lifecycle**: the per-RUN root `$XDG_RUNTIME_DIR/xff/<pid>/` (else `$TMPDIR`), one
        subdirectory per container, RAII unmount + signal handler (INT/TERM/HUP re-raises after
        unmounting), `fusermount3 -uz` / `umount -f` crash path, and the startup sweep of stale
