@@ -272,17 +272,45 @@ shipped one way but not yet settled.
     `IsExtracted` now ASKS the extractor rather than inferring from "differs from the entry's
     path", so a mounted path is never handed to `Release`.
     - **4b root cause (FIXED)**: mounts aborted their connection on the first read on Linux
-      (ECONNABORTED, request in flight, daemon alive, no teardown). The fault was the libfuse
-      PIN: we compiled against 3.18.2 headers and dlopen whatever the machine has, but libfuse
-      guarantees only BACKWARD compatibility - a newer runtime accepts a caller built against an
-      older API, never the reverse - and ubuntu 24.04 ships 3.14. libfuse announces exactly this
-      as "library too old, some operations may not work", then clamps our op_size while we keep
-      handing it structs laid out for a version it lacks. Pinned to 3.14.0, the oldest runtime
-      we must support; raise it only to a version every supported runtime already has. What hid
-      it: the extra's mount tests SKIPPED whenever the loader reported no fuse3, ignoring
-      `XFF_FUSE_REQUIRED` - the very guarantee that flag exists for - so the whole kernel path
-      reported green without running. An unavailable loader is now fatal where the environment
-      promises one, and it prints the loader's reason.
+      (ECONNABORTED, request in flight, daemon alive, no teardown). It was a USE-AFTER-FREE, and
+      ThreadSanitizer is what finally named it ("data race in `~ArchiveFileSystem()`"): the walk
+      owned the container's reader in a DIVE-SCOPED `unique_ptr` while `MountedContainers` keeps
+      mounts for the whole run, so once the walk left the container every FUSE callback served
+      freed memory - and a garbage reply is exactly what makes the kernel abort a connection.
+      That single fact explains everything the hunt found confusing: it failed on x86_64 CI while
+      passing on aarch64, differed between two invocations moments apart, and moved when two
+      unrelated `std::cerr` lines were deleted. All allocator timing.
+      **The API allowed it**, so the fix is in the type, not the caller: `MountFactory` /
+      `MountContainer` / `FuseServer::Mount` take `std::shared_ptr<const vfs::FileSystem>`, and
+      the header no longer says "`fs` must outlive the returned Mount" - a promise no compiler
+      checks, about an object served from another thread for a whole run. That comment WAS the
+      bug, written down. Taking ownership also DELETED bookkeeping: `PathFor` no longer takes a
+      filesystem reference plus a separate owner (two parameters that had to agree, unchecked),
+      and the struct pairing each mount with its reader is gone. `mount_test`'s
+      `AMountKeepsTheReaderAliveAfterTheCallerDropsIt` pins the property through a `weak_ptr`
+      with no FUSE involved, so it runs on macOS too.
+      Two earlier diagnoses were WRONG and are recorded as such: the libfuse pin (3.18.2 headers
+      against a 3.14 runtime) and the mode bits were real improvements that fixed nothing here.
+      The pin stays at 3.14.0 on its own merit - libfuse guarantees only BACKWARD compatibility,
+      so compile against the OLDEST runtime we must support.
+      What hid all of it: the extra's mount tests SKIPPED whenever the loader reported no fuse3,
+      ignoring `XFF_FUSE_REQUIRED` - the very guarantee that flag exists for - so the whole kernel
+      path reported green without running. An unavailable loader is now fatal where the
+      environment promises one, and it prints the loader's reason.
+    - **The lesson, made a command**: `tools/fuse_linux_test.sh` (functional / `tsan` / `msan`)
+      runs the mounting tests on Linux from a mac before pushing, because macOS skips every one of
+      them and `bazel test` therefore goes green without executing a line of the kernel path. Its
+      comments carry the traps: TSan needs reduced ASLR entropy on aarch64, the repo's own
+      `--config=tsan` pulls an x86_64-only toolchain, and `msan` must force an EMULATED x86_64
+      container because the instrumented libc++ overlay ships x86_64-linux only.
+    - **The msan cell also needed the sanitizer cells to know what machine they are on**: `tsan`
+      and `msan` are standalone jobs, not matrix cells, so they never installed fuse3 or set
+      `XFF_FUSE_REQUIRED`, and a runner that CAN mount was failing a test that demanded the
+      refusal message. Both declare it now. Every mounting test skips under MSan (the dlopened
+      system libfuse3 is uninstrumented, so its bytes read back as uninitialized) - in C++ via
+      `MEMORY_SANITIZER`, in the shell test via an `XFF_MSAN` env from a `select()` on the same
+      flag. And the 1000-member `archive_fs_test` moved to `size = "medium"`: 1589 ms natively
+      times MSan's origin-tracking factor lands right on the small (60s) cliff.
 - **4b follow-up**: `skip_test` for helly25/bashtest (subshell + exit 77, `--no-skip` for
   CI), so the capability-dependent CLI cases stop branching on `XFF_FUSE_REQUIRED` by hand.
 
