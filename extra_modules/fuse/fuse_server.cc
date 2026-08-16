@@ -414,6 +414,16 @@ void OpReadlink(fuse_req_t req, fuse_ino_t ino) {
   api.reply_readlink(req, target->c_str());
 }
 
+// How much of `fuse_lowlevel_ops` we actually fill: the offset just past the LAST op implemented
+// (`readdir`, which libfuse declares after the others in ServerOps below). This - not `sizeof` the
+// struct we compiled against - is what `fuse_session_new` wants: it copies that many bytes and
+// zero-fills the rest, so a runtime OLDER than our headers is handed only fields it has. Passing
+// the full sizeof is what makes such a runtime print "library too old, some operations may not
+// work" and clamp, which is a complaint about the caller. Ops are only ever APPENDED to the
+// struct, so this prefix means the same thing to every 3.x runtime.
+constexpr std::size_t kImplementedOpsSize =
+    offsetof(struct fuse_lowlevel_ops, readdir) + sizeof(&OpReaddir);
+
 // Callbacks bind by NAME into the FETCHED header's ops struct, so a layout change in a future
 // pinned libfuse release is a compile error here, never memory corruption.
 const struct fuse_lowlevel_ops& ServerOps() {
@@ -453,7 +463,7 @@ absl::StatusOr<std::unique_ptr<FuseServer>> FuseServer::Mount(
   std::string arg2 = "ro,default_permissions";
   std::array<char*, 3> argv = {arg0.data(), arg1.data(), arg2.data()};
   struct fuse_args args = FUSE_ARGS_INIT(static_cast<int>(argv.size()), argv.data());
-  server->impl_->session = api->session_new(&args, &ServerOps(), sizeof(ServerOps()), server->impl_.get());
+  server->impl_->session = api->session_new(&args, &ServerOps(), kImplementedOpsSize, server->impl_.get());
   // session_new copies what it needs and leaves the (now heap-allocated) argv to us, success or
   // not; libfuse's own examples free it here.
   api->opt_free_args(&args);
