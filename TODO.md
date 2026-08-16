@@ -409,6 +409,98 @@ shipped one way but not yet settled.
     **Blocking for 1.0.0**: it changes the surface of shipped flags, so after 1.0.0 it would
     be a breaking change rather than a refinement.
 
+## Sanitizer verification: what runs where, and the one gap
+
+Written to be handed to whoever has a Linux box. The short version: **everything is verified
+except MSan-on-a-developer-machine, and that needs an x86_64 Linux host.**
+
+### The ask
+
+An **x86_64** Linux machine with `/dev/fuse` (an ordinary VM is fine; `sudo` only for two
+packages). aarch64 will NOT do - see "why" below. Then:
+
+```sh
+sudo apt-get install -y fuse3 libfuse3-3    # the runtime the loader dlopens + the unmount helper
+git clone https://github.com/helly25/xff && cd xff
+export XFF_FUSE_REQUIRED=1                  # a SKIPPED mount test is a failure on a machine that can mount
+
+# The MSan cell (the gap):
+bazel test //... $(tools/extras.py --wildcards) --config=xff_docs \
+  --config=clang --config=msan --test_env=XFF_FUSE_REQUIRED
+
+# The TSan cell, same shape (already green in CI, cheap to confirm):
+bazel test //... $(tools/extras.py --wildcards) --config=xff_docs \
+  --config=clang --config=tsan --test_env=XFF_FUSE_REQUIRED
+```
+
+Expected: all tests pass, with every MOUNTING test reporting SKIPPED under `--config=msan`
+(see below for why that is correct rather than a cop-out).
+
+### Why an x86_64 host specifically
+
+MSan false-positives on anything it did not instrument, so the C++ standard library must be
+instrumented too. `--config=msan` gets that from toolchains_llvm's `msan` feature, which swaps in
+the instrumented libc++ overlay fetched by `MSAN_LIBCXX_URL` in `bazelmod/llvm.MODULE.bazel` - and
+that overlay is published for **x86_64-linux only**. There is no aarch64 build to fetch.
+
+Emulation was tried and does not work. `tools/fuse_linux_test.sh msan` forces a
+`--platform linux/amd64` container, which on Apple silicon means qemu; the build gets as far as
+linking and then dies with `clang: error: unable to execute command: No such file or directory`
+
+- the toolchain's linker cannot run under the emulation layer. That mode is left in the script
+  because it is correct on a real x86_64 host, and its comment says so.
+
+### What IS verified locally, and how
+
+`tools/fuse_linux_test.sh` (from a mac, via colima/docker) exists because **macOS has no fuse3, so
+every mounting test skips there and `bazel test` goes green without executing a line of the kernel
+path**. Two modes work on aarch64:
+
+- `tools/fuse_linux_test.sh` - the fuse tests plus the CLI mount test, sandboxed as CI runs them.
+- `tools/fuse_linux_test.sh tsan` - the CLI mount test under ThreadSanitizer. Needs `--privileged`
+  and `sysctl vm.mmap_rnd_bits=28`: aarch64 TSan aborts with "unexpected memory mapping" under the
+  default ASLR entropy. It drives the sanitizer through the container's gcc rather than
+  `--config=tsan`, because the repo's config pulls the x86_64-only hermetic clang.
+
+Note the container needs `git` installed (MODULE.bazel pulls toolchains_llvm and
+hedron_compile_commands through `git_repository`, so a cold cache cannot even compute the repo
+mapping) and roughly 25 GB of free VM disk for the hermetic LLVM.
+
+### Why every mounting test skips under MSan (and why that is not a dodge)
+
+A mount runs through the **dlopened system libfuse3**, which MSan did not instrument, so every byte
+libfuse writes reads back as uninitialized and the process dies inside `fuse_opt_parse`. There is
+nothing to fix in our code: the report is about libfuse's memory, not ours. The skips are therefore
+deliberate and keyed off `--config=msan` in one place per language:
+
+- C++: `#if defined(MEMORY_SANITIZER)` (the macro `--config=msan` defines) in `fuse_server_test`
+  and in `fuse_register_test`'s factory case.
+- Shell: an `XFF_MSAN` env var, set by a `select()` on `//xff:xff_msan_enabled` in
+  `xff/cli/BUILD.bazel`, read by `_skip_under_msan` in `xff/cli/full_extras_test.sh`.
+
+To check the guards compile and fire without an MSan toolchain at all:
+`bazel test @xff_fuse//... --config=xff_full --copt=-DMEMORY_SANITIZER` (the factory case must
+report SKIPPED and the rest must pass), and
+`bazel test //xff/cli:full_extras_test --config=xff_full --//xff:xff_msan=true` (both mount cases
+must print the skip line, and must NOT print it without the flag).
+
+### Things that bit us, so nobody re-derives them
+
+- **A skipped test looks exactly like a passing one.** `@xff_fuse//:fuse_server_test` reported
+  "PASSED in 0.1s" on Linux CI while skipping every mount, because the skip honoured
+  `XFF_FUSE_REQUIRED` only on mount FAILURE, not on "no fuse3 here". Hence the env var, and hence
+  passing `--test_env=XFF_FUSE_REQUIRED` on every Linux cell.
+- **`tsan` and `msan` are standalone jobs, not matrix cells.** They did not install fuse3 or set
+  `XFF_FUSE_REQUIRED`, so a runner that CAN mount was failing a test that demanded the refusal
+  message. Any new sanitizer job must make the same declaration.
+- **MSan makes tests far slower.** `archive_fs_test` reads all 1000 members of `many.tar.gz` in
+  1589 ms natively; under MSan's origin tracking that lands past the `small` (60s) budget, and it
+  timed out with every assertion still holding. It is `size = "medium"` for that reason - a timeout,
+  not a sanitizer finding.
+- **Pipes hide exit codes.** `pre-commit run clang-tidy | grep -c warning` reports grep's status and
+  discards the gate's; a gate script piped to `tail` reported success while aborting on an unbound
+  variable. Capture output, then read the real exit code.
+
 ## Remaining work
 
 The backlog of features and infrastructure not yet built. Ordered by current
