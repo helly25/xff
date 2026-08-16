@@ -262,7 +262,12 @@ shipped one way but not yet settled.
          name with `/`, which only a local filesystem understands - the archive VFS spells a member
          `container!member`. Lookup now asks the FILESYSTEM (`ReadDir` reports each child's full
          path in its own vocabulary) instead of assembling one, and the fake in the test uses the
-         `!` spelling so a slash-assuming server cannot pass again.
+         `!` spelling so a slash-assuming server cannot pass again. The claim itself is pinned
+         against REAL bytes by `test_data/mini.tar` - a committed 3.5 KiB uncompressed tar of raw
+         512-byte blocks (`hello.txt`, `sub/a.bin`) - in `archive_fs_test`: the reported paths use
+         the separator, those exact paths are the ones `Stat`/`ReadContent` answer to, a
+         slash-joined path is rejected as InvalidArgument, and directories INSIDE a container keep
+         ordinary slashes (so a consumer splits once at the container boundary and never re-joins).
        - **4b. The flag**: explicit `--archive-mount` (extra-gated; absent extra = the standard
          hard error, absent RUNTIME library = one-line note + extraction fallback), `{}` rendering
          as the mounted path for `-exec`/`-execdir`, help/XFF.md, bashtests for both the mounted

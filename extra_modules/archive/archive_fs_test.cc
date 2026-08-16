@@ -323,5 +323,68 @@ TEST_F(ArchiveFsTest, ASynthesizedParentIsIdentifiedToo) {
   EXPECT_THAT(parent.nlink, Eq(1U));
 }
 
+// The COMMITTED mini container (`test_data/mini.tar`): 3.5 KiB of raw tar blocks holding
+// `hello.txt` and `sub/a.bin`, no compression, so what these tests assert is what a real reader
+// produces from real bytes - not what a test double was written to return.
+//
+// What it pins is the PATH VOCABULARY, which is a contract every consumer of the VFS depends on and
+// the FUSE mount (#183) got wrong: a member is spelled `<container><separator><member>`, and that
+// spelling is the only one the filesystem answers to. A mount that assembled `<container>/<member>`
+// the way a local path is built would fail on every member of every real container - and a fake
+// filesystem that joined with `/` would happily agree with it, which is exactly how that bug
+// survived its unit test.
+struct MiniContainerTest : ::testing::Test {
+  static std::string Container() {
+    // The BUILD file hands over a fixture's runfiles path; this module's canonical repo directory
+    // name is not ours to hard-code.
+    // NOLINTNEXTLINE(concurrency-mt-unsafe): bazel's environment, read once, single-threaded test
+    const char* const anchor = std::getenv("XFF_ARCHIVE_FIXTURE_ANCHOR");
+    CHECK(anchor != nullptr) << "the BUILD file must set XFF_ARCHIVE_FIXTURE_ANCHOR";
+    const std::string_view anchor_path(anchor);
+    const std::string_view::size_type slash = anchor_path.rfind('/');
+    const std::string_view directory = slash == std::string_view::npos ? "." : anchor_path.substr(0, slash);
+    return absl::StrCat(directory, "/mini.tar");
+  }
+};
+
+TEST_F(MiniContainerTest, MembersAreSpelledWithTheSeparatorNotASlash) {
+  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(Container()));
+  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> entries, fs.ReadDir(Container()));
+  EXPECT_THAT(
+      entries, UnorderedElementsAre(
+                   Field("path", &vfs::Entry::path, absl::StrCat(Container(), "!hello.txt")),
+                   Field("path", &vfs::Entry::path, absl::StrCat(Container(), "!sub"))));
+}
+
+TEST_F(MiniContainerTest, TheReportedPathIsTheOneTheFilesystemAnswersTo) {
+  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(Container()));
+  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> entries, fs.ReadDir(Container()));
+  for (const vfs::Entry& entry : entries) {
+    SCOPED_TRACE(entry.path);
+    EXPECT_THAT(fs.Stat(entry.path, /*follow_symlinks=*/false), IsOk());
+  }
+  EXPECT_THAT(fs.ReadContent(absl::StrCat(Container(), "!hello.txt")), IsOkAndHolds(Eq("hello, mount\n")));
+}
+
+TEST_F(MiniContainerTest, ASlashJoinedMemberPathIsNotAMember) {
+  // The mount bug in one assertion: build a child path the way a local filesystem does and the
+  // container does not know it. The code is InvalidArgument rather than NotFound on purpose - the
+  // path is not a member path of this container AT ALL (no separator), which is a different fault
+  // from naming a member that happens to be absent.
+  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(Container()));
+  EXPECT_THAT(
+      fs.Stat(absl::StrCat(Container(), "/hello.txt"), /*follow_symlinks=*/false),
+      StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(MiniContainerTest, ANestedMemberKeepsItsInnerSlashesAfterTheSeparator) {
+  // Only the CONTAINER boundary uses the separator; directories inside keep ordinary slashes, so a
+  // mount must split once and never re-join.
+  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(Container()));
+  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> entries, fs.ReadDir(absl::StrCat(Container(), "!sub")));
+  EXPECT_THAT(entries, ElementsAre(Field("path", &vfs::Entry::path, absl::StrCat(Container(), "!sub/a.bin"))));
+  EXPECT_THAT(fs.ReadContent(absl::StrCat(Container(), "!sub/a.bin")), IsOkAndHolds(Eq("abc")));
+}
+
 }  // namespace
 }  // namespace xff::archive
