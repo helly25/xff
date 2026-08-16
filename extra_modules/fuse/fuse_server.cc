@@ -25,9 +25,11 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cerrno>
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -43,7 +45,9 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/synchronization/mutex.h"
+#include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "fuse_lowlevel.h"  // @libfuse//:fuse3_headers, interface-only
 #include "mbo/status/status_macros.h"
@@ -153,11 +157,17 @@ constexpr double kCacheSeconds = 60.0;
 // (`paths`/`inodes`/`next_ino`) and the open-file table (`contents`/`next_fh`); everything else is
 // set during Mount and read-only afterwards.
 struct FuseServer::Impl {
-  const vfs::FileSystem* fs = nullptr;
+  // Owned, not observed: the callbacks read it from the serving thread until the destructor joins.
+  std::shared_ptr<const vfs::FileSystem> fs;
   std::string root;
   std::string mount_point;
   struct fuse_session* session = nullptr;
   std::thread loop;
+  // Set before teardown asks the loop to end, so the thread can tell "we were told to stop" from
+  // "the session died on its own" - the second is a real fault the run must hear about, because
+  // every read under the mount then fails with ENOTCONN and the child reports a puzzling
+  // "Software caused connection abort" instead.
+  std::atomic<bool> exiting = false;
 
   absl::Mutex mutex;
   // ino -> VFS path and back. Ino FUSE_ROOT_ID is `root`; the table only grows (a read-only mount
@@ -406,6 +416,15 @@ void OpReadlink(fuse_req_t req, fuse_ino_t ino) {
   api.reply_readlink(req, target->c_str());
 }
 
+// How much of `fuse_lowlevel_ops` we actually fill: the offset just past the LAST op implemented
+// (`readdir`, which libfuse declares after the others in ServerOps below). This - not `sizeof` the
+// struct we compiled against - is what `fuse_session_new` wants: it copies that many bytes and
+// zero-fills the rest, so a runtime OLDER than our headers is handed only fields it has. Passing
+// the full sizeof is what makes such a runtime print "library too old, some operations may not
+// work" and clamp, which is a complaint about the caller. Ops are only ever APPENDED to the
+// struct, so this prefix means the same thing to every 3.x runtime.
+constexpr std::size_t kImplementedOpsSize = offsetof(struct fuse_lowlevel_ops, readdir) + sizeof(&OpReaddir);
+
 // Callbacks bind by NAME into the FETCHED header's ops struct, so a layout change in a future
 // pinned libfuse release is a compile error here, never memory corruption.
 const struct fuse_lowlevel_ops& ServerOps() {
@@ -426,16 +445,19 @@ const struct fuse_lowlevel_ops& ServerOps() {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<FuseServer>> FuseServer::Mount(
-    const vfs::FileSystem& fs,
+    std::shared_ptr<const vfs::FileSystem> fs,
     std::string root,
     std::string mount_point) {
+  if (fs == nullptr) {
+    return absl::InvalidArgumentError("cannot mount a null filesystem");
+  }
   const absl::StatusOr<FuseApi>& api = ResolvedApi();
   MBO_RETURN_IF_ERROR(api.status());
   while (root.size() > 1 && root.back() == '/') {
     root.pop_back();
   }
   auto server = std::unique_ptr<FuseServer>(new FuseServer());
-  server->impl_->fs = &fs;
+  server->impl_->fs = std::move(fs);
   server->impl_->root = std::move(root);
   server->impl_->mount_point = std::move(mount_point);
   // "ro" tells the kernel what the missing write callbacks already enforce; default_permissions
@@ -445,7 +467,7 @@ absl::StatusOr<std::unique_ptr<FuseServer>> FuseServer::Mount(
   std::string arg2 = "ro,default_permissions";
   std::array<char*, 3> argv = {arg0.data(), arg1.data(), arg2.data()};
   struct fuse_args args = FUSE_ARGS_INIT(static_cast<int>(argv.size()), argv.data());
-  server->impl_->session = api->session_new(&args, &ServerOps(), sizeof(ServerOps()), server->impl_.get());
+  server->impl_->session = api->session_new(&args, &ServerOps(), kImplementedOpsSize, server->impl_.get());
   // session_new copies what it needs and leaves the (now heap-allocated) argv to us, success or
   // not; libfuse's own examples free it here.
   api->opt_free_args(&args);
@@ -462,7 +484,40 @@ absl::StatusOr<std::unique_ptr<FuseServer>> FuseServer::Mount(
     const absl::MutexLock lock(LiveMutex());
     LiveSessions().push_back(server->impl_->session);
   }
-  server->impl_->loop = std::thread([session = server->impl_->session, &api] { api->session_loop(session); });
+  // The API is captured BY VALUE (a struct of function pointers): capturing `api` by reference
+  // would capture a reference to Mount's local reference variable, which dies when Mount returns.
+  server->impl_->loop = std::thread([impl = server->impl_.get(), api = *api] {
+    const int result = api.session_loop(impl->session);
+    if (!impl->exiting.load()) {
+      std::cerr << absl::StreamFormat(
+          "xff: the FUSE session serving '%s' ended on its own (fuse_session_loop returned %d); reads under"
+          " that mount will fail from here on\n",
+          impl->mount_point, result);
+    }
+  });
+  // A mount is not READY when fuse_session_mount returns - it is ready when the session answers.
+  // Between those two moments the mount point exists but nothing serves it, and a child process
+  // that opens a path under it can lose: CI showed exactly that, one invocation aborting with
+  // ECONNABORTED while the next succeeded microseconds later. So prove it: stat the mount point
+  // (a round trip the loop thread must serve) before handing the path to anyone. A mount that
+  // never answers is torn down and reported, which the caller turns into the extraction fallback
+  // instead of a path that fails under a child.
+  {
+    struct stat probe = {};
+    const absl::Time deadline = absl::Now() + absl::Seconds(5);
+    bool ready = false;
+    while (absl::Now() < deadline) {
+      if (::stat(server->impl_->mount_point.c_str(), &probe) == 0 && S_ISDIR(probe.st_mode)) {
+        ready = true;
+        break;
+      }
+      absl::SleepFor(absl::Milliseconds(2));
+    }
+    if (!ready) {
+      return absl::UnavailableError(
+          absl::StrCat("the FUSE mount at '", server->impl_->mount_point, "' never started serving"));
+    }
+  }
   return server;
 }
 
@@ -477,6 +532,7 @@ FuseServer::~FuseServer() {
     const absl::MutexLock lock(LiveMutex());
     std::erase(LiveSessions(), impl_->session);
   }
+  impl_->exiting.store(true);
   api.session_exit(impl_->session);
   // Waking the loop is the delicate part: it sits in a blocking read on the kernel channel, and
   // the exit flag alone is only checked between requests. Unmounting OUT OF PROCESS makes the

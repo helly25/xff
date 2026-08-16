@@ -41,10 +41,12 @@ namespace xff::fuse {
 class FuseServer {
  public:
   // Mounts `fs` at `mount_point` (an existing empty directory, normally from MountRoot) with the
-  // mount's "/" mapping to `root` inside the filesystem (the container path). `fs` must outlive
-  // the returned server. Unavailable when the machine has no fuse3; any mount failure reports why.
+  // mount's "/" mapping to `root` inside the filesystem (the container path). The server KEEPS its
+  // share of `fs`: callbacks run on the serving thread and read it until the destructor joins, so
+  // the server's own lifetime is the only correct bound. Unavailable when the machine has no
+  // fuse3; any mount failure reports why.
   static absl::StatusOr<std::unique_ptr<FuseServer>> Mount(
-      const vfs::FileSystem& fs,
+      std::shared_ptr<const vfs::FileSystem> fs,
       std::string root,
       std::string mount_point);
 

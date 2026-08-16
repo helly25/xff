@@ -212,73 +212,86 @@ shipped one way but not yet settled.
     instead of a degrade) and vendoring libfuse as a third_party module (its build wants a
     configure-generated config.h per platform, and macFUSE ships its OWN libfuse fork, so a vendored
     Linux build still needs the runtime path on macOS - all cost, no reuse). dlopen is the only shape
-    where one binary runs everywhere and mounting is a capability probed per machine.
-    1. **@xff_fuse skeleton + runtime loader (SHIPPED)**: the extra module (pcre2/archive pattern,
-       picked up by `tools/extras.py --wildcards` automatically), `FuseLoader` dlopening the
-       platform fuse3 library and eagerly resolving the mount server's symbol set (14 symbols
-       since 3b added the direntry builder + readlink) - so "available" MEANS mountable - and
-       `FuseAvailable()`. Tests are environment-AGNOSTIC (Linux
-       CI images tend to have libfuse3, macOS does not): they pin the invariants of both states.
-       fuse2-only installations (older macFUSE) report unavailable by design; revisit when a real
-       macFUSE user appears.
-    2. **Mount lifecycle (SHIPPED, directory half)**: `MountRoot` owns the per-RUN root
-       `$XDG_RUNTIME_DIR/xff/<pid>/` (else tempdir) with RAII removal, per-container mount points
-       (basename + counter on collision), and `StaleRoots()`/`SweepStaleRoots(unmounter)` - the
-       sweep reports and removes dead-pid roots, calling an INJECTED unmounter per mount point so
-       the process-spawning `fusermount3 -uz` / `umount -f` crash path and the signal handler land
-       with the server (slice 3), which owns actual mounts. All plain-filesystem, tested without
-       FUSE.
-    3. **The read-only FUSE server over `vfs::FileSystem`**, split again on inspection - the fuse3
-       ABI surface is the risk, not the callbacks:
-       - **3a. The fuse3 API headers, FETCHED from git into the fuse module (SHIPPED)**. The
-         module's MODULE.bazel pins libfuse's **fuse-3.18.2 release asset** (sha256-verified) with
-         a BUILD overlay (`libfuse.BUILD.bazel`) exposing the interface-only `fuse3_headers`
-         library - the meson-generated `libfuse_config.h` include is patched behind
-         `__has_include` and the version macros land as defines; `FUSE_USE_VERSION=30` picks the
-         base fuse3 API for the widest runtime match. `FuseApi`
-         is the typed call surface: every loader symbol cast ONCE (the funneled dlsym-contract
-         NOLINT) into the function types from libfuse's own headers, so `fuse_lowlevel_ops`'s
-         layout is never transcribed. No LGPL text in the tree; the NOTICE component lands with
-         the slice that links the extra into `xff_full`.
-       - **3b. The server itself (SHIPPED)**: `FuseServer::Mount` serves any `vfs::FileSystem`
-         read-only - lookup/getattr/readdir(+release)/open/read/readlink filled by NAME into the
-         fetched `fuse_lowlevel_ops`, an only-grows inode table, whole-member content held per
-         open handle (decode once, kernel reads in chunks), one loop thread per mount with RAII
-         exit-unmount-join-destroy teardown; INT/TERM/HUP ask every live session to exit before
-         re-raising. `CrashUnmount` (`fusermount3 -uz` / `umount -f` via posix_spawnp) is the
-         unmounter for slice 2's sweep seam. Linux CI mounts a fake filesystem and reads it back
-         through the kernel with `XFF_FUSE_REQUIRED=1` so that path can never silently skip
-         (test action unsandboxed - /dev/fuse and setuid fusermount3 do not exist in the
-         sandbox); macOS exercises the degrade.
-    4. **CLI**, split:
-       - **4a. Build + identity plumbing (SHIPPED)** (user-flagged 2026-08-16: fuse was absent
-         from `--help=extras`): `--//xff:xff_fuse` + `xff_fuse_on` (`xff_all` coverage), xff_full
-         links @xff_fuse's registration TU, the `xff_extras_api` fuse slot
-         (`MountSupportAvailable`) feeds `ExtraEnabled("fuse")`/`kKnownExtras`/`ExtraBuildFlag`,
-         the `--help=extras` row, and the libfuse NOTICE component (LGPL-2.1, interface-only
-         headers + runtime dlopen - no LGPL code in the binary; the committed NOTICE stays
-         core-only by the license_test contract, extras render live).
-       - **4b-0. Path vocabulary (SHIPPED)**: the server resolved a lookup by joining parent and
-         name with `/`, which only a local filesystem understands - the archive VFS spells a member
-         `container!member`. Lookup now asks the FILESYSTEM (`ReadDir` reports each child's full
-         path in its own vocabulary) instead of assembling one, and the fake in the test uses the
-         `!` spelling so a slash-assuming server cannot pass again. The claim itself is pinned
-         against REAL bytes by `test_data/mini.tar` - a committed 3.5 KiB uncompressed tar of raw
-         512-byte blocks (`hello.txt`, `sub/a.bin`) - in `archive_fs_test`: the reported paths use
-         the separator, those exact paths are the ones `Stat`/`ReadContent` answer to, a
-         slash-joined path is rejected as InvalidArgument, and directories INSIDE a container keep
-         ordinary slashes (so a consumer splits once at the container boundary and never re-joins).
-       - **4b. The flag**: explicit `--archive-mount` (extra-gated; absent extra = the standard
-         hard error, absent RUNTIME library = one-line note + extraction fallback), `{}` rendering
-         as the mounted path for `-exec`/`-execdir`, help/XFF.md, bashtests for both the mounted
-         and degraded paths.
+    where one binary runs everywhere and mounting is a capability probed per machine. 1. **@xff_fuse skeleton + runtime loader (SHIPPED)**: the extra module (pcre2/archive pattern,
+    picked up by `tools/extras.py --wildcards` automatically), `FuseLoader` dlopening the
+    platform fuse3 library and eagerly resolving the mount server's symbol set (14 symbols
+    since 3b added the direntry builder + readlink) - so "available" MEANS mountable - and
+    `FuseAvailable()`. Tests are environment-AGNOSTIC (Linux
+    CI images tend to have libfuse3, macOS does not): they pin the invariants of both states.
+    fuse2-only installations (older macFUSE) report unavailable by design; revisit when a real
+    macFUSE user appears. 2. **Mount lifecycle (SHIPPED, directory half)**: `MountRoot` owns the per-RUN root
+    `$XDG_RUNTIME_DIR/xff/<pid>/` (else tempdir) with RAII removal, per-container mount points
+    (basename + counter on collision), and `StaleRoots()`/`SweepStaleRoots(unmounter)` - the
+    sweep reports and removes dead-pid roots, calling an INJECTED unmounter per mount point so
+    the process-spawning `fusermount3 -uz` / `umount -f` crash path and the signal handler land
+    with the server (slice 3), which owns actual mounts. All plain-filesystem, tested without
+    FUSE. 3. **The read-only FUSE server over `vfs::FileSystem`**, split again on inspection - the fuse3
+    ABI surface is the risk, not the callbacks: - **3a. The fuse3 API headers, FETCHED from git into the fuse module (SHIPPED)**. The
+    module's MODULE.bazel pins libfuse's **fuse-3.18.2 release asset** (sha256-verified) with
+    a BUILD overlay (`libfuse.BUILD.bazel`) exposing the interface-only `fuse3_headers`
+    library - the meson-generated `libfuse_config.h` include is patched behind
+    `__has_include` and the version macros land as defines; `FUSE_USE_VERSION=30` picks the
+    base fuse3 API for the widest runtime match. `FuseApi`
+    is the typed call surface: every loader symbol cast ONCE (the funneled dlsym-contract
+    NOLINT) into the function types from libfuse's own headers, so `fuse_lowlevel_ops`'s
+    layout is never transcribed. No LGPL text in the tree; the NOTICE component lands with
+    the slice that links the extra into `xff_full`. - **3b. The server itself (SHIPPED)**: `FuseServer::Mount` serves any `vfs::FileSystem`
+    read-only - lookup/getattr/readdir(+release)/open/read/readlink filled by NAME into the
+    fetched `fuse_lowlevel_ops`, an only-grows inode table, whole-member content held per
+    open handle (decode once, kernel reads in chunks), one loop thread per mount with RAII
+    exit-unmount-join-destroy teardown; INT/TERM/HUP ask every live session to exit before
+    re-raising. `CrashUnmount` (`fusermount3 -uz` / `umount -f` via posix_spawnp) is the
+    unmounter for slice 2's sweep seam. Linux CI mounts a fake filesystem and reads it back
+    through the kernel with `XFF_FUSE_REQUIRED=1` so that path can never silently skip
+    (test action unsandboxed - /dev/fuse and setuid fusermount3 do not exist in the
+    sandbox); macOS exercises the degrade. 4. **CLI**, split: - **4a. Build + identity plumbing (SHIPPED)** (user-flagged 2026-08-16: fuse was absent
+    from `--help=extras`): `--//xff:xff_fuse` + `xff_fuse_on` (`xff_all` coverage), xff_full
+    links @xff_fuse's registration TU, the `xff_extras_api` fuse slot
+    (`MountSupportAvailable`) feeds `ExtraEnabled("fuse")`/`kKnownExtras`/`ExtraBuildFlag`,
+    the `--help=extras` row, and the libfuse NOTICE component (LGPL-2.1, interface-only
+    headers + runtime dlopen - no LGPL code in the binary; the committed NOTICE stays
+    core-only by the license_test contract, extras render live). - **4b-0. Path vocabulary (SHIPPED)**: the server resolved a lookup by joining parent and
+    name with `/`, which only a local filesystem understands - the archive VFS spells a member
+    `container!member`. Lookup now asks the FILESYSTEM (`ReadDir` reports each child's full
+    path in its own vocabulary) instead of assembling one, and the fake in the test uses the
+    `!` spelling so a slash-assuming server cannot pass again. The claim itself is pinned
+    against REAL bytes by `test_data/mini.tar` - a committed 3.5 KiB uncompressed tar of raw
+    512-byte blocks (`hello.txt`, `sub/a.bin`) - in `archive_fs_test`: the reported paths use
+    the separator, those exact paths are the ones `Stat`/`ReadContent` answer to, a
+    slash-joined path is rejected as InvalidArgument, and directories INSIDE a container keep
+    ordinary slashes (so a consumer splits once at the container boundary and never re-joins). - **4b. The flag (SHIPPED)**: `--archive-mount` serves a member from a read-only MOUNT of
+    its container instead of a copy. The seam is a mount FACTORY in `xff_extras_api::fuse`
+    (registered by @xff_fuse next to the linked-in slot, so a binary cannot advertise mounting
+    it lacks); `engine::MountedContainers` mounts once per container, splits the member path
+    once at the container boundary, and answers the mounted path. `ExecTargetPath` asks it
+    before the extractor, so `{}` is a path INSIDE the archive for `-exec` / `-execdir` and no
+    copy is made. Mounting is a per-machine capability: absent extra = the standard hard
+    error, absent runtime library or no permission = one line after the walk plus extraction
+    (which is what makes the flag safe in a config file); armed without `--archive-extract`
+    and unable to mount, the action is refused with a message naming both ways out.
+    `IsExtracted` now ASKS the extractor rather than inferring from "differs from the entry's
+    path", so a mounted path is never handed to `Release`.
+    - **4b root cause (FIXED)**: mounts aborted their connection on the first read on Linux
+      (ECONNABORTED, request in flight, daemon alive, no teardown). The fault was the libfuse
+      PIN: we compiled against 3.18.2 headers and dlopen whatever the machine has, but libfuse
+      guarantees only BACKWARD compatibility - a newer runtime accepts a caller built against an
+      older API, never the reverse - and ubuntu 24.04 ships 3.14. libfuse announces exactly this
+      as "library too old, some operations may not work", then clamps our op_size while we keep
+      handing it structs laid out for a version it lacks. Pinned to 3.14.0, the oldest runtime
+      we must support; raise it only to a version every supported runtime already has. What hid
+      it: the extra's mount tests SKIPPED whenever the loader reported no fuse3, ignoring
+      `XFF_FUSE_REQUIRED` - the very guarantee that flag exists for - so the whole kernel path
+      reported green without running. An unavailable loader is now fatal where the environment
+      promises one, and it prints the loader's reason.
+- **4b follow-up**: `skip_test` for helly25/bashtest (subshell + exit 77, `--no-skip` for
+  CI), so the capability-dependent CLI cases stop branching on `XFF_FUSE_REQUIRED` by hand.
 
-  - **Bounded member CACHE (SHIPPED).** `-grep`, `{hash}` and `-cmp` on the same member used to
-    each decompress it again. `MemberCache` (`member_cache.{h,cc}`) is a mutex-guarded LRU with a
-    64 MiB byte cap per open container - the cap is the decompression-bomb concern, so oversized
-    content is served but never stored - consulted by `ArchiveFileSystem::ReadContent`. Built as a
-    cache keyed by member (the container is the filesystem instance), not as a general in-memory
-    VFS with no second customer.
+- **Bounded member CACHE (SHIPPED).** `-grep`, `{hash}` and `-cmp` on the same member used to
+  each decompress it again. `MemberCache` (`member_cache.{h,cc}`) is a mutex-guarded LRU with a
+  64 MiB byte cap per open container - the cap is the decompression-bomb concern, so oversized
+  content is served but never stored - consulted by `ArchiveFileSystem::ReadContent`. Built as a
+  cache keyed by member (the container is the filesystem instance), not as a general in-memory
+  VFS with no second customer.
 
 - **Modern (non-`find`) default time format: resolved to `space`.**
   `space` (`2026-06-22 14:30:00 +0100`) is the default: human-first (it matches

@@ -586,7 +586,21 @@ bashtest(
     name = "full_extras_test",
     size = "small",
     srcs = ["full_extras_test.sh"],
-    data = [":xff_full"],
+    data = [
+        ":xff_full",
+        "@xff_archive//:mini_tar",
+    ],
+    # XFF_MSAN is the shell-side twin of the C++ `MEMORY_SANITIZER` macro: the mounting cases run
+    # through the dlopened system libfuse3, which MSan did not instrument and therefore reports as
+    # uninitialized. Keyed on the same flag `--config=msan` already sets.
+    env = {"XFF_MINI_TAR": "$(rootpath @xff_archive//:mini_tar)"} | select({
+        "//xff:xff_msan_enabled": {"XFF_MSAN": "1"},
+        "//conditions:default": {},
+    }),
+    # --archive-mount actually mounts, which needs /dev/fuse and the setuid fusermount3 - neither
+    # exists inside bazel's linux sandbox. Scoped to the TEST action (see @xff_fuse's server test for
+    # why a target-wide no-sandbox tag is wrong: it unsandboxes the compile too).
+    exec_properties = {"test.no-sandbox": "1"},
     target_compatible_with = XFF_FULL_ONLY,
 )
 

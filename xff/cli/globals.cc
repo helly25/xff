@@ -445,6 +445,29 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .extra = "archive",
     },
     {
+        .name = "--archive-mount",
+        .display = "--archive-mount",
+        .group = "traversal",
+        .header = "Traversal",
+        .summary = "let -exec / -ok run on an archive member by mounting its container read-only",
+        .details = "The alternative to `--archive-extract`, answering the same question - what path "
+                   "can a child process open for a member? - with the container itself instead of a "
+                   "copy. The container is mounted read-only (once, whichever members are visited), "
+                   "so `{}` names a path INSIDE the archive: a tool that only reads it (a compiler, "
+                   "a checksum, `grep`) sees the real member and nothing is written anywhere. That "
+                   "also removes extraction's trap, where an in-place formatter edits a temporary "
+                   "copy and reports success while the archive keeps its old content: here the "
+                   "mount has no write path at all, so such a tool fails honestly. Mounting is a "
+                   "per-MACHINE capability (it needs the fuse extra AND a runtime FUSE library and "
+                   "permission to mount), so where it cannot happen the run says so once and falls "
+                   "back to extraction rather than failing - which is why this flag is safe to keep "
+                   "in a config file. `--archive-extract` is still what arms writing through a "
+                   "copy; this one arms reading in place.",
+        .affects = "--archive,--archive-extract",
+        .topic = "archive",
+        .extra = "fuse",
+    },
+    {
         .name = "--archive-write",
         .display = "--archive-write, -Z[-|+|++]",
         .group = "traversal",

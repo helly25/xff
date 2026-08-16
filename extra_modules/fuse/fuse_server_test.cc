@@ -15,6 +15,12 @@
 
 #include "xff/fuse/fuse_server.h"
 
+#include <fcntl.h>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -35,6 +41,12 @@
 #include "xff/fuse/fuse_loader.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/filesystem.h"
+
+// The process environment handed to a spawned child. It is C's own global, declared here the way
+// xff/exec does: required on macOS (no <unistd.h> declaration), merely redundant on Linux. The
+// NOLINTs cover that redundancy and the shape POSIX defines and we cannot change.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,readability-redundant-declaration)
+extern "C" char** environ;
 
 namespace xff::fuse {
 namespace {
@@ -130,7 +142,7 @@ struct FakeFileSystem : vfs::FileSystem {
 // One mount per test (a mount is milliseconds), so each test states one behaviour and no test
 // depends on an earlier one's reads.
 struct FuseServerTest : ::testing::Test {
-  FakeFileSystem fs;
+  std::shared_ptr<const FakeFileSystem> fs = std::make_shared<FakeFileSystem>();
   std::string mount_point;
   std::unique_ptr<FuseServer> server;
 
@@ -145,7 +157,14 @@ struct FuseServerTest : ::testing::Test {
     GTEST_SKIP() << "MSan cannot model the uninstrumented system libfuse3";
 #else
     if (!FuseAvailable()) {
-      GTEST_SKIP() << "no fuse3 on this machine";
+      // Where the environment PROMISES mounting (Linux CI installs fuse3 and sets
+      // XFF_FUSE_REQUIRED), "no fuse3 here" is a failure, not a skip. Without this the whole
+      // kernel path skips silently and the suite reports green in a tenth of a second - which is
+      // exactly what it was doing, while the CLI-level test mounted successfully in the same job.
+      // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded test setup
+      ASSERT_THAT(std::getenv("XFF_FUSE_REQUIRED"), IsNull())
+          << "fuse3 must be loadable here: " << FuseLoader::Instance().error();
+      GTEST_SKIP() << "no fuse3 on this machine: " << FuseLoader::Instance().error();
     }
     // A plain directory is all a mount point is; MountRoot (which normally provides it) has its
     // own test and stays out of these.
@@ -227,6 +246,36 @@ TEST_F(FuseServerTest, ASymlinkResolvesToItsTarget) {
       std::filesystem::read_symlink(std::filesystem::path(mount_point) / "link", error);
   EXPECT_THAT(error.value(), Eq(0));
   EXPECT_THAT(target.string(), Eq(std::string("hello.txt")));
+}
+
+TEST_F(FuseServerTest, AChildProcessReadsTheSameMount) {
+  // The discriminator behind the ENOTCONN/ECONNABORTED failures in the CLI test: reading a mount
+  // IN-PROCESS works (the cases above), while a CHILD process reading the same path fails there.
+  // Serving child processes is what mounting is FOR (`-exec` gets a real path), so if that breaks
+  // it breaks here, on a trivial fake filesystem, with nothing else in the picture.
+  MountOrSkip("child");
+  if (server == nullptr) {
+    return;
+  }
+  // posix_spawn, not std::system: no shell, and the argv is ours (xff's own exec does the same).
+  const std::string out_path = (std::filesystem::path(::testing::TempDir()) / "xff-fuse-child.out").string();
+  std::string program = "cat";
+  std::string target = absl::StrCat(server->MountPoint(), "/hello.txt");
+  std::array<char*, 3> argv = {program.data(), target.data(), nullptr};
+  posix_spawn_file_actions_t actions;
+  posix_spawn_file_actions_init(&actions);
+  posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO, out_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  pid_t pid = 0;
+  const int spawned = posix_spawnp(&pid, argv[0], &actions, nullptr, argv.data(), environ);
+  posix_spawn_file_actions_destroy(&actions);
+  ASSERT_THAT(spawned, Eq(0));
+  int wait_status = 0;
+  waitpid(pid, &wait_status, 0);
+  const std::ifstream produced(out_path);
+  std::stringstream content;
+  content << produced.rdbuf();
+  EXPECT_THAT(WEXITSTATUS(wait_status), Eq(0)) << content.str();
+  EXPECT_THAT(content.str(), Eq(std::string(FakeFileSystem::kHello)));
 }
 
 TEST_F(FuseServerTest, DestroyingTheServerUnmounts) {

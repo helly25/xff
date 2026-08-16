@@ -37,6 +37,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
@@ -1878,12 +1879,21 @@ std::optional<std::string> ExecTargetPath(EvalContext& ctx, std::string_view act
   if (ctx.visit.metadata.source == vfs::Source::kLocalFs) {
     return std::string(ctx.visit.path);
   }
+  // A mount serves the member in place, so it is preferred over copying it out; when mounting is
+  // disarmed or impossible this answers nothing and extraction takes over unchanged.
+  if (ctx.mounts != nullptr) {
+    if (std::optional<std::string> mounted = ctx.mounts->PathFor(ctx.visit.fs_owner, ctx.visit.path);
+        mounted.has_value()) {
+      return mounted;
+    }
+  }
   if (ctx.extract == nullptr) {
     ctx.control.SetUnsupported(
         absl::StrCat(
             action,
             " cannot run on an archive member: a member has no path a process can open"
-            " (use --archive-extract to run it on a temporary copy)"));
+            " (use --archive-mount to run it on the member in place, or --archive-extract to run it"
+            " on a temporary copy)"));
     return std::nullopt;
   }
   absl::StatusOr<std::string> extracted = ctx.extract->Extract(ctx.fs, ctx.visit.path);
@@ -1894,10 +1904,13 @@ std::optional<std::string> ExecTargetPath(EvalContext& ctx, std::string_view act
   return *std::move(extracted);
 }
 
-// Whether `path` is a temporary copy this action made (rather than the entry's own path), so the
-// caller knows to release it once the child it was made for has finished.
+// Whether `path` is a temporary copy this action made (rather than the entry's own path or a path
+// inside a MOUNT), so the caller knows to release it once the child it was made for has finished.
+// Asked of the extractor rather than inferred from "it differs from the entry's path": a mounted
+// member also differs, and releasing one would be a request to delete something inside a read-only
+// mount - harmless only because Release ignores paths it never handed out.
 bool IsExtracted(const EvalContext& ctx, std::string_view path) {
-  return ctx.extract != nullptr && path != ctx.visit.path;
+  return ctx.extract != nullptr && absl::c_contains(ctx.extract->Held(), path);
 }
 
 bool EvalDelete(const parser::Expr&, EvalContext& ctx) {

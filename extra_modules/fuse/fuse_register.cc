@@ -18,14 +18,94 @@
 // the notice line, and registers the libfuse notice. The target is alwayslink so neither file-scope
 // registrar is dropped.
 
+#include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
+
+#include "absl/base/no_destructor.h"
+#include "absl/base/thread_annotations.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
+#include "absl/synchronization/mutex.h"
+#include "mbo/status/status_macros.h"
 #include "xff/fuse/fuse_backend.h"
-#include "xff/fuse/fuse_server.h"  // IWYU pragma: keep - links the server the extra exists to provide
+#include "xff/fuse/fuse_server.h"
+#include "xff/fuse/mount_root.h"
 #include "xff/license/notice.h"
+#include "xff/vfs/filesystem.h"
 
 namespace xff::fuse {
 namespace {
 
+// Guards the shared root below: one process, one tree, however many containers get mounted.
+absl::Mutex& RootMutex() {
+  static absl::NoDestructor<absl::Mutex> mutex;
+  return *mutex;
+}
+
+// The run's mount-point tree, SHARED by the mounts that live in it and removed when the last one
+// goes. Ownership sits with the mounts on purpose: MountRoot removes its tree in the DESTRUCTOR, so
+// parking it in an immortal static would leave every run's directories behind, to be cleaned up
+// only by a later run's stale sweep. The weak pointer here owns nothing - it just lets a second
+// container join the tree the first one created.
+//
+// Returns ownership BY VALUE, never a reference into this function's state.
+absl::StatusOr<std::shared_ptr<MountRoot>> RunRoot() ABSL_EXCLUSIVE_LOCKS_REQUIRED(RootMutex()) {
+  static absl::NoDestructor<std::weak_ptr<MountRoot>> live;
+  if (std::shared_ptr<MountRoot> root = live->lock(); root != nullptr) {
+    return root;
+  }
+  MBO_ASSIGN_OR_RETURN(MountRoot created, MountRoot::Create());
+  auto root = std::make_shared<MountRoot>(std::move(created));
+  *live = root;
+  return root;
+}
+
+// A mounted container: the server plus the mount point, answering member paths.
+class ServerMount final : public Mount {
+ public:
+  ServerMount(std::shared_ptr<MountRoot> root, std::unique_ptr<FuseServer> server)
+      : root_(std::move(root)), server_(std::move(server)) {}
+
+  [[nodiscard]] std::string_view MountPoint() const override { return server_->MountPoint(); }
+
+  [[nodiscard]] std::string PathFor(std::string_view member) const override {
+    return absl::StrCat(server_->MountPoint(), "/", member);
+  }
+
+ private:
+  // Declaration order is load-bearing: members are destroyed in reverse, so the server unmounts
+  // BEFORE the root removes the directory that mount point lives in.
+  std::shared_ptr<MountRoot> root_;
+  std::unique_ptr<FuseServer> server_;
+};
+
+absl::StatusOr<std::unique_ptr<Mount>> MountThroughFuse(
+    std::shared_ptr<const vfs::FileSystem> fs,
+    std::string_view container) {
+  std::shared_ptr<MountRoot> root;
+  std::string mount_point;
+  {
+    // One critical section for both steps: MountPointFor hands out a fresh directory by mutating
+    // the root's counter, so acquiring the root and asking it for a mount point belong together.
+    const absl::MutexLock lock(RootMutex());
+    MBO_ASSIGN_OR_RETURN(root, RunRoot());
+    MBO_ASSIGN_OR_RETURN(mount_point, root->MountPointFor(container));
+  }
+  MBO_ASSIGN_OR_RETURN(
+      std::unique_ptr<FuseServer> server, FuseServer::Mount(std::move(fs), std::string(container), mount_point));
+  return std::make_unique<ServerMount>(std::move(root), std::move(server));
+}
+
 const MountSupportRegistrar kRegisterFuseMount{};
+
+// Registering the factory is what makes MountContainer work; the slot above is only the "is it
+// linked" answer the help and notice surfaces read.
+const bool kRegisterFactory = [] {
+  RegisterMountFactory(&MountThroughFuse);
+  return true;
+}();
 
 // Interface-only use: the binary compiles against libfuse's headers (fetched, pinned release) and
 // dlopens the SYSTEM's libfuse3 at runtime; no LGPL code is compiled or statically linked in. The

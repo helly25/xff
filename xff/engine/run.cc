@@ -55,6 +55,7 @@
 #include "xff/datetime/datetime.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/extract.h"
+#include "xff/engine/mount.h"
 #include "xff/engine/walk.h"
 #include "xff/env/env.h"
 #include "xff/exec/exec.h"
@@ -2672,6 +2673,10 @@ int RunFind(
   const ArchiveWrite archive_write = ResolveArchiveWrite(command.globals);
   const bool archive_extract = archive_write.extract;
   ExtractedMembers extracted_members;
+  // --archive-mount: serve a member from a read-only MOUNT of its container instead of a copy.
+  // Preferred over extraction where the machine can mount; where it cannot, the provider answers
+  // nothing, extraction takes over, and the reason is reported once after the walk.
+  MountedContainers mounted_containers(absl::c_contains(command.globals, "--archive-mount"));
   // --archive-delete: `-delete` on a member records it here instead of refusing; the containers are
   // rewritten after the walk (see the flush below), because a member cannot be removed from a
   // container the walk is reading at that moment.
@@ -2991,6 +2996,7 @@ int RunFind(
             .exec_batches = &exec_batches,
             .parallel_exec = options.workers > 1 ? &parallel_exec : nullptr,
             .extract = archive_extract ? &extracted_members : nullptr,
+            .mounts = &mounted_containers,
             .archive_deletions = archive_delete ? &archive_deletions : nullptr,
         };
         const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
@@ -3185,6 +3191,13 @@ int RunFind(
         on_error(node->descriptor->name, absl::UnknownError("batched command exited non-zero"));
       }
     }
+  }
+
+  // --archive-mount: say ONCE that mounting could not happen, so a run that silently extracted
+  // instead is not mistaken for one that mounted. Not an error: falling back is the flag's
+  // documented behaviour, which is what makes it safe to keep in a config file.
+  if (!mounted_containers.DegradeReason().empty()) {
+    std::cerr << absl::StreamFormat("xff: --archive-mount: %s\n", mounted_containers.DegradeReason());
   }
 
   // --archive-delete: rewrite each container without the members `-delete` matched. Grouped by

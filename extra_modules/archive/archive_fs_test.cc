@@ -26,6 +26,7 @@
 #include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "archive.h"
 #include "archive_entry.h"
 #include "gmock/gmock.h"
@@ -384,6 +385,44 @@ TEST_F(MiniContainerTest, ANestedMemberKeepsItsInnerSlashesAfterTheSeparator) {
   MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> entries, fs.ReadDir(absl::StrCat(Container(), "!sub")));
   EXPECT_THAT(entries, ElementsAre(Field("path", &vfs::Entry::path, absl::StrCat(Container(), "!sub/a.bin"))));
   EXPECT_THAT(fs.ReadContent(absl::StrCat(Container(), "!sub/a.bin")), IsOkAndHolds(Eq("abc")));
+}
+
+// The BREADTH fixture (`test_data/many.tar.gz`): 1000 members across 10 directories, 12.5 KiB
+// gzipped. Every file's content is DERIVABLE FROM ITS NAME (`d03/f0123.txt` holds
+// `xff-verify 0123`), so a test asserts all thousand reads without a golden list - it proves the
+// reader returns the right bytes, not merely that it returns some. mini.tar pins the path
+// vocabulary; this one pins that a container of real size reads correctly end to end.
+struct ManyMembersTest : ::testing::Test {
+  static std::string Container() {
+    // NOLINTNEXTLINE(concurrency-mt-unsafe): bazel's environment, read once, single-threaded test
+    const char* const anchor = std::getenv("XFF_ARCHIVE_FIXTURE_ANCHOR");
+    CHECK_NE(anchor, nullptr) << "the BUILD file must set XFF_ARCHIVE_FIXTURE_ANCHOR";
+    const std::string_view anchor_path(anchor);
+    const std::string_view::size_type slash = anchor_path.rfind('/');
+    const std::string_view directory = slash == std::string_view::npos ? "." : anchor_path.substr(0, slash);
+    return absl::StrCat(directory, "/many.tar.gz");
+  }
+};
+
+TEST_F(ManyMembersTest, EveryMemberReadsBackTheContentItsNamePredicts) {
+  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(Container()));
+  int checked = 0;
+  for (int i = 0; i < 1'000; ++i) {
+    const std::string member = absl::StrFormat("d%02d/f%04d.txt", i % 10, i);
+    const std::string path = absl::StrCat(Container(), "!", member);
+    SCOPED_TRACE(path);
+    EXPECT_THAT(fs.ReadContent(path), IsOkAndHolds(Eq(absl::StrFormat("xff-verify %04d\n", i))));
+    ++checked;
+  }
+  EXPECT_THAT(checked, Eq(1'000));
+}
+
+TEST_F(ManyMembersTest, TheDirectoriesListTheirOwnHundred) {
+  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(Container()));
+  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> top, fs.ReadDir(Container()));
+  EXPECT_THAT(top, SizeIs(10));
+  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> one, fs.ReadDir(absl::StrCat(Container(), "!d03")));
+  EXPECT_THAT(one, SizeIs(100));
 }
 
 }  // namespace

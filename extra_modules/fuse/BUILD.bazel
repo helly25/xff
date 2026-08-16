@@ -153,8 +153,16 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":fuse_server_cc",
+        ":mount_root_cc",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@helly25_mbo//mbo/status:status_macros_cc",
         "@xff_extras_api//:fuse_backend_cc",
         "@xff_extras_api//:license_notice_cc",
+        "@xff_extras_api//:vfs_cc",
     ],
     alwayslink = True,
 )
@@ -165,9 +173,13 @@ cc_test(
     srcs = ["fuse_register_test.cc"],
     deps = [
         ":fuse_register_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
         "@xff_extras_api//:fuse_backend_cc",
         "@xff_extras_api//:license_notice_cc",
+        "@xff_extras_api//:vfs_cc",
     ],
 )

@@ -25,6 +25,25 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 # already exists and errors self-documentingly until they land.
 #
 # `alwayslink` keeps the license-notice registration TU from being dropped by the linker.
+# The mini container, exported so end-to-end tests in the CORE repo can drive the built binary over
+# a REAL archive instead of one they build at runtime (which would test the builder as much as the
+# reader). Its own target rather than the whole test_data glob, so a consumer names ONE file and
+# `$(rootpath)` resolves.
+filegroup(
+    name = "mini_tar",
+    srcs = ["test_data/mini.tar"],
+    visibility = ["//visibility:public"],
+)
+
+# The breadth fixture: 1000 members whose content each name predicts. Exported for the same reason
+# as mini_tar - an end-to-end test in the CORE repo should drive the built binary over a REAL
+# container, and this one is large enough to make a walk spend real time inside it.
+filegroup(
+    name = "many_tar_gz",
+    srcs = ["test_data/many.tar.gz"],
+    visibility = ["//visibility:public"],
+)
+
 cc_library(
     name = "archive_reader_cc",
     srcs = ["archive_reader.cc"],
@@ -251,7 +270,10 @@ cc_library(
 # refusing Remove, and ReadContent reporting Unimplemented rather than an empty string.
 cc_test(
     name = "archive_fs_test",
-    size = "small",
+    # ManyMembersTest reads all 1000 members of many.tar.gz, which is a second or two normally and
+    # well past the small (60s) budget under MSan, where origin tracking makes every read far more
+    # expensive. It timed out there while every assertion still held.
+    size = "medium",
     srcs = ["archive_fs_test.cc"],
     data = glob(["test_data/*"]),
     env = {"XFF_ARCHIVE_FIXTURE_ANCHOR": "$(rootpath test_data/mini.tar)"},

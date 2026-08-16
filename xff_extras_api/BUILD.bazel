@@ -30,6 +30,11 @@ cc_library(
     hdrs = ["fuse_backend.h"],
     include_prefix = "xff/fuse",
     visibility = ["//visibility:public"],
+    deps = [
+        ":vfs_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+    ],
 )
 
 cc_test(

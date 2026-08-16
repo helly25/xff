@@ -30,8 +30,16 @@ bazel_dep(name = "rules_cc", version = "0.2.21")
 # size, so hand-declaring it would be a silent-corruption trap. The library itself is never linked -
 # fuse_loader dlopens the machine's own libfuse3 at runtime. The release ASSET is used (stable
 # checksum), not the auto-generated /archive/ tarball. libfuse is LGPL-2.1: interface-only use of a
-# runtime-loaded library; the NOTICE component lands with the slice that links this extra into
-# xff_full.
+# runtime-loaded library.
+#
+# The pin is the CURRENT release; the runtime library is whatever the machine has, and those two
+# meet through `op_size`, not through matching versions. libfuse copies `op_size` bytes of our
+# `fuse_lowlevel_ops` and zero-fills the rest, so the contract is "declare how much you filled":
+# fuse_server passes the offset just past the LAST op it implements, never `sizeof` the struct it
+# happens to compile against. Passing the full sizeof is what makes an older runtime print
+# "library too old, some operations may not work" and clamp - a warning about US, not about it.
+# Fields are only ever APPENDED to that struct, so the prefix we declare means the same thing to
+# every 3.x runtime.
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
