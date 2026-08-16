@@ -25,9 +25,11 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cerrno>
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -43,6 +45,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
 #include "fuse_lowlevel.h"  // @libfuse//:fuse3_headers, interface-only
@@ -158,6 +161,11 @@ struct FuseServer::Impl {
   std::string mount_point;
   struct fuse_session* session = nullptr;
   std::thread loop;
+  // Set before teardown asks the loop to end, so the thread can tell "we were told to stop" from
+  // "the session died on its own" - the second is a real fault the run must hear about, because
+  // every read under the mount then fails with ENOTCONN and the child reports a puzzling
+  // "Software caused connection abort" instead.
+  std::atomic<bool> exiting = false;
 
   absl::Mutex mutex;
   // ino -> VFS path and back. Ino FUSE_ROOT_ID is `root`; the table only grows (a read-only mount
@@ -462,7 +470,15 @@ absl::StatusOr<std::unique_ptr<FuseServer>> FuseServer::Mount(
     const absl::MutexLock lock(LiveMutex());
     LiveSessions().push_back(server->impl_->session);
   }
-  server->impl_->loop = std::thread([session = server->impl_->session, &api] { api->session_loop(session); });
+  server->impl_->loop = std::thread([impl = server->impl_.get(), &api] {
+    const int result = api->session_loop(impl->session);
+    if (!impl->exiting.load()) {
+      std::cerr << absl::StreamFormat(
+          "xff: the FUSE session serving '%s' ended on its own (fuse_session_loop returned %d); reads under"
+          " that mount will fail from here on\n",
+          impl->mount_point, result);
+    }
+  });
   return server;
 }
 
@@ -477,6 +493,7 @@ FuseServer::~FuseServer() {
     const absl::MutexLock lock(LiveMutex());
     std::erase(LiveSessions(), impl_->session);
   }
+  impl_->exiting.store(true);
   api.session_exit(impl_->session);
   // Waking the loop is the delicate part: it sits in a blocking read on the kernel channel, and
   // the exit flag alone is only checked between requests. Unmounting OUT OF PROCESS makes the
