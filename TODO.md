@@ -270,33 +270,28 @@ shipped one way but not yet settled.
     (which is what makes the flag safe in a config file); armed without `--archive-extract`
     and unable to mount, the action is refused with a message naming both ways out.
     `IsExtracted` now ASKS the extractor rather than inferring from "differs from the entry's
-    path", so a mounted path is never handed to `Release`. - **4b BLOCKER (open, found by Linux CI 2026-08-16)**: a mounted member reads fine
-    IN-PROCESS (the extra's own kernel test passes on Linux CI) but a CHILD process reading
-    the same path gets ENOTCONN - `wc: /tmp/xff/<pid>/mini.tar/hello.txt: Software caused
-connection abort`. The traces settle what it is NOT: the mount succeeds
-    (`[trace] mounted`), no teardown has run (no `[trace] tearing down` before the failure),
-    and `fuse_session_loop` is still running (the "session ended on its own" report never
-    fires). So the connection is aborted while the daemon is alive, and only for a reader
-    that is a separate process - which is exactly the case `--archive-mount` exists to serve.
-    Serving `-exec` children is the flag's whole promise, so #549 stays a DRAFT until this is
-    understood. Leads worth trying in order: (a) bazel's `exec_properties` are a REMOTE
-    execution mechanism and are likely ignored for local test actions - the sandbox-escape
-    that @xff_fuse's server test appears to get may need the `no-sandbox` TAG instead, so the
-    CLI test may still be running inside a mount namespace where the mount and the child
-    disagree; (b) the /dev/fuse fd's inheritance across `posix_spawn` (xff/exec) and whether
-    `FD_CLOEXEC` or the vfork window is involved; (c) the libfuse version mismatch (ubuntu
-    ships 3.14, we compile against 3.18 headers and pass our own `sizeof` as `op_size`,
-    which is what makes libfuse print "library too old") - if that is the cause, pass the
-    size of the ops we actually fill rather than the struct we compile against. The two
-    `[trace]` lines in fuse_server.cc are TEMPORARY scaffolding for this hunt. - **4b follow-up**: `skip_test` for helly25/bashtest (subshell + exit 77, `--no-skip` for
-    CI), so the capability-dependent CLI cases stop branching on `XFF_FUSE_REQUIRED` by hand.
+    path", so a mounted path is never handed to `Release`.
+    - **4b root cause (FIXED)**: mounts aborted their connection on the first read on Linux
+      (ECONNABORTED, request in flight, daemon alive, no teardown). The fault was the libfuse
+      PIN: we compiled against 3.18.2 headers and dlopen whatever the machine has, but libfuse
+      guarantees only BACKWARD compatibility - a newer runtime accepts a caller built against an
+      older API, never the reverse - and ubuntu 24.04 ships 3.14. libfuse announces exactly this
+      as "library too old, some operations may not work", then clamps our op_size while we keep
+      handing it structs laid out for a version it lacks. Pinned to 3.14.0, the oldest runtime
+      we must support; raise it only to a version every supported runtime already has. What hid
+      it: the extra's mount tests SKIPPED whenever the loader reported no fuse3, ignoring
+      `XFF_FUSE_REQUIRED` - the very guarantee that flag exists for - so the whole kernel path
+      reported green without running. An unavailable loader is now fatal where the environment
+      promises one, and it prints the loader's reason.
+- **4b follow-up**: `skip_test` for helly25/bashtest (subshell + exit 77, `--no-skip` for
+  CI), so the capability-dependent CLI cases stop branching on `XFF_FUSE_REQUIRED` by hand.
 
-  - **Bounded member CACHE (SHIPPED).** `-grep`, `{hash}` and `-cmp` on the same member used to
-    each decompress it again. `MemberCache` (`member_cache.{h,cc}`) is a mutex-guarded LRU with a
-    64 MiB byte cap per open container - the cap is the decompression-bomb concern, so oversized
-    content is served but never stored - consulted by `ArchiveFileSystem::ReadContent`. Built as a
-    cache keyed by member (the container is the filesystem instance), not as a general in-memory
-    VFS with no second customer.
+- **Bounded member CACHE (SHIPPED).** `-grep`, `{hash}` and `-cmp` on the same member used to
+  each decompress it again. `MemberCache` (`member_cache.{h,cc}`) is a mutex-guarded LRU with a
+  64 MiB byte cap per open container - the cap is the decompression-bomb concern, so oversized
+  content is served but never stored - consulted by `ArchiveFileSystem::ReadContent`. Built as a
+  cache keyed by member (the container is the filesystem instance), not as a general in-memory
+  VFS with no second customer.
 
 - **Modern (non-`find`) default time format: resolved to `space`.**
   `space` (`2026-06-22 14:30:00 +0100`) is the default: human-first (it matches
