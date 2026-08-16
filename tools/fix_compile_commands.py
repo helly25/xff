@@ -101,6 +101,20 @@ def strip_sdk_libcxx(arguments: list[str]) -> list[str]:
     return out
 
 
+def drop_c_sources(entries: list[dict]) -> tuple[list[dict], int]:
+    """Drops C translation units. Returns the kept entries and how many were dropped.
+
+    xff is C++ only - `git ls-files '*.c'` is empty - so every `.c` entry in the database belongs to
+    a third-party dependency (bzip2, pcre2, libarchive and the codecs they pull in). Nothing here
+    ever lints them: the clang-tidy hook is handed first-party files, and nobody edits vendored C.
+    Keeping them only creates ways to go wrong, because the recorded compiler is `clang++`: any tool
+    that walks the database rather than a given file list tries to parse C as C++ and hits pcre2's
+    `#error This project uses C99. C++ is not supported.`
+    """
+    kept = [entry for entry in entries if not entry["file"].endswith(".c")]
+    return kept, len(entries) - len(kept)
+
+
 def fix_entries(entries: list[dict], remap: dict[str, str], system: str) -> int:
     """Applies both passes in place. Returns how many entries had their source path rewritten."""
     rewritten = 0
@@ -130,10 +144,15 @@ def main() -> int:
     with open(args.database, encoding="utf-8") as database:
         entries = json.load(database)
     rewritten = fix_entries(entries, remap, args.system)
+    entries, dropped = drop_c_sources(entries)
     with open(args.database, "w", encoding="utf-8") as database:
         json.dump(entries, database, indent=2)
         database.write("\n")
-    print(f"compile_commands.json: {rewritten} local-module source paths rewritten", file=sys.stderr)
+    print(
+        f"compile_commands.json: {rewritten} local-module source paths rewritten, "
+        f"{dropped} third-party C sources dropped",
+        file=sys.stderr,
+    )
     return 0
 
 
