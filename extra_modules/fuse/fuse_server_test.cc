@@ -132,7 +132,8 @@ struct FuseServerTest : ::testing::Test {
 
   // Mounts the fake tree, or marks the test skipped and leaves `server` null. Callers must return
   // when `server` is null: gtest's SKIP/FATAL only unwind the TEST body, never a helper.
-  void MountOrSkip(std::string_view name) {
+  // `name` keeps each test on its own mount point; unused when the MSan branch below skips.
+  void MountOrSkip([[maybe_unused]] std::string_view name) {
 #if defined(MEMORY_SANITIZER)
     // MSan false-positives on anything it did not instrument, and these tests exist to call
     // through the dlopened SYSTEM libfuse3 - every byte it writes reads as uninitialized.
