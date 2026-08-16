@@ -127,7 +127,9 @@ std::vector<HelpTopic> HelpTopics() {
        .summary = "worked examples that compose xff end to end",
        .in_full = true},
       {.name = "notice", .aliases = {"notices"}, .summary = "third-party components + what this binary contains"},
-      {.name = "license", .aliases = {"licenses"}, .summary = "xff's license in full (Apache-2.0)"},
+      {.name = "license",
+       .aliases = {"licenses"},
+       .summary = "xff's license in full (Apache-2.0); =COMPONENT for one component's"},
       {.name = "full", .aliases = {"long"}, .summary = "every option and primary, with the long explanations"},
   };
 }

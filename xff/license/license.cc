@@ -38,6 +38,11 @@ const Registrar kMbo{
      .spdx = "Apache-2.0",
      .text = "Copyright helly25. Licensed under the Apache License, Version 2.0."}};
 
+// xff's own license file IS the Apache-2.0 text, so the same bytes answer for every Apache-2.0
+// component above. Registered here rather than in the generated TU so the generated file stays a
+// single verbatim string and nothing else.
+const LicenseBodyRegistrar kApache2{{.spdx = "Apache-2.0", .text = LicenseText()}};
+
 }  // namespace
 
 std::string_view CopyrightNotice() {

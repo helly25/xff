@@ -45,6 +45,34 @@ struct Registrar {
 // regardless of static-init order across translation units.
 std::vector<Notice> Notices();
 
+// A license BODY, verbatim, keyed by its SPDX identifier - the key is the identifier rather than
+// the component because components share licenses (libarchive and lz4 are both BSD-2-Clause) and a
+// license text is defined by which license it is, not by who uses it. A component's own copyright
+// line stays in its Notice; this is the terms that line points at.
+struct LicenseBody {
+  std::string_view spdx;
+  std::string_view text;
+};
+
+// Records a license body. Static-init only, like Register. Registering the same SPDX twice keeps
+// the FIRST: two components naming one license are the expected case, and where the texts somehow
+// differ, silently preferring the later one would be worse than being deterministic.
+void RegisterLicenseBody(LicenseBody body);
+
+// Registers on construction. Declare one at namespace scope in the TU that embeds the text:
+//   const xff::license::LicenseBodyRegistrar kBsd2{{.spdx = "BSD-2-Clause", .text = kBsd2Text}};
+struct LicenseBodyRegistrar {
+  explicit LicenseBodyRegistrar(LicenseBody body) { RegisterLicenseBody(body); }
+};
+
+// Every registered license body, sorted by SPDX id for the same determinism reason as Notices().
+std::vector<LicenseBody> LicenseBodies();
+
+// The body for `spdx`, or empty when this binary carries no text for it. Empty is a normal answer
+// rather than an error: a component may name a license whose text nothing linked in has embedded,
+// and saying so plainly beats implying the license does not apply.
+std::string_view LicenseBodyFor(std::string_view spdx);
+
 }  // namespace xff::license
 
 #endif  // XFF_LICENSE_NOTICE_H_

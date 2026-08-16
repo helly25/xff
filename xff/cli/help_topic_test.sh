@@ -298,6 +298,31 @@ test::help_notice_and_license_reproduce_the_texts() {
   expect_output_contains 'Apache License' "$("$(_xff_bin)" --help=licenses 2>&1)"
 }
 
+test::help_license_component_shows_that_components_license() {
+  # `--help=license=COMPONENT` answers "what does the license of this bundled thing SAY" - which
+  # neither --help=notice (names only) nor --help=license (xff's own) could answer.
+  local out
+  out="$("$(_xff_bin)" '--help=license=helly25/mbo' 2>&1)"
+  expect_matches '^xff - eXtended File Find' "${out}" # #142: the grant still leads
+  expect_output_contains 'helly25/mbo' "${out}"
+  expect_output_contains 'Apache License' "${out}" # the body of the license it names
+  # A component whose license text is NOT embedded says so rather than showing an empty page.
+  out="$("$(_xff_bin)" --help=license=RE2 2>&1)"
+  expect_output_contains 'BSD-3-Clause' "${out}"
+  expect_output_contains 'not embedded in this binary' "${out}"
+  # Component names are proper nouns; the lookup must not be a spelling test.
+  expect_output_contains 'BSD-3-Clause' "$("$(_xff_bin)" --help=license=re2 2>&1)"
+}
+
+test::help_unknown_license_component_names_the_known_ones() {
+  # The topic exists and the COMPONENT does not, so the guiding error lists components (not topics).
+  local out rc
+  out="$("$(_xff_bin)" --help=license=nope 2>&1)" && rc=0 || rc="${?}"
+  expect_eq "2" "${rc}"
+  expect_output_contains "no licensed component 'nope'" "${out}"
+  expect_output_contains 'RE2' "${out}" # what this binary DOES have
+}
+
 test::help_unknown_topic_exits_two() {
   local out rc
   out="$("$(_xff_bin)" --help=-nonesuch 2>&1)" && rc=0 || rc=$?

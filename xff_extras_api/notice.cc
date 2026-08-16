@@ -15,6 +15,7 @@
 
 #include "xff/license/notice.h"
 
+#include <string_view>
 #include <vector>
 
 #include "absl/algorithm/container.h"
@@ -30,6 +31,12 @@ std::vector<Notice>& Registry() {
   return registry;
 }
 
+// The registered license bodies, kept the same way and for the same static-init reason.
+std::vector<LicenseBody>& BodyRegistry() {
+  static std::vector<LicenseBody> registry;
+  return registry;
+}
+
 }  // namespace
 
 void Register(Notice notice) {
@@ -40,6 +47,23 @@ std::vector<Notice> Notices() {
   std::vector<Notice> out = Registry();
   absl::c_sort(out, [](const Notice& lhs, const Notice& rhs) { return lhs.component < rhs.component; });
   return out;
+}
+
+void RegisterLicenseBody(LicenseBody body) {
+  if (LicenseBodyFor(body.spdx).empty()) {
+    BodyRegistry().push_back(body);
+  }
+}
+
+std::vector<LicenseBody> LicenseBodies() {
+  std::vector<LicenseBody> out = BodyRegistry();
+  absl::c_sort(out, [](const LicenseBody& lhs, const LicenseBody& rhs) { return lhs.spdx < rhs.spdx; });
+  return out;
+}
+
+std::string_view LicenseBodyFor(std::string_view spdx) {
+  const auto found = absl::c_find_if(BodyRegistry(), [spdx](const LicenseBody& body) { return body.spdx == spdx; });
+  return found == BodyRegistry().end() ? std::string_view{} : found->text;
 }
 
 }  // namespace xff::license

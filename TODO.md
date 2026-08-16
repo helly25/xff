@@ -530,7 +530,7 @@ intent, not hard dependency. Task numbers reference the agent task list.
   rest, rendered only on a clean parse. Follow-up recorded: meta spellings inside `-exec` argument
   runs are still recognized from raw argv; fold meta handling into the parser proper.
 
-- **#201 (open, user-requested 2026-08-15)**: extras license TEXTS. `--help=license` renders only
+- **#201 (seam + retrieval SHIPPED; extras' own texts deferred)**: extras license TEXTS. `--help=license` renders only
   xff's own Apache-2.0 and `--help=notice` inventories the linked components without their full
   texts - so a binary containing zstd (BSD-3) or, once the fuse extra links, libfuse (LGPL-2.1)
   cannot show what those licenses actually say. Extend the license/notice self-registration seam so
@@ -538,6 +538,19 @@ intent, not hard dependency. Task numbers reference the agent task list.
   `--help=license=COMPONENT`, with the component names cross-referenced from `--help=notice` and
   an unknown name getting the usual guiding error. #142's rule stands: any license page leads with
   the copyright + grant statement.
+  **Shipped**: bodies are registered by SPDX ID rather than by component, because components SHARE
+  licenses (libarchive and lz4 are both BSD-2-Clause; Abseil, mbo and xff itself are all
+  Apache-2.0) - one registration answers for every component naming it, and duplicate copies cannot
+  drift. The seam mirrors the notice one (`LicenseBodyRegistrar`, static-init, function-local static
+  registry); re-registering an SPDX keeps the FIRST, so the answer never depends on static-init
+  order. xff's generated LICENSE text is the Apache-2.0 registration. The topic name still
+  case-folds but its VALUE does not (component names are proper nouns), and the lookup is
+  case-insensitive so reading a license is not a spelling test.
+  **Deferred**: the extras' own license FILES (BSD-2, BSD-3, Zlib, bzip2, 0BSD, LGPL-2.1). Each
+  extra should embed the texts IT brings, through a shared genrule macro modelled on
+  `//xff/license:license_text_gen`. Until then those components render an explicit "the full <SPDX>
+  text is not embedded in this binary" line under their retained attribution - the license still
+  applies, this binary just does not carry its words, and saying so beats implying otherwise.
 
 - **#196 (this change completes it)**: enforce `MBO_ASSERT_OK_AND_ASSIGN` over
   `ASSERT_THAT(x, IsOk())` + deref. The 77-site conversion shipped in PR #528 (+ 4 loop-body
