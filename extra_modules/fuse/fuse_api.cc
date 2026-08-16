@@ -61,6 +61,7 @@ absl::StatusOr<FuseApi> FuseApi::Resolve() {
   status.Update(Assign(loader, "fuse_reply_attr", api.reply_attr));
   status.Update(Assign(loader, "fuse_reply_entry", api.reply_entry));
   status.Update(Assign(loader, "fuse_reply_buf", api.reply_buf));
+  status.Update(Assign(loader, "fuse_opt_free_args", api.opt_free_args));
   status.Update(Assign(loader, "fuse_reply_open", api.reply_open));
   status.Update(Assign(loader, "fuse_reply_readlink", api.reply_readlink));
   status.Update(Assign(loader, "fuse_req_userdata", api.req_userdata));
