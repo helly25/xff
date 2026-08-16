@@ -145,7 +145,14 @@ struct FuseServerTest : ::testing::Test {
     GTEST_SKIP() << "MSan cannot model the uninstrumented system libfuse3";
 #else
     if (!FuseAvailable()) {
-      GTEST_SKIP() << "no fuse3 on this machine";
+      // Where the environment PROMISES mounting (Linux CI installs fuse3 and sets
+      // XFF_FUSE_REQUIRED), "no fuse3 here" is a failure, not a skip. Without this the whole
+      // kernel path skips silently and the suite reports green in a tenth of a second - which is
+      // exactly what it was doing, while the CLI-level test mounted successfully in the same job.
+      // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded test setup
+      ASSERT_THAT(std::getenv("XFF_FUSE_REQUIRED"), IsNull())
+          << "fuse3 must be loadable here: " << FuseLoader::Instance().error();
+      GTEST_SKIP() << "no fuse3 on this machine: " << FuseLoader::Instance().error();
     }
     // A plain directory is all a mount point is; MountRoot (which normally provides it) has its
     // own test and stays out of these.

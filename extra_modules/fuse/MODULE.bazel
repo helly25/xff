@@ -30,8 +30,16 @@ bazel_dep(name = "rules_cc", version = "0.2.21")
 # size, so hand-declaring it would be a silent-corruption trap. The library itself is never linked -
 # fuse_loader dlopens the machine's own libfuse3 at runtime. The release ASSET is used (stable
 # checksum), not the auto-generated /archive/ tarball. libfuse is LGPL-2.1: interface-only use of a
-# runtime-loaded library; the NOTICE component lands with the slice that links this extra into
-# xff_full.
+# runtime-loaded library.
+#
+# The pinned version is deliberately OLD (3.14.0, what ubuntu 24.04 ships), not the newest release.
+# libfuse promises BACKWARD compatibility - a newer runtime library accepts a caller built against
+# an older API - and nothing in the other direction. Compiling against 3.18 and dlopening a 3.14
+# runtime is the unsupported direction: libfuse prints "library too old, some operations may not
+# work", clamps our op_size, and the structs we hand it (fuse_file_info, fuse_lowlevel_ops) are
+# laid out for a version it does not have, which is how a mount that appears to succeed then
+# aborts its connection on first use. Raise this pin only to a version every runtime we support
+# already has.
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
@@ -39,9 +47,9 @@ http_archive(
     build_file = "//:libfuse.BUILD.bazel",
     patch_args = ["-p1"],
     patches = ["//:libfuse_config_include.patch"],
-    sha256 = "f01de85717e20adf5f98aff324acd85dd73d61a5ca3834d573dcf0bd6e54a298",
-    strip_prefix = "fuse-3.18.2",
-    urls = ["https://github.com/libfuse/libfuse/releases/download/fuse-3.18.2/fuse-3.18.2.tar.gz"],
+    sha256 = "96115b2a8ff34bd1e0c7b00c5dfd8297571d7e165042b94498c9a26356a9a70a",
+    strip_prefix = "fuse-3.14.0",
+    urls = ["https://github.com/libfuse/libfuse/releases/download/fuse-3.14.0/fuse-3.14.0.tar.xz"],
 )
 bazel_dep(name = "abseil-cpp", version = "20250814.2")
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
