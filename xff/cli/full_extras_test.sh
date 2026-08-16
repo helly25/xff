@@ -85,6 +85,9 @@ test::archive_mount_alone_mounts_where_it_can_and_refuses_where_it_cannot() {
   local out
   out="$("$(_xff_full_bin)" -L --archive=all --archive-mount \
     "$(_mini_tar)" -type f -name hello.txt -exec wc -c {} \; 2>&1)" || true
+  # Same reason as the case above: bashtest ellipsizes the text it reports, so the log carries the
+  # whole thing or a CI failure here is a guess.
+  echo "xff said: ${out}"
   if [[ -n "${XFF_FUSE_REQUIRED:-}" ]]; then
     # Mounting works here: the child must read the member IN PLACE, with no fallback available.
     expect_output_contains '13' "${out}"
