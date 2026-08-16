@@ -85,6 +85,7 @@ using ::testing::AllOf;
 using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
+using ::testing::IsFalse;
 using ::testing::Lt;
 using ::testing::Not;
 using ::testing::SizeIs;
@@ -377,6 +378,36 @@ TEST_F(HelpTest, LicenseTopicLeadsWithCopyrightThenTheText) {
   EXPECT_THAT(
       RenderTopicDoc("license"),
       AllOf(HasSubstr("eXtended File Find"), HasSubstr("Apache License"), HasSubstr("Version 2.0")));
+}
+
+TEST_F(HelpTest, LicenseComponentTopicLeadsWithCopyrightThenTheComponentThenItsLicense) {
+  // `--help=license=COMPONENT`: #142's rule still holds (xff's own copyright + grant lead), then
+  // the component's own notice line, then the body of the license it names.
+  EXPECT_THAT(
+      RenderTopicDoc("license=helly25/mbo"),
+      AllOf(
+          HasSubstr("eXtended File Find"),  // #142: the grant leads every license page
+          HasSubstr("helly25/mbo"), HasSubstr("[Apache-2.0]"), HasSubstr("Apache License")));
+}
+
+TEST_F(HelpTest, LicenseComponentMatchesRegardlessOfCase) {
+  // Component names are proper nouns ("RE2"); reading a LICENSE must not be a spelling test.
+  EXPECT_THAT(RenderTopicDoc("license=re2"), Eq(RenderTopicDoc("license=RE2")));
+}
+
+TEST_F(HelpTest, LicenseComponentWithoutAnEmbeddedTextSaysSoRatherThanShowingNothing) {
+  // RE2 is BSD-3-Clause and no text for it is embedded. The page must still carry the attribution
+  // and state plainly why the body is absent - silence would read as "no license applies".
+  EXPECT_THAT(
+      RenderTopicDoc("license=RE2"),
+      AllOf(HasSubstr("RE2"), HasSubstr("BSD-3-Clause"), HasSubstr("not embedded in this binary")));
+}
+
+TEST_F(HelpTest, AnUnknownLicenseComponentIsNoDocumentAtAll) {
+  // The CLI turns this into the guiding error that names the known components (see main.cc); the
+  // model's job is only to refuse.
+  const std::optional<Document> doc = TopicReference("license=no-such-component");
+  EXPECT_THAT(doc.has_value(), IsFalse());
 }
 
 TEST_F(HelpTest, GlobalFlagTopicRendersWithGlobalTag) {

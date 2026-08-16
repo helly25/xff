@@ -30,7 +30,9 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
 #include "absl/types/span.h"
 #include "xff/cli/globals.h"
 #include "xff/cli/help.h"
@@ -363,8 +365,16 @@ int RunMain(int argc, char** argv) {
       note(Meta::kTopic, "full");  // hyphenated shortcut for --help=full (explained)
     } else if (arg.starts_with("--help=")) {
       // Folded once here, so every consumer (the renderer, the tip gate, the error) agrees on the
-      // spelling: --help=LIST and --help=Topics are the same ask as --help=list.
-      note(Meta::kTopic, absl::AsciiStrToLower(std::string_view(arg).substr(7)));
+      // spelling: --help=LIST and --help=Topics are the same ask as --help=list. Only the TOPIC
+      // name folds: a topic's value is data, and `--help=license=RE2` names a component whose
+      // spelling is a proper noun, so lowercasing it would make it unfindable and would echo a
+      // name back at the reader that they never typed.
+      const std::string_view topic(std::string_view(arg).substr(7));
+      const std::size_t value = topic.find('=');
+      note(
+          Meta::kTopic, value == std::string_view::npos
+                            ? absl::AsciiStrToLower(topic)
+                            : absl::StrCat(absl::AsciiStrToLower(topic.substr(0, value)), topic.substr(value)));
     } else if (arg == "--version" || arg == "-version") {
       note(Meta::kVersion);
     } else if (arg == "--man") {
@@ -414,6 +424,14 @@ int RunMain(int argc, char** argv) {
           return 0;
         }
         // RenderTopic's only failure is unknown-topic; point at the list instead of a bare error.
+        // `--help=license=NAME` fails the same way but for a different reason - the topic exists
+        // and the COMPONENT does not - so it gets the component names, which is the list the
+        // reader actually needs.
+        if (absl::StartsWith(meta_topic, "license=") || absl::StartsWith(meta_topic, "licenses=")) {
+          std::cerr << "xff: no licensed component '" << meta_topic.substr(meta_topic.find('=') + 1)
+                    << "' in this binary; it has: " << absl::StrJoin(xff::cli::LicenseComponentNames(), ", ") << "\n";
+          return 2;
+        }
         std::cerr << "xff: no help topic '" << meta_topic << "'; 'xff --help=topics' lists them\n";
         return 2;
       }

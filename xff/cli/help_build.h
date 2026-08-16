@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <optional>
 #include <string_view>
+#include <vector>
 
 #include "xff/cli/help_model.h"
 
@@ -57,6 +58,10 @@ enum class Audience : std::uint8_t {
 // Just the FIELDS section as a standalone document (no preamble), for the
 // `--help=fields` topic - the same content BuildReference() folds into its Fields
 // section, so the topic can never drift from the full reference.
+// The component names `--help=license=NAME` accepts, in Notices() order, so an unknown name can be
+// answered with what IS available rather than a bare rejection.
+[[nodiscard]] std::vector<std::string_view> LicenseComponentNames();
+
 [[nodiscard]] Document FieldsReference();
 
 // The standalone document for a sub-vocabulary `--help=TOPIC` (fields / printf / time

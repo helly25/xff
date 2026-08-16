@@ -34,6 +34,7 @@ using ::testing::AllOf;
 using ::testing::Contains;
 using ::testing::Field;
 using ::testing::HasSubstr;
+using ::testing::IsEmpty;
 using ::testing::IsTrue;
 using ::testing::Not;
 using ::testing::NotNull;
@@ -113,6 +114,26 @@ TEST_F(LicenseTest, CommittedLicenseFileEqualsLicenseText) {
   // LicenseText is generated from //:LICENSE, so this confirms the embed round-trips exactly (e.g.
   // the raw-string delimiter never collides with the license text).
   EXPECT_THAT(ReadRunfile("LICENSE"), EqualsText(std::string(LicenseText())));
+}
+
+TEST_F(LicenseTest, TheApacheBodyIsRetrievableByItsSpdxId) {
+  // Keyed by SPDX rather than by component, so the one embedded text answers for every Apache-2.0
+  // component (xff itself, Abseil, helly25/mbo) instead of being duplicated per name.
+  EXPECT_THAT(std::string(LicenseBodyFor("Apache-2.0")), EqualsText(std::string(LicenseText())));
+}
+
+TEST_F(LicenseTest, AnUnembeddedLicenseAnswersEmptyRatherThanFailing) {
+  // RE2 is BSD-3-Clause and its text is not embedded here. Empty is the honest answer: the license
+  // still applies, this binary just does not carry its words, and the caller says so.
+  EXPECT_THAT(LicenseBodyFor("BSD-3-Clause"), IsEmpty());
+  EXPECT_THAT(LicenseBodyFor("no-such-license"), IsEmpty());
+}
+
+TEST_F(LicenseTest, RegisteringOneSpdxTwiceKeepsTheFirst) {
+  // Two components naming one license is the expected case, so a second registration must not
+  // replace the first - the result would otherwise depend on static-init order across TUs.
+  RegisterLicenseBody({.spdx = "Apache-2.0", .text = "not the real text"});
+  EXPECT_THAT(std::string(LicenseBodyFor("Apache-2.0")), EqualsText(std::string(LicenseText())));
 }
 
 }  // namespace

@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
@@ -718,6 +719,51 @@ Section LicenseSection() {
   return section;
 }
 
+// The COMPONENT in `license=COMPONENT` (or the `licenses=` alias), or nothing when `name` is an
+// ordinary topic. Split once on the FIRST `=`, so a component name may itself contain one.
+std::optional<std::string_view> LicenseComponentOf(std::string_view name) {
+  const std::size_t eq = name.find('=');
+  if (eq == std::string_view::npos) {
+    return std::nullopt;
+  }
+  const std::string_view head = name.substr(0, eq);
+  if (head != "license" && head != "licenses") {
+    return std::nullopt;
+  }
+  return name.substr(eq + 1);
+}
+
+// One component's license page: its notice line, then the full text of the license it names.
+// Nothing when no such component is linked, so the caller can report the name as unknown.
+std::optional<Section> LicenseComponentSection(std::string_view component) {
+  const std::vector<license::Notice> notices = license::Notices();
+  // Case-insensitive: component names are proper nouns with capitals, slashes and parentheses
+  // ("RE2", "Abseil (C++)", "helly25/mbo"), and requiring the exact casing to read a LICENSE would
+  // be a spelling test rather than a lookup.
+  const auto found = absl::c_find_if(notices, [component](const license::Notice& notice) {
+    return absl::EqualsIgnoreCase(notice.component, component);
+  });
+  if (found == notices.end()) {
+    return std::nullopt;
+  }
+  // #142's rule: every license page leads with xff's own copyright and grant, then the component's.
+  std::string text =
+      absl::StrCat(license::CopyrightNotice(), "\n", found->component, "  [", found->spdx, "]\n", found->text, "\n");
+  const std::string_view body = license::LicenseBodyFor(found->spdx);
+  if (body.empty()) {
+    // Honest rather than silent: the license applies, this binary just does not carry its words.
+    absl::StrAppend(
+        &text, "\nThe full ", found->spdx,
+        " text is not embedded in this binary. The notice above is the retained attribution;\n"
+        "see the component's own distribution for the license text.\n");
+  } else {
+    absl::StrAppend(&text, "\n", body);
+  }
+  Section section;  // title-less, like the other license pages: the text is the whole page
+  section.children.push_back(Content{.node = Example{.text = text}});
+  return section;
+}
+
 // EXAMPLES: the cookbook recipes as structured nodes - each a subsection with the
 // verbatim command (an Example, kept copy-pastable) and its explanation (Prose, which
 // wraps). The recipe list is the SOT in help.cc, run end to end by cookbook_test.
@@ -886,6 +932,14 @@ Section GuideSection() {
 
 }  // namespace
 
+std::vector<std::string_view> LicenseComponentNames() {
+  std::vector<std::string_view> names;
+  for (const license::Notice& notice : license::Notices()) {
+    names.push_back(notice.component);
+  }
+  return names;
+}
+
 Document FieldsReference() {
   Document doc;
   doc.sections.push_back(BuildFields());
@@ -928,6 +982,14 @@ std::optional<Document> IndexReference(std::string_view name) {
 
 std::optional<Document> TopicReference(std::string_view name) {
   Document doc;
+  if (const std::optional<std::string_view> component = LicenseComponentOf(name); component.has_value()) {
+    std::optional<Section> section = LicenseComponentSection(*component);
+    if (!section.has_value()) {
+      return std::nullopt;  // unknown component: the caller reports it with the known names
+    }
+    doc.sections.push_back(*std::move(section));
+    return doc;
+  }
   if (name == "fields") {
     doc.sections.push_back(BuildFields());
   } else if (name == "printf") {
