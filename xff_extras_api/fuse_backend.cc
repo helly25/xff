@@ -15,13 +15,26 @@
 
 #include "xff/fuse/fuse_backend.h"
 
+#include <memory>
+#include <string_view>
+#include <utility>
+
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "xff/vfs/filesystem.h"
+
 namespace xff::fuse {
 namespace {
 
-// The slot: written only during static init (see the header's contract), read afterwards.
+// The slots: written only during static init (see the header's contract), read afterwards.
 bool& LinkedSlot() {
   static bool linked = false;
   return linked;
+}
+
+MountFactory& FactorySlot() {
+  static MountFactory& factory = *new MountFactory();
+  return factory;
 }
 
 }  // namespace
@@ -32,6 +45,17 @@ void RegisterMountSupport() {
 
 bool MountSupportAvailable() {
   return LinkedSlot();
+}
+
+void RegisterMountFactory(MountFactory factory) {
+  FactorySlot() = std::move(factory);
+}
+
+absl::StatusOr<std::unique_ptr<Mount>> MountContainer(const vfs::FileSystem& fs, std::string_view container) {
+  if (!FactorySlot()) {
+    return absl::UnimplementedError("this binary has no FUSE mount support (rebuild with --//xff:xff_fuse)");
+  }
+  return FactorySlot()(fs, container);
 }
 
 }  // namespace xff::fuse

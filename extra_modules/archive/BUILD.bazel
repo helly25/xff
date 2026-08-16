@@ -25,6 +25,16 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 # already exists and errors self-documentingly until they land.
 #
 # `alwayslink` keeps the license-notice registration TU from being dropped by the linker.
+# The mini container, exported so end-to-end tests in the CORE repo can drive the built binary over
+# a REAL archive instead of one they build at runtime (which would test the builder as much as the
+# reader). Its own target rather than the whole test_data glob, so a consumer names ONE file and
+# `$(rootpath)` resolves.
+filegroup(
+    name = "mini_tar",
+    srcs = ["test_data/mini.tar"],
+    visibility = ["//visibility:public"],
+)
+
 cc_library(
     name = "archive_reader_cc",
     srcs = ["archive_reader.cc"],

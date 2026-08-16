@@ -268,10 +268,20 @@ shipped one way but not yet settled.
          the separator, those exact paths are the ones `Stat`/`ReadContent` answer to, a
          slash-joined path is rejected as InvalidArgument, and directories INSIDE a container keep
          ordinary slashes (so a consumer splits once at the container boundary and never re-joins).
-       - **4b. The flag**: explicit `--archive-mount` (extra-gated; absent extra = the standard
-         hard error, absent RUNTIME library = one-line note + extraction fallback), `{}` rendering
-         as the mounted path for `-exec`/`-execdir`, help/XFF.md, bashtests for both the mounted
-         and degraded paths.
+       - **4b. The flag (SHIPPED)**: `--archive-mount` serves a member from a read-only MOUNT of
+         its container instead of a copy. The seam is a mount FACTORY in `xff_extras_api::fuse`
+         (registered by @xff_fuse next to the linked-in slot, so a binary cannot advertise mounting
+         it lacks); `engine::MountedContainers` mounts once per container, splits the member path
+         once at the container boundary, and answers the mounted path. `ExecTargetPath` asks it
+         before the extractor, so `{}` is a path INSIDE the archive for `-exec` / `-execdir` and no
+         copy is made. Mounting is a per-machine capability: absent extra = the standard hard
+         error, absent runtime library or no permission = one line after the walk plus extraction
+         (which is what makes the flag safe in a config file); armed without `--archive-extract`
+         and unable to mount, the action is refused with a message naming both ways out.
+         `IsExtracted` now ASKS the extractor rather than inferring from "differs from the entry's
+         path", so a mounted path is never handed to `Release`.
+       - **4b follow-up**: `skip_test` for helly25/bashtest (subshell + exit 77, `--no-skip` for
+         CI), so the capability-dependent CLI cases stop branching on `XFF_FUSE_REQUIRED` by hand.
 
   - **Bounded member CACHE (SHIPPED).** `-grep`, `{hash}` and `-cmp` on the same member used to
     each decompress it again. `MemberCache` (`member_cache.{h,cc}`) is a mutex-guarded LRU with a

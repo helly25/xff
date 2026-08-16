@@ -586,7 +586,11 @@ bashtest(
     name = "full_extras_test",
     size = "small",
     srcs = ["full_extras_test.sh"],
-    data = [":xff_full"],
+    data = [
+        ":xff_full",
+        "@xff_archive//:mini_tar",
+    ],
+    env = {"XFF_MINI_TAR": "$(rootpath @xff_archive//:mini_tar)"},
     target_compatible_with = XFF_FULL_ONLY,
 )
 

@@ -31,6 +31,17 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# The committed mini container in the runfiles. XFF_MINI_TAR is the rootpath the BUILD file passes;
+# a test runs with its runfiles as the working directory, so it resolves as-is - except when the
+# path is relative to a different root, in which case the search below finds it.
+_mini_tar() {
+  if [[ -f "${XFF_MINI_TAR:-}" ]]; then
+    echo "${XFF_MINI_TAR}"
+    return
+  fi
+  find "${TEST_SRCDIR}" -type f -name mini.tar 2>/dev/null | head -1
+}
+
 _xff_full_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff_full"
   if [[ ! -x "${bin}" ]]; then
@@ -47,6 +58,40 @@ test::xff_full_links_the_pcre2_extra() {
   local out
   out="$("$(_xff_full_bin)" --help=extras 2>&1)"
   expect_matches "pcre2 +\[built into this binary\]" "${out}"
+}
+
+test::archive_mount_runs_the_action_over_a_real_container() {
+  # A real container (the committed mini.tar), through the mount path. Mounting is a per-MACHINE
+  # capability, so the assertion is what holds EVERYWHERE: the action runs and the child sees the
+  # member's real 13 bytes - served from the mount where the machine can mount, from a temporary
+  # copy where it cannot. -L because the fixture reaches the test through runfiles, which are
+  # symlinks: unfollowed, the container is not a regular file and nothing dives into it.
+  local out
+  out="$("$(_xff_full_bin)" -L --archive=all --archive-mount --archive-extract \
+    "$(_mini_tar)" -type f -name hello.txt -exec wc -c {} \; 2>&1)"
+  expect_output_contains '13' "${out}"
+  expect_output_not_contains 'cannot run on an archive member' "${out}"
+}
+
+test::archive_mount_alone_mounts_where_it_can_and_refuses_where_it_cannot() {
+  # Without --archive-extract there is no fallback, so the outcome depends on the MACHINE: mount and
+  # run, or refuse. That is not an excuse for a matcher that accepts either - the environment
+  # already declares which machine this is. XFF_FUSE_REQUIRED is set exactly where mounting must
+  # work (Linux CI, which installs fuse3), so each case gets its own exact assertion and neither
+  # can silently turn into the other.
+  local out
+  out="$("$(_xff_full_bin)" -L --archive=all --archive-mount \
+    "$(_mini_tar)" -type f -name hello.txt -exec wc -c {} \; 2>&1)" || true
+  if [[ -n "${XFF_FUSE_REQUIRED:-}" ]]; then
+    # Mounting works here: the child must read the member IN PLACE, with no fallback available.
+    expect_output_contains '13' "${out}"
+    expect_output_not_contains 'cannot run on an archive member' "${out}"
+  else
+    # Mounting cannot work here, so the action is refused - and the message names both ways out,
+    # since either flag would have made the command run.
+    expect_output_contains 'use --archive-mount to run it on the member in place' "${out}"
+    expect_output_contains 'or --archive-extract to run it on a temporary copy' "${out}"
+  fi
 }
 
 test::the_notice_lists_every_linked_extra_and_the_direct_codecs() {

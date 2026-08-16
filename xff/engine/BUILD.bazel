@@ -37,6 +37,37 @@ cc_library(
 
 # Gives an archive member a real path for the length of one run (--archive-extract), so a child
 # process can open what is otherwise only bytes inside a container.
+# --archive-mount: a member's real path served by MOUNTING its container instead of copying the
+# member out (the extract_cc alternative). The fuse seam is in @xff_extras_api, so the core needs no
+# dependency on the extra itself; a lean binary gets the "not built in" answer.
+cc_library(
+    name = "mount_cc",
+    srcs = ["mount.cc"],
+    hdrs = ["mount.h"],
+    deps = [
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@xff_extras_api//:fuse_backend_cc",
+        "@xff_extras_api//:member_path_cc",
+        "@xff_extras_api//:vfs_cc",
+    ],
+)
+
+cc_test(
+    name = "mount_test",
+    size = "small",
+    srcs = ["mount_test.cc"],
+    deps = [
+        ":mount_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@xff_extras_api//:vfs_cc",
+    ],
+)
+
 cc_library(
     name = "extract_cc",
     srcs = ["extract.cc"],
@@ -95,6 +126,7 @@ cc_library(
     visibility = ["//xff:__subpackages__"],
     deps = [
         ":extract_cc",
+        ":mount_cc",
         ":walk_cc",
         "//xff/content:line_match_cc",
         "//xff/datetime:datetime_cc",
@@ -109,6 +141,7 @@ cc_library(
         "//xff/regex:regex_cc",
         "//xff/registry:registry_cc",
         "//xff/vfs:vfs_cc",
+        "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/functional:function_ref",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
@@ -150,6 +183,7 @@ cc_library(
     deps = [
         ":evaluate_cc",
         ":extract_cc",
+        ":mount_cc",
         ":walk_cc",
         "//xff/color:color_cc",
         "//xff/content:line_match_cc",
