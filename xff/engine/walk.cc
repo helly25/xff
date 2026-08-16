@@ -171,7 +171,7 @@ class Walker {
   // means "not an archive", the answer for every ordinary file the walk offers, and the file is simply
   // walked as itself; any other failure IS reported, because an archive that cannot be read is a real
   // problem. Reported at most once per container: a probe that fails is never retried.
-  std::unique_ptr<const vfs::FileSystem> MountContainer(const Stated& container, int depth) {
+  std::shared_ptr<const vfs::FileSystem> MountContainer(const Stated& container, int depth) {
     absl::StatusOr<std::unique_ptr<const vfs::FileSystem>> mounted = (*mount_container_)(container.path, fs_, depth);
     if (mounted.ok()) {
       return *std::move(mounted);
@@ -199,13 +199,16 @@ class Walker {
   }
 
   // Walks an ALREADY-OPEN container's members as children of it, at `depth` + 1.
-  void DescendMounted(const vfs::FileSystem& mounted, const Stated& container, int depth) {
+  void DescendMounted(std::shared_ptr<const vfs::FileSystem> mounted, const Stated& container, int depth) {
     // A nested walker over the mounted filesystem: members are ordinary entries to it, so every rule
     // the outer walk enforces (max_depth, min_depth, prune, quit, post_order, sort) applies unchanged.
     // The mounter is passed on, so a container inside a container dives too - bounded by
     // --archive-depth through `container_depth_`. Under `roots` that bound never binds: a member is
     // never at depth 0, so the mode itself already says "only the archive I was pointed at".
-    Walker inner(mounted, options_, visit_, on_error_, mount_container_);
+    Walker inner(*mounted, options_, visit_, on_error_, mount_container_);
+    // The inner walk's entries belong to the CONTAINER's filesystem, so they carry shared
+    // ownership of it: a consumer that outlives the dive (a mount) keeps the reader alive.
+    inner.fs_owner_ = std::move(mounted);
     inner.container_depth_ = container_depth_ + 1;
     inner.current_root_ = current_root_;
     inner.root_dev_ = container.metadata.dev;
@@ -217,9 +220,9 @@ class Walker {
 
   // Opens a container and walks its members, for the callers that visit it before descending.
   void DescendContainer(const Stated& container, int depth) {
-    const std::unique_ptr<const vfs::FileSystem> mounted = MountContainer(container, depth);
+    const std::shared_ptr<const vfs::FileSystem> mounted = MountContainer(container, depth);
     if (mounted != nullptr) {
-      DescendMounted(*mounted, container, depth);
+      DescendMounted(mounted, container, depth);
     }
   }
 
@@ -316,7 +319,8 @@ class Walker {
         .depth = depth,
         .metadata = stated.metadata,
         .dived = dived,
-        .fs = &fs_};
+        .fs = &fs_,
+        .fs_owner = fs_owner_};
     const WalkAction action = visit_(visit);
     if (action == WalkAction::kStop) {
       stopped_ = true;
@@ -339,14 +343,14 @@ class Walker {
     // Under `mount_before_visit` the container is opened here, so the visit can be told whether its
     // members follow; the open is kept and reused for the dive below. Otherwise the open happens at
     // the dive, which is what lets `-prune` skip it altogether.
-    const std::unique_ptr<const vfs::FileSystem> mounted =
+    const std::shared_ptr<const vfs::FileSystem> mounted =
         dive && options_.mount_before_visit ? MountContainer(stated, depth) : nullptr;
     const bool dived = dive && (!options_.mount_before_visit || mounted != nullptr);
     if (options_.post_order) {
       if (descend) {
         Descend(stated, depth, prefetched);
       } else if (mounted != nullptr) {
-        DescendMounted(*mounted, stated, depth);
+        DescendMounted(mounted, stated, depth);
       } else if (dive && !options_.mount_before_visit) {
         DescendContainer(stated, depth);
       }
@@ -364,7 +368,7 @@ class Walker {
     } else if (mounted != nullptr) {
       // A container is a FILE, so it never reaches Descend; -prune above still applies to it, which is
       // what makes `-name '*.tar' -prune` skip diving without skipping the file itself.
-      DescendMounted(*mounted, stated, depth);
+      DescendMounted(mounted, stated, depth);
     } else if (dive && !options_.mount_before_visit) {
       DescendContainer(stated, depth);
     }
@@ -500,6 +504,8 @@ class Walker {
   std::uint64_t root_dev_ = 0;
   // How many containers this walker is already inside; 0 for the walk over the real filesystem.
   int container_depth_ = 0;
+  // Shared ownership of `fs_` when this walker walks a CONTAINER; empty for the real filesystem.
+  std::shared_ptr<const vfs::FileSystem> fs_owner_;
   std::string_view current_root_;
   std::set<std::pair<std::uint64_t, std::uint64_t>> ancestors_;
 };

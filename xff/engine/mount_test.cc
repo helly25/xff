@@ -71,7 +71,7 @@ struct MountedContainersTest : ::testing::Test {
 TEST_F(MountedContainersTest, DisarmedAnswersNothingAndExplainsNothing) {
   MountedContainers mounts;
   EXPECT_THAT(mounts.Armed(), IsFalse());
-  EXPECT_THAT(mounts.PathFor(fs, "a.tar!hello.txt"), Eq(std::nullopt));
+  EXPECT_THAT(mounts.PathFor(fs, nullptr, "a.tar!hello.txt"), Eq(std::nullopt));
   // Disarmed is not a degrade: nothing was asked for, so there is nothing to report.
   EXPECT_THAT(mounts.DegradeReason(), Eq(""));
 }
@@ -80,20 +80,20 @@ TEST_F(MountedContainersTest, APathThatNamesNoMemberIsNotMountedAndIsNotAFailure
   MountedContainers mounts(/*armed=*/true);
   EXPECT_THAT(mounts.Armed(), IsTrue());
   // An ordinary file: the walk hands these to the same call, and a mount would be meaningless.
-  EXPECT_THAT(mounts.PathFor(fs, "/tmp/plain.txt"), Eq(std::nullopt));
+  EXPECT_THAT(mounts.PathFor(fs, nullptr, "/tmp/plain.txt"), Eq(std::nullopt));
   EXPECT_THAT(mounts.DegradeReason(), Eq(""));
 }
 
 TEST_F(MountedContainersTest, WithoutTheExtraAMemberDegradesWithOneReason) {
   MountedContainers mounts(/*armed=*/true);
-  EXPECT_THAT(mounts.PathFor(fs, "a.tar!hello.txt"), Eq(std::nullopt));
+  EXPECT_THAT(mounts.PathFor(fs, nullptr, "a.tar!hello.txt"), Eq(std::nullopt));
   const std::string first(mounts.DegradeReason());
   EXPECT_THAT(first, Not(Eq("")));
 
   // A second member, and a member of a SECOND container, must not append another sentence: the run
   // reports the reason once, however many members it visits.
-  EXPECT_THAT(mounts.PathFor(fs, "a.tar!other.txt"), Eq(std::nullopt));
-  EXPECT_THAT(mounts.PathFor(fs, "b.zip!x"), Eq(std::nullopt));
+  EXPECT_THAT(mounts.PathFor(fs, nullptr, "a.tar!other.txt"), Eq(std::nullopt));
+  EXPECT_THAT(mounts.PathFor(fs, nullptr, "b.zip!x"), Eq(std::nullopt));
   EXPECT_THAT(std::string(mounts.DegradeReason()), Eq(first));
 }
 

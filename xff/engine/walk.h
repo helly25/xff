@@ -115,6 +115,12 @@ struct Visit {
   // one, or a member would read as empty - `a.tar!x` is not a path the real filesystem has. Null
   // only for a Visit synthesized outside a walk, where the caller's own filesystem is the answer.
   const vfs::FileSystem* fs = nullptr;
+  // Shared ownership of `fs` WHEN it is a container's filesystem, empty for the walk's own. The
+  // walk itself needs only the pointer - the dive outlives every visit inside it - but a consumer
+  // that keeps the filesystem past the dive MUST hold this, or it reads freed memory. That is not
+  // hypothetical: --archive-mount kept a mount for the whole run while the reader died with the
+  // dive, which ThreadSanitizer caught as a race on ~ArchiveFileSystem.
+  std::shared_ptr<const vfs::FileSystem> fs_owner;
 };
 
 // Visitor control flow, mirroring find: keep traversing, do not descend into

@@ -29,7 +29,10 @@
 
 namespace xff::engine {
 
-std::optional<std::string> MountedContainers::PathFor(const vfs::FileSystem& fs, std::string_view member_path) {
+std::optional<std::string> MountedContainers::PathFor(
+    const vfs::FileSystem& fs,
+    std::shared_ptr<const vfs::FileSystem> owner,
+    std::string_view member_path) {
   if (!armed_) {
     return std::nullopt;
   }
@@ -51,9 +54,9 @@ std::optional<std::string> MountedContainers::PathFor(const vfs::FileSystem& fs,
       }
       return std::nullopt;
     }
-    found = mounts_.emplace(container, *std::move(mount)).first;
+    found = mounts_.emplace(container, Mounted{.owner = std::move(owner), .mount = *std::move(mount)}).first;
   }
-  return found->second->PathFor(parts->member);
+  return found->second.mount->PathFor(parts->member);
 }
 
 }  // namespace xff::engine

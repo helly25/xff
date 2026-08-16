@@ -15,6 +15,12 @@
 
 #include "xff/fuse/fuse_server.h"
 
+#include <fcntl.h>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -35,6 +41,12 @@
 #include "xff/fuse/fuse_loader.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/filesystem.h"
+
+// The process environment handed to a spawned child. It is C's own global, declared here the way
+// xff/exec does, and the NOLINT is for its shape (non-const, global) which POSIX defines and we
+// cannot change.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+extern "C" char** environ;
 
 namespace xff::fuse {
 namespace {
@@ -245,14 +257,24 @@ TEST_F(FuseServerTest, AChildProcessReadsTheSameMount) {
   if (server == nullptr) {
     return;
   }
+  // posix_spawn, not std::system: no shell, and the argv is ours (xff's own exec does the same).
   const std::string out_path = (std::filesystem::path(::testing::TempDir()) / "xff-fuse-child.out").string();
-  const std::string command = absl::StrCat("cat '", server->MountPoint(), "/hello.txt' > '", out_path, "' 2>&1");
-  // NOLINTNEXTLINE(cert-env33-c,concurrency-mt-unsafe): a fixed command, in a test, on purpose.
-  const int status = std::system(command.c_str());
+  std::string program = "cat";
+  std::string target = absl::StrCat(server->MountPoint(), "/hello.txt");
+  std::array<char*, 3> argv = {program.data(), target.data(), nullptr};
+  posix_spawn_file_actions_t actions;
+  posix_spawn_file_actions_init(&actions);
+  posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO, out_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  pid_t pid = 0;
+  const int spawned = posix_spawnp(&pid, argv[0], &actions, nullptr, argv.data(), environ);
+  posix_spawn_file_actions_destroy(&actions);
+  ASSERT_THAT(spawned, Eq(0));
+  int wait_status = 0;
+  waitpid(pid, &wait_status, 0);
   const std::ifstream produced(out_path);
   std::stringstream content;
   content << produced.rdbuf();
-  EXPECT_THAT(status, Eq(0)) << content.str();
+  EXPECT_THAT(WEXITSTATUS(wait_status), Eq(0)) << content.str();
   EXPECT_THAT(content.str(), Eq(std::string(FakeFileSystem::kHello)));
 }
 
