@@ -25,6 +25,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
 #include "xff/archive/archive_backend.h"
+#include "xff/regex/backend.h"
 #include "xff/values/values.h"
 
 namespace xff::cli {
@@ -1362,7 +1363,27 @@ bool ExtraEnabled(std::string_view key) {
   if (key == "archive") {
     return archive::ContainerSupportAvailable();
   }
+  if (key == "pcre2") {
+    return regex::Pcre2Available();
+  }
   return false;  // unknown / not-yet-wired extra
+}
+
+std::vector<std::string> EnabledExtras() {
+  // The known keys live here next to ExtraBuildFlag for the same reason its spellings do: a new
+  // extra adds its key to both (and a branch in ExtraEnabled), and the notice line, the extras
+  // topic, and the rebuild hints all read from these three rather than keeping private copies.
+  static constexpr std::array kKnownExtras = std::to_array<std::string_view>({
+      "archive",
+      "pcre2",
+  });
+  std::vector<std::string> enabled;
+  for (const std::string_view key : kKnownExtras) {
+    if (ExtraEnabled(key)) {
+      enabled.emplace_back(key);
+    }
+  }
+  return enabled;
 }
 
 std::string_view ExtraBuildFlag(std::string_view key) {
