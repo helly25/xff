@@ -26,11 +26,21 @@
 #
 #   tools/fuse_linux_test.sh          # functional: the fuse tests + the CLI mount test, sandboxed
 #   tools/fuse_linux_test.sh tsan     # the CLI mount test under ThreadSanitizer
+#   tools/fuse_linux_test.sh msan     # the fuse tests under MemorySanitizer, EMULATED x86_64
 #
 # TSan note: this harness is aarch64 on Apple silicon, where TSan needs reduced ASLR entropy or it
 # aborts with "unexpected memory mapping" before running anything - hence --privileged and the
 # sysctl. The repo's own --config=tsan is not used because it pulls the hermetic x86_64 clang
 # toolchain, which has no aarch64 build; the sanitizer is driven through the container's gcc.
+#
+# MSan note: msan runs the REPO's own --config=msan, because MSan is the one sanitizer whose result
+# depends on the instrumented libc++ overlay - and that overlay ships x86_64-linux only (see
+# MSAN_LIBCXX_URL in bazelmod/llvm.MODULE.bazel). So this mode forces an x86_64 container, which on
+# Apple silicon means qemu emulation: correct but SLOW, and the first run pays for the hermetic
+# LLVM too. It gets its own cache volume because the toolchain is a different architecture.
+# It earns the wait: every mounting test must SKIP under MSan (the dlopened system libfuse3 is
+# uninstrumented, so its bytes read back as uninitialized), and forgetting one of those skips is a
+# mistake only this cell catches.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -39,13 +49,13 @@ readonly IMAGE="ubuntu:24.04"
 readonly CACHE="xff-bazel-cache"
 readonly MODE="${1:-functional}"
 
-docker volume create "${CACHE}" >/dev/null
-
 read -r -d '' SETUP <<'SETUP_EOF' || true
 set -e
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq >/dev/null
-apt-get install -y -qq curl gcc g++ python3 unzip zip fuse3 libfuse3-3 >/dev/null
+# git is not optional: MODULE.bazel pulls toolchains_llvm and hedron_compile_commands through
+# git_repository, so a cold cache cannot even compute the repo mapping without it.
+apt-get install -y -qq curl git gcc g++ python3 unzip zip fuse3 libfuse3-3 >/dev/null
 arch="$(uname -m)"; [ "${arch}" = "aarch64" ] && arch=arm64 || arch=amd64
 curl -sSL -o /usr/local/bin/bazel "https://github.com/bazelbuild/bazelisk/releases/download/v1.20.0/bazelisk-linux-${arch}"
 chmod +x /usr/local/bin/bazel
@@ -53,7 +63,13 @@ cd /repo
 export XFF_FUSE_REQUIRED=1   # a skipped mount test is a FAILURE here: this machine can mount
 SETUP_EOF
 
-if [[ "${MODE}" == "tsan" ]]; then
+if [[ "${MODE}" == "msan" ]]; then
+  script="${SETUP}
+bazel --output_user_root=/bzcache test --config=xff_full @xff_fuse//... //xff/cli:full_extras_test \\
+  --config=clang --config=msan --test_env=XFF_FUSE_REQUIRED --nocache_test_results --test_output=errors"
+  extra=(--rm --platform linux/amd64)
+  cache="${CACHE}-amd64"
+elif [[ "${MODE}" == "tsan" ]]; then
   script="${SETUP}
 sysctl -w vm.mmap_rnd_bits=28 >/dev/null 2>&1 || true
 bazel --output_user_root=/bzcache test --config=xff_full //xff/cli:full_extras_test \\
@@ -70,6 +86,10 @@ bazel --output_user_root=/bzcache test --config=xff_full @xff_fuse//... //xff/cl
   extra=(--rm)
 fi
 
+# The msan branch overrides this: a different architecture needs its own toolchain cache.
+cache="${cache:-${CACHE}}"
+docker volume create "${cache}" >/dev/null
+
 exec docker run "${extra[@]}" \
   --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor:unconfined \
-  -v "${REPO}:/repo" -v "${CACHE}:/bzcache" "${IMAGE}" sh -c "${script}"
+  -v "${REPO}:/repo" -v "${cache}:/bzcache" "${IMAGE}" sh -c "${script}"

@@ -270,7 +270,10 @@ cc_library(
 # refusing Remove, and ReadContent reporting Unimplemented rather than an empty string.
 cc_test(
     name = "archive_fs_test",
-    size = "small",
+    # ManyMembersTest reads all 1000 members of many.tar.gz, which is a second or two normally and
+    # well past the small (60s) budget under MSan, where origin tracking makes every read far more
+    # expensive. It timed out there while every assertion still held.
+    size = "medium",
     srcs = ["archive_fs_test.cc"],
     data = glob(["test_data/*"]),
     env = {"XFF_ARCHIVE_FIXTURE_ANCHOR": "$(rootpath test_data/mini.tar)"},
