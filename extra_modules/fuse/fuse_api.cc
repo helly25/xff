@@ -50,7 +50,8 @@ absl::StatusOr<FuseApi> FuseApi::Resolve() {
   // see through the template - the NOLINT documents the false positive rather than restructuring
   // the one honest builder this struct has.
   FuseApi api;  // NOLINT(misc-const-correctness)
-  absl::Status status = Assign(loader, "fuse_session_new", api.session_new);
+  absl::Status status = Assign(loader, "fuse_add_direntry", api.add_direntry);
+  status.Update(Assign(loader, "fuse_session_new", api.session_new));
   status.Update(Assign(loader, "fuse_session_mount", api.session_mount));
   status.Update(Assign(loader, "fuse_session_loop", api.session_loop));
   status.Update(Assign(loader, "fuse_session_exit", api.session_exit));
@@ -60,7 +61,9 @@ absl::StatusOr<FuseApi> FuseApi::Resolve() {
   status.Update(Assign(loader, "fuse_reply_attr", api.reply_attr));
   status.Update(Assign(loader, "fuse_reply_entry", api.reply_entry));
   status.Update(Assign(loader, "fuse_reply_buf", api.reply_buf));
+  status.Update(Assign(loader, "fuse_opt_free_args", api.opt_free_args));
   status.Update(Assign(loader, "fuse_reply_open", api.reply_open));
+  status.Update(Assign(loader, "fuse_reply_readlink", api.reply_readlink));
   status.Update(Assign(loader, "fuse_req_userdata", api.req_userdata));
   if (!status.ok()) {
     return status;

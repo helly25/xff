@@ -96,3 +96,49 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+# The read-only FUSE server (epic #183, slice 3b): serves one vfs::FileSystem at one mount point
+# through the runtime-loaded fuse3 (fuse_api_cc); no build-time libfuse linkage.
+cc_library(
+    name = "fuse_server_cc",
+    srcs = ["fuse_server.cc"],
+    hdrs = ["fuse_server.h"],
+    include_prefix = "xff/fuse",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":fuse_api_cc",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@helly25_mbo//mbo/status:status_macros_cc",
+        "@libfuse//:fuse3_headers",
+        "@xff_extras_api//:vfs_cc",
+    ],
+)
+
+cc_test(
+    name = "fuse_server_test",
+    size = "medium",
+    srcs = ["fuse_server_test.cc"],
+    # The kernel-path test needs /dev/fuse and the setuid fusermount3, neither of which works inside
+    # bazel's linux sandbox; the test itself only touches its own TempDir. Scoped to the TEST action
+    # (not a target-wide "no-sandbox" tag): an unsandboxed COMPILE resolves libc++'s <version> to the
+    # stray `version` file at the mbo repo root and breaks the build.
+    exec_properties = {"test.no-sandbox": "1"},
+    deps = [
+        ":fuse_loader_cc",
+        ":fuse_server_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/time",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+        "@xff_extras_api//:vfs_cc",
+    ],
+)
