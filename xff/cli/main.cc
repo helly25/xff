@@ -178,6 +178,8 @@ std::string RenderExtras() {
         &out, "  %-9s %s\n            %s\n", name,
         built_in ? "[built into this binary]" : absl::StrCat("[not built in; rebuild with ", rebuild, "]"), what);
   };
+  row("fuse", xff::cli::ExtraEnabled("fuse"), xff::cli::ExtraBuildFlag("fuse"),
+      "mount containers as read-only directories via the platform's fuse3 (probed at runtime)");
   row("pcre2", xff::cli::ExtraEnabled("pcre2"), xff::cli::ExtraBuildFlag("pcre2"),
       "--regextype=PCRE2: Perl-compatible regex (lookahead, backreferences, ...)");
   absl::flat_hash_set<std::string_view> seen;

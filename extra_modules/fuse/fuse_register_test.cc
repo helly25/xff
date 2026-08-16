@@ -1,0 +1,48 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Linking fuse_register_cc (as any binary carrying the fuse extra does) must fill BOTH identity
+// surfaces: the extras slot the core's `--help=extras` / notice line read, and the libfuse notice.
+
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+#include "xff/fuse/fuse_backend.h"
+#include "xff/license/notice.h"
+
+namespace xff::fuse {
+namespace {
+
+using ::testing::AllOf;
+using ::testing::Contains;
+using ::testing::Field;
+using ::testing::HasSubstr;
+using ::testing::IsTrue;
+
+struct FuseRegisterTest : ::testing::Test {};
+
+TEST_F(FuseRegisterTest, LinkingRegistersMountSupport) {
+  EXPECT_THAT(MountSupportAvailable(), IsTrue());
+}
+
+TEST_F(FuseRegisterTest, LinkingRegistersTheLibfuseNotice) {
+  EXPECT_THAT(
+      license::Notices(), Contains(AllOf(
+                              Field("component", &license::Notice::component, "libfuse"),
+                              Field("spdx", &license::Notice::spdx, "LGPL-2.1-only"),
+                              Field("text", &license::Notice::text, HasSubstr("interface-only")))));
+}
+
+}  // namespace
+}  // namespace xff::fuse

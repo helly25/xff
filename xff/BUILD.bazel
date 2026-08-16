@@ -74,12 +74,33 @@ config_setting(
     flag_values = {":xff_pcre": "True"},
 )
 
+# --//xff:xff_fuse -- link the FUSE mount extra (extra_modules/fuse; #183). Default off. The extra
+# compiles against fetched fuse3 headers and dlopens the runtime library per machine, so linking it
+# adds no system library dependency.
+bool_flag(
+    name = "xff_fuse",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "xff_fuse_enabled",
+    flag_values = {":xff_fuse": "True"},
+)
+
 # "Is this extra linked": its own flag OR --//xff:xff_all. Every consumer selects on THESE, never on
 # the bare `_enabled` setting, which is what makes `xff_all` reach a new extra with no further edits.
 selects.config_setting_group(
     name = "xff_archive_on",
     match_any = [
         ":xff_archive_enabled",
+        ":xff_all_enabled",
+    ],
+)
+
+selects.config_setting_group(
+    name = "xff_fuse_on",
+    match_any = [
+        ":xff_fuse_enabled",
         ":xff_all_enabled",
     ],
 )
