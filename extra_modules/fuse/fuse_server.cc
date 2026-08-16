@@ -465,13 +465,19 @@ absl::StatusOr<std::unique_ptr<FuseServer>> FuseServer::Mount(
     server->impl_->session = nullptr;
     return absl::InternalError(absl::StrCat("FUSE mount failed at '", server->impl_->mount_point, "'"));
   }
+  // TEMPORARY (remove before merge): CI shows a mounted read aborting with ENOTCONN while the loop
+  // is still running, and the event ORDER is what distinguishes a premature teardown from a session
+  // the kernel killed. Trace mount and teardown until that is settled.
+  std::cerr << absl::StreamFormat("xff: [trace] mounted '%s'\n", server->impl_->mount_point);
   InstallSignalHandlersOnce();
   {
     const absl::MutexLock lock(LiveMutex());
     LiveSessions().push_back(server->impl_->session);
   }
-  server->impl_->loop = std::thread([impl = server->impl_.get(), &api] {
-    const int result = api->session_loop(impl->session);
+  // The API is captured BY VALUE (a struct of function pointers): capturing `api` by reference
+  // would capture a reference to Mount's local reference variable, which dies when Mount returns.
+  server->impl_->loop = std::thread([impl = server->impl_.get(), api = *api] {
+    const int result = api.session_loop(impl->session);
     if (!impl->exiting.load()) {
       std::cerr << absl::StreamFormat(
           "xff: the FUSE session serving '%s' ended on its own (fuse_session_loop returned %d); reads under"
@@ -493,6 +499,7 @@ FuseServer::~FuseServer() {
     const absl::MutexLock lock(LiveMutex());
     std::erase(LiveSessions(), impl_->session);
   }
+  std::cerr << absl::StreamFormat("xff: [trace] tearing down '%s'\n", impl_->mount_point);  // TEMPORARY
   impl_->exiting.store(true);
   api.session_exit(impl_->session);
   // Waking the loop is the delicate part: it sits in a blocking read on the kernel channel, and
