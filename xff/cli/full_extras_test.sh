@@ -51,8 +51,7 @@ _skip_under_msan() {
   if [[ -z "${XFF_MSAN:-}" ]]; then
     return 1
   fi
-  echo "skipped: MSan cannot model the uninstrumented system libfuse3"
-  return 0
+  skip_test "MSan cannot model the uninstrumented system libfuse3"
 }
 
 _xff_full_bin() {

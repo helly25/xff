@@ -1,4 +1,4 @@
-/__pycache__
+__pycache__/
 
 # Symlink added by bazel-compile-commands-extractor (no trailing slash: it's a symlink).
 /external

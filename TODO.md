@@ -311,8 +311,9 @@ shipped one way but not yet settled.
       `MEMORY_SANITIZER`, in the shell test via an `XFF_MSAN` env from a `select()` on the same
       flag. And the 1000-member `archive_fs_test` moved to `size = "medium"`: 1589 ms natively
       times MSan's origin-tracking factor lands right on the small (60s) cliff.
-- **4b follow-up**: `skip_test` for helly25/bashtest (subshell + exit 77, `--no-skip` for
-  CI), so the capability-dependent CLI cases stop branching on `XFF_FUSE_REQUIRED` by hand.
+- **4b follow-up (SHIPPED 2026-08-16)**: helly25/bashtest 0.6.0's `skip_test` makes the two
+  MSan-guarded CLI mount cases real skips instead of successful tests that merely print a skip
+  line; `--no-skip` is available where an environment guarantee must turn any skip into a failure.
 
 - **Bounded member CACHE (SHIPPED).** `-grep`, `{hash}` and `-cmp` on the same member used to
   each decompress it again. `MemberCache` (`member_cache.{h,cc}`) is a mutex-guarded LRU with a
