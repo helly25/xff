@@ -35,6 +35,15 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
+# The breadth fixture: 1000 members whose content each name predicts. Exported for the same reason
+# as mini_tar - an end-to-end test in the CORE repo should drive the built binary over a REAL
+# container, and this one is large enough to make a walk spend real time inside it.
+filegroup(
+    name = "many_tar_gz",
+    srcs = ["test_data/many.tar.gz"],
+    visibility = ["//visibility:public"],
+)
+
 cc_library(
     name = "archive_reader_cc",
     srcs = ["archive_reader.cc"],
