@@ -33,7 +33,6 @@
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
 #include "xff/fuse/fuse_loader.h"
-#include "xff/fuse/mount_root.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/filesystem.h"
 
@@ -41,6 +40,7 @@ namespace xff::fuse {
 namespace {
 
 using ::mbo::testing::IsOk;
+using ::testing::Eq;
 using ::testing::IsNull;
 using ::testing::IsTrue;
 using ::testing::Not;
@@ -137,11 +137,19 @@ TEST_F(FuseServerTest, WithoutFuseMountReportsTheLoaderReason) {
 }
 
 TEST_F(FuseServerTest, MountedTreeReadsThroughTheKernel) {
+#if defined(MEMORY_SANITIZER)
+  // MSan false-positives on anything it did not instrument, and the whole point of this test is
+  // calling through the dlopened SYSTEM libfuse3 - every byte it writes reads as uninitialized.
+  // ASan/TSan tolerate uninstrumented libraries and keep running this path.
+  GTEST_SKIP() << "MSan cannot model the uninstrumented system libfuse3";
+#endif
   if (!FuseAvailable()) {
     GTEST_SKIP() << "no fuse3 on this machine";
   }
-  MBO_ASSERT_OK_AND_ASSIGN(MountRoot root, MountRoot::Create({.base_override = ::testing::TempDir()}));
-  MBO_ASSERT_OK_AND_ASSIGN(const std::string mount_point, root.MountPointFor(FakeFileSystem::kRoot));
+  // A plain directory is all a mount point is; MountRoot (which normally provides it) has its own
+  // test and stays out of this one.
+  const std::string mount_point = (std::filesystem::path(::testing::TempDir()) / "xff-fuse-server-mp").string();
+  std::filesystem::create_directories(mount_point);
   absl::StatusOr<std::unique_ptr<FuseServer>> server =
       FuseServer::Mount(fs, std::string(FakeFileSystem::kRoot), mount_point);
   if (!server.ok()) {
@@ -152,7 +160,7 @@ TEST_F(FuseServerTest, MountedTreeReadsThroughTheKernel) {
     ASSERT_THAT(std::getenv("XFF_FUSE_REQUIRED"), IsNull()) << server.status();
     GTEST_SKIP() << "fuse3 present but mounting not permitted here: " << server.status();
   }
-  EXPECT_THAT((*server)->MountPoint(), mount_point);
+  EXPECT_THAT((*server)->MountPoint(), Eq(mount_point));
 
   std::vector<std::string> names;
   for (const auto& entry : std::filesystem::directory_iterator(mount_point)) {
@@ -160,12 +168,14 @@ TEST_F(FuseServerTest, MountedTreeReadsThroughTheKernel) {
   }
   EXPECT_THAT(names, UnorderedElementsAre("hello.txt", "sub", "link"));
 
-  std::ifstream hello(std::filesystem::path(mount_point) / "hello.txt");
+  const std::ifstream hello(std::filesystem::path(mount_point) / "hello.txt");
   std::stringstream content;
   content << hello.rdbuf();
-  EXPECT_THAT(content.str(), FakeFileSystem::kHello);
+  // Eq(), not the bare value: converting a string_view to Matcher<std::string> allocates inside
+  // gmock, which the clang analyzer misreads as a leak; the polymorphic EqMatcher does not.
+  EXPECT_THAT(content.str(), Eq(FakeFileSystem::kHello));
 
-  std::ifstream nested(std::filesystem::path(mount_point) / "sub" / "a.bin");
+  const std::ifstream nested(std::filesystem::path(mount_point) / "sub" / "a.bin");
   std::stringstream nested_content;
   nested_content << nested.rdbuf();
   EXPECT_THAT(nested_content.str(), "abc");

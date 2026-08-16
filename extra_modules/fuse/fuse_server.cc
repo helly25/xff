@@ -28,6 +28,7 @@
 #include <cerrno>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -63,7 +64,7 @@ const absl::StatusOr<FuseApi>& ResolvedApi() {
 // them. Unknown kinds read as EIO - "the filesystem failed", which is what happened.
 int ErrnoFor(absl::Status status) {
   switch (status.code()) {
-    case absl::StatusCode::kFailedPrecondition: return EINVAL;
+    case absl::StatusCode::kFailedPrecondition:
     case absl::StatusCode::kInvalidArgument: return EINVAL;
     case absl::StatusCode::kNotFound: return ENOENT;
     case absl::StatusCode::kPermissionDenied: return EACCES;
@@ -89,8 +90,19 @@ mode_t TypeBitsFor(vfs::FileType type) {
 struct stat StatFor(const vfs::Metadata& metadata, fuse_ino_t ino) {
   struct stat out = {};
   out.st_ino = ino;
+  unsigned int mode = metadata.mode & 07777U;
+  // Containers often store directories without search bits (0644, or 0); under the mount's
+  // default_permissions the kernel would then refuse path TRAVERSAL (EACCES on every open under
+  // such a directory), so derive x from r the way archive extractors do. Symlink modes are
+  // ignored on Linux and conventionally 0777.
+  if (metadata.type == vfs::FileType::kDirectory) {
+    mode |= (mode & 0444U) >> 2U;
+  }
+  if (metadata.type == vfs::FileType::kSymlink) {
+    mode |= 0777U;
+  }
   // The mount is read-only by construction; the bits say so too, whatever the container stored.
-  out.st_mode = (TypeBitsFor(metadata.type) | (metadata.mode & 07777U)) & static_cast<mode_t>(~0222U);
+  out.st_mode = static_cast<mode_t>((static_cast<unsigned int>(TypeBitsFor(metadata.type)) | mode) & ~0222U);
   out.st_nlink = metadata.nlink == 0 ? 1 : static_cast<nlink_t>(metadata.nlink);
   out.st_uid = ::getuid();
   out.st_gid = ::getgid();
@@ -197,8 +209,8 @@ void SignalExitAll(int signo) {
   // covers the rest.
   struct sigaction action = {};
   action.sa_handler = SIG_DFL;
-  ::sigaction(signo, &action, nullptr);
-  ::raise(signo);  // NOLINT(concurrency-mt-unsafe): signal handler, single delivery
+  static_cast<void>(::sigaction(signo, &action, nullptr));
+  static_cast<void>(::raise(signo));  // NOLINT(concurrency-mt-unsafe): signal handler, single delivery
 }
 
 void InstallSignalHandlersOnce() {
@@ -207,7 +219,7 @@ void InstallSignalHandlersOnce() {
     for (const int signo : kSignals) {
       struct sigaction action = {};
       action.sa_handler = &SignalExitAll;
-      ::sigaction(signo, &action, nullptr);
+      static_cast<void>(::sigaction(signo, &action, nullptr));
     }
     return true;
   }();
@@ -276,7 +288,8 @@ void OpReaddir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct fu
     if (next <= off) {
       return true;
     }
-    const std::size_t entry_size = api.add_direntry(req, buf.data() + used, size - used, name, &attr, next);
+    const std::size_t entry_size =
+        api.add_direntry(req, std::next(buf.data(), static_cast<std::ptrdiff_t>(used)), size - used, name, &attr, next);
     if (entry_size > size - used) {
       return false;
     }
@@ -304,7 +317,7 @@ void OpReaddir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct fu
 void OpOpen(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* file_info) {
   const FuseApi& api = *ResolvedApi();
   FuseServer::Impl& impl = ImplOf(req);
-  if ((file_info->flags & O_ACCMODE) != O_RDONLY) {
+  if ((static_cast<unsigned int>(file_info->flags) & static_cast<unsigned int>(O_ACCMODE)) != O_RDONLY) {
     api.reply_err(req, EROFS);
     return;
   }
@@ -344,7 +357,8 @@ void OpRead(fuse_req_t req, fuse_ino_t /*ino*/, size_t size, off_t off, struct f
     api.reply_buf(req, content.data(), 0);
     return;
   }
-  api.reply_buf(req, content.data() + offset, std::min(size, content.size() - offset));
+  api.reply_buf(
+      req, std::next(content.data(), static_cast<std::ptrdiff_t>(offset)), std::min(size, content.size() - offset));
 }
 
 void OpRelease(fuse_req_t req, fuse_ino_t /*ino*/, struct fuse_file_info* file_info) {
@@ -454,7 +468,7 @@ std::string_view FuseServer::MountPoint() const {
 }
 
 void CrashUnmount(std::string_view mount_point) {
-  const std::string target(mount_point);
+  std::string target(mount_point);
 #if defined(__linux__)
   std::string arg0 = "fusermount3";
   std::string arg1 = "-uz";
@@ -462,8 +476,8 @@ void CrashUnmount(std::string_view mount_point) {
   std::string arg0 = "umount";
   std::string arg1 = "-f";
 #endif
-  // posix_spawnp, not system(): no shell, and the argv is ours. c_str() at the C API boundary.
-  std::array<char*, 4> argv = {arg0.data(), arg1.data(), const_cast<char*>(target.c_str()), nullptr};
+  // posix_spawnp, not system(): no shell, and the argv is ours.
+  std::array<char*, 4> argv = {arg0.data(), arg1.data(), target.data(), nullptr};
   pid_t pid = 0;
   if (::posix_spawnp(&pid, argv[0], nullptr, nullptr, argv.data(), nullptr) != 0) {
     return;
