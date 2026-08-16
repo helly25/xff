@@ -591,6 +591,10 @@ bashtest(
         "@xff_archive//:mini_tar",
     ],
     env = {"XFF_MINI_TAR": "$(rootpath @xff_archive//:mini_tar)"},
+    # --archive-mount actually mounts, which needs /dev/fuse and the setuid fusermount3 - neither
+    # exists inside bazel's linux sandbox. Scoped to the TEST action (see @xff_fuse's server test for
+    # why a target-wide no-sandbox tag is wrong: it unsandboxes the compile too).
+    exec_properties = {"test.no-sandbox": "1"},
     target_compatible_with = XFF_FULL_ONLY,
 )
 

@@ -23,6 +23,8 @@
 #include <string_view>
 #include <utility>
 
+#include "absl/base/no_destructor.h"
+#include "absl/base/thread_annotations.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/synchronization/mutex.h"
@@ -36,24 +38,35 @@
 namespace xff::fuse {
 namespace {
 
-// The run's mount-point tree, created on first use and removed when the process ends. One root per
-// RUN (not per mount) is what makes a crash recoverable: the pid in its path is how a later run
-// tells an abandoned tree from a live one.
-absl::StatusOr<MountRoot>& RunRoot() {
-  static absl::StatusOr<MountRoot>& root = *new absl::StatusOr<MountRoot>(MountRoot::Create());
-  return root;
+// Guards the shared root below: one process, one tree, however many containers get mounted.
+absl::Mutex& RootMutex() {
+  static absl::NoDestructor<absl::Mutex> mutex;
+  return *mutex;
 }
 
-absl::Mutex& RootMutex() {
-  static absl::Mutex& mutex = *new absl::Mutex();
-  return mutex;
+// The run's mount-point tree, SHARED by the mounts that live in it and removed when the last one
+// goes. Ownership sits with the mounts on purpose: MountRoot removes its tree in the DESTRUCTOR, so
+// parking it in an immortal static would leave every run's directories behind, to be cleaned up
+// only by a later run's stale sweep. The weak pointer here owns nothing - it just lets a second
+// container join the tree the first one created.
+//
+// Returns ownership BY VALUE, never a reference into this function's state.
+absl::StatusOr<std::shared_ptr<MountRoot>> RunRoot() ABSL_EXCLUSIVE_LOCKS_REQUIRED(RootMutex()) {
+  static absl::NoDestructor<std::weak_ptr<MountRoot>> live;
+  if (std::shared_ptr<MountRoot> root = live->lock(); root != nullptr) {
+    return root;
+  }
+  MBO_ASSIGN_OR_RETURN(MountRoot created, MountRoot::Create());
+  auto root = std::make_shared<MountRoot>(std::move(created));
+  *live = root;
+  return root;
 }
 
 // A mounted container: the server plus the mount point, answering member paths.
 class ServerMount final : public Mount {
  public:
-  ServerMount(std::unique_ptr<FuseServer> server, std::string container)
-      : server_(std::move(server)), container_(std::move(container)) {}
+  ServerMount(std::shared_ptr<MountRoot> root, std::unique_ptr<FuseServer> server)
+      : root_(std::move(root)), server_(std::move(server)) {}
 
   [[nodiscard]] std::string_view MountPoint() const override { return server_->MountPoint(); }
 
@@ -62,19 +75,24 @@ class ServerMount final : public Mount {
   }
 
  private:
+  // Declaration order is load-bearing: members are destroyed in reverse, so the server unmounts
+  // BEFORE the root removes the directory that mount point lives in.
+  std::shared_ptr<MountRoot> root_;
   std::unique_ptr<FuseServer> server_;
-  std::string container_;
 };
 
 absl::StatusOr<std::unique_ptr<Mount>> MountThroughFuse(const vfs::FileSystem& fs, std::string_view container) {
+  std::shared_ptr<MountRoot> root;
   std::string mount_point;
   {
+    // One critical section for both steps: MountPointFor hands out a fresh directory by mutating
+    // the root's counter, so acquiring the root and asking it for a mount point belong together.
     const absl::MutexLock lock(RootMutex());
-    MBO_RETURN_IF_ERROR(RunRoot().status());
-    MBO_ASSIGN_OR_RETURN(mount_point, RunRoot()->MountPointFor(container));
+    MBO_ASSIGN_OR_RETURN(root, RunRoot());
+    MBO_ASSIGN_OR_RETURN(mount_point, root->MountPointFor(container));
   }
   MBO_ASSIGN_OR_RETURN(std::unique_ptr<FuseServer> server, FuseServer::Mount(fs, std::string(container), mount_point));
-  return std::make_unique<ServerMount>(std::move(server), std::string(container));
+  return std::make_unique<ServerMount>(std::move(root), std::move(server));
 }
 
 const MountSupportRegistrar kRegisterFuseMount{};

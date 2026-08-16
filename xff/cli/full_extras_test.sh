@@ -69,6 +69,9 @@ test::archive_mount_runs_the_action_over_a_real_container() {
   local out
   out="$("$(_xff_full_bin)" -L --archive=all --archive-mount --archive-extract \
     "$(_mini_tar)" -type f -name hello.txt -exec wc -c {} \; 2>&1)"
+  # The whole output goes to the log: this case depends on machine capabilities, and bashtest
+  # ellipsizes the text it reports on failure - which turned a CI failure here into a guess.
+  echo "xff said: ${out}"
   expect_output_contains '13' "${out}"
   expect_output_not_contains 'cannot run on an archive member' "${out}"
 }

@@ -154,6 +154,8 @@ cc_library(
     deps = [
         ":fuse_server_cc",
         ":mount_root_cc",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/synchronization",
