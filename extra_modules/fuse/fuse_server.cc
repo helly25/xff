@@ -421,8 +421,7 @@ void OpReadlink(fuse_req_t req, fuse_ino_t ino) {
 // the full sizeof is what makes such a runtime print "library too old, some operations may not
 // work" and clamp, which is a complaint about the caller. Ops are only ever APPENDED to the
 // struct, so this prefix means the same thing to every 3.x runtime.
-constexpr std::size_t kImplementedOpsSize =
-    offsetof(struct fuse_lowlevel_ops, readdir) + sizeof(&OpReaddir);
+constexpr std::size_t kImplementedOpsSize = offsetof(struct fuse_lowlevel_ops, readdir) + sizeof(&OpReaddir);
 
 // Callbacks bind by NAME into the FETCHED header's ops struct, so a layout change in a future
 // pinned libfuse release is a compile error here, never memory corruption.
