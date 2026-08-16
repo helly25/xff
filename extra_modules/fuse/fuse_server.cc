@@ -226,6 +226,9 @@ void InstallSignalHandlersOnce() {
   (void)kInstalled;
 }
 
+// Defined with the crash-path helper below; the destructor uses it to wake the loop thread.
+void Unmount(std::string_view mount_point);
+
 void OpLookup(fuse_req_t req, fuse_ino_t parent, const char* name) {
   const FuseApi& api = *ResolvedApi();
   FuseServer::Impl& impl = ImplOf(req);
@@ -427,6 +430,9 @@ absl::StatusOr<std::unique_ptr<FuseServer>> FuseServer::Mount(
   std::array<char*, 3> argv = {arg0.data(), arg1.data(), arg2.data()};
   struct fuse_args args = FUSE_ARGS_INIT(static_cast<int>(argv.size()), argv.data());
   server->impl_->session = api->session_new(&args, &ServerOps(), sizeof(ServerOps()), server->impl_.get());
+  // session_new copies what it needs and leaves the (now heap-allocated) argv to us, success or
+  // not; libfuse's own examples free it here.
+  api->opt_free_args(&args);
   if (server->impl_->session == nullptr) {
     return absl::InternalError("fuse_session_new failed");
   }
@@ -456,10 +462,15 @@ FuseServer::~FuseServer() {
     std::erase(LiveSessions(), impl_->session);
   }
   api.session_exit(impl_->session);
-  // Unmounting closes the kernel channel, which is what actually wakes the loop thread out of its
-  // blocking read; exit alone only sets the flag it then checks.
-  api.session_unmount(impl_->session);
+  // Waking the loop is the delicate part: it sits in a blocking read on the kernel channel, and
+  // the exit flag alone is only checked between requests. Unmounting OUT OF PROCESS makes the
+  // kernel end that read, so the loop returns on its own and every later call happens after the
+  // join, single-threaded. Calling fuse_session_unmount here instead would close the channel fd
+  // from this thread while the loop is still reading it - a real close/read race (ThreadSanitizer
+  // reports exactly that), not merely a theoretical one.
+  Unmount(impl_->mount_point);
   impl_->loop.join();
+  api.session_unmount(impl_->session);
   api.session_destroy(impl_->session);
 }
 
@@ -467,7 +478,12 @@ std::string_view FuseServer::MountPoint() const {
   return impl_->mount_point;
 }
 
-void CrashUnmount(std::string_view mount_point) {
+namespace {
+
+// Unmounts `mount_point` with the platform's helper, out of process. Best effort by design: a
+// still-busy mount stays for the stale sweep, and an already-gone one makes the helper complain
+// harmlessly.
+void Unmount(std::string_view mount_point) {
   std::string target(mount_point);
 #if defined(__linux__)
   std::string arg0 = "fusermount3";
@@ -484,6 +500,12 @@ void CrashUnmount(std::string_view mount_point) {
   }
   int wait_status = 0;
   ::waitpid(pid, &wait_status, 0);
+}
+
+}  // namespace
+
+void CrashUnmount(std::string_view mount_point) {
+  Unmount(mount_point);
 }
 
 }  // namespace xff::fuse

@@ -130,14 +130,10 @@ done
 #     `_`-suffixed public members (the fixture's own state, mirroring the production
 #     private-member convention), and the TEST_F macro expands to functions whose
 #     names the check rejects - both are mandated test scaffolding, not defects.
-#   * clang-analyzer-cplusplus.NewDeleteLeaks: the analyzer misreads gmock's refcounted matcher
-#     buffer as leaked (a known matcher-tower false positive, seen first in fuse_server_test) and
-#     attributes the finding to the TEST translation unit, so neither --header-filter nor a NOLINT
-#     at the assertion can suppress it. Production code keeps the check.
 # concurrency-mt-unsafe is deliberately NOT disabled here: a test that touches process
 # environment (getenv/setenv) still carries a real MT hazard, so those few sites keep a
 # targeted, commented NOLINT rather than a blanket exemption for the whole test tree.
-readonly TEST_DISABLED_CHECKS='-readability-function-cognitive-complexity,-misc-override-with-different-visibility,-readability-identifier-naming,-clang-analyzer-cplusplus.NewDeleteLeaks'
+readonly TEST_DISABLED_CHECKS='-readability-function-cognitive-complexity,-misc-override-with-different-visibility,-readability-identifier-naming'
 
 declare -a SOURCES=()
 declare -a TESTS=()

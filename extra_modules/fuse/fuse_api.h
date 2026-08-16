@@ -51,6 +51,8 @@ struct FuseApi {
       const char* name,
       const struct stat* stbuf,
       off_t off) = nullptr;
+  // fuse_session_new copies its arguments into the fuse_args; freeing them is the CALLER's job.
+  void (*opt_free_args)(struct fuse_args* args) = nullptr;
   int (*reply_err)(fuse_req_t req, int err) = nullptr;
   int (*reply_attr)(fuse_req_t req, const struct stat* attr, double attr_timeout) = nullptr;
   int (*reply_entry)(fuse_req_t req, const struct fuse_entry_param* entry) = nullptr;

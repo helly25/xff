@@ -123,8 +123,52 @@ struct FakeFileSystem : vfs::FileSystem {
   }
 };
 
+// One mount per test (a mount is milliseconds), so each test states one behaviour and no test
+// depends on an earlier one's reads.
 struct FuseServerTest : ::testing::Test {
   FakeFileSystem fs;
+  std::string mount_point;
+  std::unique_ptr<FuseServer> server;
+
+  // Mounts the fake tree, or marks the test skipped and leaves `server` null. Callers must return
+  // when `server` is null: gtest's SKIP/FATAL only unwind the TEST body, never a helper.
+  void MountOrSkip(std::string_view name) {
+#if defined(MEMORY_SANITIZER)
+    // MSan false-positives on anything it did not instrument, and these tests exist to call
+    // through the dlopened SYSTEM libfuse3 - every byte it writes reads as uninitialized.
+    // ASan/TSan tolerate uninstrumented libraries and keep running this path.
+    GTEST_SKIP() << "MSan cannot model the uninstrumented system libfuse3";
+#else
+    if (!FuseAvailable()) {
+      GTEST_SKIP() << "no fuse3 on this machine";
+    }
+    // A plain directory is all a mount point is; MountRoot (which normally provides it) has its
+    // own test and stays out of these.
+    mount_point = (std::filesystem::path(::testing::TempDir()) / absl::StrCat("xff-fuse-", name)).string();
+    std::filesystem::remove_all(mount_point);
+    std::filesystem::create_directories(mount_point);
+    absl::StatusOr<std::unique_ptr<FuseServer>> mounted =
+        FuseServer::Mount(fs, std::string(FakeFileSystem::kRoot), mount_point);
+    if (!mounted.ok()) {
+      // A library without a mountable environment (no /dev/fuse, no setuid fusermount3 - common in
+      // sandboxes) is a degrade, not a failure - EXCEPT where the environment promises
+      // mountability (Linux CI sets XFF_FUSE_REQUIRED): there a skip would silently retire the
+      // whole kernel path.
+      // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded test setup
+      ASSERT_THAT(std::getenv("XFF_FUSE_REQUIRED"), IsNull()) << mounted.status();
+      GTEST_SKIP() << "fuse3 present but mounting not permitted here: " << mounted.status();
+    }
+    server = *std::move(mounted);
+#endif
+  }
+
+  // The whole content of `relative` under the mount.
+  std::string ReadFile(std::string_view relative) const {
+    const std::ifstream file(std::filesystem::path(mount_point) / relative);
+    std::stringstream content;
+    content << file.rdbuf();
+    return content.str();
+  }
 };
 
 TEST_F(FuseServerTest, WithoutFuseMountReportsTheLoaderReason) {
@@ -136,58 +180,57 @@ TEST_F(FuseServerTest, WithoutFuseMountReportsTheLoaderReason) {
       Not(IsOk()));
 }
 
-TEST_F(FuseServerTest, MountedTreeReadsThroughTheKernel) {
-#if defined(MEMORY_SANITIZER)
-  // MSan false-positives on anything it did not instrument, and the whole point of this test is
-  // calling through the dlopened SYSTEM libfuse3 - every byte it writes reads as uninitialized.
-  // ASan/TSan tolerate uninstrumented libraries and keep running this path.
-  GTEST_SKIP() << "MSan cannot model the uninstrumented system libfuse3";
-#endif
-  if (!FuseAvailable()) {
-    GTEST_SKIP() << "no fuse3 on this machine";
+TEST_F(FuseServerTest, TheMountedRootListsTheContainerRoot) {
+  MountOrSkip("root");
+  if (server == nullptr) {
+    return;
   }
-  // A plain directory is all a mount point is; MountRoot (which normally provides it) has its own
-  // test and stays out of this one.
-  const std::string mount_point = (std::filesystem::path(::testing::TempDir()) / "xff-fuse-server-mp").string();
-  std::filesystem::create_directories(mount_point);
-  absl::StatusOr<std::unique_ptr<FuseServer>> server =
-      FuseServer::Mount(fs, std::string(FakeFileSystem::kRoot), mount_point);
-  if (!server.ok()) {
-    // A library without a mountable environment (no /dev/fuse, no setuid fusermount3 - common in
-    // sandboxes) is a degrade, not a failure - EXCEPT where the environment promises mountability
-    // (Linux CI sets XFF_FUSE_REQUIRED): there a skip would silently retire the kernel path.
-    // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded test setup
-    ASSERT_THAT(std::getenv("XFF_FUSE_REQUIRED"), IsNull()) << server.status();
-    GTEST_SKIP() << "fuse3 present but mounting not permitted here: " << server.status();
-  }
-  EXPECT_THAT((*server)->MountPoint(), Eq(mount_point));
-
+  // std::string on both sides: matching a string_view SUBJECT makes gmock build its matcher on
+  // the heap (the inline buffer cannot hold that impl), and the clang analyzer cannot follow that
+  // refcount - it reports a leak inside gmock. Comparing strings needs no allocation at all.
+  EXPECT_THAT(std::string(server->MountPoint()), Eq(mount_point));
   std::vector<std::string> names;
   for (const auto& entry : std::filesystem::directory_iterator(mount_point)) {
     names.push_back(entry.path().filename().string());
   }
   EXPECT_THAT(names, UnorderedElementsAre("hello.txt", "sub", "link"));
+}
 
-  const std::ifstream hello(std::filesystem::path(mount_point) / "hello.txt");
-  std::stringstream content;
-  content << hello.rdbuf();
-  // Eq(), not the bare value: converting a string_view to Matcher<std::string> allocates inside
-  // gmock, which the clang analyzer misreads as a leak; the polymorphic EqMatcher does not.
-  EXPECT_THAT(content.str(), Eq(FakeFileSystem::kHello));
+TEST_F(FuseServerTest, AMemberReadsBackThroughTheKernel) {
+  MountOrSkip("read");
+  if (server == nullptr) {
+    return;
+  }
+  EXPECT_THAT(ReadFile("hello.txt"), Eq(std::string(FakeFileSystem::kHello)));
+}
 
-  const std::ifstream nested(std::filesystem::path(mount_point) / "sub" / "a.bin");
-  std::stringstream nested_content;
-  nested_content << nested.rdbuf();
-  EXPECT_THAT(nested_content.str(), "abc");
+TEST_F(FuseServerTest, ANestedMemberReadsBackThroughTheKernel) {
+  MountOrSkip("nested");
+  if (server == nullptr) {
+    return;
+  }
+  EXPECT_THAT(ReadFile("sub/a.bin"), Eq(std::string("abc")));
+}
 
+TEST_F(FuseServerTest, ASymlinkResolvesToItsTarget) {
+  MountOrSkip("symlink");
+  if (server == nullptr) {
+    return;
+  }
   std::error_code error;
   const std::filesystem::path target =
       std::filesystem::read_symlink(std::filesystem::path(mount_point) / "link", error);
-  EXPECT_THAT(error.value(), 0);
-  EXPECT_THAT(target.string(), "hello.txt");
+  EXPECT_THAT(error.value(), Eq(0));
+  EXPECT_THAT(target.string(), Eq(std::string("hello.txt")));
+}
 
-  server->reset();
-  // Unmounted: the directory is empty again (the fake tree is gone with the mount).
+TEST_F(FuseServerTest, DestroyingTheServerUnmounts) {
+  MountOrSkip("unmount");
+  if (server == nullptr) {
+    return;
+  }
+  server.reset();
+  std::error_code error;
   EXPECT_THAT(std::filesystem::is_empty(mount_point, error), IsTrue());
 }
 

@@ -71,10 +71,10 @@ TEST_F(FuseLoaderTest, AnUnknownSymbolIsNullEvenWhenAvailable) {
 }
 
 TEST_F(FuseLoaderTest, TheRequiredSetCoversTheServersCallSurface) {
-  // The server needs the session lifecycle, the mount pair, the reply calls, the direntry builder
-  // and readlink; a shrink of this list would let "available" lie. SizeIs guards accidental
+  // The server needs the session lifecycle, the mount pair, the reply calls, the direntry builder,
+  // readlink and the argv deallocator; a shrink of this list would let "available" lie. SizeIs guards accidental
   // deletion; the names themselves are the SOT in fuse_loader.cc.
-  EXPECT_THAT(RequiredSymbols(), SizeIs(14));
+  EXPECT_THAT(RequiredSymbols(), SizeIs(15));
 }
 
 }  // namespace

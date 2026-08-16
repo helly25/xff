@@ -32,6 +32,7 @@ namespace {
 // extends THIS list, so "available" keeps meaning "every call the server makes will resolve".
 constexpr std::array kRequiredSymbols = std::to_array<std::string_view>({
     "fuse_add_direntry",
+    "fuse_opt_free_args",
     "fuse_reply_attr",
     "fuse_reply_buf",
     "fuse_reply_entry",
