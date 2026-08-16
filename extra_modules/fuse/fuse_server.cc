@@ -47,6 +47,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/synchronization/mutex.h"
+#include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "fuse_lowlevel.h"  // @libfuse//:fuse3_headers, interface-only
 #include "mbo/status/status_macros.h"
@@ -490,6 +491,29 @@ absl::StatusOr<std::unique_ptr<FuseServer>> FuseServer::Mount(
           impl->mount_point, result);
     }
   });
+  // A mount is not READY when fuse_session_mount returns - it is ready when the session answers.
+  // Between those two moments the mount point exists but nothing serves it, and a child process
+  // that opens a path under it can lose: CI showed exactly that, one invocation aborting with
+  // ECONNABORTED while the next succeeded microseconds later. So prove it: stat the mount point
+  // (a round trip the loop thread must serve) before handing the path to anyone. A mount that
+  // never answers is torn down and reported, which the caller turns into the extraction fallback
+  // instead of a path that fails under a child.
+  {
+    struct stat probe = {};
+    const absl::Time deadline = absl::Now() + absl::Seconds(5);
+    bool ready = false;
+    while (absl::Now() < deadline) {
+      if (::stat(server->impl_->mount_point.c_str(), &probe) == 0 && S_ISDIR(probe.st_mode)) {
+        ready = true;
+        break;
+      }
+      absl::SleepFor(absl::Milliseconds(2));
+    }
+    if (!ready) {
+      return absl::UnavailableError(
+          absl::StrCat("the FUSE mount at '", server->impl_->mount_point, "' never started serving"));
+    }
+  }
   return server;
 }
 
