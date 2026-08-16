@@ -229,6 +229,26 @@ TEST_F(FuseServerTest, ASymlinkResolvesToItsTarget) {
   EXPECT_THAT(target.string(), Eq(std::string("hello.txt")));
 }
 
+TEST_F(FuseServerTest, AChildProcessReadsTheSameMount) {
+  // The discriminator behind the ENOTCONN/ECONNABORTED failures in the CLI test: reading a mount
+  // IN-PROCESS works (the cases above), while a CHILD process reading the same path fails there.
+  // Serving child processes is what mounting is FOR (`-exec` gets a real path), so if that breaks
+  // it breaks here, on a trivial fake filesystem, with nothing else in the picture.
+  MountOrSkip("child");
+  if (server == nullptr) {
+    return;
+  }
+  const std::string out_path = (std::filesystem::path(::testing::TempDir()) / "xff-fuse-child.out").string();
+  const std::string command = absl::StrCat("cat '", server->MountPoint(), "/hello.txt' > '", out_path, "' 2>&1");
+  // NOLINTNEXTLINE(cert-env33-c,concurrency-mt-unsafe): a fixed command, in a test, on purpose.
+  const int status = std::system(command.c_str());
+  const std::ifstream produced(out_path);
+  std::stringstream content;
+  content << produced.rdbuf();
+  EXPECT_THAT(status, Eq(0)) << content.str();
+  EXPECT_THAT(content.str(), Eq(std::string(FakeFileSystem::kHello)));
+}
+
 TEST_F(FuseServerTest, DestroyingTheServerUnmounts) {
   MountOrSkip("unmount");
   if (server == nullptr) {
