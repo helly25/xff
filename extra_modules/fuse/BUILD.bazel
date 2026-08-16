@@ -143,3 +143,31 @@ cc_test(
         "@xff_extras_api//:vfs_cc",
     ],
 )
+
+# The extra's identity TU: linking it IS "the fuse extra is compiled in" - it fills the extras-api
+# slot and registers the libfuse notice, and pulls in the server. xff_full links this (and only
+# this) under //xff:xff_fuse_on.
+cc_library(
+    name = "fuse_register_cc",
+    srcs = ["fuse_register.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":fuse_server_cc",
+        "@xff_extras_api//:fuse_backend_cc",
+        "@xff_extras_api//:license_notice_cc",
+    ],
+    alwayslink = True,
+)
+
+cc_test(
+    name = "fuse_register_test",
+    size = "small",
+    srcs = ["fuse_register_test.cc"],
+    deps = [
+        ":fuse_register_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@xff_extras_api//:fuse_backend_cc",
+        "@xff_extras_api//:license_notice_cc",
+    ],
+)

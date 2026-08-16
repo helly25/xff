@@ -77,6 +77,9 @@ cc_binary(
         "//xff:xff_archive_on": ["@xff_archive//:archive_register_cc"],
         "//conditions:default": [],
     }) + select({
+        "//xff:xff_fuse_on": ["@xff_fuse//:fuse_register_cc"],
+        "//conditions:default": [],
+    }) + select({
         "//xff:xff_pcre_on": ["@xff_pcre2//:pcre2_backend_cc"],
         "//conditions:default": [],
     }),
@@ -423,6 +426,7 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
         "@xff_extras_api//:archive_backend_cc",
+        "@xff_extras_api//:fuse_backend_cc",
         "@xff_extras_api//:regex_backend_cc",
     ],
 )

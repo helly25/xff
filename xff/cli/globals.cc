@@ -25,6 +25,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
 #include "xff/archive/archive_backend.h"
+#include "xff/fuse/fuse_backend.h"
 #include "xff/regex/backend.h"
 #include "xff/values/values.h"
 
@@ -1363,6 +1364,9 @@ bool ExtraEnabled(std::string_view key) {
   if (key == "archive") {
     return archive::ContainerSupportAvailable();
   }
+  if (key == "fuse") {
+    return fuse::MountSupportAvailable();
+  }
   if (key == "pcre2") {
     return regex::Pcre2Available();
   }
@@ -1375,6 +1379,7 @@ std::vector<std::string> EnabledExtras() {
   // topic, and the rebuild hints all read from these three rather than keeping private copies.
   static constexpr std::array kKnownExtras = std::to_array<std::string_view>({
       "archive",
+      "fuse",
       "pcre2",
   });
   std::vector<std::string> enabled;
@@ -1393,6 +1398,9 @@ std::string_view ExtraBuildFlag(std::string_view key) {
   // rule would print a flag that does not exist - which is worse than useless in an error message.
   if (key == "archive") {
     return "--//xff:xff_archive";
+  }
+  if (key == "fuse") {
+    return "--//xff:xff_fuse";
   }
   if (key == "pcre2") {
     return "--//xff:xff_pcre";

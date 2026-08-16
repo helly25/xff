@@ -22,6 +22,27 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 # The RegexBackend plugin interface + PCRE2 registration slot. //xff/regex depends on this for the
 # interface (Matcher::Compile(kPcre2) calls MakePcre2Backend); an extra backend implements
 # RegexBackend and self-registers via Pcre2Registrar.
+# The FUSE extra's registration slot: "is the mount extra linked into this binary". The core reads
+# it for --help=extras / the notice line; @xff_fuse's registration TU fills it (epic #183 slice 4a).
+cc_library(
+    name = "fuse_backend_cc",
+    srcs = ["fuse_backend.cc"],
+    hdrs = ["fuse_backend.h"],
+    include_prefix = "xff/fuse",
+    visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "fuse_backend_test",
+    size = "small",
+    srcs = ["fuse_backend_test.cc"],
+    deps = [
+        ":fuse_backend_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "regex_backend_cc",
     srcs = ["backend.cc"],

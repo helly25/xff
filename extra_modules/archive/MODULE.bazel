@@ -13,14 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# The archive build extra (--archive / -z, #83) as a standalone Bazel module. Like the PCRE2
-# extra it depends only on the shared @xff_extras_api seams and its own external dep
-# (@libarchive) - never back into the xff core - so it is fully self-contained and the root can
-# drop it by removing one bazel_dep + local_path_override pair (or this directory).
-#
-# libarchive is a first-class BCR module (no vendoring, no rules_foreign_cc) and covers
-# tar/zip/cpio/ar/iso plus the gz/bz2/xz/zstd/lz4 filters behind one streaming reader API.
-#
 # LICENSES: libarchive itself is BSD-2-Clause. Its codec closure adds Zlib (zlib),
 # bzip2-1.0.6, 0BSD (xz/liblzma), BSD-2-Clause (lz4) and BSD-3-Clause (zstd, whose dual
 # license we take on the BSD arm, never the GPL one). All permissive, no copyleft. mbedtls is

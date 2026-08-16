@@ -251,11 +251,13 @@ shipped one way but not yet settled.
          (test action unsandboxed - /dev/fuse and setuid fusermount3 do not exist in the
          sandbox); macOS exercises the degrade.
     4. **CLI**, split:
-       - **4a. Build + identity plumbing** (user-flagged 2026-08-16: fuse is absent from
-         `--help=extras`): the `--//xff:xff_fuse` build flag + `xff_all` coverage, the extra
-         linked into `xff_full`, `ExtraEnabled("fuse")` + `EnabledExtras()`/`kKnownExtras`, the
-         `--help=extras` row, and the libfuse NOTICE component (LGPL-2.1, interface-only headers +
-         runtime dlopen - no LGPL code in the binary).
+       - **4a. Build + identity plumbing (SHIPPED)** (user-flagged 2026-08-16: fuse was absent
+         from `--help=extras`): `--//xff:xff_fuse` + `xff_fuse_on` (`xff_all` coverage), xff_full
+         links @xff_fuse's registration TU, the `xff_extras_api` fuse slot
+         (`MountSupportAvailable`) feeds `ExtraEnabled("fuse")`/`kKnownExtras`/`ExtraBuildFlag`,
+         the `--help=extras` row, and the libfuse NOTICE component (LGPL-2.1, interface-only
+         headers + runtime dlopen - no LGPL code in the binary; the committed NOTICE stays
+         core-only by the license_test contract, extras render live).
        - **4b. The flag**: explicit `--archive-mount` (extra-gated; absent extra = the standard
          hard error, absent RUNTIME library = one-line note + extraction fallback), `{}` rendering
          as the mounted path for `-exec`/`-execdir`, help/XFF.md, bashtests for both the mounted

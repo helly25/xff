@@ -27,8 +27,6 @@ module(
 bazel_dep(name = "rules_cc", version = "0.2.21")
 bazel_dep(name = "abseil-cpp", version = "20250814.2")
 
-# Test-only. The seam is an interface other modules implement, so it carries its own contract test
-# (a fake backend written using nothing but this module). helly25_mbo resolves via the root module's
-# override, since overrides are root-global.
+# helly25_mbo resolves via the root module's override (overrides are root-global).
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 bazel_dep(name = "helly25_mbo", version = "0.13.0")
