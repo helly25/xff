@@ -76,6 +76,17 @@ jobs:
             sudo apt-get update && sudo apt-get install -y mandoc
           fi
           command -v mandoc
+      # The FUSE server's integration test mounts a real filesystem through the kernel, which only
+      # Linux runners can do (macOS has no fuse3; the test skips there by design). Install the
+      # runtime pieces the loader dlopens (libfuse3) and the unmount helper (fusermount3), and set
+      # XFF_FUSE_REQUIRED so the test FAILS instead of skipping when mounting stops working here -
+      # a silent skip would report green with the whole kernel path untested.
+      - name: Enable FUSE integration coverage (Linux)
+        run: |
+          if [ "${RUNNER_OS}" = "Linux" ]; then
+            sudo apt-get install -y fuse3 libfuse3-3
+            echo "XFF_FUSE_REQUIRED=1" >> "${GITHUB_ENV}"
+          fi
       # Every job builds with EVERY extra on (--config=xff_docs, which is --config=xff_full plus the
       # archive extra), so the composable extras get the SAME asan / tsan coverage as the core - our
       # PCRE2 C-API wrapper and the archive readers are exactly where a buffer / lifetime / thread bug
@@ -96,6 +107,7 @@ jobs:
           # shellcheck disable=SC2046  # deliberate word splitting: the tool prints bazel target patterns
           bazel test //... $(tools/extras.py --wildcards) --config=xff_docs \
             --disk_cache=$HOME/.cache/bazel-disk --repository_cache=$HOME/.cache/bazel-repo \
+            --test_env=XFF_FUSE_REQUIRED \
             ${{ matrix.config.flags }}
       # Lint gates run once, on the ubuntu clang-asan cell: its --config=clang
       # build above has already fetched the hermetic clang-format, so

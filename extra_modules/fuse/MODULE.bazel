@@ -48,3 +48,5 @@ http_archive(
 bazel_dep(name = "abseil-cpp", version = "20250814.2")
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 bazel_dep(name = "helly25_mbo", version = "0.13.0")
+# The shared extras seams: the server serves a vfs::FileSystem; MBO macros come via helly25_mbo.
+bazel_dep(name = "xff_extras_api", version = "0.0.0")

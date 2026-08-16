@@ -31,11 +31,13 @@ namespace {
 // request accessors, and the reply calls for lookup/getattr/readdir/open/read. Extending the server
 // extends THIS list, so "available" keeps meaning "every call the server makes will resolve".
 constexpr std::array kRequiredSymbols = std::to_array<std::string_view>({
+    "fuse_add_direntry",
     "fuse_reply_attr",
     "fuse_reply_buf",
     "fuse_reply_entry",
     "fuse_reply_err",
     "fuse_reply_open",
+    "fuse_reply_readlink",
     "fuse_req_userdata",
     "fuse_session_destroy",
     "fuse_session_exit",

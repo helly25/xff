@@ -215,8 +215,9 @@ shipped one way but not yet settled.
     where one binary runs everywhere and mounting is a capability probed per machine.
     1. **@xff_fuse skeleton + runtime loader (SHIPPED)**: the extra module (pcre2/archive pattern,
        picked up by `tools/extras.py --wildcards` automatically), `FuseLoader` dlopening the
-       platform fuse3 library and eagerly resolving the mount server's 12-symbol set - so
-       "available" MEANS mountable - and `FuseAvailable()`. Tests are environment-AGNOSTIC (Linux
+       platform fuse3 library and eagerly resolving the mount server's symbol set (14 symbols
+       since 3b added the direntry builder + readlink) - so "available" MEANS mountable - and
+       `FuseAvailable()`. Tests are environment-AGNOSTIC (Linux
        CI images tend to have libfuse3, macOS does not): they pin the invariants of both states.
        fuse2-only installations (older macFUSE) report unavailable by design; revisit when a real
        macFUSE user appears.
@@ -232,20 +233,33 @@ shipped one way but not yet settled.
        - **3a. The fuse3 API headers, FETCHED from git into the fuse module (SHIPPED)**. The
          module's MODULE.bazel pins libfuse's **fuse-3.18.2 release asset** (sha256-verified) with
          a BUILD overlay (`libfuse.BUILD.bazel`) exposing the interface-only `fuse3_headers`
-         library - a genrule stubs the meson-generated `libfuse_config.h` (version macros only),
-         `FUSE_USE_VERSION=30` picks the base fuse3 API for the widest runtime match. `FuseApi`
+         library - the meson-generated `libfuse_config.h` include is patched behind
+         `__has_include` and the version macros land as defines; `FUSE_USE_VERSION=30` picks the
+         base fuse3 API for the widest runtime match. `FuseApi`
          is the typed call surface: every loader symbol cast ONCE (the funneled dlsym-contract
          NOLINT) into the function types from libfuse's own headers, so `fuse_lowlevel_ops`'s
          layout is never transcribed. No LGPL text in the tree; the NOTICE component lands with
          the slice that links the extra into `xff_full`.
-       - **3b. The server itself**: lookup/getattr/readdir/open/read from the already-open
-         `ArchiveFileSystem`, one background thread per mount, RAII + INT/TERM/HUP unmount, the
-         `fusermount3 -uz` / `umount -f` crash path plugged into slice 2's sweep seam.
-         Integration-tested on Linux CI (runners allow unprivileged FUSE via fusermount3); macOS
-         CI exercises the degrade.
-    4. **CLI**: explicit `--archive-mount` (extra-gated; absent extra = the standard hard error,
-       absent RUNTIME library = one-line note + extraction fallback), `{}` rendering as the mounted
-       path for `-exec`/`-execdir`, help/XFF.md, bashtests for both the mounted and degraded paths.
+       - **3b. The server itself (SHIPPED)**: `FuseServer::Mount` serves any `vfs::FileSystem`
+         read-only - lookup/getattr/readdir(+release)/open/read/readlink filled by NAME into the
+         fetched `fuse_lowlevel_ops`, an only-grows inode table, whole-member content held per
+         open handle (decode once, kernel reads in chunks), one loop thread per mount with RAII
+         exit-unmount-join-destroy teardown; INT/TERM/HUP ask every live session to exit before
+         re-raising. `CrashUnmount` (`fusermount3 -uz` / `umount -f` via posix_spawnp) is the
+         unmounter for slice 2's sweep seam. Linux CI mounts a fake filesystem and reads it back
+         through the kernel with `XFF_FUSE_REQUIRED=1` so that path can never silently skip
+         (test action unsandboxed - /dev/fuse and setuid fusermount3 do not exist in the
+         sandbox); macOS exercises the degrade.
+    4. **CLI**, split:
+       - **4a. Build + identity plumbing** (user-flagged 2026-08-16: fuse is absent from
+         `--help=extras`): the `--//xff:xff_fuse` build flag + `xff_all` coverage, the extra
+         linked into `xff_full`, `ExtraEnabled("fuse")` + `EnabledExtras()`/`kKnownExtras`, the
+         `--help=extras` row, and the libfuse NOTICE component (LGPL-2.1, interface-only headers +
+         runtime dlopen - no LGPL code in the binary).
+       - **4b. The flag**: explicit `--archive-mount` (extra-gated; absent extra = the standard
+         hard error, absent RUNTIME library = one-line note + extraction fallback), `{}` rendering
+         as the mounted path for `-exec`/`-execdir`, help/XFF.md, bashtests for both the mounted
+         and degraded paths.
 
   - **Bounded member CACHE (SHIPPED).** `-grep`, `{hash}` and `-cmp` on the same member used to
     each decompress it again. `MemberCache` (`member_cache.{h,cc}`) is a mutex-guarded LRU with a
@@ -349,13 +363,17 @@ intent, not hard dependency. Task numbers reference the agent task list.
 
 ### Small slices in flight (task ledger)
 
-- **#202 (open, user-requested 2026-08-15)**: a FORMATS TABLE under `--help=archive` - format,
-  recognized extensions, and whether read and write support is in this binary. The write side is
-  already SOT data (`ContainerPackFormats()` + the writer's suffix table with the `.tgz`-family
-  shortcuts); the READ side needs the same shape: the linked reader registers its format names and
-  recognized suffixes (the pinned libarchive set, phar, the compressed-single-file case) through
-  the seam, so the table is generated and cannot drift. The lean binary renders the standard
-  not-built note. Next code slice after the open chain drains, ahead of FUSE 3b (user priority).
+- **#202 (shipped, PR #541)**: the FORMATS TABLE under `--help=archive` (format, read, write,
+  extensions), rendered as a real `Table` node aligned in every backend (plain, markdown, roff);
+  the read side registers its formats + suffixes through the seam (`RegisterContainerReadFormats`)
+  and the dive gate is DERIVED from that registration, so neither the table nor the gate can drift.
+- **#203 (shipped, PR #545)**: `--help=notice` completeness - the extras line comes from
+  `EnabledExtras()` (and `ExtraEnabled("pcre2")` is actually wired), zlib/bzip2 register their own
+  notice rows as direct phar-reader deps.
+- **#204 (shipped, PR #543)**: bad and unknown global flags are hard errors (exit 2) even when
+  `--help`/`--man`/`--version` appear: meta flags are noted during the scan, validated with the
+  rest, rendered only on a clean parse. Follow-up recorded: meta spellings inside `-exec` argument
+  runs are still recognized from raw argv; fold meta handling into the parser proper.
 
 - **#201 (open, user-requested 2026-08-15)**: extras license TEXTS. `--help=license` renders only
   xff's own Apache-2.0 and `--help=notice` inventories the linked components without their full
