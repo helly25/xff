@@ -339,7 +339,7 @@ struct MiniContainerTest : ::testing::Test {
     // name is not ours to hard-code.
     // NOLINTNEXTLINE(concurrency-mt-unsafe): bazel's environment, read once, single-threaded test
     const char* const anchor = std::getenv("XFF_ARCHIVE_FIXTURE_ANCHOR");
-    CHECK(anchor != nullptr) << "the BUILD file must set XFF_ARCHIVE_FIXTURE_ANCHOR";
+    CHECK_NE(anchor, nullptr) << "the BUILD file must set XFF_ARCHIVE_FIXTURE_ANCHOR";
     const std::string_view anchor_path(anchor);
     const std::string_view::size_type slash = anchor_path.rfind('/');
     const std::string_view directory = slash == std::string_view::npos ? "." : anchor_path.substr(0, slash);

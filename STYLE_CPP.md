@@ -232,6 +232,14 @@ clang-format picks a layout per line; these habits steer it toward the readable 
   `std::optional<std::reference_wrapper<T>>` or mbo's `mbo::types::OptionalRef<T>`
   (`mbo/types/optional_ref.h`, where its bazel target is visible to you) and its related types
   (e.g. `OptionalDataOrRef` when it may own a value or refer to one).
+- **A `CHECK` over a comparison uses the comparing macro**: `CHECK_NE(ptr, nullptr)`,
+  `CHECK_EQ(size, want)`, `CHECK_LE(offset, end)` - never `CHECK(ptr != nullptr)` or
+  `CHECK(size == want)`. The comparing form prints BOTH operands when it fires; the boolean form
+  prints only the expression's source text, so a crash report says what was compared and never what
+  the values were. Same for `DCHECK` / `QCHECK` and the `ABSL_`-prefixed spellings. A genuinely
+  boolean condition (`CHECK(matcher.ok())`, `CHECK(std::holds_alternative<T>(v))`) stays a plain
+  `CHECK`. Enforced by the `no-comparison-in-check-macro` pre-commit hook
+  ([`tools/check_check_macros.sh`](tools/check_check_macros.sh)).
 - **Mark a return value `[[nodiscard]]`** when silently ignoring it is a bug - an
   `absl::Status` / `StatusOr`, a parsed result, a `Consume...` "did it match?" flag, an acquired
   handle. The exception is a function _designed_ for its result to be optionally used: a builder

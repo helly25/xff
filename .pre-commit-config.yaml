@@ -126,6 +126,17 @@ repos:
         language: script
         entry: tools/check_test_matchers.sh
         files: _test\.cc$
+      - id: no-comparison-in-check-macro
+        name: No comparison inside a boolean CHECK
+        description: |
+          Project convention (STYLE_CPP.md): a CHECK over a comparison uses the comparing macro -
+          CHECK_NE(ptr, nullptr), CHECK_EQ(size, want) - because that form prints BOTH operands
+          when it fires. CHECK(ptr != nullptr) prints only the expression's source text, so a
+          crash report says what was compared but never what the values were. To skip once, run
+          `SKIP="no-comparison-in-check-macro" pre-commit`.
+        language: script
+        entry: tools/check_check_macros.sh
+        files: \.(cc|h)$
       - id: no-isok-assert-then-deref
         name: No ASSERT_THAT(x, IsOk()) followed by dereferencing x
         description: |
