@@ -59,14 +59,17 @@ sysctl -w vm.mmap_rnd_bits=28 >/dev/null 2>&1 || true
 bazel --output_user_root=/bzcache test --config=xff_full //xff/cli:full_extras_test \\
   --copt=-fsanitize=thread --linkopt=-fsanitize=thread --copt=-g --copt=-fno-omit-frame-pointer \\
   --test_env=XFF_FUSE_REQUIRED --nocache_test_results --test_output=all --run_under='setarch -R'"
-  extra=(--privileged)
+  # setarch needs to change the process's personality, which the default seccomp profile denies.
+  # The array always carries --rm so it is never empty: macOS bash 3.2 treats "${empty[@]}" under
+  # `set -u` as an unbound variable and aborts.
+  extra=(--rm --privileged)
 else
   script="${SETUP}
 bazel --output_user_root=/bzcache test --config=xff_full @xff_fuse//... //xff/cli:full_extras_test \\
   --test_env=XFF_FUSE_REQUIRED --nocache_test_results --test_output=errors"
-  extra=()
+  extra=(--rm)
 fi
 
-exec docker run --rm "${extra[@]}" \
+exec docker run "${extra[@]}" \
   --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor:unconfined \
   -v "${REPO}:/repo" -v "${CACHE}:/bzcache" "${IMAGE}" sh -c "${script}"

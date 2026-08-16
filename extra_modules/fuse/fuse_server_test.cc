@@ -43,9 +43,9 @@
 #include "xff/vfs/filesystem.h"
 
 // The process environment handed to a spawned child. It is C's own global, declared here the way
-// xff/exec does, and the NOLINT is for its shape (non-const, global) which POSIX defines and we
-// cannot change.
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+// xff/exec does: required on macOS (no <unistd.h> declaration), merely redundant on Linux. The
+// NOLINTs cover that redundancy and the shape POSIX defines and we cannot change.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,readability-redundant-declaration)
 extern "C" char** environ;
 
 namespace xff::fuse {

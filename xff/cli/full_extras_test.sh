@@ -42,6 +42,19 @@ _mini_tar() {
   find "${TEST_SRCDIR}" -type f -name mini.tar 2>/dev/null | head -1
 }
 
+# True when this build cannot run a mount, so the mounting cases below report why and return. MSan
+# false-positives on anything it did not instrument, and a mount runs through the dlopened SYSTEM
+# libfuse3 - so every byte libfuse writes reads back as uninitialized and the run dies inside
+# `fuse_opt_parse`. The C++ server test skips for the same reason under `#if MEMORY_SANITIZER`;
+# XFF_MSAN is that macro's build-flag twin, set by the BUILD file under `--config=msan`.
+_skip_under_msan() {
+  if [[ -z "${XFF_MSAN:-}" ]]; then
+    return 1
+  fi
+  echo "skipped: MSan cannot model the uninstrumented system libfuse3"
+  return 0
+}
+
 _xff_full_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff_full"
   if [[ ! -x "${bin}" ]]; then
@@ -66,6 +79,7 @@ test::archive_mount_runs_the_action_over_a_real_container() {
   # member's real 13 bytes - served from the mount where the machine can mount, from a temporary
   # copy where it cannot. -L because the fixture reaches the test through runfiles, which are
   # symlinks: unfollowed, the container is not a regular file and nothing dives into it.
+  _skip_under_msan && return 0
   local out
   out="$("$(_xff_full_bin)" -L --archive=all --archive-mount --archive-extract \
     "$(_mini_tar)" -type f -name hello.txt -exec wc -c {} \; 2>&1)"
@@ -82,6 +96,7 @@ test::archive_mount_alone_mounts_where_it_can_and_refuses_where_it_cannot() {
   # already declares which machine this is. XFF_FUSE_REQUIRED is set exactly where mounting must
   # work (Linux CI, which installs fuse3), so each case gets its own exact assertion and neither
   # can silently turn into the other.
+  _skip_under_msan && return 0
   local out
   out="$("$(_xff_full_bin)" -L --archive=all --archive-mount \
     "$(_mini_tar)" -type f -name hello.txt -exec wc -c {} \; 2>&1)" || true
