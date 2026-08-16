@@ -52,7 +52,11 @@ using ::testing::UnorderedElementsAre;
 //   <root>/sub/a.bin   regular, "abc"
 //   <root>/link        symlink -> "hello.txt"
 struct FakeFileSystem : vfs::FileSystem {
+  // Members are spelled the way the archive VFS spells them - `container!member`, NOT
+  // `container/member`. A fake that joined with a slash would let a server that assumes local-path
+  // syntax pass while failing on every real container.
   static constexpr std::string_view kRoot = "/container.zip";
+  static constexpr std::string_view kSep = "!";
   static constexpr std::string_view kHello = "hello, mount\n";
 
   static vfs::Metadata MetaFor(vfs::FileType type, std::uint64_t size) {
@@ -68,30 +72,30 @@ struct FakeFileSystem : vfs::FileSystem {
   absl::StatusOr<std::vector<vfs::Entry>> ReadDir(std::string_view dir) const override {
     if (dir == kRoot) {
       return std::vector<vfs::Entry>{
-          {.path = absl::StrCat(kRoot, "/hello.txt"), .name = "hello.txt", .type = vfs::FileType::kRegular},
-          {.path = absl::StrCat(kRoot, "/sub"), .name = "sub", .type = vfs::FileType::kDirectory},
-          {.path = absl::StrCat(kRoot, "/link"), .name = "link", .type = vfs::FileType::kSymlink},
+          {.path = absl::StrCat(kRoot, kSep, "hello.txt"), .name = "hello.txt", .type = vfs::FileType::kRegular},
+          {.path = absl::StrCat(kRoot, kSep, "sub"), .name = "sub", .type = vfs::FileType::kDirectory},
+          {.path = absl::StrCat(kRoot, kSep, "link"), .name = "link", .type = vfs::FileType::kSymlink},
       };
     }
-    if (dir == absl::StrCat(kRoot, "/sub")) {
+    if (dir == absl::StrCat(kRoot, kSep, "sub")) {
       return std::vector<vfs::Entry>{
-          {.path = absl::StrCat(kRoot, "/sub/a.bin"), .name = "a.bin", .type = vfs::FileType::kRegular},
+          {.path = absl::StrCat(kRoot, kSep, "sub/a.bin"), .name = "a.bin", .type = vfs::FileType::kRegular},
       };
     }
     return absl::NotFoundError(absl::StrCat("no directory '", dir, "'"));
   }
 
   absl::StatusOr<vfs::Metadata> Stat(std::string_view path, bool /*follow_symlinks*/) const override {
-    if (path == kRoot || path == absl::StrCat(kRoot, "/sub")) {
+    if (path == kRoot || path == absl::StrCat(kRoot, kSep, "sub")) {
       return MetaFor(vfs::FileType::kDirectory, 0);
     }
-    if (path == absl::StrCat(kRoot, "/hello.txt")) {
+    if (path == absl::StrCat(kRoot, kSep, "hello.txt")) {
       return MetaFor(vfs::FileType::kRegular, kHello.size());
     }
-    if (path == absl::StrCat(kRoot, "/sub/a.bin")) {
+    if (path == absl::StrCat(kRoot, kSep, "sub/a.bin")) {
       return MetaFor(vfs::FileType::kRegular, 3);
     }
-    if (path == absl::StrCat(kRoot, "/link")) {
+    if (path == absl::StrCat(kRoot, kSep, "link")) {
       return MetaFor(vfs::FileType::kSymlink, 9);
     }
     return absl::NotFoundError(absl::StrCat("no entry '", path, "'"));
@@ -102,7 +106,7 @@ struct FakeFileSystem : vfs::FileSystem {
   bool Access(std::string_view /*path*/, vfs::AccessMode mode) const override { return mode == vfs::AccessMode::kRead; }
 
   absl::StatusOr<std::string> ReadLink(std::string_view path) const override {
-    if (path == absl::StrCat(kRoot, "/link")) {
+    if (path == absl::StrCat(kRoot, kSep, "link")) {
       return std::string("hello.txt");
     }
     return absl::InvalidArgumentError("not a symlink");
@@ -113,10 +117,10 @@ struct FakeFileSystem : vfs::FileSystem {
   absl::StatusOr<bool> IsCaseSensitive(std::string_view /*path*/) const override { return true; }
 
   absl::StatusOr<std::string> ReadContent(std::string_view path) const override {
-    if (path == absl::StrCat(kRoot, "/hello.txt")) {
+    if (path == absl::StrCat(kRoot, kSep, "hello.txt")) {
       return std::string(kHello);
     }
-    if (path == absl::StrCat(kRoot, "/sub/a.bin")) {
+    if (path == absl::StrCat(kRoot, kSep, "sub/a.bin")) {
       return std::string("abc");
     }
     return absl::NotFoundError(absl::StrCat("no content '", path, "'"));

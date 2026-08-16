@@ -30,12 +30,14 @@
 #include <cstdint>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <thread>
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
@@ -123,11 +125,22 @@ struct stat StatFor(const vfs::Metadata& metadata, fuse_ino_t ino) {
   return out;
 }
 
-std::string JoinPath(std::string_view dir, std::string_view name) {
-  if (dir.empty() || dir.back() == '/') {
-    return absl::StrCat(dir, name);
+// The path of `name` inside `dir`, ASKED OF THE FILESYSTEM rather than assembled here. A backend
+// spells its paths its own way - the archive VFS writes a member as `container!member`, not
+// `container/member` - so joining with a slash would produce a path only a local filesystem
+// recognizes, and every lookup below the root would fail on a real container. ReadDir already
+// reports each child's full path in the backend's own vocabulary, which is the only spelling
+// guaranteed to work.
+std::optional<std::string> ChildPath(const vfs::FileSystem& fs, std::string_view dir, std::string_view name) {
+  const absl::StatusOr<std::vector<vfs::Entry>> entries = fs.ReadDir(dir);
+  if (!entries.ok()) {
+    return std::nullopt;
   }
-  return absl::StrCat(dir, "/", name);
+  const auto found = absl::c_find_if(*entries, [name](const vfs::Entry& entry) { return entry.name == name; });
+  if (found == entries->end()) {
+    return std::nullopt;
+  }
+  return found->path;
 }
 
 // Attribute/entry cache lifetime handed to the kernel. The view is immutable while mounted (the
@@ -237,14 +250,18 @@ void OpLookup(fuse_req_t req, fuse_ino_t parent, const char* name) {
     api.reply_err(req, ENOENT);
     return;
   }
-  const std::string path = JoinPath(parent_path, name);
-  const absl::StatusOr<vfs::Metadata> metadata = impl.fs->Stat(path, /*follow_symlinks=*/false);
+  const std::optional<std::string> path = ChildPath(*impl.fs, parent_path, name);
+  if (!path.has_value()) {
+    api.reply_err(req, ENOENT);
+    return;
+  }
+  const absl::StatusOr<vfs::Metadata> metadata = impl.fs->Stat(*path, /*follow_symlinks=*/false);
   if (!metadata.ok()) {
     api.reply_err(req, ErrnoFor(metadata.status()));
     return;
   }
   struct fuse_entry_param entry = {};
-  entry.ino = impl.InodeOf(path);
+  entry.ino = impl.InodeOf(*path);
   entry.attr = StatFor(*metadata, entry.ino);
   entry.attr_timeout = kCacheSeconds;
   entry.entry_timeout = kCacheSeconds;
@@ -308,9 +325,8 @@ void OpReaddir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct fu
   bool more = emit(".", self) && emit("..", parent);
   for (std::size_t i = 0; more && i < entries->size(); ++i) {
     const vfs::Entry& entry = (*entries)[i];
-    const std::string child = entry.path.empty() ? JoinPath(path, entry.name) : entry.path;
     struct stat attr = {};
-    attr.st_ino = impl.InodeOf(child);
+    attr.st_ino = impl.InodeOf(entry.path);
     attr.st_mode = TypeBitsFor(entry.type);
     more = emit(entry.name.c_str(), attr);
   }

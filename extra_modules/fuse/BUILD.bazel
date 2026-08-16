@@ -107,6 +107,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":fuse_api_cc",
+        "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status",
