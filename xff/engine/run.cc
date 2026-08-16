@@ -25,6 +25,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <optional>
 #include <ranges>
@@ -39,6 +40,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
+#include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -192,6 +194,34 @@ SortOrder ResolveSort(const std::vector<std::string>& globals, std::optional<reg
     }
   }
   return sort;
+}
+
+// Emits the buffered listing best-score-first. STABLE so equal scores keep the walk's order, which
+// the style's --sort already made deterministic - a plain sort would make ties depend on the
+// algorithm instead.
+void EmitRanked(std::vector<std::pair<int, std::string>>& ranked, const EmitFn& emit) {
+  std::stable_sort(
+      ranked.begin(), ranked.end(), [](const auto& lhs, const auto& rhs) { return lhs.first > rhs.first; });
+  for (const auto& [score, text] : ranked) {
+    emit(text);
+  }
+}
+
+// --sort=score: rank the printed listing by the -fuzzy score instead of a traversal order. It is
+// deliberately NOT a SortOrder: every other mode orders the WALK, which streams, while a score only
+// exists once an entry has been evaluated - so the walk keeps its style default (which decides ties)
+// and the results are ranked afterwards. Leading global, last occurrence wins; a later --sort=MODE
+// turns ranking back off, so the flag reads left to right like every other last-wins global.
+bool ResolveRankByScore(const std::vector<std::string>& globals) {
+  bool rank = false;
+  for (const std::string& global : globals) {
+    if (global == "--sort=score") {
+      rank = true;
+    } else if (absl::StartsWith(global, "--sort")) {
+      rank = false;
+    }
+  }
+  return rank;
 }
 
 // xff -jN / --jobs=N: worker threads for the parallel directory read-ahead (see
@@ -936,6 +966,29 @@ bool ContainsPrimary(const parser::Expr& expr, std::string_view name) {
     case parser::Expr::Kind::kComma: return ContainsPrimary(*expr.lhs, name) || ContainsPrimary(*expr.rhs, name);
   }
   return false;
+}
+
+// Whether --sort=score can do what it says, checked before the walk. Both refusals are usage
+// errors rather than a silent no-op: ordering by a value nothing produced is a mistake, and a
+// format that cannot be reordered would drop the ranking without saying so.
+absl::Status ValidateScoreRanking(bool rank_by_score, const parser::Expr* expression, bool is_tree, bool buffered) {
+  if (!rank_by_score) {
+    return absl::OkStatus();
+  }
+  const bool has_fuzzy =
+      expression != nullptr && (ContainsPrimary(*expression, "-fuzzy") || ContainsPrimary(*expression, "-ifuzzy"));
+  if (!has_fuzzy) {
+    return absl::InvalidArgumentError("needs -fuzzy or -ifuzzy in the expression");
+  }
+  if (is_tree || buffered) {
+    // --format=tree nests by path and the aligned/markdown writers stream rows through a width
+    // buffer; either would silently ignore the ranking, which is worse than refusing it.
+    return absl::InvalidArgumentError(
+        absl::StrCat(
+            "cannot rank a --format=", is_tree ? "tree" : "aligned/markdown",
+            " listing; use a streaming format (the default, or --columns with csv/tsv)"));
+  }
+  return absl::OkStatus();
 }
 
 // The path of `path` relative to the search `root` it was reached from, '/'-
@@ -2438,6 +2491,15 @@ int RunFind(
     on_error("--block-size", size_status);
     return 2;  // do not traverse
   }
+  // --sort=score ranks the listing by the -fuzzy score, so it needs a score to rank by and a
+  // listing to reorder. Both are usage errors before the walk rather than a silent no-op: ordering
+  // by a value nothing produced is a mistake, not an empty ordering.
+  const bool rank_by_score = ResolveRankByScore(command.globals);
+  if (const absl::Status ranking = ValidateScoreRanking(rank_by_score, expression, is_tree, buffered); !ranking.ok()) {
+    on_error("--sort=score", ranking);
+    return 2;  // do not traverse
+  }
+
   // --regextype=RE2|EXACT|PCRE2: the grammar is resolved by the parser and pre-compiled into each
   // matcher; here we only validate the selector for the whole run. PCRE2 when not built into this
   // binary, MATCH (reserved), and unknown values are usage errors, refused before the walk.
@@ -2867,6 +2929,21 @@ int RunFind(
   // TableStream: it buffers up to the --buffer window (default all = full alignment) to size the
   // columns, then emits the header + rule + rows and streams the rest at the locked widths. The
   // visitor is single-threaded, so no lock.
+  // --sort=score: the ranked listing. Only ENTRY output goes here - headers, dry-run previews,
+  // -exec output and the summaries keep streaming, because they are not the listing being ranked
+  // (and -exec has already run its command by then, so buffering its output would misreport when
+  // it happened). Pairs are {score, rendered text}; entries the fuzzy matcher never scored sort
+  // last, keeping them visible rather than dropping them.
+  std::vector<std::pair<int, std::string>> ranked;
+  // Entry output goes through here so ranking is one decision in one place rather than a condition
+  // repeated at every print branch. Without --sort=score it is exactly `emit`.
+  const auto emit_entry = [&ranked, &emit, rank_by_score, &fuzzy_score](std::string_view text) {
+    if (rank_by_score) {
+      ranked.emplace_back(fuzzy_score.value_or(std::numeric_limits<int>::min()), std::string(text));
+    } else {
+      emit(text);
+    }
+  };
   std::optional<render::TableStream> table_stream;
   if (buffered) {
     std::vector<std::string> table_columns = columns.empty() ? std::vector<std::string>{"path"} : columns;
@@ -3111,13 +3188,13 @@ int RunFind(
               if (buffered) {  // aligned/markdown: stream through the buffer (windowed by --buffer)
                 emit(table_stream->Add(cells));
               } else {
-                emit(render::EncodeTabularRow(format, cells));
+                emit_entry(render::EncodeTabularRow(format, cells));
               }
             } else {  // --template overrides --format
-              emit(compiled_tmpl->Render(ctx) + "\n");
+              emit_entry(compiled_tmpl->Render(ctx) + "\n");
             }
           } else {
-            emit(render::Renderer(format, path_encoding).Record(visit.path, entry_color));
+            emit_entry(render::Renderer(format, path_encoding).Record(visit.path, entry_color));
           }
         }
         if (!control.unsupported.empty() && !unsupported_reported) {
@@ -3157,6 +3234,9 @@ int RunFind(
   // Flush the buffered tabular formats (--format=aligned/markdown): emit whatever the
   // TableStream still holds (a run shorter than the --buffer window, or --buffer=all), plus a
   // header-only table when nothing matched. A no-op once the window already streamed everything.
+  if (rank_by_score) {
+    EmitRanked(ranked, emit);
+  }
   if (table_stream.has_value()) {
     if (const std::string table = table_stream->Flush(); !table.empty()) {
       emit(table);
