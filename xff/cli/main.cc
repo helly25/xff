@@ -178,7 +178,7 @@ std::string RenderExtras() {
         &out, "  %-9s %s\n            %s\n", name,
         built_in ? "[built into this binary]" : absl::StrCat("[not built in; rebuild with ", rebuild, "]"), what);
   };
-  row("pcre2", xff::regex::Pcre2Available(), xff::cli::ExtraBuildFlag("pcre2"),
+  row("pcre2", xff::cli::ExtraEnabled("pcre2"), xff::cli::ExtraBuildFlag("pcre2"),
       "--regextype=PCRE2: Perl-compatible regex (lookahead, backreferences, ...)");
   absl::flat_hash_set<std::string_view> seen;
   for (const xff::cli::GlobalFlag& flag : xff::cli::Globals()) {

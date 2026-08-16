@@ -18,6 +18,7 @@
 
 #include <cstdint>
 #include <string_view>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/types/span.h"
@@ -110,6 +111,10 @@ bool ExtraEnabled(std::string_view key);
 // message tells the user to rebuild with. Empty for an unknown extra, so a caller omits the hint
 // rather than naming a flag that does not exist. Kept beside ExtraEnabled so the two cannot drift.
 std::string_view ExtraBuildFlag(std::string_view key);
+
+// The extras compiled into THIS binary, by key, in a stable order - what the notice line and any
+// "which extras do I have" surface print. Empty for a lean build.
+[[nodiscard]] std::vector<std::string> EnabledExtras();
 
 // All global options, in display order. The single enumeration point for the help
 // system and the planned doc generators.

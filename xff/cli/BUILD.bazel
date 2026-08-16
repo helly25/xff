@@ -423,6 +423,7 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
         "@xff_extras_api//:archive_backend_cc",
+        "@xff_extras_api//:regex_backend_cc",
     ],
 )
 

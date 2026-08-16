@@ -702,7 +702,8 @@ Section NoticeSection() {
   Section section;  // title-less: no heading, body at column 0
   section.children.push_back(ProseOf(
       absl::StrCat(
-          "Build extras compiled into this binary: ", ExtraEnabled("archive") ? "archive" : "none (lean build)")));
+          "Build extras compiled into this binary: ",
+          EnabledExtras().empty() ? "none (lean build)" : absl::StrJoin(EnabledExtras(), ", "))));
   section.children.push_back(Content{.node = Example{.text = license::NoticeText()}});
   return section;
 }

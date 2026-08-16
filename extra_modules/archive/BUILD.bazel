@@ -284,9 +284,11 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@bzip2//:bz2",
         "@helly25_mbo//mbo/status:status_macros_cc",
+        "@xff_extras_api//:license_notice_cc",
         "@xff_extras_api//:member_path_cc",
         "@zlib",
     ],
+    alwayslink = True,
 )
 
 # There is no phar WRITER to lean on, so the test builds containers byte by byte: the fixture is the

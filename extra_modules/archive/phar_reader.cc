@@ -35,8 +35,26 @@
 #include "mbo/status/status_macros.h"
 #include "xff/archive/archive_reader.h"
 #include "xff/archive/member_path.h"
+#include "xff/license/notice.h"
 
 namespace xff::archive {
+
+// The phar reader inflates gz members with zlib and bz2 members with bzip2 DIRECTLY - not through
+// libarchive - so both are components of any binary that links this reader, in their own right
+// (libarchive's notice lists them only as ITS codecs). Registered from this TU, the same rule as
+// every other component: the code that creates the dependency carries its notice.
+const license::Registrar kZlibNotice{{
+    .component = "zlib",
+    .spdx = "Zlib",
+    .text = "Copyright (c) 1995-2024 Jean-loup Gailly and Mark Adler. Provided under the zlib license.",
+}};
+
+const license::Registrar kBzip2Notice{{
+    .component = "bzip2",
+    .spdx = "bzip2-1.0.6",
+    .text = "Copyright (c) 1996-2019 Julian Seward. Provided under the bzip2 license.",
+}};
+
 namespace {
 
 // The token that ends a phar's PHP stub. Everything after it (plus an optional ` ?>` and one line

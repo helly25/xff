@@ -49,4 +49,15 @@ test::xff_full_links_the_pcre2_extra() {
   expect_matches "pcre2 +\[built into this binary\]" "${out}"
 }
 
+test::the_notice_lists_every_linked_extra_and_the_direct_codecs() {
+  # The extras line is derived from EnabledExtras() (it used to check only archive, so a binary
+  # with pcre2 linked under-reported itself), and zlib/bzip2 are components in their OWN right:
+  # the phar reader inflates members with them directly, not through libarchive.
+  local out
+  out="$("$(_xff_full_bin)" --help=notice 2>&1)"
+  expect_output_contains 'Build extras compiled into this binary: archive, pcre2' "${out}"
+  expect_output_contains 'zlib  [Zlib]' "${out}"
+  expect_output_contains 'bzip2  [bzip2-1.0.6]' "${out}"
+}
+
 test_runner
