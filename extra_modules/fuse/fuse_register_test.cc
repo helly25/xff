@@ -81,8 +81,15 @@ TEST_F(FuseRegisterTest, LinkingRegistersTheMountFactory) {
   // mount would be worse than one that advertises nothing. Whether a mount SUCCEEDS depends on the
   // machine (fuse3 present, /dev/fuse usable), so what is asserted here is only that the call
   // reached a real factory instead of the "not built in" stub.
+#if defined(MEMORY_SANITIZER)
+  // Reaching the real factory means reaching the dlopened SYSTEM libfuse3, which MSan did not
+  // instrument - so every byte it writes reads back as uninitialized. Same reason the server test
+  // and the CLI mount test skip here; ASan and TSan run this path.
+  GTEST_SKIP() << "MSan cannot model the uninstrumented system libfuse3";
+#else
   const FakeFileSystem fs;
   EXPECT_THAT(MountContainer(fs, "/container.tar"), Not(StatusIs(absl::StatusCode::kUnimplemented)));
+#endif
 }
 
 TEST_F(FuseRegisterTest, LinkingRegistersTheLibfuseNotice) {
