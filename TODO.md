@@ -258,6 +258,11 @@ shipped one way but not yet settled.
          the `--help=extras` row, and the libfuse NOTICE component (LGPL-2.1, interface-only
          headers + runtime dlopen - no LGPL code in the binary; the committed NOTICE stays
          core-only by the license_test contract, extras render live).
+       - **4b-0. Path vocabulary (SHIPPED)**: the server resolved a lookup by joining parent and
+         name with `/`, which only a local filesystem understands - the archive VFS spells a member
+         `container!member`. Lookup now asks the FILESYSTEM (`ReadDir` reports each child's full
+         path in its own vocabulary) instead of assembling one, and the fake in the test uses the
+         `!` spelling so a slash-assuming server cannot pass again.
        - **4b. The flag**: explicit `--archive-mount` (extra-gated; absent extra = the standard
          hard error, absent RUNTIME library = one-line note + extraction fallback), `{}` rendering
          as the mounted path for `-exec`/`-execdir`, help/XFF.md, bashtests for both the mounted
