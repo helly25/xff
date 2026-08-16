@@ -1882,7 +1882,7 @@ std::optional<std::string> ExecTargetPath(EvalContext& ctx, std::string_view act
   // A mount serves the member in place, so it is preferred over copying it out; when mounting is
   // disarmed or impossible this answers nothing and extraction takes over unchanged.
   if (ctx.mounts != nullptr) {
-    if (std::optional<std::string> mounted = ctx.mounts->PathFor(ctx.fs, ctx.visit.fs_owner, ctx.visit.path);
+    if (std::optional<std::string> mounted = ctx.mounts->PathFor(ctx.visit.fs_owner, ctx.visit.path);
         mounted.has_value()) {
       return mounted;
     }

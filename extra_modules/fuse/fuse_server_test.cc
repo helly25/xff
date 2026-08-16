@@ -142,7 +142,7 @@ struct FakeFileSystem : vfs::FileSystem {
 // One mount per test (a mount is milliseconds), so each test states one behaviour and no test
 // depends on an earlier one's reads.
 struct FuseServerTest : ::testing::Test {
-  FakeFileSystem fs;
+  std::shared_ptr<const FakeFileSystem> fs = std::make_shared<FakeFileSystem>();
   std::string mount_point;
   std::unique_ptr<FuseServer> server;
 

@@ -16,6 +16,7 @@
 // Linking fuse_register_cc (as any binary carrying the fuse extra does) must fill BOTH identity
 // surfaces: the extras slot the core's `--help=extras` / notice line read, and the libfuse notice.
 
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -87,8 +88,9 @@ TEST_F(FuseRegisterTest, LinkingRegistersTheMountFactory) {
   // and the CLI mount test skip here; ASan and TSan run this path.
   GTEST_SKIP() << "MSan cannot model the uninstrumented system libfuse3";
 #else
-  const FakeFileSystem fs;
-  EXPECT_THAT(MountContainer(fs, "/container.tar"), Not(StatusIs(absl::StatusCode::kUnimplemented)));
+  EXPECT_THAT(
+      MountContainer(std::make_shared<FakeFileSystem>(), "/container.tar"),
+      Not(StatusIs(absl::StatusCode::kUnimplemented)));
 #endif
 }
 

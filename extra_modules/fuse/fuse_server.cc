@@ -157,7 +157,8 @@ constexpr double kCacheSeconds = 60.0;
 // (`paths`/`inodes`/`next_ino`) and the open-file table (`contents`/`next_fh`); everything else is
 // set during Mount and read-only afterwards.
 struct FuseServer::Impl {
-  const vfs::FileSystem* fs = nullptr;
+  // Owned, not observed: the callbacks read it from the serving thread until the destructor joins.
+  std::shared_ptr<const vfs::FileSystem> fs;
   std::string root;
   std::string mount_point;
   struct fuse_session* session = nullptr;
@@ -444,16 +445,19 @@ const struct fuse_lowlevel_ops& ServerOps() {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<FuseServer>> FuseServer::Mount(
-    const vfs::FileSystem& fs,
+    std::shared_ptr<const vfs::FileSystem> fs,
     std::string root,
     std::string mount_point) {
+  if (fs == nullptr) {
+    return absl::InvalidArgumentError("cannot mount a null filesystem");
+  }
   const absl::StatusOr<FuseApi>& api = ResolvedApi();
   MBO_RETURN_IF_ERROR(api.status());
   while (root.size() > 1 && root.back() == '/') {
     root.pop_back();
   }
   auto server = std::unique_ptr<FuseServer>(new FuseServer());
-  server->impl_->fs = &fs;
+  server->impl_->fs = std::move(fs);
   server->impl_->root = std::move(root);
   server->impl_->mount_point = std::move(mount_point);
   // "ro" tells the kernel what the missing write callbacks already enforce; default_permissions

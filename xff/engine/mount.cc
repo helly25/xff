@@ -30,8 +30,7 @@
 namespace xff::engine {
 
 std::optional<std::string> MountedContainers::PathFor(
-    const vfs::FileSystem& fs,
-    std::shared_ptr<const vfs::FileSystem> owner,
+    std::shared_ptr<const vfs::FileSystem> fs,
     std::string_view member_path) {
   if (!armed_) {
     return std::nullopt;
@@ -46,7 +45,7 @@ std::optional<std::string> MountedContainers::PathFor(
   const std::string container(parts->container);
   auto found = mounts_.find(container);
   if (found == mounts_.end()) {
-    absl::StatusOr<std::unique_ptr<fuse::Mount>> mount = fuse::MountContainer(fs, container);
+    absl::StatusOr<std::unique_ptr<fuse::Mount>> mount = fuse::MountContainer(std::move(fs), container);
     if (!mount.ok()) {
       if (degrade_reason_.empty()) {
         // Once per run: every member of every container would otherwise repeat the same sentence.
@@ -54,9 +53,9 @@ std::optional<std::string> MountedContainers::PathFor(
       }
       return std::nullopt;
     }
-    found = mounts_.emplace(container, Mounted{.owner = std::move(owner), .mount = *std::move(mount)}).first;
+    found = mounts_.emplace(container, *std::move(mount)).first;
   }
-  return found->second.mount->PathFor(parts->member);
+  return found->second->PathFor(parts->member);
 }
 
 }  // namespace xff::engine

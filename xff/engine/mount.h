@@ -62,13 +62,9 @@ class MountedContainers {
   // container's mount, mounting the container on first use. Nothing when mounting is disarmed,
   // when `member_path` names no member, or when this machine cannot mount - the caller then
   // extracts instead.
-  // `owner` is shared ownership of `fs` (Visit::fs_owner). The mount KEEPS it: a mount outlives
-  // the dive that opened the container, and without this the FUSE callbacks would serve from a
-  // destroyed reader - which ThreadSanitizer reported as a race on ~ArchiveFileSystem.
-  std::optional<std::string> PathFor(
-      const vfs::FileSystem& fs,
-      std::shared_ptr<const vfs::FileSystem> owner,
-      std::string_view member_path);
+  // `fs` is the container's filesystem as SHARED ownership (Visit::fs_owner), because the mount
+  // keeps serving it after the dive that opened the container has ended.
+  std::optional<std::string> PathFor(std::shared_ptr<const vfs::FileSystem> fs, std::string_view member_path);
 
   // Why mounting did not happen, empty until a mount is actually attempted and fails. Recorded
   // once (the first failure), because every later member of every container would repeat it.
@@ -79,14 +75,9 @@ class MountedContainers {
  private:
   bool armed_ = false;
 
-  // Container path -> its mount. Insert-only for the run; a Mount unmounts when destroyed.
-  // Container path -> its mount AND the reader that mount serves, so the reader cannot die first.
-  struct Mounted {
-    std::shared_ptr<const vfs::FileSystem> owner;
-    std::unique_ptr<fuse::Mount> mount;
-  };
-
-  absl::flat_hash_map<std::string, Mounted> mounts_;
+  // Container path -> its mount. Insert-only for the run; a Mount unmounts when destroyed. The
+  // mount holds its own share of the reader (see MountFactory), so nothing is tracked beside it.
+  absl::flat_hash_map<std::string, std::unique_ptr<fuse::Mount>> mounts_;
   std::string degrade_reason_;
 };
 

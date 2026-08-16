@@ -81,7 +81,9 @@ class ServerMount final : public Mount {
   std::unique_ptr<FuseServer> server_;
 };
 
-absl::StatusOr<std::unique_ptr<Mount>> MountThroughFuse(const vfs::FileSystem& fs, std::string_view container) {
+absl::StatusOr<std::unique_ptr<Mount>> MountThroughFuse(
+    std::shared_ptr<const vfs::FileSystem> fs,
+    std::string_view container) {
   std::shared_ptr<MountRoot> root;
   std::string mount_point;
   {
@@ -91,7 +93,8 @@ absl::StatusOr<std::unique_ptr<Mount>> MountThroughFuse(const vfs::FileSystem& f
     MBO_ASSIGN_OR_RETURN(root, RunRoot());
     MBO_ASSIGN_OR_RETURN(mount_point, root->MountPointFor(container));
   }
-  MBO_ASSIGN_OR_RETURN(std::unique_ptr<FuseServer> server, FuseServer::Mount(fs, std::string(container), mount_point));
+  MBO_ASSIGN_OR_RETURN(
+      std::unique_ptr<FuseServer> server, FuseServer::Mount(std::move(fs), std::string(container), mount_point));
   return std::make_unique<ServerMount>(std::move(root), std::move(server));
 }
 

@@ -57,11 +57,17 @@ class Mount {
   [[nodiscard]] virtual std::string PathFor(std::string_view member) const = 0;
 };
 
-// Mounts `fs` (an open container filesystem) whose root path is `container`. `fs` must outlive the
-// returned Mount. Unavailable when this machine has no runtime fuse3 - the caller degrades to
-// extraction rather than failing the run.
-using MountFactory =
-    std::function<absl::StatusOr<std::unique_ptr<Mount>>(const vfs::FileSystem& fs, std::string_view container)>;
+// Mounts `fs` (an open container filesystem) whose root path is `container`. Unavailable when this
+// machine has no runtime fuse3 - the caller degrades to extraction rather than failing the run.
+//
+// A mount SERVES `fs` for as long as it exists, on its own thread, so it must OWN a share of it -
+// the shared_ptr is the whole point of this signature. Passing `const vfs::FileSystem&` compiled
+// just as well and cost a day: the walk held the container's reader in a dive-scoped unique_ptr
+// while a mount outlived the dive, and every callback then served freed memory. A garbage reply is
+// what makes the kernel abort the connection, so it surfaced as ECONNABORTED on one architecture,
+// intermittently, and moved when unrelated lines were deleted. Take ownership; do not document it.
+using MountFactory = std::function<
+    absl::StatusOr<std::unique_ptr<Mount>>(std::shared_ptr<const vfs::FileSystem> fs, std::string_view container)>;
 
 // Records that the FUSE mount extra is linked in. Called once, at static-init, from the extra's
 // registration translation unit (which must be alwayslink so the registrar is not dropped).
@@ -80,7 +86,9 @@ void RegisterMountFactory(MountFactory factory);
 
 // Mounts through the registered factory, or returns Unimplemented when no fuse extra is linked
 // (the lean build), so the caller reports "not built in" rather than guessing.
-absl::StatusOr<std::unique_ptr<Mount>> MountContainer(const vfs::FileSystem& fs, std::string_view container);
+absl::StatusOr<std::unique_ptr<Mount>> MountContainer(
+    std::shared_ptr<const vfs::FileSystem> fs,
+    std::string_view container);
 
 // Whether the FUSE mount extra is compiled into this binary. False in the lean build; true when
 // @xff_fuse's registration TU is linked (--//xff:xff_fuse / --//xff:xff_all).
