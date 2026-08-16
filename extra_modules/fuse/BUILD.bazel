@@ -132,7 +132,6 @@ cc_test(
     deps = [
         ":fuse_loader_cc",
         ":fuse_server_cc",
-        ":mount_root_cc",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
