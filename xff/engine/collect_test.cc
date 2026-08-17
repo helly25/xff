@@ -103,6 +103,58 @@ TEST_F(CollectTest, UnknownNameReadsAsEmptyRatherThanFailing) {
   EXPECT_THAT(collections.Entries("never-collected"), IsEmpty());
 }
 
+TEST_F(CollectTest, ABudgetOfZeroMeansNoLimit) {
+  const vfs::Metadata md{.type = vfs::FileType::kRegular};
+  Collections collections;
+  for (int i = 0; i < 100; ++i) {
+    EXPECT_THAT(collections.Add("all", MakeVisit("./f", "f", ".", md)), ::testing::IsTrue());
+  }
+  EXPECT_THAT(collections.Overflowed(), ::testing::IsFalse());
+  EXPECT_THAT(collections.Size(), Eq(100));
+}
+
+TEST_F(CollectTest, ARowBudgetRefusesTheEntryPastTheCeiling) {
+  const vfs::Metadata md{.type = vfs::FileType::kRegular};
+  Collections collections;
+  collections.SetBudget(Collections::Budget{.rows = 2});
+  EXPECT_THAT(collections.Add("all", MakeVisit("./a", "a", ".", md)), ::testing::IsTrue());
+  EXPECT_THAT(collections.Add("all", MakeVisit("./b", "b", ".", md)), ::testing::IsTrue());
+  EXPECT_THAT(collections.Add("all", MakeVisit("./c", "c", ".", md)), ::testing::IsFalse());
+  EXPECT_THAT(collections.Overflowed(), ::testing::IsTrue());
+  // The refused entry is NOT stored: the caller reports the overflow rather than reducing a
+  // collection that silently lost entries.
+  EXPECT_THAT(collections.Size(), Eq(2));
+}
+
+TEST_F(CollectTest, ARowBudgetCountsEveryCollectionTogether) {
+  const vfs::Metadata md{.type = vfs::FileType::kRegular};
+  Collections collections;
+  collections.SetBudget(Collections::Budget{.rows = 2});
+  EXPECT_THAT(collections.Add("one", MakeVisit("./a", "a", ".", md)), ::testing::IsTrue());
+  EXPECT_THAT(collections.Add("two", MakeVisit("./b", "b", ".", md)), ::testing::IsTrue());
+  EXPECT_THAT(collections.Add("one", MakeVisit("./c", "c", ".", md)), ::testing::IsFalse());
+}
+
+TEST_F(CollectTest, AByteBudgetMeasuresTheStoredText) {
+  const vfs::Metadata md{.type = vfs::FileType::kRegular};
+  Collections collections;
+  // "./aaaa" + "aaaa" + "." == 11 bytes per entry, so a 12-byte budget admits exactly one.
+  collections.SetBudget(Collections::Budget{.bytes = 12});
+  EXPECT_THAT(collections.Add("all", MakeVisit("./aaaa", "aaaa", ".", md)), ::testing::IsTrue());
+  EXPECT_THAT(collections.Add("all", MakeVisit("./aaaa", "aaaa", ".", md)), ::testing::IsFalse());
+  EXPECT_THAT(collections.Overflowed(), ::testing::IsTrue());
+}
+
+TEST_F(CollectTest, OverflowStaysStickyForTheRestOfTheWalk) {
+  const vfs::Metadata md{.type = vfs::FileType::kRegular};
+  Collections collections;
+  collections.SetBudget(Collections::Budget{.rows = 1});
+  EXPECT_THAT(collections.Add("all", MakeVisit("./a", "a", ".", md)), ::testing::IsTrue());
+  EXPECT_THAT(collections.Add("all", MakeVisit("./b", "b", ".", md)), ::testing::IsFalse());
+  EXPECT_THAT(collections.Add("all", MakeVisit("./c", "c", ".", md)), ::testing::IsFalse());
+  EXPECT_THAT(collections.Overflowed(), ::testing::IsTrue());
+}
+
 testing::Matcher<CollectSite> SiteIs(std::string_view name, bool override_name) {
   return AllOf(
       Field("name", &CollectSite::name, name), Field("override_name", &CollectSite::override_name, override_name));

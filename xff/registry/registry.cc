@@ -255,23 +255,27 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-collect",
         .summary = "add the entry to a named collection for --summary to reduce (xff)",
-        .details = "xff extension: an ACTION that adds the entry to a collection instead of printing it, and makes "
-                   "`--summary` reduce THAT collection rather than what matched. This is what a truncating test cannot "
-                   "do on its own: a FALSE test removes the entry from every sink, so `-first 10 --summary` summarises "
-                   "ten entries, never \"all of them, showing ten\". ORDER selects the reading, because these are "
-                   "primaries rather than position-independent globals: `-collect -first 10 -ls --summary` collects "
-                   "everything, lists ten, and summarises ALL of them, while `-first 10 -collect --summary` collects "
-                   "only the ten and summarises those. The second prints no listing because `-collect` is an action, "
-                   "so the implicit `-print` is suppressed - find's own rule, not a new one. `-collect=NAME` uses a "
-                   "second collection; a bare `-collect` uses the one named `default`. A NAME is an identifier "
-                   "(`[A-Za-z_][A-Za-z0-9_]*`), which is what reserves punctuation for modifiers. Two nodes MAY "
-                   "share a collection, but the later one must SAY so with `!`: "
-                   "`\\( -type f -collect=all \\) -o \\( -type d -collect=!all \\)` gathers both branches into one "
-                   "collection, while an unmarked repeat is a usage error - a silently shared collection shows up "
-                   "only as a doubled total. The modifier is per node, so it cannot loosen the other `-collect` in a "
-                   "long command the way a whole-run flag would. Presence is SYNTACTIC, like the implicit print: "
-                   "a `-collect` in a branch that never runs still switches the summary's source, and the summary is "
-                   "then empty. Example: `xff . -type f -collect -first 3 -ls --summary`.",
+        .details =
+            "xff extension: an ACTION that adds the entry to a collection instead of printing it, and makes "
+            "`--summary` reduce THAT collection rather than what matched. This is what a truncating test cannot "
+            "do on its own: a FALSE test removes the entry from every sink, so `-first 10 --summary` summarises "
+            "ten entries, never \"all of them, showing ten\". ORDER selects the reading, because these are "
+            "primaries rather than position-independent globals: `-collect -first 10 -ls --summary` collects "
+            "everything, lists ten, and summarises ALL of them, while `-first 10 -collect --summary` collects "
+            "only the ten and summarises those. The second prints no listing because `-collect` is an action, "
+            "so the implicit `-print` is suppressed - find's own rule, not a new one. `-collect=NAME` uses a "
+            "second collection; a bare `-collect` uses the one named `default`. A NAME is an identifier "
+            "(`[A-Za-z_][A-Za-z0-9_]*`), which is what reserves punctuation for modifiers. Two nodes MAY "
+            "share a collection, but the later one must SAY so with `!`: "
+            "`\\( -type f -collect=all \\) -o \\( -type d -collect=!all \\)` gathers both branches into one "
+            "collection, while an unmarked repeat is a usage error - a silently shared collection shows up "
+            "only as a doubled total. The modifier is per node, so it cannot loosen the other `-collect` in a "
+            "long command the way a whole-run flag would. A collection holds every match until the walk ends, so "
+            "`--buffer` bounds it (a row count or a byte budget); exceeding it is an ERROR rather than a "
+            "silent truncation, because a summary over part of the walk is indistinguishable from a correct "
+            "one. Without `--buffer` there is no cap. Presence is SYNTACTIC, like the implicit print: "
+            "a `-collect` in a branch that never runs still switches the summary's source, and the summary is "
+            "then empty. Example: `xff . -type f -collect -first 3 -ls --summary`.",
         .kind = Kind::kAction,
         .arity = 0,
         .binding = Binding::kLabel,

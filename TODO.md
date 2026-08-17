@@ -596,8 +596,13 @@ one level up; an early stop stays an explicit opt-in.
    report two different totals for one walk), and the collection OWNS its entries rather than storing
    the walk's `Visit`, whose path/name/root are borrowed views and whose metadata is a reference. The
    entry also keeps `Visit::fs_owner`, so collecting an archive member cannot outlive its reader -
-   the same lifetime bug ThreadSanitizer caught in `--archive-mount`. `--buffer`'s row/byte budget is
-   NOT wired up yet: a collection grows unbounded, which is the next thing to fix here.
+   the same lifetime bug ThreadSanitizer caught in `--archive-mount`. `--buffer` now bounds the
+   collection (a row window or a byte budget over the stored path/name/root text), and exceeding it
+   is an ERROR (exit 2, naming the flag) rather than a silent truncation - a summary computed over
+   part of the walk is indistinguishable from a correct one, which is the same reason
+   `--max-results` caps output without stopping the walk. The DEFAULT is deliberately no cap: any
+   number picked here would be a guess, and the point of the budget is that a run which would
+   exhaust memory says so instead. A measured default is the open question if one is ever wanted.
 
    **Name reuse: the `!` modifier, not an override flag.** A NAME is an identifier
    (`[A-Za-z_][A-Za-z0-9_]*`), which is what reserves punctuation for modifiers, and a node that
@@ -672,6 +677,41 @@ Two properties the implementation must keep, both learned the hard way while wri
 
 Current state: 165 first-party sources expected, 0 missing. Verified the guard FAILS (exit 1, naming
 the file) on a source that has no entry.
+
+## squashfs: bottom of the stack, read first (decided 2026-08-18)
+
+Build it when a concrete "search inside a snap / AppImage / firmware image" need appears, not for
+format completeness. Three parts in order: READ without lzo, then WRITE (create from a walk, then
+repack for modification), then lzo if ever.
+
+Structurally it is another container on the existing VFS seam and needs no FUSE at all - diving with
+`--archive` never mounts anything - and it is in some ways nicer than tar, because it has a real
+index (indexed directory lookup, indexed seeking within a file). Writing is multi-pass with
+backpatching, which is the ordinary shape here (buffered tabular renderers, `--sort=score`,
+`-collect`, the `-top` design). Two real constraints on writing: the output must be SEEKABLE, so
+packing to a pipe gets refused, and buffering the tree needs the bounded-memory treatment `-collect`
+has. Shipping without block dedup and tail-packing into fragments is valid but produces bigger images
+than mksquashfs - a quality gap, not a correctness one.
+
+The licensing is the load-bearing part, verified 2026-08-18:
+
+- **libsquashfs (squashfs-tools-ng) is LGPLv3** (its tools GPLv3), so it is unusable here: xff ships
+  statically linked single-file binaries, and LGPL-3 static linking obliges us to let recipients
+  relink. That is an obligation change, not a NOTICE line. Its writer lives in the same library, so
+  it does not solve packing either.
+- **squashfuse is 2-clause BSD** and, despite the name, is a genuine reader: indexed lookup, indexed
+  seeking, block caching, dedup and sparse files, xattrs, files over 4 GB. zlib / LZMA2 / LZ4 / zstd
+  built in; lzo only via optional liblzo2 (GPL-2), which we simply do not enable - so lzo drops out
+  by build configuration rather than by refusal logic.
+- **libsqsh (sqsh-tools)** is a library rather than a FUSE driver and may be the cleaner API; its
+  licence is NOT yet verified.
+- squashfs-tools-ng keeps lzo out of libsquashfs for exactly the GPL-2 reason, which independently
+  confirms the constraint.
+
+Shape when built: `@xff_squashfs` as its own build-flag-gated extra, the chosen reader vendored as a
+`third_party/` local module with a BUILD overlay (the pattern libfuse already uses), fixtures, a
+NOTICE entry, `--help=archive` rows, and its own CI wildcard - a missing wildcard means the extra has
+zero coverage.
 
 ## Remaining work
 

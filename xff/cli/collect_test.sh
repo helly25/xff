@@ -159,4 +159,41 @@ test::the_find_style_rejects_collect() {
   expect_output_contains "xff extension" "${out}"
 }
 
+test::buffer_bounds_the_collection_and_overflow_is_an_error() {
+  # A collection holds every match until the walk ends, so --buffer bounds it. Overflow FAILS rather
+  # than truncating: a summary computed over part of the walk looks exactly like a correct one.
+  local root out status
+  root="$(_make_tree "${FUNCNAME[0]}")"
+  status=0
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect --buffer=2 --summary --sort=dir 2>&1)" || status=$?
+  expect_eq "2" "${status}"
+  expect_output_contains "exceeded --buffer" "${out}"
+  expect_output_contains "2 rows" "${out}"
+}
+
+test::a_byte_budget_bounds_the_collection_too() {
+  local root out status
+  root="$(_make_tree "${FUNCNAME[0]}")"
+  status=0
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect --buffer=10B --summary --sort=dir 2>&1)" || status=$?
+  expect_eq "2" "${status}"
+  expect_output_contains "10 bytes" "${out}"
+}
+
+test::a_sufficient_buffer_collects_everything() {
+  local root out
+  root="$(_make_tree "${FUNCNAME[0]}")"
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect --buffer=100 --summary --sort=dir)"
+  expect_matches "total[[:space:]]+6[[:space:]]+210" "${out}"
+}
+
+test::without_a_buffer_flag_the_collection_is_unbounded() {
+  # The default is deliberately NO cap: a number chosen here would be a guess. --buffer is how a run
+  # that would exhaust memory is made to say so instead.
+  local root out
+  root="$(_make_tree "${FUNCNAME[0]}")"
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect --summary --sort=dir)"
+  expect_matches "total[[:space:]]+6[[:space:]]+210" "${out}"
+}
+
 test_runner
