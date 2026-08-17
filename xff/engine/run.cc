@@ -975,10 +975,17 @@ absl::Status ValidateScoreRanking(bool rank_by_score, const parser::Expr* expres
   if (!rank_by_score) {
     return absl::OkStatus();
   }
+  // Every primary that SETS the score, so adding one cannot leave ranking silently refusing it -
+  // which is exactly what -fuzzypath hit when it was added and this list said only "-fuzzy".
+  static constexpr std::array kScoringPrimaries =
+      std::to_array<std::string_view>({"-fuzzy", "-fuzzypath", "-ifuzzy", "-ifuzzypath"});
   const bool has_fuzzy =
-      expression != nullptr && (ContainsPrimary(*expression, "-fuzzy") || ContainsPrimary(*expression, "-ifuzzy"));
+      expression != nullptr && absl::c_any_of(kScoringPrimaries, [expression](std::string_view name) {
+        return ContainsPrimary(*expression, name);
+      });
   if (!has_fuzzy) {
-    return absl::InvalidArgumentError("needs -fuzzy or -ifuzzy in the expression");
+    return absl::InvalidArgumentError(
+        absl::StrCat("needs one of ", absl::StrJoin(kScoringPrimaries, ", "), " in the expression"));
   }
   if (is_tree || buffered) {
     // --format=tree nests by path and the aligned/markdown writers stream rows through a width

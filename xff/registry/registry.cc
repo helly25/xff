@@ -269,9 +269,32 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .style = Style::kXff,
     },
     {
+        .name = "-fuzzypath",
+        .summary = "match the whole path loosely: PATTERN's characters in order, gaps allowed (xff)",
+        .details = "`-fuzzy` for the whole PATH instead of the basename - the `-path` to its `-name`. Same "
+                   "SUBSEQUENCE match and same scoring, so `-fuzzypath eng/wlk` finds `xff/engine/walk.cc`, which "
+                   "no basename match could. It matches far more than `-fuzzy` does (every path shares its "
+                   "directories), so it is most useful RANKED: `--sort=score` puts the best match first, and "
+                   "`{fuzzy}` renders the score. Case follows `--case`; `-ifuzzypath` always folds. An xff "
+                   "extension `--config=find` rejects. Example: `xff . -fuzzypath eng/wlk --sort=score`.",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .style = Style::kXff,
+    },
+    {
         .name = "-ifuzzy",
         .summary = "match the basename loosely, case-insensitively (xff)",
         .details = "The always-case-insensitive `-fuzzy`: folds ASCII case regardless of `--case` or the volume.",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .fold_case = true,
+        .style = Style::kXff,
+    },
+    {
+        .name = "-ifuzzypath",
+        .summary = "match the whole path loosely, case-insensitively (xff)",
+        .details = "The always-case-insensitive `-fuzzypath`: folds ASCII case regardless of `--case` or the "
+                   "volume.",
         .kind = Kind::kTest,
         .arity = 1,
         .fold_case = true,

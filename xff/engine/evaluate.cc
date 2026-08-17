@@ -881,22 +881,33 @@ bool EvalName(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.name, flags);
 }
 
-// -fuzzy / -ifuzzy: the basename, matched as a subsequence of PATTERN (see //xff/fuzzy). Case
+// The subsequence match itself (see //xff/fuzzy), over whichever text the primary matches. Case
 // follows the same three-way rule -name uses: the always-folding variant, the FS-native default, or
 // an explicit --case.
-bool EvalFuzzy(const parser::Expr& expr, EvalContext& ctx) {
+bool EvalFuzzyOn(const parser::Expr& expr, EvalContext& ctx, std::string_view subject) {
   const bool fold = expr.descriptor->fold_case || ctx.fold_name_case || expr.case_fold;
   if (expr.args.empty()) {
     return false;
   }
   if (ctx.fuzzy_score == nullptr) {
-    return fuzzy::Matches(expr.args.front(), ctx.visit.name, fold);  // truth only: the cheap scan
+    return fuzzy::Matches(expr.args.front(), subject, fold);  // truth only: the cheap scan
   }
   // Something wants {fuzzy}, so pay for the alignment search. A later test overwrites an earlier
-  // one's score, which is what makes {fuzzy} "the last -fuzzy" rather than an arbitrary one.
-  const std::optional<int> score = fuzzy::Score(expr.args.front(), ctx.visit.name, fold);
+  // one's score, which is what makes {fuzzy} "the last fuzzy test" rather than an arbitrary one -
+  // and is why -fuzzy and -fuzzypath share one score slot rather than competing for two.
+  const std::optional<int> score = fuzzy::Score(expr.args.front(), subject, fold);
   *ctx.fuzzy_score = score;
   return score.has_value();
+}
+
+// -fuzzy / -ifuzzy: the BASENAME, the fzf-ish default.
+bool EvalFuzzy(const parser::Expr& expr, EvalContext& ctx) {
+  return EvalFuzzyOn(expr, ctx, ctx.visit.name);
+}
+
+// -fuzzypath / -ifuzzypath: the whole PATH, the -path to -fuzzy's -name.
+bool EvalFuzzyPath(const parser::Expr& expr, EvalContext& ctx) {
+  return EvalFuzzyOn(expr, ctx, ctx.visit.path);
 }
 
 bool EvalPath(const parser::Expr& expr, EvalContext& ctx) {
@@ -2232,7 +2243,9 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-mmin", {&EvalMmin}},
     DispatchPair{"-mtime", {&EvalMtime}},
     DispatchPair{"-fuzzy", {&EvalFuzzy}},
+    DispatchPair{"-fuzzypath", {&EvalFuzzyPath}},
     DispatchPair{"-ifuzzy", {&EvalFuzzy}},
+    DispatchPair{"-ifuzzypath", {&EvalFuzzyPath}},
     DispatchPair{"-name", {&EvalName}},
     DispatchPair{"-newer", {&EvalNewer}},
     DispatchPair{"-newerBB", {&EvalNewerXY}},  // birthtime -newerXY combos (BSD-compat)
