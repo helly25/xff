@@ -143,5 +143,45 @@ class FixEntriesTest(unittest.TestCase):
         self.assertNotIn("-nostdinc++", darwin[0]["arguments"])
 
 
+class LabelToExecrootPathTest(unittest.TestCase):
+    def test_main_repo_label_is_a_plain_path(self):
+        self.assertEqual(fcc.label_to_execroot_path("@@//xff/engine:run.cc"), "xff/engine/run.cc")
+
+    def test_external_repo_label_gets_the_external_prefix(self):
+        self.assertEqual(
+            fcc.label_to_execroot_path("@@xff_archive+//:archive_reader.cc"),
+            "external/xff_archive+/archive_reader.cc",
+        )
+
+    def test_root_package_does_not_double_the_slash(self):
+        # The bug this test exists for: naive string surgery yields `external/xff_archive+//file.cc`.
+        self.assertNotIn("//", fcc.label_to_execroot_path("@@xff_archive+//:archive_fs.cc"))
+
+
+class MissingFromDatabaseTest(unittest.TestCase):
+    def setUp(self):
+        self.remap = fcc.external_prefix_map(fcc.local_module_paths(_MODULE_BAZEL))
+
+    def test_reports_a_source_with_no_entry(self):
+        entries = [{"file": "xff/engine/run.cc", "arguments": []}]
+        missing = fcc.missing_from_database(entries, ["@@//xff/engine:run.cc", "@@//xff/engine:walk.cc"], self.remap)
+        self.assertEqual(missing, ["xff/engine/walk.cc"])
+
+    def test_an_extras_label_matches_its_REWRITTEN_entry(self):
+        # The comparison must go through the source-path remap: the label says `external/xff_archive+/`
+        # while the database has already been rewritten to `extra_modules/archive/`. Comparing raw
+        # spellings reports every extras file as missing when all of them are present.
+        entries = [{"file": "extra_modules/archive/archive_reader.cc", "arguments": []}]
+        self.assertEqual(fcc.missing_from_database(entries, ["@@xff_archive+//:archive_reader.cc"], self.remap), [])
+
+    def test_leading_dot_slash_in_an_entry_still_matches(self):
+        entries = [{"file": "./xff/engine/run.cc", "arguments": []}]
+        self.assertEqual(fcc.missing_from_database(entries, ["@@//xff/engine:run.cc"], self.remap), [])
+
+    def test_blank_lines_are_ignored(self):
+        entries = [{"file": "xff/engine/run.cc", "arguments": []}]
+        self.assertEqual(fcc.missing_from_database(entries, ["", "  ", "@@//xff/engine:run.cc"], self.remap), [])
+
+
 if __name__ == "__main__":
     unittest.main()

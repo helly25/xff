@@ -144,7 +144,22 @@ bazel run //:refresh_compile_commands -- --config=clang-tidy "${BCCE_ARGS[@]}" 2
 # lookup is by path, so those entries were unreachable and clang-tidy could not resolve an extra's own
 # header. On macOS it also drops the SDK libc++ `-nostdinc++ -cxx-isystem` pair, which mismatches the
 # hermetic clang++ that clang-tidy parses with.
+# The set every first-party source must be in. clang-tidy lints only what the database LISTS, so a
+# source bazel compiles but the extractor missed is silently unlinted - which already happened once to
+# every extras translation unit (see //:refresh_compile_commands) and looked like a clean run. The
+# query is the authority on "compiled", not a find over the tree: a file in no cc target is a
+# different problem. The comparison goes through the same source-path remap as the rewrite pass, or the
+# extras all look missing (their labels say `external/xff_archive+/...`, the database says
+# `extra_modules/archive/...`).
+EXPECTED_SOURCES="$(mktemp)"
+trap 'rm -f "${EXPECTED_SOURCES}"' EXIT
+for pattern in "//xff/..." $(python3 tools/extras.py --wildcards) "@xff_extras_api//..."; do
+  bazel query "filter(\"\\.cc$\", kind(\"source file\", deps(kind(\"cc_.* rule\", ${pattern}))))" 2>/dev/null \
+    | grep -E '^@@(//|xff_)' >>"${EXPECTED_SOURCES}" || true
+done
+
 python3 tools/fix_compile_commands.py compile_commands.json MODULE.bazel --system="$(uname -s)" \
+  --expect-sources="${EXPECTED_SOURCES}" \
   || die "post-processing compile_commands.json failed"
 
 echo "OK"
