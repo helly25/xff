@@ -101,6 +101,11 @@ bool ValidLabelName(std::string_view name) {
 }
 
 // Splits a leading `!` modifier off an attached name spec, reporting whether it was present.
+//
+// The `rest` view BORROWS from `spec`, so callers must pass a view over storage that outlives the
+// result - `std::string_view(token).substr(...)`, never `token.substr(...)`, which materialises a
+// temporary std::string and leaves `rest` dangling the moment the statement ends. That mistake was
+// mine and ASan caught it across every test that parses.
 struct LabelSpec {
   bool override_name = false;
   std::string_view rest;
@@ -310,7 +315,7 @@ class ExprParser {
       const std::string_view base = std::string_view(token).substr(0, eq);
       if (const registry::Descriptor* const descriptor = registry::Lookup(base);
           descriptor != nullptr && descriptor->binding == registry::Binding::kLabel) {
-        const LabelSpec spec = SplitLabelModifier(token.substr(eq + 1));
+        const LabelSpec spec = SplitLabelModifier(std::string_view(token).substr(eq + 1));
         if (spec.rest.empty()) {
           Fail(absl::StrCat("'", base, "=' needs a NAME"));
           return nullptr;
@@ -337,7 +342,7 @@ class ExprParser {
           descriptor != nullptr && descriptor->binding == registry::Binding::kLabelRegex) {
         // [!]NAME[=REGEX]: `!` allows this node to re-bind a NAME an earlier -capture already bound,
         // per instance rather than through a whole-run flag that would loosen every -capture at once.
-        const LabelSpec modifier = SplitLabelModifier(token.substr(eq + 1));
+        const LabelSpec modifier = SplitLabelModifier(std::string_view(token).substr(eq + 1));
         const std::string spec(modifier.rest);
         const std::string::size_type spec_eq = spec.find('=');
         std::string name = spec_eq == std::string::npos ? spec : spec.substr(0, spec_eq);
