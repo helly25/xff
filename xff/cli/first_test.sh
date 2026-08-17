@@ -78,13 +78,27 @@ test::a_capped_entry_is_gone_from_the_summary_too() {
   rm -rf "${root}"
 }
 
-test::first_zero_and_garbage_match_nothing_rather_than_everything() {
-  # Fail CLOSED: a cap that cannot be understood must not silently admit the whole tree.
-  local root out
+test::first_rejects_a_count_it_cannot_read() {
+  # A typo is an ERROR, not an empty result set. Matching nothing would be indistinguishable from a
+  # tree with no matches, so `-first nope` would look like a working command that found nothing.
+  local root out rc
   root="$(_make_tree)"
-  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -first 0 --sort=dir)"
-  expect_eq "" "${out}"
-  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -first nope --sort=dir)"
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -first nope 2>&1)" && rc=0 || rc="${?}"
+  expect_eq "2" "${rc}"
+  expect_output_contains "expects a count" "${out}"
+  expect_output_contains "nope" "${out}" # the message quotes what was actually typed
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -first -3 2>&1)" && rc=0 || rc="${?}"
+  expect_eq "2" "${rc}"
+  expect_output_contains "cannot be negative" "${out}"
+  rm -rf "${root}"
+}
+
+test::first_zero_is_valid_and_means_none() {
+  # Unlike a typo, 0 is unambiguous: the caller asked for no results and gets them.
+  local root out rc
+  root="$(_make_tree)"
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -first 0 --sort=dir)" && rc=0 || rc="${?}"
+  expect_eq "0" "${rc}"
   expect_eq "" "${out}"
   rm -rf "${root}"
 }

@@ -261,7 +261,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
                    "from everything downstream, `-first` genuinely narrows the result set (the summary sees only "
                    "those N); use `-collect` before it when you want the full set summarised and only a few "
                    "shown. Which N you get follows `--sort`, like any other order-dependent behaviour. An xff "
-                   "extension `--config=find` rejects. Example: `xff . -type f -first 20`.",
+                   "extension `--config=find` rejects. A count that cannot be read is a usage error rather than an "
+                   "empty result set - `-first nope` is a typo, and returning nothing would be "
+                   "indistinguishable from a tree with no matches; `-first 0` IS valid and means none. "
+                   "Example: `xff . -type f -first 20`.",
         .kind = Kind::kTest,
         .arity = 1,
         .style = Style::kXff,
