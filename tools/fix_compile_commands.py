@@ -132,11 +132,44 @@ def fix_entries(entries: list[dict], remap: dict[str, str], system: str) -> int:
     return rewritten
 
 
+def label_to_execroot_path(label: str) -> str:
+    """A bazel source label as the extractor spells the file: `@@repo+//pkg:file` -> `external/repo+/pkg/file`.
+
+    The main repo has an empty repo part (`@@//xff/engine:run.cc`), so it maps to the plain path.
+    """
+    match = re.match(r"^@@([^/]*)//([^:]*):(.*)$", label.strip())
+    if match is None:
+        return label.strip()
+    repo, package, name = match.groups()
+    prefix = "" if not repo else f"external/{repo}/"
+    return prefix + (f"{package}/{name}" if package else name)
+
+
+def missing_from_database(entries: list[dict], labels: list[str], remap: dict[str, str]) -> list[str]:
+    """First-party sources bazel compiles that the database has no entry for.
+
+    clang-tidy only lints what the database lists, so a source missing from it is silently unlinted -
+    which is not hypothetical: every extras translation unit was absent once (see //:refresh_compile_commands),
+    and the symptom was a clean-looking run. The comparison MUST go through `to_source_path`, because the
+    labels name `external/xff_archive+/...` while the database has already been rewritten to
+    `extra_modules/archive/...`; comparing the raw spellings reports all 42 extras files as missing when
+    every one of them is present.
+    """
+    have = {entry["file"].removeprefix("./") for entry in entries}
+    wanted = (to_source_path(label_to_execroot_path(label), remap) for label in labels if label.strip())
+    return sorted({path for path in wanted if path not in have})
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("database", help="path to compile_commands.json, rewritten in place")
     parser.add_argument("module_bazel", help="path to MODULE.bazel, read for local_path_override")
     parser.add_argument("--system", default="", help="`uname -s`; the macOS pass runs for Darwin")
+    parser.add_argument(
+        "--expect-sources",
+        default="",
+        help="file of bazel source labels that MUST have a database entry; a missing one fails the run",
+    )
     args = parser.parse_args()
 
     with open(args.module_bazel, encoding="utf-8") as module_file:
@@ -153,6 +186,23 @@ def main() -> int:
         f"{dropped} third-party C sources dropped",
         file=sys.stderr,
     )
+    if args.expect_sources:
+        with open(args.expect_sources, encoding="utf-8") as labels_file:
+            labels = sorted({line for line in labels_file.read().splitlines() if line.strip()})
+        missing = missing_from_database(entries, labels, remap)
+        print(
+            f"compile_commands.json: {len(labels)} first-party sources expected, {len(missing)} missing",
+            file=sys.stderr,
+        )
+        if missing:
+            print(
+                "compile_commands.json: these sources are compiled by bazel but absent from the database, "
+                "so clang-tidy silently skips them:",
+                file=sys.stderr,
+            )
+            for path in missing:
+                print(f"  {path}", file=sys.stderr)
+            return 1
     return 0
 
 

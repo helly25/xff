@@ -649,6 +649,30 @@ change, warning flags cannot affect it, and `tools/fix_compile_commands.py` alre
 of those entries from the database - so it is extractor chatter, not a build problem, and it is
 deliberately NOT papered over with another output filter.
 
+## Compile-database coverage guard (clang-tidy cannot lint what the database omits)
+
+`clang-tidy` lints only the files the database LISTS, so a source bazel compiles but the extractor
+missed is silently unlinted, and the run still looks clean. That is not hypothetical: every extras
+translation unit was absent once (the story is in `//:refresh_compile_commands`).
+
+`compile_commands-update.sh` now asks bazel which first-party `.cc` files are in a `cc_*` rule
+(`//xff/...`, the derived extras wildcards, `@xff_extras_api//...`) and fails if any lacks a database
+entry, naming the files. Bazel's query is the authority on "compiled" rather than a `find` over the
+tree - a file in no target is a different problem.
+
+Two properties the implementation must keep, both learned the hard way while writing it:
+
+- **The comparison goes through the same source-path remap as the rewrite pass.** Labels say
+  `external/xff_archive+/archive_reader.cc`; the post-processed database says
+  `extra_modules/archive/archive_reader.cc`. Comparing the raw spellings reports all 42 extras files
+  as missing when every one of them is present (measured: it did, and the "finding" was mine).
+- **Coverage, never equality.** The database legitimately holds entries the query does not name
+  (third-party headers, which `--features=parse_headers` makes their own TUs) and legitimately omits
+  the third-party C sources `tools/fix_compile_commands.py` drops.
+
+Current state: 165 first-party sources expected, 0 missing. Verified the guard FAILS (exit 1, naming
+the file) on a source that has no entry.
+
 ## Remaining work
 
 The backlog of features and infrastructure not yet built. Ordered by current
