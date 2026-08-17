@@ -1882,26 +1882,12 @@ std::map<std::string, std::string> ResolveDefines(const std::vector<std::string>
   return defines;
 }
 
-// Whether --capture-override permits re-binding a -capture NAME. Strict by
-// default (a duplicate name is an error); --capture-override (== =yes) allows it,
-// --capture-override=no restores strict. Last occurrence wins.
-bool CaptureOverride(const std::vector<std::string>& globals) {
-  bool allow = false;
-  for (const std::string& global : globals) {
-    if (global == "--capture-override" || global == "--capture-override=yes") {
-      allow = true;
-    } else if (global == "--capture-override=no") {
-      allow = false;
-    }
-  }
-  return allow;
-}
-
 // Collects the NAME of every -capture action in the expression (its args[0]).
 void CollectCaptureNames(const parser::Expr& expr, std::vector<std::string>* names) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate:
-      if (expr.descriptor->name == "-capture" && !expr.args.empty()) {
+      // A node with `!` (label_override) is ALLOWED to re-bind, so it is not reported as a duplicate.
+      if (expr.descriptor->name == "-capture" && !expr.args.empty() && !expr.label_override) {
         names->push_back(expr.args.front());
       }
       break;
@@ -1919,65 +1905,54 @@ void CollectCaptureNames(const parser::Expr& expr, std::vector<std::string>* nam
   }
 }
 
-// Whether --collect-override permits the same -collect NAME twice (merging both into one
-// collection). Strict by default, mirroring --capture-override; last occurrence wins.
-bool CollectOverride(const std::vector<std::string>& globals) {
-  bool allow = false;
-  for (const std::string& global : globals) {
-    if (global == "--collect-override" || global == "--collect-override=yes") {
-      allow = true;
-    } else if (global == "--collect-override=no") {
-      allow = false;
-    }
-  }
-  return allow;
+// Returns a -capture NAME bound more than once, or nullopt when all are unique.
+std::optional<std::string> DuplicateCaptureName(const parser::Expr& expr) {
+  std::vector<std::string> names;
+  CollectCaptureNames(expr, &names);
+  absl::c_sort(names);
+  const auto dup = absl::c_adjacent_find(names);
+  return dup == names.end() ? std::nullopt : std::optional<std::string>(*dup);
 }
 
-// Returns a -collect NAME used by more than one node, or nullopt when each is distinct. The names
-// come from the collect library, which reads them the same way the evaluator does.
+// Returns the -collect NAME a node REUSES without saying so, or nullopt when every reuse is marked.
+// A site carrying `!` (label_override) has declared the reuse deliberate, so it never reports; an
+// unmarked site whose name an earlier site already used does.
 std::optional<std::string_view> DuplicateCollectionName(const parser::Expr& expr) {
-  const std::vector<std::string_view> names = CollectionNames(expr);
-  for (std::size_t i = 1; i < names.size(); ++i) {
-    if (absl::c_count(names, names[i]) > 1) {
-      return names[i];
+  absl::flat_hash_set<std::string_view> seen;
+  for (const CollectSite& site : CollectSites(expr)) {
+    if (site.override_name) {
+      continue;  // `!` says the reuse is deliberate, so it neither reports nor blocks a later one
+    }
+    if (!seen.insert(site.name).second) {
+      return site.name;
     }
   }
   return std::nullopt;
 }
 
-// Returns a -capture NAME bound more than once, or nullopt when all are unique.
-std::optional<std::string> DuplicateCaptureName(const parser::Expr& expr) {
-  std::vector<std::string> names;
-  CollectCaptureNames(expr, &names);
-  std::sort(names.begin(), names.end());
-  const auto dup = std::adjacent_find(names.begin(), names.end());
-  return dup == names.end() ? std::nullopt : std::optional<std::string>(*dup);
-}
-
-// Reports the first NAME bound twice by a binding primary, returning true when it did (so the caller
-// stops before traversing). Both primaries fail closed for the same reason: a silently clobbered
-// -capture yields wrong DATA, and two -collect nodes merging into one bucket yields a wrong TOTAL,
-// and neither is distinguishable from a correct result when you read the output. Each has an explicit
-// override for the case where the merge is what you meant.
-bool ReportDuplicateBindingName(
-    const parser::Expr& expr,
-    const std::vector<std::string>& globals,
-    WalkErrorFn on_error) {
-  if (!CaptureOverride(globals)) {
-    if (const std::optional<std::string> dup = DuplicateCaptureName(expr); dup.has_value()) {
-      on_error(
-          "-capture",
-          absl::FailedPreconditionError(absl::StrCat("duplicate -capture name '", *dup, "'; use --capture-override")));
-      return true;
-    }
+// Reports a -capture NAME bound twice, returning true when it did (so the caller stops before
+// traversing). -capture BINDS a name to a value, so a second binding silently clobbers the first and
+// every later {capture.NAME} renders wrong data; -collect APPENDS, so a shared name silently doubles
+// what the summary reduces. One mechanism for both: the `!` modifier on the node that reuses the name
+// (`-capture=!NAME`, `-collect=!NAME`). It is per INSTANCE, which the whole-run --capture-override it
+// replaced could not be - that flag loosened every -capture in the command, including the ones the
+// author never thought about.
+bool ReportDuplicateBindingName(const parser::Expr& expr, WalkErrorFn on_error) {
+  if (const std::optional<std::string> dup = DuplicateCaptureName(expr); dup.has_value()) {
+    on_error(
+        "-capture",
+        absl::FailedPreconditionError(
+            absl::StrCat(
+                "duplicate -capture name '", *dup, "'; write '-capture=!", *dup, "' if the re-bind is meant")));
+    return true;
   }
-  if (!CollectOverride(globals)) {
-    if (const std::optional<std::string_view> dup = DuplicateCollectionName(expr); dup.has_value()) {
-      on_error(
-          "-collect",
-          absl::FailedPreconditionError(absl::StrCat("duplicate -collect name '", *dup, "'; use --collect-override")));
-      return true;
-    }
+  if (const std::optional<std::string_view> dup = DuplicateCollectionName(expr); dup.has_value()) {
+    on_error(
+        "-collect", absl::FailedPreconditionError(
+                        absl::StrCat(
+                            "duplicate -collect name '", *dup, "'; write '-collect=!", *dup,
+                            "' on the later one if sharing the collection is meant")));
+    return true;
   }
   return false;
 }
@@ -2516,7 +2491,7 @@ int RunFind(
   }
   // A NAME bound twice by -capture or -collect is a usage error before the walk (see
   // ReportDuplicateBindingName for why each one fails closed).
-  if (expression != nullptr && ReportDuplicateBindingName(*expression, command.globals, on_error)) {
+  if (expression != nullptr && ReportDuplicateBindingName(*expression, on_error)) {
     return 2;  // do not traverse
   }
   WalkOptions options;
@@ -2971,7 +2946,7 @@ int RunFind(
   // the AST (presence is SYNTACTIC, like find's implicit -print: a -collect in a branch that never
   // runs still switches the summary's source, and the summary is then legitimately empty).
   Collections collections;
-  const bool collecting = command.expression != nullptr && !CollectionNames(*command.expression).empty();
+  const bool collecting = command.expression != nullptr && !CollectSites(*command.expression).empty();
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
   // what it would remove without touching the filesystem.

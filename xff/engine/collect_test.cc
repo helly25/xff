@@ -28,8 +28,10 @@
 namespace xff::engine {
 namespace {
 
+using ::testing::AllOf;
 using ::testing::ElementsAre;
 using ::testing::Eq;
+using ::testing::Field;
 using ::testing::IsEmpty;
 using ::testing::SizeIs;
 
@@ -101,25 +103,30 @@ TEST_F(CollectTest, UnknownNameReadsAsEmptyRatherThanFailing) {
   EXPECT_THAT(collections.Entries("never-collected"), IsEmpty());
 }
 
+testing::Matcher<CollectSite> SiteIs(std::string_view name, bool override_name) {
+  return AllOf(
+      Field("name", &CollectSite::name, name), Field("override_name", &CollectSite::override_name, override_name));
+}
+
 TEST_F(CollectTest, BareCollectUsesTheDefaultName) {
   MBO_ASSERT_OK_AND_ASSIGN(const parser::Command cmd, parser::Parse({".", "-collect"}));
-  EXPECT_THAT(CollectionNames(*cmd.expression), ElementsAre(kDefaultCollection));
+  EXPECT_THAT(CollectSites(*cmd.expression), ElementsAre(SiteIs(kDefaultCollection, false)));
 }
 
 TEST_F(CollectTest, NamedCollectReportsItsName) {
   MBO_ASSERT_OK_AND_ASSIGN(const parser::Command cmd, parser::Parse({".", "-collect=big"}));
-  EXPECT_THAT(CollectionNames(*cmd.expression), ElementsAre("big"));
+  EXPECT_THAT(CollectSites(*cmd.expression), ElementsAre(SiteIs("big", false)));
 }
 
-TEST_F(CollectTest, NamesKeepDuplicatesInAstOrderSoTheDriverCanRejectThem) {
+TEST_F(CollectTest, SitesKeepAstOrderAndCarryTheBangModifier) {
   MBO_ASSERT_OK_AND_ASSIGN(
-      const parser::Command cmd, parser::Parse({".", "-collect=a", "-o", "-collect=b", "-o", "-collect=a"}));
-  EXPECT_THAT(CollectionNames(*cmd.expression), ElementsAre("a", "b", "a"));
+      const parser::Command cmd, parser::Parse({".", "-collect=a", "-o", "-collect=b", "-o", "-collect=!a"}));
+  EXPECT_THAT(CollectSites(*cmd.expression), ElementsAre(SiteIs("a", false), SiteIs("b", false), SiteIs("a", true)));
 }
 
-TEST_F(CollectTest, AnExpressionWithoutCollectReportsNoNames) {
+TEST_F(CollectTest, AnExpressionWithoutCollectReportsNoSites) {
   MBO_ASSERT_OK_AND_ASSIGN(const parser::Command cmd, parser::Parse({".", "-type", "f"}));
-  EXPECT_THAT(CollectionNames(*cmd.expression), IsEmpty());
+  EXPECT_THAT(CollectSites(*cmd.expression), IsEmpty());
 }
 
 }  // namespace

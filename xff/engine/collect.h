@@ -78,10 +78,18 @@ class Collections {
   absl::btree_map<std::string, std::vector<CollectedEntry>> by_name_;
 };
 
-// The collection name each `-collect` node in `expr` writes to, in AST order, with duplicates
-// intact: the driver needs the repetition to apply the duplicate-name rule, and the count to know
-// whether any `-collect` is present at all. A bare `-collect` reports kDefaultCollection.
-[[nodiscard]] std::vector<std::string_view> CollectionNames(const parser::Expr& expr);
+// One `-collect` node: the collection it writes to, and whether it carried the `!` modifier saying a
+// name an earlier node already used is deliberate.
+struct CollectSite {
+  std::string_view name;
+  bool override_name = false;
+};
+
+// Every `-collect` node in `expr`, in AST order, duplicates intact. Two readings come off this one
+// walk: PRESENCE (any node at all switches what the reduction sinks read) and the DUPLICATE-name rule
+// (a name reused by a node without `!` is a usage error). A bare `-collect` reports
+// kDefaultCollection.
+[[nodiscard]] std::vector<CollectSite> CollectSites(const parser::Expr& expr);
 
 }  // namespace xff::engine
 

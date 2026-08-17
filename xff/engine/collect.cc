@@ -26,19 +26,23 @@
 namespace xff::engine {
 namespace {
 
-// Walks the expression tree appending one name per `-collect` node, in AST order.
-void AppendCollectionNames(const parser::Expr& expr, std::vector<std::string_view>& names) {
+// Walks the expression tree appending one site per `-collect` node, in AST order.
+void AppendCollectSites(const parser::Expr& expr, std::vector<CollectSite>& sites) {
   if (expr.kind == parser::Expr::Kind::kPredicate) {
     if (expr.descriptor != nullptr && expr.descriptor->name == "-collect") {
-      names.push_back(expr.args.empty() || expr.args.front().empty() ? kDefaultCollection : expr.args.front());
+      sites.push_back(
+          CollectSite{
+              .name = expr.args.empty() || expr.args.front().empty() ? kDefaultCollection : expr.args.front(),
+              .override_name = expr.label_override,
+          });
     }
     return;
   }
   if (expr.lhs != nullptr) {
-    AppendCollectionNames(*expr.lhs, names);
+    AppendCollectSites(*expr.lhs, sites);
   }
   if (expr.rhs != nullptr) {
-    AppendCollectionNames(*expr.rhs, names);
+    AppendCollectSites(*expr.rhs, sites);
   }
 }
 
@@ -92,10 +96,10 @@ std::size_t Collections::Size() const {
   return total;
 }
 
-std::vector<std::string_view> CollectionNames(const parser::Expr& expr) {
-  std::vector<std::string_view> names;
-  AppendCollectionNames(expr, names);
-  return names;
+std::vector<CollectSite> CollectSites(const parser::Expr& expr) {
+  std::vector<CollectSite> sites;
+  AppendCollectSites(expr, sites);
+  return sites;
 }
 
 }  // namespace xff::engine

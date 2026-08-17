@@ -88,25 +88,47 @@ test::a_named_collection_reads_like_the_default_one() {
   expect_matches "total[[:space:]]+6[[:space:]]+210" "${out}"
 }
 
-test::a_duplicate_name_is_an_error_naming_the_override() {
-  # Two sinks silently sharing a bucket would show up only as a wrong total, so it fails closed.
+test::sharing_a_name_needs_the_bang_modifier() {
+  # Sharing is supported but must be explicit: `!` on the later node. Per node rather than a whole-run
+  # flag, so it cannot quietly loosen the other -collect in a long command.
   local root out status
   root="$(_make_tree "${FUNCNAME[0]}")"
   status=0
-  out="$(cd "${root}" && "$(_xff_bin)" --exact . -collect=a -o -collect=a --summary 2>&1)" || status=$?
-  expect_eq "2" "${status}"
-  expect_output_contains "duplicate -collect name 'a'" "${out}"
-  expect_output_contains "--collect-override" "${out}"
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . \( -type f -collect=all \) -o \( -type d -collect=!all \) --summary --sort=dir)" || status=$?
+  expect_eq "0" "${status}"
+  # The six files plus the root directory, gathered into one collection by two different nodes.
+  expect_matches "total[[:space:]]+7" "${out}"
 }
 
-test::collect_override_allows_the_duplicate() {
+test::an_unmarked_repeat_is_an_error_naming_the_modifier() {
+  # A silently shared collection shows up only as a doubled total, so it fails closed and the message
+  # spells the fix.
   local root out status
   root="$(_make_tree "${FUNCNAME[0]}")"
   status=0
-  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect=a -collect=a --collect-override --summary)" || status=$?
-  expect_eq "0" "${status}"
-  # Both nodes ran on every entry, so the merged collection holds each entry twice.
-  expect_matches "total[[:space:]]+12" "${out}"
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect=a -collect=a --summary 2>&1)" || status=$?
+  expect_eq "2" "${status}"
+  expect_output_contains "duplicate -collect name 'a'" "${out}"
+  expect_output_contains "-collect=!a" "${out}"
+}
+
+test::a_marked_repeat_collects_each_entry_twice() {
+  # What `!` opts into: both nodes append, so an entry reached by both is collected twice.
+  local root out
+  root="$(_make_tree "${FUNCNAME[0]}")"
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect=a -collect=!a --summary --sort=dir)"
+  expect_matches "total[[:space:]]+12[[:space:]]+420" "${out}"
+}
+
+test::a_name_must_be_an_identifier() {
+  # Punctuation in a NAME is reserved for modifiers (that is what makes `!` unambiguous), and a name is
+  # referenced as an identifier anyway.
+  local root out status
+  root="$(_make_tree "${FUNCNAME[0]}")"
+  status=0
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect=bad-name --summary 2>&1)" || status=$?
+  expect_eq "2" "${status}"
+  expect_output_contains "is not a NAME" "${out}"
 }
 
 test::an_empty_name_is_a_usage_error() {

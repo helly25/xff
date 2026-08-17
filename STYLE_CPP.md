@@ -184,6 +184,26 @@ clang-format picks a layout per line; these habits steer it toward the readable 
   on the first match is an `absl::c_any_of` with a lambda; a reserve-then-push copy into a
   `std::vector` is range construction `std::vector<T>(src.begin(), src.end())`. Keep a raw
   loop only when it builds a non-trivial structure no algorithm expresses cleanly.
+- **When you do write a loop, it is a RANGE-BASED for; an index loop needs a reason.** The
+  legitimate reasons are narrow: you need the index itself as a value, or you walk two parallel
+  sequences in lockstep (`specs[i]` with `cells_per_sink[i]`). "I need the elements" is not one -
+  `for (const Foo& foo : foos)` says what the loop visits, cannot run off the end, and does not
+  invite `foos[i]` typos. `modernize-loop-convert` catches the mechanical cases; the judgement
+  ones are on you.
+- **Never index in order to look BACK at earlier elements - carry the state instead.** Re-scanning
+  the prefix is both the wrong shape (it hides an O(n^2) in what reads like a single pass) and
+  unnecessary: a `seen` set or map answers "have I met this already?" in one range-based pass.
+
+  ```cpp
+  absl::flat_hash_set<std::string_view> seen;                    // one pass, O(n), says what it means
+  for (const CollectSite& site : CollectSites(expr)) {
+    if (!seen.insert(site.name).second) return site.name;
+  }
+  for (std::size_t i = 1; i < sites.size(); ++i) {               // no: index only to re-scan [0, i)
+    if (absl::c_count(names, names[i]) > 1) return names[i];     //     and quadratic while at it
+  }
+  ```
+
 - **Container choice: prefer the Abseil containers over the bare `std::` ones.** The reason is
   in their favor, not against `std::`: the Abseil variants are faster, support transparent
   (heterogeneous) lookup - find in a `std::string`-keyed map with a `std::string_view`, no

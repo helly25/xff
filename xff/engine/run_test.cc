@@ -1107,7 +1107,7 @@ TEST_F(RunTest, CaptureChainsPriorOutputs) {
 }
 
 TEST_F(RunTest, DuplicateCaptureNameIsErrorByDefault) {
-  // Two -capture actions binding the same NAME, no --capture-override -> exit 2,
+  // Two -capture actions binding the same NAME, neither carrying `!` -> exit 2,
   // reported before traversal (silent clobbering would mean wrong data).
   MBO_ASSERT_OK_AND_ASSIGN(
       const auto command, parser::Parse(
@@ -1119,12 +1119,11 @@ TEST_F(RunTest, DuplicateCaptureNameIsErrorByDefault) {
   EXPECT_THAT(errors, 1);
 }
 
-TEST_F(RunTest, CaptureOverrideAllowsDuplicateNameLastWins) {
+TEST_F(RunTest, BangModifierAllowsDuplicateCaptureNameLastWins) {
   MBO_ASSERT_OK_AND_ASSIGN(
-      const auto command,
-      parser::Parse(
-          {"--capture-override", "--template={capture.x}", root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh",
-           "-c", "printf a", ";", "-capture=x", "/bin/sh", "-c", "printf b", ";"}));
+      const auto command, parser::Parse(
+                              {"--template={capture.x}", root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh",
+                               "-c", "printf a", ";", "-capture=!x", "/bin/sh", "-c", "printf b", ";"}));
   std::vector<std::string> records;
   RunFind(
       command, fs_,
@@ -1136,7 +1135,7 @@ TEST_F(RunTest, CaptureOverrideAllowsDuplicateNameLastWins) {
         records.push_back(std::move(text));
       },
       [](std::string_view, absl::Status) {});
-  EXPECT_THAT(records, UnorderedElementsAre("b"));  // last -capture wins under --capture-override
+  EXPECT_THAT(records, UnorderedElementsAre("b"));  // the `!` node re-binds, so the last -capture wins
 }
 
 TEST_F(RunTest, UnusedCaptureIsError) {
