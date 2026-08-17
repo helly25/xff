@@ -2430,6 +2430,25 @@ void FeedHistograms(
   }
 }
 
+// The run's collection store, budgeted from --buffer and marked active when the expression collects
+// at all. --buffer bounds it the same way it bounds a column buffer: a row window or a byte budget.
+// The default is NO cap, because a number picked here would be a guess; the budget exists so that a
+// run which would exhaust memory says so instead of dying.
+Collections MakeCollections(const parser::Expr* expression, const std::vector<std::string>& globals) {
+  Collections collections;
+  if (expression == nullptr || CollectSites(*expression).empty()) {
+    return collections;
+  }
+  collections.SetActive(true);
+  const BufferBound bound = ResolveBufferBound(globals, format::ColumnBuffer::kAll);
+  collections.SetBudget(
+      Collections::Budget{
+          .rows = bound.window == format::ColumnBuffer::kAll ? 0 : bound.window,
+          .bytes = bound.byte_budget,
+      });
+  return collections;
+}
+
 // The -collect post-walk pass: feeds every collected entry into the reduction sinks, in collection
 // name order then walk order. `-collect` exists so that a truncating test can narrow the LISTING
 // without also narrowing what is summarised, which is only possible if the sinks read a set the walk
@@ -2466,6 +2485,38 @@ void FeedCollections(
       FeedHistograms(histograms, histogram_cells, visit);
     }
   }
+}
+
+// The collection's post-walk step: refuse an INCOMPLETE collection, otherwise feed the reduction
+// sinks from it. Returns 0 to carry on, or the exit code the driver must return.
+//
+// Overflow is a hard stop rather than a truncation because every sink downstream would otherwise
+// report a plausible number computed over part of the walk, which is indistinguishable from a
+// correct one - the same reason --max-results caps output without stopping the walk.
+int FinishCollections(
+    const Collections& collections,
+    WalkErrorFn on_error,
+    const std::vector<SummarySpec>& summaries,
+    const std::vector<std::optional<fields::Template>>& summary_templates,
+    std::vector<SummaryCells>& summary_cells,
+    const std::vector<HistogramSpec>& histograms,
+    std::vector<std::map<std::string, HistCell>>& histogram_cells,
+    const CollectionRenderDefaults& defaults) {
+  if (collections.Overflowed()) {
+    const Collections::Budget budget = collections.CurrentBudget();
+    on_error(
+        "-collect",
+        absl::ResourceExhaustedError(
+            absl::StrCat(
+                "the collection exceeded --buffer (",
+                budget.rows != 0 ? absl::StrCat(budget.rows, " rows") : absl::StrCat(budget.bytes, " bytes"),
+                "); raise --buffer or narrow the expression")));
+    return 2;
+  }
+  if (collections.Active() && (!summaries.empty() || !histograms.empty())) {
+    FeedCollections(collections, defaults, summaries, summary_templates, summary_cells, histograms, histogram_cells);
+  }
+  return 0;
 }
 
 }  // namespace
@@ -2945,8 +2996,7 @@ int RunFind(
   // -collect[=NAME]: the entries held back for the post-walk reduction. `collect_names` is read from
   // the AST (presence is SYNTACTIC, like find's implicit -print: a -collect in a branch that never
   // runs still switches the summary's source, and the summary is then legitimately empty).
-  Collections collections;
-  const bool collecting = command.expression != nullptr && !CollectSites(*command.expression).empty();
+  Collections collections = MakeCollections(command.expression.get(), command.globals);
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
   // what it would remove without touching the filesystem.
@@ -3272,7 +3322,7 @@ int RunFind(
           // --summary / --histogram reduce matches instead of printing them; explicit
           // actions (-print/-exec) still ran via Evaluate. In --shards mode the reductions
           // aggregate per logical set instead (fed post-walk), so skip the per-file feed here.
-          if (!shards.enabled && counted && !collecting) {
+          if (!shards.enabled && counted && !collections.Active()) {
             // Accumulate this entry into each --summary sink. The field-template render context is
             // built once and shared: an m// extraction contributes a value stream (one count per
             // extracted line, size not attributed -- a per-line key would double-count the file's
@@ -3559,18 +3609,19 @@ int RunFind(
     }
   }
 
-  // -collect: the reductions read the COLLECTION rather than what matched (FeedCollections).
-  if (collecting && (!summaries.empty() || !histograms.empty())) {
-    const CollectionRenderDefaults defaults{
-        .fs = walk_fs,
-        .tz = tz,
-        .time_format = time_format,
-        .zone_suffix = zone_suffix,
-        .hash_algorithm = hash_algorithm,
-        .hash_encoding = hash_encoding,
-        .defines = defines,
-    };
-    FeedCollections(collections, defaults, summaries, summary_templates, summary_cells, histograms, histogram_cells);
+  if (const int collect_status = FinishCollections(
+          collections, on_error, summaries, summary_templates, summary_cells, histograms, histogram_cells,
+          CollectionRenderDefaults{
+              .fs = walk_fs,
+              .tz = tz,
+              .time_format = time_format,
+              .zone_suffix = zone_suffix,
+              .hash_algorithm = hash_algorithm,
+              .hash_encoding = hash_encoding,
+              .defines = defines,
+          });
+      collect_status != 0) {
+    return collect_status;
   }
 
   // --summary: emit one accumulated table per sink -- a row per group (the map is ordered) plus a

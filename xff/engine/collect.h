@@ -58,8 +58,34 @@ struct CollectedEntry {
 // several collections reports them in a stable order regardless of walk order or thread timing.
 class Collections {
  public:
-  // Appends `visit` to `name`, copying what the entry needs to outlive the walk.
-  void Add(std::string_view name, const Visit& visit);
+  // The row / byte ceiling a collection may occupy, from `--buffer` (0 = no limit, the default).
+  // Bytes count the stored path, name and root text, which is what a collection actually holds on to.
+  struct Budget {
+    std::size_t rows = 0;
+    std::size_t bytes = 0;
+  };
+
+  void SetBudget(Budget budget) { budget_ = budget; }
+
+  // Whether the expression has any `-collect` at all, which is what switches the reduction sinks to
+  // read this collection. Carried here so the driver needs no separate flag beside the store.
+  void SetActive(bool active) { active_ = active; }
+
+  [[nodiscard]] bool Active() const { return active_; }
+
+  // Appends `visit` to `name`, copying what the entry needs to outlive the walk. Returns false once
+  // the budget is exceeded, and then keeps returning false without storing anything more.
+  //
+  // Overflow is a hard stop for the CALLER to report, never a silent truncation: a collection feeds
+  // --summary, and a summary computed over "some of the matches" is indistinguishable from a correct
+  // one. That is the same reason --max-results caps output without stopping the walk.
+  bool Add(std::string_view name, const Visit& visit);
+
+  // True once an Add was refused because the budget was reached.
+  [[nodiscard]] bool Overflowed() const { return overflowed_; }
+
+  // The budget in force, for the caller's diagnostic.
+  [[nodiscard]] Budget CurrentBudget() const { return budget_; }
 
   // The collected entries for `name`, or an empty span when nothing collected under it (which is
   // the honest answer for a `-collect` in a branch that never ran).
@@ -76,6 +102,11 @@ class Collections {
 
  private:
   absl::btree_map<std::string, std::vector<CollectedEntry>> by_name_;
+  Budget budget_;
+  bool active_ = false;
+  std::size_t rows_ = 0;
+  std::size_t bytes_ = 0;
+  bool overflowed_ = false;
 };
 
 // One `-collect` node: the collection it writes to, and whether it carried the `!` modifier saying a

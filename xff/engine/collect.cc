@@ -60,7 +60,14 @@ Visit CollectedEntry::AsVisit() const {
   };
 }
 
-void Collections::Add(std::string_view name, const Visit& visit) {
+bool Collections::Add(std::string_view name, const Visit& visit) {
+  const std::size_t entry_bytes = visit.path.size() + visit.name.size() + visit.root.size();
+  if ((budget_.rows != 0 && rows_ + 1 > budget_.rows) || (budget_.bytes != 0 && bytes_ + entry_bytes > budget_.bytes)) {
+    overflowed_ = true;
+    return false;
+  }
+  rows_ += 1;
+  bytes_ += entry_bytes;
   by_name_[std::string(name)].push_back(
       CollectedEntry{
           .path = std::string(visit.path),
@@ -71,6 +78,7 @@ void Collections::Add(std::string_view name, const Visit& visit) {
           .fs = visit.fs,
           .fs_owner = visit.fs_owner,
       });
+  return true;
 }
 
 const std::vector<CollectedEntry>& Collections::Entries(std::string_view name) const {
