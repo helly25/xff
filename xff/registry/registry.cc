@@ -249,6 +249,23 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .cost = Cost::kExpensive,
         .topic = "content",
     },
+    // xff -first: the streaming half of result-set shaping (see TODO.md's pinned design). A TEST
+    // that keeps a counter: nothing about a test forbids state, it just owes a truth value.
+    {
+        .name = "-first",
+        .summary = "true for the first N entries this instance sees, false after (xff)",
+        .details = "Caps a result set as it streams: TRUE for the first N entries reaching it, FALSE from then "
+                   "on. The count is PER USE, not per run, so each `-first` keeps its own budget - "
+                   "`\\( -type f -first 10 \\) -o \\( -type d -first 5 \\)` yields ten files AND five "
+                   "directories, which no whole-run flag could express. Because a FALSE test removes the entry "
+                   "from everything downstream, `-first` genuinely narrows the result set (the summary sees only "
+                   "those N); use `-collect` before it when you want the full set summarised and only a few "
+                   "shown. Which N you get follows `--sort`, like any other order-dependent behaviour. An xff "
+                   "extension `--config=find` rejects. Example: `xff . -type f -first 20`.",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .style = Style::kXff,
+    },
     // xff -fuzzy: approximate NAME matching, the fzf/fd style of "type a few letters and find it".
     {
         .name = "-fuzzy",

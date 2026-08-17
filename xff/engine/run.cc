@@ -2806,6 +2806,8 @@ int RunFind(
   // by {fuzzy} when the entry is rendered. Run-scoped rather than per-entry so the two phases can
   // share it; the walk clears it before each evaluation.
   std::optional<int> fuzzy_score;
+  // -first N budgets, one per instance, for the whole run (see EvalContext::first_counts).
+  std::map<const parser::Expr*, int> first_counts;
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
   // what it would remove without touching the filesystem.
@@ -3076,6 +3078,7 @@ int RunFind(
             .captures = exec_fields ? &captures : nullptr,
             .defines = &defines,
             .outputs = &outputs,
+            .first_counts = &first_counts,
             .confirm = confirm,
             .exec_batches = &exec_batches,
             .parallel_exec = options.workers > 1 ? &parallel_exec : nullptr,

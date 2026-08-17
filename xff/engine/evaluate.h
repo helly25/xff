@@ -154,6 +154,11 @@ struct EvalContext {
   std::vector<std::string>* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off
   const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
   std::map<std::string, std::string>* outputs = nullptr;  // -capture results for {capture.NAME} (mutable, per entry)
+  // -first N: how many entries each instance has admitted so far, keyed by its AST node so two
+  // `-first` in different branches keep separate budgets. Owned by the driver for the whole run
+  // (unlike `outputs`, which is per entry) - the count is the point. Emission is single-threaded
+  // (see walk.h), so a plain map needs no synchronisation.
+  std::map<const parser::Expr*, int>* first_counts = nullptr;
   std::function<bool(std::string_view)> confirm;  // -ok prompt sink: returns true to run the command; empty -> decline
   // Accumulates matched items per `-exec/-execdir ... +` node for the end-of-walk
   // batch flush: outer key the Expr node, inner key the directory ("" for -exec's
