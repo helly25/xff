@@ -39,9 +39,9 @@ struct CollectTest : ::testing::Test {
   // A Visit over caller-owned storage, so a test can let that storage die and prove the collection
   // still reads correctly (the reason CollectedEntry copies rather than borrows).
   static Visit MakeVisit(
-      const std::string& path,
-      const std::string& name,
-      const std::string& root,
+      std::string_view path,
+      std::string_view name,
+      std::string_view root,
       const vfs::Metadata& metadata,
       int depth = 1) {
     return Visit{.path = path, .name = name, .root = root, .depth = depth, .metadata = metadata};
