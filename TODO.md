@@ -511,6 +511,89 @@ must print the skip line, and must NOT print it without the flag).
   discards the gate's; a gate script piped to `tail` reported success while aborting on an unbound
   variable. Capture output, then read the real exit code.
 
+## Result-set shaping: -first, -top, -collect, --max-results (design of record, 2026-08-17)
+
+Ratified with the user. Supersedes the `--top=N` / `--fuzzy-cutoff` sketch: **none of these are
+globals.** They are expression primaries, because the interesting behaviour is per-invocation and
+positional, which a whole-run flag cannot express.
+
+### The insight that shapes everything else
+
+A test that returns FALSE removes the entry from EVERYTHING downstream - the summary, the
+histograms, the count, every action. So a truncating test can never also mean "summarise all of it
+but show me a few": by the time the summary runs, the entries are gone. That is not a wrinkle to
+work around; it is why `-collect` exists.
+
+### The vocabulary
+
+- **`-first N`** - a TEST, true for the first N entries it sees, false after. Stateful, and that is
+  fine: a test only owes a truth value, and keeping a counter is its own business. State is
+  PER INSTANCE (keyed to the AST node), which is exactly what a global could not do:
+  `xff . \( -type f -first 10 \) -o \( -type d -first 5 \)` is ten files AND five directories.
+  Truth is immediate, so it streams and its early stop is trivially safe.
+- **`-top N[:PCT%]`** - a TEST that keeps the N best by `-fuzzy` score, with an optional cutoff
+  expressed as a percentage of that pattern's own ceiling (`Score(pattern, pattern)` - matched at a
+  word start, all consecutive, no gaps). A percentage because a raw score is only comparable within
+  one pattern. Multiple instances, each with its own bucket.
+  - **The separator is `:`, NOT `>`.** `-top 25>80%` is shell redirection: unquoted it creates a
+    file named `80%` and silently passes `-top 25`. `:` also matches `--histogram=BUCKET[:MEASURE]`.
+  - **The contract is EXACT**: the final result is precisely the N best. Streaming
+    over-approximation is an implementation detail - per-thread bounded heaps merged at the end -
+    and must never leak. Bloom filters do NOT fit here: they cannot rank and their false positives
+    would put wrong entries in the result (see the shingling entry, where they DO fit).
+  - **Therefore `-top` is a deferral point**: it cannot answer until the walk ends, so everything to
+    its RIGHT is evaluated in a second pass over the survivors. This is a feature, not a cost -
+    `-top 10 -exec rm {} \;` then deletes exactly those ten, which was the reading the user had from
+    the start. The cutoff is the optimisation that permits an early stop (once N entries clear it,
+    the running top N IS the final top N), never the thing that makes it correct.
+- **`-collect[=NAME]`** - an ACTION that adds the entry to a named collection for a later sink.
+  `-collect=NAME` needs no new parser work: `-capture=NAME cmd \;` already uses `Binding::kLabelRegex`
+  from #68, and `-text=posix` shows the plain optional value. The unnamed form is just the default
+  name, so there is no special case for "the anonymous one". Duplicate NAME copies `-capture`'s rule
+  verbatim: an error, with an explicit override - two named sinks silently merging would only show up
+  as a wrong summary. It holds every matched entry, so it wants `--buffer`'s row/byte budget
+  vocabulary rather than growing unbounded.
+  - **Presence of any `-collect` switches what `--summary` reads** (the collection instead of "what
+    matched"). That is the rule find already has for the implicit `-print`, which an explicit action
+    suppresses - so it is a rule users have learned once here, not a new special case. Presence is
+    SYNTACTIC, so a `-collect` in a branch that never executes still switches the source and the
+    summary is then empty; consistent with implicit-print, surprising exactly once, so it needs an
+    example in the docs rather than discovery.
+
+### Order is what selects the reading
+
+```sh
+-collect -top 10 -ls --summary   # collect all, list the 10 best, summary over ALL
+-top 10 -collect --summary       # collect only the 10, summary over those, and NO listing
+```
+
+The second prints nothing extra because `-collect` is an action, so the implicit print is
+suppressed and nothing else asked to print. Summary-only falls out of the existing rule instead of
+needing a `--quiet`. This is the whole reason these are primaries: a position-independent global
+(AGENTS.md hoists `--` globals deliberately) makes both spellings identical and neither reading
+expressible.
+
+### `--max-results` - and when it is pointless
+
+The one genuine global here: an aggregate output ceiling. Call out plainly that it is only
+irreducible when MULTIPLE capped filters are active - with a single `-first 10` the cap already IS
+ten, and with no capped filter it is just `-first N` spelled as a global. Its unique job:
+
+```sh
+xff . \( -type f -first 10 \) -o \( -type d -first 5 \) --max-results 12
+```
+
+Fifteen pass the filters; only an aggregate bound can say twelve. It caps OUTPUT and does not stop
+the walk, because a summary or count that silently went partial is the same failure as the one above,
+one level up; an early stop stays an explicit opt-in.
+
+### Build order (by machinery, not preference)
+
+1. **`-first N`** - immediate truth, no deferral, per-instance counter. Standalone.
+2. **`-collect[=NAME]`** - an action; makes `--summary` read the collection.
+3. **`-top N[:PCT%]`** - needs the two-phase evaluation, the parallel merge, and the cutoff.
+4. **`--max-results`** - once more than one cap can be active, so the flag has a reason to exist.
+
 ## Remaining work
 
 The backlog of features and infrastructure not yet built. Ordered by current
@@ -1739,10 +1822,9 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
          rows through a width buffer, so either would silently ignore the ranking - and the message
          names the streaming formats that do work. Only the listing is reordered; `-exec` and friends
          still run during the walk, so their output stays where it happened.
-       - **Still open: `--top=N`.** Whether it is fuzzy-specific or a general "first N after sorting"
-         is undecided, and it is now a small change on top of the buffer `--sort=score` already
-         keeps. A relative score threshold (a fraction of the best score in the run) becomes possible
-         at the same point, for the same reason.
+       - **Result-set shaping is now its own pinned design, below** (`-first`, `-top`, `-collect`,
+         `--max-results`). What started as "`--top=N`, probably" turned out to be a family, and to
+         belong in the EXPRESSION rather than in globals.
      - **A path-matching variant: `-fuzzypath` / `-ifuzzypath` SHIPPED.** The `-path` to `-fuzzy`'s
        `-name`, sharing one implementation (the matcher takes its subject) and one score slot, so
        `{fuzzy}` stays "the last fuzzy test" rather than growing a second value. It deliberately
@@ -1763,7 +1845,11 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
      matcher against a reference file via the field vocabulary, like `-cmp`/`-diff` take a target),
      and grouping near-duplicates across the walk (a reduction, like `--summary`, emitting clusters).
      Design against the existing content/text machinery (`-text` gating, the content readers) and the
-     hashing lib (MinHash wants a fast hash; reuse xff/hash or mbo::digest). Open: shingle width w and
+     hashing lib (MinHash wants a fast hash; reuse xff/hash or mbo::digest). **Bloom filters belong HERE,
+     not in `-top`**: a probabilistic pre-filter legitimately narrows candidate PAIRS before an exact
+     Jaccard check, because a false positive only costs a wasted comparison. The same false positive in
+     `-top` would put a wrong entry in the result, which its exactness contract forbids.
+     Open: shingle width w and
      the similarity threshold as flags; whether v1 is the pairwise matcher only, deferring the
      cross-tree clustering reduction. Likely a build-time extra if it pulls weight.
 - **Untested `cc_library` targets + a lint to keep them from reappearing (opened 2026-08-10; RESOLVED
