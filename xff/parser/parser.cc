@@ -276,6 +276,23 @@ class ExprParser {
       ++pos_;
       return inner;
     }
+    // A primary that declares Binding::kLabel (-collect) carries a plain attached =NAME and takes
+    // nothing else: args = [NAME]. Unlike kLabelRegex there is no regex half and no command, and
+    // the BARE form stays legal - the descriptor's own default name is the answer - so this branch
+    // only has to reject `-collect=` with nothing after the '='.
+    if (const std::string::size_type eq = token.find('='); eq != std::string::npos) {
+      const std::string base = token.substr(0, eq);
+      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
+          descriptor != nullptr && descriptor->binding == registry::Binding::kLabel) {
+        const std::string name = token.substr(eq + 1);
+        if (name.empty()) {
+          Fail(absl::StrCat("'", base, "=' needs a NAME"));
+          return nullptr;
+        }
+        ++pos_;
+        return MakePredicate(descriptor, {name}, grammar_);
+      }
+    }
     // A primary that declares Binding::kLabelRegex (-capture/-capturedir) carries an
     // attached =NAME[=REGEX] on its own token, then collects a command like -exec:
     // args = [NAME, REGEX (may be empty), cmd...]. The grammar is read from the

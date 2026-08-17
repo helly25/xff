@@ -379,6 +379,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `--exec-fields` - render -exec tokens through the field vocabulary ({name}, {path}, ...) _(global, xff)_
 - `--define=NAME=VALUE` - define a value referenced as {def.NAME} _(global, xff)_
 - `--capture-override` - allow a -capture NAME to be bound more than once (last wins) _(global, xff)_
+- `--collect-override` - allow the same -collect NAME twice (both merge into one collection) _(global, xff)_
 
 ### Time
 - `--time-format=FMT` - default format for time fields (a preset name or a strftime pattern) _(global, xff)_
@@ -551,6 +552,8 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-false` - never match _(test, find)_
 
 ### Actions
+- `-collect` - add the entry to a named collection for --summary to reduce (xff) _(action, xff)_
+  xff extension: an ACTION that adds the entry to a collection instead of printing it, and makes `--summary` reduce THAT collection rather than what matched. This is what a truncating test cannot do on its own: a FALSE test removes the entry from every sink, so `-first 10 --summary` summarises ten entries, never "all of them, showing ten". ORDER selects the reading, because these are primaries rather than position-independent globals: `-collect -first 10 -ls --summary` collects everything, lists ten, and summarises ALL of them, while `-first 10 -collect --summary` collects only the ten and summarises those. The second prints no listing because `-collect` is an action, so the implicit `-print` is suppressed - find's own rule, not a new one. `-collect=NAME` uses a second collection; a bare `-collect` uses the one named `default`. A NAME used by two `-collect` nodes is an error (`--collect-override` allows it and merges them), because two sinks silently sharing a bucket shows up only as a wrong total. Presence is SYNTACTIC, like the implicit print: a `-collect` in a branch that never runs still switches the summary's source, and the summary is then empty. Example: `xff . -type f -collect -first 3 -ls --summary`.
 - `-diff ARG` - diff the file against TARGET (a field template); true when equal (xff) _(action, xff)_
   Compares the matched file against TARGET - a {field} template evaluated per entry, so it can name a mirror path like `../b/{relpath}` - and is true when they are equal, false on a difference. The optional =STYLE picks the output: unified `u3` (default; 3 lines of context), context `c`, normal `n`, side-by-side `y`, or `none` for just the boolean. Text files only; expensive.
   Affected by: --diff-algorithm, --diff-ignore, --diff-ignore-matching, --diff-format, --diff-context, --context

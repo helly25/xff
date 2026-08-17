@@ -589,8 +589,15 @@ one level up; an early stop stays an explicit opt-in.
 
 ### Build order (by machinery, not preference)
 
-1. **`-first N`** - immediate truth, no deferral, per-instance counter. Standalone.
-2. **`-collect[=NAME]`** - an action; makes `--summary` read the collection.
+1. **`-first N`** - immediate truth, no deferral, per-instance counter. Standalone. SHIPPED (#559).
+2. **`-collect[=NAME]`** - an action; makes `--summary` read the collection. SHIPPED. Two decisions
+   the design left implicit, both settled by building it: `--histogram` switches its source together
+   with `--summary` (a run where one reduced the collection and the other reduced the matches would
+   report two different totals for one walk), and the collection OWNS its entries rather than storing
+   the walk's `Visit`, whose path/name/root are borrowed views and whose metadata is a reference. The
+   entry also keeps `Visit::fs_owner`, so collecting an archive member cannot outlive its reader -
+   the same lifetime bug ThreadSanitizer caught in `--archive-mount`. `--buffer`'s row/byte budget is
+   NOT wired up yet: a collection grows unbounded, which is the next thing to fix here.
 3. **`-top N[:PCT%]`** - needs the two-phase evaluation, the parallel merge, and the cutoff.
 4. **`--max-results`** - once more than one cap can be active, so the flag has a reason to exist.
 

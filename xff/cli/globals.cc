@@ -1253,6 +1253,13 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "allow a -capture NAME to be bound more than once (last wins)",
     },
     {
+        .name = "--collect-override",
+        .display = "--collect-override",
+        .group = "fields",
+        .header = "Fields & Exec",
+        .summary = "allow the same -collect NAME twice (both merge into one collection)",
+    },
+    {
         .name = "--time-format",
         .display = "--time-format=FMT",
         .group = "time",

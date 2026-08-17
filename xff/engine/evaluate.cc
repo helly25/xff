@@ -904,6 +904,18 @@ bool EvalFuzzyOn(const parser::Expr& expr, EvalContext& ctx, std::string_view su
 // state; all it owes is a truth value. The count is keyed by the AST node, so
 // `\( -type f -first 10 \) -o \( -type d -first 5 \)` is ten files AND five directories - which is
 // exactly what a whole-run global could not express. N is validated before the walk.
+// -collect[=NAME]: hold the entry for a post-walk sink instead of printing it. An ACTION, so it is
+// always true and (being an action) suppresses the implicit -print - which is what makes
+// `-first 10 -collect --summary` a summary with no listing, with no --quiet needed.
+bool EvalCollect(const parser::Expr& expr, EvalContext& ctx) {
+  if (ctx.collections == nullptr) {
+    return true;  // no sink wired (an in-process caller); collecting is a no-op, not a failure
+  }
+  const std::string_view name = expr.args.empty() || expr.args.front().empty() ? kDefaultCollection : expr.args.front();
+  ctx.collections->Add(name, ctx.visit);
+  return true;
+}
+
 bool EvalFirst(const parser::Expr& expr, EvalContext& ctx) {
   if (expr.args.empty() || ctx.first_counts == nullptr) {
     return false;
@@ -2223,6 +2235,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-cmin", {&EvalCmin}},
     DispatchPair{"-cmp", {&EvalCmp}},
     DispatchPair{"-cnewer", {&EvalCnewer}},
+    DispatchPair{"-collect", {&EvalCollect}},
     DispatchPair{"-content", {&EvalContent}},
     DispatchPair{"-ctime", {&EvalCtime}},
     DispatchPair{"-delete", {&EvalDelete}},

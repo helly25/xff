@@ -249,6 +249,30 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .cost = Cost::kExpensive,
         .topic = "content",
     },
+    // xff -collect: the other half of result-set shaping - an ACTION that holds entries back for a
+    // post-walk sink, so a truncating test can narrow what is SHOWN without also narrowing what is
+    // summarised. The first user of Binding::kLabel.
+    {
+        .name = "-collect",
+        .summary = "add the entry to a named collection for --summary to reduce (xff)",
+        .details = "xff extension: an ACTION that adds the entry to a collection instead of printing it, and makes "
+                   "`--summary` reduce THAT collection rather than what matched. This is what a truncating test cannot "
+                   "do on its own: a FALSE test removes the entry from every sink, so `-first 10 --summary` summarises "
+                   "ten entries, never \"all of them, showing ten\". ORDER selects the reading, because these are "
+                   "primaries rather than position-independent globals: `-collect -first 10 -ls --summary` collects "
+                   "everything, lists ten, and summarises ALL of them, while `-first 10 -collect --summary` collects "
+                   "only the ten and summarises those. The second prints no listing because `-collect` is an action, "
+                   "so the implicit `-print` is suppressed - find's own rule, not a new one. `-collect=NAME` uses a "
+                   "second collection; a bare `-collect` uses the one named `default`. A NAME used by two `-collect` "
+                   "nodes is an error (`--collect-override` allows it and merges them), because two sinks silently "
+                   "sharing a bucket shows up only as a wrong total. Presence is SYNTACTIC, like the implicit print: "
+                   "a `-collect` in a branch that never runs still switches the summary's source, and the summary is "
+                   "then empty. Example: `xff . -type f -collect -first 3 -ls --summary`.",
+        .kind = Kind::kAction,
+        .arity = 0,
+        .binding = Binding::kLabel,
+        .style = Style::kXff,
+    },
     // xff -first: the streaming half of result-set shaping (see TODO.md's pinned design). A TEST
     // that keeps a counter: nothing about a test forbids state, it just owes a truth value.
     {
