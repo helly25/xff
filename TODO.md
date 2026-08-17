@@ -1743,8 +1743,13 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
          is undecided, and it is now a small change on top of the buffer `--sort=score` already
          keeps. A relative score threshold (a fraction of the best score in the run) becomes possible
          at the same point, for the same reason.
-     - **A path-matching variant** (`-fuzzypath`?), the `-path` to this `-name`. The basename is the
-       fzf-ish default; matching whole paths without ranking tends to match nearly everything.
+     - **A path-matching variant: `-fuzzypath` / `-ifuzzypath` SHIPPED.** The `-path` to `-fuzzy`'s
+       `-name`, sharing one implementation (the matcher takes its subject) and one score slot, so
+       `{fuzzy}` stays "the last fuzzy test" rather than growing a second value. It deliberately
+       waited for `--sort=score`: the objection was that matching whole paths without ranking
+       matches nearly everything, and ranking is what answers it. Adding it also exposed that the
+       ranking gate listed primaries by hand and so refused `-fuzzypath`; the list is now one named
+       set of the primaries that SET a score, and the error names them all.
      - **A score threshold** as the gate for the boolean form. Now possible (there is a score), still
        unspelled: the value is only comparable within one pattern, so an absolute `-fuzzy=N PATTERN`
        cut-off would be a number users cannot reason about. A relative gate (a fraction of the best

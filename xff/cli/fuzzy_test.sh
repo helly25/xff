@@ -154,7 +154,8 @@ test::sort_score_without_fuzzy_is_a_usage_error() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -type f --sort=score 2>&1)" && rc=0 || rc="${?}"
   expect_eq "2" "${rc}"
-  expect_output_contains "needs -fuzzy" "${out}"
+  # The message NAMES every primary that would satisfy it, so the fix is readable from the error.
+  expect_output_contains "needs one of -fuzzy, -fuzzypath, -ifuzzy, -ifuzzypath" "${out}"
   rm -rf "${root}"
 }
 
@@ -176,6 +177,55 @@ test::a_later_sort_mode_turns_ranking_back_off() {
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -type f --sort=score --sort=dir 2>&1)" && rc=0 || rc="${?}"
   expect_eq "0" "${rc}" # no -fuzzy, yet no usage error: ranking was turned off again
+  rm -rf "${root}"
+}
+
+test::fuzzypath_matches_across_directory_separators() {
+  # The whole point of the path variant: `eng/wlk` spans a separator, which no basename match can.
+  local root out
+  root="$(mktemp -d)"
+  mkdir -p "${root}/engine" "${root}/docs"
+  : >"${root}/engine/walk.cc"
+  : >"${root}/engine/run.cc"
+  : >"${root}/docs/notes.md"
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -fuzzypath "eng/wlk")"
+  expect_output_contains "engine/walk.cc" "${out}"
+  expect_eq "1" "$(wc -l <<<"${out}" | tr -d ' ')"
+  # -fuzzy is the BASENAME, so the same pattern finds nothing.
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -fuzzy "eng/wlk")"
+  expect_eq "" "${out}"
+  rm -rf "${root}"
+}
+
+test::ifuzzypath_folds_case() {
+  local root out
+  root="$(mktemp -d)"
+  mkdir -p "${root}/engine"
+  : >"${root}/engine/walk.cc"
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -ifuzzypath "ENG/WLK")"
+  expect_output_contains "engine/walk.cc" "${out}"
+  rm -rf "${root}"
+}
+
+test::sort_score_accepts_every_scoring_primary() {
+  # The ranking gate lists the primaries that SET a score; a new one must not be refused. Without
+  # this, adding -fuzzypath left `--sort=score -fuzzypath` erroring out.
+  local root out rc
+  root="$(mktemp -d)"
+  mkdir -p "${root}/engine"
+  : >"${root}/engine/walk.cc"
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -fuzzypath "eng/wlk" --sort=score 2>&1)" && rc=0 || rc="${?}"
+  expect_eq "0" "${rc}"
+  expect_output_contains "engine/walk.cc" "${out}"
+  rm -rf "${root}"
+}
+
+test::fuzzypath_is_an_xff_extension_the_find_style_rejects() {
+  local root out rc
+  root="$(_make_tree)"
+  out="$("$(_xff_bin)" --config=find "${root}" -fuzzypath tmh 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "xff extension" "${out}"
   rm -rf "${root}"
 }
 
