@@ -589,8 +589,26 @@ one level up; an early stop stays an explicit opt-in.
 
 ### Build order (by machinery, not preference)
 
-1. **`-first N`** - immediate truth, no deferral, per-instance counter. Standalone.
-2. **`-collect[=NAME]`** - an action; makes `--summary` read the collection.
+1. **`-first N`** - immediate truth, no deferral, per-instance counter. Standalone. SHIPPED (#559).
+2. **`-collect[=NAME]`** - an action; makes `--summary` read the collection. SHIPPED. Two decisions
+   the design left implicit, both settled by building it: `--histogram` switches its source together
+   with `--summary` (a run where one reduced the collection and the other reduced the matches would
+   report two different totals for one walk), and the collection OWNS its entries rather than storing
+   the walk's `Visit`, whose path/name/root are borrowed views and whose metadata is a reference. The
+   entry also keeps `Visit::fs_owner`, so collecting an archive member cannot outlive its reader -
+   the same lifetime bug ThreadSanitizer caught in `--archive-mount`. `--buffer`'s row/byte budget is
+   NOT wired up yet: a collection grows unbounded, which is the next thing to fix here.
+
+   **Name reuse: the `!` modifier, not an override flag.** A NAME is an identifier
+   (`[A-Za-z_][A-Za-z0-9_]*`), which is what reserves punctuation for modifiers, and a node that
+   reuses a name an earlier node took must say so with `!`:
+   `\( -type f -collect=all \) -o \( -type d -collect=!all \)`. This replaced the
+   `--collect-override` / `--capture-override` globals outright, and the reason is the same one that
+   made these primaries rather than globals: a whole-run flag loosens EVERY `-capture` / `-collect` in
+   the command, including the ones the author never thought about, while the modifier loosens exactly
+   the node it is written on. `--capture-override` is GONE (it was never released), and `-capture`
+   now takes `-capture=!NAME` too. Settled with the user 2026-08-17.
+
 3. **`-top N[:PCT%]`** - needs the two-phase evaluation, the parallel merge, and the cutoff.
 4. **`--max-results`** - once more than one cap can be active, so the flag has a reason to exist.
 
@@ -840,7 +858,7 @@ remains below is the design-forked / larger work.
   `escape` (kNul stays raw, kJsonl always JSON-escapes; `raw` = find-compatible
   default, `escape` = C-style `\xNN`, like `ls -b`).
 - **`--feature=NAME` / `--feature=no-NAME` capability gates** (#73). **Parked** - no
-  concrete customer yet (valued knobs like `--implicit-print` / `--capture-override`
+  concrete customer yet (valued knobs like `--implicit-print`
   / `--exec-fields` are dedicated flags by design, and whole-behavior switches are
   `--config` styles), so building it now is infrastructure without a user. **Design,
   ready to build the moment a boolean capability appears:** repeatable on/off dials

@@ -1246,13 +1246,6 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "define a value referenced as {def.NAME}",
     },
     {
-        .name = "--capture-override",
-        .display = "--capture-override",
-        .group = "fields",
-        .header = "Fields & Exec",
-        .summary = "allow a -capture NAME to be bound more than once (last wins)",
-    },
-    {
         .name = "--time-format",
         .display = "--time-format=FMT",
         .group = "time",

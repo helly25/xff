@@ -55,6 +55,7 @@
 #include "xff/color/color.h"
 #include "xff/content/line_match.h"
 #include "xff/datetime/datetime.h"
+#include "xff/engine/collect.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/extract.h"
 #include "xff/engine/mount.h"
@@ -1881,26 +1882,12 @@ std::map<std::string, std::string> ResolveDefines(const std::vector<std::string>
   return defines;
 }
 
-// Whether --capture-override permits re-binding a -capture NAME. Strict by
-// default (a duplicate name is an error); --capture-override (== =yes) allows it,
-// --capture-override=no restores strict. Last occurrence wins.
-bool CaptureOverride(const std::vector<std::string>& globals) {
-  bool allow = false;
-  for (const std::string& global : globals) {
-    if (global == "--capture-override" || global == "--capture-override=yes") {
-      allow = true;
-    } else if (global == "--capture-override=no") {
-      allow = false;
-    }
-  }
-  return allow;
-}
-
 // Collects the NAME of every -capture action in the expression (its args[0]).
 void CollectCaptureNames(const parser::Expr& expr, std::vector<std::string>* names) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate:
-      if (expr.descriptor->name == "-capture" && !expr.args.empty()) {
+      // A node with `!` (label_override) is ALLOWED to re-bind, so it is not reported as a duplicate.
+      if (expr.descriptor->name == "-capture" && !expr.args.empty() && !expr.label_override) {
         names->push_back(expr.args.front());
       }
       break;
@@ -1922,9 +1909,52 @@ void CollectCaptureNames(const parser::Expr& expr, std::vector<std::string>* nam
 std::optional<std::string> DuplicateCaptureName(const parser::Expr& expr) {
   std::vector<std::string> names;
   CollectCaptureNames(expr, &names);
-  std::sort(names.begin(), names.end());
-  const auto dup = std::adjacent_find(names.begin(), names.end());
+  absl::c_sort(names);
+  const auto dup = absl::c_adjacent_find(names);
   return dup == names.end() ? std::nullopt : std::optional<std::string>(*dup);
+}
+
+// Returns the -collect NAME a node REUSES without saying so, or nullopt when every reuse is marked.
+// A site carrying `!` (label_override) has declared the reuse deliberate, so it never reports; an
+// unmarked site whose name an earlier site already used does.
+std::optional<std::string_view> DuplicateCollectionName(const parser::Expr& expr) {
+  absl::flat_hash_set<std::string_view> seen;
+  for (const CollectSite& site : CollectSites(expr)) {
+    if (site.override_name) {
+      continue;  // `!` says the reuse is deliberate, so it neither reports nor blocks a later one
+    }
+    if (!seen.insert(site.name).second) {
+      return site.name;
+    }
+  }
+  return std::nullopt;
+}
+
+// Reports a -capture NAME bound twice, returning true when it did (so the caller stops before
+// traversing). -capture BINDS a name to a value, so a second binding silently clobbers the first and
+// every later {capture.NAME} renders wrong data; -collect APPENDS, so a shared name silently doubles
+// what the summary reduces. One mechanism for both: the `!` modifier on the node that reuses the name
+// (`-capture=!NAME`, `-collect=!NAME`). It is per INSTANCE, which the whole-run --capture-override it
+// replaced could not be - that flag loosened every -capture in the command, including the ones the
+// author never thought about.
+bool ReportDuplicateBindingName(const parser::Expr& expr, WalkErrorFn on_error) {
+  if (const std::optional<std::string> dup = DuplicateCaptureName(expr); dup.has_value()) {
+    on_error(
+        "-capture",
+        absl::FailedPreconditionError(
+            absl::StrCat(
+                "duplicate -capture name '", *dup, "'; write '-capture=!", *dup, "' if the re-bind is meant")));
+    return true;
+  }
+  if (const std::optional<std::string_view> dup = DuplicateCollectionName(expr); dup.has_value()) {
+    on_error(
+        "-collect", absl::FailedPreconditionError(
+                        absl::StrCat(
+                            "duplicate -collect name '", *dup, "'; write '-collect=!", *dup,
+                            "' on the later one if sharing the collection is meant")));
+    return true;
+  }
+  return false;
 }
 
 // Collects strings that may reference {capture.NAME}: the command tokens of every
@@ -2322,6 +2352,19 @@ using SummaryCells = std::map<std::string, std::pair<std::uint64_t, std::uint64_
 // would double-count the file's size); every other key contributes one entry, whose size is
 // meaningful. Shared by the two feeds a run has: the per-entry one during the walk, and the
 // post-walk --shards one, where a whole logical set arrives as a single unit.
+// The run-wide rendering settings a collected entry needs to build its field-render context. Bundled
+// because they are resolved once before the walk and never vary per entry, so passing them one by one
+// would make FeedCollections a parameter list nobody can read.
+struct CollectionRenderDefaults {
+  const vfs::FileSystem& fs;
+  absl::TimeZone tz;
+  std::string_view time_format;
+  datetime::ZoneSuffix zone_suffix;
+  std::string_view hash_algorithm;
+  std::string_view hash_encoding;
+  const std::map<std::string, std::string>& defines;
+};
+
 void FeedSummaries(
     const std::vector<SummarySpec>& specs,
     const std::vector<std::optional<fields::Template>>& templates,
@@ -2387,6 +2430,44 @@ void FeedHistograms(
   }
 }
 
+// The -collect post-walk pass: feeds every collected entry into the reduction sinks, in collection
+// name order then walk order. `-collect` exists so that a truncating test can narrow the LISTING
+// without also narrowing what is summarised, which is only possible if the sinks read a set the walk
+// held back rather than the stream. BOTH sinks switch together: a run where --summary reduced the
+// collection while --histogram reduced the matches would report two different totals for one walk.
+// The Visit is rebuilt per entry because a collected entry owns its storage (see collect.h).
+void FeedCollections(
+    const Collections& collections,
+    const CollectionRenderDefaults& defaults,
+    const std::vector<SummarySpec>& summaries,
+    const std::vector<std::optional<fields::Template>>& summary_templates,
+    std::vector<SummaryCells>& summary_cells,
+    const std::vector<HistogramSpec>& histograms,
+    std::vector<std::map<std::string, HistCell>>& histogram_cells) {
+  for (const std::string_view name : collections.Names()) {
+    for (const CollectedEntry& collected : collections.Entries(name)) {
+      const Visit visit = collected.AsVisit();
+      const std::string link;  // {target} is not resolved for a collected entry
+      const fields::RenderContext key_ctx{
+          .path = visit.path,
+          .root = visit.root,
+          .link_target = link,
+          .metadata = visit.metadata,
+          .depth = visit.depth,
+          .fs = visit.fs != nullptr ? visit.fs : &defaults.fs,
+          .tz = defaults.tz,
+          .time_format = defaults.time_format,
+          .zone_suffix = defaults.zone_suffix,
+          .hash_algorithm = defaults.hash_algorithm,
+          .hash_encoding = defaults.hash_encoding,
+          .defines = &defaults.defines,
+      };
+      FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
+      FeedHistograms(histograms, histogram_cells, visit);
+    }
+  }
+}
+
 }  // namespace
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
@@ -2408,15 +2489,10 @@ int RunFind(
     on_error("-delete", absl::FailedPreconditionError("refused: --safe forbids destructive actions"));
     return 2;  // do not traverse
   }
-  // A -capture NAME bound twice is an error by default (silent clobbering would
-  // mean silently-wrong data); --capture-override opts into last-wins.
-  if (expression != nullptr && !CaptureOverride(command.globals)) {
-    if (const std::optional<std::string> dup = DuplicateCaptureName(*expression); dup.has_value()) {
-      on_error(
-          "-capture",
-          absl::FailedPreconditionError(absl::StrCat("duplicate -capture name '", *dup, "'; use --capture-override")));
-      return 2;  // do not traverse
-    }
+  // A NAME bound twice by -capture or -collect is a usage error before the walk (see
+  // ReportDuplicateBindingName for why each one fails closed).
+  if (expression != nullptr && ReportDuplicateBindingName(*expression, on_error)) {
+    return 2;  // do not traverse
   }
   WalkOptions options;
   options.symlinks = ResolveSymlinkMode(command.globals);
@@ -2866,6 +2942,11 @@ int RunFind(
   std::optional<int> fuzzy_score;
   // -first N budgets, one per instance, for the whole run (see EvalContext::first_counts).
   std::map<const parser::Expr*, int> first_counts;
+  // -collect[=NAME]: the entries held back for the post-walk reduction. `collect_names` is read from
+  // the AST (presence is SYNTACTIC, like find's implicit -print: a -collect in a branch that never
+  // runs still switches the summary's source, and the summary is then legitimately empty).
+  Collections collections;
+  const bool collecting = command.expression != nullptr && !CollectSites(*command.expression).empty();
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
   // what it would remove without touching the filesystem.
@@ -3137,6 +3218,7 @@ int RunFind(
             .defines = &defines,
             .outputs = &outputs,
             .first_counts = &first_counts,
+            .collections = &collections,
             .confirm = confirm,
             .exec_batches = &exec_batches,
             .parallel_exec = options.workers > 1 ? &parallel_exec : nullptr,
@@ -3190,7 +3272,7 @@ int RunFind(
           // --summary / --histogram reduce matches instead of printing them; explicit
           // actions (-print/-exec) still ran via Evaluate. In --shards mode the reductions
           // aggregate per logical set instead (fed post-walk), so skip the per-file feed here.
-          if (!shards.enabled && counted) {
+          if (!shards.enabled && counted && !collecting) {
             // Accumulate this entry into each --summary sink. The field-template render context is
             // built once and shared: an m// extraction contributes a value stream (one count per
             // extracted line, size not attributed -- a per-line key would double-count the file's
@@ -3475,6 +3557,20 @@ int RunFind(
       absl::c_sort(group.passthrough);
       shard_groups.push_back(std::move(group));
     }
+  }
+
+  // -collect: the reductions read the COLLECTION rather than what matched (FeedCollections).
+  if (collecting && (!summaries.empty() || !histograms.empty())) {
+    const CollectionRenderDefaults defaults{
+        .fs = walk_fs,
+        .tz = tz,
+        .time_format = time_format,
+        .zone_suffix = zone_suffix,
+        .hash_algorithm = hash_algorithm,
+        .hash_encoding = hash_encoding,
+        .defines = defines,
+    };
+    FeedCollections(collections, defaults, summaries, summary_templates, summary_cells, histograms, histogram_cells);
   }
 
   // --summary: emit one accumulated table per sink -- a row per group (the map is ordered) plus a

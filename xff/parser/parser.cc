@@ -25,6 +25,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "mbo/status/status_macros.h"
@@ -86,6 +87,36 @@ bool IsOrTier(std::string_view token) {
 // Operators at the XOR tier (between AND and OR): -xor / -xnor.
 bool IsXorTier(std::string_view token) {
   return token == "-xor" || token == "-xnor";
+}
+
+// A binding primary's NAME must be an identifier: `[A-Za-z_][A-Za-z0-9_]*`. It is not cosmetic -
+// a name is referenced as `{capture.NAME}`, so punctuation would be unreferenceable or ambiguous
+// there - and enforcing it is what reserves every punctuation character for MODIFIERS, which is how
+// `!` can mean "this node may reuse the name" without new syntax or a whole-run flag.
+bool ValidLabelName(std::string_view name) {
+  if (name.empty() || (!absl::ascii_isalpha(name.front()) && name.front() != '_')) {
+    return false;
+  }
+  return absl::c_all_of(name, [](const char chr) { return absl::ascii_isalnum(chr) || chr == '_'; });
+}
+
+// Splits a leading `!` modifier off an attached name spec, reporting whether it was present.
+//
+// The `rest` view BORROWS from `spec`, so callers must pass a view over storage that outlives the
+// result - `std::string_view(token).substr(...)`, never `token.substr(...)`, which materialises a
+// temporary std::string and leaves `rest` dangling the moment the statement ends. That mistake was
+// mine and ASan caught it across every test that parses.
+struct LabelSpec {
+  bool override_name = false;
+  std::string_view rest;
+};
+
+LabelSpec SplitLabelModifier(std::string_view spec) {
+  if (spec.starts_with('!')) {
+    spec.remove_prefix(1);
+    return LabelSpec{.override_name = true, .rest = spec};
+  }
+  return LabelSpec{.rest = spec};
 }
 
 // Pre-compiles a node's regex at parse time so evaluation reads it lock-free:
@@ -276,20 +307,52 @@ class ExprParser {
       ++pos_;
       return inner;
     }
+    // A primary that declares Binding::kLabel (-collect) carries a plain attached =NAME and takes
+    // nothing else: args = [NAME]. Unlike kLabelRegex there is no regex half and no command, and
+    // the BARE form stays legal - the descriptor's own default name is the answer - so this branch
+    // only has to reject `-collect=` with nothing after the '='.
+    if (const std::string::size_type eq = token.find('='); eq != std::string::npos) {
+      const std::string_view base = std::string_view(token).substr(0, eq);
+      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
+          descriptor != nullptr && descriptor->binding == registry::Binding::kLabel) {
+        const LabelSpec spec = SplitLabelModifier(std::string_view(token).substr(eq + 1));
+        if (spec.rest.empty()) {
+          Fail(absl::StrCat("'", base, "=' needs a NAME"));
+          return nullptr;
+        }
+        if (!ValidLabelName(spec.rest)) {
+          Fail(absl::StrCat("'", base, "=", spec.rest, "' is not a NAME; use an identifier ([A-Za-z_][A-Za-z0-9_]*)"));
+          return nullptr;
+        }
+        ++pos_;
+        ExprPtr node = MakePredicate(descriptor, {std::string(spec.rest)}, grammar_);
+        if (node != nullptr) {
+          node->label_override = spec.override_name;
+        }
+        return node;
+      }
+    }
     // A primary that declares Binding::kLabelRegex (-capture/-capturedir) carries an
     // attached =NAME[=REGEX] on its own token, then collects a command like -exec:
     // args = [NAME, REGEX (may be empty), cmd...]. The grammar is read from the
     // registry, not a hardcoded name list.
     if (const std::string::size_type eq = token.find('='); eq != std::string::npos) {
-      const std::string base = token.substr(0, eq);
+      const std::string_view base = std::string_view(token).substr(0, eq);
       if (const registry::Descriptor* const descriptor = registry::Lookup(base);
           descriptor != nullptr && descriptor->binding == registry::Binding::kLabelRegex) {
-        const std::string spec = token.substr(eq + 1);  // NAME[=REGEX]
+        // [!]NAME[=REGEX]: `!` allows this node to re-bind a NAME an earlier -capture already bound,
+        // per instance rather than through a whole-run flag that would loosen every -capture at once.
+        const LabelSpec modifier = SplitLabelModifier(std::string_view(token).substr(eq + 1));
+        const std::string spec(modifier.rest);
         const std::string::size_type spec_eq = spec.find('=');
         std::string name = spec_eq == std::string::npos ? spec : spec.substr(0, spec_eq);
         std::string regex = spec_eq == std::string::npos ? std::string() : spec.substr(spec_eq + 1);
         if (name.empty()) {
           Fail(absl::StrCat("'", base, "=' needs a NAME"));
+          return nullptr;
+        }
+        if (!ValidLabelName(name)) {
+          Fail(absl::StrCat("'", base, "=", name, "' is not a NAME; use an identifier ([A-Za-z_][A-Za-z0-9_]*)"));
           return nullptr;
         }
         ++pos_;
@@ -313,7 +376,11 @@ class ExprParser {
         for (std::string& cmd_token : command) {
           args.push_back(std::move(cmd_token));
         }
-        return MakePredicate(descriptor, std::move(args), grammar_);
+        ExprPtr node = MakePredicate(descriptor, std::move(args), grammar_);
+        if (node != nullptr) {
+          node->label_override = modifier.override_name;
+        }
+        return node;
       }
       // A Binding::kFormat primary (-grep) carries an attached =FORMAT output
       // template on its own token; the whole payload after the first '=' is the

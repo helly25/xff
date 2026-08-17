@@ -68,6 +68,11 @@ struct Expr {
   // empty for a bare -hash (which uses the --hash-algorithm / --hash-encoding defaults) and
   // every other node. Validated before the walk (engine::ValidateHashArgs).
   std::string hash_spec;
+  // A `!` prefix on a binding primary's attached name (`-capture=!NAME`): this node may REUSE a name
+  // an earlier node already bound. Per instance rather than a whole-run flag, so loosening one
+  // -capture does not quietly loosen every other one. `!` cannot collide with a name because a name
+  // must be an identifier (ValidLabelName).
+  bool label_override = false;
   // -text=FLAVOR: the attached text-definition flavor (git/posix/windows/apple); empty for a bare
   // -text (which is the git heuristic) and every other node. Validated in the parser (kText branch).
   std::string text_flavor;

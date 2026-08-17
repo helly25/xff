@@ -31,6 +31,7 @@
 #include "absl/time/time.h"
 #include "mbo/diff/diff_options.h"
 #include "xff/datetime/datetime.h"
+#include "xff/engine/collect.h"
 #include "xff/engine/extract.h"
 #include "xff/engine/mount.h"
 #include "xff/engine/walk.h"
@@ -159,6 +160,10 @@ struct EvalContext {
   // (unlike `outputs`, which is per entry) - the count is the point. Emission is single-threaded
   // (see walk.h), so a plain map needs no synchronisation.
   std::map<const parser::Expr*, int>* first_counts = nullptr;
+  // -collect[=NAME]: where the action holds entries for a post-walk sink (--summary reads the
+  // collection instead of what matched). Owned by the driver for the whole run, and it OWNS what it
+  // stores, because a Visit is borrowed (see collect.h). Null -> -collect is inert.
+  Collections* collections = nullptr;
   std::function<bool(std::string_view)> confirm;  // -ok prompt sink: returns true to run the command; empty -> decline
   // Accumulates matched items per `-exec/-execdir ... +` node for the end-of-walk
   // batch flush: outer key the Expr node, inner key the directory ("" for -exec's

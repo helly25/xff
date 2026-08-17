@@ -69,6 +69,34 @@ cc_test(
 )
 
 cc_library(
+    name = "collect_cc",
+    srcs = ["collect.cc"],
+    hdrs = ["collect.h"],
+    visibility = ["//xff:__subpackages__"],
+    deps = [
+        ":walk_cc",
+        "//xff/parser:parser_cc",
+        "//xff/vfs:vfs_cc",
+        "@abseil-cpp//absl/container:btree",
+    ],
+)
+
+cc_test(
+    name = "collect_test",
+    size = "small",
+    srcs = ["collect_test.cc"],
+    deps = [
+        ":collect_cc",
+        ":walk_cc",
+        "//xff/parser:parser_cc",
+        "//xff/vfs:vfs_cc",
+        "@abseil-cpp//absl/status:statusor",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)
+
+cc_library(
     name = "extract_cc",
     srcs = ["extract.cc"],
     hdrs = ["extract.h"],
@@ -125,6 +153,7 @@ cc_library(
     hdrs = ["evaluate.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
+        ":collect_cc",
         ":extract_cc",
         ":mount_cc",
         ":walk_cc",

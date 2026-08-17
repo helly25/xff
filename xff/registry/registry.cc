@@ -249,6 +249,34 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .cost = Cost::kExpensive,
         .topic = "content",
     },
+    // xff -collect: the other half of result-set shaping - an ACTION that holds entries back for a
+    // post-walk sink, so a truncating test can narrow what is SHOWN without also narrowing what is
+    // summarised. The first user of Binding::kLabel.
+    {
+        .name = "-collect",
+        .summary = "add the entry to a named collection for --summary to reduce (xff)",
+        .details = "xff extension: an ACTION that adds the entry to a collection instead of printing it, and makes "
+                   "`--summary` reduce THAT collection rather than what matched. This is what a truncating test cannot "
+                   "do on its own: a FALSE test removes the entry from every sink, so `-first 10 --summary` summarises "
+                   "ten entries, never \"all of them, showing ten\". ORDER selects the reading, because these are "
+                   "primaries rather than position-independent globals: `-collect -first 10 -ls --summary` collects "
+                   "everything, lists ten, and summarises ALL of them, while `-first 10 -collect --summary` collects "
+                   "only the ten and summarises those. The second prints no listing because `-collect` is an action, "
+                   "so the implicit `-print` is suppressed - find's own rule, not a new one. `-collect=NAME` uses a "
+                   "second collection; a bare `-collect` uses the one named `default`. A NAME is an identifier "
+                   "(`[A-Za-z_][A-Za-z0-9_]*`), which is what reserves punctuation for modifiers. Two nodes MAY "
+                   "share a collection, but the later one must SAY so with `!`: "
+                   "`\\( -type f -collect=all \\) -o \\( -type d -collect=!all \\)` gathers both branches into one "
+                   "collection, while an unmarked repeat is a usage error - a silently shared collection shows up "
+                   "only as a doubled total. The modifier is per node, so it cannot loosen the other `-collect` in a "
+                   "long command the way a whole-run flag would. Presence is SYNTACTIC, like the implicit print: "
+                   "a `-collect` in a branch that never runs still switches the summary's source, and the summary is "
+                   "then empty. Example: `xff . -type f -collect -first 3 -ls --summary`.",
+        .kind = Kind::kAction,
+        .arity = 0,
+        .binding = Binding::kLabel,
+        .style = Style::kXff,
+    },
     // xff -first: the streaming half of result-set shaping (see TODO.md's pinned design). A TEST
     // that keeps a counter: nothing about a test forbids state, it just owes a truth value.
     {
@@ -1102,7 +1130,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .summary = "run a command and bind its output to {capture.NAME} (xff)",
         .details = "xff extension: runs the `;`-terminated command and binds its stdout to `{capture.NAME}` for a "
                    "later `-printf` / `--format` field; `-capture=NAME=REGEX` keeps only REGEX's first capture "
-                   "group. Sensitive: from an `--xffrc` file it needs `--allow-exec`. Example: `-capture=branch git "
+                   "group. A NAME must be an identifier (`[A-Za-z_][A-Za-z0-9_]*`), because it is referenced as "
+                   "`{capture.NAME}`; binding one NAME twice is an error, and `-capture=!NAME` on the LATER node "
+                   "says the re-bind is meant (per node, so it cannot loosen the other captures in the command). "
+                   "Sensitive: from an `--xffrc` file it needs `--allow-exec`. Example: `-capture=branch git "
                    "rev-parse --abbrev-ref HEAD ; -printf '{relpath}\\t{capture.branch}\\n'`.",
         .kind = Kind::kAction,
         .arity = -1,

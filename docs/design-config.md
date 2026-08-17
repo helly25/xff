@@ -176,8 +176,10 @@ built-in `safety` classification so the safe default needs no admin file:
   binary `--modern`).
 - **`--feature=NAME` / `--feature=no-NAME`** - repeatable on/off capability
   gates; the granular dial within a style (a style is just a named bundle of
-  feature defaults). Valued options (`--capture-override=no`,
-  `--implicit-print=no`) stay dedicated flags, **not** `--feature`.
+  feature defaults). Valued options (`--implicit-print=no`) stay dedicated flags,
+  **not** `--feature`. (The `--capture-override` that used to be the other example
+  here is gone: a name-reuse opt-in belongs on the NODE that reuses the name,
+  `-capture=!NAME`, not on a flag that loosens every node in the command.)
 - **`--xffrc=FILE`** - load + arm a specific file (see Discovery).
 - **`--no-config`** - see Discovery.
 - **`--project-config=on|warn|off`** - a per-directory (project) `.xffrc` lives in a

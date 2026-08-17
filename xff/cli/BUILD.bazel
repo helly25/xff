@@ -555,6 +555,13 @@ bashtest(
 # End-to-end test of the -fuzzy / -ifuzzy subsequence match: order, case rules, basename-only
 # subject, and the find-style rejection.
 bashtest(
+    name = "collect_test",
+    size = "small",
+    srcs = ["collect_test.sh"],
+    data = [":xff"],
+)
+
+bashtest(
     name = "first_test",
     size = "small",
     srcs = ["first_test.sh"],

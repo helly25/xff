@@ -1,0 +1,133 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "xff/engine/collect.h"
+
+#include <string>
+#include <string_view>
+
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+#include "mbo/testing/status.h"
+#include "xff/engine/walk.h"
+#include "xff/parser/parser.h"
+#include "xff/vfs/filesystem.h"
+
+namespace xff::engine {
+namespace {
+
+using ::testing::AllOf;
+using ::testing::ElementsAre;
+using ::testing::Eq;
+using ::testing::Field;
+using ::testing::IsEmpty;
+using ::testing::SizeIs;
+
+struct CollectTest : ::testing::Test {
+  // A Visit over caller-owned storage, so a test can let that storage die and prove the collection
+  // still reads correctly (the reason CollectedEntry copies rather than borrows).
+  static Visit MakeVisit(
+      std::string_view path,
+      std::string_view name,
+      std::string_view root,
+      const vfs::Metadata& metadata,
+      int depth = 1) {
+    return Visit{.path = path, .name = name, .root = root, .depth = depth, .metadata = metadata};
+  }
+};
+
+TEST_F(CollectTest, AddStoresUnderTheNamedCollection) {
+  const vfs::Metadata md{.type = vfs::FileType::kRegular, .size = 42};
+  Collections collections;
+  {
+    // Deliberately scoped: the Visit's views and metadata reference these locals only.
+    const std::string path = "./a/b.txt";
+    const std::string name = "b.txt";
+    const std::string root = ".";
+    collections.Add("keep", MakeVisit(path, name, root, md));
+  }
+  EXPECT_THAT(collections.Names(), ElementsAre("keep"));
+  EXPECT_THAT(collections.Entries("keep"), SizeIs(1));
+  const CollectedEntry& entry = collections.Entries("keep").front();
+  EXPECT_THAT(entry.path, Eq("./a/b.txt"));
+  EXPECT_THAT(entry.name, Eq("b.txt"));
+  EXPECT_THAT(entry.root, Eq("."));
+  EXPECT_THAT(entry.metadata.size, Eq(42));
+}
+
+TEST_F(CollectTest, AsVisitRebuildsTheEntryForASink) {
+  const vfs::Metadata md{.type = vfs::FileType::kRegular, .size = 7};
+  Collections collections;
+  {
+    const std::string path = "./x.txt";
+    const std::string name = "x.txt";
+    const std::string root = ".";
+    collections.Add(kDefaultCollection, MakeVisit(path, name, root, md, 3));
+  }
+  const Visit visit = collections.Entries(kDefaultCollection).front().AsVisit();
+  EXPECT_THAT(visit.path, Eq("./x.txt"));
+  EXPECT_THAT(visit.name, Eq("x.txt"));
+  EXPECT_THAT(visit.depth, Eq(3));
+  EXPECT_THAT(visit.metadata.size, Eq(7));
+}
+
+TEST_F(CollectTest, NamesAreOrderedAndSizeCountsEveryCollection) {
+  const vfs::Metadata md{.type = vfs::FileType::kRegular};
+  const std::string path = "./f";
+  const std::string name = "f";
+  const std::string root = ".";
+  Collections collections;
+  collections.Add("zeta", MakeVisit(path, name, root, md));
+  collections.Add("alpha", MakeVisit(path, name, root, md));
+  collections.Add("alpha", MakeVisit(path, name, root, md));
+  EXPECT_THAT(collections.Names(), ElementsAre("alpha", "zeta"));  // name order, not insertion order
+  EXPECT_THAT(collections.Entries("alpha"), SizeIs(2));
+  EXPECT_THAT(collections.Size(), Eq(3));
+}
+
+TEST_F(CollectTest, UnknownNameReadsAsEmptyRatherThanFailing) {
+  const Collections collections;
+  EXPECT_THAT(collections.Empty(), ::testing::IsTrue());
+  EXPECT_THAT(collections.Entries("never-collected"), IsEmpty());
+}
+
+testing::Matcher<CollectSite> SiteIs(std::string_view name, bool override_name) {
+  return AllOf(
+      Field("name", &CollectSite::name, name), Field("override_name", &CollectSite::override_name, override_name));
+}
+
+TEST_F(CollectTest, BareCollectUsesTheDefaultName) {
+  MBO_ASSERT_OK_AND_ASSIGN(const parser::Command cmd, parser::Parse({".", "-collect"}));
+  EXPECT_THAT(CollectSites(*cmd.expression), ElementsAre(SiteIs(kDefaultCollection, false)));
+}
+
+TEST_F(CollectTest, NamedCollectReportsItsName) {
+  MBO_ASSERT_OK_AND_ASSIGN(const parser::Command cmd, parser::Parse({".", "-collect=big"}));
+  EXPECT_THAT(CollectSites(*cmd.expression), ElementsAre(SiteIs("big", false)));
+}
+
+TEST_F(CollectTest, SitesKeepAstOrderAndCarryTheBangModifier) {
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const parser::Command cmd, parser::Parse({".", "-collect=a", "-o", "-collect=b", "-o", "-collect=!a"}));
+  EXPECT_THAT(CollectSites(*cmd.expression), ElementsAre(SiteIs("a", false), SiteIs("b", false), SiteIs("a", true)));
+}
+
+TEST_F(CollectTest, AnExpressionWithoutCollectReportsNoSites) {
+  MBO_ASSERT_OK_AND_ASSIGN(const parser::Command cmd, parser::Parse({".", "-type", "f"}));
+  EXPECT_THAT(CollectSites(*cmd.expression), IsEmpty());
+}
+
+}  // namespace
+}  // namespace xff::engine
