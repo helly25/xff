@@ -122,7 +122,21 @@ done
 
 # //:refresh_compile_commands, not the extractor's stock :refresh_all - the latter covers `//...`
 # only, which silently omits every extras source file. See the target's comment in //BUILD.bazel.
-bazel run //:refresh_compile_commands -- --config=clang-tidy "${BCCE_ARGS[@]}"
+#
+# Two extractor lines are filtered, and ONLY these two. The extractor probes every translation unit
+# in the build graph, which includes our third-party dependencies' C sources; the recorded compiler
+# is clang++, so each one prints "treating 'c' input as 'c++'" and then trips pcre2's
+# `#error This project uses C99. C++ is not supported.` Hundreds of lines that mean nothing here:
+# xff has no C of its own, and fix_compile_commands.py drops those entries from the database
+# anyway. Everything else the extractor says still comes through, and the exit code is bazel's own
+# (read from PIPESTATUS, never grep's - a pipeline would report the filter's success instead).
+# `grep || true` inside the group is load-bearing: grep -v exits 1 when it filters EVERY line, which
+# under pipefail would report a false failure. With the group swallowing that, the pipeline's status
+# is bazel's own.
+set -o pipefail
+bazel run //:refresh_compile_commands -- --config=clang-tidy "${BCCE_ARGS[@]}" 2>&1 \
+  | { grep -vE "treating 'c' input as 'c\+\+' when in C\+\+ mode|This project uses C99\. C\+\+ is not supported" || true; } \
+  || die "refreshing compile_commands.json failed"
 
 # Post-process the extracted database (tools/fix_compile_commands.py documents both passes):
 # the composable extras are separate bazel modules, so their sources are recorded under the execroot
