@@ -192,6 +192,7 @@ constexpr std::array kSortValues = std::to_array<ValueDoc>({
     {.value = "dir", .meaning = "sort each directory's entries (a bare --sort; also spelled name)"},
     {.value = "subtree", .meaning = "sorted entries with each subtree inlined contiguously"},
     {.value = "tree", .meaning = "one path-ordered result across the whole walk (buffers everything)"},
+    {.value = "score", .meaning = "best `-fuzzy` match first (buffers everything; needs `-fuzzy`)"},
     {.value = "name", .meaning = "", .hidden = true},  // `dir`'s meaning already names it
 });
 constexpr std::array kPagerValues = std::to_array<ValueDoc>({
@@ -569,7 +570,13 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .details = "`none` leaves entries in filesystem order (fastest); `dir` sorts each directory's entries; "
                    "`subtree` and `tree` give a deterministic order across the whole walk. The default is per "
                    "style: xff sorts "
-                   "per directory, while find and rg leave the order unspecified.",
+                   "per directory, while find and rg leave the order unspecified.\n"
+                   "`score` is the odd one out: the others are TRAVERSAL orders the walk streams, while a "
+                   "`-fuzzy` score only exists once an entry has been evaluated, so results are buffered and "
+                   "ranked after the walk (best first, ties keeping the walk's own order). It needs `-fuzzy` "
+                   "or `-ifuzzy` in the expression - ranking by a value nothing produced is a mistake, not an "
+                   "empty ordering - and side-effecting actions such as `-exec` still run during the walk, so "
+                   "only the printed listing is reordered.",
         .values = kSortValues,
         .value_check = GlobalFlag::ValueCheck::kEnum,
     },

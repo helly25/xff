@@ -133,4 +133,50 @@ test::fuzzy_is_an_xff_extension_the_find_style_rejects() {
   rm -rf "${root}"
 }
 
+test::sort_score_ranks_best_match_first() {
+  # The point of ranking: the best match leads, whatever order the walk found things in. tmh_exact
+  # scores highest (consecutive run at a word start), the_main_header lowest of the three.
+  local root out
+  root="$(mktemp -d)"
+  mkdir -p "${root}/src"
+  : >"${root}/the_main_header.h"
+  : >"${root}/tmp_helper.h"
+  : >"${root}/src/tmh_exact.h"
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy tmh --sort=score)"
+  # Assert the ORDER, not just membership - membership already held before ranking existed.
+  expect_matches "tmh_exact\.h.*tmp_helper\.h.*the_main_header\.h" "${out}"
+  rm -rf "${root}"
+}
+
+test::sort_score_without_fuzzy_is_a_usage_error() {
+  # Ranking by a value nothing produced is a mistake, not an empty ordering.
+  local root out rc
+  root="$(_make_tree)"
+  out="$("$(_xff_bin)" "${root}" -type f --sort=score 2>&1)" && rc=0 || rc="${?}"
+  expect_eq "2" "${rc}"
+  expect_output_contains "needs -fuzzy" "${out}"
+  rm -rf "${root}"
+}
+
+test::sort_score_refuses_the_formats_it_cannot_reorder() {
+  # --format=tree nests by path and aligned/markdown stream through a width buffer; silently
+  # ignoring the ranking would be worse than refusing it, and the message names the way out.
+  local root out rc
+  root="$(_make_tree)"
+  out="$("$(_xff_bin)" "${root}" -fuzzy tmh --format=tree --sort=score 2>&1)" && rc=0 || rc="${?}"
+  expect_eq "2" "${rc}"
+  expect_output_contains "cannot rank a --format=tree" "${out}"
+  expect_output_contains "streaming format" "${out}"
+  rm -rf "${root}"
+}
+
+test::a_later_sort_mode_turns_ranking_back_off() {
+  # --sort is last-wins like every other global; ranking must not be sticky.
+  local root out rc
+  root="$(_make_tree)"
+  out="$("$(_xff_bin)" "${root}" -type f --sort=score --sort=dir 2>&1)" && rc=0 || rc="${?}"
+  expect_eq "0" "${rc}" # no -fuzzy, yet no usage error: ranking was turned off again
+  rm -rf "${root}"
+}
+
 test_runner

@@ -1729,12 +1729,20 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
        not the BEST one), rewarding word starts, consecutive runs and early matches; `{fuzzy}` renders
        it, so `--columns=fuzzy,path` plus a numeric sort is already a ranking. The score is stored per
        entry by the evaluator and cleared before each one, so it cannot leak between entries.
-       - **Still open: making the ORDER xff's own** (`--sort=score`, probably `--top=N`). That is a
-         different change from scoring: every other `--sort` mode is a traversal order the walk can
-         stream, while ranking has to buffer the whole result set before it can emit anything. Decide
-         what `--sort=score` does when no `-fuzzy` ran (leaning: a usage error, since sorting by a
-         value nothing produced is a mistake, not an empty ordering) and whether `--top=N` is
-         fuzzy-specific or a general "first N after sorting".
+       - **`--sort=score` SHIPPED.** It is deliberately NOT a `SortOrder`: every other mode orders the
+         WALK, which streams, while a score only exists once an entry has been evaluated. So the walk
+         keeps its style default (which is what decides ties, via a STABLE sort) and the listing is
+         buffered and ranked afterwards. Both open questions were settled the way they leaned: no
+         `-fuzzy`/`-ifuzzy` in the expression is a usage error (exit 2), because ranking by a value
+         nothing produced is a mistake rather than an empty ordering. `--format=tree` and the
+         aligned/markdown writers are ALSO refused: tree nests by path and the tabular writers stream
+         rows through a width buffer, so either would silently ignore the ranking - and the message
+         names the streaming formats that do work. Only the listing is reordered; `-exec` and friends
+         still run during the walk, so their output stays where it happened.
+       - **Still open: `--top=N`.** Whether it is fuzzy-specific or a general "first N after sorting"
+         is undecided, and it is now a small change on top of the buffer `--sort=score` already
+         keeps. A relative score threshold (a fraction of the best score in the run) becomes possible
+         at the same point, for the same reason.
      - **A path-matching variant** (`-fuzzypath`?), the `-path` to this `-name`. The basename is the
        fzf-ish default; matching whole paths without ranking tends to match nearly everything.
      - **A score threshold** as the gate for the boolean form. Now possible (there is a score), still

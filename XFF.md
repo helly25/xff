@@ -108,8 +108,9 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `dir` - sort each directory's entries (a bare --sort; also spelled name)
   - `subtree` - sorted entries with each subtree inlined contiguously
   - `tree` - one path-ordered result across the whole walk (buffers everything)
+  - `score` - best `-fuzzy` match first (buffers everything; needs `-fuzzy`)
 
-  `none` leaves entries in filesystem order (fastest); `dir` sorts each directory's entries; `subtree` and `tree` give a deterministic order across the whole walk. The default is per style: xff sorts per directory, while find and rg leave the order unspecified.
+  `none` leaves entries in filesystem order (fastest); `dir` sorts each directory's entries; `subtree` and `tree` give a deterministic order across the whole walk. The default is per style: xff sorts per directory, while find and rg leave the order unspecified. `score` is the odd one out: the others are TRAVERSAL orders the walk streams, while a `-fuzzy` score only exists once an entry has been evaluated, so results are buffered and ranked after the walk (best first, ties keeping the walk's own order). It needs `-fuzzy` or `-ifuzzy` in the expression - ranking by a value nothing produced is a mistake, not an empty ordering - and side-effecting actions such as `-exec` still run during the walk, so only the printed listing is reordered.
   Affected by: --pack
 
 ### Matching
