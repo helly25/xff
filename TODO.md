@@ -594,6 +594,38 @@ one level up; an early stop stays an explicit opt-in.
 3. **`-top N[:PCT%]`** - needs the two-phase evaluation, the parallel merge, and the cutoff.
 4. **`--max-results`** - once more than one cap can be active, so the flag has a reason to exist.
 
+## Silence external warnings in the EXEC configuration too (from helly25/mbo#332)
+
+mbo's [#332](https://github.com/helly25/mbo/pull/332) noticed that the warning policy applied only
+to the TARGET configuration, so anything built for the host (build tools, genrule helpers, anything
+under `--host_cxxopt`) escaped it in both directions: first-party warnings were not errors, and
+external sources were not muted. The three host counterparts it adds:
+
+- `--host_cxxopt=-Werror` - first-party warnings are errors when building for the host as well.
+- `--host_features=external_include_paths` - external headers become `-isystem` in the exec config,
+  not just the target one.
+- `--host_per_file_copt=external/.*@-w` - and it strengthened the target rule from `-Wno-error` to a
+  full `-w`, on the grounds that a third-party warning we will never act on is noise, not signal.
+
+**This is NOT a copy-paste, and that is the whole point of writing it down.** xff's rule is already
+narrower than mbo's on purpose:
+
+```
+common --per_file_copt=external/.*,-external/xff_.*@-Wno-error
+common --per_file_copt=external/xff_.*@-Wextra,-Wpedantic,...
+```
+
+The composable extras are FIRST-party code that happens to live under `external/` (separate bazel
+modules via `local_path_override`), so xff deliberately excludes `external/xff_.*` from the
+downgrade and holds them to the full first-party bar. Copying mbo's blanket
+`external/.*@-w` would silently mute every warning in @xff*archive, @xff_pcre2 and @xff_fuse - the
+exact "silent gap" failure this repo has been paying down. Any `--host_per_file_copt` added here
+must carry the same `,-external/xff*.\*` carve-out, and the extras need their own host rule.
+
+Verify by building a host-configuration target (the compile-DB refresh and the genrules are the
+easy ones) and confirming a deliberate warning in an extra still fails while a third-party one stays
+quiet.
+
 ## Remaining work
 
 The backlog of features and infrastructure not yet built. Ordered by current
