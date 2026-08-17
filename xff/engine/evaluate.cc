@@ -900,6 +900,26 @@ bool EvalFuzzyOn(const parser::Expr& expr, EvalContext& ctx, std::string_view su
   return score.has_value();
 }
 
+// -first N: true for the first N entries this INSTANCE sees, false afterwards. A test may keep
+// state; all it owes is a truth value. The count is keyed by the AST node, so
+// `\( -type f -first 10 \) -o \( -type d -first 5 \)` is ten files AND five directories - which is
+// exactly what a whole-run global could not express. N is validated before the walk.
+bool EvalFirst(const parser::Expr& expr, EvalContext& ctx) {
+  if (expr.args.empty() || ctx.first_counts == nullptr) {
+    return false;
+  }
+  int limit = 0;
+  if (!absl::SimpleAtoi(expr.args.front(), &limit) || limit <= 0) {
+    return false;
+  }
+  int& seen = (*ctx.first_counts)[&expr];
+  if (seen >= limit) {
+    return false;
+  }
+  ++seen;
+  return true;
+}
+
 // -fuzzy / -ifuzzy: the BASENAME, the fzf-ish default.
 bool EvalFuzzy(const parser::Expr& expr, EvalContext& ctx) {
   return EvalFuzzyOn(expr, ctx, ctx.visit.name);
@@ -2242,6 +2262,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-mime", {&EvalMime}},
     DispatchPair{"-mmin", {&EvalMmin}},
     DispatchPair{"-mtime", {&EvalMtime}},
+    DispatchPair{"-first", {&EvalFirst}},
     DispatchPair{"-fuzzy", {&EvalFuzzy}},
     DispatchPair{"-fuzzypath", {&EvalFuzzyPath}},
     DispatchPair{"-ifuzzy", {&EvalFuzzy}},

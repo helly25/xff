@@ -968,6 +968,42 @@ bool ContainsPrimary(const parser::Expr& expr, std::string_view name) {
   return false;
 }
 
+// Every `-first N` in the expression must carry a number. An unparseable or negative N is a usage
+// error before the walk, NOT a filter that quietly admits nothing: `-first nope` is a typo, and a
+// typo that silently returns an empty result set is indistinguishable from a tree with no matches.
+// `-first 0` IS valid and means zero results - unambiguous, and the one case where "admit nothing"
+// is what was asked for.
+absl::Status ValidateFirstLimits(const parser::Expr& expr) {
+  switch (expr.kind) {
+    case parser::Expr::Kind::kPredicate: {
+      if (expr.descriptor == nullptr || expr.descriptor->name != "-first") {
+        return absl::OkStatus();
+      }
+      int limit = 0;
+      if (expr.args.empty() || !absl::SimpleAtoi(expr.args.front(), &limit)) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("expects a count, got '", expr.args.empty() ? "" : expr.args.front(), "'"));
+      }
+      if (limit < 0) {
+        return absl::InvalidArgumentError(absl::StrCat("count cannot be negative, got '", expr.args.front(), "'"));
+      }
+      return absl::OkStatus();
+    }
+    case parser::Expr::Kind::kNot: return ValidateFirstLimits(*expr.lhs);
+    case parser::Expr::Kind::kAnd:
+    case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kNand:
+    case parser::Expr::Kind::kNor:
+    case parser::Expr::Kind::kXor:
+    case parser::Expr::Kind::kXnor:
+    case parser::Expr::Kind::kComma: {
+      MBO_RETURN_IF_ERROR(ValidateFirstLimits(*expr.lhs));
+      return ValidateFirstLimits(*expr.rhs);
+    }
+  }
+  return absl::OkStatus();
+}
+
 // Whether --sort=score can do what it says, checked before the walk. Both refusals are usage
 // errors rather than a silent no-op: ordering by a value nothing produced is a mistake, and a
 // format that cannot be reordered would drop the ranking without saying so.
@@ -996,6 +1032,29 @@ absl::Status ValidateScoreRanking(bool rank_by_score, const parser::Expr* expres
             " listing; use a streaming format (the default, or --columns with csv/tsv)"));
   }
   return absl::OkStatus();
+}
+
+// The pre-walk gate for result-set shaping: every rule that must hold before a single entry is
+// visited. Reports through `on_error` and answers whether to proceed, so RunFind carries ONE gate
+// however many rules there are - a new rule is added here instead of by growing RunFind, which is
+// already at the function-size limit.
+bool ResultShapingIsValid(
+    const parser::Expr* expression,
+    bool rank_by_score,
+    bool is_tree,
+    bool buffered,
+    WalkErrorFn on_error) {
+  if (expression != nullptr) {
+    if (const absl::Status first = ValidateFirstLimits(*expression); !first.ok()) {
+      on_error("-first", first);
+      return false;
+    }
+  }
+  if (const absl::Status ranking = ValidateScoreRanking(rank_by_score, expression, is_tree, buffered); !ranking.ok()) {
+    on_error("--sort=score", ranking);
+    return false;
+  }
+  return true;
 }
 
 // The path of `path` relative to the search `root` it was reached from, '/'-
@@ -2502,9 +2561,8 @@ int RunFind(
   // listing to reorder. Both are usage errors before the walk rather than a silent no-op: ordering
   // by a value nothing produced is a mistake, not an empty ordering.
   const bool rank_by_score = ResolveRankByScore(command.globals);
-  if (const absl::Status ranking = ValidateScoreRanking(rank_by_score, expression, is_tree, buffered); !ranking.ok()) {
-    on_error("--sort=score", ranking);
-    return 2;  // do not traverse
+  if (!ResultShapingIsValid(expression, rank_by_score, is_tree, buffered, on_error)) {
+    return 2;  // do not traverse; the helper reported which rule failed
   }
 
   // --regextype=RE2|EXACT|PCRE2: the grammar is resolved by the parser and pre-compiled into each
@@ -2806,6 +2864,8 @@ int RunFind(
   // by {fuzzy} when the entry is rendered. Run-scoped rather than per-entry so the two phases can
   // share it; the walk clears it before each evaluation.
   std::optional<int> fuzzy_score;
+  // -first N budgets, one per instance, for the whole run (see EvalContext::first_counts).
+  std::map<const parser::Expr*, int> first_counts;
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
   // what it would remove without touching the filesystem.
@@ -3076,6 +3136,7 @@ int RunFind(
             .captures = exec_fields ? &captures : nullptr,
             .defines = &defines,
             .outputs = &outputs,
+            .first_counts = &first_counts,
             .confirm = confirm,
             .exec_batches = &exec_batches,
             .parallel_exec = options.workers > 1 ? &parallel_exec : nullptr,
