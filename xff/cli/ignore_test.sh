@@ -39,9 +39,15 @@ _xff_bin() {
 
 # A fresh tree per test: src/main.cc, src/util.log, build/out.o,
 # node_modules/pkg/index.js, keep.log.
+# The scratch tree lives under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes, so
+# no case repeats a mktemp/rm pair (and a case that fails an expectation no longer leaks its
+# tree, because the rm never ran). The name is a COUNTER rather than the calling test's name:
+# a name would leak into printed paths and can then satisfy an expect_output_not_contains.
 _make_tree() {
   local root
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   mkdir -p "${root}/src" "${root}/build" "${root}/node_modules/pkg"
   touch "${root}/src/main.cc" "${root}/src/util.log" "${root}/build/out.o" \
     "${root}/node_modules/pkg/index.js" "${root}/keep.log"
@@ -52,7 +58,6 @@ test::exclude_glob_drops_matching_files() {
   local root out
   root="$(_make_tree)"
   out="$("$(_xff_bin)" --exclude='*.log' "${root}" -type f 2>&1)"
-  rm -rf "${root}"
   expect_not_matches "(^|${NL}|/)util\.log(\$|${NL})" "${out}"
   expect_not_matches "(^|${NL}|/)keep\.log(\$|${NL})" "${out}"
   expect_matches "(^|${NL}|/)main\.cc(\$|${NL})" "${out}" # a non-matching file stays
@@ -62,7 +67,6 @@ test::exclude_prunes_a_matching_directory() {
   local root out
   root="$(_make_tree)"
   out="$("$(_xff_bin)" --exclude=build --exclude=node_modules "${root}" -type f 2>&1)"
-  rm -rf "${root}"
   expect_not_matches "(^|${NL}|/)out\.o(\$|${NL})" "${out}"    # build/ pruned
   expect_not_matches "(^|${NL}|/)index\.js(\$|${NL})" "${out}" # node_modules/ pruned
   expect_matches "(^|${NL}|/)main\.cc(\$|${NL})" "${out}"
@@ -74,7 +78,6 @@ test::include_reincludes_with_last_match_wins() {
   # keep.log matches both the *.log exclude and the later keep.log include; the
   # include is last, so it wins and keep.log survives while util.log stays dropped.
   out="$("$(_xff_bin)" --exclude='*.log' --include='keep.log' "${root}" -type f 2>&1)"
-  rm -rf "${root}"
   expect_matches "(^|${NL}|/)keep\.log(\$|${NL})" "${out}"
   expect_not_matches "(^|${NL}|/)util\.log(\$|${NL})" "${out}"
 }
@@ -83,7 +86,6 @@ test::no_filter_lists_everything() {
   local root out
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -type f 2>&1)"
-  rm -rf "${root}"
   expect_matches "(^|${NL}|/)out\.o(\$|${NL})" "${out}"
   expect_matches "(^|${NL}|/)keep\.log(\$|${NL})" "${out}"
 }

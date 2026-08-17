@@ -713,6 +713,37 @@ Shape when built: `@xff_squashfs` as its own build-flag-gated extra, the chosen 
 NOTICE entry, `--help=archive` rows, and its own CI wildcard - a missing wildcard means the extra has
 zero coverage.
 
+## Bashtest scratch trees: use ${BASHTEST_TMPDIR}, not a hand-rolled mktemp
+
+helly25/bashtest already provides `${BASHTEST_TMPDIR}`, a scratch directory its own exit trap
+removes, and 19 xff bashtests ignored it to hand-roll `mktemp -d` plus a per-case `rm -rf`. Beyond
+the duplication, the cleanup is WRONG in the case that matters: bashtest keeps running after a failed
+expectation, so a case that fails before its `rm` leaks its tree.
+
+The convention is a per-call COUNTER, not the test's name:
+
+```sh
+_xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+mkdir -p "${root}"
+```
+
+`${FUNCNAME[1]}` (the calling test) was tried first and is wrong: the test's name then appears in
+printed paths, where it can satisfy an `expect_output_not_contains`. That is not hypothetical -
+`archive_test`'s "archive is off by default" case failed exactly that way. A counter is also unique
+per CALL, so a case that builds two trees needs nothing special.
+
+Converted so far: `archive_test`, `color_test`, `parity_test`, `first_test`, `ignore_test`,
+`collect_test`. Still to do, and NOT mechanical:
+
+- **`archive_dive_test` and `archive_pack_test`** assert on literal paths and pack archives that live
+  inside the tree, so moving the parent directory is not neutral for them - four cases fail on
+  string equality. They need per-case reading, not a scripted pass.
+- The remaining twelve files under `xff/cli` (`content_test`, `fuzzy_test`, `grep_test`,
+  `summary_test`, `ignore_gitignore_test`, `ls_test`, `cmp_test`, `exact_test`, `pager_test`,
+  `full_binary_test`, `ignore_files_test`, `help_topic_test`), several of which mint more than one
+  directory per case.
+
 ## Remaining work
 
 The backlog of features and infrastructure not yet built. Ordered by current
