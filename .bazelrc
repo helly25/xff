@@ -37,9 +37,17 @@ common --cxxopt=-std=c++23 --host_cxxopt=-std=c++23 --cxxopt=-Werror
 # exclusion filter closes.
 #  - external_include_paths: external repo headers become -isystem, so a third-party header
 #    included by our TU never trips our -Wpedantic.
-#  - the -Wno-error downgrade applies to external/* EXCEPT our own external/xff_* modules.
-common --features=external_include_paths
-common --per_file_copt=external/.*,-external/xff_.*@-Wno-error
+#  - external sources are MUTED (-w), not merely un-escalated, EXCEPT our own external/xff_* modules.
+#    `-Wno-error` was the wrong tool: it keeps the diagnostic and only stops it failing the build, so
+#    every compile still printed it. With --features=parse_headers a third-party HEADER is compiled
+#    as its own external TU, which is how a permanent line like
+#      external/googletest+/googlemock/src/gmock.cc:47: '__COUNTER__' is a C2y extension
+#    reached every build log. A warning in code we will never edit is noise, not signal.
+#  - and all of it applies in the EXEC configuration too (--host_*), which had no policy at all:
+#    first-party host warnings were not errors, and external host warnings were not muted.
+common --features=external_include_paths --host_features=external_include_paths
+common --per_file_copt=external/.*,-external/xff_.*@-w
+common --host_per_file_copt=external/.*,-external/xff_.*@-w
 # Carve-outs, each with its reason (gcc quietly ignores the -Wno- spellings it lacks on a clean
 # compile, so the union is safe on both compilers):
 #  - nullability-extension: absl's CHECK/LOG macros expand the `_Nonnull` clang extension into OUR
@@ -49,6 +57,10 @@ common --per_file_copt=external/.*,-external/xff_.*@-Wno-error
 #    value-initializes the rest). gcc spells the -Wextra member one way, clang 22+ the other.
 common --per_file_copt=.*,-external/.*@-Wextra,-Wpedantic,-Wno-nullability-extension,-Wno-missing-field-initializers,-Wno-missing-designated-field-initializers
 common --per_file_copt=external/xff_.*@-Wextra,-Wpedantic,-Wno-nullability-extension,-Wno-missing-field-initializers,-Wno-missing-designated-field-initializers
+# The same bar in the exec configuration: a build tool is our code too, and -Werror there was absent.
+common --host_cxxopt=-Werror
+common --host_per_file_copt=.*,-external/.*@-Wextra,-Wpedantic,-Wno-nullability-extension,-Wno-missing-field-initializers,-Wno-missing-designated-field-initializers
+common --host_per_file_copt=external/xff_.*@-Wextra,-Wpedantic,-Wno-nullability-extension,-Wno-missing-field-initializers,-Wno-missing-designated-field-initializers
 
 test --test_output=errors
 

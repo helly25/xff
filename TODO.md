@@ -594,6 +594,43 @@ one level up; an early stop stays an explicit opt-in.
 3. **`-top N[:PCT%]`** - needs the two-phase evaluation, the parallel merge, and the cutoff.
 4. **`--max-results`** - once more than one cap can be active, so the flag has a reason to exist.
 
+## Silence external warnings in the EXEC configuration too (from helly25/mbo#332) - SHIPPED
+
+Adapted from mbo's [#332](https://github.com/helly25/mbo/pull/332), which found that the warning
+policy applied only to the TARGET configuration, so anything built for the host escaped it in both
+directions: first-party warnings were not errors, and external sources were not muted.
+
+Two changes, and the first is the one that mattered:
+
+- **`-w` instead of `-Wno-error` for external sources.** The downgrade was the wrong tool: it keeps
+  the diagnostic and only stops it failing the build, so every compile still PRINTED it. With
+  `--features=parse_headers` a third-party header is compiled as its own external TU, which is how
+  `gmock.cc:47: '__COUNTER__' is a C2y extension` sat in every build log permanently.
+- **The whole policy mirrored into the exec configuration** (`--host_cxxopt=-Werror`,
+  `--host_features=external_include_paths`, and host counterparts of every `--per_file_copt` rule),
+  which previously had no warning policy at all.
+
+**The carve-out is the part that is NOT a copy of mbo.** The composable extras are FIRST-party code
+that happens to live under `external/` (separate modules via `local_path_override`), so both mute
+rules keep `,-external/xff_.*` and both configurations get an explicit
+`external/xff_.*@-Wextra,-Wpedantic,...` rule. mbo's blanket `external/.*@-w` would have silently
+muted every warning in @xff_archive, @xff_pcre2 and @xff_fuse.
+
+Verified by planting a deliberate unused variable and building, rather than by reading the flags:
+
+| Where                                     | Result                           |
+| :---------------------------------------- | :------------------------------- |
+| `xff/fuzzy/fuzzy.cc` (first-party)        | `error:` -Werror, fails          |
+| `external/xff_archive+/archive_reader.cc` | `error:` -Werror, fails          |
+| third-party external sources              | 0 warnings (was: on every build) |
+
+Not in scope, measured while verifying: the compile-DB refresh prints ~80
+`invalid argument '-std=c99' not allowed with 'C++'` errors, because the extractor probes
+third-party C targets (xz sets `-std=c99`) with `clang++`. It is present with and without this
+change, warning flags cannot affect it, and `tools/fix_compile_commands.py` already drops every one
+of those entries from the database - so it is extractor chatter, not a build problem, and it is
+deliberately NOT papered over with another output filter.
+
 ## Remaining work
 
 The backlog of features and infrastructure not yet built. Ordered by current
