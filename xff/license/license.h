@@ -30,6 +30,10 @@ namespace xff::license {
 // the two can never state a different owner.
 std::string_view CopyrightNotice();
 
+// The prose introducing the component manifest. Shared by the canonical NOTICE renderer and the
+// structured, width-aware help topic so the two surfaces cannot describe the manifest differently.
+std::string_view NoticeIntroduction();
+
 // xff's own license, the Apache License 2.0, verbatim (xff holds the copyright). Reproduced so a
 // single-file binary is self-contained; the text is generated from the repo LICENSE file (see the
 // //xff/license:license_text_gen genrule), which stays canonical. This is the generic license body

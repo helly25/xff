@@ -27,14 +27,18 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
+#include "xff/license/notice.h"
 #include "xff/regex/backend.h"
 
 namespace xff::regex {
 namespace {
 
 using ::mbo::testing::StatusIs;
+using ::testing::AllOf;
+using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::Eq;
+using ::testing::Field;
 using ::testing::IsTrue;
 using ::testing::Optional;
 using ::testing::Pair;
@@ -43,6 +47,17 @@ struct Pcre2BackendTest : ::testing::Test {};
 
 TEST_F(Pcre2BackendTest, IsAvailableWhenLinked) {
   EXPECT_THAT(Pcre2Available(), IsTrue());  // this target links the backend, so the factory registered
+}
+
+TEST_F(Pcre2BackendTest, RegistersTheExtraAndLibraryLicenseNotices) {
+  EXPECT_THAT(
+      license::Notices(), Contains(AllOf(
+                              Field("component", &license::Notice::component, "xff PCRE2 extra (@xff_pcre2)"),
+                              Field("spdx", &license::Notice::spdx, "Apache-2.0"))));
+  EXPECT_THAT(
+      license::Notices(), Contains(AllOf(
+                              Field("component", &license::Notice::component, "PCRE2"),
+                              Field("spdx", &license::Notice::spdx, "BSD-3-Clause"))));
 }
 
 TEST_F(Pcre2BackendTest, BackreferencesMatch) {

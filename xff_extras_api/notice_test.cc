@@ -34,6 +34,14 @@ using ::testing::IsTrue;
 // order registration happened in.
 const Registrar kZulu{{.component = "zulu-codec", .spdx = "MIT", .text = "Copyright (c) Zulu."}};
 const Registrar kAlpha{{.component = "alpha-codec", .spdx = "BSD-2-Clause", .text = "Copyright (c) Alpha."}};
+const Registrar kExtraLibrary{
+    {.section = "example extra", .component = "extra-library", .spdx = "Zlib", .text = "Library."}};
+const Registrar kExtraLead{
+    {.section = "example extra",
+     .section_lead = true,
+     .component = "example extra",
+     .spdx = "Apache-2.0",
+     .text = "Extension."}};
 
 struct NoticeTest : ::testing::Test {};
 
@@ -45,7 +53,16 @@ TEST_F(NoticeTest, NoticesAreSortedByComponentRegardlessOfRegistrationOrder) {
   for (const Notice& notice : Notices()) {
     components.push_back(notice.component);
   }
-  EXPECT_THAT(components, ElementsAre("alpha-codec", "zulu-codec"));
+  EXPECT_THAT(components, ElementsAre("alpha-codec", "zulu-codec", "example extra", "extra-library"));
+}
+
+TEST_F(NoticeTest, AnExtensionNoticeLeadsItsLibraries) {
+  EXPECT_THAT(
+      Notices(),
+      Contains(
+          ::testing::AllOf(
+              Field("section", &Notice::section, "example extra"), Field("section_lead", &Notice::section_lead, true),
+              Field("component", &Notice::component, "example extra"))));
 }
 
 TEST_F(NoticeTest, ARegistrarContributesTheWholeNotice) {
@@ -67,7 +84,7 @@ TEST_F(NoticeTest, RegisterAddsToTheProcessWideSetAndStaysSorted) {
   for (const Notice& notice : Notices()) {
     components.push_back(notice.component);
   }
-  EXPECT_THAT(components, ElementsAre("alpha-codec", "middle-codec", "zulu-codec"));
+  EXPECT_THAT(components, ElementsAre("alpha-codec", "middle-codec", "zulu-codec", "example extra", "extra-library"));
 }
 
 TEST_F(NoticeTest, NoticesReturnsACopySoCallersCannotCorruptTheRegistry) {

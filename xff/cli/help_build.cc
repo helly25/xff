@@ -695,17 +695,47 @@ Section ConfigSection(bool in_full) {
   return section;
 }
 
+Content NoticeEntry(const license::Notice& notice) {
+  return Content{
+      .node = Entry{
+          .term = absl::StrCat(notice.component, "  [", notice.spdx, "]"),
+          .summary = ParseInline(notice.text),
+      }};
+}
+
 // The `--help=notice` topic (alias notices): the one build-dependent line (which extras THIS
-// binary contains, via ExtraEnabled) then the third-party component manifest, reproduced
-// verbatim from the compiled-in repo NOTICE so a single-file release is self-contained. A
-// title-less section renders the manifest verbatim at column 0 (an Example is never wrapped).
+// binary contains, via ExtraEnabled), then the component manifest. Unlike NoticeText(), which is
+// the byte-stable repository/release artifact, this is structured help content so --width wraps
+// every prose and notice body. Section changes visibly separate the main binary from each extra.
 Section NoticeSection() {
   Section section;  // title-less: no heading, body at column 0
   section.children.push_back(ProseOf(
       absl::StrCat(
           "Build extras compiled into this binary: ",
           EnabledExtras().empty() ? "none (lean build)" : absl::StrJoin(EnabledExtras(), ", "))));
-  section.children.push_back(Content{.node = Example{.text = license::NoticeText()}});
+  section.children.push_back(ProseOf(license::CopyrightNotice()));
+  section.children.push_back(ProseOf(license::NoticeIntroduction()));
+
+  std::optional<Subsection> extension;
+  for (const license::Notice& notice : license::Notices()) {
+    if (notice.section.empty()) {
+      section.children.push_back(NoticeEntry(notice));
+      continue;
+    }
+    if (!extension.has_value() || extension->anchor != notice.section) {
+      if (extension.has_value()) {
+        section.children.push_back(Content{.node = std::move(*extension)});
+      }
+      extension = Subsection{
+          .title = absl::StrCat("Build extension: ", notice.section),
+          .anchor = std::string(notice.section),
+      };
+    }
+    extension->children.push_back(NoticeEntry(notice));
+  }
+  if (extension.has_value()) {
+    section.children.push_back(Content{.node = std::move(*extension)});
+  }
   return section;
 }
 

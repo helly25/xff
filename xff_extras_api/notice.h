@@ -21,10 +21,16 @@
 
 namespace xff::license {
 
-// One third-party component's notice: the name, its SPDX license id, and the copyright / notice
-// line to reproduce. `text` points at a static string literal (lives for the process). This is the
-// SOT for the notice content; the repo NOTICE file is generated from / checked against it.
+// One linked component's notice: the name, its SPDX license id, and the copyright / notice line to
+// reproduce. A component may be xff's own extension code or a third-party library. `text` points at
+// a static string literal (lives for the process). This is the SOT for the notice content; the repo
+// NOTICE file is generated from / checked against it.
 struct Notice {
+  // Empty for the main binary; a stable label for a build extension otherwise. Notices sort by
+  // section first, keeping an extension and the libraries it brings into the binary together.
+  std::string_view section;
+  // The extension's own notice sorts before its libraries inside the section.
+  bool section_lead = false;
   std::string_view component;
   std::string_view spdx;
   std::string_view text;
@@ -41,8 +47,8 @@ struct Registrar {
   explicit Registrar(Notice notice) { Register(notice); }
 };
 
-// Every registered third-party notice, sorted by component name so the output is deterministic
-// regardless of static-init order across translation units.
+// Every registered notice, sorted by section, section lead, then component name so the output is
+// deterministic regardless of static-init order across translation units.
 std::vector<Notice> Notices();
 
 // A license BODY, verbatim, keyed by its SPDX identifier - the key is the identifier rather than

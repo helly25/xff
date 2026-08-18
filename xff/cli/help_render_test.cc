@@ -50,12 +50,12 @@ std::string RenderEntry(std::string_view name) {
 // Renders a `--help=TOPIC` topic from the model (TopicReference + the plain backend),
 // the same path the CLI uses, or "" when NAME is not a model topic. Sub-vocabulary and
 // prose topics (fields / stats / ...) render this way rather than through RenderHelp.
-std::string RenderTopicDoc(std::string_view name) {
+std::string RenderTopicDoc(std::string_view name, std::size_t width = 0) {
   const std::optional<Document> doc = TopicReference(name);
   if (!doc.has_value()) {
     return "";
   }
-  PlainTextBackend backend;
+  PlainTextBackend backend{HelpRenderContext{.width = width}};
   RenderDocument(*doc, backend);
   return backend.Take();
 }
@@ -86,6 +86,7 @@ using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::IsFalse;
+using ::testing::IsTrue;
 using ::testing::Lt;
 using ::testing::Not;
 using ::testing::SizeIs;
@@ -365,11 +366,18 @@ TEST_F(HelpTest, ConfigTopicDocumentsTiersStyleAndArming) {
                                     HasSubstr("argv[0]"), HasSubstr("--allow-exec")));
 }
 
-TEST_F(HelpTest, NoticeTopicReproducesTheManifestVerbatim) {
-  // `--help=notice` renders from the model: the build-dependent extras line, then the
-  // verbatim third-party NOTICE manifest (reproduced, not a file pointer).
+TEST_F(HelpTest, NoticeTopicRendersTheManifest) {
+  // `--help=notice` renders from the model: the build-dependent extras line, then every component
+  // from the manifest (reproduced, not a file pointer).
   const std::string notice = RenderTopicDoc("notice");
   EXPECT_THAT(notice, AllOf(HasSubstr("Build extras compiled into this binary"), HasSubstr("RE2")));
+}
+
+TEST_F(HelpTest, NoticeTopicRespectsTheConfiguredWidth) {
+  constexpr std::size_t kWidth = 50;
+  for (const std::string_view line : absl::StrSplit(RenderTopicDoc("notice", kWidth), '\n')) {
+    EXPECT_THAT(line.size() <= kWidth, IsTrue()) << line;
+  }
 }
 
 TEST_F(HelpTest, LicenseTopicLeadsWithCopyrightThenTheText) {

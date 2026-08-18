@@ -43,6 +43,7 @@
 #include "xff/cli/markdown.h"
 #include "xff/cli/pager.h"
 #include "xff/cli/plain_backend.h"
+#include "xff/cli/wrap.h"
 #include "xff/color/color.h"
 #include "xff/config/config.h"
 #include "xff/config/loader.h"
@@ -204,8 +205,10 @@ std::string RenderExtras() {
 std::string HelpTip(const xff::cli::HelpRenderContext& context) {
   static constexpr std::string_view kTip =
       "Tip: 'xff --help=help' explains the help system; 'xff --help=topics' lists the help topics.";
-  // Dim when colour is on, so it reads as a footnote rather than as part of the entry.
-  return context.color ? absl::StrCat("\n\033[2m", kTip, "\033[0m\n") : absl::StrCat("\n", kTip, "\n");
+  // Dim when colour is on, so it reads as a footnote rather than as part of the entry. It is still
+  // flowing help text: WrapText ignores the ANSI escapes when measuring the configured width.
+  const std::string text = context.color ? absl::StrCat("\033[2m", kTip, "\033[0m") : std::string(kTip);
+  return absl::StrCat("\n", xff::cli::WrapText(text, context.width, "", ""));
 }
 
 // Whether `topic` gets that trailer: everything except the maps and the self-referential page.

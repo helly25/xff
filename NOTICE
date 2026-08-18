@@ -2,9 +2,9 @@ xff - eXtended File Find
 Copyright 2026 Marcus Boerger / helly25
 Licensed under the Apache License, Version 2.0.
 
-This product links the third-party components below; all are under permissive licenses
-(no copyleft). The notice-retention obligation is met by reproducing each name, SPDX license
-identifier, and copyright line.
+The main program and each linked build extension list their components below; all are under
+permissive licenses (no copyleft). The notice-retention obligation is met by reproducing each
+name, SPDX license identifier, and copyright line.
 
 Abseil (C++)  [Apache-2.0]
   Copyright The Abseil Authors. Licensed under the Apache License, Version 2.0.

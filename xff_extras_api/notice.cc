@@ -45,7 +45,15 @@ void Register(Notice notice) {
 
 std::vector<Notice> Notices() {
   std::vector<Notice> out = Registry();
-  absl::c_sort(out, [](const Notice& lhs, const Notice& rhs) { return lhs.component < rhs.component; });
+  absl::c_sort(out, [](const Notice& lhs, const Notice& rhs) {
+    if (lhs.section != rhs.section) {
+      return lhs.section < rhs.section;
+    }
+    if (lhs.section_lead != rhs.section_lead) {
+      return lhs.section_lead;
+    }
+    return lhs.component < rhs.component;
+  });
   return out;
 }
 

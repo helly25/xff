@@ -36,6 +36,7 @@ cc_library(
         ":markdown_cc",
         ":pager_cc",
         ":plain_backend_cc",
+        ":wrap_cc",
         "//xff/color:color_cc",
         "//xff/config:config_cc",
         "//xff/config:loader_cc",
