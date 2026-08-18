@@ -60,6 +60,16 @@ bool IsHoistableGlobal(std::string_view arg) {
   return arg.size() > 2 && arg[0] == '-' && arg[1] == '-';
 }
 
+// Meta flags are position-independent like double-dash globals, plus the GNU
+// find-compatible single-dash spellings. Keeping this vocabulary in the parser
+// is what prevents a lookalike inside `-exec`'s raw argument run from being
+// mistaken for an xff request.
+bool IsMetaFlag(std::string_view arg) {
+  return arg == "--help" || arg == "-h" || arg == "-help" || arg == "--help-all" || arg == "--help-full"
+         || arg == "--help-long" || absl::StartsWith(arg, "--help=") || arg == "--version" || arg == "-version"
+         || arg == "--man" || arg == "--markdown";
+}
+
 bool IsOr(std::string_view token) {
   return token == "-o" || token == "-or";
 }
@@ -186,6 +196,10 @@ class ExprParser {
       : tokens_(tokens), grammar_(grammar), hoist_globals_(hoist_globals) {}
 
   absl::StatusOr<ExprPtr> Parse() {
+    SkipGlobals();
+    if (AtEnd()) {
+      return ExprPtr{};
+    }
     ExprPtr expr = ParseComma();
     if (!status_.ok()) {
       return status_;
@@ -200,6 +214,8 @@ class ExprParser {
   // for the caller to append to the command's global list.
   const std::vector<std::string>& HoistedGlobals() const { return hoisted_globals_; }
 
+  const std::vector<std::string>& HoistedMetaFlags() const { return hoisted_meta_flags_; }
+
  private:
   bool AtEnd() const { return pos_ >= tokens_.size(); }
 
@@ -210,8 +226,12 @@ class ExprParser {
   // boundaries, never while a primary is consuming its raw arguments (an -exec command, a -printf
   // format), so a `--flag` meant for a child command is left untouched.
   void SkipGlobals() {
-    while (hoist_globals_ && !AtEnd() && IsHoistableGlobal(tokens_[pos_])) {
-      hoisted_globals_.push_back(tokens_[pos_]);
+    while (hoist_globals_ && !AtEnd() && (IsHoistableGlobal(tokens_[pos_]) || IsMetaFlag(tokens_[pos_]))) {
+      if (IsMetaFlag(tokens_[pos_])) {
+        hoisted_meta_flags_.push_back(tokens_[pos_]);
+      } else {
+        hoisted_globals_.push_back(tokens_[pos_]);
+      }
       ++pos_;
     }
   }
@@ -543,6 +563,7 @@ class ExprParser {
   regex::Grammar grammar_;  // the regex grammar for this command's matchers (from --regextype)
   bool hoist_globals_ = true;
   std::vector<std::string> hoisted_globals_;
+  std::vector<std::string> hoisted_meta_flags_;
   std::size_t pos_ = 0;
   absl::Status status_ = absl::OkStatus();
 };
@@ -682,7 +703,9 @@ absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
       options_ended = true;
       break;
     }
-    if (!arg.empty() && (arg[0] == '-' || arg[0] == '+')) {
+    if (IsMetaFlag(arg)) {
+      cmd.meta_flags.push_back(arg);
+    } else if (!arg.empty() && (arg[0] == '-' || arg[0] == '+')) {
       cmd.globals.push_back(arg);
     } else {
       break;
@@ -693,8 +716,12 @@ absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
   // (globals are position-independent), so `a --sort=tree b` keeps both roots; an explicit `--`
   // disables that, taking every following token literally.
   for (; idx < args.size(); ++idx) {
-    if (!options_ended && IsHoistableGlobal(args[idx])) {
-      cmd.globals.push_back(args[idx]);
+    if (!options_ended && (IsHoistableGlobal(args[idx]) || IsMetaFlag(args[idx]))) {
+      if (IsMetaFlag(args[idx])) {
+        cmd.meta_flags.push_back(args[idx]);
+      } else {
+        cmd.globals.push_back(args[idx]);
+      }
       continue;
     }
     if (StartsExpression(args[idx])) {
@@ -717,6 +744,7 @@ absl::StatusOr<Command> Parse(const std::vector<std::string>& args) {
     ExprParser parser(expr_tokens, cmd.grammar, /*hoist_globals=*/!options_ended);
     MBO_ASSIGN_OR_RETURN(cmd.expression, parser.Parse());
     cmd.globals.insert(cmd.globals.end(), parser.HoistedGlobals().begin(), parser.HoistedGlobals().end());
+    cmd.meta_flags.insert(cmd.meta_flags.end(), parser.HoistedMetaFlags().begin(), parser.HoistedMetaFlags().end());
     cmd.grammar = GrammarFromGlobals(cmd.globals);
   }
   return cmd;

@@ -369,6 +369,15 @@ test::bad_flags_are_hard_errors_even_with_help() {
   "${bin}" --help=archive >/dev/null || fail "--help=archive must succeed"
 }
 
+test::meta_spelling_inside_exec_stays_a_child_argument() {
+  # Meta recognition follows parser boundaries. A child command is an opaque
+  # argument run, so its `--help` must not turn xff itself into the usage page.
+  local out
+  out="$("$(_xff_bin)" --allow-exec . -maxdepth 0 -exec printf 'child:%s\n' --help ';' 2>&1)"
+  expect_output_contains 'child:--help' "${out}"
+  expect_output_not_contains 'eXtended File Find' "${out}"
+}
+
 test::bare_help_operand_passes_through_in_find_mode() {
   # Invoked as `find`, `help` must stay a path operand (find compatibility), so the
   # xff guiding error must NOT fire.

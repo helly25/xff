@@ -92,6 +92,11 @@ struct Expr {
 // position-dependent expression tree (null when no expression was given).
 struct Command {
   std::vector<std::string> globals;
+  // Meta/document flags found at option or expression boundaries. They are kept
+  // separate from globals so the CLI can dispatch them after validating the
+  // remaining command line. A matching token inside a primary's argument run
+  // (notably `-exec ... ;`) remains an argument and never appears here.
+  std::vector<std::string> meta_flags;
   std::vector<std::string> roots;
   ExprPtr expression;
   // The regex grammar for every matcher in this command, resolved once from --regextype at parse
