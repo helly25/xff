@@ -14,6 +14,30 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@xff_extras_api//:license_body.bzl", "license_body")
+
+license_body(
+    name = "bsd_2_clause_license_cc",
+    src = "licenses/BSD-2-Clause.txt",
+    spdx = "BSD-2-Clause",
+)
+
+license_body(
+    name = "pcre2_license_body_cc",
+    src = "licenses/PCRE2.txt",
+    spdx = "BSD-3-Clause WITH PCRE2-exception",
+)
+
+cc_library(
+    name = "pcre2_license_cc",
+    srcs = ["pcre2_license.cc"],
+    deps = [
+        ":bsd_2_clause_license_cc",
+        ":pcre2_license_body_cc",
+        "@xff_extras_api//:license_notice_cc",
+    ],
+    alwayslink = True,
+)
 
 # The real PCRE2 regex backend: the --regextype=PCRE2 build extra (#85), a target of the standalone
 # @xff_pcre2 module (this directory's MODULE.bazel). It implements @xff_extras_api's RegexBackend and
@@ -26,8 +50,8 @@ cc_library(
     srcs = ["pcre2_backend.cc"],
     visibility = ["//visibility:public"],
     deps = [
+        ":pcre2_license_cc",
         "@pcre2",
-        "@xff_extras_api//:license_notice_cc",
         "@xff_extras_api//:regex_backend_cc",
     ],
     alwayslink = True,
@@ -45,6 +69,7 @@ cc_test(
     srcs = ["pcre2_backend_test.cc"],
     deps = [
         ":pcre2_backend_cc",
+        ":pcre2_license_cc",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

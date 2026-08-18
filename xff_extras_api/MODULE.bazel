@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # The shared API surface that both the xff core and every removable extra depend on: the
-# RegexBackend plugin interface + PCRE2 registration slot (and, later, the license-notice registry).
+# RegexBackend plugin interface, PCRE2 registration slot, and license-notice/body registry.
 # It is its own Bazel module - not a core package - so an extra can be a real standalone module
 # (bazel_dep on xff_extras_api + the extra's own external deps) without depending back into the xff
 # core, which would be a cycle. The core and each extra both `bazel_dep` this; nothing here depends

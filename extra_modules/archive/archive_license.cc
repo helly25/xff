@@ -1,0 +1,60 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+
+#include <string_view>
+
+#include "xff/license/notice.h"
+
+namespace xff::archive {
+namespace {
+
+constexpr std::string_view kSection = "archive (@xff_archive)";
+
+const license::Registrar kArchiveExtra{{
+    .section = kSection,
+    .section_lead = true,
+    .component = "xff archive extra (@xff_archive)",
+    .spdx = "Apache-2.0",
+    .text = "Copyright 2026 Marcus Boerger / helly25. Licensed under the Apache License, Version 2.0.\n"
+            "Provides container diving, extraction and packing, including xff's own phar reader and\n"
+            "writer, by linking the libraries whose notices follow.",
+}};
+
+const license::Registrar kLibarchive{{
+    .section = kSection,
+    .component = "libarchive",
+    .spdx = "BSD-2-Clause",
+    .text = "Copyright (c) 2003-2018 libarchive contributors. All rights reserved.",
+}};
+const license::Registrar kBzip2{{
+    .section = kSection,
+    .component = "bzip2",
+    .spdx = "bzip2-1.0.6",
+    .text = "Copyright (c) 1996-2019 Julian R Seward. All rights reserved.",
+}};
+const license::Registrar kZlib{{
+    .section = kSection,
+    .component = "zlib",
+    .spdx = "Zlib",
+    .text = "Copyright (c) 1995-2022 Jean-loup Gailly and Mark Adler.",
+}};
+const license::Registrar kLiblzma{{
+    .section = kSection,
+    .component = "liblzma (XZ Utils)",
+    .spdx = "LicenseRef-Public-Domain",
+    .text = "The liblzma source in XZ Utils 5.4.5 has been put into the public domain.",
+}};
+const license::Registrar kLz4{{
+    .section = kSection,
+    .component = "LZ4 library",
+    .spdx = "BSD-2-Clause",
+    .text = "Copyright (c) 2011-2020 Yann Collet. All rights reserved.",
+}};
+const license::Registrar kZstd{{
+    .section = kSection,
+    .component = "Zstandard",
+    .spdx = "BSD-3-Clause",
+    .text = "Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.",
+}};
+}  // namespace
+}  // namespace xff::archive

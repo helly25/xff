@@ -14,6 +14,51 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@xff_extras_api//:license_body.bzl", "license_body")
+
+license_body(
+    name = "bsd_2_clause_license_cc",
+    src = "licenses/BSD-2-Clause.txt",
+    spdx = "BSD-2-Clause",
+)
+
+license_body(
+    name = "bsd_3_clause_license_cc",
+    src = "licenses/BSD-3-Clause.txt",
+    spdx = "BSD-3-Clause",
+)
+
+license_body(
+    name = "bzip2_license_cc",
+    src = "licenses/bzip2-1.0.6.txt",
+    spdx = "bzip2-1.0.6",
+)
+
+license_body(
+    name = "public_domain_license_cc",
+    src = "licenses/Public-Domain.txt",
+    spdx = "LicenseRef-Public-Domain",
+)
+
+license_body(
+    name = "zlib_license_cc",
+    src = "licenses/Zlib.txt",
+    spdx = "Zlib",
+)
+
+cc_library(
+    name = "archive_license_cc",
+    srcs = ["archive_license.cc"],
+    deps = [
+        ":bsd_2_clause_license_cc",
+        ":bsd_3_clause_license_cc",
+        ":bzip2_license_cc",
+        ":public_domain_license_cc",
+        ":zlib_license_cc",
+        "@xff_extras_api//:license_notice_cc",
+    ],
+    alwayslink = True,
+)
 
 # The libarchive-backed archive reader: the archive build extra (#83), a target of the standalone
 # @xff_archive module (this directory's MODULE.bazel). It depends only on @libarchive and the
@@ -51,11 +96,11 @@ cc_library(
     include_prefix = "xff/archive",
     visibility = ["//visibility:public"],
     deps = [
+        ":archive_license_cc",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@libarchive//libarchive",
-        "@xff_extras_api//:license_notice_cc",
         "@xff_extras_api//:member_path_cc",
     ],
     alwayslink = True,
@@ -206,6 +251,7 @@ cc_test(
     size = "small",
     srcs = ["archive_reader_test.cc"],
     deps = [
+        ":archive_license_cc",
         ":archive_reader_cc",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest",

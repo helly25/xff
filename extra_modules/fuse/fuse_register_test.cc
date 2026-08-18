@@ -14,7 +14,7 @@
 // limitations under the License.
 
 // Linking fuse_register_cc (as any binary carrying the fuse extra does) must fill BOTH identity
-// surfaces: the extras slot the core's `--help=extras` / notice line read, and the libfuse notice.
+// surfaces: the extras slot the core's `--help=extras` reads and xff's own FUSE-extension notice.
 
 #include <memory>
 #include <string>

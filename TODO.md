@@ -226,15 +226,13 @@ shipped one way but not yet settled.
     the process-spawning `fusermount3 -uz` / `umount -f` crash path and the signal handler land
     with the server (slice 3), which owns actual mounts. All plain-filesystem, tested without
     FUSE. 3. **The read-only FUSE server over `vfs::FileSystem`**, split again on inspection - the fuse3
-    ABI surface is the risk, not the callbacks: - **3a. The fuse3 API headers, FETCHED from git into the fuse module (SHIPPED)**. The
-    module's MODULE.bazel pins libfuse's **fuse-3.18.2 release asset** (sha256-verified) with
-    a BUILD overlay (`libfuse.BUILD.bazel`) exposing the interface-only `fuse3_headers`
-    library - the meson-generated `libfuse_config.h` include is patched behind
-    `__has_include` and the version macros land as defines; `FUSE_USE_VERSION=30` picks the
-    base fuse3 API for the widest runtime match. `FuseApi`
+    ABI surface is the risk, not the callbacks: - **3a. The fuse3 ABI declarations (SHIPPED, then
+    superseded).** The first slice fetched fuse-3.18.2's headers. The final design removed that
+    build dependency: `fuse_abi.h` now carries only the declarations and structure prefixes xff
+    actually uses, transcribed against that release. `FuseApi`
     is the typed call surface: every loader symbol cast ONCE (the funneled dlsym-contract
-    NOLINT) into the function types from libfuse's own headers, so `fuse_lowlevel_ops`'s
-    layout is never transcribed. No LGPL text in the tree; the NOTICE component lands with
+    NOLINT) into those local declarations. No LGPL code or text is in the tree; xff's own
+    Apache-2.0 extension notice lands with
     the slice that links the extra into `xff_full`. - **3b. The server itself (SHIPPED)**: `FuseServer::Mount` serves any `vfs::FileSystem`
     read-only - lookup/getattr/readdir(+release)/open/read/readlink filled by NAME into the
     fetched `fuse_lowlevel_ops`, an only-grows inode table, whole-member content held per
@@ -248,8 +246,8 @@ shipped one way but not yet settled.
     from `--help=extras`): `--//xff:xff_fuse` + `xff_fuse_on` (`xff_all` coverage), xff_full
     links @xff_fuse's registration TU, the `xff_extras_api` fuse slot
     (`MountSupportAvailable`) feeds `ExtraEnabled("fuse")`/`kKnownExtras`/`ExtraBuildFlag`,
-    the `--help=extras` row, and the libfuse NOTICE component (LGPL-2.1, interface-only
-    headers + runtime dlopen - no LGPL code in the binary; the committed NOTICE stays
+    the `--help=extras` row, and the xff FUSE extra NOTICE component (Apache-2.0; the host's
+    libfuse/macFUSE implementation is loaded at runtime and is not a binary component; the committed NOTICE stays
     core-only by the license_test contract, extras render live). - **4b-0. Path vocabulary (SHIPPED)**: the server resolved a lookup by joining parent and
     name with `/`, which only a local filesystem understands - the archive VFS spells a member
     `container!member`. Lookup now asks the FILESYSTEM (`ReadDir` reports each child's full
@@ -785,14 +783,9 @@ unchanged: `fuse_loader` dlopens whatever the host has.
 offset cannot fail at link time - it corrupts at runtime. Linux CI is the guard, where
 `fuse_server_test` and the `--archive-mount` CLI cases drive a real fuse3.
 
-**Notice correction.** The old entry claimed `libfuse [LGPL-2.1-only]` and "compiled against its
-headers". Three things were wrong or misleading: the project as a whole is LGPL-2.1 (`include/`,
-`lib/`, `meson.build`) plus **GPL-2.0** for everything else, so a single tag misstated it; `-only` was
-a stronger assertion than the LICENSE file supports; and the runtime library is NOT always libfuse -
-on macOS it is macFUSE, under its own terms. The entry is now `fuse3 (interoperability)` with NO SPDX
-identifier, because no licence of theirs governs this binary. The renderer omits the brackets entirely
-for an empty SPDX (an empty `[]` reads as a missing identifier), and the notice header no longer says
-everything listed is "linked".
+**Notice correction.** The intermediate empty-SPDX interoperability entry was also superseded. The
+final model is recorded below: the component is xff's own Apache-2.0 FUSE extension, while the
+runtime-provided libfuse/macFUSE implementation is not a component of the binary.
 
 ## libfuse: no build dependency, and the notice lists OUR code (SHIPPED 2026-08-18)
 
@@ -838,11 +831,9 @@ component is `xff FUSE extra (@xff_fuse)` with SPDX `Apache-2.0`, whose text des
 interaction as INFORMATION - our own declarations, host implementation loaded at runtime - and libfuse
 is not registered at all, because none of its code is in the binary. A test pins both halves.
 
-**Consistency follow-up:** `@xff_archive` and `@xff_pcre2` are also xff's own Apache-2.0 code wrapping
-third-party libraries. They register notices for the libraries they genuinely link (libarchive, pcre2
-and the codecs), which is correct, but they do not register THEMSELVES. Registering each extra as its
-own Apache-2.0 component would make the manifest complete and uniform. Small, mechanical, not done
-here.
+**Consistency follow-up (SHIPPED, PR #569):** `@xff_archive` and `@xff_pcre2` now register their own
+Apache-2.0 extension entries before the third-party components they link, matching `@xff_fuse` and
+making the manifest complete and uniform.
 
 ## Remaining work
 
@@ -863,27 +854,21 @@ intent, not hard dependency. Task numbers reference the agent task list.
   rest, rendered only on a clean parse. Follow-up recorded: meta spellings inside `-exec` argument
   runs are still recognized from raw argv; fold meta handling into the parser proper.
 
-- **#201 (seam + retrieval SHIPPED; extras' own texts deferred)**: extras license TEXTS. `--help=license` renders only
-  xff's own Apache-2.0 and `--help=notice` inventories the linked components without their full
-  texts - so a binary containing zstd (BSD-3) or, once the fuse extra links, libfuse (LGPL-2.1)
-  cannot show what those licenses actually say. Extend the license/notice self-registration seam so
-  a component carries (or points at) its full text, and add the retrieval spelling - leaning
-  `--help=license=COMPONENT`, with the component names cross-referenced from `--help=notice` and
-  an unknown name getting the usual guiding error. #142's rule stands: any license page leads with
-  the copyright + grant statement.
-  **Shipped**: bodies are registered by SPDX ID rather than by component, because components SHARE
+- **#201 (SHIPPED)**: full linked-component license retrieval. `--help=license=COMPONENT` resolves
+  component names case-insensitively from `--help=notice`, leads with the retained attribution, and
+  renders the full embedded license body. Bodies are registered by SPDX ID rather than by component,
+  because components SHARE
   licenses (libarchive and lz4 are both BSD-2-Clause; Abseil, mbo and xff itself are all
   Apache-2.0) - one registration answers for every component naming it, and duplicate copies cannot
   drift. The seam mirrors the notice one (`LicenseBodyRegistrar`, static-init, function-local static
   registry); re-registering an SPDX keeps the FIRST, so the answer never depends on static-init
   order. xff's generated LICENSE text is the Apache-2.0 registration. The topic name still
   case-folds but its VALUE does not (component names are proper nouns), and the lookup is
-  case-insensitive so reading a license is not a spelling test.
-  **Deferred**: the extras' own license FILES (BSD-2, BSD-3, Zlib, bzip2, 0BSD, LGPL-2.1). Each
-  extra should embed the texts IT brings, through a shared genrule macro modelled on
-  `//xff/license:license_text_gen`. Until then those components render an explicit "the full <SPDX>
-  text is not embedded in this binary" line under their retained attribution - the license still
-  applies, this binary just does not carry its words, and saying so beats implying otherwise.
+  case-insensitive so reading a license is not a spelling test. The core embeds BSD-3-Clause for
+  RE2; archive embeds BSD-2-Clause, BSD-3-Clause, Zlib, bzip2-1.0.6 and liblzma's public-domain
+  grant; PCRE2 embeds its BSD-3-Clause exception text and SLJIT's BSD-2-Clause text. A shared
+  `license_body` build macro keeps each authoritative text in its owning module. FUSE embeds no
+  libfuse licence because it compiles and links no libfuse code.
 
 - **#196 (this change completes it)**: enforce `MBO_ASSERT_OK_AND_ASSIGN` over
   `ASSERT_THAT(x, IsOk())` + deref. The 77-site conversion shipped in PR #528 (+ 4 loop-body
@@ -1426,14 +1411,14 @@ remains below is the design-forked / larger work.
   (`bazel_dep(name = "libarchive", version = "3.8.1.bcr.2")`): no vendoring, less code than
   hand-rolling, and it covers tar/zip/cpio/ar/iso plus the gz/bz2/xz/zstd/lz4 filters behind one
   streaming API.
-  - **Two build variants planned:** _minimal_ (tar + gz + bz2, with xz/zstd/lz4/mbedtls disabled at
-    libarchive's build config) and _extended_ (adds xz/zstd/zip/...). The license/NOTICE footprint
-    scales with the enabled codec set.
-  - **NOTICE obligations, all permissive but must be maintained.** libarchive's closure adds bzip2,
-    lz4, xz, zlib, zstd, mbedtls. Net-new license types over our Apache-2.0 / BSD-3-Clause baseline:
-    BSD-2-Clause (libarchive, lz4), Zlib, bzip2-1.0.6, 0BSD (xz, no notice needed). Two are
-    dual-licensed, so pin the permissive arms: zstd -> BSD-3-Clause, mbedtls -> Apache-2.0, and link
-    lz4's library (BSD-2), never its GPL-2.0 CLI. With those pinned there is no copyleft.
+  - **Build closure (final):** the archive extra uses the BCR libarchive target's resolved codec
+    closure. It includes xz, zstd and lz4 as well as zlib and bzip2; Mbed TLS is disabled, and there
+    is no separate reduced archive-extra variant.
+  - **NOTICE obligations, all permissive but must be maintained.** libarchive's resolved closure adds
+    bzip2, lz4, xz, zlib and zstd. Net-new license types over our Apache-2.0 / BSD-3-Clause baseline:
+    BSD-2-Clause (libarchive, lz4), Zlib, bzip2-1.0.6, and public-domain liblzma. Two are
+    zstd is dual-licensed, so pin its BSD-3-Clause arm and link lz4's library (BSD-2), never its
+    GPL-2.0 CLI. With those choices there is no copyleft.
   - **Control surface `--archive[=none|roots|all]` + `-z`, RATIFIED 2026-08-05.** Diving into a NAMED
     archive root and diving into archives met MID-WALK are separately-wanted behaviours, so this is
     one ordered enum (`none` subset `roots` subset `all`), not a boolean. Bare `--archive` = `all`;
@@ -1737,12 +1722,11 @@ remains below is the design-forked / larger work.
   - **Normal build (317/1):** `bazel build //...` builds BOTH lean `xff` and full `xff_full` (extras
     present by default); DROP the separate `full` CI cell. The only separate build is the stripped one
     (the minimal package), which is a patch/removal, not a required cell.
-  - **License/NOTICE (317/4):** each extra carries its wrapped lib's own `LICENSE`/`NOTICE` next to its
-    `MODULE.bazel` and self-registers its notice (SPDX + copyright, ideally the full text) into
-    `xff/license`, as the core deps do - so `xff_full`'s `--help=notice` + generated NOTICE reproduce
-    core+extras. The committed root NOTICE stays core-only + a disclaimer that `xff_full` may compile
-    in further deps (present-at-load + actively enabled), whose notices then apply. Drift-check: core
-    for the committed root NOTICE, full for the extras' set.
+  - **License/NOTICE (317/4, SHIPPED):** each extra self-registers its own notice and every compiled
+    component's notice through `xff_extras_api`; authoritative license bodies are embedded by SPDX
+    identifier through the shared `license_body` rule. Thus `xff_full --help=notice` inventories the
+    composed binary and `--help=license=COMPONENT` reproduces the selected terms. The committed root
+    NOTICE intentionally stays core-only; full-binary tests pin the extras' live set.
   - **Staging:** spike the bzlmod mechanism (local module + self-registration extension + clean strip);
     if viable, implement v2 wholesale (rename + local modules + auto-detect + per-extra notices,
     retiring the `//xff:xff_pcre` flag + `full` cell); #83 archive then follows the same shape.
@@ -1777,8 +1761,8 @@ remains below is the design-forked / larger work.
     `--help=license` (plural aliases) reproduce the compiled-in set; `license_test` drift-guards the
     committed `NOTICE`/`LICENSE` against the code. No external dep. Author name is `Boerger`.
     **Under self-registration a MINIMAL binary's NOTICE is core-only, which is CORRECT** - the
-    libarchive/PCRE2 notices belong to the FULL binary and land with the extras' real modules
-    (below). TODO in `license.h`: C++23 `#embed` + reproduce each dep's own license text.
+    libarchive/PCRE2 notices and license bodies belong to the FULL binary and land with the extras'
+    real modules (below).
   - **Dual binary SHIPPED (#85 PR4, supersedes the earlier `alias` sketch).** Two real, named
     binaries in `//xff/cli`: `xff` (lean, the target every test/golden runs against and the one built
     by `//...`) and `xff_full` (`tags=["manual"]`, same core + a `select({"//xff:xff_pcre_enabled":
@@ -1791,8 +1775,9 @@ remains below is the design-forked / larger work.
     the extras on; `--config=xff_full --//xff:xff_pcre=false` drops one from an otherwise-full build.
   - **PCRE2 backend SHIPPED (#85 PR5).** `extra_modules/pcre2/` (removable dir) holds the real
     `Pcre2Backend` (implements `xff/regex`'s `RegexBackend` via the PCRE2 C API - compile / match /
-    ovector / substitute), `alwayslink` self-registers via `Pcre2Registrar` + a BSD-3 notice
-    (license registry), deps the BCR `pcre2` 10.47 module, and links into `xff_full` via
+    ovector / substitute), `alwayslink` self-registers via `Pcre2Registrar`; its separate license
+    target registers PCRE2 (`BSD-3-Clause WITH PCRE2-exception`) and SLJIT (`BSD-2-Clause`) notices
+    plus both full texts. It deps the BCR `pcre2` 10.47 module and links into `xff_full` via
     `select({"//xff:xff_pcre_enabled": [...]})` - `manual`, so a plain `//...` build never fetches
     `@pcre2`. FullMatch is ANCHORED|ENDANCHORED; ReDoS guarded by match + depth limits; Rewrite
     translates the RE2 `\1` contract to PCRE2 `$1`. Grammar threading (kPcre2) landed in PR5a. Tests:

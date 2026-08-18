@@ -146,7 +146,7 @@ cc_test(
 )
 
 # The extra's identity TU: linking it IS "the fuse extra is compiled in" - it fills the extras-api
-# slot and registers the libfuse notice, and pulls in the server. xff_full links this (and only
+# slot and registers the xff FUSE extension notice, and pulls in the server. xff_full links this (and only
 # this) under //xff:xff_fuse_on.
 cc_library(
     name = "fuse_register_cc",
