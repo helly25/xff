@@ -16,8 +16,8 @@
 // The real PCRE2 regex backend: a composable build extra (--regextype=PCRE2, #85). This whole
 // directory is removable - deleting it drops PCRE2 support entirely, and only //xff/cli:xff_full
 // links it (via the //xff:xff_pcre select). It self-registers a factory with xff/regex (so
-// xff::regex::Pcre2Available() flips true and Matcher::Compile(kPcre2) works) and its BSD-3 notice
-// with xff/license, exactly the way the core engines register - the core never references PCRE2.
+// xff::regex::Pcre2Available() flips true and Matcher::Compile(kPcre2) works). The sibling license
+// target registers PCRE2 and SLJIT notices and bodies; the core never references either library.
 
 // pcre2.h REQUIRES this before the include: it selects the 8-bit code-unit API, and there is no
 // constant form of it. NOLINTNEXTLINE(cppcoreguidelines-macro-usage)

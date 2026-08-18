@@ -41,10 +41,8 @@ std::string_view NoticeIntroduction();
 std::string_view LicenseText();
 
 // The assembled third-party NOTICE: an xff attribution header followed by each registered component
-// (sorted). Reproduced by `--help=notice`; the repo NOTICE file is kept equal to it.
-//
-// TODO(marcus@helly25.com): reproduce each dependency's OWN license file verbatim (RE2's BSD-3
-// text, the extras' texts) via C++23 #embed, rather than the name + SPDX id + copyright line here.
+// (sorted). Reproduced by `--help=notice`; the repo NOTICE file is kept equal to it. Full license
+// bodies are registered separately by SPDX id and rendered by `--help=license=COMPONENT`.
 std::string NoticeText();
 
 }  // namespace xff::license
