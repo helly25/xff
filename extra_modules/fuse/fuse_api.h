@@ -17,14 +17,15 @@
 #define XFF_FUSE_FUSE_API_H_
 
 // The typed fuse3 call surface (epic #183, slice 3a): every symbol the loader resolved, cast ONCE
-// into the real function type from libfuse's own headers - the fetched release the module pins, so
-// `fuse_lowlevel_ops`'s layout and `fuse_session_new`'s signature are libfuse's, never transcribed.
+// into the real function type. The types come from xff/fuse/fuse_abi.h, which declares the fuse3
+// ABI itself rather than including libfuse's LGPL-2.1 headers - see that file for why, and for the
+// fidelity rules those declarations follow.
 // The mount server (slice 3b) calls through this struct; nothing else in the module casts.
 
 #include <cstddef>
 
 #include "absl/status/statusor.h"
-#include "fuse_lowlevel.h"  // @libfuse//:fuse3_headers, interface-only (see libfuse.BUILD.bazel)
+#include "xff/fuse/fuse_abi.h"  // our own fuse3 ABI declarations; no libfuse header is compiled
 
 namespace xff::fuse {
 

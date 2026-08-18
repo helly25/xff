@@ -15,7 +15,9 @@
 
 // The FUSE extra's identity: linking this translation unit IS what "the fuse extra is compiled in"
 // means (epic #183 slice 4a). It fills the xff_extras_api slot the core reads for `--help=extras` /
-// the notice line, and registers the libfuse notice. The target is alwayslink so neither file-scope
+// the notice line, and registers the notice for THIS EXTRA - which is xff's own Apache-2.0 code.
+// libfuse is deliberately NOT registered: xff uses none of its code (see fuse_abi.h), so there is
+// nothing to attribute and no third-party license to retain. The target is alwayslink so no file-scope
 // registrar is dropped.
 
 #include <memory>
@@ -107,16 +109,17 @@ const bool kRegisterFactory = [] {
   return true;
 }();
 
-// Interface-only use: the binary compiles against libfuse's headers (fetched, pinned release) and
-// dlopens the SYSTEM's libfuse3 at runtime; no LGPL code is compiled or statically linked in. The
-// notice credits the interface and says where the library itself lives.
-const license::Registrar kLibfuseNotice{{
-    .component = "libfuse",
-    .spdx = "LGPL-2.1-only",
-    .text = "libfuse (https://github.com/libfuse/libfuse), Copyright (c) Miklos Szeredi and contributors.\n"
-            "Used interface-only: compiled against its headers; the library itself is loaded from the\n"
-            "host system at runtime (dlopen) and is not distributed with this binary.",
+}  // namespace
+
+const license::Registrar kFuseExtraNotice{{
+    .component = "xff FUSE extra (@xff_fuse)",
+    .spdx = "Apache-2.0",
+    .text = "Copyright 2026 Marcus Boerger / helly25. Licensed under the Apache License, Version 2.0.\n"
+            "Mounting is implemented against the FUSE 3 lowlevel interface using this extra's own\n"
+            "declarations (xff/fuse/fuse_abi.h); no libfuse code is compiled, linked, or shipped. At\n"
+            "runtime the host's FUSE implementation is loaded dynamically - libfuse3 on Linux and BSD,\n"
+            "macFUSE on macOS - each under its own terms. That is how it interoperates, not a license\n"
+            "this binary carries.",
 }};
 
-}  // namespace
 }  // namespace xff::fuse

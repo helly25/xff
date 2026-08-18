@@ -49,8 +49,8 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "fuse_lowlevel.h"  // @libfuse//:fuse3_headers, interface-only
 #include "mbo/status/status_macros.h"
+#include "xff/fuse/fuse_abi.h"  // our own fuse3 ABI declarations; no libfuse header is compiled
 #include "xff/fuse/fuse_api.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/filesystem.h"
@@ -466,7 +466,9 @@ absl::StatusOr<std::unique_ptr<FuseServer>> FuseServer::Mount(
   std::string arg1 = "-o";
   std::string arg2 = "ro,default_permissions";
   std::array<char*, 3> argv = {arg0.data(), arg1.data(), arg2.data()};
-  struct fuse_args args = FUSE_ARGS_INIT(static_cast<int>(argv.size()), argv.data());
+  // libfuse spells this FUSE_ARGS_INIT; the struct is three fields, so aggregate init says the same
+  // thing without transcribing a macro. `allocated = 0` means "these args are the caller's".
+  struct fuse_args args = {.argc = static_cast<int>(argv.size()), .argv = argv.data(), .allocated = 0};
   server->impl_->session = api->session_new(&args, &ServerOps(), kImplementedOpsSize, server->impl_.get());
   // session_new copies what it needs and leaves the (now heap-allocated) argv to us, success or
   // not; libfuse's own examples free it here.

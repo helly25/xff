@@ -24,33 +24,35 @@ module(
 
 bazel_dep(name = "rules_cc", version = "0.2.21")
 
-# The fuse3 API headers, fetched from the PINNED libfuse release (never vendored - decided with the
-# user 2026-08-15, TODO.md #183/3a). Only this module compiles against them, and only as INTERFACE
-# declarations: `fuse_lowlevel_ops`'s field order is the ABI and `fuse_session_new` validates its
-# size, so hand-declaring it would be a silent-corruption trap. The library itself is never linked -
-# fuse_loader dlopens the machine's own libfuse3 at runtime. The release ASSET is used (stable
-# checksum), not the auto-generated /archive/ tarball. libfuse is LGPL-2.1: interface-only use of a
-# runtime-loaded library.
+# NO libfuse dependency AT ALL, by design (settled with the user 2026-08-18). xff declares the fuse3
+# ABI itself in fuse_abi.h, so no libfuse file is fetched, read, compiled, linked or shipped, and the
+# LGPL-2.1 question that came with its headers simply does not arise. The runtime library is still
+# whatever the host provides (libfuse3 on Linux and BSD, macFUSE on macOS), dlopened by fuse_loader
+# and under its own terms.
 #
-# The pin is the CURRENT release; the runtime library is whatever the machine has, and those two
-# meet through `op_size`, not through matching versions. libfuse copies `op_size` bytes of our
-# `fuse_lowlevel_ops` and zero-fills the rest, so the contract is "declare how much you filled":
-# fuse_server passes the offset just past the LAST op it implements, never `sizeof` the struct it
-# happens to compile against. Passing the full sizeof is what makes an older runtime print
-# "library too old, some operations may not work" and clamp - a warning about US, not about it.
-# Fields are only ever APPENDED to that struct, so the prefix we declare means the same thing to
-# every 3.x runtime.
-http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
-http_archive(
-    name = "libfuse",
-    build_file = "//:libfuse.BUILD.bazel",
-    patch_args = ["-p1"],
-    patches = ["//:libfuse_config_include.patch"],
-    sha256 = "f01de85717e20adf5f98aff324acd85dd73d61a5ca3834d573dcf0bd6e54a298",
-    strip_prefix = "fuse-3.18.2",
-    urls = ["https://github.com/libfuse/libfuse/releases/download/fuse-3.18.2/fuse-3.18.2.tar.gz"],
-)
+# The fetch is kept here, COMMENTED OUT, as provenance and as a conformance tool: uncomment it plus
+# the `@libfuse//:fuse3_headers` deps in BUILD.bazel to compile our declarations beside the real ones
+# and diff them after a libfuse release. It must go back to being commented out before committing -
+# a build-time libfuse dependency is the thing this design removes.
+#
+#   http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+#
+#   http_archive(
+#       name = "libfuse",
+#       build_file = "//:libfuse.BUILD.bazel",
+#       patch_args = ["-p1"],
+#       patches = ["//:libfuse_config_include.patch"],
+#       sha256 = "f01de85717e20adf5f98aff324acd85dd73d61a5ca3834d573dcf0bd6e54a298",
+#       strip_prefix = "fuse-3.18.2",
+#       urls = ["https://github.com/libfuse/libfuse/releases/download/fuse-3.18.2/fuse-3.18.2.tar.gz"],
+#   )
+#
+# The version contract is unchanged and is what makes a PREFIX declaration sound: libfuse copies
+# `op_size` bytes of our `fuse_lowlevel_ops` and zero-fills the rest, so fuse_server passes the offset
+# just past the LAST op it implements, never `sizeof`. Passing the full sizeof is what makes an older
+# runtime print "library too old, some operations may not work" and clamp - a warning about US, not
+# about it. Fields are only ever APPENDED to that struct, so our prefix means the same thing to every
+# 3.x runtime.
 bazel_dep(name = "abseil-cpp", version = "20250814.2")
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 bazel_dep(name = "helly25_mbo", version = "0.13.0")
