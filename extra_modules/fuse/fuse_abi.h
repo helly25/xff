@@ -45,9 +45,10 @@
 // the same thing to every 3.x runtime. Implementing a further op means appending the ops between it
 // and the current end, in libfuse's order, and moving that offset.
 
-#include <cstdint>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#include <cstdint>
 
 extern "C" {
 
@@ -131,13 +132,8 @@ struct fuse_lowlevel_ops {
   void (*link)(fuse_req_t req, fuse_ino_t ino, fuse_ino_t newparent, const char* newname);
   void (*open)(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
   void (*read)(fuse_req_t req, fuse_ino_t ino, std::size_t size, off_t off, struct fuse_file_info* fi);
-  void (*write)(
-      fuse_req_t req,
-      fuse_ino_t ino,
-      const char* buf,
-      std::size_t size,
-      off_t off,
-      struct fuse_file_info* fi);
+  void (
+      *write)(fuse_req_t req, fuse_ino_t ino, const char* buf, std::size_t size, off_t off, struct fuse_file_info* fi);
   void (*flush)(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
   void (*release)(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
   void (*fsync)(fuse_req_t req, fuse_ino_t ino, int datasync, struct fuse_file_info* fi);
