@@ -23,6 +23,10 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# Scratch trees live under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes; the name
+# is a per-call counter, so a case that builds two trees needs nothing special and no test name
+# leaks into a printed path (where it could satisfy an expect_output_not_contains).
+
 _xff_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
   if [[ ! -x "${bin}" ]]; then
@@ -361,10 +365,11 @@ test::bare_help_operand_passes_through_in_find_mode() {
   # Invoked as `find`, `help` must stay a path operand (find compatibility), so the
   # xff guiding error must NOT fire.
   local tmp out
-  tmp="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  tmp="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${tmp}"
   cp "$(_xff_bin)" "${tmp}/find"
   out="$("${tmp}/find" help 2>&1)" || true
-  rm -rf "${tmp}"
   expect_output_not_contains 'not a subcommand' "${out}"
 }
 

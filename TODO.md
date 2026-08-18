@@ -739,10 +739,18 @@ Converted so far: `archive_test`, `color_test`, `parity_test`, `first_test`, `ig
 - **`archive_dive_test` and `archive_pack_test`** assert on literal paths and pack archives that live
   inside the tree, so moving the parent directory is not neutral for them - four cases fail on
   string equality. They need per-case reading, not a scripted pass.
-- The remaining six files under `xff/cli` (`summary_test`, `ignore_gitignore_test`, `cmp_test`,
-  `full_binary_test`, `ignore_files_test`, `help_topic_test`). `content_test`, `fuzzy_test`,
-  `grep_test`, `ls_test`, `exact_test` and `pager_test` are converted; the counter handles their
-  several-trees-per-case shape with no special treatment, which is the reason it beat naming.
+- **`summary_test` and `ignore_gitignore_test`** join the two archive tests in the not-mechanical
+  group: their assertions are regexes over printed PATHS, so the tree's location is part of what they
+  match and a scripted move breaks them (`summary_top_keeps_the_largest_groups_by_size`,
+  `summary_m_chain_extracts_then_normalizes`, `git_info_exclude_is_honored`,
+  `gitignore_takes_the_whole_shared_value_vocabulary`). Converting them means rewriting those
+  assertions to be location-independent, which is a behaviour question per case, not a sweep.
+
+Converted: `archive_test`, `color_test`, `parity_test`, `first_test`, `ignore_test`, `collect_test`,
+`content_test`, `fuzzy_test`, `grep_test`, `ls_test`, `exact_test`, `pager_test`, `cmp_test`,
+`full_binary_test`, `ignore_files_test`, `help_topic_test` - 15 of 19, with 128 `rm -rf` lines gone.
+The counter handles the several-trees-per-case files with no special treatment, which is the reason
+it beat naming.
 
 ## Remaining work
 
