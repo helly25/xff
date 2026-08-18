@@ -317,12 +317,13 @@ test::help_license_component_shows_that_components_license() {
   expect_matches '^xff - eXtended File Find' "${out}" # #142: the grant still leads
   expect_output_contains 'helly25/mbo' "${out}"
   expect_output_contains 'Apache License' "${out}" # the body of the license it names
-  # A component whose license text is NOT embedded says so rather than showing an empty page.
+  # Core's non-Apache license is embedded too.
   out="$("$(_xff_bin)" --help=license=RE2 2>&1)"
   expect_output_contains 'BSD-3-Clause' "${out}"
-  expect_output_contains 'not embedded in this binary' "${out}"
+  expect_output_contains 'Redistribution and use' "${out}"
   # Component names are proper nouns; the lookup must not be a spelling test.
   expect_output_contains 'BSD-3-Clause' "$("$(_xff_bin)" --help=license=re2 2>&1)"
+
 }
 
 test::help_unknown_license_component_names_the_known_ones() {

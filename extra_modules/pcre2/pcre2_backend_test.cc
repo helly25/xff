@@ -40,6 +40,7 @@ using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::IsTrue;
+using ::testing::Not;
 using ::testing::Optional;
 using ::testing::Pair;
 
@@ -57,7 +58,13 @@ TEST_F(Pcre2BackendTest, RegistersTheExtraAndLibraryLicenseNotices) {
   EXPECT_THAT(
       license::Notices(), Contains(AllOf(
                               Field("component", &license::Notice::component, "PCRE2"),
-                              Field("spdx", &license::Notice::spdx, "BSD-3-Clause"))));
+                              Field("spdx", &license::Notice::spdx, "BSD-3-Clause WITH PCRE2-exception"))));
+  EXPECT_THAT(
+      license::Notices(), Contains(AllOf(
+                              Field("component", &license::Notice::component, "SLJIT"),
+                              Field("spdx", &license::Notice::spdx, "BSD-2-Clause"))));
+  EXPECT_THAT(license::LicenseBodyFor("BSD-3-Clause WITH PCRE2-exception"), Not(testing::IsEmpty()));
+  EXPECT_THAT(license::LicenseBodyFor("BSD-2-Clause"), Not(testing::IsEmpty()));
 }
 
 TEST_F(Pcre2BackendTest, BackreferencesMatch) {

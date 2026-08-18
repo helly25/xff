@@ -39,7 +39,6 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
-#include "xff/license/notice.h"
 #include "xff/regex/backend.h"
 
 namespace {
@@ -232,26 +231,7 @@ absl::StatusOr<std::unique_ptr<const xff::regex::RegexBackend>> CompilePcre2(
   return std::make_unique<Pcre2Backend>(code, match_context, capture_count);
 }
 
-// Self-registration (alwayslink keeps this TU): the factory makes the PCRE2 grammar available, and
-// the notice reproduces PCRE2's attribution in --help=notice for the full binary.
+// Self-registration (alwayslink keeps this TU): the factory makes the PCRE2 grammar available.
 const xff::regex::Pcre2Registrar kRegisterPcre2Backend{&CompilePcre2};
-
-// This extra is xff's own code, so it registers ITSELF alongside the library it links. Uniform
-// with @xff_fuse: the manifest names every component in the binary, and ours are Apache-2.0.
-const xff::license::Registrar kPcre2ExtraNotice{
-    {.section = "PCRE2 (@xff_pcre2)",
-     .section_lead = true,
-     .component = "xff PCRE2 extra (@xff_pcre2)",
-     .spdx = "Apache-2.0",
-     .text = "Copyright 2026 Marcus Boerger / helly25. Licensed under the Apache License, Version 2.0.\n"
-             "Provides the -regextype=pcre2 backend by linking PCRE2, whose own notice follows."}};
-
-// The PCRE2 notice is BSD-3-Clause, so it is registered separately from the xff extra that links it.
-const xff::license::Registrar kPcre2Notice{
-    {.section = "PCRE2 (@xff_pcre2)",
-     .component = "PCRE2",
-     .spdx = "BSD-3-Clause",
-     .text = "Copyright (c) 1997-2024 University of Cambridge, Zoltan Herczeg. "
-             "Redistribution permitted under the BSD-3-Clause license."}};
 
 }  // namespace

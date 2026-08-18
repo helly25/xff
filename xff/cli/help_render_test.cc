@@ -403,12 +403,10 @@ TEST_F(HelpTest, LicenseComponentMatchesRegardlessOfCase) {
   EXPECT_THAT(RenderTopicDoc("license=re2"), Eq(RenderTopicDoc("license=RE2")));
 }
 
-TEST_F(HelpTest, LicenseComponentWithoutAnEmbeddedTextSaysSoRatherThanShowingNothing) {
-  // RE2 is BSD-3-Clause and no text for it is embedded. The page must still carry the attribution
-  // and state plainly why the body is absent - silence would read as "no license applies".
+TEST_F(HelpTest, Re2LicenseComponentRendersItsEmbeddedBody) {
   EXPECT_THAT(
       RenderTopicDoc("license=RE2"),
-      AllOf(HasSubstr("RE2"), HasSubstr("BSD-3-Clause"), HasSubstr("not embedded in this binary")));
+      AllOf(HasSubstr("RE2"), HasSubstr("BSD-3-Clause"), HasSubstr("Redistribution and use")));
 }
 
 TEST_F(HelpTest, AnUnknownLicenseComponentIsNoDocumentAtAll) {

@@ -122,10 +122,8 @@ TEST_F(LicenseTest, TheApacheBodyIsRetrievableByItsSpdxId) {
   EXPECT_THAT(std::string(LicenseBodyFor("Apache-2.0")), EqualsText(std::string(LicenseText())));
 }
 
-TEST_F(LicenseTest, AnUnembeddedLicenseAnswersEmptyRatherThanFailing) {
-  // RE2 is BSD-3-Clause and its text is not embedded here. Empty is the honest answer: the license
-  // still applies, this binary just does not carry its words, and the caller says so.
-  EXPECT_THAT(LicenseBodyFor("BSD-3-Clause"), IsEmpty());
+TEST_F(LicenseTest, TheRe2LicenseBodyIsRetrievableByItsSpdxId) {
+  EXPECT_THAT(LicenseBodyFor("BSD-3-Clause"), HasSubstr("Redistribution and use"));
   EXPECT_THAT(LicenseBodyFor("no-such-license"), IsEmpty());
 }
 

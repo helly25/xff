@@ -13,10 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# LICENSES: libarchive itself is BSD-2-Clause. Its codec closure adds Zlib (zlib),
-# bzip2-1.0.6, 0BSD (xz/liblzma), BSD-2-Clause (lz4) and BSD-3-Clause (zstd, whose dual
-# license we take on the BSD arm, never the GPL one). All permissive, no copyleft. mbedtls is
-# deliberately left OFF (use_mbedtls), so no Apache-2.0/GPL crypto arm is pulled in either.
+# LICENSES: libarchive itself is BSD-2-Clause. Its resolved codec closure adds Zlib (zlib),
+# bzip2-1.0.6, public-domain liblzma, BSD-2-Clause (lz4), BSD-3-Clause (zstd's permissive arm),
+# and Apache-2.0 (Mbed TLS's permissive arm). All are permissive; no copyleft arm is selected.
 # Every notice ships through the license-notice registry in @xff_extras_api.
 module(
     name = "xff_archive",

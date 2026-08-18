@@ -126,6 +126,24 @@ test::the_notice_lists_every_linked_extra_and_the_direct_codecs() {
   expect_output_contains 'Build extension: archive (@xff_archive)' "${out}"
   expect_output_contains 'zlib  [Zlib]' "${out}"
   expect_output_contains 'bzip2  [bzip2-1.0.6]' "${out}"
+  expect_output_contains 'liblzma (XZ Utils)  [LicenseRef-Public-Domain]' "${out}"
+  expect_output_contains 'LZ4 library  [BSD-2-Clause]' "${out}"
+  expect_output_contains 'Zstandard  [BSD-3-Clause]' "${out}"
+  expect_output_contains 'Mbed TLS  [Apache-2.0]' "${out}"
+  expect_output_contains 'PCRE2  [BSD-3-Clause WITH PCRE2-exception]' "${out}"
+  expect_output_contains 'SLJIT  [BSD-2-Clause]' "${out}"
+}
+
+test::the_full_binary_embeds_each_extensions_license_bodies() {
+  local out
+  out="$("$(_xff_full_bin)" --help=license=PCRE2 2>&1)"
+  expect_output_contains 'BSD-3-Clause WITH PCRE2-exception' "${out}"
+  expect_output_contains 'EXEMPTION FOR BINARY LIBRARY-LIKE PACKAGES' "${out}"
+  out="$("$(_xff_full_bin)" '--help=license=liblzma (XZ Utils)' 2>&1)"
+  expect_output_contains 'LicenseRef-Public-Domain' "${out}"
+  expect_output_contains 'do whatever you want' "${out}"
+  out="$("$(_xff_full_bin)" --help=license=bzip2 2>&1)"
+  expect_output_contains 'bzip2/libbzip2 version 1.0.8' "${out}"
 }
 
 test_runner

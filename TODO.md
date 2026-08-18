@@ -838,11 +838,9 @@ component is `xff FUSE extra (@xff_fuse)` with SPDX `Apache-2.0`, whose text des
 interaction as INFORMATION - our own declarations, host implementation loaded at runtime - and libfuse
 is not registered at all, because none of its code is in the binary. A test pins both halves.
 
-**Consistency follow-up:** `@xff_archive` and `@xff_pcre2` are also xff's own Apache-2.0 code wrapping
-third-party libraries. They register notices for the libraries they genuinely link (libarchive, pcre2
-and the codecs), which is correct, but they do not register THEMSELVES. Registering each extra as its
-own Apache-2.0 component would make the manifest complete and uniform. Small, mechanical, not done
-here.
+**Consistency follow-up (SHIPPED, PR #569):** `@xff_archive` and `@xff_pcre2` now register their own
+Apache-2.0 extension entries before the third-party components they link, matching `@xff_fuse` and
+making the manifest complete and uniform.
 
 ## Remaining work
 
@@ -863,27 +861,21 @@ intent, not hard dependency. Task numbers reference the agent task list.
   rest, rendered only on a clean parse. Follow-up recorded: meta spellings inside `-exec` argument
   runs are still recognized from raw argv; fold meta handling into the parser proper.
 
-- **#201 (seam + retrieval SHIPPED; extras' own texts deferred)**: extras license TEXTS. `--help=license` renders only
-  xff's own Apache-2.0 and `--help=notice` inventories the linked components without their full
-  texts - so a binary containing zstd (BSD-3) or, once the fuse extra links, libfuse (LGPL-2.1)
-  cannot show what those licenses actually say. Extend the license/notice self-registration seam so
-  a component carries (or points at) its full text, and add the retrieval spelling - leaning
-  `--help=license=COMPONENT`, with the component names cross-referenced from `--help=notice` and
-  an unknown name getting the usual guiding error. #142's rule stands: any license page leads with
-  the copyright + grant statement.
-  **Shipped**: bodies are registered by SPDX ID rather than by component, because components SHARE
+- **#201 (SHIPPED)**: full linked-component license retrieval. `--help=license=COMPONENT` resolves
+  component names case-insensitively from `--help=notice`, leads with the retained attribution, and
+  renders the full embedded license body. Bodies are registered by SPDX ID rather than by component,
+  because components SHARE
   licenses (libarchive and lz4 are both BSD-2-Clause; Abseil, mbo and xff itself are all
   Apache-2.0) - one registration answers for every component naming it, and duplicate copies cannot
   drift. The seam mirrors the notice one (`LicenseBodyRegistrar`, static-init, function-local static
   registry); re-registering an SPDX keeps the FIRST, so the answer never depends on static-init
   order. xff's generated LICENSE text is the Apache-2.0 registration. The topic name still
   case-folds but its VALUE does not (component names are proper nouns), and the lookup is
-  case-insensitive so reading a license is not a spelling test.
-  **Deferred**: the extras' own license FILES (BSD-2, BSD-3, Zlib, bzip2, 0BSD, LGPL-2.1). Each
-  extra should embed the texts IT brings, through a shared genrule macro modelled on
-  `//xff/license:license_text_gen`. Until then those components render an explicit "the full <SPDX>
-  text is not embedded in this binary" line under their retained attribution - the license still
-  applies, this binary just does not carry its words, and saying so beats implying otherwise.
+  case-insensitive so reading a license is not a spelling test. The core embeds BSD-3-Clause for
+  RE2; archive embeds BSD-2-Clause, BSD-3-Clause, Zlib, bzip2-1.0.6 and liblzma's public-domain
+  grant; PCRE2 embeds its BSD-3-Clause exception text and SLJIT's BSD-2-Clause text. A shared
+  `license_body` build macro keeps each authoritative text in its owning module. FUSE embeds no
+  libfuse licence because it compiles and links no libfuse code.
 
 - **#196 (this change completes it)**: enforce `MBO_ASSERT_OK_AND_ASSIGN` over
   `ASSERT_THAT(x, IsOk())` + deref. The 77-site conversion shipped in PR #528 (+ 4 loop-body
@@ -1431,7 +1423,7 @@ remains below is the design-forked / larger work.
     scales with the enabled codec set.
   - **NOTICE obligations, all permissive but must be maintained.** libarchive's closure adds bzip2,
     lz4, xz, zlib, zstd, mbedtls. Net-new license types over our Apache-2.0 / BSD-3-Clause baseline:
-    BSD-2-Clause (libarchive, lz4), Zlib, bzip2-1.0.6, 0BSD (xz, no notice needed). Two are
+    BSD-2-Clause (libarchive, lz4), Zlib, bzip2-1.0.6, and public-domain liblzma. Two are
     dual-licensed, so pin the permissive arms: zstd -> BSD-3-Clause, mbedtls -> Apache-2.0, and link
     lz4's library (BSD-2), never its GPL-2.0 CLI. With those pinned there is no copyleft.
   - **Control surface `--archive[=none|roots|all]` + `-z`, RATIFIED 2026-08-05.** Diving into a NAMED

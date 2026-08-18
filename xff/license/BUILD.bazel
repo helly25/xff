@@ -14,6 +14,7 @@
 # limitations under the License.
 
 load("//xff:cc.bzl", "cc_library", "cc_test")
+load("//xff_extras_api:license_body.bzl", "license_body")
 
 # Visible to //extra_modules too: a build extra (e.g. extra_modules/pcre2) self-registers its notice
 # here via license::Registrar, the same way core deps do.
@@ -41,6 +42,12 @@ genrule(
     ) > $@""",
 )
 
+license_body(
+    name = "bsd_3_clause_license_cc",
+    src = "BSD-3-Clause.txt",
+    spdx = "BSD-3-Clause",
+)
+
 cc_library(
     name = "license_cc",
     srcs = [
@@ -49,6 +56,7 @@ cc_library(
     ],
     hdrs = ["license.h"],
     deps = [
+        ":bsd_3_clause_license_cc",
         "@abseil-cpp//absl/strings",
         "@xff_extras_api//:license_notice_cc",
     ],

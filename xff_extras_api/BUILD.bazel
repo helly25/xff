@@ -142,6 +142,8 @@ cc_library(
     ],
 )
 
+exports_files(["license_body.bzl"])
+
 # The virtual-filesystem seam: the read-only FileSystem interface plus the Entry / Metadata types
 # every backend produces. It lives here rather than in the core for the same reason the others do -
 # an extra that implements a filesystem (archive diving, #83; remote later) must not depend back

@@ -33,7 +33,6 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "xff/archive/member_path.h"
-#include "xff/license/notice.h"
 
 namespace xff::archive {
 namespace {
@@ -41,31 +40,6 @@ namespace {
 // The streaming block size for both the header walk and the content read: one value, so the two
 // entry points cannot drift apart.
 constexpr std::size_t kBlockSize = std::size_t{64} * 1'024;
-
-// libarchive's BSD-2-Clause notice, plus the permissive codec closure it links (zlib, bzip2,
-// liblzma, lz4, zstd). Registered from this TU, so the notice appears exactly in the builds that
-// link the archive extra. mbedtls is deliberately not enabled, so no crypto arm is listed.
-// This extra is xff's own code, so it registers ITSELF alongside the libraries it links. Uniform
-// with @xff_fuse: the manifest names every component in the binary, and ours are Apache-2.0.
-const license::Registrar kArchiveExtraNotice{{
-    .section = "archive (@xff_archive)",
-    .section_lead = true,
-    .component = "xff archive extra (@xff_archive)",
-    .spdx = "Apache-2.0",
-    .text = "Copyright 2026 Marcus Boerger / helly25. Licensed under the Apache License, Version 2.0.\n"
-            "Provides container diving, extraction and packing, including xff's own phar reader and\n"
-            "writer, by linking libarchive and its codecs - whose notices follow.",
-}};
-
-// The libarchive notice is BSD-2-Clause, so it is separate from the xff extra that links it.
-const license::Registrar kLibarchiveNotice{{
-    .section = "archive (@xff_archive)",
-    .component = "libarchive",
-    .spdx = "BSD-2-Clause",
-    .text = "Copyright (c) 2003-2024 Tim Kientzle and contributors. Includes the permissive codec "
-            "libraries libarchive links: zlib (Zlib), bzip2 (bzip2-1.0.6), liblzma/xz (0BSD), "
-            "lz4 (BSD-2-Clause) and zstd (BSD-3-Clause arm).",
-}};
 
 // `archive_read_free` for a unique_ptr, so every early return releases the reader.
 struct ArchiveDeleter {

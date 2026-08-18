@@ -44,6 +44,7 @@ using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::IsTrue;
+using ::testing::Not;
 using ::testing::SizeIs;
 
 // One file to place into a generated archive.
@@ -225,16 +226,25 @@ TEST_F(ArchiveReaderTest, ACompressedSingleFileHonoursTheByteLimit) {
 }
 
 TEST_F(ArchiveReaderTest, RegistersTheExtraAndLibraryLicenseNotices) {
-  // Linking the extra must contribute both its own identity and libarchive's notice, so
-  // --help=notice / the NOTICE file stay complete by construction.
-  EXPECT_THAT(
-      license::Notices(), Contains(AllOf(
-                              Field("component", &license::Notice::component, "xff archive extra (@xff_archive)"),
-                              Field("spdx", &license::Notice::spdx, "Apache-2.0"))));
-  EXPECT_THAT(
-      license::Notices(), Contains(AllOf(
-                              Field("component", &license::Notice::component, "libarchive"),
-                              Field("spdx", &license::Notice::spdx, "BSD-2-Clause"))));
+  const auto has_component = [](std::string_view name, std::string_view spdx) {
+    return Contains(
+        AllOf(Field("component", &license::Notice::component, name), Field("spdx", &license::Notice::spdx, spdx)));
+  };
+  const auto notices = license::Notices();
+  EXPECT_THAT(notices, has_component("xff archive extra (@xff_archive)", "Apache-2.0"));
+  EXPECT_THAT(notices, has_component("libarchive", "BSD-2-Clause"));
+  EXPECT_THAT(notices, has_component("bzip2", "bzip2-1.0.6"));
+  EXPECT_THAT(notices, has_component("zlib", "Zlib"));
+  EXPECT_THAT(notices, has_component("liblzma (XZ Utils)", "LicenseRef-Public-Domain"));
+  EXPECT_THAT(notices, has_component("LZ4 library", "BSD-2-Clause"));
+  EXPECT_THAT(notices, has_component("Zstandard", "BSD-3-Clause"));
+  EXPECT_THAT(notices, has_component("Mbed TLS", "Apache-2.0"));
+
+  EXPECT_THAT(license::LicenseBodyFor("BSD-2-Clause"), Not(testing::IsEmpty()));
+  EXPECT_THAT(license::LicenseBodyFor("BSD-3-Clause"), Not(testing::IsEmpty()));
+  EXPECT_THAT(license::LicenseBodyFor("bzip2-1.0.6"), Not(testing::IsEmpty()));
+  EXPECT_THAT(license::LicenseBodyFor("Zlib"), Not(testing::IsEmpty()));
+  EXPECT_THAT(license::LicenseBodyFor("LicenseRef-Public-Domain"), Not(testing::IsEmpty()));
 }
 
 // ReadMemberOfFile: the entry point the content predicates need. Each error state is distinct on
