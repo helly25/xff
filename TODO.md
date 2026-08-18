@@ -752,6 +752,98 @@ Converted: `archive_test`, `color_test`, `parity_test`, `first_test`, `ignore_te
 The counter handles the several-trees-per-case files with no special treatment, which is the reason
 it beat naming.
 
+## libfuse: no build dependency at all (SHIPPED 2026-08-18)
+
+The FUSE extra used to compile against libfuse's fetched headers, which put xff in the position of
+ARGUING that LGPL-2.1 section 5 permits it. The argument was sound - data structure layouts and
+accessors are outside that section's restrictions, and its ten-line limit applies only to inline
+functions - but xff ships statically linked single-file binaries, so the whole question was load
+bearing on a reading of someone else's licence.
+
+It is gone. `extra_modules/fuse/fuse_abi.h` declares the fuse3 lowlevel ABI itself, the
+`http_archive` is commented out (kept as provenance and as a conformance tool: uncomment it plus the
+`@libfuse//:fuse3_headers` deps to diff our declarations against the real ones after a libfuse
+release), and no libfuse file is fetched, read, compiled, linked or shipped. The runtime library is
+unchanged: `fuse_loader` dlopens whatever the host has.
+
+**Fidelity rules the header follows**, since an ABI description is only worth its accuracy:
+
+- Anything never dereferenced is an INCOMPLETE type (`fuse_session`, `fuse_req`, `fuse_conn_info`).
+  What is not written cannot drift.
+- Anything whose fields we touch carries the exact layout in libfuse's order, transcribed against
+  fuse-3.18.2: `fuse_args`, `fuse_entry_param`, and `fuse_file_info` (whose nine one-bit flags plus
+  `padding : 23` fill the first word, with `padding2` / `padding3` full words despite the bitfield
+  spelling - we read `flags` and set `fh` and `keep_cache`, and those three only land correctly if
+  the rest is reproduced).
+- `fuse_lowlevel_ops` is declared as the PREFIX through `readdir`, the last op xff implements, with
+  the unimplemented ops in between still declared because order IS the ABI. `op_size` stays the
+  offset just past the last implemented op, never `sizeof`.
+- `FUSE_ARGS_INIT` is not transcribed: the struct is three fields, so aggregate initialisation says
+  the same thing without copying a macro.
+
+**How a mistake surfaces:** the loader resolves every entry point by NAME, so a wrong signature or
+offset cannot fail at link time - it corrupts at runtime. Linux CI is the guard, where
+`fuse_server_test` and the `--archive-mount` CLI cases drive a real fuse3.
+
+**Notice correction.** The old entry claimed `libfuse [LGPL-2.1-only]` and "compiled against its
+headers". Three things were wrong or misleading: the project as a whole is LGPL-2.1 (`include/`,
+`lib/`, `meson.build`) plus **GPL-2.0** for everything else, so a single tag misstated it; `-only` was
+a stronger assertion than the LICENSE file supports; and the runtime library is NOT always libfuse -
+on macOS it is macFUSE, under its own terms. The entry is now `fuse3 (interoperability)` with NO SPDX
+identifier, because no licence of theirs governs this binary. The renderer omits the brackets entirely
+for an empty SPDX (an empty `[]` reads as a missing identifier), and the notice header no longer says
+everything listed is "linked".
+
+## libfuse: no build dependency, and the notice lists OUR code (SHIPPED 2026-08-18)
+
+The FUSE extra used to compile against libfuse's fetched headers, which put xff in the position of
+ARGUING that LGPL-2.1 section 5 permits it. The argument was sound - data structure layouts and
+accessors sit outside that section's restrictions, and its ten-line limit applies only to inline
+functions - but xff ships statically linked single-file binaries, so the whole question was
+load-bearing on a reading of someone else's licence.
+
+`extra_modules/fuse/fuse_abi.h` now declares the fuse3 lowlevel ABI itself. The `http_archive` is
+commented out (kept as provenance and as a conformance tool: uncomment it plus the
+`@libfuse//:fuse3_headers` deps to diff our declarations against the real ones after a libfuse
+release), and no libfuse file is fetched, read, compiled, linked or shipped. `fuse_loader` still
+dlopens whatever the host has.
+
+**Fidelity rules the header follows**, because an ABI description is only worth its accuracy:
+
+- Anything never dereferenced is an INCOMPLETE type (`fuse_session`, `fuse_req`, `fuse_conn_info`).
+  What is not written cannot drift.
+- Anything whose fields we touch carries the exact layout in libfuse's order, transcribed against
+  fuse-3.18.2: `fuse_args`, `fuse_entry_param`, and `fuse_file_info` - whose nine one-bit flags plus
+  `padding : 23` fill the first word, with `padding2` / `padding3` full words despite the bitfield
+  spelling. We read `flags` and set `fh` and `keep_cache`, and those three only land correctly if the
+  rest is reproduced.
+- `fuse_lowlevel_ops` is the PREFIX through `readdir`, the last op xff implements, with the
+  unimplemented ops in between still declared, because order IS the ABI. `op_size` stays the offset
+  just past the last implemented op, never `sizeof`.
+- `FUSE_ARGS_INIT` is not transcribed: the struct has three fields, so aggregate initialisation says
+  the same thing without copying a macro.
+
+**How a mistake surfaces:** the loader resolves entry points by NAME, so a wrong signature or offset
+cannot fail at link time - it corrupts at runtime. Linux CI is the guard, where `fuse_server_test` and
+the `--archive-mount` CLI cases drive a real fuse3.
+
+**The notice model, corrected twice before it was right.** The old entry claimed
+`libfuse [LGPL-2.1-only]` and "compiled against its headers". That misstated the project (LGPL-2.1
+covers `include/`, `lib/`, `meson.build`; everything else is **GPL-2.0**), asserted `-only` more
+firmly than the LICENSE file supports, and named the runtime library wrongly - on macOS it is macFUSE,
+under its own terms. An empty SPDX was tried next and is also wrong: `[]` reads as public domain.
+
+The rule that settles it: **list what you USE, and our own code is Apache-2.0.** So the registered
+component is `xff FUSE extra (@xff_fuse)` with SPDX `Apache-2.0`, whose text describes the libfuse
+interaction as INFORMATION - our own declarations, host implementation loaded at runtime - and libfuse
+is not registered at all, because none of its code is in the binary. A test pins both halves.
+
+**Consistency follow-up:** `@xff_archive` and `@xff_pcre2` are also xff's own Apache-2.0 code wrapping
+third-party libraries. They register notices for the libraries they genuinely link (libarchive, pcre2
+and the codecs), which is correct, but they do not register THEMSELVES. Registering each extra as its
+own Apache-2.0 component would make the manifest complete and uniform. Small, mechanical, not done
+here.
+
 ## Remaining work
 
 The backlog of features and infrastructure not yet built. Ordered by current

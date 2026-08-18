@@ -35,7 +35,10 @@ cc_library(
 cc_library(
     name = "fuse_api_cc",
     srcs = ["fuse_api.cc"],
-    hdrs = ["fuse_api.h"],
+    hdrs = [
+        "fuse_abi.h",
+        "fuse_api.h",
+    ],
     include_prefix = "xff/fuse",
     visibility = ["//visibility:public"],
     deps = [
@@ -43,7 +46,6 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@libfuse//:fuse3_headers",
     ],
 )
 
@@ -116,7 +118,6 @@ cc_library(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@helly25_mbo//mbo/status:status_macros_cc",
-        "@libfuse//:fuse3_headers",
         "@xff_extras_api//:vfs_cc",
     ],
 )

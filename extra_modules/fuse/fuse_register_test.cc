@@ -94,12 +94,18 @@ TEST_F(FuseRegisterTest, LinkingRegistersTheMountFactory) {
 #endif
 }
 
-TEST_F(FuseRegisterTest, LinkingRegistersTheLibfuseNotice) {
+TEST_F(FuseRegisterTest, RegistersThisExtraAndNotLibfuse) {
+  // The notice list attributes what xff USES. This extra is xff's own Apache-2.0 code, so IT is the
+  // component to register; libfuse is not registered at all, because none of its code is used (the
+  // fuse3 ABI is declared in fuse_abi.h). The extra's text may describe how it interoperates with
+  // libfuse - that is information, not a license this binary carries. Pinned so a well-meaning
+  // "credit the library" change has to argue with a test. Decided 2026-08-18.
   EXPECT_THAT(
       license::Notices(), Contains(AllOf(
-                              Field("component", &license::Notice::component, "libfuse"),
-                              Field("spdx", &license::Notice::spdx, "LGPL-2.1-only"),
-                              Field("text", &license::Notice::text, HasSubstr("interface-only")))));
+                              Field("component", &license::Notice::component, "xff FUSE extra (@xff_fuse)"),
+                              Field("spdx", &license::Notice::spdx, "Apache-2.0"),
+                              Field("text", &license::Notice::text, HasSubstr("no libfuse code is compiled")))));
+  EXPECT_THAT(license::Notices(), Not(Contains(Field("component", &license::Notice::component, "libfuse"))));
 }
 
 }  // namespace
