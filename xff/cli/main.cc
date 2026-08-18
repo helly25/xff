@@ -331,8 +331,17 @@ int RunMain(int argc, char** argv) {
   // resolved from argv like the two above, and applied only to those surfaces.
   const xff::cli::PagerWhen pager_when = xff::cli::ResolvePagerWhen(args);
 
-  // Help and version, scanned anywhere in the arguments (find prints usage on a
-  // bare --help wherever it lands). xff stays flag-only -- no `help` subcommand --
+  // Parse once before dispatching help/version. The parser identifies meta flags
+  // only at option/expression boundaries, so `-exec echo --help ;` passes
+  // `--help` to the child instead of turning the whole xff invocation into help.
+  absl::StatusOr<xff::parser::Command> parsed = xff::parser::Parse(args);
+  if (!parsed.ok()) {
+    std::cerr << "xff: " << parsed.status().message() << "\n";
+    return 2;
+  }
+
+  // Help and version are accepted anywhere globals may appear (find prints usage
+  // on a bare --help wherever it lands). xff stays flag-only -- no `help` subcommand --
   // so the grammar is identical in find and xff flavors; only the vocabulary
   // differs. Accepted forms:
   //   --help / -h        usage page
@@ -342,24 +351,20 @@ int RunMain(int argc, char** argv) {
   //   --version          version
   //   -version           GNU find compatibility
   //
-  // A meta flag is NOTED here and rendered only after the remaining arguments parse
-  // and validate: `xff --help=archive --bogus` is a broken command line, and the
+  // A meta flag is NOTED here and rendered only after the remaining globals validate:
+  // `xff --help=archive --bogus` is a broken command line, and the
   // one-line unknown-option error serves better than pages of help hiding the typo.
-  // The meta tokens themselves are removed from what the parser sees, so the
-  // single-dash compat forms (-h / -help / -version) cannot be mistaken for
-  // primaries.
+  // The parser has already separated these tokens from the command proper.
   enum class Meta : std::uint8_t { kNone, kUsage, kTopic, kVersion, kMan, kMarkdown };
   Meta meta = Meta::kNone;
   std::string meta_topic;
-  std::vector<std::string> run_args;
-  run_args.reserve(args.size());
   const auto note = [&meta, &meta_topic](Meta kind, std::string topic = {}) {
     if (meta == Meta::kNone) {  // the first meta wins, like the old first-return
       meta = kind;
       meta_topic = std::move(topic);
     }
   };
-  for (const std::string& arg : args) {
+  for (const std::string& arg : parsed->meta_flags) {
     if (arg == "--help" || arg == "-help" || arg == "-h") {
       note(Meta::kUsage);
     } else if (arg == "--help-all") {
@@ -384,32 +389,23 @@ int RunMain(int argc, char** argv) {
       note(Meta::kMan);
     } else if (arg == "--markdown") {
       note(Meta::kMarkdown);
-    } else {
-      run_args.push_back(arg);
-      continue;
     }
   }
 
   if (meta != Meta::kNone) {
-    // Bad flags are hard errors even when help was asked for: parse and validate what remains of
-    // the command line first (an empty rest parses to an empty command). Ignoring the arguments
-    // because help "wins" is how a typo silently vanishes behind 200 lines of output.
-    if (const absl::StatusOr<xff::parser::Command> rest = xff::parser::Parse(run_args); !rest.ok()) {
-      std::cerr << "xff: " << rest.status().message() << "\n";
-      return 2;
-    } else {  // NOLINT(readability-else-after-return): the StatusOr scope wants the else
-      for (const std::string& global : rest->globals) {
-        if (!xff::cli::IsKnownGlobal(global)) {
-          std::cerr << "xff: unknown option '" << global << "'\n"
-                    << "Try 'xff --help' for usage, or 'xff --help=NAME' for one option.\n";
-          return 2;
-        }
-        if (const absl::Status status = xff::cli::ValidateGlobalValue(global); !status.ok()) {
-          std::cerr << "xff: " << status.message() << "\n"
-                    << "Try 'xff --help=" << std::string_view(global).substr(0, global.find('='))
-                    << "' for its values.\n";
-          return 2;
-        }
+    // Bad flags are hard errors even when help was asked for. Ignoring them because
+    // help "wins" is how a typo silently vanishes behind 200 lines of output.
+    for (const std::string& global : parsed->globals) {
+      if (!xff::cli::IsKnownGlobal(global)) {
+        std::cerr << "xff: unknown option '" << global << "'\n"
+                  << "Try 'xff --help' for usage, or 'xff --help=NAME' for one option.\n";
+        return 2;
+      }
+      if (const absl::Status status = xff::cli::ValidateGlobalValue(global); !status.ok()) {
+        std::cerr << "xff: " << status.message() << "\n"
+                  << "Try 'xff --help=" << std::string_view(global).substr(0, global.find('='))
+                  << "' for its values.\n";
+        return 2;
       }
     }
     switch (meta) {
@@ -477,11 +473,6 @@ int RunMain(int argc, char** argv) {
     }
   }
 
-  absl::StatusOr<xff::parser::Command> parsed = xff::parser::Parse(args);
-  if (!parsed.ok()) {
-    std::cerr << "xff: " << parsed.status().message() << "\n";
-    return 2;
-  }
   xff::parser::Command command = *std::move(parsed);
 
   // Reject an unknown leading global option (usually a typo) with a usage error,

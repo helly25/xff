@@ -79,6 +79,21 @@ TEST_F(ParserTest, DoubleDashInsideAnExecCommandIsNotHoisted) {
   EXPECT_THAT(cmd.expression->kind, Expr::Kind::kAnd);  // -type f AND -exec ...
 }
 
+TEST_F(ParserTest, MetaFlagsHoistOnlyAtParserBoundaries) {
+  ASSERT_OK_AND_ASSIGN(const Command leading, Parse({"--help=archive"}));
+  EXPECT_THAT(leading.meta_flags, ElementsAre("--help=archive"));
+  EXPECT_THAT(leading.expression, IsNull());
+
+  ASSERT_OK_AND_ASSIGN(const Command tail, Parse({".", "-type", "f", "-h"}));
+  EXPECT_THAT(tail.meta_flags, ElementsAre("-h"));
+  ASSERT_THAT(tail.expression, NotNull());
+  EXPECT_THAT(tail.expression->descriptor->name, "-type");
+
+  ASSERT_OK_AND_ASSIGN(const Command exec, Parse({".", "-exec", "echo", "--help", "-version", "{}", ";"}));
+  EXPECT_THAT(exec.meta_flags, ElementsAre());
+  EXPECT_THAT(exec.expression->args, ElementsAre("echo", "--help", "-version", "{}"));
+}
+
 TEST_F(ParserTest, LeadingEndOfOptionsDisablesGlobalHoisting) {
   // A bare `--` stops option parsing, so a later --summary is taken literally (an unknown predicate),
   // not hoisted -- if it had been hoisted the parse would have succeeded.

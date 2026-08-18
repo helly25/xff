@@ -851,8 +851,9 @@ intent, not hard dependency. Task numbers reference the agent task list.
   notice rows as direct phar-reader deps.
 - **#204 (shipped, PR #543)**: bad and unknown global flags are hard errors (exit 2) even when
   `--help`/`--man`/`--version` appear: meta flags are noted during the scan, validated with the
-  rest, rendered only on a clean parse. Follow-up recorded: meta spellings inside `-exec` argument
-  runs are still recognized from raw argv; fold meta handling into the parser proper.
+  rest, rendered only on a clean parse. **Follow-up SHIPPED:** meta recognition now belongs to the
+  parser and follows the same primary boundaries as global hoisting, so spellings inside an `-exec`
+  argument run remain child arguments rather than dispatching xff help/version output.
 
 - **#201 (SHIPPED)**: full linked-component license retrieval. `--help=license=COMPONENT` resolves
   component names case-insensitively from `--help=notice`, leads with the retained attribution, and
