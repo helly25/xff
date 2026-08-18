@@ -26,6 +26,10 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# Scratch trees live under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes; the name
+# is a per-call counter, so a case that builds two trees needs nothing special and no test name
+# leaks into a printed path (where it could satisfy an expect_output_not_contains).
+
 _xff_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
   if [[ ! -x "${bin}" ]]; then
@@ -50,7 +54,9 @@ _run() {
 # A tree with one mixed-case file, Foo.txt.
 _make_tree() {
   local root
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   : >"${root}/Foo.txt"
   echo "${root}"
 }
@@ -59,11 +65,12 @@ _make_tree() {
 # else "no" -- so the FS-native assertion below matches whichever runner we are on.
 _volume_folds_case() {
   local d
-  d="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  d="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${d}"
   : >"${d}/probe"
   local folds="no"
   [[ -e "${d}/PROBE" ]] && folds="yes"
-  rm -rf "${d}"
   echo "${folds}"
 }
 
@@ -75,7 +82,6 @@ test::exact_forces_byte_exact_matching() {
   expect_matches 'Foo\.txt' "${out}" # exact-case name matches
   out="$(_run --exact "${root}" -name foo.txt)"
   expect_not_matches 'Foo\.txt' "${out}" # wrong-case name does not
-  rm -rf "${root}"
 }
 
 test::find_style_is_byte_exact() {
@@ -84,7 +90,6 @@ test::find_style_is_byte_exact() {
   # The find style is drop-in faithful: no FS-native folding.
   out="$(_run --config=find "${root}" -name foo.txt)"
   expect_not_matches 'Foo\.txt' "${out}"
-  rm -rf "${root}"
 }
 
 test::xff_default_follows_volume_case() {
@@ -97,7 +102,6 @@ test::xff_default_follows_volume_case() {
   else
     expect_not_matches 'Foo\.txt' "${out}"
   fi
-  rm -rf "${root}"
 }
 
 test::exact_case_name_always_matches_in_xff() {
@@ -106,7 +110,6 @@ test::exact_case_name_always_matches_in_xff() {
   # Folding only widens what matches; the verbatim name always matches.
   out="$(_run "${root}" -name Foo.txt)"
   expect_matches 'Foo\.txt' "${out}"
-  rm -rf "${root}"
 }
 
 test_runner

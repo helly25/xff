@@ -24,6 +24,10 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# Scratch trees live under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes; the name
+# is a per-call counter, so a case that builds two trees needs nothing special and no test name
+# leaks into a printed path (where it could satisfy an expect_output_not_contains).
+
 _xff_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
   if [[ ! -x "${bin}" ]]; then
@@ -36,7 +40,9 @@ _xff_bin() {
 # NUL byte marks it binary (so content search skips it even though it has a match).
 _make_tree() {
   local root
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   printf 'alpha BETA gamma\n' >"${root}/a.txt"
   printf 'nothing to see here\n' >"${root}/b.txt"
   printf 'id=42 token=abc\n' >"${root}/c.log"
@@ -52,7 +58,6 @@ test::content_matches_literal_substring() {
   local root out
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -content 'BETA' 2>&1)"
-  rm -rf "${root}"
   expect_matches 'a\.txt' "${out}"
   expect_not_matches 'b\.txt' "${out}"
 }
@@ -62,7 +67,6 @@ test::content_treats_the_pattern_as_literal_not_regex() {
   local root out
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -content 'alph.' 2>&1)"
-  rm -rf "${root}"
   expect_not_matches 'a\.txt' "${out}"
 }
 
@@ -71,7 +75,6 @@ test::content_is_case_sensitive_icontent_folds() {
   root="$(_make_tree)"
   out_cs="$("$(_xff_bin)" "${root}" -content 'beta' 2>&1)"  # lower-case: no match
   out_ci="$("$(_xff_bin)" "${root}" -icontent 'beta' 2>&1)" # folds case: matches
-  rm -rf "${root}"
   expect_not_matches 'a\.txt' "${out_cs}"
   expect_matches 'a\.txt' "${out_ci}"
 }
@@ -80,7 +83,6 @@ test::rxc_matches_a_regular_expression() {
   local root out
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -rxc 'id=[0-9]+' 2>&1)"
-  rm -rf "${root}"
   expect_matches 'c\.log' "${out}"
   expect_not_matches 'a\.txt' "${out}"
 }
@@ -90,7 +92,6 @@ test::binary_files_are_skipped() {
   local root out
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -content 'needle' 2>&1)"
-  rm -rf "${root}"
   expect_not_matches 'bin\.dat' "${out}"
 }
 
@@ -99,14 +100,15 @@ test::content_is_rejected_in_strict_find_style() {
   local root out rc
   root="$(_make_tree)"
   out="$("$(_xff_bin)" --config=find "${root}" -content 'BETA' 2>&1)" && rc=0 || rc=$?
-  rm -rf "${root}"
   expect_eq "2" "${rc}"
 }
 
 test::text_and_binary_classify_regular_files() {
   # -text matches a text regular file, -binary a binary one; a directory is neither.
   local root out
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   printf 'hello\n' >"${root}/plain.txt" # text
   printf 'a\0b' >"${root}/blob.dat"     # a NUL -> binary
   mkdir "${root}/adir"                  # neither text nor binary
@@ -117,14 +119,15 @@ test::text_and_binary_classify_regular_files() {
   out="$("$(_xff_bin)" "${root}" -binary 2>&1)"
   expect_matches 'blob\.dat' "${out}"
   expect_not_matches 'plain\.txt' "${out}"
-  rm -rf "${root}"
 }
 
 test::eofnl_selects_newline_terminated_or_empty_files() {
   # -text -eofnl = well-formed text (ends in newline, or empty); -text ! -eofnl = the
   # missing-final-newline lint.
   local root out
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   printf 'done\n' >"${root}/good.txt" # ends in newline
   printf 'oops' >"${root}/nonl.txt"   # no final newline
   : >"${root}/empty.txt"              # empty is complete (zero lines)
@@ -135,7 +138,6 @@ test::eofnl_selects_newline_terminated_or_empty_files() {
   out="$("$(_xff_bin)" "${root}" -text ! -eofnl 2>&1)"
   expect_matches 'nonl\.txt' "${out}"
   expect_not_matches 'good\.txt' "${out}"
-  rm -rf "${root}"
 }
 
 test::eof_terminators_pin_the_final_line_ending() {
@@ -143,7 +145,9 @@ test::eof_terminators_pin_the_final_line_ending() {
   # in LF too, so -eofnl matches it while -eofcrlf is the strict form; a bare-CR file matches only
   # -eofcr. Distinct names (unix/dos/mac) avoid substring collisions in the matchers.
   local root out
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   printf 'a\nb\n' >"${root}/unix.txt"    # ends LF
   printf 'a\r\nb\r\n' >"${root}/dos.txt" # ends CRLF
   printf 'a\rb\r' >"${root}/mac.txt"     # ends CR
@@ -163,14 +167,15 @@ test::eof_terminators_pin_the_final_line_ending() {
   expect_not_matches 'unix\.txt' "${out}"
   expect_not_matches 'mac\.txt' "${out}"
   expect_not_matches 'nonl\.txt' "${out}"
-  rm -rf "${root}"
 }
 
 test::text_flavors_pin_the_line_ending() {
   # Bare -text (=git) is line-ending-agnostic; =posix/=windows/=apple pin LF / CRLF / CR. Distinct
   # names (unix/dos/mac) avoid substring collisions in the matchers.
   local root out
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   printf 'a\nb\n' >"${root}/unix.txt"    # LF
   printf 'a\r\nb\r\n' >"${root}/dos.txt" # CRLF
   printf 'a\rb\r' >"${root}/mac.txt"     # CR
@@ -188,15 +193,15 @@ test::text_flavors_pin_the_line_ending() {
   expect_matches 'unix\.txt' "${out}"
   expect_matches 'dos\.txt' "${out}"
   expect_matches 'mac\.txt' "${out}"
-  rm -rf "${root}"
 }
 
 test::text_unknown_flavor_is_a_usage_error() {
   local root out rc
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   : >"${root}/f"
   out="$("$(_xff_bin)" "${root}" -text=dos 2>&1)" && rc=0 || rc=$?
-  rm -rf "${root}"
   expect_eq "2" "${rc}"
   expect_matches 'unknown text flavor' "${out}"
 }
@@ -204,13 +209,14 @@ test::text_unknown_flavor_is_a_usage_error() {
 test::text_binary_eofnl_are_rejected_in_strict_find_style() {
   # All three are xff extensions; --config=find rejects each (exit 2).
   local root rc
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   : >"${root}/f"
   for pred in -text -binary -eofnl -eofcr -eofcrlf; do
     "$(_xff_bin)" --config=find "${root}" "${pred}" >/dev/null 2>&1 && rc=0 || rc=$?
     expect_eq "2" "${rc}"
   done
-  rm -rf "${root}"
 }
 
 test::help_topic_documents_content() {

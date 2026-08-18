@@ -24,6 +24,10 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# Scratch trees live under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes; the name
+# is a per-call counter, so a case that builds two trees needs nothing special and no test name
+# leaks into a printed path (where it could satisfy an expect_output_not_contains).
+
 _xff_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
   if [[ ! -x "${bin}" ]]; then
@@ -67,10 +71,11 @@ test::no_pager_alias_is_accepted_on_a_real_search() {
   # --no-pager is a recognized global (alias for --pager=never), so it does not trip the
   # unknown-flag error on an ordinary search.
   local root out
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   printf 'x\n' >"${root}/a.txt"
   out="$("$(_xff_bin)" "${root}" -type f --no-pager 2>&1)"
-  rm -rf "${root}"
   expect_output_contains "a.txt" "${out}"
 }
 
@@ -105,13 +110,14 @@ test::pager_all_leaves_a_piped_listing_alone() {
   # The listing value is terminal-only: captured stdout is a pipe, so --pager=all must not start a
   # pager (a blocking one would deadlock this test) and the listing must arrive verbatim.
   local root bin all plain
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   printf 'x\n' >"${root}/a.txt"
   bin="$(_xff_bin)"
   all="$(XFF_PAGER='sleep 30' "${bin}" --pager=all "${root}" -type f 2>&1)"
   plain="$("${bin}" --pager=never "${root}" -type f 2>&1)"
   expect_eq "${plain}" "${all}"
-  rm -rf "${root}"
 }
 
 test::help_documents_pager() {
