@@ -48,6 +48,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <cstddef>
 #include <cstdint>
 
 extern "C" {
@@ -110,35 +111,32 @@ struct fuse_file_info {
 // leave out simply do not exist for our session - but the ones we DO declare have to sit at exactly
 // their upstream offsets, which is why the unimplemented ones in between are still declared.
 struct fuse_lowlevel_ops {
-  void (*init)(void* userdata, struct fuse_conn_info* conn);
-  void (*destroy)(void* userdata);
-  void (*lookup)(fuse_req_t req, fuse_ino_t parent, const char* name);
-  void (*forget)(fuse_req_t req, fuse_ino_t ino, std::uint64_t nlookup);
-  void (*getattr)(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
-  void (*setattr)(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int to_set, struct fuse_file_info* fi);
-  void (*readlink)(fuse_req_t req, fuse_ino_t ino);
-  void (*mknod)(fuse_req_t req, fuse_ino_t parent, const char* name, mode_t mode, dev_t rdev);
-  void (*mkdir)(fuse_req_t req, fuse_ino_t parent, const char* name, mode_t mode);
-  void (*unlink)(fuse_req_t req, fuse_ino_t parent, const char* name);
-  void (*rmdir)(fuse_req_t req, fuse_ino_t parent, const char* name);
-  void (*symlink)(fuse_req_t req, const char* link, fuse_ino_t parent, const char* name);
-  void (*rename)(
-      fuse_req_t req,
-      fuse_ino_t parent,
-      const char* name,
-      fuse_ino_t newparent,
-      const char* newname,
-      unsigned int flags);
-  void (*link)(fuse_req_t req, fuse_ino_t ino, fuse_ino_t newparent, const char* newname);
-  void (*open)(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
-  void (*read)(fuse_req_t req, fuse_ino_t ino, std::size_t size, off_t off, struct fuse_file_info* fi);
-  void (
-      *write)(fuse_req_t req, fuse_ino_t ino, const char* buf, std::size_t size, off_t off, struct fuse_file_info* fi);
-  void (*flush)(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
-  void (*release)(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
-  void (*fsync)(fuse_req_t req, fuse_ino_t ino, int datasync, struct fuse_file_info* fi);
-  void (*opendir)(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
-  void (*readdir)(fuse_req_t req, fuse_ino_t ino, std::size_t size, off_t off, struct fuse_file_info* fi);
+  // Parameter NAMES are omitted deliberately. They document nothing a function-pointer type needs
+  // (the implementations in fuse_server.cc name their parameters), and keeping every line short
+  // means no formatter has to decide how to wrap a long declaration - two clang-format versions
+  // disagreed about exactly that here, one breaking after `void (` and the other one-per-line.
+  void (*init)(void*, struct fuse_conn_info*);
+  void (*destroy)(void*);
+  void (*lookup)(fuse_req_t, fuse_ino_t, const char*);
+  void (*forget)(fuse_req_t, fuse_ino_t, std::uint64_t);
+  void (*getattr)(fuse_req_t, fuse_ino_t, struct fuse_file_info*);
+  void (*setattr)(fuse_req_t, fuse_ino_t, struct stat*, int, struct fuse_file_info*);
+  void (*readlink)(fuse_req_t, fuse_ino_t);
+  void (*mknod)(fuse_req_t, fuse_ino_t, const char*, mode_t, dev_t);
+  void (*mkdir)(fuse_req_t, fuse_ino_t, const char*, mode_t);
+  void (*unlink)(fuse_req_t, fuse_ino_t, const char*);
+  void (*rmdir)(fuse_req_t, fuse_ino_t, const char*);
+  void (*symlink)(fuse_req_t, const char*, fuse_ino_t, const char*);
+  void (*rename)(fuse_req_t, fuse_ino_t, const char*, fuse_ino_t, const char*, unsigned int);
+  void (*link)(fuse_req_t, fuse_ino_t, fuse_ino_t, const char*);
+  void (*open)(fuse_req_t, fuse_ino_t, struct fuse_file_info*);
+  void (*read)(fuse_req_t, fuse_ino_t, std::size_t, off_t, struct fuse_file_info*);
+  void (*write)(fuse_req_t, fuse_ino_t, const char*, std::size_t, off_t, struct fuse_file_info*);
+  void (*flush)(fuse_req_t, fuse_ino_t, struct fuse_file_info*);
+  void (*release)(fuse_req_t, fuse_ino_t, struct fuse_file_info*);
+  void (*fsync)(fuse_req_t, fuse_ino_t, int, struct fuse_file_info*);
+  void (*opendir)(fuse_req_t, fuse_ino_t, struct fuse_file_info*);
+  void (*readdir)(fuse_req_t, fuse_ino_t, std::size_t, off_t, struct fuse_file_info*);
 };
 
 }  // extern "C"
