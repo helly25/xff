@@ -15,31 +15,56 @@ This `README.md` is a short overview. The complete, always-current reference liv
 
 - **`find`-Compatible Core:** The standard primaries (`-name`, `-type`, `-size`, `-mtime`, `-regex`, `-exec`, `-prune`, ...), operators, and exit codes behave exactly as in GNU/BSD `find`. Invoked as `find`, it is strict `find` and nothing more.
 - **Content & Metadata Matching:** `-grep` / `-content` search inside files, `-lang 'C*'` and `-mime 'image/*'` match by inferred language or media type, `-text` / `-binary` / `-eofnl` classify content, and native `-hash` primitives emit optimized checksum manifests.
+- **One Composable Expression Language:** Path, content, ownership, permissions, age, allocated size, language, MIME type, hashes, and content equality are ordinary tests joined with `find`'s `!`, `-a`, `-o`, and parentheses. Search, reporting, and actions therefore share one walk instead of being stitched together with `xargs` and temporary files.
+- **Fuzzy File Finding:** `-fuzzy` and `-fuzzypath` provide scored subsequence matching, while `--sort=score` ranks the results. The score is also available as `{fuzzy}` for custom tables and templates.
 - **Structured Layout Engines:** Stream matches natively as plain text, NUL-delimited, `JSONL`, `CSV` / `TSV`, an aligned console table, a visual tree, or a standard Markdown table, all calculated from one single filesystem walk.
 - **Summaries & Histograms:** `--summary=ext` folds matches into counts and totals; `--histogram='ext:sum(lines)'` draws terminal bar charts using Unicode block characters. No external `awk | sort` pipeline overhead required.
+- **Native Comparison & Deduplication:** `-cmp` tests byte equality, `-hasheq` verifies an expected digest, `-diff` produces unified, context, normal, or side-by-side diffs, and `--summary=hash` groups duplicate content without launching one process per file.
 - **Unified `{field}` Vocabulary:** The same named fields (`{relpath}`, `{size}`, `{lang}`, `{hash}`, `{capture.NAME}`, ...) drive `-printf`, `-exec`, `--format`, and `--summary`, complete with powerful `s///` regex rewrite and `m//` extraction qualifiers.
+- **Commands as Data Sources:** `-capture` / `-capturedir` bind a command's output to `{capture.NAME}`. Later formatters and reductions can transform or aggregate it, enabling workflows such as tree-wide `git blame` totals without an `awk | sort` tail.
 - **Safe by Default:** `-delete` implicitly forces `-depth` and strictly honors `--dry-run` / `--safe`. Configuration tiers loaded via an `--xffrc` file are sandboxed: they cannot execute dangerous directives (`-exec`, `-execdir`, `-ok`, `-capture`, or `-delete`) unless explicitly armed via a trusted CLI flag (`--allow-exec`).
-- **Fast and Parallel:** `-j N` parallelizes the filesystem walk and concurrent `-exec` pools across available CPU worker cores; `--sort` delivers deterministic sibling ordering when requested.
-- **Virtual Archive Inspection:** Native capability to descend into compressed archives (`--archive`) like `.tar`, `.zip`, `.zstd`, and `.lz4` as virtual paths, executing content matching transparently on uncompressed streams without extraction disk space overhead.
+- **Multi-Threaded Traversal:** `-j N` runs the filesystem walk across a native worker pool and also controls concurrent `-exec` jobs, scaling both discovery and actions across available CPU cores; `--sort` restores deterministic ordering when requested.
+- **Virtual Archive Filesystems:** `--archive` walks archives and compressed files as directory trees, including nested containers. The normal name, metadata, content, hash, and reduction vocabulary works on members; opt-in controls can mount or extract members for commands and safely rewrite a container when deleting members.
+- **Archive Creation from an Expression:** `--pack=FILE` writes the matched set directly to a new archive, with deterministic member order, atomic publication, compression controls, and no `find | tar` filename boundary to get wrong.
+- **Developer-Aware Traversal:** Layered `.gitignore`, `.ignore`, and `.xffignore` handling; explicit include/exclude rules; hidden-file policy; and pruning for Git, Mercurial, Subversion, Jujutsu, Bazaar, Darcs, and CVS are independent, configurable controls.
+- **Shard-Aware Listings:** `--shards` recognizes numbered datasets such as `data-00000-of-00010`, validates duplicate indices, and collapses each set to a useful first, wildcard, or count representation.
 
 ---
 
 ## Tool Feature Comparison Matrix
 
-The matrix below maps the primary feature landscapes across legacy and modern single-purpose utilities to show what `xff` consolidates into a single execution pass.
+The matrix compares native, built-in capabilities. A `△` means the tool covers a narrower form of
+the feature; a `-` means the workflow normally needs another utility or a shell pipeline. The point
+is not that every specialist is interchangeable, but that `xff` composes these operations in one
+expression and one traversal.
 
-| Feature / Capability                 | `find` | `fd` | `grep` | `ripgrep` (`rg`) | `shasum` | `xff`                                    |
-| :----------------------------------- | :----: | :--: | :----: | :--------------: | :------: | :--------------------------------------- |
-| **Multi-threaded Traversal**         |   -    |  ✓   |   -    |        ✓         |    -     | **✓ Native Pool (`-j`)**                 |
-| **Implicit VCS/Gitignore Awareness** |   -    |  ✓   |   -    |        ✓         |    -     | **✓ Configurable (`-g`)**                |
-| **Regex Content Search Engine**      |   -    |  -   |   ✓    |        ✓         |    -     | **✓ Native (`-rxc`/`-grep`)**            |
-| **Inline Cryptographic Hashes**      |   -    |  -   |   -    |        -         |    ✓     | **✓ Native (`-hash`)**                   |
-| **Virtual Archive Traversal**        |   -    |  -   |   -    |        -         |    -     | **✓ Native (`--archive`)**               |
-| **Custom Layout Templating**         |  GNU   |  -   |   -    |        -         |    -     | **✓ Rich (`--template`)**                |
-| **Fine-Grained Line-Ending Linting** |   -    |  -   |   -    |        -         |    -     | **✓ Native (`-eofnl`/`-eofcrlf`)**       |
-| **Deterministic Reduction Tables**   |   -    |  -   |   -    |        -         |    -     | **✓ Native (`--summary`/`--histogram`)** |
+| Feature / Capability                    | `find` | `fd` | `rg` | `fzf` | `tree` | `du` | `diff` | hash tools | archive tools | `xff`                                    |
+| :-------------------------------------- | :----: | :--: | :--: | :---: | :----: | :--: | :----: | :--------: | :-----------: | :--------------------------------------- |
+| **Filesystem expression language**      |   ✓    |  △   |  -   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ GNU/BSD `find` vocabulary**          |
+| **Multi-threaded filesystem traversal** |   -    |  ✓   |  ✓   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ Native worker pool (`-j`)**          |
+| **Ignore-file and VCS awareness**       |   -    |  ✓   |  ✓   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ Layered and configurable**           |
+| **Path glob and regex filtering**       |   ✓    |  ✓   |  ✓   |   △   |   △    |  -   |   -    |     -      |       △       | **✓ Multiple selectable grammars**       |
+| **Ranked fuzzy path matching**          |   -    |  -   |  -   |   ✓   |   -    |  -   |   -    |     -      |       -       | **✓ `-fuzzy`, `--sort=score`**           |
+| **Regex content search with context**   |   -    |  -   |  ✓   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `-grep`, `-rxc`, `--context`**       |
+| **Language and MIME filtering**         |   -    |  -   |  △   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `-lang`, `-mime`**                   |
+| **Text, binary, and EOL tests**         |   -    |  -   |  △   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `-text`, `-binary`, `-eof*`**        |
+| **Structured JSON/CSV/table output**    |   -    |  -   |  ✓   |   -   |   △    |  -   |   -    |     -      |       △       | **✓ Eight output formats**               |
+| **Tree rendering**                      |   -    |  -   |  -   |   -   |   ✓    |  -   |   -    |     -      |       △       | **✓ `--format=tree`**                    |
+| **Field templates and rewrites**        |  GNU   |  -   |  △   |   △   |   -    |  -   |   -    |     -      |       △       | **✓ Shared `{field}` vocabulary**        |
+| **Grouped size/count summaries**        |   -    |  -   |  -   |   -   |   -    |  △   |   -    |     -      |       △       | **✓ `--summary`**                        |
+| **Native histograms and statistics**    |   -    |  -   |  -   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `--histogram`**                      |
+| **Cryptographic hashing**               |   -    |  -   |  -   |   -   |   -    |  -   |   -    |     ✓      |       △       | **✓ `-hash`, `{hash}`, `-hasheq`**       |
+| **Duplicate-content grouping**          |   -    |  -   |  -   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `--summary=hash`**                   |
+| **Per-file content comparison/diff**    |   -    |  -   |  -   |   -   |   -    |  -   |   ✓    |     △      |       -       | **✓ `-cmp`, `-diff`**                    |
+| **Virtual archive traversal**           |   -    |  -   |  △   |   -   |   -    |  -   |   -    |     -      |       △       | **✓ Members use the full expression**    |
+| **Nested archive content search**       |   -    |  -   |  △   |   -   |   -    |  -   |   -    |     -      |       △       | **✓ Depth-controlled transparent reads** |
+| **Archive creation from matches**       |   -    |  -   |  -   |   -   |   -    |  -   |   -    |     -      |       ✓       | **✓ `--pack` sink**                      |
+| **Safe delete preview**                 |   △    |  △   |  -   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `--dry-run`, `--safe`**              |
+| **Parallel/batched per-match exec**     |   △    |  ✓   |  -   |   △   |   -    |  -   |   -    |     -      |       -       | **✓ `-exec ... +`, `-j`**                |
+| **Capture command output as a field**   |   -    |  -   |  -   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `-capture`, `{capture.NAME}`**       |
+| **Sharded-dataset collapsing**          |   -    |  -   |  -   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `--shards` with validation**         |
 
-`find`'s "Custom Layout Templating" is marked **GNU** because it is GNU find's `-printf`, a
+`find`'s "Field templates and rewrites" entry is marked **GNU** because it is GNU find's `-printf`, a
 GNU extension; POSIX and BSD/macOS `find` have no format primary (only `-print` / `-exec`).
 
 ---
