@@ -24,6 +24,10 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# Scratch trees live under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes; the name
+# is a per-call counter, so a case that builds two trees needs nothing special and no test name
+# leaks into a printed path (where it could satisfy an expect_output_not_contains).
+
 # A real newline for line-anchored expect_matches patterns (whole-text [[ =~ ]]).
 NL=$'\n'
 
@@ -39,8 +43,12 @@ _xff_bin() {
 # A-only (no counterpart under B). Echoes "A B".
 _make_trees() {
   local a b
-  a="$(mktemp -d)"
-  b="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  a="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${a}"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  b="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${b}"
   printf 'hello\n' >"${a}/same.txt"
   printf 'hello\n' >"${b}/same.txt"
   printf 'left\n' >"${a}/diff.txt"

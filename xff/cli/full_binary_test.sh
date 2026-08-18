@@ -26,6 +26,10 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
+# Scratch trees live under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes; the name
+# is a per-call counter, so a case that builds two trees needs nothing special and no test name
+# leaks into a printed path (where it could satisfy an expect_output_not_contains).
+
 _xff_full_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff_full"
   if [[ ! -x "${bin}" ]]; then
@@ -38,10 +42,11 @@ test::full_binary_resolves_to_the_xff_style_via_argv0() {
   # `-grep` is an xff extension the find style rejects; that `xff_full` accepts it proves its
   # `_full` invocation name resolved to the xff style (DefaultStyleForProgram strips `_full`).
   local root out rc
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   printf 'has TODO here\n' >"${root}/f.txt"
   out="$("$(_xff_full_bin)" "${root}" -type f -grep 'TODO' 2>&1)" && rc=0 || rc=$?
-  rm -rf "${root}"
   expect_eq "0" "${rc}"
   expect_matches '/f\.txt:1:has TODO here' "${out}"
 }
@@ -53,18 +58,18 @@ test::full_binary_pcre2_works_when_the_extra_is_linked_else_errors() {
   # actually matches). Detect which by probing --regextype=PCRE2 on a bare root.
   local root out rc bin
   bin="$(_xff_full_bin)"
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   printf 'the the fox\nunique here\n' >"${root}/f.txt"
   if "${bin}" --regextype=PCRE2 "${root}" >/dev/null 2>&1; then
     # PCRE2 is linked: a backreference (unsupported by RE2) matches the doubled word.
     out="$("${bin}" --regextype=PCRE2 "${root}" -type f -grep '(\w+) \1' 2>&1)" && rc=0 || rc=$?
-    rm -rf "${root}"
     expect_eq "0" "${rc}"
     expect_matches '/f\.txt:1:the the fox' "${out}"
   else
     # PCRE2 is not linked (the extra is off): --regextype=PCRE2 is a usage error, never a fallback.
     out="$("${bin}" --regextype=PCRE2 "${root}" -grep 'x' 2>&1)" && rc=0 || rc=$?
-    rm -rf "${root}"
     expect_eq "2" "${rc}"
     expect_matches 'not built into this binary' "${out}"
   fi
