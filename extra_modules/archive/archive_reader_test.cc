@@ -224,10 +224,17 @@ TEST_F(ArchiveReaderTest, ACompressedSingleFileHonoursTheByteLimit) {
   EXPECT_THAT(ReadCompressedSingleFile(path, 4), StatusIs(absl::StatusCode::kResourceExhausted));
 }
 
-TEST_F(ArchiveReaderTest, RegistersItsLicenseNotice) {
-  // Linking the extra must contribute libarchive's notice, so --help=notice / the NOTICE file stay
-  // complete by construction rather than by anyone remembering to update them.
-  EXPECT_THAT(license::Notices(), Contains(Field("component", &license::Notice::component, "libarchive")));
+TEST_F(ArchiveReaderTest, RegistersTheExtraAndLibraryLicenseNotices) {
+  // Linking the extra must contribute both its own identity and libarchive's notice, so
+  // --help=notice / the NOTICE file stay complete by construction.
+  EXPECT_THAT(
+      license::Notices(), Contains(AllOf(
+                              Field("component", &license::Notice::component, "xff archive extra (@xff_archive)"),
+                              Field("spdx", &license::Notice::spdx, "Apache-2.0"))));
+  EXPECT_THAT(
+      license::Notices(), Contains(AllOf(
+                              Field("component", &license::Notice::component, "libarchive"),
+                              Field("spdx", &license::Notice::spdx, "BSD-2-Clause"))));
 }
 
 // ReadMemberOfFile: the entry point the content predicates need. Each error state is distinct on

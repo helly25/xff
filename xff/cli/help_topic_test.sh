@@ -300,6 +300,13 @@ test::help_notice_and_license_reproduce_the_texts() {
   # The plural aliases resolve to the same topics.
   expect_output_contains 'RE2' "$("$(_xff_bin)" --help=notices 2>&1)"
   expect_output_contains 'Apache License' "$("$(_xff_bin)" --help=licenses 2>&1)"
+
+  # The manifest and the generic topic footer are both flowing help text. Neither may bypass the
+  # explicit width merely because the canonical NOTICE file itself has stable physical lines.
+  notice="$("$(_xff_bin)" --width=50 --help=notice 2>&1)"
+  while IFS= read -r line; do
+    ((${#line} <= 50)) || fail "--help=notice exceeded --width=50: ${line}"
+  done <<<"${notice}"
 }
 
 test::help_license_component_shows_that_components_license() {

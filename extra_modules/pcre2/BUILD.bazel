@@ -49,6 +49,7 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
         "@helly25_mbo//mbo/testing:status_cc",
+        "@xff_extras_api//:license_notice_cc",
         "@xff_extras_api//:regex_backend_cc",
     ],
 )

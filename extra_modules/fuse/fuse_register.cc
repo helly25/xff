@@ -112,6 +112,8 @@ const bool kRegisterFactory = [] {
 }  // namespace
 
 const license::Registrar kFuseExtraNotice{{
+    .section = "FUSE (@xff_fuse)",
+    .section_lead = true,
     .component = "xff FUSE extra (@xff_fuse)",
     .spdx = "Apache-2.0",
     .text = "Copyright 2026 Marcus Boerger / helly25. Licensed under the Apache License, Version 2.0.\n"

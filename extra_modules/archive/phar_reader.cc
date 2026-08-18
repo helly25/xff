@@ -44,12 +44,14 @@ namespace xff::archive {
 // (libarchive's notice lists them only as ITS codecs). Registered from this TU, the same rule as
 // every other component: the code that creates the dependency carries its notice.
 const license::Registrar kZlibNotice{{
+    .section = "archive (@xff_archive)",
     .component = "zlib",
     .spdx = "Zlib",
     .text = "Copyright (c) 1995-2024 Jean-loup Gailly and Mark Adler. Provided under the zlib license.",
 }};
 
 const license::Registrar kBzip2Notice{{
+    .section = "archive (@xff_archive)",
     .component = "bzip2",
     .spdx = "bzip2-1.0.6",
     .text = "Copyright (c) 1996-2019 Julian Seward. Provided under the bzip2 license.",

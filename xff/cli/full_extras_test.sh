@@ -121,6 +121,9 @@ test::the_notice_lists_every_linked_extra_and_the_direct_codecs() {
   local out
   out="$("$(_xff_full_bin)" --help=notice 2>&1)"
   expect_output_contains 'Build extras compiled into this binary: archive, fuse, pcre2' "${out}"
+  expect_output_contains 'Build extension: FUSE (@xff_fuse)' "${out}"
+  expect_output_contains 'Build extension: PCRE2 (@xff_pcre2)' "${out}"
+  expect_output_contains 'Build extension: archive (@xff_archive)' "${out}"
   expect_output_contains 'zlib  [Zlib]' "${out}"
   expect_output_contains 'bzip2  [bzip2-1.0.6]' "${out}"
 }

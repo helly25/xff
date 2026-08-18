@@ -51,14 +51,20 @@ std::string_view CopyrightNotice() {
          "Licensed under the Apache License, Version 2.0.\n";
 }
 
+std::string_view NoticeIntroduction() {
+  return "The main program and each linked build extension list their components below; all are under\n"
+         "permissive licenses (no copyleft). The notice-retention obligation is met by reproducing each\n"
+         "name, SPDX license identifier, and copyright line.\n";
+}
+
 std::string NoticeText() {
-  std::string out = absl::StrCat(
-      CopyrightNotice(),
-      "\n"
-      "This product links the third-party components below; all are under permissive licenses\n"
-      "(no copyleft). The notice-retention obligation is met by reproducing each name, SPDX license\n"
-      "identifier, and copyright line.\n");
+  std::string out = absl::StrCat(CopyrightNotice(), "\n", NoticeIntroduction());
+  std::string_view section;
   for (const Notice& notice : Notices()) {
+    if (notice.section != section) {
+      section = notice.section;
+      absl::StrAppend(&out, "\n--- Build extension: ", section, " ---\n");
+    }
     absl::StrAppend(&out, "\n", notice.component, "  [", notice.spdx, "]\n  ", notice.text, "\n");
   }
   return out;
