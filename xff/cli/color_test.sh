@@ -42,9 +42,15 @@ DIR_COLOR=$'\033\\[1;34m'
 RESET=$'\033\\[0m'
 
 # A fresh tree per test with one subdirectory (reliably colorable as a directory).
+# The scratch tree lives under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes, so
+# no case repeats a mktemp/rm pair (and a case that fails an expectation no longer leaks its
+# tree, because the rm never ran). The name is a COUNTER rather than the calling test's name:
+# a name would leak into printed paths and can then satisfy an expect_output_not_contains.
 _make_tree() {
   local root
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   mkdir -p "${root}/sub"
   printf 'x\n' >"${root}/a.txt"
   echo "${root}"
@@ -54,7 +60,6 @@ test::color_always_wraps_directories_in_ansi() {
   local root out
   root="$(_make_tree)"
   out="$("$(_xff_bin)" --color=always "${root}" -type d 2>&1)"
-  rm -rf "${root}"
   expect_matches "${DIR_COLOR}" "${out}"
   expect_matches "${RESET}" "${out}"
 }
@@ -63,7 +68,6 @@ test::color_never_emits_no_escapes() {
   local root out
   root="$(_make_tree)"
   out="$("$(_xff_bin)" --color=never "${root}" -type d 2>&1)"
-  rm -rf "${root}"
   expect_not_matches "${DIR_COLOR}" "${out}"
 }
 
@@ -72,7 +76,6 @@ test::color_auto_is_plain_when_stdout_is_not_a_tty() {
   local root out
   root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -type d 2>&1)"
-  rm -rf "${root}"
   expect_not_matches "${DIR_COLOR}" "${out}"
 }
 
@@ -81,7 +84,6 @@ test::color_always_leaves_plain_files_uncolored() {
   local root out
   root="$(_make_tree)"
   out="$("$(_xff_bin)" --color=always "${root}" -name a.txt 2>&1)"
-  rm -rf "${root}"
   expect_not_matches $'\033\\[' "${out}"
 }
 
@@ -91,7 +93,6 @@ test::the_ls_theme_is_the_default_palette() {
   local root out
   root="$(_make_tree)"
   out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "${root}" -type d 2>&1)"
-  rm -rf "${root}"
   expect_matches $'\033\\[01;35m' "${out}"
 }
 
@@ -101,7 +102,6 @@ test::an_extension_entry_from_the_theme_colours_a_plain_file() {
   local root out
   root="$(_make_tree)"
   out="$(LS_COLORS='*.txt=33' "$(_xff_bin)" --color=always "${root}" -name a.txt 2>&1)"
-  rm -rf "${root}"
   expect_matches $'\033\\[33m' "${out}"
 }
 
@@ -110,7 +110,6 @@ test::color_scheme_xff_ignores_the_theme() {
   local root out
   root="$(_make_tree)"
   out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=xff "${root}" -type d 2>&1)"
-  rm -rf "${root}"
   expect_matches "${DIR_COLOR}" "${out}"
   expect_not_matches $'\033\\[01;35m' "${out}"
 }
@@ -127,7 +126,6 @@ test::ls_and_xff_fills_in_what_the_theme_omits() {
   done
   out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "${root}" -type l 2>&1)"
   expect_not_matches $'\033\\[' "${out}" # the default takes the theme whole
-  rm -rf "${root}"
 }
 
 test::ls_alone_and_the_merge_differ_on_what_the_theme_omits() {
@@ -140,7 +138,6 @@ test::ls_alone_and_the_merge_differ_on_what_the_theme_omits() {
   expect_not_matches $'\033\\[' "${out}"
   out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=ls-and-xff "${root}" -type l 2>&1)"
   expect_matches $'\033\\[1;36m' "${out}"
-  rm -rf "${root}"
 }
 
 test::auto_takes_the_theme_whole_or_not_at_all() {
@@ -158,7 +155,6 @@ test::auto_takes_the_theme_whole_or_not_at_all() {
     out="$(env -u LS_COLORS "$(_xff_bin)" --color=always "--color-scheme=${spelling}" "${root}" -type l 2>&1)"
     expect_matches $'\033\\[1;36m' "${out}"
   done
-  rm -rf "${root}"
 }
 
 test::bsd_lscolors_themes_the_listing_on_macos() {
@@ -176,7 +172,6 @@ test::bsd_lscolors_themes_the_listing_on_macos() {
   # leaves xff's own scheme in place under the default scheme.
   out="$(LSCOLORS='Ex' "$(_xff_bin)" --color=always "${root}" -type d 2>&1)"
   expect_matches "${DIR_COLOR}" "${out}"
-  rm -rf "${root}"
 }
 
 test::help_documents_color() {

@@ -33,9 +33,15 @@ _xff_bin() {
   echo "${bin}"
 }
 
+# The scratch tree lives under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes, so
+# no case repeats a mktemp/rm pair (and a case that fails an expectation no longer leaks its
+# tree, because the rm never ran). The name is a COUNTER rather than the calling test's name:
+# a name would leak into printed paths and can then satisfy an expect_output_not_contains.
 _tree() {
   local root
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   : >"${root}/plain.txt"
   echo "${root}"
 }
@@ -53,7 +59,6 @@ test::asking_for_archive_handling_is_a_hard_error_without_the_extra() {
     # user to rebuild with a flag that does not exist is worse than no hint at all.
     expect_output_contains "--//xff:xff_archive" "${out}"
   done
-  rm -rf "${root}"
 }
 
 test::the_extras_topic_names_real_build_flags() {
@@ -73,7 +78,6 @@ test::asking_for_find_behavior_needs_no_extra() {
     expect_output_contains "plain.txt" "${out}"
     expect_output_not_contains "no archive support" "${out}"
   done
-  rm -rf "${root}"
 }
 
 test::archive_is_off_by_default_so_a_plain_walk_is_unaffected() {
@@ -82,7 +86,6 @@ test::archive_is_off_by_default_so_a_plain_walk_is_unaffected() {
   # The xff-family default is `roots`, but a default must never trip the guard: only an
   # EXPLICIT request errors, otherwise every ordinary run would break.
   out="$("$(_xff_bin)" "${root}" -type f 2>&1)"
-  rm -rf "${root}"
   expect_output_contains "plain.txt" "${out}"
   expect_output_not_contains "archive" "${out}"
 }

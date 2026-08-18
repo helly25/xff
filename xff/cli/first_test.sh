@@ -34,9 +34,15 @@ _xff_bin() {
 }
 
 # Six files and three directories, so a cap is visibly smaller than the set.
+# The scratch tree lives under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes, so
+# no case repeats a mktemp/rm pair (and a case that fails an expectation no longer leaks its
+# tree, because the rm never ran). The name is a COUNTER rather than the calling test's name:
+# a name would leak into printed paths and can then satisfy an expect_output_not_contains.
 _make_tree() {
   local root
-  root="$(mktemp -d)"
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${root}"
   mkdir -p "${root}/d1" "${root}/d2" "${root}/d3"
   local i
   for i in 1 2 3 4 5 6; do
@@ -50,7 +56,6 @@ test::first_caps_the_result_set() {
   root="$(_make_tree)"
   out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -first 3 --sort=dir)"
   expect_eq "3" "$(wc -l <<<"${out}" | tr -d ' ')"
-  rm -rf "${root}"
 }
 
 test::first_keeps_a_budget_per_use_not_per_run() {
@@ -63,7 +68,6 @@ test::first_keeps_a_budget_per_use_not_per_run() {
   expect_matches "f1\.txt" "${out}"
   expect_matches "f2\.txt" "${out}"
   expect_not_matches "f3\.txt" "${out}"
-  rm -rf "${root}"
 }
 
 test::a_capped_entry_is_gone_from_the_summary_too() {
@@ -75,7 +79,6 @@ test::a_capped_entry_is_gone_from_the_summary_too() {
   out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -first 2 --summary --sort=dir 2>&1)"
   expect_output_contains "2" "${out}"
   expect_output_not_contains "total  6" "${out}"
-  rm -rf "${root}"
 }
 
 test::first_rejects_a_count_it_cannot_read() {
@@ -90,7 +93,6 @@ test::first_rejects_a_count_it_cannot_read() {
   out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -first -3 2>&1)" && rc=0 || rc="${?}"
   expect_eq "2" "${rc}"
   expect_output_contains "cannot be negative" "${out}"
-  rm -rf "${root}"
 }
 
 test::first_zero_is_valid_and_means_none() {
@@ -100,7 +102,6 @@ test::first_zero_is_valid_and_means_none() {
   out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -first 0 --sort=dir)" && rc=0 || rc="${?}"
   expect_eq "0" "${rc}"
   expect_eq "" "${out}"
-  rm -rf "${root}"
 }
 
 test::first_is_an_xff_extension_the_find_style_rejects() {
@@ -109,7 +110,6 @@ test::first_is_an_xff_extension_the_find_style_rejects() {
   out="$(cd "${root}" && "$(_xff_bin)" --config=find . -type f -first 3 2>&1)" && rc=0 || rc="${?}"
   expect_eq "2" "${rc}"
   expect_output_contains "xff extension" "${out}"
-  rm -rf "${root}"
 }
 
 test_runner
