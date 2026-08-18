@@ -39,18 +39,19 @@ _xff_bin() {
 # A small tree: `src/a.cc`, `src/sub/b.cc` and `src/c.txt`, so an expression can select a subset and
 # the nested file proves the relative naming.
 _tree() {
-  local root
-  root="$(mktemp -d)"
-  mkdir -p "${root}/src/sub"
-  echo "first" >"${root}/src/a.cc"
-  echo "second" >"${root}/src/sub/b.cc"
-  echo "other" >"${root}/src/c.txt"
-  echo "${root}"
+  local result_var="${1}" tree
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  tree="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${tree}/src/sub"
+  echo "first" >"${tree}/src/a.cc"
+  echo "second" >"${tree}/src/sub/b.cc"
+  echo "other" >"${tree}/src/c.txt"
+  printf -v "${result_var}" '%s' "${tree}"
 }
 
 test::packed_members_are_named_relative_to_their_search_root() {
   local root out members
-  root="$(_tree)"
+  _tree root
   out="$("$(_xff_bin)" "${root}/src" -name '*.cc' --pack="${root}/out.tar" 2>&1)"
   expect_eq "" "${out}" # a sink: the listing is replaced, and a plain pack says nothing
   members="$(tar -tf "${root}/out.tar")"
@@ -64,7 +65,7 @@ test::packed_members_are_named_relative_to_their_search_root() {
 
 test::the_search_root_directory_is_not_stored_beside_its_own_children() {
   local root members
-  root="$(_tree)"
+  _tree root
   members="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar" >/dev/null && tar -tf "${root}/out.tar")"
   # Children are named relative to the root, so a `src` entry alongside them would extract as an
   # empty stray directory. Nested directories DO travel: they have a name relative to the root.
@@ -75,7 +76,7 @@ test::the_search_root_directory_is_not_stored_beside_its_own_children() {
 
 test::a_root_that_is_a_file_keeps_its_basename() {
   local root members
-  root="$(_tree)"
+  _tree root
   members="$("$(_xff_bin)" "${root}/src/a.cc" --pack="${root}/one.tar" >/dev/null && tar -tf "${root}/one.tar")"
   # Unlike a directory root, a file named on the command line IS content, so it is stored.
   expect_eq "a.cc" "${members}"
@@ -83,7 +84,7 @@ test::a_root_that_is_a_file_keeps_its_basename() {
 
 test::an_explicit_print_still_lists_what_goes_in() {
   local root out
-  root="$(_tree)"
+  _tree root
   out="$("$(_xff_bin)" "${root}/src" -name '*.cc' -print --pack="${root}/out.tar")"
   # The sink suppresses the IMPLICIT print only; an action the user wrote still runs.
   expect_output_contains "${root}/src/a.cc" "${out}"
@@ -92,14 +93,14 @@ test::an_explicit_print_still_lists_what_goes_in() {
 
 test::the_member_content_survives_the_round_trip() {
   local root
-  root="$(_tree)"
+  _tree root
   "$(_xff_bin)" "${root}/src" -name 'a.cc' --pack="${root}/out.tar.gz"
   expect_eq "first" "$(tar -xOzf "${root}/out.tar.gz" a.cc)"
 }
 
 test::an_output_name_with_no_writable_format_fails_before_the_walk() {
   local root status out
-  root="$(_tree)"
+  _tree root
   status=0
   out="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.rar" 2>&1)" || status=$?
   expect_eq 2 "${status}"
@@ -110,7 +111,7 @@ test::an_output_name_with_no_writable_format_fails_before_the_walk() {
 
 test::a_compression_level_the_format_rejects_is_a_usage_error() {
   local root status out
-  root="$(_tree)"
+  _tree root
   status=0
   out="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar.gz" --pack-level=99 2>&1)" || status=$?
   expect_eq 2 "${status}"
@@ -126,7 +127,7 @@ test::a_compression_level_the_format_rejects_is_a_usage_error() {
 
 test::an_unknown_pack_option_is_refused_before_the_walk() {
   local root status out
-  root="$(_tree)"
+  _tree root
   status=0
   out="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar.gz" --pack-option=squish=9 2>&1)" || status=$?
   expect_eq 2 "${status}"
@@ -138,7 +139,7 @@ test::an_unknown_pack_option_is_refused_before_the_walk() {
 
 test::a_malformed_pack_option_is_a_usage_error() {
   local root status out
-  root="$(_tree)"
+  _tree root
   status=0
   out="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar.gz" --pack-option=level 2>&1)" || status=$?
   expect_eq 2 "${status}"
@@ -147,7 +148,7 @@ test::a_malformed_pack_option_is_a_usage_error() {
 
 test::a_pack_option_that_does_not_apply_to_the_format_is_refused() {
   local root status out
-  root="$(_tree)"
+  _tree root
   status=0
   out="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar.gz" --pack-option=zip64=yes 2>&1)" || status=$?
   expect_eq 2 "${status}"
@@ -157,7 +158,7 @@ test::a_pack_option_that_does_not_apply_to_the_format_is_refused() {
 
 test::a_pack_option_reaches_the_writer() {
   local root first second
-  root="$(_tree)"
+  _tree root
   # timestamp=no is the one option with an exactly checkable effect: without the header timestamp two
   # runs over the same input are byte-identical, which is what a reproducible build needs.
   "$(_xff_bin)" "${root}/src" --pack="${root}/r1.tar.gz" --pack-option=timestamp=no
@@ -170,7 +171,7 @@ test::a_pack_option_reaches_the_writer() {
 
 test::pack_level_is_the_same_thing_as_the_level_option() {
   local root sugar spelled
-  root="$(_tree)"
+  _tree root
   head -c 200000 /dev/zero | tr '\0' 'a' >"${root}/src/big.txt"
   "$(_xff_bin)" "${root}/src" -name 'big.txt' --pack="${root}/sugar.tar.gz" --pack-level=9
   "$(_xff_bin)" "${root}/src" -name 'big.txt' --pack="${root}/spelled.tar.gz" --pack-option=level=9
@@ -181,7 +182,7 @@ test::pack_level_is_the_same_thing_as_the_level_option() {
 
 test::the_last_value_for_a_pack_option_wins() {
   local root mixed plain
-  root="$(_tree)"
+  _tree root
   head -c 200000 /dev/zero | tr '\0' 'a' >"${root}/src/big.txt"
   "$(_xff_bin)" "${root}/src" -name 'big.txt' --pack="${root}/mixed.tar.gz" --pack-option=level=1 --pack-option=level=9
   "$(_xff_bin)" "${root}/src" -name 'big.txt' --pack="${root}/plain.tar.gz" --pack-option=level=9
@@ -201,7 +202,7 @@ test::the_archive_help_lists_the_vocabulary_the_binary_accepts() {
 
 test::a_level_that_works_produces_a_smaller_archive() {
   local root fast small
-  root="$(_tree)"
+  _tree root
   # Compressible input, so the two levels cannot come out the same size by accident.
   head -c 200000 /dev/zero | tr '\0' 'a' >"${root}/src/big.txt"
   "$(_xff_bin)" "${root}/src" -name 'big.txt' --pack="${root}/fast.tar.gz" --pack-level=1
@@ -214,7 +215,7 @@ test::a_level_that_works_produces_a_smaller_archive() {
 
 test::the_archive_being_written_is_not_packed_into_itself() {
   local root members
-  root="$(_tree)"
+  _tree root
   # Two runs: the first leaves an `out.tar` inside the tree, so the second MEETS it while writing it.
   "$(_xff_bin)" "${root}" -type f --pack="${root}/out.tar"
   "$(_xff_bin)" "${root}" -type f --pack="${root}/out.tar"
@@ -225,7 +226,7 @@ test::the_archive_being_written_is_not_packed_into_itself() {
 
 test::dry_run_reports_what_it_would_pack_and_writes_nothing() {
   local root out
-  root="$(_tree)"
+  _tree root
   out="$("$(_xff_bin)" "${root}/src" -name '*.cc' --pack="${root}/out.tar" --dry-run)"
   expect_output_contains "would pack 2 entries" "${out}"
   expect_eq "0" "$(find "${root}" -maxdepth 1 -name 'out.tar' | wc -l | tr -d ' ')"
@@ -233,7 +234,7 @@ test::dry_run_reports_what_it_would_pack_and_writes_nothing() {
 
 test::an_existing_output_survives_a_failed_pack() {
   local root status
-  root="$(_tree)"
+  _tree root
   echo "mine" >"${root}/out.tar.gz"
   status=0
   "$(_xff_bin)" "${root}/src" --pack="${root}/out.tar.gz" --pack-level=99 >/dev/null 2>&1 || status=$?
@@ -243,7 +244,7 @@ test::an_existing_output_survives_a_failed_pack() {
 
 test::a_member_of_another_archive_is_refused_rather_than_dropped() {
   local root status out
-  root="$(_tree)"
+  _tree root
   COPYFILE_DISABLE=1 tar -c -f "${root}/in.tar" -C "${root}/src" a.cc
   status=0
   out="$("$(_xff_bin)" -z "${root}/in.tar" -type f --pack="${root}/out.tar" 2>&1)" || status=$?
