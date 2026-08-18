@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
 # SPDX-License-Identifier: Apache-2.0
 
+"""Build rule for embedding and registering an authoritative license body."""
+
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
 def license_body(name, spdx, src):
