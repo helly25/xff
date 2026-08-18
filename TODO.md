@@ -734,9 +734,8 @@ per CALL, so a case that builds two trees needs nothing special.
 Converted so far: `archive_test`, `color_test`, `parity_test`, `first_test`, `ignore_test`,
 `collect_test`. Still to do, and NOT mechanical:
 
-- **`archive_dive_test` and `archive_pack_test`** assert on literal paths and pack archives that live
-  inside the tree, so moving the parent directory is not neutral for them - four cases fail on
-  string equality. They need per-case reading, not a scripted pass.
+- **`archive_dive_test`** asserts on literal paths, so moving the parent directory is not neutral for
+  it - four cases fail on string equality. It needs per-case reading, not a scripted pass.
 - **`summary_test` and `ignore_gitignore_test`** join the two archive tests in the not-mechanical
   group: their assertions are regexes over printed PATHS, so the tree's location is part of what they
   match and a scripted move breaks them (`summary_top_keeps_the_largest_groups_by_size`,
@@ -746,7 +745,11 @@ Converted so far: `archive_test`, `color_test`, `parity_test`, `first_test`, `ig
 
 Converted: `archive_test`, `color_test`, `parity_test`, `first_test`, `ignore_test`, `collect_test`,
 `content_test`, `fuzzy_test`, `grep_test`, `ls_test`, `exact_test`, `pager_test`, `cmp_test`,
-`full_binary_test`, `ignore_files_test`, `help_topic_test` - 15 of 19, with 128 `rm -rf` lines gone.
+`full_binary_test`, `ignore_files_test`, `help_topic_test`, `archive_pack_test` - 16 of 19, with 128
+`rm -rf` lines gone. `archive_pack_test` already leaked every `mktemp` tree because it had no manual
+cleanup at all. Its helper now returns through a caller-named variable instead of command substitution,
+so the counter advances in the parent shell and retained trees cannot contaminate later cases; its
+output-path assertions remain unchanged under the bashtest-owned parent.
 The counter handles the several-trees-per-case files with no special treatment, which is the reason
 it beat naming.
 
