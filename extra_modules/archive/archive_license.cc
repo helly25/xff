@@ -56,12 +56,5 @@ const license::Registrar kZstd{{
     .spdx = "BSD-3-Clause",
     .text = "Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.",
 }};
-const license::Registrar kMbedTls{{
-    .section = kSection,
-    .component = "Mbed TLS",
-    .spdx = "Apache-2.0",
-    .text = "Copyright The Mbed TLS Contributors. Licensed under the Apache License, Version 2.0.",
-}};
-
 }  // namespace
 }  // namespace xff::archive

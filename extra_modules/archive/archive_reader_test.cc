@@ -238,7 +238,7 @@ TEST_F(ArchiveReaderTest, RegistersTheExtraAndLibraryLicenseNotices) {
   EXPECT_THAT(notices, has_component("liblzma (XZ Utils)", "LicenseRef-Public-Domain"));
   EXPECT_THAT(notices, has_component("LZ4 library", "BSD-2-Clause"));
   EXPECT_THAT(notices, has_component("Zstandard", "BSD-3-Clause"));
-  EXPECT_THAT(notices, has_component("Mbed TLS", "Apache-2.0"));
+  EXPECT_THAT(notices, Not(Contains(Field("component", &license::Notice::component, "Mbed TLS"))));
 
   EXPECT_THAT(license::LicenseBodyFor("BSD-2-Clause"), Not(testing::IsEmpty()));
   EXPECT_THAT(license::LicenseBodyFor("BSD-3-Clause"), Not(testing::IsEmpty()));

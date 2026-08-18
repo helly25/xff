@@ -129,7 +129,6 @@ test::the_notice_lists_every_linked_extra_and_the_direct_codecs() {
   expect_output_contains 'liblzma (XZ Utils)  [LicenseRef-Public-Domain]' "${out}"
   expect_output_contains 'LZ4 library  [BSD-2-Clause]' "${out}"
   expect_output_contains 'Zstandard  [BSD-3-Clause]' "${out}"
-  expect_output_contains 'Mbed TLS  [Apache-2.0]' "${out}"
   expect_output_contains 'PCRE2  [BSD-3-Clause WITH PCRE2-exception]' "${out}"
   expect_output_contains 'SLJIT  [BSD-2-Clause]' "${out}"
 }

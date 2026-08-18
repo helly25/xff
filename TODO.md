@@ -1412,13 +1412,13 @@ remains below is the design-forked / larger work.
   hand-rolling, and it covers tar/zip/cpio/ar/iso plus the gz/bz2/xz/zstd/lz4 filters behind one
   streaming API.
   - **Build closure (final):** the archive extra uses the BCR libarchive target's resolved codec
-    closure. It includes xz, zstd, lz4 and Mbed TLS as well as zlib and bzip2; there is no separate
-    reduced archive-extra variant.
-  - **NOTICE obligations, all permissive but must be maintained.** libarchive's closure adds bzip2,
-    lz4, xz, zlib, zstd, mbedtls. Net-new license types over our Apache-2.0 / BSD-3-Clause baseline:
+    closure. It includes xz, zstd and lz4 as well as zlib and bzip2; Mbed TLS is disabled, and there
+    is no separate reduced archive-extra variant.
+  - **NOTICE obligations, all permissive but must be maintained.** libarchive's resolved closure adds
+    bzip2, lz4, xz, zlib and zstd. Net-new license types over our Apache-2.0 / BSD-3-Clause baseline:
     BSD-2-Clause (libarchive, lz4), Zlib, bzip2-1.0.6, and public-domain liblzma. Two are
-    dual-licensed, so pin the permissive arms: zstd -> BSD-3-Clause, mbedtls -> Apache-2.0, and link
-    lz4's library (BSD-2), never its GPL-2.0 CLI. With those pinned there is no copyleft.
+    zstd is dual-licensed, so pin its BSD-3-Clause arm and link lz4's library (BSD-2), never its
+    GPL-2.0 CLI. With those choices there is no copyleft.
   - **Control surface `--archive[=none|roots|all]` + `-z`, RATIFIED 2026-08-05.** Diving into a NAMED
     archive root and diving into archives met MID-WALK are separately-wanted behaviours, so this is
     one ordered enum (`none` subset `roots` subset `all`), not a boolean. Bare `--archive` = `all`;
