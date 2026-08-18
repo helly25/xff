@@ -729,25 +729,27 @@ mkdir -p "${root}"
 `${FUNCNAME[1]}` (the calling test) was tried first and is wrong: the test's name then appears in
 printed paths, where it can satisfy an `expect_output_not_contains`. That is not hypothetical -
 `archive_test`'s "archive is off by default" case failed exactly that way. A counter is also unique
-per CALL, so a case that builds two trees needs nothing special.
+per CALL, so a case that builds two trees needs nothing special. A helper must return the path through
+a caller-named variable (`_make_tree root` + `printf -v`), not command substitution
+(`root="$(_make_tree)"`): command substitution runs in a subshell, loses the counter increment, and
+makes every retained fixture reuse `tree1`.
 
 Converted so far: `archive_test`, `color_test`, `parity_test`, `first_test`, `ignore_test`,
 `collect_test`. Still to do, and NOT mechanical:
 
-- **`summary_test` and `ignore_gitignore_test`** are the remaining not-mechanical pair:
-  group: their assertions are regexes over printed PATHS, so the tree's location is part of what they
-  match and a scripted move breaks them (`summary_top_keeps_the_largest_groups_by_size`,
-  `summary_m_chain_extracts_then_normalizes`, `git_info_exclude_is_honored`,
-  `gitignore_takes_the_whole_shared_value_vocabulary`). Converting them means rewriting those
-  assertions to be location-independent, which is a behaviour question per case, not a sweep.
+- **`ignore_gitignore_test`** is the remaining not-mechanical file: its assertions are regexes over
+  printed PATHS, so the tree's location is part of what they match and a scripted move breaks them
+  (`git_info_exclude_is_honored`, `gitignore_takes_the_whole_shared_value_vocabulary`). Converting it
+  means checking those assertions for location independence, not merely replacing allocation calls.
 
 Converted: `archive_test`, `color_test`, `parity_test`, `first_test`, `ignore_test`, `collect_test`,
 `content_test`, `fuzzy_test`, `grep_test`, `ls_test`, `exact_test`, `pager_test`, `cmp_test`,
-`full_binary_test`, `ignore_files_test`, `help_topic_test`, `archive_pack_test`, `archive_dive_test` -
-17 of 19, with 169 `rm -rf` lines gone. `archive_pack_test` already leaked every `mktemp` tree because it had no manual
-cleanup at all. Its helper now returns through a caller-named variable instead of command substitution,
-so the counter advances in the parent shell and retained trees cannot contaminate later cases; its
-output-path assertions remain unchanged under the bashtest-owned parent.
+`full_binary_test`, `ignore_files_test`, `help_topic_test`, `archive_pack_test`, `archive_dive_test`,
+`summary_test` - 18 of 19, with 185 `rm -rf` lines gone. `archive_pack_test` already leaked every
+`mktemp` tree because it had no manual cleanup at all. Its helper now returns through a caller-named
+variable instead of command substitution, so the counter advances in the parent shell and retained
+trees cannot contaminate later cases; its output-path assertions remain unchanged under the
+bashtest-owned parent.
 The counter handles the several-trees-per-case files with no special treatment, which is the reason
 it beat naming.
 
