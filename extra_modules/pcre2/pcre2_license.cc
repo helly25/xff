@@ -1,11 +1,13 @@
 // SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
 // SPDX-License-Identifier: Apache-2.0
 
+#include <string_view>
+
 #include "xff/license/notice.h"
 
 namespace {
 
-constexpr char kSection[] = "PCRE2 (@xff_pcre2)";
+constexpr std::string_view kSection = "PCRE2 (@xff_pcre2)";
 
 const xff::license::Registrar kPcre2Extra{{
     .section = kSection,

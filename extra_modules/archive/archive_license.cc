@@ -1,12 +1,14 @@
 // SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
 // SPDX-License-Identifier: Apache-2.0
 
+#include <string_view>
+
 #include "xff/license/notice.h"
 
 namespace xff::archive {
 namespace {
 
-constexpr char kSection[] = "archive (@xff_archive)";
+constexpr std::string_view kSection = "archive (@xff_archive)";
 
 const license::Registrar kArchiveExtra{{
     .section = kSection,
