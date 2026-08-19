@@ -39,24 +39,24 @@ _xff_bin() {
 # A fresh tree per test: text files with known content plus one binary file whose
 # NUL byte marks it binary (so content search skips it even though it has a match).
 _make_tree() {
-  local root
+  local resultvar="$1" path
   _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${root}"
-  printf 'alpha BETA gamma\n' >"${root}/a.txt"
-  printf 'nothing to see here\n' >"${root}/b.txt"
-  printf 'id=42 token=abc\n' >"${root}/c.log"
+  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${path}"
+  printf 'alpha BETA gamma\n' >"${path}/a.txt"
+  printf 'nothing to see here\n' >"${path}/b.txt"
+  printf 'id=42 token=abc\n' >"${path}/c.log"
   {
     printf 'ELF'
     printf '\000'
     printf 'needle inside\n'
-  } >"${root}/bin.dat"
-  echo "${root}"
+  } >"${path}/bin.dat"
+  printf -v "${resultvar}" '%s' "${path}"
 }
 
 test::content_matches_literal_substring() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$("$(_xff_bin)" "${root}" -content 'BETA' 2>&1)"
   expect_matches 'a\.txt' "${out}"
   expect_not_matches 'b\.txt' "${out}"
@@ -65,14 +65,14 @@ test::content_matches_literal_substring() {
 test::content_treats_the_pattern_as_literal_not_regex() {
   # '.' is a literal here; "alph." matches "alpha" as a regex but not as a substring.
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$("$(_xff_bin)" "${root}" -content 'alph.' 2>&1)"
   expect_not_matches 'a\.txt' "${out}"
 }
 
 test::content_is_case_sensitive_icontent_folds() {
   local root out_cs out_ci
-  root="$(_make_tree)"
+  _make_tree root
   out_cs="$("$(_xff_bin)" "${root}" -content 'beta' 2>&1)"  # lower-case: no match
   out_ci="$("$(_xff_bin)" "${root}" -icontent 'beta' 2>&1)" # folds case: matches
   expect_not_matches 'a\.txt' "${out_cs}"
@@ -81,7 +81,7 @@ test::content_is_case_sensitive_icontent_folds() {
 
 test::rxc_matches_a_regular_expression() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$("$(_xff_bin)" "${root}" -rxc 'id=[0-9]+' 2>&1)"
   expect_matches 'c\.log' "${out}"
   expect_not_matches 'a\.txt' "${out}"
@@ -90,7 +90,7 @@ test::rxc_matches_a_regular_expression() {
 test::binary_files_are_skipped() {
   # 'needle' is present in bin.dat, but its NUL byte marks it binary -> not matched.
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$("$(_xff_bin)" "${root}" -content 'needle' 2>&1)"
   expect_not_matches 'bin\.dat' "${out}"
 }
@@ -98,7 +98,7 @@ test::binary_files_are_skipped() {
 test::content_is_rejected_in_strict_find_style() {
   # -content is an xff extension; --config=find rejects it as a usage error (exit 2).
   local root out rc
-  root="$(_make_tree)"
+  _make_tree root
   out="$("$(_xff_bin)" --config=find "${root}" -content 'BETA' 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
 }

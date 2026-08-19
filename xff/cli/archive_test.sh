@@ -38,17 +38,17 @@ _xff_bin() {
 # tree, because the rm never ran). The name is a COUNTER rather than the calling test's name:
 # a name would leak into printed paths and can then satisfy an expect_output_not_contains.
 _tree() {
-  local root
+  local resultvar="$1" path
   _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${root}"
-  : >"${root}/plain.txt"
-  echo "${root}"
+  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${path}"
+  : >"${path}/plain.txt"
+  printf -v "${resultvar}" '%s' "${path}"
 }
 
 test::asking_for_archive_handling_is_a_hard_error_without_the_extra() {
   local root out rc spelling
-  root="$(_tree)"
+  _tree root
   # Every spelling that REQUESTS diving must fail the same way, naming what to rebuild
   # with - never a silent no-op that looks like "xff cannot see into this archive".
   for spelling in "--archive" "--archive=all" "--archive=roots" "-z" "-z+"; do
@@ -70,7 +70,7 @@ test::the_extras_topic_names_real_build_flags() {
 
 test::asking_for_find_behavior_needs_no_extra() {
   local root out spelling
-  root="$(_tree)"
+  _tree root
   # none / -z- ask for exactly what a lean build already does, so demanding a rebuild
   # there would be nonsense: they must walk normally.
   for spelling in "--archive=none" "-z-"; do
@@ -82,7 +82,7 @@ test::asking_for_find_behavior_needs_no_extra() {
 
 test::archive_is_off_by_default_so_a_plain_walk_is_unaffected() {
   local root out
-  root="$(_tree)"
+  _tree root
   # The xff-family default is `roots`, but a default must never trip the guard: only an
   # EXPLICIT request errors, otherwise every ordinary run would break.
   out="$("$(_xff_bin)" "${root}" -type f 2>&1)"

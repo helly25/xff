@@ -53,30 +53,30 @@ _run() {
 
 # A tree with one mixed-case file, Foo.txt.
 _make_tree() {
-  local root
+  local resultvar="$1" path
   _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${root}"
-  : >"${root}/Foo.txt"
-  echo "${root}"
+  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${path}"
+  : >"${path}/Foo.txt"
+  printf -v "${resultvar}" '%s' "${path}"
 }
 
 # "yes" if the current temp volume folds case (FOO resolves to a lower-case foo),
 # else "no" -- so the FS-native assertion below matches whichever runner we are on.
 _volume_folds_case() {
-  local d
+  local resultvar="$1" d
   _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
   d="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
   mkdir -p "${d}"
   : >"${d}/probe"
-  local folds="no"
-  [[ -e "${d}/PROBE" ]] && folds="yes"
-  echo "${folds}"
+  local result="no"
+  [[ -e "${d}/PROBE" ]] && result="yes"
+  printf -v "${resultvar}" '%s' "${result}"
 }
 
 test::exact_forces_byte_exact_matching() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   # --exact: verbatim byte comparison regardless of the volume.
   out="$(_run --exact "${root}" -name Foo.txt)"
   expect_matches 'Foo\.txt' "${out}" # exact-case name matches
@@ -86,18 +86,19 @@ test::exact_forces_byte_exact_matching() {
 
 test::find_style_is_byte_exact() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   # The find style is drop-in faithful: no FS-native folding.
   out="$(_run --config=find "${root}" -name foo.txt)"
   expect_not_matches 'Foo\.txt' "${out}"
 }
 
 test::xff_default_follows_volume_case() {
-  local root out
-  root="$(_make_tree)"
+  local root out folds
+  _make_tree root
   # Bare xff style, no --exact: -name matches the way the volume resolves names.
   out="$(_run "${root}" -name foo.txt)"
-  if [[ "$(_volume_folds_case)" == "yes" ]]; then
+  _volume_folds_case folds
+  if [[ "${folds}" == "yes" ]]; then
     expect_matches 'Foo\.txt' "${out}"
   else
     expect_not_matches 'Foo\.txt' "${out}"
@@ -106,7 +107,7 @@ test::xff_default_follows_volume_case() {
 
 test::exact_case_name_always_matches_in_xff() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   # Folding only widens what matches; the verbatim name always matches.
   out="$(_run "${root}" -name Foo.txt)"
   expect_matches 'Foo\.txt' "${out}"

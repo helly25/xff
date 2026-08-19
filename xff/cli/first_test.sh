@@ -39,21 +39,21 @@ _xff_bin() {
 # tree, because the rm never ran). The name is a COUNTER rather than the calling test's name:
 # a name would leak into printed paths and can then satisfy an expect_output_not_contains.
 _make_tree() {
-  local root
+  local resultvar="$1" path
   _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${root}"
-  mkdir -p "${root}/d1" "${root}/d2" "${root}/d3"
+  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${path}"
+  mkdir -p "${path}/d1" "${path}/d2" "${path}/d3"
   local i
   for i in 1 2 3 4 5 6; do
-    : >"${root}/f${i}.txt"
+    : >"${path}/f${i}.txt"
   done
-  echo "${root}"
+  printf -v "${resultvar}" '%s' "${path}"
 }
 
 test::first_caps_the_result_set() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -first 3 --sort=dir)"
   expect_eq "3" "$(wc -l <<<"${out}" | tr -d ' ')"
 }
@@ -62,7 +62,7 @@ test::first_keeps_a_budget_per_use_not_per_run() {
   # The reason -first is a primary and not a global: two instances, two budgets. A whole-run flag
   # could only ever hold one, so this command would be inexpressible.
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$(cd "${root}" && "$(_xff_bin)" --exact . \( -type f -first 2 \) -o \( -type d -first 2 \) --sort=dir)"
   expect_eq "4" "$(wc -l <<<"${out}" | tr -d ' ')" # 2 files AND 2 directories
   expect_matches "f1\.txt" "${out}"
@@ -75,7 +75,7 @@ test::a_capped_entry_is_gone_from_the_summary_too() {
   # narrows what --summary counts. This is why -collect exists (collect first, then cap). If this
   # ever reports 6, the filter has stopped being a filter.
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -first 2 --summary --sort=dir 2>&1)"
   expect_output_contains "2" "${out}"
   expect_output_not_contains "total  6" "${out}"
@@ -85,7 +85,7 @@ test::first_rejects_a_count_it_cannot_read() {
   # A typo is an ERROR, not an empty result set. Matching nothing would be indistinguishable from a
   # tree with no matches, so `-first nope` would look like a working command that found nothing.
   local root out rc
-  root="$(_make_tree)"
+  _make_tree root
   out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -first nope 2>&1)" && rc=0 || rc="${?}"
   expect_eq "2" "${rc}"
   expect_output_contains "expects a count" "${out}"
@@ -98,7 +98,7 @@ test::first_rejects_a_count_it_cannot_read() {
 test::first_zero_is_valid_and_means_none() {
   # Unlike a typo, 0 is unambiguous: the caller asked for no results and gets them.
   local root out rc
-  root="$(_make_tree)"
+  _make_tree root
   out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -first 0 --sort=dir)" && rc=0 || rc="${?}"
   expect_eq "0" "${rc}"
   expect_eq "" "${out}"
@@ -106,7 +106,7 @@ test::first_zero_is_valid_and_means_none() {
 
 test::first_is_an_xff_extension_the_find_style_rejects() {
   local root out rc
-  root="$(_make_tree)"
+  _make_tree root
   out="$(cd "${root}" && "$(_xff_bin)" --config=find . -type f -first 3 2>&1)" && rc=0 || rc="${?}"
   expect_eq "2" "${rc}"
   expect_output_contains "xff extension" "${out}"
