@@ -734,22 +734,15 @@ a caller-named variable (`_make_tree root` + `printf -v`), not command substitut
 (`root="$(_make_tree)"`): command substitution runs in a subshell, loses the counter increment, and
 makes every retained fixture reuse `tree1`.
 
-Converted so far: `archive_test`, `color_test`, `parity_test`, `first_test`, `ignore_test`,
-`collect_test`. Still to do, and NOT mechanical:
-
-- **`ignore_gitignore_test`** is the remaining not-mechanical file: its assertions are regexes over
-  printed PATHS, so the tree's location is part of what they match and a scripted move breaks them
-  (`git_info_exclude_is_honored`, `gitignore_takes_the_whole_shared_value_vocabulary`). Converting it
-  means checking those assertions for location independence, not merely replacing allocation calls.
-
-Converted: `archive_test`, `color_test`, `parity_test`, `first_test`, `ignore_test`, `collect_test`,
+**Complete: all 19 converted.** `archive_test`, `color_test`, `parity_test`, `first_test`, `ignore_test`, `collect_test`,
 `content_test`, `fuzzy_test`, `grep_test`, `ls_test`, `exact_test`, `pager_test`, `cmp_test`,
 `full_binary_test`, `ignore_files_test`, `help_topic_test`, `archive_pack_test`, `archive_dive_test`,
-`summary_test` - 18 of 19, with 185 `rm -rf` lines gone. `archive_pack_test` already leaked every
+`summary_test`, `ignore_gitignore_test` - 19 of 19, with 214 `rm -rf` lines gone. `archive_pack_test` already leaked every
 `mktemp` tree because it had no manual cleanup at all. Its helper now returns through a caller-named
 variable instead of command substitution, so the counter advances in the parent shell and retained
 trees cannot contaminate later cases; its output-path assertions remain unchanged under the
-bashtest-owned parent.
+bashtest-owned parent. The location-sensitive archive, summary, and git-ignore assertions pass
+unchanged under that parent; the conversion needed fixture-lifetime work, not weakened matching.
 The counter handles the several-trees-per-case files with no special treatment, which is the reason
 it beat naming.
 
