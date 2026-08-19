@@ -50,7 +50,9 @@ using ::testing::IsEmpty;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Ne;
+using ::testing::Range;
 using ::testing::SizeIs;
+using ::testing::TestParamInfo;
 using ::testing::UnorderedElementsAre;
 
 // Writes a tar whose directories are DELIBERATELY not stored: only `dir/sub/deep.txt` and
@@ -394,36 +396,46 @@ TEST_F(MiniContainerTest, ANestedMemberKeepsItsInnerSlashesAfterTheSeparator) {
 // `xff-verify 0123`), so a test asserts all thousand reads without a golden list - it proves the
 // reader returns the right bytes, not merely that it returns some. mini.tar pins the path
 // vocabulary; this one pins that a container of real size reads correctly end to end.
-struct ManyMembersTest : ::testing::Test {
-  static std::string Container() {
-    // NOLINTNEXTLINE(concurrency-mt-unsafe): bazel's environment, read once, single-threaded test
-    const char* const anchor = std::getenv("XFF_ARCHIVE_FIXTURE_ANCHOR");
-    CHECK_NE(anchor, nullptr) << "the BUILD file must set XFF_ARCHIVE_FIXTURE_ANCHOR";
-    const std::string_view anchor_path(anchor);
-    const std::string_view::size_type slash = anchor_path.rfind('/');
-    const std::string_view directory = slash == std::string_view::npos ? "." : anchor_path.substr(0, slash);
-    return absl::StrCat(directory, "/many.tar.gz");
-  }
-};
+std::string ManyMembersContainer() {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe): bazel's environment, read once, single-threaded test
+  const char* const anchor = std::getenv("XFF_ARCHIVE_FIXTURE_ANCHOR");
+  CHECK_NE(anchor, nullptr) << "the BUILD file must set XFF_ARCHIVE_FIXTURE_ANCHOR";
+  const std::string_view anchor_path(anchor);
+  const std::string_view::size_type slash = anchor_path.rfind('/');
+  const std::string_view directory = slash == std::string_view::npos ? "." : anchor_path.substr(0, slash);
+  return absl::StrCat(directory, "/many.tar.gz");
+}
 
-TEST_F(ManyMembersTest, EveryMemberReadsBackTheContentItsNamePredicts) {
-  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(Container()));
+struct ManyMemberRangesTest : ::testing::TestWithParam<int> {};
+
+struct ManyMembersTest : ::testing::Test {};
+
+TEST_P(ManyMemberRangesTest, EveryMemberReadsBackTheContentItsNamePredicts) {
+  const std::string container = ManyMembersContainer();
+  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(container));
   int checked = 0;
-  for (int i = 0; i < 1'000; ++i) {
+  const int begin = GetParam();
+  constexpr int kMembersPerRange = 100;
+  for (int i = begin; i < begin + kMembersPerRange; ++i) {
     const std::string member = absl::StrFormat("d%02d/f%04d.txt", i % 10, i);
-    const std::string path = absl::StrCat(Container(), "!", member);
+    const std::string path = absl::StrCat(container, "!", member);
     SCOPED_TRACE(path);
     EXPECT_THAT(fs.ReadContent(path), IsOkAndHolds(Eq(absl::StrFormat("xff-verify %04d\n", i))));
     ++checked;
   }
-  EXPECT_THAT(checked, Eq(1'000));
+  EXPECT_THAT(checked, Eq(kMembersPerRange));
 }
 
+INSTANTIATE_TEST_SUITE_P(MemberRanges, ManyMemberRangesTest, Range(0, 1'000, 100), [](const TestParamInfo<int>& info) {
+  return absl::StrFormat("Members%04dThrough%04d", info.param, info.param + 99);
+});
+
 TEST_F(ManyMembersTest, TheDirectoriesListTheirOwnHundred) {
-  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(Container()));
-  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> top, fs.ReadDir(Container()));
+  const std::string container = ManyMembersContainer();
+  MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(container));
+  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> top, fs.ReadDir(container));
   EXPECT_THAT(top, SizeIs(10));
-  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> one, fs.ReadDir(absl::StrCat(Container(), "!d03")));
+  MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> one, fs.ReadDir(absl::StrCat(container, "!d03")));
   EXPECT_THAT(one, SizeIs(100));
 }
 
