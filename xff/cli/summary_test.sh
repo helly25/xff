@@ -48,21 +48,31 @@ _run() {
   printf '%s' "${out}"
 }
 
+# Allocates a unique tree in bashtest's owned scratch directory and stores its
+# path in the caller-named variable. Returning through a variable keeps the
+# counter in this shell; command substitution would advance it in a subshell.
+_new_tree() {
+  local result_var="${1}" path
+  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
+  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${path}"
+  printf -v "${result_var}" '%s' "${path}"
+}
+
 # Tree: a.txt (1234 bytes), b.txt (10 bytes), c.md (5 bytes).
 _make_tree() {
-  local root
-  root="$(mktemp -d)"
-  head -c 1234 /dev/zero >"${root}/a.txt"
-  head -c 10 /dev/zero >"${root}/b.txt"
-  head -c 5 /dev/zero >"${root}/c.md"
-  echo "${root}"
+  local result_var="${1}" tree
+  _new_tree tree
+  head -c 1234 /dev/zero >"${tree}/a.txt"
+  head -c 10 /dev/zero >"${tree}/b.txt"
+  head -c 5 /dev/zero >"${tree}/c.md"
+  printf -v "${result_var}" '%s' "${tree}"
 }
 
 test::summary_default_is_human_and_right_aligned_in_xff() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$(_run --summary=ext "${root}" -type f)"
-  rm -rf "${root}"
   # xff style defaults to human sizes in SI: txt (2 files, 1244 bytes) -> kB, md (5) -> B,
   # with the count right of the label.
   expect_matches 'txt +2 +[0-9.]+ kB' "${out}"
@@ -74,9 +84,8 @@ test::summary_default_is_human_and_right_aligned_in_xff() {
 
 test::summary_human_off_shows_grouped_bytes() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$(_run --summary=ext --human=off "${root}" -type f)"
-  rm -rf "${root}"
   # --human=off forces raw grouped bytes (the machine-ish view), right-aligned.
   expect_matches 'txt +2 +1,244' "${out}"
   expect_matches 'total +3 +1,249' "${out}"
@@ -84,29 +93,26 @@ test::summary_human_off_shows_grouped_bytes() {
 
 test::summary_jsonl_emits_one_object_per_row() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$(_run --summary=ext --format=jsonl "${root}" -type f)"
-  rm -rf "${root}"
   expect_matches '\{"group":"txt","count":2,"bytes":1244\}' "${out}"
   expect_matches '\{"group":"total","count":3,"bytes":1249\}' "${out}"
 }
 
 test::summary_overall_is_a_single_total_row() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$(_run --summary --format=jsonl "${root}" -type f)"
-  rm -rf "${root}"
   expect_matches '\{"group":"total","count":3,"bytes":1249\}' "${out}"
 }
 
 test::summary_hash_groups_identical_files_into_one_bucket() {
   local root out
-  root="$(mktemp -d)"
+  _new_tree root
   printf 'abc' >"${root}/a" # sha256(abc) = ba7816...
   printf 'abc' >"${root}/b" # identical content -> same digest bucket
   printf 'xyz' >"${root}/c" # a different digest
   out="$(_run --summary=hash --format=jsonl "${root}" -type f)"
-  rm -rf "${root}"
   # The two identical files collapse into one bucket with count 2 (the dedup view); the
   # group key is the file's sha256 digest, reusing the {hash} field.
   expect_matches '\{"group":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad","count":2,"bytes":6\}' "${out}"
@@ -115,49 +121,45 @@ test::summary_hash_groups_identical_files_into_one_bucket() {
 
 # A 5,872,025-byte file to exercise human size units (5.6 MiB / 5.9 MB).
 _make_big() {
-  local root
-  root="$(mktemp -d)"
-  head -c 5872025 /dev/zero >"${root}/big.bin"
-  echo "${root}"
+  local result_var="${1}" tree
+  _new_tree tree
+  head -c 5872025 /dev/zero >"${tree}/big.bin"
+  printf -v "${result_var}" '%s' "${tree}"
 }
 
 test::human_iec_renders_binary_units() {
   local root out
-  root="$(_make_big)"
+  _make_big root
   out="$(_run --summary --human=iec "${root}" -type f)"
-  rm -rf "${root}"
   expect_matches '5\.6[0-9]* MiB' "${out}" # --human=iec = binary (MiB); precision-agnostic
 }
 
 test::human_si_renders_decimal_units() {
   local root out
-  root="$(_make_big)"
+  _make_big root
   out="$(_run --summary --human=si "${root}" -type f)"
-  rm -rf "${root}"
   expect_matches '5\.[0-9]+ MB' "${out}" # --human=si = decimal (MB, not MiB); precision-agnostic
 }
 
 test::human_default_and_si_alias_are_decimal() {
   local root out
-  root="$(_make_big)"
+  _make_big root
   # Bare --human defaults to SI (decimal MB, not MiB); --si is its alias.
   out="$(_run --summary --human "${root}" -type f)"
   expect_matches '5\.[0-9]+ MB' "${out}"
   expect_not_matches 'MiB' "${out}"
   out="$(_run --summary --si "${root}" -type f)"
-  rm -rf "${root}"
   expect_matches '5\.[0-9]+ MB' "${out}"
 }
 
 test::summary_precision_sets_fraction_digits() {
   local root out
-  root="$(_make_big)"
+  _make_big root
   # --summary-precision=N sets the scaled-size fraction digits (default 2).
   out="$(_run --summary --human=iec --summary-precision=4 "${root}" -type f)"
   expect_matches '5\.[0-9]{4} MiB' "${out}" # exactly four fraction digits
   # 0 => integer, no decimal point.
   out="$(_run --summary --human=iec --summary-precision=0 "${root}" -type f)"
-  rm -rf "${root}"
   expect_matches '[0-9]+ MiB' "${out}"
   expect_not_matches '\. *MiB|[0-9]\.[0-9]+ MiB' "${out}"
 }
@@ -165,9 +167,8 @@ test::summary_precision_sets_fraction_digits() {
 test::human_does_not_change_jsonl_bytes() {
   # jsonl is the machine path: exact bytes regardless of --human.
   local root out
-  root="$(_make_big)"
+  _make_big root
   out="$(_run --summary --human --format=jsonl "${root}" -type f)"
-  rm -rf "${root}"
   expect_output_contains '"bytes":5872025' "${out}"
 }
 
@@ -175,9 +176,8 @@ test::summary_top_keeps_the_largest_groups_by_size() {
   # txt (a.txt+b.txt = 1244 B) is larger than md (c.md = 5 B); --top=1 keeps txt and
   # drops md, while the total row still counts every group.
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$(_run --summary=ext --top=1 --human=off "${root}" -type f)"
-  rm -rf "${root}"
   expect_matches 'txt +2 +1,244' "${out}"
   expect_matches 'total +3 +1,249' "${out}"
   expect_not_matches "(^|${NL})md " "${out}" # the smallest group is dropped
@@ -186,9 +186,8 @@ test::summary_top_keeps_the_largest_groups_by_size() {
 test::summary_template_key_groups_by_a_field_value() {
   # A {template} key groups per matched entry, like the built-in categories -- here by extension.
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$(_run --summary='{ext}' --human=off "${root}" -type f)"
-  rm -rf "${root}"
   expect_matches 'txt +2 +1,244' "${out}"
   expect_matches "(^|${NL})md +1 +5" "${out}"
 }
@@ -198,11 +197,10 @@ test::summary_m_extraction_key_counts_per_extracted_line() {
   # an m// extraction, and count per extracted key. Here a stand-in for `git blame --line-porcelain`
   # emits repeated `author X` lines; --summary tallies lines per author across the tree.
   local root out
-  root="$(mktemp -d)"
+  _new_tree root
   : >"${root}/only.txt"
   out="$(_run --summary='{capture.a:m/^author (.+)$/\1/}' "${root}" -type f \
     -capture=a sh -c 'printf "author Bob\nauthor-mail x\nauthor Ann\nauthor Bob\n"' \;)"
-  rm -rf "${root}"
   expect_matches "(^|${NL})Bob +2" "${out}" # two author-Bob lines
   expect_matches "(^|${NL})Ann +1" "${out}"
   expect_matches "(^|${NL})total +3" "${out}" # three matching lines in total
@@ -212,11 +210,10 @@ test::summary_m_chain_extracts_then_normalizes() {
   # A ;-chained m// key: the first command extracts the author, the second normalizes it
   # (spaces -> underscores) per line, then --summary counts the normalized keys.
   local root out
-  root="$(mktemp -d)"
+  _new_tree root
   : >"${root}/only.txt"
   out="$(_run --summary='{capture.a:m/^author (.+)$/\1/;s/ /_/g}' "${root}" -type f \
     -capture=a sh -c 'printf "author Bob Smith\nauthor Bob Smith\nauthor Ann Lee\n"' \;)"
-  rm -rf "${root}"
   expect_matches "(^|${NL})Bob_Smith +2" "${out}"
   expect_matches "(^|${NL})Ann_Lee +1" "${out}"
 }
@@ -225,21 +222,20 @@ test::m_extraction_rejected_in_a_scalar_render_context() {
   # An m// extraction is a value stream, valid only as a --summary key. A per-entry scalar context
   # (-printf / --template / an -exec arg) rejects it with a usage error instead of newline-joining.
   local root out rc
-  root="$(mktemp -d)"
+  _new_tree root
   : >"${root}/a.txt"
   out="$("$(_xff_bin)" "${root}" -type f -printf '%{name:m/./\0/}\n' 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
   expect_matches 'only valid as a --summary key' "${out}"
   out="$("$(_xff_bin)" --template='{name:m/./\0/}' "${root}" -type f 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
-  rm -rf "${root}"
 }
 
 test::summary_global_may_follow_the_roots_and_expression() {
   # A --long global is position-independent (#145): --summary works after the roots AND after the
   # expression (the WTH-killer), not only leading. A --flag inside an -exec command stays literal.
   local root out
-  root="$(mktemp -d)"
+  _new_tree root
   : >"${root}/a.txt"
   : >"${root}/b.log"
   out="$(_run "${root}" -type f --summary=ext)" # global at the very end, after the expression
@@ -247,7 +243,6 @@ test::summary_global_may_follow_the_roots_and_expression() {
   expect_matches "(^|${NL})log " "${out}"
   out="$(_run "${root}" --summary=ext -type f)" # global after the root, before the expression
   expect_matches "(^|${NL})txt " "${out}"
-  rm -rf "${root}"
 }
 
 test::m_reducer_makes_the_extraction_scalar_valid() {
@@ -255,22 +250,20 @@ test::m_reducer_makes_the_extraction_scalar_valid() {
   # valid in a scalar context (--template / -printf) -- the explicit opt-in the #136 error asks for.
   # Bare m// (no reducer) still errors (covered above).
   local root out
-  root="$(mktemp -d)"
+  _new_tree root
   : >"${root}/only.txt"
   out="$(_run --template='authors={capture.a:m/^author (.+)$/\1/;join(, )}' "${root}" -type f \
     -capture=a sh -c 'printf "author Bob\nx\nauthor Ann\nauthor Bob\n"' \;)"
-  rm -rf "${root}"
   expect_matches 'authors=Bob, Ann, Bob' "${out}"
 }
 
 test::summary_mixed_extraction_template_is_a_usage_error() {
   # A key template that mixes an m// extraction with other text has no single key -> exit 2.
   local root out rc
-  root="$(mktemp -d)"
+  _new_tree root
   : >"${root}/only.txt"
   out="$("$(_xff_bin)" --summary='{capture.a:m/./\0/}{name}' "${root}" -type f \
     -capture=a sh -c 'echo hi' \; 2>&1)" && rc=0 || rc=$?
-  rm -rf "${root}"
   expect_eq "2" "${rc}"
   expect_matches 'not a mix' "${out}"
 }
@@ -279,12 +272,11 @@ test::multiple_summary_flags_emit_independent_tables() {
   # --summary is repeatable (like --histogram): each occurrence is its own table, printed in order,
   # separated by a blank line. --top applies to every table.
   local root out
-  root="$(mktemp -d)"
+  _new_tree root
   : >"${root}/a.txt"
   : >"${root}/b.txt"
   : >"${root}/c.log"
   out="$(_run "${root}" -type f --summary=ext --summary=type)"
-  rm -rf "${root}"
   expect_matches "(^|${NL})txt +2" "${out}"  # the ext table
   expect_matches "(^|${NL})log +1" "${out}"  # the ext table
   expect_matches "(^|${NL})file +3" "${out}" # the type table (all three are regular files)
