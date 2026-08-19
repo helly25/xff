@@ -114,6 +114,17 @@ repos:
         language: script
         entry: tools/check_bashtest_grep.sh
         files: _test\.sh$
+      - id: managed-tmpdirs-in-bashtests
+        name: Managed temporary directories in bashtests
+        description: |
+          Project convention (STYLE_SH.md): allocate bashtest scratch directories with
+          `test_tmpdir`, so bashtest owns uniqueness, retention, and cleanup. The standalone
+          release-prep test is excluded because it deliberately does not use helly25_bashtest.
+          To skip once, run `SKIP="managed-tmpdirs-in-bashtests" pre-commit`.
+        language: script
+        entry: tools/check_bashtest_tmpdirs.sh
+        files: _test\.sh$
+        exclude: ^tools/release_prep_test\.sh$
       - id: no-comparison-macros-in-cc-tests
         name: No EXPECT_EQ in C++ tests
         description: |
