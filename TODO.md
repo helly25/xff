@@ -838,6 +838,13 @@ making the manifest complete and uniform.
 
 ## Remaining work
 
+### Minimum Bazel version (decided 2026-08-19)
+
+The supported minimum is **Bazel 9.1.1**. Development and CI use the newer release pinned in
+`.bazelversion`; the minimum is a support floor, not a second CI configuration. Bazel 7 is no longer
+supported, and no Bazel 8 patch release is part of the support contract. Do not replace the concrete
+minimum with an unspecified `8.x.y`; lowering it requires an explicit decision.
+
 The backlog of features and infrastructure not yet built. Ordered by current
 intent, not hard dependency. Task numbers reference the agent task list.
 
