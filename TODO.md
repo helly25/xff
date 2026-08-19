@@ -1374,11 +1374,12 @@ remains below is the design-forked / larger work.
   `KiB`/`MiB`/`GiB` = 1024^N. `--human` now defaults to **SI** (bare `--human` and the xff/rg style
   default; `--si` is an alias; `--human=iec` / `=1024` selects binary, `=si` / `=1000` decimal,
   `=off` raw), since IEC's `i` reads less human. No site mixes the two.
-  - **Still open (audit, not a known bug):** the INPUT unit grammars stay find-native binary and
-    are not renamed - `-size` / `-blocks` `k`/`M`/`G`/... (find-compat: `k` = 1024), `--block-size`,
-    and `--buffer`'s own `B`/`MB`/`MiB` grammar. These are parsed, never printed with a suffix, so
-    there is no "MB for 1024^2" mismatch; a future pass could offer explicit `KiB`-style input units
-    for xff-style callers and document the rule in `--help=size`.
+  - **INPUT audit shipped (2026-08-19):** `-size`, `-blocks`, `--block-size`, and `--buffer` share
+    explicit byte units: `B`/`kB`/`MB`/.../`EB` are SI powers of 1000 and
+    `KiB`/`MiB`/.../`EiB` are IEC powers of 1024. The find-native `c`/`w`/`b` and
+    `k`/`M`/`G`/.../`E` spellings remain compatible (the scale letters are binary); their ambiguity
+    is documented as legacy rather than exported into new syntax. `--help=size` is the generated
+    vocabulary, and overflow is rejected before traversal instead of wrapping.
 
 - **Config: drop the project `.xffrc` layer entirely (Option B, decided 2026-07-06).** No
   auto-discovered project config at all - not the ancestor cascade, not subtree scoping. Config

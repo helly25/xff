@@ -215,6 +215,10 @@ TEST_F(FormatTest, ParseByteBudgetDecimalAndBinaryUnits) {
   EXPECT_THAT(ParseByteBudget("10KiB"), Optional(Eq(std::size_t{10'240})));       // IEC 2^10
   EXPECT_THAT(ParseByteBudget("10MiB"), Optional(Eq(std::size_t{10'485'760})));   // IEC 2^20
   EXPECT_THAT(ParseByteBudget("10mb"), Optional(Eq(std::size_t{10'000'000})));    // case-insensitive
+  EXPECT_THAT(ParseByteBudget("1PB"), Optional(Eq(std::size_t{1'000'000'000'000'000})));
+  EXPECT_THAT(ParseByteBudget("1PiB"), Optional(Eq(std::size_t{1ULL << 50U})));
+  EXPECT_THAT(ParseByteBudget("1EB"), Optional(Eq(std::size_t{1'000'000'000'000'000'000})));
+  EXPECT_THAT(ParseByteBudget("1EiB"), Optional(Eq(std::size_t{1ULL << 60U})));
 }
 
 TEST_F(FormatTest, ParseByteBudgetRejectsRowFormsAndGarbage) {
@@ -224,6 +228,8 @@ TEST_F(FormatTest, ParseByteBudgetRejectsRowFormsAndGarbage) {
   EXPECT_THAT(ParseByteBudget("10iB"), Eq(std::nullopt));  // IEC 'i' with no scale letter
   EXPECT_THAT(ParseByteBudget("B"), Eq(std::nullopt));     // no number
   EXPECT_THAT(ParseByteBudget(""), Eq(std::nullopt));
+  EXPECT_THAT(ParseByteBudget("19EB"), Eq(std::nullopt));
+  EXPECT_THAT(ParseByteBudget("16EiB"), Eq(std::nullopt));
 }
 
 TEST_F(FormatTest, ColumnBufferFlushesOnTheByteBudget) {

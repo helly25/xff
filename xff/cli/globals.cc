@@ -588,6 +588,9 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "matching",
         .header = "Matching",
         .summary = "bytes per -size block for a bare -size N / -size Nb (default 512)",
+        .details = "A bare number is bytes. Explicit `B`/`kB`/`MB`/... units use SI powers of 1000; "
+                   "`KiB`/`MiB`/... use IEC powers of 1024. Legacy `k`/`M`/`G`/... remain binary for find "
+                   "compatibility. Lowercase `b` is invalid here because defining a block in blocks is circular.",
     },
     {
         .name = "--exact",
@@ -1153,10 +1156,13 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--buffer",
-        .display = "--buffer[=auto|off|all|N[kMG]|NMB]",
+        .display = "--buffer[=auto|off|all|N[kMGT]|NMB|NMiB]",
         .group = "output",
         .header = "Output",
-        .summary = "buffer to size columns (-ls / tables): auto, off, all, N[kMG] rows, or NMB/NMiB bytes",
+        .summary = "buffer to size columns (-ls / tables): auto, off, all, N[kMGT] rows, or NMB/NMiB bytes",
+        .details = "Row windows use a bare count or decimal `k`/`M`/`G`/`T` multiplier. Byte budgets require an "
+                   "explicit trailing `B`: `B`/`kB`/`MB`/.../`EB` are SI, while "
+                   "`KiB`/`MiB`/.../`EiB` are IEC. The distinct suffixes keep rows and bytes unambiguous.",
     },
     {
         .name = "--width",

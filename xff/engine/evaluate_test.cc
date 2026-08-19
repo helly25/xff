@@ -431,6 +431,18 @@ TEST_F(EvaluateTest, SizeMatchesLargeUnits) {
   EXPECT_TRUE(Match({"-size", "1E"}, eib));
 }
 
+TEST_F(EvaluateTest, SizeExplicitUnitsKeepDecimalAndBinaryMeaningsDistinct) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.size = 1'000'001;
+  const Visit visit{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  EXPECT_TRUE(Match({"-size", "2MB"}, visit)) << "SI MB rounds 1,000,001 bytes up to two units";
+  EXPECT_TRUE(Match({"-size", "1MiB"}, visit)) << "the same length fits in one IEC MiB";
+  EXPECT_TRUE(Match({"-size", "1M"}, visit)) << "legacy M remains the binary MiB scale";
+  EXPECT_FALSE(Match({"-size", "1MB"}, visit));
+  EXPECT_TRUE(Match({"-size", "1000001B"}, visit));
+}
+
 TEST_F(EvaluateTest, ValidateSizeArgsRejectsBadUnits) {
   // Valid units (incl. the T/P/E continuation) pass; an over-64-bit unit (Z/Y/...)
   // or an unknown unit is rejected with a self-documenting message, so the driver
@@ -441,6 +453,11 @@ TEST_F(EvaluateTest, ValidateSizeArgsRejectsBadUnits) {
       "-3E",
       "5c",
       "1k",
+      "1B",
+      "2MB",
+      "3MiB",
+      "4EB",
+      "5EiB",
   });
   for (const std::string_view good : kValidSizeArgs) {
     MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({".", "-size", std::string(good)}));
@@ -448,7 +465,7 @@ TEST_F(EvaluateTest, ValidateSizeArgsRejectsBadUnits) {
   }
   MBO_ASSERT_OK_AND_ASSIGN(const auto zetta, parser::Parse({".", "-size", "+1Z"}));
   EXPECT_THAT(
-      ValidateSizeArgs(*zetta.expression), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("E (exabyte)")));
+      ValidateSizeArgs(*zetta.expression), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("largest units")));
   MBO_ASSERT_OK_AND_ASSIGN(const auto unknown, parser::Parse({".", "-size", "1q"}));
   EXPECT_THAT(
       ValidateSizeArgs(*unknown.expression),
@@ -463,8 +480,14 @@ TEST_F(EvaluateTest, ParseBlockSizeAcceptsBytesAndUnits) {
   EXPECT_THAT(ParseBlockSize("4096"), IsOkAndHolds(Eq(4'096U)));
   EXPECT_THAT(ParseBlockSize("4k"), IsOkAndHolds(Eq(4'096U)));
   EXPECT_THAT(ParseBlockSize("1M"), IsOkAndHolds(Eq(1'024U * 1'024)));
+  EXPECT_THAT(ParseBlockSize("4B"), IsOkAndHolds(Eq(4U)));
+  EXPECT_THAT(ParseBlockSize("4kB"), IsOkAndHolds(Eq(4'000U)));
+  EXPECT_THAT(ParseBlockSize("4KiB"), IsOkAndHolds(Eq(4'096U)));
+  EXPECT_THAT(ParseBlockSize("2PB"), IsOkAndHolds(Eq(2'000'000'000'000'000U)));
+  EXPECT_THAT(ParseBlockSize("2PiB"), IsOkAndHolds(Eq(2ULL << 50U)));
   EXPECT_THAT(ParseBlockSize("0"), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("positive")));
-  EXPECT_THAT(ParseBlockSize("4b"), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("invalid block-size unit")));
+  EXPECT_THAT(ParseBlockSize("4b"), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("use B for bytes")));
+  EXPECT_THAT(ParseBlockSize("19EB"), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("overflows")));
   EXPECT_THAT(ParseBlockSize("9Z"), StatusIs(absl::StatusCode::kInvalidArgument));  // over-64-bit unit, not in the map
   EXPECT_THAT(ParseBlockSize(""), StatusIs(absl::StatusCode::kInvalidArgument));
 }

@@ -154,7 +154,7 @@ class ColumnBuffer {
 std::optional<std::size_t> ParseBufferWindow(std::string_view value);
 
 // Parses a --buffer=VALUE memory budget into a byte count: an integer with a byte unit whose
-// final letter is `B` (case-insensitive) -- bare `B` (bytes), or a scale letter k/M/G/T with a
+// final letter is `B` (case-insensitive) -- bare `B` (bytes), or a scale letter k/M/G/T/P/E with a
 // decimal (SI) base (`10MB` = 10 * 10^6) or an `i` before the `B` for the binary (IEC) base
 // (`10MiB` = 10 * 2^20). The trailing `B` is what marks a byte budget rather than a row count
 // (`10M` = ten million rows, `10MB` = ten megabytes). Returns nullopt for a non-byte value (a

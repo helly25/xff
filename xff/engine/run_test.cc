@@ -820,7 +820,7 @@ TEST_F(RunTest, OversizedSizeUnitIsRefusedBeforeTraversal) {
       command, fs_, [&](std::string_view) { emitted = true; },
       [&](std::string_view, absl::Status status) { err_status = status; });
   EXPECT_THAT(errors, 2);
-  EXPECT_THAT(err_status, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("E (exabyte)")));
+  EXPECT_THAT(err_status, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("largest units")));
   EXPECT_FALSE(emitted) << "a malformed -size must not traverse";
 }
 
@@ -833,6 +833,16 @@ TEST_F(RunTest, BlockSizeRedefinesTheBareSizeUnit) {
   EXPECT_THAT(RunArgvRecords({root_.string(), "-name", "kilo.bin", "-size", "2"}), ElementsAre(Path("kilo.bin")));
   EXPECT_THAT(
       RunArgvRecords({"--block-size=4k", root_.string(), "-name", "kilo.bin", "-size", "1"}),
+      ElementsAre(Path("kilo.bin")));
+}
+
+TEST_F(RunTest, BlockSizeAcceptsExplicitDecimalAndBinaryUnits) {
+  { std::ofstream(root_ / "kilo.bin", std::ios::binary) << std::string(1'001, 'x'); }
+  EXPECT_THAT(
+      RunArgvRecords({"--block-size=1kB", root_.string(), "-name", "kilo.bin", "-size", "2"}),
+      ElementsAre(Path("kilo.bin")));
+  EXPECT_THAT(
+      RunArgvRecords({"--block-size=1KiB", root_.string(), "-name", "kilo.bin", "-size", "1"}),
       ElementsAre(Path("kilo.bin")));
 }
 

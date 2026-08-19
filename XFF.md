@@ -115,6 +115,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 
 ### Matching
 - `--block-size=SIZE` - bytes per -size block for a bare -size N / -size Nb (default 512) _(global, xff)_
+  A bare number is bytes. Explicit `B`/`kB`/`MB`/... units use SI powers of 1000; `KiB`/`MiB`/... use IEC powers of 1024. Legacy `k`/`M`/`G`/... remain binary for find compatibility. Lowercase `b` is invalid here because defining a block in blocks is circular.
 - `--exact` - match -name/-path byte-exact, opting out of the xff FS-native case default _(global, xff)_
 - `--case=<MODE>, -i, -s[-|+]` - letter case for matchers: -i insensitive, -s/-s+ smart, -s- sensitive (rg -> smart) _(global, xff)_
   MODE is one of:
@@ -352,7 +353,8 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   - `off` - plain byte counts, no unit suffix
 
 - `--si` - human sizes in SI (kB/MB, 1000^N); an alias for --human=si (the --human default) _(global, xff)_
-- `--buffer[=auto|off|all|N[kMG]|NMB]` - buffer to size columns (-ls / tables): auto, off, all, N[kMG] rows, or NMB/NMiB bytes _(global, xff)_
+- `--buffer[=auto|off|all|N[kMGT]|NMB|NMiB]` - buffer to size columns (-ls / tables): auto, off, all, N[kMGT] rows, or NMB/NMiB bytes _(global, xff)_
+  Row windows use a bare count or decimal `k`/`M`/`G`/`T` multiplier. Byte budgets require an explicit trailing `B`: `B`/`kB`/`MB`/.../`EB` are SI, while `KiB`/`MiB`/.../`EiB` are IEC. The distinct suffixes keep rows and bytes unambiguous.
 - `--width[=auto|none|COLS]` - wrap column for plain --help text: auto (terminal width, else unwrapped), none, or a count _(global, xff)_
   Wraps the flowing text of --help and --help=TOPIC (option and topic descriptions) to a column width. auto uses the terminal width when stdout is a terminal (honoring $COLUMNS), and leaves output unwrapped when it is not (a pipe or file); none (or 0) disables wrapping; a positive integer sets a fixed width. Aligned vocabulary tables and example blocks keep their own layout. Does not affect the file listing, --man, or --markdown.
 - `--pager[=auto|always|all|never]` - page output: auto (help / man / markdown on a tty), all (plus the listing), always, never _(global, xff)_
@@ -454,9 +456,10 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   xff extension: matches the media (MIME) type derived from the filename extension (a fast, dependency-free table - no content sniffing) against a shell glob, so `image/*` matches png/jpg/... and `text/plain` is exact. The same value is the {mime} field. Matching is always case-insensitive (MIME names are case-insensitive per RFC 2045/6838), so `IMAGE/*` behaves like `image/*`; `--case` / -i / -s do not affect it.
 - `-lang ARG` - match the language by extension/filename against a glob, e.g. -lang 'C*' (xff) _(test, xff)_
   xff extension: matches the programming language inferred from the extension/filename (github-linguist data) against a shell glob, so `C*` matches C / C++ / C#. The same value is the {lang} field. Matching is always case-insensitive (`c++` matches the canonical `C++`) and unaffected by `--case` / -i / -s.
-- `-size ARG` - match the apparent size (unit suffix c, w, k, M, G, T, P, E) _(test, find)_
-  Compares the file's apparent size. A bare number counts 512-byte blocks (find default); a unit suffix sets the scale - c=bytes, w=2 bytes, k/M/G/T/P, plus the xff-only E. A leading + / - means greater / less than. Following GNU, the size is rounded up to whole units, so `-size +100M` means "larger than 100 MB". (See `-blocks` for allocated space.)
+- `-size ARG` - match apparent size with legacy, explicit SI (MB), or IEC (MiB) units _(test, find)_
+  Compares the file's apparent size. A bare number counts 512-byte blocks (find default); a unit suffix sets the scale: find's `c`/`w`/`k`/`M`/`G`/`T`/`P`/`E` are retained as legacy binary units; explicit `B`/`kB`/`MB`/... are SI powers of 1000, and `KiB`/`MiB`/... are IEC powers of 1024. A leading + / - means greater / less than. The size is rounded up to whole units, so `-size +100M` means larger than `100 MiB`, while `-size +100MB` means larger than `100 MB`. See `--help=size` and `-blocks` for allocated space.
 - `-blocks ARG` - match the allocated size (st_blocks); xff's disk-occupancy counterpart to -size _(test, xff)_
+  Uses the same `[+|-]N[unit]` grammar as `-size`, but compares allocated disk space rather than apparent length. See `--help=size` for legacy, SI, and IEC units.
 - `-links ARG` - match the hard-link count _(test, find)_
 - `-inum ARG` - match the inode number _(test, find)_
 - `-samefile ARG` - match files that share an inode with FILE _(test, find)_
@@ -760,17 +763,15 @@ Zone suffix. `--time-zone-suffix=never` drops the trailing offset (`+0100`, `+01
 
 ## Size units
 
-Units for -size / -blocks [+|-]N[unit].
+Units for -size / -blocks [+|-]N[unit]; spell SI and IEC explicitly.
 
-- `c` - bytes
-- `w` - 2-byte words
-- `b` - 512-byte blocks (the default unit; --block-size overrides)
-- `k` - kibibytes (1024 bytes)
-- `M` - mebibytes (1024^2)
-- `G` - gibibytes (1024^3)
-- `T` - tebibytes (1024^4)
-- `P` - pebibytes (1024^5)
-- `E` - exbibytes (1024^6)
+- `c` - legacy byte unit
+- `w` - legacy 2-byte word unit
+- `b / bare` - blocks (512 bytes by default; --block-size overrides)
+- `k / M / G / T / P / E` - legacy binary units (1024 through 1024^6 bytes)
+- `B` - bytes (explicit)
+- `kB / MB / GB / TB / PB / EB` - SI units (powers of 1000)
+- `KiB / MiB / GiB / TiB / PiB / EiB` - IEC units (powers of 1024)
 - `+N / -N` - greater than / less than N units; a bare N matches exactly
 
 ## Regex grammars

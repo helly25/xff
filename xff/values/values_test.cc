@@ -15,7 +15,11 @@
 
 #include "xff/values/values.h"
 
+#include <array>
+#include <cstdint>
 #include <optional>
+#include <string_view>
+#include <utility>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -75,6 +79,48 @@ TEST_F(ValuesTest, ParseTristateMapsOnAndOffSpellings) {
 TEST_F(ValuesTest, ParseTristateRejectsUnknown) {
   EXPECT_THAT(ParseTristate("sometimes"), Eq(std::nullopt));
   EXPECT_THAT(ParseTristate(""), Eq(std::nullopt));
+}
+
+TEST_F(ValuesTest, ParseByteUnitDistinguishesSiAndIecScales) {
+  using Case = std::pair<std::string_view, std::uint64_t>;
+  static constexpr std::array<Case, 13> kCases = {{
+      {"B", 1},
+      {"kB", 1'000},
+      {"MB", 1'000'000},
+      {"GB", 1'000'000'000},
+      {"TB", 1'000'000'000'000},
+      {"PB", 1'000'000'000'000'000},
+      {"EB", 1'000'000'000'000'000'000},
+      {"KiB", 1ULL << 10U},
+      {"MiB", 1ULL << 20U},
+      {"GiB", 1ULL << 30U},
+      {"TiB", 1ULL << 40U},
+      {"PiB", 1ULL << 50U},
+      {"EiB", 1ULL << 60U},
+  }};
+  for (const auto& [unit, bytes] : kCases) {
+    EXPECT_THAT(ParseByteUnit(unit), Optional(Eq(bytes))) << unit;
+  }
+  EXPECT_THAT(ParseByteUnit("mb"), Optional(Eq(1'000'000U)));
+  EXPECT_THAT(ParseByteUnit("mib"), Optional(Eq(1ULL << 20U)));
+}
+
+TEST_F(ValuesTest, ParseByteUnitRejectsImplicitAndMalformedUnits) {
+  EXPECT_THAT(ParseByteUnit(""), Eq(std::nullopt));
+  EXPECT_THAT(ParseByteUnit("M"), Eq(std::nullopt));
+  EXPECT_THAT(ParseByteUnit("iB"), Eq(std::nullopt));
+  EXPECT_THAT(ParseByteUnit("ZiB"), Eq(std::nullopt));
+}
+
+TEST_F(ValuesTest, ParseByteSizeRequiresANumberAndRejectsOverflow) {
+  EXPECT_THAT(ParseByteSize("12MB"), Optional(Eq(12'000'000U)));
+  EXPECT_THAT(ParseByteSize("12MiB"), Optional(Eq(12ULL * (1ULL << 20U))));
+  EXPECT_THAT(ParseByteSize("18446744073709551615B"), Optional(Eq(UINT64_MAX)));
+  EXPECT_THAT(ParseByteSize("19EB"), Eq(std::nullopt));
+  EXPECT_THAT(ParseByteSize("16EiB"), Eq(std::nullopt));
+  EXPECT_THAT(ParseByteSize("MB"), Eq(std::nullopt));
+  EXPECT_THAT(ParseByteSize("12"), Eq(std::nullopt));
+  EXPECT_THAT(ParseByteSize("-1B"), Eq(std::nullopt));
 }
 
 }  // namespace

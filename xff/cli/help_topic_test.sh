@@ -272,7 +272,10 @@ test::help_time_and_size_list_their_vocabularies() {
   expect_output_contains 'epoch' "${out}"
   out="$("$(_xff_bin)" --help=size 2>&1)"
   expect_output_contains 'SIZE UNITS' "${out}"
-  expect_output_contains 'kibibytes' "${out}"
+  expect_output_contains 'SI units' "${out}"
+  expect_output_contains 'IEC units' "${out}"
+  expect_output_contains 'kB / MB' "${out}"
+  expect_output_contains 'KiB / MiB' "${out}"
   # --help=full is exhaustive: it folds in the field, printf, time, and size vocabularies.
   out="$("$(_xff_bin)" --help=full 2>&1)"
   expect_output_contains 'TIME FORMATS' "${out}"

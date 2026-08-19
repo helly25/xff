@@ -19,6 +19,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -28,6 +29,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "xff/values/values.h"
 
 namespace xff::format {
 namespace {
@@ -260,43 +262,12 @@ std::optional<std::size_t> ParseBufferWindow(std::string_view value) {
 }
 
 std::optional<std::size_t> ParseByteBudget(std::string_view value) {
-  // A byte budget ends in a byte unit whose final char is `B` (case-insensitive); anything
-  // else is a row count / keyword, not a memory cap.
-  if (value.empty() || (value.back() != 'B' && value.back() != 'b')) {
+  const std::optional<std::uint64_t> bytes = values::ParseByteSize(value);
+  const std::uint64_t byte_count = bytes.value_or(std::numeric_limits<std::uint64_t>::max());
+  if (!bytes.has_value() || byte_count > std::numeric_limits<std::size_t>::max()) {
     return std::nullopt;
   }
-  value.remove_suffix(1);    // the 'B'
-  std::size_t base = 1'000;  // SI (decimal) unless an 'i' selects the IEC (binary) base
-  if (!value.empty() && (value.back() == 'i' || value.back() == 'I')) {
-    base = 1'024;
-    value.remove_suffix(1);
-  }
-  std::size_t scale = 1;
-  if (!value.empty()) {
-    switch (value.back()) {
-      case 'k':
-      case 'K': scale = base; break;
-      case 'm':
-      case 'M': scale = base * base; break;
-      case 'g':
-      case 'G': scale = base * base * base; break;
-      case 't':
-      case 'T': scale = base * base * base * base; break;
-      default: break;
-    }
-    if (scale != 1) {
-      value.remove_suffix(1);  // consumed the scale letter
-    }
-  }
-  // An IEC 'i' only makes sense with a scale letter: `10iB` is malformed.
-  if (base == 1'024 && scale == 1) {
-    return std::nullopt;
-  }
-  std::size_t number = 0;
-  if (value.empty() || !absl::SimpleAtoi(value, &number)) {
-    return std::nullopt;
-  }
-  return number * scale;
+  return static_cast<std::size_t>(byte_count);
 }
 
 }  // namespace xff::format
