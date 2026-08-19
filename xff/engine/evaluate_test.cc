@@ -32,6 +32,7 @@
 #include "mbo/testing/matchers.h"
 #include "mbo/testing/status.h"
 #include "xff/engine/walk.h"
+#include "xff/fuzzy/fuzzy.h"
 #include "xff/parser/parser.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/local_fs.h"
@@ -48,6 +49,7 @@ using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Not;
+using ::testing::Optional;
 using ::testing::Pair;
 
 struct EvaluateTest : ::testing::Test {
@@ -72,6 +74,7 @@ struct EvaluateTest : ::testing::Test {
     const auto sink = [this](std::string_view record) { emitted_ += record; };
     captures_.clear();
     outputs_.clear();
+    fuzzy_score_.reset();
     const auto file_sink = [this](std::string_view file, std::string_view record) {
       file_emitted_[std::string(file)] += record;
     };
@@ -83,6 +86,7 @@ struct EvaluateTest : ::testing::Test {
         .now = now_,
         .tz = tz_,
         .fold_name_case = fold_name_case_,
+        .fuzzy_score = &fuzzy_score_,
         .grep_count = grep_count_,
         .control = control_,
         .exec_fields = exec_fields_,
@@ -138,6 +142,7 @@ struct EvaluateTest : ::testing::Test {
   bool fold_name_case_ = false;                 // when true, Match sets EvalContext::fold_name_case (FS-native fold)
   std::string regextype_;                       // when set (e.g. "EXACT"), Match prepends --regextype=<v> as a global
   bool grep_count_ = false;                     // when true, Match sets EvalContext::grep_count (-grep --count mode)
+  std::optional<int> fuzzy_score_;              // normalized score composed by the most recent Match
   std::vector<std::string> captures_;           // -regex groups captured during the most recent (gated) Match
   std::map<std::string, std::string> outputs_;  // -capture results from the most recent Match
   std::vector<std::string> content_files_;      // temp files written by WriteContentFile, removed in TearDown
@@ -238,6 +243,47 @@ TEST_F(EvaluateTest, PathGlobsWholePath) {
   EXPECT_TRUE(Match({"-path", "*/c.txt"}, visit)) << "* spans slashes for -path";
   EXPECT_FALSE(Match({"-path", "c.txt"}, visit));
   EXPECT_TRUE(Match({"-ipath", "A/B/*"}, visit));
+}
+
+TEST_F(EvaluateTest, FuzzyPercentThresholdGatesTheMatch) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/far_out_of", "far_out_of", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-fuzzy=0%", "foo"}, visit));
+  EXPECT_FALSE(Match({"-fuzzy=100%", "foo"}, visit));
+  EXPECT_TRUE(Match({"-fuzzy=100%", "far_out_of"}, visit));
+  EXPECT_THAT(fuzzy_score_, Optional(Eq(100)));
+}
+
+TEST_F(EvaluateTest, FuzzyModelsHaveConcreteThresholdSemantics) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/foo", "foo", vfs::FileType::kRegular, md);
+
+  EXPECT_TRUE(Match({"-fuzzy=sequence:67%", "fo"}, visit));
+  EXPECT_THAT(fuzzy_score_, Optional(Eq(67)));
+  EXPECT_FALSE(Match({"-fuzzy=sequence:68%", "fo"}, visit));
+
+  EXPECT_TRUE(Match({"-fuzzy=levenshtein:67%", "fof"}, visit));
+  EXPECT_THAT(fuzzy_score_, Optional(Eq(67)));
+  EXPECT_FALSE(Match({"-fuzzy=levenshtein:68%", "fof"}, visit));
+
+  EXPECT_TRUE(Match({"-fuzzy=shingles:33%", "fof"}, visit));
+  EXPECT_THAT(fuzzy_score_, Optional(Eq(33)));
+  EXPECT_FALSE(Match({"-fuzzy=shingles:34%", "fof"}, visit));
+}
+
+TEST_F(EvaluateTest, FuzzyAndUsesTheWeakestNormalizedScore) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/far_out_of", "far_out_of", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-fuzzy", "foo", "-fuzzy", "far_out_of"}, visit));
+  const std::optional<int> weak = fuzzy::Percent("foo", "far_out_of", false);
+  EXPECT_THAT(fuzzy_score_, Eq(weak));
+}
+
+TEST_F(EvaluateTest, PureFuzzyOrEvaluatesBothAlternativesAndUsesTheBestScore) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/far_out_of", "far_out_of", vfs::FileType::kRegular, md);
+  EXPECT_TRUE(Match({"-fuzzy", "foo", "-o", "-fuzzy", "far_out_of"}, visit));
+  EXPECT_THAT(fuzzy_score_, Optional(Eq(100)));
 }
 
 TEST_F(EvaluateTest, WholenameIsSynonymForPath) {

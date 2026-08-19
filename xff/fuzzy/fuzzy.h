@@ -54,6 +54,35 @@ namespace xff::fuzzy {
 // ranking built on the greedy answer would rank by accident.
 [[nodiscard]] std::optional<int> Score(std::string_view pattern, std::string_view text, bool fold_case);
 
+// Returns Score normalized against the pattern's best possible self-match, as an
+// integer percentage in [0, 100]. This makes scores from different patterns
+// comparable when a boolean expression combines several fuzzy predicates.
+[[nodiscard]] std::optional<int> Percent(std::string_view pattern, std::string_view text, bool fold_case);
+
+// Evaluates fzf's extended-search query language. Space-separated terms are ANDed, `|` joins OR
+// alternatives, and the `!`, `'`, `^`, and `$` operators select inverse, exact, prefix, and suffix
+// matching. Escaped spaces remain part of a term. The score of an AND query is its weakest positive
+// term; an OR group keeps its best successful alternative. Inverse terms filter without lowering
+// the score. This preserves a useful normalized [0, 100] ranking while giving `-fuzzy=fzf` the
+// expression semantics users of fzf expect.
+[[nodiscard]] std::optional<int> FzfPercent(std::string_view query, std::string_view text, bool fold_case);
+
+// Plain ordered-subsequence quality: nullopt when `pattern` is not a subsequence, otherwise the
+// matched-character share of `text` in [0, 100]. Unlike Percent, placement and boundaries carry no
+// bonuses; only how much unmatched candidate text remains matters.
+[[nodiscard]] std::optional<int> SequencePercent(std::string_view pattern, std::string_view text, bool fold_case);
+
+// Normalized classic Levenshtein similarity in [0, 100], rounded to the nearest integer. Insert,
+// delete and substitute each cost one; transposition is therefore two edits (a future Damerau model,
+// if added, remains observably distinct). Unlike the fzf-style Percent above, every pair has a score:
+// this is spelling similarity rather than a subsequence gate.
+[[nodiscard]] int LevenshteinPercent(std::string_view pattern, std::string_view text, bool fold_case);
+
+// Character-bigram Jaccard similarity in [0, 100]: intersection / union of the two unique bigram
+// sets. This is deliberately a small-string model here; content near-duplicate shingling remains a
+// separate feature with configurable tokenization and shingle width.
+[[nodiscard]] int ShinglePercent(std::string_view pattern, std::string_view text, bool fold_case);
+
 }  // namespace xff::fuzzy
 
 #endif  // XFF_FUZZY_FUZZY_H_

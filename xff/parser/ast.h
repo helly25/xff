@@ -17,6 +17,7 @@
 #define XFF_PARSER_AST_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -32,6 +33,8 @@ class Template;  // forward-declared; Expr holds a shared_ptr to -grep=FORMAT's 
 }  // namespace xff::fields
 
 namespace xff::parser {
+
+enum class FuzzyModel { kFzf, kSequence, kLevenshtein, kShingles };
 
 struct Expr;
 using ExprPtr = std::unique_ptr<Expr>;
@@ -76,6 +79,12 @@ struct Expr {
   // -text=FLAVOR: the attached text-definition flavor (git/posix/windows/apple); empty for a bare
   // -text (which is the git heuristic) and every other node. Validated in the parser (kText branch).
   std::string text_flavor;
+  // -fuzzy[=MODEL[:PCT%]] and friends: minimum normalized match quality. Empty for a bare or
+  // model-only fuzzy primary, whose match has no quality threshold.
+  std::optional<int> fuzzy_threshold;
+  // The score/match model selected by an attached `=MODEL:PCT%`; the short `=PCT%` form and a bare
+  // primary use fzf-style subsequence matching.
+  FuzzyModel fuzzy_model = FuzzyModel::kFzf;
   // Case folding forced on by the resolved --case mode (parser::ApplyCaseMode), for the
   // otherwise case-sensitive matchers (-name/-path/-content and, via a recompiled
   // `matcher`, -regex/-rxc/-grep): true under --case=insensitive, or --case=smart when the

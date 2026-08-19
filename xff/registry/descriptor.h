@@ -38,8 +38,9 @@ enum class Cost { kCheap, kMeta, kExpensive };
 // kFormat for -grep (-grep=FORMAT, an attached output template); kStyle for -diff
 // (-diff=STYLE, an attached output-style token like u3 / c / n / y / none); kHash for
 // -hash (-hash=ALGO[/ENCODING], the digest algorithm and hex/base64 rendering); kText for
-// -text (-text=git|posix|windows|apple, the text-definition / line-ending flavor).
-enum class Binding { kNone, kLabel, kLabelRegex, kFormat, kStyle, kHash, kText };
+// -text (-text=git|posix|windows|apple, the text-definition / line-ending flavor);
+// kFuzzy for fuzzy predicates (-fuzzy=MODEL[:PCT%] PATTERN, model + optional quality threshold).
+enum class Binding { kNone, kLabel, kLabelRegex, kFormat, kStyle, kHash, kText, kFuzzy };
 
 // The active command style, and (for kFind/kXff) a primary's origin. As a primary
 // tag: kFind = find-native, kXff = an xff extension; the strict find style

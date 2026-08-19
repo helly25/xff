@@ -124,7 +124,7 @@ shipped one way but not yet settled.
   already xff's gitignore toggle, and `--glob` would collide conceptually with `--regextype=GLOB`.
   Leaning: nothing to add; worth one line in `--help=styles` so an fd user finds the mapping.
 
-- **fzf-style scoring for `-fuzzy` (raised 2026-08-13).** fzf ranks with a Smith-Waterman-ish
+- **fzf-style scoring for `-fuzzy` (completed 2026-08-19).** fzf ranks with a Smith-Waterman-ish
   alignment score and takes an extended pattern syntax (`^prefix`, `suffix$`, `'exact`, `!negate`,
   space = AND, `|` = OR). Two separate questions:
   - **Where the pattern ends is NOT a problem.** fzf's query is itself ONE argument whose terms are
@@ -133,10 +133,12 @@ shipped one way but not yet settled.
     grammar living inside the token. An UNQUOTED multi-term form would need an `-exec`-style `;`
     terminator, which for a matcher reads worse than quoting and would be the only primary in the
     vocabulary to work that way.
-  - **Scoring is the real work**, and it is the same open decision #168 already records: a score
-    implies an output ORDER, so it needs `--sort=score` plus probably `--top=N`, and an alignment
-    search instead of today's greedy scan. The extended syntax is worth having only once matches are
-    ranked, since `^`/`$`/`!` without ranking are just a clumsier `-name` / `!`.
+  - **Shipped:** `-fuzzy=fzf` implements that extended query grammar, and the same primary selects
+    `sequence`, `levenshtein` (`edit`), or `shingles`; an optional `:PCT%` gates each model. The
+    implementation is pinned by upstream fzf's documented compound queries and maintained algorithm cases.
+    Scoring was the real work, and it is the same decision #168 records: a score implies an output
+    ORDER. `--sort=score` and the alignment search are shipped; exact result-set limiting remains the
+    separately specified `-top N` work.
 
 - **A shortcut for "all archive features" (raised 2026-08-13; the WRITE half SHIPPED as
   `--archive-write` / `-z++`, `--archive-any` is still its own flag).** The read side is a fair
@@ -529,12 +531,14 @@ work around; it is why `-collect` exists.
   PER INSTANCE (keyed to the AST node), which is exactly what a global could not do:
   `xff . \( -type f -first 10 \) -o \( -type d -first 5 \)` is ten files AND five directories.
   Truth is immediate, so it streams and its early stop is trivially safe.
-- **`-top N[:PCT%]`** - a TEST that keeps the N best by `-fuzzy` score, with an optional cutoff
-  expressed as a percentage of that pattern's own ceiling (`Score(pattern, pattern)` - matched at a
-  word start, all consecutive, no gaps). A percentage because a raw score is only comparable within
-  one pattern. Multiple instances, each with its own bucket.
-  - **The separator is `:`, NOT `>`.** `-top 25>80%` is shell redirection: unquoted it creates a
-    file named `80%` and silently passes `-top 25`. `:` also matches `--histogram=BUCKET[:MEASURE]`.
+- **`-top N`** - a TEST that keeps the N best by the expression's normalized fuzzy score. Quality
+  thresholds belong to the matchers (`-fuzzy=PCT% PATTERN`), so `-fuzzy=80% foo -top 10` reads as
+  “the ten best good matches” without coupling selection and ranking in one argument. Multiple fuzzy
+  tests compose through the boolean AST: AND takes the minimum (the weakest required match), OR the
+  maximum (the best successful alternative), and normalized 0..100 percentages make different
+  patterns comparable when their thresholds are equal. A ranking operation rejects mixed thresholds: absolute
+  similarity and distance above each predicate's threshold imply different orders, so choosing either silently
+  would be arbitrary. A bare fuzzy test counts as `0%`. Multiple `-top` instances each keep their own bucket.
   - **The contract is EXACT**: the final result is precisely the N best. Streaming
     over-approximation is an implementation detail - per-thread bounded heaps merged at the end -
     and must never leak. Bloom filters do NOT fit here: they cannot rank and their false positives
@@ -2023,13 +2027,12 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
 
 - **Fuzzy finding + near-duplicate detection** (design open). Two distinct capabilities that share the
   "approximate match" theme; split them, do not conflate:
-  1. **Fuzzy name matching - v1 SHIPPED as `-fuzzy` / `-ifuzzy`** (subsequence over the BASENAME,
-     kXff-gated, `//xff/fuzzy`). The algorithm question is answered for this half: a SUBSEQUENCE
-     match (fzf / quick-open: the characters of PATTERN appear in order, gaps free), because that is
-     the question a file finder asks - "can I type a few letters and find the file" - while bounded
-     edit distance answers a spell-checker's "is this a typo of that" and would miss `tmh` ->
-     `the_main_header.h` entirely. Deliberately NOT built yet, each because it needs a decision
-     rather than more code:
+  1. **Fuzzy name matching SHIPPED as `-fuzzy` / `-ifuzzy`** (over the BASENAME,
+     kXff-gated, `//xff/fuzzy`). It now makes the algorithm explicit per predicate:
+     `fzf` (the default, including extended query expressions), plain `sequence`, normalized
+     `levenshtein` / `edit`, and character-bigram `shingles`. This keeps quick-open abbreviation,
+     spelling similarity, and set overlap observably distinct instead of pretending one algorithm
+     answers every approximate-match question. Remaining work:
      - **Ranking - the SCORE half is SHIPPED (2026-08-15).** `fuzzy::Score` does the alignment search
        the greedy scan could not (the earliest match for each character is always A match and often
        not the BEST one), rewarding word starts, consecutive runs and early matches; `{fuzzy}` renders
@@ -2049,17 +2052,16 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
          `--max-results`). What started as "`--top=N`, probably" turned out to be a family, and to
          belong in the EXPRESSION rather than in globals.
      - **A path-matching variant: `-fuzzypath` / `-ifuzzypath` SHIPPED.** The `-path` to `-fuzzy`'s
-       `-name`, sharing one implementation (the matcher takes its subject) and one score slot, so
-       `{fuzzy}` stays "the last fuzzy test" rather than growing a second value. It deliberately
+       `-name`, sharing one implementation (the matcher takes its subject). `{fuzzy}` is the
+       normalized score composed through the whole boolean expression. It deliberately
        waited for `--sort=score`: the objection was that matching whole paths without ranking
        matches nearly everything, and ranking is what answers it. Adding it also exposed that the
        ranking gate listed primaries by hand and so refused `-fuzzypath`; the list is now one named
        set of the primaries that SET a score, and the error names them all.
-     - **A score threshold** as the gate for the boolean form. Now possible (there is a score), still
-       unspelled: the value is only comparable within one pattern, so an absolute `-fuzzy=N PATTERN`
-       cut-off would be a number users cannot reason about. A relative gate (a fraction of the best
-       score in the run) needs the whole result set, so it belongs with `--sort=score` rather than
-       before it.
+     - **A score threshold SHIPPED as `-fuzzy[=MODEL[:PCT%]] PATTERN`.** Each selected model produces
+       a normalized percentage, so different patterns within one model compose: AND
+       keeps the minimum quality, OR the maximum successful alternative. The threshold gates that
+       matcher; `-top N` separately ranks the survivors.
   2. **Content near-duplicate / similarity** via **w-shingling**
      (https://en.wikipedia.org/wiki/W-shingling): represent each text file as the set of its
      contiguous w-token shingles (w-word or w-character k-grams), and score similarity as the Jaccard

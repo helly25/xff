@@ -512,6 +512,82 @@ class ExprParser {
         }
         return node;
       }
+      // A fuzzy primary carries an optional model, optionally followed by a normalized quality
+      // threshold: `=MODEL`, `=MODEL:PCT%`, or the default-model shorthand `=PCT%`.
+      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
+          descriptor != nullptr && descriptor->binding == registry::Binding::kFuzzy) {
+        std::string_view value = std::string_view(token).substr(eq + 1);
+        FuzzyModel model = FuzzyModel::kFzf;
+        std::optional<int> threshold;
+        const auto parse_model = [&](std::string_view model_name) -> bool {
+          if (model_name == "fzf") {
+            model = FuzzyModel::kFzf;
+          } else if (model_name == "sequence") {
+            model = FuzzyModel::kSequence;
+          } else if (model_name == "levenshtein" || model_name == "edit") {
+            model = FuzzyModel::kLevenshtein;
+          } else if (model_name == "shingles") {
+            model = FuzzyModel::kShingles;
+          } else {
+            Fail(
+                absl::StrCat(
+                    "'", token, "': unknown fuzzy model '", model_name,
+                    "' (use fzf / sequence / levenshtein / shingles; edit aliases levenshtein)"));
+            return false;
+          }
+          return true;
+        };
+        if (const std::size_t colon = value.find(':'); colon != std::string_view::npos) {
+          if (!parse_model(value.substr(0, colon))) {
+            return nullptr;
+          }
+          value.remove_prefix(colon + 1);
+          if (value.empty()) {
+            Fail(absl::StrCat("'", token, "': fuzzy threshold must follow ':'"));
+            return nullptr;
+          }
+        } else if (!value.ends_with('%')) {
+          if (!parse_model(value)) {
+            return nullptr;
+          }
+          value = {};
+        }
+        if (!value.empty()) {
+          if (!value.ends_with('%')) {
+            Fail(absl::StrCat("'", token, "': fuzzy threshold must be [MODEL:]PCT% (0% through 100%)"));
+            return nullptr;
+          }
+          value.remove_suffix(1);
+          int percent = 0;
+          if (value.empty()) {
+            Fail(absl::StrCat("'", token, "': fuzzy threshold must be [MODEL:]PCT% (0% through 100%)"));
+            return nullptr;
+          }
+          for (const char digit : value) {
+            if (digit < '0' || digit > '9') {
+              Fail(absl::StrCat("'", token, "': fuzzy threshold must be [MODEL:]PCT% (0% through 100%)"));
+              return nullptr;
+            }
+            percent = (percent * 10) + (digit - '0');
+          }
+          if (percent > 100) {
+            Fail(absl::StrCat("'", token, "': fuzzy threshold must be between 0% and 100%"));
+            return nullptr;
+          }
+          threshold = percent;
+        }
+        ++pos_;
+        if (AtEnd()) {
+          Fail(absl::StrCat("predicate '", base, "' is missing an argument"));
+          return nullptr;
+        }
+        ExprPtr node = MakePredicate(descriptor, {tokens_[pos_++]}, grammar_);
+        if (node != nullptr) {
+          node->fuzzy_threshold = threshold;
+          node->fuzzy_model = model;
+        }
+        return node;
+      }
     }
     const registry::Descriptor* descriptor = registry::Lookup(token);
     if (descriptor == nullptr) {

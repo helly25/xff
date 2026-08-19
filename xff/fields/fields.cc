@@ -324,10 +324,8 @@ std::string ShardField(std::string_view, std::string_view, const RenderContext& 
   return ctx.shard_count.has_value() ? std::to_string(*ctx.shard_count) : "";
 }
 
-// {fuzzy}: the score of the last -fuzzy / -ifuzzy test on this entry; empty when the expression has
-// none (so it no-ops like {shard} does outside shard mode). Higher is better, and the numbers only
-// mean anything relative to each other for the same pattern - which is what makes `--columns` plus a
-// numeric sort a ranking.
+// {fuzzy}: normalized quality composed across the successful fuzzy predicates; empty when the
+// expression has none. AND keeps the weakest required score, OR the best successful alternative.
 std::string FuzzyField(std::string_view, std::string_view, const RenderContext& ctx) {
   return ctx.fuzzy_score.has_value() ? std::to_string(*ctx.fuzzy_score) : "";
 }
@@ -1130,8 +1128,7 @@ std::vector<FieldDoc> FieldDocs() {
           .aliases = {},
           .group = "content",
           .header = "Content",
-          .summary = "how well the last `-fuzzy` / `-ifuzzy` matched this entry (empty without one); "
-                     "higher is better, and only comparable within one pattern",
+          .summary = "normalized fuzzy quality (AND = weakest requirement, OR = best alternative)",
       },
       {
           .name = "shard",

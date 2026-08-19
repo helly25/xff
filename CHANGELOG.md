@@ -3,6 +3,20 @@
 
 # 0.3.0
 
+## Matching
+
+- `-fuzzy[=MODEL[:PCT%]] PATTERN` (and the `-ifuzzy` / path variants) selects
+  `fzf`, plain `sequence`, `levenshtein` (`edit`), or character-bigram `shingles`
+  matching and optionally requires a normalized match quality. The `fzf` model
+  supports fzf's extended-search terms: space AND, `|` OR, exact/prefix/suffix
+  operators, inverse terms, and escaped spaces.
+  `{fuzzy}` and `--sort=score` use the same 0..100 score, which
+  composes across an expression: AND keeps the weakest required match and OR the
+  best successful alternative. Scores from different patterns are therefore
+  comparable at the same quality threshold and predicate order does not choose the ranking accidentally.
+  `--sort=score` rejects mixed models or thresholds rather than silently choosing between absolute similarity and
+  distance above each matcher-specific threshold.
+
 ## Archives
 
 - `--archive` / `-z` dives for real in a build with the archive extra
