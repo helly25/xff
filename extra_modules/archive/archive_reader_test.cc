@@ -43,8 +43,11 @@ using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::Field;
+using ::testing::IsEmpty;
+using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Not;
+using ::testing::Optional;
 using ::testing::SizeIs;
 
 // One file to place into a generated archive.
@@ -157,8 +160,8 @@ TEST_F(ArchiveReaderTest, ReportsMemberMetadata) {
   const auto members = ListMembers(tar);
   ASSERT_THAT(members, IsOkAndHolds(SizeIs(1)));
   EXPECT_THAT(members->front().mode, 0644);
-  EXPECT_THAT(members->front().is_directory, ::testing::IsFalse());
-  EXPECT_THAT(members->front().is_symlink, ::testing::IsFalse());
+  EXPECT_THAT(members->front().is_directory, IsFalse());
+  EXPECT_THAT(members->front().is_symlink, IsFalse());
 }
 
 TEST_F(ArchiveReaderTest, PlainDataIsNotAnArchive) {
@@ -191,9 +194,9 @@ TEST_F(ArchiveReaderTest, TextThatMtreeWouldClaimIsStillNotAnArchive) {
 TEST_F(ArchiveReaderTest, TheCompressionSuffixNamesTheSingleMemberInside) {
   // `notes.txt.gz` holds `notes.txt` - the same name gzip -d restores, and the only name recoverable
   // from a bare compressed stream, which carries no member list at all.
-  EXPECT_THAT(CompressionSuffixStripped("notes.txt.gz"), ::testing::Optional(std::string("notes.txt")));
-  EXPECT_THAT(CompressionSuffixStripped("dump.sql.bz2"), ::testing::Optional(std::string("dump.sql")));
-  EXPECT_THAT(CompressionSuffixStripped("data.XZ"), ::testing::Optional(std::string("data")));  // case folds
+  EXPECT_THAT(CompressionSuffixStripped("notes.txt.gz"), Optional(std::string("notes.txt")));
+  EXPECT_THAT(CompressionSuffixStripped("dump.sql.bz2"), Optional(std::string("dump.sql")));
+  EXPECT_THAT(CompressionSuffixStripped("data.XZ"), Optional(std::string("data")));  // case folds
   // Not single-file compression: a tar shorthand (`.tgz`) is an archive libarchive reads by itself and
   // is deliberately absent from the table, a name that is ONLY a suffix is a dotfile, and everything
   // else has nothing to strip.
@@ -240,11 +243,11 @@ TEST_F(ArchiveReaderTest, RegistersTheExtraAndLibraryLicenseNotices) {
   EXPECT_THAT(notices, has_component("Zstandard", "BSD-3-Clause"));
   EXPECT_THAT(notices, Not(Contains(Field("component", &license::Notice::component, "Mbed TLS"))));
 
-  EXPECT_THAT(license::LicenseBodyFor("BSD-2-Clause"), Not(testing::IsEmpty()));
-  EXPECT_THAT(license::LicenseBodyFor("BSD-3-Clause"), Not(testing::IsEmpty()));
-  EXPECT_THAT(license::LicenseBodyFor("bzip2-1.0.6"), Not(testing::IsEmpty()));
-  EXPECT_THAT(license::LicenseBodyFor("Zlib"), Not(testing::IsEmpty()));
-  EXPECT_THAT(license::LicenseBodyFor("LicenseRef-Public-Domain"), Not(testing::IsEmpty()));
+  EXPECT_THAT(license::LicenseBodyFor("BSD-2-Clause"), Not(IsEmpty()));
+  EXPECT_THAT(license::LicenseBodyFor("BSD-3-Clause"), Not(IsEmpty()));
+  EXPECT_THAT(license::LicenseBodyFor("bzip2-1.0.6"), Not(IsEmpty()));
+  EXPECT_THAT(license::LicenseBodyFor("Zlib"), Not(IsEmpty()));
+  EXPECT_THAT(license::LicenseBodyFor("LicenseRef-Public-Domain"), Not(IsEmpty()));
 }
 
 // ReadMemberOfFile: the entry point the content predicates need. Each error state is distinct on

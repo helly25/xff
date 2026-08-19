@@ -46,6 +46,8 @@ using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
 using ::testing::Contains;
 using ::testing::Field;
+using ::testing::IsEmpty;
+using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Not;
 using ::testing::NotNull;
@@ -120,7 +122,7 @@ TEST_F(FormatFixtureTest, AnRpmReadsThroughTheRpmFilterIntoItsCpioPayload) {
   // payload is what shows up. So the member paths are the payload's, with the `./` prefix cpio
   // stores - which is exactly why the readers normalize a leading `./` when matching.
   const auto members = ListMembersOfFile(Fixture("example.rpm"));
-  ASSERT_THAT(members, IsOkAndHolds(Not(::testing::IsEmpty())));
+  ASSERT_THAT(members, IsOkAndHolds(Not(IsEmpty())));
   EXPECT_THAT(*members, Contains(Field("path", &Member::path, "./usr/bin/xff-fixture")));
   EXPECT_THAT(
       ReadMemberOfFile(Fixture("example.rpm"), absl::StrCat("usr/share/doc/", kCommon)), IsOkAndHolds(kCommonContent));
@@ -132,7 +134,7 @@ TEST_F(FormatFixtureTest, ANestedPackageShowsOneLayerAtATime) {
   // one-layer boundary is a stated behaviour rather than an accident.
   const auto members = ListMembersOfFile(Fixture("example.gem"));
   ASSERT_THAT(members, IsOkAndHolds(SizeIs(2)));
-  EXPECT_THAT(*members, Contains(Field("is_directory", &Member::is_directory, ::testing::IsFalse())));
+  EXPECT_THAT(*members, Contains(Field("is_directory", &Member::is_directory, IsFalse())));
   EXPECT_THAT(*members, Contains(Field("path", &Member::path, "data.tar.gz")));
   EXPECT_THAT(ReadMemberOfFile(Fixture("example.gem"), kCommon), StatusIs(absl::StatusCode::kNotFound));
 }

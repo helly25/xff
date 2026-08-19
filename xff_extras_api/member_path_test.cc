@@ -26,6 +26,7 @@
 namespace xff::archive {
 namespace {
 
+using ::testing::AllOf;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::IsFalse;
@@ -33,7 +34,7 @@ using ::testing::IsTrue;
 using ::testing::Optional;
 
 testing::Matcher<MemberPathParts> PartsAre(std::string_view container, std::string_view member) {
-  return ::testing::AllOf(
+  return AllOf(
       Field("container", &MemberPathParts::container, container), Field("member", &MemberPathParts::member, member));
 }
 

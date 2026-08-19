@@ -34,6 +34,7 @@ namespace {
 
 using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
+using ::testing::Eq;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Optional;
@@ -89,7 +90,7 @@ TEST_F(RegexBackendSeamTest, AnExtraCanImplementTheSeamUsingOnlyThisModule) {
   EXPECT_THAT(seam.FullMatch("xaby"), IsFalse());
   EXPECT_THAT(seam.PartialMatch("xaby"), IsTrue());
   EXPECT_THAT(seam.FindFirst("xaby"), Optional(std::pair<std::size_t, std::size_t>{1, 2}));
-  EXPECT_THAT(seam.FindFirst("nope"), ::testing::Eq(std::nullopt));
+  EXPECT_THAT(seam.FindFirst("nope"), Eq(std::nullopt));
   EXPECT_THAT(seam.FullMatchCaptures("ab"), Optional(ElementsAre("ab")));
   EXPECT_THAT(seam.Rewrite("ab ab", "X", /*global=*/false), "X ab");
   EXPECT_THAT(seam.Rewrite("ab ab", "X", /*global=*/true), "X X");

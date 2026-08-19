@@ -24,6 +24,7 @@
 namespace xff::license {
 namespace {
 
+using ::testing::AllOf;
 using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::Field;
@@ -59,10 +60,9 @@ TEST_F(NoticeTest, NoticesAreSortedByComponentRegardlessOfRegistrationOrder) {
 TEST_F(NoticeTest, AnExtensionNoticeLeadsItsLibraries) {
   EXPECT_THAT(
       Notices(),
-      Contains(
-          ::testing::AllOf(
-              Field("section", &Notice::section, "example extra"), Field("section_lead", &Notice::section_lead, true),
-              Field("component", &Notice::component, "example extra"))));
+      Contains(AllOf(
+          Field("section", &Notice::section, "example extra"), Field("section_lead", &Notice::section_lead, true),
+          Field("component", &Notice::component, "example extra"))));
 }
 
 TEST_F(NoticeTest, ARegistrarContributesTheWholeNotice) {
@@ -70,10 +70,9 @@ TEST_F(NoticeTest, ARegistrarContributesTheWholeNotice) {
   // component registering only half of it would be a compliance bug.
   EXPECT_THAT(
       Notices(),
-      Contains(
-          ::testing::AllOf(
-              Field("component", &Notice::component, "alpha-codec"), Field("spdx", &Notice::spdx, "BSD-2-Clause"),
-              Field("text", &Notice::text, "Copyright (c) Alpha."))));
+      Contains(AllOf(
+          Field("component", &Notice::component, "alpha-codec"), Field("spdx", &Notice::spdx, "BSD-2-Clause"),
+          Field("text", &Notice::text, "Copyright (c) Alpha."))));
 }
 
 TEST_F(NoticeTest, RegisterAddsToTheProcessWideSetAndStaysSorted) {

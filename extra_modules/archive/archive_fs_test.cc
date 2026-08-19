@@ -45,6 +45,8 @@ using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::Field;
+using ::testing::HasSubstr;
+using ::testing::IsEmpty;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Ne;
@@ -130,7 +132,7 @@ TEST_F(ArchiveFsTest, AnEmptyFileOpensAsAnArchiveWithNoMembers) {
   std::ofstream(empty).flush();
   MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(empty));
   MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> entries, fs.ReadDir(empty));
-  EXPECT_THAT(entries, ::testing::IsEmpty());
+  EXPECT_THAT(entries, IsEmpty());
 }
 
 TEST_F(ArchiveFsTest, RepeatedContentReadsAreIdenticalThroughTheCache) {
@@ -271,7 +273,7 @@ TEST_F(ArchiveFsTest, TheConfiguredSeparatorIsUsedForBothRenderingAndParsing) {
   const ArchiveFileSystem fs = Fs({.separator = "#"});
   MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> entries, fs.ReadDir(ArchiveFsTest::Tar()));
   for (const vfs::Entry& entry : entries) {
-    EXPECT_THAT(entry.path, ::testing::HasSubstr("#")) << entry.path;
+    EXPECT_THAT(entry.path, HasSubstr("#")) << entry.path;
     EXPECT_THAT(fs.Stat(entry.path, false), IsOk()) << entry.path;
   }
 }

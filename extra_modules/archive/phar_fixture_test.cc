@@ -50,6 +50,8 @@ using ::testing::Contains;
 using ::testing::Field;
 using ::testing::Ge;
 using ::testing::HasSubstr;
+using ::testing::IsEmpty;
+using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Not;
 using ::testing::NotNull;
@@ -135,11 +137,11 @@ TEST_F(PharFixtureTest, ANativePharFromPhpListsTheMembersWeExpect) {
   // The one case that proves the format was read correctly rather than consistently: these bytes
   // came out of PHP, and every field offset in the manifest had to be right to get here.
   const auto members = ListPharMembersOfFile(Fixture("plain.phar"));
-  ASSERT_THAT(members, IsOkAndHolds(Not(::testing::IsEmpty())));
+  ASSERT_THAT(members, IsOkAndHolds(Not(IsEmpty())));
   EXPECT_THAT(
       *members, Contains(AllOf(
                     Field("path", &Member::path, kRunPhp), Field("size", &Member::size, Ge(1)),
-                    Field("is_directory", &Member::is_directory, ::testing::IsFalse()),
+                    Field("is_directory", &Member::is_directory, IsFalse()),
                     // PHP stamps the current time, so only the shape is assertable.
                     Field("mtime", &Member::mtime, Ge(1'600'000'000)))));
   EXPECT_THAT(*members, Contains(Field("path", &Member::path, kUtilPhp)));
@@ -150,7 +152,7 @@ TEST_F(PharFixtureTest, AnExplicitEmptyDirectoryIsADirectoryMember) {
   // PHP writes `addEmptyDir('var/empty')` as a name with a trailing slash and no data. If the
   // trailing-slash convention were misread, this would show up as a zero-byte FILE.
   const auto members = ListPharMembersOfFile(Fixture("plain.phar"));
-  ASSERT_THAT(members, IsOkAndHolds(Not(::testing::IsEmpty())));
+  ASSERT_THAT(members, IsOkAndHolds(Not(IsEmpty())));
   EXPECT_THAT(
       *members,
       Contains(
@@ -166,7 +168,7 @@ TEST_F(PharFixtureTest, ASignedPharIsReadTheSameWay) {
   // in the manifest announces them, so a reader that computed a member's extent from "the rest of
   // the file" rather than from its stored size would read the signature as content.
   EXPECT_THAT(ReadPharMemberOfFile(Fixture("sha256.phar"), kReadme), IsOkAndHolds(kReadmeContent));
-  EXPECT_THAT(ListPharMembersOfFile(Fixture("sha256.phar")), IsOkAndHolds(Not(::testing::IsEmpty())));
+  EXPECT_THAT(ListPharMembersOfFile(Fixture("sha256.phar")), IsOkAndHolds(Not(IsEmpty())));
 }
 
 TEST_F(PharFixtureTest, PerMemberCompressionListsAndReads) {
