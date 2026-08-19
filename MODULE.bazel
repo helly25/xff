@@ -73,3 +73,8 @@ local_path_override(
 bazel_dep(name = "helly25_mbo", version = "0.13.0")
 
 bazel_dep(name = "helly25_bashtest", version = "0.6.0")
+git_override(
+    module_name = "helly25_bashtest",
+    commit = "2b282a66bd7f9b7ddeea00d2e8baebde3e1ef620",
+    remote = "https://github.com/helly25/bashtest",
+)
