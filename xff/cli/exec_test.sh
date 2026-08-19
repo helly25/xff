@@ -37,8 +37,8 @@ _xff_bin() {
 # A directory with two .txt files (matches) and one non-match, isolated from any
 # ambient config (XFF_CONFIG points at a nonexistent path in each run).
 _tree() {
-  local dir="${TEST_TMPDIR}/$1"
-  mkdir -p "${dir}"
+  local dir
+  dir="$(test_tmpdir "$1")"
   : >"${dir}/a.txt"
   : >"${dir}/b.txt"
   : >"${dir}/skip.md"

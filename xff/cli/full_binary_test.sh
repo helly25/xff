@@ -26,9 +26,8 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
-# Scratch trees live under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes; the name
-# is a per-call counter, so a case that builds two trees needs nothing special and no test name
-# leaks into a printed path (where it could satisfy an expect_output_not_contains).
+# `test_tmpdir` allocates each tree under bashtest's managed scratch root. Its random suffix keeps
+# test names out of printed paths, where a name could accidentally satisfy a negative assertion.
 
 _xff_full_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff_full"
@@ -42,8 +41,7 @@ test::full_binary_resolves_to_the_xff_style_via_argv0() {
   # `-grep` is an xff extension the find style rejects; that `xff_full` accepts it proves its
   # `_full` invocation name resolved to the xff style (DefaultStyleForProgram strips `_full`).
   local root out rc
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  root="$(test_tmpdir tree)"
   mkdir -p "${root}"
   printf 'has TODO here\n' >"${root}/f.txt"
   out="$("$(_xff_full_bin)" "${root}" -type f -grep 'TODO' 2>&1)" && rc=0 || rc=$?
@@ -58,8 +56,7 @@ test::full_binary_pcre2_works_when_the_extra_is_linked_else_errors() {
   # actually matches). Detect which by probing --regextype=PCRE2 on a bare root.
   local root out rc bin
   bin="$(_xff_full_bin)"
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  root="$(test_tmpdir tree)"
   mkdir -p "${root}"
   printf 'the the fox\nunique here\n' >"${root}/f.txt"
   if "${bin}" --regextype=PCRE2 "${root}" >/dev/null 2>&1; then

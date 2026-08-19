@@ -40,7 +40,7 @@ _B64_ABC="ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0="
 
 test::hash_action_prints_digest_and_path() {
   local dir out
-  dir="${TEST_TMPDIR}/hashact"
+  dir="$(test_tmpdir hashact)"
   mkdir -p "${dir}"
   printf 'abc' >"${dir}/f.txt"
   # -hash prints `<digest>  <path>` (default sha256), the sha256sum layout.
@@ -55,7 +55,7 @@ test::hash_action_prints_digest_and_path() {
 
 test::hash_global_default_applies_to_action_and_field() {
   local dir out
-  dir="${TEST_TMPDIR}/hashglob"
+  dir="$(test_tmpdir hashglob)"
   mkdir -p "${dir}"
   printf 'abc' >"${dir}/f.txt"
   # --hash-algorithm=md5 is the default for a bare -hash ...
@@ -71,7 +71,7 @@ test::hash_global_default_applies_to_action_and_field() {
 
 test::hash_bad_spec_and_find_style_are_usage_errors() {
   local dir out rc
-  dir="${TEST_TMPDIR}/hasherr"
+  dir="$(test_tmpdir hasherr)"
   mkdir -p "${dir}"
   printf 'abc' >"${dir}/f.txt"
   # An unknown algorithm in -hash=ALGO is a usage error.

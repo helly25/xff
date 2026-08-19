@@ -36,8 +36,8 @@ _xff_bin() {
 
 # A directory holding a single file, isolated from any ambient config.
 _tree() {
-  local dir="${TEST_TMPDIR}/$1"
-  mkdir -p "${dir}"
+  local dir
+  dir="$(test_tmpdir "$1")"
   : >"${dir}/a.txt"
   echo "${dir}"
 }

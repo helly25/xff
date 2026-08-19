@@ -35,8 +35,8 @@ _xff_bin() {
 
 # A directory holding a single file, isolated from any ambient config.
 _tree() {
-  local dir="${TEST_TMPDIR}/$1"
-  mkdir -p "${dir}"
+  local dir
+  dir="$(test_tmpdir "$1")"
   : >"${dir}/a.txt"
   echo "${dir}"
 }
@@ -82,7 +82,8 @@ test::xff_style_accepts_xff_extensions() {
 
 # A tree with a .gitignore and a .ignore, plus a file each would exclude and one kept.
 _ignore_tree() {
-  local dir="${TEST_TMPDIR}/$1"
+  local dir
+  dir="$(test_tmpdir "$1")"
   mkdir -p "${dir}/build"
   printf 'build/\n' >"${dir}/.gitignore"
   printf '*.tmp\n' >"${dir}/.ignore"
@@ -126,8 +127,8 @@ test::argv0_fd_alias_is_a_plain_name_not_opinionated() {
 }
 
 test::argv0_custom_alias_activates_same_named_config() {
-  local dir="${TEST_TMPDIR}/argv0alias"
-  mkdir -p "${dir}"
+  local dir
+  dir="$(test_tmpdir argv0alias)"
   : >"${dir}/a.txt"
   # A user config defines a NAMED block `mytool:` (not a preset). Invoked through a `mytool`
   # symlink, argv[0] selects that named config with no --config, so its --format=jsonl applies.
@@ -144,8 +145,8 @@ test::argv0_custom_alias_activates_same_named_config() {
 
 # A tree with a hidden dotfile alongside a visible one.
 _hidden_tree() {
-  local dir="${TEST_TMPDIR}/$1"
-  mkdir -p "${dir}"
+  local dir
+  dir="$(test_tmpdir "$1")"
   : >"${dir}/.secret"
   : >"${dir}/visible.txt"
   echo "${dir}"
@@ -170,8 +171,7 @@ test::hidden_dotfiles_skipped_by_opinionated_styles() {
 
 test::case_smart_and_overrides() {
   local dir out xff
-  dir="${TEST_TMPDIR}/casesmart"
-  mkdir -p "${dir}"
+  dir="$(test_tmpdir casesmart)"
   : >"${dir}/README.md"
   xff="$(_xff_bin)"
   # Use the find style for globs (no FS-native folding), so the case flags are the only

@@ -34,7 +34,7 @@ _xff_bin() {
 
 test::lines_field_counts_text_files() {
   local dir out
-  dir="${TEST_TMPDIR}/lines"
+  dir="$(test_tmpdir lines)"
   mkdir -p "${dir}"
   printf 'a\nb\nc\n' >"${dir}/three.txt" # 3 lines
   printf 'x' >"${dir}/one.txt"           # 1 line, no trailing newline
@@ -49,7 +49,7 @@ test::lines_field_counts_text_files() {
 
 test::lines_field_empty_for_non_regular() {
   local dir out
-  dir="${TEST_TMPDIR}/linesdir"
+  dir="$(test_tmpdir linesdir)"
   mkdir -p "${dir}"
   # The directory itself is non-regular, so {lines} renders empty (bracketed to show it).
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -maxdepth 0 -type d -printf '[%{lines}]\n' 2>&1)"

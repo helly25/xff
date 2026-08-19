@@ -37,49 +37,42 @@ _xff_bin() {
   echo "${bin}"
 }
 
-# Allocates a unique tree in bashtest's owned scratch directory and stores its
-# path in the caller-named variable. The output-variable API keeps the counter
-# in this shell instead of losing each increment to command substitution.
 _new_tree() {
-  local result_var="${1}" path
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${path}"
-  printf -v "${result_var}" '%s' "${path}"
+  test_tmpdir tree
 }
 
 # Tree: keep.cc, a.o, sub/b.o, sub/keep.h.  <root>/.gitignore => *.o.  An empty .git
 # marks the tree as a git repo, so bare -g (auto) turns .gitignore on. The empty .git
 # directory contributes no -type f entries, so it does not perturb the assertions.
 _make_tree() {
-  local result_var="${1}" tree
-  _new_tree tree
+  local tree
+  tree="$(_new_tree)"
   mkdir -p "${tree}/sub" "${tree}/.git"
   touch "${tree}/keep.cc" "${tree}/a.o" "${tree}/sub/b.o" "${tree}/sub/keep.h"
   printf '*.o\n' >"${tree}/.gitignore"
-  printf -v "${result_var}" '%s' "${tree}"
+  echo "${tree}"
 }
 
 # The same tree WITHOUT a .git, so it is not a git repo (bare -g auto stays off).
 _make_tree_no_repo() {
-  local result_var="${1}" tree
-  _new_tree tree
+  local tree
+  tree="$(_new_tree)"
   mkdir -p "${tree}/sub"
   touch "${tree}/keep.cc" "${tree}/a.o" "${tree}/sub/b.o" "${tree}/sub/keep.h"
   printf '*.o\n' >"${tree}/.gitignore"
-  printf -v "${result_var}" '%s' "${tree}"
+  echo "${tree}"
 }
 
 test::gitignore_off_by_default() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -type f 2>&1)"
   expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}" # .gitignore not consulted without -g
 }
 
 test::dash_g_auto_respects_gitignore_recursively_in_a_repo() {
   local root out
-  _make_tree root # has .git -> auto turns on
+  root="$(_make_tree)" # has .git -> auto turns on
   out="$("$(_xff_bin)" -g "${root}" -type f 2>&1)"
   expect_not_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"     # dropped at the root
   expect_not_matches "(^|${NL}|/)sub/b\.o(\$|${NL})" "${out}" # and in the subdirectory
@@ -89,14 +82,14 @@ test::dash_g_auto_respects_gitignore_recursively_in_a_repo() {
 
 test::dash_g_auto_is_off_outside_a_repo() {
   local root out
-  _make_tree_no_repo root # no .git -> auto stays off, .gitignore ignored
+  root="$(_make_tree_no_repo)" # no .git -> auto stays off, .gitignore ignored
   out="$("$(_xff_bin)" -g "${root}" -type f 2>&1)"
   expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}" # not in a repo: bare -g is a no-op
 }
 
 test::gitignore_on_forces_even_outside_a_repo() {
   local root out
-  _make_tree_no_repo root # no .git, but =on forces regardless
+  root="$(_make_tree_no_repo)" # no .git, but =on forces regardless
   out="$("$(_xff_bin)" --gitignore=on "${root}" -type f 2>&1)"
   expect_not_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
   expect_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}"
@@ -107,7 +100,7 @@ test::gitignore_takes_the_whole_shared_value_vocabulary() {
   # disable it, and =auto is the bare -g behaviour spelled out. Before this the flag compared the
   # two literal strings on / off, so =yes silently did nothing.
   local root out spelling
-  _make_tree_no_repo root # no .git, so only a forcing value can hide a.o
+  root="$(_make_tree_no_repo)" # no .git, so only a forcing value can hide a.o
   for spelling in on yes true 1; do
     out="$("$(_xff_bin)" "--gitignore=${spelling}" "${root}" -type f 2>&1)"
     expect_not_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
@@ -120,14 +113,14 @@ test::gitignore_takes_the_whole_shared_value_vocabulary() {
 
 test::gitignore_off_value_disables() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" --gitignore=off "${root}" -type f 2>&1)"
   expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
 }
 
 test::dash_g_plus_forces_on_outside_a_repo() {
   local root out
-  _make_tree_no_repo root # no .git; -g+ is the short form of =on (force on)
+  root="$(_make_tree_no_repo)" # no .git; -g+ is the short form of =on (force on)
   out="$("$(_xff_bin)" -g+ "${root}" -type f 2>&1)"
   expect_not_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
   expect_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}"
@@ -135,14 +128,14 @@ test::dash_g_plus_forces_on_outside_a_repo() {
 
 test::dash_g_minus_forces_off_in_a_repo() {
   local root out
-  _make_tree root # has .git, so bare -g would auto-on; -g- (=off) forces it off
+  root="$(_make_tree)" # has .git, so bare -g would auto-on; -g- (=off) forces it off
   out="$("$(_xff_bin)" -g- "${root}" -type f 2>&1)"
   expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}" # -g- overrides the repo auto-on
 }
 
 test::no_ignore_master_switch_overrides_dash_g() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" -g -u "${root}" -type f 2>&1)"
   expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}" # -u force-disables even with -g
   out="$("$(_xff_bin)" -u -g+ "${root}" -type f 2>&1)"
@@ -153,7 +146,7 @@ test::no_ignore_master_switch_overrides_dash_g() {
 
 test::ignore_vcs_respects_gitignore_like_dash_g() {
   local root out
-  _make_tree root # repo + .gitignore=*.o; --ignore-vcs == auto (respect in a repo)
+  root="$(_make_tree)" # repo + .gitignore=*.o; --ignore-vcs == auto (respect in a repo)
   out="$("$(_xff_bin)" --ignore-vcs "${root}" -type f 2>&1)"
   expect_not_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
   expect_not_matches "(^|${NL}|/)sub/b\.o(\$|${NL})" "${out}"
@@ -162,11 +155,11 @@ test::ignore_vcs_respects_gitignore_like_dash_g() {
 
 test::ignore_vcs_flags_are_last_wins() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   # -g turns the VCS layer on; a trailing --no-ignore-vcs wins -> a.o shows again.
   out="$("$(_xff_bin)" -g --no-ignore-vcs "${root}" -type f 2>&1)"
   expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
-  _make_tree root
+  root="$(_make_tree)"
   # ... and the reverse order re-enables it (one last-occurrence-wins scan with -g / --gitignore).
   out="$("$(_xff_bin)" --no-ignore-vcs --ignore-vcs "${root}" -type f 2>&1)"
   expect_not_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"
@@ -175,18 +168,18 @@ test::ignore_vcs_flags_are_last_wins() {
 # Repo with BOTH a .gitignore (the VCS layer, *.o) and a .ignore (the --ignore-files layer, *.log),
 # so the two axes are separable: keep.cc, a.o (gitignored), b.log (.ignore'd).
 _make_tree_vcs_and_ignore() {
-  local result_var="${1}" tree
-  _new_tree tree
+  local tree
+  tree="$(_new_tree)"
   mkdir -p "${tree}/.git"
   touch "${tree}/keep.cc" "${tree}/a.o" "${tree}/b.log"
   printf '*.o\n' >"${tree}/.gitignore"
   printf '*.log\n' >"${tree}/.ignore"
-  printf -v "${result_var}" '%s' "${tree}"
+  echo "${tree}"
 }
 
 test::no_ignore_vcs_drops_only_the_vcs_layer_keeping_ignore_files() {
   local root out
-  _make_tree_vcs_and_ignore root
+  root="$(_make_tree_vcs_and_ignore)"
   # --no-ignore-vcs drops the VCS (.gitignore) layer, but --ignore-files (.ignore) stays on: a.o
   # reappears while b.log stays dropped. That is exactly the difference from -u / --no-ignore.
   out="$("$(_xff_bin)" --no-ignore-vcs --ignore-files "${root}" -type f 2>&1)"
@@ -197,7 +190,7 @@ test::no_ignore_vcs_drops_only_the_vcs_layer_keeping_ignore_files() {
 
 test::no_ignore_master_switch_is_broader_than_no_ignore_vcs() {
   local root out
-  _make_tree_vcs_and_ignore root
+  root="$(_make_tree_vcs_and_ignore)"
   # -u / --no-ignore turns off EVERY ignore source, so both a.o and b.log show (the broader switch).
   out="$("$(_xff_bin)" -u --ignore-files "${root}" -type f 2>&1)"
   expect_matches "(^|${NL}|/)a\.o(\$|${NL})" "${out}"   # .gitignore off
@@ -206,7 +199,7 @@ test::no_ignore_master_switch_is_broader_than_no_ignore_vcs() {
 
 test::nested_gitignore_scopes_to_its_subtree() {
   local root out
-  _new_tree root
+  root="$(_new_tree)"
   mkdir -p "${root}/sub"
   touch "${root}/top.tmp" "${root}/sub/inner.tmp"
   printf '*.tmp\n' >"${root}/sub/.gitignore"                    # only in sub/
@@ -217,7 +210,7 @@ test::nested_gitignore_scopes_to_its_subtree() {
 
 test::git_info_exclude_is_honored() {
   local root out
-  _new_tree root
+  root="$(_new_tree)"
   mkdir -p "${root}/.git/info" # a real .git dir -> repo root
   printf '*.tmp\n' >"${root}/.git/info/exclude"
   touch "${root}/keep.cc" "${root}/drop.tmp"
@@ -230,7 +223,7 @@ test::dash_g_from_a_subdir_honors_repo_root_ignores() {
   # Search root is a SUBDIR of the repo: git/rg/fd honor the repo-root .gitignore and
   # .git/info/exclude even though they sit ABOVE the search root.
   local root out
-  _new_tree root
+  root="$(_new_tree)"
   mkdir -p "${root}/.git/info" "${root}/sub"
   printf '*.log\n' >"${root}/.gitignore"        # repo-root .gitignore (above the search root)
   printf '*.tmp\n' >"${root}/.git/info/exclude" # repo-level exclude
@@ -245,8 +238,8 @@ test::default_global_git_ignore_is_honored() {
   # git's default global ignore ($XDG_CONFIG_HOME/git/ignore, else ~/.config/git/ignore)
   # is the lowest ignore layer. Drive it via a throwaway HOME (XDG unset).
   local root home out
-  _new_tree root
-  _new_tree home
+  root="$(_new_tree)"
+  home="$(_new_tree)"
   mkdir -p "${root}/.git" "${home}/.config/git"
   touch "${root}/keep.cc" "${root}/drop.bak"
   printf '*.bak\n' >"${home}/.config/git/ignore"
@@ -258,8 +251,8 @@ test::default_global_git_ignore_is_honored() {
 test::core_excludesfile_is_honored() {
   # core.excludesFile in ~/.gitconfig points at a custom global ignore file.
   local root home out
-  _new_tree root
-  _new_tree home
+  root="$(_new_tree)"
+  home="$(_new_tree)"
   mkdir -p "${root}/.git"
   touch "${root}/keep.cc" "${root}/drop.bak"
   printf '*.bak\n' >"${home}/my_ignore"
@@ -283,17 +276,17 @@ test::help_topic_documents_gitignore() {
 # placeholder that keeps its directory in the repo, so xff always keeps it against the gitignore
 # layers (#120); the rest is ignored. --hidden shows the dotfile so the exemption is observable.
 _make_gitkeep_tree() {
-  local result_var="${1}" tree
-  _new_tree tree
+  local tree
+  tree="$(_new_tree)"
   mkdir -p "${tree}/.git"
   touch "${tree}/.gitkeep" "${tree}/keep.cc" "${tree}/build.o"
   printf '*\n' >"${tree}/.gitignore"
-  printf -v "${result_var}" '%s' "${tree}"
+  echo "${tree}"
 }
 
 test::gitignore_always_keeps_gitkeep() {
   local root out
-  _make_gitkeep_tree root
+  root="$(_make_gitkeep_tree)"
   out="$("$(_xff_bin)" -g+ --hidden "${root}" -type f 2>&1)"
   expect_matches "(^|${NL}|/)\.gitkeep(\$|${NL})" "${out}"    # exempt from `*`, always kept
   expect_not_matches "(^|${NL}|/)keep\.cc(\$|${NL})" "${out}" # ignored by `*`
@@ -302,7 +295,7 @@ test::gitignore_always_keeps_gitkeep() {
 
 test::explicit_exclude_overrides_gitkeep_exemption() {
   local root out
-  _make_gitkeep_tree root
+  root="$(_make_gitkeep_tree)"
   # The gitignore exemption keeps .gitkeep, but an explicit --exclude still wins over it.
   out="$("$(_xff_bin)" -g+ --hidden --exclude='.gitkeep' "${root}" -type f 2>&1)"
   expect_not_matches "(^|${NL}|/)\.gitkeep(\$|${NL})" "${out}"
@@ -313,8 +306,8 @@ test::explicit_exclude_overrides_gitkeep_exemption() {
 # .gitignore (it excludes its own plumbing implicitly), so -g must drop the whole .git tree while
 # leaving the user's other hidden files alone.
 _make_repo_with_dotfiles() {
-  local result_var="${1}" tree
-  _new_tree tree
+  local tree
+  tree="$(_new_tree)"
   mkdir -p "${tree}/.git/hooks" "${tree}/build"
   printf 'ref: refs/heads/main\n' >"${tree}/.git/HEAD"
   : >"${tree}/.git/hooks/pre-commit.sample"
@@ -322,12 +315,12 @@ _make_repo_with_dotfiles() {
   printf 'build --config=foo\n' >"${tree}/.bazelrc"
   : >"${tree}/build/out.o"
   : >"${tree}/keep.cc"
-  printf -v "${result_var}" '%s' "${tree}"
+  echo "${tree}"
 }
 
 test::dash_g_excludes_gits_own_metadata_tree() {
   local root out
-  _make_repo_with_dotfiles root # has .git -> bare -g auto-on
+  root="$(_make_repo_with_dotfiles)" # has .git -> bare -g auto-on
   out="$("$(_xff_bin)" -g "${root}" 2>&1)"
   expect_not_matches "(^|${NL}|/)\.git(/|\$|${NL})" "${out}" # git's own dir + all its contents gone
   expect_matches "(^|${NL}|/)\.bazelrc(\$|${NL})" "${out}"   # a non-git hidden file the user keeps: shown
@@ -338,7 +331,7 @@ test::dash_g_excludes_gits_own_metadata_tree() {
 
 test::git_metadata_exclusion_is_independent_of_hidden() {
   local root out
-  _make_repo_with_dotfiles root
+  root="$(_make_repo_with_dotfiles)"
   # -g is git mode, not a hidden toggle: even with --hidden forced on, .git stays out (it is git
   # plumbing, not a mere dotfile) while the user's own dotfiles show.
   out="$("$(_xff_bin)" --hidden -g "${root}" 2>&1)"
@@ -348,7 +341,7 @@ test::git_metadata_exclusion_is_independent_of_hidden() {
 
 test::git_metadata_shown_when_gitignore_off() {
   local root out
-  _make_repo_with_dotfiles root
+  root="$(_make_repo_with_dotfiles)"
   # Gitignore off (-g-, find-compatible): xff shows everything, including git's .git tree.
   out="$("$(_xff_bin)" -g- "${root}" 2>&1)"
   expect_matches "(^|${NL}|/)\.git(/|\$|${NL})" "${out}"
@@ -356,19 +349,19 @@ test::git_metadata_shown_when_gitignore_off() {
 
 # A tree holding several VCS metadata dirs plus a non-VCS dotfile, so --skip-vcs's scope is testable.
 _make_multi_vcs_tree() {
-  local result_var="${1}" tree
-  _new_tree tree
+  local tree
+  tree="$(_new_tree)"
   mkdir -p "${tree}/.git/x" "${tree}/.hg/y" "${tree}/.svn" "${tree}/src"
   : >"${tree}/.git/config"
   : >"${tree}/.hg/store"
   : >"${tree}/.bazelrc"
   : >"${tree}/src/a.cc"
-  printf -v "${result_var}" '%s' "${tree}"
+  echo "${tree}"
 }
 
 test::skip_vcs_bare_prunes_every_known_vcs() {
   local root out
-  _make_multi_vcs_tree root
+  root="$(_make_multi_vcs_tree)"
   out="$("$(_xff_bin)" --skip-vcs "${root}" 2>&1)"
   expect_not_matches "(^|${NL}|/)\.git(/|\$|${NL})" "${out}"
   expect_not_matches "(^|${NL}|/)\.hg(/|\$|${NL})" "${out}"
@@ -379,7 +372,7 @@ test::skip_vcs_bare_prunes_every_known_vcs() {
 
 test::skip_vcs_list_is_an_explicit_subset() {
   local root out
-  _make_multi_vcs_tree root
+  root="$(_make_multi_vcs_tree)"
   # An explicit list prunes exactly those; the others stay. No -g needed - it is standalone.
   out="$("$(_xff_bin)" --skip-vcs=git,hg "${root}" 2>&1)"
   expect_not_matches "(^|${NL}|/)\.git(/|\$|${NL})" "${out}"
@@ -389,7 +382,7 @@ test::skip_vcs_list_is_an_explicit_subset() {
 
 test::skip_vcs_hg_only_leaves_git_when_gitignore_off() {
   local root out
-  _make_multi_vcs_tree root
+  root="$(_make_multi_vcs_tree)"
   # --skip-vcs=hg without -g: only .hg goes; .git stays (no gitignore -> .git default).
   out="$("$(_xff_bin)" --skip-vcs=hg "${root}" 2>&1)"
   expect_not_matches "(^|${NL}|/)\.hg(/|\$|${NL})" "${out}"
@@ -398,7 +391,7 @@ test::skip_vcs_hg_only_leaves_git_when_gitignore_off() {
 
 test::no_skip_vcs_opts_out_of_the_dash_g_git_default() {
   local root out
-  _make_multi_vcs_tree root
+  root="$(_make_multi_vcs_tree)"
   # -g would imply --skip-vcs=git; --no-skip-vcs overrides it, so .git shows again.
   out="$("$(_xff_bin)" -g+ --no-skip-vcs "${root}" 2>&1)"
   expect_matches "(^|${NL}|/)\.git(/|\$|${NL})" "${out}"
@@ -406,7 +399,7 @@ test::no_skip_vcs_opts_out_of_the_dash_g_git_default() {
 
 test::skip_vcs_unknown_token_is_a_usage_error() {
   local root out rc
-  _make_multi_vcs_tree root
+  root="$(_make_multi_vcs_tree)"
   out="$("$(_xff_bin)" --skip-vcs=bogus "${root}" 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
   expect_matches "unknown --skip-vcs value 'bogus'" "${out}"

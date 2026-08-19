@@ -42,23 +42,19 @@ DIR_COLOR=$'\033\\[1;34m'
 RESET=$'\033\\[0m'
 
 # A fresh tree per test with one subdirectory (reliably colorable as a directory).
-# The scratch tree lives under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes, so
-# no case repeats a mktemp/rm pair (and a case that fails an expectation no longer leaks its
-# tree, because the rm never ran). The name is a COUNTER rather than the calling test's name:
-# a name would leak into printed paths and can then satisfy an expect_output_not_contains.
+# `test_tmpdir` allocates each tree under bashtest's managed scratch root. Its random suffix keeps
+# test names out of printed paths, where a name could accidentally satisfy a negative assertion.
 _make_tree() {
-  local resultvar="$1" path
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${path}"
+  local path
+  path="$(test_tmpdir tree)"
   mkdir -p "${path}/sub"
   printf 'x\n' >"${path}/a.txt"
-  printf -v "${resultvar}" '%s' "${path}"
+  echo "${path}"
 }
 
 test::color_always_wraps_directories_in_ansi() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" --color=always "${root}" -type d 2>&1)"
   expect_matches "${DIR_COLOR}" "${out}"
   expect_matches "${RESET}" "${out}"
@@ -66,7 +62,7 @@ test::color_always_wraps_directories_in_ansi() {
 
 test::color_never_emits_no_escapes() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" --color=never "${root}" -type d 2>&1)"
   expect_not_matches "${DIR_COLOR}" "${out}"
 }
@@ -74,7 +70,7 @@ test::color_never_emits_no_escapes() {
 test::color_auto_is_plain_when_stdout_is_not_a_tty() {
   # Default (auto): captured stdout is a pipe, so no color even for a directory.
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -type d 2>&1)"
   expect_not_matches "${DIR_COLOR}" "${out}"
 }
@@ -82,7 +78,7 @@ test::color_auto_is_plain_when_stdout_is_not_a_tty() {
 test::color_always_leaves_plain_files_uncolored() {
   # A non-executable regular file gets no color escape even under --color=always.
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" --color=always "${root}" -name a.txt 2>&1)"
   expect_not_matches $'\033\\[' "${out}"
 }
@@ -91,7 +87,7 @@ test::the_ls_theme_is_the_default_palette() {
   # The colours a user expects are the ones their terminal is themed with, so $LS_COLORS is read by
   # default (`auto`, i.e. ls OR xff): `di=01;35` here must beat xff's own bold blue.
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "${root}" -type d 2>&1)"
   expect_matches $'\033\\[01;35m' "${out}"
 }
@@ -100,7 +96,7 @@ test::an_extension_entry_from_the_theme_colours_a_plain_file() {
   # xff's own scheme has nothing per-extension, so this is only possible through the theme - and it is
   # the case a themed terminal notices first.
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$(LS_COLORS='*.txt=33' "$(_xff_bin)" --color=always "${root}" -name a.txt 2>&1)"
   expect_matches $'\033\\[33m' "${out}"
 }
@@ -108,7 +104,7 @@ test::an_extension_entry_from_the_theme_colours_a_plain_file() {
 test::color_scheme_xff_ignores_the_theme() {
   # The way back: --color-scheme=xff uses the built-in scheme even with a theme set.
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=xff "${root}" -type d 2>&1)"
   expect_matches "${DIR_COLOR}" "${out}"
   expect_not_matches $'\033\\[01;35m' "${out}"
@@ -118,7 +114,7 @@ test::ls_and_xff_fills_in_what_the_theme_omits() {
   # The per-KEY merge, which is NOT the default: a theme naming only directories keeps xff's colour
   # for symlinks. Under the default (ls OR xff) the same theme is the whole answer.
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   ln -s a.txt "${root}/link"
   for spelling in "ls-and-xff" "merged"; do # the algebra name and the plain word are one value
     out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always "--color-scheme=${spelling}" "${root}" -type l 2>&1)"
@@ -132,7 +128,7 @@ test::ls_alone_and_the_merge_differ_on_what_the_theme_omits() {
   # The two readings of "use ls colours", side by side on the same theme: `ls` leaves a symlink the
   # theme never mentions uncoloured (as a real ls does), `ls-and-xff` keeps xff's colour for it.
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   ln -s a.txt "${root}/link"
   out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=ls "${root}" -type l 2>&1)"
   expect_not_matches $'\033\\[' "${out}"
@@ -144,7 +140,7 @@ test::auto_takes_the_theme_whole_or_not_at_all() {
   # The third reading: with a theme set, `auto` is that theme alone; with none set it is xff's scheme
   # alone - a per-variable decision rather than the per-key fallback of ls+xff.
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   ln -s a.txt "${root}/link"
   out="$(LS_COLORS='di=01;35' "$(_xff_bin)" --color=always --color-scheme=auto "${root}" -type l 2>&1)"
   expect_not_matches $'\033\\[' "${out}"
@@ -162,7 +158,7 @@ test::bsd_lscolors_themes_the_listing_on_macos() {
   # theme a macOS user who ran no dircolors setup has, so ignoring it made "the colours ls uses"
   # false on that platform.
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$(LSCOLORS='ExFxCxDxBxegedabagacad' "$(_xff_bin)" --color=always "${root}" -type d 2>&1)"
   expect_matches $'\033\\[1;34m' "${out}" # `Ex` -> bold blue, the macOS default directory colour
   # $LS_COLORS is the richer format, so it wins wherever both are set.

@@ -44,7 +44,7 @@ _make_tree() {
 
 test::histogram_ascii_bars_scaled_to_tallest() {
   local dir out
-  dir="${TEST_TMPDIR}/histascii"
+  dir="$(test_tmpdir histascii)"
   _make_tree "${dir}"
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --histogram=ext --unicode=never "${dir}" -type f 2>&1)"
   # cc (3) and h (1) each get a bar of '#'; cc is the tallest so it is the widest.
@@ -56,7 +56,7 @@ test::histogram_ascii_bars_scaled_to_tallest() {
 
 test::histogram_unicode_bars() {
   local dir out
-  dir="${TEST_TMPDIR}/histuni"
+  dir="$(test_tmpdir histuni)"
   _make_tree "${dir}"
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --histogram=ext --unicode=always "${dir}" -type f 2>&1)"
   # Unicode block bars use the full-block character.
@@ -65,7 +65,7 @@ test::histogram_unicode_bars() {
 
 test::histogram_combines_with_summary() {
   local dir out
-  dir="${TEST_TMPDIR}/histsum"
+  dir="$(test_tmpdir histsum)"
   _make_tree "${dir}"
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --summary=type --histogram=ext --unicode=never "${dir}" -type f 2>&1)"
   # The --summary table (a total row) and the histogram bars both appear.
@@ -75,7 +75,7 @@ test::histogram_combines_with_summary() {
 
 test::histogram_unknown_bucket_is_a_usage_error() {
   local dir out rc
-  dir="${TEST_TMPDIR}/histerr"
+  dir="$(test_tmpdir histerr)"
   mkdir -p "${dir}"
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --histogram=bogus "${dir}" 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
@@ -84,7 +84,7 @@ test::histogram_unknown_bucket_is_a_usage_error() {
 
 test::histogram_numeric_measure_aggregates_a_field() {
   local dir out
-  dir="${TEST_TMPDIR}/histnum"
+  dir="$(test_tmpdir histnum)"
   mkdir -p "${dir}"
   printf 'a\nb\nc\n' >"${dir}/x.cc" # 3 lines
   printf 'd\ne\n' >"${dir}/y.cc"    # 2 lines
@@ -97,7 +97,7 @@ test::histogram_numeric_measure_aggregates_a_field() {
 
 test::histogram_metric_without_aggregator_is_a_usage_error() {
   local dir out rc
-  dir="${TEST_TMPDIR}/histnoagg"
+  dir="$(test_tmpdir histnoagg)"
   mkdir -p "${dir}"
   # A numeric metric with no aggregator (ext:lines) is a usage error, per the design.
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --histogram='ext:lines' "${dir}" 2>&1)" && rc=0 || rc=$?
@@ -107,7 +107,7 @@ test::histogram_metric_without_aggregator_is_a_usage_error() {
 
 test::histogram_numeric_range_buckets() {
   local dir out
-  dir="${TEST_TMPDIR}/histrange"
+  dir="$(test_tmpdir histrange)"
   mkdir -p "${dir}"
   head -c 5 /dev/zero >"${dir}/small" # 5 bytes -> the "1-9" magnitude range
   head -c 150 /dev/zero >"${dir}/big" # 150 bytes -> the "100-999" range
@@ -119,7 +119,7 @@ test::histogram_numeric_range_buckets() {
 
 test::histogram_by_mime_groups_by_media_type() {
   local dir out
-  dir="${TEST_TMPDIR}/histmime"
+  dir="$(test_tmpdir histmime)"
   mkdir -p "${dir}"
   echo x >"${dir}/a.txt"
   echo x >"${dir}/b.txt"
@@ -132,7 +132,7 @@ test::histogram_by_mime_groups_by_media_type() {
 
 test::histogram_by_user_groups_under_the_owner() {
   local dir out
-  dir="${TEST_TMPDIR}/histuser"
+  dir="$(test_tmpdir histuser)"
   mkdir -p "${dir}"
   echo x >"${dir}/a.txt"
   echo x >"${dir}/b.txt"
@@ -146,7 +146,7 @@ test::histogram_by_user_groups_under_the_owner() {
 
 test::histogram_width_sets_the_bar_length() {
   local dir out
-  dir="${TEST_TMPDIR}/histwidth"
+  dir="$(test_tmpdir histwidth)"
   _make_tree "${dir}" # cc=3 (tallest), h=1
   # --histogram-width=10: the tallest bar (cc) fills exactly 10 cells (default is 40).
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --histogram=ext --histogram-width=10 --unicode=never "${dir}" -type f 2>&1)"

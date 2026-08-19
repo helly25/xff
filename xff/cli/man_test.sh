@@ -52,9 +52,10 @@ _flatten() {
 }
 
 test::man_renders_through_a_roff_formatter() {
-  local roff tmp rendered renderer=""
+  local roff scratch tmp rendered renderer=""
   roff="$("$(_xff_bin)" --man)"
-  tmp="$(mktemp)"
+  scratch="$(test_tmpdir man)"
+  tmp="${scratch}/page.1"
   printf '%s\n' "${roff}" >"${tmp}"
 
   # Use whatever formatter the host has; _flatten reduces its styling (overstriking AND the

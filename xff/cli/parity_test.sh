@@ -41,20 +41,16 @@ _bin() {
 }
 
 # A small deterministic tree the parity cases run against.
-# The scratch tree lives under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes, so
-# no case repeats a mktemp/rm pair (and a case that fails an expectation no longer leaks its
-# tree, because the rm never ran). The name is a COUNTER rather than the calling test's name:
-# a name would leak into printed paths and can then satisfy an expect_output_not_contains.
+# `test_tmpdir` allocates each tree under bashtest's managed scratch root. Its random suffix keeps
+# test names out of printed paths, where a name could accidentally satisfy a negative assertion.
 _make_tree() {
-  local resultvar="$1" path
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${path}"
+  local path
+  path="$(test_tmpdir tree)"
   mkdir -p "${path}/sub"
   printf 'alpha\n' >"${path}/a.txt"
   printf 'beta beta\n' >"${path}/sub/b.log"
   : >"${path}/sub/c.txt"
-  printf -v "${resultvar}" '%s' "${path}"
+  echo "${path}"
 }
 
 # Assert `xff <args>` and `xff_full <args>` produce identical stdout+stderr and exit code.
@@ -68,7 +64,7 @@ expect_parity() {
 
 test::xff_and_xff_full_agree_on_core_commands() {
   local root
-  _make_tree root
+  root="$(_make_tree)"
   expect_parity "${root}" --sort=tree                                        # bare walk
   expect_parity "${root}" --sort=tree -type f                                # a test
   expect_parity "${root}" --sort=tree -name '*.txt'                          # glob name match

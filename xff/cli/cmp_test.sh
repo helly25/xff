@@ -24,9 +24,8 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
-# Scratch trees live under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes; the name
-# is a per-call counter, so a case that builds two trees needs nothing special and no test name
-# leaks into a printed path (where it could satisfy an expect_output_not_contains).
+# `test_tmpdir` allocates each tree under bashtest's managed scratch root. Its random suffix keeps
+# test names out of printed paths, where a name could accidentally satisfy a negative assertion.
 
 # A real newline for line-anchored expect_matches patterns (whole-text [[ =~ ]]).
 NL=$'\n'
@@ -43,12 +42,8 @@ _xff_bin() {
 # A-only (no counterpart under B). Echoes "A B".
 _make_trees() {
   local a b
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  a="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${a}"
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  b="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${b}"
+  a="$(test_tmpdir tree)"
+  b="$(test_tmpdir tree)"
   printf 'hello\n' >"${a}/same.txt"
   printf 'hello\n' >"${b}/same.txt"
   printf 'left\n' >"${a}/diff.txt"
@@ -66,7 +61,6 @@ test::cmp_true_for_identical_false_for_differing() {
   # diff.txt differs -> -cmp false -> not printed.
   out="$("$(_xff_bin)" "${a}" -name diff.txt -cmp "${b}/diff.txt" 2>&1)"
   expect_not_matches "(^|${NL}|/)diff\.txt(\$|${NL})" "${out}"
-  rm -rf "${a}" "${b}"
 }
 
 test::bang_cmp_lists_changed_files_across_a_parallel_tree() {
@@ -75,7 +69,6 @@ test::bang_cmp_lists_changed_files_across_a_parallel_tree() {
   # ! -cmp '{def.B}/{relpath}': files under A that differ from their B counterpart.
   # diff.txt differs; only.txt has no B counterpart (missing -> differs); same.txt matches.
   out="$("$(_xff_bin)" --define=B="${b}" "${a}" -type f '!' -cmp '{def.B}/{relpath}' 2>&1)"
-  rm -rf "${a}" "${b}"
   expect_matches "(^|${NL}|/)diff\.txt(\$|${NL})" "${out}"
   expect_matches "(^|${NL}|/)only\.txt(\$|${NL})" "${out}"
   expect_not_matches "(^|${NL}|/)same\.txt(\$|${NL})" "${out}"
@@ -85,7 +78,6 @@ test::cmp_is_rejected_in_strict_find_style() {
   local a b rc
   read -r a b <<<"$(_make_trees)"
   "$(_xff_bin)" --config=find "${a}" -cmp "${b}/same.txt" >/dev/null 2>&1 && rc=0 || rc=$?
-  rm -rf "${a}" "${b}"
   expect_eq "2" "${rc}" # -cmp is an xff extension -> usage error under --config=find
 }
 

@@ -38,7 +38,7 @@ _xff_bin() {
 
 test::diff_polarity_true_when_equal_false_when_different() {
   local dir out
-  dir="${TEST_TMPDIR}/diffpol"
+  dir="$(test_tmpdir diffpol)"
   mkdir -p "${dir}"
   printf 'one\ntwo\n' >"${dir}/a.txt"
   printf 'one\nTWO\n' >"${dir}/b.txt"
@@ -57,7 +57,7 @@ test::diff_polarity_true_when_equal_false_when_different() {
 
 test::diff_ignore_normalizes_and_rejects_bad_values() {
   local dir out rc
-  dir="${TEST_TMPDIR}/diffign"
+  dir="$(test_tmpdir diffign)"
   mkdir -p "${dir}"
   printf 'one\ntwo   \nthree\n' >"${dir}/left.txt" # trailing whitespace on line 2
   printf 'one\ntwo\nthree\n' >"${dir}/right.txt"
@@ -91,7 +91,7 @@ test::diff_ignore_normalizes_and_rejects_bad_values() {
 
 test::diff_binary_notes_on_stderr_and_bad_inputs_are_usage_errors() {
   local dir out rc
-  dir="${TEST_TMPDIR}/diffbin"
+  dir="$(test_tmpdir diffbin)"
   mkdir -p "${dir}"
   printf 'x\000one' >"${dir}/p.bin" # embedded NUL -> binary
   printf 'x\000two' >"${dir}/q.bin"
@@ -112,7 +112,7 @@ test::diff_binary_notes_on_stderr_and_bad_inputs_are_usage_errors() {
 
 test::diff_format_and_context_globals() {
   local dir out rc
-  dir="${TEST_TMPDIR}/difffmt"
+  dir="$(test_tmpdir difffmt)"
   mkdir -p "${dir}"
   printf 'a\nb\nc\nd\ne\nf\ng\n' >"${dir}/one.txt"
   printf 'a\nb\nc\nX\ne\nf\ng\n' >"${dir}/two.txt" # one changed line (line 4)

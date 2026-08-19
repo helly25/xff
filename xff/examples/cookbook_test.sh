@@ -44,14 +44,16 @@ readonly TAB=$'\t'
 export GIT_CONFIG_NOSYSTEM=1
 xff() { XFF_CONFIG="${TEST_TMPDIR}/none" "${XFF_BIN}" "$@"; }
 
-readonly FIX="${TEST_TMPDIR}/fixture"
-readonly GITFIX="${TEST_TMPDIR}/gitfix"
+FIX="$(test_tmpdir fixture)"
+readonly FIX
+GITFIX="$(test_tmpdir gitfix)"
+readonly GITFIX
 
 # Build the fixture tree once (idempotent). A mix of extensions/types for --summary=ext, a C++
 # file with a TODO for -grep, an old and a fresh *.tmp for -mtime, a text file with no final
 # newline for ! -eofnl, and a clearly-largest file for the "ten largest" sort.
 _ensure_fixtures() {
-  [[ -d "${FIX}" ]] && return 0
+  [[ -f "${FIX}/a.txt" ]] && return 0
   mkdir -p "${FIX}/src"
   printf 'abc\n' >"${FIX}/a.txt" # text, ends with a newline
   printf 'log line\n' >"${FIX}/b.log"

@@ -39,24 +39,20 @@ _xff_bin() {
 
 # A fresh tree per test: src/main.cc, src/util.log, build/out.o,
 # node_modules/pkg/index.js, keep.log.
-# The scratch tree lives under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes, so
-# no case repeats a mktemp/rm pair (and a case that fails an expectation no longer leaks its
-# tree, because the rm never ran). The name is a COUNTER rather than the calling test's name:
-# a name would leak into printed paths and can then satisfy an expect_output_not_contains.
+# `test_tmpdir` allocates each tree under bashtest's managed scratch root. Its random suffix keeps
+# test names out of printed paths, where a name could accidentally satisfy a negative assertion.
 _make_tree() {
-  local resultvar="$1" path
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${path}"
+  local path
+  path="$(test_tmpdir tree)"
   mkdir -p "${path}/src" "${path}/build" "${path}/node_modules/pkg"
   touch "${path}/src/main.cc" "${path}/src/util.log" "${path}/build/out.o" \
     "${path}/node_modules/pkg/index.js" "${path}/keep.log"
-  printf -v "${resultvar}" '%s' "${path}"
+  echo "${path}"
 }
 
 test::exclude_glob_drops_matching_files() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" --exclude='*.log' "${root}" -type f 2>&1)"
   expect_not_matches "(^|${NL}|/)util\.log(\$|${NL})" "${out}"
   expect_not_matches "(^|${NL}|/)keep\.log(\$|${NL})" "${out}"
@@ -65,7 +61,7 @@ test::exclude_glob_drops_matching_files() {
 
 test::exclude_prunes_a_matching_directory() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" --exclude=build --exclude=node_modules "${root}" -type f 2>&1)"
   expect_not_matches "(^|${NL}|/)out\.o(\$|${NL})" "${out}"    # build/ pruned
   expect_not_matches "(^|${NL}|/)index\.js(\$|${NL})" "${out}" # node_modules/ pruned
@@ -74,7 +70,7 @@ test::exclude_prunes_a_matching_directory() {
 
 test::include_reincludes_with_last_match_wins() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   # keep.log matches both the *.log exclude and the later keep.log include; the
   # include is last, so it wins and keep.log survives while util.log stays dropped.
   out="$("$(_xff_bin)" --exclude='*.log' --include='keep.log' "${root}" -type f 2>&1)"
@@ -84,7 +80,7 @@ test::include_reincludes_with_last_match_wins() {
 
 test::no_filter_lists_everything() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -type f 2>&1)"
   expect_matches "(^|${NL}|/)out\.o(\$|${NL})" "${out}"
   expect_matches "(^|${NL}|/)keep\.log(\$|${NL})" "${out}"

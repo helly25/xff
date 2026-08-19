@@ -29,7 +29,7 @@ output and capture it with command substitution:
 ```sh
 _tree() {
   local root
-  root="$(mktemp -d "${BASHTEST_TMPDIR}/tree.XXXXXX")"
+  root="$(test_tmpdir tree)"
   mkdir -p "${root}/src"
   echo "${root}"
 }
@@ -51,8 +51,9 @@ Diagnostics go to standard error.
 - Shell tests use `helly25_bashtest` and its expectation helpers.
 - Put test-owned files below `${BASHTEST_TMPDIR}`. Bashtest removes that directory even when an
   expectation fails; do not add per-case cleanup traps or `rm -rf` calls.
-- Allocate retained fixtures with `mktemp -d "${BASHTEST_TMPDIR}/name.XXXXXX"`. This is unique per
-  call without caller state, and its random component does not leak a test name into output checks.
+- Allocate retained fixtures with `test_tmpdir name`. This creates a unique directory below
+  `${BASHTEST_TMPDIR}` without caller state, and its random component does not leak a test name into
+  output checks.
 - Use `${TEST_TMPDIR}` only where a tool specifically requires Bazel's target-level test directory.
 - Prefer bashtest expectations over hand-written `grep` checks. The
   [`check_bashtest_grep.sh`](tools/check_bashtest_grep.sh) pre-commit check enforces this for

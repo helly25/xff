@@ -36,7 +36,7 @@ _xff_bin() {
 
 test::csv_emits_a_header_then_quotes_a_comma_field() {
   local dir out
-  dir="${TEST_TMPDIR}/csv"
+  dir="$(test_tmpdir csv)"
   mkdir -p "${dir}"
   : >"${dir}/plain.txt"
   : >"${dir}/with,comma.txt" # a comma in the name must be RFC-4180 quoted
@@ -49,7 +49,7 @@ test::csv_emits_a_header_then_quotes_a_comma_field() {
 
 test::no_header_suppresses_the_header_row() {
   local dir out
-  dir="${TEST_TMPDIR}/nohdr"
+  dir="$(test_tmpdir nohdr)"
   mkdir -p "${dir}"
   : >"${dir}/a.txt"
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=csv --no-header "${dir}" -type f 2>&1)"
@@ -59,7 +59,7 @@ test::no_header_suppresses_the_header_row() {
 
 test::tsv_has_a_header_and_tab_separated_records() {
   local dir out
-  dir="${TEST_TMPDIR}/tsv"
+  dir="$(test_tmpdir tsv)"
   mkdir -p "${dir}"
   : >"${dir}/a.txt"
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=tsv "${dir}" -type f 2>&1)"
@@ -69,7 +69,7 @@ test::tsv_has_a_header_and_tab_separated_records() {
 
 test::columns_produce_a_multi_column_table_with_a_header() {
   local dir out
-  dir="${TEST_TMPDIR}/cols"
+  dir="$(test_tmpdir cols)"
   mkdir -p "${dir}"
   echo hi >"${dir}/a.txt" # 3 bytes (hi + newline)
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=csv --columns=name,size,type "${dir}" -type f 2>&1)"
@@ -79,7 +79,7 @@ test::columns_produce_a_multi_column_table_with_a_header() {
 
 test::columns_validation_is_a_usage_error() {
   local dir out rc
-  dir="${TEST_TMPDIR}/colerr"
+  dir="$(test_tmpdir colerr)"
   mkdir -p "${dir}"
   : >"${dir}/a.txt"
   # An unknown column name.
@@ -98,7 +98,7 @@ test::columns_validation_is_a_usage_error() {
 
 test::aligned_renders_a_padded_table_under_a_dashed_rule() {
   local dir out
-  dir="${TEST_TMPDIR}/aligned"
+  dir="$(test_tmpdir aligned)"
   mkdir -p "${dir}"
   echo hi >"${dir}/a.txt"
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=aligned --columns=name,size "${dir}" -type f 2>&1)"
@@ -110,7 +110,7 @@ test::aligned_renders_a_padded_table_under_a_dashed_rule() {
 
 test::markdown_renders_a_github_table_and_md_is_its_alias() {
   local dir out
-  dir="${TEST_TMPDIR}/md"
+  dir="$(test_tmpdir md)"
   mkdir -p "${dir}"
   echo hi >"${dir}/a.txt"
   # --format=md is the short alias of --format=markdown.
@@ -121,7 +121,7 @@ test::markdown_renders_a_github_table_and_md_is_its_alias() {
 
 test::buffer_bounds_the_aligned_table_without_dropping_rows() {
   local dir out
-  dir="${TEST_TMPDIR}/abuf"
+  dir="$(test_tmpdir abuf)"
   mkdir -p "${dir}"
   : >"${dir}/a.txt"
   : >"${dir}/bb.txt"
@@ -137,7 +137,7 @@ test::buffer_bounds_the_aligned_table_without_dropping_rows() {
 
 test::no_header_drops_the_buffered_table_header() {
   local dir out
-  dir="${TEST_TMPDIR}/aligned_nohdr"
+  dir="$(test_tmpdir aligned_nohdr)"
   mkdir -p "${dir}"
   echo hi >"${dir}/a.txt"
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --format=aligned --no-header --columns=name,size "${dir}" -type f 2>&1)"
@@ -147,7 +147,7 @@ test::no_header_drops_the_buffered_table_header() {
 
 test::tree_renders_a_directory_tree_with_ascii_connectors_under_no_unicode() {
   local dir out rc
-  dir="${TEST_TMPDIR}/tree"
+  dir="$(test_tmpdir tree)"
   mkdir -p "${dir}/sub"
   : >"${dir}/a.txt"
   : >"${dir}/sub/b.txt"
