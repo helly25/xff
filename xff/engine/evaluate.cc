@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -65,6 +66,7 @@
 #include "xff/parser/ast.h"
 #include "xff/regex/regex.h"
 #include "xff/registry/descriptor.h"
+#include "xff/values/values.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/filesystem.h"
 
@@ -352,7 +354,7 @@ std::string FormatPrintf(std::string_view format, const EvalContext& ctx) {
   return out;
 }
 
-// find's `-size` unit suffixes -> bytes per unit. c=byte, w=2-byte word; k/M/G/T/P/E
+// find's legacy `-size` unit suffixes -> bytes per unit. c=byte, w=2-byte word; k/M/G/T/P/E
 // are the binary multiples 2^10..2^60. c/w/k/M/G and T/P are find-native (BSD accepts
 // up to P); E (exabyte) is an xff continuation of the same scale -- a strict superset
 // (no find-valid input changes meaning), available in every style. The next prefixes
@@ -403,47 +405,45 @@ absl::StatusOr<SizeSpec> ParseSizeSpec(std::string_view arg, std::uint64_t block
     spec.compare = arg.front();
     arg.remove_prefix(1);
   }
-  if (!arg.empty() && (arg.back() < '0' || arg.back() > '9')) {
-    const char suffix = arg.back();
-    if (suffix == 'b') {
+  const std::size_t suffix_at = arg.find_first_not_of("0123456789");
+  const std::string_view number = suffix_at == std::string_view::npos ? arg : arg.substr(0, suffix_at);
+  const std::string_view suffix = suffix_at == std::string_view::npos ? std::string_view{} : arg.substr(suffix_at);
+  if (!suffix.empty()) {
+    if (suffix == "b") {
       spec.unit = block_size;  // 'b' = blocks (--block-size, default 512)
+    } else if (suffix.size() == 1 && kSizeUnits.contains(suffix.front())) {
+      spec.unit = kSizeUnits.at(suffix.front());
+    } else if (const std::uint64_t explicit_unit = values::ParseByteUnit(suffix).value_or(0); explicit_unit != 0) {
+      spec.unit = explicit_unit;
     } else {
-      const auto it = kSizeUnits.find(suffix);
-      if (it == kSizeUnits.end()) {
-        if (absl::StrContains(kOversizedUnits, suffix)) {
-          return absl::InvalidArgumentError(
-              absl::StrCat(
-                  "'", original, "': size unit '", std::string(1, suffix),
-                  "' exceeds xff's 64-bit byte range; the largest size unit is E (exabyte)"));
-        }
+      if (absl::StrContains(kOversizedUnits, suffix.front())) {
         return absl::InvalidArgumentError(
-            absl::StrCat("'", original, "': unknown size unit '", std::string(1, suffix), "'"));
+            absl::StrCat(
+                "'", original, "': size unit '", suffix,
+                "' exceeds xff's 64-bit byte range; the largest units are EB, EiB, and legacy E"));
       }
-      spec.unit = it->second;
+      return absl::InvalidArgumentError(absl::StrCat("'", original, "': unknown size unit '", suffix, "'"));
     }
-    arg.remove_suffix(1);
   }
-  if (arg.empty()) {
+  if (number.empty()) {
     return absl::InvalidArgumentError(absl::StrCat("'", original, "': missing numeric size"));
   }
-  for (const char digit : arg) {
-    if (digit < '0' || digit > '9') {
-      return absl::InvalidArgumentError(absl::StrCat("'", original, "': size is not a number"));
-    }
-    spec.want = (spec.want * 10) + static_cast<std::uint64_t>(digit - '0');
+  if (!absl::SimpleAtoi(number, &spec.want)) {
+    return absl::InvalidArgumentError(absl::StrCat("'", original, "': size is not an unsigned 64-bit number"));
   }
   return spec;
 }
 
-// Matches find's `-size N[bcwkMGTPE]` with an optional +/- prefix. The file size is
-// rounded UP to the chosen unit, as find does; a bare value / 'b' uses `block_size`.
+// Matches `-size [+|-]N[unit]`: find's legacy bcwkMGTPE suffixes plus explicit
+// SI B/kB/.../EB and IEC KiB/.../EiB suffixes. The file size is rounded UP to the
+// chosen unit, as find does; a bare value / 'b' uses `block_size`.
 // A malformed arg never matches (it is rejected before the walk; see ValidateSizeArgs).
 bool MatchesSize(std::string_view arg, std::uint64_t size_bytes, std::uint64_t block_size) {
   const absl::StatusOr<SizeSpec> spec = ParseSizeSpec(arg, block_size);
   if (!spec.ok()) {
     return false;
   }
-  const std::uint64_t size_in_units = (size_bytes + spec->unit - 1) / spec->unit;
+  const std::uint64_t size_in_units = (size_bytes / spec->unit) + (size_bytes % spec->unit != 0 ? 1 : 0);
   if (spec->compare == '+') {
     return size_in_units > spec->want;
   }
@@ -2606,33 +2606,38 @@ absl::Status ValidateHashArgs(const parser::Expr& expr) {
 }
 
 absl::StatusOr<std::uint64_t> ParseBlockSize(std::string_view spec) {
-  // N[unit]: a bare number is bytes (unlike -size, where bare means blocks); the
-  // unit suffixes are the fixed binary multiples (c/w/k/M/G/T/P/E). 'b' is rejected
-  // (a block size measured in blocks is circular), as are the over-64-bit units.
+  // N[unit]: a bare number is bytes (unlike -size, where bare means blocks). Accept
+  // find's legacy binary suffixes plus explicit SI/IEC byte units. Lowercase 'b' is
+  // rejected because a block size measured in blocks is circular.
+  const std::size_t suffix_at = spec.find_first_not_of("0123456789");
+  const std::string_view number = suffix_at == std::string_view::npos ? spec : spec.substr(0, suffix_at);
+  const std::string_view suffix = suffix_at == std::string_view::npos ? std::string_view{} : spec.substr(suffix_at);
   std::uint64_t unit = 1;
-  std::string_view number = spec;
-  if (!spec.empty() && (spec.back() < '0' || spec.back() > '9')) {
-    const char suffix = spec.back();
-    const auto it = kSizeUnits.find(suffix);
-    if (it == kSizeUnits.end()) {
+  if (!suffix.empty()) {
+    if (suffix == "b") {
       return absl::InvalidArgumentError(
-          absl::StrCat("'", spec, "': invalid block-size unit '", std::string(1, suffix), "'"));
+          absl::StrCat("'", spec, "': 'b' is a block count, not a valid block-size unit; use B for bytes"));
     }
-    unit = it->second;
-    number.remove_suffix(1);
+    if (suffix.size() == 1 && kSizeUnits.contains(suffix.front())) {
+      unit = kSizeUnits.at(suffix.front());
+    } else if (const std::uint64_t explicit_unit = values::ParseByteUnit(suffix).value_or(0); explicit_unit != 0) {
+      unit = explicit_unit;
+    } else {
+      return absl::InvalidArgumentError(absl::StrCat("'", spec, "': invalid block-size unit '", suffix, "'"));
+    }
   }
   if (number.empty()) {
     return absl::InvalidArgumentError(absl::StrCat("'", spec, "': missing number"));
   }
   std::uint64_t value = 0;
-  for (const char digit : number) {
-    if (digit < '0' || digit > '9') {
-      return absl::InvalidArgumentError(absl::StrCat("'", spec, "': not a number"));
-    }
-    value = (value * 10) + static_cast<std::uint64_t>(digit - '0');
+  if (!absl::SimpleAtoi(number, &value)) {
+    return absl::InvalidArgumentError(absl::StrCat("'", spec, "': not an unsigned 64-bit number"));
   }
   if (value == 0) {
     return absl::InvalidArgumentError(absl::StrCat("'", spec, "': block size must be positive"));
+  }
+  if (value > std::numeric_limits<std::uint64_t>::max() / unit) {
+    return absl::InvalidArgumentError(absl::StrCat("'", spec, "': block size overflows the 64-bit byte range"));
   }
   return value * unit;
 }
@@ -2681,15 +2686,13 @@ std::string SizeUnitSuffixes() {
 
 std::vector<std::pair<std::string_view, std::string_view>> SizeUnitDocs() {
   return {
-      {"c", "bytes"},
-      {"w", "2-byte words"},
-      {"b", "512-byte blocks (the default unit; --block-size overrides)"},
-      {"k", "kibibytes (1024 bytes)"},
-      {"M", "mebibytes (1024^2)"},
-      {"G", "gibibytes (1024^3)"},
-      {"T", "tebibytes (1024^4)"},
-      {"P", "pebibytes (1024^5)"},
-      {"E", "exbibytes (1024^6)"},
+      {"c", "legacy byte unit"},
+      {"w", "legacy 2-byte word unit"},
+      {"b / bare", "blocks (512 bytes by default; --block-size overrides)"},
+      {"k / M / G / T / P / E", "legacy binary units (1024 through 1024^6 bytes)"},
+      {"B", "bytes (explicit)"},
+      {"kB / MB / GB / TB / PB / EB", "SI units (powers of 1000)"},
+      {"KiB / MiB / GiB / TiB / PiB / EiB", "IEC units (powers of 1024)"},
       {"+N / -N", "greater than / less than N units; a bare N matches exactly"},
   };
 }

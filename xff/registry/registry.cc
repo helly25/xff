@@ -472,11 +472,14 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     },
     {
         .name = "-size",
-        .summary = "match the apparent size (unit suffix c, w, k, M, G, T, P, E)",
+        .summary = "match apparent size with legacy, explicit SI (MB), or IEC (MiB) units",
         .details = "Compares the file's apparent size. A bare number counts 512-byte blocks (find default); a unit "
-                   "suffix sets the scale - c=bytes, w=2 bytes, k/M/G/T/P, plus the xff-only E. A leading + / - "
-                   "means greater / less than. Following GNU, the size is rounded up to whole units, so `-size "
-                   "+100M` means \"larger than 100 MB\". (See `-blocks` for allocated space.)",
+                   "suffix sets the scale: find's `c`/`w`/`k`/`M`/`G`/`T`/`P`/`E` are retained as legacy binary "
+                   "units; explicit "
+                   "`B`/`kB`/`MB`/... are SI powers of 1000, and `KiB`/`MiB`/... are IEC powers of 1024. A leading "
+                   "+ / - means greater / less than. The size is rounded up to whole units, so `-size +100M` means "
+                   "larger than `100 MiB`, while `-size +100MB` means larger than `100 MB`. See `--help=size` and "
+                   "`-blocks` for allocated space.",
         .kind = Kind::kTest,
         .arity = 1,
     },
@@ -484,6 +487,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         // xff extension: -size but over ALLOCATED space (st_blocks), not apparent size.
         .name = "-blocks",
         .summary = "match the allocated size (st_blocks); xff's disk-occupancy counterpart to -size",
+        .details = "Uses the same `[+|-]N[unit]` grammar as `-size`, but compares allocated disk space rather than "
+                   "apparent length. See `--help=size` for legacy, SI, and IEC units.",
         .kind = Kind::kTest,
         .arity = 1,
         .style = Style::kXff,

@@ -236,9 +236,9 @@ std::optional<mbo::diff::DiffOptions::OutputFormat> ParseDiffFormatFlag(std::str
 // matching how the other payload primaries validate up front.
 absl::Status ValidateHashArgs(const parser::Expr& expr);
 
-// Parses a `--block-size=SIZE` value into bytes: `N[unit]` where a bare number is
-// bytes and the unit suffixes are the fixed binary multiples (c/w/k/M/G/T/P/E; 'b'
-// and the over-64-bit Z/Y/... are rejected). The result is the bytes-per-block used
+// Parses a `--block-size=SIZE` value into bytes: a bare number is bytes; legacy
+// c/w/k/M/G/T/P/E units are binary; explicit B/kB/.../EB units are SI and
+// KiB/.../EiB units are IEC. Lowercase 'b' and overflow are rejected. The result is
 // for a bare `-size N` and the `-size Nb` unit (find's default is 512). Returns an
 // InvalidArgument status (naming the problem) for a malformed or zero size.
 absl::StatusOr<std::uint64_t> ParseBlockSize(std::string_view spec);
@@ -279,7 +279,7 @@ std::vector<std::pair<std::string_view, std::string_view>> PrintfDocs();
 std::string PrintfDirectiveLetters();
 
 // The -size unit vocabulary for `--help=size`, as {code, description} rows: the unit
-// suffixes (kSizeUnits), the 512-byte block default, and the +/- comparison prefix.
+// legacy suffixes, explicit SI/IEC suffixes, the block default, and +/- comparison.
 // evaluate_test guards that it covers SizeUnitSuffixes().
 std::vector<std::pair<std::string_view, std::string_view>> SizeUnitDocs();
 

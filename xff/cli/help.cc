@@ -103,7 +103,7 @@ std::vector<HelpTopic> HelpTopics() {
       {.name = "fields", .aliases = {}, .summary = "the {field} placeholder vocabulary", .in_full = true},
       {.name = "printf", .aliases = {}, .summary = "the -printf % directives and the %{field} escape", .in_full = true},
       {.name = "time", .aliases = {}, .summary = "time-format presets and strftime patterns", .in_full = true},
-      {.name = "size", .aliases = {}, .summary = "-size units (c, w, b, k, M, G, T, P, E) and +/-", .in_full = true},
+      {.name = "size", .aliases = {}, .summary = "-size/-blocks legacy, SI, and IEC units plus +/-", .in_full = true},
       {.name = "grammars",
        .aliases = {"regex", "regexp"},
        .summary = "the --regextype grammars (RE2, EXACT, FNMATCH, GLOB, SHGLOB, PCRE2)",

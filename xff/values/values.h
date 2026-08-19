@@ -44,6 +44,17 @@ enum class Tristate : std::uint8_t { kOff, kOn, kAuto };
 // (plus always -> on, never -> off) mapped to kOn / kOff; nullopt otherwise.
 [[nodiscard]] std::optional<Tristate> ParseTristate(std::string_view value);
 
+// Parses an explicit byte-unit suffix. SI suffixes (`B`, `kB`, `MB`, ... `EB`) use powers of 1000;
+// IEC suffixes (`KiB`, `MiB`, ... `EiB`) use powers of 1024. Input is case-insensitive, while help
+// and output use the canonical spellings above. A unit must include the trailing B so it cannot be
+// confused with historical find units such as `M` (binary) or row-count multipliers.
+[[nodiscard]] std::optional<std::uint64_t> ParseByteUnit(std::string_view unit);
+
+// Parses an unsigned integer followed by ParseByteUnit's explicit suffix, rejecting multiplication
+// overflow. A bare integer is deliberately not accepted: callers give those values domain-specific
+// meanings (bytes, blocks, or rows).
+[[nodiscard]] std::optional<std::uint64_t> ParseByteSize(std::string_view value);
+
 }  // namespace xff::values
 
 #endif  // XFF_VALUES_VALUES_H_

@@ -5,6 +5,11 @@
 
 ## Matching
 
+- Size inputs now spell their scale explicitly across `-size`, `-blocks`, `--block-size`, and
+  `--buffer`: `B`/`kB`/`MB`/.../`EB` are decimal SI, while
+  `KiB`/`MiB`/.../`EiB` are binary IEC. Find's historical `c`/`w`/`b` and
+  `k`/`M`/`G`/.../`E` forms remain accepted with their original meanings. Multiplication overflow
+  is rejected, and `--help=size` documents the complete shared vocabulary.
 - `-fuzzy[=MODEL[:PCT%]] PATTERN` (and the `-ifuzzy` / path variants) selects
   `fzf`, plain `sequence`, `levenshtein` (`edit`), or character-bigram `shingles`
   matching and optionally requires a normalized match quality. The `fzf` model

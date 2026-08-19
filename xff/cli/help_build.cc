@@ -337,7 +337,8 @@ Section TimeSection() {
 }
 
 Section SizeSection() {
-  return VocabSection("Size units", "Units for -size / -blocks [+|-]N[unit].", engine::SizeUnitDocs());
+  return VocabSection(
+      "Size units", "Units for -size / -blocks [+|-]N[unit]; spell SI and IEC explicitly.", engine::SizeUnitDocs());
 }
 
 Section GrammarsSection() {
