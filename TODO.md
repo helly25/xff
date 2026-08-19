@@ -838,6 +838,21 @@ making the manifest complete and uniform.
 
 ## Remaining work
 
+### Minimum Bazel version (verified 2026-08-19)
+
+The supported minimum is **Bazel 9.1.1**, matching `.bazelversion` and CI. This is an empirical
+boundary rather than a guessed major version:
+
+- Bazel 8.7.0 (the newest released Bazel 8 LTS tested) fails the normal build under both the host
+  toolchain and `--config=clang`: external Abseil headers inherit xff's `-Werror` and fail on
+  `-Wgcc-compat` diagnostics.
+- Bazel 9.0.1 builds the full core suite, but its macOS sandbox fails the `-gid` and `-group`
+  conformance cases; Bazel 9.1.0 fails the same two cases.
+- Bazel 9.1.1 passes the conformance suite and is the version exercised by every CI job.
+
+Do not claim support for Bazel 7 or an unspecified Bazel 8 patch. Lowering the minimum requires a
+dedicated compatibility fix and CI coverage, not only a successful analysis phase.
+
 The backlog of features and infrastructure not yet built. Ordered by current
 intent, not hard dependency. Task numbers reference the agent task list.
 

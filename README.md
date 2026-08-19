@@ -161,7 +161,8 @@ The `//xff` target alias follows your active workspace configuration automatical
 
 > **Compile-Time Enforcement:** The CLI options for extras (e.g., `--regextype=PCRE2` or `--archive`) are always exposed on the interface. Attempting to invoke an extra feature in a lean build that did not compile it will yield an immediate, explicit error rather than a silent failure or fallback.
 
-- **Requirements:** Bazel accompanied by a modern C++23 toolchain (`clang-22` or newer). A fully hermetic LLVM toolchain is available out-of-the-box via `--config=clang`.
+- **Requirements:** Bazel 9.1.1 or newer, accompanied by a modern C++23 toolchain (`clang-22` or
+  newer). A fully hermetic LLVM toolchain is available out-of-the-box via `--config=clang`.
 
 ---
 
