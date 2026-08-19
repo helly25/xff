@@ -60,7 +60,8 @@ test::explain_rejects_preset_overloading_config() {
   # (no named config) is dropped in every layer, so a plain preset run stays reproducible.
   local cfg="${TEST_TMPDIR}/xff_overload_config"
   printf 'xff: --feature=long\ncommon: --sort\n' >"${cfg}"
-  local dir="${TEST_TMPDIR}/ov"
+  local dir
+  dir="$(test_tmpdir ov)"
   mkdir -p "${dir}"
   : >"${dir}/a.txt"
   local out
@@ -75,7 +76,8 @@ test::explain_rejects_preset_overloading_config() {
 }
 
 test::config_applies_to_the_run() {
-  local dir="${TEST_TMPDIR}/tree"
+  local dir
+  dir="$(test_tmpdir tree)"
   mkdir -p "${dir}"
   : >"${dir}/a.txt"
   local cfg="${TEST_TMPDIR}/xff_apply_config"
@@ -94,7 +96,8 @@ test::local_xffrc_in_the_tree_is_ignored() {
   # The project layer was dropped (Option B, 2026-07-06): a .xffrc sitting in the search tree is
   # NOT config. It never loads, never warns, and cannot change the run. (Per-directory rules are an
   # ignore concern -- .gitignore / .xffignore -- not config; config is system + user + --xffrc only.)
-  local proj="${TEST_TMPDIR}/localrc"
+  local proj
+  proj="$(test_tmpdir localrc)"
   mkdir -p "${proj}"
   : >"${proj}/a.txt"
   printf 'common: --format=jsonl\n' >"${proj}/.xffrc" # a would-be project file; must have no effect

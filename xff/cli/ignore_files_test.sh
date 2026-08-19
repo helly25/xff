@@ -24,9 +24,8 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
-# Scratch trees live under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes; the name
-# is a per-call counter, so a case that builds two trees needs nothing special and no test name
-# leaks into a printed path (where it could satisfy an expect_output_not_contains).
+# `test_tmpdir` allocates each tree under bashtest's managed scratch root. Its random suffix keeps
+# test names out of printed paths, where a name could accidentally satisfy a negative assertion.
 
 # A real newline for line-anchored expect_matches patterns: expect_matches matches
 # the whole text ([[ =~ ]]), so `^`/`$` anchor the whole output, not a line.
@@ -45,27 +44,25 @@ _xff_bin() {
 #   <root>/.xffignore      => *.log       (ignore logs everywhere)
 #   <root>/src/.xffignore  => !debug.log  (re-include debug.log in src/)
 _make_tree() {
-  local resultvar="$1" path
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${path}"
+  local path
+  path="$(test_tmpdir tree)"
   mkdir -p "${path}/src" "${path}/build"
   touch "${path}/top.log" "${path}/src/main.cc" "${path}/src/debug.log" "${path}/build/out.o"
   printf '*.log\n' >"${path}/.xffignore"
   printf '!debug.log\n' >"${path}/src/.xffignore"
-  printf -v "${resultvar}" '%s' "${path}"
+  echo "${path}"
 }
 
 test::ignore_files_off_by_default() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" "${root}" -type f 2>&1)"
   expect_matches "(^|${NL}|/)top\.log(\$|${NL})" "${out}" # find-compatible: .xffignore not consulted
 }
 
 test::ignore_files_honored_when_enabled() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" --ignore-files "${root}" -type f 2>&1)"
   expect_not_matches "(^|${NL}|/)top\.log(\$|${NL})" "${out}" # dropped by the root *.log rule
   expect_matches "(^|${NL}|/)main\.cc(\$|${NL})" "${out}"     # unaffected
@@ -73,7 +70,7 @@ test::ignore_files_honored_when_enabled() {
 
 test::deeper_ignore_file_overrides_shallower() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" --ignore-files "${root}" -type f 2>&1)"
   # src/.xffignore's !debug.log re-includes it even though the root *.log would drop it.
   expect_matches "(^|${NL}|/)debug\.log(\$|${NL})" "${out}"
@@ -81,7 +78,7 @@ test::deeper_ignore_file_overrides_shallower() {
 
 test::no_ignore_master_switch_disables() {
   local root out_u out_long
-  _make_tree root
+  root="$(_make_tree)"
   out_u="$("$(_xff_bin)" --ignore-files -u "${root}" -type f 2>&1)"
   out_long="$("$(_xff_bin)" --ignore-files --no-ignore "${root}" -type f 2>&1)"
   expect_matches "(^|${NL}|/)top\.log(\$|${NL})" "${out_u}"    # -u forces ignore processing off
@@ -90,8 +87,7 @@ test::no_ignore_master_switch_disables() {
 
 test::ignore_file_prunes_a_directory() {
   local root out
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  root="$(test_tmpdir tree)"
   mkdir -p "${root}"
   mkdir -p "${root}/keep" "${root}/skip"
   touch "${root}/keep/a" "${root}/skip/b"
@@ -103,8 +99,7 @@ test::ignore_file_prunes_a_directory() {
 
 test::dot_ignore_file_is_also_respected() {
   local root out
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  root="$(test_tmpdir tree)"
   mkdir -p "${root}"
   touch "${root}/a.tmp" "${root}/a.cc"
   printf '*.tmp\n' >"${root}/.ignore" # the generic .ignore, not just .xffignore

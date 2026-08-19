@@ -40,7 +40,7 @@ _B64_ABC="ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0="
 
 test::hasheq_matches_and_mismatches() {
   local dir out
-  dir="${TEST_TMPDIR}/vfy"
+  dir="$(test_tmpdir vfy)"
   mkdir -p "${dir}"
   printf 'abc' >"${dir}/f.txt"
   # A matching EXPECTED (the sha256 of "abc") makes -hasheq true, so the implicit print emits it.
@@ -53,7 +53,7 @@ test::hasheq_matches_and_mismatches() {
 
 test::hasheq_reads_expected_from_a_define() {
   local dir out
-  dir="${TEST_TMPDIR}/vfydef"
+  dir="$(test_tmpdir vfydef)"
   mkdir -p "${dir}"
   printf 'abc' >"${dir}/f.txt"
   # EXPECTED is a field template, so a {def.NAME} value drives the comparison (a sidecar manifest).
@@ -64,7 +64,7 @@ test::hasheq_reads_expected_from_a_define() {
 
 test::hasheq_hex_is_case_insensitive() {
   local dir out upper
-  dir="${TEST_TMPDIR}/vfycase"
+  dir="$(test_tmpdir vfycase)"
   mkdir -p "${dir}"
   printf 'abc' >"${dir}/f.txt"
   upper="$(printf '%s' "${_SHA256_ABC}" | tr 'a-f' 'A-F')"
@@ -75,7 +75,7 @@ test::hasheq_hex_is_case_insensitive() {
 
 test::hasheq_algo_and_encoding_selectors() {
   local dir out
-  dir="${TEST_TMPDIR}/vfyalgo"
+  dir="$(test_tmpdir vfyalgo)"
   mkdir -p "${dir}"
   printf 'abc' >"${dir}/f.txt"
   # -hasheq=md5 checks against the md5 digest ...
@@ -88,7 +88,7 @@ test::hasheq_algo_and_encoding_selectors() {
 
 test::not_hasheq_selects_drift() {
   local dir out
-  dir="${TEST_TMPDIR}/vfydrift"
+  dir="$(test_tmpdir vfydrift)"
   mkdir -p "${dir}"
   printf 'abc' >"${dir}/good.txt"
   printf 'xyz' >"${dir}/bad.txt"
@@ -100,7 +100,7 @@ test::not_hasheq_selects_drift() {
 
 test::hasheq_bad_spec_and_find_style_are_usage_errors() {
   local dir out rc
-  dir="${TEST_TMPDIR}/vfyerr"
+  dir="$(test_tmpdir vfyerr)"
   mkdir -p "${dir}"
   printf 'abc' >"${dir}/f.txt"
   # An unknown algorithm in -hasheq=ALGO is a usage error.

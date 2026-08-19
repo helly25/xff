@@ -53,7 +53,7 @@ _walk() {
 
 test::every_sort_mode_walks_the_whole_tree() {
   local dir mode
-  dir="${TEST_TMPDIR}/sortall"
+  dir="$(test_tmpdir sortall)"
   _make_tree "${dir}"
   for mode in none dir subtree tree; do
     expect_eq "8" "$(_walk "${dir}" "--sort=${mode}" | wc -l | tr -d ' ')"
@@ -62,7 +62,7 @@ test::every_sort_mode_walks_the_whole_tree() {
 
 test::sort_tree_is_a_deterministic_global_order() {
   local dir out expected
-  dir="${TEST_TMPDIR}/sorttree"
+  dir="$(test_tmpdir sorttree)"
   _make_tree "${dir}"
   out="$(_walk "${dir}" --sort=tree -j1)"
   expected="$(printf '.\n./a.txt\n./b\n./b/d.txt\n./b/e.txt\n./c.txt\n./x\n./x/y.txt')"
@@ -71,7 +71,7 @@ test::sort_tree_is_a_deterministic_global_order() {
 
 test::sort_tree_is_identical_across_worker_counts() {
   local dir
-  dir="${TEST_TMPDIR}/sortpar"
+  dir="$(test_tmpdir sortpar)"
   _make_tree "${dir}"
   # The core #43 guarantee: --sort=tree is reproducible regardless of parallelism.
   expect_eq "$(_walk "${dir}" --sort=tree -j1)" "$(_walk "${dir}" --sort=tree -j8)"
@@ -79,7 +79,7 @@ test::sort_tree_is_identical_across_worker_counts() {
 
 test::sort_dir_orders_each_directory() {
   local dir out expected
-  dir="${TEST_TMPDIR}/sortdir"
+  dir="$(test_tmpdir sortdir)"
   _make_tree "${dir}"
   out="$(_walk "${dir}" --sort=dir -j1)"
   expected="$(printf '.\n./a.txt\n./b\n./c.txt\n./x\n./b/d.txt\n./b/e.txt\n./x/y.txt')"
@@ -88,7 +88,7 @@ test::sort_dir_orders_each_directory() {
 
 test::jobs_all_and_n_visit_the_whole_tree() {
   local dir
-  dir="${TEST_TMPDIR}/sortjobs"
+  dir="$(test_tmpdir sortjobs)"
   _make_tree "${dir}"
   expect_eq "8" "$(_walk "${dir}" --jobs=all | wc -l | tr -d ' ')"
   expect_eq "8" "$(_walk "${dir}" -j4 --sort=none | wc -l | tr -d ' ')"

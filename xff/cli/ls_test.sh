@@ -22,9 +22,8 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
-# Scratch trees live under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes; the name
-# is a per-call counter, so a case that builds two trees needs nothing special and no test name
-# leaks into a printed path (where it could satisfy an expect_output_not_contains).
+# `test_tmpdir` allocates each tree under bashtest's managed scratch root. Its random suffix keeps
+# test names out of printed paths, where a name could accidentally satisfy a negative assertion.
 
 _xff_bin() {
   local bin="${TEST_SRCDIR}/${TEST_WORKSPACE}/xff/cli/xff"
@@ -49,18 +48,16 @@ _run() {
 
 # Two files with very different size widths (1 vs 6 digits) and name lengths.
 _make_tree() {
-  local resultvar="$1" path
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${path}"
+  local path
+  path="$(test_tmpdir tree)"
   head -c 1 /dev/zero >"${path}/aaa"
   head -c 100000 /dev/zero >"${path}/b"
-  printf -v "${resultvar}" '%s' "${path}"
+  echo "${path}"
 }
 
 test::ls_lists_entries_with_perms() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$(_run "${root}" -type f -ls)"
   expect_output_contains 'aaa' "${out}"
   expect_matches '\-rw' "${out}" # the permission column is present
@@ -68,7 +65,7 @@ test::ls_lists_entries_with_perms() {
 
 test::ls_columns_are_aligned() {
   local root out plen_a plen_b
-  _make_tree root
+  root="$(_make_tree)"
   out="$(_run "${root}" -type f -ls)"
   # The path is the last field; when the columns are aligned, the fixed prefix before
   # the path is the same width on every row regardless of size or name length.
@@ -79,7 +76,7 @@ test::ls_columns_are_aligned() {
 
 test::buffer_modes_are_accepted() {
   local root
-  _make_tree root
+  root="$(_make_tree)"
   # off (min widths), all (full buffering), and an explicit window all run and list.
   expect_output_contains 'aaa' "$(_run --buffer=off "${root}" -type f -ls)"
   expect_output_contains 'aaa' "$(_run --buffer=all "${root}" -type f -ls)"
@@ -92,8 +89,7 @@ test::help_topic_documents_buffer() {
 
 test::ls_colours_the_name_column_like_the_plain_listing() {
   local root out
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  root="$(test_tmpdir tree)"
   mkdir -p "${root}"
   mkdir -p "${root}/sub"
   # The bug this fixes: `xff . --color` coloured and `xff . -ls --color` did not, in the same run. Only
@@ -114,8 +110,7 @@ test::ls_size_units_line_up_across_rows() {
   # `B` in `kB` while the numbers line up - or the reverse if the whole cell is right-aligned. The
   # size column pads the unit, so both the numbers and the unit letters align.
   local root out bytes_column kilo_column
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  root="$(test_tmpdir tree)"
   mkdir -p "${root}"
   printf '%*s' 991 x >"${root}/small"
   printf '%*s' 1200 y >"${root}/large"

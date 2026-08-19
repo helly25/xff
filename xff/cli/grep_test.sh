@@ -23,9 +23,8 @@ set -euo pipefail
 # shellcheck disable=SC1090,SC1091,SC2154
 source "${helly25_bashtest}"
 
-# Scratch trees live under bashtest's own ${BASHTEST_TMPDIR}, which its exit trap removes; the name
-# is a per-call counter, so a case that builds two trees needs nothing special and no test name
-# leaks into a printed path (where it could satisfy an expect_output_not_contains).
+# `test_tmpdir` allocates each tree under bashtest's managed scratch root. Its random suffix keeps
+# test names out of printed paths, where a name could accidentally satisfy a negative assertion.
 
 # A real newline for line-anchored expect_matches patterns: bashtest's expect_matches
 # matches the whole text ([[ =~ ]]), so `^`/`$` anchor the whole output, not a line.
@@ -55,19 +54,17 @@ _run() {
 }
 
 _make_tree() {
-  local resultvar="$1" path
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${path}"
+  local path
+  path="$(test_tmpdir tree)"
   printf 'first TODO line\nsecond line\nanother TODO here\n' >"${path}/a.txt"
   printf 'nothing to match here\n' >"${path}/b.txt"
   printf 'ELF\0hidden TODO\n' >"${path}/c.bin" # a NUL -> binary -> skipped
-  printf -v "${resultvar}" '%s' "${path}"
+  echo "${path}"
 }
 
 test::grep_prints_path_line_text_for_each_match() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$(_run "${root}" -type f -grep 'TODO')"
   expect_matches "/a\.txt:1:first TODO line(\$|${NL})" "${out}"
   expect_matches "/a\.txt:3:another TODO here(\$|${NL})" "${out}"
@@ -76,21 +73,21 @@ test::grep_prints_path_line_text_for_each_match() {
 
 test::grep_uses_regex() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$(_run "${root}" -type f -grep 'T.DO')" # '.' is a regex wildcard
   expect_matches "/a\.txt:1:first TODO line(\$|${NL})" "${out}"
 }
 
 test::grep_skips_binary_files() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$(_run "${root}" -type f -grep 'TODO')"
   expect_not_matches 'c\.bin' "${out}" # the binary's TODO is not reported
 }
 
 test::grep_composes_with_find_predicates() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   out="$(_run "${root}" -name 'a.txt' -grep 'TODO')"
   expect_matches "/a\.txt:1:first TODO line(\$|${NL})" "${out}"
   expect_not_matches '/b\.txt' "${out}"
@@ -98,7 +95,7 @@ test::grep_composes_with_find_predicates() {
 
 test::grep_is_rejected_by_the_find_style() {
   local root out rc
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" --config=find "${root}" -grep 'TODO' 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}" # an xff extension is a usage error under --config=find
   expect_matches 'xff extension' "${out}"
@@ -106,8 +103,7 @@ test::grep_is_rejected_by_the_find_style() {
 
 test::regextype_exact_matches_literally() {
   local root out
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  root="$(test_tmpdir tree)"
   mkdir -p "${root}"
   printf 'price 3.50\nprice 3X50\n' >"${root}/p.txt"
   out="$(_run --regextype=EXACT "${root}" -type f -grep '3.50')" # '.' is literal under EXACT
@@ -117,8 +113,7 @@ test::regextype_exact_matches_literally() {
 
 test::regextype_shglob_expands_brace_alternation() {
   local root out
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  root="$(test_tmpdir tree)"
   mkdir -p "${root}"
   printf 'a TODO line\na FIXME line\na plain line\n' >"${root}/n.txt"
   # SHGLOB adds brace alternation over GLOB: {TODO,FIXME} matches either keyword.
@@ -130,8 +125,7 @@ test::regextype_shglob_expands_brace_alternation() {
 
 test::regextype_glob_keeps_braces_literal() {
   local root out
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  root="$(test_tmpdir tree)"
   mkdir -p "${root}"
   # Under plain GLOB the braces are literal, so the alternation above matches nothing here.
   printf 'a TODO line\nliteral {TODO,FIXME} here\n' >"${root}/n.txt"
@@ -142,7 +136,7 @@ test::regextype_glob_keeps_braces_literal() {
 
 test::regextype_reserved_value_is_a_usage_error() {
   local root out rc
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" --regextype=MATCH "${root}" -grep 'TODO' 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}" # MATCH is still reserved (#85)
   expect_matches 'not supported yet' "${out}"
@@ -152,7 +146,7 @@ test::regextype_pcre2_not_built_in_is_a_usage_error() {
   # PCRE2 is a build-time extra; this (lean) binary does not link it, so --regextype=PCRE2 is a
   # usage error (exit 2), never a silent RE2 fallback. A full build accepts it.
   local root out rc
-  _make_tree root
+  root="$(_make_tree)"
   out="$("$(_xff_bin)" --regextype=PCRE2 "${root}" -grep 'TODO' 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
   expect_matches 'not built into this binary' "${out}"
@@ -160,7 +154,7 @@ test::regextype_pcre2_not_built_in_is_a_usage_error() {
 
 test::grep_format_overrides_the_default_output() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   # -grep=FORMAT renders a field template ({line}/{text} + the entry vocabulary).
   out="$(_run "${root}" -name 'a.txt' -grep='{line}|{text}' 'TODO')"
   expect_matches "(^|${NL})1\|first TODO line(\$|${NL})" "${out}"
@@ -170,8 +164,7 @@ test::grep_format_overrides_the_default_output() {
 
 test::grep_match_field_extracts_only_the_match() {
   local root out
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  root="$(test_tmpdir tree)"
   mkdir -p "${root}"
   printf 'error E42 here\nwarn E7\n' >"${root}/log.txt"
   # {match} is grep -o: just the matched substring, {column} its 1-based start.
@@ -182,8 +175,7 @@ test::grep_match_field_extracts_only_the_match() {
 
 test::grep_count_prints_per_file_match_line_count() {
   local root out
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  root="$(test_tmpdir tree)"
   mkdir -p "${root}"
   printf 'TODO 1\nx\nTODO 2\n' >"${root}/a.txt"
   printf 'no hits\n' >"${root}/b.txt"
@@ -196,7 +188,7 @@ test::grep_count_prints_per_file_match_line_count() {
 
 test::grep_context_prints_surrounding_lines() {
   local root out
-  _make_tree root
+  root="$(_make_tree)"
   # --context=1 (leading global, grep -C1): the non-matching "second line" now shows as context
   # with '-' separators between the two TODO matches (':' separators); the windows merge.
   out="$(_run --context=1 "${root}" -name a.txt -grep 'TODO')"

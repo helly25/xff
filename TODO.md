@@ -711,19 +711,19 @@ Shape when built: `@xff_squashfs` as its own build-flag-gated extra, the chosen 
 NOTICE entry, `--help=archive` rows, and its own CI wildcard - a missing wildcard means the extra has
 zero coverage.
 
-## Bashtest scratch trees: use ${BASHTEST_TMPDIR}, not a hand-rolled mktemp
+## Bashtest scratch files: use `test_tmpdir`, not hand-rolled paths
 
 helly25/bashtest already provides `${BASHTEST_TMPDIR}`, a scratch directory its own exit trap
 removes, and 19 xff bashtests ignored it to hand-roll `mktemp -d` plus a per-case `rm -rf`. Beyond
 the duplication, the cleanup is WRONG in the case that matters: bashtest keeps running after a failed
 expectation, so a case that fails before its `rm` leaks its tree.
 
-The convention is a unique directory allocated below that parent and returned on standard output:
+Bashtest now owns per-fixture allocation too. The convention is:
 
 ```sh
 _tree() {
   local root
-  root="$(mktemp -d "${BASHTEST_TMPDIR}/tree.XXXXXX")"
+  root="$(test_tmpdir tree)"
   # Build the fixture under ${root}.
   echo "${root}"
 }
@@ -733,22 +733,23 @@ root="$(_tree)"
 
 `${FUNCNAME[1]}` (the calling test) was tried first and is wrong: the test's name then appears in
 printed paths, where it can satisfy an `expect_output_not_contains`. That is not hypothetical -
-`archive_test`'s "archive is off by default" case failed exactly that way. `mktemp` is unique per call,
-so a case that builds two trees needs nothing special and no mutable counter. Per
+`archive_test`'s "archive is off by default" case failed exactly that way. `test_tmpdir` is unique per
+call, so a case that builds two trees needs nothing special and no mutable counter. Per
 [`STYLE_SH.md`](STYLE_SH.md), a helper returns the path through stdout (`root="$(_tree)"`) rather than
 mutating a caller-named variable with `printf -v`.
 
 **Complete: all 19 converted.** `archive_test`, `color_test`, `parity_test`, `first_test`, `ignore_test`, `collect_test`,
 `content_test`, `fuzzy_test`, `grep_test`, `ls_test`, `exact_test`, `pager_test`, `cmp_test`,
 `full_binary_test`, `ignore_files_test`, `help_topic_test`, `archive_pack_test`, `archive_dive_test`,
-`summary_test`, `ignore_gitignore_test` - 19 of 19, with 214 `rm -rf` lines gone. `archive_pack_test` already leaked every
-`mktemp` tree because it had no manual cleanup at all. Its helper now returns through command
-substitution and lets `mktemp` provide per-call uniqueness, so retained trees cannot contaminate
-later cases; its output-path assertions remain unchanged under the
-bashtest-owned parent. The location-sensitive archive, summary, and git-ignore assertions pass
-unchanged under that parent; the conversion needed fixture-lifetime work, not weakened matching.
-Unique allocation handles the several-trees-per-case files with no special treatment and avoids
-both caller mutation and test-name leakage.
+`summary_test`, `ignore_gitignore_test` - 19 of 19, with 214 `rm -rf` lines gone. The later repository-wide audit
+also migrated every other bashtest-created directory, including diff/hash/histogram/csv fixtures,
+man-page scratch, style/exit/exec helpers, and the cookbook's shared fixtures: 114 allocations across
+33 test files now go through `test_tmpdir`. `tools/release_prep_test.sh` is the deliberate exception:
+it is a standalone pre-commit test, not a bashtest, and owns its temporary repositories and cleanup.
+
+The location-sensitive archive, summary, and git-ignore assertions pass unchanged; the conversion
+needed fixture-lifetime work, not weakened matching. Unique allocation handles several fixtures per
+case with no special treatment and avoids caller mutation, collisions, and test-name leakage.
 
 ## libfuse: no build dependency at all (SHIPPED 2026-08-18)
 

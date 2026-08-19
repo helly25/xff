@@ -40,7 +40,7 @@ _xff_bin() {
 # the nested file proves the relative naming.
 _tree() {
   local tree
-  tree="$(mktemp -d "${BASHTEST_TMPDIR}/tree.XXXXXX")"
+  tree="$(test_tmpdir tree)"
   mkdir -p "${tree}/src/sub"
   echo "first" >"${tree}/src/a.cc"
   echo "second" >"${tree}/src/sub/b.cc"
