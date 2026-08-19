@@ -33,6 +33,7 @@
 namespace xff::archive {
 namespace {
 
+using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
 using ::testing::AllOf;
 using ::testing::ElementsAre;
@@ -86,7 +87,7 @@ struct ArchiveBackendTest : ::testing::Test {
 TEST_F(ArchiveBackendTest, WithNoBackendThereIsNoSupportAndOpeningSaysWhy) {
   // The lean build: the `--archive` surface exists and is documented, but nothing can look inside a
   // container. Unimplemented rather than InvalidArgument, because nothing is wrong with the path.
-  EXPECT_THAT(ContainerSupportAvailable(), ::testing::IsFalse());
+  EXPECT_THAT(ContainerSupportAvailable(), IsFalse());
   EXPECT_THAT(
       OpenContainer("some.tar"), StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("without archive support")));
 }
@@ -168,9 +169,9 @@ TEST_F(ArchiveBackendTest, ARegisteredOpenerIsUsedAndSeesTheMemberPathOptions) {
         return std::make_unique<StubFileSystem>();
       });
   EXPECT_THAT(ContainerSupportAvailable(), IsTrue());
-  const auto opened_fs = OpenContainer("a.tar", MemberPathOptions{.separator = "#"});
-  ASSERT_THAT(opened_fs, ::mbo::testing::IsOk());
-  EXPECT_THAT(opened_fs->get(), NotNull());
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const std::unique_ptr<vfs::FileSystem> opened_fs, OpenContainer("a.tar", MemberPathOptions{.separator = "#"}));
+  EXPECT_THAT(opened_fs.get(), NotNull());
   EXPECT_THAT(opened, "a.tar");
   EXPECT_THAT(separator, "#");
 }
@@ -200,11 +201,11 @@ TEST_F(ArchiveBackendTest, OpenContainerBytesHandsTheContentToTheBackend) {
         content = bytes.has_value() ? std::string(*bytes) : std::string("<no bytes>");
         return std::make_unique<StubFileSystem>();
       });
-  EXPECT_THAT(OpenContainerBytes("outer.tar!inner.tar", "TARBYTES"), ::mbo::testing::IsOk());
+  EXPECT_THAT(OpenContainerBytes("outer.tar!inner.tar", "TARBYTES"), IsOk());
   EXPECT_THAT(label, "outer.tar!inner.tar");
   EXPECT_THAT(content, "TARBYTES");
   // And the path form still says "no bytes", so a backend can tell the two apart.
-  EXPECT_THAT(OpenContainer("a.tar"), ::mbo::testing::IsOk());
+  EXPECT_THAT(OpenContainer("a.tar"), IsOk());
   EXPECT_THAT(content, "<no bytes>");
 }
 
@@ -262,7 +263,7 @@ TEST_F(ArchiveBackendTest, ARegisteredPackerReceivesThePathAndTheFilesUnchanged)
       PackContainer(
           "out.tar", {PackFile{.source = "/tmp/b", .name = "b"}, PackFile{.source = "/tmp/a", .name = "a"}},
           PackOptions{.options = {{.name = "level", .value = "9"}}}),
-      ::mbo::testing::IsOk());
+      IsOk());
   // The options travel verbatim: the seam does not interpret a vocabulary it does not own.
   EXPECT_THAT(
       forwarded,

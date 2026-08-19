@@ -48,6 +48,7 @@ using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
 using ::testing::Contains;
 using ::testing::HasSubstr;
+using ::testing::IsEmpty;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Not;
@@ -84,7 +85,7 @@ struct PharWriterTest : ::testing::Test {
     const char* const tmp = std::getenv("TEST_TMPDIR");
     const std::string path = absl::StrCat(tmp != nullptr ? tmp : "/tmp", "/", as);
     const std::string bytes = Read(Fixture(fixture));
-    EXPECT_THAT(bytes, Not(::testing::IsEmpty())) << fixture;
+    EXPECT_THAT(bytes, Not(IsEmpty())) << fixture;
     std::ofstream(path, std::ios::binary).write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
     return path;
   }
@@ -141,9 +142,9 @@ TEST_F(PharWriterTest, RemovingEveryMemberLeavesAnEmptyButValidPhar) {
   // request was to remove members from it.
   const std::string path = CopyOfFixture("plain.phar", "emptied.phar");
   const std::vector<std::string> all = MemberNames(path);
-  ASSERT_THAT(all, Not(::testing::IsEmpty()));
+  ASSERT_THAT(all, Not(IsEmpty()));
   EXPECT_THAT(RemovePharMembersOfFile(path, all), IsOk());
-  EXPECT_THAT(ListPharMembersOfFile(path), IsOkAndHolds(::testing::IsEmpty()));
+  EXPECT_THAT(ListPharMembersOfFile(path), IsOkAndHolds(IsEmpty()));
   const std::string after = Read(path);
   EXPECT_THAT(after.substr(after.size() - 4), "GBMB");
 }

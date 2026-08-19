@@ -25,6 +25,8 @@
 set -euo pipefail
 
 readonly PATTERN='\b(EXPECT|ASSERT)_(EQ|NE|GT|LT|GE|LE)\('
+readonly QUALIFIED_MATCHER_PATTERN='(::mbo::)?testing::[A-Z][A-Za-z0-9_]*\('
+readonly ALLOWED_QUALIFIED_UTILITY_PATTERN='testing::(TempDir|Test|TestWithParam|Values)\('
 
 check_status=0
 for file in "$@"; do
@@ -37,6 +39,17 @@ for file in "$@"; do
     while IFS= read -r hit; do
       echo "  ${file}:${hit}"
     done <<<"${hits}"
+    check_status=1
+  fi
+
+  qualified_hits="$(sed 's|//.*||' "${file}" | grep -nE "${QUALIFIED_MATCHER_PATTERN}" \
+    | grep -vE "${ALLOWED_QUALIFIED_UTILITY_PATTERN}" || true)"
+  if [[ -n "${qualified_hits}" ]]; then
+    echo "${file}: bring matchers into scope with a using declaration; do not qualify them inline"
+    echo "  in EXPECT_THAT / ASSERT_THAT expressions - see STYLE_CPP.md:"
+    while IFS= read -r hit; do
+      echo "  ${file}:${hit}"
+    done <<<"${qualified_hits}"
     check_status=1
   fi
 done

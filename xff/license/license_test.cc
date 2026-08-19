@@ -68,8 +68,8 @@ TEST_F(LicenseTest, NoticesIncludeTheAlwaysLinkedCoreDeps) {
   EXPECT_THAT(notices, Contains(ComponentIs("RE2")));
   EXPECT_THAT(notices, Contains(ComponentIs("helly25/mbo")));
   for (const Notice& notice : notices) {
-    EXPECT_THAT(notice.spdx, Not(testing::IsEmpty())) << notice.component;
-    EXPECT_THAT(notice.text, Not(testing::IsEmpty())) << notice.component;
+    EXPECT_THAT(notice.spdx, Not(IsEmpty())) << notice.component;
+    EXPECT_THAT(notice.text, Not(IsEmpty())) << notice.component;
   }
 }
 

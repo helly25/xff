@@ -31,8 +31,10 @@ namespace {
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
+using ::testing::Eq;
 using ::testing::Field;
 using ::testing::IsFalse;
+using ::testing::IsTrue;
 using ::testing::SizeIs;
 
 // A minimal READ-ONLY backend, the shape an extra (archive diving; remote later) implements. Writing
@@ -123,20 +125,19 @@ TEST_F(VfsSeamTest, EntryAndMetadataDefaultToTheRealFilesystemCase) {
   EXPECT_THAT(entry.path, "");
   const Metadata metadata;
   EXPECT_THAT(metadata.size, 0);
-  EXPECT_THAT(metadata.btime, ::testing::Eq(std::nullopt));  // birth time is optional, absent by default
+  EXPECT_THAT(metadata.btime, Eq(std::nullopt));  // birth time is optional, absent by default
 }
 
 TEST_F(VfsSeamTest, AccessDistinguishesTheModes) {
   const ReadOnlyFakeFs fs;
-  EXPECT_THAT(fs.Access("/box/member.txt", AccessMode::kRead), ::testing::IsTrue());
+  EXPECT_THAT(fs.Access("/box/member.txt", AccessMode::kRead), IsTrue());
   EXPECT_THAT(fs.Access("/box/member.txt", AccessMode::kWrite), IsFalse());
   EXPECT_THAT(fs.Access("/nope", AccessMode::kRead), IsFalse());
 }
 
 TEST_F(VfsSeamTest, ReadDirReportsVirtualEntriesAsReadOnly) {
   const ReadOnlyFakeFs fs;
-  EXPECT_THAT(
-      fs.ReadDir("/box"), IsOkAndHolds(ElementsAre(Field("read_only", &Entry::read_only, ::testing::IsTrue()))));
+  EXPECT_THAT(fs.ReadDir("/box"), IsOkAndHolds(ElementsAre(Field("read_only", &Entry::read_only, IsTrue()))));
 }
 
 }  // namespace
