@@ -16,6 +16,7 @@
 #include "xff/parser/parser.h"
 
 #include <cstddef>
+#include <initializer_list>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -66,10 +67,18 @@ bool IsHoistableGlobal(std::string_view arg) {
 // is what prevents a lookalike inside `-exec`'s raw argument run from being
 // mistaken for an xff request.
 constexpr bool IsMetaFlag(std::string_view arg) {
-  constexpr auto kMetaFlags = mbo::container::MakeLimitedSet(
-      std::string_view("--help"), std::string_view("-h"), std::string_view("-help"), std::string_view("--help-all"),
-      std::string_view("--help-full"), std::string_view("--help-long"), std::string_view("--version"),
-      std::string_view("-version"), std::string_view("--man"), std::string_view("--markdown"));
+  constexpr auto kMetaFlags = mbo::container::MakeLimitedSet<10>(std::initializer_list<std::string_view>{
+      "--help",
+      "-h",
+      "-help",
+      "--help-all",
+      "--help-full",
+      "--help-long",
+      "--version",
+      "-version",
+      "--man",
+      "--markdown",
+  });
   return kMetaFlags.contains(arg) || absl::StartsWith(arg, "--help=");
 }
 
