@@ -867,12 +867,12 @@ intent, not hard dependency. Task numbers reference the agent task list.
   `license_body` build macro keeps each authoritative text in its owning module. FUSE embeds no
   libfuse licence because it compiles and links no libfuse code.
 
-- **#196 (this change completes it)**: enforce `MBO_ASSERT_OK_AND_ASSIGN` over
+- **#196 (shipped, PRs #528 and #529)**: enforce `MBO_ASSERT_OK_AND_ASSIGN` over
   `ASSERT_THAT(x, IsOk())` + deref. The 77-site conversion shipped in PR #528 (+ 4 loop-body
-  stragglers here, with `SCOPED_TRACE` carrying the iteration context); this change adds the
+  stragglers, with `SCOPED_TRACE` carrying the iteration context); PR #529 added the
   `no-isok-assert-then-deref` pre-commit hook (`tools/check_status_assert.py`) and the explicit
   STYLE_CPP rule.
-- **#197 (this change)**: `PackOptionSpec.values` / `.formats` as `absl::Span<const
+- **#197 (shipped, PR #527)**: `PackOptionSpec.values` / `.formats` as `absl::Span<const
 std::string_view>` over named constexpr arrays instead of comma-joined strings re-split at
   every use.
 - **#198 (shipped, PR #525)**: removed the 5 avoidable reinterpret_casts (buffers declared in the
@@ -882,11 +882,10 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
 - **#200 (shipped, PR #526)**: `--help=topics` index alphabetized at render time; informative
   aliases continue the name in the term column; guessable plurals suppressed.
 
-### Lint / CI / style adoption (from helly25/mbo)
+### Lint / CI / style adoption (shipped; one audit remains)
 
-- **clang-tidy does not cover `extra_modules/` (measured 2026-08-15; 81 findings behind the
-  exclusion).** The hook skips them (`exclude: ^extra_modules/` in `.pre-commit-config.yaml`) and the
-  CI job inherits that, so nothing has ever linted an extras source.
+- **clang-tidy coverage for `extra_modules/` is SHIPPED (PRs #515-#519 and #530).** The original
+  exclusion hid 81 findings; the per-extra sweeps cleared them and PR #530 dropped the exclusion.
   - **The exclusion's stated reason no longer holds.** It says the extras cannot be parsed because
     their deps are absent from a lean build. With a FRESHLY GENERATED compile DB they parse fine -
     the `'mbo/status/status_macros.h' file not found` seen while investigating was a STALE DB (a dep
@@ -897,34 +896,31 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
     5 pointer arithmetic, 4 `misc-const-correctness`, 4 implicit widening, 3 cognitive complexity,
     3 `hicpp-use-auto`, 3 const_cast, 2 `performance-no-automatic-move`, and a tail of singles.
     Worst files: `archive_writer_test.cc` (18), `pcre2_backend.cc` (15), `phar_reader.cc` (14).
-  - **STATUS: DONE (81 -> 0; this change drops the exclusion).** The last three
+  - **STATUS: DONE (81 -> 0; PR #530 dropped the exclusion).** The last three
     cognitive-complexity functions each got their real extraction: `ArchiveFileSystem::Open` ->
     `OpenCompressedSingle` (a private static member, keeping the InvalidArgument-means-keep-probing
     convention), `RemoveMembersOfFile` -> `TransferFirstMember` + `AllRemoved`, and
     `RemovePharMembersOfFile` -> the `SelectSurvivors` / `RebuildPhar` / `AppendSignature` stages.
     Remember the platform caveat: a macOS run cannot lint `#if defined(__linux__)` blocks - the
     Linux CI job is the authority there.
-  - **Sequence**: fix per file (the reinterpret-casts in the binary readers and the
-    `concurrency-mt-unsafe` hits want judgement, not a blanket rewrite), then DROP the exclusion in
-    the last slice - not before, since the CI clang-tidy job is a hard gate and would go red on the
-    first one. `archive_pack.cc` / `archive_register.cc` are already clean (#515, #516), as is the
-    whole pcre2 extra.
+  - **The sequence was per file, then exclusion removal:** the reinterpret-casts in the binary
+    readers and the `concurrency-mt-unsafe` hits needed judgement rather than a blanket rewrite.
   - **What a C-API binding taught us (pcre2, done):** most of its findings were the boundary itself -
     `PCRE2_SPTR` is `const unsigned char*` where callers hold `const char*`, and the ovector comes
     back as a bare pointer. The answer is not to suppress in bulk: funnel the casts through the one
     function that exists to do them (`Sptr`) and NOLINT it there with the reason, span the ovector so
     offsets are indexed rather than pointer-walked, and fix everything else for real (`std::array`
-    for the error buffer, deleted copy/move on the handle-owning class). Expect the same split in
-    `phar_reader.cc` and `archive_writer.cc`.
+    for the error buffer, deleted copy/move on the handle-owning class). The phar reader and archive
+    writer followed the same split.
 
-- **Style docs + `.clang-tidy`** (this change). `.clang-tidy` (mbo's rule set),
+- **Style docs + `.clang-tidy` SHIPPED (PR #119).** `.clang-tidy` (mbo's rule set),
   `STYLE_CPP.md`, `RULES.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and an
   `AGENTS.md` pointer. The `bazel-compile-commands-extractor` dev module is
   already wired (`bazelmod/dev.MODULE.bazel`), so clang-tidy can run locally.
-- **Apply clang-tidy.** `bazel run @bazel_compile_commands_extractor//:refresh_all`
-  to produce `compile_commands.json`, run `clang-tidy` across `xff/`, and fix the
-  findings (likely several PRs sized by finding count).
-- **Adopt trunk.** `.trunk/trunk.yaml` (+ `configs/`) and a CI `trunk` job
+- **The clang-tidy sweeps SHIPPED.** The initial production sweeps landed in PRs #125-#127; the
+  clang-22 production and test sweeps, hard CI gate, Linux follow-up and later extras coverage
+  landed in PRs #408-#417 and #515-#530.
+- **Trunk adoption SHIPPED (PR #123).** `.trunk/trunk.yaml` (+ `configs/`) and a CI `trunk` job
   mirroring mbo: buildifier, markdownlint, prettier, yamllint,
   trivy/trufflehog, git-diff-check.
 - **clang-tidy moved from trunk to a local-only pre-commit hook** (`tools/clang_tidy.sh`,
@@ -933,42 +929,40 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
   identifier renames) that trunk's `monitor`/export-fixes auto-applied and broke the build;
   trunk.io 403s any modern clang-tidy download. The hook resolves the hermetic clang-22
   (mirrors `clang_format.sh`), version-gates it, requires the compile DB, and reports only
-  (no `--fix`). It is `stages: [manual]` (opt-in via `pre-commit run clang-tidy`) until the
-  follow-ups below; promote it to an automatic gate by dropping `stages`:
-  1. **Fix the generated compile DB - ROOT CAUSE FOUND, port from mbo #270 (merged 2026-08-08).**
+  (no `--fix`). It deliberately remains `stages: [manual]` for local commits, while the dedicated
+  CI job invokes that stage as a hard gate. All enabling follow-ups shipped:
+  1. **Generated compile DB fixed (PR #405, then #414/#420/#459).**
      The abort ("too many errors" / `'concepts'` / `'time.h' file not found`) was NOT the
      `<version>`-shadowing theory. `compile_commands-update.sh` runs
      `bazel run @…//:refresh_all --config=clang`, but `--config=clang` only configures the build
      of the _extractor tool_ and never reaches the internal `aquery`, so every recorded command
-     named the autodetected **Apple clang**, not the hermetic toolchain clang-tidy uses. Port mbo's
-     fix: bump the extractor pin `75ba4c3` -> `6eb3ff1` (`bazelmod/dev.MODULE.bazel`; adds
-     `--bcce-prefer-target-config`), replace the script to resolve the hermetic `clang++` and pass
+     named the autodetected **Apple clang**, not the hermetic toolchain clang-tidy uses. The fix
+     bumped the extractor pin `75ba4c3` -> `6eb3ff1` (`bazelmod/dev.MODULE.bazel`; adding
+     `--bcce-prefer-target-config`), made the script resolve the hermetic `clang++` and pass
      `--bcce-compiler=<clang++>` + `--bcce-prefer-target-config` **after `--`** (bazel eats them
      otherwise), plus Darwin-only `--bcce-copt=-isysroot$(xcrun --show-sdk-path)` (hermetic clang
-     has libc++ but no system C headers); add a probe target to materialize the toolchain on a
-     fresh checkout. No `--extra-arg` hack in `clang_tidy.sh` is then needed. Also fix the still-
+     has libc++ but no system C headers), and added a probe target to materialize the toolchain on a
+     fresh checkout. No `--extra-arg` hack in `clang_tidy.sh` was needed. It also fixed the
      misspelled `.clang-tidy` `bugprone-signed-char-misuse.CharTypdefsToIgnore` ->
      `CharTypedefsToIgnore` (`WarningsAsErrors: '*'` + the header-guard disables are already done).
-  2. **Add a report-only CI job** (`continue-on-error: true`) that builds the DB + runs the manual
-     hook, so the ubuntu path gets exercised without gating - mirrors mbo #270.
-  3. **Sweep the clang-tidy-22 finding set across `xff/`** on the now-clean parse: `misc-include-cleaner`,
+  2. **The CI job shipped report-only and was promoted to a hard gate (PRs #412/#413).**
+  3. **The clang-tidy-22 finding set was swept across `xff/`:** `misc-include-cleaner`,
      `misc-const-correctness`, `performance-unnecessary-value-param`, `concurrency-mt-unsafe` (getenv),
      `hicpp-vararg` (ioctl / exec), and the noisy new-in-22
      `cppcoreguidelines-pro-bounds-avoid-unchecked-container-access` (fires on every `operator[]`;
-     mbo saw ~80% of findings from it - re-tune `.clang-tidy` for it) - fix or narrowly suppress.
-  4. Once clean, drop `stages: [manual]` + `continue-on-error` so the hook gates every commit.
-- **Adopt pre-commit.** `.pre-commit-config.yaml` (+ `.pre-commit/` scripts) and a
+     mbo saw ~80% of findings from it); findings were fixed or narrowly suppressed.
+  4. The CI job is the automatic gate; the local hook remains opt-in to avoid rebuilding the compile
+     database on every commit.
+- **Pre-commit adoption SHIPPED (PR #122).** `.pre-commit-config.yaml` (+ `.pre-commit/` scripts) and a
   CI `pre-commit` job: clang-format (mirrors-clang-format), shfmt, shellcheck,
   actionlint, and the local hooks (`no-do-not-merge`, `no-todos-without-context`,
-  `done-gate-covers-all-jobs`, the no-em-dash check). Retire the hand-rolled
-  clang-format CI step once pre-commit owns it.
-- **Adopt `mbo::testing::EqualsText` for multi-line test comparisons.** The convention is now
+  `done-gate-covers-all-jobs`, the no-em-dash check).
+- **`mbo::testing::EqualsText` adoption is complete.** The convention is now
   in `STYLE_CPP.md` / `AGENTS.md`: prefer `EXPECT_THAT(actual, EqualsText(golden))` (unified diff,
   line by line) over `EXPECT_EQ` for multi-line strings, with `WithDropIndent` /
   `mbo::strings::DropIndent` / `DropIndentAndSplit` (`@helly25_mbo//mbo/testing:matchers_cc`,
-  `@helly25_mbo//mbo/strings:indent_cc`) when an indented literal reads better. Retrofit the
-  existing `EXPECT_EQ`-on-multi-line tests in one sweep (e.g. `xff/render/render_test.cc`'s
-  `RenderTable` goldens, plus any generated-help / man / markdown goldens), sized by count.
+  `@helly25_mbo//mbo/strings:indent_cc`) when an indented literal reads better. The existing test
+  tree has no remaining `EXPECT_EQ` multi-line goldens.
 
 - **Reconcile our glob->RE2 translator with `mbo::file::Glob2Re2` (#122). RESOLVED (#333):
   deliberately keep ours, documented.** `//xff/glob:GlobToRegex` (extracted from the gitignore engine
@@ -980,7 +974,9 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
   line translator for a semantic-shim on a lib we otherwise do not use. The divergence + rationale now
   live in `xff/glob/glob.h`; no migration. (mbo's FS globbing may still be worth adopting elsewhere.)
 
-- **Sweep for C++ move/forward oversights.** Audit the codebase for missing modern-C++ value
+- **C++ move/forward audit complete.** The clang-tidy hard gate enables the full `performance-*`
+  and `bugprone-*` families, including the move/value checks, and the manual constructor and
+  forwarding-reference scan found no remaining oversight. The audit covered missing modern-C++ value
   idioms: a by-value sink parameter stored into a member without `std::move` (e.g. a ctor taking
   `T x` then `x_(x)` instead of `x_(std::move(x))`); a forwarding reference `T&&` passed on without
   `std::forward<T>`; a returned local that would benefit from being a move (usually NRVO handles it,
@@ -989,8 +985,8 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
   copyable type is a no-op and clang-tidy's `performance-move-const-arg` flags it, so keep such moves
   only as a deliberate future-proofing idiom (with a `NOLINT` + comment), else drop them. Prefer a
   clang-tidy-driven pass (`performance-move-const-arg`, `performance-unnecessary-value-param`,
-  `bugprone-move-forwarding-reference`, `cppcoreguidelines-rvalue-reference-param-not-moved`,
-  `hicpp-move-const-arg`) plus a manual read of the hot constructors. Sized by finding count.
+  `bugprone-move-forwarding-reference`, `cppcoreguidelines-rvalue-reference-param-not-moved`, and
+  `hicpp-move-const-arg`) plus a manual read of the hot constructors.
 
 ### find / xff features (roadmap tail)
 
@@ -1092,11 +1088,9 @@ remains below is the design-forked / larger work.
   help and `--help=`/`=list`/`=all` index, both read from `registry::All()` + the
   per-descriptor `summary` (#181); GNU-compatible `-help`/`-version`; and a guiding
   error when a `help`/`version` operand is typed out of git habit (xff flavor).
-  Remaining:
-  - **Global-flag and config topics.** `--help=NAME` covers expression primaries
-    today; extend it to global flags (`--help=--config`, `--help=--sort`, ...), which
-    needs the globals enumerated the way `registry::All()` enumerates primaries (the
-    globals are not in the registry yet).
+  Completed surface:
+  - **Global-flag and config topics SHIPPED.** `--help=NAME` covers expression primaries and
+    global flags (`--help=--config`, `--help=--sort`, ...), backed by the globals SOT.
   - **Explain the config system + flavor selection in depth - SHIPPED.** `--help=config`
     covers the layered tiers (system < user < `--xffrc` < CLI, later wins) and their
     precedence, that there is no project/ancestor `.xffrc` discovery (#119), `--no-config`,
@@ -1105,16 +1099,14 @@ remains below is the design-forked / larger work.
     the rg style; any other name activates a same-named config block over the xff default). The
     config flags are pulled from the globals SOT via the `config` topic tag (like `--help=stats`),
     so the flag list cannot drift; points at `--help=styles` for the per-style defaults table.
-  - **Generated reference docs from the same registry SOT.** Drive docs off
+  - **Generated reference docs from the same registry SOT SHIPPED.** Docs are driven off
     `registry::All()` (+ the globals table, once enumerated) rather than maintaining
     parallel copies:
-    - **Man page on demand**: emit roff/troff (so `man -l -` / a packaged `man xff`
-      works) via a flag, e.g. `--man` / `--man=TOPIC`, generated at runtime from the
+    - **Man page on demand:** `--man` / `--man=TOPIC` emits roff/troff (so `man -l -` or a packaged `man xff`
+      works), generated at runtime from the
       registry + the global-flag table + the config docs.
-    - **Integrated Markdown documentation build**: emit a `.md` reference of all
-      primaries / flags from the same source (an integrated mode and/or a build
-      target; a separate external generator alongside the man-page builder is fine if
-      need be). Wire it into CI so the committed docs cannot drift from the vocabulary.
+    - **Integrated Markdown documentation build:** `--markdown` emits every primary and flag from
+      the same source; the committed `XFF.md` drift test gates CI.
     - **One walk, native renderer per format (#125, A/B/C).** `--man`, `--markdown`,
       and `--help=full` were three hand-rolled walks over the same SOT that had drifted
       (man/markdown lacked the per-item `.details` and every sub-vocabulary topic that
@@ -1127,8 +1119,8 @@ remains below is the design-forked / larger work.
       complete reference (options + expression with details, FIELDS incl.
       braces/namespaces/qualifiers, PRINTF/TIME/SIZE, EXAMPLES, EXIT STATUS, extended
       SEE ALSO) + a `doc_renderer_test` drift guard on the in_full topic set.
-      **PR B:** `MarkdownRenderer` over the same walk. **PR C:** `PlainRenderer` for
-      `--help=full` (retire the bespoke `FullReference` + the main.cc topic renderers).
+      **PR B (done):** `MarkdownRenderer` over the same walk. **PR C (done):** `PlainRenderer` for
+      `--help=full` retired the bespoke `FullReference` + the main.cc topic renderers.
     - **Committed `XFF.md` reference + drift guard - SHIPPED.** `XFF.md` at the repo root is the
       verbatim `xff_full --markdown` output, checked in as the browsable full reference (there is no
       README manual; the new `README.md` is a short overview that links to it). It is generated, not
@@ -1147,7 +1139,7 @@ remains below is the design-forked / larger work.
       asan cell (Linux asan is enough sanitizer coverage): the matrix is now ubuntu default + ubuntu
       clang-asan + macos default.
   - **`--help` readability + discoverability** (2026-07-04 feedback):
-    - **Blank line before each section header** (`Traversal:`, `Matching:`, ...) in the
+    - **Blank line before each section header SHIPPED** (`Traversal:`, `Matching:`, ...) in the
       `--help` overview, so the groups are visually separated.
     - **A full, detailed expression reference - SHIPPED (sweep complete).** `registry::Descriptor`
       gained an optional `details` field (the per-primary counterpart of `GlobalFlag.details`);
@@ -1167,19 +1159,17 @@ remains below is the design-forked / larger work.
       -exec pipeline, a sha256 manifest, recently-changed-as-jsonl) built from a `Recipe` SOT, each
       with a runnable command. Note: per-line author aggregation is an -exec + shell pipeline, not
       `--summary` (which reduces over matched files, not lines within them).
-    - **Surface the format / placeholder vocabulary.** The `{field}` template vocabulary,
-      `-printf` `%` directives + the `%{field}` escape, and the qualifiers (`:s/PAT/REPL/`,
-      path-component, time) are documented nowhere reachable from `--help`; add a topic
-      (e.g. `--help=fields` / `--help=format`).
-    - **A top-level map of the help system** in `--help`: state what it supports -
+    - **The format / placeholder vocabulary is surfaced.** `--help=fields` documents the `{field}`
+      templates, `-printf` directives + `%{field}`, and the qualifiers.
+    - **A top-level map of the help system SHIPPED** in `--help`: it states what it supports -
       `--help`, `--help=TOPIC`, `--help=list`, `--help=expressions`, `--man`, `--markdown`,
       `--explain` (and any `--help=full`) - so users can find the detailed views.
-    - **A flavor feature-map** (2026-07-04 feedback): a find/xff/rg x
+    - **A flavor feature-map SHIPPED** (2026-07-04 feedback): a find/xff/rg x
       `[behavior] [controlling flag] [find] [xff] [rg] [current]` comparison table,
       rendered from ONE static per-style-defaults config the resolvers also read (so it
       cannot drift) - the #103 config x style matrix made concrete. The `current` column is
       a per-behavior `--explain`. Sequence after smart-case so its rows are complete.
-    - **Worked examples / a cookbook** (2026-07-04 feedback): `--help` should carry
+    - **Worked examples / a cookbook SHIPPED** (2026-07-04 feedback): `--help=cookbook` carries
       concrete recipes, not just a flag list. Motivating example - per-file `git blame`
       author line-counts: run `git blame` per file, capture the authors and their line
       counts, then aggregate with `--summary` (distributions / totals). Exercises
@@ -1193,8 +1183,8 @@ remains below is the design-forked / larger work.
   per-text-file line count in the field vocabulary (`{lines}`, `-printf` `%{lines}`, `--template`),
   `wc -l`-style but also counting a final unterminated line; empty for a binary / unreadable /
   non-regular file (`content::FileLineCount` + `CountLines`, reusing the grep NUL-byte binary
-  heuristic). **Remaining:** surfacing it as an aggregate (sum + a distribution across matches),
-  which is the `lines` metric of the histograms work (#81), not a separate item.
+  heuristic). The aggregate shipped as the `lines` metric of histogram reducers, for example
+  `--histogram='ext:sum(lines)'`.
 - **Hash-verification workflow (#109) - DONE (single-pass tally deferred).** The hashing primitives
   (#105) and now the `-hasheq EXPECTED` matcher are in: `-hasheq` computes the file's digest and is
   true when it equals EXPECTED, a `{field}` template rendered per entry (so `-hasheq {def.SUMS}`
@@ -1497,8 +1487,8 @@ remains below is the design-forked / larger work.
     container's depth (0 = named). `--archive-any` offers everything, for an archive called `blob`.
     Remaining option, deliberately not built: a magic PEEK for the gated case, which needs a
     partial-read VFS operation (`ReadContent` reads the whole file, which is what the gate avoids).
-  - **STILL OPEN after the diving slices (audited 2026-08-12, all four verified against the built
-    binary, not read off the code):**
+  - **Archive-diving audit complete (2026-08-12, all four verified against the built binary, not
+    read off the code):**
     - **Native phar dives now (FIXED 2026-08-12).** `ArchiveFileSystem::Open` / `OpenBytes` try
       libarchive first and the phar reader when libarchive answers InvalidArgument ("not an archive");
       only that status falls through, so a corrupt archive is still an answer rather than a reason to
@@ -1508,9 +1498,8 @@ remains below is the design-forked / larger work.
       the fallback order cannot become an accident. Per-entry deflate/bzip2 members now
       decompress too (raw inflate via zlib with windowBits -15, plus BZ2_bzBuffToBuffDecompress; the
       manifest's uncompressed size IS the output length, so a stream that ends short or long is a
-      DataLoss rather than silently truncated content). Remaining phar gap: whole-file-compressed
-      `.phar.gz` / `.phar.bz2`, which needs the same decompress-then-parse step as a bare compressed
-      single file below.
+      DataLoss rather than silently truncated content). Whole-file-compressed `.phar.gz` /
+      `.phar.bz2` use the decompress-then-parse path described below.
     - ~~**Native phar never dives from the CLI.**~~ `ArchiveFileSystem::Open` asks libarchive and nothing
       else, so a native `.phar` (and a whole-file-compressed `.phar.gz` / `.phar.bz2`) is "not an
       archive" and the phar reader - which passes its own tests - is unreachable in a real run. Only
@@ -1613,22 +1602,22 @@ remains below is the design-forked / larger work.
   right on the axis that is EXPLICITLY an interop artifact: `--archive-prefix=URI` can emit
   `phar:///abs/a.phar/inner/x` and `jar:file:///abs/a.jar!/inner` while the bare path stays
   unambiguous. Task #177 is closed by this; the per-format URI work is its own follow-up.
-  - **OPEN (own slice): phar support.** libarchive does NOT read phar (stub + manifest + optional
-    per-entry compression + signature), so it needs its own reader behind the same `archive_reader`
-    shape - which is what the extras architecture is for, and the member-path spelling is
-    format-agnostic, so nothing there changes. Check the existing phar work for a reusable manifest
-    parser first. Tracked as task #176.
+  - **SHIPPED (#176): native phar support.** libarchive does not read the native stub + manifest
+    format, so `phar_reader` handles it behind the archive filesystem's reader seam, including
+    per-entry compression and signatures. `phar_writer` also rewrites supported native phars for
+    `--archive-delete`; the committed PHP-generated fixtures pin both paths.
 
 - **EPIC: container formats beyond phar (raised 2026-08-11).** Survey outcome: almost every "package
   format" is a zip or a tar underneath, so libarchive already reads it and the work is coverage, not
   code. Compiled-in today: `tar, zip, 7zip, cpio, ar, cab, iso9660, lha, rar/rar5, xar, warc, mtree`
   plus the `rpm` filter and every common compressor. Ordered by value per unit of work:
-  - **FREE ALREADY, so pin it with fixtures (own slice).** JAR/WAR/EAR, APK/AAB, wheel/egg, nupkg,
+  - **SHIPPED: package-format fixtures pin the free families.** JAR/WAR/EAR, APK/AAB, wheel/egg, nupkg,
     vsix, xpi, docx/odt and Maven / Composer bundles are zip; npm `.tgz`, Cargo `.crate` and OCI
     layers are tar; `.deb` is an `ar`; `.rpm` reads through the rpm FILTER (it exposes the cpio
     payload). `.gem` and `.conda` read one layer deep, the inner `data.tar.gz` needing
-    `--archive-depth` > 1. None of this needs a reader - it needs committed fixtures asserting we
-    really do read them, which is behaviour we already ship and currently do not test.
+    `--archive-depth` > 1. `format_fixture_test` commits representative JAR, wheel, npm tarball,
+    deb, rpm and gem fixtures and asserts the shared underlying families rather than duplicating
+    equivalent wrappers. None of this needs a format-specific reader.
   - **PREFIXED PAYLOAD: ANSWERED 2026-08-11, no mechanism needed.** CRX3 (`Cr24` + header + zip), JMOD
     (`JM` + zip), self-extracting installers and by extension AppImage / PyInstaller are all "skip a
     prefix, then hand the rest to a reader we already have" - and libarchive already does it. Its zip
