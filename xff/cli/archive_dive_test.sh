@@ -38,9 +38,8 @@ _xff_bin() {
 # A directory holding `a.tar` (members `one.txt` and `dir/two.txt`) plus a plain `b.txt`, so one
 # tree exercises "the container", "inside the container" and "an ordinary file" at once.
 _tree() {
-  local result_var="${1}" tree stage
-  _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  tree="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  local tree stage
+  tree="$(test_tmpdir tree)"
   stage="${tree}/stage"
   mkdir -p "${stage}/dir"
   echo "needle" >"${stage}/one.txt"
@@ -50,12 +49,12 @@ _tree() {
   COPYFILE_DISABLE=1 tar -c -f "${tree}/a.tar" -C "${stage}" one.txt dir
   rm -rf "${stage}"
   : >"${tree}/b.txt"
-  printf -v "${result_var}" '%s' "${tree}"
+  echo "${tree}"
 }
 
 test::a_container_named_as_a_root_lists_its_members() {
   local root out
-  _tree root
+  root="$(_tree)"
   out="$("$(_xff_bin)" --archive=roots "${root}/a.tar")"
   # Dual identity: the tar is still the file it is, and its members follow it.
   expect_output_contains "${root}/a.tar" "${out}"
@@ -65,7 +64,7 @@ test::a_container_named_as_a_root_lists_its_members() {
 
 test::none_keeps_an_archive_a_plain_file() {
   local root out
-  _tree root
+  root="$(_tree)"
   for spelling in "--archive=none" "-z-"; do
     out="$("$(_xff_bin)" "${spelling}" "${root}/a.tar")"
     expect_output_contains "${root}/a.tar" "${out}"
@@ -75,7 +74,7 @@ test::none_keeps_an_archive_a_plain_file() {
 
 test::roots_does_not_dive_into_an_archive_found_mid_walk() {
   local root out
-  _tree root
+  root="$(_tree)"
   # `roots` is "the archive I pointed you AT". Walking the DIRECTORY finds the same tar, and must
   # leave it closed - that difference is the whole point of having two modes.
   out="$("$(_xff_bin)" --archive=roots "${root}")"
@@ -85,7 +84,7 @@ test::roots_does_not_dive_into_an_archive_found_mid_walk() {
 
 test::all_dives_into_an_archive_found_mid_walk() {
   local root out
-  _tree root
+  root="$(_tree)"
   for spelling in "--archive=all" "-z+" "--archive"; do
     out="$("$(_xff_bin)" "${spelling}" "${root}")"
     expect_output_contains "a.tar!one.txt" "${out}"
@@ -96,7 +95,7 @@ test::all_dives_into_an_archive_found_mid_walk() {
 
 test::members_are_ordinary_entries_for_the_expression() {
   local root out
-  _tree root
+  root="$(_tree)"
   # Nothing in the vocabulary knows about archives: a member is matched by the same -name / -type
   # every other entry is, which is what makes diving worth having.
   out="$("$(_xff_bin)" --archive=roots "${root}/a.tar" -type f -name '*.txt')"
@@ -108,7 +107,7 @@ test::members_are_ordinary_entries_for_the_expression() {
 
 test::content_predicates_read_a_members_own_bytes() {
   local root out
-  _tree root
+  root="$(_tree)"
   # The payoff of member reads: -content and -grep search INSIDE the archive, and only the member
   # that holds the needle matches (the container is a tar, so it never matches as text).
   out="$("$(_xff_bin)" --archive=roots "${root}/a.tar" -content needle)"
@@ -120,7 +119,7 @@ test::content_predicates_read_a_members_own_bytes() {
 
 test::hash_and_line_fields_render_for_a_member() {
   local root member plain
-  _tree root
+  root="$(_tree)"
   # A member's digest must be the digest of its CONTENT, so it equals the digest of a loose file
   # holding the same bytes - the check a manifest (`-hasheq`) over an archive depends on.
   echo "needle" >"${root}/copy.txt"
@@ -131,7 +130,7 @@ test::hash_and_line_fields_render_for_a_member() {
 
 test::pruning_the_container_keeps_the_file_and_skips_the_members() {
   local root out
-  _tree root
+  root="$(_tree)"
   out="$("$(_xff_bin)" --archive=roots "${root}/a.tar" -name 'a.tar' -prune -print)"
   expect_output_contains "${root}/a.tar" "${out}"
   expect_output_not_contains "a.tar!" "${out}"
@@ -139,7 +138,7 @@ test::pruning_the_container_keeps_the_file_and_skips_the_members() {
 
 test::the_member_path_separator_and_prefix_are_the_users_choice() {
   local root out
-  _tree root
+  root="$(_tree)"
   out="$("$(_xff_bin)" --archive=roots --archive-separator='#' "${root}/a.tar")"
   expect_output_contains "a.tar#one.txt" "${out}"
   out="$("$(_xff_bin)" --archive=roots --archive-prefix=URI "${root}/a.tar")"
@@ -148,7 +147,7 @@ test::the_member_path_separator_and_prefix_are_the_users_choice() {
 
 test::archive_depth_bounds_nesting() {
   local root out
-  _tree root
+  root="$(_tree)"
   # A tar holding a tar. The default depth of 1 leaves the inner one a plain member; --archive-depth=2
   # opens it, and its member is then an ordinary entry the expression reads like any other.
   mkdir -p "${root}/nest"
@@ -166,7 +165,7 @@ test::archive_depth_bounds_nesting() {
 
 test::a_bad_archive_depth_is_a_usage_error() {
   local root out rc
-  _tree root
+  root="$(_tree)"
   # 0 most likely means "off", which --archive=none spells; guessing would be worse than saying so.
   out="$("$(_xff_bin)" --archive=all --archive-depth=0 "${root}" 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
@@ -177,7 +176,7 @@ test::a_bad_archive_depth_is_a_usage_error() {
 
 test::all_only_opens_files_whose_name_looks_like_a_container() {
   local root out
-  _tree root
+  root="$(_tree)"
   # The gate: `blob` IS a tar, byte for byte, but nothing in its name says so. Under `all` the walk
   # leaves it closed - otherwise every file in a source tree would be opened and format-bid - while the
   # `.tar` beside it is dived as before.
@@ -190,7 +189,7 @@ test::all_only_opens_files_whose_name_looks_like_a_container() {
 
 test::archive_any_offers_every_file_to_the_reader() {
   local root out
-  _tree root
+  root="$(_tree)"
   # The way out of the name gate, for a tree of archives named anything at all.
   cp "${root}/a.tar" "${root}/blob"
   out="$("$(_xff_bin)" --archive=all --archive-any "${root}")"
@@ -202,7 +201,7 @@ test::archive_any_offers_every_file_to_the_reader() {
 
 test::a_container_named_on_the_command_line_is_never_gated_by_its_name() {
   local root out
-  _tree root
+  root="$(_tree)"
   # Pointing xff AT a file is the request to look inside it, so `roots` (and `all`) open it whatever it
   # is called - the gate exists for files the walk merely met.
   cp "${root}/a.tar" "${root}/blob"
@@ -214,7 +213,7 @@ test::a_container_named_on_the_command_line_is_never_gated_by_its_name() {
 
 test::a_compressed_single_file_dives_to_the_name_inside() {
   local root out
-  _tree root
+  root="$(_tree)"
   # `notes.txt.gz` is not an archive of many members: it is ONE file, compressed. Its member takes the
   # container's name minus the suffix - what `gzip -d` restores - and content search reads it.
   printf 'findable-needle\n' >"${root}/notes.txt"
@@ -231,7 +230,7 @@ test::a_compressed_single_file_dives_to_the_name_inside() {
 
 test::a_text_file_named_gz_is_not_a_container() {
   local root out
-  _tree root
+  root="$(_tree)"
   # The guard on the guard: libarchive's `raw` format bids on anything, so a name claiming compression
   # is not enough - a real codec must have applied. Otherwise every mis-named text file would present as
   # a one-member archive.
@@ -243,7 +242,7 @@ test::a_text_file_named_gz_is_not_a_container() {
 
 test::a_tar_gz_is_still_read_as_a_tar() {
   local root out
-  _tree root
+  root="$(_tree)"
   # The distinction that matters: `.tar.gz` is a compressed ARCHIVE (libarchive reads it whole, members
   # and all), while `.txt.gz` is a compressed FILE. Both end in `.gz`.
   mkdir -p "${root}/pack"
@@ -255,7 +254,7 @@ test::a_tar_gz_is_still_read_as_a_tar() {
 
 test::write_actions_on_a_member_refuse_loudly() {
   local root out rc
-  _tree root
+  root="$(_tree)"
   # A member exists only inside its container: there is nothing to unlink and no path a child process
   # can open. Both must SAY so (exit 2, naming the path) rather than exit 0 having done nothing, which
   # is what -delete used to do while -exec handed the child `a.tar!one.txt`.
@@ -274,7 +273,7 @@ test::write_actions_on_a_member_refuse_loudly() {
 
 test::skip_unsupported_downgrades_a_refused_member_to_a_warning() {
   local root out rc
-  _tree root
+  root="$(_tree)"
   # The standing escape hatch for an impossible task: keep walking, skip the entry, exit 0. That is what
   # makes `xff -z+ . -delete` usable over a tree that happens to contain archives.
   out="$("$(_xff_bin)" --archive=roots --skip-unsupported "${root}/a.tar" -delete 2>&1)" && rc=0 || rc=$?
@@ -283,7 +282,7 @@ test::skip_unsupported_downgrades_a_refused_member_to_a_warning() {
 
 test::an_ordinary_file_that_is_not_an_archive_is_no_error() {
   local root out rc
-  _tree root
+  root="$(_tree)"
   # Every plain file the walk meets under `all` is offered to the reader and declined; that must be
   # silent, or `xff -z+ .` would report an error per ordinary file.
   out="$("$(_xff_bin)" --archive=all "${root}" 2>&1)" && rc=0 || rc=$?
@@ -293,7 +292,7 @@ test::an_ordinary_file_that_is_not_an_archive_is_no_error() {
 
 test::a_summary_counts_the_members_of_a_dived_container_not_the_container() {
   local root members both container
-  _tree root
+  root="$(_tree)"
   # The default (`members`): diving makes one byte visible twice, so a total that adds the tar AND
   # what is in it describes no filesystem that exists. The tar is several kilobytes of blocked
   # padding and its two members are a handful of bytes, so the counts separate the modes cleanly.
@@ -310,7 +309,7 @@ test::a_summary_counts_the_members_of_a_dived_container_not_the_container() {
 
 test::archive_aggregate_leaves_the_printed_entries_alone() {
   local root out
-  _tree root
+  root="$(_tree)"
   # Only the REDUCTIONS are affected. A mode that drops the container from a total must not drop it
   # from the listing, or `--summary` would silently change what a run finds.
   for mode in members container both; do
@@ -322,7 +321,7 @@ test::archive_aggregate_leaves_the_printed_entries_alone() {
 
 test::a_bad_archive_aggregate_value_is_a_usage_error() {
   local root out rc
-  _tree root
+  root="$(_tree)"
   out="$("$(_xff_bin)" --archive-aggregate=nope --summary "${root}" 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
   expect_output_contains "--archive-aggregate" "${out}"
@@ -330,7 +329,7 @@ test::a_bad_archive_aggregate_value_is_a_usage_error() {
 
 test::a_mid_walk_container_is_dropped_from_the_total_too() {
   local root members both
-  _tree root
+  root="$(_tree)"
   # `all` meets the tar during the walk, where its own entry is emitted with a whole listing block
   # before anything is dived - so the answer has to be known ahead of the entry, not after it.
   members="$("$(_xff_bin)" --archive=all --summary "${root}")"
@@ -342,7 +341,7 @@ test::a_mid_walk_container_is_dropped_from_the_total_too() {
 
 test::archive_extract_runs_a_child_over_a_temporary_copy_of_the_member() {
   local root out
-  _tree root
+  root="$(_tree)"
   # `one.txt` holds "needle". Without a path a child can open, -exec is a refusal (asserted above);
   # with --archive-extract the child reads the member's real bytes out of a temporary file.
   out="$("$(_xff_bin)" --archive=roots --archive-extract "${root}/a.tar" -name 'one.txt' -exec cat {} \;)"
@@ -355,7 +354,7 @@ test::archive_extract_runs_a_child_over_a_temporary_copy_of_the_member() {
 
 test::archive_extract_covers_the_batch_and_field_forms_too() {
   local root out
-  _tree root
+  root="$(_tree)"
   # `-exec ... +` runs after the walk, so its copies have to outlive the entry that made them; and
   # --exec-fields renders {path} as the copy, not the member path the child could not open.
   out="$("$(_xff_bin)" --archive=roots --archive-extract "${root}/a.tar" -name 'one.txt' -exec cat {} +)"
@@ -367,7 +366,7 @@ test::archive_extract_covers_the_batch_and_field_forms_too() {
 
 test::the_refusal_without_archive_extract_names_the_way_out() {
   local root out rc
-  _tree root
+  root="$(_tree)"
   # A refusal that does not say what to do instead is a dead end; the flag is the answer here.
   out="$("$(_xff_bin)" --archive=roots "${root}/a.tar" -name 'one.txt' -exec cat {} \; 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
@@ -376,7 +375,7 @@ test::the_refusal_without_archive_extract_names_the_way_out() {
 
 test::archive_extract_does_not_make_delete_possible() {
   local root out rc
-  _tree root
+  root="$(_tree)"
   # Deleting a temporary copy would be a no-op dressed as a deletion, so -delete stays a refusal
   # whatever this flag says.
   out="$("$(_xff_bin)" --archive=roots --archive-extract "${root}/a.tar" -name 'one.txt' -delete 2>&1)" && rc=0 || rc=$?
@@ -386,7 +385,7 @@ test::archive_extract_does_not_make_delete_possible() {
 
 test::archive_extract_leaves_nothing_behind() {
   local root out before after
-  _tree root
+  root="$(_tree)"
   # Every copy is removed when its child finishes (or when the run ends, for a batch), so a run over
   # an archive must not grow the temporary directory.
   before="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'xff-*' 2>/dev/null | wc -l | tr -d ' ')"
@@ -398,7 +397,7 @@ test::archive_extract_leaves_nothing_behind() {
 
 test::archive_delete_rewrites_the_container_without_the_member() {
   local root out
-  _tree root
+  root="$(_tree)"
   # The member is gone from the listing afterwards, and the OTHER member is still readable - a
   # rewrite that lost content would still pass a name-only check.
   out="$("$(_xff_bin)" --archive=roots --archive-delete "${root}/a.tar" -name 'one.txt' -delete 2>&1)"
@@ -412,7 +411,7 @@ test::archive_delete_rewrites_the_container_without_the_member() {
 
 test::archive_delete_needs_the_flag_and_says_so() {
   local root out rc
-  _tree root
+  root="$(_tree)"
   # Rewriting a whole archive is not something to do by default, so the refusal stands - and names
   # the way past it rather than being a dead end.
   out="$("$(_xff_bin)" --archive=roots "${root}/a.tar" -name 'one.txt' -delete 2>&1)" && rc=0 || rc=$?
@@ -424,7 +423,7 @@ test::archive_delete_needs_the_flag_and_says_so() {
 
 test::archive_delete_under_dry_run_writes_nothing() {
   local root out
-  _tree root
+  root="$(_tree)"
   out="$("$(_xff_bin)" --archive=roots --archive-delete --dry-run "${root}/a.tar" -name 'one.txt' -delete)"
   expect_output_contains "a.tar!one.txt" "${out}" # what WOULD go
   out="$("$(_xff_bin)" --archive=roots "${root}/a.tar")"
@@ -433,7 +432,7 @@ test::archive_delete_under_dry_run_writes_nothing() {
 
 test::archive_delete_refuses_a_container_it_cannot_rewrite() {
   local root out rc
-  _tree root
+  root="$(_tree)"
   # A compressed single file is read through a path libarchive cannot write back, so this has to be a
   # named refusal rather than a rewrite that silently changes the file's format.
   printf 'plain\n' >"${root}/notes.txt"
@@ -446,7 +445,7 @@ test::archive_delete_refuses_a_container_it_cannot_rewrite() {
 
 test::the_container_itself_is_still_an_ordinary_file_to_delete() {
   local root out
-  _tree root
+  root="$(_tree)"
   # `-delete` on the archive means the archive, not its members: the dual identity has to survive the
   # flag that makes members deletable.
   out="$("$(_xff_bin)" --archive=roots --archive-delete "${root}/a.tar" -name 'a.tar' -delete 2>&1)"
@@ -456,7 +455,7 @@ test::the_container_itself_is_still_an_ordinary_file_to_delete() {
 
 test::the_top_read_rung_sniffs_files_a_named_gate_would_skip() {
   local root out
-  _tree root
+  root="$(_tree)"
   cp "${root}/a.tar" "${root}/noextension"
   # `-z+` opens a mid-walk file only when its NAME looks like a container; `-z++` (= --archive=any)
   # drops that gate, which is the only difference between the two top read rungs.
@@ -471,7 +470,7 @@ test::the_top_read_rung_sniffs_files_a_named_gate_would_skip() {
 
 test::the_upper_case_family_is_the_same_ladder_with_writing_armed() {
   local root out
-  _tree root
+  root="$(_tree)"
   # Case carries the CAPABILITY, the signs carry the LEVEL. `-z` refuses to touch a member; `-Z` is
   # the same rung with --archive-write, so the same command goes through.
   out="$("$(_xff_bin)" -z "${root}/a.tar" -name 'one.txt' -exec cat {} \; 2>&1)"
@@ -486,7 +485,7 @@ test::the_upper_case_family_is_the_same_ladder_with_writing_armed() {
 
 test::the_upper_case_rungs_match_the_lower_case_ones() {
   local root out
-  _tree root
+  root="$(_tree)"
   # -Z is roots (a mid-walk archive stays closed), -Z+ is all (it opens).
   out="$("$(_xff_bin)" -Z "${root}")"
   expect_output_not_contains "a.tar!dir/two.txt" "${out}"
@@ -496,7 +495,7 @@ test::the_upper_case_rungs_match_the_lower_case_ones() {
 
 test::the_capital_minus_is_a_full_reset() {
   local root out
-  _tree root
+  root="$(_tree)"
   # `-Z-` is the none rung AND a disarm, so it overrides whatever an earlier flag (or a config file)
   # asked for. Its disarm is only observable once reading is turned back on, so the case does that:
   # -Z arms, -Z- resets, -z reads again, and the member write must be refused as if -Z never ran.
@@ -510,7 +509,7 @@ test::the_capital_minus_is_a_full_reset() {
 
 test::the_two_axes_resolve_independently_and_later_wins() {
   local root out
-  _tree root
+  root="$(_tree)"
   cp "${root}/a.tar" "${root}/noextension"
   # `-z+ -Z++` widens the rung to `any` and arms writing; `-z++ -Z` narrows back to roots.
   out="$("$(_xff_bin)" -z+ -Z++ "${root}")"
@@ -526,7 +525,7 @@ test::the_two_axes_resolve_independently_and_later_wins() {
 
 test::archive_write_arms_the_flags_without_changing_the_dive_mode() {
   local root out
-  _tree root
+  root="$(_tree)"
   # The long spelling says WRITE and only that: the mode stays whatever it was, so a mid-walk archive
   # is still left closed under the default `roots`.
   out="$("$(_xff_bin)" --archive-write "${root}")"
@@ -537,7 +536,7 @@ test::archive_write_arms_the_flags_without_changing_the_dive_mode() {
 
 test::only_the_plus_ladder_spells_the_umbrella() {
   local root out rc
-  _tree root
+  root="$(_tree)"
   # The ladder stops at ++, and the star form was deliberately not taken: a bare `-z*` errors in zsh
   # and silently expands in bash, so it must not be a spelling xff answers to either. The upper-case
   # family stops there too.
