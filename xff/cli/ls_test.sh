@@ -49,18 +49,18 @@ _run() {
 
 # Two files with very different size widths (1 vs 6 digits) and name lengths.
 _make_tree() {
-  local root
+  local resultvar="$1" path
   _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${root}"
-  head -c 1 /dev/zero >"${root}/aaa"
-  head -c 100000 /dev/zero >"${root}/b"
-  echo "${root}"
+  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${path}"
+  head -c 1 /dev/zero >"${path}/aaa"
+  head -c 100000 /dev/zero >"${path}/b"
+  printf -v "${resultvar}" '%s' "${path}"
 }
 
 test::ls_lists_entries_with_perms() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$(_run "${root}" -type f -ls)"
   expect_output_contains 'aaa' "${out}"
   expect_matches '\-rw' "${out}" # the permission column is present
@@ -68,7 +68,7 @@ test::ls_lists_entries_with_perms() {
 
 test::ls_columns_are_aligned() {
   local root out plen_a plen_b
-  root="$(_make_tree)"
+  _make_tree root
   out="$(_run "${root}" -type f -ls)"
   # The path is the last field; when the columns are aligned, the fixed prefix before
   # the path is the same width on every row regardless of size or name length.
@@ -79,7 +79,7 @@ test::ls_columns_are_aligned() {
 
 test::buffer_modes_are_accepted() {
   local root
-  root="$(_make_tree)"
+  _make_tree root
   # off (min widths), all (full buffering), and an explicit window all run and list.
   expect_output_contains 'aaa' "$(_run --buffer=off "${root}" -type f -ls)"
   expect_output_contains 'aaa' "$(_run --buffer=all "${root}" -type f -ls)"

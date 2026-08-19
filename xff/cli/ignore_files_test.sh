@@ -45,27 +45,27 @@ _xff_bin() {
 #   <root>/.xffignore      => *.log       (ignore logs everywhere)
 #   <root>/src/.xffignore  => !debug.log  (re-include debug.log in src/)
 _make_tree() {
-  local root
+  local resultvar="$1" path
   _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${root}"
-  mkdir -p "${root}/src" "${root}/build"
-  touch "${root}/top.log" "${root}/src/main.cc" "${root}/src/debug.log" "${root}/build/out.o"
-  printf '*.log\n' >"${root}/.xffignore"
-  printf '!debug.log\n' >"${root}/src/.xffignore"
-  echo "${root}"
+  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${path}"
+  mkdir -p "${path}/src" "${path}/build"
+  touch "${path}/top.log" "${path}/src/main.cc" "${path}/src/debug.log" "${path}/build/out.o"
+  printf '*.log\n' >"${path}/.xffignore"
+  printf '!debug.log\n' >"${path}/src/.xffignore"
+  printf -v "${resultvar}" '%s' "${path}"
 }
 
 test::ignore_files_off_by_default() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$("$(_xff_bin)" "${root}" -type f 2>&1)"
   expect_matches "(^|${NL}|/)top\.log(\$|${NL})" "${out}" # find-compatible: .xffignore not consulted
 }
 
 test::ignore_files_honored_when_enabled() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$("$(_xff_bin)" --ignore-files "${root}" -type f 2>&1)"
   expect_not_matches "(^|${NL}|/)top\.log(\$|${NL})" "${out}" # dropped by the root *.log rule
   expect_matches "(^|${NL}|/)main\.cc(\$|${NL})" "${out}"     # unaffected
@@ -73,7 +73,7 @@ test::ignore_files_honored_when_enabled() {
 
 test::deeper_ignore_file_overrides_shallower() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$("$(_xff_bin)" --ignore-files "${root}" -type f 2>&1)"
   # src/.xffignore's !debug.log re-includes it even though the root *.log would drop it.
   expect_matches "(^|${NL}|/)debug\.log(\$|${NL})" "${out}"
@@ -81,7 +81,7 @@ test::deeper_ignore_file_overrides_shallower() {
 
 test::no_ignore_master_switch_disables() {
   local root out_u out_long
-  root="$(_make_tree)"
+  _make_tree root
   out_u="$("$(_xff_bin)" --ignore-files -u "${root}" -type f 2>&1)"
   out_long="$("$(_xff_bin)" --ignore-files --no-ignore "${root}" -type f 2>&1)"
   expect_matches "(^|${NL}|/)top\.log(\$|${NL})" "${out_u}"    # -u forces ignore processing off

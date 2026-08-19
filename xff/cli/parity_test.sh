@@ -46,15 +46,15 @@ _bin() {
 # tree, because the rm never ran). The name is a COUNTER rather than the calling test's name:
 # a name would leak into printed paths and can then satisfy an expect_output_not_contains.
 _make_tree() {
-  local root
+  local resultvar="$1" path
   _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${root}"
-  mkdir -p "${root}/sub"
-  printf 'alpha\n' >"${root}/a.txt"
-  printf 'beta beta\n' >"${root}/sub/b.log"
-  : >"${root}/sub/c.txt"
-  echo "${root}"
+  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${path}"
+  mkdir -p "${path}/sub"
+  printf 'alpha\n' >"${path}/a.txt"
+  printf 'beta beta\n' >"${path}/sub/b.log"
+  : >"${path}/sub/c.txt"
+  printf -v "${resultvar}" '%s' "${path}"
 }
 
 # Assert `xff <args>` and `xff_full <args>` produce identical stdout+stderr and exit code.
@@ -68,7 +68,7 @@ expect_parity() {
 
 test::xff_and_xff_full_agree_on_core_commands() {
   local root
-  root="$(_make_tree)"
+  _make_tree root
   expect_parity "${root}" --sort=tree                                        # bare walk
   expect_parity "${root}" --sort=tree -type f                                # a test
   expect_parity "${root}" --sort=tree -name '*.txt'                          # glob name match
