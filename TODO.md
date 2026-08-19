@@ -108,14 +108,13 @@ shipped one way but not yet settled.
   - `--archive-depth` is deliberately NOT part of any rung: raising the decompression-bomb cap is a
     different decision from looking in more places.
 
-- **Short primaries `-n` / `-p` for `-name` / `-path` (raised 2026-08-13)?** Note what fd's letters
+- **Short primaries `-n` / `-p` for `-name` / `-path` (SHIPPED 2026-08-20).** Note what fd's letters
   actually mean before copying them: fd's `-p` is `--full-path` (a MODE flag that makes its single
   positional pattern match the whole path), and fd has no `-n` at all - so this is not "be like fd",
-  it is "add xff shorthands". Argument for: `-name` is by far the most-typed primary. Arguments
-  against: `-p` sits one letter from `-print`, `-prune` and `-printf`, and a mistyped `-p` that
-  silently means "path" is a nasty failure mode; xff also has no other one-letter PRIMARY, so it
-  would be a new class. Leaning: skip `-p`, consider `-n` only if a shorthand family (`-n`, `-t` for
-  `-type`?) is designed as a set rather than one letter at a time.
+  it is "add xff shorthands". **Decision:** despite `-p` sitting close to `-print` / `-prune` /
+  `-printf`, the high-frequency name/path pair earns explicit aliases together. They resolve to the
+  canonical descriptors, so parsing, dispatch, style/cost metadata, and generated help cannot
+  diverge. This does not establish a general one-letter-primary namespace or reserve `-t`.
 
 - **fd's `-g` / `--glob`: what is it, and do we need it (raised 2026-08-13)?** fd matches its single
   positional pattern as a REGEX by default; `--glob` switches that one pattern to glob semantics.

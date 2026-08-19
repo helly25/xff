@@ -105,6 +105,11 @@ TEST_F(HelpTest, DashlessTopicResolves) {
   EXPECT_THAT(RenderEntry("regex"), HasSubstr("-regex"));
 }
 
+TEST_F(HelpTest, PrimaryAliasesRenderBesideTheCanonicalSpelling) {
+  EXPECT_THAT(RenderEntry("-n"), AllOf(HasSubstr("-name ARG"), HasSubstr("-n ARG")));
+  EXPECT_THAT(RenderEntry("-p"), AllOf(HasSubstr("-path ARG"), HasSubstr("-p ARG")));
+}
+
 TEST_F(HelpTest, XffOperatorIsTaggedXff) {
   EXPECT_THAT(RenderEntry("-xor"), AllOf(HasSubstr("operator"), HasSubstr("xff")));
 }

@@ -108,4 +108,13 @@ test::exact_case_name_always_matches_in_xff() {
   expect_matches 'Foo\.txt' "${out}"
 }
 
+test::short_name_and_path_aliases_match_end_to_end() {
+  local root out
+  root="$(_make_tree)"
+  out="$(_run --exact "${root}" -n Foo.txt)"
+  expect_matches 'Foo\.txt' "${out}"
+  out="$(_run --exact "${root}" -p "${root}/Foo.txt")"
+  expect_matches 'Foo\.txt' "${out}"
+}
+
 test_runner

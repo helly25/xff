@@ -398,11 +398,11 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 ## Expression
 
 ### Tests
-- `-name ARG` - match the basename against a shell glob _(test, find)_
+- `-name ARG, -n ARG` - match the basename against a shell glob _(test, find)_
   Globs the entry's basename (last path component): `*` matches any run including none, `?` one character, `[...]` a class. Unlike the shell a leading dot is matched literally. Case follows `--case` - the xff default folds when the volume does (APFS / HFS+ / NTFS), while `--exact` or `--config=find` forces a byte-exact compare; `-iname` always folds. Contrast `-path` (whole path) and `-regex` (anchored pattern). Example: `xff . -name '*.log'`.
 - `-iname ARG` - match the basename against a shell glob, case-insensitively _(test, find)_
   The always-case-insensitive `-name`: folds case regardless of `--case` or the volume.
-- `-path ARG` - match the whole path against a shell glob _(test, find)_
+- `-path ARG, -p ARG` - match the whole path against a shell glob _(test, find)_
   Globs the whole path as printed (from the start point down), not just the basename. Unlike the shell, `*` and `?` DO match `/`, so `-path '*/build/*'` matches a build directory at any depth. Wildcards and case handling are `-name`'s. GNU spells this `-wholename`.
 - `-ipath ARG` - match the whole path against a shell glob, case-insensitively _(test, find)_
   The always-case-insensitive `-path` (whole-path glob).

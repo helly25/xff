@@ -5,6 +5,9 @@
 
 ## Matching
 
+- `-n PATTERN` and `-p PATTERN` are concise aliases for `-name PATTERN` and `-path PATTERN`.
+  They resolve through the expression registry to the canonical primaries, so their matching,
+  style, cost, and generated documentation are identical.
 - Size inputs now spell their scale explicitly across `-size`, `-blocks`, `--block-size`, and
   `--buffer`: `B`/`kB`/`MB`/.../`EB` are decimal SI, while
   `KiB`/`MiB`/.../`EiB` are binary IEC. Find's historical `c`/`w`/`b` and

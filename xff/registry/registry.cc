@@ -30,6 +30,7 @@ namespace {
 constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-name",
+        .alias = "-n",
         .summary = "match the basename against a shell glob",
         .details = "Globs the entry's basename (last path component): `*` matches any run including none, `?` one "
                    "character, `[...]` a class. Unlike the shell a leading dot is matched literally. Case follows "
@@ -49,6 +50,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     },
     {
         .name = "-path",
+        .alias = "-p",
         .summary = "match the whole path against a shell glob",
         .details = "Globs the whole path as printed (from the start point down), not just the basename. Unlike the "
                    "shell, `*` and `?` DO match `/`, so `-path '*/build/*'` matches a build directory at any depth. "
@@ -1263,7 +1265,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
 
 const Descriptor* Lookup(std::string_view name) {
   for (const Descriptor& descriptor : kDescriptors) {
-    if (descriptor.name == name) {
+    if (descriptor.name == name || (!descriptor.alias.empty() && descriptor.alias == name)) {
       return &descriptor;
     }
   }
