@@ -35,7 +35,7 @@ done
 if [[ "${status}" -ne 0 ]]; then
   echo
   echo "Hand-rolled temporary-directory allocation found in a bashtest (above)."
-  echo 'Allocate with: dir="$(test_tmpdir name)"'
+  echo "Allocate with: dir=\"\$(test_tmpdir name)\""
   echo "Return helper results on stdout; do not mutate caller variables or global counters."
   echo "See STYLE_SH.md, section 'Tests and temporary files'."
 fi
