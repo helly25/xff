@@ -73,7 +73,6 @@ jobs:
       - name: Install roff formatter (mandoc)
         run: |
           if [ "${RUNNER_OS}" = "Linux" ]; then
-            # sudo apt-get update
             sudo apt-get install -y mandoc
           fi
           command -v mandoc
@@ -165,7 +164,7 @@ jobs:
           restore-keys: |
             bazel-disk-tsan-
       - name: Install roff formatter (mandoc)
-        run: sudo apt-get update && sudo apt-get install -y mandoc
+        run: sudo apt-get install -y mandoc
       # Same declaration as the matrix job: this runner CAN mount, so it must say so. The mounting
       # tests read XFF_FUSE_REQUIRED to pick their exact assertion, and a Linux cell that mounts
       # while claiming it cannot fails on the refusal message it never gets.
@@ -205,7 +204,7 @@ jobs:
           restore-keys: |
             bazel-disk-msan-
       - name: Install roff formatter (mandoc)
-        run: sudo apt-get update && sudo apt-get install -y mandoc
+        run: sudo apt-get install -y mandoc
       # Declared for the same reason as the tsan cell, though every mounting test skips here: a
       # mount runs through the dlopened SYSTEM libfuse3, and MSan reports everything it did not
       # instrument as uninitialized. The skips key off --config=msan itself (the MEMORY_SANITIZER
