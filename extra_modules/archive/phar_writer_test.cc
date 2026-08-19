@@ -23,6 +23,7 @@
 
 #include "xff/archive/phar_writer.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <ios>
@@ -47,6 +48,7 @@ using ::mbo::testing::IsOk;
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
 using ::testing::Contains;
+using ::testing::ElementsAre;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::IsFalse;
@@ -141,12 +143,22 @@ TEST_F(PharWriterTest, RemovingEveryMemberLeavesAnEmptyButValidPhar) {
   // An archive with no members is legal, and it is not xff's business to delete the FILE when the
   // request was to remove members from it.
   const std::string path = CopyOfFixture("plain.phar", "emptied.phar");
-  const std::vector<std::string> all = MemberNames(path);
+  std::vector<std::string> all = MemberNames(path);
+  std::erase(all, ".phar/stub.php");
   ASSERT_THAT(all, Not(IsEmpty()));
   EXPECT_THAT(RemovePharMembersOfFile(path, all), IsOk());
-  EXPECT_THAT(ListPharMembersOfFile(path), IsOkAndHolds(IsEmpty()));
+  EXPECT_THAT(MemberNames(path), ElementsAre(".phar/stub.php"));
   const std::string after = Read(path);
   EXPECT_THAT(after.substr(after.size() - 4), "GBMB");
+}
+
+TEST_F(PharWriterTest, SyntheticNativeStubCannotBeRemoved) {
+  const std::string path = CopyOfFixture("plain.phar", "keep-stub.phar");
+  const std::string before = Read(path);
+  EXPECT_THAT(
+      RemovePharMembersOfFile(path, {".phar/stub.php"}),
+      StatusIs(absl::StatusCode::kFailedPrecondition, HasSubstr("requires its executable stub")));
+  EXPECT_THAT(Read(path), before);
 }
 
 TEST_F(PharWriterTest, AMemberThatIsNotThereIsNotFoundAndChangesNothing) {
@@ -190,7 +202,9 @@ TEST_F(PharWriterTest, TheLayoutMatchesTheFileItWasReadFrom) {
   // signature begins.
   const std::string bytes = Read(Fixture("plain.phar"));
   MBO_ASSERT_OK_AND_ASSIGN(const PharLayout layout, ParsePharLayout(bytes));
-  EXPECT_THAT(layout.members, SizeIs(MemberNames(Fixture("plain.phar")).size()));
+  std::vector<std::string> listed = MemberNames(Fixture("plain.phar"));
+  std::erase(listed, ".phar/stub.php");  // synthetic, so deliberately absent from the manifest layout
+  EXPECT_THAT(layout.members, SizeIs(listed.size()));
   EXPECT_THAT(layout.manifest_start > layout.manifest_length_at, IsTrue());
   EXPECT_THAT(layout.data_offset, layout.manifest_start + layout.manifest_size);
   EXPECT_THAT(layout.entries_offset > layout.manifest_start, IsTrue());

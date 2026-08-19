@@ -231,9 +231,13 @@ TEST_F(PharFixtureTest, ATarBasedPharIsNotANativeOne) {
 TEST_F(PharFixtureTest, TheFilesystemOpensANativePharLibarchiveRejects) {
   MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::Open(Fixture("plain.phar")));
   EXPECT_THAT(fs.ReadDir(Fixture("plain.phar")), IsOkAndHolds(Contains(Field("name", &vfs::Entry::name, "data"))));
+  EXPECT_THAT(fs.ReadDir(Fixture("plain.phar")), IsOkAndHolds(Contains(Field("name", &vfs::Entry::name, ".phar"))));
   EXPECT_THAT(
       fs.ReadContent(JoinMemberPath(Fixture("plain.phar"), "data/readme.txt")),
       IsOkAndHolds(HasSubstr("findable-needle")));
+  EXPECT_THAT(
+      fs.ReadContent(JoinMemberPath(Fixture("plain.phar"), ".phar/stub.php")),
+      IsOkAndHolds(HasSubstr("__HALT_COMPILER();")));
 }
 
 TEST_F(PharFixtureTest, TheFilesystemStillPrefersLibarchiveForATarBasedPhar) {

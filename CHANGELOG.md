@@ -36,6 +36,10 @@
   compressed with deflate or bzip2, which the reader inflates itself (a phar compresses the
   member, not the container, so no libarchive format or filter applies). A member whose bytes
   do not match its declared uncompressed size is reported as corrupt rather than truncated.
+  A native phar also exposes its executable PHP stub as `.phar/stub.php`, matching the real member
+  used by tar- and zip-based phars. A stored member at that path wins without duplication; the
+  synthetic stub is readable and searchable but cannot be deleted because the native format
+  requires it.
 
 - A write action on an archive member is refused instead of quietly doing nothing: `-delete`,
   `-exec`, `-execdir`, `-ok` and `-okdir` report that the member is read-only (exit 2, naming

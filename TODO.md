@@ -1651,25 +1651,15 @@ remains below is the design-forked / larger work.
     (libarchive already links zlib / xz / zstd / lz4), but metadata block tables and fragment
     handling make it a real slice, and a snap is not somewhere people usually grep. Revisit when
     something concretely asks.
-  - **OPEN (design sketched 2026-08-11, needs ratification): the PREFIX itself as a listed entry.** A
-    prefix is real content - a phar stub is a working PHP bootstrap, an SFX prefix a shell script, an
-    AppImage prefix a multi-megabyte ELF runtime, a CRX3 header a signature block - and today the walk
-    lists the members and silently drops everything before them, so "find phars whose stub requires X"
-    cannot be asked. It wants a synthesized entry, and the naming question has three candidate answers:
-    an EMPTY name (rejected: the member path then equals the container path, which is already both a
-    file and a directory), REPEATING the container name (rejected: reads as a nested copy and can
-    collide with a real member), or an artificial name in a reserved, format-named dot-directory
-    (preferred). phar decides it for us: the tar- and zip-based variants already store these as REAL
-    members with fixed names (`.phar/stub.php`, `.phar/signature.bin`, `.phar/alias.txt`,
-    `.phar/.metadata.bin`), which we read today, so a native phar synthesizing the SAME names makes all
-    three variants list identically. By extension `.crx/header.pb`, `.sfx/prefix.bin`,
-    `.appimage/runtime`; JMOD needs none (4 bytes of magic, no content). Two consequences to ratify
-    with it: VISIBILITY (a dot-directory is already governed by the skip-hidden rules, so find shows
-    them and xfd / rg hide them until `--hidden`, rather than adding a flag - the alternative is an
-    explicit `--archive-parts=none|meta|all`), and COLLISION (a real member owning the synthesized path
-    wins and the synthesized entry is suppressed, never shadowing stored bytes). Note this is the one
-    thing that DOES need prefix-offset detection, which reading does not: phar knows its stub length
-    already, and for any prefixed zip the length falls out of the end-of-central-directory record.
+  - **PARTLY SHIPPED (2026-08-19): file-like container parts.** A native phar now exposes its real
+    executable prefix as `.phar/stub.php`, the same path tar- and zip-based phars store as a member.
+    It is a regular readable/searchable file; a real stored member at that path wins and suppresses
+    the synthetic entry. Deleting the synthetic stub is refused because a native phar cannot exist
+    without it. This settles the general rule: expose a container component only when its format sees
+    it as file content, under the format's established reserved path. Do not turn incidental format
+    structure into invented files. Native phar alias, serialized metadata and signature export are
+    therefore DEFERRED; PHP's native layout does not represent them as files. SFX/AppImage/CRX prefix
+    support remains a per-format future decision rather than one generic prefix feature.
   - **REJECTED as not worth it:** MSI (OLE2/CFB sector chains, Windows-centric), DMG (UDIF plus
     HFS+/APFS), WIM, Nix NAR (trivial format, tiny audience), py2exe.
 
