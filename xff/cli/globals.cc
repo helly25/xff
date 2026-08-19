@@ -341,6 +341,8 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "so `-delete` and the exec family refuse them rather than silently skipping. "
                    "Under `all`, a file met mid-walk is offered to the reader only if its NAME looks like "
                    "a container (`any` drops that gate); one named on the command line always is. A "
+                   "native phar exposes its executable stub as `.phar/stub.php`, matching tar- and zip-based "
+                   "phars; the synthetic stub is readable but cannot be deleted because the format requires it. "
                    "build-time extra: the stock binary is lean and omits it (rebuild with --//xff:xff_archive); "
                    "asking for archive handling without it is a hard error.",
         .values = kArchiveValues,

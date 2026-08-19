@@ -187,13 +187,40 @@ TEST_F(PharReaderTest, ListsMembersWithTheirPathsSizesModesAndTimes) {
       {.name = "lib/x.txt", .content = "xyz", .flags = 0600},
   });
   EXPECT_THAT(
-      ListPharMembers(phar), IsOkAndHolds(ElementsAre(
-                                 AllOf(
-                                     Field("path", &Member::path, "bin/run.php"), Field("size", &Member::size, 13),
-                                     Field("mode", &Member::mode, 0644), Field("mtime", &Member::mtime, 1'700'000'000)),
-                                 AllOf(
-                                     Field("path", &Member::path, "lib/x.txt"), Field("size", &Member::size, 3),
-                                     Field("mode", &Member::mode, 0600)))));
+      ListPharMembers(phar),
+      IsOkAndHolds(ElementsAre(
+          AllOf(
+              Field("path", &Member::path, "bin/run.php"), Field("size", &Member::size, 13),
+              Field("mode", &Member::mode, 0644), Field("mtime", &Member::mtime, 1'700'000'000)),
+          AllOf(
+              Field("path", &Member::path, "lib/x.txt"), Field("size", &Member::size, 3),
+              Field("mode", &Member::mode, 0600)),
+          AllOf(
+              Field("path", &Member::path, ".phar/stub.php"), Field("size", &Member::size, 28),
+              Field("mode", &Member::mode, 0444), Field("is_directory", &Member::is_directory, IsFalse())))));
+}
+
+TEST_F(PharReaderTest, NativeStubIsAReadableSyntheticFile) {
+  constexpr std::string_view kStub = "#!/usr/bin/env php\n<?php echo 'boot'; __HALT_COMPILER(); ?>\n";
+  const std::string phar = MakePhar({{.name = "a.txt", .content = "a"}}, kStub);
+
+  EXPECT_THAT(ReadPharMember(phar, ".phar/stub.php"), IsOkAndHolds(kStub));
+  EXPECT_THAT(ReadPharMember(phar, "./.phar/stub.php"), IsOkAndHolds(kStub));
+  EXPECT_THAT(
+      ReadPharMember(phar, ".phar/stub.php", kStub.size() - 1),
+      StatusIs(absl::StatusCode::kResourceExhausted, HasSubstr("stub.php")));
+
+  const std::string path = WritePhar({{.name = "a.txt", .content = "a"}}, "stub.phar");
+  EXPECT_THAT(ReadPharMemberOfFile(path, ".phar/stub.php"), IsOkAndHolds("<?php __HALT_COMPILER(); ?>\n"));
+}
+
+TEST_F(PharReaderTest, StoredMemberAtStubPathWinsWithoutADuplicate) {
+  const std::string phar = MakePhar({{.name = ".phar/stub.php", .content = "stored member"}});
+  EXPECT_THAT(
+      ListPharMembers(phar), IsOkAndHolds(ElementsAre(AllOf(
+                                 Field("path", &Member::path, ".phar/stub.php"), Field("size", &Member::size, 13),
+                                 Field("mode", &Member::mode, 0644)))));
+  EXPECT_THAT(ReadPharMember(phar, ".phar/stub.php"), IsOkAndHolds("stored member"));
 }
 
 TEST_F(PharReaderTest, ADirectoryMemberIsTheTrailingSlashSpelling) {
@@ -202,16 +229,20 @@ TEST_F(PharReaderTest, ADirectoryMemberIsTheTrailingSlashSpelling) {
   const std::string phar = MakePhar({{.name = "lib/", .content = "", .flags = 0755}});
   EXPECT_THAT(
       ListPharMembers(phar),
-      IsOkAndHolds(ElementsAre(AllOf(
-          Field("path", &Member::path, "lib"), Field("is_directory", &Member::is_directory, IsTrue()),
-          Field("is_symlink", &Member::is_symlink, IsFalse())))));
+      IsOkAndHolds(ElementsAre(
+          AllOf(
+              Field("path", &Member::path, "lib"), Field("is_directory", &Member::is_directory, IsTrue()),
+              Field("is_symlink", &Member::is_symlink, IsFalse())),
+          Field("path", &Member::path, ".phar/stub.php"))));
 }
 
 TEST_F(PharReaderTest, AnAliasAndMetadataFieldsAreSkippedNotMisread) {
   // The alias sits between the flags and the first member, so a reader that ignores its length
   // reads garbage for every member. A non-empty alias pins that it is consumed.
   const std::string phar = MakePhar({{.name = "a.txt", .content = "a"}}, "<?php __HALT_COMPILER(); ?>\n", "app.phar");
-  EXPECT_THAT(ListPharMembers(phar), IsOkAndHolds(ElementsAre(Field("path", &Member::path, "a.txt"))));
+  EXPECT_THAT(
+      ListPharMembers(phar),
+      IsOkAndHolds(ElementsAre(Field("path", &Member::path, "a.txt"), Field("path", &Member::path, ".phar/stub.php"))));
 }
 
 TEST_F(PharReaderTest, TheStubTailIsExactlyWhatPhpAccepts) {
@@ -223,7 +254,9 @@ TEST_F(PharReaderTest, TheStubTailIsExactlyWhatPhpAccepts) {
         MakePhar({{.name = "a.txt", .content = "a"}}, absl::StrCat("<?php echo 'x';__HALT_COMPILER();", stub.tail));
     const auto members = ListPharMembers(phar);
     if (stub.readable) {
-      EXPECT_THAT(members, IsOkAndHolds(ElementsAre(Field("path", &Member::path, "a.txt"))))
+      EXPECT_THAT(
+          members, IsOkAndHolds(ElementsAre(
+                       Field("path", &Member::path, "a.txt"), Field("path", &Member::path, ".phar/stub.php"))))
           << "tail: " << absl::CEscape(stub.tail);
     } else {
       EXPECT_THAT(members, Not(IsOk())) << "tail: " << absl::CEscape(stub.tail);
@@ -234,7 +267,9 @@ TEST_F(PharReaderTest, TheStubTailIsExactlyWhatPhpAccepts) {
 TEST_F(PharReaderTest, AStubMayBeAnyPhpSourceBeforeTheToken) {
   const std::string phar = MakePhar(
       {{.name = "a.txt", .content = "a"}}, "#!/usr/bin/env php\n<?php require 'bootstrap.php'; __HALT_COMPILER(); ?>");
-  EXPECT_THAT(ListPharMembers(phar), IsOkAndHolds(ElementsAre(Field("path", &Member::path, "a.txt"))));
+  EXPECT_THAT(
+      ListPharMembers(phar),
+      IsOkAndHolds(ElementsAre(Field("path", &Member::path, "a.txt"), Field("path", &Member::path, ".phar/stub.php"))));
 }
 
 TEST_F(PharReaderTest, PlainPhpWithoutTheHaltTokenIsNotAPhar) {
@@ -271,7 +306,9 @@ TEST_F(PharReaderTest, AStrayHaltTokenBeforeTheRealOneIsSkipped) {
   const std::string phar = MakePhar(
       {{.name = "a.txt", .content = "a"}},
       "<?php $marker = '__HALT_COMPILER();'; /* not the end */ __HALT_COMPILER(); ?>\n");
-  EXPECT_THAT(ListPharMembers(phar), IsOkAndHolds(ElementsAre(Field("path", &Member::path, "a.txt"))));
+  EXPECT_THAT(
+      ListPharMembers(phar),
+      IsOkAndHolds(ElementsAre(Field("path", &Member::path, "a.txt"), Field("path", &Member::path, ".phar/stub.php"))));
 }
 
 TEST_F(PharReaderTest, ReadsMemberContentAtItsOffset) {
@@ -312,7 +349,9 @@ TEST_F(PharReaderTest, AMemberWhoseFlagsLieAboutDeflateIsDataLossNotGarbage) {
       MakePhar({{.name = "z.txt", .content = "not really deflated", .flags = std::uint32_t{0644} | kCompressedGz}});
   EXPECT_THAT(ReadPharMember(phar, "z.txt"), StatusIs(absl::StatusCode::kDataLoss, HasSubstr("deflate")));
   // Listing it still works: the manifest carries the metadata regardless of the member encoding.
-  EXPECT_THAT(ListPharMembers(phar), IsOkAndHolds(ElementsAre(Field("path", &Member::path, "z.txt"))));
+  EXPECT_THAT(
+      ListPharMembers(phar),
+      IsOkAndHolds(ElementsAre(Field("path", &Member::path, "z.txt"), Field("path", &Member::path, ".phar/stub.php"))));
 }
 
 TEST_F(PharReaderTest, ARealDeflatedMemberDecompresses) {
@@ -350,8 +389,9 @@ TEST_F(PharReaderTest, TheFileEntryPointsSeeTheSameContainer) {
       },
       "app.phar");
   EXPECT_THAT(
-      ListPharMembersOfFile(path),
-      IsOkAndHolds(ElementsAre(Field("path", &Member::path, "bin"), Field("path", &Member::path, "bin/run.php"))));
+      ListPharMembersOfFile(path), IsOkAndHolds(ElementsAre(
+                                       Field("path", &Member::path, "bin"), Field("path", &Member::path, "bin/run.php"),
+                                       Field("path", &Member::path, ".phar/stub.php"))));
   EXPECT_THAT(ReadPharMemberOfFile(path, "bin/run.php"), IsOkAndHolds("<?php echo 'hi';"));
   EXPECT_THAT(ReadPharMemberOfFile(path, "bin"), StatusIs(absl::StatusCode::kFailedPrecondition));
   EXPECT_THAT(ReadPharMemberOfFile(path, "missing"), StatusIs(absl::StatusCode::kNotFound));

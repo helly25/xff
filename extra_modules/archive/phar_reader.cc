@@ -29,6 +29,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -39,6 +40,8 @@
 namespace xff::archive {
 
 namespace {
+
+constexpr std::string_view kPharStubMember = ".phar/stub.php";
 
 // The token that ends a phar's PHP stub. Everything after it (plus an optional ` ?>` and one line
 // ending) is the binary manifest.
@@ -388,11 +391,6 @@ absl::StatusOr<WholePhar> ParseWholePharLayout(std::string_view bytes) {
   };
 }
 
-absl::StatusOr<std::vector<Entry>> ParseWholePhar(std::string_view bytes) {
-  MBO_ASSIGN_OR_RETURN(WholePhar whole, ParseWholePharLayout(bytes));
-  return std::move(whole.entries);
-}
-
 std::vector<Member> MembersOf(std::vector<Entry> entries) {
   std::vector<Member> members;
   members.reserve(entries.size());
@@ -400,6 +398,19 @@ std::vector<Member> MembersOf(std::vector<Entry> entries) {
     members.push_back(std::move(entry.member));
   }
   return members;
+}
+
+bool HasStoredStub(const std::vector<Entry>& entries) {
+  return absl::c_any_of(
+      entries, [](const Entry& entry) { return NormalizeMemberName(entry.member.path) == kPharStubMember; });
+}
+
+Member StubMember(std::size_t size) {
+  return Member{
+      .path = std::string(kPharStubMember),
+      .size = static_cast<std::int64_t>(size),
+      .mode = 0444,
+  };
 }
 
 // Locates `member` in an already-parsed manifest, normalizing both sides so the stored spelling and
@@ -572,8 +583,13 @@ absl::StatusOr<PharLayout> ParsePharLayout(std::string_view bytes) {
 }
 
 absl::StatusOr<std::vector<Member>> ListPharMembers(std::string_view bytes) {
-  MBO_ASSIGN_OR_RETURN(std::vector<Entry> entries, ParseWholePhar(bytes));
-  return MembersOf(std::move(entries));
+  MBO_ASSIGN_OR_RETURN(WholePhar whole, ParseWholePharLayout(bytes));
+  const bool stored_stub = HasStoredStub(whole.entries);
+  std::vector<Member> members = MembersOf(std::move(whole.entries));
+  if (!stored_stub) {
+    members.push_back(StubMember(whole.manifest_length_at));
+  }
+  return members;
 }
 
 absl::StatusOr<std::vector<Member>> ListPharMembersOfFile(std::string_view path) {
@@ -582,7 +598,12 @@ absl::StatusOr<std::vector<Member>> ListPharMembersOfFile(std::string_view path)
 }
 
 absl::StatusOr<std::string> ReadPharMember(std::string_view bytes, std::string_view member, std::uint64_t max_bytes) {
-  MBO_ASSIGN_OR_RETURN(const std::vector<Entry> entries, ParseWholePhar(bytes));
+  MBO_ASSIGN_OR_RETURN(const WholePhar whole, ParseWholePharLayout(bytes));
+  if (!HasStoredStub(whole.entries) && NormalizeMemberName(member) == kPharStubMember) {
+    MBO_RETURN_IF_ERROR(CheckLimit(whole.manifest_length_at, max_bytes, member));
+    return std::string(bytes.substr(0, whole.manifest_length_at));
+  }
+  const std::vector<Entry>& entries = whole.entries;
   MBO_ASSIGN_OR_RETURN(const Entry* const entry, FindEntry(entries, member));
   MBO_RETURN_IF_ERROR(CheckLimit(entry->stored_size, max_bytes, member));
   if (entry->data_offset + entry->stored_size > bytes.size()) {
@@ -597,7 +618,12 @@ absl::StatusOr<std::string> ReadPharMemberOfFile(
     std::string_view member,
     std::uint64_t max_bytes) {
   MBO_ASSIGN_OR_RETURN(const std::string header, ReadHeader(path));
-  MBO_ASSIGN_OR_RETURN(const std::vector<Entry> entries, ParseWholePhar(header));
+  MBO_ASSIGN_OR_RETURN(const WholePhar whole, ParseWholePharLayout(header));
+  if (!HasStoredStub(whole.entries) && NormalizeMemberName(member) == kPharStubMember) {
+    MBO_RETURN_IF_ERROR(CheckLimit(whole.manifest_length_at, max_bytes, member));
+    return ReadFileRange(path, 0, whole.manifest_length_at);
+  }
+  const std::vector<Entry>& entries = whole.entries;
   MBO_ASSIGN_OR_RETURN(const Entry* const entry, FindEntry(entries, member));
   MBO_RETURN_IF_ERROR(CheckLimit(entry->stored_size, max_bytes, member));
   MBO_ASSIGN_OR_RETURN(

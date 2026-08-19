@@ -58,6 +58,11 @@ namespace xff::archive {
 //     directory), so directory entries need no separate flag bit;
 //   - the low 9 bits of the member flags are the POSIX permission bits; `0` means the phar never
 //     stored any, not mode 0.
+//
+// A native phar's executable PHP stub is also a file as far as the format is concerned, despite not
+// having a manifest entry. The list/read APIs expose it as the synthetic regular member
+// `.phar/stub.php`. If a manifest explicitly stores that same path, the stored member wins: listing
+// never returns duplicate paths and reading it returns the stored member's content.
 
 // Where the pieces of a native phar SIT, for a caller that has to write one back (removing a member
 // means rebuilding the manifest and the data section). Byte ranges rather than values: every surviving
@@ -88,7 +93,8 @@ struct PharLayout {
 // (InvalidArgument = not a phar, DataLoss = a phar whose manifest does not check out).
 absl::StatusOr<PharLayout> ParsePharLayout(std::string_view bytes);
 
-// Lists the members of the phar in `bytes` (a whole in-memory phar).
+// Lists the members of the phar in `bytes` (a whole in-memory phar), including `.phar/stub.php` as
+// described above.
 //
 // Returns InvalidArgumentError when the data is not a native phar (no `__HALT_COMPILER();` token
 // within the scanned prefix, or a truncated header), and DataLossError when the token is there but

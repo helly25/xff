@@ -40,6 +40,8 @@
 namespace xff::archive {
 namespace {
 
+constexpr std::string_view kPharStubMember = ".phar/stub.php";
+
 namespace stdfs = std::filesystem;
 
 // php-src writes a tar-based / zip-based phar's signature to this exact member path (phar_tar.c,
@@ -229,6 +231,15 @@ absl::Status RemovePharMembersOfFile(std::string_view path, const std::vector<st
   const std::string path_string(path);
   MBO_ASSIGN_OR_RETURN(const std::string bytes, ReadWholeFile(path_string));
   MBO_ASSIGN_OR_RETURN(const PharLayout layout, ParsePharLayout(bytes));
+
+  const bool has_stored_stub = absl::c_any_of(layout.members, [](const PharMemberLayout& member) {
+    return NormalizeMemberName(member.name) == kPharStubMember;
+  });
+  if (!has_stored_stub && absl::c_any_of(members, [](std::string_view member) {
+        return NormalizeMemberName(member) == kPharStubMember;
+      })) {
+    return absl::FailedPreconditionError("cannot remove .phar/stub.php: a native phar requires its executable stub");
+  }
 
   // The three stages carry the layout facts between them: SELECT decides survival, REBUILD copies
   // the surviving bytes verbatim, RE-SIGN digests the result when the original was signed.
