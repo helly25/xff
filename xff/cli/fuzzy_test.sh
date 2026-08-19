@@ -38,19 +38,19 @@ _xff_bin() {
 # Names chosen so one tree shows all three answers: a hit through gaps, a hit only when case folds,
 # and a name whose letters are present but in the wrong order.
 _make_tree() {
-  local root
+  local resultvar="$1" path
   _xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-  root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-  mkdir -p "${root}"
-  : >"${root}/the_main_header.h"
-  : >"${root}/README.md"
-  : >"${root}/hamster.txt"
-  echo "${root}"
+  path="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
+  mkdir -p "${path}"
+  : >"${path}/the_main_header.h"
+  : >"${path}/README.md"
+  : >"${path}/hamster.txt"
+  printf -v "${resultvar}" '%s' "${path}"
 }
 
 test::fuzzy_matches_characters_in_order_with_gaps() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy tmh)"
   expect_output_contains "the_main_header.h" "${out}"
   expect_eq "1" "$(wc -l <<<"${out}" | tr -d ' ')"
@@ -58,7 +58,7 @@ test::fuzzy_matches_characters_in_order_with_gaps() {
 
 test::fuzzy_is_not_an_anagram_match() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   # `hmt` uses the same letters as `tmh` but in another order, and `hamster.txt` holds them in yet
   # another - a subsequence match is about ORDER, which is what separates it from a bag of letters.
   out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy hmt)"
@@ -67,7 +67,7 @@ test::fuzzy_is_not_an_anagram_match() {
 
 test::case_follows_exact_and_ifuzzy_always_folds() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   # Under --exact the letters have to match byte for byte, so lowercase `rdme` misses README.md;
   # -ifuzzy folds regardless.
   out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy rdme)"
@@ -80,7 +80,7 @@ test::case_follows_exact_and_ifuzzy_always_folds() {
 
 test::fuzzy_matches_the_basename_not_the_whole_path() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   # The directory components are not part of the subject, so letters that only appear in the leading
   # path do not help - that is what makes -fuzzy the loose counterpart of -name rather than of -path.
   mkdir -p "${root}/zzq"
@@ -107,7 +107,7 @@ test::the_fuzzy_field_ranks_matches_of_the_same_pattern() {
 
 test::the_fuzzy_field_is_empty_without_a_fuzzy_test() {
   local root out
-  root="$(_make_tree)"
+  _make_tree root
   # Like {shard} outside shard mode: it renders nothing rather than inventing a score.
   out="$("$(_xff_bin)" --exact "${root}" -type f -name 'README.md' --template='[{fuzzy}]')"
   expect_eq "[]" "${out}"
@@ -129,7 +129,7 @@ test::the_fuzzy_score_does_not_leak_from_one_entry_to_the_next() {
 
 test::fuzzy_is_an_xff_extension_the_find_style_rejects() {
   local root out rc
-  root="$(_make_tree)"
+  _make_tree root
   out="$("$(_xff_bin)" --config=find "${root}" -fuzzy tmh 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
   expect_output_contains "xff extension" "${out}"
@@ -154,7 +154,7 @@ test::sort_score_ranks_best_match_first() {
 test::sort_score_without_fuzzy_is_a_usage_error() {
   # Ranking by a value nothing produced is a mistake, not an empty ordering.
   local root out rc
-  root="$(_make_tree)"
+  _make_tree root
   out="$("$(_xff_bin)" "${root}" -type f --sort=score 2>&1)" && rc=0 || rc="${?}"
   expect_eq "2" "${rc}"
   # The message NAMES every primary that would satisfy it, so the fix is readable from the error.
@@ -165,7 +165,7 @@ test::sort_score_refuses_the_formats_it_cannot_reorder() {
   # --format=tree nests by path and aligned/markdown stream through a width buffer; silently
   # ignoring the ranking would be worse than refusing it, and the message names the way out.
   local root out rc
-  root="$(_make_tree)"
+  _make_tree root
   out="$("$(_xff_bin)" "${root}" -fuzzy tmh --format=tree --sort=score 2>&1)" && rc=0 || rc="${?}"
   expect_eq "2" "${rc}"
   expect_output_contains "cannot rank a --format=tree" "${out}"
@@ -175,7 +175,7 @@ test::sort_score_refuses_the_formats_it_cannot_reorder() {
 test::a_later_sort_mode_turns_ranking_back_off() {
   # --sort is last-wins like every other global; ranking must not be sticky.
   local root out rc
-  root="$(_make_tree)"
+  _make_tree root
   out="$("$(_xff_bin)" "${root}" -type f --sort=score --sort=dir 2>&1)" && rc=0 || rc="${?}"
   expect_eq "0" "${rc}" # no -fuzzy, yet no usage error: ranking was turned off again
 }
@@ -225,7 +225,7 @@ test::sort_score_accepts_every_scoring_primary() {
 
 test::fuzzypath_is_an_xff_extension_the_find_style_rejects() {
   local root out rc
-  root="$(_make_tree)"
+  _make_tree root
   out="$("$(_xff_bin)" --config=find "${root}" -fuzzypath tmh 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
   expect_output_contains "xff extension" "${out}"
