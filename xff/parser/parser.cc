@@ -16,6 +16,7 @@
 #include "xff/parser/parser.h"
 
 #include <cstddef>
+#include <initializer_list>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -28,6 +29,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "mbo/container/limited_set.h"
 #include "mbo/status/status_macros.h"
 #include "xff/fields/fields.h"
 #include "xff/parser/ast.h"
@@ -64,10 +66,20 @@ bool IsHoistableGlobal(std::string_view arg) {
 // find-compatible single-dash spellings. Keeping this vocabulary in the parser
 // is what prevents a lookalike inside `-exec`'s raw argument run from being
 // mistaken for an xff request.
-bool IsMetaFlag(std::string_view arg) {
-  return arg == "--help" || arg == "-h" || arg == "-help" || arg == "--help-all" || arg == "--help-full"
-         || arg == "--help-long" || absl::StartsWith(arg, "--help=") || arg == "--version" || arg == "-version"
-         || arg == "--man" || arg == "--markdown";
+constexpr bool IsMetaFlag(std::string_view arg) {
+  constexpr auto kMetaFlags = mbo::container::MakeLimitedSet<10>(std::initializer_list<std::string_view>{
+      "--help",
+      "-h",
+      "-help",
+      "--help-all",
+      "--help-full",
+      "--help-long",
+      "--version",
+      "-version",
+      "--man",
+      "--markdown",
+  });
+  return kMetaFlags.contains(arg) || absl::StartsWith(arg, "--help=");
 }
 
 bool IsOr(std::string_view token) {
