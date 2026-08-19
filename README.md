@@ -167,7 +167,7 @@ The `//xff` target alias follows your active workspace configuration automatical
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md), the LLM agent and contributor guidelines in [AGENTS.md](./AGENTS.md), and the core systems architecture style in [STYLE_CPP.md](./STYLE_CPP.md). In-depth design notes live under `docs/` and the active development roadmap can be found in `TODO.md`.
+See [CONTRIBUTING.md](./CONTRIBUTING.md), the LLM agent and contributor guidelines in [AGENTS.md](./AGENTS.md), and the coding styles in [STYLE_CPP.md](./STYLE_CPP.md) and [STYLE_SH.md](./STYLE_SH.md). In-depth design notes live under `docs/` and the active development roadmap can be found in `TODO.md`.
 
 ---
 
