@@ -110,6 +110,61 @@ test::fuzzy_percentage_is_a_quality_gate() {
   expect_output_not_contains "far_out_of" "${out}"
 }
 
+test::fuzzy_models_have_pinned_small_string_truth_tables() {
+  local root out
+  root="$(test_tmpdir tree)"
+  : >"${root}/foo"
+  : >"${root}/oof"
+  : >"${root}/ofo"
+  : >"${root}/off"
+  : >"${root}/fof"
+  : >"${root}/ffo"
+
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy=fzf foo --template='{name}={fuzzy}' --sort=name)"
+  expect_eq "foo=100" "${out}"
+
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy=sequence foo --template='{name}={fuzzy}' --sort=name)"
+  expect_eq "foo=100" "${out}"
+
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy=levenshtein foo --template='{name}={fuzzy}' --sort=name)"
+  expect_eq $'ffo=67\nfof=67\nfoo=100\noff=0\nofo=33\noof=33' "${out}"
+
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy=shingles foo --template='{name}={fuzzy}' --sort=name)"
+  expect_eq $'ffo=33\nfof=33\nfoo=100\noff=0\nofo=33\noof=33' "${out}"
+
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy=edit:67% foo --template='{name}={fuzzy}' --sort=name)"
+  expect_eq $'ffo=67\nfof=67\nfoo=100' "${out}"
+}
+
+test::fzf_model_supports_compound_extended_search_queries() {
+  local root out
+  root="$(test_tmpdir tree)"
+  : >"${root}/core.go"
+  : >"${root}/core.rb"
+  : >"${root}/core.py"
+  : >"${root}/core.cc"
+  : >"${root}/more.py"
+
+  # The exact compound OR example documented by upstream fzf: the prefix is required, and one of
+  # three suffixes must match. Keeping the whole query in one shell argument is significant because
+  # spaces are fzf's AND/OR grammar, not xff expression separators.
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy=fzf '^core go$ | rb$ | py$' --template='{name}' --sort=name)"
+  expect_eq $'core.go\ncore.py\ncore.rb' "${out}"
+}
+
+test::fzf_model_supports_inverse_exact_and_escaped_space_terms() {
+  local root out
+  root="$(test_tmpdir tree)"
+  : >"${root}/music subtrakktor.mp3"
+  : >"${root}/music fire subtrakktor.mp3"
+  : >"${root}/old music subtrakktor.mp3"
+
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy=fzf '^music subtrktr .mp3$ !fire' --template='{name}')"
+  expect_eq "music subtrakktor.mp3" "${out}"
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy=fzf '^music\ subtrakktor' --template='{name}')"
+  expect_eq "music subtrakktor.mp3" "${out}"
+}
+
 test::fuzzy_or_uses_the_best_successful_normalized_score() {
   local root out
   root="$(test_tmpdir tree)"
@@ -178,6 +233,18 @@ test::sort_score_requires_one_fuzzy_quality_threshold() {
   expect_eq "2" "${rc}"
   expect_output_contains "different quality thresholds" "${out}"
   expect_output_contains "same PCT%" "${out}"
+}
+
+test::sort_score_requires_one_fuzzy_model() {
+  local root out rc
+  root="$(test_tmpdir tree)"
+  : >"${root}/foo"
+
+  out="$("$(_xff_bin)" "${root}" \( -fuzzy=fzf:30% foo -o -fuzzy=levenshtein:30% bar \) --sort=score 2>&1)" \
+    && rc=0 || rc="${?}"
+  expect_eq "2" "${rc}"
+  expect_output_contains "different models" "${out}"
+  expect_output_contains "same fzf / sequence / levenshtein / shingles model" "${out}"
 }
 
 test::sort_score_without_fuzzy_is_a_usage_error() {

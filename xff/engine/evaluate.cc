@@ -881,18 +881,25 @@ bool EvalName(const parser::Expr& expr, EvalContext& ctx) {
   return !expr.args.empty() && Fnmatch(expr.args.front(), ctx.visit.name, flags);
 }
 
-// The subsequence match itself (see //xff/fuzzy), over whichever text the primary matches. Case
-// follows the same three-way rule -name uses: the always-folding variant, the FS-native default, or
-// an explicit --case.
+// The selected fuzzy model (see //xff/fuzzy), over whichever text the primary matches. Case follows
+// the same three-way rule -name uses: the always-folding variant, the FS-native default, or an
+// explicit --case.
 bool EvalFuzzyOn(const parser::Expr& expr, EvalContext& ctx, std::string_view subject) {
   const bool fold = expr.descriptor->fold_case || ctx.fold_name_case || expr.case_fold;
   if (expr.args.empty()) {
     return false;
   }
-  if (ctx.fuzzy_score == nullptr && !expr.fuzzy_threshold.has_value()) {
+  if (ctx.fuzzy_score == nullptr && !expr.fuzzy_threshold.has_value()
+      && expr.fuzzy_model == parser::FuzzyModel::kSequence) {
     return fuzzy::Matches(expr.args.front(), subject, fold);  // truth only: the cheap scan
   }
-  const std::optional<int> percent = fuzzy::Percent(expr.args.front(), subject, fold);
+  std::optional<int> percent;
+  switch (expr.fuzzy_model) {
+    case parser::FuzzyModel::kFzf: percent = fuzzy::FzfPercent(expr.args.front(), subject, fold); break;
+    case parser::FuzzyModel::kSequence: percent = fuzzy::SequencePercent(expr.args.front(), subject, fold); break;
+    case parser::FuzzyModel::kLevenshtein: percent = fuzzy::LevenshteinPercent(expr.args.front(), subject, fold); break;
+    case parser::FuzzyModel::kShingles: percent = fuzzy::ShinglePercent(expr.args.front(), subject, fold); break;
+  }
   if (ctx.fuzzy_score != nullptr) {
     *ctx.fuzzy_score = percent;
   }

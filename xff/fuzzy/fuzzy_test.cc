@@ -32,6 +32,7 @@ using ::testing::Ge;
 using ::testing::Gt;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
+using ::testing::Le;
 using ::testing::Lt;
 using ::testing::Optional;
 
@@ -100,6 +101,115 @@ TEST_F(FuzzyScoreTest, PercentNormalizesScoresAcrossPatterns) {
   EXPECT_THAT(Percent("", "anything", false), Optional(Eq(100)));
   EXPECT_THAT(Percent("zzz", "anything", false), Eq(std::nullopt));
   EXPECT_THAT(Percent("foo", "far_out_of", false), Optional(AllOf(Ge(0), Lt(100))));
+}
+
+TEST_F(FuzzyScoreTest, FzfExtendedSearchCombinesSpaceSeparatedTerms) {
+  // fzf's documented extended-search example: each space-separated term is required, while the
+  // sigils choose prefix, suffix, and inverse-exact matching.
+  // https://github.com/junegunn/fzf#search-syntax
+  constexpr std::string_view query = "^music .mp3$ sbtrkt !fire";
+  EXPECT_THAT(FzfPercent(query, "music-subtrakktor.mp3", true), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent(query, "old-music-subtrakktor.mp3", true), Eq(std::nullopt));
+  EXPECT_THAT(FzfPercent(query, "music-fire-subtrakktor.mp3", true), Eq(std::nullopt));
+  EXPECT_THAT(FzfPercent(query, "music-subtrakktor.flac", true), Eq(std::nullopt));
+}
+
+TEST_F(FuzzyScoreTest, FzfExtendedSearchSupportsDocumentedOrGroups) {
+  // This is the compound OR example from fzf's search-syntax documentation.
+  constexpr std::string_view query = "^core go$ | rb$ | py$";
+  EXPECT_THAT(FzfPercent(query, "core.go", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent(query, "core.rb", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent(query, "core.py", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent(query, "more.py", false), Eq(std::nullopt));
+  EXPECT_THAT(FzfPercent(query, "core.cc", false), Eq(std::nullopt));
+}
+
+TEST_F(FuzzyScoreTest, FzfExtendedSearchDistinguishesAllTermOperators) {
+  EXPECT_THAT(FzfPercent("'wild", "a-wild-card", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent("'wild'", "a wild card", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent("'wild'", "a-wilderness", false), Eq(std::nullopt));
+  EXPECT_THAT(FzfPercent("^music", "music-box", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent(".mp3$", "music.mp3", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent("^music.mp3$", "music.mp3", false), Optional(Eq(100)));
+  EXPECT_THAT(FzfPercent("!fire", "music-water.mp3", false), Optional(Eq(100)));
+  EXPECT_THAT(FzfPercent("!fire", "music-fire.mp3", false), Eq(std::nullopt));
+}
+
+TEST_F(FuzzyScoreTest, FzfExtendedSearchPreservesEscapedSpaces) {
+  EXPECT_THAT(FzfPercent("foo\\ bar baz", "prefix foo bar and baz", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent("foo\\ bar baz", "foo_then_bar-baz", false), Eq(std::nullopt));
+}
+
+TEST_F(FuzzyScoreTest, FzfScoringMatchesPublishedRealWorldCases) {
+  // Candidate/query pairs maintained by fzf itself exercise camel humps, word boundaries, and path
+  // separators. They are drawn from src/algo/algo_test.go in the upstream fzf repository.
+  EXPECT_THAT(FzfPercent("oBZ", "fooBarbaz1", true), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent("fbb", "foo bar baz", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent("rdoc", "/AutomatorDocument.icns", true), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent("zshc", "/man1/zshcompctl.1", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent("zshc", "/.oh-my-zsh/cache", false), Optional(AllOf(Ge(0), Le(100))));
+}
+
+TEST_F(FuzzyScoreTest, LevenshteinPercentPinsConcreteSpellingSimilarities) {
+  EXPECT_THAT(LevenshteinPercent("foo", "foo", false), Eq(100));
+  EXPECT_THAT(LevenshteinPercent("foo", "fool", false), Eq(75));
+  EXPECT_THAT(LevenshteinPercent("foo", "fof", false), Eq(67));
+  EXPECT_THAT(LevenshteinPercent("foo", "ffo", false), Eq(67));
+  EXPECT_THAT(LevenshteinPercent("foo", "ofo", false), Eq(33));
+  EXPECT_THAT(LevenshteinPercent("foo", "oof", false), Eq(33));
+  EXPECT_THAT(LevenshteinPercent("foo", "off", false), Eq(0));
+  EXPECT_THAT(LevenshteinPercent("bar", "baz", false), Eq(67));
+}
+
+TEST_F(FuzzyScoreTest, LevenshteinPercentHandlesCaseAndEmptyStrings) {
+  EXPECT_THAT(LevenshteinPercent("Foo", "foo", false), Eq(67));
+  EXPECT_THAT(LevenshteinPercent("Foo", "foo", true), Eq(100));
+  EXPECT_THAT(LevenshteinPercent("", "", false), Eq(100));
+  EXPECT_THAT(LevenshteinPercent("", "foo", false), Eq(0));
+}
+
+TEST_F(FuzzyScoreTest, LevenshteinPercentPinsClassicMultiEditCases) {
+  EXPECT_THAT(LevenshteinPercent("kitten", "sitting", false), Eq(57));
+  EXPECT_THAT(LevenshteinPercent("flaw", "lawn", false), Eq(50));
+  EXPECT_THAT(LevenshteinPercent("intention", "execution", false), Eq(44));
+}
+
+TEST_F(FuzzyScoreTest, SequencePercentIsPlainSubsequenceCoverage) {
+  EXPECT_THAT(SequencePercent("foo", "foo", false), Optional(Eq(100)));
+  EXPECT_THAT(SequencePercent("foo", "fool", false), Optional(Eq(75)));
+  EXPECT_THAT(SequencePercent("foo", "f_o_o", false), Optional(Eq(60)));
+  EXPECT_THAT(SequencePercent("foo", "ofo", false), Eq(std::nullopt));
+  EXPECT_THAT(SequencePercent("bar", "baz", false), Eq(std::nullopt));
+}
+
+TEST_F(FuzzyScoreTest, SequencePercentHandlesLongPathAbbreviationsWithoutTermSyntax) {
+  EXPECT_THAT(SequencePercent("s/m/h", "src/main/include/main_header.h", false), Optional(Eq(17)));
+  EXPECT_THAT(SequencePercent("s/m/h", "src/helper/main.cc", false), Eq(std::nullopt));
+  EXPECT_THAT(SequencePercent("a | b", "alpha | beta", false), Optional(Eq(42)));
+}
+
+TEST_F(FuzzyScoreTest, ShinglePercentPinsTheSmallPermutationTable) {
+  EXPECT_THAT(ShinglePercent("foo", "foo", false), Eq(100));
+  EXPECT_THAT(ShinglePercent("foo", "oof", false), Eq(33));
+  EXPECT_THAT(ShinglePercent("foo", "ofo", false), Eq(33));
+  EXPECT_THAT(ShinglePercent("foo", "off", false), Eq(0));
+  EXPECT_THAT(ShinglePercent("foo", "fof", false), Eq(33));
+  EXPECT_THAT(ShinglePercent("foo", "ffo", false), Eq(33));
+}
+
+TEST_F(FuzzyScoreTest, ShinglePercentHandlesCaseAndShortStrings) {
+  EXPECT_THAT(ShinglePercent("Foo", "foo", false), Eq(33));
+  EXPECT_THAT(ShinglePercent("Foo", "foo", true), Eq(100));
+  EXPECT_THAT(ShinglePercent("", "", false), Eq(100));
+  EXPECT_THAT(ShinglePercent("f", "f", false), Eq(100));
+  EXPECT_THAT(ShinglePercent("f", "o", false), Eq(0));
+  EXPECT_THAT(ShinglePercent("f", "ff", false), Eq(0));
+}
+
+TEST_F(FuzzyScoreTest, ShinglePercentPinsLongerSetOverlapCases) {
+  EXPECT_THAT(ShinglePercent("night", "nacht", false), Eq(14));
+  EXPECT_THAT(ShinglePercent("context", "contact", false), Eq(33));
+  EXPECT_THAT(ShinglePercent("directory", "dictionary", false), Eq(21));
 }
 
 TEST_F(FuzzyScoreTest, WordStartsBeatCharactersBuriedInsideWords) {

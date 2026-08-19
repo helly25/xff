@@ -1025,8 +1025,10 @@ absl::Status ValidateScoreRanking(bool rank_by_score, const parser::Expr* expres
         absl::StrCat("needs one of ", absl::StrJoin(kScoringPrimaries, ", "), " in the expression"));
   }
   std::optional<int> score_threshold;
+  std::optional<parser::FuzzyModel> score_model;
   bool mixed_thresholds = false;
-  const auto inspect_thresholds = [&](this const auto& self, const parser::Expr& expr) -> void {
+  bool mixed_models = false;
+  const auto inspect_domains = [&](this const auto& self, const parser::Expr& expr) -> void {
     switch (expr.kind) {
       case parser::Expr::Kind::kPredicate:
         if (absl::c_linear_search(kScoringPrimaries, expr.descriptor->name)) {
@@ -1035,6 +1037,11 @@ absl::Status ValidateScoreRanking(bool rank_by_score, const parser::Expr* expres
             mixed_thresholds = true;
           } else {
             score_threshold = threshold;
+          }
+          if (score_model.has_value() && *score_model != expr.fuzzy_model) {
+            mixed_models = true;
+          } else {
+            score_model = expr.fuzzy_model;
           }
         }
         return;
@@ -1051,7 +1058,12 @@ absl::Status ValidateScoreRanking(bool rank_by_score, const parser::Expr* expres
         return;
     }
   };
-  inspect_thresholds(*expression);
+  inspect_domains(*expression);
+  if (mixed_models) {
+    return absl::InvalidArgumentError(
+        "cannot compare fuzzy matches from different models; use the same fzf / sequence / levenshtein / "
+        "shingles model on every -fuzzy/-fuzzypath test");
+  }
   if (mixed_thresholds) {
     return absl::InvalidArgumentError(
         "cannot compare fuzzy matches with different quality thresholds; use the same PCT% on every "

@@ -306,57 +306,65 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-fuzzy",
         .summary = "match the basename loosely, optionally requiring a normalized score (xff)",
-        .details = "TRUE when every character of PATTERN appears in the entry's basename IN ORDER, with anything at "
-                   "all in between - `-fuzzy tmh` finds `the_main_header.h`. This is a SUBSEQUENCE match (fzf, fd's "
-                   "interactive cousins, an editor's quick-open), not a bounded edit distance: it answers \"can I "
-                   "type a few letters and find the file\", not \"is this a typo of that\". Matching is cheap (no "
-                   "regex, no allocation) and unanchored, so the letters may start anywhere in the name. Case "
-                   "follows `--case` like `-name` does; `-ifuzzy` always folds. The match is SCORED: "
-                   "`-fuzzy=PCT% PATTERN` requires that normalized quality (0 through 100), and `{fuzzy}` renders "
-                   "it. Multiple fuzzy tests compose through the expression: AND keeps the weakest required "
-                   "score and OR the best successful alternative, independent of predicate order. Ranking "
-                   "requires every fuzzy test to use the same threshold (a bare test means `0%`): different "
-                   "thresholds are valid filters, but do not define one unambiguous ordering. Characters at "
-                   "a word start, matched consecutively, and matched early all score higher. Use `-name` for a "
-                   "glob and `-regex` for a pattern. An xff extension `--config=find` rejects. Example: "
-                   "`xff . -fuzzy rdme --columns=fuzzy,path`.",
+        .details =
+            "TRUE when PATTERN matches the entry's basename under the selected MODEL. The forms are "
+            "`-fuzzy PATTERN`, `-fuzzy=MODEL PATTERN`, `-fuzzy=PCT% PATTERN`, and "
+            "`-fuzzy=MODEL:PCT% PATTERN`; the default model is `fzf`, and `edit` aliases `levenshtein`. "
+            "The models answer different questions. `sequence` is a literal ordered subsequence: "
+            "`tmh` finds `the_main_header.h`. `fzf` adds fzf EXTENDED-SEARCH expressions: spaces AND terms, "
+            "`|` joins OR alternatives, `'` requests exact matching, `^` and `$` anchor, `!` excludes, and "
+            "`\\ ` embeds a literal space. Quote a query containing spaces for the shell, for example "
+            "`-fuzzy=fzf '^core go$ | rb$ | py$'`. `levenshtein` is normalized edit similarity (insert, "
+            "delete, and substitute cost one), while `shingles` is unique character-bigram Jaccard "
+            "similarity. The first two reject a candidate that is not a subsequence/query match; the latter "
+            "two score every candidate. Case follows `--case` like `-name` does; `-ifuzzy` always folds. "
+            "PCT requires normalized quality from 0 through 100, and `{fuzzy}` renders it. Multiple fuzzy "
+            "tests compose through the expression: AND keeps the weakest required "
+            "score and OR the best successful alternative, independent of predicate order. Ranking "
+            "requires every fuzzy test to use the same MODEL and threshold (a bare test means `0%`): "
+            "different domains are valid filters, but do not define one unambiguous ordering. In `fzf`, "
+            "characters at a word start, matched consecutively, and matched early score higher. Use `-name` for a "
+            "glob and `-regex` for a pattern. An xff extension `--config=find` rejects. Example: "
+            "`xff . -fuzzy rdme --columns=fuzzy,path`.",
         .kind = Kind::kTest,
         .arity = 1,
-        .binding = Binding::kPercent,
+        .binding = Binding::kFuzzy,
         .style = Style::kXff,
     },
     {
         .name = "-fuzzypath",
         .summary = "match the whole path loosely, optionally requiring a normalized score (xff)",
-        .details = "`-fuzzy` for the whole PATH instead of the basename - the `-path` to its `-name`. Same "
-                   "SUBSEQUENCE match and same scoring, so `-fuzzypath eng/wlk` finds `xff/engine/walk.cc`, which "
+        .details = "`-fuzzy` for the whole PATH instead of the basename - the `-path` to its `-name`. It accepts "
+                   "the same `=MODEL[:PCT%]` syntax and scoring, so `-fuzzypath=sequence eng/wlk` finds "
+                   "`xff/engine/walk.cc`, which "
                    "no basename match could. It matches far more than `-fuzzy` does (every path shares its "
                    "directories), so it is most useful RANKED: `--sort=score` puts the best match first, and "
                    "`{fuzzy}` renders the score. Case follows `--case`; `-ifuzzypath` always folds. An xff "
                    "extension `--config=find` rejects. Example: `xff . -fuzzypath eng/wlk --sort=score`.",
         .kind = Kind::kTest,
         .arity = 1,
-        .binding = Binding::kPercent,
+        .binding = Binding::kFuzzy,
         .style = Style::kXff,
     },
     {
         .name = "-ifuzzy",
         .summary = "match the basename loosely, case-insensitively (xff)",
-        .details = "The always-case-insensitive `-fuzzy`: folds ASCII case regardless of `--case` or the volume.",
+        .details = "The always-case-insensitive `-fuzzy`: accepts the same `=MODEL[:PCT%]` syntax and folds ASCII "
+                   "case regardless of `--case` or the volume.",
         .kind = Kind::kTest,
         .arity = 1,
-        .binding = Binding::kPercent,
+        .binding = Binding::kFuzzy,
         .fold_case = true,
         .style = Style::kXff,
     },
     {
         .name = "-ifuzzypath",
         .summary = "match the whole path loosely, case-insensitively (xff)",
-        .details = "The always-case-insensitive `-fuzzypath`: folds ASCII case regardless of `--case` or the "
-                   "volume.",
+        .details = "The always-case-insensitive `-fuzzypath`: accepts the same `=MODEL[:PCT%]` syntax and folds "
+                   "ASCII case regardless of `--case` or the volume.",
         .kind = Kind::kTest,
         .arity = 1,
-        .binding = Binding::kPercent,
+        .binding = Binding::kFuzzy,
         .fold_case = true,
         .style = Style::kXff,
     },

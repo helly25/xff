@@ -254,6 +254,23 @@ TEST_F(EvaluateTest, FuzzyPercentThresholdGatesTheMatch) {
   EXPECT_THAT(fuzzy_score_, Optional(Eq(100)));
 }
 
+TEST_F(EvaluateTest, FuzzyModelsHaveConcreteThresholdSemantics) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/foo", "foo", vfs::FileType::kRegular, md);
+
+  EXPECT_TRUE(Match({"-fuzzy=sequence:67%", "fo"}, visit));
+  EXPECT_THAT(fuzzy_score_, Optional(Eq(67)));
+  EXPECT_FALSE(Match({"-fuzzy=sequence:68%", "fo"}, visit));
+
+  EXPECT_TRUE(Match({"-fuzzy=levenshtein:67%", "fof"}, visit));
+  EXPECT_THAT(fuzzy_score_, Optional(Eq(67)));
+  EXPECT_FALSE(Match({"-fuzzy=levenshtein:68%", "fof"}, visit));
+
+  EXPECT_TRUE(Match({"-fuzzy=shingles:33%", "fof"}, visit));
+  EXPECT_THAT(fuzzy_score_, Optional(Eq(33)));
+  EXPECT_FALSE(Match({"-fuzzy=shingles:34%", "fof"}, visit));
+}
+
 TEST_F(EvaluateTest, FuzzyAndUsesTheWeakestNormalizedScore) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("dir/far_out_of", "far_out_of", vfs::FileType::kRegular, md);

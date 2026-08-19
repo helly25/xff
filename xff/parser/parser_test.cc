@@ -388,12 +388,41 @@ TEST_F(ParserTest, FuzzyThresholdIsAnAttachedPercentage) {
   EXPECT_THAT(command.expression->descriptor->name, "-fuzzy");
   EXPECT_THAT(command.expression->args, ElementsAre("foo"));
   EXPECT_THAT(command.expression->fuzzy_threshold, Optional(Eq(80)));
+  EXPECT_THAT(command.expression->fuzzy_model, FuzzyModel::kFzf);
+}
+
+TEST_F(ParserTest, FuzzyThresholdMaySelectItsModel) {
+  ASSERT_OK_AND_ASSIGN(const Command command, Parse({".", "-ifuzzypath=levenshtein:30%", "foo"}));
+  ASSERT_THAT(command.expression, NotNull());
+  EXPECT_THAT(command.expression->descriptor->name, "-ifuzzypath");
+  EXPECT_THAT(command.expression->args, ElementsAre("foo"));
+  EXPECT_THAT(command.expression->fuzzy_threshold, Optional(Eq(30)));
+  EXPECT_THAT(command.expression->fuzzy_model, FuzzyModel::kLevenshtein);
+}
+
+TEST_F(ParserTest, FuzzyModelMayBeSelectedWithoutAThresholdAndAliasesNormalize) {
+  ASSERT_OK_AND_ASSIGN(const Command fzf, Parse({".", "-fuzzy=fzf", "foo"}));
+  ASSERT_THAT(fzf.expression, NotNull());
+  EXPECT_THAT(fzf.expression->fuzzy_model, FuzzyModel::kFzf);
+  EXPECT_THAT(fzf.expression->fuzzy_threshold, Eq(std::nullopt));
+
+  ASSERT_OK_AND_ASSIGN(const Command edit, Parse({".", "-fuzzy=edit:30%", "foo"}));
+  ASSERT_THAT(edit.expression, NotNull());
+  EXPECT_THAT(edit.expression->fuzzy_model, FuzzyModel::kLevenshtein);
+  EXPECT_THAT(edit.expression->fuzzy_threshold, Optional(Eq(30)));
+
+  ASSERT_OK_AND_ASSIGN(const Command shingles, Parse({".", "-fuzzy=shingles", "foo"}));
+  ASSERT_THAT(shingles.expression, NotNull());
+  EXPECT_THAT(shingles.expression->fuzzy_model, FuzzyModel::kShingles);
+  EXPECT_THAT(shingles.expression->fuzzy_threshold, Eq(std::nullopt));
 }
 
 TEST_F(ParserTest, FuzzyThresholdRejectsMalformedPercentages) {
   EXPECT_THAT(Parse({".", "-fuzzy=80", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
   EXPECT_THAT(Parse({".", "-fuzzy=101%", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
   EXPECT_THAT(Parse({".", "-fuzzy=oops%", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(Parse({".", "-fuzzy=unknown:80%", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(Parse({".", "-fuzzy=fzf:", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST_F(ParserTest, XorBindsTighterThanOr) {
