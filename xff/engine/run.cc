@@ -1024,6 +1024,39 @@ absl::Status ValidateScoreRanking(bool rank_by_score, const parser::Expr* expres
     return absl::InvalidArgumentError(
         absl::StrCat("needs one of ", absl::StrJoin(kScoringPrimaries, ", "), " in the expression"));
   }
+  std::optional<int> score_threshold;
+  bool mixed_thresholds = false;
+  const auto inspect_thresholds = [&](this const auto& self, const parser::Expr& expr) -> void {
+    switch (expr.kind) {
+      case parser::Expr::Kind::kPredicate:
+        if (absl::c_linear_search(kScoringPrimaries, expr.descriptor->name)) {
+          const int threshold = expr.fuzzy_threshold.value_or(0);
+          if (score_threshold.has_value() && *score_threshold != threshold) {
+            mixed_thresholds = true;
+          } else {
+            score_threshold = threshold;
+          }
+        }
+        return;
+      case parser::Expr::Kind::kNot: self(*expr.lhs); return;
+      case parser::Expr::Kind::kAnd:
+      case parser::Expr::Kind::kOr:
+      case parser::Expr::Kind::kNand:
+      case parser::Expr::Kind::kNor:
+      case parser::Expr::Kind::kXor:
+      case parser::Expr::Kind::kXnor:
+      case parser::Expr::Kind::kComma:
+        self(*expr.lhs);
+        self(*expr.rhs);
+        return;
+    }
+  };
+  inspect_thresholds(*expression);
+  if (mixed_thresholds) {
+    return absl::InvalidArgumentError(
+        "cannot compare fuzzy matches with different quality thresholds; use the same PCT% on every "
+        "-fuzzy/-fuzzypath test (a bare fuzzy test has a 0% threshold)");
+  }
   if (is_tree || buffered) {
     // --format=tree nests by path and the aligned/markdown writers stream rows through a width
     // buffer; either would silently ignore the ranking, which is worse than refusing it.
@@ -2987,9 +3020,8 @@ int RunFind(
     options.mount_before_visit = true;
   }
   int errors = 0;
-  // The last -fuzzy / -ifuzzy score for the entry being evaluated, filled by the evaluator and read
-  // by {fuzzy} when the entry is rendered. Run-scoped rather than per-entry so the two phases can
-  // share it; the walk clears it before each evaluation.
+  // The normalized fuzzy quality composed by the evaluator and read by {fuzzy} / --sort=score.
+  // Run-scoped rather than per-entry so the phases can share it; cleared before each evaluation.
   std::optional<int> fuzzy_score;
   // -first N budgets, one per instance, for the whole run (see EvalContext::first_counts).
   std::map<const parser::Expr*, int> first_counts;

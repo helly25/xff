@@ -81,6 +81,9 @@ std::string ArgHint(const registry::Descriptor& descriptor) {
   if (descriptor.binding == registry::Binding::kLabelRegex) {
     return "=NAME[=REGEX] CMD... ;";
   }
+  if (descriptor.binding == registry::Binding::kPercent) {
+    return "[=PCT%] PATTERN";
+  }
   if (descriptor.arity < 0) {
     return " CMD... ;";  // variadic until ';' (or '+' for -exec / -execdir)
   }

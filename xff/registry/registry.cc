@@ -300,29 +300,34 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .kind = Kind::kTest,
         .arity = 1,
         .style = Style::kXff,
+        .pure = false,
     },
     // xff -fuzzy: approximate NAME matching, the fzf/fd style of "type a few letters and find it".
     {
         .name = "-fuzzy",
-        .summary = "match the basename loosely: PATTERN's characters in order, gaps allowed (xff)",
+        .summary = "match the basename loosely, optionally requiring a normalized score (xff)",
         .details = "TRUE when every character of PATTERN appears in the entry's basename IN ORDER, with anything at "
                    "all in between - `-fuzzy tmh` finds `the_main_header.h`. This is a SUBSEQUENCE match (fzf, fd's "
                    "interactive cousins, an editor's quick-open), not a bounded edit distance: it answers \"can I "
                    "type a few letters and find the file\", not \"is this a typo of that\". Matching is cheap (no "
                    "regex, no allocation) and unanchored, so the letters may start anywhere in the name. Case "
-                   "follows `--case` like `-name` does; `-ifuzzy` always folds. As a TEST every match is equal and "
-                   "the walk order is unchanged, but the match is also SCORED: `{fuzzy}` renders how well this "
-                   "entry matched, so `--columns=fuzzy,path` plus a numeric sort is a ranking (characters at a "
-                   "word start, matched consecutively, and matched early all score higher). Use `-name` for a "
+                   "follows `--case` like `-name` does; `-ifuzzy` always folds. The match is SCORED: "
+                   "`-fuzzy=PCT% PATTERN` requires that normalized quality (0 through 100), and `{fuzzy}` renders "
+                   "it. Multiple fuzzy tests compose through the expression: AND keeps the weakest required "
+                   "score and OR the best successful alternative, independent of predicate order. Ranking "
+                   "requires every fuzzy test to use the same threshold (a bare test means `0%`): different "
+                   "thresholds are valid filters, but do not define one unambiguous ordering. Characters at "
+                   "a word start, matched consecutively, and matched early all score higher. Use `-name` for a "
                    "glob and `-regex` for a pattern. An xff extension `--config=find` rejects. Example: "
                    "`xff . -fuzzy rdme --columns=fuzzy,path`.",
         .kind = Kind::kTest,
         .arity = 1,
+        .binding = Binding::kPercent,
         .style = Style::kXff,
     },
     {
         .name = "-fuzzypath",
-        .summary = "match the whole path loosely: PATTERN's characters in order, gaps allowed (xff)",
+        .summary = "match the whole path loosely, optionally requiring a normalized score (xff)",
         .details = "`-fuzzy` for the whole PATH instead of the basename - the `-path` to its `-name`. Same "
                    "SUBSEQUENCE match and same scoring, so `-fuzzypath eng/wlk` finds `xff/engine/walk.cc`, which "
                    "no basename match could. It matches far more than `-fuzzy` does (every path shares its "
@@ -331,6 +336,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
                    "extension `--config=find` rejects. Example: `xff . -fuzzypath eng/wlk --sort=score`.",
         .kind = Kind::kTest,
         .arity = 1,
+        .binding = Binding::kPercent,
         .style = Style::kXff,
     },
     {
@@ -339,6 +345,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .details = "The always-case-insensitive `-fuzzy`: folds ASCII case regardless of `--case` or the volume.",
         .kind = Kind::kTest,
         .arity = 1,
+        .binding = Binding::kPercent,
         .fold_case = true,
         .style = Style::kXff,
     },
@@ -349,6 +356,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
                    "volume.",
         .kind = Kind::kTest,
         .arity = 1,
+        .binding = Binding::kPercent,
         .fold_case = true,
         .style = Style::kXff,
     },

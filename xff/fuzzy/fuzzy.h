@@ -54,6 +54,11 @@ namespace xff::fuzzy {
 // ranking built on the greedy answer would rank by accident.
 [[nodiscard]] std::optional<int> Score(std::string_view pattern, std::string_view text, bool fold_case);
 
+// Returns Score normalized against the pattern's best possible self-match, as an
+// integer percentage in [0, 100]. This makes scores from different patterns
+// comparable when a boolean expression combines several fuzzy predicates.
+[[nodiscard]] std::optional<int> Percent(std::string_view pattern, std::string_view text, bool fold_case);
+
 }  // namespace xff::fuzzy
 
 #endif  // XFF_FUZZY_FUZZY_H_

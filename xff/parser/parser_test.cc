@@ -31,9 +31,11 @@ namespace {
 using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
+using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsNull;
 using ::testing::NotNull;
+using ::testing::Optional;
 
 struct ParserTest : ::testing::Test {};
 
@@ -378,6 +380,20 @@ TEST_F(ParserTest, NonRegexAndUncompilablePatternsLeaveMatcherNull) {
   EXPECT_THAT(name.expression->matcher, IsNull());  // not a regex predicate
   ASSERT_OK_AND_ASSIGN(const Command bad, Parse({".", "-regex", "a("}));
   EXPECT_THAT(bad.expression->matcher, IsNull());  // uncompilable: null (evaluated as no-match), no parse error
+}
+
+TEST_F(ParserTest, FuzzyThresholdIsAnAttachedPercentage) {
+  ASSERT_OK_AND_ASSIGN(const Command command, Parse({".", "-fuzzy=80%", "foo"}));
+  ASSERT_THAT(command.expression, NotNull());
+  EXPECT_THAT(command.expression->descriptor->name, "-fuzzy");
+  EXPECT_THAT(command.expression->args, ElementsAre("foo"));
+  EXPECT_THAT(command.expression->fuzzy_threshold, Optional(Eq(80)));
+}
+
+TEST_F(ParserTest, FuzzyThresholdRejectsMalformedPercentages) {
+  EXPECT_THAT(Parse({".", "-fuzzy=80", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(Parse({".", "-fuzzy=101%", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(Parse({".", "-fuzzy=oops%", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST_F(ParserTest, XorBindsTighterThanOr) {

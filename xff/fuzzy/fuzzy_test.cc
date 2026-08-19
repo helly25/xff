@@ -26,10 +26,13 @@
 namespace xff::fuzzy {
 namespace {
 
+using ::testing::AllOf;
 using ::testing::Eq;
+using ::testing::Ge;
 using ::testing::Gt;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
+using ::testing::Lt;
 using ::testing::Optional;
 
 struct FuzzyTest : ::testing::Test {};
@@ -90,6 +93,13 @@ TEST_F(FuzzyScoreTest, NoMatchScoresNothingAndAMatchingEmptyPatternScoresZero) {
   EXPECT_THAT(Score("zzz", "the_main_header.h", false), Eq(std::nullopt));
   EXPECT_THAT(Score("", "anything", false), Optional(Eq(0)));
   EXPECT_THAT(Score("toolong", "short", false), Eq(std::nullopt));
+}
+
+TEST_F(FuzzyScoreTest, PercentNormalizesScoresAcrossPatterns) {
+  EXPECT_THAT(Percent("exact", "exact", false), Optional(Eq(100)));
+  EXPECT_THAT(Percent("", "anything", false), Optional(Eq(100)));
+  EXPECT_THAT(Percent("zzz", "anything", false), Eq(std::nullopt));
+  EXPECT_THAT(Percent("foo", "far_out_of", false), Optional(AllOf(Ge(0), Lt(100))));
 }
 
 TEST_F(FuzzyScoreTest, WordStartsBeatCharactersBuriedInsideWords) {

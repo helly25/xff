@@ -16,6 +16,7 @@
 #include "xff/fuzzy/fuzzy.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <optional>
 #include <string_view>
 #include <vector>
@@ -130,6 +131,22 @@ std::optional<int> Score(std::string_view pattern, std::string_view text, bool f
     return std::nullopt;
   }
   return *found;
+}
+
+std::optional<int> Percent(std::string_view pattern, std::string_view text, bool fold_case) {
+  const std::optional<int> score = Score(pattern, text, fold_case);
+  if (!score.has_value()) {
+    return std::nullopt;
+  }
+  if (pattern.empty()) {
+    return 100;
+  }
+  const std::optional<int> ceiling = Score(pattern, pattern, fold_case);
+  if (!ceiling.has_value() || *ceiling <= 0) {
+    return std::nullopt;
+  }
+  const std::int64_t scaled = (static_cast<std::int64_t>(*score) * 100) / *ceiling;
+  return static_cast<int>(std::clamp<std::int64_t>(scaled, 0, 100));
 }
 
 }  // namespace xff::fuzzy

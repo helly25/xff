@@ -889,15 +889,14 @@ bool EvalFuzzyOn(const parser::Expr& expr, EvalContext& ctx, std::string_view su
   if (expr.args.empty()) {
     return false;
   }
-  if (ctx.fuzzy_score == nullptr) {
+  if (ctx.fuzzy_score == nullptr && !expr.fuzzy_threshold.has_value()) {
     return fuzzy::Matches(expr.args.front(), subject, fold);  // truth only: the cheap scan
   }
-  // Something wants {fuzzy}, so pay for the alignment search. A later test overwrites an earlier
-  // one's score, which is what makes {fuzzy} "the last fuzzy test" rather than an arbitrary one -
-  // and is why -fuzzy and -fuzzypath share one score slot rather than competing for two.
-  const std::optional<int> score = fuzzy::Score(expr.args.front(), subject, fold);
-  *ctx.fuzzy_score = score;
-  return score.has_value();
+  const std::optional<int> percent = fuzzy::Percent(expr.args.front(), subject, fold);
+  if (ctx.fuzzy_score != nullptr) {
+    *ctx.fuzzy_score = percent;
+  }
+  return percent.has_value() && (!expr.fuzzy_threshold.has_value() || *percent >= *expr.fuzzy_threshold);
 }
 
 // -first N: true for the first N entries this INSTANCE sees, false afterwards. A test may keep
@@ -2375,34 +2374,127 @@ std::vector<LsColumn> LsColumns() {
   };
 }
 
-bool Evaluate(const parser::Expr& expr, EvalContext& context) {
+namespace {
+
+struct EvalResult {
+  bool matched = false;
+  std::optional<int> fuzzy;
+};
+
+bool IsFuzzyOnlyExpression(const parser::Expr& expr) {
   switch (expr.kind) {
-    case parser::Expr::Kind::kPredicate: return EvaluatePredicate(expr, context);
-    case parser::Expr::Kind::kNot: return !Evaluate(*expr.lhs, context);
-    case parser::Expr::Kind::kAnd: return Evaluate(*expr.lhs, context) && Evaluate(*expr.rhs, context);
-    case parser::Expr::Kind::kOr: return Evaluate(*expr.lhs, context) || Evaluate(*expr.rhs, context);
+    case parser::Expr::Kind::kPredicate:
+      return expr.descriptor->name == "-fuzzy" || expr.descriptor->name == "-ifuzzy"
+             || expr.descriptor->name == "-fuzzypath" || expr.descriptor->name == "-ifuzzypath";
+    case parser::Expr::Kind::kNot: return false;
+    case parser::Expr::Kind::kAnd:
+    case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kXor: return IsFuzzyOnlyExpression(*expr.lhs) && IsFuzzyOnlyExpression(*expr.rhs);
+    case parser::Expr::Kind::kNand:
+    case parser::Expr::Kind::kNor:
+    case parser::Expr::Kind::kXnor:
+    case parser::Expr::Kind::kComma: return false;
+  }
+  return false;
+}
+
+std::optional<int> MinScore(std::optional<int> lhs, std::optional<int> rhs) {
+  if (!lhs.has_value()) {
+    return rhs;
+  }
+  if (!rhs.has_value()) {
+    return lhs;
+  }
+  return std::min(*lhs, *rhs);
+}
+
+std::optional<int> MaxScore(std::optional<int> lhs, std::optional<int> rhs) {
+  if (!lhs.has_value()) {
+    return rhs;
+  }
+  if (!rhs.has_value()) {
+    return lhs;
+  }
+  return std::max(*lhs, *rhs);
+}
+
+EvalResult EvaluateResult(const parser::Expr& expr, EvalContext& context) {
+  const auto child = [&](const parser::Expr& node) {
+    std::optional<int> score;
+    std::optional<int>* const outer = context.fuzzy_score;
+    context.fuzzy_score = outer == nullptr ? nullptr : &score;
+    EvalResult result = EvaluateResult(node, context);
+    context.fuzzy_score = outer;
+    return result;
+  };
+
+  switch (expr.kind) {
+    case parser::Expr::Kind::kPredicate: {
+      const bool matched = EvaluatePredicate(expr, context);
+      return {.matched = matched, .fuzzy = context.fuzzy_score == nullptr ? std::nullopt : *context.fuzzy_score};
+    }
+    case parser::Expr::Kind::kNot: return {.matched = !child(*expr.lhs).matched};
+    case parser::Expr::Kind::kAnd: {
+      EvalResult lhs = child(*expr.lhs);
+      if (!lhs.matched) {
+        return lhs;
+      }
+      EvalResult rhs = child(*expr.rhs);
+      return {.matched = rhs.matched, .fuzzy = rhs.matched ? MinScore(lhs.fuzzy, rhs.fuzzy) : std::nullopt};
+    }
+    case parser::Expr::Kind::kOr: {
+      EvalResult lhs = child(*expr.lhs);
+      if (!lhs.matched) {
+        return child(*expr.rhs);
+      }
+      // A fuzzy-only alternative has no side effects, so evaluate it as well to obtain the true best
+      // score. A mixed/action-bearing RHS retains ordinary OR short-circuit behavior.
+      if (context.fuzzy_score != nullptr && IsFuzzyOnlyExpression(*expr.rhs)) {
+        EvalResult rhs = child(*expr.rhs);
+        return {.matched = true, .fuzzy = rhs.matched ? MaxScore(lhs.fuzzy, rhs.fuzzy) : lhs.fuzzy};
+      }
+      return lhs;
+    }
     // -nand / -nor are the negations of && / || and inherit their left-to-right
     // short-circuit (the right operand, and its actions, run only when the left
     // does not already decide the result).
-    case parser::Expr::Kind::kNand: return !(Evaluate(*expr.lhs, context) && Evaluate(*expr.rhs, context));
-    case parser::Expr::Kind::kNor: return !(Evaluate(*expr.lhs, context) || Evaluate(*expr.rhs, context));
+    case parser::Expr::Kind::kNand: {
+      const EvalResult lhs = child(*expr.lhs);
+      return {.matched = !(lhs.matched && child(*expr.rhs).matched)};
+    }
+    case parser::Expr::Kind::kNor: {
+      const EvalResult lhs = child(*expr.lhs);
+      return {.matched = !(lhs.matched || child(*expr.rhs).matched)};
+    }
     // -xor / -xnor depend on both sides, so neither can short-circuit; evaluate
     // left then right (sequenced via locals so any actions still fire in order).
     case parser::Expr::Kind::kXor: {
-      const bool lhs = Evaluate(*expr.lhs, context);
-      const bool rhs = Evaluate(*expr.rhs, context);
-      return lhs != rhs;
+      const EvalResult lhs = child(*expr.lhs);
+      const EvalResult rhs = child(*expr.rhs);
+      return {
+          .matched = lhs.matched != rhs.matched,
+          .fuzzy = lhs.matched != rhs.matched ? (lhs.matched ? lhs.fuzzy : rhs.fuzzy) : std::nullopt};
     }
     case parser::Expr::Kind::kXnor: {
-      const bool lhs = Evaluate(*expr.lhs, context);
-      const bool rhs = Evaluate(*expr.rhs, context);
-      return lhs == rhs;
+      const EvalResult lhs = child(*expr.lhs);
+      const EvalResult rhs = child(*expr.rhs);
+      return {.matched = lhs.matched == rhs.matched};
     }
     case parser::Expr::Kind::kComma:
-      Evaluate(*expr.lhs, context);         // left operand: evaluated for side effects only
-      return Evaluate(*expr.rhs, context);  // the list's value is the right operand's
+      child(*expr.lhs);         // left operand: evaluated for side effects only
+      return child(*expr.rhs);  // the list's value is the right operand's
   }
-  return true;  // Unreachable: every Expr::Kind returns above.
+  return {.matched = true};  // Unreachable: every Expr::Kind returns above.
+}
+
+}  // namespace
+
+bool Evaluate(const parser::Expr& expr, EvalContext& context) {
+  const EvalResult result = EvaluateResult(expr, context);
+  if (context.fuzzy_score != nullptr) {
+    *context.fuzzy_score = result.fuzzy;
+  }
+  return result.matched;
 }
 
 bool ContainsAction(const parser::Expr& expr) {

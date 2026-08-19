@@ -512,6 +512,43 @@ class ExprParser {
         }
         return node;
       }
+      // A fuzzy primary carries an optional normalized quality threshold as
+      // `=PCT%`, followed by its ordinary PATTERN operand.
+      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
+          descriptor != nullptr && descriptor->binding == registry::Binding::kPercent) {
+        std::string_view value = std::string_view(token).substr(eq + 1);
+        if (value.empty() || !value.ends_with('%')) {
+          Fail(absl::StrCat("'", token, "': fuzzy threshold must be PCT% (0% through 100%)"));
+          return nullptr;
+        }
+        value.remove_suffix(1);
+        int percent = 0;
+        if (value.empty()) {
+          Fail(absl::StrCat("'", token, "': fuzzy threshold must be PCT% (0% through 100%)"));
+          return nullptr;
+        }
+        for (const char digit : value) {
+          if (digit < '0' || digit > '9') {
+            Fail(absl::StrCat("'", token, "': fuzzy threshold must be PCT% (0% through 100%)"));
+            return nullptr;
+          }
+          percent = (percent * 10) + (digit - '0');
+        }
+        if (percent > 100) {
+          Fail(absl::StrCat("'", token, "': fuzzy threshold must be between 0% and 100%"));
+          return nullptr;
+        }
+        ++pos_;
+        if (AtEnd()) {
+          Fail(absl::StrCat("predicate '", base, "' is missing an argument"));
+          return nullptr;
+        }
+        ExprPtr node = MakePredicate(descriptor, {tokens_[pos_++]}, grammar_);
+        if (node != nullptr) {
+          node->fuzzy_threshold = percent;
+        }
+        return node;
+      }
     }
     const registry::Descriptor* descriptor = registry::Lookup(token);
     if (descriptor == nullptr) {

@@ -3,6 +3,16 @@
 
 # 0.3.0
 
+## Matching
+
+- `-fuzzy=PCT% PATTERN` (and the `-ifuzzy` / path variants) requires a normalized
+  match quality. `{fuzzy}` and `--sort=score` now use the same 0..100 score, which
+  composes across an expression: AND keeps the weakest required match and OR the
+  best successful alternative. Scores from different patterns are therefore
+  comparable at the same quality threshold and predicate order does not choose the ranking accidentally.
+  `--sort=score` rejects mixed thresholds rather than silently choosing between absolute similarity and
+  distance above each matcher-specific threshold.
+
 ## Archives
 
 - `--archive` / `-z` dives for real in a build with the archive extra

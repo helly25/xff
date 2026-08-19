@@ -94,11 +94,28 @@ test::the_fuzzy_field_ranks_matches_of_the_same_pattern() {
   : >"${root}/the_main_header.h" # three word-start initials
   : >"${root}/themainheader.txt" # the same letters, no word starts
   : >"${root}/automath.hpp"      # buried mid-word
-  # The score is only comparable within one pattern, so the assertion is the ORDER a numeric sort
-  # puts them in - which is the ranking a user actually gets out of {fuzzy}.
+  # The normalized score is comparable across patterns; this case pins the ordering within one.
   out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy tmh --template='{fuzzy} {name}')"
   ranked="$(sort -rn <<<"${out}" | cut -d' ' -f2 | tr '\n' ' ')"
   expect_eq "tmh.txt the_main_header.h themainheader.txt automath.hpp " "${ranked}"
+}
+
+test::fuzzy_percentage_is_a_quality_gate() {
+  local root out
+  root="$(test_tmpdir tree)"
+  : >"${root}/foo"
+  : >"${root}/far_out_of"
+  out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy=100% foo)"
+  expect_matches "(^|/)foo$" "${out}"
+  expect_output_not_contains "far_out_of" "${out}"
+}
+
+test::fuzzy_or_uses_the_best_successful_normalized_score() {
+  local root out
+  root="$(test_tmpdir tree)"
+  : >"${root}/far_out_of"
+  out="$("$(_xff_bin)" --exact "${root}" -type f \( -fuzzy foo -o -fuzzy far_out_of \) --template='{fuzzy}')"
+  expect_eq "100" "${out}"
 }
 
 test::the_fuzzy_field_is_empty_without_a_fuzzy_test() {
@@ -143,6 +160,24 @@ test::sort_score_ranks_best_match_first() {
   out="$("$(_xff_bin)" --exact "${root}" -type f -fuzzy tmh --sort=score)"
   # Assert the ORDER, not just membership - membership already held before ranking existed.
   expect_matches "tmh_exact\.h.*tmp_helper\.h.*the_main_header\.h" "${out}"
+}
+
+test::sort_score_requires_one_fuzzy_quality_threshold() {
+  local root out rc
+  root="$(test_tmpdir tree)"
+  : >"${root}/bar"
+  : >"${root}/foo"
+
+  # Different patterns remain comparable when they express the same quality floor.
+  out="$("$(_xff_bin)" "${root}" \( -fuzzy=80% bar -o -fuzzy=80% foo \) --sort=score)"
+  expect_output_contains "foo" "${out}"
+
+  # A 50%-bar and a 70%-foo answer different questions. There is no principled scalar ordering
+  # between absolute similarity and margin over each predicate's floor, so ranking refuses it.
+  out="$("$(_xff_bin)" "${root}" \( -fuzzy=50% bar -o -fuzzy=70% foo \) --sort=score 2>&1)" && rc=0 || rc="${?}"
+  expect_eq "2" "${rc}"
+  expect_output_contains "different quality thresholds" "${out}"
+  expect_output_contains "same PCT%" "${out}"
 }
 
 test::sort_score_without_fuzzy_is_a_usage_error() {
