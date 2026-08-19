@@ -1028,7 +1028,7 @@ absl::Status ValidateScoreRanking(bool rank_by_score, const parser::Expr* expres
   std::optional<parser::FuzzyModel> score_model;
   bool mixed_thresholds = false;
   bool mixed_models = false;
-  const auto inspect_domains = [&](this const auto& self, const parser::Expr& expr) -> void {
+  const auto inspect_domains = [&](const auto& self, const parser::Expr& expr) -> void {
     switch (expr.kind) {
       case parser::Expr::Kind::kPredicate:
         if (absl::c_linear_search(kScoringPrimaries, expr.descriptor->name)) {
@@ -1045,7 +1045,7 @@ absl::Status ValidateScoreRanking(bool rank_by_score, const parser::Expr* expres
           }
         }
         return;
-      case parser::Expr::Kind::kNot: self(*expr.lhs); return;
+      case parser::Expr::Kind::kNot: self(self, *expr.lhs); return;
       case parser::Expr::Kind::kAnd:
       case parser::Expr::Kind::kOr:
       case parser::Expr::Kind::kNand:
@@ -1053,12 +1053,12 @@ absl::Status ValidateScoreRanking(bool rank_by_score, const parser::Expr* expres
       case parser::Expr::Kind::kXor:
       case parser::Expr::Kind::kXnor:
       case parser::Expr::Kind::kComma:
-        self(*expr.lhs);
-        self(*expr.rhs);
+        self(self, *expr.lhs);
+        self(self, *expr.rhs);
         return;
     }
   };
-  inspect_domains(*expression);
+  inspect_domains(inspect_domains, *expression);
   if (mixed_models) {
     return absl::InvalidArgumentError(
         "cannot compare fuzzy matches from different models; use the same fzf / sequence / levenshtein / "
