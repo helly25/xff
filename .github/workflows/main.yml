@@ -39,7 +39,7 @@ jobs:
               flags: "--config=clang --config=asan"
     steps:
       - uses: actions/checkout@v6
-      # bazelisk launches the Bazel release pinned in .bazelversion (9.1.1).
+      # bazelisk launches the Bazel release pinned in .bazelversion.
       - uses: bazelbuild/setup-bazelisk@v3
       # Persist Bazel's disk cache (compiled action outputs) so each run reuses prior
       # work instead of rebuilding from scratch. Keyed by os/config + the lockfile hash
