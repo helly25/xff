@@ -77,9 +77,10 @@ bool SameChar(char have, char want, bool fold_case) {
 }
 
 bool SameText(std::string_view lhs, std::string_view rhs, bool fold_case) {
-  return lhs.size() == rhs.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin(), [fold_case](char a, char b) {
-           return SameChar(a, b, fold_case);
-         });
+  return lhs.size() == rhs.size()
+         && std::equal(lhs.begin(), lhs.end(), rhs.begin(), [fold_case](char lhs_char, char rhs_char) {
+              return SameChar(lhs_char, rhs_char, fold_case);
+            });
 }
 
 std::optional<std::size_t> FindText(std::string_view needle, std::string_view haystack, bool fold_case) {
@@ -195,7 +196,7 @@ std::optional<int> PositiveTermPercent(const QueryTerm& term, std::string_view t
   const std::optional<std::size_t> found = FindText(term.text, text, fold_case);
   bool matched = found.has_value();
   switch (term.kind) {
-    case TermKind::kFuzzy: break;
+    case TermKind::kFuzzy:
     case TermKind::kExact: break;
     case TermKind::kBoundary: {
       matched = false;
@@ -310,7 +311,7 @@ std::optional<int> FzfPercent(std::string_view query, std::string_view text, boo
         continue;
       }
       matched = true;
-      const int score = term.inverse ? 100 : *positive;
+      const int score = positive.value_or(100);
       group_score = std::max(group_score.value_or(0), score);
     }
     if (!matched) {
@@ -337,14 +338,15 @@ int LevenshteinPercent(std::string_view pattern, std::string_view text, bool fol
   }
   std::vector<std::size_t> previous(text.size() + 1);
   std::vector<std::size_t> current(text.size() + 1);
-  for (std::size_t j = 0; j <= text.size(); ++j) {
-    previous[j] = j;
+  for (std::size_t text_at = 0; text_at <= text.size(); ++text_at) {
+    previous[text_at] = text_at;
   }
   for (std::size_t i = 1; i <= pattern.size(); ++i) {
     current[0] = i;
-    for (std::size_t j = 1; j <= text.size(); ++j) {
-      const std::size_t substitution = previous[j - 1] + (SameChar(pattern[i - 1], text[j - 1], fold_case) ? 0 : 1);
-      current[j] = std::min({previous[j] + 1, current[j - 1] + 1, substitution});
+    for (std::size_t text_at = 1; text_at <= text.size(); ++text_at) {
+      const std::size_t substitution =
+          previous[text_at - 1] + (SameChar(pattern[i - 1], text[text_at - 1], fold_case) ? 0 : 1);
+      current[text_at] = std::min({previous[text_at] + 1, current[text_at - 1] + 1, substitution});
     }
     previous.swap(current);
   }
@@ -365,7 +367,7 @@ int ShinglePercent(std::string_view pattern, std::string_view text, bool fold_ca
         const char normalized = fold_case ? absl::ascii_tolower(chr) : chr;
         return static_cast<std::uint16_t>(static_cast<unsigned char>(normalized));
       };
-      result.push_back(static_cast<std::uint16_t>(byte(value[i - 1]) << 8U | byte(value[i])));
+      result.push_back(static_cast<std::uint16_t>((byte(value[i - 1]) * 256U) + byte(value[i])));
     }
     absl::c_sort(result);
     result.erase(std::unique(result.begin(), result.end()), result.end());

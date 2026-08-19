@@ -2446,7 +2446,7 @@ EvalResult EvaluateResult(const parser::Expr& expr, EvalContext& context) {
       if (!lhs.matched) {
         return lhs;
       }
-      EvalResult rhs = child(*expr.rhs);
+      const EvalResult rhs = child(*expr.rhs);
       return {.matched = rhs.matched, .fuzzy = rhs.matched ? MinScore(lhs.fuzzy, rhs.fuzzy) : std::nullopt};
     }
     case parser::Expr::Kind::kOr: {
@@ -2457,7 +2457,7 @@ EvalResult EvaluateResult(const parser::Expr& expr, EvalContext& context) {
       // A fuzzy-only alternative has no side effects, so evaluate it as well to obtain the true best
       // score. A mixed/action-bearing RHS retains ordinary OR short-circuit behavior.
       if (context.fuzzy_score != nullptr && IsFuzzyOnlyExpression(*expr.rhs)) {
-        EvalResult rhs = child(*expr.rhs);
+        const EvalResult rhs = child(*expr.rhs);
         return {.matched = true, .fuzzy = rhs.matched ? MaxScore(lhs.fuzzy, rhs.fuzzy) : lhs.fuzzy};
       }
       return lhs;

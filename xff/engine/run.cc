@@ -1005,6 +1005,42 @@ absl::Status ValidateFirstLimits(const parser::Expr& expr) {
   return absl::OkStatus();
 }
 
+// Every primary that SETS the score, so adding one cannot leave ranking silently refusing it.
+constexpr std::array kScoringPrimaries =
+    std::to_array<std::string_view>({"-fuzzy", "-fuzzypath", "-ifuzzy", "-ifuzzypath"});
+
+struct ScoreDomain {
+  std::optional<int> threshold;
+  std::optional<parser::FuzzyModel> model;
+  bool mixed_thresholds = false;
+  bool mixed_models = false;
+};
+
+void InspectScoreDomain(const parser::Expr& expr, ScoreDomain& domain) {
+  switch (expr.kind) {
+    case parser::Expr::Kind::kPredicate:
+      if (absl::c_linear_search(kScoringPrimaries, expr.descriptor->name)) {
+        const int threshold = expr.fuzzy_threshold.value_or(0);
+        domain.mixed_thresholds |= domain.threshold.value_or(threshold) != threshold;
+        domain.threshold = threshold;
+        domain.mixed_models |= domain.model.value_or(expr.fuzzy_model) != expr.fuzzy_model;
+        domain.model = expr.fuzzy_model;
+      }
+      return;
+    case parser::Expr::Kind::kNot: InspectScoreDomain(*expr.lhs, domain); return;
+    case parser::Expr::Kind::kAnd:
+    case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kNand:
+    case parser::Expr::Kind::kNor:
+    case parser::Expr::Kind::kXor:
+    case parser::Expr::Kind::kXnor:
+    case parser::Expr::Kind::kComma:
+      InspectScoreDomain(*expr.lhs, domain);
+      InspectScoreDomain(*expr.rhs, domain);
+      return;
+  }
+}
+
 // Whether --sort=score can do what it says, checked before the walk. Both refusals are usage
 // errors rather than a silent no-op: ordering by a value nothing produced is a mistake, and a
 // format that cannot be reordered would drop the ranking without saying so.
@@ -1012,10 +1048,6 @@ absl::Status ValidateScoreRanking(bool rank_by_score, const parser::Expr* expres
   if (!rank_by_score) {
     return absl::OkStatus();
   }
-  // Every primary that SETS the score, so adding one cannot leave ranking silently refusing it -
-  // which is exactly what -fuzzypath hit when it was added and this list said only "-fuzzy".
-  static constexpr std::array kScoringPrimaries =
-      std::to_array<std::string_view>({"-fuzzy", "-fuzzypath", "-ifuzzy", "-ifuzzypath"});
   const bool has_fuzzy =
       expression != nullptr && absl::c_any_of(kScoringPrimaries, [expression](std::string_view name) {
         return ContainsPrimary(*expression, name);
@@ -1024,47 +1056,14 @@ absl::Status ValidateScoreRanking(bool rank_by_score, const parser::Expr* expres
     return absl::InvalidArgumentError(
         absl::StrCat("needs one of ", absl::StrJoin(kScoringPrimaries, ", "), " in the expression"));
   }
-  std::optional<int> score_threshold;
-  std::optional<parser::FuzzyModel> score_model;
-  bool mixed_thresholds = false;
-  bool mixed_models = false;
-  const auto inspect_domains = [&](const auto& self, const parser::Expr& expr) -> void {
-    switch (expr.kind) {
-      case parser::Expr::Kind::kPredicate:
-        if (absl::c_linear_search(kScoringPrimaries, expr.descriptor->name)) {
-          const int threshold = expr.fuzzy_threshold.value_or(0);
-          if (score_threshold.has_value() && *score_threshold != threshold) {
-            mixed_thresholds = true;
-          } else {
-            score_threshold = threshold;
-          }
-          if (score_model.has_value() && *score_model != expr.fuzzy_model) {
-            mixed_models = true;
-          } else {
-            score_model = expr.fuzzy_model;
-          }
-        }
-        return;
-      case parser::Expr::Kind::kNot: self(self, *expr.lhs); return;
-      case parser::Expr::Kind::kAnd:
-      case parser::Expr::Kind::kOr:
-      case parser::Expr::Kind::kNand:
-      case parser::Expr::Kind::kNor:
-      case parser::Expr::Kind::kXor:
-      case parser::Expr::Kind::kXnor:
-      case parser::Expr::Kind::kComma:
-        self(self, *expr.lhs);
-        self(self, *expr.rhs);
-        return;
-    }
-  };
-  inspect_domains(inspect_domains, *expression);
-  if (mixed_models) {
+  ScoreDomain domain;
+  InspectScoreDomain(*expression, domain);
+  if (domain.mixed_models) {
     return absl::InvalidArgumentError(
         "cannot compare fuzzy matches from different models; use the same fzf / sequence / levenshtein / "
         "shingles model on every -fuzzy/-fuzzypath test");
   }
-  if (mixed_thresholds) {
+  if (domain.mixed_thresholds) {
     return absl::InvalidArgumentError(
         "cannot compare fuzzy matches with different quality thresholds; use the same PCT% on every "
         "-fuzzy/-fuzzypath test (a bare fuzzy test has a 0% threshold)");
