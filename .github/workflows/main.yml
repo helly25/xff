@@ -73,7 +73,8 @@ jobs:
       - name: Install roff formatter (mandoc)
         run: |
           if [ "${RUNNER_OS}" = "Linux" ]; then
-            sudo apt-get update && sudo apt-get install -y mandoc
+            # sudo apt-get update
+            sudo apt-get install -y mandoc
           fi
           command -v mandoc
       # The FUSE server's integration test mounts a real filesystem through the kernel, which only
