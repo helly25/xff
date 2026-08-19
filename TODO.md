@@ -718,33 +718,37 @@ removes, and 19 xff bashtests ignored it to hand-roll `mktemp -d` plus a per-cas
 the duplication, the cleanup is WRONG in the case that matters: bashtest keeps running after a failed
 expectation, so a case that fails before its `rm` leaks its tree.
 
-The convention is a per-call COUNTER, not the test's name:
+The convention is a unique directory allocated below that parent and returned on standard output:
 
 ```sh
-_xff_tree_seq=$((${_xff_tree_seq:-0} + 1))
-root="${BASHTEST_TMPDIR}/tree${_xff_tree_seq}"
-mkdir -p "${root}"
+_tree() {
+  local root
+  root="$(mktemp -d "${BASHTEST_TMPDIR}/tree.XXXXXX")"
+  # Build the fixture under ${root}.
+  echo "${root}"
+}
+
+root="$(_tree)"
 ```
 
 `${FUNCNAME[1]}` (the calling test) was tried first and is wrong: the test's name then appears in
 printed paths, where it can satisfy an `expect_output_not_contains`. That is not hypothetical -
-`archive_test`'s "archive is off by default" case failed exactly that way. A counter is also unique
-per CALL, so a case that builds two trees needs nothing special. A helper must return the path through
-a caller-named variable (`_make_tree root` + `printf -v`), not command substitution
-(`root="$(_make_tree)"`): command substitution runs in a subshell, loses the counter increment, and
-makes every retained fixture reuse `tree1`.
+`archive_test`'s "archive is off by default" case failed exactly that way. `mktemp` is unique per call,
+so a case that builds two trees needs nothing special and no mutable counter. Per
+[`STYLE_SH.md`](STYLE_SH.md), a helper returns the path through stdout (`root="$(_tree)"`) rather than
+mutating a caller-named variable with `printf -v`.
 
 **Complete: all 19 converted.** `archive_test`, `color_test`, `parity_test`, `first_test`, `ignore_test`, `collect_test`,
 `content_test`, `fuzzy_test`, `grep_test`, `ls_test`, `exact_test`, `pager_test`, `cmp_test`,
 `full_binary_test`, `ignore_files_test`, `help_topic_test`, `archive_pack_test`, `archive_dive_test`,
 `summary_test`, `ignore_gitignore_test` - 19 of 19, with 214 `rm -rf` lines gone. `archive_pack_test` already leaked every
-`mktemp` tree because it had no manual cleanup at all. Its helper now returns through a caller-named
-variable instead of command substitution, so the counter advances in the parent shell and retained
-trees cannot contaminate later cases; its output-path assertions remain unchanged under the
+`mktemp` tree because it had no manual cleanup at all. Its helper now returns through command
+substitution and lets `mktemp` provide per-call uniqueness, so retained trees cannot contaminate
+later cases; its output-path assertions remain unchanged under the
 bashtest-owned parent. The location-sensitive archive, summary, and git-ignore assertions pass
 unchanged under that parent; the conversion needed fixture-lifetime work, not weakened matching.
-The counter handles the several-trees-per-case files with no special treatment, which is the reason
-it beat naming.
+Unique allocation handles the several-trees-per-case files with no special treatment and avoids
+both caller mutation and test-name leakage.
 
 ## libfuse: no build dependency at all (SHIPPED 2026-08-18)
 
