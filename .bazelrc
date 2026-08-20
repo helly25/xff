@@ -66,8 +66,8 @@ common --host_per_file_copt=external/xff_.*@-Wextra,-Wpedantic,-Wno-nullability-
 # that hides glibc's default declarations under GCC 14. Expose the declaration in both target and
 # exec configurations; coverage builds host tools that link libarchive, so fixing only the target
 # configuration leaves the same error in a `[for tool]` compile.
-common --per_file_copt=external/libarchive/.*@-D_DEFAULT_SOURCE
-common --host_per_file_copt=external/libarchive/.*@-D_DEFAULT_SOURCE
+common --per_file_copt=external/libarchive.*@-D_DEFAULT_SOURCE
+common --host_per_file_copt=external/libarchive.*@-D_DEFAULT_SOURCE
 
 test --test_output=errors
 
