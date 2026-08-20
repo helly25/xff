@@ -200,9 +200,14 @@ Content PrimaryEntry(const registry::Descriptor& descriptor, bool with_details =
     details = ParseBlocks(descriptor.details);
     AppendInfluence(&details, "Affected by:", AffectedByFlags(descriptor.name));
   }
+  const std::string hint = ArgHint(descriptor);
+  std::string term = absl::StrCat(descriptor.name, hint);
+  if (!descriptor.alias.empty()) {
+    absl::StrAppend(&term, ", ", descriptor.alias, hint);
+  }
   return Content{
       .node = Entry{
-          .term = absl::StrCat(descriptor.name, ArgHint(descriptor)),
+          .term = std::move(term),
           .summary = ParseInline(descriptor.summary),
           .details = std::move(details),
           .xff = descriptor.style == registry::Style::kXff,

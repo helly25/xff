@@ -148,5 +148,24 @@ TEST_F(RegistryTest, AllEnumeratesTheSameDescriptorsLookupResolves) {
   }
 }
 
+TEST_F(RegistryTest, AliasesResolveToTheirCanonicalDescriptorAndNeverCollide) {
+  for (const Descriptor& descriptor : All()) {
+    if (descriptor.alias.empty()) {
+      continue;
+    }
+    EXPECT_THAT(Lookup(descriptor.alias), Eq(&descriptor)) << descriptor.alias;
+    EXPECT_THAT(descriptor.alias.compare(descriptor.name), Ne(0));
+    for (const Descriptor& other : All()) {
+      if (&descriptor == &other) {
+        continue;
+      }
+      EXPECT_THAT(descriptor.alias.compare(other.name), Ne(0))
+          << descriptor.name << " aliases canonical " << other.name;
+      EXPECT_THAT(descriptor.alias.compare(other.alias), Ne(0))
+          << descriptor.name << " and " << other.name << " share an alias";
+    }
+  }
+}
+
 }  // namespace
 }  // namespace xff::registry

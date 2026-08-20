@@ -74,6 +74,9 @@ test::help_matching_primaries_show_details() {
   local path rxc
   path="$("$(_xff_bin)" --help=path 2>&1)"
   expect_output_contains 'DO match' "${path}" # `*`/`?` cross `/`
+  expect_output_contains '-path ARG, -p ARG' "${path}"
+  path="$("$(_xff_bin)" --help=p 2>&1)"
+  expect_output_contains '-path ARG, -p ARG' "${path}" # alias topic resolves to the canonical entry
   rxc="$("$(_xff_bin)" --help=rxc 2>&1)"
   expect_output_contains 'unanchored' "${rxc}"
 }

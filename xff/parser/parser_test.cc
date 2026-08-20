@@ -108,6 +108,18 @@ TEST_F(ParserTest, NoExpressionIsNull) {
   EXPECT_THAT(cmd.expression, IsNull());
 }
 
+TEST_F(ParserTest, ShortNameAndPathAliasesResolveToCanonicalPrimaries) {
+  ASSERT_OK_AND_ASSIGN(const Command command, Parse({".", "-n", "*.cc", "-a", "-p", "src/*"}));
+  const Expr& root = *command.expression;
+  ASSERT_THAT(root.kind, Expr::Kind::kAnd);
+  ASSERT_THAT(root.lhs->kind, Expr::Kind::kPredicate);
+  EXPECT_THAT(root.lhs->descriptor->name, Eq("-name"));
+  EXPECT_THAT(root.lhs->args, ElementsAre("*.cc"));
+  ASSERT_THAT(root.rhs->kind, Expr::Kind::kPredicate);
+  EXPECT_THAT(root.rhs->descriptor->name, Eq("-path"));
+  EXPECT_THAT(root.rhs->args, ElementsAre("src/*"));
+}
+
 TEST_F(ParserTest, OrIsLowerThanImplicitAnd) {
   // `-type f -name x -o -name y` => Or( And(-type f, -name x), -name y )
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-type", "f", "-name", "x", "-o", "-name", "y"}));

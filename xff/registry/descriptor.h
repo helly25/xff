@@ -58,6 +58,10 @@ enum class Style { kFind, kXff, kRg };
 // the cost-warning are all derived.
 struct Descriptor {
   std::string_view name;
+  // Optional alternate spelling resolved to this SAME descriptor. Keeping aliases on the canonical
+  // entry makes parser behavior, generated help, style/cost/safety metadata, and dispatch identical
+  // by construction rather than duplicating a near-identical descriptor.
+  std::string_view alias;
   // One-line synopsis for `xff help <name>` and the generated --help listing: a
   // short phrase, normally lower-case (proper nouns such as GNU/BSD aside), with no
   // trailing period (e.g. "match the basename against a shell glob"). Every
