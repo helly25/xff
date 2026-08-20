@@ -5,6 +5,9 @@
 
 ## Matching
 
+- Add exact expression-level `-top N` fuzzy result selection. Each use keeps its own stable best-N
+  set; actions before it run while traversing and actions after it run only for the selected entries.
+  Mixed fuzzy models or thresholds are rejected rather than silently imposing an arbitrary order.
 - `-n PATTERN` and `-p PATTERN` are concise aliases for `-name PATTERN` and `-path PATTERN`.
   They resolve through the expression registry to the canonical primaries, so their matching,
   style, cost, and generated documentation are identical.

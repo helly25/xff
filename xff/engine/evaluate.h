@@ -76,6 +76,8 @@ struct Control {
   }
 };
 
+struct EvaluationResult;
+
 // Per-evaluation environment threaded through Evaluate for one visited entry.
 // Bundles what an expression node may read -- the entry, the action sink, the
 // filesystem, the reference clock -- plus the traversal-control side-channel, so
@@ -120,6 +122,18 @@ struct EvalContext {
   // The normalized 0..100 fuzzy quality composed across the expression for {fuzzy}, --sort=score,
   // and -top. Null when no consumer needs it; reset by the driver per entry.
   std::optional<int>* fuzzy_score = nullptr;
+  // -top's exact selection is resolved after the walk. During the first evaluation, an undecided
+  // -top writes its node + incoming composed score here and evaluation returns deferred. During a
+  // replay, top_results supplies the decision for every earlier deferral. evaluation_memo holds
+  // already-completed prefix nodes so actions and stateful tests to the left are never run twice.
+  // All four are null for callers that do not opt into deferred evaluation.
+  const std::map<const parser::Expr*, bool>* top_results = nullptr;
+  std::map<const parser::Expr*, EvaluationResult>* evaluation_memo = nullptr;
+  const parser::Expr** deferred_top = nullptr;
+  std::optional<int>* deferred_top_score = nullptr;
+  // The fuzzy score composed by the expression immediately to this node's left. EvaluateResult
+  // maintains it while descending an AND RHS; -top consumes it as its ranking key.
+  std::optional<int> incoming_fuzzy_score;
   // --count / -c: -grep prints one `path:count` per file (its matching-line count)
   // instead of the lines, rg -c style; supersedes -grep=FORMAT. Only -grep reads it.
   bool grep_count = false;
@@ -190,6 +204,15 @@ struct EvalContext {
   std::vector<std::string>* archive_deletions = nullptr;
 };
 
+// The truth and fuzzy value of an expression evaluation. `deferred` means evaluation reached an
+// undecided -top and deliberately stopped before anything to its right. Public so the run driver can
+// retain completed-prefix results between exact-selection passes; ordinary callers use Evaluate().
+struct EvaluationResult {
+  bool matched = false;
+  std::optional<int> fuzzy;
+  bool deferred = false;
+};
+
 // Evaluates a parsed find expression against one visited entry and returns its
 // overall truth value, mirroring find:
 //   - tests: -name/-iname/-path/-ipath/-type/-true/-false against the entry;
@@ -201,6 +224,10 @@ struct EvalContext {
 // `context` carries the entry, the action sink, the filesystem, the reference
 // clock, and the -prune/-quit side-channel (see EvalContext).
 bool Evaluate(const parser::Expr& expr, EvalContext& context);
+
+// Evaluates like Evaluate, but exposes -top deferral to the run driver. With no deferred plumbing in
+// the context this is equivalent to `{Evaluate(...), score, false}`.
+EvaluationResult EvaluateDeferred(const parser::Expr& expr, EvalContext& context);
 
 // True if `expr` contains any action node (-print, ...). The driver uses this
 // to decide whether an implicit -print applies: find adds -print only when the

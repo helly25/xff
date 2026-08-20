@@ -1005,6 +1005,36 @@ absl::Status ValidateFirstLimits(const parser::Expr& expr) {
   return absl::OkStatus();
 }
 
+absl::Status ValidateTopLimits(const parser::Expr& expr) {
+  switch (expr.kind) {
+    case parser::Expr::Kind::kPredicate: {
+      if (expr.descriptor == nullptr || expr.descriptor->name != "-top") {
+        return absl::OkStatus();
+      }
+      int limit = 0;
+      if (expr.args.empty() || !absl::SimpleAtoi(expr.args.front(), &limit)) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("expects a count, got '", expr.args.empty() ? "" : expr.args.front(), "'"));
+      }
+      if (limit < 0) {
+        return absl::InvalidArgumentError(absl::StrCat("count cannot be negative, got '", expr.args.front(), "'"));
+      }
+      return absl::OkStatus();
+    }
+    case parser::Expr::Kind::kNot: return ValidateTopLimits(*expr.lhs);
+    case parser::Expr::Kind::kAnd:
+    case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kNand:
+    case parser::Expr::Kind::kNor:
+    case parser::Expr::Kind::kXor:
+    case parser::Expr::Kind::kXnor:
+    case parser::Expr::Kind::kComma:
+      MBO_RETURN_IF_ERROR(ValidateTopLimits(*expr.lhs));
+      return ValidateTopLimits(*expr.rhs);
+  }
+  return absl::OkStatus();
+}
+
 // Every primary that SETS the score, so adding one cannot leave ranking silently refusing it.
 constexpr std::array kScoringPrimaries =
     std::to_array<std::string_view>({"-fuzzy", "-fuzzypath", "-ifuzzy", "-ifuzzypath"});
@@ -1079,6 +1109,90 @@ absl::Status ValidateScoreRanking(bool rank_by_score, const parser::Expr* expres
   return absl::OkStatus();
 }
 
+struct TopFlow {
+  bool score_on_success = false;
+  bool has_top = false;
+  bool top_without_score = false;
+};
+
+TopFlow InspectTopFlow(const parser::Expr& expr, bool incoming_score) {
+  switch (expr.kind) {
+    case parser::Expr::Kind::kPredicate: {
+      const bool scoring = absl::c_linear_search(kScoringPrimaries, expr.descriptor->name);
+      const bool top = expr.descriptor->name == "-top";
+      return {
+          .score_on_success = incoming_score || scoring,
+          .has_top = top,
+          .top_without_score = top && !incoming_score,
+      };
+    }
+    case parser::Expr::Kind::kNot: {
+      TopFlow value = InspectTopFlow(*expr.lhs, incoming_score);
+      value.score_on_success = incoming_score;
+      return value;
+    }
+    case parser::Expr::Kind::kAnd: {
+      const TopFlow lhs = InspectTopFlow(*expr.lhs, incoming_score);
+      const TopFlow rhs = InspectTopFlow(*expr.rhs, lhs.score_on_success);
+      return {
+          .score_on_success = rhs.score_on_success,
+          .has_top = lhs.has_top || rhs.has_top,
+          .top_without_score = lhs.top_without_score || rhs.top_without_score,
+      };
+    }
+    case parser::Expr::Kind::kComma: {
+      const TopFlow lhs = InspectTopFlow(*expr.lhs, incoming_score);
+      const TopFlow rhs = InspectTopFlow(*expr.rhs, incoming_score);
+      return {
+          .score_on_success = rhs.score_on_success,
+          .has_top = lhs.has_top || rhs.has_top,
+          .top_without_score = lhs.top_without_score || rhs.top_without_score,
+      };
+    }
+    case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kXor:
+    case parser::Expr::Kind::kNand:
+    case parser::Expr::Kind::kNor:
+    case parser::Expr::Kind::kXnor: {
+      const TopFlow lhs = InspectTopFlow(*expr.lhs, incoming_score);
+      const TopFlow rhs = InspectTopFlow(*expr.rhs, incoming_score);
+      return {
+          // A later -top may only rely on a score when every successful branch supplies one.
+          .score_on_success = lhs.score_on_success && rhs.score_on_success,
+          .has_top = lhs.has_top || rhs.has_top,
+          .top_without_score = lhs.top_without_score || rhs.top_without_score,
+      };
+    }
+  }
+  return {};
+}
+
+absl::Status ValidateTopRanking(const parser::Expr* expression) {
+  if (expression == nullptr) {
+    return absl::OkStatus();
+  }
+  MBO_RETURN_IF_ERROR(ValidateTopLimits(*expression));
+  const TopFlow flow = InspectTopFlow(*expression, false);
+  if (!flow.has_top) {
+    return absl::OkStatus();
+  }
+  if (flow.top_without_score) {
+    return absl::InvalidArgumentError("must follow a successful -fuzzy/-fuzzypath matcher on every path");
+  }
+  ScoreDomain domain;
+  InspectScoreDomain(*expression, domain);
+  if (domain.mixed_models) {
+    return absl::InvalidArgumentError(
+        "cannot compare fuzzy matches from different models; use one model for every contributing matcher");
+  }
+  if (domain.mixed_thresholds) {
+    return absl::InvalidArgumentError(
+        "cannot compare fuzzy matches with different quality thresholds; use the same PCT% on every contributing "
+        "matcher (a bare fuzzy test has a 0% threshold)");
+  }
+  return absl::OkStatus();
+}
+
 // The pre-walk gate for result-set shaping: every rule that must hold before a single entry is
 // visited. Reports through `on_error` and answers whether to proceed, so RunFind carries ONE gate
 // however many rules there are - a new rule is added here instead of by growing RunFind, which is
@@ -1095,11 +1209,82 @@ bool ResultShapingIsValid(
       return false;
     }
   }
+  if (const absl::Status top = ValidateTopRanking(expression); !top.ok()) {
+    on_error("-top", top);
+    return false;
+  }
   if (const absl::Status ranking = ValidateScoreRanking(rank_by_score, expression, is_tree, buffered); !ranking.ok()) {
     on_error("--sort=score", ranking);
     return false;
   }
   return true;
+}
+
+struct TopCandidate {
+  CollectedEntry entry;
+  std::vector<std::string> captures;
+  std::map<std::string, std::string> outputs;
+  std::map<const parser::Expr*, EvaluationResult> memo;
+  std::map<const parser::Expr*, bool> decisions;
+  const parser::Expr* waiting_at = nullptr;
+  int score = 0;
+  std::size_t order = 0;
+};
+
+CollectedEntry OwnVisit(const Visit& visit) {
+  return {
+      .path = std::string(visit.path),
+      .name = std::string(visit.name),
+      .root = std::string(visit.root),
+      .depth = visit.depth,
+      .metadata = visit.metadata,
+      .fs = visit.fs,
+      .fs_owner = visit.fs_owner,
+  };
+}
+
+void AppendTopNodes(const parser::Expr& expr, std::vector<const parser::Expr*>& nodes) {
+  if (expr.kind == parser::Expr::Kind::kPredicate) {
+    if (expr.descriptor->name == "-top") {
+      nodes.push_back(&expr);
+    }
+    return;
+  }
+  if (expr.lhs != nullptr) {
+    AppendTopNodes(*expr.lhs, nodes);
+  }
+  if (expr.rhs != nullptr) {
+    AppendTopNodes(*expr.rhs, nodes);
+  }
+}
+
+void ResolveTopRound(
+    std::vector<TopCandidate>& candidates,
+    const std::map<const parser::Expr*, std::size_t>& node_order) {
+  const parser::Expr* next_node = nullptr;
+  std::size_t next_order = std::numeric_limits<std::size_t>::max();
+  for (const TopCandidate& candidate : candidates) {
+    const std::size_t order = node_order.at(candidate.waiting_at);
+    if (order < next_order) {
+      next_order = order;
+      next_node = candidate.waiting_at;
+    }
+  }
+  std::vector<TopCandidate*> entries;
+  for (TopCandidate& candidate : candidates) {
+    if (candidate.waiting_at == next_node) {
+      entries.push_back(&candidate);
+    }
+  }
+  int limit = 0;
+  if (next_node == nullptr || next_node->args.empty() || !absl::SimpleAtoi(next_node->args.front(), &limit)) {
+    return;  // validated before the walk
+  }
+  absl::c_stable_sort(
+      entries, [](const TopCandidate* lhs, const TopCandidate* rhs) { return lhs->score > rhs->score; });
+  for (std::size_t index = 0; index < entries.size(); ++index) {
+    entries[index]->decisions[next_node] = std::cmp_less(index, limit);
+  }
 }
 
 // The path of `path` relative to the search `root` it was reached from, '/'-
@@ -2565,7 +2750,8 @@ int FinishCollections(
 
 }  // namespace
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
+// Cohesive run dispatch; the visitor and post-walk sinks intentionally share this state.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size,hicpp-function-size,google-readability-function-size)
 int RunFind(
     const parser::Command& command,
     const vfs::FileSystem& fs,
@@ -3213,6 +3399,123 @@ int RunFind(
   // or the InvalidArgument that means "an ordinary file after all". Passed unconditionally because
   // `options.archive` decides whether it is ever called.
   const auto mount_container = MakeContainerMounter(walk_fs, member_path_options, archive_any);
+
+  // Completes the run-level consequences of one fully evaluated entry. Deferred -top candidates
+  // call this after their exact selection pass; ordinary entries call it directly from the walk.
+  // Keeping it outside the visitor is what makes replay use precisely the same listing/reduction
+  // path rather than a second, subtly different renderer.
+  // NOLINTNEXTLINE(readability-function-cognitive-complexity): one extracted sink dispatch shared by walk and replay
+  const auto finish_entry = [&](const Visit& visit, std::map<std::string, std::string>& outputs, bool matched) {
+    if (matched && any_match != nullptr) {
+      *any_match = true;
+    }
+    if (matched && any_reduction) {
+      if (pack_target.has_value()) {
+        if (visit.metadata.source == vfs::Source::kArchiveMember) {
+          pack_saw_member = true;
+        } else if (visit.path == visit.root && visit.metadata.type == vfs::FileType::kDirectory) {
+          // The root directory itself is not an archive member.
+        } else if (visit.name != pack_basename || PackIdentity(visit.path) != pack_identity) {
+          pack_files.push_back({.source = std::string(visit.path), .name = PackMemberName(visit.path, visit.root)});
+        }
+      }
+      if (shards.enabled) {
+        const std::string_view path = visit.path;
+        const std::string_view::size_type slash = path.rfind('/');
+        const std::string_view dir = slash == std::string_view::npos ? std::string_view() : path.substr(0, slash);
+        const std::string_view base = slash == std::string_view::npos ? path : path.substr(slash + 1);
+        shard_buckets[std::string(dir)].push_back(
+            {.name = std::string(base),
+             .size = visit.metadata.size,
+             .mode = visit.metadata.mode,
+             .mtime = absl::ToUnixNanos(visit.metadata.mtime),
+             .root = std::string(visit.root),
+             .depth = visit.depth,
+             .metadata = visit.metadata});
+      }
+      const bool counted = *archive_aggregate == ArchiveAggregate::kBoth
+                           || (*archive_aggregate == ArchiveAggregate::kMembers && !visit.dived)
+                           || (*archive_aggregate == ArchiveAggregate::kContainer
+                               && visit.metadata.source != vfs::Source::kArchiveMember);
+      if (!shards.enabled && counted && !collections.Active()) {
+        const std::string link;
+        const fields::RenderContext key_ctx{
+            .path = visit.path,
+            .root = visit.root,
+            .link_target = link,
+            .metadata = visit.metadata,
+            .depth = visit.depth,
+            .fs = visit.fs != nullptr ? visit.fs : &walk_fs,
+            .tz = tz,
+            .time_format = time_format,
+            .zone_suffix = zone_suffix,
+            .hash_algorithm = hash_algorithm,
+            .hash_encoding = hash_encoding,
+            .defines = &defines,
+            .outputs = &outputs,
+            .fuzzy_score = fuzzy_score};
+        FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
+        FeedHistograms(histograms, histogram_cells, visit);
+      }
+    } else if (matched && implicit_print) {
+      const std::string_view entry_color =
+          colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();
+      if (is_tree) {
+        tree->Add(visit.path);
+      } else if (buffered && column_templates.empty() && !compiled_tmpl.has_value()) {
+        emit(table_stream->Add({std::string(visit.path)}));
+      } else if (!column_templates.empty() || compiled_tmpl.has_value()) {
+        std::string link;
+        if (visit.metadata.type == vfs::FileType::kSymlink) {
+          if (const absl::StatusOr<std::string> target = walk_fs.ReadLink(visit.path); target.ok()) {
+            link = *target;
+          }
+        }
+        const fields::RenderContext ctx{
+            .path = visit.path,
+            .root = visit.root,
+            .link_target = link,
+            .metadata = visit.metadata,
+            .depth = visit.depth,
+            .fs = visit.fs != nullptr ? visit.fs : &walk_fs,
+            .tz = tz,
+            .time_format = time_format,
+            .zone_suffix = zone_suffix,
+            .hash_algorithm = hash_algorithm,
+            .hash_encoding = hash_encoding,
+            .defines = &defines,
+            .outputs = &outputs,
+            .fuzzy_score = fuzzy_score};
+        if (!column_templates.empty()) {
+          std::vector<std::string> cells;
+          cells.reserve(column_templates.size());
+          for (const fields::Template& column : column_templates) {
+            cells.push_back(column.Render(ctx));
+          }
+          if (buffered) {
+            emit(table_stream->Add(cells));
+          } else {
+            emit_entry(render::EncodeTabularRow(format, cells));
+          }
+        } else {
+          emit_entry(compiled_tmpl->Render(ctx) + "\n");
+        }
+      } else {
+        emit_entry(render::Renderer(format, path_encoding).Record(visit.path, entry_color));
+      }
+    }
+  };
+
+  std::vector<TopCandidate> top_candidates;
+  std::size_t top_order = 0;
+  std::vector<const parser::Expr*> top_nodes;
+  if (expression != nullptr) {
+    AppendTopNodes(*expression, top_nodes);
+  }
+  std::map<const parser::Expr*, std::size_t> top_node_order;
+  for (std::size_t index = 0; index < top_nodes.size(); ++index) {
+    top_node_order.emplace(top_nodes[index], index);
+  }
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
       // NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
@@ -3319,126 +3622,28 @@ int RunFind(
             .mounts = &mounted_containers,
             .archive_deletions = archive_delete ? &archive_deletions : nullptr,
         };
-        const bool matched = expression == nullptr || Evaluate(*expression, eval_context);
-        if (matched && any_match != nullptr) {
-          *any_match = true;  // grep-style "found anything" -- the expression's truth, not output
-        }
-        if (matched && any_reduction) {
-          // --pack: this match becomes a member. A member of ANOTHER container has no path a writer
-          // could read, so it is remembered and refused after the walk rather than silently dropped;
-          // the output file itself is skipped, the way tar skips the archive it is writing.
-          if (pack_target.has_value()) {
-            if (visit.metadata.source == vfs::Source::kArchiveMember) {
-              pack_saw_member = true;
-            } else if (visit.path == visit.root && visit.metadata.type == vfs::FileType::kDirectory) {
-              // The search root itself has no name RELATIVE to itself, and storing its basename would
-              // put a stray `src` entry beside the `a.cc` its children are stored as - one that
-              // extracts as an empty directory nothing is in. A root that is a FILE is different: it
-              // is content the user pointed at, and keeps its basename below.
-            } else if (visit.name != pack_basename || PackIdentity(visit.path) != pack_identity) {
-              pack_files.push_back({.source = std::string(visit.path), .name = PackMemberName(visit.path, visit.root)});
-            }
-          }
-          // --shards buffers each match by its directory (grouping is per-directory); the sets are
-          // formed and emitted after the walk. The basename is stored so a ShardFile view stays valid.
-          if (shards.enabled) {
-            const std::string_view path = visit.path;
-            const std::string_view::size_type slash = path.rfind('/');
-            const std::string_view dir = slash == std::string_view::npos ? std::string_view() : path.substr(0, slash);
-            const std::string_view base = slash == std::string_view::npos ? path : path.substr(slash + 1);
-            shard_buckets[std::string(dir)].push_back(
-                {.name = std::string(base),
-                 .size = visit.metadata.size,
-                 .mode = visit.metadata.mode,
-                 .mtime = absl::ToUnixNanos(visit.metadata.mtime),
-                 .root = std::string(visit.root),
-                 .depth = visit.depth,
-                 .metadata = visit.metadata});
-          }
-          // --archive-aggregate: `members` drops the container whose members follow (its bytes are
-          // about to be counted as theirs), `container` drops the members instead. `both` counts
-          // everything, which is what unpacking the archive next to it would give.
-          const bool counted = *archive_aggregate == ArchiveAggregate::kBoth
-                               || (*archive_aggregate == ArchiveAggregate::kMembers && !visit.dived)
-                               || (*archive_aggregate == ArchiveAggregate::kContainer
-                                   && visit.metadata.source != vfs::Source::kArchiveMember);
-          // --summary / --histogram reduce matches instead of printing them; explicit
-          // actions (-print/-exec) still ran via Evaluate. In --shards mode the reductions
-          // aggregate per logical set instead (fed post-walk), so skip the per-file feed here.
-          if (!shards.enabled && counted && !collections.Active()) {
-            // Accumulate this entry into each --summary sink. The field-template render context is
-            // built once and shared: an m// extraction contributes a value stream (one count per
-            // extracted line, size not attributed -- a per-line key would double-count the file's
-            // size), a plain template one key per matched entry (size meaningful). {target} in a
-            // summary key is unsupported here (link_target left empty).
-            const std::string link;
-            const fields::RenderContext key_ctx{
-                .path = visit.path,
-                .root = visit.root,
-                .link_target = link,
-                .metadata = visit.metadata,
-                .depth = visit.depth,
-                .fs = visit.fs != nullptr ? visit.fs : &walk_fs,
-                .tz = tz,
-                .time_format = time_format,
-                .zone_suffix = zone_suffix,
-                .hash_algorithm = hash_algorithm,
-                .hash_encoding = hash_encoding,
-                .defines = &defines,
-                .outputs = &outputs,
-                .fuzzy_score = fuzzy_score};
-            FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
-            FeedHistograms(histograms, histogram_cells, visit);
-          }  // end if (!shards.enabled && counted)
-        } else if (matched && implicit_print) {
-          if (is_tree) {
-            tree->Add(visit.path);  // splice into the tree; rendered whole after the walk
-          } else if (buffered && column_templates.empty() && !compiled_tmpl.has_value()) {
-            // Buffered tabular (aligned/markdown) with the default single `path` column: no
-            // field vocabulary needed, so stream the raw path directly.
-            emit(table_stream->Add({std::string(visit.path)}));
-          } else if (!column_templates.empty() || compiled_tmpl.has_value()) {
-            // --columns / --template render through the field vocabulary; build the context
-            // once. {target} is a symlink's target (find %l), symlink-gated so a non-symlink
-            // costs no syscall; `link` owns the text for the Render.
-            std::string link;
-            if (visit.metadata.type == vfs::FileType::kSymlink) {
-              if (const absl::StatusOr<std::string> target = walk_fs.ReadLink(visit.path); target.ok()) {
-                link = *target;
-              }
-            }
-            const fields::RenderContext ctx{
-                .path = visit.path,
-                .root = visit.root,
-                .link_target = link,
-                .metadata = visit.metadata,
-                .depth = visit.depth,
-                .fs = visit.fs != nullptr ? visit.fs : &walk_fs,
-                .tz = tz,
-                .time_format = time_format,
-                .zone_suffix = zone_suffix,
-                .hash_algorithm = hash_algorithm,
-                .hash_encoding = hash_encoding,
-                .defines = &defines,
-                .outputs = &outputs,
-                .fuzzy_score = fuzzy_score};
-            if (!column_templates.empty()) {  // --columns: a tabular row of field values
-              std::vector<std::string> cells;
-              cells.reserve(column_templates.size());
-              for (const fields::Template& column : column_templates) {
-                cells.push_back(column.Render(ctx));
-              }
-              if (buffered) {  // aligned/markdown: stream through the buffer (windowed by --buffer)
-                emit(table_stream->Add(cells));
-              } else {
-                emit_entry(render::EncodeTabularRow(format, cells));
-              }
-            } else {  // --template overrides --format
-              emit_entry(compiled_tmpl->Render(ctx) + "\n");
-            }
-          } else {
-            emit_entry(render::Renderer(format, path_encoding).Record(visit.path, entry_color));
-          }
+        std::map<const parser::Expr*, EvaluationResult> evaluation_memo;
+        const std::map<const parser::Expr*, bool> top_results;
+        const parser::Expr* deferred_top = nullptr;
+        std::optional<int> deferred_top_score;
+        eval_context.top_results = &top_results;
+        eval_context.evaluation_memo = &evaluation_memo;
+        eval_context.deferred_top = &deferred_top;
+        eval_context.deferred_top_score = &deferred_top_score;
+        const EvaluationResult evaluated =
+            expression == nullptr ? EvaluationResult{.matched = true} : EvaluateDeferred(*expression, eval_context);
+        if (evaluated.deferred) {
+          top_candidates.push_back(
+              {.entry = OwnVisit(visit),
+               .captures = std::move(captures),
+               .outputs = std::move(outputs),
+               .memo = std::move(evaluation_memo),
+               .decisions = {},
+               .waiting_at = deferred_top,
+               .score = deferred_top_score.value_or(0),
+               .order = top_order++});
+        } else {
+          finish_entry(visit, outputs, evaluated.matched);
         }
         if (!control.unsupported.empty() && !unsupported_reported) {
           unsupported_reported = true;  // once per run, not per entry
@@ -3466,6 +3671,95 @@ int RunFind(
       mount_container);
   if (!status.ok()) {
     ++errors;  // Fatal traversal error (none today; per-path errors handled above).
+  }
+
+  // Resolve one deferred frontier at a time. A selected -top may expose another -top farther to the
+  // right; replay stops there and the next round selects that node's own independent candidate set.
+  // Completed-prefix memo entries keep stateful tests and actions before each frontier single-shot.
+  while (!top_candidates.empty()) {
+    ResolveTopRound(top_candidates, top_node_order);
+    std::vector<TopCandidate> next_round;
+    next_round.reserve(top_candidates.size());
+    for (TopCandidate& candidate : top_candidates) {
+      const Visit visit = candidate.entry.AsVisit();
+      Control control;
+      bool fold_name_case = false;
+      if (fs_native_case) {
+        auto [it, inserted] = case_sensitive_by_dev.try_emplace(visit.metadata.dev, true);
+        if (inserted) {
+          it->second = walk_fs.IsCaseSensitive(visit.path).value_or(true);
+        }
+        fold_name_case = !it->second;
+      }
+      const std::string_view entry_color =
+          colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();
+      fuzzy_score.reset();
+      const parser::Expr* deferred_top = nullptr;
+      std::optional<int> deferred_top_score;
+      EvalContext eval_context{
+          .visit = visit,
+          .emit = emit,
+          .emit_file = emit_file,
+          .emit_ls_row = emit_ls_row,
+          .ls_color = entry_color,
+          .ls_size_units = human,
+          .fs = visit.fs != nullptr ? *visit.fs : walk_fs,
+          .now = now,
+          .tz = tz,
+          .time_format = time_format,
+          .zone_suffix = zone_suffix,
+          .block_size = block_size,
+          .fold_name_case = fold_name_case,
+          .fuzzy_score = &fuzzy_score,
+          .top_results = &candidate.decisions,
+          .evaluation_memo = &candidate.memo,
+          .deferred_top = &deferred_top,
+          .deferred_top_score = &deferred_top_score,
+          .grep_count = grep_count,
+          .grep_before = grep_before,
+          .grep_after = grep_after,
+          .diff_algorithm = diff_algorithm,
+          .diff_ignore = diff_ignore,
+          .diff_ignore_matching = diff_ignore_matching,
+          .diff_format = diff_format,
+          .diff_context = diff_context,
+          .hash_algorithm = hash_algorithm,
+          .hash_encoding = hash_encoding,
+          .control = control,
+          .exec_fields = exec_fields,
+          .captures = exec_fields ? &candidate.captures : nullptr,
+          .defines = &defines,
+          .outputs = &candidate.outputs,
+          .first_counts = &first_counts,
+          .collections = &collections,
+          .confirm = confirm,
+          .exec_batches = &exec_batches,
+          .parallel_exec = options.workers > 1 ? &parallel_exec : nullptr,
+          .extract = archive_extract ? &extracted_members : nullptr,
+          .mounts = &mounted_containers,
+          .archive_deletions = archive_delete ? &archive_deletions : nullptr,
+      };
+      const EvaluationResult evaluated = EvaluateDeferred(*expression, eval_context);
+      if (evaluated.deferred) {
+        candidate.waiting_at = deferred_top;
+        candidate.score = deferred_top_score.value_or(0);
+        next_round.push_back(std::move(candidate));
+      } else {
+        finish_entry(visit, candidate.outputs, evaluated.matched);
+      }
+      if (!control.unsupported.empty() && !unsupported_reported) {
+        unsupported_reported = true;
+        if (skip_unsupported) {
+          on_error(visit.path, absl::FailedPreconditionError(absl::StrCat(control.unsupported, " (skipped)")));
+        } else {
+          on_error(
+              visit.path, absl::FailedPreconditionError(
+                              absl::StrCat(control.unsupported, "; use --skip-unsupported to skip such entries")));
+          ++errors;
+        }
+      }
+    }
+    top_candidates = std::move(next_round);
   }
 
   // Flush any -ls rows still buffered for alignment (a run shorter than the --buffer
