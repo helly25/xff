@@ -159,7 +159,8 @@ for pattern in "//xff/..." $(python3 tools/extras.py --wildcards) "@xff_extras_a
     | grep -E '^@@(//|xff_)' >>"${EXPECTED_SOURCES}" || true
 done
 
-python3 tools/fix_compile_commands.py compile_commands.json bazelmod/extras.MODULE.bazel --system="$(uname -s)" \
+python3 tools/fix_compile_commands.py compile_commands.json MODULE.bazel bazelmod/extras.MODULE.bazel \
+  --system="$(uname -s)" \
   --expect-sources="${EXPECTED_SOURCES}" \
   || die "post-processing compile_commands.json failed"
 
