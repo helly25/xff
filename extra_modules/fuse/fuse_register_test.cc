@@ -94,6 +94,24 @@ TEST_F(FuseRegisterTest, LinkingRegistersTheMountFactory) {
 #endif
 }
 
+TEST_F(FuseRegisterTest, ConcurrentMountsShareTheRunRootAndExposeMemberPaths) {
+#if defined(MEMORY_SANITIZER)
+  GTEST_SKIP() << "MSan cannot model the uninstrumented system libfuse3";
+#else
+  absl::StatusOr<std::unique_ptr<Mount>> first =
+      MountContainer(std::make_shared<FakeFileSystem>(), "/first/container.tar");
+  if (!first.ok()) {
+    GTEST_SKIP() << "FUSE mounting is unavailable here: " << first.status();
+  }
+  MBO_ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<Mount> second, MountContainer(std::make_shared<FakeFileSystem>(), "/second/container.tar"));
+  EXPECT_THAT(
+      (*first)->PathFor("member.txt"),
+      AllOf(HasSubstr("/container.tar/member.txt"), Not(HasSubstr("container.tar.1"))));
+  EXPECT_THAT(second->PathFor("member.txt"), HasSubstr("/container.tar.1/member.txt"));
+#endif
+}
+
 TEST_F(FuseRegisterTest, RegistersThisExtraAndNotLibfuse) {
   // The notice list attributes what xff USES. This extra is xff's own Apache-2.0 code, so IT is the
   // component to register; libfuse is not registered at all, because none of its code is used (the

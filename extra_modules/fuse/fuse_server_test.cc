@@ -55,6 +55,7 @@ namespace {
 using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
 using ::testing::Eq;
+using ::testing::HasSubstr;
 using ::testing::IsFalse;
 using ::testing::IsNull;
 using ::testing::IsTrue;
@@ -238,6 +239,18 @@ TEST_F(FuseServerTest, NullFileSystemIsRejectedBeforeLoadingFuse) {
   EXPECT_THAT(
       FuseServer::Mount(nullptr, std::string(FakeFileSystem::kRoot), ::testing::TempDir()),
       StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(FuseServerTest, AnInvalidMountPointReportsTheMountFailure) {
+  if (!FuseAvailable()) {
+    GTEST_SKIP() << "no fuse3 on this machine: " << FuseLoader::Instance().error();
+  }
+  const std::string absent =
+      (std::filesystem::path(::testing::TempDir()) / "xff-fuse-absent-mount-point" / "child").string();
+  std::filesystem::remove_all(std::filesystem::path(absent).parent_path());
+  EXPECT_THAT(
+      FuseServer::Mount(fs, std::string(FakeFileSystem::kRoot), absent),
+      StatusIs(absl::StatusCode::kInternal, HasSubstr("FUSE mount failed")));
 }
 
 TEST_F(FuseServerTest, TheMountedRootListsTheContainerRoot) {
