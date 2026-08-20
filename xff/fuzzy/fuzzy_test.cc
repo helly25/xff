@@ -135,6 +135,27 @@ TEST_F(FuzzyScoreTest, FzfExtendedSearchDistinguishesAllTermOperators) {
   EXPECT_THAT(FzfPercent("!fire", "music-fire.mp3", false), Eq(std::nullopt));
 }
 
+TEST_F(FuzzyScoreTest, FzfExtendedSearchMatchesUpstreamsCompoundParserCase) {
+  // This combines every operator exactly as fzf's TestParseTermsExtended does. In particular,
+  // `!'` means inverse FUZZY (not inverse exact), and each `|` extends only the adjacent OR set.
+  // https://github.com/junegunn/fzf/blob/master/src/pattern_test.go
+  constexpr std::string_view query = "aaa 'bbb ^ccc ddd$ !eee !'fff !^ggg !hhh$ | ^iii$ ^xxx | 'yyy | zzz$ | !ZZZ |";
+  EXPECT_THAT(FzfPercent(query, "ccc-aaabbb-ddd", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent(query, "ccc-aaabbb-fff-ddd", false), Eq(std::nullopt));
+  EXPECT_THAT(FzfPercent(query, "ccc-aaabbb-eee-ddd", false), Eq(std::nullopt));
+  EXPECT_THAT(FzfPercent(query, "xxx-ccc-aaabbb-ddd", false), Eq(std::nullopt));
+}
+
+TEST_F(FuzzyScoreTest, FzfAnchorsIgnoreCandidateEdgeWhitespaceLikeUpstream) {
+  // fzf's PrefixMatch, SuffixMatch, and EqualMatch ignore candidate edge whitespace unless the
+  // query explicitly begins or ends in whitespace. EqualMatch's own upstream test pins all three.
+  // https://github.com/junegunn/fzf/blob/master/src/pattern_test.go#L83
+  EXPECT_THAT(FzfPercent("^AbC$", "AbC", false), Optional(Eq(100)));
+  EXPECT_THAT(FzfPercent("^AbC$", "  AbC  ", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent("^AbC$", "ABC", false), Eq(std::nullopt));
+  EXPECT_THAT(FzfPercent("^music .mp3$", "  music-box.mp3  ", false), Optional(AllOf(Ge(0), Le(100))));
+}
+
 TEST_F(FuzzyScoreTest, FzfExtendedSearchPreservesEscapedSpaces) {
   EXPECT_THAT(FzfPercent("foo\\ bar baz", "prefix foo bar and baz", false), Optional(AllOf(Ge(0), Le(100))));
   EXPECT_THAT(FzfPercent("foo\\ bar baz", "foo_then_bar-baz", false), Eq(std::nullopt));
