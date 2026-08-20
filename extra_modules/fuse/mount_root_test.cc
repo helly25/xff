@@ -19,6 +19,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -33,10 +34,13 @@ namespace {
 
 namespace stdfs = std::filesystem;
 
+using ::mbo::testing::StatusIs;
 using ::testing::AllOf;
 using ::testing::EndsWith;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
+using ::testing::IsFalse;
+using ::testing::IsTrue;
 using ::testing::UnorderedElementsAre;
 
 struct MountRootTest : ::testing::Test {
@@ -64,11 +68,20 @@ TEST_F(MountRootTest, CreateMakesThePerRunTreeAndTheDestructorRemovesIt) {
     MBO_ASSERT_OK_AND_ASSIGN(const MountRoot root, MountRoot::Create(options_));
     path = std::string(root.path());
     EXPECT_THAT(path, AllOf(HasSubstr(absl::StrCat(base_, "/xff/")), EndsWith(absl::StrCat("/", ::getpid()))));
-    EXPECT_TRUE(stdfs::is_directory(path));
+    EXPECT_THAT(stdfs::is_directory(path), IsTrue());
   }
-  EXPECT_FALSE(stdfs::exists(path));
+  EXPECT_THAT(stdfs::exists(path), IsFalse());
   // The shared `<base>/xff/` level survives the run: it is every run's parent, never one run's own.
-  EXPECT_TRUE(stdfs::is_directory(absl::StrCat(base_, "/xff")));
+  EXPECT_THAT(stdfs::is_directory(absl::StrCat(base_, "/xff")), IsTrue());
+}
+
+TEST_F(MountRootTest, CreateReportsWhenTheSharedBaseCannotBeCreated) {
+  const std::string shared_base = absl::StrCat(base_, "/xff");
+  std::ofstream blocker(shared_base);
+  blocker << "not a directory";
+  blocker.close();
+  EXPECT_THAT(
+      MountRoot::Create(options_), StatusIs(absl::StatusCode::kUnavailable, HasSubstr("cannot create the mount root")));
 }
 
 TEST_F(MountRootTest, MountPointsUseTheBasenameAndDisambiguateDuplicates) {
@@ -77,8 +90,25 @@ TEST_F(MountRootTest, MountPointsUseTheBasenameAndDisambiguateDuplicates) {
   MBO_ASSERT_OK_AND_ASSIGN(const std::string second, root.MountPointFor("/other/box.tgz"));
   EXPECT_THAT(first, EndsWith("/box.tgz"));
   EXPECT_THAT(second, EndsWith("/box.tgz.1"));
-  EXPECT_TRUE(stdfs::is_directory(first));
-  EXPECT_TRUE(stdfs::is_directory(second));
+  EXPECT_THAT(stdfs::is_directory(first), IsTrue());
+  EXPECT_THAT(stdfs::is_directory(second), IsTrue());
+}
+
+TEST_F(MountRootTest, MountPointAcceptsAContainerWithoutAParentPath) {
+  MBO_ASSERT_OK_AND_ASSIGN(MountRoot root, MountRoot::Create(options_));
+  MBO_ASSERT_OK_AND_ASSIGN(const std::string point, root.MountPointFor("box.tgz"));
+  EXPECT_THAT(point, EndsWith("/box.tgz"));
+}
+
+TEST_F(MountRootTest, MountPointReportsANameCollision) {
+  MBO_ASSERT_OK_AND_ASSIGN(MountRoot root, MountRoot::Create(options_));
+  const std::string collision = absl::StrCat(root.path(), "/box.tgz");
+  std::ofstream blocker(collision);
+  blocker << "not a directory";
+  blocker.close();
+  EXPECT_THAT(
+      root.MountPointFor("box.tgz"),
+      StatusIs(absl::StatusCode::kUnavailable, HasSubstr("cannot create the mount point")));
 }
 
 TEST_F(MountRootTest, AMovedFromRootOwnsNothing) {
@@ -89,7 +119,19 @@ TEST_F(MountRootTest, AMovedFromRootOwnsNothing) {
     EXPECT_THAT(taken.path(), path);
   }
   // `taken` removed the tree; the moved-from `root` destructing later must not touch anything.
-  EXPECT_FALSE(stdfs::exists(path));
+  EXPECT_THAT(stdfs::exists(path), IsFalse());
+}
+
+TEST_F(MountRootTest, MoveAssignmentTransfersOwnership) {
+  MBO_ASSERT_OK_AND_ASSIGN(MountRoot source, MountRoot::Create(options_));
+  const std::string source_path(source.path());
+  MountRoot destination = std::move(source);
+  const MountRootOptions other_options{.base_override = absl::StrCat(base_, "/other")};
+  MBO_ASSERT_OK_AND_ASSIGN(MountRoot replacement, MountRoot::Create(other_options));
+  const std::string replaced_path(replacement.path());
+  replacement = std::move(destination);
+  EXPECT_THAT(replacement.path(), source_path);
+  EXPECT_THAT(stdfs::exists(replaced_path), IsFalse());
 }
 
 TEST_F(MountRootTest, StaleRootsFindsDeadPidsAndLeavesTheLivingAndTheForeign) {
@@ -101,6 +143,7 @@ TEST_F(MountRootTest, StaleRootsFindsDeadPidsAndLeavesTheLivingAndTheForeign) {
   std::error_code error;
   stdfs::create_directories(dead, error);
   stdfs::create_directories(foreign, error);
+  const std::ofstream foreign_file(absl::StrCat(base_, "/xff/123-not-a-directory"));
   EXPECT_THAT(StaleRoots(options_), UnorderedElementsAre(dead));
 }
 
@@ -114,7 +157,7 @@ TEST_F(MountRootTest, SweepUnmountsEachMountPointThenRemovesTheRoot) {
       SweepStaleRoots([&unmounted](std::string_view point) { unmounted.emplace_back(point); }, options_);
   EXPECT_THAT(removed, 1U);
   EXPECT_THAT(unmounted, UnorderedElementsAre(absl::StrCat(dead, "/box.tgz"), absl::StrCat(dead, "/other.zip")));
-  EXPECT_FALSE(stdfs::exists(dead));
+  EXPECT_THAT(stdfs::exists(dead), IsFalse());
 }
 
 TEST_F(MountRootTest, SweepingNothingIsANoOp) {

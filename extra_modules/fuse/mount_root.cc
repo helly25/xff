@@ -88,6 +88,13 @@ MountRoot::MountRoot(MountRoot&& other) noexcept
     : path_(std::exchange(other.path_, {})), base_(std::exchange(other.base_, {})), next_(other.next_) {}
 
 MountRoot& MountRoot::operator=(MountRoot&& other) noexcept {
+  if (this == &other) {
+    return *this;
+  }
+  if (!path_.empty()) {
+    std::error_code ignored;
+    stdfs::remove_all(path_, ignored);
+  }
   path_ = std::exchange(other.path_, {});
   base_ = std::exchange(other.base_, {});
   next_ = other.next_;

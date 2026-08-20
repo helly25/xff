@@ -83,6 +83,17 @@ TEST_F(Pcre2BackendTest, LookaheadMatchesAndFindsSpan) {
       backend->FindFirst("x foobar"), Optional(Pair(Eq(2U), Eq(3U))));  // just "foo", the lookahead is zero-width
 }
 
+TEST_F(Pcre2BackendTest, EmptyPatternMatchesAnEmptySubject) {
+  ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> backend, MakePcre2Backend("", false));
+  EXPECT_THAT(backend->FullMatch(""), IsTrue());
+  EXPECT_THAT(backend->FindFirst(""), Optional(Pair(Eq(0U), Eq(0U))));
+}
+
+TEST_F(Pcre2BackendTest, FindFirstReturnsNothingWhenThePatternDoesNotMatch) {
+  ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> backend, MakePcre2Backend("needle", false));
+  EXPECT_THAT(backend->FindFirst("haystack"), Eq(std::nullopt));
+}
+
 TEST_F(Pcre2BackendTest, FullMatchAnchorsBothEnds) {
   ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> backend, MakePcre2Backend("a.c", false));
   EXPECT_THAT(backend->FullMatch("abc"), IsTrue());
@@ -101,11 +112,34 @@ TEST_F(Pcre2BackendTest, FullMatchCapturesReturnsGroups) {
   EXPECT_FALSE(backend->FullMatchCaptures("nope").has_value());
 }
 
+TEST_F(Pcre2BackendTest, FullMatchCapturesRepresentsANonParticipatingGroupAsEmpty) {
+  ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> backend, MakePcre2Backend("(a)?b", false));
+  EXPECT_THAT(backend->FullMatchCaptures("b"), Optional(ElementsAre("b", "")));
+}
+
 TEST_F(Pcre2BackendTest, RewriteUsesRe2StyleBackrefs) {
   // The Rewrite contract is RE2 syntax (\1); the backend translates to PCRE2's $1 internally.
   ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> backend, MakePcre2Backend("(\\w+)@(\\w+)", false));
   EXPECT_THAT(backend->Rewrite("user@host", "\\2.\\1", /*global=*/false), "host.user");
   EXPECT_THAT(backend->Rewrite("a@b c@d", "<\\1>", /*global=*/true), "<a> <c>");
+}
+
+TEST_F(Pcre2BackendTest, RewritePreservesLiteralReplacementCharacters) {
+  ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> backend, MakePcre2Backend("(a)", false));
+  EXPECT_THAT(backend->Rewrite("a", R"(\1-$)", /*global=*/false), "a-$");
+  EXPECT_THAT(backend->Rewrite("a", R"(\q)", /*global=*/false), "q");
+  EXPECT_THAT(backend->Rewrite("a", R"(\\)", /*global=*/false), R"(\)");
+}
+
+TEST_F(Pcre2BackendTest, RewriteGrowsItsOutputBuffer) {
+  ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> backend, MakePcre2Backend("a", false));
+  const std::string replacement(100, 'x');
+  EXPECT_THAT(backend->Rewrite("a", replacement, /*global=*/false), Eq(replacement));
+}
+
+TEST_F(Pcre2BackendTest, InvalidReplacementLeavesTheTextUnchanged) {
+  ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> backend, MakePcre2Backend("(a)", false));
+  EXPECT_THAT(backend->Rewrite("a", R"(\9)", /*global=*/false), "a");
 }
 
 TEST_F(Pcre2BackendTest, CaseInsensitiveFolds) {
