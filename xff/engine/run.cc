@@ -1193,6 +1193,29 @@ absl::Status ValidateTopRanking(const parser::Expr* expression) {
   return absl::OkStatus();
 }
 
+absl::StatusOr<std::optional<std::size_t>> ResolveMaxResults(const std::vector<std::string>& globals) {
+  std::optional<std::size_t> limit;
+  for (const std::string& global : globals) {
+    if (global == "--max-results") {
+      return absl::InvalidArgumentError("expects '=N'");
+    }
+    constexpr std::string_view kPrefix = "--max-results=";
+    if (!global.starts_with(kPrefix)) {
+      continue;
+    }
+    std::int64_t parsed = 0;
+    const std::string_view value = std::string_view(global).substr(kPrefix.size());
+    if (!absl::SimpleAtoi(value, &parsed)) {
+      return absl::InvalidArgumentError(absl::StrCat("expects a count, got '", value, "'"));
+    }
+    if (parsed < 0) {
+      return absl::InvalidArgumentError(absl::StrCat("count cannot be negative, got '", value, "'"));
+    }
+    limit = static_cast<std::size_t>(parsed);
+  }
+  return limit;
+}
+
 // The pre-walk gate for result-set shaping: every rule that must hold before a single entry is
 // visited. Reports through `on_error` and answers whether to proceed, so RunFind carries ONE gate
 // however many rules there are - a new rule is added here instead of by growing RunFind, which is
@@ -3205,6 +3228,11 @@ int RunFind(
                                                     : std::string_view(pack_identity).substr(slash + 1);
   }
   const bool any_reduction = !summaries.empty() || !histograms.empty() || shards.enabled || pack_target.has_value();
+  const absl::StatusOr<std::optional<std::size_t>> max_results = ResolveMaxResults(command.globals);
+  if (!max_results.ok()) {
+    on_error("--max-results", max_results.status());
+    return 2;
+  }
   // --archive-aggregate: what a reduction counts when the walk dives. Only `members` needs the walk to
   // open a container before its own entry is visited (see WalkOptions::mount_before_visit), and only
   // when there is a reduction to feed, so an ordinary run never pays for it.
@@ -3399,6 +3427,7 @@ int RunFind(
   // or the InvalidArgument that means "an ordinary file after all". Passed unconditionally because
   // `options.archive` decides whether it is ever called.
   const auto mount_container = MakeContainerMounter(walk_fs, member_path_options, archive_any);
+  std::size_t listed_results = 0;
 
   // Completes the run-level consequences of one fully evaluated entry. Deferred -top candidates
   // call this after their exact selection pass; ordinary entries call it directly from the walk.
@@ -3457,7 +3486,8 @@ int RunFind(
         FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
         FeedHistograms(histograms, histogram_cells, visit);
       }
-    } else if (matched && implicit_print) {
+    } else if (matched && implicit_print && (!max_results->has_value() || listed_results < **max_results)) {
+      ++listed_results;
       const std::string_view entry_color =
           colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();
       if (is_tree) {

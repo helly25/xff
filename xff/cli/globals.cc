@@ -1052,6 +1052,22 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .affects = "-grep",
     },
     {
+        .name = "--max-results",
+        .display = "--max-results=N",
+        .group = "output",
+        .header = "Output",
+        .summary = "list at most N matched entries without stopping or truncating reductions",
+        .details =
+            "Caps the implicit result listing after the whole expression, across every branch and every "
+            "per-instance `-first` / `-top` filter. It does NOT stop traversal: `--summary`, `--histogram`, "
+            "`--count`, and archive packing still see the complete matched set rather than silently reporting a "
+            "partial walk. Explicit expression actions (`-print`, `-grep`, `-exec`, and friends) keep their own "
+            "positional semantics and are not suppressed; use `-first` or `-top` before an action to cap the entries "
+            "that reach it. With one capped filter this flag is usually redundant; its distinct use is an aggregate "
+            "ceiling such as `\\( -type f -first 10 \\) -o \\( -type d -first 5 \\) --max-results=12`. Last "
+            "occurrence wins. A malformed or negative count is a usage error; `0` lists none.",
+    },
+    {
         .name = "--top",
         .display = "--top=N",
         .group = "output",

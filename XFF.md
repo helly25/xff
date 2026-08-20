@@ -314,6 +314,8 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   Affects: -grep
 - `--before-context=N` - with -grep, print N lines of context before each match (= --context=B:N) _(global, xff)_
   Affects: -grep
+- `--max-results=N` - list at most N matched entries without stopping or truncating reductions _(global, xff)_
+  Caps the implicit result listing after the whole expression, across every branch and every per-instance `-first` / `-top` filter. It does NOT stop traversal: `--summary`, `--histogram`, `--count`, and archive packing still see the complete matched set rather than silently reporting a partial walk. Explicit expression actions (`-print`, `-grep`, `-exec`, and friends) keep their own positional semantics and are not suppressed; use `-first` or `-top` before an action to cap the entries that reach it. With one capped filter this flag is usually redundant; its distinct use is an aggregate ceiling such as `\( -type f -first 10 \) -o \( -type d -first 5 \) --max-results=12`. Last occurrence wins. A malformed or negative count is a usage error; `0` lists none.
 - `--top=N` - with --summary or --histogram, keep only the N largest/tallest groups _(global, xff)_
 - `--histogram-width=N` - cell width the tallest --histogram bar fills (default 40) _(global, xff)_
   Affects: --histogram
