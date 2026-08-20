@@ -5,6 +5,9 @@
 
 ## Matching
 
+- Add `--max-results=N`, an aggregate ceiling for the implicit result listing across expression
+  branches and independent `-first` / `-top` filters. It does not stop the walk or truncate
+  reductions; explicit expression actions retain their positional semantics.
 - Add exact expression-level `-top N` fuzzy result selection. Each use keeps its own stable best-N
   set; actions before it run while traversing and actions after it run only for the selected entries.
   Mixed fuzzy models or thresholds are rejected rather than silently imposing an arbitrary order.

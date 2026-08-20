@@ -512,9 +512,9 @@ must print the skip line, and must NOT print it without the flag).
 
 ## Result-set shaping: -first, -top, -collect, --max-results (design of record, 2026-08-17)
 
-Ratified with the user. Supersedes the `--top=N` / `--fuzzy-cutoff` sketch: **none of these are
+Ratified with the user. Supersedes the `--top=N` / `--fuzzy-cutoff` sketch: **the first three are not
 globals.** They are expression primaries, because the interesting behaviour is per-invocation and
-positional, which a whole-run flag cannot express.
+positional, which a whole-run flag cannot express. `--max-results` is the aggregate exception.
 
 ### The insight that shapes everything else
 
@@ -629,7 +629,15 @@ one level up; an early stop stays an explicit opt-in.
    means `0%`), and malformed / negative counts fail before traversal while zero keeps none. Complex
    end-to-end coverage pins exact ranking, before/after actions, independent nodes, late candidates,
    collection order, invalid domains, and zero.
-4. **`--max-results`** - once more than one cap can be active, so the flag has a reason to exist.
+4. **`--max-results` SHIPPED (2026-08-20).** The aggregate ceiling applies to the implicit result
+   listing after the complete expression, across branches and independent caps. It does not stop the
+   walk or truncate reductions, so summaries, histograms, counts, and packing remain complete.
+   Explicit actions retain expression semantics: a global cannot retrospectively suppress `-print`
+   or `-grep` records already emitted while deciding the expression, and `-exec` is not a listing;
+   put `-first` / `-top` before an action to cap what reaches it. Last occurrence wins, zero lists
+   none, and missing / malformed / negative counts are pre-walk usage errors. End-to-end coverage
+   pins the 10-files-or-5-directories capped-to-12 case, complete reductions, explicit actions, last
+   wins, zero, and every invalid form.
 
 ## Silence external warnings in the EXEC configuration too (from helly25/mbo#332) - SHIPPED
 
@@ -2062,7 +2070,7 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
          names the streaming formats that do work. Only the listing is reordered; `-exec` and friends
          still run during the walk, so their output stays where it happened.
        - **Result-set shaping is now its own pinned design, below** (`-first`, `-top`, `-collect`,
-         `--max-results`). `-first`, `-top`, and `-collect` are shipped. What started as
+         `--max-results`). The complete family is shipped. What started as
          "`--top=N`, probably" turned out to be a family, and to belong in the EXPRESSION rather
          than in globals.
      - **A path-matching variant: `-fuzzypath` / `-ifuzzypath` SHIPPED.** The `-path` to `-fuzzy`'s
