@@ -20,10 +20,11 @@ module(
     version = "0.0.0",
 )
 
-# The extras, exposed to Starlark. //:refresh_compile_commands must name every extra module, and
-# `//...` does not match another module, so the list is DERIVED from the local_path_override entries
-# below rather than hand-kept - see tools/extras_repo.bzl (and tools/extras.py, which derives the same
-# list for the shell).
+# The removable extras are explicit local modules: `//...` cannot match another module, so their
+# include is also the single source from which CI and compile-command tooling derive the complete
+# list. A minimal source archive removes this one include together with extra_modules/.
+include("//bazelmod:extras.MODULE.bazel")
+
 extras_extension = use_extension("//tools:extras_repo.bzl", "extras_extension")
 use_repo(extras_extension, "xff_extras")
 
@@ -48,36 +49,7 @@ local_path_override(
     path = "xff_extras_api",
 )
 
-# NOTE: these declarations cannot be replaced by extras self-registering through a module extension.
-# An extension sees a module's tags only after that module is already reachable from this root graph;
-# without the bazel_dep the extra is invisible, while keeping the bazel_dep and deleting its local
-# path fails during repository mapping before any extension runs. The minimal-package CI therefore
-# removes these declarations together with extra_modules/; see the resolved spike in TODO.md.
-#
-# Because a local_path_override path is INSIDE the main repo tree, the main repo would ALSO
-# glob it as its own package (//extra_modules/pcre2:...) - a dual view whose main-repo side can't see
-# the module's @pcre2 dep. MODULE.bazel (and a REPO.bazel marker) do not stop that; `extra_modules`
-# is in //.bazelignore so only @xff_pcre2 owns the dir. Keep new extra dirs under extra_modules/.
-bazel_dep(name = "xff_pcre2", version = "0.0.0")
-local_path_override(
-    module_name = "xff_pcre2",
-    path = "extra_modules/pcre2",
-)
-
-bazel_dep(name = "xff_archive", version = "0.0.0")
-local_path_override(
-    module_name = "xff_archive",
-    path = "extra_modules/archive",
-)
-
-bazel_dep(name = "xff_fuse", version = "0.0.0")
-local_path_override(
-    module_name = "xff_fuse",
-    path = "extra_modules/fuse",
-)
-
 bazel_dep(name = "helly25_mbo", version = "0.13.0")
-
 bazel_dep(name = "helly25_bashtest", version = "0.6.0")
 git_override(
     module_name = "helly25_bashtest",

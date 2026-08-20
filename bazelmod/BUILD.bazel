@@ -17,5 +17,6 @@ package(default_visibility = [])
 
 exports_files([
     "dev.MODULE.bazel",
+    "extras.MODULE.bazel",
     "llvm.MODULE.bazel",
 ])

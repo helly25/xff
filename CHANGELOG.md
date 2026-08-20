@@ -5,6 +5,12 @@
 
 ## Matching
 
+- `--help=styles` now documents xff's command-line grammar: double-dash whole-run flags versus
+  single-dash expression primaries, where global hoisting stops, and why the deliberate `-n` / `-p`
+  pair does not establish automatic one-letter aliases for other primaries.
+- Fzf compatibility tests now pin exact normalized scores for documented compound queries and
+  nearby boundary/gap variations, rather than merely checking that successful scores lie in range.
+  End-to-end `-top` and `--max-results` tests likewise pin complete ordered output.
 - `-fuzzy=fzf` now follows fzf's operator precedence for compound inverse, quote,
   anchor, and OR expressions, and its anchors ignore whitespace at the corresponding
   candidate edge. Tests carry fzf's documented compound query and upstream parser cases.
@@ -36,6 +42,9 @@
 
 ## Archives
 
+- Native phar `.phar/stub.php` is explicitly part of the ordinary member model, including fields
+  and statistics. A stored member at that reserved path wins over the synthetic stub, preserving
+  one entry per path; help also distinguishes archive-write permission from an operation that uses it.
 - `--archive` / `-z` dives for real in a build with the archive extra
   (`--//xff:xff_archive`): a container is visited as the file it is and then descends like
   a directory, so its members are ordinary entries at `container!member` paths that

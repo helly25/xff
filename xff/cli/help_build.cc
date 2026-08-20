@@ -342,8 +342,16 @@ Section TimeSection() {
 }
 
 Section SizeSection() {
-  return VocabSection(
+  Section section = VocabSection(
       "Size units", "Units for -size / -blocks [+|-]N[unit]; spell SI and IEC explicitly.", engine::SizeUnitDocs());
+  section.children.push_back(ProseOf(
+      "All byte counts use an unsigned 64-bit value, so the largest representable size is "
+      "`18446744073709551615 B` (about `18.45 EB`, just under `16 EiB`). A number multiplied by its "
+      "unit must fit that range: `18EB` and `15EiB` fit, while `19EB` and `16EiB` overflow and are "
+      "usage errors. `ZB` and `ZiB` are not accepted because one zettabyte/zebibyte already exceeds "
+      "the representation; listing their suffixes would promise a unit for which no positive whole "
+      "value can be represented."));
+  return section;
 }
 
 Section GrammarsSection() {
@@ -467,9 +475,12 @@ Section ArchiveSection(bool in_full) {
       "`--dry-run` still apply."));
   modes.children.push_back(ProseOf(
       "Later wins, per axis, which is what makes the two useful together: `-Z++ -z-` arms writing "
-      "with reading OFF - write archives without diving into existing ones to harvest members - "
-      "while `-Z-` is the full reset, turning reading off AND disarming writing whatever an earlier "
-      "flag or a config file asked for. A lower-case form never disarms; only `-Z-` does."));
+      "with reading OFF. Permission alone performs no operation: with diving enabled it is consumed "
+      "by member-mutating actions such as `-delete` or the exec family; with diving off it has no "
+      "observable effect unless the run also names a creation sink such as `--pack`. Creating a new "
+      "archive does not itself require member-write permission, because it does not mutate an "
+      "existing member. `-Z-` is the full reset, turning reading off AND disarming writing whatever "
+      "an earlier flag or a config file asked for. A lower-case form never disarms; only `-Z-` does."));
   modes.children.push_back(
       Content{
           .node = Example{
@@ -495,6 +506,14 @@ Section ArchiveSection(bool in_full) {
       "identity at the same time - it is a real `-type f` you can match and delete - so a dive shows "
       "you both, which is also why `--archive-aggregate` exists: a reduction that counted the "
       "container AND its members would describe no filesystem that exists."));
+  identity.children.push_back(ProseOf(
+      "Format-defined file-like parts use that same entry model. A native phar's executable stub is "
+      "the readable regular entry `.phar/stub.php`, so it can be matched, searched, formatted, and "
+      "included in `--summary` / `--histogram` like any other member. There is never a second entry "
+      "with the same path: if the manifest stores `.phar/stub.php` explicitly, that stored member "
+      "wins over the synthetic view. Incidental metadata that the format does not model as a file is "
+      "not invented as one. A future visibility option would control presentation of these parts; it "
+      "must not create duplicate path identities."));
   identity.children.push_back(ProseOf(
       "Members are READ-ONLY by default. `-delete` and the exec family refuse one rather than "
       "silently doing nothing, because a member has no path a process can open and no way to be "

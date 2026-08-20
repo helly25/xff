@@ -166,6 +166,32 @@ std::string RenderComingFrom() {
   return out;
 }
 
+// The grammar contract behind xff's spellings. This belongs in --help=styles because style is more
+// than a bundle of defaults: it also answers why a familiar-looking short exists, why another one
+// deliberately does not, and whether a token configures the whole run or participates in the
+// expression. Keep the boundary explicit so one convenient alias cannot accidentally establish a
+// policy of assigning every primary its first unused letter.
+std::string RenderSyntaxConventions(const xff::cli::HelpRenderContext& context) {
+  constexpr std::string_view kPosition =
+      "Double-dash globals are position-independent at parser boundaries: they may precede roots, "
+      "sit among them, or follow expression nodes. They are not taken out of a primary's argument "
+      "run: between -exec and its closing ; or +, for example, --flag belongs to the child command. "
+      "A bare -- ends option parsing and disables later global hoisting.";
+  constexpr std::string_view kAliases =
+      "Short aliases are exceptional, not generated from first letters. -n/-p are retained as the "
+      "frequent symmetric basename/whole-path glob pair (-name/-path); exact-token parsing keeps -p "
+      "distinct from -print, -prune, and -printf. That does not imply -r, -x, -c, or -f: each has "
+      "multiple plausible meanings. A new short needs a compelling compatibility or usage case and "
+      "one unambiguous meaning. fd's -p is --full-path, so the table below maps it to xff's -path; "
+      "xff's -p is its own primary alias, not a claim of fd command-line compatibility.";
+  return absl::StrCat(
+      "Flag and primary conventions:\n"
+      "  --flag          configures the whole run (output, traversal, or another global mode)\n"
+      "  -primary        is part of the per-entry expression: a test, action, or operator\n"
+      "  -h/-help/etc.   compatibility aliases for established global spellings, not new primaries\n\n",
+      xff::cli::WrapText(kPosition, context.width, "", ""), "\n", xff::cli::WrapText(kAliases, context.width, "", ""));
+}
+
 // The --help=extras topic: the optional build-time features and whether THIS binary links each.
 // Availability is per-binary, so this is a runtime topic (not folded into the static --help=full /
 // man / markdown reference). PCRE2 is the --regextype value extra (regex::Pcre2Available, from the
@@ -239,7 +265,8 @@ std::string FullReference(xff::cli::HelpRenderContext context) {
 // self-referential full/long, so there is no recursion).
 absl::StatusOr<std::string> RenderTopic(std::string_view topic, xff::cli::HelpRenderContext context) {
   if (topic == "styles" || topic == "flavors") {
-    return absl::StrCat(RenderFlavorTable({}, std::nullopt), "\n", RenderComingFrom());
+    return absl::StrCat(
+        RenderFlavorTable({}, std::nullopt), "\n", RenderSyntaxConventions(context), "\n", RenderComingFrom());
   }
   // The sub-vocabulary topics (fields / printf / time / size / grammars) and the index
   // topics (list / all / expressions) render from the model so they wrap + indent.

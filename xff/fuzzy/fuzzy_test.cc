@@ -108,7 +108,7 @@ TEST_F(FuzzyScoreTest, FzfExtendedSearchCombinesSpaceSeparatedTerms) {
   // sigils choose prefix, suffix, and inverse-exact matching.
   // https://github.com/junegunn/fzf#search-syntax
   constexpr std::string_view query = "^music .mp3$ sbtrkt !fire";
-  EXPECT_THAT(FzfPercent(query, "music-subtrakktor.mp3", true), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent(query, "music-subtrakktor.mp3", true), Optional(Eq(75)));
   EXPECT_THAT(FzfPercent(query, "old-music-subtrakktor.mp3", true), Eq(std::nullopt));
   EXPECT_THAT(FzfPercent(query, "music-fire-subtrakktor.mp3", true), Eq(std::nullopt));
   EXPECT_THAT(FzfPercent(query, "music-subtrakktor.flac", true), Eq(std::nullopt));
@@ -117,9 +117,9 @@ TEST_F(FuzzyScoreTest, FzfExtendedSearchCombinesSpaceSeparatedTerms) {
 TEST_F(FuzzyScoreTest, FzfExtendedSearchSupportsDocumentedOrGroups) {
   // This is the compound OR example from fzf's search-syntax documentation.
   constexpr std::string_view query = "^core go$ | rb$ | py$";
-  EXPECT_THAT(FzfPercent(query, "core.go", false), Optional(AllOf(Ge(0), Le(100))));
-  EXPECT_THAT(FzfPercent(query, "core.rb", false), Optional(AllOf(Ge(0), Le(100))));
-  EXPECT_THAT(FzfPercent(query, "core.py", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent(query, "core.go", false), Optional(Eq(89)));
+  EXPECT_THAT(FzfPercent(query, "core.rb", false), Optional(Eq(89)));
+  EXPECT_THAT(FzfPercent(query, "core.py", false), Optional(Eq(89)));
   EXPECT_THAT(FzfPercent(query, "more.py", false), Eq(std::nullopt));
   EXPECT_THAT(FzfPercent(query, "core.cc", false), Eq(std::nullopt));
 }
@@ -140,7 +140,13 @@ TEST_F(FuzzyScoreTest, FzfExtendedSearchMatchesUpstreamsCompoundParserCase) {
   // `!'` means inverse FUZZY (not inverse exact), and each `|` extends only the adjacent OR set.
   // https://github.com/junegunn/fzf/blob/master/src/pattern_test.go
   constexpr std::string_view query = "aaa 'bbb ^ccc ddd$ !eee !'fff !^ggg !hhh$ | ^iii$ ^xxx | 'yyy | zzz$ | !ZZZ |";
-  EXPECT_THAT(FzfPercent(query, "ccc-aaabbb-ddd", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent(query, "ccc-aaabbb-ddd", false), Optional(Eq(79)));
+  // Immediate variations prove that the compound parser feeds the scoring model rather than merely
+  // returning an in-range sentinel. Separating the exact `bbb` term improves its boundary bonus;
+  // spreading `aaa` apart weakens its fuzzy alignment.
+  EXPECT_THAT(FzfPercent(query, "ccc-aaa-bbb-ddd", false), Optional(Eq(83)));
+  EXPECT_THAT(FzfPercent(query, "ccc-xaaxax-bbb-ddd", false), Optional(Eq(69)));
+  EXPECT_THAT(FzfPercent(query, "ccc-aaabbb-x-ddd", false), Optional(Eq(79)));
   EXPECT_THAT(FzfPercent(query, "ccc-aaabbb-fff-ddd", false), Eq(std::nullopt));
   EXPECT_THAT(FzfPercent(query, "ccc-aaabbb-eee-ddd", false), Eq(std::nullopt));
   EXPECT_THAT(FzfPercent(query, "xxx-ccc-aaabbb-ddd", false), Eq(std::nullopt));
@@ -164,11 +170,22 @@ TEST_F(FuzzyScoreTest, FzfExtendedSearchPreservesEscapedSpaces) {
 TEST_F(FuzzyScoreTest, FzfScoringMatchesPublishedRealWorldCases) {
   // Candidate/query pairs maintained by fzf itself exercise camel humps, word boundaries, and path
   // separators. They are drawn from src/algo/algo_test.go in the upstream fzf repository.
-  EXPECT_THAT(FzfPercent("oBZ", "fooBarbaz1", true), Optional(AllOf(Ge(0), Le(100))));
-  EXPECT_THAT(FzfPercent("fbb", "foo bar baz", false), Optional(AllOf(Ge(0), Le(100))));
-  EXPECT_THAT(FzfPercent("rdoc", "/AutomatorDocument.icns", true), Optional(AllOf(Ge(0), Le(100))));
-  EXPECT_THAT(FzfPercent("zshc", "/man1/zshcompctl.1", false), Optional(AllOf(Ge(0), Le(100))));
-  EXPECT_THAT(FzfPercent("zshc", "/.oh-my-zsh/cache", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent("oBZ", "fooBarbaz1", true), Optional(Eq(72)));
+  EXPECT_THAT(FzfPercent("fbb", "foo bar baz", false), Optional(Eq(91)));
+  EXPECT_THAT(FzfPercent("rdoc", "/AutomatorDocument.icns", true), Optional(Eq(90)));
+  EXPECT_THAT(FzfPercent("zshc", "/man1/zshcompctl.1", false), Optional(Eq(93)));
+  EXPECT_THAT(FzfPercent("zshc", "/.oh-my-zsh/cache", false), Optional(Eq(90)));
+}
+
+TEST_F(FuzzyScoreTest, FzfScoringOrdersNearbyBoundaryAndGapVariants) {
+  const int camel = FzfPercent("oBZ", "fooBarbaz1", true).value_or(-1);
+  const int underscores = FzfPercent("oBZ", "foo_bar_baz1", true).value_or(-1);
+  const int long_gaps = FzfPercent("oBZ", "foo---bar---baz1", true).value_or(-1);
+  EXPECT_THAT(camel, Eq(72));
+  EXPECT_THAT(underscores, Eq(60));
+  EXPECT_THAT(long_gaps, Eq(55));
+  EXPECT_THAT(camel, Gt(underscores));
+  EXPECT_THAT(underscores, Gt(long_gaps));
 }
 
 TEST_F(FuzzyScoreTest, LevenshteinPercentPinsConcreteSpellingSimilarities) {

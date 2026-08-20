@@ -1677,10 +1677,11 @@ ArchiveWrite ResolveArchiveWrite(const std::vector<std::string>& globals) {
     // flags, `-Z+` is `-z+` plus them, and so on. Case carries the capability, the signs carry the
     // level, so neither axis can be reached by accident while aiming at the other.
     //
-    // The axes stay INDEPENDENT even where one looks pointless: `-Z++ -z-` arms writing with
-    // reading off, which today can do nothing (no dive means no members to touch) but is the exact
-    // shape a create / pack action would want - producing an archive reads none. So a lower-case
-    // form never disarms; only `-Z-` does.
+    // The axes stay INDEPENDENT even where one looks pointless: `-Z++ -z-` arms member-writing with
+    // reading off, so it has no observable effect unless the run also names a write sink. `--pack`
+    // is the create-without-harvesting shape, although creating a new ordinary file does not itself
+    // REQUIRE member-write permission; with reading enabled, -delete / the exec family are the
+    // operations that consume the permission. A lower-case form never disarms; only `-Z-` does.
     if (global == "-Z-") {
       // The reset: `-Z-` is `-z-` said out loud about writing, so it clears what any earlier
       // spelling armed (a config file's `-Z+`, or an earlier flag on the same line).

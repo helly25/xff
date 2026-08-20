@@ -47,7 +47,8 @@ import re
 import sys
 
 # `local_path_override(module_name = "x", path = "y")`, tolerating either field order and any
-# whitespace. Read from MODULE.bazel rather than hard-coded, so adding an extra needs no change here.
+# whitespace. Read from the extras module include rather than hard-coded, so adding an extra needs no
+# change here.
 _OVERRIDE_BLOCK = re.compile(r"local_path_override\(([^)]*)\)", re.S)
 _MODULE_NAME = re.compile(r'module_name\s*=\s*"([^"]+)"')
 _PATH = re.compile(r'path\s*=\s*"([^"]+)"')

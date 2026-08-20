@@ -64,9 +64,8 @@ class ExtrasTest(unittest.TestCase):
         self.assertEqual(list(extras.extras(_MODULE_BAZEL)), ["xff_archive", "xff_pcre2"])
 
     def test_a_stripped_minimal_tree_has_no_extras(self):
-        # What the `minimal` CI cell produces: extra_modules/ deleted and the extras' bazel_dep +
-        # local_path_override lines stripped from MODULE.bazel. Zero extras is then the CORRECT answer,
-        # so neither derivation may treat it as a parse failure - a fail() there broke that job once.
+        # What the `minimal` CI cell effectively selects by removing the include: no declarations.
+        # Zero extras is the correct answer, not a parse failure.
         stripped = re.sub(r"local_path_override\(\s*[^)]*extra_modules/[^)]*\)", "", _MODULE_BAZEL)
         self.assertEqual(extras.extras(stripped), {})
 

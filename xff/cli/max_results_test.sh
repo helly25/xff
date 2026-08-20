@@ -30,28 +30,28 @@ test::max_results_caps_the_aggregate_implicit_listing() {
   root="$(_make_tree)"
   out="$(cd "${root}" && "$(_xff_bin)" --exact . \
     \( -type f -first 10 \) -o \( -type d -first 5 \) --max-results=12 --sort=tree)"
-  expect_eq "12" "$(wc -l <<<"${out}" | tr -d ' ')"
+  expect_eq $'.\n./d1\n./d2\n./d3\n./d4\n./f1.txt\n./f10.txt\n./f2.txt\n./f3.txt\n./f4.txt\n./f5.txt\n./f6.txt' "${out}"
 }
 
 test::max_results_does_not_truncate_reductions() {
   local root out
   root="$(_make_tree)"
   out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f --max-results=2 --summary --sort=tree)"
-  expect_output_contains "total  10" "${out}"
+  expect_eq "total  10" "${out}"
 }
 
 test::explicit_actions_keep_their_positional_expression_semantics() {
   local root out
   root="$(_make_tree)"
   out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -print --max-results=2 --sort=tree)"
-  expect_eq "10" "$(wc -l <<<"${out}" | tr -d ' ')"
+  expect_eq $'./f1.txt\n./f10.txt\n./f2.txt\n./f3.txt\n./f4.txt\n./f5.txt\n./f6.txt\n./f7.txt\n./f8.txt\n./f9.txt' "${out}"
 }
 
 test::last_max_results_wins_and_zero_lists_none() {
   local root out
   root="$(_make_tree)"
   out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f --max-results=2 --max-results=3 --sort=tree)"
-  expect_eq "3" "$(wc -l <<<"${out}" | tr -d ' ')"
+  expect_eq $'./f1.txt\n./f10.txt\n./f2.txt' "${out}"
   out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f --max-results=0 --sort=tree)"
   expect_eq "" "${out}"
 }
