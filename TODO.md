@@ -1277,8 +1277,12 @@ remains below is the design-forked / larger work.
     before built-ins as the escape hatch.
   - **F - stats integration - SHIPPED.** `--summary` / `--histogram` aggregate per logical set (count
     - size); the field is `{shard}` (singular, matching the established field vocabulary).
-  - **v2 (deferred, blocked on #83):** reassembled-content virtual view so `-grep` / `-content` /
-    `-hash` / `-size` see the concatenated whole, reusing the archive vfs backend.
+  - **v2 (deferred; the #83 prerequisite is now SHIPPED):** a reassembled-content virtual view could
+    make `-grep` / `-content` / `-hash` / `-size` see the concatenated whole, reusing the archive VFS
+    shape. It is no longer technically blocked, but its user-visible identity is not specified: a
+    decision is still needed on whether the logical whole replaces or accompanies real shards for
+    matching/actions, how incomplete and duplicate sets read, and which metadata/path the synthetic
+    entry owns. Do not infer those semantics merely from the display-and-stats v1.
 - **Respect `.gitkeep` in gitignore handling (#120) - SHIPPED (2026-07-07).** A `.gitkeep` is a
   pure convention (git itself has no notion of it) that keeps an otherwise-empty directory in a
   repo. Decided: **always on** (no separate mode) - when gitignore handling is active, a `.gitkeep`
