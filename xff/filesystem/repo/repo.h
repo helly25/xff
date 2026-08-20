@@ -1,0 +1,55 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef XFF_FILESYSTEM_REPO_REPO_H_
+#define XFF_FILESYSTEM_REPO_REPO_H_
+
+#include <optional>
+#include <string>
+#include <string_view>
+
+#include "xff/vfs/filesystem.h"
+
+namespace xff::repo {
+
+// Walks up from `start_dir` (inclusive) toward the filesystem root, returning the
+// first ancestor directory that contains a `.git` entry -- the git working-tree
+// root. A `.git` directory (a normal checkout) and a `.git` file (a worktree or
+// submodule gitdir pointer) both count, so existence is enough; the contents are
+// not inspected. Returns nullopt when no ancestor has a `.git`.
+//
+// `start_dir` must be an absolute, normalized path ("/a/b", no trailing slash
+// except the root "/"); callers resolve relative roots first. Existence is probed
+// through `fs` (Stat, no symlink follow), so a fake filesystem drives the tests.
+std::optional<std::string> FindRepoRoot(const vfs::FileSystem& fs, std::string_view start_dir);
+
+// The environment inputs that locate git's per-user config and global ignore file.
+// Empty strings mean "unset"; passed in (not read from getenv) so tests are hermetic.
+struct GitConfigEnv {
+  std::string home;             // $HOME
+  std::string xdg_config_home;  // $XDG_CONFIG_HOME (unset -> $HOME/.config)
+};
+
+// Resolves git's global excludes file: the value of `core.excludesFile` read from the
+// git config files ($XDG_CONFIG_HOME/git/config, then ~/.gitconfig, the latter winning,
+// per git), with a leading `~` / `~/` expanded to $HOME. When it is unset, falls back to
+// git's default global ignore path $XDG_CONFIG_HOME/git/ignore (i.e. ~/.config/git/ignore).
+// Returns nullopt when no path can be formed (no $HOME and no $XDG_CONFIG_HOME). The
+// returned path need not exist; config files are read through `fs`.
+std::optional<std::string> GlobalExcludesPath(const vfs::FileSystem& fs, const GitConfigEnv& env);
+
+}  // namespace xff::repo
+
+#endif  // XFF_FILESYSTEM_REPO_REPO_H_

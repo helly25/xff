@@ -15,33 +15,35 @@
 
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
+# Regular-expression matching for find's -regex/-iregex, backed by RE2 (+ EXACT/FNMATCH/GLOB core
+# engines, and PCRE2 when the build extra is linked). The RegexBackend interface + PCRE2 registration
+# API (`xff/matching/regex/backend.h`) now live in the standalone @xff_extras_api module - the seam an extra
+# backend implements without depending back into the core - and are re-exported through regex.h.
 cc_library(
-    name = "parser_cc",
-    srcs = ["parser.cc"],
-    hdrs = [
-        "ast.h",
-        "parser.h",
+    name = "regex_cc",
+    srcs = ["regex.cc"],
+    hdrs = ["regex.h"],
+    visibility = [
+        "//extra_modules:__subpackages__",
+        "//xff:__subpackages__",
     ],
-    visibility = ["//xff:__subpackages__"],
     deps = [
-        "//xff/matching/regex:regex_cc",
-        "//xff/presentation/fields:fields_cc",
-        "//xff/registry:registry_cc",
+        "//xff/glob:glob_cc",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@helly25_mbo//mbo/container:limited_set_cc",
         "@helly25_mbo//mbo/status:status_macros_cc",
+        "@re2",
+        "@xff_extras_api//:regex_backend_cc",
     ],
 )
 
 cc_test(
-    name = "parser_test",
-    srcs = ["parser_test.cc"],
+    name = "regex_test",
+    size = "small",
+    srcs = ["regex_test.cc"],
     deps = [
-        ":parser_cc",
-        "//xff/matching/regex:regex_cc",
-        "//xff/registry:registry_cc",
+        ":regex_cc",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

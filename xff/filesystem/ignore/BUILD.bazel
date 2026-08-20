@@ -15,36 +15,28 @@
 
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
+# gitignore-syntax pattern matching (the .gitignore / .ignore / .xffignore stack
+# and the --exclude / --include globs), by translating each glob to an RE2 regex.
 cc_library(
-    name = "parser_cc",
-    srcs = ["parser.cc"],
-    hdrs = [
-        "ast.h",
-        "parser.h",
-    ],
+    name = "ignore_cc",
+    srcs = ["ignore.cc"],
+    hdrs = ["ignore.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
+        "//xff/glob:glob_cc",
         "//xff/matching/regex:regex_cc",
-        "//xff/presentation/fields:fields_cc",
-        "//xff/registry:registry_cc",
-        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@helly25_mbo//mbo/container:limited_set_cc",
-        "@helly25_mbo//mbo/status:status_macros_cc",
     ],
 )
 
 cc_test(
-    name = "parser_test",
-    srcs = ["parser_test.cc"],
+    name = "ignore_test",
+    size = "small",
+    srcs = ["ignore_test.cc"],
     deps = [
-        ":parser_cc",
-        "//xff/matching/regex:regex_cc",
-        "//xff/registry:registry_cc",
-        "@abseil-cpp//absl/status",
+        ":ignore_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:status_cc",
     ],
 )

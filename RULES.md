@@ -13,6 +13,15 @@ Some rules for the code layout and its development.
 - Undocumented and private/internal APIs may be changed in any way at any time.
 - All exported library code is in the directory `xff`.
   - Directory `xff` has no actual library rules, but may have test rules.
+  - Capability directories group related implementation packages:
+    - `xff/filesystem`: filesystem policy and discovery (`ignore`, `repo`);
+    - `xff/matching`: entry classification and pattern engines (`language`, `mime`, `regex`);
+    - `xff/presentation`: field production and output rendering (`color`, `fields`, `format`, `render`).
+  - A distinct subsystem may remain directly under `xff` when nesting would hide a public boundary.
+    `xff/vfs`, for example, is the stable seam shared with the separately built extension modules.
+  - Do not create responsibility-free grouping names such as `core`, `common`, `misc`, `shared`, or
+    `util`. Leave a package explicit until a specific capability owns it or it moves to a reusable
+    library.
 - All public / exported code must:
   - be tested (see [`STYLE_CPP.md`](STYLE_CPP.md) for the GoogleTest conventions),
   - have a documentation.

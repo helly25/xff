@@ -15,36 +15,37 @@
 
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
+# Named-field template rendering: {field} substitution for --format and -exec.
 cc_library(
-    name = "parser_cc",
-    srcs = ["parser.cc"],
-    hdrs = [
-        "ast.h",
-        "parser.h",
-    ],
+    name = "fields_cc",
+    srcs = ["fields.cc"],
+    hdrs = ["fields.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
+        "//xff/content:line_match_cc",
+        "//xff/datetime:datetime_cc",
+        "//xff/env:env_cc",
+        "//xff/hash:hash_cc",
+        "//xff/matching/language:language_cc",
+        "//xff/matching/mime:mime_cc",
         "//xff/matching/regex:regex_cc",
-        "//xff/presentation/fields:fields_cc",
-        "//xff/registry:registry_cc",
-        "@abseil-cpp//absl/status",
+        "//xff/vfs:vfs_cc",
         "@abseil-cpp//absl/status:statusor",
-        "@abseil-cpp//absl/strings",
-        "@helly25_mbo//mbo/container:limited_set_cc",
-        "@helly25_mbo//mbo/status:status_macros_cc",
+        "@abseil-cpp//absl/time",
+        "@helly25_mbo//mbo/container:limited_map_cc",
     ],
 )
 
 cc_test(
-    name = "parser_test",
-    srcs = ["parser_test.cc"],
+    name = "fields_test",
+    size = "small",
+    srcs = ["fields_test.cc"],
     deps = [
-        ":parser_cc",
-        "//xff/matching/regex:regex_cc",
-        "//xff/registry:registry_cc",
-        "@abseil-cpp//absl/status",
+        ":fields_cc",
+        "//xff/env:env_cc",
+        "//xff/vfs:vfs_cc",
+        "@abseil-cpp//absl/time",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:status_cc",
     ],
 )

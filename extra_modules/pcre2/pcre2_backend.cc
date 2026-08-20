@@ -15,7 +15,7 @@
 
 // The real PCRE2 regex backend: a composable build extra (--regextype=PCRE2, #85). This whole
 // directory is removable - deleting it drops PCRE2 support entirely, and only //xff/cli:xff_full
-// links it (via the //xff:xff_pcre select). It self-registers a factory with xff/regex (so
+// links it (via the //xff:xff_pcre select). It self-registers a factory with xff/matching/regex (so
 // xff::regex::Pcre2Available() flips true and Matcher::Compile(kPcre2) works). The sibling license
 // target registers PCRE2 and SLJIT notices and bodies; the core never references either library.
 
@@ -39,7 +39,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
-#include "xff/regex/backend.h"
+#include "xff/matching/regex/backend.h"
 
 namespace {
 
@@ -201,7 +201,7 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
   std::uint32_t capture_count_;
 };
 
-// The factory registered with xff/regex: compiles `pattern` into a Pcre2Backend, or an
+// The factory registered with xff/matching/regex: compiles `pattern` into a Pcre2Backend, or an
 // InvalidArgument carrying PCRE2's diagnostic. Byte mode (no PCRE2_UTF) so arbitrary file bytes
 // never trip UTF-8 validation; PCRE2_CASELESS folds case.
 absl::StatusOr<std::unique_ptr<const xff::regex::RegexBackend>> CompilePcre2(

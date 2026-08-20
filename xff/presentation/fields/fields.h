@@ -1,0 +1,220 @@
+// SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef XFF_PRESENTATION_FIELDS_FIELDS_H_
+#define XFF_PRESENTATION_FIELDS_FIELDS_H_
+
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "absl/time/time.h"
+#include "xff/datetime/datetime.h"
+#include "xff/vfs/entry.h"
+#include "xff/vfs/filesystem.h"
+
+namespace xff::fields {
+
+// The per-entry inputs a field renderer reads. Bundled into a context so new
+// fields can draw on more inputs without changing every renderer's signature.
+struct RenderContext {
+  std::string_view path;          // path as traversed
+  std::string_view root;          // command-line search root it was reached from (find %H); may be empty
+  std::string_view link_target;   // {target}: a symlink's target (find %l); empty for non-symlinks
+  const vfs::Metadata& metadata;  // the entry's metadata
+  int depth = 0;                  // 0 for a root operand, +1 per directory level
+  // The filesystem the entry came FROM, for the fields that READ it ({hash}, {lines}). Inside a
+  // mounted container that is the container's, so a member renders its own bytes rather than nothing
+  // (`a.tar!x` is not a path the real filesystem has). Null means "read by path", which is what a
+  // caller with no walk behind it (a bare Render) wants.
+  const vfs::FileSystem* fs = nullptr;
+  absl::TimeZone tz = absl::LocalTimeZone();  // zone for {atime}/{mtime}/{ctime}/{btime} formatting; --timezone
+  std::string_view time_format;               // default format for a time field with no {:qualifier}; --time-format
+  // --time-zone-suffix: whether a named preset renders its zone suffix (kAuto keeps the
+  // preset default, kNever suppresses the optional offset, kAlways forces one).
+  datetime::ZoneSuffix zone_suffix = datetime::ZoneSuffix::kAuto;
+  // --hash-algorithm / --hash-encoding: defaults for a bare {hash} (empty -> sha256 / hex); a
+  // {hash:ALGO[/ENCODING]} qualifier overrides per use. Only {hash} reads them.
+  std::string_view hash_algorithm;
+  std::string_view hash_encoding;
+  const std::vector<std::string>* captures = nullptr;  // -regex groups for {0..N}: [0] whole match, 1..N groups
+  const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
+  const std::map<std::string, std::string>* outputs = nullptr;  // -capture results for {capture.NAME}
+  // Per-line match context for -grep:FORMAT: the 1-based number and text of the
+  // matching line. `{line}` renders the number, `{text}` the line; both are empty
+  // outside a -grep line (line_number unset), so they no-op in --template/-printf.
+  std::optional<std::size_t> line_number;
+  std::string_view line_text;
+  // The matched span within the line (grep -o): `{match}` is the matched substring,
+  // `{column}` its 1-based byte start. Empty/unset unless match_column is set (only
+  // -grep:FORMAT computes it), so they no-op elsewhere.
+  std::string_view match_text;
+  std::optional<std::size_t> match_column;
+  // --shards: when this render represents a collapsed shard set, `{shard}` is the number of shards
+  // in the set and size-like fields aggregate across them (the RenderContext's metadata.size is the
+  // set total). Unset for a normal entry, so `{shard}` no-ops there.
+  std::optional<std::int64_t> shard_count;
+  // {fuzzy}: normalized quality composed across successful fuzzy predicates. Unset when no fuzzy
+  // test ran, so it no-ops in a -printf / --template that has none.
+  std::optional<int> fuzzy_score;
+};
+
+namespace detail {
+// A resolved field renderer: produces one field's value for an entry. `key` is
+// the bound argument for dynamic/namespaced fields (a capture index, an
+// {env.NAME} variable, ...), empty for builtins. Compile resolves each {field}
+// to one of these once, so Render is a direct call per entry, not name matching.
+using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier, const RenderContext& context);
+}  // namespace detail
+
+// Renders {field} placeholder templates against a visited entry, substituting
+// values from a RenderContext (path, root, metadata, depth). `{{` and `}}` emit
+// literal braces; an unterminated or malformed `{` stays literal; an unknown
+// field renders empty. This backs the --format/--template output and (gated)
+// -exec substitution.
+//
+// Supported: {path} {root} {relpath} (path relative to the search root, find's %P)
+// {dir} {name}/{file} {stem} {core} (name minus ALL extensions: "foo") {ext}/{extension}
+// {suffix} (last, with dot: ".gz")
+// {suffixes} {target} (a symlink's target, find %l) {depth} {size} ({size:h}
+// human-readable) {type} {lang}/{language} (programming language by
+// extension/filename) {inode} {links} {dev}
+// {hash} (file digest; {hash:ALGO[/ENCODING]} picks the algorithm, default sha256,
+// and hex or base64, e.g. {hash:sha256/base64})
+// {mode}/{perm} (octal) {access} (ls -l / stat %A symbolic) {user} {group} {uid}
+// {gid}, and time fields {atime} {mtime} {ctime}
+// {btime} with an optional qualifier {field:QUAL} -- a strftime format
+// ({mtime:%Y-%m-%d}) or preset ({mtime:iso|epoch}); rendered in
+// RenderContext::tz (the local zone unless --timezone overrides it), default
+// ISO-8601. A qualifier may also be a "C-quoted string"
+// ({mtime:"{\"t\":\"%H:%M\"}"}) so it can hold a literal '}' or ':'; inside it
+// \" and \\ are escapes. A numeric placeholder {0}..{N} renders a regex capture
+// from RenderContext::captures ({0} the whole match, {1}..{N} the groups; empty
+// when unset or out of range) -- used by gated -exec after a -regex match. The
+// {env.NAME} namespace renders a process environment variable, {def.NAME} a
+// --define value, and {capture.NAME} a -capture result (each empty when unset).
+// As a qualifier, a sed-style rewrite {field:s/PAT/REPL/flags} (any delimiter;
+// flags g=all, i=ignore-case) post-processes the field's value via RE2. Several rewrites chain with
+// `;` and apply left to right ({name:s/a/b/;s/c/d/}); a command after `;` may omit the leading `s`
+// ({name:s/a/b/;/c/d/}). A
+// path-component qualifier likewise post-processes, treating the value as a path and
+// extracting a component -- {field:dir|name|basename|file|core|stem|ext|extension|
+// suffix|suffixes|path} -- so any path-valued field composes: {path:name} == {name},
+// {relpath:stem}, {def.B:dir}, {target:ext}.
+//
+// The {field:m<delim>PAT<delim>REPL<delim>flags} qualifier is the LINE-oriented, LIST-producing
+// sibling of s///: it splits the field's (multi-line) value into lines, and for each line that
+// matches PAT emits the RE2 rewrite REPL (\0 whole match, \1..\9 groups; flags g/i). Lines that do
+// not match are dropped -- so it filters as well as transforms. Unlike s/// (scalar -> scalar over
+// the whole value), m// is multi-line -> a value stream, consumed by an aggregation key
+// (AsExtraction below). In a scalar Render context it degrades to the matches newline-joined. Like
+// s///, an m// qualifier chains with `;`: the FIRST command filters+extracts each line, and the rest
+// substitute on the surviving per-line value ({capture.NAME:m/^author (.+)$/\1/;s/ /_/g}).
+//
+// Compile parses the template once into literal/field segments; the resulting
+// Template renders against many entries without re-scanning -- the hot path for
+// --template (and -exec), which render every match.
+class Template {
+ public:
+  static Template Compile(std::string_view tmpl);
+
+  std::string Render(const RenderContext& context) const;
+
+  // The value stream when this template is a single `{field:m<delim>PAT<delim>REPL<delim>flags}`
+  // extraction with NO terminal reducer: the field's multi-line value split into lines, each matching
+  // line rewritten by REPL, non-matching lines dropped. nullopt when the template is not exactly one
+  // unreduced m// extraction (a literal, several segments, a non-m field, or an m// ending in a
+  // reducer such as `;join(...)`, which is scalar-valued) -- i.e. it is an ordinary scalar template.
+  // Backs the value-stream aggregation key (--summary of a per-line extraction) without a "list"
+  // concept in the reduction: it just folds the returned values.
+  std::optional<std::vector<std::string>> AsExtraction(const RenderContext& context) const;
+
+  // True when the template is exactly one unreduced `{field:m/.../.../}` extraction -- the
+  // context-free shape AsExtraction requires (so a caller can branch stream-vs-scalar before it has a
+  // context). False once a terminal reducer (`;join(...)`) collapses it to a scalar.
+  bool IsExtraction() const;
+
+  // True when ANY segment is an UNREDUCED m// extraction (a value stream, including mid-template). A
+  // scalar-output context (-printf / --format / --template / --columns / -exec) uses this to reject a
+  // list-valued template up front. An m// pipeline that ends in a reducer (`;join(...)`) is scalar-
+  // valued and does NOT trip this, so it is allowed in a scalar context.
+  bool HasUnreducedExtraction() const;
+
+ private:
+  // A literal run (fn == nullptr -> emit `literal`) or a field reference: fn is
+  // the renderer and `key` its bound argument (capture index, {env.NAME} var, ...).
+  struct Segment {
+    // How the qualifier transforms the rendered value: none (the qualifier is the
+    // field's own format argument), a sed-style s/PAT/REPL/ rewrite, a path-component
+    // extraction ({field:stem} etc.) that treats the value as a path, or a per-line
+    // m/PAT/REPL/ extraction that yields a value stream (see AsExtraction; in a scalar
+    // Render it is the matches newline-joined). All but kNone are post-render transforms;
+    // the field then renders with no qualifier.
+    enum class PostProcess { kNone, kRewrite, kComponent, kExtract };
+    std::string literal;
+    detail::FieldFn fn = nullptr;
+    std::string key;
+    std::string qualifier;
+    PostProcess post = PostProcess::kNone;
+  };
+
+  std::vector<Segment> segments_;
+};
+
+// One documented named field, for the `--help=fields` reference. The vocabulary's
+// documentation source: FieldDocs() below is asserted (fields_test) to cover exactly
+// the renderable field names, so the help topic cannot drift from the renderers.
+struct FieldDoc {
+  std::string_view name;                  // canonical placeholder name ({name})
+  std::vector<std::string_view> aliases;  // alternate names, or empty
+  std::string_view group;                 // short group key (path, type, owner, time, grep)
+  std::string_view header;                // display heading for the group (shown at its first field)
+  std::string_view summary;               // one-line description
+};
+
+// The named {field} vocabulary, grouped for display (rows are pre-ordered by group).
+// Covers exactly the renderable field names; the dynamic namespaces ({env.NAME},
+// {def.NAME}, {capture.NAME}, {0}..{N}) and the qualifiers are prose in the renderer.
+std::vector<FieldDoc> FieldDocs();
+
+// Every renderable field name (the {field} table keys), including the empty name that
+// backs {} (find's full-path placeholder). Powers the FieldDocs() coverage test.
+std::vector<std::string_view> FieldNames();
+
+// Whether `spec` (a --columns entry / field name, optionally with a `:qualifier`) names a
+// renderable field: a builtin (FieldNames), a {0}..{N} capture, or an {env./def./capture.}
+// namespace. Powers --columns validation, so an unknown name is a usage error rather than
+// a silently-empty column.
+bool IsKnownField(std::string_view spec);
+
+// The path-component qualifier keywords ({field:KEYWORD}: dir, name, stem, ...), so
+// the help topic lists exactly the keywords the renderer accepts.
+std::vector<std::string_view> PathComponentKeywords();
+
+// Convenience wrapper: Compile(tmpl).Render({path, metadata, depth}) with an
+// empty root. Prefer Compile once + Render per entry on hot paths.
+std::string Render(std::string_view tmpl, std::string_view path, const vfs::Metadata& metadata, int depth);
+
+// Convenience wrapper rendering against a full context (so {root} resolves).
+// Like the overload above, compiles per call -- prefer Compile once on hot paths.
+std::string Render(std::string_view tmpl, const RenderContext& context);
+
+}  // namespace xff::fields
+
+#endif  // XFF_PRESENTATION_FIELDS_FIELDS_H_

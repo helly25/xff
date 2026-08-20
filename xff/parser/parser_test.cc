@@ -24,8 +24,8 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
+#include "xff/matching/regex/regex.h"
 #include "xff/parser/ast.h"
-#include "xff/regex/regex.h"
 #include "xff/registry/descriptor.h"
 
 namespace xff::parser {

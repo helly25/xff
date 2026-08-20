@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-#include "xff/regex/regex.h"
+#include "xff/matching/regex/regex.h"
 #include "xff/registry/descriptor.h"
 
 namespace xff::regex {

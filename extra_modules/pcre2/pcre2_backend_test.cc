@@ -28,7 +28,7 @@
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
 #include "xff/license/notice.h"
-#include "xff/regex/backend.h"
+#include "xff/matching/regex/backend.h"
 
 namespace xff::regex {
 namespace {
@@ -69,7 +69,7 @@ TEST_F(Pcre2BackendTest, RegistersTheExtraAndLibraryLicenseNotices) {
 }
 
 TEST_F(Pcre2BackendTest, BackreferencesMatch) {
-  // A backreference is the canonical PCRE2-only feature (RE2 rejects it; see //xff/regex:regex_test).
+  // A backreference is the canonical PCRE2-only feature (RE2 rejects it; see //xff/matching/regex:regex_test).
   ASSERT_OK_AND_ASSIGN(const std::unique_ptr<const RegexBackend> backend, MakePcre2Backend("(\\w+) \\1", false));
   EXPECT_THAT(backend->PartialMatch("the the fox"), IsTrue());  // doubled word
   EXPECT_FALSE(backend->PartialMatch("the quick fox"));
