@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -92,18 +93,18 @@ TEST_F(FuseBackendTest, WithNoFactoryMountingIsUnavailable) {
 }
 
 TEST_F(FuseBackendTest, ARegisteredFactoryReceivesOwnershipAndContainerName) {
-  const vfs::FileSystem* seen_fs = nullptr;
+  std::shared_ptr<const vfs::FileSystem> seen_fs;
   std::string seen_container;
   RegisterMountFactory(
       [&seen_fs, &seen_container](std::shared_ptr<const vfs::FileSystem> fs, std::string_view container) {
-        seen_fs = fs.get();
+        seen_fs = std::move(fs);
         seen_container = container;
         return absl::StatusOr<std::unique_ptr<Mount>>(std::make_unique<StubMount>());
       });
   const std::shared_ptr<StubFileSystem> fs = std::make_shared<StubFileSystem>();
 
   MBO_ASSERT_OK_AND_ASSIGN(const std::unique_ptr<Mount> mount, MountContainer(fs, "box.tar"));
-  EXPECT_THAT(seen_fs, fs.get());
+  EXPECT_THAT(seen_fs.get(), fs.get());
   EXPECT_THAT(seen_container, "box.tar");
   EXPECT_THAT(mount.get(), NotNull());
   EXPECT_THAT(mount->MountPoint(), "/tmp/mounted");

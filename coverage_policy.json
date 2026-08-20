@@ -49,7 +49,7 @@
     "extensions": {
       "API": {
         "include": ["xff_extras_api/**"],
-        "minimum": { "lines": 82, "functions": 74, "branches": 76 }
+        "minimum": { "lines": 97, "functions": 95, "branches": 87 }
       },
       "archive": {
         "include": ["xff_archive/**"],
