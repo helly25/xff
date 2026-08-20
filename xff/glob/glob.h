@@ -33,8 +33,8 @@ namespace xff::glob {
 //   `\x`        an escaped literal `x`
 //   otherwise   the character literal (RE2 metacharacters escaped)
 //
-// This is the shared translator behind the gitignore engine (xff/ignore, which strips gitignore's
-// leading `!` / anchoring `/` / trailing `/` first) and the --regextype=GLOB matcher (xff/regex,
+// This is the shared translator behind the gitignore engine (xff/filesystem/ignore, which strips gitignore's
+// leading `!` / anchoring `/` / trailing `/` first) and the --regextype=GLOB matcher (xff/matching/regex,
 // which compiles the result as RE2 so FullMatch/PartialMatch/FindFirst/Rewrite all fall out of RE2).
 //
 // The `**` rules are gitignore's on purpose (a `**` crosses directories only as a whole segment; a

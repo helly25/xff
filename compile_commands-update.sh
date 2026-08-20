@@ -96,7 +96,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
 fi
 
 # Materialize the generated / virtual-include headers the recorded commands will
-# reference (e.g. xff/license/notice.h, xff/regex/backend.h from the local
+# reference (e.g. xff/license/notice.h, xff/matching/regex/backend.h from the local
 # @xff_extras_api module, served through bazel-out `_virtual_includes` symlink
 # forests that exist only once their cc_library is built). The aquery records those
 # include paths but does not build them, so a fresh checkout / CI runner has the

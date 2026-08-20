@@ -35,9 +35,9 @@
 #include "xff/cli/help_parse.h"
 #include "xff/datetime/datetime.h"
 #include "xff/engine/evaluate.h"
-#include "xff/fields/fields.h"
 #include "xff/license/license.h"
-#include "xff/regex/regex.h"
+#include "xff/matching/regex/regex.h"
+#include "xff/presentation/fields/fields.h"
 #include "xff/registry/descriptor.h"
 #include "xff/registry/registry.h"
 

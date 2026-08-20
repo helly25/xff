@@ -26,7 +26,7 @@
 #include "absl/types/span.h"
 #include "xff/archive/archive_backend.h"
 #include "xff/fuse/fuse_backend.h"
-#include "xff/regex/backend.h"
+#include "xff/matching/regex/backend.h"
 #include "xff/values/values.h"
 
 namespace xff::cli {

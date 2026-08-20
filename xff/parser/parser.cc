@@ -31,9 +31,9 @@
 #include "absl/strings/str_cat.h"
 #include "mbo/container/limited_set.h"
 #include "mbo/status/status_macros.h"
-#include "xff/fields/fields.h"
+#include "xff/matching/regex/regex.h"
 #include "xff/parser/ast.h"
-#include "xff/regex/regex.h"
+#include "xff/presentation/fields/fields.h"
 #include "xff/registry/descriptor.h"
 #include "xff/registry/registry.h"
 

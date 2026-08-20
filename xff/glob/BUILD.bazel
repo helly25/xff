@@ -15,8 +15,8 @@
 
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
-# Shell-glob -> RE2 translation, shared by the gitignore engine (//xff/ignore) and the
-# --regextype=GLOB matcher (//xff/regex). Path-segment aware (`*`/`?` stop at `/`, `**` crosses).
+# Shell-glob -> RE2 translation, shared by the gitignore engine (//xff/filesystem/ignore) and the
+# --regextype=GLOB matcher (//xff/matching/regex). Path-segment aware (`*`/`?` stop at `/`, `**` crosses).
 cc_library(
     name = "glob_cc",
     srcs = ["glob.cc"],

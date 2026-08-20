@@ -17,9 +17,9 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 # The shared extras API, one target per seam. Both the xff core and each removable extra depend on
 # these, so an extra never depends back into the core (which would be a cycle). `include_prefix`
-# keeps each header's logical path (`xff/regex/backend.h`, `xff/license/notice.h`) unchanged.
+# keeps each header's logical path (`xff/matching/regex/backend.h`, `xff/license/notice.h`) unchanged.
 
-# The RegexBackend plugin interface + PCRE2 registration slot. //xff/regex depends on this for the
+# The RegexBackend plugin interface + PCRE2 registration slot. //xff/matching/regex depends on this for the
 # interface (Matcher::Compile(kPcre2) calls MakePcre2Backend); an extra backend implements
 # RegexBackend and self-registers via Pcre2Registrar.
 # The FUSE extra's registration slot: "is the mount extra linked into this binary". The core reads
@@ -52,7 +52,7 @@ cc_library(
     name = "regex_backend_cc",
     srcs = ["backend.cc"],
     hdrs = ["backend.h"],
-    include_prefix = "xff/regex",
+    include_prefix = "xff/matching/regex",
     visibility = ["//visibility:public"],
     deps = [
         "@abseil-cpp//absl/status",

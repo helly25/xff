@@ -1258,8 +1258,8 @@ remains below is the design-forked / larger work.
   (uniqueness-checked: one ext maps to one entry; true multi-candidate disambiguation is the
   separately-deferred content-classification feature) and the ability to override the compiled-in
   tables at runtime. Callers already reach the vocabulary only through the query, so the storage
-  change stays behind the API. The design is captured in the NOTE in `xff/mime/mime.h` and
-  `xff/language/language.h`.
+  change stays behind the API. The design is captured in the NOTE in `xff/matching/mime/mime.h` and
+  `xff/matching/language/language.h`.
 - **EPIC: Sharded-file support (#84) - v1 SHIPPED.** Collapse a
   shard set (`data-00000-of-00010`, `foo.tar.001` parts, `arc.z01`/`arc.zip`, ...) into one logical
   entry. Full spec in [`docs/design.md`](design.md) "Sharded files": off-by-default `--shards`; v1 =
@@ -1707,7 +1707,7 @@ remains below is the design-forked / larger work.
     HFS+/APFS), WIM, Nix NAR (trivial format, tiny audience), py2exe.
 
 - **Third `-regextype` grammar: shell-glob (#121, task-tracked).** Once PCRE2 proves the third-backend
-  path, add `Grammar::kGlob` + a `GlobBackend` on the `xff/regex` `RegexBackend` abstraction,
+  path, add `Grammar::kGlob` + a `GlobBackend` on the `xff/matching/regex` `RegexBackend` abstraction,
   selectable via `--regextype=GLOB` (and later the find `-regextype` primary). Fits `-regex`/`-iregex`
   as a whole-string shell glob (fnmatch) - a grammar-selected alternative to `-path`. Open nuance:
   glob has no capture groups and no natural match-span, so partial/line matching (`-grep`/`-rxc`) and
@@ -1737,7 +1737,7 @@ remains below is the design-forked / larger work.
     both the core and every extra `bazel_dep`, breaking the cycle (an extra can't dep the core). It is
     at the TOP LEVEL, NOT under `extra_modules/`, so a minimal archive can drop `extra_modules/`
     wholesale. Two targets: `@xff_extras_api//:regex_backend` + `:license_notice`, each keeping its
-    logical include path (`xff/regex/backend.h`, `xff/license/notice.h`) via `include_prefix`.
+    logical include path (`xff/matching/regex/backend.h`, `xff/license/notice.h`) via `include_prefix`.
   - **Local module per extra (317/3) SHIPPED:** PCRE2, archive, and FUSE are independent
     `xff_pcre2`, `xff_archive`, and `xff_fuse` modules under `extra_modules/`; each depends only on
     `xff_extras_api` plus its own third-party closure. The lean `//xff/cli:xff` has no backend deps,
@@ -1808,7 +1808,7 @@ remains below is the design-forked / larger work.
     find, etc.); covered by `config_test` + `full_binary_test.sh`. `--config=xff_full` (`.bazelrc`) turns
     the extras on; `--config=xff_full --//xff:xff_pcre=false` drops one from an otherwise-full build.
   - **PCRE2 backend SHIPPED (#85 PR5).** `extra_modules/pcre2/` (removable dir) holds the real
-    `Pcre2Backend` (implements `xff/regex`'s `RegexBackend` via the PCRE2 C API - compile / match /
+    `Pcre2Backend` (implements `xff/matching/regex`'s `RegexBackend` via the PCRE2 C API - compile / match /
     ovector / substitute), `alwayslink` self-registers via `Pcre2Registrar`; its separate license
     target registers PCRE2 (`BSD-3-Clause WITH PCRE2-exception`) and SLJIT (`BSD-2-Clause`) notices
     plus both full texts. It deps the BCR `pcre2` 10.47 module and links into `xff_full` via
@@ -1835,7 +1835,7 @@ remains below is the design-forked / larger work.
   which are all regular). **pcre2 is in the BCR**, upstream-maintained
   (`bazel_dep(name = "pcre2", version = "10.47")` - a stable release, not the 10.46-DEV snapshot); a
   clean dep, BSD-3-Clause (same family as re2 / googletest, so no new license type). Add a
-  PCRE2-backed `regex::Matcher` behind the existing `xff/regex` abstraction, gated by the
+  PCRE2-backed `regex::Matcher` behind the existing `xff/matching/regex` abstraction, gated by the
   `//xff:xff_pcre` extra above; keep **RE2 the default**, PCRE2 opt-in via `-regextype`, and set pcre2
   match / backtrack / depth limits (`pcre2_set_match_limit` etc.) so an adversarial pattern (ReDoS,
   which RE2 is immune to) cannot hang a walk.
@@ -1919,7 +1919,7 @@ remains below is the design-forked / larger work.
     after m// is kept (incl. in `--summary`) and a post-reducer `s///` rewrites the joined scalar
     (`m/.../\1/;s/ /_/g;join(, );s/_/./g`). The scalar-context guard now rejects only an UNREDUCED
     extraction (`HasUnreducedExtraction`); a reducer in a `--summary` key shifts it from a per-line to
-    a per-entry (joined) key, no special-casing. `SplitPipeline` in `xff/fields/fields.cc`. Delimited
+    a per-entry (joined) key, no special-casing. `SplitPipeline` in `xff/presentation/fields/fields.cc`. Delimited
     `s///`/`m//` stay as-is (regex args are delimiter-hostile); only reducers use function notation.
 - **SHIPPED span-diagram help (#143).** The `--help=fields` topic (and the doc*renderer FIELDS
   section -> `--man` / `--markdown` / `--help=full`) now teach the m// pipeline with a two-line
@@ -1933,7 +1933,7 @@ renderers + a help_topic_test assertion. The diagram is duplicated in help.cc`Re
     chain, applied left to right; a command after `;` may omit the leading `s`. `s` chain = scalar
     substitution pipeline (`{name:s/a/b/;s/c/d/}`); `m` chain = the first command filters+extracts each
     line, the rest substitute on the survivor (`{capture.blame:m/^author (.+)$/\1/;s/ /_/g}` = the
-    author, spaces normalized). Shared `ParseRewriteChain` + `CompileChain` in `xff/fields/fields.cc`
+    author, spaces normalized). Shared `ParseRewriteChain` + `CompileChain` in `xff/presentation/fields/fields.cc`
     (single command = the one-element case); `;` separates only after the flags, so a `;` inside
     PAT/REPL is safe.
   - **DEFERRED:** `--histogram={template}` (histogram counterpart of the summary key); a numeric
