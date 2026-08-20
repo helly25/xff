@@ -143,6 +143,67 @@ jobs:
           python-version: "3.13"
       - uses: pre-commit/action@v3.0.1
 
+  # GCC/gcov is the stable measurement toolchain. This is a production-code gate,
+  # not merely another test cell: it publishes both the raw LCOV data and the
+  # policy-rendered capability/extension report, and enforces changed-line coverage.
+  coverage:
+    needs: [pre-commit, trunk]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: bazelbuild/setup-bazelisk@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install GCC 14 and integration-test dependencies
+        run: |
+          sudo apt-get install -y gcc-14 g++-14 mandoc fuse3 libfuse3-3
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 \
+            --slave /usr/bin/g++ g++ /usr/bin/g++-14 \
+            --slave /usr/bin/gcov gcov /usr/bin/gcov-14
+          sudo update-alternatives --set gcc /usr/bin/gcc-14
+          gcc --version
+          gcov --version
+      - name: Collect and enforce coverage
+        env:
+          XFF_FUSE_REQUIRED: "1"
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2046  # deliberate splitting into Bazel target patterns
+          bazel coverage //... $(tools/extras.py --wildcards) \
+            --config=xff_docs \
+            --combined_report=lcov \
+            --instrumentation_filter='//xff[/:],//xff_extras_api[/:],@@xff_(archive|fuse|pcre2)[+]//' \
+            --test_env=XFF_FUSE_REQUIRED
+          cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
+          python3 -m unittest tools/coverage_test.py
+          BASE_ARGS=()
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            git fetch --quiet --no-tags origin main
+            BASE_ARGS=(--base-ref origin/main)
+          fi
+          python3 tools/coverage.py \
+            --lcov coverage.lcov \
+            --policy coverage_policy.json \
+            --summary coverage-summary.md \
+            "${BASE_ARGS[@]}"
+          {
+            echo "### Production coverage"
+            echo
+            cat coverage-summary.md
+          } >>"${GITHUB_STEP_SUMMARY}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-lcov
+          path: |
+            coverage.lcov
+            coverage-summary.md
+          retention-days: 14
+          if-no-files-found: error
+
   # ThreadSanitizer for the parallel walk (issue #43; mutually exclusive with the
   # asan cell). ubuntu-only. Like the asan cell this uses --config=clang, which
   # downloads a ~4.4 GB hermetic LLVM: we deliberately do NOT cache that (it would
@@ -414,7 +475,18 @@ jobs:
   # escape the gate. Mirrors helly25/mbo.
   done:
     # Every declared job must appear here (the step below enforces exactly that).
-    needs: [test, pre-commit, trunk, tsan, msan, minimal, xff-md, clang-tidy]
+    needs:
+      [
+        test,
+        pre-commit,
+        trunk,
+        coverage,
+        tsan,
+        msan,
+        minimal,
+        xff-md,
+        clang-tidy,
+      ]
     if: always()
     runs-on: ubuntu-latest
     steps:

@@ -1,0 +1,68 @@
+{
+  "include": [
+    "xff/**",
+    "xff_extras_api/**",
+    "xff_archive/**",
+    "xff_fuse/**",
+    "xff_pcre2/**"
+  ],
+  "exclude": [
+    "**/*_benchmark.cc",
+    "**/*_fuzz_test.cc",
+    "**/*_test.cc",
+    "**/*_test.h"
+  ],
+  "minimum": { "lines": 92, "functions": 94, "branches": 82 },
+  "patch_minimum": { "lines": 95, "branches": 85 },
+  "categories": {
+    "program": {
+      "command line": { "include": ["xff/cli/**"] },
+      "configuration": { "include": ["xff/config/**", "xff/env/**"] },
+      "command grammar": { "include": ["xff/parser/**", "xff/registry/**"] },
+      "execution": {
+        "include": ["xff/engine/**", "xff/exec/**"],
+        "minimum": { "lines": 92, "functions": 94, "branches": 81 }
+      },
+      "filesystem": {
+        "include": ["xff/filesystem/**", "xff/shard/**", "xff/vfs/**"],
+        "minimum": { "lines": 91, "functions": 94, "branches": 82 }
+      },
+      "matching": {
+        "include": [
+          "xff/matching/**",
+          "xff/content/**",
+          "xff/fuzzy/**",
+          "xff/glob/**",
+          "xff/hash/**"
+        ],
+        "minimum": { "lines": 92, "functions": 84, "branches": 82 }
+      },
+      "presentation": {
+        "include": [
+          "xff/presentation/**",
+          "xff/datetime/**",
+          "xff/values/**",
+          "xff/license/**"
+        ]
+      }
+    },
+    "extensions": {
+      "API": {
+        "include": ["xff_extras_api/**"],
+        "minimum": { "lines": 82, "functions": 74, "branches": 76 }
+      },
+      "archive": {
+        "include": ["xff_archive/**"],
+        "minimum": { "lines": 90, "functions": 94, "branches": 75 }
+      },
+      "FUSE": {
+        "include": ["xff_fuse/**"],
+        "minimum": { "lines": 81, "functions": 94, "branches": 58 }
+      },
+      "PCRE2": {
+        "include": ["xff_pcre2/**"],
+        "minimum": { "lines": 92, "functions": 94, "branches": 70 }
+      }
+    }
+  }
+}
