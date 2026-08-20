@@ -99,6 +99,32 @@ cc_test(
     ],
 )
 
+cc_library(
+    name = "fuse_metadata_cc",
+    srcs = ["fuse_metadata.cc"],
+    hdrs = ["fuse_metadata.h"],
+    include_prefix = "xff/fuse",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/time",
+        "@xff_extras_api//:vfs_cc",
+    ],
+)
+
+cc_test(
+    name = "fuse_metadata_test",
+    size = "small",
+    srcs = ["fuse_metadata_test.cc"],
+    deps = [
+        ":fuse_metadata_cc",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@xff_extras_api//:vfs_cc",
+    ],
+)
+
 # The read-only FUSE server (epic #183, slice 3b): serves one vfs::FileSystem at one mount point
 # through the runtime-loaded fuse3 (fuse_api_cc); no build-time libfuse linkage.
 cc_library(
@@ -109,6 +135,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":fuse_api_cc",
+        ":fuse_metadata_cc",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:flat_hash_map",

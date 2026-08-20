@@ -35,7 +35,7 @@
           "xff/glob/**",
           "xff/hash/**"
         ],
-        "minimum": { "lines": 92, "functions": 84, "branches": 82 }
+        "minimum": { "lines": 92, "functions": 90, "branches": 82 }
       },
       "presentation": {
         "include": [
