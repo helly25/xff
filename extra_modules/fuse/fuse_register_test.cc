@@ -105,6 +105,7 @@ TEST_F(FuseRegisterTest, ConcurrentMountsShareTheRunRootAndExposeMemberPaths) {
   }
   MBO_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<Mount> second, MountContainer(std::make_shared<FakeFileSystem>(), "/second/container.tar"));
+  EXPECT_THAT((*first)->MountPoint(), Not(second->MountPoint()));
   EXPECT_THAT(
       (*first)->PathFor("member.txt"),
       AllOf(HasSubstr("/container.tar/member.txt"), Not(HasSubstr("container.tar.1"))));
