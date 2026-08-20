@@ -134,6 +134,23 @@ TEST_F(MountRootTest, MoveAssignmentTransfersOwnership) {
   EXPECT_THAT(stdfs::exists(replaced_path), IsFalse());
 }
 
+TEST_F(MountRootTest, MoveAssignmentIntoAMovedFromRootTransfersOwnership) {
+  MBO_ASSERT_OK_AND_ASSIGN(MountRoot source, MountRoot::Create(options_));
+  MountRoot destination = std::move(source);
+  const std::string path(destination.path());
+  source = std::move(destination);
+  EXPECT_THAT(source.path(), path);
+}
+
+TEST_F(MountRootTest, SelfMoveAssignmentPreservesOwnership) {
+  MBO_ASSERT_OK_AND_ASSIGN(MountRoot root, MountRoot::Create(options_));
+  const std::string path(root.path());
+  MountRoot* const same = &root;
+  root = std::move(*same);
+  EXPECT_THAT(root.path(), path);
+  EXPECT_THAT(stdfs::is_directory(path), IsTrue());
+}
+
 TEST_F(MountRootTest, StaleRootsFindsDeadPidsAndLeavesTheLivingAndTheForeign) {
   MBO_ASSERT_OK_AND_ASSIGN(const MountRoot live, MountRoot::Create(options_));
   // A pid can never be alive beyond the kernel's pid space; 999999999 is comfortably dead. A
