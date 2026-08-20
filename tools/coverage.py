@@ -38,6 +38,9 @@ def _repo_path(value: str) -> str | None:
     if match:
         return f"{match.group(1)}/{match.group(3)}"
     for name in ("archive", "fuse", "pcre2"):
+        prefix = f"extra_modules/{name}/"
+        if value.startswith(prefix):
+            return f"xff_{name}/" + value.removeprefix(prefix)
         marker = f"/extra_modules/{name}/"
         if marker in value:
             return f"xff_{name}/" + value.split(marker, 1)[1]

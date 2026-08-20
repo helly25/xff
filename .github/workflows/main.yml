@@ -175,7 +175,7 @@ jobs:
           bazel coverage //... $(tools/extras.py --wildcards) \
             --config=xff_docs \
             --combined_report=lcov \
-            --instrumentation_filter='//xff[/:],//xff_extras_api[/:],@xff_archive//,@xff_fuse//,@xff_pcre2//' \
+            --instrumentation_filter='//xff[/:],//xff_extras_api[/:],@@xff_(archive|fuse|pcre2)[+]//' \
             --test_env=XFF_FUSE_REQUIRED
           cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
           python3 -m unittest tools/coverage_test.py

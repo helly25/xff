@@ -16,7 +16,7 @@ class CoverageTest(unittest.TestCase):
             "/workspace/xff/cli/main.cc": "xff/cli/main.cc",
             "/execroot/external/xff_archive+/archive_reader.cc": "xff_archive/archive_reader.cc",
             "/checkout/extra_modules/fuse/fuse_server.cc": "xff_fuse/fuse_server.cc",
-            "/checkout/extra_modules/pcre2/pcre2_backend.cc": "xff_pcre2/pcre2_backend.cc",
+            "extra_modules/pcre2/pcre2_backend.cc": "xff_pcre2/pcre2_backend.cc",
             "/workspace/third_party/lib.cc": None,
         }
         for source, expected in cases.items():
