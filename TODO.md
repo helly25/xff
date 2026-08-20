@@ -538,10 +538,13 @@ work around; it is why `-collect` exists.
   patterns comparable when their thresholds are equal. A ranking operation rejects mixed thresholds: absolute
   similarity and distance above each predicate's threshold imply different orders, so choosing either silently
   would be arbitrary. A bare fuzzy test counts as `0%`. Multiple `-top` instances each keep their own bucket.
-  - **The contract is EXACT**: the final result is precisely the N best. Streaming
-    over-approximation is an implementation detail - per-thread bounded heaps merged at the end -
-    and must never leak. Bloom filters do NOT fit here: they cannot rank and their false positives
-    would put wrong entries in the result (see the shingling entry, where they DO fit).
+  - **The contract is EXACT**: the final result is precisely the N best. The general expression case
+    retains every candidate until the node is resolved: an entry that loses `-top` can still enter an
+    `-o` branch to its right, so dropping non-winners from a bounded heap would change expression
+    truth and skip downstream actions. A conjunction-only fast path MAY keep just a bounded heap in
+    future, but it is an optimisation and must never leak into semantics. Bloom filters do NOT fit
+    here: they cannot rank and their false positives would put wrong entries in the result (see the
+    shingling entry, where they DO fit).
   - **Therefore `-top` is a deferral point**: it cannot answer until the walk ends, so everything to
     its RIGHT is evaluated in a second pass over the survivors. This is a feature, not a cost -
     `-top 10 -exec rm {} \;` then deletes exactly those ten, which was the reading the user had from
@@ -615,7 +618,17 @@ one level up; an early stop stays an explicit opt-in.
    the node it is written on. `--capture-override` is GONE (it was never released), and `-capture`
    now takes `-capture=!NAME` too. Settled with the user 2026-08-17.
 
-3. **`-top N[:PCT%]`** - needs the two-phase evaluation, the parallel merge, and the cutoff.
+3. **`-top N` SHIPPED (2026-08-20).** Exact evaluator-level deferral, not a buffered print trick:
+   each node gathers the scored entries that actually reach it, selects its stable top N after the
+   walk, then replays the expression from memoized prefixes. Actions and stateful tests to the left
+   therefore run once during traversal; everything to the right runs only after that node's decision.
+   Several nodes resolve in expression order, so a candidate routed into a later `-top` only after
+   losing an earlier one joins the later node BEFORE its selection - its candidate set is complete,
+   not an early snapshot. Stored visits own their strings and archive filesystem, as collections do.
+   A score must precede the node on every reachable path; model and threshold must be uniform (bare
+   means `0%`), and malformed / negative counts fail before traversal while zero keeps none. Complex
+   end-to-end coverage pins exact ranking, before/after actions, independent nodes, late candidates,
+   collection order, invalid domains, and zero.
 4. **`--max-results`** - once more than one cap can be active, so the flag has a reason to exist.
 
 ## Silence external warnings in the EXEC configuration too (from helly25/mbo#332) - SHIPPED
@@ -2049,8 +2062,9 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
          names the streaming formats that do work. Only the listing is reordered; `-exec` and friends
          still run during the walk, so their output stays where it happened.
        - **Result-set shaping is now its own pinned design, below** (`-first`, `-top`, `-collect`,
-         `--max-results`). What started as "`--top=N`, probably" turned out to be a family, and to
-         belong in the EXPRESSION rather than in globals.
+         `--max-results`). `-first`, `-top`, and `-collect` are shipped. What started as
+         "`--top=N`, probably" turned out to be a family, and to belong in the EXPRESSION rather
+         than in globals.
      - **A path-matching variant: `-fuzzypath` / `-ifuzzypath` SHIPPED.** The `-path` to `-fuzzy`'s
        `-name`, sharing one implementation (the matcher takes its subject). `{fuzzy}` is the
        normalized score composed through the whole boolean expression. It deliberately

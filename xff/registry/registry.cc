@@ -304,6 +304,33 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .style = Style::kXff,
         .pure = false,
     },
+    // xff -top: the exact ranked half of result-set shaping. Unlike --sort=score this is a TEST in
+    // the expression: entries that do not make this instance's N best become false here, and actions
+    // to its right therefore run only for the survivors. The evaluator defers at this node and
+    // resumes after the walk has selected the exact set.
+    {
+        .name = "-top",
+        .summary = "true for the N best fuzzy matches reaching this instance (xff)",
+        .details =
+            "Keeps exactly the N entries with the best normalized fuzzy score reaching THIS use, then resumes "
+            "the expression for those survivors. It is a TEST, not an output limit: everything to its left has "
+            "already happened, while tests and actions to its right run after the walk only for entries that make "
+            "the cut. Thus `-collect -top 10 -ls --summary` collects every good match, lists the ten best, and "
+            "summarises all of them; `-top 10 -collect --summary` collects and summarises only the ten and prints "
+            "no implicit listing. Each `-top` instance owns an independent candidate set, retained until the "
+            "post-walk decision so a rejected entry can still take an `-o` alternative to the right. A tie keeps "
+            "traversal "
+            "order, making the result deterministic under a deterministic `--sort`. A fuzzy matcher must precede "
+            "the node on every path that reaches it. All contributing fuzzy matchers must use the same model and "
+            "threshold: scores from different models or differently strict predicates do not describe one ordering. "
+            "A bare fuzzy matcher has a `0%` threshold. `-fuzzy=fzf:80% foo -top 10` therefore means the ten best "
+            "good matches. An xff extension `--config=find` rejects. A malformed or negative count is a usage error; "
+            "`-top 0` is valid and keeps none.",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .style = Style::kXff,
+        .pure = false,
+    },
     // xff -fuzzy: approximate NAME matching, the fzf/fd style of "type a few letters and find it".
     {
         .name = "-fuzzy",

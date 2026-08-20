@@ -2383,11 +2383,6 @@ std::vector<LsColumn> LsColumns() {
 
 namespace {
 
-struct EvalResult {
-  bool matched = false;
-  std::optional<int> fuzzy;
-};
-
 bool IsFuzzyOnlyExpression(const parser::Expr& expr) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate:
@@ -2425,83 +2420,157 @@ std::optional<int> MaxScore(std::optional<int> lhs, std::optional<int> rhs) {
   return std::max(*lhs, *rhs);
 }
 
-EvalResult EvaluateResult(const parser::Expr& expr, EvalContext& context) {
-  const auto child = [&](const parser::Expr& node) {
-    std::optional<int> score;
-    std::optional<int>* const outer = context.fuzzy_score;
-    context.fuzzy_score = outer == nullptr ? nullptr : &score;
-    EvalResult result = EvaluateResult(node, context);
-    context.fuzzy_score = outer;
-    return result;
-  };
+EvaluationResult EvaluateResult(const parser::Expr& expr, EvalContext& context);
 
+EvaluationResult EvaluateChild(const parser::Expr& node, EvalContext& context) {
+  if (context.evaluation_memo != nullptr) {
+    if (const auto found = context.evaluation_memo->find(&node); found != context.evaluation_memo->end()) {
+      return found->second;
+    }
+  }
+  std::optional<int> score;
+  std::optional<int>* const outer = context.fuzzy_score;
+  context.fuzzy_score = outer == nullptr ? nullptr : &score;
+  EvaluationResult result = EvaluateResult(node, context);
+  context.fuzzy_score = outer;
+  if (!result.deferred && context.evaluation_memo != nullptr) {
+    context.evaluation_memo->emplace(&node, result);
+  }
+  return result;
+}
+
+EvaluationResult EvaluateTop(const parser::Expr& expr, EvalContext& context) {
+  if (context.top_results != nullptr) {
+    if (const auto found = context.top_results->find(&expr); found != context.top_results->end()) {
+      return {
+          .matched = found->second,
+          .fuzzy = found->second ? context.incoming_fuzzy_score : std::nullopt,
+      };
+    }
+  }
+  if (context.deferred_top != nullptr && context.deferred_top_score != nullptr) {
+    *context.deferred_top = &expr;
+    *context.deferred_top_score = context.incoming_fuzzy_score;
+    return {.deferred = true};
+  }
+  return {};
+}
+
+EvaluationResult EvaluateAnd(const parser::Expr& expr, EvalContext& context) {
+  EvaluationResult lhs = EvaluateChild(*expr.lhs, context);
+  if (lhs.deferred || !lhs.matched) {
+    return lhs;
+  }
+  const std::optional<int> outer_incoming = context.incoming_fuzzy_score;
+  context.incoming_fuzzy_score = MinScore(outer_incoming, lhs.fuzzy);
+  const EvaluationResult rhs = EvaluateChild(*expr.rhs, context);
+  context.incoming_fuzzy_score = outer_incoming;
+  if (rhs.deferred) {
+    return rhs;
+  }
+  return {.matched = rhs.matched, .fuzzy = rhs.matched ? MinScore(lhs.fuzzy, rhs.fuzzy) : std::nullopt};
+}
+
+EvaluationResult EvaluateOr(const parser::Expr& expr, EvalContext& context) {
+  EvaluationResult lhs = EvaluateChild(*expr.lhs, context);
+  if (lhs.deferred) {
+    return lhs;
+  }
+  if (!lhs.matched) {
+    return EvaluateChild(*expr.rhs, context);
+  }
+  if (context.fuzzy_score != nullptr && IsFuzzyOnlyExpression(*expr.rhs)) {
+    const EvaluationResult rhs = EvaluateChild(*expr.rhs, context);
+    if (rhs.deferred) {
+      return rhs;
+    }
+    return {.matched = true, .fuzzy = rhs.matched ? MaxScore(lhs.fuzzy, rhs.fuzzy) : lhs.fuzzy};
+  }
+  return lhs;
+}
+
+EvaluationResult EvaluateNand(const parser::Expr& expr, EvalContext& context) {
+  const EvaluationResult lhs = EvaluateChild(*expr.lhs, context);
+  if (lhs.deferred || !lhs.matched) {
+    return lhs.deferred ? lhs : EvaluationResult{.matched = true};
+  }
+  const EvaluationResult rhs = EvaluateChild(*expr.rhs, context);
+  return rhs.deferred ? rhs : EvaluationResult{.matched = !rhs.matched};
+}
+
+EvaluationResult EvaluateNor(const parser::Expr& expr, EvalContext& context) {
+  const EvaluationResult lhs = EvaluateChild(*expr.lhs, context);
+  if (lhs.deferred || lhs.matched) {
+    return lhs.deferred ? lhs : EvaluationResult{.matched = false};
+  }
+  const EvaluationResult rhs = EvaluateChild(*expr.rhs, context);
+  return rhs.deferred ? rhs : EvaluationResult{.matched = !rhs.matched};
+}
+
+EvaluationResult EvaluateXor(const parser::Expr& expr, EvalContext& context) {
+  const EvaluationResult lhs = EvaluateChild(*expr.lhs, context);
+  if (lhs.deferred) {
+    return lhs;
+  }
+  const EvaluationResult rhs = EvaluateChild(*expr.rhs, context);
+  if (rhs.deferred) {
+    return rhs;
+  }
+  return {
+      .matched = lhs.matched != rhs.matched,
+      .fuzzy = lhs.matched != rhs.matched ? (lhs.matched ? lhs.fuzzy : rhs.fuzzy) : std::nullopt,
+  };
+}
+
+EvaluationResult EvaluateXnor(const parser::Expr& expr, EvalContext& context) {
+  const EvaluationResult lhs = EvaluateChild(*expr.lhs, context);
+  if (lhs.deferred) {
+    return lhs;
+  }
+  const EvaluationResult rhs = EvaluateChild(*expr.rhs, context);
+  return rhs.deferred ? rhs : EvaluationResult{.matched = lhs.matched == rhs.matched};
+}
+
+EvaluationResult EvaluateResult(const parser::Expr& expr, EvalContext& context) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate: {
+      if (expr.descriptor->name == "-top") {
+        return EvaluateTop(expr, context);
+      }
       const bool matched = EvaluatePredicate(expr, context);
       return {.matched = matched, .fuzzy = context.fuzzy_score == nullptr ? std::nullopt : *context.fuzzy_score};
     }
-    case parser::Expr::Kind::kNot: return {.matched = !child(*expr.lhs).matched};
-    case parser::Expr::Kind::kAnd: {
-      EvalResult lhs = child(*expr.lhs);
-      if (!lhs.matched) {
-        return lhs;
-      }
-      const EvalResult rhs = child(*expr.rhs);
-      return {.matched = rhs.matched, .fuzzy = rhs.matched ? MinScore(lhs.fuzzy, rhs.fuzzy) : std::nullopt};
+    case parser::Expr::Kind::kNot: {
+      const EvaluationResult value = EvaluateChild(*expr.lhs, context);
+      return value.deferred ? value : EvaluationResult{.matched = !value.matched};
     }
-    case parser::Expr::Kind::kOr: {
-      EvalResult lhs = child(*expr.lhs);
-      if (!lhs.matched) {
-        return child(*expr.rhs);
-      }
-      // A fuzzy-only alternative has no side effects, so evaluate it as well to obtain the true best
-      // score. A mixed/action-bearing RHS retains ordinary OR short-circuit behavior.
-      if (context.fuzzy_score != nullptr && IsFuzzyOnlyExpression(*expr.rhs)) {
-        const EvalResult rhs = child(*expr.rhs);
-        return {.matched = true, .fuzzy = rhs.matched ? MaxScore(lhs.fuzzy, rhs.fuzzy) : lhs.fuzzy};
-      }
-      return lhs;
+    case parser::Expr::Kind::kAnd: return EvaluateAnd(expr, context);
+    case parser::Expr::Kind::kOr: return EvaluateOr(expr, context);
+    case parser::Expr::Kind::kNand: return EvaluateNand(expr, context);
+    case parser::Expr::Kind::kNor: return EvaluateNor(expr, context);
+    case parser::Expr::Kind::kXor: return EvaluateXor(expr, context);
+    case parser::Expr::Kind::kXnor: return EvaluateXnor(expr, context);
+    case parser::Expr::Kind::kComma: {
+      const EvaluationResult lhs = EvaluateChild(*expr.lhs, context);
+      return lhs.deferred ? lhs : EvaluateChild(*expr.rhs, context);
     }
-    // -nand / -nor are the negations of && / || and inherit their left-to-right
-    // short-circuit (the right operand, and its actions, run only when the left
-    // does not already decide the result).
-    case parser::Expr::Kind::kNand: {
-      const EvalResult lhs = child(*expr.lhs);
-      return {.matched = !(lhs.matched && child(*expr.rhs).matched)};
-    }
-    case parser::Expr::Kind::kNor: {
-      const EvalResult lhs = child(*expr.lhs);
-      return {.matched = !(lhs.matched || child(*expr.rhs).matched)};
-    }
-    // -xor / -xnor depend on both sides, so neither can short-circuit; evaluate
-    // left then right (sequenced via locals so any actions still fire in order).
-    case parser::Expr::Kind::kXor: {
-      const EvalResult lhs = child(*expr.lhs);
-      const EvalResult rhs = child(*expr.rhs);
-      return {
-          .matched = lhs.matched != rhs.matched,
-          .fuzzy = lhs.matched != rhs.matched ? (lhs.matched ? lhs.fuzzy : rhs.fuzzy) : std::nullopt};
-    }
-    case parser::Expr::Kind::kXnor: {
-      const EvalResult lhs = child(*expr.lhs);
-      const EvalResult rhs = child(*expr.rhs);
-      return {.matched = lhs.matched == rhs.matched};
-    }
-    case parser::Expr::Kind::kComma:
-      child(*expr.lhs);         // left operand: evaluated for side effects only
-      return child(*expr.rhs);  // the list's value is the right operand's
   }
-  return {.matched = true};  // Unreachable: every Expr::Kind returns above.
+  return {.matched = true};
 }
 
 }  // namespace
 
 bool Evaluate(const parser::Expr& expr, EvalContext& context) {
-  const EvalResult result = EvaluateResult(expr, context);
+  const EvaluationResult result = EvaluateDeferred(expr, context);
+  return !result.deferred && result.matched;
+}
+
+EvaluationResult EvaluateDeferred(const parser::Expr& expr, EvalContext& context) {
+  const EvaluationResult result = EvaluateResult(expr, context);
   if (context.fuzzy_score != nullptr) {
     *context.fuzzy_score = result.fuzzy;
   }
-  return result.matched;
+  return result;
 }
 
 bool ContainsAction(const parser::Expr& expr) {

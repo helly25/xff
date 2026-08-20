@@ -570,6 +570,13 @@ bashtest(
 )
 
 bashtest(
+    name = "top_test",
+    size = "small",
+    srcs = ["top_test.sh"],
+    data = [":xff"],
+)
+
+bashtest(
     name = "fuzzy_test",
     size = "small",
     srcs = ["fuzzy_test.sh"],
