@@ -62,6 +62,13 @@ common --host_cxxopt=-Werror
 common --host_per_file_copt=.*,-external/.*@-Wextra,-Wpedantic,-Wno-nullability-extension,-Wno-missing-field-initializers,-Wno-missing-designated-field-initializers
 common --host_per_file_copt=external/xff_.*@-Wextra,-Wpedantic,-Wno-nullability-extension,-Wno-missing-field-initializers,-Wno-missing-designated-field-initializers
 
+# libarchive's Bazel build selects futimesat on Linux but compiles its C sources in a language mode
+# that hides glibc's default declarations under GCC 14. Expose the declaration in both target and
+# exec configurations; coverage builds host tools that link libarchive, so fixing only the target
+# configuration leaves the same error in a `[for tool]` compile.
+common --per_file_copt=external/libarchive/.*@-D_DEFAULT_SOURCE
+common --host_per_file_copt=external/libarchive/.*@-D_DEFAULT_SOURCE
+
 test --test_output=errors
 
 common --copt=-fdiagnostics-color=always
