@@ -1257,26 +1257,27 @@ remains below is the design-forked / larger work.
   tables at runtime. Callers already reach the vocabulary only through the query, so the storage
   change stays behind the API. The design is captured in the NOTE in `xff/mime/mime.h` and
   `xff/language/language.h`.
-- **EPIC: Sharded-file support (#84) - DESIGNED (2026-08-05), building v1 autonomously.** Collapse a
+- **EPIC: Sharded-file support (#84) - v1 SHIPPED.** Collapse a
   shard set (`data-00000-of-00010`, `foo.tar.001` parts, `arc.z01`/`arc.zip`, ...) into one logical
   entry. Full spec in [`docs/design.md`](design.md) "Sharded files": off-by-default `--shards`; v1 =
   **display + stats only** (matching / actions stay per real shard); six-axis scheme model; capture
   vocabulary `stem` / `index` / `total` / `dup`; built-in catalog + `--shard-pattern=REGEX`;
   `--shards-show` / `--shards-dedup` policy; completeness by distinct index; sharding is not rotation.
-  Reassembled-content view is v2 (post-#83, on the archive vfs backend). Slices:
-  - **A - `xff/shard` engine + capture vocabulary.** Pure `(stem, index, total?, dup?)` parse of one
+  Reassembled-content view is v2 (post-#83, on the archive vfs backend). Shipped slices:
+  - **A - `xff/shard` engine + capture vocabulary - SHIPPED.** Pure `(stem, index, total?, dup?)` parse of one
     filename against a scheme; the six axes; the built-in catalog defined via the capture vocabulary
     (incl. the special-boundary schemes `zip-split` / `rar-old` / `rar-part`). Library + unit tests,
     no CLI / traversal wiring.
-  - **B - grouping + completeness + dedup.** Given a directory's entries, group by set identity, dedup
+  - **B - grouping + completeness + dedup - SHIPPED.** Given a directory's entries, group by set identity, dedup
     on `dup` (policy), compute completeness against distinct indices, emit logical shard-set records.
-  - **C - CLI `--shards[=auto|SCHEME,...]` + walk integration.** Enable + scheme selection (default
+  - **C - CLI `--shards[=auto|SCHEME,...]` + walk integration - SHIPPED.** Enable + scheme selection (default
     off; `auto` = whole catalog); collapse the listing to one line per set. bashtest / golden.
-  - **D - policy flags + completeness surfacing.** `--shards-show=wildcard|first|count`,
+  - **D - policy flags + completeness surfacing - SHIPPED.** `--shards-show=wildcard|first|count`,
     `--shards-dedup=first|mtime|error`, and the `f-???-of-003 (2/3 - INCOMPLETE)` output.
-  - **E - custom pattern `--shard-pattern=REGEX`** (named captures; repeatable) - the escape hatch.
-  - **F - stats integration.** `--summary` / `--histogram` aggregate per logical set (count + size);
-    `{shards}` set-count field.
+  - **E - custom pattern `--shard-pattern=REGEX` - SHIPPED.** Named captures, repeatable, and tried
+    before built-ins as the escape hatch.
+  - **F - stats integration - SHIPPED.** `--summary` / `--histogram` aggregate per logical set (count
+    - size); the field is `{shard}` (singular, matching the established field vocabulary).
   - **v2 (deferred, blocked on #83):** reassembled-content virtual view so `-grep` / `-content` /
     `-hash` / `-size` see the concatenated whole, reusing the archive vfs backend.
 - **Respect `.gitkeep` in gitignore handling (#120) - SHIPPED (2026-07-07).** A `.gitkeep` is a
