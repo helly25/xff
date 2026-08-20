@@ -24,6 +24,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/ascii.h"
+#include "absl/strings/strip.h"
 
 namespace xff::fuzzy {
 
@@ -137,30 +138,23 @@ QueryTerm ParseTerm(std::string word) {
     term.kind = TermKind::kExact;
     word.erase(word.begin());
   }
-  const bool leading_quote = !word.empty() && word.front() == '\'';
-  const bool trailing_quote = !word.empty() && word.back() == '\'';
-  if (leading_quote) {
-    word.erase(word.begin());
-    term.kind = term.kind == TermKind::kFuzzy ? TermKind::kExact : TermKind::kFuzzy;
-  }
-  if (trailing_quote && !word.empty()) {
-    word.pop_back();
-    term.kind = TermKind::kBoundary;
-  }
-  const bool prefix = !word.empty() && word.front() == '^';
-  if (prefix) {
-    word.erase(word.begin());
-  }
-  const bool suffix = !word.empty() && word.back() == '$';
+  // Keep this precedence in lockstep with fzf's parseTerms: suffix is recognized before quote,
+  // and a leading quote is considered before prefix. Combinations such as `!'fuzzy`, `'word'`,
+  // and `^equal$` otherwise acquire subtly different meanings.
+  const bool suffix = word != "$" && !word.empty() && word.back() == '$';
   if (suffix) {
     word.pop_back();
-  }
-  if (prefix && suffix) {
-    term.kind = TermKind::kEqual;
-  } else if (prefix) {
-    term.kind = TermKind::kPrefix;
-  } else if (suffix) {
     term.kind = TermKind::kSuffix;
+  }
+  if (word.size() > 2 && word.front() == '\'' && word.back() == '\'') {
+    word = word.substr(1, word.size() - 2);
+    term.kind = TermKind::kBoundary;
+  } else if (!word.empty() && word.front() == '\'') {
+    word.erase(word.begin());
+    term.kind = term.inverse ? TermKind::kFuzzy : TermKind::kExact;
+  } else if (!word.empty() && word.front() == '^') {
+    word.erase(word.begin());
+    term.kind = suffix ? TermKind::kEqual : TermKind::kPrefix;
   }
   term.text = std::move(word);
   return term;
@@ -169,24 +163,45 @@ QueryTerm ParseTerm(std::string word) {
 std::vector<OrGroup> ParseQuery(std::string_view query) {
   const std::vector<std::string> words = SplitQuery(query);
   std::vector<OrGroup> groups;
-  bool joins_previous = false;
+  OrGroup group;
+  bool starts_next_group = false;
+  bool after_bar = false;
   for (const std::string& word : words) {
-    if (word == "|") {
-      joins_previous = !groups.empty();
+    if (!group.empty() && !after_bar && word == "|") {
+      starts_next_group = false;
+      after_bar = true;
       continue;
     }
-    if (joins_previous) {
-      groups.back().push_back(ParseTerm(word));
-      joins_previous = false;
-    } else {
-      groups.push_back({ParseTerm(word)});
+    after_bar = false;
+    QueryTerm term = ParseTerm(word);
+    if (term.text.empty()) {
+      continue;
     }
+    if (starts_next_group) {
+      groups.push_back(std::move(group));
+      group.clear();
+    }
+    group.push_back(std::move(term));
+    starts_next_group = true;
+  }
+  if (!group.empty()) {
+    groups.push_back(std::move(group));
   }
   return groups;
 }
 
 bool IsBoundary(char chr) {
   return !absl::ascii_isalnum(static_cast<unsigned char>(chr));
+}
+
+std::string_view TrimAnchorWhitespace(std::string_view pattern, std::string_view text, bool leading, bool trailing) {
+  if (leading && (pattern.empty() || !absl::ascii_isspace(static_cast<unsigned char>(pattern.front())))) {
+    text = absl::StripLeadingAsciiWhitespace(text);
+  }
+  if (trailing && (pattern.empty() || !absl::ascii_isspace(static_cast<unsigned char>(pattern.back())))) {
+    text = absl::StripTrailingAsciiWhitespace(text);
+  }
+  return text;
 }
 
 std::optional<int> PositiveTermPercent(const QueryTerm& term, std::string_view text, bool fold_case) {
@@ -210,13 +225,18 @@ std::optional<int> PositiveTermPercent(const QueryTerm& term, std::string_view t
       break;
     }
     case TermKind::kPrefix:
+      text = TrimAnchorWhitespace(term.text, text, /*leading=*/true, /*trailing=*/false);
       matched = text.size() >= term.text.size() && SameText(term.text, text.substr(0, term.text.size()), fold_case);
       break;
     case TermKind::kSuffix:
+      text = TrimAnchorWhitespace(term.text, text, /*leading=*/false, /*trailing=*/true);
       matched = text.size() >= term.text.size()
                 && SameText(term.text, text.substr(text.size() - term.text.size()), fold_case);
       break;
-    case TermKind::kEqual: matched = SameText(term.text, text, fold_case); break;
+    case TermKind::kEqual:
+      text = TrimAnchorWhitespace(term.text, text, /*leading=*/true, /*trailing=*/true);
+      matched = !term.text.empty() && SameText(term.text, text, fold_case);
+      break;
   }
   if (!matched) {
     return std::nullopt;

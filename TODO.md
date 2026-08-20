@@ -134,7 +134,8 @@ shipped one way but not yet settled.
     vocabulary to work that way.
   - **Shipped:** `-fuzzy=fzf` implements that extended query grammar, and the same primary selects
     `sequence`, `levenshtein` (`edit`), or `shingles`; an optional `:PCT%` gates each model. The
-    implementation is pinned by upstream fzf's documented compound queries and maintained algorithm cases.
+    implementation is pinned by upstream fzf's documented compound queries, its complete compound
+    parser case, anchor whitespace behavior, and maintained algorithm cases.
     Scoring was the real work, and it is the same decision #168 records: a score implies an output
     ORDER. `--sort=score` and the alignment search are shipped; exact result-set limiting remains the
     separately specified `-top N` work.

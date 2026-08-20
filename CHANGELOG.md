@@ -5,6 +5,9 @@
 
 ## Matching
 
+- `-fuzzy=fzf` now follows fzf's operator precedence for compound inverse, quote,
+  anchor, and OR expressions, and its anchors ignore whitespace at the corresponding
+  candidate edge. Tests carry fzf's documented compound query and upstream parser cases.
 - Add `--max-results=N`, an aggregate ceiling for the implicit result listing across expression
   branches and independent `-first` / `-top` filters. It does not stop the walk or truncate
   reductions; explicit expression actions retain their positional semantics.
