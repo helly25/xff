@@ -80,9 +80,41 @@ class StubFileSystem : public vfs::FileSystem {
 struct ArchiveBackendTest : ::testing::Test {
   void TearDown() override {
     RegisterContainerOpener(ContainerOpener());
+    RegisterContainerMemberRemover(ContainerMemberRemover());
     RegisterContainerPacker(ContainerPacker(), {}, {});
   }
 };
+
+TEST_F(ArchiveBackendTest, WithNoRemoverAContainerCannotBeRewritten) {
+  EXPECT_THAT(ContainerRemovalAvailable(), IsFalse());
+  EXPECT_THAT(
+      RemoveContainerMembers("some.tar", {"gone.txt"}),
+      StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("without archive support")));
+}
+
+TEST_F(ArchiveBackendTest, ARegisteredRemoverReceivesTheContainerAndMembersUnchanged) {
+  std::string removed_from;
+  std::vector<std::string> removed_members;
+  RegisterContainerMemberRemover(
+      [&removed_from, &removed_members](std::string_view container, const std::vector<std::string>& members) {
+        removed_from = std::string(container);
+        removed_members = members;
+        return absl::OkStatus();
+      });
+
+  EXPECT_THAT(ContainerRemovalAvailable(), IsTrue());
+  EXPECT_THAT(RemoveContainerMembers("some.tar", {"b.txt", "a.txt"}), IsOk());
+  EXPECT_THAT(removed_from, "some.tar");
+  EXPECT_THAT(removed_members, ElementsAre("b.txt", "a.txt"));
+}
+
+TEST_F(ArchiveBackendTest, ARemoversErrorReachesTheCallerUnchanged) {
+  RegisterContainerMemberRemover(
+      [](std::string_view, const std::vector<std::string>&) { return absl::NotFoundError("member is absent"); });
+  EXPECT_THAT(
+      RemoveContainerMembers("some.tar", {"missing.txt"}),
+      StatusIs(absl::StatusCode::kNotFound, HasSubstr("member is absent")));
+}
 
 TEST_F(ArchiveBackendTest, WithNoBackendThereIsNoSupportAndOpeningSaysWhy) {
   // The lean build: the `--archive` surface exists and is documented, but nothing can look inside a

@@ -28,7 +28,7 @@ using ::testing::AllOf;
 using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::Field;
-using ::testing::IsTrue;
+using ::testing::IsEmpty;
 
 // Registered at FILE SCOPE, out of alphabetical order on purpose: this is how real components
 // register (a file-scope Registrar per translation unit), and the sort below must not depend on the
@@ -91,7 +91,34 @@ TEST_F(NoticeTest, NoticesReturnsACopySoCallersCannotCorruptTheRegistry) {
   std::vector<Notice> first = Notices();
   const std::vector<Notice>::size_type before = first.size();
   first.clear();
-  EXPECT_THAT(Notices().size() == before, IsTrue());
+  EXPECT_THAT(Notices().size(), before);
+}
+
+TEST_F(NoticeTest, LicenseBodiesAreSortedAndFoundBySpdxIdentifier) {
+  RegisterLicenseBody({.spdx = "Zlib-test", .text = "zlib body"});
+  RegisterLicenseBody({.spdx = "Apache-test", .text = "apache body"});
+
+  EXPECT_THAT(
+      LicenseBodies(),
+      Contains(
+          AllOf(Field("spdx", &LicenseBody::spdx, "Apache-test"), Field("text", &LicenseBody::text, "apache body"))));
+  EXPECT_THAT(LicenseBodyFor("Apache-test"), "apache body");
+  EXPECT_THAT(LicenseBodyFor("missing-test"), IsEmpty());
+}
+
+TEST_F(NoticeTest, DuplicateLicenseBodyKeepsTheFirstRegistration) {
+  RegisterLicenseBody({.spdx = "First-wins-test", .text = "first body"});
+  RegisterLicenseBody({.spdx = "First-wins-test", .text = "second body"});
+
+  EXPECT_THAT(LicenseBodyFor("First-wins-test"), "first body");
+}
+
+TEST_F(NoticeTest, ABodyRegistrarContributesItsWholeEntry) {
+  const LicenseBodyRegistrar registrar{{.spdx = "Registrar-test", .text = "registered body"}};
+  EXPECT_THAT(
+      LicenseBodies(),
+      Contains(AllOf(
+          Field("spdx", &LicenseBody::spdx, "Registrar-test"), Field("text", &LicenseBody::text, "registered body"))));
 }
 
 }  // namespace
