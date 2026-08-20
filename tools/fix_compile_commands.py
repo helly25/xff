@@ -47,7 +47,8 @@ import re
 import sys
 
 # `local_path_override(module_name = "x", path = "y")`, tolerating either field order and any
-# whitespace. Read from MODULE.bazel rather than hard-coded, so adding an extra needs no change here.
+# whitespace. Read from the extras module include rather than hard-coded, so adding an extra needs no
+# change here.
 _OVERRIDE_BLOCK = re.compile(r"local_path_override\(([^)]*)\)", re.S)
 _MODULE_NAME = re.compile(r'module_name\s*=\s*"([^"]+)"')
 _PATH = re.compile(r'path\s*=\s*"([^"]+)"')
@@ -163,7 +164,11 @@ def missing_from_database(entries: list[dict], labels: list[str], remap: dict[st
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("database", help="path to compile_commands.json, rewritten in place")
-    parser.add_argument("module_bazel", help="path to MODULE.bazel, read for local_path_override")
+    parser.add_argument(
+        "module_bazel",
+        nargs="+",
+        help="MODULE.bazel files/fragments whose local_path_override declarations are merged",
+    )
     parser.add_argument("--system", default="", help="`uname -s`; the macOS pass runs for Darwin")
     parser.add_argument(
         "--expect-sources",
@@ -172,8 +177,11 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    with open(args.module_bazel, encoding="utf-8") as module_file:
-        remap = external_prefix_map(local_module_paths(module_file.read()))
+    local_modules = {}
+    for module_path in args.module_bazel:
+        with open(module_path, encoding="utf-8") as module_file:
+            local_modules.update(local_module_paths(module_file.read()))
+    remap = external_prefix_map(local_modules)
     with open(args.database, encoding="utf-8") as database:
         entries = json.load(database)
     rewritten = fix_entries(entries, remap, args.system)

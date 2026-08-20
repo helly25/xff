@@ -14,13 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The composable extras, derived from MODULE.bazel.
+"""The composable extras, derived from bazelmod/extras.MODULE.bazel.
 
     tools/extras.py --wildcards   # @xff_archive//... @xff_pcre2//...
     tools/extras.py --modules     # xff_archive xff_pcre2
 
-Every extra is a separate bazel MODULE under `extra_modules/`, declared in MODULE.bazel with a
-`bazel_dep` + `local_path_override` pair. That makes MODULE.bazel the single source of truth for
+Every extra is a separate bazel MODULE under `extra_modules/`, declared in the extras include with a
+`bazel_dep` + `local_path_override` pair. That makes the include the single source of truth for
 WHICH extras exist, and this tool the way consumers ask, instead of each keeping its own list.
 
 Why it exists: `bazel test //...` does NOT match another bazel module, so an extra whose wildcard is
@@ -73,10 +73,9 @@ def main() -> int:
     group.add_argument("--modules", action="store_true", help="print each extra's module name")
     args = parser.parse_args()
 
-    # An empty result is legitimate: a minimal source tree has extra_modules/ deleted and the extras
-    # stripped from MODULE.bazel (the `minimal` CI cell does exactly that), and then there is nothing to
-    # name. Callers word-split this, so printing nothing is the right answer.
-    declared = extras((_REPO_ROOT / "MODULE.bazel").read_text(encoding="utf-8"))
+    # An empty result is legitimate for a stripped extras include. Callers word-split this, so
+    # printing nothing is the right answer.
+    declared = extras((_REPO_ROOT / "bazelmod" / "extras.MODULE.bazel").read_text(encoding="utf-8"))
 
     if args.wildcards:
         print(" ".join(f"@{module}//..." for module in declared))

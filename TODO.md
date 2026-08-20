@@ -97,9 +97,11 @@ shipped one way but not yet settled.
     acceptable here; if arming alone could destroy something it would need a whole word.
   - **Later wins per AXIS, and the axes stay independent (user, 2026-08-14).** `-z+ -Z++` widens the
     rung to `any` and arms writing; `-z++ -Z` narrows back to `roots`. A lower-case form never
-    disarms, so `-Z++ -z-` means "writing armed, reading OFF" - which reads as pointless today (no
-    dive, so no member to touch) but is exactly the shape a CREATE / pack action wants: produce an
-    archive without diving into existing ones to harvest their members. `-Z-` is therefore not an
+    disarms, so `-Z++ -z-` means "member writing armed, reading OFF". Permission alone does nothing:
+    with diving enabled, member `-delete` / exec operations consume it; with diving off, it is only
+    meaningful alongside a creation sink such as `--pack`. `--pack` does not require `-Z++`, because
+    creating a new ordinary archive is not mutation of an existing archive member; the combination
+    instead states the useful "create without harvesting existing containers" intent. `-Z-` is therefore not an
     error (the earlier draft refused it) but the full RESET: reading off and writing disarmed,
     overriding an earlier flag or a config file. Its disarm is only observable once reading is turned
     back on (`-Z -Z- -z`), which is how the test pins it.
@@ -108,13 +110,18 @@ shipped one way but not yet settled.
   - `--archive-depth` is deliberately NOT part of any rung: raising the decompression-bomb cap is a
     different decision from looking in more places.
 
-- **Short primaries `-n` / `-p` for `-name` / `-path` (SHIPPED 2026-08-20).** Note what fd's letters
-  actually mean before copying them: fd's `-p` is `--full-path` (a MODE flag that makes its single
-  positional pattern match the whole path), and fd has no `-n` at all - so this is not "be like fd",
-  it is "add xff shorthands". **Decision:** despite `-p` sitting close to `-print` / `-prune` /
-  `-printf`, the high-frequency name/path pair earns explicit aliases together. They resolve to the
-  canonical descriptors, so parsing, dispatch, style/cost metadata, and generated help cannot
-  diverge. This does not establish a general one-letter-primary namespace or reserve `-t`.
+- **Short primaries `-n` / `-p` for `-name` / `-path` (SHIPPED 2026-08-20; review reaffirmed).**
+  These are xff shorthands, not borrowed fd spellings: fd's `-p` means `--full-path` and fd has no
+  `-n`. The reason to keep them is narrower and stronger than "shorten popular words": name and path
+  are the fundamental, symmetric basename/whole-path glob scopes, and both are used frequently in
+  long expressions. Exact-token parsing means `-p` is not ambiguous with `-print`, `-prune`, or
+  `-printf`, and each alias resolves to its canonical descriptor so behavior, style/cost metadata,
+  and generated help cannot drift.
+
+  **This is not a general one-letter-primary namespace.** `-r` / `-x` do not uniquely identify a
+  regex grammar or operation, `-c` collides conceptually with content and count, and `-f` could mean
+  file type. Add no such aliases mechanically; a future short needs its own compelling,
+  unambiguous compatibility or usage case.
 
 - **fd's `-g` / `--glob`: RESOLVED in `--help=styles`.** fd matches its single
   positional pattern as a REGEX by default; `--glob` switches that one pattern to glob semantics.
@@ -1403,7 +1410,11 @@ remains below is the design-forked / larger work.
     `KiB`/`MiB`/.../`EiB` are IEC powers of 1024. The find-native `c`/`w`/`b` and
     `k`/`M`/`G`/.../`E` spellings remain compatible (the scale letters are binary); their ambiguity
     is documented as legacy rather than exported into new syntax. `--help=size` is the generated
-    vocabulary, and overflow is rejected before traversal instead of wrapping.
+    vocabulary, and overflow is rejected before traversal instead of wrapping. The shared unsigned
+    64-bit representation tops out at `18446744073709551615 B` (about `18.45 EB`, just under
+    `16 EiB`), so `18EB` / `15EiB` fit but `19EB` / `16EiB` do not. `ZB` / `ZiB` are deliberately
+    absent: even one whole unit exceeds the representation, so accepting the suffix would provide no
+    positive representable value.
 
 - **Config: drop the project `.xffrc` layer entirely (Option B, decided 2026-07-06).** No
   auto-discovered project config at all - not the ancestor cascade, not subtree scoping. Config
@@ -1687,8 +1698,12 @@ remains below is the design-forked / larger work.
     It is a regular readable/searchable file; a real stored member at that path wins and suppresses
     the synthetic entry. Deleting the synthetic stub is refused because a native phar cannot exist
     without it. This settles the general rule: expose a container component only when its format sees
-    it as file content, under the format's established reserved path. Do not turn incidental format
-    structure into invented files. Native phar alias, serialized metadata and signature export are
+    it as file content, under the format's established reserved path. It is a regular entry for
+    predicates, fields, summary, and histogram, not a listing-only decoration. A stored member at
+    `.phar/stub.php` wins over the synthetic view, preserving the invariant that one path identifies
+    at most one entry. Do not turn incidental format structure into invented files. Whether a future
+    option hides format-defined parts is a presentation question; it must filter this one identity,
+    never expose a duplicate. Native phar alias, serialized metadata and signature export are
     therefore DEFERRED; PHP's native layout does not represent them as files. SFX/AppImage/CRX prefix
     support remains a per-format future decision rather than one generic prefix feature.
   - **REJECTED as not worth it:** MSI (OLE2/CFB sector chains, Windows-centric), DMG (UDIF plus
@@ -1714,8 +1729,9 @@ remains below is the design-forked / larger work.
   (2026-08-20).** The desired end-state was for the core to discover whichever removable local
   modules happened to be present, with no root declarations. Bazel's module graph makes that
   impossible: a module cannot participate in an extension until the root graph already reaches it.
-  The shipped explicit `bazel_dep` / `local_path_override` declarations, mechanically stripped by
-  minimal-package CI, are therefore the final composition boundary:
+  The shipped explicit `bazel_dep` / `local_path_override` declarations now live together in
+  `bazelmod/extras.MODULE.bazel`; the root has one short include, which minimal-package CI removes
+  together with `extra_modules/`. That include is therefore the final composition boundary:
   - **Layout (317/2) DONE:** renamed `third_party/` -> `extra_modules/` (it holds glue/wrapper code,
     not the vendored lib). Each extra is `extra_modules/<name>/`.
   - **Shared base module `xff_extras_api` SHIPPED (b1 #326, b2 #327):** the RegexBackend plugin
@@ -1728,8 +1744,8 @@ remains below is the design-forked / larger work.
   - **Local module per extra (317/3) SHIPPED:** PCRE2, archive, and FUSE are independent
     `xff_pcre2`, `xff_archive`, and `xff_fuse` modules under `extra_modules/`; each depends only on
     `xff_extras_api` plus its own third-party closure. The lean `//xff/cli:xff` has no backend deps,
-    and the minimal CI job removes `extra_modules/` wholesale plus the mechanically identified root
-    module declarations before building the core.
+    and the minimal CI job removes `extra_modules/` wholesale plus the one root include before
+    building the core.
   - **Auto-enable via a module extension: SPIKED and REJECTED.** An isolated Bazel 9.2.0 experiment
     used a shared extension plus an extra that tagged itself. With no root dependency on the extra,
     its tag was absent from `module_ctx.modules`; adding the root dependency made it appear; changing
@@ -1740,8 +1756,8 @@ remains below is the design-forked / larger work.
   - **Normal/full build split: RESOLVED to the current explicit configuration.** A lean `//...` does
     not fetch or link heavy extras; `--config=xff_docs` / `--config=xff_full` makes `xff_full`
     compatible and exercises both binaries plus all extension tests. The minimal CI job removes the
-    whole `extra_modules/` directory and derives the matching root declaration removal from those
-    modules. Building both heavy and lean binaries in every default build would defeat the lean
+    whole `extra_modules/` directory and removes its single module include. Building both heavy and
+    lean binaries in every default build would defeat the lean
     dependency boundary, so the separate full configuration stays.
   - **License/NOTICE (317/4, SHIPPED):** each extra self-registers its own notice and every compiled
     component's notice through `xff_extras_api`; authoritative license bodies are embedded by SPDX

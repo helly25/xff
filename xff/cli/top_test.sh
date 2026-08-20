@@ -35,12 +35,7 @@ test::actions_before_top_run_for_every_candidate_but_actions_after_run_for_survi
   root="$(_make_tree)"
   out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -fuzzy foo -printf 'before:%f\n' \
     -top 2 -printf 'after:%f\n' --sort=tree)"
-  expect_output_contains "before:f_o_o" "${out}"
-  expect_output_contains "before:xxfoo" "${out}"
-  expect_output_contains "after:foo" "${out}"
-  expect_output_contains "after:foobar" "${out}"
-  expect_output_not_contains "after:f_o_o" "${out}"
-  expect_eq "7" "$(wc -l <<<"${out}" | tr -d ' ')" # five candidates before, two survivors after
+  expect_eq $'before:f_o_o\nbefore:foo\nbefore:foobar\nbefore:food\nbefore:xxfoo\nafter:foo\nafter:foobar' "${out}"
 }
 
 test::separate_top_nodes_keep_independent_complete_candidate_sets() {
@@ -59,14 +54,11 @@ test::position_relative_to_collect_selects_what_the_summary_reads() {
   root="$(_make_tree)"
   out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -fuzzy foo -collect -top 2 \
     -printf 'listed:%f\n' --summary --sort=tree)"
-  expect_output_contains "listed:foo" "${out}"
-  expect_output_contains "listed:foobar" "${out}"
-  expect_output_contains "total  5" "${out}" # collect ran before the ranked filter
+  expect_eq $'listed:foo\nlisted:foobar\ntotal  5' "${out}" # collect ran before the ranked filter
 
   out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -fuzzy foo -top 2 -collect \
     --summary --sort=tree)"
-  expect_output_contains "total  2" "${out}"
-  expect_output_not_contains "./foo" "${out}" # -collect suppresses implicit listing
+  expect_eq "total  2" "${out}" # -collect suppresses implicit listing
 }
 
 test::top_rejects_incomparable_score_domains() {

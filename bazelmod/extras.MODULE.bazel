@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""The removable xff build-extra modules."""
+
+# These declarations cannot be replaced by extras self-registering through a module extension. An
+# extension sees a module's tags only after that module is already reachable from the root graph:
+# without the bazel_dep an extra is invisible, while keeping the dependency and deleting its local
+# path fails during repository mapping before the extension runs. A minimal source archive therefore
+# removes the include of this file together with extra_modules/; CI executes exactly that operation.
+#
+# A local_path_override path inside the main repository would otherwise also be globbed as a package
+# in the main repository (//extra_modules/pcre2:...), whose view cannot see the module's own @pcre2
+# dependency. MODULE.bazel and REPO.bazel markers do not stop that dual view, so `extra_modules` is in
+# //.bazelignore and each directory is owned only through its @xff_* module name. Keep new removable
+# extras under extra_modules/ so the derivation tools and minimal-source operation remain mechanical.
+
+bazel_dep(name = "xff_pcre2", version = "0.0.0")
+local_path_override(
+    module_name = "xff_pcre2",
+    path = "extra_modules/pcre2",
+)
+
+bazel_dep(name = "xff_archive", version = "0.0.0")
+local_path_override(
+    module_name = "xff_archive",
+    path = "extra_modules/archive",
+)
+
+bazel_dep(name = "xff_fuse", version = "0.0.0")
+local_path_override(
+    module_name = "xff_fuse",
+    path = "extra_modules/fuse",
+)

@@ -110,7 +110,8 @@ bazel build --config=clang-tidy //... >/dev/null \
 
 # The composable extras are separate modules, so `//...` does not reach them: without this build
 # their virtual-include forests are missing exactly as the core's would be, and clang-tidy cannot
-# resolve an extra's own header. The list is DERIVED from MODULE.bazel (tools/extras.py), the same
+# resolve an extra's own header. The list is DERIVED from bazelmod/extras.MODULE.bazel
+# (tools/extras.py), the same
 # source //:refresh_compile_commands uses - a hardcoded list here is how @xff_fuse shipped with a
 # compile DB whose headers did not exist (PR #534's CI). No --//xff:xff_<extra> flag: that gates
 # whether the CORE links an extra, not whether the extra itself builds (see //BUILD.bazel).
@@ -158,7 +159,8 @@ for pattern in "//xff/..." $(python3 tools/extras.py --wildcards) "@xff_extras_a
     | grep -E '^@@(//|xff_)' >>"${EXPECTED_SOURCES}" || true
 done
 
-python3 tools/fix_compile_commands.py compile_commands.json MODULE.bazel --system="$(uname -s)" \
+python3 tools/fix_compile_commands.py compile_commands.json MODULE.bazel bazelmod/extras.MODULE.bazel \
+  --system="$(uname -s)" \
   --expect-sources="${EXPECTED_SOURCES}" \
   || die "post-processing compile_commands.json failed"
 

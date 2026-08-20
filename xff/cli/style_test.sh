@@ -205,6 +205,14 @@ test::help_styles_shows_the_flavor_comparison() {
   expect_output_contains "letter case" "${out}"
   # Two-tier: the differing behaviors lead under a "Where the styles differ:" heading.
   expect_output_contains "Where the styles differ:" "${out}"
+  # The syntax contract explains both dash-count scope and the deliberately narrow short-alias
+  # policy. This is the boundary behind the spellings, not merely a list of current tokens.
+  expect_output_contains "Flag and primary conventions:" "${out}"
+  expect_output_contains "--flag          configures the whole run" "${out}"
+  expect_output_contains "between -exec and its closing ; or +" "${out}"
+  expect_output_contains "Short aliases are exceptional" "${out}"
+  expect_output_contains "frequent symmetric basename/whole-path glob pair" "${out}"
+  expect_output_contains "does not imply -r, -x, -c, or -f" "${out}"
   # hidden: find/xff show, rg skips (one row, so the whole-text regex stays on that line).
   expect_matches 'hidden dotfiles.*show.*show.*skip' "${out}"
   # The tail maps other finders' spellings onto xff's, which is the other half of "which flavor am I

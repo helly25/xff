@@ -279,6 +279,11 @@ test::help_time_and_size_list_their_vocabularies() {
   expect_output_contains 'IEC units' "${out}"
   expect_output_contains 'kB / MB' "${out}"
   expect_output_contains 'KiB / MiB' "${out}"
+  expect_output_contains '18446744073709551615 B' "${out}"
+  expect_output_contains '18EB' "${out}"
+  expect_output_contains '15EiB' "${out}"
+  expect_output_contains 'ZB' "${out}"
+  expect_output_contains 'one zettabyte/zebibyte already exceeds' "${out}"
   # --help=full is exhaustive: it folds in the field, printf, time, and size vocabularies.
   out="$("$(_xff_bin)" --help=full 2>&1)"
   expect_output_contains 'TIME FORMATS' "${out}"

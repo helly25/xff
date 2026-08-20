@@ -28,7 +28,7 @@ package(default_visibility = ["//visibility:private"])
 # found`) and its findings there were meaningless. Each extra also needs its own build flag, which is
 # what the per-target value in this dict is for - without the flag the extra's targets do not build.
 #
-# The extras are DERIVED from MODULE.bazel (tools/extras_repo.bzl), not listed here: an extra missing
+# The extras are DERIVED from bazelmod/extras.MODULE.bazel (tools/extras_repo.bzl), not listed here: an extra missing
 # from this target is invisible to clang-tidy and clangd, and that failure is silent - it looks clean.
 # No per-extra build flag is needed, which is what makes the list derivable at all: `--//xff:xff_<extra>`
 # gates whether the CORE links an extra, not whether the extra itself builds, and the extractor is

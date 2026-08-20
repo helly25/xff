@@ -50,6 +50,19 @@ class LocalModulePathsTest(unittest.TestCase):
     def test_ignores_a_bazel_dep_without_an_override(self):
         self.assertEqual(fcc.local_module_paths('bazel_dep(name = "re2", version = "1")'), {})
 
+    def test_maps_from_separate_root_and_extras_fragments(self):
+        root = fcc.local_module_paths(
+            'local_path_override(module_name = "xff_extras_api", path = "xff_extras_api")'
+        )
+        extras = fcc.local_module_paths(
+            'local_path_override(module_name = "xff_archive", path = "extra_modules/archive")'
+        )
+        root.update(extras)
+        self.assertEqual(
+            root,
+            {"xff_archive": "extra_modules/archive", "xff_extras_api": "xff_extras_api"},
+        )
+
 
 class ToSourcePathTest(unittest.TestCase):
     def setUp(self):
