@@ -843,7 +843,7 @@ bool MatchesRegex(MatcherRef matcher, std::string_view path, std::vector<std::st
 }
 
 // Applies a -capture extraction matcher (Expr::matcher, pre-compiled from the
-// optional =NAME=REGEX) to `text`: returns capture group 1, or the whole match
+// optional :NAME=REGEX) to `text`: returns capture group 1, or the whole match
 // when the regex has no groups, or empty when it does not fully match (or the
 // matcher is empty -- no/uncompilable extraction regex).
 std::string ExtractCapture(MatcherRef matcher, std::string_view text) {
@@ -910,7 +910,7 @@ bool EvalFuzzyOn(const parser::Expr& expr, EvalContext& ctx, std::string_view su
 // state; all it owes is a truth value. The count is keyed by the AST node, so
 // `\( -type f -first 10 \) -o \( -type d -first 5 \)` is ten files AND five directories - which is
 // exactly what a whole-run global could not express. N is validated before the walk.
-// -collect[=NAME]: hold the entry for a post-walk sink instead of printing it. An ACTION, so it is
+// -collect[:NAME]: hold the entry for a post-walk sink instead of printing it. An ACTION, so it is
 // always true and (being an action) suppresses the implicit -print - which is what makes
 // `-first 10 -collect --summary` a summary with no listing, with no --quiet needed.
 bool EvalCollect(const parser::Expr& expr, EvalContext& ctx) {
@@ -1077,7 +1077,7 @@ bool EvalBinary(const parser::Expr& /*expr*/, EvalContext& ctx) {
 // readable file whose content ends with `terminator`, or is empty (a zero-line file is vacuously
 // complete). Tests ONLY the final terminator -- the content-class axis is -text -- so `-text -eofnl`
 // is a well-formed (POSIX-style) text file and `-text ! -eofnl` the missing-final-newline lint, and
-// `-text=windows -eofcrlf` / `-text=apple -eofcr` are their CRLF / CR analogues. Orthogonal on
+// `-text:windows -eofcrlf` / `-text:apple -eofcr` are their CRLF / CR analogues. Orthogonal on
 // purpose: bundling the binary heuristic here would make `! -eof*` sweep in binaries and non-files.
 bool EvalEofTerminator(EvalContext& ctx, std::string_view terminator) {
   if (ctx.visit.metadata.type != vfs::FileType::kRegular) {
@@ -1095,13 +1095,13 @@ bool EvalEofnl(const parser::Expr& /*expr*/, EvalContext& ctx) {
   return EvalEofTerminator(ctx, "\n");
 }
 
-// xff -eofcr: content ends with a bare CR (the classic-Mac / -text=apple terminator). A CRLF file
+// xff -eofcr: content ends with a bare CR (the classic-Mac / -text:apple terminator). A CRLF file
 // ends in LF, not CR, so it does NOT match -eofcr.
 bool EvalEofcr(const parser::Expr& /*expr*/, EvalContext& ctx) {
   return EvalEofTerminator(ctx, "\r");
 }
 
-// xff -eofcrlf: content ends with CRLF (the Windows / -text=windows terminator).
+// xff -eofcrlf: content ends with CRLF (the Windows / -text:windows terminator).
 bool EvalEofcrlf(const parser::Expr& /*expr*/, EvalContext& ctx) {
   return EvalEofTerminator(ctx, "\r\n");
 }
@@ -1174,10 +1174,10 @@ bool EvalCmp(const parser::Expr& expr, EvalContext& ctx) {
 
 namespace {
 
-// The output selectors a -diff=STYLE token maps to. `format` and `context` are optional: an
+// The output selectors a -diff:STYLE token maps to. `format` and `context` are optional: an
 // omitted one falls back to the resolved global default (--diff-format / --diff-context /
 // --context, themselves defaulting to unified / 3), so the per-action token wins only over the
-// parts it names. `silent` is -diff=none (compute but do not print). The token is already
+// parts it names. `silent` is -diff:none (compute but do not print). The token is already
 // syntactically valid (the parser checked it).
 struct DiffStyle {
   std::optional<mbo::diff::DiffOptions::OutputFormat> format;
@@ -1269,7 +1269,7 @@ absl::Status ApplyDiffIgnore(std::string_view tokens, std::string_view matching,
 
 }  // namespace
 
-// xff -diff[=STYLE] TARGET: an ACTION that diffs the entry against TARGET (a field template,
+// xff -diff[:STYLE] TARGET: an ACTION that diffs the entry against TARGET (a field template,
 // like -cmp) via mbo::diff and returns TRUE = same (silent when equal; prints the diff and is
 // false on a difference). STYLE picks the output (u3 default / c / n / y / none = silent). A
 // binary side is byte-compared with a `Binary files A and B differ` note on stderr, never a
@@ -1315,7 +1315,7 @@ bool EvalDiff(const parser::Expr& expr, EvalContext& ctx) {
   }
   const DiffStyle style = ParseDiffStyle(expr.diff_style);
   mbo::diff::DiffOptions options;  // default-constructed (myers, unified, ctx 3) then tuned
-  // A -diff=STYLE token overrides only the parts it names; an omitted format/context falls back to
+  // A -diff:STYLE token overrides only the parts it names; an omitted format/context falls back to
   // the resolved global default (--diff-format / --diff-context / --context, else unified / 3).
   options.output_format = style.format.value_or(ctx.diff_format);
   options.context_size = style.context.value_or(ctx.diff_context);
@@ -1354,7 +1354,7 @@ std::optional<std::string> DigestOfEntry(const EvalContext& ctx, const hash::Alg
   return hash::HashData(spec.algo, *content, spec.encoding);
 }
 
-// xff -hash[=ALGO[/ENCODING]]: an ACTION that prints the entry's digest and path as
+// xff -hash[:ALGO[/ENCODING]]: an ACTION that prints the entry's digest and path as
 // `<digest>  <path>` (the `sha256sum` layout, so the output feeds `<algo>sum -c`). The spec
 // picks the algorithm and hex/base64 rendering; empty parts fall back to --hash-algorithm /
 // --hash-encoding (sha256 / hex). Reads the file (Cost::kExpensive); an unreadable file emits
@@ -1377,7 +1377,7 @@ bool EvalHash(const parser::Expr& expr, EvalContext& ctx) {
 // xff -hasheq EXPECTED: TRUE when the entry's digest equals EXPECTED, the manifest-verification
 // companion of -hash. EXPECTED is a field template rendered per entry (so `-hasheq {def.SUMS}`
 // checks against a sidecar value, and `! -hasheq {def.SUMS}` lists drift). The algorithm / encoding
-// come from `-hasheq=ALGO[/ENCODING]` (or the --hash-algorithm / --hash-encoding defaults), exactly
+// come from `-hasheq:ALGO[/ENCODING]` (or the --hash-algorithm / --hash-encoding defaults), exactly
 // like -hash; the hex comparison folds case since sha256sum and SRI differ only in case. An empty
 // EXPECTED, an unreadable file, or a bad spec is FALSE (no match), so drift-selection is safe.
 // Cost::kExpensive (reads the whole file).
@@ -1440,7 +1440,7 @@ bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
   // The pattern is pre-compiled by the parser into a matcher under the run's grammar (RE2 by
   // default, the literal engine under --regextype=EXACT, PCRE2 when built in). A null matcher (an
   // unparseable pattern) matches nothing, mirroring -rxc. The matcher drives the line filter and,
-  // for -grep=FORMAT, the per-line {match}/{column} span, so EXACT and RE2 share one code path.
+  // for -grep:FORMAT, the per-line {match}/{column} span, so EXACT and RE2 share one code path.
   const MatcherRef matcher = AsRef(expr.matcher);
   if (!matcher.has_value()) {
     return false;
@@ -1448,7 +1448,7 @@ bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
   const auto is_match = [&](std::string_view line) { return matcher->get().PartialMatch(line); };
   if (ctx.grep_count) {
     // --count / -c (rg -c): one path:count per file with matches, in place of the
-    // lines (and any -grep=FORMAT); files with no match emit nothing. Context is ignored.
+    // lines (and any -grep:FORMAT); files with no match emit nothing. Context is ignored.
     const std::vector<content::LineMatch> lines = content::CollectLineMatches(*content, is_match);
     if (!lines.empty()) {
       ctx.emit(absl::StrCat(ctx.visit.path, ":", lines.size(), "\n"));
@@ -1477,7 +1477,7 @@ bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
       ctx.emit(absl::StrCat(ctx.visit.path, sep, line.number, sep, line.text, "\n"));
       continue;
     }
-    // -grep=FORMAT: render the field template per line ({line}/{text} plus the entry's
+    // -grep:FORMAT: render the field template per line ({line}/{text} plus the entry's
     // {path}/{name}/... vocabulary). {match}/{column} need the matched span, recomputed here on a
     // match line; on a context line they stay empty.
     std::string_view match_text;
@@ -2595,7 +2595,7 @@ bool ContainsAction(const parser::Expr& expr) {
 
 std::optional<mbo::diff::DiffOptions::OutputFormat> ParseDiffFormatFlag(std::string_view flag) {
   using OutputFormat = mbo::diff::DiffOptions::OutputFormat;
-  // The -diff=STYLE letters plus the long names, each mapping to one mbo output format. Keys are
+  // The -diff:STYLE letters plus the long names, each mapping to one mbo output format. Keys are
   // alphabetical so the constexpr LimitedMap stays sorted. `none` is deliberately absent: it is
   // the per-action silencer, not a default the walk carries.
   static constexpr auto kFormats = mbo::container::MakeLimitedMap(
@@ -2648,14 +2648,14 @@ absl::Status ValidateSizeArgs(const parser::Expr& expr) {
 
 absl::Status ValidateHashArgs(const parser::Expr& expr) {
   if (expr.kind == parser::Expr::Kind::kPredicate) {
-    // -hash and -hasheq share the =ALGO[/ENCODING] spec grammar (Binding::kHash), so both validate here.
+    // -hash and -hasheq share the :ALGO[/ENCODING] spec grammar (Binding::kHash), so both validate here.
     if (expr.descriptor != nullptr && (expr.descriptor->name == "-hash" || expr.descriptor->name == "-hasheq")
         && !expr.hash_spec.empty()) {
       // Only the spec's explicit parts matter here, so validate against a concrete default.
       if (!hash::ParseSpec(expr.hash_spec, "sha256", hash::Encoding::kHex).has_value()) {
         return absl::InvalidArgumentError(
             absl::StrCat(
-                "'", expr.descriptor->name, "=", expr.hash_spec,
+                "'", expr.descriptor->name, ":", expr.hash_spec,
                 "': unknown algorithm or encoding (ALGO[/ENCODING]; encoding is hex or base64)"));
       }
     }

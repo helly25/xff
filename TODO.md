@@ -141,7 +141,7 @@ shipped one way but not yet settled.
     grammar living inside the token. An UNQUOTED multi-term form would need an `-exec`-style `;`
     terminator, which for a matcher reads worse than quoting and would be the only primary in the
     vocabulary to work that way.
-  - **Shipped:** `-fuzzy=fzf` implements that extended query grammar, and the same primary selects
+  - **Shipped:** `-fuzzy:fzf` implements that extended query grammar, and the same primary selects
     `sequence`, `levenshtein` (`edit`), or `shingles`; an optional `:PCT%` gates each model. The
     implementation is pinned by upstream fzf's documented compound queries, its complete compound
     parser case, anchor whitespace behavior, and maintained algorithm cases.
@@ -355,65 +355,62 @@ shipped one way but not yet settled.
   earlier subtree-scoping question (now moot). Full record + the `--xffrc` arming restriction
   are in the roadmap tail below ("Config: drop the project `.xffrc` layer").
 
-- **INVESTIGATED (GATES 1.0.0): `--flag:modifier` instead of `--flag=modifier value`. Findings below,
-  decision still open.** The surveyed surface is far narrower than the proposal assumes, and one
-  example in the original note was simply wrong.
+- **DONE (2026-08-20): use `:` for an attached expression-primary qualification and `=` for a
+  whole-run global assignment.** The earlier investigation
+  surveyed only double-dash globals and therefore missed the surface that actually motivates the
+  change: xff's single-dash expression primaries with attached payloads.
 
-  **Surveyed every global's value grammar.** Only these have any internal structure:
+  **Proposed grammatical boundary:**
 
-  | flag                           | shape                | is it "modifier + value"?                    |
-  | :----------------------------- | :------------------- | :------------------------------------------- |
-  | `--define=NAME=VALUE`          | two `=`              | YES - the one genuine case                   |
-  | `--histogram=BUCKET[:MEASURE]` | `:` INSIDE the value | no - a sub-selector, and it already owns `:` |
-  | `--columns=FIELD,...`          | comma list           | no - a plain valued flag                     |
-  | `--diff-ignore=TOKEN,...`      | comma list           | no - a plain valued flag                     |
-  | `--timezone=ZONE, --tz=ZONE`   | single value         | no                                           |
+  - `--flag=VALUE` assigns a whole-run global. This remains true even when VALUE has an internal
+    grammar: `--define=NAME=VALUE`, `--histogram=BUCKET[:MEASURE]`, and
+    `--pack-option=NAME=VALUE`. The first `=` belongs to the global grammar; everything after it is
+    that flag's value. In particular, `--define` cannot lose both equals: its VALUE really is a
+    `NAME=VALUE` definition, matching make / CMake / Bazel precedent.
+  - `-primary:QUALIFIER OPERAND...` qualifies one expression node. The colon is attached to the
+    primary because the qualification changes HOW that node consumes or presents its ordinary
+    operand; operands themselves remain separate argv tokens. A primary with no ordinary operand
+    can still be qualified (`-text:posix`, `-hash:sha256`) - the distinction is grammatical scope,
+    not whether the payload can loosely be called a value.
+  - A colon inside a global VALUE or a field expression remains that value grammar's separator. It
+    is at a different structural level and is not ambiguous: `--histogram=size:count` assigns the
+    VALUE `size:count`, while `-fuzzy:fzf:80% foo` qualifies one `-fuzzy` node. Likewise
+    `%{size:h}` and `{field:s/pat/repl/}` are self-contained format languages.
 
-  **Correction to the original note:** `-capture=NAME ... \;` and `-capturedir` are NOT globals. They
-  are expression PRIMARIES (single dash, `=payload` binding), so they belong to the primary grammar,
-  not the `--flag` surface. Respelling those would be a much larger change to the expression language
-  and is not what this item proposed.
+  **Complete attached-primary inventory (all `Descriptor::binding` users):**
 
-  **The collision is real and already shipped.** `:` is xff's established SUB-separator INSIDE a value:
-  `--histogram=size:count`, the `-printf` bridge `%{size:h}`, and the rewrite qualifier
-  `{field:s/pat/repl/}`. Promoting `:` to the flag/modifier separator would put two meanings of `:` in
-  one token - `--histogram:size:count` - which is worse than the `=` it replaces.
+  | spelling                      | attached payload's role                         | following operand |
+  | :---------------------------- | :---------------------------------------------- | :---------------- |
+  | `-text:FLAVOR`                | text-definition flavor                          | none              |
+  | `-collect:[!]NAME`            | collection identity / deliberate-reuse marker   | none              |
+  | `-fuzzy:MODEL[:PCT%]`         | matcher model and threshold                     | PATTERN           |
+  | `-fuzzypath:MODEL[:PCT%]`     | matcher model and threshold                     | PATTERN           |
+  | `-ifuzzy:MODEL[:PCT%]`        | matcher model and threshold                     | PATTERN           |
+  | `-ifuzzypath:MODEL[:PCT%]`    | matcher model and threshold                     | PATTERN           |
+  | `-diff:STYLE`                 | output style / context                          | TARGET            |
+  | `-hash:ALGO[/ENCODING]`       | digest algorithm and rendering                  | none              |
+  | `-hasheq:ALGO[/ENCODING]`     | digest algorithm and rendering                  | EXPECTED          |
+  | `-grep:FORMAT`                | per-match output template                       | PATTERN           |
+  | `-capture:[!]NAME[=REGEX]`    | binding identity, reuse marker, extraction rule | `CMD... ;`        |
+  | `-capturedir:[!]NAME[=REGEX]` | binding identity, reuse marker, extraction rule | `CMD... ;`        |
 
-  **So the proposal buys clarity for exactly one flag** (`--define`), at the cost of a second meaning
-  for `:`. Three ways to close it:
-  1. **Do nothing.** `--define=NAME=VALUE` stays; it is unambiguous to the parser (split at the FIRST
-     `=`) and matches `make`, `cmake -D`, and `bazel --define`. Zero churn, and the precedent argument
-     is strong: users have seen `NAME=VALUE` after an `=` before.
-  2. **Accept `--define:NAME=VALUE` as an alias**, keeping `=` working. Narrow, no other flag changes,
-     no new meaning of `:` inside a value. Costs one alias and its docs.
-  3. **Blanket switch** for all valued flags - NOT recommended: it breaks every shipped spelling and
-     collides with the sub-separator above.
+  Bare forms keep their existing defaults (`-text`, `-collect`, `-fuzzy PATTERN`, `-diff TARGET`,
+  `-hash`, and so on). The `=` inside `NAME=REGEX` also remains: it describes the binding's value,
+  just as the inner `=` in `--define=NAME=VALUE` does. Arbitrary payloads remain representable:
+  splitting `-grep:{line}={text}` at the FIRST colon leaves `{line}={text}` untouched.
 
-  **Recommendation: (1), or (2) if the double `=` is what grates** - the decision is yours; nothing is
-  implemented. Whichever way, it stops gating 1.0.0 once recorded, because (1) is a no-op and (2) is
-  additive (an alias can land after 1.0.0 without breaking anyone).
+  **Everything else was checked and is outside this rule:** all double-dash valued options remain
+  global assignments; find-native primaries take separate operands; `-jN` and the `-g+` / `-z++` /
+  `-Z++` / `-s+` families are compact compatibility or level spellings, not bindings; `+N` / `-N`
+  comparison prefixes live in primary operands; and `--help=license=NAME` is a meta-topic grammar,
+  not an executable option assignment.
 
-- **Original proposal (kept for the rationale):**
-  Several globals spend their `=value` slot on a _modifier_ (a key, a mode, a dimension) and
-  then take the actual value separately, so `=` no longer means "here is the value". The
-  proposal is to separate the modifier with a colon - `--flag:modifier` - which frees `=`
-  for the value and makes the whole thing expressible in one token:
-  `--flag:modifier=value`. Today's spellings that motivate it:
-  - `--define=NAME=VALUE` - two `=` in one flag, the clearest case
-    (`--define:NAME=VALUE` reads unambiguously);
-  - `--capture=NAME CMD... \;` / `--capturedir=NAME ...` - modifier in the flag, value
-    (the command) in the following arguments;
-  - `--histogram=BUCKET[:MEASURE]` and `--shards[=auto|SCHEME,...]` - a modifier plus a
-    sub-selector, already using `:` _inside_ the value.
-    The investigation has to settle, at minimum: (a) which flags are genuinely
-    modifier-plus-value versus plain valued flags that must keep `=`; (b) the collision with
-    `:` as xff's existing _sub_-separator inside values (`BUCKET:MEASURE`,
-    `%{field:qualifier}`, `{field:s/pat/repl/}`) - promoting `:` to the flag separator may
-    make `--histogram:size:count` unreadable or ambiguous; (c) whether both spellings are
-    accepted (`=` as a deprecated alias) or it is a hard switch; (d) the knock-on effects on
-    `.xffrc` lines, `--explain`, the generated help / `XFF.md`, and shell completion.
-    **Blocking for 1.0.0**: it changes the surface of shipped flags, so after 1.0.0 it would
-    be a breaking change rather than a refinement.
+  **Migration:** this is a hard pre-1.0 switch for the 12 primaries, rather than retaining `=` aliases
+  indefinitely. Accepting both would preserve the very mixed grammar this decision removes, double
+  the documented/tested surface, and make `=` look like a supported convention for future primaries.
+  Old forms fail with a focused diagnostic naming the colon spelling. The registry binding parser,
+  AST, generated help, cookbook, tests, config policy classification, examples/docs, completion
+  inputs, and `--help=styles` conventions section all use the new boundary.
 
 ## Sanitizer verification: what runs where
 
@@ -537,7 +534,7 @@ work around; it is why `-collect` exists.
   `xff . \( -type f -first 10 \) -o \( -type d -first 5 \)` is ten files AND five directories.
   Truth is immediate, so it streams and its early stop is trivially safe.
 - **`-top N`** - a TEST that keeps the N best by the expression's normalized fuzzy score. Quality
-  thresholds belong to the matchers (`-fuzzy=PCT% PATTERN`), so `-fuzzy=80% foo -top 10` reads as
+  thresholds belong to the matchers (`-fuzzy:PCT% PATTERN`), so `-fuzzy:80% foo -top 10` reads as
   “the ten best good matches” without coupling selection and ranking in one argument. Multiple fuzzy
   tests compose through the boolean AST: AND takes the minimum (the weakest required match), OR the
   maximum (the best successful alternative), and normalized 0..100 percentages make different
@@ -557,8 +554,8 @@ work around; it is why `-collect` exists.
     the start. The cutoff is the optimisation that permits an early stop (once N entries clear it,
     the running top N IS the final top N), never the thing that makes it correct.
 - **`-collect[=NAME]`** - an ACTION that adds the entry to a named collection for a later sink.
-  `-collect=NAME` needs no new parser work: `-capture=NAME cmd \;` already uses `Binding::kLabelRegex`
-  from #68, and `-text=posix` shows the plain optional value. The unnamed form is just the default
+  `-collect:NAME` needs no new parser work: `-capture:NAME cmd \;` already uses `Binding::kLabelRegex`
+  from #68, and `-text:posix` shows the plain optional value. The unnamed form is just the default
   name, so there is no special case for "the anonymous one". Duplicate NAME copies `-capture`'s rule
   verbatim: an error, with an explicit override - two named sinks silently merging would only show up
   as a wrong summary. It holds every matched entry, so it wants `--buffer`'s row/byte budget
@@ -617,12 +614,12 @@ one level up; an early stop stays an explicit opt-in.
    **Name reuse: the `!` modifier, not an override flag.** A NAME is an identifier
    (`[A-Za-z_][A-Za-z0-9_]*`), which is what reserves punctuation for modifiers, and a node that
    reuses a name an earlier node took must say so with `!`:
-   `\( -type f -collect=all \) -o \( -type d -collect=!all \)`. This replaced the
+   `\( -type f -collect:all \) -o \( -type d -collect:!all \)`. This replaced the
    `--collect-override` / `--capture-override` globals outright, and the reason is the same one that
    made these primaries rather than globals: a whole-run flag loosens EVERY `-capture` / `-collect` in
    the command, including the ones the author never thought about, while the modifier loosens exactly
    the node it is written on. `--capture-override` is GONE (it was never released), and `-capture`
-   now takes `-capture=!NAME` too. Settled with the user 2026-08-17.
+   now takes `-capture:!NAME` too. Settled with the user 2026-08-17.
 
 3. **`-top N` SHIPPED (2026-08-20).** Exact evaluator-level deferral, not a buffered print trick:
    each node gathers the scored entries that actually reach it, selects its stable top N after the
@@ -1230,7 +1227,7 @@ remains below is the design-forked / larger work.
 - **Hash-verification workflow (#109) - DONE (single-pass tally deferred).** The hashing primitives
   (#105) and now the `-hasheq EXPECTED` matcher are in: `-hasheq` computes the file's digest and is
   true when it equals EXPECTED, a `{field}` template rendered per entry (so `-hasheq {def.SUMS}`
-  checks a sidecar value and `! -hasheq …` selects drift); `-hasheq=ALGO[/ENCODING]` shares the
+  checks a sidecar value and `! -hasheq …` selects drift); `-hasheq:ALGO[/ENCODING]` shares the
   `-hash` spec grammar, and hex comparison folds case. **Dedup grouping shipped** as the first-class
   `--summary=hash` mode (identical files collapse into one bucket; also spellable `--summary={hash}`).
   **Deferred refinement (single-pass tally):** a one-pass verified-vs-failed count. Both viable
@@ -1954,7 +1951,7 @@ renderers + a help_topic_test assertion. The diagram is duplicated in help.cc`Re
   so their titles match, and `git blame` skips binaries. `-text` is deliberately the search heuristic,
   NOT POSIX conformance (POSIX forbids a NUL anywhere + caps line length + requires newline-termination).
   - **`-text[=git|posix|windows|apple]` flavor (#138) - SHIPPED.** A text-definition value on `-text`,
-    via `Binding::kText` (attached `-text=VALUE`, like `-hash=ALGO` / `-diff=STYLE`; the flavor lives on
+    via `Binding::kText` (attached `-text:VALUE`, like `-hash:ALGO` / `-diff:STYLE`; the flavor lives on
     `Expr::text_flavor`, validated in the parser). Bare `-text` == `=git` = the loose default (no NUL in
     the first 8000, EOL-agnostic; back-compatible). The strict flavors forbid a NUL ANYWHERE and require
     a final terminator (empty is vacuously complete): `=posix` LF-only ending in LF; `=windows` CRLF-only;
@@ -1962,12 +1959,12 @@ renderers + a help_topic_test assertion. The diagram is duplicated in help.cc`Re
     flavor-agnostic "ends in LF" primitive (`=posix` subsumes it). One valued predicate, not
     `-posix-text` / a separate `-eol=` axis; unknown flavor is a usage error.
     - **`-eofcr` and `-eofcrlf` final-terminator primitives (#139) - SHIPPED.** `-eofnl` was
-      LF-centric ("ends with LF"); `-eofcr` ("ends with a bare CR", the classic-Mac / `-text=apple`
-      terminator) and `-eofcrlf` ("ends with CRLF", the Windows / `-text=windows` terminator) complete
+      LF-centric ("ends with LF"); `-eofcr` ("ends with a bare CR", the classic-Mac / `-text:apple`
+      terminator) and `-eofcrlf` ("ends with CRLF", the Windows / `-text:windows` terminator) complete
       the a-la-carte final-terminator axis, so each line-ending style has a standalone completeness lint
       the way the flavor predicates bundle it. All three share one `EvalEofTerminator(ctx, terminator)`
       body (regular readable file whose content is empty or `absl::EndsWith` the terminator), content-
-      class-agnostic on purpose - compose `-text=windows -eofcrlf` / `-text=apple -eofcr`, or negate for
+      class-agnostic on purpose - compose `-text:windows -eofcrlf` / `-text:apple -eofcr`, or negate for
       the missing-terminator lint. A CRLF file ends in LF too, so it satisfies `-eofnl`; `-eofcrlf` is
       the strict form. All three are xff, expensive, `--config=find` rejects them.
       - **Deferred apple/windows subtleties.** The `-text` flavor logic is sound as shipped (a strict

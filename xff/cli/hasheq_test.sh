@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 # End-to-end test of -hasheq (the manifest-verification companion of -hash): TRUE when the file's
-# computed digest equals the EXPECTED field template (a literal or {def.NAME}), -hasheq=ALGO
+# computed digest equals the EXPECTED field template (a literal or {def.NAME}), -hasheq:ALGO
 # [/ENCODING], hex case-insensitivity, `! -hasheq` selecting drift, the bad-spec usage error, and
 # the find-style rejection of this xff extension. Drives the real binary (reads files).
 
@@ -78,11 +78,11 @@ test::hasheq_algo_and_encoding_selectors() {
   dir="$(test_tmpdir vfyalgo)"
   mkdir -p "${dir}"
   printf 'abc' >"${dir}/f.txt"
-  # -hasheq=md5 checks against the md5 digest ...
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name f.txt -hasheq=md5 "${_MD5_ABC}" 2>&1)"
+  # -hasheq:md5 checks against the md5 digest ...
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name f.txt -hasheq:md5 "${_MD5_ABC}" 2>&1)"
   expect_output_contains "${dir}/f.txt" "${out}"
-  # ... and -hasheq=sha256/base64 against the base64-encoded digest.
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name f.txt -hasheq=sha256/base64 "${_B64_ABC}" 2>&1)"
+  # ... and -hasheq:sha256/base64 against the base64-encoded digest.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name f.txt -hasheq:sha256/base64 "${_B64_ABC}" 2>&1)"
   expect_output_contains "${dir}/f.txt" "${out}"
 }
 
@@ -103,8 +103,8 @@ test::hasheq_bad_spec_and_find_style_are_usage_errors() {
   dir="$(test_tmpdir vfyerr)"
   mkdir -p "${dir}"
   printf 'abc' >"${dir}/f.txt"
-  # An unknown algorithm in -hasheq=ALGO is a usage error.
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name f.txt -hasheq=crc32 x 2>&1)" && rc=0 || rc=$?
+  # An unknown algorithm in -hasheq:ALGO is a usage error.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name f.txt -hasheq:crc32 x 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
   expect_output_contains 'unknown algorithm or encoding' "${out}"
   # -hasheq is an xff extension; the find style rejects it.

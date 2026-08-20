@@ -29,7 +29,7 @@ namespace xff::config {
 // The safety class of a whole .xffrc line: the most restrictive class among its
 // flags (registry Lookup; unknown tokens such as globals are kNone). A line
 // counts as sensitive/destructive when ANY of its flags is. An attached binding
-// like "-capture=tag" is classified by its base name before '='.
+// like "-capture:tag" is classified by its base name before ':'.
 registry::Safety LineSafety(const RcLine& line);
 
 // Whether a `line` from `layer` is permitted under the system `policy`. With the

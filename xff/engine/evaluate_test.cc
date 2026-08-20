@@ -248,9 +248,9 @@ TEST_F(EvaluateTest, PathGlobsWholePath) {
 TEST_F(EvaluateTest, FuzzyPercentThresholdGatesTheMatch) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("dir/far_out_of", "far_out_of", vfs::FileType::kRegular, md);
-  EXPECT_TRUE(Match({"-fuzzy=0%", "foo"}, visit));
-  EXPECT_FALSE(Match({"-fuzzy=100%", "foo"}, visit));
-  EXPECT_TRUE(Match({"-fuzzy=100%", "far_out_of"}, visit));
+  EXPECT_TRUE(Match({"-fuzzy:0%", "foo"}, visit));
+  EXPECT_FALSE(Match({"-fuzzy:100%", "foo"}, visit));
+  EXPECT_TRUE(Match({"-fuzzy:100%", "far_out_of"}, visit));
   EXPECT_THAT(fuzzy_score_, Optional(Eq(100)));
 }
 
@@ -258,17 +258,17 @@ TEST_F(EvaluateTest, FuzzyModelsHaveConcreteThresholdSemantics) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("dir/foo", "foo", vfs::FileType::kRegular, md);
 
-  EXPECT_TRUE(Match({"-fuzzy=sequence:67%", "fo"}, visit));
+  EXPECT_TRUE(Match({"-fuzzy:sequence:67%", "fo"}, visit));
   EXPECT_THAT(fuzzy_score_, Optional(Eq(67)));
-  EXPECT_FALSE(Match({"-fuzzy=sequence:68%", "fo"}, visit));
+  EXPECT_FALSE(Match({"-fuzzy:sequence:68%", "fo"}, visit));
 
-  EXPECT_TRUE(Match({"-fuzzy=levenshtein:67%", "fof"}, visit));
+  EXPECT_TRUE(Match({"-fuzzy:levenshtein:67%", "fof"}, visit));
   EXPECT_THAT(fuzzy_score_, Optional(Eq(67)));
-  EXPECT_FALSE(Match({"-fuzzy=levenshtein:68%", "fof"}, visit));
+  EXPECT_FALSE(Match({"-fuzzy:levenshtein:68%", "fof"}, visit));
 
-  EXPECT_TRUE(Match({"-fuzzy=shingles:33%", "fof"}, visit));
+  EXPECT_TRUE(Match({"-fuzzy:shingles:33%", "fof"}, visit));
   EXPECT_THAT(fuzzy_score_, Optional(Eq(33)));
-  EXPECT_FALSE(Match({"-fuzzy=shingles:34%", "fof"}, visit));
+  EXPECT_FALSE(Match({"-fuzzy:shingles:34%", "fof"}, visit));
 }
 
 TEST_F(EvaluateTest, FuzzyAndUsesTheWeakestNormalizedScore) {
@@ -844,11 +844,11 @@ TEST_F(EvaluateTest, GrepExactModeAcceptsRegexMetacharactersAsLiterals) {
 }
 
 TEST_F(EvaluateTest, GrepFormatRendersTemplatePerMatchLine) {
-  // -grep=FORMAT overrides the default path:line:text; {line}/{text} bind per line.
+  // -grep:FORMAT overrides the default path:line:text; {line}/{text} bind per line.
   const std::string path = WriteContentFile("grep_fmt.txt", "alpha\nhit one\nbeta\nhit two\n");
   vfs::Metadata md;
   const Visit visit = MakeVisit(path, "grep_fmt.txt", vfs::FileType::kRegular, md);
-  EXPECT_TRUE(Match({"-grep={line}: {text}", "hit"}, visit));
+  EXPECT_TRUE(Match({"-grep:{line}: {text}", "hit"}, visit));
   EXPECT_THAT(emitted_, EqualsText("2: hit one\n4: hit two\n"));
 }
 
@@ -857,7 +857,7 @@ TEST_F(EvaluateTest, GrepFormatCanReferenceEntryFields) {
   const std::string path = WriteContentFile("grep_fmt2.txt", "x hit y\n");
   vfs::Metadata md;
   const Visit visit = MakeVisit(path, "grep_fmt2.txt", vfs::FileType::kRegular, md);
-  EXPECT_TRUE(Match({"-grep={path}#{line}", "hit"}, visit));
+  EXPECT_TRUE(Match({"-grep:{path}#{line}", "hit"}, visit));
   EXPECT_THAT(emitted_, EqualsText(absl::StrCat(path, "#1\n")));
 }
 
@@ -866,7 +866,7 @@ TEST_F(EvaluateTest, GrepFormatMatchAndColumnExtractTheMatch) {
   const std::string path = WriteContentFile("grep_o.txt", "code E42 here\n");
   vfs::Metadata md;
   const Visit visit = MakeVisit(path, "grep_o.txt", vfs::FileType::kRegular, md);
-  EXPECT_TRUE(Match({"-grep={column}:{match}", "E[0-9]+"}, visit));
+  EXPECT_TRUE(Match({"-grep:{column}:{match}", "E[0-9]+"}, visit));
   EXPECT_THAT(emitted_, EqualsText("6:E42\n"));  // E42 starts at column 6 (after "code ")
 }
 
@@ -875,7 +875,7 @@ TEST_F(EvaluateTest, GrepFormatMatchInExactModeUsesTheLiteralSpan) {
   vfs::Metadata md;
   const Visit visit = MakeVisit(path, "grep_o2.txt", vfs::FileType::kRegular, md);
   regextype_ = "EXACT";
-  EXPECT_TRUE(Match({"-grep={column} {match}", "X"}, visit));
+  EXPECT_TRUE(Match({"-grep:{column} {match}", "X"}, visit));
   EXPECT_THAT(emitted_, EqualsText("2 X\n"));  // first literal X at column 2
 }
 
@@ -885,7 +885,7 @@ TEST_F(EvaluateTest, GrepCountEmitsPerFileMatchLineCount) {
   vfs::Metadata md;
   const Visit visit = MakeVisit(path, "grep_c.txt", vfs::FileType::kRegular, md);
   grep_count_ = true;
-  EXPECT_TRUE(Match({"-grep={line}", "TODO"}, visit));  // FORMAT is superseded by --count
+  EXPECT_TRUE(Match({"-grep:{line}", "TODO"}, visit));  // FORMAT is superseded by --count
   EXPECT_THAT(emitted_, EqualsText(absl::StrCat(path, ":3\n")));
 }
 
@@ -1495,9 +1495,9 @@ TEST_F(EvaluateTest, OkdirDeclinedDoesNotRunAndIsFalse) {
 TEST_F(EvaluateTest, CapturedirRunsCommandInEntryDirAndBindsStdout) {
   vfs::Metadata md;
   const Visit visit = MakeVisit("/x.txt", "x.txt", vfs::FileType::kRegular, md);
-  // -capturedir=NAME runs the command in the entry's directory ("/") and binds its
+  // -capturedir:NAME runs the command in the entry's directory ("/") and binds its
   // stdout (trailing newline stripped) to {capture.NAME}.
-  EXPECT_TRUE(Match({"-capturedir=cwd", "/bin/sh", "-c", "pwd -P", ";"}, visit));
+  EXPECT_TRUE(Match({"-capturedir:cwd", "/bin/sh", "-c", "pwd -P", ";"}, visit));
   EXPECT_THAT(outputs_["cwd"], "/");
 }
 
@@ -1532,7 +1532,7 @@ TEST_F(EvaluateTest, CaptureBindsOutputNamespace) {
   exec_fields_ = true;  // so the -exec reading {capture.tag} renders the vocabulary
   // -capture runs the command and binds {capture.tag}; the later -exec reads it.
   EXPECT_TRUE(Match(
-      {"-capture=tag", "/bin/sh", "-c", "printf hi", ";", "-exec", "/bin/sh", "-c", "test \"{capture.tag}\" = hi", ";"},
+      {"-capture:tag", "/bin/sh", "-c", "printf hi", ";", "-exec", "/bin/sh", "-c", "test \"{capture.tag}\" = hi", ";"},
       visit));
 }
 

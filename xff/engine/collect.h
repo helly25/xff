@@ -29,7 +29,7 @@
 
 namespace xff::engine {
 
-// The collection a bare `-collect` (no `=NAME`) adds to. Named rather than special-cased: the
+// The collection a bare `-collect` (no `:NAME`) adds to. Named rather than special-cased: the
 // unnamed form is the default name, so nothing downstream needs an "anonymous bucket" branch.
 inline constexpr std::string_view kDefaultCollection = "default";
 

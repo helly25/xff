@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 # End-to-end test of -hash (via xff/hash -> mbo::digest): the `<digest>  <path>` sha256sum
-# layout, -hash=ALGO[/ENCODING], the --hash-algorithm / --hash-encoding defaults for both the
+# layout, -hash:ALGO[/ENCODING], the --hash-algorithm / --hash-encoding defaults for both the
 # action and the {hash} field, the usage errors, and the find-style rejection of this xff
 # extension. Drives the real binary (reads files).
 
@@ -46,10 +46,10 @@ test::hash_action_prints_digest_and_path() {
   # -hash prints `<digest>  <path>` (default sha256), the sha256sum layout.
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name f.txt -hash 2>&1)"
   expect_output_contains "${_SHA256_ABC}  ${dir}/f.txt" "${out}"
-  # -hash=ALGO / -hash=ALGO/ENCODING pick the algorithm and encoding.
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name f.txt -hash=md5 2>&1)"
+  # -hash:ALGO / -hash:ALGO/ENCODING pick the algorithm and encoding.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name f.txt -hash:md5 2>&1)"
   expect_output_contains "${_MD5_ABC}  ${dir}/f.txt" "${out}"
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name f.txt -hash=sha256/base64 2>&1)"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name f.txt -hash:sha256/base64 2>&1)"
   expect_output_contains "${_B64_ABC}  ${dir}/f.txt" "${out}"
 }
 
@@ -74,8 +74,8 @@ test::hash_bad_spec_and_find_style_are_usage_errors() {
   dir="$(test_tmpdir hasherr)"
   mkdir -p "${dir}"
   printf 'abc' >"${dir}/f.txt"
-  # An unknown algorithm in -hash=ALGO is a usage error.
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name f.txt -hash=crc32 2>&1)" && rc=0 || rc=$?
+  # An unknown algorithm in -hash:ALGO is a usage error.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name f.txt -hash:crc32 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
   expect_output_contains 'unknown algorithm or encoding' "${out}"
   # A bad --hash-encoding is a usage error.

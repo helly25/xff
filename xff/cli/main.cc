@@ -184,12 +184,21 @@ std::string RenderSyntaxConventions(const xff::cli::HelpRenderContext& context) 
       "multiple plausible meanings. A new short needs a compelling compatibility or usage case and "
       "one unambiguous meaning. fd's -p is --full-path, so the table below maps it to xff's -path; "
       "xff's -p is its own primary alias, not a claim of fd command-line compatibility.";
+  constexpr std::string_view kValues =
+      "An equals sign assigns a whole-run global: --sort=tree or --define=NAME=VALUE. In the latter, "
+      "the global's VALUE is itself the conventional NAME=VALUE definition. A colon instead qualifies "
+      "one expression node: -fuzzy:fzf:80% foo selects how that -fuzzy matches its separate PATTERN "
+      "operand, while -hash:sha256 selects how that one action renders its digest. Inner punctuation "
+      "still belongs to the selected value grammar, as in -capture:NAME=REGEX.";
   return absl::StrCat(
       "Flag and primary conventions:\n"
       "  --flag          configures the whole run (output, traversal, or another global mode)\n"
+      "  --flag=VALUE    assigns that global's value\n"
       "  -primary        is part of the per-entry expression: a test, action, or operator\n"
+      "  -primary:QUAL   qualifies that one expression node; operands remain separate\n"
       "  -h/-help/etc.   compatibility aliases for established global spellings, not new primaries\n\n",
-      xff::cli::WrapText(kPosition, context.width, "", ""), "\n", xff::cli::WrapText(kAliases, context.width, "", ""));
+      xff::cli::WrapText(kPosition, context.width, "", ""), "\n", xff::cli::WrapText(kValues, context.width, "", ""),
+      "\n", xff::cli::WrapText(kAliases, context.width, "", ""));
 }
 
 // The --help=extras topic: the optional build-time features and whether THIS binary links each.

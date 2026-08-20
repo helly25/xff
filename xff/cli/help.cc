@@ -56,7 +56,7 @@ absl::Span<const Recipe> CookbookRecipes() {
                "tree. -text skips binaries (which git blame cannot line-blame). -exec feeds any pipeline "
                "the field vocabulary cannot express alone."},
       {.task = "Author line counts, natively (no shell pipe)",
-       .command = "xff -g . -text -capturedir=blame git blame --line-porcelain {} \\; "
+       .command = "xff -g . -text -capturedir:blame git blame --line-porcelain {} \\; "
                   "--summary='{capture.blame:m/^author (.+)$/\\1/}'",
        .note = "the recipe above with the awk|sort tail folded into xff. -capturedir runs git blame in each "
                "file's own directory (repo-safe, works across nested repos); --summary folds that output via "
@@ -65,7 +65,7 @@ absl::Span<const Recipe> CookbookRecipes() {
                "span multiple trees. A single-dash global like -g leads; double-dash globals such as "
                "--summary may sit anywhere (before or after the paths)."},
       {.task = "Checksum manifest for a tree",
-       .command = "xff . -type f -hash=sha256",
+       .command = "xff . -type f -hash:sha256",
        .note = "prints `DIGEST  PATH` per file (like sha256sum); redirect to a file to snapshot a tree, "
                "then diff two runs to spot changes."},
       {.task = "Recently changed files as machine rows",
@@ -78,11 +78,26 @@ absl::Span<const Recipe> CookbookRecipes() {
 // Read from the descriptor grammar (arity / binding) so the synopsis never drifts
 // from the parser; shared with the man page. Documented in help.h.
 std::string ArgHint(const registry::Descriptor& descriptor) {
+  if (descriptor.binding == registry::Binding::kLabel) {
+    return "[:[!]NAME]";
+  }
   if (descriptor.binding == registry::Binding::kLabelRegex) {
-    return "=NAME[=REGEX] CMD... ;";
+    return ":[!]NAME[=REGEX] CMD... ;";
+  }
+  if (descriptor.binding == registry::Binding::kFormat) {
+    return "[:FORMAT] PATTERN";
+  }
+  if (descriptor.binding == registry::Binding::kStyle) {
+    return "[:STYLE] TARGET";
+  }
+  if (descriptor.binding == registry::Binding::kHash) {
+    return descriptor.arity == 0 ? "[:ALGO[/ENCODING]]" : "[:ALGO[/ENCODING]] EXPECTED";
+  }
+  if (descriptor.binding == registry::Binding::kText) {
+    return "[:FLAVOR]";
   }
   if (descriptor.binding == registry::Binding::kFuzzy) {
-    return "[=MODEL[:PCT%]|PCT%] PATTERN";
+    return "[:MODEL[:PCT%]|PCT%] PATTERN";
   }
   if (descriptor.arity < 0) {
     return " CMD... ;";  // variadic until ';' (or '+' for -exec / -execdir)

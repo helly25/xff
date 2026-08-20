@@ -16,8 +16,11 @@
 #include "xff/parser/parser.h"
 
 #include <array>
+#include <string>
+#include <string_view>
 
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
@@ -204,8 +207,8 @@ TEST_F(ParserTest, OkPlusNotSupported) {
 }
 
 TEST_F(ParserTest, CaptureCollectsNameRegexAndCommand) {
-  // -capture=NAME[=REGEX] cmd... ; => args = [NAME, REGEX (may be empty), cmd...].
-  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-capture=lines", "wc", "-l", "{}", ";", "-print"}));
+  // -capture:NAME[=REGEX] cmd... ; => args = [NAME, REGEX (may be empty), cmd...].
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-capture:lines", "wc", "-l", "{}", ";", "-print"}));
   const Expr& root = *cmd.expression;
   ASSERT_THAT(root.kind, Expr::Kind::kAnd);
   ASSERT_THAT(root.lhs->kind, Expr::Kind::kPredicate);
@@ -215,7 +218,7 @@ TEST_F(ParserTest, CaptureCollectsNameRegexAndCommand) {
 }
 
 TEST_F(ParserTest, CaptureExtractionRegexInSpec) {
-  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-capture=n=([0-9]+)", "wc", ";"}));
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-capture:n=([0-9]+)", "wc", ";"}));
   const Expr& root = *cmd.expression;
   ASSERT_THAT(root.kind, Expr::Kind::kPredicate);
   EXPECT_THAT(root.descriptor->name, "-capture");
@@ -224,10 +227,22 @@ TEST_F(ParserTest, CaptureExtractionRegexInSpec) {
 
 TEST_F(ParserTest, CaptureErrors) {
   using ::absl::StatusCode;
-  EXPECT_THAT(Parse({".", "-capture=x", "echo"}), StatusIs(StatusCode::kInvalidArgument));      // no ';'
-  EXPECT_THAT(Parse({".", "-capture=", "echo", ";"}), StatusIs(StatusCode::kInvalidArgument));  // no NAME
-  EXPECT_THAT(Parse({".", "-capture=x", ";"}), StatusIs(StatusCode::kInvalidArgument));         // no command
-  EXPECT_THAT(Parse({".", "-capture", "echo", ";"}), StatusIs(StatusCode::kInvalidArgument));   // bare, missing =NAME
+  EXPECT_THAT(Parse({".", "-capture:x", "echo"}), StatusIs(StatusCode::kInvalidArgument));      // no ';'
+  EXPECT_THAT(Parse({".", "-capture:", "echo", ";"}), StatusIs(StatusCode::kInvalidArgument));  // no NAME
+  EXPECT_THAT(Parse({".", "-capture:x", ";"}), StatusIs(StatusCode::kInvalidArgument));         // no command
+  EXPECT_THAT(Parse({".", "-capture", "echo", ";"}), StatusIs(StatusCode::kInvalidArgument));   // bare, missing :NAME
+}
+
+TEST_F(ParserTest, OldEqualsQualifierSpellingsPointToColon) {
+  constexpr std::array kOldSpellings = {
+      "-text=posix", "-collect=all", "-fuzzy=fzf",  "-fuzzypath=80%",      "-ifuzzy=sequence", "-ifuzzypath=edit",
+      "-diff=u3",    "-hash=sha256", "-hasheq=md5", "-grep={line}:{text}", "-capture=name",    "-capturedir=name",
+  };
+  for (const std::string_view spelling : kOldSpellings) {
+    const std::string expected = absl::StrCat(
+        "use '", spelling.substr(0, spelling.find('=')), ":", spelling.substr(spelling.find('=') + 1), "'");
+    EXPECT_THAT(Parse({".", std::string(spelling)}), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr(expected)));
+  }
 }
 
 TEST_F(ParserTest, Errors) {
@@ -326,7 +341,7 @@ TEST_F(ParserTest, EnforceStyleRejectsPrintfFieldEscapeUnderFind) {
 
 TEST_F(ParserTest, EnforceStyleWalksTheWholeTree) {
   // A -capture buried under operators is still found (the check is a full walk).
-  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-type", "f", "-o", "-capture=n", "wc", ";"}));
+  ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-type", "f", "-o", "-capture:n", "wc", ";"}));
   const absl::Status status = EnforceStyle(cmd, registry::Style::kFind);
   EXPECT_THAT(status, StatusIs(absl::StatusCode::kInvalidArgument));
   EXPECT_THAT(status.message(), HasSubstr("-capture"));
@@ -395,7 +410,7 @@ TEST_F(ParserTest, NonRegexAndUncompilablePatternsLeaveMatcherNull) {
 }
 
 TEST_F(ParserTest, FuzzyThresholdIsAnAttachedPercentage) {
-  ASSERT_OK_AND_ASSIGN(const Command command, Parse({".", "-fuzzy=80%", "foo"}));
+  ASSERT_OK_AND_ASSIGN(const Command command, Parse({".", "-fuzzy:80%", "foo"}));
   ASSERT_THAT(command.expression, NotNull());
   EXPECT_THAT(command.expression->descriptor->name, "-fuzzy");
   EXPECT_THAT(command.expression->args, ElementsAre("foo"));
@@ -404,7 +419,7 @@ TEST_F(ParserTest, FuzzyThresholdIsAnAttachedPercentage) {
 }
 
 TEST_F(ParserTest, FuzzyThresholdMaySelectItsModel) {
-  ASSERT_OK_AND_ASSIGN(const Command command, Parse({".", "-ifuzzypath=levenshtein:30%", "foo"}));
+  ASSERT_OK_AND_ASSIGN(const Command command, Parse({".", "-ifuzzypath:levenshtein:30%", "foo"}));
   ASSERT_THAT(command.expression, NotNull());
   EXPECT_THAT(command.expression->descriptor->name, "-ifuzzypath");
   EXPECT_THAT(command.expression->args, ElementsAre("foo"));
@@ -413,28 +428,28 @@ TEST_F(ParserTest, FuzzyThresholdMaySelectItsModel) {
 }
 
 TEST_F(ParserTest, FuzzyModelMayBeSelectedWithoutAThresholdAndAliasesNormalize) {
-  ASSERT_OK_AND_ASSIGN(const Command fzf, Parse({".", "-fuzzy=fzf", "foo"}));
+  ASSERT_OK_AND_ASSIGN(const Command fzf, Parse({".", "-fuzzy:fzf", "foo"}));
   ASSERT_THAT(fzf.expression, NotNull());
   EXPECT_THAT(fzf.expression->fuzzy_model, FuzzyModel::kFzf);
   EXPECT_THAT(fzf.expression->fuzzy_threshold, Eq(std::nullopt));
 
-  ASSERT_OK_AND_ASSIGN(const Command edit, Parse({".", "-fuzzy=edit:30%", "foo"}));
+  ASSERT_OK_AND_ASSIGN(const Command edit, Parse({".", "-fuzzy:edit:30%", "foo"}));
   ASSERT_THAT(edit.expression, NotNull());
   EXPECT_THAT(edit.expression->fuzzy_model, FuzzyModel::kLevenshtein);
   EXPECT_THAT(edit.expression->fuzzy_threshold, Optional(Eq(30)));
 
-  ASSERT_OK_AND_ASSIGN(const Command shingles, Parse({".", "-fuzzy=shingles", "foo"}));
+  ASSERT_OK_AND_ASSIGN(const Command shingles, Parse({".", "-fuzzy:shingles", "foo"}));
   ASSERT_THAT(shingles.expression, NotNull());
   EXPECT_THAT(shingles.expression->fuzzy_model, FuzzyModel::kShingles);
   EXPECT_THAT(shingles.expression->fuzzy_threshold, Eq(std::nullopt));
 }
 
 TEST_F(ParserTest, FuzzyThresholdRejectsMalformedPercentages) {
-  EXPECT_THAT(Parse({".", "-fuzzy=80", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
-  EXPECT_THAT(Parse({".", "-fuzzy=101%", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
-  EXPECT_THAT(Parse({".", "-fuzzy=oops%", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
-  EXPECT_THAT(Parse({".", "-fuzzy=unknown:80%", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
-  EXPECT_THAT(Parse({".", "-fuzzy=fzf:", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(Parse({".", "-fuzzy:80", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(Parse({".", "-fuzzy:101%", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(Parse({".", "-fuzzy:oops%", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(Parse({".", "-fuzzy:unknown:80%", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(Parse({".", "-fuzzy:fzf:", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST_F(ParserTest, XorBindsTighterThanOr) {

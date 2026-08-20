@@ -155,8 +155,8 @@ test::regextype_pcre2_not_built_in_is_a_usage_error() {
 test::grep_format_overrides_the_default_output() {
   local root out
   root="$(_make_tree)"
-  # -grep=FORMAT renders a field template ({line}/{text} + the entry vocabulary).
-  out="$(_run "${root}" -name 'a.txt' -grep='{line}|{text}' 'TODO')"
+  # -grep:FORMAT renders a field template ({line}/{text} + the entry vocabulary).
+  out="$(_run "${root}" -name 'a.txt' -grep:'{line}|{text}' 'TODO')"
   expect_matches "(^|${NL})1\|first TODO line(\$|${NL})" "${out}"
   expect_matches "(^|${NL})3\|another TODO here(\$|${NL})" "${out}"
   expect_not_matches ':' "${out}" # the default path:line:text colons are gone
@@ -168,7 +168,7 @@ test::grep_match_field_extracts_only_the_match() {
   mkdir -p "${root}"
   printf 'error E42 here\nwarn E7\n' >"${root}/log.txt"
   # {match} is grep -o: just the matched substring, {column} its 1-based start.
-  out="$(_run "${root}" -name 'log.txt' -grep='{column}:{match}' 'E[0-9]+')"
+  out="$(_run "${root}" -name 'log.txt' -grep:'{column}:{match}' 'E[0-9]+')"
   expect_matches "(^|${NL})7:E42(\$|${NL})" "${out}" # E42 at column 7 of "error E42 here"
   expect_matches "(^|${NL})6:E7(\$|${NL})" "${out}"  # E7 at column 6 of "warn E7"
 }

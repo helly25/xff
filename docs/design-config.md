@@ -179,7 +179,7 @@ built-in `safety` classification so the safe default needs no admin file:
   feature defaults). Valued options (`--implicit-print=no`) stay dedicated flags,
   **not** `--feature`. (The `--capture-override` that used to be the other example
   here is gone: a name-reuse opt-in belongs on the NODE that reuses the name,
-  `-capture=!NAME`, not on a flag that loosens every node in the command.)
+  `-capture:!NAME`, not on a flag that loosens every node in the command.)
 - **`--xffrc=FILE`** - load + arm a specific file (see Discovery).
 - **`--no-config`** - see Discovery.
 - **`--project-config=on|warn|off`** - a per-directory (project) `.xffrc` lives in a
@@ -214,7 +214,7 @@ cd ./trusted && xff --project-config=on .
 #   ./.xffrc: common: -exec rm {} ;      → dropped + warned (sensitive, project-denied)
 
 # Personal exec recipe from your own (user) config → trusted, applied with no opt-in.
-#   ~/.config/xff/config: xff:thumbs: -capture=W=… convert {} … ;
+#   ~/.config/xff/config: xff:thumbs: -capture:W=… convert {} … ;
 xff --config=thumbs ~/Pictures            # armed: user layer allows @sensitive
 
 # CI host loosens the project layer for a vetted pipeline (opt-in + policy allow).

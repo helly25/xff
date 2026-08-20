@@ -40,7 +40,7 @@ enum class Encoding {
 // Parses an encoding name -- "hex" or "base64" -- returning nullopt for anything else.
 std::optional<Encoding> ParseEncoding(std::string_view name);
 
-// A resolved (algorithm, encoding) pair, e.g. from a `{hash:...}` qualifier or a `-hash=...` spec.
+// A resolved (algorithm, encoding) pair, e.g. from a `{hash:...}` qualifier or a `-hash:...` spec.
 struct AlgoEncoding {
   std::string_view algo;
   Encoding encoding = Encoding::kHex;

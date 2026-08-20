@@ -29,7 +29,7 @@ class Matcher;  // forward-declared; Expr holds a shared_ptr to a pre-compiled o
 }  // namespace xff::regex
 
 namespace xff::fields {
-class Template;  // forward-declared; Expr holds a shared_ptr to -grep=FORMAT's compiled template
+class Template;  // forward-declared; Expr holds a shared_ptr to -grep:FORMAT's compiled template
 }  // namespace xff::fields
 
 namespace xff::parser {
@@ -61,28 +61,28 @@ struct Expr {
   // for -iregex), or -capture/-capturedir's optional extraction regex (args[1]).
   // Null when the node has no regex or the pattern did not compile (-> no match).
   std::shared_ptr<const regex::Matcher> matcher;
-  // -grep=FORMAT: the attached output template, compiled once at parse time. Null
+  // -grep:FORMAT: the attached output template, compiled once at parse time. Null
   // for a bare -grep (which uses the default path:line:text) and every other node.
   std::shared_ptr<const fields::Template> grep_template;
-  // -diff=STYLE: the attached output-style token (u[N]/c[N]/n/y[W]/none); empty for a
+  // -diff:STYLE: the attached output-style token (u[N]/c[N]/n/y[W]/none); empty for a
   // bare -diff (which defaults to u3) and every other node. Validated in the evaluator.
   std::string diff_style;
-  // -hash=ALGO[/ENCODING]: the attached digest spec (e.g. sha256, md5, sha256/base64);
+  // -hash:ALGO[/ENCODING]: the attached digest spec (e.g. sha256, md5, sha256/base64);
   // empty for a bare -hash (which uses the --hash-algorithm / --hash-encoding defaults) and
   // every other node. Validated before the walk (engine::ValidateHashArgs).
   std::string hash_spec;
-  // A `!` prefix on a binding primary's attached name (`-capture=!NAME`): this node may REUSE a name
+  // A `!` prefix on a binding primary's attached name (`-capture:!NAME`): this node may REUSE a name
   // an earlier node already bound. Per instance rather than a whole-run flag, so loosening one
   // -capture does not quietly loosen every other one. `!` cannot collide with a name because a name
   // must be an identifier (ValidLabelName).
   bool label_override = false;
-  // -text=FLAVOR: the attached text-definition flavor (git/posix/windows/apple); empty for a bare
+  // -text:FLAVOR: the attached text-definition flavor (git/posix/windows/apple); empty for a bare
   // -text (which is the git heuristic) and every other node. Validated in the parser (kText branch).
   std::string text_flavor;
-  // -fuzzy[=MODEL[:PCT%]] and friends: minimum normalized match quality. Empty for a bare or
+  // -fuzzy[:MODEL[:PCT%]] and friends: minimum normalized match quality. Empty for a bare or
   // model-only fuzzy primary, whose match has no quality threshold.
   std::optional<int> fuzzy_threshold;
-  // The score/match model selected by an attached `=MODEL:PCT%`; the short `=PCT%` form and a bare
+  // The score/match model selected by an attached `:MODEL:PCT%`; the short `:PCT%` form and a bare
   // primary use fzf-style subsequence matching.
   FuzzyModel fuzzy_model = FuzzyModel::kFzf;
   // Case folding forced on by the resolved --case mode (parser::ApplyCaseMode), for the

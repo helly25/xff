@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # The single input generator for the -diff golden tests: populates two parallel trees `a` and `b`
-# (b's files differ from a's), so `xff a -type f -diff=STYLE 'b/{relpath}'` walks `a`, finds each
+# (b's files differ from a's), so `xff a -type f -diff:STYLE 'b/{relpath}'` walks `a`, finds each
 # file, and diffs it against its `b` counterpart. -diff emits a git-style (no-timestamp) header, so
 # the output is verbatim without touching mtimes.
 set -euo pipefail

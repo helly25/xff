@@ -551,46 +551,46 @@ TEST_F(RunTest, CmpTargetIsAPerEntryTemplate) {
 TEST_F(RunTest, DiffPolarityIsTrueWhenEqual) {
   { std::ofstream(root_ / "twin.txt") << "a"; }   // identical to a.txt (content "a")
   { std::ofstream(root_ / "other.txt") << "X"; }  // differs
-  // -diff=none is the silent matcher (TRUE = same, like -cmp); -diff is an action, so an
+  // -diff:none is the silent matcher (TRUE = same, like -cmp); -diff is an action, so an
   // explicit -print reveals the truth. a.txt == twin, a.txt != other.
-  EXPECT_THAT(RunExpr({"-name", "a.txt", "-diff=none", Path("twin.txt"), "-print"}), ElementsAre(Path("a.txt")));
-  EXPECT_THAT(RunExpr({"-name", "a.txt", "-diff=none", Path("other.txt"), "-print"}), IsEmpty());
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "-diff:none", Path("twin.txt"), "-print"}), ElementsAre(Path("a.txt")));
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "-diff:none", Path("other.txt"), "-print"}), IsEmpty());
   // ! -diff selects files that differ from their target (the "changed files" idiom).
-  EXPECT_THAT(RunExpr({"-name", "a.txt", "!", "-diff=none", Path("other.txt"), "-print"}), ElementsAre(Path("a.txt")));
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "!", "-diff:none", Path("other.txt"), "-print"}), ElementsAre(Path("a.txt")));
   // A missing / unreadable target counts as differing (false).
-  EXPECT_THAT(RunExpr({"-name", "a.txt", "-diff=none", Path("nope.txt"), "-print"}), IsEmpty());
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "-diff:none", Path("nope.txt"), "-print"}), IsEmpty());
 }
 
 TEST_F(RunTest, DiffIgnoreNormalizesComparison) {
   // Two files that differ only by trailing whitespace; the normalization globals make -diff
-  // treat them as equal (TRUE, so the trailing -print fires). -diff=none is the silent matcher.
+  // treat them as equal (TRUE, so the trailing -print fires). -diff:none is the silent matcher.
   { std::ofstream(root_ / "left.txt") << "one\ntwo   \nthree\n"; }
   { std::ofstream(root_ / "right.txt") << "one\ntwo\nthree\n"; }
   const std::string right = Path("right.txt");
   // Without normalization the trailing whitespace differs -> FALSE, no print.
-  EXPECT_THAT(RunExpr({"-name", "left.txt", "-diff=none", right, "-print"}), IsEmpty());
+  EXPECT_THAT(RunExpr({"-name", "left.txt", "-diff:none", right, "-print"}), IsEmpty());
   // --diff-ignore=trail and =ws both fold the whitespace so the sides compare equal.
   EXPECT_THAT(
-      RunArgvRecords({"--diff-ignore=trail", root_.string(), "-name", "left.txt", "-diff=none", right, "-print"}),
+      RunArgvRecords({"--diff-ignore=trail", root_.string(), "-name", "left.txt", "-diff:none", right, "-print"}),
       ElementsAre(Path("left.txt")));
   EXPECT_THAT(
-      RunArgvRecords({"--diff-ignore=ws", root_.string(), "-name", "left.txt", "-diff=none", right, "-print"}),
+      RunArgvRecords({"--diff-ignore=ws", root_.string(), "-name", "left.txt", "-diff:none", right, "-print"}),
       ElementsAre(Path("left.txt")));
   // --diff-ignore-matching drops lines matching the regex before comparing (the DEBUG line here).
   { std::ofstream(root_ / "mleft.txt") << "keep\nDEBUG x\nkeep2\n"; }
   { std::ofstream(root_ / "mright.txt") << "keep\nDEBUG y\nkeep2\n"; }
   EXPECT_THAT(
       RunArgvRecords(
-          {"--diff-ignore-matching=^DEBUG", root_.string(), "-name", "mleft.txt", "-diff=none", Path("mright.txt"),
+          {"--diff-ignore-matching=^DEBUG", root_.string(), "-name", "mleft.txt", "-diff:none", Path("mright.txt"),
            "-print"}),
       ElementsAre(Path("mleft.txt")));
   // --diff-ignore=eofnl equates a file with and one without a final newline (via mbo #234).
   { std::ofstream(root_ / "nonl.txt") << "a\nb"; }      // no final newline
   { std::ofstream(root_ / "withnl.txt") << "a\nb\n"; }  // same content, with a final newline
-  EXPECT_THAT(RunExpr({"-name", "nonl.txt", "-diff=none", Path("withnl.txt"), "-print"}), IsEmpty());
+  EXPECT_THAT(RunExpr({"-name", "nonl.txt", "-diff:none", Path("withnl.txt"), "-print"}), IsEmpty());
   EXPECT_THAT(
       RunArgvRecords(
-          {"--diff-ignore=eofnl", root_.string(), "-name", "nonl.txt", "-diff=none", Path("withnl.txt"), "-print"}),
+          {"--diff-ignore=eofnl", root_.string(), "-name", "nonl.txt", "-diff:none", Path("withnl.txt"), "-print"}),
       ElementsAre(Path("nonl.txt")));
 }
 
@@ -649,13 +649,13 @@ TEST_F(RunTest, PerActionDiffStyleOverridesTheGlobals) {
   { std::ofstream(root_ / "one.txt") << "a\nb\nc\nd\ne\nf\ng\n"; }
   { std::ofstream(root_ / "two.txt") << "a\nb\nc\nX\ne\nf\ng\n"; }
   const std::string two = Path("two.txt");
-  // -diff=c (context format) wins over --diff-format=normal; the `*** ` marker is context-diff.
+  // -diff:c (context format) wins over --diff-format=normal; the `*** ` marker is context-diff.
   EXPECT_THAT(
-      RunArgvRecords({"--diff-format=normal", root_.string(), "-name", "one.txt", "-diff=c", two}),
+      RunArgvRecords({"--diff-format=normal", root_.string(), "-name", "one.txt", "-diff:c", two}),
       ElementsAre(AllOf(HasSubstr("***"), Not(HasSubstr("4c4")))));
-  // -diff=u5 (explicit context 5) wins over --diff-context=1: the hunk widens back to all 7 lines.
+  // -diff:u5 (explicit context 5) wins over --diff-context=1: the hunk widens back to all 7 lines.
   EXPECT_THAT(
-      RunArgvRecords({"--diff-context=1", root_.string(), "-name", "one.txt", "-diff=u5", two}),
+      RunArgvRecords({"--diff-context=1", root_.string(), "-name", "one.txt", "-diff:u5", two}),
       ElementsAre(HasSubstr("@@ -1,7 +1,7 @@")));
 }
 
@@ -705,11 +705,11 @@ TEST_F(RunTest, HashActionPrintsDigestAndPath) {
   EXPECT_THAT(
       RunExpr({"-name", "abc.txt", "-hash"}),
       ElementsAre("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  " + Path("abc.txt")));
-  // -hash=ALGO[/ENCODING] selects the algorithm and hex/base64 rendering.
+  // -hash:ALGO[/ENCODING] selects the algorithm and hex/base64 rendering.
   EXPECT_THAT(
-      RunExpr({"-name", "abc.txt", "-hash=md5"}), ElementsAre("900150983cd24fb0d6963f7d28e17f72  " + Path("abc.txt")));
+      RunExpr({"-name", "abc.txt", "-hash:md5"}), ElementsAre("900150983cd24fb0d6963f7d28e17f72  " + Path("abc.txt")));
   EXPECT_THAT(
-      RunExpr({"-name", "abc.txt", "-hash=sha256/base64"}),
+      RunExpr({"-name", "abc.txt", "-hash:sha256/base64"}),
       ElementsAre("ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=  " + Path("abc.txt")));
 }
 
@@ -726,8 +726,8 @@ TEST_F(RunTest, HashAlgorithmGlobalSetsTheDefaultForActionAndField) {
 }
 
 TEST_F(RunTest, HashRejectsUnknownSpec) {
-  // A bad -hash=ALGO[/ENCODING] spec is a pre-walk usage error (exit 2), not a silent no-op.
-  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({root_.string(), "-name", "a.txt", "-hash=crc32"}));
+  // A bad -hash:ALGO[/ENCODING] spec is a pre-walk usage error (exit 2), not a silent no-op.
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({root_.string(), "-name", "a.txt", "-hash:crc32"}));
   std::vector<std::string> records;
   absl::Status reported;
   const int errors = RunFind(
@@ -735,7 +735,7 @@ TEST_F(RunTest, HashRejectsUnknownSpec) {
       [&](std::string_view, absl::Status status) { reported = status; });
   EXPECT_THAT(records, IsEmpty());
   EXPECT_THAT(errors, 2);
-  EXPECT_THAT(reported, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("'-hash=crc32'")));
+  EXPECT_THAT(reported, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("'-hash:crc32'")));
 }
 
 TEST_F(RunTest, ColorAutoStaysPlainWhenStdoutIsNotATty) {
@@ -1080,7 +1080,7 @@ TEST_F(RunTest, CaptureBindsOutputForTemplate) {
   // {capture.NAME}; --template then prints it.
   MBO_ASSERT_OK_AND_ASSIGN(
       const auto command, parser::Parse(
-                              {"--template={capture.base}", root_.string(), "-name", "a.txt", "-capture=base",
+                              {"--template={capture.base}", root_.string(), "-name", "a.txt", "-capture:base",
                                "/bin/sh", "-c", "basename {}", ";"}));
   std::vector<std::string> records;
   RunFind(
@@ -1100,8 +1100,8 @@ TEST_F(RunTest, CaptureChainsPriorOutputs) {
   // A later -capture command references an earlier capture's {capture.*}.
   MBO_ASSERT_OK_AND_ASSIGN(
       const auto command, parser::Parse(
-                              {"--template={capture.b}", root_.string(), "-name", "a.txt", "-capture=a", "/bin/sh",
-                               "-c", "printf X", ";", "-capture=b", "/bin/sh", "-c", "printf {capture.a}Y", ";"}));
+                              {"--template={capture.b}", root_.string(), "-name", "a.txt", "-capture:a", "/bin/sh",
+                               "-c", "printf X", ";", "-capture:b", "/bin/sh", "-c", "printf {capture.a}Y", ";"}));
   std::vector<std::string> records;
   RunFind(
       command, fs_,
@@ -1121,7 +1121,7 @@ TEST_F(RunTest, DuplicateCaptureNameIsErrorByDefault) {
   // reported before traversal (silent clobbering would mean wrong data).
   MBO_ASSERT_OK_AND_ASSIGN(
       const auto command, parser::Parse(
-                              {root_.string(), "-capture=x", "/bin/sh", "-c", "printf a", ";", "-capture=x", "/bin/sh",
+                              {root_.string(), "-capture:x", "/bin/sh", "-c", "printf a", ";", "-capture:x", "/bin/sh",
                                "-c", "printf b", ";"}));
   int errors = 0;
   const int code = RunFind(command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
@@ -1132,8 +1132,8 @@ TEST_F(RunTest, DuplicateCaptureNameIsErrorByDefault) {
 TEST_F(RunTest, BangModifierAllowsDuplicateCaptureNameLastWins) {
   MBO_ASSERT_OK_AND_ASSIGN(
       const auto command, parser::Parse(
-                              {"--template={capture.x}", root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh",
-                               "-c", "printf a", ";", "-capture=!x", "/bin/sh", "-c", "printf b", ";"}));
+                              {"--template={capture.x}", root_.string(), "-name", "a.txt", "-capture:x", "/bin/sh",
+                               "-c", "printf a", ";", "-capture:!x", "/bin/sh", "-c", "printf b", ";"}));
   std::vector<std::string> records;
   RunFind(
       command, fs_,
@@ -1149,10 +1149,10 @@ TEST_F(RunTest, BangModifierAllowsDuplicateCaptureNameLastWins) {
 }
 
 TEST_F(RunTest, UnusedCaptureIsError) {
-  // -capture=x but {capture.x} is referenced nowhere -> exit 2 before traversal.
+  // -capture:x but {capture.x} is referenced nowhere -> exit 2 before traversal.
   MBO_ASSERT_OK_AND_ASSIGN(
       const auto command,
-      parser::Parse({root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh", "-c", "printf a", ";"}));
+      parser::Parse({root_.string(), "-name", "a.txt", "-capture:x", "/bin/sh", "-c", "printf a", ";"}));
   int errors = 0;
   const int code = RunFind(command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
   EXPECT_THAT(code, 2);
@@ -1163,7 +1163,7 @@ TEST_F(RunTest, CaptureUsedByLaterExecIsNotFlagged) {
   // {capture.x} referenced in a later -exec counts as used -> no unused error.
   MBO_ASSERT_OK_AND_ASSIGN(
       const auto command, parser::Parse(
-                              {"--exec-fields", root_.string(), "-name", "a.txt", "-capture=x", "/bin/sh", "-c",
+                              {"--exec-fields", root_.string(), "-name", "a.txt", "-capture:x", "/bin/sh", "-c",
                                "printf a", ";", "-exec", "/bin/sh", "-c", "test \"{capture.x}\" = a", ";"}));
   int errors = 0;
   const int code = RunFind(command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
@@ -1615,9 +1615,9 @@ TEST_F(RunTest, UnsupportedRegextypeIsAUsageError) {
 }
 
 TEST_F(RunTest, GrepFormatRendersCustomTemplate) {
-  // -grep=FORMAT overrides the default path:line:text with a field template.
+  // -grep:FORMAT overrides the default path:line:text with a field template.
   { std::ofstream(root_ / "a.txt") << "alpha\nTODO one\nbeta\n"; }
-  EXPECT_THAT(RunExpr({"-name", "a.txt", "-grep={line}|{text}", "TODO"}), ElementsAre("2|TODO one"));
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "-grep:{line}|{text}", "TODO"}), ElementsAre("2|TODO one"));
 }
 
 TEST_F(RunTest, GrepCountEmitsPerFileCount) {

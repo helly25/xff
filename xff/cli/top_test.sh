@@ -64,12 +64,12 @@ test::position_relative_to_collect_selects_what_the_summary_reads() {
 test::top_rejects_incomparable_score_domains() {
   local root out rc
   root="$(_make_tree)"
-  out="$(cd "${root}" && "$(_xff_bin)" --exact . -fuzzy=fzf:80% foo -fuzzy=fzf:50% bar -top 2 2>&1)" \
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -fuzzy:fzf:80% foo -fuzzy:fzf:50% bar -top 2 2>&1)" \
     && rc=0 || rc="${?}"
   expect_eq "2" "${rc}"
   expect_output_contains "different quality thresholds" "${out}"
 
-  out="$(cd "${root}" && "$(_xff_bin)" --exact . -fuzzy=fzf foo -fuzzy=levenshtein foo -top 2 2>&1)" \
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -fuzzy:fzf foo -fuzzy:levenshtein foo -top 2 2>&1)" \
     && rc=0 || rc="${?}"
   expect_eq "2" "${rc}"
   expect_output_contains "different models" "${out}"

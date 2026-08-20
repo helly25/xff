@@ -168,13 +168,13 @@ TEST_F(CollectTest, BareCollectUsesTheDefaultName) {
 }
 
 TEST_F(CollectTest, NamedCollectReportsItsName) {
-  MBO_ASSERT_OK_AND_ASSIGN(const parser::Command cmd, parser::Parse({".", "-collect=big"}));
+  MBO_ASSERT_OK_AND_ASSIGN(const parser::Command cmd, parser::Parse({".", "-collect:big"}));
   EXPECT_THAT(CollectSites(*cmd.expression), ElementsAre(SiteIs("big", false)));
 }
 
 TEST_F(CollectTest, SitesKeepAstOrderAndCarryTheBangModifier) {
   MBO_ASSERT_OK_AND_ASSIGN(
-      const parser::Command cmd, parser::Parse({".", "-collect=a", "-o", "-collect=b", "-o", "-collect=!a"}));
+      const parser::Command cmd, parser::Parse({".", "-collect:a", "-o", "-collect:b", "-o", "-collect:!a"}));
   EXPECT_THAT(CollectSites(*cmd.expression), ElementsAre(SiteIs("a", false), SiteIs("b", false), SiteIs("a", true)));
 }
 

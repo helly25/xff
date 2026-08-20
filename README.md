@@ -80,7 +80,7 @@ The table below illustrates how traditional shell workflows shift into optimized
 | **Strict Compliance**             | `find . -type f -name "*.cpp"`             | `find . -type f -name "*.cpp"` <br>_or_ `xff --config=find ...` | **Strict POSIX compatibility mode:** Turns off all modern extensions; modern flags become immediate usage errors.\*                         |
 | **Modern Structural Search**      | `fd -e cc`                                 | `xff -regex '.*\.cc$'` <br>_or_ `xff --config=xff ...`          | **Evolved mode (Default):** Expands `find`'s grammar with modern extensions, enabling sorted output and human sizes (`--human=si`).         |
 | **Clean Developer Grep**          | `fd -H -E ".git" \| xargs rg "TODO"`       | `xff --config=rg -grep "TODO"`                                  | **Opinionated Developer Mode:** Implicitly respects nested `.gitignore` files, skips hidden files, and uses smart-case matching logic.      |
-| **High-Performance Verification** | `find . -type f -exec sha256sum {} \;`     | `xff -type f -hash=sha256`                                      | **Zero-Fork Speed:** Eliminates system process-spawning overhead. Reads files directly into the native read loop buffer to hash inline.     |
+| **High-Performance Verification** | `find . -type f -exec sha256sum {} \;`     | `xff -type f -hash:sha256`                                      | **Zero-Fork Speed:** Eliminates system process-spawning overhead. Reads files directly into the native read loop buffer to hash inline.     |
 | **Missing Newline Code Linting**  | _Complex multi-line awk scripts or loops._ | `xff -text ! -eofnl -print`                                     | **Native Classification:** Instantly flags text files violating POSIX trailing newline rules without streaming lines to the shell.          |
 | **Cross-OS Time Constraints**     | `find . -mmin -60`                         | `xff -mtime "-3 weeks 3 hours"`                                 | **Advanced Parsing:** Uses human-readable compound duration strings interpreted cleanly via explicit IANA `--timezone` modifiers.           |
 | **Compressed Asset Auditing**     | `tar -ztf src.tar.gz \| grep "cfg"`        | `xff --archive -path "*src.tar.gz*cfg*"`                        | **Virtual File-tree Mapping:** Treats archives as virtual read-only directories, matching inner structures without manual disk extraction.  |
@@ -128,7 +128,7 @@ xff . -type f -name '*.tmp' -mtime +7 -delete --dry-run
 xff src -lang 'C*' -grep 'TODO'
 
 # Checksum manifest for a tree (like sha256sum: `DIGEST  PATH` per file).
-xff . -type f -hash=sha256
+xff . -type f -hash:sha256
 
 # Recently changed files as machine rows (one JSON object per file, for jq).
 xff . -type f -mtime -1 --format=jsonl

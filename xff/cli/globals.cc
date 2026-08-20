@@ -809,7 +809,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--diff-context=N",
         .group = "output",
         .header = "Output",
-        .summary = "default -diff context lines (3); overrides --context for -diff, and -diff=uN overrides it",
+        .summary = "default -diff context lines (3); overrides --context for -diff, and -diff:uN overrides it",
         .affects = "-diff",
     },
     {
@@ -819,7 +819,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .header = "Output",
         .summary = "default digest for -hash / {hash} (sha256 default; md5, sha512, blake3, and more)",
         .details = "Sets the default digest algorithm for the `-hash` action and the `{hash}` field. `sha256` is "
-                   "the default; a `-hash=ALGO` spec or a `{hash:ALGO}` qualifier overrides it per use.",
+                   "the default; a `-hash:ALGO` spec or a `{hash:ALGO}` qualifier overrides it per use.",
         .values = kHashAlgorithmValues,
         .value_check = GlobalFlag::ValueCheck::kEnum,
     },

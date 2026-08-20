@@ -157,7 +157,7 @@ std::shared_ptr<const regex::Matcher> CompileNodeRegex(
       && !args.empty()) {
     pattern = args[0];
   } else if (descriptor.binding == registry::Binding::kLabelRegex && args.size() > 1 && !args[1].empty()) {
-    pattern = args[1];  // the optional =NAME=REGEX extraction regex
+    pattern = args[1];  // the optional :NAME=REGEX extraction regex
   } else {
     return nullptr;
   }
@@ -339,21 +339,35 @@ class ExprParser {
       ++pos_;
       return inner;
     }
-    // A primary that declares Binding::kLabel (-collect) carries a plain attached =NAME and takes
+    // Reject the pre-1.0 `=QUALIFIER` spelling with a focused migration diagnostic rather than
+    // letting it fall through as an unknown primary. `=` belongs to whole-run globals; a primary's
+    // attached per-node qualification begins with `:`.
+    if (const std::string::size_type equals = token.find('='); equals != std::string::npos) {
+      const std::string_view base = std::string_view(token).substr(0, equals);
+      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
+          descriptor != nullptr && descriptor->binding != registry::Binding::kNone) {
+        Fail(
+            absl::StrCat(
+                "'", token, "' uses the old primary qualifier spelling; use '", base, ":",
+                std::string_view(token).substr(equals + 1), "'"));
+        return nullptr;
+      }
+    }
+    // A primary that declares Binding::kLabel (-collect) carries a plain attached :NAME and takes
     // nothing else: args = [NAME]. Unlike kLabelRegex there is no regex half and no command, and
     // the BARE form stays legal - the descriptor's own default name is the answer - so this branch
-    // only has to reject `-collect=` with nothing after the '='.
-    if (const std::string::size_type eq = token.find('='); eq != std::string::npos) {
-      const std::string_view base = std::string_view(token).substr(0, eq);
+    // only has to reject `-collect:` with nothing after the ':'.
+    if (const std::string::size_type colon = token.find(':'); colon != std::string::npos) {
+      const std::string_view base = std::string_view(token).substr(0, colon);
       if (const registry::Descriptor* const descriptor = registry::Lookup(base);
           descriptor != nullptr && descriptor->binding == registry::Binding::kLabel) {
-        const LabelSpec spec = SplitLabelModifier(std::string_view(token).substr(eq + 1));
+        const LabelSpec spec = SplitLabelModifier(std::string_view(token).substr(colon + 1));
         if (spec.rest.empty()) {
-          Fail(absl::StrCat("'", base, "=' needs a NAME"));
+          Fail(absl::StrCat("'", base, ":' needs a NAME"));
           return nullptr;
         }
         if (!ValidLabelName(spec.rest)) {
-          Fail(absl::StrCat("'", base, "=", spec.rest, "' is not a NAME; use an identifier ([A-Za-z_][A-Za-z0-9_]*)"));
+          Fail(absl::StrCat("'", base, ":", spec.rest, "' is not a NAME; use an identifier ([A-Za-z_][A-Za-z0-9_]*)"));
           return nullptr;
         }
         ++pos_;
@@ -365,26 +379,26 @@ class ExprParser {
       }
     }
     // A primary that declares Binding::kLabelRegex (-capture/-capturedir) carries an
-    // attached =NAME[=REGEX] on its own token, then collects a command like -exec:
+    // attached :NAME[=REGEX] on its own token, then collects a command like -exec:
     // args = [NAME, REGEX (may be empty), cmd...]. The grammar is read from the
     // registry, not a hardcoded name list.
-    if (const std::string::size_type eq = token.find('='); eq != std::string::npos) {
-      const std::string_view base = std::string_view(token).substr(0, eq);
+    if (const std::string::size_type colon = token.find(':'); colon != std::string::npos) {
+      const std::string_view base = std::string_view(token).substr(0, colon);
       if (const registry::Descriptor* const descriptor = registry::Lookup(base);
           descriptor != nullptr && descriptor->binding == registry::Binding::kLabelRegex) {
         // [!]NAME[=REGEX]: `!` allows this node to re-bind a NAME an earlier -capture already bound,
         // per instance rather than through a whole-run flag that would loosen every -capture at once.
-        const LabelSpec modifier = SplitLabelModifier(std::string_view(token).substr(eq + 1));
+        const LabelSpec modifier = SplitLabelModifier(std::string_view(token).substr(colon + 1));
         const std::string spec(modifier.rest);
         const std::string::size_type spec_eq = spec.find('=');
         std::string name = spec_eq == std::string::npos ? spec : spec.substr(0, spec_eq);
         std::string regex = spec_eq == std::string::npos ? std::string() : spec.substr(spec_eq + 1);
         if (name.empty()) {
-          Fail(absl::StrCat("'", base, "=' needs a NAME"));
+          Fail(absl::StrCat("'", base, ":' needs a NAME"));
           return nullptr;
         }
         if (!ValidLabelName(name)) {
-          Fail(absl::StrCat("'", base, "=", name, "' is not a NAME; use an identifier ([A-Za-z_][A-Za-z0-9_]*)"));
+          Fail(absl::StrCat("'", base, ":", name, "' is not a NAME; use an identifier ([A-Za-z_][A-Za-z0-9_]*)"));
           return nullptr;
         }
         ++pos_;
@@ -414,14 +428,14 @@ class ExprParser {
         }
         return node;
       }
-      // A Binding::kFormat primary (-grep) carries an attached =FORMAT output
-      // template on its own token; the whole payload after the first '=' is the
+      // A Binding::kFormat primary (-grep) carries an attached :FORMAT output
+      // template on its own token; the whole payload after the first ':' is the
       // template (it may itself contain '='), then the arity operand (the pattern)
       // follows. The template is compiled once here and stored on the node.
       if (const registry::Descriptor* const descriptor = registry::Lookup(base);
           descriptor != nullptr && descriptor->binding == registry::Binding::kFormat) {
-        const std::string format = token.substr(eq + 1);
-        ++pos_;  // consume the `<name>=FORMAT` token
+        const std::string format = token.substr(colon + 1);
+        ++pos_;  // consume the `<name>:FORMAT` token
         std::vector<std::string> args;
         for (int i = 0; i < descriptor->arity; ++i) {
           if (AtEnd()) {
@@ -436,12 +450,12 @@ class ExprParser {
         }
         return node;
       }
-      // A Binding::kStyle primary (-diff) carries an attached =STYLE token (u3/c/n/y/none),
+      // A Binding::kStyle primary (-diff) carries an attached :STYLE token (u3/c/n/y/none),
       // then the arity operand (the TARGET template). The style is stored raw on the node and
-      // validated in the evaluator; a bare -diff (no '=') falls through to the default (u3).
+      // validated in the evaluator; a bare -diff (no ':') falls through to the default (u3).
       if (const registry::Descriptor* const descriptor = registry::Lookup(base);
           descriptor != nullptr && descriptor->binding == registry::Binding::kStyle) {
-        const std::string style = token.substr(eq + 1);
+        const std::string style = token.substr(colon + 1);
         // Syntactic check: empty (default u3), "none", or a format letter u/c/n/y with an
         // optional context count (u3, c5, n, y). The evaluator maps it to the mbo output.
         bool valid_style = style.empty() || style == "none";
@@ -455,10 +469,10 @@ class ExprParser {
           }
         }
         if (!valid_style) {
-          Fail(absl::StrCat("'", base, "=", style, "': unknown style (use u[N] / c[N] / n / y[N] / none)"));
+          Fail(absl::StrCat("'", base, ":", style, "': unknown style (use u[N] / c[N] / n / y[N] / none)"));
           return nullptr;
         }
-        ++pos_;  // consume the `<name>=STYLE` token
+        ++pos_;  // consume the `<name>:STYLE` token
         std::vector<std::string> args;
         for (int i = 0; i < descriptor->arity; ++i) {
           if (AtEnd()) {
@@ -473,14 +487,14 @@ class ExprParser {
         }
         return node;
       }
-      // A Binding::kHash primary carries an attached =ALGO[/ENCODING] token, then its arity operands
+      // A Binding::kHash primary carries an attached :ALGO[/ENCODING] token, then its arity operands
       // (none for -hash, the EXPECTED template for -hasheq). The spec is stored raw and validated
-      // before the walk (engine::ValidateHashArgs); a bare `<name>` (no '=') falls through to the
+      // before the walk (engine::ValidateHashArgs); a bare `<name>` (no ':') falls through to the
       // default (--hash-algorithm / --hash-encoding).
       if (const registry::Descriptor* const descriptor = registry::Lookup(base);
           descriptor != nullptr && descriptor->binding == registry::Binding::kHash) {
-        const std::string spec = token.substr(eq + 1);
-        ++pos_;  // consume the `<name>=SPEC` token
+        const std::string spec = token.substr(colon + 1);
+        ++pos_;  // consume the `<name>:SPEC` token
         std::vector<std::string> args;
         for (int i = 0; i < descriptor->arity; ++i) {
           if (AtEnd()) {
@@ -495,17 +509,17 @@ class ExprParser {
         }
         return node;
       }
-      // A Binding::kText primary (-text) carries an attached =FLAVOR token (git/posix/windows/apple)
+      // A Binding::kText primary (-text) carries an attached :FLAVOR token (git/posix/windows/apple)
       // and takes no operand. The flavor is validated here and stored raw on the node; a bare -text
-      // (no '=') is not this branch -- it falls through to the default (the git heuristic).
+      // (no ':') is not this branch -- it falls through to the default (the git heuristic).
       if (const registry::Descriptor* const descriptor = registry::Lookup(base);
           descriptor != nullptr && descriptor->binding == registry::Binding::kText) {
-        const std::string flavor = token.substr(eq + 1);
+        const std::string flavor = token.substr(colon + 1);
         if (flavor != "git" && flavor != "posix" && flavor != "windows" && flavor != "apple") {
-          Fail(absl::StrCat("'", base, "=", flavor, "': unknown text flavor (use git / posix / windows / apple)"));
+          Fail(absl::StrCat("'", base, ":", flavor, "': unknown text flavor (use git / posix / windows / apple)"));
           return nullptr;
         }
-        ++pos_;  // consume the `-text=FLAVOR` token
+        ++pos_;  // consume the `-text:FLAVOR` token
         ExprPtr node = MakePredicate(descriptor, {}, grammar_);
         if (node != nullptr) {
           node->text_flavor = flavor;
@@ -513,10 +527,10 @@ class ExprParser {
         return node;
       }
       // A fuzzy primary carries an optional model, optionally followed by a normalized quality
-      // threshold: `=MODEL`, `=MODEL:PCT%`, or the default-model shorthand `=PCT%`.
+      // threshold: `:MODEL`, `:MODEL:PCT%`, or the default-model shorthand `:PCT%`.
       if (const registry::Descriptor* const descriptor = registry::Lookup(base);
           descriptor != nullptr && descriptor->binding == registry::Binding::kFuzzy) {
-        std::string_view value = std::string_view(token).substr(eq + 1);
+        std::string_view value = std::string_view(token).substr(colon + 1);
         FuzzyModel model = FuzzyModel::kFzf;
         std::optional<int> threshold;
         const auto parse_model = [&](std::string_view model_name) -> bool {
@@ -594,10 +608,10 @@ class ExprParser {
       Fail(absl::StrCat("unknown predicate: '", token, "'"));
       return nullptr;
     }
-    // A binding primary used bare (no =NAME), e.g. "-capture": the registry binding
+    // A binding primary used bare (no :NAME), e.g. "-capture": the registry binding
     // lets us reject it instead of silently accepting a nameless action.
     if (descriptor->binding == registry::Binding::kLabelRegex) {
-      Fail(absl::StrCat("'", token, "' needs a =NAME (e.g. ", token, "=NAME)"));
+      Fail(absl::StrCat("'", token, "' needs a :NAME (e.g. ", token, ":NAME)"));
       return nullptr;
     }
     if (descriptor->kind == registry::Kind::kOperator) {

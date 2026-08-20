@@ -38,7 +38,7 @@ struct Recipe {
 [[nodiscard]] absl::Span<const Recipe> CookbookRecipes();
 
 // The argument-shape hint shown after a primary's name: " ARG" (arity 1), " ARG ARG"
-// (arity 2), " CMD... ;" (variadic), "=NAME[=REGEX] CMD... ;" (a binding action), or
+// (arity 2), " CMD... ;" (variadic), ":[!]NAME[=REGEX] CMD... ;" (a binding action), or
 // "" (a flag-like primary). Read from the descriptor grammar so the model synopsis and
 // the man page render identically and neither drifts from the parser.
 std::string ArgHint(const registry::Descriptor& descriptor);

@@ -193,7 +193,7 @@ test::summary_m_extraction_key_counts_per_extracted_line() {
   root="$(_new_tree)"
   : >"${root}/only.txt"
   out="$(_run --summary='{capture.a:m/^author (.+)$/\1/}' "${root}" -type f \
-    -capture=a sh -c 'printf "author Bob\nauthor-mail x\nauthor Ann\nauthor Bob\n"' \;)"
+    -capture:a sh -c 'printf "author Bob\nauthor-mail x\nauthor Ann\nauthor Bob\n"' \;)"
   expect_matches "(^|${NL})Bob +2" "${out}" # two author-Bob lines
   expect_matches "(^|${NL})Ann +1" "${out}"
   expect_matches "(^|${NL})total +3" "${out}" # three matching lines in total
@@ -206,7 +206,7 @@ test::summary_m_chain_extracts_then_normalizes() {
   root="$(_new_tree)"
   : >"${root}/only.txt"
   out="$(_run --summary='{capture.a:m/^author (.+)$/\1/;s/ /_/g}' "${root}" -type f \
-    -capture=a sh -c 'printf "author Bob Smith\nauthor Bob Smith\nauthor Ann Lee\n"' \;)"
+    -capture:a sh -c 'printf "author Bob Smith\nauthor Bob Smith\nauthor Ann Lee\n"' \;)"
   expect_matches "(^|${NL})Bob_Smith +2" "${out}"
   expect_matches "(^|${NL})Ann_Lee +1" "${out}"
 }
@@ -246,7 +246,7 @@ test::m_reducer_makes_the_extraction_scalar_valid() {
   root="$(_new_tree)"
   : >"${root}/only.txt"
   out="$(_run --template='authors={capture.a:m/^author (.+)$/\1/;join(, )}' "${root}" -type f \
-    -capture=a sh -c 'printf "author Bob\nx\nauthor Ann\nauthor Bob\n"' \;)"
+    -capture:a sh -c 'printf "author Bob\nx\nauthor Ann\nauthor Bob\n"' \;)"
   expect_matches 'authors=Bob, Ann, Bob' "${out}"
 }
 
@@ -256,7 +256,7 @@ test::summary_mixed_extraction_template_is_a_usage_error() {
   root="$(_new_tree)"
   : >"${root}/only.txt"
   out="$("$(_xff_bin)" --summary='{capture.a:m/./\0/}{name}' "${root}" -type f \
-    -capture=a sh -c 'echo hi' \; 2>&1)" && rc=0 || rc=$?
+    -capture:a sh -c 'echo hi' \; 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
   expect_matches 'not a mix' "${out}"
 }
