@@ -1,0 +1,51 @@
+{
+  "include": [
+    "xff/**",
+    "xff_extras_api/**",
+    "xff_archive/**",
+    "xff_fuse/**",
+    "xff_pcre2/**"
+  ],
+  "exclude": [
+    "**/*_benchmark.cc",
+    "**/*_fuzz_test.cc",
+    "**/*_test.cc",
+    "**/*_test.h"
+  ],
+  "minimum": { "lines": 0, "functions": 0, "branches": 0 },
+  "patch_minimum": { "lines": 95, "branches": 85 },
+  "categories": {
+    "program": {
+      "command line": { "include": ["xff/cli/**"] },
+      "configuration": { "include": ["xff/config/**", "xff/env/**"] },
+      "command grammar": { "include": ["xff/parser/**", "xff/registry/**"] },
+      "execution": { "include": ["xff/engine/**", "xff/exec/**"] },
+      "filesystem": {
+        "include": ["xff/filesystem/**", "xff/shard/**", "xff/vfs/**"]
+      },
+      "matching": {
+        "include": [
+          "xff/matching/**",
+          "xff/content/**",
+          "xff/fuzzy/**",
+          "xff/glob/**",
+          "xff/hash/**"
+        ]
+      },
+      "presentation": {
+        "include": [
+          "xff/presentation/**",
+          "xff/datetime/**",
+          "xff/values/**",
+          "xff/license/**"
+        ]
+      }
+    },
+    "extensions": {
+      "API": { "include": ["xff_extras_api/**"] },
+      "archive": { "include": ["xff_archive/**"] },
+      "FUSE": { "include": ["xff_fuse/**"] },
+      "PCRE2": { "include": ["xff_pcre2/**"] }
+    }
+  }
+}
