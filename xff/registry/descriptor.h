@@ -32,14 +32,14 @@ enum class Safety { kNone, kSafety, kSecurity };
 // Cost tier driving the advisory ordering warning (design.md "Evaluation").
 enum class Cost { kCheap, kMeta, kExpensive };
 
-// How a primary carries an attached '=' payload on its own token, so the parser
+// How a primary carries an attached ':' qualification on its own token, so the parser
 // reads the grammar from the registry instead of hardcoding names (design #68):
-// kNone for most; kLabelRegex for -capture/-capturedir (-capture=NAME[=REGEX]);
-// kFormat for -grep (-grep=FORMAT, an attached output template); kStyle for -diff
-// (-diff=STYLE, an attached output-style token like u3 / c / n / y / none); kHash for
-// -hash (-hash=ALGO[/ENCODING], the digest algorithm and hex/base64 rendering); kText for
-// -text (-text=git|posix|windows|apple, the text-definition / line-ending flavor);
-// kFuzzy for fuzzy predicates (-fuzzy=MODEL[:PCT%] PATTERN, model + optional quality threshold).
+// kNone for most; kLabelRegex for -capture/-capturedir (-capture:NAME[=REGEX]);
+// kFormat for -grep (-grep:FORMAT, an attached output template); kStyle for -diff
+// (-diff:STYLE, an attached output-style token like u3 / c / n / y / none); kHash for
+// -hash (-hash:ALGO[/ENCODING], the digest algorithm and hex/base64 rendering); kText for
+// -text (-text:git|posix|windows|apple, the text-definition / line-ending flavor);
+// kFuzzy for fuzzy predicates (-fuzzy:MODEL[:PCT%] PATTERN, model + optional quality threshold).
 enum class Binding { kNone, kLabel, kLabelRegex, kFormat, kStyle, kHash, kText, kFuzzy };
 
 // The active command style, and (for kFind/kXff) a primary's origin. As a primary
@@ -76,7 +76,7 @@ struct Descriptor {
   Kind kind = Kind::kTest;
   Region region = Region::kExpression;
   int arity = 0;                     // trailing tokens consumed as arguments (-1 = variadic until ';')
-  Binding binding = Binding::kNone;  // attached '=' payload carried on the token itself
+  Binding binding = Binding::kNone;  // attached ':' qualification carried on the token itself
   // The case-insensitive variant of a matcher (-iname/-ipath/-iregex): folds case
   // when matching (FNM_CASEFOLD for the glob tests, RE2 case-insensitive for the
   // regex). Lets the parser/evaluator read case from the registry instead of

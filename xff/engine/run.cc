@@ -2188,7 +2188,7 @@ std::optional<std::string_view> DuplicateCollectionName(const parser::Expr& expr
 // traversing). -capture BINDS a name to a value, so a second binding silently clobbers the first and
 // every later {capture.NAME} renders wrong data; -collect APPENDS, so a shared name silently doubles
 // what the summary reduces. One mechanism for both: the `!` modifier on the node that reuses the name
-// (`-capture=!NAME`, `-collect=!NAME`). It is per INSTANCE, which the whole-run --capture-override it
+// (`-capture:!NAME`, `-collect:!NAME`). It is per INSTANCE, which the whole-run --capture-override it
 // replaced could not be - that flag loosened every -capture in the command, including the ones the
 // author never thought about.
 bool ReportDuplicateBindingName(const parser::Expr& expr, WalkErrorFn on_error) {
@@ -2197,14 +2197,14 @@ bool ReportDuplicateBindingName(const parser::Expr& expr, WalkErrorFn on_error) 
         "-capture",
         absl::FailedPreconditionError(
             absl::StrCat(
-                "duplicate -capture name '", *dup, "'; write '-capture=!", *dup, "' if the re-bind is meant")));
+                "duplicate -capture name '", *dup, "'; write '-capture:!", *dup, "' if the re-bind is meant")));
     return true;
   }
   if (const std::optional<std::string_view> dup = DuplicateCollectionName(expr); dup.has_value()) {
     on_error(
         "-collect", absl::FailedPreconditionError(
                         absl::StrCat(
-                            "duplicate -collect name '", *dup, "'; write '-collect=!", *dup,
+                            "duplicate -collect name '", *dup, "'; write '-collect:!", *dup,
                             "' on the later one if sharing the collection is meant")));
     return true;
   }
@@ -3002,7 +3002,7 @@ int RunFind(
     return 2;
   }
   // --diff-format=u|c|n|y|unified|context|normal|side-by-side: the default -diff output format
-  // (last occurrence wins; unset -> unified). A per-action -diff=STYLE letter still overrides it.
+  // (last occurrence wins; unset -> unified). A per-action -diff:STYLE letter still overrides it.
   // Validated here so a bad value is a usage error (exit 2) before the walk.
   mbo::diff::DiffOptions::OutputFormat diff_format = mbo::diff::DiffOptions::OutputFormat::kUnified;
   std::string diff_format_flag;
@@ -3026,7 +3026,7 @@ int RunFind(
   }
   // --diff-context=N (and --context=N when symmetric): the default -diff context size (built-in 3).
   // --context feeds diff only when before==after (a single symmetric value a diff can represent);
-  // --diff-context overrides --context regardless of order; a per-action -diff=uN overrides both.
+  // --diff-context overrides --context regardless of order; a per-action -diff:uN overrides both.
   std::size_t diff_context = 3;
   if (context_seen && grep_before == grep_after) {
     diff_context = grep_before;
@@ -3060,7 +3060,7 @@ int RunFind(
                            || absl::c_contains(command.globals, "-z++") || absl::c_contains(command.globals, "-Z++");
   // --hash-algorithm=ALGO / --hash-encoding=hex|base64: defaults for a bare -hash action and a
   // bare {hash} field (last occurrence wins; empty -> sha256 / hex). Validated here so a bad value
-  // is a usage error (exit 2) before the walk; the explicit -hash=ALGO[/ENCODING] specs in the
+  // is a usage error (exit 2) before the walk; the explicit -hash:ALGO[/ENCODING] specs in the
   // expression are validated by ValidateHashArgs below.
   const HashDefaults hash_defaults = ReadHashDefaults(command.globals);
   const std::string& hash_algorithm = hash_defaults.algorithm;
@@ -3252,7 +3252,7 @@ int RunFind(
   std::optional<int> fuzzy_score;
   // -first N budgets, one per instance, for the whole run (see EvalContext::first_counts).
   std::map<const parser::Expr*, int> first_counts;
-  // -collect[=NAME]: the entries held back for the post-walk reduction. `collect_names` is read from
+  // -collect[:NAME]: the entries held back for the post-walk reduction. `collect_names` is read from
   // the AST (presence is SYNTACTIC, like find's implicit -print: a -collect in a branch that never
   // runs still switches the summary's source, and the summary is then legitimately empty).
   Collections collections = MakeCollections(command.expression.get(), command.globals);

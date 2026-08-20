@@ -82,7 +82,7 @@ test::collect_is_an_action_so_it_suppresses_the_implicit_print() {
 test::a_named_collection_reads_like_the_default_one() {
   local root out
   root="$(_make_tree)"
-  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect=big --summary --sort=dir)"
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect:big --summary --sort=dir)"
   expect_matches "total[[:space:]]+6[[:space:]]+210" "${out}"
 }
 
@@ -92,7 +92,7 @@ test::sharing_a_name_needs_the_bang_modifier() {
   local root out status
   root="$(_make_tree)"
   status=0
-  out="$(cd "${root}" && "$(_xff_bin)" --exact . \( -type f -collect=all \) -o \( -type d -collect=!all \) --summary --sort=dir)" || status=$?
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . \( -type f -collect:all \) -o \( -type d -collect:!all \) --summary --sort=dir)" || status=$?
   expect_eq "0" "${status}"
   # The six files plus the root directory, gathered into one collection by two different nodes.
   expect_matches "total[[:space:]]+7" "${out}"
@@ -104,17 +104,17 @@ test::an_unmarked_repeat_is_an_error_naming_the_modifier() {
   local root out status
   root="$(_make_tree)"
   status=0
-  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect=a -collect=a --summary 2>&1)" || status=$?
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect:a -collect:a --summary 2>&1)" || status=$?
   expect_eq "2" "${status}"
   expect_output_contains "duplicate -collect name 'a'" "${out}"
-  expect_output_contains "-collect=!a" "${out}"
+  expect_output_contains "-collect:!a" "${out}"
 }
 
 test::a_marked_repeat_collects_each_entry_twice() {
   # What `!` opts into: both nodes append, so an entry reached by both is collected twice.
   local root out
   root="$(_make_tree)"
-  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect=a -collect=!a --summary --sort=dir)"
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect:a -collect:!a --summary --sort=dir)"
   expect_matches "total[[:space:]]+12[[:space:]]+420" "${out}"
 }
 
@@ -124,7 +124,7 @@ test::a_name_must_be_an_identifier() {
   local root out status
   root="$(_make_tree)"
   status=0
-  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect=bad-name --summary 2>&1)" || status=$?
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect:bad-name --summary 2>&1)" || status=$?
   expect_eq "2" "${status}"
   expect_output_contains "is not a NAME" "${out}"
 }
@@ -133,7 +133,7 @@ test::an_empty_name_is_a_usage_error() {
   local root out status
   root="$(_make_tree)"
   status=0
-  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect= --summary 2>&1)" || status=$?
+  out="$(cd "${root}" && "$(_xff_bin)" --exact . -type f -collect: --summary 2>&1)" || status=$?
   expect_eq "2" "${status}"
   expect_output_contains "needs a NAME" "${out}"
 }

@@ -135,7 +135,7 @@ struct EvalContext {
   // maintains it while descending an AND RHS; -top consumes it as its ranking key.
   std::optional<int> incoming_fuzzy_score;
   // --count / -c: -grep prints one `path:count` per file (its matching-line count)
-  // instead of the lines, rg -c style; supersedes -grep=FORMAT. Only -grep reads it.
+  // instead of the lines, rg -c style; supersedes -grep:FORMAT. Only -grep reads it.
   bool grep_count = false;
   // --context / --before-context / --after-context (grep -C/-B/-A): lines of context -grep prints
   // before and after each match (0 = none, the default). Resolved once before the walk; only -grep
@@ -152,15 +152,15 @@ struct EvalContext {
   // entry; the pattern is validated once before the walk). Empty -> no line filter.
   std::string_view diff_ignore_matching;
   // --diff-format=u|c|n|y|...: the default -diff output format (built-in unified). A per-action
-  // -diff=STYLE letter overrides it. Resolved once before the walk; only -diff reads it.
+  // -diff:STYLE letter overrides it. Resolved once before the walk; only -diff reads it.
   mbo::diff::DiffOptions::OutputFormat diff_format = mbo::diff::DiffOptions::OutputFormat::kUnified;
   // --diff-context=N (and --context=N when symmetric): the default -diff context size (built-in 3).
   // --context feeds it only when before==after; --diff-context overrides --context. A per-action
-  // -diff=uN overrides both. Resolved once before the walk; only -diff reads it.
+  // -diff:uN overrides both. Resolved once before the walk; only -diff reads it.
   std::size_t diff_context = 3;
   // --hash-algorithm=ALGO / --hash-encoding=hex|base64: the default digest for a bare -hash
   // action and a bare {hash} field (empty -> sha256 / hex). Validated once before the walk;
-  // an explicit -hash=ALGO[/ENCODING] or {hash:...} qualifier overrides per node.
+  // an explicit -hash:ALGO[/ENCODING] or {hash:...} qualifier overrides per node.
   std::string_view hash_algorithm;
   std::string_view hash_encoding;
   Control& control;                              // collects -prune/-quit requests
@@ -173,7 +173,7 @@ struct EvalContext {
   // (unlike `outputs`, which is per entry) - the count is the point. Emission is single-threaded
   // (see walk.h), so a plain map needs no synchronisation.
   std::map<const parser::Expr*, int>* first_counts = nullptr;
-  // -collect[=NAME]: where the action holds entries for a post-walk sink (--summary reads the
+  // -collect[:NAME]: where the action holds entries for a post-walk sink (--summary reads the
   // collection instead of what matched). Owned by the driver for the whole run, and it OWNS what it
   // stores, because a Visit is borrowed (see collect.h). Null -> -collect is inert.
   Collections* collections = nullptr;
@@ -251,13 +251,13 @@ absl::Status ValidateSizeArgs(const parser::Expr& expr);
 absl::Status ValidateDiffIgnore(std::string_view tokens, std::string_view matching);
 
 // Parses a `--diff-format` value into an mbo output format: the letters u/c/n/y (matching the
-// -diff=STYLE token) or the long names unified/context/normal/side-by-side; nullopt for an
-// unknown value. `none` is intentionally not a format (it is the per-action -diff=none silencer,
+// -diff:STYLE token) or the long names unified/context/normal/side-by-side; nullopt for an
+// unknown value. `none` is intentionally not a format (it is the per-action -diff:none silencer,
 // not a default the walk carries). The driver uses it to validate + resolve the global once
 // before the walk; -diff then falls back to the resolved format when its own token omits one.
 std::optional<mbo::diff::DiffOptions::OutputFormat> ParseDiffFormatFlag(std::string_view flag);
 
-// Validates every `-hash=ALGO[/ENCODING]` spec in `expr`, returning the first malformed one as
+// Validates every `-hash:ALGO[/ENCODING]` spec in `expr`, returning the first malformed one as
 // an InvalidArgument (unknown algorithm or encoding, naming it) or Ok. The driver calls it before
 // the walk so a bad `-hash` spec is a usage error (exit 2) rather than a silent per-entry no-op,
 // matching how the other payload primaries validate up front.

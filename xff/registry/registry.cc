@@ -227,8 +227,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .name = "-eofcr",
         .summary = "match a regular file whose content ends with a bare CR, or is empty (xff)",
         .details = "TRUE for a regular, readable file whose content ends with a bare carriage return / CR (or is "
-                   "empty). The classic-Mac / `-text=apple` final terminator, and the CR analogue of `-eofnl`: "
-                   "compose `-text=apple` `-eofcr` for a well-formed CR-terminated file, or `-text=apple` ! `-eofcr` "
+                   "empty). The classic-Mac / `-text:apple` final terminator, and the CR analogue of `-eofnl`: "
+                   "compose `-text:apple` `-eofcr` for a well-formed CR-terminated file, or `-text:apple` ! `-eofcr` "
                    "for the missing final CR. A CRLF file ends with LF (not a bare CR), so it does NOT match "
                    "`-eofcr`. Reads the file (expensive). An xff extension `--config=find` rejects.",
         .kind = Kind::kTest,
@@ -241,8 +241,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .name = "-eofcrlf",
         .summary = "match a regular file whose content ends with CRLF, or is empty (xff)",
         .details = "TRUE for a regular, readable file whose content ends with CRLF (or is empty). The Windows / "
-                   "`-text=windows` final terminator, and the CRLF analogue of `-eofnl`: compose `-text=windows` "
-                   "`-eofcrlf` for a well-formed CRLF-terminated file, or `-text=windows` ! `-eofcrlf` for the "
+                   "`-text:windows` final terminator, and the CRLF analogue of `-eofnl`: compose `-text:windows` "
+                   "`-eofcrlf` for a well-formed CRLF-terminated file, or `-text:windows` ! `-eofcrlf` for the "
                    "missing final CRLF. Stricter than `-eofnl` (which any LF-ending file, including CRLF, "
                    "satisfies). Reads the file (expensive). An xff extension `--config=find` rejects.",
         .kind = Kind::kTest,
@@ -265,11 +265,11 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
             "primaries rather than position-independent globals: `-collect -first 10 -ls --summary` collects "
             "everything, lists ten, and summarises ALL of them, while `-first 10 -collect --summary` collects "
             "only the ten and summarises those. The second prints no listing because `-collect` is an action, "
-            "so the implicit `-print` is suppressed - find's own rule, not a new one. `-collect=NAME` uses a "
+            "so the implicit `-print` is suppressed - find's own rule, not a new one. `-collect:NAME` uses a "
             "second collection; a bare `-collect` uses the one named `default`. A NAME is an identifier "
             "(`[A-Za-z_][A-Za-z0-9_]*`), which is what reserves punctuation for modifiers. Two nodes MAY "
             "share a collection, but the later one must SAY so with `!`: "
-            "`\\( -type f -collect=all \\) -o \\( -type d -collect=!all \\)` gathers both branches into one "
+            "`\\( -type f -collect:all \\) -o \\( -type d -collect:!all \\)` gathers both branches into one "
             "collection, while an unmarked repeat is a usage error - a silently shared collection shows up "
             "only as a doubled total. The modifier is per node, so it cannot loosen the other `-collect` in a "
             "long command the way a whole-run flag would. A collection holds every match until the walk ends, so "
@@ -323,7 +323,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
             "order, making the result deterministic under a deterministic `--sort`. A fuzzy matcher must precede "
             "the node on every path that reaches it. All contributing fuzzy matchers must use the same model and "
             "threshold: scores from different models or differently strict predicates do not describe one ordering. "
-            "A bare fuzzy matcher has a `0%` threshold. `-fuzzy=fzf:80% foo -top 10` therefore means the ten best "
+            "A bare fuzzy matcher has a `0%` threshold. `-fuzzy:fzf:80% foo -top 10` therefore means the ten best "
             "good matches. An xff extension `--config=find` rejects. A malformed or negative count is a usage error; "
             "`-top 0` is valid and keeps none.",
         .kind = Kind::kTest,
@@ -336,13 +336,13 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .name = "-fuzzy",
         .summary = "match the basename loosely, optionally requiring a normalized score (xff)",
         .details = "TRUE when PATTERN matches the entry's basename under the selected MODEL. The forms are "
-                   "`-fuzzy PATTERN`, `-fuzzy=MODEL PATTERN`, `-fuzzy=PCT% PATTERN`, and "
-                   "`-fuzzy=MODEL:PCT% PATTERN`; the default model is `fzf`, and `edit` aliases `levenshtein`. "
+                   "`-fuzzy PATTERN`, `-fuzzy:MODEL PATTERN`, `-fuzzy:PCT% PATTERN`, and "
+                   "`-fuzzy:MODEL:PCT% PATTERN`; the default model is `fzf`, and `edit` aliases `levenshtein`. "
                    "The models answer different questions. `sequence` is a literal ordered subsequence: "
                    "`tmh` finds `the_main_header.h`. `fzf` adds fzf EXTENDED-SEARCH expressions: spaces AND terms, "
                    "`|` joins OR alternatives, `'` requests exact matching, `^` and `$` anchor, `!` excludes, and "
                    "`\\ ` embeds a literal space. Quote a query containing spaces for the shell, for example "
-                   "`-fuzzy=fzf '^core go$ | rb$ | py$'`. As in fzf, anchors ignore whitespace at the corresponding "
+                   "`-fuzzy:fzf '^core go$ | rb$ | py$'`. As in fzf, anchors ignore whitespace at the corresponding "
                    "candidate edge. An OR applies only inside its adjacent group: in that example `^core` remains a "
                    "required AND term while `go$`, `rb$`, and `py$` are alternatives. Prefix an exact term with `!'` "
                    "to exclude that fuzzy subsequence; `!^foo` excludes a prefix and `!foo$` a suffix. Backslash only "
@@ -371,7 +371,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .name = "-fuzzypath",
         .summary = "match the whole path loosely, optionally requiring a normalized score (xff)",
         .details = "`-fuzzy` for the whole PATH instead of the basename - the `-path` to its `-name`. It accepts "
-                   "the same `=MODEL[:PCT%]` syntax and scoring, so `-fuzzypath=sequence eng/wlk` finds "
+                   "the same `:MODEL[:PCT%]` syntax and scoring, so `-fuzzypath:sequence eng/wlk` finds "
                    "`xff/engine/walk.cc`, which "
                    "no basename match could. It matches far more than `-fuzzy` does (every path shares its "
                    "directories), so it is most useful RANKED: `--sort=score` puts the best match first, and "
@@ -385,7 +385,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-ifuzzy",
         .summary = "match the basename loosely, case-insensitively (xff)",
-        .details = "The always-case-insensitive `-fuzzy`: accepts the same `=MODEL[:PCT%]` syntax and folds ASCII "
+        .details = "The always-case-insensitive `-fuzzy`: accepts the same `:MODEL[:PCT%]` syntax and folds ASCII "
                    "case regardless of `--case` or the volume.",
         .kind = Kind::kTest,
         .arity = 1,
@@ -396,7 +396,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     {
         .name = "-ifuzzypath",
         .summary = "match the whole path loosely, case-insensitively (xff)",
-        .details = "The always-case-insensitive `-fuzzypath`: accepts the same `=MODEL[:PCT%]` syntax and folds "
+        .details = "The always-case-insensitive `-fuzzypath`: accepts the same `:MODEL[:PCT%]` syntax and folds "
                    "ASCII case regardless of `--case` or the volume.",
         .kind = Kind::kTest,
         .arity = 1,
@@ -415,7 +415,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .style = Style::kXff,
         .cost = Cost::kExpensive,
     },
-    // xff -diff[=STYLE]: emit a diff of each match against TARGET (a field template). An
+    // xff -diff[:STYLE]: emit a diff of each match against TARGET (a field template). An
     // ACTION whose truth is TRUE = same (like cmp/diff): silent when equal, prints the diff
     // and is false on a difference. STYLE (u3 default / c / n / y / none) picks the output.
     {
@@ -423,7 +423,7 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .summary = "diff the file against TARGET (a field template); true when equal (xff)",
         .details = "Compares the matched file against TARGET - a {field} template evaluated per entry, so it can name "
                    "a mirror path like `../b/{relpath}` - and is true when they are equal, false on a difference. The "
-                   "optional =STYLE picks the output: unified `u3` (default; 3 lines of context), context `c`, "
+                   "optional :STYLE picks the output: unified `u3` (default; 3 lines of context), context `c`, "
                    "normal `n`, side-by-side `y`, or `none` for just the boolean. Text files only; expensive.",
         .kind = Kind::kAction,
         .arity = 1,
@@ -433,8 +433,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     },
     {
         .name = "-hash",
-        .summary = "print the file digest and path; -hash=ALGO[/ENCODING], sha256 hex default (xff)",
-        .details = "Prints `DIGEST  PATH` for each match (an action). `-hash=ALGO[/ENCODING]` picks the algorithm "
+        .summary = "print the file digest and path; -hash:ALGO[/ENCODING], sha256 hex default (xff)",
+        .details = "Prints `DIGEST  PATH` for each match (an action). `-hash:ALGO[/ENCODING]` picks the algorithm "
                    "(sha256 default; also sha1/sha512/...) and encoding (hex default, or base64). Reads the whole "
                    "file, so it is expensive; the same digest is available as the {hash} field.",
         .kind = Kind::kAction,
@@ -444,14 +444,14 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .cost = Cost::kExpensive,
     },
     // xff -hasheq EXPECTED: true when the file's digest EQUALS EXPECTED (a field template rendered
-    // per entry, so it can name a sidecar value like `{def.SUMS}` or a capture). `-hasheq=ALGO
+    // per entry, so it can name a sidecar value like `{def.SUMS}` or a capture). `-hasheq:ALGO
     // [/ENCODING]` picks the algorithm / encoding, like -hash. `! -hasheq` selects files that drift.
     {
         .name = "-hasheq",
-        .summary = "true when the digest equals EXPECTED (a field template); -hasheq=ALGO[/ENC] (xff)",
+        .summary = "true when the digest equals EXPECTED (a field template); -hasheq:ALGO[/ENC] (xff)",
         .details = "Computes the file's digest and is true when it equals EXPECTED - a {field} template evaluated "
                    "per entry, so it can name a sidecar value like `{def.SUMS}` or a capture. "
-                   "`-hasheq=ALGO[/ENCODING]` picks the algorithm (sha256 default; also sha1/sha512/...) and "
+                   "`-hasheq:ALGO[/ENCODING]` picks the algorithm (sha256 default; also sha1/sha512/...) and "
                    "encoding (hex default, or base64); the same grammar as `-hash` / {hash}. It is a strict equality "
                    "test (hex folds case). `! -hasheq` selects files whose digest differs (drift / corruption). "
                    "Reads the whole file, so it is expensive.",
@@ -1043,12 +1043,12 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
     },
     {
         // xff: the line-output companion of the -rxc content predicate. Bare -grep
-        // prints path:line:text; -grep=FORMAT renders a {line}/{text}/... template.
+        // prints path:line:text; -grep:FORMAT renders a {line}/{text}/... template.
         .name = "-grep",
-        .summary = "print each content line matching a regex; -grep=FORMAT for a template (xff)",
+        .summary = "print each content line matching a regex; -grep:FORMAT for a template (xff)",
         .details = "The line-output companion of `-rxc`: `-grep PATTERN` prints every content line matching the RE2 "
                    "PATTERN as `path:lineno:text` (grep's piped form; a literal substring under "
-                   "`--regextype=EXACT`). `-grep=FORMAT PATTERN` renders a {line}/{text}/{match}/{column} template "
+                   "`--regextype=EXACT`). `-grep:FORMAT PATTERN` renders a {line}/{text}/{match}/{column} template "
                    "instead. Honors `-c` / `--count` (one `path:count` per file) and -A / -B / `--context` "
                    "(surrounding lines, grep-style). Reads the file (expensive); non-regular / unreadable / binary "
                    "files yield nothing. Its truth is \"matched a line\", so it composes with `-o` / `-q`. An xff "
@@ -1186,15 +1186,15 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .terminal = true,
     },
     {
-        // -capture=NAME[=REGEX] cmd... ;
+        // -capture:NAME[=REGEX] cmd... ;
         .name = "-capture",
         .summary = "run a command and bind its output to {capture.NAME} (xff)",
         .details = "xff extension: runs the `;`-terminated command and binds its stdout to `{capture.NAME}` for a "
-                   "later `-printf` / `--format` field; `-capture=NAME=REGEX` keeps only REGEX's first capture "
+                   "later `-printf` / `--format` field; `-capture:NAME=REGEX` keeps only REGEX's first capture "
                    "group. A NAME must be an identifier (`[A-Za-z_][A-Za-z0-9_]*`), because it is referenced as "
-                   "`{capture.NAME}`; binding one NAME twice is an error, and `-capture=!NAME` on the LATER node "
+                   "`{capture.NAME}`; binding one NAME twice is an error, and `-capture:!NAME` on the LATER node "
                    "says the re-bind is meant (per node, so it cannot loosen the other captures in the command). "
-                   "Sensitive: from an `--xffrc` file it needs `--allow-exec`. Example: `-capture=branch git "
+                   "Sensitive: from an `--xffrc` file it needs `--allow-exec`. Example: `-capture:branch git "
                    "rev-parse --abbrev-ref HEAD ; -printf '{relpath}\\t{capture.branch}\\n'`.",
         .kind = Kind::kAction,
         .arity = -1,

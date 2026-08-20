@@ -63,7 +63,7 @@ namespace xff::fuzzy {
 // alternatives, and the `!`, `'`, `^`, and `$` operators select inverse, exact, prefix, and suffix
 // matching. Escaped spaces remain part of a term. The score of an AND query is its weakest positive
 // term; an OR group keeps its best successful alternative. Inverse terms filter without lowering
-// the score. This preserves a useful normalized [0, 100] ranking while giving `-fuzzy=fzf` the
+// the score. This preserves a useful normalized [0, 100] ranking while giving `-fuzzy:fzf` the
 // expression semantics users of fzf expect.
 [[nodiscard]] std::optional<int> FzfPercent(std::string_view query, std::string_view text, bool fold_case);
 

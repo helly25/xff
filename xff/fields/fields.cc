@@ -1166,7 +1166,7 @@ std::vector<FieldDoc> FieldDocs() {
        .group = "time",
        .header = "Time",
        .summary = "creation/birth time (where supported)"},
-      // Grep context (populated only during -grep=FORMAT; empty elsewhere).
+      // Grep context (populated only during -grep:FORMAT; empty elsewhere).
       {.name = "line",
        .aliases = {},
        .group = "grep",

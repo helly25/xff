@@ -56,14 +56,14 @@ struct RenderContext {
   const std::vector<std::string>* captures = nullptr;  // -regex groups for {0..N}: [0] whole match, 1..N groups
   const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
   const std::map<std::string, std::string>* outputs = nullptr;  // -capture results for {capture.NAME}
-  // Per-line match context for -grep=FORMAT: the 1-based number and text of the
+  // Per-line match context for -grep:FORMAT: the 1-based number and text of the
   // matching line. `{line}` renders the number, `{text}` the line; both are empty
   // outside a -grep line (line_number unset), so they no-op in --template/-printf.
   std::optional<std::size_t> line_number;
   std::string_view line_text;
   // The matched span within the line (grep -o): `{match}` is the matched substring,
   // `{column}` its 1-based byte start. Empty/unset unless match_column is set (only
-  // -grep=FORMAT computes it), so they no-op elsewhere.
+  // -grep:FORMAT computes it), so they no-op elsewhere.
   std::string_view match_text;
   std::optional<std::size_t> match_column;
   // --shards: when this render represents a collapsed shard set, `{shard}` is the number of shards

@@ -11,7 +11,7 @@
 - Fzf compatibility tests now pin exact normalized scores for documented compound queries and
   nearby boundary/gap variations, rather than merely checking that successful scores lie in range.
   End-to-end `-top` and `--max-results` tests likewise pin complete ordered output.
-- `-fuzzy=fzf` now follows fzf's operator precedence for compound inverse, quote,
+- `-fuzzy:fzf` now follows fzf's operator precedence for compound inverse, quote,
   anchor, and OR expressions, and its anchors ignore whitespace at the corresponding
   candidate edge. Tests carry fzf's documented compound query and upstream parser cases.
 - Add `--max-results=N`, an aggregate ceiling for the implicit result listing across expression
@@ -134,7 +134,7 @@ can now treat it that way instead of listing every shard.
 
 - `-hasheq EXPECTED` is true when the file's digest equals EXPECTED, a `{field}` template
   rendered per entry. `-hasheq {def.SUMS}` checks a manifest value and
-  `! -hasheq {def.SUMS}` selects drift or corruption. `-hasheq=ALGO[/ENCODING]` shares the
+  `! -hasheq {def.SUMS}` selects drift or corruption. `-hasheq:ALGO[/ENCODING]` shares the
   `-hash` spec grammar (sha256 / hex by default); hex comparison folds case.
 - `--summary=hash` groups matches by digest, so identical files collapse into one bucket
   and the count column reads as a duplicate report.

@@ -115,8 +115,8 @@ test::cookbook_recipes_are_all_tested() {
   expect_output_contains '-mtime +7' "${cookbook}"         # delete stale temp files
   expect_output_contains '-grep' "${cookbook}"             # search code content by language
   expect_output_contains 'git blame' "${cookbook}"         # per-file git-blame line counts
-  expect_output_contains '-capturedir=blame' "${cookbook}" # author line counts, natively
-  expect_output_contains '-hash=sha256' "${cookbook}"      # checksum manifest for a tree
+  expect_output_contains '-capturedir:blame' "${cookbook}" # author line counts, natively
+  expect_output_contains '-hash:sha256' "${cookbook}"      # checksum manifest for a tree
   expect_output_contains '--format=jsonl' "${cookbook}"    # recently changed files as rows
 }
 
@@ -184,7 +184,7 @@ test::recipe_author_line_counts_natively() {
     return 0
   fi
   local out rc
-  out="$(cd "${GITFIX}" && xff -g . -text -capturedir=blame git blame --line-porcelain {} \; \
+  out="$(cd "${GITFIX}" && xff -g . -text -capturedir:blame git blame --line-porcelain {} \; \
     --summary='{capture.blame:m/^author (.+)$/\1/}' 2>&1)" && rc=0 || rc=$?
   expect_eq "0" "${rc}"
   expect_output_contains 'Example Author' "${out}" # m// extraction tallies lines per author
@@ -193,7 +193,7 @@ test::recipe_author_line_counts_natively() {
 test::recipe_checksum_manifest_for_a_tree() {
   _ensure_fixtures
   local out rc
-  out="$(cd "${FIX}" && xff . -type f -hash=sha256 2>&1)" && rc=0 || rc=$?
+  out="$(cd "${FIX}" && xff . -type f -hash:sha256 2>&1)" && rc=0 || rc=$?
   expect_eq "0" "${rc}"
   local first digest
   first="$(printf '%s\n' "${out}" | head -1)"

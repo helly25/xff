@@ -33,9 +33,9 @@ namespace xff::config {
 namespace {
 
 // The registry safety class of one flag token (kNone for globals/unknowns). An
-// attached binding like "-capture=tag" is classified by its base name "-capture".
+// attached binding like "-capture:tag" is classified by its base name "-capture".
 registry::Safety FlagSafety(std::string_view flag) {
-  const std::string_view base = flag.substr(0, flag.find('='));
+  const std::string_view base = flag.substr(0, flag.find(':'));
   const registry::Descriptor* const descriptor = registry::Lookup(base);
   return descriptor == nullptr ? registry::Safety::kNone : descriptor->safety;
 }
@@ -56,14 +56,18 @@ std::optional<registry::Safety> ClassToken(std::string_view token) {
 
 // Whether a [policy] rule `token` matches `line`: an @class token matches by the
 // line's class; a flag-name token matches when any line flag equals it or carries
-// it as an attached binding (flag == token, or flag starts with token + "=").
+// it as an attached global value or primary qualification (flag == token, or flag starts with the
+// token plus `=` / `:` respectively). Accepting both delimiters here is structural, not a CLI alias:
+// globals such as `--threads=4` and primaries such as `-capture:tag` share this policy matcher.
 bool TokenMatchesLine(std::string_view token, const RcLine& line) {
   if (const std::optional<registry::Safety> cls = ClassToken(token); cls.has_value()) {
     return LineSafety(line) == *cls;
   }
-  const std::string with_eq = absl::StrCat(token, "=");
-  return absl::c_any_of(
-      line.flags, [&](std::string_view flag) { return flag == token || absl::StartsWith(flag, with_eq); });
+  const std::string with_value = absl::StrCat(token, "=");
+  const std::string with_qualifier = absl::StrCat(token, ":");
+  return absl::c_any_of(line.flags, [&](std::string_view flag) {
+    return flag == token || absl::StartsWith(flag, with_value) || absl::StartsWith(flag, with_qualifier);
+  });
 }
 
 // The human name of a safety class, for warnings and --explain.

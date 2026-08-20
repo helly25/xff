@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# End-to-end test of -diff (via mbo::diff): a unified diff by default, the -diff=STYLE output
+# End-to-end test of -diff (via mbo::diff): a unified diff by default, the -diff:STYLE output
 # formats, TRUE = same polarity (silent when equal), a binary side noted on stderr, and the
 # --diff-algorithm usage errors. Drives the real binary (the diff is emitted by the action).
 
@@ -47,8 +47,8 @@ test::diff_polarity_true_when_equal_false_when_different() {
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name a.txt -diff "${dir}/same.txt" -print 2>&1)"
   expect_output_not_contains '@@' "${out}"
   expect_output_contains 'a.txt' "${out}"
-  # Different -> -diff=none is the silent matcher and FALSE, so -print does not fire.
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name a.txt -diff=none "${dir}/b.txt" -print 2>&1)"
+  # Different -> -diff:none is the silent matcher and FALSE, so -print does not fire.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name a.txt -diff:none "${dir}/b.txt" -print 2>&1)"
   expect_output_not_contains 'a.txt' "${out}"
   # A valid --diff-algorithm is accepted and still produces the diff.
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-algorithm=naive "${dir}" -name a.txt -diff "${dir}/b.txt" 2>&1)"
@@ -65,19 +65,19 @@ test::diff_ignore_normalizes_and_rejects_bad_values() {
   printf 'keep\nDEBUG y\nkeep2\n' >"${dir}/mr.txt"
   printf 'a\nb' >"${dir}/nonl.txt"     # no final newline
   printf 'a\nb\n' >"${dir}/withnl.txt" # same content, with a final newline
-  # Without normalization the trailing whitespace differs -> -diff=none is FALSE, no -print.
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name left.txt -diff=none "${dir}/right.txt" -print 2>&1)"
+  # Without normalization the trailing whitespace differs -> -diff:none is FALSE, no -print.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name left.txt -diff:none "${dir}/right.txt" -print 2>&1)"
   expect_output_not_contains 'left.txt' "${out}"
   # --diff-ignore=trail folds the trailing whitespace -> equal -> -print fires.
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-ignore=trail "${dir}" -name left.txt -diff=none "${dir}/right.txt" -print 2>&1)"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-ignore=trail "${dir}" -name left.txt -diff:none "${dir}/right.txt" -print 2>&1)"
   expect_output_contains 'left.txt' "${out}"
   # --diff-ignore-matching drops the differing DEBUG line before comparing -> equal.
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-ignore-matching='^DEBUG' "${dir}" -name ml.txt -diff=none "${dir}/mr.txt" -print 2>&1)"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-ignore-matching='^DEBUG' "${dir}" -name ml.txt -diff:none "${dir}/mr.txt" -print 2>&1)"
   expect_output_contains 'ml.txt' "${out}"
   # A missing final newline differs by default (-> no -print), but --diff-ignore=eofnl equates them.
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name nonl.txt -diff=none "${dir}/withnl.txt" -print 2>&1)"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name nonl.txt -diff:none "${dir}/withnl.txt" -print 2>&1)"
   expect_output_not_contains 'nonl.txt' "${out}"
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-ignore=eofnl "${dir}" -name nonl.txt -diff=none "${dir}/withnl.txt" -print 2>&1)"
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-ignore=eofnl "${dir}" -name nonl.txt -diff:none "${dir}/withnl.txt" -print 2>&1)"
   expect_output_contains 'nonl.txt' "${out}"
   # An unknown token is a usage error (eol/lead are not tokens: trail and change/ws cover them).
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" --diff-ignore=eol "${dir}" -name left.txt -diff "${dir}/right.txt" 2>&1)" && rc=0 || rc=$?
@@ -97,8 +97,8 @@ test::diff_binary_notes_on_stderr_and_bad_inputs_are_usage_errors() {
   printf 'x\000two' >"${dir}/q.bin"
   out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name p.bin -diff "${dir}/q.bin" 2>&1)"
   expect_output_contains 'Binary files' "${out}" # byte-compared, not text-diffed
-  # A bad -diff=STYLE is a usage error.
-  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name p.bin -diff=zz "${dir}/q.bin" 2>&1)" && rc=0 || rc=$?
+  # A bad -diff:STYLE is a usage error.
+  out="$(XFF_CONFIG="${TEST_TMPDIR}/none" "$(_xff_bin)" "${dir}" -name p.bin -diff:zz "${dir}/q.bin" 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
   expect_output_contains 'unknown style' "${out}"
   # A bad --diff-algorithm is a usage error.

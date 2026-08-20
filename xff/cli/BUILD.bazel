@@ -725,7 +725,7 @@ bashtest(
     data = [":xff"],
 )
 
-# End-to-end test of -diff (mbo::diff backend): a unified diff by default, the -diff=STYLE
+# End-to-end test of -diff (mbo::diff backend): a unified diff by default, the -diff:STYLE
 # output formats, TRUE = same polarity, a binary side noted on stderr, and the usage errors.
 bashtest(
     name = "diff_test",
@@ -735,7 +735,7 @@ bashtest(
 )
 
 # End-to-end test of -hash (xff/hash -> mbo::digest): the `<digest>  <path>` sha256sum layout,
-# -hash=ALGO[/ENCODING], the --hash-algorithm / --hash-encoding defaults for the action and the
+# -hash:ALGO[/ENCODING], the --hash-algorithm / --hash-encoding defaults for the action and the
 # {hash} field, the usage errors, and the find-style rejection.
 bashtest(
     name = "hash_test",
@@ -745,7 +745,7 @@ bashtest(
 )
 
 # End-to-end test of -hasheq (the manifest-verification companion of -hash): TRUE when the file's
-# digest equals the EXPECTED field template; -hasheq=ALGO[/ENCODING]; hex case-folding;
+# digest equals the EXPECTED field template; -hasheq:ALGO[/ENCODING]; hex case-folding;
 # `! -hasheq` selects drift; the bad-spec usage error; and the find-style rejection.
 # End-to-end test of the --archive / -z control surface: every spelling that REQUESTS diving is a
 # hard, self-documenting error in a build without the archive extra, while `none` / `-z-` (find's
@@ -801,11 +801,11 @@ bashtest(
 xff_golden_cases(
     name = "diff_golden",
     cases = {
-        "u": ("a -type f -diff=u 'b/{relpath}'", "testdata/diff/golden/u.txt"),
-        "c": ("a -type f -diff=c 'b/{relpath}'", "testdata/diff/golden/c.txt"),
-        "n": ("a -type f -diff=n 'b/{relpath}'", "testdata/diff/golden/n.txt"),
-        "y": ("a -type f -diff=y 'b/{relpath}'", "testdata/diff/golden/y.txt"),
-        "none": ("a -type f -diff=none 'b/{relpath}'", "testdata/diff/golden/none.txt"),
+        "u": ("a -type f -diff:u 'b/{relpath}'", "testdata/diff/golden/u.txt"),
+        "c": ("a -type f -diff:c 'b/{relpath}'", "testdata/diff/golden/c.txt"),
+        "n": ("a -type f -diff:n 'b/{relpath}'", "testdata/diff/golden/n.txt"),
+        "y": ("a -type f -diff:y 'b/{relpath}'", "testdata/diff/golden/y.txt"),
+        "none": ("a -type f -diff:none 'b/{relpath}'", "testdata/diff/golden/none.txt"),
     },
     setup = "testdata/diff/setup.sh",
 )

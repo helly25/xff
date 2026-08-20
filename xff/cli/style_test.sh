@@ -209,6 +209,10 @@ test::help_styles_shows_the_flavor_comparison() {
   # policy. This is the boundary behind the spellings, not merely a list of current tokens.
   expect_output_contains "Flag and primary conventions:" "${out}"
   expect_output_contains "--flag          configures the whole run" "${out}"
+  expect_output_contains "--flag=VALUE    assigns that global's value" "${out}"
+  expect_output_contains "-primary:QUAL   qualifies that one expression node" "${out}"
+  expect_output_contains "--define=NAME=VALUE" "${out}"
+  expect_output_contains "-fuzzy:fzf:80% foo" "${out}"
   expect_output_contains "between -exec and its closing ; or +" "${out}"
   expect_output_contains "Short aliases are exceptional" "${out}"
   expect_output_contains "frequent symmetric basename/whole-path glob pair" "${out}"

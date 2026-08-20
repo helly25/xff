@@ -178,7 +178,7 @@ class FnmatchBackend final : public RegexBackend {
 
   std::optional<std::pair<std::size_t, std::size_t>> FindFirst(std::string_view text) const override {
     // fnmatch is a whole-string test, not a span search: when the unanchored pattern matches, the
-    // match is the whole text (so -grep=FORMAT's {match} is the line, {column} is 1).
+    // match is the whole text (so -grep:FORMAT's {match} is the line, {column} is 1).
     if (!PartialMatch(text)) {
       return std::nullopt;
     }

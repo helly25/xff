@@ -45,7 +45,7 @@ TEST_F(PolicyTest, LineSafetyTakesTheWorstFlag) {
   EXPECT_THAT(LineSafety(Line({"--color=auto"})), registry::Safety::kNone);
   EXPECT_THAT(LineSafety(Line({"-exec", "rm", ";"})), registry::Safety::kSecurity);
   EXPECT_THAT(LineSafety(Line({"-delete"})), registry::Safety::kSafety);
-  EXPECT_THAT(LineSafety(Line({"-capture=tag", "cmd", ";"})), registry::Safety::kSecurity);        // base before '='
+  EXPECT_THAT(LineSafety(Line({"-capture:tag", "cmd", ";"})), registry::Safety::kSecurity);        // base before ':'
   EXPECT_THAT(LineSafety(Line({"-name", "x", "-exec", "rm", ";"})), registry::Safety::kSecurity);  // worst wins
 }
 

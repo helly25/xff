@@ -172,17 +172,17 @@ test::text_flavors_pin_the_line_ending() {
   printf 'a\nb\n' >"${root}/unix.txt"    # LF
   printf 'a\r\nb\r\n' >"${root}/dos.txt" # CRLF
   printf 'a\rb\r' >"${root}/mac.txt"     # CR
-  out="$("$(_xff_bin)" "${root}" -text=posix 2>&1)"
+  out="$("$(_xff_bin)" "${root}" -text:posix 2>&1)"
   expect_matches 'unix\.txt' "${out}"
   expect_not_matches 'dos\.txt' "${out}"
   expect_not_matches 'mac\.txt' "${out}"
-  out="$("$(_xff_bin)" "${root}" -text=windows 2>&1)"
+  out="$("$(_xff_bin)" "${root}" -text:windows 2>&1)"
   expect_matches 'dos\.txt' "${out}"
   expect_not_matches 'unix\.txt' "${out}"
-  out="$("$(_xff_bin)" "${root}" -text=apple 2>&1)"
+  out="$("$(_xff_bin)" "${root}" -text:apple 2>&1)"
   expect_matches 'mac\.txt' "${out}"
   expect_not_matches 'unix\.txt' "${out}"
-  out="$("$(_xff_bin)" "${root}" -text=git 2>&1)" # git matches every line-ending style
+  out="$("$(_xff_bin)" "${root}" -text:git 2>&1)" # git matches every line-ending style
   expect_matches 'unix\.txt' "${out}"
   expect_matches 'dos\.txt' "${out}"
   expect_matches 'mac\.txt' "${out}"
@@ -193,7 +193,7 @@ test::text_unknown_flavor_is_a_usage_error() {
   root="$(test_tmpdir tree)"
   mkdir -p "${root}"
   : >"${root}/f"
-  out="$("$(_xff_bin)" "${root}" -text=dos 2>&1)" && rc=0 || rc=$?
+  out="$("$(_xff_bin)" "${root}" -text:dos 2>&1)" && rc=0 || rc=$?
   expect_eq "2" "${rc}"
   expect_matches 'unknown text flavor' "${out}"
 }
