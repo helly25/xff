@@ -116,12 +116,14 @@ shipped one way but not yet settled.
   canonical descriptors, so parsing, dispatch, style/cost metadata, and generated help cannot
   diverge. This does not establish a general one-letter-primary namespace or reserve `-t`.
 
-- **fd's `-g` / `--glob`: what is it, and do we need it (raised 2026-08-13)?** fd matches its single
+- **fd's `-g` / `--glob`: RESOLVED in `--help=styles`.** fd matches its single
   positional pattern as a REGEX by default; `--glob` switches that one pattern to glob semantics.
   xff has no positional pattern - the choice IS the primary (`-name` / `-path` glob, `-regex` /
   `-rxc` regex, `-regextype` to pick the grammar) - so the flag has nothing to switch. Also `-g` is
   already xff's gitignore toggle, and `--glob` would collide conceptually with `--regextype=GLOB`.
-  Leaning: nothing to add; worth one line in `--help=styles` so an fd user finds the mapping.
+  Nothing was added to the grammar. The "Coming from fd" table in `--help=styles` maps fd's
+  positional regex and `-g / --glob` forms to xff's explicit `-regex` / `-name` primaries and explains
+  that the primary itself selects the grammar.
 
 - **fzf-style scoring for `-fuzzy` (completed 2026-08-19).** fzf ranks with a Smith-Waterman-ish
   alignment score and takes an extended pattern syntax (`^prefix`, `suffix$`, `'exact`, `!negate`,
@@ -137,17 +139,13 @@ shipped one way but not yet settled.
     implementation is pinned by upstream fzf's documented compound queries, its complete compound
     parser case, anchor whitespace behavior, and maintained algorithm cases.
     Scoring was the real work, and it is the same decision #168 records: a score implies an output
-    ORDER. `--sort=score` and the alignment search are shipped; exact result-set limiting remains the
-    separately specified `-top N` work.
+    ORDER. `--sort=score`, the alignment search, and exact expression-level `-top N` are shipped.
 
-- **A shortcut for "all archive features" (raised 2026-08-13; the WRITE half SHIPPED as
-  `--archive-write` / `-z++`, `--archive-any` is still its own flag).** The read side is a fair
-  convenience:
-  `--archive=all --archive-any` is a mouthful for "look everywhere, inside everything". The spelling
-  question is the `-A` / `-z` one above. Two constraints whatever the letter: the WRITE flags are
-  armed only by a spelling that says write (see above), and `--archive-depth` stays OUT of any
-  "everything on" alias - it is the decompression-bomb cap, and raising it is a separate, deliberate
-  decision from "look inside more places".
+- **A shortcut for "all archive features": SHIPPED in the `-z` / `-Z` ladders.** `-z++` means read
+  all containers without the name gate (the former `--archive=all --archive-any` mouthful), while
+  `-Z++` selects the same read rung and separately arms writes. `--archive-any` remains the older,
+  longer spelling. `--archive-depth` deliberately stays outside both ladders because raising the
+  decompression-bomb cap is a separate decision from looking in more places.
 
 - **An in-memory filesystem for unpacking (raised 2026-08-13).** What it can and cannot do, because
   the answer splits:
@@ -1720,12 +1718,11 @@ remains below is the design-forked / larger work.
     at the TOP LEVEL, NOT under `extra_modules/`, so a minimal archive can drop `extra_modules/`
     wholesale. Two targets: `@xff_extras_api//:regex_backend` + `:license_notice`, each keeping its
     logical include path (`xff/regex/backend.h`, `xff/license/notice.h`) via `include_prefix`.
-  - **Local module per extra (317/3) SHIPPED for PCRE2 (b3):** `extra_modules/pcre2/` is its OWN local
-    Bazel module `xff_pcre2` - its `MODULE.bazel` declares `bazel_dep(pcre2)` + `bazel_dep(xff_extras_api)`;
-    root pulls it via `bazel_dep(name="xff_pcre2") + local_path_override(path="extra_modules/pcre2")`.
-    The backend deps ONLY `@xff_extras_api` + `@pcre2` (verified: the lean `//xff/cli:xff` cquery has
-    zero `extra_modules`/`@pcre2` deps). Disable = comment the root's bazel_dep+override, or delete the
-    directory. `extra_modules/` now holds only removable extras.
+  - **Local module per extra (317/3) SHIPPED:** PCRE2, archive, and FUSE are independent
+    `xff_pcre2`, `xff_archive`, and `xff_fuse` modules under `extra_modules/`; each depends only on
+    `xff_extras_api` plus its own third-party closure. The lean `//xff/cli:xff` has no backend deps,
+    and the minimal CI job removes `extra_modules/` wholesale plus the mechanically identified root
+    module declarations before building the core.
   - **Auto-enable via a module extension (the "check this"; SPIKE first):** `module_ctx.modules` lists
     only extension PARTICIPANTS, not the whole graph - so each extra must SELF-REGISTER by using the
     extension (from its own MODULE.bazel), and the extension must live in a shared base module both
@@ -1742,9 +1739,9 @@ remains below is the design-forked / larger work.
     identifier through the shared `license_body` rule. Thus `xff_full --help=notice` inventories the
     composed binary and `--help=license=COMPONENT` reproduces the selected terms. The committed root
     NOTICE intentionally stays core-only; full-binary tests pin the extras' live set.
-  - **Staging:** spike the bzlmod mechanism (local module + self-registration extension + clean strip);
-    if viable, implement v2 wholesale (rename + local modules + auto-detect + per-extra notices,
-    retiring the `//xff:xff_pcre` flag + `full` cell); #83 archive then follows the same shape.
+  - **Remaining staging:** spike the bzlmod self-registration mechanism; if viable, implement the
+    auto-detect wiring and retire the per-extra build flags / separate full configuration. Layout,
+    local modules, clean stripping, and per-extra notices are already shipped.
 
 - **Heavy/special libs are composable build-time extras (decided 2026-07-06).** libarchive (#83),
   pcre2 (#85), and any later special dependency are gated behind Bazel flags, not always compiled
@@ -1800,19 +1797,11 @@ remains below is the design-forked / larger work.
     end-to-end); a CI `full` cell runs the whole suite + the manual full targets under
     `--config=xff_full`. This completes the RegexBackend engine family: RE2 / EXACT / FNMATCH / GLOB
     (core) + PCRE2 (extra).
-  - **REMAINING #83 (archive extra, NOT built):** same shape - `//xff:xff_archive` already exists; add a
-    `extra_modules`/libarchive-backed self-registering module linked into `xff_full` via
-    `select({"//xff:xff_archive_enabled": [...]})`, join `--//xff:xff_archive` into `.bazelrc build:xff_full`.
-    `@libarchive` **3.8.1.bcr.2 RESOLVES** (verified; target `@libarchive//libarchive:libarchive`,
-    keep its `use_mbedtls` OFF); codec set tar/gz/bzip2/xz/zstd/lz4, mbedtls deferred; add the
-    `-encrypted` detection predicate (no crypto needed).
-  - **What CHANGES when the real modules land:** committed `NOTICE` becomes the FULL set (regenerated
-    from the full binary); a drift check runs `--config=xff_full` only; CI gains a full cell (builds/tests
-    both lean and full). **Decided (was an open detail):** before the real diving lands, a full build
-    must NOT silently accept `--archive`. The flag parses and validates its value, then fails with a
-    distinct "archive diving is not yet implemented in this build" usage error (exit 2) - deliberately
-    different wording from the lean build's "not built in" extras error, so the two states are never
-    confused. That guard ships as the first archive slice and is replaced by real behavior later.
+  - **Archive extra SHIPPED:** `@xff_archive` is a removable local module backed by libarchive plus
+    the native PHAR reader/writer, self-registers its backend and notices, and links into `xff_full`
+    through the archive build flag. Full-config CI exercises real archive diving and packing; the
+    committed root `NOTICE` intentionally remains core-only while `xff_full --help=notice` reports
+    the linked set.
 
 - **PCRE2 backend (#85, `-regextype`): SHIPPED as a composable extra - decided 2026-07-06.**
   **Done:** PR3 recognized `--regextype=PCRE2` + guaranteed the "not built in" error; PR4 the

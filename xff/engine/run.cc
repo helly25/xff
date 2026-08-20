@@ -1660,10 +1660,11 @@ ArchiveMode ResolveArchiveMode(const std::vector<std::string>& globals, std::opt
 // Whether the run armed the archive WRITE surface: the two flags that let an action touch a member
 // (`--archive-extract`, `--archive-delete`), or the umbrella that arms both.
 //
-// The umbrella is a spelling of the two flags rather than a third mechanism, so `-z++ file.tar` and
-// `--archive=all --archive-extract --archive-delete` are the same run. It is a separate question from
+// The umbrella is a spelling of the two flags rather than a third mechanism, so `-Z++ file.tar` and
+// `--archive=any --archive-extract --archive-delete` are the same run. It is a separate question from
 // the dive MODE, which is why the check is its own function: `--archive-write` arms writing without
-// touching how far the walk dives, and `-z++` does both because that is what the short means.
+// touching how far the walk dives, lowercase `-z++` changes only the read rung, and uppercase `-Z++`
+// does both.
 struct ArchiveWrite {
   bool extract = false;
   bool remove = false;
