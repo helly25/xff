@@ -15,16 +15,61 @@
 
 #include "xff/fuse/fuse_backend.h"
 
+#include <memory>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "mbo/testing/status.h"
+#include "xff/vfs/entry.h"
+#include "xff/vfs/filesystem.h"
 
 namespace xff::fuse {
 namespace {
 
+using ::mbo::testing::StatusIs;
+using ::testing::HasSubstr;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
+using ::testing::NotNull;
 
-struct FuseBackendTest : ::testing::Test {};
+class StubFileSystem final : public vfs::FileSystem {
+ public:
+  absl::StatusOr<std::vector<vfs::Entry>> ReadDir(std::string_view) const override { return std::vector<vfs::Entry>(); }
+
+  absl::StatusOr<vfs::Metadata> Stat(std::string_view, bool) const override { return vfs::Metadata(); }
+
+  absl::Status Remove(std::string_view) const override { return absl::PermissionDeniedError("read only"); }
+
+  bool Access(std::string_view, vfs::AccessMode) const override { return true; }
+
+  absl::StatusOr<std::string> ReadLink(std::string_view) const override {
+    return absl::InvalidArgumentError("not a link");
+  }
+
+  absl::StatusOr<std::string> FsType(std::string_view) const override { return std::string("stub"); }
+
+  absl::StatusOr<bool> IsCaseSensitive(std::string_view) const override { return true; }
+
+  absl::StatusOr<std::string> ReadContent(std::string_view) const override { return std::string("content"); }
+};
+
+class StubMount final : public Mount {
+ public:
+  std::string_view MountPoint() const override { return "/tmp/mounted"; }
+
+  std::string PathFor(std::string_view member) const override {
+    return std::string("/tmp/mounted/") + std::string(member);
+  }
+};
+
+struct FuseBackendTest : ::testing::Test {
+  void TearDown() override { RegisterMountFactory(MountFactory()); }
+};
 
 // Both states in their forced order: this binary links no registration TU, so the slot answers
 // false (the lean binary's answer) until the registrar - what @xff_fuse's registration TU declares
@@ -33,6 +78,36 @@ TEST_F(FuseBackendTest, UnregisteredIsTheLeanAnswerAndRegistrationFlipsIt) {
   ASSERT_THAT(MountSupportAvailable(), IsFalse());
   const MountSupportRegistrar registrar{};
   EXPECT_THAT(MountSupportAvailable(), IsTrue());
+}
+
+TEST_F(FuseBackendTest, ANullFilesystemIsRejectedBeforeFactoryLookup) {
+  EXPECT_THAT(
+      MountContainer(nullptr, "box.tar"), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("null filesystem")));
+}
+
+TEST_F(FuseBackendTest, WithNoFactoryMountingIsUnavailable) {
+  EXPECT_THAT(
+      MountContainer(std::make_shared<StubFileSystem>(), "box.tar"),
+      StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("no FUSE mount support")));
+}
+
+TEST_F(FuseBackendTest, ARegisteredFactoryReceivesOwnershipAndContainerName) {
+  const vfs::FileSystem* seen_fs = nullptr;
+  std::string seen_container;
+  RegisterMountFactory(
+      [&seen_fs, &seen_container](std::shared_ptr<const vfs::FileSystem> fs, std::string_view container) {
+        seen_fs = fs.get();
+        seen_container = container;
+        return absl::StatusOr<std::unique_ptr<Mount>>(std::make_unique<StubMount>());
+      });
+  const std::shared_ptr<StubFileSystem> fs = std::make_shared<StubFileSystem>();
+
+  MBO_ASSERT_OK_AND_ASSIGN(const std::unique_ptr<Mount> mount, MountContainer(fs, "box.tar"));
+  EXPECT_THAT(seen_fs, fs.get());
+  EXPECT_THAT(seen_container, "box.tar");
+  EXPECT_THAT(mount.get(), NotNull());
+  EXPECT_THAT(mount->MountPoint(), "/tmp/mounted");
+  EXPECT_THAT(mount->PathFor("dir/file.txt"), "/tmp/mounted/dir/file.txt");
 }
 
 }  // namespace

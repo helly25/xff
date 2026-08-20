@@ -43,8 +43,11 @@ cc_test(
     srcs = ["fuse_backend_test.cc"],
     deps = [
         ":fuse_backend_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
     ],
 )
 
