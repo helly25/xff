@@ -1704,11 +1704,12 @@ remains below is the design-forked / larger work.
   `{x}` / unbalanced `{` stays literal, empty alts allowed, `\{`/`\}`/`\,` escape. Deferred: numeric /
   char sequences `{1..9}` / `{a..z}`, and bash extglob pattern-lists `?(..)`/`@(..)`/`!(..)` (the last
   has no clean RE2 form - which is also why the grammar is SHGLOB, not the misleading `EXTGLOB`).
-- **Extras architecture v2 - full separation via local modules (#123, DESIGN, revises #311-#317).**
-  Post-#317 review (2026-07-10): the shipped approach is not fully separated - the ROOT `MODULE.bazel`
-  names `pcre2`, `backend.h` visibility was widened, and a manual `//xff:xff_pcre` flag + a bespoke
-  `full` CI cell drive it. Target end-state, so the core has ZERO knowledge of any extra and a
-  minimal `xff` source package can ship with the optional parts DELETED (317/5, 317/6):
+- **Extras architecture v2 - RESOLVED at explicit root composition after the bzlmod spike
+  (2026-08-20).** The desired end-state was for the core to discover whichever removable local
+  modules happened to be present, with no root declarations. Bazel's module graph makes that
+  impossible: a module cannot participate in an extension until the root graph already reaches it.
+  The shipped explicit `bazel_dep` / `local_path_override` declarations, mechanically stripped by
+  minimal-package CI, are therefore the final composition boundary:
   - **Layout (317/2) DONE:** renamed `third_party/` -> `extra_modules/` (it holds glue/wrapper code,
     not the vendored lib). Each extra is `extra_modules/<name>/`.
   - **Shared base module `xff_extras_api` SHIPPED (b1 #326, b2 #327):** the RegexBackend plugin
@@ -1723,25 +1724,27 @@ remains below is the design-forked / larger work.
     `xff_extras_api` plus its own third-party closure. The lean `//xff/cli:xff` has no backend deps,
     and the minimal CI job removes `extra_modules/` wholesale plus the mechanically identified root
     module declarations before building the core.
-  - **Auto-enable via a module extension (the "check this"; SPIKE first):** `module_ctx.modules` lists
-    only extension PARTICIPANTS, not the whole graph - so each extra must SELF-REGISTER by using the
-    extension (from its own MODULE.bazel), and the extension must live in a shared base module both
-    root and the extras can load (defining it in root is circular, since root depends on the extras).
-    The extension then generates the wiring so `xff_full` links exactly the present+registered extras -
-    the piece that makes a root-only patch / dir-removal build `xff_full` lean with no dangling label
-    and `@pcre2` never fetched. **Must spike** to confirm this (and "patch root only -> clean strip")
-    actually holds in bzlmod before rearchitecting; else fall back to the flag.
-  - **Normal build (317/1):** `bazel build //...` builds BOTH lean `xff` and full `xff_full` (extras
-    present by default); DROP the separate `full` CI cell. The only separate build is the stripped one
-    (the minimal package), which is a patch/removal, not a required cell.
+  - **Auto-enable via a module extension: SPIKED and REJECTED.** An isolated Bazel 9.2.0 experiment
+    used a shared extension plus an extra that tagged itself. With no root dependency on the extra,
+    its tag was absent from `module_ctx.modules`; adding the root dependency made it appear; changing
+    that dependency's `local_path_override` to a removed directory failed while computing the main
+    repository mapping, before the extension could generate anything. Thus self-registration cannot
+    both discover an otherwise-unreferenced module and survive its deletion. The existing flags and
+    root declarations are the fallback the design called for.
+  - **Normal/full build split: RESOLVED to the current explicit configuration.** A lean `//...` does
+    not fetch or link heavy extras; `--config=xff_docs` / `--config=xff_full` makes `xff_full`
+    compatible and exercises both binaries plus all extension tests. The minimal CI job removes the
+    whole `extra_modules/` directory and derives the matching root declaration removal from those
+    modules. Building both heavy and lean binaries in every default build would defeat the lean
+    dependency boundary, so the separate full configuration stays.
   - **License/NOTICE (317/4, SHIPPED):** each extra self-registers its own notice and every compiled
     component's notice through `xff_extras_api`; authoritative license bodies are embedded by SPDX
     identifier through the shared `license_body` rule. Thus `xff_full --help=notice` inventories the
     composed binary and `--help=license=COMPONENT` reproduces the selected terms. The committed root
     NOTICE intentionally stays core-only; full-binary tests pin the extras' live set.
-  - **Remaining staging:** spike the bzlmod self-registration mechanism; if viable, implement the
-    auto-detect wiring and retire the per-extra build flags / separate full configuration. Layout,
-    local modules, clean stripping, and per-extra notices are already shipped.
+  - **No remaining v2 staging.** Layout, local modules, clean stripping, per-extra notices, and the
+    explicit full build are shipped; the only proposed replacement for the explicit wiring failed
+    the required discovery/deletion experiment.
 
 - **Heavy/special libs are composable build-time extras (decided 2026-07-06).** libarchive (#83),
   pcre2 (#85), and any later special dependency are gated behind Bazel flags, not always compiled

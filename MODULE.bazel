@@ -48,7 +48,13 @@ local_path_override(
     path = "xff_extras_api",
 )
 
-# NOTE: because a local_path_override path is INSIDE the main repo tree, the main repo would ALSO
+# NOTE: these declarations cannot be replaced by extras self-registering through a module extension.
+# An extension sees a module's tags only after that module is already reachable from this root graph;
+# without the bazel_dep the extra is invisible, while keeping the bazel_dep and deleting its local
+# path fails during repository mapping before any extension runs. The minimal-package CI therefore
+# removes these declarations together with extra_modules/; see the resolved spike in TODO.md.
+#
+# Because a local_path_override path is INSIDE the main repo tree, the main repo would ALSO
 # glob it as its own package (//extra_modules/pcre2:...) - a dual view whose main-repo side can't see
 # the module's @pcre2 dep. MODULE.bazel (and a REPO.bazel marker) do not stop that; `extra_modules`
 # is in //.bazelignore so only @xff_pcre2 owns the dir. Keep new extra dirs under extra_modules/.
