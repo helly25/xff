@@ -57,11 +57,11 @@
       },
       "FUSE": {
         "include": ["xff_fuse/**"],
-        "minimum": { "lines": 81, "functions": 94, "branches": 58 }
+        "minimum": { "lines": 83, "functions": 95, "branches": 59 }
       },
       "PCRE2": {
         "include": ["xff_pcre2/**"],
-        "minimum": { "lines": 92, "functions": 94, "branches": 70 }
+        "minimum": { "lines": 100, "functions": 100, "branches": 87 }
       }
     }
   }
