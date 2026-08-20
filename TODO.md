@@ -1573,10 +1573,12 @@ remains below is the design-forked / larger work.
       member of a container nested inside another one. A container left empty is
       kept: an archive with no members is legal, and deleting the FILE was never what `-delete` on a
       member asked for.
-    - ~~**`-delete` on a member silently does nothing**~~ (exit 0, no output, no error) and **`-exec`
-      hands the child a member path** (`echo a.tar!a.txt`), which no process can open. The design says
-      members are read-only and both must REFUSE; the VFS already returns PermissionDenied, so the
-      engine is dropping it. Extract-to-temp for `-exec` stays deferred, but the silent no-op cannot.
+    - ~~**`-delete` on a member silently does nothing and `-exec` hands the child an unopenable member
+      path**~~ **FIXED.** Members are read-only by default, so both actions refuse instead of silently
+      succeeding. `--archive-delete` deliberately enables deferred container rewriting for `-delete`;
+      `--archive-extract` gives the exec family a temporary real path, while `--archive-mount` uses the
+      read-only FUSE view where available. The portable extraction and preferred mount paths are both
+      shipped rather than deferred.
     - **A bare compressed single file dives now, and so does a whole-file-compressed phar (FIXED
       2026-08-12).** `ReadCompressedSingleFile` uses libarchive's `raw` format on a reader of its own,
       registered ONLY for a file whose name carries a whole-file compression suffix (`.gz`, `.bz2`,
