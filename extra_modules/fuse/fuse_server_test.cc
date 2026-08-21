@@ -242,6 +242,9 @@ TEST_F(FuseServerTest, NullFileSystemIsRejectedBeforeLoadingFuse) {
 }
 
 TEST_F(FuseServerTest, AnInvalidMountPointReportsTheMountFailure) {
+#if defined(MEMORY_SANITIZER)
+  GTEST_SKIP() << "MSan cannot model the uninstrumented system libfuse3";
+#else
   if (!FuseAvailable()) {
     GTEST_SKIP() << "no fuse3 on this machine: " << FuseLoader::Instance().error();
   }
@@ -251,6 +254,7 @@ TEST_F(FuseServerTest, AnInvalidMountPointReportsTheMountFailure) {
   EXPECT_THAT(
       FuseServer::Mount(fs, std::string(FakeFileSystem::kRoot), absent),
       StatusIs(absl::StatusCode::kInternal, HasSubstr("FUSE mount failed")));
+#endif
 }
 
 TEST_F(FuseServerTest, TheMountedRootListsTheContainerRoot) {
