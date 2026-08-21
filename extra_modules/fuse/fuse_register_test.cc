@@ -94,7 +94,7 @@ TEST_F(FuseRegisterTest, LinkingRegistersTheMountFactory) {
 #endif
 }
 
-TEST_F(FuseRegisterTest, ConcurrentMountsShareTheRunRootAndExposeMemberPaths) {
+TEST_F(FuseRegisterTest, TwoLiveMountsShareTheRunRootAndExposeMemberPaths) {
 #if defined(MEMORY_SANITIZER)
   GTEST_SKIP() << "MSan cannot model the uninstrumented system libfuse3";
 #else
