@@ -154,12 +154,31 @@ jobs:
         with:
           fetch-depth: 0
       - uses: bazelbuild/setup-bazelisk@v3
+      # Coverage instrumentation has distinct action keys, so keep its compiled outputs in a
+      # dedicated cache rather than crowding out the ordinary GCC build. The stable key lets a
+      # later run incrementally rebuild only changed coverage objects.
+      - name: Mount Bazel coverage disk cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel-disk
+          key: bazel-disk-coverage-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
+          restore-keys: |
+            bazel-disk-coverage-
+      # Reuse the normal Ubuntu/GCC repository cache: it contains the downloaded Bazel modules
+      # needed by this full build, but not the hermetic LLVM archive fetched only by clang jobs.
+      - name: Mount Bazel repo cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-ubuntu-latest-default-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
+          restore-keys: |
+            bazel-repo-ubuntu-latest-default-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
       - name: Install GCC 14 and integration-test dependencies
         run: |
-          sudo apt-get install -y gcc-14 g++-14 mandoc fuse3 libfuse3-3
+          sudo apt-get install -y gcc-14 g++-14 lcov mandoc fuse3 libfuse3-3
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 \
             --slave /usr/bin/g++ g++ /usr/bin/g++-14 \
             --slave /usr/bin/gcov gcov /usr/bin/gcov-14
@@ -175,10 +194,24 @@ jobs:
           bazel coverage //... $(tools/extras.py --wildcards) \
             --config=xff_docs \
             --combined_report=lcov \
+            --disk_cache=$HOME/.cache/bazel-disk \
             --instrumentation_filter='//xff[/:],//xff_extras_api[/:],@@xff_(archive|fuse|pcre2)[+]//' \
+            --repository_cache=$HOME/.cache/bazel-repo \
             --test_env=XFF_FUSE_REQUIRED
           cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
-          python3 -m unittest tools/coverage_test.py
+          # Derive extension source paths from the same extras registry that supplies the Bazel
+          # target wildcards, so adding a module cannot leave its HTML source view behind.
+          python3 tools/coverage_sources.py coverage.lcov coverage-html.lcov
+          genhtml coverage-html.lcov \
+            --branch-coverage \
+            --demangle-cpp \
+            --function-coverage \
+            --ignore-errors negative \
+            --legend \
+            --output-directory coverage-html \
+            --show-details \
+            --title "xff production coverage"
+          python3 -m unittest tools/coverage_test.py tools/coverage_sources_test.py
           BASE_ARGS=()
           if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
             git fetch --quiet --no-tags origin main
@@ -192,13 +225,16 @@ jobs:
           {
             echo "### Production coverage"
             echo
+            echo "[Download the browsable HTML coverage report](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}#artifacts)."
+            echo
             cat coverage-summary.md
           } >>"${GITHUB_STEP_SUMMARY}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-lcov
+          name: coverage-report
           path: |
+            coverage-html/
             coverage.lcov
             coverage-summary.md
           retention-days: 14
