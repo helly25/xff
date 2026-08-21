@@ -17,8 +17,8 @@ Toolchain: clang-22 minimum (hermetic LLVM under `--config=clang`).
    harness is a one-line `struct FooTest : ::testing::Test {};`.
 2. **The fixture is a `struct`** (not a `class`) inheriting from
    `::testing::Test` (or a friend such as `::testing::TestWithParam<T>`).
-3. **Prefer `EXPECT_THAT` / `ASSERT_THAT` (gmock matchers) almost exclusively**
-   over `EXPECT_EQ` / `ASSERT_EQ`.
+3. **Use `EXPECT_THAT` / `ASSERT_THAT` (gmock matchers), never comparison assertion macros**
+   such as `EXPECT_EQ` / `ASSERT_EQ`.
 4. **Multi-line text: `mbo::testing::EqualsText`, not `EXPECT_EQ`.** For a
    multi-line string use `EXPECT_THAT(actual, EqualsText(golden))` (unified diff,
    line by line). Write the golden as a `DropIndent`-filtered indented raw string,
@@ -27,8 +27,7 @@ Toolchain: clang-22 minimum (hermetic LLVM under `--config=clang`).
    `WithDropIndent` de-indents the expected text only; `DropIndentAndSplit` yields
    the lines as a vector. Caveat: a raw-string golden cannot carry significant
    trailing whitespace (the trim-trailing-whitespace hook strips it) - use the
-   literal form there. `STYLE_CPP.md` is canonical. A bare `EXPECT_EQ` multi-line is
-   only the fallback for text that is not line-oriented.
+   literal form there. `STYLE_CPP.md` is canonical.
 5. **Typed and parameterized tests supply names from the types/values** (name
    generators for `TYPED_TEST_SUITE` / `INSTANTIATE_TEST_SUITE_P`), so the
    output never shows numbered tests (`Suite/0`, `Suite/1`).

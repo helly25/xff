@@ -435,11 +435,10 @@ substitute for a committed test. Tests use GoogleTest + GoogleMock with these co
   pointers). For booleans, `IsTrue()` / `IsFalse()` usually read better than a bare `true` /
   `false` or `Eq(true)`: `EXPECT_THAT(found, IsTrue())`.
 - **Multi-line text: `mbo::testing::EqualsText`, not `EXPECT_EQ`.** For a multi-line string
-  (a rendered table, generated `--help`, file contents) prefer
+  (a rendered table, generated `--help`, file contents) use
   `EXPECT_THAT(actual, EqualsText(golden))` (`@helly25_mbo//mbo/testing:matchers_cc`): it compares
   line by line with unified-diff output, so a mismatch points at the offending line instead of
-  dumping the whole blob. A bare `EXPECT_EQ` on a multi-line string is now only the fallback for
-  text that is not line-oriented.
+  dumping the whole blob.
   - **Write the golden as a `DropIndent`-filtered raw string, not concatenated `"...\n"` literals.**
     `clang-format` shoves adjacent string literals hard against the `EqualsText(` bracket (aligned to
     the open paren, often at column ~35), which is unreadable and drifts with the call length. Instead
