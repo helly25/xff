@@ -126,7 +126,7 @@ repos:
         files: _test\.sh$
         exclude: ^tools/release_prep_test\.sh$
       - id: no-comparison-macros-in-cc-tests
-        name: No EXPECT_EQ in C++ tests
+        name: No GoogleTest comparison macros in C++
         description: |
           Project convention (STYLE_CPP.md): a C++ test asserts with EXPECT_THAT / ASSERT_THAT
           and a matcher, not the comparison macros (EXPECT_EQ / NE / GT / LT / GE / LE). A
@@ -136,7 +136,7 @@ repos:
           `SKIP="no-comparison-macros-in-cc-tests" pre-commit`.
         language: script
         entry: tools/check_test_matchers.sh
-        files: _test\.cc$
+        files: \.(cc|cpp|cxx|h|hh|hpp|hxx)$
       - id: no-comparison-in-check-macro
         name: No comparison inside a boolean CHECK
         description: |

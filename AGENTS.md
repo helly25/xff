@@ -27,8 +27,8 @@ Toolchain: clang-22 minimum (hermetic LLVM under `--config=clang`).
    `WithDropIndent` de-indents the expected text only; `DropIndentAndSplit` yields
    the lines as a vector. Caveat: a raw-string golden cannot carry significant
    trailing whitespace (the trim-trailing-whitespace hook strips it) - use the
-   literal form there. `STYLE_CPP.md` is canonical. A bare `EXPECT_EQ` multi-line is
-   only the fallback for text that is not line-oriented.
+   literal form there. `STYLE_CPP.md` is canonical. There is no `EXPECT_EQ` fallback;
+   use `EqualsText` for text comparisons.
 5. **Typed and parameterized tests supply names from the types/values** (name
    generators for `TYPED_TEST_SUITE` / `INSTANTIATE_TEST_SUITE_P`), so the
    output never shows numbered tests (`Suite/0`, `Suite/1`).
