@@ -1,0 +1,74 @@
+name: Publish coverage
+
+on:
+  workflow_run:
+    workflows: [Test]
+    types: [completed]
+
+# Updating the retained site and deploying it must be one serial operation: two runs restoring the
+# same branch concurrently would otherwise overwrite whichever report was pushed first.
+concurrency:
+  group: coverage-pages
+  cancel-in-progress: false
+
+permissions: read-all
+
+jobs:
+  publish:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+      pages: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # This workflow always comes from the trusted default branch. It consumes the report emitted
+      # by an unprivileged test run; PR code never receives the token that updates Pages.
+      - uses: actions/checkout@v6
+        with:
+          path: site
+          ref: coverage-pages
+      - uses: actions/download-artifact@v8
+        with:
+          github-token: ${{ github.token }}
+          name: coverage-report
+          path: report
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Select and stage the report
+        env:
+          EVENT_NAME: ${{ github.event.workflow_run.event }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT_NAME}" == "push" && "${HEAD_BRANCH}" == "main" ]]; then
+            target="main"
+          elif [[ "${EVENT_NAME}" == "pull_request" && "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]; then
+            target="pr${PR_NUMBER}"
+          else
+            echo "Not a main or pull-request coverage run" >&2
+            exit 1
+          fi
+          mkdir -p "site/coverage/${target}"
+          rsync --archive --delete report/coverage-html/ "site/coverage/${target}/"
+          git -C site config user.name github-actions[bot]
+          git -C site config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C site add "coverage/${target}"
+          if git -C site diff --cached --quiet; then
+            echo "Coverage report is unchanged"
+          else
+            git -C site commit -m "coverage: publish ${target} from run ${{ github.event.workflow_run.id }}"
+            git -C site push
+          fi
+          mkdir -p public
+          rsync --archive site/coverage/ public/coverage/
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: public
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
