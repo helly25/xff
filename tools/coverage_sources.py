@@ -13,6 +13,12 @@ from pathlib import Path
 import extras
 
 
+def declared_extras() -> dict[str, str]:
+    """Returns every extra from the repository's single source of truth."""
+    root = Path(__file__).resolve().parent.parent
+    return extras.extras((root / "bazelmod" / "extras.MODULE.bazel").read_text(encoding="utf-8"))
+
+
 def remap(report: str, modules: dict[str, str]) -> str:
     """Returns an LCOV report whose declared extra sources use workspace paths."""
     for module, path in modules.items():
@@ -27,9 +33,9 @@ def main() -> int:
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
 
-    root = Path(__file__).resolve().parent.parent
-    modules = extras.extras((root / "bazelmod" / "extras.MODULE.bazel").read_text(encoding="utf-8"))
-    args.output.write_text(remap(args.input.read_text(encoding="utf-8"), modules), encoding="utf-8")
+    args.output.write_text(
+        remap(args.input.read_text(encoding="utf-8"), declared_extras()), encoding="utf-8"
+    )
     return 0
 
 
