@@ -57,8 +57,8 @@
       },
       "FUSE": {
         "include": ["xff_fuse/**"],
-        "minimum": { "lines": 90, "functions": 95, "branches": 71 },
-        "target": { "branches": 71 },
+        "minimum": { "lines": 90, "functions": 95, "branches": 74 },
+        "target": { "branches": 74 },
         "target_reason": "FUSE's dynamic-loader alternatives, fatal-signal handler, mount-failure variants, and spontaneous-session-exit path are mutually exclusive or process-disrupting in one GCC/Linux coverage run. Public filesystem behavior and deterministic lifecycle failures remain covered."
       },
       "PCRE2": {
