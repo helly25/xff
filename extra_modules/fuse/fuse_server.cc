@@ -52,6 +52,7 @@
 #include "mbo/status/status_macros.h"
 #include "xff/fuse/fuse_abi.h"  // our own fuse3 ABI declarations; no libfuse header is compiled
 #include "xff/fuse/fuse_api.h"
+#include "xff/fuse/fuse_metadata.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/filesystem.h"
 
@@ -64,69 +65,6 @@ namespace {
 const absl::StatusOr<FuseApi>& ResolvedApi() {
   static const absl::StatusOr<FuseApi>& api = *new absl::StatusOr<FuseApi>(FuseApi::Resolve());
   return api;
-}
-
-// errno for a status the VFS returned; the mount surfaces VFS answers, it does not reinterpret
-// them. Unknown kinds read as EIO - "the filesystem failed", which is what happened.
-int ErrnoFor(absl::Status status) {
-  switch (status.code()) {
-    case absl::StatusCode::kFailedPrecondition:
-    case absl::StatusCode::kInvalidArgument: return EINVAL;
-    case absl::StatusCode::kNotFound: return ENOENT;
-    case absl::StatusCode::kPermissionDenied: return EACCES;
-    case absl::StatusCode::kUnimplemented: return ENOTSUP;
-    default: return EIO;
-  }
-}
-
-mode_t TypeBitsFor(vfs::FileType type) {
-  switch (type) {
-    case vfs::FileType::kBlockDevice: return S_IFBLK;
-    case vfs::FileType::kCharDevice: return S_IFCHR;
-    case vfs::FileType::kDirectory: return S_IFDIR;
-    case vfs::FileType::kFifo: return S_IFIFO;
-    case vfs::FileType::kRegular: return S_IFREG;
-    case vfs::FileType::kSocket: return S_IFSOCK;
-    case vfs::FileType::kSymlink: return S_IFLNK;
-    case vfs::FileType::kUnknown: return S_IFREG;
-  }
-  return S_IFREG;
-}
-
-struct stat StatFor(const vfs::Metadata& metadata, fuse_ino_t ino) {
-  struct stat out = {};
-  out.st_ino = ino;
-  unsigned int mode = metadata.mode & 07777U;
-  // Containers often store directories without search bits (0644, or 0); under the mount's
-  // default_permissions the kernel would then refuse path TRAVERSAL (EACCES on every open under
-  // such a directory), so derive x from r the way archive extractors do. Symlink modes are
-  // ignored on Linux and conventionally 0777.
-  if (metadata.type == vfs::FileType::kDirectory) {
-    mode |= (mode & 0444U) >> 2U;
-  }
-  if (metadata.type == vfs::FileType::kSymlink) {
-    mode |= 0777U;
-  }
-  // The mount is read-only by construction; the bits say so too, whatever the container stored.
-  out.st_mode = static_cast<mode_t>((static_cast<unsigned int>(TypeBitsFor(metadata.type)) | mode) & ~0222U);
-  out.st_nlink = metadata.nlink == 0 ? 1 : static_cast<nlink_t>(metadata.nlink);
-  out.st_uid = ::getuid();
-  out.st_gid = ::getgid();
-  out.st_size = static_cast<off_t>(metadata.size);
-  out.st_blocks = static_cast<blkcnt_t>(metadata.blocks);
-  const timespec mtime = absl::ToTimespec(metadata.mtime);
-  const timespec atime = absl::ToTimespec(metadata.atime);
-  const timespec ctime = absl::ToTimespec(metadata.ctime);
-#if defined(__APPLE__)
-  out.st_mtimespec = mtime;
-  out.st_atimespec = atime;
-  out.st_ctimespec = ctime;
-#else
-  out.st_mtim = mtime;
-  out.st_atim = atime;
-  out.st_ctim = ctime;
-#endif
-  return out;
 }
 
 // The path of `name` inside `dir`, ASKED OF THE FILESYSTEM rather than assembled here. A backend
@@ -267,12 +205,12 @@ void OpLookup(fuse_req_t req, fuse_ino_t parent, const char* name) {
   }
   const absl::StatusOr<vfs::Metadata> metadata = impl.fs->Stat(*path, /*follow_symlinks=*/false);
   if (!metadata.ok()) {
-    api.reply_err(req, ErrnoFor(metadata.status()));
+    api.reply_err(req, ErrnoForStatus(metadata.status().code()));
     return;
   }
   struct fuse_entry_param entry = {};
   entry.ino = impl.InodeOf(*path);
-  entry.attr = StatFor(*metadata, entry.ino);
+  entry.attr = StatForMetadata(*metadata, entry.ino);
   entry.attr_timeout = kCacheSeconds;
   entry.entry_timeout = kCacheSeconds;
   api.reply_entry(req, &entry);
@@ -288,10 +226,10 @@ void OpGetattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* /*file_inf
   }
   const absl::StatusOr<vfs::Metadata> metadata = impl.fs->Stat(path, /*follow_symlinks=*/false);
   if (!metadata.ok()) {
-    api.reply_err(req, ErrnoFor(metadata.status()));
+    api.reply_err(req, ErrnoForStatus(metadata.status().code()));
     return;
   }
-  const struct stat attr = StatFor(*metadata, ino);
+  const struct stat attr = StatForMetadata(*metadata, ino);
   api.reply_attr(req, &attr, kCacheSeconds);
 }
 
@@ -305,7 +243,7 @@ void OpReaddir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct fu
   }
   const absl::StatusOr<std::vector<vfs::Entry>> entries = impl.fs->ReadDir(path);
   if (!entries.ok()) {
-    api.reply_err(req, ErrnoFor(entries.status()));
+    api.reply_err(req, ErrnoForStatus(entries.status().code()));
     return;
   }
   // Entries carry offsets 1..N+2 ("." and ".." first); a continuation call passes the offset of
@@ -337,7 +275,7 @@ void OpReaddir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct fu
     const vfs::Entry& entry = (*entries)[i];
     struct stat attr = {};
     attr.st_ino = impl.InodeOf(entry.path);
-    attr.st_mode = TypeBitsFor(entry.type);
+    attr.st_mode = ModeBitsForFileType(entry.type);
     more = emit(entry.name.c_str(), attr);
   }
   api.reply_buf(req, buf.data(), used);
@@ -359,7 +297,7 @@ void OpOpen(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* file_info) {
   // kernel asks in small chunks; the open handle owns the bytes until release.
   absl::StatusOr<std::string> content = impl.fs->ReadContent(path);
   if (!content.ok()) {
-    api.reply_err(req, ErrnoFor(content.status()));
+    api.reply_err(req, ErrnoForStatus(content.status().code()));
     return;
   }
   {
@@ -410,7 +348,7 @@ void OpReadlink(fuse_req_t req, fuse_ino_t ino) {
   }
   const absl::StatusOr<std::string> target = impl.fs->ReadLink(path);
   if (!target.ok()) {
-    api.reply_err(req, ErrnoFor(target.status()));
+    api.reply_err(req, ErrnoForStatus(target.status().code()));
     return;
   }
   api.reply_readlink(req, target->c_str());

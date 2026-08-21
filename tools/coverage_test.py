@@ -53,6 +53,7 @@ class CoverageTest(unittest.TestCase):
                     "filesystem": {
                         "include": ["xff/filesystem/**"],
                         "minimum": {"lines": 75, "functions": 60, "branches": 50},
+                        "target": {"branches": 65},
                     },
                 }
             },
@@ -63,7 +64,10 @@ class CoverageTest(unittest.TestCase):
             {"lines": 75, "functions": 60, "branches": 50},
             minimums["program / filesystem"],
         )
-        self.assertEqual(policy["minimum"], targets["program / filesystem"])
+        self.assertEqual(
+            {"lines": 90, "functions": 80, "branches": 65},
+            targets["program / filesystem"],
+        )
 
     def test_override_below_target_is_low_not_failed(self):
         metrics = {

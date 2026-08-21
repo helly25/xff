@@ -19,6 +19,7 @@
 #include <fstream>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -27,9 +28,11 @@ namespace xff::hash {
 namespace {
 
 using ::testing::Eq;
+using ::testing::IsEmpty;
 using ::testing::IsFalse;
 using ::testing::IsSupersetOf;
 using ::testing::IsTrue;
+using ::testing::Not;
 using ::testing::Optional;
 using ::testing::SizeIs;
 
@@ -78,6 +81,14 @@ TEST_F(HashTest, IsAlgorithmAndNames) {
                             {"blake2b", "blake2b_256", "blake3", "md5", "sha1", "sha224", "sha256", "sha384",
                              "sha3_224", "sha3_256", "sha3_384", "sha3_512", "sha512", "sha512_224", "sha512_256"}));
   EXPECT_THAT(AlgorithmNames(), SizeIs(15));
+}
+
+TEST_F(HashTest, EveryAdvertisedAlgorithmHashesData) {
+  // AlgorithmNames is the public registry. Calling every advertised entry verifies that the table
+  // does not merely list an algorithm whose dispatch function is absent or unusable.
+  for (const std::string_view algorithm : AlgorithmNames()) {
+    EXPECT_THAT(HashData(algorithm, "abc"), Optional(Not(IsEmpty()))) << algorithm;
+  }
 }
 
 TEST_F(HashTest, HashFileReadsAndHashesContent) {
