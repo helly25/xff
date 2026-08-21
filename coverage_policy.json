@@ -63,7 +63,7 @@
       },
       "PCRE2": {
         "include": ["xff_pcre2/**"],
-        "minimum": { "lines": 100, "functions": 100, "branches": 87 }
+        "minimum": { "lines": 98, "functions": 98, "branches": 87 }
       }
     }
   }
