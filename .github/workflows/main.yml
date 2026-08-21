@@ -187,6 +187,7 @@ jobs:
           gcov --version
       - name: Collect and enforce coverage
         env:
+          COVERAGE_PAGE: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || 'main' }}
           XFF_FUSE_REQUIRED: "1"
         run: |
           set -euo pipefail
@@ -225,7 +226,9 @@ jobs:
           {
             echo "### Production coverage"
             echo
-            echo "[Download the browsable HTML coverage report](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}#artifacts)."
+            echo "[Browse the HTML coverage report](https://helly25.github.io/xff/coverage/${COVERAGE_PAGE}/)."
+            echo
+            echo "[Download this run's coverage artifact](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}#artifacts)."
             echo
             cat coverage-summary.md
           } >>"${GITHUB_STEP_SUMMARY}"
