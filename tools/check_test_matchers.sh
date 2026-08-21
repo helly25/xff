@@ -15,7 +15,8 @@
 # limitations under the License.
 #
 # Guard (pre-commit): C++ code asserts with EXPECT_THAT / ASSERT_THAT and a gmock matcher,
-# not with the comparison macros EXPECT_EQ / NE / GT / LT / GE / LE (or their ASSERT_ forms).
+# not with the comparison macros EXPECT_EQ / NE / LT / LE / GT / GE, the string variants,
+# or the floating-point variants (or their ASSERT_ forms).
 # Matchers compose and print far better failures: a container mismatch names the element, a
 # multi-line string diffs line by line through mbo::testing::EqualsText, and a status carries
 # its code and message. See STYLE_CPP.md ("Assertions: gmock matchers, not EXPECT_EQ").
@@ -24,7 +25,7 @@
 # exception, since they read fine on their own.
 set -euo pipefail
 
-readonly PATTERN='\b(EXPECT|ASSERT)_(EQ|NE|GT|LT|GE|LE)[[:space:]]*\('
+readonly PATTERN='\b(ASSERT|EXPECT)_(EQ|NE|LT|LE|GT|GE|STREQ|STRNE|STRCASEEQ|STRCASENE|FLOAT_EQ|DOUBLE_EQ|NEAR)[[:space:]]*\('
 readonly QUALIFIED_MATCHER_PATTERN='(::mbo::)?testing::[A-Z][A-Za-z0-9_]*\('
 readonly ALLOWED_QUALIFIED_UTILITY_PATTERN='testing::(TempDir|Test|TestWithParam|Values)\('
 
