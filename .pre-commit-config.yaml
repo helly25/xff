@@ -136,7 +136,7 @@ repos:
           `SKIP="no-comparison-macros-in-cc-tests" pre-commit`.
         language: script
         entry: tools/check_test_matchers.sh
-        files: \.(cc|cpp|cxx|h|hh|hpp|hxx)$
+        types_or: [c, c++]
       - id: no-comparison-in-check-macro
         name: No comparison inside a boolean CHECK
         description: |
