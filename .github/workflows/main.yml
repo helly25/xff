@@ -159,7 +159,7 @@ jobs:
           python-version: "3.13"
       - name: Install GCC 14 and integration-test dependencies
         run: |
-          sudo apt-get install -y gcc-14 g++-14 mandoc fuse3 libfuse3-3
+          sudo apt-get install -y gcc-14 g++-14 lcov mandoc fuse3 libfuse3-3
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 \
             --slave /usr/bin/g++ g++ /usr/bin/g++-14 \
             --slave /usr/bin/gcov gcov /usr/bin/gcov-14
@@ -178,6 +178,14 @@ jobs:
             --instrumentation_filter='//xff[/:],//xff_extras_api[/:],@@xff_(archive|fuse|pcre2)[+]//' \
             --test_env=XFF_FUSE_REQUIRED
           cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
+          genhtml coverage.lcov \
+            --branch-coverage \
+            --demangle-cpp \
+            --function-coverage \
+            --legend \
+            --output-directory coverage-html \
+            --show-details \
+            --title "xff production coverage"
           python3 -m unittest tools/coverage_test.py
           BASE_ARGS=()
           if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
@@ -192,13 +200,16 @@ jobs:
           {
             echo "### Production coverage"
             echo
+            echo "[Download the browsable HTML coverage report](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}#artifacts)."
+            echo
             cat coverage-summary.md
           } >>"${GITHUB_STEP_SUMMARY}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-lcov
+          name: coverage-report
           path: |
+            coverage-html/
             coverage.lcov
             coverage-summary.md
           retention-days: 14
