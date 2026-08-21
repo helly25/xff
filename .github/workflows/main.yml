@@ -199,7 +199,15 @@ jobs:
             --repository_cache=$HOME/.cache/bazel-repo \
             --test_env=XFF_FUSE_REQUIRED
           cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
-          genhtml coverage.lcov \
+          # Bazel records extension sources under their external-repository execution paths.
+          # Map those paths back to the checked-in module directories so genhtml can render the
+          # annotated source; keep coverage.lcov unchanged for policy enforcement and download.
+          sed \
+            -e 's|^SF:external/xff_archive+/|SF:extra_modules/archive/|' \
+            -e 's|^SF:external/xff_fuse+/|SF:extra_modules/fuse/|' \
+            -e 's|^SF:external/xff_pcre2+/|SF:extra_modules/pcre2/|' \
+            coverage.lcov >coverage-html.lcov
+          genhtml coverage-html.lcov \
             --branch-coverage \
             --demangle-cpp \
             --function-coverage \
