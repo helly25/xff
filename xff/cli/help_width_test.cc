@@ -21,6 +21,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
+#include "xff/env/env.h"
 
 namespace xff::cli {
 namespace {
@@ -30,7 +31,9 @@ using ::mbo::testing::StatusIs;
 using ::testing::Eq;
 using ::testing::HasSubstr;
 
-struct ResolveHelpWidthTest : ::testing::Test {};
+struct ResolveHelpWidthTest : ::testing::Test {
+  void TearDown() override { env::ClearForTesting(); }
+};
 
 TEST_F(ResolveHelpWidthTest, AbsentFlagUsesTheDetectedTerminalWidth) {
   EXPECT_THAT(ResolveHelpWidth(std::nullopt, 120), IsOkAndHolds(Eq(120U)));
@@ -67,6 +70,21 @@ TEST_F(ResolveHelpWidthTest, ANonNumericValueIsAnError) {
 
 TEST_F(ResolveHelpWidthTest, ANegativeValueIsAnError) {
   EXPECT_THAT(ResolveHelpWidth("-5", 0), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(ResolveHelpWidthTest, ColumnsEnvironmentOverridesTerminalDetection) {
+  env::SetForTesting("COLUMNS", "137");
+  EXPECT_THAT(DetectTerminalWidth(), Eq(137U));
+}
+
+TEST_F(ResolveHelpWidthTest, InvalidColumnsEnvironmentFallsBackToTerminalDetection) {
+  env::SetForTesting("COLUMNS", "wide");
+  EXPECT_THAT(DetectTerminalWidth(), Eq(0U));
+  env::SetForTesting("COLUMNS", "0");
+  EXPECT_THAT(DetectTerminalWidth(), Eq(0U));
+  env::ClearForTesting();
+  env::SetForTesting("COLUMNS", std::nullopt);
+  EXPECT_THAT(DetectTerminalWidth(), Eq(0U));
 }
 
 }  // namespace

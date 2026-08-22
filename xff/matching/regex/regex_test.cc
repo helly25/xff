@@ -135,6 +135,21 @@ TEST_F(RegexTest, ExactGrammarCompilesAnyPatternAndFindsTheSpan) {
   EXPECT_THAT(matcher.Rewrite("x foo(bar y foo(bar", "Z", /*global=*/true), "x Z y Z");  // literal replace
 }
 
+TEST_F(RegexTest, ExactGrammarHandlesEmptyAndSingleReplacementBoundaries) {
+  ASSERT_OK_AND_ASSIGN(const Matcher empty, Matcher::Compile("", /*case_insensitive=*/false, Grammar::kExact));
+  EXPECT_THAT(empty.FindFirst("anything"), Optional(Pair(Eq(0U), Eq(0U))));
+  EXPECT_THAT(empty.Rewrite("anything", "replacement", /*global=*/true), "anything");
+
+  ASSERT_OK_AND_ASSIGN(const Matcher folded, Matcher::Compile("Ab", /*case_insensitive=*/true, Grammar::kExact));
+  EXPECT_THAT(folded.Rewrite("AB ab AB", "x", /*global=*/false), "x ab AB");
+}
+
+TEST_F(RegexTest, UnknownGrammarReportsInternalError) {
+  EXPECT_THAT(
+      Matcher::Compile("anything", /*case_insensitive=*/false, static_cast<Grammar>(255)),
+      StatusIs(absl::StatusCode::kInternal));
+}
+
 TEST_F(RegexTest, ExactGrammarCaseInsensitiveFoldsAsciiCase) {
   ASSERT_OK_AND_ASSIGN(const Matcher folded, Matcher::Compile("Readme", /*case_insensitive=*/true, Grammar::kExact));
   EXPECT_TRUE(folded.FullMatch("README"));

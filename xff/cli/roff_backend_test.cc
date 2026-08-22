@@ -25,6 +25,7 @@
 namespace xff::cli {
 namespace {
 
+using ::testing::AllOf;
 using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::StartsWith;
@@ -35,6 +36,10 @@ Inline Text(std::string text) {
 
 Inline Code(std::string text) {
   return {.style = Inline::Style::kCode, .text = std::move(text)};
+}
+
+Inline Styled(Inline::Style style, std::string text) {
+  return {.style = style, .text = std::move(text)};
 }
 
 struct RoffEscapeTest : ::testing::Test {};
@@ -90,6 +95,52 @@ TEST_F(RoffBackendTest, RendersManPageStructure) {
   EXPECT_THAT(out, HasSubstr("\n.TP\n.B \\-\\-summary\n"));
   EXPECT_THAT(out, HasSubstr("group + \\fBaggregate\\fR (xff extension)"));
   EXPECT_THAT(out, HasSubstr("\n.BR find (1)\n"));
+}
+
+TEST_F(RoffBackendTest, RendersEveryBlockAndInlineBoundary) {
+  RoffBackend backend;
+  backend.Preamble({.name = "xff", .tagline = "find files", .usage = "xff [path]"});
+  backend.BeginSection({.title = "details"});
+  backend.BeginSubsection({});  // an empty title is a grouping node, not a roff heading
+  backend.BeginSubsection({.title = "Rendering"});
+  backend.BeginEntry({
+      .term = "--mode",
+      .summary =
+          {
+              Styled(Inline::Style::kStrong, "strong"),
+              Styled(Inline::Style::kText, " "),
+              Styled(Inline::Style::kEmphasis, "emphasis"),
+              Styled(Inline::Style::kText, " "),
+              Styled(Inline::Style::kRef, "reference"),
+          },
+      .tags = {"global", "xff"},
+  });
+  backend.BeginEntry({.term = "plain", .summary = {Text("no classification")}});
+  backend.EmitProse({.runs = {Text("first paragraph")}});
+  backend.EmitProse({.runs = {Text("second paragraph")}});
+  backend.EmitExample({.text = "printf example"});
+  backend.EmitExample({.text = "already terminated\n"});
+  backend.EmitExample({});
+  backend.EmitBullets({.items = {{Text("one")}, {Code("two")}}});
+  backend.EmitRows({.rows = {{.term = "row", .description = {Text("description")}}}});
+  backend.EmitTable({.header = {"Name", "Meaning"}, .cells = {{"short", "first"}, {"longer", "second"}}});
+  backend.EmitSeeAlso({
+      .refs =
+          {
+              {.kind = RefTarget::Kind::kManPage, .id = "find", .section = "1"},
+              {.kind = RefTarget::Kind::kManPage, .id = "grep", .section = "1"},
+          },
+      .note = {Text("related tools")},
+  });
+
+  const std::string out = backend.Take();
+  EXPECT_THAT(
+      out, AllOf(
+               HasSubstr(".SS Rendering\n"), HasSubstr("strong\\fR \\fIemphasis\\fR reference (global, xff)"),
+               HasSubstr("first paragraph\n.PP\nsecond paragraph\n"), HasSubstr(".nf\nprintf example\n.fi\n"),
+               HasSubstr("already terminated\n.fi\n"), HasSubstr(".IP \\(bu 3\n"),
+               HasSubstr("Name    Meaning\nshort   first\nlonger  second\n"),
+               HasSubstr(".BR find (1),\n.BR grep (1)\n"), HasSubstr("related tools\n")));
 }
 
 }  // namespace

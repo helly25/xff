@@ -201,12 +201,26 @@ TEST_F(ShardMatcherTest, UnderscoreDecodesANumericUnderscoreSuffix) {
 TEST_F(ShardMatcherTest, SuffixSchemesRequireAnAllDigitTail) {
   EXPECT_THAT(matcher.Decode("photo.jpeg"), Eq(std::nullopt));  // .jpeg is not digits
   EXPECT_THAT(matcher.Decode("draft_final"), Eq(std::nullopt));
+  EXPECT_THAT(matcher.Decode("empty."), Eq(std::nullopt));
+  EXPECT_THAT(matcher.Decode("empty_"), Eq(std::nullopt));
+}
+
+TEST_F(ShardMatcherTest, PathologicalNumericSuffixOverflowIsNotARealShardIndex) {
+  EXPECT_THAT(matcher.Decode("part.999999999999999999999999999999"), ShardIs(Scheme::kDotNum, "part", 0));
+}
+
+TEST_F(ShardMatcherTest, OptionalCustomIndexMustParticipateInTheMatch) {
+  const Matcher custom = *Matcher::Make({}, std::vector<std::string>{R"((?P<stem>item)(?:-(?P<index>\d+))?)"});
+  EXPECT_THAT(custom.Decode("item"), Eq(std::nullopt));
+  EXPECT_THAT(custom.Decode("item-12"), ShardIs(Scheme::kCustom, "item", 12));
 }
 
 TEST_F(ShardMatcherTest, SchemeNameMatchesTheFlagSpelling) {
   EXPECT_THAT(SchemeName(Scheme::kOf), Eq("of"));
   EXPECT_THAT(SchemeName(Scheme::kDotNum), Eq("dotnum"));
   EXPECT_THAT(SchemeName(Scheme::kUnderscore), Eq("underscore"));
+  EXPECT_THAT(SchemeName(Scheme::kCustom), Eq("custom"));
+  EXPECT_THAT(SchemeName(static_cast<Scheme>(255)), Eq("unknown"));
 }
 
 }  // namespace
