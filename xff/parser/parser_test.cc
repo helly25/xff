@@ -458,7 +458,7 @@ TEST_F(ParserTest, SimilarityDefaultsToFiveWordShinglesAndEightyPercent) {
   EXPECT_THAT(command.expression->descriptor->name, "-similar");
   EXPECT_THAT(command.expression->args, ElementsAre("reference.txt"));
   EXPECT_THAT(command.expression->similarity_width, Eq(5));
-  EXPECT_THAT(command.expression->similarity_threshold, Eq(80));
+  EXPECT_THAT(command.expression->similarity_threshold, Eq(kDefaultSimilarityThresholdPercent));
 }
 
 TEST_F(ParserTest, SimilarityQualifierCanOverrideThresholdWidthOrBoth) {
@@ -468,7 +468,7 @@ TEST_F(ParserTest, SimilarityQualifierCanOverrideThresholdWidthOrBoth) {
 
   ASSERT_OK_AND_ASSIGN(const Command width, Parse({".", "-similar:7", "reference.txt"}));
   EXPECT_THAT(width.expression->similarity_width, Eq(7));
-  EXPECT_THAT(width.expression->similarity_threshold, Eq(80));
+  EXPECT_THAT(width.expression->similarity_threshold, Eq(kDefaultSimilarityThresholdPercent));
 
   ASSERT_OK_AND_ASSIGN(const Command both, Parse({".", "-similar:7:65%", "reference.txt"}));
   EXPECT_THAT(both.expression->similarity_width, Eq(7));
