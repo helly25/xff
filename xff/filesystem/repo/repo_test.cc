@@ -126,6 +126,11 @@ TEST_F(RepoTest, ReturnsNulloptFromTheRootWithNoGit) {
   EXPECT_THAT(FindRepoRoot(fs, "/"), Eq(std::nullopt));
 }
 
+TEST_F(RepoTest, RelativeStartWithoutASeparatorStopsAfterItsOwnProbe) {
+  const StatOnlyFs fs;
+  EXPECT_THAT(FindRepoRoot(fs, "relative"), Eq(std::nullopt));
+}
+
 TEST_F(RepoTest, GlobalExcludesReadsCoreExcludesFileFromGitconfig) {
   FakeFs fs;
   fs.AddContent("/home/u/.gitconfig", "[core]\n\texcludesfile = /custom/ignore\n");
@@ -136,6 +141,18 @@ TEST_F(RepoTest, GlobalExcludesExpandsALeadingTilde) {
   FakeFs fs;
   fs.AddContent("/home/u/.gitconfig", "[core]\nexcludesfile = ~/my.ignore\n");
   EXPECT_THAT(GlobalExcludesPath(fs, {.home = "/home/u"}), Optional(Eq("/home/u/my.ignore")));
+}
+
+TEST_F(RepoTest, GlobalExcludesExpandsAnExactTilde) {
+  FakeFs fs;
+  fs.AddContent("/home/u/.gitconfig", "[core]\nexcludesfile = ~\n");
+  EXPECT_THAT(GlobalExcludesPath(fs, {.home = "/home/u"}), Optional(Eq("/home/u")));
+}
+
+TEST_F(RepoTest, GlobalExcludesLeavesOrdinaryRelativePathsUnchanged) {
+  FakeFs fs;
+  fs.AddContent("/home/u/.gitconfig", "[core]\nexcludesfile = relative.ignore\n");
+  EXPECT_THAT(GlobalExcludesPath(fs, {.home = "/home/u"}), Optional(Eq("relative.ignore")));
 }
 
 TEST_F(RepoTest, GlobalExcludesKeyAndSectionAreCaseInsensitive) {
@@ -160,6 +177,27 @@ TEST_F(RepoTest, GlobalExcludesGitconfigWinsOverXdg) {
   fs.AddContent("/xdg/git/config", "[core]\nexcludesfile = /from/xdg\n");
   fs.AddContent("/home/u/.gitconfig", "[core]\nexcludesfile = /from/gitconfig\n");
   EXPECT_THAT(GlobalExcludesPath(fs, {.home = "/home/u", .xdg_config_home = "/xdg"}), Optional(Eq("/from/gitconfig")));
+}
+
+TEST_F(RepoTest, GlobalExcludesUsesTheLastCoreValueAndIgnoresOtherIniSyntax) {
+  FakeFs fs;
+  fs.AddContent(
+      "/home/u/.gitconfig",
+      "\n# comment\n; another comment\n[other]\nexcludesfile = /wrong-section\n"
+      "[broken\nexcludesfile = /wrong-malformed-section\n[ core ]\n"
+      "missing-equals\nwrong-key = /wrong-key\nexcludesfile = /first\nexcludesfile = \"/last\"\n");
+  EXPECT_THAT(GlobalExcludesPath(fs, {.home = "/home/u"}), Optional(Eq("/last")));
+}
+
+TEST_F(RepoTest, GlobalExcludesCanComeFromXdgWithoutAHomeDirectory) {
+  FakeFs fs;
+  fs.AddContent("/xdg/git/config", "[core]\nexcludesfile = ~/literal-without-home\n");
+  EXPECT_THAT(GlobalExcludesPath(fs, {.xdg_config_home = "/xdg"}), Optional(Eq("~/literal-without-home")));
+}
+
+TEST_F(RepoTest, GlobalExcludesDefaultsToXdgWithoutAHomeDirectory) {
+  const FakeFs fs;
+  EXPECT_THAT(GlobalExcludesPath(fs, {.xdg_config_home = "/xdg"}), Optional(Eq("/xdg/git/ignore")));
 }
 
 TEST_F(RepoTest, GlobalExcludesIsNulloptWithoutHomeOrXdg) {

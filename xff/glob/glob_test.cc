@@ -30,10 +30,13 @@ TEST_F(GlobTest, StarAndQuestionAreSegmentBounded) {
 }
 
 TEST_F(GlobTest, DoubleStarSegmentCrossesDirectories) {
-  EXPECT_THAT(GlobToRegex("**/foo"), "(?:.*/)?foo");  // leading `**/`: zero or more directories
-  EXPECT_THAT(GlobToRegex("foo/**"), "foo/.*");       // trailing `/**`: everything below
-  EXPECT_THAT(GlobToRegex("**"), ".*");               // a bare `**`
-  EXPECT_THAT(GlobToRegex("a**b"), "a[^/]*b");        // `**` glued to chars degrades to `*`
+  EXPECT_THAT(GlobToRegex("**/foo"), "(?:.*/)?foo");   // leading `**/`: zero or more directories
+  EXPECT_THAT(GlobToRegex("foo/**"), "foo/.*");        // trailing `/**`: everything below
+  EXPECT_THAT(GlobToRegex("**"), ".*");                // a bare `**`
+  EXPECT_THAT(GlobToRegex("a**b"), "a[^/]*b");         // `**` glued to chars degrades to `*`
+  EXPECT_THAT(GlobToRegex("a/***/b"), "a/(?:.*/)?b");  // a whole run still has `**/` semantics
+  EXPECT_THAT(GlobToRegex("**x"), "[^/]*x");           // no slash after the run: glued
+  EXPECT_THAT(GlobToRegex("x**/y"), "x[^/]*/y");       // no slash before the run: glued
 }
 
 TEST_F(GlobTest, CharacterClassAndNegation) {
@@ -54,10 +57,21 @@ TEST_F(GlobTest, PosixClassesAndLiteralClosingBracket) {
   EXPECT_THAT(GlobToRegex("[!]]"), "[^\\]]");
 }
 
+TEST_F(GlobTest, UnterminatedCharacterClassesRemainDefensiveRegexClasses) {
+  EXPECT_THAT(GlobToRegex("["), "[");
+  EXPECT_THAT(GlobToRegex("[!"), "[^");
+  EXPECT_THAT(GlobToRegex("[]"), "[\\]");
+  EXPECT_THAT(GlobToRegex("[a\\"), "[a\\");
+  EXPECT_THAT(GlobToRegex("[[:alpha"), "[[:alpha");
+  EXPECT_THAT(GlobToRegex("[[.ch"), "[[.ch");
+  EXPECT_THAT(GlobToRegex("[[=a"), "[[=a");
+}
+
 TEST_F(GlobTest, MetacharactersAreEscapedAndEscapesRespected) {
   EXPECT_THAT(GlobToRegex("a.b+c"), "a\\.b\\+c");  // RE2 metacharacters escaped
   EXPECT_THAT(GlobToRegex("a(b)"), "a\\(b\\)");
   EXPECT_THAT(GlobToRegex("a\\*b"), "a\\*b");  // an escaped `*` is a literal asterisk, not a wildcard
+  EXPECT_THAT(GlobToRegex("trailing\\"), "trailing\\\\");
 }
 
 TEST_F(GlobTest, GlobLeavesBracesLiteral) {
@@ -98,6 +112,12 @@ TEST_F(GlobTest, ShglobBraceScannerIgnoresSyntaxInsideCharacterClasses) {
   EXPECT_THAT(ShglobToRegex("{[]},],tail}"), "(?:[\\]},]|tail)");
   EXPECT_THAT(ShglobToRegex("{[[:alpha:],}],tail}"), "(?:[[:alpha:],}]|tail)");
   EXPECT_THAT(ShglobToRegex(R"({[a\,}],tail})"), R"((?:[a\,}]|tail))");
+}
+
+TEST_F(GlobTest, ShglobBraceScannerHandlesUnterminatedClassSyntax) {
+  EXPECT_THAT(ShglobToRegex("{[!,tail}"), "\\{[^,tail}");
+  EXPECT_THAT(ShglobToRegex("{[[:alpha,tail}"), "\\{[[:alpha,tail}");
+  EXPECT_THAT(ShglobToRegex("{[a\\,tail}"), "\\{[a\\,tail}");
 }
 
 TEST_F(GlobTest, ShglobBraceScannerIgnoresEscapedSeparators) {

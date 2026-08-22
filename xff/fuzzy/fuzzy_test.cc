@@ -167,6 +167,31 @@ TEST_F(FuzzyScoreTest, FzfExtendedSearchPreservesEscapedSpaces) {
   EXPECT_THAT(FzfPercent("foo\\ bar baz", "foo_then_bar-baz", false), Eq(std::nullopt));
 }
 
+TEST_F(FuzzyScoreTest, FzfExtendedSearchHandlesEmptyAndDegenerateTerms) {
+  EXPECT_THAT(FzfPercent("", "anything", false), Optional(Eq(100)));
+  EXPECT_THAT(FzfPercent("   ", "anything", false), Optional(Eq(100)));
+  EXPECT_THAT(FzfPercent("! ^", "anything", false), Optional(Eq(100)));
+  EXPECT_THAT(FzfPercent("''", "anything", false), Eq(std::nullopt));
+  EXPECT_THAT(FzfPercent("$", "a-dollar-$", false), Optional(AllOf(Ge(0), Le(100))));
+  EXPECT_THAT(FzfPercent("foo |", "foo", false), Optional(Eq(100)));
+  EXPECT_THAT(FzfPercent("| foo", "foo", false), Eq(std::nullopt));
+}
+
+TEST_F(FuzzyScoreTest, FzfBoundaryTermsRequireBothWordEdges) {
+  EXPECT_THAT(FzfPercent("'word'", "word", false), Optional(Eq(100)));
+  EXPECT_THAT(FzfPercent("'word'", "word!", false), Optional(Eq(100)));
+  EXPECT_THAT(FzfPercent("'word'", "!word", false), Optional(AllOf(Ge(0), Lt(100))));
+  EXPECT_THAT(FzfPercent("'word'", "sword!", false), Eq(std::nullopt));
+  EXPECT_THAT(FzfPercent("'word'", "!words", false), Eq(std::nullopt));
+  EXPECT_THAT(FzfPercent("'longer'", "tiny", false), Eq(std::nullopt));
+}
+
+TEST_F(FuzzyScoreTest, FzfAnchorsRejectCandidatesShorterThanTheirTerms) {
+  EXPECT_THAT(FzfPercent("^long", "lo", false), Eq(std::nullopt));
+  EXPECT_THAT(FzfPercent("long$", "ng", false), Eq(std::nullopt));
+  EXPECT_THAT(FzfPercent("^long$", "longer", false), Eq(std::nullopt));
+}
+
 TEST_F(FuzzyScoreTest, FzfScoringMatchesPublishedRealWorldCases) {
   // Candidate/query pairs maintained by fzf itself exercise camel humps, word boundaries, and path
   // separators. They are drawn from src/algo/algo_test.go in the upstream fzf repository.
@@ -204,6 +229,7 @@ TEST_F(FuzzyScoreTest, LevenshteinPercentHandlesCaseAndEmptyStrings) {
   EXPECT_THAT(LevenshteinPercent("Foo", "foo", true), Eq(100));
   EXPECT_THAT(LevenshteinPercent("", "", false), Eq(100));
   EXPECT_THAT(LevenshteinPercent("", "foo", false), Eq(0));
+  EXPECT_THAT(LevenshteinPercent("foo", "", false), Eq(0));
 }
 
 TEST_F(FuzzyScoreTest, LevenshteinPercentPinsClassicMultiEditCases) {
@@ -218,6 +244,7 @@ TEST_F(FuzzyScoreTest, SequencePercentIsPlainSubsequenceCoverage) {
   EXPECT_THAT(SequencePercent("foo", "f_o_o", false), Optional(Eq(60)));
   EXPECT_THAT(SequencePercent("foo", "ofo", false), Eq(std::nullopt));
   EXPECT_THAT(SequencePercent("bar", "baz", false), Eq(std::nullopt));
+  EXPECT_THAT(SequencePercent("", "", false), Optional(Eq(100)));
 }
 
 TEST_F(FuzzyScoreTest, SequencePercentHandlesLongPathAbbreviationsWithoutTermSyntax) {

@@ -188,8 +188,24 @@ TEST_F(LocalFsTest, ReadContentMissingPathErrors) {
   EXPECT_THAT(local_fs_.ReadContent(Path("nope")), StatusIs(absl::StatusCode::kNotFound));
 }
 
+TEST_F(LocalFsTest, AccessChecksEachRequestedPermissionAndMissingPaths) {
+  EXPECT_THAT(local_fs_.Access(Path("file.txt"), AccessMode::kRead), IsTrue());
+  EXPECT_THAT(local_fs_.Access(Path("file.txt"), AccessMode::kWrite), IsTrue());
+  EXPECT_THAT(local_fs_.Access(Path("file.txt"), AccessMode::kExecute), IsFalse());
+  EXPECT_THAT(local_fs_.Access(Path("nope"), AccessMode::kRead), IsFalse());
+}
+
+TEST_F(LocalFsTest, ReadLinkReturnsTheStoredTarget) {
+  EXPECT_THAT(local_fs_.ReadLink(Path("link")), IsOkAndHolds(Eq("file.txt")));
+}
+
 TEST_F(LocalFsTest, ReadLinkRejectsARegularFile) {
   EXPECT_THAT(local_fs_.ReadLink(Path("file.txt")), Not(IsOk()));
+}
+
+TEST_F(LocalFsTest, FsTypeReportsTheContainingFilesystemAndRejectsMissingPaths) {
+  EXPECT_THAT(local_fs_.FsType(root_.string()), IsOkAndHolds(Not(Eq(""))));
+  EXPECT_THAT(local_fs_.FsType(Path("nope")), StatusIs(absl::StatusCode::kNotFound));
 }
 
 TEST_F(LocalFsTest, ReadContentRejectsADirectory) {
