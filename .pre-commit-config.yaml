@@ -128,12 +128,10 @@ repos:
       - id: no-comparison-macros-in-cc-tests
         name: No GoogleTest comparison macros in C++
         description: |
-          Project convention (STYLE_CPP.md): a C++ test asserts with EXPECT_THAT / ASSERT_THAT
-          and a matcher, not GoogleTest's scalar, string, floating-point, or tolerance comparison
-          macros. A matcher prints a useful failure - EqualsText diffs multi-line text line by line,
-          ElementsAre names the offending element, StatusIs keeps the code and message.
-          EXPECT_TRUE / EXPECT_FALSE stay allowed. To skip once, run
-          `SKIP="no-comparison-macros-in-cc-tests" pre-commit`.
+          STYLE_CPP.md strictly forbids (ASSERT|EXPECT)_(EQ|NE|LT|LE|GT|GE|STREQ|STRNE|
+          STRCASEEQ|STRCASENE|FLOAT_EQ|DOUBLE_EQ|NEAR). Use EXPECT_THAT / ASSERT_THAT with a
+          matcher. TRUE / FALSE remain allowed because they assert boolean conditions rather than
+          perform comparisons. The rule applies to every C++ file and has no exceptions.
         language: script
         entry: tools/check_test_matchers.sh
         types_or: [c, c++]

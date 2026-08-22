@@ -31,9 +31,12 @@ PR's user-visible outcome or motivation actually changes.
    harness is a one-line `struct FooTest : ::testing::Test {};`.
 2. **The fixture is a `struct`** (not a `class`) inheriting from
    `::testing::Test` (or a friend such as `::testing::TestWithParam<T>`).
-3. **Prefer `EXPECT_THAT` / `ASSERT_THAT` (gmock matchers) almost exclusively**
-   over `EXPECT_EQ` / `ASSERT_EQ`.
-4. **Multi-line text: `mbo::testing::EqualsText`, not `EXPECT_EQ`.** For a
+3. **Use `EXPECT_THAT` / `ASSERT_THAT`; comparison macros are forbidden.** Never use either
+   `EXPECT_` or `ASSERT_` with `EQ`, `NE`, `LT`, `LE`, `GT`, `GE`, `STREQ`, `STRNE`, `STRCASEEQ`,
+   `STRCASENE`, `FLOAT_EQ`, `DOUBLE_EQ`, or `NEAR`. Use a matcher instead. `EXPECT_TRUE` /
+   `EXPECT_FALSE` and their `ASSERT_` forms remain available for boolean conditions because they
+   are not comparison macros. This is enforced by pre-commit with no exceptions.
+4. **Multi-line text: use `mbo::testing::EqualsText`.** For a
    multi-line string use `EXPECT_THAT(actual, EqualsText(golden))` (unified diff,
    line by line). Write the golden as a `DropIndent`-filtered indented raw string,
    not concatenated `"...\n"` literals (which `clang-format` shoves against the
@@ -41,8 +44,7 @@ PR's user-visible outcome or motivation actually changes.
    `WithDropIndent` de-indents the expected text only; `DropIndentAndSplit` yields
    the lines as a vector. Caveat: a raw-string golden cannot carry significant
    trailing whitespace (the trim-trailing-whitespace hook strips it) - use the
-   literal form there. `STYLE_CPP.md` is canonical. There is no `EXPECT_EQ` fallback;
-   use `EqualsText` for text comparisons.
+   literal form there. `STYLE_CPP.md` is canonical; use `EqualsText` for text comparisons.
 5. **Typed and parameterized tests supply names from the types/values** (name
    generators for `TYPED_TEST_SUITE` / `INSTANTIATE_TEST_SUITE_P`), so the
    output never shows numbered tests (`Suite/0`, `Suite/1`).
