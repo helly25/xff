@@ -52,11 +52,15 @@ jobs:
           python-version: "3.13"
       - name: Install GCC 14 and coverage dependencies
         run: |
+          # Ubuntu's lcov package supplies the Perl dependencies, but its old genhtml ignores
+          # metric-specific color thresholds. Install the pinned current release over it below.
           sudo apt-get install -y gcc-14 g++-14 lcov mandoc fuse3 libfuse3-3
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 \
             --slave /usr/bin/g++ g++ /usr/bin/g++-14 \
             --slave /usr/bin/gcov gcov /usr/bin/gcov-14
           sudo update-alternatives --set gcc /usr/bin/gcc-14
+          tools/install_lcov.sh "${RUNNER_TEMP}/lcov"
+          echo "${RUNNER_TEMP}/lcov/bin" >>"${GITHUB_PATH}"
       - name: Collect release coverage
         # --config=xff_docs includes the aggregate xff_all switch, so extensions added to the
         # registry join release coverage automatically, as well as the complete documented surface.
@@ -86,13 +90,13 @@ jobs:
             --demangle-cpp \
             --function-coverage \
             --ignore-errors negative \
-            --legend \
             --output-directory coverage-html/lcov \
             --prefix "${PWD}/coverage-source-tree" \
             --show-details \
             --title "xff ${GITHUB_REF_NAME} production coverage"
+          python3 tools/coverage_html.py coverage-html/lcov coverage_policy.json
           python3 -m unittest tools/coverage_test.py tools/coverage_sources_test.py \
-            tools/coverage_index_test.py tools/coverage_lcovrc_test.py
+            tools/coverage_html_test.py tools/coverage_index_test.py tools/coverage_lcovrc_test.py
           python3 tools/coverage.py \
             --json-summary coverage-html/coverage-summary.json \
             --lcov coverage.lcov \
