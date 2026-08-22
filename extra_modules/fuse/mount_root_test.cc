@@ -88,9 +88,14 @@ TEST_F(MountRootTest, CreateUsesTheXdgRuntimeDirectoryByDefault) {
   // NOLINTNEXTLINE(concurrency-mt-unsafe)
   ASSERT_THAT(::setenv("XDG_RUNTIME_DIR", base_.c_str(), /*overwrite=*/1), 0);
   absl::StatusOr<MountRoot> created = MountRoot::Create();
-  // NOLINTNEXTLINE(concurrency-mt-unsafe)
-  const int restore_result =
-      had_original ? ::setenv("XDG_RUNTIME_DIR", original.c_str(), /*overwrite=*/1) : ::unsetenv("XDG_RUNTIME_DIR");
+  int restore_result;
+  if (had_original) {
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    restore_result = ::setenv("XDG_RUNTIME_DIR", original.c_str(), /*overwrite=*/1);
+  } else {
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    restore_result = ::unsetenv("XDG_RUNTIME_DIR");
+  }
   ASSERT_THAT(restore_result, 0);
 
   MBO_ASSERT_OK_AND_ASSIGN(const MountRoot root, std::move(created));
