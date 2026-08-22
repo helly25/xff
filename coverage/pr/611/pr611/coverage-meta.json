@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "target": "pr/611/pr611",
+  "source": {
+    "created_at": "1970-01-01T00:00:00Z",
+    "started_at": "1970-01-01T00:00:00Z",
+    "completed_at": "1970-01-01T00:00:00Z",
+    "run_id": 0,
+    "run_attempt": 0,
+    "head_sha": "legacy"
+  },
+  "coverage": {
+    "lines": {
+      "covered": 10289,
+      "total": 11012,
+      "percent": 93.43
+    },
+    "functions": {
+      "covered": 1200,
+      "total": 1236,
+      "percent": 97.09
+    },
+    "branches": {
+      "covered": 7259,
+      "total": 8736,
+      "percent": 83.09
+    }
+  }
+}
