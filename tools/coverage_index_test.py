@@ -36,6 +36,10 @@ class CoverageIndexTest(unittest.TestCase):
                 target.mkdir(parents=True)
                 (target / "index.html").touch()
                 (target / "coverage-summary.json").write_text(json.dumps(_summary(95.0)))
+                metadata = coverage_index.report_metadata(
+                    _summary(95.0), report, "2026-08-22T10:00:00Z", 1, 1, "abc"
+                )
+                (target / "coverage-meta.json").write_text(json.dumps(metadata))
 
             rendered = coverage_index.render_site(root)
 
@@ -56,6 +60,24 @@ class CoverageIndexTest(unittest.TestCase):
     def test_empty_site_says_no_reports_are_available(self):
         with tempfile.TemporaryDirectory() as directory:
             self.assertIn("No coverage reports are available", coverage_index.render_site(Path(directory)))
+
+    def test_newer_report_wins_even_when_an_older_run_finishes_later(self):
+        summary = _summary(95.0)
+        old = coverage_index.report_metadata(
+            summary, "pr/42", "2026-08-22T10:00:00Z", 100, 1, "old"
+        )
+        new = coverage_index.report_metadata(
+            summary, "pr/42", "2026-08-22T10:01:00Z", 101, 1, "new"
+        )
+        rerun = coverage_index.report_metadata(
+            summary, "pr/42", "2026-08-22T10:01:00Z", 101, 2, "new"
+        )
+        self.assertTrue(coverage_index.is_newer(new, old))
+        self.assertFalse(coverage_index.is_newer(old, new))
+        self.assertTrue(coverage_index.is_newer(rerun, new))
+        self.assertEqual(
+            {"pr/42": rerun}, coverage_index.latest_metadata([new, old, rerun, new])
+        )
 
 
 if __name__ == "__main__":

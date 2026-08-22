@@ -44,6 +44,9 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
       - name: Select and stage the report
         env:
+          SOURCE_CREATED_AT: ${{ github.event.workflow_run.created_at }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           set -euo pipefail
@@ -52,6 +55,14 @@ jobs:
             echo "Invalid coverage target: ${target}" >&2
             exit 1
           fi
+          python3 source/tools/coverage_index.py metadata \
+            report/coverage-html/coverage-summary.json \
+            "${target}" \
+            report/coverage-html/coverage-meta.json \
+            --created-at "${SOURCE_CREATED_AT}" \
+            --head-sha "${SOURCE_HEAD_SHA}" \
+            --run-attempt "${SOURCE_RUN_ATTEMPT}" \
+            --run-id "${SOURCE_RUN_ID}"
           # Migrate every report produced before the namespaced PR layout was introduced. This is
           # deliberately registry-like rather than naming PR 609/610: any old retained prN report
           # is moved once, and future reports are written directly below pr/N.
@@ -63,8 +74,31 @@ jobs:
             mkdir -p site/coverage/pr
             git -C site mv "coverage/pr${number}" "coverage/pr/${number}"
           done
-          mkdir -p "site/coverage/${target}"
-          rsync --archive --delete report/coverage-html/ "site/coverage/${target}/"
+          current="site/coverage/${target}/coverage-meta.json"
+          if [[ -f "${current}" ]] && ! python3 source/tools/coverage_index.py newer \
+            report/coverage-html/coverage-meta.json "${current}"; then
+            echo "Ignoring older ${target} report from run ${SOURCE_RUN_ID}"
+          else
+            mkdir -p "site/coverage/${target}"
+            rsync --archive --delete report/coverage-html/ "site/coverage/${target}/"
+          fi
+          # Bootstrap retained reports created before metadata became the report registry. Their
+          # epoch identity lets any real subsequent run replace them.
+          while IFS= read -r -d '' summary; do
+            report_dir="${summary%/coverage-summary.json}"
+            if [[ -f "${report_dir}/coverage-meta.json" ]]; then
+              continue
+            fi
+            retained_target="${report_dir#site/coverage/}"
+            python3 source/tools/coverage_index.py metadata \
+              "${summary}" \
+              "${retained_target}" \
+              "${report_dir}/coverage-meta.json" \
+              --created-at "1970-01-01T00:00:00Z" \
+              --head-sha legacy \
+              --run-attempt 0 \
+              --run-id 0
+          done < <(find site/coverage -name coverage-summary.json -print0)
           python3 source/tools/coverage_index.py site site/coverage site/coverage/index.html
           git -C site config user.name 'github-actions[bot]'
           git -C site config user.email '41898282+github-actions[bot]@users.noreply.github.com'
