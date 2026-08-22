@@ -15,6 +15,8 @@
 
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
+package(default_visibility = ["//visibility:private"])
+
 # gitignore-syntax pattern matching (the .gitignore / .ignore / .xffignore stack
 # and the --exclude / --include globs), by translating each glob to an RE2 regex.
 cc_library(

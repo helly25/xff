@@ -32,7 +32,7 @@ load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("//xff:cc.bzl", "cc_test")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//visibility:private"])
 
 # --//xff:xff_all -- turn on EVERY composable extra at once, whatever the set happens to be. It exists
 # so `--config=xff_docs` (the config the committed XFF.md is generated from, and which must document
@@ -41,11 +41,13 @@ package(default_visibility = ["//visibility:public"])
 bool_flag(
     name = "xff_all",
     build_setting_default = False,
+    visibility = ["//visibility:public"],
 )
 
 config_setting(
     name = "xff_all_enabled",
     flag_values = {":xff_all": "True"},
+    visibility = ["//visibility:public"],
 )
 
 # --//xff:xff_archive -- link the archive-diving backend (libarchive, plus a hand-written reader for
@@ -54,11 +56,13 @@ config_setting(
 bool_flag(
     name = "xff_archive",
     build_setting_default = False,
+    visibility = ["//visibility:public"],
 )
 
 config_setting(
     name = "xff_archive_enabled",
     flag_values = {":xff_archive": "True"},
+    visibility = ["//visibility:public"],
 )
 
 # --//xff:xff_pcre -- link the PCRE2 regex backend (extra_modules/pcre2; #85). Default off, so only
@@ -67,11 +71,13 @@ config_setting(
 bool_flag(
     name = "xff_pcre",
     build_setting_default = False,
+    visibility = ["//visibility:public"],
 )
 
 config_setting(
     name = "xff_pcre_enabled",
     flag_values = {":xff_pcre": "True"},
+    visibility = ["//visibility:public"],
 )
 
 # --//xff:xff_fuse -- link the FUSE mount extra (extra_modules/fuse; #183). Default off. The extra
@@ -80,11 +86,13 @@ config_setting(
 bool_flag(
     name = "xff_fuse",
     build_setting_default = False,
+    visibility = ["//visibility:public"],
 )
 
 config_setting(
     name = "xff_fuse_enabled",
     flag_values = {":xff_fuse": "True"},
+    visibility = ["//visibility:public"],
 )
 
 # "Is this extra linked": its own flag OR --//xff:xff_all. Every consumer selects on THESE, never on
@@ -95,6 +103,7 @@ selects.config_setting_group(
         ":xff_archive_enabled",
         ":xff_all_enabled",
     ],
+    visibility = ["//visibility:public"],
 )
 
 selects.config_setting_group(
@@ -103,6 +112,7 @@ selects.config_setting_group(
         ":xff_fuse_enabled",
         ":xff_all_enabled",
     ],
+    visibility = ["//visibility:public"],
 )
 
 selects.config_setting_group(
@@ -111,6 +121,7 @@ selects.config_setting_group(
         ":xff_pcre_enabled",
         ":xff_all_enabled",
     ],
+    visibility = ["//visibility:public"],
 )
 
 # --//xff:xff_msan -- set by --config=msan (see .bazelrc). It exists so the cc_* wrappers in
@@ -121,11 +132,13 @@ selects.config_setting_group(
 bool_flag(
     name = "xff_msan",
     build_setting_default = False,
+    visibility = ["//visibility:public"],
 )
 
 config_setting(
     name = "xff_msan_enabled",
     flag_values = {":xff_msan": "True"},
+    visibility = ["//visibility:public"],
 )
 
 # The single "is this the full / extras build" condition: any extra on, however it was turned on. Both
@@ -137,6 +150,7 @@ selects.config_setting_group(
         ":xff_archive_on",
         ":xff_pcre_on",
     ],
+    visibility = ["//visibility:public"],
 )
 
 # `//xff` == the right binary for the active build config: the extended //xff/cli:xff_full in a full
@@ -152,6 +166,7 @@ alias(
         ":full_build": "//xff/cli:xff_full",
         "//conditions:default": "//xff/cli:xff",
     }),
+    visibility = ["//visibility:public"],
 )
 
 # The delivery half of the suppression plumbing, which nothing tested: a `*_OPTIONS` variable naming a

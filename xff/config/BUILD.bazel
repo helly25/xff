@@ -15,6 +15,8 @@
 
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
+package(default_visibility = ["//visibility:private"])
+
 # The .xffrc grammar parser (bazel-rc-style flag bundles with base:config:
 # selectors). Parse-only; the config loader and policy gate build on it.
 cc_library(

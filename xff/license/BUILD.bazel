@@ -18,10 +18,7 @@ load("//xff_extras_api:license_body.bzl", "license_body")
 
 # Visible to //extra_modules too: a build extra (e.g. extra_modules/pcre2) self-registers its notice
 # here via license::Registrar, the same way core deps do.
-package(default_visibility = [
-    "//extra_modules:__subpackages__",
-    "//xff:__subpackages__",
-])
+package(default_visibility = ["//visibility:private"])
 
 # xff's own license (Apache-2.0) is compiled into the binary from the canonical repo LICENSE file so
 # a single-file release reproduces it (--help=license). LICENSE stays canonical; this only embeds
@@ -55,6 +52,7 @@ cc_library(
         "license_text_generated.cc",
     ],
     hdrs = ["license.h"],
+    visibility = ["//xff:__subpackages__"],
     deps = [
         ":bsd_3_clause_license_cc",
         "@abseil-cpp//absl/strings",

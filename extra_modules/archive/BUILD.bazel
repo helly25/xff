@@ -16,6 +16,8 @@
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("@xff_extras_api//:license_body.bzl", "license_body")
 
+package(default_visibility = ["//visibility:private"])
+
 license_body(
     name = "bsd_2_clause_license_cc",
     src = "licenses/BSD-2-Clause.txt",

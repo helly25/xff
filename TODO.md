@@ -63,6 +63,18 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
 
 ### Lint / CI / style adoption (shipped; one audit remains)
 
+- **Evaluate C++ header modules separately.** Spike Bazel/toolchains_llvm's `header_modules`
+  feature on its own branch. Establish support on every xff platform and configuration, compatibility
+  with generated and external headers, cache and build-time effects, and what additional violations
+  it catches beyond the globally enforced `parse_headers` and `layering_check` features. Do not make
+  it a default until that experiment demonstrates a portable correctness benefit.
+- **Make every module's LCOV branch status green.** Use the full report overview (for example
+  [`coverage/pr/621/lcov/`](https://helly25.github.io/xff/coverage/pr/621/lcov/)) to identify every
+  yellow branch row, then add focused boundary/error-path tests until each module reaches its green
+  branch threshold. Keep all line and function rows green. Prefer real tests; use a narrower
+  per-module threshold only for demonstrated unreachable or generated branches, with the reason
+  recorded next to the exception.
+
 - **clang-tidy coverage for `extra_modules/` is SHIPPED (PRs #515-#519 and #530).** The original
   exclusion hid 81 findings; the per-extra sweeps cleared them and PR #530 dropped the exclusion.
   - **The exclusion's stated reason no longer holds.** It says the extras cannot be parsed because

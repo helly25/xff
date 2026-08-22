@@ -15,6 +15,8 @@
 
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
+package(default_visibility = ["//visibility:private"])
+
 # Directory traversal over a vfs::FileSystem: a worker pool reads (readdir+lstat)
 # in parallel while a single coordinator thread visits in --sort order.
 cc_library(

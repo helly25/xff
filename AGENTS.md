@@ -11,6 +11,14 @@ Build & test: `bazel test //...` · sanitizers: `bazel test //... --config=clang
 (also `--config=tsan`, and `--config=msan` on Linux).
 Toolchain: clang-22 minimum (hermetic LLVM under `--config=clang`).
 
+## Bazel package policy
+
+Every `BUILD` / `BUILD.bazel` file declares
+`package(default_visibility = ["//visibility:private"])`. Cross-package APIs opt in with a narrow
+target-level `visibility`; never make a whole package public for convenience. Target and exec C++
+configurations both keep Bazel's `layering_check` and `parse_headers` features enabled. The
+`check-bazel-policy` pre-commit hook enforces all three invariants, including for new packages.
+
 ## Pull request descriptions
 
 Every PR description has two layers in this order:

@@ -16,6 +16,8 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
+package(default_visibility = ["//visibility:private"])
+
 # Test-capability contract shared by the core tests and independently buildable FUSE module. The
 # named .bazelrc config sets this private flag only on runners that promise a working kernel FUSE
 # path; ordinary machines may still skip the integration cases when FUSE is unavailable.
