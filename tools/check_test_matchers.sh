@@ -14,12 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Guard (pre-commit): C++ code asserts with EXPECT_THAT / ASSERT_THAT and a gmock matcher,
-# not with the comparison macros EXPECT_EQ / NE / LT / LE / GT / GE, the string variants,
-# or the floating-point variants (or their ASSERT_ forms).
+# Guard (pre-commit): C++ code asserts with EXPECT_THAT / ASSERT_THAT and a gmock matcher. Every
+# scalar, string, floating-point, and tolerance comparison macro is forbidden in both its EXPECT_
+# and ASSERT_ form.
 # Matchers compose and print far better failures: a container mismatch names the element, a
 # multi-line string diffs line by line through mbo::testing::EqualsText, and a status carries
-# its code and message. See STYLE_CPP.md ("Assertions: gmock matchers, not EXPECT_EQ").
+# its code and message. See STYLE_CPP.md ("Assertions: matchers only").
 #
 # EXPECT_TRUE / EXPECT_FALSE are NOT flagged: the style guide keeps them as the one accepted
 # exception, since they read fine on their own.

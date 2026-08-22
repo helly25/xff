@@ -409,17 +409,17 @@ substitute for a committed test. Tests use GoogleTest + GoogleMock with these co
   `struct FooTest : ::testing::Test {};` is preferred, so shared setup has a home.
 - One behaviour per test; name the test for the behaviour it asserts.
 
-### Assertions: gmock matchers, not `EXPECT_EQ`
+### Assertions: matchers only; comparison macros are forbidden
 
-- Assert with **`EXPECT_THAT` / `ASSERT_THAT` + a matcher** rather than the comparison macros
-  `EXPECT_EQ` / `NE` / `GT` / `LT` / `GE` / `LE` (and their `ASSERT_` forms): matchers compose and
-  give far better failure messages. The accepted exception is the boolean `EXPECT_TRUE` /
-  `EXPECT_FALSE` (and `ASSERT_TRUE` / `ASSERT_FALSE`), which read fine on their own. Within a
-  single test keep one style - do not mix, say, `EXPECT_TRUE(x)` and `EXPECT_THAT(y, IsTrue())`. This
-  is **enforced** by the `no-comparison-macros-in-cc-tests` pre-commit hook
-  ([`tools/check_test_matchers.sh`](tools/check_test_matchers.sh)), which fails on any of those macros
-  in a `*_test.cc`: a null check is `ASSERT_THAT(p, NotNull())`, an ordering one
-  `EXPECT_THAT(a, Lt(b))`, and multi-line text `EXPECT_THAT(out, EqualsText(golden))`.
+- Assert with **`EXPECT_THAT` / `ASSERT_THAT` + a matcher**. The complete forbidden set is either
+  `EXPECT_` or `ASSERT_` combined with `EQ`, `NE`, `LT`, `LE`, `GT`, `GE`, `STREQ`, `STRNE`,
+  `STRCASEEQ`, `STRCASENE`, `FLOAT_EQ`, `DOUBLE_EQ`, or `NEAR`. There are no comparison-macro
+  exceptions. `EXPECT_TRUE` / `EXPECT_FALSE` and `ASSERT_TRUE` / `ASSERT_FALSE` remain available for
+  boolean conditions because they are not comparison macros. The
+  `no-comparison-macros-in-cc-tests` pre-commit hook
+  ([`tools/check_test_matchers.sh`](tools/check_test_matchers.sh)) enforces this in all C++ files.
+  Use `NotNull` for pointers, `Lt` / `Le` / `Gt` / `Ge` for ordering, `StrEq` where C-string value
+  semantics are needed, floating-point matchers for approximate values, and `EqualsText` for text.
 - **Name matchers unqualified - never the `::testing::` prefix inline.** Bring each matcher in with
   a `using ::testing::Foo;` (or `using ::mbo::testing::Foo;`) in the test file's anonymous namespace
   and use the bare name in the `EXPECT_THAT` / `ASSERT_THAT` expression; a `::testing::Foo(...)`
@@ -434,12 +434,12 @@ substitute for a committed test. Tests use GoogleTest + GoogleMock with these co
   below). Strings sometimes need `StrEq` (e.g. a `char*` subject, where bare `Eq` compares
   pointers). For booleans, `IsTrue()` / `IsFalse()` usually read better than a bare `true` /
   `false` or `Eq(true)`: `EXPECT_THAT(found, IsTrue())`.
-- **Multi-line text: `mbo::testing::EqualsText`, not `EXPECT_EQ`.** For a multi-line string
+- **Multi-line text: use `mbo::testing::EqualsText`.** For a multi-line string
   (a rendered table, generated `--help`, file contents) prefer
   `EXPECT_THAT(actual, EqualsText(golden))` (`@helly25_mbo//mbo/testing:matchers_cc`): it compares
   line by line with unified-diff output, so a mismatch points at the offending line instead of
-  dumping the whole blob. There is no `EXPECT_EQ` fallback: use `EqualsText` for text comparisons,
-  including text that is not naturally line-oriented.
+  dumping the whole blob. Use `EqualsText` for all text comparisons, including text that is not
+  naturally line-oriented.
   - **Write the golden as a `DropIndent`-filtered raw string, not concatenated `"...\n"` literals.**
     `clang-format` shoves adjacent string literals hard against the `EqualsText(` bracket (aligned to
     the open paren, often at column ~35), which is unreadable and drifts with the call length. Instead
