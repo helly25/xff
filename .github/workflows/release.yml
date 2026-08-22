@@ -28,6 +28,91 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: bazelbuild/setup-bazelisk@v3
+      - name: Mount Bazel coverage disk cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel-disk
+          key: bazel-disk-coverage-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
+          restore-keys: |
+            bazel-disk-coverage-
+      - name: Mount Bazel repo cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-ubuntu-latest-default-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
+          restore-keys: |
+            bazel-repo-ubuntu-latest-default-
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install GCC 14 and coverage dependencies
+        run: |
+          sudo apt-get install -y gcc-14 g++-14 lcov mandoc fuse3 libfuse3-3
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 \
+            --slave /usr/bin/g++ g++ /usr/bin/g++-14 \
+            --slave /usr/bin/gcov gcov /usr/bin/gcov-14
+          sudo update-alternatives --set gcc /usr/bin/gcc-14
+      - name: Collect release coverage
+        env:
+          XFF_FUSE_REQUIRED: "1"
+        run: |
+          set -euo pipefail
+          tools/release_prep.sh "${GITHUB_REF_NAME}" >/dev/null
+          coverage_page="tag/${GITHUB_REF_NAME#v}"
+          # shellcheck disable=SC2046  # deliberate splitting into Bazel target patterns
+          bazel coverage //... $(tools/extras.py --wildcards) \
+            --config=xff_docs \
+            --combined_report=lcov \
+            --disk_cache=$HOME/.cache/bazel-disk \
+            --instrumentation_filter='//xff[/:],//xff_extras_api[/:],@@xff_(archive|fuse|pcre2)[+]//' \
+            --repository_cache=$HOME/.cache/bazel-repo \
+            --test_env=XFF_FUSE_REQUIRED
+          cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
+          printf '%s\n' "${coverage_page}" >coverage-target.txt
+          python3 tools/coverage_sources.py coverage.lcov coverage-html.lcov
+          genhtml coverage-html.lcov \
+            --branch-coverage \
+            --demangle-cpp \
+            --function-coverage \
+            --ignore-errors negative \
+            --legend \
+            --output-directory coverage-html/lcov \
+            --show-details \
+            --title "xff ${GITHUB_REF_NAME} production coverage"
+          python3 -m unittest tools/coverage_test.py tools/coverage_sources_test.py tools/coverage_index_test.py
+          python3 tools/coverage.py \
+            --json-summary coverage-html/coverage-summary.json \
+            --lcov coverage.lcov \
+            --policy coverage_policy.json \
+            --summary coverage-summary.md
+          python3 tools/coverage_index.py report \
+            coverage-html/coverage-summary.json "${coverage_page}" coverage-html/index.html
+          {
+            echo "### Production coverage"
+            echo
+            echo "[Browse the HTML coverage report](https://helly25.github.io/xff/coverage/${coverage_page}/)."
+            echo
+            echo "[Download this run's coverage artifact](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}#artifacts)."
+            echo
+            cat coverage-summary.md
+          } >>"${GITHUB_STEP_SUMMARY}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: |
+            coverage-html/
+            coverage.lcov
+            coverage-summary.md
+            coverage-target.txt
+          retention-days: 14
+          if-no-files-found: error
+
   build:
     name: build ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
@@ -81,7 +166,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: build
+    needs: [build, coverage]
     runs-on: ubuntu-latest
     permissions:
       # Creating a release writes to the repo's releases.
@@ -90,6 +175,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/download-artifact@v4
         with:
+          pattern: xff-*
           path: dist
           merge-multiple: true
       # release_prep.sh prints only the CHANGELOG section to stdout (the stamp it

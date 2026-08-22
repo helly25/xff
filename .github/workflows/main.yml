@@ -187,7 +187,7 @@ jobs:
           gcov --version
       - name: Collect and enforce coverage
         env:
-          COVERAGE_PAGE: ${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || 'main' }}
+          COVERAGE_PAGE: ${{ github.event_name == 'pull_request' && format('pr/{0}', github.event.pull_request.number) || 'main' }}
           XFF_FUSE_REQUIRED: "1"
         run: |
           set -euo pipefail
@@ -200,6 +200,7 @@ jobs:
             --repository_cache=$HOME/.cache/bazel-repo \
             --test_env=XFF_FUSE_REQUIRED
           cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
+          printf '%s\n' "${COVERAGE_PAGE}" >coverage-target.txt
           # Derive extension source paths from the same extras registry that supplies the Bazel
           # target wildcards, so adding a module cannot leave its HTML source view behind.
           python3 tools/coverage_sources.py coverage.lcov coverage-html.lcov
@@ -209,10 +210,10 @@ jobs:
             --function-coverage \
             --ignore-errors negative \
             --legend \
-            --output-directory coverage-html \
+            --output-directory coverage-html/lcov \
             --show-details \
             --title "xff production coverage"
-          python3 -m unittest tools/coverage_test.py tools/coverage_sources_test.py
+          python3 -m unittest tools/coverage_test.py tools/coverage_sources_test.py tools/coverage_index_test.py
           BASE_ARGS=()
           if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
             git fetch --quiet --no-tags origin main
@@ -220,9 +221,12 @@ jobs:
           fi
           python3 tools/coverage.py \
             --lcov coverage.lcov \
+            --json-summary coverage-html/coverage-summary.json \
             --policy coverage_policy.json \
             --summary coverage-summary.md \
             "${BASE_ARGS[@]}"
+          python3 tools/coverage_index.py report \
+            coverage-html/coverage-summary.json "${COVERAGE_PAGE}" coverage-html/index.html
           {
             echo "### Production coverage"
             echo
@@ -240,6 +244,7 @@ jobs:
             coverage-html/
             coverage.lcov
             coverage-summary.md
+            coverage-target.txt
           retention-days: 14
           if-no-files-found: error
 
