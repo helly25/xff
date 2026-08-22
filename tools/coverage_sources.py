@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Map Bazel external-repository LCOV paths back to checked-in extra modules."""
