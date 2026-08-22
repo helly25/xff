@@ -11,16 +11,19 @@ _METRICS = ("line", "function", "branch")
 _POLICY_KEYS = {"line": "lines", "function": "functions", "branch": "branches"}
 def render(policy: dict[str, Any]) -> str:
     minimum = policy["minimum"]
-    warning_gap = int(policy["lcov"]["warning_gap"])
-    if not 0 <= warning_gap <= 100:
-        raise ValueError(f"LCOV warning gap must be between 0 and 100: {warning_gap}")
+    target = {**minimum, **policy.get("target", {})}
     lines: list[str] = []
     for metric in _METRICS:
-        high = int(minimum[_POLICY_KEYS[metric]])
-        if not 0 <= high <= 100:
-            raise ValueError(f"minimum {metric} coverage must be between 0 and 100: {high}")
+        key = _POLICY_KEYS[metric]
+        medium = int(minimum[key])
+        high = int(target[key])
+        if not 0 <= medium <= high <= 100:
+            raise ValueError(
+                f"{metric} coverage thresholds must satisfy 0 <= minimum <= target <= 100: "
+                f"{medium}, {high}"
+            )
         lines.append(f"genhtml_{metric}_hi_limit = {high}")
-        lines.append(f"genhtml_{metric}_med_limit = {max(0, high - warning_gap)}")
+        lines.append(f"genhtml_{metric}_med_limit = {medium}")
     return "\n".join(lines) + "\n"
 
 

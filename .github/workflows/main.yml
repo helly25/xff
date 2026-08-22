@@ -186,6 +186,8 @@ jobs:
           python-version: "3.13"
       - name: Install GCC 14 and integration-test dependencies
         run: |
+          # Ubuntu's lcov package supplies the Perl dependencies, but its old genhtml ignores
+          # metric-specific color thresholds. Install the pinned current release over it below.
           sudo apt-get install -y gcc-14 g++-14 lcov mandoc fuse3 libfuse3-3
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 \
             --slave /usr/bin/g++ g++ /usr/bin/g++-14 \
@@ -193,6 +195,8 @@ jobs:
           sudo update-alternatives --set gcc /usr/bin/gcc-14
           gcc --version
           gcov --version
+          tools/install_lcov.sh "${RUNNER_TEMP}/lcov"
+          echo "${RUNNER_TEMP}/lcov/bin" >>"${GITHUB_PATH}"
       - name: Collect and enforce coverage
         # This does not enable the FUSE extension; --config=xff_docs enables every extension.
         # The Linux coverage runner installs fuse3 and can mount through the kernel, so a failed
@@ -218,19 +222,22 @@ jobs:
             --policy coverage_policy.json \
             --source-root coverage-source-tree
           python3 tools/coverage_lcovrc.py coverage_policy.json coverage.lcovrc
+          # LLVM can mark a hit line whose branches remain unevaluated, and GCC 14 cannot provide
+          # function-end exclusions. LCOV 2.5 calls these inconsistent/corrupt and unsupported;
+          # repeating the warning categories suppresses their expected warning summaries.
           genhtml coverage-html.lcov \
             --branch-coverage \
             --config-file coverage.lcovrc \
             --demangle-cpp \
             --function-coverage \
-            --ignore-errors negative \
-            --legend \
+            --ignore-errors corrupt,inconsistent,inconsistent,negative,unsupported,unsupported \
             --output-directory coverage-html/lcov \
             --prefix "${PWD}/coverage-source-tree" \
             --show-details \
             --title "xff production coverage"
+          python3 tools/coverage_html.py coverage-html/lcov coverage_policy.json
           python3 -m unittest tools/coverage_test.py tools/coverage_sources_test.py \
-            tools/coverage_index_test.py tools/coverage_lcovrc_test.py
+            tools/coverage_html_test.py tools/coverage_index_test.py tools/coverage_lcovrc_test.py
           BASE_ARGS=()
           if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
             git fetch --quiet --no-tags origin main

@@ -85,15 +85,14 @@ class CoverageTest(unittest.TestCase):
             targets["program / matching"],
         )
 
-    def test_override_below_target_is_low_not_failed(self):
+    def test_passing_measurement_below_target_is_ok(self):
         metrics = {
             "lines": {"covered": 8, "total": 10, "percent": 80.0},
             "functions": {"covered": 7, "total": 10, "percent": 70.0},
             "branches": {"covered": 6, "total": 10, "percent": 60.0},
         }
         floor = {"lines": 75, "functions": 60, "branches": 50}
-        target = {"lines": 90, "functions": 80, "branches": 70}
-        self.assertEqual("**LOW: L/F/B**", coverage_tool.coverage_status(metrics, floor, target))
+        self.assertEqual("OK", coverage_tool.coverage_status(metrics, floor))
         self.assertEqual([], coverage_tool.failures({"area": metrics}, {"area": floor}))
 
     def test_changed_lines_only_count_coverable_lines(self):
