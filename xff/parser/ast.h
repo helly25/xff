@@ -37,6 +37,7 @@ namespace xff::parser {
 enum class FuzzyModel { kFzf, kSequence, kLevenshtein, kShingles };
 
 inline constexpr int kDefaultSimilarityThresholdPercent = 80;
+inline constexpr std::size_t kDefaultSimilarityShingleWidth = 5;
 
 struct Expr;
 using ExprPtr = std::unique_ptr<Expr>;
@@ -89,7 +90,7 @@ struct Expr {
   FuzzyModel fuzzy_model = FuzzyModel::kFzf;
   // -similar[:WIDTH[:PCT%]]: contiguous word-shingle width and minimum Jaccard similarity.
   // Defaults are the v1 design-of-record: five words and 80 percent.
-  std::size_t similarity_width = 5;
+  std::size_t similarity_width = kDefaultSimilarityShingleWidth;
   int similarity_threshold = kDefaultSimilarityThresholdPercent;
   // Case folding forced on by the resolved --case mode (parser::ApplyCaseMode), for the
   // otherwise case-sensitive matchers (-name/-path/-content and, via a recompiled

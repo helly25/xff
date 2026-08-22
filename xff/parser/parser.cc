@@ -607,9 +607,9 @@ class ExprParser {
       // `:WIDTH`, `:PCT%`, or `:WIDTH:PCT%`. The bare defaults are width 5 and 80%.
       if (const registry::Descriptor* const descriptor = registry::Lookup(base);
           descriptor != nullptr && descriptor->binding == registry::Binding::kSimilarity) {
-        std::string_view value = std::string_view(token).substr(colon + 1);
-        std::size_t width = 5;
-        int threshold = 80;
+        const std::string_view value = std::string_view(token).substr(colon + 1);
+        std::size_t width = kDefaultSimilarityShingleWidth;
+        int threshold = kDefaultSimilarityThresholdPercent;
         const auto parse_threshold = [&](std::string_view text) -> bool {
           if (!text.ends_with('%')) {
             return false;

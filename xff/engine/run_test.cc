@@ -585,8 +585,10 @@ TEST_F(RunTest, SimilarSkipsBinaryAndMissingReferenceContent) {
   { std::ofstream(root_ / "reference.txt") << "one two three four five"; }
   {
     std::ofstream binary(root_ / "binary.txt", std::ios::binary);
-    constexpr char kContent[] = "one two\0three four five";
-    binary.write(kContent, static_cast<std::streamsize>(sizeof(kContent) - 1));
+    std::string content = "one two";
+    content.push_back('\0');
+    content.append("three four five");
+    binary.write(content.data(), static_cast<std::streamsize>(content.size()));
   }
   EXPECT_THAT(RunExpr({"-name", "binary.txt", "-similar:0%", Path("reference.txt")}), IsEmpty());
   EXPECT_THAT(RunExpr({"-name", "a.txt", "-similar:0%", Path("missing.txt")}), IsEmpty());

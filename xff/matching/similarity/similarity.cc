@@ -20,7 +20,7 @@ std::vector<std::string> Words(std::string_view text) {
   std::vector<std::string> words;
   std::string word;
   for (const char value : text) {
-    const unsigned char byte = static_cast<unsigned char>(value);
+    const auto byte = static_cast<unsigned char>(value);
     if (byte >= 0x80 || absl::ascii_isalnum(value)) {
       word.push_back(absl::ascii_tolower(value));
     } else if (!word.empty()) {
@@ -66,7 +66,7 @@ int WordShinglePercent(std::string_view lhs, std::string_view rhs, std::size_t w
     intersection += rhs_shingles.contains(shingle) ? 1 : 0;
   }
   const std::size_t union_size = lhs_shingles.size() + rhs_shingles.size() - intersection;
-  return static_cast<int>((100 * intersection + union_size / 2) / union_size);
+  return static_cast<int>(((100 * intersection) + (union_size / 2)) / union_size);
 }
 
 }  // namespace xff::similarity
