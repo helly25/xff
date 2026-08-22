@@ -227,6 +227,22 @@ repos:
         entry: 'load\("@rules_cc//cc:defs\.bzl"[^)]*"cc_(binary|library|test)"'
         files: (^|/)BUILD(\.bazel)?$
         exclude: ^(extra_modules|xff_extras_api|third_party)/
+      - id: check-bazel-policy
+        name: Bazel packages are private and headers are checked
+        description: |
+          Every BUILD package defaults to private visibility, so cross-package APIs must opt in at
+          their target. Both target and exec C++ compilation enable layering_check and parse_headers.
+          The repository check covers existing files and makes new packages fail closed.
+        language: script
+        entry: tools/check_bazel_policy.py
+        files: (^|/)(BUILD(\.bazel)?|\.bazelrc)$|^tools/check_bazel_policy\.py$
+        pass_filenames: false
+      - id: check-bazel-policy-test
+        name: Test the Bazel policy check
+        language: script
+        entry: tools/check_bazel_policy_test.py
+        files: ^tools/check_bazel_policy(_test)?\.py$
+        pass_filenames: false
       - id: check-cc-target-naming
         name: cc_library targets end in _cc
         description: |

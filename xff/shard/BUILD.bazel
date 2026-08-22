@@ -15,6 +15,8 @@
 
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
+package(default_visibility = ["//visibility:private"])
+
 # Sharded-file detection (#84): decodes a single filename into its logical shard
 # identity (stem / index / total / tail). Grouping, dedup, completeness and the
 # `--shards` CLI surface layer on top. See docs/design.md "Sharded files".

@@ -15,6 +15,8 @@
 
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
+package(default_visibility = ["//visibility:private"])
+
 # Centralized, mutex-guarded, read-once access to the process environment: the single getenv
 # site in the codebase (see env.h). Every other module reads the environment through this.
 cc_library(

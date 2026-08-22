@@ -19,9 +19,12 @@
 
 load("//xff/golden:golden.bzl", "xff_golden")
 
-package(default_visibility = ["//xff:__subpackages__"])
+package(default_visibility = ["//visibility:private"])
 
-exports_files(["golden_driver.sh"])
+exports_files(
+    ["golden_driver.sh"],
+    visibility = ["//xff:__subpackages__"],
+)
 
 # Baseline traversal: find and xff agree on which files a `-type f` walk yields.
 xff_golden(

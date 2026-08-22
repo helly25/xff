@@ -15,6 +15,8 @@
 
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
+package(default_visibility = ["//visibility:private"])
+
 # Shared parsing of CLI option values into one permissive vocabulary: yes/true/1
 # and no/false/0 for booleans, plus auto and the always/never color idiom for
 # tri-state flags (--color / --unicode / --help-color, --implicit-print, ...).
