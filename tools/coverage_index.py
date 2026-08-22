@@ -29,6 +29,7 @@ def _page(title: str, body: str) -> str:
       table {{ border-collapse: collapse; margin: 1rem 0 2rem; }}
       th, td {{ border: 1px solid #d0d7de; padding: .35rem .65rem; text-align: right; }}
       th:nth-child(-n+5), td:nth-child(-n+5) {{ text-align: left; }}
+      td:nth-child(n+3) {{ font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }}
       .fail {{ font-weight: bold; color: #cf222e; }}
     </style>
   </head>

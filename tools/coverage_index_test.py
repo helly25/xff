@@ -62,6 +62,7 @@ class CoverageIndexTest(unittest.TestCase):
             self.assertIn("2026-08-22 10:01:00 UTC", rendered)
             self.assertIn('href="https://github.com/helly25/xff/commit/abc"><code>abc</code></a>', rendered)
             self.assertIn('href="https://github.com/helly25/xff/actions/runs/1">run 1</a>', rendered)
+            self.assertIn("font-variant-numeric: tabular-nums", rendered)
             self.assertLess(rendered.index('href="main/"'), rendered.index('href="tag/0.10.0/"'))
             self.assertLess(rendered.index('href="tag/0.10.0/"'), rendered.index('href="tag/0.9.0/"'))
             self.assertLess(rendered.index('href="tag/0.9.0/"'), rendered.index('href="pr/42/"'))
