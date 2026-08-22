@@ -28,7 +28,7 @@ class CoverageIndexTest(unittest.TestCase):
         self.assertIn('href="lcov/"', rendered)
         self.assertIn('href="../../"', rendered)
 
-    def test_site_shows_latest_metrics_and_sorts_numbers_not_text(self):
+    def test_site_shows_all_metrics_with_main_first_and_numeric_sorting(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             for report in ("main", "pr/9", "pr/42", "tag/0.9.0", "tag/0.10.0"):
@@ -39,11 +39,15 @@ class CoverageIndexTest(unittest.TestCase):
 
             rendered = coverage_index.render_site(root)
 
-            self.assertIn("Latest", rendered)
             self.assertIn("PR 42", rendered)
+            self.assertIn("PR 9", rendered)
             self.assertIn("release 0.10.0", rendered)
+            self.assertIn("release 0.9.0", rendered)
+            self.assertLess(rendered.index('href="main/"'), rendered.index('href="tag/0.10.0/"'))
             self.assertLess(rendered.index('href="tag/0.10.0/"'), rendered.index('href="tag/0.9.0/"'))
+            self.assertLess(rendered.index('href="tag/0.9.0/"'), rendered.index('href="pr/42/"'))
             self.assertLess(rendered.index('href="pr/42/"'), rendered.index('href="pr/9/"'))
+            self.assertNotIn("<ul>", rendered)
 
     def test_empty_site_says_no_reports_are_available(self):
         with tempfile.TemporaryDirectory() as directory:

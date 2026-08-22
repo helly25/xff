@@ -114,28 +114,21 @@ def render_site(root: Path) -> str:
     """Returns the overview for all retained reports below root."""
     releases = sorted(_reports(root, "tag"), key=_version_key, reverse=True)
     pull_requests = sorted(_reports(root, "pr"), key=lambda value: int(value), reverse=True)
-    latest = []
+    reports = []
     if (root / "main" / "index.html").is_file():
-        latest.append(("main", "main"))
-    if releases:
-        latest.append((f"tag/{releases[0]}", f"release {releases[0]}"))
-    if pull_requests:
-        latest.append((f"pr/{pull_requests[0]}", f"PR {pull_requests[0]}"))
-    rows = "\n".join(_short_row(root, target, label) for target, label in latest)
+        reports.append(("main", "main"))
+    reports.extend((f"tag/{release}", f"release {release}") for release in releases)
+    reports.extend((f"pr/{number}", f"PR {number}") for number in pull_requests)
+    rows = "\n".join(_short_row(root, target, label) for target, label in reports)
     body = "    <h1>xff coverage reports</h1>\n"
     if rows:
-        body += """    <h2>Latest</h2>
-    <table><thead><tr><th>Report</th><th>Lines</th><th>Functions</th><th>Branches</th></tr></thead>
+        body += """    <table><thead><tr><th>Report</th><th>Lines</th><th>Functions</th><th>Branches</th></tr></thead>
       <tbody>
 """ + rows + """
       </tbody>
     </table>
 """
-    for heading, prefix, reports in (("Releases", "tag", releases), ("Pull requests", "pr", pull_requests)):
-        if reports:
-            links = "\n".join(f'      <li><a href="{prefix}/{html.escape(report)}/">{html.escape(report)}</a></li>' for report in reports)
-            body += f"    <h2>{heading}</h2>\n    <ul>\n{links}\n    </ul>\n"
-    if not latest:
+    if not reports:
         body += "    <p>No coverage reports are available.</p>\n"
     return _page("xff coverage reports", body)
 
