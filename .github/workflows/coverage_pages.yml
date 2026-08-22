@@ -52,7 +52,9 @@ jobs:
             echo "Invalid coverage target: ${target}" >&2
             exit 1
           fi
-          # Migrate the original flat PR namespace without breaking links already shared in reviews.
+          # Migrate every report produced before the namespaced PR layout was introduced. This is
+          # deliberately registry-like rather than naming PR 609/610: any old retained prN report
+          # is moved once, and future reports are written directly below pr/N.
           for legacy in site/coverage/pr[1-9]*; do
             if [[ ! -d "${legacy}" ]]; then
               continue
@@ -60,11 +62,6 @@ jobs:
             number="${legacy##*pr}"
             mkdir -p site/coverage/pr
             git -C site mv "coverage/pr${number}" "coverage/pr/${number}"
-            mkdir -p "site/coverage/pr${number}"
-            printf '%s\n' \
-              '<!doctype html><meta http-equiv="refresh" content="0; url=../pr/'"${number}"'/">' \
-              '<link rel="canonical" href="../pr/'"${number}"'/">' \
-              >"site/coverage/pr${number}/index.html"
           done
           mkdir -p "site/coverage/${target}"
           rsync --archive --delete report/coverage-html/ "site/coverage/${target}/"
