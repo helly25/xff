@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 15:30:13</td>
+            <td class="headerValue">2026-08-22 16:20:48</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -1390,34 +1390,34 @@
 <span id="L1312"><span class="lineNum">    1312</span>                 :             : </span>
 <span id="L1313"><span class="lineNum">    1313</span>                 :             : }  // namespace</span>
 <span id="L1314"><span class="lineNum">    1314</span>                 :             : </span>
-<span id="L1315"><span class="lineNum">    1315</span>                 :<span class="tlaGNC tlaBgGNC">       10437 : absl::Span&lt;const GlobalFlag&gt; Globals() {</span></span>
-<span id="L1316"><span class="lineNum">    1316</span>                 :<span class="tlaGNC">       10437 :   return kGlobals;</span></span>
+<span id="L1315"><span class="lineNum">    1315</span>                 :<span class="tlaGNC tlaBgGNC">       10484 : absl::Span&lt;const GlobalFlag&gt; Globals() {</span></span>
+<span id="L1316"><span class="lineNum">    1316</span>                 :<span class="tlaGNC">       10484 :   return kGlobals;</span></span>
 <span id="L1317"><span class="lineNum">    1317</span>                 :             : }</span>
 <span id="L1318"><span class="lineNum">    1318</span>                 :             : </span>
-<span id="L1319"><span class="lineNum">    1319</span>                 :<span class="tlaGNC">        2557 : const GlobalFlag* LookupGlobal(std::string_view name) {</span></span>
-<span id="L1320"><span class="lineNum">    1320</span>         [<span class="tlaGBC" title="Branch 0 was taken 113579 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 475 times"> + </span>]:<span class="tlaGNC">      114054 :   for (const GlobalFlag&amp; flag : kGlobals) {</span></span>
-<span id="L1321"><span class="lineNum">    1321</span>   [<span class="tlaGBC" title="Branch 0 was taken 111554 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2025 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 9126 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 102428 times"> + </span> :<span class="tlaGNC">      113579 :     if (flag.name == name || (!flag.alias.empty() &amp;&amp; flag.alias == name)) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 4 was taken 57 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 9069 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 2082 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 111497 times"> + </span>]
-<span id="L1322"><span class="lineNum">    1322</span>                 :<span class="tlaGNC">        2082 :       return &amp;flag;</span></span>
+<span id="L1319"><span class="lineNum">    1319</span>                 :<span class="tlaGNC">        2561 : const GlobalFlag* LookupGlobal(std::string_view name) {</span></span>
+<span id="L1320"><span class="lineNum">    1320</span>         [<span class="tlaGBC" title="Branch 0 was taken 113667 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 476 times"> + </span>]:<span class="tlaGNC">      114143 :   for (const GlobalFlag&amp; flag : kGlobals) {</span></span>
+<span id="L1321"><span class="lineNum">    1321</span>   [<span class="tlaGBC" title="Branch 0 was taken 111639 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2028 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 9133 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 102506 times"> + </span> :<span class="tlaGNC">      113667 :     if (flag.name == name || (!flag.alias.empty() &amp;&amp; flag.alias == name)) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 4 was taken 57 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 9076 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 2085 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 111582 times"> + </span>]
+<span id="L1322"><span class="lineNum">    1322</span>                 :<span class="tlaGNC">        2085 :       return &amp;flag;</span></span>
 <span id="L1323"><span class="lineNum">    1323</span>                 :             :     }</span>
 <span id="L1324"><span class="lineNum">    1324</span>                 :             :   }</span>
-<span id="L1325"><span class="lineNum">    1325</span>                 :<span class="tlaGNC">         475 :   return nullptr;</span></span>
+<span id="L1325"><span class="lineNum">    1325</span>                 :<span class="tlaGNC">         476 :   return nullptr;</span></span>
 <span id="L1326"><span class="lineNum">    1326</span>                 :             : }</span>
 <span id="L1327"><span class="lineNum">    1327</span>                 :             : </span>
-<span id="L1328"><span class="lineNum">    1328</span>                 :<span class="tlaGNC">         817 : absl::Status ValidateGlobalValue(std::string_view arg) {</span></span>
-<span id="L1329"><span class="lineNum">    1329</span>                 :<span class="tlaGNC">         817 :   const std::string_view::size_type equals = arg.find('=');</span></span>
-<span id="L1330"><span class="lineNum">    1330</span>         [<span class="tlaGBC" title="Branch 0 was taken 229 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 588 times"> + </span>]:<span class="tlaGNC">         817 :   if (equals == std::string_view::npos) {</span></span>
+<span id="L1328"><span class="lineNum">    1328</span>                 :<span class="tlaGNC">         818 : absl::Status ValidateGlobalValue(std::string_view arg) {</span></span>
+<span id="L1329"><span class="lineNum">    1329</span>                 :<span class="tlaGNC">         818 :   const std::string_view::size_type equals = arg.find('=');</span></span>
+<span id="L1330"><span class="lineNum">    1330</span>         [<span class="tlaGBC" title="Branch 0 was taken 229 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 589 times"> + </span>]:<span class="tlaGNC">         818 :   if (equals == std::string_view::npos) {</span></span>
 <span id="L1331"><span class="lineNum">    1331</span>                 :<span class="tlaGNC">         229 :     return absl::OkStatus();  // a bare or sign-suffixed form carries no value to check</span></span>
 <span id="L1332"><span class="lineNum">    1332</span>                 :             :   }</span>
-<span id="L1333"><span class="lineNum">    1333</span>                 :<span class="tlaGNC">         588 :   const std::string_view name = arg.substr(0, equals);</span></span>
-<span id="L1334"><span class="lineNum">    1334</span>                 :<span class="tlaGNC">         588 :   const std::string_view value = arg.substr(equals + 1);</span></span>
-<span id="L1335"><span class="lineNum">    1335</span>                 :<span class="tlaGNC">         588 :   const GlobalFlag* const flag = LookupGlobal(name);</span></span>
-<span id="L1336"><span class="lineNum">    1336</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 587 times"> + </span>]:<span class="tlaGNC">         588 :   if (flag == nullptr) {</span></span>
+<span id="L1333"><span class="lineNum">    1333</span>                 :<span class="tlaGNC">         589 :   const std::string_view name = arg.substr(0, equals);</span></span>
+<span id="L1334"><span class="lineNum">    1334</span>                 :<span class="tlaGNC">         589 :   const std::string_view value = arg.substr(equals + 1);</span></span>
+<span id="L1335"><span class="lineNum">    1335</span>                 :<span class="tlaGNC">         589 :   const GlobalFlag* const flag = LookupGlobal(name);</span></span>
+<span id="L1336"><span class="lineNum">    1336</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 588 times"> + </span>]:<span class="tlaGNC">         589 :   if (flag == nullptr) {</span></span>
 <span id="L1337"><span class="lineNum">    1337</span>                 :<span class="tlaGNC">           1 :     return absl::OkStatus();  // unknown flag: IsKnownGlobal reports it, with a better message</span></span>
 <span id="L1338"><span class="lineNum">    1338</span>                 :             :   }</span>
-<span id="L1339"><span class="lineNum">    1339</span>   [<span class="tlaGBC" title="Branch 0 was taken 188 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 97 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 302 times"> + </span> :<span class="tlaGNC">         587 :   switch (flag-&gt;value_check) {</span></span>
+<span id="L1339"><span class="lineNum">    1339</span>   [<span class="tlaGBC" title="Branch 0 was taken 189 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 97 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 302 times"> + </span> :<span class="tlaGNC">         588 :   switch (flag-&gt;value_check) {</span></span>
 <span class="lineNum">        </span>             <span class="tlaUNC" title="Branch 4 was not taken"> - </span>]
-<span id="L1340"><span class="lineNum">    1340</span>                 :<span class="tlaGNC">         188 :     case GlobalFlag::ValueCheck::kNone: return absl::OkStatus();</span></span>
+<span id="L1340"><span class="lineNum">    1340</span>                 :<span class="tlaGNC">         189 :     case GlobalFlag::ValueCheck::kNone: return absl::OkStatus();</span></span>
 <span id="L1341"><span class="lineNum">    1341</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     case GlobalFlag::ValueCheck::kBool:</span></span>
 <span id="L1342"><span class="lineNum">    1342</span>         [<span class="tlaUNC" title="Branch 0 was not executed"> # </span><span class="tlaUNC" title="Branch 1 was not executed"> # </span>]:<span class="tlaUNC">           0 :       if (values::ParseBool(value).has_value()) {</span></span>
 <span id="L1343"><span class="lineNum">    1343</span>                 :<span class="tlaUNC">           0 :         return absl::OkStatus();</span></span>
@@ -1453,36 +1453,36 @@
 <span id="L1373"><span class="lineNum">    1373</span>                 :<span class="tlaGNC">          22 :       absl::StrCat(&quot;unknown value '&quot;, value, &quot;' for &quot;, flag-&gt;name, &quot; (accepted: &quot;, accepted, &quot;)&quot;));</span></span>
 <span id="L1374"><span class="lineNum">    1374</span>                 :             : }</span>
 <span id="L1375"><span class="lineNum">    1375</span>                 :             : </span>
-<span id="L1376"><span class="lineNum">    1376</span>                 :<span class="tlaGNC">         801 : bool IsKnownGlobal(std::string_view arg) {</span></span>
+<span id="L1376"><span class="lineNum">    1376</span>                 :<span class="tlaGNC">         802 : bool IsKnownGlobal(std::string_view arg) {</span></span>
 <span id="L1377"><span class="lineNum">    1377</span>                 :             :   // The sign ladders come from the flags themselves (GlobalFlag::sign_forms), so a new one is</span>
 <span id="L1378"><span class="lineNum">    1378</span>                 :             :   // recognised by declaring it rather than by also editing a list here.</span>
-<span id="L1379"><span class="lineNum">    1379</span>         [<span class="tlaGBC" title="Branch 0 was taken 63625 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 734 times"> + </span>]:<span class="tlaGNC">       64359 :   for (const GlobalFlag&amp; flag : Globals()) {</span></span>
-<span id="L1380"><span class="lineNum">    1380</span>         [<span class="tlaGBC" title="Branch 0 was taken 67 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 63558 times"> + </span>]:<span class="tlaGNC">       63625 :     if (absl::c_contains(flag.sign_forms, arg)) {</span></span>
+<span id="L1379"><span class="lineNum">    1379</span>         [<span class="tlaGBC" title="Branch 0 was taken 63710 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 735 times"> + </span>]:<span class="tlaGNC">       64445 :   for (const GlobalFlag&amp; flag : Globals()) {</span></span>
+<span id="L1380"><span class="lineNum">    1380</span>         [<span class="tlaGBC" title="Branch 0 was taken 67 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 63643 times"> + </span>]:<span class="tlaGNC">       63710 :     if (absl::c_contains(flag.sign_forms, arg)) {</span></span>
 <span id="L1381"><span class="lineNum">    1381</span>                 :<span class="tlaGNC">          67 :       return true;</span></span>
 <span id="L1382"><span class="lineNum">    1382</span>                 :             :     }</span>
 <span id="L1383"><span class="lineNum">    1383</span>                 :             :   }</span>
 <span id="L1384"><span class="lineNum">    1384</span>                 :             :   // What is left are the compat aliases that carry no sign: -0 (= --format=nul) and -i</span>
 <span id="L1385"><span class="lineNum">    1385</span>                 :             :   // (= --case=insensitive).</span>
-<span id="L1386"><span class="lineNum">    1386</span>   [<span class="tlaGBC" title="Branch 0 was taken 733 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 3 was taken 732 times"> + </span> :<span class="tlaGNC">         734 :   if (arg == &quot;-0&quot; || arg == &quot;-i&quot;) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 732 times"> + </span>]
+<span id="L1386"><span class="lineNum">    1386</span>   [<span class="tlaGBC" title="Branch 0 was taken 734 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 3 was taken 733 times"> + </span> :<span class="tlaGNC">         735 :   if (arg == &quot;-0&quot; || arg == &quot;-i&quot;) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 733 times"> + </span>]
 <span id="L1387"><span class="lineNum">    1387</span>                 :<span class="tlaGNC">           2 :     return true;</span></span>
 <span id="L1388"><span class="lineNum">    1388</span>                 :             :   }</span>
 <span id="L1389"><span class="lineNum">    1389</span>                 :             :   // The short jobs form carries its value attached: -j4, -jall (the &quot;=&quot; form --jobs=N</span>
 <span id="L1390"><span class="lineNum">    1390</span>                 :             :   // is handled by the valued-name path below via the -j alias).</span>
-<span id="L1391"><span class="lineNum">    1391</span>   [<span class="tlaGBC" title="Branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 723 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">         732 :   if (arg.starts_with(&quot;-j&quot;) &amp;&amp; arg.size() &gt; 2) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 724 times"> + </span>]
+<span id="L1391"><span class="lineNum">    1391</span>   [<span class="tlaGBC" title="Branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 724 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">         733 :   if (arg.starts_with(&quot;-j&quot;) &amp;&amp; arg.size() &gt; 2) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 725 times"> + </span>]
 <span id="L1392"><span class="lineNum">    1392</span>                 :<span class="tlaGNC">           8 :     return true;</span></span>
 <span id="L1393"><span class="lineNum">    1393</span>                 :             :   }</span>
 <span id="L1394"><span class="lineNum">    1394</span>                 :             :   // An exact name or alias (bare flags, and valued flags used without a value).</span>
-<span id="L1395"><span class="lineNum">    1395</span>         [<span class="tlaGBC" title="Branch 0 was taken 266 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 458 times"> + </span>]:<span class="tlaGNC">         724 :   if (LookupGlobal(arg) != nullptr) {</span></span>
+<span id="L1395"><span class="lineNum">    1395</span>         [<span class="tlaGBC" title="Branch 0 was taken 266 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 459 times"> + </span>]:<span class="tlaGNC">         725 :   if (LookupGlobal(arg) != nullptr) {</span></span>
 <span id="L1396"><span class="lineNum">    1396</span>                 :<span class="tlaGNC">         266 :     return true;</span></span>
 <span id="L1397"><span class="lineNum">    1397</span>                 :             :   }</span>
 <span id="L1398"><span class="lineNum">    1398</span>                 :             :   // A valued form name=VALUE / alias=VALUE: the key must resolve to a flag that</span>
 <span id="L1399"><span class="lineNum">    1399</span>                 :             :   // advertises a value (its display contains '='), so `--safe=x` stays unknown while</span>
 <span id="L1400"><span class="lineNum">    1400</span>                 :             :   // `--sort=tree` / `--define=A=B` are accepted (only the key before the first '=').</span>
-<span id="L1401"><span class="lineNum">    1401</span>         [<span class="tlaGBC" title="Branch 0 was taken 445 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">         458 :   if (const std::string_view::size_type eq = arg.find('='); eq != std::string_view::npos) {</span></span>
-<span id="L1402"><span class="lineNum">    1402</span>                 :<span class="tlaGNC">         445 :     const GlobalFlag* const flag = LookupGlobal(arg.substr(0, eq));</span></span>
-<span id="L1403"><span class="lineNum">    1403</span>   [<span class="tlaGBC" title="Branch 0 was taken 444 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 2 was taken 443 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">         445 :     return flag != nullptr &amp;&amp; absl::StrContains(flag-&gt;display, '=');</span></span>
+<span id="L1401"><span class="lineNum">    1401</span>         [<span class="tlaGBC" title="Branch 0 was taken 446 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">         459 :   if (const std::string_view::size_type eq = arg.find('='); eq != std::string_view::npos) {</span></span>
+<span id="L1402"><span class="lineNum">    1402</span>                 :<span class="tlaGNC">         446 :     const GlobalFlag* const flag = LookupGlobal(arg.substr(0, eq));</span></span>
+<span id="L1403"><span class="lineNum">    1403</span>   [<span class="tlaGBC" title="Branch 0 was taken 445 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 2 was taken 444 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">         446 :     return flag != nullptr &amp;&amp; absl::StrContains(flag-&gt;display, '=');</span></span>
 <span id="L1404"><span class="lineNum">    1404</span>                 :             :   }</span>
 <span id="L1405"><span class="lineNum">    1405</span>                 :<span class="tlaGNC">          13 :   return false;</span></span>
 <span id="L1406"><span class="lineNum">    1406</span>                 :             : }</span>

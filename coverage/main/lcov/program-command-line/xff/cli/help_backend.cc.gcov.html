@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 15:30:13</td>
+            <td class="headerValue">2026-08-22 16:20:48</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -102,13 +102,13 @@
 <span id="L24"><span class="lineNum">      24</span>                 :             : </span>
 <span id="L25"><span class="lineNum">      25</span>                 :             : // Walks one block list in order. Factored out so it recurses into the nested</span>
 <span id="L26"><span class="lineNum">      26</span>                 :             : // Blocks that Subsection and Entry carry (a section's children, an entry's details).</span>
-<span id="L27"><span class="lineNum">      27</span>                 :<span class="tlaGNC tlaBgGNC">       15807 : void RenderBlocks(const Blocks&amp; blocks, HelpBackend&amp; backend) {</span></span>
-<span id="L28"><span class="lineNum">      28</span>         [<span class="tlaGBC" title="Branch 0 was taken 26196 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 15807 times"> + </span>]:<span class="tlaGNC">       42003 :   for (const Content&amp; content : blocks) {</span></span>
-<span id="L29"><span class="lineNum">      29</span>                 :<span class="tlaGNC">       26196 :     std::visit(</span></span>
-<span id="L30"><span class="lineNum">      30</span>                 :<span class="tlaGNC">       52392 :         [&amp;backend](const auto&amp; node) {</span></span>
+<span id="L27"><span class="lineNum">      27</span>                 :<span class="tlaGNC tlaBgGNC">       15871 : void RenderBlocks(const Blocks&amp; blocks, HelpBackend&amp; backend) {</span></span>
+<span id="L28"><span class="lineNum">      28</span>         [<span class="tlaGBC" title="Branch 0 was taken 26292 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 15871 times"> + </span>]:<span class="tlaGNC">       42163 :   for (const Content&amp; content : blocks) {</span></span>
+<span id="L29"><span class="lineNum">      29</span>                 :<span class="tlaGNC">       26292 :     std::visit(</span></span>
+<span id="L30"><span class="lineNum">      30</span>                 :<span class="tlaGNC">       52584 :         [&amp;backend](const auto&amp; node) {</span></span>
 <span id="L31"><span class="lineNum">      31</span>                 :             :           using Node = std::decay_t&lt;decltype(node)&gt;;</span>
 <span id="L32"><span class="lineNum">      32</span>                 :             :           if constexpr (std::is_same_v&lt;Node, Prose&gt;) {</span>
-<span id="L33"><span class="lineNum">      33</span>                 :<span class="tlaGNC">        8807 :             backend.EmitProse(node);</span></span>
+<span id="L33"><span class="lineNum">      33</span>                 :<span class="tlaGNC">        8840 :             backend.EmitProse(node);</span></span>
 <span id="L34"><span class="lineNum">      34</span>                 :             :           } else if constexpr (std::is_same_v&lt;Node, Example&gt;) {</span>
 <span id="L35"><span class="lineNum">      35</span>                 :<span class="tlaGNC">         858 :             backend.EmitExample(node);</span></span>
 <span id="L36"><span class="lineNum">      36</span>                 :             :           } else if constexpr (std::is_same_v&lt;Node, Bullets&gt;) {</span>
@@ -120,29 +120,29 @@
 <span id="L42"><span class="lineNum">      42</span>                 :             :           } else if constexpr (std::is_same_v&lt;Node, SeeAlso&gt;) {</span>
 <span id="L43"><span class="lineNum">      43</span>                 :<span class="tlaGNC">          33 :             backend.EmitSeeAlso(node);</span></span>
 <span id="L44"><span class="lineNum">      44</span>                 :             :           } else if constexpr (std::is_same_v&lt;Node, Entry&gt;) {</span>
-<span id="L45"><span class="lineNum">      45</span>                 :<span class="tlaGNC">       12655 :             backend.BeginEntry(node);</span></span>
-<span id="L46"><span class="lineNum">      46</span>                 :<span class="tlaGNC">       12655 :             RenderBlocks(node.details, backend);</span></span>
-<span id="L47"><span class="lineNum">      47</span>                 :<span class="tlaGNC">       12655 :             backend.EndEntry(node);</span></span>
+<span id="L45"><span class="lineNum">      45</span>                 :<span class="tlaGNC">       12718 :             backend.BeginEntry(node);</span></span>
+<span id="L46"><span class="lineNum">      46</span>                 :<span class="tlaGNC">       12718 :             RenderBlocks(node.details, backend);</span></span>
+<span id="L47"><span class="lineNum">      47</span>                 :<span class="tlaGNC">       12718 :             backend.EndEntry(node);</span></span>
 <span id="L48"><span class="lineNum">      48</span>                 :             :           } else if constexpr (std::is_same_v&lt;Node, Subsection&gt;) {</span>
 <span id="L49"><span class="lineNum">      49</span>                 :<span class="tlaGNC">        2439 :             backend.BeginSubsection(node);</span></span>
 <span id="L50"><span class="lineNum">      50</span>                 :<span class="tlaGNC">        2439 :             RenderBlocks(node.children, backend);</span></span>
 <span id="L51"><span class="lineNum">      51</span>                 :<span class="tlaGNC">        2439 :             backend.EndSubsection(node);</span></span>
 <span id="L52"><span class="lineNum">      52</span>                 :             :           }</span>
-<span id="L53"><span class="lineNum">      53</span>                 :<span class="tlaGNC">       26196 :         },</span></span>
-<span id="L54"><span class="lineNum">      54</span>                 :<span class="tlaGNC">       26196 :         content.node);</span></span>
+<span id="L53"><span class="lineNum">      53</span>                 :<span class="tlaGNC">       26292 :         },</span></span>
+<span id="L54"><span class="lineNum">      54</span>                 :<span class="tlaGNC">       26292 :         content.node);</span></span>
 <span id="L55"><span class="lineNum">      55</span>                 :             :   }</span>
-<span id="L56"><span class="lineNum">      56</span>                 :<span class="tlaGNC">       15807 : }</span></span>
+<span id="L56"><span class="lineNum">      56</span>                 :<span class="tlaGNC">       15871 : }</span></span>
 <span id="L57"><span class="lineNum">      57</span>                 :             : </span>
 <span id="L58"><span class="lineNum">      58</span>                 :             : }  // namespace</span>
 <span id="L59"><span class="lineNum">      59</span>                 :             : </span>
-<span id="L60"><span class="lineNum">      60</span>                 :<span class="tlaGNC">         198 : void RenderDocument(const Document&amp; doc, HelpBackend&amp; backend) {</span></span>
-<span id="L61"><span class="lineNum">      61</span>                 :<span class="tlaGNC">         198 :   backend.Preamble(doc);</span></span>
-<span id="L62"><span class="lineNum">      62</span>         [<span class="tlaGBC" title="Branch 0 was taken 713 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 198 times"> + </span>]:<span class="tlaGNC">         911 :   for (const Section&amp; section : doc.sections) {</span></span>
-<span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">         713 :     backend.BeginSection(section);</span></span>
-<span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">         713 :     RenderBlocks(section.children, backend);</span></span>
-<span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaGNC">         713 :     backend.EndSection(section);</span></span>
+<span id="L60"><span class="lineNum">      60</span>                 :<span class="tlaGNC">         199 : void RenderDocument(const Document&amp; doc, HelpBackend&amp; backend) {</span></span>
+<span id="L61"><span class="lineNum">      61</span>                 :<span class="tlaGNC">         199 :   backend.Preamble(doc);</span></span>
+<span id="L62"><span class="lineNum">      62</span>         [<span class="tlaGBC" title="Branch 0 was taken 714 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 199 times"> + </span>]:<span class="tlaGNC">         913 :   for (const Section&amp; section : doc.sections) {</span></span>
+<span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">         714 :     backend.BeginSection(section);</span></span>
+<span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">         714 :     RenderBlocks(section.children, backend);</span></span>
+<span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaGNC">         714 :     backend.EndSection(section);</span></span>
 <span id="L66"><span class="lineNum">      66</span>                 :             :   }</span>
-<span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">         198 : }</span></span>
+<span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">         199 : }</span></span>
 <span id="L68"><span class="lineNum">      68</span>                 :             : </span>
 <span id="L69"><span class="lineNum">      69</span>                 :             : }  // namespace xff::cli</span>
         </pre>
