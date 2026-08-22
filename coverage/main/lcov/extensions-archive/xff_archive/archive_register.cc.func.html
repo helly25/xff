@@ -31,18 +31,18 @@
             <td class="headerValue">xff production coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">94.6&nbsp;%</td>
-            <td class="headerCovTableEntry">56</td>
-            <td class="headerCovTableEntry">53</td>
+            <td class="headerCovTableEntryHi">96.2&nbsp;%</td>
+            <td class="headerCovTableEntry">79</td>
+            <td class="headerCovTableEntry">76</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 17:09:26</td>
+            <td class="headerValue">2026-08-22 18:36:20</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
-            <td class="headerCovTableEntry">6</td>
-            <td class="headerCovTableEntry">6</td>
+            <td class="headerCovTableEntry">10</td>
+            <td class="headerCovTableEntry">10</td>
           </tr>
           <tr>
             <td class="headerItem">Legend:</td>
@@ -56,9 +56,9 @@
 </td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryMed">85.7&nbsp;%</td>
-            <td class="headerCovTableEntry">28</td>
-            <td class="headerCovTableEntry">24</td>
+            <td class="headerCovTableEntryMed">88.9&nbsp;%</td>
+            <td class="headerCovTableEntry">36</td>
+            <td class="headerCovTableEntry">32</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -79,44 +79,72 @@
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="archive_register.cc.gcov.html#L49">xff::archive::(anonymous namespace)::OpenArchiveContainer(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;, std::optional&lt;std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt; &gt;, xff::archive::MemberPathOptions)</a></td>
+              <td class="coverFn"><a href="archive_register.cc.gcov.html#L250">xff::archive::(anonymous namespace)::AggregatePackFormats()</a></td>
               
-              <td class="coverFnHi">82</td>
-              
-              
-            </tr>
-            <tr>
-              <td class="coverFn"><a href="archive_register.cc.gcov.html#L143">xff::archive::(anonymous namespace)::PackArchiveContainer(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;, std::vector&lt;xff::archive::PackFile, std::allocator&lt;xff::archive::PackFile&gt; &gt; const&amp;, xff::archive::PackOptions const&amp;)</a></td>
-              
-              <td class="coverFnHi">20</td>
+              <td class="coverFnHi">267</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="archive_register.cc.gcov.html#L162">xff::archive::(anonymous namespace)::PackVocabulary()</a></td>
+              <td class="coverFn"><a href="archive_register.cc.gcov.html#L270">xff::archive::(anonymous namespace)::ArchiveRegistrar::ArchiveRegistrar()</a></td>
               
-              <td class="coverFnHi">126</td>
-              
-              
-            </tr>
-            <tr>
-              <td class="coverFn"><a href="archive_register.cc.gcov.html#L70">xff::archive::(anonymous namespace)::ReadFormats()</a></td>
-              
-              <td class="coverFnHi">126</td>
+              <td class="coverFnHi">134</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="archive_register.cc.gcov.html#L99">xff::archive::(anonymous namespace)::ReadFormatsRegistrar::ReadFormatsRegistrar()</a></td>
+              <td class="coverFn"><a href="archive_register.cc.gcov.html#L226">xff::archive::(anonymous namespace)::PackArchiveContainer(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;, std::vector&lt;xff::archive::PackFile, std::allocator&lt;xff::archive::PackFile&gt; &gt; const&amp;, xff::archive::PackOptions const&amp;)</a></td>
               
-              <td class="coverFnHi">126</td>
+              <td class="coverFnHi">23</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="archive_register.cc.gcov.html#L104">xff::archive::(anonymous namespace)::RemoveArchiveMembers(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;, std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt; const&amp;)</a></td>
+              <td class="coverFn"><a href="archive_register.cc.gcov.html#L238">xff::archive::(anonymous namespace)::PackVocabulary()</a></td>
+              
+              <td class="coverFnHi">267</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="archive_register.cc.gcov.html#L133">xff::archive::(anonymous namespace)::ReadFormats()</a></td>
+              
+              <td class="coverFnHi">267</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="archive_register.cc.gcov.html#L145">xff::archive::(anonymous namespace)::ReadFormats()::{lambda(xff::archive::ReadFormatInfo const&amp;)#1}::operator()(xff::archive::ReadFormatInfo const&amp;) const</a></td>
+              
+              <td class="coverFnHi">5562</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="archive_register.cc.gcov.html#L168">xff::archive::(anonymous namespace)::RemoveArchiveMembers(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;, std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt; const&amp;)</a></td>
               
               <td class="coverFnHi">3</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="archive_register.cc.gcov.html#L54">xff::archive::OpenArchiveContainer(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;, std::optional&lt;std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt; &gt;, xff::archive::MemberPathOptions)</a></td>
+              
+              <td class="coverFnHi">85</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="archive_register.cc.gcov.html#L207">xff::archive::PackNativeArchiveContainer(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;, std::vector&lt;xff::archive::PackFile, std::allocator&lt;xff::archive::PackFile&gt; &gt; const&amp;, xff::archive::PackOptions const&amp;)</a></td>
+              
+              <td class="coverFnHi">29</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="archive_register.cc.gcov.html#L259">xff::archive::RegisterArchiveBackend()</a></td>
+              
+              <td class="coverFnHi">267</td>
               
               
             </tr>

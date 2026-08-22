@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 17:09:26</td>
+            <td class="headerValue">2026-08-22 18:36:20</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -120,7 +120,7 @@
 <span id="L42"><span class="lineNum">      42</span>                 :             :   // common case is a handful of members re-read a handful of times.</span>
 <span id="L43"><span class="lineNum">      43</span>                 :             :   static constexpr std::size_t kDefaultCapacityBytes = std::size_t{64} &lt;&lt; 20U;</span>
 <span id="L44"><span class="lineNum">      44</span>                 :             : </span>
-<span id="L45"><span class="lineNum">      45</span>                 :<span class="tlaGNC tlaBgGNC">          44 :   explicit MemberCache(std::size_t capacity_bytes = kDefaultCapacityBytes) : capacity_(capacity_bytes) {}</span></span>
+<span id="L45"><span class="lineNum">      45</span>                 :<span class="tlaGNC tlaBgGNC">          46 :   explicit MemberCache(std::size_t capacity_bytes = kDefaultCapacityBytes) : capacity_(capacity_bytes) {}</span></span>
 <span id="L46"><span class="lineNum">      46</span>                 :             : </span>
 <span id="L47"><span class="lineNum">      47</span>                 :             :   // The cached content for `key`, refreshing its recency - or nullopt, and the caller extracts.</span>
 <span id="L48"><span class="lineNum">      48</span>                 :             :   [[nodiscard]] std::optional&lt;std::string&gt; Get(std::string_view key) ABSL_LOCKS_EXCLUDED(mutex_);</span>

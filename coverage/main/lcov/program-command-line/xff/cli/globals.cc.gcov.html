@@ -31,13 +31,13 @@
             <td class="headerValue">xff production coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">93.3&nbsp;%</td>
-            <td class="headerCovTableEntry">75</td>
-            <td class="headerCovTableEntry">70</td>
+            <td class="headerCovTableEntryHi">93.7&nbsp;%</td>
+            <td class="headerCovTableEntry">79</td>
+            <td class="headerCovTableEntry">74</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 17:09:26</td>
+            <td class="headerValue">2026-08-22 18:36:20</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -56,9 +56,9 @@
 </td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryHi">92.0&nbsp;%</td>
-            <td class="headerCovTableEntry">75</td>
-            <td class="headerCovTableEntry">69</td>
+            <td class="headerCovTableEntryHi">92.4&nbsp;%</td>
+            <td class="headerCovTableEntry">79</td>
+            <td class="headerCovTableEntry">73</td>
           </tr>
                   <tr><td><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -945,601 +945,610 @@
 <span id="L867"><span class="lineNum">     867</span>                 :             :                    &quot;member list comes from the whole expression vocabulary rather than from a shell pipeline &quot;</span>
 <span id="L868"><span class="lineNum">     868</span>                 :             :                    &quot;into `tar`. The output NAME picks the format - `--help=archive` lists exactly what this &quot;</span>
 <span id="L869"><span class="lineNum">     869</span>                 :             :                    &quot;binary writes, from the writer's own table rather than a copy kept here, and the single-word &quot;</span>
-<span id="L870"><span class="lineNum">     870</span>                 :             :                    &quot;shortcuts (`.tgz`, `.txz`, `.tbz2`, `.tzst`) mean what they do everywhere else; a name &quot;</span>
-<span id="L871"><span class="lineNum">     871</span>                 :             :                    &quot;carrying no format is a usage error reported BEFORE the &quot;</span>
-<span id="L872"><span class="lineNum">     872</span>                 :             :                    &quot;walk, since finding out afterwards would waste the traversal. &quot;</span>
-<span id="L873"><span class="lineNum">     873</span>                 :             :                    &quot;Each member is stored under the entry's path relative to the search root it was found &quot;</span>
-<span id="L874"><span class="lineNum">     874</span>                 :             :                    &quot;under, in the order the walk produced it - so `--sort` decides the order inside the &quot;</span>
-<span id="L875"><span class="lineNum">     875</span>                 :             :                    &quot;archive, and nothing is renamed or re-rooted behind your back. &quot;</span>
-<span id="L876"><span class="lineNum">     876</span>                 :             :                    &quot;Like `--summary` it is a sink: it replaces the per-match listing, while explicit actions &quot;</span>
-<span id="L877"><span class="lineNum">     877</span>                 :             :                    &quot;still run, so add `-print` to watch what goes in. The archive is written after the walk &quot;</span>
-<span id="L878"><span class="lineNum">     878</span>                 :             :                    &quot;and renamed into place only when complete, so an interrupted run leaves no half archive &quot;</span>
-<span id="L879"><span class="lineNum">     879</span>                 :             :                    &quot;and an existing FILE survives a failed one. A file the walk meets that IS the output is &quot;</span>
-<span id="L880"><span class="lineNum">     880</span>                 :             :                    &quot;skipped rather than packed into itself. An archive MEMBER cannot be packed: reading files &quot;</span>
-<span id="L881"><span class="lineNum">     881</span>                 :             :                    &quot;out of one container to re-pack them into another is its own feature, and until it exists &quot;</span>
-<span id="L882"><span class="lineNum">     882</span>                 :             :                    &quot;the run is refused rather than quietly short. A build-time extra, like `--archive`.&quot;,</span>
-<span id="L883"><span class="lineNum">     883</span>                 :             :         .affects = &quot;--sort&quot;,</span>
-<span id="L884"><span class="lineNum">     884</span>                 :             :         .topic = &quot;archive&quot;,</span>
-<span id="L885"><span class="lineNum">     885</span>                 :             :         .extra = &quot;archive&quot;,</span>
-<span id="L886"><span class="lineNum">     886</span>                 :             :     },</span>
-<span id="L887"><span class="lineNum">     887</span>                 :             :     {</span>
-<span id="L888"><span class="lineNum">     888</span>                 :             :         .name = &quot;--pack-option&quot;,</span>
-<span id="L889"><span class="lineNum">     889</span>                 :             :         .display = &quot;--pack-option=NAME=VALUE&quot;,</span>
-<span id="L890"><span class="lineNum">     890</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L891"><span class="lineNum">     891</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L892"><span class="lineNum">     892</span>                 :             :         .summary = &quot;tune how `--pack` writes: repeatable, last value for a NAME wins&quot;,</span>
-<span id="L893"><span class="lineNum">     893</span>                 :             :         .details = &quot;The general knob behind `--pack-level`. NAME is XFF's own vocabulary, not the archive &quot;</span>
-<span id="L894"><span class="lineNum">     894</span>                 :             :                    &quot;library's: each name is translated to whatever the linked writer calls the same thing, &quot;</span>
-<span id="L895"><span class="lineNum">     895</span>                 :             :                    &quot;so an unknown name is a usage error rather than a silent no-op, the accepted set is &quot;</span>
-<span id="L896"><span class="lineNum">     896</span>                 :             :                    &quot;listed by `--help=archive` straight from the writer's table, and swapping or upgrading &quot;</span>
-<span id="L897"><span class="lineNum">     897</span>                 :             :                    &quot;that library changes a translation table instead of the flags you type. A name that &quot;</span>
-<span id="L898"><span class="lineNum">     898</span>                 :             :                    &quot;exists but does not apply to the chosen output format is refused too, naming the formats &quot;</span>
-<span id="L899"><span class="lineNum">     899</span>                 :             :                    &quot;it does apply to - `zip64` is a zip idea, `threads` is not a gzip one. Everything is &quot;</span>
-<span id="L900"><span class="lineNum">     900</span>                 :             :                    &quot;checked before the walk starts, so a typo costs no traversal and writes no file.&quot;,</span>
-<span id="L901"><span class="lineNum">     901</span>                 :             :         .affects = &quot;--pack&quot;,</span>
-<span id="L902"><span class="lineNum">     902</span>                 :             :         .topic = &quot;archive&quot;,</span>
-<span id="L903"><span class="lineNum">     903</span>                 :             :         .extra = &quot;archive&quot;,</span>
-<span id="L904"><span class="lineNum">     904</span>                 :             :     },</span>
-<span id="L905"><span class="lineNum">     905</span>                 :             :     {</span>
-<span id="L906"><span class="lineNum">     906</span>                 :             :         .name = &quot;--pack-level&quot;,</span>
-<span id="L907"><span class="lineNum">     907</span>                 :             :         .display = &quot;--pack-level=N&quot;,</span>
-<span id="L908"><span class="lineNum">     908</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L909"><span class="lineNum">     909</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L910"><span class="lineNum">     910</span>                 :             :         .summary = &quot;compression level for `--pack` (gzip / bzip2 / xz 0-9, zstd 1-22, zip 0-9)&quot;,</span>
-<span id="L911"><span class="lineNum">     911</span>                 :             :         .details = &quot;How hard the compressor works, on the scale the chosen format uses; left alone it is the &quot;</span>
-<span id="L912"><span class="lineNum">     912</span>                 :             :                    &quot;format's own default. Exactly `--pack-option=level=N`, kept as its own spelling because it &quot;</span>
-<span id="L913"><span class="lineNum">     913</span>                 :             :                    &quot;is the one knob every compressed format has - the same relationship `-Z` has to &quot;</span>
-<span id="L914"><span class="lineNum">     914</span>                 :             :                    &quot;`--archive-write`. On a plain `.tar` it is a usage error rather than a no-op, because &quot;</span>
-<span id="L915"><span class="lineNum">     915</span>                 :             :                    &quot;there is no compressor to set a level on and a silently ignored level reads as a smaller &quot;</span>
-<span id="L916"><span class="lineNum">     916</span>                 :             :                    &quot;archive that never arrives.&quot;,</span>
-<span id="L917"><span class="lineNum">     917</span>                 :             :         .affects = &quot;--pack&quot;,</span>
-<span id="L918"><span class="lineNum">     918</span>                 :             :         .topic = &quot;archive&quot;,</span>
-<span id="L919"><span class="lineNum">     919</span>                 :             :         .extra = &quot;archive&quot;,</span>
-<span id="L920"><span class="lineNum">     920</span>                 :             :     },</span>
-<span id="L921"><span class="lineNum">     921</span>                 :             :     {</span>
-<span id="L922"><span class="lineNum">     922</span>                 :             :         .name = &quot;--summary&quot;,</span>
-<span id="L923"><span class="lineNum">     923</span>                 :             :         .display = &quot;--summary[=&lt;GROUP&gt;]&quot;,</span>
-<span id="L924"><span class="lineNum">     924</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L925"><span class="lineNum">     925</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L926"><span class="lineNum">     926</span>                 :             :         .summary = &quot;aligned count + size table (or --format=jsonl rows) instead of each match; repeatable&quot;,</span>
-<span id="L927"><span class="lineNum">     927</span>                 :             :         .details = &quot;Replaces the per-match listing with an aggregate table: match count and total size per group &quot;</span>
-<span id="L928"><span class="lineNum">     928</span>                 :             :                    &quot;(overall, by type, extension, programming language, media (MIME) type, user (owner), owning &quot;</span>
-<span id="L929"><span class="lineNum">     929</span>                 :             :                    &quot;group, or file digest). The categorical keys reuse the {mime}/{user}/{group}/{hash} field &quot;</span>
-<span id="L930"><span class="lineNum">     930</span>                 :             :                    &quot;vocabulary; --summary=hash groups identical files into one bucket (a dedup count, reading every &quot;</span>
-<span id="L931"><span class="lineNum">     931</span>                 :             :                    &quot;file). A &quot;</span>
-<span id="L932"><span class="lineNum">     932</span>                 :             :                    &quot;{template} key groups by any field value (e.g. --summary='{ext}-{type}'); a single m// &quot;</span>
-<span id="L933"><span class="lineNum">     933</span>                 :             :                    &quot;extraction key (--summary='{capture.NAME:m/re/\\1/}') groups per extracted line, so a &quot;</span>
-<span id="L934"><span class="lineNum">     934</span>                 :             :                    &quot;per-file command's multi-line output tallies per key (e.g. git-blame lines per author) - the &quot;</span>
-<span id="L935"><span class="lineNum">     935</span>                 :             :                    &quot;size column is not meaningful there. Repeatable: each --summary is its own table (e.g. &quot;</span>
-<span id="L936"><span class="lineNum">     936</span>                 :             :                    &quot;--summary=ext --summary=type), printed in order. --top=N limits the rows of each, &quot;</span>
-<span id="L937"><span class="lineNum">     937</span>                 :             :                    &quot;--summary-precision sets the scaled-size digits, and --format=jsonl emits one object per group &quot;</span>
-<span id="L938"><span class="lineNum">     938</span>                 :             :                    &quot;for scripts.&quot;,</span>
-<span id="L939"><span class="lineNum">     939</span>                 :             :         .values = kSummaryValues,</span>
-<span id="L940"><span class="lineNum">     940</span>                 :             :         .topic = &quot;stats&quot;,</span>
-<span id="L941"><span class="lineNum">     941</span>                 :             :     },</span>
-<span id="L942"><span class="lineNum">     942</span>                 :             :     {</span>
-<span id="L943"><span class="lineNum">     943</span>                 :             :         .name = &quot;--histogram&quot;,</span>
-<span id="L944"><span class="lineNum">     944</span>                 :             :         .display = &quot;--histogram=BUCKET[:MEASURE]&quot;,</span>
-<span id="L945"><span class="lineNum">     945</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L946"><span class="lineNum">     946</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L947"><span class="lineNum">     947</span>                 :             :         .summary = &quot;bar chart per bucket: a count or sum/mean/min/max of size|lines (repeatable)&quot;,</span>
-<span id="L948"><span class="lineNum">     948</span>                 :             :         .details = &quot;A terminal reduction like --summary, drawn as bars. BUCKET groups the matches - a category &quot;</span>
-<span id="L949"><span class="lineNum">     949</span>                 :             :                    &quot;(overall, type, ext, lang, mime, user (owner), or group) or a numeric-range field &quot;</span>
-<span id="L950"><span class="lineNum">     950</span>                 :             :                    &quot;(size / lines by order of magnitude, depth per level, drawn as an ascending distribution). &quot;</span>
-<span id="L951"><span class="lineNum">     951</span>                 :             :                    &quot;The optional :MEASURE is the bar's value - &quot;</span>
-<span id="L952"><span class="lineNum">     952</span>                 :             :                    &quot;`count` (the default) or an aggregate &quot;</span>
-<span id="L953"><span class="lineNum">     953</span>                 :             :                    &quot;`sum(FIELD)` / `mean(FIELD)` / `min(FIELD)` / `max(FIELD)` over a numeric FIELD (size or lines). &quot;</span>
-<span id="L954"><span class="lineNum">     954</span>                 :             :                    &quot;A numeric metric needs an aggregator (`ext:lines` is an error; `ext:sum(lines)` is not). &quot;</span>
-<span id="L955"><span class="lineNum">     955</span>                 :             :                    &quot;Repeatable and combinable with --summary - both are fed by one walk and replace the per-match &quot;</span>
-<span id="L956"><span class="lineNum">     956</span>                 :             :                    &quot;listing. Bars scale to the tallest, use Unicode block characters on a UTF-8 locale (see &quot;</span>
-<span id="L957"><span class="lineNum">     957</span>                 :             :                    &quot;--unicode) or ASCII '#' otherwise; --top=N keeps the N tallest and --format=jsonl emits one &quot;</span>
-<span id="L958"><span class="lineNum">     958</span>                 :             :                    &quot;object per bar for scripts.&quot;,</span>
-<span id="L959"><span class="lineNum">     959</span>                 :             :         .topic = &quot;stats&quot;,</span>
-<span id="L960"><span class="lineNum">     960</span>                 :             :     },</span>
-<span id="L961"><span class="lineNum">     961</span>                 :             :     {</span>
-<span id="L962"><span class="lineNum">     962</span>                 :             :         .name = &quot;--shards&quot;,</span>
-<span id="L963"><span class="lineNum">     963</span>                 :             :         .display = &quot;--shards[=auto|SCHEME,...]&quot;,</span>
-<span id="L964"><span class="lineNum">     964</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L965"><span class="lineNum">     965</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L966"><span class="lineNum">     966</span>                 :             :         .summary = &quot;collapse each set of sharded files (e.g. data-00000-of-00010) to one line&quot;,</span>
-<span id="L967"><span class="lineNum">     967</span>                 :             :         .details = &quot;Recognizes sharded-file naming conventions and collapses each logical set to a single line &quot;</span>
-<span id="L968"><span class="lineNum">     968</span>                 :             :                    &quot;instead of listing every shard. Bare `--shards` (or `=auto`) enables all built-in schemes: &quot;</span>
-<span id="L969"><span class="lineNum">     969</span>                 :             :                    &quot;`&lt;stem&gt;-&lt;index&gt;-of-&lt;total&gt;` (`of`), `&lt;stem&gt;.&lt;NNN&gt;` (`dotnum`), and `&lt;stem&gt;_&lt;NNN&gt;` &quot;</span>
-<span id="L970"><span class="lineNum">     970</span>                 :             :                    &quot;(`underscore`). Restrict to specific schemes with a comma list, e.g. `--shards=of,dotnum`. &quot;</span>
-<span id="L971"><span class="lineNum">     971</span>                 :             :                    &quot;Grouping is &quot;</span>
-<span id="L972"><span class="lineNum">     972</span>                 :             :                    &quot;per-directory; files that match no scheme are listed unchanged. Off by default.&quot;,</span>
-<span id="L973"><span class="lineNum">     973</span>                 :             :         .values = kShardsValues,</span>
-<span id="L974"><span class="lineNum">     974</span>                 :             :         .topic = &quot;stats&quot;,</span>
-<span id="L975"><span class="lineNum">     975</span>                 :             :     },</span>
-<span id="L976"><span class="lineNum">     976</span>                 :             :     {</span>
-<span id="L977"><span class="lineNum">     977</span>                 :             :         .name = &quot;--shards-show&quot;,</span>
-<span id="L978"><span class="lineNum">     978</span>                 :             :         .display = &quot;--shards-show=first|wildcard|count&quot;,</span>
-<span id="L979"><span class="lineNum">     979</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L980"><span class="lineNum">     980</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L981"><span class="lineNum">     981</span>                 :             :         .summary = &quot;how a collapsed shard set's line reads (default first)&quot;,</span>
-<span id="L982"><span class="lineNum">     982</span>                 :             :         .details = &quot;Picks each collapsed set's display: `first` = the representative (lowest-index) shard's &quot;</span>
-<span id="L983"><span class="lineNum">     983</span>                 :             :                    &quot;path; `wildcard` = the masked-index name (the index digits shown as `???`); `count` = the &quot;</span>
-<span id="L984"><span class="lineNum">     984</span>                 :             :                    &quot;`wildcard` name plus the shard count. An incomplete set is always annotated &quot;</span>
-<span id="L985"><span class="lineNum">     985</span>                 :             :                    &quot;`(present/expected - INCOMPLETE)`. Only meaningful with `--shards`.&quot;,</span>
-<span id="L986"><span class="lineNum">     986</span>                 :             :         .values = kShardsShowValues,</span>
-<span id="L987"><span class="lineNum">     987</span>                 :             :         .topic = &quot;stats&quot;,</span>
-<span id="L988"><span class="lineNum">     988</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kEnum,</span>
-<span id="L989"><span class="lineNum">     989</span>                 :             :     },</span>
-<span id="L990"><span class="lineNum">     990</span>                 :             :     {</span>
-<span id="L991"><span class="lineNum">     991</span>                 :             :         .name = &quot;--shards-dedup&quot;,</span>
-<span id="L992"><span class="lineNum">     992</span>                 :             :         .display = &quot;--shards-dedup=first|mtime|error&quot;,</span>
-<span id="L993"><span class="lineNum">     993</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L994"><span class="lineNum">     994</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L995"><span class="lineNum">     995</span>                 :             :         .summary = &quot;how same-index shard duplicates are resolved (default first)&quot;,</span>
-<span id="L996"><span class="lineNum">     996</span>                 :             :         .details = &quot;When two files are the same logical shard (they differ only by an opaque tail, e.g. a &quot;</span>
-<span id="L997"><span class="lineNum">     997</span>                 :             :                    &quot;regeneration id), `--shards-dedup` picks which is the representative: `first` keeps the &quot;</span>
-<span id="L998"><span class="lineNum">     998</span>                 :             :                    &quot;lexicographically-first name; `mtime` keeps the newest; `error` treats the duplicate as an &quot;</span>
-<span id="L999"><span class="lineNum">     999</span>                 :             :                    &quot;error and fails the run (non-zero exit). Only meaningful with `--shards`.&quot;,</span>
-<span id="L1000"><span class="lineNum">    1000</span>                 :             :         .values = kShardsDedupValues,</span>
-<span id="L1001"><span class="lineNum">    1001</span>                 :             :         .topic = &quot;stats&quot;,</span>
-<span id="L1002"><span class="lineNum">    1002</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kEnum,</span>
-<span id="L1003"><span class="lineNum">    1003</span>                 :             :     },</span>
-<span id="L1004"><span class="lineNum">    1004</span>                 :             :     {</span>
-<span id="L1005"><span class="lineNum">    1005</span>                 :             :         .name = &quot;--shard-pattern&quot;,</span>
-<span id="L1006"><span class="lineNum">    1006</span>                 :             :         .display = &quot;--shard-pattern=REGEX&quot;,</span>
-<span id="L1007"><span class="lineNum">    1007</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1008"><span class="lineNum">    1008</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1009"><span class="lineNum">    1009</span>                 :             :         .summary = &quot;a custom shard scheme via a named-capture regex (repeatable); the escape hatch&quot;,</span>
-<span id="L1010"><span class="lineNum">    1010</span>                 :             :         .details = &quot;Defines a custom sharded-file scheme for --shards when the built-ins do not fit. REGEX is &quot;</span>
-<span id="L1011"><span class="lineNum">    1011</span>                 :             :                    &quot;an RE2 pattern with named groups: `(?P&lt;stem&gt;...)` and `(?P&lt;index&gt;...)` are required, &quot;</span>
-<span id="L1012"><span class="lineNum">    1012</span>                 :             :                    &quot;`(?P&lt;total&gt;...)` and `(?P&lt;dup&gt;...)` are optional. Repeatable; the patterns are tried in &quot;</span>
-<span id="L1013"><span class="lineNum">    1013</span>                 :             :                    &quot;order, before the built-in schemes. Only meaningful with --shards.&quot;,</span>
-<span id="L1014"><span class="lineNum">    1014</span>                 :             :         .topic = &quot;stats&quot;,</span>
-<span id="L1015"><span class="lineNum">    1015</span>                 :             :     },</span>
-<span id="L1016"><span class="lineNum">    1016</span>                 :             :     {</span>
-<span id="L1017"><span class="lineNum">    1017</span>                 :             :         .name = &quot;--count&quot;,</span>
-<span id="L1018"><span class="lineNum">    1018</span>                 :             :         .alias = &quot;-c&quot;,</span>
-<span id="L1019"><span class="lineNum">    1019</span>                 :             :         .display = &quot;--count, -c&quot;,</span>
-<span id="L1020"><span class="lineNum">    1020</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1021"><span class="lineNum">    1021</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1022"><span class="lineNum">    1022</span>                 :             :         .summary = &quot;with -grep, print a per-file matching-line count (path:count) instead of the lines&quot;,</span>
-<span id="L1023"><span class="lineNum">    1023</span>                 :             :         .affects = &quot;-grep&quot;,</span>
-<span id="L1024"><span class="lineNum">    1024</span>                 :             :         .topic = &quot;content&quot;,</span>
-<span id="L1025"><span class="lineNum">    1025</span>                 :             :     },</span>
-<span id="L1026"><span class="lineNum">    1026</span>                 :             :     {</span>
-<span id="L1027"><span class="lineNum">    1027</span>                 :             :         .name = &quot;--context&quot;,</span>
-<span id="L1028"><span class="lineNum">    1028</span>                 :             :         .display = &quot;--context=SPEC&quot;,</span>
-<span id="L1029"><span class="lineNum">    1029</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1030"><span class="lineNum">    1030</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1031"><span class="lineNum">    1031</span>                 :             :         .summary = &quot;-grep context lines: N both sides, or A:N,B:N,C:N for after/before/both&quot;,</span>
-<span id="L1032"><span class="lineNum">    1032</span>                 :             :         .details = &quot;`--context=2` is grep's `-C 2` (two lines either side); the A / B / C keys inside the &quot;</span>
-<span id="L1033"><span class="lineNum">    1033</span>                 :             :                    &quot;value select one side (`--context=A:3,B:1`), which is what `--after-context` and &quot;</span>
-<span id="L1034"><span class="lineNum">    1034</span>                 :             :                    &quot;`--before-context` spell one at a time. xff has NO single-dash `-A` / `-B` / `-C`: those &quot;</span>
-<span id="L1035"><span class="lineNum">    1035</span>                 :             :                    &quot;letters are unclaimed for now (see TODO.md), and a single-dash flag would be an &quot;</span>
-<span id="L1036"><span class="lineNum">    1036</span>                 :             :                    &quot;expression primary under xff's dash-count rule rather than a whole-run option.&quot;,</span>
-<span id="L1037"><span class="lineNum">    1037</span>                 :             :         .affects = &quot;-grep,-diff,--diff-context&quot;,</span>
-<span id="L1038"><span class="lineNum">    1038</span>                 :             :         .topic = &quot;content&quot;,</span>
-<span id="L1039"><span class="lineNum">    1039</span>                 :             :     },</span>
-<span id="L1040"><span class="lineNum">    1040</span>                 :             :     {</span>
-<span id="L1041"><span class="lineNum">    1041</span>                 :             :         .name = &quot;--after-context&quot;,</span>
-<span id="L1042"><span class="lineNum">    1042</span>                 :             :         .display = &quot;--after-context=N&quot;,</span>
-<span id="L1043"><span class="lineNum">    1043</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1044"><span class="lineNum">    1044</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1045"><span class="lineNum">    1045</span>                 :             :         .summary = &quot;with -grep, print N lines of context after each match (= --context=A:N)&quot;,</span>
-<span id="L1046"><span class="lineNum">    1046</span>                 :             :         .affects = &quot;-grep&quot;,</span>
-<span id="L1047"><span class="lineNum">    1047</span>                 :             :     },</span>
-<span id="L1048"><span class="lineNum">    1048</span>                 :             :     {</span>
-<span id="L1049"><span class="lineNum">    1049</span>                 :             :         .name = &quot;--before-context&quot;,</span>
-<span id="L1050"><span class="lineNum">    1050</span>                 :             :         .display = &quot;--before-context=N&quot;,</span>
-<span id="L1051"><span class="lineNum">    1051</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1052"><span class="lineNum">    1052</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1053"><span class="lineNum">    1053</span>                 :             :         .summary = &quot;with -grep, print N lines of context before each match (= --context=B:N)&quot;,</span>
-<span id="L1054"><span class="lineNum">    1054</span>                 :             :         .affects = &quot;-grep&quot;,</span>
-<span id="L1055"><span class="lineNum">    1055</span>                 :             :     },</span>
-<span id="L1056"><span class="lineNum">    1056</span>                 :             :     {</span>
-<span id="L1057"><span class="lineNum">    1057</span>                 :             :         .name = &quot;--max-results&quot;,</span>
-<span id="L1058"><span class="lineNum">    1058</span>                 :             :         .display = &quot;--max-results=N&quot;,</span>
-<span id="L1059"><span class="lineNum">    1059</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1060"><span class="lineNum">    1060</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1061"><span class="lineNum">    1061</span>                 :             :         .summary = &quot;list at most N matched entries without stopping or truncating reductions&quot;,</span>
-<span id="L1062"><span class="lineNum">    1062</span>                 :             :         .details =</span>
-<span id="L1063"><span class="lineNum">    1063</span>                 :             :             &quot;Caps the implicit result listing after the whole expression, across every branch and every &quot;</span>
-<span id="L1064"><span class="lineNum">    1064</span>                 :             :             &quot;per-instance `-first` / `-top` filter. It does NOT stop traversal: `--summary`, `--histogram`, &quot;</span>
-<span id="L1065"><span class="lineNum">    1065</span>                 :             :             &quot;`--count`, and archive packing still see the complete matched set rather than silently reporting a &quot;</span>
-<span id="L1066"><span class="lineNum">    1066</span>                 :             :             &quot;partial walk. Explicit expression actions (`-print`, `-grep`, `-exec`, and friends) keep their own &quot;</span>
-<span id="L1067"><span class="lineNum">    1067</span>                 :             :             &quot;positional semantics and are not suppressed; use `-first` or `-top` before an action to cap the entries &quot;</span>
-<span id="L1068"><span class="lineNum">    1068</span>                 :             :             &quot;that reach it. With one capped filter this flag is usually redundant; its distinct use is an aggregate &quot;</span>
-<span id="L1069"><span class="lineNum">    1069</span>                 :             :             &quot;ceiling such as `\\( -type f -first 10 \\) -o \\( -type d -first 5 \\) --max-results=12`. Last &quot;</span>
-<span id="L1070"><span class="lineNum">    1070</span>                 :             :             &quot;occurrence wins. A malformed or negative count is a usage error; `0` lists none.&quot;,</span>
-<span id="L1071"><span class="lineNum">    1071</span>                 :             :     },</span>
-<span id="L1072"><span class="lineNum">    1072</span>                 :             :     {</span>
-<span id="L1073"><span class="lineNum">    1073</span>                 :             :         .name = &quot;--top&quot;,</span>
-<span id="L1074"><span class="lineNum">    1074</span>                 :             :         .display = &quot;--top=N&quot;,</span>
-<span id="L1075"><span class="lineNum">    1075</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1076"><span class="lineNum">    1076</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1077"><span class="lineNum">    1077</span>                 :             :         .summary = &quot;with --summary or --histogram, keep only the N largest/tallest groups&quot;,</span>
-<span id="L1078"><span class="lineNum">    1078</span>                 :             :         .topic = &quot;stats&quot;,</span>
-<span id="L1079"><span class="lineNum">    1079</span>                 :             :     },</span>
-<span id="L1080"><span class="lineNum">    1080</span>                 :             :     {</span>
-<span id="L1081"><span class="lineNum">    1081</span>                 :             :         .name = &quot;--histogram-width&quot;,</span>
-<span id="L1082"><span class="lineNum">    1082</span>                 :             :         .display = &quot;--histogram-width=N&quot;,</span>
-<span id="L1083"><span class="lineNum">    1083</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1084"><span class="lineNum">    1084</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1085"><span class="lineNum">    1085</span>                 :             :         .summary = &quot;cell width the tallest --histogram bar fills (default 40)&quot;,</span>
-<span id="L1086"><span class="lineNum">    1086</span>                 :             :         .affects = &quot;--histogram&quot;,</span>
-<span id="L1087"><span class="lineNum">    1087</span>                 :             :         .topic = &quot;stats&quot;,</span>
-<span id="L1088"><span class="lineNum">    1088</span>                 :             :     },</span>
-<span id="L1089"><span class="lineNum">    1089</span>                 :             :     {</span>
-<span id="L1090"><span class="lineNum">    1090</span>                 :             :         .name = &quot;--summary-precision&quot;,</span>
-<span id="L1091"><span class="lineNum">    1091</span>                 :             :         .display = &quot;--summary-precision=N&quot;,</span>
-<span id="L1092"><span class="lineNum">    1092</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1093"><span class="lineNum">    1093</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1094"><span class="lineNum">    1094</span>                 :             :         .summary = &quot;with --summary --human: fraction digits for scaled sizes (default 2; bytes stay integer)&quot;,</span>
-<span id="L1095"><span class="lineNum">    1095</span>                 :             :         .topic = &quot;stats&quot;,</span>
-<span id="L1096"><span class="lineNum">    1096</span>                 :             :     },</span>
-<span id="L1097"><span class="lineNum">    1097</span>                 :             :     {</span>
-<span id="L1098"><span class="lineNum">    1098</span>                 :             :         .name = &quot;--color&quot;,</span>
-<span id="L1099"><span class="lineNum">    1099</span>                 :             :         .display = &quot;--color[=auto|always|never]&quot;,</span>
-<span id="L1100"><span class="lineNum">    1100</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1101"><span class="lineNum">    1101</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1102"><span class="lineNum">    1102</span>                 :             :         .summary = &quot;colorize the plain listing by file type: auto (a tty), always, or never; honors NO_COLOR&quot;,</span>
-<span id="L1103"><span class="lineNum">    1103</span>                 :             :         .details = &quot;Colorizes the plain listing by file type. auto colorizes only when stdout is a terminal; always &quot;</span>
-<span id="L1104"><span class="lineNum">    1104</span>                 :             :                    &quot;forces color even through a pipe or pager; never disables it. The NO_COLOR environment variable &quot;</span>
-<span id="L1105"><span class="lineNum">    1105</span>                 :             :                    &quot;always wins.&quot;,</span>
-<span id="L1106"><span class="lineNum">    1106</span>                 :             :         .values = kColorValues,</span>
-<span id="L1107"><span class="lineNum">    1107</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kTristate,</span>
-<span id="L1108"><span class="lineNum">    1108</span>                 :             :     },</span>
-<span id="L1109"><span class="lineNum">    1109</span>                 :             :     {</span>
-<span id="L1110"><span class="lineNum">    1110</span>                 :             :         .name = &quot;--color-scheme&quot;,</span>
-<span id="L1111"><span class="lineNum">    1111</span>                 :             :         .display = &quot;--color-scheme=&lt;SCHEME&gt;&quot;,</span>
-<span id="L1112"><span class="lineNum">    1112</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1113"><span class="lineNum">    1113</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1114"><span class="lineNum">    1114</span>                 :             :         .summary = &quot;which palette colour comes from: the terminal's ls theme, or xff's own&quot;,</span>
-<span id="L1115"><span class="lineNum">    1115</span>                 :             :         .details = &quot;Colour is a whole-run choice, so this one palette is used by every surface that &quot;</span>
-<span id="L1116"><span class="lineNum">    1116</span>                 :             :                    &quot;colours - the plain listing and -ls alike; they cannot disagree. $LS_COLORS is the &quot;</span>
-<span id="L1117"><span class="lineNum">    1117</span>                 :             :                    &quot;variable `ls` and `dircolors` use, and xff reads the same keys: the two-letter &quot;</span>
-<span id="L1118"><span class="lineNum">    1118</span>                 :             :                    &quot;types (`di`, `ln`, `ex`, `pi`, `so`, `bd`, `cd`, `fi`) and the per-extension `*.tar=` entries. &quot;</span>
-<span id="L1119"><span class="lineNum">    1119</span>                 :             :                    &quot;Where only BSD's $LSCOLORS is set - the macOS case - that is read instead: its 11 &quot;</span>
-<span id="L1120"><span class="lineNum">    1120</span>                 :             :                    &quot;letter pairs carry the same types in a fixed order, with no way to say \&quot;leave &quot;</span>
-<span id="L1121"><span class="lineNum">    1121</span>                 :             :                    &quot;this plain\&quot; and no per-extension entries, so `merged` is the interesting scheme &quot;</span>
-<span id="L1122"><span class="lineNum">    1122</span>                 :             :                    &quot;there. $LS_COLORS wins when both are set, being the richer format. Both variables &quot;</span>
-<span id="L1123"><span class="lineNum">    1123</span>                 :             :                    &quot;are read on every platform rather than one per OS: which one is SET is better &quot;</span>
-<span id="L1124"><span class="lineNum">    1124</span>                 :             :                    &quot;evidence than which system this is (a macOS shell with GNU coreutils is themed &quot;</span>
-<span id="L1125"><span class="lineNum">    1125</span>                 :             :                    &quot;through $LS_COLORS, and $LSCOLORS is not macOS-only), and the fixed 22-character &quot;</span>
-<span id="L1126"><span class="lineNum">    1126</span>                 :             :                    &quot;shape makes the BSD one self-validating. &quot;</span>
-<span id="L1127"><span class="lineNum">    1127</span>                 :             :                    &quot;\&quot;Use ls's colours\&quot; turns out to mean three different things, so each has its &quot;</span>
-<span id="L1128"><span class="lineNum">    1128</span>                 :             :                    &quot;own name, spelled the way logic spells it: `+` is OR, and the merge is AND. &quot;</span>
-<span id="L1129"><span class="lineNum">    1129</span>                 :             :                    &quot;`auto` (the default, also `ls+xff` or `ls-or-xff`) is the theme OR xff's scheme - &quot;</span>
-<span id="L1130"><span class="lineNum">    1130</span>                 :             :                    &quot;a theme that is set at all is the whole answer, and with none set xff's scheme is, &quot;</span>
-<span id="L1131"><span class="lineNum">    1131</span>                 :             :                    &quot;so the decision is per VARIABLE; `default` is a fourth spelling of it, for a &quot;</span>
-<span id="L1132"><span class="lineNum">    1132</span>                 :             :                    &quot;config file that wants whatever the default currently is. `ls` is the theme &quot;</span>
-<span id="L1133"><span class="lineNum">    1133</span>                 :             :                    &quot;ALONE, so a type it never mentions prints uncoloured exactly as in a real ls &quot;</span>
-<span id="L1134"><span class="lineNum">    1134</span>                 :             :                    &quot;listing (and with no theme set, nothing is coloured). `merged` (also &quot;</span>
-<span id="L1135"><span class="lineNum">    1135</span>                 :             :                    &quot;`ls-and-xff`) is the theme &quot;</span>
-<span id="L1136"><span class="lineNum">    1136</span>                 :             :                    &quot;AND xff's scheme, merged per KEY: the theme where it speaks, xff's colour for &quot;</span>
-<span id="L1137"><span class="lineNum">    1137</span>                 :             :                    &quot;every key it omits - for a sparse theme you want filled in. (`ls&amp;xff` is &quot;</span>
-<span id="L1138"><span class="lineNum">    1138</span>                 :             :                    &quot;deliberately not accepted: an unquoted `&amp;` backgrounds the command.) `xff` &quot;</span>
-<span id="L1139"><span class="lineNum">    1139</span>                 :             :                    &quot;ignores $LS_COLORS entirely. An EMPTY value in the theme (`di=`) is it &quot;</span>
-<span id="L1140"><span class="lineNum">    1140</span>                 :             :                    &quot;saying \&quot;leave these plain\&quot; and is honoured as such; a malformed entry is &quot;</span>
-<span id="L1141"><span class="lineNum">    1141</span>                 :             :                    &quot;skipped rather than failing the run, as in ls. Whether colour is emitted at all &quot;</span>
-<span id="L1142"><span class="lineNum">    1142</span>                 :             :                    &quot;is --color's business, not this flag's.&quot;,</span>
-<span id="L1143"><span class="lineNum">    1143</span>                 :             :         .values = kColorSchemeValues,</span>
-<span id="L1144"><span class="lineNum">    1144</span>                 :             :         .affects = &quot;--color&quot;,</span>
-<span id="L1145"><span class="lineNum">    1145</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kEnum,</span>
-<span id="L1146"><span class="lineNum">    1146</span>                 :             :     },</span>
-<span id="L1147"><span class="lineNum">    1147</span>                 :             :     {</span>
-<span id="L1148"><span class="lineNum">    1148</span>                 :             :         .name = &quot;--unicode&quot;,</span>
-<span id="L1149"><span class="lineNum">    1149</span>                 :             :         .display = &quot;--unicode[=auto|always|never]&quot;,</span>
-<span id="L1150"><span class="lineNum">    1150</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1151"><span class="lineNum">    1151</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1152"><span class="lineNum">    1152</span>                 :             :         .summary = &quot;--format=tree connectors: auto (a UTF-8 locale), always (Unicode), or never (ASCII)&quot;,</span>
-<span id="L1153"><span class="lineNum">    1153</span>                 :             :         .details = &quot;Selects the box-drawing characters --format=tree connects nodes with. auto uses Unicode when the &quot;</span>
-<span id="L1154"><span class="lineNum">    1154</span>                 :             :                    &quot;locale (LC_ALL / LC_CTYPE / LANG) is UTF-8, else ASCII; always forces the Unicode connectors; &quot;</span>
-<span id="L1155"><span class="lineNum">    1155</span>                 :             :                    &quot;never forces the ASCII ones.&quot;,</span>
-<span id="L1156"><span class="lineNum">    1156</span>                 :             :         .values = kUnicodeValues,</span>
-<span id="L1157"><span class="lineNum">    1157</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kTristate,</span>
-<span id="L1158"><span class="lineNum">    1158</span>                 :             :     },</span>
-<span id="L1159"><span class="lineNum">    1159</span>                 :             :     {</span>
-<span id="L1160"><span class="lineNum">    1160</span>                 :             :         .name = &quot;--human&quot;,</span>
-<span id="L1161"><span class="lineNum">    1161</span>                 :             :         .display = &quot;--human[=si|iec|off]&quot;,</span>
-<span id="L1162"><span class="lineNum">    1162</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1163"><span class="lineNum">    1163</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1164"><span class="lineNum">    1164</span>                 :             :         .summary = &quot;size units for -ls / --summary: si (kB/MB, default), iec (KiB/MiB), off (bytes); xff -&gt; si&quot;,</span>
-<span id="L1165"><span class="lineNum">    1165</span>                 :             :         .values = kHumanValues,</span>
-<span id="L1166"><span class="lineNum">    1166</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kEnum,</span>
-<span id="L1167"><span class="lineNum">    1167</span>                 :             :     },</span>
-<span id="L1168"><span class="lineNum">    1168</span>                 :             :     {</span>
-<span id="L1169"><span class="lineNum">    1169</span>                 :             :         .name = &quot;--si&quot;,</span>
-<span id="L1170"><span class="lineNum">    1170</span>                 :             :         .display = &quot;--si&quot;,</span>
-<span id="L1171"><span class="lineNum">    1171</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1172"><span class="lineNum">    1172</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1173"><span class="lineNum">    1173</span>                 :             :         .summary = &quot;human sizes in SI (kB/MB, 1000^N); an alias for --human=si (the --human default)&quot;,</span>
-<span id="L1174"><span class="lineNum">    1174</span>                 :             :     },</span>
-<span id="L1175"><span class="lineNum">    1175</span>                 :             :     {</span>
-<span id="L1176"><span class="lineNum">    1176</span>                 :             :         .name = &quot;--buffer&quot;,</span>
-<span id="L1177"><span class="lineNum">    1177</span>                 :             :         .display = &quot;--buffer[=auto|off|all|N[kMGT]|NMB|NMiB]&quot;,</span>
-<span id="L1178"><span class="lineNum">    1178</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1179"><span class="lineNum">    1179</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1180"><span class="lineNum">    1180</span>                 :             :         .summary = &quot;buffer to size columns (-ls / tables): auto, off, all, N[kMGT] rows, or NMB/NMiB bytes&quot;,</span>
-<span id="L1181"><span class="lineNum">    1181</span>                 :             :         .details = &quot;Row windows use a bare count or decimal `k`/`M`/`G`/`T` multiplier. Byte budgets require an &quot;</span>
-<span id="L1182"><span class="lineNum">    1182</span>                 :             :                    &quot;explicit trailing `B`: `B`/`kB`/`MB`/.../`EB` are SI, while &quot;</span>
-<span id="L1183"><span class="lineNum">    1183</span>                 :             :                    &quot;`KiB`/`MiB`/.../`EiB` are IEC. The distinct suffixes keep rows and bytes unambiguous.&quot;,</span>
-<span id="L1184"><span class="lineNum">    1184</span>                 :             :     },</span>
-<span id="L1185"><span class="lineNum">    1185</span>                 :             :     {</span>
-<span id="L1186"><span class="lineNum">    1186</span>                 :             :         .name = &quot;--width&quot;,</span>
-<span id="L1187"><span class="lineNum">    1187</span>                 :             :         .display = &quot;--width[=auto|none|COLS]&quot;,</span>
-<span id="L1188"><span class="lineNum">    1188</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1189"><span class="lineNum">    1189</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1190"><span class="lineNum">    1190</span>                 :             :         .summary = &quot;wrap column for plain --help text: auto (terminal width, else unwrapped), none, or a count&quot;,</span>
-<span id="L1191"><span class="lineNum">    1191</span>                 :             :         .details = &quot;Wraps the flowing text of --help and --help=TOPIC (option and topic descriptions) to a &quot;</span>
-<span id="L1192"><span class="lineNum">    1192</span>                 :             :                    &quot;column width. auto uses the terminal width when stdout is a terminal (honoring $COLUMNS), &quot;</span>
-<span id="L1193"><span class="lineNum">    1193</span>                 :             :                    &quot;and leaves output unwrapped when it is not (a pipe or file); none (or 0) disables wrapping; &quot;</span>
-<span id="L1194"><span class="lineNum">    1194</span>                 :             :                    &quot;a positive integer sets a fixed width. Aligned vocabulary tables and example blocks keep &quot;</span>
-<span id="L1195"><span class="lineNum">    1195</span>                 :             :                    &quot;their own layout. Does not affect the file listing, --man, or --markdown.&quot;,</span>
-<span id="L1196"><span class="lineNum">    1196</span>                 :             :     },</span>
-<span id="L1197"><span class="lineNum">    1197</span>                 :             :     {</span>
-<span id="L1198"><span class="lineNum">    1198</span>                 :             :         .name = &quot;--pager&quot;,</span>
-<span id="L1199"><span class="lineNum">    1199</span>                 :             :         .display = &quot;--pager[=auto|always|all|never]&quot;,</span>
-<span id="L1200"><span class="lineNum">    1200</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1201"><span class="lineNum">    1201</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1202"><span class="lineNum">    1202</span>                 :             :         .summary = &quot;page output: auto (help / man / markdown on a tty), all (plus the listing), always, never&quot;,</span>
-<span id="L1203"><span class="lineNum">    1203</span>                 :             :         .details = &quot;Pages the long meta output (`--help`, `--help=TOPIC`, `--man`, `--markdown`) through a &quot;</span>
-<span id="L1204"><span class="lineNum">    1204</span>                 :             :                    &quot;pager. `auto` pages only when stdout is a terminal; `always` pages even through a pipe; &quot;</span>
-<span id="L1205"><span class="lineNum">    1205</span>                 :             :                    &quot;`never` (or `--no-pager`) disables it. The pager command is $XFF_PAGER, else $PAGER, else &quot;</span>
-<span id="L1206"><span class="lineNum">    1206</span>                 :             :                    &quot;`less -FRX`; set either variable to empty to disable. `all` additionally pages the FILE &quot;</span>
-<span id="L1207"><span class="lineNum">    1207</span>                 :             :                    &quot;LISTING: the pager is started once and the whole walk streams into it, so the first screen &quot;</span>
-<span id="L1208"><span class="lineNum">    1208</span>                 :             :                    &quot;appears while the walk is still running and quitting it ends the run quietly. Unlike &quot;</span>
-<span id="L1209"><span class="lineNum">    1209</span>                 :             :                    &quot;`always`, `all` stays terminal-only - a listing forced through a pager in a pipeline would &quot;</span>
-<span id="L1210"><span class="lineNum">    1210</span>                 :             :                    &quot;feed the pager's screen handling to the next command. It also steps aside for an expression &quot;</span>
-<span id="L1211"><span class="lineNum">    1211</span>                 :             :                    &quot;that needs the terminal itself (`-ok`, `-okdir`, `-exec`, `-execdir`, which can hand the &quot;</span>
-<span id="L1212"><span class="lineNum">    1212</span>                 :             :                    &quot;terminal to an editor) and for `--quiet`, which prints nothing to page; those runs are &quot;</span>
-<span id="L1213"><span class="lineNum">    1213</span>                 :             :                    &quot;simply unpaged.&quot;,</span>
-<span id="L1214"><span class="lineNum">    1214</span>                 :             :         .values = kPagerValues,</span>
-<span id="L1215"><span class="lineNum">    1215</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kEnum,</span>
-<span id="L1216"><span class="lineNum">    1216</span>                 :             :     },</span>
-<span id="L1217"><span class="lineNum">    1217</span>                 :             :     {</span>
-<span id="L1218"><span class="lineNum">    1218</span>                 :             :         .name = &quot;--no-pager&quot;,</span>
-<span id="L1219"><span class="lineNum">    1219</span>                 :             :         .display = &quot;--no-pager&quot;,</span>
-<span id="L1220"><span class="lineNum">    1220</span>                 :             :         .group = &quot;output&quot;,</span>
-<span id="L1221"><span class="lineNum">    1221</span>                 :             :         .header = &quot;Output&quot;,</span>
-<span id="L1222"><span class="lineNum">    1222</span>                 :             :         .summary = &quot;never page the help / man / markdown output (an alias for --pager=never)&quot;,</span>
-<span id="L1223"><span class="lineNum">    1223</span>                 :             :     },</span>
-<span id="L1224"><span class="lineNum">    1224</span>                 :             :     {</span>
-<span id="L1225"><span class="lineNum">    1225</span>                 :             :         .name = &quot;--quiet&quot;,</span>
-<span id="L1226"><span class="lineNum">    1226</span>                 :             :         .alias = &quot;-q&quot;,</span>
-<span id="L1227"><span class="lineNum">    1227</span>                 :             :         .display = &quot;--quiet, -q&quot;,</span>
-<span id="L1228"><span class="lineNum">    1228</span>                 :             :         .group = &quot;exit&quot;,</span>
-<span id="L1229"><span class="lineNum">    1229</span>                 :             :         .header = &quot;Exit code control&quot;,</span>
-<span id="L1230"><span class="lineNum">    1230</span>                 :             :         .summary = &quot;suppress output; exit 0 if anything matched, else 1 (-q: grep-compatible)&quot;,</span>
-<span id="L1231"><span class="lineNum">    1231</span>                 :             :     },</span>
-<span id="L1232"><span class="lineNum">    1232</span>                 :             :     {</span>
-<span id="L1233"><span class="lineNum">    1233</span>                 :             :         .name = &quot;--exit-match&quot;,</span>
-<span id="L1234"><span class="lineNum">    1234</span>                 :             :         .display = &quot;--exit-match&quot;,</span>
-<span id="L1235"><span class="lineNum">    1235</span>                 :             :         .group = &quot;exit&quot;,</span>
-<span id="L1236"><span class="lineNum">    1236</span>                 :             :         .header = &quot;Exit code control&quot;,</span>
-<span id="L1237"><span class="lineNum">    1237</span>                 :             :         .summary = &quot;keep output; exit 0 if anything matched, else 1&quot;,</span>
-<span id="L1238"><span class="lineNum">    1238</span>                 :             :     },</span>
-<span id="L1239"><span class="lineNum">    1239</span>                 :             :     {</span>
-<span id="L1240"><span class="lineNum">    1240</span>                 :             :         .name = &quot;--safe&quot;,</span>
-<span id="L1241"><span class="lineNum">    1241</span>                 :             :         .display = &quot;--safe&quot;,</span>
-<span id="L1242"><span class="lineNum">    1242</span>                 :             :         .group = &quot;safety&quot;,</span>
-<span id="L1243"><span class="lineNum">    1243</span>                 :             :         .header = &quot;Safety&quot;,</span>
-<span id="L1244"><span class="lineNum">    1244</span>                 :             :         .summary = &quot;refuse destructive actions (-delete / -exec)&quot;,</span>
-<span id="L1245"><span class="lineNum">    1245</span>                 :             :     },</span>
-<span id="L1246"><span class="lineNum">    1246</span>                 :             :     {</span>
-<span id="L1247"><span class="lineNum">    1247</span>                 :             :         .name = &quot;--dry-run&quot;,</span>
-<span id="L1248"><span class="lineNum">    1248</span>                 :             :         .display = &quot;--dry-run&quot;,</span>
-<span id="L1249"><span class="lineNum">    1249</span>                 :             :         .group = &quot;safety&quot;,</span>
-<span id="L1250"><span class="lineNum">    1250</span>                 :             :         .header = &quot;Safety&quot;,</span>
-<span id="L1251"><span class="lineNum">    1251</span>                 :             :         .summary = &quot;preview -delete without removing anything&quot;,</span>
-<span id="L1252"><span class="lineNum">    1252</span>                 :             :     },</span>
-<span id="L1253"><span class="lineNum">    1253</span>                 :             :     {</span>
-<span id="L1254"><span class="lineNum">    1254</span>                 :             :         .name = &quot;--skip-unsupported&quot;,</span>
-<span id="L1255"><span class="lineNum">    1255</span>                 :             :         .display = &quot;--skip-unsupported&quot;,</span>
-<span id="L1256"><span class="lineNum">    1256</span>                 :             :         .group = &quot;safety&quot;,</span>
-<span id="L1257"><span class="lineNum">    1257</span>                 :             :         .header = &quot;Safety&quot;,</span>
-<span id="L1258"><span class="lineNum">    1258</span>                 :             :         .summary = &quot;warn and skip a predicate a filesystem cannot evaluate, not fail&quot;,</span>
-<span id="L1259"><span class="lineNum">    1259</span>                 :             :     },</span>
-<span id="L1260"><span class="lineNum">    1260</span>                 :             :     {</span>
-<span id="L1261"><span class="lineNum">    1261</span>                 :             :         .name = &quot;--exec-fields&quot;,</span>
-<span id="L1262"><span class="lineNum">    1262</span>                 :             :         .display = &quot;--exec-fields&quot;,</span>
-<span id="L1263"><span class="lineNum">    1263</span>                 :             :         .group = &quot;fields&quot;,</span>
-<span id="L1264"><span class="lineNum">    1264</span>                 :             :         .header = &quot;Fields &amp; Exec&quot;,</span>
-<span id="L1265"><span class="lineNum">    1265</span>                 :             :         .summary = &quot;render -exec tokens through the field vocabulary ({name}, {path}, ...)&quot;,</span>
-<span id="L1266"><span class="lineNum">    1266</span>                 :             :     },</span>
-<span id="L1267"><span class="lineNum">    1267</span>                 :             :     {</span>
-<span id="L1268"><span class="lineNum">    1268</span>                 :             :         .name = &quot;--define&quot;,</span>
-<span id="L1269"><span class="lineNum">    1269</span>                 :             :         .display = &quot;--define=NAME=VALUE&quot;,</span>
-<span id="L1270"><span class="lineNum">    1270</span>                 :             :         .group = &quot;fields&quot;,</span>
-<span id="L1271"><span class="lineNum">    1271</span>                 :             :         .header = &quot;Fields &amp; Exec&quot;,</span>
-<span id="L1272"><span class="lineNum">    1272</span>                 :             :         .summary = &quot;define a value referenced as {def.NAME}&quot;,</span>
-<span id="L1273"><span class="lineNum">    1273</span>                 :             :     },</span>
-<span id="L1274"><span class="lineNum">    1274</span>                 :             :     {</span>
-<span id="L1275"><span class="lineNum">    1275</span>                 :             :         .name = &quot;--time-format&quot;,</span>
-<span id="L1276"><span class="lineNum">    1276</span>                 :             :         .display = &quot;--time-format=FMT&quot;,</span>
-<span id="L1277"><span class="lineNum">    1277</span>                 :             :         .group = &quot;time&quot;,</span>
-<span id="L1278"><span class="lineNum">    1278</span>                 :             :         .header = &quot;Time&quot;,</span>
-<span id="L1279"><span class="lineNum">    1279</span>                 :             :         .summary = &quot;default format for time fields (a preset name or a strftime pattern)&quot;,</span>
-<span id="L1280"><span class="lineNum">    1280</span>                 :             :         .details = &quot;Sets the default rendering for time fields ({mtime}, {atime}, -printf %t, ...) when no per-field &quot;</span>
-<span id="L1281"><span class="lineNum">    1281</span>                 :             :                    &quot;qualifier is given. Accepts a preset (iso, epoch, space, find) or any strftime pattern such as &quot;</span>
-<span id="L1282"><span class="lineNum">    1282</span>                 :             :                    &quot;%Y-%m-%d. A per-field qualifier like {mtime:%H:%M} still overrides it.&quot;,</span>
-<span id="L1283"><span class="lineNum">    1283</span>                 :             :     },</span>
-<span id="L1284"><span class="lineNum">    1284</span>                 :             :     {</span>
-<span id="L1285"><span class="lineNum">    1285</span>                 :             :         .name = &quot;--timezone&quot;,</span>
-<span id="L1286"><span class="lineNum">    1286</span>                 :             :         .alias = &quot;--tz&quot;,</span>
-<span id="L1287"><span class="lineNum">    1287</span>                 :             :         .display = &quot;--timezone=ZONE, --tz=ZONE&quot;,</span>
-<span id="L1288"><span class="lineNum">    1288</span>                 :             :         .group = &quot;time&quot;,</span>
-<span id="L1289"><span class="lineNum">    1289</span>                 :             :         .header = &quot;Time&quot;,</span>
-<span id="L1290"><span class="lineNum">    1290</span>                 :             :         .summary = &quot;zone for interpreting/formatting times (local, utc, an IANA name, or +HH:MM)&quot;,</span>
-<span id="L1291"><span class="lineNum">    1291</span>                 :             :         .details = &quot;The zone used to interpret and format every time. Accepts local, utc, an IANA name like &quot;</span>
-<span id="L1292"><span class="lineNum">    1292</span>                 :             :                    &quot;Europe/London, or a fixed offset like +02:00. Affects time fields and -newerXt comparisons.&quot;,</span>
-<span id="L1293"><span class="lineNum">    1293</span>                 :             :     },</span>
-<span id="L1294"><span class="lineNum">    1294</span>                 :             :     {</span>
-<span id="L1295"><span class="lineNum">    1295</span>                 :             :         .name = &quot;--time-zone-suffix&quot;,</span>
-<span id="L1296"><span class="lineNum">    1296</span>                 :             :         .display = &quot;--time-zone-suffix[=auto|always|never]&quot;,</span>
-<span id="L1297"><span class="lineNum">    1297</span>                 :             :         .group = &quot;time&quot;,</span>
-<span id="L1298"><span class="lineNum">    1298</span>                 :             :         .header = &quot;Time&quot;,</span>
-<span id="L1299"><span class="lineNum">    1299</span>                 :             :         .summary = &quot;show the zone offset on a time field: auto (per format), always, or never&quot;,</span>
-<span id="L1300"><span class="lineNum">    1300</span>                 :             :         .details = &quot;Controls whether a time field's named preset renders its trailing zone (+0100, +01:00). &quot;</span>
-<span id="L1301"><span class="lineNum">    1301</span>                 :             :                    &quot;`auto` keeps each preset's default (`space` / `iso` / `rfc3339` show it, `asctime` / `epoch` &quot;</span>
-<span id="L1302"><span class="lineNum">    1302</span>                 :             :                    &quot;omit it); `never` drops it; `always` forces it, even on a preset that omits one. Accepts &quot;</span>
-<span id="L1303"><span class="lineNum">    1303</span>                 :             :                    &quot;`true` / `yes` / `on` (= `always`) and `false` / `no` / `off` (= `never`). The &quot;</span>
-<span id="L1304"><span class="lineNum">    1304</span>                 :             :                    &quot;inherently-zoned `zulu` / `zulu-dense` / `asn1z` always keep their mandatory Z, and a custom &quot;</span>
-<span id="L1305"><span class="lineNum">    1305</span>                 :             :                    &quot;strftime `--time-format` is never altered - control its zone with %z / %Ez / %Z yourself. &quot;</span>
-<span id="L1306"><span class="lineNum">    1306</span>                 :             :                    &quot;`asn1`'s zone is optional: `always` adds its ASN.1-style offset (+0100, no separator), &quot;</span>
-<span id="L1307"><span class="lineNum">    1307</span>                 :             :                    &quot;`never` / `auto` leave it bare.&quot;,</span>
-<span id="L1308"><span class="lineNum">    1308</span>                 :             :         .values = kZoneSuffixValues,</span>
-<span id="L1309"><span class="lineNum">    1309</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kTristate,</span>
-<span id="L1310"><span class="lineNum">    1310</span>                 :             :     },</span>
-<span id="L1311"><span class="lineNum">    1311</span>                 :             : });</span>
-<span id="L1312"><span class="lineNum">    1312</span>                 :             : </span>
-<span id="L1313"><span class="lineNum">    1313</span>                 :             : }  // namespace</span>
+<span id="L870"><span class="lineNum">     870</span>                 :             :                    &quot;shortcuts (`.tgz`, `.txz`, `.tbz2`, `.tzst`, `.tlz`, `.taZ`) mean what they do everywhere &quot;</span>
+<span id="L871"><span class="lineNum">     871</span>                 :             :                    &quot;else; a name &quot;</span>
+<span id="L872"><span class="lineNum">     872</span>                 :             :                    &quot;carrying no format is a usage error reported BEFORE the &quot;</span>
+<span id="L873"><span class="lineNum">     873</span>                 :             :                    &quot;walk, since finding out afterwards would waste the traversal. &quot;</span>
+<span id="L874"><span class="lineNum">     874</span>                 :             :                    &quot;Each member is stored under the entry's path relative to the search root it was found &quot;</span>
+<span id="L875"><span class="lineNum">     875</span>                 :             :                    &quot;under, in the order the walk produced it - so `--sort` decides the order inside the &quot;</span>
+<span id="L876"><span class="lineNum">     876</span>                 :             :                    &quot;archive, and nothing is renamed or re-rooted behind your back. &quot;</span>
+<span id="L877"><span class="lineNum">     877</span>                 :             :                    &quot;Like `--summary` it is a sink: it replaces the per-match listing, while explicit actions &quot;</span>
+<span id="L878"><span class="lineNum">     878</span>                 :             :                    &quot;still run, so add `-print` to watch what goes in. The archive is written after the walk &quot;</span>
+<span id="L879"><span class="lineNum">     879</span>                 :             :                    &quot;and renamed into place only when complete, so an interrupted run leaves no half archive &quot;</span>
+<span id="L880"><span class="lineNum">     880</span>                 :             :                    &quot;and an existing FILE survives a failed one. A file the walk meets that IS the output is &quot;</span>
+<span id="L881"><span class="lineNum">     881</span>                 :             :                    &quot;skipped rather than packed into itself. An archive MEMBER cannot be packed: reading files &quot;</span>
+<span id="L882"><span class="lineNum">     882</span>                 :             :                    &quot;out of one container to re-pack them into another is its own feature, and until it exists &quot;</span>
+<span id="L883"><span class="lineNum">     883</span>                 :             :                    &quot;the run is refused rather than quietly short. A build-time extra, like `--archive`.&quot;,</span>
+<span id="L884"><span class="lineNum">     884</span>                 :             :         .affects = &quot;--sort&quot;,</span>
+<span id="L885"><span class="lineNum">     885</span>                 :             :         .topic = &quot;archive&quot;,</span>
+<span id="L886"><span class="lineNum">     886</span>                 :             :         .extra = &quot;archive&quot;,</span>
+<span id="L887"><span class="lineNum">     887</span>                 :             :     },</span>
+<span id="L888"><span class="lineNum">     888</span>                 :             :     {</span>
+<span id="L889"><span class="lineNum">     889</span>                 :             :         .name = &quot;--pack-option&quot;,</span>
+<span id="L890"><span class="lineNum">     890</span>                 :             :         .display = &quot;--pack-option=NAME=VALUE&quot;,</span>
+<span id="L891"><span class="lineNum">     891</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L892"><span class="lineNum">     892</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L893"><span class="lineNum">     893</span>                 :             :         .summary = &quot;tune how `--pack` writes: repeatable, last value for a NAME wins&quot;,</span>
+<span id="L894"><span class="lineNum">     894</span>                 :             :         .details = &quot;The general knob behind `--pack-level`. NAME is XFF's own vocabulary, not the archive &quot;</span>
+<span id="L895"><span class="lineNum">     895</span>                 :             :                    &quot;library's: each name is translated to whatever the linked writer calls the same thing, &quot;</span>
+<span id="L896"><span class="lineNum">     896</span>                 :             :                    &quot;so an unknown name is a usage error rather than a silent no-op, the accepted set is &quot;</span>
+<span id="L897"><span class="lineNum">     897</span>                 :             :                    &quot;listed by `--help=archive` straight from the writer's table, and swapping or upgrading &quot;</span>
+<span id="L898"><span class="lineNum">     898</span>                 :             :                    &quot;that library changes a translation table instead of the flags you type. A name that &quot;</span>
+<span id="L899"><span class="lineNum">     899</span>                 :             :                    &quot;exists but does not apply to the chosen output format is refused too, naming the formats &quot;</span>
+<span id="L900"><span class="lineNum">     900</span>                 :             :                    &quot;it does apply to - `zip64` is a zip idea, `threads` is not a gzip one. Everything is &quot;</span>
+<span id="L901"><span class="lineNum">     901</span>                 :             :                    &quot;checked before the walk starts, so a typo costs no traversal and writes no file.&quot;,</span>
+<span id="L902"><span class="lineNum">     902</span>                 :             :         .affects = &quot;--pack&quot;,</span>
+<span id="L903"><span class="lineNum">     903</span>                 :             :         .topic = &quot;archive&quot;,</span>
+<span id="L904"><span class="lineNum">     904</span>                 :             :         .extra = &quot;archive&quot;,</span>
+<span id="L905"><span class="lineNum">     905</span>                 :             :     },</span>
+<span id="L906"><span class="lineNum">     906</span>                 :             :     {</span>
+<span id="L907"><span class="lineNum">     907</span>                 :             :         .name = &quot;--pack-level&quot;,</span>
+<span id="L908"><span class="lineNum">     908</span>                 :             :         .display = &quot;--pack-level=N&quot;,</span>
+<span id="L909"><span class="lineNum">     909</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L910"><span class="lineNum">     910</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L911"><span class="lineNum">     911</span>                 :             :         .summary = &quot;compression level for `--pack` (gzip/xz/lzip/lzma/zip 0-9, bzip2/lz4 1-9, zstd 1-22)&quot;,</span>
+<span id="L912"><span class="lineNum">     912</span>                 :             :         .details = &quot;How hard the compressor works, on the scale the chosen format uses; left alone it is the &quot;</span>
+<span id="L913"><span class="lineNum">     913</span>                 :             :                    &quot;format's own default. Exactly `--pack-option=level=N`, kept as its own spelling because it &quot;</span>
+<span id="L914"><span class="lineNum">     914</span>                 :             :                    &quot;is the common knob for compressors that expose a level - the same relationship `-Z` has to &quot;</span>
+<span id="L915"><span class="lineNum">     915</span>                 :             :                    &quot;`--archive-write`. On a plain `.tar` it is a usage error rather than a no-op, because &quot;</span>
+<span id="L916"><span class="lineNum">     916</span>                 :             :                    &quot;there is no compressor to set a level on and a silently ignored level reads as a smaller &quot;</span>
+<span id="L917"><span class="lineNum">     917</span>                 :             :                    &quot;archive that never arrives. Legacy Unix `compress` has no level knob, so `.tar.Z` refuses &quot;</span>
+<span id="L918"><span class="lineNum">     918</span>                 :             :                    &quot;this option too.&quot;,</span>
+<span id="L919"><span class="lineNum">     919</span>                 :             :         .affects = &quot;--pack&quot;,</span>
+<span id="L920"><span class="lineNum">     920</span>                 :             :         .topic = &quot;archive&quot;,</span>
+<span id="L921"><span class="lineNum">     921</span>                 :             :         .extra = &quot;archive&quot;,</span>
+<span id="L922"><span class="lineNum">     922</span>                 :             :     },</span>
+<span id="L923"><span class="lineNum">     923</span>                 :             :     {</span>
+<span id="L924"><span class="lineNum">     924</span>                 :             :         .name = &quot;--summary&quot;,</span>
+<span id="L925"><span class="lineNum">     925</span>                 :             :         .display = &quot;--summary[=&lt;GROUP&gt;]&quot;,</span>
+<span id="L926"><span class="lineNum">     926</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L927"><span class="lineNum">     927</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L928"><span class="lineNum">     928</span>                 :             :         .summary = &quot;aligned count + size table (or --format=jsonl rows) instead of each match; repeatable&quot;,</span>
+<span id="L929"><span class="lineNum">     929</span>                 :             :         .details = &quot;Replaces the per-match listing with an aggregate table: match count and total size per group &quot;</span>
+<span id="L930"><span class="lineNum">     930</span>                 :             :                    &quot;(overall, by type, extension, programming language, media (MIME) type, user (owner), owning &quot;</span>
+<span id="L931"><span class="lineNum">     931</span>                 :             :                    &quot;group, or file digest). The categorical keys reuse the {mime}/{user}/{group}/{hash} field &quot;</span>
+<span id="L932"><span class="lineNum">     932</span>                 :             :                    &quot;vocabulary; --summary=hash groups identical files into one bucket (a dedup count, reading every &quot;</span>
+<span id="L933"><span class="lineNum">     933</span>                 :             :                    &quot;file). A &quot;</span>
+<span id="L934"><span class="lineNum">     934</span>                 :             :                    &quot;{template} key groups by any field value (e.g. --summary='{ext}-{type}'); a single m// &quot;</span>
+<span id="L935"><span class="lineNum">     935</span>                 :             :                    &quot;extraction key (--summary='{capture.NAME:m/re/\\1/}') groups per extracted line, so a &quot;</span>
+<span id="L936"><span class="lineNum">     936</span>                 :             :                    &quot;per-file command's multi-line output tallies per key (e.g. git-blame lines per author) - the &quot;</span>
+<span id="L937"><span class="lineNum">     937</span>                 :             :                    &quot;size column is not meaningful there. Repeatable: each --summary is its own table (e.g. &quot;</span>
+<span id="L938"><span class="lineNum">     938</span>                 :             :                    &quot;--summary=ext --summary=type), printed in order. --top=N limits the rows of each, &quot;</span>
+<span id="L939"><span class="lineNum">     939</span>                 :             :                    &quot;--summary-precision sets the scaled-size digits, and --format=jsonl emits one object per group &quot;</span>
+<span id="L940"><span class="lineNum">     940</span>                 :             :                    &quot;for scripts.&quot;,</span>
+<span id="L941"><span class="lineNum">     941</span>                 :             :         .values = kSummaryValues,</span>
+<span id="L942"><span class="lineNum">     942</span>                 :             :         .topic = &quot;stats&quot;,</span>
+<span id="L943"><span class="lineNum">     943</span>                 :             :     },</span>
+<span id="L944"><span class="lineNum">     944</span>                 :             :     {</span>
+<span id="L945"><span class="lineNum">     945</span>                 :             :         .name = &quot;--histogram&quot;,</span>
+<span id="L946"><span class="lineNum">     946</span>                 :             :         .display = &quot;--histogram=BUCKET[:MEASURE]&quot;,</span>
+<span id="L947"><span class="lineNum">     947</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L948"><span class="lineNum">     948</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L949"><span class="lineNum">     949</span>                 :             :         .summary = &quot;bar chart per bucket: a count or sum/mean/min/max of size|lines (repeatable)&quot;,</span>
+<span id="L950"><span class="lineNum">     950</span>                 :             :         .details = &quot;A terminal reduction like --summary, drawn as bars. BUCKET groups the matches - a category &quot;</span>
+<span id="L951"><span class="lineNum">     951</span>                 :             :                    &quot;(overall, type, ext, lang, mime, user (owner), or group) or a numeric-range field &quot;</span>
+<span id="L952"><span class="lineNum">     952</span>                 :             :                    &quot;(size / lines by order of magnitude, depth per level, drawn as an ascending distribution). &quot;</span>
+<span id="L953"><span class="lineNum">     953</span>                 :             :                    &quot;The optional :MEASURE is the bar's value - &quot;</span>
+<span id="L954"><span class="lineNum">     954</span>                 :             :                    &quot;`count` (the default) or an aggregate &quot;</span>
+<span id="L955"><span class="lineNum">     955</span>                 :             :                    &quot;`sum(FIELD)` / `mean(FIELD)` / `min(FIELD)` / `max(FIELD)` over a numeric FIELD (size or lines). &quot;</span>
+<span id="L956"><span class="lineNum">     956</span>                 :             :                    &quot;A numeric metric needs an aggregator (`ext:lines` is an error; `ext:sum(lines)` is not). &quot;</span>
+<span id="L957"><span class="lineNum">     957</span>                 :             :                    &quot;Repeatable and combinable with --summary - both are fed by one walk and replace the per-match &quot;</span>
+<span id="L958"><span class="lineNum">     958</span>                 :             :                    &quot;listing. Bars scale to the tallest, use Unicode block characters on a UTF-8 locale (see &quot;</span>
+<span id="L959"><span class="lineNum">     959</span>                 :             :                    &quot;--unicode) or ASCII '#' otherwise; --top=N keeps the N tallest and --format=jsonl emits one &quot;</span>
+<span id="L960"><span class="lineNum">     960</span>                 :             :                    &quot;object per bar for scripts.&quot;,</span>
+<span id="L961"><span class="lineNum">     961</span>                 :             :         .topic = &quot;stats&quot;,</span>
+<span id="L962"><span class="lineNum">     962</span>                 :             :     },</span>
+<span id="L963"><span class="lineNum">     963</span>                 :             :     {</span>
+<span id="L964"><span class="lineNum">     964</span>                 :             :         .name = &quot;--shards&quot;,</span>
+<span id="L965"><span class="lineNum">     965</span>                 :             :         .display = &quot;--shards[=auto|SCHEME,...]&quot;,</span>
+<span id="L966"><span class="lineNum">     966</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L967"><span class="lineNum">     967</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L968"><span class="lineNum">     968</span>                 :             :         .summary = &quot;collapse each set of sharded files (e.g. data-00000-of-00010) to one line&quot;,</span>
+<span id="L969"><span class="lineNum">     969</span>                 :             :         .details = &quot;Recognizes sharded-file naming conventions and collapses each logical set to a single line &quot;</span>
+<span id="L970"><span class="lineNum">     970</span>                 :             :                    &quot;instead of listing every shard. Bare `--shards` (or `=auto`) enables all built-in schemes: &quot;</span>
+<span id="L971"><span class="lineNum">     971</span>                 :             :                    &quot;`&lt;stem&gt;-&lt;index&gt;-of-&lt;total&gt;` (`of`), `&lt;stem&gt;.&lt;NNN&gt;` (`dotnum`), and `&lt;stem&gt;_&lt;NNN&gt;` &quot;</span>
+<span id="L972"><span class="lineNum">     972</span>                 :             :                    &quot;(`underscore`). Restrict to specific schemes with a comma list, e.g. `--shards=of,dotnum`. &quot;</span>
+<span id="L973"><span class="lineNum">     973</span>                 :             :                    &quot;Grouping is &quot;</span>
+<span id="L974"><span class="lineNum">     974</span>                 :             :                    &quot;per-directory; files that match no scheme are listed unchanged. Off by default.&quot;,</span>
+<span id="L975"><span class="lineNum">     975</span>                 :             :         .values = kShardsValues,</span>
+<span id="L976"><span class="lineNum">     976</span>                 :             :         .topic = &quot;stats&quot;,</span>
+<span id="L977"><span class="lineNum">     977</span>                 :             :     },</span>
+<span id="L978"><span class="lineNum">     978</span>                 :             :     {</span>
+<span id="L979"><span class="lineNum">     979</span>                 :             :         .name = &quot;--shards-show&quot;,</span>
+<span id="L980"><span class="lineNum">     980</span>                 :             :         .display = &quot;--shards-show=first|wildcard|count&quot;,</span>
+<span id="L981"><span class="lineNum">     981</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L982"><span class="lineNum">     982</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L983"><span class="lineNum">     983</span>                 :             :         .summary = &quot;how a collapsed shard set's line reads (default first)&quot;,</span>
+<span id="L984"><span class="lineNum">     984</span>                 :             :         .details = &quot;Picks each collapsed set's display: `first` = the representative (lowest-index) shard's &quot;</span>
+<span id="L985"><span class="lineNum">     985</span>                 :             :                    &quot;path; `wildcard` = the masked-index name (the index digits shown as `???`); `count` = the &quot;</span>
+<span id="L986"><span class="lineNum">     986</span>                 :             :                    &quot;`wildcard` name plus the shard count. An incomplete set is always annotated &quot;</span>
+<span id="L987"><span class="lineNum">     987</span>                 :             :                    &quot;`(present/expected - INCOMPLETE)`. Only meaningful with `--shards`.&quot;,</span>
+<span id="L988"><span class="lineNum">     988</span>                 :             :         .values = kShardsShowValues,</span>
+<span id="L989"><span class="lineNum">     989</span>                 :             :         .topic = &quot;stats&quot;,</span>
+<span id="L990"><span class="lineNum">     990</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kEnum,</span>
+<span id="L991"><span class="lineNum">     991</span>                 :             :     },</span>
+<span id="L992"><span class="lineNum">     992</span>                 :             :     {</span>
+<span id="L993"><span class="lineNum">     993</span>                 :             :         .name = &quot;--shards-dedup&quot;,</span>
+<span id="L994"><span class="lineNum">     994</span>                 :             :         .display = &quot;--shards-dedup=first|mtime|error&quot;,</span>
+<span id="L995"><span class="lineNum">     995</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L996"><span class="lineNum">     996</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L997"><span class="lineNum">     997</span>                 :             :         .summary = &quot;how same-index shard duplicates are resolved (default first)&quot;,</span>
+<span id="L998"><span class="lineNum">     998</span>                 :             :         .details = &quot;When two files are the same logical shard (they differ only by an opaque tail, e.g. a &quot;</span>
+<span id="L999"><span class="lineNum">     999</span>                 :             :                    &quot;regeneration id), `--shards-dedup` picks which is the representative: `first` keeps the &quot;</span>
+<span id="L1000"><span class="lineNum">    1000</span>                 :             :                    &quot;lexicographically-first name; `mtime` keeps the newest; `error` treats the duplicate as an &quot;</span>
+<span id="L1001"><span class="lineNum">    1001</span>                 :             :                    &quot;error and fails the run (non-zero exit). Only meaningful with `--shards`.&quot;,</span>
+<span id="L1002"><span class="lineNum">    1002</span>                 :             :         .values = kShardsDedupValues,</span>
+<span id="L1003"><span class="lineNum">    1003</span>                 :             :         .topic = &quot;stats&quot;,</span>
+<span id="L1004"><span class="lineNum">    1004</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kEnum,</span>
+<span id="L1005"><span class="lineNum">    1005</span>                 :             :     },</span>
+<span id="L1006"><span class="lineNum">    1006</span>                 :             :     {</span>
+<span id="L1007"><span class="lineNum">    1007</span>                 :             :         .name = &quot;--shard-pattern&quot;,</span>
+<span id="L1008"><span class="lineNum">    1008</span>                 :             :         .display = &quot;--shard-pattern=REGEX&quot;,</span>
+<span id="L1009"><span class="lineNum">    1009</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1010"><span class="lineNum">    1010</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1011"><span class="lineNum">    1011</span>                 :             :         .summary = &quot;a custom shard scheme via a named-capture regex (repeatable); the escape hatch&quot;,</span>
+<span id="L1012"><span class="lineNum">    1012</span>                 :             :         .details = &quot;Defines a custom sharded-file scheme for --shards when the built-ins do not fit. REGEX is &quot;</span>
+<span id="L1013"><span class="lineNum">    1013</span>                 :             :                    &quot;an RE2 pattern with named groups: `(?P&lt;stem&gt;...)` and `(?P&lt;index&gt;...)` are required, &quot;</span>
+<span id="L1014"><span class="lineNum">    1014</span>                 :             :                    &quot;`(?P&lt;total&gt;...)` and `(?P&lt;dup&gt;...)` are optional. Repeatable; the patterns are tried in &quot;</span>
+<span id="L1015"><span class="lineNum">    1015</span>                 :             :                    &quot;order, before the built-in schemes. Only meaningful with --shards.&quot;,</span>
+<span id="L1016"><span class="lineNum">    1016</span>                 :             :         .topic = &quot;stats&quot;,</span>
+<span id="L1017"><span class="lineNum">    1017</span>                 :             :     },</span>
+<span id="L1018"><span class="lineNum">    1018</span>                 :             :     {</span>
+<span id="L1019"><span class="lineNum">    1019</span>                 :             :         .name = &quot;--count&quot;,</span>
+<span id="L1020"><span class="lineNum">    1020</span>                 :             :         .alias = &quot;-c&quot;,</span>
+<span id="L1021"><span class="lineNum">    1021</span>                 :             :         .display = &quot;--count, -c&quot;,</span>
+<span id="L1022"><span class="lineNum">    1022</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1023"><span class="lineNum">    1023</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1024"><span class="lineNum">    1024</span>                 :             :         .summary = &quot;with -grep, print a per-file matching-line count (path:count) instead of the lines&quot;,</span>
+<span id="L1025"><span class="lineNum">    1025</span>                 :             :         .affects = &quot;-grep&quot;,</span>
+<span id="L1026"><span class="lineNum">    1026</span>                 :             :         .topic = &quot;content&quot;,</span>
+<span id="L1027"><span class="lineNum">    1027</span>                 :             :     },</span>
+<span id="L1028"><span class="lineNum">    1028</span>                 :             :     {</span>
+<span id="L1029"><span class="lineNum">    1029</span>                 :             :         .name = &quot;--context&quot;,</span>
+<span id="L1030"><span class="lineNum">    1030</span>                 :             :         .display = &quot;--context=SPEC&quot;,</span>
+<span id="L1031"><span class="lineNum">    1031</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1032"><span class="lineNum">    1032</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1033"><span class="lineNum">    1033</span>                 :             :         .summary = &quot;-grep context lines: N both sides, or A:N,B:N,C:N for after/before/both&quot;,</span>
+<span id="L1034"><span class="lineNum">    1034</span>                 :             :         .details = &quot;`--context=2` is grep's `-C 2` (two lines either side); the A / B / C keys inside the &quot;</span>
+<span id="L1035"><span class="lineNum">    1035</span>                 :             :                    &quot;value select one side (`--context=A:3,B:1`), which is what `--after-context` and &quot;</span>
+<span id="L1036"><span class="lineNum">    1036</span>                 :             :                    &quot;`--before-context` spell one at a time. xff has NO single-dash `-A` / `-B` / `-C`: those &quot;</span>
+<span id="L1037"><span class="lineNum">    1037</span>                 :             :                    &quot;letters are unclaimed for now (see TODO.md), and a single-dash flag would be an &quot;</span>
+<span id="L1038"><span class="lineNum">    1038</span>                 :             :                    &quot;expression primary under xff's dash-count rule rather than a whole-run option.&quot;,</span>
+<span id="L1039"><span class="lineNum">    1039</span>                 :             :         .affects = &quot;-grep,-diff,--diff-context&quot;,</span>
+<span id="L1040"><span class="lineNum">    1040</span>                 :             :         .topic = &quot;content&quot;,</span>
+<span id="L1041"><span class="lineNum">    1041</span>                 :             :     },</span>
+<span id="L1042"><span class="lineNum">    1042</span>                 :             :     {</span>
+<span id="L1043"><span class="lineNum">    1043</span>                 :             :         .name = &quot;--after-context&quot;,</span>
+<span id="L1044"><span class="lineNum">    1044</span>                 :             :         .display = &quot;--after-context=N&quot;,</span>
+<span id="L1045"><span class="lineNum">    1045</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1046"><span class="lineNum">    1046</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1047"><span class="lineNum">    1047</span>                 :             :         .summary = &quot;with -grep, print N lines of context after each match (= --context=A:N)&quot;,</span>
+<span id="L1048"><span class="lineNum">    1048</span>                 :             :         .affects = &quot;-grep&quot;,</span>
+<span id="L1049"><span class="lineNum">    1049</span>                 :             :     },</span>
+<span id="L1050"><span class="lineNum">    1050</span>                 :             :     {</span>
+<span id="L1051"><span class="lineNum">    1051</span>                 :             :         .name = &quot;--before-context&quot;,</span>
+<span id="L1052"><span class="lineNum">    1052</span>                 :             :         .display = &quot;--before-context=N&quot;,</span>
+<span id="L1053"><span class="lineNum">    1053</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1054"><span class="lineNum">    1054</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1055"><span class="lineNum">    1055</span>                 :             :         .summary = &quot;with -grep, print N lines of context before each match (= --context=B:N)&quot;,</span>
+<span id="L1056"><span class="lineNum">    1056</span>                 :             :         .affects = &quot;-grep&quot;,</span>
+<span id="L1057"><span class="lineNum">    1057</span>                 :             :     },</span>
+<span id="L1058"><span class="lineNum">    1058</span>                 :             :     {</span>
+<span id="L1059"><span class="lineNum">    1059</span>                 :             :         .name = &quot;--max-results&quot;,</span>
+<span id="L1060"><span class="lineNum">    1060</span>                 :             :         .display = &quot;--max-results=N&quot;,</span>
+<span id="L1061"><span class="lineNum">    1061</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1062"><span class="lineNum">    1062</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1063"><span class="lineNum">    1063</span>                 :             :         .summary = &quot;list at most N matched entries without stopping or truncating reductions&quot;,</span>
+<span id="L1064"><span class="lineNum">    1064</span>                 :             :         .details =</span>
+<span id="L1065"><span class="lineNum">    1065</span>                 :             :             &quot;Caps the implicit result listing after the whole expression, across every branch and every &quot;</span>
+<span id="L1066"><span class="lineNum">    1066</span>                 :             :             &quot;per-instance `-first` / `-top` filter. It does NOT stop traversal: `--summary`, `--histogram`, &quot;</span>
+<span id="L1067"><span class="lineNum">    1067</span>                 :             :             &quot;`--count`, and archive packing still see the complete matched set rather than silently reporting a &quot;</span>
+<span id="L1068"><span class="lineNum">    1068</span>                 :             :             &quot;partial walk. Explicit expression actions (`-print`, `-grep`, `-exec`, and friends) keep their own &quot;</span>
+<span id="L1069"><span class="lineNum">    1069</span>                 :             :             &quot;positional semantics and are not suppressed; use `-first` or `-top` before an action to cap the entries &quot;</span>
+<span id="L1070"><span class="lineNum">    1070</span>                 :             :             &quot;that reach it. With one capped filter this flag is usually redundant; its distinct use is an aggregate &quot;</span>
+<span id="L1071"><span class="lineNum">    1071</span>                 :             :             &quot;ceiling such as `\\( -type f -first 10 \\) -o \\( -type d -first 5 \\) --max-results=12`. Last &quot;</span>
+<span id="L1072"><span class="lineNum">    1072</span>                 :             :             &quot;occurrence wins. A malformed or negative count is a usage error; `0` lists none.&quot;,</span>
+<span id="L1073"><span class="lineNum">    1073</span>                 :             :     },</span>
+<span id="L1074"><span class="lineNum">    1074</span>                 :             :     {</span>
+<span id="L1075"><span class="lineNum">    1075</span>                 :             :         .name = &quot;--top&quot;,</span>
+<span id="L1076"><span class="lineNum">    1076</span>                 :             :         .display = &quot;--top=N&quot;,</span>
+<span id="L1077"><span class="lineNum">    1077</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1078"><span class="lineNum">    1078</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1079"><span class="lineNum">    1079</span>                 :             :         .summary = &quot;with --summary or --histogram, keep only the N largest/tallest groups&quot;,</span>
+<span id="L1080"><span class="lineNum">    1080</span>                 :             :         .topic = &quot;stats&quot;,</span>
+<span id="L1081"><span class="lineNum">    1081</span>                 :             :     },</span>
+<span id="L1082"><span class="lineNum">    1082</span>                 :             :     {</span>
+<span id="L1083"><span class="lineNum">    1083</span>                 :             :         .name = &quot;--histogram-width&quot;,</span>
+<span id="L1084"><span class="lineNum">    1084</span>                 :             :         .display = &quot;--histogram-width=N&quot;,</span>
+<span id="L1085"><span class="lineNum">    1085</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1086"><span class="lineNum">    1086</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1087"><span class="lineNum">    1087</span>                 :             :         .summary = &quot;cell width the tallest --histogram bar fills (default 40)&quot;,</span>
+<span id="L1088"><span class="lineNum">    1088</span>                 :             :         .affects = &quot;--histogram&quot;,</span>
+<span id="L1089"><span class="lineNum">    1089</span>                 :             :         .topic = &quot;stats&quot;,</span>
+<span id="L1090"><span class="lineNum">    1090</span>                 :             :     },</span>
+<span id="L1091"><span class="lineNum">    1091</span>                 :             :     {</span>
+<span id="L1092"><span class="lineNum">    1092</span>                 :             :         .name = &quot;--summary-precision&quot;,</span>
+<span id="L1093"><span class="lineNum">    1093</span>                 :             :         .display = &quot;--summary-precision=N&quot;,</span>
+<span id="L1094"><span class="lineNum">    1094</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1095"><span class="lineNum">    1095</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1096"><span class="lineNum">    1096</span>                 :             :         .summary = &quot;with --summary --human: fraction digits for scaled sizes (default 2; bytes stay integer)&quot;,</span>
+<span id="L1097"><span class="lineNum">    1097</span>                 :             :         .topic = &quot;stats&quot;,</span>
+<span id="L1098"><span class="lineNum">    1098</span>                 :             :     },</span>
+<span id="L1099"><span class="lineNum">    1099</span>                 :             :     {</span>
+<span id="L1100"><span class="lineNum">    1100</span>                 :             :         .name = &quot;--color&quot;,</span>
+<span id="L1101"><span class="lineNum">    1101</span>                 :             :         .display = &quot;--color[=auto|always|never]&quot;,</span>
+<span id="L1102"><span class="lineNum">    1102</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1103"><span class="lineNum">    1103</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1104"><span class="lineNum">    1104</span>                 :             :         .summary = &quot;colorize the plain listing by file type: auto (a tty), always, or never; honors NO_COLOR&quot;,</span>
+<span id="L1105"><span class="lineNum">    1105</span>                 :             :         .details = &quot;Colorizes the plain listing by file type. auto colorizes only when stdout is a terminal; always &quot;</span>
+<span id="L1106"><span class="lineNum">    1106</span>                 :             :                    &quot;forces color even through a pipe or pager; never disables it. The NO_COLOR environment variable &quot;</span>
+<span id="L1107"><span class="lineNum">    1107</span>                 :             :                    &quot;always wins.&quot;,</span>
+<span id="L1108"><span class="lineNum">    1108</span>                 :             :         .values = kColorValues,</span>
+<span id="L1109"><span class="lineNum">    1109</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kTristate,</span>
+<span id="L1110"><span class="lineNum">    1110</span>                 :             :     },</span>
+<span id="L1111"><span class="lineNum">    1111</span>                 :             :     {</span>
+<span id="L1112"><span class="lineNum">    1112</span>                 :             :         .name = &quot;--color-scheme&quot;,</span>
+<span id="L1113"><span class="lineNum">    1113</span>                 :             :         .display = &quot;--color-scheme=&lt;SCHEME&gt;&quot;,</span>
+<span id="L1114"><span class="lineNum">    1114</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1115"><span class="lineNum">    1115</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1116"><span class="lineNum">    1116</span>                 :             :         .summary = &quot;which palette colour comes from: the terminal's ls theme, or xff's own&quot;,</span>
+<span id="L1117"><span class="lineNum">    1117</span>                 :             :         .details = &quot;Colour is a whole-run choice, so this one palette is used by every surface that &quot;</span>
+<span id="L1118"><span class="lineNum">    1118</span>                 :             :                    &quot;colours - the plain listing and -ls alike; they cannot disagree. $LS_COLORS is the &quot;</span>
+<span id="L1119"><span class="lineNum">    1119</span>                 :             :                    &quot;variable `ls` and `dircolors` use, and xff reads the same keys: the two-letter &quot;</span>
+<span id="L1120"><span class="lineNum">    1120</span>                 :             :                    &quot;types (`di`, `ln`, `ex`, `pi`, `so`, `bd`, `cd`, `fi`) and the per-extension `*.tar=` entries. &quot;</span>
+<span id="L1121"><span class="lineNum">    1121</span>                 :             :                    &quot;Where only BSD's $LSCOLORS is set - the macOS case - that is read instead: its 11 &quot;</span>
+<span id="L1122"><span class="lineNum">    1122</span>                 :             :                    &quot;letter pairs carry the same types in a fixed order, with no way to say \&quot;leave &quot;</span>
+<span id="L1123"><span class="lineNum">    1123</span>                 :             :                    &quot;this plain\&quot; and no per-extension entries, so `merged` is the interesting scheme &quot;</span>
+<span id="L1124"><span class="lineNum">    1124</span>                 :             :                    &quot;there. $LS_COLORS wins when both are set, being the richer format. Both variables &quot;</span>
+<span id="L1125"><span class="lineNum">    1125</span>                 :             :                    &quot;are read on every platform rather than one per OS: which one is SET is better &quot;</span>
+<span id="L1126"><span class="lineNum">    1126</span>                 :             :                    &quot;evidence than which system this is (a macOS shell with GNU coreutils is themed &quot;</span>
+<span id="L1127"><span class="lineNum">    1127</span>                 :             :                    &quot;through $LS_COLORS, and $LSCOLORS is not macOS-only), and the fixed 22-character &quot;</span>
+<span id="L1128"><span class="lineNum">    1128</span>                 :             :                    &quot;shape makes the BSD one self-validating. &quot;</span>
+<span id="L1129"><span class="lineNum">    1129</span>                 :             :                    &quot;\&quot;Use ls's colours\&quot; turns out to mean three different things, so each has its &quot;</span>
+<span id="L1130"><span class="lineNum">    1130</span>                 :             :                    &quot;own name, spelled the way logic spells it: `+` is OR, and the merge is AND. &quot;</span>
+<span id="L1131"><span class="lineNum">    1131</span>                 :             :                    &quot;`auto` (the default, also `ls+xff` or `ls-or-xff`) is the theme OR xff's scheme - &quot;</span>
+<span id="L1132"><span class="lineNum">    1132</span>                 :             :                    &quot;a theme that is set at all is the whole answer, and with none set xff's scheme is, &quot;</span>
+<span id="L1133"><span class="lineNum">    1133</span>                 :             :                    &quot;so the decision is per VARIABLE; `default` is a fourth spelling of it, for a &quot;</span>
+<span id="L1134"><span class="lineNum">    1134</span>                 :             :                    &quot;config file that wants whatever the default currently is. `ls` is the theme &quot;</span>
+<span id="L1135"><span class="lineNum">    1135</span>                 :             :                    &quot;ALONE, so a type it never mentions prints uncoloured exactly as in a real ls &quot;</span>
+<span id="L1136"><span class="lineNum">    1136</span>                 :             :                    &quot;listing (and with no theme set, nothing is coloured). `merged` (also &quot;</span>
+<span id="L1137"><span class="lineNum">    1137</span>                 :             :                    &quot;`ls-and-xff`) is the theme &quot;</span>
+<span id="L1138"><span class="lineNum">    1138</span>                 :             :                    &quot;AND xff's scheme, merged per KEY: the theme where it speaks, xff's colour for &quot;</span>
+<span id="L1139"><span class="lineNum">    1139</span>                 :             :                    &quot;every key it omits - for a sparse theme you want filled in. (`ls&amp;xff` is &quot;</span>
+<span id="L1140"><span class="lineNum">    1140</span>                 :             :                    &quot;deliberately not accepted: an unquoted `&amp;` backgrounds the command.) `xff` &quot;</span>
+<span id="L1141"><span class="lineNum">    1141</span>                 :             :                    &quot;ignores $LS_COLORS entirely. An EMPTY value in the theme (`di=`) is it &quot;</span>
+<span id="L1142"><span class="lineNum">    1142</span>                 :             :                    &quot;saying \&quot;leave these plain\&quot; and is honoured as such; a malformed entry is &quot;</span>
+<span id="L1143"><span class="lineNum">    1143</span>                 :             :                    &quot;skipped rather than failing the run, as in ls. Whether colour is emitted at all &quot;</span>
+<span id="L1144"><span class="lineNum">    1144</span>                 :             :                    &quot;is --color's business, not this flag's.&quot;,</span>
+<span id="L1145"><span class="lineNum">    1145</span>                 :             :         .values = kColorSchemeValues,</span>
+<span id="L1146"><span class="lineNum">    1146</span>                 :             :         .affects = &quot;--color&quot;,</span>
+<span id="L1147"><span class="lineNum">    1147</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kEnum,</span>
+<span id="L1148"><span class="lineNum">    1148</span>                 :             :     },</span>
+<span id="L1149"><span class="lineNum">    1149</span>                 :             :     {</span>
+<span id="L1150"><span class="lineNum">    1150</span>                 :             :         .name = &quot;--unicode&quot;,</span>
+<span id="L1151"><span class="lineNum">    1151</span>                 :             :         .display = &quot;--unicode[=auto|always|never]&quot;,</span>
+<span id="L1152"><span class="lineNum">    1152</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1153"><span class="lineNum">    1153</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1154"><span class="lineNum">    1154</span>                 :             :         .summary = &quot;--format=tree connectors: auto (a UTF-8 locale), always (Unicode), or never (ASCII)&quot;,</span>
+<span id="L1155"><span class="lineNum">    1155</span>                 :             :         .details = &quot;Selects the box-drawing characters --format=tree connects nodes with. auto uses Unicode when the &quot;</span>
+<span id="L1156"><span class="lineNum">    1156</span>                 :             :                    &quot;locale (LC_ALL / LC_CTYPE / LANG) is UTF-8, else ASCII; always forces the Unicode connectors; &quot;</span>
+<span id="L1157"><span class="lineNum">    1157</span>                 :             :                    &quot;never forces the ASCII ones.&quot;,</span>
+<span id="L1158"><span class="lineNum">    1158</span>                 :             :         .values = kUnicodeValues,</span>
+<span id="L1159"><span class="lineNum">    1159</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kTristate,</span>
+<span id="L1160"><span class="lineNum">    1160</span>                 :             :     },</span>
+<span id="L1161"><span class="lineNum">    1161</span>                 :             :     {</span>
+<span id="L1162"><span class="lineNum">    1162</span>                 :             :         .name = &quot;--human&quot;,</span>
+<span id="L1163"><span class="lineNum">    1163</span>                 :             :         .display = &quot;--human[=si|iec|off]&quot;,</span>
+<span id="L1164"><span class="lineNum">    1164</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1165"><span class="lineNum">    1165</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1166"><span class="lineNum">    1166</span>                 :             :         .summary = &quot;size units for -ls / --summary: si (kB/MB, default), iec (KiB/MiB), off (bytes); xff -&gt; si&quot;,</span>
+<span id="L1167"><span class="lineNum">    1167</span>                 :             :         .values = kHumanValues,</span>
+<span id="L1168"><span class="lineNum">    1168</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kEnum,</span>
+<span id="L1169"><span class="lineNum">    1169</span>                 :             :     },</span>
+<span id="L1170"><span class="lineNum">    1170</span>                 :             :     {</span>
+<span id="L1171"><span class="lineNum">    1171</span>                 :             :         .name = &quot;--si&quot;,</span>
+<span id="L1172"><span class="lineNum">    1172</span>                 :             :         .display = &quot;--si&quot;,</span>
+<span id="L1173"><span class="lineNum">    1173</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1174"><span class="lineNum">    1174</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1175"><span class="lineNum">    1175</span>                 :             :         .summary = &quot;human sizes in SI (kB/MB, 1000^N); an alias for --human=si (the --human default)&quot;,</span>
+<span id="L1176"><span class="lineNum">    1176</span>                 :             :     },</span>
+<span id="L1177"><span class="lineNum">    1177</span>                 :             :     {</span>
+<span id="L1178"><span class="lineNum">    1178</span>                 :             :         .name = &quot;--buffer&quot;,</span>
+<span id="L1179"><span class="lineNum">    1179</span>                 :             :         .display = &quot;--buffer[=auto|off|all|N[kMGT]|NMB|NMiB]&quot;,</span>
+<span id="L1180"><span class="lineNum">    1180</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1181"><span class="lineNum">    1181</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1182"><span class="lineNum">    1182</span>                 :             :         .summary = &quot;buffer to size columns (-ls / tables): auto, off, all, N[kMGT] rows, or NMB/NMiB bytes&quot;,</span>
+<span id="L1183"><span class="lineNum">    1183</span>                 :             :         .details = &quot;Row windows use a bare count or decimal `k`/`M`/`G`/`T` multiplier. Byte budgets require an &quot;</span>
+<span id="L1184"><span class="lineNum">    1184</span>                 :             :                    &quot;explicit trailing `B`: `B`/`kB`/`MB`/.../`EB` are SI, while &quot;</span>
+<span id="L1185"><span class="lineNum">    1185</span>                 :             :                    &quot;`KiB`/`MiB`/.../`EiB` are IEC. The distinct suffixes keep rows and bytes unambiguous.&quot;,</span>
+<span id="L1186"><span class="lineNum">    1186</span>                 :             :     },</span>
+<span id="L1187"><span class="lineNum">    1187</span>                 :             :     {</span>
+<span id="L1188"><span class="lineNum">    1188</span>                 :             :         .name = &quot;--width&quot;,</span>
+<span id="L1189"><span class="lineNum">    1189</span>                 :             :         .display = &quot;--width[=auto|none|COLS]&quot;,</span>
+<span id="L1190"><span class="lineNum">    1190</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1191"><span class="lineNum">    1191</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1192"><span class="lineNum">    1192</span>                 :             :         .summary = &quot;wrap column for plain --help text: auto (terminal width, else unwrapped), none, or a count&quot;,</span>
+<span id="L1193"><span class="lineNum">    1193</span>                 :             :         .details = &quot;Wraps the flowing text of --help and --help=TOPIC (option and topic descriptions) to a &quot;</span>
+<span id="L1194"><span class="lineNum">    1194</span>                 :             :                    &quot;column width. auto uses the terminal width when stdout is a terminal (honoring $COLUMNS), &quot;</span>
+<span id="L1195"><span class="lineNum">    1195</span>                 :             :                    &quot;and leaves output unwrapped when it is not (a pipe or file); none (or 0) disables wrapping; &quot;</span>
+<span id="L1196"><span class="lineNum">    1196</span>                 :             :                    &quot;a positive integer sets a fixed width. Aligned vocabulary tables and example blocks keep &quot;</span>
+<span id="L1197"><span class="lineNum">    1197</span>                 :             :                    &quot;their own layout. Does not affect the file listing, --man, or --markdown.&quot;,</span>
+<span id="L1198"><span class="lineNum">    1198</span>                 :             :     },</span>
+<span id="L1199"><span class="lineNum">    1199</span>                 :             :     {</span>
+<span id="L1200"><span class="lineNum">    1200</span>                 :             :         .name = &quot;--pager&quot;,</span>
+<span id="L1201"><span class="lineNum">    1201</span>                 :             :         .display = &quot;--pager[=auto|always|all|never]&quot;,</span>
+<span id="L1202"><span class="lineNum">    1202</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1203"><span class="lineNum">    1203</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1204"><span class="lineNum">    1204</span>                 :             :         .summary = &quot;page output: auto (help / man / markdown on a tty), all (plus the listing), always, never&quot;,</span>
+<span id="L1205"><span class="lineNum">    1205</span>                 :             :         .details = &quot;Pages the long meta output (`--help`, `--help=TOPIC`, `--man`, `--markdown`) through a &quot;</span>
+<span id="L1206"><span class="lineNum">    1206</span>                 :             :                    &quot;pager. `auto` pages only when stdout is a terminal; `always` pages even through a pipe; &quot;</span>
+<span id="L1207"><span class="lineNum">    1207</span>                 :             :                    &quot;`never` (or `--no-pager`) disables it. The pager command is $XFF_PAGER, else $PAGER, else &quot;</span>
+<span id="L1208"><span class="lineNum">    1208</span>                 :             :                    &quot;`less -FRX`; set either variable to empty to disable. `all` additionally pages the FILE &quot;</span>
+<span id="L1209"><span class="lineNum">    1209</span>                 :             :                    &quot;LISTING: the pager is started once and the whole walk streams into it, so the first screen &quot;</span>
+<span id="L1210"><span class="lineNum">    1210</span>                 :             :                    &quot;appears while the walk is still running and quitting it ends the run quietly. Unlike &quot;</span>
+<span id="L1211"><span class="lineNum">    1211</span>                 :             :                    &quot;`always`, `all` stays terminal-only - a listing forced through a pager in a pipeline would &quot;</span>
+<span id="L1212"><span class="lineNum">    1212</span>                 :             :                    &quot;feed the pager's screen handling to the next command. It also steps aside for an expression &quot;</span>
+<span id="L1213"><span class="lineNum">    1213</span>                 :             :                    &quot;that needs the terminal itself (`-ok`, `-okdir`, `-exec`, `-execdir`, which can hand the &quot;</span>
+<span id="L1214"><span class="lineNum">    1214</span>                 :             :                    &quot;terminal to an editor) and for `--quiet`, which prints nothing to page; those runs are &quot;</span>
+<span id="L1215"><span class="lineNum">    1215</span>                 :             :                    &quot;simply unpaged.&quot;,</span>
+<span id="L1216"><span class="lineNum">    1216</span>                 :             :         .values = kPagerValues,</span>
+<span id="L1217"><span class="lineNum">    1217</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kEnum,</span>
+<span id="L1218"><span class="lineNum">    1218</span>                 :             :     },</span>
+<span id="L1219"><span class="lineNum">    1219</span>                 :             :     {</span>
+<span id="L1220"><span class="lineNum">    1220</span>                 :             :         .name = &quot;--no-pager&quot;,</span>
+<span id="L1221"><span class="lineNum">    1221</span>                 :             :         .display = &quot;--no-pager&quot;,</span>
+<span id="L1222"><span class="lineNum">    1222</span>                 :             :         .group = &quot;output&quot;,</span>
+<span id="L1223"><span class="lineNum">    1223</span>                 :             :         .header = &quot;Output&quot;,</span>
+<span id="L1224"><span class="lineNum">    1224</span>                 :             :         .summary = &quot;never page the help / man / markdown output (an alias for --pager=never)&quot;,</span>
+<span id="L1225"><span class="lineNum">    1225</span>                 :             :     },</span>
+<span id="L1226"><span class="lineNum">    1226</span>                 :             :     {</span>
+<span id="L1227"><span class="lineNum">    1227</span>                 :             :         .name = &quot;--quiet&quot;,</span>
+<span id="L1228"><span class="lineNum">    1228</span>                 :             :         .alias = &quot;-q&quot;,</span>
+<span id="L1229"><span class="lineNum">    1229</span>                 :             :         .display = &quot;--quiet, -q&quot;,</span>
+<span id="L1230"><span class="lineNum">    1230</span>                 :             :         .group = &quot;exit&quot;,</span>
+<span id="L1231"><span class="lineNum">    1231</span>                 :             :         .header = &quot;Exit code control&quot;,</span>
+<span id="L1232"><span class="lineNum">    1232</span>                 :             :         .summary = &quot;suppress output; exit 0 if anything matched, else 1 (-q: grep-compatible)&quot;,</span>
+<span id="L1233"><span class="lineNum">    1233</span>                 :             :     },</span>
+<span id="L1234"><span class="lineNum">    1234</span>                 :             :     {</span>
+<span id="L1235"><span class="lineNum">    1235</span>                 :             :         .name = &quot;--exit-match&quot;,</span>
+<span id="L1236"><span class="lineNum">    1236</span>                 :             :         .display = &quot;--exit-match&quot;,</span>
+<span id="L1237"><span class="lineNum">    1237</span>                 :             :         .group = &quot;exit&quot;,</span>
+<span id="L1238"><span class="lineNum">    1238</span>                 :             :         .header = &quot;Exit code control&quot;,</span>
+<span id="L1239"><span class="lineNum">    1239</span>                 :             :         .summary = &quot;keep output; exit 0 if anything matched, else 1&quot;,</span>
+<span id="L1240"><span class="lineNum">    1240</span>                 :             :     },</span>
+<span id="L1241"><span class="lineNum">    1241</span>                 :             :     {</span>
+<span id="L1242"><span class="lineNum">    1242</span>                 :             :         .name = &quot;--safe&quot;,</span>
+<span id="L1243"><span class="lineNum">    1243</span>                 :             :         .display = &quot;--safe&quot;,</span>
+<span id="L1244"><span class="lineNum">    1244</span>                 :             :         .group = &quot;safety&quot;,</span>
+<span id="L1245"><span class="lineNum">    1245</span>                 :             :         .header = &quot;Safety&quot;,</span>
+<span id="L1246"><span class="lineNum">    1246</span>                 :             :         .summary = &quot;refuse destructive actions (-delete / -exec)&quot;,</span>
+<span id="L1247"><span class="lineNum">    1247</span>                 :             :     },</span>
+<span id="L1248"><span class="lineNum">    1248</span>                 :             :     {</span>
+<span id="L1249"><span class="lineNum">    1249</span>                 :             :         .name = &quot;--dry-run&quot;,</span>
+<span id="L1250"><span class="lineNum">    1250</span>                 :             :         .display = &quot;--dry-run&quot;,</span>
+<span id="L1251"><span class="lineNum">    1251</span>                 :             :         .group = &quot;safety&quot;,</span>
+<span id="L1252"><span class="lineNum">    1252</span>                 :             :         .header = &quot;Safety&quot;,</span>
+<span id="L1253"><span class="lineNum">    1253</span>                 :             :         .summary = &quot;preview -delete without removing anything&quot;,</span>
+<span id="L1254"><span class="lineNum">    1254</span>                 :             :     },</span>
+<span id="L1255"><span class="lineNum">    1255</span>                 :             :     {</span>
+<span id="L1256"><span class="lineNum">    1256</span>                 :             :         .name = &quot;--skip-unsupported&quot;,</span>
+<span id="L1257"><span class="lineNum">    1257</span>                 :             :         .display = &quot;--skip-unsupported&quot;,</span>
+<span id="L1258"><span class="lineNum">    1258</span>                 :             :         .group = &quot;safety&quot;,</span>
+<span id="L1259"><span class="lineNum">    1259</span>                 :             :         .header = &quot;Safety&quot;,</span>
+<span id="L1260"><span class="lineNum">    1260</span>                 :             :         .summary = &quot;warn and skip a predicate a filesystem cannot evaluate, not fail&quot;,</span>
+<span id="L1261"><span class="lineNum">    1261</span>                 :             :     },</span>
+<span id="L1262"><span class="lineNum">    1262</span>                 :             :     {</span>
+<span id="L1263"><span class="lineNum">    1263</span>                 :             :         .name = &quot;--exec-fields&quot;,</span>
+<span id="L1264"><span class="lineNum">    1264</span>                 :             :         .display = &quot;--exec-fields&quot;,</span>
+<span id="L1265"><span class="lineNum">    1265</span>                 :             :         .group = &quot;fields&quot;,</span>
+<span id="L1266"><span class="lineNum">    1266</span>                 :             :         .header = &quot;Fields &amp; Exec&quot;,</span>
+<span id="L1267"><span class="lineNum">    1267</span>                 :             :         .summary = &quot;render -exec tokens through the field vocabulary ({name}, {path}, ...)&quot;,</span>
+<span id="L1268"><span class="lineNum">    1268</span>                 :             :     },</span>
+<span id="L1269"><span class="lineNum">    1269</span>                 :             :     {</span>
+<span id="L1270"><span class="lineNum">    1270</span>                 :             :         .name = &quot;--define&quot;,</span>
+<span id="L1271"><span class="lineNum">    1271</span>                 :             :         .display = &quot;--define=NAME=VALUE&quot;,</span>
+<span id="L1272"><span class="lineNum">    1272</span>                 :             :         .group = &quot;fields&quot;,</span>
+<span id="L1273"><span class="lineNum">    1273</span>                 :             :         .header = &quot;Fields &amp; Exec&quot;,</span>
+<span id="L1274"><span class="lineNum">    1274</span>                 :             :         .summary = &quot;define a value referenced as {def.NAME}&quot;,</span>
+<span id="L1275"><span class="lineNum">    1275</span>                 :             :     },</span>
+<span id="L1276"><span class="lineNum">    1276</span>                 :             :     {</span>
+<span id="L1277"><span class="lineNum">    1277</span>                 :             :         .name = &quot;--time-format&quot;,</span>
+<span id="L1278"><span class="lineNum">    1278</span>                 :             :         .display = &quot;--time-format=FMT&quot;,</span>
+<span id="L1279"><span class="lineNum">    1279</span>                 :             :         .group = &quot;time&quot;,</span>
+<span id="L1280"><span class="lineNum">    1280</span>                 :             :         .header = &quot;Time&quot;,</span>
+<span id="L1281"><span class="lineNum">    1281</span>                 :             :         .summary = &quot;default format for time fields (a preset name or a strftime pattern)&quot;,</span>
+<span id="L1282"><span class="lineNum">    1282</span>                 :             :         .details = &quot;Sets the default rendering for time fields ({mtime}, {atime}, -printf %t, ...) when no per-field &quot;</span>
+<span id="L1283"><span class="lineNum">    1283</span>                 :             :                    &quot;qualifier is given. Accepts a preset (iso, epoch, space, find) or any strftime pattern such as &quot;</span>
+<span id="L1284"><span class="lineNum">    1284</span>                 :             :                    &quot;%Y-%m-%d. A per-field qualifier like {mtime:%H:%M} still overrides it.&quot;,</span>
+<span id="L1285"><span class="lineNum">    1285</span>                 :             :     },</span>
+<span id="L1286"><span class="lineNum">    1286</span>                 :             :     {</span>
+<span id="L1287"><span class="lineNum">    1287</span>                 :             :         .name = &quot;--timezone&quot;,</span>
+<span id="L1288"><span class="lineNum">    1288</span>                 :             :         .alias = &quot;--tz&quot;,</span>
+<span id="L1289"><span class="lineNum">    1289</span>                 :             :         .display = &quot;--timezone=ZONE, --tz=ZONE&quot;,</span>
+<span id="L1290"><span class="lineNum">    1290</span>                 :             :         .group = &quot;time&quot;,</span>
+<span id="L1291"><span class="lineNum">    1291</span>                 :             :         .header = &quot;Time&quot;,</span>
+<span id="L1292"><span class="lineNum">    1292</span>                 :             :         .summary = &quot;zone for interpreting/formatting times (local, utc, an IANA name, or +HH:MM)&quot;,</span>
+<span id="L1293"><span class="lineNum">    1293</span>                 :             :         .details = &quot;The zone used to interpret and format every time. Accepts local, utc, an IANA name like &quot;</span>
+<span id="L1294"><span class="lineNum">    1294</span>                 :             :                    &quot;Europe/London, or a fixed offset like +02:00. Affects time fields and -newerXt comparisons.&quot;,</span>
+<span id="L1295"><span class="lineNum">    1295</span>                 :             :     },</span>
+<span id="L1296"><span class="lineNum">    1296</span>                 :             :     {</span>
+<span id="L1297"><span class="lineNum">    1297</span>                 :             :         .name = &quot;--time-zone-suffix&quot;,</span>
+<span id="L1298"><span class="lineNum">    1298</span>                 :             :         .display = &quot;--time-zone-suffix[=auto|always|never]&quot;,</span>
+<span id="L1299"><span class="lineNum">    1299</span>                 :             :         .group = &quot;time&quot;,</span>
+<span id="L1300"><span class="lineNum">    1300</span>                 :             :         .header = &quot;Time&quot;,</span>
+<span id="L1301"><span class="lineNum">    1301</span>                 :             :         .summary = &quot;show the zone offset on a time field: auto (per format), always, or never&quot;,</span>
+<span id="L1302"><span class="lineNum">    1302</span>                 :             :         .details = &quot;Controls whether a time field's named preset renders its trailing zone (+0100, +01:00). &quot;</span>
+<span id="L1303"><span class="lineNum">    1303</span>                 :             :                    &quot;`auto` keeps each preset's default (`space` / `iso` / `rfc3339` show it, `asctime` / `epoch` &quot;</span>
+<span id="L1304"><span class="lineNum">    1304</span>                 :             :                    &quot;omit it); `never` drops it; `always` forces it, even on a preset that omits one. Accepts &quot;</span>
+<span id="L1305"><span class="lineNum">    1305</span>                 :             :                    &quot;`true` / `yes` / `on` (= `always`) and `false` / `no` / `off` (= `never`). The &quot;</span>
+<span id="L1306"><span class="lineNum">    1306</span>                 :             :                    &quot;inherently-zoned `zulu` / `zulu-dense` / `asn1z` always keep their mandatory Z, and a custom &quot;</span>
+<span id="L1307"><span class="lineNum">    1307</span>                 :             :                    &quot;strftime `--time-format` is never altered - control its zone with %z / %Ez / %Z yourself. &quot;</span>
+<span id="L1308"><span class="lineNum">    1308</span>                 :             :                    &quot;`asn1`'s zone is optional: `always` adds its ASN.1-style offset (+0100, no separator), &quot;</span>
+<span id="L1309"><span class="lineNum">    1309</span>                 :             :                    &quot;`never` / `auto` leave it bare.&quot;,</span>
+<span id="L1310"><span class="lineNum">    1310</span>                 :             :         .values = kZoneSuffixValues,</span>
+<span id="L1311"><span class="lineNum">    1311</span>                 :             :         .value_check = GlobalFlag::ValueCheck::kTristate,</span>
+<span id="L1312"><span class="lineNum">    1312</span>                 :             :     },</span>
+<span id="L1313"><span class="lineNum">    1313</span>                 :             : });</span>
 <span id="L1314"><span class="lineNum">    1314</span>                 :             : </span>
-<span id="L1315"><span class="lineNum">    1315</span>                 :<span class="tlaGNC tlaBgGNC">       10484 : absl::Span&lt;const GlobalFlag&gt; Globals() {</span></span>
-<span id="L1316"><span class="lineNum">    1316</span>                 :<span class="tlaGNC">       10484 :   return kGlobals;</span></span>
-<span id="L1317"><span class="lineNum">    1317</span>                 :             : }</span>
-<span id="L1318"><span class="lineNum">    1318</span>                 :             : </span>
-<span id="L1319"><span class="lineNum">    1319</span>                 :<span class="tlaGNC">        2561 : const GlobalFlag* LookupGlobal(std::string_view name) {</span></span>
-<span id="L1320"><span class="lineNum">    1320</span>         [<span class="tlaGBC" title="Branch 0 was taken 113667 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 476 times"> + </span>]:<span class="tlaGNC">      114143 :   for (const GlobalFlag&amp; flag : kGlobals) {</span></span>
-<span id="L1321"><span class="lineNum">    1321</span>   [<span class="tlaGBC" title="Branch 0 was taken 111639 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2028 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 9133 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 102506 times"> + </span> :<span class="tlaGNC">      113667 :     if (flag.name == name || (!flag.alias.empty() &amp;&amp; flag.alias == name)) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 4 was taken 57 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 9076 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 2085 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 111582 times"> + </span>]
-<span id="L1322"><span class="lineNum">    1322</span>                 :<span class="tlaGNC">        2085 :       return &amp;flag;</span></span>
-<span id="L1323"><span class="lineNum">    1323</span>                 :             :     }</span>
-<span id="L1324"><span class="lineNum">    1324</span>                 :             :   }</span>
-<span id="L1325"><span class="lineNum">    1325</span>                 :<span class="tlaGNC">         476 :   return nullptr;</span></span>
-<span id="L1326"><span class="lineNum">    1326</span>                 :             : }</span>
-<span id="L1327"><span class="lineNum">    1327</span>                 :             : </span>
-<span id="L1328"><span class="lineNum">    1328</span>                 :<span class="tlaGNC">         818 : absl::Status ValidateGlobalValue(std::string_view arg) {</span></span>
-<span id="L1329"><span class="lineNum">    1329</span>                 :<span class="tlaGNC">         818 :   const std::string_view::size_type equals = arg.find('=');</span></span>
-<span id="L1330"><span class="lineNum">    1330</span>         [<span class="tlaGBC" title="Branch 0 was taken 229 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 589 times"> + </span>]:<span class="tlaGNC">         818 :   if (equals == std::string_view::npos) {</span></span>
-<span id="L1331"><span class="lineNum">    1331</span>                 :<span class="tlaGNC">         229 :     return absl::OkStatus();  // a bare or sign-suffixed form carries no value to check</span></span>
-<span id="L1332"><span class="lineNum">    1332</span>                 :             :   }</span>
-<span id="L1333"><span class="lineNum">    1333</span>                 :<span class="tlaGNC">         589 :   const std::string_view name = arg.substr(0, equals);</span></span>
-<span id="L1334"><span class="lineNum">    1334</span>                 :<span class="tlaGNC">         589 :   const std::string_view value = arg.substr(equals + 1);</span></span>
-<span id="L1335"><span class="lineNum">    1335</span>                 :<span class="tlaGNC">         589 :   const GlobalFlag* const flag = LookupGlobal(name);</span></span>
-<span id="L1336"><span class="lineNum">    1336</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 588 times"> + </span>]:<span class="tlaGNC">         589 :   if (flag == nullptr) {</span></span>
-<span id="L1337"><span class="lineNum">    1337</span>                 :<span class="tlaGNC">           1 :     return absl::OkStatus();  // unknown flag: IsKnownGlobal reports it, with a better message</span></span>
-<span id="L1338"><span class="lineNum">    1338</span>                 :             :   }</span>
-<span id="L1339"><span class="lineNum">    1339</span>   [<span class="tlaGBC" title="Branch 0 was taken 189 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 97 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 302 times"> + </span> :<span class="tlaGNC">         588 :   switch (flag-&gt;value_check) {</span></span>
+<span id="L1315"><span class="lineNum">    1315</span>                 :             : }  // namespace</span>
+<span id="L1316"><span class="lineNum">    1316</span>                 :             : </span>
+<span id="L1317"><span class="lineNum">    1317</span>                 :<span class="tlaGNC tlaBgGNC">       10490 : absl::Span&lt;const GlobalFlag&gt; Globals() {</span></span>
+<span id="L1318"><span class="lineNum">    1318</span>                 :<span class="tlaGNC">       10490 :   return kGlobals;</span></span>
+<span id="L1319"><span class="lineNum">    1319</span>                 :             : }</span>
+<span id="L1320"><span class="lineNum">    1320</span>                 :             : </span>
+<span id="L1321"><span class="lineNum">    1321</span>                 :<span class="tlaGNC">        2575 : const GlobalFlag* LookupGlobal(std::string_view name) {</span></span>
+<span id="L1322"><span class="lineNum">    1322</span>         [<span class="tlaGBC" title="Branch 0 was taken 114393 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 479 times"> + </span>]:<span class="tlaGNC">      114872 :   for (const GlobalFlag&amp; flag : kGlobals) {</span></span>
+<span id="L1323"><span class="lineNum">    1323</span>   [<span class="tlaGBC" title="Branch 0 was taken 112356 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2037 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 9192 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 103164 times"> + </span> :<span class="tlaGNC">      114393 :     if (flag.name == name || (!flag.alias.empty() &amp;&amp; flag.alias == name)) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 4 was taken 59 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 9133 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 2096 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 112297 times"> + </span>]
+<span id="L1324"><span class="lineNum">    1324</span>                 :<span class="tlaGNC">        2096 :       return &amp;flag;</span></span>
+<span id="L1325"><span class="lineNum">    1325</span>                 :             :     }</span>
+<span id="L1326"><span class="lineNum">    1326</span>                 :             :   }</span>
+<span id="L1327"><span class="lineNum">    1327</span>                 :<span class="tlaGNC">         479 :   return nullptr;</span></span>
+<span id="L1328"><span class="lineNum">    1328</span>                 :             : }</span>
+<span id="L1329"><span class="lineNum">    1329</span>                 :             : </span>
+<span id="L1330"><span class="lineNum">    1330</span>                 :<span class="tlaGNC">         823 : absl::Status ValidateGlobalValue(std::string_view arg) {</span></span>
+<span id="L1331"><span class="lineNum">    1331</span>                 :<span class="tlaGNC">         823 :   const std::string_view::size_type equals = arg.find('=');</span></span>
+<span id="L1332"><span class="lineNum">    1332</span>         [<span class="tlaGBC" title="Branch 0 was taken 231 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 592 times"> + </span>]:<span class="tlaGNC">         823 :   if (equals == std::string_view::npos) {</span></span>
+<span id="L1333"><span class="lineNum">    1333</span>                 :<span class="tlaGNC">         231 :     return absl::OkStatus();  // a bare or sign-suffixed form carries no value to check</span></span>
+<span id="L1334"><span class="lineNum">    1334</span>                 :             :   }</span>
+<span id="L1335"><span class="lineNum">    1335</span>                 :<span class="tlaGNC">         592 :   const std::string_view name = arg.substr(0, equals);</span></span>
+<span id="L1336"><span class="lineNum">    1336</span>                 :<span class="tlaGNC">         592 :   const std::string_view value = arg.substr(equals + 1);</span></span>
+<span id="L1337"><span class="lineNum">    1337</span>                 :<span class="tlaGNC">         592 :   const GlobalFlag* const flag = LookupGlobal(name);</span></span>
+<span id="L1338"><span class="lineNum">    1338</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 591 times"> + </span>]:<span class="tlaGNC">         592 :   if (flag == nullptr) {</span></span>
+<span id="L1339"><span class="lineNum">    1339</span>                 :<span class="tlaGNC">           1 :     return absl::OkStatus();  // unknown flag: IsKnownGlobal reports it, with a better message</span></span>
+<span id="L1340"><span class="lineNum">    1340</span>                 :             :   }</span>
+<span id="L1341"><span class="lineNum">    1341</span>   [<span class="tlaGBC" title="Branch 0 was taken 192 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 97 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 302 times"> + </span> :<span class="tlaGNC">         591 :   switch (flag-&gt;value_check) {</span></span>
 <span class="lineNum">        </span>             <span class="tlaUNC" title="Branch 4 was not taken"> - </span>]
-<span id="L1340"><span class="lineNum">    1340</span>                 :<span class="tlaGNC">         189 :     case GlobalFlag::ValueCheck::kNone: return absl::OkStatus();</span></span>
-<span id="L1341"><span class="lineNum">    1341</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     case GlobalFlag::ValueCheck::kBool:</span></span>
-<span id="L1342"><span class="lineNum">    1342</span>         [<span class="tlaUNC" title="Branch 0 was not executed"> # </span><span class="tlaUNC" title="Branch 1 was not executed"> # </span>]:<span class="tlaUNC">           0 :       if (values::ParseBool(value).has_value()) {</span></span>
-<span id="L1343"><span class="lineNum">    1343</span>                 :<span class="tlaUNC">           0 :         return absl::OkStatus();</span></span>
-<span id="L1344"><span class="lineNum">    1344</span>                 :             :       }</span>
-<span id="L1345"><span class="lineNum">    1345</span>                 :<span class="tlaUNC">           0 :       break;</span></span>
-<span id="L1346"><span class="lineNum">    1346</span>                 :<span class="tlaGNC tlaBgGNC">          97 :     case GlobalFlag::ValueCheck::kTristate:</span></span>
-<span id="L1347"><span class="lineNum">    1347</span>         [<span class="tlaGBC" title="Branch 0 was taken 96 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          97 :       if (values::ParseTristate(value).has_value()) {</span></span>
-<span id="L1348"><span class="lineNum">    1348</span>                 :<span class="tlaGNC">          96 :         return absl::OkStatus();</span></span>
-<span id="L1349"><span class="lineNum">    1349</span>                 :             :       }</span>
-<span id="L1350"><span class="lineNum">    1350</span>                 :<span class="tlaGNC">           1 :       break;</span></span>
-<span id="L1351"><span class="lineNum">    1351</span>                 :<span class="tlaGNC">         302 :     case GlobalFlag::ValueCheck::kEnum:</span></span>
-<span id="L1352"><span class="lineNum">    1352</span>         [<span class="tlaGBC" title="Branch 0 was taken 281 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 21 times"> + </span>]:<span class="tlaGNC">        1406 :       if (absl::c_any_of(flag-&gt;values, [value](const ValueDoc&amp; doc) { return doc.value == value; })) {</span></span>
-<span id="L1353"><span class="lineNum">    1353</span>                 :<span class="tlaGNC">         281 :         return absl::OkStatus();</span></span>
-<span id="L1354"><span class="lineNum">    1354</span>                 :             :       }</span>
-<span id="L1355"><span class="lineNum">    1355</span>                 :<span class="tlaGNC">          21 :       break;</span></span>
-<span id="L1356"><span class="lineNum">    1356</span>                 :             :   }</span>
-<span id="L1357"><span class="lineNum">    1357</span>                 :             :   // The accepted list comes from the same table the help prints (or from the shared vocabulary),</span>
-<span id="L1358"><span class="lineNum">    1358</span>                 :             :   // so the error and the documentation cannot disagree.</span>
-<span id="L1359"><span class="lineNum">    1359</span>                 :<span class="tlaGNC">          22 :   std::string accepted;</span></span>
-<span id="L1360"><span class="lineNum">    1360</span>         [<span class="tlaGBC" title="Branch 0 was taken 21 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          22 :   if (flag-&gt;value_check == GlobalFlag::ValueCheck::kEnum) {</span></span>
-<span id="L1361"><span class="lineNum">    1361</span>         [<span class="tlaGBC" title="Branch 0 was taken 104 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 21 times"> + </span>]:<span class="tlaGNC">         125 :     for (const ValueDoc&amp; doc : flag-&gt;values) {</span></span>
-<span id="L1362"><span class="lineNum">    1362</span>         [<span class="tlaGBC" title="Branch 0 was taken 17 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 87 times"> + </span>]:<span class="tlaGNC">         104 :       if (doc.hidden) {</span></span>
-<span id="L1363"><span class="lineNum">    1363</span>                 :<span class="tlaGNC">          17 :         continue;  // accepted, but not something to suggest</span></span>
-<span id="L1364"><span class="lineNum">    1364</span>                 :             :       }</span>
-<span id="L1365"><span class="lineNum">    1365</span>         [<span class="tlaGBC" title="Branch 0 was taken 21 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 66 times"> + </span>]:<span class="tlaGNC">          87 :       absl::StrAppend(&amp;accepted, accepted.empty() ? &quot;&quot; : &quot;, &quot;, doc.value);</span></span>
-<span id="L1366"><span class="lineNum">    1366</span>                 :             :     }</span>
-<span id="L1367"><span class="lineNum">    1367</span>                 :             :   } else {</span>
-<span id="L1368"><span class="lineNum">    1368</span>                 :<span class="tlaGNC">           1 :     accepted = flag-&gt;value_check == GlobalFlag::ValueCheck::kBool</span></span>
-<span id="L1369"><span class="lineNum">    1369</span>                 :             :                    ? &quot;yes, no, on, off, true, false, 1, 0&quot;</span>
-<span id="L1370"><span class="lineNum">    1370</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           1 :                    : &quot;auto, always, never, on, off, yes, no, true, false, 1, 0&quot;;</span></span>
-<span id="L1371"><span class="lineNum">    1371</span>                 :             :   }</span>
-<span id="L1372"><span class="lineNum">    1372</span>                 :             :   return absl::InvalidArgumentError(</span>
-<span id="L1373"><span class="lineNum">    1373</span>                 :<span class="tlaGNC">          22 :       absl::StrCat(&quot;unknown value '&quot;, value, &quot;' for &quot;, flag-&gt;name, &quot; (accepted: &quot;, accepted, &quot;)&quot;));</span></span>
-<span id="L1374"><span class="lineNum">    1374</span>                 :             : }</span>
-<span id="L1375"><span class="lineNum">    1375</span>                 :             : </span>
-<span id="L1376"><span class="lineNum">    1376</span>                 :<span class="tlaGNC">         802 : bool IsKnownGlobal(std::string_view arg) {</span></span>
-<span id="L1377"><span class="lineNum">    1377</span>                 :             :   // The sign ladders come from the flags themselves (GlobalFlag::sign_forms), so a new one is</span>
-<span id="L1378"><span class="lineNum">    1378</span>                 :             :   // recognised by declaring it rather than by also editing a list here.</span>
-<span id="L1379"><span class="lineNum">    1379</span>         [<span class="tlaGBC" title="Branch 0 was taken 63710 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 735 times"> + </span>]:<span class="tlaGNC">       64445 :   for (const GlobalFlag&amp; flag : Globals()) {</span></span>
-<span id="L1380"><span class="lineNum">    1380</span>         [<span class="tlaGBC" title="Branch 0 was taken 67 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 63643 times"> + </span>]:<span class="tlaGNC">       63710 :     if (absl::c_contains(flag.sign_forms, arg)) {</span></span>
-<span id="L1381"><span class="lineNum">    1381</span>                 :<span class="tlaGNC">          67 :       return true;</span></span>
-<span id="L1382"><span class="lineNum">    1382</span>                 :             :     }</span>
-<span id="L1383"><span class="lineNum">    1383</span>                 :             :   }</span>
-<span id="L1384"><span class="lineNum">    1384</span>                 :             :   // What is left are the compat aliases that carry no sign: -0 (= --format=nul) and -i</span>
-<span id="L1385"><span class="lineNum">    1385</span>                 :             :   // (= --case=insensitive).</span>
-<span id="L1386"><span class="lineNum">    1386</span>   [<span class="tlaGBC" title="Branch 0 was taken 734 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 3 was taken 733 times"> + </span> :<span class="tlaGNC">         735 :   if (arg == &quot;-0&quot; || arg == &quot;-i&quot;) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 733 times"> + </span>]
-<span id="L1387"><span class="lineNum">    1387</span>                 :<span class="tlaGNC">           2 :     return true;</span></span>
-<span id="L1388"><span class="lineNum">    1388</span>                 :             :   }</span>
-<span id="L1389"><span class="lineNum">    1389</span>                 :             :   // The short jobs form carries its value attached: -j4, -jall (the &quot;=&quot; form --jobs=N</span>
-<span id="L1390"><span class="lineNum">    1390</span>                 :             :   // is handled by the valued-name path below via the -j alias).</span>
-<span id="L1391"><span class="lineNum">    1391</span>   [<span class="tlaGBC" title="Branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 724 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">         733 :   if (arg.starts_with(&quot;-j&quot;) &amp;&amp; arg.size() &gt; 2) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 725 times"> + </span>]
-<span id="L1392"><span class="lineNum">    1392</span>                 :<span class="tlaGNC">           8 :     return true;</span></span>
-<span id="L1393"><span class="lineNum">    1393</span>                 :             :   }</span>
-<span id="L1394"><span class="lineNum">    1394</span>                 :             :   // An exact name or alias (bare flags, and valued flags used without a value).</span>
-<span id="L1395"><span class="lineNum">    1395</span>         [<span class="tlaGBC" title="Branch 0 was taken 266 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 459 times"> + </span>]:<span class="tlaGNC">         725 :   if (LookupGlobal(arg) != nullptr) {</span></span>
-<span id="L1396"><span class="lineNum">    1396</span>                 :<span class="tlaGNC">         266 :     return true;</span></span>
-<span id="L1397"><span class="lineNum">    1397</span>                 :             :   }</span>
-<span id="L1398"><span class="lineNum">    1398</span>                 :             :   // A valued form name=VALUE / alias=VALUE: the key must resolve to a flag that</span>
-<span id="L1399"><span class="lineNum">    1399</span>                 :             :   // advertises a value (its display contains '='), so `--safe=x` stays unknown while</span>
-<span id="L1400"><span class="lineNum">    1400</span>                 :             :   // `--sort=tree` / `--define=A=B` are accepted (only the key before the first '=').</span>
-<span id="L1401"><span class="lineNum">    1401</span>         [<span class="tlaGBC" title="Branch 0 was taken 446 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">         459 :   if (const std::string_view::size_type eq = arg.find('='); eq != std::string_view::npos) {</span></span>
-<span id="L1402"><span class="lineNum">    1402</span>                 :<span class="tlaGNC">         446 :     const GlobalFlag* const flag = LookupGlobal(arg.substr(0, eq));</span></span>
-<span id="L1403"><span class="lineNum">    1403</span>   [<span class="tlaGBC" title="Branch 0 was taken 445 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 2 was taken 444 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">         446 :     return flag != nullptr &amp;&amp; absl::StrContains(flag-&gt;display, '=');</span></span>
-<span id="L1404"><span class="lineNum">    1404</span>                 :             :   }</span>
-<span id="L1405"><span class="lineNum">    1405</span>                 :<span class="tlaGNC">          13 :   return false;</span></span>
-<span id="L1406"><span class="lineNum">    1406</span>                 :             : }</span>
-<span id="L1407"><span class="lineNum">    1407</span>                 :             : </span>
-<span id="L1408"><span class="lineNum">    1408</span>                 :<span class="tlaGNC">        1072 : bool ExtraEnabled(std::string_view key) {</span></span>
-<span id="L1409"><span class="lineNum">    1409</span>                 :             :   // Answered by the LINKER, not by a parallel define: an extra registers itself into its backend slot</span>
-<span id="L1410"><span class="lineNum">    1410</span>                 :             :   // at static init, so asking the slot cannot drift from what the binary actually contains (the same</span>
-<span id="L1411"><span class="lineNum">    1411</span>                 :             :   // question `Pcre2Available()` answers for the regex slot). In the lean default build nothing</span>
-<span id="L1412"><span class="lineNum">    1412</span>                 :             :   // registers and every extra reads as off. New extras add a branch here and in ExtraBuildFlag.</span>
-<span id="L1413"><span class="lineNum">    1413</span>         [<span class="tlaGBC" title="Branch 0 was taken 967 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 105 times"> + </span>]:<span class="tlaGNC">        1072 :   if (key == &quot;archive&quot;) {</span></span>
-<span id="L1414"><span class="lineNum">    1414</span>                 :<span class="tlaGNC">         967 :     return archive::ContainerSupportAvailable();</span></span>
-<span id="L1415"><span class="lineNum">    1415</span>                 :             :   }</span>
-<span id="L1416"><span class="lineNum">    1416</span>         [<span class="tlaGBC" title="Branch 0 was taken 88 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 17 times"> + </span>]:<span class="tlaGNC">         105 :   if (key == &quot;fuse&quot;) {</span></span>
-<span id="L1417"><span class="lineNum">    1417</span>                 :<span class="tlaGNC">          88 :     return fuse::MountSupportAvailable();</span></span>
-<span id="L1418"><span class="lineNum">    1418</span>                 :             :   }</span>
-<span id="L1419"><span class="lineNum">    1419</span>         [<span class="tlaGBC" title="Branch 0 was taken 16 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          17 :   if (key == &quot;pcre2&quot;) {</span></span>
-<span id="L1420"><span class="lineNum">    1420</span>                 :<span class="tlaGNC">          16 :     return regex::Pcre2Available();</span></span>
-<span id="L1421"><span class="lineNum">    1421</span>                 :             :   }</span>
-<span id="L1422"><span class="lineNum">    1422</span>                 :<span class="tlaGNC">           1 :   return false;  // unknown / not-yet-wired extra</span></span>
-<span id="L1423"><span class="lineNum">    1423</span>                 :             : }</span>
-<span id="L1424"><span class="lineNum">    1424</span>                 :             : </span>
-<span id="L1425"><span class="lineNum">    1425</span>                 :<span class="tlaGNC">          10 : std::vector&lt;std::string&gt; EnabledExtras() {</span></span>
-<span id="L1426"><span class="lineNum">    1426</span>                 :             :   // The known keys live here next to ExtraBuildFlag for the same reason its spellings do: a new</span>
-<span id="L1427"><span class="lineNum">    1427</span>                 :             :   // extra adds its key to both (and a branch in ExtraEnabled), and the notice line, the extras</span>
-<span id="L1428"><span class="lineNum">    1428</span>                 :             :   // topic, and the rebuild hints all read from these three rather than keeping private copies.</span>
-<span id="L1429"><span class="lineNum">    1429</span>                 :             :   static constexpr std::array kKnownExtras = std::to_array&lt;std::string_view&gt;({</span>
-<span id="L1430"><span class="lineNum">    1430</span>                 :             :       &quot;archive&quot;,</span>
-<span id="L1431"><span class="lineNum">    1431</span>                 :             :       &quot;fuse&quot;,</span>
-<span id="L1432"><span class="lineNum">    1432</span>                 :             :       &quot;pcre2&quot;,</span>
-<span id="L1433"><span class="lineNum">    1433</span>                 :             :   });</span>
-<span id="L1434"><span class="lineNum">    1434</span>                 :<span class="tlaGNC">          10 :   std::vector&lt;std::string&gt; enabled;</span></span>
-<span id="L1435"><span class="lineNum">    1435</span>         [<span class="tlaGBC" title="Branch 0 was taken 30 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          40 :   for (const std::string_view key : kKnownExtras) {</span></span>
-<span id="L1436"><span class="lineNum">    1436</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 24 times"> + </span>]:<span class="tlaGNC">          30 :     if (ExtraEnabled(key)) {</span></span>
-<span id="L1437"><span class="lineNum">    1437</span>                 :<span class="tlaGNC">           6 :       enabled.emplace_back(key);</span></span>
-<span id="L1438"><span class="lineNum">    1438</span>                 :             :     }</span>
-<span id="L1439"><span class="lineNum">    1439</span>                 :             :   }</span>
-<span id="L1440"><span class="lineNum">    1440</span>                 :<span class="tlaGNC">          10 :   return enabled;</span></span>
-<span id="L1441"><span class="lineNum">    1441</span>                 :             : }</span>
-<span id="L1442"><span class="lineNum">    1442</span>                 :             : </span>
-<span id="L1443"><span class="lineNum">    1443</span>                 :<span class="tlaGNC">         923 : std::string_view ExtraBuildFlag(std::string_view key) {</span></span>
-<span id="L1444"><span class="lineNum">    1444</span>                 :             :   // The label a user must actually pass to rebuild with the extra. Spelled out per extra rather</span>
-<span id="L1445"><span class="lineNum">    1445</span>                 :             :   // than derived from the key: the Bazel flags carry an `xff_` prefix that the human-facing key</span>
-<span id="L1446"><span class="lineNum">    1446</span>                 :             :   // does not (`archive` -&gt; `//xff:xff_archive`), and pcre2's flag is `xff_pcre`, so any derivation</span>
-<span id="L1447"><span class="lineNum">    1447</span>                 :             :   // rule would print a flag that does not exist - which is worse than useless in an error message.</span>
-<span id="L1448"><span class="lineNum">    1448</span>         [<span class="tlaGBC" title="Branch 0 was taken 843 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 80 times"> + </span>]:<span class="tlaGNC">         923 :   if (key == &quot;archive&quot;) {</span></span>
-<span id="L1449"><span class="lineNum">    1449</span>                 :<span class="tlaGNC">         843 :     return &quot;--//xff:xff_archive&quot;;</span></span>
-<span id="L1450"><span class="lineNum">    1450</span>                 :             :   }</span>
-<span id="L1451"><span class="lineNum">    1451</span>         [<span class="tlaGBC" title="Branch 0 was taken 75 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">          80 :   if (key == &quot;fuse&quot;) {</span></span>
-<span id="L1452"><span class="lineNum">    1452</span>                 :<span class="tlaGNC">          75 :     return &quot;--//xff:xff_fuse&quot;;</span></span>
-<span id="L1453"><span class="lineNum">    1453</span>                 :             :   }</span>
-<span id="L1454"><span class="lineNum">    1454</span>         [<span class="tlaGBC" title="Branch 0 was taken 5 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">           5 :   if (key == &quot;pcre2&quot;) {</span></span>
-<span id="L1455"><span class="lineNum">    1455</span>                 :<span class="tlaGNC">           5 :     return &quot;--//xff:xff_pcre&quot;;</span></span>
+<span id="L1342"><span class="lineNum">    1342</span>                 :<span class="tlaGNC">         192 :     case GlobalFlag::ValueCheck::kNone: return absl::OkStatus();</span></span>
+<span id="L1343"><span class="lineNum">    1343</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     case GlobalFlag::ValueCheck::kBool:</span></span>
+<span id="L1344"><span class="lineNum">    1344</span>         [<span class="tlaUNC" title="Branch 0 was not executed"> # </span><span class="tlaUNC" title="Branch 1 was not executed"> # </span>]:<span class="tlaUNC">           0 :       if (values::ParseBool(value).has_value()) {</span></span>
+<span id="L1345"><span class="lineNum">    1345</span>                 :<span class="tlaUNC">           0 :         return absl::OkStatus();</span></span>
+<span id="L1346"><span class="lineNum">    1346</span>                 :             :       }</span>
+<span id="L1347"><span class="lineNum">    1347</span>                 :<span class="tlaUNC">           0 :       break;</span></span>
+<span id="L1348"><span class="lineNum">    1348</span>                 :<span class="tlaGNC tlaBgGNC">          97 :     case GlobalFlag::ValueCheck::kTristate:</span></span>
+<span id="L1349"><span class="lineNum">    1349</span>         [<span class="tlaGBC" title="Branch 0 was taken 96 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          97 :       if (values::ParseTristate(value).has_value()) {</span></span>
+<span id="L1350"><span class="lineNum">    1350</span>                 :<span class="tlaGNC">          96 :         return absl::OkStatus();</span></span>
+<span id="L1351"><span class="lineNum">    1351</span>                 :             :       }</span>
+<span id="L1352"><span class="lineNum">    1352</span>                 :<span class="tlaGNC">           1 :       break;</span></span>
+<span id="L1353"><span class="lineNum">    1353</span>                 :<span class="tlaGNC">         302 :     case GlobalFlag::ValueCheck::kEnum:</span></span>
+<span id="L1354"><span class="lineNum">    1354</span>         [<span class="tlaGBC" title="Branch 0 was taken 281 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 21 times"> + </span>]:<span class="tlaGNC">        1406 :       if (absl::c_any_of(flag-&gt;values, [value](const ValueDoc&amp; doc) { return doc.value == value; })) {</span></span>
+<span id="L1355"><span class="lineNum">    1355</span>                 :<span class="tlaGNC">         281 :         return absl::OkStatus();</span></span>
+<span id="L1356"><span class="lineNum">    1356</span>                 :             :       }</span>
+<span id="L1357"><span class="lineNum">    1357</span>                 :<span class="tlaGNC">          21 :       break;</span></span>
+<span id="L1358"><span class="lineNum">    1358</span>                 :             :   }</span>
+<span id="L1359"><span class="lineNum">    1359</span>                 :             :   // The accepted list comes from the same table the help prints (or from the shared vocabulary),</span>
+<span id="L1360"><span class="lineNum">    1360</span>                 :             :   // so the error and the documentation cannot disagree.</span>
+<span id="L1361"><span class="lineNum">    1361</span>                 :<span class="tlaGNC">          22 :   std::string accepted;</span></span>
+<span id="L1362"><span class="lineNum">    1362</span>         [<span class="tlaGBC" title="Branch 0 was taken 21 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          22 :   if (flag-&gt;value_check == GlobalFlag::ValueCheck::kEnum) {</span></span>
+<span id="L1363"><span class="lineNum">    1363</span>         [<span class="tlaGBC" title="Branch 0 was taken 104 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 21 times"> + </span>]:<span class="tlaGNC">         125 :     for (const ValueDoc&amp; doc : flag-&gt;values) {</span></span>
+<span id="L1364"><span class="lineNum">    1364</span>         [<span class="tlaGBC" title="Branch 0 was taken 17 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 87 times"> + </span>]:<span class="tlaGNC">         104 :       if (doc.hidden) {</span></span>
+<span id="L1365"><span class="lineNum">    1365</span>                 :<span class="tlaGNC">          17 :         continue;  // accepted, but not something to suggest</span></span>
+<span id="L1366"><span class="lineNum">    1366</span>                 :             :       }</span>
+<span id="L1367"><span class="lineNum">    1367</span>         [<span class="tlaGBC" title="Branch 0 was taken 21 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 66 times"> + </span>]:<span class="tlaGNC">          87 :       absl::StrAppend(&amp;accepted, accepted.empty() ? &quot;&quot; : &quot;, &quot;, doc.value);</span></span>
+<span id="L1368"><span class="lineNum">    1368</span>                 :             :     }</span>
+<span id="L1369"><span class="lineNum">    1369</span>                 :             :   } else {</span>
+<span id="L1370"><span class="lineNum">    1370</span>                 :<span class="tlaGNC">           1 :     accepted = flag-&gt;value_check == GlobalFlag::ValueCheck::kBool</span></span>
+<span id="L1371"><span class="lineNum">    1371</span>                 :             :                    ? &quot;yes, no, on, off, true, false, 1, 0&quot;</span>
+<span id="L1372"><span class="lineNum">    1372</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           1 :                    : &quot;auto, always, never, on, off, yes, no, true, false, 1, 0&quot;;</span></span>
+<span id="L1373"><span class="lineNum">    1373</span>                 :             :   }</span>
+<span id="L1374"><span class="lineNum">    1374</span>                 :             :   return absl::InvalidArgumentError(</span>
+<span id="L1375"><span class="lineNum">    1375</span>                 :<span class="tlaGNC">          22 :       absl::StrCat(&quot;unknown value '&quot;, value, &quot;' for &quot;, flag-&gt;name, &quot; (accepted: &quot;, accepted, &quot;)&quot;));</span></span>
+<span id="L1376"><span class="lineNum">    1376</span>                 :             : }</span>
+<span id="L1377"><span class="lineNum">    1377</span>                 :             : </span>
+<span id="L1378"><span class="lineNum">    1378</span>                 :<span class="tlaGNC">         807 : bool IsKnownGlobal(std::string_view arg) {</span></span>
+<span id="L1379"><span class="lineNum">    1379</span>                 :             :   // The sign ladders come from the flags themselves (GlobalFlag::sign_forms), so a new one is</span>
+<span id="L1380"><span class="lineNum">    1380</span>                 :             :   // recognised by declaring it rather than by also editing a list here.</span>
+<span id="L1381"><span class="lineNum">    1381</span>         [<span class="tlaGBC" title="Branch 0 was taken 63983 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 738 times"> + </span>]:<span class="tlaGNC">       64721 :   for (const GlobalFlag&amp; flag : Globals()) {</span></span>
+<span id="L1382"><span class="lineNum">    1382</span>         [<span class="tlaGBC" title="Branch 0 was taken 69 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 63914 times"> + </span>]:<span class="tlaGNC">       63983 :     if (absl::c_contains(flag.sign_forms, arg)) {</span></span>
+<span id="L1383"><span class="lineNum">    1383</span>                 :<span class="tlaGNC">          69 :       return true;</span></span>
+<span id="L1384"><span class="lineNum">    1384</span>                 :             :     }</span>
+<span id="L1385"><span class="lineNum">    1385</span>                 :             :   }</span>
+<span id="L1386"><span class="lineNum">    1386</span>                 :             :   // What is left are the compat aliases that carry no sign: -0 (= --format=nul) and -i</span>
+<span id="L1387"><span class="lineNum">    1387</span>                 :             :   // (= --case=insensitive).</span>
+<span id="L1388"><span class="lineNum">    1388</span>   [<span class="tlaGBC" title="Branch 0 was taken 737 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 3 was taken 736 times"> + </span> :<span class="tlaGNC">         738 :   if (arg == &quot;-0&quot; || arg == &quot;-i&quot;) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 736 times"> + </span>]
+<span id="L1389"><span class="lineNum">    1389</span>                 :<span class="tlaGNC">           2 :     return true;</span></span>
+<span id="L1390"><span class="lineNum">    1390</span>                 :             :   }</span>
+<span id="L1391"><span class="lineNum">    1391</span>                 :             :   // The short jobs form carries its value attached: -j4, -jall (the &quot;=&quot; form --jobs=N</span>
+<span id="L1392"><span class="lineNum">    1392</span>                 :             :   // is handled by the valued-name path below via the -j alias).</span>
+<span id="L1393"><span class="lineNum">    1393</span>   [<span class="tlaGBC" title="Branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 727 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">         736 :   if (arg.starts_with(&quot;-j&quot;) &amp;&amp; arg.size() &gt; 2) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 728 times"> + </span>]
+<span id="L1394"><span class="lineNum">    1394</span>                 :<span class="tlaGNC">           8 :     return true;</span></span>
+<span id="L1395"><span class="lineNum">    1395</span>                 :             :   }</span>
+<span id="L1396"><span class="lineNum">    1396</span>                 :             :   // An exact name or alias (bare flags, and valued flags used without a value).</span>
+<span id="L1397"><span class="lineNum">    1397</span>         [<span class="tlaGBC" title="Branch 0 was taken 266 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 462 times"> + </span>]:<span class="tlaGNC">         728 :   if (LookupGlobal(arg) != nullptr) {</span></span>
+<span id="L1398"><span class="lineNum">    1398</span>                 :<span class="tlaGNC">         266 :     return true;</span></span>
+<span id="L1399"><span class="lineNum">    1399</span>                 :             :   }</span>
+<span id="L1400"><span class="lineNum">    1400</span>                 :             :   // A valued form name=VALUE / alias=VALUE: the key must resolve to a flag that</span>
+<span id="L1401"><span class="lineNum">    1401</span>                 :             :   // advertises a value (its display contains '='), so `--safe=x` stays unknown while</span>
+<span id="L1402"><span class="lineNum">    1402</span>                 :             :   // `--sort=tree` / `--define=A=B` are accepted (only the key before the first '=').</span>
+<span id="L1403"><span class="lineNum">    1403</span>         [<span class="tlaGBC" title="Branch 0 was taken 449 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">         462 :   if (const std::string_view::size_type eq = arg.find('='); eq != std::string_view::npos) {</span></span>
+<span id="L1404"><span class="lineNum">    1404</span>                 :<span class="tlaGNC">         449 :     const GlobalFlag* const flag = LookupGlobal(arg.substr(0, eq));</span></span>
+<span id="L1405"><span class="lineNum">    1405</span>   [<span class="tlaGBC" title="Branch 0 was taken 448 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 2 was taken 447 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">         449 :     return flag != nullptr &amp;&amp; absl::StrContains(flag-&gt;display, '=');</span></span>
+<span id="L1406"><span class="lineNum">    1406</span>                 :             :   }</span>
+<span id="L1407"><span class="lineNum">    1407</span>                 :<span class="tlaGNC">          13 :   return false;</span></span>
+<span id="L1408"><span class="lineNum">    1408</span>                 :             : }</span>
+<span id="L1409"><span class="lineNum">    1409</span>                 :             : </span>
+<span id="L1410"><span class="lineNum">    1410</span>                 :<span class="tlaGNC">        1098 : bool ExtraEnabled(std::string_view key) {</span></span>
+<span id="L1411"><span class="lineNum">    1411</span>                 :             :   // Answered by the LINKER, not by a parallel define: an extra registers itself into its backend slot</span>
+<span id="L1412"><span class="lineNum">    1412</span>                 :             :   // at static init, so asking the slot cannot drift from what the binary actually contains (the same</span>
+<span id="L1413"><span class="lineNum">    1413</span>                 :             :   // question `Pcre2Available()` answers for the regex slot). In the lean default build nothing</span>
+<span id="L1414"><span class="lineNum">    1414</span>                 :             :   // registers and every extra reads as off. New extras add a branch here and in ExtraBuildFlag.</span>
+<span id="L1415"><span class="lineNum">    1415</span>         [<span class="tlaGBC" title="Branch 0 was taken 973 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 125 times"> + </span>]:<span class="tlaGNC">        1098 :   if (key == &quot;archive&quot;) {</span></span>
+<span id="L1416"><span class="lineNum">    1416</span>                 :<span class="tlaGNC">         973 :     return archive::ContainerSupportAvailable();</span></span>
+<span id="L1417"><span class="lineNum">    1417</span>                 :             :   }</span>
+<span id="L1418"><span class="lineNum">    1418</span>         [<span class="tlaGBC" title="Branch 0 was taken 17 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 108 times"> + </span>]:<span class="tlaGNC">         125 :   if (key == &quot;brotli&quot;) {</span></span>
+<span id="L1419"><span class="lineNum">    1419</span>                 :<span class="tlaGNC">          17 :     return absl::c_linear_search(archive::ContainerPackFormats(), &quot;tar.br&quot;);</span></span>
+<span id="L1420"><span class="lineNum">    1420</span>                 :             :   }</span>
+<span id="L1421"><span class="lineNum">    1421</span>         [<span class="tlaGBC" title="Branch 0 was taken 90 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 18 times"> + </span>]:<span class="tlaGNC">         108 :   if (key == &quot;fuse&quot;) {</span></span>
+<span id="L1422"><span class="lineNum">    1422</span>                 :<span class="tlaGNC">          90 :     return fuse::MountSupportAvailable();</span></span>
+<span id="L1423"><span class="lineNum">    1423</span>                 :             :   }</span>
+<span id="L1424"><span class="lineNum">    1424</span>         [<span class="tlaGBC" title="Branch 0 was taken 17 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          18 :   if (key == &quot;pcre2&quot;) {</span></span>
+<span id="L1425"><span class="lineNum">    1425</span>                 :<span class="tlaGNC">          17 :     return regex::Pcre2Available();</span></span>
+<span id="L1426"><span class="lineNum">    1426</span>                 :             :   }</span>
+<span id="L1427"><span class="lineNum">    1427</span>                 :<span class="tlaGNC">           1 :   return false;  // unknown / not-yet-wired extra</span></span>
+<span id="L1428"><span class="lineNum">    1428</span>                 :             : }</span>
+<span id="L1429"><span class="lineNum">    1429</span>                 :             : </span>
+<span id="L1430"><span class="lineNum">    1430</span>                 :<span class="tlaGNC">          10 : std::vector&lt;std::string&gt; EnabledExtras() {</span></span>
+<span id="L1431"><span class="lineNum">    1431</span>                 :             :   // The known keys live here next to ExtraBuildFlag for the same reason its spellings do: a new</span>
+<span id="L1432"><span class="lineNum">    1432</span>                 :             :   // extra adds its key to both (and a branch in ExtraEnabled), and the notice line, the extras</span>
+<span id="L1433"><span class="lineNum">    1433</span>                 :             :   // topic, and the rebuild hints all read from these three rather than keeping private copies.</span>
+<span id="L1434"><span class="lineNum">    1434</span>                 :             :   static constexpr std::array kKnownExtras = std::to_array&lt;std::string_view&gt;({</span>
+<span id="L1435"><span class="lineNum">    1435</span>                 :             :       &quot;archive&quot;,</span>
+<span id="L1436"><span class="lineNum">    1436</span>                 :             :       &quot;brotli&quot;,</span>
+<span id="L1437"><span class="lineNum">    1437</span>                 :             :       &quot;fuse&quot;,</span>
+<span id="L1438"><span class="lineNum">    1438</span>                 :             :       &quot;pcre2&quot;,</span>
+<span id="L1439"><span class="lineNum">    1439</span>                 :             :   });</span>
+<span id="L1440"><span class="lineNum">    1440</span>                 :<span class="tlaGNC">          10 :   std::vector&lt;std::string&gt; enabled;</span></span>
+<span id="L1441"><span class="lineNum">    1441</span>         [<span class="tlaGBC" title="Branch 0 was taken 40 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          50 :   for (const std::string_view key : kKnownExtras) {</span></span>
+<span id="L1442"><span class="lineNum">    1442</span>         [<span class="tlaGBC" title="Branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 32 times"> + </span>]:<span class="tlaGNC">          40 :     if (ExtraEnabled(key)) {</span></span>
+<span id="L1443"><span class="lineNum">    1443</span>                 :<span class="tlaGNC">           8 :       enabled.emplace_back(key);</span></span>
+<span id="L1444"><span class="lineNum">    1444</span>                 :             :     }</span>
+<span id="L1445"><span class="lineNum">    1445</span>                 :             :   }</span>
+<span id="L1446"><span class="lineNum">    1446</span>                 :<span class="tlaGNC">          10 :   return enabled;</span></span>
+<span id="L1447"><span class="lineNum">    1447</span>                 :             : }</span>
+<span id="L1448"><span class="lineNum">    1448</span>                 :             : </span>
+<span id="L1449"><span class="lineNum">    1449</span>                 :<span class="tlaGNC">         933 : std::string_view ExtraBuildFlag(std::string_view key) {</span></span>
+<span id="L1450"><span class="lineNum">    1450</span>                 :             :   // The label a user must actually pass to rebuild with the extra. Spelled out per extra rather</span>
+<span id="L1451"><span class="lineNum">    1451</span>                 :             :   // than derived from the key: the Bazel flags carry an `xff_` prefix that the human-facing key</span>
+<span id="L1452"><span class="lineNum">    1452</span>                 :             :   // does not (`archive` -&gt; `//xff:xff_archive`), and pcre2's flag is `xff_pcre`, so any derivation</span>
+<span id="L1453"><span class="lineNum">    1453</span>                 :             :   // rule would print a flag that does not exist - which is worse than useless in an error message.</span>
+<span id="L1454"><span class="lineNum">    1454</span>         [<span class="tlaGBC" title="Branch 0 was taken 844 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 89 times"> + </span>]:<span class="tlaGNC">         933 :   if (key == &quot;archive&quot;) {</span></span>
+<span id="L1455"><span class="lineNum">    1455</span>                 :<span class="tlaGNC">         844 :     return &quot;--//xff:xff_archive&quot;;</span></span>
 <span id="L1456"><span class="lineNum">    1456</span>                 :             :   }</span>
-<span id="L1457"><span class="lineNum">    1457</span>                 :<span class="tlaUNC tlaBgUNC">           0 :   return {};  // unknown extra: the caller omits the rebuild hint rather than inventing a flag</span></span>
-<span id="L1458"><span class="lineNum">    1458</span>                 :             : }</span>
-<span id="L1459"><span class="lineNum">    1459</span>                 :             : </span>
-<span id="L1460"><span class="lineNum">    1460</span>                 :             : }  // namespace xff::cli</span>
+<span id="L1457"><span class="lineNum">    1457</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 83 times"> + </span>]:<span class="tlaGNC">          89 :   if (key == &quot;brotli&quot;) {</span></span>
+<span id="L1458"><span class="lineNum">    1458</span>                 :<span class="tlaGNC">           6 :     return &quot;--//xff:xff_brotli&quot;;</span></span>
+<span id="L1459"><span class="lineNum">    1459</span>                 :             :   }</span>
+<span id="L1460"><span class="lineNum">    1460</span>         [<span class="tlaGBC" title="Branch 0 was taken 77 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">          83 :   if (key == &quot;fuse&quot;) {</span></span>
+<span id="L1461"><span class="lineNum">    1461</span>                 :<span class="tlaGNC">          77 :     return &quot;--//xff:xff_fuse&quot;;</span></span>
+<span id="L1462"><span class="lineNum">    1462</span>                 :             :   }</span>
+<span id="L1463"><span class="lineNum">    1463</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">           6 :   if (key == &quot;pcre2&quot;) {</span></span>
+<span id="L1464"><span class="lineNum">    1464</span>                 :<span class="tlaGNC">           6 :     return &quot;--//xff:xff_pcre&quot;;</span></span>
+<span id="L1465"><span class="lineNum">    1465</span>                 :             :   }</span>
+<span id="L1466"><span class="lineNum">    1466</span>                 :<span class="tlaUNC tlaBgUNC">           0 :   return {};  // unknown extra: the caller omits the rebuild hint rather than inventing a flag</span></span>
+<span id="L1467"><span class="lineNum">    1467</span>                 :             : }</span>
+<span id="L1468"><span class="lineNum">    1468</span>                 :             : </span>
+<span id="L1469"><span class="lineNum">    1469</span>                 :             : }  // namespace xff::cli</span>
         </pre>
               </td>
             </tr>

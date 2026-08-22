@@ -3,26 +3,26 @@
   "measurements": {
     "overall": {
       "lines": {
-        "covered": 10423,
-        "total": 11104,
-        "percent": 93.87
+        "covered": 10820,
+        "total": 11519,
+        "percent": 93.93
       },
       "functions": {
-        "covered": 1210,
-        "total": 1242,
-        "percent": 97.42
+        "covered": 1257,
+        "total": 1289,
+        "percent": 97.52
       },
       "branches": {
-        "covered": 7382,
-        "total": 8826,
-        "percent": 83.64
+        "covered": 7641,
+        "total": 9122,
+        "percent": 83.76
       }
     },
     "program / command line": {
       "lines": {
-        "covered": 1569,
-        "total": 1642,
-        "percent": 95.55
+        "covered": 1574,
+        "total": 1647,
+        "percent": 95.57
       },
       "functions": {
         "covered": 166,
@@ -30,9 +30,9 @@
         "percent": 97.65
       },
       "branches": {
-        "covered": 898,
-        "total": 1021,
-        "percent": 87.95
+        "covered": 902,
+        "total": 1025,
+        "percent": 88.0
       }
     },
     "program / configuration": {
@@ -98,9 +98,9 @@
         "percent": 98.04
       },
       "branches": {
-        "covered": 272,
+        "covered": 274,
         "total": 316,
-        "percent": 86.08
+        "percent": 86.71
       }
     },
     "program / matching": {
@@ -156,19 +156,19 @@
     },
     "extensions / archive": {
       "lines": {
-        "covered": 1076,
-        "total": 1190,
-        "percent": 90.42
+        "covered": 1204,
+        "total": 1318,
+        "percent": 91.35
       },
       "functions": {
-        "covered": 111,
-        "total": 117,
-        "percent": 94.87
+        "covered": 136,
+        "total": 142,
+        "percent": 95.77
       },
       "branches": {
-        "covered": 611,
-        "total": 810,
-        "percent": 75.43
+        "covered": 690,
+        "total": 890,
+        "percent": 77.53
       }
     },
     "extensions / FUSE": {
@@ -203,6 +203,23 @@
         "covered": 35,
         "total": 40,
         "percent": 87.5
+      }
+    },
+    "extensions / Brotli": {
+      "lines": {
+        "covered": 264,
+        "total": 282,
+        "percent": 93.62
+      },
+      "functions": {
+        "covered": 22,
+        "total": 22,
+        "percent": 100.0
+      },
+      "branches": {
+        "covered": 174,
+        "total": 212,
+        "percent": 82.08
       }
     }
   },
@@ -266,6 +283,11 @@
       "lines": 98,
       "functions": 98,
       "branches": 87
+    },
+    "extensions / Brotli": {
+      "lines": 90,
+      "functions": 90,
+      "branches": 75
     }
   },
   "targets": {
@@ -325,6 +347,11 @@
       "branches": 74
     },
     "extensions / PCRE2": {
+      "lines": 90,
+      "functions": 90,
+      "branches": 75
+    },
+    "extensions / Brotli": {
       "lines": 90,
       "functions": 90,
       "branches": 75
