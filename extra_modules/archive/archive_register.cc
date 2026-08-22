@@ -21,6 +21,11 @@
 // keeps `archive_fs_cc` itself free of global state (a test can construct an ArchiveFileSystem without
 // the process-wide slot being touched).
 
+#include "xff/archive/archive_register.h"
+
+#include <algorithm>
+#include <array>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -31,8 +36,10 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/types/span.h"
 #include "mbo/status/status_macros.h"
 #include "xff/archive/archive_backend.h"
+#include "xff/archive/archive_extension.h"
 #include "xff/archive/archive_fs.h"
 #include "xff/archive/archive_pack.h"
 #include "xff/archive/archive_reader.h"
@@ -42,8 +49,6 @@
 #include "xff/vfs/filesystem.h"
 
 namespace xff::archive {
-namespace {
-
 // Adapts ArchiveFileSystem::Open (which returns the filesystem BY VALUE, so it stays usable without
 // heap allocation in its own tests) to the seam's owning-pointer contract. The reader's status is
 // returned unchanged, which is what keeps "not an archive" (InvalidArgument) apart from "corrupt
@@ -61,7 +66,65 @@ absl::StatusOr<std::unique_ptr<vfs::FileSystem>> OpenArchiveContainer(
   return std::make_unique<ArchiveFileSystem>(std::move(archive_fs));
 }
 
-const ContainerRegistrar kRegisterArchiveContainer{&OpenArchiveContainer};
+namespace {
+
+struct ReadFormatSpec {
+  std::string_view name;
+  absl::Span<const std::string_view> suffixes;
+  std::string_view detail;
+};
+
+constexpr std::array k7zSuffixes = std::to_array<std::string_view>({".7z"});
+constexpr std::array kArSuffixes = std::to_array<std::string_view>({".ar", ".deb"});
+constexpr std::array kCabSuffixes = std::to_array<std::string_view>({".cab"});
+constexpr std::array kCpioSuffixes = std::to_array<std::string_view>({".cpio", ".rpm"});
+constexpr std::array kIsoSuffixes = std::to_array<std::string_view>({".iso"});
+constexpr std::array kLhaSuffixes = std::to_array<std::string_view>({".lha", ".lzh"});
+constexpr std::array kRarSuffixes = std::to_array<std::string_view>({".rar"});
+constexpr std::array kTarSuffixes = std::to_array<std::string_view>({
+    ".tar",    ".tar.gz", ".tgz", ".taz",    ".crate",    ".gem",     ".tar.bz2", ".tbz", ".tbz2",    ".tz2",
+    ".tar.xz", ".txz",    ".tlz", ".tar.lz", ".tar.lzma", ".tar.lz4", ".tar.Z",   ".taZ", ".tar.zst", ".tzst",
+});
+constexpr std::array kWarcSuffixes = std::to_array<std::string_view>({".warc"});
+constexpr std::array kXarSuffixes = std::to_array<std::string_view>({".xar"});
+constexpr std::array kZipSuffixes = std::to_array<std::string_view>({
+    ".zip",  ".jar",  ".war",   ".ear", ".whl", ".egg", ".apk",  ".aab",  ".cbz",  ".crx", ".docx",
+    ".epub", ".jmod", ".nupkg", ".odp", ".ods", ".odt", ".pptx", ".vsix", ".xlsx", ".xpi",
+});
+constexpr std::array kPharSuffixes = std::to_array<std::string_view>({".phar"});
+constexpr std::array kSingleFileSuffixes = std::to_array<std::string_view>({
+    ".gz",
+    ".bz2",
+    ".xz",
+    ".zst",
+    ".zstd",
+    ".lz",
+    ".lz4",
+    ".lzma",
+    ".Z",
+});
+
+constexpr std::array kNativeReadFormats = std::to_array<ReadFormatSpec>({
+    {.name = "7z", .suffixes = k7zSuffixes, .detail = "7-Zip archives"},
+    {.name = "ar", .suffixes = kArSuffixes, .detail = "Unix ar archives; a `.deb` is one"},
+    {.name = "cab", .suffixes = kCabSuffixes, .detail = "Microsoft cabinet archives"},
+    {.name = "cpio", .suffixes = kCpioSuffixes, .detail = "cpio archives; an `.rpm`'s payload is one"},
+    {.name = "iso9660", .suffixes = kIsoSuffixes, .detail = "ISO 9660 disc images"},
+    {.name = "lha", .suffixes = kLhaSuffixes, .detail = "LHA/LZH archives"},
+    {.name = "rar", .suffixes = kRarSuffixes, .detail = "RAR 4 and RAR 5 archives"},
+    {.name = "tar",
+     .suffixes = kTarSuffixes,
+     .detail = "tar archives, plain or through any compression filter; `.crate` and `.gem` are tars"},
+    {.name = "warc", .suffixes = kWarcSuffixes, .detail = "web archives"},
+    {.name = "xar", .suffixes = kXarSuffixes, .detail = "xar archives"},
+    {.name = "zip",
+     .suffixes = kZipSuffixes,
+     .detail = "zip archives and the package formats that are zips underneath"},
+    {.name = "phar", .suffixes = kPharSuffixes, .detail = "PHP phar archives (xff's own reader)"},
+    {.name = "file",
+     .suffixes = kSingleFileSuffixes,
+     .detail = "a compressed SINGLE file (`notes.txt.gz`): one member, decompressed at open"},
+});
 
 // The formats this reader understands, for the --help=archive table and the seam's name gate.
 // Reading is SNIFF-based (archive_reader.cc's curated libarchive set + the phar parser + the
@@ -70,36 +133,37 @@ const ContainerRegistrar kRegisterArchiveContainer{&OpenArchiveContainer};
 // ar, .rpm a cpio). Keep in step with NewReader() - archive_register_test pins BOTH directions
 // against LooksLikeContainerName, so a drift fails the build.
 std::vector<ReadFormatInfo> ReadFormats() {
-  return {
-      {.name = "7z", .suffixes = {".7z"}, .detail = "7-Zip archives"},
-      {.name = "ar", .suffixes = {".ar", ".deb"}, .detail = "Unix ar archives; a `.deb` is one"},
-      {.name = "cab", .suffixes = {".cab"}, .detail = "Microsoft cabinet archives"},
-      {.name = "cpio", .suffixes = {".cpio", ".rpm"}, .detail = "cpio archives; an `.rpm`'s payload is one"},
-      {.name = "iso9660", .suffixes = {".iso"}, .detail = "ISO 9660 disc images"},
-      {.name = "lha", .suffixes = {".lha", ".lzh"}, .detail = "LHA/LZH archives"},
-      {.name = "rar", .suffixes = {".rar"}, .detail = "RAR 4 and RAR 5 archives"},
-      {.name = "tar",
-       .suffixes = {".tar",      ".tar.gz",  ".tgz",   ".taz",    ".crate",   ".gem", ".tar.bz2",
-                    ".tbz",      ".tbz2",    ".tz2",   ".tar.xz", ".txz",     ".tlz", ".tar.lz",
-                    ".tar.lzma", ".tar.lz4", ".tar.Z", ".taZ",    ".tar.zst", ".tzst"},
-       .detail = "tar archives, plain or through any compression filter; `.crate` and `.gem` are tars"},
-      {.name = "warc", .suffixes = {".warc"}, .detail = "web archives"},
-      {.name = "xar", .suffixes = {".xar"}, .detail = "xar archives"},
-      {.name = "zip",
-       .suffixes = {".zip",  ".jar",  ".war",   ".ear", ".whl", ".egg", ".apk",  ".aab",  ".cbz",  ".crx", ".docx",
-                    ".epub", ".jmod", ".nupkg", ".odp", ".ods", ".odt", ".pptx", ".vsix", ".xlsx", ".xpi"},
-       .detail = "zip archives and the package formats that are zips underneath"},
-      {.name = "phar", .suffixes = {".phar"}, .detail = "PHP phar archives (xff's own reader)"},
-      {.name = "file",
-       .suffixes = {".gz", ".bz2", ".xz", ".zst", ".zstd", ".lz", ".lz4", ".lzma", ".Z"},
-       .detail = "a compressed SINGLE file (`notes.txt.gz`): one member, decompressed at open"},
-  };
+  std::vector<ReadFormatInfo> formats;
+  formats.reserve(kNativeReadFormats.size());
+  for (const ReadFormatSpec& spec : kNativeReadFormats) {
+    formats.push_back({
+        .name = std::string(spec.name),
+        .suffixes = std::vector<std::string>(spec.suffixes.begin(), spec.suffixes.end()),
+        .detail = std::string(spec.detail),
+    });
+  }
+  std::vector<ReadFormatInfo> extensions = CompressionExtensionReadFormats();
+  for (ReadFormatInfo& extension : extensions) {
+    const auto found = std::find_if(formats.begin(), formats.end(), [&extension](const ReadFormatInfo& format) {
+      return format.name == extension.name;
+    });
+    if (found == formats.end()) {
+      formats.push_back(std::move(extension));
+      continue;
+    }
+    found->suffixes.insert(
+        found->suffixes.end(), std::make_move_iterator(extension.suffixes.begin()),
+        std::make_move_iterator(extension.suffixes.end()));
+    if (!extension.detail.empty()) {
+      found->detail = absl::StrCat(found->detail, "; ", extension.detail);
+    }
+  }
+  return formats;
 }
 
-// NOLINTNEXTLINE(fuchsia-statically-constructed-objects,cert-err58-cpp)
-const struct ReadFormatsRegistrar {
-  ReadFormatsRegistrar() { RegisterContainerReadFormats(ReadFormats()); }
-} kRegisterReadFormats;
+}  // namespace
+
+namespace {
 
 // The write half, registered separately because it answers for FEWER containers than the opener: a
 // phar or a compressed single file opens here and cannot be rewritten, and the writer says so.
@@ -138,11 +202,11 @@ absl::Status RemoveArchiveMembers(std::string_view container, const std::vector<
           " whole-file-compressed container would have to be recompressed around the change"));
 }
 
-const ContainerRemoverRegistrar kRegisterArchiveRemover{&RemoveArchiveMembers};
+}  // namespace
 
 // The create half. A third registration rather than a mode on the second because the capabilities
 // differ: this backend can CREATE a tar or zip it could never rewrite in place.
-absl::Status PackArchiveContainer(
+absl::Status PackNativeArchiveContainer(
     std::string_view path,
     const std::vector<PackFile>& files,
     const PackOptions& options) {
@@ -159,6 +223,18 @@ absl::Status PackArchiveContainer(
   return PackFiles(path, entries, settings);
 }
 
+namespace {
+
+absl::Status PackArchiveContainer(
+    std::string_view path,
+    const std::vector<PackFile>& files,
+    const PackOptions& options) {
+  if (!CompressionExtensionPackFormatFor(path).empty()) {
+    return PackCompressionExtension(path, files, options);
+  }
+  return PackNativeArchiveContainer(path, files, options);
+}
+
 // The vocabulary travels with the packer, so the CLI's pre-walk check and `--help=archive` both read
 // the writer's own table rather than a copy that could drift from it.
 std::vector<PackOptionInfo> PackVocabulary() {
@@ -167,10 +243,35 @@ std::vector<PackOptionInfo> PackVocabulary() {
     vocabulary.push_back(
         {.name = doc.name, .value_syntax = doc.value_syntax, .formats = doc.formats, .detail = doc.detail});
   }
+  std::vector<PackOptionInfo> extensions = CompressionExtensionPackVocabulary();
+  vocabulary.insert(
+      vocabulary.end(), std::make_move_iterator(extensions.begin()), std::make_move_iterator(extensions.end()));
   return vocabulary;
 }
 
-const ContainerPackerRegistrar kRegisterArchivePacker{&PackArchiveContainer, PackFormats(), PackVocabulary()};
+std::vector<std::string> AggregatePackFormats() {
+  std::vector<std::string> formats = PackFormats();
+  std::vector<std::string> extensions = CompressionExtensionPackFormats();
+  formats.insert(formats.end(), std::make_move_iterator(extensions.begin()), std::make_move_iterator(extensions.end()));
+  return formats;
+}
 
 }  // namespace
+
+void RegisterArchiveBackend() {
+  RegisterContainerOpener(&OpenArchiveContainer);
+  RegisterContainerReadFormats(ReadFormats());
+  RegisterContainerMemberRemover(&RemoveArchiveMembers);
+  RegisterContainerPacker(&PackArchiveContainer, AggregatePackFormats(), PackVocabulary());
+}
+
+namespace {
+
+// NOLINTNEXTLINE(fuchsia-statically-constructed-objects,cert-err58-cpp)
+const struct ArchiveRegistrar {
+  ArchiveRegistrar() { RegisterArchiveBackend(); }
+} kRegisterArchive;
+
+}  // namespace
+
 }  // namespace xff::archive

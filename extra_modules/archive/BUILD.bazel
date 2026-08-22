@@ -100,6 +100,34 @@ cc_library(
     deps = ["@libarchive//libarchive"],
 )
 
+cc_library(
+    name = "archive_extension_cc",
+    srcs = ["archive_extension.cc"],
+    hdrs = ["archive_extension.h"],
+    include_prefix = "xff/archive",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@xff_extras_api//:archive_backend_cc",
+    ],
+)
+
+cc_test(
+    name = "archive_extension_test",
+    size = "small",
+    srcs = ["archive_extension_test.cc"],
+    deps = [
+        ":archive_extension_cc",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)
+
 cc_test(
     name = "archive_filters_test",
     size = "small",
@@ -325,6 +353,7 @@ cc_library(
     include_prefix = "xff/archive",
     visibility = ["//visibility:public"],
     deps = [
+        ":archive_extension_cc",
         ":archive_reader_cc",
         ":member_cache_cc",
         ":phar_reader_cc",
@@ -463,8 +492,11 @@ cc_test(
 cc_library(
     name = "archive_register_cc",
     srcs = ["archive_register.cc"],
+    hdrs = ["archive_register.h"],
+    include_prefix = "xff/archive",
     visibility = ["//visibility:public"],
     deps = [
+        ":archive_extension_cc",
         ":archive_fs_cc",
         ":archive_pack_cc",
         ":archive_reader_cc",
@@ -473,6 +505,7 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:span",
         "@helly25_mbo//mbo/status:status_macros_cc",
         "@xff_extras_api//:archive_backend_cc",
         "@xff_extras_api//:member_path_cc",
@@ -489,6 +522,8 @@ cc_test(
     size = "small",
     srcs = ["archive_register_test.cc"],
     deps = [
+        ":archive_extension_cc",
+        ":archive_fs_cc",
         ":archive_register_cc",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest",

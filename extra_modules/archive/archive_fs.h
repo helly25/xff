@@ -99,6 +99,16 @@ class ArchiveFileSystem : public vfs::FileSystem {
   // error is an answer. On success the filesystem holds the decompressed content.
   static absl::StatusOr<ArchiveFileSystem> OpenCompressedSingle(std::string_view container, MemberPathOptions options);
 
+  static absl::StatusOr<ArchiveFileSystem> OpenBytesImpl(
+      std::string_view container,
+      std::string bytes,
+      MemberPathOptions options,
+      bool allow_extensions);
+  static absl::StatusOr<ArchiveFileSystem> OpenDecodedExtension(
+      std::string_view container,
+      std::string content,
+      MemberPathOptions options);
+
   // Builds the node index from a member list, whatever the source. `bytes` is empty for a
   // path-backed container.
   static absl::StatusOr<ArchiveFileSystem> Index(

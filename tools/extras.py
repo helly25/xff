@@ -18,6 +18,7 @@
 
     tools/extras.py --wildcards   # @xff_archive//... @xff_pcre2//...
     tools/extras.py --modules     # xff_archive xff_pcre2
+    tools/extras.py --instrumentation-filter
 
 Every extra is a separate bazel MODULE under `extra_modules/`, declared in the extras include with a
 `bazel_dep` + `local_path_override` pair. That makes the include the single source of truth for
@@ -66,11 +67,23 @@ def extras(module_bazel: str) -> dict[str, str]:
     return dict(sorted(found.items()))
 
 
+def instrumentation_filter(declared: dict[str, str]) -> str:
+    """The Bazel coverage instrumentation filter for core plus all extras."""
+    escaped = "|".join(re.escape(module) for module in declared)
+    extras_filter = f",@@({escaped})[+]//" if escaped else ""
+    return f"//xff[/:],//xff_extras_api[/:]{extras_filter}"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--wildcards", action="store_true", help="print `@module//...` for each extra")
     group.add_argument("--modules", action="store_true", help="print each extra's module name")
+    group.add_argument(
+        "--instrumentation-filter",
+        action="store_true",
+        help="print the Bazel coverage filter for the core and every declared extra",
+    )
     args = parser.parse_args()
 
     # An empty result is legitimate for a stripped extras include. Callers word-split this, so
@@ -79,8 +92,10 @@ def main() -> int:
 
     if args.wildcards:
         print(" ".join(f"@{module}//..." for module in declared))
-    else:
+    elif args.modules:
         print(" ".join(declared))
+    else:
+        print(instrumentation_filter(declared))
     return 0
 
 

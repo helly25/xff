@@ -72,6 +72,18 @@ class ExtrasTest(unittest.TestCase):
     def test_ignores_a_bazel_dep_without_a_local_override(self):
         self.assertEqual(extras.extras('bazel_dep(name = "re2", version = "1")'), {})
 
+    def test_instrumentation_filter_is_derived_from_every_extra(self):
+        declared = extras.extras(_MODULE_BAZEL)
+        self.assertEqual(
+            "//xff[/:],//xff_extras_api[/:],@@(xff_archive|xff_pcre2)[+]//",
+            extras.instrumentation_filter(declared),
+        )
+
+    def test_instrumentation_filter_handles_a_tree_without_extras(self):
+        self.assertEqual(
+            "//xff[/:],//xff_extras_api[/:]", extras.instrumentation_filter({})
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

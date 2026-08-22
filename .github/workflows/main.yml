@@ -201,13 +201,14 @@ jobs:
           COVERAGE_PAGE: ${{ github.event_name == 'pull_request' && format('pr/{0}', github.event.pull_request.number) || 'main' }}
         run: |
           set -euo pipefail
+          INSTRUMENTATION_FILTER="$(tools/extras.py --instrumentation-filter)"
           # shellcheck disable=SC2046  # deliberate splitting into Bazel target patterns
           bazel coverage //... $(tools/extras.py --wildcards) \
             --config=xff_docs \
             --config=xff_fuse_tests_required \
             --combined_report=lcov \
             --disk_cache=$HOME/.cache/bazel-disk \
-            --instrumentation_filter='//xff[/:],//xff_extras_api[/:],@@xff_(archive|fuse|pcre2)[+]//' \
+            --instrumentation_filter="${INSTRUMENTATION_FILTER}" \
             --repository_cache=$HOME/.cache/bazel-repo
           cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
           printf '%s\n' "${COVERAGE_PAGE}" >coverage-target.txt

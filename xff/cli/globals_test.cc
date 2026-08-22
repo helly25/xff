@@ -88,6 +88,7 @@ TEST_F(GlobalsTest, ComposableExtraFlagCarriesItsExtraKeyAndIsOffInTheLeanBuild)
   EXPECT_THAT(archive->extra, Eq("archive"));             // the SOT link from the flag to its build extra
   EXPECT_THAT(ExtraEnabled("archive"), IsFalse());        // not compiled into the lean default binary
   EXPECT_THAT(ExtraEnabled("pcre2"), IsFalse());          // same gate as archive, same lean answer
+  EXPECT_THAT(ExtraEnabled("brotli"), IsFalse());         // removable extension of the archive extra
   EXPECT_THAT(EnabledExtras(), IsEmpty());                // the notice line's source: nothing in a lean build
   EXPECT_THAT(ExtraEnabled("nonesuch"), IsFalse());       // an unknown extra reads as off
   EXPECT_THAT(LookupGlobal("--sort")->extra, IsEmpty());  // a core flag carries no extra

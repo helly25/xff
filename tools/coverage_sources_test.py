@@ -11,6 +11,18 @@ import coverage_sources  # noqa: E402
 
 
 class CoverageSourcesTest(unittest.TestCase):
+    def test_policy_discovers_a_future_extra_without_a_policy_edit(self):
+        policy = {"include": ["xff/**"], "categories": {"extensions": {}}}
+        actual = coverage_sources.resolved_policy(
+            policy, {"xff_future": "extra_modules/future"}
+        )
+        self.assertIn("xff_future/**", actual["include"])
+        self.assertEqual(
+            {"include": ["xff_future/**"]},
+            actual["categories"]["extensions"]["Future"],
+        )
+        self.assertNotIn("xff_future/**", policy["include"])
+
     def test_maps_every_extra_in_the_repository_registry(self):
         modules = coverage_sources.declared_extras()
         report = "".join(f"SF:external/{module}+/source.cc\n" for module in modules)

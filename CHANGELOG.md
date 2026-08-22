@@ -46,6 +46,10 @@
 
 ## Archives
 
+- Add the removable `@xff_brotli` extra. It extends `@xff_archive` with streaming `.tar.br` / `.tbr`
+  packing and traversal and raw `.br` single-file traversal, without letting libarchive absorb the
+  feature accidentally. New archives use the self-identifying RFC 9841 framing format by default;
+  `--pack-option=framing=raw` produces legacy RFC 7932 streams, and the reader accepts both.
 - Extend the archive extra's native filter coverage to lzip/LZMA (`.tar.lz`, `.tar.lzma`, `.tlz`),
   LZ4 (`.tar.lz4`), and Unix compress (`.tar.Z`, `.taZ`) for both name-gated traversal and packing.
   Their single-file forms are recognized too. These codecs were already compiled into libarchive;

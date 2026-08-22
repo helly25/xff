@@ -23,6 +23,17 @@ class CoverageTest(unittest.TestCase):
             with self.subTest(source=source):
                 self.assertEqual(expected, coverage_tool._repo_path(source))
 
+    def test_normalizes_a_future_extension_from_the_registry_mapping(self):
+        modules = {"xff_future": "extra_modules/future"}
+        self.assertEqual(
+            "xff_future/reader.cc",
+            coverage_tool._repo_path("/execroot/external/xff_future+/reader.cc", modules),
+        )
+        self.assertEqual(
+            "xff_future/reader.cc",
+            coverage_tool._repo_path("/checkout/extra_modules/future/reader.cc", modules),
+        )
+
     def test_parse_filter_and_measure(self):
         with tempfile.TemporaryDirectory() as directory:
             report = Path(directory) / "coverage.lcov"

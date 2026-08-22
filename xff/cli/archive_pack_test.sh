@@ -97,6 +97,28 @@ test::the_member_content_survives_the_round_trip() {
   expect_eq "first" "$(tar -xOzf "${root}/out.tar.gz" a.cc)"
 }
 
+test::brotli_tar_defaults_to_rfc9841_and_is_immediately_diveable() {
+  local root magic members
+  root="$(_tree)"
+  "$(_xff_bin)" "${root}/src" -name '*.cc' --pack="${root}/out.tar.br"
+  magic="$(od -An -tx1 -N4 "${root}/out.tar.br" | tr -d ' ')"
+  expect_eq "910a4252" "${magic}"
+  members="$("$(_xff_bin)" -z+ "${root}/out.tar.br" -type f -printf '%f\n')"
+  expect_output_contains "a.cc" "${members}"
+  expect_output_contains "b.cc" "${members}"
+}
+
+test::brotli_raw_is_an_explicit_legacy_interoperability_mode() {
+  local root magic members
+  root="$(_tree)"
+  "$(_xff_bin)" "${root}/src" -name '*.cc' --pack="${root}/out.tbr" --pack-option=framing=raw
+  magic="$(od -An -tx1 -N4 "${root}/out.tbr" | tr -d ' ')"
+  expect_not_matches "^910a4252$" "${magic}"
+  members="$("$(_xff_bin)" -z+ "${root}/out.tbr" -type f -printf '%f\n')"
+  expect_output_contains "a.cc" "${members}"
+  expect_output_contains "b.cc" "${members}"
+}
+
 test::an_output_name_with_no_writable_format_fails_before_the_walk() {
   local root status out
   root="$(_tree)"
@@ -197,6 +219,7 @@ test::the_archive_help_lists_the_vocabulary_the_binary_accepts() {
   expect_output_contains "--pack-option=NAME=VALUE" "${out}"
   expect_output_contains "timestamp=yes|no" "${out}"
   expect_output_contains "zip64=yes|no" "${out}"
+  expect_output_contains "framing=rfc9841|raw" "${out}"
 }
 
 test::a_level_that_works_produces_a_smaller_archive() {

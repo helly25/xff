@@ -218,6 +218,8 @@ std::string RenderExtras() {
   };
   row("fuse", xff::cli::ExtraEnabled("fuse"), xff::cli::ExtraBuildFlag("fuse"),
       "mount containers as read-only directories via the platform's fuse3 (probed at runtime)");
+  row("brotli", xff::cli::ExtraEnabled("brotli"), xff::cli::ExtraBuildFlag("brotli"),
+      "RFC 9841 and raw Brotli compression for the archive extra");
   row("pcre2", xff::cli::ExtraEnabled("pcre2"), xff::cli::ExtraBuildFlag("pcre2"),
       "--regextype=PCRE2: Perl-compatible regex (lookahead, backreferences, ...)");
   absl::flat_hash_set<std::string_view> seen;
