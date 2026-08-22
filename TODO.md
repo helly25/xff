@@ -672,12 +672,15 @@ Verified by planting a deliberate unused variable and building, rather than by r
 | `external/xff_archive+/archive_reader.cc` | `error:` -Werror, fails          |
 | third-party external sources              | 0 warnings (was: on every build) |
 
-Not in scope, measured while verifying: the compile-DB refresh prints ~80
-`invalid argument '-std=c99' not allowed with 'C++'` errors, because the extractor probes
-third-party C targets (xz sets `-std=c99`) with `clang++`. It is present with and without this
-change, warning flags cannot affect it, and `tools/fix_compile_commands.py` already drops every one
-of those entries from the database - so it is extractor chatter, not a build problem, and it is
-deliberately NOT papered over with another output filter.
+**OPEN TASK (raised 2026-08-22): eliminate the compile-DB extractor's C/C++ driver mismatch.** The
+[PR #611 clang-tidy job](https://github.com/helly25/xff/actions/runs/32568629375/job/97020893058?pr=611)
+again prints ~80 `error: invalid argument '-std=c99' not allowed with 'C++'` diagnostics. The
+extractor probes third-party C targets (xz sets `-std=c99`) with `clang++`; warning flags cannot
+affect that language-mode error, and `tools/fix_compile_commands.py` dropping those third-party
+entries only cleans the resulting database, not the refresh log. Fix the extractor invocation or
+its C/C++ command selection so `compile_commands-update.sh` and the CI clang-tidy job emit none of
+these diagnostics. Do not hide them with an output filter, and retain both the post-processing that
+excludes third-party C entries and the first-party compile-database coverage guard below.
 
 ## Compile-database coverage guard (clang-tidy cannot lint what the database omits)
 
