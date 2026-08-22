@@ -202,7 +202,7 @@ TEST_F(BrotliCodecTest, DecoderRejectsEveryUnsupportedOrMalformedRfc9841Boundary
   ASSERT_THAT(ReadVarint(encoded, &cursor), Optional(Eq(tar.size())));
   ++cursor;
   ASSERT_THAT(cursor, Lt(encoded.size()));
-  const std::string_view payload(encoded.data() + cursor, encoded.size() - cursor);
+  const std::string_view payload = std::string_view(encoded).substr(cursor);
 
   std::string unsupported(encoded);
   unsupported[kFramingSignature.size()] = 1;
