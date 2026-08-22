@@ -25,9 +25,11 @@
 # differs per platform: libc++ on macOS but the system libstdc++ on Linux, the mix
 # that silently corrupted clang-tidy's type/member analysis).
 #
-# The `--config=clang-tidy` below is a RUNTIME arg to the extractor tool (it must
-# follow `--`, or `bazel run` hands it to bazel); the tool forwards every non
-# `--bcce-*` runtime arg to its internal aquery, which is how the config reaches it.
+# The outer `bazel run` and the extractor's internal `aquery` both use
+# `--config=clang-tidy`. The outer copy avoids rebuilding the extractor with the default toolchain
+# immediately after the clang-tidy probe builds; it does not propagate into the internal query, so
+# the runtime copy must remain after `--`. The tool forwards every non-`--bcce-*` runtime argument
+# to that query.
 
 set -euo pipefail
 
@@ -126,7 +128,7 @@ done
 # //:refresh_compile_commands, not the extractor's stock :refresh_all - the latter covers `//...`
 # only, which silently omits every extras source file. See the target's comment in //BUILD.bazel.
 #
-bazel run //:refresh_compile_commands -- --config=clang-tidy "${BCCE_ARGS[@]}" \
+bazel run --config=clang-tidy //:refresh_compile_commands -- --config=clang-tidy "${BCCE_ARGS[@]}" \
   || die "refreshing compile_commands.json failed"
 
 # Post-process the extracted database (tools/fix_compile_commands.py documents both passes):

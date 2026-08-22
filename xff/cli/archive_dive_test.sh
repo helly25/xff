@@ -384,15 +384,18 @@ test::archive_extract_does_not_make_delete_possible() {
 }
 
 test::archive_extract_leaves_nothing_behind() {
-  local root out before after
+  local root extract_root out
   root="$(_tree)"
+  extract_root="$(test_tmpdir extract-root)"
   # Every copy is removed when its child finishes (or when the run ends, for a batch), so a run over
-  # an archive must not grow the temporary directory.
-  before="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'xff-*' 2>/dev/null | wc -l | tr -d ' ')"
-  out="$("$(_xff_bin)" --archive=roots --archive-extract "${root}/a.tar" -type f -exec cat {} \;)"
+  # an archive must leave its chosen temporary directory empty. Give this invocation a private
+  # XDG_RUNTIME_DIR: counting `xff-*` in a process-wide TMPDIR races other work, and would not even
+  # inspect /dev/shm when that preferred candidate is available. Select the members explicitly so
+  # `cat` does not also print the tar container's binary bytes into Bash command substitution.
+  out="$(XDG_RUNTIME_DIR="${extract_root}" "$(_xff_bin)" --archive=roots --archive-extract "${root}/a.tar" \
+    -name '*.txt' -exec cat {} \;)"
   expect_output_contains "needle" "${out}"
-  after="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'xff-*' 2>/dev/null | wc -l | tr -d ' ')"
-  expect_eq "${before}" "${after}"
+  expect_eq "" "$(find "${extract_root}" -mindepth 1 -print -quit)"
 }
 
 test::archive_delete_rewrites_the_container_without_the_member() {
