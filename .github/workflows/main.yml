@@ -188,7 +188,6 @@ jobs:
       - name: Collect and enforce coverage
         env:
           COVERAGE_PAGE: ${{ github.event_name == 'pull_request' && format('pr/{0}', github.event.pull_request.number) || 'main' }}
-          XFF_FUSE_REQUIRED: "1"
         run: |
           set -euo pipefail
           # shellcheck disable=SC2046  # deliberate splitting into Bazel target patterns
@@ -197,13 +196,14 @@ jobs:
             --combined_report=lcov \
             --disk_cache=$HOME/.cache/bazel-disk \
             --instrumentation_filter='//xff[/:],//xff_extras_api[/:],@@xff_(archive|fuse|pcre2)[+]//' \
-            --repository_cache=$HOME/.cache/bazel-repo \
-            --test_env=XFF_FUSE_REQUIRED
+            --repository_cache=$HOME/.cache/bazel-repo
           cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
           printf '%s\n' "${COVERAGE_PAGE}" >coverage-target.txt
           # Derive extension source paths from the same extras registry that supplies the Bazel
           # target wildcards, so adding a module cannot leave its HTML source view behind.
-          python3 tools/coverage_sources.py coverage.lcov coverage-html.lcov
+          python3 tools/coverage_sources.py coverage.lcov coverage-html.lcov \
+            --policy coverage_policy.json \
+            --source-root coverage-source-tree
           genhtml coverage-html.lcov \
             --branch-coverage \
             --demangle-cpp \
@@ -211,6 +211,7 @@ jobs:
             --ignore-errors negative \
             --legend \
             --output-directory coverage-html/lcov \
+            --prefix "${PWD}/coverage-source-tree" \
             --show-details \
             --title "xff production coverage"
           python3 -m unittest tools/coverage_test.py tools/coverage_sources_test.py tools/coverage_index_test.py

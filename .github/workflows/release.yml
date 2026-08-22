@@ -58,22 +58,24 @@ jobs:
             --slave /usr/bin/gcov gcov /usr/bin/gcov-14
           sudo update-alternatives --set gcc /usr/bin/gcc-14
       - name: Collect release coverage
-        # --config=xff_full enables the aggregate xff_all switch, so extensions added to the
-        # registry join release coverage automatically.
+        # --config=xff_docs includes the aggregate xff_all switch, so extensions added to the
+        # registry join release coverage automatically, as well as the complete documented surface.
         run: |
           set -euo pipefail
           tools/release_prep.sh "${GITHUB_REF_NAME}" >/dev/null
           coverage_page="tag/${GITHUB_REF_NAME#v}"
           # shellcheck disable=SC2046  # deliberate splitting into Bazel target patterns
           bazel coverage //... $(tools/extras.py --wildcards) \
-            --config=xff_full \
+            --config=xff_docs \
             --combined_report=lcov \
             --disk_cache=$HOME/.cache/bazel-disk \
             --instrumentation_filter='//xff[/:],//xff_extras_api[/:],@@xff_(archive|fuse|pcre2)[+]//' \
             --repository_cache=$HOME/.cache/bazel-repo
           cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
           printf '%s\n' "${coverage_page}" >coverage-target.txt
-          python3 tools/coverage_sources.py coverage.lcov coverage-html.lcov
+          python3 tools/coverage_sources.py coverage.lcov coverage-html.lcov \
+            --policy coverage_policy.json \
+            --source-root coverage-source-tree
           genhtml coverage-html.lcov \
             --branch-coverage \
             --demangle-cpp \
@@ -81,6 +83,7 @@ jobs:
             --ignore-errors negative \
             --legend \
             --output-directory coverage-html/lcov \
+            --prefix "${PWD}/coverage-source-tree" \
             --show-details \
             --title "xff ${GITHUB_REF_NAME} production coverage"
           python3 -m unittest tools/coverage_test.py tools/coverage_sources_test.py tools/coverage_index_test.py
