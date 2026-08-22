@@ -63,14 +63,13 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
 
 ### Lint / CI / style adoption (open audits)
 
-- **Re-evaluate compile-DB launcher configuration after
-  [mbo PR #354](https://github.com/helly25/mbo/pull/354).** xff currently passes
-  `--config=clang-tidy` only after `--`, so the extractor's internal `aquery` gets the correct
-  configuration but the outer `bazel run //:refresh_compile_commands` may still build the extractor
-  with the default toolchain and trigger an avoidable analysis-cache transition. Test adding the same
-  config to the outer invocation, retain the runtime copy because outer flags do not propagate into
-  the internal query, and verify that only the extractor's intentional `features` / `host_features`
-  transition remains while all emitted commands still use hermetic Clang.
+- **Compile-DB launcher configuration after
+  [mbo PR #354](https://github.com/helly25/mbo/pull/354): SHIPPED (PR #627).** The outer
+  `bazel run //:refresh_compile_commands` now uses `--config=clang-tidy`, matching the preceding
+  builds instead of rebuilding the extractor with the default toolchain. The runtime copy remains
+  because outer flags do not propagate into the internal `aquery`. A cold-worktree verification
+  retained only the extractor's intentional `features` / `host_features` transition, emitted
+  hermetic-Clang commands for core plus all extras, and found all 156 expected first-party sources.
 - **Evaluate C++ header modules separately.** Spike Bazel/toolchains_llvm's `header_modules`
   feature on its own branch. Establish support on every xff platform and configuration, compatibility
   with generated and external headers, cache and build-time effects, and what additional violations
