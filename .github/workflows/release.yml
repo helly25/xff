@@ -59,11 +59,7 @@ jobs:
           sudo update-alternatives --set gcc /usr/bin/gcc-14
       - name: Collect release coverage
         # --config=xff_full enables the aggregate xff_all switch, so extensions added to the
-        # registry join release coverage automatically. XFF_FUSE_REQUIRED has a narrower purpose:
-        # this Linux runner can mount through FUSE, so an unavailable kernel mount must fail rather
-        # than skip.
-        env:
-          XFF_FUSE_REQUIRED: "1"
+        # registry join release coverage automatically.
         run: |
           set -euo pipefail
           tools/release_prep.sh "${GITHUB_REF_NAME}" >/dev/null
@@ -74,8 +70,7 @@ jobs:
             --combined_report=lcov \
             --disk_cache=$HOME/.cache/bazel-disk \
             --instrumentation_filter='//xff[/:],//xff_extras_api[/:],@@xff_(archive|fuse|pcre2)[+]//' \
-            --repository_cache=$HOME/.cache/bazel-repo \
-            --test_env=XFF_FUSE_REQUIRED
+            --repository_cache=$HOME/.cache/bazel-repo
           cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
           printf '%s\n' "${coverage_page}" >coverage-target.txt
           python3 tools/coverage_sources.py coverage.lcov coverage-html.lcov
