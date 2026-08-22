@@ -3,9 +3,9 @@
   "measurements": {
     "overall": {
       "lines": {
-        "covered": 10300,
+        "covered": 10335,
         "total": 11012,
-        "percent": 93.53
+        "percent": 93.85
       },
       "functions": {
         "covered": 1204,
@@ -13,9 +13,9 @@
         "percent": 97.41
       },
       "branches": {
-        "covered": 7267,
+        "covered": 7307,
         "total": 8736,
-        "percent": 83.18
+        "percent": 83.64
       }
     },
     "program / command line": {
@@ -88,9 +88,9 @@
     },
     "program / filesystem": {
       "lines": {
-        "covered": 425,
+        "covered": 439,
         "total": 463,
-        "percent": 91.79
+        "percent": 94.82
       },
       "functions": {
         "covered": 50,
@@ -98,16 +98,16 @@
         "percent": 98.04
       },
       "branches": {
-        "covered": 263,
+        "covered": 275,
         "total": 316,
-        "percent": 83.23
+        "percent": 87.03
       }
     },
     "program / matching": {
       "lines": {
-        "covered": 652,
+        "covered": 669,
         "total": 679,
-        "percent": 96.02
+        "percent": 98.53
       },
       "functions": {
         "covered": 100,
@@ -115,16 +115,16 @@
         "percent": 100.0
       },
       "branches": {
-        "covered": 475,
+        "covered": 499,
         "total": 569,
-        "percent": 83.48
+        "percent": 87.7
       }
     },
     "program / presentation": {
       "lines": {
-        "covered": 1174,
+        "covered": 1176,
         "total": 1236,
-        "percent": 94.98
+        "percent": 95.15
       },
       "functions": {
         "covered": 146,
@@ -132,9 +132,9 @@
         "percent": 96.05
       },
       "branches": {
-        "covered": 974,
+        "covered": 975,
         "total": 1120,
-        "percent": 86.96
+        "percent": 87.05
       }
     },
     "extensions / API": {
@@ -173,9 +173,9 @@
     },
     "extensions / FUSE": {
       "lines": {
-        "covered": 436,
+        "covered": 438,
         "total": 483,
-        "percent": 90.27
+        "percent": 90.68
       },
       "functions": {
         "covered": 70,
@@ -183,9 +183,9 @@
         "percent": 98.59
       },
       "branches": {
-        "covered": 200,
+        "covered": 203,
         "total": 270,
-        "percent": 74.07
+        "percent": 75.19
       }
     },
     "extensions / PCRE2": {
