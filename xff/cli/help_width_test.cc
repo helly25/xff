@@ -20,6 +20,7 @@
 #include <unistd.h>
 
 #include <array>
+#include <cstdint>
 #include <cstdlib>
 #include <optional>
 
@@ -50,7 +51,7 @@ struct ResolveHelpWidthTest : ::testing::Test {
     }
   }
 
-  void AttachStdoutTerminal(unsigned short columns) {
+  void AttachStdoutTerminal(std::uint16_t columns) {
     pty_master_ = ::posix_openpt(O_RDWR | O_CLOEXEC);
     ASSERT_THAT(pty_master_, Ge(0));
     ASSERT_THAT(::grantpt(pty_master_), Eq(0));
@@ -60,7 +61,8 @@ struct ResolveHelpWidthTest : ::testing::Test {
     // NOLINTNEXTLINE(hicpp-vararg,cppcoreguidelines-pro-type-vararg): POSIX open, without a mode argument.
     const int slave = ::open(slave_name.data(), O_RDWR | O_CLOEXEC);
     ASSERT_THAT(slave, Ge(0));
-    saved_stdout_ = ::dup(STDOUT_FILENO);
+    // NOLINTNEXTLINE(hicpp-vararg,cppcoreguidelines-pro-type-vararg): fcntl is the POSIX close-on-exec dup API.
+    saved_stdout_ = ::fcntl(STDOUT_FILENO, F_DUPFD_CLOEXEC, 0);
     ASSERT_THAT(saved_stdout_, Ge(0));
     struct winsize size = {.ws_col = columns};
     // NOLINTNEXTLINE(hicpp-vararg,cppcoreguidelines-pro-type-vararg): ioctl is the POSIX terminal API.
