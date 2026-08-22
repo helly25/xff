@@ -66,8 +66,9 @@ std::optional<std::string> CompressionExtensionStem(std::string_view container) 
       best = suffix;
     }
   }
-  return best.empty() ? std::nullopt
-                      : std::optional<std::string>(std::string(name.substr(0, name.size() - best.size())));
+  // CompressionExtensionFor() selected this extension from the same suffix set, so at least one
+  // suffix necessarily matched. The loop above only refines that match to the longest spelling.
+  return std::string(name.substr(0, name.size() - best.size()));
 }
 
 std::vector<ReadFormatInfo> CompressionExtensionReadFormats() {
