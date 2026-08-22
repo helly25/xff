@@ -16,5 +16,9 @@ curl --fail --location --retry 3 \
   "https://github.com/linux-test-project/lcov/releases/download/v${version}/lcov-${version}.tar.gz" \
   --output "${archive}"
 printf '%s  %s\n' "${sha256}" "${archive}" | sha256sum --check --status
-tar -xzf "${archive}" --directory "${work}"
-make --directory "${work}/lcov-${version}" install PREFIX="${destination}"
+mkdir -p "${destination}"
+# The executables resolve the bundled Perl libraries relative to this release
+# tree. Keeping that layout avoids `make install`, whose unrelated documentation
+# target requires Sphinx even though coverage CI only invokes `genhtml`.
+tar -xzf "${archive}" --directory "${destination}" --strip-components=1
+"${destination}/bin/genhtml" --version
