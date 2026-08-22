@@ -130,6 +130,7 @@ test::the_notice_lists_every_linked_extra_and_the_direct_codecs() {
   local -a extras
   extras_line="${out%%$'\n'*}"
   enabled_extras=" ${extras_line#Build extras compiled into this binary: } "
+  enabled_extras="${enabled_extras//,/}"
 
   # The first line and the extension headings come from different registries. Check them in both
   # directions: a newly enabled extra must register its own notice, and a stale/superfluous
