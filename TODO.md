@@ -93,9 +93,9 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
   per-module threshold only for demonstrated unreachable or generated branches, with the reason
   recorded next to the exception. Focused boundary tests brought the remaining near-threshold source
   groups up; the policy now enforces 90% lines, 95% functions, and 80% branches generally, with an
-  82% branch health target and narrower documented branch limits only for archive and FUSE. The HTML report derives its
-  colors and 15-point warning gap from that same JSON policy, instead of using genhtml's generic 90%
-  defaults.
+  82% branch health target and narrower documented branch limits only for archive and FUSE. The HTML
+  report derives each metric's red minimum, yellow passing band, green health target, and legend from
+  that same JSON policy instead of using genhtml's generic 75/90% scale.
 
 - **clang-tidy coverage for `extra_modules/` is SHIPPED (PRs #515-#519 and #530).** The original
   exclusion hid 81 findings; the per-extra sweeps cleared them and PR #530 dropped the exclusion.

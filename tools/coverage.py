@@ -175,7 +175,7 @@ def coverage_status(metrics: dict, minimum: dict, target: dict) -> str:
     if not minimum:
         return "N/A"
     abbreviations = {"lines": "L", "functions": "F", "branches": "B"}
-    problems: dict[str, list[str]] = {"NO DATA": [], "FAIL": [], "LOW": []}
+    problems: dict[str, list[str]] = {"NO DATA": [], "FAIL": [], "MEDIUM": []}
     for metric in ("lines", "functions", "branches"):
         if metric not in minimum:
             continue
@@ -185,7 +185,7 @@ def coverage_status(metrics: dict, minimum: dict, target: dict) -> str:
         elif actual < minimum[metric]:
             problems["FAIL"].append(abbreviations[metric])
         elif actual < target.get(metric, minimum[metric]):
-            problems["LOW"].append(abbreviations[metric])
+            problems["MEDIUM"].append(abbreviations[metric])
     labels = [f'{name}: {"/".join(values)}' for name, values in problems.items() if values]
     return "OK" if not labels else f'**{"; ".join(labels)}**'
 
