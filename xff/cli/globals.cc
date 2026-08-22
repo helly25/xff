@@ -998,7 +998,8 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .details = "When two files are the same logical shard (they differ only by an opaque tail, e.g. a "
                    "regeneration id), `--shards-dedup` picks which is the representative: `first` keeps the "
                    "lexicographically-first name; `mtime` keeps the newest; `error` treats the duplicate as an "
-                   "error and fails the run (non-zero exit). Only meaningful with `--shards`.",
+                   "error and fails the run (non-zero exit). Also selects the representative used when "
+                   "`-shard-status` classifies physical files.",
         .values = kShardsDedupValues,
         .topic = "stats",
         .value_check = GlobalFlag::ValueCheck::kEnum,
@@ -1009,10 +1010,11 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "a custom shard scheme via a named-capture regex (repeatable); the escape hatch",
-        .details = "Defines a custom sharded-file scheme for --shards when the built-ins do not fit. REGEX is "
+        .details = "Defines a custom sharded-file scheme for `--shards` and `-shard-status` when the built-ins "
+                   "do not fit. REGEX is "
                    "an RE2 pattern with named groups: `(?P<stem>...)` and `(?P<index>...)` are required, "
                    "`(?P<total>...)` and `(?P<dup>...)` are optional. Repeatable; the patterns are tried in "
-                   "order, before the built-in schemes. Only meaningful with --shards.",
+                   "order, before the built-in schemes.",
         .topic = "stats",
     },
     {

@@ -67,6 +67,71 @@ void ComputeCompleteness(ShardSet& out) {
   out.complete = out.missing.empty();
 }
 
+bool IsOutOfRange(const ShardSet& set, std::int64_t index) {
+  return set.total.has_value() && (index < 0 || index >= *set.total);
+}
+
+void AppendOutOfRange(ShardSet& set, std::int64_t index, absl::Span<const ShardFile> files) {
+  for (const ShardFile& file : files) {
+    set.superfluous.push_back(
+        {.index = index, .path = std::string(file.name), .reason = SuperfluousReason::kOutOfRange});
+  }
+}
+
+ShardMember MakeMember(ShardSet& set, std::int64_t index, absl::Span<const ShardFile> files, Dedup dedup) {
+  // Pick the representative (its size / mode become the shard's) per `dedup`: kMtime keeps
+  // the newest (ties break on the lexicographically-first name, so it stays deterministic);
+  // kFirst / kError keep the lexicographically-first name. A single min/max scan, no full sort.
+  const auto by_name = [](const ShardFile& lhs, const ShardFile& rhs) { return lhs.name < rhs.name; };
+  const auto* const representative =
+      dedup == Dedup::kMtime ? absl::c_max_element(
+                                   files,
+                                   [](const ShardFile& lhs, const ShardFile& rhs) {
+                                     return lhs.mtime != rhs.mtime ? lhs.mtime < rhs.mtime : lhs.name > rhs.name;
+                                   })
+                             : absl::c_min_element(files, by_name);
+  ShardMember member{
+      .index = index,
+      .path = std::string(representative->name),
+      .size = representative->size,
+      .mode = representative->mode,
+  };
+  for (const ShardFile& file : files) {
+    if (file.name == representative->name) {
+      continue;
+    }
+    member.duplicates.emplace_back(file.name);
+    set.superfluous.push_back(
+        {.index = index, .path = std::string(file.name), .reason = SuperfluousReason::kDuplicate});
+  }
+  return member;
+}
+
+ShardSet FinalizeSet(const SetKey& key, const Accum& accum, Dedup dedup) {
+  ShardSet set{
+      .scheme = std::get<0>(key),
+      .stem = std::get<1>(key),
+      .total = std::get<2>(key),
+      .width = accum.width,
+      .wildcard = accum.wildcard,
+  };
+  for (const auto& [index, files] : accum.by_index) {
+    if (IsOutOfRange(set, index)) {
+      AppendOutOfRange(set, index, files);
+      continue;
+    }
+    ShardMember member = MakeMember(set, index, files, dedup);
+    set.total_size += member.size;
+    set.members.push_back(std::move(member));
+  }
+  if (!set.members.empty()) {
+    const std::uint32_t mode = set.members.front().mode;
+    set.uniform_mode = absl::c_all_of(set.members, [mode](const ShardMember& member) { return member.mode == mode; });
+  }
+  ComputeCompleteness(set);
+  return set;
+}
+
 }  // namespace
 
 std::vector<ShardSet> GroupShards(absl::Span<const ShardFile> files, const Matcher& matcher, Dedup dedup) {
@@ -84,48 +149,8 @@ std::vector<ShardSet> GroupShards(absl::Span<const ShardFile> files, const Match
 
   std::vector<ShardSet> result;
   result.reserve(sets.size());
-  for (auto& [key, accum] : sets) {
-    ShardSet set{
-        .scheme = std::get<0>(key),
-        .stem = std::get<1>(key),
-        .total = std::get<2>(key),
-        .width = accum.width,
-        .wildcard = accum.wildcard,
-    };
-    for (const auto& [index, group] : accum.by_index) {
-      // Pick the representative (its size / mode become the shard's) per `dedup`: kMtime keeps
-      // the newest (ties break on the lexicographically-first name, so it stays deterministic);
-      // kFirst / kError keep the lexicographically-first name. A single min/max scan, no full
-      // sort. The rest are the redundant regenerations, kept in encounter order.
-      const auto by_name = [](const ShardFile& lhs, const ShardFile& rhs) { return lhs.name < rhs.name; };
-      const auto representative =
-          dedup == Dedup::kMtime ? absl::c_max_element(
-                                       group,
-                                       [](const ShardFile& lhs, const ShardFile& rhs) {
-                                         return lhs.mtime != rhs.mtime ? lhs.mtime < rhs.mtime : lhs.name > rhs.name;
-                                       })
-                                 : absl::c_min_element(group, by_name);
-      ShardMember member{
-          .index = index,
-          .path = std::string(representative->name),
-          .size = representative->size,
-          .mode = representative->mode,
-      };
-      for (const ShardFile& file : group) {
-        if (file.name != representative->name) {  // names are unique within a directory
-          member.duplicates.emplace_back(file.name);
-        }
-      }
-      set.total_size += member.size;  // distinct shards only, not the redundant dup copies
-      set.members.push_back(std::move(member));
-    }
-    if (!set.members.empty()) {
-      const std::uint32_t mode = set.members.front().mode;
-      set.uniform_mode = absl::c_all_of(set.members, [mode](const ShardMember& member) { return member.mode == mode; });
-    }
-    // by_index is ordered, so members are already sorted by ascending index.
-    ComputeCompleteness(set);
-    result.push_back(std::move(set));
+  for (const auto& [key, accum] : sets) {
+    result.push_back(FinalizeSet(key, accum, dedup));
   }
 
   // Present sets stem-first (the user reads by name), then scheme / total.

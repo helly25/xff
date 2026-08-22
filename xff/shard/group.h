@@ -40,6 +40,12 @@ namespace xff::shard {
 // caller. Grouping itself never fails - the CLI decides what kError means for the exit.
 enum class Dedup : std::uint8_t { kFirst, kMtime, kError };
 
+// Why a physical shard file does not belong to the logical set. A duplicate is
+// another copy of an already represented index; an out-of-range file declares
+// an index outside 0 .. total-1. Both are useful diagnostics, but neither may
+// contribute to completeness or aggregate metadata.
+enum class SuperfluousReason : std::uint8_t { kDuplicate, kOutOfRange };
+
 // A candidate file for grouping: its name plus the metadata a set needs to aggregate
 // size, check access-right consistency across its shards, and pick a representative by
 // mtime (kMtime dedup).
@@ -65,6 +71,14 @@ struct ShardMember {
   friend bool operator==(const ShardMember&, const ShardMember&) = default;
 };
 
+struct SuperfluousShard {
+  std::int64_t index = 0;
+  std::string path;
+  SuperfluousReason reason = SuperfluousReason::kDuplicate;
+
+  friend bool operator==(const SuperfluousShard&, const SuperfluousShard&) = default;
+};
+
 // A logical shard set: members grouped under one (scheme, stem, total) identity.
 // `missing` lists the absent indices (completeness gaps); `complete` is
 // `missing.empty()`. When the scheme declares a total the expected indices are
@@ -79,6 +93,10 @@ struct ShardSet {
   int width = 0;         // index digit width, for wildcard rendering (e.g. f-???-of-003)
   std::string wildcard;  // the set's canonical name with the index field masked (`f-???-of-003`)
   std::vector<ShardMember> members;
+  // Physical files excluded from the logical set. Kept separately so callers
+  // can surface or select them without letting them mask a missing shard or
+  // inflate the set's aggregate size.
+  std::vector<SuperfluousShard> superfluous;
   std::vector<std::int64_t> missing;
   bool complete = true;
   std::uint64_t total_size = 0;

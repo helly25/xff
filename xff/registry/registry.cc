@@ -331,6 +331,25 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .style = Style::kXff,
         .pure = false,
     },
+    {
+        .name = "-shard-status",
+        .summary = "match complete, incomplete, or superfluous physical shards (xff)",
+        .details = "Classifies the physical shard files reaching THIS primary after the traversal, then resumes the "
+                   "expression. `complete` matches representatives belonging to a set with every expected index; "
+                   "`incomplete` matches representatives in a set with a missing expected index; `superfluous` matches "
+                   "same-index duplicate copies and indices outside a declared total. A non-shard file matches none. "
+                   "Completeness is computed per directory and only from entries that reach this node, so a predicate "
+                   "to its left intentionally narrows the cohort being validated; put ordinary actions to its right "
+                   "when they should run only for the selected status. This is a physical-file diagnostic independent "
+                   "of `--shards`: without `--shards` every selected file is listed, while `--shards` still controls "
+                   "logical-set collapsing. Custom `--shard-pattern` definitions and any scheme restriction from "
+                   "`--shards=SCHEME,...` apply. Example: `xff data -type f -shard-status incomplete -print`.",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .style = Style::kXff,
+        .pure = false,
+        .topic = "stats",
+    },
     // xff -fuzzy: approximate NAME matching, the fzf/fd style of "type a few letters and find it".
     {
         .name = "-fuzzy",

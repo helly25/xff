@@ -47,6 +47,7 @@
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "absl/time/time.h"
+#include "absl/types/span.h"
 #include "mbo/container/limited_map.h"
 #include "mbo/diff/diff_options.h"
 #include "mbo/status/status_macros.h"
@@ -1193,6 +1194,27 @@ absl::Status ValidateTopRanking(const parser::Expr* expression) {
   return absl::OkStatus();
 }
 
+absl::Status ValidateShardStatuses(const parser::Expr& expr) {
+  if (expr.kind == parser::Expr::Kind::kPredicate) {
+    if (expr.descriptor->name != "-shard-status") {
+      return absl::OkStatus();
+    }
+    if (expr.args.size() != 1
+        || (expr.args.front() != "complete" && expr.args.front() != "incomplete"
+            && expr.args.front() != "superfluous")) {
+      return absl::InvalidArgumentError("expects complete, incomplete, or superfluous");
+    }
+    return absl::OkStatus();
+  }
+  if (expr.lhs != nullptr) {
+    MBO_RETURN_IF_ERROR(ValidateShardStatuses(*expr.lhs));
+  }
+  if (expr.rhs != nullptr) {
+    MBO_RETURN_IF_ERROR(ValidateShardStatuses(*expr.rhs));
+  }
+  return absl::OkStatus();
+}
+
 absl::StatusOr<std::optional<std::size_t>> ResolveMaxResults(const std::vector<std::string>& globals) {
   std::optional<std::size_t> limit;
   for (const std::string& global : globals) {
@@ -1231,6 +1253,10 @@ bool ResultShapingIsValid(
       on_error("-first", first);
       return false;
     }
+    if (const absl::Status shard_status = ValidateShardStatuses(*expression); !shard_status.ok()) {
+      on_error("-shard-status", shard_status);
+      return false;
+    }
   }
   if (const absl::Status top = ValidateTopRanking(expression); !top.ok()) {
     on_error("-top", top);
@@ -1243,7 +1269,7 @@ bool ResultShapingIsValid(
   return true;
 }
 
-struct TopCandidate {
+struct DeferredCandidate {
   CollectedEntry entry;
   std::vector<std::string> captures;
   std::map<std::string, std::string> outputs;
@@ -1266,48 +1292,175 @@ CollectedEntry OwnVisit(const Visit& visit) {
   };
 }
 
-void AppendTopNodes(const parser::Expr& expr, std::vector<const parser::Expr*>& nodes) {
+void AppendDeferredNodes(const parser::Expr& expr, std::vector<const parser::Expr*>& nodes) {
   if (expr.kind == parser::Expr::Kind::kPredicate) {
-    if (expr.descriptor->name == "-top") {
+    if (expr.descriptor->name == "-top" || expr.descriptor->name == "-shard-status") {
       nodes.push_back(&expr);
     }
     return;
   }
   if (expr.lhs != nullptr) {
-    AppendTopNodes(*expr.lhs, nodes);
+    AppendDeferredNodes(*expr.lhs, nodes);
   }
   if (expr.rhs != nullptr) {
-    AppendTopNodes(*expr.rhs, nodes);
+    AppendDeferredNodes(*expr.rhs, nodes);
   }
 }
 
-void ResolveTopRound(
-    std::vector<TopCandidate>& candidates,
-    const std::map<const parser::Expr*, std::size_t>& node_order) {
+int ReportShardDuplicateErrors(const shard::ShardSet& set, std::string_view prefix) {
+  int errors = 0;
+  for (const shard::ShardMember& member : set.members) {
+    if (member.duplicates.empty()) {
+      continue;
+    }
+    std::cerr << absl::StreamFormat(
+        "xff: --shards-dedup=error: shard set '%s%s' has duplicate copies of shard %d: %s, %s\n", prefix, set.wildcard,
+        member.index, member.path, absl::StrJoin(member.duplicates, ", "));
+    ++errors;
+  }
+  return errors;
+}
+
+using CandidateIndexes = std::vector<std::size_t>;
+using CandidatesByName = std::map<std::string_view, CandidateIndexes>;
+
+std::map<std::string, CandidateIndexes> IndexCandidatesByDirectory(absl::Span<DeferredCandidate* const> entries) {
+  std::map<std::string, CandidateIndexes> result;
+  for (std::size_t index = 0; index < entries.size(); ++index) {
+    const std::string_view path = entries[index]->entry.path;
+    const std::string_view::size_type slash = path.rfind('/');
+    const std::string_view directory = slash == std::string_view::npos ? std::string_view() : path.substr(0, slash);
+    result[std::string(directory)].push_back(index);
+  }
+  return result;
+}
+
+struct ShardStatusCohort {
+  std::vector<shard::ShardFile> files;
+  CandidatesByName by_name;
+};
+
+template<typename SchemeAllowed>
+ShardStatusCohort MakeShardStatusCohort(
+    absl::Span<DeferredCandidate* const> entries,
+    absl::Span<const std::size_t> indexes,
+    const shard::Matcher& shard_matcher,
+    const SchemeAllowed& scheme_allowed) {
+  ShardStatusCohort cohort;
+  for (const std::size_t index : indexes) {
+    const DeferredCandidate& candidate = *entries[index];
+    if (candidate.entry.metadata.type != vfs::FileType::kRegular) {
+      continue;
+    }
+    const std::optional<shard::Match> decoded = shard_matcher.Decode(candidate.entry.name);
+    if (!decoded.has_value() || !scheme_allowed(decoded->scheme)) {
+      continue;
+    }
+    CandidateIndexes& visits = cohort.by_name[candidate.entry.name];
+    if (visits.empty()) {
+      cohort.files.push_back(
+          {.name = candidate.entry.name,
+           .size = candidate.entry.metadata.size,
+           .mode = candidate.entry.metadata.mode,
+           .mtime = absl::ToUnixNanos(candidate.entry.metadata.mtime)});
+    }
+    visits.push_back(index);
+  }
+  return cohort;
+}
+
+void SelectShardPath(
+    std::string_view path,
+    const parser::Expr& node,
+    absl::Span<DeferredCandidate* const> entries,
+    const CandidatesByName& by_name) {
+  for (const std::size_t index : by_name.at(path)) {
+    entries[index]->decisions[&node] = true;
+  }
+}
+
+void ApplyShardStatus(
+    const shard::ShardSet& set,
+    std::string_view wanted,
+    const parser::Expr& node,
+    absl::Span<DeferredCandidate* const> entries,
+    const CandidatesByName& by_name) {
+  if (wanted == "superfluous") {
+    for (const shard::SuperfluousShard& extra : set.superfluous) {
+      SelectShardPath(extra.path, node, entries, by_name);
+    }
+    return;
+  }
+  if (wanted != (set.complete ? "complete" : "incomplete")) {
+    return;
+  }
+  for (const shard::ShardMember& member : set.members) {
+    SelectShardPath(member.path, node, entries, by_name);
+  }
+}
+
+template<typename SchemeAllowed>
+int ResolveShardStatusRound(
+    const parser::Expr& node,
+    absl::Span<DeferredCandidate* const> entries,
+    const shard::Matcher& shard_matcher,
+    shard::Dedup shard_dedup,
+    const SchemeAllowed& scheme_allowed,
+    bool report_dedup_errors) {
+  for (DeferredCandidate* candidate : entries) {
+    candidate->decisions[&node] = false;
+  }
+  int errors = 0;
+  for (const auto& [directory, indexes] : IndexCandidatesByDirectory(entries)) {
+    const ShardStatusCohort cohort = MakeShardStatusCohort(entries, indexes, shard_matcher, scheme_allowed);
+    const std::string prefix = directory.empty() ? std::string() : absl::StrCat(directory, "/");
+    for (const shard::ShardSet& set : shard::GroupShards(cohort.files, shard_matcher, shard_dedup)) {
+      if (report_dedup_errors && shard_dedup == shard::Dedup::kError) {
+        errors += ReportShardDuplicateErrors(set, prefix);
+      }
+      ApplyShardStatus(set, node.args.front(), node, entries, cohort.by_name);
+    }
+  }
+  return errors;
+}
+
+template<typename SchemeAllowed>
+int ResolveDeferredRound(
+    std::vector<DeferredCandidate>& candidates,
+    const std::map<const parser::Expr*, std::size_t>& node_order,
+    const shard::Matcher& shard_matcher,
+    shard::Dedup shard_dedup,
+    const SchemeAllowed& scheme_allowed,
+    bool report_dedup_errors) {
   const parser::Expr* next_node = nullptr;
   std::size_t next_order = std::numeric_limits<std::size_t>::max();
-  for (const TopCandidate& candidate : candidates) {
+  for (const DeferredCandidate& candidate : candidates) {
     const std::size_t order = node_order.at(candidate.waiting_at);
     if (order < next_order) {
       next_order = order;
       next_node = candidate.waiting_at;
     }
   }
-  std::vector<TopCandidate*> entries;
-  for (TopCandidate& candidate : candidates) {
+  std::vector<DeferredCandidate*> entries;
+  for (DeferredCandidate& candidate : candidates) {
     if (candidate.waiting_at == next_node) {
       entries.push_back(&candidate);
     }
   }
+  if (next_node != nullptr && next_node->descriptor->name == "-shard-status") {
+    return ResolveShardStatusRound(
+        *next_node, entries, shard_matcher, shard_dedup, scheme_allowed, report_dedup_errors);
+  }
   int limit = 0;
   if (next_node == nullptr || next_node->args.empty() || !absl::SimpleAtoi(next_node->args.front(), &limit)) {
-    return;  // validated before the walk
+    return 0;  // validated before the walk
   }
   absl::c_stable_sort(
-      entries, [](const TopCandidate* lhs, const TopCandidate* rhs) { return lhs->score > rhs->score; });
+      entries, [](const DeferredCandidate* lhs, const DeferredCandidate* rhs) { return lhs->score > rhs->score; });
   for (std::size_t index = 0; index < entries.size(); ++index) {
     entries[index]->decisions[next_node] = std::cmp_less(index, limit);
   }
+  return 0;
 }
 
 // The path of `path` relative to the search `root` it was reached from, '/'-
@@ -2515,9 +2668,14 @@ absl::StatusOr<shard::Dedup> ResolveShardDedup(const std::vector<std::string>& g
 // One output line for a collapsed shard set: the `prefix` (its directory) + the chosen display body,
 // then a completeness / count annotation. An incomplete set always shows `(present/expected -
 // INCOMPLETE)`; a complete set adds `(N shards)` only under `count`.
+std::string_view ShardRepresentativePath(const shard::ShardSet& set) {
+  return !set.members.empty() ? std::string_view(set.members.front().path)
+                              : std::string_view(set.superfluous.front().path);
+}
+
 std::string RenderShardSet(const shard::ShardSet& set, std::string_view prefix, ShardShow show) {
   const std::string_view display =
-      show == ShardShow::kFirst ? std::string_view(set.members.front().path) : std::string_view(set.wildcard);
+      show == ShardShow::kFirst ? ShardRepresentativePath(set) : std::string_view(set.wildcard);
   std::string line = absl::StrCat(prefix, display);
   const std::size_t present = set.members.size();
   if (!set.complete) {
@@ -3151,14 +3309,17 @@ int RunFind(
   }
   // Matcher over the custom patterns plus all built-in schemes (scheme restriction is applied per set
   // below). Make() can fail on a bad custom pattern; surface it as a usage error.
+  const bool shard_status_enabled = expression != nullptr && ContainsPrimary(*expression, "-shard-status");
   std::optional<shard::Matcher> shard_matcher;
-  if (shards.enabled) {
+  if (shards.enabled || shard_status_enabled) {
     absl::StatusOr<shard::Matcher> matcher_or = shard::Matcher::Make({}, shard_patterns);
     if (!matcher_or.ok()) {
       on_error("--shard-pattern", matcher_or.status());
       return 2;
     }
     shard_matcher = *std::move(matcher_or);
+  } else {
+    shard_matcher = *shard::Matcher::Make();
   }
 
   // A matched file buffered for shard grouping, bucketed by directory (grouping is per-directory).
@@ -3431,8 +3592,8 @@ int RunFind(
   const auto mount_container = MakeContainerMounter(walk_fs, member_path_options, archive_any);
   std::size_t listed_results = 0;
 
-  // Completes the run-level consequences of one fully evaluated entry. Deferred -top candidates
-  // call this after their exact selection pass; ordinary entries call it directly from the walk.
+  // Completes the run-level consequences of one fully evaluated entry. Deferred result-set
+  // predicates (-top / -shard-status) call this after selection; ordinary entries call it from the walk.
   // Keeping it outside the visitor is what makes replay use precisely the same listing/reduction
   // path rather than a second, subtly different renderer.
   // NOLINTNEXTLINE(readability-function-cognitive-complexity): one extracted sink dispatch shared by walk and replay
@@ -3538,15 +3699,15 @@ int RunFind(
     }
   };
 
-  std::vector<TopCandidate> top_candidates;
-  std::size_t top_order = 0;
-  std::vector<const parser::Expr*> top_nodes;
+  std::vector<DeferredCandidate> deferred_candidates;
+  std::size_t deferred_order = 0;
+  std::vector<const parser::Expr*> deferred_nodes;
   if (expression != nullptr) {
-    AppendTopNodes(*expression, top_nodes);
+    AppendDeferredNodes(*expression, deferred_nodes);
   }
-  std::map<const parser::Expr*, std::size_t> top_node_order;
-  for (std::size_t index = 0; index < top_nodes.size(); ++index) {
-    top_node_order.emplace(top_nodes[index], index);
+  std::map<const parser::Expr*, std::size_t> deferred_node_order;
+  for (std::size_t index = 0; index < deferred_nodes.size(); ++index) {
+    deferred_node_order.emplace(deferred_nodes[index], index);
   }
   const absl::Status status = Walk(
       walk_fs, command.roots, options,
@@ -3655,25 +3816,25 @@ int RunFind(
             .archive_deletions = archive_delete ? &archive_deletions : nullptr,
         };
         std::map<const parser::Expr*, EvaluationResult> evaluation_memo;
-        const std::map<const parser::Expr*, bool> top_results;
-        const parser::Expr* deferred_top = nullptr;
-        std::optional<int> deferred_top_score;
-        eval_context.top_results = &top_results;
+        const std::map<const parser::Expr*, bool> deferred_results;
+        const parser::Expr* deferred_node = nullptr;
+        std::optional<int> deferred_score;
+        eval_context.deferred_results = &deferred_results;
         eval_context.evaluation_memo = &evaluation_memo;
-        eval_context.deferred_top = &deferred_top;
-        eval_context.deferred_top_score = &deferred_top_score;
+        eval_context.deferred_node = &deferred_node;
+        eval_context.deferred_score = &deferred_score;
         const EvaluationResult evaluated =
             expression == nullptr ? EvaluationResult{.matched = true} : EvaluateDeferred(*expression, eval_context);
         if (evaluated.deferred) {
-          top_candidates.push_back(
+          deferred_candidates.push_back(
               {.entry = OwnVisit(visit),
                .captures = std::move(captures),
                .outputs = std::move(outputs),
                .memo = std::move(evaluation_memo),
                .decisions = {},
-               .waiting_at = deferred_top,
-               .score = deferred_top_score.value_or(0),
-               .order = top_order++});
+               .waiting_at = deferred_node,
+               .score = deferred_score.value_or(0),
+               .order = deferred_order++});
         } else {
           finish_entry(visit, outputs, evaluated.matched);
         }
@@ -3705,14 +3866,20 @@ int RunFind(
     ++errors;  // Fatal traversal error (none today; per-path errors handled above).
   }
 
-  // Resolve one deferred frontier at a time. A selected -top may expose another -top farther to the
-  // right; replay stops there and the next round selects that node's own independent candidate set.
+  // Resolve one deferred frontier at a time. A decision may expose another result-set predicate
+  // farther right; replay stops there and the next round resolves that node's independent cohort.
   // Completed-prefix memo entries keep stateful tests and actions before each frontier single-shot.
-  while (!top_candidates.empty()) {
-    ResolveTopRound(top_candidates, top_node_order);
-    std::vector<TopCandidate> next_round;
-    next_round.reserve(top_candidates.size());
-    for (TopCandidate& candidate : top_candidates) {
+  while (!deferred_candidates.empty()) {
+    const auto scheme_allowed = [&](shard::Scheme scheme) {
+      return scheme == shard::Scheme::kCustom || shards.schemes.empty()
+             || absl::c_linear_search(shards.schemes, scheme);
+    };
+    errors += ResolveDeferredRound(
+        deferred_candidates, deferred_node_order, *shard_matcher, shard_dedup, scheme_allowed,
+        /*report_dedup_errors=*/!shards.enabled);
+    std::vector<DeferredCandidate> next_round;
+    next_round.reserve(deferred_candidates.size());
+    for (DeferredCandidate& candidate : deferred_candidates) {
       const Visit visit = candidate.entry.AsVisit();
       Control control;
       bool fold_name_case = false;
@@ -3726,8 +3893,8 @@ int RunFind(
       const std::string_view entry_color =
           colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();
       fuzzy_score.reset();
-      const parser::Expr* deferred_top = nullptr;
-      std::optional<int> deferred_top_score;
+      const parser::Expr* deferred_node = nullptr;
+      std::optional<int> deferred_score;
       EvalContext eval_context{
           .visit = visit,
           .emit = emit,
@@ -3743,10 +3910,10 @@ int RunFind(
           .block_size = block_size,
           .fold_name_case = fold_name_case,
           .fuzzy_score = &fuzzy_score,
-          .top_results = &candidate.decisions,
+          .deferred_results = &candidate.decisions,
           .evaluation_memo = &candidate.memo,
-          .deferred_top = &deferred_top,
-          .deferred_top_score = &deferred_top_score,
+          .deferred_node = &deferred_node,
+          .deferred_score = &deferred_score,
           .grep_count = grep_count,
           .grep_before = grep_before,
           .grep_after = grep_after,
@@ -3773,8 +3940,8 @@ int RunFind(
       };
       const EvaluationResult evaluated = EvaluateDeferred(*expression, eval_context);
       if (evaluated.deferred) {
-        candidate.waiting_at = deferred_top;
-        candidate.score = deferred_top_score.value_or(0);
+        candidate.waiting_at = deferred_node;
+        candidate.score = deferred_score.value_or(0);
         next_round.push_back(std::move(candidate));
       } else {
         finish_entry(visit, candidate.outputs, evaluated.matched);
@@ -3791,7 +3958,7 @@ int RunFind(
         }
       }
     }
-    top_candidates = std::move(next_round);
+    deferred_candidates = std::move(next_round);
   }
 
   // Flush any -ls rows still buffered for alignment (a run shorter than the --buffer
@@ -3936,7 +4103,7 @@ int RunFind(
       for (const ShardBufFile& file : files) {
         by_name.emplace(file.name, &file);
         const std::optional<shard::Match> match = shard_matcher->Decode(file.name);
-        if (match.has_value() && scheme_allowed(match->scheme)) {
+        if (file.metadata.type == vfs::FileType::kRegular && match.has_value() && scheme_allowed(match->scheme)) {
           shard_files.push_back({.name = file.name, .size = file.size, .mode = file.mode, .mtime = file.mtime});
         } else {
           group.passthrough.push_back(file.name);
@@ -3949,17 +4116,10 @@ int RunFind(
       for (const shard::ShardSet& set : group.sets) {
         // --shards-dedup=error: a same-index duplicate is ambiguous, so report it and fail the run.
         if (shard_dedup == shard::Dedup::kError) {
-          for (const shard::ShardMember& member : set.members) {
-            if (!member.duplicates.empty()) {
-              std::cerr << absl::StreamFormat(
-                  "xff: --shards-dedup=error: shard set '%s%s' has duplicate copies of shard %d: %s, %s\n",
-                  group.prefix, set.wildcard, member.index, member.path, absl::StrJoin(member.duplicates, ", "));
-              ++errors;
-            }
-          }
+          errors += ReportShardDuplicateErrors(set, group.prefix);
         }
         if (feed) {
-          const ShardBufFile& rec = *by_name.at(set.members.front().path);
+          const ShardBufFile& rec = *by_name.at(ShardRepresentativePath(set));
           vfs::Metadata md = rec.metadata;
           md.size = set.total_size;  // {size} and size-based buckets aggregate across the set
           const std::string path = absl::StrCat(group.prefix, rec.name);

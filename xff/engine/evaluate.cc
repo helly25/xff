@@ -2462,17 +2462,30 @@ EvaluationResult EvaluateChild(const parser::Expr& node, EvalContext& context) {
 }
 
 EvaluationResult EvaluateTop(const parser::Expr& expr, EvalContext& context) {
-  if (context.top_results != nullptr) {
-    if (const auto found = context.top_results->find(&expr); found != context.top_results->end()) {
+  if (context.deferred_results != nullptr) {
+    if (const auto found = context.deferred_results->find(&expr); found != context.deferred_results->end()) {
       return {
           .matched = found->second,
           .fuzzy = found->second ? context.incoming_fuzzy_score : std::nullopt,
       };
     }
   }
-  if (context.deferred_top != nullptr && context.deferred_top_score != nullptr) {
-    *context.deferred_top = &expr;
-    *context.deferred_top_score = context.incoming_fuzzy_score;
+  if (context.deferred_node != nullptr && context.deferred_score != nullptr) {
+    *context.deferred_node = &expr;
+    *context.deferred_score = context.incoming_fuzzy_score;
+    return {.deferred = true};
+  }
+  return {};
+}
+
+EvaluationResult EvaluateShardStatus(const parser::Expr& expr, EvalContext& context) {
+  if (context.deferred_results != nullptr) {
+    if (const auto found = context.deferred_results->find(&expr); found != context.deferred_results->end()) {
+      return {.matched = found->second};
+    }
+  }
+  if (context.deferred_node != nullptr) {
+    *context.deferred_node = &expr;
     return {.deferred = true};
   }
   return {};
@@ -2558,6 +2571,9 @@ EvaluationResult EvaluateResult(const parser::Expr& expr, EvalContext& context) 
     case parser::Expr::Kind::kPredicate: {
       if (expr.descriptor->name == "-top") {
         return EvaluateTop(expr, context);
+      }
+      if (expr.descriptor->name == "-shard-status") {
+        return EvaluateShardStatus(expr, context);
       }
       const bool matched = EvaluatePredicate(expr, context);
       return {.matched = matched, .fuzzy = context.fuzzy_score == nullptr ? std::nullopt : *context.fuzzy_score};

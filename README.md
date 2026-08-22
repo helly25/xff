@@ -28,7 +28,10 @@ This `README.md` is a short overview. The complete, always-current reference liv
 - **Virtual Archive Filesystems:** `--archive` walks archives and compressed files as directory trees, including nested containers. The normal name, metadata, content, hash, and reduction vocabulary works on members; opt-in controls can mount or extract members for commands and safely rewrite a container when deleting members.
 - **Archive Creation from an Expression:** `--pack=FILE` writes the matched set directly to a new archive, with deterministic member order, atomic publication, compression controls, and no `find | tar` filename boundary to get wrong. The removable Brotli extra reads raw streams and writes self-identifying RFC 9841 `.tar.br` / `.tbr` by default, with an explicit raw compatibility mode.
 - **Developer-Aware Traversal:** Layered `.gitignore`, `.ignore`, and `.xffignore` handling; explicit include/exclude rules; hidden-file policy; and pruning for Git, Mercurial, Subversion, Jujutsu, Bazaar, Darcs, and CVS are independent, configurable controls.
-- **Shard-Aware Listings:** `--shards` recognizes numbered datasets such as `data-00000-of-00010`, validates duplicate indices, and collapses each set to a useful first, wildcard, or count representation.
+- **Shard-Aware Validation:** `--shards` recognizes numbered datasets such as `data-00000-of-00010`
+  and collapses each set to a useful first, wildcard, or count representation;
+  `-shard-status complete|incomplete|superfluous` selects healthy sets, missing-index sets, duplicate
+  copies, and declared-total outliers for inspection or action.
 
 ---
 
@@ -65,7 +68,7 @@ expression and one traversal.
 | **Safe delete preview**                 |   △    |  △   |  -   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `--dry-run`, `--safe`**              |
 | **Parallel/batched per-match exec**     |   △    |  ✓   |  -   |   △   |   -    |  -   |   -    |     -      |       -       | **✓ `-exec ... +`, `-j`**                |
 | **Capture command output as a field**   |   -    |  -   |  -   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `-capture`, `{capture.NAME}`**       |
-| **Sharded-dataset collapsing**          |   -    |  -   |  -   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `--shards` with validation**         |
+| **Sharded-dataset validation**          |   -    |  -   |  -   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ collapse + status matching**         |
 
 `find`'s "Field templates and rewrites" entry is marked **GNU** because it is GNU find's `-printf`, a
 GNU extension; POSIX and BSD/macOS `find` have no format primary (only `-print` / `-exec`).
