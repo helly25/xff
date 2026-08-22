@@ -15,7 +15,7 @@ const license::Registrar kBrotliExtra{{
     .section_lead = true,
     .component = "xff Brotli extra (@xff_brotli)",
     .spdx = "Apache-2.0",
-    .text = "Copyright 2026 Marcus Boerger / helly25. Licensed under the Apache License, Version 2.0.\n"
+    .text = "Copyright 2026 M. Boerger, The helly25 authors. Licensed under the Apache License, Version 2.0.\n"
             "Adds raw Brotli streams and Brotli-compressed tar archives to the archive extra.",
 }};
 

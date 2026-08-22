@@ -8,14 +8,14 @@
 namespace xff::archive {
 namespace {
 
-constexpr std::string_view kSection = "archive (@xff_archive)";
+constexpr std::string_view kSection = "Archive (@xff_archive)";
 
 const license::Registrar kArchiveExtra{{
     .section = kSection,
     .section_lead = true,
     .component = "xff archive extra (@xff_archive)",
     .spdx = "Apache-2.0",
-    .text = "Copyright 2026 Marcus Boerger / helly25. Licensed under the Apache License, Version 2.0.\n"
+    .text = "Copyright 2026 M. Boerger, The helly25 authors. Licensed under the Apache License, Version 2.0.\n"
             "Provides container diving, extraction and packing, including xff's own phar reader and\n"
             "writer, by linking the libraries whose notices follow.",
 }};
