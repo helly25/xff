@@ -171,11 +171,11 @@ def failures(measured: dict, minimums: dict) -> list[str]:
     return result
 
 
-def coverage_status(metrics: dict, minimum: dict, target: dict) -> str:
+def coverage_status(metrics: dict, minimum: dict) -> str:
     if not minimum:
         return "N/A"
     abbreviations = {"lines": "L", "functions": "F", "branches": "B"}
-    problems: dict[str, list[str]] = {"NO DATA": [], "FAIL": [], "MEDIUM": []}
+    problems: dict[str, list[str]] = {"NO DATA": [], "FAIL": []}
     for metric in ("lines", "functions", "branches"):
         if metric not in minimum:
             continue
@@ -184,8 +184,6 @@ def coverage_status(metrics: dict, minimum: dict, target: dict) -> str:
             problems["NO DATA"].append(abbreviations[metric])
         elif actual < minimum[metric]:
             problems["FAIL"].append(abbreviations[metric])
-        elif actual < target.get(metric, minimum[metric]):
-            problems["MEDIUM"].append(abbreviations[metric])
     labels = [f'{name}: {"/".join(values)}' for name, values in problems.items() if values]
     return "OK" if not labels else f'**{"; ".join(labels)}**'
 
@@ -194,12 +192,11 @@ def has_coverage(metrics: dict, names: tuple[str, ...]) -> bool:
     return any(metrics[name]["total"] for name in names)
 
 
-def markdown(measured: dict, minimums: dict, targets: dict | None = None) -> str:
-    targets = minimums if targets is None else targets
+def markdown(measured: dict, minimums: dict) -> str:
     headers = ("Category", "Status", "Lines", "Covered", "Total", "Functions", "Covered", "Total", "Branches", "Covered", "Total")
     values = []
     for category, metrics in measured.items():
-        cells = [category, coverage_status(metrics, minimums.get(category, {}), targets.get(category, {}))]
+        cells = [category, coverage_status(metrics, minimums.get(category, {}))]
         for metric in ("lines", "functions", "branches"):
             value = metrics[metric]
             percent = "n/a" if value["percent"] is None else f'{value["percent"]:.2f}%'
@@ -238,7 +235,7 @@ def main(argv: list[str] | None = None) -> int:
         baseline = {"schema": 1, "description": "Bazel LCOV with GCC 14; scope and exclusions are defined by coverage_policy.json", "measurements": measured}
         args.baseline.write_text(json.dumps(baseline, indent=2) + "\n", encoding="utf-8")
     minimums, targets = thresholds(policy)
-    text = markdown(measured, minimums, targets)
+    text = markdown(measured, minimums)
     patch_failures = []
     patch = None
     if args.base_ref:

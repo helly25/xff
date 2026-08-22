@@ -222,14 +222,15 @@ jobs:
             --policy coverage_policy.json \
             --source-root coverage-source-tree
           python3 tools/coverage_lcovrc.py coverage_policy.json coverage.lcovrc
-          # LLVM can mark a source line hit while every branch on that line remains unevaluated.
-          # LCOV 2.5 classifies that valid producer combination as inconsistent/corrupt.
+          # LLVM can mark a hit line whose branches remain unevaluated, and GCC 14 cannot provide
+          # function-end exclusions. LCOV 2.5 calls these inconsistent/corrupt and unsupported;
+          # repeating the warning categories suppresses their expected warning summaries.
           genhtml coverage-html.lcov \
             --branch-coverage \
             --config-file coverage.lcovrc \
             --demangle-cpp \
             --function-coverage \
-            --ignore-errors inconsistent,corrupt,negative \
+            --ignore-errors corrupt,inconsistent,inconsistent,negative,unsupported,unsupported \
             --output-directory coverage-html/lcov \
             --prefix "${PWD}/coverage-source-tree" \
             --show-details \
