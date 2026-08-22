@@ -75,12 +75,16 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
   with generated and external headers, cache and build-time effects, and what additional violations
   it catches beyond the globally enforced `parse_headers` and `layering_check` features. Do not make
   it a default until that experiment demonstrates a portable correctness benefit.
-- **Make every module's LCOV branch status green.** Use the full report overview (for example
+- **Make every module's LCOV branch status green - DONE.** Use the full report overview (for example
   [`coverage/pr/621/lcov/`](https://helly25.github.io/xff/coverage/pr/621/lcov/)) to identify every
   yellow branch row, then add focused boundary/error-path tests until each module reaches its green
   branch threshold. Keep all line and function rows green. Prefer real tests; use a narrower
   per-module threshold only for demonstrated unreachable or generated branches, with the reason
-  recorded next to the exception.
+  recorded next to the exception. Focused boundary tests brought the remaining near-threshold source
+  groups up; the HTML report now classifies lines/functions at the enforced 90% general minimum and
+  branches at the enforced 75% general minimum (with warning bands beginning 15 points lower), so its
+  colors express the same policy as the generated short table instead of genhtml's misleading 90%
+  default for every metric.
 
 - **clang-tidy coverage for `extra_modules/` is SHIPPED (PRs #515-#519 and #530).** The original
   exclusion hid 81 findings; the per-extra sweeps cleared them and PR #530 dropped the exclusion.
