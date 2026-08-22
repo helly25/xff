@@ -42,13 +42,25 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event.workflow_run.event }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if [[ "${EVENT_NAME}" == "push" && "${HEAD_BRANCH}" == "main" ]]; then
             target="main"
-          elif [[ "${EVENT_NAME}" == "pull_request" && "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]; then
-            target="pr${PR_NUMBER}"
+          elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            pr_number="${PR_NUMBER}"
+            if [[ ! "${pr_number}" =~ ^[1-9][0-9]*$ ]]; then
+              # GitHub omits workflow_run.pull_requests on some reruns. Recover the association
+              # from the tested commit rather than losing an otherwise valid PR report.
+              pr_number="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" --jq '.[0].number // empty')"
+            fi
+            if [[ ! "${pr_number}" =~ ^[1-9][0-9]*$ ]]; then
+              echo "Cannot determine the pull request for ${HEAD_SHA}" >&2
+              exit 1
+            fi
+            target="pr${pr_number}"
           else
             echo "Not a main or pull-request coverage run" >&2
             exit 1
