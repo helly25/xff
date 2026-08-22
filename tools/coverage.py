@@ -212,6 +212,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--write-baseline", action="store_true")
     parser.add_argument("--base-ref")
     parser.add_argument("--summary", type=Path)
+    parser.add_argument("--json-summary", type=Path)
     args = parser.parse_args(argv)
     policy = json.loads(args.policy.read_text(encoding="utf-8"))
     files = select_files(parse_lcov(args.lcov), policy)
@@ -225,6 +226,7 @@ def main(argv: list[str] | None = None) -> int:
     minimums, targets = thresholds(policy)
     text = markdown(measured, minimums, targets)
     patch_failures = []
+    patch = None
     if args.base_ref:
         patch = counts(files, changed_lines(args.base_ref))
         minimum = policy.get("patch_minimum", {})
@@ -237,6 +239,16 @@ def main(argv: list[str] | None = None) -> int:
     print(text, end="")
     if args.summary:
         args.summary.write_text(text, encoding="utf-8")
+    if args.json_summary:
+        report = {
+            "schema": 1,
+            "measurements": measured,
+            "minimums": minimums,
+            "targets": targets,
+        }
+        if patch is not None and has_coverage(patch, ("lines", "branches")):
+            report["patch"] = patch
+        args.json_summary.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     errors = failures(measured, minimums) + patch_failures
     for error in errors:
         print(f"coverage threshold failed: {error}", file=sys.stderr)

@@ -2,6 +2,7 @@
 """Tests for tools/coverage_sources.py."""
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -31,6 +32,46 @@ class CoverageSourcesTest(unittest.TestCase):
                 },
             ),
         )
+
+    def test_groups_sources_by_the_policy_module(self):
+        policy = {
+            "include": ["xff/**", "xff_archive/**"],
+            "exclude": ["**/*_test.cc"],
+            "categories": {
+                "program": {"command line": {"include": ["xff/cli/**"]}},
+                "extensions": {"archive": {"include": ["xff_archive/**"]}},
+            },
+        }
+        report = (
+            "SF:xff/cli/main.cc\nDA:1,1\nend_of_record\n"
+            "SF:extra_modules/archive/archive_fs.cc\nDA:1,1\nend_of_record\n"
+            "SF:xff/cli/main_test.cc\nDA:1,1\nend_of_record\n"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            actual = coverage_sources.grouped(
+                report, {"xff_archive": "extra_modules/archive"}, policy, root
+            )
+            self.assertIn(f"SF:{root}/program-command-line/xff/cli/main.cc\n", actual)
+            self.assertIn(
+                f"SF:{root}/extensions-archive/xff_archive/archive_fs.cc\n", actual
+            )
+            self.assertNotIn("main_test.cc", actual)
+            self.assertTrue((root / "program-command-line/xff/cli/main.cc").is_symlink())
+
+    def test_rejects_a_source_without_exactly_one_policy_module(self):
+        policy = {
+            "include": ["xff/**"],
+            "categories": {
+                "one": {"first": {"include": ["xff/**"]}},
+                "two": {"second": {"include": ["xff/cli/**"]}},
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "belongs to 2 policy categories"):
+                coverage_sources.grouped(
+                    "SF:xff/cli/main.cc\nend_of_record\n", {}, policy, Path(directory)
+                )
 
 
 if __name__ == "__main__":
