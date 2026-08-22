@@ -33,6 +33,8 @@ using ::mbo::testing::StatusIs;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::IsEmpty;
+using ::testing::IsFalse;
+using ::testing::IsTrue;
 using ::testing::Not;
 using ::testing::Optional;
 using ::testing::Pair;
@@ -142,6 +144,12 @@ TEST_F(RegexTest, ExactGrammarCaseInsensitiveFoldsAsciiCase) {
   EXPECT_FALSE(exact.FullMatch("README"));
 }
 
+TEST_F(RegexTest, ExactGrammarCapturesTheWholeLiteralMatch) {
+  ASSERT_OK_AND_ASSIGN(const Matcher matcher, Matcher::Compile("Readme", /*case_insensitive=*/true, Grammar::kExact));
+  EXPECT_THAT(matcher.FullMatchCaptures("README"), Optional(ElementsAre("README")));
+  EXPECT_THAT(matcher.FullMatchCaptures("README.md"), Eq(std::nullopt));
+}
+
 TEST_F(RegexTest, FnmatchGrammarIsAWholeStringWildcard) {
   // kFnmatch is a shell glob: FullMatch is a whole-string fnmatch (`*` matches any char, incl '/');
   // '.' is literal. A core grammar; Compile never fails.
@@ -169,6 +177,23 @@ TEST_F(RegexTest, FnmatchCaseInsensitiveUsesCasefold) {
   EXPECT_TRUE(folded.FullMatch("readme"));
   ASSERT_OK_AND_ASSIGN(const Matcher exact, Matcher::Compile("R*E", /*case_insensitive=*/false, Grammar::kFnmatch));
   EXPECT_FALSE(exact.FullMatch("readme"));
+}
+
+TEST_F(RegexTest, FnmatchCapturesItsWholeMatchAndDoesNotRewrite) {
+  ASSERT_OK_AND_ASSIGN(
+      const Matcher matcher, Matcher::Compile("report-??.txt", /*case_insensitive=*/false, Grammar::kFnmatch));
+  EXPECT_THAT(matcher.FullMatchCaptures("report-42.txt"), Optional(ElementsAre("report-42.txt")));
+  EXPECT_THAT(matcher.FullMatchCaptures("old-report-42.txt"), Eq(std::nullopt));
+  EXPECT_THAT(matcher.Rewrite("report-42.txt", "renamed", /*global=*/true), "report-42.txt");
+  EXPECT_THAT(matcher.Rewrite("not a match", "renamed", /*global=*/false), "not a match");
+}
+
+TEST_F(RegexTest, MoveAssignmentReplacesTheBackend) {
+  ASSERT_OK_AND_ASSIGN(Matcher matcher, Matcher::Compile("old", /*case_insensitive=*/false, Grammar::kExact));
+  ASSERT_OK_AND_ASSIGN(Matcher replacement, Matcher::Compile("new", /*case_insensitive=*/false, Grammar::kExact));
+  matcher = std::move(replacement);
+  EXPECT_THAT(matcher.FullMatch("new"), IsTrue());
+  EXPECT_THAT(matcher.FullMatch("old"), IsFalse());
 }
 
 TEST_F(RegexTest, GlobGrammarIsPathSegmentAware) {
