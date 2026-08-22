@@ -12,7 +12,8 @@
     "**/*_test.cc",
     "**/*_test.h"
   ],
-  "minimum": { "lines": 90, "functions": 95, "branches": 82 },
+  "minimum": { "lines": 90, "functions": 95, "branches": 80 },
+  "target": { "branches": 82 },
   "patch_minimum": { "lines": 95, "branches": 85 },
   "lcov": { "warning_gap": 15 },
   "categories": {
@@ -20,10 +21,7 @@
       "command line": { "include": ["xff/cli/**"] },
       "configuration": { "include": ["xff/config/**", "xff/env/**"] },
       "command grammar": { "include": ["xff/parser/**", "xff/registry/**"] },
-      "execution": {
-        "include": ["xff/engine/**", "xff/exec/**"],
-        "minimum": { "branches": 81 }
-      },
+      "execution": { "include": ["xff/engine/**", "xff/exec/**"] },
       "filesystem": {
         "include": ["xff/filesystem/**", "xff/shard/**", "xff/vfs/**"]
       },

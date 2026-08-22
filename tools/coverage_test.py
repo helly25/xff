@@ -58,6 +58,7 @@ class CoverageTest(unittest.TestCase):
     def test_category_inherits_overall_floor_and_target(self):
         policy = {
             "minimum": {"lines": 90, "functions": 80, "branches": 70},
+            "target": {"branches": 75},
             "categories": {
                 "program": {
                     "matching": {"include": ["xff/matching/**"]},
@@ -76,8 +77,12 @@ class CoverageTest(unittest.TestCase):
             minimums["program / filesystem"],
         )
         self.assertEqual(
-            {"lines": 90, "functions": 80, "branches": 65},
+            {"lines": 90, "functions": 80, "branches": 75},
             targets["program / filesystem"],
+        )
+        self.assertEqual(
+            {"lines": 90, "functions": 80, "branches": 75},
+            targets["program / matching"],
         )
 
     def test_override_below_target_is_low_not_failed(self):

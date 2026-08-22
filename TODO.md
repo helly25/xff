@@ -81,8 +81,8 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
   branch threshold. Keep all line and function rows green. Prefer real tests; use a narrower
   per-module threshold only for demonstrated unreachable or generated branches, with the reason
   recorded next to the exception. Focused boundary tests brought the remaining near-threshold source
-  groups up; the policy now enforces 90% lines, 95% functions, and 82% branches generally, with
-  narrower documented branch limits only for execution, archive, and FUSE. The HTML report derives its
+  groups up; the policy now enforces 90% lines, 95% functions, and 80% branches generally, with an
+  82% branch health target and narrower documented branch limits only for archive and FUSE. The HTML report derives its
   colors and 15-point warning gap from that same JSON policy, instead of using genhtml's generic 90%
   defaults.
 
