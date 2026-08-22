@@ -70,11 +70,22 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
   because outer flags do not propagate into the internal `aquery`. A cold-worktree verification
   retained only the extractor's intentional `features` / `host_features` transition, emitted
   hermetic-Clang commands for core plus all extras, and found all 156 expected first-party sources.
-- **Evaluate C++ header modules separately.** Spike Bazel/toolchains_llvm's `header_modules`
-  feature on its own branch. Establish support on every xff platform and configuration, compatibility
-  with generated and external headers, cache and build-time effects, and what additional violations
-  it catches beyond the globally enforced `parse_headers` and `layering_check` features. Do not make
-  it a default until that experiment demonstrates a portable correctness benefit.
+- **Evaluate C++ header modules separately - RESOLVED as unavailable (2026-08-22).** The isolated
+  spike proved that `--features=header_modules` is silently inert with both xff's hermetic Clang 22
+  toolchain and the macOS auto-configured toolchain: analysis succeeds, but `aquery` contains only
+  the ordinary source compile, emits no PCM/header-module action, and lists no module artifact as an
+  output. The generated `.cppmap` inputs come from the already-enabled `layering_check`; they do not
+  mean headers are compiled as modules. This is a toolchain capability gap, not an xff source
+  compatibility result: `rules_cc` has implementation paths for `header_modules`, but
+  `toolchains_llvm` defines neither that feature nor `use_header_modules` nor a module-compile action,
+  uniformly across its generated platform toolchains. Its Clang configuration also deliberately
+  passes `-fno-cxx-modules`, documenting that Bazel does not yet support C++20 modules; those are
+  distinct from Clang header modules, but reinforce that adding the user feature name is not an
+  implementation. There is therefore no portable cache/build-time or diagnostic comparison to make,
+  and no xff default to enable. Revisit only after `toolchains_llvm` provides real header-module
+  compile/use actions on Linux and macOS; then repeat the full core/extras/generated/external-header
+  build and compare clean/incremental time plus diagnostics against the globally enforced
+  `parse_headers` and `layering_check` baseline.
 - **Make every module's LCOV branch status green - DONE.** Use the full report overview (for example
   [`coverage/pr/621/lcov/`](https://helly25.github.io/xff/coverage/pr/621/lcov/)) to identify every
   yellow branch row, then add focused boundary/error-path tests until each module reaches its green
