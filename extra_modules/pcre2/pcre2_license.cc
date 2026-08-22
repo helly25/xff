@@ -14,7 +14,7 @@ const xff::license::Registrar kPcre2Extra{{
     .section_lead = true,
     .component = "xff PCRE2 extra (@xff_pcre2)",
     .spdx = "Apache-2.0",
-    .text = "Copyright 2026 Marcus Boerger / helly25. Licensed under the Apache License, Version 2.0.\n"
+    .text = "Copyright 2026 M. Boerger, The helly25 authors. Licensed under the Apache License, Version 2.0.\n"
             "Provides the -regextype=pcre2 backend by linking PCRE2 and SLJIT, whose notices follow.",
 }};
 const xff::license::Registrar kPcre2{{

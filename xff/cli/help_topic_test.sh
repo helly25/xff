@@ -303,7 +303,7 @@ test::help_notice_and_license_reproduce_the_texts() {
   license="$("$(_xff_bin)" --help=license 2>&1)"
   # A complete licensing statement leads with the copyright + grant (Apache's APPENDIX), THEN the
   # verbatim license body - not the bare boilerplate with no owner.
-  expect_output_contains 'Copyright 2026 Marcus Boerger / helly25' "${license}"
+  expect_output_contains 'Copyright 2026 M. Boerger, The helly25 authors' "${license}"
   expect_matches '^xff - eXtended File Find' "${license}" # copyright block heads the output
   expect_output_contains 'Apache License' "${license}"    # the reproduced LICENSE text, in full
   expect_output_contains 'Version 2.0' "${license}"       # ditto (not just a pointer to a file)
@@ -418,7 +418,8 @@ test::the_maps_and_the_documents_carry_no_pointer() {
   local bin tip page
   bin="$(_xff_bin)"
   tip="xff --help=help"
-  for page in --help --help=help --help=list --help=all --help=full --help=expressions --markdown; do
+  for page in --help --help=help --help=list --help=all --help=full --help=expressions \
+    --help=notice --help=notices --help=license --help=licenses --help=license=Apache-2.0 --markdown; do
     expect_output_not_contains "${tip}" "$("${bin}" "${page}" 2>&1)"
   done
 }

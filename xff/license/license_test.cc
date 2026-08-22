@@ -86,7 +86,7 @@ TEST_F(LicenseTest, CopyrightNoticeStatesTheOwnerAndGrant) {
   EXPECT_THAT(
       std::string(text),
       AllOf(
-          HasSubstr("xff - eXtended File Find"), HasSubstr("Copyright 2026 Marcus Boerger / helly25"),
+          HasSubstr("xff - eXtended File Find"), HasSubstr("Copyright 2026 M. Boerger, The helly25 authors"),
           HasSubstr("Licensed under the Apache License, Version 2.0.")));
 }
 
@@ -101,13 +101,6 @@ TEST_F(LicenseTest, NoticeTextLeadsWithTheCopyrightNoticeThenComponents) {
 TEST_F(LicenseTest, LicenseTextIsTheApacheLicenseInFull) {
   const std::string_view text = LicenseText();
   EXPECT_THAT(std::string(text), AllOf(HasSubstr("Apache License"), HasSubstr("Version 2.0")));
-}
-
-TEST_F(LicenseTest, CommittedNoticeFileEqualsNoticeText) {
-  // Code is the SOT: the repo NOTICE is kept equal to NoticeText(), and this guards drift. No
-  // build-extra is linked here, so this binary's NoticeText is the full set; #83 makes the
-  // comparison full-fat (the archive registration lands, and the committed NOTICE is regenerated).
-  EXPECT_THAT(ReadRunfile("NOTICE"), EqualsText(NoticeText()));
 }
 
 TEST_F(LicenseTest, CommittedLicenseFileEqualsLicenseText) {

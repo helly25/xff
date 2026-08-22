@@ -126,10 +126,27 @@ test::the_notice_lists_every_linked_extra_and_the_direct_codecs() {
   # the phar reader inflates members with them directly, not through libarchive.
   local out
   out="$("$(_xff_full_bin)" --help=notice 2>&1)"
-  expect_output_contains 'Build extras compiled into this binary: archive, brotli, fuse, pcre2' "${out}"
+  local extras_line enabled_extras extra
+  local -a extras
+  extras_line="${out%%$'\n'*}"
+  enabled_extras=" ${extras_line#Build extras compiled into this binary: } "
+  enabled_extras="${enabled_extras//,/}"
+
+  # The first line and the extension headings come from different registries. Check them in both
+  # directions: a newly enabled extra must register its own notice, and a stale/superfluous
+  # extension notice must not claim code this binary did not compile.
+  IFS=',' read -r -a extras <<<"${extras_line#Build extras compiled into this binary: }"
+  for extra in "${extras[@]}"; do
+    extra="${extra// /}"
+    expect_output_contains "(@xff_${extra})" "${out}"
+  done
+  while IFS= read -r extra; do
+    expect_matches " ${extra} " "${enabled_extras}"
+  done < <(sed -n 's/^Build extension:.*(@xff_\([^)]*\)).*/\1/p' <<<"${out}")
+
   expect_output_contains 'Build extension: FUSE (@xff_fuse)' "${out}"
   expect_output_contains 'Build extension: PCRE2 (@xff_pcre2)' "${out}"
-  expect_output_contains 'Build extension: archive (@xff_archive)' "${out}"
+  expect_output_contains 'Build extension: Archive (@xff_archive)' "${out}"
   expect_output_contains 'Build extension: Brotli archive compression (@xff_brotli)' "${out}"
   expect_output_contains 'Brotli  [MIT]' "${out}"
   expect_output_contains 'zlib  [Zlib]' "${out}"

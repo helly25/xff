@@ -66,7 +66,6 @@ cc_test(
     srcs = ["license_test.cc"],
     data = [
         "//:LICENSE",
-        "//:NOTICE",
     ],
     deps = [
         ":license_cc",
@@ -77,8 +76,7 @@ cc_test(
     ],
 )
 
-# Separate process because notice registration is intentionally process-global; keeping the
-# synthetic extension out of license_test preserves that test's canonical core-only NOTICE.
+# Separate process because notice registration is intentionally process-global.
 cc_test(
     name = "license_section_test",
     size = "small",

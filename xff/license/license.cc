@@ -47,7 +47,7 @@ const LicenseBodyRegistrar kApache2{{.spdx = "Apache-2.0", .text = LicenseText()
 
 std::string_view CopyrightNotice() {
   return "xff - eXtended File Find\n"
-         "Copyright 2026 Marcus Boerger / helly25\n"
+         "Copyright 2026 M. Boerger, The helly25 authors\n"
          "Licensed under the Apache License, Version 2.0.\n";
 }
 

@@ -250,8 +250,23 @@ std::string HelpTip(const xff::cli::HelpRenderContext& context) {
 
 // Whether `topic` gets that trailer: everything except the maps and the self-referential page.
 bool TopicTakesTip(std::string_view topic) {
-  static constexpr auto kNoTip =
-      std::to_array<std::string_view>({"all", "expressions", "full", "help", "list", "long", "topic", "topics"});
+  static constexpr auto kNoTip = std::to_array<std::string_view>({
+      "all",
+      "expressions",
+      "full",
+      "help",
+      "license",
+      "licenses",
+      "list",
+      "long",
+      "notice",
+      "notices",
+      "topic",
+      "topics",
+  });
+  if (absl::StartsWith(topic, "license=")) {
+    return false;
+  }
   return !absl::c_linear_search(kNoTip, topic);
 }
 

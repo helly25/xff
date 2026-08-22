@@ -419,6 +419,29 @@ diff_test(
     target_compatible_with = XFF_FULL_ONLY,
 )
 
+# The committed //:NOTICE is verbatim `xff_full --help=notice`. Unlike the runtime notice of a lean
+# binary, the repository artifact deliberately inventories every supported extension. Generating it
+# from the same all-extras binary as XFF.md prevents legal metadata from drifting independently of
+# the self-registering component registry. To refresh: ./notice-update.sh.
+genrule(
+    name = "xff_notice_gen",
+    srcs = select({
+        "//xff:xff_msan_enabled": ["//tools:msan_suppressions"],
+        "//conditions:default": [],
+    }),
+    outs = ["NOTICE.actual"],
+    cmd = "XFF_CONFIG=/nonexistent $(location :xff_full) --help=notice > $@",
+    target_compatible_with = XFF_FULL_ONLY,
+    tools = [":xff_full"],
+)
+
+diff_test(
+    name = "xff_notice_test",
+    file_new = ":NOTICE.actual",
+    file_old = "//:NOTICE",
+    target_compatible_with = XFF_FULL_ONLY,
+)
+
 # The whole-run option vocabulary (the flag counterpart of the registry), enumerated
 # for the help system and the planned man-page / .md generators.
 cc_library(
