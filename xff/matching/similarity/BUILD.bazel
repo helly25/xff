@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+
+load("//xff:cc.bzl", "cc_library", "cc_test")
+
+package(default_visibility = ["//visibility:private"])
+
+cc_library(
+    name = "similarity_cc",
+    srcs = ["similarity.cc"],
+    hdrs = ["similarity.h"],
+    visibility = ["//xff:__subpackages__"],
+    deps = [
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "similarity_test",
+    size = "small",
+    srcs = ["similarity_test.cc"],
+    deps = [
+        ":similarity_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)

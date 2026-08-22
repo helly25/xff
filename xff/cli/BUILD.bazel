@@ -531,6 +531,15 @@ bashtest(
     data = [":xff"],
 )
 
+# End-to-end test of -similar's reference-file word-shingle Jaccard matcher: default and explicit
+# thresholds, token normalization, binary exclusion, generated help, and strict-find rejection.
+bashtest(
+    name = "similarity_test",
+    size = "small",
+    srcs = ["similarity_test.sh"],
+    data = [":xff"],
+)
+
 # End-to-end test of --color=auto|always|never: only --color=always forces the
 # ANSI escapes when stdout is a pipe (the test captures it); a plain file stays
 # uncolored; --help documents the flag. Drives the real binary (reads isatty).

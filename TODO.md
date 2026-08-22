@@ -1233,25 +1233,20 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
        matches nearly everything, and ranking is what answers it. Adding it also exposed that the
        ranking gate listed primaries by hand and so refused `-fuzzypath`; the list is now one named
        set of the primaries that SET a score, and the error names them all.
-     - **A score threshold SHIPPED as `-fuzzy[=MODEL[:PCT%]] PATTERN`.** Each selected model produces
+     - **A score threshold SHIPPED as `-fuzzy[:MODEL[:PCT%]] PATTERN`.** Each selected model produces
        a normalized percentage, so different patterns within one model compose: AND
        keeps the minimum quality, OR the maximum successful alternative. The threshold gates that
        matcher; `-top N` separately ranks the survivors.
-  2. **Content near-duplicate / similarity** via **w-shingling**
-     (https://en.wikipedia.org/wiki/W-shingling): represent each text file as the set of its
-     contiguous w-token shingles (w-word or w-character k-grams), and score similarity as the Jaccard
-     overlap of two shingle sets; **MinHash** approximates Jaccard cheaply so it scales to a whole
-     tree without O(n^2) full-set comparisons. Use cases: "find files similar to X" (a per-entry
-     matcher against a reference file via the field vocabulary, like `-cmp`/`-diff` take a target),
-     and grouping near-duplicates across the walk (a reduction, like `--summary`, emitting clusters).
-     Design against the existing content/text machinery (`-text` gating, the content readers) and the
-     hashing lib (MinHash wants a fast hash; reuse xff/hash or mbo::digest). **Bloom filters belong HERE,
-     not in `-top`**: a probabilistic pre-filter legitimately narrows candidate PAIRS before an exact
-     Jaccard check, because a false positive only costs a wasted comparison. The same false positive in
-     `-top` would put a wrong entry in the result, which its exactness contract forbids.
-     Open: shingle width w and
-     the similarity threshold as flags; whether v1 is the pairwise matcher only, deferring the
-     cross-tree clustering reduction. Likely a build-time extra if it pulls weight.
+  2. **Content near-duplicate / similarity v1 SHIPPED as `-similar`.** The per-entry matcher compares
+     a text file with one TARGET field template using exact Jaccard overlap of unique contiguous
+     word shingles. `-similar[:WIDTH[:PCT%]]` defaults to the agreed five-word shingles and 80%; a
+     short file contributes one whole-file word shingle, punctuation separates words, ASCII case
+     folds, and binary/unreadable content does not match. It reuses the content/VFS and field-template
+     machinery and remains core-sized rather than pulling a dependency.
+     **Deferred:** grouping near-duplicates across the whole walk is a distinct reduction. That needs
+     candidate generation (likely MinHash, with an optional Bloom pre-filter) before exact Jaccard
+     verification so it scales without an O(n^2) all-pairs pass. False positives may cost an extra
+     exact comparison but must never enter the emitted cluster.
 - **Untested `cc_library` targets + a lint to keep them from reappearing (opened 2026-08-10; RESOLVED
   2026-08-10).** STYLE_CPP says all exported code is tested at every level, but nothing enforced it,
   so gaps accumulated quietly. Audited every `cc_library` for a `cc_test` in the same package
