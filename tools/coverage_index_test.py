@@ -55,9 +55,13 @@ class CoverageIndexTest(unittest.TestCase):
             self.assertIn("release 0.10.0", rendered)
             self.assertIn("release 0.9.0", rendered)
             self.assertIn(
-                'href="https://github.com/helly25/xff/releases/tag/v0.10.0">GitHub release</a>',
+                'href="https://github.com/helly25/xff/releases/tag/v0.10.0">release v0.10.0</a>',
                 rendered,
             )
+            self.assertIn('href="https://github.com/helly25/xff/pull/42">PR #42</a>', rendered)
+            self.assertIn("2026-08-22 10:01:00 UTC", rendered)
+            self.assertIn('href="https://github.com/helly25/xff/commit/abc"><code>abc</code></a>', rendered)
+            self.assertIn('href="https://github.com/helly25/xff/actions/runs/1">run 1</a>', rendered)
             self.assertLess(rendered.index('href="main/"'), rendered.index('href="tag/0.10.0/"'))
             self.assertLess(rendered.index('href="tag/0.10.0/"'), rendered.index('href="tag/0.9.0/"'))
             self.assertLess(rendered.index('href="tag/0.9.0/"'), rendered.index('href="pr/42/"'))
@@ -67,6 +71,22 @@ class CoverageIndexTest(unittest.TestCase):
     def test_empty_site_says_no_reports_are_available(self):
         with tempfile.TemporaryDirectory() as directory:
             self.assertIn("No coverage reports are available", coverage_index.render_site(Path(directory)))
+
+    def test_legacy_report_does_not_link_placeholder_metadata(self):
+        metadata = coverage_index.report_metadata(
+            _summary(95.0),
+            "pr/9",
+            "1970-01-01T00:00:00Z",
+            "1970-01-01T00:00:00Z",
+            "1970-01-01T00:00:00Z",
+            0,
+            0,
+            "legacy",
+        )
+        row = coverage_index._short_row(metadata)
+        self.assertIn('href="https://github.com/helly25/xff/pull/9">PR #9</a>', row)
+        self.assertNotIn("actions/runs/0", row)
+        self.assertNotIn("commit/legacy", row)
 
     def test_newer_report_wins_even_when_an_older_run_finishes_later(self):
         summary = _summary(95.0)

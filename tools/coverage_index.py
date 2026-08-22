@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import html
 import json
 import re
@@ -27,7 +28,7 @@ def _page(title: str, body: str) -> str:
       a {{ color: #0969da; }}
       table {{ border-collapse: collapse; margin: 1rem 0 2rem; }}
       th, td {{ border: 1px solid #d0d7de; padding: .35rem .65rem; text-align: right; }}
-      th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) {{ text-align: left; }}
+      th:nth-child(-n+5), td:nth-child(-n+5) {{ text-align: left; }}
       .fail {{ font-weight: bold; color: #cf222e; }}
     </style>
   </head>
@@ -140,18 +141,39 @@ def latest_metadata(values: list[dict]) -> dict[str, dict]:
 def _short_row(metadata: dict) -> str:
     target = metadata["target"]
     if target == "main":
-        label, reference = "main", None
+        label = "main"
+        source = '<a href="https://github.com/helly25/xff/tree/main">main branch</a>'
     elif target.startswith("tag/"):
         release = target.removeprefix("tag/")
         label = f"release {release}"
-        reference = f"https://github.com/helly25/xff/releases/tag/v{release}"
+        source = (
+            f'<a href="https://github.com/helly25/xff/releases/tag/v{html.escape(release)}">'
+            f"release v{html.escape(release)}</a>"
+        )
     else:
-        label, reference = f"PR {target.removeprefix('pr/')}", None
+        number = target.removeprefix("pr/")
+        label = f"PR {number}"
+        source = f'<a href="https://github.com/helly25/xff/pull/{html.escape(number)}">PR #{html.escape(number)}</a>'
+    source_metadata = metadata["source"]
+    run_id = source_metadata["run_id"]
+    if run_id == 0:  # Reports retained before metadata was introduced.
+        timestamp = commit = run = "n/a"
+    else:
+        completed = datetime.datetime.fromisoformat(source_metadata["completed_at"].replace("Z", "+00:00"))
+        timestamp = completed.astimezone(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        sha = source_metadata["head_sha"]
+        commit = (
+            f'<a href="https://github.com/helly25/xff/commit/{html.escape(sha)}">'
+            f"<code>{html.escape(sha[:7])}</code></a>"
+        )
+        attempt = source_metadata["run_attempt"]
+        run = f'<a href="https://github.com/helly25/xff/actions/runs/{run_id}">run {run_id}</a>'
+        if attempt > 1:
+            run += f" (attempt {attempt})"
     values = [_percent(metadata["coverage"][metric]) for metric in _METRICS]
     report = f'<a href="{target}/">{html.escape(label)}</a>'
-    if reference:
-        report += f' · <a href="{html.escape(reference)}">GitHub release</a>'
-    return f"        <tr><td>{report}</td>" + "".join(f"<td>{value}</td>" for value in values) + "</tr>"
+    details = (report, source, timestamp, commit, run)
+    return "        <tr>" + "".join(f"<td>{value}</td>" for value in (*details, *values)) + "</tr>"
 
 
 def render_site(root: Path) -> str:
@@ -184,7 +206,7 @@ def render_site(root: Path) -> str:
     rows = "\n".join(_short_row(metadata) for metadata in reports)
     body = "    <h1>xff coverage reports</h1>\n"
     if rows:
-        body += """    <table><thead><tr><th>Report</th><th>Lines</th><th>Functions</th><th>Branches</th></tr></thead>
+        body += """    <table><thead><tr><th>Report</th><th>Source</th><th>Completed</th><th>Commit</th><th>Workflow</th><th>Lines</th><th>Functions</th><th>Branches</th></tr></thead>
       <tbody>
 """ + rows + """
       </tbody>
