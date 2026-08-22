@@ -32,9 +32,9 @@ actually asked about:
 
 2. THE macOS SDK libc++ (`--system Darwin` only). The `--config=clang` toolchain (toolchains_llvm)
    points libc++ at the Xcode SDK by emitting `-nostdinc++ -cxx-isystem <SDK>/usr/include/c++/v1`,
-   while `-resource-dir` is the hermetic clang's. clang-tidy parses with the hermetic clang++ (see
+   while `-resource-dir` is the hermetic clang's. clang-tidy parses with the hermetic clang (see
    `--bcce-compiler`), so that SDK libc++ against a hermetic resource dir is a mismatch that silently
-   degrades its analysis (spurious unused-variable / const-correctness findings). The hermetic clang++
+   degrades its analysis (spurious unused-variable / const-correctness findings). The hermetic clang
    finds its OWN libc++ when left to its default search, so drop just those two flags; `-isysroot`
    stays, for the system C headers. Linux never emits the SDK `-cxx-isystem`, hence the gate.
 """
@@ -108,9 +108,9 @@ def drop_c_sources(entries: list[dict]) -> tuple[list[dict], int]:
     xff is C++ only - `git ls-files '*.c'` is empty - so every `.c` entry in the database belongs to
     a third-party dependency (bzip2, pcre2, libarchive and the codecs they pull in). Nothing here
     ever lints them: the clang-tidy hook is handed first-party files, and nobody edits vendored C.
-    Keeping them only creates ways to go wrong, because the recorded compiler is `clang++`: any tool
-    that walks the database rather than a given file list tries to parse C as C++ and hits pcre2's
-    `#error This project uses C99. C++ is not supported.`
+    Keeping third-party entries would make tools that walk the whole database lint code outside
+    xff's ownership and policy. The language-neutral clang driver now preserves their C language
+    during extraction, but dropping them still keeps the database scoped to code we maintain.
     """
     kept = [entry for entry in entries if not entry["file"].endswith(".c")]
     return kept, len(entries) - len(kept)

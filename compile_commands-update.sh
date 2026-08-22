@@ -42,9 +42,9 @@ OUTPUT_BASE="$(bazel info output_base 2>/dev/null || true)"
 # The hermetic LLVM install (headers + libs) lives in the `_llvm_llvm` repo; the
 # plain `_llvm` repo only re-exports clang-format/clang-tidy/clangd.
 declare -a CLANG_LOCS=(
-  "${OUTPUT_BASE}/external/toolchains_llvm++llvm+llvm_toolchain_llvm_llvm/bin/clang++"
-  "${OUTPUT_BASE}/external/toolchains_llvm~~llvm~llvm_toolchain_llvm_llvm/bin/clang++"
-  "${OUTPUT_BASE}/external/llvm_toolchain_llvm/bin/clang++"
+  "${OUTPUT_BASE}/external/toolchains_llvm++llvm+llvm_toolchain_llvm_llvm/bin/clang"
+  "${OUTPUT_BASE}/external/toolchains_llvm~~llvm~llvm_toolchain_llvm_llvm/bin/clang"
+  "${OUTPUT_BASE}/external/llvm_toolchain_llvm/bin/clang"
 )
 
 CLANG=""
@@ -62,12 +62,12 @@ if [ -z "${CLANG}" ]; then
   # A fresh checkout (or CI runner) has not materialized the toolchain yet: it is
   # only fetched once something is actually built with `--config=clang`. The header
   # build below (also `--config=clang-tidy`) triggers that, so just build first.
-  echo "Hermetic clang++ not present; fetching the toolchain via a probe build ..." 1>&2
+  echo "Hermetic clang not present; fetching the toolchain via a probe build ..." 1>&2
   bazel build --config=clang-tidy //tools:show_compiler >/dev/null \
     || die "probe build '//tools:show_compiler --config=clang-tidy' failed; cannot fetch the LLVM toolchain"
   resolve_clang
 fi
-[ -n "${CLANG}" ] || die "Cannot find the hermetic clang++ even after a '--config=clang-tidy' build"
+[ -n "${CLANG}" ] || die "Cannot find the hermetic clang even after a '--config=clang-tidy' build"
 
 # Sources reachable both normally and through a build-machine tool are compiled
 # twice (target + exec configuration), and both commands would be emitted. Keep
@@ -76,13 +76,15 @@ fi
 # exec configuration keep their command, so nothing leaves the compile DB.
 declare -a BCCE_ARGS=("--bcce-prefer-target-config")
 
-# Name the hermetic clang++ BINARY (not the toolchain's `cc_wrapper.sh`, which is
+# Name the hermetic clang BINARY (not the toolchain's `cc_wrapper.sh`, which is
 # what the extracted command line starts with). clang-tidy runs its own clang to
 # parse, but reads this leading argument to derive the driver's target triple and
 # resource directory (its built-in headers). A shell-script "compiler" leaves it
-# with the wrong builtins, so the macOS SDK / libc++ headers fail to parse. All the
-# OTHER flags still come from `--config=clang-tidy`; only the compiler token is
-# substituted so clang-tidy can introspect a real clang.
+# with the wrong builtins, so the macOS SDK / libc++ headers fail to parse. Use the
+# language-neutral `clang` driver rather than `clang++`: source extensions and the
+# extracted `-std` flags still select the language, while third-party C translation
+# units remain C instead of being forced through the C++ driver. All OTHER flags
+# still come from `--config=clang-tidy`; only the compiler token is substituted.
 BCCE_ARGS+=("--bcce-compiler=${CLANG}")
 
 # The hermetic clang carries its own libc++ but no system C headers: without the
@@ -124,19 +126,7 @@ done
 # //:refresh_compile_commands, not the extractor's stock :refresh_all - the latter covers `//...`
 # only, which silently omits every extras source file. See the target's comment in //BUILD.bazel.
 #
-# Two extractor lines are filtered, and ONLY these two. The extractor probes every translation unit
-# in the build graph, which includes our third-party dependencies' C sources; the recorded compiler
-# is clang++, so each one prints "treating 'c' input as 'c++'" and then trips pcre2's
-# `#error This project uses C99. C++ is not supported.` Hundreds of lines that mean nothing here:
-# xff has no C of its own, and fix_compile_commands.py drops those entries from the database
-# anyway. Everything else the extractor says still comes through, and the exit code is bazel's own
-# (read from PIPESTATUS, never grep's - a pipeline would report the filter's success instead).
-# `grep || true` inside the group is load-bearing: grep -v exits 1 when it filters EVERY line, which
-# under pipefail would report a false failure. With the group swallowing that, the pipeline's status
-# is bazel's own.
-set -o pipefail
-bazel run //:refresh_compile_commands -- --config=clang-tidy "${BCCE_ARGS[@]}" 2>&1 \
-  | { grep -vE "treating 'c' input as 'c\+\+' when in C\+\+ mode|This project uses C99\. C\+\+ is not supported" || true; } \
+bazel run //:refresh_compile_commands -- --config=clang-tidy "${BCCE_ARGS[@]}" \
   || die "refreshing compile_commands.json failed"
 
 # Post-process the extracted database (tools/fix_compile_commands.py documents both passes):
