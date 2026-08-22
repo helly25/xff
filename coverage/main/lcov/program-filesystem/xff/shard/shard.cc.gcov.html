@@ -31,13 +31,13 @@
             <td class="headerValue">xff production coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">94.4&nbsp;%</td>
+            <td class="headerCovTableEntryHi">98.4&nbsp;%</td>
             <td class="headerCovTableEntry">126</td>
-            <td class="headerCovTableEntry">119</td>
+            <td class="headerCovTableEntry">124</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 20:50:14</td>
+            <td class="headerValue">2026-08-22 21:40:07</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">93.3&nbsp;%</td>
@@ -56,9 +56,9 @@
 </td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryMed">87.3&nbsp;%</td>
+            <td class="headerCovTableEntryHi">94.4&nbsp;%</td>
             <td class="headerCovTableEntry">71</td>
-            <td class="headerCovTableEntry">62</td>
+            <td class="headerCovTableEntry">67</td>
           </tr>
                   <tr><td><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -120,63 +120,63 @@
 <span id="L42"><span class="lineNum">      42</span>                 :             : constexpr std::string_view kOfPattern = R&quot;(^(.+)-(\d+)-of-(\d+)(.*)$)&quot;;</span>
 <span id="L43"><span class="lineNum">      43</span>                 :             : </span>
 <span id="L44"><span class="lineNum">      44</span>                 :             : // True iff `text` is non-empty and every byte is an ASCII digit.</span>
-<span id="L45"><span class="lineNum">      45</span>                 :<span class="tlaGNC tlaBgGNC">          43 : [[nodiscard]] bool AllDigits(std::string_view text) {</span></span>
-<span id="L46"><span class="lineNum">      46</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 43 times"> + </span>]:<span class="tlaGNC">          43 :   if (text.empty()) {</span></span>
-<span id="L47"><span class="lineNum">      47</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     return false;</span></span>
+<span id="L45"><span class="lineNum">      45</span>                 :<span class="tlaGNC tlaBgGNC">          46 : [[nodiscard]] bool AllDigits(std::string_view text) {</span></span>
+<span id="L46"><span class="lineNum">      46</span>         [<span class="tlaGBC" title="Branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 44 times"> + </span>]:<span class="tlaGNC">          46 :   if (text.empty()) {</span></span>
+<span id="L47"><span class="lineNum">      47</span>                 :<span class="tlaGNC">           2 :     return false;</span></span>
 <span id="L48"><span class="lineNum">      48</span>                 :             :   }</span>
-<span id="L49"><span class="lineNum">      49</span>   [<span class="tlaGBC" title="Branch 0 was taken 62 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 35 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 27 times"> + </span>]:<span class="tlaGNC tlaBgGNC">         105 :   return absl::c_all_of(text, [](char chr) { return chr &gt;= '0' &amp;&amp; chr &lt;= '9'; });</span></span>
+<span id="L49"><span class="lineNum">      49</span>   [<span class="tlaGBC" title="Branch 0 was taken 92 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 65 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 27 times"> + </span>]:<span class="tlaGNC">         136 :   return absl::c_all_of(text, [](char chr) { return chr &gt;= '0' &amp;&amp; chr &lt;= '9'; });</span></span>
 <span id="L50"><span class="lineNum">      50</span>                 :             : }</span>
 <span id="L51"><span class="lineNum">      51</span>                 :             : </span>
 <span id="L52"><span class="lineNum">      52</span>                 :             : // Parses an all-digit run to an integer, saturating benignly to 0 on overflow (a</span>
 <span id="L53"><span class="lineNum">      53</span>                 :             : // shard index with 19+ digits is not a real set); callers pass digit-only text.</span>
-<span id="L54"><span class="lineNum">      54</span>                 :<span class="tlaGNC">         161 : [[nodiscard]] std::int64_t ToInt(std::string_view digits) {</span></span>
-<span id="L55"><span class="lineNum">      55</span>                 :<span class="tlaGNC">         161 :   std::int64_t value = 0;</span></span>
-<span id="L56"><span class="lineNum">      56</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 161 times"> + </span>]:<span class="tlaGNC">         161 :   if (!absl::SimpleAtoi(digits, &amp;value)) {</span></span>
-<span id="L57"><span class="lineNum">      57</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     return 0;  // overflow on a pathologically long run; not a real shard index</span></span>
+<span id="L54"><span class="lineNum">      54</span>                 :<span class="tlaGNC">         163 : [[nodiscard]] std::int64_t ToInt(std::string_view digits) {</span></span>
+<span id="L55"><span class="lineNum">      55</span>                 :<span class="tlaGNC">         163 :   std::int64_t value = 0;</span></span>
+<span id="L56"><span class="lineNum">      56</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 162 times"> + </span>]:<span class="tlaGNC">         163 :   if (!absl::SimpleAtoi(digits, &amp;value)) {</span></span>
+<span id="L57"><span class="lineNum">      57</span>                 :<span class="tlaGNC">           1 :     return 0;  // overflow on a pathologically long run; not a real shard index</span></span>
 <span id="L58"><span class="lineNum">      58</span>                 :             :   }</span>
-<span id="L59"><span class="lineNum">      59</span>                 :<span class="tlaGNC tlaBgGNC">         161 :   return value;</span></span>
+<span id="L59"><span class="lineNum">      59</span>                 :<span class="tlaGNC">         162 :   return value;</span></span>
 <span id="L60"><span class="lineNum">      60</span>                 :             : }</span>
 <span id="L61"><span class="lineNum">      61</span>                 :             : </span>
 <span id="L62"><span class="lineNum">      62</span>                 :             : // A trailing `&lt;sep&gt;&lt;digits&gt;` suffix (`.001`, `_007`) yields (stem, digits); nullopt</span>
 <span id="L63"><span class="lineNum">      63</span>                 :             : // when the last `sep` is missing or is not followed by an all-digit run.</span>
-<span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">          77 : [[nodiscard]] std::optional&lt;std::pair&lt;std::string_view, std::string_view&gt;&gt; TrailingDigits(</span></span>
+<span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">          84 : [[nodiscard]] std::optional&lt;std::pair&lt;std::string_view, std::string_view&gt;&gt; TrailingDigits(</span></span>
 <span id="L65"><span class="lineNum">      65</span>                 :             :     std::string_view name,</span>
 <span id="L66"><span class="lineNum">      66</span>                 :             :     char sep) {</span>
-<span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">          77 :   const std::size_t pos = name.rfind(sep);</span></span>
-<span id="L68"><span class="lineNum">      68</span>         [<span class="tlaGBC" title="Branch 0 was taken 34 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 43 times"> + </span>]:<span class="tlaGNC">          77 :   if (pos == std::string_view::npos) {</span></span>
-<span id="L69"><span class="lineNum">      69</span>                 :<span class="tlaGNC">          34 :     return std::nullopt;</span></span>
+<span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">          84 :   const std::size_t pos = name.rfind(sep);</span></span>
+<span id="L68"><span class="lineNum">      68</span>         [<span class="tlaGBC" title="Branch 0 was taken 38 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 46 times"> + </span>]:<span class="tlaGNC">          84 :   if (pos == std::string_view::npos) {</span></span>
+<span id="L69"><span class="lineNum">      69</span>                 :<span class="tlaGNC">          38 :     return std::nullopt;</span></span>
 <span id="L70"><span class="lineNum">      70</span>                 :             :   }</span>
-<span id="L71"><span class="lineNum">      71</span>                 :<span class="tlaGNC">          43 :   const std::string_view digits = name.substr(pos + 1);</span></span>
-<span id="L72"><span class="lineNum">      72</span>         [<span class="tlaGBC" title="Branch 0 was taken 27 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 16 times"> + </span>]:<span class="tlaGNC">          43 :   if (!AllDigits(digits)) {</span></span>
-<span id="L73"><span class="lineNum">      73</span>                 :<span class="tlaGNC">          27 :     return std::nullopt;</span></span>
+<span id="L71"><span class="lineNum">      71</span>                 :<span class="tlaGNC">          46 :   const std::string_view digits = name.substr(pos + 1);</span></span>
+<span id="L72"><span class="lineNum">      72</span>         [<span class="tlaGBC" title="Branch 0 was taken 29 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 17 times"> + </span>]:<span class="tlaGNC">          46 :   if (!AllDigits(digits)) {</span></span>
+<span id="L73"><span class="lineNum">      73</span>                 :<span class="tlaGNC">          29 :     return std::nullopt;</span></span>
 <span id="L74"><span class="lineNum">      74</span>                 :             :   }</span>
-<span id="L75"><span class="lineNum">      75</span>                 :<span class="tlaGNC">          16 :   return std::make_pair(name.substr(0, pos), digits);</span></span>
+<span id="L75"><span class="lineNum">      75</span>                 :<span class="tlaGNC">          17 :   return std::make_pair(name.substr(0, pos), digits);</span></span>
 <span id="L76"><span class="lineNum">      76</span>                 :             : }</span>
 <span id="L77"><span class="lineNum">      77</span>                 :             : </span>
 <span id="L78"><span class="lineNum">      78</span>                 :             : // Builds a Match for a `&lt;stem&gt;&lt;sep&gt;&lt;digits&gt;` suffix scheme (kDotNum / kUnderscore);</span>
 <span id="L79"><span class="lineNum">      79</span>                 :             : // `sep` is the literal separator ('.' / '_'), reused to render the wildcard name.</span>
-<span id="L80"><span class="lineNum">      80</span>                 :<span class="tlaGNC">          16 : [[nodiscard]] Match SuffixMatch(Scheme scheme, std::string_view stem, std::string_view digits, char sep) {</span></span>
-<span id="L81"><span class="lineNum">      81</span>                 :<span class="tlaGNC">          16 :   const auto width = static_cast&lt;int&gt;(digits.size());</span></span>
+<span id="L80"><span class="lineNum">      80</span>                 :<span class="tlaGNC">          17 : [[nodiscard]] Match SuffixMatch(Scheme scheme, std::string_view stem, std::string_view digits, char sep) {</span></span>
+<span id="L81"><span class="lineNum">      81</span>                 :<span class="tlaGNC">          17 :   const auto width = static_cast&lt;int&gt;(digits.size());</span></span>
 <span id="L82"><span class="lineNum">      82</span>                 :             :   return Match{</span>
 <span id="L83"><span class="lineNum">      83</span>                 :             :       .scheme = scheme,</span>
-<span id="L84"><span class="lineNum">      84</span>                 :<span class="tlaGNC">          16 :       .stem = std::string(stem),</span></span>
-<span id="L85"><span class="lineNum">      85</span>                 :<span class="tlaGNC">          16 :       .index = ToInt(digits),</span></span>
+<span id="L84"><span class="lineNum">      84</span>                 :<span class="tlaGNC">          17 :       .stem = std::string(stem),</span></span>
+<span id="L85"><span class="lineNum">      85</span>                 :<span class="tlaGNC">          17 :       .index = ToInt(digits),</span></span>
 <span id="L86"><span class="lineNum">      86</span>                 :             :       .width = width,</span>
-<span id="L87"><span class="lineNum">      87</span>                 :<span class="tlaGNC">          48 :       .wildcard = absl::StrCat(stem, std::string_view(&amp;sep, 1), std::string(width, '?')),</span></span>
-<span id="L88"><span class="lineNum">      88</span>                 :<span class="tlaGNC">          80 :   };</span></span>
+<span id="L87"><span class="lineNum">      87</span>                 :<span class="tlaGNC">          51 :       .wildcard = absl::StrCat(stem, std::string_view(&amp;sep, 1), std::string(width, '?')),</span></span>
+<span id="L88"><span class="lineNum">      88</span>                 :<span class="tlaGNC">          85 :   };</span></span>
 <span id="L89"><span class="lineNum">      89</span>                 :             : }</span>
 <span id="L90"><span class="lineNum">      90</span>                 :             : </span>
 <span id="L91"><span class="lineNum">      91</span>                 :             : }  // namespace</span>
 <span id="L92"><span class="lineNum">      92</span>                 :             : </span>
-<span id="L93"><span class="lineNum">      93</span>                 :<span class="tlaGNC">           3 : std::string_view SchemeName(Scheme scheme) {</span></span>
-<span id="L94"><span class="lineNum">      94</span>   [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span> :<span class="tlaGNC">           3 :   switch (scheme) {</span></span>
-<span class="lineNum">        </span>             <span class="tlaUNC" title="Branch 4 was not taken"> - </span>]
+<span id="L93"><span class="lineNum">      93</span>                 :<span class="tlaGNC">           5 : std::string_view SchemeName(Scheme scheme) {</span></span>
+<span id="L94"><span class="lineNum">      94</span>   [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">           5 :   switch (scheme) {</span></span>
+<span class="lineNum">        </span>             <span class="tlaGBC" title="Branch 4 was taken 1 time"> + </span>]
 <span id="L95"><span class="lineNum">      95</span>                 :<span class="tlaGNC">           1 :     case Scheme::kOf: return &quot;of&quot;;</span></span>
 <span id="L96"><span class="lineNum">      96</span>                 :<span class="tlaGNC">           1 :     case Scheme::kDotNum: return &quot;dotnum&quot;;</span></span>
 <span id="L97"><span class="lineNum">      97</span>                 :<span class="tlaGNC">           1 :     case Scheme::kUnderscore: return &quot;underscore&quot;;</span></span>
-<span id="L98"><span class="lineNum">      98</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     case Scheme::kCustom: return &quot;custom&quot;;</span></span>
+<span id="L98"><span class="lineNum">      98</span>                 :<span class="tlaGNC">           1 :     case Scheme::kCustom: return &quot;custom&quot;;</span></span>
 <span id="L99"><span class="lineNum">      99</span>                 :             :   }</span>
-<span id="L100"><span class="lineNum">     100</span>                 :<span class="tlaUNC">           0 :   return &quot;unknown&quot;;</span></span>
+<span id="L100"><span class="lineNum">     100</span>                 :<span class="tlaGNC">           1 :   return &quot;unknown&quot;;</span></span>
 <span id="L101"><span class="lineNum">     101</span>                 :             : }</span>
 <span id="L102"><span class="lineNum">     102</span>                 :             : </span>
 <span id="L103"><span class="lineNum">     103</span>                 :             : // A compiled custom `--shard-pattern`: the RE2 plus the 1-based capture indices of its named</span>
@@ -189,65 +189,65 @@
 <span id="L110"><span class="lineNum">     110</span>                 :             :   int dup_idx = -1;</span>
 <span id="L111"><span class="lineNum">     111</span>                 :             : };</span>
 <span id="L112"><span class="lineNum">     112</span>                 :             : </span>
-<span id="L113"><span class="lineNum">     113</span>                 :<span class="tlaGNC tlaBgGNC">          47 : Matcher::Matcher(</span></span>
+<span id="L113"><span class="lineNum">     113</span>                 :<span class="tlaGNC">          50 : Matcher::Matcher(</span></span>
 <span id="L114"><span class="lineNum">     114</span>                 :             :     std::unique_ptr&lt;re2::RE2&gt; of_re,</span>
 <span id="L115"><span class="lineNum">     115</span>                 :             :     std::unique_ptr&lt;re2::RE2&gt; tail_re,</span>
-<span id="L116"><span class="lineNum">     116</span>                 :<span class="tlaGNC">          47 :     std::vector&lt;std::unique_ptr&lt;CustomPattern&gt;&gt; custom)</span></span>
-<span id="L117"><span class="lineNum">     117</span>                 :<span class="tlaGNC">          47 :     : of_re_(std::move(of_re)), tail_re_(std::move(tail_re)), custom_(std::move(custom)) {}</span></span>
+<span id="L116"><span class="lineNum">     116</span>                 :<span class="tlaGNC">          50 :     std::vector&lt;std::unique_ptr&lt;CustomPattern&gt;&gt; custom)</span></span>
+<span id="L117"><span class="lineNum">     117</span>                 :<span class="tlaGNC">          50 :     : of_re_(std::move(of_re)), tail_re_(std::move(tail_re)), custom_(std::move(custom)) {}</span></span>
 <span id="L118"><span class="lineNum">     118</span>                 :             : </span>
-<span id="L119"><span class="lineNum">     119</span>                 :<span class="tlaGNC">          82 : Matcher::Matcher(Matcher&amp;&amp;) noexcept = default;</span></span>
+<span id="L119"><span class="lineNum">     119</span>                 :<span class="tlaGNC">          88 : Matcher::Matcher(Matcher&amp;&amp;) noexcept = default;</span></span>
 <span id="L120"><span class="lineNum">     120</span>                 :<span class="tlaUNC tlaBgUNC">           0 : Matcher&amp; Matcher::operator=(Matcher&amp;&amp;) noexcept = default;</span></span>
-<span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC tlaBgGNC">         129 : Matcher::~Matcher() = default;</span></span>
+<span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC tlaBgGNC">         138 : Matcher::~Matcher() = default;</span></span>
 <span id="L122"><span class="lineNum">     122</span>                 :             : </span>
-<span id="L123"><span class="lineNum">     123</span>                 :<span class="tlaGNC">          53 : absl::StatusOr&lt;Matcher&gt; Matcher::Make(const TailSpec&amp; tail, absl::Span&lt;const std::string&gt; custom_patterns) {</span></span>
-<span id="L124"><span class="lineNum">     124</span>                 :<span class="tlaGNC">          53 :   auto of_re = std::make_unique&lt;RE2&gt;(kOfPattern);</span></span>
-<span id="L125"><span class="lineNum">     125</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 53 times"> + </span>]:<span class="tlaGNC">          53 :   if (!of_re-&gt;ok()) {</span></span>
+<span id="L123"><span class="lineNum">     123</span>                 :<span class="tlaGNC">          56 : absl::StatusOr&lt;Matcher&gt; Matcher::Make(const TailSpec&amp; tail, absl::Span&lt;const std::string&gt; custom_patterns) {</span></span>
+<span id="L124"><span class="lineNum">     124</span>                 :<span class="tlaGNC">          56 :   auto of_re = std::make_unique&lt;RE2&gt;(kOfPattern);</span></span>
+<span id="L125"><span class="lineNum">     125</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 56 times"> + </span>]:<span class="tlaGNC">          56 :   if (!of_re-&gt;ok()) {</span></span>
 <span id="L126"><span class="lineNum">     126</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     return absl::InternalError(absl::StrCat(&quot;shard 'of' pattern failed to compile: &quot;, of_re-&gt;error()));</span></span>
 <span id="L127"><span class="lineNum">     127</span>                 :             :   }</span>
-<span id="L128"><span class="lineNum">     128</span>                 :<span class="tlaGNC tlaBgGNC">          53 :   std::unique_ptr&lt;RE2&gt; tail_re;</span></span>
-<span id="L129"><span class="lineNum">     129</span>   [<span class="tlaGBC" title="Branch 0 was taken 51 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">          53 :   if (tail.enabled &amp;&amp; !tail.pattern.empty()) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 3 times"> + </span>]
-<span id="L130"><span class="lineNum">     130</span>                 :<span class="tlaGNC">          50 :     tail_re = std::make_unique&lt;RE2&gt;(tail.pattern);</span></span>
-<span id="L131"><span class="lineNum">     131</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 49 times"> + </span>]:<span class="tlaGNC">          50 :     if (!tail_re-&gt;ok()) {</span></span>
+<span id="L128"><span class="lineNum">     128</span>                 :<span class="tlaGNC tlaBgGNC">          56 :   std::unique_ptr&lt;RE2&gt; tail_re;</span></span>
+<span id="L129"><span class="lineNum">     129</span>   [<span class="tlaGBC" title="Branch 0 was taken 54 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 53 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">          56 :   if (tail.enabled &amp;&amp; !tail.pattern.empty()) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 53 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 3 times"> + </span>]
+<span id="L130"><span class="lineNum">     130</span>                 :<span class="tlaGNC">          53 :     tail_re = std::make_unique&lt;RE2&gt;(tail.pattern);</span></span>
+<span id="L131"><span class="lineNum">     131</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 52 times"> + </span>]:<span class="tlaGNC">          53 :     if (!tail_re-&gt;ok()) {</span></span>
 <span id="L132"><span class="lineNum">     132</span>                 :<span class="tlaGNC">           1 :       return absl::InvalidArgumentError(absl::StrCat(&quot;invalid --shard-tail regex: &quot;, tail_re-&gt;error()));</span></span>
 <span id="L133"><span class="lineNum">     133</span>                 :             :     }</span>
-<span id="L134"><span class="lineNum">     134</span>         [<span class="tlaGBC" title="Branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 47 times"> + </span>]:<span class="tlaGNC">          49 :     if (tail_re-&gt;NumberOfCapturingGroups() != 1) {</span></span>
+<span id="L134"><span class="lineNum">     134</span>         [<span class="tlaGBC" title="Branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 50 times"> + </span>]:<span class="tlaGNC">          52 :     if (tail_re-&gt;NumberOfCapturingGroups() != 1) {</span></span>
 <span id="L135"><span class="lineNum">     135</span>                 :<span class="tlaGNC">           4 :       return absl::InvalidArgumentError(</span></span>
 <span id="L136"><span class="lineNum">     136</span>                 :<span class="tlaGNC">           4 :           absl::StrCat(</span></span>
 <span id="L137"><span class="lineNum">     137</span>                 :             :               &quot;--shard-tail regex must have exactly one capturing group (the dup), got &quot;,</span>
 <span id="L138"><span class="lineNum">     138</span>                 :<span class="tlaGNC">           2 :               tail_re-&gt;NumberOfCapturingGroups()));</span></span>
 <span id="L139"><span class="lineNum">     139</span>                 :             :     }</span>
 <span id="L140"><span class="lineNum">     140</span>                 :             :   }</span>
-<span id="L141"><span class="lineNum">     141</span>                 :<span class="tlaGNC">          50 :   std::vector&lt;std::unique_ptr&lt;CustomPattern&gt;&gt; custom;</span></span>
-<span id="L142"><span class="lineNum">     142</span>         [<span class="tlaGBC" title="Branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 47 times"> + </span>]:<span class="tlaGNC">          54 :   for (const std::string&amp; pattern : custom_patterns) {</span></span>
-<span id="L143"><span class="lineNum">     143</span>                 :<span class="tlaGNC">           7 :     auto re = std::make_unique&lt;RE2&gt;(pattern);</span></span>
-<span id="L144"><span class="lineNum">     144</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">           7 :     if (!re-&gt;ok()) {</span></span>
+<span id="L141"><span class="lineNum">     141</span>                 :<span class="tlaGNC">          53 :   std::vector&lt;std::unique_ptr&lt;CustomPattern&gt;&gt; custom;</span></span>
+<span id="L142"><span class="lineNum">     142</span>         [<span class="tlaGBC" title="Branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 50 times"> + </span>]:<span class="tlaGNC">          58 :   for (const std::string&amp; pattern : custom_patterns) {</span></span>
+<span id="L143"><span class="lineNum">     143</span>                 :<span class="tlaGNC">           8 :     auto re = std::make_unique&lt;RE2&gt;(pattern);</span></span>
+<span id="L144"><span class="lineNum">     144</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">           8 :     if (!re-&gt;ok()) {</span></span>
 <span id="L145"><span class="lineNum">     145</span>                 :<span class="tlaGNC">           1 :       return absl::InvalidArgumentError(absl::StrCat(&quot;invalid --shard-pattern regex '&quot;, pattern, &quot;': &quot;, re-&gt;error()));</span></span>
 <span id="L146"><span class="lineNum">     146</span>                 :             :     }</span>
 <span id="L147"><span class="lineNum">     147</span>                 :             :     // Named groups are the contract (RE2 uses `(?P&lt;name&gt;...)`); `stem` and `index` are required.</span>
-<span id="L148"><span class="lineNum">     148</span>                 :<span class="tlaGNC">           6 :     const std::map&lt;std::string, int&gt;&amp; groups = re-&gt;NamedCapturingGroups();</span></span>
-<span id="L149"><span class="lineNum">     149</span>                 :<span class="tlaGNC">          20 :     const auto find = [&amp;groups](std::string_view name) {</span></span>
-<span id="L150"><span class="lineNum">     150</span>                 :<span class="tlaGNC">          40 :       const auto it = groups.find(std::string(name));</span></span>
-<span id="L151"><span class="lineNum">     151</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          20 :       return it == groups.end() ? -1 : it-&gt;second;</span></span>
-<span id="L152"><span class="lineNum">     152</span>                 :<span class="tlaGNC">           6 :     };</span></span>
-<span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">           6 :     const int stem_idx = find(&quot;stem&quot;);</span></span>
-<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">           6 :     const int index_idx = find(&quot;index&quot;);</span></span>
-<span id="L155"><span class="lineNum">     155</span>   [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 4 times"> + </span>]:<span class="tlaGNC">           6 :     if (stem_idx &lt; 0 || index_idx &lt; 0) {</span></span>
+<span id="L148"><span class="lineNum">     148</span>                 :<span class="tlaGNC">           7 :     const std::map&lt;std::string, int&gt;&amp; groups = re-&gt;NamedCapturingGroups();</span></span>
+<span id="L149"><span class="lineNum">     149</span>                 :<span class="tlaGNC">          24 :     const auto find = [&amp;groups](std::string_view name) {</span></span>
+<span id="L150"><span class="lineNum">     150</span>                 :<span class="tlaGNC">          48 :       const auto it = groups.find(std::string(name));</span></span>
+<span id="L151"><span class="lineNum">     151</span>         [<span class="tlaGBC" title="Branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 16 times"> + </span>]:<span class="tlaGNC">          24 :       return it == groups.end() ? -1 : it-&gt;second;</span></span>
+<span id="L152"><span class="lineNum">     152</span>                 :<span class="tlaGNC">           7 :     };</span></span>
+<span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">           7 :     const int stem_idx = find(&quot;stem&quot;);</span></span>
+<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">           7 :     const int index_idx = find(&quot;index&quot;);</span></span>
+<span id="L155"><span class="lineNum">     155</span>   [<span class="tlaGBC" title="Branch 0 was taken 7 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 5 times"> + </span>]:<span class="tlaGNC">           7 :     if (stem_idx &lt; 0 || index_idx &lt; 0) {</span></span>
 <span id="L156"><span class="lineNum">     156</span>                 :<span class="tlaGNC">           4 :       return absl::InvalidArgumentError(</span></span>
 <span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">           4 :           absl::StrCat(</span></span>
 <span id="L158"><span class="lineNum">     158</span>                 :<span class="tlaGNC">           2 :               &quot;--shard-pattern '&quot;, pattern, &quot;' must define the named groups (?P&lt;stem&gt;...) and (?P&lt;index&gt;...)&quot;));</span></span>
 <span id="L159"><span class="lineNum">     159</span>                 :             :     }</span>
-<span id="L160"><span class="lineNum">     160</span>                 :<span class="tlaGNC">           4 :     custom.push_back(</span></span>
-<span id="L161"><span class="lineNum">     161</span>                 :<span class="tlaGNC">          12 :         std::make_unique&lt;CustomPattern&gt;(CustomPattern{</span></span>
-<span id="L162"><span class="lineNum">     162</span>                 :<span class="tlaGNC">           4 :             .re = std::move(re),</span></span>
+<span id="L160"><span class="lineNum">     160</span>                 :<span class="tlaGNC">           5 :     custom.push_back(</span></span>
+<span id="L161"><span class="lineNum">     161</span>                 :<span class="tlaGNC">          15 :         std::make_unique&lt;CustomPattern&gt;(CustomPattern{</span></span>
+<span id="L162"><span class="lineNum">     162</span>                 :<span class="tlaGNC">           5 :             .re = std::move(re),</span></span>
 <span id="L163"><span class="lineNum">     163</span>                 :             :             .stem_idx = stem_idx,</span>
 <span id="L164"><span class="lineNum">     164</span>                 :             :             .index_idx = index_idx,</span>
-<span id="L165"><span class="lineNum">     165</span>                 :<span class="tlaGNC">           4 :             .total_idx = find(&quot;total&quot;),</span></span>
-<span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaGNC">           4 :             .dup_idx = find(&quot;dup&quot;),</span></span>
+<span id="L165"><span class="lineNum">     165</span>                 :<span class="tlaGNC">           5 :             .total_idx = find(&quot;total&quot;),</span></span>
+<span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaGNC">           5 :             .dup_idx = find(&quot;dup&quot;),</span></span>
 <span id="L167"><span class="lineNum">     167</span>                 :             :         }));</span>
-<span id="L168"><span class="lineNum">     168</span>         [<span class="tlaGBC" title="Branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">           7 :   }</span></span>
-<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">          47 :   return Matcher(std::move(of_re), std::move(tail_re), std::move(custom));</span></span>
-<span id="L170"><span class="lineNum">     170</span>                 :<span class="tlaGNC">          53 : }</span></span>
+<span id="L168"><span class="lineNum">     168</span>         [<span class="tlaGBC" title="Branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">           8 :   }</span></span>
+<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">          50 :   return Matcher(std::move(of_re), std::move(tail_re), std::move(custom));</span></span>
+<span id="L170"><span class="lineNum">     170</span>                 :<span class="tlaGNC">          56 : }</span></span>
 <span id="L171"><span class="lineNum">     171</span>                 :             : </span>
 <span id="L172"><span class="lineNum">     172</span>                 :<span class="tlaGNC">          67 : void Matcher::ApplyTail(std::string_view rest, Match&amp; out) const {</span></span>
 <span id="L173"><span class="lineNum">     173</span>                 :             :   // Anchor at the start of `rest`: the tail (with its in-regex separator) sits</span>
@@ -264,49 +264,49 @@
 <span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaGNC">         106 :   out.ext = std::string(rest);</span></span>
 <span id="L184"><span class="lineNum">     184</span>                 :             : }</span>
 <span id="L185"><span class="lineNum">     185</span>                 :             : </span>
-<span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">         121 : std::optional&lt;Match&gt; Matcher::DecodeCustom(std::string_view filename) const {</span></span>
-<span id="L187"><span class="lineNum">     187</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 112 times"> + </span>]:<span class="tlaGNC">         124 :   for (const std::unique_ptr&lt;CustomPattern&gt;&amp; pat : custom_) {</span></span>
-<span id="L188"><span class="lineNum">     188</span>                 :<span class="tlaGNC">          12 :     const auto ngroups = static_cast&lt;std::size_t&gt;(pat-&gt;re-&gt;NumberOfCapturingGroups());</span></span>
-<span id="L189"><span class="lineNum">     189</span>                 :<span class="tlaGNC">          12 :     std::vector&lt;std::string_view&gt; subs(ngroups + 1);</span></span>
-<span id="L190"><span class="lineNum">     190</span>         [<span class="tlaGBC" title="Branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">          12 :     if (!pat-&gt;re-&gt;Match(filename, 0, filename.size(), RE2::ANCHOR_BOTH, subs.data(), static_cast&lt;int&gt;(subs.size()))) {</span></span>
+<span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">         126 : std::optional&lt;Match&gt; Matcher::DecodeCustom(std::string_view filename) const {</span></span>
+<span id="L187"><span class="lineNum">     187</span>         [<span class="tlaGBC" title="Branch 0 was taken 14 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 116 times"> + </span>]:<span class="tlaGNC">         130 :   for (const std::unique_ptr&lt;CustomPattern&gt;&amp; pat : custom_) {</span></span>
+<span id="L188"><span class="lineNum">     188</span>                 :<span class="tlaGNC">          14 :     const auto ngroups = static_cast&lt;std::size_t&gt;(pat-&gt;re-&gt;NumberOfCapturingGroups());</span></span>
+<span id="L189"><span class="lineNum">     189</span>                 :<span class="tlaGNC">          14 :     std::vector&lt;std::string_view&gt; subs(ngroups + 1);</span></span>
+<span id="L190"><span class="lineNum">     190</span>         [<span class="tlaGBC" title="Branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 11 times"> + </span>]:<span class="tlaGNC">          14 :     if (!pat-&gt;re-&gt;Match(filename, 0, filename.size(), RE2::ANCHOR_BOTH, subs.data(), static_cast&lt;int&gt;(subs.size()))) {</span></span>
 <span id="L191"><span class="lineNum">     191</span>                 :<span class="tlaGNC">           3 :       continue;</span></span>
 <span id="L192"><span class="lineNum">     192</span>                 :             :     }</span>
-<span id="L193"><span class="lineNum">     193</span>                 :<span class="tlaGNC">           9 :     const std::string_view index_sv = subs[static_cast&lt;std::size_t&gt;(pat-&gt;index_idx)];</span></span>
-<span id="L194"><span class="lineNum">     194</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">           9 :     if (index_sv.data() == nullptr) {</span></span>
-<span id="L195"><span class="lineNum">     195</span>                 :<span class="tlaUNC tlaBgUNC">           0 :       continue;  // the required `index` group did not participate in this match</span></span>
+<span id="L193"><span class="lineNum">     193</span>                 :<span class="tlaGNC">          11 :     const std::string_view index_sv = subs[static_cast&lt;std::size_t&gt;(pat-&gt;index_idx)];</span></span>
+<span id="L194"><span class="lineNum">     194</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          11 :     if (index_sv.data() == nullptr) {</span></span>
+<span id="L195"><span class="lineNum">     195</span>                 :<span class="tlaGNC">           1 :       continue;  // the required `index` group did not participate in this match</span></span>
 <span id="L196"><span class="lineNum">     196</span>                 :             :     }</span>
-<span id="L197"><span class="lineNum">     197</span>                 :<span class="tlaGNC tlaBgGNC">           9 :     Match match{</span></span>
+<span id="L197"><span class="lineNum">     197</span>                 :<span class="tlaGNC">          10 :     Match match{</span></span>
 <span id="L198"><span class="lineNum">     198</span>                 :             :         .scheme = Scheme::kCustom,</span>
-<span id="L199"><span class="lineNum">     199</span>                 :<span class="tlaGNC">           9 :         .stem = std::string(subs[static_cast&lt;std::size_t&gt;(pat-&gt;stem_idx)]),</span></span>
-<span id="L200"><span class="lineNum">     200</span>                 :<span class="tlaGNC">           9 :         .index = ToInt(index_sv),</span></span>
-<span id="L201"><span class="lineNum">     201</span>                 :<span class="tlaGNC">           9 :         .width = static_cast&lt;int&gt;(index_sv.size()),</span></span>
-<span id="L202"><span class="lineNum">     202</span>                 :<span class="tlaGNC">          27 :     };</span></span>
-<span id="L203"><span class="lineNum">     203</span>         [<span class="tlaGBC" title="Branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">           9 :     if (pat-&gt;total_idx &gt;= 0) {</span></span>
+<span id="L199"><span class="lineNum">     199</span>                 :<span class="tlaGNC">          10 :         .stem = std::string(subs[static_cast&lt;std::size_t&gt;(pat-&gt;stem_idx)]),</span></span>
+<span id="L200"><span class="lineNum">     200</span>                 :<span class="tlaGNC">          10 :         .index = ToInt(index_sv),</span></span>
+<span id="L201"><span class="lineNum">     201</span>                 :<span class="tlaGNC">          10 :         .width = static_cast&lt;int&gt;(index_sv.size()),</span></span>
+<span id="L202"><span class="lineNum">     202</span>                 :<span class="tlaGNC">          30 :     };</span></span>
+<span id="L203"><span class="lineNum">     203</span>         [<span class="tlaGBC" title="Branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">          10 :     if (pat-&gt;total_idx &gt;= 0) {</span></span>
 <span id="L204"><span class="lineNum">     204</span>         [<span class="tlaGBC" title="Branch 0 was taken 2 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">           2 :       if (const std::string_view total_sv = subs[static_cast&lt;std::size_t&gt;(pat-&gt;total_idx)]; !total_sv.empty()) {</span></span>
 <span id="L205"><span class="lineNum">     205</span>                 :<span class="tlaGNC">           2 :         match.total = ToInt(total_sv);</span></span>
 <span id="L206"><span class="lineNum">     206</span>                 :             :       }</span>
 <span id="L207"><span class="lineNum">     207</span>                 :             :     }</span>
-<span id="L208"><span class="lineNum">     208</span>         [<span class="tlaGBC" title="Branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           9 :     if (pat-&gt;dup_idx &gt;= 0) {</span></span>
+<span id="L208"><span class="lineNum">     208</span>         [<span class="tlaGBC" title="Branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">          10 :     if (pat-&gt;dup_idx &gt;= 0) {</span></span>
 <span id="L209"><span class="lineNum">     209</span>                 :<span class="tlaGNC">          14 :       match.tail = std::string(subs[static_cast&lt;std::size_t&gt;(pat-&gt;dup_idx)]);  // dup excluded from identity</span></span>
 <span id="L210"><span class="lineNum">     210</span>                 :             :     }</span>
 <span id="L211"><span class="lineNum">     211</span>                 :             :     // Wildcard: mask the index group's span with `?` * width, in place. The group is a view into</span>
 <span id="L212"><span class="lineNum">     212</span>                 :             :     // `filename`, so its byte offset is known; everything else (including any dup) is kept verbatim.</span>
-<span id="L213"><span class="lineNum">     213</span>                 :<span class="tlaGNC">           9 :     const auto off = static_cast&lt;std::size_t&gt;(index_sv.data() - filename.data());</span></span>
+<span id="L213"><span class="lineNum">     213</span>                 :<span class="tlaGNC">          10 :     const auto off = static_cast&lt;std::size_t&gt;(index_sv.data() - filename.data());</span></span>
 <span id="L214"><span class="lineNum">     214</span>                 :             :     match.wildcard =</span>
-<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">          18 :         absl::StrCat(filename.substr(0, off), std::string(match.width, '?'), filename.substr(off + index_sv.size()));</span></span>
-<span id="L216"><span class="lineNum">     216</span>                 :<span class="tlaGNC">           9 :     return match;</span></span>
-<span id="L217"><span class="lineNum">     217</span>         [<span class="tlaGBC" title="Branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">          21 :   }</span></span>
-<span id="L218"><span class="lineNum">     218</span>                 :<span class="tlaGNC">         112 :   return std::nullopt;</span></span>
+<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">          20 :         absl::StrCat(filename.substr(0, off), std::string(match.width, '?'), filename.substr(off + index_sv.size()));</span></span>
+<span id="L216"><span class="lineNum">     216</span>                 :<span class="tlaGNC">          10 :     return match;</span></span>
+<span id="L217"><span class="lineNum">     217</span>         [<span class="tlaGBC" title="Branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          24 :   }</span></span>
+<span id="L218"><span class="lineNum">     218</span>                 :<span class="tlaGNC">         116 :   return std::nullopt;</span></span>
 <span id="L219"><span class="lineNum">     219</span>                 :             : }</span>
 <span id="L220"><span class="lineNum">     220</span>                 :             : </span>
-<span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC">         121 : std::optional&lt;Match&gt; Matcher::Decode(std::string_view filename) const {</span></span>
+<span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC">         126 : std::optional&lt;Match&gt; Matcher::Decode(std::string_view filename) const {</span></span>
 <span id="L222"><span class="lineNum">     222</span>                 :             :   // A user --shard-pattern wins over the built-ins (explicit intent), tried in order.</span>
-<span id="L223"><span class="lineNum">     223</span>         [<span class="tlaGBC" title="Branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 112 times"> + </span>]:<span class="tlaGNC">         121 :   if (std::optional&lt;Match&gt; custom = DecodeCustom(filename); custom.has_value()) {</span></span>
-<span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaGNC">           9 :     return custom;</span></span>
-<span id="L225"><span class="lineNum">     225</span>                 :<span class="tlaGNC">         112 :   }</span></span>
+<span id="L223"><span class="lineNum">     223</span>         [<span class="tlaGBC" title="Branch 0 was taken 10 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 116 times"> + </span>]:<span class="tlaGNC">         126 :   if (std::optional&lt;Match&gt; custom = DecodeCustom(filename); custom.has_value()) {</span></span>
+<span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaGNC">          10 :     return custom;</span></span>
+<span id="L225"><span class="lineNum">     225</span>                 :<span class="tlaGNC">         116 :   }</span></span>
 <span id="L226"><span class="lineNum">     226</span>                 :             :   // kOf: the self-describing `-of-` scheme, tried first (most specific).</span>
-<span id="L227"><span class="lineNum">     227</span>                 :<span class="tlaGNC">         112 :   std::array&lt;std::string_view, 5&gt; subs;</span></span>
-<span id="L228"><span class="lineNum">     228</span>         [<span class="tlaGBC" title="Branch 0 was taken 67 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 45 times"> + </span>]:<span class="tlaGNC">         336 :   if (of_re_-&gt;Match(filename, 0, filename.size(), RE2::ANCHOR_BOTH, subs.data(), subs.size())) {</span></span>
+<span id="L227"><span class="lineNum">     227</span>                 :<span class="tlaGNC">         116 :   std::array&lt;std::string_view, 5&gt; subs;</span></span>
+<span id="L228"><span class="lineNum">     228</span>         [<span class="tlaGBC" title="Branch 0 was taken 67 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 49 times"> + </span>]:<span class="tlaGNC">         348 :   if (of_re_-&gt;Match(filename, 0, filename.size(), RE2::ANCHOR_BOTH, subs.data(), subs.size())) {</span></span>
 <span id="L229"><span class="lineNum">     229</span>                 :<span class="tlaGNC">          67 :     Match match{</span></span>
 <span id="L230"><span class="lineNum">     230</span>                 :             :         .scheme = Scheme::kOf,</span>
 <span id="L231"><span class="lineNum">     231</span>                 :<span class="tlaGNC">          67 :         .stem = std::string(subs[1]),</span></span>
@@ -321,14 +321,14 @@
 <span id="L240"><span class="lineNum">     240</span>                 :<span class="tlaGNC">          67 :     return match;</span></span>
 <span id="L241"><span class="lineNum">     241</span>                 :<span class="tlaGNC">          67 :   }</span></span>
 <span id="L242"><span class="lineNum">     242</span>                 :             :   // kDotNum: a trailing `.&lt;digits&gt;` (7-Zip volumes, generic).</span>
-<span id="L243"><span class="lineNum">     243</span>         [<span class="tlaGBC" title="Branch 0 was taken 13 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 32 times"> + </span>]:<span class="tlaGNC">          45 :   if (const auto split = TrailingDigits(filename, '.'); split.has_value()) {</span></span>
-<span id="L244"><span class="lineNum">     244</span>                 :<span class="tlaGNC">          13 :     return SuffixMatch(Scheme::kDotNum, split-&gt;first, split-&gt;second, '.');</span></span>
+<span id="L243"><span class="lineNum">     243</span>         [<span class="tlaGBC" title="Branch 0 was taken 14 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 35 times"> + </span>]:<span class="tlaGNC">          49 :   if (const auto split = TrailingDigits(filename, '.'); split.has_value()) {</span></span>
+<span id="L244"><span class="lineNum">     244</span>                 :<span class="tlaGNC">          14 :     return SuffixMatch(Scheme::kDotNum, split-&gt;first, split-&gt;second, '.');</span></span>
 <span id="L245"><span class="lineNum">     245</span>                 :             :   }</span>
 <span id="L246"><span class="lineNum">     246</span>                 :             :   // kUnderscore: a trailing `_&lt;digits&gt;`.</span>
-<span id="L247"><span class="lineNum">     247</span>         [<span class="tlaGBC" title="Branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 29 times"> + </span>]:<span class="tlaGNC">          32 :   if (const auto split = TrailingDigits(filename, '_'); split.has_value()) {</span></span>
+<span id="L247"><span class="lineNum">     247</span>         [<span class="tlaGBC" title="Branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 32 times"> + </span>]:<span class="tlaGNC">          35 :   if (const auto split = TrailingDigits(filename, '_'); split.has_value()) {</span></span>
 <span id="L248"><span class="lineNum">     248</span>                 :<span class="tlaGNC">           3 :     return SuffixMatch(Scheme::kUnderscore, split-&gt;first, split-&gt;second, '_');</span></span>
 <span id="L249"><span class="lineNum">     249</span>                 :             :   }</span>
-<span id="L250"><span class="lineNum">     250</span>                 :<span class="tlaGNC">          29 :   return std::nullopt;</span></span>
+<span id="L250"><span class="lineNum">     250</span>                 :<span class="tlaGNC">          32 :   return std::nullopt;</span></span>
 <span id="L251"><span class="lineNum">     251</span>                 :             : }</span>
 <span id="L252"><span class="lineNum">     252</span>                 :             : </span>
 <span id="L253"><span class="lineNum">     253</span>                 :             : }  // namespace xff::shard</span>

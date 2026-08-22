@@ -3,36 +3,36 @@
   "measurements": {
     "overall": {
       "lines": {
-        "covered": 10823,
+        "covered": 10861,
         "total": 11521,
-        "percent": 93.94
+        "percent": 94.27
       },
       "functions": {
-        "covered": 1257,
+        "covered": 1259,
         "total": 1289,
-        "percent": 97.52
+        "percent": 97.67
       },
       "branches": {
-        "covered": 7644,
+        "covered": 7690,
         "total": 9124,
-        "percent": 83.78
+        "percent": 84.28
       }
     },
     "program / command line": {
       "lines": {
-        "covered": 1576,
+        "covered": 1604,
         "total": 1649,
-        "percent": 95.57
+        "percent": 97.27
       },
       "functions": {
-        "covered": 166,
+        "covered": 168,
         "total": 170,
-        "percent": 97.65
+        "percent": 98.82
       },
       "branches": {
-        "covered": 904,
+        "covered": 938,
         "total": 1027,
-        "percent": 88.02
+        "percent": 91.33
       }
     },
     "program / configuration": {
@@ -88,9 +88,9 @@
     },
     "program / filesystem": {
       "lines": {
-        "covered": 437,
+        "covered": 443,
         "total": 463,
-        "percent": 94.38
+        "percent": 95.68
       },
       "functions": {
         "covered": 50,
@@ -98,16 +98,16 @@
         "percent": 98.04
       },
       "branches": {
-        "covered": 272,
+        "covered": 277,
         "total": 316,
-        "percent": 86.08
+        "percent": 87.66
       }
     },
     "program / matching": {
       "lines": {
-        "covered": 709,
+        "covered": 713,
         "total": 719,
-        "percent": 98.61
+        "percent": 99.17
       },
       "functions": {
         "covered": 103,
@@ -115,9 +115,9 @@
         "percent": 100.0
       },
       "branches": {
-        "covered": 529,
+        "covered": 535,
         "total": 601,
-        "percent": 88.02
+        "percent": 89.02
       }
     },
     "program / presentation": {
@@ -200,9 +200,9 @@
         "percent": 100.0
       },
       "branches": {
-        "covered": 35,
+        "covered": 36,
         "total": 40,
-        "percent": 87.5
+        "percent": 90.0
       }
     },
     "extensions / Brotli": {

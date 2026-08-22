@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 20:50:14</td>
+            <td class="headerValue">2026-08-22 21:40:07</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -131,14 +131,14 @@
 <span id="L53"><span class="lineNum">      53</span>                 :             : // via Context(). It is set at construction and constant thereafter.</span>
 <span id="L54"><span class="lineNum">      54</span>                 :             : class HelpBackend {</span>
 <span id="L55"><span class="lineNum">      55</span>                 :             :  public:</span>
-<span id="L56"><span class="lineNum">      56</span>                 :<span class="tlaGNC tlaBgGNC">          82 :   HelpBackend() = default;</span></span>
+<span id="L56"><span class="lineNum">      56</span>                 :<span class="tlaGNC tlaBgGNC">          83 :   HelpBackend() = default;</span></span>
 <span id="L57"><span class="lineNum">      57</span>                 :             : </span>
 <span id="L58"><span class="lineNum">      58</span>                 :             :   // std::move is a no-op while HelpRenderContext is trivially copyable, but keeps the</span>
 <span id="L59"><span class="lineNum">      59</span>                 :             :   // sink-parameter idiom for when it gains a non-trivial field (e.g. a color palette).</span>
 <span id="L60"><span class="lineNum">      60</span>                 :             :   // NOLINTNEXTLINE(*-move-const-arg)</span>
 <span id="L61"><span class="lineNum">      61</span>                 :<span class="tlaGNC">         122 :   explicit HelpBackend(HelpRenderContext context) : context_(std::move(context)) {}</span></span>
 <span id="L62"><span class="lineNum">      62</span>                 :             : </span>
-<span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">         204 :   virtual ~HelpBackend() = default;</span></span>
+<span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">         205 :   virtual ~HelpBackend() = default;</span></span>
 <span id="L64"><span class="lineNum">      64</span>                 :             :   HelpBackend(const HelpBackend&amp;) = delete;</span>
 <span id="L65"><span class="lineNum">      65</span>                 :             :   HelpBackend&amp; operator=(const HelpBackend&amp;) = delete;</span>
 <span id="L66"><span class="lineNum">      66</span>                 :             :   HelpBackend(HelpBackend&amp;&amp;) = delete;</span>
