@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 18:36:20</td>
+            <td class="headerValue">2026-08-22 19:33:05</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -76,7 +76,7 @@
               <td>
 <pre class="sourceHeading">             Branch data     Line data    Source code</pre>
 <pre class="source">
-<span id="L1"><span class="lineNum">       1</span>                 :             : // SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)</span>
+<span id="L1"><span class="lineNum">       1</span>                 :             : // SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors</span>
 <span id="L2"><span class="lineNum">       2</span>                 :             : // SPDX-License-Identifier: Apache-2.0</span>
 <span id="L3"><span class="lineNum">       3</span>                 :             : //</span>
 <span id="L4"><span class="lineNum">       4</span>                 :             : // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
@@ -124,14 +124,14 @@
 <span id="L46"><span class="lineNum">      46</span>                 :             : // Replaces every &quot;{}&quot; in `token` with `path` (find's -exec placeholder).</span>
 <span id="L47"><span class="lineNum">      47</span>                 :<span class="tlaGNC tlaBgGNC">         274 : std::string SubstitutePlaceholder(std::string_view token, std::string_view path) {</span></span>
 <span id="L48"><span class="lineNum">      48</span>                 :<span class="tlaGNC">         274 :   std::string out;</span></span>
-<span id="L49"><span class="lineNum">      49</span>         [<span class="tlaGBC" title="Branch 0 was taken 3701 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 274 times"> + </span>]:<span class="tlaGNC">        3975 :   for (std::string_view::size_type i = 0; i &lt; token.size();) {</span></span>
-<span id="L50"><span class="lineNum">      50</span>   [<span class="tlaGBC" title="Branch 0 was taken 3466 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 235 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 61 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 3405 times"> + </span> :<span class="tlaGNC">        3701 :     if (i + 1 &lt; token.size() &amp;&amp; token[i] == '{' &amp;&amp; token[i + 1] == '}') {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 4 was taken 58 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 3 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 58 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 3643 times"> + </span>]
+<span id="L49"><span class="lineNum">      49</span>         [<span class="tlaGBC" title="Branch 0 was taken 3700 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 274 times"> + </span>]:<span class="tlaGNC">        3974 :   for (std::string_view::size_type i = 0; i &lt; token.size();) {</span></span>
+<span id="L50"><span class="lineNum">      50</span>   [<span class="tlaGBC" title="Branch 0 was taken 3465 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 235 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 61 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 3404 times"> + </span> :<span class="tlaGNC">        3700 :     if (i + 1 &lt; token.size() &amp;&amp; token[i] == '{' &amp;&amp; token[i + 1] == '}') {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 4 was taken 58 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 3 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 58 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 3642 times"> + </span>]
 <span id="L51"><span class="lineNum">      51</span>                 :<span class="tlaGNC">          58 :       out.append(path);</span></span>
 <span id="L52"><span class="lineNum">      52</span>                 :<span class="tlaGNC">          58 :       i += 2;</span></span>
 <span id="L53"><span class="lineNum">      53</span>                 :             :     } else {</span>
-<span id="L54"><span class="lineNum">      54</span>                 :<span class="tlaGNC">        3643 :       out.push_back(token[i]);</span></span>
-<span id="L55"><span class="lineNum">      55</span>                 :<span class="tlaGNC">        3643 :       ++i;</span></span>
+<span id="L54"><span class="lineNum">      54</span>                 :<span class="tlaGNC">        3642 :       out.push_back(token[i]);</span></span>
+<span id="L55"><span class="lineNum">      55</span>                 :<span class="tlaGNC">        3642 :       ++i;</span></span>
 <span id="L56"><span class="lineNum">      56</span>                 :             :     }</span>
 <span id="L57"><span class="lineNum">      57</span>                 :             :   }</span>
 <span id="L58"><span class="lineNum">      58</span>                 :<span class="tlaGNC">         274 :   return out;</span></span>
