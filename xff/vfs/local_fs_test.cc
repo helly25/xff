@@ -107,10 +107,16 @@ TEST_F(LocalFsTest, StatAndReadDirRecognizeSpecialFileTypes) {
   struct sockaddr_un address = {};
   address.sun_family = AF_UNIX;
   constexpr std::string_view kSocketName = "socket";
+  // sun_path is the fixed C array required by sockaddr_un; copy() necessarily receives a pointer.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay,hicpp-no-array-decay)
   kSocketName.copy(address.sun_path, sizeof(address.sun_path) - 1);
-  const int original_dir = ::open(".", O_RDONLY);
+  // open() is variadic by declaration; O_CLOEXEC prevents leaking this temporary fd to children.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
+  const int original_dir = ::open(".", O_RDONLY | O_CLOEXEC);
   ASSERT_THAT(original_dir, Gt(-1));
   ASSERT_THAT(::chdir(root_.c_str()), Eq(0));
+  // POSIX bind accepts the generic sockaddr view of the concrete sockaddr_un.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   const int bind_result = ::bind(socket_fd_, reinterpret_cast<const struct sockaddr*>(&address), sizeof(address));
   ASSERT_THAT(::fchdir(original_dir), Eq(0));
   ASSERT_THAT(::close(original_dir), Eq(0));
