@@ -92,13 +92,24 @@ def _version_key(value: str) -> tuple[int, ...]:
     return tuple(map(int, match.groups())) if match else (-1,)
 
 
-def report_metadata(summary: dict, target: str, created_at: str, run_id: int, run_attempt: int, head_sha: str) -> dict:
+def report_metadata(
+    summary: dict,
+    target: str,
+    created_at: str,
+    started_at: str,
+    completed_at: str,
+    run_id: int,
+    run_attempt: int,
+    head_sha: str,
+) -> dict:
     """Returns the retained identity and overview data for one report."""
     return {
         "schema": 1,
         "target": target,
         "source": {
             "created_at": created_at,
+            "started_at": started_at,
+            "completed_at": completed_at,
             "run_id": run_id,
             "run_attempt": run_attempt,
             "head_sha": head_sha,
@@ -199,6 +210,8 @@ def main() -> int:
     metadata.add_argument("target")
     metadata.add_argument("output", type=Path)
     metadata.add_argument("--created-at", required=True)
+    metadata.add_argument("--started-at", required=True)
+    metadata.add_argument("--completed-at", required=True)
     metadata.add_argument("--head-sha", required=True)
     metadata.add_argument("--run-attempt", required=True, type=int)
     metadata.add_argument("--run-id", required=True, type=int)
@@ -212,7 +225,16 @@ def main() -> int:
         args.output.write_text(render_site(args.root), encoding="utf-8")
     elif args.command == "metadata":
         summary = json.loads(args.summary.read_text(encoding="utf-8"))
-        value = report_metadata(summary, args.target, args.created_at, args.run_id, args.run_attempt, args.head_sha)
+        value = report_metadata(
+            summary,
+            args.target,
+            args.created_at,
+            args.started_at,
+            args.completed_at,
+            args.run_id,
+            args.run_attempt,
+            args.head_sha,
+        )
         args.output.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
     else:
         candidate = json.loads(args.candidate.read_text(encoding="utf-8"))

@@ -37,7 +37,14 @@ class CoverageIndexTest(unittest.TestCase):
                 (target / "index.html").touch()
                 (target / "coverage-summary.json").write_text(json.dumps(_summary(95.0)))
                 metadata = coverage_index.report_metadata(
-                    _summary(95.0), report, "2026-08-22T10:00:00Z", 1, 1, "abc"
+                    _summary(95.0),
+                    report,
+                    "2026-08-22T09:59:00Z",
+                    "2026-08-22T10:00:00Z",
+                    "2026-08-22T10:01:00Z",
+                    1,
+                    1,
+                    "abc",
                 )
                 (target / "coverage-meta.json").write_text(json.dumps(metadata))
 
@@ -64,13 +71,34 @@ class CoverageIndexTest(unittest.TestCase):
     def test_newer_report_wins_even_when_an_older_run_finishes_later(self):
         summary = _summary(95.0)
         old = coverage_index.report_metadata(
-            summary, "pr/42", "2026-08-22T10:00:00Z", 100, 1, "old"
+            summary,
+            "pr/42",
+            "2026-08-22T10:00:00Z",
+            "2026-08-22T10:01:00Z",
+            "2026-08-22T10:10:00Z",
+            100,
+            1,
+            "old",
         )
         new = coverage_index.report_metadata(
-            summary, "pr/42", "2026-08-22T10:01:00Z", 101, 1, "new"
+            summary,
+            "pr/42",
+            "2026-08-22T10:01:00Z",
+            "2026-08-22T10:02:00Z",
+            "2026-08-22T10:03:00Z",
+            101,
+            1,
+            "new",
         )
         rerun = coverage_index.report_metadata(
-            summary, "pr/42", "2026-08-22T10:01:00Z", 101, 2, "new"
+            summary,
+            "pr/42",
+            "2026-08-22T10:01:00Z",
+            "2026-08-22T10:11:00Z",
+            "2026-08-22T10:12:00Z",
+            101,
+            2,
+            "new",
         )
         self.assertTrue(coverage_index.is_newer(new, old))
         self.assertFalse(coverage_index.is_newer(old, new))

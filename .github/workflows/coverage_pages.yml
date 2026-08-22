@@ -45,9 +45,11 @@ jobs:
       - name: Select and stage the report
         env:
           SOURCE_CREATED_AT: ${{ github.event.workflow_run.created_at }}
+          SOURCE_COMPLETED_AT: ${{ github.event.workflow_run.updated_at }}
           SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_STARTED_AT: ${{ github.event.workflow_run.run_started_at }}
         run: |
           set -euo pipefail
           target="$(<report/coverage-target.txt)"
@@ -59,10 +61,12 @@ jobs:
             report/coverage-html/coverage-summary.json \
             "${target}" \
             report/coverage-html/coverage-meta.json \
+            --completed-at "${SOURCE_COMPLETED_AT}" \
             --created-at "${SOURCE_CREATED_AT}" \
             --head-sha "${SOURCE_HEAD_SHA}" \
             --run-attempt "${SOURCE_RUN_ATTEMPT}" \
-            --run-id "${SOURCE_RUN_ID}"
+            --run-id "${SOURCE_RUN_ID}" \
+            --started-at "${SOURCE_STARTED_AT}"
           # Migrate every report produced before the namespaced PR layout was introduced. This is
           # deliberately registry-like rather than naming PR 609/610: any old retained prN report
           # is moved once, and future reports are written directly below pr/N.
@@ -94,10 +98,12 @@ jobs:
               "${summary}" \
               "${retained_target}" \
               "${report_dir}/coverage-meta.json" \
+              --completed-at "1970-01-01T00:00:00Z" \
               --created-at "1970-01-01T00:00:00Z" \
               --head-sha legacy \
               --run-attempt 0 \
-              --run-id 0
+              --run-id 0 \
+              --started-at "1970-01-01T00:00:00Z"
           done < <(find site/coverage -name coverage-summary.json -print0)
           python3 source/tools/coverage_index.py site site/coverage site/coverage/index.html
           git -C site config user.name 'github-actions[bot]'
