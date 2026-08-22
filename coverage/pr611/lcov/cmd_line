@@ -1,0 +1,1 @@
+genhtml coverage-html.lcov --branch-coverage --demangle-cpp --function-coverage --ignore-errors negative --legend --output-directory coverage-html/lcov --show-details --title 'xff production coverage'
