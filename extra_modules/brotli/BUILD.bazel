@@ -1,0 +1,91 @@
+# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-License-Identifier: Apache-2.0
+
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@xff_extras_api//:license_body.bzl", "license_body")
+
+package(default_visibility = ["//visibility:private"])
+
+license_body(
+    name = "mit_license_cc",
+    src = "licenses/MIT.txt",
+    spdx = "MIT",
+)
+
+cc_library(
+    name = "brotli_license_cc",
+    srcs = ["brotli_license.cc"],
+    deps = [
+        ":mit_license_cc",
+        "@xff_extras_api//:license_notice_cc",
+    ],
+    alwayslink = True,
+)
+
+cc_test(
+    name = "brotli_license_test",
+    size = "small",
+    srcs = ["brotli_license_test.cc"],
+    deps = [
+        ":brotli_license_cc",
+        "@googletest//:gtest_main",
+        "@xff_extras_api//:license_notice_cc",
+    ],
+)
+
+cc_test(
+    name = "brotli_codec_test",
+    size = "small",
+    srcs = ["brotli_codec_test.cc"],
+    deps = [
+        ":brotli_codec_cc",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/status:status_macros_cc",
+        "@helly25_mbo//mbo/testing:status_cc",
+        "@xff_archive//:archive_reader_cc",
+        "@xff_extras_api//:archive_backend_cc",
+    ],
+)
+
+cc_library(
+    name = "brotli_codec_cc",
+    srcs = ["brotli_codec.cc"],
+    hdrs = ["brotli_codec.h"],
+    include_prefix = "xff/brotli",
+    deps = [
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@brotli//:brotlidec",
+        "@brotli//:brotlienc",
+        "@helly25_mbo//mbo/status:status_macros_cc",
+        "@xff_archive//:archive_register_cc",
+        "@xff_extras_api//:archive_backend_cc",
+    ],
+)
+
+cc_library(
+    name = "brotli_register_cc",
+    srcs = ["brotli_register.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":brotli_codec_cc",
+        ":brotli_license_cc",
+        "@xff_archive//:archive_extension_cc",
+        "@xff_archive//:archive_register_cc",
+    ],
+    alwayslink = True,
+)
+
+cc_test(
+    name = "brotli_register_test",
+    size = "small",
+    srcs = ["brotli_register_test.cc"],
+    deps = [
+        ":brotli_register_cc",
+        "@googletest//:gtest_main",
+        "@xff_extras_api//:archive_backend_cc",
+    ],
+)

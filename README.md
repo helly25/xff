@@ -26,7 +26,7 @@ This `README.md` is a short overview. The complete, always-current reference liv
 - **Safe by Default:** `-delete` implicitly forces `-depth` and strictly honors `--dry-run` / `--safe`. Configuration tiers loaded via an `--xffrc` file are sandboxed: they cannot execute dangerous directives (`-exec`, `-execdir`, `-ok`, `-capture`, or `-delete`) unless explicitly armed via a trusted CLI flag (`--allow-exec`).
 - **Multi-Threaded Traversal:** `-j N` runs the filesystem walk across a native worker pool and also controls concurrent `-exec` jobs, scaling both discovery and actions across available CPU cores; `--sort` restores deterministic ordering when requested.
 - **Virtual Archive Filesystems:** `--archive` walks archives and compressed files as directory trees, including nested containers. The normal name, metadata, content, hash, and reduction vocabulary works on members; opt-in controls can mount or extract members for commands and safely rewrite a container when deleting members.
-- **Archive Creation from an Expression:** `--pack=FILE` writes the matched set directly to a new archive, with deterministic member order, atomic publication, compression controls, and no `find | tar` filename boundary to get wrong.
+- **Archive Creation from an Expression:** `--pack=FILE` writes the matched set directly to a new archive, with deterministic member order, atomic publication, compression controls, and no `find | tar` filename boundary to get wrong. The removable Brotli extra reads raw streams and writes self-identifying RFC 9841 `.tar.br` / `.tbr` by default, with an explicit raw compatibility mode.
 - **Developer-Aware Traversal:** Layered `.gitignore`, `.ignore`, and `.xffignore` handling; explicit include/exclude rules; hidden-file policy; and pruning for Git, Mercurial, Subversion, Jujutsu, Bazaar, Darcs, and CVS are independent, configurable controls.
 - **Shard-Aware Listings:** `--shards` recognizes numbered datasets such as `data-00000-of-00010`, validates duplicate indices, and collapses each set to a useful first, wildcard, or count representation.
 
@@ -61,6 +61,7 @@ expression and one traversal.
 | **Virtual archive traversal**           |   -    |  -   |  △   |   -   |   -    |  -   |   -    |     -      |       △       | **✓ Members use the full expression**    |
 | **Nested archive content search**       |   -    |  -   |  △   |   -   |   -    |  -   |   -    |     -      |       △       | **✓ Depth-controlled transparent reads** |
 | **Archive creation from matches**       |   -    |  -   |  -   |   -   |   -    |  -   |   -    |     -      |       ✓       | **✓ `--pack` sink**                      |
+| **Standards-framed Brotli archives**    |   -    |  -   |  -   |   -   |   -    |  -   |   -    |     -      |       △       | **✓ RFC 9841 default; raw optional**     |
 | **Safe delete preview**                 |   △    |  △   |  -   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `--dry-run`, `--safe`**              |
 | **Parallel/batched per-match exec**     |   △    |  ✓   |  -   |   △   |   -    |  -   |   -    |     -      |       -       | **✓ `-exec ... +`, `-j`**                |
 | **Capture command output as a field**   |   -    |  -   |  -   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `-capture`, `{capture.NAME}`**       |
@@ -155,7 +156,7 @@ The vocabulary and options are defined once inside the C++ binary (the engine re
 The default build provides a lean, dependency-light core. Heavier processing capabilities (such as the advanced `PCRE2` regex grammar or recursive archive diving) are decoupled as composable build-time extras that are disabled by default to keep the core binary small. The extended target links them all:
 
 ```bash
-# The full binary, with every extra (PCRE2, archive diving, etc.).
+# The full binary, with every extra (PCRE2, archive diving, Brotli, etc.).
 bazel build --config=xff_full //xff/cli:xff_full
 ```
 

@@ -18,7 +18,14 @@
 // were dropped from the link, which is precisely the regression worth guarding: `--archive` would go
 // back to "not built into this binary" with nothing failing to build.
 
+#include "xff/archive/archive_register.h"
+
+#include <filesystem>
+#include <fstream>
+#include <optional>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
@@ -26,13 +33,17 @@
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
 #include "xff/archive/archive_backend.h"
+#include "xff/archive/archive_extension.h"
+#include "xff/archive/archive_fs.h"
 
 namespace xff::archive {
 namespace {
 
+using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
 using ::testing::AllOf;
 using ::testing::Contains;
+using ::testing::Eq;
 using ::testing::Field;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
@@ -77,15 +88,56 @@ TEST_F(ArchiveRegisterTest, TheOptionVocabularyReachesTheCoreThroughTheSeam) {
   // What the CLI checks a `--pack-option` name against, and what `--help=archive` renders. Reading it
   // from the seam is the point: a name added to the writer must reach both without a second list.
   EXPECT_THAT(
-      ContainerPackVocabulary(), Contains(AllOf(
-                                     Field("name", &PackOptionInfo::name, "level"),
-                                     Field("formats", &PackOptionInfo::formats, HasSubstr("zip")))));
+      ContainerPackVocabulary(),
+      Contains(AllOf(
+          Field("name", &PackOptionInfo::name, "level"), Field("formats", &PackOptionInfo::formats, Contains("zip")))));
 }
 
 TEST_F(ArchiveRegisterTest, TheSeamReachesTheRealWriterAndKeepsItsErrors) {
   // An output name carrying no writable format is InvalidArgument; with no registrar the seam would
   // answer Unimplemented instead, which is the regression this guards.
   EXPECT_THAT(PackContainer("/tmp/xff-register.rar", {}), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(ArchiveRegisterTest, RefreshMergesExtensionVocabularyAndRoutesItsPacker) {
+  std::string packed;
+  RegisterCompressionExtension({
+      .name = "test-extension",
+      .suffixes = {".extra"},
+      .read_formats =
+          {
+              {.name = "file", .suffixes = {".extra"}, .detail = "test-compressed file"},
+              {.name = "file", .suffixes = {".extra-quiet"}},
+              {.name = "extra-container", .suffixes = {".tar.extra"}},
+          },
+      .pack_formats = {"tar.extra"},
+      .pack_vocabulary = {{.name = "strength", .value_syntax = "N", .detail = "test strength"}},
+      .decoder = [](std::string_view, std::optional<std::string_view>,
+                    std::uint64_t) { return absl::StatusOr<std::string>("decoded"); },
+      .packer =
+          [&packed](std::string_view path, const std::vector<PackFile>&, const PackOptions&) {
+            packed = path;
+            return absl::OkStatus();
+          },
+  });
+  RegisterArchiveBackend();
+
+  EXPECT_THAT(
+      ContainerReadFormats(), AllOf(
+                                  Contains(AllOf(
+                                      Field("name", &ReadFormatInfo::name, "file"),
+                                      Field("suffixes", &ReadFormatInfo::suffixes, Contains(".extra")),
+                                      Field("detail", &ReadFormatInfo::detail, HasSubstr("test-compressed file")))),
+                                  Contains(Field("name", &ReadFormatInfo::name, "extra-container"))));
+  EXPECT_THAT(ContainerPackFormats(), Contains("tar.extra"));
+  EXPECT_THAT(ContainerPackVocabulary(), Contains(Field("name", &PackOptionInfo::name, "strength")));
+  EXPECT_THAT(PackContainer("out.tar.extra", {}), IsOk());
+  EXPECT_THAT(packed, Eq("out.tar.extra"));
+
+  const std::filesystem::path input = std::filesystem::path(::testing::TempDir()) / "xff-register.extra";
+  std::ofstream(input, std::ios::binary) << "ignored";
+  EXPECT_THAT(OpenContainer(input.string()), IsOk());
+  EXPECT_THAT(ArchiveFileSystem::OpenBytes("nested.extra", "ignored"), IsOk());
 }
 
 }  // namespace

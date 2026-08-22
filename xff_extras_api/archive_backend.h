@@ -157,8 +157,8 @@ struct PackOptions {
 // that is generated from it. Empty when no packer is linked.
 struct PackOptionInfo {
   std::string name;
-  std::string value_syntax;  // "N", "yes|no", "store|deflate"
-  std::string formats;       // the output names it applies to, comma-joined
+  std::string value_syntax;                    // "N", "yes|no", "store|deflate"
+  absl::Span<const std::string_view> formats;  // immutable output-name vocabulary it applies to
   std::string detail;
 };
 

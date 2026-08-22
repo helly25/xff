@@ -1415,6 +1415,9 @@ bool ExtraEnabled(std::string_view key) {
   if (key == "archive") {
     return archive::ContainerSupportAvailable();
   }
+  if (key == "brotli") {
+    return absl::c_linear_search(archive::ContainerPackFormats(), "tar.br");
+  }
   if (key == "fuse") {
     return fuse::MountSupportAvailable();
   }
@@ -1430,6 +1433,7 @@ std::vector<std::string> EnabledExtras() {
   // topic, and the rebuild hints all read from these three rather than keeping private copies.
   static constexpr std::array kKnownExtras = std::to_array<std::string_view>({
       "archive",
+      "brotli",
       "fuse",
       "pcre2",
   });
@@ -1449,6 +1453,9 @@ std::string_view ExtraBuildFlag(std::string_view key) {
   // rule would print a flag that does not exist - which is worse than useless in an error message.
   if (key == "archive") {
     return "--//xff:xff_archive";
+  }
+  if (key == "brotli") {
+    return "--//xff:xff_brotli";
   }
   if (key == "fuse") {
     return "--//xff:xff_fuse";

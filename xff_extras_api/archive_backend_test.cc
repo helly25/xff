@@ -85,6 +85,8 @@ struct ArchiveBackendTest : ::testing::Test {
   }
 };
 
+constexpr std::array kTarGzOnly = std::to_array<std::string_view>({"tar.gz"});
+
 TEST_F(ArchiveBackendTest, WithNoRemoverAContainerCannotBeRewritten) {
   EXPECT_THAT(ContainerRemovalAvailable(), IsFalse());
   EXPECT_THAT(
@@ -289,7 +291,7 @@ TEST_F(ArchiveBackendTest, ARegisteredPackerReceivesThePathAndTheFilesUnchanged)
         return absl::OkStatus();
       },
       {"tar", "tar.gz"},
-      {PackOptionInfo{.name = "level", .value_syntax = "N", .formats = "tar.gz", .detail = "how hard"}});
+      {PackOptionInfo{.name = "level", .value_syntax = "N", .formats = kTarGzOnly, .detail = "how hard"}});
   EXPECT_THAT(ContainerPackingAvailable(), IsTrue());
   EXPECT_THAT(
       PackContainer(

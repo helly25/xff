@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import fnmatch
 import json
 import re
@@ -19,6 +20,21 @@ def declared_extras() -> dict[str, str]:
     """Returns every extra from the repository's single source of truth."""
     root = Path(__file__).resolve().parent.parent
     return extras.extras((root / "bazelmod" / "extras.MODULE.bazel").read_text(encoding="utf-8"))
+
+
+def resolved_policy(policy: dict, modules: dict[str, str]) -> dict:
+    """Adds every registered extra to the coverage scope and module table."""
+    result = copy.deepcopy(policy)
+    includes = result.setdefault("include", ["xff/**"])
+    extensions = result.setdefault("categories", {}).setdefault("extensions", {})
+    for module in modules:
+        pattern = f"{module}/**"
+        if pattern not in includes:
+            includes.append(pattern)
+        if not any(pattern in category.get("include", ()) for category in extensions.values()):
+            name = module.removeprefix("xff_").replace("_", " ").title()
+            extensions[name] = {"include": [pattern]}
+    return result
 
 
 def remap(report: str, modules: dict[str, str]) -> str:
@@ -79,6 +95,9 @@ def main() -> int:
     parser.add_argument("--source-root", type=Path)
     args = parser.parse_args()
     modules = declared_extras()
+    policy = None
+    if args.policy:
+        policy = resolved_policy(json.loads(args.policy.read_text(encoding="utf-8")), modules)
     report = remap(args.input.read_text(encoding="utf-8"), modules)
     if args.policy or args.source_root:
         if not args.policy or not args.source_root:
@@ -86,7 +105,7 @@ def main() -> int:
         report = grouped(
             report,
             modules,
-            json.loads(args.policy.read_text(encoding="utf-8")),
+            policy,
             args.source_root,
         )
     args.output.write_text(report, encoding="utf-8")

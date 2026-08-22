@@ -72,6 +72,12 @@ test::xff_full_links_the_pcre2_extra() {
   expect_matches "pcre2 +\[built into this binary\]" "${out}"
 }
 
+test::xff_full_links_the_brotli_extra() {
+  local out
+  out="$("$(_xff_full_bin)" --help=extras 2>&1)"
+  expect_matches "brotli +\[built into this binary\]" "${out}"
+}
+
 test::archive_mount_runs_the_action_over_a_real_container() {
   # A real container (the committed mini.tar), through the mount path. Mounting is a per-MACHINE
   # capability, so the assertion is what holds EVERYWHERE: the action runs and the child sees the
@@ -120,10 +126,12 @@ test::the_notice_lists_every_linked_extra_and_the_direct_codecs() {
   # the phar reader inflates members with them directly, not through libarchive.
   local out
   out="$("$(_xff_full_bin)" --help=notice 2>&1)"
-  expect_output_contains 'Build extras compiled into this binary: archive, fuse, pcre2' "${out}"
+  expect_output_contains 'Build extras compiled into this binary: archive, brotli, fuse, pcre2' "${out}"
   expect_output_contains 'Build extension: FUSE (@xff_fuse)' "${out}"
   expect_output_contains 'Build extension: PCRE2 (@xff_pcre2)' "${out}"
   expect_output_contains 'Build extension: archive (@xff_archive)' "${out}"
+  expect_output_contains 'Build extension: Brotli archive compression (@xff_brotli)' "${out}"
+  expect_output_contains 'Brotli  [MIT]' "${out}"
   expect_output_contains 'zlib  [Zlib]' "${out}"
   expect_output_contains 'bzip2  [bzip2-1.0.6]' "${out}"
   expect_output_contains 'liblzma (XZ Utils)  [LicenseRef-Public-Domain]' "${out}"
@@ -143,6 +151,9 @@ test::the_full_binary_embeds_each_extensions_license_bodies() {
   expect_output_contains 'do whatever you want' "${out}"
   out="$("$(_xff_full_bin)" --help=license=bzip2 2>&1)"
   expect_output_contains 'bzip2/libbzip2 version 1.0.8' "${out}"
+  out="$("$(_xff_full_bin)" --help=license=Brotli 2>&1)"
+  expect_output_contains 'MIT' "${out}"
+  expect_output_contains 'Permission is hereby granted, free of charge' "${out}"
 }
 
 test_runner

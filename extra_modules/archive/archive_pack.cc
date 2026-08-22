@@ -517,7 +517,7 @@ std::vector<PackOptionDoc> PackOptionDocs() {
     docs.push_back(
         {.name = std::string(spec.name),
          .value_syntax = std::move(syntax),
-         .formats = absl::StrJoin(spec.formats, ", "),
+         .formats = spec.formats,
          .detail = std::string(spec.detail)});
   }
   return docs;

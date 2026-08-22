@@ -39,6 +39,12 @@ local_path_override(
     path = "extra_modules/archive",
 )
 
+bazel_dep(name = "xff_brotli", version = "0.0.0")
+local_path_override(
+    module_name = "xff_brotli",
+    path = "extra_modules/brotli",
+)
+
 bazel_dep(name = "xff_fuse", version = "0.0.0")
 local_path_override(
     module_name = "xff_fuse",

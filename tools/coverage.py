@@ -13,6 +13,8 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import coverage_sources
+
 
 @dataclass
 class FileCoverage:
@@ -21,7 +23,7 @@ class FileCoverage:
     branches: list[tuple[int, bool]] = field(default_factory=list)
 
 
-def _repo_path(value: str) -> str | None:
+def _repo_path(value: str, modules: dict[str, str] | None = None) -> str | None:
     """Returns a stable first-party path for workspace and local-module sources."""
     value = value.replace("\\", "/")
     roots = ("xff/", "xff_extras_api/")
@@ -34,16 +36,17 @@ def _repo_path(value: str) -> str | None:
 
     # Bazel reports local_path_override sources under external/xff_NAME+/. Give
     # each extension a stable, concise namespace independent of the execroot.
-    match = re.search(r"(?:^|/)external/(xff_(archive|fuse|pcre2))\+/(.*)$", value)
-    if match:
-        return f"{match.group(1)}/{match.group(3)}"
-    for name in ("archive", "fuse", "pcre2"):
-        prefix = f"extra_modules/{name}/"
+    modules = coverage_sources.declared_extras() if modules is None else modules
+    for module, directory in modules.items():
+        match = re.search(rf"(?:^|/)external/{re.escape(module)}\+/(.*)$", value)
+        if match:
+            return f"{module}/{match.group(1)}"
+        prefix = directory.rstrip("/") + "/"
         if value.startswith(prefix):
-            return f"xff_{name}/" + value.removeprefix(prefix)
-        marker = f"/extra_modules/{name}/"
+            return f"{module}/" + value.removeprefix(prefix)
+        marker = f"/{prefix}"
         if marker in value:
-            return f"xff_{name}/" + value.split(marker, 1)[1]
+            return f"{module}/" + value.split(marker, 1)[1]
     return None
 
 
@@ -214,7 +217,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--summary", type=Path)
     parser.add_argument("--json-summary", type=Path)
     args = parser.parse_args(argv)
-    policy = json.loads(args.policy.read_text(encoding="utf-8"))
+    policy = coverage_sources.resolved_policy(
+        json.loads(args.policy.read_text(encoding="utf-8")), coverage_sources.declared_extras()
+    )
     files = select_files(parse_lcov(args.lcov), policy)
     measured = measurements(files, policy)
     if not files:

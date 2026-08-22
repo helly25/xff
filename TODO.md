@@ -1217,10 +1217,15 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
     `archive_read_support_filter_all()`: lzop/lrzip/grzip stay excluded because this build would
     launch host programs (and linking LZO creates the already-recorded GPL/static-link problem),
     while a future libarchive Brotli filter cannot silently bypass the removable-extra boundary.
-    **Next slice:** `@xff_brotli`, a separate extra depending on `@xff_archive`, owns `.tar.br` and
-    `.br` streaming reads/writes through Brotli's MIT-licensed C API. Both are suffix-only claims:
-    RFC 7932 streams have no magic bytes, stored size, or integrity checksum, so content sniffing
-    and corruption detection beyond decoder-format errors would be dishonest.
+    **Brotli slice SHIPPED:** `@xff_brotli` is a separate extra depending on `@xff_archive`; it owns
+    streaming `.tar.br` / `.tbr` reads and writes plus raw `.br` single-file reads through Brotli's
+    MIT-licensed C API. Writing defaults to the self-identifying RFC 9841 framing format
+    (`91 0a 42 52`, one Brotli data resource); `--pack-option=framing=raw` is the explicit
+    interoperability escape hatch for legacy tools that only understand RFC 7932. Reading accepts
+    both. Raw RFC 7932 streams remain suffix-only claims because they have no mandatory universal
+    magic bytes, stored size, or integrity checksum. The base archive extra's explicit filter
+    allowlist and committed `.tar.br` fixture prevent a future libarchive Brotli filter from silently
+    bypassing this removable-extra boundary.
 
 - **Fuzzy finding + near-duplicate detection** (design open). Two distinct capabilities that share the
   "approximate match" theme; split them, do not conflate:

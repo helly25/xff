@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/types/span.h"
 
 namespace xff::archive {
 
@@ -55,7 +56,7 @@ struct PackSettings {
 struct PackOptionDoc {
   std::string name;
   std::string value_syntax;  // "N", "yes|no", "store|deflate"
-  std::string formats;
+  absl::Span<const std::string_view> formats;
   std::string detail;
 };
 

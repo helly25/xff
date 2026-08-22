@@ -27,6 +27,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "mbo/status/status_macros.h"
+#include "xff/archive/archive_extension.h"
 #include "xff/archive/archive_reader.h"
 #include "xff/archive/member_path.h"
 #include "xff/archive/phar_reader.h"
@@ -103,6 +104,10 @@ absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::Open(std::string_view conta
     }
   }
   if (absl::IsInvalidArgument(members.status())) {
+    if (CompressionExtensionFor(container) != nullptr) {
+      MBO_ASSIGN_OR_RETURN(std::string content, DecodeCompressionExtension(container, std::nullopt));
+      return OpenDecodedExtension(container, std::move(content), options);
+    }
     // Third and last: a compressed single file. Its InvalidArgument means "not that either", which
     // falls through to report the original member-list error below.
     absl::StatusOr<ArchiveFileSystem> single = OpenCompressedSingle(container, options);
@@ -124,17 +129,27 @@ absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::OpenCompressedSingle(
   // A compressed single file has no member list to read, so the content is decompressed once here
   // and the filesystem holds it - which also makes the size it reports the real, uncompressed one.
   MBO_ASSIGN_OR_RETURN(std::string content, ReadCompressedSingleFile(container));
+  return OpenDecodedExtension(container, std::move(content), options);
+}
+
+absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::OpenDecodedExtension(
+    std::string_view container,
+    std::string content,
+    MemberPathOptions options) {
   // What the decompressed bytes turn out to BE decides this. `Phar::compress()` wraps a whole phar,
   // and `.tar.gz` is a whole tar, so a container can hide inside the compression: OpenBytes asks
   // libarchive and then the phar reader about the decompressed bytes, and when either claims them
   // the members are the real answer. Only when nothing claims them is this a single compressed FILE.
-  absl::StatusOr<ArchiveFileSystem> inner = OpenBytes(container, content, options);
+  absl::StatusOr<ArchiveFileSystem> inner = OpenBytesImpl(container, content, options, /*allow_extensions=*/false);
   if (inner.ok() || !absl::IsInvalidArgument(inner.status())) {
     return inner;
   }
   const std::string_view::size_type slash = container.rfind('/');
   const std::string_view name = slash == std::string_view::npos ? container : container.substr(slash + 1);
-  const std::optional<std::string> stem = CompressionSuffixStripped(name);
+  std::optional<std::string> stem = CompressionSuffixStripped(name);
+  if (!stem.has_value()) {
+    stem = CompressionExtensionStem(name);
+  }
   MBO_ASSIGN_OR_RETURN(
       ArchiveFileSystem fs, Index(
                                 std::string(container), std::string(),
@@ -153,6 +168,14 @@ absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::OpenBytes(
     std::string_view container,
     std::string bytes,
     MemberPathOptions options) {
+  return OpenBytesImpl(container, std::move(bytes), options, /*allow_extensions=*/true);
+}
+
+absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::OpenBytesImpl(
+    std::string_view container,
+    std::string bytes,
+    MemberPathOptions options,
+    bool allow_extensions) {
   // A container INSIDE a container: its bytes came out of its parent, so there is no path to open
   // and the filesystem keeps them for as long as it lives (member reads stream from them).
   absl::StatusOr<std::vector<Member>> members = ListMembers(bytes);
@@ -165,6 +188,10 @@ absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::OpenBytes(
     } else if (!absl::IsInvalidArgument(phar_members.status())) {
       return phar_members.status();
     }
+  }
+  if (allow_extensions && absl::IsInvalidArgument(members.status()) && CompressionExtensionFor(container) != nullptr) {
+    MBO_ASSIGN_OR_RETURN(std::string content, DecodeCompressionExtension(container, bytes));
+    return OpenDecodedExtension(container, std::move(content), options);
   }
   MBO_RETURN_IF_ERROR(members.status());
   MBO_ASSIGN_OR_RETURN(ArchiveFileSystem fs, Index(std::string(container), std::move(bytes), *members, options));

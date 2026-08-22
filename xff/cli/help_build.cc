@@ -587,7 +587,8 @@ Section ArchiveSection(bool in_full) {
     for (const archive::PackOptionInfo& option : pack_options) {
       rows.rows.push_back(
           Row{.term = absl::StrCat(option.name, "=", option.value_syntax),
-              .description = ParseInline(absl::StrCat(option.detail, " (", option.formats, ")"))});
+              .description =
+                  ParseInline(absl::StrCat(option.detail, " (`", absl::StrJoin(option.formats, "`, `"), "`)"))});
     }
     creating.children.push_back(Content{.node = std::move(rows)});
   }
