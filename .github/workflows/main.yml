@@ -7,10 +7,15 @@ on:
     branches: ["**"]
 
 # A branch push is covered by its pull_request run; only `main` needs a push
-# run. And cancel superseded runs on the same ref so rapid pushes don't pile up.
+# run. Supersede stale PR runs, but let the RUNNING main validation finish: the
+# coverage publisher is triggered only when this whole workflow completes, so
+# cancelling every post-merge run during a sequence of merges can indefinitely
+# prevent `coverage/main` from being refreshed. The concurrency group still
+# keeps at most one newer main run pending, and the publisher's metadata ordering
+# prevents an older completed report from replacing a newer one.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions: read-all
 
