@@ -23,6 +23,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -50,6 +51,7 @@ using ::testing::Gt;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Not;
+using ::testing::StartsWith;
 using ::testing::UnorderedElementsAre;
 
 // Builds a small tree under a per-test temp directory:
@@ -207,6 +209,33 @@ TEST_F(LocalFsTest, FsTypeReportsTheContainingFilesystemAndRejectsMissingPaths) 
   EXPECT_THAT(local_fs_.FsType(root_.string()), IsOkAndHolds(Not(Eq(""))));
   EXPECT_THAT(local_fs_.FsType(Path("nope")), StatusIs(absl::StatusCode::kNotFound));
 }
+
+#if defined(__linux__)
+TEST_F(LocalFsTest, ReadLinkGrowsItsBufferForALargeTarget) {
+  const std::string target(1'500, 'x');
+  std::error_code error;
+  fs::create_symlink(target, root_ / "long-link", error);
+  ASSERT_THAT(error, Eq(std::error_code()));
+  EXPECT_THAT(local_fs_.ReadLink(Path("long-link")), IsOkAndHolds(Eq(target)));
+}
+
+TEST_F(LocalFsTest, ProcfsMetadataHasNoBirthTime) {
+  MBO_ASSERT_OK_AND_ASSIGN(const auto metadata, local_fs_.Stat("/proc/self/stat", /*follow_symlinks=*/false));
+  EXPECT_THAT(metadata.btime, Eq(std::nullopt));
+}
+
+TEST_F(LocalFsTest, ReadDirRecognizesCharacterDeviceEntries) {
+  MBO_ASSERT_OK_AND_ASSIGN(const auto entries, local_fs_.ReadDir("/dev"));
+  EXPECT_THAT(entries, Contains(Field(&Entry::type, FileType::kCharDevice)));
+}
+
+TEST_F(LocalFsTest, FsTypeUsesHexForAnUnmappedKernelMagic) {
+  if (!fs::exists("/dev/mqueue")) {
+    GTEST_SKIP() << "/dev/mqueue is not mounted";
+  }
+  EXPECT_THAT(local_fs_.FsType("/dev/mqueue"), IsOkAndHolds(StartsWith("0x")));
+}
+#endif
 
 TEST_F(LocalFsTest, ReadContentRejectsADirectory) {
   EXPECT_THAT(local_fs_.ReadContent(Path("sub")), Not(IsOk()));
