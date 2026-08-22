@@ -104,10 +104,13 @@ def _summary(root: Path, target: str) -> dict | None:
     return json.loads(source.read_text(encoding="utf-8")) if source.is_file() else None
 
 
-def _short_row(root: Path, target: str, label: str) -> str:
+def _short_row(root: Path, target: str, label: str, reference: str | None = None) -> str:
     summary = _summary(root, target)
     values = ["n/a"] * 3 if summary is None else [_percent(summary["measurements"]["overall"][metric]) for metric in _METRICS]
-    return f'        <tr><td><a href="{target}/">{html.escape(label)}</a></td>' + "".join(f"<td>{value}</td>" for value in values) + "</tr>"
+    report = f'<a href="{target}/">{html.escape(label)}</a>'
+    if reference:
+        report += f' · <a href="{html.escape(reference)}">GitHub release</a>'
+    return f"        <tr><td>{report}</td>" + "".join(f"<td>{value}</td>" for value in values) + "</tr>"
 
 
 def render_site(root: Path) -> str:
@@ -116,10 +119,17 @@ def render_site(root: Path) -> str:
     pull_requests = sorted(_reports(root, "pr"), key=lambda value: int(value), reverse=True)
     reports = []
     if (root / "main" / "index.html").is_file():
-        reports.append(("main", "main"))
-    reports.extend((f"tag/{release}", f"release {release}") for release in releases)
-    reports.extend((f"pr/{number}", f"PR {number}") for number in pull_requests)
-    rows = "\n".join(_short_row(root, target, label) for target, label in reports)
+        reports.append(("main", "main", None))
+    reports.extend(
+        (
+            f"tag/{release}",
+            f"release {release}",
+            f"https://github.com/helly25/xff/releases/tag/v{release}",
+        )
+        for release in releases
+    )
+    reports.extend((f"pr/{number}", f"PR {number}", None) for number in pull_requests)
+    rows = "\n".join(_short_row(root, target, label, reference) for target, label, reference in reports)
     body = "    <h1>xff coverage reports</h1>\n"
     if rows:
         body += """    <table><thead><tr><th>Report</th><th>Lines</th><th>Functions</th><th>Branches</th></tr></thead>
