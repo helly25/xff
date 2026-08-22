@@ -12,13 +12,22 @@ _ANCHOR = '            <tr><td class="ruler"><img src="glass.png" width=3 height
 
 def legend(policy: dict[str, Any]) -> str:
     minimum = policy["minimum"]
+    target = {**minimum, **policy.get("target", {})}
     cells: list[str] = []
     for label, key in (("Lines", "lines"), ("Functions", "functions"), ("Branches", "branches")):
         floor = int(minimum[key])
-        text = (
-            f'<span class="coverLegendCovLo">low: &lt; {floor} %</span> '
-            f'<span class="coverLegendCovHi">high: &gt;= {floor} %</span>'
-        )
+        goal = int(target[key])
+        if floor == goal:
+            text = (
+                f'<span class="coverLegendCovLo">low: &lt; {floor} %</span> '
+                f'<span class="coverLegendCovHi">high: &gt;= {goal} %</span>'
+            )
+        else:
+            text = (
+                f'<span class="coverLegendCovLo">low: &lt; {floor} %</span> '
+                f'<span class="coverLegendCovMed">medium: &gt;= {floor} %</span> '
+                f'<span class="coverLegendCovHi">high: &gt;= {goal} %</span>'
+            )
         cells.append(f"<b>{label}:</b> {text}")
     return (
         '            <tr>\n'
