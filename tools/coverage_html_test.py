@@ -27,13 +27,13 @@ class CoverageHtmlTest(unittest.TestCase):
             self.assertIn("Coverage policy:", rendered)
             self.assertIn("<b>Lines:</b>", rendered)
             self.assertIn("low: &lt; 90 %", rendered)
-            self.assertIn("medium: &gt;= 90 %", rendered)
-            self.assertIn("high: &gt;= 92 %", rendered)
-            self.assertIn("medium: &gt;= 95 %", rendered)
-            self.assertIn("high: &gt;= 97 %", rendered)
+            self.assertIn("high: &gt;= 90 %", rendered)
+            self.assertIn("low: &lt; 95 %", rendered)
+            self.assertIn("high: &gt;= 95 %", rendered)
             self.assertIn("<b>Branches:</b>", rendered)
-            self.assertIn("medium: &gt;= 80 %", rendered)
-            self.assertIn("high: &gt;= 82 %", rendered)
+            self.assertIn("low: &lt; 80 %", rendered)
+            self.assertIn("high: &gt;= 80 %", rendered)
+            self.assertNotIn("medium:", rendered)
 
     def test_rejects_an_unrecognized_genhtml_page(self):
         with tempfile.TemporaryDirectory() as directory:

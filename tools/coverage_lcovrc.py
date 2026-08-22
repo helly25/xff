@@ -11,19 +11,17 @@ _METRICS = ("line", "function", "branch")
 _POLICY_KEYS = {"line": "lines", "function": "functions", "branch": "branches"}
 def render(policy: dict[str, Any]) -> str:
     minimum = policy["minimum"]
-    target = {**minimum, **policy.get("target", {})}
     lines: list[str] = []
     for metric in _METRICS:
         key = _POLICY_KEYS[metric]
-        medium = int(minimum[key])
-        high = int(target[key])
-        if not 0 <= medium <= high <= 100:
-            raise ValueError(
-                f"{metric} coverage thresholds must satisfy 0 <= minimum <= target <= 100: "
-                f"{medium}, {high}"
-            )
-        lines.append(f"genhtml_{metric}_hi_limit = {high}")
-        lines.append(f"genhtml_{metric}_med_limit = {medium}")
+        threshold = int(minimum[key])
+        if not 0 <= threshold <= 100:
+            raise ValueError(f"{metric} coverage minimum must satisfy 0 <= minimum <= 100: {threshold}")
+        # The detailed report uses the same binary pass/fail boundary as the
+        # enforcing summary. Setting both limits to the floor removes genhtml's
+        # otherwise misleading medium band.
+        lines.append(f"genhtml_{metric}_hi_limit = {threshold}")
+        lines.append(f"genhtml_{metric}_med_limit = {threshold}")
     return "\n".join(lines) + "\n"
 
 
