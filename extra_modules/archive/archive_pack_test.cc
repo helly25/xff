@@ -103,12 +103,14 @@ TEST_F(ArchivePackTest, PackedFilesReadBackWithTheirNamesAndContent) {
 TEST_F(ArchivePackTest, TheOutputNameChoosesTheFormat) {
   // Each suffix produces a container the reader opens; that it reads back at all is what proves the
   // format and filter were set, since a wrong filter yields bytes libarchive cannot parse.
-  // Every writable format except `.tar.xz`, which lives in archive_pack_xz_test so that target
-  // alone can be tagged `no_san` (liblzma trips UBSan's `function` check).
+  // Every writable format except the liblzma-backed ones, which live in archive_pack_xz_test so
+  // that target alone can be tagged `no_san` (liblzma trips UBSan's `function` check).
   static constexpr std::array kNames = std::to_array<std::string_view>({
       "packed.tar.gz",
       "packed.tar.bz2",
       "packed.tar.zst",
+      "packed.tar.lz4",
+      "packed.tar.Z",
       "packed.zip",
       // The single-word shortcuts GNU tar recognises, which people type: each must reach the same
       // format its long spelling does. `.tar.xz` and `.txz` live in archive_pack_xz_test (no_san).
@@ -117,6 +119,7 @@ TEST_F(ArchivePackTest, TheOutputNameChoosesTheFormat) {
       "packed.tbz",
       "packed.tz2",
       "packed.tzst",
+      "packed.taZ",
   });
   for (const std::string_view name : kNames) {
     const std::string out = Output(name);
@@ -199,6 +202,26 @@ TEST_F(ArchivePackTest, TheCompressionLevelReachesTheCompressor) {
   EXPECT_THAT(stdfs::file_size(small), Lt(stdfs::file_size(fast)));
   // And the content survives whichever level was used.
   EXPECT_THAT(ReadMemberOfFile(small, "big.txt"), IsOkAndHolds(SizeIs(200'001)));
+}
+
+TEST_F(ArchivePackTest, CompressedAliasesAcceptTheSameOptionsAsTheirLongForms) {
+  // Option applicability keys on the resolved format name. Every alias therefore needs coverage:
+  // accepting the output suffix alone is insufficient if `--pack-level` or `threads` is then
+  // rejected for that alias.
+  static constexpr std::array kLevelAliases = std::to_array<std::string_view>({
+      "alias.tgz",
+      "alias.tbz2",
+      "alias.tbz",
+      "alias.tz2",
+      "alias.tzst",
+  });
+  for (const std::string_view name : kLevelAliases) {
+    EXPECT_THAT(PackFiles(Output(name), Entries(), PackSettings{.options = {{.name = "level", .value = "3"}}}), IsOk())
+        << name;
+  }
+  EXPECT_THAT(
+      PackFiles(Output("threaded.tzst"), Entries(), PackSettings{.options = {{.name = "threads", .value = "2"}}}),
+      IsOk());
 }
 
 TEST_F(ArchivePackTest, AnUnknownOptionNameIsRefusedNamingTheVocabulary) {
@@ -318,14 +341,17 @@ TEST_F(PackFormatsTest, TheSingleWordShortcutsResolveLikeTheirLongSpellings) {
   EXPECT_THAT(FormatFromName("a.tbz"), Eq("tbz"));
   EXPECT_THAT(FormatFromName("a.tz2"), Eq("tz2"));
   EXPECT_THAT(FormatFromName("a.tzst"), Eq("tzst"));
-  // `.taz` (tar.Z) and `.tlz` (tar.lzma) would mean adding compressors this table does not write.
-  EXPECT_THAT(FormatFromName("a.taz"), IsEmpty());
-  EXPECT_THAT(FormatFromName("a.tlz"), IsEmpty());
+  EXPECT_THAT(FormatFromName("a.taZ"), Eq("taZ"));
+  EXPECT_THAT(FormatFromName("a.tlz"), Eq("tlz"));
 }
 
 TEST_F(PackFormatsTest, FormatFromNameIsCaseInsensitiveAndPrefersTheLongestSuffix) {
   EXPECT_THAT(FormatFromName("a.tar.gz"), Eq("tar.gz"));  // not "gz" and not "tar"
   EXPECT_THAT(FormatFromName("A.TAR.GZ"), Eq("tar.gz"));
+  EXPECT_THAT(FormatFromName("A.TAR.Z"), Eq("tar.Z"));
+  EXPECT_THAT(FormatFromName("a.tar.lz"), Eq("tar.lz"));
+  EXPECT_THAT(FormatFromName("a.tar.lzma"), Eq("tar.lzma"));
+  EXPECT_THAT(FormatFromName("a.tar.lz4"), Eq("tar.lz4"));
   EXPECT_THAT(FormatFromName("a.zip"), Eq("zip"));
   EXPECT_THAT(FormatFromName("a.rar"), IsEmpty());
   EXPECT_THAT(FormatFromName("plain"), IsEmpty());

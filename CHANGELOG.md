@@ -46,6 +46,14 @@
 
 ## Archives
 
+- Extend the archive extra's native filter coverage to lzip/LZMA (`.tar.lz`, `.tar.lzma`, `.tlz`),
+  LZ4 (`.tar.lz4`), and Unix compress (`.tar.Z`, `.taZ`) for both name-gated traversal and packing.
+  Their single-file forms are recognized too. These codecs were already compiled into libarchive;
+  the public suffix and writer tables now expose them consistently, and shorthand formats accept
+  the same `level`/`threads` options as their long forms. Remove the internal `.br` claim because
+  libarchive has no Brotli filter. Read filters now use an explicit standalone allowlist, and a
+  committed Brotli-compressed tar proves the base extra cannot silently absorb a future libarchive
+  Brotli implementation that belongs behind the separate Brotli extra.
 - Native phar `.phar/stub.php` is explicitly part of the ordinary member model, including fields
   and statistics. A stored member at that reserved path wins over the synthetic stub, preserving
   one entry per path; help also distinguishes archive-write permission from an operation that uses it.

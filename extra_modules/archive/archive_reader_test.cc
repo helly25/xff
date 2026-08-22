@@ -20,6 +20,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdlib>
 #include <fstream>
 #include <optional>
 #include <string>
@@ -31,6 +32,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
+#include "xff/archive/archive_reader_internal.h"
 #include "xff/license/notice.h"
 
 namespace xff::archive {
@@ -43,6 +45,7 @@ using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::Field;
+using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
@@ -138,6 +141,10 @@ struct ArchiveReaderTest : ::testing::Test {
   }
 };
 
+bool RejectFilters(struct ::archive*) {
+  return false;
+}
+
 TEST_F(ArchiveReaderTest, ListsTarMembersWithTheirPathsAndSizes) {
   const std::string tar = MakeArchive({{.path = "dir/a.txt", .content = "abc"}, {.path = "b.bin", .content = "xyzw"}});
   EXPECT_THAT(
@@ -170,6 +177,22 @@ TEST_F(ArchiveReaderTest, PlainDataIsNotAnArchive) {
   EXPECT_THAT(ListMembers("just some text, definitely not an archive"), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
+TEST_F(ArchiveReaderTest, FilterRegistrationFailuresAreReported) {
+  EXPECT_THAT(
+      internal::ListMembersWithFilterEnabler("not empty", RejectFilters),
+      StatusIs(absl::StatusCode::kResourceExhausted, HasSubstr("allocate")));
+  EXPECT_THAT(
+      internal::ReadCompressedSingleFileWithFilterEnabler("missing.gz", 0, RejectFilters),
+      StatusIs(absl::StatusCode::kUnavailable, HasSubstr("compression filters")));
+}
+
+TEST_F(ArchiveReaderTest, BaseArchiveExtraDoesNotAbsorbBrotliFromLibarchive) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe) Bazel sets this immutable fixture path before the test.
+  const char* const fixture = std::getenv("XFF_ARCHIVE_BROTLI_FIXTURE");
+  ASSERT_THAT(fixture, Not(nullptr));
+  EXPECT_THAT(ListMembersOfFile(fixture), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
 TEST_F(ArchiveReaderTest, EmptyInputIsNotAnArchive) {
   EXPECT_THAT(ListMembers(""), StatusIs(absl::StatusCode::kInvalidArgument));
 }
@@ -197,11 +220,15 @@ TEST_F(ArchiveReaderTest, TheCompressionSuffixNamesTheSingleMemberInside) {
   EXPECT_THAT(CompressionSuffixStripped("notes.txt.gz"), Optional(std::string("notes.txt")));
   EXPECT_THAT(CompressionSuffixStripped("dump.sql.bz2"), Optional(std::string("dump.sql")));
   EXPECT_THAT(CompressionSuffixStripped("data.XZ"), Optional(std::string("data")));  // case folds
+  EXPECT_THAT(CompressionSuffixStripped("source.tar.lz"), Optional(std::string("source.tar")));
+  EXPECT_THAT(CompressionSuffixStripped("trace.lz4"), Optional(std::string("trace")));
+  EXPECT_THAT(CompressionSuffixStripped("legacy.Z"), Optional(std::string("legacy")));
   // Not single-file compression: a tar shorthand (`.tgz`) is an archive libarchive reads by itself and
   // is deliberately absent from the table, a name that is ONLY a suffix is a dotfile, and everything
   // else has nothing to strip.
   constexpr std::array kNotSingleFileCompressed = std::to_array<std::string_view>({
       "a.tgz",
+      "unsupported.br",
       ".gz",
       "notes.txt",
       "Makefile",

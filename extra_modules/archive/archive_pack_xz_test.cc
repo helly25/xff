@@ -13,14 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// The xz half of the pack coverage, split out ONLY so it can be tagged `no_san` (see the BUILD
+// The liblzma half of the pack coverage, split out ONLY so it can be tagged `no_san` (see the BUILD
 // comment): liblzma dispatches through a generically-typed function pointer, which UBSan's
 // `function` check reports as undefined behaviour inside xz. Everything here is ordinary pack
 // coverage that belongs with the rest; keeping it in its own target is what lets the rest stay
 // sanitized instead of turning the check off repo-wide.
 //
-// Probed format by format under `-fsanitize=function`: xz is the only writer that trips it (tar,
-// tar.gz, tgz, tar.bz2, tar.zst and zip are all clean and stay in archive_pack_test).
+// Probed format by format under `-fsanitize=function`: the other writers stay in archive_pack_test.
 
 #include <array>
 #include <filesystem>
@@ -87,15 +86,30 @@ struct ArchivePackXzTest : ::testing::Test {
   stdfs::path root_;
 };
 
-TEST_F(ArchivePackXzTest, AnXzArchiveReadsBackWithItsNamesAndContent) {
+TEST_F(ArchivePackXzTest, LiblzmaArchivesReadBackWithTheirNamesAndContent) {
   // That it reads back at all is what proves the format and the filter were set: a wrong filter
   // yields bytes libarchive cannot parse.
-  const std::string out = (root_ / "packed.txz").string();  // the shortcut, not the long spelling
-  ASSERT_THAT(PackFiles(out, Entries()), IsOk());
-  EXPECT_THAT(
-      ListMembersOfFile(out),
-      IsOkAndHolds(UnorderedElementsAre(Field(&Member::path, "one.txt"), Field(&Member::path, "dir/two.txt"))));
-  EXPECT_THAT(ReadMemberOfFile(out, "dir/two.txt"), IsOkAndHolds(Eq("second\n")));
+  static constexpr std::array kNames = std::to_array<std::string_view>({
+      "packed.tar.xz",
+      "packed.txz",
+      "packed.tar.lzma",
+      "packed.tlz",
+      "packed.tar.lz",
+  });
+  for (const std::string_view name : kNames) {
+    const std::string out = (root_ / name).string();
+    ASSERT_THAT(PackFiles(out, Entries(), PackSettings{.options = {{.name = "level", .value = "3"}}}), IsOk()) << name;
+    EXPECT_THAT(
+        ListMembersOfFile(out),
+        IsOkAndHolds(UnorderedElementsAre(Field(&Member::path, "one.txt"), Field(&Member::path, "dir/two.txt"))))
+        << name;
+    EXPECT_THAT(ReadMemberOfFile(out, "dir/two.txt"), IsOkAndHolds(Eq("second\n"))) << name;
+  }
+}
+
+TEST_F(ArchivePackXzTest, XzShortcutAcceptsTheThreadsOption) {
+  const std::string out = (root_ / "threaded.txz").string();
+  EXPECT_THAT(PackFiles(out, Entries(), PackSettings{.options = {{.name = "threads", .value = "2"}}}), IsOk());
 }
 
 TEST_F(ArchivePackXzTest, EveryXzLevelIsAcceptedAndStillReadsBack) {

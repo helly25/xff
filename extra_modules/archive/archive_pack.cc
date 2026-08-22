@@ -83,10 +83,9 @@ using EntryPtr = std::unique_ptr<struct ::archive_entry, EntryDeleter>;
 
 // One output suffix and what it selects. Longest suffix first, so `.tar.gz` is not read as `.gz`.
 //
-// The single-word forms (`.tgz`, `.txz`, `.tbz2`, `.tbz`, `.tz2`, `.tzst`) are the shortcuts GNU tar
-// recognises for the same thing, and people type them: `--pack=x.txz` meaning `x.tar.xz` is not a
-// typo to refuse. Only shortcuts for formats this table already writes are listed - `.taz` (tar.Z)
-// and `.tlz` (tar.lzma) would mean adding compressors, which is a different decision.
+// The single-word forms are the shortcuts GNU tar recognises for the same thing, and people type
+// them: `--pack=x.txz` meaning `x.tar.xz` is not a typo to refuse. Suffix matching folds case, so
+// `.tar.z` / `.taz` below accept the conventional `.tar.Z` / `.taZ` spellings too.
 struct FormatSuffix {
   std::string_view suffix;
   std::string_view name;  // what PackFormats / the help calls it
@@ -131,6 +130,38 @@ constexpr std::array kFormats = std::to_array<FormatSuffix>({
         .filter = ARCHIVE_FILTER_ZSTD,
         .level_min = 1,
         .level_max = 22,
+    },
+    {
+        .suffix = ".tar.lzma",
+        .name = "tar.lzma",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_LZMA,
+        .level_min = 0,
+        .level_max = 9,
+    },
+    {
+        .suffix = ".tar.lz4",
+        .name = "tar.lz4",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_LZ4,
+        .level_min = 1,
+        .level_max = 9,
+    },
+    {
+        .suffix = ".tar.lz",
+        .name = "tar.lz",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_LZIP,
+        .level_min = 0,
+        .level_max = 9,
+    },
+    {
+        .suffix = ".tar.z",
+        .name = "tar.Z",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_COMPRESS,
+        .level_min = 0,
+        .level_max = 0,
     },
     {
         .suffix = ".tbz2",
@@ -181,6 +212,22 @@ constexpr std::array kFormats = std::to_array<FormatSuffix>({
         .level_max = 9,
     },
     {
+        .suffix = ".tlz",
+        .name = "tlz",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_LZMA,
+        .level_min = 0,
+        .level_max = 9,
+    },
+    {
+        .suffix = ".taz",
+        .name = "taZ",
+        .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+        .filter = ARCHIVE_FILTER_COMPRESS,
+        .level_min = 0,
+        .level_max = 0,
+    },
+    {
         .suffix = ".tar",
         .name = "tar",
         .format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
@@ -200,7 +247,6 @@ constexpr std::array kFormats = std::to_array<FormatSuffix>({
 
 // How an option's value is spelled, which decides both the validation and the translation: libarchive
 // spells a boolean by PRESENCE (`name` on, `!name` off) rather than by value, so a bool cannot simply
-// be forwarded as `name=value`.
 enum class PackValue {
   kBool,
   kEnum,
@@ -232,12 +278,23 @@ constexpr std::array kLevelFormats = std::to_array<std::string_view>({
     "tar.bz2",
     "tar.xz",
     "tar.zst",
+    "tar.lzma",
+    "tar.lz4",
+    "tar.lz",
     "tgz",
+    "tbz2",
+    "tbz",
+    "tz2",
+    "txz",
+    "tzst",
+    "tlz",
     "zip",
 });
 constexpr std::array kThreadsFormats = std::to_array<std::string_view>({
     "tar.xz",
     "tar.zst",
+    "txz",
+    "tzst",
 });
 constexpr std::array kGzipHeaderFormats = std::to_array<std::string_view>({
     "tar.gz",
