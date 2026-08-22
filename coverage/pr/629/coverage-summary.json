@@ -13,16 +13,16 @@
         "percent": 97.67
       },
       "branches": {
-        "covered": 7687,
+        "covered": 7690,
         "total": 9124,
-        "percent": 84.25
+        "percent": 84.28
       }
     },
     "program / command line": {
       "lines": {
-        "covered": 1603,
+        "covered": 1604,
         "total": 1649,
-        "percent": 97.21
+        "percent": 97.27
       },
       "functions": {
         "covered": 168,
@@ -30,9 +30,9 @@
         "percent": 98.82
       },
       "branches": {
-        "covered": 933,
+        "covered": 938,
         "total": 1027,
-        "percent": 90.85
+        "percent": 91.33
       }
     },
     "program / configuration": {
@@ -88,9 +88,9 @@
     },
     "program / filesystem": {
       "lines": {
-        "covered": 443,
+        "covered": 442,
         "total": 463,
-        "percent": 95.68
+        "percent": 95.46
       },
       "functions": {
         "covered": 50,
@@ -98,9 +98,9 @@
         "percent": 98.04
       },
       "branches": {
-        "covered": 279,
+        "covered": 277,
         "total": 316,
-        "percent": 88.29
+        "percent": 87.66
       }
     },
     "program / matching": {
