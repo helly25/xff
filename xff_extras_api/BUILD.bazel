@@ -13,7 +13,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
+# Test-capability contract shared by the core tests and independently buildable FUSE module. The
+# named .bazelrc config sets this private flag only on runners that promise a working kernel FUSE
+# path; ordinary machines may still skip the integration cases when FUSE is unavailable.
+bool_flag(
+    name = "fuse_tests_must_mount",
+    build_setting_default = False,
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "fuse_tests_required",
+    flag_values = {":fuse_tests_must_mount": "True"},
+    visibility = ["//visibility:public"],
+)
 
 # The shared extras API, one target per seam. Both the xff core and each removable extra depend on
 # these, so an extra never depends back into the core (which would be a cycle). `include_prefix`

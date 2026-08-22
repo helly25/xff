@@ -247,7 +247,7 @@ shipped one way but not yet settled.
     exit-unmount-join-destroy teardown; INT/TERM/HUP ask every live session to exit before
     re-raising. `CrashUnmount` (`fusermount3 -uz` / `umount -f` via posix_spawnp) is the
     unmounter for slice 2's sweep seam. Linux CI mounts a fake filesystem and reads it back
-    through the kernel with `XFF_FUSE_REQUIRED=1` so that path can never silently skip
+    through the kernel with `--config=xff_fuse_tests_required` so that path can never silently skip
     (test action unsandboxed - /dev/fuse and setuid fusermount3 do not exist in the
     sandbox); macOS exercises the degrade. 4. **CLI**, split: - **4a. Build + identity plumbing (SHIPPED)** (user-flagged 2026-08-16: fuse was absent
     from `--help=extras`): `--//xff:xff_fuse` + `xff_fuse_on` (`xff_all` coverage), xff_full
@@ -299,7 +299,7 @@ shipped one way but not yet settled.
       The pin stays at 3.14.0 on its own merit - libfuse guarantees only BACKWARD compatibility,
       so compile against the OLDEST runtime we must support.
       What hid all of it: the extra's mount tests SKIPPED whenever the loader reported no fuse3,
-      ignoring `XFF_FUSE_REQUIRED` - the very guarantee that flag exists for - so the whole kernel
+      ignoring the required-FUSE test contract, so the whole kernel
       path reported green without running. An unavailable loader is now fatal where the
       environment promises one, and it prints the loader's reason.
     - **The lesson, made a command**: `tools/fuse_linux_test.sh` (functional / `tsan` / `msan`)
@@ -309,8 +309,8 @@ shipped one way but not yet settled.
       `--config=tsan` pulls an x86_64-only toolchain, and `msan` must force an EMULATED x86_64
       container because the instrumented libc++ overlay ships x86_64-linux only.
     - **The msan cell also needed the sanitizer cells to know what machine they are on**: `tsan`
-      and `msan` are standalone jobs, not matrix cells, so they never installed fuse3 or set
-      `XFF_FUSE_REQUIRED`, and a runner that CAN mount was failing a test that demanded the
+      and `msan` are standalone jobs, not matrix cells, so they never installed fuse3 or enabled
+      `--config=xff_fuse_tests_required`, and a runner that CAN mount was failing a test that demanded the
       refusal message. Both declare it now. Every mounting test skips under MSan (the dlopened
       system libfuse3 is uninstrumented, so its bytes read back as uninitialized) - in C++ via
       `MEMORY_SANITIZER`, in the shell test via an `XFF_MSAN` env from a `select()` on the same
@@ -434,15 +434,13 @@ packages). aarch64 will NOT do - see "why" below. Then:
 ```sh
 sudo apt-get install -y fuse3 libfuse3-3    # the runtime the loader dlopens + the unmount helper
 git clone https://github.com/helly25/xff && cd xff
-export XFF_FUSE_REQUIRED=1                  # a SKIPPED mount test is a failure on a machine that can mount
-
 # The MSan cell (this is the command that was run):
 bazel test //... $(tools/extras.py --wildcards) --config=xff_docs \
-  --config=clang --config=msan --test_env=XFF_FUSE_REQUIRED
+  --config=clang --config=msan --config=xff_fuse_tests_required
 
 # The TSan cell, same shape (already green in CI, cheap to confirm):
 bazel test //... $(tools/extras.py --wildcards) --config=xff_docs \
-  --config=clang --config=tsan --test_env=XFF_FUSE_REQUIRED
+  --config=clang --config=tsan --config=xff_fuse_tests_required
 ```
 
 Expected: all tests pass, with every MOUNTING test reporting SKIPPED under `--config=msan`
@@ -499,12 +497,12 @@ must print the skip line, and must NOT print it without the flag).
 ### Things that bit us, so nobody re-derives them
 
 - **A skipped test looks exactly like a passing one.** `@xff_fuse//:fuse_server_test` reported
-  "PASSED in 0.1s" on Linux CI while skipping every mount, because the skip honoured
-  `XFF_FUSE_REQUIRED` only on mount FAILURE, not on "no fuse3 here". Hence the env var, and hence
-  passing `--test_env=XFF_FUSE_REQUIRED` on every Linux cell.
-- **`tsan` and `msan` are standalone jobs, not matrix cells.** They did not install fuse3 or set
-  `XFF_FUSE_REQUIRED`, so a runner that CAN mount was failing a test that demanded the refusal
-  message. Any new sanitizer job must make the same declaration.
+  "PASSED in 0.1s" on Linux CI while skipping every mount, because the required-FUSE check covered
+  only mount FAILURE, not "no fuse3 here". The named Bazel config now makes both paths fatal and
+  carries the same contract into the C++ and shell tests.
+- **`tsan` and `msan` are standalone jobs, not matrix cells.** They did not install fuse3 or opt into
+  `--config=xff_fuse_tests_required`, so a runner that CAN mount was failing a test that demanded
+  the refusal message. Any new sanitizer job must make the same declaration.
 - **MSan makes tests far slower.** `archive_fs_test` reads all 1000 members of `many.tar.gz` in
   1589 ms natively; under MSan's origin tracking that lands past the `small` (60s) budget, and it
   timed out with every assertion still holding. It is `size = "medium"` for that reason - a timeout,

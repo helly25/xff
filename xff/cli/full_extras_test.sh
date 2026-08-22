@@ -92,9 +92,9 @@ test::archive_mount_runs_the_action_over_a_real_container() {
 test::archive_mount_alone_mounts_where_it_can_and_refuses_where_it_cannot() {
   # Without --archive-extract there is no fallback, so the outcome depends on the MACHINE: mount and
   # run, or refuse. That is not an excuse for a matcher that accepts either - the environment
-  # already declares which machine this is. XFF_FUSE_REQUIRED is set exactly where mounting must
-  # work (Linux CI, which installs fuse3), so each case gets its own exact assertion and neither
-  # can silently turn into the other.
+  # already declares which machine this is. The Bazel FUSE-test config supplies the private marker
+  # exactly where mounting must work, so each case gets its own exact assertion and neither can
+  # silently turn into the other.
   _skip_under_msan && return 0
   local out
   out="$("$(_xff_full_bin)" -L --archive=all --archive-mount \
@@ -102,7 +102,7 @@ test::archive_mount_alone_mounts_where_it_can_and_refuses_where_it_cannot() {
   # Same reason as the case above: bashtest ellipsizes the text it reports, so the log carries the
   # whole thing or a CI failure here is a guess.
   echo "xff said: ${out}"
-  if [[ -n "${XFF_FUSE_REQUIRED:-}" ]]; then
+  if [[ -n "${XFF_FUSE_TESTS_REQUIRED:-}" ]]; then
     # Mounting works here: the child must read the member IN PLACE, with no fallback available.
     expect_output_contains '13' "${out}"
     expect_output_not_contains 'cannot run on an archive member' "${out}"

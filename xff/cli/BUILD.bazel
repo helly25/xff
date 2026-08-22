@@ -625,6 +625,9 @@ bashtest(
     env = {"XFF_MINI_TAR": "$(rootpath @xff_archive//:mini_tar)"} | select({
         "//xff:xff_msan_enabled": {"XFF_MSAN": "1"},
         "//conditions:default": {},
+    }) | select({
+        "@xff_extras_api//:fuse_tests_required": {"XFF_FUSE_TESTS_REQUIRED": "1"},
+        "//conditions:default": {},
     }),
     # --archive-mount actually mounts, which needs /dev/fuse and the setuid fusermount3 - neither
     # exists inside bazel's linux sandbox. Scoped to the TEST action (see @xff_fuse's server test for

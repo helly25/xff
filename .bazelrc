@@ -88,6 +88,11 @@ common:xff_full --//xff:xff_all=True
 # full build contains.
 common:xff_docs --config=xff_full
 
+# --config=xff_fuse_tests_required : promise that this test runner can mount through kernel FUSE.
+# The tests then fail rather than silently skip if libfuse, /dev/fuse, permissions, or the mount
+# helper stop working. This is deliberately explicit: the OS alone cannot prove mount capability.
+common:xff_fuse_tests_required --@xff_extras_api//:fuse_tests_must_mount=true
+
 # Register the hermetic LLVM/clang toolchain ONLY for `--config=clang`. Bazel 9
 # always resolves C++ toolchains, so `--extra_toolchains` (higher priority than
 # the autodetected local toolchain) keeps gcc/native builds on the local compiler.
