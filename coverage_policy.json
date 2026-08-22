@@ -13,7 +13,7 @@
     "**/*_test.h"
   ],
   "minimum": { "lines": 90, "functions": 95, "branches": 80 },
-  "target": { "branches": 82 },
+  "target": { "lines": 92, "functions": 97, "branches": 82 },
   "patch_minimum": { "lines": 95, "branches": 85 },
   "categories": {
     "program": {

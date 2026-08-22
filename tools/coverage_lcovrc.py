@@ -12,12 +12,7 @@ _POLICY_KEYS = {"line": "lines", "function": "functions", "branch": "branches"}
 def render(policy: dict[str, Any]) -> str:
     minimum = policy["minimum"]
     target = {**minimum, **policy.get("target", {})}
-    # LCOV <= 2.0 falls back to these global bands. CI pins a release with
-    # metric-specific support, but keep that fallback aligned with line policy.
-    lines: list[str] = [
-        f"genhtml_hi_limit = {int(target['lines'])}",
-        f"genhtml_med_limit = {int(minimum['lines'])}",
-    ]
+    lines: list[str] = []
     for metric in _METRICS:
         key = _POLICY_KEYS[metric]
         medium = int(minimum[key])
