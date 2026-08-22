@@ -186,8 +186,12 @@ jobs:
           gcc --version
           gcov --version
       - name: Collect and enforce coverage
+        # This does not enable the FUSE extension; --config=xff_docs enables every extension.
+        # The Linux coverage runner installs fuse3 and can mount through the kernel, so a failed
+        # mount must fail the integration test rather than silently turn into a skip.
         env:
           COVERAGE_PAGE: ${{ github.event_name == 'pull_request' && format('pr/{0}', github.event.pull_request.number) || 'main' }}
+          XFF_FUSE_REQUIRED: "1"
         run: |
           set -euo pipefail
           # shellcheck disable=SC2046  # deliberate splitting into Bazel target patterns
@@ -196,7 +200,8 @@ jobs:
             --combined_report=lcov \
             --disk_cache=$HOME/.cache/bazel-disk \
             --instrumentation_filter='//xff[/:],//xff_extras_api[/:],@@xff_(archive|fuse|pcre2)[+]//' \
-            --repository_cache=$HOME/.cache/bazel-repo
+            --repository_cache=$HOME/.cache/bazel-repo \
+            --test_env=XFF_FUSE_REQUIRED
           cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
           printf '%s\n' "${COVERAGE_PAGE}" >coverage-target.txt
           # Derive extension source paths from the same extras registry that supplies the Bazel
