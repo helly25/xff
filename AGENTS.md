@@ -11,6 +11,20 @@ Build & test: `bazel test //...` · sanitizers: `bazel test //... --config=clang
 (also `--config=tsan`, and `--config=msan` on Linux).
 Toolchain: clang-22 minimum (hermetic LLVM under `--config=clang`).
 
+## Pull request descriptions
+
+Every PR description has two layers in this order:
+
+1. a short, human-readable explanation of the outcome and why it matters;
+2. an `## AG;DR` heading, followed by the full implementation details, reasoning, validation,
+   portability notes, and known limitations needed by reviewers or a future agent.
+
+Update the PR description whenever a commit is added to the PR, so the detailed section describes
+the complete current change rather than the state at PR creation. The short human-readable section
+should remain stable and should rarely need updating: most additional commits refine implementation
+or validation and therefore belong only below `## AG;DR`. Change the human section only when the
+PR's user-visible outcome or motivation actually changes.
+
 ## Writing tests (GoogleTest)
 
 1. **Always `TEST_F` with a fixture; never bare `TEST(...)`** - even when the
