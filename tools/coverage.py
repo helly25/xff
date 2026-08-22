@@ -147,7 +147,7 @@ def thresholds(policy: dict) -> tuple[dict, dict]:
     for group, categories in policy.get("categories", {}).items():
         for name, category in categories.items():
             key = f"{group} / {name}"
-            floors[key] = category.get("minimum", overall)
+            floors[key] = {**overall, **category.get("minimum", {})}
             targets[key] = {**overall, **category.get("target", {})}
     return floors, targets
 

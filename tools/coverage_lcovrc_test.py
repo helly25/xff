@@ -14,12 +14,12 @@ class CoverageLcovrcTest(unittest.TestCase):
         self.assertEqual(
             coverage_lcovrc.render(
                 {
-                    "minimum": {"lines": 93, "functions": 95, "branches": 82},
+                    "minimum": {"lines": 90, "functions": 95, "branches": 82},
                     "lcov": {"warning_gap": 15},
                 }
             ),
-            """genhtml_line_hi_limit = 93
-genhtml_line_med_limit = 78
+            """genhtml_line_hi_limit = 90
+genhtml_line_med_limit = 75
 genhtml_function_hi_limit = 95
 genhtml_function_med_limit = 80
 genhtml_branch_hi_limit = 82

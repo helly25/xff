@@ -63,7 +63,7 @@ class CoverageTest(unittest.TestCase):
                     "matching": {"include": ["xff/matching/**"]},
                     "filesystem": {
                         "include": ["xff/filesystem/**"],
-                        "minimum": {"lines": 75, "functions": 60, "branches": 50},
+                        "minimum": {"branches": 50},
                         "target": {"branches": 65},
                     },
                 }
@@ -72,7 +72,7 @@ class CoverageTest(unittest.TestCase):
         minimums, targets = coverage_tool.thresholds(policy)
         self.assertEqual(policy["minimum"], minimums["program / matching"])
         self.assertEqual(
-            {"lines": 75, "functions": 60, "branches": 50},
+            {"lines": 90, "functions": 80, "branches": 50},
             minimums["program / filesystem"],
         )
         self.assertEqual(
