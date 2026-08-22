@@ -18,12 +18,15 @@
 #include <unistd.h>
 
 #include <cstddef>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -73,6 +76,25 @@ TEST_F(MountRootTest, CreateMakesThePerRunTreeAndTheDestructorRemovesIt) {
   EXPECT_THAT(stdfs::exists(path), IsFalse());
   // The shared `<base>/xff/` level survives the run: it is every run's parent, never one run's own.
   EXPECT_THAT(stdfs::is_directory(absl::StrCat(base_, "/xff")), IsTrue());
+}
+
+TEST_F(MountRootTest, CreateUsesTheXdgRuntimeDirectoryByDefault) {
+  // Read and restore the inherited value before asserting on Create(), so even a failure cannot
+  // leak the test's process-wide environment change into later cases.
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  const char* const inherited = std::getenv("XDG_RUNTIME_DIR");
+  const bool had_original = inherited != nullptr;
+  const std::string original = inherited == nullptr ? "" : inherited;
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ASSERT_THAT(::setenv("XDG_RUNTIME_DIR", base_.c_str(), /*overwrite=*/1), 0);
+  absl::StatusOr<MountRoot> created = MountRoot::Create();
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  const int restore_result =
+      had_original ? ::setenv("XDG_RUNTIME_DIR", original.c_str(), /*overwrite=*/1) : ::unsetenv("XDG_RUNTIME_DIR");
+  ASSERT_THAT(restore_result, 0);
+
+  MBO_ASSERT_OK_AND_ASSIGN(const MountRoot root, std::move(created));
+  EXPECT_THAT(root.path(), HasSubstr(absl::StrCat(base_, "/xff/")));
 }
 
 TEST_F(MountRootTest, CreateReportsWhenTheSharedBaseCannotBeCreated) {

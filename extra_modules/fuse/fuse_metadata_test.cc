@@ -63,6 +63,10 @@ TEST_F(FuseMetadataTest, EveryFileTypeMapsToAKernelMode) {
   }
 }
 
+TEST_F(FuseMetadataTest, OutOfRangeFileTypeFallsBackToARegularFile) {
+  EXPECT_THAT(ModeBitsForFileType(static_cast<vfs::FileType>(-1)), Eq(S_IFREG));
+}
+
 TEST_F(FuseMetadataTest, RegularMetadataBecomesReadOnlyStatData) {
   const vfs::Metadata metadata = {
       .type = vfs::FileType::kRegular,
