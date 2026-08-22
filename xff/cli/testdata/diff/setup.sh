@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # The single input generator for the -diff golden tests: populates two parallel trees `a` and `b`
