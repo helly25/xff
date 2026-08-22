@@ -129,6 +129,7 @@ TEST_F(Pcre2BackendTest, RewritePreservesLiteralReplacementCharacters) {
   EXPECT_THAT(backend->Rewrite("a", R"(\1-$)", /*global=*/false), "a-$");
   EXPECT_THAT(backend->Rewrite("a", R"(\q)", /*global=*/false), "q");
   EXPECT_THAT(backend->Rewrite("a", R"(\\)", /*global=*/false), R"(\)");
+  EXPECT_THAT(backend->Rewrite("a", R"(\)", /*global=*/false), R"(\)");
 }
 
 TEST_F(Pcre2BackendTest, RewriteGrowsItsOutputBuffer) {

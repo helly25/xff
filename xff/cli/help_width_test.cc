@@ -15,12 +15,20 @@
 
 #include "xff/cli/help_width.h"
 
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+
+#include <array>
+#include <cstdint>
+#include <cstdlib>
 #include <optional>
 
 #include "absl/status/status.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
+#include "xff/env/env.h"
 
 namespace xff::cli {
 namespace {
@@ -28,9 +36,45 @@ namespace {
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
 using ::testing::Eq;
+using ::testing::Ge;
 using ::testing::HasSubstr;
 
-struct ResolveHelpWidthTest : ::testing::Test {};
+struct ResolveHelpWidthTest : ::testing::Test {
+  void TearDown() override {
+    env::ClearForTesting();
+    if (saved_stdout_ >= 0) {
+      EXPECT_THAT(::dup2(saved_stdout_, STDOUT_FILENO), Eq(STDOUT_FILENO));
+      EXPECT_THAT(::close(saved_stdout_), Eq(0));
+    }
+    if (pty_master_ >= 0) {
+      EXPECT_THAT(::close(pty_master_), Eq(0));
+    }
+  }
+
+  void AttachStdoutTerminal(std::uint16_t columns) {
+    pty_master_ = ::posix_openpt(O_RDWR | O_CLOEXEC);
+    ASSERT_THAT(pty_master_, Ge(0));
+    ASSERT_THAT(::grantpt(pty_master_), Eq(0));
+    ASSERT_THAT(::unlockpt(pty_master_), Eq(0));
+    std::array<char, 128> slave_name{};
+    ASSERT_THAT(::ptsname_r(pty_master_, slave_name.data(), slave_name.size()), Eq(0));
+    // NOLINTNEXTLINE(hicpp-vararg,cppcoreguidelines-pro-type-vararg): POSIX open, without a mode argument.
+    const int slave = ::open(slave_name.data(), O_RDWR | O_CLOEXEC);
+    ASSERT_THAT(slave, Ge(0));
+    // NOLINTNEXTLINE(hicpp-vararg,cppcoreguidelines-pro-type-vararg): fcntl is the POSIX close-on-exec dup API.
+    saved_stdout_ = ::fcntl(STDOUT_FILENO, F_DUPFD_CLOEXEC, 0);
+    ASSERT_THAT(saved_stdout_, Ge(0));
+    struct winsize size = {.ws_col = columns};
+    // NOLINTNEXTLINE(hicpp-vararg,cppcoreguidelines-pro-type-vararg): ioctl is the POSIX terminal API.
+    ASSERT_THAT(::ioctl(slave, TIOCSWINSZ, &size), Eq(0));
+    ASSERT_THAT(::dup2(slave, STDOUT_FILENO), Eq(STDOUT_FILENO));
+    ASSERT_THAT(::close(slave), Eq(0));
+  }
+
+ private:
+  int saved_stdout_ = -1;
+  int pty_master_ = -1;
+};
 
 TEST_F(ResolveHelpWidthTest, AbsentFlagUsesTheDetectedTerminalWidth) {
   EXPECT_THAT(ResolveHelpWidth(std::nullopt, 120), IsOkAndHolds(Eq(120U)));
@@ -67,6 +111,32 @@ TEST_F(ResolveHelpWidthTest, ANonNumericValueIsAnError) {
 
 TEST_F(ResolveHelpWidthTest, ANegativeValueIsAnError) {
   EXPECT_THAT(ResolveHelpWidth("-5", 0), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(ResolveHelpWidthTest, ColumnsEnvironmentOverridesTerminalDetection) {
+  env::SetForTesting("COLUMNS", "137");
+  EXPECT_THAT(DetectTerminalWidth(), Eq(137U));
+}
+
+TEST_F(ResolveHelpWidthTest, InvalidColumnsEnvironmentFallsBackToTerminalDetection) {
+  env::SetForTesting("COLUMNS", "wide");
+  EXPECT_THAT(DetectTerminalWidth(), Eq(0U));
+  env::SetForTesting("COLUMNS", "0");
+  EXPECT_THAT(DetectTerminalWidth(), Eq(0U));
+  env::ClearForTesting();
+  env::SetForTesting("COLUMNS", std::nullopt);
+  EXPECT_THAT(DetectTerminalWidth(), Eq(0U));
+}
+
+TEST_F(ResolveHelpWidthTest, TerminalIoctlReportsPositiveAndZeroWidths) {
+  env::SetForTesting("COLUMNS", std::nullopt);
+  AttachStdoutTerminal(123);
+  EXPECT_THAT(DetectTerminalWidth(), Eq(123U));
+
+  struct winsize size = {};
+  // NOLINTNEXTLINE(hicpp-vararg,cppcoreguidelines-pro-type-vararg): ioctl is the POSIX terminal API.
+  ASSERT_THAT(::ioctl(STDOUT_FILENO, TIOCSWINSZ, &size), Eq(0));
+  EXPECT_THAT(DetectTerminalWidth(), Eq(0U));
 }
 
 }  // namespace
