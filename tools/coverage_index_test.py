@@ -106,6 +106,17 @@ class CoverageIndexTest(unittest.TestCase):
         self.assertEqual(
             {"pr/42": rerun}, coverage_index.latest_metadata([new, old, rerun, new])
         )
+        same_tick_new_run = {
+            **old,
+            "source": {**old["source"], "run_id": 102, "run_attempt": 1},
+        }
+        same_tick_old_rerun = {
+            **old,
+            "source": {**old["source"], "run_id": 100, "run_attempt": 9},
+        }
+        self.assertTrue(
+            coverage_index.is_newer(same_tick_new_run, same_tick_old_rerun)
+        )
 
 
 if __name__ == "__main__":

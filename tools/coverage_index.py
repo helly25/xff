@@ -122,7 +122,7 @@ def is_newer(candidate: dict, current: dict) -> bool:
     """Whether candidate may replace current, including an idempotent replay."""
     def key(value: dict) -> tuple[str, int, int]:
         source = value["source"]
-        return (source["created_at"], source["run_attempt"], source["run_id"])
+        return (source["created_at"], source["run_id"], source["run_attempt"])
 
     return key(candidate) >= key(current)
 
