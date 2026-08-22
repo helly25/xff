@@ -79,8 +79,10 @@ jobs:
           python3 tools/coverage_sources.py coverage.lcov coverage-html.lcov \
             --policy coverage_policy.json \
             --source-root coverage-source-tree
+          python3 tools/coverage_lcovrc.py coverage_policy.json coverage.lcovrc
           genhtml coverage-html.lcov \
             --branch-coverage \
+            --config-file coverage.lcovrc \
             --demangle-cpp \
             --function-coverage \
             --ignore-errors negative \
@@ -89,7 +91,8 @@ jobs:
             --prefix "${PWD}/coverage-source-tree" \
             --show-details \
             --title "xff ${GITHUB_REF_NAME} production coverage"
-          python3 -m unittest tools/coverage_test.py tools/coverage_sources_test.py tools/coverage_index_test.py
+          python3 -m unittest tools/coverage_test.py tools/coverage_sources_test.py \
+            tools/coverage_index_test.py tools/coverage_lcovrc_test.py
           python3 tools/coverage.py \
             --json-summary coverage-html/coverage-summary.json \
             --lcov coverage.lcov \

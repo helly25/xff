@@ -142,13 +142,22 @@ def measurements(files: dict[str, FileCoverage], policy: dict) -> dict:
 def thresholds(policy: dict) -> tuple[dict, dict]:
     """Returns enforcement floors and health targets for every report row."""
     overall = policy.get("minimum", {})
+    overall_target = {**overall, **policy.get("target", {})}
     floors = {"overall": overall}
-    targets = {"overall": overall}
+    targets = {"overall": overall_target}
     for group, categories in policy.get("categories", {}).items():
         for name, category in categories.items():
             key = f"{group} / {name}"
-            floors[key] = category.get("minimum", overall)
-            targets[key] = {**overall, **category.get("target", {})}
+            floors[key] = {**overall, **category.get("minimum", {})}
+            category_target = category.get("target", {})
+            targets[key] = {
+                metric: max(
+                    floors[key].get(metric, 0),
+                    overall_target.get(metric, 0),
+                    category_target.get(metric, 0),
+                )
+                for metric in floors[key] | overall_target | category_target
+            }
     return floors, targets
 
 
