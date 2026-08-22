@@ -452,6 +452,37 @@ TEST_F(ParserTest, FuzzyThresholdRejectsMalformedPercentages) {
   EXPECT_THAT(Parse({".", "-fuzzy:fzf:", "foo"}), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
+TEST_F(ParserTest, SimilarityDefaultsToFiveWordShinglesAndEightyPercent) {
+  ASSERT_OK_AND_ASSIGN(const Command command, Parse({".", "-similar", "reference.txt"}));
+  ASSERT_THAT(command.expression, NotNull());
+  EXPECT_THAT(command.expression->descriptor->name, "-similar");
+  EXPECT_THAT(command.expression->args, ElementsAre("reference.txt"));
+  EXPECT_THAT(command.expression->similarity_width, Eq(5));
+  EXPECT_THAT(command.expression->similarity_threshold, Eq(80));
+}
+
+TEST_F(ParserTest, SimilarityQualifierCanOverrideThresholdWidthOrBoth) {
+  ASSERT_OK_AND_ASSIGN(const Command threshold, Parse({".", "-similar:65%", "reference.txt"}));
+  EXPECT_THAT(threshold.expression->similarity_width, Eq(5));
+  EXPECT_THAT(threshold.expression->similarity_threshold, Eq(65));
+
+  ASSERT_OK_AND_ASSIGN(const Command width, Parse({".", "-similar:7", "reference.txt"}));
+  EXPECT_THAT(width.expression->similarity_width, Eq(7));
+  EXPECT_THAT(width.expression->similarity_threshold, Eq(80));
+
+  ASSERT_OK_AND_ASSIGN(const Command both, Parse({".", "-similar:7:65%", "reference.txt"}));
+  EXPECT_THAT(both.expression->similarity_width, Eq(7));
+  EXPECT_THAT(both.expression->similarity_threshold, Eq(65));
+}
+
+TEST_F(ParserTest, SimilarityQualifierRejectsInvalidWidthsAndThresholds) {
+  EXPECT_THAT(Parse({".", "-similar:0", "reference.txt"}), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(Parse({".", "-similar:101%", "reference.txt"}), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(Parse({".", "-similar:5:101%", "reference.txt"}), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(Parse({".", "-similar:words", "reference.txt"}), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(Parse({".", "-similar:5:", "reference.txt"}), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
 TEST_F(ParserTest, XorBindsTighterThanOr) {
   // `-name a -xor -name b -o -name c` => Or( Xor(a, b), c ): XOR is above OR.
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-name", "a", "-xor", "-name", "b", "-o", "-name", "c"}));

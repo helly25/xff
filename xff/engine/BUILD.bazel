@@ -165,6 +165,7 @@ cc_library(
         "//xff/matching/language:language_cc",
         "//xff/matching/mime:mime_cc",
         "//xff/matching/regex:regex_cc",
+        "//xff/matching/similarity:similarity_cc",
         "//xff/parser:parser_cc",
         "//xff/presentation/fields:fields_cc",
         "//xff/presentation/format:format_cc",

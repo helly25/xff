@@ -85,6 +85,10 @@ struct Expr {
   // The score/match model selected by an attached `:MODEL:PCT%`; the short `:PCT%` form and a bare
   // primary use fzf-style subsequence matching.
   FuzzyModel fuzzy_model = FuzzyModel::kFzf;
+  // -similar[:WIDTH[:PCT%]]: contiguous word-shingle width and minimum Jaccard similarity.
+  // Defaults are the v1 design-of-record: five words and 80 percent.
+  std::size_t similarity_width = 5;
+  int similarity_threshold = 80;
   // Case folding forced on by the resolved --case mode (parser::ApplyCaseMode), for the
   // otherwise case-sensitive matchers (-name/-path/-content and, via a recompiled
   // `matcher`, -regex/-rxc/-grep): true under --case=insensitive, or --case=smart when the

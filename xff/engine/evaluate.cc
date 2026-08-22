@@ -63,6 +63,7 @@
 #include "xff/matching/language/language.h"
 #include "xff/matching/mime/mime.h"
 #include "xff/matching/regex/regex.h"
+#include "xff/matching/similarity/similarity.h"
 #include "xff/parser/ast.h"
 #include "xff/presentation/fields/fields.h"
 #include "xff/registry/descriptor.h"
@@ -1142,34 +1143,54 @@ bool EvalRxc(const parser::Expr& expr, EvalContext& ctx) {
 // `xff A ! -cmp '{def.B}/{relpath}'` lists files that differ from their counterpart
 // under tree B. Byte-exact and binary-safe (reads raw content, not ContentToSearch);
 // text normalization (--diff-ignore) is -diff's concern. Cost::kExpensive (two reads).
-bool EvalCmp(const parser::Expr& expr, EvalContext& ctx) {
+std::string RenderTarget(const parser::Expr& expr, EvalContext& ctx) {
   if (expr.args.empty()) {
-    return false;
+    return {};
   }
   const std::string link = LinkTarget(ctx);  // owns the {target} text for the render below
-  const std::string target = fields::Template::Compile(expr.args.front())
-                                 .Render(
-                                     fields::RenderContext{
-                                         .path = ctx.visit.path,
-                                         .root = ctx.visit.root,
-                                         .link_target = link,
-                                         .metadata = ctx.visit.metadata,
-                                         .depth = ctx.visit.depth,
-                                         .fs = &ctx.fs,
-                                         .tz = ctx.tz,
-                                         .time_format = ctx.time_format,
-                                         .zone_suffix = ctx.zone_suffix,
-                                         .hash_algorithm = ctx.hash_algorithm,
-                                         .hash_encoding = ctx.hash_encoding,
-                                         .captures = ctx.captures,
-                                         .defines = ctx.defines,
-                                         .outputs = ctx.outputs});
+  return fields::Template::Compile(expr.args.front())
+      .Render(
+          fields::RenderContext{
+              .path = ctx.visit.path,
+              .root = ctx.visit.root,
+              .link_target = link,
+              .metadata = ctx.visit.metadata,
+              .depth = ctx.visit.depth,
+              .fs = &ctx.fs,
+              .tz = ctx.tz,
+              .time_format = ctx.time_format,
+              .zone_suffix = ctx.zone_suffix,
+              .hash_algorithm = ctx.hash_algorithm,
+              .hash_encoding = ctx.hash_encoding,
+              .captures = ctx.captures,
+              .defines = ctx.defines,
+              .outputs = ctx.outputs});
+}
+
+bool EvalCmp(const parser::Expr& expr, EvalContext& ctx) {
+  const std::string target = RenderTarget(expr, ctx);
   if (target.empty()) {
     return false;  // no target resolved (e.g. an empty template) -> treat as differing
   }
   const absl::StatusOr<std::string> lhs = ctx.fs.ReadContent(ctx.visit.path);
   const absl::StatusOr<std::string> rhs = ctx.fs.ReadContent(target);
   return lhs.ok() && rhs.ok() && *lhs == *rhs;  // byte-exact; TRUE = identical content
+}
+
+// xff -similar[:WIDTH[:PCT%]] TARGET: compare text as unique contiguous word shingles. This is an
+// exact Jaccard calculation for one reference, not the MinHash approximation needed by a future
+// all-pairs clustering reduction.
+bool EvalSimilar(const parser::Expr& expr, EvalContext& ctx) {
+  const std::optional<std::string> lhs = ContentToSearch(ctx.visit, ctx.fs);
+  const std::string target = RenderTarget(expr, ctx);
+  if (!lhs.has_value() || target.empty()) {
+    return false;
+  }
+  const absl::StatusOr<std::string> rhs = ctx.fs.ReadContent(target);
+  if (!rhs.ok() || absl::StrContains(rhs->substr(0, content::kBinaryNulSniffBytes), '\0')) {
+    return false;
+  }
+  return similarity::WordShinglePercent(*lhs, *rhs, expr.similarity_width) >= expr.similarity_threshold;
 }
 
 namespace {
@@ -2325,6 +2346,7 @@ constexpr auto kDispatch = mbo::container::MakeLimitedMap(
     DispatchPair{"-regex", {&EvalRegex}},
     DispatchPair{"-rxc", {&EvalRxc}},
     DispatchPair{"-samefile", {&EvalSamefile}},
+    DispatchPair{"-similar", {&EvalSimilar}},
     DispatchPair{"-size", {&EvalSize}},
     DispatchPair{"-sparse", {&EvalSparse}},
     DispatchPair{"-text", {&EvalText}},

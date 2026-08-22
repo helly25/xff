@@ -548,6 +548,50 @@ TEST_F(RunTest, CmpTargetIsAPerEntryTemplate) {
   EXPECT_THAT(changed, UnorderedElementsAre(Path("b.md"), Path("sub/c.txt")));
 }
 
+TEST_F(RunTest, SimilarMatchesNearDuplicateTextAgainstAReference) {
+  constexpr std::string_view reference =
+      "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen "
+      "eighteen nineteen twenty";
+  { std::ofstream(root_ / "reference.txt") << reference; }
+  { std::ofstream(root_ / "candidate-close.txt") << reference.substr(0, reference.rfind(' ')) << " twentyone"; }
+  {
+    std::ofstream(root_ / "candidate-far.txt")
+        << "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
+           "seventeen red blue green";
+  }
+
+  // One changed final word retains 15 of 17 union shingles (88%), so the default 80% admits it.
+  // Four changed trailing words retain only 13 of 19 (68%), so the same matcher rejects it.
+  EXPECT_THAT(
+      RunExpr({"-name", "candidate-*.txt", "-similar", Path("reference.txt")}),
+      ElementsAre(Path("candidate-close.txt")));
+  EXPECT_THAT(
+      RunExpr({"-name", "candidate-*.txt", "-similar:65%", Path("reference.txt")}),
+      UnorderedElementsAre(Path("candidate-close.txt"), Path("candidate-far.txt")));
+}
+
+TEST_F(RunTest, SimilarWidthAndTokenNormalizationHaveObservableSemantics) {
+  { std::ofstream(root_ / "reference.txt") << "Alpha, beta gamma delta"; }
+  { std::ofstream(root_ / "same-words.txt") << "alpha BETA! gamma delta"; }
+  { std::ofstream(root_ / "different-order.txt") << "alpha gamma beta delta"; }
+
+  EXPECT_THAT(
+      RunExpr({"-name", "same-words.txt", "-similar:4:100%", Path("reference.txt")}),
+      ElementsAre(Path("same-words.txt")));
+  EXPECT_THAT(RunExpr({"-name", "different-order.txt", "-similar:4:100%", Path("reference.txt")}), IsEmpty());
+}
+
+TEST_F(RunTest, SimilarSkipsBinaryAndMissingReferenceContent) {
+  { std::ofstream(root_ / "reference.txt") << "one two three four five"; }
+  {
+    std::ofstream binary(root_ / "binary.txt", std::ios::binary);
+    constexpr char kContent[] = "one two\0three four five";
+    binary.write(kContent, static_cast<std::streamsize>(sizeof(kContent) - 1));
+  }
+  EXPECT_THAT(RunExpr({"-name", "binary.txt", "-similar:0%", Path("reference.txt")}), IsEmpty());
+  EXPECT_THAT(RunExpr({"-name", "a.txt", "-similar:0%", Path("missing.txt")}), IsEmpty());
+}
+
 TEST_F(RunTest, DiffPolarityIsTrueWhenEqual) {
   { std::ofstream(root_ / "twin.txt") << "a"; }   // identical to a.txt (content "a")
   { std::ofstream(root_ / "other.txt") << "X"; }  // differs

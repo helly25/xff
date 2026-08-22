@@ -415,6 +415,23 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .style = Style::kXff,
         .cost = Cost::kExpensive,
     },
+    {
+        .name = "-similar",
+        .summary = "match text whose word-shingle Jaccard similarity to TARGET reaches a threshold (xff)",
+        .details = "Compares a regular text file with TARGET, which is a {field} template evaluated per entry, "
+                   "using Jaccard overlap of unique contiguous word shingles. Bare `-similar TARGET` uses five-word "
+                   "shingles and requires `80%`; qualify it as `-similar:PCT%`, `-similar:WIDTH`, or "
+                   "`-similar:WIDTH:PCT%` to override either default. Words are case-folded ASCII alphanumeric or "
+                   "UTF-8 byte runs; punctuation and whitespace separate them. A short non-empty file contributes "
+                   "one shingle containing all its words. Non-regular, unreadable, or binary files do not match. "
+                   "This v1 answers whether each file resembles one reference; whole-tree clustering is deferred.",
+        .kind = Kind::kTest,
+        .arity = 1,
+        .binding = Binding::kSimilarity,
+        .style = Style::kXff,
+        .cost = Cost::kExpensive,
+        .topic = "content",
+    },
     // xff -diff[:STYLE]: emit a diff of each match against TARGET (a field template). An
     // ACTION whose truth is TRUE = same (like cmp/diff): silent when equal, prints the diff
     // and is false on a difference. STYLE (u3 default / c / n / y / none) picks the output.

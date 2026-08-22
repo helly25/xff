@@ -5,6 +5,10 @@
 
 ## Matching
 
+- Add `-similar[:WIDTH[:PCT%]] TARGET`, an exact reference-file near-duplicate matcher using unique
+  contiguous word shingles and Jaccard overlap. It defaults to five-word shingles and an 80%
+  threshold, treats punctuation and whitespace as word boundaries, folds ASCII case, and skips
+  binary content. Whole-tree clustering remains a separate deferred reduction.
 - `--help=styles` now documents xff's command-line grammar: double-dash whole-run flags versus
   single-dash expression primaries, where global hoisting stops, and why the deliberate `-n` / `-p`
   pair does not establish automatic one-letter aliases for other primaries.
@@ -28,7 +32,7 @@
   `KiB`/`MiB`/.../`EiB` are binary IEC. Find's historical `c`/`w`/`b` and
   `k`/`M`/`G`/.../`E` forms remain accepted with their original meanings. Multiplication overflow
   is rejected, and `--help=size` documents the complete shared vocabulary.
-- `-fuzzy[=MODEL[:PCT%]] PATTERN` (and the `-ifuzzy` / path variants) selects
+- `-fuzzy[:MODEL[:PCT%]] PATTERN` (and the `-ifuzzy` / path variants) selects
   `fzf`, plain `sequence`, `levenshtein` (`edit`), or character-bigram `shingles`
   matching and optionally requires a normalized match quality. The `fzf` model
   supports fzf's extended-search terms: space AND, `|` OR, exact/prefix/suffix

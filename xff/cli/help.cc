@@ -99,6 +99,9 @@ std::string ArgHint(const registry::Descriptor& descriptor) {
   if (descriptor.binding == registry::Binding::kFuzzy) {
     return "[:MODEL[:PCT%]|PCT%] PATTERN";
   }
+  if (descriptor.binding == registry::Binding::kSimilarity) {
+    return "[:WIDTH[:PCT%]|PCT%] TARGET";
+  }
   if (descriptor.arity < 0) {
     return " CMD... ;";  // variadic until ';' (or '+' for -exec / -execdir)
   }

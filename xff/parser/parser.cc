@@ -28,6 +28,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "mbo/container/limited_set.h"
 #include "mbo/status/status_macros.h"
@@ -599,6 +600,52 @@ class ExprParser {
         if (node != nullptr) {
           node->fuzzy_threshold = threshold;
           node->fuzzy_model = model;
+        }
+        return node;
+      }
+      // Content similarity carries a word-shingle width and/or a Jaccard threshold:
+      // `:WIDTH`, `:PCT%`, or `:WIDTH:PCT%`. The bare defaults are width 5 and 80%.
+      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
+          descriptor != nullptr && descriptor->binding == registry::Binding::kSimilarity) {
+        std::string_view value = std::string_view(token).substr(colon + 1);
+        std::size_t width = 5;
+        int threshold = 80;
+        const auto parse_threshold = [&](std::string_view text) -> bool {
+          if (!text.ends_with('%')) {
+            return false;
+          }
+          text.remove_suffix(1);
+          int percent = 0;
+          if (text.empty() || !absl::SimpleAtoi(text, &percent) || percent < 0 || percent > 100) {
+            return false;
+          }
+          threshold = percent;
+          return true;
+        };
+        if (const std::size_t separator = value.find(':'); separator != std::string_view::npos) {
+          if (!absl::SimpleAtoi(value.substr(0, separator), &width) || width == 0
+              || !parse_threshold(value.substr(separator + 1))) {
+            Fail(absl::StrCat("'", token, "': similarity must be WIDTH:PCT% with WIDTH > 0 and PCT 0 through 100"));
+            return nullptr;
+          }
+        } else if (value.ends_with('%')) {
+          if (!parse_threshold(value)) {
+            Fail(absl::StrCat("'", token, "': similarity threshold must be 0% through 100%"));
+            return nullptr;
+          }
+        } else if (!absl::SimpleAtoi(value, &width) || width == 0) {
+          Fail(absl::StrCat("'", token, "': similarity shingle width must be greater than zero"));
+          return nullptr;
+        }
+        ++pos_;
+        if (AtEnd()) {
+          Fail(absl::StrCat("predicate '", base, "' is missing an argument"));
+          return nullptr;
+        }
+        ExprPtr node = MakePredicate(descriptor, {tokens_[pos_++]}, grammar_);
+        if (node != nullptr) {
+          node->similarity_width = width;
+          node->similarity_threshold = threshold;
         }
         return node;
       }
