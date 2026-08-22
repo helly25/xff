@@ -15,6 +15,12 @@
 
 #include "xff/vfs/local_fs.h"
 
+#include <fcntl.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+#include <unistd.h>
+
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -36,9 +42,13 @@ namespace fs = std::filesystem;
 using ::mbo::testing::IsOk;
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
+using ::testing::AllOf;
+using ::testing::Contains;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::Gt;
+using ::testing::IsFalse;
+using ::testing::IsTrue;
 using ::testing::Not;
 using ::testing::UnorderedElementsAre;
 
@@ -52,13 +62,16 @@ struct LocalFsTest : ::testing::Test {
             / (std::string("xff_localfs_") + ::testing::UnitTest::GetInstance()->current_test_info()->name());
     std::error_code ec;
     fs::remove_all(root_, ec);
-    ASSERT_TRUE(fs::create_directories(root_));
+    ASSERT_THAT(fs::create_directories(root_), IsTrue());
     { std::ofstream(root_ / "file.txt") << "hello"; }
     fs::create_directory(root_ / "sub");
     fs::create_symlink("file.txt", root_ / "link");
   }
 
   void TearDown() override {
+    if (socket_fd_ >= 0) {
+      ::close(socket_fd_);
+    }
     std::error_code ec;
     fs::remove_all(root_, ec);
   }
@@ -67,6 +80,7 @@ struct LocalFsTest : ::testing::Test {
 
   LocalFs local_fs_;
   fs::path root_;
+  int socket_fd_ = -1;
 };
 
 TEST_F(LocalFsTest, ReadDirListsChildren) {
@@ -81,9 +95,43 @@ TEST_F(LocalFsTest, ReadDirTagsEntriesAsWritableLocal) {
   MBO_ASSERT_OK_AND_ASSIGN(const auto entries, local_fs_.ReadDir(root_.string()));
   for (const Entry& entry : entries) {
     EXPECT_THAT(entry.source, Source::kLocalFs);
-    EXPECT_FALSE(entry.read_only);
+    EXPECT_THAT(entry.read_only, IsFalse());
     EXPECT_THAT(entry.path, Path(entry.name));
   }
+}
+
+TEST_F(LocalFsTest, StatAndReadDirRecognizeSpecialFileTypes) {
+  ASSERT_THAT(::mkfifo(Path("pipe").c_str(), 0600), Eq(0));
+  socket_fd_ = ::socket(AF_UNIX, SOCK_STREAM, 0);
+  ASSERT_THAT(socket_fd_, Gt(-1));
+  struct sockaddr_un address = {};
+  address.sun_family = AF_UNIX;
+  constexpr std::string_view kSocketName = "socket";
+  // sun_path is the fixed C array required by sockaddr_un; copy() necessarily receives a pointer.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay,hicpp-no-array-decay)
+  kSocketName.copy(address.sun_path, sizeof(address.sun_path) - 1);
+  // open() is variadic by declaration; O_CLOEXEC prevents leaking this temporary fd to children.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
+  const int original_dir = ::open(".", O_RDONLY | O_CLOEXEC);
+  ASSERT_THAT(original_dir, Gt(-1));
+  ASSERT_THAT(::chdir(root_.c_str()), Eq(0));
+  // POSIX bind accepts the generic sockaddr view of the concrete sockaddr_un.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  const int bind_result = ::bind(socket_fd_, reinterpret_cast<const struct sockaddr*>(&address), sizeof(address));
+  ASSERT_THAT(::fchdir(original_dir), Eq(0));
+  ASSERT_THAT(::close(original_dir), Eq(0));
+  ASSERT_THAT(bind_result, Eq(0));
+
+  MBO_ASSERT_OK_AND_ASSIGN(const auto fifo, local_fs_.Stat(Path("pipe"), /*follow_symlinks=*/false));
+  EXPECT_THAT(fifo.type, FileType::kFifo);
+  MBO_ASSERT_OK_AND_ASSIGN(const auto socket, local_fs_.Stat(Path(kSocketName), /*follow_symlinks=*/false));
+  EXPECT_THAT(socket.type, FileType::kSocket);
+  MBO_ASSERT_OK_AND_ASSIGN(const auto device, local_fs_.Stat("/dev/null", /*follow_symlinks=*/false));
+  EXPECT_THAT(device.type, FileType::kCharDevice);
+
+  MBO_ASSERT_OK_AND_ASSIGN(const auto entries, local_fs_.ReadDir(root_.string() + "/"));
+  EXPECT_THAT(
+      entries, AllOf(Contains(Field(&Entry::type, FileType::kFifo)), Contains(Field(&Entry::type, FileType::kSocket))));
 }
 
 TEST_F(LocalFsTest, ReadDirOnMissingPathIsNotFound) {
@@ -138,6 +186,14 @@ TEST_F(LocalFsTest, ReadContentReturnsFileBytes) {
 
 TEST_F(LocalFsTest, ReadContentMissingPathErrors) {
   EXPECT_THAT(local_fs_.ReadContent(Path("nope")), StatusIs(absl::StatusCode::kNotFound));
+}
+
+TEST_F(LocalFsTest, ReadLinkRejectsARegularFile) {
+  EXPECT_THAT(local_fs_.ReadLink(Path("file.txt")), Not(IsOk()));
+}
+
+TEST_F(LocalFsTest, ReadContentRejectsADirectory) {
+  EXPECT_THAT(local_fs_.ReadContent(Path("sub")), Not(IsOk()));
 }
 
 TEST_F(LocalFsTest, IsCaseSensitiveProbesTheVolume) {

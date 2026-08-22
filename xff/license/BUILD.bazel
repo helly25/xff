@@ -78,3 +78,17 @@ cc_test(
         "@helly25_mbo//mbo/testing:matchers_cc",
     ],
 )
+
+# Separate process because notice registration is intentionally process-global; keeping the
+# synthetic extension out of license_test preserves that test's canonical core-only NOTICE.
+cc_test(
+    name = "license_section_test",
+    size = "small",
+    srcs = ["license_section_test.cc"],
+    deps = [
+        ":license_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:matchers_cc",
+    ],
+)
