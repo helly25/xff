@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) The helly25 authors (helly25.com)
+# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # pre-commit configuration (https://pre-commit.com). Mirrors helly25/mbo's set,
@@ -194,6 +194,22 @@ repos:
         language: script
         entry: tools/check_module_versions.py
         files: ((^|/)MODULE\.bazel|^xff/cli/main\.cc|^tools/check_module_versions\.py)$
+        pass_filenames: false
+      - id: check-copyright
+        name: Copyright identity is canonical repository-wide
+        description: |
+          LICENSE and every SPDX-FileCopyrightText declaration use the project's canonical year and
+          holder. The check scans every tracked file, so a stale header cannot hide in a file outside
+          the current commit. To skip once, run `SKIP="check-copyright" pre-commit`.
+        language: script
+        entry: tools/check_copyright.py
+        pass_filenames: false
+      - id: check-copyright-test
+        name: Test the copyright identity check
+        description: Runs the copyright-check unit tests when the tool or its test changes.
+        language: script
+        entry: tools/check_copyright_test.py
+        files: ^tools/check_copyright(_test)?\.py$
         pass_filenames: false
       - id: check-module-versions-test
         name: Test the module-version check
