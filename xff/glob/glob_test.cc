@@ -38,8 +38,9 @@ TEST_F(GlobTest, DoubleStarSegmentCrossesDirectories) {
 
 TEST_F(GlobTest, CharacterClassAndNegation) {
   EXPECT_THAT(GlobToRegex("[abc]"), "[abc]");
-  EXPECT_THAT(GlobToRegex("[a-z]"), "[a-z]");    // a range passes straight through to RE2
-  EXPECT_THAT(GlobToRegex("[!a-z]"), "[^a-z]");  // glob negation `[!` -> RE2 `[^`
+  EXPECT_THAT(GlobToRegex("[a-z]"), "[a-z]");        // a range passes straight through to RE2
+  EXPECT_THAT(GlobToRegex("[!a-z]"), "[^a-z]");      // glob negation `[!` -> RE2 `[^`
+  EXPECT_THAT(GlobToRegex(R"([a\]])"), R"([a\]])");  // an escaped member stays in the class
 }
 
 TEST_F(GlobTest, PosixClassesAndLiteralClosingBracket) {
@@ -87,6 +88,21 @@ TEST_F(GlobTest, ShglobLeavesDegenerateBracesLiteral) {
   EXPECT_THAT(ShglobToRegex("a{bc"), "a\\{bc");          // unbalanced `{`
   EXPECT_THAT(ShglobToRegex("\\{a,b\\}"), "\\{a,b\\}");  // escaped braces are literal
   EXPECT_THAT(ShglobToRegex("[{,}]"), "[{,}]");          // `,`/`{`/`}` inside a class are literal
+}
+
+TEST_F(GlobTest, ShglobBraceScannerIgnoresSyntaxInsideCharacterClasses) {
+  // None of the comma or brace characters inside these classes delimit the surrounding brace
+  // expression. Cover the same leading-member, POSIX-expression, and escape rules used when the
+  // class is subsequently translated.
+  EXPECT_THAT(ShglobToRegex("{[!,}],tail}"), "(?:[^,}]|tail)");
+  EXPECT_THAT(ShglobToRegex("{[]},],tail}"), "(?:[\\]},]|tail)");
+  EXPECT_THAT(ShglobToRegex("{[[:alpha:],}],tail}"), "(?:[[:alpha:],}]|tail)");
+  EXPECT_THAT(ShglobToRegex(R"({[a\,}],tail})"), R"((?:[a\,}]|tail))");
+}
+
+TEST_F(GlobTest, ShglobBraceScannerIgnoresEscapedSeparators) {
+  EXPECT_THAT(ShglobToRegex(R"({left\,middle,right})"), R"((?:left,middle|right))");
+  EXPECT_THAT(ShglobToRegex(R"({left\}middle,right})"), R"((?:left\}middle|right))");
 }
 
 }  // namespace
