@@ -81,10 +81,10 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
   branch threshold. Keep all line and function rows green. Prefer real tests; use a narrower
   per-module threshold only for demonstrated unreachable or generated branches, with the reason
   recorded next to the exception. Focused boundary tests brought the remaining near-threshold source
-  groups up; the HTML report now classifies lines/functions at the enforced 90% general minimum and
-  branches at the enforced 75% general minimum (with warning bands beginning 15 points lower), so its
-  colors express the same policy as the generated short table instead of genhtml's misleading 90%
-  default for every metric.
+  groups up; the policy now enforces 93% lines, 95% functions, and 82% branches generally, with
+  narrower documented limits only for execution, archive, and FUSE. The HTML report derives its
+  colors and 15-point warning gap from that same JSON policy, instead of using genhtml's generic 90%
+  defaults.
 
 - **clang-tidy coverage for `extra_modules/` is SHIPPED (PRs #515-#519 and #530).** The original
   exclusion hid 81 findings; the per-extra sweeps cleared them and PR #530 dropped the exclusion.

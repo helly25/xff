@@ -9,18 +9,18 @@ from typing import Any
 
 _METRICS = ("line", "function", "branch")
 _POLICY_KEYS = {"line": "lines", "function": "functions", "branch": "branches"}
-_WARNING_GAP = 15
-
-
 def render(policy: dict[str, Any]) -> str:
     minimum = policy["minimum"]
+    warning_gap = int(policy["lcov"]["warning_gap"])
+    if not 0 <= warning_gap <= 100:
+        raise ValueError(f"LCOV warning gap must be between 0 and 100: {warning_gap}")
     lines: list[str] = []
     for metric in _METRICS:
         high = int(minimum[_POLICY_KEYS[metric]])
         if not 0 <= high <= 100:
             raise ValueError(f"minimum {metric} coverage must be between 0 and 100: {high}")
         lines.append(f"genhtml_{metric}_hi_limit = {high}")
-        lines.append(f"genhtml_{metric}_med_limit = {max(0, high - _WARNING_GAP)}")
+        lines.append(f"genhtml_{metric}_med_limit = {max(0, high - warning_gap)}")
     return "\n".join(lines) + "\n"
 
 
