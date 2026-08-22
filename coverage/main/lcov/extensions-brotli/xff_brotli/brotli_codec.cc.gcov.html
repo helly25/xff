@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 20:23:55</td>
+            <td class="headerValue">2026-08-22 20:50:14</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -167,16 +167,16 @@
 <span id="L89"><span class="lineNum">      89</span>                 :             : </span>
 <span id="L90"><span class="lineNum">      90</span>                 :<span class="tlaGNC">          10 : void WriteVarint(std::ostream&amp; output, std::uint64_t value) {</span></span>
 <span id="L91"><span class="lineNum">      91</span>                 :             :   while (true) {</span>
-<span id="L92"><span class="lineNum">      92</span>                 :<span class="tlaGNC">          15 :     auto byte = static_cast&lt;std::uint8_t&gt;(value &amp; 0x7fU);</span></span>
-<span id="L93"><span class="lineNum">      93</span>                 :<span class="tlaGNC">          15 :     value &gt;&gt;= 7U;</span></span>
-<span id="L94"><span class="lineNum">      94</span>         [<span class="tlaGBC" title="Branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          15 :     if (value != 0) {</span></span>
-<span id="L95"><span class="lineNum">      95</span>                 :<span class="tlaGNC">           5 :       byte |= 0x80U;</span></span>
+<span id="L92"><span class="lineNum">      92</span>                 :<span class="tlaGNC">          19 :     auto byte = static_cast&lt;std::uint8_t&gt;(value &amp; 0x7fU);</span></span>
+<span id="L93"><span class="lineNum">      93</span>                 :<span class="tlaGNC">          19 :     value &gt;&gt;= 7U;</span></span>
+<span id="L94"><span class="lineNum">      94</span>         [<span class="tlaGBC" title="Branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          19 :     if (value != 0) {</span></span>
+<span id="L95"><span class="lineNum">      95</span>                 :<span class="tlaGNC">           9 :       byte |= 0x80U;</span></span>
 <span id="L96"><span class="lineNum">      96</span>                 :             :     }</span>
-<span id="L97"><span class="lineNum">      97</span>                 :<span class="tlaGNC">          15 :     output.put(static_cast&lt;char&gt;(byte));</span></span>
-<span id="L98"><span class="lineNum">      98</span>         [<span class="tlaGBC" title="Branch 0 was taken 10 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">          15 :     if (value == 0) {</span></span>
+<span id="L97"><span class="lineNum">      97</span>                 :<span class="tlaGNC">          19 :     output.put(static_cast&lt;char&gt;(byte));</span></span>
+<span id="L98"><span class="lineNum">      98</span>         [<span class="tlaGBC" title="Branch 0 was taken 10 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">          19 :     if (value == 0) {</span></span>
 <span id="L99"><span class="lineNum">      99</span>                 :<span class="tlaGNC">          10 :       return;</span></span>
 <span id="L100"><span class="lineNum">     100</span>                 :             :     }</span>
-<span id="L101"><span class="lineNum">     101</span>                 :<span class="tlaGNC">           5 :   }</span></span>
+<span id="L101"><span class="lineNum">     101</span>                 :<span class="tlaGNC">           9 :   }</span></span>
 <span id="L102"><span class="lineNum">     102</span>                 :             : }</span>
 <span id="L103"><span class="lineNum">     103</span>                 :             : </span>
 <span id="L104"><span class="lineNum">     104</span>                 :<span class="tlaGNC">          14 : std::size_t VarintSize(std::uint64_t value) {</span></span>
@@ -190,14 +190,14 @@
 <span id="L112"><span class="lineNum">     112</span>                 :             : </span>
 <span id="L113"><span class="lineNum">     113</span>                 :<span class="tlaGNC">          24 : absl::StatusOr&lt;std::uint64_t&gt; ReadVarint(std::istream&amp; input, std::string_view label) {</span></span>
 <span id="L114"><span class="lineNum">     114</span>                 :<span class="tlaGNC">          24 :   std::uint64_t value = 0;</span></span>
-<span id="L115"><span class="lineNum">     115</span>         [<span class="tlaGBC" title="Branch 0 was taken 43 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          44 :   for (unsigned int index = 0; index &lt; 9; ++index) {</span></span>
-<span id="L116"><span class="lineNum">     116</span>                 :<span class="tlaGNC">          43 :     const int read = input.get();</span></span>
-<span id="L117"><span class="lineNum">     117</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 42 times"> + </span>]:<span class="tlaGNC">          43 :     if (read == std::istream::traits_type::eof()) {</span></span>
+<span id="L115"><span class="lineNum">     115</span>         [<span class="tlaGBC" title="Branch 0 was taken 52 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          53 :   for (unsigned int index = 0; index &lt; 9; ++index) {</span></span>
+<span id="L116"><span class="lineNum">     116</span>                 :<span class="tlaGNC">          52 :     const int read = input.get();</span></span>
+<span id="L117"><span class="lineNum">     117</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 51 times"> + </span>]:<span class="tlaGNC">          52 :     if (read == std::istream::traits_type::eof()) {</span></span>
 <span id="L118"><span class="lineNum">     118</span>                 :<span class="tlaGNC">           1 :       return absl::DataLossError(absl::StrCat(&quot;truncated RFC 9841 varint in '&quot;, label, &quot;'&quot;));</span></span>
 <span id="L119"><span class="lineNum">     119</span>                 :             :     }</span>
-<span id="L120"><span class="lineNum">     120</span>                 :<span class="tlaGNC">          42 :     const auto byte = static_cast&lt;std::uint8_t&gt;(read);</span></span>
-<span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC">          42 :     value |= static_cast&lt;std::uint64_t&gt;(byte &amp; 0x7fU) &lt;&lt; (index * 7U);</span></span>
-<span id="L122"><span class="lineNum">     122</span>         [<span class="tlaGBC" title="Branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 20 times"> + </span>]:<span class="tlaGNC">          42 :     if ((byte &amp; 0x80U) == 0) {</span></span>
+<span id="L120"><span class="lineNum">     120</span>                 :<span class="tlaGNC">          51 :     const auto byte = static_cast&lt;std::uint8_t&gt;(read);</span></span>
+<span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC">          51 :     value |= static_cast&lt;std::uint64_t&gt;(byte &amp; 0x7fU) &lt;&lt; (index * 7U);</span></span>
+<span id="L122"><span class="lineNum">     122</span>         [<span class="tlaGBC" title="Branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 29 times"> + </span>]:<span class="tlaGNC">          51 :     if ((byte &amp; 0x80U) == 0) {</span></span>
 <span id="L123"><span class="lineNum">     123</span>                 :<span class="tlaGNC">          22 :       return value;</span></span>
 <span id="L124"><span class="lineNum">     124</span>                 :             :     }</span>
 <span id="L125"><span class="lineNum">     125</span>                 :             :   }</span>

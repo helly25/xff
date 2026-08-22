@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 20:23:55</td>
+            <td class="headerValue">2026-08-22 20:50:14</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -147,8 +147,8 @@
 <span id="L67"><span class="lineNum">      67</span>                 :             : // find-compatible single-dash spellings. Keeping this vocabulary in the parser</span>
 <span id="L68"><span class="lineNum">      68</span>                 :             : // is what prevents a lookalike inside `-exec`'s raw argument run from being</span>
 <span id="L69"><span class="lineNum">      69</span>                 :             : // mistaken for an xff request.</span>
-<span id="L70"><span class="lineNum">      70</span>                 :<span class="tlaGNC">        7637 : constexpr bool IsMetaFlag(std::string_view arg) {</span></span>
-<span id="L71"><span class="lineNum">      71</span>                 :<span class="tlaGNC">        7637 :   constexpr auto kMetaFlags = mbo::container::MakeLimitedSet&lt;10&gt;(std::initializer_list&lt;std::string_view&gt;{</span></span>
+<span id="L70"><span class="lineNum">      70</span>                 :<span class="tlaGNC">        7642 : constexpr bool IsMetaFlag(std::string_view arg) {</span></span>
+<span id="L71"><span class="lineNum">      71</span>                 :<span class="tlaGNC">        7642 :   constexpr auto kMetaFlags = mbo::container::MakeLimitedSet&lt;10&gt;(std::initializer_list&lt;std::string_view&gt;{</span></span>
 <span id="L72"><span class="lineNum">      72</span>                 :             :       &quot;--help&quot;,</span>
 <span id="L73"><span class="lineNum">      73</span>                 :             :       &quot;-h&quot;,</span>
 <span id="L74"><span class="lineNum">      74</span>                 :             :       &quot;-help&quot;,</span>
@@ -160,7 +160,7 @@
 <span id="L80"><span class="lineNum">      80</span>                 :             :       &quot;--man&quot;,</span>
 <span id="L81"><span class="lineNum">      81</span>                 :             :       &quot;--markdown&quot;,</span>
 <span id="L82"><span class="lineNum">      82</span>                 :             :   });</span>
-<span id="L83"><span class="lineNum">      83</span>   [<span class="tlaGBC" title="Branch 0 was taken 7606 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 31 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 91 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 7515 times"> + </span>]:<span class="tlaGNC">        7637 :   return kMetaFlags.contains(arg) || absl::StartsWith(arg, &quot;--help=&quot;);</span></span>
+<span id="L83"><span class="lineNum">      83</span>   [<span class="tlaGBC" title="Branch 0 was taken 7611 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 31 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 96 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 7515 times"> + </span>]:<span class="tlaGNC">        7642 :   return kMetaFlags.contains(arg) || absl::StartsWith(arg, &quot;--help=&quot;);</span></span>
 <span id="L84"><span class="lineNum">      84</span>                 :             : }</span>
 <span id="L85"><span class="lineNum">      85</span>                 :             : </span>
 <span id="L86"><span class="lineNum">      86</span>                 :<span class="tlaGNC">         486 : bool IsOr(std::string_view token) {</span></span>
@@ -923,10 +923,10 @@
 <span id="L812"><span class="lineNum">     812</span>                 :             : // reserved MATCH placeholder) stay RE2. This is lenient by design: an unknown or PCRE2-not-built-in</span>
 <span id="L813"><span class="lineNum">     813</span>                 :             : // value is left as RE2 and rejected by run.cc's ValidateRegextype (the validating reader) before the</span>
 <span id="L814"><span class="lineNum">     814</span>                 :             : // walk, so it never reaches a matcher.</span>
-<span id="L815"><span class="lineNum">     815</span>                 :<span class="tlaGNC">        2416 : regex::Grammar GrammarFromGlobals(const std::vector&lt;std::string&gt;&amp; globals) {</span></span>
-<span id="L816"><span class="lineNum">     816</span>                 :<span class="tlaGNC">        2416 :   constexpr std::string_view kPrefix = &quot;--regextype=&quot;;</span></span>
-<span id="L817"><span class="lineNum">     817</span>                 :<span class="tlaGNC">        2416 :   regex::Grammar grammar = regex::Grammar::kRe2;</span></span>
-<span id="L818"><span class="lineNum">     818</span>         [<span class="tlaGBC" title="Branch 0 was taken 1400 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2416 times"> + </span>]:<span class="tlaGNC">        3816 :   for (const std::string&amp; global : globals) {</span></span>
+<span id="L815"><span class="lineNum">     815</span>                 :<span class="tlaGNC">        2421 : regex::Grammar GrammarFromGlobals(const std::vector&lt;std::string&gt;&amp; globals) {</span></span>
+<span id="L816"><span class="lineNum">     816</span>                 :<span class="tlaGNC">        2421 :   constexpr std::string_view kPrefix = &quot;--regextype=&quot;;</span></span>
+<span id="L817"><span class="lineNum">     817</span>                 :<span class="tlaGNC">        2421 :   regex::Grammar grammar = regex::Grammar::kRe2;</span></span>
+<span id="L818"><span class="lineNum">     818</span>         [<span class="tlaGBC" title="Branch 0 was taken 1400 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2421 times"> + </span>]:<span class="tlaGNC">        3821 :   for (const std::string&amp; global : globals) {</span></span>
 <span id="L819"><span class="lineNum">     819</span>         [<span class="tlaGBC" title="Branch 0 was taken 1345 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 55 times"> + </span>]:<span class="tlaGNC">        1400 :     if (!global.starts_with(kPrefix)) {</span></span>
 <span id="L820"><span class="lineNum">     820</span>                 :<span class="tlaGNC">        1345 :       continue;</span></span>
 <span id="L821"><span class="lineNum">     821</span>                 :             :     }</span>
@@ -945,26 +945,26 @@
 <span id="L834"><span class="lineNum">     834</span>                 :<span class="tlaGNC">           8 :       grammar = regex::Grammar::kRe2;  // RE2 / MATCH / unknown -&gt; RE2 (run.cc validates the value)</span></span>
 <span id="L835"><span class="lineNum">     835</span>                 :             :     }</span>
 <span id="L836"><span class="lineNum">     836</span>                 :             :   }</span>
-<span id="L837"><span class="lineNum">     837</span>                 :<span class="tlaGNC">        2416 :   return grammar;</span></span>
+<span id="L837"><span class="lineNum">     837</span>                 :<span class="tlaGNC">        2421 :   return grammar;</span></span>
 <span id="L838"><span class="lineNum">     838</span>                 :             : }</span>
 <span id="L839"><span class="lineNum">     839</span>                 :             : </span>
 <span id="L840"><span class="lineNum">     840</span>                 :             : }  // namespace</span>
 <span id="L841"><span class="lineNum">     841</span>                 :             : </span>
-<span id="L842"><span class="lineNum">     842</span>                 :<span class="tlaGNC">        1356 : absl::StatusOr&lt;Command&gt; Parse(const std::vector&lt;std::string&gt;&amp; args) {</span></span>
-<span id="L843"><span class="lineNum">     843</span>                 :<span class="tlaGNC">        1356 :   Command cmd;</span></span>
-<span id="L844"><span class="lineNum">     844</span>                 :<span class="tlaGNC">        1356 :   std::size_t idx = 0;</span></span>
-<span id="L845"><span class="lineNum">     845</span>                 :<span class="tlaGNC">        1356 :   bool options_ended = false;</span></span>
+<span id="L842"><span class="lineNum">     842</span>                 :<span class="tlaGNC">        1361 : absl::StatusOr&lt;Command&gt; Parse(const std::vector&lt;std::string&gt;&amp; args) {</span></span>
+<span id="L843"><span class="lineNum">     843</span>                 :<span class="tlaGNC">        1361 :   Command cmd;</span></span>
+<span id="L844"><span class="lineNum">     844</span>                 :<span class="tlaGNC">        1361 :   std::size_t idx = 0;</span></span>
+<span id="L845"><span class="lineNum">     845</span>                 :<span class="tlaGNC">        1361 :   bool options_ended = false;</span></span>
 <span id="L846"><span class="lineNum">     846</span>                 :             : </span>
 <span id="L847"><span class="lineNum">     847</span>                 :             :   // Leading globals: '-'/'+' tokens before the first root; a bare '--' ends option parsing.</span>
-<span id="L848"><span class="lineNum">     848</span>         [<span class="tlaGBC" title="Branch 0 was taken 2035 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 128 times"> + </span>]:<span class="tlaGNC">        2163 :   for (; idx &lt; args.size(); ++idx) {</span></span>
-<span id="L849"><span class="lineNum">     849</span>                 :<span class="tlaGNC">        2035 :     const std::string&amp; arg = args[idx];</span></span>
-<span id="L850"><span class="lineNum">     850</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 2034 times"> + </span>]:<span class="tlaGNC">        2035 :     if (arg == &quot;--&quot;) {</span></span>
+<span id="L848"><span class="lineNum">     848</span>         [<span class="tlaGBC" title="Branch 0 was taken 2040 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 133 times"> + </span>]:<span class="tlaGNC">        2173 :   for (; idx &lt; args.size(); ++idx) {</span></span>
+<span id="L849"><span class="lineNum">     849</span>                 :<span class="tlaGNC">        2040 :     const std::string&amp; arg = args[idx];</span></span>
+<span id="L850"><span class="lineNum">     850</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 2039 times"> + </span>]:<span class="tlaGNC">        2040 :     if (arg == &quot;--&quot;) {</span></span>
 <span id="L851"><span class="lineNum">     851</span>                 :<span class="tlaGNC">           1 :       ++idx;</span></span>
 <span id="L852"><span class="lineNum">     852</span>                 :<span class="tlaGNC">           1 :       options_ended = true;</span></span>
 <span id="L853"><span class="lineNum">     853</span>                 :<span class="tlaGNC">           1 :       break;</span></span>
 <span id="L854"><span class="lineNum">     854</span>                 :             :     }</span>
-<span id="L855"><span class="lineNum">     855</span>         [<span class="tlaGBC" title="Branch 0 was taken 120 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1914 times"> + </span>]:<span class="tlaGNC">        2034 :     if (IsMetaFlag(arg)) {</span></span>
-<span id="L856"><span class="lineNum">     856</span>                 :<span class="tlaGNC">         120 :       cmd.meta_flags.push_back(arg);</span></span>
+<span id="L855"><span class="lineNum">     855</span>         [<span class="tlaGBC" title="Branch 0 was taken 125 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1914 times"> + </span>]:<span class="tlaGNC">        2039 :     if (IsMetaFlag(arg)) {</span></span>
+<span id="L856"><span class="lineNum">     856</span>                 :<span class="tlaGNC">         125 :       cmd.meta_flags.push_back(arg);</span></span>
 <span id="L857"><span class="lineNum">     857</span>   [<span class="tlaGBC" title="Branch 0 was taken 1914 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 1227 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 687 times"> + </span> :<span class="tlaGNC">        1914 :     } else if (!arg.empty() &amp;&amp; (arg[0] == '-' || arg[0] == '+')) {</span></span>
 <span class="lineNum">        </span>    <span class="tlaUNC" title="Branch 4 was not taken"> - </span><span class="tlaGBC" title="Branch 5 was taken 1227 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 687 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 1227 times"> + </span>]
 <span id="L858"><span class="lineNum">     858</span>                 :<span class="tlaGNC">         687 :       cmd.globals.push_back(arg);</span></span>
@@ -976,7 +976,7 @@
 <span id="L864"><span class="lineNum">     864</span>                 :             :   // Roots: operands until the expression begins. A double-dash global among the roots is hoisted</span>
 <span id="L865"><span class="lineNum">     865</span>                 :             :   // (globals are position-independent), so `a --sort=tree b` keeps both roots; an explicit `--`</span>
 <span id="L866"><span class="lineNum">     866</span>                 :             :   // disables that, taking every following token literally.</span>
-<span id="L867"><span class="lineNum">     867</span>         [<span class="tlaGBC" title="Branch 0 was taken 2378 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 255 times"> + </span>]:<span class="tlaGNC">        2633 :   for (; idx &lt; args.size(); ++idx) {</span></span>
+<span id="L867"><span class="lineNum">     867</span>         [<span class="tlaGBC" title="Branch 0 was taken 2378 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 260 times"> + </span>]:<span class="tlaGNC">        2638 :   for (; idx &lt; args.size(); ++idx) {</span></span>
 <span id="L868"><span class="lineNum">     868</span>   [<span class="tlaGBC" title="Branch 0 was taken 2376 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 2328 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 48 times"> + </span> :<span class="tlaGNC">        2378 :     if (!options_ended &amp;&amp; (IsHoistableGlobal(args[idx]) || IsMetaFlag(args[idx]))) {</span></span>
 <span class="lineNum">        </span>    <span class="tlaUNC" title="Branch 4 was not taken"> - </span><span class="tlaGBC" title="Branch 5 was taken 2328 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 48 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 2330 times"> + </span>]
 <span id="L869"><span class="lineNum">     869</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 48 times"> + </span>]:<span class="tlaGNC">          48 :       if (IsMetaFlag(args[idx])) {</span></span>
@@ -996,21 +996,21 @@
 <span id="L883"><span class="lineNum">     883</span>                 :             :   // so far -- a leading / among-roots --regextype applies. A --regextype inside the expression is</span>
 <span id="L884"><span class="lineNum">     884</span>                 :             :   // hoisted below but, sitting after the patterns it would govern, does not retro-recompile them; it</span>
 <span id="L885"><span class="lineNum">     885</span>                 :             :   // belongs before the expression.</span>
-<span id="L886"><span class="lineNum">     886</span>                 :<span class="tlaGNC">        1356 :   cmd.grammar = GrammarFromGlobals(cmd.globals);</span></span>
+<span id="L886"><span class="lineNum">     886</span>                 :<span class="tlaGNC">        1361 :   cmd.grammar = GrammarFromGlobals(cmd.globals);</span></span>
 <span id="L887"><span class="lineNum">     887</span>                 :             : </span>
 <span id="L888"><span class="lineNum">     888</span>                 :             :   // Expression: the remaining tokens, parsed to a tree. The parser hoists any double-dash globals it</span>
 <span id="L889"><span class="lineNum">     889</span>                 :             :   // meets at a primary/operator boundary (unless `--` ended options) -- so `. -type f --summary=ext`</span>
 <span id="L890"><span class="lineNum">     890</span>                 :             :   // works -- and we fold them back into the command's globals, then refresh the grammar.</span>
-<span id="L891"><span class="lineNum">     891</span>                 :<span class="tlaGNC">        1356 :   const std::vector&lt;std::string&gt; expr_tokens(args.begin() + static_cast&lt;std::ptrdiff_t&gt;(idx), args.end());</span></span>
-<span id="L892"><span class="lineNum">     892</span>         [<span class="tlaGBC" title="Branch 0 was taken 1101 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 255 times"> + </span>]:<span class="tlaGNC">        1356 :   if (!expr_tokens.empty()) {</span></span>
+<span id="L891"><span class="lineNum">     891</span>                 :<span class="tlaGNC">        1361 :   const std::vector&lt;std::string&gt; expr_tokens(args.begin() + static_cast&lt;std::ptrdiff_t&gt;(idx), args.end());</span></span>
+<span id="L892"><span class="lineNum">     892</span>         [<span class="tlaGBC" title="Branch 0 was taken 1101 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 260 times"> + </span>]:<span class="tlaGNC">        1361 :   if (!expr_tokens.empty()) {</span></span>
 <span id="L893"><span class="lineNum">     893</span>                 :<span class="tlaGNC">        1101 :     ExprParser parser(expr_tokens, cmd.grammar, /*hoist_globals=*/!options_ended);</span></span>
 <span id="L894"><span class="lineNum">     894</span>         [<span class="tlaGBC" title="Branch 0 was taken 41 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1060 times"> + </span>]:<span class="tlaGNC">        1101 :     MBO_ASSIGN_OR_RETURN(cmd.expression, parser.Parse());</span></span>
 <span id="L895"><span class="lineNum">     895</span>                 :<span class="tlaGNC">        1060 :     cmd.globals.insert(cmd.globals.end(), parser.HoistedGlobals().begin(), parser.HoistedGlobals().end());</span></span>
 <span id="L896"><span class="lineNum">     896</span>                 :<span class="tlaGNC">        1060 :     cmd.meta_flags.insert(cmd.meta_flags.end(), parser.HoistedMetaFlags().begin(), parser.HoistedMetaFlags().end());</span></span>
 <span id="L897"><span class="lineNum">     897</span>                 :<span class="tlaGNC">        1060 :     cmd.grammar = GrammarFromGlobals(cmd.globals);</span></span>
 <span id="L898"><span class="lineNum">     898</span>   [<span class="tlaGBC" title="Branch 0 was taken 1060 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 41 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1060 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 41 times"> + </span>]:<span class="tlaGNC">        1142 :   }</span></span>
-<span id="L899"><span class="lineNum">     899</span>                 :<span class="tlaGNC">        1315 :   return cmd;</span></span>
-<span id="L900"><span class="lineNum">     900</span>                 :<span class="tlaGNC">        1356 : }</span></span>
+<span id="L899"><span class="lineNum">     899</span>                 :<span class="tlaGNC">        1320 :   return cmd;</span></span>
+<span id="L900"><span class="lineNum">     900</span>                 :<span class="tlaGNC">        1361 : }</span></span>
 <span id="L901"><span class="lineNum">     901</span>                 :             : </span>
 <span id="L902"><span class="lineNum">     902</span>                 :<span class="tlaGNC">         514 : absl::Status EnforceStyle(const Command&amp; command, registry::Style style) {</span></span>
 <span id="L903"><span class="lineNum">     903</span>         [<span class="tlaGBC" title="Branch 0 was taken 468 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 46 times"> + </span>]:<span class="tlaGNC">         514 :   if (style != registry::Style::kFind) {</span></span>
