@@ -60,13 +60,13 @@ arch="$(uname -m)"; [ "${arch}" = "aarch64" ] && arch=arm64 || arch=amd64
 curl -sSL -o /usr/local/bin/bazel "https://github.com/bazelbuild/bazelisk/releases/download/v1.20.0/bazelisk-linux-${arch}"
 chmod +x /usr/local/bin/bazel
 cd /repo
-export XFF_FUSE_REQUIRED=1   # a skipped mount test is a FAILURE here: this machine can mount
 SETUP_EOF
 
 if [[ "${MODE}" == "msan" ]]; then
   script="${SETUP}
 bazel --output_user_root=/bzcache test --config=xff_full @xff_fuse//... //xff/cli:full_extras_test \\
-  --config=clang --config=msan --test_env=XFF_FUSE_REQUIRED --nocache_test_results --test_output=errors"
+  --config=clang --config=msan --config=xff_fuse_tests_required \\
+  --nocache_test_results --test_output=errors"
   extra=(--rm --platform linux/amd64)
   cache="${CACHE}-amd64"
 elif [[ "${MODE}" == "tsan" ]]; then
@@ -74,7 +74,7 @@ elif [[ "${MODE}" == "tsan" ]]; then
 sysctl -w vm.mmap_rnd_bits=28 >/dev/null 2>&1 || true
 bazel --output_user_root=/bzcache test --config=xff_full //xff/cli:full_extras_test \\
   --copt=-fsanitize=thread --linkopt=-fsanitize=thread --copt=-g --copt=-fno-omit-frame-pointer \\
-  --test_env=XFF_FUSE_REQUIRED --nocache_test_results --test_output=all --run_under='setarch -R'"
+  --config=xff_fuse_tests_required --nocache_test_results --test_output=all --run_under='setarch -R'"
   # setarch needs to change the process's personality, which the default seccomp profile denies.
   # The array always carries --rm so it is never empty: macOS bash 3.2 treats "${empty[@]}" under
   # `set -u` as an unbound variable and aborts.
@@ -82,7 +82,7 @@ bazel --output_user_root=/bzcache test --config=xff_full //xff/cli:full_extras_t
 else
   script="${SETUP}
 bazel --output_user_root=/bzcache test --config=xff_full @xff_fuse//... //xff/cli:full_extras_test \\
-  --test_env=XFF_FUSE_REQUIRED --nocache_test_results --test_output=errors"
+  --config=xff_fuse_tests_required --nocache_test_results --test_output=errors"
   extra=(--rm)
 fi
 

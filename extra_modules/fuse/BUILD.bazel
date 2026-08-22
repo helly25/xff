@@ -153,6 +153,10 @@ cc_test(
     name = "fuse_server_test",
     size = "medium",
     srcs = ["fuse_server_test.cc"],
+    defines = select({
+        "@xff_extras_api//:fuse_tests_required": ["XFF_FUSE_TESTS_REQUIRED"],
+        "//conditions:default": [],
+    }),
     # The kernel-path test needs /dev/fuse and the setuid fusermount3, neither of which works inside
     # bazel's linux sandbox; the test itself only touches its own TempDir. Scoped to the TEST action
     # (not a target-wide "no-sandbox" tag): an unsandboxed COMPILE resolves libc++'s <version> to the

@@ -23,7 +23,6 @@
 #include <array>
 #include <cerrno>
 #include <cstdint>
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -57,7 +56,6 @@ using ::mbo::testing::StatusIs;
 using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsFalse;
-using ::testing::IsNull;
 using ::testing::IsTrue;
 using ::testing::Not;
 using ::testing::UnorderedElementsAre;
@@ -189,14 +187,11 @@ struct FuseServerTest : ::testing::Test {
     GTEST_SKIP() << "MSan cannot model the uninstrumented system libfuse3";
 #else
     if (!FuseAvailable()) {
-      // Where the environment PROMISES mounting (Linux CI installs fuse3 and sets
-      // XFF_FUSE_REQUIRED), "no fuse3 here" is a failure, not a skip. Without this the whole
-      // kernel path skips silently and the suite reports green in a tenth of a second - which is
-      // exactly what it was doing, while the CLI-level test mounted successfully in the same job.
-      // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded test setup
-      ASSERT_THAT(std::getenv("XFF_FUSE_REQUIRED"), IsNull())
-          << "fuse3 must be loadable here: " << FuseLoader::Instance().error();
+# if defined(XFF_FUSE_TESTS_REQUIRED)
+      FAIL() << "fuse3 must be loadable here: " << FuseLoader::Instance().error();
+# else
       GTEST_SKIP() << "no fuse3 on this machine: " << FuseLoader::Instance().error();
+# endif
     }
     // A plain directory is all a mount point is; MountRoot (which normally provides it) has its
     // own test and stays out of these.
@@ -205,13 +200,11 @@ struct FuseServerTest : ::testing::Test {
     std::filesystem::create_directories(mount_point);
     absl::StatusOr<std::unique_ptr<FuseServer>> mounted = FuseServer::Mount(fs, std::string(root), mount_point);
     if (!mounted.ok()) {
-      // A library without a mountable environment (no /dev/fuse, no setuid fusermount3 - common in
-      // sandboxes) is a degrade, not a failure - EXCEPT where the environment promises
-      // mountability (Linux CI sets XFF_FUSE_REQUIRED): there a skip would silently retire the
-      // whole kernel path.
-      // NOLINTNEXTLINE(concurrency-mt-unsafe): single-threaded test setup
-      ASSERT_THAT(std::getenv("XFF_FUSE_REQUIRED"), IsNull()) << mounted.status();
+# if defined(XFF_FUSE_TESTS_REQUIRED)
+      FAIL() << mounted.status();
+# else
       GTEST_SKIP() << "fuse3 present but mounting not permitted here: " << mounted.status();
+# endif
     }
     server = *std::move(mounted);
 #endif
