@@ -95,6 +95,11 @@ follow-up:
 
 The generated `--help` / `--man` / `--markdown` then stay complete by construction.
 
+When implementing a new feature, consider whether it belongs in the README's
+**Core Highlights & Architectural Advantages** section and **Tool Feature Comparison Matrix**.
+Those sections are curated rather than exhaustive: add only major or genuinely differentiating
+features.
+
 ### Markup in help prose
 
 Help text is authored in a small inline markup (`ParseInline`), and the backends render it per
