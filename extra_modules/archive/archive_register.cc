@@ -79,9 +79,9 @@ std::vector<ReadFormatInfo> ReadFormats() {
       {.name = "lha", .suffixes = {".lha", ".lzh"}, .detail = "LHA/LZH archives"},
       {.name = "rar", .suffixes = {".rar"}, .detail = "RAR 4 and RAR 5 archives"},
       {.name = "tar",
-       .suffixes =
-           {".tar", ".tar.gz", ".tgz", ".taz", ".crate", ".gem", ".tar.bz2", ".tbz", ".tbz2", ".tz2", ".tar.xz", ".txz",
-            ".tlz", ".tar.zst", ".tzst"},
+       .suffixes = {".tar",      ".tar.gz",  ".tgz",   ".taz",    ".crate",   ".gem", ".tar.bz2",
+                    ".tbz",      ".tbz2",    ".tz2",   ".tar.xz", ".txz",     ".tlz", ".tar.lz",
+                    ".tar.lzma", ".tar.lz4", ".tar.Z", ".taZ",    ".tar.zst", ".tzst"},
        .detail = "tar archives, plain or through any compression filter; `.crate` and `.gem` are tars"},
       {.name = "warc", .suffixes = {".warc"}, .detail = "web archives"},
       {.name = "xar", .suffixes = {".xar"}, .detail = "xar archives"},
@@ -91,7 +91,7 @@ std::vector<ReadFormatInfo> ReadFormats() {
        .detail = "zip archives and the package formats that are zips underneath"},
       {.name = "phar", .suffixes = {".phar"}, .detail = "PHP phar archives (xff's own reader)"},
       {.name = "file",
-       .suffixes = {".gz", ".bz2", ".xz", ".zst", ".zstd", ".lz4", ".lzma"},
+       .suffixes = {".gz", ".bz2", ".xz", ".zst", ".zstd", ".lz", ".lz4", ".lzma", ".Z"},
        .detail = "a compressed SINGLE file (`notes.txt.gz`): one member, decompressed at open"},
   };
 }

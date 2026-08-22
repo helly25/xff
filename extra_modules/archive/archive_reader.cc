@@ -32,6 +32,8 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "xff/archive/archive_filters.h"
+#include "xff/archive/archive_reader_internal.h"
 #include "xff/archive/member_path.h"
 
 namespace xff::archive {
@@ -52,7 +54,7 @@ struct ArchiveDeleter {
 
 using ArchivePtr = std::unique_ptr<struct ::archive, ArchiveDeleter>;
 
-// A reader with every filter and every format we WANT enabled; the format is detected from the
+// A reader with every native filter and every format we WANT enabled; the format is detected from the
 // content, so callers never name it.
 //
 // Deliberately NOT `archive_read_support_format_all`: that set includes `mtree`, a plain-text
@@ -60,12 +62,14 @@ using ArchivePtr = std::unique_ptr<struct ::archive, ArchiveDeleter>;
 // (the xff family dives a named root by default) reports a bogus member named after the file's
 // first word. A false "this is an archive" is far worse than missing an exotic format, so the set
 // is spelled out and mtree stays out. `raw` is out for the same reason - it accepts anything.
-ArchivePtr NewReader() {
+ArchivePtr NewReader(const internal::FilterEnabler enable_filters = EnableNativeFilters) {
   ArchivePtr handle{::archive_read_new()};
   if (handle == nullptr) {
     return handle;
   }
-  ::archive_read_support_filter_all(handle.get());
+  if (!enable_filters(handle.get())) {
+    return nullptr;
+  }
   ::archive_read_support_format_7zip(handle.get());
   ::archive_read_support_format_ar(handle.get());
   ::archive_read_support_format_cab(handle.get());
@@ -192,7 +196,6 @@ absl::StatusOr<std::string> ReadMemberOfOpened(
 // the container's with the suffix removed. Only the whole-file codecs appear - `.tgz` and friends are
 // tar shorthands, so they are archives libarchive reads by itself and must not land here.
 constexpr std::array kSingleFileSuffixes = std::to_array<std::string_view>({
-    ".br",
     ".bz2",
     ".gz",
     ".lz",
@@ -213,7 +216,10 @@ std::optional<std::string> CompressionSuffixStripped(std::string_view name) {
   return std::nullopt;
 }
 
-absl::StatusOr<std::string> ReadCompressedSingleFile(std::string_view path, std::uint64_t max_bytes) {
+absl::StatusOr<std::string> internal::ReadCompressedSingleFileWithFilterEnabler(
+    std::string_view path,
+    const std::uint64_t max_bytes,
+    const FilterEnabler enable_filters) {
   const std::string_view::size_type slash = path.rfind('/');
   const std::string_view name = slash == std::string_view::npos ? path : path.substr(slash + 1);
   if (!CompressionSuffixStripped(name).has_value()) {
@@ -225,7 +231,9 @@ absl::StatusOr<std::string> ReadCompressedSingleFile(std::string_view path, std:
   if (handle == nullptr) {
     return absl::ResourceExhaustedError("cannot allocate a libarchive reader");
   }
-  ::archive_read_support_filter_all(handle.get());
+  if (!enable_filters(handle.get())) {
+    return absl::UnavailableError("cannot enable the linked compression filters");
+  }
   ::archive_read_support_format_raw(handle.get());
   const std::string path_string(path);
   if (::archive_read_open_filename(handle.get(), path_string.c_str(), kBlockSize) != ARCHIVE_OK) {
@@ -243,14 +251,20 @@ absl::StatusOr<std::string> ReadCompressedSingleFile(std::string_view path, std:
   return ReadPositionedEntry(handle.get(), entry, path, max_bytes);
 }
 
-absl::StatusOr<std::vector<Member>> ListMembers(std::string_view bytes) {
+absl::StatusOr<std::string> ReadCompressedSingleFile(std::string_view path, const std::uint64_t max_bytes) {
+  return internal::ReadCompressedSingleFileWithFilterEnabler(path, max_bytes, EnableNativeFilters);
+}
+
+absl::StatusOr<std::vector<Member>> internal::ListMembersWithFilterEnabler(
+    std::string_view bytes,
+    const FilterEnabler enable_filters) {
   // libarchive opens zero bytes happily and reports EOF at once, which would make an empty file
   // look like a valid archive holding nothing. No format has an empty representation, so an empty
   // input is simply not an archive - and the walk must keep treating such a file as a plain file.
   if (bytes.empty()) {
     return absl::InvalidArgumentError("not a readable archive: empty input");
   }
-  const ArchivePtr handle = NewReader();
+  const ArchivePtr handle = NewReader(enable_filters);
   if (handle == nullptr) {
     return absl::ResourceExhaustedError("cannot allocate a libarchive reader");
   }
@@ -258,6 +272,10 @@ absl::StatusOr<std::vector<Member>> ListMembers(std::string_view bytes) {
     return absl::InvalidArgumentError(absl::StrCat("not a readable archive: ", LastError(handle.get())));
   }
   return ReadMembers(handle.get());
+}
+
+absl::StatusOr<std::vector<Member>> ListMembers(std::string_view bytes) {
+  return internal::ListMembersWithFilterEnabler(bytes, EnableNativeFilters);
 }
 
 absl::StatusOr<std::vector<Member>> ListMembersOfFile(std::string_view path) {

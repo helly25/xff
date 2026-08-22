@@ -1210,6 +1210,17 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
   - **Still open: a `@file.json` form** (`--pack-option=@opts.json`), which is the same vocabulary
     read from elsewhere. Cheap now that the table exists; wants a JSON reader (see the ASAR entry,
     blocked on one in helly25/mbo) rather than a hand-rolled parser.
+  - **Compression-filter parity and isolation.** The archive extra now exposes every useful
+    standalone filter already compiled into its libarchive closure: lzip/LZMA, LZ4, and Unix
+    compress join gzip, bzip2, xz, and zstd for name-gated reads and `--pack`. Single-file suffixes
+    use the same set. A shared explicit read-filter allowlist replaces
+    `archive_read_support_filter_all()`: lzop/lrzip/grzip stay excluded because this build would
+    launch host programs (and linking LZO creates the already-recorded GPL/static-link problem),
+    while a future libarchive Brotli filter cannot silently bypass the removable-extra boundary.
+    **Next slice:** `@xff_brotli`, a separate extra depending on `@xff_archive`, owns `.tar.br` and
+    `.br` streaming reads/writes through Brotli's MIT-licensed C API. Both are suffix-only claims:
+    RFC 7932 streams have no magic bytes, stored size, or integrity checksum, so content sniffing
+    and corruption detection beyond decoder-format errors would be dishonest.
 
 - **Fuzzy finding + near-duplicate detection** (design open). Two distinct capabilities that share the
   "approximate match" theme; split them, do not conflate:

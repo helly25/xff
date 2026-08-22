@@ -32,6 +32,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "mbo/status/status_macros.h"
+#include "xff/archive/archive_filters.h"
 #include "xff/archive/member_path.h"
 
 namespace xff::archive {
@@ -75,7 +76,9 @@ ReadPtr OpenReader(const std::string& path) {
   if (handle == nullptr) {
     return handle;
   }
-  ::archive_read_support_filter_all(handle.get());
+  if (!EnableNativeFilters(handle.get())) {
+    return nullptr;
+  }
   ::archive_read_support_format_7zip(handle.get());
   ::archive_read_support_format_ar(handle.get());
   ::archive_read_support_format_cab(handle.get());

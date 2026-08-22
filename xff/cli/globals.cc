@@ -867,7 +867,8 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "member list comes from the whole expression vocabulary rather than from a shell pipeline "
                    "into `tar`. The output NAME picks the format - `--help=archive` lists exactly what this "
                    "binary writes, from the writer's own table rather than a copy kept here, and the single-word "
-                   "shortcuts (`.tgz`, `.txz`, `.tbz2`, `.tzst`) mean what they do everywhere else; a name "
+                   "shortcuts (`.tgz`, `.txz`, `.tbz2`, `.tzst`, `.tlz`, `.taZ`) mean what they do everywhere "
+                   "else; a name "
                    "carrying no format is a usage error reported BEFORE the "
                    "walk, since finding out afterwards would waste the traversal. "
                    "Each member is stored under the entry's path relative to the search root it was found "
@@ -907,13 +908,14 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--pack-level=N",
         .group = "output",
         .header = "Output",
-        .summary = "compression level for `--pack` (gzip / bzip2 / xz 0-9, zstd 1-22, zip 0-9)",
+        .summary = "compression level for `--pack` (gzip/xz/lzip/lzma/zip 0-9, bzip2/lz4 1-9, zstd 1-22)",
         .details = "How hard the compressor works, on the scale the chosen format uses; left alone it is the "
                    "format's own default. Exactly `--pack-option=level=N`, kept as its own spelling because it "
-                   "is the one knob every compressed format has - the same relationship `-Z` has to "
+                   "is the common knob for compressors that expose a level - the same relationship `-Z` has to "
                    "`--archive-write`. On a plain `.tar` it is a usage error rather than a no-op, because "
                    "there is no compressor to set a level on and a silently ignored level reads as a smaller "
-                   "archive that never arrives.",
+                   "archive that never arrives. Legacy Unix `compress` has no level knob, so `.tar.Z` refuses "
+                   "this option too.",
         .affects = "--pack",
         .topic = "archive",
         .extra = "archive",

@@ -80,3 +80,18 @@ The last three answer the "prefixed payload" question empirically: the offsets r
 bytes for the crx, 4 for the jmod, 0 for the sfx), and libarchive reads all three, so CRX3, JMOD,
 self-extracting archives and by extension AppImage / PyInstaller need no offset-sniffing mechanism of
 ours. Every fixture carries `data/readme.txt` with the same content, so one assertion spans formats.
+
+## filter-isolation container
+
+`mini.tar.br` is `mini.tar` compressed with the reference Brotli encoder at quality 11. It is
+committed specifically to prove that the base archive extra rejects Brotli even if a future
+libarchive dependency learns that filter. Brotli belongs to the separate removable Brotli extra.
+RFC 7932 has no magic bytes, so this fixture and the eventual `.tar.br` claim are suffix-based; do
+not add content sniffing that guesses Brotli from arbitrary bytes.
+
+Regenerate it with:
+
+```sh
+brotli --quality=11 --force --output=extra_modules/archive/test_data/mini.tar.br \
+  extra_modules/archive/test_data/mini.tar
+```
