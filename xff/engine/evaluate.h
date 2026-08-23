@@ -14,30 +14,31 @@
 // limitations under the License.
 
 #ifndef XFF_ENGINE_EVALUATE_H_
-# define XFF_ENGINE_EVALUATE_H_
+#define XFF_ENGINE_EVALUATE_H_
 
-# include <cstdint>
-# include <functional>
-# include <map>
-# include <optional>
-# include <string>
-# include <string_view>
-# include <utility>
-# include <vector>
+#include <cstdint>
+#include <functional>
+#include <map>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
-# include "absl/functional/function_ref.h"
-# include "absl/status/status.h"
-# include "absl/status/statusor.h"
-# include "absl/time/time.h"
-# include "mbo/diff/diff_options.h"
-# include "xff/datetime/datetime.h"
-# include "xff/engine/collect.h"
-# include "xff/engine/extract.h"
-# include "xff/engine/mount.h"
-# include "xff/engine/walk.h"
-# include "xff/parser/ast.h"
-# include "xff/presentation/format/format.h"
-# include "xff/vfs/filesystem.h"
+#include "absl/functional/function_ref.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "absl/time/time.h"
+#include "absl/types/span.h"
+#include "mbo/diff/diff_options.h"
+#include "xff/datetime/datetime.h"
+#include "xff/engine/collect.h"
+#include "xff/engine/extract.h"
+#include "xff/engine/mount.h"
+#include "xff/engine/walk.h"
+#include "xff/parser/ast.h"
+#include "xff/presentation/format/format.h"
+#include "xff/vfs/filesystem.h"
 
 namespace xff::exec {
 class ParallelExec;  // bounded concurrent `-exec/-execdir ... ;` runner (xff/exec/exec.h)
@@ -317,4 +318,3 @@ std::string SizeUnitSuffixes();
 }  // namespace xff::engine
 
 #endif  // XFF_ENGINE_EVALUATE_H_
-#include "absl/types/span.h"
