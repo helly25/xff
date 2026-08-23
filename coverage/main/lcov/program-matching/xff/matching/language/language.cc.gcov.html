@@ -19,7 +19,7 @@
                 <table cellpadding=1 border=0 width="100%">
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
-            <td width="10%" class="headerValue"><a href="../../../../index.html">top level</a> - <a href="index.html">program-matching/xff/matching/language</a> - language.cc<span style="font-size: 80%;"> (source / <a href="language.cc.func-c.html">functions</a>)</span></td>
+            <td width="10%" class="headerValue"><a href="../../../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory program-matching/xff/matching/language">program-matching/xff/matching/language</a> - language.cc<span style="font-size: 80%;"> (source / <a href="language.cc.func-c.html" title="Click to go to function table">functions</a>)</span></td>
             <td width="5%"></td>
             <td width="5%"></td>
             <td width="5%" class="headerCovTableHead">Coverage</td>
@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 22:51:43</td>
+            <td class="headerValue">2026-08-22 23:52:40</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -45,15 +45,8 @@
             <td class="headerCovTableEntry">1</td>
           </tr>
           <tr>
-            <td class="headerItem">Legend:</td>
-            <td class="headerValueLeg">            Lines:
-            <span class="coverLegendCov">hit</span>
-            <span class="coverLegendNoCov">not hit</span>
-            | Branches:
-            <span class="coverLegendCov">+</span> taken
-            <span class="coverLegendNoCov">-</span> not taken
-            <span class="coverLegendNoCov">#</span> not executed
-</td>
+            <td></td>
+            <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -214,20 +207,20 @@
 <span id="L136"><span class="lineNum">     136</span>                 :             : </span>
 <span id="L137"><span class="lineNum">     137</span>                 :             : }  // namespace</span>
 <span id="L138"><span class="lineNum">     138</span>                 :             : </span>
-<span id="L139"><span class="lineNum">     139</span>                 :<span class="tlaGNC tlaBgGNC">          59 : std::string_view LanguageForName(std::string_view name) {</span></span>
+<span id="L139"><span class="lineNum">     139</span>                 :<span class="tlaGNC">          59 : std::string_view LanguageForName(std::string_view name) {</span></span>
 <span id="L140"><span class="lineNum">     140</span>                 :             :   // An exact filename match wins (Makefile, Dockerfile, BUILD, ...).</span>
-<span id="L141"><span class="lineNum">     141</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 47 times"> + </span>]:<span class="tlaGNC">         118 :   if (const auto it = kFilenameLanguages.find(name); it != kFilenameLanguages.end()) {</span></span>
+<span id="L141"><span class="lineNum">     141</span>         [<span class="tlaGBC" title="branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="branch 1 was taken 47 times"> + </span>]:<span class="tlaGNC">         118 :   if (const auto it = kFilenameLanguages.find(name); it != kFilenameLanguages.end()) {</span></span>
 <span id="L142"><span class="lineNum">     142</span>                 :<span class="tlaGNC">          12 :     return it-&gt;second;</span></span>
 <span id="L143"><span class="lineNum">     143</span>                 :             :   }</span>
 <span id="L144"><span class="lineNum">     144</span>                 :             :   // Otherwise the extension, using the same notion as the {ext} field: `.ext` or &quot;&quot; (a dotfile</span>
 <span id="L145"><span class="lineNum">     145</span>                 :             :   // such as `.bashrc` has none). Drop the dot and fold case for the lookup.</span>
 <span id="L146"><span class="lineNum">     146</span>                 :<span class="tlaGNC">          47 :   const std::string ext = stdfs::path(std::string(name)).extension().string();</span></span>
-<span id="L147"><span class="lineNum">     147</span>         [<span class="tlaGBC" title="Branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 38 times"> + </span>]:<span class="tlaGNC">          47 :   if (ext.size() &lt;= 1) {</span></span>
+<span id="L147"><span class="lineNum">     147</span>         [<span class="tlaGBC" title="branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="branch 1 was taken 38 times"> + </span>]:<span class="tlaGNC">          47 :   if (ext.size() &lt;= 1) {</span></span>
 <span id="L148"><span class="lineNum">     148</span>                 :<span class="tlaGNC">           9 :     return &quot;&quot;;</span></span>
 <span id="L149"><span class="lineNum">     149</span>                 :             :   }</span>
 <span id="L150"><span class="lineNum">     150</span>                 :<span class="tlaGNC">          38 :   const std::string key = absl::AsciiStrToLower(ext.substr(1));</span></span>
 <span id="L151"><span class="lineNum">     151</span>                 :<span class="tlaGNC">          38 :   const auto it = kExtensionLanguages.find(std::string_view(key));</span></span>
-<span id="L152"><span class="lineNum">     152</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 26 times"> + </span>]:<span class="tlaGNC">         102 :   return it == kExtensionLanguages.end() ? std::string_view() : it-&gt;second;</span></span>
+<span id="L152"><span class="lineNum">     152</span>         [<span class="tlaGBC" title="branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="branch 1 was taken 26 times"> + </span>]:<span class="tlaGNC">         102 :   return it == kExtensionLanguages.end() ? std::string_view() : it-&gt;second;</span></span>
 <span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">          47 : }</span></span>
 <span id="L154"><span class="lineNum">     154</span>                 :             : </span>
 <span id="L155"><span class="lineNum">     155</span>                 :             : }  // namespace xff::language</span>
@@ -239,7 +232,7 @@
 
           <table width="100%" border=0 cellspacing=0 cellpadding=0>
             <tr><td class="ruler"><img src="../../../../glass.png" width=3 height=3 alt=""></td></tr>
-            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com/linux-test-project/lcov" target="_parent">LCOV version 2.5-0</a></td></tr>
           </table>
           <br>
 

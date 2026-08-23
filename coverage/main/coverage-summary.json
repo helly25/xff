@@ -292,58 +292,58 @@
   },
   "targets": {
     "overall": {
-      "lines": 90,
-      "functions": 95,
+      "lines": 92,
+      "functions": 97,
       "branches": 82
     },
     "program / command line": {
-      "lines": 90,
-      "functions": 95,
+      "lines": 92,
+      "functions": 97,
       "branches": 82
     },
     "program / configuration": {
-      "lines": 90,
-      "functions": 95,
+      "lines": 92,
+      "functions": 97,
       "branches": 82
     },
     "program / command grammar": {
-      "lines": 90,
-      "functions": 95,
+      "lines": 92,
+      "functions": 97,
       "branches": 82
     },
     "program / execution": {
-      "lines": 90,
-      "functions": 95,
+      "lines": 92,
+      "functions": 97,
       "branches": 82
     },
     "program / filesystem": {
-      "lines": 90,
-      "functions": 95,
+      "lines": 92,
+      "functions": 97,
       "branches": 82
     },
     "program / matching": {
-      "lines": 90,
-      "functions": 95,
+      "lines": 92,
+      "functions": 97,
       "branches": 82
     },
     "program / presentation": {
-      "lines": 90,
-      "functions": 95,
+      "lines": 92,
+      "functions": 97,
       "branches": 82
     },
     "extensions / API": {
       "lines": 97,
-      "functions": 95,
+      "functions": 97,
       "branches": 87
     },
     "extensions / archive": {
-      "lines": 90,
-      "functions": 95,
+      "lines": 92,
+      "functions": 97,
       "branches": 82
     },
     "extensions / FUSE": {
-      "lines": 90,
-      "functions": 95,
+      "lines": 92,
+      "functions": 97,
       "branches": 82
     },
     "extensions / PCRE2": {
@@ -352,8 +352,8 @@
       "branches": 87
     },
     "extensions / Brotli": {
-      "lines": 90,
-      "functions": 95,
+      "lines": 92,
+      "functions": 97,
       "branches": 82
     }
   }

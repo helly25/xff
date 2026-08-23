@@ -19,7 +19,7 @@
                 <table cellpadding=1 border=0 width="100%">
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
-            <td width="10%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">extensions-api/xff_extras_api</a> - archive_backend.cc<span style="font-size: 80%;"> (source / <a href="archive_backend.cc.func-c.html">functions</a>)</span></td>
+            <td width="10%" class="headerValue"><a href="../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory extensions-api/xff_extras_api">extensions-api/xff_extras_api</a> - archive_backend.cc<span style="font-size: 80%;"> (source / <a href="archive_backend.cc.func-c.html" title="Click to go to function table">functions</a>)</span></td>
             <td width="5%"></td>
             <td width="5%"></td>
             <td width="5%" class="headerCovTableHead">Coverage</td>
@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 22:51:43</td>
+            <td class="headerValue">2026-08-22 23:52:40</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -45,15 +45,8 @@
             <td class="headerCovTableEntry">23</td>
           </tr>
           <tr>
-            <td class="headerItem">Legend:</td>
-            <td class="headerValueLeg">            Lines:
-            <span class="coverLegendCov">hit</span>
-            <span class="coverLegendNoCov">not hit</span>
-            | Branches:
-            <span class="coverLegendCov">+</span> taken
-            <span class="coverLegendNoCov">-</span> not taken
-            <span class="coverLegendNoCov">#</span> not executed
-</td>
+            <td></td>
+            <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
             <td class="headerCovTableEntryHi">86.7&nbsp;%</td>
@@ -118,31 +111,31 @@
 <span id="L40"><span class="lineNum">      40</span>                 :             : // The process-wide container opener, empty when no archive backend is linked. Set once at static init</span>
 <span id="L41"><span class="lineNum">      41</span>                 :             : // by the real backend's ContainerRegistrar (full build only); a Meyers static so a registrar in</span>
 <span id="L42"><span class="lineNum">      42</span>                 :             : // another translation unit can safely write it during static initialization.</span>
-<span id="L43"><span class="lineNum">      43</span>                 :<span class="tlaGNC tlaBgGNC">          34 : ContainerOpener&amp; ContainerOpenerSlot() {</span></span>
-<span id="L44"><span class="lineNum">      44</span>   [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 33 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          34 :   static ContainerOpener slot;</span></span>
+<span id="L43"><span class="lineNum">      43</span>                 :<span class="tlaGNC">          34 : ContainerOpener&amp; ContainerOpenerSlot() {</span></span>
+<span id="L44"><span class="lineNum">      44</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 33 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          34 :   static ContainerOpener slot;</span></span>
 <span id="L45"><span class="lineNum">      45</span>                 :<span class="tlaGNC">          34 :   return slot;</span></span>
 <span id="L46"><span class="lineNum">      46</span>                 :             : }</span>
 <span id="L47"><span class="lineNum">      47</span>                 :             : </span>
 <span id="L48"><span class="lineNum">      48</span>                 :             : // The process-wide member remover, empty when no backend registered one - which is the answer for a</span>
 <span id="L49"><span class="lineNum">      49</span>                 :             : // build without archive support AND for a backend that can only read.</span>
 <span id="L50"><span class="lineNum">      50</span>                 :<span class="tlaGNC">          23 : ContainerMemberRemover&amp; ContainerMemberRemoverSlot() {</span></span>
-<span id="L51"><span class="lineNum">      51</span>   [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          23 :   static ContainerMemberRemover slot;</span></span>
+<span id="L51"><span class="lineNum">      51</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 22 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          23 :   static ContainerMemberRemover slot;</span></span>
 <span id="L52"><span class="lineNum">      52</span>                 :<span class="tlaGNC">          23 :   return slot;</span></span>
 <span id="L53"><span class="lineNum">      53</span>                 :             : }</span>
 <span id="L54"><span class="lineNum">      54</span>                 :             : </span>
 <span id="L55"><span class="lineNum">      55</span>                 :             : // The process-wide packer and the formats it accepts, both empty when no backend registered one.</span>
 <span id="L56"><span class="lineNum">      56</span>                 :<span class="tlaGNC">          21 : ContainerPacker&amp; ContainerPackerSlot() {</span></span>
-<span id="L57"><span class="lineNum">      57</span>   [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 20 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          21 :   static ContainerPacker slot;</span></span>
+<span id="L57"><span class="lineNum">      57</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 20 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          21 :   static ContainerPacker slot;</span></span>
 <span id="L58"><span class="lineNum">      58</span>                 :<span class="tlaGNC">          21 :   return slot;</span></span>
 <span id="L59"><span class="lineNum">      59</span>                 :             : }</span>
 <span id="L60"><span class="lineNum">      60</span>                 :             : </span>
 <span id="L61"><span class="lineNum">      61</span>                 :<span class="tlaGNC">          23 : std::vector&lt;std::string&gt;&amp; ContainerPackFormatsSlot() {</span></span>
-<span id="L62"><span class="lineNum">      62</span>   [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          23 :   static std::vector&lt;std::string&gt; slot;</span></span>
+<span id="L62"><span class="lineNum">      62</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 22 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          23 :   static std::vector&lt;std::string&gt; slot;</span></span>
 <span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">          23 :   return slot;</span></span>
 <span id="L64"><span class="lineNum">      64</span>                 :             : }</span>
 <span id="L65"><span class="lineNum">      65</span>                 :             : </span>
 <span id="L66"><span class="lineNum">      66</span>                 :<span class="tlaGNC">          18 : std::vector&lt;PackOptionInfo&gt;&amp; ContainerPackVocabularySlot() {</span></span>
-<span id="L67"><span class="lineNum">      67</span>   [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 17 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          18 :   static std::vector&lt;PackOptionInfo&gt; slot;</span></span>
+<span id="L67"><span class="lineNum">      67</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 17 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          18 :   static std::vector&lt;PackOptionInfo&gt; slot;</span></span>
 <span id="L68"><span class="lineNum">      68</span>                 :<span class="tlaGNC">          18 :   return slot;</span></span>
 <span id="L69"><span class="lineNum">      69</span>                 :             : }</span>
 <span id="L70"><span class="lineNum">      70</span>                 :             : </span>
@@ -161,7 +154,7 @@
 <span id="L83"><span class="lineNum">      83</span>                 :             : }</span>
 <span id="L84"><span class="lineNum">      84</span>                 :             : </span>
 <span id="L85"><span class="lineNum">      85</span>                 :<span class="tlaGNC">           3 : absl::Status RemoveContainerMembers(std::string_view container, const std::vector&lt;std::string&gt;&amp; members) {</span></span>
-<span id="L86"><span class="lineNum">      86</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           3 :   if (!ContainerRemovalAvailable()) {</span></span>
+<span id="L86"><span class="lineNum">      86</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           3 :   if (!ContainerRemovalAvailable()) {</span></span>
 <span id="L87"><span class="lineNum">      87</span>                 :<span class="tlaGNC">           1 :     return absl::UnimplementedError(&quot;this binary was built without archive support&quot;);</span></span>
 <span id="L88"><span class="lineNum">      88</span>                 :             :   }</span>
 <span id="L89"><span class="lineNum">      89</span>                 :<span class="tlaGNC">           2 :   return ContainerMemberRemoverSlot()(container, members);</span></span>
@@ -191,9 +184,9 @@
 <span id="L113"><span class="lineNum">     113</span>                 :<span class="tlaGNC">           6 : std::string ContainerPackFormatFor(std::string_view path) {</span></span>
 <span id="L114"><span class="lineNum">     114</span>                 :<span class="tlaGNC">           6 :   const std::string lower = absl::AsciiStrToLower(path);</span></span>
 <span id="L115"><span class="lineNum">     115</span>                 :<span class="tlaGNC">           6 :   std::string best;</span></span>
-<span id="L116"><span class="lineNum">     116</span>         [<span class="tlaGBC" title="Branch 0 was taken 20 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">          26 :   for (const std::string&amp; format : ContainerPackFormatsSlot()) {</span></span>
-<span id="L117"><span class="lineNum">     117</span>   [<span class="tlaGBC" title="Branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 5 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 13 times"> + </span> :<span class="tlaGNC">          20 :     if (format.size() &gt; best.size() &amp;&amp; std::string_view(lower).ends_with(absl::StrCat(&quot;.&quot;, format))) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 4 was taken 18 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 5 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 15 times"> + </span>]
+<span id="L116"><span class="lineNum">     116</span>         [<span class="tlaGBC" title="branch 0 was taken 20 times"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">          26 :   for (const std::string&amp; format : ContainerPackFormatsSlot()) {</span></span>
+<span id="L117"><span class="lineNum">     117</span>   [<span class="tlaGBC" title="branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="branch 2 was taken 5 times"> + </span><span class="tlaGBC" title="branch 3 was taken 13 times"> + </span> :<span class="tlaGNC">          20 :     if (format.size() &gt; best.size() &amp;&amp; std::string_view(lower).ends_with(absl::StrCat(&quot;.&quot;, format))) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 18 times"> + </span><span class="tlaGBC" title="branch 5 was taken 2 times"> + </span><span class="tlaGBC" title="branch 6 was taken 5 times"> + </span><span class="tlaGBC" title="branch 7 was taken 15 times"> + </span>]
 <span id="L118"><span class="lineNum">     118</span>                 :<span class="tlaGNC">           5 :       best = format;</span></span>
 <span id="L119"><span class="lineNum">     119</span>                 :             :     }</span>
 <span id="L120"><span class="lineNum">     120</span>                 :             :   }</span>
@@ -201,7 +194,7 @@
 <span id="L122"><span class="lineNum">     122</span>                 :<span class="tlaGNC">           6 : }</span></span>
 <span id="L123"><span class="lineNum">     123</span>                 :             : </span>
 <span id="L124"><span class="lineNum">     124</span>                 :<span class="tlaGNC">           2 : absl::Status PackContainer(std::string_view path, const std::vector&lt;PackFile&gt;&amp; files, const PackOptions&amp; options) {</span></span>
-<span id="L125"><span class="lineNum">     125</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           2 :   if (!ContainerPackingAvailable()) {</span></span>
+<span id="L125"><span class="lineNum">     125</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           2 :   if (!ContainerPackingAvailable()) {</span></span>
 <span id="L126"><span class="lineNum">     126</span>                 :<span class="tlaGNC">           1 :     return absl::UnimplementedError(&quot;this binary was built without archive support&quot;);</span></span>
 <span id="L127"><span class="lineNum">     127</span>                 :             :   }</span>
 <span id="L128"><span class="lineNum">     128</span>                 :<span class="tlaGNC">           1 :   return ContainerPackerSlot()(path, files, options);</span></span>
@@ -212,7 +205,7 @@
 <span id="L133"><span class="lineNum">     133</span>                 :             : // The linked reader's declared formats; empty until a backend registers. Same slot pattern as the</span>
 <span id="L134"><span class="lineNum">     134</span>                 :             : // opener/packer: set once at static-init time by the registrar, read-only afterwards.</span>
 <span id="L135"><span class="lineNum">     135</span>                 :<span class="tlaGNC">          15 : std::vector&lt;ReadFormatInfo&gt;&amp; ReadFormatsSlot() {</span></span>
-<span id="L136"><span class="lineNum">     136</span>   [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 14 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          15 :   static std::vector&lt;ReadFormatInfo&gt; slot;</span></span>
+<span id="L136"><span class="lineNum">     136</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          15 :   static std::vector&lt;ReadFormatInfo&gt; slot;</span></span>
 <span id="L137"><span class="lineNum">     137</span>                 :<span class="tlaGNC">          15 :   return slot;</span></span>
 <span id="L138"><span class="lineNum">     138</span>                 :             : }</span>
 <span id="L139"><span class="lineNum">     139</span>                 :             : </span>
@@ -221,7 +214,7 @@
 <span id="L142"><span class="lineNum">     142</span>                 :             : // One source of truth: there is no second extension list to drift - the reader's declaration IS the</span>
 <span id="L143"><span class="lineNum">     143</span>                 :             : // gate, and with no backend registered nothing dives (nothing could be opened either).</span>
 <span id="L144"><span class="lineNum">     144</span>                 :<span class="tlaGNC">          25 : absl::flat_hash_set&lt;std::string&gt;&amp; GateSuffixesSlot() {</span></span>
-<span id="L145"><span class="lineNum">     145</span>   [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 24 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          25 :   static absl::flat_hash_set&lt;std::string&gt; slot;</span></span>
+<span id="L145"><span class="lineNum">     145</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 24 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          25 :   static absl::flat_hash_set&lt;std::string&gt; slot;</span></span>
 <span id="L146"><span class="lineNum">     146</span>                 :<span class="tlaGNC">          25 :   return slot;</span></span>
 <span id="L147"><span class="lineNum">     147</span>                 :             : }</span>
 <span id="L148"><span class="lineNum">     148</span>                 :             : </span>
@@ -231,10 +224,10 @@
 <span id="L152"><span class="lineNum">     152</span>                 :<span class="tlaGNC">           6 :   ReadFormatsSlot() = std::move(formats);</span></span>
 <span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">           6 :   absl::flat_hash_set&lt;std::string&gt;&amp; gate = GateSuffixesSlot();</span></span>
 <span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">           6 :   gate.clear();</span></span>
-<span id="L155"><span class="lineNum">     155</span>         [<span class="tlaGBC" title="Branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">          14 :   for (const ReadFormatInfo&amp; format : ReadFormatsSlot()) {</span></span>
-<span id="L156"><span class="lineNum">     156</span>         [<span class="tlaGBC" title="Branch 0 was taken 17 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">          25 :     for (const std::string&amp; suffix : format.suffixes) {</span></span>
+<span id="L155"><span class="lineNum">     155</span>         [<span class="tlaGBC" title="branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">          14 :   for (const ReadFormatInfo&amp; format : ReadFormatsSlot()) {</span></span>
+<span id="L156"><span class="lineNum">     156</span>         [<span class="tlaGBC" title="branch 0 was taken 17 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">          25 :     for (const std::string&amp; suffix : format.suffixes) {</span></span>
 <span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">          17 :       const std::string::size_type dot = suffix.rfind('.');</span></span>
-<span id="L158"><span class="lineNum">     158</span>         [<span class="tlaGBC" title="Branch 0 was taken 15 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">          17 :       gate.insert(absl::AsciiStrToLower(dot == 0 ? suffix : suffix.substr(dot)));</span></span>
+<span id="L158"><span class="lineNum">     158</span>         [<span class="tlaGBC" title="branch 0 was taken 15 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">          17 :       gate.insert(absl::AsciiStrToLower(dot == 0 ? suffix : suffix.substr(dot)));</span></span>
 <span id="L159"><span class="lineNum">     159</span>                 :             :     }</span>
 <span id="L160"><span class="lineNum">     160</span>                 :             :   }</span>
 <span id="L161"><span class="lineNum">     161</span>                 :<span class="tlaGNC">           6 : }</span></span>
@@ -249,8 +242,8 @@
 <span id="L170"><span class="lineNum">     170</span>                 :             : </span>
 <span id="L171"><span class="lineNum">     171</span>                 :<span class="tlaGNC">          24 : bool LooksLikeContainerName(std::string_view name) {</span></span>
 <span id="L172"><span class="lineNum">     172</span>                 :<span class="tlaGNC">          24 :   const std::string::size_type dot = name.rfind('.');</span></span>
-<span id="L173"><span class="lineNum">     173</span>   [<span class="tlaGBC" title="Branch 0 was taken 21 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 20 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">          24 :   if (dot == std::string_view::npos || dot == 0 || dot + 1 == name.size()) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 4 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 5 was taken 19 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 5 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 19 times"> + </span>]
+<span id="L173"><span class="lineNum">     173</span>   [<span class="tlaGBC" title="branch 0 was taken 21 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3 times"> + </span><span class="tlaGBC" title="branch 2 was taken 20 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">          24 :   if (dot == std::string_view::npos || dot == 0 || dot + 1 == name.size()) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 1 time"> + </span><span class="tlaGBC" title="branch 5 was taken 19 times"> + </span><span class="tlaGBC" title="branch 6 was taken 5 times"> + </span><span class="tlaGBC" title="branch 7 was taken 19 times"> + </span>]
 <span id="L174"><span class="lineNum">     174</span>                 :             :     // No suffix at all (a Makefile, a compiled binary), a trailing dot, or a name that IS the suffix:</span>
 <span id="L175"><span class="lineNum">     175</span>                 :             :     // `.gz` is a dotfile, not a gzip called something.</span>
 <span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaGNC">           5 :     return false;</span></span>
@@ -259,7 +252,7 @@
 <span id="L179"><span class="lineNum">     179</span>                 :             : }</span>
 <span id="L180"><span class="lineNum">     180</span>                 :             : </span>
 <span id="L181"><span class="lineNum">     181</span>                 :<span class="tlaGNC">           6 : absl::StatusOr&lt;std::unique_ptr&lt;vfs::FileSystem&gt;&gt; OpenContainer(std::string_view container, MemberPathOptions options) {</span></span>
-<span id="L182"><span class="lineNum">     182</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">           6 :   if (!ContainerSupportAvailable()) {</span></span>
+<span id="L182"><span class="lineNum">     182</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">           6 :   if (!ContainerSupportAvailable()) {</span></span>
 <span id="L183"><span class="lineNum">     183</span>                 :             :     // Unimplemented, not InvalidArgument: nothing is wrong with the path, this binary simply cannot</span>
 <span id="L184"><span class="lineNum">     184</span>                 :             :     // look inside it. The CLI turns this into the &quot;not built into this binary&quot; message.</span>
 <span id="L185"><span class="lineNum">     185</span>                 :<span class="tlaGNC">           1 :     return absl::UnimplementedError(&quot;this binary was built without archive support&quot;);</span></span>
@@ -271,10 +264,10 @@
 <span id="L191"><span class="lineNum">     191</span>                 :             :     std::string_view container,</span>
 <span id="L192"><span class="lineNum">     192</span>                 :             :     std::string_view bytes,</span>
 <span id="L193"><span class="lineNum">     193</span>                 :             :     MemberPathOptions options) {</span>
-<span id="L194"><span class="lineNum">     194</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           1 :   if (!ContainerSupportAvailable()) {</span></span>
-<span id="L195"><span class="lineNum">     195</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     return absl::UnimplementedError(&quot;this binary was built without archive support&quot;);</span></span>
+<span id="L194"><span class="lineNum">     194</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           1 :   if (!ContainerSupportAvailable()) {</span></span>
+<span id="L195"><span class="lineNum">     195</span>                 :<span class="tlaUNC">           0 :     return absl::UnimplementedError(&quot;this binary was built without archive support&quot;);</span></span>
 <span id="L196"><span class="lineNum">     196</span>                 :             :   }</span>
-<span id="L197"><span class="lineNum">     197</span>                 :<span class="tlaGNC tlaBgGNC">           1 :   return ContainerOpenerSlot()(container, bytes, options);</span></span>
+<span id="L197"><span class="lineNum">     197</span>                 :<span class="tlaGNC">           1 :   return ContainerOpenerSlot()(container, bytes, options);</span></span>
 <span id="L198"><span class="lineNum">     198</span>                 :             : }</span>
 <span id="L199"><span class="lineNum">     199</span>                 :             : </span>
 <span id="L200"><span class="lineNum">     200</span>                 :             : }  // namespace xff::archive</span>
@@ -286,7 +279,7 @@
 
           <table width="100%" border=0 cellspacing=0 cellpadding=0>
             <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
-            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com/linux-test-project/lcov" target="_parent">LCOV version 2.5-0</a></td></tr>
           </table>
           <br>
 

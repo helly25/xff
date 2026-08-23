@@ -19,7 +19,7 @@
                 <table cellpadding=1 border=0 width="100%">
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
-            <td width="10%" class="headerValue"><a href="../../../index.html">top level</a> - <a href="index.html">program-command-grammar/xff/registry</a> - registry.cc<span style="font-size: 80%;"> (source / <a href="registry.cc.func-c.html">functions</a>)</span></td>
+            <td width="10%" class="headerValue"><a href="../../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory program-command-grammar/xff/registry">program-command-grammar/xff/registry</a> - registry.cc<span style="font-size: 80%;"> (source / <a href="registry.cc.func-c.html" title="Click to go to function table">functions</a>)</span></td>
             <td width="5%"></td>
             <td width="5%"></td>
             <td width="5%" class="headerCovTableHead">Coverage</td>
@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 22:51:43</td>
+            <td class="headerValue">2026-08-22 23:52:40</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -45,15 +45,8 @@
             <td class="headerCovTableEntry">2</td>
           </tr>
           <tr>
-            <td class="headerItem">Legend:</td>
-            <td class="headerValueLeg">            Lines:
-            <span class="coverLegendCov">hit</span>
-            <span class="coverLegendNoCov">not hit</span>
-            | Branches:
-            <span class="coverLegendCov">+</span> taken
-            <span class="coverLegendNoCov">-</span> not taken
-            <span class="coverLegendNoCov">#</span> not executed
-</td>
+            <td></td>
+            <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -1392,10 +1385,10 @@
 <span id="L1314"><span class="lineNum">    1314</span>                 :             : </span>
 <span id="L1315"><span class="lineNum">    1315</span>                 :             : }  // namespace</span>
 <span id="L1316"><span class="lineNum">    1316</span>                 :             : </span>
-<span id="L1317"><span class="lineNum">    1317</span>                 :<span class="tlaGNC tlaBgGNC">        2319 : const Descriptor* Lookup(std::string_view name) {</span></span>
-<span id="L1318"><span class="lineNum">    1318</span>         [<span class="tlaGBC" title="Branch 0 was taken 111292 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 101 times"> + </span>]:<span class="tlaGNC">      111393 :   for (const Descriptor&amp; descriptor : kDescriptors) {</span></span>
-<span id="L1319"><span class="lineNum">    1319</span>   [<span class="tlaGBC" title="Branch 0 was taken 109083 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2209 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 4019 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 105064 times"> + </span> :<span class="tlaGNC">      111292 :     if (descriptor.name == name || (!descriptor.alias.empty() &amp;&amp; descriptor.alias == name)) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 4 was taken 9 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 4010 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 2218 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 109074 times"> + </span>]
+<span id="L1317"><span class="lineNum">    1317</span>                 :<span class="tlaGNC">        2319 : const Descriptor* Lookup(std::string_view name) {</span></span>
+<span id="L1318"><span class="lineNum">    1318</span>         [<span class="tlaGBC" title="branch 0 was taken 111292 times"> + </span><span class="tlaGBC" title="branch 1 was taken 101 times"> + </span>]:<span class="tlaGNC">      111393 :   for (const Descriptor&amp; descriptor : kDescriptors) {</span></span>
+<span id="L1319"><span class="lineNum">    1319</span>   [<span class="tlaGBC" title="branch 0 was taken 109083 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2209 times"> + </span><span class="tlaGBC" title="branch 2 was taken 4019 times"> + </span><span class="tlaGBC" title="branch 3 was taken 105064 times"> + </span> :<span class="tlaGNC">      111292 :     if (descriptor.name == name || (!descriptor.alias.empty() &amp;&amp; descriptor.alias == name)) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 9 times"> + </span><span class="tlaGBC" title="branch 5 was taken 4010 times"> + </span><span class="tlaGBC" title="branch 6 was taken 2218 times"> + </span><span class="tlaGBC" title="branch 7 was taken 109074 times"> + </span>]
 <span id="L1320"><span class="lineNum">    1320</span>                 :<span class="tlaGNC">        2218 :       return &amp;descriptor;</span></span>
 <span id="L1321"><span class="lineNum">    1321</span>                 :             :     }</span>
 <span id="L1322"><span class="lineNum">    1322</span>                 :             :   }</span>
@@ -1415,7 +1408,7 @@
 
           <table width="100%" border=0 cellspacing=0 cellpadding=0>
             <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
-            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com/linux-test-project/lcov" target="_parent">LCOV version 2.5-0</a></td></tr>
           </table>
           <br>
 

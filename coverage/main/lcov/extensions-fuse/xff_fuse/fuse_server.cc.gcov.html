@@ -19,7 +19,7 @@
                 <table cellpadding=1 border=0 width="100%">
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
-            <td width="10%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">extensions-fuse/xff_fuse</a> - fuse_server.cc<span style="font-size: 80%;"> (source / <a href="fuse_server.cc.func-c.html">functions</a>)</span></td>
+            <td width="10%" class="headerValue"><a href="../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory extensions-fuse/xff_fuse">extensions-fuse/xff_fuse</a> - fuse_server.cc<span style="font-size: 80%;"> (source / <a href="fuse_server.cc.func-c.html" title="Click to go to function table">functions</a>)</span></td>
             <td width="5%"></td>
             <td width="5%"></td>
             <td width="5%" class="headerCovTableHead">Coverage</td>
@@ -31,32 +31,25 @@
             <td class="headerValue">xff production coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryMed">86.9&nbsp;%</td>
+            <td class="headerCovTableEntryLo">86.9&nbsp;%</td>
             <td class="headerCovTableEntry">267</td>
             <td class="headerCovTableEntry">232</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 22:51:43</td>
+            <td class="headerValue">2026-08-22 23:52:40</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">96.3&nbsp;%</td>
+            <td class="headerCovTableEntryMed">96.3&nbsp;%</td>
             <td class="headerCovTableEntry">27</td>
             <td class="headerCovTableEntry">26</td>
           </tr>
           <tr>
-            <td class="headerItem">Legend:</td>
-            <td class="headerValueLeg">            Lines:
-            <span class="coverLegendCov">hit</span>
-            <span class="coverLegendNoCov">not hit</span>
-            | Branches:
-            <span class="coverLegendCov">+</span> taken
-            <span class="coverLegendNoCov">-</span> not taken
-            <span class="coverLegendNoCov">#</span> not executed
-</td>
+            <td></td>
+            <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryMed">71.8&nbsp;%</td>
+            <td class="headerCovTableEntryLo">71.8&nbsp;%</td>
             <td class="headerCovTableEntry">142</td>
             <td class="headerCovTableEntry">102</td>
           </tr>
@@ -140,9 +133,9 @@
 <span id="L62"><span class="lineNum">      62</span>                 :             : // One process talks to one fuse3 library, so the API is resolved once and shared: the C callbacks</span>
 <span id="L63"><span class="lineNum">      63</span>                 :             : // have no capture slot besides userdata (which carries the per-mount state), and this is how they</span>
 <span id="L64"><span class="lineNum">      64</span>                 :             : // reach the reply functions.</span>
-<span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaGNC tlaBgGNC">         151 : const absl::StatusOr&lt;FuseApi&gt;&amp; ResolvedApi() {</span></span>
-<span id="L66"><span class="lineNum">      66</span>   [<span class="tlaGBC" title="Branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 147 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 4 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">         151 :   static const absl::StatusOr&lt;FuseApi&gt;&amp; api = *new absl::StatusOr&lt;FuseApi&gt;(FuseApi::Resolve());</span></span>
-<span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">         151 :   return api;</span></span>
+<span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaGNC">         145 : const absl::StatusOr&lt;FuseApi&gt;&amp; ResolvedApi() {</span></span>
+<span id="L66"><span class="lineNum">      66</span>   [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 141 times"> + </span><span class="tlaGBC" title="branch 2 was taken 4 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         145 :   static const absl::StatusOr&lt;FuseApi&gt;&amp; api = *new absl::StatusOr&lt;FuseApi&gt;(FuseApi::Resolve());</span></span>
+<span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">         145 :   return api;</span></span>
 <span id="L68"><span class="lineNum">      68</span>                 :             : }</span>
 <span id="L69"><span class="lineNum">      69</span>                 :             : </span>
 <span id="L70"><span class="lineNum">      70</span>                 :             : // The path of `name` inside `dir`, ASKED OF THE FILESYSTEM rather than assembled here. A backend</span>
@@ -153,11 +146,11 @@
 <span id="L75"><span class="lineNum">      75</span>                 :             : // guaranteed to work.</span>
 <span id="L76"><span class="lineNum">      76</span>                 :<span class="tlaGNC">          14 : std::optional&lt;std::string&gt; ChildPath(const vfs::FileSystem&amp; fs, std::string_view dir, std::string_view name) {</span></span>
 <span id="L77"><span class="lineNum">      77</span>                 :<span class="tlaGNC">          14 :   const absl::StatusOr&lt;std::vector&lt;vfs::Entry&gt;&gt; entries = fs.ReadDir(dir);</span></span>
-<span id="L78"><span class="lineNum">      78</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          14 :   if (!entries.ok()) {</span></span>
-<span id="L79"><span class="lineNum">      79</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     return std::nullopt;</span></span>
+<span id="L78"><span class="lineNum">      78</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          14 :   if (!entries.ok()) {</span></span>
+<span id="L79"><span class="lineNum">      79</span>                 :<span class="tlaUNC">           0 :     return std::nullopt;</span></span>
 <span id="L80"><span class="lineNum">      80</span>                 :             :   }</span>
-<span id="L81"><span class="lineNum">      81</span>                 :<span class="tlaGNC tlaBgGNC">          35 :   const auto found = absl::c_find_if(*entries, [name](const vfs::Entry&amp; entry) { return entry.name == name; });</span></span>
-<span id="L82"><span class="lineNum">      82</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          14 :   if (found == entries-&gt;end()) {</span></span>
+<span id="L81"><span class="lineNum">      81</span>                 :<span class="tlaGNC">          35 :   const auto found = absl::c_find_if(*entries, [name](const vfs::Entry&amp; entry) { return entry.name == name; });</span></span>
+<span id="L82"><span class="lineNum">      82</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          14 :   if (found == entries-&gt;end()) {</span></span>
 <span id="L83"><span class="lineNum">      83</span>                 :<span class="tlaGNC">           1 :     return std::nullopt;</span></span>
 <span id="L84"><span class="lineNum">      84</span>                 :             :   }</span>
 <span id="L85"><span class="lineNum">      85</span>                 :<span class="tlaGNC">          13 :   return found-&gt;path;</span></span>
@@ -197,21 +190,21 @@
 <span id="L119"><span class="lineNum">     119</span>                 :             :   std::uint64_t next_fh ABSL_GUARDED_BY(mutex) = 1;</span>
 <span id="L120"><span class="lineNum">     120</span>                 :             : </span>
 <span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC">          46 :   std::string PathOf(fuse_ino_t ino) ABSL_LOCKS_EXCLUDED(mutex) {</span></span>
-<span id="L122"><span class="lineNum">     122</span>         [<span class="tlaGBC" title="Branch 0 was taken 35 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 11 times"> + </span>]:<span class="tlaGNC">          46 :     if (ino == FUSE_ROOT_ID) {</span></span>
+<span id="L122"><span class="lineNum">     122</span>         [<span class="tlaGBC" title="branch 0 was taken 35 times"> + </span><span class="tlaGBC" title="branch 1 was taken 11 times"> + </span>]:<span class="tlaGNC">          46 :     if (ino == FUSE_ROOT_ID) {</span></span>
 <span id="L123"><span class="lineNum">     123</span>                 :<span class="tlaGNC">          35 :       return root;</span></span>
 <span id="L124"><span class="lineNum">     124</span>                 :             :     }</span>
 <span id="L125"><span class="lineNum">     125</span>                 :<span class="tlaGNC">          11 :     const absl::MutexLock lock(mutex);</span></span>
 <span id="L126"><span class="lineNum">     126</span>                 :<span class="tlaGNC">          11 :     const auto found = paths.find(ino);</span></span>
-<span id="L127"><span class="lineNum">     127</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 11 times"> + </span>]:<span class="tlaGNC">          11 :     return found == paths.end() ? std::string() : found-&gt;second;</span></span>
+<span id="L127"><span class="lineNum">     127</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 11 times"> + </span>]:<span class="tlaGNC">          11 :     return found == paths.end() ? std::string() : found-&gt;second;</span></span>
 <span id="L128"><span class="lineNum">     128</span>                 :<span class="tlaGNC">          11 :   }</span></span>
 <span id="L129"><span class="lineNum">     129</span>                 :             : </span>
 <span id="L130"><span class="lineNum">     130</span>                 :<span class="tlaGNC">          18 :   fuse_ino_t InodeOf(const std::string&amp; path) ABSL_LOCKS_EXCLUDED(mutex) {</span></span>
-<span id="L131"><span class="lineNum">     131</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 18 times"> + </span>]:<span class="tlaGNC">          18 :     if (path == root) {</span></span>
-<span id="L132"><span class="lineNum">     132</span>                 :<span class="tlaUNC tlaBgUNC">           0 :       return FUSE_ROOT_ID;</span></span>
+<span id="L131"><span class="lineNum">     131</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 18 times"> + </span>]:<span class="tlaGNC">          18 :     if (path == root) {</span></span>
+<span id="L132"><span class="lineNum">     132</span>                 :<span class="tlaUNC">           0 :       return FUSE_ROOT_ID;</span></span>
 <span id="L133"><span class="lineNum">     133</span>                 :             :     }</span>
-<span id="L134"><span class="lineNum">     134</span>                 :<span class="tlaGNC tlaBgGNC">          18 :     const absl::MutexLock lock(mutex);</span></span>
+<span id="L134"><span class="lineNum">     134</span>                 :<span class="tlaGNC">          18 :     const absl::MutexLock lock(mutex);</span></span>
 <span id="L135"><span class="lineNum">     135</span>                 :<span class="tlaGNC">          18 :     const auto [it, inserted] = inodes.try_emplace(path, next_ino);</span></span>
-<span id="L136"><span class="lineNum">     136</span>         [<span class="tlaGBC" title="Branch 0 was taken 15 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">          18 :     if (inserted) {</span></span>
+<span id="L136"><span class="lineNum">     136</span>         [<span class="tlaGBC" title="branch 0 was taken 15 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">          18 :     if (inserted) {</span></span>
 <span id="L137"><span class="lineNum">     137</span>                 :<span class="tlaGNC">          15 :       paths.emplace(next_ino, path);</span></span>
 <span id="L138"><span class="lineNum">     138</span>                 :<span class="tlaGNC">          15 :       ++next_ino;</span></span>
 <span id="L139"><span class="lineNum">     139</span>                 :             :     }</span>
@@ -221,8 +214,8 @@
 <span id="L143"><span class="lineNum">     143</span>                 :             : </span>
 <span id="L144"><span class="lineNum">     144</span>                 :             : namespace {</span>
 <span id="L145"><span class="lineNum">     145</span>                 :             : </span>
-<span id="L146"><span class="lineNum">     146</span>                 :<span class="tlaGNC">          56 : FuseServer::Impl&amp; ImplOf(fuse_req_t req) {</span></span>
-<span id="L147"><span class="lineNum">     147</span>                 :<span class="tlaGNC">          56 :   return *static_cast&lt;FuseServer::Impl*&gt;(ResolvedApi()-&gt;req_userdata(req));</span></span>
+<span id="L146"><span class="lineNum">     146</span>                 :<span class="tlaGNC">          53 : FuseServer::Impl&amp; ImplOf(fuse_req_t req) {</span></span>
+<span id="L147"><span class="lineNum">     147</span>                 :<span class="tlaGNC">          53 :   return *static_cast&lt;FuseServer::Impl*&gt;(ResolvedApi()-&gt;req_userdata(req));</span></span>
 <span id="L148"><span class="lineNum">     148</span>                 :             : }</span>
 <span id="L149"><span class="lineNum">     149</span>                 :             : </span>
 <span id="L150"><span class="lineNum">     150</span>                 :             : // The sessions a fatal signal must ask to exit. Guarded by a mutex on the REGISTRATION side only:</span>
@@ -230,17 +223,17 @@
 <span id="L152"><span class="lineNum">     152</span>                 :             : // registration happens before serving starts and removal precedes session teardown, and</span>
 <span id="L153"><span class="lineNum">     153</span>                 :             : // fuse_session_exit only sets a flag (the same thing libfuse's own signal handlers do).</span>
 <span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">          38 : absl::Mutex&amp; LiveMutex() {</span></span>
-<span id="L155"><span class="lineNum">     155</span>   [<span class="tlaGBC" title="Branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 34 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 4 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          38 :   static absl::Mutex&amp; mutex = *new absl::Mutex();</span></span>
+<span id="L155"><span class="lineNum">     155</span>   [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 34 times"> + </span><span class="tlaGBC" title="branch 2 was taken 4 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          38 :   static absl::Mutex&amp; mutex = *new absl::Mutex();</span></span>
 <span id="L156"><span class="lineNum">     156</span>                 :<span class="tlaGNC">          38 :   return mutex;</span></span>
 <span id="L157"><span class="lineNum">     157</span>                 :             : }</span>
 <span id="L158"><span class="lineNum">     158</span>                 :             : </span>
 <span id="L159"><span class="lineNum">     159</span>                 :<span class="tlaGNC">          38 : std::vector&lt;struct fuse_session*&gt;&amp; LiveSessions() {</span></span>
-<span id="L160"><span class="lineNum">     160</span>   [<span class="tlaGBC" title="Branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 34 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 4 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          38 :   static std::vector&lt;struct fuse_session*&gt;&amp; sessions = *new std::vector&lt;struct fuse_session*&gt;();</span></span>
+<span id="L160"><span class="lineNum">     160</span>   [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 34 times"> + </span><span class="tlaGBC" title="branch 2 was taken 4 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          38 :   static std::vector&lt;struct fuse_session*&gt;&amp; sessions = *new std::vector&lt;struct fuse_session*&gt;();</span></span>
 <span id="L161"><span class="lineNum">     161</span>                 :<span class="tlaGNC">          38 :   return sessions;</span></span>
 <span id="L162"><span class="lineNum">     162</span>                 :             : }</span>
 <span id="L163"><span class="lineNum">     163</span>                 :             : </span>
-<span id="L164"><span class="lineNum">     164</span>                 :<span class="tlaUNC tlaBgUNC">           0 : void SignalExitAll(int signo) {</span></span>
-<span id="L165"><span class="lineNum">     165</span>         [<span class="tlaUNC" title="Branch 0 was not executed"> # </span><span class="tlaUNC" title="Branch 1 was not executed"> # </span>]:<span class="tlaUNC">           0 :   for (struct fuse_session* session : LiveSessions()) {</span></span>
+<span id="L164"><span class="lineNum">     164</span>                 :<span class="tlaUNC">           0 : void SignalExitAll(int signo) {</span></span>
+<span id="L165"><span class="lineNum">     165</span>         [<span class="tlaUNC" title="branch 0 was not executed"> # </span><span class="tlaUNC" title="branch 1 was not executed"> # </span>]:<span class="tlaUNC">           0 :   for (struct fuse_session* session : LiveSessions()) {</span></span>
 <span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaUNC">           0 :     ResolvedApi()-&gt;session_exit(session);</span></span>
 <span id="L167"><span class="lineNum">     167</span>                 :             :   }</span>
 <span id="L168"><span class="lineNum">     168</span>                 :             :   // Re-raise with the default action so the process still dies of the signal; the exiting loops</span>
@@ -252,16 +245,16 @@
 <span id="L174"><span class="lineNum">     174</span>                 :<span class="tlaUNC">           0 :   static_cast&lt;void&gt;(::raise(signo));  // NOLINT(concurrency-mt-unsafe): signal handler, single delivery</span></span>
 <span id="L175"><span class="lineNum">     175</span>                 :<span class="tlaUNC">           0 : }</span></span>
 <span id="L176"><span class="lineNum">     176</span>                 :             : </span>
-<span id="L177"><span class="lineNum">     177</span>                 :<span class="tlaGNC tlaBgGNC">          19 : void InstallSignalHandlersOnce() {</span></span>
+<span id="L177"><span class="lineNum">     177</span>                 :<span class="tlaGNC">          19 : void InstallSignalHandlersOnce() {</span></span>
 <span id="L178"><span class="lineNum">     178</span>                 :<span class="tlaGNC">           4 :   static const bool kInstalled = [] {</span></span>
 <span id="L179"><span class="lineNum">     179</span>                 :             :     static constexpr std::array kSignals = std::to_array&lt;int&gt;({SIGHUP, SIGINT, SIGTERM});</span>
-<span id="L180"><span class="lineNum">     180</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">          16 :     for (const int signo : kSignals) {</span></span>
+<span id="L180"><span class="lineNum">     180</span>         [<span class="tlaGBC" title="branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">          16 :     for (const int signo : kSignals) {</span></span>
 <span id="L181"><span class="lineNum">     181</span>                 :<span class="tlaGNC">          12 :       struct sigaction action = {};</span></span>
 <span id="L182"><span class="lineNum">     182</span>                 :<span class="tlaGNC">          12 :       action.sa_handler = &amp;SignalExitAll;</span></span>
 <span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaGNC">          12 :       static_cast&lt;void&gt;(::sigaction(signo, &amp;action, nullptr));</span></span>
 <span id="L184"><span class="lineNum">     184</span>                 :             :     }</span>
 <span id="L185"><span class="lineNum">     185</span>                 :<span class="tlaGNC">           4 :     return true;</span></span>
-<span id="L186"><span class="lineNum">     186</span>   [<span class="tlaGBC" title="Branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 15 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 4 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          19 :   }();</span></span>
+<span id="L186"><span class="lineNum">     186</span>   [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 15 times"> + </span><span class="tlaGBC" title="branch 2 was taken 4 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          19 :   }();</span></span>
 <span id="L187"><span class="lineNum">     187</span>                 :             :   (void)kInstalled;</span>
 <span id="L188"><span class="lineNum">     188</span>                 :<span class="tlaGNC">          19 : }</span></span>
 <span id="L189"><span class="lineNum">     189</span>                 :             : </span>
@@ -272,17 +265,17 @@
 <span id="L194"><span class="lineNum">     194</span>                 :<span class="tlaGNC">          14 :   const FuseApi&amp; api = *ResolvedApi();</span></span>
 <span id="L195"><span class="lineNum">     195</span>                 :<span class="tlaGNC">          14 :   FuseServer::Impl&amp; impl = ImplOf(req);</span></span>
 <span id="L196"><span class="lineNum">     196</span>                 :<span class="tlaGNC">          14 :   const std::string parent_path = impl.PathOf(parent);</span></span>
-<span id="L197"><span class="lineNum">     197</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          14 :   if (parent_path.empty()) {</span></span>
-<span id="L198"><span class="lineNum">     198</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     api.reply_err(req, ENOENT);</span></span>
+<span id="L197"><span class="lineNum">     197</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          14 :   if (parent_path.empty()) {</span></span>
+<span id="L198"><span class="lineNum">     198</span>                 :<span class="tlaUNC">           0 :     api.reply_err(req, ENOENT);</span></span>
 <span id="L199"><span class="lineNum">     199</span>                 :<span class="tlaUNC">           0 :     return;</span></span>
 <span id="L200"><span class="lineNum">     200</span>                 :             :   }</span>
-<span id="L201"><span class="lineNum">     201</span>                 :<span class="tlaGNC tlaBgGNC">          14 :   const std::optional&lt;std::string&gt; path = ChildPath(*impl.fs, parent_path, name);</span></span>
-<span id="L202"><span class="lineNum">     202</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          14 :   if (!path.has_value()) {</span></span>
+<span id="L201"><span class="lineNum">     201</span>                 :<span class="tlaGNC">          14 :   const std::optional&lt;std::string&gt; path = ChildPath(*impl.fs, parent_path, name);</span></span>
+<span id="L202"><span class="lineNum">     202</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          14 :   if (!path.has_value()) {</span></span>
 <span id="L203"><span class="lineNum">     203</span>                 :<span class="tlaGNC">           1 :     api.reply_err(req, ENOENT);</span></span>
 <span id="L204"><span class="lineNum">     204</span>                 :<span class="tlaGNC">           1 :     return;</span></span>
 <span id="L205"><span class="lineNum">     205</span>                 :             :   }</span>
 <span id="L206"><span class="lineNum">     206</span>                 :<span class="tlaGNC">          13 :   const absl::StatusOr&lt;vfs::Metadata&gt; metadata = impl.fs-&gt;Stat(*path, /*follow_symlinks=*/false);</span></span>
-<span id="L207"><span class="lineNum">     207</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 12 times"> + </span>]:<span class="tlaGNC">          13 :   if (!metadata.ok()) {</span></span>
+<span id="L207"><span class="lineNum">     207</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 12 times"> + </span>]:<span class="tlaGNC">          13 :   if (!metadata.ok()) {</span></span>
 <span id="L208"><span class="lineNum">     208</span>                 :<span class="tlaGNC">           1 :     api.reply_err(req, ErrnoForStatus(metadata.status().code()));</span></span>
 <span id="L209"><span class="lineNum">     209</span>                 :<span class="tlaGNC">           1 :     return;</span></span>
 <span id="L210"><span class="lineNum">     210</span>                 :             :   }</span>
@@ -292,36 +285,36 @@
 <span id="L214"><span class="lineNum">     214</span>                 :<span class="tlaGNC">          12 :   entry.attr_timeout = kCacheSeconds;</span></span>
 <span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">          12 :   entry.entry_timeout = kCacheSeconds;</span></span>
 <span id="L216"><span class="lineNum">     216</span>                 :<span class="tlaGNC">          12 :   api.reply_entry(req, &amp;entry);</span></span>
-<span id="L217"><span class="lineNum">     217</span>   [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 2 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 2 times"> + </span> :<span class="tlaGNC">          17 : }</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 2 times"> + </span>]
+<span id="L217"><span class="lineNum">     217</span>   [<span class="tlaGBC" title="branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 12 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2 times"> + </span> :<span class="tlaGNC">          17 : }</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 12 times"> + </span><span class="tlaGBC" title="branch 5 was taken 2 times"> + </span>]
 <span id="L218"><span class="lineNum">     218</span>                 :             : </span>
 <span id="L219"><span class="lineNum">     219</span>                 :<span class="tlaGNC">          19 : void OpGetattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* /*file_info*/) {</span></span>
 <span id="L220"><span class="lineNum">     220</span>                 :<span class="tlaGNC">          19 :   const FuseApi&amp; api = *ResolvedApi();</span></span>
 <span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC">          19 :   FuseServer::Impl&amp; impl = ImplOf(req);</span></span>
 <span id="L222"><span class="lineNum">     222</span>                 :<span class="tlaGNC">          19 :   const std::string path = impl.PathOf(ino);</span></span>
-<span id="L223"><span class="lineNum">     223</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          19 :   if (path.empty()) {</span></span>
-<span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     api.reply_err(req, ENOENT);</span></span>
+<span id="L223"><span class="lineNum">     223</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          19 :   if (path.empty()) {</span></span>
+<span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaUNC">           0 :     api.reply_err(req, ENOENT);</span></span>
 <span id="L225"><span class="lineNum">     225</span>                 :<span class="tlaUNC">           0 :     return;</span></span>
 <span id="L226"><span class="lineNum">     226</span>                 :             :   }</span>
-<span id="L227"><span class="lineNum">     227</span>                 :<span class="tlaGNC tlaBgGNC">          19 :   const absl::StatusOr&lt;vfs::Metadata&gt; metadata = impl.fs-&gt;Stat(path, /*follow_symlinks=*/false);</span></span>
-<span id="L228"><span class="lineNum">     228</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          19 :   if (!metadata.ok()) {</span></span>
-<span id="L229"><span class="lineNum">     229</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     api.reply_err(req, ErrnoForStatus(metadata.status().code()));</span></span>
+<span id="L227"><span class="lineNum">     227</span>                 :<span class="tlaGNC">          19 :   const absl::StatusOr&lt;vfs::Metadata&gt; metadata = impl.fs-&gt;Stat(path, /*follow_symlinks=*/false);</span></span>
+<span id="L228"><span class="lineNum">     228</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          19 :   if (!metadata.ok()) {</span></span>
+<span id="L229"><span class="lineNum">     229</span>                 :<span class="tlaUNC">           0 :     api.reply_err(req, ErrnoForStatus(metadata.status().code()));</span></span>
 <span id="L230"><span class="lineNum">     230</span>                 :<span class="tlaUNC">           0 :     return;</span></span>
 <span id="L231"><span class="lineNum">     231</span>                 :             :   }</span>
-<span id="L232"><span class="lineNum">     232</span>                 :<span class="tlaGNC tlaBgGNC">          19 :   const struct stat attr = StatForMetadata(*metadata, ino);</span></span>
+<span id="L232"><span class="lineNum">     232</span>                 :<span class="tlaGNC">          19 :   const struct stat attr = StatForMetadata(*metadata, ino);</span></span>
 <span id="L233"><span class="lineNum">     233</span>                 :<span class="tlaGNC">          19 :   api.reply_attr(req, &amp;attr, kCacheSeconds);</span></span>
-<span id="L234"><span class="lineNum">     234</span>   [<span class="tlaGBC" title="Branch 0 was taken 19 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 19 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          19 : }</span></span>
+<span id="L234"><span class="lineNum">     234</span>   [<span class="tlaGBC" title="branch 0 was taken 19 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 19 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          19 : }</span></span>
 <span id="L235"><span class="lineNum">     235</span>                 :             : </span>
 <span id="L236"><span class="lineNum">     236</span>                 :<span class="tlaGNC">           3 : void OpReaddir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct fuse_file_info* /*file_info*/) {</span></span>
 <span id="L237"><span class="lineNum">     237</span>                 :<span class="tlaGNC">           3 :   const FuseApi&amp; api = *ResolvedApi();</span></span>
 <span id="L238"><span class="lineNum">     238</span>                 :<span class="tlaGNC">           3 :   FuseServer::Impl&amp; impl = ImplOf(req);</span></span>
 <span id="L239"><span class="lineNum">     239</span>                 :<span class="tlaGNC">           3 :   const std::string path = impl.PathOf(ino);</span></span>
-<span id="L240"><span class="lineNum">     240</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">           3 :   if (path.empty()) {</span></span>
-<span id="L241"><span class="lineNum">     241</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     api.reply_err(req, ENOENT);</span></span>
+<span id="L240"><span class="lineNum">     240</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">           3 :   if (path.empty()) {</span></span>
+<span id="L241"><span class="lineNum">     241</span>                 :<span class="tlaUNC">           0 :     api.reply_err(req, ENOENT);</span></span>
 <span id="L242"><span class="lineNum">     242</span>                 :<span class="tlaUNC">           0 :     return;</span></span>
 <span id="L243"><span class="lineNum">     243</span>                 :             :   }</span>
-<span id="L244"><span class="lineNum">     244</span>                 :<span class="tlaGNC tlaBgGNC">           3 :   const absl::StatusOr&lt;std::vector&lt;vfs::Entry&gt;&gt; entries = impl.fs-&gt;ReadDir(path);</span></span>
-<span id="L245"><span class="lineNum">     245</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           3 :   if (!entries.ok()) {</span></span>
+<span id="L244"><span class="lineNum">     244</span>                 :<span class="tlaGNC">           3 :   const absl::StatusOr&lt;std::vector&lt;vfs::Entry&gt;&gt; entries = impl.fs-&gt;ReadDir(path);</span></span>
+<span id="L245"><span class="lineNum">     245</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           3 :   if (!entries.ok()) {</span></span>
 <span id="L246"><span class="lineNum">     246</span>                 :<span class="tlaGNC">           1 :     api.reply_err(req, ErrnoForStatus(entries.status().code()));</span></span>
 <span id="L247"><span class="lineNum">     247</span>                 :<span class="tlaGNC">           1 :     return;</span></span>
 <span id="L248"><span class="lineNum">     248</span>                 :             :   }</span>
@@ -332,15 +325,15 @@
 <span id="L253"><span class="lineNum">     253</span>                 :<span class="tlaGNC">           2 :   off_t next = 0;</span></span>
 <span id="L254"><span class="lineNum">     254</span>                 :<span class="tlaGNC">          10 :   auto emit = [&amp;](const char* name, const struct stat&amp; attr) {</span></span>
 <span id="L255"><span class="lineNum">     255</span>                 :<span class="tlaGNC">          10 :     ++next;</span></span>
-<span id="L256"><span class="lineNum">     256</span>         [<span class="tlaGBC" title="Branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">          10 :     if (next &lt;= off) {</span></span>
+<span id="L256"><span class="lineNum">     256</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">          10 :     if (next &lt;= off) {</span></span>
 <span id="L257"><span class="lineNum">     257</span>                 :<span class="tlaGNC">           5 :       return true;</span></span>
 <span id="L258"><span class="lineNum">     258</span>                 :             :     }</span>
 <span id="L259"><span class="lineNum">     259</span>                 :             :     const std::size_t entry_size =</span>
 <span id="L260"><span class="lineNum">     260</span>                 :<span class="tlaGNC">          10 :         api.add_direntry(req, std::next(buf.data(), static_cast&lt;std::ptrdiff_t&gt;(used)), size - used, name, &amp;attr, next);</span></span>
-<span id="L261"><span class="lineNum">     261</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">           5 :     if (entry_size &gt; size - used) {</span></span>
-<span id="L262"><span class="lineNum">     262</span>                 :<span class="tlaUNC tlaBgUNC">           0 :       return false;</span></span>
+<span id="L261"><span class="lineNum">     261</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">           5 :     if (entry_size &gt; size - used) {</span></span>
+<span id="L262"><span class="lineNum">     262</span>                 :<span class="tlaUNC">           0 :       return false;</span></span>
 <span id="L263"><span class="lineNum">     263</span>                 :             :     }</span>
-<span id="L264"><span class="lineNum">     264</span>                 :<span class="tlaGNC tlaBgGNC">           5 :     used += entry_size;</span></span>
+<span id="L264"><span class="lineNum">     264</span>                 :<span class="tlaGNC">           5 :     used += entry_size;</span></span>
 <span id="L265"><span class="lineNum">     265</span>                 :<span class="tlaGNC">           5 :     return true;</span></span>
 <span id="L266"><span class="lineNum">     266</span>                 :<span class="tlaGNC">           2 :   };</span></span>
 <span id="L267"><span class="lineNum">     267</span>                 :<span class="tlaGNC">           2 :   struct stat self = {};</span></span>
@@ -349,9 +342,9 @@
 <span id="L270"><span class="lineNum">     270</span>                 :<span class="tlaGNC">           2 :   struct stat parent = {};</span></span>
 <span id="L271"><span class="lineNum">     271</span>                 :<span class="tlaGNC">           2 :   parent.st_ino = FUSE_ROOT_ID;</span></span>
 <span id="L272"><span class="lineNum">     272</span>                 :<span class="tlaGNC">           2 :   parent.st_mode = S_IFDIR;</span></span>
-<span id="L273"><span class="lineNum">     273</span>   [<span class="tlaGBC" title="Branch 0 was taken 2 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 2 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">           2 :   bool more = emit(&quot;.&quot;, self) &amp;&amp; emit(&quot;..&quot;, parent);</span></span>
-<span id="L274"><span class="lineNum">     274</span>   [<span class="tlaGBC" title="Branch 0 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 2 times"> + </span> :<span class="tlaGNC">           8 :   for (std::size_t i = 0; more &amp;&amp; i &lt; entries-&gt;size(); ++i) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 2 times"> + </span>]
+<span id="L273"><span class="lineNum">     273</span>   [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 2 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">           2 :   bool more = emit(&quot;.&quot;, self) &amp;&amp; emit(&quot;..&quot;, parent);</span></span>
+<span id="L274"><span class="lineNum">     274</span>   [<span class="tlaGBC" title="branch 0 was taken 8 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 6 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2 times"> + </span> :<span class="tlaGNC">           8 :   for (std::size_t i = 0; more &amp;&amp; i &lt; entries-&gt;size(); ++i) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 6 times"> + </span><span class="tlaGBC" title="branch 5 was taken 2 times"> + </span>]
 <span id="L275"><span class="lineNum">     275</span>                 :<span class="tlaGNC">           6 :     const vfs::Entry&amp; entry = (*entries)[i];</span></span>
 <span id="L276"><span class="lineNum">     276</span>                 :<span class="tlaGNC">           6 :     struct stat attr = {};</span></span>
 <span id="L277"><span class="lineNum">     277</span>                 :<span class="tlaGNC">           6 :     attr.st_ino = impl.InodeOf(entry.path);</span></span>
@@ -359,24 +352,24 @@
 <span id="L279"><span class="lineNum">     279</span>                 :<span class="tlaGNC">           6 :     more = emit(entry.name.c_str(), attr);</span></span>
 <span id="L280"><span class="lineNum">     280</span>                 :             :   }</span>
 <span id="L281"><span class="lineNum">     281</span>                 :<span class="tlaGNC">           2 :   api.reply_buf(req, buf.data(), used);</span></span>
-<span id="L282"><span class="lineNum">     282</span>   [<span class="tlaGBC" title="Branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 2 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">           4 : }</span></span>
+<span id="L282"><span class="lineNum">     282</span>   [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 2 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">           4 : }</span></span>
 <span id="L283"><span class="lineNum">     283</span>                 :             : </span>
 <span id="L284"><span class="lineNum">     284</span>                 :<span class="tlaGNC">           8 : void OpOpen(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* file_info) {</span></span>
 <span id="L285"><span class="lineNum">     285</span>                 :<span class="tlaGNC">           8 :   const FuseApi&amp; api = *ResolvedApi();</span></span>
 <span id="L286"><span class="lineNum">     286</span>                 :<span class="tlaGNC">           8 :   FuseServer::Impl&amp; impl = ImplOf(req);</span></span>
-<span id="L287"><span class="lineNum">     287</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">           8 :   if ((static_cast&lt;unsigned int&gt;(file_info-&gt;flags) &amp; static_cast&lt;unsigned int&gt;(O_ACCMODE)) != O_RDONLY) {</span></span>
-<span id="L288"><span class="lineNum">     288</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     api.reply_err(req, EROFS);</span></span>
-<span id="L289"><span class="lineNum">     289</span>                 :<span class="tlaGNC tlaBgGNC">           1 :     return;</span></span>
+<span id="L287"><span class="lineNum">     287</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">           8 :   if ((static_cast&lt;unsigned int&gt;(file_info-&gt;flags) &amp; static_cast&lt;unsigned int&gt;(O_ACCMODE)) != O_RDONLY) {</span></span>
+<span id="L288"><span class="lineNum">     288</span>                 :<span class="tlaUNC">           0 :     api.reply_err(req, EROFS);</span></span>
+<span id="L289"><span class="lineNum">     289</span>                 :<span class="tlaGNC">           1 :     return;</span></span>
 <span id="L290"><span class="lineNum">     290</span>                 :             :   }</span>
 <span id="L291"><span class="lineNum">     291</span>                 :<span class="tlaGNC">           8 :   const std::string path = impl.PathOf(ino);</span></span>
-<span id="L292"><span class="lineNum">     292</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">           8 :   if (path.empty()) {</span></span>
-<span id="L293"><span class="lineNum">     293</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     api.reply_err(req, ENOENT);</span></span>
+<span id="L292"><span class="lineNum">     292</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">           8 :   if (path.empty()) {</span></span>
+<span id="L293"><span class="lineNum">     293</span>                 :<span class="tlaUNC">           0 :     api.reply_err(req, ENOENT);</span></span>
 <span id="L294"><span class="lineNum">     294</span>                 :<span class="tlaUNC">           0 :     return;</span></span>
 <span id="L295"><span class="lineNum">     295</span>                 :             :   }</span>
 <span id="L296"><span class="lineNum">     296</span>                 :             :   // Whole-content read at open: archive member decode is sequential and expensive, while the</span>
 <span id="L297"><span class="lineNum">     297</span>                 :             :   // kernel asks in small chunks; the open handle owns the bytes until release.</span>
-<span id="L298"><span class="lineNum">     298</span>                 :<span class="tlaGNC tlaBgGNC">           8 :   absl::StatusOr&lt;std::string&gt; content = impl.fs-&gt;ReadContent(path);</span></span>
-<span id="L299"><span class="lineNum">     299</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">           8 :   if (!content.ok()) {</span></span>
+<span id="L298"><span class="lineNum">     298</span>                 :<span class="tlaGNC">           8 :   absl::StatusOr&lt;std::string&gt; content = impl.fs-&gt;ReadContent(path);</span></span>
+<span id="L299"><span class="lineNum">     299</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">           8 :   if (!content.ok()) {</span></span>
 <span id="L300"><span class="lineNum">     300</span>                 :<span class="tlaGNC">           1 :     api.reply_err(req, ErrnoForStatus(content.status().code()));</span></span>
 <span id="L301"><span class="lineNum">     301</span>                 :<span class="tlaGNC">           1 :     return;</span></span>
 <span id="L302"><span class="lineNum">     302</span>                 :             :   }</span>
@@ -387,52 +380,52 @@
 <span id="L307"><span class="lineNum">     307</span>                 :<span class="tlaGNC">           7 :   }</span></span>
 <span id="L308"><span class="lineNum">     308</span>                 :<span class="tlaGNC">           7 :   file_info-&gt;keep_cache = 1;</span></span>
 <span id="L309"><span class="lineNum">     309</span>                 :<span class="tlaGNC">           7 :   api.reply_open(req, file_info);</span></span>
-<span id="L310"><span class="lineNum">     310</span>   [<span class="tlaGBC" title="Branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 2 was taken 7 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">           9 : }</span></span>
+<span id="L310"><span class="lineNum">     310</span>   [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 7 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">           9 : }</span></span>
 <span id="L311"><span class="lineNum">     311</span>                 :             : </span>
 <span id="L312"><span class="lineNum">     312</span>                 :<span class="tlaGNC">           5 : void OpRead(fuse_req_t req, fuse_ino_t /*ino*/, size_t size, off_t off, struct fuse_file_info* file_info) {</span></span>
 <span id="L313"><span class="lineNum">     313</span>                 :<span class="tlaGNC">           5 :   const FuseApi&amp; api = *ResolvedApi();</span></span>
 <span id="L314"><span class="lineNum">     314</span>                 :<span class="tlaGNC">           5 :   FuseServer::Impl&amp; impl = ImplOf(req);</span></span>
 <span id="L315"><span class="lineNum">     315</span>                 :<span class="tlaGNC">           5 :   const absl::MutexLock lock(impl.mutex);</span></span>
 <span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">           5 :   const auto found = impl.contents.find(file_info-&gt;fh);</span></span>
-<span id="L317"><span class="lineNum">     317</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">           5 :   if (found == impl.contents.end()) {</span></span>
-<span id="L318"><span class="lineNum">     318</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     api.reply_err(req, EBADF);</span></span>
+<span id="L317"><span class="lineNum">     317</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">           5 :   if (found == impl.contents.end()) {</span></span>
+<span id="L318"><span class="lineNum">     318</span>                 :<span class="tlaUNC">           0 :     api.reply_err(req, EBADF);</span></span>
 <span id="L319"><span class="lineNum">     319</span>                 :<span class="tlaUNC">           0 :     return;</span></span>
 <span id="L320"><span class="lineNum">     320</span>                 :             :   }</span>
-<span id="L321"><span class="lineNum">     321</span>                 :<span class="tlaGNC tlaBgGNC">           5 :   const std::string&amp; content = found-&gt;second;</span></span>
+<span id="L321"><span class="lineNum">     321</span>                 :<span class="tlaGNC">           5 :   const std::string&amp; content = found-&gt;second;</span></span>
 <span id="L322"><span class="lineNum">     322</span>                 :<span class="tlaGNC">           5 :   const auto offset = static_cast&lt;std::size_t&gt;(off);</span></span>
-<span id="L323"><span class="lineNum">     323</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">           5 :   if (offset &gt;= content.size()) {</span></span>
-<span id="L324"><span class="lineNum">     324</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     api.reply_buf(req, content.data(), 0);</span></span>
+<span id="L323"><span class="lineNum">     323</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">           5 :   if (offset &gt;= content.size()) {</span></span>
+<span id="L324"><span class="lineNum">     324</span>                 :<span class="tlaUNC">           0 :     api.reply_buf(req, content.data(), 0);</span></span>
 <span id="L325"><span class="lineNum">     325</span>                 :<span class="tlaUNC">           0 :     return;</span></span>
 <span id="L326"><span class="lineNum">     326</span>                 :             :   }</span>
-<span id="L327"><span class="lineNum">     327</span>                 :<span class="tlaGNC tlaBgGNC">          10 :   api.reply_buf(</span></span>
+<span id="L327"><span class="lineNum">     327</span>                 :<span class="tlaGNC">          10 :   api.reply_buf(</span></span>
 <span id="L328"><span class="lineNum">     328</span>                 :<span class="tlaGNC">           5 :       req, std::next(content.data(), static_cast&lt;std::ptrdiff_t&gt;(offset)), std::min(size, content.size() - offset));</span></span>
-<span id="L329"><span class="lineNum">     329</span>         [<span class="tlaGBC" title="Branch 0 was taken 5 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">           5 : }</span></span>
+<span id="L329"><span class="lineNum">     329</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">           5 : }</span></span>
 <span id="L330"><span class="lineNum">     330</span>                 :             : </span>
-<span id="L331"><span class="lineNum">     331</span>                 :<span class="tlaGNC">           5 : void OpRelease(fuse_req_t req, fuse_ino_t /*ino*/, struct fuse_file_info* file_info) {</span></span>
-<span id="L332"><span class="lineNum">     332</span>                 :<span class="tlaGNC">           5 :   const FuseApi&amp; api = *ResolvedApi();</span></span>
-<span id="L333"><span class="lineNum">     333</span>                 :<span class="tlaGNC">           5 :   FuseServer::Impl&amp; impl = ImplOf(req);</span></span>
+<span id="L331"><span class="lineNum">     331</span>                 :<span class="tlaGNC">           2 : void OpRelease(fuse_req_t req, fuse_ino_t /*ino*/, struct fuse_file_info* file_info) {</span></span>
+<span id="L332"><span class="lineNum">     332</span>                 :<span class="tlaGNC">           2 :   const FuseApi&amp; api = *ResolvedApi();</span></span>
+<span id="L333"><span class="lineNum">     333</span>                 :<span class="tlaGNC">           2 :   FuseServer::Impl&amp; impl = ImplOf(req);</span></span>
 <span id="L334"><span class="lineNum">     334</span>                 :             :   {</span>
-<span id="L335"><span class="lineNum">     335</span>                 :<span class="tlaGNC">           5 :     const absl::MutexLock lock(impl.mutex);</span></span>
-<span id="L336"><span class="lineNum">     336</span>                 :<span class="tlaGNC">           5 :     impl.contents.erase(file_info-&gt;fh);</span></span>
-<span id="L337"><span class="lineNum">     337</span>                 :<span class="tlaGNC">           5 :   }</span></span>
-<span id="L338"><span class="lineNum">     338</span>                 :<span class="tlaGNC">           5 :   api.reply_err(req, 0);</span></span>
-<span id="L339"><span class="lineNum">     339</span>                 :<span class="tlaGNC">           5 : }</span></span>
+<span id="L335"><span class="lineNum">     335</span>                 :<span class="tlaGNC">           2 :     const absl::MutexLock lock(impl.mutex);</span></span>
+<span id="L336"><span class="lineNum">     336</span>                 :<span class="tlaGNC">           2 :     impl.contents.erase(file_info-&gt;fh);</span></span>
+<span id="L337"><span class="lineNum">     337</span>                 :<span class="tlaGNC">           2 :   }</span></span>
+<span id="L338"><span class="lineNum">     338</span>                 :<span class="tlaGNC">           2 :   api.reply_err(req, 0);</span></span>
+<span id="L339"><span class="lineNum">     339</span>                 :<span class="tlaGNC">           2 : }</span></span>
 <span id="L340"><span class="lineNum">     340</span>                 :             : </span>
 <span id="L341"><span class="lineNum">     341</span>                 :<span class="tlaGNC">           2 : void OpReadlink(fuse_req_t req, fuse_ino_t ino) {</span></span>
 <span id="L342"><span class="lineNum">     342</span>                 :<span class="tlaGNC">           2 :   const FuseApi&amp; api = *ResolvedApi();</span></span>
 <span id="L343"><span class="lineNum">     343</span>                 :<span class="tlaGNC">           2 :   FuseServer::Impl&amp; impl = ImplOf(req);</span></span>
 <span id="L344"><span class="lineNum">     344</span>                 :<span class="tlaGNC">           2 :   const std::string path = impl.PathOf(ino);</span></span>
-<span id="L345"><span class="lineNum">     345</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           2 :   if (path.empty()) {</span></span>
-<span id="L346"><span class="lineNum">     346</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     api.reply_err(req, ENOENT);</span></span>
+<span id="L345"><span class="lineNum">     345</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           2 :   if (path.empty()) {</span></span>
+<span id="L346"><span class="lineNum">     346</span>                 :<span class="tlaUNC">           0 :     api.reply_err(req, ENOENT);</span></span>
 <span id="L347"><span class="lineNum">     347</span>                 :<span class="tlaUNC">           0 :     return;</span></span>
 <span id="L348"><span class="lineNum">     348</span>                 :             :   }</span>
-<span id="L349"><span class="lineNum">     349</span>                 :<span class="tlaGNC tlaBgGNC">           2 :   const absl::StatusOr&lt;std::string&gt; target = impl.fs-&gt;ReadLink(path);</span></span>
-<span id="L350"><span class="lineNum">     350</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           2 :   if (!target.ok()) {</span></span>
+<span id="L349"><span class="lineNum">     349</span>                 :<span class="tlaGNC">           2 :   const absl::StatusOr&lt;std::string&gt; target = impl.fs-&gt;ReadLink(path);</span></span>
+<span id="L350"><span class="lineNum">     350</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           2 :   if (!target.ok()) {</span></span>
 <span id="L351"><span class="lineNum">     351</span>                 :<span class="tlaGNC">           1 :     api.reply_err(req, ErrnoForStatus(target.status().code()));</span></span>
 <span id="L352"><span class="lineNum">     352</span>                 :<span class="tlaGNC">           1 :     return;</span></span>
 <span id="L353"><span class="lineNum">     353</span>                 :             :   }</span>
 <span id="L354"><span class="lineNum">     354</span>                 :<span class="tlaGNC">           1 :   api.reply_readlink(req, target-&gt;c_str());</span></span>
-<span id="L355"><span class="lineNum">     355</span>   [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">           3 : }</span></span>
+<span id="L355"><span class="lineNum">     355</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">           3 : }</span></span>
 <span id="L356"><span class="lineNum">     356</span>                 :             : </span>
 <span id="L357"><span class="lineNum">     357</span>                 :             : // How much of `fuse_lowlevel_ops` we actually fill: the offset just past the LAST op implemented</span>
 <span id="L358"><span class="lineNum">     358</span>                 :             : // (`readdir`, which libfuse declares after the others in ServerOps below). This - not `sizeof` the</span>
@@ -466,13 +459,13 @@
 <span id="L386"><span class="lineNum">     386</span>                 :             :     std::shared_ptr&lt;const vfs::FileSystem&gt; fs,</span>
 <span id="L387"><span class="lineNum">     387</span>                 :             :     std::string root,</span>
 <span id="L388"><span class="lineNum">     388</span>                 :             :     std::string mount_point) {</span>
-<span id="L389"><span class="lineNum">     389</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 20 times"> + </span>]:<span class="tlaGNC">          21 :   if (fs == nullptr) {</span></span>
+<span id="L389"><span class="lineNum">     389</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 20 times"> + </span>]:<span class="tlaGNC">          21 :   if (fs == nullptr) {</span></span>
 <span id="L390"><span class="lineNum">     390</span>                 :<span class="tlaGNC">           1 :     return absl::InvalidArgumentError(&quot;cannot mount a null filesystem&quot;);</span></span>
 <span id="L391"><span class="lineNum">     391</span>                 :             :   }</span>
 <span id="L392"><span class="lineNum">     392</span>                 :<span class="tlaGNC">          20 :   const absl::StatusOr&lt;FuseApi&gt;&amp; api = ResolvedApi();</span></span>
-<span id="L393"><span class="lineNum">     393</span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 20 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 20 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          20 :   MBO_RETURN_IF_ERROR(api.status());</span></span>
-<span id="L394"><span class="lineNum">     394</span>   [<span class="tlaGBC" title="Branch 0 was taken 23 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 3 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 20 times"> + </span> :<span class="tlaGNC">          23 :   while (root.size() &gt; 1 &amp;&amp; root.back() == '/') {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 3 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 20 times"> + </span>]
+<span id="L393"><span class="lineNum">     393</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 20 times"> + </span><span class="tlaGBC" title="branch 2 was taken 20 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          20 :   MBO_RETURN_IF_ERROR(api.status());</span></span>
+<span id="L394"><span class="lineNum">     394</span>   [<span class="tlaGBC" title="branch 0 was taken 23 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 3 times"> + </span><span class="tlaGBC" title="branch 3 was taken 20 times"> + </span> :<span class="tlaGNC">          23 :   while (root.size() &gt; 1 &amp;&amp; root.back() == '/') {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 3 times"> + </span><span class="tlaGBC" title="branch 5 was taken 20 times"> + </span>]
 <span id="L395"><span class="lineNum">     395</span>                 :<span class="tlaGNC">           3 :     root.pop_back();</span></span>
 <span id="L396"><span class="lineNum">     396</span>                 :             :   }</span>
 <span id="L397"><span class="lineNum">     397</span>                 :<span class="tlaGNC">          20 :   auto server = std::unique_ptr&lt;FuseServer&gt;(new FuseServer());</span></span>
@@ -492,10 +485,10 @@
 <span id="L411"><span class="lineNum">     411</span>                 :             :   // session_new copies what it needs and leaves the (now heap-allocated) argv to us, success or</span>
 <span id="L412"><span class="lineNum">     412</span>                 :             :   // not; libfuse's own examples free it here.</span>
 <span id="L413"><span class="lineNum">     413</span>                 :<span class="tlaGNC">          20 :   api-&gt;opt_free_args(&amp;args);</span></span>
-<span id="L414"><span class="lineNum">     414</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 20 times"> + </span>]:<span class="tlaGNC">          20 :   if (server-&gt;impl_-&gt;session == nullptr) {</span></span>
-<span id="L415"><span class="lineNum">     415</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     return absl::InternalError(&quot;fuse_session_new failed&quot;);</span></span>
+<span id="L414"><span class="lineNum">     414</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 20 times"> + </span>]:<span class="tlaGNC">          20 :   if (server-&gt;impl_-&gt;session == nullptr) {</span></span>
+<span id="L415"><span class="lineNum">     415</span>                 :<span class="tlaUNC">           0 :     return absl::InternalError(&quot;fuse_session_new failed&quot;);</span></span>
 <span id="L416"><span class="lineNum">     416</span>                 :             :   }</span>
-<span id="L417"><span class="lineNum">     417</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC tlaBgGNC">          20 :   if (api-&gt;session_mount(server-&gt;impl_-&gt;session, server-&gt;impl_-&gt;mount_point.c_str()) != 0) {</span></span>
+<span id="L417"><span class="lineNum">     417</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          20 :   if (api-&gt;session_mount(server-&gt;impl_-&gt;session, server-&gt;impl_-&gt;mount_point.c_str()) != 0) {</span></span>
 <span id="L418"><span class="lineNum">     418</span>                 :<span class="tlaGNC">           1 :     api-&gt;session_destroy(server-&gt;impl_-&gt;session);</span></span>
 <span id="L419"><span class="lineNum">     419</span>                 :<span class="tlaGNC">           1 :     server-&gt;impl_-&gt;session = nullptr;</span></span>
 <span id="L420"><span class="lineNum">     420</span>                 :<span class="tlaGNC">           1 :     return absl::InternalError(absl::StrCat(&quot;FUSE mount failed at '&quot;, server-&gt;impl_-&gt;mount_point, &quot;'&quot;));</span></span>
@@ -509,13 +502,13 @@
 <span id="L428"><span class="lineNum">     428</span>                 :             :   // would capture a reference to Mount's local reference variable, which dies when Mount returns.</span>
 <span id="L429"><span class="lineNum">     429</span>                 :<span class="tlaGNC">          57 :   server-&gt;impl_-&gt;loop = std::thread([impl = server-&gt;impl_.get(), api = *api] {</span></span>
 <span id="L430"><span class="lineNum">     430</span>                 :<span class="tlaGNC">          19 :     const int result = api.session_loop(impl-&gt;session);</span></span>
-<span id="L431"><span class="lineNum">     431</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          19 :     if (!impl-&gt;exiting.load()) {</span></span>
-<span id="L432"><span class="lineNum">     432</span>                 :<span class="tlaUNC tlaBgUNC">           0 :       std::cerr &lt;&lt; absl::StreamFormat(</span></span>
+<span id="L431"><span class="lineNum">     431</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          19 :     if (!impl-&gt;exiting.load()) {</span></span>
+<span id="L432"><span class="lineNum">     432</span>                 :<span class="tlaUNC">           0 :       std::cerr &lt;&lt; absl::StreamFormat(</span></span>
 <span id="L433"><span class="lineNum">     433</span>                 :             :           &quot;xff: the FUSE session serving '%s' ended on its own (fuse_session_loop returned %d); reads under&quot;</span>
 <span id="L434"><span class="lineNum">     434</span>                 :             :           &quot; that mount will fail from here on\n&quot;,</span>
 <span id="L435"><span class="lineNum">     435</span>                 :<span class="tlaUNC">           0 :           impl-&gt;mount_point, result);</span></span>
 <span id="L436"><span class="lineNum">     436</span>                 :             :     }</span>
-<span id="L437"><span class="lineNum">     437</span>                 :<span class="tlaGNC tlaBgGNC">          38 :   });</span></span>
+<span id="L437"><span class="lineNum">     437</span>                 :<span class="tlaGNC">          38 :   });</span></span>
 <span id="L438"><span class="lineNum">     438</span>                 :             :   // A mount is not READY when fuse_session_mount returns - it is ready when the session answers.</span>
 <span id="L439"><span class="lineNum">     439</span>                 :             :   // Between those two moments the mount point exists but nothing serves it, and a child process</span>
 <span id="L440"><span class="lineNum">     440</span>                 :             :   // that opens a path under it can lose: CI showed exactly that, one invocation aborting with</span>
@@ -527,27 +520,27 @@
 <span id="L446"><span class="lineNum">     446</span>                 :<span class="tlaGNC">          19 :     struct stat probe = {};</span></span>
 <span id="L447"><span class="lineNum">     447</span>                 :<span class="tlaGNC">          19 :     const absl::Time deadline = absl::Now() + absl::Seconds(5);</span></span>
 <span id="L448"><span class="lineNum">     448</span>                 :<span class="tlaGNC">          19 :     bool ready = false;</span></span>
-<span id="L449"><span class="lineNum">     449</span>         [<span class="tlaGBC" title="Branch 0 was taken 19 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">          19 :     while (absl::Now() &lt; deadline) {</span></span>
-<span id="L450"><span class="lineNum">     450</span>   [<span class="tlaGBC" title="Branch 0 was taken 19 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 19 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span> :<span class="tlaGNC">          19 :       if (::stat(server-&gt;impl_-&gt;mount_point.c_str(), &amp;probe) == 0 &amp;&amp; S_ISDIR(probe.st_mode)) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 19 times"> + </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span>]
+<span id="L449"><span class="lineNum">     449</span>         [<span class="tlaGBC" title="branch 0 was taken 19 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">          19 :     while (absl::Now() &lt; deadline) {</span></span>
+<span id="L450"><span class="lineNum">     450</span>   [<span class="tlaGBC" title="branch 0 was taken 19 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 19 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">          19 :       if (::stat(server-&gt;impl_-&gt;mount_point.c_str(), &amp;probe) == 0 &amp;&amp; S_ISDIR(probe.st_mode)) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 19 times"> + </span><span class="tlaUNC" title="branch 5 was not taken"> - </span>]
 <span id="L451"><span class="lineNum">     451</span>                 :<span class="tlaGNC">          19 :         ready = true;</span></span>
 <span id="L452"><span class="lineNum">     452</span>                 :<span class="tlaGNC">          19 :         break;</span></span>
 <span id="L453"><span class="lineNum">     453</span>                 :             :       }</span>
-<span id="L454"><span class="lineNum">     454</span>                 :<span class="tlaUNC tlaBgUNC">           0 :       absl::SleepFor(absl::Milliseconds(2));</span></span>
+<span id="L454"><span class="lineNum">     454</span>                 :<span class="tlaUNC">           0 :       absl::SleepFor(absl::Milliseconds(2));</span></span>
 <span id="L455"><span class="lineNum">     455</span>                 :             :     }</span>
-<span id="L456"><span class="lineNum">     456</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC tlaBgGNC">          19 :     if (!ready) {</span></span>
-<span id="L457"><span class="lineNum">     457</span>                 :<span class="tlaUNC tlaBgUNC">           0 :       return absl::UnavailableError(</span></span>
+<span id="L456"><span class="lineNum">     456</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          19 :     if (!ready) {</span></span>
+<span id="L457"><span class="lineNum">     457</span>                 :<span class="tlaUNC">           0 :       return absl::UnavailableError(</span></span>
 <span id="L458"><span class="lineNum">     458</span>                 :<span class="tlaUNC">           0 :           absl::StrCat(&quot;the FUSE mount at '&quot;, server-&gt;impl_-&gt;mount_point, &quot;' never started serving&quot;));</span></span>
 <span id="L459"><span class="lineNum">     459</span>                 :             :     }</span>
 <span id="L460"><span class="lineNum">     460</span>                 :             :   }</span>
-<span id="L461"><span class="lineNum">     461</span>                 :<span class="tlaGNC tlaBgGNC">          19 :   return server;</span></span>
+<span id="L461"><span class="lineNum">     461</span>                 :<span class="tlaGNC">          19 :   return server;</span></span>
 <span id="L462"><span class="lineNum">     462</span>                 :<span class="tlaGNC">          20 : }</span></span>
 <span id="L463"><span class="lineNum">     463</span>                 :             : </span>
 <span id="L464"><span class="lineNum">     464</span>                 :<span class="tlaGNC">          20 : FuseServer::FuseServer() : impl_(std::make_unique&lt;Impl&gt;()) {}</span></span>
 <span id="L465"><span class="lineNum">     465</span>                 :             : </span>
 <span id="L466"><span class="lineNum">     466</span>                 :<span class="tlaGNC">          39 : FuseServer::~FuseServer() {</span></span>
-<span id="L467"><span class="lineNum">     467</span>   [<span class="tlaGBC" title="Branch 0 was taken 20 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 3 was taken 19 times"> + </span> :<span class="tlaGNC">          20 :   if (impl_ == nullptr || impl_-&gt;session == nullptr) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 5 was taken 19 times"> + </span>]
+<span id="L467"><span class="lineNum">     467</span>   [<span class="tlaGBC" title="branch 0 was taken 20 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 19 times"> + </span> :<span class="tlaGNC">          20 :   if (impl_ == nullptr || impl_-&gt;session == nullptr) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 1 time"> + </span><span class="tlaGBC" title="branch 5 was taken 19 times"> + </span>]
 <span id="L468"><span class="lineNum">     468</span>                 :<span class="tlaGNC">           1 :     return;</span></span>
 <span id="L469"><span class="lineNum">     469</span>                 :             :   }</span>
 <span id="L470"><span class="lineNum">     470</span>                 :<span class="tlaGNC">          19 :   const FuseApi&amp; api = *ResolvedApi();</span></span>
@@ -567,7 +560,7 @@
 <span id="L484"><span class="lineNum">     484</span>                 :<span class="tlaGNC">          19 :   impl_-&gt;loop.join();</span></span>
 <span id="L485"><span class="lineNum">     485</span>                 :<span class="tlaGNC">          19 :   api.session_unmount(impl_-&gt;session);</span></span>
 <span id="L486"><span class="lineNum">     486</span>                 :<span class="tlaGNC">          19 :   api.session_destroy(impl_-&gt;session);</span></span>
-<span id="L487"><span class="lineNum">     487</span>         [<span class="tlaGBC" title="Branch 0 was taken 19 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          20 : }</span></span>
+<span id="L487"><span class="lineNum">     487</span>         [<span class="tlaGBC" title="branch 0 was taken 19 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          20 : }</span></span>
 <span id="L488"><span class="lineNum">     488</span>                 :             : </span>
 <span id="L489"><span class="lineNum">     489</span>                 :<span class="tlaGNC">           8 : std::string_view FuseServer::MountPoint() const {</span></span>
 <span id="L490"><span class="lineNum">     490</span>                 :<span class="tlaGNC">           8 :   return impl_-&gt;mount_point;</span></span>
@@ -590,13 +583,13 @@
 <span id="L507"><span class="lineNum">     507</span>                 :             :   // posix_spawnp, not system(): no shell, and the argv is ours.</span>
 <span id="L508"><span class="lineNum">     508</span>                 :<span class="tlaGNC">          20 :   std::array&lt;char*, 4&gt; argv = {arg0.data(), arg1.data(), target.data(), nullptr};</span></span>
 <span id="L509"><span class="lineNum">     509</span>                 :<span class="tlaGNC">          20 :   pid_t pid = 0;</span></span>
-<span id="L510"><span class="lineNum">     510</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 20 times"> + </span>]:<span class="tlaGNC">          20 :   if (::posix_spawnp(&amp;pid, argv[0], nullptr, nullptr, argv.data(), nullptr) != 0) {</span></span>
-<span id="L511"><span class="lineNum">     511</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     return;</span></span>
+<span id="L510"><span class="lineNum">     510</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 20 times"> + </span>]:<span class="tlaGNC">          20 :   if (::posix_spawnp(&amp;pid, argv[0], nullptr, nullptr, argv.data(), nullptr) != 0) {</span></span>
+<span id="L511"><span class="lineNum">     511</span>                 :<span class="tlaUNC">           0 :     return;</span></span>
 <span id="L512"><span class="lineNum">     512</span>                 :             :   }</span>
-<span id="L513"><span class="lineNum">     513</span>                 :<span class="tlaGNC tlaBgGNC">          20 :   int wait_status = 0;</span></span>
+<span id="L513"><span class="lineNum">     513</span>                 :<span class="tlaGNC">          20 :   int wait_status = 0;</span></span>
 <span id="L514"><span class="lineNum">     514</span>                 :<span class="tlaGNC">          20 :   ::waitpid(pid, &amp;wait_status, 0);</span></span>
-<span id="L515"><span class="lineNum">     515</span>   [<span class="tlaGBC" title="Branch 0 was taken 20 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 20 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span> :<span class="tlaGNC">          20 : }</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 20 times"> + </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span>]
+<span id="L515"><span class="lineNum">     515</span>   [<span class="tlaGBC" title="branch 0 was taken 20 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 20 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">          20 : }</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 20 times"> + </span><span class="tlaUNC" title="branch 5 was not taken"> - </span>]
 <span id="L516"><span class="lineNum">     516</span>                 :             : </span>
 <span id="L517"><span class="lineNum">     517</span>                 :             : }  // namespace</span>
 <span id="L518"><span class="lineNum">     518</span>                 :             : </span>
@@ -613,7 +606,7 @@
 
           <table width="100%" border=0 cellspacing=0 cellpadding=0>
             <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
-            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com/linux-test-project/lcov" target="_parent">LCOV version 2.5-0</a></td></tr>
           </table>
           <br>
 

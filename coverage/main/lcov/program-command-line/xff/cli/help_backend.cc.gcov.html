@@ -19,7 +19,7 @@
                 <table cellpadding=1 border=0 width="100%">
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
-            <td width="10%" class="headerValue"><a href="../../../index.html">top level</a> - <a href="index.html">program-command-line/xff/cli</a> - help_backend.cc<span style="font-size: 80%;"> (source / <a href="help_backend.cc.func-c.html">functions</a>)</span></td>
+            <td width="10%" class="headerValue"><a href="../../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory program-command-line/xff/cli">program-command-line/xff/cli</a> - help_backend.cc<span style="font-size: 80%;"> (source / <a href="help_backend.cc.func-c.html" title="Click to go to function table">functions</a>)</span></td>
             <td width="5%"></td>
             <td width="5%"></td>
             <td width="5%" class="headerCovTableHead">Coverage</td>
@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 22:51:43</td>
+            <td class="headerValue">2026-08-22 23:52:40</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -45,15 +45,8 @@
             <td class="headerCovTableEntry">10</td>
           </tr>
           <tr>
-            <td class="headerItem">Legend:</td>
-            <td class="headerValueLeg">            Lines:
-            <span class="coverLegendCov">hit</span>
-            <span class="coverLegendNoCov">not hit</span>
-            | Branches:
-            <span class="coverLegendCov">+</span> taken
-            <span class="coverLegendNoCov">-</span> not taken
-            <span class="coverLegendNoCov">#</span> not executed
-</td>
+            <td></td>
+            <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -102,8 +95,8 @@
 <span id="L24"><span class="lineNum">      24</span>                 :             : </span>
 <span id="L25"><span class="lineNum">      25</span>                 :             : // Walks one block list in order. Factored out so it recurses into the nested</span>
 <span id="L26"><span class="lineNum">      26</span>                 :             : // Blocks that Subsection and Entry carry (a section's children, an entry's details).</span>
-<span id="L27"><span class="lineNum">      27</span>                 :<span class="tlaGNC tlaBgGNC">       15885 : void RenderBlocks(const Blocks&amp; blocks, HelpBackend&amp; backend) {</span></span>
-<span id="L28"><span class="lineNum">      28</span>         [<span class="tlaGBC" title="Branch 0 was taken 26310 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 15885 times"> + </span>]:<span class="tlaGNC">       42195 :   for (const Content&amp; content : blocks) {</span></span>
+<span id="L27"><span class="lineNum">      27</span>                 :<span class="tlaGNC">       15885 : void RenderBlocks(const Blocks&amp; blocks, HelpBackend&amp; backend) {</span></span>
+<span id="L28"><span class="lineNum">      28</span>         [<span class="tlaGBC" title="branch 0 was taken 26310 times"> + </span><span class="tlaGBC" title="branch 1 was taken 15885 times"> + </span>]:<span class="tlaGNC">       42195 :   for (const Content&amp; content : blocks) {</span></span>
 <span id="L29"><span class="lineNum">      29</span>                 :<span class="tlaGNC">       26310 :     std::visit(</span></span>
 <span id="L30"><span class="lineNum">      30</span>                 :<span class="tlaGNC">       52620 :         [&amp;backend](const auto&amp; node) {</span></span>
 <span id="L31"><span class="lineNum">      31</span>                 :             :           using Node = std::decay_t&lt;decltype(node)&gt;;</span>
@@ -137,7 +130,7 @@
 <span id="L59"><span class="lineNum">      59</span>                 :             : </span>
 <span id="L60"><span class="lineNum">      60</span>                 :<span class="tlaGNC">         204 : void RenderDocument(const Document&amp; doc, HelpBackend&amp; backend) {</span></span>
 <span id="L61"><span class="lineNum">      61</span>                 :<span class="tlaGNC">         204 :   backend.Preamble(doc);</span></span>
-<span id="L62"><span class="lineNum">      62</span>         [<span class="tlaGBC" title="Branch 0 was taken 719 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 204 times"> + </span>]:<span class="tlaGNC">         923 :   for (const Section&amp; section : doc.sections) {</span></span>
+<span id="L62"><span class="lineNum">      62</span>         [<span class="tlaGBC" title="branch 0 was taken 719 times"> + </span><span class="tlaGBC" title="branch 1 was taken 204 times"> + </span>]:<span class="tlaGNC">         923 :   for (const Section&amp; section : doc.sections) {</span></span>
 <span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">         719 :     backend.BeginSection(section);</span></span>
 <span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">         719 :     RenderBlocks(section.children, backend);</span></span>
 <span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaGNC">         719 :     backend.EndSection(section);</span></span>
@@ -153,7 +146,7 @@
 
           <table width="100%" border=0 cellspacing=0 cellpadding=0>
             <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
-            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com/linux-test-project/lcov" target="_parent">LCOV version 2.5-0</a></td></tr>
           </table>
           <br>
 

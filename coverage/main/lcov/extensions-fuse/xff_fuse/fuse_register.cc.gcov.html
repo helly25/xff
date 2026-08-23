@@ -19,7 +19,7 @@
                 <table cellpadding=1 border=0 width="100%">
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
-            <td width="10%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">extensions-fuse/xff_fuse</a> - fuse_register.cc<span style="font-size: 80%;"> (source / <a href="fuse_register.cc.func-c.html">functions</a>)</span></td>
+            <td width="10%" class="headerValue"><a href="../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory extensions-fuse/xff_fuse">extensions-fuse/xff_fuse</a> - fuse_register.cc<span style="font-size: 80%;"> (source / <a href="fuse_register.cc.func-c.html" title="Click to go to function table">functions</a>)</span></td>
             <td width="5%"></td>
             <td width="5%"></td>
             <td width="5%" class="headerCovTableHead">Coverage</td>
@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 22:51:43</td>
+            <td class="headerValue">2026-08-22 23:52:40</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -45,18 +45,11 @@
             <td class="headerCovTableEntry">7</td>
           </tr>
           <tr>
-            <td class="headerItem">Legend:</td>
-            <td class="headerValueLeg">            Lines:
-            <span class="coverLegendCov">hit</span>
-            <span class="coverLegendNoCov">not hit</span>
-            | Branches:
-            <span class="coverLegendCov">+</span> taken
-            <span class="coverLegendNoCov">-</span> not taken
-            <span class="coverLegendNoCov">#</span> not executed
-</td>
+            <td></td>
+            <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryMed">65.4&nbsp;%</td>
+            <td class="headerCovTableEntryLo">65.4&nbsp;%</td>
             <td class="headerCovTableEntry">26</td>
             <td class="headerCovTableEntry">17</td>
           </tr>
@@ -119,8 +112,8 @@
 <span id="L41"><span class="lineNum">      41</span>                 :             : namespace {</span>
 <span id="L42"><span class="lineNum">      42</span>                 :             : </span>
 <span id="L43"><span class="lineNum">      43</span>                 :             : // Guards the shared root below: one process, one tree, however many containers get mounted.</span>
-<span id="L44"><span class="lineNum">      44</span>                 :<span class="tlaGNC tlaBgGNC">           5 : absl::Mutex&amp; RootMutex() {</span></span>
-<span id="L45"><span class="lineNum">      45</span>   [<span class="tlaGBC" title="Branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 3 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">           5 :   static absl::NoDestructor&lt;absl::Mutex&gt; mutex;</span></span>
+<span id="L44"><span class="lineNum">      44</span>                 :<span class="tlaGNC">           5 : absl::Mutex&amp; RootMutex() {</span></span>
+<span id="L45"><span class="lineNum">      45</span>   [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="branch 2 was taken 3 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">           5 :   static absl::NoDestructor&lt;absl::Mutex&gt; mutex;</span></span>
 <span id="L46"><span class="lineNum">      46</span>                 :<span class="tlaGNC">           5 :   return *mutex;</span></span>
 <span id="L47"><span class="lineNum">      47</span>                 :             : }</span>
 <span id="L48"><span class="lineNum">      48</span>                 :             : </span>
@@ -132,11 +125,11 @@
 <span id="L54"><span class="lineNum">      54</span>                 :             : //</span>
 <span id="L55"><span class="lineNum">      55</span>                 :             : // Returns ownership BY VALUE, never a reference into this function's state.</span>
 <span id="L56"><span class="lineNum">      56</span>                 :<span class="tlaGNC">           5 : absl::StatusOr&lt;std::shared_ptr&lt;MountRoot&gt;&gt; RunRoot() ABSL_EXCLUSIVE_LOCKS_REQUIRED(RootMutex()) {</span></span>
-<span id="L57"><span class="lineNum">      57</span>   [<span class="tlaGBC" title="Branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 3 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">           5 :   static absl::NoDestructor&lt;std::weak_ptr&lt;MountRoot&gt;&gt; live;</span></span>
-<span id="L58"><span class="lineNum">      58</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           5 :   if (std::shared_ptr&lt;MountRoot&gt; root = live-&gt;lock(); root != nullptr) {</span></span>
+<span id="L57"><span class="lineNum">      57</span>   [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="branch 2 was taken 3 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">           5 :   static absl::NoDestructor&lt;std::weak_ptr&lt;MountRoot&gt;&gt; live;</span></span>
+<span id="L58"><span class="lineNum">      58</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           5 :   if (std::shared_ptr&lt;MountRoot&gt; root = live-&gt;lock(); root != nullptr) {</span></span>
 <span id="L59"><span class="lineNum">      59</span>                 :<span class="tlaGNC">           1 :     return root;</span></span>
-<span id="L60"><span class="lineNum">      60</span>         [<span class="tlaGBC" title="Branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           5 :   }</span></span>
-<span id="L61"><span class="lineNum">      61</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           4 :   MBO_ASSIGN_OR_RETURN(MountRoot created, MountRoot::Create());</span></span>
+<span id="L60"><span class="lineNum">      60</span>         [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           5 :   }</span></span>
+<span id="L61"><span class="lineNum">      61</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           4 :   MBO_ASSIGN_OR_RETURN(MountRoot created, MountRoot::Create());</span></span>
 <span id="L62"><span class="lineNum">      62</span>                 :<span class="tlaGNC">           4 :   auto root = std::make_shared&lt;MountRoot&gt;(std::move(created));</span></span>
 <span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">           4 :   *live = root;</span></span>
 <span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">           4 :   return root;</span></span>
@@ -170,11 +163,11 @@
 <span id="L92"><span class="lineNum">      92</span>                 :             :     // One critical section for both steps: MountPointFor hands out a fresh directory by mutating</span>
 <span id="L93"><span class="lineNum">      93</span>                 :             :     // the root's counter, so acquiring the root and asking it for a mount point belong together.</span>
 <span id="L94"><span class="lineNum">      94</span>                 :<span class="tlaGNC">           5 :     const absl::MutexLock lock(RootMutex());</span></span>
-<span id="L95"><span class="lineNum">      95</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">           5 :     MBO_ASSIGN_OR_RETURN(root, RunRoot());</span></span>
-<span id="L96"><span class="lineNum">      96</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">           5 :     MBO_ASSIGN_OR_RETURN(mount_point, root-&gt;MountPointFor(container));</span></span>
-<span id="L97"><span class="lineNum">      97</span>   [<span class="tlaGBC" title="Branch 0 was taken 5 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 5 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span> :<span class="tlaGNC">           5 :   }</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 5 times"> + </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span>]
-<span id="L98"><span class="lineNum">      98</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">          15 :   MBO_ASSIGN_OR_RETURN(</span></span>
+<span id="L95"><span class="lineNum">      95</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">           5 :     MBO_ASSIGN_OR_RETURN(root, RunRoot());</span></span>
+<span id="L96"><span class="lineNum">      96</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">           5 :     MBO_ASSIGN_OR_RETURN(mount_point, root-&gt;MountPointFor(container));</span></span>
+<span id="L97"><span class="lineNum">      97</span>   [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 5 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">           5 :   }</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 5 times"> + </span><span class="tlaUNC" title="branch 5 was not taken"> - </span>]
+<span id="L98"><span class="lineNum">      98</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">          15 :   MBO_ASSIGN_OR_RETURN(</span></span>
 <span id="L99"><span class="lineNum">      99</span>                 :             :       std::unique_ptr&lt;FuseServer&gt; server, FuseServer::Mount(std::move(fs), std::string(container), mount_point));</span>
 <span id="L100"><span class="lineNum">     100</span>                 :<span class="tlaGNC">           5 :   return std::make_unique&lt;ServerMount&gt;(std::move(root), std::move(server));</span></span>
 <span id="L101"><span class="lineNum">     101</span>                 :<span class="tlaGNC">           5 : }</span></span>
@@ -212,7 +205,7 @@
 
           <table width="100%" border=0 cellspacing=0 cellpadding=0>
             <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
-            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com/linux-test-project/lcov" target="_parent">LCOV version 2.5-0</a></td></tr>
           </table>
           <br>
 

@@ -19,7 +19,7 @@
                 <table cellpadding=1 border=0 width="100%">
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
-            <td width="10%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">extensions-pcre2/xff_pcre2</a> - pcre2_backend.cc<span style="font-size: 80%;"> (source / <a href="pcre2_backend.cc.func-c.html">functions</a>)</span></td>
+            <td width="10%" class="headerValue"><a href="../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory extensions-pcre2/xff_pcre2">extensions-pcre2/xff_pcre2</a> - pcre2_backend.cc<span style="font-size: 80%;"> (source / <a href="pcre2_backend.cc.func-c.html" title="Click to go to function table">functions</a>)</span></td>
             <td width="5%"></td>
             <td width="5%"></td>
             <td width="5%" class="headerCovTableHead">Coverage</td>
@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 22:51:43</td>
+            <td class="headerValue">2026-08-22 23:52:40</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -45,15 +45,8 @@
             <td class="headerCovTableEntry">13</td>
           </tr>
           <tr>
-            <td class="headerItem">Legend:</td>
-            <td class="headerValueLeg">            Lines:
-            <span class="coverLegendCov">hit</span>
-            <span class="coverLegendNoCov">not hit</span>
-            | Branches:
-            <span class="coverLegendCov">+</span> taken
-            <span class="coverLegendNoCov">-</span> not taken
-            <span class="coverLegendNoCov">#</span> not executed
-</td>
+            <td></td>
+            <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
             <td class="headerCovTableEntryHi">90.0&nbsp;%</td>
@@ -130,29 +123,29 @@
 <span id="L52"><span class="lineNum">      52</span>                 :             : // A non-null, NUL-terminated pointer for PCRE2, even for an empty view (whose data() may be null).</span>
 <span id="L53"><span class="lineNum">      53</span>                 :             : // PCRE2_SPTR is `const unsigned char*` while every caller holds `const char*`, so the cast is the</span>
 <span id="L54"><span class="lineNum">      54</span>                 :             : // whole job of this function - it exists precisely so the reinterpret_cast happens in ONE place.</span>
-<span id="L55"><span class="lineNum">      55</span>                 :<span class="tlaGNC tlaBgGNC">          52 : PCRE2_SPTR Sptr(std::string_view text) {</span></span>
+<span id="L55"><span class="lineNum">      55</span>                 :<span class="tlaGNC">          52 : PCRE2_SPTR Sptr(std::string_view text) {</span></span>
 <span id="L56"><span class="lineNum">      56</span>                 :             :   static constexpr std::array&lt;char, 1&gt; kEmpty = {'\0'};</span>
 <span id="L57"><span class="lineNum">      57</span>                 :             :   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast): the char/uchar boundary, see above.</span>
-<span id="L58"><span class="lineNum">      58</span>         [<span class="tlaGBC" title="Branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 49 times"> + </span>]:<span class="tlaGNC">          52 :   return reinterpret_cast&lt;PCRE2_SPTR&gt;(text.empty() ? kEmpty.data() : text.data());</span></span>
+<span id="L58"><span class="lineNum">      58</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 49 times"> + </span>]:<span class="tlaGNC">          52 :   return reinterpret_cast&lt;PCRE2_SPTR&gt;(text.empty() ? kEmpty.data() : text.data());</span></span>
 <span id="L59"><span class="lineNum">      59</span>                 :             : }</span>
 <span id="L60"><span class="lineNum">      60</span>                 :             : </span>
 <span id="L61"><span class="lineNum">      61</span>                 :             : // Translates an RE2-style replacement (the Matcher::Rewrite contract: `\1`..`\9` backrefs, `\\` a</span>
 <span id="L62"><span class="lineNum">      62</span>                 :             : // literal backslash) into PCRE2 substitution syntax (`$1`, and `$$` for a literal `$`).</span>
 <span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">           8 : std::string Re2ReplacementToPcre2(std::string_view replacement) {</span></span>
 <span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">           8 :   std::string out;</span></span>
-<span id="L65"><span class="lineNum">      65</span>         [<span class="tlaGBC" title="Branch 0 was taken 113 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">         121 :   for (std::size_t i = 0; i &lt; replacement.size(); ++i) {</span></span>
+<span id="L65"><span class="lineNum">      65</span>         [<span class="tlaGBC" title="branch 0 was taken 113 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">         121 :   for (std::size_t i = 0; i &lt; replacement.size(); ++i) {</span></span>
 <span id="L66"><span class="lineNum">      66</span>                 :<span class="tlaGNC">         113 :     const char chr = replacement[i];</span></span>
-<span id="L67"><span class="lineNum">      67</span>   [<span class="tlaGBC" title="Branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 105 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 7 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">         113 :     if (chr == '\\' &amp;&amp; i + 1 &lt; replacement.size()) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 7 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 106 times"> + </span>]
+<span id="L67"><span class="lineNum">      67</span>   [<span class="tlaGBC" title="branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="branch 1 was taken 105 times"> + </span><span class="tlaGBC" title="branch 2 was taken 7 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">         113 :     if (chr == '\\' &amp;&amp; i + 1 &lt; replacement.size()) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 7 times"> + </span><span class="tlaGBC" title="branch 5 was taken 106 times"> + </span>]
 <span id="L68"><span class="lineNum">      68</span>                 :<span class="tlaGNC">           7 :       const char next = replacement[i + 1];</span></span>
-<span id="L69"><span class="lineNum">      69</span>   [<span class="tlaGBC" title="Branch 0 was taken 7 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 5 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 2 times"> + </span>]:<span class="tlaGNC">           7 :       if (next &gt;= '0' &amp;&amp; next &lt;= '9') {</span></span>
+<span id="L69"><span class="lineNum">      69</span>   [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 5 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2 times"> + </span>]:<span class="tlaGNC">           7 :       if (next &gt;= '0' &amp;&amp; next &lt;= '9') {</span></span>
 <span id="L70"><span class="lineNum">      70</span>                 :<span class="tlaGNC">           5 :         out += '$';  // \N -&gt; $N</span></span>
 <span id="L71"><span class="lineNum">      71</span>                 :<span class="tlaGNC">           5 :         out += next;</span></span>
 <span id="L72"><span class="lineNum">      72</span>                 :             :       } else {</span>
 <span id="L73"><span class="lineNum">      73</span>                 :<span class="tlaGNC">           2 :         out += next;  // \\ -&gt; \, and any other \x -&gt; literal x</span></span>
 <span id="L74"><span class="lineNum">      74</span>                 :             :       }</span>
 <span id="L75"><span class="lineNum">      75</span>                 :<span class="tlaGNC">           7 :       ++i;</span></span>
-<span id="L76"><span class="lineNum">      76</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 105 times"> + </span>]:<span class="tlaGNC">         106 :     } else if (chr == '$') {</span></span>
+<span id="L76"><span class="lineNum">      76</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 105 times"> + </span>]:<span class="tlaGNC">         106 :     } else if (chr == '$') {</span></span>
 <span id="L77"><span class="lineNum">      77</span>                 :<span class="tlaGNC">           1 :       out += &quot;$$&quot;;  // a literal `$` must be escaped for PCRE2 substitution</span></span>
 <span id="L78"><span class="lineNum">      78</span>                 :             :     } else {</span>
 <span id="L79"><span class="lineNum">      79</span>                 :<span class="tlaGNC">         105 :       out += chr;</span></span>
@@ -192,7 +185,7 @@
 <span id="L113"><span class="lineNum">     113</span>                 :<span class="tlaGNC">           3 :     pcre2_match_data* data = pcre2_match_data_create(1, nullptr);  // one pair: the whole match</span></span>
 <span id="L114"><span class="lineNum">     114</span>                 :<span class="tlaGNC">           3 :     const int rc = pcre2_match(code_, Sptr(text), text.size(), 0, 0, data, match_context_);</span></span>
 <span id="L115"><span class="lineNum">     115</span>                 :<span class="tlaGNC">           3 :     std::optional&lt;std::pair&lt;std::size_t, std::size_t&gt;&gt; result;</span></span>
-<span id="L116"><span class="lineNum">     116</span>         [<span class="tlaGBC" title="Branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           3 :     if (rc &gt;= 0) {</span></span>
+<span id="L116"><span class="lineNum">     116</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           3 :     if (rc &gt;= 0) {</span></span>
 <span id="L117"><span class="lineNum">     117</span>                 :             :       // A span rather than the bare pointer PCRE2 hands back: the offsets are then indexed, which is</span>
 <span id="L118"><span class="lineNum">     118</span>                 :             :       // both checkable and what the style guide asks for instead of pointer arithmetic.</span>
 <span id="L119"><span class="lineNum">     119</span>                 :<span class="tlaGNC">           2 :       const absl::Span&lt;const PCRE2_SIZE&gt; ovector = Ovector(data, 1);</span></span>
@@ -207,14 +200,14 @@
 <span id="L128"><span class="lineNum">     128</span>                 :             :     const int rc =</span>
 <span id="L129"><span class="lineNum">     129</span>                 :<span class="tlaGNC">           3 :         pcre2_match(code_, Sptr(text), text.size(), 0, PCRE2_ANCHORED | PCRE2_ENDANCHORED, data, match_context_);</span></span>
 <span id="L130"><span class="lineNum">     130</span>                 :<span class="tlaGNC">           3 :     std::optional&lt;std::vector&lt;std::string&gt;&gt; result;</span></span>
-<span id="L131"><span class="lineNum">     131</span>         [<span class="tlaGBC" title="Branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           3 :     if (rc &gt;= 0) {</span></span>
+<span id="L131"><span class="lineNum">     131</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           3 :     if (rc &gt;= 0) {</span></span>
 <span id="L132"><span class="lineNum">     132</span>                 :<span class="tlaGNC">           2 :       const absl::Span&lt;const PCRE2_SIZE&gt; ovector = Ovector(data, capture_count_ + 1);</span></span>
 <span id="L133"><span class="lineNum">     133</span>                 :<span class="tlaGNC">           2 :       std::vector&lt;std::string&gt; captures;</span></span>
 <span id="L134"><span class="lineNum">     134</span>                 :<span class="tlaGNC">           2 :       captures.reserve(capture_count_ + 1);</span></span>
-<span id="L135"><span class="lineNum">     135</span>         [<span class="tlaGBC" title="Branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           7 :       for (std::size_t group = 0; group &lt;= capture_count_; ++group) {  // [0] = whole match, [1..] = groups</span></span>
+<span id="L135"><span class="lineNum">     135</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           7 :       for (std::size_t group = 0; group &lt;= capture_count_; ++group) {  // [0] = whole match, [1..] = groups</span></span>
 <span id="L136"><span class="lineNum">     136</span>                 :<span class="tlaGNC">           5 :         const PCRE2_SIZE start = ovector[2 * group];</span></span>
 <span id="L137"><span class="lineNum">     137</span>                 :<span class="tlaGNC">           5 :         const PCRE2_SIZE end = ovector[(2 * group) + 1];</span></span>
-<span id="L138"><span class="lineNum">     138</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           5 :         if (start == PCRE2_UNSET) {</span></span>
+<span id="L138"><span class="lineNum">     138</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           5 :         if (start == PCRE2_UNSET) {</span></span>
 <span id="L139"><span class="lineNum">     139</span>                 :<span class="tlaGNC">           1 :           captures.emplace_back();  // a group that did not participate is empty (mirrors RE2)</span></span>
 <span id="L140"><span class="lineNum">     140</span>                 :             :         } else {</span>
 <span id="L141"><span class="lineNum">     141</span>                 :<span class="tlaGNC">           4 :           captures.emplace_back(text.substr(start, end - start));</span></span>
@@ -229,20 +222,20 @@
 <span id="L150"><span class="lineNum">     150</span>                 :<span class="tlaGNC">           8 :   std::string Rewrite(std::string_view text, std::string_view replacement, bool global) const override {</span></span>
 <span id="L151"><span class="lineNum">     151</span>                 :<span class="tlaGNC">           8 :     const std::string pcre2_replacement = Re2ReplacementToPcre2(replacement);</span></span>
 <span id="L152"><span class="lineNum">     152</span>                 :<span class="tlaGNC">           8 :     const std::uint32_t options =</span></span>
-<span id="L153"><span class="lineNum">     153</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">           8 :         PCRE2_SUBSTITUTE_OVERFLOW_LENGTH | (global ? PCRE2_SUBSTITUTE_GLOBAL : std::uint32_t{0});</span></span>
+<span id="L153"><span class="lineNum">     153</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">           8 :         PCRE2_SUBSTITUTE_OVERFLOW_LENGTH | (global ? PCRE2_SUBSTITUTE_GLOBAL : std::uint32_t{0});</span></span>
 <span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">           8 :     pcre2_match_data* data = pcre2_match_data_create_from_pattern(code_, nullptr);</span></span>
 <span id="L155"><span class="lineNum">     155</span>                 :             :     // The output buffer is OURS, so it is declared in PCRE2's own element type and converted to a</span>
 <span id="L156"><span class="lineNum">     156</span>                 :             :     // std::string once at the end, which removes the char/uchar cast the std::string form needed.</span>
 <span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">           8 :     std::vector&lt;PCRE2_UCHAR&gt; out(text.size() + 16);  // initial guess; grown once on overflow</span></span>
 <span id="L158"><span class="lineNum">     158</span>                 :<span class="tlaGNC">           8 :     PCRE2_SIZE out_len = out.size();</span></span>
 <span id="L159"><span class="lineNum">     159</span>                 :<span class="tlaGNC">           8 :     int rc = Substitute(text, pcre2_replacement, options, data, out, &amp;out_len);</span></span>
-<span id="L160"><span class="lineNum">     160</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">           8 :     if (rc == PCRE2_ERROR_NOMEMORY) {</span></span>
+<span id="L160"><span class="lineNum">     160</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">           8 :     if (rc == PCRE2_ERROR_NOMEMORY) {</span></span>
 <span id="L161"><span class="lineNum">     161</span>                 :<span class="tlaGNC">           1 :       out.resize(out_len);  // OVERFLOW_LENGTH set out_len to the required size (incl NUL)</span></span>
 <span id="L162"><span class="lineNum">     162</span>                 :<span class="tlaGNC">           1 :       out_len = out.size();</span></span>
 <span id="L163"><span class="lineNum">     163</span>                 :<span class="tlaGNC">           1 :       rc = Substitute(text, pcre2_replacement, options, data, out, &amp;out_len);</span></span>
 <span id="L164"><span class="lineNum">     164</span>                 :             :     }</span>
 <span id="L165"><span class="lineNum">     165</span>                 :<span class="tlaGNC">           8 :     pcre2_match_data_free(data);</span></span>
-<span id="L166"><span class="lineNum">     166</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">           8 :     if (rc &lt; 0) {</span></span>
+<span id="L166"><span class="lineNum">     166</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">           8 :     if (rc &lt; 0) {</span></span>
 <span id="L167"><span class="lineNum">     167</span>                 :<span class="tlaGNC">           2 :       return std::string(text);  // on any error, leave the text unchanged (defensive)</span></span>
 <span id="L168"><span class="lineNum">     168</span>                 :             :     }</span>
 <span id="L169"><span class="lineNum">     169</span>                 :             :     // out_len is the result length (excluding the trailing NUL).</span>
@@ -287,20 +280,20 @@
 <span id="L208"><span class="lineNum">     208</span>                 :             :     std::string_view pattern,</span>
 <span id="L209"><span class="lineNum">     209</span>                 :             :     bool case_insensitive) {</span>
 <span id="L210"><span class="lineNum">     210</span>                 :<span class="tlaGNC">          15 :   std::uint32_t options = 0;</span></span>
-<span id="L211"><span class="lineNum">     211</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          15 :   if (case_insensitive) {</span></span>
+<span id="L211"><span class="lineNum">     211</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          15 :   if (case_insensitive) {</span></span>
 <span id="L212"><span class="lineNum">     212</span>                 :<span class="tlaGNC">           1 :     options |= PCRE2_CASELESS;</span></span>
 <span id="L213"><span class="lineNum">     213</span>                 :             :   }</span>
 <span id="L214"><span class="lineNum">     214</span>                 :<span class="tlaGNC">          15 :   int error_code = 0;</span></span>
 <span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">          15 :   PCRE2_SIZE error_offset = 0;</span></span>
 <span id="L216"><span class="lineNum">     216</span>                 :<span class="tlaGNC">          15 :   pcre2_code* code = pcre2_compile(Sptr(pattern), pattern.size(), options, &amp;error_code, &amp;error_offset, nullptr);</span></span>
-<span id="L217"><span class="lineNum">     217</span>         [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="Branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          15 :   if (code == nullptr) {</span></span>
+<span id="L217"><span class="lineNum">     217</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          15 :   if (code == nullptr) {</span></span>
 <span id="L218"><span class="lineNum">     218</span>                 :<span class="tlaGNC">           1 :     std::array&lt;PCRE2_UCHAR, 256&gt; buffer{};</span></span>
 <span id="L219"><span class="lineNum">     219</span>                 :<span class="tlaGNC">           2 :     const int length = pcre2_get_error_message(error_code, buffer.data(), buffer.size());</span></span>
 <span id="L220"><span class="lineNum">     220</span>                 :             :     // Converted element-wise (uchar -&gt; char is a value conversion the constructor performs), so no</span>
 <span id="L221"><span class="lineNum">     221</span>                 :             :     // cast; a negative length means PCRE2 could not render the message at all.</span>
 <span id="L222"><span class="lineNum">     222</span>                 :             :     const std::string message =</span>
-<span id="L223"><span class="lineNum">     223</span>   [<span class="tlaGBC" title="Branch 0 was taken 1 time"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">           4 :         length &gt; 0 ? std::string(buffer.begin(), std::next(buffer.begin(), length)) : std::string(&quot;unknown error&quot;);</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 1 time"> + </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span>]
+<span id="L223"><span class="lineNum">     223</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaUNC" title="branch 2 was not taken"> - </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">           4 :         length &gt; 0 ? std::string(buffer.begin(), std::next(buffer.begin(), length)) : std::string(&quot;unknown error&quot;);</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 1 time"> + </span><span class="tlaUNC" title="branch 5 was not taken"> - </span>]
 <span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaGNC">           1 :     return absl::InvalidArgumentError(absl::StrCat(&quot;invalid PCRE2 pattern at offset &quot;, error_offset, &quot;: &quot;, message));</span></span>
 <span id="L225"><span class="lineNum">     225</span>                 :<span class="tlaGNC">           1 :   }</span></span>
 <span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">          14 :   pcre2_match_context* match_context = pcre2_match_context_create(nullptr);</span></span>
@@ -323,7 +316,7 @@
 
           <table width="100%" border=0 cellspacing=0 cellpadding=0>
             <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
-            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com/linux-test-project/lcov" target="_parent">LCOV version 2.5-0</a></td></tr>
           </table>
           <br>
 
