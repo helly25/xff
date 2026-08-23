@@ -83,6 +83,19 @@ class CoverageSourcesTest(unittest.TestCase):
             self.assertNotIn("main_test.cc", actual)
             self.assertTrue((root / "program-command-line/xff/cli/main.cc").is_symlink())
 
+    def test_grouping_ignores_data_only_lcov_records(self):
+        policy = {
+            "include": ["xff_data/**"],
+            "data_only_extras": ["xff_data"],
+            "categories": {"extensions": {}},
+        }
+        report = "SF:extra_modules/data/data.json\nFNF:0\nFNH:0\nLH:0\nLF:0\nend_of_record\n"
+        with tempfile.TemporaryDirectory() as directory:
+            actual = coverage_sources.grouped(
+                report, {"xff_data": "extra_modules/data"}, policy, Path(directory)
+            )
+        self.assertEqual("", actual)
+
     def test_rejects_a_source_without_exactly_one_policy_module(self):
         policy = {
             "include": ["xff/**"],
@@ -94,7 +107,10 @@ class CoverageSourcesTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(ValueError, "belongs to 2 policy categories"):
                 coverage_sources.grouped(
-                    "SF:xff/cli/main.cc\nend_of_record\n", {}, policy, Path(directory)
+                    "SF:xff/cli/main.cc\nDA:1,1\nend_of_record\n",
+                    {},
+                    policy,
+                    Path(directory),
                 )
 
 

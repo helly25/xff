@@ -72,6 +72,11 @@ def grouped(report: str, modules: dict[str, str], policy: dict, source_root: Pat
         if not match:
             continue
         physical = match.group(1)
+        # Bazel may emit empty records for data and licence files owned by an
+        # extra module. They have no coverable data and therefore belong in
+        # neither a policy category nor genhtml's source tree.
+        if not re.search(r"(?m)^(?:DA|FNDA|BRDA):", record):
+            continue
         logical = physical
         for prefix, replacement in physical_to_logical:
             if physical.startswith(prefix):
