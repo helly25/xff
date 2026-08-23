@@ -15,8 +15,8 @@
 
 #include "xff/cli/help.h"
 
+#include <array>
 #include <string>
-#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "xff/registry/descriptor.h"
@@ -31,7 +31,7 @@ namespace xff::cli {
 // reference topics (--help=fields / --help=stats / --help=NAME), which describe pieces in isolation.
 // Rendered as model nodes by help_build.cc's BuildExamples().
 absl::Span<const Recipe> CookbookRecipes() {
-  static const std::vector<Recipe>* const kRecipes = new std::vector<Recipe>{
+  static constexpr auto kRecipes = std::to_array<Recipe>({
       {.task = "Ten largest files",
        .command = "xff . -type f -printf '%s\\t%p\\n' | sort -rn | head",
        .note = "%s is the size, %p the path; the shell sorts and takes the top ten. -printf builds any "
@@ -71,8 +71,8 @@ absl::Span<const Recipe> CookbookRecipes() {
       {.task = "Recently changed files as machine rows",
        .command = "xff . -type f -mtime -1 --format=jsonl",
        .note = "everything modified in the last day, one JSON object per file, ready for jq or a script."},
-  };
-  return *kRecipes;
+  });
+  return kRecipes;
 }
 
 // Read from the descriptor grammar (arity / binding) so the synopsis never drifts
@@ -112,10 +112,19 @@ std::string ArgHint(const registry::Descriptor& descriptor) {
   return hint;
 }
 
-std::vector<HelpTopic> HelpTopics() {
-  return {
+absl::Span<const HelpTopic> HelpTopics() {
+  static constexpr auto kListAliases = std::to_array<std::string_view>({"topic", "topics"});
+  static constexpr auto kGrammarAliases = std::to_array<std::string_view>({"regex", "regexp"});
+  static constexpr auto kEnvironmentAliases = std::to_array<std::string_view>({"env"});
+  static constexpr auto kStyleAliases = std::to_array<std::string_view>({"flavors"});
+  static constexpr auto kArchiveAliases = std::to_array<std::string_view>({"archives"});
+  static constexpr auto kCookbookAliases = std::to_array<std::string_view>({"examples", "recipes"});
+  static constexpr auto kNoticeAliases = std::to_array<std::string_view>({"notices"});
+  static constexpr auto kLicenseAliases = std::to_array<std::string_view>({"licenses"});
+  static constexpr auto kFullAliases = std::to_array<std::string_view>({"long"});
+  static constexpr auto kTopics = std::to_array<HelpTopic>({
       {.name = "help", .aliases = {}, .summary = "how the help system works, and the topics here"},
-      {.name = "list", .aliases = {"topic", "topics"}, .summary = "this list of help topics"},
+      {.name = "list", .aliases = kListAliases, .summary = "this list of help topics"},
       {.name = "all", .aliases = {}, .summary = "every option and primary, summaries only"},
       {.name = "expressions", .aliases = {}, .summary = "the expression vocabulary: tests, operators, actions"},
       {.name = "fields", .aliases = {}, .summary = "the {field} placeholder vocabulary", .in_full = true},
@@ -123,7 +132,7 @@ std::vector<HelpTopic> HelpTopics() {
       {.name = "time", .aliases = {}, .summary = "time-format presets and strftime patterns", .in_full = true},
       {.name = "size", .aliases = {}, .summary = "-size/-blocks legacy, SI, and IEC units plus +/-", .in_full = true},
       {.name = "grammars",
-       .aliases = {"regex", "regexp"},
+       .aliases = kGrammarAliases,
        .summary = "the --regextype grammars (RE2, EXACT, FNMATCH, GLOB, SHGLOB, PCRE2)",
        .in_full = true},
       {.name = "content",
@@ -132,31 +141,32 @@ std::vector<HelpTopic> HelpTopics() {
        .in_full = true},
       {.name = "config", .aliases = {}, .summary = "config tiers, style selection (--config / argv[0]), and arming"},
       {.name = "environment",
-       .aliases = {"env"},
+       .aliases = kEnvironmentAliases,
        .summary = "the environment variables xff reads (NO_COLOR, PAGER, ...)",
        .in_full = true},
-      {.name = "styles", .aliases = {"flavors"}, .summary = "the find / xff / rg flavor comparison"},
+      {.name = "styles", .aliases = kStyleAliases, .summary = "the find / xff / rg flavor comparison"},
       {.name = "extras",
        .aliases = {},
        .summary = "optional build extras (PCRE2, archive) and whether this binary has them"},
       {.name = "archive",
-       .aliases = {"archives"},
+       .aliases = kArchiveAliases,
        .summary = "walking INTO containers: dive modes, member paths, and what is writable"},
       {.name = "stats", .aliases = {}, .summary = "the --summary and --histogram reductions"},
       {.name = "cookbook",
-       .aliases = {"examples", "recipes"},
+       .aliases = kCookbookAliases,
        .summary = "worked examples that compose xff end to end",
        .in_full = true},
-      {.name = "notice", .aliases = {"notices"}, .summary = "third-party components + what this binary contains"},
+      {.name = "notice", .aliases = kNoticeAliases, .summary = "third-party components + what this binary contains"},
       {.name = "license",
-       .aliases = {"licenses"},
+       .aliases = kLicenseAliases,
        .summary = "xff's license in full (Apache-2.0); =COMPONENT for one component's"},
-      {.name = "full", .aliases = {"long"}, .summary = "every option and primary, with the long explanations"},
-  };
+      {.name = "full", .aliases = kFullAliases, .summary = "every option and primary, with the long explanations"},
+  });
+  return kTopics;
 }
 
-std::vector<HelpFlag> HelpFlags() {
-  return {
+absl::Span<const HelpFlag> HelpFlags() {
+  static constexpr auto kFlags = std::to_array<HelpFlag>({
       {.display = "-h, --help, -help", .summary = "print this usage page and exit (-help for GNU find compatibility)"},
       {.display = "--help=NAME", .summary = "full help for one option or primary (e.g. --help=-regex, --help=--sort)"},
       {.display = "--help=TOPIC", .summary = "detailed help for a topic:"},
@@ -165,7 +175,8 @@ std::vector<HelpFlag> HelpFlags() {
        .summary = "print the man page: formatted on a terminal (see --pager), else raw roff, and exit"},
       {.display = "--markdown", .summary = "print a Markdown reference of all options and primaries and exit"},
       {.display = "--version, -version", .summary = "print the version and exit"},
-  };
+  });
+  return kFlags;
 }
 
 }  // namespace xff::cli

@@ -4436,8 +4436,8 @@ std::string CaseName(parser::CaseMode mode) {
 
 }  // namespace
 
-std::vector<FlavorFacet> FlavorFacets() {
-  return {
+absl::Span<const FlavorFacet> FlavorFacets() {
+  static const auto kFacets = std::to_array<FlavorFacet>({
       {.behavior = "ignore files (.gitignore/.ignore)",
        .flag = "-g / --gitignore, --no-ignore",
        .value = [](const std::vector<std::string>& globals,
@@ -4458,7 +4458,8 @@ std::vector<FlavorFacet> FlavorFacets() {
        .flag = "--case, -i, -s[+|-]",
        .value = [](const std::vector<std::string>& globals,
                    registry::Style style) { return CaseName(parser::ResolveCaseMode(globals, style)); }},
-  };
+  });
+  return kFacets;
 }
 
 }  // namespace xff::engine

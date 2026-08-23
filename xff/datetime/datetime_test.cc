@@ -293,5 +293,12 @@ TEST_F(DateTimeTest, FormatDocsDocumentEveryPreset) {
   }
 }
 
+TEST_F(DateTimeTest, DocumentationVocabulariesHaveStableStorage) {
+  const auto formats = FormatDocs();
+  const auto names = NamedFormatNames();
+  EXPECT_THAT(FormatDocs().data(), Eq(formats.data()));
+  EXPECT_THAT(NamedFormatNames().data(), Eq(names.data()));
+}
+
 }  // namespace
 }  // namespace xff::datetime

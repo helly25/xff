@@ -21,9 +21,9 @@
 #include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 #include "absl/time/time.h"
+#include "absl/types/span.h"
 
 namespace xff::datetime {
 
@@ -104,11 +104,11 @@ std::string FormatTime(
 // names (kNamedFormats plus the special epoch / zulu / zulu-dense forms), and a note that
 // any other spec is an strftime pattern. datetime_test guards that it covers
 // NamedFormatNames().
-std::vector<std::pair<std::string_view, std::string_view>> FormatDocs();
+[[nodiscard]] absl::Span<const std::pair<std::string_view, std::string_view>> FormatDocs();
 
 // The preset names of the named time formats (the kNamedFormats keys), for the
 // `--help=time` coverage guard.
-std::vector<std::string_view> NamedFormatNames();
+[[nodiscard]] absl::Span<const std::string_view> NamedFormatNames();
 
 }  // namespace xff::datetime
 

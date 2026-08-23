@@ -78,9 +78,16 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
     Both `Types()` and `Languages()` return spans over catalogs materialized once per published
     snapshot instead of allocating a new vector on every documentation pass. Tests pin catalog
     reuse and the lifetime of records and catalog spans across later test/embedder reconfiguration.
-  - **Still to audit:** immutable documentation vocabularies (`FieldDocs`, help topics and flags,
-    date/printf/size tables, and fixed `-ls` columns). Registration seams that deliberately accept
-    late registrations and computed result collections remain owning unless their contract changes.
+  - **Immutable documentation slice complete:** field docs/names/path components, help topics/flags,
+    time/printf/size/regex tables, fixed `-ls` columns, and flavor facets now return stable spans.
+    Literal tables and their alias lists are constexpr arrays; the three name lists derived from map
+    keys (fields, time formats, and hash algorithms) are constexpr too. Repeated documentation
+    renders no longer rebuild these collections.
+  - **Audit complete with intentional owners:** registration seams that deliberately accept late
+    registrations (`Databases`, notices, and license bodies), computed result collections
+    (`ResolveConfig`, parsed rc lines, collect sites, enabled extras, and extract directories), and
+    the alphabetized topic rendering remain owning because mutation, sorting, or result lifetime is
+    part of their contract.
 - **Compile-DB launcher configuration after
   [mbo PR #354](https://github.com/helly25/mbo/pull/354): SHIPPED (PR #627).** The outer
   `bazel run //:refresh_compile_commands` now uses `--config=clang-tidy`, matching the preceding

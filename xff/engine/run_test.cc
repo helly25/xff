@@ -2078,5 +2078,10 @@ TEST_F(RunTest, ShardsSummaryByShardCountGroupsSets) {
   EXPECT_THAT(last_errors_, 0);
 }
 
+TEST_F(RunTest, FlavorFacetsHaveStableStorage) {
+  const auto facets = FlavorFacets();
+  EXPECT_THAT(FlavorFacets().data(), Eq(facets.data()));
+}
+
 }  // namespace
 }  // namespace xff::engine

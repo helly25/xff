@@ -15,6 +15,7 @@
 
 #include "xff/hash/hash.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -143,14 +144,10 @@ bool IsAlgorithm(std::string_view algo) {
 
 absl::Span<const std::string_view> AlgorithmNames() {
   // Built once from the (sorted) table, so the name list never drifts from kAlgorithms. The views
-  // point into the constexpr kAlgorithms keys, which outlive everything, so a function-local static
-  // (no heap owner) is safe.
-  static const std::vector<std::string_view> kNames = [] {
-    std::vector<std::string_view> names;
-    names.reserve(kAlgorithms.size());
-    for (const auto& [name, fn] : kAlgorithms) {
-      names.push_back(name);
-    }
+  // point into the constexpr kAlgorithms keys, which outlive everything.
+  static constexpr auto kNames = [] {
+    std::array<std::string_view, kAlgorithms.size()> names{};
+    std::ranges::transform(kAlgorithms, names.begin(), [](const auto& algorithm) { return algorithm.first; });
     return names;
   }();
   return kNames;

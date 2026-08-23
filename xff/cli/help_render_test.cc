@@ -201,6 +201,13 @@ TEST_F(HelpTest, ListRendersTheTopicListUnderEverySpelling) {
   EXPECT_THAT(out, Not(HasSubstr("-execdir")));
 }
 
+TEST_F(HelpTest, HelpVocabulariesHaveStableStorage) {
+  const auto topics = HelpTopics();
+  const auto flags = HelpFlags();
+  EXPECT_THAT(HelpTopics().data(), Eq(topics.data()));
+  EXPECT_THAT(HelpFlags().data(), Eq(flags.data()));
+}
+
 TEST_F(HelpTest, FullReferenceHasDetailsAllIndexIsSummariesOnly) {
   // The full reference (BuildReference, = --help=full) carries the long per-entry
   // explanations; `--help=all` is the same set summaries-only -- strictly shorter.

@@ -14,30 +14,30 @@
 // limitations under the License.
 
 #ifndef XFF_ENGINE_EVALUATE_H_
-#define XFF_ENGINE_EVALUATE_H_
+# define XFF_ENGINE_EVALUATE_H_
 
-#include <cstdint>
-#include <functional>
-#include <map>
-#include <optional>
-#include <string>
-#include <string_view>
-#include <utility>
-#include <vector>
+# include <cstdint>
+# include <functional>
+# include <map>
+# include <optional>
+# include <string>
+# include <string_view>
+# include <utility>
+# include <vector>
 
-#include "absl/functional/function_ref.h"
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
-#include "absl/time/time.h"
-#include "mbo/diff/diff_options.h"
-#include "xff/datetime/datetime.h"
-#include "xff/engine/collect.h"
-#include "xff/engine/extract.h"
-#include "xff/engine/mount.h"
-#include "xff/engine/walk.h"
-#include "xff/parser/ast.h"
-#include "xff/presentation/format/format.h"
-#include "xff/vfs/filesystem.h"
+# include "absl/functional/function_ref.h"
+# include "absl/status/status.h"
+# include "absl/status/statusor.h"
+# include "absl/time/time.h"
+# include "mbo/diff/diff_options.h"
+# include "xff/datetime/datetime.h"
+# include "xff/engine/collect.h"
+# include "xff/engine/extract.h"
+# include "xff/engine/mount.h"
+# include "xff/engine/walk.h"
+# include "xff/parser/ast.h"
+# include "xff/presentation/format/format.h"
+# include "xff/vfs/filesystem.h"
 
 namespace xff::exec {
 class ParallelExec;  // bounded concurrent `-exec/-execdir ... ;` runner (xff/exec/exec.h)
@@ -294,13 +294,13 @@ struct LsColumn {
 // format::ColumnBuffer from this. The minimums are ls -l-like defaults for the
 // flexible fields (owner/group/size), a fixed 10 for the permission string, and 0
 // for the trailing path.
-std::vector<LsColumn> LsColumns();
+[[nodiscard]] absl::Span<const LsColumn> LsColumns();
 
 // The -printf directive vocabulary for `--help=printf`, as {code, description} rows:
 // find's % directives (the kPrintfDirectives table), the a/c/t + Ak/Ck/Tk time families,
 // the \ escapes, and xff's %{field} escape. evaluate_test guards that it documents every
 // directive in PrintfDirectiveLetters().
-std::vector<std::pair<std::string_view, std::string_view>> PrintfDocs();
+[[nodiscard]] absl::Span<const std::pair<std::string_view, std::string_view>> PrintfDocs();
 
 // The letters of find's -printf % directives (the kPrintfDirectives keys), for the
 // `--help=printf` coverage guard.
@@ -309,7 +309,7 @@ std::string PrintfDirectiveLetters();
 // The -size unit vocabulary for `--help=size`, as {code, description} rows: the unit
 // legacy suffixes, explicit SI/IEC suffixes, the block default, and +/- comparison.
 // evaluate_test guards that it covers SizeUnitSuffixes().
-std::vector<std::pair<std::string_view, std::string_view>> SizeUnitDocs();
+[[nodiscard]] absl::Span<const std::pair<std::string_view, std::string_view>> SizeUnitDocs();
 
 // The -size unit suffixes (the kSizeUnits keys), for the `--help=size` coverage guard.
 std::string SizeUnitSuffixes();
@@ -317,3 +317,4 @@ std::string SizeUnitSuffixes();
 }  // namespace xff::engine
 
 #endif  // XFF_ENGINE_EVALUATE_H_
+#include "absl/types/span.h"

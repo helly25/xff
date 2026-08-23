@@ -223,7 +223,7 @@ Section BuildFields() {
       "The `{field}` placeholder vocabulary, substituted per entry in --template / --format, in "
       "-printf via the `%{field}` escape, and (with --exec-fields) in -exec."));
 
-  const std::vector<fields::FieldDoc> docs = fields::FieldDocs();
+  const absl::Span<const fields::FieldDoc> docs = fields::FieldDocs();
   std::string_view group;
   Subsection current;
   bool have_current = false;
@@ -901,7 +901,8 @@ Section ExpressionSection(bool with_details) {
 // `grammars`, `env` for `environment`) is real functionality worth the width. The SOT vector keeps
 // its curated order, which composes the full reference.
 Rows TopicRows() {
-  std::vector<HelpTopic> topics = HelpTopics();
+  const absl::Span<const HelpTopic> help_topics = HelpTopics();
+  std::vector<HelpTopic> topics(help_topics.begin(), help_topics.end());
   absl::c_sort(topics, [](const HelpTopic& lhs, const HelpTopic& rhs) { return lhs.name < rhs.name; });
   Rows rows;
   for (const HelpTopic& topic : topics) {

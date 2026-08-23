@@ -81,6 +81,8 @@ TEST_F(HashTest, IsAlgorithmAndNames) {
                             {"blake2b", "blake2b_256", "blake3", "md5", "sha1", "sha224", "sha256", "sha384",
                              "sha3_224", "sha3_256", "sha3_384", "sha3_512", "sha512", "sha512_224", "sha512_256"}));
   EXPECT_THAT(AlgorithmNames(), SizeIs(15));
+  const auto names = AlgorithmNames();
+  EXPECT_THAT(AlgorithmNames().data(), Eq(names.data()));
 }
 
 TEST_F(HashTest, EveryAdvertisedAlgorithmHashesData) {

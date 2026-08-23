@@ -22,6 +22,7 @@
 #include <string_view>
 #include <vector>
 
+#include "absl/types/span.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/ast.h"
@@ -42,7 +43,7 @@ struct FlavorFacet {
   std::function<std::string(const std::vector<std::string>& globals, registry::Style style)> value;
 };
 
-std::vector<FlavorFacet> FlavorFacets();
+[[nodiscard]] absl::Span<const FlavorFacet> FlavorFacets();
 
 // Runs a parsed find command over `fs`: walks the roots in pre-order and, for
 // each entry, evaluates the expression -- firing -print/-print0 actions through
