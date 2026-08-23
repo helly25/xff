@@ -9,7 +9,8 @@
   <style>
     .xffNavigation { padding: .35rem 0; text-align: center; }
     .xffHeaderSummary { margin: 0 auto; width: 80%; }
-    .xffPolicy { margin: .35rem 0 1rem; }
+    .xffPolicy { border-collapse: collapse; margin: .75rem auto 1rem; width: 80%; }
+    .xffPolicy th, .xffPolicy td { padding: .15rem .5rem; text-align: left; }
   </style>
 </head>
 
@@ -38,13 +39,13 @@
             <td class="headerValue">xff production coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">95.8&nbsp;%</td>
+            <td class="headerCovTableEntryHi">96.5&nbsp;%</td>
             <td class="headerCovTableEntry">144</td>
-            <td class="headerCovTableEntry">138</td>
+            <td class="headerCovTableEntry">139</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-23 11:50:26</td>
+            <td class="headerValue">2026-08-23 12:41:36</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -67,14 +68,6 @@
 
             <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
           </table>
-
-          <table class="xffPolicy" width="100%" border=0 cellspacing=0 cellpadding=0>
-            <tr>
-              <td class="headerItem">Coverage policy:</td>
-              <td class="headerValue"><b>Lines:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 92 %</span> <span class="coverLegendCovHi">high: &gt;= 92 %</span> &middot; <b>Branches:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 95 %</span> <span class="coverLegendCovHi">high: &gt;= 95 %</span> &middot; <b>Functions:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 95 %</span> <span class="coverLegendCovHi">high: &gt;= 95 %</span></td>
-            </tr>
-          </table>
-
 
           <center>
           <table width="80%" cellpadding=1 cellspacing=1 border=0>
@@ -113,11 +106,11 @@
             <tr>
               <td class="coverFile"><a href="local_fs.cc.gcov.html" title="Click to go to file /home/runner/work/xff/xff/coverage-source-tree/program-filesystem/xff/vfs/local_fs.cc">local_fs.cc</a></td>
               <td class="coverBar" align="center">
-                                <table border=0 cellspacing=0 cellpadding=1><tr><td class="coverBarOutline"><img src="../../../emerald.png" width=96 height=10 alt="95.8%"><img src="../../../snow.png" width=4 height=10 alt="95.8%"></td></tr></table>
+                                <table border=0 cellspacing=0 cellpadding=1><tr><td class="coverBarOutline"><img src="../../../emerald.png" width=97 height=10 alt="96.5%"><img src="../../../snow.png" width=3 height=10 alt="96.5%"></td></tr></table>
               </td>
-              <td class="coverPerHi">95.8&nbsp;%</td>
+              <td class="coverPerHi">96.5&nbsp;%</td>
               <td class="coverNumDflt">144</td>
-              <td class="coverNumDflt">138</td>
+              <td class="coverNumDflt">139</td>
               <td class="coverPerMed">91.9&nbsp;%</td>
               <td class="coverNumDflt">74</td>
               <td class="coverNumDflt">68</td>
@@ -127,9 +120,9 @@
             </tr>
             <tr>
               <td class="testName" colspan=2><span style="font-style:italic">&lt;unnamed&gt;</span></td>
-    <td class="testPer">95.8&nbsp;%</td>
+    <td class="testPer">96.5&nbsp;%</td>
               <td class='testNum'>144</td>
-              <td class='testNum'>138</td>
+              <td class='testNum'>139</td>
     <td class="testPer">91.9&nbsp;%</td>
               <td class='testNum'>74</td>
               <td class='testNum'>68</td>
@@ -140,6 +133,37 @@
           </table>
           </center>
           <br>
+
+          <table class="xffPolicy">
+            <thead>
+              <tr>
+                <th scope="col">Coverage policy</th>
+                <th scope="col">Low</th>
+                <th scope="col">Medium</th>
+                <th scope="col">High</th>
+              </tr>
+            </thead>
+            <tbody>
+            <tr>
+              <th scope="row">Lines</th>
+              <td class="coverLegendCovLo">&lt; 90%</td>
+              <td class="coverLegendCovMed">&ge; 90% and &lt; 92%</td>
+              <td class="coverLegendCovHi">&ge; 92%</td>
+            </tr>
+            <tr>
+              <th scope="row">Branches</th>
+              <td class="coverLegendCovLo">&lt; 90%</td>
+              <td class="coverLegendCovMed">&ge; 90% and &lt; 95%</td>
+              <td class="coverLegendCovHi">&ge; 95%</td>
+            </tr>
+            <tr>
+              <th scope="row">Functions</th>
+              <td class="coverLegendCovLo">&lt; 90%</td>
+              <td class="coverLegendCovMed">&ge; 90% and &lt; 95%</td>
+              <td class="coverLegendCovHi">&ge; 95%</td>
+            </tr>
+            </tbody>
+          </table>
 
           <table width="100%" border=0 cellspacing=0 cellpadding=0>
             <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
