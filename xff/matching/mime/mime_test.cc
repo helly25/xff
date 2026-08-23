@@ -15,9 +15,11 @@
 
 #include "xff/matching/mime/mime.h"
 
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <utility>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -121,6 +123,35 @@ TEST_F(MimeTest, MissingMetadataIsEmptyRatherThanInvented) {
   EXPECT_THAT(info.source, IsEmpty());
   EXPECT_THAT(info.charset, IsEmpty());
   EXPECT_THAT(info.compressible, Eq(std::nullopt));
+}
+
+TEST_F(MimeTest, RejectsEveryMalformedVocabularyShape) {
+  constexpr auto kInvalid = std::to_array<std::pair<std::string_view, std::string_view>>({
+      {"{", "invalid JSON"},
+      {"[]", "top level must be an object"},
+      {R"({"invalid": {}})", "invalid media-type entry"},
+      {R"({"application/x-value": []})", "invalid media-type entry"},
+      {R"({"application/x-value": {"description": 1}})", "description must be a string"},
+      {R"({"application/x-value": {"compressible": "yes"}})", "compressible must be boolean"},
+      {R"({"application/x-value": {"aliases": "alias"}})", "aliases must be an array"},
+      {R"({"application/x-value": {"aliases": [1]}})", "aliases must contain only strings"},
+      {R"({"application/x-value": {"extensions": "value"}})", "extensions must be an array"},
+      {R"({"application/x-value": {"extensions": [1]}})", "extensions must contain only strings"},
+      {R"({"application/x-value": {"extensions": [""]}})", "invalid extension"},
+      {R"({"application/x-value": {"extensions": ["bad/name"]}})", "invalid extension"},
+  });
+  for (const auto& [json, message] : kInvalid) {
+    SCOPED_TRACE(json);
+    EXPECT_THAT(
+        Configure({Write(json)}, ConflictPolicy::kError),
+        StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr(message)));
+  }
+}
+
+TEST_F(MimeTest, AcceptsRepeatedClaimByTheSameType) {
+  const std::string file = Write(R"({"application/x-same": {"extensions": ["same", "same"]}})");
+  EXPECT_THAT(Configure({file}, ConflictPolicy::kError), IsOk());
+  EXPECT_THAT(TypeForName("x.same"), Eq("application/x-same"));
 }
 
 }  // namespace

@@ -27,11 +27,14 @@ def resolved_policy(policy: dict, modules: dict[str, str]) -> dict:
     result = copy.deepcopy(policy)
     includes = result.setdefault("include", ["xff/**"])
     extensions = result.setdefault("categories", {}).setdefault("extensions", {})
+    data_only = result.get("data_only_extras", [])
     for module in modules:
         pattern = f"{module}/**"
         if pattern not in includes:
             includes.append(pattern)
-        if not any(pattern in category.get("include", ()) for category in extensions.values()):
+        if module not in data_only and not any(
+            pattern in category.get("include", ()) for category in extensions.values()
+        ):
             name = module.removeprefix("xff_").replace("_", " ").title()
             extensions[name] = {"include": [pattern]}
     return result

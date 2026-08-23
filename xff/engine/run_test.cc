@@ -433,6 +433,23 @@ TEST_F(RunTest, MissingMimeVocabularyFailsBeforeTraversal) {
   EXPECT_THAT(last_errors_, Eq(2));
 }
 
+TEST_F(RunTest, MimeConflictPolicyControlsAmbiguousImportedVocabulary) {
+  const fs::path vocabulary = root_ / "mime-conflict.json";
+  std::ofstream(vocabulary) << R"({
+    "application/x-first": {"extensions": ["txt"]},
+    "application/x-last": {"extensions": ["txt"]}
+  })";
+  const std::string flag = "--mime-vocabulary=" + vocabulary.string();
+  EXPECT_THAT(RunArgvRecords({flag, root_.string(), "-name", "a.txt", "-printf", "%{mime}\n"}), IsEmpty());
+  EXPECT_THAT(last_errors_, Eq(2));
+  EXPECT_THAT(
+      RunArgvRecords({flag, "--mime-conflicts=first", root_.string(), "-name", "a.txt", "-printf", "%{mime}\n"}),
+      ElementsAre("application/x-first"));
+  EXPECT_THAT(
+      RunArgvRecords({flag, "--mime-conflicts=last", root_.string(), "-name", "a.txt", "-printf", "%{mime}\n"}),
+      ElementsAre("application/x-last"));
+}
+
 TEST_F(RunTest, LangMatchesAndRendersTheLanguage) {
   { std::ofstream(root_ / "main.cc"); }
   { std::ofstream(root_ / "app.py"); }

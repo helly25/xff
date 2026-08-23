@@ -23,6 +23,18 @@ class CoverageSourcesTest(unittest.TestCase):
         )
         self.assertNotIn("xff_future/**", policy["include"])
 
+    def test_data_only_extra_stays_in_scope_without_an_empty_metric_row(self):
+        policy = {
+            "include": ["xff/**"],
+            "data_only_extras": ["xff_data"],
+            "categories": {"extensions": {}},
+        }
+        actual = coverage_sources.resolved_policy(
+            policy, {"xff_data": "extra_modules/data"}
+        )
+        self.assertIn("xff_data/**", actual["include"])
+        self.assertNotIn("Data", actual["categories"]["extensions"])
+
     def test_maps_every_extra_in_the_repository_registry(self):
         modules = coverage_sources.declared_extras()
         report = "".join(f"SF:external/{module}+/source.cc\n" for module in modules)
