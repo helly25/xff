@@ -15,7 +15,7 @@ from pathlib import Path
 
 import coverage_policy
 
-_METRICS = ("lines", "functions", "branches")
+_METRICS = ("lines", "branches", "functions")
 
 
 def _page(title: str, body: str) -> str:
@@ -32,11 +32,17 @@ def _page(title: str, body: str) -> str:
       th, td {{ border: 1px solid #d0d7de; padding: .35rem .65rem; text-align: right; }}
       .coverageTable th:first-child, .coverageTable td:first-child,
       .reportsTable th:nth-child(-n+6), .reportsTable td:nth-child(-n+6) {{ text-align: left; }}
+      .coverageTable td {{ white-space: nowrap; }}
       .coverageTable td:nth-child(n+3), .patchTable td:nth-child(n+2), .reportsTable td:nth-child(n+7) {{ font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }}
       .low {{ background: #f8cecc; }}
       .medium {{ background: #fff2cc; }}
       .high {{ background: #d5e8d4; }}
-      .status-bad {{ color: #cf222e; font-weight: bold; }}
+      .policy {{ display: block; font: 11px/1.3 system-ui, sans-serif; margin-top: .2rem; white-space: nowrap; }}
+      .policyBand {{ border: 1px solid transparent; display: inline-block; padding: 0 .2rem; }}
+      .policyBand.enforced {{ border-color: #24292f; font-weight: 700; }}
+      .status-good {{ background: #d5e8d4; }}
+      .status-ok {{ background: #fff2cc; }}
+      .status-bad {{ background: #f8cecc; color: #cf222e; font-weight: bold; }}
     </style>
   </head>
   <body>
@@ -71,12 +77,36 @@ def _status(metrics: dict, policy: dict[str, coverage_policy.MetricPolicy]) -> s
     return "OK"
 
 
+def _policy_strip(policy: coverage_policy.MetricPolicy) -> str:
+    values = (
+        ("low", f"L &lt;{policy.minimum:g}"),
+        ("medium", "M &mdash;" if policy.minimum == policy.target else f"M &ge;{policy.minimum:g}"),
+        ("high", f"H &ge;{policy.target:g}"),
+    )
+    spans = []
+    for rating, label in values:
+        enforced = " enforced" if rating == policy.enforce else ""
+        spans.append(f'<span class="policyBand {rating}{enforced}">{label}</span>')
+    return '<span class="policy">' + " ".join(spans) + "</span>"
+
+
+def _status_class(status: str) -> str:
+    if status == "GOOD":
+        return "status-good"
+    if status == "OK":
+        return "status-ok"
+    return "status-bad"
+
+
 def _full_table(summary: dict) -> str:
     rows = []
     for category, metrics in summary["measurements"].items():
         policy = _policy(summary, category)
         status = _status(metrics, policy)
-        cells: list[tuple[str, str | None]] = [(html.escape(category), None), (html.escape(status), None)]
+        cells: list[tuple[str, str | None]] = [
+            (html.escape(category), None),
+            (html.escape(status), f'class="{_status_class(status)}"'),
+        ]
         for metric in _METRICS:
             value = metrics[metric]
             rating = coverage_policy.rating(value["percent"], policy[metric])
@@ -86,17 +116,18 @@ def _full_table(summary: dict) -> str:
                 f"high at {metric_policy.target:g}%"
             )
             attrs = f'class="{rating}" title="{html.escape(title, quote=True)}"'
-            cells.extend(((_percent(value), attrs), (str(value["covered"]), None), (str(value["total"]), None)))
-        status_class = ' class="status-bad"' if status.startswith("BAD") else ""
-        row = f"      <tr><td>{cells[0][0]}</td><td{status_class}>{cells[1][0]}</td>"
+            rate = _percent(value) + _policy_strip(metric_policy)
+            counts = f'{value["covered"]} / {value["total"]}'
+            cells.extend(((rate, attrs), (counts, None)))
+        row = f"      <tr><td>{cells[0][0]}</td><td {cells[1][1]}>{cells[1][0]}</td>"
         row += "".join(
             f'<td{f" {attrs}" if attrs else ""}>{cell}</td>' for cell, attrs in cells[2:]
         ) + "</tr>"
         rows.append(row)
     return """    <table class="coverageTable">
       <thead>
-        <tr><th rowspan="2">Category</th><th rowspan="2">Status</th><th colspan="3">Lines</th><th colspan="3">Functions</th><th colspan="3">Branches</th></tr>
-        <tr><th>Rate</th><th>Covered</th><th>Total</th><th>Rate</th><th>Covered</th><th>Total</th><th>Rate</th><th>Covered</th><th>Total</th></tr>
+        <tr><th rowspan="2">Category</th><th rowspan="2">Status</th><th colspan="2">Lines</th><th colspan="2">Branches</th><th colspan="2">Functions</th></tr>
+        <tr><th>Rate / policy</th><th>Covered / total</th><th>Rate / policy</th><th>Covered / total</th><th>Rate / policy</th><th>Covered / total</th></tr>
       </thead>
       <tbody>
 """ + "\n".join(rows) + """
@@ -123,12 +154,15 @@ def render_report(summary: dict, target: str) -> str:
         values = []
         for metric in ("lines", "branches"):
             rating = coverage_policy.rating(patch[metric]["percent"], patch_policy[metric])
-            values.append(f'<td class="{rating}">{_percent(patch[metric])}</td>')
-        status_class = ' class="status-bad"' if patch_status.startswith("BAD") else ""
+            values.append(
+                f'<td class="{rating}">{_percent(patch[metric])}'
+                f"{_policy_strip(patch_policy[metric])}</td>"
+            )
+        status_class = _status_class(patch_status)
         body += (
             "    <h2>Changed coverable lines</h2>\n"
             "    <table class=\"patchTable\"><thead><tr><th>Status</th><th>Lines</th><th>Branches</th></tr></thead><tbody><tr>"
-            f"<td{status_class}>{patch_status}</td>{''.join(values)}</tr></tbody></table>\n"
+            f'<td class="{status_class}">{patch_status}</td>{"".join(values)}</tr></tbody></table>\n'
         )
     body += (
         '    <p><a href="lcov/">Browse detailed LCOV source coverage</a> · '
@@ -258,7 +292,7 @@ def render_site(root: Path) -> str:
     rows = "\n".join(_short_row(metadata) for metadata in reports)
     body = "    <h1>xff coverage reports</h1>\n"
     if rows:
-        body += """    <table class="reportsTable"><thead><tr><th>Report</th><th>Data</th><th>Source</th><th>Completed</th><th>Commit</th><th>Workflow</th><th>Lines</th><th>Functions</th><th>Branches</th></tr></thead>
+        body += """    <table class="reportsTable"><thead><tr><th>Report</th><th>Data</th><th>Source</th><th>Completed</th><th>Commit</th><th>Workflow</th><th>Lines</th><th>Branches</th><th>Functions</th></tr></thead>
       <tbody>
 """ + rows + """
       </tbody>

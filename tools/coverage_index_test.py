@@ -33,8 +33,9 @@ class CoverageIndexTest(unittest.TestCase):
 
     def test_report_status_is_ok_between_minimum_and_target(self):
         rendered = coverage_index.render_report(_summary(85.0), "pr/42")
-        self.assertIn("<td>OK</td>", rendered)
+        self.assertIn('<td class="status-ok">OK</td>', rendered)
         self.assertIn('<td class="medium" title="medium; enforce medium;', rendered)
+        self.assertIn('<span class="policyBand medium enforced">M &ge;80</span>', rendered)
 
     def test_report_status_identifies_metrics_below_minimum(self):
         summary = _summary(95.0)
@@ -47,6 +48,41 @@ class CoverageIndexTest(unittest.TestCase):
         summary["enforcement"]["overall"]["branches"] = "high"
         rendered = coverage_index.render_report(summary, "pr/42")
         self.assertIn('<td class="status-bad">BAD: B</td>', rendered)
+
+    def test_dense_table_shows_effective_override_policy_per_row(self):
+        summary = _summary(95.0)
+        summary["measurements"]["extensions / new"] = {
+            name: {"covered": 8, "total": 10, "percent": 80.0}
+            for name in ("lines", "functions", "branches")
+        }
+        summary["minimums"]["extensions / new"] = {
+            "lines": 75,
+            "functions": 70,
+            "branches": 60,
+        }
+        summary["targets"]["extensions / new"] = {
+            "lines": 90,
+            "functions": 90,
+            "branches": 85,
+        }
+        summary["enforcement"]["extensions / new"] = {
+            "lines": "medium",
+            "functions": "medium",
+            "branches": "high",
+        }
+        rendered = coverage_index.render_report(summary, "pr/42")
+        self.assertIn('<td class="status-bad">BAD: B</td>', rendered)
+        self.assertIn('<span class="policyBand medium enforced">M &ge;75</span>', rendered)
+        self.assertIn('<span class="policyBand high enforced">H &ge;85</span>', rendered)
+        self.assertIn("8 / 10", rendered)
+        self.assertLess(rendered.index('colspan="2">Lines'), rendered.index('colspan="2">Branches'))
+        self.assertLess(rendered.index('colspan="2">Branches'), rendered.index('colspan="2">Functions'))
+
+    def test_equal_boundaries_show_that_there_is_no_medium_band(self):
+        policy = coverage_index.coverage_policy.MetricPolicy(98, 98, "high")
+        rendered = coverage_index._policy_strip(policy)
+        self.assertIn("M &mdash;", rendered)
+        self.assertIn('<span class="policyBand high enforced">H &ge;98</span>', rendered)
 
     def test_patch_uses_its_resolved_policy(self):
         summary = _summary(95.0)
@@ -62,7 +98,7 @@ class CoverageIndexTest(unittest.TestCase):
         }
         rendered = coverage_index.render_report(summary, "pr/42")
         self.assertIn('<td class="status-bad">BAD: L</td>', rendered)
-        self.assertEqual(2, rendered.count('<td class="medium">90.00%</td>'))
+        self.assertEqual(2, rendered.count('<td class="medium">90.00%<span class="policy">'))
 
     def test_site_shows_all_metrics_with_main_first_and_numeric_sorting(self):
         with tempfile.TemporaryDirectory() as directory:
