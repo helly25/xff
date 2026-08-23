@@ -806,7 +806,9 @@ bashtest(
 # and that an ordinary file is neither dived nor reported.
 bashtest(
     name = "archive_dive_test",
-    size = "small",
+    # Repeated full-binary archive traversals exceed the 60-second small-test
+    # ceiling under MemorySanitizer even though ordinary builds finish quickly.
+    size = "medium",
     srcs = ["archive_dive_test.sh"],
     data = [":xff_full"],
     target_compatible_with = XFF_ARCHIVE_ONLY,
