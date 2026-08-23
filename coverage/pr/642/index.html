@@ -9,34 +9,38 @@
       a { color: #0969da; }
       table { border-collapse: collapse; margin: 1rem 0 2rem; }
       th, td { border: 1px solid #d0d7de; padding: .35rem .65rem; text-align: right; }
-      th:nth-child(-n+5), td:nth-child(-n+5) { text-align: left; }
-      td:nth-child(n+3) { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }
-      .fail { font-weight: bold; color: #cf222e; }
+      .coverageTable th:first-child, .coverageTable td:first-child,
+      .reportsTable th:nth-child(-n+6), .reportsTable td:nth-child(-n+6) { text-align: left; }
+      .coverageTable td:nth-child(n+3), .patchTable td:nth-child(n+2), .reportsTable td:nth-child(n+7) { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }
+      .low { background: #f8cecc; }
+      .medium { background: #fff2cc; }
+      .high { background: #d5e8d4; }
+      .status-bad { color: #cf222e; font-weight: bold; }
     </style>
   </head>
   <body>
     <h1>xff coverage: pr/642</h1>
-    <table>
+    <table class="coverageTable">
       <thead>
         <tr><th rowspan="2">Category</th><th rowspan="2">Status</th><th colspan="3">Lines</th><th colspan="3">Functions</th><th colspan="3">Branches</th></tr>
         <tr><th>Rate</th><th>Covered</th><th>Total</th><th>Rate</th><th>Covered</th><th>Total</th><th>Rate</th><th>Covered</th><th>Total</th></tr>
       </thead>
       <tbody>
-      <tr><td>overall</td><td>OK</td><td>95.13%</td><td>11271</td><td>11848</td><td>98.27%</td><td>1309</td><td>1332</td><td>86.20%</td><td>8110</td><td>9408</td></tr>
-      <tr><td>program / command line</td><td>OK</td><td>97.22%</td><td>1607</td><td>1653</td><td>98.82%</td><td>168</td><td>170</td><td>91.27%</td><td>941</td><td>1031</td></tr>
-      <tr><td>program / configuration</td><td>OK</td><td>97.66%</td><td>292</td><td>299</td><td>100.00%</td><td>40</td><td>40</td><td>92.44%</td><td>220</td><td>238</td></tr>
-      <tr><td>program / command grammar</td><td>OK</td><td>94.64%</td><td>565</td><td>597</td><td>100.00%</td><td>48</td><td>48</td><td>86.52%</td><td>539</td><td>623</td></tr>
-      <tr><td>program / execution</td><td>OK</td><td>93.79%</td><td>3988</td><td>4252</td><td>97.64%</td><td>413</td><td>423</td><td>83.86%</td><td>3139</td><td>3743</td></tr>
-      <tr><td>program / filesystem</td><td>OK</td><td>98.12%</td><td>470</td><td>479</td><td>98.18%</td><td>54</td><td>55</td><td>93.25%</td><td>304</td><td>326</td></tr>
-      <tr><td>program / matching</td><td>OK</td><td>99.44%</td><td>880</td><td>885</td><td>100.00%</td><td>122</td><td>122</td><td>94.20%</td><td>698</td><td>741</td></tr>
-      <tr><td>program / presentation</td><td>OK</td><td>97.44%</td><td>1217</td><td>1249</td><td>100.00%</td><td>158</td><td>158</td><td>90.48%</td><td>1017</td><td>1124</td></tr>
-      <tr><td>extensions / API</td><td>OK</td><td>98.01%</td><td>246</td><td>251</td><td>95.52%</td><td>64</td><td>67</td><td>87.65%</td><td>149</td><td>170</td></tr>
-      <tr><td>extensions / archive</td><td>OK</td><td>91.35%</td><td>1204</td><td>1318</td><td>95.77%</td><td>136</td><td>142</td><td>77.53%</td><td>690</td><td>890</td></tr>
-      <tr><td>extensions / FUSE</td><td>OK</td><td>90.68%</td><td>438</td><td>483</td><td>98.59%</td><td>70</td><td>71</td><td>75.19%</td><td>203</td><td>270</td></tr>
-      <tr><td>extensions / PCRE2</td><td>OK</td><td>100.00%</td><td>100</td><td>100</td><td>100.00%</td><td>14</td><td>14</td><td>90.00%</td><td>36</td><td>40</td></tr>
-      <tr><td>extensions / Brotli</td><td>OK</td><td>93.62%</td><td>264</td><td>282</td><td>100.00%</td><td>22</td><td>22</td><td>82.08%</td><td>174</td><td>212</td></tr>
+      <tr><td>overall</td><td>GOOD</td><td class="high" title="high; enforce high; medium at 90%; high at 92%">95.13%</td><td>11271</td><td>11848</td><td class="high" title="high; enforce high; medium at 90%; high at 95%">98.27%</td><td>1309</td><td>1332</td><td class="high" title="high; enforce high; medium at 80%; high at 82%">86.20%</td><td>8110</td><td>9408</td></tr>
+      <tr><td>program / command line</td><td>GOOD</td><td class="high" title="high; enforce high; medium at 90%; high at 92%">97.22%</td><td>1607</td><td>1653</td><td class="high" title="high; enforce high; medium at 90%; high at 95%">98.82%</td><td>168</td><td>170</td><td class="high" title="high; enforce high; medium at 80%; high at 82%">91.27%</td><td>941</td><td>1031</td></tr>
+      <tr><td>program / configuration</td><td>GOOD</td><td class="high" title="high; enforce high; medium at 90%; high at 92%">97.66%</td><td>292</td><td>299</td><td class="high" title="high; enforce high; medium at 90%; high at 95%">100.00%</td><td>40</td><td>40</td><td class="high" title="high; enforce high; medium at 80%; high at 82%">92.44%</td><td>220</td><td>238</td></tr>
+      <tr><td>program / command grammar</td><td>GOOD</td><td class="high" title="high; enforce high; medium at 90%; high at 92%">94.64%</td><td>565</td><td>597</td><td class="high" title="high; enforce high; medium at 90%; high at 95%">100.00%</td><td>48</td><td>48</td><td class="high" title="high; enforce high; medium at 80%; high at 82%">86.52%</td><td>539</td><td>623</td></tr>
+      <tr><td>program / execution</td><td>GOOD</td><td class="high" title="high; enforce high; medium at 90%; high at 92%">93.79%</td><td>3988</td><td>4252</td><td class="high" title="high; enforce high; medium at 90%; high at 95%">97.64%</td><td>413</td><td>423</td><td class="high" title="high; enforce high; medium at 80%; high at 82%">83.86%</td><td>3139</td><td>3743</td></tr>
+      <tr><td>program / filesystem</td><td>GOOD</td><td class="high" title="high; enforce high; medium at 90%; high at 92%">98.12%</td><td>470</td><td>479</td><td class="high" title="high; enforce high; medium at 90%; high at 95%">98.18%</td><td>54</td><td>55</td><td class="high" title="high; enforce high; medium at 80%; high at 82%">93.25%</td><td>304</td><td>326</td></tr>
+      <tr><td>program / matching</td><td>GOOD</td><td class="high" title="high; enforce high; medium at 90%; high at 92%">99.44%</td><td>880</td><td>885</td><td class="high" title="high; enforce high; medium at 90%; high at 95%">100.00%</td><td>122</td><td>122</td><td class="high" title="high; enforce high; medium at 80%; high at 82%">94.20%</td><td>698</td><td>741</td></tr>
+      <tr><td>program / presentation</td><td>GOOD</td><td class="high" title="high; enforce high; medium at 90%; high at 92%">97.44%</td><td>1217</td><td>1249</td><td class="high" title="high; enforce high; medium at 90%; high at 95%">100.00%</td><td>158</td><td>158</td><td class="high" title="high; enforce high; medium at 80%; high at 82%">90.48%</td><td>1017</td><td>1124</td></tr>
+      <tr><td>extensions / API</td><td>GOOD</td><td class="high" title="high; enforce high; medium at 97%; high at 97%">98.01%</td><td>246</td><td>251</td><td class="high" title="high; enforce high; medium at 90%; high at 95%">95.52%</td><td>64</td><td>67</td><td class="high" title="high; enforce high; medium at 87%; high at 87%">87.65%</td><td>149</td><td>170</td></tr>
+      <tr><td>extensions / archive</td><td>OK</td><td class="medium" title="medium; enforce medium; medium at 90%; high at 92%">91.35%</td><td>1204</td><td>1318</td><td class="high" title="high; enforce high; medium at 90%; high at 95%">95.77%</td><td>136</td><td>142</td><td class="medium" title="medium; enforce medium; medium at 77%; high at 82%">77.53%</td><td>690</td><td>890</td></tr>
+      <tr><td>extensions / FUSE</td><td>OK</td><td class="medium" title="medium; enforce medium; medium at 90%; high at 92%">90.68%</td><td>438</td><td>483</td><td class="high" title="high; enforce high; medium at 90%; high at 95%">98.59%</td><td>70</td><td>71</td><td class="medium" title="medium; enforce medium; medium at 75%; high at 82%">75.19%</td><td>203</td><td>270</td></tr>
+      <tr><td>extensions / PCRE2</td><td>GOOD</td><td class="high" title="high; enforce high; medium at 98%; high at 98%">100.00%</td><td>100</td><td>100</td><td class="high" title="high; enforce high; medium at 98%; high at 98%">100.00%</td><td>14</td><td>14</td><td class="high" title="high; enforce high; medium at 87%; high at 87%">90.00%</td><td>36</td><td>40</td></tr>
+      <tr><td>extensions / Brotli</td><td>GOOD</td><td class="high" title="high; enforce high; medium at 90%; high at 92%">93.62%</td><td>264</td><td>282</td><td class="high" title="high; enforce high; medium at 90%; high at 95%">100.00%</td><td>22</td><td>22</td><td class="high" title="high; enforce high; medium at 80%; high at 82%">82.08%</td><td>174</td><td>212</td></tr>
       </tbody>
     </table>
-    <p><a href="lcov/">Browse detailed LCOV source coverage</a> · <a href="../../">All reports</a></p>
+    <p><a href="lcov/">Browse detailed LCOV source coverage</a> · <a href="coverage-summary.json">Coverage data (JSON)</a> · <a href="coverage-meta.json">Report metadata (JSON)</a> · <a href="../../">All reports</a></p>
   </body>
 </html>
