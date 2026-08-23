@@ -96,16 +96,14 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
   82% branch health target and narrower documented branch limits only for archive and FUSE. The HTML
   report derives each metric's red minimum, yellow passing band, green health target, and legend from
   that same JSON policy instead of using genhtml's generic 75/90% scale.
-- **Raise the branch-coverage policy and add report navigation.** Move the branch bands from the
-  current 80% minimum / 82% health target to a real medium range of 90% through 95%: low below 90%,
-  medium from 90% up to (but not including) 95%, and high at 95% or above. First add focused tests for
-  groups below the new minimum; keep any unavoidable per-group override narrow, justified, and in the
-  JSON policy SSOT. Add a navigation block at the top of every generated LCOV HTML page with links to
-  the current report's policy overview table and the retained coverage-report index. Move the custom
-  policy legend out of genhtml's crowded header and place it immediately below the coverage table.
-  Generate or post-process the links and legend as part of the coverage pipeline, with tests for
-  nested source pages as well as the LCOV root, so navigation does not depend on genhtml's directory
-  depth or page variant.
+- **Unify coverage ratings, enforcement, and report navigation - DONE.** The JSON policy now defines
+  the low/medium boundary (`minimum`), medium/high boundary (`target`), and enforced rating for each
+  metric. The overview and CI resolve the same category overrides; a weaker override requires a
+  reason, which keeps onboarding possible without silently weakening mature modules. The detailed
+  LCOV report deliberately uses the one global policy it can represent. Its colours, matrix, and
+  generated lcovrc share the JSON boundaries instead of maintaining presentation-only bands. Every
+  generated page has stable links to its report overview and the retained report index, while report
+  pages and the site index expose the underlying JSON. See [`docs/coverage.md`](docs/coverage.md).
 
 - **clang-tidy coverage for `extra_modules/` is SHIPPED (PRs #515-#519 and #530).** The original
   exclusion hid 81 findings; the per-extra sweeps cleared them and PR #530 dropped the exclusion.

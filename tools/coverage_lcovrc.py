@@ -6,33 +6,20 @@ import json
 from pathlib import Path
 from typing import Any
 
+import coverage_policy
+
 
 _METRICS = ("line", "function", "branch")
 _POLICY_KEYS = {"line": "lines", "function": "functions", "branch": "branches"}
 
 
-def _bands(policy: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-    bands = policy.get("bands")
-    if bands is not None:
-        return bands["medium"], bands["high"]
-    minimum = policy["minimum"]
-    return minimum, {**minimum, **policy.get("target", {})}
-
-
 def render(policy: dict[str, Any]) -> str:
-    medium_band, high_band = _bands(policy)
+    overall = coverage_policy.overall(policy)
     lines: list[str] = []
     for metric in _METRICS:
         key = _POLICY_KEYS[metric]
-        medium = int(medium_band[key])
-        high = int(high_band[key])
-        if not 0 <= medium <= high <= 100:
-            raise ValueError(
-                f"{metric} coverage thresholds must satisfy 0 <= minimum <= target <= 100: "
-                f"{medium}, {high}"
-            )
-        lines.append(f"genhtml_{metric}_hi_limit = {high}")
-        lines.append(f"genhtml_{metric}_med_limit = {medium}")
+        lines.append(f"genhtml_{metric}_hi_limit = {overall[key].target:g}")
+        lines.append(f"genhtml_{metric}_med_limit = {overall[key].minimum:g}")
     return "\n".join(lines) + "\n"
 
 

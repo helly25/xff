@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import coverage_sources
+import coverage_policy
 
 
 @dataclass
@@ -140,63 +141,66 @@ def measurements(files: dict[str, FileCoverage], policy: dict) -> dict:
 
 
 def thresholds(policy: dict) -> tuple[dict, dict]:
-    """Returns enforcement floors and health targets for every report row."""
-    overall = policy.get("minimum", {})
-    overall_target = {**overall, **policy.get("target", {})}
-    floors = {"overall": overall}
-    targets = {"overall": overall_target}
-    for group, categories in policy.get("categories", {}).items():
-        for name, category in categories.items():
-            key = f"{group} / {name}"
-            floors[key] = {**overall, **category.get("minimum", {})}
-            category_target = category.get("target", {})
-            targets[key] = {
-                metric: max(
-                    floors[key].get(metric, 0),
-                    overall_target.get(metric, 0),
-                    category_target.get(metric, 0),
-                )
-                for metric in floors[key] | overall_target | category_target
-            }
-    return floors, targets
+    """Returns effective medium and high boundaries for every report row."""
+    resolved = coverage_policy.policies(policy)
+    minimums = {
+        category: {metric: value.minimum for metric, value in values.items()}
+        for category, values in resolved.items()
+    }
+    targets = {
+        category: {metric: value.target for metric, value in values.items()}
+        for category, values in resolved.items()
+    }
+    return minimums, targets
 
 
-def failures(measured: dict, minimums: dict) -> list[str]:
+def failures(measured: dict, policies: dict) -> list[str]:
     result = []
-    for category, limits in minimums.items():
-        for metric, minimum in limits.items():
+    for category, values in policies.items():
+        for metric, policy in values.items():
             actual = measured[category][metric]["percent"]
-            if actual is None or actual < minimum:
-                result.append(f"{category} {metric}: {actual}% < {minimum}%")
+            if not coverage_policy.passes(actual, policy):
+                boundary = policy.minimum if policy.enforce == "medium" else policy.target
+                result.append(
+                    f"{category} {metric}: {actual}% is below enforced {policy.enforce} "
+                    f"boundary {boundary:g}%"
+                )
     return result
 
 
-def coverage_status(metrics: dict, minimum: dict) -> str:
-    if not minimum:
+def coverage_status(metrics: dict, policy: dict) -> str:
+    if not policy:
         return "N/A"
     abbreviations = {"lines": "L", "functions": "F", "branches": "B"}
-    problems: dict[str, list[str]] = {"NO DATA": [], "FAIL": []}
+    problems: dict[str, list[str]] = {"NO DATA": [], "BAD": []}
     for metric in ("lines", "functions", "branches"):
-        if metric not in minimum:
+        if metric not in policy:
             continue
         actual = metrics[metric]["percent"]
         if actual is None:
             problems["NO DATA"].append(abbreviations[metric])
-        elif actual < minimum[metric]:
-            problems["FAIL"].append(abbreviations[metric])
+        elif not coverage_policy.passes(actual, policy[metric]):
+            problems["BAD"].append(abbreviations[metric])
     labels = [f'{name}: {"/".join(values)}' for name, values in problems.items() if values]
-    return "OK" if not labels else f'**{"; ".join(labels)}**'
+    if labels:
+        return f'**{"; ".join(labels)}**'
+    if all(
+        coverage_policy.rating(metrics[metric]["percent"], value) == "high"
+        for metric, value in policy.items()
+    ):
+        return "GOOD"
+    return "OK"
 
 
 def has_coverage(metrics: dict, names: tuple[str, ...]) -> bool:
     return any(metrics[name]["total"] for name in names)
 
 
-def markdown(measured: dict, minimums: dict) -> str:
+def markdown(measured: dict, policies: dict) -> str:
     headers = ("Category", "Status", "Lines", "Covered", "Total", "Functions", "Covered", "Total", "Branches", "Covered", "Total")
     values = []
     for category, metrics in measured.items():
-        cells = [category, coverage_status(metrics, minimums.get(category, {}))]
+        cells = [category, coverage_status(metrics, policies.get(category, {}))]
         for metric in ("lines", "functions", "branches"):
             value = metrics[metric]
             percent = "n/a" if value["percent"] is None else f'{value["percent"]:.2f}%'
@@ -234,33 +238,45 @@ def main(argv: list[str] | None = None) -> int:
     if args.baseline and args.write_baseline:
         baseline = {"schema": 1, "description": "Bazel LCOV with GCC 14; scope and exclusions are defined by coverage_policy.json", "measurements": measured}
         args.baseline.write_text(json.dumps(baseline, indent=2) + "\n", encoding="utf-8")
+    effective = coverage_policy.policies(policy)
     minimums, targets = thresholds(policy)
-    text = markdown(measured, minimums)
+    text = markdown(measured, effective)
     patch_failures = []
     patch = None
+    patch_policy = None
     if args.base_ref:
         patch = counts(files, changed_lines(args.base_ref))
-        minimum = policy.get("patch_minimum", {})
+        patch_policy = coverage_policy.resolve(policy.get("patch", {}), effective["overall"])
+        patch_policy = {metric: patch_policy[metric] for metric in ("lines", "branches")}
         if has_coverage(patch, ("lines", "branches")):
-            text += "\n### Changed coverable lines\n\n" + markdown({"patch": patch}, {"patch": minimum})
-            for metric in ("lines", "branches"):
-                actual = patch[metric]["percent"]
-                if patch[metric]["total"] and actual < minimum.get(metric, 0):
-                    patch_failures.append(f"patch {metric}: {actual}% < {minimum[metric]}%")
+            text += "\n### Changed coverable lines\n\n" + markdown({"patch": patch}, {"patch": patch_policy})
+            patch_failures = failures({"patch": patch}, {"patch": patch_policy})
     print(text, end="")
     if args.summary:
         args.summary.write_text(text, encoding="utf-8")
     if args.json_summary:
         report = {
-            "schema": 1,
+            "schema": 2,
             "measurements": measured,
             "minimums": minimums,
             "targets": targets,
+            "enforcement": {
+                category: {metric: value.enforce for metric, value in values.items()}
+                for category, values in effective.items()
+            },
+            "reasons": {
+                f"{group} / {name}": category["reason"]
+                for group, categories in policy.get("categories", {}).items()
+                for name, category in categories.items()
+                if category.get("reason")
+            },
         }
         if patch is not None and has_coverage(patch, ("lines", "branches")):
             report["patch"] = patch
+            assert patch_policy is not None
+            report["patch_policy"] = coverage_policy.serializable(patch_policy)
         args.json_summary.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    errors = failures(measured, minimums) + patch_failures
+    errors = failures(measured, effective) + patch_failures
     for error in errors:
         print(f"coverage threshold failed: {error}", file=sys.stderr)
     return bool(errors)

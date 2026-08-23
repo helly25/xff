@@ -59,6 +59,7 @@ class CoverageTest(unittest.TestCase):
         policy = {
             "minimum": {"lines": 90, "functions": 80, "branches": 70},
             "target": {"branches": 75},
+            "enforce": "medium",
             "categories": {
                 "program": {
                     "matching": {"include": ["xff/matching/**"]},
@@ -66,6 +67,7 @@ class CoverageTest(unittest.TestCase):
                         "include": ["xff/filesystem/**"],
                         "minimum": {"branches": 50},
                         "target": {"branches": 65},
+                        "reason": "Filesystem branch onboarding.",
                     },
                 }
             },
@@ -77,7 +79,7 @@ class CoverageTest(unittest.TestCase):
             minimums["program / filesystem"],
         )
         self.assertEqual(
-            {"lines": 90, "functions": 80, "branches": 75},
+            {"lines": 90, "functions": 80, "branches": 65},
             targets["program / filesystem"],
         )
         self.assertEqual(
@@ -85,15 +87,36 @@ class CoverageTest(unittest.TestCase):
             targets["program / matching"],
         )
 
-    def test_passing_measurement_below_target_is_ok(self):
+    def test_medium_measurement_passes_medium_enforcement(self):
         metrics = {
             "lines": {"covered": 8, "total": 10, "percent": 80.0},
             "functions": {"covered": 7, "total": 10, "percent": 70.0},
             "branches": {"covered": 6, "total": 10, "percent": 60.0},
         }
-        floor = {"lines": 75, "functions": 60, "branches": 50}
-        self.assertEqual("OK", coverage_tool.coverage_status(metrics, floor))
-        self.assertEqual([], coverage_tool.failures({"area": metrics}, {"area": floor}))
+        policy = coverage_tool.coverage_policy.resolve(
+            {
+                "minimum": {"lines": 75, "functions": 60, "branches": 50},
+                "target": {"lines": 90, "functions": 90, "branches": 90},
+                "enforce": "medium",
+            }
+        )
+        self.assertEqual("OK", coverage_tool.coverage_status(metrics, policy))
+        self.assertEqual([], coverage_tool.failures({"area": metrics}, {"area": policy}))
+
+    def test_medium_measurement_fails_high_enforcement(self):
+        metrics = {
+            metric: {"covered": 9, "total": 10, "percent": 90.0}
+            for metric in ("lines", "functions", "branches")
+        }
+        policy = coverage_tool.coverage_policy.resolve(
+            {
+                "minimum": {metric: 80 for metric in metrics},
+                "target": {metric: 95 for metric in metrics},
+                "enforce": "high",
+            }
+        )
+        self.assertEqual("**BAD: L/F/B**", coverage_tool.coverage_status(metrics, policy))
+        self.assertEqual(3, len(coverage_tool.failures({"area": metrics}, {"area": policy})))
 
     def test_changed_lines_only_count_coverable_lines(self):
         files = {
