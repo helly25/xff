@@ -47,6 +47,7 @@ struct Vocabulary {
   std::map<std::string, Record, std::less<>> languages;
   std::map<std::string, std::string, std::less<>> extensions;
   std::map<std::string, std::string, std::less<>> filenames;
+  std::vector<LanguageInfo> views;
   std::vector<std::unique_ptr<const Json>> layers;
   std::vector<std::unique_ptr<const std::string>> normalized;
 };
@@ -436,6 +437,13 @@ LanguageInfo View(std::string_view name, const Vocabulary::Record& record) {
   };
 }
 
+void Finalize(Vocabulary& vocabulary) {
+  vocabulary.views.reserve(vocabulary.languages.size());
+  for (const auto& [name, record] : vocabulary.languages) {
+    vocabulary.views.push_back(View(name, record));
+  }
+}
+
 void EnsureConfigured(State& state) ABSL_EXCLUSIVE_LOCKS_REQUIRED(state.mutex) {
   if (state.active != nullptr) {
     return;
@@ -444,6 +452,7 @@ void EnsureConfigured(State& state) ABSL_EXCLUSIVE_LOCKS_REQUIRED(state.mutex) {
   for (const Database& database : Databases()) {
     CHECK_OK(LayerProcessor(*vocabulary, database.name, ConflictPolicy::kLast).Apply(database.json()));
   }
+  Finalize(*vocabulary);
   state.active = vocabulary.get();
   state.snapshots.push_back(std::move(vocabulary));
 }
@@ -465,6 +474,7 @@ absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy confl
     MBO_ASSIGN_OR_RETURN(const std::string text, ReadFile(file));
     MBO_RETURN_IF_ERROR(LayerProcessor(vocabulary, file, conflicts).Apply(text));
   }
+  Finalize(vocabulary);
   State& state = GlobalState();
   const absl::MutexLock lock(&state.mutex);
   auto snapshot = std::make_unique<const Vocabulary>(std::move(vocabulary));
@@ -488,16 +498,11 @@ std::string_view LanguageForName(std::string_view name) {
   return Lookup(*state.active, name).name;
 }
 
-std::vector<LanguageInfo> Languages() {
+absl::Span<const LanguageInfo> Languages() {
   State& state = GlobalState();
   const absl::MutexLock lock(&state.mutex);
   EnsureConfigured(state);
-  std::vector<LanguageInfo> result;
-  result.reserve(state.active->languages.size());
-  for (const auto& [name, record] : state.active->languages) {
-    result.push_back(View(name, record));
-  }
-  return result;
+  return state.active->views;
 }
 
 }  // namespace xff::language

@@ -97,6 +97,36 @@ TEST_F(MimeTest, JsonLayerOverridesMappingAndSuppliesMetadata) {
   EXPECT_THAT(TypeForName("file.widget"), Eq("application/x-widget"));
 }
 
+TEST_F(MimeTest, PublishedMetadataViewsSurviveLaterSnapshots) {
+  const std::string original_file = Write(R"({
+    "application/x-original": {
+      "description": "Original description",
+      "aliases": ["application/original"],
+      "extensions": ["original"]
+    }
+  })");
+  EXPECT_THAT(Configure({original_file}, ConflictPolicy::kError), IsOk());
+  const TypeInfo original = InfoForName("file.original");
+  const absl::Span<const TypeInfo> original_types = Types();
+
+  const std::string replacement_file = Write(R"({
+    "application/x-replacement": {"extensions": ["original"]}
+  })");
+  EXPECT_THAT(Configure({replacement_file}, ConflictPolicy::kError), IsOk());
+  EXPECT_THAT(TypeForName("file.original"), Eq("application/x-replacement"));
+  EXPECT_THAT(original.type, Eq("application/x-original"));
+  EXPECT_THAT(original.description, Eq("Original description"));
+  EXPECT_THAT(original.aliases, ElementsAre("application/original"));
+  EXPECT_THAT(original_types, Contains(Field(&TypeInfo::type, "application/x-original")));
+}
+
+TEST_F(MimeTest, TypeCatalogReusesThePublishedSnapshot) {
+  const absl::Span<const TypeInfo> first = Types();
+  const absl::Span<const TypeInfo> second = Types();
+  EXPECT_THAT(second.data(), Eq(first.data()));
+  EXPECT_THAT(second.size(), Eq(first.size()));
+}
+
 TEST_F(MimeTest, ConflictingClaimsAreStrictByDefaultWithExplicitFirstAndLastPolicies) {
   const std::string file = Write(R"({
     "application/x-z-first": {"extensions": ["same"]},
