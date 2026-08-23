@@ -45,6 +45,12 @@ license_body(
     spdx = "BSD-3-Clause",
 )
 
+license_body(
+    name = "mit_license_cc",
+    src = "MIT.txt",
+    spdx = "MIT",
+)
+
 cc_library(
     name = "license_cc",
     srcs = [
@@ -55,6 +61,7 @@ cc_library(
     visibility = ["//xff:__subpackages__"],
     deps = [
         ":bsd_3_clause_license_cc",
+        ":mit_license_cc",
         "@abseil-cpp//absl/strings",
         "@xff_extras_api//:license_notice_cc",
     ],

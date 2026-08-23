@@ -37,6 +37,10 @@ const Registrar kMbo{
     {.component = "helly25/mbo",
      .spdx = "Apache-2.0",
      .text = "Copyright helly25. Licensed under the Apache License, Version 2.0."}};
+const Registrar kNlohmannJson{
+    {.component = "JSON for Modern C++ (nlohmann/json)",
+     .spdx = "MIT",
+     .text = "Copyright (c) 2013-2025 Niels Lohmann"}};
 
 // xff's own license file IS the Apache-2.0 text, so the same bytes answer for every Apache-2.0
 // component above. Registered here rather than in the generated TU so the generated file stays a

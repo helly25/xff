@@ -50,3 +50,9 @@ local_path_override(
     module_name = "xff_fuse",
     path = "extra_modules/fuse",
 )
+
+bazel_dep(name = "xff_mime_db", version = "0.0.0")
+local_path_override(
+    module_name = "xff_mime_db",
+    path = "extra_modules/mime_db",
+)

@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-License-Identifier: Apache-2.0
+
+module(
+    name = "xff_mime_db",
+    version = "0.0.0",
+)
+
+bazel_dep(name = "rules_cc", version = "0.2.21")
+bazel_dep(name = "xff_extras_api", version = "0.0.0")
+
+bazel_dep(name = "googletest", version = "1.17.0.bcr.2")

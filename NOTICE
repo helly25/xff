@@ -1,4 +1,4 @@
-Build extras compiled into this binary: archive, brotli, fuse, pcre2
+Build extras compiled into this binary: archive, brotli, fuse, mime-db, pcre2
 
 xff - eXtended File Find
 Copyright 2026 M. Boerger, The helly25 authors
@@ -12,6 +12,9 @@ name, SPDX license identifier, and copyright line.
 
 Abseil (C++)  [Apache-2.0]
   Copyright The Abseil Authors. Licensed under the Apache License, Version 2.0.
+
+JSON for Modern C++ (nlohmann/json)  [MIT]
+  Copyright (c) 2013-2025 Niels Lohmann
 
 RE2  [BSD-3-Clause]
   Copyright (c) 2009 The RE2 Authors. Redistribution permitted under the BSD-3-Clause license.
@@ -62,6 +65,16 @@ declarations (xff/fuse/fuse_abi.h); no libfuse code is compiled, linked, or ship
 runtime the host's FUSE implementation is loaded dynamically - libfuse3 on Linux and BSD,
 macFUSE on macOS - each under its own terms. That is how it interoperates, not a license
 this binary carries.
+
+Build extension: MIME database (@xff_mime_db):
+
+  xff MIME database extra (@xff_mime_db)  [Apache-2.0]
+    Copyright 2026 M. Boerger, The helly25 authors. Licensed under the Apache License, Version 2.0.
+
+Build extension: MIME database extension:
+
+  mime-db 1.54.0  [MIT]
+    Copyright (c) 2014 Jonathan Ong; Copyright (c) 2015-2022 Douglas Christopher Wilson
 
 Build extension: PCRE2 (@xff_pcre2):
 

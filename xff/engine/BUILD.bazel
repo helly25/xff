@@ -226,6 +226,7 @@ cc_library(
         "//xff/filesystem/repo:repo_cc",
         "//xff/hash:hash_cc",
         "//xff/matching/language:language_cc",
+        "//xff/matching/mime:mime_cc",
         "//xff/parser:parser_cc",
         "//xff/presentation/color:color_cc",
         "//xff/presentation/fields:fields_cc",

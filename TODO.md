@@ -420,20 +420,16 @@ remains below is the design-forked / larger work.
   three-valued setting, so it stays a valued flag (the same reasoning that keeps `--feature` unbuilt).
   It applies uniformly to `-name` / `-path` / `-regex` and the content matchers; `--exact` still
   forces byte-exact matching, since that is the FS-encoding escape hatch and outranks the case mode.
-- **`-mime` / `-lang` vocabulary: richer per-type data + table overrides - deferred.** Matching is
-  now always case-insensitive (MIME type/subtype names are case-insensitive per RFC 2045/6838;
-  language names keep a canonical case for the `{mime}`/`{lang}` display), independent of
-  `--case`/`-i`/`-s` - shipped as a lower-cased glob compare in `EvalMime`/`EvalLang`. **Deferred
-  (build when a consumer or the override feature gives it a concrete driver):** turn the
-  `TypeForName`/`LanguageForName` return into a `{key, data}` struct - `key` the canonical
-  lower-cased value (the match target), `data` an extensible payload for `file(1)`-style details
-  (description, category, linguist color / aliases). The tables would become canonical vocabularies
-  keyed on the lower-cased value (each entry once), with a runtime-derived `ext -> key` index
-  (uniqueness-checked: one ext maps to one entry; true multi-candidate disambiguation is the
-  separately-deferred content-classification feature) and the ability to override the compiled-in
-  tables at runtime. Callers already reach the vocabulary only through the query, so the storage
-  change stays behind the API. The design is captured in the NOTE in `xff/matching/mime/mime.h` and
-  `xff/matching/language/language.h`.
+- **`-mime` vocabulary: richer per-type data + table overrides - SHIPPED.** Matching remains
+  case-insensitive and independent of `--case`/`-i`/`-s`. The lean core has a curated common table;
+  the removable MIT-licensed `mime-db` extra contributes the comprehensive vocabulary without
+  bloating the lean binary. Repeatable `--mime-vocabulary=FILE` JSON layers override extension
+  mappings and metadata; `--mime-conflicts=error|first|last` makes ambiguity policy explicit.
+  `{mime-category}`, `{mime-description}`, `{mime-charset}`, `{mime-compressible}`, and
+  `{mime-source}` expose the selected record. Still separate: content-based classification.
+- **`-lang` vocabulary: richer data + table overrides - open.** Apply the same canonical-record /
+  derived-extension-index design to languages, including aliases and github-linguist colours, in a
+  separate change. Language matching stays case-insensitive while `{lang}` preserves canonical case.
 - **EPIC: Sharded-file support (#84) - v1 SHIPPED.** Collapse a
   shard set (`data-00000-of-00010`, `foo.tar.001` parts, `arc.z01`/`arc.zip`, ...) into one logical
   entry. Full spec in [`docs/design.md`](design.md) "Sharded files": off-by-default `--shards`; v1 =
