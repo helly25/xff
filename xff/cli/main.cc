@@ -85,7 +85,7 @@ std::optional<std::string> ReadFile(std::string_view path) {
 // overrode the active style's default), then the facets identical in every style follow, so the
 // signal is not buried among the many behaviors that never differ.
 std::string RenderFlavorTable(const std::vector<std::string>& globals, std::optional<xff::registry::Style> current) {
-  using xff::registry::Style;
+  using ::xff::registry::Style;
   const std::size_t columns = current.has_value() ? 6 : 5;
   std::vector<std::string> header = {"behavior", "flag", "find", "xff", "rg"};
   if (current.has_value()) {
@@ -222,6 +222,10 @@ std::string RenderExtras() {
       "RFC 9841 and raw Brotli compression for the archive extra");
   row("pcre2", xff::cli::ExtraEnabled("pcre2"), xff::cli::ExtraBuildFlag("pcre2"),
       "--regextype=PCRE2: Perl-compatible regex (lookahead, backreferences, ...)");
+  row("language-db", xff::cli::ExtraEnabled("language-db"), xff::cli::ExtraBuildFlag("language-db"),
+      "Brotli-compressed GitHub Linguist language names, suffixes, aliases, and colours");
+  row("mime-db", xff::cli::ExtraEnabled("mime-db"), xff::cli::ExtraBuildFlag("mime-db"),
+      "comprehensive media-type names, suffixes, and metadata from mime-db");
   absl::flat_hash_set<std::string_view> seen;
   for (const xff::cli::GlobalFlag& flag : xff::cli::Globals()) {
     if (!flag.extra.empty() && seen.insert(flag.extra).second) {

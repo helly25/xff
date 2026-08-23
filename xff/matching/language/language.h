@@ -16,9 +16,42 @@
 #ifndef XFF_MATCHING_LANGUAGE_LANGUAGE_H_
 #define XFF_MATCHING_LANGUAGE_LANGUAGE_H_
 
+#include <optional>
+#include <string>
 #include <string_view>
+#include <vector>
+
+#include "absl/status/status.h"
+#include "absl/types/span.h"
 
 namespace xff::language {
+
+using StringViewSpan = absl::Span<const std::string_view>;
+
+struct LanguageInfo {
+  std::string_view name;
+  std::string_view type;
+  std::string_view color;
+  std::string_view group;
+  std::string_view source;
+  StringViewSpan aliases;
+  StringViewSpan extensions;
+  StringViewSpan filenames;
+};
+
+enum class ConflictPolicy { kError, kFirst, kLast };
+
+// Builds and publishes an immutable process-vocabulary snapshot from the curated core, every
+// linked data layer, then the JSON files in command-line order. A later layer overrides an earlier
+// one. Conflict policy applies to two different languages claiming the same extension or filename
+// inside one input file. Published snapshots remain alive for the process lifetime, so returned
+// views remain valid. Production configures at most once; retaining older snapshots primarily
+// permits isolated repeated invocations in tests and embedders.
+absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy conflicts);
+
+// The complete metadata for the file named `name`. Its strings and spans view an immutable,
+// process-retained vocabulary snapshot and therefore remain valid for the process lifetime.
+std::optional<LanguageInfo> InfoForName(std::string_view name);
 
 // The programming/markup language for the file named `name` (a basename such as "main.cc",
 // "Makefile", or ".bashrc"), as a canonical github-linguist name ("C++", "Python", "Shell",
@@ -26,21 +59,22 @@ namespace xff::language {
 // the extension is looked up case-insensitively (`.PY` == `.py`). Returns "" when the name has
 // no recognized filename or extension.
 //
-// Extension/filename-based, not content-classified: a curated static table of common languages
-// (no github-linguist dependency, no YAML parsing -- a deliberate no-heavyweight-dep choice, the
-// same call the mime module makes). The heuristics linguist layers on top (shebang / modeline /
+// Extension/filename-based, not content-classified: the lean binary has a curated common vocabulary;
+// linked data layers and JSON overlays may expand it without adding YAML parsing to the runtime.
+// The heuristics linguist layers on top (shebang / modeline /
 // content disambiguation of `.h`, `.m`, `.pl`, ...) are out of scope; this is a fast,
 // dependency-free first cut backing the `-lang GLOB` predicate and the `{lang}` field. -lang
 // matching is case-insensitive (a canonical name has fixed case that display keeps) and
 // independent of --case / -i / -s.
 //
-// NOTE (deferred richer data): callers reach the vocabulary only through this query, so the return
-// can later become a `{key, data}` struct -- `key` the canonical lower-cased name (the -lang match
-// target), `data` an extensible payload (linguist color / group / aliases, ...). The table could
-// then be a canonical map keyed on the lower-cased name (each language once) with a runtime-derived
-// extension index (uniqueness-checked) and table overrides. Deferred until a consumer drives it;
-// see TODO.md.
+// The returned view remains valid for the process lifetime. The immutable default snapshot is
+// initialized lazily on the first language lookup, so binaries that do not use language features
+// do not load linked language databases.
 std::string_view LanguageForName(std::string_view name);
+
+// All canonical languages in deterministic canonical-name order. The returned records are cheap
+// views with process-lifetime backing; filename matching should use InfoForName.
+std::vector<LanguageInfo> Languages();
 
 }  // namespace xff::language
 

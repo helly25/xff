@@ -39,8 +39,7 @@
 namespace xff::engine {
 namespace {
 
-namespace fs = std::filesystem;
-
+namespace fs = ::std::filesystem;
 using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
 using ::testing::AllOf;
@@ -475,6 +474,50 @@ TEST_F(RunTest, LangMatchesAndRendersTheLanguage) {
   EXPECT_THAT(RunExpr({"-lang", "Makefile"}), ElementsAre(Path("Makefile")));
   // The {lang} field renders the canonical name, usable in -printf / --format.
   EXPECT_THAT(RunExpr({"-name", "main.cc", "-printf", "%{lang}\n"}), ElementsAre("C++"));
+}
+
+TEST_F(RunTest, LanguageDbOverridesMatchingAliasesAndMetadataFields) {
+  { std::ofstream(root_ / "types.note"); }
+  const fs::path vocabulary = root_ / "languages.json";
+  std::ofstream(vocabulary) << R"({
+    "NoteScript": {
+      "type": "programming",
+      "color": "#123456",
+      "group": "Script",
+      "source": "project",
+      "aliases": ["ns"],
+      "extensions": ["note"]
+    }
+  })";
+  EXPECT_THAT(
+      RunArgvRecords(
+          {"--lang-db=" + vocabulary.string(), root_.string(), "-lang", "ns", "-printf",
+           "%{lang}|%{lang-type}|%{lang-color}|%{lang-group}|%{lang-source}\n"}),
+      ElementsAre("NoteScript|programming|#123456|Script|project"));
+  EXPECT_THAT(last_errors_, Eq(0));
+}
+
+TEST_F(RunTest, MissingLanguageDbFailsBeforeTraversal) {
+  EXPECT_THAT(RunArgvRecords({"--lang-db=" + Path("absent.json"), root_.string(), "-print"}), IsEmpty());
+  EXPECT_THAT(last_errors_, Eq(2));
+}
+
+TEST_F(RunTest, LanguageConflictPolicyControlsAmbiguousImportedVocabulary) {
+  { std::ofstream(root_ / "types.note"); }
+  const fs::path vocabulary = root_ / "language-conflict.json";
+  std::ofstream(vocabulary) << R"({
+    "First": {"extensions": ["note"]},
+    "Last": {"extensions": ["note"]}
+  })";
+  const std::string flag = "--lang-db=" + vocabulary.string();
+  EXPECT_THAT(RunArgvRecords({flag, root_.string(), "-name", "types.note", "-printf", "%{lang}\n"}), IsEmpty());
+  EXPECT_THAT(last_errors_, Eq(2));
+  EXPECT_THAT(
+      RunArgvRecords({flag, "--lang-conflicts=first", root_.string(), "-name", "types.note", "-printf", "%{lang}\n"}),
+      ElementsAre("First"));
+  EXPECT_THAT(
+      RunArgvRecords({flag, "--lang-conflicts=last", root_.string(), "-name", "types.note", "-printf", "%{lang}\n"}),
+      ElementsAre("Last"));
 }
 
 TEST_F(RunTest, MissingRootCountsError) {

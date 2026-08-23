@@ -42,7 +42,7 @@ namespace {
 
 constexpr std::string_view kPharStubMember = ".phar/stub.php";
 
-namespace stdfs = std::filesystem;
+namespace stdfs = ::std::filesystem;
 
 // php-src writes a tar-based / zip-based phar's signature to this exact member path (phar_tar.c,
 // phar_zip.c), which is what makes such a container unsafe to rewrite blindly.

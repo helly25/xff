@@ -1,4 +1,4 @@
-Build extras compiled into this binary: archive, brotli, fuse, mime-db, pcre2
+Build extras compiled into this binary: archive, brotli, fuse, language-db, mime-db, pcre2
 
 xff - eXtended File Find
 Copyright 2026 M. Boerger, The helly25 authors
@@ -65,6 +65,16 @@ declarations (xff/fuse/fuse_abi.h); no libfuse code is compiled, linked, or ship
 runtime the host's FUSE implementation is loaded dynamically - libfuse3 on Linux and BSD,
 macFUSE on macOS - each under its own terms. That is how it interoperates, not a license
 this binary carries.
+
+Build extension: Language database (@xff_language_db):
+
+  xff language database extra (@xff_language_db)  [Apache-2.0]
+    Copyright 2026 M. Boerger, The helly25 authors. Licensed under the Apache License, Version 2.0.
+
+Build extension: Language database extension:
+
+  github-linguist 9.6.0  [MIT]
+    Copyright (c) 2017 GitHub, Inc.
 
 Build extension: MIME database (@xff_mime_db):
 

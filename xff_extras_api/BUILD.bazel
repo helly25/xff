@@ -184,9 +184,30 @@ cc_test(
     ],
 )
 
+cc_library(
+    name = "language_database_cc",
+    srcs = ["language_database.cc"],
+    hdrs = ["language_database_api.h"],
+    include_prefix = "xff/matching/language",
+    strip_include_prefix = ".",
+    visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "language_database_test",
+    size = "small",
+    srcs = ["language_database_test.cc"],
+    deps = [
+        ":language_database_cc",
+        "@googletest//:gtest_main",
+    ],
+)
+
 exports_files(["license_body.bzl"])
 
 exports_files(["mime_database.bzl"])
+
+exports_files(["language_database.bzl"])
 
 # The virtual-filesystem seam: the read-only FileSystem interface plus the Entry / Metadata types
 # every backend produces. It lives here rather than in the core for the same reason the others do -

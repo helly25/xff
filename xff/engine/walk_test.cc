@@ -48,8 +48,7 @@ namespace {
 // identifier-length. All are test conventions, not defects.
 // NOLINTBEGIN(misc-override-with-different-visibility,readability-identifier-naming,readability-function-cognitive-complexity,readability-identifier-length)
 
-namespace fs = std::filesystem;
-
+namespace fs = ::std::filesystem;
 using ::mbo::testing::IsOk;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;

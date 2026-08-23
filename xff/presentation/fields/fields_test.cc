@@ -52,6 +52,16 @@ struct FieldsTest : ::testing::Test {
   }
 };
 
+TEST_F(FieldsTest, FieldValueOwnsComputedStringsAndPreservesStableViews) {
+  const FieldValue owned(std::string("computed"));
+  EXPECT_THAT(owned.View(), Eq("computed"));
+
+  const std::string stable = "stable";
+  const FieldValue viewed{std::string_view(stable)};
+  EXPECT_THAT(viewed.View(), Eq("stable"));
+  EXPECT_THAT(viewed.View().data(), Eq(stable.data()));
+}
+
 TEST_F(FieldsTest, SubstitutesPathComponentsAndMetadata) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 12);
   EXPECT_THAT(
@@ -64,6 +74,11 @@ TEST_F(FieldsTest, MimeFieldRendersMediaTypeByExtension) {
   EXPECT_THAT(Render("{mime}", "a/b/notes.txt", md, 0), "text/plain");
   EXPECT_THAT(Render("{mime}", "a/b/readme.md", md, 0), "text/markdown");
   EXPECT_THAT(Render("{mime}", "a/b/README", md, 0), "application/octet-stream");  // no extension
+}
+
+TEST_F(FieldsTest, UnknownLanguageMetadataFieldsRenderEmpty) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  EXPECT_THAT(Render("[{lang-type}][{lang-color}][{lang-group}][{lang-source}]", "a/b/photo.jpg", md, 0), "[][][][]");
 }
 
 TEST_F(FieldsTest, OwnerIsAnAliasOfUser) {

@@ -40,7 +40,7 @@
 namespace xff::engine {
 namespace {
 
-namespace stdfs = std::filesystem;
+namespace stdfs = ::std::filesystem;
 
 // How much of a candidate directory's free space one member may take. A tmpfs is RAM shared with
 // everything else on the machine, so filling it is worse than writing to disk; a quarter is generous

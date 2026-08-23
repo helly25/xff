@@ -26,6 +26,7 @@
 #include "absl/types/span.h"
 #include "xff/archive/archive_backend.h"
 #include "xff/fuse/fuse_backend.h"
+#include "xff/matching/language/language_database_api.h"
 #include "xff/matching/mime/database.h"
 #include "xff/matching/regex/backend.h"
 #include "xff/values/values.h"
@@ -43,6 +44,11 @@ constexpr std::array kCaseValues = std::to_array<ValueDoc>({
 });
 constexpr std::array kMimeConflictValues = std::to_array<ValueDoc>({
     {.value = "error", .meaning = "reject two media types claiming one extension in the same file (default)"},
+    {.value = "first", .meaning = "keep the first claim in that file"},
+    {.value = "last", .meaning = "keep the last claim in that file"},
+});
+constexpr std::array kLanguageConflictValues = std::to_array<ValueDoc>({
+    {.value = "error", .meaning = "reject two languages claiming one suffix or filename in the same file (default)"},
     {.value = "first", .meaning = "keep the first claim in that file"},
     {.value = "last", .meaning = "keep the last claim in that file"},
 });
@@ -653,6 +659,34 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "filter",
         .header = "Filter & Ignore",
         .summary = "re-include paths a --exclude would skip, matching a gitignore-style glob (repeatable)",
+    },
+    {
+        .name = "--lang-db",
+        .display = "--lang-db=FILE",
+        .group = "filter",
+        .header = "Filter & Ignore",
+        .summary = "overlay language metadata and suffix/filename mappings from JSON; repeatable",
+        .details = "Loads a JSON object keyed by canonical language name. Each value may set `type`, `color`, "
+                   "`group`, and `source`, plus string arrays `aliases`, `extensions`, and `filenames`. Later files "
+                   "override earlier files and compiled data. Extensions may include their leading dot and may "
+                   "contain multiple parts; matching folds suffix case while exact filenames retain case. Conflicts "
+                   "between two languages in ONE file follow `--lang-conflicts`.",
+        .affects = "-lang",
+        .topic = "content",
+    },
+    {
+        .name = "--lang-conflicts",
+        .display = "--lang-conflicts=error|first|last",
+        .group = "filter",
+        .header = "Filter & Ignore",
+        .summary = "resolve ambiguous suffix or filename claims within one language vocabulary file",
+        .details = "Controls only ambiguity inside one `--lang-db` file. Layering remains deterministic: "
+                   "a later file intentionally overrides earlier files and compiled data. `error` is the default; "
+                   "`first` or `last` is an explicit compatibility escape hatch for imported databases.",
+        .values = kLanguageConflictValues,
+        .affects = "--lang-db",
+        .topic = "content",
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--mime-vocabulary",
@@ -1459,6 +1493,9 @@ bool ExtraEnabled(std::string_view key) {
   if (key == "mime-db") {
     return !mime::Databases().empty();
   }
+  if (key == "language-db") {
+    return !language::Databases().empty();
+  }
   if (key == "pcre2") {
     return regex::Pcre2Available();
   }
@@ -1473,6 +1510,7 @@ std::vector<std::string> EnabledExtras() {
       "archive",
       "brotli",
       "fuse",
+      "language-db",
       "mime-db",
       "pcre2",
   });
@@ -1501,6 +1539,9 @@ std::string_view ExtraBuildFlag(std::string_view key) {
   }
   if (key == "mime-db") {
     return "--//xff:xff_mime_db";
+  }
+  if (key == "language-db") {
+    return "--//xff:xff_language_db";
   }
   if (key == "pcre2") {
     return "--//xff:xff_pcre";
