@@ -4434,32 +4434,33 @@ std::string CaseName(parser::CaseMode mode) {
   return "sensitive";
 }
 
+constexpr auto kFlavorFacets = std::to_array<FlavorFacet>({
+    {.behavior = "ignore files (.gitignore/.ignore)",
+     .flag = "-g / --gitignore, --no-ignore",
+     .value = [](const std::vector<std::string>& globals,
+                 registry::Style style) { return GitignoreName(ResolveGitignoreMode(globals, style)); }},
+    {.behavior = "hidden dotfiles",
+     .flag = "--hidden / --no-hidden",
+     .value = [](const std::vector<std::string>& globals,
+                 registry::Style style) { return HiddenName(ResolveSkipHidden(globals, style)); }},
+    {.behavior = "sizes",
+     .flag = "--human",
+     .value = [](const std::vector<std::string>& globals,
+                 registry::Style style) { return HumanName(ResolveHuman(globals, style)); }},
+    {.behavior = "traversal order",
+     .flag = "--sort",
+     .value = [](const std::vector<std::string>& globals,
+                 registry::Style style) { return SortName(ResolveSort(globals, style)); }},
+    {.behavior = "letter case",
+     .flag = "--case, -i, -s[+|-]",
+     .value = [](const std::vector<std::string>& globals,
+                 registry::Style style) { return CaseName(parser::ResolveCaseMode(globals, style)); }},
+});
+
 }  // namespace
 
 absl::Span<const FlavorFacet> FlavorFacets() {
-  static const auto kFacets = std::to_array<FlavorFacet>({
-      {.behavior = "ignore files (.gitignore/.ignore)",
-       .flag = "-g / --gitignore, --no-ignore",
-       .value = [](const std::vector<std::string>& globals,
-                   registry::Style style) { return GitignoreName(ResolveGitignoreMode(globals, style)); }},
-      {.behavior = "hidden dotfiles",
-       .flag = "--hidden / --no-hidden",
-       .value = [](const std::vector<std::string>& globals,
-                   registry::Style style) { return HiddenName(ResolveSkipHidden(globals, style)); }},
-      {.behavior = "sizes",
-       .flag = "--human",
-       .value = [](const std::vector<std::string>& globals,
-                   registry::Style style) { return HumanName(ResolveHuman(globals, style)); }},
-      {.behavior = "traversal order",
-       .flag = "--sort",
-       .value = [](const std::vector<std::string>& globals,
-                   registry::Style style) { return SortName(ResolveSort(globals, style)); }},
-      {.behavior = "letter case",
-       .flag = "--case, -i, -s[+|-]",
-       .value = [](const std::vector<std::string>& globals,
-                   registry::Style style) { return CaseName(parser::ResolveCaseMode(globals, style)); }},
-  });
-  return kFacets;
+  return kFlavorFacets;
 }
 
 }  // namespace xff::engine
