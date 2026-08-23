@@ -194,6 +194,26 @@ TEST_F(FieldsTest, TimeFieldQualifiers) {
   EXPECT_THAT(Render("{mtime}", "f", md, 0), HasSubstr("2023"));  // default ISO-8601
 }
 
+TEST_F(FieldsTest, EveryMetadataTimeAndIdentityFieldIsRendered) {
+  vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  md.atime = absl::FromUnixSeconds(1);
+  md.btime = absl::FromUnixSeconds(2);
+  md.ctime = absl::FromUnixSeconds(3);
+  md.ino = 42;
+  md.nlink = 7;
+  const Template compiled = Template::Compile("{atime:epoch}|{btime:epoch}|{ctime:epoch}|{depth}|{inode}|{links}");
+  EXPECT_THAT(
+      compiled.Render(RenderContext{.path = "f", .metadata = md, .depth = 5, .tz = absl::UTCTimeZone()}),
+      "1|2|3|5|42|7");
+}
+
+TEST_F(FieldsTest, MissingBirthTimeRendersEmptyWhileOtherTimesRemainAvailable) {
+  vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  md.atime = absl::FromUnixSeconds(1);
+  md.ctime = absl::FromUnixSeconds(3);
+  EXPECT_THAT(Render("[{btime:epoch}]|{atime:epoch}|{ctime:epoch}", "f", md, 0), "[]|1|3");
+}
+
 TEST_F(FieldsTest, TimeFieldsRenderInTheContextZone) {
   vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   md.mtime = absl::FromUnixSeconds(1'600'000'000);  // 2020-09-13 12:26:40 UTC

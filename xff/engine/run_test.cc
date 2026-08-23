@@ -15,6 +15,7 @@
 
 #include "xff/engine/run.h"
 
+#include <array>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -53,6 +54,7 @@ using ::testing::IsTrue;
 using ::testing::MatchesRegex;
 using ::testing::Ne;
 using ::testing::Not;
+using ::testing::PrintToString;
 using ::testing::UnorderedElementsAre;
 
 // Fixture tree:
@@ -329,6 +331,19 @@ TEST_F(RunTest, JobsAllParsesAndWalksEverything) {
   EXPECT_THAT(last_errors_, 0);
 }
 
+TEST_F(RunTest, JobsAcceptsLongShortAndAllFormsAndIgnoresInvalidValues) {
+  static const std::vector<std::vector<std::string>> kPrefixes = {
+      {"--jobs=1"}, {"-j1"}, {"-jall"}, {"--jobs=0", "--jobs=1"}, {"--jobs=invalid", "-j1"},
+  };
+  for (const std::vector<std::string>& prefix : kPrefixes) {
+    SCOPED_TRACE(PrintToString(prefix));
+    std::vector<std::string> argv = prefix;
+    argv.push_back(root_.string());
+    argv.insert(argv.end(), {"-name", "*.txt"});
+    EXPECT_THAT(RunArgvRecords(argv), UnorderedElementsAre(Path("a.txt"), Path("sub/c.txt")));
+  }
+}
+
 TEST_F(RunTest, ModeScopedSortDefault) {
   // With no --sort, the active style picks the default: modern (kXff) sorts each
   // directory's listing, so the walk is deterministic (root, then a.txt < b.md <
@@ -512,6 +527,16 @@ TEST_F(RunTest, SymlinkLModeFollowsDirectorySymlink) {
       },
       [](std::string_view, absl::Status) {});
   EXPECT_THAT(out, UnorderedElementsAre(Path("sub/c.txt"), Path("lnk/c.txt")));
+}
+
+TEST_F(RunTest, SymlinkHModeFollowsOnlyACommandLineRoot) {
+  std::error_code ec;
+  fs::create_directory_symlink(root_ / "sub", root_ / "root-link", ec);
+  ASSERT_THAT(ec, Eq(std::error_code{}));
+  const std::string link = Path("root-link");
+
+  EXPECT_THAT(RunArgvRecords({"-H", link, "-name", "c.txt"}), ElementsAre(link + "/c.txt"));
+  EXPECT_THAT(RunArgvRecords({"-P", link, "-name", "c.txt"}), IsEmpty());
 }
 
 TEST_F(RunTest, FormatJsonlRendersImplicitPrintAsJson) {
@@ -1413,6 +1438,23 @@ TEST_F(RunTest, HistogramMaxOfSizeSortsTiesByKey) {
           R"j({"histogram":"ext:max(size)","bucket":"txt","value":1})j"));
 }
 
+TEST_F(RunTest, HistogramMinOfSizeSelectsTheSmallestValuePerBucket) {
+  { std::ofstream(root_ / "large.txt") << "12345"; }
+  EXPECT_THAT(
+      RunArgvRecords({"--histogram=ext:min(size)", "--format=jsonl", root_.string(), "-type", "f"}),
+      ElementsAre(
+          R"j({"histogram":"ext:min(size)","bucket":"md","value":1})j",
+          R"j({"histogram":"ext:min(size)","bucket":"txt","value":1})j"));
+}
+
+TEST_F(RunTest, HistogramLineRangesIgnoreDirectoriesAndBucketRegularFileLineCounts) {
+  { std::ofstream(root_ / "a.txt") << "one\ntwo\nthree\n"; }
+  { std::ofstream(root_ / "b.md") << "one\n"; }
+  EXPECT_THAT(
+      RunArgvRecords({"--histogram=lines", "--format=jsonl", root_.string()}),
+      ElementsAre(R"({"histogram":"lines","bucket":"1-9","value":3})"));
+}
+
 TEST_F(RunTest, HistogramBadMeasureIsAUsageError) {
   // A numeric metric with no aggregator, an unknown aggregator, and an unknown field each fail (2).
   RunArgvRecords({"--histogram=ext:lines", root_.string(), "-type", "f"});
@@ -1675,6 +1717,28 @@ TEST_F(RunTest, GrepAfterContextIsAsymmetric) {
   EXPECT_THAT(
       RunArgvRecords({"--after-context=1", root_.string(), "-name", "a.txt", "-grep", "HIT"}),
       ElementsAre(Path("a.txt") + ":2:HIT", Path("a.txt") + "-3-y"));
+}
+
+TEST_F(RunTest, GrepContextAcceptsEverySideSpellingAndLastValueWins) {
+  { std::ofstream(root_ / "a.txt") << "zero\nHIT\ntwo\nthree\n"; }
+  EXPECT_THAT(
+      RunArgvRecords({"--context=A:3,a:1,B:3,b:0,C:2,c:1", root_.string(), "-name", "a.txt", "-grep", "HIT"}),
+      ElementsAre(Path("a.txt") + "-1-zero", Path("a.txt") + ":2:HIT", Path("a.txt") + "-3-two"));
+}
+
+TEST_F(RunTest, GrepContextRejectsEveryMalformedValueClass) {
+  static constexpr auto kCases = std::to_array<std::string_view>({
+      "--context=missing-colon",
+      "--context=A:not-a-number",
+      "--context=D:1",
+      "--before-context=bad",
+      "--after-context=bad",
+  });
+  for (const std::string_view flag : kCases) {
+    SCOPED_TRACE(flag);
+    EXPECT_THAT(RunArgvRecords({std::string(flag), root_.string(), "-grep", "HIT"}), IsEmpty());
+    EXPECT_THAT(last_errors_, 2);
+  }
 }
 
 TEST_F(RunTest, GrepRegextypeExactMatchesLiterally) {
