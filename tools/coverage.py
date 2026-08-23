@@ -264,6 +264,12 @@ def main(argv: list[str] | None = None) -> int:
                 category: {metric: value.enforce for metric, value in values.items()}
                 for category, values in effective.items()
             },
+            "reasons": {
+                f"{group} / {name}": category["reason"]
+                for group, categories in policy.get("categories", {}).items()
+                for name, category in categories.items()
+                if category.get("reason")
+            },
         }
         if patch is not None and has_coverage(patch, ("lines", "branches")):
             report["patch"] = patch

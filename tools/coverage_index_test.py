@@ -35,7 +35,7 @@ class CoverageIndexTest(unittest.TestCase):
         rendered = coverage_index.render_report(_summary(85.0), "pr/42")
         self.assertIn('<td class="status-ok">OK</td>', rendered)
         self.assertIn('<td class="medium" title="medium; enforce medium;', rendered)
-        self.assertIn('<span class="policyBand medium enforced">M &ge;80</span>', rendered)
+        self.assertIn('<td class="policyCell">80/90&middot;M</td>', rendered)
 
     def test_report_status_identifies_metrics_below_minimum(self):
         summary = _summary(95.0)
@@ -57,7 +57,7 @@ class CoverageIndexTest(unittest.TestCase):
         }
         summary["minimums"]["extensions / new"] = {
             "lines": 75,
-            "functions": 70,
+            "functions": 80,
             "branches": 60,
         }
         summary["targets"]["extensions / new"] = {
@@ -72,17 +72,50 @@ class CoverageIndexTest(unittest.TestCase):
         }
         rendered = coverage_index.render_report(summary, "pr/42")
         self.assertIn('<td class="status-bad">BAD: B</td>', rendered)
-        self.assertIn('<span class="policyBand medium enforced">M &ge;75</span>', rendered)
-        self.assertIn('<span class="policyBand high enforced">H &ge;85</span>', rendered)
-        self.assertIn("8 / 10", rendered)
-        self.assertLess(rendered.index('colspan="2">Lines'), rendered.index('colspan="2">Branches'))
-        self.assertLess(rendered.index('colspan="2">Branches'), rendered.index('colspan="2">Functions'))
+        self.assertIn('<td class="policyCell policy-weaker">lower<br>75/90&middot;M</td>', rendered)
+        self.assertIn('<td class="policyCell policy-mixed">mixed<br>60/85&middot;H</td>', rendered)
+        self.assertIn('<td class="policyCell">default</td>', rendered)
+        self.assertIn(">8</td>", rendered)
+        self.assertIn(">10</td>", rendered)
+        self.assertLess(rendered.index('colspan="3">Lines'), rendered.index('colspan="3">Branches'))
+        self.assertLess(rendered.index('colspan="3">Branches'), rendered.index('colspan="3">Functions'))
 
-    def test_equal_boundaries_show_that_there_is_no_medium_band(self):
+    def test_rate_covered_and_total_share_the_rating_background(self):
+        rendered = coverage_index.render_report(_summary(95.0), "pr/42")
+        self.assertIn(
+            '<td class="high" title="high; enforce medium; medium at 80%; high at 90%">'
+            "95.00%</td>",
+            rendered,
+        )
+        self.assertGreaterEqual(
+            rendered.count(
+                '<td class="high" title="high; enforce medium; medium at 80%; high at 90%">9</td>'
+            ),
+            3,
+        )
+        self.assertGreaterEqual(
+            rendered.count(
+                '<td class="high" title="high; enforce medium; medium at 80%; high at 90%">10</td>'
+            ),
+            3,
+        )
+        self.assertIn(".coverageTable { border-collapse: separate; border-spacing: 1px;", rendered)
+        self.assertIn("background: #6688d4; color: #fff", rendered)
+        self.assertIn(".coverageTable thead tr:first-child th { font-size: 120%; text-align: center; }", rendered)
+
+    def test_policy_footnote_explains_notation_and_comparison(self):
+        rendered = coverage_index.render_report(_summary(95.0), "pr/42")
+        self.assertIn("Policy vs default<sup>*</sup>", rendered)
+        self.assertIn("medium/high&middot;enforced-band", rendered)
+        self.assertIn("90/92&middot;M", rendered)
+        self.assertIn("compare policy strictness", rendered)
+        self.assertIn("not\n    measured coverage", rendered)
+        self.assertIn(".policyNote { font-size: 12px;", rendered)
+        self.assertIn("text-align: left;", rendered)
+
+    def test_equal_boundaries_use_one_compact_limit(self):
         policy = coverage_index.coverage_policy.MetricPolicy(98, 98, "high")
-        rendered = coverage_index._policy_strip(policy)
-        self.assertIn("M &mdash;", rendered)
-        self.assertIn('<span class="policyBand high enforced">H &ge;98</span>', rendered)
+        self.assertEqual("98&middot;H", coverage_index._compact_policy(policy))
 
     def test_patch_uses_its_resolved_policy(self):
         summary = _summary(95.0)
@@ -98,7 +131,17 @@ class CoverageIndexTest(unittest.TestCase):
         }
         rendered = coverage_index.render_report(summary, "pr/42")
         self.assertIn('<td class="status-bad">BAD: L</td>', rendered)
-        self.assertEqual(2, rendered.count('<td class="medium">90.00%<span class="policy">'))
+        self.assertEqual(2, rendered.count('<td class="medium">90.00%</td>'))
+
+    def test_override_reason_is_available_on_the_compact_policy_row(self):
+        summary = _summary(95.0)
+        summary["measurements"]["extensions / new"] = summary["measurements"]["overall"]
+        summary["minimums"]["extensions / new"] = {name: 70 for name in coverage_index._METRICS}
+        summary["targets"]["extensions / new"] = {name: 90 for name in coverage_index._METRICS}
+        summary["enforcement"]["extensions / new"] = {name: "medium" for name in coverage_index._METRICS}
+        summary["reasons"] = {"extensions / new": "New module onboarding."}
+        rendered = coverage_index.render_report(summary, "pr/42")
+        self.assertIn('title="New module onboarding.">extensions / new</td>', rendered)
 
     def test_site_shows_all_metrics_with_main_first_and_numeric_sorting(self):
         with tempfile.TemporaryDirectory() as directory:

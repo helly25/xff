@@ -26,20 +26,29 @@ def _page(title: str, body: str) -> str:
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{html.escape(title)}</title>
     <style>
-      body {{ font: 16px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 76rem; padding: 0 1rem; }}
+      body {{ font: 16px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 96rem; padding: 0 1rem; }}
       a {{ color: #0969da; }}
       table {{ border-collapse: collapse; margin: 1rem 0 2rem; }}
       th, td {{ border: 1px solid #d0d7de; padding: .35rem .65rem; text-align: right; }}
+      .reportTitle {{ text-align: center; }}
+      .coverageTable {{ border-collapse: separate; border-spacing: 1px; margin-left: auto; margin-right: auto; }}
+      .coverageTable th, .coverageTable td {{ border: 0; }}
+      .coverageTable th {{ background: #6688d4; color: #fff; }}
+      .coverageTable thead tr:first-child th {{ font-size: 120%; text-align: center; }}
       .coverageTable th:first-child, .coverageTable td:first-child,
       .reportsTable th:nth-child(-n+6), .reportsTable td:nth-child(-n+6) {{ text-align: left; }}
+      .coverageTable td:first-child {{ background: #dae7fe; color: #284fa8; }}
       .coverageTable td {{ white-space: nowrap; }}
       .coverageTable td:nth-child(n+3), .patchTable td:nth-child(n+2), .reportsTable td:nth-child(n+7) {{ font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }}
       .low {{ background: #f8cecc; }}
       .medium {{ background: #fff2cc; }}
       .high {{ background: #d5e8d4; }}
-      .policy {{ display: block; font: 11px/1.3 system-ui, sans-serif; margin-top: .2rem; white-space: nowrap; }}
-      .policyBand {{ border: 1px solid transparent; display: inline-block; padding: 0 .2rem; }}
-      .policyBand.enforced {{ border-color: #24292f; font-weight: 700; }}
+      .coverageTable .policyGap {{ background: #fff; min-width: .5rem; padding: 0; }}
+      .coverageTable .policyCell {{ background: #dae7fe; font: 11px/1.25 ui-monospace, SFMono-Regular, Consolas, monospace; text-align: center; }}
+      .coverageTable .policy-stricter {{ background: #a7fc9d; }}
+      .coverageTable .policy-weaker {{ background: #ffea20; }}
+      .coverageTable .policy-mixed {{ background: #ffd580; }}
+      .policyNote {{ font-size: 12px; margin: -1.5rem auto 2rem; max-width: 72rem; text-align: left; }}
       .status-good {{ background: #d5e8d4; }}
       .status-ok {{ background: #fff2cc; }}
       .status-bad {{ background: #f8cecc; color: #cf222e; font-weight: bold; }}
@@ -77,19 +86,6 @@ def _status(metrics: dict, policy: dict[str, coverage_policy.MetricPolicy]) -> s
     return "OK"
 
 
-def _policy_strip(policy: coverage_policy.MetricPolicy) -> str:
-    values = (
-        ("low", f"L &lt;{policy.minimum:g}"),
-        ("medium", "M &mdash;" if policy.minimum == policy.target else f"M &ge;{policy.minimum:g}"),
-        ("high", f"H &ge;{policy.target:g}"),
-    )
-    spans = []
-    for rating, label in values:
-        enforced = " enforced" if rating == policy.enforce else ""
-        spans.append(f'<span class="policyBand {rating}{enforced}">{label}</span>')
-    return '<span class="policy">' + " ".join(spans) + "</span>"
-
-
 def _status_class(status: str) -> str:
     if status == "GOOD":
         return "status-good"
@@ -100,11 +96,15 @@ def _status_class(status: str) -> str:
 
 def _full_table(summary: dict) -> str:
     rows = []
+    overall = _policy(summary, "overall")
+    reasons = summary.get("reasons", {})
     for category, metrics in summary["measurements"].items():
         policy = _policy(summary, category)
         status = _status(metrics, policy)
+        reason = reasons.get(category, "")
+        reason_attr = f' title="{html.escape(reason, quote=True)}"' if reason else ""
         cells: list[tuple[str, str | None]] = [
-            (html.escape(category), None),
+            (html.escape(category), reason_attr),
             (html.escape(status), f'class="{_status_class(status)}"'),
         ]
         for metric in _METRICS:
@@ -116,29 +116,82 @@ def _full_table(summary: dict) -> str:
                 f"high at {metric_policy.target:g}%"
             )
             attrs = f'class="{rating}" title="{html.escape(title, quote=True)}"'
-            rate = _percent(value) + _policy_strip(metric_policy)
-            counts = f'{value["covered"]} / {value["total"]}'
-            cells.extend(((rate, attrs), (counts, None)))
-        row = f"      <tr><td>{cells[0][0]}</td><td {cells[1][1]}>{cells[1][0]}</td>"
+            rate = _percent(value)
+            cells.extend(
+                (
+                    (rate, attrs),
+                    (str(value["covered"]), attrs),
+                    (str(value["total"]), attrs),
+                )
+            )
+        row = f"      <tr><td{cells[0][1] or ''}>{cells[0][0]}</td><td {cells[1][1]}>{cells[1][0]}</td>"
         row += "".join(
             f'<td{f" {attrs}" if attrs else ""}>{cell}</td>' for cell, attrs in cells[2:]
-        ) + "</tr>"
+        )
+        row += '<td class="policyGap"></td>'
+        for metric in _METRICS:
+            value = policy[metric]
+            if category == "overall":
+                label = _compact_policy(value)
+                css = "policyCell"
+            elif value == overall[metric]:
+                label = "default"
+                css = "policyCell"
+            else:
+                direction = _policy_direction(value, overall[metric])
+                word = {
+                    "policy-weaker": "lower",
+                    "policy-stricter": "higher",
+                    "policy-mixed": "mixed",
+                }[direction]
+                label = f"{word}<br>{_compact_policy(value)}"
+                css = f"policyCell {direction}"
+            row += f'<td class="{css}">{label}</td>'
+        row += "</tr>"
         rows.append(row)
     return """    <table class="coverageTable">
       <thead>
-        <tr><th rowspan="2">Category</th><th rowspan="2">Status</th><th colspan="2">Lines</th><th colspan="2">Branches</th><th colspan="2">Functions</th></tr>
-        <tr><th>Rate / policy</th><th>Covered / total</th><th>Rate / policy</th><th>Covered / total</th><th>Rate / policy</th><th>Covered / total</th></tr>
+        <tr><th rowspan="2">Category</th><th rowspan="2">Status</th><th colspan="3">Lines</th><th colspan="3">Branches</th><th colspan="3">Functions</th><th class="policyGap" rowspan="2"></th><th colspan="3">Policy vs default<sup>*</sup></th></tr>
+        <tr><th>Rate</th><th>Covered</th><th>Total</th><th>Rate</th><th>Covered</th><th>Total</th><th>Rate</th><th>Covered</th><th>Total</th><th>Lines</th><th>Branches</th><th>Functions</th></tr>
       </thead>
       <tbody>
 """ + "\n".join(rows) + """
       </tbody>
-    </table>"""
+    </table>
+    <p class="policyNote"><sup>*</sup> Policy values are <code>medium/high&middot;enforced-band</code>.
+    For example, <code>90/92&middot;M</code> means medium starts at 90%, high starts at 92%, and medium is
+    enforced. Lower, higher, and mixed compare policy strictness, including the enforced band, not
+    measured coverage.</p>"""
+
+
+def _compact_policy(policy: coverage_policy.MetricPolicy) -> str:
+    boundaries = f"{policy.minimum:g}" if policy.minimum == policy.target else f"{policy.minimum:g}/{policy.target:g}"
+    return f"{boundaries}&middot;{policy.enforce[0].upper()}"
+
+
+def _policy_direction(
+    value: coverage_policy.MetricPolicy, inherited: coverage_policy.MetricPolicy
+) -> str:
+    enforcement = {"medium": 0, "high": 1}
+    weaker = (
+        value.minimum < inherited.minimum
+        or value.target < inherited.target
+        or enforcement[value.enforce] < enforcement[inherited.enforce]
+    )
+    stricter = (
+        value.minimum > inherited.minimum
+        or value.target > inherited.target
+        or enforcement[value.enforce] > enforcement[inherited.enforce]
+    )
+    if weaker and stricter:
+        return "policy-mixed"
+    return "policy-weaker" if weaker else "policy-stricter"
 
 
 def render_report(summary: dict, target: str) -> str:
     """Returns the landing page for one retained report."""
     overview = "../" * len(target.split("/"))
-    body = f"    <h1>xff coverage: {html.escape(target)}</h1>\n{_full_table(summary)}\n"
+    body = f'    <h1 class="reportTitle">xff coverage: {html.escape(target)}</h1>\n{_full_table(summary)}\n'
     if "patch" in summary:
         patch = summary["patch"]
         serialized = summary["patch_policy"]
@@ -154,10 +207,7 @@ def render_report(summary: dict, target: str) -> str:
         values = []
         for metric in ("lines", "branches"):
             rating = coverage_policy.rating(patch[metric]["percent"], patch_policy[metric])
-            values.append(
-                f'<td class="{rating}">{_percent(patch[metric])}'
-                f"{_policy_strip(patch_policy[metric])}</td>"
-            )
+            values.append(f'<td class="{rating}">{_percent(patch[metric])}</td>')
         status_class = _status_class(patch_status)
         body += (
             "    <h2>Changed coverable lines</h2>\n"
