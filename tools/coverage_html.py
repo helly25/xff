@@ -15,23 +15,40 @@ _HEADER_END_RE = re.compile(
 )
 _NAVIGATION_RE = re.compile(r'\s*<tr><td class="xffNavigation">.*?</td></tr>')
 _POLICY_TABLE_RE = re.compile(r'\n\n[ \t]*<table class="xffPolicy".*?</table>\n', re.DOTALL)
+_STYLE_RE = re.compile(r'\s*<style>\s*\.xffNavigation\b.*?\.xffPolicy\b.*?</style>\s*', re.DOTALL)
 _LEGACY_POLICY_RE = re.compile(
     r'\s*<tr>\s*<td class="headerItem">Coverage policy:</td>.*?</tr>\s*', re.DOTALL
 )
+_HEADER_SUMMARY_RE = re.compile(r'<table cellpadding=1 border=0 width="100%">')
+_HEADER_RATE_RE = re.compile(
+    r'(?P<label><td class="headerItem">(?P<metric>Lines|Branches|Functions):</td>\s*)'
+    r'<td class="headerCovTableEntry(?:Hi|Med|Lo)">(?P<rate>[0-9.]+)&nbsp;%</td>'
+)
+_TABLE_RATE_RE = re.compile(
+    r'<td class="(?P<owner>owner_)?coverPer(?P<class>Hi|Med|Lo)">(?P<rate>[0-9.]+&nbsp;%|-)</td>'
+)
 _STYLE = """  <style>
-    .xffNavigation { padding: .35rem 0; text-align: right; }
+    .xffNavigation { padding: .35rem 0; text-align: center; }
+    .xffHeaderSummary { margin: 0 auto; width: 80%; }
     .xffPolicy { margin: .35rem 0 1rem; }
   </style>
 """
 
 
-def legend(policy: dict[str, Any]) -> str:
+def _bands(policy: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    bands = policy.get("bands")
+    if bands is not None:
+        return bands["medium"], bands["high"]
     minimum = policy["minimum"]
-    target = {**minimum, **policy.get("target", {})}
+    return minimum, {**minimum, **policy.get("target", {})}
+
+
+def legend(policy: dict[str, Any]) -> str:
+    medium_band, high_band = _bands(policy)
     cells: list[str] = []
-    for label, key in (("Lines", "lines"), ("Functions", "functions"), ("Branches", "branches")):
-        floor = int(minimum[key])
-        goal = int(target[key])
+    for label, key in (("Lines", "lines"), ("Branches", "branches"), ("Functions", "functions")):
+        floor = int(medium_band[key])
+        goal = int(high_band[key])
         if floor == goal:
             text = (
                 f'<span class="coverLegendCovLo">low: &lt; {floor} %</span> '
@@ -52,6 +69,44 @@ def legend(policy: dict[str, Any]) -> str:
         '            </tr>\n'
         '          </table>\n'
     )
+
+
+def _rate_class(rate: float, medium: int, high: int) -> str:
+    if rate >= high:
+        return "Hi"
+    if rate >= medium:
+        return "Med"
+    return "Lo"
+
+
+def _normalize_rate_classes(text: str, policy: dict[str, Any]) -> str:
+    medium_band, high_band = _bands(policy)
+
+    def header(match: re.Match[str]) -> str:
+        key = match.group("metric").lower()
+        rate = float(match.group("rate"))
+        suffix = _rate_class(rate, int(medium_band[key]), int(high_band[key]))
+        return f'{match.group("label")}<td class="headerCovTableEntry{suffix}">{match.group("rate")}&nbsp;%</td>'
+
+    text = _HEADER_RATE_RE.sub(header, text)
+    matches = list(_TABLE_RATE_RE.finditer(text))
+    if len(matches) % 3 != 0:
+        raise ValueError(f"genhtml coverage-rate columns are not triples: found {len(matches)}")
+    metrics = ("lines", "branches", "functions")
+    parts: list[str] = []
+    start = 0
+    for index, match in enumerate(matches):
+        key = metrics[index % len(metrics)]
+        rate_text = match.group("rate")
+        suffix = match.group("class")
+        if rate_text != "-":
+            rate = float(rate_text.removesuffix("&nbsp;%"))
+            suffix = _rate_class(rate, int(medium_band[key]), int(high_band[key]))
+        owner = match.group("owner") or ""
+        parts.extend((text[start : match.start()], f'<td class="{owner}coverPer{suffix}">{rate_text}</td>'))
+        start = match.end()
+    parts.append(text[start:])
+    return "".join(parts)
 
 
 def _target_parts(target: str) -> tuple[str, ...]:
@@ -86,10 +141,11 @@ def apply(report: Path, policy: dict[str, Any], target: str) -> None:
         text = path.read_text(encoding="utf-8")
         # Make regeneration idempotent and migrate reports produced by the
         # earlier header-row injector without leaving two policy legends.
-        text = text.replace(_STYLE, "")
+        text = _STYLE_RE.sub("\n", text)
         text = _NAVIGATION_RE.sub("", text)
         text = _POLICY_TABLE_RE.sub("\n", text)
         text = _LEGACY_POLICY_RE.sub("", text)
+        text = _HEADER_SUMMARY_RE.sub('<table class="xffHeaderSummary" cellpadding=1 border=0>', text, count=1)
         title = _TITLE_RE.search(text)
         header_end = _HEADER_END_RE.search(text)
         if not title or not header_end:
@@ -100,6 +156,7 @@ def apply(report: Path, policy: dict[str, Any], target: str) -> None:
         text = text[: header_end.end()] + "\n\n" + legend(policy) + text[header_end.end() :]
         if "</head>" not in text:
             raise ValueError(f"genhtml head anchor not found in {path}")
+        text = _normalize_rate_classes(text, policy)
         path.write_text(text.replace("</head>", _STYLE + "</head>", 1), encoding="utf-8")
         modified += 1
     if modified == 0:

@@ -15,6 +15,10 @@
   ],
   "minimum": { "lines": 90, "functions": 95, "branches": 80 },
   "target": { "lines": 92, "functions": 95, "branches": 82 },
+  "bands": {
+    "medium": { "lines": 90, "branches": 90, "functions": 90 },
+    "high": { "lines": 92, "branches": 95, "functions": 95 }
+  },
   "patch_minimum": { "lines": 95, "branches": 85 },
   "categories": {
     "program": {
