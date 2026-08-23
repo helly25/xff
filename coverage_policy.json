@@ -13,13 +13,14 @@
     "**/*_test.cc",
     "**/*_test.h"
   ],
-  "minimum": { "lines": 90, "functions": 95, "branches": 80 },
+  "minimum": { "lines": 90, "functions": 90, "branches": 80 },
   "target": { "lines": 92, "functions": 95, "branches": 82 },
-  "bands": {
-    "medium": { "lines": 90, "branches": 90, "functions": 90 },
-    "high": { "lines": 92, "branches": 95, "functions": 95 }
+  "enforce": "high",
+  "patch": {
+    "minimum": { "lines": 95, "branches": 85 },
+    "target": { "lines": 98, "branches": 90 },
+    "enforce": "medium"
   },
-  "patch_minimum": { "lines": 95, "branches": 85 },
   "categories": {
     "program": {
       "command line": { "include": ["xff/cli/**"] },
@@ -54,13 +55,16 @@
       },
       "archive": {
         "include": ["xff_archive/**"],
-        "minimum": { "branches": 77 }
+        "minimum": { "branches": 77 },
+        "enforce": { "lines": "medium", "branches": "medium" },
+        "reason": "Archive format and filter error paths include third-party-library and malformed-input alternatives that are not all reachable in one GCC/Linux coverage run."
       },
       "FUSE": {
         "include": ["xff_fuse/**"],
         "minimum": { "branches": 75 },
         "target": { "branches": 82 },
-        "target_reason": "FUSE's dynamic-loader alternatives, fatal-signal handler, mount-failure variants, and spontaneous-session-exit path are mutually exclusive or process-disrupting in one GCC/Linux coverage run. Public filesystem behavior and deterministic lifecycle failures remain covered."
+        "enforce": { "lines": "medium", "branches": "medium" },
+        "reason": "FUSE's dynamic-loader alternatives, fatal-signal handler, mount-failure variants, and spontaneous-session-exit path are mutually exclusive or process-disrupting in one GCC/Linux coverage run. Public filesystem behavior and deterministic lifecycle failures remain covered."
       },
       "PCRE2": {
         "include": ["xff_pcre2/**"],

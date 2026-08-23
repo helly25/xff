@@ -28,12 +28,9 @@ _HEADER = """<html><head></head><body>
 class CoverageHtmlTest(unittest.TestCase):
     def setUp(self):
         self.policy = {
-            "minimum": {"lines": 90, "functions": 95, "branches": 90},
-            "target": {"lines": 92, "functions": 95, "branches": 95},
-            "bands": {
-                "medium": {"lines": 90, "branches": 90, "functions": 90},
-                "high": {"lines": 92, "branches": 95, "functions": 95},
-            },
+            "minimum": {"lines": 90, "functions": 95, "branches": 80},
+            "target": {"lines": 92, "functions": 95, "branches": 82},
+            "enforce": "medium",
         }
 
     def test_moves_policy_matrix_below_detail_table_and_adds_root_navigation(self):
@@ -46,14 +43,18 @@ class CoverageHtmlTest(unittest.TestCase):
             self.assertIn('<a href="../index.html">Report overview</a>', rendered)
             self.assertIn('<a href="../../../index.html">All coverage reports</a>', rendered)
             self.assertLess(rendered.index("xffNavigation"), rendered.index("Coverage table"))
-            self.assertLess(rendered.index('id="detail"'), rendered.index("Coverage policy"))
-            self.assertLess(rendered.index("Coverage policy"), rendered.index('id="footer"'))
+            self.assertLess(rendered.index('id="detail"'), rendered.index("Global coverage policy"))
+            self.assertLess(rendered.index("Global coverage policy"), rendered.index('id="footer"'))
             self.assertIn('<th scope="col">Low</th>', rendered)
             self.assertIn('<th scope="col">Medium</th>', rendered)
             self.assertIn('<th scope="col">High</th>', rendered)
+            self.assertIn('<th scope="col">Enforced</th>', rendered)
             self.assertIn('<td class="headerValueLegL">&lt; 90%</td>', rendered)
-            self.assertIn('<td class="headerValueLegM">&ge; 90% and &lt; 95%</td>', rendered)
-            self.assertIn('<td class="headerValueLegH">&ge; 95%</td>', rendered)
+            self.assertIn('<td class="headerValueLegM">&ge; 80% and &lt; 82%</td>', rendered)
+            self.assertIn('<td class="headerValueLegH">&ge; 82%</td>', rendered)
+            self.assertIn('<th scope="row">Functions</th>', rendered)
+            self.assertIn('<td class="headerValueLegM">-</td>', rendered)
+            self.assertEqual(3, rendered.count('<td class="headerValueLegM">Medium</td>'))
             self.assertLess(rendered.index('<th scope="row">Lines</th>'), rendered.index('<th scope="row">Branches</th>'))
             self.assertLess(
                 rendered.index('<th scope="row">Branches</th>'), rendered.index('<th scope="row">Functions</th>')
@@ -70,13 +71,13 @@ class CoverageHtmlTest(unittest.TestCase):
 <td class="coverPerHi">96.0&nbsp;%</td><td class="coverPerHi">-</td><td class="coverPerHi">93.0&nbsp;%</td>"""
         rendered = coverage_html._normalize_rate_classes(source, self.policy)
         self.assertIn('headerCovTableEntryMed">91.0', rendered)
-        self.assertIn('headerCovTableEntryMed">93.0', rendered)
-        self.assertIn('headerCovTableEntryMed">92.0', rendered)
+        self.assertIn('headerCovTableEntryLo">93.0', rendered)
+        self.assertIn('headerCovTableEntryHi">92.0', rendered)
         self.assertIn('coverPerMed">91.0', rendered)
-        self.assertIn('coverPerMed">92.0', rendered)
-        self.assertIn('coverPerMed">93.0', rendered)
+        self.assertIn('coverPerHi">92.0', rendered)
+        self.assertIn('coverPerLo">93.0', rendered)
         self.assertIn('coverPerHi">-</td>', rendered)
-        self.assertEqual(2, rendered.count('coverPerMed">93.0'))
+        self.assertEqual(2, rendered.count('coverPerLo">93.0'))
 
     def test_constrains_header_summary_to_detail_table_width(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -115,7 +116,7 @@ class CoverageHtmlTest(unittest.TestCase):
             rendered = page.read_text(encoding="utf-8")
             self.assertEqual(1, rendered.count('class="xffNavigation"'))
             self.assertEqual(1, rendered.count('class="xffPolicy"'))
-            self.assertEqual(1, rendered.count("Coverage policy"))
+            self.assertEqual(1, rendered.count("Global coverage policy"))
             self.assertEqual(1, rendered.count(".xffNavigation"))
 
     def test_rejects_an_unrecognized_genhtml_page(self):

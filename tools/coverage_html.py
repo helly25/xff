@@ -8,6 +8,8 @@ import re
 from pathlib import Path, PurePosixPath
 from typing import Any, Optional
 
+import coverage_policy
+
 
 _TITLE_RE = re.compile(r'(?P<title>\s*<tr><td class="title">.*?</td></tr>)')
 _HEADER_END_RE = re.compile(
@@ -37,40 +39,35 @@ _STYLE = """  <style>
 """
 
 
-def _bands(policy: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-    bands = policy.get("bands")
-    if bands is not None:
-        return bands["medium"], bands["high"]
-    minimum = policy["minimum"]
-    return minimum, {**minimum, **policy.get("target", {})}
-
-
 def legend(policy: dict[str, Any]) -> str:
-    medium_band, high_band = _bands(policy)
+    overall = coverage_policy.overall(policy)
     rows: list[str] = []
     for label, key in (("Lines", "lines"), ("Branches", "branches"), ("Functions", "functions")):
-        floor = int(medium_band[key])
-        goal = int(high_band[key])
+        floor = overall[key].minimum
+        goal = overall[key].target
         if floor == goal:
             medium = "-"
         else:
-            medium = f"&ge; {floor}% and &lt; {goal}%"
+            medium = f"&ge; {floor:g}% and &lt; {goal:g}%"
         rows.append(
             "            <tr>\n"
             f'              <th scope="row">{label}</th>\n'
-            f'              <td class="headerValueLegL">&lt; {floor}%</td>\n'
+            f'              <td class="headerValueLegL">&lt; {floor:g}%</td>\n'
             f'              <td class="headerValueLegM">{medium}</td>\n'
-            f'              <td class="headerValueLegH">&ge; {goal}%</td>\n'
+            f'              <td class="headerValueLegH">&ge; {goal:g}%</td>\n'
+            f'              <td class="headerValueLeg{overall[key].enforce[0].upper()}">'
+            f'{overall[key].enforce.title()}</td>\n'
             "            </tr>\n"
         )
     return (
         '          <table class="xffPolicy">\n'
         "            <thead>\n"
         "              <tr>\n"
-        '                <th scope="col">Coverage policy</th>\n'
+        '                <th scope="col">Global coverage policy</th>\n'
         '                <th scope="col">Low</th>\n'
         '                <th scope="col">Medium</th>\n'
         '                <th scope="col">High</th>\n'
+        '                <th scope="col">Enforced</th>\n'
         "              </tr>\n"
         "            </thead>\n"
         "            <tbody>\n"
@@ -89,12 +86,12 @@ def _rate_class(rate: float, medium: int, high: int) -> str:
 
 
 def _normalize_rate_classes(text: str, policy: dict[str, Any]) -> str:
-    medium_band, high_band = _bands(policy)
+    overall = coverage_policy.overall(policy)
 
     def header(match: re.Match[str]) -> str:
         key = match.group("metric").lower()
         rate = float(match.group("rate"))
-        suffix = _rate_class(rate, int(medium_band[key]), int(high_band[key]))
+        suffix = _rate_class(rate, overall[key].minimum, overall[key].target)
         return f'{match.group("label")}<td class="headerCovTableEntry{suffix}">{match.group("rate")}&nbsp;%</td>'
 
     text = _HEADER_RATE_RE.sub(header, text)
@@ -110,7 +107,7 @@ def _normalize_rate_classes(text: str, policy: dict[str, Any]) -> str:
         suffix = match.group("class")
         if rate_text != "-":
             rate = float(rate_text.removesuffix("&nbsp;%"))
-            suffix = _rate_class(rate, int(medium_band[key]), int(high_band[key]))
+            suffix = _rate_class(rate, overall[key].minimum, overall[key].target)
         owner = match.group("owner") or ""
         parts.extend((text[start : match.start()], f'<td class="{owner}coverPer{suffix}">{rate_text}</td>'))
         start = match.end()

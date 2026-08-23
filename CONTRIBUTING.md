@@ -6,6 +6,12 @@ All contributions are generally welcome as long as they fit in with the concepts
 
 All code must adhere to the [RULES.md](RULES.md) and mostly follows the [Google style](https://google.github.io/styleguide/). Where it diverges, clang-tidy rules are in effect as much as possible.
 
+## Coverage
+
+The production coverage job derives its ratings, HTML colours, and CI gates from
+[`coverage_policy.json`](coverage_policy.json). See [`docs/coverage.md`](docs/coverage.md) before
+changing thresholds or adding a category override; weakened overrides require a documented reason.
+
 # Run pre-commit
 
 All changes will be verified by the pre-commit rules. In order to check these before committing changes install the tool:

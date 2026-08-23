@@ -13,6 +13,8 @@ import json
 import re
 from pathlib import Path
 
+import coverage_policy
+
 _METRICS = ("lines", "functions", "branches")
 
 
@@ -28,9 +30,13 @@ def _page(title: str, body: str) -> str:
       a {{ color: #0969da; }}
       table {{ border-collapse: collapse; margin: 1rem 0 2rem; }}
       th, td {{ border: 1px solid #d0d7de; padding: .35rem .65rem; text-align: right; }}
-      th:nth-child(-n+5), td:nth-child(-n+5) {{ text-align: left; }}
-      td:nth-child(n+3) {{ font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }}
-      .fail {{ font-weight: bold; color: #cf222e; }}
+      .coverageTable th:first-child, .coverageTable td:first-child,
+      .reportsTable th:nth-child(-n+6), .reportsTable td:nth-child(-n+6) {{ text-align: left; }}
+      .coverageTable td:nth-child(n+3), .patchTable td:nth-child(n+2), .reportsTable td:nth-child(n+7) {{ font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }}
+      .low {{ background: #f8cecc; }}
+      .medium {{ background: #fff2cc; }}
+      .high {{ background: #d5e8d4; }}
+      .status-bad {{ color: #cf222e; font-weight: bold; }}
     </style>
   </head>
   <body>
@@ -44,25 +50,50 @@ def _percent(value: dict) -> str:
     return "n/a" if value["percent"] is None else f'{value["percent"]:.2f}%'
 
 
-def _status(metrics: dict, minimums: dict) -> str:
-    failures = [name for name in _METRICS if metrics[name]["percent"] is None or metrics[name]["percent"] < minimums.get(name, 0)]
+def _policy(summary: dict, category: str) -> dict[str, coverage_policy.MetricPolicy]:
+    return {
+        metric: coverage_policy.MetricPolicy(
+            summary["minimums"][category][metric],
+            summary["targets"][category][metric],
+            summary["enforcement"][category][metric],
+        )
+        for metric in _METRICS
+    }
+
+
+def _status(metrics: dict, policy: dict[str, coverage_policy.MetricPolicy]) -> str:
+    names = tuple(name for name in _METRICS if name in policy)
+    failures = [name for name in names if not coverage_policy.passes(metrics[name]["percent"], policy[name])]
     if failures:
-        return "FAIL: " + "/".join(name[0].upper() for name in failures)
+        return "BAD: " + "/".join(name[0].upper() for name in failures)
+    if all(coverage_policy.rating(metrics[name]["percent"], policy[name]) == "high" for name in names):
+        return "GOOD"
     return "OK"
 
 
 def _full_table(summary: dict) -> str:
     rows = []
     for category, metrics in summary["measurements"].items():
-        minimums = summary["minimums"].get(category, {})
-        status = _status(metrics, minimums)
-        cells = [html.escape(category), html.escape(status)]
+        policy = _policy(summary, category)
+        status = _status(metrics, policy)
+        cells: list[tuple[str, str | None]] = [(html.escape(category), None), (html.escape(status), None)]
         for metric in _METRICS:
             value = metrics[metric]
-            cells.extend((_percent(value), str(value["covered"]), str(value["total"])))
-        css = ' class="fail"' if status.startswith("FAIL") else ""
-        rows.append("      <tr" + css + ">" + "".join(f"<td>{cell}</td>" for cell in cells) + "</tr>")
-    return """    <table>
+            rating = coverage_policy.rating(value["percent"], policy[metric])
+            metric_policy = policy[metric]
+            title = (
+                f"{rating}; enforce {metric_policy.enforce}; medium at {metric_policy.minimum:g}%; "
+                f"high at {metric_policy.target:g}%"
+            )
+            attrs = f'class="{rating}" title="{html.escape(title, quote=True)}"'
+            cells.extend(((_percent(value), attrs), (str(value["covered"]), None), (str(value["total"]), None)))
+        status_class = ' class="status-bad"' if status.startswith("BAD") else ""
+        row = f"      <tr><td>{cells[0][0]}</td><td{status_class}>{cells[1][0]}</td>"
+        row += "".join(
+            f'<td{f" {attrs}" if attrs else ""}>{cell}</td>' for cell, attrs in cells[2:]
+        ) + "</tr>"
+        rows.append(row)
+    return """    <table class="coverageTable">
       <thead>
         <tr><th rowspan="2">Category</th><th rowspan="2">Status</th><th colspan="3">Lines</th><th colspan="3">Functions</th><th colspan="3">Branches</th></tr>
         <tr><th>Rate</th><th>Covered</th><th>Total</th><th>Rate</th><th>Covered</th><th>Total</th><th>Rate</th><th>Covered</th><th>Total</th></tr>
@@ -79,9 +110,32 @@ def render_report(summary: dict, target: str) -> str:
     body = f"    <h1>xff coverage: {html.escape(target)}</h1>\n{_full_table(summary)}\n"
     if "patch" in summary:
         patch = summary["patch"]
-        body += "    <h2>Changed coverable lines</h2>\n    <table><thead><tr><th>Lines</th><th>Branches</th></tr></thead><tbody><tr>"
-        body += f"<td>{_percent(patch['lines'])}</td><td>{_percent(patch['branches'])}</td></tr></tbody></table>\n"
-    body += f'    <p><a href="lcov/">Browse detailed LCOV source coverage</a> · <a href="{overview}">All reports</a></p>'
+        serialized = summary["patch_policy"]
+        patch_policy = {
+            metric: coverage_policy.MetricPolicy(
+                serialized["minimum"][metric],
+                serialized["target"][metric],
+                serialized["enforce"][metric],
+            )
+            for metric in ("lines", "branches")
+        }
+        patch_status = _status(patch, patch_policy)
+        values = []
+        for metric in ("lines", "branches"):
+            rating = coverage_policy.rating(patch[metric]["percent"], patch_policy[metric])
+            values.append(f'<td class="{rating}">{_percent(patch[metric])}</td>')
+        status_class = ' class="status-bad"' if patch_status.startswith("BAD") else ""
+        body += (
+            "    <h2>Changed coverable lines</h2>\n"
+            "    <table class=\"patchTable\"><thead><tr><th>Status</th><th>Lines</th><th>Branches</th></tr></thead><tbody><tr>"
+            f"<td{status_class}>{patch_status}</td>{''.join(values)}</tr></tbody></table>\n"
+        )
+    body += (
+        '    <p><a href="lcov/">Browse detailed LCOV source coverage</a> · '
+        '<a href="coverage-summary.json">Coverage data (JSON)</a> · '
+        '<a href="coverage-meta.json">Report metadata (JSON)</a> · '
+        f'<a href="{overview}">All reports</a></p>'
+    )
     return _page(f"xff coverage: {target}", body)
 
 
@@ -169,7 +223,8 @@ def _short_row(metadata: dict) -> str:
             run += f" (attempt {attempt})"
     values = [_percent(metadata["coverage"][metric]) for metric in _METRICS]
     report = f'<a href="{target}/">{html.escape(label)}</a>'
-    details = (report, source, timestamp, commit, run)
+    data = f'<a href="{target}/coverage-summary.json">JSON</a>'
+    details = (report, data, source, timestamp, commit, run)
     return "        <tr>" + "".join(f"<td>{value}</td>" for value in (*details, *values)) + "</tr>"
 
 
@@ -203,7 +258,7 @@ def render_site(root: Path) -> str:
     rows = "\n".join(_short_row(metadata) for metadata in reports)
     body = "    <h1>xff coverage reports</h1>\n"
     if rows:
-        body += """    <table><thead><tr><th>Report</th><th>Source</th><th>Completed</th><th>Commit</th><th>Workflow</th><th>Lines</th><th>Functions</th><th>Branches</th></tr></thead>
+        body += """    <table class="reportsTable"><thead><tr><th>Report</th><th>Data</th><th>Source</th><th>Completed</th><th>Commit</th><th>Workflow</th><th>Lines</th><th>Functions</th><th>Branches</th></tr></thead>
       <tbody>
 """ + rows + """
       </tbody>

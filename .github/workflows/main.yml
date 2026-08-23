@@ -237,7 +237,8 @@ jobs:
             --title "xff production coverage"
           python3 tools/coverage_html.py coverage-html/lcov coverage_policy.json "${COVERAGE_PAGE}"
           python3 -m unittest tools/coverage_test.py tools/coverage_sources_test.py \
-            tools/coverage_html_test.py tools/coverage_index_test.py tools/coverage_lcovrc_test.py
+            tools/coverage_html_test.py tools/coverage_index_test.py tools/coverage_lcovrc_test.py \
+            tools/coverage_policy_test.py
           BASE_ARGS=()
           if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
             git fetch --quiet --no-tags origin main

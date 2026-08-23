@@ -17,6 +17,7 @@ def _summary(percent: float) -> dict:
         "measurements": {"overall": {name: metric for name in ("lines", "functions", "branches")}},
         "minimums": {"overall": {name: 80 for name in ("lines", "functions", "branches")}},
         "targets": {"overall": {name: 90 for name in ("lines", "functions", "branches")}},
+        "enforcement": {"overall": {name: "medium" for name in ("lines", "functions", "branches")}},
     }
 
 
@@ -26,18 +27,42 @@ class CoverageIndexTest(unittest.TestCase):
         self.assertIn("xff coverage: pr/42", rendered)
         self.assertIn("95.00%", rendered)
         self.assertIn('href="lcov/"', rendered)
+        self.assertIn('href="coverage-summary.json"', rendered)
+        self.assertIn('href="coverage-meta.json"', rendered)
         self.assertIn('href="../../"', rendered)
 
     def test_report_status_is_ok_between_minimum_and_target(self):
         rendered = coverage_index.render_report(_summary(85.0), "pr/42")
         self.assertIn("<td>OK</td>", rendered)
-        self.assertNotIn("LOW", rendered)
+        self.assertIn('<td class="medium" title="medium; enforce medium;', rendered)
 
     def test_report_status_identifies_metrics_below_minimum(self):
         summary = _summary(95.0)
         summary["measurements"]["overall"]["functions"] = {"covered": 7, "total": 10, "percent": 70.0}
         rendered = coverage_index.render_report(summary, "pr/42")
-        self.assertIn("<td>FAIL: F</td>", rendered)
+        self.assertIn('<td class="status-bad">BAD: F</td>', rendered)
+
+    def test_high_enforcement_rejects_a_medium_rating(self):
+        summary = _summary(85.0)
+        summary["enforcement"]["overall"]["branches"] = "high"
+        rendered = coverage_index.render_report(summary, "pr/42")
+        self.assertIn('<td class="status-bad">BAD: B</td>', rendered)
+
+    def test_patch_uses_its_resolved_policy(self):
+        summary = _summary(95.0)
+        summary["patch"] = {
+            "lines": {"covered": 9, "total": 10, "percent": 90.0},
+            "functions": {"covered": 0, "total": 0, "percent": None},
+            "branches": {"covered": 9, "total": 10, "percent": 90.0},
+        }
+        summary["patch_policy"] = {
+            "minimum": {"lines": 80, "branches": 80},
+            "target": {"lines": 95, "branches": 95},
+            "enforce": {"lines": "high", "branches": "medium"},
+        }
+        rendered = coverage_index.render_report(summary, "pr/42")
+        self.assertIn('<td class="status-bad">BAD: L</td>', rendered)
+        self.assertEqual(2, rendered.count('<td class="medium">90.00%</td>'))
 
     def test_site_shows_all_metrics_with_main_first_and_numeric_sorting(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -70,6 +95,7 @@ class CoverageIndexTest(unittest.TestCase):
                 rendered,
             )
             self.assertIn('href="https://github.com/helly25/xff/pull/42">PR #42</a>', rendered)
+            self.assertIn('href="pr/42/coverage-summary.json">JSON</a>', rendered)
             self.assertIn("2026-08-22 10:01:00 UTC", rendered)
             self.assertIn('href="https://github.com/helly25/xff/commit/abc"><code>abc</code></a>', rendered)
             self.assertIn('href="https://github.com/helly25/xff/actions/runs/1">run 1</a>', rendered)
