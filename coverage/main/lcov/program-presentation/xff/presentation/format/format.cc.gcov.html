@@ -7,7 +7,8 @@
   <title>LCOV - xff production coverage - program-presentation/xff/presentation/format/format.cc</title>
   <link rel="stylesheet" type="text/css" href="../../../../gcov.css">
   <style>
-    .xffNavigation { padding: .35rem 0; text-align: right; }
+    .xffNavigation { padding: .35rem 0; text-align: center; }
+    .xffHeaderSummary { margin: 0 auto; width: 80%; }
     .xffPolicy { margin: .35rem 0 1rem; }
   </style>
 </head>
@@ -22,7 +23,7 @@
 
             <tr>
               <td width="100%">
-                <table cellpadding=1 border=0 width="100%">
+                <table class="xffHeaderSummary" cellpadding=1 border=0>
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
             <td width="10%" class="headerValue"><a href="../../../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory program-presentation/xff/presentation/format">program-presentation/xff/presentation/format</a> - format.cc<span style="font-size: 80%;"> (source / <a href="format.cc.func-c.html" title="Click to go to function table">functions</a>)</span></td>
@@ -43,7 +44,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-23 10:07:40</td>
+            <td class="headerValue">2026-08-23 11:10:46</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -55,7 +56,7 @@
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryHi">94.4&nbsp;%</td>
+            <td class="headerCovTableEntryMed">94.4&nbsp;%</td>
             <td class="headerCovTableEntry">107</td>
             <td class="headerCovTableEntry">101</td>
           </tr>
@@ -70,7 +71,7 @@
           <table class="xffPolicy" width="100%" border=0 cellspacing=0 cellpadding=0>
             <tr>
               <td class="headerItem">Coverage policy:</td>
-              <td class="headerValue"><b>Lines:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 92 %</span> <span class="coverLegendCovHi">high: &gt;= 92 %</span> &middot; <b>Functions:</b> <span class="coverLegendCovLo">low: &lt; 95 %</span> <span class="coverLegendCovHi">high: &gt;= 95 %</span> &middot; <b>Branches:</b> <span class="coverLegendCovLo">low: &lt; 80 %</span> <span class="coverLegendCovMed">medium: &gt;= 80 % and &lt; 82 %</span> <span class="coverLegendCovHi">high: &gt;= 82 %</span></td>
+              <td class="headerValue"><b>Lines:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 92 %</span> <span class="coverLegendCovHi">high: &gt;= 92 %</span> &middot; <b>Branches:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 95 %</span> <span class="coverLegendCovHi">high: &gt;= 95 %</span> &middot; <b>Functions:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 95 %</span> <span class="coverLegendCovHi">high: &gt;= 95 %</span></td>
             </tr>
           </table>
 
@@ -174,11 +175,11 @@
 <span id="L89"><span class="lineNum">      89</span>                 :             : </span>
 <span id="L90"><span class="lineNum">      90</span>                 :             : }  // namespace</span>
 <span id="L91"><span class="lineNum">      91</span>                 :             : </span>
-<span id="L92"><span class="lineNum">      92</span>                 :<span class="tlaGNC">         136 : std::string Int(std::uint64_t value, char group_sep) {</span></span>
-<span id="L93"><span class="lineNum">      93</span>                 :<span class="tlaGNC">         136 :   std::string digits = std::to_string(value);</span></span>
-<span id="L94"><span class="lineNum">      94</span>   [<span class="tlaGBC" title="branch 0 was taken 134 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="branch 2 was taken 123 times"> + </span><span class="tlaGBC" title="branch 3 was taken 11 times"> + </span> :<span class="tlaGNC">         136 :   if (group_sep == '\0' || digits.size() &lt;= 3) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 125 times"> + </span><span class="tlaGBC" title="branch 5 was taken 11 times"> + </span>]
-<span id="L95"><span class="lineNum">      95</span>                 :<span class="tlaGNC">         125 :     return digits;</span></span>
+<span id="L92"><span class="lineNum">      92</span>                 :<span class="tlaGNC">         139 : std::string Int(std::uint64_t value, char group_sep) {</span></span>
+<span id="L93"><span class="lineNum">      93</span>                 :<span class="tlaGNC">         139 :   std::string digits = std::to_string(value);</span></span>
+<span id="L94"><span class="lineNum">      94</span>   [<span class="tlaGBC" title="branch 0 was taken 137 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="branch 2 was taken 126 times"> + </span><span class="tlaGBC" title="branch 3 was taken 11 times"> + </span> :<span class="tlaGNC">         139 :   if (group_sep == '\0' || digits.size() &lt;= 3) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 128 times"> + </span><span class="tlaGBC" title="branch 5 was taken 11 times"> + </span>]
+<span id="L95"><span class="lineNum">      95</span>                 :<span class="tlaGNC">         128 :     return digits;</span></span>
 <span id="L96"><span class="lineNum">      96</span>                 :             :   }</span>
 <span id="L97"><span class="lineNum">      97</span>                 :<span class="tlaGNC">          11 :   std::string out;</span></span>
 <span id="L98"><span class="lineNum">      98</span>                 :<span class="tlaGNC">          11 :   out.reserve(digits.size() + ((digits.size() - 1) / 3));</span></span>
@@ -192,7 +193,7 @@
 <span id="L105"><span class="lineNum">     105</span>                 :<span class="tlaGNC">          56 :     out.push_back(digits[i]);</span></span>
 <span id="L106"><span class="lineNum">     106</span>                 :             :   }</span>
 <span id="L107"><span class="lineNum">     107</span>                 :<span class="tlaGNC">          11 :   return out;</span></span>
-<span id="L108"><span class="lineNum">     108</span>                 :<span class="tlaGNC">         136 : }</span></span>
+<span id="L108"><span class="lineNum">     108</span>                 :<span class="tlaGNC">         139 : }</span></span>
 <span id="L109"><span class="lineNum">     109</span>                 :             : </span>
 <span id="L110"><span class="lineNum">     110</span>                 :<span class="tlaGNC">          11 : std::string Size(std::uint64_t bytes, SizeUnits units) {</span></span>
 <span id="L111"><span class="lineNum">     111</span>                 :<span class="tlaGNC">          11 :   const Scaled scaled = ScaleSize(bytes, units);</span></span>
@@ -261,18 +262,18 @@
 <span id="L173"><span class="lineNum">     173</span>                 :<span class="tlaGNC">          56 :   return out;</span></span>
 <span id="L174"><span class="lineNum">     174</span>                 :             : }</span>
 <span id="L175"><span class="lineNum">     175</span>                 :             : </span>
-<span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaGNC">         672 : ColumnBuffer::ColumnBuffer(</span></span>
+<span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaGNC">         682 : ColumnBuffer::ColumnBuffer(</span></span>
 <span id="L177"><span class="lineNum">     177</span>                 :             :     std::vector&lt;Align&gt; aligns,</span>
 <span id="L178"><span class="lineNum">     178</span>                 :             :     std::vector&lt;std::size_t&gt; mins,</span>
 <span id="L179"><span class="lineNum">     179</span>                 :             :     std::size_t window,</span>
-<span id="L180"><span class="lineNum">     180</span>                 :<span class="tlaGNC">         672 :     std::size_t byte_budget)</span></span>
-<span id="L181"><span class="lineNum">     181</span>                 :<span class="tlaGNC">         672 :     : aligns_(std::move(aligns)),</span></span>
-<span id="L182"><span class="lineNum">     182</span>                 :<span class="tlaGNC">         672 :       widths_(std::move(mins)),</span></span>
-<span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaGNC">         672 :       window_(window),</span></span>
-<span id="L184"><span class="lineNum">     184</span>                 :<span class="tlaGNC">         672 :       byte_budget_(byte_budget),</span></span>
-<span id="L185"><span class="lineNum">     185</span>                 :<span class="tlaGNC">         672 :       buffering_(window != 0) {</span></span>
-<span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">         672 :   widths_.resize(aligns_.size(), 0);  // one width per column, seeded from the mins</span></span>
-<span id="L187"><span class="lineNum">     187</span>                 :<span class="tlaGNC">         672 : }</span></span>
+<span id="L180"><span class="lineNum">     180</span>                 :<span class="tlaGNC">         682 :     std::size_t byte_budget)</span></span>
+<span id="L181"><span class="lineNum">     181</span>                 :<span class="tlaGNC">         682 :     : aligns_(std::move(aligns)),</span></span>
+<span id="L182"><span class="lineNum">     182</span>                 :<span class="tlaGNC">         682 :       widths_(std::move(mins)),</span></span>
+<span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaGNC">         682 :       window_(window),</span></span>
+<span id="L184"><span class="lineNum">     184</span>                 :<span class="tlaGNC">         682 :       byte_budget_(byte_budget),</span></span>
+<span id="L185"><span class="lineNum">     185</span>                 :<span class="tlaGNC">         682 :       buffering_(window != 0) {</span></span>
+<span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">         682 :   widths_.resize(aligns_.size(), 0);  // one width per column, seeded from the mins</span></span>
+<span id="L187"><span class="lineNum">     187</span>                 :<span class="tlaGNC">         682 : }</span></span>
 <span id="L188"><span class="lineNum">     188</span>                 :             : </span>
 <span id="L189"><span class="lineNum">     189</span>                 :<span class="tlaGNC">          30 : std::string ColumnBuffer::Add(std::vector&lt;std::string&gt; cells) {</span></span>
 <span id="L190"><span class="lineNum">     190</span>                 :<span class="tlaGNC">          24 :   const auto widen = [this](const std::vector&lt;std::string&gt;&amp; row) {</span></span>
@@ -303,18 +304,18 @@
 <span id="L212"><span class="lineNum">     212</span>                 :<span class="tlaGNC">           6 :   return RenderPaddedRow(cells, aligns_, widths_, &quot;  &quot;);</span></span>
 <span id="L213"><span class="lineNum">     213</span>                 :             : }</span>
 <span id="L214"><span class="lineNum">     214</span>                 :             : </span>
-<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">         676 : std::string ColumnBuffer::Flush() {</span></span>
-<span id="L216"><span class="lineNum">     216</span>         [<span class="tlaGBC" title="branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="branch 1 was taken 670 times"> + </span>]:<span class="tlaGNC">         676 :   if (!buffering_) {</span></span>
+<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">         686 : std::string ColumnBuffer::Flush() {</span></span>
+<span id="L216"><span class="lineNum">     216</span>         [<span class="tlaGBC" title="branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="branch 1 was taken 680 times"> + </span>]:<span class="tlaGNC">         686 :   if (!buffering_) {</span></span>
 <span id="L217"><span class="lineNum">     217</span>                 :<span class="tlaGNC">          12 :     return &quot;&quot;;</span></span>
 <span id="L218"><span class="lineNum">     218</span>                 :             :   }</span>
-<span id="L219"><span class="lineNum">     219</span>                 :<span class="tlaGNC">         670 :   buffering_ = false;</span></span>
-<span id="L220"><span class="lineNum">     220</span>                 :<span class="tlaGNC">         670 :   std::string out;</span></span>
-<span id="L221"><span class="lineNum">     221</span>         [<span class="tlaGBC" title="branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="branch 1 was taken 670 times"> + </span>]:<span class="tlaGNC">         694 :   for (const std::vector&lt;std::string&gt;&amp; row : buffer_) {</span></span>
+<span id="L219"><span class="lineNum">     219</span>                 :<span class="tlaGNC">         680 :   buffering_ = false;</span></span>
+<span id="L220"><span class="lineNum">     220</span>                 :<span class="tlaGNC">         680 :   std::string out;</span></span>
+<span id="L221"><span class="lineNum">     221</span>         [<span class="tlaGBC" title="branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="branch 1 was taken 680 times"> + </span>]:<span class="tlaGNC">         704 :   for (const std::vector&lt;std::string&gt;&amp; row : buffer_) {</span></span>
 <span id="L222"><span class="lineNum">     222</span>                 :<span class="tlaGNC">          24 :     out.append(RenderPaddedRow(row, aligns_, widths_, &quot;  &quot;));</span></span>
 <span id="L223"><span class="lineNum">     223</span>                 :             :   }</span>
-<span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaGNC">         670 :   buffer_.clear();</span></span>
-<span id="L225"><span class="lineNum">     225</span>                 :<span class="tlaGNC">         670 :   return out;</span></span>
-<span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">         670 : }</span></span>
+<span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaGNC">         680 :   buffer_.clear();</span></span>
+<span id="L225"><span class="lineNum">     225</span>                 :<span class="tlaGNC">         680 :   return out;</span></span>
+<span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">         680 : }</span></span>
 <span id="L227"><span class="lineNum">     227</span>                 :             : </span>
 <span id="L228"><span class="lineNum">     228</span>                 :<span class="tlaGNC">          26 : std::optional&lt;std::size_t&gt; ParseBufferWindow(std::string_view value) {</span></span>
 <span id="L229"><span class="lineNum">     229</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 25 times"> + </span>]:<span class="tlaGNC">          26 :   if (value == &quot;auto&quot;) {</span></span>

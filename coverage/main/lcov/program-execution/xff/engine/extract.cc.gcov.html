@@ -7,7 +7,8 @@
   <title>LCOV - xff production coverage - program-execution/xff/engine/extract.cc</title>
   <link rel="stylesheet" type="text/css" href="../../../gcov.css">
   <style>
-    .xffNavigation { padding: .35rem 0; text-align: right; }
+    .xffNavigation { padding: .35rem 0; text-align: center; }
+    .xffHeaderSummary { margin: 0 auto; width: 80%; }
     .xffPolicy { margin: .35rem 0 1rem; }
   </style>
 </head>
@@ -22,7 +23,7 @@
 
             <tr>
               <td width="100%">
-                <table cellpadding=1 border=0 width="100%">
+                <table class="xffHeaderSummary" cellpadding=1 border=0>
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
             <td width="10%" class="headerValue"><a href="../../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory program-execution/xff/engine">program-execution/xff/engine</a> - extract.cc<span style="font-size: 80%;"> (source / <a href="extract.cc.func-c.html" title="Click to go to function table">functions</a>)</span></td>
@@ -43,7 +44,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-23 10:07:40</td>
+            <td class="headerValue">2026-08-23 11:10:46</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -70,7 +71,7 @@
           <table class="xffPolicy" width="100%" border=0 cellspacing=0 cellpadding=0>
             <tr>
               <td class="headerItem">Coverage policy:</td>
-              <td class="headerValue"><b>Lines:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 92 %</span> <span class="coverLegendCovHi">high: &gt;= 92 %</span> &middot; <b>Functions:</b> <span class="coverLegendCovLo">low: &lt; 95 %</span> <span class="coverLegendCovHi">high: &gt;= 95 %</span> &middot; <b>Branches:</b> <span class="coverLegendCovLo">low: &lt; 80 %</span> <span class="coverLegendCovMed">medium: &gt;= 80 % and &lt; 82 %</span> <span class="coverLegendCovHi">high: &gt;= 82 %</span></td>
+              <td class="headerValue"><b>Lines:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 92 %</span> <span class="coverLegendCovHi">high: &gt;= 92 %</span> &middot; <b>Branches:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 95 %</span> <span class="coverLegendCovHi">high: &gt;= 95 %</span> &middot; <b>Functions:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 95 %</span> <span class="coverLegendCovHi">high: &gt;= 95 %</span></td>
             </tr>
           </table>
 
@@ -199,15 +200,15 @@
 <span id="L111"><span class="lineNum">     111</span>                 :<span class="tlaGNC">           3 :   return candidates.back();</span></span>
 <span id="L112"><span class="lineNum">     112</span>                 :             : }</span>
 <span id="L113"><span class="lineNum">     113</span>                 :             : </span>
-<span id="L114"><span class="lineNum">     114</span>                 :<span class="tlaGNC">         680 : ExtractedMembers::~ExtractedMembers() {</span></span>
+<span id="L114"><span class="lineNum">     114</span>                 :<span class="tlaGNC">         690 : ExtractedMembers::~ExtractedMembers() {</span></span>
 <span id="L115"><span class="lineNum">     115</span>                 :             :   // The end-of-run sweep: a `+` batch runs after the walk, so its members are still held here, and a</span>
 <span id="L116"><span class="lineNum">     116</span>                 :             :   // child that died leaves its file behind too. Errors are ignored - there is no one left to tell,</span>
 <span id="L117"><span class="lineNum">     117</span>                 :             :   // and a temporary file that outlives the run is not worth failing over.</span>
-<span id="L118"><span class="lineNum">     118</span>         [<span class="tlaGBC" title="branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="branch 1 was taken 680 times"> + </span>]:<span class="tlaGNC">         692 :   for (const std::string&amp; path : held_) {</span></span>
+<span id="L118"><span class="lineNum">     118</span>         [<span class="tlaGBC" title="branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="branch 1 was taken 690 times"> + </span>]:<span class="tlaGNC">         702 :   for (const std::string&amp; path : held_) {</span></span>
 <span id="L119"><span class="lineNum">     119</span>                 :<span class="tlaGNC">          12 :     std::error_code error;</span></span>
 <span id="L120"><span class="lineNum">     120</span>                 :<span class="tlaGNC">          12 :     stdfs::remove_all(stdfs::path(path).parent_path(), error);</span></span>
 <span id="L121"><span class="lineNum">     121</span>                 :             :   }</span>
-<span id="L122"><span class="lineNum">     122</span>                 :<span class="tlaGNC">         680 : }</span></span>
+<span id="L122"><span class="lineNum">     122</span>                 :<span class="tlaGNC">         690 : }</span></span>
 <span id="L123"><span class="lineNum">     123</span>                 :             : </span>
 <span id="L124"><span class="lineNum">     124</span>                 :<span class="tlaGNC">          14 : absl::StatusOr&lt;std::string&gt; ExtractedMembers::Extract(const vfs::FileSystem&amp; fs, std::string_view member) {</span></span>
 <span id="L125"><span class="lineNum">     125</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          14 :   MBO_ASSIGN_OR_RETURN(const std::string content, fs.ReadContent(member));</span></span>

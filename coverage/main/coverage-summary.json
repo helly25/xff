@@ -3,19 +3,19 @@
   "measurements": {
     "overall": {
       "lines": {
-        "covered": 11198,
+        "covered": 11256,
         "total": 11848,
-        "percent": 94.51
+        "percent": 95.0
       },
       "functions": {
-        "covered": 1302,
+        "covered": 1309,
         "total": 1332,
-        "percent": 97.75
+        "percent": 98.27
       },
       "branches": {
-        "covered": 7998,
+        "covered": 8077,
         "total": 9408,
-        "percent": 85.01
+        "percent": 85.85
       }
     },
     "program / command line": {
@@ -71,26 +71,26 @@
     },
     "program / execution": {
       "lines": {
-        "covered": 3942,
+        "covered": 3988,
         "total": 4252,
-        "percent": 92.71
+        "percent": 93.79
       },
       "functions": {
-        "covered": 412,
+        "covered": 413,
         "total": 423,
-        "percent": 97.4
+        "percent": 97.64
       },
       "branches": {
-        "covered": 3066,
+        "covered": 3139,
         "total": 3743,
-        "percent": 81.91
+        "percent": 83.86
       }
     },
     "program / filesystem": {
       "lines": {
-        "covered": 471,
+        "covered": 470,
         "total": 479,
-        "percent": 98.33
+        "percent": 98.12
       },
       "functions": {
         "covered": 54,
@@ -98,9 +98,9 @@
         "percent": 98.18
       },
       "branches": {
-        "covered": 305,
+        "covered": 304,
         "total": 326,
-        "percent": 93.56
+        "percent": 93.25
       }
     },
     "program / matching": {
@@ -122,19 +122,19 @@
     },
     "program / presentation": {
       "lines": {
-        "covered": 1189,
+        "covered": 1202,
         "total": 1249,
-        "percent": 95.2
+        "percent": 96.24
       },
       "functions": {
-        "covered": 152,
+        "covered": 158,
         "total": 158,
-        "percent": 96.2
+        "percent": 100.0
       },
       "branches": {
-        "covered": 977,
+        "covered": 984,
         "total": 1124,
-        "percent": 86.92
+        "percent": 87.54
       }
     },
     "extensions / API": {

@@ -7,7 +7,8 @@
   <title>LCOV - xff production coverage - program-matching/xff/matching/mime/mime.cc</title>
   <link rel="stylesheet" type="text/css" href="../../../../gcov.css">
   <style>
-    .xffNavigation { padding: .35rem 0; text-align: right; }
+    .xffNavigation { padding: .35rem 0; text-align: center; }
+    .xffHeaderSummary { margin: 0 auto; width: 80%; }
     .xffPolicy { margin: .35rem 0 1rem; }
   </style>
 </head>
@@ -22,7 +23,7 @@
 
             <tr>
               <td width="100%">
-                <table cellpadding=1 border=0 width="100%">
+                <table class="xffHeaderSummary" cellpadding=1 border=0>
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
             <td width="10%" class="headerValue"><a href="../../../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory program-matching/xff/matching/mime">program-matching/xff/matching/mime</a> - mime.cc<span style="font-size: 80%;"> (source / <a href="mime.cc.func-c.html" title="Click to go to function table">functions</a>)</span></td>
@@ -43,7 +44,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-23 10:07:40</td>
+            <td class="headerValue">2026-08-23 11:10:46</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -55,7 +56,7 @@
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryHi">93.1&nbsp;%</td>
+            <td class="headerCovTableEntryMed">93.1&nbsp;%</td>
             <td class="headerCovTableEntry">144</td>
             <td class="headerCovTableEntry">134</td>
           </tr>
@@ -70,7 +71,7 @@
           <table class="xffPolicy" width="100%" border=0 cellspacing=0 cellpadding=0>
             <tr>
               <td class="headerItem">Coverage policy:</td>
-              <td class="headerValue"><b>Lines:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 92 %</span> <span class="coverLegendCovHi">high: &gt;= 92 %</span> &middot; <b>Functions:</b> <span class="coverLegendCovLo">low: &lt; 95 %</span> <span class="coverLegendCovHi">high: &gt;= 95 %</span> &middot; <b>Branches:</b> <span class="coverLegendCovLo">low: &lt; 80 %</span> <span class="coverLegendCovMed">medium: &gt;= 80 % and &lt; 82 %</span> <span class="coverLegendCovHi">high: &gt;= 82 %</span></td>
+              <td class="headerValue"><b>Lines:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 92 %</span> <span class="coverLegendCovHi">high: &gt;= 92 %</span> &middot; <b>Branches:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 95 %</span> <span class="coverLegendCovHi">high: &gt;= 95 %</span> &middot; <b>Functions:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 95 %</span> <span class="coverLegendCovHi">high: &gt;= 95 %</span></td>
             </tr>
           </table>
 
@@ -133,9 +134,9 @@
 <span id="L48"><span class="lineNum">      48</span>                 :             :   Vocabulary vocabulary ABSL_GUARDED_BY(mutex);</span>
 <span id="L49"><span class="lineNum">      49</span>                 :             : };</span>
 <span id="L50"><span class="lineNum">      50</span>                 :             : </span>
-<span id="L51"><span class="lineNum">      51</span>                 :<span class="tlaGNC">         795 : State&amp; GlobalState() {</span></span>
-<span id="L52"><span class="lineNum">      52</span>   [<span class="tlaGBC" title="branch 0 was taken 479 times"> + </span><span class="tlaGBC" title="branch 1 was taken 316 times"> + </span><span class="tlaGBC" title="branch 2 was taken 479 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         795 :   static State state;</span></span>
-<span id="L53"><span class="lineNum">      53</span>                 :<span class="tlaGNC">         795 :   return state;</span></span>
+<span id="L51"><span class="lineNum">      51</span>                 :<span class="tlaGNC">         810 : State&amp; GlobalState() {</span></span>
+<span id="L52"><span class="lineNum">      52</span>   [<span class="tlaGBC" title="branch 0 was taken 479 times"> + </span><span class="tlaGBC" title="branch 1 was taken 331 times"> + </span><span class="tlaGBC" title="branch 2 was taken 479 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         810 :   static State state;</span></span>
+<span id="L53"><span class="lineNum">      53</span>                 :<span class="tlaGNC">         810 :   return state;</span></span>
 <span id="L54"><span class="lineNum">      54</span>                 :             : }</span>
 <span id="L55"><span class="lineNum">      55</span>                 :             : </span>
 <span id="L56"><span class="lineNum">      56</span>                 :<span class="tlaGNC">        3849 : std::string Lower(std::string_view value) {</span></span>
@@ -394,16 +395,16 @@
 <span id="L306"><span class="lineNum">     306</span>                 :<span class="tlaGNC">           3 :   return std::string_view(type).substr(0, type.find('/'));</span></span>
 <span id="L307"><span class="lineNum">     307</span>                 :             : }</span>
 <span id="L308"><span class="lineNum">     308</span>                 :             : </span>
-<span id="L309"><span class="lineNum">     309</span>                 :<span class="tlaGNC">         756 : absl::Status Configure(absl::Span&lt;const std::string&gt; files, ConflictPolicy conflicts) {</span></span>
-<span id="L310"><span class="lineNum">     310</span>         [<span class="tlaGBC" title="branch 0 was taken 734 times"> + </span><span class="tlaGBC" title="branch 1 was taken 22 times"> + </span>]:<span class="tlaGNC">         756 :   if (files.empty()) {</span></span>
-<span id="L311"><span class="lineNum">     311</span>                 :<span class="tlaGNC">         734 :     State&amp; state = GlobalState();</span></span>
-<span id="L312"><span class="lineNum">     312</span>                 :<span class="tlaGNC">         734 :     const absl::MutexLock lock(&amp;state.mutex);</span></span>
+<span id="L309"><span class="lineNum">     309</span>                 :<span class="tlaGNC">         771 : absl::Status Configure(absl::Span&lt;const std::string&gt; files, ConflictPolicy conflicts) {</span></span>
+<span id="L310"><span class="lineNum">     310</span>         [<span class="tlaGBC" title="branch 0 was taken 749 times"> + </span><span class="tlaGBC" title="branch 1 was taken 22 times"> + </span>]:<span class="tlaGNC">         771 :   if (files.empty()) {</span></span>
+<span id="L311"><span class="lineNum">     311</span>                 :<span class="tlaGNC">         749 :     State&amp; state = GlobalState();</span></span>
+<span id="L312"><span class="lineNum">     312</span>                 :<span class="tlaGNC">         749 :     const absl::MutexLock lock(&amp;state.mutex);</span></span>
 <span id="L313"><span class="lineNum">     313</span>                 :             :     // Registered databases are trusted, generated build inputs. Defer their</span>
 <span id="L314"><span class="lineNum">     314</span>                 :             :     // comparatively expensive JSON parse until a MIME predicate or field is</span>
 <span id="L315"><span class="lineNum">     315</span>                 :             :     // actually evaluated; user-provided layers below remain eagerly validated.</span>
-<span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">         734 :     state.vocabulary = Vocabulary{};</span></span>
-<span id="L317"><span class="lineNum">     317</span>                 :<span class="tlaGNC">         734 :     return absl::OkStatus();</span></span>
-<span id="L318"><span class="lineNum">     318</span>                 :<span class="tlaGNC">         734 :   }</span></span>
+<span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">         749 :     state.vocabulary = Vocabulary{};</span></span>
+<span id="L317"><span class="lineNum">     317</span>                 :<span class="tlaGNC">         749 :     return absl::OkStatus();</span></span>
+<span id="L318"><span class="lineNum">     318</span>                 :<span class="tlaGNC">         749 :   }</span></span>
 <span id="L319"><span class="lineNum">     319</span>                 :<span class="tlaGNC">          22 :   Vocabulary vocabulary = CoreVocabulary();</span></span>
 <span id="L320"><span class="lineNum">     320</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 22 times"> + </span>]:<span class="tlaGNC">          22 :   for (const Database&amp; database : Databases()) {</span></span>
 <span id="L321"><span class="lineNum">     321</span>   [<span class="tlaUNC" title="branch 0 was not executed"> # </span><span class="tlaUNC" title="branch 1 was not executed"> # </span><span class="tlaUNC" title="branch 2 was not executed"> # </span><span class="tlaUNC" title="branch 3 was not executed"> # </span>]:<span class="tlaUNC">           0 :     MBO_RETURN_IF_ERROR(ApplyLayer(vocabulary, database.json, database.name, ConflictPolicy::kLast));</span></span>

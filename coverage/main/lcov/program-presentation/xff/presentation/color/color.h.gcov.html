@@ -7,7 +7,8 @@
   <title>LCOV - xff production coverage - program-presentation/xff/presentation/color/color.h</title>
   <link rel="stylesheet" type="text/css" href="../../../../gcov.css">
   <style>
-    .xffNavigation { padding: .35rem 0; text-align: right; }
+    .xffNavigation { padding: .35rem 0; text-align: center; }
+    .xffHeaderSummary { margin: 0 auto; width: 80%; }
     .xffPolicy { margin: .35rem 0 1rem; }
   </style>
 </head>
@@ -22,7 +23,7 @@
 
             <tr>
               <td width="100%">
-                <table cellpadding=1 border=0 width="100%">
+                <table class="xffHeaderSummary" cellpadding=1 border=0>
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
             <td width="10%" class="headerValue"><a href="../../../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory program-presentation/xff/presentation/color">program-presentation/xff/presentation/color</a> - color.h<span style="font-size: 80%;"> (source / <a href="color.h.func-c.html" title="Click to go to function table">functions</a>)</span></td>
@@ -43,7 +44,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-23 10:07:40</td>
+            <td class="headerValue">2026-08-23 11:10:46</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -61,7 +62,7 @@
           <table class="xffPolicy" width="100%" border=0 cellspacing=0 cellpadding=0>
             <tr>
               <td class="headerItem">Coverage policy:</td>
-              <td class="headerValue"><b>Lines:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 92 %</span> <span class="coverLegendCovHi">high: &gt;= 92 %</span> &middot; <b>Functions:</b> <span class="coverLegendCovLo">low: &lt; 95 %</span> <span class="coverLegendCovHi">high: &gt;= 95 %</span> &middot; <b>Branches:</b> <span class="coverLegendCovLo">low: &lt; 80 %</span> <span class="coverLegendCovMed">medium: &gt;= 80 % and &lt; 82 %</span> <span class="coverLegendCovHi">high: &gt;= 82 %</span></td>
+              <td class="headerValue"><b>Lines:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 92 %</span> <span class="coverLegendCovHi">high: &gt;= 92 %</span> &middot; <b>Branches:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 95 %</span> <span class="coverLegendCovHi">high: &gt;= 95 %</span> &middot; <b>Functions:</b> <span class="coverLegendCovLo">low: &lt; 90 %</span> <span class="coverLegendCovMed">medium: &gt;= 90 % and &lt; 95 %</span> <span class="coverLegendCovHi">high: &gt;= 95 %</span></td>
             </tr>
           </table>
 
@@ -168,7 +169,7 @@
 <span id="L92"><span class="lineNum">      92</span>              : class Palette {</span>
 <span id="L93"><span class="lineNum">      93</span>              :  public:</span>
 <span id="L94"><span class="lineNum">      94</span>              :   // xff's built-in scheme only (`--color-scheme=xff`, or kLs with no $LS_COLORS set).</span>
-<span id="L95"><span class="lineNum">      95</span> <span class="tlaGNC">         746 :   Palette() = default;</span></span>
+<span id="L95"><span class="lineNum">      95</span> <span class="tlaGNC">         761 :   Palette() = default;</span></span>
 <span id="L96"><span class="lineNum">      96</span>              : </span>
 <span id="L97"><span class="lineNum">      97</span>              :   // `ls_colors` (the raw `$LS_COLORS` value, `key=value:key=value:...`) as the palette, with or</span>
 <span id="L98"><span class="lineNum">      98</span>              :   // without xff's scheme behind it: `fall_back` = true is kLsXff (an omitted key keeps xff's colour),</span>
