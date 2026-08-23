@@ -9,8 +9,9 @@
   <style>
     .xffNavigation { padding: .35rem 0; text-align: center; }
     .xffHeaderSummary { margin: 0 auto; width: 80%; }
-    .xffPolicy { border-collapse: collapse; margin: .75rem auto 1rem; width: 80%; }
-    .xffPolicy th, .xffPolicy td { padding: .15rem .5rem; text-align: left; }
+    .xffPolicy { border-collapse: collapse; margin: .75rem auto 1rem; width: auto; }
+    .xffPolicy th { padding: .2rem .75rem; text-align: left; }
+    .xffPolicy td { font-size: 100%; padding: .2rem .75rem; text-align: center; }
   </style>
 </head>
 
@@ -45,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-23 12:41:36</td>
+            <td class="headerValue">2026-08-23 13:57:19</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -57,7 +58,7 @@
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryMed">91.9&nbsp;%</td>
+            <td class="headerCovTableEntryHi">91.9&nbsp;%</td>
             <td class="headerCovTableEntry">74</td>
             <td class="headerCovTableEntry">68</td>
           </tr>
@@ -266,26 +267,26 @@
 <span id="L185"><span class="lineNum">     185</span>                 :<span class="tlaGNC">        1182 : absl::StatusOr&lt;std::vector&lt;Entry&gt;&gt; LocalFs::ReadDir(std::string_view dir) const {</span></span>
 <span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">        1182 :   const std::string dir_str(dir);</span></span>
 <span id="L187"><span class="lineNum">     187</span>                 :<span class="tlaGNC">        1182 :   DIR* dirp = ::opendir(dir_str.c_str());</span></span>
-<span id="L188"><span class="lineNum">     188</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1179 times"> + </span>]:<span class="tlaGNC">        1181 :   if (dirp == nullptr) {</span></span>
+<span id="L188"><span class="lineNum">     188</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1180 times"> + </span>]:<span class="tlaGNC">        1182 :   if (dirp == nullptr) {</span></span>
 <span id="L189"><span class="lineNum">     189</span>                 :<span class="tlaGNC">           2 :     return absl::ErrnoToStatus(errno, absl::StrCat(&quot;opendir('&quot;, dir, &quot;')&quot;));</span></span>
 <span id="L190"><span class="lineNum">     190</span>                 :             :   }</span>
 <span id="L191"><span class="lineNum">     191</span>                 :             : </span>
-<span id="L192"><span class="lineNum">     192</span>                 :<span class="tlaGNC">        1179 :   std::vector&lt;Entry&gt; entries;</span></span>
-<span id="L193"><span class="lineNum">     193</span>                 :<span class="tlaGNC">        1179 :   errno = 0;</span></span>
+<span id="L192"><span class="lineNum">     192</span>                 :<span class="tlaGNC">        1180 :   std::vector&lt;Entry&gt; entries;</span></span>
+<span id="L193"><span class="lineNum">     193</span>                 :<span class="tlaGNC">        1180 :   errno = 0;</span></span>
 <span id="L194"><span class="lineNum">     194</span>                 :             :   // Thread-safe here: each directory is opened and iterated by exactly one worker, so this DIR* is</span>
 <span id="L195"><span class="lineNum">     195</span>                 :             :   // never shared across threads. readdir is only unsafe for threads sharing a stream (readdir_r, the</span>
 <span id="L196"><span class="lineNum">     196</span>                 :             :   // per-stream alternative, is deprecated).</span>
 <span id="L197"><span class="lineNum">     197</span>                 :             :   // NOLINTNEXTLINE(concurrency-mt-unsafe)</span>
-<span id="L198"><span class="lineNum">     198</span>         [<span class="tlaGBC" title="branch 0 was taken 5352 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1180 times"> + </span>]:<span class="tlaGNC">        6530 :   for (const struct dirent* de = ::readdir(dirp); de != nullptr; de = ::readdir(dirp)) {</span></span>
+<span id="L198"><span class="lineNum">     198</span>         [<span class="tlaGBC" title="branch 0 was taken 5351 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1180 times"> + </span>]:<span class="tlaGNC">        6530 :   for (const struct dirent* de = ::readdir(dirp); de != nullptr; de = ::readdir(dirp)) {</span></span>
 <span id="L199"><span class="lineNum">     199</span>                 :             :     // d_name is a fixed C char[] field; the array-to-pointer decay is inherent to reading it.</span>
 <span id="L200"><span class="lineNum">     200</span>                 :             :     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay,hicpp-no-array-decay)</span>
-<span id="L201"><span class="lineNum">     201</span>                 :<span class="tlaGNC">        5352 :     const std::string_view name(de-&gt;d_name);</span></span>
-<span id="L202"><span class="lineNum">     202</span>   [<span class="tlaGBC" title="branch 0 was taken 4172 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1179 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1180 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2993 times"> + </span> :<span class="tlaGNC">        5353 :     if (name == &quot;.&quot; || name == &quot;..&quot;) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 2358 times"> + </span><span class="tlaGBC" title="branch 5 was taken 2994 times"> + </span>]
+<span id="L201"><span class="lineNum">     201</span>                 :<span class="tlaGNC">        5351 :     const std::string_view name(de-&gt;d_name);</span></span>
+<span id="L202"><span class="lineNum">     202</span>   [<span class="tlaGBC" title="branch 0 was taken 4172 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1178 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1180 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2993 times"> + </span> :<span class="tlaGNC">        5351 :     if (name == &quot;.&quot; || name == &quot;..&quot;) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 2358 times"> + </span><span class="tlaGBC" title="branch 5 was taken 2993 times"> + </span>]
 <span id="L203"><span class="lineNum">     203</span>                 :<span class="tlaGNC">        2358 :       errno = 0;</span></span>
 <span id="L204"><span class="lineNum">     204</span>                 :<span class="tlaGNC">        2358 :       continue;</span></span>
 <span id="L205"><span class="lineNum">     205</span>                 :             :     }</span>
-<span id="L206"><span class="lineNum">     206</span>                 :<span class="tlaGNC">        2994 :     Entry entry;</span></span>
+<span id="L206"><span class="lineNum">     206</span>                 :<span class="tlaGNC">        2993 :     Entry entry;</span></span>
 <span id="L207"><span class="lineNum">     207</span>                 :<span class="tlaGNC">        2993 :     entry.path = JoinPath(dir, name);</span></span>
 <span id="L208"><span class="lineNum">     208</span>                 :<span class="tlaGNC">        2993 :     entry.name = std::string(name);</span></span>
 <span id="L209"><span class="lineNum">     209</span>                 :<span class="tlaGNC">        2993 :     entry.type = TypeFromDirent(de-&gt;d_type);</span></span>
@@ -300,17 +301,17 @@
 <span id="L218"><span class="lineNum">     218</span>                 :<span class="tlaUNC">           0 :     return absl::ErrnoToStatus(read_errno, absl::StrCat(&quot;readdir('&quot;, dir, &quot;')&quot;));</span></span>
 <span id="L219"><span class="lineNum">     219</span>                 :             :   }</span>
 <span id="L220"><span class="lineNum">     220</span>                 :<span class="tlaGNC">        1180 :   return entries;</span></span>
-<span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC">        1182 : }</span></span>
+<span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC">        1181 : }</span></span>
 <span id="L222"><span class="lineNum">     222</span>                 :             : </span>
-<span id="L223"><span class="lineNum">     223</span>                 :<span class="tlaGNC">        3858 : absl::StatusOr&lt;Metadata&gt; LocalFs::Stat(std::string_view path, bool follow_symlinks) const {</span></span>
-<span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaGNC">        3858 :   const std::string path_str(path);</span></span>
-<span id="L225"><span class="lineNum">     225</span>                 :<span class="tlaGNC">        3858 :   struct stat st{};</span></span>
-<span id="L226"><span class="lineNum">     226</span>         [<span class="tlaGBC" title="branch 0 was taken 73 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3785 times"> + </span>]:<span class="tlaGNC">        3858 :   const int rc = follow_symlinks ? ::stat(path_str.c_str(), &amp;st) : ::lstat(path_str.c_str(), &amp;st);</span></span>
-<span id="L227"><span class="lineNum">     227</span>         [<span class="tlaGBC" title="branch 0 was taken 337 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3521 times"> + </span>]:<span class="tlaGNC">        3858 :   if (rc != 0) {</span></span>
+<span id="L223"><span class="lineNum">     223</span>                 :<span class="tlaGNC">        3857 : absl::StatusOr&lt;Metadata&gt; LocalFs::Stat(std::string_view path, bool follow_symlinks) const {</span></span>
+<span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaGNC">        3857 :   const std::string path_str(path);</span></span>
+<span id="L225"><span class="lineNum">     225</span>                 :<span class="tlaGNC">        3857 :   struct stat st{};</span></span>
+<span id="L226"><span class="lineNum">     226</span>         [<span class="tlaGBC" title="branch 0 was taken 73 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3784 times"> + </span>]:<span class="tlaGNC">        3857 :   const int rc = follow_symlinks ? ::stat(path_str.c_str(), &amp;st) : ::lstat(path_str.c_str(), &amp;st);</span></span>
+<span id="L227"><span class="lineNum">     227</span>         [<span class="tlaGBC" title="branch 0 was taken 337 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3520 times"> + </span>]:<span class="tlaGNC">        3857 :   if (rc != 0) {</span></span>
 <span id="L228"><span class="lineNum">     228</span>         [<span class="tlaGBC" title="branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="branch 1 was taken 329 times"> + </span>]:<span class="tlaGNC">         337 :     return absl::ErrnoToStatus(errno, absl::StrCat(follow_symlinks ? &quot;stat('&quot; : &quot;lstat('&quot;, path, &quot;')&quot;));</span></span>
 <span id="L229"><span class="lineNum">     229</span>                 :             :   }</span>
-<span id="L230"><span class="lineNum">     230</span>                 :<span class="tlaGNC">        3521 :   return MetadataFromStat(st, BirthTime(st, path_str, follow_symlinks));</span></span>
-<span id="L231"><span class="lineNum">     231</span>                 :<span class="tlaGNC">        3858 : }</span></span>
+<span id="L230"><span class="lineNum">     230</span>                 :<span class="tlaGNC">        3520 :   return MetadataFromStat(st, BirthTime(st, path_str, follow_symlinks));</span></span>
+<span id="L231"><span class="lineNum">     231</span>                 :<span class="tlaGNC">        3857 : }</span></span>
 <span id="L232"><span class="lineNum">     232</span>                 :             : </span>
 <span id="L233"><span class="lineNum">     233</span>                 :<span class="tlaGNC">           7 : absl::Status LocalFs::Remove(std::string_view path) const {</span></span>
 <span id="L234"><span class="lineNum">     234</span>                 :<span class="tlaGNC">           7 :   const std::string path_str(path);</span></span>
@@ -425,30 +426,34 @@
           <table class="xffPolicy">
             <thead>
               <tr>
-                <th scope="col">Coverage policy</th>
+                <th scope="col">Global coverage policy</th>
                 <th scope="col">Low</th>
                 <th scope="col">Medium</th>
                 <th scope="col">High</th>
+                <th scope="col">Enforced</th>
               </tr>
             </thead>
             <tbody>
             <tr>
               <th scope="row">Lines</th>
-              <td class="coverLegendCovLo">&lt; 90%</td>
-              <td class="coverLegendCovMed">&ge; 90% and &lt; 92%</td>
-              <td class="coverLegendCovHi">&ge; 92%</td>
+              <td class="headerValueLegL">&lt; 90%</td>
+              <td class="headerValueLegM">&ge; 90% and &lt; 92%</td>
+              <td class="headerValueLegH">&ge; 92%</td>
+              <td class="headerValueLegH">High</td>
             </tr>
             <tr>
               <th scope="row">Branches</th>
-              <td class="coverLegendCovLo">&lt; 90%</td>
-              <td class="coverLegendCovMed">&ge; 90% and &lt; 95%</td>
-              <td class="coverLegendCovHi">&ge; 95%</td>
+              <td class="headerValueLegL">&lt; 80%</td>
+              <td class="headerValueLegM">&ge; 80% and &lt; 82%</td>
+              <td class="headerValueLegH">&ge; 82%</td>
+              <td class="headerValueLegH">High</td>
             </tr>
             <tr>
               <th scope="row">Functions</th>
-              <td class="coverLegendCovLo">&lt; 90%</td>
-              <td class="coverLegendCovMed">&ge; 90% and &lt; 95%</td>
-              <td class="coverLegendCovHi">&ge; 95%</td>
+              <td class="headerValueLegL">&lt; 90%</td>
+              <td class="headerValueLegM">&ge; 90% and &lt; 95%</td>
+              <td class="headerValueLegH">&ge; 95%</td>
+              <td class="headerValueLegH">High</td>
             </tr>
             </tbody>
           </table>

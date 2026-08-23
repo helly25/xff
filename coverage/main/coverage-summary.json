@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "measurements": {
     "overall": {
       "lines": {
@@ -225,136 +225,207 @@
   },
   "minimums": {
     "overall": {
-      "lines": 90,
-      "functions": 95,
-      "branches": 80
+      "lines": 90.0,
+      "functions": 90.0,
+      "branches": 80.0
     },
     "program / command line": {
-      "lines": 90,
-      "functions": 95,
-      "branches": 80
+      "lines": 90.0,
+      "functions": 90.0,
+      "branches": 80.0
     },
     "program / configuration": {
-      "lines": 90,
-      "functions": 95,
-      "branches": 80
+      "lines": 90.0,
+      "functions": 90.0,
+      "branches": 80.0
     },
     "program / command grammar": {
-      "lines": 90,
-      "functions": 95,
-      "branches": 80
+      "lines": 90.0,
+      "functions": 90.0,
+      "branches": 80.0
     },
     "program / execution": {
-      "lines": 90,
-      "functions": 95,
-      "branches": 80
+      "lines": 90.0,
+      "functions": 90.0,
+      "branches": 80.0
     },
     "program / filesystem": {
-      "lines": 90,
-      "functions": 95,
-      "branches": 80
+      "lines": 90.0,
+      "functions": 90.0,
+      "branches": 80.0
     },
     "program / matching": {
-      "lines": 90,
-      "functions": 95,
-      "branches": 80
+      "lines": 90.0,
+      "functions": 90.0,
+      "branches": 80.0
     },
     "program / presentation": {
-      "lines": 90,
-      "functions": 95,
-      "branches": 80
+      "lines": 90.0,
+      "functions": 90.0,
+      "branches": 80.0
     },
     "extensions / API": {
-      "lines": 97,
-      "functions": 95,
-      "branches": 87
+      "lines": 97.0,
+      "functions": 90.0,
+      "branches": 87.0
     },
     "extensions / archive": {
-      "lines": 90,
-      "functions": 95,
-      "branches": 77
+      "lines": 90.0,
+      "functions": 90.0,
+      "branches": 77.0
     },
     "extensions / FUSE": {
-      "lines": 90,
-      "functions": 95,
-      "branches": 75
+      "lines": 90.0,
+      "functions": 90.0,
+      "branches": 75.0
     },
     "extensions / PCRE2": {
-      "lines": 98,
-      "functions": 98,
-      "branches": 87
+      "lines": 98.0,
+      "functions": 98.0,
+      "branches": 87.0
     },
     "extensions / Brotli": {
-      "lines": 90,
-      "functions": 95,
-      "branches": 80
+      "lines": 90.0,
+      "functions": 90.0,
+      "branches": 80.0
     }
   },
   "targets": {
     "overall": {
-      "lines": 92,
-      "functions": 95,
-      "branches": 82
+      "lines": 92.0,
+      "functions": 95.0,
+      "branches": 82.0
     },
     "program / command line": {
-      "lines": 92,
-      "functions": 95,
-      "branches": 82
+      "lines": 92.0,
+      "functions": 95.0,
+      "branches": 82.0
     },
     "program / configuration": {
-      "lines": 92,
-      "functions": 95,
-      "branches": 82
+      "lines": 92.0,
+      "functions": 95.0,
+      "branches": 82.0
     },
     "program / command grammar": {
-      "lines": 92,
-      "functions": 95,
-      "branches": 82
+      "lines": 92.0,
+      "functions": 95.0,
+      "branches": 82.0
     },
     "program / execution": {
-      "lines": 92,
-      "functions": 95,
-      "branches": 82
+      "lines": 92.0,
+      "functions": 95.0,
+      "branches": 82.0
     },
     "program / filesystem": {
-      "lines": 92,
-      "functions": 95,
-      "branches": 82
+      "lines": 92.0,
+      "functions": 95.0,
+      "branches": 82.0
     },
     "program / matching": {
-      "lines": 92,
-      "functions": 95,
-      "branches": 82
+      "lines": 92.0,
+      "functions": 95.0,
+      "branches": 82.0
     },
     "program / presentation": {
-      "lines": 92,
-      "functions": 95,
-      "branches": 82
+      "lines": 92.0,
+      "functions": 95.0,
+      "branches": 82.0
     },
     "extensions / API": {
-      "lines": 97,
-      "functions": 95,
-      "branches": 87
+      "lines": 97.0,
+      "functions": 95.0,
+      "branches": 87.0
     },
     "extensions / archive": {
-      "lines": 92,
-      "functions": 95,
-      "branches": 82
+      "lines": 92.0,
+      "functions": 95.0,
+      "branches": 82.0
     },
     "extensions / FUSE": {
-      "lines": 92,
-      "functions": 95,
-      "branches": 82
+      "lines": 92.0,
+      "functions": 95.0,
+      "branches": 82.0
     },
     "extensions / PCRE2": {
-      "lines": 98,
-      "functions": 98,
-      "branches": 87
+      "lines": 98.0,
+      "functions": 98.0,
+      "branches": 87.0
     },
     "extensions / Brotli": {
-      "lines": 92,
-      "functions": 95,
-      "branches": 82
+      "lines": 92.0,
+      "functions": 95.0,
+      "branches": 82.0
     }
+  },
+  "enforcement": {
+    "overall": {
+      "lines": "high",
+      "functions": "high",
+      "branches": "high"
+    },
+    "program / command line": {
+      "lines": "high",
+      "functions": "high",
+      "branches": "high"
+    },
+    "program / configuration": {
+      "lines": "high",
+      "functions": "high",
+      "branches": "high"
+    },
+    "program / command grammar": {
+      "lines": "high",
+      "functions": "high",
+      "branches": "high"
+    },
+    "program / execution": {
+      "lines": "high",
+      "functions": "high",
+      "branches": "high"
+    },
+    "program / filesystem": {
+      "lines": "high",
+      "functions": "high",
+      "branches": "high"
+    },
+    "program / matching": {
+      "lines": "high",
+      "functions": "high",
+      "branches": "high"
+    },
+    "program / presentation": {
+      "lines": "high",
+      "functions": "high",
+      "branches": "high"
+    },
+    "extensions / API": {
+      "lines": "high",
+      "functions": "high",
+      "branches": "high"
+    },
+    "extensions / archive": {
+      "lines": "medium",
+      "functions": "high",
+      "branches": "medium"
+    },
+    "extensions / FUSE": {
+      "lines": "medium",
+      "functions": "high",
+      "branches": "medium"
+    },
+    "extensions / PCRE2": {
+      "lines": "high",
+      "functions": "high",
+      "branches": "high"
+    },
+    "extensions / Brotli": {
+      "lines": "high",
+      "functions": "high",
+      "branches": "high"
+    }
+  },
+  "reasons": {
+    "extensions / archive": "Archive format and filter error paths include third-party-library and malformed-input alternatives that are not all reachable in one GCC/Linux coverage run.",
+    "extensions / FUSE": "FUSE's dynamic-loader alternatives, fatal-signal handler, mount-failure variants, and spontaneous-session-exit path are mutually exclusive or process-disrupting in one GCC/Linux coverage run. Public filesystem behavior and deterministic lifecycle failures remain covered."
   }
 }
