@@ -72,6 +72,15 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
   process-retained snapshots and `LanguageForName()` view are the reference model. Measure or at
   least identify the allocation/copy removed, and retain owning results where the caller genuinely
   crosses the backing container's lifetime.
+  - **Vocabulary snapshot slice complete:** MIME now follows the language vocabulary's immutable,
+    process-retained snapshot model. `InfoForName()` returns a view record and `TypeForName()` a
+    `std::string_view`, eliminating the owning strings and vectors copied by every MIME lookup.
+    Both `Types()` and `Languages()` return spans over catalogs materialized once per published
+    snapshot instead of allocating a new vector on every documentation pass. Tests pin catalog
+    reuse and the lifetime of records and catalog spans across later test/embedder reconfiguration.
+  - **Still to audit:** immutable documentation vocabularies (`FieldDocs`, help topics and flags,
+    date/printf/size tables, and fixed `-ls` columns). Registration seams that deliberately accept
+    late registrations and computed result collections remain owning unless their contract changes.
 - **Compile-DB launcher configuration after
   [mbo PR #354](https://github.com/helly25/mbo/pull/354): SHIPPED (PR #627).** The outer
   `bazel run //:refresh_compile_commands` now uses `--config=clang-tidy`, matching the preceding

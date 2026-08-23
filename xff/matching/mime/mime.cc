@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <sstream>
@@ -39,13 +40,25 @@ constexpr std::string_view kFallback = "application/octet-stream";
 constexpr auto kStringFields = std::to_array<std::string_view>({"description", "source", "charset"});
 
 struct Vocabulary {
-  std::map<std::string, TypeInfo, std::less<>> types;
+  struct Record {
+    std::string_view description;
+    std::string_view source;
+    std::string_view charset;
+    std::optional<bool> compressible;
+    std::vector<std::string_view> aliases;
+    std::vector<std::string_view> extensions;
+  };
+
+  std::map<std::string, Record, std::less<>> types;
   std::map<std::string, std::string, std::less<>> extensions;
+  std::vector<TypeInfo> views;
+  std::vector<std::unique_ptr<const Json>> layers;
 };
 
 struct State {
   absl::Mutex mutex;
-  Vocabulary vocabulary ABSL_GUARDED_BY(mutex);
+  std::vector<std::unique_ptr<const Vocabulary>> snapshots ABSL_GUARDED_BY(mutex);
+  const Vocabulary* active ABSL_GUARDED_BY(mutex) = nullptr;
 };
 
 State& GlobalState() {
@@ -58,8 +71,7 @@ std::string Lower(std::string_view value) {
 }
 
 void AddCore(Vocabulary& vocabulary, std::string_view extension, std::string_view type) {
-  TypeInfo& info = vocabulary.types[std::string(type)];
-  info.type = type;
+  Vocabulary::Record& info = vocabulary.types[std::string(type)];
   info.extensions.emplace_back(extension);
   vocabulary.extensions[std::string(extension)] = type;
 }
@@ -115,7 +127,7 @@ Vocabulary CoreVocabulary() {
   for (const auto& [extension, type] : kEntries) {
     AddCore(vocabulary, extension, type);
   }
-  vocabulary.types[std::string(kFallback)].type = kFallback;
+  vocabulary.types[std::string(kFallback)];
   return vocabulary;
 }
 
@@ -123,29 +135,33 @@ absl::Status JsonError(std::string_view layer, std::string_view message) {
   return absl::InvalidArgumentError(absl::StrCat("MIME vocabulary '", layer, "': ", message));
 }
 
-absl::StatusOr<std::vector<std::string>> StringList(
+absl::StatusOr<std::vector<std::string_view>> StringList(
     const Json& object,
     std::string_view field,
     std::string_view layer,
     std::string_view type) {
   const auto found = object.find(field);
   if (found == object.end()) {
-    return std::vector<std::string>{};
+    return std::vector<std::string_view>{};
   }
   if (!found->is_array()) {
     return JsonError(layer, absl::StrCat(type, ".", field, " must be an array of strings"));
   }
-  std::vector<std::string> result;
+  std::vector<std::string_view> result;
   for (const Json& value : *found) {
     if (!value.is_string()) {
       return JsonError(layer, absl::StrCat(type, ".", field, " must contain only strings"));
     }
-    result.push_back(value.get<std::string>());
+    result.push_back(value.get_ref<const std::string&>());
   }
   return result;
 }
 
-absl::Status ApplyStringFields(TypeInfo& info, const Json& value, std::string_view layer, std::string_view type) {
+absl::Status ApplyStringFields(
+    Vocabulary::Record& info,
+    const Json& value,
+    std::string_view layer,
+    std::string_view type) {
   for (const std::string_view field : kStringFields) {
     const auto found = value.find(field);
     if (found == value.end()) {
@@ -154,7 +170,7 @@ absl::Status ApplyStringFields(TypeInfo& info, const Json& value, std::string_vi
     if (!found->is_string()) {
       return JsonError(layer, absl::StrCat(type, ".", field, " must be a string"));
     }
-    const std::string field_value = found->get<std::string>();
+    const std::string_view field_value = found->get_ref<const std::string&>();
     if (field == "description") {
       info.description = field_value;
     } else if (field == "source") {
@@ -166,7 +182,11 @@ absl::Status ApplyStringFields(TypeInfo& info, const Json& value, std::string_vi
   return absl::OkStatus();
 }
 
-absl::Status ApplyOptionalFields(TypeInfo& info, const Json& value, std::string_view layer, std::string_view type) {
+absl::Status ApplyOptionalFields(
+    Vocabulary::Record& info,
+    const Json& value,
+    std::string_view layer,
+    std::string_view type) {
   if (const auto found = value.find("compressible"); found != value.end()) {
     if (!found->is_boolean()) {
       return JsonError(layer, absl::StrCat(type, ".compressible must be boolean"));
@@ -179,95 +199,106 @@ absl::Status ApplyOptionalFields(TypeInfo& info, const Json& value, std::string_
   return absl::OkStatus();
 }
 
-absl::StatusOr<std::vector<std::string>> Extensions(const Json& value, std::string_view layer, std::string_view type) {
-  MBO_ASSIGN_OR_RETURN(auto extensions, StringList(value, "extensions", layer, type));
-  for (std::string& extension : extensions) {
-    extension = Lower(extension);
-    if (extension.starts_with('.')) {
-      extension.erase(0, 1);
-    }
-    if (extension.empty() || absl::StrContains(extension, '/')) {
-      return JsonError(layer, absl::StrCat(type, " has invalid extension '", extension, "'"));
-    }
-  }
-  return extensions;
-}
+class LayerProcessor {
+ public:
+  LayerProcessor(Vocabulary& vocabulary, std::string_view layer, ConflictPolicy conflicts)
+      : vocabulary_(vocabulary), layer_(layer), conflicts_(conflicts) {}
 
-absl::Status AddClaims(
-    std::map<std::string, std::string, std::less<>>& claims,
-    absl::Span<const std::string> extensions,
-    std::string_view type,
-    std::string_view layer,
-    ConflictPolicy conflicts) {
-  for (const std::string& extension : extensions) {
-    const auto [claim, inserted] = claims.emplace(extension, type);
-    if (inserted || claim->second == type) {
-      continue;
+  absl::Status Apply(std::string_view text) {
+    root_ = std::make_unique<Json>(Json::parse(text, nullptr, false));
+    if (root_->is_discarded()) {
+      return JsonError(layer_, "invalid JSON");
     }
-    if (conflicts == ConflictPolicy::kError) {
-      return JsonError(layer, absl::StrCat("extension '", extension, "' is claimed by ", claim->second, " and ", type));
+    if (!root_->is_object()) {
+      return JsonError(layer_, "top level must be an object keyed by media type");
     }
-    if (conflicts == ConflictPolicy::kLast) {
-      claim->second = type;
+    for (const auto& [raw_type, value] : root_->items()) {
+      MBO_RETURN_IF_ERROR(ApplyEntry(raw_type, value));
     }
-  }
-  return absl::OkStatus();
-}
-
-absl::Status ApplyEntry(
-    Vocabulary& vocabulary,
-    std::map<std::string, std::string, std::less<>>& claims,
-    std::set<std::string, std::less<>>& replaced_types,
-    std::string_view raw_type,
-    const Json& value,
-    std::string_view layer,
-    ConflictPolicy conflicts) {
-  const std::string type = Lower(raw_type);
-  if (!absl::StrContains(type, '/') || !value.is_object()) {
-    return JsonError(layer, absl::StrCat("invalid media-type entry: ", raw_type));
-  }
-  TypeInfo info = vocabulary.types.contains(type) ? vocabulary.types.at(type) : TypeInfo{};
-  info.type = type;
-  MBO_RETURN_IF_ERROR(ApplyStringFields(info, value, layer, type));
-  MBO_RETURN_IF_ERROR(ApplyOptionalFields(info, value, layer, type));
-  if (value.contains("extensions")) {
-    MBO_ASSIGN_OR_RETURN(const auto extensions, Extensions(value, layer, type));
-    info.extensions.clear();
-    replaced_types.insert(type);
-    MBO_RETURN_IF_ERROR(AddClaims(claims, extensions, type, layer, conflicts));
-  }
-  vocabulary.types[type] = std::move(info);
-  return absl::OkStatus();
-}
-
-absl::Status ApplyLayer(
-    Vocabulary& vocabulary,
-    std::string_view text,
-    std::string_view layer,
-    ConflictPolicy conflicts) {
-  const Json root = Json::parse(text, /*cb=*/nullptr, /*allow_exceptions=*/false);
-  if (root.is_discarded()) {
-    return JsonError(layer, "invalid JSON");
-  }
-  if (!root.is_object()) {
-    return JsonError(layer, "top level must be an object keyed by media type");
+    Commit();
+    return absl::OkStatus();
   }
 
-  std::map<std::string, std::string, std::less<>> claims;
-  std::set<std::string, std::less<>> replaced_types;
-  for (const auto& [raw_type, value] : root.items()) {
-    MBO_RETURN_IF_ERROR(ApplyEntry(vocabulary, claims, replaced_types, raw_type, value, layer, conflicts));
+ private:
+  absl::StatusOr<std::vector<std::string_view>> Extensions(const Json& value, std::string_view type) {
+    MBO_ASSIGN_OR_RETURN(auto extensions, StringList(value, "extensions", layer_, type));
+    for (std::string_view& extension : extensions) {
+      std::string normalized = Lower(extension);
+      if (normalized.starts_with('.')) {
+        normalized.erase(0, 1);
+      }
+      if (normalized.empty() || absl::StrContains(normalized, '/')) {
+        return JsonError(layer_, absl::StrCat(type, " has invalid extension '", normalized, "'"));
+      }
+      if (normalized != extension) {
+        normalized_.push_back(std::make_unique<const std::string>(std::move(normalized)));
+        extension = *normalized_.back();
+      }
+    }
+    return extensions;
   }
 
-  for (auto it = vocabulary.extensions.begin(); it != vocabulary.extensions.end();) {
-    it = replaced_types.contains(it->second) ? vocabulary.extensions.erase(it) : std::next(it);
+  absl::Status AddClaims(absl::Span<const std::string_view> extensions, std::string_view type) {
+    for (const std::string_view extension : extensions) {
+      const auto [claim, inserted] = claims_.emplace(extension, type);
+      if (inserted || claim->second == type) {
+        continue;
+      }
+      if (conflicts_ == ConflictPolicy::kError) {
+        return JsonError(
+            layer_, absl::StrCat("extension '", extension, "' is claimed by ", claim->second, " and ", type));
+      }
+      if (conflicts_ == ConflictPolicy::kLast) {
+        claim->second = type;
+      }
+    }
+    return absl::OkStatus();
   }
-  for (const auto& [extension, type] : claims) {
-    vocabulary.extensions[extension] = type;
-    vocabulary.types[type].extensions.push_back(extension);
+
+  absl::Status ApplyEntry(std::string_view raw_type, const Json& value) {
+    const std::string type = Lower(raw_type);
+    if (!absl::StrContains(type, '/') || !value.is_object()) {
+      return JsonError(layer_, absl::StrCat("invalid media-type entry: ", raw_type));
+    }
+    Vocabulary::Record info;
+    if (const auto found = vocabulary_.types.find(type); found != vocabulary_.types.end()) {
+      info = found->second;
+    }
+    MBO_RETURN_IF_ERROR(ApplyStringFields(info, value, layer_, type));
+    MBO_RETURN_IF_ERROR(ApplyOptionalFields(info, value, layer_, type));
+    if (value.contains("extensions")) {
+      MBO_ASSIGN_OR_RETURN(const auto extensions, Extensions(value, type));
+      info.extensions.clear();
+      replaced_types_.insert(type);
+      MBO_RETURN_IF_ERROR(AddClaims(extensions, type));
+    }
+    types_[type] = std::move(info);
+    return absl::OkStatus();
   }
-  return absl::OkStatus();
-}
+
+  void Commit() {
+    for (const std::string& type : replaced_types_) {
+      std::erase_if(vocabulary_.extensions, [&](const auto& claim) { return claim.second == type; });
+    }
+    for (auto& [type, info] : types_) {
+      vocabulary_.types[type] = std::move(info);
+    }
+    for (const auto& [extension, type] : claims_) {
+      const auto claim = vocabulary_.extensions.insert_or_assign(extension, type).first;
+      vocabulary_.types[type].extensions.push_back(claim->first);
+    }
+    vocabulary_.layers.push_back(std::move(root_));
+  }
+
+  Vocabulary& vocabulary_;
+  std::string_view layer_;
+  ConflictPolicy conflicts_;
+  std::map<std::string, std::string, std::less<>> claims_;
+  std::map<std::string, Vocabulary::Record, std::less<>> types_;
+  std::set<std::string, std::less<>> replaced_types_;
+  std::unique_ptr<const Json> root_;
+  std::vector<std::unique_ptr<const std::string>> normalized_;
+};
 
 absl::StatusOr<std::string> ReadFile(const std::string& path) {
   const std::ifstream input(path);
@@ -279,31 +310,53 @@ absl::StatusOr<std::string> ReadFile(const std::string& path) {
   return std::move(text).str();
 }
 
+TypeInfo View(std::string_view type, const Vocabulary::Record& record) {
+  return {
+      .type = type,
+      .description = record.description,
+      .source = record.source,
+      .charset = record.charset,
+      .compressible = record.compressible,
+      .aliases = record.aliases,
+      .extensions = record.extensions,
+  };
+}
+
 TypeInfo Lookup(const Vocabulary& vocabulary, std::string_view name) {
   const std::string extension = stdfs::path(std::string(name)).extension().string();
   if (extension.size() > 1) {
     const auto found = vocabulary.extensions.find(Lower(std::string_view(extension).substr(1)));
     if (found != vocabulary.extensions.end()) {
-      return vocabulary.types.at(found->second);
+      return View(found->second, vocabulary.types.at(found->second));
     }
   }
-  return vocabulary.types.at(std::string(kFallback));
+  return View(kFallback, vocabulary.types.at(std::string(kFallback)));
+}
+
+void Finalize(Vocabulary& vocabulary) {
+  vocabulary.views.reserve(vocabulary.types.size());
+  for (const auto& [type, record] : vocabulary.types) {
+    vocabulary.views.push_back(View(type, record));
+  }
 }
 
 void EnsureConfigured(State& state) ABSL_EXCLUSIVE_LOCKS_REQUIRED(state.mutex) {
-  if (!state.vocabulary.types.empty()) {
+  if (state.active != nullptr) {
     return;
   }
-  state.vocabulary = CoreVocabulary();
+  auto vocabulary = std::make_unique<Vocabulary>(CoreVocabulary());
   for (const Database& database : Databases()) {
-    CHECK_OK(ApplyLayer(state.vocabulary, database.json, database.name, ConflictPolicy::kLast));
+    CHECK_OK(LayerProcessor(*vocabulary, database.name, ConflictPolicy::kLast).Apply(database.json));
   }
+  Finalize(*vocabulary);
+  state.active = vocabulary.get();
+  state.snapshots.push_back(std::move(vocabulary));
 }
 
 }  // namespace
 
 std::string_view TypeInfo::Category() const {
-  return std::string_view(type).substr(0, type.find('/'));
+  return type.substr(0, type.find('/'));
 }
 
 absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy conflicts) {
@@ -313,20 +366,23 @@ absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy confl
     // Registered databases are trusted, generated build inputs. Defer their
     // comparatively expensive JSON parse until a MIME predicate or field is
     // actually evaluated; user-provided layers below remain eagerly validated.
-    state.vocabulary = Vocabulary{};
+    state.active = nullptr;
     return absl::OkStatus();
   }
   Vocabulary vocabulary = CoreVocabulary();
   for (const Database& database : Databases()) {
-    MBO_RETURN_IF_ERROR(ApplyLayer(vocabulary, database.json, database.name, ConflictPolicy::kLast));
+    MBO_RETURN_IF_ERROR(LayerProcessor(vocabulary, database.name, ConflictPolicy::kLast).Apply(database.json));
   }
   for (const std::string& file : files) {
     MBO_ASSIGN_OR_RETURN(const std::string text, ReadFile(file));
-    MBO_RETURN_IF_ERROR(ApplyLayer(vocabulary, text, file, conflicts));
+    MBO_RETURN_IF_ERROR(LayerProcessor(vocabulary, file, conflicts).Apply(text));
   }
+  Finalize(vocabulary);
   State& state = GlobalState();
   const absl::MutexLock lock(&state.mutex);
-  state.vocabulary = std::move(vocabulary);
+  auto snapshot = std::make_unique<const Vocabulary>(std::move(vocabulary));
+  state.active = snapshot.get();
+  state.snapshots.push_back(std::move(snapshot));
   return absl::OkStatus();
 }
 
@@ -334,23 +390,18 @@ TypeInfo InfoForName(std::string_view name) {
   State& state = GlobalState();
   const absl::MutexLock lock(&state.mutex);
   EnsureConfigured(state);
-  return Lookup(state.vocabulary, name);
+  return Lookup(*state.active, name);
 }
 
-std::string TypeForName(std::string_view name) {
+std::string_view TypeForName(std::string_view name) {
   return InfoForName(name).type;
 }
 
-std::vector<TypeInfo> Types() {
+absl::Span<const TypeInfo> Types() {
   State& state = GlobalState();
   const absl::MutexLock lock(&state.mutex);
   EnsureConfigured(state);
-  std::vector<TypeInfo> result;
-  result.reserve(state.vocabulary.types.size());
-  for (const auto& entry : state.vocabulary.types) {
-    result.push_back(entry.second);
-  }
-  return result;
+  return state.active->views;
 }
 
 }  // namespace xff::mime

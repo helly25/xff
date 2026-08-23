@@ -138,6 +138,13 @@ TEST_F(LanguageTest, PublishedMetadataViewsSurviveLaterSnapshots) {
   EXPECT_THAT(original.extensions, Contains("cc"));
 }
 
+TEST_F(LanguageTest, LanguageCatalogReusesThePublishedSnapshot) {
+  const absl::Span<const LanguageInfo> first = Languages();
+  const absl::Span<const LanguageInfo> second = Languages();
+  EXPECT_THAT(second.data(), Eq(first.data()));
+  EXPECT_THAT(second.size(), Eq(first.size()));
+}
+
 TEST_F(LanguageTest, ReplacingOneClaimKindPreservesTheOther) {
   const std::string base = Write(R"({"Both": {"extensions": ["old"], "filenames": ["Exact"]}})");
   const std::string extension = Write(R"({"Both": {"extensions": ["new"]}})");

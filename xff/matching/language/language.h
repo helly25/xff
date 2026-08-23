@@ -19,7 +19,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/types/span.h"
@@ -72,9 +71,9 @@ std::optional<LanguageInfo> InfoForName(std::string_view name);
 // do not load linked language databases.
 std::string_view LanguageForName(std::string_view name);
 
-// All canonical languages in deterministic canonical-name order. The returned records are cheap
-// views with process-lifetime backing; filename matching should use InfoForName.
-std::vector<LanguageInfo> Languages();
+// All canonical languages in deterministic canonical-name order. The returned span and records
+// have process-lifetime backing; filename matching should use InfoForName.
+absl::Span<const LanguageInfo> Languages();
 
 }  // namespace xff::language
 
