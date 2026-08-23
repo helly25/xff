@@ -16,12 +16,15 @@
 #include "xff/engine/evaluate.h"
 
 #include <array>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <ios>
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "absl/status/statusor.h"
@@ -48,6 +51,8 @@ using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
+using ::testing::IsFalse;
+using ::testing::IsTrue;
 using ::testing::Not;
 using ::testing::Optional;
 using ::testing::Pair;
@@ -790,6 +795,48 @@ TEST_F(EvaluateTest, ContentSkipsBinaryFiles) {
   EXPECT_FALSE(Match({"-rxc", "needle"}, visit));
 }
 
+TEST_F(EvaluateTest, TextFlavorsEnforceTheirDocumentedLineEndings) {
+  const auto matches = [this](std::string_view tag, std::string_view content, std::string_view flavor) {
+    const std::string path = WriteContentFile(tag, content);
+    vfs::Metadata md;
+    const Visit visit = MakeVisit(path, tag, vfs::FileType::kRegular, md);
+    return Match({absl::StrCat("-text:", flavor)}, visit);
+  };
+
+  EXPECT_THAT(matches("empty", "", "posix"), IsTrue());
+  EXPECT_THAT(matches("posix", "one\ntwo\n", "posix"), IsTrue());
+  EXPECT_THAT(matches("posix_no_eol", "one", "posix"), IsFalse());
+  EXPECT_THAT(matches("posix_cr", "one\r\n", "posix"), IsFalse());
+  EXPECT_THAT(matches("windows", "one\r\ntwo\r\n", "windows"), IsTrue());
+  EXPECT_THAT(matches("windows_bare_lf", "one\n", "windows"), IsFalse());
+  EXPECT_THAT(matches("windows_bare_cr", "one\rX\r\n", "windows"), IsFalse());
+  EXPECT_THAT(matches("windows_no_eol", "one", "windows"), IsFalse());
+  EXPECT_THAT(matches("apple", "one\rtwo\r", "apple"), IsTrue());
+  EXPECT_THAT(matches("apple_lf", "one\n", "apple"), IsFalse());
+  EXPECT_THAT(matches("apple_no_eol", "one", "apple"), IsFalse());
+  EXPECT_THAT(matches("strict_nul", std::string_view("one\0two\n", 8), "posix"), IsFalse());
+}
+
+TEST_F(EvaluateTest, GitTextAndBinaryUseOnlyTheLeadingNulSniffWindow) {
+  vfs::Metadata md;
+  std::string content(8'001, 'x');
+  content.back() = '\0';
+  const std::string late_nul = WriteContentFile("late_nul", content);
+  const Visit late = MakeVisit(late_nul, "late_nul", vfs::FileType::kRegular, md);
+  EXPECT_THAT(Match({"-text"}, late), IsTrue());
+  EXPECT_THAT(Match({"-binary"}, late), IsFalse());
+
+  const std::string early_nul = WriteContentFile("early_nul", std::string_view("x\0y", 3));
+  const Visit early = MakeVisit(early_nul, "early_nul", vfs::FileType::kRegular, md);
+  EXPECT_THAT(Match({"-text:git"}, early), IsFalse());
+  EXPECT_THAT(Match({"-binary"}, early), IsTrue());
+
+  vfs::Metadata dir_md;
+  const Visit directory = MakeVisit("directory", "directory", vfs::FileType::kDirectory, dir_md);
+  EXPECT_THAT(Match({"-text"}, directory), IsFalse());
+  EXPECT_THAT(Match({"-binary"}, directory), IsFalse());
+}
+
 TEST_F(EvaluateTest, GrepEmitsMatchingLinesAsPathLineText) {
   const std::string path = WriteContentFile("grep.txt", "first TODO line\nsecond line\nanother TODO here\n");
   vfs::Metadata md;
@@ -1330,6 +1377,47 @@ TEST_F(EvaluateTest, PrintfExpandsDirectivesAndEscapes) {
   EXPECT_THAT(emitted_, "%\t3");
 }
 
+TEST_F(EvaluateTest, PrintfTypeDirectiveCoversEveryFilesystemType) {
+  static constexpr auto kCases = std::to_array<std::pair<vfs::FileType, char>>({
+      {vfs::FileType::kBlockDevice, 'b'},
+      {vfs::FileType::kCharDevice, 'c'},
+      {vfs::FileType::kDirectory, 'd'},
+      {vfs::FileType::kFifo, 'p'},
+      {vfs::FileType::kRegular, 'f'},
+      {vfs::FileType::kSocket, 's'},
+      {vfs::FileType::kSymlink, 'l'},
+      {vfs::FileType::kUnknown, 'U'},
+  });
+  for (const auto& [type, letter] : kCases) {
+    SCOPED_TRACE(letter);
+    vfs::Metadata md;
+    const Visit visit = MakeVisit("entry", "entry", type, md);
+    EXPECT_THAT(Match({"-printf", "%y"}, visit), IsTrue());
+    EXPECT_THAT(emitted_, std::string(1, letter));
+  }
+}
+
+TEST_F(EvaluateTest, PrintfHandlesRootAndBasenameDirectoriesAndZeroPermissions) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  const Visit root_child{.path = "/entry", .name = "entry", .depth = 1, .metadata = md};
+  EXPECT_THAT(Match({"-printf", "%h|%m"}, root_child), IsTrue());
+  EXPECT_THAT(emitted_, "/|0");
+
+  const Visit basename{.path = "entry", .name = "entry", .depth = 0, .metadata = md};
+  EXPECT_THAT(Match({"-printf", "%h"}, basename), IsTrue());
+  EXPECT_THAT(emitted_, ".");
+}
+
+TEST_F(EvaluateTest, PrintfPreservesUnknownEscapesAndDirectives) {
+  vfs::Metadata md;
+  md.type = vfs::FileType::kRegular;
+  md.ino = 42;
+  const Visit visit{.path = "entry", .name = "entry", .depth = 0, .metadata = md};
+  EXPECT_THAT(Match({"-printf", "%i|\\q|%Q|trailing\\|trailing%"}, visit), IsTrue());
+  EXPECT_THAT(emitted_, "42|\\q|%Q|trailing\\|trailing%");
+}
+
 TEST_F(EvaluateTest, PrintfOwnerDirectives) {
   vfs::Metadata md;
   md.type = vfs::FileType::kRegular;
@@ -1354,6 +1442,12 @@ TEST_F(EvaluateTest, PrintfTimeDirectives) {
   tz_ = absl::FixedTimeZone(3'600);
   EXPECT_TRUE(Match({"-printf", "%TH"}, visit));
   EXPECT_THAT(emitted_, "13");
+
+  md.ctime = absl::FromUnixSeconds(86'400);
+  const Visit changed{.path = "f", .name = "f", .depth = 1, .metadata = md};
+  tz_ = absl::UTCTimeZone();
+  EXPECT_THAT(Match({"-printf", "%c|%CY"}, changed), IsTrue());
+  EXPECT_THAT(emitted_, "Fri Jan  2 00:00:00 1970|1970");
 }
 
 TEST_F(EvaluateTest, PrintlnAndPrintflnAppendOsLineEnding) {
@@ -1384,6 +1478,28 @@ TEST_F(EvaluateTest, LsEmitsAnLsStyleLine) {
   tz_ = absl::UTCTimeZone();
   EXPECT_TRUE(Match({"-ls"}, visit));
   EXPECT_THAT(emitted_, "42 4 -rw-r--r-- 1 1234567 7654321 4096 Sep 13  2020 dir/f\n");
+}
+
+TEST_F(EvaluateTest, LsRendersEveryTypeAndSpecialPermissionState) {
+  static constexpr auto kCases = std::to_array<std::tuple<vfs::FileType, std::uint32_t, std::string_view>>({
+      {vfs::FileType::kBlockDevice, 04700, "brws------"},
+      {vfs::FileType::kCharDevice, 04600, "crwS------"},
+      {vfs::FileType::kDirectory, 02070, "d---rws---"},
+      {vfs::FileType::kFifo, 02060, "p---rwS---"},
+      {vfs::FileType::kRegular, 01007, "-------rwt"},
+      {vfs::FileType::kSocket, 01006, "s------rwT"},
+      {vfs::FileType::kSymlink, 0777, "lrwxrwxrwx"},
+      {vfs::FileType::kUnknown, 0, "?---------"},
+  });
+  for (const auto& [type, mode, permissions] : kCases) {
+    SCOPED_TRACE(permissions);
+    vfs::Metadata md;
+    md.type = type;
+    md.mode = mode;
+    const Visit visit{.path = "entry", .name = "entry", .depth = 0, .metadata = md};
+    EXPECT_THAT(Match({"-ls"}, visit), IsTrue());
+    EXPECT_THAT(emitted_, HasSubstr(absl::StrCat(" ", permissions, " ")));
+  }
 }
 
 TEST_F(EvaluateTest, OkPromptsWithSubstitutionAndRunsOnlyWhenConfirmed) {
