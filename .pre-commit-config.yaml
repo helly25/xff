@@ -183,6 +183,13 @@ repos:
         entry: tools/align_markdown_tables_test.py
         files: ^tools/align_markdown_tables(_test)?\.py$
         pass_filenames: false
+      - id: generate-mime-db-test
+        name: Test MIME database generation
+        description: Verifies deterministic extension-conflict resolution for the removable mime-db extra.
+        language: script
+        entry: tools/generate_mime_db_test.py
+        files: ^tools/generate_mime_db(_test)?\.py$
+        pass_filenames: false
       - id: check-module-versions
         name: Modules share one version
         description: |

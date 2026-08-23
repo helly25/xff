@@ -163,7 +163,30 @@ cc_library(
     ],
 )
 
+# Removable comprehensive MIME datasets register embedded JSON through this
+# dependency-free seam; parsing and override policy remain in the core MIME
+# implementation.
+cc_library(
+    name = "mime_database_cc",
+    srcs = ["mime_database.cc"],
+    hdrs = ["database.h"],
+    include_prefix = "xff/matching/mime",
+    visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "mime_database_test",
+    size = "small",
+    srcs = ["mime_database_test.cc"],
+    deps = [
+        ":mime_database_cc",
+        "@googletest//:gtest_main",
+    ],
+)
+
 exports_files(["license_body.bzl"])
+
+exports_files(["mime_database.bzl"])
 
 # The virtual-filesystem seam: the read-only FileSystem interface plus the Entry / Metadata types
 # every backend produces. It lives here rather than in the core for the same reason the others do -

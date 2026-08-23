@@ -140,6 +140,19 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 ### Filter & Ignore
 - `--exclude=GLOB` - skip paths matching a gitignore-style glob (repeatable; a matched directory is pruned) _(global, xff)_
 - `--include=GLOB` - re-include paths a --exclude would skip, matching a gitignore-style glob (repeatable) _(global, xff)_
+- `--mime-vocabulary=FILE` - overlay media-type metadata and extension mappings from JSON; repeatable _(global, xff)_
+  Loads a JSON object keyed by canonical media type. Each value may set `description`, `source`, `charset`, boolean `compressible`, and string arrays `aliases` and `extensions`. Later files override earlier files and compiled data. An extension may include its leading dot; matching folds case. Conflicts between two types in ONE file follow `--mime-conflicts`.
+  Affects: -mime
+  Affected by: --mime-conflicts
+- `--mime-conflicts=error|first|last` - resolve ambiguous extension claims within one MIME vocabulary file _(global, xff)_
+  One of:
+
+  - `error` - reject two media types claiming one extension in the same file (default)
+  - `first` - keep the first claim in that file
+  - `last` - keep the last claim in that file
+
+  Controls only ambiguity inside one `--mime-vocabulary` file. Layering remains deterministic: a later file intentionally overrides earlier files and compiled data. `error` is the default; `first` or `last` provides an explicit compatibility escape hatch for imported databases.
+  Affects: --mime-vocabulary
 - `--gitignore[=off|auto|on], -g[-|+]` - respect .gitignore files: -g = auto (only in a git repo), -g+/=on always, -g-/=off never _(global, xff)_
   One of:
 
@@ -461,7 +474,8 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-xtype ARG` - match the file type of a symlink's target _(test, find)_
   Like `-type`, but for a symlink it tests the type of the link's TARGET (the link is followed). A broken symlink has no target, so it reports as a symlink and `-xtype l` matches it, matching GNU find under the default `-P`. On a non-symlink it is identical to `-type`.
 - `-mime ARG` - match the media type by extension against a glob, e.g. -mime 'image/*' (xff) _(test, xff)_
-  xff extension: matches the media (MIME) type derived from the filename extension (a fast, dependency-free table - no content sniffing) against a shell glob, so `image/*` matches png/jpg/... and `text/plain` is exact. The same value is the {mime} field. Matching is always case-insensitive (MIME names are case-insensitive per RFC 2045/6838), so `IMAGE/*` behaves like `image/*`; `--case` / -i / -s do not affect it.
+  xff extension: matches the media (MIME) type derived from the filename extension against a shell glob, so `image/*` matches png/jpg/... and `text/plain` is exact. The lean binary has a curated common-type table; the removable `mime-db` build extra supplies thousands of types, and repeatable `--mime-vocabulary=FILE` JSON layers override mappings and metadata. This is fast name classification, not content sniffing. The same value is the `{mime}` field; `{mime-category}`, `{mime-description}`, `{mime-charset}`, `{mime-compressible}`, and `{mime-source}` expose its metadata. Matching is always case-insensitive (MIME names are case-insensitive per RFC 2045/6838), so `IMAGE/*` behaves like `image/*`; `--case` / -i / -s do not affect it. See `--help=content` for the overlay schema and conflict policy.
+  Affected by: --mime-vocabulary
 - `-lang ARG` - match the language by extension/filename against a glob, e.g. -lang 'C*' (xff) _(test, xff)_
   xff extension: matches the programming language inferred from the extension/filename (github-linguist data) against a shell glob, so `C*` matches C / C++ / C#. The same value is the {lang} field. Matching is always case-insensitive (`c++` matches the canonical `C++`) and unaffected by `--case` / -i / -s.
 - `-size ARG` - match apparent size with legacy, explicit SI (MB), or IEC (MiB) units _(test, find)_
@@ -653,6 +667,11 @@ The `{field}` placeholder vocabulary, substituted per entry in --template / --fo
 - `{type}` - entry type letter (f, d, l, ...)
 - `{lang} {language}` - language by extension/filename (C++, Python, ...; empty if unknown)
 - `{mime}` - media (MIME) type by extension (text/plain, image/png; application/octet-stream if unknown)
+- `{mime-category}` - top-level media category (application, image, text, ...)
+- `{mime-description}` - media-type description from the active vocabulary; empty when unspecified
+- `{mime-charset}` - default media-type charset; empty when unspecified
+- `{mime-compressible}` - whether the media type is normally compressible (yes/no; empty when unknown)
+- `{mime-source}` - vocabulary provenance for the media type; empty when unspecified
 - `{size}` - size in bytes ({size:h} human-readable)
 - `{blocks}` - 512-byte blocks allocated
 - `{inode}` - inode number

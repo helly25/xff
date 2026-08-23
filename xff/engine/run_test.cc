@@ -408,6 +408,48 @@ TEST_F(RunTest, MimeMatchesByExtensionDerivedType) {
   EXPECT_THAT(RunExpr({"-mime", "text/*"}), UnorderedElementsAre(Path("a.txt"), Path("b.md"), Path("sub/c.txt")));
 }
 
+TEST_F(RunTest, MimeVocabularyOverridesMatchingAndExposesMetadataFields) {
+  const fs::path vocabulary = root_ / "mime.json";
+  std::ofstream(vocabulary) << R"({
+    "application/x-note": {
+      "description": "Note document",
+      "source": "project",
+      "charset": "UTF-8",
+      "compressible": true,
+      "extensions": ["txt"]
+    }
+  })";
+  EXPECT_THAT(
+      RunArgvRecords(
+          {"--mime-vocabulary=" + vocabulary.string(), root_.string(), "-name", "a.txt", "-mime", "application/x-note",
+           "-printf",
+           "%{mime}|%{mime-category}|%{mime-description}|%{mime-charset}|%{mime-compressible}|%{mime-source}\n"}),
+      ElementsAre("application/x-note|application|Note document|UTF-8|yes|project"));
+  EXPECT_THAT(last_errors_, Eq(0));
+}
+
+TEST_F(RunTest, MissingMimeVocabularyFailsBeforeTraversal) {
+  EXPECT_THAT(RunArgvRecords({"--mime-vocabulary=" + Path("absent.json"), root_.string(), "-print"}), IsEmpty());
+  EXPECT_THAT(last_errors_, Eq(2));
+}
+
+TEST_F(RunTest, MimeConflictPolicyControlsAmbiguousImportedVocabulary) {
+  const fs::path vocabulary = root_ / "mime-conflict.json";
+  std::ofstream(vocabulary) << R"({
+    "application/x-first": {"extensions": ["txt"]},
+    "application/x-last": {"extensions": ["txt"]}
+  })";
+  const std::string flag = "--mime-vocabulary=" + vocabulary.string();
+  EXPECT_THAT(RunArgvRecords({flag, root_.string(), "-name", "a.txt", "-printf", "%{mime}\n"}), IsEmpty());
+  EXPECT_THAT(last_errors_, Eq(2));
+  EXPECT_THAT(
+      RunArgvRecords({flag, "--mime-conflicts=first", root_.string(), "-name", "a.txt", "-printf", "%{mime}\n"}),
+      ElementsAre("application/x-first"));
+  EXPECT_THAT(
+      RunArgvRecords({flag, "--mime-conflicts=last", root_.string(), "-name", "a.txt", "-printf", "%{mime}\n"}),
+      ElementsAre("application/x-last"));
+}
+
 TEST_F(RunTest, LangMatchesAndRendersTheLanguage) {
   { std::ofstream(root_ / "main.cc"); }
   { std::ofstream(root_ / "app.py"); }

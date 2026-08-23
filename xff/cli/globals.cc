@@ -26,6 +26,7 @@
 #include "absl/types/span.h"
 #include "xff/archive/archive_backend.h"
 #include "xff/fuse/fuse_backend.h"
+#include "xff/matching/mime/database.h"
 #include "xff/matching/regex/backend.h"
 #include "xff/values/values.h"
 
@@ -39,6 +40,11 @@ constexpr std::array kCaseValues = std::to_array<ValueDoc>({
     {.value = "sensitive", .meaning = "match exactly (-s-)"},
     {.value = "insensitive", .meaning = "fold case (-i)"},
     {.value = "smart", .meaning = "fold case only when the pattern is all lower case (-s / -s+)"},
+});
+constexpr std::array kMimeConflictValues = std::to_array<ValueDoc>({
+    {.value = "error", .meaning = "reject two media types claiming one extension in the same file (default)"},
+    {.value = "first", .meaning = "keep the first claim in that file"},
+    {.value = "last", .meaning = "keep the last claim in that file"},
 });
 constexpr std::array kRegextypeValues = std::to_array<ValueDoc>({
     {.value = "RE2", .meaning = "linear-time regular expressions (the default)"},
@@ -647,6 +653,33 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "filter",
         .header = "Filter & Ignore",
         .summary = "re-include paths a --exclude would skip, matching a gitignore-style glob (repeatable)",
+    },
+    {
+        .name = "--mime-vocabulary",
+        .display = "--mime-vocabulary=FILE",
+        .group = "filter",
+        .header = "Filter & Ignore",
+        .summary = "overlay media-type metadata and extension mappings from JSON; repeatable",
+        .details = "Loads a JSON object keyed by canonical media type. Each value may set `description`, `source`, "
+                   "`charset`, boolean `compressible`, and string arrays `aliases` and `extensions`. Later files "
+                   "override earlier files and compiled data. An extension may include its leading dot; matching "
+                   "folds case. Conflicts between two types in ONE file follow `--mime-conflicts`.",
+        .affects = "-mime",
+        .topic = "content",
+    },
+    {
+        .name = "--mime-conflicts",
+        .display = "--mime-conflicts=error|first|last",
+        .group = "filter",
+        .header = "Filter & Ignore",
+        .summary = "resolve ambiguous extension claims within one MIME vocabulary file",
+        .details = "Controls only ambiguity inside one `--mime-vocabulary` file. Layering remains deterministic: "
+                   "a later file intentionally overrides earlier files and compiled data. `error` is the default; "
+                   "`first` or `last` provides an explicit compatibility escape hatch for imported databases.",
+        .values = kMimeConflictValues,
+        .affects = "--mime-vocabulary",
+        .topic = "content",
+        .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
         .name = "--gitignore",
@@ -1423,6 +1456,9 @@ bool ExtraEnabled(std::string_view key) {
   if (key == "fuse") {
     return fuse::MountSupportAvailable();
   }
+  if (key == "mime-db") {
+    return !mime::Databases().empty();
+  }
   if (key == "pcre2") {
     return regex::Pcre2Available();
   }
@@ -1437,6 +1473,7 @@ std::vector<std::string> EnabledExtras() {
       "archive",
       "brotli",
       "fuse",
+      "mime-db",
       "pcre2",
   });
   std::vector<std::string> enabled;
@@ -1461,6 +1498,9 @@ std::string_view ExtraBuildFlag(std::string_view key) {
   }
   if (key == "fuse") {
     return "--//xff:xff_fuse";
+  }
+  if (key == "mime-db") {
+    return "--//xff:xff_mime_db";
   }
   if (key == "pcre2") {
     return "--//xff:xff_pcre";

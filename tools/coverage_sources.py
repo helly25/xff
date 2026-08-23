@@ -27,11 +27,14 @@ def resolved_policy(policy: dict, modules: dict[str, str]) -> dict:
     result = copy.deepcopy(policy)
     includes = result.setdefault("include", ["xff/**"])
     extensions = result.setdefault("categories", {}).setdefault("extensions", {})
+    data_only = result.get("data_only_extras", [])
     for module in modules:
         pattern = f"{module}/**"
         if pattern not in includes:
             includes.append(pattern)
-        if not any(pattern in category.get("include", ()) for category in extensions.values()):
+        if module not in data_only and not any(
+            pattern in category.get("include", ()) for category in extensions.values()
+        ):
             name = module.removeprefix("xff_").replace("_", " ").title()
             extensions[name] = {"include": [pattern]}
     return result
@@ -69,6 +72,11 @@ def grouped(report: str, modules: dict[str, str], policy: dict, source_root: Pat
         if not match:
             continue
         physical = match.group(1)
+        # Bazel may emit empty records for data and licence files owned by an
+        # extra module. They have no coverable data and therefore belong in
+        # neither a policy category nor genhtml's source tree.
+        if not re.search(r"(?m)^(?:DA|FNDA|BRDA):", record):
+            continue
         logical = physical
         for prefix, replacement in physical_to_logical:
             if physical.startswith(prefix):

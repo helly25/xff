@@ -25,8 +25,14 @@ cc_library(
     hdrs = ["mime.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@helly25_mbo//mbo/container:limited_map_cc",
+        "@abseil-cpp//absl/synchronization",
+        "@helly25_mbo//mbo/status:status_macros_cc",
+        "@nlohmann_json//:json",
+        "@xff_extras_api//:mime_database_cc",
     ],
 )
 
@@ -36,7 +42,21 @@ cc_test(
     srcs = ["mime_test.cc"],
     deps = [
         ":mime_cc",
+        "@abseil-cpp//absl/status",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)
+
+cc_test(
+    name = "mime_db_integration_test",
+    size = "small",
+    srcs = ["mime_db_integration_test.cc"],
+    deps = [
+        ":mime_cc",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+        "@xff_mime_db//:mime_db_register_cc",
     ],
 )

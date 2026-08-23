@@ -15,15 +15,39 @@
 
 #include "xff/matching/mime/mime.h"
 
+#include <array>
+#include <filesystem>
+#include <fstream>
+#include <string>
+#include <utility>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "mbo/testing/status.h"
 
 namespace xff::mime {
 namespace {
 
+using mbo::testing::IsOk;
+using mbo::testing::StatusIs;
+using ::testing::AllOf;
+using ::testing::Contains;
+using ::testing::ElementsAre;
 using ::testing::Eq;
+using ::testing::Field;
+using ::testing::HasSubstr;
+using ::testing::IsEmpty;
 
-struct MimeTest : ::testing::Test {};
+struct MimeTest : ::testing::Test {
+  void TearDown() override { EXPECT_THAT(Configure({}, ConflictPolicy::kError), IsOk()); }
+
+  static std::string Write(std::string_view text) {
+    const std::filesystem::path path =
+        std::filesystem::path(::testing::TempDir()) / ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::ofstream(path) << text;
+    return path.string();
+  }
+};
 
 TEST_F(MimeTest, MapsKnownExtensions) {
   EXPECT_THAT(TypeForName("photo.jpg"), Eq("image/jpeg"));
@@ -49,6 +73,85 @@ TEST_F(MimeTest, NoExtensionOrDotfileFallsBackToOctetStream) {
   EXPECT_THAT(TypeForName("README"), Eq("application/octet-stream"));
   EXPECT_THAT(TypeForName(".bashrc"), Eq("application/octet-stream"));  // a dotfile has no extension
   EXPECT_THAT(TypeForName(""), Eq("application/octet-stream"));
+}
+
+TEST_F(MimeTest, JsonLayerOverridesMappingAndSuppliesMetadata) {
+  const std::string file = Write(R"({
+    "application/x-widget": {
+      "description": "Widget document",
+      "source": "local",
+      "charset": "UTF-8",
+      "compressible": true,
+      "aliases": ["application/widget"],
+      "extensions": [".jpg", "widget"]
+    }
+  })");
+  EXPECT_THAT(Configure({file}, ConflictPolicy::kError), IsOk());
+  const TypeInfo info = InfoForName("photo.jpg");
+  EXPECT_THAT(info.type, Eq("application/x-widget"));
+  EXPECT_THAT(info.Category(), Eq("application"));
+  EXPECT_THAT(info.description, Eq("Widget document"));
+  EXPECT_THAT(info.charset, Eq("UTF-8"));
+  EXPECT_THAT(info.compressible, Eq(true));
+  EXPECT_THAT(info.aliases, ElementsAre("application/widget"));
+  EXPECT_THAT(TypeForName("file.widget"), Eq("application/x-widget"));
+}
+
+TEST_F(MimeTest, ConflictingClaimsAreStrictByDefaultWithExplicitFirstAndLastPolicies) {
+  const std::string file = Write(R"({
+    "application/x-z-first": {"extensions": ["same"]},
+    "application/x-a-last": {"extensions": ["same"]}
+  })");
+  EXPECT_THAT(
+      Configure({file}, ConflictPolicy::kError),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("extension 'same' is claimed")));
+  EXPECT_THAT(Configure({file}, ConflictPolicy::kFirst), IsOk());
+  EXPECT_THAT(TypeForName("x.same"), Eq("application/x-z-first"));
+  EXPECT_THAT(
+      Types(),
+      Contains(AllOf(Field(&TypeInfo::type, "application/x-a-last"), Field(&TypeInfo::extensions, IsEmpty()))));
+  EXPECT_THAT(Configure({file}, ConflictPolicy::kLast), IsOk());
+  EXPECT_THAT(TypeForName("x.same"), Eq("application/x-a-last"));
+  EXPECT_THAT(
+      Types(),
+      Contains(AllOf(Field(&TypeInfo::type, "application/x-z-first"), Field(&TypeInfo::extensions, IsEmpty()))));
+}
+
+TEST_F(MimeTest, MissingMetadataIsEmptyRatherThanInvented) {
+  const TypeInfo info = InfoForName("photo.jpg");
+  EXPECT_THAT(info.description, IsEmpty());
+  EXPECT_THAT(info.source, IsEmpty());
+  EXPECT_THAT(info.charset, IsEmpty());
+  EXPECT_THAT(info.compressible, Eq(std::nullopt));
+}
+
+TEST_F(MimeTest, RejectsEveryMalformedVocabularyShape) {
+  constexpr auto kInvalid = std::to_array<std::pair<std::string_view, std::string_view>>({
+      {"{", "invalid JSON"},
+      {"[]", "top level must be an object"},
+      {R"({"invalid": {}})", "invalid media-type entry"},
+      {R"({"application/x-value": []})", "invalid media-type entry"},
+      {R"({"application/x-value": {"description": 1}})", "description must be a string"},
+      {R"({"application/x-value": {"compressible": "yes"}})", "compressible must be boolean"},
+      {R"({"application/x-value": {"aliases": "alias"}})", "aliases must be an array"},
+      {R"({"application/x-value": {"aliases": [1]}})", "aliases must contain only strings"},
+      {R"({"application/x-value": {"extensions": "value"}})", "extensions must be an array"},
+      {R"({"application/x-value": {"extensions": [1]}})", "extensions must contain only strings"},
+      {R"({"application/x-value": {"extensions": [""]}})", "invalid extension"},
+      {R"({"application/x-value": {"extensions": ["bad/name"]}})", "invalid extension"},
+  });
+  for (const auto& [json, message] : kInvalid) {
+    SCOPED_TRACE(json);
+    EXPECT_THAT(
+        Configure({Write(json)}, ConflictPolicy::kError),
+        StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr(message)));
+  }
+}
+
+TEST_F(MimeTest, AcceptsRepeatedClaimByTheSameType) {
+  const std::string file = Write(R"({"application/x-same": {"extensions": ["same", "same"]}})");
+  EXPECT_THAT(Configure({file}, ConflictPolicy::kError), IsOk());
+  EXPECT_THAT(TypeForName("x.same"), Eq("application/x-same"));
 }
 
 }  // namespace

@@ -66,6 +66,7 @@
 #include "xff/filesystem/repo/repo.h"
 #include "xff/hash/hash.h"
 #include "xff/matching/language/language.h"
+#include "xff/matching/mime/mime.h"
 #include "xff/matching/regex/regex.h"
 #include "xff/parser/ast.h"
 #include "xff/parser/parser.h"
@@ -2944,6 +2945,30 @@ int RunFind(
     bool* any_match) {
   if (any_match != nullptr) {
     *any_match = false;  // no match until an entry satisfies the expression
+  }
+  std::vector<std::string> mime_vocabulary_files;
+  mime::ConflictPolicy mime_conflicts = mime::ConflictPolicy::kError;
+  for (const std::string& global : command.globals) {
+    constexpr std::string_view kVocabulary = "--mime-vocabulary=";
+    constexpr std::string_view kConflicts = "--mime-conflicts=";
+    if (global.starts_with(kVocabulary)) {
+      mime_vocabulary_files.emplace_back(std::string_view(global).substr(kVocabulary.size()));
+    } else if (global.starts_with(kConflicts)) {
+      const std::string_view value = std::string_view(global).substr(kConflicts.size());
+      if (value == "first") {
+        mime_conflicts = mime::ConflictPolicy::kFirst;
+      }
+      if (value == "last") {
+        mime_conflicts = mime::ConflictPolicy::kLast;
+      }
+      if (value == "error") {
+        mime_conflicts = mime::ConflictPolicy::kError;
+      }
+    }
+  }
+  if (const absl::Status status = mime::Configure(mime_vocabulary_files, mime_conflicts); !status.ok()) {
+    on_error("--mime-vocabulary", status);
+    return 2;
   }
   const parser::Expr* const expression = command.expression.get();
   const bool has_action = expression != nullptr && ContainsAction(*expression);

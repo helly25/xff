@@ -6,6 +6,7 @@
     "xff_fuse/**",
     "xff_pcre2/**"
   ],
+  "data_only_extras": ["xff_mime_db"],
   "exclude": [
     "**/*_benchmark.cc",
     "**/*_fuzz_test.cc",

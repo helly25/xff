@@ -110,6 +110,20 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
+# --//xff:xff_mime_db -- link the comprehensive MIT-licensed mime-db
+# vocabulary. The core keeps a compact common-type fallback.
+bool_flag(
+    name = "xff_mime_db",
+    build_setting_default = False,
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "xff_mime_db_enabled",
+    flag_values = {":xff_mime_db": "True"},
+    visibility = ["//visibility:public"],
+)
+
 # "Is this extra linked": its own flag OR --//xff:xff_all. Every consumer selects on THESE, never on
 # the bare `_enabled` setting, which is what makes `xff_all` reach a new extra with no further edits.
 selects.config_setting_group(
@@ -149,6 +163,15 @@ selects.config_setting_group(
     visibility = ["//visibility:public"],
 )
 
+selects.config_setting_group(
+    name = "xff_mime_db_on",
+    match_any = [
+        ":xff_mime_db_enabled",
+        ":xff_all_enabled",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 # --//xff:xff_msan -- set by --config=msan (see .bazelrc). It exists so the cc_* wrappers in
 # xff/cc.bzl (and the two genrules that RUN the instrumented binary) can `select()` the MSan runtime
 # suppression file in ONLY in an MSan build: it is meaningless without -fsanitize=memory, and
@@ -174,6 +197,8 @@ selects.config_setting_group(
     match_any = [
         ":xff_archive_on",
         ":xff_brotli_on",
+        ":xff_fuse_on",
+        ":xff_mime_db_on",
         ":xff_pcre_on",
     ],
     visibility = ["//visibility:public"],

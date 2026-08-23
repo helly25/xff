@@ -522,11 +522,17 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         // xff: match the media (MIME) type derived from the extension, glob-style.
         .name = "-mime",
         .summary = "match the media type by extension against a glob, e.g. -mime 'image/*' (xff)",
-        .details = "xff extension: matches the media (MIME) type derived from the filename extension (a fast, "
-                   "dependency-free table - no content sniffing) against a shell glob, so `image/*` matches "
-                   "png/jpg/... and `text/plain` is exact. The same value is the {mime} field. Matching is always "
+        .details = "xff extension: matches the media (MIME) type derived from the filename extension against a "
+                   "shell glob, so `image/*` matches png/jpg/... and `text/plain` is exact. The lean binary has a "
+                   "curated common-type table; the removable `mime-db` build extra supplies thousands of types, "
+                   "and repeatable `--mime-vocabulary=FILE` JSON layers override mappings and metadata. This is "
+                   "fast name classification, not content sniffing. The same value is the `{mime}` field; "
+                   "`{mime-category}`, `{mime-description}`, `{mime-charset}`, `{mime-compressible}`, and "
+                   "`{mime-source}` "
+                   "expose its metadata. Matching is always "
                    "case-insensitive (MIME names are case-insensitive per RFC 2045/6838), so `IMAGE/*` behaves like "
-                   "`image/*`; `--case` / -i / -s do not affect it.",
+                   "`image/*`; `--case` / -i / -s do not affect it. See `--help=content` for the overlay schema and "
+                   "conflict policy.",
         .kind = Kind::kTest,
         .arity = 1,
         .style = Style::kXff,

@@ -340,7 +340,32 @@ std::string LanguageField(std::string_view, std::string_view, const RenderContex
 
 std::string MimeField(std::string_view, std::string_view, const RenderContext& ctx) {
   const std::string name = stdfs::path(std::string(ctx.path)).filename().string();
-  return std::string(mime::TypeForName(name));
+  return mime::TypeForName(name);
+}
+
+mime::TypeInfo MimeInfo(const RenderContext& ctx) {
+  return mime::InfoForName(stdfs::path(std::string(ctx.path)).filename().string());
+}
+
+std::string MimeCategoryField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return std::string(MimeInfo(ctx).Category());
+}
+
+std::string MimeDescriptionField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return MimeInfo(ctx).description;
+}
+
+std::string MimeCharsetField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return MimeInfo(ctx).charset;
+}
+
+std::string MimeCompressibleField(std::string_view, std::string_view, const RenderContext& ctx) {
+  const std::optional<bool> value = MimeInfo(ctx).compressible;
+  return value.has_value() ? (*value ? "yes" : "no") : "";
+}
+
+std::string MimeSourceField(std::string_view, std::string_view, const RenderContext& ctx) {
+  return MimeInfo(ctx).source;
 }
 
 std::string SizeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
@@ -451,6 +476,11 @@ constexpr auto kFieldTable = mbo::container::MakeLimitedMap(
     FieldEntry{"links", &LinksField},
     FieldEntry{"match", &MatchField},
     FieldEntry{"mime", &MimeField},
+    FieldEntry{"mime-category", &MimeCategoryField},
+    FieldEntry{"mime-charset", &MimeCharsetField},
+    FieldEntry{"mime-compressible", &MimeCompressibleField},
+    FieldEntry{"mime-description", &MimeDescriptionField},
+    FieldEntry{"mime-source", &MimeSourceField},
     FieldEntry{"mode", &ModeField},
     FieldEntry{"mtime", &MtimeField},
     FieldEntry{"name", &NameField},
@@ -1094,6 +1124,31 @@ std::vector<FieldDoc> FieldDocs() {
        .group = "type",
        .header = "Type & size",
        .summary = "media (MIME) type by extension (text/plain, image/png; application/octet-stream if unknown)"},
+      {.name = "mime-category",
+       .aliases = {},
+       .group = "type",
+       .header = "Type & size",
+       .summary = "top-level media category (application, image, text, ...)"},
+      {.name = "mime-description",
+       .aliases = {},
+       .group = "type",
+       .header = "Type & size",
+       .summary = "media-type description from the active vocabulary; empty when unspecified"},
+      {.name = "mime-charset",
+       .aliases = {},
+       .group = "type",
+       .header = "Type & size",
+       .summary = "default media-type charset; empty when unspecified"},
+      {.name = "mime-compressible",
+       .aliases = {},
+       .group = "type",
+       .header = "Type & size",
+       .summary = "whether the media type is normally compressible (yes/no; empty when unknown)"},
+      {.name = "mime-source",
+       .aliases = {},
+       .group = "type",
+       .header = "Type & size",
+       .summary = "vocabulary provenance for the media type; empty when unspecified"},
       {.name = "size",
        .aliases = {},
        .group = "type",

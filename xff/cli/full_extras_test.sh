@@ -138,9 +138,11 @@ test::the_notice_lists_every_linked_extra_and_the_direct_codecs() {
   IFS=',' read -r -a extras <<<"${extras_line#Build extras compiled into this binary: }"
   for extra in "${extras[@]}"; do
     extra="${extra// /}"
+    extra="${extra//-/_}"
     expect_output_contains "(@xff_${extra})" "${out}"
   done
   while IFS= read -r extra; do
+    extra="${extra//_/-}"
     expect_matches " ${extra} " "${enabled_extras}"
   done < <(sed -n 's/^Build extension:.*(@xff_\([^)]*\)).*/\1/p' <<<"${out}")
 
