@@ -6,7 +6,7 @@ import html
 import json
 import re
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, Optional
 
 
 _TITLE_RE = re.compile(r'(?P<title>\s*<tr><td class="title">.*?</td></tr>)')
@@ -14,7 +14,7 @@ _HEADER_END_RE = re.compile(
     r'(?P<end>\s*<tr><td class="ruler"><img src="[^"]*glass\.png" width=3 height=3 alt=""></td></tr>\s*</table>)'
 )
 _NAVIGATION_RE = re.compile(r'\s*<tr><td class="xffNavigation">.*?</td></tr>')
-_POLICY_TABLE_RE = re.compile(r'\n\n[ \t]*<table class="xffPolicy".*?</table>\n', re.DOTALL)
+_POLICY_TABLE_RE = re.compile(r'\s*<table class="xffPolicy".*?</table>\s*', re.DOTALL)
 _STYLE_RE = re.compile(r'\s*<style>\s*\.xffNavigation\b.*?\.xffPolicy\b.*?</style>\s*', re.DOTALL)
 _LEGACY_POLICY_RE = re.compile(
     r'\s*<tr>\s*<td class="headerItem">Coverage policy:</td>.*?</tr>\s*', re.DOTALL
@@ -30,7 +30,8 @@ _TABLE_RATE_RE = re.compile(
 _STYLE = """  <style>
     .xffNavigation { padding: .35rem 0; text-align: center; }
     .xffHeaderSummary { margin: 0 auto; width: 80%; }
-    .xffPolicy { margin: .35rem 0 1rem; }
+    .xffPolicy { border-collapse: collapse; margin: .75rem auto 1rem; width: 80%; }
+    .xffPolicy th, .xffPolicy td { padding: .15rem .5rem; text-align: left; }
   </style>
 """
 
@@ -45,28 +46,35 @@ def _bands(policy: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
 
 def legend(policy: dict[str, Any]) -> str:
     medium_band, high_band = _bands(policy)
-    cells: list[str] = []
+    rows: list[str] = []
     for label, key in (("Lines", "lines"), ("Branches", "branches"), ("Functions", "functions")):
         floor = int(medium_band[key])
         goal = int(high_band[key])
         if floor == goal:
-            text = (
-                f'<span class="coverLegendCovLo">low: &lt; {floor} %</span> '
-                f'<span class="coverLegendCovHi">high: &gt;= {goal} %</span>'
-            )
+            medium = "-"
         else:
-            text = (
-                f'<span class="coverLegendCovLo">low: &lt; {floor} %</span> '
-                f'<span class="coverLegendCovMed">medium: &gt;= {floor} % and &lt; {goal} %</span> '
-                f'<span class="coverLegendCovHi">high: &gt;= {goal} %</span>'
-            )
-        cells.append(f"<b>{label}:</b> {text}")
+            medium = f"&ge; {floor}% and &lt; {goal}%"
+        rows.append(
+            "            <tr>\n"
+            f'              <th scope="row">{label}</th>\n'
+            f'              <td class="coverLegendCovLo">&lt; {floor}%</td>\n'
+            f'              <td class="coverLegendCovMed">{medium}</td>\n'
+            f'              <td class="coverLegendCovHi">&ge; {goal}%</td>\n'
+            "            </tr>\n"
+        )
     return (
-        '          <table class="xffPolicy" width="100%" border=0 cellspacing=0 cellpadding=0>\n'
-        '            <tr>\n'
-        '              <td class="headerItem">Coverage policy:</td>\n'
-        f'              <td class="headerValue">{" &middot; ".join(cells)}</td>\n'
-        '            </tr>\n'
+        '          <table class="xffPolicy">\n'
+        "            <thead>\n"
+        "              <tr>\n"
+        '                <th scope="col">Coverage policy</th>\n'
+        '                <th scope="col">Low</th>\n'
+        '                <th scope="col">Medium</th>\n'
+        '                <th scope="col">High</th>\n'
+        "              </tr>\n"
+        "            </thead>\n"
+        "            <tbody>\n"
+        + "".join(rows)
+        + "            </tbody>\n"
         '          </table>\n'
     )
 
@@ -134,6 +142,16 @@ def _navigation(report: Path, page: Path, target: str) -> str:
     )
 
 
+def _footer_start(text: str) -> Optional[int]:
+    marker = text.rfind('<tr><td class="versionInfo">')
+    if marker < 0:
+        return None
+    start = text.rfind("<table", 0, marker)
+    if start < 0:
+        return None
+    return text.rfind("\n", 0, start) + 1
+
+
 def apply(report: Path, policy: dict[str, Any], target: str) -> None:
     _target_parts(target)
     modified = 0
@@ -148,12 +166,13 @@ def apply(report: Path, policy: dict[str, Any], target: str) -> None:
         text = _HEADER_SUMMARY_RE.sub('<table class="xffHeaderSummary" cellpadding=1 border=0>', text, count=1)
         title = _TITLE_RE.search(text)
         header_end = _HEADER_END_RE.search(text)
-        if not title or not header_end:
+        footer_start = _footer_start(text)
+        if not title or not header_end or footer_start is None:
             raise ValueError(f"genhtml header anchors not found in {path}")
         text = text[: title.end()] + _navigation(report, path, target) + text[title.end() :]
-        header_end = _HEADER_END_RE.search(text)
-        assert header_end is not None
-        text = text[: header_end.end()] + "\n\n" + legend(policy) + text[header_end.end() :]
+        footer_start = _footer_start(text)
+        assert footer_start is not None
+        text = text[:footer_start] + legend(policy) + "\n" + text[footer_start:]
         if "</head>" not in text:
             raise ValueError(f"genhtml head anchor not found in {path}")
         text = _normalize_rate_classes(text, policy)
