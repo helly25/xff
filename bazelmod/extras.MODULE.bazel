@@ -56,3 +56,9 @@ local_path_override(
     module_name = "xff_mime_db",
     path = "extra_modules/mime_db",
 )
+
+bazel_dep(name = "xff_language_db", version = "0.0.0")
+local_path_override(
+    module_name = "xff_language_db",
+    path = "extra_modules/language_db",
+)

@@ -25,8 +25,7 @@
 namespace xff::brotli {
 namespace {
 
-namespace stdfs = std::filesystem;
-
+namespace stdfs = ::std::filesystem;
 using ::mbo::testing::IsOk;
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;

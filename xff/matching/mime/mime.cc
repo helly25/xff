@@ -29,7 +29,7 @@
 namespace xff::mime {
 namespace {
 
-namespace stdfs = std::filesystem;
+namespace stdfs = ::std::filesystem;
 // Object member order gives `--mime-conflicts=first|last` an observable, useful
 // meaning. JSON itself does not assign semantic significance to that order, but
 // nlohmann preserves the source order here rather than silently sorting keys.

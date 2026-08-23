@@ -112,6 +112,21 @@ repos:
         language: pygrep
         entry: 'for\s*\([^)]*:\s*\{'
         files: \.(cc|h)$
+      - id: check-namespace-style
+        name: Global namespaces are owned and explicitly rooted
+        description: |
+          Project convention (STYLE_CPP.md): project code never declares or reopens a namespace
+          named std or imports all of ::std. Using-declarations and namespace aliases targeting
+          globally owned namespaces use a leading ::.
+        language: script
+        entry: tools/check_namespace_style.py
+        files: \.(cc|h)$
+      - id: check-namespace-style-test
+        name: Test the namespace-style check
+        language: script
+        entry: tools/check_namespace_style_test.py
+        files: ^tools/check_namespace_style(_test)?\.py$
+        pass_filenames: false
       - id: no-shell-grep-in-bashtests
         name: No hand-rolled grep in bashtests
         description: |

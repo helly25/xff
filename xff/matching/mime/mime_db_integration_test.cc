@@ -9,7 +9,7 @@
 namespace xff::mime {
 namespace {
 
-using mbo::testing::IsOk;
+using ::mbo::testing::IsOk;
 using ::testing::Eq;
 
 struct MimeDbIntegrationTest : ::testing::Test {};

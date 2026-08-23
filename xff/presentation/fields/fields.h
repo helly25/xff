@@ -22,6 +22,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/time/time.h"
@@ -75,13 +77,39 @@ struct RenderContext {
   std::optional<int> fuzzy_score;
 };
 
-namespace detail {
+// A field value either owns a computed string or views storage whose lifetime covers rendering.
+// Keeping that distinction through dispatch avoids allocating for fields backed by immutable
+// registries or RenderContext strings while preserving safe value semantics for computed fields.
+class FieldValue {
+ public:
+  FieldValue() : value_(std::string_view{}) {}
+
+  // These conversions let field renderers naturally return either owned text or stable views.
+  FieldValue(const char* value)  // NOLINT(google-explicit-constructor,hicpp-explicit-conversions)
+      : value_(std::string_view(value)) {}
+
+  FieldValue(std::string value)  // NOLINT(google-explicit-constructor,hicpp-explicit-conversions)
+      : value_(std::move(value)) {}
+
+  FieldValue(std::string_view value)  // NOLINT(google-explicit-constructor,hicpp-explicit-conversions)
+      : value_(value) {}
+
+  [[nodiscard]] std::string_view View() const {
+    if (const auto* const owned = std::get_if<std::string>(&value_); owned != nullptr) {
+      return *owned;
+    }
+    return std::get<std::string_view>(value_);
+  }
+
+ private:
+  std::variant<std::string, std::string_view> value_;
+};
+
 // A resolved field renderer: produces one field's value for an entry. `key` is
 // the bound argument for dynamic/namespaced fields (a capture index, an
 // {env.NAME} variable, ...), empty for builtins. Compile resolves each {field}
 // to one of these once, so Render is a direct call per entry, not name matching.
-using FieldFn = std::string (*)(std::string_view key, std::string_view qualifier, const RenderContext& context);
-}  // namespace detail
+using FieldFn = FieldValue (*)(std::string_view key, std::string_view qualifier, const RenderContext& context);
 
 // Renders {field} placeholder templates against a visited entry, substituting
 // values from a RenderContext (path, root, metadata, depth). `{{` and `}}` emit
@@ -168,7 +196,7 @@ class Template {
     // the field then renders with no qualifier.
     enum class PostProcess { kNone, kRewrite, kComponent, kExtract };
     std::string literal;
-    detail::FieldFn fn = nullptr;
+    FieldFn fn = nullptr;
     std::string key;
     std::string qualifier;
     PostProcess post = PostProcess::kNone;

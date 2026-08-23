@@ -115,7 +115,7 @@ struct EvaluateTest : ::testing::Test {
   // file and returns its path, tracked for TearDown cleanup. The content predicates
   // read a real file via LocalFs::ReadContent, so they need one on disk.
   std::string WriteContentFile(std::string_view tag, std::string_view bytes) {
-    namespace stdfs = std::filesystem;
+    namespace stdfs = ::std::filesystem;
     const stdfs::path path = stdfs::temp_directory_path() / (std::string("xff_content_") + std::string(tag));
     {
       std::ofstream out(path, std::ios::binary);
@@ -126,7 +126,7 @@ struct EvaluateTest : ::testing::Test {
   }
 
   void TearDown() override {
-    namespace stdfs = std::filesystem;
+    namespace stdfs = ::std::filesystem;
     for (const std::string& file : content_files_) {
       std::error_code ec;
       stdfs::remove(file, ec);
@@ -677,7 +677,7 @@ TEST_F(EvaluateTest, SamefileFalseWhenReferenceMissing) {
 }
 
 TEST_F(EvaluateTest, AccessReadableWritableExecutable) {
-  namespace stdfs = std::filesystem;
+  namespace stdfs = ::std::filesystem;
   const stdfs::path tmp = stdfs::temp_directory_path() / "xff_access_probe.tmp";
   { std::ofstream(tmp) << "x"; }
   stdfs::permissions(tmp, stdfs::perms::owner_read | stdfs::perms::owner_write);  // rw, no execute bit
@@ -693,7 +693,7 @@ TEST_F(EvaluateTest, AccessReadableWritableExecutable) {
 }
 
 TEST_F(EvaluateTest, FstypeMatchesTheHostingFilesystem) {
-  namespace stdfs = std::filesystem;
+  namespace stdfs = ::std::filesystem;
   const stdfs::path tmp = stdfs::temp_directory_path() / "xff_fstype_probe.tmp";
   { std::ofstream(tmp) << "x"; }
   const std::string path = tmp.string();
@@ -958,7 +958,7 @@ TEST_F(EvaluateTest, ContentNonRegularOrMissingDoesNotMatch) {
 }
 
 TEST_F(EvaluateTest, LnameGlobsSymlinkTarget) {
-  namespace stdfs = std::filesystem;
+  namespace stdfs = ::std::filesystem;
   const stdfs::path link = stdfs::temp_directory_path() / "xff_lname_probe.link";
   stdfs::remove(link);  // clear any leftover from a previous run
   stdfs::create_symlink("/some/Where/target.txt", link);
@@ -978,7 +978,7 @@ TEST_F(EvaluateTest, LnameGlobsSymlinkTarget) {
 }
 
 TEST_F(EvaluateTest, XtypeFollowsSymlinkTarget) {
-  namespace stdfs = std::filesystem;
+  namespace stdfs = ::std::filesystem;
   const stdfs::path dir = stdfs::temp_directory_path() / "xff_xtype_probe.d";
   stdfs::remove_all(dir);
   ASSERT_TRUE(stdfs::create_directories(dir));
@@ -1289,7 +1289,7 @@ TEST_F(EvaluateTest, AnewerCnewerCompareEntryTimeToReferenceMtime) {
   EXPECT_FALSE(Match({"-anewer", "/no/such/reference"}, missing));
   EXPECT_FALSE(Match({"-cnewer", "/no/such/reference"}, missing));
 
-  namespace stdfs = std::filesystem;
+  namespace stdfs = ::std::filesystem;
   const stdfs::path ref = stdfs::temp_directory_path() / "xff_anewer_ref.tmp";
   { std::ofstream(ref) << "r"; }  // reference mtime is ~now (between the two fixed times below)
   const std::string ref_path = ref.string();
@@ -1326,7 +1326,7 @@ TEST_F(EvaluateTest, NewerBCombosAreFalseWhenBirthTimeUnrecorded) {
 
 TEST_F(EvaluateTest, NewerBmComparesBirthTimeToReferenceMtime) {
   // -newerBm: the entry's birth time vs the reference FILE's mtime (X=B, file-ref).
-  namespace stdfs = std::filesystem;
+  namespace stdfs = ::std::filesystem;
   const stdfs::path ref = stdfs::temp_directory_path() / "xff_newerbm_ref.tmp";
   { std::ofstream(ref) << "r"; }  // reference mtime is ~now (between the two fixed times below)
   const std::string ref_path = ref.string();
@@ -1346,7 +1346,7 @@ TEST_F(EvaluateTest, NewerMbComparesMtimeToReferenceBirthTime) {
   // assert when the test filesystem records birth time -- otherwise the reference
   // btime is absent and the comparison is always false (mirroring -Btime), which
   // is not what this case means to exercise.
-  namespace stdfs = std::filesystem;
+  namespace stdfs = ::std::filesystem;
   const stdfs::path ref = stdfs::temp_directory_path() / "xff_newermb_ref.tmp";
   { std::ofstream(ref) << "r"; }  // birth time is ~now (between the two fixed times below)
   const std::string ref_path = ref.string();

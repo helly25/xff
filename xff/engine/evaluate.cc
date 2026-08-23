@@ -1557,7 +1557,18 @@ bool EvalMime(const parser::Expr& expr, EvalContext& ctx) {
 // / C# / CSS / Clojure at once. Content is not read; an unrecognized name has no language (the
 // empty string), which only a `*` / empty pattern matches.
 bool EvalLang(const parser::Expr& expr, EvalContext& ctx) {
-  return !expr.args.empty() && Fnmatch(expr.args.front(), language::LanguageForName(ctx.visit.name), FNM_CASEFOLD);
+  if (expr.args.empty()) {
+    return false;
+  }
+  const std::optional<language::LanguageInfo> info = language::InfoForName(ctx.visit.name);
+  if (!info.has_value()) {
+    return Fnmatch(expr.args.front(), "", FNM_CASEFOLD);
+  }
+  if (Fnmatch(expr.args.front(), info->name, FNM_CASEFOLD)) {
+    return true;
+  }
+  return std::ranges::any_of(
+      info->aliases, [&](std::string_view alias) { return Fnmatch(expr.args.front(), alias, FNM_CASEFOLD); });
 }
 
 // -xtype: like -type, but for a symlink it tests the type of the link's *target*

@@ -34,7 +34,7 @@
 namespace xff::brotli {
 namespace {
 
-namespace stdfs = std::filesystem;
+namespace stdfs = ::std::filesystem;
 
 constexpr std::size_t kBlockSize = std::size_t{64} * 1'024;
 constexpr int kDefaultQuality = 11;

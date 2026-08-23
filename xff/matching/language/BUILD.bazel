@@ -25,8 +25,15 @@ cc_library(
     hdrs = ["language.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@helly25_mbo//mbo/container:limited_map_cc",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/types:span",
+        "@helly25_mbo//mbo/status:status_macros_cc",
+        "@nlohmann_json//:json",
+        "@xff_extras_api//:language_database_cc",
     ],
 )
 
@@ -38,5 +45,18 @@ cc_test(
         ":language_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)
+
+cc_test(
+    name = "language_db_integration_test",
+    size = "small",
+    srcs = ["language_db_integration_test.cc"],
+    deps = [
+        ":language_cc",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+        "@xff_language_db//:language_db_register_cc",
     ],
 )

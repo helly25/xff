@@ -63,6 +63,15 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
 
 ### Lint / CI / style adoption (open audits)
 
+- **Audit immutable registries for avoidable allocation.** Find APIs that return owning strings or
+  copied records even though they read from a container initialized once and then held constant for
+  the process lifetime. Where ownership and concurrency permit, return `std::string_view`, a const
+  reference, or an explicit view record instead. Each conversion must prove initialization order,
+  stable element addresses, snapshot/reconfiguration lifetime, and thread safety; do not expose a
+  view merely because the current caller consumes it quickly. The language vocabulary's immutable,
+  process-retained snapshots and `LanguageForName()` view are the reference model. Measure or at
+  least identify the allocation/copy removed, and retain owning results where the caller genuinely
+  crosses the backing container's lifetime.
 - **Compile-DB launcher configuration after
   [mbo PR #354](https://github.com/helly25/mbo/pull/354): SHIPPED (PR #627).** The outer
   `bazel run //:refresh_compile_commands` now uses `--config=clang-tidy`, matching the preceding
@@ -435,9 +444,13 @@ remains below is the design-forked / larger work.
   mappings and metadata; `--mime-conflicts=error|first|last` makes ambiguity policy explicit.
   `{mime-category}`, `{mime-description}`, `{mime-charset}`, `{mime-compressible}`, and
   `{mime-source}` expose the selected record. Still separate: content-based classification.
-- **`-lang` vocabulary: richer data + table overrides - open.** Apply the same canonical-record /
-  derived-extension-index design to languages, including aliases and github-linguist colours, in a
-  separate change. Language matching stays case-insensitive while `{lang}` preserves canonical case.
+- **`-lang` vocabulary: richer data + table overrides - SHIPPED.** The lean core keeps its curated
+  common table; the removable, Brotli-compressed GitHub Linguist extra supplies canonical records,
+  aliases, colours, groups, longest-suffix mappings, and exact filenames. Repeatable
+  `--lang-db=FILE` JSON layers and `--lang-conflicts=error|first|last` provide deterministic
+  local overrides. `-lang` folds case and accepts aliases while `{lang}` preserves canonical case;
+  `{lang-type}`, `{lang-color}`, `{lang-group}`, and `{lang-source}` expose record metadata. Linguist's
+  content/shebang heuristics remain deliberately out of scope.
 - **EPIC: Sharded-file support (#84) - v1 SHIPPED.** Collapse a
   shard set (`data-00000-of-00010`, `foo.tar.001` parts, `arc.z01`/`arc.zip`, ...) into one logical
   entry. Full spec in [`docs/design.md`](design.md) "Sharded files": off-by-default `--shards`; v1 =

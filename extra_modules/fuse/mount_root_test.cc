@@ -35,8 +35,7 @@
 namespace xff::fuse {
 namespace {
 
-namespace stdfs = std::filesystem;
-
+namespace stdfs = ::std::filesystem;
 using ::mbo::testing::StatusIs;
 using ::testing::AllOf;
 using ::testing::EndsWith;

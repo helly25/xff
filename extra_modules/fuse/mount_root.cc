@@ -37,7 +37,7 @@
 namespace xff::fuse {
 namespace {
 
-namespace stdfs = std::filesystem;
+namespace stdfs = ::std::filesystem;
 
 // `<base>/xff/`, the level shared across runs. Reads the environment once per call; this runs at
 // startup and in tests, never on the walk's hot path.

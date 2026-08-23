@@ -37,8 +37,7 @@
 namespace xff::engine {
 namespace {
 
-namespace stdfs = std::filesystem;
-
+namespace stdfs = ::std::filesystem;
 using ::mbo::testing::StatusIs;
 using ::testing::EndsWith;
 using ::testing::IsEmpty;

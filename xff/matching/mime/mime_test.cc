@@ -28,8 +28,8 @@
 namespace xff::mime {
 namespace {
 
-using mbo::testing::IsOk;
-using mbo::testing::StatusIs;
+using ::mbo::testing::IsOk;
+using ::mbo::testing::StatusIs;
 using ::testing::AllOf;
 using ::testing::Contains;
 using ::testing::ElementsAre;

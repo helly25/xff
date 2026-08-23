@@ -20,6 +20,11 @@ This `README.md` is a short overview. The complete, always-current reference liv
   `--mime-vocabulary=FILE` JSON overlays can replace extension mappings and attach descriptions,
   sources, charsets, aliases, and compressibility, with explicit conflict policy and matching
   `{mime-*}` fields for output and aggregation.
+- **Overrideable Language Vocabulary:** Common languages remain built in; the removable,
+  Brotli-compressed GitHub Linguist extra expands classification to hundreds of canonical records.
+  Repeatable `--lang-db=FILE` layers override suffixes, exact filenames, aliases, colours,
+  groups, and provenance with an explicit ambiguity policy; `{lang-*}` fields expose the selected
+  metadata without running a heavyweight content classifier.
 - **One Composable Expression Language:** Path, content, ownership, permissions, age, allocated size, language, MIME type, hashes, and content equality are ordinary tests joined with `find`'s `!`, `-a`, `-o`, and parentheses. Search, reporting, and actions therefore share one walk instead of being stitched together with `xargs` and temporary files.
 - **Fuzzy File Finding:** `-fuzzy` and `-fuzzypath` provide scored fzf-query, plain-subsequence, Levenshtein/edit, and character-shingle models, while `--sort=score` ranks the results. The score is also available as `{fuzzy}` for custom tables and templates.
 - **Structured Layout Engines:** Stream matches natively as plain text, NUL-delimited, `JSONL`, `CSV` / `TSV`, an aligned console table, a visual tree, or a standard Markdown table, all calculated from one single filesystem walk.
@@ -57,6 +62,7 @@ expression and one traversal.
 | **Regex content search with context**   |   -    |  -   |  ✓   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `-grep`, `-rxc`, `--context`**       |
 | **Language and MIME filtering**         |   -    |  -   |  △   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `-lang`, `-mime`**                   |
 | **Overrideable MIME metadata**          |   -    |  -   |  -   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ JSON layers + `mime-db` extra**      |
+| **Overrideable language metadata**      |   -    |  -   |  -   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ JSON layers + Linguist extra**       |
 | **Text, binary, and EOL tests**         |   -    |  -   |  △   |   -   |   -    |  -   |   -    |     -      |       -       | **✓ `-text`, `-binary`, `-eof*`**        |
 | **Structured JSON/CSV/table output**    |   -    |  -   |  ✓   |   -   |   △    |  -   |   -    |     -      |       △       | **✓ Eight output formats**               |
 | **Tree rendering**                      |   -    |  -   |  -   |   -   |   ✓    |  -   |   -    |     -      |       △       | **✓ `--format=tree`**                    |

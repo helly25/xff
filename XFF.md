@@ -140,6 +140,19 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 ### Filter & Ignore
 - `--exclude=GLOB` - skip paths matching a gitignore-style glob (repeatable; a matched directory is pruned) _(global, xff)_
 - `--include=GLOB` - re-include paths a --exclude would skip, matching a gitignore-style glob (repeatable) _(global, xff)_
+- `--lang-db=FILE` - overlay language metadata and suffix/filename mappings from JSON; repeatable _(global, xff)_
+  Loads a JSON object keyed by canonical language name. Each value may set `type`, `color`, `group`, and `source`, plus string arrays `aliases`, `extensions`, and `filenames`. Later files override earlier files and compiled data. Extensions may include their leading dot and may contain multiple parts; matching folds suffix case while exact filenames retain case. Conflicts between two languages in ONE file follow `--lang-conflicts`.
+  Affects: -lang
+  Affected by: --lang-conflicts
+- `--lang-conflicts=error|first|last` - resolve ambiguous suffix or filename claims within one language vocabulary file _(global, xff)_
+  One of:
+
+  - `error` - reject two languages claiming one suffix or filename in the same file (default)
+  - `first` - keep the first claim in that file
+  - `last` - keep the last claim in that file
+
+  Controls only ambiguity inside one `--lang-db` file. Layering remains deterministic: a later file intentionally overrides earlier files and compiled data. `error` is the default; `first` or `last` is an explicit compatibility escape hatch for imported databases.
+  Affects: --lang-db
 - `--mime-vocabulary=FILE` - overlay media-type metadata and extension mappings from JSON; repeatable _(global, xff)_
   Loads a JSON object keyed by canonical media type. Each value may set `description`, `source`, `charset`, boolean `compressible`, and string arrays `aliases` and `extensions`. Later files override earlier files and compiled data. An extension may include its leading dot; matching folds case. Conflicts between two types in ONE file follow `--mime-conflicts`.
   Affects: -mime
@@ -477,7 +490,8 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   xff extension: matches the media (MIME) type derived from the filename extension against a shell glob, so `image/*` matches png/jpg/... and `text/plain` is exact. The lean binary has a curated common-type table; the removable `mime-db` build extra supplies thousands of types, and repeatable `--mime-vocabulary=FILE` JSON layers override mappings and metadata. This is fast name classification, not content sniffing. The same value is the `{mime}` field; `{mime-category}`, `{mime-description}`, `{mime-charset}`, `{mime-compressible}`, and `{mime-source}` expose its metadata. Matching is always case-insensitive (MIME names are case-insensitive per RFC 2045/6838), so `IMAGE/*` behaves like `image/*`; `--case` / -i / -s do not affect it. See `--help=content` for the overlay schema and conflict policy.
   Affected by: --mime-vocabulary
 - `-lang ARG` - match the language by extension/filename against a glob, e.g. -lang 'C*' (xff) _(test, xff)_
-  xff extension: matches the programming language inferred from the extension/filename (github-linguist data) against a shell glob, so `C*` matches C / C++ / C#. The same value is the {lang} field. Matching is always case-insensitive (`c++` matches the canonical `C++`) and unaffected by `--case` / -i / -s.
+  xff extension: matches the programming language inferred from the extension/filename against a shell glob, so `C*` matches C / C++ / C#. The lean binary has a curated common table; the removable GitHub Linguist build extra supplies hundreds of canonical records, and repeatable `--lang-db=FILE` JSON layers override mappings and metadata. Exact filenames win over the longest matching suffix. The same canonical value is `{lang}`; `{lang-type}`, `{lang-color}`, `{lang-group}`, and `{lang-source}` expose metadata. A pattern may also match an alias (`cpp` matches canonical `C++`). Matching is always case-insensitive and unaffected by `--case` / -i / -s. This is fast name classification, not Linguist's content/shebang heuristic classifier.
+  Affected by: --lang-db
 - `-size ARG` - match apparent size with legacy, explicit SI (MB), or IEC (MiB) units _(test, find)_
   Compares the file's apparent size. A bare number counts 512-byte blocks (find default); a unit suffix sets the scale: find's `c`/`w`/`k`/`M`/`G`/`T`/`P`/`E` are retained as legacy binary units; explicit `B`/`kB`/`MB`/... are SI powers of 1000, and `KiB`/`MiB`/... are IEC powers of 1024. A leading + / - means greater / less than. The size is rounded up to whole units, so `-size +100M` means larger than `100 MiB`, while `-size +100MB` means larger than `100 MB`. See `--help=size` and `-blocks` for allocated space.
 - `-blocks ARG` - match the allocated size (st_blocks); xff's disk-occupancy counterpart to -size _(test, xff)_
@@ -666,6 +680,10 @@ The `{field}` placeholder vocabulary, substituted per entry in --template / --fo
 
 - `{type}` - entry type letter (f, d, l, ...)
 - `{lang} {language}` - language by extension/filename (C++, Python, ...; empty if unknown)
+- `{lang-type}` - language kind (programming, markup, data, or prose); empty when unspecified
+- `{lang-color}` - language display colour (#RRGGBB); empty when unspecified
+- `{lang-group}` - parent language group; empty when the language is not grouped
+- `{lang-source}` - vocabulary provenance for the language; empty when unspecified
 - `{mime}` - media (MIME) type by extension (text/plain, image/png; application/octet-stream if unknown)
 - `{mime-category}` - top-level media category (application, image, text, ...)
 - `{mime-description}` - media-type description from the active vocabulary; empty when unspecified

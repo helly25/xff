@@ -1,0 +1,56 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-License-Identifier: Apache-2.0
+
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@xff_extras_api//:language_database.bzl", "language_database")
+load("@xff_extras_api//:license_body.bzl", "license_body")
+
+package(default_visibility = ["//visibility:private"])
+
+license_body(
+    name = "mit_license_cc",
+    src = "licenses/MIT.txt",
+    spdx = "MIT",
+)
+
+language_database(
+    name = "language_db_data_cc",
+    src = "data/languages.json.br",
+    uncompressed_size = 100850,
+)
+
+cc_library(
+    name = "language_db_register_cc",
+    srcs = [
+        "language_database.cc",
+        "language_db_register.cc",
+    ],
+    hdrs = ["language_database.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":language_db_data_cc",
+        ":mit_license_cc",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@brotli//:brotlidec",
+        "@xff_extras_api//:language_database_cc",
+        "@xff_extras_api//:license_notice_cc",
+    ],
+    alwayslink = True,
+)
+
+cc_test(
+    name = "language_db_register_test",
+    size = "small",
+    srcs = ["language_db_register_test.cc"],
+    deps = [
+        ":language_db_data_cc",
+        ":language_db_register_cc",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+        "@xff_extras_api//:language_database_cc",
+        "@xff_extras_api//:license_notice_cc",
+    ],
+)

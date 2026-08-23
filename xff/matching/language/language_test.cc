@@ -15,16 +15,42 @@
 
 #include "xff/matching/language/language.h"
 
+#include <array>
+#include <atomic>
+#include <filesystem>
+#include <fstream>
+#include <string>
+#include <string_view>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "mbo/testing/status.h"
 
 namespace xff::language {
 namespace {
 
+using ::mbo::testing::IsOk;
+using ::mbo::testing::StatusIs;
+using ::testing::AllOf;
+using ::testing::Contains;
 using ::testing::Eq;
+using ::testing::Field;
+using ::testing::HasSubstr;
 using ::testing::IsEmpty;
+using ::testing::Optional;
 
-struct LanguageTest : ::testing::Test {};
+struct LanguageTest : ::testing::Test {
+  void TearDown() override { EXPECT_THAT(Configure({}, ConflictPolicy::kError), IsOk()); }
+
+  static std::string Write(std::string_view text) {
+    static std::atomic<unsigned> sequence = 0;
+    const std::filesystem::path path = std::filesystem::path(::testing::TempDir())
+                                       / (std::string(::testing::UnitTest::GetInstance()->current_test_info()->name())
+                                          + "-" + std::to_string(sequence.fetch_add(1)));
+    std::ofstream(path) << text;
+    return path.string();
+  }
+};
 
 TEST_F(LanguageTest, ByExtension) {
   EXPECT_THAT(LanguageForName("main.cc"), Eq("C++"));
@@ -63,6 +89,120 @@ TEST_F(LanguageTest, UnknownIsEmpty) {
   EXPECT_THAT(LanguageForName("README"), IsEmpty());     // no extension, no filename match
   EXPECT_THAT(LanguageForName("a.unknownext"), IsEmpty());
   EXPECT_THAT(LanguageForName(""), IsEmpty());
+}
+
+TEST_F(LanguageTest, JsonLayerOverridesLongestSuffixAndSuppliesMetadata) {
+  const std::string file = Write(R"({
+    "TypeScript declaration": {
+      "type": "programming",
+      "color": "#3178c6",
+      "group": "TypeScript",
+      "source": "local",
+      "aliases": ["dts"],
+      "extensions": [".d.ts"],
+      "filenames": ["types.special"]
+    }
+  })");
+  EXPECT_THAT(Configure({file}, ConflictPolicy::kError), IsOk());
+  EXPECT_THAT(LanguageForName("types.d.ts"), Eq("TypeScript declaration"));
+  EXPECT_THAT(LanguageForName("types.D.TS"), Eq("TypeScript declaration"));
+  EXPECT_THAT(LanguageForName("types.special"), Eq("TypeScript declaration"));
+  EXPECT_THAT(
+      InfoForName("types.d.ts"), Optional(AllOf(
+                                     Field(&LanguageInfo::type, "programming"), Field(&LanguageInfo::color, "#3178c6"),
+                                     Field(&LanguageInfo::group, "TypeScript"), Field(&LanguageInfo::source, "local"),
+                                     Field(&LanguageInfo::aliases, Contains("dts")))));
+}
+
+TEST_F(LanguageTest, LaterLayerOverridesEarlierLayer) {
+  const std::string first = Write(R"({"First": {"extensions": ["one"]}})");
+  const std::string second = Write(R"({"Second": {"extensions": ["one"]}})");
+  EXPECT_THAT(Configure({first, second}, ConflictPolicy::kError), IsOk());
+  EXPECT_THAT(LanguageForName("a.one"), Eq("Second"));
+}
+
+TEST_F(LanguageTest, PublishedMetadataViewsSurviveLaterSnapshots) {
+  const std::string original_file = Write(R"({
+    "Original": {"extensions": ["cc"], "aliases": ["orig"], "type": "programming"}
+  })");
+  EXPECT_THAT(Configure({original_file}, ConflictPolicy::kError), IsOk());
+  const std::optional<LanguageInfo> original_info = InfoForName("main.cc");
+  ASSERT_THAT(original_info, Optional(Field(&LanguageInfo::name, "Original")));
+  const LanguageInfo original = original_info.value_or(LanguageInfo{});
+  const std::string replacement = Write(R"({"Replacement": {"extensions": ["cc"]}})");
+  EXPECT_THAT(Configure({replacement}, ConflictPolicy::kError), IsOk());
+  EXPECT_THAT(LanguageForName("main.cc"), Eq("Replacement"));
+  EXPECT_THAT(original.name, Eq("Original"));
+  EXPECT_THAT(original.type, Eq("programming"));
+  EXPECT_THAT(original.aliases, Contains("orig"));
+  EXPECT_THAT(original.extensions, Contains("cc"));
+}
+
+TEST_F(LanguageTest, ReplacingOneClaimKindPreservesTheOther) {
+  const std::string base = Write(R"({"Both": {"extensions": ["old"], "filenames": ["Exact"]}})");
+  const std::string extension = Write(R"({"Both": {"extensions": ["new"]}})");
+  EXPECT_THAT(Configure({base, extension}, ConflictPolicy::kError), IsOk());
+  EXPECT_THAT(LanguageForName("a.old"), IsEmpty());
+  EXPECT_THAT(LanguageForName("a.new"), Eq("Both"));
+  EXPECT_THAT(LanguageForName("Exact"), Eq("Both"));
+
+  const std::string filename = Write(R"({"Both": {"filenames": ["Replacement"]}})");
+  EXPECT_THAT(Configure({base, filename}, ConflictPolicy::kError), IsOk());
+  EXPECT_THAT(LanguageForName("a.old"), Eq("Both"));
+  EXPECT_THAT(LanguageForName("Exact"), IsEmpty());
+  EXPECT_THAT(LanguageForName("Replacement"), Eq("Both"));
+}
+
+TEST_F(LanguageTest, ConflictPolicyControlsClaimsWithinOneLayer) {
+  const std::string file = Write(R"({
+    "First": {"extensions": ["same"]},
+    "Last": {"extensions": ["same"]}
+  })");
+  EXPECT_THAT(
+      Configure({file}, ConflictPolicy::kError),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("extension 'same' is claimed by First and Last")));
+  EXPECT_THAT(Configure({file}, ConflictPolicy::kFirst), IsOk());
+  EXPECT_THAT(LanguageForName("a.same"), Eq("First"));
+  EXPECT_THAT(Configure({file}, ConflictPolicy::kLast), IsOk());
+  EXPECT_THAT(LanguageForName("a.same"), Eq("Last"));
+}
+
+TEST_F(LanguageTest, RejectsInvalidLayerShapeAndValues) {
+  EXPECT_THAT(
+      Configure({Write("[]")}, ConflictPolicy::kError),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("top level must be an object")));
+  EXPECT_THAT(
+      Configure({Write(R"({"Broken":{"extensions":"cc"}})")}, ConflictPolicy::kError),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("extensions must be an array of strings")));
+}
+
+TEST_F(LanguageTest, RejectsMalformedLanguageRecords) {
+  struct Case {
+    std::string_view json;
+    std::string_view message;
+  };
+
+  constexpr auto kCases = std::to_array<Case>({
+      {.json = "not JSON", .message = "invalid JSON"},
+      {.json = R"({"":{}})", .message = "invalid language entry"},
+      {.json = R"({"Broken":[]})", .message = "invalid language entry"},
+      {.json = R"({"Broken":{"type":[]}})", .message = "Broken.type must be a string"},
+      {.json = R"({"Broken":{"aliases":[1]}})", .message = "aliases must contain only strings"},
+      {.json = R"({"Broken":{"extensions":[""]}})", .message = "invalid extension"},
+      {.json = R"({"Broken":{"extensions":["a/b"]}})", .message = "invalid extension"},
+      {.json = R"({"Broken":{"filenames":"Exact"}})", .message = "filenames must be an array of strings"},
+      {.json = R"({"Broken":{"filenames":[""]}})", .message = "invalid filename"},
+      {.json = R"({"Broken":{"filenames":["a/b"]}})", .message = "invalid filename"},
+  });
+  for (const Case& test : kCases) {
+    EXPECT_THAT(
+        Configure({Write(test.json)}, ConflictPolicy::kError),
+        StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr(test.message)));
+  }
+}
+
+TEST_F(LanguageTest, ListsCanonicalRecordsDeterministically) {
+  EXPECT_THAT(Languages(), Contains(Field(&LanguageInfo::name, "C++")));
 }
 
 }  // namespace

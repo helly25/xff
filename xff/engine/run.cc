@@ -356,7 +356,7 @@ std::string SummaryKey(SummaryMode mode, const Visit& visit) {
     case SummaryMode::kType: return std::string(TypeName(visit.metadata.type));
     case SummaryMode::kLanguage: {
       const std::string_view lang = language::LanguageForName(visit.name);
-      return lang.empty() ? "(none)" : std::string(lang);  // unrecognized -> one "(none)" bucket
+      return lang.empty() ? "(none)" : std::string(lang);  // Unrecognized names share one bucket.
     }
     case SummaryMode::kMime: return fields::Render("{mime}", visit.path, visit.metadata, visit.depth);
     case SummaryMode::kUser: return fields::Render("{user}", visit.path, visit.metadata, visit.depth);
@@ -2948,9 +2948,13 @@ int RunFind(
   }
   std::vector<std::string> mime_vocabulary_files;
   mime::ConflictPolicy mime_conflicts = mime::ConflictPolicy::kError;
+  std::vector<std::string> language_db_files;
+  language::ConflictPolicy language_conflicts = language::ConflictPolicy::kError;
   for (const std::string& global : command.globals) {
     constexpr std::string_view kVocabulary = "--mime-vocabulary=";
     constexpr std::string_view kConflicts = "--mime-conflicts=";
+    constexpr std::string_view kLanguageDbPrefix = "--lang-db=";
+    constexpr std::string_view kLanguageConflicts = "--lang-conflicts=";
     if (global.starts_with(kVocabulary)) {
       mime_vocabulary_files.emplace_back(std::string_view(global).substr(kVocabulary.size()));
     } else if (global.starts_with(kConflicts)) {
@@ -2964,10 +2968,27 @@ int RunFind(
       if (value == "error") {
         mime_conflicts = mime::ConflictPolicy::kError;
       }
+    } else if (global.starts_with(kLanguageDbPrefix)) {
+      language_db_files.emplace_back(std::string_view(global).substr(kLanguageDbPrefix.size()));
+    } else if (global.starts_with(kLanguageConflicts)) {
+      const std::string_view value = std::string_view(global).substr(kLanguageConflicts.size());
+      if (value == "first") {
+        language_conflicts = language::ConflictPolicy::kFirst;
+      }
+      if (value == "last") {
+        language_conflicts = language::ConflictPolicy::kLast;
+      }
+      if (value == "error") {
+        language_conflicts = language::ConflictPolicy::kError;
+      }
     }
   }
   if (const absl::Status status = mime::Configure(mime_vocabulary_files, mime_conflicts); !status.ok()) {
     on_error("--mime-vocabulary", status);
+    return 2;
+  }
+  if (const absl::Status status = language::Configure(language_db_files, language_conflicts); !status.ok()) {
+    on_error("--lang-db", status);
     return 2;
   }
   const parser::Expr* const expression = command.expression.get();

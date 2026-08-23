@@ -70,6 +70,21 @@ an AI assistant) can follow them without reverse-engineering the tooling.
     just `internal`.
   - Exported-but-detail code may use a `detail` sub-namespace (fully qualify it, since
     the bare `detail` name can collide).
+- **Root globally owned namespaces explicitly in using-declarations and namespace aliases.** This
+  applies uniformly to the standard library, foundational dependencies, and project namespaces:
+  write `using ::std::size_t;`, `using ::absl::Status;`, `using ::mbo::testing::IsOk;`, and
+  `namespace fs = ::std::filesystem;`. The leading `::` makes lookup unambiguously start at the
+  global namespace. Keep all such declarations in one block without library-specific blank lines,
+  sorted lexicographically. Relative qualification remains correct for a name owned by the current
+  namespace and for dependent imports such as `using Ts::operator()...;`; this rule does not affect
+  type aliases such as `using Value = mbo::types::Value;`.
+- **Only the standard library owns a namespace named `std`.** Project code never declares or
+  reopens `::std`, never declares a nested namespace such as `xff::std`, and never writes
+  `using namespace ::std;`. A standards-sanctioned customization point must instead be an explicitly
+  qualified specialization at global scope, for example `template <> struct std::hash<MyType>`.
+  Such extension points are exceptional and should be avoided where a project-owned customization
+  mechanism is possible. The `check-namespace-style` pre-commit hook enforces namespace ownership
+  and absolute qualification.
 - Header guards: `{PATH}_{FILE}_` (path + filename, uppercased, non-alphanumerics ->
   `_`, trailing `_`). A file may not start with a sibling directory's basename + `_`:
   `foo/bar.h` and `foo_bar.h` would both yield `FOO_BAR_H_`.
@@ -85,7 +100,7 @@ an AI assistant) can follow them without reverse-engineering the tooling.
   ... in `namespace std`; whether it _also_ injects the bare global name is
   implementation-defined, so we never rely on it.
   - In **headers**, always fully qualify (`std::size_t`); no namespace-level `using`.
-  - In an **implementation file** (`.cc`), a `using std::size_t;` (or other `using std::...`)
+  - In an **implementation file** (`.cc`), a `using ::std::size_t;` (or other `using ::std::...`)
     is fine where it reads better - bring the name in explicitly rather than leaning on the
     global alias. Be consistent within a file, but readability outranks consistency.
 - Library flags are prefixed by their path/namespace (e.g. a flag in `xff/<pkg>` is
