@@ -3,9 +3,9 @@
   "measurements": {
     "overall": {
       "lines": {
-        "covered": 11270,
+        "covered": 11271,
         "total": 11848,
-        "percent": 95.12
+        "percent": 95.13
       },
       "functions": {
         "covered": 1309,
@@ -13,9 +13,9 @@
         "percent": 98.27
       },
       "branches": {
-        "covered": 8111,
+        "covered": 8110,
         "total": 9408,
-        "percent": 86.21
+        "percent": 86.2
       }
     },
     "program / command line": {
@@ -88,9 +88,9 @@
     },
     "program / filesystem": {
       "lines": {
-        "covered": 469,
+        "covered": 470,
         "total": 479,
-        "percent": 97.91
+        "percent": 98.12
       },
       "functions": {
         "covered": 54,
@@ -98,9 +98,9 @@
         "percent": 98.18
       },
       "branches": {
-        "covered": 305,
+        "covered": 304,
         "total": 326,
-        "percent": 93.56
+        "percent": 93.25
       }
     },
     "program / matching": {
@@ -423,5 +423,9 @@
       "functions": "high",
       "branches": "high"
     }
+  },
+  "reasons": {
+    "extensions / archive": "Archive format and filter error paths include third-party-library and malformed-input alternatives that are not all reachable in one GCC/Linux coverage run.",
+    "extensions / FUSE": "FUSE's dynamic-loader alternatives, fatal-signal handler, mount-failure variants, and spontaneous-session-exit path are mutually exclusive or process-disrupting in one GCC/Linux coverage run. Public filesystem behavior and deterministic lifecycle failures remain covered."
   }
 }
