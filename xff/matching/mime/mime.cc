@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
@@ -289,6 +290,16 @@ TypeInfo Lookup(const Vocabulary& vocabulary, std::string_view name) {
   return vocabulary.types.at(std::string(kFallback));
 }
 
+void EnsureConfigured(State& state) ABSL_EXCLUSIVE_LOCKS_REQUIRED(state.mutex) {
+  if (!state.vocabulary.types.empty()) {
+    return;
+  }
+  state.vocabulary = CoreVocabulary();
+  for (const Database& database : Databases()) {
+    CHECK_OK(ApplyLayer(state.vocabulary, database.json, database.name, ConflictPolicy::kLast));
+  }
+}
+
 }  // namespace
 
 std::string_view TypeInfo::Category() const {
@@ -296,6 +307,15 @@ std::string_view TypeInfo::Category() const {
 }
 
 absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy conflicts) {
+  if (files.empty()) {
+    State& state = GlobalState();
+    const absl::MutexLock lock(&state.mutex);
+    // Registered databases are trusted, generated build inputs. Defer their
+    // comparatively expensive JSON parse until a MIME predicate or field is
+    // actually evaluated; user-provided layers below remain eagerly validated.
+    state.vocabulary = Vocabulary{};
+    return absl::OkStatus();
+  }
   Vocabulary vocabulary = CoreVocabulary();
   for (const Database& database : Databases()) {
     MBO_RETURN_IF_ERROR(ApplyLayer(vocabulary, database.json, database.name, ConflictPolicy::kLast));
@@ -313,9 +333,7 @@ absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy confl
 TypeInfo InfoForName(std::string_view name) {
   State& state = GlobalState();
   const absl::MutexLock lock(&state.mutex);
-  if (state.vocabulary.types.empty()) {
-    state.vocabulary = CoreVocabulary();
-  }
+  EnsureConfigured(state);
   return Lookup(state.vocabulary, name);
 }
 
@@ -326,9 +344,7 @@ std::string TypeForName(std::string_view name) {
 std::vector<TypeInfo> Types() {
   State& state = GlobalState();
   const absl::MutexLock lock(&state.mutex);
-  if (state.vocabulary.types.empty()) {
-    state.vocabulary = CoreVocabulary();
-  }
+  EnsureConfigured(state);
   std::vector<TypeInfo> result;
   result.reserve(state.vocabulary.types.size());
   for (const auto& entry : state.vocabulary.types) {
