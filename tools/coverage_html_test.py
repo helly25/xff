@@ -51,14 +51,16 @@ class CoverageHtmlTest(unittest.TestCase):
             self.assertIn('<th scope="col">Low</th>', rendered)
             self.assertIn('<th scope="col">Medium</th>', rendered)
             self.assertIn('<th scope="col">High</th>', rendered)
-            self.assertIn('<td class="coverLegendCovMed">&ge; 90% and &lt; 95%</td>', rendered)
-            self.assertIn('<td class="coverLegendCovHi">&ge; 95%</td>', rendered)
+            self.assertIn('<td class="headerValueLegL">&lt; 90%</td>', rendered)
+            self.assertIn('<td class="headerValueLegM">&ge; 90% and &lt; 95%</td>', rendered)
+            self.assertIn('<td class="headerValueLegH">&ge; 95%</td>', rendered)
             self.assertLess(rendered.index('<th scope="row">Lines</th>'), rendered.index('<th scope="row">Branches</th>'))
             self.assertLess(
                 rendered.index('<th scope="row">Branches</th>'), rendered.index('<th scope="row">Functions</th>')
             )
             self.assertIn(".xffNavigation { padding: .35rem 0; text-align: center; }", rendered)
-            self.assertIn(".xffPolicy { border-collapse: collapse; margin: .75rem auto 1rem; width: 80%; }", rendered)
+            self.assertIn(".xffPolicy { border-collapse: collapse; margin: .75rem auto 1rem; width: auto; }", rendered)
+            self.assertIn(".xffPolicy td { font-size: 100%; padding: .2rem .75rem; text-align: center; }", rendered)
 
     def test_normalizes_header_and_table_percentage_colors_per_metric(self):
         source = """<tr><td class="headerItem">Lines:</td><td class="headerCovTableEntryHi">91.0&nbsp;%</td></tr>

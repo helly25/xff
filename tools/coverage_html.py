@@ -30,8 +30,9 @@ _TABLE_RATE_RE = re.compile(
 _STYLE = """  <style>
     .xffNavigation { padding: .35rem 0; text-align: center; }
     .xffHeaderSummary { margin: 0 auto; width: 80%; }
-    .xffPolicy { border-collapse: collapse; margin: .75rem auto 1rem; width: 80%; }
-    .xffPolicy th, .xffPolicy td { padding: .15rem .5rem; text-align: left; }
+    .xffPolicy { border-collapse: collapse; margin: .75rem auto 1rem; width: auto; }
+    .xffPolicy th { padding: .2rem .75rem; text-align: left; }
+    .xffPolicy td { font-size: 100%; padding: .2rem .75rem; text-align: center; }
   </style>
 """
 
@@ -57,9 +58,9 @@ def legend(policy: dict[str, Any]) -> str:
         rows.append(
             "            <tr>\n"
             f'              <th scope="row">{label}</th>\n'
-            f'              <td class="coverLegendCovLo">&lt; {floor}%</td>\n'
-            f'              <td class="coverLegendCovMed">{medium}</td>\n'
-            f'              <td class="coverLegendCovHi">&ge; {goal}%</td>\n'
+            f'              <td class="headerValueLegL">&lt; {floor}%</td>\n'
+            f'              <td class="headerValueLegM">{medium}</td>\n'
+            f'              <td class="headerValueLegH">&ge; {goal}%</td>\n'
             "            </tr>\n"
         )
     return (
