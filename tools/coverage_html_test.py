@@ -27,6 +27,10 @@ class CoverageHtmlTest(unittest.TestCase):
         self.policy = {
             "minimum": {"lines": 90, "functions": 95, "branches": 90},
             "target": {"lines": 92, "functions": 95, "branches": 95},
+            "bands": {
+                "medium": {"lines": 90, "branches": 90, "functions": 90},
+                "high": {"lines": 92, "branches": 95, "functions": 95},
+            },
         }
 
     def test_moves_policy_below_header_table_and_adds_root_navigation(self):
@@ -43,7 +47,41 @@ class CoverageHtmlTest(unittest.TestCase):
             self.assertLess(rendered.index("Coverage policy:"), rendered.index('id="content"'))
             self.assertIn("medium: &gt;= 90 % and &lt; 95 %", rendered)
             self.assertIn("high: &gt;= 95 %", rendered)
-            self.assertNotIn("medium: &gt;= 95 %", rendered)
+            self.assertLess(rendered.index("<b>Lines:</b>"), rendered.index("<b>Branches:</b>"))
+            self.assertLess(rendered.index("<b>Branches:</b>"), rendered.index("<b>Functions:</b>"))
+            self.assertIn(".xffNavigation { padding: .35rem 0; text-align: center; }", rendered)
+
+    def test_normalizes_header_and_table_percentage_colors_per_metric(self):
+        source = """<tr><td class="headerItem">Lines:</td><td class="headerCovTableEntryHi">91.0&nbsp;%</td></tr>
+<tr><td class="headerItem">Functions:</td><td class="headerCovTableEntryLo">93.0&nbsp;%</td></tr>
+<tr><td class="headerItem">Branches:</td><td class="headerCovTableEntryHi">92.0&nbsp;%</td></tr>
+<td class="coverPerHi">91.0&nbsp;%</td><td class="coverPerHi">92.0&nbsp;%</td><td class="coverPerLo">93.0&nbsp;%</td>
+<td class="coverPerHi">96.0&nbsp;%</td><td class="coverPerHi">-</td><td class="coverPerHi">93.0&nbsp;%</td>"""
+        rendered = coverage_html._normalize_rate_classes(source, self.policy)
+        self.assertIn('headerCovTableEntryMed">91.0', rendered)
+        self.assertIn('headerCovTableEntryMed">93.0', rendered)
+        self.assertIn('headerCovTableEntryMed">92.0', rendered)
+        self.assertIn('coverPerMed">91.0', rendered)
+        self.assertIn('coverPerMed">92.0', rendered)
+        self.assertIn('coverPerMed">93.0', rendered)
+        self.assertIn('coverPerHi">-</td>', rendered)
+        self.assertEqual(2, rendered.count('coverPerMed">93.0'))
+
+    def test_constrains_header_summary_to_detail_table_width(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory)
+            page = report / "index.html"
+            page.write_text(
+                _HEADER.replace(
+                    '<tr><td><table><tr><td>Coverage table</td></tr></table></td></tr>',
+                    '<tr><td width="100%"><table cellpadding=1 border=0 width="100%"><tr><td>Totals</td></tr></table></td></tr>',
+                ).format(prefix=""),
+                encoding="utf-8",
+            )
+            coverage_html.apply(report, self.policy, "main")
+            rendered = page.read_text(encoding="utf-8")
+            self.assertIn('<table class="xffHeaderSummary" cellpadding=1 border=0>', rendered)
+            self.assertIn(".xffHeaderSummary { margin: 0 auto; width: 80%; }", rendered)
 
     def test_nested_page_links_reach_the_same_overview_and_index(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -67,6 +105,7 @@ class CoverageHtmlTest(unittest.TestCase):
             self.assertEqual(1, rendered.count('class="xffNavigation"'))
             self.assertEqual(1, rendered.count('class="xffPolicy"'))
             self.assertEqual(1, rendered.count("Coverage policy:"))
+            self.assertEqual(1, rendered.count(".xffNavigation"))
 
     def test_rejects_an_unrecognized_genhtml_page(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -10,20 +10,24 @@ import coverage_lcovrc
 
 
 class CoverageLcovrcTest(unittest.TestCase):
-    def test_maps_policy_minimums_and_targets_to_metric_specific_color_bands(self):
+    def test_maps_explicit_presentation_bands_to_lcov(self):
         self.assertEqual(
             coverage_lcovrc.render(
                 {
                     "minimum": {"lines": 90, "functions": 95, "branches": 80},
                     "target": {"lines": 92, "functions": 95, "branches": 82},
+                    "bands": {
+                        "medium": {"lines": 90, "branches": 90, "functions": 90},
+                        "high": {"lines": 92, "branches": 95, "functions": 95},
+                    },
                 }
             ),
             """genhtml_line_hi_limit = 92
 genhtml_line_med_limit = 90
 genhtml_function_hi_limit = 95
-genhtml_function_med_limit = 95
-genhtml_branch_hi_limit = 82
-genhtml_branch_med_limit = 80
+genhtml_function_med_limit = 90
+genhtml_branch_hi_limit = 95
+genhtml_branch_med_limit = 90
 """,
         )
 
