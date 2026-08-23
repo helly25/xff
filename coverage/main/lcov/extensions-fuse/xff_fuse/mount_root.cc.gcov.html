@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-23 13:57:19</td>
+            <td class="headerValue">2026-08-23 20:40:36</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -117,7 +117,7 @@
 <span id="L37"><span class="lineNum">      37</span>                 :             : namespace xff::fuse {</span>
 <span id="L38"><span class="lineNum">      38</span>                 :             : namespace {</span>
 <span id="L39"><span class="lineNum">      39</span>                 :             : </span>
-<span id="L40"><span class="lineNum">      40</span>                 :             : namespace stdfs = std::filesystem;</span>
+<span id="L40"><span class="lineNum">      40</span>                 :             : namespace stdfs = ::std::filesystem;</span>
 <span id="L41"><span class="lineNum">      41</span>                 :             : </span>
 <span id="L42"><span class="lineNum">      42</span>                 :             : // `&lt;base&gt;/xff/`, the level shared across runs. Reads the environment once per call; this runs at</span>
 <span id="L43"><span class="lineNum">      43</span>                 :             : // startup and in tests, never on the walk's hot path.</span>

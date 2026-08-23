@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-23 13:57:19</td>
+            <td class="headerValue">2026-08-23 20:40:36</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -109,7 +109,7 @@
 <span id="L29"><span class="lineNum">      29</span>                 :             : namespace xff::mime {</span>
 <span id="L30"><span class="lineNum">      30</span>                 :             : namespace {</span>
 <span id="L31"><span class="lineNum">      31</span>                 :             : </span>
-<span id="L32"><span class="lineNum">      32</span>                 :             : namespace stdfs = std::filesystem;</span>
+<span id="L32"><span class="lineNum">      32</span>                 :             : namespace stdfs = ::std::filesystem;</span>
 <span id="L33"><span class="lineNum">      33</span>                 :             : // Object member order gives `--mime-conflicts=first|last` an observable, useful</span>
 <span id="L34"><span class="lineNum">      34</span>                 :             : // meaning. JSON itself does not assign semantic significance to that order, but</span>
 <span id="L35"><span class="lineNum">      35</span>                 :             : // nlohmann preserves the source order here rather than silently sorting keys.</span>
@@ -128,9 +128,9 @@
 <span id="L48"><span class="lineNum">      48</span>                 :             :   Vocabulary vocabulary ABSL_GUARDED_BY(mutex);</span>
 <span id="L49"><span class="lineNum">      49</span>                 :             : };</span>
 <span id="L50"><span class="lineNum">      50</span>                 :             : </span>
-<span id="L51"><span class="lineNum">      51</span>                 :<span class="tlaGNC">         810 : State&amp; GlobalState() {</span></span>
-<span id="L52"><span class="lineNum">      52</span>   [<span class="tlaGBC" title="branch 0 was taken 479 times"> + </span><span class="tlaGBC" title="branch 1 was taken 331 times"> + </span><span class="tlaGBC" title="branch 2 was taken 479 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         810 :   static State state;</span></span>
-<span id="L53"><span class="lineNum">      53</span>                 :<span class="tlaGNC">         810 :   return state;</span></span>
+<span id="L51"><span class="lineNum">      51</span>                 :<span class="tlaGNC">         815 : State&amp; GlobalState() {</span></span>
+<span id="L52"><span class="lineNum">      52</span>   [<span class="tlaGBC" title="branch 0 was taken 479 times"> + </span><span class="tlaGBC" title="branch 1 was taken 336 times"> + </span><span class="tlaGBC" title="branch 2 was taken 479 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         815 :   static State state;</span></span>
+<span id="L53"><span class="lineNum">      53</span>                 :<span class="tlaGNC">         815 :   return state;</span></span>
 <span id="L54"><span class="lineNum">      54</span>                 :             : }</span>
 <span id="L55"><span class="lineNum">      55</span>                 :             : </span>
 <span id="L56"><span class="lineNum">      56</span>                 :<span class="tlaGNC">        3849 : std::string Lower(std::string_view value) {</span></span>
@@ -389,16 +389,16 @@
 <span id="L306"><span class="lineNum">     306</span>                 :<span class="tlaGNC">           3 :   return std::string_view(type).substr(0, type.find('/'));</span></span>
 <span id="L307"><span class="lineNum">     307</span>                 :             : }</span>
 <span id="L308"><span class="lineNum">     308</span>                 :             : </span>
-<span id="L309"><span class="lineNum">     309</span>                 :<span class="tlaGNC">         771 : absl::Status Configure(absl::Span&lt;const std::string&gt; files, ConflictPolicy conflicts) {</span></span>
-<span id="L310"><span class="lineNum">     310</span>         [<span class="tlaGBC" title="branch 0 was taken 749 times"> + </span><span class="tlaGBC" title="branch 1 was taken 22 times"> + </span>]:<span class="tlaGNC">         771 :   if (files.empty()) {</span></span>
-<span id="L311"><span class="lineNum">     311</span>                 :<span class="tlaGNC">         749 :     State&amp; state = GlobalState();</span></span>
-<span id="L312"><span class="lineNum">     312</span>                 :<span class="tlaGNC">         749 :     const absl::MutexLock lock(&amp;state.mutex);</span></span>
+<span id="L309"><span class="lineNum">     309</span>                 :<span class="tlaGNC">         776 : absl::Status Configure(absl::Span&lt;const std::string&gt; files, ConflictPolicy conflicts) {</span></span>
+<span id="L310"><span class="lineNum">     310</span>         [<span class="tlaGBC" title="branch 0 was taken 754 times"> + </span><span class="tlaGBC" title="branch 1 was taken 22 times"> + </span>]:<span class="tlaGNC">         776 :   if (files.empty()) {</span></span>
+<span id="L311"><span class="lineNum">     311</span>                 :<span class="tlaGNC">         754 :     State&amp; state = GlobalState();</span></span>
+<span id="L312"><span class="lineNum">     312</span>                 :<span class="tlaGNC">         754 :     const absl::MutexLock lock(&amp;state.mutex);</span></span>
 <span id="L313"><span class="lineNum">     313</span>                 :             :     // Registered databases are trusted, generated build inputs. Defer their</span>
 <span id="L314"><span class="lineNum">     314</span>                 :             :     // comparatively expensive JSON parse until a MIME predicate or field is</span>
 <span id="L315"><span class="lineNum">     315</span>                 :             :     // actually evaluated; user-provided layers below remain eagerly validated.</span>
-<span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">         749 :     state.vocabulary = Vocabulary{};</span></span>
-<span id="L317"><span class="lineNum">     317</span>                 :<span class="tlaGNC">         749 :     return absl::OkStatus();</span></span>
-<span id="L318"><span class="lineNum">     318</span>                 :<span class="tlaGNC">         749 :   }</span></span>
+<span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">         754 :     state.vocabulary = Vocabulary{};</span></span>
+<span id="L317"><span class="lineNum">     317</span>                 :<span class="tlaGNC">         754 :     return absl::OkStatus();</span></span>
+<span id="L318"><span class="lineNum">     318</span>                 :<span class="tlaGNC">         754 :   }</span></span>
 <span id="L319"><span class="lineNum">     319</span>                 :<span class="tlaGNC">          22 :   Vocabulary vocabulary = CoreVocabulary();</span></span>
 <span id="L320"><span class="lineNum">     320</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 22 times"> + </span>]:<span class="tlaGNC">          22 :   for (const Database&amp; database : Databases()) {</span></span>
 <span id="L321"><span class="lineNum">     321</span>   [<span class="tlaUNC" title="branch 0 was not executed"> # </span><span class="tlaUNC" title="branch 1 was not executed"> # </span><span class="tlaUNC" title="branch 2 was not executed"> # </span><span class="tlaUNC" title="branch 3 was not executed"> # </span>]:<span class="tlaUNC">           0 :     MBO_RETURN_IF_ERROR(ApplyLayer(vocabulary, database.json, database.name, ConflictPolicy::kLast));</span></span>
