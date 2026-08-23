@@ -3,9 +3,9 @@
   "measurements": {
     "overall": {
       "lines": {
-        "covered": 11271,
+        "covered": 11270,
         "total": 11848,
-        "percent": 95.13
+        "percent": 95.12
       },
       "functions": {
         "covered": 1309,
@@ -13,9 +13,9 @@
         "percent": 98.27
       },
       "branches": {
-        "covered": 8110,
+        "covered": 8111,
         "total": 9408,
-        "percent": 86.2
+        "percent": 86.21
       }
     },
     "program / command line": {
@@ -88,9 +88,9 @@
     },
     "program / filesystem": {
       "lines": {
-        "covered": 470,
+        "covered": 469,
         "total": 479,
-        "percent": 98.12
+        "percent": 97.91
       },
       "functions": {
         "covered": 54,
@@ -98,9 +98,9 @@
         "percent": 98.18
       },
       "branches": {
-        "covered": 304,
+        "covered": 305,
         "total": 326,
-        "percent": 93.25
+        "percent": 93.56
       }
     },
     "program / matching": {
