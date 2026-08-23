@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-23 00:35:07</td>
+            <td class="headerValue">2026-08-23 09:17:34</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -294,9 +294,9 @@
 <span id="L223"><span class="lineNum">     223</span>                 :<span class="tlaGNC">           6 :   row(&quot;pcre2&quot;, xff::cli::ExtraEnabled(&quot;pcre2&quot;), xff::cli::ExtraBuildFlag(&quot;pcre2&quot;),</span></span>
 <span id="L224"><span class="lineNum">     224</span>                 :             :       &quot;--regextype=PCRE2: Perl-compatible regex (lookahead, backreferences, ...)&quot;);</span>
 <span id="L225"><span class="lineNum">     225</span>                 :<span class="tlaGNC">           6 :   absl::flat_hash_set&lt;std::string_view&gt; seen;</span></span>
-<span id="L226"><span class="lineNum">     226</span>         [<span class="tlaGBC" title="branch 0 was taken 510 times"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">         516 :   for (const xff::cli::GlobalFlag&amp; flag : xff::cli::Globals()) {</span></span>
-<span id="L227"><span class="lineNum">     227</span>   [<span class="tlaGBC" title="branch 0 was taken 78 times"> + </span><span class="tlaGBC" title="branch 1 was taken 432 times"> + </span><span class="tlaGBC" title="branch 2 was taken 12 times"> + </span><span class="tlaGBC" title="branch 3 was taken 66 times"> + </span> :<span class="tlaGNC">         510 :     if (!flag.extra.empty() &amp;&amp; seen.insert(flag.extra).second) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 12 times"> + </span><span class="tlaGBC" title="branch 5 was taken 498 times"> + </span>]
+<span id="L226"><span class="lineNum">     226</span>         [<span class="tlaGBC" title="branch 0 was taken 522 times"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">         528 :   for (const xff::cli::GlobalFlag&amp; flag : xff::cli::Globals()) {</span></span>
+<span id="L227"><span class="lineNum">     227</span>   [<span class="tlaGBC" title="branch 0 was taken 78 times"> + </span><span class="tlaGBC" title="branch 1 was taken 444 times"> + </span><span class="tlaGBC" title="branch 2 was taken 12 times"> + </span><span class="tlaGBC" title="branch 3 was taken 66 times"> + </span> :<span class="tlaGNC">         522 :     if (!flag.extra.empty() &amp;&amp; seen.insert(flag.extra).second) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 12 times"> + </span><span class="tlaGBC" title="branch 5 was taken 510 times"> + </span>]
 <span id="L228"><span class="lineNum">     228</span>                 :<span class="tlaGNC">          12 :       row(flag.extra, xff::cli::ExtraEnabled(flag.extra), xff::cli::ExtraBuildFlag(flag.extra), flag.summary);</span></span>
 <span id="L229"><span class="lineNum">     229</span>                 :             :     }</span>
 <span id="L230"><span class="lineNum">     230</span>                 :             :   }</span>

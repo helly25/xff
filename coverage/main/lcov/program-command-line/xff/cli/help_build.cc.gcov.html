@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-23 00:35:07</td>
+            <td class="headerValue">2026-08-23 09:17:34</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.8&nbsp;%</td>
@@ -130,8 +130,8 @@
 <span id="L59"><span class="lineNum">      59</span>                 :             : }};</span>
 <span id="L60"><span class="lineNum">      60</span>                 :             : </span>
 <span id="L61"><span class="lineNum">      61</span>                 :             : // A single prose paragraph block from an authored string (backtick inline markup).</span>
-<span id="L62"><span class="lineNum">      62</span>                 :<span class="tlaGNC">        6310 : Content ProseOf(std::string_view text) {</span></span>
-<span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">        6310 :   return Content{.node = Prose{.runs = ParseInline(text)}};</span></span>
+<span id="L62"><span class="lineNum">      62</span>                 :<span class="tlaGNC">        6533 : Content ProseOf(std::string_view text) {</span></span>
+<span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">        6533 :   return Content{.node = Prose{.runs = ParseInline(text)}};</span></span>
 <span id="L64"><span class="lineNum">      64</span>                 :             : }</span>
 <span id="L65"><span class="lineNum">      65</span>                 :             : </span>
 <span id="L66"><span class="lineNum">      66</span>                 :             : // A verbatim example block (no wrapping); optional info string for the fenced backends.</span>
@@ -150,8 +150,8 @@
 <span id="L79"><span class="lineNum">      79</span>                 :<span class="tlaGNC">         421 : }</span></span>
 <span id="L80"><span class="lineNum">      80</span>                 :             : </span>
 <span id="L81"><span class="lineNum">      81</span>                 :             : // The classification tags after a flag's term, e.g. (global, xff).</span>
-<span id="L82"><span class="lineNum">      82</span>                 :<span class="tlaGNC">        5939 : std::vector&lt;std::string&gt; FlagTags(const GlobalFlag&amp; flag) {</span></span>
-<span id="L83"><span class="lineNum">      83</span>   [<span class="tlaGBC" title="branch 0 was taken 5735 times"> + </span><span class="tlaGBC" title="branch 1 was taken 204 times"> + </span><span class="tlaGBC" title="branch 2 was taken 11878 times"> + </span><span class="tlaGBC" title="branch 3 was taken 5939 times"> + </span>]:<span class="tlaGNC">       41573 :   return {&quot;global&quot;, flag.xff ? &quot;xff&quot; : &quot;find&quot;};</span></span>
+<span id="L82"><span class="lineNum">      82</span>                 :<span class="tlaGNC">        6079 : std::vector&lt;std::string&gt; FlagTags(const GlobalFlag&amp; flag) {</span></span>
+<span id="L83"><span class="lineNum">      83</span>   [<span class="tlaGBC" title="branch 0 was taken 5875 times"> + </span><span class="tlaGBC" title="branch 1 was taken 204 times"> + </span><span class="tlaGBC" title="branch 2 was taken 12158 times"> + </span><span class="tlaGBC" title="branch 3 was taken 6079 times"> + </span>]:<span class="tlaGNC">       42553 :   return {&quot;global&quot;, flag.xff ? &quot;xff&quot; : &quot;find&quot;};</span></span>
 <span id="L84"><span class="lineNum">      84</span>                 :             : }</span>
 <span id="L85"><span class="lineNum">      85</span>                 :             : </span>
 <span id="L86"><span class="lineNum">      86</span>                 :             : // The classification tags after a primary's term, e.g. (test, find) or</span>
@@ -175,25 +175,25 @@
 <span id="L104"><span class="lineNum">     104</span>                 :             : // Every global flag whose `affects` list names `name` (a flag or primary), in</span>
 <span id="L105"><span class="lineNum">     105</span>                 :             : // Globals() display order - the reverse of the forward `affects` declaration, so the</span>
 <span id="L106"><span class="lineNum">     106</span>                 :             : // &quot;Affected by:&quot; block on any entry stays in lock-step with the flags' declarations.</span>
-<span id="L107"><span class="lineNum">     107</span>                 :<span class="tlaGNC">        9493 : std::vector&lt;std::string_view&gt; AffectedByFlags(std::string_view name) {</span></span>
-<span id="L108"><span class="lineNum">     108</span>                 :<span class="tlaGNC">        9493 :   std::vector&lt;std::string_view&gt; out;</span></span>
-<span id="L109"><span class="lineNum">     109</span>         [<span class="tlaGBC" title="branch 0 was taken 806905 times"> + </span><span class="tlaGBC" title="branch 1 was taken 9493 times"> + </span>]:<span class="tlaGNC">      816398 :   for (const GlobalFlag&amp; flag : Globals()) {</span></span>
-<span id="L110"><span class="lineNum">     110</span>         [<span class="tlaGBC" title="branch 0 was taken 256070 times"> + </span><span class="tlaGBC" title="branch 1 was taken 805614 times"> + </span>]:<span class="tlaGNC">     1061684 :     for (const std::string_view token : absl::StrSplit(flag.affects, ',', absl::SkipEmpty())) {</span></span>
-<span id="L111"><span class="lineNum">     111</span>         [<span class="tlaGBC" title="branch 0 was taken 1291 times"> + </span><span class="tlaGBC" title="branch 1 was taken 254779 times"> + </span>]:<span class="tlaGNC">      256070 :       if (token == name) {</span></span>
-<span id="L112"><span class="lineNum">     112</span>                 :<span class="tlaGNC">        1291 :         out.push_back(flag.name);</span></span>
-<span id="L113"><span class="lineNum">     113</span>                 :<span class="tlaGNC">        1291 :         break;</span></span>
+<span id="L107"><span class="lineNum">     107</span>                 :<span class="tlaGNC">        9583 : std::vector&lt;std::string_view&gt; AffectedByFlags(std::string_view name) {</span></span>
+<span id="L108"><span class="lineNum">     108</span>                 :<span class="tlaGNC">        9583 :   std::vector&lt;std::string_view&gt; out;</span></span>
+<span id="L109"><span class="lineNum">     109</span>         [<span class="tlaGBC" title="branch 0 was taken 833721 times"> + </span><span class="tlaGBC" title="branch 1 was taken 9583 times"> + </span>]:<span class="tlaGNC">      843304 :   for (const GlobalFlag&amp; flag : Globals()) {</span></span>
+<span id="L110"><span class="lineNum">     110</span>         [<span class="tlaGBC" title="branch 0 was taken 277666 times"> + </span><span class="tlaGBC" title="branch 1 was taken 832342 times"> + </span>]:<span class="tlaGNC">     1110008 :     for (const std::string_view token : absl::StrSplit(flag.affects, ',', absl::SkipEmpty())) {</span></span>
+<span id="L111"><span class="lineNum">     111</span>         [<span class="tlaGBC" title="branch 0 was taken 1379 times"> + </span><span class="tlaGBC" title="branch 1 was taken 276287 times"> + </span>]:<span class="tlaGNC">      277666 :       if (token == name) {</span></span>
+<span id="L112"><span class="lineNum">     112</span>                 :<span class="tlaGNC">        1379 :         out.push_back(flag.name);</span></span>
+<span id="L113"><span class="lineNum">     113</span>                 :<span class="tlaGNC">        1379 :         break;</span></span>
 <span id="L114"><span class="lineNum">     114</span>                 :             :       }</span>
 <span id="L115"><span class="lineNum">     115</span>                 :             :     }</span>
 <span id="L116"><span class="lineNum">     116</span>                 :             :   }</span>
-<span id="L117"><span class="lineNum">     117</span>                 :<span class="tlaGNC">        9493 :   return out;</span></span>
+<span id="L117"><span class="lineNum">     117</span>                 :<span class="tlaGNC">        9583 :   return out;</span></span>
 <span id="L118"><span class="lineNum">     118</span>                 :             : }</span>
 <span id="L119"><span class="lineNum">     119</span>                 :             : </span>
 <span id="L120"><span class="lineNum">     120</span>                 :             : // Appends an influence detail line (&quot;Header: a, b, c&quot;) to `blocks` when non-empty.</span>
-<span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC">       13307 : void AppendInfluence(Blocks* blocks, std::string_view header, const std::vector&lt;std::string_view&gt;&amp; names) {</span></span>
-<span id="L122"><span class="lineNum">     122</span>         [<span class="tlaGBC" title="branch 0 was taken 11666 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1641 times"> + </span>]:<span class="tlaGNC">       13307 :   if (names.empty()) {</span></span>
-<span id="L123"><span class="lineNum">     123</span>                 :<span class="tlaGNC">       11666 :     return;</span></span>
+<span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC">       13487 : void AppendInfluence(Blocks* blocks, std::string_view header, const std::vector&lt;std::string_view&gt;&amp; names) {</span></span>
+<span id="L122"><span class="lineNum">     122</span>         [<span class="tlaGBC" title="branch 0 was taken 11668 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1819 times"> + </span>]:<span class="tlaGNC">       13487 :   if (names.empty()) {</span></span>
+<span id="L123"><span class="lineNum">     123</span>                 :<span class="tlaGNC">       11668 :     return;</span></span>
 <span id="L124"><span class="lineNum">     124</span>                 :             :   }</span>
-<span id="L125"><span class="lineNum">     125</span>                 :<span class="tlaGNC">        1641 :   blocks-&gt;push_back(ProseOf(absl::StrCat(header, &quot; &quot;, absl::StrJoin(names, &quot;, &quot;))));</span></span>
+<span id="L125"><span class="lineNum">     125</span>                 :<span class="tlaGNC">        1819 :   blocks-&gt;push_back(ProseOf(absl::StrCat(header, &quot; &quot;, absl::StrJoin(names, &quot;, &quot;))));</span></span>
 <span id="L126"><span class="lineNum">     126</span>                 :             : }</span>
 <span id="L127"><span class="lineNum">     127</span>                 :             : </span>
 <span id="L128"><span class="lineNum">     128</span>                 :             : // The heading line above a flag's value table: &quot;GROUP is one of:&quot; for a display that collapsed its</span>
@@ -201,11 +201,11 @@
 <span id="L130"><span class="lineNum">     130</span>                 :             : // placeholder's values. A display that spells its values inline instead (`--archive[=none|roots|all]`)</span>
 <span id="L131"><span class="lineNum">     131</span>                 :             : // has no placeholder to name, and gets the bare &quot;One of:&quot; - naming a placeholder that is not there</span>
 <span id="L132"><span class="lineNum">     132</span>                 :             : // used to read as the nonsense &quot;One of is one of:&quot;.</span>
-<span id="L133"><span class="lineNum">     133</span>                 :<span class="tlaGNC">        1122 : std::string ValueHeading(std::string_view display) {</span></span>
-<span id="L134"><span class="lineNum">     134</span>                 :<span class="tlaGNC">        1122 :   const auto open = display.find('&lt;');</span></span>
-<span id="L135"><span class="lineNum">     135</span>                 :<span class="tlaGNC">        1122 :   const auto close = display.find('&gt;', open + 1);</span></span>
-<span id="L136"><span class="lineNum">     136</span>   [<span class="tlaGBC" title="branch 0 was taken 359 times"> + </span><span class="tlaGBC" title="branch 1 was taken 763 times"> + </span><span class="tlaUNC" title="branch 2 was not taken"> - </span><span class="tlaGBC" title="branch 3 was taken 359 times"> + </span>]:<span class="tlaGNC">        1122 :   if (open == std::string_view::npos || close == std::string_view::npos) {</span></span>
-<span id="L137"><span class="lineNum">     137</span>                 :<span class="tlaGNC">        1526 :     return &quot;One of:&quot;;</span></span>
+<span id="L133"><span class="lineNum">     133</span>                 :<span class="tlaGNC">        1167 : std::string ValueHeading(std::string_view display) {</span></span>
+<span id="L134"><span class="lineNum">     134</span>                 :<span class="tlaGNC">        1167 :   const auto open = display.find('&lt;');</span></span>
+<span id="L135"><span class="lineNum">     135</span>                 :<span class="tlaGNC">        1167 :   const auto close = display.find('&gt;', open + 1);</span></span>
+<span id="L136"><span class="lineNum">     136</span>   [<span class="tlaGBC" title="branch 0 was taken 359 times"> + </span><span class="tlaGBC" title="branch 1 was taken 808 times"> + </span><span class="tlaUNC" title="branch 2 was not taken"> - </span><span class="tlaGBC" title="branch 3 was taken 359 times"> + </span>]:<span class="tlaGNC">        1167 :   if (open == std::string_view::npos || close == std::string_view::npos) {</span></span>
+<span id="L137"><span class="lineNum">     137</span>                 :<span class="tlaGNC">        1616 :     return &quot;One of:&quot;;</span></span>
 <span id="L138"><span class="lineNum">     138</span>                 :             :   }</span>
 <span id="L139"><span class="lineNum">     139</span>                 :<span class="tlaGNC">         359 :   return absl::StrCat(display.substr(open + 1, close - open - 1), &quot; is one of:&quot;);</span></span>
 <span id="L140"><span class="lineNum">     140</span>                 :             : }</span>
@@ -214,54 +214,54 @@
 <span id="L143"><span class="lineNum">     143</span>                 :             : // its detail blocks enriched with a &quot;not built into this binary&quot; note when its build</span>
 <span id="L144"><span class="lineNum">     144</span>                 :             : // extra is absent and the Affects / Affected-by influence blocks. `with_details` is</span>
 <span id="L145"><span class="lineNum">     145</span>                 :             : // false for the terse usage page (summary + tags only).</span>
-<span id="L146"><span class="lineNum">     146</span>                 :<span class="tlaGNC">        5939 : Content FlagEntry(const GlobalFlag&amp; flag, bool with_details = true, Audience audience = Audience::kThisBinary) {</span></span>
-<span id="L147"><span class="lineNum">     147</span>                 :<span class="tlaGNC">        5939 :   Blocks details;</span></span>
+<span id="L146"><span class="lineNum">     146</span>                 :<span class="tlaGNC">        6079 : Content FlagEntry(const GlobalFlag&amp; flag, bool with_details = true, Audience audience = Audience::kThisBinary) {</span></span>
+<span id="L147"><span class="lineNum">     147</span>                 :<span class="tlaGNC">        6079 :   Blocks details;</span></span>
 <span id="L148"><span class="lineNum">     148</span>                 :             :   // The not-built note shows even on the terse usage page: a flag whose build extra is</span>
 <span id="L149"><span class="lineNum">     149</span>                 :             :   // absent is a hard error if used, so the reader must see it up front. It is OMITTED for a</span>
 <span id="L150"><span class="lineNum">     150</span>                 :             :   // published reference, which documents the tool rather than whichever binary generated it -</span>
 <span id="L151"><span class="lineNum">     151</span>                 :             :   // the flag's own details still say it is a build extra and name the flag to rebuild with.</span>
-<span id="L152"><span class="lineNum">     152</span>   [<span class="tlaGBC" title="branch 0 was taken 5174 times"> + </span><span class="tlaGBC" title="branch 1 was taken 765 times"> + </span><span class="tlaGBC" title="branch 2 was taken 861 times"> + </span><span class="tlaGBC" title="branch 3 was taken 4313 times"> + </span> :<span class="tlaGNC">        5939 :   if (audience == Audience::kThisBinary &amp;&amp; !flag.extra.empty() &amp;&amp; !ExtraEnabled(flag.extra)) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 848 times"> + </span><span class="tlaGBC" title="branch 5 was taken 13 times"> + </span><span class="tlaGBC" title="branch 6 was taken 848 times"> + </span><span class="tlaGBC" title="branch 7 was taken 5091 times"> + </span>]
+<span id="L152"><span class="lineNum">     152</span>   [<span class="tlaGBC" title="branch 0 was taken 5296 times"> + </span><span class="tlaGBC" title="branch 1 was taken 783 times"> + </span><span class="tlaGBC" title="branch 2 was taken 861 times"> + </span><span class="tlaGBC" title="branch 3 was taken 4435 times"> + </span> :<span class="tlaGNC">        6079 :   if (audience == Audience::kThisBinary &amp;&amp; !flag.extra.empty() &amp;&amp; !ExtraEnabled(flag.extra)) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 848 times"> + </span><span class="tlaGBC" title="branch 5 was taken 13 times"> + </span><span class="tlaGBC" title="branch 6 was taken 848 times"> + </span><span class="tlaGBC" title="branch 7 was taken 5231 times"> + </span>]
 <span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">         848 :     details.push_back(ProseOf(</span></span>
 <span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">        1696 :         absl::StrCat(</span></span>
 <span id="L155"><span class="lineNum">     155</span>                 :             :             &quot;NOT built into this binary: rebuild with `&quot;, ExtraBuildFlag(flag.extra),</span>
 <span id="L156"><span class="lineNum">     156</span>                 :             :             &quot;` (used as-is, it is a hard error).&quot;)));</span>
 <span id="L157"><span class="lineNum">     157</span>                 :             :   }</span>
-<span id="L158"><span class="lineNum">     158</span>         [<span class="tlaGBC" title="branch 0 was taken 3814 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2125 times"> + </span>]:<span class="tlaGNC">        5939 :   if (with_details) {</span></span>
+<span id="L158"><span class="lineNum">     158</span>         [<span class="tlaGBC" title="branch 0 was taken 3904 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2175 times"> + </span>]:<span class="tlaGNC">        6079 :   if (with_details) {</span></span>
 <span id="L159"><span class="lineNum">     159</span>                 :             :     // The allowed-value table (for a flag whose synopsis collapsed a value grammar to a</span>
 <span id="L160"><span class="lineNum">     160</span>                 :             :     // `&lt;PLACEHOLDER&gt;`) leads, before the prose: a &quot;&lt;LABEL&gt; is one of:&quot; heading line (see</span>
 <span id="L161"><span class="lineNum">     161</span>                 :             :     // ValueHeading) so the</span>
 <span id="L162"><span class="lineNum">     162</span>                 :             :     // rows read as that placeholder's values, then the aligned wrapping `value  meaning` list.</span>
-<span id="L163"><span class="lineNum">     163</span>         [<span class="tlaGBC" title="branch 0 was taken 1122 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2692 times"> + </span>]:<span class="tlaGNC">        3814 :     if (!flag.values.empty()) {</span></span>
-<span id="L164"><span class="lineNum">     164</span>                 :<span class="tlaGNC">        1122 :       details.push_back(ProseOf(ValueHeading(flag.display)));</span></span>
-<span id="L165"><span class="lineNum">     165</span>                 :<span class="tlaGNC">        1122 :       Rows rows;</span></span>
-<span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaGNC">        1122 :       rows.rows.reserve(flag.values.size());</span></span>
-<span id="L167"><span class="lineNum">     167</span>         [<span class="tlaGBC" title="branch 0 was taken 5546 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1122 times"> + </span>]:<span class="tlaGNC">        6668 :       for (const ValueDoc&amp; value : flag.values) {</span></span>
-<span id="L168"><span class="lineNum">     168</span>         [<span class="tlaGBC" title="branch 0 was taken 572 times"> + </span><span class="tlaGBC" title="branch 1 was taken 4974 times"> + </span>]:<span class="tlaGNC">        5546 :         if (value.hidden) {</span></span>
+<span id="L163"><span class="lineNum">     163</span>         [<span class="tlaGBC" title="branch 0 was taken 1167 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2737 times"> + </span>]:<span class="tlaGNC">        3904 :     if (!flag.values.empty()) {</span></span>
+<span id="L164"><span class="lineNum">     164</span>                 :<span class="tlaGNC">        1167 :       details.push_back(ProseOf(ValueHeading(flag.display)));</span></span>
+<span id="L165"><span class="lineNum">     165</span>                 :<span class="tlaGNC">        1167 :       Rows rows;</span></span>
+<span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaGNC">        1167 :       rows.rows.reserve(flag.values.size());</span></span>
+<span id="L167"><span class="lineNum">     167</span>         [<span class="tlaGBC" title="branch 0 was taken 5681 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1167 times"> + </span>]:<span class="tlaGNC">        6848 :       for (const ValueDoc&amp; value : flag.values) {</span></span>
+<span id="L168"><span class="lineNum">     168</span>         [<span class="tlaGBC" title="branch 0 was taken 572 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5109 times"> + </span>]:<span class="tlaGNC">        5681 :         if (value.hidden) {</span></span>
 <span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">         572 :           continue;  // an alias or reserved name: accepted by the check, not listed here</span></span>
 <span id="L170"><span class="lineNum">     170</span>                 :             :         }</span>
-<span id="L171"><span class="lineNum">     171</span>                 :<span class="tlaGNC">        9948 :         rows.rows.push_back(Row{.term = std::string(value.value), .description = ParseInline(value.meaning)});</span></span>
+<span id="L171"><span class="lineNum">     171</span>                 :<span class="tlaGNC">       10218 :         rows.rows.push_back(Row{.term = std::string(value.value), .description = ParseInline(value.meaning)});</span></span>
 <span id="L172"><span class="lineNum">     172</span>                 :             :       }</span>
 <span id="L173"><span class="lineNum">     173</span>                 :             :       // A title-less subsection nests the value table one level deeper than its label.</span>
-<span id="L174"><span class="lineNum">     174</span>                 :<span class="tlaGNC">        1122 :       Subsection group;</span></span>
-<span id="L175"><span class="lineNum">     175</span>                 :<span class="tlaGNC">        1122 :       group.children.push_back(Content{.node = std::move(rows)});</span></span>
-<span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaGNC">        1122 :       details.push_back(Content{.node = std::move(group)});</span></span>
-<span id="L177"><span class="lineNum">     177</span>                 :<span class="tlaGNC">        1122 :     }</span></span>
-<span id="L178"><span class="lineNum">     178</span>         [<span class="tlaGBC" title="branch 0 was taken 1943 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3814 times"> + </span>]:<span class="tlaGNC">        5757 :     for (Content&amp; block : ParseBlocks(flag.details)) {</span></span>
-<span id="L179"><span class="lineNum">     179</span>                 :<span class="tlaGNC">        1943 :       details.push_back(std::move(block));</span></span>
-<span id="L180"><span class="lineNum">     180</span>                 :<span class="tlaGNC">        3814 :     }</span></span>
-<span id="L181"><span class="lineNum">     181</span>                 :<span class="tlaGNC">        3814 :     AppendInfluence(&amp;details, &quot;Affects:&quot;, absl::StrSplit(flag.affects, ',', absl::SkipEmpty()));</span></span>
-<span id="L182"><span class="lineNum">     182</span>                 :<span class="tlaGNC">        3814 :     AppendInfluence(&amp;details, &quot;Affected by:&quot;, AffectedByFlags(flag.name));</span></span>
+<span id="L174"><span class="lineNum">     174</span>                 :<span class="tlaGNC">        1167 :       Subsection group;</span></span>
+<span id="L175"><span class="lineNum">     175</span>                 :<span class="tlaGNC">        1167 :       group.children.push_back(Content{.node = std::move(rows)});</span></span>
+<span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaGNC">        1167 :       details.push_back(Content{.node = std::move(group)});</span></span>
+<span id="L177"><span class="lineNum">     177</span>                 :<span class="tlaGNC">        1167 :     }</span></span>
+<span id="L178"><span class="lineNum">     178</span>         [<span class="tlaGBC" title="branch 0 was taken 2033 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3904 times"> + </span>]:<span class="tlaGNC">        5937 :     for (Content&amp; block : ParseBlocks(flag.details)) {</span></span>
+<span id="L179"><span class="lineNum">     179</span>                 :<span class="tlaGNC">        2033 :       details.push_back(std::move(block));</span></span>
+<span id="L180"><span class="lineNum">     180</span>                 :<span class="tlaGNC">        3904 :     }</span></span>
+<span id="L181"><span class="lineNum">     181</span>                 :<span class="tlaGNC">        3904 :     AppendInfluence(&amp;details, &quot;Affects:&quot;, absl::StrSplit(flag.affects, ',', absl::SkipEmpty()));</span></span>
+<span id="L182"><span class="lineNum">     182</span>                 :<span class="tlaGNC">        3904 :     AppendInfluence(&amp;details, &quot;Affected by:&quot;, AffectedByFlags(flag.name));</span></span>
 <span id="L183"><span class="lineNum">     183</span>                 :             :   }</span>
 <span id="L184"><span class="lineNum">     184</span>                 :             :   return Content{</span>
-<span id="L185"><span class="lineNum">     185</span>                 :<span class="tlaGNC">       23756 :       .node = Entry{</span></span>
-<span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">        5939 :           .term = std::string(flag.display),</span></span>
+<span id="L185"><span class="lineNum">     185</span>                 :<span class="tlaGNC">       24316 :       .node = Entry{</span></span>
+<span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">        6079 :           .term = std::string(flag.display),</span></span>
 <span id="L187"><span class="lineNum">     187</span>                 :             :           .summary = ParseInline(flag.summary),</span>
-<span id="L188"><span class="lineNum">     188</span>                 :<span class="tlaGNC">        5939 :           .details = std::move(details),</span></span>
-<span id="L189"><span class="lineNum">     189</span>                 :<span class="tlaGNC">        5939 :           .xff = flag.xff,</span></span>
+<span id="L188"><span class="lineNum">     188</span>                 :<span class="tlaGNC">        6079 :           .details = std::move(details),</span></span>
+<span id="L189"><span class="lineNum">     189</span>                 :<span class="tlaGNC">        6079 :           .xff = flag.xff,</span></span>
 <span id="L190"><span class="lineNum">     190</span>                 :             :           .tags = FlagTags(flag),</span>
-<span id="L191"><span class="lineNum">     191</span>                 :<span class="tlaGNC">       11878 :       }};</span></span>
-<span id="L192"><span class="lineNum">     192</span>                 :<span class="tlaGNC">        5939 : }</span></span>
+<span id="L191"><span class="lineNum">     191</span>                 :<span class="tlaGNC">       12158 :       }};</span></span>
+<span id="L192"><span class="lineNum">     192</span>                 :<span class="tlaGNC">        6079 : }</span></span>
 <span id="L193"><span class="lineNum">     193</span>                 :             : </span>
 <span id="L194"><span class="lineNum">     194</span>                 :             : // A definition entry for an expression primary: its synopsis, summary, and (when</span>
 <span id="L195"><span class="lineNum">     195</span>                 :             : // `with_details`) its detail blocks + the Affected-by block. `with_details` is false</span>
@@ -309,19 +309,19 @@
 <span id="L237"><span class="lineNum">     237</span>                 :<span class="tlaGNC">         276 :       section.children.push_back(Content{.node = std::move(current)});</span></span>
 <span id="L238"><span class="lineNum">     238</span>                 :             :     }</span>
 <span id="L239"><span class="lineNum">     239</span>                 :<span class="tlaGNC">         368 :   };</span></span>
-<span id="L240"><span class="lineNum">     240</span>         [<span class="tlaGBC" title="branch 0 was taken 1748 times"> + </span><span class="tlaGBC" title="branch 1 was taken 46 times"> + </span>]:<span class="tlaGNC">        1794 :   for (const fields::FieldDoc&amp; doc : docs) {</span></span>
-<span id="L241"><span class="lineNum">     241</span>         [<span class="tlaGBC" title="branch 0 was taken 276 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1472 times"> + </span>]:<span class="tlaGNC">        1748 :     if (doc.group != group) {</span></span>
+<span id="L240"><span class="lineNum">     240</span>         [<span class="tlaGBC" title="branch 0 was taken 1978 times"> + </span><span class="tlaGBC" title="branch 1 was taken 46 times"> + </span>]:<span class="tlaGNC">        2024 :   for (const fields::FieldDoc&amp; doc : docs) {</span></span>
+<span id="L241"><span class="lineNum">     241</span>         [<span class="tlaGBC" title="branch 0 was taken 276 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1702 times"> + </span>]:<span class="tlaGNC">        1978 :     if (doc.group != group) {</span></span>
 <span id="L242"><span class="lineNum">     242</span>                 :<span class="tlaGNC">         276 :       flush();</span></span>
 <span id="L243"><span class="lineNum">     243</span>                 :<span class="tlaGNC">         276 :       group = doc.group;</span></span>
 <span id="L244"><span class="lineNum">     244</span>                 :<span class="tlaGNC">         552 :       current = Subsection{.title = std::string(doc.header)};</span></span>
 <span id="L245"><span class="lineNum">     245</span>                 :<span class="tlaGNC">         276 :       have_current = true;</span></span>
 <span id="L246"><span class="lineNum">     246</span>                 :             :     }</span>
-<span id="L247"><span class="lineNum">     247</span>                 :<span class="tlaGNC">        1748 :     std::string term = absl::StrCat(&quot;{&quot;, doc.name, &quot;}&quot;);</span></span>
-<span id="L248"><span class="lineNum">     248</span>         [<span class="tlaGBC" title="branch 0 was taken 230 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1748 times"> + </span>]:<span class="tlaGNC">        1978 :     for (const std::string_view alias : doc.aliases) {</span></span>
+<span id="L247"><span class="lineNum">     247</span>                 :<span class="tlaGNC">        1978 :     std::string term = absl::StrCat(&quot;{&quot;, doc.name, &quot;}&quot;);</span></span>
+<span id="L248"><span class="lineNum">     248</span>         [<span class="tlaGBC" title="branch 0 was taken 230 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1978 times"> + </span>]:<span class="tlaGNC">        2208 :     for (const std::string_view alias : doc.aliases) {</span></span>
 <span id="L249"><span class="lineNum">     249</span>                 :<span class="tlaGNC">         230 :       absl::StrAppend(&amp;term, &quot; {&quot;, alias, &quot;}&quot;);</span></span>
 <span id="L250"><span class="lineNum">     250</span>                 :             :     }</span>
-<span id="L251"><span class="lineNum">     251</span>                 :<span class="tlaGNC">        1748 :     rows.rows.push_back(Row{.term = std::move(term), .description = ParseInline(doc.summary)});</span></span>
-<span id="L252"><span class="lineNum">     252</span>                 :<span class="tlaGNC">        1748 :   }</span></span>
+<span id="L251"><span class="lineNum">     251</span>                 :<span class="tlaGNC">        1978 :     rows.rows.push_back(Row{.term = std::move(term), .description = ParseInline(doc.summary)});</span></span>
+<span id="L252"><span class="lineNum">     252</span>                 :<span class="tlaGNC">        1978 :   }</span></span>
 <span id="L253"><span class="lineNum">     253</span>                 :<span class="tlaGNC">          46 :   flush();</span></span>
 <span id="L254"><span class="lineNum">     254</span>                 :             : </span>
 <span id="L255"><span class="lineNum">     255</span>                 :<span class="tlaGNC">          92 :   Subsection braces{.title = &quot;Braces&quot;};</span></span>
@@ -494,9 +494,9 @@
 <span id="L422"><span class="lineNum">     422</span>                 :             :       &quot;xff statistics reductions. `--summary` and `--histogram` replace the per-match listing with an &quot;</span>
 <span id="L423"><span class="lineNum">     423</span>                 :             :       &quot;aggregate over all matches; they are independent and combinable (one walk feeds both), and an &quot;</span>
 <span id="L424"><span class="lineNum">     424</span>                 :             :       &quot;explicit action (`-print` / `-exec`) still runs. `--format=jsonl` emits machine rows instead.&quot;));</span>
-<span id="L425"><span class="lineNum">     425</span>         [<span class="tlaGBC" title="branch 0 was taken 3910 times"> + </span><span class="tlaGBC" title="branch 1 was taken 46 times"> + </span>]:<span class="tlaGNC">        3956 :   for (const GlobalFlag&amp; flag : Globals()) {</span></span>
-<span id="L426"><span class="lineNum">     426</span>   [<span class="tlaGBC" title="branch 0 was taken 255 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3655 times"> + </span><span class="tlaGBC" title="branch 2 was taken 27 times"> + </span><span class="tlaGBC" title="branch 3 was taken 228 times"> + </span> :<span class="tlaGNC">        3910 :     if (!in_full &amp;&amp; flag.topic == &quot;stats&quot;) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 27 times"> + </span><span class="tlaGBC" title="branch 5 was taken 3883 times"> + </span>]
+<span id="L425"><span class="lineNum">     425</span>         [<span class="tlaGBC" title="branch 0 was taken 4002 times"> + </span><span class="tlaGBC" title="branch 1 was taken 46 times"> + </span>]:<span class="tlaGNC">        4048 :   for (const GlobalFlag&amp; flag : Globals()) {</span></span>
+<span id="L426"><span class="lineNum">     426</span>   [<span class="tlaGBC" title="branch 0 was taken 261 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3741 times"> + </span><span class="tlaGBC" title="branch 2 was taken 27 times"> + </span><span class="tlaGBC" title="branch 3 was taken 234 times"> + </span> :<span class="tlaGNC">        4002 :     if (!in_full &amp;&amp; flag.topic == &quot;stats&quot;) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 27 times"> + </span><span class="tlaGBC" title="branch 5 was taken 3975 times"> + </span>]
 <span id="L427"><span class="lineNum">     427</span>                 :<span class="tlaGNC">          27 :       section.children.push_back(FlagEntry(flag));</span></span>
 <span id="L428"><span class="lineNum">     428</span>                 :             :     }</span>
 <span id="L429"><span class="lineNum">     429</span>                 :             :   }</span>
@@ -673,9 +673,9 @@
 <span id="L600"><span class="lineNum">     600</span>                 :             :       &quot;not forge.&quot;));</span>
 <span id="L601"><span class="lineNum">     601</span>                 :<span class="tlaGNC">          50 :   section.children.push_back(Content{.node = std::move(creating)});</span></span>
 <span id="L602"><span class="lineNum">     602</span>                 :             : </span>
-<span id="L603"><span class="lineNum">     603</span>         [<span class="tlaGBC" title="branch 0 was taken 4250 times"> + </span><span class="tlaGBC" title="branch 1 was taken 50 times"> + </span>]:<span class="tlaGNC">        4300 :   for (const GlobalFlag&amp; flag : Globals()) {</span></span>
-<span id="L604"><span class="lineNum">     604</span>   [<span class="tlaGBC" title="branch 0 was taken 595 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3655 times"> + </span><span class="tlaGBC" title="branch 2 was taken 91 times"> + </span><span class="tlaGBC" title="branch 3 was taken 504 times"> + </span> :<span class="tlaGNC">        4250 :     if (!in_full &amp;&amp; flag.topic == &quot;archive&quot;) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 91 times"> + </span><span class="tlaGBC" title="branch 5 was taken 4159 times"> + </span>]
+<span id="L603"><span class="lineNum">     603</span>         [<span class="tlaGBC" title="branch 0 was taken 4350 times"> + </span><span class="tlaGBC" title="branch 1 was taken 50 times"> + </span>]:<span class="tlaGNC">        4400 :   for (const GlobalFlag&amp; flag : Globals()) {</span></span>
+<span id="L604"><span class="lineNum">     604</span>   [<span class="tlaGBC" title="branch 0 was taken 609 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3741 times"> + </span><span class="tlaGBC" title="branch 2 was taken 91 times"> + </span><span class="tlaGBC" title="branch 3 was taken 518 times"> + </span> :<span class="tlaGNC">        4350 :     if (!in_full &amp;&amp; flag.topic == &quot;archive&quot;) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 91 times"> + </span><span class="tlaGBC" title="branch 5 was taken 4259 times"> + </span>]
 <span id="L605"><span class="lineNum">     605</span>                 :<span class="tlaGNC">          91 :       section.children.push_back(FlagEntry(flag));</span></span>
 <span id="L606"><span class="lineNum">     606</span>                 :             :     }</span>
 <span id="L607"><span class="lineNum">     607</span>                 :             :   }</span>
@@ -722,10 +722,10 @@
 <span id="L647"><span class="lineNum">     647</span>                 :<span class="tlaGNC">          18 :       section.children.push_back(PrimaryEntry(descriptor));</span></span>
 <span id="L648"><span class="lineNum">     648</span>                 :             :     }</span>
 <span id="L649"><span class="lineNum">     649</span>                 :             :   }</span>
-<span id="L650"><span class="lineNum">     650</span>         [<span class="tlaGBC" title="branch 0 was taken 3825 times"> + </span><span class="tlaGBC" title="branch 1 was taken 45 times"> + </span>]:<span class="tlaGNC">        3870 :   for (const GlobalFlag&amp; flag : Globals()) {</span></span>
-<span id="L651"><span class="lineNum">     651</span>   [<span class="tlaGBC" title="branch 0 was taken 170 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3655 times"> + </span><span class="tlaGBC" title="branch 2 was taken 4 times"> + </span><span class="tlaGBC" title="branch 3 was taken 166 times"> + </span> :<span class="tlaGNC">        3825 :     if (!in_full &amp;&amp; flag.topic == &quot;content&quot;) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 4 times"> + </span><span class="tlaGBC" title="branch 5 was taken 3821 times"> + </span>]
-<span id="L652"><span class="lineNum">     652</span>                 :<span class="tlaGNC">           4 :       section.children.push_back(FlagEntry(flag));</span></span>
+<span id="L650"><span class="lineNum">     650</span>         [<span class="tlaGBC" title="branch 0 was taken 3915 times"> + </span><span class="tlaGBC" title="branch 1 was taken 45 times"> + </span>]:<span class="tlaGNC">        3960 :   for (const GlobalFlag&amp; flag : Globals()) {</span></span>
+<span id="L651"><span class="lineNum">     651</span>   [<span class="tlaGBC" title="branch 0 was taken 174 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3741 times"> + </span><span class="tlaGBC" title="branch 2 was taken 8 times"> + </span><span class="tlaGBC" title="branch 3 was taken 166 times"> + </span> :<span class="tlaGNC">        3915 :     if (!in_full &amp;&amp; flag.topic == &quot;content&quot;) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 8 times"> + </span><span class="tlaGBC" title="branch 5 was taken 3907 times"> + </span>]
+<span id="L652"><span class="lineNum">     652</span>                 :<span class="tlaGNC">           8 :       section.children.push_back(FlagEntry(flag));</span></span>
 <span id="L653"><span class="lineNum">     653</span>                 :             :     }</span>
 <span id="L654"><span class="lineNum">     654</span>                 :             :   }</span>
 <span id="L655"><span class="lineNum">     655</span>                 :             :   static constexpr std::array&lt;DocPair, 3&gt; kExamples = {{</span>
@@ -787,8 +787,8 @@
 <span id="L711"><span class="lineNum">     711</span>                 :             : </span>
 <span id="L712"><span class="lineNum">     712</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 43 times"> + </span>]:<span class="tlaGNC">          46 :   if (!in_full) {</span></span>
 <span id="L713"><span class="lineNum">     713</span>                 :<span class="tlaGNC">           6 :     Subsection flags{.title = &quot;Config flags&quot;};</span></span>
-<span id="L714"><span class="lineNum">     714</span>         [<span class="tlaGBC" title="branch 0 was taken 255 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">         258 :     for (const GlobalFlag&amp; flag : Globals()) {</span></span>
-<span id="L715"><span class="lineNum">     715</span>         [<span class="tlaGBC" title="branch 0 was taken 15 times"> + </span><span class="tlaGBC" title="branch 1 was taken 240 times"> + </span>]:<span class="tlaGNC">         255 :       if (flag.topic == &quot;config&quot;) {</span></span>
+<span id="L714"><span class="lineNum">     714</span>         [<span class="tlaGBC" title="branch 0 was taken 261 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">         264 :     for (const GlobalFlag&amp; flag : Globals()) {</span></span>
+<span id="L715"><span class="lineNum">     715</span>         [<span class="tlaGBC" title="branch 0 was taken 15 times"> + </span><span class="tlaGBC" title="branch 1 was taken 246 times"> + </span>]:<span class="tlaGNC">         261 :       if (flag.topic == &quot;config&quot;) {</span></span>
 <span id="L716"><span class="lineNum">     716</span>                 :<span class="tlaGNC">          15 :         flags.children.push_back(FlagEntry(flag));</span></span>
 <span id="L717"><span class="lineNum">     717</span>                 :             :       }</span>
 <span id="L718"><span class="lineNum">     718</span>                 :             :     }</span>
@@ -797,12 +797,12 @@
 <span id="L721"><span class="lineNum">     721</span>                 :<span class="tlaGNC">          92 :   return section;</span></span>
 <span id="L722"><span class="lineNum">     722</span>                 :<span class="tlaGNC">          46 : }</span></span>
 <span id="L723"><span class="lineNum">     723</span>                 :             : </span>
-<span id="L724"><span class="lineNum">     724</span>                 :<span class="tlaGNC">          43 : Content NoticeEntry(const license::Notice&amp; notice) {</span></span>
+<span id="L724"><span class="lineNum">     724</span>                 :<span class="tlaGNC">          55 : Content NoticeEntry(const license::Notice&amp; notice) {</span></span>
 <span id="L725"><span class="lineNum">     725</span>                 :             :   return Content{</span>
-<span id="L726"><span class="lineNum">     726</span>                 :<span class="tlaGNC">          86 :       .node = Entry{</span></span>
-<span id="L727"><span class="lineNum">     727</span>                 :<span class="tlaGNC">          86 :           .term = absl::StrCat(notice.component, &quot;  [&quot;, notice.spdx, &quot;]&quot;),</span></span>
+<span id="L726"><span class="lineNum">     726</span>                 :<span class="tlaGNC">         110 :       .node = Entry{</span></span>
+<span id="L727"><span class="lineNum">     727</span>                 :<span class="tlaGNC">         110 :           .term = absl::StrCat(notice.component, &quot;  [&quot;, notice.spdx, &quot;]&quot;),</span></span>
 <span id="L728"><span class="lineNum">     728</span>                 :             :           .summary = ParseInline(notice.text),</span>
-<span id="L729"><span class="lineNum">     729</span>                 :<span class="tlaGNC">          86 :       }};</span></span>
+<span id="L729"><span class="lineNum">     729</span>                 :<span class="tlaGNC">         110 :       }};</span></span>
 <span id="L730"><span class="lineNum">     730</span>                 :             : }</span>
 <span id="L731"><span class="lineNum">     731</span>                 :             : </span>
 <span id="L732"><span class="lineNum">     732</span>                 :             : // The `--help=notice` topic (alias notices): the one build-dependent line (which extras THIS</span>
@@ -820,22 +820,22 @@
 <span id="L743"><span class="lineNum">     743</span>                 :<span class="tlaGNC">          10 :   section.children.push_back(ProseOf(license::NoticeIntroduction()));</span></span>
 <span id="L744"><span class="lineNum">     744</span>                 :             : </span>
 <span id="L745"><span class="lineNum">     745</span>                 :<span class="tlaGNC">          10 :   std::optional&lt;Subsection&gt; extension;</span></span>
-<span id="L746"><span class="lineNum">     746</span>         [<span class="tlaGBC" title="branch 0 was taken 43 times"> + </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          53 :   for (const license::Notice&amp; notice : license::Notices()) {</span></span>
-<span id="L747"><span class="lineNum">     747</span>         [<span class="tlaGBC" title="branch 0 was taken 30 times"> + </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          43 :     if (notice.section.empty()) {</span></span>
-<span id="L748"><span class="lineNum">     748</span>                 :<span class="tlaGNC">          30 :       section.children.push_back(NoticeEntry(notice));</span></span>
-<span id="L749"><span class="lineNum">     749</span>                 :<span class="tlaGNC">          30 :       continue;</span></span>
+<span id="L746"><span class="lineNum">     746</span>         [<span class="tlaGBC" title="branch 0 was taken 55 times"> + </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          65 :   for (const license::Notice&amp; notice : license::Notices()) {</span></span>
+<span id="L747"><span class="lineNum">     747</span>         [<span class="tlaGBC" title="branch 0 was taken 40 times"> + </span><span class="tlaGBC" title="branch 1 was taken 15 times"> + </span>]:<span class="tlaGNC">          55 :     if (notice.section.empty()) {</span></span>
+<span id="L748"><span class="lineNum">     748</span>                 :<span class="tlaGNC">          40 :       section.children.push_back(NoticeEntry(notice));</span></span>
+<span id="L749"><span class="lineNum">     749</span>                 :<span class="tlaGNC">          40 :       continue;</span></span>
 <span id="L750"><span class="lineNum">     750</span>                 :             :     }</span>
-<span id="L751"><span class="lineNum">     751</span>   [<span class="tlaGBC" title="branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 3 times"> + </span><span class="tlaGBC" title="branch 3 was taken 9 times"> + </span> :<span class="tlaGNC">          13 :     if (!extension.has_value() || extension-&gt;anchor != notice.section) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 4 times"> + </span><span class="tlaGBC" title="branch 5 was taken 9 times"> + </span>]
-<span id="L752"><span class="lineNum">     752</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           4 :       if (extension.has_value()) {</span></span>
-<span id="L753"><span class="lineNum">     753</span>                 :<span class="tlaGNC">           3 :         section.children.push_back(Content{.node = std::move(*extension)});</span></span>
+<span id="L751"><span class="lineNum">     751</span>   [<span class="tlaGBC" title="branch 0 was taken 14 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 5 times"> + </span><span class="tlaGBC" title="branch 3 was taken 9 times"> + </span> :<span class="tlaGNC">          15 :     if (!extension.has_value() || extension-&gt;anchor != notice.section) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 6 times"> + </span><span class="tlaGBC" title="branch 5 was taken 9 times"> + </span>]
+<span id="L752"><span class="lineNum">     752</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           6 :       if (extension.has_value()) {</span></span>
+<span id="L753"><span class="lineNum">     753</span>                 :<span class="tlaGNC">           5 :         section.children.push_back(Content{.node = std::move(*extension)});</span></span>
 <span id="L754"><span class="lineNum">     754</span>                 :             :       }</span>
-<span id="L755"><span class="lineNum">     755</span>                 :<span class="tlaGNC">           8 :       extension = Subsection{</span></span>
-<span id="L756"><span class="lineNum">     756</span>                 :<span class="tlaGNC">           4 :           .title = absl::StrCat(&quot;Build extension: &quot;, notice.section),</span></span>
-<span id="L757"><span class="lineNum">     757</span>                 :<span class="tlaGNC">           8 :           .anchor = std::string(notice.section),</span></span>
-<span id="L758"><span class="lineNum">     758</span>                 :<span class="tlaGNC">           4 :       };</span></span>
+<span id="L755"><span class="lineNum">     755</span>                 :<span class="tlaGNC">          12 :       extension = Subsection{</span></span>
+<span id="L756"><span class="lineNum">     756</span>                 :<span class="tlaGNC">           6 :           .title = absl::StrCat(&quot;Build extension: &quot;, notice.section),</span></span>
+<span id="L757"><span class="lineNum">     757</span>                 :<span class="tlaGNC">          12 :           .anchor = std::string(notice.section),</span></span>
+<span id="L758"><span class="lineNum">     758</span>                 :<span class="tlaGNC">           6 :       };</span></span>
 <span id="L759"><span class="lineNum">     759</span>                 :             :     }</span>
-<span id="L760"><span class="lineNum">     760</span>                 :<span class="tlaGNC">          13 :     extension-&gt;children.push_back(NoticeEntry(notice));</span></span>
+<span id="L760"><span class="lineNum">     760</span>                 :<span class="tlaGNC">          15 :     extension-&gt;children.push_back(NoticeEntry(notice));</span></span>
 <span id="L761"><span class="lineNum">     761</span>                 :<span class="tlaGNC">          10 :   }</span></span>
 <span id="L762"><span class="lineNum">     762</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">          10 :   if (extension.has_value()) {</span></span>
 <span id="L763"><span class="lineNum">     763</span>                 :<span class="tlaGNC">           1 :     section.children.push_back(Content{.node = std::move(*extension)});</span></span>
@@ -876,7 +876,7 @@
 <span id="L797"><span class="lineNum">     797</span>                 :             :   // (&quot;RE2&quot;, &quot;Abseil (C++)&quot;, &quot;helly25/mbo&quot;), and requiring the exact casing to read a LICENSE would</span>
 <span id="L798"><span class="lineNum">     798</span>                 :             :   // be a spelling test rather than a lookup.</span>
 <span id="L799"><span class="lineNum">     799</span>                 :<span class="tlaGNC">          14 :   const auto found = absl::c_find_if(notices, [component](const license::Notice&amp; notice) {</span></span>
-<span id="L800"><span class="lineNum">     800</span>                 :<span class="tlaGNC">          68 :     return absl::EqualsIgnoreCase(notice.component, component);</span></span>
+<span id="L800"><span class="lineNum">     800</span>                 :<span class="tlaGNC">          84 :     return absl::EqualsIgnoreCase(notice.component, component);</span></span>
 <span id="L801"><span class="lineNum">     801</span>                 :             :   });</span>
 <span id="L802"><span class="lineNum">     802</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 11 times"> + </span>]:<span class="tlaGNC">          14 :   if (found == notices.end()) {</span></span>
 <span id="L803"><span class="lineNum">     803</span>                 :<span class="tlaGNC">           3 :     return std::nullopt;</span></span>
@@ -939,8 +939,8 @@
 <span id="L860"><span class="lineNum">     860</span>                 :<span class="tlaGNC">          68 :   std::string_view group;</span></span>
 <span id="L861"><span class="lineNum">     861</span>                 :<span class="tlaGNC">          68 :   Subsection current;</span></span>
 <span id="L862"><span class="lineNum">     862</span>                 :<span class="tlaGNC">          68 :   bool have_current = false;</span></span>
-<span id="L863"><span class="lineNum">     863</span>         [<span class="tlaGBC" title="branch 0 was taken 5780 times"> + </span><span class="tlaGBC" title="branch 1 was taken 68 times"> + </span>]:<span class="tlaGNC">        5848 :   for (const GlobalFlag&amp; flag : Globals()) {</span></span>
-<span id="L864"><span class="lineNum">     864</span>         [<span class="tlaGBC" title="branch 0 was taken 612 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5168 times"> + </span>]:<span class="tlaGNC">        5780 :     if (flag.group != group) {</span></span>
+<span id="L863"><span class="lineNum">     863</span>         [<span class="tlaGBC" title="branch 0 was taken 5916 times"> + </span><span class="tlaGBC" title="branch 1 was taken 68 times"> + </span>]:<span class="tlaGNC">        5984 :   for (const GlobalFlag&amp; flag : Globals()) {</span></span>
+<span id="L864"><span class="lineNum">     864</span>         [<span class="tlaGBC" title="branch 0 was taken 612 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5304 times"> + </span>]:<span class="tlaGNC">        5916 :     if (flag.group != group) {</span></span>
 <span id="L865"><span class="lineNum">     865</span>         [<span class="tlaGBC" title="branch 0 was taken 544 times"> + </span><span class="tlaGBC" title="branch 1 was taken 68 times"> + </span>]:<span class="tlaGNC">         612 :       if (have_current) {</span></span>
 <span id="L866"><span class="lineNum">     866</span>                 :<span class="tlaGNC">         544 :         options.children.push_back(Content{.node = std::move(current)});</span></span>
 <span id="L867"><span class="lineNum">     867</span>                 :             :       }</span>
@@ -948,7 +948,7 @@
 <span id="L869"><span class="lineNum">     869</span>                 :<span class="tlaGNC">        1224 :       current = Subsection{.title = std::string(flag.header)};</span></span>
 <span id="L870"><span class="lineNum">     870</span>                 :<span class="tlaGNC">         612 :       have_current = true;</span></span>
 <span id="L871"><span class="lineNum">     871</span>                 :             :     }</span>
-<span id="L872"><span class="lineNum">     872</span>                 :<span class="tlaGNC">        5780 :     current.children.push_back(FlagEntry(flag, with_details, audience));</span></span>
+<span id="L872"><span class="lineNum">     872</span>                 :<span class="tlaGNC">        5916 :     current.children.push_back(FlagEntry(flag, with_details, audience));</span></span>
 <span id="L873"><span class="lineNum">     873</span>                 :             :   }</span>
 <span id="L874"><span class="lineNum">     874</span>         [<span class="tlaGBC" title="branch 0 was taken 68 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">          68 :   if (have_current) {</span></span>
 <span id="L875"><span class="lineNum">     875</span>                 :<span class="tlaGNC">          68 :     options.children.push_back(Content{.node = std::move(current)});</span></span>
@@ -1069,8 +1069,8 @@
 <span id="L990"><span class="lineNum">     990</span>                 :             : </span>
 <span id="L991"><span class="lineNum">     991</span>                 :<span class="tlaGNC">           2 : std::vector&lt;std::string_view&gt; LicenseComponentNames() {</span></span>
 <span id="L992"><span class="lineNum">     992</span>                 :<span class="tlaGNC">           2 :   std::vector&lt;std::string_view&gt; names;</span></span>
-<span id="L993"><span class="lineNum">     993</span>         [<span class="tlaGBC" title="branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           8 :   for (const license::Notice&amp; notice : license::Notices()) {</span></span>
-<span id="L994"><span class="lineNum">     994</span>                 :<span class="tlaGNC">           6 :     names.push_back(notice.component);</span></span>
+<span id="L993"><span class="lineNum">     993</span>         [<span class="tlaGBC" title="branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">          10 :   for (const license::Notice&amp; notice : license::Notices()) {</span></span>
+<span id="L994"><span class="lineNum">     994</span>                 :<span class="tlaGNC">           8 :     names.push_back(notice.component);</span></span>
 <span id="L995"><span class="lineNum">     995</span>                 :<span class="tlaGNC">           2 :   }</span></span>
 <span id="L996"><span class="lineNum">     996</span>                 :<span class="tlaGNC">           2 :   return names;</span></span>
 <span id="L997"><span class="lineNum">     997</span>                 :             : }</span>
