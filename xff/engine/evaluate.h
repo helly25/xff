@@ -122,15 +122,16 @@ struct EvalContext {
   // The normalized 0..100 fuzzy quality composed across the expression for {fuzzy}, --sort=score,
   // and -top. Null when no consumer needs it; reset by the driver per entry.
   std::optional<int>* fuzzy_score = nullptr;
-  // -top's exact selection is resolved after the walk. During the first evaluation, an undecided
-  // -top writes its node + incoming composed score here and evaluation returns deferred. During a
-  // replay, top_results supplies the decision for every earlier deferral. evaluation_memo holds
+  // Result-set predicates such as -top and -shard-status are resolved after the walk. During the
+  // first evaluation, an undecided predicate writes its node (and -top's composed score) here and
+  // evaluation returns deferred. During replay, deferred_results supplies every earlier decision.
+  // evaluation_memo holds
   // already-completed prefix nodes so actions and stateful tests to the left are never run twice.
   // All four are null for callers that do not opt into deferred evaluation.
-  const std::map<const parser::Expr*, bool>* top_results = nullptr;
+  const std::map<const parser::Expr*, bool>* deferred_results = nullptr;
   std::map<const parser::Expr*, EvaluationResult>* evaluation_memo = nullptr;
-  const parser::Expr** deferred_top = nullptr;
-  std::optional<int>* deferred_top_score = nullptr;
+  const parser::Expr** deferred_node = nullptr;
+  std::optional<int>* deferred_score = nullptr;
   // The fuzzy score composed by the expression immediately to this node's left. EvaluateResult
   // maintains it while descending an AND RHS; -top consumes it as its ranking key.
   std::optional<int> incoming_fuzzy_score;

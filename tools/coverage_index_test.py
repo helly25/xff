@@ -28,6 +28,17 @@ class CoverageIndexTest(unittest.TestCase):
         self.assertIn('href="lcov/"', rendered)
         self.assertIn('href="../../"', rendered)
 
+    def test_report_status_is_ok_between_minimum_and_target(self):
+        rendered = coverage_index.render_report(_summary(85.0), "pr/42")
+        self.assertIn("<td>OK</td>", rendered)
+        self.assertNotIn("LOW", rendered)
+
+    def test_report_status_identifies_metrics_below_minimum(self):
+        summary = _summary(95.0)
+        summary["measurements"]["overall"]["functions"] = {"covered": 7, "total": 10, "percent": 70.0}
+        rendered = coverage_index.render_report(summary, "pr/42")
+        self.assertIn("<td>FAIL: F</td>", rendered)
+
     def test_site_shows_all_metrics_with_main_first_and_numeric_sorting(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

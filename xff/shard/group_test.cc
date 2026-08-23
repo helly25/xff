@@ -34,6 +34,8 @@ using ::testing::ElementsAreArray;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::IsEmpty;
+using ::testing::IsFalse;
+using ::testing::IsTrue;
 using ::testing::Optional;
 using ::testing::SizeIs;
 
@@ -65,7 +67,7 @@ TEST_F(GroupShardsTest, GroupsAnOfSetAndReportsItComplete) {
   EXPECT_THAT(sets[0].total, Optional(Eq(3)));
   EXPECT_THAT(sets[0].width, Eq(5));
   EXPECT_THAT(sets[0].wildcard, Eq(absl::StrCat("data-", std::string(5, '?'), "-of-00003")));
-  EXPECT_TRUE(sets[0].complete);
+  EXPECT_THAT(sets[0].complete, IsTrue());
   EXPECT_THAT(sets[0].missing, IsEmpty());
   EXPECT_THAT(
       sets[0].members, ElementsAreArray({
@@ -78,7 +80,7 @@ TEST_F(GroupShardsTest, GroupsAnOfSetAndReportsItComplete) {
 TEST_F(GroupShardsTest, FlagsAMissingShardAgainstADeclaredTotal) {
   const std::vector<ShardSet> sets = Group({"data-00000-of-00003", "data-00002-of-00003"});
   ASSERT_THAT(sets, SizeIs(1));
-  EXPECT_FALSE(sets[0].complete);
+  EXPECT_THAT(sets[0].complete, IsFalse());
   EXPECT_THAT(sets[0].missing, ElementsAre(1));
   EXPECT_THAT(sets[0].members, SizeIs(2));
 }
@@ -87,11 +89,37 @@ TEST_F(GroupShardsTest, DedupsSameIndexRegenerationsByTail) {
   // Two files are the same logical shard 0 (they differ only by the hex tail).
   const std::vector<ShardSet> sets = Group({"data-00000-of-00001.bbbbbbbb", "data-00000-of-00001.aaaaaaaa"});
   ASSERT_THAT(sets, SizeIs(1));
-  EXPECT_TRUE(sets[0].complete);  // distinct index 0 covers the declared total of 1
+  EXPECT_THAT(sets[0].complete, IsTrue());  // distinct index 0 covers the declared total of 1
   ASSERT_THAT(sets[0].members, SizeIs(1));
   EXPECT_THAT(sets[0].members[0].index, Eq(0));
   EXPECT_THAT(sets[0].members[0].path, Eq("data-00000-of-00001.aaaaaaaa"));  // lexicographically first
   EXPECT_THAT(sets[0].members[0].duplicates, ElementsAre("data-00000-of-00001.bbbbbbbb"));
+  EXPECT_THAT(
+      sets[0].superfluous, ElementsAre(AllOf(
+                               Field("index", &SuperfluousShard::index, Eq(0)),
+                               Field("path", &SuperfluousShard::path, Eq("data-00000-of-00001.bbbbbbbb")),
+                               Field("reason", &SuperfluousShard::reason, Eq(SuperfluousReason::kDuplicate)))));
+}
+
+TEST_F(GroupShardsTest, ExcludesOutOfRangeIndicesFromACompleteDeclaredSet) {
+  const std::vector<ShardSet> sets = Group({"data-00000-of-00002", "data-00001-of-00002", "data-00002-of-00002"});
+  ASSERT_THAT(sets, SizeIs(1));
+  EXPECT_THAT(sets[0].complete, IsTrue());
+  EXPECT_THAT(sets[0].members, ElementsAre(MemberIs(0, "data-00000-of-00002"), MemberIs(1, "data-00001-of-00002")));
+  EXPECT_THAT(
+      sets[0].superfluous, ElementsAre(AllOf(
+                               Field("index", &SuperfluousShard::index, Eq(2)),
+                               Field("path", &SuperfluousShard::path, Eq("data-00002-of-00002")),
+                               Field("reason", &SuperfluousShard::reason, Eq(SuperfluousReason::kOutOfRange)))));
+}
+
+TEST_F(GroupShardsTest, OutOfRangeIndicesCannotMaskMissingDeclaredMembers) {
+  const std::vector<ShardSet> sets = Group({"data-00000-of-00002", "data-00002-of-00002"});
+  ASSERT_THAT(sets, SizeIs(1));
+  EXPECT_THAT(sets[0].complete, IsFalse());
+  EXPECT_THAT(sets[0].missing, ElementsAre(1));
+  EXPECT_THAT(sets[0].members, ElementsAre(MemberIs(0, "data-00000-of-00002")));
+  EXPECT_THAT(sets[0].superfluous, SizeIs(1));
 }
 
 TEST_F(GroupShardsTest, MtimeDedupKeepsTheNewestCopy) {
@@ -112,14 +140,14 @@ TEST_F(GroupShardsTest, DotNumSetIsCompleteWhenContiguous) {
   ASSERT_THAT(sets, SizeIs(1));
   EXPECT_THAT(sets[0].scheme, Eq(Scheme::kDotNum));
   EXPECT_THAT(sets[0].total, Eq(std::nullopt));
-  EXPECT_TRUE(sets[0].complete);
+  EXPECT_THAT(sets[0].complete, IsTrue());
   EXPECT_THAT(sets[0].members, SizeIs(3));
 }
 
 TEST_F(GroupShardsTest, DotNumGapIsFlaggedByContiguity) {
   const std::vector<ShardSet> sets = Group({"backup.tar.001", "backup.tar.003"});
   ASSERT_THAT(sets, SizeIs(1));
-  EXPECT_FALSE(sets[0].complete);
+  EXPECT_THAT(sets[0].complete, IsFalse());
   EXPECT_THAT(sets[0].missing, ElementsAre(2));
 }
 
@@ -138,7 +166,7 @@ TEST_F(GroupShardsTest, AggregatesDistinctShardSizesAndFlagsNonUniformMode) {
   const std::vector<ShardSet> sets = GroupShards(files, *Matcher::Make());
   ASSERT_THAT(sets, SizeIs(1));
   EXPECT_THAT(sets[0].total_size, Eq(350U));
-  EXPECT_FALSE(sets[0].uniform_mode);
+  EXPECT_THAT(sets[0].uniform_mode, IsFalse());
   ASSERT_THAT(sets[0].members, SizeIs(2));
   EXPECT_THAT(sets[0].members[0].size, Eq(100U));
   EXPECT_THAT(sets[0].members[0].mode, Eq(0644U));
@@ -154,7 +182,7 @@ TEST_F(GroupShardsTest, SizeCountsDistinctShardsNotDuplicateCopies) {
   const std::vector<ShardSet> sets = GroupShards(files, *Matcher::Make());
   ASSERT_THAT(sets, SizeIs(1));
   EXPECT_THAT(sets[0].total_size, Eq(40U));  // not 80 - the dup copy is excluded
-  EXPECT_TRUE(sets[0].uniform_mode);
+  EXPECT_THAT(sets[0].uniform_mode, IsTrue());
 }
 
 }  // namespace

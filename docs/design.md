@@ -324,11 +324,19 @@ captures above, e.g.
 - `--shard-tail=REGEX` - override the opaque-tail regex for the built-in schemes; exactly one
   capturing group (the `dup`), everything else literal (so the separator is in the regex). Default
   `` `\.([0-9a-fA-F]{8,})` ``; an empty value disables the tail.
+- `-shard-status complete|incomplete|superfluous` - a deferred expression test over the physical
+  files reaching that node. Valid representatives inherit their logical set's complete/incomplete
+  state; redundant same-index copies and indices outside a declared total are superfluous. The
+  cohort is per-directory and deliberately respects predicates to the left, while tests/actions to
+  the right run only after classification. Without `--shards` this exposes every selected physical
+  file; `--shards` remains the independent logical display mode.
 
 **Completeness is surfaced, not hidden:** when the name encodes a total (`-of-MMM`), a set missing
 members is flagged - `f-???-of-003 (2/3 - INCOMPLETE)` (a data-validation feature). Completeness
 counts **distinct indices**, never files, so redundant `dup` copies never mask a gap. With no declared
-total, contiguous runs collapse and detectable gaps are flagged.
+total, contiguous runs collapse and detectable gaps are flagged. An index outside a declared total
+is excluded from the logical set and surfaced as superfluous, so it cannot make the set complete or
+inflate its aggregate size.
 
 **References** (real-world naming conventions surveyed for the built-in catalog):
 

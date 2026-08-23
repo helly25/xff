@@ -1743,6 +1743,128 @@ TEST_F(RunTest, ShardsAnnotateAnIncompleteSet) {
   EXPECT_THAT(last_errors_, 0);
 }
 
+TEST_F(RunTest, ShardsRenderASetContainingOnlyAnOutOfRangeFile) {
+  { std::ofstream(root_ / "data-00002-of-00002") << ""; }
+  EXPECT_THAT(
+      RunExpr({"-type", "f", "--shards"}),
+      UnorderedElementsAre(
+          Path("data-00002-of-00002 (0/2 - INCOMPLETE)"), Path("a.txt"), Path("b.md"), Path("sub/c.txt")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardStatusCompleteMatchesOnlyRepresentativesInCompleteSets) {
+  { std::ofstream(root_ / "complete-00000-of-00002") << ""; }
+  { std::ofstream(root_ / "complete-00001-of-00002") << ""; }
+  { std::ofstream(root_ / "incomplete-00000-of-00002") << ""; }
+  EXPECT_THAT(
+      RunExpr({"-type", "f", "-shard-status", "complete"}),
+      UnorderedElementsAre(Path("complete-00000-of-00002"), Path("complete-00001-of-00002")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardStatusIncompleteMatchesEveryPresentRepresentativeInAnIncompleteSet) {
+  { std::ofstream(root_ / "data-00000-of-00003") << ""; }
+  { std::ofstream(root_ / "data-00002-of-00003") << ""; }
+  EXPECT_THAT(
+      RunExpr({"-type", "f", "-shard-status", "incomplete"}),
+      UnorderedElementsAre(Path("data-00000-of-00003"), Path("data-00002-of-00003")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardStatusSuperfluousMatchesDuplicateCopiesAndOutOfRangeIndices) {
+  { std::ofstream(root_ / "data-00000-of-00002.aaaaaaaa") << ""; }
+  { std::ofstream(root_ / "data-00000-of-00002.bbbbbbbb") << ""; }
+  { std::ofstream(root_ / "data-00001-of-00002") << ""; }
+  { std::ofstream(root_ / "data-00002-of-00002") << ""; }
+  EXPECT_THAT(
+      RunExpr({"-type", "f", "-shard-status", "superfluous"}),
+      UnorderedElementsAre(Path("data-00000-of-00002.bbbbbbbb"), Path("data-00002-of-00002")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardStatusClassifiesOnlyTheCohortReachingThatExpressionNode) {
+  { std::ofstream(root_ / "data-00000-of-00002") << ""; }
+  { std::ofstream(root_ / "data-00001-of-00002") << ""; }
+  // Filtering away index 1 before the result-set predicate intentionally makes
+  // the remaining cohort incomplete; predicates after it do not affect the set.
+  EXPECT_THAT(RunExpr({"-name", "*-00000-*", "-shard-status", "incomplete"}), ElementsAre(Path("data-00000-of-00002")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardStatusFalseCanContinueIntoAnOrAlternative) {
+  { std::ofstream(root_ / "data-00000-of-00001") << ""; }
+  EXPECT_THAT(
+      RunExpr({"-type", "f", "-shard-status", "incomplete", "-o", "-name", "a.txt"}), ElementsAre(Path("a.txt")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardStatusRejectsAnUnknownStatusBeforeWalking) {
+  EXPECT_THAT(RunExpr({"-shard-status", "broken"}), IsEmpty());
+  EXPECT_THAT(last_errors_, 2);
+}
+
+TEST_F(RunTest, ShardStatusDoesNotClassifyDirectoriesWhoseNamesLookLikeShards) {
+  ASSERT_THAT(fs::create_directory(root_ / "dir-00000-of-00001"), IsTrue());
+  EXPECT_THAT(RunExpr({"-shard-status", "complete"}), IsEmpty());
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardStatusPreservesRepeatedVisitsThroughOverlappingRoots) {
+  { std::ofstream(root_ / "data-00000-of-00001") << ""; }
+  const std::string shard = Path("data-00000-of-00001");
+  EXPECT_THAT(
+      RunArgvRecords({root_.string(), shard, "-type", "f", "-shard-status", "complete"}), ElementsAre(shard, shard));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardStatusUsesCustomPatterns) {
+  { std::ofstream(root_ / "img_001_v3.raw") << ""; }
+  { std::ofstream(root_ / "img_002_v3.raw") << ""; }
+  EXPECT_THAT(
+      RunArgvRecords(
+          {root_.string(), "-type", "f", "-shard-status", "complete",
+           R"(--shard-pattern=(?P<stem>.*)_(?P<index>\d+)_v(?P<dup>\d+)\.raw)"}),
+      UnorderedElementsAre(Path("img_001_v3.raw"), Path("img_002_v3.raw")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardStatusUsesMtimeToChooseTheRepresentative) {
+  const fs::path older = root_ / "data-00000-of-00001.aaaaaaaa";
+  const fs::path newer = root_ / "data-00000-of-00001.bbbbbbbb";
+  { std::ofstream(older) << ""; }
+  { std::ofstream(newer) << ""; }
+  std::error_code ec;
+  fs::last_write_time(older, fs::file_time_type::clock::now() - std::chrono::hours(1), ec);
+  ASSERT_THAT(ec, Eq(std::error_code{}));
+  fs::last_write_time(newer, fs::file_time_type::clock::now(), ec);
+  ASSERT_THAT(ec, Eq(std::error_code{}));
+  EXPECT_THAT(
+      RunArgvRecords({root_.string(), "-type", "f", "-shard-status", "complete", "--shards-dedup=mtime"}),
+      ElementsAre(Path("data-00000-of-00001.bbbbbbbb")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardStatusHonorsTheEnabledBuiltInSchemes) {
+  { std::ofstream(root_ / "data.001") << ""; }
+  EXPECT_THAT(RunArgvRecords({root_.string(), "-type", "f", "-shard-status", "complete", "--shards=of"}), IsEmpty());
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardStatusUsesAllBuiltInSchemesByDefault) {
+  { std::ofstream(root_ / "data.001") << ""; }
+  EXPECT_THAT(RunExpr({"-type", "f", "-shard-status", "complete"}), ElementsAre(Path("data.001")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, ShardStatusHonorsDedupErrorWithoutCollapsedOutput) {
+  { std::ofstream(root_ / "data-00000-of-00001.aaaaaaaa") << ""; }
+  { std::ofstream(root_ / "data-00000-of-00001.bbbbbbbb") << ""; }
+  EXPECT_THAT(
+      RunArgvRecords({root_.string(), "-type", "f", "-shard-status", "superfluous", "--shards-dedup=error"}),
+      ElementsAre(Path("data-00000-of-00001.bbbbbbbb")));
+  EXPECT_THAT(last_errors_, 1);
+}
+
 TEST_F(RunTest, ShardsShowUnknownValueIsAUsageError) {
   EXPECT_THAT(RunArgvRecords({root_.string(), "--shards", "--shards-show=bogus"}), IsEmpty());
   EXPECT_THAT(last_errors_, 2);

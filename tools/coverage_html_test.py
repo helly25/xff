@@ -20,7 +20,7 @@ class CoverageHtmlTest(unittest.TestCase):
                 report,
                 {
                     "minimum": {"lines": 90, "functions": 95, "branches": 80},
-                    "target": {"lines": 92, "functions": 97, "branches": 82},
+                    "target": {"lines": 92, "functions": 95, "branches": 82},
                 },
             )
             rendered = page.read_text(encoding="utf-8")
@@ -29,8 +29,8 @@ class CoverageHtmlTest(unittest.TestCase):
             self.assertIn("low: &lt; 90 %", rendered)
             self.assertIn("medium: &gt;= 90 %", rendered)
             self.assertIn("high: &gt;= 92 %", rendered)
-            self.assertIn("medium: &gt;= 95 %", rendered)
-            self.assertIn("high: &gt;= 97 %", rendered)
+            self.assertIn("low: &lt; 95 %", rendered)
+            self.assertIn("high: &gt;= 95 %", rendered)
             self.assertIn("<b>Branches:</b>", rendered)
             self.assertIn("medium: &gt;= 80 %", rendered)
             self.assertIn("high: &gt;= 82 %", rendered)

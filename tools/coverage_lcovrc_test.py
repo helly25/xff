@@ -15,12 +15,12 @@ class CoverageLcovrcTest(unittest.TestCase):
             coverage_lcovrc.render(
                 {
                     "minimum": {"lines": 90, "functions": 95, "branches": 80},
-                    "target": {"lines": 92, "functions": 97, "branches": 82},
+                    "target": {"lines": 92, "functions": 95, "branches": 82},
                 }
             ),
             """genhtml_line_hi_limit = 92
 genhtml_line_med_limit = 90
-genhtml_function_hi_limit = 97
+genhtml_function_hi_limit = 95
 genhtml_function_med_limit = 95
 genhtml_branch_hi_limit = 82
 genhtml_branch_med_limit = 80
@@ -39,11 +39,10 @@ genhtml_branch_med_limit = 80
         with self.assertRaisesRegex(ValueError, "branch coverage"):
             coverage_lcovrc.render(
                 {
-                    "minimum": {"lines": 90, "functions": 90, "branches": 80},
+                    "minimum": {"lines": 90, "functions": 95, "branches": 80},
                     "target": {"branches": 79},
                 }
             )
-
 
 if __name__ == "__main__":
     unittest.main()

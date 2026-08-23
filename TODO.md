@@ -455,6 +455,10 @@ remains below is the design-forked / larger work.
     before built-ins as the escape hatch.
   - **F - stats integration - SHIPPED.** `--summary` / `--histogram` aggregate per logical set (count
     - size); the field is `{shard}` (singular, matching the established field vocabulary).
+  - **G - status matching - SHIPPED.** `-shard-status complete|incomplete|superfluous` classifies the
+    physical files reaching that expression node after the walk. Representatives inherit the set's
+    completeness; duplicate copies and declared-total outliers are superfluous and never contribute
+    to completeness or aggregate size.
   - **v2 (deferred; the #83 prerequisite is now SHIPPED):** a reassembled-content virtual view could
     make `-grep` / `-content` / `-hash` / `-size` see the concatenated whole, reusing the archive VFS
     shape. It is no longer technically blocked, but its user-visible identity is not specified: a
