@@ -16,6 +16,7 @@
 #ifndef XFF_MATCHING_LANGUAGE_LANGUAGE_H_
 #define XFF_MATCHING_LANGUAGE_LANGUAGE_H_
 
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -40,6 +41,27 @@ struct LanguageInfo {
 
 enum class ConflictPolicy { kError, kFirst, kLast };
 
+struct LanguageVocabulary;
+
+// A cheap handle to one immutable, process-retained vocabulary snapshot. Acquire it after Configure
+// and reuse it for a lookup-heavy operation: unlike the process-global convenience functions below,
+// its methods need no registry lock. The handle and every view it returns remain valid after a later
+// Configure publishes another snapshot.
+class LanguageSnapshot {
+ public:
+  [[nodiscard]] std::optional<LanguageInfo> InfoForName(std::string_view name) const;
+  [[nodiscard]] std::string_view LanguageForName(std::string_view name) const;
+  [[nodiscard]] std::string_view TerminalColorForName(std::string_view name) const;
+  [[nodiscard]] absl::Span<const LanguageInfo> Languages() const;
+
+ private:
+  friend LanguageSnapshot ActiveSnapshot();
+
+  explicit LanguageSnapshot(const LanguageVocabulary& vocabulary) : vocabulary_(vocabulary) {}
+
+  std::reference_wrapper<const LanguageVocabulary> vocabulary_;
+};
+
 // Builds and publishes an immutable process-vocabulary snapshot from the curated core, every
 // linked data layer, then the JSON files in command-line order. A later layer overrides an earlier
 // one. Conflict policy applies to two different languages claiming the same extension or filename
@@ -47,6 +69,10 @@ enum class ConflictPolicy { kError, kFirst, kLast };
 // views remain valid. Production configures at most once; retaining older snapshots primarily
 // permits isolated repeated invocations in tests and embedders.
 absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy conflicts);
+
+// Acquires the active vocabulary under the registry lock, initializing the default snapshot when
+// needed. Subsequent lookups through the returned handle are lock-free.
+LanguageSnapshot ActiveSnapshot();
 
 // The complete metadata for the file named `name`. Its strings and spans view an immutable,
 // process-retained vocabulary snapshot and therefore remain valid for the process lifetime.

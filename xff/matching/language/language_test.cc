@@ -144,9 +144,10 @@ TEST_F(LanguageTest, PublishedMetadataViewsSurviveLaterSnapshots) {
     "Original": {"extensions": ["cc"], "aliases": ["orig"], "type": "programming", "color": "#010203"}
   })");
   EXPECT_THAT(Configure({original_file}, ConflictPolicy::kError), IsOk());
+  const LanguageSnapshot original_snapshot = ActiveSnapshot();
   const std::optional<LanguageInfo> original_info = InfoForName("main.cc");
   ASSERT_THAT(original_info, Optional(Field(&LanguageInfo::name, "Original")));
-  const std::string_view original_color = TerminalColorForName("main.cc");
+  const std::string_view original_color = original_snapshot.TerminalColorForName("main.cc");
   const LanguageInfo original = original_info.value_or(LanguageInfo{});
   const std::string replacement = Write(R"({"Replacement": {"extensions": ["cc"]}})");
   EXPECT_THAT(Configure({replacement}, ConflictPolicy::kError), IsOk());
@@ -156,6 +157,8 @@ TEST_F(LanguageTest, PublishedMetadataViewsSurviveLaterSnapshots) {
   EXPECT_THAT(original.aliases, Contains("orig"));
   EXPECT_THAT(original.extensions, Contains("cc"));
   EXPECT_THAT(original_color, Eq("38;2;1;2;3"));
+  EXPECT_THAT(original_snapshot.LanguageForName("main.cc"), Eq("Original"));
+  EXPECT_THAT(ActiveSnapshot().LanguageForName("main.cc"), Eq("Replacement"));
 }
 
 TEST_F(LanguageTest, LanguageCatalogReusesThePublishedSnapshot) {

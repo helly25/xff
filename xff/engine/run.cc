@@ -3052,6 +3052,11 @@ RunResult RunFind(
   const bool colorize =
       format == render::Format::kPlain
       && color::Enabled(color::ResolveWhen(command.globals), ::isatty(STDOUT_FILENO) != 0, env::Has("NO_COLOR"));
+  // Colouring can classify every visited regular file. Pin the configured immutable snapshot once
+  // so that hot-path lookups neither take the registry mutex nor observe a later embedder/test run's
+  // reconfiguration. Runs that do not emit colour retain the language database's lazy loading.
+  const std::optional<language::LanguageSnapshot> language_snapshot =
+      colorize ? std::optional(language::ActiveSnapshot()) : std::nullopt;
   // --color-scheme: the palette every colourised surface uses, resolved ONCE because colour is a
   // whole-run choice. The default (`auto`, i.e. ls OR xff) takes the terminal's own theme when there
   // is one - $LS_COLORS, or $LSCOLORS where only BSD's variable is set, which is the macOS case - and
@@ -3743,7 +3748,7 @@ RunResult RunFind(
       ++listed_results;
       const std::string_view entry_color = colorize ? palette.CodeFor(
                                                           visit.name, visit.metadata.type, visit.metadata.mode,
-                                                          language::TerminalColorForName(visit.name))
+                                                          language_snapshot->TerminalColorForName(visit.name))
                                                     : std::string_view();
       if (is_tree) {
         tree->Add(visit.path);
@@ -3863,7 +3868,7 @@ RunResult RunFind(
         // and by -ls's name column, so the two cannot disagree about what a file looks like.
         const std::string_view entry_color = colorize ? palette.CodeFor(
                                                             visit.name, visit.metadata.type, visit.metadata.mode,
-                                                            language::TerminalColorForName(visit.name))
+                                                            language_snapshot->TerminalColorForName(visit.name))
                                                       : std::string_view();
         // -fuzzy / -ifuzzy leave their score here for {fuzzy}; cleared per entry so a name that runs
         // no fuzzy test renders empty rather than inheriting the previous entry's score.
@@ -3986,7 +3991,7 @@ RunResult RunFind(
       }
       const std::string_view entry_color = colorize ? palette.CodeFor(
                                                           visit.name, visit.metadata.type, visit.metadata.mode,
-                                                          language::TerminalColorForName(visit.name))
+                                                          language_snapshot->TerminalColorForName(visit.name))
                                                     : std::string_view();
       fuzzy_score.reset();
       DeferredEvaluation deferred{.decisions = candidate.decisions, .memo = candidate.memo};
