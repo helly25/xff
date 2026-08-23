@@ -15,6 +15,7 @@
 
 #include "xff/presentation/fields/fields.h"
 
+#include <array>
 #include <cstdint>
 #include <fstream>
 #include <map>
@@ -92,6 +93,8 @@ TEST_F(FieldsTest, RelpathIsThePathRelativeToTheSearchRoot) {
   EXPECT_THAT(compiled.Render(RenderContext{.path = "A", .root = "A", .metadata = md}), "");
   // No root recorded: best-effort whole path.
   EXPECT_THAT(compiled.Render(RenderContext{.path = "A/x", .metadata = md}), "A/x");
+  EXPECT_THAT(compiled.Render(RenderContext{.path = "A///x", .root = "A", .metadata = md}), "x");
+  EXPECT_THAT(compiled.Render(RenderContext{.path = "elsewhere/x", .root = "A", .metadata = md}), "elsewhere/x");
 }
 
 TEST_F(FieldsTest, DoubledBracesAreLiteral) {
@@ -270,6 +273,37 @@ TEST_F(FieldsTest, AccessRendersTheSymbolicModeString) {
   EXPECT_THAT(Render("{access}", "d", sticky, 0), "drwxrwxrwt");
 }
 
+TEST_F(FieldsTest, TypeAndAccessCoverEveryFileKindAndSpecialPermissionState) {
+  struct Case {
+    vfs::FileType type;
+    std::uint32_t mode;
+  };
+
+  constexpr std::array<Case, 8> kCases = {{
+      {.type = vfs::FileType::kBlockDevice, .mode = 0000},
+      {.type = vfs::FileType::kCharDevice, .mode = 0777},
+      {.type = vfs::FileType::kDirectory, .mode = 07000},
+      {.type = vfs::FileType::kFifo, .mode = 04100},
+      {.type = vfs::FileType::kRegular, .mode = 02011},
+      {.type = vfs::FileType::kSocket, .mode = 01001},
+      {.type = vfs::FileType::kSymlink, .mode = 0644},
+      {.type = vfs::FileType::kUnknown, .mode = 0000},
+  }};
+  std::vector<std::string> access;
+  access.reserve(kCases.size());
+  for (const Case& test : kCases) {
+    vfs::Metadata metadata = Meta(test.type, 0);
+    metadata.mode = test.mode;
+    access.push_back(Render("{access}", "f", metadata, 0));
+  }
+  EXPECT_THAT(
+      access, ElementsAre(
+                  "b---------", "crwxrwxrwx", "d--S--S--T", "p--s------", "------s--x", "s--------t", "lrw-r--r--",
+                  "?---------"));
+  EXPECT_THAT(Render("{type}", "f", Meta(vfs::FileType::kUnknown, 0), 0), "U");
+  EXPECT_THAT(Render("{mode}", "f", Meta(vfs::FileType::kRegular, 0), 0), "0");
+}
+
 TEST_F(FieldsTest, HumanSizeAndSuffixes) {
   EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 1'536), 0), "1.5K");
   EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 500), 0), "500");   // < 1 KiB: plain
@@ -279,6 +313,23 @@ TEST_F(FieldsTest, HumanSizeAndSuffixes) {
   // {suffix} is the last extension WITH its dot; {ext} drops the dot; {suffixes} is all.
   EXPECT_THAT(Render("{suffix}|{ext}", "a/b/file.tar.gz", Meta(vfs::FileType::kRegular, 0), 0), ".gz|gz");
   EXPECT_THAT(Render("[{suffix}]", "a/b/file", Meta(vfs::FileType::kRegular, 0), 0), "[]");
+}
+
+TEST_F(FieldsTest, HumanSizeSelectsEverySupportedBinaryUnit) {
+  constexpr std::uint64_t kKib = 1'024;
+  constexpr std::uint64_t kMib = kKib * 1'024;
+  constexpr std::uint64_t kGib = kMib * 1'024;
+  constexpr std::uint64_t kTib = kGib * 1'024;
+  constexpr std::uint64_t kPib = kTib * 1'024;
+  constexpr std::uint64_t kEib = kPib * 1'024;
+  EXPECT_THAT(
+      Render(
+          "{size:h}|{blocks:h}", "f",
+          vfs::Metadata{.type = vfs::FileType::kRegular, .size = 2 * kEib, .blocks = 3 * kPib / 512}, 0),
+      "2.0E|3.0P");
+  EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 4 * kTib), 0), "4.0T");
+  EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 5 * kGib), 0), "5.0G");
+  EXPECT_THAT(Render("{size:h}", "f", Meta(vfs::FileType::kRegular, 6 * kMib), 0), "6.0M");
 }
 
 TEST_F(FieldsTest, CoreStripsAllExtensions) {
@@ -461,6 +512,24 @@ TEST_F(FieldsTest, RewriteChainAppliesCommandsInSequence) {
   EXPECT_THAT(Render("{path:s#/#_#g;s/^/root_/}", "a/b/c", md, 0), "root_a_b_c");  // alt delimiter + chain
 }
 
+TEST_F(FieldsTest, MalformedRewriteChainsLeaveTheOriginalValueUntouched) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  EXPECT_THAT(Render("{name:s/}", "a/foo.txt", md, 0), "foo.txt");
+  EXPECT_THAT(Render("{name:s/foo}", "a/foo.txt", md, 0), "foo.txt");
+  EXPECT_THAT(Render("{name:s/foo/bar}", "a/foo.txt", md, 0), "foo.txt");
+  EXPECT_THAT(Render("{name:s/[x/y/}", "a/foo.txt", md, 0), "foo.txt");
+  EXPECT_THAT(Render("{name:s/foo/bar/;s}", "a/foo.txt", md, 0), "foo.txt");
+  EXPECT_THAT(Render("{name:s/foo/bar/;x/y/z/}", "a/foo.txt", md, 0), "foo.txt");
+}
+
+TEST_F(FieldsTest, TemplateParserPreservesMalformedAndEscapedPlaceholdersLiterally) {
+  const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
+  EXPECT_THAT(Render("before {name", "a/foo.txt", md, 0), "before {name");
+  EXPECT_THAT(Render(R"(before {name:"unterminated})", "a/foo.txt", md, 0), R"(before {name:"unterminated})");
+  EXPECT_THAT(Render(R"({name:"a\\b\"c"})", "a/foo.txt", md, 0), "foo.txt");
+  EXPECT_THAT(Render("{{{name}}}", "a/foo.txt", md, 0), "{foo.txt}");
+}
+
 TEST_F(FieldsTest, MExtractorChainFiltersThenSubstitutes) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   const std::map<std::string, std::string> outputs = {{"blame", "author Bob Smith\nother line\nauthor Ann Lee\n"}};
@@ -482,6 +551,8 @@ TEST_F(FieldsTest, MReducerJoinCollapsesTheStreamToAScalar) {
   EXPECT_THAT(Template::Compile("{capture.blame:m/^author (.+)$/\\1/;join}").Render(ctx), "Bob\nAnn\nBob");
   EXPECT_THAT(Template::Compile("{capture.blame:m/^author (.+)$/\\1/;join()}").Render(ctx), "BobAnnBob");
   EXPECT_THAT(Template::Compile("{capture.blame:m/^author (.+)$/\\1/;join(\\t)}").Render(ctx), "Bob\tAnn\tBob");
+  EXPECT_THAT(Template::Compile("{capture.blame:m/^author (.+)$/\\1/;join(\\n)}").Render(ctx), "Bob\nAnn\nBob");
+  EXPECT_THAT(Template::Compile(R"({capture.blame:m/^author (.+)$/\1/;join(a\)b)})").Render(ctx), "Boba)bAnna)bBob");
 }
 
 TEST_F(FieldsTest, MReducerIsScalarValuedNotAStream) {
@@ -516,6 +587,7 @@ TEST_F(FieldsTest, MExtractorEmptyStreamVersusNonExtractionTemplate) {
   // Anything that is not exactly one m// field is not a value stream.
   EXPECT_THAT(Template::Compile("{name}").AsExtraction(ctx), Eq(std::nullopt));                  // scalar field
   EXPECT_THAT(Template::Compile("x {capture.x:m/./\\0/}").AsExtraction(ctx), Eq(std::nullopt));  // a literal present
+  EXPECT_THAT(Template::Compile("literal").AsExtraction(ctx), Eq(std::nullopt));                 // one literal segment
 }
 
 // The --help=fields SOT guard: FieldDocs() must document exactly the renderable field
