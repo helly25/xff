@@ -627,6 +627,21 @@ TEST_F(RunTest, ColorAlwaysWrapsDirectoriesButLeavesPlainFilesUncolored) {
   EXPECT_THAT(RunArgvRecords({"--color=always", root_.string(), "-name", "a.txt"}), ElementsAre(Path("a.txt")));
 }
 
+TEST_F(RunTest, LanguageDatabaseColorsRegularFilesInListingsAndLs) {
+  const fs::path database = root_ / "languages.json";
+  { std::ofstream(database) << R"({"Paint":{"color":"#3178c6","extensions":["colored"]}})"; }
+  { std::ofstream(root_ / "paint.colored") << "paint"; }
+  const std::string flag = absl::StrCat("--lang-db=", database.string());
+  const std::string colored_path = absl::StrCat("\x1b[38;2;49;120;198m", Path("paint.colored"), "\x1b[0m");
+
+  EXPECT_THAT(
+      RunArgvRecords({"--color=always", "--color-scheme=xff", flag, root_.string(), "-name", "paint.colored"}),
+      ElementsAre(colored_path));
+  EXPECT_THAT(
+      RunArgvRecords({"--color=always", "--color-scheme=xff", flag, root_.string(), "-name", "paint.colored", "-ls"}),
+      ElementsAre(HasSubstr(colored_path)));
+}
+
 TEST_F(RunTest, TemplateRelpathIsRelativeToTheSearchRoot) {
   // {relpath} renders each entry's path relative to the search root (find %P), so the
   // walk's per-entry root wiring is exercised end-to-end.

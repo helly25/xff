@@ -557,10 +557,11 @@ remains below is the design-forked / larger work.
   `--summary-precision` stay global and apply to every table (per-sink modifiers deferred). Mirrors the
   existing `--histogram` list exactly, so it was a bounded change, not the aggregation-core refactor I
   wrongly estimated.
-- **Color support**: `--color[=auto|always|never]` ships an `ls`-like scheme keyed
-  on the filesystem file type (directory, symlink, executable, fifo/socket/device);
-  auto colors only a tty and honors `NO_COLOR`. Still open: per-language coloring
-  keyed on `languages.yml` (the same data source `-lang` / `{lang}` already load).
+- **Color support - SHIPPED.** `--color[=auto|always|never]` uses an `ls`-like scheme keyed on the
+  filesystem file type (directory, symlink, executable, fifo/socket/device); auto colors only a tty
+  and honors `NO_COLOR`. Regular non-executable files also use the active language vocabulary's
+  `#RRGGBB` colour when xff's palette participates. Theme extension/`fi` entries and executable/type
+  colours take precedence; the same resolved colour reaches the plain listing and `-ls`.
 - **`-cmp` / `-diff` (compare each match against a per-entry target).** The target path
   is built per entry from the field vocabulary (`{def.B}/{relpath}`, ...), so comparing a
   whole tree against a parallel one is `xff A -type f ! -cmp '{def.B}/{relpath}'`. The find

@@ -112,6 +112,24 @@ TEST_F(LanguageTest, JsonLayerOverridesLongestSuffixAndSuppliesMetadata) {
                                      Field(&LanguageInfo::type, "programming"), Field(&LanguageInfo::color, "#3178c6"),
                                      Field(&LanguageInfo::group, "TypeScript"), Field(&LanguageInfo::source, "local"),
                                      Field(&LanguageInfo::aliases, Contains("dts")))));
+  EXPECT_THAT(TerminalColorForName("types.d.ts"), Eq("38;2;49;120;198"));
+}
+
+TEST_F(LanguageTest, TerminalColorRequiresSixHexDigits) {
+  const std::string file = Write(R"({
+    "Black": {"color": "#000000", "extensions": ["black"]},
+    "White": {"color": "#FFFFFF", "extensions": ["white"]},
+    "Short": {"color": "#123", "extensions": ["short"]},
+    "Invalid": {"color": "#12xx56", "extensions": ["invalid"]},
+    "Named": {"color": "blue", "extensions": ["named"]}
+  })");
+  EXPECT_THAT(Configure({file}, ConflictPolicy::kError), IsOk());
+  EXPECT_THAT(TerminalColorForName("a.black"), Eq("38;2;0;0;0"));
+  EXPECT_THAT(TerminalColorForName("a.white"), Eq("38;2;255;255;255"));
+  EXPECT_THAT(TerminalColorForName("a.short"), IsEmpty());
+  EXPECT_THAT(TerminalColorForName("a.invalid"), IsEmpty());
+  EXPECT_THAT(TerminalColorForName("a.named"), IsEmpty());
+  EXPECT_THAT(TerminalColorForName("a.unknown"), IsEmpty());
 }
 
 TEST_F(LanguageTest, LaterLayerOverridesEarlierLayer) {
@@ -123,11 +141,12 @@ TEST_F(LanguageTest, LaterLayerOverridesEarlierLayer) {
 
 TEST_F(LanguageTest, PublishedMetadataViewsSurviveLaterSnapshots) {
   const std::string original_file = Write(R"({
-    "Original": {"extensions": ["cc"], "aliases": ["orig"], "type": "programming"}
+    "Original": {"extensions": ["cc"], "aliases": ["orig"], "type": "programming", "color": "#010203"}
   })");
   EXPECT_THAT(Configure({original_file}, ConflictPolicy::kError), IsOk());
   const std::optional<LanguageInfo> original_info = InfoForName("main.cc");
   ASSERT_THAT(original_info, Optional(Field(&LanguageInfo::name, "Original")));
+  const std::string_view original_color = TerminalColorForName("main.cc");
   const LanguageInfo original = original_info.value_or(LanguageInfo{});
   const std::string replacement = Write(R"({"Replacement": {"extensions": ["cc"]}})");
   EXPECT_THAT(Configure({replacement}, ConflictPolicy::kError), IsOk());
@@ -136,6 +155,7 @@ TEST_F(LanguageTest, PublishedMetadataViewsSurviveLaterSnapshots) {
   EXPECT_THAT(original.type, Eq("programming"));
   EXPECT_THAT(original.aliases, Contains("orig"));
   EXPECT_THAT(original.extensions, Contains("cc"));
+  EXPECT_THAT(original_color, Eq("38;2;1;2;3"));
 }
 
 TEST_F(LanguageTest, LanguageCatalogReusesThePublishedSnapshot) {

@@ -3741,8 +3741,10 @@ RunResult RunFind(
       }
     } else if (matched && implicit_print && (!max_results->has_value() || listed_results < **max_results)) {
       ++listed_results;
-      const std::string_view entry_color =
-          colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();
+      const std::string_view entry_color = colorize ? palette.CodeFor(
+                                                          visit.name, visit.metadata.type, visit.metadata.mode,
+                                                          language::TerminalColorForName(visit.name))
+                                                    : std::string_view();
       if (is_tree) {
         tree->Add(visit.path);
       } else if (buffered && column_templates.empty() && !compiled_tmpl.has_value()) {
@@ -3859,8 +3861,10 @@ RunResult RunFind(
         }
         // The entry's colour, from the one palette this run resolved: used by the plain listing below
         // and by -ls's name column, so the two cannot disagree about what a file looks like.
-        const std::string_view entry_color =
-            colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();
+        const std::string_view entry_color = colorize ? palette.CodeFor(
+                                                            visit.name, visit.metadata.type, visit.metadata.mode,
+                                                            language::TerminalColorForName(visit.name))
+                                                      : std::string_view();
         // -fuzzy / -ifuzzy leave their score here for {fuzzy}; cleared per entry so a name that runs
         // no fuzzy test renders empty rather than inheriting the previous entry's score.
         fuzzy_score.reset();
@@ -3980,8 +3984,10 @@ RunResult RunFind(
         }
         fold_name_case = !it->second;
       }
-      const std::string_view entry_color =
-          colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();
+      const std::string_view entry_color = colorize ? palette.CodeFor(
+                                                          visit.name, visit.metadata.type, visit.metadata.mode,
+                                                          language::TerminalColorForName(visit.name))
+                                                    : std::string_view();
       fuzzy_score.reset();
       DeferredEvaluation deferred{.decisions = candidate.decisions, .memo = candidate.memo};
       EvalContext eval_context{

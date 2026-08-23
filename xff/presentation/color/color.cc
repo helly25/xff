@@ -228,7 +228,8 @@ std::optional<std::string_view> Palette::Themed(std::string_view key) const {
   return it == types_.end() ? std::nullopt : std::optional<std::string_view>(it->second);
 }
 
-std::string_view Palette::RegularCode(std::string_view name, std::uint32_t mode) const {
+std::string_view Palette::RegularCode(std::string_view name, std::uint32_t mode, std::string_view language_color)
+    const {
   // ls's order for a regular file: the executable bit first, then the extension, then `fi`. So a
   // themed `*.sh` loses to `ex` on an executable script, exactly as in a real ls listing.
   if ((mode & 0111U) != 0U) {
@@ -243,12 +244,22 @@ std::string_view Palette::RegularCode(std::string_view name, std::uint32_t mode)
       }
     }
   }
-  return Themed("fi").value_or(fall_back_ ? CodeForType(vfs::FileType::kRegular, mode) : std::string_view());
+  if (const std::optional<std::string_view> plain = Themed("fi"); plain.has_value()) {
+    return *plain;  // including an explicit empty `fi=`, which suppresses xff's fallback
+  }
+  if (!fall_back_) {
+    return {};
+  }
+  return !language_color.empty() ? language_color : CodeForType(vfs::FileType::kRegular, mode);
 }
 
-std::string_view Palette::CodeFor(std::string_view name, vfs::FileType type, std::uint32_t mode) const {
+std::string_view Palette::CodeFor(
+    std::string_view name,
+    vfs::FileType type,
+    std::uint32_t mode,
+    std::string_view language_color) const {
   if (type == vfs::FileType::kRegular) {
-    return RegularCode(name, mode);
+    return RegularCode(name, mode, language_color);
   }
   // Every other type is one dircolors key, so the lookup is a table rather than a branch per case.
   static constexpr auto kKeys = mbo::container::MakeLimitedMap(

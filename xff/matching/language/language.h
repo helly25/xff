@@ -71,6 +71,11 @@ std::optional<LanguageInfo> InfoForName(std::string_view name);
 // do not load linked language databases.
 std::string_view LanguageForName(std::string_view name);
 
+// The language database's `#RRGGBB` colour for `name`, converted once per immutable vocabulary
+// snapshot to an ANSI true-colour SGR parameter (`38;2;R;G;B`). Returns empty when the language is
+// unknown or its colour is absent/malformed. The returned view has process-lifetime backing.
+std::string_view TerminalColorForName(std::string_view name);
+
 // All canonical languages in deterministic canonical-name order. The returned span and records
 // have process-lifetime backing; filename matching should use InfoForName.
 absl::Span<const LanguageInfo> Languages();

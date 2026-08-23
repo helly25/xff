@@ -24,7 +24,8 @@ This `README.md` is a short overview. The complete, always-current reference liv
   Brotli-compressed GitHub Linguist extra expands classification to hundreds of canonical records.
   Repeatable `--lang-db=FILE` layers override suffixes, exact filenames, aliases, colours,
   groups, and provenance with an explicit ambiguity policy; `{lang-*}` fields expose the selected
-  metadata without running a heavyweight content classifier.
+  metadata without running a heavyweight content classifier, and the same colours theme regular
+  filenames consistently in the plain and `-ls` listings.
 - **One Composable Expression Language:** Path, content, ownership, permissions, age, allocated size, language, MIME type, hashes, and content equality are ordinary tests joined with `find`'s `!`, `-a`, `-o`, and parentheses. Search, reporting, and actions therefore share one walk instead of being stitched together with `xargs` and temporary files.
 - **Fuzzy File Finding:** `-fuzzy` and `-fuzzypath` provide scored fzf-query, plain-subsequence, Levenshtein/edit, and character-shingle models, while `--sort=score` ranks the results. The score is also available as `{fuzzy}` for custom tables and templates.
 - **Structured Layout Engines:** Stream matches natively as plain text, NUL-delimited, `JSONL`, `CSV` / `TSV`, an aligned console table, a visual tree, or a standard Markdown table, all calculated from one single filesystem walk.

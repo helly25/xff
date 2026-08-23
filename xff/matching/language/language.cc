@@ -4,6 +4,7 @@
 #include "xff/matching/language/language.h"
 
 #include <array>
+#include <cstdint>
 #include <fstream>
 #include <map>
 #include <memory>
@@ -35,6 +36,13 @@ using Json = nlohmann::ordered_json;
 constexpr auto kStringFields = std::to_array<std::string_view>({"type", "color", "group", "source"});
 
 struct Vocabulary {
+  struct TerminalColor {
+    std::array<char, 18> bytes{};  // `38;2;255;255;255`
+    std::uint8_t size = 0;
+
+    [[nodiscard]] std::string_view View() const { return {bytes.data(), size}; }
+  };
+
   struct Record {
     std::string_view type;
     std::string_view color;
@@ -43,6 +51,7 @@ struct Vocabulary {
     std::vector<std::string_view> aliases;
     std::vector<std::string_view> extensions;
     std::vector<std::string_view> filenames;
+    TerminalColor terminal_color;
   };
 
   std::map<std::string, Record, std::less<>> languages;
@@ -66,6 +75,63 @@ State& GlobalState() {
 
 std::string Lower(std::string_view value) {
   return absl::AsciiStrToLower(std::string(value));
+}
+
+std::optional<std::uint8_t> HexDigit(char digit) {
+  if (digit >= '0' && digit <= '9') {
+    return static_cast<std::uint8_t>(digit - '0');
+  }
+  const char folded = absl::ascii_tolower(static_cast<unsigned char>(digit));
+  if (folded >= 'a' && folded <= 'f') {
+    return static_cast<std::uint8_t>(folded - 'a' + 10);
+  }
+  return std::nullopt;
+}
+
+std::optional<std::uint8_t> HexByte(std::string_view value) {
+  if (value.size() != 2) {
+    return std::nullopt;
+  }
+  const std::optional<std::uint8_t> high = HexDigit(value.front());
+  const std::optional<std::uint8_t> low = HexDigit(value.back());
+  if (!high.has_value() || !low.has_value()) {
+    return std::nullopt;
+  }
+  return static_cast<std::uint8_t>((static_cast<unsigned>(*high) * 16U) + static_cast<unsigned>(*low));
+}
+
+void AppendDecimal(std::uint8_t value, Vocabulary::TerminalColor& result) {
+  const auto append = [&](char digit) { result.bytes.at(result.size++) = digit; };
+  if (value >= 100) {
+    append(static_cast<char>('0' + (value / 100)));
+    value %= 100;
+    append(static_cast<char>('0' + (value / 10)));
+  } else if (value >= 10) {
+    append(static_cast<char>('0' + (value / 10)));
+  }
+  append(static_cast<char>('0' + (value % 10)));
+}
+
+Vocabulary::TerminalColor MakeTerminalColor(std::string_view color) {
+  Vocabulary::TerminalColor result;
+  if (color.size() != 7 || color.front() != '#') {
+    return result;
+  }
+  const std::optional<std::uint8_t> red = HexByte(color.substr(1, 2));
+  const std::optional<std::uint8_t> green = HexByte(color.substr(3, 2));
+  const std::optional<std::uint8_t> blue = HexByte(color.substr(5, 2));
+  if (!red.has_value() || !green.has_value() || !blue.has_value()) {
+    return result;
+  }
+  for (const char prefix : std::string_view("38;2;")) {
+    result.bytes.at(result.size++) = prefix;
+  }
+  AppendDecimal(*red, result);
+  result.bytes.at(result.size++) = ';';
+  AppendDecimal(*green, result);
+  result.bytes.at(result.size++) = ';';
+  AppendDecimal(*blue, result);
+  return result;
 }
 
 void AddCore(Vocabulary& vocabulary, std::string_view extension, std::string_view language) {
@@ -440,7 +506,8 @@ LanguageInfo View(std::string_view name, const Vocabulary::Record& record) {
 
 void Finalize(Vocabulary& vocabulary) {
   vocabulary.views.reserve(vocabulary.languages.size());
-  for (const auto& [name, record] : vocabulary.languages) {
+  for (auto& [name, record] : vocabulary.languages) {
+    record.terminal_color = MakeTerminalColor(record.color);
     vocabulary.views.push_back(View(name, record));
   }
 }
@@ -497,6 +564,14 @@ std::string_view LanguageForName(std::string_view name) {
   const absl::MutexLock lock(&state.mutex);
   EnsureConfigured(state);
   return Lookup(*state.active, name).name;
+}
+
+std::string_view TerminalColorForName(std::string_view name) {
+  State& state = GlobalState();
+  const absl::MutexLock lock(&state.mutex);
+  EnsureConfigured(state);
+  const LookupResult found = Lookup(*state.active, name);
+  return found.record == nullptr ? std::string_view() : found.record->terminal_color.View();
 }
 
 absl::Span<const LanguageInfo> Languages() {
