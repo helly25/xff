@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-22 23:52:40</td>
+            <td class="headerValue">2026-08-23 00:35:07</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -184,200 +184,201 @@
 <span id="L122"><span class="lineNum">     122</span>              :   // The normalized 0..100 fuzzy quality composed across the expression for {fuzzy}, --sort=score,</span>
 <span id="L123"><span class="lineNum">     123</span>              :   // and -top. Null when no consumer needs it; reset by the driver per entry.</span>
 <span id="L124"><span class="lineNum">     124</span>              :   std::optional&lt;int&gt;* fuzzy_score = nullptr;</span>
-<span id="L125"><span class="lineNum">     125</span>              :   // -top's exact selection is resolved after the walk. During the first evaluation, an undecided</span>
-<span id="L126"><span class="lineNum">     126</span>              :   // -top writes its node + incoming composed score here and evaluation returns deferred. During a</span>
-<span id="L127"><span class="lineNum">     127</span>              :   // replay, top_results supplies the decision for every earlier deferral. evaluation_memo holds</span>
-<span id="L128"><span class="lineNum">     128</span>              :   // already-completed prefix nodes so actions and stateful tests to the left are never run twice.</span>
-<span id="L129"><span class="lineNum">     129</span>              :   // All four are null for callers that do not opt into deferred evaluation.</span>
-<span id="L130"><span class="lineNum">     130</span>              :   const std::map&lt;const parser::Expr*, bool&gt;* top_results = nullptr;</span>
-<span id="L131"><span class="lineNum">     131</span>              :   std::map&lt;const parser::Expr*, EvaluationResult&gt;* evaluation_memo = nullptr;</span>
-<span id="L132"><span class="lineNum">     132</span>              :   const parser::Expr** deferred_top = nullptr;</span>
-<span id="L133"><span class="lineNum">     133</span>              :   std::optional&lt;int&gt;* deferred_top_score = nullptr;</span>
-<span id="L134"><span class="lineNum">     134</span>              :   // The fuzzy score composed by the expression immediately to this node's left. EvaluateResult</span>
-<span id="L135"><span class="lineNum">     135</span>              :   // maintains it while descending an AND RHS; -top consumes it as its ranking key.</span>
-<span id="L136"><span class="lineNum">     136</span>              :   std::optional&lt;int&gt; incoming_fuzzy_score;</span>
-<span id="L137"><span class="lineNum">     137</span>              :   // --count / -c: -grep prints one `path:count` per file (its matching-line count)</span>
-<span id="L138"><span class="lineNum">     138</span>              :   // instead of the lines, rg -c style; supersedes -grep:FORMAT. Only -grep reads it.</span>
-<span id="L139"><span class="lineNum">     139</span>              :   bool grep_count = false;</span>
-<span id="L140"><span class="lineNum">     140</span>              :   // --context / --before-context / --after-context (grep -C/-B/-A): lines of context -grep prints</span>
-<span id="L141"><span class="lineNum">     141</span>              :   // before and after each match (0 = none, the default). Resolved once before the walk; only -grep</span>
-<span id="L142"><span class="lineNum">     142</span>              :   // reads them. Superseded by --count.</span>
-<span id="L143"><span class="lineNum">     143</span>              :   std::size_t grep_before = 0;</span>
-<span id="L144"><span class="lineNum">     144</span>              :   std::size_t grep_after = 0;</span>
-<span id="L145"><span class="lineNum">     145</span>              :   // --diff-algorithm=naive|direct|myers: the diff engine -diff uses (mbo::diff). Empty -&gt;</span>
-<span id="L146"><span class="lineNum">     146</span>              :   // myers (the default). Validated once before the walk; only -diff reads it.</span>
-<span id="L147"><span class="lineNum">     147</span>              :   std::string_view diff_algorithm;</span>
-<span id="L148"><span class="lineNum">     148</span>              :   // --diff-ignore=&lt;tokens&gt;: comma-separated normalization tokens for -diff (ws / change /</span>
-<span id="L149"><span class="lineNum">     149</span>              :   // trail / blank / case), validated once before the walk. Empty -&gt; exact. Only -diff reads it.</span>
-<span id="L150"><span class="lineNum">     150</span>              :   std::string_view diff_ignore;</span>
-<span id="L151"><span class="lineNum">     151</span>              :   // --diff-ignore-matching=REGEX: -diff ignores lines matching this RE2 (compiled per -diff</span>
-<span id="L152"><span class="lineNum">     152</span>              :   // entry; the pattern is validated once before the walk). Empty -&gt; no line filter.</span>
-<span id="L153"><span class="lineNum">     153</span>              :   std::string_view diff_ignore_matching;</span>
-<span id="L154"><span class="lineNum">     154</span>              :   // --diff-format=u|c|n|y|...: the default -diff output format (built-in unified). A per-action</span>
-<span id="L155"><span class="lineNum">     155</span>              :   // -diff:STYLE letter overrides it. Resolved once before the walk; only -diff reads it.</span>
-<span id="L156"><span class="lineNum">     156</span>              :   mbo::diff::DiffOptions::OutputFormat diff_format = mbo::diff::DiffOptions::OutputFormat::kUnified;</span>
-<span id="L157"><span class="lineNum">     157</span>              :   // --diff-context=N (and --context=N when symmetric): the default -diff context size (built-in 3).</span>
-<span id="L158"><span class="lineNum">     158</span>              :   // --context feeds it only when before==after; --diff-context overrides --context. A per-action</span>
-<span id="L159"><span class="lineNum">     159</span>              :   // -diff:uN overrides both. Resolved once before the walk; only -diff reads it.</span>
-<span id="L160"><span class="lineNum">     160</span>              :   std::size_t diff_context = 3;</span>
-<span id="L161"><span class="lineNum">     161</span>              :   // --hash-algorithm=ALGO / --hash-encoding=hex|base64: the default digest for a bare -hash</span>
-<span id="L162"><span class="lineNum">     162</span>              :   // action and a bare {hash} field (empty -&gt; sha256 / hex). Validated once before the walk;</span>
-<span id="L163"><span class="lineNum">     163</span>              :   // an explicit -hash:ALGO[/ENCODING] or {hash:...} qualifier overrides per node.</span>
-<span id="L164"><span class="lineNum">     164</span>              :   std::string_view hash_algorithm;</span>
-<span id="L165"><span class="lineNum">     165</span>              :   std::string_view hash_encoding;</span>
-<span id="L166"><span class="lineNum">     166</span>              :   Control&amp; control;                              // collects -prune/-quit requests</span>
-<span id="L167"><span class="lineNum">     167</span>              :   bool exec_fields = false;                      // --exec-fields: render -exec tokens through the field vocabulary</span>
-<span id="L168"><span class="lineNum">     168</span>              :   std::vector&lt;std::string&gt;* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off</span>
-<span id="L169"><span class="lineNum">     169</span>              :   const std::map&lt;std::string, std::string&gt;* defines = nullptr;  // --define values for {def.NAME}</span>
-<span id="L170"><span class="lineNum">     170</span>              :   std::map&lt;std::string, std::string&gt;* outputs = nullptr;  // -capture results for {capture.NAME} (mutable, per entry)</span>
-<span id="L171"><span class="lineNum">     171</span>              :   // -first N: how many entries each instance has admitted so far, keyed by its AST node so two</span>
-<span id="L172"><span class="lineNum">     172</span>              :   // `-first` in different branches keep separate budgets. Owned by the driver for the whole run</span>
-<span id="L173"><span class="lineNum">     173</span>              :   // (unlike `outputs`, which is per entry) - the count is the point. Emission is single-threaded</span>
-<span id="L174"><span class="lineNum">     174</span>              :   // (see walk.h), so a plain map needs no synchronisation.</span>
-<span id="L175"><span class="lineNum">     175</span>              :   std::map&lt;const parser::Expr*, int&gt;* first_counts = nullptr;</span>
-<span id="L176"><span class="lineNum">     176</span>              :   // -collect[:NAME]: where the action holds entries for a post-walk sink (--summary reads the</span>
-<span id="L177"><span class="lineNum">     177</span>              :   // collection instead of what matched). Owned by the driver for the whole run, and it OWNS what it</span>
-<span id="L178"><span class="lineNum">     178</span>              :   // stores, because a Visit is borrowed (see collect.h). Null -&gt; -collect is inert.</span>
-<span id="L179"><span class="lineNum">     179</span>              :   Collections* collections = nullptr;</span>
-<span id="L180"><span class="lineNum">     180</span>              :   std::function&lt;bool(std::string_view)&gt; confirm;  // -ok prompt sink: returns true to run the command; empty -&gt; decline</span>
-<span id="L181"><span class="lineNum">     181</span>              :   // Accumulates matched items per `-exec/-execdir ... +` node for the end-of-walk</span>
-<span id="L182"><span class="lineNum">     182</span>              :   // batch flush: outer key the Expr node, inner key the directory (&quot;&quot; for -exec's</span>
-<span id="L183"><span class="lineNum">     183</span>              :   // single global batch; the entry's dir for -execdir's per-directory batches).</span>
-<span id="L184"><span class="lineNum">     184</span>              :   // Null disables batching (the action no-ops).</span>
-<span id="L185"><span class="lineNum">     185</span>              :   std::map&lt;const parser::Expr*, std::map&lt;std::string, std::vector&lt;std::string&gt;&gt;&gt;* exec_batches = nullptr;</span>
-<span id="L186"><span class="lineNum">     186</span>              :   // Bounded concurrent runner for `-exec/-execdir ... ;` under -j&gt;1: when set, the</span>
-<span id="L187"><span class="lineNum">     187</span>              :   // serial-`;` action launches the child here (returning true on launch) instead of</span>
-<span id="L188"><span class="lineNum">     188</span>              :   // running it synchronously. Null -&gt; the action runs synchronously (find's default,</span>
-<span id="L189"><span class="lineNum">     189</span>              :   // and -j1). The `+` batch forms always go through exec_batches, never this.</span>
-<span id="L190"><span class="lineNum">     190</span>              :   exec::ParallelExec* parallel_exec = nullptr;</span>
-<span id="L191"><span class="lineNum">     191</span>              :   // --archive-extract: where an exec-family action may write an archive member so a child process can</span>
-<span id="L192"><span class="lineNum">     192</span>              :   // open it (see ExtractedMembers). Null - the default - keeps -exec / -execdir / -ok / -okdir a clean</span>
-<span id="L193"><span class="lineNum">     193</span>              :   // refusal on a member, because there is no path to hand the child.</span>
-<span id="L194"><span class="lineNum">     194</span>              :   ExtractedMembers* extract = nullptr;</span>
-<span id="L195"><span class="lineNum">     195</span>              : </span>
-<span id="L196"><span class="lineNum">     196</span>              :   // --archive-mount: where an exec-family action may get a member's path from a MOUNT of its</span>
-<span id="L197"><span class="lineNum">     197</span>              :   // container instead of a copy. Consulted before `extract`, and null (or answering nothing when</span>
-<span id="L198"><span class="lineNum">     198</span>              :   // this machine cannot mount) simply leaves extraction in charge.</span>
-<span id="L199"><span class="lineNum">     199</span>              :   MountedContainers* mounts = nullptr;</span>
-<span id="L200"><span class="lineNum">     200</span>              :   // --archive-delete: where `-delete` records an archive MEMBER it should remove. Collected rather</span>
-<span id="L201"><span class="lineNum">     201</span>              :   // than removed on the spot, because removing one means rewriting the whole container - which the</span>
-<span id="L202"><span class="lineNum">     202</span>              :   // walk is reading from at that moment - so the driver applies them per container after the walk.</span>
-<span id="L203"><span class="lineNum">     203</span>              :   // Null - the default - keeps `-delete` a clean refusal on a member.</span>
-<span id="L204"><span class="lineNum">     204</span>              :   std::vector&lt;std::string&gt;* archive_deletions = nullptr;</span>
-<span id="L205"><span class="lineNum">     205</span>              : };</span>
-<span id="L206"><span class="lineNum">     206</span>              : </span>
-<span id="L207"><span class="lineNum">     207</span>              : // The truth and fuzzy value of an expression evaluation. `deferred` means evaluation reached an</span>
-<span id="L208"><span class="lineNum">     208</span>              : // undecided -top and deliberately stopped before anything to its right. Public so the run driver can</span>
-<span id="L209"><span class="lineNum">     209</span>              : // retain completed-prefix results between exact-selection passes; ordinary callers use Evaluate().</span>
-<span id="L210"><span class="lineNum">     210</span>              : struct EvaluationResult {</span>
-<span id="L211"><span class="lineNum">     211</span>              :   bool matched = false;</span>
-<span id="L212"><span class="lineNum">     212</span>              :   std::optional&lt;int&gt; fuzzy;</span>
-<span id="L213"><span class="lineNum">     213</span>              :   bool deferred = false;</span>
-<span id="L214"><span class="lineNum">     214</span>              : };</span>
-<span id="L215"><span class="lineNum">     215</span>              : </span>
-<span id="L216"><span class="lineNum">     216</span>              : // Evaluates a parsed find expression against one visited entry and returns its</span>
-<span id="L217"><span class="lineNum">     217</span>              : // overall truth value, mirroring find:</span>
-<span id="L218"><span class="lineNum">     218</span>              : //   - tests: -name/-iname/-path/-ipath/-type/-true/-false against the entry;</span>
-<span id="L219"><span class="lineNum">     219</span>              : //   - operators: !/-not, -a/-and, -o/-or, with short-circuit;</span>
-<span id="L220"><span class="lineNum">     220</span>              : //   - actions: -print/-print0 write a record via `emit`; -prune/-quit set `control`.</span>
-<span id="L221"><span class="lineNum">     221</span>              : // -name/-iname glob the basename, -path/-ipath glob the whole path; the `i`</span>
-<span id="L222"><span class="lineNum">     222</span>              : // variants fold case (fnmatch, matching GNU find). Short-circuit means actions</span>
-<span id="L223"><span class="lineNum">     223</span>              : // to the right of a failed -a (or in the unused branch of -o) do not fire.</span>
-<span id="L224"><span class="lineNum">     224</span>              : // `context` carries the entry, the action sink, the filesystem, the reference</span>
-<span id="L225"><span class="lineNum">     225</span>              : // clock, and the -prune/-quit side-channel (see EvalContext).</span>
-<span id="L226"><span class="lineNum">     226</span>              : bool Evaluate(const parser::Expr&amp; expr, EvalContext&amp; context);</span>
-<span id="L227"><span class="lineNum">     227</span>              : </span>
-<span id="L228"><span class="lineNum">     228</span>              : // Evaluates like Evaluate, but exposes -top deferral to the run driver. With no deferred plumbing in</span>
-<span id="L229"><span class="lineNum">     229</span>              : // the context this is equivalent to `{Evaluate(...), score, false}`.</span>
-<span id="L230"><span class="lineNum">     230</span>              : EvaluationResult EvaluateDeferred(const parser::Expr&amp; expr, EvalContext&amp; context);</span>
-<span id="L231"><span class="lineNum">     231</span>              : </span>
-<span id="L232"><span class="lineNum">     232</span>              : // True if `expr` contains any action node (-print, ...). The driver uses this</span>
-<span id="L233"><span class="lineNum">     233</span>              : // to decide whether an implicit -print applies: find adds -print only when the</span>
-<span id="L234"><span class="lineNum">     234</span>              : // expression has no action of its own.</span>
-<span id="L235"><span class="lineNum">     235</span>              : bool ContainsAction(const parser::Expr&amp; expr);</span>
-<span id="L236"><span class="lineNum">     236</span>              : </span>
-<span id="L237"><span class="lineNum">     237</span>              : // Validates every `-size` argument in `expr`, returning the first malformed one as</span>
-<span id="L238"><span class="lineNum">     238</span>              : // an InvalidArgument status (unknown unit, an over-64-bit unit like Z/Y, or a</span>
-<span id="L239"><span class="lineNum">     239</span>              : // missing/non-numeric count) or Ok when all are well-formed. The driver calls this</span>
-<span id="L240"><span class="lineNum">     240</span>              : // before the walk so a bad `-size` is a usage error (exit 2) rather than a silent</span>
-<span id="L241"><span class="lineNum">     241</span>              : // per-entry no-match, matching find's parse-time rejection. Style-independent: the</span>
-<span id="L242"><span class="lineNum">     242</span>              : // size units (incl. the T/P/E continuation) are valid in every flavor.</span>
-<span id="L243"><span class="lineNum">     243</span>              : absl::Status ValidateSizeArgs(const parser::Expr&amp; expr);</span>
-<span id="L244"><span class="lineNum">     244</span>              : </span>
-<span id="L245"><span class="lineNum">     245</span>              : // Validates the --diff-ignore token list and the --diff-ignore-matching regex, returning the</span>
-<span id="L246"><span class="lineNum">     246</span>              : // first problem as an InvalidArgument (an unknown token names it; a bad regex carries RE2's</span>
-<span id="L247"><span class="lineNum">     247</span>              : // diagnostic) or Ok. Each comma-separated token in `tokens` must be one of ws / change / trail</span>
-<span id="L248"><span class="lineNum">     248</span>              : // / blank / case (empty tokens are skipped); a non-empty `matching` must be a valid RE2. The</span>
-<span id="L249"><span class="lineNum">     249</span>              : // driver calls it once before the walk so a bad value is a usage error (exit 2) rather than a</span>
-<span id="L250"><span class="lineNum">     250</span>              : // silent per-entry no-op; -diff then trusts the validated values.</span>
-<span id="L251"><span class="lineNum">     251</span>              : absl::Status ValidateDiffIgnore(std::string_view tokens, std::string_view matching);</span>
-<span id="L252"><span class="lineNum">     252</span>              : </span>
-<span id="L253"><span class="lineNum">     253</span>              : // Parses a `--diff-format` value into an mbo output format: the letters u/c/n/y (matching the</span>
-<span id="L254"><span class="lineNum">     254</span>              : // -diff:STYLE token) or the long names unified/context/normal/side-by-side; nullopt for an</span>
-<span id="L255"><span class="lineNum">     255</span>              : // unknown value. `none` is intentionally not a format (it is the per-action -diff:none silencer,</span>
-<span id="L256"><span class="lineNum">     256</span>              : // not a default the walk carries). The driver uses it to validate + resolve the global once</span>
-<span id="L257"><span class="lineNum">     257</span>              : // before the walk; -diff then falls back to the resolved format when its own token omits one.</span>
-<span id="L258"><span class="lineNum">     258</span>              : std::optional&lt;mbo::diff::DiffOptions::OutputFormat&gt; ParseDiffFormatFlag(std::string_view flag);</span>
-<span id="L259"><span class="lineNum">     259</span>              : </span>
-<span id="L260"><span class="lineNum">     260</span>              : // Validates every `-hash:ALGO[/ENCODING]` spec in `expr`, returning the first malformed one as</span>
-<span id="L261"><span class="lineNum">     261</span>              : // an InvalidArgument (unknown algorithm or encoding, naming it) or Ok. The driver calls it before</span>
-<span id="L262"><span class="lineNum">     262</span>              : // the walk so a bad `-hash` spec is a usage error (exit 2) rather than a silent per-entry no-op,</span>
-<span id="L263"><span class="lineNum">     263</span>              : // matching how the other payload primaries validate up front.</span>
-<span id="L264"><span class="lineNum">     264</span>              : absl::Status ValidateHashArgs(const parser::Expr&amp; expr);</span>
-<span id="L265"><span class="lineNum">     265</span>              : </span>
-<span id="L266"><span class="lineNum">     266</span>              : // Parses a `--block-size=SIZE` value into bytes: a bare number is bytes; legacy</span>
-<span id="L267"><span class="lineNum">     267</span>              : // c/w/k/M/G/T/P/E units are binary; explicit B/kB/.../EB units are SI and</span>
-<span id="L268"><span class="lineNum">     268</span>              : // KiB/.../EiB units are IEC. Lowercase 'b' and overflow are rejected. The result is</span>
-<span id="L269"><span class="lineNum">     269</span>              : // for a bare `-size N` and the `-size Nb` unit (find's default is 512). Returns an</span>
-<span id="L270"><span class="lineNum">     270</span>              : // InvalidArgument status (naming the problem) for a malformed or zero size.</span>
-<span id="L271"><span class="lineNum">     271</span>              : absl::StatusOr&lt;std::uint64_t&gt; ParseBlockSize(std::string_view spec);</span>
-<span id="L272"><span class="lineNum">     272</span>              : </span>
-<span id="L273"><span class="lineNum">     273</span>              : // The `-ls` columns for one entry, in display order: inode, 1 KiB blocks, symbolic</span>
-<span id="L274"><span class="lineNum">     274</span>              : // permissions, link count, owner, group, size, time (in `tz`), path. The size is</span>
-<span id="L275"><span class="lineNum">     275</span>              : // rendered in `size_units` (human iec/si) or, when nullopt, as raw bytes. The</span>
-<span id="L276"><span class="lineNum">     276</span>              : // aligned renderer (format::ColumnBuffer) consumes these; LsRecord joins them</span>
-<span id="L277"><span class="lineNum">     277</span>              : // single-spaced for the unbuffered fallback.</span>
-<span id="L278"><span class="lineNum">     278</span>              : std::vector&lt;std::string&gt; LsCells(</span>
-<span id="L279"><span class="lineNum">     279</span>              :     const Visit&amp; visit,</span>
-<span id="L280"><span class="lineNum">     280</span>              :     absl::Time now,</span>
-<span id="L281"><span class="lineNum">     281</span>              :     absl::TimeZone tz,</span>
-<span id="L282"><span class="lineNum">     282</span>              :     std::optional&lt;format::SizeUnits&gt; size_units,</span>
-<span id="L283"><span class="lineNum">     283</span>              :     std::string_view color = {});</span>
-<span id="L284"><span class="lineNum">     284</span>              : </span>
-<span id="L285"><span class="lineNum">     285</span>              : // One `-ls` column's alignment and minimum (also fixed, when --buffer=off) width.</span>
-<span id="L286"><span class="lineNum">     286</span>              : struct LsColumn {</span>
-<span id="L287"><span class="lineNum">     287</span>              :   format::Align align;</span>
-<span id="L288"><span class="lineNum">     288</span>              :   std::size_t min_width;</span>
-<span id="L289"><span class="lineNum">     289</span>              : };</span>
-<span id="L290"><span class="lineNum">     290</span>              : </span>
-<span id="L291"><span class="lineNum">     291</span>              : // The `-ls` column layout (alignment + minimum width per column), in LsCells order:</span>
-<span id="L292"><span class="lineNum">     292</span>              : // numeric columns right-aligned, text left; the driver builds the --buffer</span>
-<span id="L293"><span class="lineNum">     293</span>              : // format::ColumnBuffer from this. The minimums are ls -l-like defaults for the</span>
-<span id="L294"><span class="lineNum">     294</span>              : // flexible fields (owner/group/size), a fixed 10 for the permission string, and 0</span>
-<span id="L295"><span class="lineNum">     295</span>              : // for the trailing path.</span>
-<span id="L296"><span class="lineNum">     296</span>              : std::vector&lt;LsColumn&gt; LsColumns();</span>
-<span id="L297"><span class="lineNum">     297</span>              : </span>
-<span id="L298"><span class="lineNum">     298</span>              : // The -printf directive vocabulary for `--help=printf`, as {code, description} rows:</span>
-<span id="L299"><span class="lineNum">     299</span>              : // find's % directives (the kPrintfDirectives table), the a/c/t + Ak/Ck/Tk time families,</span>
-<span id="L300"><span class="lineNum">     300</span>              : // the \ escapes, and xff's %{field} escape. evaluate_test guards that it documents every</span>
-<span id="L301"><span class="lineNum">     301</span>              : // directive in PrintfDirectiveLetters().</span>
-<span id="L302"><span class="lineNum">     302</span>              : std::vector&lt;std::pair&lt;std::string_view, std::string_view&gt;&gt; PrintfDocs();</span>
-<span id="L303"><span class="lineNum">     303</span>              : </span>
-<span id="L304"><span class="lineNum">     304</span>              : // The letters of find's -printf % directives (the kPrintfDirectives keys), for the</span>
-<span id="L305"><span class="lineNum">     305</span>              : // `--help=printf` coverage guard.</span>
-<span id="L306"><span class="lineNum">     306</span>              : std::string PrintfDirectiveLetters();</span>
-<span id="L307"><span class="lineNum">     307</span>              : </span>
-<span id="L308"><span class="lineNum">     308</span>              : // The -size unit vocabulary for `--help=size`, as {code, description} rows: the unit</span>
-<span id="L309"><span class="lineNum">     309</span>              : // legacy suffixes, explicit SI/IEC suffixes, the block default, and +/- comparison.</span>
-<span id="L310"><span class="lineNum">     310</span>              : // evaluate_test guards that it covers SizeUnitSuffixes().</span>
-<span id="L311"><span class="lineNum">     311</span>              : std::vector&lt;std::pair&lt;std::string_view, std::string_view&gt;&gt; SizeUnitDocs();</span>
-<span id="L312"><span class="lineNum">     312</span>              : </span>
-<span id="L313"><span class="lineNum">     313</span>              : // The -size unit suffixes (the kSizeUnits keys), for the `--help=size` coverage guard.</span>
-<span id="L314"><span class="lineNum">     314</span>              : std::string SizeUnitSuffixes();</span>
-<span id="L315"><span class="lineNum">     315</span>              : </span>
-<span id="L316"><span class="lineNum">     316</span>              : }  // namespace xff::engine</span>
-<span id="L317"><span class="lineNum">     317</span>              : </span>
-<span id="L318"><span class="lineNum">     318</span>              : #endif  // XFF_ENGINE_EVALUATE_H_</span>
+<span id="L125"><span class="lineNum">     125</span>              :   // Result-set predicates such as -top and -shard-status are resolved after the walk. During the</span>
+<span id="L126"><span class="lineNum">     126</span>              :   // first evaluation, an undecided predicate writes its node (and -top's composed score) here and</span>
+<span id="L127"><span class="lineNum">     127</span>              :   // evaluation returns deferred. During replay, deferred_results supplies every earlier decision.</span>
+<span id="L128"><span class="lineNum">     128</span>              :   // evaluation_memo holds</span>
+<span id="L129"><span class="lineNum">     129</span>              :   // already-completed prefix nodes so actions and stateful tests to the left are never run twice.</span>
+<span id="L130"><span class="lineNum">     130</span>              :   // All four are null for callers that do not opt into deferred evaluation.</span>
+<span id="L131"><span class="lineNum">     131</span>              :   const std::map&lt;const parser::Expr*, bool&gt;* deferred_results = nullptr;</span>
+<span id="L132"><span class="lineNum">     132</span>              :   std::map&lt;const parser::Expr*, EvaluationResult&gt;* evaluation_memo = nullptr;</span>
+<span id="L133"><span class="lineNum">     133</span>              :   const parser::Expr** deferred_node = nullptr;</span>
+<span id="L134"><span class="lineNum">     134</span>              :   std::optional&lt;int&gt;* deferred_score = nullptr;</span>
+<span id="L135"><span class="lineNum">     135</span>              :   // The fuzzy score composed by the expression immediately to this node's left. EvaluateResult</span>
+<span id="L136"><span class="lineNum">     136</span>              :   // maintains it while descending an AND RHS; -top consumes it as its ranking key.</span>
+<span id="L137"><span class="lineNum">     137</span>              :   std::optional&lt;int&gt; incoming_fuzzy_score;</span>
+<span id="L138"><span class="lineNum">     138</span>              :   // --count / -c: -grep prints one `path:count` per file (its matching-line count)</span>
+<span id="L139"><span class="lineNum">     139</span>              :   // instead of the lines, rg -c style; supersedes -grep:FORMAT. Only -grep reads it.</span>
+<span id="L140"><span class="lineNum">     140</span>              :   bool grep_count = false;</span>
+<span id="L141"><span class="lineNum">     141</span>              :   // --context / --before-context / --after-context (grep -C/-B/-A): lines of context -grep prints</span>
+<span id="L142"><span class="lineNum">     142</span>              :   // before and after each match (0 = none, the default). Resolved once before the walk; only -grep</span>
+<span id="L143"><span class="lineNum">     143</span>              :   // reads them. Superseded by --count.</span>
+<span id="L144"><span class="lineNum">     144</span>              :   std::size_t grep_before = 0;</span>
+<span id="L145"><span class="lineNum">     145</span>              :   std::size_t grep_after = 0;</span>
+<span id="L146"><span class="lineNum">     146</span>              :   // --diff-algorithm=naive|direct|myers: the diff engine -diff uses (mbo::diff). Empty -&gt;</span>
+<span id="L147"><span class="lineNum">     147</span>              :   // myers (the default). Validated once before the walk; only -diff reads it.</span>
+<span id="L148"><span class="lineNum">     148</span>              :   std::string_view diff_algorithm;</span>
+<span id="L149"><span class="lineNum">     149</span>              :   // --diff-ignore=&lt;tokens&gt;: comma-separated normalization tokens for -diff (ws / change /</span>
+<span id="L150"><span class="lineNum">     150</span>              :   // trail / blank / case), validated once before the walk. Empty -&gt; exact. Only -diff reads it.</span>
+<span id="L151"><span class="lineNum">     151</span>              :   std::string_view diff_ignore;</span>
+<span id="L152"><span class="lineNum">     152</span>              :   // --diff-ignore-matching=REGEX: -diff ignores lines matching this RE2 (compiled per -diff</span>
+<span id="L153"><span class="lineNum">     153</span>              :   // entry; the pattern is validated once before the walk). Empty -&gt; no line filter.</span>
+<span id="L154"><span class="lineNum">     154</span>              :   std::string_view diff_ignore_matching;</span>
+<span id="L155"><span class="lineNum">     155</span>              :   // --diff-format=u|c|n|y|...: the default -diff output format (built-in unified). A per-action</span>
+<span id="L156"><span class="lineNum">     156</span>              :   // -diff:STYLE letter overrides it. Resolved once before the walk; only -diff reads it.</span>
+<span id="L157"><span class="lineNum">     157</span>              :   mbo::diff::DiffOptions::OutputFormat diff_format = mbo::diff::DiffOptions::OutputFormat::kUnified;</span>
+<span id="L158"><span class="lineNum">     158</span>              :   // --diff-context=N (and --context=N when symmetric): the default -diff context size (built-in 3).</span>
+<span id="L159"><span class="lineNum">     159</span>              :   // --context feeds it only when before==after; --diff-context overrides --context. A per-action</span>
+<span id="L160"><span class="lineNum">     160</span>              :   // -diff:uN overrides both. Resolved once before the walk; only -diff reads it.</span>
+<span id="L161"><span class="lineNum">     161</span>              :   std::size_t diff_context = 3;</span>
+<span id="L162"><span class="lineNum">     162</span>              :   // --hash-algorithm=ALGO / --hash-encoding=hex|base64: the default digest for a bare -hash</span>
+<span id="L163"><span class="lineNum">     163</span>              :   // action and a bare {hash} field (empty -&gt; sha256 / hex). Validated once before the walk;</span>
+<span id="L164"><span class="lineNum">     164</span>              :   // an explicit -hash:ALGO[/ENCODING] or {hash:...} qualifier overrides per node.</span>
+<span id="L165"><span class="lineNum">     165</span>              :   std::string_view hash_algorithm;</span>
+<span id="L166"><span class="lineNum">     166</span>              :   std::string_view hash_encoding;</span>
+<span id="L167"><span class="lineNum">     167</span>              :   Control&amp; control;                              // collects -prune/-quit requests</span>
+<span id="L168"><span class="lineNum">     168</span>              :   bool exec_fields = false;                      // --exec-fields: render -exec tokens through the field vocabulary</span>
+<span id="L169"><span class="lineNum">     169</span>              :   std::vector&lt;std::string&gt;* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off</span>
+<span id="L170"><span class="lineNum">     170</span>              :   const std::map&lt;std::string, std::string&gt;* defines = nullptr;  // --define values for {def.NAME}</span>
+<span id="L171"><span class="lineNum">     171</span>              :   std::map&lt;std::string, std::string&gt;* outputs = nullptr;  // -capture results for {capture.NAME} (mutable, per entry)</span>
+<span id="L172"><span class="lineNum">     172</span>              :   // -first N: how many entries each instance has admitted so far, keyed by its AST node so two</span>
+<span id="L173"><span class="lineNum">     173</span>              :   // `-first` in different branches keep separate budgets. Owned by the driver for the whole run</span>
+<span id="L174"><span class="lineNum">     174</span>              :   // (unlike `outputs`, which is per entry) - the count is the point. Emission is single-threaded</span>
+<span id="L175"><span class="lineNum">     175</span>              :   // (see walk.h), so a plain map needs no synchronisation.</span>
+<span id="L176"><span class="lineNum">     176</span>              :   std::map&lt;const parser::Expr*, int&gt;* first_counts = nullptr;</span>
+<span id="L177"><span class="lineNum">     177</span>              :   // -collect[:NAME]: where the action holds entries for a post-walk sink (--summary reads the</span>
+<span id="L178"><span class="lineNum">     178</span>              :   // collection instead of what matched). Owned by the driver for the whole run, and it OWNS what it</span>
+<span id="L179"><span class="lineNum">     179</span>              :   // stores, because a Visit is borrowed (see collect.h). Null -&gt; -collect is inert.</span>
+<span id="L180"><span class="lineNum">     180</span>              :   Collections* collections = nullptr;</span>
+<span id="L181"><span class="lineNum">     181</span>              :   std::function&lt;bool(std::string_view)&gt; confirm;  // -ok prompt sink: returns true to run the command; empty -&gt; decline</span>
+<span id="L182"><span class="lineNum">     182</span>              :   // Accumulates matched items per `-exec/-execdir ... +` node for the end-of-walk</span>
+<span id="L183"><span class="lineNum">     183</span>              :   // batch flush: outer key the Expr node, inner key the directory (&quot;&quot; for -exec's</span>
+<span id="L184"><span class="lineNum">     184</span>              :   // single global batch; the entry's dir for -execdir's per-directory batches).</span>
+<span id="L185"><span class="lineNum">     185</span>              :   // Null disables batching (the action no-ops).</span>
+<span id="L186"><span class="lineNum">     186</span>              :   std::map&lt;const parser::Expr*, std::map&lt;std::string, std::vector&lt;std::string&gt;&gt;&gt;* exec_batches = nullptr;</span>
+<span id="L187"><span class="lineNum">     187</span>              :   // Bounded concurrent runner for `-exec/-execdir ... ;` under -j&gt;1: when set, the</span>
+<span id="L188"><span class="lineNum">     188</span>              :   // serial-`;` action launches the child here (returning true on launch) instead of</span>
+<span id="L189"><span class="lineNum">     189</span>              :   // running it synchronously. Null -&gt; the action runs synchronously (find's default,</span>
+<span id="L190"><span class="lineNum">     190</span>              :   // and -j1). The `+` batch forms always go through exec_batches, never this.</span>
+<span id="L191"><span class="lineNum">     191</span>              :   exec::ParallelExec* parallel_exec = nullptr;</span>
+<span id="L192"><span class="lineNum">     192</span>              :   // --archive-extract: where an exec-family action may write an archive member so a child process can</span>
+<span id="L193"><span class="lineNum">     193</span>              :   // open it (see ExtractedMembers). Null - the default - keeps -exec / -execdir / -ok / -okdir a clean</span>
+<span id="L194"><span class="lineNum">     194</span>              :   // refusal on a member, because there is no path to hand the child.</span>
+<span id="L195"><span class="lineNum">     195</span>              :   ExtractedMembers* extract = nullptr;</span>
+<span id="L196"><span class="lineNum">     196</span>              : </span>
+<span id="L197"><span class="lineNum">     197</span>              :   // --archive-mount: where an exec-family action may get a member's path from a MOUNT of its</span>
+<span id="L198"><span class="lineNum">     198</span>              :   // container instead of a copy. Consulted before `extract`, and null (or answering nothing when</span>
+<span id="L199"><span class="lineNum">     199</span>              :   // this machine cannot mount) simply leaves extraction in charge.</span>
+<span id="L200"><span class="lineNum">     200</span>              :   MountedContainers* mounts = nullptr;</span>
+<span id="L201"><span class="lineNum">     201</span>              :   // --archive-delete: where `-delete` records an archive MEMBER it should remove. Collected rather</span>
+<span id="L202"><span class="lineNum">     202</span>              :   // than removed on the spot, because removing one means rewriting the whole container - which the</span>
+<span id="L203"><span class="lineNum">     203</span>              :   // walk is reading from at that moment - so the driver applies them per container after the walk.</span>
+<span id="L204"><span class="lineNum">     204</span>              :   // Null - the default - keeps `-delete` a clean refusal on a member.</span>
+<span id="L205"><span class="lineNum">     205</span>              :   std::vector&lt;std::string&gt;* archive_deletions = nullptr;</span>
+<span id="L206"><span class="lineNum">     206</span>              : };</span>
+<span id="L207"><span class="lineNum">     207</span>              : </span>
+<span id="L208"><span class="lineNum">     208</span>              : // The truth and fuzzy value of an expression evaluation. `deferred` means evaluation reached an</span>
+<span id="L209"><span class="lineNum">     209</span>              : // undecided -top and deliberately stopped before anything to its right. Public so the run driver can</span>
+<span id="L210"><span class="lineNum">     210</span>              : // retain completed-prefix results between exact-selection passes; ordinary callers use Evaluate().</span>
+<span id="L211"><span class="lineNum">     211</span>              : struct EvaluationResult {</span>
+<span id="L212"><span class="lineNum">     212</span>              :   bool matched = false;</span>
+<span id="L213"><span class="lineNum">     213</span>              :   std::optional&lt;int&gt; fuzzy;</span>
+<span id="L214"><span class="lineNum">     214</span>              :   bool deferred = false;</span>
+<span id="L215"><span class="lineNum">     215</span>              : };</span>
+<span id="L216"><span class="lineNum">     216</span>              : </span>
+<span id="L217"><span class="lineNum">     217</span>              : // Evaluates a parsed find expression against one visited entry and returns its</span>
+<span id="L218"><span class="lineNum">     218</span>              : // overall truth value, mirroring find:</span>
+<span id="L219"><span class="lineNum">     219</span>              : //   - tests: -name/-iname/-path/-ipath/-type/-true/-false against the entry;</span>
+<span id="L220"><span class="lineNum">     220</span>              : //   - operators: !/-not, -a/-and, -o/-or, with short-circuit;</span>
+<span id="L221"><span class="lineNum">     221</span>              : //   - actions: -print/-print0 write a record via `emit`; -prune/-quit set `control`.</span>
+<span id="L222"><span class="lineNum">     222</span>              : // -name/-iname glob the basename, -path/-ipath glob the whole path; the `i`</span>
+<span id="L223"><span class="lineNum">     223</span>              : // variants fold case (fnmatch, matching GNU find). Short-circuit means actions</span>
+<span id="L224"><span class="lineNum">     224</span>              : // to the right of a failed -a (or in the unused branch of -o) do not fire.</span>
+<span id="L225"><span class="lineNum">     225</span>              : // `context` carries the entry, the action sink, the filesystem, the reference</span>
+<span id="L226"><span class="lineNum">     226</span>              : // clock, and the -prune/-quit side-channel (see EvalContext).</span>
+<span id="L227"><span class="lineNum">     227</span>              : bool Evaluate(const parser::Expr&amp; expr, EvalContext&amp; context);</span>
+<span id="L228"><span class="lineNum">     228</span>              : </span>
+<span id="L229"><span class="lineNum">     229</span>              : // Evaluates like Evaluate, but exposes -top deferral to the run driver. With no deferred plumbing in</span>
+<span id="L230"><span class="lineNum">     230</span>              : // the context this is equivalent to `{Evaluate(...), score, false}`.</span>
+<span id="L231"><span class="lineNum">     231</span>              : EvaluationResult EvaluateDeferred(const parser::Expr&amp; expr, EvalContext&amp; context);</span>
+<span id="L232"><span class="lineNum">     232</span>              : </span>
+<span id="L233"><span class="lineNum">     233</span>              : // True if `expr` contains any action node (-print, ...). The driver uses this</span>
+<span id="L234"><span class="lineNum">     234</span>              : // to decide whether an implicit -print applies: find adds -print only when the</span>
+<span id="L235"><span class="lineNum">     235</span>              : // expression has no action of its own.</span>
+<span id="L236"><span class="lineNum">     236</span>              : bool ContainsAction(const parser::Expr&amp; expr);</span>
+<span id="L237"><span class="lineNum">     237</span>              : </span>
+<span id="L238"><span class="lineNum">     238</span>              : // Validates every `-size` argument in `expr`, returning the first malformed one as</span>
+<span id="L239"><span class="lineNum">     239</span>              : // an InvalidArgument status (unknown unit, an over-64-bit unit like Z/Y, or a</span>
+<span id="L240"><span class="lineNum">     240</span>              : // missing/non-numeric count) or Ok when all are well-formed. The driver calls this</span>
+<span id="L241"><span class="lineNum">     241</span>              : // before the walk so a bad `-size` is a usage error (exit 2) rather than a silent</span>
+<span id="L242"><span class="lineNum">     242</span>              : // per-entry no-match, matching find's parse-time rejection. Style-independent: the</span>
+<span id="L243"><span class="lineNum">     243</span>              : // size units (incl. the T/P/E continuation) are valid in every flavor.</span>
+<span id="L244"><span class="lineNum">     244</span>              : absl::Status ValidateSizeArgs(const parser::Expr&amp; expr);</span>
+<span id="L245"><span class="lineNum">     245</span>              : </span>
+<span id="L246"><span class="lineNum">     246</span>              : // Validates the --diff-ignore token list and the --diff-ignore-matching regex, returning the</span>
+<span id="L247"><span class="lineNum">     247</span>              : // first problem as an InvalidArgument (an unknown token names it; a bad regex carries RE2's</span>
+<span id="L248"><span class="lineNum">     248</span>              : // diagnostic) or Ok. Each comma-separated token in `tokens` must be one of ws / change / trail</span>
+<span id="L249"><span class="lineNum">     249</span>              : // / blank / case (empty tokens are skipped); a non-empty `matching` must be a valid RE2. The</span>
+<span id="L250"><span class="lineNum">     250</span>              : // driver calls it once before the walk so a bad value is a usage error (exit 2) rather than a</span>
+<span id="L251"><span class="lineNum">     251</span>              : // silent per-entry no-op; -diff then trusts the validated values.</span>
+<span id="L252"><span class="lineNum">     252</span>              : absl::Status ValidateDiffIgnore(std::string_view tokens, std::string_view matching);</span>
+<span id="L253"><span class="lineNum">     253</span>              : </span>
+<span id="L254"><span class="lineNum">     254</span>              : // Parses a `--diff-format` value into an mbo output format: the letters u/c/n/y (matching the</span>
+<span id="L255"><span class="lineNum">     255</span>              : // -diff:STYLE token) or the long names unified/context/normal/side-by-side; nullopt for an</span>
+<span id="L256"><span class="lineNum">     256</span>              : // unknown value. `none` is intentionally not a format (it is the per-action -diff:none silencer,</span>
+<span id="L257"><span class="lineNum">     257</span>              : // not a default the walk carries). The driver uses it to validate + resolve the global once</span>
+<span id="L258"><span class="lineNum">     258</span>              : // before the walk; -diff then falls back to the resolved format when its own token omits one.</span>
+<span id="L259"><span class="lineNum">     259</span>              : std::optional&lt;mbo::diff::DiffOptions::OutputFormat&gt; ParseDiffFormatFlag(std::string_view flag);</span>
+<span id="L260"><span class="lineNum">     260</span>              : </span>
+<span id="L261"><span class="lineNum">     261</span>              : // Validates every `-hash:ALGO[/ENCODING]` spec in `expr`, returning the first malformed one as</span>
+<span id="L262"><span class="lineNum">     262</span>              : // an InvalidArgument (unknown algorithm or encoding, naming it) or Ok. The driver calls it before</span>
+<span id="L263"><span class="lineNum">     263</span>              : // the walk so a bad `-hash` spec is a usage error (exit 2) rather than a silent per-entry no-op,</span>
+<span id="L264"><span class="lineNum">     264</span>              : // matching how the other payload primaries validate up front.</span>
+<span id="L265"><span class="lineNum">     265</span>              : absl::Status ValidateHashArgs(const parser::Expr&amp; expr);</span>
+<span id="L266"><span class="lineNum">     266</span>              : </span>
+<span id="L267"><span class="lineNum">     267</span>              : // Parses a `--block-size=SIZE` value into bytes: a bare number is bytes; legacy</span>
+<span id="L268"><span class="lineNum">     268</span>              : // c/w/k/M/G/T/P/E units are binary; explicit B/kB/.../EB units are SI and</span>
+<span id="L269"><span class="lineNum">     269</span>              : // KiB/.../EiB units are IEC. Lowercase 'b' and overflow are rejected. The result is</span>
+<span id="L270"><span class="lineNum">     270</span>              : // for a bare `-size N` and the `-size Nb` unit (find's default is 512). Returns an</span>
+<span id="L271"><span class="lineNum">     271</span>              : // InvalidArgument status (naming the problem) for a malformed or zero size.</span>
+<span id="L272"><span class="lineNum">     272</span>              : absl::StatusOr&lt;std::uint64_t&gt; ParseBlockSize(std::string_view spec);</span>
+<span id="L273"><span class="lineNum">     273</span>              : </span>
+<span id="L274"><span class="lineNum">     274</span>              : // The `-ls` columns for one entry, in display order: inode, 1 KiB blocks, symbolic</span>
+<span id="L275"><span class="lineNum">     275</span>              : // permissions, link count, owner, group, size, time (in `tz`), path. The size is</span>
+<span id="L276"><span class="lineNum">     276</span>              : // rendered in `size_units` (human iec/si) or, when nullopt, as raw bytes. The</span>
+<span id="L277"><span class="lineNum">     277</span>              : // aligned renderer (format::ColumnBuffer) consumes these; LsRecord joins them</span>
+<span id="L278"><span class="lineNum">     278</span>              : // single-spaced for the unbuffered fallback.</span>
+<span id="L279"><span class="lineNum">     279</span>              : std::vector&lt;std::string&gt; LsCells(</span>
+<span id="L280"><span class="lineNum">     280</span>              :     const Visit&amp; visit,</span>
+<span id="L281"><span class="lineNum">     281</span>              :     absl::Time now,</span>
+<span id="L282"><span class="lineNum">     282</span>              :     absl::TimeZone tz,</span>
+<span id="L283"><span class="lineNum">     283</span>              :     std::optional&lt;format::SizeUnits&gt; size_units,</span>
+<span id="L284"><span class="lineNum">     284</span>              :     std::string_view color = {});</span>
+<span id="L285"><span class="lineNum">     285</span>              : </span>
+<span id="L286"><span class="lineNum">     286</span>              : // One `-ls` column's alignment and minimum (also fixed, when --buffer=off) width.</span>
+<span id="L287"><span class="lineNum">     287</span>              : struct LsColumn {</span>
+<span id="L288"><span class="lineNum">     288</span>              :   format::Align align;</span>
+<span id="L289"><span class="lineNum">     289</span>              :   std::size_t min_width;</span>
+<span id="L290"><span class="lineNum">     290</span>              : };</span>
+<span id="L291"><span class="lineNum">     291</span>              : </span>
+<span id="L292"><span class="lineNum">     292</span>              : // The `-ls` column layout (alignment + minimum width per column), in LsCells order:</span>
+<span id="L293"><span class="lineNum">     293</span>              : // numeric columns right-aligned, text left; the driver builds the --buffer</span>
+<span id="L294"><span class="lineNum">     294</span>              : // format::ColumnBuffer from this. The minimums are ls -l-like defaults for the</span>
+<span id="L295"><span class="lineNum">     295</span>              : // flexible fields (owner/group/size), a fixed 10 for the permission string, and 0</span>
+<span id="L296"><span class="lineNum">     296</span>              : // for the trailing path.</span>
+<span id="L297"><span class="lineNum">     297</span>              : std::vector&lt;LsColumn&gt; LsColumns();</span>
+<span id="L298"><span class="lineNum">     298</span>              : </span>
+<span id="L299"><span class="lineNum">     299</span>              : // The -printf directive vocabulary for `--help=printf`, as {code, description} rows:</span>
+<span id="L300"><span class="lineNum">     300</span>              : // find's % directives (the kPrintfDirectives table), the a/c/t + Ak/Ck/Tk time families,</span>
+<span id="L301"><span class="lineNum">     301</span>              : // the \ escapes, and xff's %{field} escape. evaluate_test guards that it documents every</span>
+<span id="L302"><span class="lineNum">     302</span>              : // directive in PrintfDirectiveLetters().</span>
+<span id="L303"><span class="lineNum">     303</span>              : std::vector&lt;std::pair&lt;std::string_view, std::string_view&gt;&gt; PrintfDocs();</span>
+<span id="L304"><span class="lineNum">     304</span>              : </span>
+<span id="L305"><span class="lineNum">     305</span>              : // The letters of find's -printf % directives (the kPrintfDirectives keys), for the</span>
+<span id="L306"><span class="lineNum">     306</span>              : // `--help=printf` coverage guard.</span>
+<span id="L307"><span class="lineNum">     307</span>              : std::string PrintfDirectiveLetters();</span>
+<span id="L308"><span class="lineNum">     308</span>              : </span>
+<span id="L309"><span class="lineNum">     309</span>              : // The -size unit vocabulary for `--help=size`, as {code, description} rows: the unit</span>
+<span id="L310"><span class="lineNum">     310</span>              : // legacy suffixes, explicit SI/IEC suffixes, the block default, and +/- comparison.</span>
+<span id="L311"><span class="lineNum">     311</span>              : // evaluate_test guards that it covers SizeUnitSuffixes().</span>
+<span id="L312"><span class="lineNum">     312</span>              : std::vector&lt;std::pair&lt;std::string_view, std::string_view&gt;&gt; SizeUnitDocs();</span>
+<span id="L313"><span class="lineNum">     313</span>              : </span>
+<span id="L314"><span class="lineNum">     314</span>              : // The -size unit suffixes (the kSizeUnits keys), for the `--help=size` coverage guard.</span>
+<span id="L315"><span class="lineNum">     315</span>              : std::string SizeUnitSuffixes();</span>
+<span id="L316"><span class="lineNum">     316</span>              : </span>
+<span id="L317"><span class="lineNum">     317</span>              : }  // namespace xff::engine</span>
+<span id="L318"><span class="lineNum">     318</span>              : </span>
+<span id="L319"><span class="lineNum">     319</span>              : #endif  // XFF_ENGINE_EVALUATE_H_</span>
         </pre>
               </td>
             </tr>
