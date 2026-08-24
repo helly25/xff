@@ -83,6 +83,10 @@ TEST_F(GlobalsTest, LookupResolvesNameAndAlias) {
   EXPECT_THAT(LookupGlobal("--nonesuch"), Eq(std::nullopt));
 }
 
+TEST_F(GlobalsTest, StringifiesAsCanonicalName) {
+  EXPECT_THAT(absl::StrCat(LookupGlobal("--jobs").value()), "--jobs");
+}
+
 TEST_F(GlobalsTest, ComposableExtraFlagCarriesItsExtraKeyAndIsOffInTheLeanBuild) {
   const mbo::types::OptionalRef<const GlobalFlag> archive = LookupGlobal("--archive");
   ASSERT_THAT(archive, Optional(_));
