@@ -135,6 +135,20 @@ class CoverageTest(unittest.TestCase):
         }
         self.assertFalse(coverage_tool.has_coverage(empty, ("lines", "branches")))
 
+    def test_patch_enforces_only_metrics_with_coverable_data(self):
+        metrics = {
+            "lines": {"covered": 38, "total": 38, "percent": 100.0},
+            "functions": {"covered": 0, "total": 0, "percent": None},
+            "branches": {"covered": 0, "total": 0, "percent": None},
+        }
+        policy = {
+            "lines": coverage_tool.coverage_policy.MetricPolicy(95, 98, "medium"),
+            "branches": coverage_tool.coverage_policy.MetricPolicy(85, 90, "medium"),
+        }
+        present_policy = coverage_tool.present_policy(metrics, policy, ("lines", "branches"))
+        self.assertEqual(["lines"], list(present_policy))
+        self.assertEqual([], coverage_tool.failures({"patch": metrics}, {"patch": present_policy}))
+
 
 if __name__ == "__main__":
     unittest.main()
