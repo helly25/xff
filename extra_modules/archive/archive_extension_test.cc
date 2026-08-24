@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
@@ -22,6 +23,7 @@ namespace {
 using ::mbo::testing::IsOk;
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
+using ::testing::_;
 using ::testing::Contains;
 using ::testing::Eq;
 using ::testing::Field;
@@ -50,7 +52,9 @@ TEST_F(ArchiveExtensionTest, RegistryOwnsRoutingVocabularyAndDeterministicReplac
           },
   });
 
-  EXPECT_THAT(CompressionExtensionFor("BUNDLE.TAR.FAKE"), Optional(Field("name", &CompressionExtension::name, "fake")));
+  const auto extension = CompressionExtensionFor("BUNDLE.TAR.FAKE");
+  ASSERT_THAT(extension, Optional(_));
+  EXPECT_THAT(absl::StrCat(*extension), Eq("fake"));
   EXPECT_THAT(CompressionExtensionStem("dir/notes.fake"), Eq(std::optional<std::string>("notes")));
   EXPECT_THAT(CompressionExtensionReadFormats(), Contains(Field("name", &ReadFormatInfo::name, "file")));
   EXPECT_THAT(CompressionExtensionPackFormats(), Contains("tar.fake"));

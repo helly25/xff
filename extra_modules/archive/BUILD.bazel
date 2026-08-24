@@ -124,6 +124,7 @@ cc_test(
     deps = [
         ":archive_extension_cc",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
         "@googletest//:gtest_main",
         "@helly25_mbo//mbo/testing:status_cc",
     ],
