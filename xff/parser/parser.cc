@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <initializer_list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -39,6 +40,7 @@
 #include "xff/registry/registry.h"
 
 namespace xff::parser {
+
 namespace {
 
 // A token begins the find expression if it is a single-dash word, or one of
@@ -720,93 +722,92 @@ class ExprParser {
 // Returns the first expression primary (pre-order, left to right in evaluation
 // order) whose descriptor is tagged as an xff extension, or empty if the tree
 // has none. The strict find-style check uses it to name the offending primary.
-mbo::types::OptionalRef<const registry::Descriptor> FirstXffExtension(const Expr* expr) {
-  if (expr == nullptr) {
-    return std::nullopt;
-  }
-  if (expr->kind == Expr::Kind::kPredicate) {
-    if (expr->descriptor.has_value() && expr->descriptor->style == registry::Style::kXff) {
-      return *expr->descriptor;
+mbo::types::OptionalRef<const registry::Descriptor> FirstXffExtension(const Expr& expr) {
+  if (expr.kind == Expr::Kind::kPredicate) {
+    if (expr.descriptor.has_value() && expr.descriptor->style == registry::Style::kXff) {
+      return *expr.descriptor;
     }
     return std::nullopt;
   }
-  if (const auto found = FirstXffExtension(expr->lhs.get()); found.has_value()) {
-    return found;
+  if (expr.lhs) {
+    if (const auto found = FirstXffExtension(*expr.lhs); found.has_value()) {
+      return found;
+    }
   }
-  return FirstXffExtension(expr->rhs.get());
+  return expr.rhs ? FirstXffExtension(*expr.rhs) : std::nullopt;
 }
 
 // Returns the first day-time predicate (-mtime/-atime/-ctime, pre-order) whose
 // argument is the xff duration form -- a space-bearing span like "-3 weeks 3
-// hours" -- or nullptr. The bare day count and the BSD unit suffix (-1h) never
+// hours" -- or empty. The bare day count and the BSD unit suffix (-1h) never
 // contain a space, so they stay find-compatible; only the word/compound span is
 // an xff extension the strict find style rejects. See docs/design-find-flavors.md.
-const Expr* FirstXffDurationValue(const Expr* expr) {
-  if (expr == nullptr) {
-    return nullptr;
-  }
-  if (expr->kind == Expr::Kind::kPredicate) {
-    const auto descriptor = expr->descriptor;
+mbo::types::OptionalRef<const Expr> FirstXffDurationValue(const Expr& expr) {
+  if (expr.kind == Expr::Kind::kPredicate) {
+    const auto descriptor = expr.descriptor;
     if (!descriptor.has_value()) {
-      return nullptr;
+      return std::nullopt;
     }
     const std::string_view name = descriptor->name;
     const bool day_time = name == "-mtime" || name == "-atime" || name == "-ctime";
-    return day_time && !expr->args.empty() && absl::StrContains(expr->args.front(), ' ') ? expr : nullptr;
+    if (day_time && !expr.args.empty() && absl::StrContains(expr.args.front(), ' ')) {
+      return expr;
+    }
+    return std::nullopt;
   }
-  if (const Expr* const found = FirstXffDurationValue(expr->lhs.get()); found != nullptr) {
-    return found;
+  if (expr.lhs) {
+    if (const auto found = FirstXffDurationValue(*expr.lhs); found.has_value()) {
+      return found;
+    }
   }
-  return FirstXffDurationValue(expr->rhs.get());
+  return expr.rhs ? FirstXffDurationValue(*expr.rhs) : std::nullopt;
 }
 
 // Returns the canonical name of the first xff-only logical operator node
 // (-xor/-nand/-nor/-xnor, pre-order), or empty if none. These are interior nodes
 // with no descriptor, so FirstXffExtension (which inspects predicate descriptors)
 // cannot see them; the strict find style rejects them through this instead.
-std::string_view FirstXffOperator(const Expr* expr) {
-  if (expr == nullptr) {
-    return {};
-  }
-  switch (expr->kind) {
+std::string_view FirstXffOperator(const Expr& expr) {
+  switch (expr.kind) {
     case Expr::Kind::kNand: return "-nand";
     case Expr::Kind::kNor: return "-nor";
     case Expr::Kind::kXnor: return "-xnor";
     case Expr::Kind::kXor: return "-xor";
     default: break;
   }
-  if (const std::string_view found = FirstXffOperator(expr->lhs.get()); !found.empty()) {
-    return found;
+  if (expr.lhs) {
+    if (const std::string_view found = FirstXffOperator(*expr.lhs); !found.empty()) {
+      return found;
+    }
   }
-  return FirstXffOperator(expr->rhs.get());
+  return expr.rhs ? FirstXffOperator(*expr.rhs) : std::string_view{};
 }
 
 // Returns the first -printf / -fprintf (pre-order) whose FORMAT uses the xff `%{field}`
-// escape, or nullptr. -printf / -fprintf are find-native actions, but %{...} -- the bridge
+// escape, or empty. -printf / -fprintf are find-native actions, but %{...} -- the bridge
 // from their % format into the brace field vocabulary -- is an xff extension the strict
 // find style rejects. (-printfln / -fprintfln are xff extensions already, so they are
 // caught by FirstXffExtension; -fprintf takes FILE then FORMAT, so its format is arg 1.)
-const Expr* FirstXffPrintfField(const Expr* expr) {
-  if (expr == nullptr) {
-    return nullptr;
-  }
-  if (expr->kind == Expr::Kind::kPredicate) {
-    const auto descriptor = expr->descriptor;
+mbo::types::OptionalRef<const Expr> FirstXffPrintfField(const Expr& expr) {
+  if (expr.kind == Expr::Kind::kPredicate) {
+    const auto descriptor = expr.descriptor;
     if (descriptor.has_value()) {
       const std::string_view name = descriptor->name;
       const bool is_fprintf = name == "-fprintf";
       const std::size_t fmt_index = is_fprintf ? 1 : 0;
-      if ((name == "-printf" || is_fprintf) && expr->args.size() > fmt_index
-          && absl::StrContains(expr->args[fmt_index], "%{")) {
+      if ((name == "-printf" || is_fprintf) && expr.args.size() > fmt_index
+          && absl::StrContains(expr.args[fmt_index], "%{")) {
         return expr;
       }
     }
-    return nullptr;
+    return std::nullopt;
   }
-  if (const Expr* const found = FirstXffPrintfField(expr->lhs.get()); found != nullptr) {
-    return found;
+  if (expr.lhs) {
+    if (const auto found = FirstXffPrintfField(*expr.lhs); found.has_value()) {
+      return found;
+    }
   }
-  return FirstXffPrintfField(expr->rhs.get());
+  return expr.rhs ? FirstXffPrintfField(*expr.rhs) : std::nullopt;
 }
 
 // The regex grammar for the command's matchers, from `--regextype=` (last occurrence wins). EXACT
@@ -905,25 +906,29 @@ absl::Status EnforceStyle(const Command& command, registry::Style style) {
   if (style != registry::Style::kFind) {
     return absl::OkStatus();  // the xff style accepts the full vocabulary
   }
-  if (const auto ext = FirstXffExtension(command.expression.get()); ext.has_value()) {
+  const auto expression = AsConstOptionalExpr(command.expression);
+  if (!expression.has_value()) {
+    return absl::OkStatus();
+  }
+  if (const auto ext = FirstXffExtension(*expression); ext.has_value()) {
     return absl::InvalidArgumentError(
         absl::StrCat(
             "'", ext->name,
             "' is an xff extension, not available under the find style (--config=find); use --config=xff"));
   }
-  if (const std::string_view op = FirstXffOperator(command.expression.get()); !op.empty()) {
+  if (const std::string_view op = FirstXffOperator(*expression); !op.empty()) {
     return absl::InvalidArgumentError(
         absl::StrCat(
             "'", op, "' is an xff extension, not available under the find style (--config=find); use --config=xff"));
   }
-  if (const Expr* const dur = FirstXffDurationValue(command.expression.get()); dur != nullptr) {
+  if (const auto dur = FirstXffDurationValue(*expression); dur.has_value()) {
     return absl::InvalidArgumentError(
         absl::StrCat(
             "the duration form of '", dur->descriptor->name,
             "' (e.g. \"-3 weeks 3 hours\") is an xff extension, not available under the find style (--config=find); "
             "use a day count, a unit suffix like -1h, or --config=xff"));
   }
-  if (const Expr* const pf = FirstXffPrintfField(command.expression.get()); pf != nullptr) {
+  if (const auto pf = FirstXffPrintfField(*expression); pf.has_value()) {
     return absl::InvalidArgumentError(
         absl::StrCat(
             "the '%{field}' escape in '", pf->descriptor->name,
@@ -970,14 +975,11 @@ bool ShouldFold(CaseMode mode, std::string_view pattern) {
 // (-name/-path/-lname/-content) via Expr::case_fold, the pre-compiled regex ones
 // (-regex/-rxc/-grep) by recompiling `matcher` case-insensitively. Leaves the -i variants
 // and non-matcher nodes untouched; recurses over the whole tree.
-void ApplyCaseModeToNode(Expr* expr, CaseMode mode, regex::Grammar grammar) {
-  if (expr == nullptr) {
-    return;
-  }
-  if (expr->kind == Expr::Kind::kPredicate && expr->descriptor.has_value() && !expr->descriptor->fold_case
-      && !expr->args.empty()) {
-    const std::string_view name = expr->descriptor->name;
-    const std::string_view pattern = expr->args.front();
+void ApplyCaseModeToNode(Expr& expr, CaseMode mode, regex::Grammar grammar) {
+  if (expr.kind == Expr::Kind::kPredicate && expr.descriptor.has_value() && !expr.descriptor->fold_case
+      && !expr.args.empty()) {
+    const std::string_view name = expr.descriptor->name;
+    const std::string_view pattern = expr.args.front();
     const bool glob_or_content = name == "-name" || name == "-path" || name == "-lname" || name == "-content";
     const bool regex = name == "-regex" || name == "-rxc" || name == "-grep";
     if ((glob_or_content || regex) && ShouldFold(mode, pattern)) {
@@ -985,15 +987,19 @@ void ApplyCaseModeToNode(Expr* expr, CaseMode mode, regex::Grammar grammar) {
         if (absl::StatusOr<regex::Matcher> matcher =
                 regex::Matcher::Compile(pattern, /*case_insensitive=*/true, grammar);
             matcher.ok()) {
-          expr->matcher = std::make_shared<const regex::Matcher>(*std::move(matcher));
+          expr.matcher = std::make_shared<const regex::Matcher>(*std::move(matcher));
         }
       } else {
-        expr->case_fold = true;
+        expr.case_fold = true;
       }
     }
   }
-  ApplyCaseModeToNode(expr->lhs.get(), mode, grammar);
-  ApplyCaseModeToNode(expr->rhs.get(), mode, grammar);
+  if (expr.lhs) {
+    ApplyCaseModeToNode(*expr.lhs, mode, grammar);
+  }
+  if (expr.rhs) {
+    ApplyCaseModeToNode(*expr.rhs, mode, grammar);
+  }
 }
 
 }  // namespace
@@ -1002,17 +1008,25 @@ void ApplyCaseMode(Command& command, CaseMode mode) {
   if (mode == CaseMode::kSensitive) {
     return;  // nothing to fold; the -i variants already handle their own case
   }
-  ApplyCaseModeToNode(command.expression.get(), mode, command.grammar);
+  if (auto expression = AsOptionalExpr(command.expression); expression.has_value()) {
+    ApplyCaseModeToNode(*expression, mode, command.grammar);
+  }
 }
 
-bool TakesTerminal(const Expr* expr) {
-  if (expr == nullptr) {
-    return false;
-  }
-  if (expr->descriptor.has_value() && expr->descriptor->terminal) {
+namespace {
+
+bool ExpressionTakesTerminal(const Expr& expr) {
+  if (expr.descriptor.has_value() && expr.descriptor->terminal) {
     return true;
   }
-  return TakesTerminal(expr->lhs.get()) || TakesTerminal(expr->rhs.get());
+  return (expr.lhs && ExpressionTakesTerminal(*expr.lhs)) || (expr.rhs && ExpressionTakesTerminal(*expr.rhs));
+}
+
+}  // namespace
+
+bool TakesTerminal(const Command& command) {
+  const auto expression = AsConstOptionalExpr(command.expression);
+  return expression.has_value() && ExpressionTakesTerminal(*expression);
 }
 
 }  // namespace xff::parser

@@ -16,6 +16,8 @@
 #ifndef XFF_PARSER_PARSER_H_
 #define XFF_PARSER_PARSER_H_
 
+#include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -25,6 +27,21 @@
 #include "xff/registry/descriptor.h"
 
 namespace xff::parser {
+
+// Borrows the mutable pointee without transferring ownership.
+inline mbo::types::OptionalRef<Expr> AsOptionalExpr(const std::unique_ptr<Expr>& expr) {
+  return expr ? mbo::types::OptionalRef<Expr>{*expr} : std::nullopt;
+}
+
+// Borrows a mutable pointee through a read-only view.
+inline mbo::types::OptionalRef<const Expr> AsConstOptionalExpr(const std::unique_ptr<Expr>& expr) {
+  return expr ? mbo::types::OptionalRef<const Expr>{*expr} : std::nullopt;
+}
+
+// Borrows an already read-only pointee.
+inline mbo::types::OptionalRef<const Expr> AsConstOptionalExpr(const std::unique_ptr<const Expr>& expr) {
+  return expr ? mbo::types::OptionalRef<const Expr>{*expr} : std::nullopt;
+}
 
 // Parses argv into [globals] [roots] [expression] per the xff grammar:
 // leading '-'/'+' global flags up to the first directory or an explicit '--',
@@ -59,13 +76,13 @@ CaseMode ResolveCaseMode(const std::vector<std::string>& globals, registry::Styl
 // no uppercase). kSensitive is a no-op; the -i variants are left as they are (already fold).
 void ApplyCaseMode(Command& command, CaseMode mode);
 
-// Whether `expr` contains a primary that may take the TERMINAL for itself: -ok / -okdir prompt and
+// Whether `command` contains a primary that may take the TERMINAL for itself: -ok / -okdir prompt and
 // read a reply, and -exec / -execdir hand our stdin / stdout to a child that might (an editor).
 // Read from the registry (Descriptor::terminal), never from a name list here, so a new primary of
-// that shape is covered by declaring it. A null expression is false.
+// that shape is covered by declaring it. A command without an expression is false.
 //
 // The caller is the CLI's listing pager, which must not sit between such a primary and the user.
-[[nodiscard]] bool TakesTerminal(const Expr* expr);
+[[nodiscard]] bool TakesTerminal(const Command& command);
 
 }  // namespace xff::parser
 

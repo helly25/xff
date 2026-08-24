@@ -16,6 +16,7 @@
 #include "xff/parser/parser.h"
 
 #include <array>
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -37,11 +38,46 @@ using ::testing::_;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::HasSubstr;
+using ::testing::IsFalse;
 using ::testing::IsNull;
+using ::testing::IsTrue;
 using ::testing::NotNull;
 using ::testing::Optional;
 
 struct ParserTest : ::testing::Test {};
+
+struct OptionalExprTest : ::testing::Test {};
+
+TEST_F(OptionalExprTest, MutableProjectionPreservesThePointee) {
+  const std::unique_ptr<Expr> expr = std::make_unique<Expr>();
+
+  mbo::types::OptionalRef<Expr> ref = AsOptionalExpr(expr);
+  ref->case_fold = true;
+
+  EXPECT_THAT(expr->case_fold, IsTrue());
+}
+
+TEST_F(OptionalExprTest, ConstProjectionAcceptsMutableAndConstPointees) {
+  const std::unique_ptr<Expr> mutable_expr = std::make_unique<Expr>();
+  std::unique_ptr<Expr> owned_const_expr = std::make_unique<Expr>();
+  owned_const_expr->case_fold = true;
+  const std::unique_ptr<const Expr> const_expr = std::move(owned_const_expr);
+
+  const mbo::types::OptionalRef<const Expr> mutable_view = AsConstOptionalExpr(mutable_expr);
+  const mbo::types::OptionalRef<const Expr> const_view = AsConstOptionalExpr(const_expr);
+
+  EXPECT_THAT(mutable_view->case_fold, IsFalse());
+  EXPECT_THAT(const_view->case_fold, IsTrue());
+}
+
+TEST_F(OptionalExprTest, EmptyOwnersProduceEmptyReferences) {
+  const std::unique_ptr<Expr> mutable_expr;
+  const std::unique_ptr<const Expr> const_expr;
+
+  EXPECT_THAT(AsOptionalExpr(mutable_expr) == std::nullopt, IsTrue());
+  EXPECT_THAT(AsConstOptionalExpr(mutable_expr) == std::nullopt, IsTrue());
+  EXPECT_THAT(AsConstOptionalExpr(const_expr) == std::nullopt, IsTrue());
+}
 
 TEST_F(ParserTest, GlobalsRootsExpression) {
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({"--color", ".", "-type", "f"}));
@@ -348,6 +384,30 @@ TEST_F(ParserTest, EnforceStyleWalksTheWholeTree) {
   EXPECT_THAT(status.message(), HasSubstr("-capture"));
 }
 
+TEST_F(ParserTest, EnforceStyleFindsEveryExtensionKindInALeftSubtree) {
+  // Each specialized pre-order walk must return a match found below the left
+  // child rather than falling through to the right child.
+  ASSERT_OK_AND_ASSIGN(const Command primary, Parse({".", "-capture:n", "wc", ";", "-o", "-name", "plain"}));
+  EXPECT_THAT(EnforceStyle(primary, registry::Style::kFind), StatusIs(absl::StatusCode::kInvalidArgument));
+
+  ASSERT_OK_AND_ASSIGN(const Command duration, Parse({".", "-mtime", "-3 weeks", "-o", "-name", "plain"}));
+  EXPECT_THAT(EnforceStyle(duration, registry::Style::kFind), StatusIs(absl::StatusCode::kInvalidArgument));
+
+  ASSERT_OK_AND_ASSIGN(const Command logical, Parse({".", "-name", "a", "-xor", "-name", "b", "-o", "-name", "plain"}));
+  EXPECT_THAT(EnforceStyle(logical, registry::Style::kFind), StatusIs(absl::StatusCode::kInvalidArgument));
+
+  ASSERT_OK_AND_ASSIGN(const Command field, Parse({".", "-printf", "%{name}", "-o", "-name", "plain"}));
+  EXPECT_THAT(EnforceStyle(field, registry::Style::kFind), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(ParserTest, EnforceStyleToleratesAPredicateWithoutADescriptor) {
+  Command command;
+  command.expression = std::make_unique<Expr>();
+  command.expression->kind = Expr::Kind::kPredicate;
+
+  EXPECT_THAT(EnforceStyle(command, registry::Style::kFind), IsOk());
+}
+
 TEST_F(ParserTest, EnforceStyleAcceptsFindVocabularyUnderFind) {
   ASSERT_OK_AND_ASSIGN(const Command cmd, Parse({".", "-type", "f", "-o", "-name", "x"}));
   EXPECT_THAT(EnforceStyle(cmd, registry::Style::kFind), IsOk());
@@ -588,20 +648,20 @@ TEST_F(TakesTerminalTest, TheExecAndPromptFamilyTakesTheTerminal) {
   for (const std::string_view primary : kTerminalPrimaries) {
     SCOPED_TRACE(primary);
     MBO_ASSERT_OK_AND_ASSIGN(const Command command, Parse({".", std::string(primary), "echo", "{}", ";"}));
-    EXPECT_THAT(TakesTerminal(command.expression.get()), true) << primary;
+    EXPECT_THAT(TakesTerminal(command), IsTrue()) << primary;
   }
 }
 
 TEST_F(TakesTerminalTest, AnOrdinaryExpressionDoesNot) {
   MBO_ASSERT_OK_AND_ASSIGN(const Command command, Parse({".", "-type", "f", "-o", "-name", "*.cc"}));
-  EXPECT_THAT(TakesTerminal(command.expression.get()), false);
-  EXPECT_THAT(TakesTerminal(nullptr), false);  // no expression at all
+  EXPECT_THAT(TakesTerminal(command), IsFalse());
+  EXPECT_THAT(TakesTerminal(Command{}), IsFalse());
 }
 
 TEST_F(TakesTerminalTest, ItFindsThePrimaryAnywhereInTheTree) {
   // The walk has to reach both operands and through a negation, or a nested -ok would slip past.
   MBO_ASSERT_OK_AND_ASSIGN(const Command command, Parse({".", "!", "-name", "x", "-o", "-ok", "rm", "{}", ";"}));
-  EXPECT_THAT(TakesTerminal(command.expression.get()), true);
+  EXPECT_THAT(TakesTerminal(command), IsTrue());
 }
 
 }  // namespace
