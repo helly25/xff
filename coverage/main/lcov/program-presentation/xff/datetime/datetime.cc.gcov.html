@@ -41,12 +41,12 @@
             <td></td>
             <td class="headerItem">Lines:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
-            <td class="headerCovTableEntry">141</td>
-            <td class="headerCovTableEntry">141</td>
+            <td class="headerCovTableEntry">139</td>
+            <td class="headerCovTableEntry">139</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-24 17:58:05</td>
+            <td class="headerValue">2026-08-24 19:08:46</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -59,8 +59,8 @@
             <td></td>
             <td class="headerItem">Branches:</td>
             <td class="headerCovTableEntryHi">95.1&nbsp;%</td>
-            <td class="headerCovTableEntry">162</td>
-            <td class="headerCovTableEntry">154</td>
+            <td class="headerCovTableEntry">164</td>
+            <td class="headerCovTableEntry">156</td>
           </tr>
                   <tr><td><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -238,164 +238,162 @@
 <span id="L150"><span class="lineNum">     150</span>                 :<span class="tlaGNC">           4 :   return absl::FromCivil(absl::ToCivilDay(time, tz), tz);  // midnight of time's civil day in tz</span></span>
 <span id="L151"><span class="lineNum">     151</span>                 :             : }</span>
 <span id="L152"><span class="lineNum">     152</span>                 :             : </span>
-<span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">          21 : bool ParseTimeZone(std::string_view spec, absl::TimeZone* out) {</span></span>
+<span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">          21 : std::optional&lt;absl::TimeZone&gt; ParseTimeZone(std::string_view spec) {</span></span>
 <span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">          21 :   const std::string lowered = absl::AsciiStrToLower(spec);</span></span>
 <span id="L155"><span class="lineNum">     155</span>   [<span class="tlaGBC" title="branch 0 was taken 20 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 19 times"> + </span> :<span class="tlaGNC">          21 :   if (lowered.empty() || lowered == &quot;local&quot;) {</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 2 times"> + </span><span class="tlaGBC" title="branch 5 was taken 19 times"> + </span>]
-<span id="L156"><span class="lineNum">     156</span>                 :<span class="tlaGNC">           2 :     *out = absl::LocalTimeZone();</span></span>
-<span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">           2 :     return true;</span></span>
-<span id="L158"><span class="lineNum">     158</span>                 :             :   }</span>
-<span id="L159"><span class="lineNum">     159</span>   [<span class="tlaGBC" title="branch 0 was taken 14 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span><span class="tlaGBC" title="branch 2 was taken 14 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">          19 :   if (lowered == &quot;utc&quot; || lowered == &quot;z&quot; || lowered == &quot;zulu&quot;) {</span></span>
+<span id="L156"><span class="lineNum">     156</span>                 :<span class="tlaGNC">           2 :     return absl::LocalTimeZone();</span></span>
+<span id="L157"><span class="lineNum">     157</span>                 :             :   }</span>
+<span id="L158"><span class="lineNum">     158</span>   [<span class="tlaGBC" title="branch 0 was taken 14 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span><span class="tlaGBC" title="branch 2 was taken 14 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">          19 :   if (lowered == &quot;utc&quot; || lowered == &quot;z&quot; || lowered == &quot;zulu&quot;) {</span></span>
 <span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 1 time"> + </span><span class="tlaGBC" title="branch 5 was taken 13 times"> + </span><span class="tlaGBC" title="branch 6 was taken 6 times"> + </span><span class="tlaGBC" title="branch 7 was taken 13 times"> + </span>]
-<span id="L160"><span class="lineNum">     160</span>                 :<span class="tlaGNC">           6 :     *out = absl::UTCTimeZone();</span></span>
-<span id="L161"><span class="lineNum">     161</span>                 :<span class="tlaGNC">           6 :     return true;</span></span>
-<span id="L162"><span class="lineNum">     162</span>                 :             :   }</span>
-<span id="L163"><span class="lineNum">     163</span>                 :             :   // Fixed UTC offset: +HH, +HH:MM, or +HHMM (and the '-' forms). absl::LoadTimeZone</span>
-<span id="L164"><span class="lineNum">     164</span>                 :             :   // cannot parse these, so build an absl::FixedTimeZone from the parsed offset.</span>
-<span id="L165"><span class="lineNum">     165</span>   [<span class="tlaGBC" title="branch 0 was taken 13 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 4 times"> + </span><span class="tlaGBC" title="branch 3 was taken 9 times"> + </span> :<span class="tlaGNC">          13 :   if (spec.size() &gt;= 2 &amp;&amp; (spec.front() == '+' || spec.front() == '-')) {</span></span>
+<span id="L159"><span class="lineNum">     159</span>                 :<span class="tlaGNC">           6 :     return absl::UTCTimeZone();</span></span>
+<span id="L160"><span class="lineNum">     160</span>                 :             :   }</span>
+<span id="L161"><span class="lineNum">     161</span>                 :             :   // Fixed UTC offset: +HH, +HH:MM, or +HHMM (and the '-' forms). absl::LoadTimeZone</span>
+<span id="L162"><span class="lineNum">     162</span>                 :             :   // cannot parse these, so build an absl::FixedTimeZone from the parsed offset.</span>
+<span id="L163"><span class="lineNum">     163</span>   [<span class="tlaGBC" title="branch 0 was taken 13 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 4 times"> + </span><span class="tlaGBC" title="branch 3 was taken 9 times"> + </span> :<span class="tlaGNC">          13 :   if (spec.size() &gt;= 2 &amp;&amp; (spec.front() == '+' || spec.front() == '-')) {</span></span>
 <span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 1 time"> + </span><span class="tlaGBC" title="branch 5 was taken 3 times"> + </span><span class="tlaGBC" title="branch 6 was taken 10 times"> + </span><span class="tlaGBC" title="branch 7 was taken 3 times"> + </span>]
-<span id="L166"><span class="lineNum">     166</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">          10 :     const int sign = spec.front() == '-' ? -1 : 1;</span></span>
-<span id="L167"><span class="lineNum">     167</span>                 :<span class="tlaGNC">          10 :     const std::string_view rest = spec.substr(1);</span></span>
-<span id="L168"><span class="lineNum">     168</span>                 :<span class="tlaGNC">          10 :     std::string_view hh = rest;</span></span>
-<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">          10 :     std::string_view mm = &quot;0&quot;;</span></span>
-<span id="L170"><span class="lineNum">     170</span>         [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">          10 :     if (const auto colon = rest.find(':'); colon != std::string_view::npos) {</span></span>
-<span id="L171"><span class="lineNum">     171</span>                 :<span class="tlaGNC">           7 :       hh = rest.substr(0, colon);</span></span>
-<span id="L172"><span class="lineNum">     172</span>                 :<span class="tlaGNC">           7 :       mm = rest.substr(colon + 1);</span></span>
-<span id="L173"><span class="lineNum">     173</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           3 :     } else if (rest.size() == 4) {  // compact HHMM</span></span>
-<span id="L174"><span class="lineNum">     174</span>                 :<span class="tlaGNC">           1 :       hh = rest.substr(0, 2);</span></span>
-<span id="L175"><span class="lineNum">     175</span>                 :<span class="tlaGNC">           1 :       mm = rest.substr(2);</span></span>
-<span id="L176"><span class="lineNum">     176</span>                 :             :     }</span>
-<span id="L177"><span class="lineNum">     177</span>                 :<span class="tlaGNC">          10 :     int hours = 0;</span></span>
-<span id="L178"><span class="lineNum">     178</span>                 :<span class="tlaGNC">          10 :     int minutes = 0;</span></span>
-<span id="L179"><span class="lineNum">     179</span>   [<span class="tlaGBC" title="branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 8 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">          19 :     if (absl::SimpleAtoi(hh, &amp;hours) &amp;&amp; absl::SimpleAtoi(mm, &amp;minutes) &amp;&amp; hours &gt;= 0 &amp;&amp; hours &lt;= 23 &amp;&amp; minutes &gt;= 0</span></span>
+<span id="L164"><span class="lineNum">     164</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">          10 :     const int sign = spec.front() == '-' ? -1 : 1;</span></span>
+<span id="L165"><span class="lineNum">     165</span>                 :<span class="tlaGNC">          10 :     const std::string_view rest = spec.substr(1);</span></span>
+<span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaGNC">          10 :     std::string_view hh = rest;</span></span>
+<span id="L167"><span class="lineNum">     167</span>                 :<span class="tlaGNC">          10 :     std::string_view mm = &quot;0&quot;;</span></span>
+<span id="L168"><span class="lineNum">     168</span>         [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">          10 :     if (const auto colon = rest.find(':'); colon != std::string_view::npos) {</span></span>
+<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">           7 :       hh = rest.substr(0, colon);</span></span>
+<span id="L170"><span class="lineNum">     170</span>                 :<span class="tlaGNC">           7 :       mm = rest.substr(colon + 1);</span></span>
+<span id="L171"><span class="lineNum">     171</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           3 :     } else if (rest.size() == 4) {  // compact HHMM</span></span>
+<span id="L172"><span class="lineNum">     172</span>                 :<span class="tlaGNC">           1 :       hh = rest.substr(0, 2);</span></span>
+<span id="L173"><span class="lineNum">     173</span>                 :<span class="tlaGNC">           1 :       mm = rest.substr(2);</span></span>
+<span id="L174"><span class="lineNum">     174</span>                 :             :     }</span>
+<span id="L175"><span class="lineNum">     175</span>                 :<span class="tlaGNC">          10 :     int hours = 0;</span></span>
+<span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaGNC">          10 :     int minutes = 0;</span></span>
+<span id="L177"><span class="lineNum">     177</span>   [<span class="tlaGBC" title="branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 8 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">          19 :     if (absl::SimpleAtoi(hh, &amp;hours) &amp;&amp; absl::SimpleAtoi(mm, &amp;minutes) &amp;&amp; hours &gt;= 0 &amp;&amp; hours &lt;= 23 &amp;&amp; minutes &gt;= 0</span></span>
 <span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 7 times"> + </span><span class="tlaGBC" title="branch 5 was taken 1 time"> + </span><span class="tlaGBC" title="branch 6 was taken 7 times"> + </span><span class="tlaUNC" title="branch 7 was not taken"> - </span>]
-<span id="L180"><span class="lineNum">     180</span>   [<span class="tlaGBC" title="branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 6 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">          19 :         &amp;&amp; minutes &lt;= 59) {</span></span>
+<span id="L178"><span class="lineNum">     178</span>   [<span class="tlaGBC" title="branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 6 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">          19 :         &amp;&amp; minutes &lt;= 59) {</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 6 times"> + </span><span class="tlaGBC" title="branch 5 was taken 4 times"> + </span>]
-<span id="L181"><span class="lineNum">     181</span>                 :<span class="tlaGNC">           6 :       *out = absl::FixedTimeZone(sign * ((hours * 3'600) + (minutes * 60)));</span></span>
-<span id="L182"><span class="lineNum">     182</span>                 :<span class="tlaGNC">           6 :       return true;</span></span>
-<span id="L183"><span class="lineNum">     183</span>                 :             :     }</span>
-<span id="L184"><span class="lineNum">     184</span>                 :<span class="tlaGNC">           4 :     return false;  // malformed offset</span></span>
-<span id="L185"><span class="lineNum">     185</span>                 :             :   }</span>
-<span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">           6 :   return absl::LoadTimeZone(std::string(spec), out);  // IANA name (case-sensitive); false when unknown</span></span>
-<span id="L187"><span class="lineNum">     187</span>                 :<span class="tlaGNC">          21 : }</span></span>
-<span id="L188"><span class="lineNum">     188</span>                 :             : </span>
-<span id="L189"><span class="lineNum">     189</span>                 :             : // Preset time formats; any other spec is used verbatim as an absl::FormatTime</span>
-<span id="L190"><span class="lineNum">     190</span>                 :             : // pattern. Keyed alphabetically (constexpr dispatch, like the engine's tables).</span>
-<span id="L191"><span class="lineNum">     191</span>                 :             : // Only genuinely-conformant forms carry a standard's name; &quot;space&quot; is the readable</span>
-<span id="L192"><span class="lineNum">     192</span>                 :             : // default and claims none. epoch/zulu/zulu-dense are handled in FormatTime (they</span>
-<span id="L193"><span class="lineNum">     193</span>                 :             : // are numeric or force UTC), so they are not table entries.</span>
-<span id="L194"><span class="lineNum">     194</span>                 :             : constexpr std::string_view kIso8601 = &quot;%Y-%m-%dT%H:%M:%S%z&quot;;  // ISO-8601 extended, shared by &quot;iso&quot;/&quot;iso8601&quot;</span>
-<span id="L195"><span class="lineNum">     195</span>                 :             : constexpr std::string_view kSpace = &quot;%Y-%m-%d %H:%M:%S %z&quot;;   // readable default, shared by &quot;space&quot;/&quot;human&quot;</span>
-<span id="L196"><span class="lineNum">     196</span>                 :             : </span>
-<span id="L197"><span class="lineNum">     197</span>                 :             : constexpr auto kNamedFormats = mbo::container::MakeLimitedMap(</span>
-<span id="L198"><span class="lineNum">     198</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;asctime&quot;, &quot;%a %b %e %H:%M:%S %Y&quot;},   // asctime(3); find default %t</span>
-<span id="L199"><span class="lineNum">     199</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;human&quot;, kSpace},                     // alias of space</span>
-<span id="L200"><span class="lineNum">     200</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;iso&quot;, kIso8601},                     // shorthand for iso8601</span>
-<span id="L201"><span class="lineNum">     201</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;iso8601&quot;, kIso8601},                 // ISO-8601 extended (T)</span>
-<span id="L202"><span class="lineNum">     202</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;iso8601-basic&quot;, &quot;%Y%m%dT%H%M%S%z&quot;},  // ISO-8601 basic (compact)</span>
-<span id="L203"><span class="lineNum">     203</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;iso8601-full&quot;, &quot;%Y-%m-%dT%H:%M:%E9S%z&quot;},  // ISO-8601 + sub-second</span>
-<span id="L204"><span class="lineNum">     204</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;rfc3339&quot;, &quot;%Y-%m-%dT%H:%M:%S%Ez&quot;},        // RFC 3339 (colon offset)</span>
-<span id="L205"><span class="lineNum">     205</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;space&quot;, kSpace});  // readable default (primary)</span>
+<span id="L179"><span class="lineNum">     179</span>                 :<span class="tlaGNC">           6 :       return absl::FixedTimeZone(sign * ((hours * 3'600) + (minutes * 60)));</span></span>
+<span id="L180"><span class="lineNum">     180</span>                 :             :     }</span>
+<span id="L181"><span class="lineNum">     181</span>                 :<span class="tlaGNC">           4 :     return std::nullopt;  // malformed offset</span></span>
+<span id="L182"><span class="lineNum">     182</span>                 :             :   }</span>
+<span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaGNC">           3 :   absl::TimeZone zone;</span></span>
+<span id="L184"><span class="lineNum">     184</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           6 :   return absl::LoadTimeZone(std::string(spec), &amp;zone) ? std::optional(zone) : std::nullopt;</span></span>
+<span id="L185"><span class="lineNum">     185</span>                 :<span class="tlaGNC">          21 : }</span></span>
+<span id="L186"><span class="lineNum">     186</span>                 :             : </span>
+<span id="L187"><span class="lineNum">     187</span>                 :             : // Preset time formats; any other spec is used verbatim as an absl::FormatTime</span>
+<span id="L188"><span class="lineNum">     188</span>                 :             : // pattern. Keyed alphabetically (constexpr dispatch, like the engine's tables).</span>
+<span id="L189"><span class="lineNum">     189</span>                 :             : // Only genuinely-conformant forms carry a standard's name; &quot;space&quot; is the readable</span>
+<span id="L190"><span class="lineNum">     190</span>                 :             : // default and claims none. epoch/zulu/zulu-dense are handled in FormatTime (they</span>
+<span id="L191"><span class="lineNum">     191</span>                 :             : // are numeric or force UTC), so they are not table entries.</span>
+<span id="L192"><span class="lineNum">     192</span>                 :             : constexpr std::string_view kIso8601 = &quot;%Y-%m-%dT%H:%M:%S%z&quot;;  // ISO-8601 extended, shared by &quot;iso&quot;/&quot;iso8601&quot;</span>
+<span id="L193"><span class="lineNum">     193</span>                 :             : constexpr std::string_view kSpace = &quot;%Y-%m-%d %H:%M:%S %z&quot;;   // readable default, shared by &quot;space&quot;/&quot;human&quot;</span>
+<span id="L194"><span class="lineNum">     194</span>                 :             : </span>
+<span id="L195"><span class="lineNum">     195</span>                 :             : constexpr auto kNamedFormats = mbo::container::MakeLimitedMap(</span>
+<span id="L196"><span class="lineNum">     196</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;asctime&quot;, &quot;%a %b %e %H:%M:%S %Y&quot;},   // asctime(3); find default %t</span>
+<span id="L197"><span class="lineNum">     197</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;human&quot;, kSpace},                     // alias of space</span>
+<span id="L198"><span class="lineNum">     198</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;iso&quot;, kIso8601},                     // shorthand for iso8601</span>
+<span id="L199"><span class="lineNum">     199</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;iso8601&quot;, kIso8601},                 // ISO-8601 extended (T)</span>
+<span id="L200"><span class="lineNum">     200</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;iso8601-basic&quot;, &quot;%Y%m%dT%H%M%S%z&quot;},  // ISO-8601 basic (compact)</span>
+<span id="L201"><span class="lineNum">     201</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;iso8601-full&quot;, &quot;%Y-%m-%dT%H:%M:%E9S%z&quot;},  // ISO-8601 + sub-second</span>
+<span id="L202"><span class="lineNum">     202</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;rfc3339&quot;, &quot;%Y-%m-%dT%H:%M:%S%Ez&quot;},        // RFC 3339 (colon offset)</span>
+<span id="L203"><span class="lineNum">     203</span>                 :             :     std::pair&lt;std::string_view, std::string_view&gt;{&quot;space&quot;, kSpace});  // readable default (primary)</span>
+<span id="L204"><span class="lineNum">     204</span>                 :             : </span>
+<span id="L205"><span class="lineNum">     205</span>                 :             : namespace {</span>
 <span id="L206"><span class="lineNum">     206</span>                 :             : </span>
-<span id="L207"><span class="lineNum">     207</span>                 :             : namespace {</span>
-<span id="L208"><span class="lineNum">     208</span>                 :             : </span>
-<span id="L209"><span class="lineNum">     209</span>                 :             : // True if `pattern` already carries a zone token (`%z`, `%Ez`, or `%Z`). Note `%Ez` does</span>
-<span id="L210"><span class="lineNum">     210</span>                 :             : // not contain `%z` as a substring (the 'E' is between), so both are checked.</span>
-<span id="L211"><span class="lineNum">     211</span>                 :<span class="tlaGNC">           5 : bool HasZoneToken(std::string_view pattern) {</span></span>
-<span id="L212"><span class="lineNum">     212</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">           5 :   return absl::StrContains(pattern, &quot;%z&quot;) || absl::StrContains(pattern, &quot;%Ez&quot;) || absl::StrContains(pattern, &quot;%Z&quot;);</span></span>
+<span id="L207"><span class="lineNum">     207</span>                 :             : // True if `pattern` already carries a zone token (`%z`, `%Ez`, or `%Z`). Note `%Ez` does</span>
+<span id="L208"><span class="lineNum">     208</span>                 :             : // not contain `%z` as a substring (the 'E' is between), so both are checked.</span>
+<span id="L209"><span class="lineNum">     209</span>                 :<span class="tlaGNC">           5 : bool HasZoneToken(std::string_view pattern) {</span></span>
+<span id="L210"><span class="lineNum">     210</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">           5 :   return absl::StrContains(pattern, &quot;%z&quot;) || absl::StrContains(pattern, &quot;%Ez&quot;) || absl::StrContains(pattern, &quot;%Z&quot;);</span></span>
 <span class="lineNum">        </span>          <span class="tlaUNC" title="branch 4 was not taken"> - </span><span class="tlaGBC" title="branch 5 was taken 1 time"> + </span>]
-<span id="L213"><span class="lineNum">     213</span>                 :             : }</span>
-<span id="L214"><span class="lineNum">     214</span>                 :             : </span>
-<span id="L215"><span class="lineNum">     215</span>                 :             : // Drops a trailing zone token (`%Ez` for rfc3339, else `%z`) and the separator space that</span>
-<span id="L216"><span class="lineNum">     216</span>                 :             : // precedes it in the readable &quot;space&quot; preset, so the preset renders with no zone suffix.</span>
-<span id="L217"><span class="lineNum">     217</span>                 :<span class="tlaGNC">           7 : std::string WithoutZoneSuffix(std::string_view pattern) {</span></span>
-<span id="L218"><span class="lineNum">     218</span>                 :<span class="tlaGNC">           7 :   std::string out(pattern);</span></span>
-<span id="L219"><span class="lineNum">     219</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">           7 :   if (absl::EndsWith(out, &quot;%Ez&quot;)) {</span></span>
-<span id="L220"><span class="lineNum">     220</span>                 :<span class="tlaGNC">           1 :     out.resize(out.size() - 3);</span></span>
-<span id="L221"><span class="lineNum">     221</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           6 :   } else if (absl::EndsWith(out, &quot;%z&quot;)) {</span></span>
-<span id="L222"><span class="lineNum">     222</span>                 :<span class="tlaGNC">           5 :     out.resize(out.size() - 2);</span></span>
-<span id="L223"><span class="lineNum">     223</span>                 :             :   } else {</span>
-<span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaGNC">           1 :     return out;  // no trailing zone token (e.g. asctime)</span></span>
-<span id="L225"><span class="lineNum">     225</span>                 :             :   }</span>
-<span id="L226"><span class="lineNum">     226</span>         [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           6 :   if (absl::EndsWith(out, &quot; &quot;)) {</span></span>
-<span id="L227"><span class="lineNum">     227</span>                 :<span class="tlaGNC">           4 :     out.pop_back();</span></span>
-<span id="L228"><span class="lineNum">     228</span>                 :             :   }</span>
-<span id="L229"><span class="lineNum">     229</span>                 :<span class="tlaGNC">           6 :   return out;</span></span>
-<span id="L230"><span class="lineNum">     230</span>                 :             : }</span>
+<span id="L211"><span class="lineNum">     211</span>                 :             : }</span>
+<span id="L212"><span class="lineNum">     212</span>                 :             : </span>
+<span id="L213"><span class="lineNum">     213</span>                 :             : // Drops a trailing zone token (`%Ez` for rfc3339, else `%z`) and the separator space that</span>
+<span id="L214"><span class="lineNum">     214</span>                 :             : // precedes it in the readable &quot;space&quot; preset, so the preset renders with no zone suffix.</span>
+<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">           7 : std::string WithoutZoneSuffix(std::string_view pattern) {</span></span>
+<span id="L216"><span class="lineNum">     216</span>                 :<span class="tlaGNC">           7 :   std::string out(pattern);</span></span>
+<span id="L217"><span class="lineNum">     217</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">           7 :   if (absl::EndsWith(out, &quot;%Ez&quot;)) {</span></span>
+<span id="L218"><span class="lineNum">     218</span>                 :<span class="tlaGNC">           1 :     out.resize(out.size() - 3);</span></span>
+<span id="L219"><span class="lineNum">     219</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           6 :   } else if (absl::EndsWith(out, &quot;%z&quot;)) {</span></span>
+<span id="L220"><span class="lineNum">     220</span>                 :<span class="tlaGNC">           5 :     out.resize(out.size() - 2);</span></span>
+<span id="L221"><span class="lineNum">     221</span>                 :             :   } else {</span>
+<span id="L222"><span class="lineNum">     222</span>                 :<span class="tlaGNC">           1 :     return out;  // no trailing zone token (e.g. asctime)</span></span>
+<span id="L223"><span class="lineNum">     223</span>                 :             :   }</span>
+<span id="L224"><span class="lineNum">     224</span>         [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           6 :   if (absl::EndsWith(out, &quot; &quot;)) {</span></span>
+<span id="L225"><span class="lineNum">     225</span>                 :<span class="tlaGNC">           4 :     out.pop_back();</span></span>
+<span id="L226"><span class="lineNum">     226</span>                 :             :   }</span>
+<span id="L227"><span class="lineNum">     227</span>                 :<span class="tlaGNC">           6 :   return out;</span></span>
+<span id="L228"><span class="lineNum">     228</span>                 :             : }</span>
+<span id="L229"><span class="lineNum">     229</span>                 :             : </span>
+<span id="L230"><span class="lineNum">     230</span>                 :             : }  // namespace</span>
 <span id="L231"><span class="lineNum">     231</span>                 :             : </span>
-<span id="L232"><span class="lineNum">     232</span>                 :             : }  // namespace</span>
-<span id="L233"><span class="lineNum">     233</span>                 :             : </span>
-<span id="L234"><span class="lineNum">     234</span>                 :<span class="tlaGNC">          70 : std::string FormatTime(absl::Time time, std::string_view spec, absl::TimeZone tz, ZoneSuffix suffix) {</span></span>
-<span id="L235"><span class="lineNum">     235</span>         [<span class="tlaGBC" title="branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="branch 1 was taken 61 times"> + </span>]:<span class="tlaGNC">          70 :   if (spec == &quot;epoch&quot;) {</span></span>
-<span id="L236"><span class="lineNum">     236</span>                 :<span class="tlaGNC">           9 :     return std::to_string(absl::ToUnixSeconds(time));  // seconds; no zone to add or drop</span></span>
-<span id="L237"><span class="lineNum">     237</span>                 :             :   }</span>
-<span id="L238"><span class="lineNum">     238</span>                 :             :   // zulu / zulu-dense are UTC-by-definition: the 'Z' is the format's identity, so the</span>
-<span id="L239"><span class="lineNum">     239</span>                 :             :   // suffix control never removes it (--time-zone-suffix=never leaves them as-is).</span>
-<span id="L240"><span class="lineNum">     240</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 58 times"> + </span>]:<span class="tlaGNC">          61 :   if (spec == &quot;zulu&quot;) {  // UTC with a 'Z' designator (extended), regardless of `tz`</span></span>
-<span id="L241"><span class="lineNum">     241</span>                 :<span class="tlaGNC">           3 :     return absl::FormatTime(&quot;%Y-%m-%dT%H:%M:%SZ&quot;, time, absl::UTCTimeZone());</span></span>
-<span id="L242"><span class="lineNum">     242</span>                 :             :   }</span>
-<span id="L243"><span class="lineNum">     243</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 57 times"> + </span>]:<span class="tlaGNC">          58 :   if (spec == &quot;zulu-dense&quot;) {  // UTC 'Z', no separators (compact)</span></span>
-<span id="L244"><span class="lineNum">     244</span>                 :<span class="tlaGNC">           1 :     return absl::FormatTime(&quot;%Y%m%dT%H%M%SZ&quot;, time, absl::UTCTimeZone());</span></span>
-<span id="L245"><span class="lineNum">     245</span>                 :             :   }</span>
-<span id="L246"><span class="lineNum">     246</span>                 :             :   // ASN.1 GeneralizedTime (X.680) YYYYMMDDHHMMSS in local time, no separators. Its zone is</span>
-<span id="L247"><span class="lineNum">     247</span>                 :             :   // OPTIONAL: --time-zone-suffix=always appends the numeric offset ASN.1-style (no separator,</span>
-<span id="L248"><span class="lineNum">     248</span>                 :             :   // `+0100`), never/auto leave it bare. The UTC 'Z' form is the separate &quot;asn1z&quot; preset.</span>
-<span id="L249"><span class="lineNum">     249</span>   [<span class="tlaGBC" title="branch 0 was taken 53 times"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 52 times"> + </span> :<span class="tlaGNC">          57 :   if (spec == &quot;asn1&quot; || spec == &quot;generalizedtime&quot;) {</span></span>
+<span id="L232"><span class="lineNum">     232</span>                 :<span class="tlaGNC">          70 : std::string FormatTime(absl::Time time, std::string_view spec, absl::TimeZone tz, ZoneSuffix suffix) {</span></span>
+<span id="L233"><span class="lineNum">     233</span>         [<span class="tlaGBC" title="branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="branch 1 was taken 61 times"> + </span>]:<span class="tlaGNC">          70 :   if (spec == &quot;epoch&quot;) {</span></span>
+<span id="L234"><span class="lineNum">     234</span>                 :<span class="tlaGNC">           9 :     return std::to_string(absl::ToUnixSeconds(time));  // seconds; no zone to add or drop</span></span>
+<span id="L235"><span class="lineNum">     235</span>                 :             :   }</span>
+<span id="L236"><span class="lineNum">     236</span>                 :             :   // zulu / zulu-dense are UTC-by-definition: the 'Z' is the format's identity, so the</span>
+<span id="L237"><span class="lineNum">     237</span>                 :             :   // suffix control never removes it (--time-zone-suffix=never leaves them as-is).</span>
+<span id="L238"><span class="lineNum">     238</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 58 times"> + </span>]:<span class="tlaGNC">          61 :   if (spec == &quot;zulu&quot;) {  // UTC with a 'Z' designator (extended), regardless of `tz`</span></span>
+<span id="L239"><span class="lineNum">     239</span>                 :<span class="tlaGNC">           3 :     return absl::FormatTime(&quot;%Y-%m-%dT%H:%M:%SZ&quot;, time, absl::UTCTimeZone());</span></span>
+<span id="L240"><span class="lineNum">     240</span>                 :             :   }</span>
+<span id="L241"><span class="lineNum">     241</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 57 times"> + </span>]:<span class="tlaGNC">          58 :   if (spec == &quot;zulu-dense&quot;) {  // UTC 'Z', no separators (compact)</span></span>
+<span id="L242"><span class="lineNum">     242</span>                 :<span class="tlaGNC">           1 :     return absl::FormatTime(&quot;%Y%m%dT%H%M%SZ&quot;, time, absl::UTCTimeZone());</span></span>
+<span id="L243"><span class="lineNum">     243</span>                 :             :   }</span>
+<span id="L244"><span class="lineNum">     244</span>                 :             :   // ASN.1 GeneralizedTime (X.680) YYYYMMDDHHMMSS in local time, no separators. Its zone is</span>
+<span id="L245"><span class="lineNum">     245</span>                 :             :   // OPTIONAL: --time-zone-suffix=always appends the numeric offset ASN.1-style (no separator,</span>
+<span id="L246"><span class="lineNum">     246</span>                 :             :   // `+0100`), never/auto leave it bare. The UTC 'Z' form is the separate &quot;asn1z&quot; preset.</span>
+<span id="L247"><span class="lineNum">     247</span>   [<span class="tlaGBC" title="branch 0 was taken 53 times"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 52 times"> + </span> :<span class="tlaGNC">          57 :   if (spec == &quot;asn1&quot; || spec == &quot;generalizedtime&quot;) {</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 5 times"> + </span><span class="tlaGBC" title="branch 5 was taken 52 times"> + </span>]
-<span id="L250"><span class="lineNum">     250</span>                 :<span class="tlaGNC">           5 :     std::string pattern = &quot;%Y%m%d%H%M%S&quot;;</span></span>
-<span id="L251"><span class="lineNum">     251</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           5 :     if (suffix == ZoneSuffix::kAlways) {</span></span>
-<span id="L252"><span class="lineNum">     252</span>                 :<span class="tlaGNC">           1 :       absl::StrAppend(&amp;pattern, &quot;%z&quot;);</span></span>
-<span id="L253"><span class="lineNum">     253</span>                 :             :     }</span>
-<span id="L254"><span class="lineNum">     254</span>                 :<span class="tlaGNC">           5 :     return absl::FormatTime(pattern, time, tz);</span></span>
-<span id="L255"><span class="lineNum">     255</span>                 :<span class="tlaGNC">           5 :   }</span></span>
-<span id="L256"><span class="lineNum">     256</span>                 :             :   // ASN.1 GeneralizedTime, UTC with a mandatory 'Z' - inherently zoned, so `suffix` is ignored</span>
-<span id="L257"><span class="lineNum">     257</span>                 :             :   // (like zulu): the 'Z' is the format's identity and is never dropped or offset.</span>
-<span id="L258"><span class="lineNum">     258</span>         [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 48 times"> + </span>]:<span class="tlaGNC">          52 :   if (spec == &quot;asn1z&quot;) {</span></span>
-<span id="L259"><span class="lineNum">     259</span>                 :<span class="tlaGNC">           4 :     return absl::FormatTime(&quot;%Y%m%d%H%M%SZ&quot;, time, absl::UTCTimeZone());</span></span>
-<span id="L260"><span class="lineNum">     260</span>                 :             :   }</span>
-<span id="L261"><span class="lineNum">     261</span>         [<span class="tlaGBC" title="branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="branch 1 was taken 39 times"> + </span>]:<span class="tlaGNC">          48 :   const std::string_view name = spec.empty() ? std::string_view(&quot;space&quot;) : spec;</span></span>
-<span id="L262"><span class="lineNum">     262</span>                 :<span class="tlaGNC">          48 :   const auto it = kNamedFormats.find(name);</span></span>
-<span id="L263"><span class="lineNum">     263</span>         [<span class="tlaGBC" title="branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="branch 1 was taken 26 times"> + </span>]:<span class="tlaGNC">          96 :   if (it == kNamedFormats.end()) {</span></span>
-<span id="L264"><span class="lineNum">     264</span>                 :<span class="tlaGNC">          22 :     return absl::FormatTime(name, time, tz);  // a custom pattern is verbatim; `suffix` never touches it</span></span>
-<span id="L265"><span class="lineNum">     265</span>                 :             :   }</span>
-<span id="L266"><span class="lineNum">     266</span>                 :<span class="tlaGNC">          26 :   std::string pattern(it-&gt;second);  // a preset name resolves to its pattern</span></span>
-<span id="L267"><span class="lineNum">     267</span>         [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          26 :   if (suffix == ZoneSuffix::kNever) {</span></span>
-<span id="L268"><span class="lineNum">     268</span>                 :<span class="tlaGNC">           7 :     pattern = WithoutZoneSuffix(pattern);</span></span>
-<span id="L269"><span class="lineNum">     269</span>   [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 4 times"> + </span> :<span class="tlaGNC">          19 :   } else if (suffix == ZoneSuffix::kAlways &amp;&amp; !HasZoneToken(pattern)) {</span></span>
+<span id="L248"><span class="lineNum">     248</span>                 :<span class="tlaGNC">           5 :     std::string pattern = &quot;%Y%m%d%H%M%S&quot;;</span></span>
+<span id="L249"><span class="lineNum">     249</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           5 :     if (suffix == ZoneSuffix::kAlways) {</span></span>
+<span id="L250"><span class="lineNum">     250</span>                 :<span class="tlaGNC">           1 :       absl::StrAppend(&amp;pattern, &quot;%z&quot;);</span></span>
+<span id="L251"><span class="lineNum">     251</span>                 :             :     }</span>
+<span id="L252"><span class="lineNum">     252</span>                 :<span class="tlaGNC">           5 :     return absl::FormatTime(pattern, time, tz);</span></span>
+<span id="L253"><span class="lineNum">     253</span>                 :<span class="tlaGNC">           5 :   }</span></span>
+<span id="L254"><span class="lineNum">     254</span>                 :             :   // ASN.1 GeneralizedTime, UTC with a mandatory 'Z' - inherently zoned, so `suffix` is ignored</span>
+<span id="L255"><span class="lineNum">     255</span>                 :             :   // (like zulu): the 'Z' is the format's identity and is never dropped or offset.</span>
+<span id="L256"><span class="lineNum">     256</span>         [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 48 times"> + </span>]:<span class="tlaGNC">          52 :   if (spec == &quot;asn1z&quot;) {</span></span>
+<span id="L257"><span class="lineNum">     257</span>                 :<span class="tlaGNC">           4 :     return absl::FormatTime(&quot;%Y%m%d%H%M%SZ&quot;, time, absl::UTCTimeZone());</span></span>
+<span id="L258"><span class="lineNum">     258</span>                 :             :   }</span>
+<span id="L259"><span class="lineNum">     259</span>         [<span class="tlaGBC" title="branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="branch 1 was taken 39 times"> + </span>]:<span class="tlaGNC">          48 :   const std::string_view name = spec.empty() ? std::string_view(&quot;space&quot;) : spec;</span></span>
+<span id="L260"><span class="lineNum">     260</span>                 :<span class="tlaGNC">          48 :   const auto it = kNamedFormats.find(name);</span></span>
+<span id="L261"><span class="lineNum">     261</span>         [<span class="tlaGBC" title="branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="branch 1 was taken 26 times"> + </span>]:<span class="tlaGNC">          96 :   if (it == kNamedFormats.end()) {</span></span>
+<span id="L262"><span class="lineNum">     262</span>                 :<span class="tlaGNC">          22 :     return absl::FormatTime(name, time, tz);  // a custom pattern is verbatim; `suffix` never touches it</span></span>
+<span id="L263"><span class="lineNum">     263</span>                 :             :   }</span>
+<span id="L264"><span class="lineNum">     264</span>                 :<span class="tlaGNC">          26 :   std::string pattern(it-&gt;second);  // a preset name resolves to its pattern</span></span>
+<span id="L265"><span class="lineNum">     265</span>         [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          26 :   if (suffix == ZoneSuffix::kNever) {</span></span>
+<span id="L266"><span class="lineNum">     266</span>                 :<span class="tlaGNC">           7 :     pattern = WithoutZoneSuffix(pattern);</span></span>
+<span id="L267"><span class="lineNum">     267</span>   [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 4 times"> + </span> :<span class="tlaGNC">          19 :   } else if (suffix == ZoneSuffix::kAlways &amp;&amp; !HasZoneToken(pattern)) {</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 1 time"> + </span><span class="tlaGBC" title="branch 5 was taken 18 times"> + </span>]
-<span id="L270"><span class="lineNum">     270</span>                 :<span class="tlaGNC">           1 :     absl::StrAppend(&amp;pattern, &quot; %z&quot;);  // force an offset onto a preset that omits one (asctime)</span></span>
-<span id="L271"><span class="lineNum">     271</span>                 :             :   }</span>
-<span id="L272"><span class="lineNum">     272</span>                 :<span class="tlaGNC">          26 :   return absl::FormatTime(pattern, time, tz);</span></span>
-<span id="L273"><span class="lineNum">     273</span>                 :<span class="tlaGNC">          26 : }</span></span>
-<span id="L274"><span class="lineNum">     274</span>                 :             : </span>
-<span id="L275"><span class="lineNum">     275</span>                 :<span class="tlaGNC">           3 : absl::Span&lt;const std::string_view&gt; NamedFormatNames() {</span></span>
-<span id="L276"><span class="lineNum">     276</span>                 :             :   static constexpr auto kNames = [] {</span>
-<span id="L277"><span class="lineNum">     277</span>                 :             :     std::array&lt;std::string_view, kNamedFormats.size()&gt; names{};</span>
-<span id="L278"><span class="lineNum">     278</span>                 :             :     std::ranges::transform(kNamedFormats, names.begin(), [](const auto&amp; format) { return format.first; });</span>
-<span id="L279"><span class="lineNum">     279</span>                 :             :     return names;</span>
-<span id="L280"><span class="lineNum">     280</span>                 :             :   }();</span>
-<span id="L281"><span class="lineNum">     281</span>                 :<span class="tlaGNC">           3 :   return kNames;</span></span>
-<span id="L282"><span class="lineNum">     282</span>                 :             : }</span>
-<span id="L283"><span class="lineNum">     283</span>                 :             : </span>
-<span id="L284"><span class="lineNum">     284</span>                 :<span class="tlaGNC">          49 : absl::Span&lt;const std::pair&lt;std::string_view, std::string_view&gt;&gt; FormatDocs() {</span></span>
-<span id="L285"><span class="lineNum">     285</span>                 :             :   static constexpr auto kDocs = std::to_array&lt;std::pair&lt;std::string_view, std::string_view&gt;&gt;({</span>
-<span id="L286"><span class="lineNum">     286</span>                 :             :       {&quot;iso, iso8601&quot;, &quot;ISO-8601 extended (2020-09-13T12:26:40+0000)&quot;},</span>
-<span id="L287"><span class="lineNum">     287</span>                 :             :       {&quot;iso8601-basic&quot;, &quot;ISO-8601 basic / compact (20200913T122640+0000)&quot;},</span>
-<span id="L288"><span class="lineNum">     288</span>                 :             :       {&quot;iso8601-full&quot;, &quot;ISO-8601 with sub-second precision&quot;},</span>
-<span id="L289"><span class="lineNum">     289</span>                 :             :       {&quot;rfc3339&quot;, &quot;RFC 3339, colon offset (2020-09-13T12:26:40+00:00)&quot;},</span>
-<span id="L290"><span class="lineNum">     290</span>                 :             :       {&quot;space, human&quot;, &quot;readable default (2020-09-13 12:26:40 +0000)&quot;},</span>
-<span id="L291"><span class="lineNum">     291</span>                 :             :       {&quot;asctime&quot;, &quot;asctime(3); find's default %t (Sun Sep 13 12:26:40 2020)&quot;},</span>
-<span id="L292"><span class="lineNum">     292</span>                 :             :       {&quot;epoch&quot;, &quot;seconds since the Unix epoch&quot;},</span>
-<span id="L293"><span class="lineNum">     293</span>                 :             :       {&quot;zulu&quot;, &quot;UTC with a Z designator (2020-09-13T12:26:40Z)&quot;},</span>
-<span id="L294"><span class="lineNum">     294</span>                 :             :       {&quot;zulu-dense&quot;, &quot;UTC Z, no separators (20200913T122640Z)&quot;},</span>
-<span id="L295"><span class="lineNum">     295</span>                 :             :       {&quot;asn1, generalizedtime&quot;, &quot;ASN.1 GeneralizedTime, local (20200913122640); =always adds +0000&quot;},</span>
-<span id="L296"><span class="lineNum">     296</span>                 :             :       {&quot;asn1z&quot;, &quot;ASN.1 GeneralizedTime, UTC Z (20200913122640Z)&quot;},</span>
-<span id="L297"><span class="lineNum">     297</span>                 :             :       {&quot;&lt;strftime&gt;&quot;, &quot;any other value is used as an strftime(3) pattern, e.g. %Y-%m-%d&quot;},</span>
-<span id="L298"><span class="lineNum">     298</span>                 :             :   });</span>
-<span id="L299"><span class="lineNum">     299</span>                 :<span class="tlaGNC">          49 :   return kDocs;</span></span>
-<span id="L300"><span class="lineNum">     300</span>                 :             : }</span>
-<span id="L301"><span class="lineNum">     301</span>                 :             : </span>
-<span id="L302"><span class="lineNum">     302</span>                 :             : }  // namespace xff::datetime</span>
+<span id="L268"><span class="lineNum">     268</span>                 :<span class="tlaGNC">           1 :     absl::StrAppend(&amp;pattern, &quot; %z&quot;);  // force an offset onto a preset that omits one (asctime)</span></span>
+<span id="L269"><span class="lineNum">     269</span>                 :             :   }</span>
+<span id="L270"><span class="lineNum">     270</span>                 :<span class="tlaGNC">          26 :   return absl::FormatTime(pattern, time, tz);</span></span>
+<span id="L271"><span class="lineNum">     271</span>                 :<span class="tlaGNC">          26 : }</span></span>
+<span id="L272"><span class="lineNum">     272</span>                 :             : </span>
+<span id="L273"><span class="lineNum">     273</span>                 :<span class="tlaGNC">           3 : absl::Span&lt;const std::string_view&gt; NamedFormatNames() {</span></span>
+<span id="L274"><span class="lineNum">     274</span>                 :             :   static constexpr auto kNames = [] {</span>
+<span id="L275"><span class="lineNum">     275</span>                 :             :     std::array&lt;std::string_view, kNamedFormats.size()&gt; names{};</span>
+<span id="L276"><span class="lineNum">     276</span>                 :             :     std::ranges::transform(kNamedFormats, names.begin(), [](const auto&amp; format) { return format.first; });</span>
+<span id="L277"><span class="lineNum">     277</span>                 :             :     return names;</span>
+<span id="L278"><span class="lineNum">     278</span>                 :             :   }();</span>
+<span id="L279"><span class="lineNum">     279</span>                 :<span class="tlaGNC">           3 :   return kNames;</span></span>
+<span id="L280"><span class="lineNum">     280</span>                 :             : }</span>
+<span id="L281"><span class="lineNum">     281</span>                 :             : </span>
+<span id="L282"><span class="lineNum">     282</span>                 :<span class="tlaGNC">          49 : absl::Span&lt;const std::pair&lt;std::string_view, std::string_view&gt;&gt; FormatDocs() {</span></span>
+<span id="L283"><span class="lineNum">     283</span>                 :             :   static constexpr auto kDocs = std::to_array&lt;std::pair&lt;std::string_view, std::string_view&gt;&gt;({</span>
+<span id="L284"><span class="lineNum">     284</span>                 :             :       {&quot;iso, iso8601&quot;, &quot;ISO-8601 extended (2020-09-13T12:26:40+0000)&quot;},</span>
+<span id="L285"><span class="lineNum">     285</span>                 :             :       {&quot;iso8601-basic&quot;, &quot;ISO-8601 basic / compact (20200913T122640+0000)&quot;},</span>
+<span id="L286"><span class="lineNum">     286</span>                 :             :       {&quot;iso8601-full&quot;, &quot;ISO-8601 with sub-second precision&quot;},</span>
+<span id="L287"><span class="lineNum">     287</span>                 :             :       {&quot;rfc3339&quot;, &quot;RFC 3339, colon offset (2020-09-13T12:26:40+00:00)&quot;},</span>
+<span id="L288"><span class="lineNum">     288</span>                 :             :       {&quot;space, human&quot;, &quot;readable default (2020-09-13 12:26:40 +0000)&quot;},</span>
+<span id="L289"><span class="lineNum">     289</span>                 :             :       {&quot;asctime&quot;, &quot;asctime(3); find's default %t (Sun Sep 13 12:26:40 2020)&quot;},</span>
+<span id="L290"><span class="lineNum">     290</span>                 :             :       {&quot;epoch&quot;, &quot;seconds since the Unix epoch&quot;},</span>
+<span id="L291"><span class="lineNum">     291</span>                 :             :       {&quot;zulu&quot;, &quot;UTC with a Z designator (2020-09-13T12:26:40Z)&quot;},</span>
+<span id="L292"><span class="lineNum">     292</span>                 :             :       {&quot;zulu-dense&quot;, &quot;UTC Z, no separators (20200913T122640Z)&quot;},</span>
+<span id="L293"><span class="lineNum">     293</span>                 :             :       {&quot;asn1, generalizedtime&quot;, &quot;ASN.1 GeneralizedTime, local (20200913122640); =always adds +0000&quot;},</span>
+<span id="L294"><span class="lineNum">     294</span>                 :             :       {&quot;asn1z&quot;, &quot;ASN.1 GeneralizedTime, UTC Z (20200913122640Z)&quot;},</span>
+<span id="L295"><span class="lineNum">     295</span>                 :             :       {&quot;&lt;strftime&gt;&quot;, &quot;any other value is used as an strftime(3) pattern, e.g. %Y-%m-%d&quot;},</span>
+<span id="L296"><span class="lineNum">     296</span>                 :             :   });</span>
+<span id="L297"><span class="lineNum">     297</span>                 :<span class="tlaGNC">          49 :   return kDocs;</span></span>
+<span id="L298"><span class="lineNum">     298</span>                 :             : }</span>
+<span id="L299"><span class="lineNum">     299</span>                 :             : </span>
+<span id="L300"><span class="lineNum">     300</span>                 :             : }  // namespace xff::datetime</span>
         </pre>
               </td>
             </tr>
