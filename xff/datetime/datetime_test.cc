@@ -28,7 +28,6 @@ namespace {
 
 using ::testing::Eq;
 using ::testing::HasSubstr;
-using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Optional;
 
