@@ -470,6 +470,8 @@ TEST_F(EvaluateTest, ValidateSizeArgsRejectsBadUnits) {
     MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({".", "-size", std::string(good)}));
     EXPECT_THAT(ValidateSizeArgs(*command.expression), IsOk()) << good;
   }
+  MBO_ASSERT_OK_AND_ASSIGN(const auto blocks, parser::Parse({".", "-blocks", "8k"}));
+  EXPECT_THAT(ValidateSizeArgs(*blocks.expression), IsOk());
   MBO_ASSERT_OK_AND_ASSIGN(const auto zetta, parser::Parse({".", "-size", "+1Z"}));
   EXPECT_THAT(
       ValidateSizeArgs(*zetta.expression), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("largest units")));
