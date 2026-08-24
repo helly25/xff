@@ -27,6 +27,7 @@
 
 #include "absl/time/time.h"
 #include "absl/types/span.h"
+#include "mbo/types/optional_ref.h"
 #include "mbo/types/string_or_view.h"
 #include "xff/datetime/datetime.h"
 #include "xff/vfs/entry.h"
@@ -46,7 +47,7 @@ struct RenderContext {
   // mounted container that is the container's, so a member renders its own bytes rather than nothing
   // (`a.tar!x` is not a path the real filesystem has). Null means "read by path", which is what a
   // caller with no walk behind it (a bare Render) wants.
-  const vfs::FileSystem* fs = nullptr;
+  mbo::types::OptionalRef<const vfs::FileSystem> fs;
   absl::TimeZone tz = absl::LocalTimeZone();  // zone for {atime}/{mtime}/{ctime}/{btime} formatting; --timezone
   std::string_view time_format;               // default format for a time field with no {:qualifier}; --time-format
   // --time-zone-suffix: whether a named preset renders its zone suffix (kAuto keeps the
@@ -56,9 +57,11 @@ struct RenderContext {
   // {hash:ALGO[/ENCODING]} qualifier overrides per use. Only {hash} reads them.
   std::string_view hash_algorithm;
   std::string_view hash_encoding;
-  const std::vector<std::string>* captures = nullptr;  // -regex groups for {0..N}: [0] whole match, 1..N groups
-  const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
-  const std::map<std::string, std::string>* outputs = nullptr;  // -capture results for {capture.NAME}
+  // Optional borrowed data. OptionalRef makes the non-owning lifetime and absence explicit without
+  // exposing nullable pointer operations to field renderers.
+  mbo::types::OptionalRef<const std::vector<std::string>> captures;           // -regex groups: [0] whole match
+  mbo::types::OptionalRef<const std::map<std::string, std::string>> defines;  // --define values
+  mbo::types::OptionalRef<const std::map<std::string, std::string>> outputs;  // -capture results
   // Per-line match context for -grep:FORMAT: the 1-based number and text of the
   // matching line. `{line}` renders the number, `{text}` the line; both are empty
   // outside a -grep line (line_number unset), so they no-op in --template/-printf.

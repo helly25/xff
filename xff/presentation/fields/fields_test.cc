@@ -34,6 +34,7 @@ namespace xff::fields {
 namespace {
 
 using ::mbo::StringOrView;
+using ::testing::_;
 using ::testing::AllOf;
 using ::testing::Contains;
 using ::testing::ElementsAre;
@@ -376,7 +377,7 @@ TEST_F(FieldsTest, PathComponentQualifierDecomposesAnyPathValuedField) {
       Template::Compile("{relpath:dir}").Render(RenderContext{.path = "A/sub/x.cc", .root = "A", .metadata = md}),
       "sub");
   EXPECT_THAT(
-      Template::Compile("{def.B:core}").Render(RenderContext{.path = "f", .metadata = md, .defines = &defs}), "report");
+      Template::Compile("{def.B:core}").Render(RenderContext{.path = "f", .metadata = md, .defines = defs}), "report");
 }
 
 TEST_F(FieldsTest, TargetRendersTheSymlinkTargetAndComposes) {
@@ -437,7 +438,7 @@ TEST_F(FieldsTest, EmptyPlaceholderIsPathAndContextOverloadResolvesRoot) {
 TEST_F(FieldsTest, NumericPlaceholdersRenderRegexCaptures) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   const std::vector<std::string> captures = {"a/b/c.txt", "a/b", "c", "txt"};  // [0]=whole match, 1..3 groups
-  const RenderContext ctx{.path = "a/b/c.txt", .metadata = md, .captures = &captures};
+  const RenderContext ctx{.path = "a/b/c.txt", .metadata = md, .captures = captures};
   EXPECT_THAT(Render("{1}-{3}", ctx), "a/b-txt");
   EXPECT_THAT(Render("{0}", ctx), "a/b/c.txt");            // {0} is the whole match
   EXPECT_THAT(Render("{9}", ctx), "");                     // out of range -> empty
@@ -474,7 +475,7 @@ TEST_F(FieldsTest, FuzzyFieldRendersTheScoreOfTheLastFuzzyTest) {
 TEST_F(FieldsTest, DefNamespaceReadsDefines) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   const std::map<std::string, std::string> defines = {{"greeting", "hi"}, {"n", "42"}};
-  const RenderContext ctx{.path = "p", .metadata = md, .defines = &defines};
+  const RenderContext ctx{.path = "p", .metadata = md, .defines = defines};
   EXPECT_THAT(Render("{def.greeting}-{def.n}", ctx), "hi-42");
   EXPECT_THAT(Render("{def.missing}", ctx), "");              // undefined -> empty
   EXPECT_THAT(Render("[{def.greeting}]", "p", md, 0), "[]");  // no defines map -> empty
@@ -483,7 +484,7 @@ TEST_F(FieldsTest, DefNamespaceReadsDefines) {
 TEST_F(FieldsTest, OutputNamespaceReadsCaptureResults) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   const std::map<std::string, std::string> outputs = {{"lines", "42"}};
-  const RenderContext ctx{.path = "p", .metadata = md, .outputs = &outputs};
+  const RenderContext ctx{.path = "p", .metadata = md, .outputs = outputs};
   EXPECT_THAT(Render("{capture.lines}", ctx), "42");
   EXPECT_THAT(Render("[{capture.lines}]", ctx), "[42]");       // value composes with surrounding literals
   EXPECT_THAT(Render("{capture.missing}", ctx), "");           // unset -> empty
@@ -504,9 +505,9 @@ TEST_F(FieldsTest, MExtractorYieldsAPerLineValueStream) {
   const std::map<std::string, std::string> outputs = {
       {"blame", "author Bob\nauthor-mail <b@x>\nauthor Ann\n\tsource line\nauthor Bob\n"}};
   const Template compiled = Template::Compile("{capture.blame:m/^author (.+)$/\\1/}");
-  const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
+  const RenderContext ctx{.path = "f", .metadata = md, .outputs = outputs};
   // AsExtraction: one value per matching line, non-matching lines dropped, \1 = capture group.
-  ASSERT_TRUE(compiled.AsExtraction(ctx).has_value());
+  ASSERT_THAT(compiled.AsExtraction(ctx), Optional(_));
   EXPECT_THAT(compiled.AsExtraction(ctx), Optional(ElementsAre("Bob", "Ann", "Bob")));
   // Scalar Render projects the stream as the matches newline-joined.
   EXPECT_THAT(compiled.Render(ctx), "Bob\nAnn\nBob");
@@ -515,7 +516,7 @@ TEST_F(FieldsTest, MExtractorYieldsAPerLineValueStream) {
 TEST_F(FieldsTest, MExtractorHonorsDelimiterFlagsAndWholeMatch) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   const std::map<std::string, std::string> outputs = {{"x", "AUTHOR Bob\nnope\nauthor Ann"}};
-  const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
+  const RenderContext ctx{.path = "f", .metadata = md, .outputs = outputs};
   // Alternate ',' delimiter + case-insensitive 'i' flag; \1 keeps the name.
   EXPECT_THAT(
       Template::Compile("{capture.x:m,^author (.+)$,\\1,i}").AsExtraction(ctx), Optional(ElementsAre("Bob", "Ann")));
@@ -556,15 +557,15 @@ TEST_F(FieldsTest, MExtractorChainFiltersThenSubstitutes) {
   // First command extracts the author (and filters non-author lines); the second normalizes the
   // extracted value (spaces -> underscores) per surviving line.
   const Template compiled = Template::Compile("{capture.blame:m/^author (.+)$/\\1/;s/ /_/g}");
-  const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
-  ASSERT_TRUE(compiled.AsExtraction(ctx).has_value());
+  const RenderContext ctx{.path = "f", .metadata = md, .outputs = outputs};
+  ASSERT_THAT(compiled.AsExtraction(ctx), Optional(_));
   EXPECT_THAT(compiled.AsExtraction(ctx), Optional(ElementsAre("Bob_Smith", "Ann_Lee")));
 }
 
 TEST_F(FieldsTest, MReducerJoinCollapsesTheStreamToAScalar) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   const std::map<std::string, std::string> outputs = {{"blame", "author Bob\nx\nauthor Ann\nauthor Bob\n"}};
-  const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
+  const RenderContext ctx{.path = "f", .metadata = md, .outputs = outputs};
   // A terminal join(...) reducer collapses the per-line stream to one scalar, so the extraction is
   // valid in a scalar Render: bare join = "\n"; join(SEP) a custom separator; join() concatenates.
   EXPECT_THAT(Template::Compile("{capture.blame:m/^author (.+)$/\\1/;join(, )}").Render(ctx), "Bob, Ann, Bob");
@@ -590,7 +591,7 @@ TEST_F(FieldsTest, MReducerIsScalarValuedNotAStream) {
 TEST_F(FieldsTest, MReducerAppliesPerLineChainThenJoinsThenScalarChain) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   const std::map<std::string, std::string> outputs = {{"blame", "author Bob Smith\nx\nauthor Ann Lee\n"}};
-  const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
+  const RenderContext ctx{.path = "f", .metadata = md, .outputs = outputs};
   // The uniform pipeline: extract+map per line (spaces -> _), join with ", ", then a scalar s/// on
   // the joined value (_ -> .). #135's per-line s/// after m// is preserved; the reducer is the pivot.
   EXPECT_THAT(
@@ -601,7 +602,7 @@ TEST_F(FieldsTest, MReducerAppliesPerLineChainThenJoinsThenScalarChain) {
 TEST_F(FieldsTest, MExtractorEmptyStreamVersusNonExtractionTemplate) {
   const vfs::Metadata md = Meta(vfs::FileType::kRegular, 0);
   const std::map<std::string, std::string> outputs = {{"x", "aaa\nbbb"}};
-  const RenderContext ctx{.path = "f", .metadata = md, .outputs = &outputs};
+  const RenderContext ctx{.path = "f", .metadata = md, .outputs = outputs};
   // A well-formed m// that matches nothing is an empty stream (present, but no values).
   EXPECT_THAT(Template::Compile("{capture.x:m/zzz/\\0/}").AsExtraction(ctx), Optional(IsEmpty()));
   // Anything that is not exactly one m// field is not a value stream.

@@ -95,8 +95,9 @@ struct EvaluateTest : ::testing::Test {
         .grep_count = grep_count_,
         .control = control_,
         .exec_fields = exec_fields_,
-        .captures = exec_fields_ ? &captures_ : nullptr,
-        .outputs = &outputs_,
+        .captures = exec_fields_ ? mbo::types::OptionalRef{captures_} : std::nullopt,
+        .outputs = capture_outputs_ ? mbo::types::OptionalRef{outputs_}
+                                    : mbo::types::OptionalRef<std::map<std::string, std::string>>{},
         .confirm = [this](std::string_view prompt) {
           last_prompt_ = std::string(prompt);
           return confirm_reply_;
@@ -147,6 +148,7 @@ struct EvaluateTest : ::testing::Test {
   bool fold_name_case_ = false;                 // when true, Match sets EvalContext::fold_name_case (FS-native fold)
   std::string regextype_;                       // when set (e.g. "EXACT"), Match prepends --regextype=<v> as a global
   bool grep_count_ = false;                     // when true, Match sets EvalContext::grep_count (-grep --count mode)
+  bool capture_outputs_ = true;                 // when false, Match leaves the -capture output sink unwired
   std::optional<int> fuzzy_score_;              // normalized score composed by the most recent Match
   std::vector<std::string> captures_;           // -regex groups captured during the most recent (gated) Match
   std::map<std::string, std::string> outputs_;  // -capture results from the most recent Match
@@ -1615,6 +1617,16 @@ TEST_F(EvaluateTest, CapturedirRunsCommandInEntryDirAndBindsStdout) {
   // stdout (trailing newline stripped) to {capture.NAME}.
   EXPECT_TRUE(Match({"-capturedir:cwd", "/bin/sh", "-c", "pwd -P", ";"}, visit));
   EXPECT_THAT(outputs_["cwd"], "/");
+}
+
+TEST_F(EvaluateTest, CaptureWithoutOutputSinkIsANoOp) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("/x.txt", "x.txt", vfs::FileType::kRegular, md);
+  capture_outputs_ = false;
+  // An unwired evaluator neither runs the command nor binds a value. The deliberately failing
+  // command distinguishes that no-op from executing it and forwarding its result.
+  EXPECT_THAT(Match({"-capture:unused", "/bin/sh", "-c", "exit 1", ";"}, visit), IsTrue());
+  EXPECT_THAT(outputs_, IsEmpty());
 }
 
 TEST_F(EvaluateTest, ExecFieldsSubstitutesRegexCaptures) {

@@ -184,6 +184,7 @@ cc_library(
         "@helly25_mbo//mbo/container:limited_set_cc",
         "@helly25_mbo//mbo/diff:diff_cc",
         "@helly25_mbo//mbo/file:artefact_cc",
+        "@helly25_mbo//mbo/types:optional_ref_cc",
         "@re2",
     ],
 )

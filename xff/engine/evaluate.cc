@@ -75,6 +75,11 @@
 namespace xff::engine {
 namespace {
 
+template<typename T>
+mbo::types::OptionalRef<const T> AsConstOptionalRef(const mbo::types::OptionalRef<T> value) {
+  return value.has_value() ? mbo::types::OptionalRef<const T>{*value} : std::nullopt;
+}
+
 // The OS-native line terminator used by -println/-printfln (xff extensions).
 // LF today; a Windows build would select "\r\n". Centralized so both actions
 // agree and the platform choice lives in one place.
@@ -303,15 +308,15 @@ std::string FormatPrintf(std::string_view format, const EvalContext& ctx) {
       .link_target = link,
       .metadata = ctx.visit.metadata,
       .depth = ctx.visit.depth,
-      .fs = &ctx.fs,
+      .fs = ctx.fs,
       .tz = ctx.tz,
       .time_format = ctx.time_format,
       .zone_suffix = ctx.zone_suffix,
       .hash_algorithm = ctx.hash_algorithm,
       .hash_encoding = ctx.hash_encoding,
-      .captures = ctx.captures,
+      .captures = AsConstOptionalRef(ctx.captures),
       .defines = ctx.defines,
-      .outputs = ctx.outputs};
+      .outputs = AsConstOptionalRef(ctx.outputs)};
   std::string out;
   for (std::string_view::size_type i = 0; i < format.size(); ++i) {
     const char ch = format[i];
@@ -825,15 +830,18 @@ MatcherRef AsRef(const std::shared_ptr<const regex::Matcher>& matcher) {
 
 // find's -regex/-iregex: `matcher` (the node's pre-compiled Expr::matcher) must
 // match the whole path (not a substring). An empty matcher (no pattern, or it
-// failed to compile) matches nothing. When `captures` is non-null (gated -exec is
+// failed to compile) matches nothing. When `captures` is present (gated -exec is
 // active) a match records its groups there ([0] the whole match, 1..N the groups)
 // for the {0}..{N} placeholders.
-bool MatchesRegex(MatcherRef matcher, std::string_view path, std::vector<std::string>* captures) {
+bool MatchesRegex(
+    MatcherRef matcher,
+    std::string_view path,
+    mbo::types::OptionalRef<std::vector<std::string>> captures) {
   if (!matcher.has_value()) {
     return false;
   }
   const regex::Matcher& re = matcher->get();
-  if (captures == nullptr) {
+  if (!captures.has_value()) {
     return re.FullMatch(path);
   }
   std::optional<std::vector<std::string>> groups = re.FullMatchCaptures(path);
@@ -1157,15 +1165,15 @@ std::string RenderTarget(const parser::Expr& expr, EvalContext& ctx) {
               .link_target = link,
               .metadata = ctx.visit.metadata,
               .depth = ctx.visit.depth,
-              .fs = &ctx.fs,
+              .fs = ctx.fs,
               .tz = ctx.tz,
               .time_format = ctx.time_format,
               .zone_suffix = ctx.zone_suffix,
               .hash_algorithm = ctx.hash_algorithm,
               .hash_encoding = ctx.hash_encoding,
-              .captures = ctx.captures,
+              .captures = AsConstOptionalRef(ctx.captures),
               .defines = ctx.defines,
-              .outputs = ctx.outputs});
+              .outputs = AsConstOptionalRef(ctx.outputs)});
 }
 
 bool EvalCmp(const parser::Expr& expr, EvalContext& ctx) {
@@ -1309,15 +1317,15 @@ bool EvalDiff(const parser::Expr& expr, EvalContext& ctx) {
                                          .link_target = link,
                                          .metadata = ctx.visit.metadata,
                                          .depth = ctx.visit.depth,
-                                         .fs = &ctx.fs,
+                                         .fs = ctx.fs,
                                          .tz = ctx.tz,
                                          .time_format = ctx.time_format,
                                          .zone_suffix = ctx.zone_suffix,
                                          .hash_algorithm = ctx.hash_algorithm,
                                          .hash_encoding = ctx.hash_encoding,
-                                         .captures = ctx.captures,
+                                         .captures = AsConstOptionalRef(ctx.captures),
                                          .defines = ctx.defines,
-                                         .outputs = ctx.outputs});
+                                         .outputs = AsConstOptionalRef(ctx.outputs)});
   if (target.empty()) {
     return false;  // no target resolved -> treat as differing
   }
@@ -1416,15 +1424,15 @@ bool EvalHasheq(const parser::Expr& expr, EvalContext& ctx) {
                                            .link_target = link,
                                            .metadata = ctx.visit.metadata,
                                            .depth = ctx.visit.depth,
-                                           .fs = &ctx.fs,
+                                           .fs = ctx.fs,
                                            .tz = ctx.tz,
                                            .time_format = ctx.time_format,
                                            .zone_suffix = ctx.zone_suffix,
                                            .hash_algorithm = ctx.hash_algorithm,
                                            .hash_encoding = ctx.hash_encoding,
-                                           .captures = ctx.captures,
+                                           .captures = AsConstOptionalRef(ctx.captures),
                                            .defines = ctx.defines,
-                                           .outputs = ctx.outputs});
+                                           .outputs = AsConstOptionalRef(ctx.outputs)});
   if (expected.empty()) {
     return false;  // no expected hash resolved (e.g. an unset {def.X}) -> treat as a mismatch
   }
@@ -1518,15 +1526,15 @@ bool EvalGrep(const parser::Expr& expr, EvalContext& ctx) {
                 .link_target = link,
                 .metadata = ctx.visit.metadata,
                 .depth = ctx.visit.depth,
-                .fs = &ctx.fs,
+                .fs = ctx.fs,
                 .tz = ctx.tz,
                 .time_format = ctx.time_format,
                 .zone_suffix = ctx.zone_suffix,
                 .hash_algorithm = ctx.hash_algorithm,
                 .hash_encoding = ctx.hash_encoding,
-                .captures = ctx.captures,
+                .captures = AsConstOptionalRef(ctx.captures),
                 .defines = ctx.defines,
-                .outputs = ctx.outputs,
+                .outputs = AsConstOptionalRef(ctx.outputs),
                 .line_number = line.number,
                 .line_text = line.text,
                 .match_text = match_text,
@@ -2025,15 +2033,15 @@ std::vector<std::string> RenderExecArgv(const parser::Expr& expr, const EvalCont
       .link_target = link,
       .metadata = ctx.visit.metadata,
       .depth = ctx.visit.depth,
-      .fs = &ctx.fs,
+      .fs = ctx.fs,
       .tz = ctx.tz,
       .time_format = ctx.time_format,
       .zone_suffix = ctx.zone_suffix,
       .hash_algorithm = ctx.hash_algorithm,
       .hash_encoding = ctx.hash_encoding,
-      .captures = ctx.captures,
+      .captures = AsConstOptionalRef(ctx.captures),
       .defines = ctx.defines,
-      .outputs = ctx.outputs};
+      .outputs = AsConstOptionalRef(ctx.outputs)};
   std::vector<std::string> argv;
   argv.reserve(expr.args.size());
   for (const std::string& token : expr.args) {
@@ -2188,8 +2196,8 @@ bool EvalOkdir(const parser::Expr& expr, EvalContext& ctx) {
 // vocabulary, run it (in `dir`, or our directory when `dir` is empty/"."), capture
 // stdout, strip trailing newlines, optionally regex-extract, and bind {capture.NAME}.
 bool RunCapture(const parser::Expr& expr, EvalContext& ctx, std::string_view dir) {  // args = [NAME, REGEX, cmd...]
-  if (ctx.outputs == nullptr || expr.args.size() < 3) {
-    return true;  // unwired or malformed: binding is a no-op, but -capture is always true
+  if (!ctx.outputs.has_value()) {
+    return true;  // unwired: binding is a no-op, but -capture is always true
   }
   // The command renders through the field vocabulary so {} -> path and prior
   // {capture.*}/{def.*}/{N} resolve (left-to-right chaining).
@@ -2200,15 +2208,15 @@ bool RunCapture(const parser::Expr& expr, EvalContext& ctx, std::string_view dir
       .link_target = link,
       .metadata = ctx.visit.metadata,
       .depth = ctx.visit.depth,
-      .fs = &ctx.fs,
+      .fs = ctx.fs,
       .tz = ctx.tz,
       .time_format = ctx.time_format,
       .zone_suffix = ctx.zone_suffix,
       .hash_algorithm = ctx.hash_algorithm,
       .hash_encoding = ctx.hash_encoding,
-      .captures = ctx.captures,
+      .captures = AsConstOptionalRef(ctx.captures),
       .defines = ctx.defines,
-      .outputs = ctx.outputs};
+      .outputs = AsConstOptionalRef(ctx.outputs)};
   std::vector<std::string> command;
   command.reserve(expr.args.size() - 2);
   for (std::size_t i = 2; i < expr.args.size(); ++i) {

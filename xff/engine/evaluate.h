@@ -31,6 +31,7 @@
 #include "absl/time/time.h"
 #include "absl/types/span.h"
 #include "mbo/diff/diff_options.h"
+#include "mbo/types/optional_ref.h"
 #include "xff/datetime/datetime.h"
 #include "xff/engine/collect.h"
 #include "xff/engine/extract.h"
@@ -165,11 +166,11 @@ struct EvalContext {
   // an explicit -hash:ALGO[/ENCODING] or {hash:...} qualifier overrides per node.
   std::string_view hash_algorithm;
   std::string_view hash_encoding;
-  Control& control;                              // collects -prune/-quit requests
-  bool exec_fields = false;                      // --exec-fields: render -exec tokens through the field vocabulary
-  std::vector<std::string>* captures = nullptr;  // -regex groups for gated -exec {0}..{N}; null when off
-  const std::map<std::string, std::string>* defines = nullptr;  // --define values for {def.NAME}
-  std::map<std::string, std::string>* outputs = nullptr;  // -capture results for {capture.NAME} (mutable, per entry)
+  Control& control;          // collects -prune/-quit requests
+  bool exec_fields = false;  // --exec-fields: render -exec tokens through the field vocabulary
+  mbo::types::OptionalRef<std::vector<std::string>> captures;                 // -regex groups for gated -exec {0}..{N}
+  mbo::types::OptionalRef<const std::map<std::string, std::string>> defines;  // --define values
+  mbo::types::OptionalRef<std::map<std::string, std::string>> outputs;        // mutable -capture results
   // -first N: how many entries each instance has admitted so far, keyed by its AST node so two
   // `-first` in different branches keep separate budgets. Owned by the driver for the whole run
   // (unlike `outputs`, which is per entry) - the count is the point. Emission is single-threaded
