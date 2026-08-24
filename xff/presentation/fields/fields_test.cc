@@ -33,12 +33,15 @@
 namespace xff::fields {
 namespace {
 
+using ::mbo::StringOrView;
 using ::testing::AllOf;
 using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
+using ::testing::IsFalse;
+using ::testing::IsTrue;
 using ::testing::Not;
 using ::testing::Optional;
 using ::testing::UnorderedElementsAreArray;
@@ -52,14 +55,16 @@ struct FieldsTest : ::testing::Test {
   }
 };
 
-TEST_F(FieldsTest, FieldValueOwnsComputedStringsAndPreservesStableViews) {
-  const FieldValue owned(std::string("computed"));
-  EXPECT_THAT(owned.View(), Eq("computed"));
+TEST_F(FieldsTest, StringOrViewOwnsComputedStringsAndPreservesStableViews) {
+  const StringOrView owned(std::string("computed"));
+  EXPECT_THAT(owned.view(), Eq("computed"));
+  EXPECT_THAT(owned.owns_string(), IsTrue());
 
   const std::string stable = "stable";
-  const FieldValue viewed{std::string_view(stable)};
-  EXPECT_THAT(viewed.View(), Eq("stable"));
-  EXPECT_THAT(viewed.View().data(), Eq(stable.data()));
+  const StringOrView viewed{std::string_view(stable)};
+  EXPECT_THAT(viewed.view(), Eq("stable"));
+  EXPECT_THAT(viewed.owns_string(), IsFalse());
+  EXPECT_THAT(viewed.view().data(), Eq(stable.data()));
 }
 
 TEST_F(FieldsTest, SubstitutesPathComponentsAndMetadata) {
