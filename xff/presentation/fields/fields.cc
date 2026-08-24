@@ -56,6 +56,7 @@ namespace xff::fields {
 namespace {
 
 namespace stdfs = ::std::filesystem;
+using ::mbo::StringOrView;
 
 // find's -printf %y / the {type} field letter, keyed by file type (kUnknown and any
 // unmapped value fall through to 'U'). A constexpr map, per the style's preference
@@ -138,7 +139,7 @@ std::string GroupName(std::uint32_t gid) {
 // Formats a timestamp for a time field. The qualifier is a datetime preset name
 // (find/iso/space/epoch) or a custom absl::FormatTime pattern; empty defaults to
 // the "space" ISO form. Rendered in `tz` (the local zone unless --timezone).
-FieldValue FormatTimeField(
+StringOrView FormatTimeField(
     absl::Time time,
     std::string_view qualifier,
     absl::TimeZone tz,
@@ -170,18 +171,18 @@ std::string HumanSize(std::uint64_t bytes) {
 // table: (key, qualifier, ctx). `key` is the bound argument for dynamic fields
 // (a capture index, an {env.NAME} var, ...), unused (unnamed) by the builtins.
 // `path`-derived fields build their own std::filesystem::path.
-FieldValue PathField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView PathField(std::string_view, std::string_view, const RenderContext& ctx) {
   return ctx.path;
 }
 
-FieldValue RootField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView RootField(std::string_view, std::string_view, const RenderContext& ctx) {
   return ctx.root;  // command-line search root (find %H); empty when unset
 }
 
 // {target}: a symlink's target text (find %l), the driver having resolved it via
 // ReadLink; empty for a non-symlink. Composes with the path-component qualifier
 // ({target:name}, {target:core}, ...) like any path-valued field.
-FieldValue TargetField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView TargetField(std::string_view, std::string_view, const RenderContext& ctx) {
   return ctx.link_target;
 }
 
@@ -190,7 +191,7 @@ FieldValue TargetField(std::string_view, std::string_view, const RenderContext& 
 // root operand itself, and (best-effort) the whole path when no root is recorded or
 // the path is not root-prefixed. Mirrors engine::RelativeTo so `-cmp`/`-diff` targets
 // like '{def.B}/{relpath}' address the parallel entry under another tree.
-FieldValue RelpathField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView RelpathField(std::string_view, std::string_view, const RenderContext& ctx) {
   const std::string_view path = ctx.path;
   const std::string_view root = ctx.root;
   if (root.empty() || path == root) {
@@ -206,7 +207,7 @@ FieldValue RelpathField(std::string_view, std::string_view, const RenderContext&
   return path;  // not root-prefixed (should not happen from the walk)
 }
 
-FieldValue DirField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView DirField(std::string_view, std::string_view, const RenderContext& ctx) {
   std::string parent = stdfs::path(std::string(ctx.path)).parent_path().string();
   if (parent.empty()) {
     return ".";  // find's %h is "." when there is no directory part
@@ -214,15 +215,15 @@ FieldValue DirField(std::string_view, std::string_view, const RenderContext& ctx
   return {std::move(parent)};
 }
 
-FieldValue NameField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView NameField(std::string_view, std::string_view, const RenderContext& ctx) {
   return stdfs::path(std::string(ctx.path)).filename().string();
 }
 
-FieldValue StemField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView StemField(std::string_view, std::string_view, const RenderContext& ctx) {
   return stdfs::path(std::string(ctx.path)).stem().string();
 }
 
-FieldValue ExtField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView ExtField(std::string_view, std::string_view, const RenderContext& ctx) {
   std::string ext = stdfs::path(std::string(ctx.path)).extension().string();  // includes the leading '.'
   if (!ext.empty()) {
     ext.erase(0, 1);
@@ -230,7 +231,7 @@ FieldValue ExtField(std::string_view, std::string_view, const RenderContext& ctx
   return {std::move(ext)};
 }
 
-FieldValue SuffixesField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView SuffixesField(std::string_view, std::string_view, const RenderContext& ctx) {
   std::string filename = stdfs::path(std::string(ctx.path)).filename().string();
   const std::string::size_type dot = filename.find('.', 1);  // all extensions; a leading dot is not one
   if (dot == std::string::npos) {
@@ -242,13 +243,13 @@ FieldValue SuffixesField(std::string_view, std::string_view, const RenderContext
 
 // {suffix}: the LAST extension WITH its leading dot (pathlib's .suffix: ".gz"),
 // complementing {ext} (no dot: "gz") and {suffixes} (all of them: ".tar.gz").
-FieldValue SuffixField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView SuffixField(std::string_view, std::string_view, const RenderContext& ctx) {
   return stdfs::path(std::string(ctx.path)).extension().string();  // ".gz", or "" when none
 }
 
 // {core}: the filename with ALL extensions removed (foo.tar.gz -> foo), the complement
 // of {suffixes} ({core} + {suffixes} == {name}, as {stem} + {suffix} == {name}).
-FieldValue CoreField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView CoreField(std::string_view, std::string_view, const RenderContext& ctx) {
   std::string filename = stdfs::path(std::string(ctx.path)).filename().string();
   const std::string::size_type dot = filename.find('.', 1);  // first extension; a leading dot is not one
   if (dot != std::string::npos) {
@@ -257,27 +258,27 @@ FieldValue CoreField(std::string_view, std::string_view, const RenderContext& ct
   return {std::move(filename)};
 }
 
-FieldValue DepthField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView DepthField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::to_string(ctx.depth);
 }
 
 // {line} / {text}: the 1-based number and text of the current -grep match line;
 // both empty outside a -grep line (line_number unset), so they no-op elsewhere.
-FieldValue LineField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView LineField(std::string_view, std::string_view, const RenderContext& ctx) {
   return ctx.line_number.has_value() ? std::to_string(*ctx.line_number) : std::string();
 }
 
-FieldValue TextField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView TextField(std::string_view, std::string_view, const RenderContext& ctx) {
   return ctx.line_number.has_value() ? ctx.line_text : std::string_view{};
 }
 
 // {match} / {column}: the matched substring on a -grep line (grep -o) and its
 // 1-based byte column; empty/absent unless the driver computed a match span.
-FieldValue MatchField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView MatchField(std::string_view, std::string_view, const RenderContext& ctx) {
   return ctx.match_column.has_value() ? ctx.match_text : std::string_view{};
 }
 
-FieldValue ColumnField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView ColumnField(std::string_view, std::string_view, const RenderContext& ctx) {
   return ctx.match_column.has_value() ? std::to_string(*ctx.match_column) : std::string();
 }
 
@@ -286,7 +287,7 @@ FieldValue ColumnField(std::string_view, std::string_view, const RenderContext& 
 // {hash:/base64}); empty parts fall back to the --hash-algorithm / --hash-encoding defaults
 // (sha256 / hex when unset). An unknown algorithm or encoding, or an unreadable file, renders
 // empty (the field convention). Reads the file, so it is expensive.
-FieldValue HashField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
+StringOrView HashField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   const std::string_view default_algo = ctx.hash_algorithm.empty() ? "sha256" : ctx.hash_algorithm;
   const hash::Encoding default_encoding = hash::ParseEncoding(ctx.hash_encoding).value_or(hash::Encoding::kHex);
   const std::optional<hash::AlgoEncoding> spec = hash::ParseSpec(qualifier, default_algo, default_encoding);
@@ -323,7 +324,7 @@ std::optional<std::size_t> ReadEntryLineCount(const RenderContext& ctx) {
 // byte in the first 8 KiB, grep/ripgrep's heuristic, so binaries render nothing rather than a
 // misleading count). Reads the file, so it is expensive; composes with --summary / -printf to tally
 // lines across matches.
-FieldValue LinesField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView LinesField(std::string_view, std::string_view, const RenderContext& ctx) {
   if (ctx.metadata.type != vfs::FileType::kRegular) {
     return "";  // only regular files have countable content
   }
@@ -334,20 +335,20 @@ FieldValue LinesField(std::string_view, std::string_view, const RenderContext& c
 // {shard}: the number of shards in a collapsed --shards set; empty outside shard mode (so it
 // no-ops in a normal -printf / --template, like {line}). Size-like fields aggregate across the
 // set separately (the context's metadata.size is the set total).
-FieldValue ShardField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView ShardField(std::string_view, std::string_view, const RenderContext& ctx) {
   return ctx.shard_count.has_value() ? std::to_string(*ctx.shard_count) : "";
 }
 
 // {fuzzy}: normalized quality composed across the successful fuzzy predicates; empty when the
 // expression has none. AND keeps the weakest required score, OR the best successful alternative.
-FieldValue FuzzyField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView FuzzyField(std::string_view, std::string_view, const RenderContext& ctx) {
   return ctx.fuzzy_score.has_value() ? std::to_string(*ctx.fuzzy_score) : "";
 }
 
 // {lang} / {language}: the entry's programming/markup language (github-linguist name, e.g. "C++",
 // "Python"), from its filename/extension via the language table; empty when unrecognized. Content
 // is not read, so it is cheap; composes with --summary group-by to tally files per language.
-FieldValue LanguageField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView LanguageField(std::string_view, std::string_view, const RenderContext& ctx) {
   const std::string name = stdfs::path(std::string(ctx.path)).filename().string();
   return language::LanguageForName(name);
 }
@@ -356,27 +357,27 @@ std::optional<language::LanguageInfo> LanguageInfo(const RenderContext& ctx) {
   return language::InfoForName(stdfs::path(std::string(ctx.path)).filename().string());
 }
 
-FieldValue LanguageTypeField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView LanguageTypeField(std::string_view, std::string_view, const RenderContext& ctx) {
   const auto info = LanguageInfo(ctx);
   return info.has_value() ? info->type : std::string_view{};
 }
 
-FieldValue LanguageColorField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView LanguageColorField(std::string_view, std::string_view, const RenderContext& ctx) {
   const auto info = LanguageInfo(ctx);
   return info.has_value() ? info->color : std::string_view{};
 }
 
-FieldValue LanguageGroupField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView LanguageGroupField(std::string_view, std::string_view, const RenderContext& ctx) {
   const auto info = LanguageInfo(ctx);
   return info.has_value() ? info->group : std::string_view{};
 }
 
-FieldValue LanguageSourceField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView LanguageSourceField(std::string_view, std::string_view, const RenderContext& ctx) {
   const auto info = LanguageInfo(ctx);
   return info.has_value() ? info->source : std::string_view{};
 }
 
-FieldValue MimeField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView MimeField(std::string_view, std::string_view, const RenderContext& ctx) {
   const std::string name = stdfs::path(std::string(ctx.path)).filename().string();
   return mime::TypeForName(name);
 }
@@ -385,101 +386,107 @@ mime::TypeInfo MimeInfo(const RenderContext& ctx) {
   return mime::InfoForName(stdfs::path(std::string(ctx.path)).filename().string());
 }
 
-FieldValue MimeCategoryField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView MimeCategoryField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::string(MimeInfo(ctx).Category());
 }
 
-FieldValue MimeDescriptionField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView MimeDescriptionField(std::string_view, std::string_view, const RenderContext& ctx) {
   return MimeInfo(ctx).description;
 }
 
-FieldValue MimeCharsetField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView MimeCharsetField(std::string_view, std::string_view, const RenderContext& ctx) {
   return MimeInfo(ctx).charset;
 }
 
-FieldValue MimeCompressibleField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView MimeCompressibleField(std::string_view, std::string_view, const RenderContext& ctx) {
   const std::optional<bool> value = MimeInfo(ctx).compressible;
-  return value.has_value() ? (*value ? "yes" : "no") : "";
+  if (!value.has_value()) {
+    return {};
+  }
+  if (*value) {
+    return "yes";
+  }
+  return "no";
 }
 
-FieldValue MimeSourceField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView MimeSourceField(std::string_view, std::string_view, const RenderContext& ctx) {
   return MimeInfo(ctx).source;
 }
 
-FieldValue SizeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
+StringOrView SizeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return qualifier == "h" ? HumanSize(ctx.metadata.size) : std::to_string(ctx.metadata.size);
 }
 
 // {blocks}: allocated 512-byte blocks (st_blocks, find's %b); {blocks:h} the
 // human-readable allocated bytes. The on-disk counterpart to {size} (apparent).
-FieldValue BlocksField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
+StringOrView BlocksField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return qualifier == "h" ? HumanSize(ctx.metadata.blocks * 512U) : std::to_string(ctx.metadata.blocks);
 }
 
-FieldValue TypeField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView TypeField(std::string_view, std::string_view, const RenderContext& ctx) {
   // NOLINTNEXTLINE(modernize-return-braced-init-list): braces would build initializer_list<char>{1,c}
   return std::string(1, TypeLetter(ctx.metadata.type));
 }
 
-FieldValue InodeField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView InodeField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::to_string(ctx.metadata.ino);
 }
 
-FieldValue LinksField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView LinksField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::to_string(ctx.metadata.nlink);
 }
 
 // A bare {mtime} (no {:qualifier}) uses the --time-format default (ctx.time_format,
 // itself empty -> "space"); an explicit {mtime:iso} qualifier always wins.
-FieldValue MtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
+StringOrView MtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return FormatTimeField(ctx.metadata.mtime, qualifier.empty() ? ctx.time_format : qualifier, ctx.tz, ctx.zone_suffix);
 }
 
-FieldValue AtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
+StringOrView AtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return FormatTimeField(ctx.metadata.atime, qualifier.empty() ? ctx.time_format : qualifier, ctx.tz, ctx.zone_suffix);
 }
 
-FieldValue CtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
+StringOrView CtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   return FormatTimeField(ctx.metadata.ctime, qualifier.empty() ? ctx.time_format : qualifier, ctx.tz, ctx.zone_suffix);
 }
 
-FieldValue BtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
+StringOrView BtimeField(std::string_view, std::string_view qualifier, const RenderContext& ctx) {
   const std::string_view spec = qualifier.empty() ? ctx.time_format : qualifier;
   return ctx.metadata.btime.has_value() ? FormatTimeField(*ctx.metadata.btime, spec, ctx.tz, ctx.zone_suffix) : "";
 }
 
-FieldValue ModeField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView ModeField(std::string_view, std::string_view, const RenderContext& ctx) {
   return OctalPerm(ctx.metadata.mode);
 }
 
-FieldValue UserField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView UserField(std::string_view, std::string_view, const RenderContext& ctx) {
   return OwnerName(ctx.metadata.uid);
 }
 
-FieldValue GroupField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView GroupField(std::string_view, std::string_view, const RenderContext& ctx) {
   return GroupName(ctx.metadata.gid);
 }
 
 // {uid} / {gid}: numeric owner / group ids (find's %U/%G), complementing the name
 // fields {user}/{group}. {dev}: the device number (find's %D). {access}: the ls -l /
 // stat %A symbolic permission string, complementing the octal {mode}/{perm}.
-FieldValue UidField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView UidField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::to_string(ctx.metadata.uid);
 }
 
-FieldValue GidField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView GidField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::to_string(ctx.metadata.gid);
 }
 
-FieldValue DevField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView DevField(std::string_view, std::string_view, const RenderContext& ctx) {
   return std::to_string(ctx.metadata.dev);
 }
 
-FieldValue AccessField(std::string_view, std::string_view, const RenderContext& ctx) {
+StringOrView AccessField(std::string_view, std::string_view, const RenderContext& ctx) {
   return AccessString(ctx.metadata.type, ctx.metadata.mode);
 }
 
-FieldValue EmptyField(std::string_view, std::string_view, const RenderContext&) {
+StringOrView EmptyField(std::string_view, std::string_view, const RenderContext&) {
   return "";  // unknown field -> empty
 }
 
@@ -617,7 +624,7 @@ int CaptureIndex(std::string_view name) {
 // Renders a numeric {0}..{N} placeholder: `key` is the digit run; reads the
 // matching regex capture from the context ([0] whole match, 1..N groups), empty
 // when captures are unset or the index is out of range.
-FieldValue CaptureField(std::string_view key, std::string_view, const RenderContext& ctx) {
+StringOrView CaptureField(std::string_view key, std::string_view, const RenderContext& ctx) {
   const int index = CaptureIndex(key);
   if (ctx.captures == nullptr || index < 0 || std::cmp_greater_equal(index, ctx.captures->size())) {
     return "";
@@ -627,12 +634,12 @@ FieldValue CaptureField(std::string_view key, std::string_view, const RenderCont
 
 // Renders {env.NAME}: `key` is NAME; the process environment value, or empty
 // when unset. Read through the env cache (the single getenv site, xff/env).
-FieldValue EnvField(std::string_view key, std::string_view, const RenderContext&) {
+StringOrView EnvField(std::string_view key, std::string_view, const RenderContext&) {
   return env::Get(key).value_or("");
 }
 
 // Renders {def.NAME}: `key` is NAME; the --define value, or empty when undefined.
-FieldValue DefField(std::string_view key, std::string_view, const RenderContext& ctx) {
+StringOrView DefField(std::string_view key, std::string_view, const RenderContext& ctx) {
   if (ctx.defines == nullptr) {
     return "";
   }
@@ -641,7 +648,7 @@ FieldValue DefField(std::string_view key, std::string_view, const RenderContext&
 }
 
 // Renders {capture.NAME}: `key` is NAME; a -capture result, empty when unset.
-FieldValue OutputField(std::string_view key, std::string_view, const RenderContext& ctx) {
+StringOrView OutputField(std::string_view key, std::string_view, const RenderContext& ctx) {
   if (ctx.outputs == nullptr) {
     return "";
   }
@@ -1027,9 +1034,9 @@ std::string Template::Render(const RenderContext& context) const {
       // with no qualifier, then transforms the value; otherwise the qualifier is the
       // field's own format argument.
       const bool transform = segment.post != Segment::PostProcess::kNone;
-      const FieldValue field_value =
+      const StringOrView field_value =
           segment.fn(segment.key, transform ? std::string_view{} : segment.qualifier, context);
-      const std::string_view value = field_value.View();
+      const std::string_view value = field_value.view();
       switch (segment.post) {
         case Segment::PostProcess::kComponent: out.append(PathComponent(value, segment.qualifier)); break;
         case Segment::PostProcess::kNone: out.append(value); break;
@@ -1071,8 +1078,8 @@ std::optional<std::vector<std::string>> Template::AsExtraction(const RenderConte
   if (segment.fn == nullptr || segment.post != Segment::PostProcess::kExtract || HasReducer(segment.qualifier)) {
     return std::nullopt;
   }
-  const FieldValue value = segment.fn(segment.key, std::string_view{}, context);  // base value, no qualifier
-  return ExtractLines(value.View(), segment.qualifier);
+  const StringOrView value = segment.fn(segment.key, std::string_view{}, context);  // base value, no qualifier
+  return ExtractLines(value.view(), segment.qualifier);
 }
 
 bool Template::IsExtraction() const {

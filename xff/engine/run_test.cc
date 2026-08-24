@@ -424,6 +424,9 @@ TEST_F(RunTest, MimeMatchesByExtensionDerivedType) {
 
 TEST_F(RunTest, MimeVocabularyOverridesMatchingAndExposesMetadataFields) {
   const fs::path vocabulary = root_ / "mime.json";
+  const fs::path binary = root_ / "b.md";
+  const fs::path unspecified = root_ / "unspecified.mime-unknown";
+  { const std::ofstream empty(unspecified); }
   std::ofstream(vocabulary) << R"({
     "application/x-note": {
       "description": "Note document",
@@ -431,14 +434,17 @@ TEST_F(RunTest, MimeVocabularyOverridesMatchingAndExposesMetadataFields) {
       "charset": "UTF-8",
       "compressible": true,
       "extensions": ["txt"]
-    }
+    },
+    "application/x-binary": {"compressible": false, "extensions": ["md"]},
+    "application/x-unspecified": {"extensions": ["mime-unknown"]}
   })";
   EXPECT_THAT(
       RunArgvRecords(
-          {"--mime-vocabulary=" + vocabulary.string(), root_.string(), "-name", "a.txt", "-mime", "application/x-note",
-           "-printf",
+          {"--mime-vocabulary=" + vocabulary.string(), Path("a.txt"), binary.string(), unspecified.string(), "-printf",
            "%{mime}|%{mime-category}|%{mime-description}|%{mime-charset}|%{mime-compressible}|%{mime-source}\n"}),
-      ElementsAre("application/x-note|application|Note document|UTF-8|yes|project"));
+      ElementsAre(
+          "application/x-note|application|Note document|UTF-8|yes|project", "application/x-binary|application|||no|",
+          "application/x-unspecified|application||||"));
   EXPECT_THAT(last_errors_, Eq(0));
 }
 
