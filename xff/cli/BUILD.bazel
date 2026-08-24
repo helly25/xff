@@ -56,6 +56,7 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/types:span",
+        "@helly25_mbo//mbo/types:optional_ref_cc",
     ],
 )
 
@@ -325,6 +326,7 @@ cc_library(
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
+        "@helly25_mbo//mbo/types:optional_ref_cc",
         "@xff_extras_api//:archive_backend_cc",
     ],
 )
@@ -460,6 +462,7 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
+        "@helly25_mbo//mbo/types:optional_ref_cc",
         "@xff_extras_api//:archive_backend_cc",
         "@xff_extras_api//:fuse_backend_cc",
         "@xff_extras_api//:language_database_cc",

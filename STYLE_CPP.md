@@ -261,12 +261,22 @@ clang-format picks a layout per line; these habits steer it toward the readable 
   }
   ```
 
-- **Do not overload `const T*` to express "optional" or to conflate omission with value.** A
-  raw pointer mixes nullability, the pointed-at value, and ownership/lifetime into one type
-  the caller has to second-guess. For an optional reference use
-  `std::optional<std::reference_wrapper<T>>` or mbo's `mbo::types::OptionalRef<T>`
-  (`mbo/types/optional_ref.h`, where its bazel target is visible to you) and its related types
-  (e.g. `OptionalDataOrRef` when it may own a value or refer to one).
+- **Xff-owned C++ interfaces do not use raw object pointers.** A raw pointer mixes nullability,
+  the pointed-at value, and ownership/lifetime into one type the caller has to second-guess. Pass a
+  required observer by reference, ownership by value or smart pointer, and an optional observer as
+  mbo's `mbo::types::OptionalRef<T>` (`mbo/types/optional_ref.h`, with its exact Bazel dependency)
+  or a more precise value/view type. Do not return a nullable pointer for lookup; return
+  `OptionalRef<const T>`. Do not use a pointer merely for stable identity; give the entity an
+  explicit identity type. Function pointers are a distinct callable type and are not object
+  ownership. Raw object pointers remain only where a C, POSIX, or third-party ABI requires their
+  exact spelling (callbacks, opaque handles, buffers); confine those to the narrow adapter, convert
+  on entry/return where possible, and mark each retained boundary for the repository check.
+- **Prefer side-effect-light, value-returning helpers.** Do not mutate caller-owned state through
+  pointer or reference output parameters. Return the value, an `absl::StatusOr<T>`, or a named
+  result record when multiple values and diagnostics belong together. Mutation is appropriate
+  when it is the explicit responsibility of a stateful abstraction or action - writers, caches,
+  filesystem operations, and expression actions - but that state change must be visible in the
+  abstraction rather than hidden in an otherwise value-shaped helper.
 - **A `CHECK` over a comparison uses the comparing macro**: `CHECK_NE(ptr, nullptr)`,
   `CHECK_EQ(size, want)`, `CHECK_LE(offset, end)` - never `CHECK(ptr != nullptr)` or
   `CHECK(size == want)`. The comparing form prints BOTH operands when it fires; the boolean form
@@ -486,9 +496,11 @@ substitute for a committed test. Tests use GoogleTest + GoogleMock with these co
     would rather match them with `ElementsAre`.
 
 - **Floats / doubles**: never `Eq` / `==`; use `FloatEq` / `DoubleEq` (or `Near`).
-- **Optionals**: `EXPECT_THAT(opt, Eq(std::nullopt))` for empty, `Optional(...)` for a
-  value. Nested matchers do **not** auto-wrap: `Optional(Eq("x"))` and `Pointee(Eq("x"))`
-  need the explicit inner `Eq` (a bare value fails to compile there).
+- **Optionals**: match the optional-like object itself - never reduce it to
+  `opt.has_value()`. Use `EXPECT_THAT(opt, Eq(std::nullopt))` for empty and `Optional(...)` for a
+  value; this applies equally to `std::optional` and `mbo::types::OptionalRef`. Nested matchers do
+  **not** auto-wrap: `Optional(Eq("x"))` and `Pointee(Eq("x"))` need the explicit inner `Eq` (a
+  bare value fails to compile there). `absl::StatusOr` uses `IsOkAndHolds(...)` instead.
 - **Containers**: `ElementsAre(...)` / `UnorderedElementsAre(...)` / `SizeIs(n)` /
   `IsEmpty()` cover size + order + contents in one matcher, instead of an
   `ASSERT_EQ(v.size(), n)` followed by indexed `EXPECT_EQ`s. `ElementsAre` auto-wraps

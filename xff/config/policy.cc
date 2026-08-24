@@ -116,14 +116,12 @@ bool OverloadsPreset(const RcLine& line) {
   return line.config.empty() && IsBuiltinStyle(line.base);
 }
 
-ConfigInputs GateConfig(const ConfigInputs& inputs, bool xffrc_armed, std::vector<Drop>* drops) {
-  ConfigInputs gated = inputs;
-  gated.user.clear();
-  gated.xffrc.clear();
+GateResult GateConfig(const ConfigInputs& inputs, bool xffrc_armed) {
+  GateResult result{.config = inputs};
+  result.config.user.clear();
+  result.config.xffrc.clear();
   const auto record = [&](const RcLine& line, Source layer, DropReason reason) {
-    if (drops != nullptr) {
-      drops->push_back(Drop{.line = line, .layer = layer, .safety = LineSafety(line), .reason = reason});
-    }
+    result.drops.push_back(Drop{.line = line, .layer = layer, .safety = LineSafety(line), .reason = reason});
   };
   const auto gate = [&](const std::vector<RcLine>& lines, Source layer, std::vector<RcLine>& out) {
     for (const RcLine& line : lines) {
@@ -147,9 +145,9 @@ ConfigInputs GateConfig(const ConfigInputs& inputs, bool xffrc_armed, std::vecto
       }
     }
   };
-  gate(inputs.user, Source::kUser, gated.user);
-  gate(inputs.xffrc, Source::kXffrc, gated.xffrc);
-  return gated;
+  gate(inputs.user, Source::kUser, result.config.user);
+  gate(inputs.xffrc, Source::kXffrc, result.config.xffrc);
+  return result;
 }
 
 std::string DropMessage(const Drop& drop) {

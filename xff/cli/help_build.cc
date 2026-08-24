@@ -978,7 +978,7 @@ Section GuideSection() {
       "--width",
   });
   for (const std::string_view name : kDisplayFlags) {
-    if (const GlobalFlag* const flag = LookupGlobal(name); flag != nullptr) {
+    if (const mbo::types::OptionalRef<const GlobalFlag> flag = LookupGlobal(name); flag.has_value()) {
       display_rows.rows.push_back(Row{.term = std::string(flag->display), .description = ParseInline(flag->summary)});
     }
   }
@@ -1088,14 +1088,14 @@ std::optional<Document> EntryReference(std::string_view name) {
     descriptor = registry::Lookup(absl::StrCat("-", name));
   }
   // Otherwise a whole-run global flag (leading-dashes convenience: sort -> --sort).
-  const GlobalFlag* flag = nullptr;
-  if (descriptor == nullptr) {
-    flag = LookupGlobal(name);
-    if (flag == nullptr && !name.empty() && name.front() != '-') {
-      flag = LookupGlobal(absl::StrCat("--", name));
+  const mbo::types::OptionalRef<const GlobalFlag> flag = [&] {
+    if (descriptor != nullptr) {
+      return mbo::types::OptionalRef<const GlobalFlag>{};
     }
-  }
-  if (descriptor == nullptr && flag == nullptr) {
+    const mbo::types::OptionalRef<const GlobalFlag> exact = LookupGlobal(name);
+    return !exact.has_value() && !name.empty() && name.front() != '-' ? LookupGlobal(absl::StrCat("--", name)) : exact;
+  }();
+  if (descriptor == nullptr && !flag.has_value()) {
     return std::nullopt;
   }
   // A title-less section: the single entry renders without a section heading.

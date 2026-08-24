@@ -786,12 +786,10 @@ std::optional<std::string> ResolveTemplate(const std::vector<std::string>& globa
   return tmpl;
 }
 
-// --timezone=ZONE (short alias --tz=ZONE) overrides the detected local zone used to
-// interpret time-string arguments (-newerXt). Last occurrence of either spelling
-// wins. Resolves the winner to *tz and returns true; an unknown zone returns false
-// with *bad set to the offending value (and *tz unchanged), so the caller can fail
-// the run. Absent the flag, leaves *tz at its local-zone default and returns true.
-bool ResolveTimeZone(const std::vector<std::string>& globals, absl::TimeZone* tz, std::string* bad) {
+// --timezone=ZONE (short alias --tz=ZONE) overrides the detected local zone used to interpret
+// time-string arguments (-newerXt). Last occurrence of either spelling wins. An unknown zone is a
+// usage error; absent the flag resolves to the local-zone default.
+absl::StatusOr<absl::TimeZone> ResolveTimeZone(const std::vector<std::string>& globals) {
   std::optional<std::string> spec;
   for (const std::string& global : globals) {
     static constexpr std::array kTimezonePrefixes = std::to_array<std::string_view>({
@@ -805,13 +803,12 @@ bool ResolveTimeZone(const std::vector<std::string>& globals, absl::TimeZone* tz
     }
   }
   if (!spec.has_value()) {
-    return true;
+    return absl::LocalTimeZone();
   }
-  if (!datetime::ParseTimeZone(*spec, tz)) {
-    *bad = *std::move(spec);
-    return false;
+  if (const std::optional<absl::TimeZone> zone = datetime::ParseTimeZone(*spec); zone.has_value()) {
+    return *zone;
   }
-  return true;
+  return absl::InvalidArgumentError(absl::StrCat("unknown time zone: '", *spec, "'"));
 }
 
 // --block-size=SIZE sets the bytes-per-block for a bare `-size N` and `-size Nb`
@@ -3123,11 +3120,12 @@ int RunFind(
   // --timezone=ZONE overrides the local zone for interpreting time-string args
   // (-newerXt) and -daystart's midnight. Resolved first (both need it); an unknown
   // zone is a usage error, refused before traversal.
-  absl::TimeZone tz = absl::LocalTimeZone();
-  if (std::string bad; !ResolveTimeZone(command.globals, &tz, &bad)) {
-    on_error("--timezone", absl::InvalidArgumentError(absl::StrCat("unknown time zone: '", bad, "'")));
+  const absl::StatusOr<absl::TimeZone> tz_result = ResolveTimeZone(command.globals);
+  if (!tz_result.ok()) {
+    on_error("--timezone", tz_result.status());
     return 2;  // do not traverse
   }
+  const absl::TimeZone tz = *tz_result;
   // Capture one reference instant so every entry's age test (-mtime/-mmin) is
   // measured against the same clock. -daystart measures from today's local
   // midnight (in tz) instead of find's start time (the run's start).

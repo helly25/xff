@@ -22,6 +22,7 @@
 
 #include "absl/status/status.h"
 #include "absl/types/span.h"
+#include "mbo/types/optional_ref.h"
 
 namespace xff::cli {
 
@@ -101,6 +102,11 @@ struct GlobalFlag {
   bool xff = true;  // false for a find-native option (-H/-L/-P); true for an xff extension
 };
 
+template<typename Sink>
+void AbslStringify(Sink& sink, const GlobalFlag& flag) {
+  sink.Append(flag.name);
+}
+
 // Whether the build-time extra `key` (e.g. "archive") is compiled into this binary. Reads the
 // `XFF_WITH_*` defines the Bazel `//xff:<extra>` flags add via select(); an unknown key is false.
 // The single point that maps an extra key to its compile-time availability, shared by main (the
@@ -120,9 +126,9 @@ std::string_view ExtraBuildFlag(std::string_view key);
 // system and the planned doc generators.
 absl::Span<const GlobalFlag> Globals();
 
-// The global option named `name` (matching the canonical name or an alias), or
-// nullptr if none. `name` carries its leading dashes (e.g. "--sort", "-j").
-const GlobalFlag* LookupGlobal(std::string_view name);
+// The global option named `name` (matching the canonical name or an alias), or no reference if
+// none. `name` carries its leading dashes (e.g. "--sort", "-j").
+mbo::types::OptionalRef<const GlobalFlag> LookupGlobal(std::string_view name);
 
 // Whether `arg` is a recognized whole-run global token, so `main` can reject an
 // unknown leading option instead of silently ignoring it. Accepts: an exact name or

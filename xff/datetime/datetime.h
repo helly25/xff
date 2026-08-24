@@ -70,14 +70,13 @@ std::optional<absl::Time> ParseTimeString(
 // the time tests).
 absl::Time StartOfDay(absl::Time time, absl::TimeZone tz = absl::LocalTimeZone());
 
-// Resolves a --timezone spec to an absl::TimeZone, writing it to *out and
-// returning true on success. Accepts "" or "local" (the host's local zone),
+// Resolves a --timezone spec to an absl::TimeZone. Accepts "" or "local" (the host's local zone),
 // "utc"/"z"/"zulu" (UTC, case-insensitive), a fixed UTC offset "+HH", "+HH:MM",
 // or "+HHMM" and the '-' forms ("+05:30", "-0800", "+01"), and any IANA zone name
 // ("America/New_York", "Europe/London") loaded from the system zone database.
-// Returns false (leaving *out unchanged) for an unknown name or a malformed offset,
-// so the caller can report a usage error rather than silently falling back.
-bool ParseTimeZone(std::string_view spec, absl::TimeZone* out);
+// Returns nullopt for an unknown name or a malformed offset, so the caller can report a usage
+// error rather than silently falling back.
+std::optional<absl::TimeZone> ParseTimeZone(std::string_view spec);
 
 // Formats `time`, the inverse of ParseTimeString. `spec` is a preset name or any
 // absl::FormatTime() pattern. Presets (only conformant forms claim a standard):

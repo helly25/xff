@@ -28,7 +28,6 @@ namespace {
 
 using ::testing::Eq;
 using ::testing::HasSubstr;
-using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Optional;
 
@@ -206,46 +205,32 @@ TEST_F(DateTimeTest, FormatTimeZoneSuffixControl) {
 }
 
 TEST_F(DateTimeTest, ParseTimeZoneAcceptsLocalUtcAndNamedZones) {
-  absl::TimeZone zone;
-  EXPECT_THAT(ParseTimeZone("", &zone), IsTrue());  // empty -> local
-  EXPECT_THAT(zone, Eq(absl::LocalTimeZone()));
-  EXPECT_THAT(ParseTimeZone("local", &zone), IsTrue());
-  EXPECT_THAT(zone, Eq(absl::LocalTimeZone()));
-  EXPECT_THAT(ParseTimeZone("UTC", &zone), IsTrue());
-  EXPECT_THAT(zone, Eq(absl::UTCTimeZone()));
-  EXPECT_THAT(ParseTimeZone("utc", &zone), IsTrue());  // special names are case-insensitive
-  EXPECT_THAT(zone, Eq(absl::UTCTimeZone()));
-  EXPECT_THAT(ParseTimeZone("zulu", &zone), IsTrue());
-  EXPECT_THAT(zone, Eq(absl::UTCTimeZone()));
+  EXPECT_THAT(ParseTimeZone(""), Optional(Eq(absl::LocalTimeZone())));  // empty -> local
+  EXPECT_THAT(ParseTimeZone("local"), Optional(Eq(absl::LocalTimeZone())));
+  EXPECT_THAT(ParseTimeZone("UTC"), Optional(Eq(absl::UTCTimeZone())));
+  EXPECT_THAT(ParseTimeZone("utc"), Optional(Eq(absl::UTCTimeZone())));  // special names are case-insensitive
+  EXPECT_THAT(ParseTimeZone("zulu"), Optional(Eq(absl::UTCTimeZone())));
   // An IANA name resolves via the system zone database (delegated to LoadTimeZone).
   absl::TimeZone expected;
   ASSERT_THAT(absl::LoadTimeZone("America/New_York", &expected), IsTrue());
-  absl::TimeZone got;
-  ASSERT_THAT(ParseTimeZone("America/New_York", &got), IsTrue());
-  EXPECT_THAT(got, Eq(expected));
+  EXPECT_THAT(ParseTimeZone("America/New_York"), Optional(Eq(expected)));
   // An unknown zone fails (so the caller can report a usage error).
-  EXPECT_THAT(ParseTimeZone("Not/AZone", &zone), IsFalse());
+  EXPECT_THAT(ParseTimeZone("Not/AZone"), Eq(std::nullopt));
 }
 
 TEST_F(DateTimeTest, ParseTimeZoneAcceptsFixedUtcOffsets) {
-  absl::TimeZone zone;
   // +HH:MM, the compact +HHMM, and hours-only +HH all parse; equivalent spellings
   // agree on the offset.
-  EXPECT_THAT(ParseTimeZone("+05:30", &zone), IsTrue());
-  EXPECT_THAT(zone, Eq(absl::FixedTimeZone((5 * 3'600) + (30 * 60))));
-  EXPECT_THAT(ParseTimeZone("+0530", &zone), IsTrue());  // compact form, same offset
-  EXPECT_THAT(zone, Eq(absl::FixedTimeZone((5 * 3'600) + (30 * 60))));
-  EXPECT_THAT(ParseTimeZone("+01", &zone), IsTrue());  // hours only -> :00 minutes
-  EXPECT_THAT(zone, Eq(absl::FixedTimeZone(3'600)));
-  EXPECT_THAT(ParseTimeZone("-08:00", &zone), IsTrue());  // negative offset (west of UTC)
-  EXPECT_THAT(zone, Eq(absl::FixedTimeZone(-8 * 3'600)));
-  EXPECT_THAT(ParseTimeZone("+00:00", &zone), IsTrue());  // zero offset
-  EXPECT_THAT(zone, Eq(absl::FixedTimeZone(0)));
+  EXPECT_THAT(ParseTimeZone("+05:30"), Optional(Eq(absl::FixedTimeZone((5 * 3'600) + (30 * 60)))));
+  EXPECT_THAT(ParseTimeZone("+0530"), Optional(Eq(absl::FixedTimeZone((5 * 3'600) + (30 * 60)))));  // compact
+  EXPECT_THAT(ParseTimeZone("+01"), Optional(Eq(absl::FixedTimeZone(3'600))));          // hours only -> :00 minutes
+  EXPECT_THAT(ParseTimeZone("-08:00"), Optional(Eq(absl::FixedTimeZone(-8 * 3'600))));  // west of UTC
+  EXPECT_THAT(ParseTimeZone("+00:00"), Optional(Eq(absl::FixedTimeZone(0))));           // zero offset
   // Malformed offsets fail, so the caller reports a usage error.
-  EXPECT_THAT(ParseTimeZone("+5:", &zone), IsFalse());     // empty minutes
-  EXPECT_THAT(ParseTimeZone("+99:00", &zone), IsFalse());  // hours out of range
-  EXPECT_THAT(ParseTimeZone("+01:99", &zone), IsFalse());  // minutes out of range
-  EXPECT_THAT(ParseTimeZone("+xy", &zone), IsFalse());     // non-numeric
+  EXPECT_THAT(ParseTimeZone("+5:"), Eq(std::nullopt));     // empty minutes
+  EXPECT_THAT(ParseTimeZone("+99:00"), Eq(std::nullopt));  // hours out of range
+  EXPECT_THAT(ParseTimeZone("+01:99"), Eq(std::nullopt));  // minutes out of range
+  EXPECT_THAT(ParseTimeZone("+xy"), Eq(std::nullopt));     // non-numeric
 }
 
 TEST_F(DateTimeTest, StartOfDayFloorsToZoneMidnight) {
