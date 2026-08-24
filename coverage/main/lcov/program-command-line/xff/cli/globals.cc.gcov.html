@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-24 19:53:32</td>
+            <td class="headerValue">2026-08-24 20:38:56</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -1468,14 +1468,14 @@
 <span id="L1388"><span class="lineNum">    1388</span>                 :<span class="tlaGNC">       10717 :   return kGlobals;</span></span>
 <span id="L1389"><span class="lineNum">    1389</span>                 :             : }</span>
 <span id="L1390"><span class="lineNum">    1390</span>                 :             : </span>
-<span id="L1391"><span class="lineNum">    1391</span>                 :<span class="tlaGNC">        2596 : mbo::types::OptionalRef&lt;const GlobalFlag&gt; LookupGlobal(std::string_view name) {</span></span>
-<span id="L1392"><span class="lineNum">    1392</span>         [<span class="tlaGBC" title="branch 0 was taken 121602 times"> + </span><span class="tlaGBC" title="branch 1 was taken 481 times"> + </span>]:<span class="tlaGNC">      122083 :   for (const GlobalFlag&amp; flag : kGlobals) {</span></span>
-<span id="L1393"><span class="lineNum">    1393</span>   [<span class="tlaGBC" title="branch 0 was taken 119546 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2056 times"> + </span><span class="tlaGBC" title="branch 2 was taken 9243 times"> + </span><span class="tlaGBC" title="branch 3 was taken 110303 times"> + </span> :<span class="tlaGNC">      121602 :     if (flag.name == name || (!flag.alias.empty() &amp;&amp; flag.alias == name)) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 59 times"> + </span><span class="tlaGBC" title="branch 5 was taken 9184 times"> + </span><span class="tlaGBC" title="branch 6 was taken 2115 times"> + </span><span class="tlaGBC" title="branch 7 was taken 119487 times"> + </span>]
+<span id="L1391"><span class="lineNum">    1391</span>                 :<span class="tlaGNC">        2599 : mbo::types::OptionalRef&lt;const GlobalFlag&gt; LookupGlobal(std::string_view name) {</span></span>
+<span id="L1392"><span class="lineNum">    1392</span>         [<span class="tlaGBC" title="branch 0 was taken 121869 times"> + </span><span class="tlaGBC" title="branch 1 was taken 484 times"> + </span>]:<span class="tlaGNC">      122353 :   for (const GlobalFlag&amp; flag : kGlobals) {</span></span>
+<span id="L1393"><span class="lineNum">    1393</span>   [<span class="tlaGBC" title="branch 0 was taken 119813 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2056 times"> + </span><span class="tlaGBC" title="branch 2 was taken 9264 times"> + </span><span class="tlaGBC" title="branch 3 was taken 110549 times"> + </span> :<span class="tlaGNC">      121869 :     if (flag.name == name || (!flag.alias.empty() &amp;&amp; flag.alias == name)) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 59 times"> + </span><span class="tlaGBC" title="branch 5 was taken 9205 times"> + </span><span class="tlaGBC" title="branch 6 was taken 2115 times"> + </span><span class="tlaGBC" title="branch 7 was taken 119754 times"> + </span>]
 <span id="L1394"><span class="lineNum">    1394</span>                 :<span class="tlaGNC">        2115 :       return flag;</span></span>
 <span id="L1395"><span class="lineNum">    1395</span>                 :             :     }</span>
 <span id="L1396"><span class="lineNum">    1396</span>                 :             :   }</span>
-<span id="L1397"><span class="lineNum">    1397</span>                 :<span class="tlaGNC">         481 :   return std::nullopt;</span></span>
+<span id="L1397"><span class="lineNum">    1397</span>                 :<span class="tlaGNC">         484 :   return std::nullopt;</span></span>
 <span id="L1398"><span class="lineNum">    1398</span>                 :             : }</span>
 <span id="L1399"><span class="lineNum">    1399</span>                 :             : </span>
 <span id="L1400"><span class="lineNum">    1400</span>                 :<span class="tlaGNC">         831 : absl::Status ValidateGlobalValue(std::string_view arg) {</span></span>

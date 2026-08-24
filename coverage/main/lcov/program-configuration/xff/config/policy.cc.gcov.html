@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-24 19:53:32</td>
+            <td class="headerValue">2026-08-24 20:38:56</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -116,8 +116,8 @@
 <span id="L36"><span class="lineNum">      36</span>                 :             : // attached binding like &quot;-capture:tag&quot; is classified by its base name &quot;-capture&quot;.</span>
 <span id="L37"><span class="lineNum">      37</span>                 :<span class="tlaGNC">          48 : registry::Safety FlagSafety(std::string_view flag) {</span></span>
 <span id="L38"><span class="lineNum">      38</span>                 :<span class="tlaGNC">          48 :   const std::string_view base = flag.substr(0, flag.find(':'));</span></span>
-<span id="L39"><span class="lineNum">      39</span>                 :<span class="tlaGNC">          48 :   const registry::Descriptor* const descriptor = registry::Lookup(base);</span></span>
-<span id="L40"><span class="lineNum">      40</span>         [<span class="tlaGBC" title="branch 0 was taken 15 times"> + </span><span class="tlaGBC" title="branch 1 was taken 33 times"> + </span>]:<span class="tlaGNC">          48 :   return descriptor == nullptr ? registry::Safety::kNone : descriptor-&gt;safety;</span></span>
+<span id="L39"><span class="lineNum">      39</span>                 :<span class="tlaGNC">          48 :   const auto descriptor = registry::Lookup(base);</span></span>
+<span id="L40"><span class="lineNum">      40</span>         [<span class="tlaGBC" title="branch 0 was taken 15 times"> + </span><span class="tlaGBC" title="branch 1 was taken 33 times"> + </span>]:<span class="tlaGNC">          48 :   return descriptor.has_value() ? descriptor-&gt;safety : registry::Safety::kNone;</span></span>
 <span id="L41"><span class="lineNum">      41</span>                 :             : }</span>
 <span id="L42"><span class="lineNum">      42</span>                 :             : </span>
 <span id="L43"><span class="lineNum">      43</span>                 :             : // @safe/@sensitive/@destructive -&gt; the matching class; nullopt if not a class token.</span>
