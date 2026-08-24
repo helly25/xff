@@ -2883,13 +2883,13 @@ void FeedCollections(
           .link_target = link,
           .metadata = visit.metadata,
           .depth = visit.depth,
-          .fs = visit.fs != nullptr ? visit.fs : &defaults.fs,
+          .fs = visit.fs != nullptr ? *visit.fs : defaults.fs,
           .tz = defaults.tz,
           .time_format = defaults.time_format,
           .zone_suffix = defaults.zone_suffix,
           .hash_algorithm = defaults.hash_algorithm,
           .hash_encoding = defaults.hash_encoding,
-          .defines = &defaults.defines,
+          .defines = defaults.defines,
       };
       FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
       FeedHistograms(histograms, histogram_cells, visit);
@@ -3681,14 +3681,14 @@ int RunFind(
             .link_target = link,
             .metadata = visit.metadata,
             .depth = visit.depth,
-            .fs = visit.fs != nullptr ? visit.fs : &walk_fs,
+            .fs = visit.fs != nullptr ? *visit.fs : walk_fs,
             .tz = tz,
             .time_format = time_format,
             .zone_suffix = zone_suffix,
             .hash_algorithm = hash_algorithm,
             .hash_encoding = hash_encoding,
-            .defines = &defines,
-            .outputs = &outputs,
+            .defines = defines,
+            .outputs = outputs,
             .fuzzy_score = fuzzy_score};
         FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
         FeedHistograms(histograms, histogram_cells, visit);
@@ -3714,14 +3714,14 @@ int RunFind(
             .link_target = link,
             .metadata = visit.metadata,
             .depth = visit.depth,
-            .fs = visit.fs != nullptr ? visit.fs : &walk_fs,
+            .fs = visit.fs != nullptr ? *visit.fs : walk_fs,
             .tz = tz,
             .time_format = time_format,
             .zone_suffix = zone_suffix,
             .hash_algorithm = hash_algorithm,
             .hash_encoding = hash_encoding,
-            .defines = &defines,
-            .outputs = &outputs,
+            .defines = defines,
+            .outputs = outputs,
             .fuzzy_score = fuzzy_score};
         if (!column_templates.empty()) {
           std::vector<std::string> cells;
@@ -3847,9 +3847,10 @@ int RunFind(
             .hash_encoding = hash_encoding,
             .control = control,
             .exec_fields = exec_fields,
-            .captures = exec_fields ? &captures : nullptr,
-            .defines = &defines,
-            .outputs = &outputs,
+            .captures =
+                exec_fields ? mbo::types::OptionalRef{captures} : mbo::types::OptionalRef<std::vector<std::string>>{},
+            .defines = defines,
+            .outputs = outputs,
             .first_counts = &first_counts,
             .collections = &collections,
             .confirm = confirm,
@@ -3970,9 +3971,10 @@ int RunFind(
           .hash_encoding = hash_encoding,
           .control = control,
           .exec_fields = exec_fields,
-          .captures = exec_fields ? &candidate.captures : nullptr,
-          .defines = &defines,
-          .outputs = &candidate.outputs,
+          .captures = exec_fields ? mbo::types::OptionalRef{candidate.captures}
+                                  : mbo::types::OptionalRef<std::vector<std::string>>{},
+          .defines = defines,
+          .outputs = candidate.outputs,
           .first_counts = &first_counts,
           .collections = &collections,
           .confirm = confirm,
@@ -4127,13 +4129,13 @@ int RunFind(
           .link_target = link,
           .metadata = visit.metadata,
           .depth = visit.depth,
-          .fs = visit.fs != nullptr ? visit.fs : &walk_fs,
+          .fs = visit.fs != nullptr ? *visit.fs : walk_fs,
           .tz = tz,
           .time_format = time_format,
           .zone_suffix = zone_suffix,
           .hash_algorithm = hash_algorithm,
           .hash_encoding = hash_encoding,
-          .defines = &defines,
+          .defines = defines,
           .shard_count = shard_count};
       feed_summaries(key_ctx, visit);
       feed_histograms(visit);

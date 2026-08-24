@@ -35,6 +35,7 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
         "@helly25_mbo//mbo/container:limited_map_cc",
+        "@helly25_mbo//mbo/types:optional_ref_cc",
         "@helly25_mbo//mbo/types:string_or_view_cc",
     ],
 )

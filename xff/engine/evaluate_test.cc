@@ -95,8 +95,8 @@ struct EvaluateTest : ::testing::Test {
         .grep_count = grep_count_,
         .control = control_,
         .exec_fields = exec_fields_,
-        .captures = exec_fields_ ? &captures_ : nullptr,
-        .outputs = &outputs_,
+        .captures = exec_fields_ ? mbo::types::OptionalRef{captures_} : std::nullopt,
+        .outputs = outputs_,
         .confirm = [this](std::string_view prompt) {
           last_prompt_ = std::string(prompt);
           return confirm_reply_;

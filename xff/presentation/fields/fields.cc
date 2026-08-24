@@ -294,7 +294,7 @@ StringOrView HashField(std::string_view, std::string_view qualifier, const Rende
   if (!spec.has_value()) {
     return "";  // unknown algorithm or encoding -> empty, like an unknown field
   }
-  if (ctx.fs == nullptr) {
+  if (!ctx.fs.has_value()) {
     return hash::HashFile(spec->algo, ctx.path, spec->encoding).value_or("");
   }
   // Through the entry's own filesystem when there is one: a member's bytes live in its container,
@@ -309,7 +309,7 @@ StringOrView HashField(std::string_view, std::string_view qualifier, const Rende
 // The line count of the entry, read the same way {hash} reads it: through the filesystem the entry
 // came from when there is one (so an archive member counts its own lines), else by path.
 std::optional<std::size_t> ReadEntryLineCount(const RenderContext& ctx) {
-  if (ctx.fs == nullptr) {
+  if (!ctx.fs.has_value()) {
     return content::FileLineCount(ctx.path);
   }
   const absl::StatusOr<std::string> content = ctx.fs->ReadContent(ctx.path);
@@ -626,7 +626,7 @@ int CaptureIndex(std::string_view name) {
 // when captures are unset or the index is out of range.
 StringOrView CaptureField(std::string_view key, std::string_view, const RenderContext& ctx) {
   const int index = CaptureIndex(key);
-  if (ctx.captures == nullptr || index < 0 || std::cmp_greater_equal(index, ctx.captures->size())) {
+  if (!ctx.captures.has_value() || index < 0 || std::cmp_greater_equal(index, ctx.captures->size())) {
     return "";
   }
   return std::string_view((*ctx.captures)[static_cast<std::size_t>(index)]);
@@ -640,7 +640,7 @@ StringOrView EnvField(std::string_view key, std::string_view, const RenderContex
 
 // Renders {def.NAME}: `key` is NAME; the --define value, or empty when undefined.
 StringOrView DefField(std::string_view key, std::string_view, const RenderContext& ctx) {
-  if (ctx.defines == nullptr) {
+  if (!ctx.defines.has_value()) {
     return "";
   }
   const auto it = ctx.defines->find(std::string(key));
@@ -649,7 +649,7 @@ StringOrView DefField(std::string_view key, std::string_view, const RenderContex
 
 // Renders {capture.NAME}: `key` is NAME; a -capture result, empty when unset.
 StringOrView OutputField(std::string_view key, std::string_view, const RenderContext& ctx) {
-  if (ctx.outputs == nullptr) {
+  if (!ctx.outputs.has_value()) {
     return "";
   }
   const auto it = ctx.outputs->find(std::string(key));
