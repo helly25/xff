@@ -223,18 +223,16 @@ Palette Palette::FromLsColors(std::string_view ls_colors, bool fall_back) {
   return palette;
 }
 
-const std::string* Palette::Themed(std::string_view key) const {
+std::optional<std::string_view> Palette::Themed(std::string_view key) const {
   const auto it = types_.find(key);
-  return it == types_.end() ? nullptr : &it->second;
+  return it == types_.end() ? std::nullopt : std::optional<std::string_view>(it->second);
 }
 
 std::string_view Palette::RegularCode(std::string_view name, std::uint32_t mode) const {
   // ls's order for a regular file: the executable bit first, then the extension, then `fi`. So a
   // themed `*.sh` loses to `ex` on an executable script, exactly as in a real ls listing.
   if ((mode & 0111U) != 0U) {
-    const std::string* const executable = Themed("ex");
-    return executable != nullptr ? std::string_view(*executable)
-                                 : (fall_back_ ? CodeForType(vfs::FileType::kRegular, mode) : std::string_view());
+    return Themed("ex").value_or(fall_back_ ? CodeForType(vfs::FileType::kRegular, mode) : std::string_view());
   }
   if (!extensions_.empty()) {
     const std::string_view::size_type dot = name.rfind('.');
@@ -245,9 +243,7 @@ std::string_view Palette::RegularCode(std::string_view name, std::uint32_t mode)
       }
     }
   }
-  const std::string* const plain = Themed("fi");
-  return plain != nullptr ? std::string_view(*plain)
-                          : (fall_back_ ? CodeForType(vfs::FileType::kRegular, mode) : std::string_view());
+  return Themed("fi").value_or(fall_back_ ? CodeForType(vfs::FileType::kRegular, mode) : std::string_view());
 }
 
 std::string_view Palette::CodeFor(std::string_view name, vfs::FileType type, std::uint32_t mode) const {
@@ -263,7 +259,7 @@ std::string_view Palette::CodeFor(std::string_view name, vfs::FileType type, std
       std::pair{vfs::FileType::kSocket, std::string_view("so")},
       std::pair{vfs::FileType::kSymlink, std::string_view("ln")});
   if (const auto key = kKeys.find(type); key != kKeys.end()) {
-    if (const std::string* const themed = Themed(key->second)) {
+    if (const std::optional<std::string_view> themed = Themed(key->second); themed.has_value()) {
       return *themed;
     }
   }
