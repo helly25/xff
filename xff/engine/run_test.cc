@@ -426,7 +426,7 @@ TEST_F(RunTest, MimeVocabularyOverridesMatchingAndExposesMetadataFields) {
   const fs::path vocabulary = root_ / "mime.json";
   const fs::path binary = root_ / "b.md";
   const fs::path unspecified = root_ / "unspecified.mime-unknown";
-  { std::ofstream empty(unspecified); }
+  { const std::ofstream empty(unspecified); }
   std::ofstream(vocabulary) << R"({
     "application/x-note": {
       "description": "Note document",
