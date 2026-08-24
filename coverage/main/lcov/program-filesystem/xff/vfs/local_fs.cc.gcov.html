@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-24 20:38:56</td>
+            <td class="headerValue">2026-08-24 21:24:25</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -215,25 +215,25 @@
 <span id="L133"><span class="lineNum">     133</span>                 :<span class="tlaGNC">        3539 : Metadata MetadataFromStat(const struct stat&amp; st, std::optional&lt;absl::Time&gt; btime) {</span></span>
 <span id="L134"><span class="lineNum">     134</span>                 :<span class="tlaGNC">        3539 :   Metadata md;</span></span>
 <span id="L135"><span class="lineNum">     135</span>                 :<span class="tlaGNC">        3539 :   md.type = TypeFromMode(st.st_mode);</span></span>
-<span id="L136"><span class="lineNum">     136</span>                 :<span class="tlaGNC">        3539 :   md.size = static_cast&lt;std::uint64_t&gt;(st.st_size);</span></span>
-<span id="L137"><span class="lineNum">     137</span>                 :<span class="tlaGNC">        3539 :   md.blocks = static_cast&lt;std::uint64_t&gt;(st.st_blocks);  // 512-byte blocks, for -ls</span></span>
-<span id="L138"><span class="lineNum">     138</span>                 :<span class="tlaGNC">        3539 :   md.mode = static_cast&lt;std::uint32_t&gt;(st.st_mode);</span></span>
-<span id="L139"><span class="lineNum">     139</span>                 :<span class="tlaGNC">        3539 :   md.nlink = static_cast&lt;std::uint64_t&gt;(st.st_nlink);</span></span>
-<span id="L140"><span class="lineNum">     140</span>                 :<span class="tlaGNC">        3539 :   md.uid = static_cast&lt;std::uint32_t&gt;(st.st_uid);</span></span>
-<span id="L141"><span class="lineNum">     141</span>                 :<span class="tlaGNC">        3539 :   md.gid = static_cast&lt;std::uint32_t&gt;(st.st_gid);</span></span>
-<span id="L142"><span class="lineNum">     142</span>                 :<span class="tlaGNC">        3539 :   md.ino = static_cast&lt;std::uint64_t&gt;(st.st_ino);</span></span>
-<span id="L143"><span class="lineNum">     143</span>                 :<span class="tlaGNC">        3539 :   md.dev = static_cast&lt;std::uint64_t&gt;(st.st_dev);</span></span>
+<span id="L136"><span class="lineNum">     136</span>                 :<span class="tlaGNC">        3538 :   md.size = static_cast&lt;std::uint64_t&gt;(st.st_size);</span></span>
+<span id="L137"><span class="lineNum">     137</span>                 :<span class="tlaGNC">        3538 :   md.blocks = static_cast&lt;std::uint64_t&gt;(st.st_blocks);  // 512-byte blocks, for -ls</span></span>
+<span id="L138"><span class="lineNum">     138</span>                 :<span class="tlaGNC">        3538 :   md.mode = static_cast&lt;std::uint32_t&gt;(st.st_mode);</span></span>
+<span id="L139"><span class="lineNum">     139</span>                 :<span class="tlaGNC">        3538 :   md.nlink = static_cast&lt;std::uint64_t&gt;(st.st_nlink);</span></span>
+<span id="L140"><span class="lineNum">     140</span>                 :<span class="tlaGNC">        3538 :   md.uid = static_cast&lt;std::uint32_t&gt;(st.st_uid);</span></span>
+<span id="L141"><span class="lineNum">     141</span>                 :<span class="tlaGNC">        3538 :   md.gid = static_cast&lt;std::uint32_t&gt;(st.st_gid);</span></span>
+<span id="L142"><span class="lineNum">     142</span>                 :<span class="tlaGNC">        3538 :   md.ino = static_cast&lt;std::uint64_t&gt;(st.st_ino);</span></span>
+<span id="L143"><span class="lineNum">     143</span>                 :<span class="tlaGNC">        3538 :   md.dev = static_cast&lt;std::uint64_t&gt;(st.st_dev);</span></span>
 <span id="L144"><span class="lineNum">     144</span>                 :             : #if defined(__APPLE__)</span>
 <span id="L145"><span class="lineNum">     145</span>                 :             :   md.atime = absl::TimeFromTimespec(st.st_atimespec);</span>
 <span id="L146"><span class="lineNum">     146</span>                 :             :   md.mtime = absl::TimeFromTimespec(st.st_mtimespec);</span>
 <span id="L147"><span class="lineNum">     147</span>                 :             :   md.ctime = absl::TimeFromTimespec(st.st_ctimespec);</span>
 <span id="L148"><span class="lineNum">     148</span>                 :             : #else</span>
-<span id="L149"><span class="lineNum">     149</span>                 :<span class="tlaGNC">        3539 :   md.atime = absl::TimeFromTimespec(st.st_atim);</span></span>
-<span id="L150"><span class="lineNum">     150</span>                 :<span class="tlaGNC">        3539 :   md.mtime = absl::TimeFromTimespec(st.st_mtim);</span></span>
-<span id="L151"><span class="lineNum">     151</span>                 :<span class="tlaGNC">        3539 :   md.ctime = absl::TimeFromTimespec(st.st_ctim);</span></span>
+<span id="L149"><span class="lineNum">     149</span>                 :<span class="tlaGNC">        3538 :   md.atime = absl::TimeFromTimespec(st.st_atim);</span></span>
+<span id="L150"><span class="lineNum">     150</span>                 :<span class="tlaGNC">        3538 :   md.mtime = absl::TimeFromTimespec(st.st_mtim);</span></span>
+<span id="L151"><span class="lineNum">     151</span>                 :<span class="tlaGNC">        3538 :   md.ctime = absl::TimeFromTimespec(st.st_ctim);</span></span>
 <span id="L152"><span class="lineNum">     152</span>                 :             : #endif</span>
-<span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">        3539 :   md.btime = btime;</span></span>
-<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">        3539 :   return md;</span></span>
+<span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">        3538 :   md.btime = btime;</span></span>
+<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">        3538 :   return md;</span></span>
 <span id="L155"><span class="lineNum">     155</span>                 :             : }</span>
 <span id="L156"><span class="lineNum">     156</span>                 :             : </span>
 <span id="L157"><span class="lineNum">     157</span>                 :             : #if !defined(__APPLE__)</span>
@@ -277,11 +277,11 @@
 <span id="L195"><span class="lineNum">     195</span>                 :             :   // never shared across threads. readdir is only unsafe for threads sharing a stream (readdir_r, the</span>
 <span id="L196"><span class="lineNum">     196</span>                 :             :   // per-stream alternative, is deprecated).</span>
 <span id="L197"><span class="lineNum">     197</span>                 :             :   // NOLINTNEXTLINE(concurrency-mt-unsafe)</span>
-<span id="L198"><span class="lineNum">     198</span>         [<span class="tlaGBC" title="branch 0 was taken 5373 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1182 times"> + </span>]:<span class="tlaGNC">        6557 :   for (const struct dirent* de = ::readdir(dirp); de != nullptr; de = ::readdir(dirp)) {</span></span>
+<span id="L198"><span class="lineNum">     198</span>         [<span class="tlaGBC" title="branch 0 was taken 5374 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1183 times"> + </span>]:<span class="tlaGNC">        6556 :   for (const struct dirent* de = ::readdir(dirp); de != nullptr; de = ::readdir(dirp)) {</span></span>
 <span id="L199"><span class="lineNum">     199</span>                 :             :     // d_name is a fixed C char[] field; the array-to-pointer decay is inherent to reading it.</span>
 <span id="L200"><span class="lineNum">     200</span>                 :             :     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay,hicpp-no-array-decay)</span>
-<span id="L201"><span class="lineNum">     201</span>                 :<span class="tlaGNC">        5373 :     const std::string_view name(de-&gt;d_name);</span></span>
-<span id="L202"><span class="lineNum">     202</span>   [<span class="tlaGBC" title="branch 0 was taken 4189 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1183 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1184 times"> + </span><span class="tlaGBC" title="branch 3 was taken 3006 times"> + </span> :<span class="tlaGNC">        5372 :     if (name == &quot;.&quot; || name == &quot;..&quot;) {</span></span>
+<span id="L201"><span class="lineNum">     201</span>                 :<span class="tlaGNC">        5374 :     const std::string_view name(de-&gt;d_name);</span></span>
+<span id="L202"><span class="lineNum">     202</span>   [<span class="tlaGBC" title="branch 0 was taken 4190 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1184 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1183 times"> + </span><span class="tlaGBC" title="branch 3 was taken 3006 times"> + </span> :<span class="tlaGNC">        5374 :     if (name == &quot;.&quot; || name == &quot;..&quot;) {</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 2367 times"> + </span><span class="tlaGBC" title="branch 5 was taken 3006 times"> + </span>]
 <span id="L203"><span class="lineNum">     203</span>                 :<span class="tlaGNC">        2367 :       errno = 0;</span></span>
 <span id="L204"><span class="lineNum">     204</span>                 :<span class="tlaGNC">        2367 :       continue;</span></span>
@@ -293,18 +293,18 @@
 <span id="L210"><span class="lineNum">     210</span>                 :<span class="tlaGNC">        3006 :     entry.source = Source::kLocalFs;</span></span>
 <span id="L211"><span class="lineNum">     211</span>                 :<span class="tlaGNC">        3006 :     entry.read_only = false;</span></span>
 <span id="L212"><span class="lineNum">     212</span>                 :<span class="tlaGNC">        3006 :     entries.push_back(std::move(entry));</span></span>
-<span id="L213"><span class="lineNum">     213</span>                 :<span class="tlaGNC">        3006 :     errno = 0;</span></span>
-<span id="L214"><span class="lineNum">     214</span>                 :<span class="tlaGNC">        3006 :   }</span></span>
-<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">        1182 :   const int read_errno = errno;</span></span>
-<span id="L216"><span class="lineNum">     216</span>                 :<span class="tlaGNC">        1182 :   ::closedir(dirp);</span></span>
+<span id="L213"><span class="lineNum">     213</span>                 :<span class="tlaGNC">        3005 :     errno = 0;</span></span>
+<span id="L214"><span class="lineNum">     214</span>                 :<span class="tlaGNC">        3005 :   }</span></span>
+<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">        1183 :   const int read_errno = errno;</span></span>
+<span id="L216"><span class="lineNum">     216</span>                 :<span class="tlaGNC">        1183 :   ::closedir(dirp);</span></span>
 <span id="L217"><span class="lineNum">     217</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 1184 times"> + </span>]:<span class="tlaGNC">        1184 :   if (read_errno != 0) {</span></span>
 <span id="L218"><span class="lineNum">     218</span>                 :<span class="tlaUNC">           0 :     return absl::ErrnoToStatus(read_errno, absl::StrCat(&quot;readdir('&quot;, dir, &quot;')&quot;));</span></span>
 <span id="L219"><span class="lineNum">     219</span>                 :             :   }</span>
 <span id="L220"><span class="lineNum">     220</span>                 :<span class="tlaGNC">        1184 :   return entries;</span></span>
-<span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC">        1185 : }</span></span>
+<span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC">        1186 : }</span></span>
 <span id="L222"><span class="lineNum">     222</span>                 :             : </span>
-<span id="L223"><span class="lineNum">     223</span>                 :<span class="tlaGNC">        3876 : absl::StatusOr&lt;Metadata&gt; LocalFs::Stat(std::string_view path, bool follow_symlinks) const {</span></span>
-<span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaGNC">        3876 :   const std::string path_str(path);</span></span>
+<span id="L223"><span class="lineNum">     223</span>                 :<span class="tlaGNC">        3875 : absl::StatusOr&lt;Metadata&gt; LocalFs::Stat(std::string_view path, bool follow_symlinks) const {</span></span>
+<span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaGNC">        3875 :   const std::string path_str(path);</span></span>
 <span id="L225"><span class="lineNum">     225</span>                 :<span class="tlaGNC">        3876 :   struct stat st{};</span></span>
 <span id="L226"><span class="lineNum">     226</span>         [<span class="tlaGBC" title="branch 0 was taken 73 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3803 times"> + </span>]:<span class="tlaGNC">        3876 :   const int rc = follow_symlinks ? ::stat(path_str.c_str(), &amp;st) : ::lstat(path_str.c_str(), &amp;st);</span></span>
 <span id="L227"><span class="lineNum">     227</span>         [<span class="tlaGBC" title="branch 0 was taken 337 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3539 times"> + </span>]:<span class="tlaGNC">        3876 :   if (rc != 0) {</span></span>

@@ -40,13 +40,13 @@
             <td class="headerValue">xff production coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">93.5&nbsp;%</td>
-            <td class="headerCovTableEntry">123</td>
-            <td class="headerCovTableEntry">115</td>
+            <td class="headerCovTableEntryHi">93.3&nbsp;%</td>
+            <td class="headerCovTableEntry">119</td>
+            <td class="headerCovTableEntry">111</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-24 20:38:56</td>
+            <td class="headerValue">2026-08-24 21:24:25</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -58,9 +58,9 @@
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryHi">84.3&nbsp;%</td>
-            <td class="headerCovTableEntry">121</td>
-            <td class="headerCovTableEntry">102</td>
+            <td class="headerCovTableEntryHi">85.5&nbsp;%</td>
+            <td class="headerCovTableEntry">117</td>
+            <td class="headerCovTableEntry">100</td>
           </tr>
                   <tr><td><img src="../../../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -142,17 +142,17 @@
 <span id="L62"><span class="lineNum">      62</span>                 :<span class="tlaUNC">           0 :   return false;</span></span>
 <span id="L63"><span class="lineNum">      63</span>                 :             : }</span>
 <span id="L64"><span class="lineNum">      64</span>                 :             : </span>
-<span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaGNC">          93 : std::string_view CodeForType(vfs::FileType type, std::uint32_t mode) {</span></span>
-<span id="L66"><span class="lineNum">      66</span>   [<span class="tlaGBC" title="branch 0 was taken 44 times"> + </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span><span class="tlaGBC" title="branch 2 was taken 3 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">          93 :   switch (type) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaUNC" title="branch 4 was not taken"> - </span><span class="tlaGBC" title="branch 5 was taken 27 times"> + </span><span class="tlaUNC" title="branch 6 was not taken"> - </span><span class="tlaUNC" title="branch 7 was not taken"> - </span>]
+<span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaGNC">          96 : std::string_view CodeForType(vfs::FileType type, std::uint32_t mode) {</span></span>
+<span id="L66"><span class="lineNum">      66</span>   [<span class="tlaGBC" title="branch 0 was taken 44 times"> + </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span><span class="tlaGBC" title="branch 2 was taken 3 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">          96 :   switch (type) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaUNC" title="branch 4 was not taken"> - </span><span class="tlaGBC" title="branch 5 was taken 30 times"> + </span><span class="tlaUNC" title="branch 6 was not taken"> - </span><span class="tlaUNC" title="branch 7 was not taken"> - </span>]
 <span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">          44 :     case vfs::FileType::kDirectory: return &quot;1;34&quot;;  // bold blue</span></span>
 <span id="L68"><span class="lineNum">      68</span>                 :<span class="tlaGNC">          19 :     case vfs::FileType::kSymlink: return &quot;1;36&quot;;    // bold cyan</span></span>
 <span id="L69"><span class="lineNum">      69</span>                 :<span class="tlaGNC">           3 :     case vfs::FileType::kFifo: return &quot;33&quot;;         // yellow</span></span>
 <span id="L70"><span class="lineNum">      70</span>                 :<span class="tlaUNC">           0 :     case vfs::FileType::kSocket: return &quot;1;35&quot;;     // bold magenta</span></span>
 <span id="L71"><span class="lineNum">      71</span>                 :<span class="tlaUNC">           0 :     case vfs::FileType::kBlockDevice:</span></span>
 <span id="L72"><span class="lineNum">      72</span>                 :<span class="tlaUNC">           0 :     case vfs::FileType::kCharDevice: return &quot;1;33&quot;;  // bold yellow (block / char device)</span></span>
-<span id="L73"><span class="lineNum">      73</span>                 :<span class="tlaGNC">          27 :     case vfs::FileType::kRegular:</span></span>
-<span id="L74"><span class="lineNum">      74</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 26 times"> + </span>]:<span class="tlaGNC">          27 :       return (mode &amp; 0111U) != 0U ? std::string_view(&quot;1;32&quot;) : std::string_view();  // bold green if executable</span></span>
+<span id="L73"><span class="lineNum">      73</span>                 :<span class="tlaGNC">          30 :     case vfs::FileType::kRegular:</span></span>
+<span id="L74"><span class="lineNum">      74</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 27 times"> + </span>]:<span class="tlaGNC">          30 :       return (mode &amp; 0111U) != 0U ? std::string_view(&quot;1;32&quot;) : std::string_view();  // bold green if executable</span></span>
 <span id="L75"><span class="lineNum">      75</span>                 :<span class="tlaUNC">           0 :     case vfs::FileType::kUnknown: return {};</span></span>
 <span id="L76"><span class="lineNum">      76</span>                 :             :   }</span>
 <span id="L77"><span class="lineNum">      77</span>                 :<span class="tlaUNC">           0 :   return {};</span></span>
@@ -307,57 +307,53 @@
 <span id="L223"><span class="lineNum">     223</span>                 :<span class="tlaGNC">          19 :   return palette;</span></span>
 <span id="L224"><span class="lineNum">     224</span>                 :             : }</span>
 <span id="L225"><span class="lineNum">     225</span>                 :             : </span>
-<span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">         144 : const std::string* Palette::Themed(std::string_view key) const {</span></span>
+<span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">         144 : std::optional&lt;std::string_view&gt; Palette::Themed(std::string_view key) const {</span></span>
 <span id="L227"><span class="lineNum">     227</span>                 :<span class="tlaGNC">         144 :   const auto it = types_.find(key);</span></span>
-<span id="L228"><span class="lineNum">     228</span>         [<span class="tlaGBC" title="branch 0 was taken 98 times"> + </span><span class="tlaGBC" title="branch 1 was taken 46 times"> + </span>]:<span class="tlaGNC">         144 :   return it == types_.end() ? nullptr : &amp;it-&gt;second;</span></span>
+<span id="L228"><span class="lineNum">     228</span>         [<span class="tlaGBC" title="branch 0 was taken 98 times"> + </span><span class="tlaGBC" title="branch 1 was taken 46 times"> + </span>]:<span class="tlaGNC">         144 :   return it == types_.end() ? std::nullopt : std::optional&lt;std::string_view&gt;(it-&gt;second);</span></span>
 <span id="L229"><span class="lineNum">     229</span>                 :             : }</span>
 <span id="L230"><span class="lineNum">     230</span>                 :             : </span>
 <span id="L231"><span class="lineNum">     231</span>                 :<span class="tlaGNC">          40 : std::string_view Palette::RegularCode(std::string_view name, std::uint32_t mode) const {</span></span>
 <span id="L232"><span class="lineNum">     232</span>                 :             :   // ls's order for a regular file: the executable bit first, then the extension, then `fi`. So a</span>
 <span id="L233"><span class="lineNum">     233</span>                 :             :   // themed `*.sh` loses to `ex` on an executable script, exactly as in a real ls listing.</span>
 <span id="L234"><span class="lineNum">     234</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 38 times"> + </span>]:<span class="tlaGNC">          40 :   if ((mode &amp; 0111U) != 0U) {</span></span>
-<span id="L235"><span class="lineNum">     235</span>                 :<span class="tlaGNC">           2 :     const std::string* const executable = Themed(&quot;ex&quot;);</span></span>
-<span id="L236"><span class="lineNum">     236</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">           2 :     return executable != nullptr ? std::string_view(*executable)</span></span>
-<span id="L237"><span class="lineNum">     237</span>         [<span class="tlaUNC" title="branch 0 was not executed"> # </span><span class="tlaUNC" title="branch 1 was not executed"> # </span>]:<span class="tlaGNC">           2 :                                  : (fall_back_ ? CodeForType(vfs::FileType::kRegular, mode) : std::string_view());</span></span>
-<span id="L238"><span class="lineNum">     238</span>                 :             :   }</span>
-<span id="L239"><span class="lineNum">     239</span>         [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 31 times"> + </span>]:<span class="tlaGNC">          38 :   if (!extensions_.empty()) {</span></span>
-<span id="L240"><span class="lineNum">     240</span>                 :<span class="tlaGNC">           7 :     const std::string_view::size_type dot = name.rfind('.');</span></span>
-<span id="L241"><span class="lineNum">     241</span>   [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 7 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">           7 :     if (dot != std::string_view::npos &amp;&amp; dot + 1 &lt; name.size()) {</span></span>
+<span id="L235"><span class="lineNum">     235</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">           2 :     return Themed(&quot;ex&quot;).value_or(fall_back_ ? CodeForType(vfs::FileType::kRegular, mode) : std::string_view());</span></span>
+<span id="L236"><span class="lineNum">     236</span>                 :             :   }</span>
+<span id="L237"><span class="lineNum">     237</span>         [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 31 times"> + </span>]:<span class="tlaGNC">          38 :   if (!extensions_.empty()) {</span></span>
+<span id="L238"><span class="lineNum">     238</span>                 :<span class="tlaGNC">           7 :     const std::string_view::size_type dot = name.rfind('.');</span></span>
+<span id="L239"><span class="lineNum">     239</span>   [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 7 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">           7 :     if (dot != std::string_view::npos &amp;&amp; dot + 1 &lt; name.size()) {</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 7 times"> + </span><span class="tlaUNC" title="branch 5 was not taken"> - </span>]
-<span id="L242"><span class="lineNum">     242</span>                 :<span class="tlaGNC">           7 :       const auto it = extensions_.find(absl::AsciiStrToLower(name.substr(dot)));</span></span>
-<span id="L243"><span class="lineNum">     243</span>         [<span class="tlaGBC" title="branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           7 :       if (it != extensions_.end()) {</span></span>
-<span id="L244"><span class="lineNum">     244</span>                 :<span class="tlaGNC">           6 :         return it-&gt;second;</span></span>
-<span id="L245"><span class="lineNum">     245</span>                 :             :       }</span>
-<span id="L246"><span class="lineNum">     246</span>                 :             :     }</span>
-<span id="L247"><span class="lineNum">     247</span>                 :             :   }</span>
-<span id="L248"><span class="lineNum">     248</span>                 :<span class="tlaGNC">          32 :   const std::string* const plain = Themed(&quot;fi&quot;);</span></span>
-<span id="L249"><span class="lineNum">     249</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 31 times"> + </span>]:<span class="tlaGNC">          32 :   return plain != nullptr ? std::string_view(*plain)</span></span>
-<span id="L250"><span class="lineNum">     250</span>         [<span class="tlaGBC" title="branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">          32 :                           : (fall_back_ ? CodeForType(vfs::FileType::kRegular, mode) : std::string_view());</span></span>
-<span id="L251"><span class="lineNum">     251</span>                 :             : }</span>
-<span id="L252"><span class="lineNum">     252</span>                 :             : </span>
-<span id="L253"><span class="lineNum">     253</span>                 :<span class="tlaGNC">         150 : std::string_view Palette::CodeFor(std::string_view name, vfs::FileType type, std::uint32_t mode) const {</span></span>
-<span id="L254"><span class="lineNum">     254</span>         [<span class="tlaGBC" title="branch 0 was taken 40 times"> + </span><span class="tlaGBC" title="branch 1 was taken 110 times"> + </span>]:<span class="tlaGNC">         150 :   if (type == vfs::FileType::kRegular) {</span></span>
-<span id="L255"><span class="lineNum">     255</span>                 :<span class="tlaGNC">          40 :     return RegularCode(name, mode);</span></span>
-<span id="L256"><span class="lineNum">     256</span>                 :             :   }</span>
-<span id="L257"><span class="lineNum">     257</span>                 :             :   // Every other type is one dircolors key, so the lookup is a table rather than a branch per case.</span>
-<span id="L258"><span class="lineNum">     258</span>                 :             :   static constexpr auto kKeys = mbo::container::MakeLimitedMap(</span>
-<span id="L259"><span class="lineNum">     259</span>                 :             :       std::pair{vfs::FileType::kBlockDevice, std::string_view(&quot;bd&quot;)},</span>
-<span id="L260"><span class="lineNum">     260</span>                 :             :       std::pair{vfs::FileType::kCharDevice, std::string_view(&quot;cd&quot;)},</span>
-<span id="L261"><span class="lineNum">     261</span>                 :             :       std::pair{vfs::FileType::kDirectory, std::string_view(&quot;di&quot;)},</span>
-<span id="L262"><span class="lineNum">     262</span>                 :             :       std::pair{vfs::FileType::kFifo, std::string_view(&quot;pi&quot;)},</span>
-<span id="L263"><span class="lineNum">     263</span>                 :             :       std::pair{vfs::FileType::kSocket, std::string_view(&quot;so&quot;)},</span>
-<span id="L264"><span class="lineNum">     264</span>                 :             :       std::pair{vfs::FileType::kSymlink, std::string_view(&quot;ln&quot;)});</span>
-<span id="L265"><span class="lineNum">     265</span>         [<span class="tlaGBC" title="branch 0 was taken 110 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">         220 :   if (const auto key = kKeys.find(type); key != kKeys.end()) {</span></span>
-<span id="L266"><span class="lineNum">     266</span>         [<span class="tlaGBC" title="branch 0 was taken 43 times"> + </span><span class="tlaGBC" title="branch 1 was taken 67 times"> + </span>]:<span class="tlaGNC">         110 :     if (const std::string* const themed = Themed(key-&gt;second)) {</span></span>
-<span id="L267"><span class="lineNum">     267</span>                 :<span class="tlaGNC">          43 :       return *themed;</span></span>
-<span id="L268"><span class="lineNum">     268</span>                 :             :     }</span>
-<span id="L269"><span class="lineNum">     269</span>                 :             :   }</span>
-<span id="L270"><span class="lineNum">     270</span>                 :             :   // Nothing in the theme answered. kLsAndXff keeps xff's colour here; kLs leaves it uncoloured,</span>
-<span id="L271"><span class="lineNum">     271</span>                 :             :   // which is what a real ls does with a type its $LS_COLORS never mentions.</span>
-<span id="L272"><span class="lineNum">     272</span>         [<span class="tlaGBC" title="branch 0 was taken 53 times"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          67 :   return fall_back_ ? CodeForType(type, mode) : std::string_view();</span></span>
-<span id="L273"><span class="lineNum">     273</span>                 :             : }</span>
-<span id="L274"><span class="lineNum">     274</span>                 :             : </span>
-<span id="L275"><span class="lineNum">     275</span>                 :             : }  // namespace xff::color</span>
+<span id="L240"><span class="lineNum">     240</span>                 :<span class="tlaGNC">           7 :       const auto it = extensions_.find(absl::AsciiStrToLower(name.substr(dot)));</span></span>
+<span id="L241"><span class="lineNum">     241</span>         [<span class="tlaGBC" title="branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           7 :       if (it != extensions_.end()) {</span></span>
+<span id="L242"><span class="lineNum">     242</span>                 :<span class="tlaGNC">           6 :         return it-&gt;second;</span></span>
+<span id="L243"><span class="lineNum">     243</span>                 :             :       }</span>
+<span id="L244"><span class="lineNum">     244</span>                 :             :     }</span>
+<span id="L245"><span class="lineNum">     245</span>                 :             :   }</span>
+<span id="L246"><span class="lineNum">     246</span>         [<span class="tlaGBC" title="branch 0 was taken 25 times"> + </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">          32 :   return Themed(&quot;fi&quot;).value_or(fall_back_ ? CodeForType(vfs::FileType::kRegular, mode) : std::string_view());</span></span>
+<span id="L247"><span class="lineNum">     247</span>                 :             : }</span>
+<span id="L248"><span class="lineNum">     248</span>                 :             : </span>
+<span id="L249"><span class="lineNum">     249</span>                 :<span class="tlaGNC">         150 : std::string_view Palette::CodeFor(std::string_view name, vfs::FileType type, std::uint32_t mode) const {</span></span>
+<span id="L250"><span class="lineNum">     250</span>         [<span class="tlaGBC" title="branch 0 was taken 40 times"> + </span><span class="tlaGBC" title="branch 1 was taken 110 times"> + </span>]:<span class="tlaGNC">         150 :   if (type == vfs::FileType::kRegular) {</span></span>
+<span id="L251"><span class="lineNum">     251</span>                 :<span class="tlaGNC">          40 :     return RegularCode(name, mode);</span></span>
+<span id="L252"><span class="lineNum">     252</span>                 :             :   }</span>
+<span id="L253"><span class="lineNum">     253</span>                 :             :   // Every other type is one dircolors key, so the lookup is a table rather than a branch per case.</span>
+<span id="L254"><span class="lineNum">     254</span>                 :             :   static constexpr auto kKeys = mbo::container::MakeLimitedMap(</span>
+<span id="L255"><span class="lineNum">     255</span>                 :             :       std::pair{vfs::FileType::kBlockDevice, std::string_view(&quot;bd&quot;)},</span>
+<span id="L256"><span class="lineNum">     256</span>                 :             :       std::pair{vfs::FileType::kCharDevice, std::string_view(&quot;cd&quot;)},</span>
+<span id="L257"><span class="lineNum">     257</span>                 :             :       std::pair{vfs::FileType::kDirectory, std::string_view(&quot;di&quot;)},</span>
+<span id="L258"><span class="lineNum">     258</span>                 :             :       std::pair{vfs::FileType::kFifo, std::string_view(&quot;pi&quot;)},</span>
+<span id="L259"><span class="lineNum">     259</span>                 :             :       std::pair{vfs::FileType::kSocket, std::string_view(&quot;so&quot;)},</span>
+<span id="L260"><span class="lineNum">     260</span>                 :             :       std::pair{vfs::FileType::kSymlink, std::string_view(&quot;ln&quot;)});</span>
+<span id="L261"><span class="lineNum">     261</span>         [<span class="tlaGBC" title="branch 0 was taken 110 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">         220 :   if (const auto key = kKeys.find(type); key != kKeys.end()) {</span></span>
+<span id="L262"><span class="lineNum">     262</span>         [<span class="tlaGBC" title="branch 0 was taken 43 times"> + </span><span class="tlaGBC" title="branch 1 was taken 67 times"> + </span>]:<span class="tlaGNC">         110 :     if (const std::optional&lt;std::string_view&gt; themed = Themed(key-&gt;second); themed.has_value()) {</span></span>
+<span id="L263"><span class="lineNum">     263</span>                 :<span class="tlaGNC">          43 :       return *themed;</span></span>
+<span id="L264"><span class="lineNum">     264</span>                 :             :     }</span>
+<span id="L265"><span class="lineNum">     265</span>                 :             :   }</span>
+<span id="L266"><span class="lineNum">     266</span>                 :             :   // Nothing in the theme answered. kLsAndXff keeps xff's colour here; kLs leaves it uncoloured,</span>
+<span id="L267"><span class="lineNum">     267</span>                 :             :   // which is what a real ls does with a type its $LS_COLORS never mentions.</span>
+<span id="L268"><span class="lineNum">     268</span>         [<span class="tlaGBC" title="branch 0 was taken 53 times"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          67 :   return fall_back_ ? CodeForType(type, mode) : std::string_view();</span></span>
+<span id="L269"><span class="lineNum">     269</span>                 :             : }</span>
+<span id="L270"><span class="lineNum">     270</span>                 :             : </span>
+<span id="L271"><span class="lineNum">     271</span>                 :             : }  // namespace xff::color</span>
         </pre>
               </td>
             </tr>
