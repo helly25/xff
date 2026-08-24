@@ -102,6 +102,11 @@ struct GlobalFlag {
   bool xff = true;  // false for a find-native option (-H/-L/-P); true for an xff extension
 };
 
+template<typename Sink>
+void AbslStringify(Sink& sink, const GlobalFlag& flag) {
+  sink.Append(flag.name);
+}
+
 // Whether the build-time extra `key` (e.g. "archive") is compiled into this binary. Reads the
 // `XFF_WITH_*` defines the Bazel `//xff:<extra>` flags add via select(); an unknown key is false.
 // The single point that maps an extra key to its compile-time availability, shared by main (the

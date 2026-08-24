@@ -496,9 +496,11 @@ substitute for a committed test. Tests use GoogleTest + GoogleMock with these co
     would rather match them with `ElementsAre`.
 
 - **Floats / doubles**: never `Eq` / `==`; use `FloatEq` / `DoubleEq` (or `Near`).
-- **Optionals**: `EXPECT_THAT(opt, Eq(std::nullopt))` for empty, `Optional(...)` for a
-  value. Nested matchers do **not** auto-wrap: `Optional(Eq("x"))` and `Pointee(Eq("x"))`
-  need the explicit inner `Eq` (a bare value fails to compile there).
+- **Optionals**: match the optional-like object itself - never reduce it to
+  `opt.has_value()`. Use `EXPECT_THAT(opt, Eq(std::nullopt))` for empty and `Optional(...)` for a
+  value; this applies equally to `std::optional` and `mbo::types::OptionalRef`. Nested matchers do
+  **not** auto-wrap: `Optional(Eq("x"))` and `Pointee(Eq("x"))` need the explicit inner `Eq` (a
+  bare value fails to compile there). `absl::StatusOr` uses `IsOkAndHolds(...)` instead.
 - **Containers**: `ElementsAre(...)` / `UnorderedElementsAre(...)` / `SizeIs(n)` /
   `IsEmpty()` cover size + order + contents in one matcher, instead of an
   `ASSERT_EQ(v.size(), n)` followed by indexed `EXPECT_EQ`s. `ElementsAre` auto-wraps

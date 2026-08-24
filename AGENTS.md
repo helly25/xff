@@ -81,6 +81,10 @@ PR's user-visible outcome or motivation actually changes.
    `EXPECT_OK` / `ASSERT_OK` / `ASSERT_OK_AND_ASSIGN` macros over abseil's
    `absl_testing`.
 
+7. **Match optional-like values directly; never assert `.has_value()`.** Use
+   `Optional(matcher)` for a present `std::optional` or `mbo::types::OptionalRef`, and
+   `Eq(std::nullopt)` for absence. `StatusOr` uses `IsOkAndHolds(matcher)` as described above.
+
 ## Markdown
 
 Keep GitHub-flavored Markdown tables **vertically aligned** (the `|` pipes line
