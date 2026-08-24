@@ -33,6 +33,7 @@ namespace {
 
 using ::mbo::testing::IsOk;
 using ::mbo::testing::StatusIs;
+using ::testing::_;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::HasSubstr;
@@ -48,7 +49,7 @@ TEST_F(ParserTest, GlobalsRootsExpression) {
   EXPECT_THAT(cmd.roots, ElementsAre("."));
   ASSERT_THAT(cmd.expression, NotNull());
   EXPECT_THAT(cmd.expression->kind, Expr::Kind::kPredicate);
-  ASSERT_THAT(cmd.expression->descriptor, NotNull());
+  ASSERT_THAT(cmd.expression->descriptor, Optional(_));
   EXPECT_THAT(cmd.expression->descriptor->name, "-type");
   EXPECT_THAT(cmd.expression->args, ElementsAre("f"));
 }

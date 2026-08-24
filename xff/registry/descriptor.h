@@ -96,6 +96,11 @@ struct Descriptor {
   bool terminal = false;
 };
 
+template<typename Sink>
+void AbslStringify(Sink& sink, const Descriptor& descriptor) {
+  sink.Append(descriptor.name);
+}
+
 }  // namespace xff::registry
 
 #endif  // XFF_REGISTRY_DESCRIPTOR_H_

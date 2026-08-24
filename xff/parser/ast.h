@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "mbo/types/optional_ref.h"
 #include "xff/matching/regex/regex.h"
 #include "xff/registry/descriptor.h"
 
@@ -54,7 +55,7 @@ struct Expr {
 
   Kind kind;
   // kPredicate: the matched descriptor and its consumed arguments.
-  const registry::Descriptor* descriptor = nullptr;
+  mbo::types::OptionalRef<const registry::Descriptor> descriptor;
   std::vector<std::string> args;
   // -exec terminated by `+` (batch form): the matched paths are accumulated and
   // the command runs at end-of-walk in ARG_MAX-bounded chunks, not per entry.

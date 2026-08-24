@@ -483,7 +483,7 @@ TEST_F(HelpTest, EveryAffectsTokenResolvesToARealEntry) {
   // yet -- it would fail this check until the resolver learns to expand it.)
   for (const GlobalFlag& flag : Globals()) {
     for (const std::string_view token : absl::StrSplit(flag.affects, ',', absl::SkipEmpty())) {
-      const bool resolves = registry::Lookup(token) != nullptr || LookupGlobal(token).has_value();
+      const bool resolves = registry::Lookup(token).has_value() || LookupGlobal(token).has_value();
       EXPECT_TRUE(resolves) << flag.name << " affects unknown entry '" << token << "'";
     }
   }

@@ -16,6 +16,7 @@
 #include "xff/registry/registry.h"
 
 #include <array>
+#include <optional>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -24,44 +25,44 @@
 namespace xff::registry {
 namespace {
 
+using ::testing::_;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
-using ::testing::IsNull;
 using ::testing::Le;
 using ::testing::Ne;
 using ::testing::Not;
-using ::testing::NotNull;
-using ::testing::Pointee;
+using ::testing::Optional;
+using ::testing::Ref;
 using ::testing::SizeIs;
 
 struct RegistryTest : ::testing::Test {};
 
 TEST_F(RegistryTest, LooksUpKnownTokens) {
-  const Descriptor* name = Lookup("-name");
-  ASSERT_THAT(name, NotNull());
+  const mbo::types::OptionalRef<const Descriptor> name = Lookup("-name");
+  ASSERT_THAT(name, Optional(_));
   EXPECT_THAT(name->kind, Kind::kTest);
   EXPECT_THAT(name->arity, 1);
 
-  const Descriptor* print = Lookup("-print");
-  ASSERT_THAT(print, NotNull());
+  const mbo::types::OptionalRef<const Descriptor> print = Lookup("-print");
+  ASSERT_THAT(print, Optional(_));
   EXPECT_THAT(print->kind, Kind::kAction);
   EXPECT_THAT(print->arity, 0);
 
-  const Descriptor* or_op = Lookup("-o");
-  ASSERT_THAT(or_op, NotNull());
+  const mbo::types::OptionalRef<const Descriptor> or_op = Lookup("-o");
+  ASSERT_THAT(or_op, Optional(_));
   EXPECT_THAT(or_op->kind, Kind::kOperator);
 
-  const Descriptor* bang = Lookup("!");
-  ASSERT_THAT(bang, NotNull());
+  const mbo::types::OptionalRef<const Descriptor> bang = Lookup("!");
+  ASSERT_THAT(bang, Optional(_));
   EXPECT_THAT(bang->kind, Kind::kOperator);
 }
 
 TEST_F(RegistryTest, UnknownTokenIsNull) {
-  EXPECT_THAT(Lookup("-nonexistent"), IsNull());
-  EXPECT_THAT(Lookup(""), IsNull());
-  EXPECT_THAT(Lookup("."), IsNull());
+  EXPECT_THAT(Lookup("-nonexistent"), Eq(std::nullopt));
+  EXPECT_THAT(Lookup(""), Eq(std::nullopt));
+  EXPECT_THAT(Lookup("."), Eq(std::nullopt));
 }
 
 TEST_F(RegistryTest, SecurityRelevantPrimariesAreClassified) {
@@ -77,20 +78,20 @@ TEST_F(RegistryTest, SecurityRelevantPrimariesAreClassified) {
       "-capturedir",
   });
   for (const char* const name : kSecurityPrimaries) {
-    EXPECT_THAT(Lookup(name), Pointee(Field("safety", &Descriptor::safety, Safety::kSecurity))) << name;
+    EXPECT_THAT(Lookup(name), Optional(Field("safety", &Descriptor::safety, Safety::kSecurity))) << name;
   }
-  EXPECT_THAT(Lookup("-delete"), Pointee(Field("safety", &Descriptor::safety, Safety::kSafety)));
-  EXPECT_THAT(Lookup("-name"), Pointee(Field("safety", &Descriptor::safety, Safety::kNone)));
-  EXPECT_THAT(Lookup("-print"), Pointee(Field("safety", &Descriptor::safety, Safety::kNone)));
+  EXPECT_THAT(Lookup("-delete"), Optional(Field("safety", &Descriptor::safety, Safety::kSafety)));
+  EXPECT_THAT(Lookup("-name"), Optional(Field("safety", &Descriptor::safety, Safety::kNone)));
+  EXPECT_THAT(Lookup("-print"), Optional(Field("safety", &Descriptor::safety, Safety::kNone)));
 }
 
 TEST_F(RegistryTest, CaptureFamilyDeclaresLabelRegexBinding) {
   // -capture/-capturedir carry an attached =NAME[=REGEX] on the token; the parser
   // reads this binding from the registry instead of hardcoding the names.
-  EXPECT_THAT(Lookup("-capture"), Pointee(Field("binding", &Descriptor::binding, Binding::kLabelRegex)));
-  EXPECT_THAT(Lookup("-capturedir"), Pointee(Field("binding", &Descriptor::binding, Binding::kLabelRegex)));
-  EXPECT_THAT(Lookup("-exec"), Pointee(Field("binding", &Descriptor::binding, Binding::kNone)));  // no =label
-  EXPECT_THAT(Lookup("-name"), Pointee(Field("binding", &Descriptor::binding, Binding::kNone)));
+  EXPECT_THAT(Lookup("-capture"), Optional(Field("binding", &Descriptor::binding, Binding::kLabelRegex)));
+  EXPECT_THAT(Lookup("-capturedir"), Optional(Field("binding", &Descriptor::binding, Binding::kLabelRegex)));
+  EXPECT_THAT(Lookup("-exec"), Optional(Field("binding", &Descriptor::binding, Binding::kNone)));  // no =label
+  EXPECT_THAT(Lookup("-name"), Optional(Field("binding", &Descriptor::binding, Binding::kNone)));
 }
 
 TEST_F(RegistryTest, XffExtensionsAreStyleTagged) {
@@ -98,7 +99,7 @@ TEST_F(RegistryTest, XffExtensionsAreStyleTagged) {
   // can reject them; everything inherited from find stays kFind (the default).
   for (const char* const name :
        {"-println", "-printfln", "-capture", "-capturedir", "-xor", "-nand", "-nor", "-xnor"}) {
-    EXPECT_THAT(Lookup(name), Pointee(Field("style", &Descriptor::style, Style::kXff))) << name;
+    EXPECT_THAT(Lookup(name), Optional(Field("style", &Descriptor::style, Style::kXff))) << name;
   }
   static constexpr std::array kFindStylePrimaries = std::to_array<const char*>({
       "-print",
@@ -108,7 +109,7 @@ TEST_F(RegistryTest, XffExtensionsAreStyleTagged) {
       "-delete",
   });
   for (const char* const name : kFindStylePrimaries) {
-    EXPECT_THAT(Lookup(name), Pointee(Field("style", &Descriptor::style, Style::kFind))) << name;
+    EXPECT_THAT(Lookup(name), Optional(Field("style", &Descriptor::style, Style::kFind))) << name;
   }
 }
 
@@ -122,7 +123,7 @@ TEST_F(RegistryTest, ExtendedLogicalOperatorsAreOperators) {
       "-xnor",
   });
   for (const char* const name : kXffOperators) {
-    EXPECT_THAT(Lookup(name), Pointee(Field("kind", &Descriptor::kind, Kind::kOperator))) << name;
+    EXPECT_THAT(Lookup(name), Optional(Field("kind", &Descriptor::kind, Kind::kOperator))) << name;
   }
 }
 
@@ -144,7 +145,7 @@ TEST_F(RegistryTest, AllEnumeratesTheSameDescriptorsLookupResolves) {
   // All() and Lookup() must read the same table, so generators and the parser
   // never drift: each enumerated descriptor resolves back to itself by name.
   for (const Descriptor& descriptor : All()) {
-    EXPECT_THAT(Lookup(descriptor.name), Eq(&descriptor)) << descriptor.name;
+    EXPECT_THAT(Lookup(descriptor.name), Optional(Ref(descriptor))) << descriptor.name;
   }
 }
 
@@ -153,7 +154,7 @@ TEST_F(RegistryTest, AliasesResolveToTheirCanonicalDescriptorAndNeverCollide) {
     if (descriptor.alias.empty()) {
       continue;
     }
-    EXPECT_THAT(Lookup(descriptor.alias), Eq(&descriptor)) << descriptor.alias;
+    EXPECT_THAT(Lookup(descriptor.alias), Optional(Ref(descriptor))) << descriptor.alias;
     EXPECT_THAT(descriptor.alias.compare(descriptor.name), Ne(0));
     for (const Descriptor& other : All()) {
       if (&descriptor == &other) {
