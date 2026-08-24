@@ -1083,24 +1083,26 @@ std::optional<Document> TopicReference(std::string_view name) {
 
 std::optional<Document> EntryReference(std::string_view name) {
   // An expression primary / operator / action (leading-dash convenience: regex -> -regex).
-  const registry::Descriptor* descriptor = registry::Lookup(name);
-  if (descriptor == nullptr && !name.empty() && name.front() != '-' && name.front() != '!') {
-    descriptor = registry::Lookup(absl::StrCat("-", name));
-  }
+  const mbo::types::OptionalRef<const registry::Descriptor> descriptor = [&] {
+    const auto exact = registry::Lookup(name);
+    return !exact.has_value() && !name.empty() && name.front() != '-' && name.front() != '!'
+               ? registry::Lookup(absl::StrCat("-", name))
+               : exact;
+  }();
   // Otherwise a whole-run global flag (leading-dashes convenience: sort -> --sort).
   const mbo::types::OptionalRef<const GlobalFlag> flag = [&] {
-    if (descriptor != nullptr) {
+    if (descriptor.has_value()) {
       return mbo::types::OptionalRef<const GlobalFlag>{};
     }
     const mbo::types::OptionalRef<const GlobalFlag> exact = LookupGlobal(name);
     return !exact.has_value() && !name.empty() && name.front() != '-' ? LookupGlobal(absl::StrCat("--", name)) : exact;
   }();
-  if (descriptor == nullptr && !flag.has_value()) {
+  if (!descriptor.has_value() && !flag.has_value()) {
     return std::nullopt;
   }
   // A title-less section: the single entry renders without a section heading.
   Section section;
-  section.children.push_back(descriptor != nullptr ? PrimaryEntry(*descriptor) : FlagEntry(*flag));
+  section.children.push_back(descriptor.has_value() ? PrimaryEntry(*descriptor) : FlagEntry(*flag));
   Document doc;
   doc.sections.push_back(std::move(section));
   return doc;

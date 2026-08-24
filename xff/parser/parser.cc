@@ -169,11 +169,11 @@ std::shared_ptr<const regex::Matcher> CompileNodeRegex(
   return std::make_shared<const regex::Matcher>(*std::move(matcher));
 }
 
-ExprPtr MakePredicate(const registry::Descriptor* descriptor, std::vector<std::string> args, regex::Grammar grammar) {
+ExprPtr MakePredicate(const registry::Descriptor& descriptor, std::vector<std::string> args, regex::Grammar grammar) {
   auto expr = std::make_unique<Expr>();
   expr->kind = Expr::Kind::kPredicate;
-  expr->descriptor = descriptor;
-  expr->matcher = CompileNodeRegex(*descriptor, args, grammar);  // compile once, here; eval just reads it
+  expr->descriptor.set_ref(descriptor);
+  expr->matcher = CompileNodeRegex(descriptor, args, grammar);  // compile once, here; eval just reads it
   expr->args = std::move(args);
   return expr;
 }
@@ -345,8 +345,8 @@ class ExprParser {
     // attached per-node qualification begins with `:`.
     if (const std::string::size_type equals = token.find('='); equals != std::string::npos) {
       const std::string_view base = std::string_view(token).substr(0, equals);
-      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
-          descriptor != nullptr && descriptor->binding != registry::Binding::kNone) {
+      if (const auto descriptor = registry::Lookup(base);
+          descriptor.has_value() && descriptor->binding != registry::Binding::kNone) {
         Fail(
             absl::StrCat(
                 "'", token, "' uses the old primary qualifier spelling; use '", base, ":",
@@ -360,8 +360,8 @@ class ExprParser {
     // only has to reject `-collect:` with nothing after the ':'.
     if (const std::string::size_type colon = token.find(':'); colon != std::string::npos) {
       const std::string_view base = std::string_view(token).substr(0, colon);
-      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
-          descriptor != nullptr && descriptor->binding == registry::Binding::kLabel) {
+      if (const auto descriptor = registry::Lookup(base);
+          descriptor.has_value() && descriptor->binding == registry::Binding::kLabel) {
         const LabelSpec spec = SplitLabelModifier(std::string_view(token).substr(colon + 1));
         if (spec.rest.empty()) {
           Fail(absl::StrCat("'", base, ":' needs a NAME"));
@@ -372,7 +372,7 @@ class ExprParser {
           return nullptr;
         }
         ++pos_;
-        ExprPtr node = MakePredicate(descriptor, {std::string(spec.rest)}, grammar_);
+        ExprPtr node = MakePredicate(*descriptor, {std::string(spec.rest)}, grammar_);
         if (node != nullptr) {
           node->label_override = spec.override_name;
         }
@@ -385,8 +385,8 @@ class ExprParser {
     // registry, not a hardcoded name list.
     if (const std::string::size_type colon = token.find(':'); colon != std::string::npos) {
       const std::string_view base = std::string_view(token).substr(0, colon);
-      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
-          descriptor != nullptr && descriptor->binding == registry::Binding::kLabelRegex) {
+      if (const auto descriptor = registry::Lookup(base);
+          descriptor.has_value() && descriptor->binding == registry::Binding::kLabelRegex) {
         // [!]NAME[=REGEX]: `!` allows this node to re-bind a NAME an earlier -capture already bound,
         // per instance rather than through a whole-run flag that would loosen every -capture at once.
         const LabelSpec modifier = SplitLabelModifier(std::string_view(token).substr(colon + 1));
@@ -423,7 +423,7 @@ class ExprParser {
         for (std::string& cmd_token : command) {
           args.push_back(std::move(cmd_token));
         }
-        ExprPtr node = MakePredicate(descriptor, std::move(args), grammar_);
+        ExprPtr node = MakePredicate(*descriptor, std::move(args), grammar_);
         if (node != nullptr) {
           node->label_override = modifier.override_name;
         }
@@ -433,8 +433,8 @@ class ExprParser {
       // template on its own token; the whole payload after the first ':' is the
       // template (it may itself contain '='), then the arity operand (the pattern)
       // follows. The template is compiled once here and stored on the node.
-      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
-          descriptor != nullptr && descriptor->binding == registry::Binding::kFormat) {
+      if (const auto descriptor = registry::Lookup(base);
+          descriptor.has_value() && descriptor->binding == registry::Binding::kFormat) {
         const std::string format = token.substr(colon + 1);
         ++pos_;  // consume the `<name>:FORMAT` token
         std::vector<std::string> args;
@@ -445,7 +445,7 @@ class ExprParser {
           }
           args.push_back(tokens_[pos_++]);
         }
-        ExprPtr node = MakePredicate(descriptor, std::move(args), grammar_);
+        ExprPtr node = MakePredicate(*descriptor, std::move(args), grammar_);
         if (node != nullptr) {
           node->grep_template = std::make_shared<const fields::Template>(fields::Template::Compile(format));
         }
@@ -454,8 +454,8 @@ class ExprParser {
       // A Binding::kStyle primary (-diff) carries an attached :STYLE token (u3/c/n/y/none),
       // then the arity operand (the TARGET template). The style is stored raw on the node and
       // validated in the evaluator; a bare -diff (no ':') falls through to the default (u3).
-      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
-          descriptor != nullptr && descriptor->binding == registry::Binding::kStyle) {
+      if (const auto descriptor = registry::Lookup(base);
+          descriptor.has_value() && descriptor->binding == registry::Binding::kStyle) {
         const std::string style = token.substr(colon + 1);
         // Syntactic check: empty (default u3), "none", or a format letter u/c/n/y with an
         // optional context count (u3, c5, n, y). The evaluator maps it to the mbo output.
@@ -482,7 +482,7 @@ class ExprParser {
           }
           args.push_back(tokens_[pos_++]);
         }
-        ExprPtr node = MakePredicate(descriptor, std::move(args), grammar_);
+        ExprPtr node = MakePredicate(*descriptor, std::move(args), grammar_);
         if (node != nullptr) {
           node->diff_style = style;
         }
@@ -492,8 +492,8 @@ class ExprParser {
       // (none for -hash, the EXPECTED template for -hasheq). The spec is stored raw and validated
       // before the walk (engine::ValidateHashArgs); a bare `<name>` (no ':') falls through to the
       // default (--hash-algorithm / --hash-encoding).
-      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
-          descriptor != nullptr && descriptor->binding == registry::Binding::kHash) {
+      if (const auto descriptor = registry::Lookup(base);
+          descriptor.has_value() && descriptor->binding == registry::Binding::kHash) {
         const std::string spec = token.substr(colon + 1);
         ++pos_;  // consume the `<name>:SPEC` token
         std::vector<std::string> args;
@@ -504,7 +504,7 @@ class ExprParser {
           }
           args.push_back(tokens_[pos_++]);
         }
-        ExprPtr node = MakePredicate(descriptor, std::move(args), grammar_);
+        ExprPtr node = MakePredicate(*descriptor, std::move(args), grammar_);
         if (node != nullptr) {
           node->hash_spec = spec;
         }
@@ -513,15 +513,15 @@ class ExprParser {
       // A Binding::kText primary (-text) carries an attached :FLAVOR token (git/posix/windows/apple)
       // and takes no operand. The flavor is validated here and stored raw on the node; a bare -text
       // (no ':') is not this branch -- it falls through to the default (the git heuristic).
-      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
-          descriptor != nullptr && descriptor->binding == registry::Binding::kText) {
+      if (const auto descriptor = registry::Lookup(base);
+          descriptor.has_value() && descriptor->binding == registry::Binding::kText) {
         const std::string flavor = token.substr(colon + 1);
         if (flavor != "git" && flavor != "posix" && flavor != "windows" && flavor != "apple") {
           Fail(absl::StrCat("'", base, ":", flavor, "': unknown text flavor (use git / posix / windows / apple)"));
           return nullptr;
         }
         ++pos_;  // consume the `-text:FLAVOR` token
-        ExprPtr node = MakePredicate(descriptor, {}, grammar_);
+        ExprPtr node = MakePredicate(*descriptor, {}, grammar_);
         if (node != nullptr) {
           node->text_flavor = flavor;
         }
@@ -529,8 +529,8 @@ class ExprParser {
       }
       // A fuzzy primary carries an optional model, optionally followed by a normalized quality
       // threshold: `:MODEL`, `:MODEL:PCT%`, or the default-model shorthand `:PCT%`.
-      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
-          descriptor != nullptr && descriptor->binding == registry::Binding::kFuzzy) {
+      if (const auto descriptor = registry::Lookup(base);
+          descriptor.has_value() && descriptor->binding == registry::Binding::kFuzzy) {
         std::string_view value = std::string_view(token).substr(colon + 1);
         FuzzyModel model = FuzzyModel::kFzf;
         std::optional<int> threshold;
@@ -596,7 +596,7 @@ class ExprParser {
           Fail(absl::StrCat("predicate '", base, "' is missing an argument"));
           return nullptr;
         }
-        ExprPtr node = MakePredicate(descriptor, {tokens_[pos_++]}, grammar_);
+        ExprPtr node = MakePredicate(*descriptor, {tokens_[pos_++]}, grammar_);
         if (node != nullptr) {
           node->fuzzy_threshold = threshold;
           node->fuzzy_model = model;
@@ -605,8 +605,8 @@ class ExprParser {
       }
       // Content similarity carries a word-shingle width and/or a Jaccard threshold:
       // `:WIDTH`, `:PCT%`, or `:WIDTH:PCT%`. The bare defaults are width 5 and 80%.
-      if (const registry::Descriptor* const descriptor = registry::Lookup(base);
-          descriptor != nullptr && descriptor->binding == registry::Binding::kSimilarity) {
+      if (const auto descriptor = registry::Lookup(base);
+          descriptor.has_value() && descriptor->binding == registry::Binding::kSimilarity) {
         const std::string_view value = std::string_view(token).substr(colon + 1);
         std::size_t width = kDefaultSimilarityShingleWidth;
         int threshold = kDefaultSimilarityThresholdPercent;
@@ -642,7 +642,7 @@ class ExprParser {
           Fail(absl::StrCat("predicate '", base, "' is missing an argument"));
           return nullptr;
         }
-        ExprPtr node = MakePredicate(descriptor, {tokens_[pos_++]}, grammar_);
+        ExprPtr node = MakePredicate(*descriptor, {tokens_[pos_++]}, grammar_);
         if (node != nullptr) {
           node->similarity_width = width;
           node->similarity_threshold = threshold;
@@ -650,8 +650,8 @@ class ExprParser {
         return node;
       }
     }
-    const registry::Descriptor* descriptor = registry::Lookup(token);
-    if (descriptor == nullptr) {
+    const auto descriptor = registry::Lookup(token);
+    if (!descriptor.has_value()) {
       Fail(absl::StrCat("unknown predicate: '", token, "'"));
       return nullptr;
     }
@@ -691,7 +691,7 @@ class ExprParser {
         return nullptr;
       }
       ++pos_;  // consume ';' or '+'
-      ExprPtr node = MakePredicate(descriptor, std::move(command), grammar_);
+      ExprPtr node = MakePredicate(*descriptor, std::move(command), grammar_);
       if (node != nullptr) {
         node->exec_batch = batch;
       }
@@ -705,7 +705,7 @@ class ExprParser {
       }
       args.push_back(tokens_[pos_++]);
     }
-    return MakePredicate(descriptor, std::move(args), grammar_);
+    return MakePredicate(*descriptor, std::move(args), grammar_);
   }
 
   const std::vector<std::string>& tokens_;
@@ -718,17 +718,19 @@ class ExprParser {
 };
 
 // Returns the first expression primary (pre-order, left to right in evaluation
-// order) whose descriptor is tagged as an xff extension, or nullptr if the tree
+// order) whose descriptor is tagged as an xff extension, or empty if the tree
 // has none. The strict find-style check uses it to name the offending primary.
-const registry::Descriptor* FirstXffExtension(const Expr* expr) {
+mbo::types::OptionalRef<const registry::Descriptor> FirstXffExtension(const Expr* expr) {
   if (expr == nullptr) {
-    return nullptr;
+    return std::nullopt;
   }
   if (expr->kind == Expr::Kind::kPredicate) {
-    const registry::Descriptor* const descriptor = expr->descriptor;
-    return descriptor != nullptr && descriptor->style == registry::Style::kXff ? descriptor : nullptr;
+    if (expr->descriptor.has_value() && expr->descriptor->style == registry::Style::kXff) {
+      return *expr->descriptor;
+    }
+    return std::nullopt;
   }
-  if (const registry::Descriptor* const found = FirstXffExtension(expr->lhs.get()); found != nullptr) {
+  if (const auto found = FirstXffExtension(expr->lhs.get()); found.has_value()) {
     return found;
   }
   return FirstXffExtension(expr->rhs.get());
@@ -744,8 +746,8 @@ const Expr* FirstXffDurationValue(const Expr* expr) {
     return nullptr;
   }
   if (expr->kind == Expr::Kind::kPredicate) {
-    const registry::Descriptor* const descriptor = expr->descriptor;
-    if (descriptor == nullptr) {
+    const auto descriptor = expr->descriptor;
+    if (!descriptor.has_value()) {
       return nullptr;
     }
     const std::string_view name = descriptor->name;
@@ -789,8 +791,8 @@ const Expr* FirstXffPrintfField(const Expr* expr) {
     return nullptr;
   }
   if (expr->kind == Expr::Kind::kPredicate) {
-    const registry::Descriptor* const descriptor = expr->descriptor;
-    if (descriptor != nullptr) {
+    const auto descriptor = expr->descriptor;
+    if (descriptor.has_value()) {
       const std::string_view name = descriptor->name;
       const bool is_fprintf = name == "-fprintf";
       const std::size_t fmt_index = is_fprintf ? 1 : 0;
@@ -903,7 +905,7 @@ absl::Status EnforceStyle(const Command& command, registry::Style style) {
   if (style != registry::Style::kFind) {
     return absl::OkStatus();  // the xff style accepts the full vocabulary
   }
-  if (const registry::Descriptor* const ext = FirstXffExtension(command.expression.get()); ext != nullptr) {
+  if (const auto ext = FirstXffExtension(command.expression.get()); ext.has_value()) {
     return absl::InvalidArgumentError(
         absl::StrCat(
             "'", ext->name,
@@ -972,7 +974,7 @@ void ApplyCaseModeToNode(Expr* expr, CaseMode mode, regex::Grammar grammar) {
   if (expr == nullptr) {
     return;
   }
-  if (expr->kind == Expr::Kind::kPredicate && expr->descriptor != nullptr && !expr->descriptor->fold_case
+  if (expr->kind == Expr::Kind::kPredicate && expr->descriptor.has_value() && !expr->descriptor->fold_case
       && !expr->args.empty()) {
     const std::string_view name = expr->descriptor->name;
     const std::string_view pattern = expr->args.front();
@@ -1007,7 +1009,7 @@ bool TakesTerminal(const Expr* expr) {
   if (expr == nullptr) {
     return false;
   }
-  if (expr->descriptor != nullptr && expr->descriptor->terminal) {
+  if (expr->descriptor.has_value() && expr->descriptor->terminal) {
     return true;
   }
   return TakesTerminal(expr->lhs.get()) || TakesTerminal(expr->rhs.get());

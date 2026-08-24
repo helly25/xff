@@ -976,7 +976,7 @@ bool ContainsPrimary(const parser::Expr& expr, std::string_view name) {
 absl::Status ValidateFirstLimits(const parser::Expr& expr) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate: {
-      if (expr.descriptor == nullptr || expr.descriptor->name != "-first") {
+      if (!expr.descriptor.has_value() || expr.descriptor->name != "-first") {
         return absl::OkStatus();
       }
       int limit = 0;
@@ -1007,7 +1007,7 @@ absl::Status ValidateFirstLimits(const parser::Expr& expr) {
 absl::Status ValidateTopLimits(const parser::Expr& expr) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate: {
-      if (expr.descriptor == nullptr || expr.descriptor->name != "-top") {
+      if (!expr.descriptor.has_value() || expr.descriptor->name != "-top") {
         return absl::OkStatus();
       }
       int limit = 0;

@@ -1343,13 +1343,13 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
 
 }  // namespace
 
-const Descriptor* Lookup(std::string_view name) {
+mbo::types::OptionalRef<const Descriptor> Lookup(std::string_view name) {
   for (const Descriptor& descriptor : kDescriptors) {
     if (descriptor.name == name || (!descriptor.alias.empty() && descriptor.alias == name)) {
-      return &descriptor;
+      return descriptor;
     }
   }
-  return nullptr;
+  return std::nullopt;
 }
 
 absl::Span<const Descriptor> All() {

@@ -2684,7 +2684,7 @@ absl::Status ValidateDiffIgnore(std::string_view tokens, std::string_view matchi
 absl::Status ValidateSizeArgs(const parser::Expr& expr) {
   if (expr.kind == parser::Expr::Kind::kPredicate) {
     const bool size_like =
-        expr.descriptor != nullptr && (expr.descriptor->name == "-size" || expr.descriptor->name == "-blocks");
+        expr.descriptor.has_value() && (expr.descriptor->name == "-size" || expr.descriptor->name == "-blocks");
     if (size_like && !expr.args.empty()) {
       if (const absl::Status status = ParseSizeSpec(expr.args.front()).status(); !status.ok()) {
         return status;
@@ -2708,7 +2708,7 @@ absl::Status ValidateSizeArgs(const parser::Expr& expr) {
 absl::Status ValidateHashArgs(const parser::Expr& expr) {
   if (expr.kind == parser::Expr::Kind::kPredicate) {
     // -hash and -hasheq share the :ALGO[/ENCODING] spec grammar (Binding::kHash), so both validate here.
-    if (expr.descriptor != nullptr && (expr.descriptor->name == "-hash" || expr.descriptor->name == "-hasheq")
+    if (expr.descriptor.has_value() && (expr.descriptor->name == "-hash" || expr.descriptor->name == "-hasheq")
         && !expr.hash_spec.empty()) {
       // Only the spec's explicit parts matter here, so validate against a concrete default.
       if (!hash::ParseSpec(expr.hash_spec, "sha256", hash::Encoding::kHex).has_value()) {

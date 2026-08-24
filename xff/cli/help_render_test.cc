@@ -124,8 +124,11 @@ TEST_F(HelpTest, VariadicArgHintShowsCommandForm) {
 
 TEST_F(HelpTest, UnknownTopicResolvesToNothingInTheModel) {
   // An unknown topic matches no model reference (entry / topic / index), so the CLI
-  // reports unknown-topic (verified end to end in help_topic_test.sh).
+  // reports unknown-topic (verified end to end in help_topic_test.sh). Empty and
+  // operator-shaped names must not be rewritten as dashless primary names.
   EXPECT_THAT(EntryReference("-bogus"), Eq(std::nullopt));
+  EXPECT_THAT(EntryReference(""), Eq(std::nullopt));
+  EXPECT_THAT(EntryReference("!bogus"), Eq(std::nullopt));
   EXPECT_THAT(TopicReference("-bogus"), Eq(std::nullopt));
   EXPECT_THAT(IndexReference("-bogus"), Eq(std::nullopt));
 }
@@ -483,7 +486,7 @@ TEST_F(HelpTest, EveryAffectsTokenResolvesToARealEntry) {
   // yet -- it would fail this check until the resolver learns to expand it.)
   for (const GlobalFlag& flag : Globals()) {
     for (const std::string_view token : absl::StrSplit(flag.affects, ',', absl::SkipEmpty())) {
-      const bool resolves = registry::Lookup(token) != nullptr || LookupGlobal(token).has_value();
+      const bool resolves = registry::Lookup(token).has_value() || LookupGlobal(token).has_value();
       EXPECT_TRUE(resolves) << flag.name << " affects unknown entry '" << token << "'";
     }
   }

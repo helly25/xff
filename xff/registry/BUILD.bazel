@@ -25,7 +25,10 @@ cc_library(
         "registry.h",
     ],
     visibility = ["//xff:__subpackages__"],
-    deps = ["@abseil-cpp//absl/types:span"],
+    deps = [
+        "@abseil-cpp//absl/types:span",
+        "@helly25_mbo//mbo/types:optional_ref_cc",
+    ],
 )
 
 cc_test(

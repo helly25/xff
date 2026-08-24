@@ -36,8 +36,8 @@ namespace {
 // attached binding like "-capture:tag" is classified by its base name "-capture".
 registry::Safety FlagSafety(std::string_view flag) {
   const std::string_view base = flag.substr(0, flag.find(':'));
-  const registry::Descriptor* const descriptor = registry::Lookup(base);
-  return descriptor == nullptr ? registry::Safety::kNone : descriptor->safety;
+  const auto descriptor = registry::Lookup(base);
+  return descriptor.has_value() ? descriptor->safety : registry::Safety::kNone;
 }
 
 // @safe/@sensitive/@destructive -> the matching class; nullopt if not a class token.
