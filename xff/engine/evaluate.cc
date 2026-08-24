@@ -2196,8 +2196,8 @@ bool EvalOkdir(const parser::Expr& expr, EvalContext& ctx) {
 // vocabulary, run it (in `dir`, or our directory when `dir` is empty/"."), capture
 // stdout, strip trailing newlines, optionally regex-extract, and bind {capture.NAME}.
 bool RunCapture(const parser::Expr& expr, EvalContext& ctx, std::string_view dir) {  // args = [NAME, REGEX, cmd...]
-  if (!ctx.outputs.has_value() || expr.args.size() < 3) {
-    return true;  // unwired or malformed: binding is a no-op, but -capture is always true
+  if (!ctx.outputs.has_value()) {
+    return true;  // unwired: binding is a no-op, but -capture is always true
   }
   // The command renders through the field vocabulary so {} -> path and prior
   // {capture.*}/{def.*}/{N} resolve (left-to-right chaining).

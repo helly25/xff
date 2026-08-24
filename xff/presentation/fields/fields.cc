@@ -626,7 +626,8 @@ int CaptureIndex(std::string_view name) {
 // when captures are unset or the index is out of range.
 StringOrView CaptureField(std::string_view key, std::string_view, const RenderContext& ctx) {
   const int index = CaptureIndex(key);
-  if (!ctx.captures.has_value() || index < 0 || std::cmp_greater_equal(index, ctx.captures->size())) {
+  // ResolveName dispatches here only for a non-negative, digit-only capture index.
+  if (!ctx.captures.has_value() || std::cmp_greater_equal(index, ctx.captures->size())) {
     return "";
   }
   return std::string_view((*ctx.captures)[static_cast<std::size_t>(index)]);
