@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
@@ -22,11 +23,11 @@ namespace {
 using ::mbo::testing::IsOk;
 using ::mbo::testing::IsOkAndHolds;
 using ::mbo::testing::StatusIs;
+using ::testing::_;
 using ::testing::Contains;
 using ::testing::Eq;
 using ::testing::Field;
-using ::testing::IsNull;
-using ::testing::Not;
+using ::testing::Optional;
 using ::testing::UnorderedElementsAre;
 
 constexpr std::array kFakePackFormats = std::to_array<std::string_view>({"tar.fake"});
@@ -51,7 +52,9 @@ TEST_F(ArchiveExtensionTest, RegistryOwnsRoutingVocabularyAndDeterministicReplac
           },
   });
 
-  EXPECT_THAT(CompressionExtensionFor("BUNDLE.TAR.FAKE"), Not(IsNull()));
+  const auto extension = CompressionExtensionFor("BUNDLE.TAR.FAKE");
+  ASSERT_THAT(extension, Optional(_));
+  EXPECT_THAT(absl::StrCat(*extension), Eq("fake"));
   EXPECT_THAT(CompressionExtensionStem("dir/notes.fake"), Eq(std::optional<std::string>("notes")));
   EXPECT_THAT(CompressionExtensionReadFormats(), Contains(Field("name", &ReadFormatInfo::name, "file")));
   EXPECT_THAT(CompressionExtensionPackFormats(), Contains("tar.fake"));
@@ -67,7 +70,7 @@ TEST_F(ArchiveExtensionTest, RegistryOwnsRoutingVocabularyAndDeterministicReplac
       .decoder = [](std::string_view, std::optional<std::string_view>,
                     std::uint64_t) { return absl::StatusOr<std::string>("replacement"); },
   });
-  EXPECT_THAT(CompressionExtensionFor("x.fake"), IsNull());
+  EXPECT_THAT(CompressionExtensionFor("x.fake"), Eq(std::nullopt));
   EXPECT_THAT(DecodeCompressionExtension("x.newfake", std::nullopt), IsOkAndHolds(Eq("replacement")));
 }
 
@@ -93,8 +96,8 @@ TEST_F(ArchiveExtensionTest, LongestCaseInsensitiveSuffixAndFormatWin) {
           },
   });
 
-  EXPECT_THAT(CompressionExtensionFor(".fake"), IsNull());
-  EXPECT_THAT(CompressionExtensionFor("NAME.TAR.FAKE"), Not(IsNull()));
+  EXPECT_THAT(CompressionExtensionFor(".fake"), Eq(std::nullopt));
+  EXPECT_THAT(CompressionExtensionFor("NAME.TAR.FAKE"), Optional(Field("name", &CompressionExtension::name, "nested")));
   EXPECT_THAT(CompressionExtensionStem("dir/NAME.TAR.FAKE"), Eq(std::optional<std::string>("NAME")));
   EXPECT_THAT(CompressionExtensionStem("NAME.FAKE"), Eq(std::optional<std::string>("NAME")));
   EXPECT_THAT(CompressionExtensionPackFormatFor("OUT.TAR.FAKE"), Eq("tar.fake"));

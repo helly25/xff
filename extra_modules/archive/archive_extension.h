@@ -12,6 +12,7 @@
 
 #include "absl/functional/any_invocable.h"
 #include "absl/status/statusor.h"
+#include "mbo/types/optional_ref.h"
 #include "xff/archive/archive_backend.h"
 
 namespace xff::archive {
@@ -34,12 +35,17 @@ struct CompressionExtension {
   ContainerPacker packer;
 };
 
+template<typename Sink>
+void AbslStringify(Sink& sink, const CompressionExtension& extension) {
+  sink.Append(extension.name);
+}
+
 // Registers an extension at static initialization. A duplicate name is replaced, keeping tests and
 // relinking deterministic. The caller then invokes RegisterArchiveBackend() so the core seam's
 // format snapshots are refreshed regardless of translation-unit initialization order.
 void RegisterCompressionExtension(CompressionExtension extension);
 
-[[nodiscard]] const CompressionExtension* CompressionExtensionFor(std::string_view container);
+[[nodiscard]] mbo::types::OptionalRef<const CompressionExtension> CompressionExtensionFor(std::string_view container);
 [[nodiscard]] std::optional<std::string> CompressionExtensionStem(std::string_view container);
 [[nodiscard]] std::vector<ReadFormatInfo> CompressionExtensionReadFormats();
 [[nodiscard]] std::vector<std::string> CompressionExtensionPackFormats();

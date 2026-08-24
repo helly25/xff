@@ -112,6 +112,7 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
+        "@helly25_mbo//mbo/types:optional_ref_cc",
         "@xff_extras_api//:archive_backend_cc",
     ],
 )
@@ -123,6 +124,7 @@ cc_test(
     deps = [
         ":archive_extension_cc",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
         "@googletest//:gtest_main",
         "@helly25_mbo//mbo/testing:status_cc",
     ],
