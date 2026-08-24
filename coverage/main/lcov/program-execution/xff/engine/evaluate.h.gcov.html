@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-24 21:24:25</td>
+            <td class="headerValue">2026-08-24 22:11:53</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -194,7 +194,7 @@
 <span id="L123"><span class="lineNum">     123</span>              :   bool fold_name_case = false;</span>
 <span id="L124"><span class="lineNum">     124</span>              :   // The normalized 0..100 fuzzy quality composed across the expression for {fuzzy}, --sort=score,</span>
 <span id="L125"><span class="lineNum">     125</span>              :   // and -top. Null when no consumer needs it; reset by the driver per entry.</span>
-<span id="L126"><span class="lineNum">     126</span>              :   std::optional&lt;int&gt;* fuzzy_score = nullptr;</span>
+<span id="L126"><span class="lineNum">     126</span>              :   mbo::types::OptionalRef&lt;std::optional&lt;int&gt;&gt; fuzzy_score;</span>
 <span id="L127"><span class="lineNum">     127</span>              :   // Result-set predicates such as -top and -shard-status are resolved after the walk. During the</span>
 <span id="L128"><span class="lineNum">     128</span>              :   // first evaluation, an undecided predicate writes its node (and -top's composed score) here and</span>
 <span id="L129"><span class="lineNum">     129</span>              :   // evaluation returns deferred. During replay, deferred_results supplies every earlier decision.</span>
