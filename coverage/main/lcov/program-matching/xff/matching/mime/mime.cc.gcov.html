@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-24 06:41:07</td>
+            <td class="headerValue">2026-08-24 17:58:05</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -141,13 +141,13 @@
 <span id="L61"><span class="lineNum">      61</span>                 :             :   const Vocabulary* active ABSL_GUARDED_BY(mutex) = nullptr;</span>
 <span id="L62"><span class="lineNum">      62</span>                 :             : };</span>
 <span id="L63"><span class="lineNum">      63</span>                 :             : </span>
-<span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">         824 : State&amp; GlobalState() {</span></span>
-<span id="L65"><span class="lineNum">      65</span>   [<span class="tlaGBC" title="branch 0 was taken 479 times"> + </span><span class="tlaGBC" title="branch 1 was taken 345 times"> + </span><span class="tlaGBC" title="branch 2 was taken 479 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         824 :   static State state;</span></span>
-<span id="L66"><span class="lineNum">      66</span>                 :<span class="tlaGNC">         824 :   return state;</span></span>
+<span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">         835 : State&amp; GlobalState() {</span></span>
+<span id="L65"><span class="lineNum">      65</span>   [<span class="tlaGBC" title="branch 0 was taken 479 times"> + </span><span class="tlaGBC" title="branch 1 was taken 356 times"> + </span><span class="tlaGBC" title="branch 2 was taken 479 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         835 :   static State state;</span></span>
+<span id="L66"><span class="lineNum">      66</span>                 :<span class="tlaGNC">         835 :   return state;</span></span>
 <span id="L67"><span class="lineNum">      67</span>                 :             : }</span>
 <span id="L68"><span class="lineNum">      68</span>                 :             : </span>
-<span id="L69"><span class="lineNum">      69</span>                 :<span class="tlaGNC">        3855 : std::string Lower(std::string_view value) {</span></span>
-<span id="L70"><span class="lineNum">      70</span>                 :<span class="tlaGNC">        7710 :   return absl::AsciiStrToLower(std::string(value));</span></span>
+<span id="L69"><span class="lineNum">      69</span>                 :<span class="tlaGNC">        3870 : std::string Lower(std::string_view value) {</span></span>
+<span id="L70"><span class="lineNum">      70</span>                 :<span class="tlaGNC">        7740 :   return absl::AsciiStrToLower(std::string(value));</span></span>
 <span id="L71"><span class="lineNum">      71</span>                 :             : }</span>
 <span id="L72"><span class="lineNum">      72</span>                 :             : </span>
 <span id="L73"><span class="lineNum">      73</span>                 :<span class="tlaGNC">        1672 : void AddCore(Vocabulary&amp; vocabulary, std::string_view extension, std::string_view type) {</span></span>
@@ -215,37 +215,37 @@
 <span id="L135"><span class="lineNum">     135</span>                 :<span class="tlaGNC">          14 :   return absl::InvalidArgumentError(absl::StrCat(&quot;MIME vocabulary '&quot;, layer, &quot;': &quot;, message));</span></span>
 <span id="L136"><span class="lineNum">     136</span>                 :             : }</span>
 <span id="L137"><span class="lineNum">     137</span>                 :             : </span>
-<span id="L138"><span class="lineNum">     138</span>                 :<span class="tlaGNC">        1008 : absl::StatusOr&lt;std::vector&lt;std::string_view&gt;&gt; StringList(</span></span>
+<span id="L138"><span class="lineNum">     138</span>                 :<span class="tlaGNC">        1010 : absl::StatusOr&lt;std::vector&lt;std::string_view&gt;&gt; StringList(</span></span>
 <span id="L139"><span class="lineNum">     139</span>                 :             :     const Json&amp; object,</span>
 <span id="L140"><span class="lineNum">     140</span>                 :             :     std::string_view field,</span>
 <span id="L141"><span class="lineNum">     141</span>                 :             :     std::string_view layer,</span>
 <span id="L142"><span class="lineNum">     142</span>                 :             :     std::string_view type) {</span>
-<span id="L143"><span class="lineNum">     143</span>                 :<span class="tlaGNC">        1008 :   const auto found = object.find(field);</span></span>
-<span id="L144"><span class="lineNum">     144</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 1008 times"> + </span>]:<span class="tlaGNC">        1008 :   if (found == object.end()) {</span></span>
+<span id="L143"><span class="lineNum">     143</span>                 :<span class="tlaGNC">        1010 :   const auto found = object.find(field);</span></span>
+<span id="L144"><span class="lineNum">     144</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 1010 times"> + </span>]:<span class="tlaGNC">        1010 :   if (found == object.end()) {</span></span>
 <span id="L145"><span class="lineNum">     145</span>                 :<span class="tlaUNC">           0 :     return std::vector&lt;std::string_view&gt;{};</span></span>
 <span id="L146"><span class="lineNum">     146</span>                 :             :   }</span>
-<span id="L147"><span class="lineNum">     147</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1006 times"> + </span>]:<span class="tlaGNC">        1008 :   if (!found-&gt;is_array()) {</span></span>
+<span id="L147"><span class="lineNum">     147</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1008 times"> + </span>]:<span class="tlaGNC">        1010 :   if (!found-&gt;is_array()) {</span></span>
 <span id="L148"><span class="lineNum">     148</span>                 :<span class="tlaGNC">           2 :     return JsonError(layer, absl::StrCat(type, &quot;.&quot;, field, &quot; must be an array of strings&quot;));</span></span>
 <span id="L149"><span class="lineNum">     149</span>                 :             :   }</span>
-<span id="L150"><span class="lineNum">     150</span>                 :<span class="tlaGNC">        1006 :   std::vector&lt;std::string_view&gt; result;</span></span>
-<span id="L151"><span class="lineNum">     151</span>         [<span class="tlaGBC" title="branch 0 was taken 1264 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1004 times"> + </span>]:<span class="tlaGNC">        2268 :   for (const Json&amp; value : *found) {</span></span>
-<span id="L152"><span class="lineNum">     152</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1262 times"> + </span>]:<span class="tlaGNC">        1264 :     if (!value.is_string()) {</span></span>
+<span id="L150"><span class="lineNum">     150</span>                 :<span class="tlaGNC">        1008 :   std::vector&lt;std::string_view&gt; result;</span></span>
+<span id="L151"><span class="lineNum">     151</span>         [<span class="tlaGBC" title="branch 0 was taken 1266 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1006 times"> + </span>]:<span class="tlaGNC">        2272 :   for (const Json&amp; value : *found) {</span></span>
+<span id="L152"><span class="lineNum">     152</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1264 times"> + </span>]:<span class="tlaGNC">        1266 :     if (!value.is_string()) {</span></span>
 <span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">           2 :       return JsonError(layer, absl::StrCat(type, &quot;.&quot;, field, &quot; must contain only strings&quot;));</span></span>
 <span id="L154"><span class="lineNum">     154</span>                 :             :     }</span>
-<span id="L155"><span class="lineNum">     155</span>                 :<span class="tlaGNC">        1262 :     result.push_back(value.get_ref&lt;const std::string&amp;&gt;());</span></span>
+<span id="L155"><span class="lineNum">     155</span>                 :<span class="tlaGNC">        1264 :     result.push_back(value.get_ref&lt;const std::string&amp;&gt;());</span></span>
 <span id="L156"><span class="lineNum">     156</span>                 :             :   }</span>
-<span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">        1004 :   return result;</span></span>
-<span id="L158"><span class="lineNum">     158</span>                 :<span class="tlaGNC">        1006 : }</span></span>
+<span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">        1006 :   return result;</span></span>
+<span id="L158"><span class="lineNum">     158</span>                 :<span class="tlaGNC">        1008 : }</span></span>
 <span id="L159"><span class="lineNum">     159</span>                 :             : </span>
-<span id="L160"><span class="lineNum">     160</span>                 :<span class="tlaGNC">        2547 : absl::Status ApplyStringFields(</span></span>
+<span id="L160"><span class="lineNum">     160</span>                 :<span class="tlaGNC">        2549 : absl::Status ApplyStringFields(</span></span>
 <span id="L161"><span class="lineNum">     161</span>                 :             :     Vocabulary::Record&amp; info,</span>
 <span id="L162"><span class="lineNum">     162</span>                 :             :     const Json&amp; value,</span>
 <span id="L163"><span class="lineNum">     163</span>                 :             :     std::string_view layer,</span>
 <span id="L164"><span class="lineNum">     164</span>                 :             :     std::string_view type) {</span>
-<span id="L165"><span class="lineNum">     165</span>         [<span class="tlaGBC" title="branch 0 was taken 7639 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2546 times"> + </span>]:<span class="tlaGNC">       10185 :   for (const std::string_view field : kStringFields) {</span></span>
-<span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaGNC">        7639 :     const auto found = value.find(field);</span></span>
-<span id="L167"><span class="lineNum">     167</span>         [<span class="tlaGBC" title="branch 0 was taken 5166 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2473 times"> + </span>]:<span class="tlaGNC">        7639 :     if (found == value.end()) {</span></span>
-<span id="L168"><span class="lineNum">     168</span>                 :<span class="tlaGNC">        5166 :       continue;</span></span>
+<span id="L165"><span class="lineNum">     165</span>         [<span class="tlaGBC" title="branch 0 was taken 7645 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2548 times"> + </span>]:<span class="tlaGNC">       10193 :   for (const std::string_view field : kStringFields) {</span></span>
+<span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaGNC">        7645 :     const auto found = value.find(field);</span></span>
+<span id="L167"><span class="lineNum">     167</span>         [<span class="tlaGBC" title="branch 0 was taken 5172 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2473 times"> + </span>]:<span class="tlaGNC">        7645 :     if (found == value.end()) {</span></span>
+<span id="L168"><span class="lineNum">     168</span>                 :<span class="tlaGNC">        5172 :       continue;</span></span>
 <span id="L169"><span class="lineNum">     169</span>                 :             :     }</span>
 <span id="L170"><span class="lineNum">     170</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 2472 times"> + </span>]:<span class="tlaGNC">        2473 :     if (!found-&gt;is_string()) {</span></span>
 <span id="L171"><span class="lineNum">     171</span>                 :<span class="tlaGNC">           1 :       return JsonError(layer, absl::StrCat(type, &quot;.&quot;, field, &quot; must be a string&quot;));</span></span>
@@ -259,24 +259,24 @@
 <span id="L179"><span class="lineNum">     179</span>                 :<span class="tlaGNC">          43 :       info.charset = field_value;</span></span>
 <span id="L180"><span class="lineNum">     180</span>                 :             :     }</span>
 <span id="L181"><span class="lineNum">     181</span>                 :             :   }</span>
-<span id="L182"><span class="lineNum">     182</span>                 :<span class="tlaGNC">        2546 :   return absl::OkStatus();</span></span>
+<span id="L182"><span class="lineNum">     182</span>                 :<span class="tlaGNC">        2548 :   return absl::OkStatus();</span></span>
 <span id="L183"><span class="lineNum">     183</span>                 :             : }</span>
 <span id="L184"><span class="lineNum">     184</span>                 :             : </span>
-<span id="L185"><span class="lineNum">     185</span>                 :<span class="tlaGNC">        2546 : absl::Status ApplyOptionalFields(</span></span>
+<span id="L185"><span class="lineNum">     185</span>                 :<span class="tlaGNC">        2548 : absl::Status ApplyOptionalFields(</span></span>
 <span id="L186"><span class="lineNum">     186</span>                 :             :     Vocabulary::Record&amp; info,</span>
 <span id="L187"><span class="lineNum">     187</span>                 :             :     const Json&amp; value,</span>
 <span id="L188"><span class="lineNum">     188</span>                 :             :     std::string_view layer,</span>
 <span id="L189"><span class="lineNum">     189</span>                 :             :     std::string_view type) {</span>
-<span id="L190"><span class="lineNum">     190</span>         [<span class="tlaGBC" title="branch 0 was taken 825 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1721 times"> + </span>]:<span class="tlaGNC">        2546 :   if (const auto found = value.find(&quot;compressible&quot;); found != value.end()) {</span></span>
-<span id="L191"><span class="lineNum">     191</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 824 times"> + </span>]:<span class="tlaGNC">         825 :     if (!found-&gt;is_boolean()) {</span></span>
+<span id="L190"><span class="lineNum">     190</span>         [<span class="tlaGBC" title="branch 0 was taken 826 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1722 times"> + </span>]:<span class="tlaGNC">        2548 :   if (const auto found = value.find(&quot;compressible&quot;); found != value.end()) {</span></span>
+<span id="L191"><span class="lineNum">     191</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 825 times"> + </span>]:<span class="tlaGNC">         826 :     if (!found-&gt;is_boolean()) {</span></span>
 <span id="L192"><span class="lineNum">     192</span>                 :<span class="tlaGNC">           1 :       return JsonError(layer, absl::StrCat(type, &quot;.compressible must be boolean&quot;));</span></span>
 <span id="L193"><span class="lineNum">     193</span>                 :             :     }</span>
-<span id="L194"><span class="lineNum">     194</span>                 :<span class="tlaGNC">         824 :     info.compressible = found-&gt;get&lt;bool&gt;();</span></span>
+<span id="L194"><span class="lineNum">     194</span>                 :<span class="tlaGNC">         825 :     info.compressible = found-&gt;get&lt;bool&gt;();</span></span>
 <span id="L195"><span class="lineNum">     195</span>                 :             :   }</span>
-<span id="L196"><span class="lineNum">     196</span>         [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2541 times"> + </span>]:<span class="tlaGNC">        2545 :   if (value.contains(&quot;aliases&quot;)) {</span></span>
+<span id="L196"><span class="lineNum">     196</span>         [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2543 times"> + </span>]:<span class="tlaGNC">        2547 :   if (value.contains(&quot;aliases&quot;)) {</span></span>
 <span id="L197"><span class="lineNum">     197</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           4 :     MBO_ASSIGN_OR_RETURN(info.aliases, StringList(value, &quot;aliases&quot;, layer, type));</span></span>
 <span id="L198"><span class="lineNum">     198</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           4 :   }</span></span>
-<span id="L199"><span class="lineNum">     199</span>                 :<span class="tlaGNC">        2543 :   return absl::OkStatus();</span></span>
+<span id="L199"><span class="lineNum">     199</span>                 :<span class="tlaGNC">        2545 :   return absl::OkStatus();</span></span>
 <span id="L200"><span class="lineNum">     200</span>                 :             : }</span>
 <span id="L201"><span class="lineNum">     201</span>                 :             : </span>
 <span id="L202"><span class="lineNum">     202</span>                 :             : class LayerProcessor {</span>
@@ -292,39 +292,39 @@
 <span id="L212"><span class="lineNum">     212</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 22 times"> + </span>]:<span class="tlaGNC">          23 :     if (!root_-&gt;is_object()) {</span></span>
 <span id="L213"><span class="lineNum">     213</span>                 :<span class="tlaGNC">           1 :       return JsonError(layer_, &quot;top level must be an object keyed by media type&quot;);</span></span>
 <span id="L214"><span class="lineNum">     214</span>                 :             :     }</span>
-<span id="L215"><span class="lineNum">     215</span>         [<span class="tlaGBC" title="branch 0 was taken 2549 times"> + </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">        2559 :     for (const auto&amp; [raw_type, value] : root_-&gt;items()) {</span></span>
-<span id="L216"><span class="lineNum">     216</span>   [<span class="tlaGBC" title="branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2537 times"> + </span><span class="tlaGBC" title="branch 2 was taken 2537 times"> + </span><span class="tlaGBC" title="branch 3 was taken 12 times"> + </span>]:<span class="tlaGNC">        2549 :       MBO_RETURN_IF_ERROR(ApplyEntry(raw_type, value));</span></span>
+<span id="L215"><span class="lineNum">     215</span>         [<span class="tlaGBC" title="branch 0 was taken 2551 times"> + </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">        2561 :     for (const auto&amp; [raw_type, value] : root_-&gt;items()) {</span></span>
+<span id="L216"><span class="lineNum">     216</span>   [<span class="tlaGBC" title="branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2539 times"> + </span><span class="tlaGBC" title="branch 2 was taken 2539 times"> + </span><span class="tlaGBC" title="branch 3 was taken 12 times"> + </span>]:<span class="tlaGNC">        2551 :       MBO_RETURN_IF_ERROR(ApplyEntry(raw_type, value));</span></span>
 <span id="L217"><span class="lineNum">     217</span>   [<span class="tlaGBC" title="branch 0 was taken 10 times"> + </span><span class="tlaGBC" title="branch 1 was taken 12 times"> + </span><span class="tlaGBC" title="branch 2 was taken 10 times"> + </span><span class="tlaGBC" title="branch 3 was taken 12 times"> + </span>]:<span class="tlaGNC">          34 :     }</span></span>
 <span id="L218"><span class="lineNum">     218</span>                 :<span class="tlaGNC">          10 :     Commit();</span></span>
 <span id="L219"><span class="lineNum">     219</span>                 :<span class="tlaGNC">          10 :     return absl::OkStatus();</span></span>
 <span id="L220"><span class="lineNum">     220</span>                 :             :   }</span>
 <span id="L221"><span class="lineNum">     221</span>                 :             : </span>
 <span id="L222"><span class="lineNum">     222</span>                 :             :  private:</span>
-<span id="L223"><span class="lineNum">     223</span>                 :<span class="tlaGNC">        1004 :   absl::StatusOr&lt;std::vector&lt;std::string_view&gt;&gt; Extensions(const Json&amp; value, std::string_view type) {</span></span>
-<span id="L224"><span class="lineNum">     224</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1002 times"> + </span>]:<span class="tlaGNC">        1004 :     MBO_ASSIGN_OR_RETURN(auto extensions, StringList(value, &quot;extensions&quot;, layer_, type));</span></span>
-<span id="L225"><span class="lineNum">     225</span>         [<span class="tlaGBC" title="branch 0 was taken 1260 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1000 times"> + </span>]:<span class="tlaGNC">        2260 :     for (std::string_view&amp; extension : extensions) {</span></span>
-<span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">        1260 :       std::string normalized = Lower(extension);</span></span>
-<span id="L227"><span class="lineNum">     227</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 1259 times"> + </span>]:<span class="tlaGNC">        1260 :       if (normalized.starts_with('.')) {</span></span>
+<span id="L223"><span class="lineNum">     223</span>                 :<span class="tlaGNC">        1006 :   absl::StatusOr&lt;std::vector&lt;std::string_view&gt;&gt; Extensions(const Json&amp; value, std::string_view type) {</span></span>
+<span id="L224"><span class="lineNum">     224</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1004 times"> + </span>]:<span class="tlaGNC">        1006 :     MBO_ASSIGN_OR_RETURN(auto extensions, StringList(value, &quot;extensions&quot;, layer_, type));</span></span>
+<span id="L225"><span class="lineNum">     225</span>         [<span class="tlaGBC" title="branch 0 was taken 1262 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1002 times"> + </span>]:<span class="tlaGNC">        2264 :     for (std::string_view&amp; extension : extensions) {</span></span>
+<span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">        1262 :       std::string normalized = Lower(extension);</span></span>
+<span id="L227"><span class="lineNum">     227</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 1261 times"> + </span>]:<span class="tlaGNC">        1262 :       if (normalized.starts_with('.')) {</span></span>
 <span id="L228"><span class="lineNum">     228</span>                 :<span class="tlaGNC">           1 :         normalized.erase(0, 1);</span></span>
 <span id="L229"><span class="lineNum">     229</span>                 :             :       }</span>
-<span id="L230"><span class="lineNum">     230</span>   [<span class="tlaGBC" title="branch 0 was taken 1259 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 1258 times"> + </span> :<span class="tlaGNC">        1260 :       if (normalized.empty() || absl::StrContains(normalized, '/')) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 2 times"> + </span><span class="tlaGBC" title="branch 5 was taken 1258 times"> + </span>]
+<span id="L230"><span class="lineNum">     230</span>   [<span class="tlaGBC" title="branch 0 was taken 1261 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 1260 times"> + </span> :<span class="tlaGNC">        1262 :       if (normalized.empty() || absl::StrContains(normalized, '/')) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 2 times"> + </span><span class="tlaGBC" title="branch 5 was taken 1260 times"> + </span>]
 <span id="L231"><span class="lineNum">     231</span>                 :<span class="tlaGNC">           2 :         return JsonError(layer_, absl::StrCat(type, &quot; has invalid extension '&quot;, normalized, &quot;'&quot;));</span></span>
 <span id="L232"><span class="lineNum">     232</span>                 :             :       }</span>
-<span id="L233"><span class="lineNum">     233</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 1257 times"> + </span>]:<span class="tlaGNC">        1258 :       if (normalized != extension) {</span></span>
+<span id="L233"><span class="lineNum">     233</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 1259 times"> + </span>]:<span class="tlaGNC">        1260 :       if (normalized != extension) {</span></span>
 <span id="L234"><span class="lineNum">     234</span>                 :<span class="tlaGNC">           1 :         normalized_.push_back(std::make_unique&lt;const std::string&gt;(std::move(normalized)));</span></span>
 <span id="L235"><span class="lineNum">     235</span>                 :<span class="tlaGNC">           1 :         extension = *normalized_.back();</span></span>
 <span id="L236"><span class="lineNum">     236</span>                 :             :       }</span>
-<span id="L237"><span class="lineNum">     237</span>         [<span class="tlaGBC" title="branch 0 was taken 1258 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">        1260 :     }</span></span>
-<span id="L238"><span class="lineNum">     238</span>                 :<span class="tlaGNC">        1000 :     return extensions;</span></span>
-<span id="L239"><span class="lineNum">     239</span>                 :<span class="tlaGNC">        1004 :   }</span></span>
+<span id="L237"><span class="lineNum">     237</span>         [<span class="tlaGBC" title="branch 0 was taken 1260 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">        1262 :     }</span></span>
+<span id="L238"><span class="lineNum">     238</span>                 :<span class="tlaGNC">        1002 :     return extensions;</span></span>
+<span id="L239"><span class="lineNum">     239</span>                 :<span class="tlaGNC">        1006 :   }</span></span>
 <span id="L240"><span class="lineNum">     240</span>                 :             : </span>
-<span id="L241"><span class="lineNum">     241</span>                 :<span class="tlaGNC">        1000 :   absl::Status AddClaims(absl::Span&lt;const std::string_view&gt; extensions, std::string_view type) {</span></span>
-<span id="L242"><span class="lineNum">     242</span>         [<span class="tlaGBC" title="branch 0 was taken 1258 times"> + </span><span class="tlaGBC" title="branch 1 was taken 998 times"> + </span>]:<span class="tlaGNC">        2256 :     for (const std::string_view extension : extensions) {</span></span>
-<span id="L243"><span class="lineNum">     243</span>                 :<span class="tlaGNC">        1258 :       const auto [claim, inserted] = claims_.emplace(extension, type);</span></span>
-<span id="L244"><span class="lineNum">     244</span>   [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1251 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 6 times"> + </span> :<span class="tlaGNC">        1258 :       if (inserted || claim-&gt;second == type) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 1252 times"> + </span><span class="tlaGBC" title="branch 5 was taken 6 times"> + </span>]
-<span id="L245"><span class="lineNum">     245</span>                 :<span class="tlaGNC">        1252 :         continue;</span></span>
+<span id="L241"><span class="lineNum">     241</span>                 :<span class="tlaGNC">        1002 :   absl::Status AddClaims(absl::Span&lt;const std::string_view&gt; extensions, std::string_view type) {</span></span>
+<span id="L242"><span class="lineNum">     242</span>         [<span class="tlaGBC" title="branch 0 was taken 1260 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1000 times"> + </span>]:<span class="tlaGNC">        2260 :     for (const std::string_view extension : extensions) {</span></span>
+<span id="L243"><span class="lineNum">     243</span>                 :<span class="tlaGNC">        1260 :       const auto [claim, inserted] = claims_.emplace(extension, type);</span></span>
+<span id="L244"><span class="lineNum">     244</span>   [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1253 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 6 times"> + </span> :<span class="tlaGNC">        1260 :       if (inserted || claim-&gt;second == type) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 1254 times"> + </span><span class="tlaGBC" title="branch 5 was taken 6 times"> + </span>]
+<span id="L245"><span class="lineNum">     245</span>                 :<span class="tlaGNC">        1254 :         continue;</span></span>
 <span id="L246"><span class="lineNum">     246</span>                 :             :       }</span>
 <span id="L247"><span class="lineNum">     247</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           6 :       if (conflicts_ == ConflictPolicy::kError) {</span></span>
 <span id="L248"><span class="lineNum">     248</span>                 :             :         return JsonError(</span>
@@ -334,41 +334,41 @@
 <span id="L252"><span class="lineNum">     252</span>                 :<span class="tlaGNC">           2 :         claim-&gt;second = type;</span></span>
 <span id="L253"><span class="lineNum">     253</span>                 :             :       }</span>
 <span id="L254"><span class="lineNum">     254</span>                 :             :     }</span>
-<span id="L255"><span class="lineNum">     255</span>                 :<span class="tlaGNC">         998 :     return absl::OkStatus();</span></span>
+<span id="L255"><span class="lineNum">     255</span>                 :<span class="tlaGNC">        1000 :     return absl::OkStatus();</span></span>
 <span id="L256"><span class="lineNum">     256</span>                 :             :   }</span>
 <span id="L257"><span class="lineNum">     257</span>                 :             : </span>
-<span id="L258"><span class="lineNum">     258</span>                 :<span class="tlaGNC">        2549 :   absl::Status ApplyEntry(std::string_view raw_type, const Json&amp; value) {</span></span>
-<span id="L259"><span class="lineNum">     259</span>                 :<span class="tlaGNC">        2549 :     const std::string type = Lower(raw_type);</span></span>
-<span id="L260"><span class="lineNum">     260</span>   [<span class="tlaGBC" title="branch 0 was taken 2548 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 2547 times"> + </span> :<span class="tlaGNC">        2549 :     if (!absl::StrContains(type, '/') || !value.is_object()) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 2 times"> + </span><span class="tlaGBC" title="branch 5 was taken 2547 times"> + </span>]
+<span id="L258"><span class="lineNum">     258</span>                 :<span class="tlaGNC">        2551 :   absl::Status ApplyEntry(std::string_view raw_type, const Json&amp; value) {</span></span>
+<span id="L259"><span class="lineNum">     259</span>                 :<span class="tlaGNC">        2551 :     const std::string type = Lower(raw_type);</span></span>
+<span id="L260"><span class="lineNum">     260</span>   [<span class="tlaGBC" title="branch 0 was taken 2550 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 2549 times"> + </span> :<span class="tlaGNC">        2551 :     if (!absl::StrContains(type, '/') || !value.is_object()) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 2 times"> + </span><span class="tlaGBC" title="branch 5 was taken 2549 times"> + </span>]
 <span id="L261"><span class="lineNum">     261</span>                 :<span class="tlaGNC">           2 :       return JsonError(layer_, absl::StrCat(&quot;invalid media-type entry: &quot;, raw_type));</span></span>
 <span id="L262"><span class="lineNum">     262</span>                 :             :     }</span>
-<span id="L263"><span class="lineNum">     263</span>                 :<span class="tlaGNC">        2547 :     Vocabulary::Record info;</span></span>
-<span id="L264"><span class="lineNum">     264</span>         [<span class="tlaGBC" title="branch 0 was taken 41 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2506 times"> + </span>]:<span class="tlaGNC">        2547 :     if (const auto found = vocabulary_.types.find(type); found != vocabulary_.types.end()) {</span></span>
+<span id="L263"><span class="lineNum">     263</span>                 :<span class="tlaGNC">        2549 :     Vocabulary::Record info;</span></span>
+<span id="L264"><span class="lineNum">     264</span>         [<span class="tlaGBC" title="branch 0 was taken 41 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2508 times"> + </span>]:<span class="tlaGNC">        2549 :     if (const auto found = vocabulary_.types.find(type); found != vocabulary_.types.end()) {</span></span>
 <span id="L265"><span class="lineNum">     265</span>                 :<span class="tlaGNC">          41 :       info = found-&gt;second;</span></span>
 <span id="L266"><span class="lineNum">     266</span>                 :             :     }</span>
-<span id="L267"><span class="lineNum">     267</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 2546 times"> + </span><span class="tlaGBC" title="branch 2 was taken 2546 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">        2547 :     MBO_RETURN_IF_ERROR(ApplyStringFields(info, value, layer_, type));</span></span>
-<span id="L268"><span class="lineNum">     268</span>   [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2543 times"> + </span><span class="tlaGBC" title="branch 2 was taken 2543 times"> + </span><span class="tlaGBC" title="branch 3 was taken 3 times"> + </span>]:<span class="tlaGNC">        2546 :     MBO_RETURN_IF_ERROR(ApplyOptionalFields(info, value, layer_, type));</span></span>
-<span id="L269"><span class="lineNum">     269</span>         [<span class="tlaGBC" title="branch 0 was taken 1004 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1539 times"> + </span>]:<span class="tlaGNC">        2543 :     if (value.contains(&quot;extensions&quot;)) {</span></span>
-<span id="L270"><span class="lineNum">     270</span>         [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1000 times"> + </span>]:<span class="tlaGNC">        1004 :       MBO_ASSIGN_OR_RETURN(const auto extensions, Extensions(value, type));</span></span>
-<span id="L271"><span class="lineNum">     271</span>                 :<span class="tlaGNC">        1000 :       info.extensions.clear();</span></span>
-<span id="L272"><span class="lineNum">     272</span>                 :<span class="tlaGNC">        1000 :       replaced_types_.insert(type);</span></span>
-<span id="L273"><span class="lineNum">     273</span>   [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 998 times"> + </span><span class="tlaGBC" title="branch 2 was taken 998 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2 times"> + </span>]:<span class="tlaGNC">        1000 :       MBO_RETURN_IF_ERROR(AddClaims(extensions, type));</span></span>
-<span id="L274"><span class="lineNum">     274</span>   [<span class="tlaGBC" title="branch 0 was taken 998 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="branch 2 was taken 998 times"> + </span><span class="tlaGBC" title="branch 3 was taken 6 times"> + </span>]:<span class="tlaGNC">        1006 :     }</span></span>
-<span id="L275"><span class="lineNum">     275</span>                 :<span class="tlaGNC">        2537 :     types_[type] = std::move(info);</span></span>
-<span id="L276"><span class="lineNum">     276</span>                 :<span class="tlaGNC">        2537 :     return absl::OkStatus();</span></span>
-<span id="L277"><span class="lineNum">     277</span>                 :<span class="tlaGNC">        2549 :   }</span></span>
+<span id="L267"><span class="lineNum">     267</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 2548 times"> + </span><span class="tlaGBC" title="branch 2 was taken 2548 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">        2549 :     MBO_RETURN_IF_ERROR(ApplyStringFields(info, value, layer_, type));</span></span>
+<span id="L268"><span class="lineNum">     268</span>   [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2545 times"> + </span><span class="tlaGBC" title="branch 2 was taken 2545 times"> + </span><span class="tlaGBC" title="branch 3 was taken 3 times"> + </span>]:<span class="tlaGNC">        2548 :     MBO_RETURN_IF_ERROR(ApplyOptionalFields(info, value, layer_, type));</span></span>
+<span id="L269"><span class="lineNum">     269</span>         [<span class="tlaGBC" title="branch 0 was taken 1006 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1539 times"> + </span>]:<span class="tlaGNC">        2545 :     if (value.contains(&quot;extensions&quot;)) {</span></span>
+<span id="L270"><span class="lineNum">     270</span>         [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1002 times"> + </span>]:<span class="tlaGNC">        1006 :       MBO_ASSIGN_OR_RETURN(const auto extensions, Extensions(value, type));</span></span>
+<span id="L271"><span class="lineNum">     271</span>                 :<span class="tlaGNC">        1002 :       info.extensions.clear();</span></span>
+<span id="L272"><span class="lineNum">     272</span>                 :<span class="tlaGNC">        1002 :       replaced_types_.insert(type);</span></span>
+<span id="L273"><span class="lineNum">     273</span>   [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1000 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1000 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2 times"> + </span>]:<span class="tlaGNC">        1002 :       MBO_RETURN_IF_ERROR(AddClaims(extensions, type));</span></span>
+<span id="L274"><span class="lineNum">     274</span>   [<span class="tlaGBC" title="branch 0 was taken 1000 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1000 times"> + </span><span class="tlaGBC" title="branch 3 was taken 6 times"> + </span>]:<span class="tlaGNC">        1008 :     }</span></span>
+<span id="L275"><span class="lineNum">     275</span>                 :<span class="tlaGNC">        2539 :     types_[type] = std::move(info);</span></span>
+<span id="L276"><span class="lineNum">     276</span>                 :<span class="tlaGNC">        2539 :     return absl::OkStatus();</span></span>
+<span id="L277"><span class="lineNum">     277</span>                 :<span class="tlaGNC">        2551 :   }</span></span>
 <span id="L278"><span class="lineNum">     278</span>                 :             : </span>
 <span id="L279"><span class="lineNum">     279</span>                 :<span class="tlaGNC">          10 :   void Commit() {</span></span>
-<span id="L280"><span class="lineNum">     280</span>         [<span class="tlaGBC" title="branch 0 was taken 996 times"> + </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">        1006 :     for (const std::string&amp; type : replaced_types_) {</span></span>
-<span id="L281"><span class="lineNum">     281</span>                 :<span class="tlaGNC">       34022 :       std::erase_if(vocabulary_.extensions, [&amp;](const auto&amp; claim) { return claim.second == type; });</span></span>
+<span id="L280"><span class="lineNum">     280</span>         [<span class="tlaGBC" title="branch 0 was taken 998 times"> + </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">        1008 :     for (const std::string&amp; type : replaced_types_) {</span></span>
+<span id="L281"><span class="lineNum">     281</span>                 :<span class="tlaGNC">       34112 :       std::erase_if(vocabulary_.extensions, [&amp;](const auto&amp; claim) { return claim.second == type; });</span></span>
 <span id="L282"><span class="lineNum">     282</span>                 :             :     }</span>
-<span id="L283"><span class="lineNum">     283</span>         [<span class="tlaGBC" title="branch 0 was taken 2535 times"> + </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">        2545 :     for (auto&amp; [type, info] : types_) {</span></span>
-<span id="L284"><span class="lineNum">     284</span>                 :<span class="tlaGNC">        2535 :       vocabulary_.types[type] = std::move(info);</span></span>
+<span id="L283"><span class="lineNum">     283</span>         [<span class="tlaGBC" title="branch 0 was taken 2537 times"> + </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">        2547 :     for (auto&amp; [type, info] : types_) {</span></span>
+<span id="L284"><span class="lineNum">     284</span>                 :<span class="tlaGNC">        2537 :       vocabulary_.types[type] = std::move(info);</span></span>
 <span id="L285"><span class="lineNum">     285</span>                 :             :     }</span>
-<span id="L286"><span class="lineNum">     286</span>         [<span class="tlaGBC" title="branch 0 was taken 1249 times"> + </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">        1259 :     for (const auto&amp; [extension, type] : claims_) {</span></span>
-<span id="L287"><span class="lineNum">     287</span>                 :<span class="tlaGNC">        1249 :       const auto claim = vocabulary_.extensions.insert_or_assign(extension, type).first;</span></span>
-<span id="L288"><span class="lineNum">     288</span>                 :<span class="tlaGNC">        1249 :       vocabulary_.types[type].extensions.push_back(claim-&gt;first);</span></span>
+<span id="L286"><span class="lineNum">     286</span>         [<span class="tlaGBC" title="branch 0 was taken 1251 times"> + </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">        1261 :     for (const auto&amp; [extension, type] : claims_) {</span></span>
+<span id="L287"><span class="lineNum">     287</span>                 :<span class="tlaGNC">        1251 :       const auto claim = vocabulary_.extensions.insert_or_assign(extension, type).first;</span></span>
+<span id="L288"><span class="lineNum">     288</span>                 :<span class="tlaGNC">        1251 :       vocabulary_.types[type].extensions.push_back(claim-&gt;first);</span></span>
 <span id="L289"><span class="lineNum">     289</span>                 :             :     }</span>
 <span id="L290"><span class="lineNum">     290</span>                 :<span class="tlaGNC">          10 :     vocabulary_.layers.push_back(std::move(root_));</span></span>
 <span id="L291"><span class="lineNum">     291</span>                 :<span class="tlaGNC">          10 :   }</span></span>
@@ -393,39 +393,39 @@
 <span id="L310"><span class="lineNum">     310</span>                 :<span class="tlaGNC">          23 :   return std::move(text).str();</span></span>
 <span id="L311"><span class="lineNum">     311</span>                 :<span class="tlaGNC">          24 : }</span></span>
 <span id="L312"><span class="lineNum">     312</span>                 :             : </span>
-<span id="L313"><span class="lineNum">     313</span>                 :<span class="tlaGNC">        3491 : TypeInfo View(std::string_view type, const Vocabulary::Record&amp; record) {</span></span>
+<span id="L313"><span class="lineNum">     313</span>                 :<span class="tlaGNC">        3504 : TypeInfo View(std::string_view type, const Vocabulary::Record&amp; record) {</span></span>
 <span id="L314"><span class="lineNum">     314</span>                 :             :   return {</span>
 <span id="L315"><span class="lineNum">     315</span>                 :             :       .type = type,</span>
 <span id="L316"><span class="lineNum">     316</span>                 :             :       .description = record.description,</span>
 <span id="L317"><span class="lineNum">     317</span>                 :             :       .source = record.source,</span>
 <span id="L318"><span class="lineNum">     318</span>                 :             :       .charset = record.charset,</span>
 <span id="L319"><span class="lineNum">     319</span>                 :             :       .compressible = record.compressible,</span>
-<span id="L320"><span class="lineNum">     320</span>                 :<span class="tlaGNC">        3491 :       .aliases = record.aliases,</span></span>
-<span id="L321"><span class="lineNum">     321</span>                 :<span class="tlaGNC">        3491 :       .extensions = record.extensions,</span></span>
-<span id="L322"><span class="lineNum">     322</span>                 :<span class="tlaGNC">        3491 :   };</span></span>
+<span id="L320"><span class="lineNum">     320</span>                 :<span class="tlaGNC">        3504 :       .aliases = record.aliases,</span></span>
+<span id="L321"><span class="lineNum">     321</span>                 :<span class="tlaGNC">        3504 :       .extensions = record.extensions,</span></span>
+<span id="L322"><span class="lineNum">     322</span>                 :<span class="tlaGNC">        3504 :   };</span></span>
 <span id="L323"><span class="lineNum">     323</span>                 :             : }</span>
 <span id="L324"><span class="lineNum">     324</span>                 :             : </span>
-<span id="L325"><span class="lineNum">     325</span>                 :<span class="tlaGNC">          54 : TypeInfo Lookup(const Vocabulary&amp; vocabulary, std::string_view name) {</span></span>
-<span id="L326"><span class="lineNum">     326</span>                 :<span class="tlaGNC">          54 :   const std::string extension = stdfs::path(std::string(name)).extension().string();</span></span>
-<span id="L327"><span class="lineNum">     327</span>         [<span class="tlaGBC" title="branch 0 was taken 46 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">          54 :   if (extension.size() &gt; 1) {</span></span>
-<span id="L328"><span class="lineNum">     328</span>                 :<span class="tlaGNC">          46 :     const auto found = vocabulary.extensions.find(Lower(std::string_view(extension).substr(1)));</span></span>
-<span id="L329"><span class="lineNum">     329</span>         [<span class="tlaGBC" title="branch 0 was taken 45 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          46 :     if (found != vocabulary.extensions.end()) {</span></span>
-<span id="L330"><span class="lineNum">     330</span>                 :<span class="tlaGNC">          45 :       return View(found-&gt;second, vocabulary.types.at(found-&gt;second));</span></span>
+<span id="L325"><span class="lineNum">     325</span>                 :<span class="tlaGNC">          65 : TypeInfo Lookup(const Vocabulary&amp; vocabulary, std::string_view name) {</span></span>
+<span id="L326"><span class="lineNum">     326</span>                 :<span class="tlaGNC">          65 :   const std::string extension = stdfs::path(std::string(name)).extension().string();</span></span>
+<span id="L327"><span class="lineNum">     327</span>         [<span class="tlaGBC" title="branch 0 was taken 57 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">          65 :   if (extension.size() &gt; 1) {</span></span>
+<span id="L328"><span class="lineNum">     328</span>                 :<span class="tlaGNC">          57 :     const auto found = vocabulary.extensions.find(Lower(std::string_view(extension).substr(1)));</span></span>
+<span id="L329"><span class="lineNum">     329</span>         [<span class="tlaGBC" title="branch 0 was taken 56 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          57 :     if (found != vocabulary.extensions.end()) {</span></span>
+<span id="L330"><span class="lineNum">     330</span>                 :<span class="tlaGNC">          56 :       return View(found-&gt;second, vocabulary.types.at(found-&gt;second));</span></span>
 <span id="L331"><span class="lineNum">     331</span>                 :             :     }</span>
 <span id="L332"><span class="lineNum">     332</span>                 :             :   }</span>
 <span id="L333"><span class="lineNum">     333</span>                 :<span class="tlaGNC">          27 :   return View(kFallback, vocabulary.types.at(std::string(kFallback)));</span></span>
-<span id="L334"><span class="lineNum">     334</span>                 :<span class="tlaGNC">          54 : }</span></span>
+<span id="L334"><span class="lineNum">     334</span>                 :<span class="tlaGNC">          65 : }</span></span>
 <span id="L335"><span class="lineNum">     335</span>                 :             : </span>
 <span id="L336"><span class="lineNum">     336</span>                 :<span class="tlaGNC">          23 : void Finalize(Vocabulary&amp; vocabulary) {</span></span>
 <span id="L337"><span class="lineNum">     337</span>                 :<span class="tlaGNC">          23 :   vocabulary.views.reserve(vocabulary.types.size());</span></span>
-<span id="L338"><span class="lineNum">     338</span>         [<span class="tlaGBC" title="branch 0 was taken 3437 times"> + </span><span class="tlaGBC" title="branch 1 was taken 23 times"> + </span>]:<span class="tlaGNC">        3460 :   for (const auto&amp; [type, record] : vocabulary.types) {</span></span>
-<span id="L339"><span class="lineNum">     339</span>                 :<span class="tlaGNC">        3437 :     vocabulary.views.push_back(View(type, record));</span></span>
+<span id="L338"><span class="lineNum">     338</span>         [<span class="tlaGBC" title="branch 0 was taken 3439 times"> + </span><span class="tlaGBC" title="branch 1 was taken 23 times"> + </span>]:<span class="tlaGNC">        3462 :   for (const auto&amp; [type, record] : vocabulary.types) {</span></span>
+<span id="L339"><span class="lineNum">     339</span>                 :<span class="tlaGNC">        3439 :     vocabulary.views.push_back(View(type, record));</span></span>
 <span id="L340"><span class="lineNum">     340</span>                 :             :   }</span>
 <span id="L341"><span class="lineNum">     341</span>                 :<span class="tlaGNC">          23 : }</span></span>
 <span id="L342"><span class="lineNum">     342</span>                 :             : </span>
-<span id="L343"><span class="lineNum">     343</span>                 :<span class="tlaGNC">          59 : void EnsureConfigured(State&amp; state) ABSL_EXCLUSIVE_LOCKS_REQUIRED(state.mutex) {</span></span>
-<span id="L344"><span class="lineNum">     344</span>         [<span class="tlaGBC" title="branch 0 was taken 45 times"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          59 :   if (state.active != nullptr) {</span></span>
-<span id="L345"><span class="lineNum">     345</span>                 :<span class="tlaGNC">          45 :     return;</span></span>
+<span id="L343"><span class="lineNum">     343</span>                 :<span class="tlaGNC">          70 : void EnsureConfigured(State&amp; state) ABSL_EXCLUSIVE_LOCKS_REQUIRED(state.mutex) {</span></span>
+<span id="L344"><span class="lineNum">     344</span>         [<span class="tlaGBC" title="branch 0 was taken 56 times"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          70 :   if (state.active != nullptr) {</span></span>
+<span id="L345"><span class="lineNum">     345</span>                 :<span class="tlaGNC">          56 :     return;</span></span>
 <span id="L346"><span class="lineNum">     346</span>                 :             :   }</span>
 <span id="L347"><span class="lineNum">     347</span>                 :<span class="tlaGNC">          14 :   auto vocabulary = std::make_unique&lt;Vocabulary&gt;(CoreVocabulary());</span></span>
 <span id="L348"><span class="lineNum">     348</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          15 :   for (const Database&amp; database : Databases()) {</span></span>
@@ -438,8 +438,8 @@
 <span id="L355"><span class="lineNum">     355</span>                 :             : </span>
 <span id="L356"><span class="lineNum">     356</span>                 :             : }  // namespace</span>
 <span id="L357"><span class="lineNum">     357</span>                 :             : </span>
-<span id="L358"><span class="lineNum">     358</span>                 :<span class="tlaGNC">           3 : std::string_view TypeInfo::Category() const {</span></span>
-<span id="L359"><span class="lineNum">     359</span>                 :<span class="tlaGNC">           3 :   return type.substr(0, type.find('/'));</span></span>
+<span id="L358"><span class="lineNum">     358</span>                 :<span class="tlaGNC">           5 : std::string_view TypeInfo::Category() const {</span></span>
+<span id="L359"><span class="lineNum">     359</span>                 :<span class="tlaGNC">           5 :   return type.substr(0, type.find('/'));</span></span>
 <span id="L360"><span class="lineNum">     360</span>                 :             : }</span>
 <span id="L361"><span class="lineNum">     361</span>                 :             : </span>
 <span id="L362"><span class="lineNum">     362</span>                 :<span class="tlaGNC">         780 : absl::Status Configure(absl::Span&lt;const std::string&gt; files, ConflictPolicy conflicts) {</span></span>
@@ -469,15 +469,15 @@
 <span id="L386"><span class="lineNum">     386</span>                 :<span class="tlaGNC">           9 :   return absl::OkStatus();</span></span>
 <span id="L387"><span class="lineNum">     387</span>                 :<span class="tlaGNC">          24 : }</span></span>
 <span id="L388"><span class="lineNum">     388</span>                 :             : </span>
-<span id="L389"><span class="lineNum">     389</span>                 :<span class="tlaGNC">          54 : TypeInfo InfoForName(std::string_view name) {</span></span>
-<span id="L390"><span class="lineNum">     390</span>                 :<span class="tlaGNC">          54 :   State&amp; state = GlobalState();</span></span>
-<span id="L391"><span class="lineNum">     391</span>                 :<span class="tlaGNC">          54 :   const absl::MutexLock lock(&amp;state.mutex);</span></span>
-<span id="L392"><span class="lineNum">     392</span>                 :<span class="tlaGNC">          54 :   EnsureConfigured(state);</span></span>
-<span id="L393"><span class="lineNum">     393</span>                 :<span class="tlaGNC">          54 :   return Lookup(*state.active, name);</span></span>
-<span id="L394"><span class="lineNum">     394</span>                 :<span class="tlaGNC">          54 : }</span></span>
+<span id="L389"><span class="lineNum">     389</span>                 :<span class="tlaGNC">          65 : TypeInfo InfoForName(std::string_view name) {</span></span>
+<span id="L390"><span class="lineNum">     390</span>                 :<span class="tlaGNC">          65 :   State&amp; state = GlobalState();</span></span>
+<span id="L391"><span class="lineNum">     391</span>                 :<span class="tlaGNC">          65 :   const absl::MutexLock lock(&amp;state.mutex);</span></span>
+<span id="L392"><span class="lineNum">     392</span>                 :<span class="tlaGNC">          65 :   EnsureConfigured(state);</span></span>
+<span id="L393"><span class="lineNum">     393</span>                 :<span class="tlaGNC">          65 :   return Lookup(*state.active, name);</span></span>
+<span id="L394"><span class="lineNum">     394</span>                 :<span class="tlaGNC">          65 : }</span></span>
 <span id="L395"><span class="lineNum">     395</span>                 :             : </span>
-<span id="L396"><span class="lineNum">     396</span>                 :<span class="tlaGNC">          45 : std::string_view TypeForName(std::string_view name) {</span></span>
-<span id="L397"><span class="lineNum">     397</span>                 :<span class="tlaGNC">          45 :   return InfoForName(name).type;</span></span>
+<span id="L396"><span class="lineNum">     396</span>                 :<span class="tlaGNC">          46 : std::string_view TypeForName(std::string_view name) {</span></span>
+<span id="L397"><span class="lineNum">     397</span>                 :<span class="tlaGNC">          46 :   return InfoForName(name).type;</span></span>
 <span id="L398"><span class="lineNum">     398</span>                 :             : }</span>
 <span id="L399"><span class="lineNum">     399</span>                 :             : </span>
 <span id="L400"><span class="lineNum">     400</span>                 :<span class="tlaGNC">           5 : absl::Span&lt;const TypeInfo&gt; Types() {</span></span>

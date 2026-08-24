@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-24 06:41:07</td>
+            <td class="headerValue">2026-08-24 17:58:05</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">96.4&nbsp;%</td>
@@ -164,14 +164,14 @@
 <span id="L84"><span class="lineNum">      84</span>                 :             : namespace {</span>
 <span id="L85"><span class="lineNum">      85</span>                 :             : </span>
 <span id="L86"><span class="lineNum">      86</span>                 :             : // Parses a non-negative decimal integer (find depth arguments).</span>
-<span id="L87"><span class="lineNum">      87</span>                 :<span class="tlaGNC">         856 : bool ParseNonNegInt(std::string_view text, int* out) {</span></span>
-<span id="L88"><span class="lineNum">      88</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 856 times"> + </span>]:<span class="tlaGNC">         856 :   if (text.empty()) {</span></span>
+<span id="L87"><span class="lineNum">      87</span>                 :<span class="tlaGNC">         854 : bool ParseNonNegInt(std::string_view text, int* out) {</span></span>
+<span id="L88"><span class="lineNum">      88</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 854 times"> + </span>]:<span class="tlaGNC">         854 :   if (text.empty()) {</span></span>
 <span id="L89"><span class="lineNum">      89</span>                 :<span class="tlaUNC">           0 :     return false;</span></span>
 <span id="L90"><span class="lineNum">      90</span>                 :             :   }</span>
-<span id="L91"><span class="lineNum">      91</span>                 :<span class="tlaGNC">         856 :   int value = 0;</span></span>
-<span id="L92"><span class="lineNum">      92</span>         [<span class="tlaGBC" title="branch 0 was taken 880 times"> + </span><span class="tlaGBC" title="branch 1 was taken 40 times"> + </span>]:<span class="tlaGNC">         920 :   for (const char digit : text) {</span></span>
-<span id="L93"><span class="lineNum">      93</span>   [<span class="tlaGBC" title="branch 0 was taken 721 times"> + </span><span class="tlaGBC" title="branch 1 was taken 159 times"> + </span><span class="tlaGBC" title="branch 2 was taken 657 times"> + </span><span class="tlaGBC" title="branch 3 was taken 64 times"> + </span>]:<span class="tlaGNC">         880 :     if (digit &lt; '0' || digit &gt; '9') {</span></span>
-<span id="L94"><span class="lineNum">      94</span>                 :<span class="tlaGNC">         816 :       return false;</span></span>
+<span id="L91"><span class="lineNum">      91</span>                 :<span class="tlaGNC">         854 :   int value = 0;</span></span>
+<span id="L92"><span class="lineNum">      92</span>         [<span class="tlaGBC" title="branch 0 was taken 878 times"> + </span><span class="tlaGBC" title="branch 1 was taken 40 times"> + </span>]:<span class="tlaGNC">         918 :   for (const char digit : text) {</span></span>
+<span id="L93"><span class="lineNum">      93</span>   [<span class="tlaGBC" title="branch 0 was taken 719 times"> + </span><span class="tlaGBC" title="branch 1 was taken 159 times"> + </span><span class="tlaGBC" title="branch 2 was taken 655 times"> + </span><span class="tlaGBC" title="branch 3 was taken 64 times"> + </span>]:<span class="tlaGNC">         878 :     if (digit &lt; '0' || digit &gt; '9') {</span></span>
+<span id="L94"><span class="lineNum">      94</span>                 :<span class="tlaGNC">         814 :       return false;</span></span>
 <span id="L95"><span class="lineNum">      95</span>                 :             :     }</span>
 <span id="L96"><span class="lineNum">      96</span>                 :<span class="tlaGNC">          64 :     value = (value * 10) + (digit - '0');</span></span>
 <span id="L97"><span class="lineNum">      97</span>                 :             :   }</span>
@@ -182,51 +182,51 @@
 <span id="L102"><span class="lineNum">     102</span>                 :             : // find treats -maxdepth/-mindepth/-depth/-xdev as global positional options</span>
 <span id="L103"><span class="lineNum">     103</span>                 :             : // (they apply regardless of where they sit in the expression); collect them into</span>
 <span id="L104"><span class="lineNum">     104</span>                 :             : // the walk limits. Last occurrence wins, as in find.</span>
-<span id="L105"><span class="lineNum">     105</span>                 :<span class="tlaGNC">        1329 : void ScanDepthOptions(const parser::Expr&amp; expr, WalkOptions* options) {</span></span>
-<span id="L106"><span class="lineNum">     106</span>   [<span class="tlaGBC" title="branch 0 was taken 972 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span><span class="tlaGBC" title="branch 2 was taken 349 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        1329 :   switch (expr.kind) {</span></span>
-<span id="L107"><span class="lineNum">     107</span>                 :<span class="tlaGNC">         972 :     case parser::Expr::Kind::kPredicate: {</span></span>
-<span id="L108"><span class="lineNum">     108</span>   [<span class="tlaGBC" title="branch 0 was taken 969 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3 times"> + </span><span class="tlaGBC" title="branch 2 was taken 968 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">         972 :       if (expr.descriptor-&gt;name == &quot;-depth&quot; || expr.descriptor-&gt;name == &quot;-d&quot; || expr.descriptor-&gt;name == &quot;-delete&quot;) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 13 times"> + </span><span class="tlaGBC" title="branch 5 was taken 955 times"> + </span><span class="tlaGBC" title="branch 6 was taken 17 times"> + </span><span class="tlaGBC" title="branch 7 was taken 955 times"> + </span>]
+<span id="L105"><span class="lineNum">     105</span>                 :<span class="tlaGNC">        1325 : void ScanDepthOptions(const parser::Expr&amp; expr, WalkOptions* options) {</span></span>
+<span id="L106"><span class="lineNum">     106</span>   [<span class="tlaGBC" title="branch 0 was taken 970 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span><span class="tlaGBC" title="branch 2 was taken 347 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        1325 :   switch (expr.kind) {</span></span>
+<span id="L107"><span class="lineNum">     107</span>                 :<span class="tlaGNC">         970 :     case parser::Expr::Kind::kPredicate: {</span></span>
+<span id="L108"><span class="lineNum">     108</span>   [<span class="tlaGBC" title="branch 0 was taken 967 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3 times"> + </span><span class="tlaGBC" title="branch 2 was taken 966 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">         970 :       if (expr.descriptor-&gt;name == &quot;-depth&quot; || expr.descriptor-&gt;name == &quot;-d&quot; || expr.descriptor-&gt;name == &quot;-delete&quot;) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 13 times"> + </span><span class="tlaGBC" title="branch 5 was taken 953 times"> + </span><span class="tlaGBC" title="branch 6 was taken 17 times"> + </span><span class="tlaGBC" title="branch 7 was taken 953 times"> + </span>]
 <span id="L109"><span class="lineNum">     109</span>                 :<span class="tlaGNC">          17 :         options-&gt;post_order = true;  // -delete implies -depth; -d is the BSD/GNU short spelling</span></span>
 <span id="L110"><span class="lineNum">     110</span>                 :<span class="tlaGNC">          17 :         break;</span></span>
 <span id="L111"><span class="lineNum">     111</span>                 :             :       }</span>
-<span id="L112"><span class="lineNum">     112</span>   [<span class="tlaGBC" title="branch 0 was taken 954 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 953 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">         955 :       if (expr.descriptor-&gt;name == &quot;-xdev&quot; || expr.descriptor-&gt;name == &quot;-mount&quot; || expr.descriptor-&gt;name == &quot;-x&quot;) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 1 time"> + </span><span class="tlaGBC" title="branch 5 was taken 952 times"> + </span><span class="tlaGBC" title="branch 6 was taken 3 times"> + </span><span class="tlaGBC" title="branch 7 was taken 952 times"> + </span>]
+<span id="L112"><span class="lineNum">     112</span>   [<span class="tlaGBC" title="branch 0 was taken 952 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 951 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">         953 :       if (expr.descriptor-&gt;name == &quot;-xdev&quot; || expr.descriptor-&gt;name == &quot;-mount&quot; || expr.descriptor-&gt;name == &quot;-x&quot;) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 1 time"> + </span><span class="tlaGBC" title="branch 5 was taken 950 times"> + </span><span class="tlaGBC" title="branch 6 was taken 3 times"> + </span><span class="tlaGBC" title="branch 7 was taken 950 times"> + </span>]
 <span id="L113"><span class="lineNum">     113</span>                 :<span class="tlaGNC">           3 :         options-&gt;single_filesystem = true;  // -mount (GNU/BSD) and -x (BSD) are synonyms for -xdev</span></span>
 <span id="L114"><span class="lineNum">     114</span>                 :<span class="tlaGNC">           3 :         break;</span></span>
 <span id="L115"><span class="lineNum">     115</span>                 :             :       }</span>
-<span id="L116"><span class="lineNum">     116</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 951 times"> + </span>]:<span class="tlaGNC">         952 :       if (expr.descriptor-&gt;name == &quot;-ignore_readdir_race&quot;) {</span></span>
+<span id="L116"><span class="lineNum">     116</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 949 times"> + </span>]:<span class="tlaGNC">         950 :       if (expr.descriptor-&gt;name == &quot;-ignore_readdir_race&quot;) {</span></span>
 <span id="L117"><span class="lineNum">     117</span>                 :<span class="tlaGNC">           1 :         options-&gt;ignore_readdir_race = true;</span></span>
 <span id="L118"><span class="lineNum">     118</span>                 :<span class="tlaGNC">           1 :         break;</span></span>
 <span id="L119"><span class="lineNum">     119</span>                 :             :       }</span>
-<span id="L120"><span class="lineNum">     120</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 950 times"> + </span>]:<span class="tlaGNC">         951 :       if (expr.descriptor-&gt;name == &quot;-noignore_readdir_race&quot;) {</span></span>
+<span id="L120"><span class="lineNum">     120</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 948 times"> + </span>]:<span class="tlaGNC">         949 :       if (expr.descriptor-&gt;name == &quot;-noignore_readdir_race&quot;) {</span></span>
 <span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC">           1 :         options-&gt;ignore_readdir_race = false;  // last occurrence wins, as in find</span></span>
 <span id="L122"><span class="lineNum">     122</span>                 :<span class="tlaGNC">           1 :         break;</span></span>
 <span id="L123"><span class="lineNum">     123</span>                 :             :       }</span>
-<span id="L124"><span class="lineNum">     124</span>                 :<span class="tlaGNC">         950 :       int value = 0;</span></span>
-<span id="L125"><span class="lineNum">     125</span>   [<span class="tlaGBC" title="branch 0 was taken 856 times"> + </span><span class="tlaGBC" title="branch 1 was taken 94 times"> + </span><span class="tlaGBC" title="branch 2 was taken 40 times"> + </span><span class="tlaGBC" title="branch 3 was taken 816 times"> + </span> :<span class="tlaGNC">         950 :       if (!expr.args.empty() &amp;&amp; ParseNonNegInt(expr.args.front(), &amp;value)) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 40 times"> + </span><span class="tlaGBC" title="branch 5 was taken 910 times"> + </span>]
+<span id="L124"><span class="lineNum">     124</span>                 :<span class="tlaGNC">         948 :       int value = 0;</span></span>
+<span id="L125"><span class="lineNum">     125</span>   [<span class="tlaGBC" title="branch 0 was taken 854 times"> + </span><span class="tlaGBC" title="branch 1 was taken 94 times"> + </span><span class="tlaGBC" title="branch 2 was taken 40 times"> + </span><span class="tlaGBC" title="branch 3 was taken 814 times"> + </span> :<span class="tlaGNC">         948 :       if (!expr.args.empty() &amp;&amp; ParseNonNegInt(expr.args.front(), &amp;value)) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 40 times"> + </span><span class="tlaGBC" title="branch 5 was taken 908 times"> + </span>]
 <span id="L126"><span class="lineNum">     126</span>         [<span class="tlaGBC" title="branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="branch 1 was taken 34 times"> + </span>]:<span class="tlaGNC">          40 :         if (expr.descriptor-&gt;name == &quot;-maxdepth&quot;) {</span></span>
 <span id="L127"><span class="lineNum">     127</span>                 :<span class="tlaGNC">           6 :           options-&gt;max_depth = value;</span></span>
 <span id="L128"><span class="lineNum">     128</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 32 times"> + </span>]:<span class="tlaGNC">          34 :         } else if (expr.descriptor-&gt;name == &quot;-mindepth&quot;) {</span></span>
 <span id="L129"><span class="lineNum">     129</span>                 :<span class="tlaGNC">           2 :           options-&gt;min_depth = value;</span></span>
 <span id="L130"><span class="lineNum">     130</span>                 :             :         }</span>
 <span id="L131"><span class="lineNum">     131</span>                 :             :       }</span>
-<span id="L132"><span class="lineNum">     132</span>                 :<span class="tlaGNC">         950 :       break;</span></span>
+<span id="L132"><span class="lineNum">     132</span>                 :<span class="tlaGNC">         948 :       break;</span></span>
 <span id="L133"><span class="lineNum">     133</span>                 :             :     }</span>
 <span id="L134"><span class="lineNum">     134</span>                 :<span class="tlaGNC">           8 :     case parser::Expr::Kind::kNot: ScanDepthOptions(*expr.lhs, options); break;</span></span>
-<span id="L135"><span class="lineNum">     135</span>                 :<span class="tlaGNC">         349 :     case parser::Expr::Kind::kAnd:</span></span>
+<span id="L135"><span class="lineNum">     135</span>                 :<span class="tlaGNC">         347 :     case parser::Expr::Kind::kAnd:</span></span>
 <span id="L136"><span class="lineNum">     136</span>                 :             :     case parser::Expr::Kind::kOr:</span>
 <span id="L137"><span class="lineNum">     137</span>                 :             :     case parser::Expr::Kind::kNand:</span>
 <span id="L138"><span class="lineNum">     138</span>                 :             :     case parser::Expr::Kind::kNor:</span>
 <span id="L139"><span class="lineNum">     139</span>                 :             :     case parser::Expr::Kind::kXor:</span>
 <span id="L140"><span class="lineNum">     140</span>                 :             :     case parser::Expr::Kind::kXnor:</span>
 <span id="L141"><span class="lineNum">     141</span>                 :             :     case parser::Expr::Kind::kComma:</span>
-<span id="L142"><span class="lineNum">     142</span>                 :<span class="tlaGNC">         349 :       ScanDepthOptions(*expr.lhs, options);</span></span>
-<span id="L143"><span class="lineNum">     143</span>                 :<span class="tlaGNC">         349 :       ScanDepthOptions(*expr.rhs, options);</span></span>
-<span id="L144"><span class="lineNum">     144</span>                 :<span class="tlaGNC">         349 :       break;</span></span>
+<span id="L142"><span class="lineNum">     142</span>                 :<span class="tlaGNC">         347 :       ScanDepthOptions(*expr.lhs, options);</span></span>
+<span id="L143"><span class="lineNum">     143</span>                 :<span class="tlaGNC">         347 :       ScanDepthOptions(*expr.rhs, options);</span></span>
+<span id="L144"><span class="lineNum">     144</span>                 :<span class="tlaGNC">         347 :       break;</span></span>
 <span id="L145"><span class="lineNum">     145</span>                 :             :   }</span>
-<span id="L146"><span class="lineNum">     146</span>                 :<span class="tlaGNC">        1329 : }</span></span>
+<span id="L146"><span class="lineNum">     146</span>                 :<span class="tlaGNC">        1325 : }</span></span>
 <span id="L147"><span class="lineNum">     147</span>                 :             : </span>
 <span id="L148"><span class="lineNum">     148</span>                 :             : // find's -H/-L/-P select symlink handling; they are leading global options and</span>
 <span id="L149"><span class="lineNum">     149</span>                 :             : // the last one wins (default -P). The parser collects them in command.globals.</span>
@@ -1061,17 +1061,17 @@
 <span id="L956"><span class="lineNum">     956</span>                 :             : </span>
 <span id="L957"><span class="lineNum">     957</span>                 :             : // True if the expression mentions the primary `name` anywhere. Used for the</span>
 <span id="L958"><span class="lineNum">     958</span>                 :             : // positional options that take effect run-wide regardless of position (-daystart).</span>
-<span id="L959"><span class="lineNum">     959</span>                 :<span class="tlaGNC">        2597 : bool ContainsPrimary(const parser::Expr&amp; expr, std::string_view name) {</span></span>
-<span id="L960"><span class="lineNum">     960</span>   [<span class="tlaGBC" title="branch 0 was taken 1898 times"> + </span><span class="tlaGBC" title="branch 1 was taken 16 times"> + </span><span class="tlaGBC" title="branch 2 was taken 683 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        2597 :   switch (expr.kind) {</span></span>
-<span id="L961"><span class="lineNum">     961</span>                 :<span class="tlaGNC">        1898 :     case parser::Expr::Kind::kPredicate: return expr.descriptor-&gt;name == name;</span></span>
+<span id="L959"><span class="lineNum">     959</span>                 :<span class="tlaGNC">        2589 : bool ContainsPrimary(const parser::Expr&amp; expr, std::string_view name) {</span></span>
+<span id="L960"><span class="lineNum">     960</span>   [<span class="tlaGBC" title="branch 0 was taken 1894 times"> + </span><span class="tlaGBC" title="branch 1 was taken 16 times"> + </span><span class="tlaGBC" title="branch 2 was taken 679 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        2589 :   switch (expr.kind) {</span></span>
+<span id="L961"><span class="lineNum">     961</span>                 :<span class="tlaGNC">        1894 :     case parser::Expr::Kind::kPredicate: return expr.descriptor-&gt;name == name;</span></span>
 <span id="L962"><span class="lineNum">     962</span>                 :<span class="tlaGNC">          16 :     case parser::Expr::Kind::kNot: return ContainsPrimary(*expr.lhs, name);</span></span>
-<span id="L963"><span class="lineNum">     963</span>                 :<span class="tlaGNC">         683 :     case parser::Expr::Kind::kAnd:</span></span>
+<span id="L963"><span class="lineNum">     963</span>                 :<span class="tlaGNC">         679 :     case parser::Expr::Kind::kAnd:</span></span>
 <span id="L964"><span class="lineNum">     964</span>                 :             :     case parser::Expr::Kind::kOr:</span>
 <span id="L965"><span class="lineNum">     965</span>                 :             :     case parser::Expr::Kind::kNand:</span>
 <span id="L966"><span class="lineNum">     966</span>                 :             :     case parser::Expr::Kind::kNor:</span>
 <span id="L967"><span class="lineNum">     967</span>                 :             :     case parser::Expr::Kind::kXor:</span>
 <span id="L968"><span class="lineNum">     968</span>                 :             :     case parser::Expr::Kind::kXnor:</span>
-<span id="L969"><span class="lineNum">     969</span>   [<span class="tlaGBC" title="branch 0 was taken 677 times"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span><span class="tlaGBC" title="branch 2 was taken 13 times"> + </span><span class="tlaGBC" title="branch 3 was taken 664 times"> + </span>]:<span class="tlaGNC">         683 :     case parser::Expr::Kind::kComma: return ContainsPrimary(*expr.lhs, name) || ContainsPrimary(*expr.rhs, name);</span></span>
+<span id="L969"><span class="lineNum">     969</span>   [<span class="tlaGBC" title="branch 0 was taken 673 times"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span><span class="tlaGBC" title="branch 2 was taken 13 times"> + </span><span class="tlaGBC" title="branch 3 was taken 660 times"> + </span>]:<span class="tlaGNC">         679 :     case parser::Expr::Kind::kComma: return ContainsPrimary(*expr.lhs, name) || ContainsPrimary(*expr.rhs, name);</span></span>
 <span id="L970"><span class="lineNum">     970</span>                 :             :   }</span>
 <span id="L971"><span class="lineNum">     971</span>                 :<span class="tlaUNC">           0 :   return false;</span></span>
 <span id="L972"><span class="lineNum">     972</span>                 :             : }</span>
@@ -1081,12 +1081,12 @@
 <span id="L976"><span class="lineNum">     976</span>                 :             : // typo that silently returns an empty result set is indistinguishable from a tree with no matches.</span>
 <span id="L977"><span class="lineNum">     977</span>                 :             : // `-first 0` IS valid and means zero results - unambiguous, and the one case where &quot;admit nothing&quot;</span>
 <span id="L978"><span class="lineNum">     978</span>                 :             : // is what was asked for.</span>
-<span id="L979"><span class="lineNum">     979</span>                 :<span class="tlaGNC">        1328 : absl::Status ValidateFirstLimits(const parser::Expr&amp; expr) {</span></span>
-<span id="L980"><span class="lineNum">     980</span>   [<span class="tlaGBC" title="branch 0 was taken 971 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span><span class="tlaGBC" title="branch 2 was taken 349 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        1328 :   switch (expr.kind) {</span></span>
-<span id="L981"><span class="lineNum">     981</span>                 :<span class="tlaGNC">         971 :     case parser::Expr::Kind::kPredicate: {</span></span>
-<span id="L982"><span class="lineNum">     982</span>   [<span class="tlaGBC" title="branch 0 was taken 971 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 960 times"> + </span><span class="tlaGBC" title="branch 3 was taken 11 times"> + </span> :<span class="tlaGNC">         971 :       if (expr.descriptor == nullptr || expr.descriptor-&gt;name != &quot;-first&quot;) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 960 times"> + </span><span class="tlaGBC" title="branch 5 was taken 11 times"> + </span>]
-<span id="L983"><span class="lineNum">     983</span>                 :<span class="tlaGNC">         960 :         return absl::OkStatus();</span></span>
+<span id="L979"><span class="lineNum">     979</span>                 :<span class="tlaGNC">        1324 : absl::Status ValidateFirstLimits(const parser::Expr&amp; expr) {</span></span>
+<span id="L980"><span class="lineNum">     980</span>   [<span class="tlaGBC" title="branch 0 was taken 969 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span><span class="tlaGBC" title="branch 2 was taken 347 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        1324 :   switch (expr.kind) {</span></span>
+<span id="L981"><span class="lineNum">     981</span>                 :<span class="tlaGNC">         969 :     case parser::Expr::Kind::kPredicate: {</span></span>
+<span id="L982"><span class="lineNum">     982</span>   [<span class="tlaGBC" title="branch 0 was taken 969 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 958 times"> + </span><span class="tlaGBC" title="branch 3 was taken 11 times"> + </span> :<span class="tlaGNC">         969 :       if (expr.descriptor == nullptr || expr.descriptor-&gt;name != &quot;-first&quot;) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 958 times"> + </span><span class="tlaGBC" title="branch 5 was taken 11 times"> + </span>]
+<span id="L983"><span class="lineNum">     983</span>                 :<span class="tlaGNC">         958 :         return absl::OkStatus();</span></span>
 <span id="L984"><span class="lineNum">     984</span>                 :             :       }</span>
 <span id="L985"><span class="lineNum">     985</span>                 :<span class="tlaGNC">          11 :       int limit = 0;</span></span>
 <span id="L986"><span class="lineNum">     986</span>   [<span class="tlaGBC" title="branch 0 was taken 11 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 10 times"> + </span> :<span class="tlaGNC">          11 :       if (expr.args.empty() || !absl::SimpleAtoi(expr.args.front(), &amp;limit)) {</span></span>
@@ -1100,26 +1100,26 @@
 <span id="L993"><span class="lineNum">     993</span>                 :<span class="tlaGNC">           9 :       return absl::OkStatus();</span></span>
 <span id="L994"><span class="lineNum">     994</span>                 :             :     }</span>
 <span id="L995"><span class="lineNum">     995</span>                 :<span class="tlaGNC">           8 :     case parser::Expr::Kind::kNot: return ValidateFirstLimits(*expr.lhs);</span></span>
-<span id="L996"><span class="lineNum">     996</span>                 :<span class="tlaGNC">         349 :     case parser::Expr::Kind::kAnd:</span></span>
+<span id="L996"><span class="lineNum">     996</span>                 :<span class="tlaGNC">         347 :     case parser::Expr::Kind::kAnd:</span></span>
 <span id="L997"><span class="lineNum">     997</span>                 :             :     case parser::Expr::Kind::kOr:</span>
 <span id="L998"><span class="lineNum">     998</span>                 :             :     case parser::Expr::Kind::kNand:</span>
 <span id="L999"><span class="lineNum">     999</span>                 :             :     case parser::Expr::Kind::kNor:</span>
 <span id="L1000"><span class="lineNum">    1000</span>                 :             :     case parser::Expr::Kind::kXor:</span>
 <span id="L1001"><span class="lineNum">    1001</span>                 :             :     case parser::Expr::Kind::kXnor:</span>
 <span id="L1002"><span class="lineNum">    1002</span>                 :             :     case parser::Expr::Kind::kComma: {</span>
-<span id="L1003"><span class="lineNum">    1003</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 349 times"> + </span><span class="tlaGBC" title="branch 2 was taken 349 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         349 :       MBO_RETURN_IF_ERROR(ValidateFirstLimits(*expr.lhs));</span></span>
-<span id="L1004"><span class="lineNum">    1004</span>                 :<span class="tlaGNC">         349 :       return ValidateFirstLimits(*expr.rhs);</span></span>
+<span id="L1003"><span class="lineNum">    1003</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 347 times"> + </span><span class="tlaGBC" title="branch 2 was taken 347 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         347 :       MBO_RETURN_IF_ERROR(ValidateFirstLimits(*expr.lhs));</span></span>
+<span id="L1004"><span class="lineNum">    1004</span>                 :<span class="tlaGNC">         347 :       return ValidateFirstLimits(*expr.rhs);</span></span>
 <span id="L1005"><span class="lineNum">    1005</span>                 :             :     }</span>
 <span id="L1006"><span class="lineNum">    1006</span>                 :             :   }</span>
 <span id="L1007"><span class="lineNum">    1007</span>                 :<span class="tlaUNC">           0 :   return absl::OkStatus();</span></span>
 <span id="L1008"><span class="lineNum">    1008</span>                 :             : }</span>
 <span id="L1009"><span class="lineNum">    1009</span>                 :             : </span>
-<span id="L1010"><span class="lineNum">    1010</span>                 :<span class="tlaGNC">        1321 : absl::Status ValidateTopLimits(const parser::Expr&amp; expr) {</span></span>
-<span id="L1011"><span class="lineNum">    1011</span>   [<span class="tlaGBC" title="branch 0 was taken 966 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span><span class="tlaGBC" title="branch 2 was taken 347 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        1321 :   switch (expr.kind) {</span></span>
-<span id="L1012"><span class="lineNum">    1012</span>                 :<span class="tlaGNC">         966 :     case parser::Expr::Kind::kPredicate: {</span></span>
-<span id="L1013"><span class="lineNum">    1013</span>   [<span class="tlaGBC" title="branch 0 was taken 966 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 954 times"> + </span><span class="tlaGBC" title="branch 3 was taken 12 times"> + </span> :<span class="tlaGNC">         966 :       if (expr.descriptor == nullptr || expr.descriptor-&gt;name != &quot;-top&quot;) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 954 times"> + </span><span class="tlaGBC" title="branch 5 was taken 12 times"> + </span>]
-<span id="L1014"><span class="lineNum">    1014</span>                 :<span class="tlaGNC">         954 :         return absl::OkStatus();</span></span>
+<span id="L1010"><span class="lineNum">    1010</span>                 :<span class="tlaGNC">        1317 : absl::Status ValidateTopLimits(const parser::Expr&amp; expr) {</span></span>
+<span id="L1011"><span class="lineNum">    1011</span>   [<span class="tlaGBC" title="branch 0 was taken 964 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span><span class="tlaGBC" title="branch 2 was taken 345 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        1317 :   switch (expr.kind) {</span></span>
+<span id="L1012"><span class="lineNum">    1012</span>                 :<span class="tlaGNC">         964 :     case parser::Expr::Kind::kPredicate: {</span></span>
+<span id="L1013"><span class="lineNum">    1013</span>   [<span class="tlaGBC" title="branch 0 was taken 964 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 952 times"> + </span><span class="tlaGBC" title="branch 3 was taken 12 times"> + </span> :<span class="tlaGNC">         964 :       if (expr.descriptor == nullptr || expr.descriptor-&gt;name != &quot;-top&quot;) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 952 times"> + </span><span class="tlaGBC" title="branch 5 was taken 12 times"> + </span>]
+<span id="L1014"><span class="lineNum">    1014</span>                 :<span class="tlaGNC">         952 :         return absl::OkStatus();</span></span>
 <span id="L1015"><span class="lineNum">    1015</span>                 :             :       }</span>
 <span id="L1016"><span class="lineNum">    1016</span>                 :<span class="tlaGNC">          12 :       int limit = 0;</span></span>
 <span id="L1017"><span class="lineNum">    1017</span>   [<span class="tlaGBC" title="branch 0 was taken 12 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 11 times"> + </span> :<span class="tlaGNC">          12 :       if (expr.args.empty() || !absl::SimpleAtoi(expr.args.front(), &amp;limit)) {</span></span>
@@ -1133,15 +1133,15 @@
 <span id="L1024"><span class="lineNum">    1024</span>                 :<span class="tlaGNC">          10 :       return absl::OkStatus();</span></span>
 <span id="L1025"><span class="lineNum">    1025</span>                 :             :     }</span>
 <span id="L1026"><span class="lineNum">    1026</span>                 :<span class="tlaGNC">           8 :     case parser::Expr::Kind::kNot: return ValidateTopLimits(*expr.lhs);</span></span>
-<span id="L1027"><span class="lineNum">    1027</span>                 :<span class="tlaGNC">         347 :     case parser::Expr::Kind::kAnd:</span></span>
+<span id="L1027"><span class="lineNum">    1027</span>                 :<span class="tlaGNC">         345 :     case parser::Expr::Kind::kAnd:</span></span>
 <span id="L1028"><span class="lineNum">    1028</span>                 :             :     case parser::Expr::Kind::kOr:</span>
 <span id="L1029"><span class="lineNum">    1029</span>                 :             :     case parser::Expr::Kind::kNand:</span>
 <span id="L1030"><span class="lineNum">    1030</span>                 :             :     case parser::Expr::Kind::kNor:</span>
 <span id="L1031"><span class="lineNum">    1031</span>                 :             :     case parser::Expr::Kind::kXor:</span>
 <span id="L1032"><span class="lineNum">    1032</span>                 :             :     case parser::Expr::Kind::kXnor:</span>
 <span id="L1033"><span class="lineNum">    1033</span>                 :             :     case parser::Expr::Kind::kComma:</span>
-<span id="L1034"><span class="lineNum">    1034</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 347 times"> + </span><span class="tlaGBC" title="branch 2 was taken 347 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         347 :       MBO_RETURN_IF_ERROR(ValidateTopLimits(*expr.lhs));</span></span>
-<span id="L1035"><span class="lineNum">    1035</span>                 :<span class="tlaGNC">         347 :       return ValidateTopLimits(*expr.rhs);</span></span>
+<span id="L1034"><span class="lineNum">    1034</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 345 times"> + </span><span class="tlaGBC" title="branch 2 was taken 345 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         345 :       MBO_RETURN_IF_ERROR(ValidateTopLimits(*expr.lhs));</span></span>
+<span id="L1035"><span class="lineNum">    1035</span>                 :<span class="tlaGNC">         345 :       return ValidateTopLimits(*expr.rhs);</span></span>
 <span id="L1036"><span class="lineNum">    1036</span>                 :             :   }</span>
 <span id="L1037"><span class="lineNum">    1037</span>                 :<span class="tlaUNC">           0 :   return absl::OkStatus();</span></span>
 <span id="L1038"><span class="lineNum">    1038</span>                 :             : }</span>
@@ -1226,31 +1226,31 @@
 <span id="L1117"><span class="lineNum">    1117</span>                 :             :   bool top_without_score = false;</span>
 <span id="L1118"><span class="lineNum">    1118</span>                 :             : };</span>
 <span id="L1119"><span class="lineNum">    1119</span>                 :             : </span>
-<span id="L1120"><span class="lineNum">    1120</span>                 :<span class="tlaGNC">        1315 : TopFlow InspectTopFlow(const parser::Expr&amp; expr, bool incoming_score) {</span></span>
-<span id="L1121"><span class="lineNum">    1121</span>   [<span class="tlaGBC" title="branch 0 was taken 962 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span><span class="tlaGBC" title="branch 2 was taken 327 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2 times"> + </span> :<span class="tlaGNC">        1315 :   switch (expr.kind) {</span></span>
+<span id="L1120"><span class="lineNum">    1120</span>                 :<span class="tlaGNC">        1311 : TopFlow InspectTopFlow(const parser::Expr&amp; expr, bool incoming_score) {</span></span>
+<span id="L1121"><span class="lineNum">    1121</span>   [<span class="tlaGBC" title="branch 0 was taken 960 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span><span class="tlaGBC" title="branch 2 was taken 325 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2 times"> + </span> :<span class="tlaGNC">        1311 :   switch (expr.kind) {</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 16 times"> + </span><span class="tlaUNC" title="branch 5 was not taken"> - </span>]
-<span id="L1122"><span class="lineNum">    1122</span>                 :<span class="tlaGNC">         962 :     case parser::Expr::Kind::kPredicate: {</span></span>
-<span id="L1123"><span class="lineNum">    1123</span>                 :<span class="tlaGNC">         962 :       const bool scoring = absl::c_linear_search(kScoringPrimaries, expr.descriptor-&gt;name);</span></span>
-<span id="L1124"><span class="lineNum">    1124</span>                 :<span class="tlaGNC">         962 :       const bool top = expr.descriptor-&gt;name == &quot;-top&quot;;</span></span>
+<span id="L1122"><span class="lineNum">    1122</span>                 :<span class="tlaGNC">         960 :     case parser::Expr::Kind::kPredicate: {</span></span>
+<span id="L1123"><span class="lineNum">    1123</span>                 :<span class="tlaGNC">         960 :       const bool scoring = absl::c_linear_search(kScoringPrimaries, expr.descriptor-&gt;name);</span></span>
+<span id="L1124"><span class="lineNum">    1124</span>                 :<span class="tlaGNC">         960 :       const bool top = expr.descriptor-&gt;name == &quot;-top&quot;;</span></span>
 <span id="L1125"><span class="lineNum">    1125</span>                 :             :       return {</span>
-<span id="L1126"><span class="lineNum">    1126</span>   [<span class="tlaGBC" title="branch 0 was taken 944 times"> + </span><span class="tlaGBC" title="branch 1 was taken 18 times"> + </span><span class="tlaGBC" title="branch 2 was taken 40 times"> + </span><span class="tlaGBC" title="branch 3 was taken 904 times"> + </span>]:<span class="tlaGNC">         962 :           .score_on_success = incoming_score || scoring,</span></span>
+<span id="L1126"><span class="lineNum">    1126</span>   [<span class="tlaGBC" title="branch 0 was taken 942 times"> + </span><span class="tlaGBC" title="branch 1 was taken 18 times"> + </span><span class="tlaGBC" title="branch 2 was taken 40 times"> + </span><span class="tlaGBC" title="branch 3 was taken 902 times"> + </span>]:<span class="tlaGNC">         960 :           .score_on_success = incoming_score || scoring,</span></span>
 <span id="L1127"><span class="lineNum">    1127</span>                 :             :           .has_top = top,</span>
-<span id="L1128"><span class="lineNum">    1128</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">         962 :           .top_without_score = top &amp;&amp; !incoming_score,</span></span>
-<span id="L1129"><span class="lineNum">    1129</span>         [<span class="tlaGBC" title="branch 0 was taken 10 times"> + </span><span class="tlaGBC" title="branch 1 was taken 952 times"> + </span>]:<span class="tlaGNC">        1924 :       };</span></span>
+<span id="L1128"><span class="lineNum">    1128</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">         960 :           .top_without_score = top &amp;&amp; !incoming_score,</span></span>
+<span id="L1129"><span class="lineNum">    1129</span>         [<span class="tlaGBC" title="branch 0 was taken 10 times"> + </span><span class="tlaGBC" title="branch 1 was taken 950 times"> + </span>]:<span class="tlaGNC">        1920 :       };</span></span>
 <span id="L1130"><span class="lineNum">    1130</span>                 :             :     }</span>
 <span id="L1131"><span class="lineNum">    1131</span>                 :<span class="tlaGNC">           8 :     case parser::Expr::Kind::kNot: {</span></span>
 <span id="L1132"><span class="lineNum">    1132</span>                 :<span class="tlaGNC">           8 :       TopFlow value = InspectTopFlow(*expr.lhs, incoming_score);</span></span>
 <span id="L1133"><span class="lineNum">    1133</span>                 :<span class="tlaGNC">           8 :       value.score_on_success = incoming_score;</span></span>
 <span id="L1134"><span class="lineNum">    1134</span>                 :<span class="tlaGNC">           8 :       return value;</span></span>
 <span id="L1135"><span class="lineNum">    1135</span>                 :             :     }</span>
-<span id="L1136"><span class="lineNum">    1136</span>                 :<span class="tlaGNC">         327 :     case parser::Expr::Kind::kAnd: {</span></span>
-<span id="L1137"><span class="lineNum">    1137</span>                 :<span class="tlaGNC">         327 :       const TopFlow lhs = InspectTopFlow(*expr.lhs, incoming_score);</span></span>
-<span id="L1138"><span class="lineNum">    1138</span>                 :<span class="tlaGNC">         327 :       const TopFlow rhs = InspectTopFlow(*expr.rhs, lhs.score_on_success);</span></span>
+<span id="L1136"><span class="lineNum">    1136</span>                 :<span class="tlaGNC">         325 :     case parser::Expr::Kind::kAnd: {</span></span>
+<span id="L1137"><span class="lineNum">    1137</span>                 :<span class="tlaGNC">         325 :       const TopFlow lhs = InspectTopFlow(*expr.lhs, incoming_score);</span></span>
+<span id="L1138"><span class="lineNum">    1138</span>                 :<span class="tlaGNC">         325 :       const TopFlow rhs = InspectTopFlow(*expr.rhs, lhs.score_on_success);</span></span>
 <span id="L1139"><span class="lineNum">    1139</span>                 :             :       return {</span>
-<span id="L1140"><span class="lineNum">    1140</span>                 :<span class="tlaGNC">         327 :           .score_on_success = rhs.score_on_success,</span></span>
-<span id="L1141"><span class="lineNum">    1141</span>         [<span class="tlaGBC" title="branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="branch 1 was taken 311 times"> + </span>]:<span class="tlaGNC">         327 :           .has_top = lhs.has_top || rhs.has_top,</span></span>
-<span id="L1142"><span class="lineNum">    1142</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 326 times"> + </span>]:<span class="tlaGNC">         327 :           .top_without_score = lhs.top_without_score || rhs.top_without_score,</span></span>
-<span id="L1143"><span class="lineNum">    1143</span>   [<span class="tlaGBC" title="branch 0 was taken 322 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span><span class="tlaGBC" title="branch 2 was taken 327 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         981 :       };</span></span>
+<span id="L1140"><span class="lineNum">    1140</span>                 :<span class="tlaGNC">         325 :           .score_on_success = rhs.score_on_success,</span></span>
+<span id="L1141"><span class="lineNum">    1141</span>         [<span class="tlaGBC" title="branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="branch 1 was taken 309 times"> + </span>]:<span class="tlaGNC">         325 :           .has_top = lhs.has_top || rhs.has_top,</span></span>
+<span id="L1142"><span class="lineNum">    1142</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 324 times"> + </span>]:<span class="tlaGNC">         325 :           .top_without_score = lhs.top_without_score || rhs.top_without_score,</span></span>
+<span id="L1143"><span class="lineNum">    1143</span>   [<span class="tlaGBC" title="branch 0 was taken 320 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span><span class="tlaGBC" title="branch 2 was taken 325 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         975 :       };</span></span>
 <span id="L1144"><span class="lineNum">    1144</span>                 :             :     }</span>
 <span id="L1145"><span class="lineNum">    1145</span>                 :<span class="tlaGNC">           2 :     case parser::Expr::Kind::kComma: {</span></span>
 <span id="L1146"><span class="lineNum">    1146</span>                 :<span class="tlaGNC">           2 :       const TopFlow lhs = InspectTopFlow(*expr.lhs, incoming_score);</span></span>
@@ -1305,10 +1305,10 @@
 <span id="L1195"><span class="lineNum">    1195</span>                 :<span class="tlaGNC">           6 :   return absl::OkStatus();</span></span>
 <span id="L1196"><span class="lineNum">    1196</span>                 :             : }</span>
 <span id="L1197"><span class="lineNum">    1197</span>                 :             : </span>
-<span id="L1198"><span class="lineNum">    1198</span>                 :<span class="tlaGNC">        1322 : absl::Status ValidateShardStatuses(const parser::Expr&amp; expr) {</span></span>
-<span id="L1199"><span class="lineNum">    1199</span>         [<span class="tlaGBC" title="branch 0 was taken 967 times"> + </span><span class="tlaGBC" title="branch 1 was taken 355 times"> + </span>]:<span class="tlaGNC">        1322 :   if (expr.kind == parser::Expr::Kind::kPredicate) {</span></span>
-<span id="L1200"><span class="lineNum">    1200</span>         [<span class="tlaGBC" title="branch 0 was taken 954 times"> + </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">         967 :     if (expr.descriptor-&gt;name != &quot;-shard-status&quot;) {</span></span>
-<span id="L1201"><span class="lineNum">    1201</span>                 :<span class="tlaGNC">         954 :       return absl::OkStatus();</span></span>
+<span id="L1198"><span class="lineNum">    1198</span>                 :<span class="tlaGNC">        1318 : absl::Status ValidateShardStatuses(const parser::Expr&amp; expr) {</span></span>
+<span id="L1199"><span class="lineNum">    1199</span>         [<span class="tlaGBC" title="branch 0 was taken 965 times"> + </span><span class="tlaGBC" title="branch 1 was taken 353 times"> + </span>]:<span class="tlaGNC">        1318 :   if (expr.kind == parser::Expr::Kind::kPredicate) {</span></span>
+<span id="L1200"><span class="lineNum">    1200</span>         [<span class="tlaGBC" title="branch 0 was taken 952 times"> + </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">         965 :     if (expr.descriptor-&gt;name != &quot;-shard-status&quot;) {</span></span>
+<span id="L1201"><span class="lineNum">    1201</span>                 :<span class="tlaGNC">         952 :       return absl::OkStatus();</span></span>
 <span id="L1202"><span class="lineNum">    1202</span>                 :             :     }</span>
 <span id="L1203"><span class="lineNum">    1203</span>                 :<span class="tlaGNC">          13 :     if (expr.args.size() != 1</span></span>
 <span id="L1204"><span class="lineNum">    1204</span>   [<span class="tlaGBC" title="branch 0 was taken 13 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 6 times"> + </span><span class="tlaGBC" title="branch 3 was taken 7 times"> + </span> :<span class="tlaGNC">          16 :         || (expr.args.front() != &quot;complete&quot; &amp;&amp; expr.args.front() != &quot;incomplete&quot;</span></span>
@@ -1318,13 +1318,13 @@
 <span id="L1207"><span class="lineNum">    1207</span>                 :             :     }</span>
 <span id="L1208"><span class="lineNum">    1208</span>                 :<span class="tlaGNC">          12 :     return absl::OkStatus();</span></span>
 <span id="L1209"><span class="lineNum">    1209</span>                 :             :   }</span>
-<span id="L1210"><span class="lineNum">    1210</span>         [<span class="tlaGBC" title="branch 0 was taken 355 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">         355 :   if (expr.lhs != nullptr) {</span></span>
-<span id="L1211"><span class="lineNum">    1211</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 355 times"> + </span><span class="tlaGBC" title="branch 2 was taken 355 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         355 :     MBO_RETURN_IF_ERROR(ValidateShardStatuses(*expr.lhs));</span></span>
+<span id="L1210"><span class="lineNum">    1210</span>         [<span class="tlaGBC" title="branch 0 was taken 353 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">         353 :   if (expr.lhs != nullptr) {</span></span>
+<span id="L1211"><span class="lineNum">    1211</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 353 times"> + </span><span class="tlaGBC" title="branch 2 was taken 353 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         353 :     MBO_RETURN_IF_ERROR(ValidateShardStatuses(*expr.lhs));</span></span>
 <span id="L1212"><span class="lineNum">    1212</span>                 :             :   }</span>
-<span id="L1213"><span class="lineNum">    1213</span>         [<span class="tlaGBC" title="branch 0 was taken 347 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">         355 :   if (expr.rhs != nullptr) {</span></span>
-<span id="L1214"><span class="lineNum">    1214</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 347 times"> + </span><span class="tlaGBC" title="branch 2 was taken 347 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         347 :     MBO_RETURN_IF_ERROR(ValidateShardStatuses(*expr.rhs));</span></span>
+<span id="L1213"><span class="lineNum">    1213</span>         [<span class="tlaGBC" title="branch 0 was taken 345 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">         353 :   if (expr.rhs != nullptr) {</span></span>
+<span id="L1214"><span class="lineNum">    1214</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 345 times"> + </span><span class="tlaGBC" title="branch 2 was taken 345 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         345 :     MBO_RETURN_IF_ERROR(ValidateShardStatuses(*expr.rhs));</span></span>
 <span id="L1215"><span class="lineNum">    1215</span>                 :             :   }</span>
-<span id="L1216"><span class="lineNum">    1216</span>                 :<span class="tlaGNC">         355 :   return absl::OkStatus();</span></span>
+<span id="L1216"><span class="lineNum">    1216</span>                 :<span class="tlaGNC">         353 :   return absl::OkStatus();</span></span>
 <span id="L1217"><span class="lineNum">    1217</span>                 :             : }</span>
 <span id="L1218"><span class="lineNum">    1218</span>                 :             : </span>
 <span id="L1219"><span class="lineNum">    1219</span>                 :<span class="tlaGNC">         685 : absl::StatusOr&lt;std::optional&lt;std::size_t&gt;&gt; ResolveMaxResults(const std::vector&lt;std::string&gt;&amp; globals) {</span></span>
@@ -1404,19 +1404,19 @@
 <span id="L1293"><span class="lineNum">    1293</span>                 :<span class="tlaGNC">         356 :   };</span></span>
 <span id="L1294"><span class="lineNum">    1294</span>                 :             : }</span>
 <span id="L1295"><span class="lineNum">    1295</span>                 :             : </span>
-<span id="L1296"><span class="lineNum">    1296</span>                 :<span class="tlaGNC">        1252 : void AppendDeferredNodes(const parser::Expr&amp; expr, std::vector&lt;const parser::Expr*&gt;&amp; nodes) {</span></span>
-<span id="L1297"><span class="lineNum">    1297</span>         [<span class="tlaGBC" title="branch 0 was taken 916 times"> + </span><span class="tlaGBC" title="branch 1 was taken 336 times"> + </span>]:<span class="tlaGNC">        1252 :   if (expr.kind == parser::Expr::Kind::kPredicate) {</span></span>
-<span id="L1298"><span class="lineNum">    1298</span>   [<span class="tlaGBC" title="branch 0 was taken 909 times"> + </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span><span class="tlaGBC" title="branch 2 was taken 12 times"> + </span><span class="tlaGBC" title="branch 3 was taken 897 times"> + </span> :<span class="tlaGNC">         916 :     if (expr.descriptor-&gt;name == &quot;-top&quot; || expr.descriptor-&gt;name == &quot;-shard-status&quot;) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 19 times"> + </span><span class="tlaGBC" title="branch 5 was taken 897 times"> + </span>]
+<span id="L1296"><span class="lineNum">    1296</span>                 :<span class="tlaGNC">        1248 : void AppendDeferredNodes(const parser::Expr&amp; expr, std::vector&lt;const parser::Expr*&gt;&amp; nodes) {</span></span>
+<span id="L1297"><span class="lineNum">    1297</span>         [<span class="tlaGBC" title="branch 0 was taken 914 times"> + </span><span class="tlaGBC" title="branch 1 was taken 334 times"> + </span>]:<span class="tlaGNC">        1248 :   if (expr.kind == parser::Expr::Kind::kPredicate) {</span></span>
+<span id="L1298"><span class="lineNum">    1298</span>   [<span class="tlaGBC" title="branch 0 was taken 907 times"> + </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span><span class="tlaGBC" title="branch 2 was taken 12 times"> + </span><span class="tlaGBC" title="branch 3 was taken 895 times"> + </span> :<span class="tlaGNC">         914 :     if (expr.descriptor-&gt;name == &quot;-top&quot; || expr.descriptor-&gt;name == &quot;-shard-status&quot;) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 19 times"> + </span><span class="tlaGBC" title="branch 5 was taken 895 times"> + </span>]
 <span id="L1299"><span class="lineNum">    1299</span>                 :<span class="tlaGNC">          19 :       nodes.push_back(&amp;expr);</span></span>
 <span id="L1300"><span class="lineNum">    1300</span>                 :             :     }</span>
-<span id="L1301"><span class="lineNum">    1301</span>                 :<span class="tlaGNC">         916 :     return;</span></span>
+<span id="L1301"><span class="lineNum">    1301</span>                 :<span class="tlaGNC">         914 :     return;</span></span>
 <span id="L1302"><span class="lineNum">    1302</span>                 :             :   }</span>
-<span id="L1303"><span class="lineNum">    1303</span>         [<span class="tlaGBC" title="branch 0 was taken 336 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">         336 :   if (expr.lhs != nullptr) {</span></span>
-<span id="L1304"><span class="lineNum">    1304</span>                 :<span class="tlaGNC">         336 :     AppendDeferredNodes(*expr.lhs, nodes);</span></span>
+<span id="L1303"><span class="lineNum">    1303</span>         [<span class="tlaGBC" title="branch 0 was taken 334 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">         334 :   if (expr.lhs != nullptr) {</span></span>
+<span id="L1304"><span class="lineNum">    1304</span>                 :<span class="tlaGNC">         334 :     AppendDeferredNodes(*expr.lhs, nodes);</span></span>
 <span id="L1305"><span class="lineNum">    1305</span>                 :             :   }</span>
-<span id="L1306"><span class="lineNum">    1306</span>         [<span class="tlaGBC" title="branch 0 was taken 328 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">         336 :   if (expr.rhs != nullptr) {</span></span>
-<span id="L1307"><span class="lineNum">    1307</span>                 :<span class="tlaGNC">         328 :     AppendDeferredNodes(*expr.rhs, nodes);</span></span>
+<span id="L1306"><span class="lineNum">    1306</span>         [<span class="tlaGBC" title="branch 0 was taken 326 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">         334 :   if (expr.rhs != nullptr) {</span></span>
+<span id="L1307"><span class="lineNum">    1307</span>                 :<span class="tlaGNC">         326 :     AppendDeferredNodes(*expr.rhs, nodes);</span></span>
 <span id="L1308"><span class="lineNum">    1308</span>                 :             :   }</span>
 <span id="L1309"><span class="lineNum">    1309</span>                 :             : }</span>
 <span id="L1310"><span class="lineNum">    1310</span>                 :             : </span>
@@ -1653,7 +1653,7 @@
 <span id="L1534"><span class="lineNum">    1534</span>                 :<span class="tlaGNC">         681 :         gitignore_on_(gitignore_on),</span></span>
 <span id="L1535"><span class="lineNum">    1535</span>                 :<span class="tlaGNC">         681 :         global_excludes_(std::move(global_excludes)) {}</span></span>
 <span id="L1536"><span class="lineNum">    1536</span>                 :             : </span>
-<span id="L1537"><span class="lineNum">    1537</span>                 :<span class="tlaGNC">        3817 :   bool Active() const { return !filenames_.empty(); }</span></span>
+<span id="L1537"><span class="lineNum">    1537</span>                 :<span class="tlaGNC">        3814 :   bool Active() const { return !filenames_.empty(); }</span></span>
 <span id="L1538"><span class="lineNum">    1538</span>                 :             : </span>
 <span id="L1539"><span class="lineNum">    1539</span>                 :<span class="tlaGNC">         135 :   ignore::Decision Decide(std::string_view path, std::string_view root, bool is_dir) {</span></span>
 <span id="L1540"><span class="lineNum">    1540</span>                 :<span class="tlaGNC">         135 :     const Scope&amp; scope = ScopeFor(root);</span></span>
@@ -1809,7 +1809,7 @@
 <span id="L1689"><span class="lineNum">    1689</span>                 :<span class="tlaGNC">         681 :     return out;</span></span>
 <span id="L1690"><span class="lineNum">    1690</span>                 :             :   }</span>
 <span id="L1691"><span class="lineNum">    1691</span>                 :             : </span>
-<span id="L1692"><span class="lineNum">    1692</span>                 :<span class="tlaGNC">        3699 :   bool Active() const { return !sources_.empty(); }</span></span>
+<span id="L1692"><span class="lineNum">    1692</span>                 :<span class="tlaGNC">        3696 :   bool Active() const { return !sources_.empty(); }</span></span>
 <span id="L1693"><span class="lineNum">    1693</span>                 :             : </span>
 <span id="L1694"><span class="lineNum">    1694</span>                 :             :   // The decision for an entry given its absolute, normalized path. Each source whose root</span>
 <span id="L1695"><span class="lineNum">    1695</span>                 :             :   // contains the entry contributes; the last non-default decision wins (later --ignore-file</span>
@@ -2434,28 +2434,28 @@
 <span id="L2291"><span class="lineNum">    2291</span>                 :             : }</span>
 <span id="L2292"><span class="lineNum">    2292</span>                 :             : </span>
 <span id="L2293"><span class="lineNum">    2293</span>                 :             : // Collects the NAME of every -capture action in the expression (its args[0]).</span>
-<span id="L2294"><span class="lineNum">    2294</span>                 :<span class="tlaGNC">        2684 : void CollectCaptureNames(const parser::Expr&amp; expr, std::vector&lt;std::string&gt;* names) {</span></span>
-<span id="L2295"><span class="lineNum">    2295</span>   [<span class="tlaGBC" title="branch 0 was taken 1963 times"> + </span><span class="tlaGBC" title="branch 1 was taken 16 times"> + </span><span class="tlaGBC" title="branch 2 was taken 705 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        2684 :   switch (expr.kind) {</span></span>
-<span id="L2296"><span class="lineNum">    2296</span>                 :<span class="tlaGNC">        1963 :     case parser::Expr::Kind::kPredicate:</span></span>
+<span id="L2294"><span class="lineNum">    2294</span>                 :<span class="tlaGNC">        2676 : void CollectCaptureNames(const parser::Expr&amp; expr, std::vector&lt;std::string&gt;* names) {</span></span>
+<span id="L2295"><span class="lineNum">    2295</span>   [<span class="tlaGBC" title="branch 0 was taken 1959 times"> + </span><span class="tlaGBC" title="branch 1 was taken 16 times"> + </span><span class="tlaGBC" title="branch 2 was taken 701 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        2676 :   switch (expr.kind) {</span></span>
+<span id="L2296"><span class="lineNum">    2296</span>                 :<span class="tlaGNC">        1959 :     case parser::Expr::Kind::kPredicate:</span></span>
 <span id="L2297"><span class="lineNum">    2297</span>                 :             :       // A node with `!` (label_override) is ALLOWED to re-bind, so it is not reported as a duplicate.</span>
-<span id="L2298"><span class="lineNum">    2298</span>   [<span class="tlaGBC" title="branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1939 times"> + </span><span class="tlaGBC" title="branch 2 was taken 24 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">        1963 :       if (expr.descriptor-&gt;name == &quot;-capture&quot; &amp;&amp; !expr.args.empty() &amp;&amp; !expr.label_override) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 22 times"> + </span><span class="tlaGBC" title="branch 5 was taken 2 times"> + </span><span class="tlaGBC" title="branch 6 was taken 22 times"> + </span><span class="tlaGBC" title="branch 7 was taken 1941 times"> + </span>]
+<span id="L2298"><span class="lineNum">    2298</span>   [<span class="tlaGBC" title="branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1935 times"> + </span><span class="tlaGBC" title="branch 2 was taken 24 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">        1959 :       if (expr.descriptor-&gt;name == &quot;-capture&quot; &amp;&amp; !expr.args.empty() &amp;&amp; !expr.label_override) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 22 times"> + </span><span class="tlaGBC" title="branch 5 was taken 2 times"> + </span><span class="tlaGBC" title="branch 6 was taken 22 times"> + </span><span class="tlaGBC" title="branch 7 was taken 1937 times"> + </span>]
 <span id="L2299"><span class="lineNum">    2299</span>                 :<span class="tlaGNC">          22 :         names-&gt;push_back(expr.args.front());</span></span>
 <span id="L2300"><span class="lineNum">    2300</span>                 :             :       }</span>
-<span id="L2301"><span class="lineNum">    2301</span>                 :<span class="tlaGNC">        1963 :       break;</span></span>
+<span id="L2301"><span class="lineNum">    2301</span>                 :<span class="tlaGNC">        1959 :       break;</span></span>
 <span id="L2302"><span class="lineNum">    2302</span>                 :<span class="tlaGNC">          16 :     case parser::Expr::Kind::kNot: CollectCaptureNames(*expr.lhs, names); break;</span></span>
-<span id="L2303"><span class="lineNum">    2303</span>                 :<span class="tlaGNC">         705 :     case parser::Expr::Kind::kAnd:</span></span>
+<span id="L2303"><span class="lineNum">    2303</span>                 :<span class="tlaGNC">         701 :     case parser::Expr::Kind::kAnd:</span></span>
 <span id="L2304"><span class="lineNum">    2304</span>                 :             :     case parser::Expr::Kind::kOr:</span>
 <span id="L2305"><span class="lineNum">    2305</span>                 :             :     case parser::Expr::Kind::kNand:</span>
 <span id="L2306"><span class="lineNum">    2306</span>                 :             :     case parser::Expr::Kind::kNor:</span>
 <span id="L2307"><span class="lineNum">    2307</span>                 :             :     case parser::Expr::Kind::kXor:</span>
 <span id="L2308"><span class="lineNum">    2308</span>                 :             :     case parser::Expr::Kind::kXnor:</span>
 <span id="L2309"><span class="lineNum">    2309</span>                 :             :     case parser::Expr::Kind::kComma:</span>
-<span id="L2310"><span class="lineNum">    2310</span>                 :<span class="tlaGNC">         705 :       CollectCaptureNames(*expr.lhs, names);</span></span>
-<span id="L2311"><span class="lineNum">    2311</span>                 :<span class="tlaGNC">         705 :       CollectCaptureNames(*expr.rhs, names);</span></span>
-<span id="L2312"><span class="lineNum">    2312</span>                 :<span class="tlaGNC">         705 :       break;</span></span>
+<span id="L2310"><span class="lineNum">    2310</span>                 :<span class="tlaGNC">         701 :       CollectCaptureNames(*expr.lhs, names);</span></span>
+<span id="L2311"><span class="lineNum">    2311</span>                 :<span class="tlaGNC">         701 :       CollectCaptureNames(*expr.rhs, names);</span></span>
+<span id="L2312"><span class="lineNum">    2312</span>                 :<span class="tlaGNC">         701 :       break;</span></span>
 <span id="L2313"><span class="lineNum">    2313</span>                 :             :   }</span>
-<span id="L2314"><span class="lineNum">    2314</span>                 :<span class="tlaGNC">        2684 : }</span></span>
+<span id="L2314"><span class="lineNum">    2314</span>                 :<span class="tlaGNC">        2676 : }</span></span>
 <span id="L2315"><span class="lineNum">    2315</span>                 :             : </span>
 <span id="L2316"><span class="lineNum">    2316</span>                 :             : // Returns a -capture NAME bound more than once, or nullopt when all are unique.</span>
 <span id="L2317"><span class="lineNum">    2317</span>                 :<span class="tlaGNC">         630 : std::optional&lt;std::string&gt; DuplicateCaptureName(const parser::Expr&amp; expr) {</span></span>
@@ -2543,27 +2543,27 @@
 <span id="L2398"><span class="lineNum">    2398</span>                 :             : // (`;join(...)`) is scalar-valued and allowed, so it does NOT trip this. Checking EVERY arg is safe:</span>
 <span id="L2399"><span class="lineNum">    2399</span>                 :             : // HasUnreducedExtraction is true only for a known field with a well-formed unreduced m// qualifier,</span>
 <span id="L2400"><span class="lineNum">    2400</span>                 :             : // which a user writes solely to extract -- a -name glob / -regex / -size value never trips it.</span>
-<span id="L2401"><span class="lineNum">    2401</span>                 :<span class="tlaGNC">        1335 : std::optional&lt;std::string&gt; FindScalarExtraction(const parser::Expr&amp; expr) {</span></span>
-<span id="L2402"><span class="lineNum">    2402</span>   [<span class="tlaGBC" title="branch 0 was taken 977 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span><span class="tlaGBC" title="branch 2 was taken 350 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        1335 :   switch (expr.kind) {</span></span>
-<span id="L2403"><span class="lineNum">    2403</span>                 :<span class="tlaGNC">         977 :     case parser::Expr::Kind::kPredicate:</span></span>
-<span id="L2404"><span class="lineNum">    2404</span>         [<span class="tlaGBC" title="branch 0 was taken 965 times"> + </span><span class="tlaGBC" title="branch 1 was taken 976 times"> + </span>]:<span class="tlaGNC">        1941 :       for (const std::string&amp; arg : expr.args) {</span></span>
-<span id="L2405"><span class="lineNum">    2405</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 964 times"> + </span>]:<span class="tlaGNC">         965 :         if (fields::Template::Compile(arg).HasUnreducedExtraction()) {</span></span>
+<span id="L2401"><span class="lineNum">    2401</span>                 :<span class="tlaGNC">        1331 : std::optional&lt;std::string&gt; FindScalarExtraction(const parser::Expr&amp; expr) {</span></span>
+<span id="L2402"><span class="lineNum">    2402</span>   [<span class="tlaGBC" title="branch 0 was taken 975 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span><span class="tlaGBC" title="branch 2 was taken 348 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        1331 :   switch (expr.kind) {</span></span>
+<span id="L2403"><span class="lineNum">    2403</span>                 :<span class="tlaGNC">         975 :     case parser::Expr::Kind::kPredicate:</span></span>
+<span id="L2404"><span class="lineNum">    2404</span>         [<span class="tlaGBC" title="branch 0 was taken 963 times"> + </span><span class="tlaGBC" title="branch 1 was taken 974 times"> + </span>]:<span class="tlaGNC">        1937 :       for (const std::string&amp; arg : expr.args) {</span></span>
+<span id="L2405"><span class="lineNum">    2405</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 962 times"> + </span>]:<span class="tlaGNC">         963 :         if (fields::Template::Compile(arg).HasUnreducedExtraction()) {</span></span>
 <span id="L2406"><span class="lineNum">    2406</span>                 :<span class="tlaGNC">           1 :           return arg;</span></span>
 <span id="L2407"><span class="lineNum">    2407</span>                 :             :         }</span>
 <span id="L2408"><span class="lineNum">    2408</span>                 :             :       }</span>
-<span id="L2409"><span class="lineNum">    2409</span>                 :<span class="tlaGNC">         976 :       return std::nullopt;</span></span>
+<span id="L2409"><span class="lineNum">    2409</span>                 :<span class="tlaGNC">         974 :       return std::nullopt;</span></span>
 <span id="L2410"><span class="lineNum">    2410</span>                 :<span class="tlaGNC">           8 :     case parser::Expr::Kind::kNot: return FindScalarExtraction(*expr.lhs);</span></span>
-<span id="L2411"><span class="lineNum">    2411</span>                 :<span class="tlaGNC">         350 :     case parser::Expr::Kind::kAnd:</span></span>
+<span id="L2411"><span class="lineNum">    2411</span>                 :<span class="tlaGNC">         348 :     case parser::Expr::Kind::kAnd:</span></span>
 <span id="L2412"><span class="lineNum">    2412</span>                 :             :     case parser::Expr::Kind::kOr:</span>
 <span id="L2413"><span class="lineNum">    2413</span>                 :             :     case parser::Expr::Kind::kNand:</span>
 <span id="L2414"><span class="lineNum">    2414</span>                 :             :     case parser::Expr::Kind::kNor:</span>
 <span id="L2415"><span class="lineNum">    2415</span>                 :             :     case parser::Expr::Kind::kXor:</span>
 <span id="L2416"><span class="lineNum">    2416</span>                 :             :     case parser::Expr::Kind::kXnor:</span>
 <span id="L2417"><span class="lineNum">    2417</span>                 :             :     case parser::Expr::Kind::kComma:</span>
-<span id="L2418"><span class="lineNum">    2418</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 350 times"> + </span>]:<span class="tlaGNC">         350 :       if (const std::optional&lt;std::string&gt; lhs = FindScalarExtraction(*expr.lhs); lhs.has_value()) {</span></span>
+<span id="L2418"><span class="lineNum">    2418</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 348 times"> + </span>]:<span class="tlaGNC">         348 :       if (const std::optional&lt;std::string&gt; lhs = FindScalarExtraction(*expr.lhs); lhs.has_value()) {</span></span>
 <span id="L2419"><span class="lineNum">    2419</span>                 :<span class="tlaUNC">           0 :         return lhs;</span></span>
-<span id="L2420"><span class="lineNum">    2420</span>         [<span class="tlaGBC" title="branch 0 was taken 350 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">         350 :       }</span></span>
-<span id="L2421"><span class="lineNum">    2421</span>                 :<span class="tlaGNC">         350 :       return FindScalarExtraction(*expr.rhs);</span></span>
+<span id="L2420"><span class="lineNum">    2420</span>         [<span class="tlaGBC" title="branch 0 was taken 348 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">         348 :       }</span></span>
+<span id="L2421"><span class="lineNum">    2421</span>                 :<span class="tlaGNC">         348 :       return FindScalarExtraction(*expr.rhs);</span></span>
 <span id="L2422"><span class="lineNum">    2422</span>                 :             :   }</span>
 <span id="L2423"><span class="lineNum">    2423</span>                 :<span class="tlaUNC">           0 :   return std::nullopt;</span></span>
 <span id="L2424"><span class="lineNum">    2424</span>                 :             : }</span>
@@ -3820,11 +3820,11 @@
 <span id="L3643"><span class="lineNum">    3643</span>                 :             :   // Keeping it outside the visitor is what makes replay use precisely the same listing/reduction</span>
 <span id="L3644"><span class="lineNum">    3644</span>                 :             :   // path rather than a second, subtly different renderer.</span>
 <span id="L3645"><span class="lineNum">    3645</span>                 :             :   // NOLINTNEXTLINE(readability-function-cognitive-complexity): one extracted sink dispatch shared by walk and replay</span>
-<span id="L3646"><span class="lineNum">    3646</span>                 :<span class="tlaGNC">        3518 :   const auto finish_entry = [&amp;](const Visit&amp; visit, std::map&lt;std::string, std::string&gt;&amp; outputs, bool matched) {</span></span>
-<span id="L3647"><span class="lineNum">    3647</span>   [<span class="tlaGBC" title="branch 0 was taken 1701 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1817 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1141 times"> + </span><span class="tlaGBC" title="branch 3 was taken 560 times"> + </span>]:<span class="tlaGNC">        3518 :     if (matched &amp;&amp; any_match != nullptr) {</span></span>
-<span id="L3648"><span class="lineNum">    3648</span>                 :<span class="tlaGNC">        1141 :       *any_match = true;</span></span>
+<span id="L3646"><span class="lineNum">    3646</span>                 :<span class="tlaGNC">        3515 :   const auto finish_entry = [&amp;](const Visit&amp; visit, std::map&lt;std::string, std::string&gt;&amp; outputs, bool matched) {</span></span>
+<span id="L3647"><span class="lineNum">    3647</span>   [<span class="tlaGBC" title="branch 0 was taken 1702 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1813 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1140 times"> + </span><span class="tlaGBC" title="branch 3 was taken 562 times"> + </span>]:<span class="tlaGNC">        3515 :     if (matched &amp;&amp; any_match != nullptr) {</span></span>
+<span id="L3648"><span class="lineNum">    3648</span>                 :<span class="tlaGNC">        1140 :       *any_match = true;</span></span>
 <span id="L3649"><span class="lineNum">    3649</span>                 :             :     }</span>
-<span id="L3650"><span class="lineNum">    3650</span>   [<span class="tlaGBC" title="branch 0 was taken 1701 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1817 times"> + </span><span class="tlaGBC" title="branch 2 was taken 375 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1326 times"> + </span>]:<span class="tlaGNC">        3518 :     if (matched &amp;&amp; any_reduction) {</span></span>
+<span id="L3650"><span class="lineNum">    3650</span>   [<span class="tlaGBC" title="branch 0 was taken 1702 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1813 times"> + </span><span class="tlaGBC" title="branch 2 was taken 375 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1327 times"> + </span>]:<span class="tlaGNC">        3515 :     if (matched &amp;&amp; any_reduction) {</span></span>
 <span id="L3651"><span class="lineNum">    3651</span>         [<span class="tlaGBC" title="branch 0 was taken 62 times"> + </span><span class="tlaGBC" title="branch 1 was taken 313 times"> + </span>]:<span class="tlaGNC">         375 :       if (pack_target.has_value()) {</span></span>
 <span id="L3652"><span class="lineNum">    3652</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 61 times"> + </span>]:<span class="tlaGNC">          62 :         if (visit.metadata.source == vfs::Source::kArchiveMember) {</span></span>
 <span id="L3653"><span class="lineNum">    3653</span>                 :<span class="tlaGNC">           1 :           pack_saw_member = true;</span></span>
@@ -3875,9 +3875,9 @@
 <span id="L3695"><span class="lineNum">    3695</span>                 :<span class="tlaGNC">         257 :         FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);</span></span>
 <span id="L3696"><span class="lineNum">    3696</span>                 :<span class="tlaGNC">         257 :         FeedHistograms(histograms, histogram_cells, visit);</span></span>
 <span id="L3697"><span class="lineNum">    3697</span>                 :<span class="tlaGNC">         257 :       }</span></span>
-<span id="L3698"><span class="lineNum">    3698</span>   [<span class="tlaGBC" title="branch 0 was taken 1326 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1817 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1074 times"> + </span><span class="tlaGBC" title="branch 3 was taken 252 times"> + </span> :<span class="tlaGNC">        3518 :     } else if (matched &amp;&amp; implicit_print &amp;&amp; (!max_results-&gt;has_value() || listed_results &lt; **max_results)) {</span></span>
+<span id="L3698"><span class="lineNum">    3698</span>   [<span class="tlaGBC" title="branch 0 was taken 1327 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1813 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1074 times"> + </span><span class="tlaGBC" title="branch 3 was taken 253 times"> + </span> :<span class="tlaGNC">        3515 :     } else if (matched &amp;&amp; implicit_print &amp;&amp; (!max_results-&gt;has_value() || listed_results &lt; **max_results)) {</span></span>
 <span class="lineNum">        </span> <span class="tlaGBC" title="branch 4 was taken 35 times"> + </span><span class="tlaGBC" title="branch 5 was taken 1039 times"> + </span><span class="tlaGBC" title="branch 6 was taken 15 times"> + </span><span class="tlaGBC" title="branch 7 was taken 20 times"> + </span><span class="tlaGBC" title="branch 8 was taken 1054 times"> + </span> 
-<span class="lineNum">        </span>             <span class="tlaGBC" title="branch 9 was taken 2089 times"> + </span>]
+<span class="lineNum">        </span>             <span class="tlaGBC" title="branch 9 was taken 2086 times"> + </span>]
 <span id="L3699"><span class="lineNum">    3699</span>                 :<span class="tlaGNC">        1054 :       ++listed_results;</span></span>
 <span id="L3700"><span class="lineNum">    3700</span>                 :             :       const std::string_view entry_color =</span>
 <span id="L3701"><span class="lineNum">    3701</span>         [<span class="tlaGBC" title="branch 0 was taken 26 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1028 times"> + </span>]:<span class="tlaGNC">        1054 :           colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();</span></span>
@@ -3927,7 +3927,7 @@
 <span id="L3743"><span class="lineNum">    3743</span>                 :<span class="tlaGNC">         991 :         emit_entry(render::Renderer(format, path_encoding).Record(visit.path, entry_color));</span></span>
 <span id="L3744"><span class="lineNum">    3744</span>                 :             :       }</span>
 <span id="L3745"><span class="lineNum">    3745</span>                 :             :     }</span>
-<span id="L3746"><span class="lineNum">    3746</span>                 :<span class="tlaGNC">        4199 :   };</span></span>
+<span id="L3746"><span class="lineNum">    3746</span>                 :<span class="tlaGNC">        4196 :   };</span></span>
 <span id="L3747"><span class="lineNum">    3747</span>                 :             : </span>
 <span id="L3748"><span class="lineNum">    3748</span>                 :<span class="tlaGNC">         681 :   std::vector&lt;DeferredCandidate&gt; deferred_candidates;</span></span>
 <span id="L3749"><span class="lineNum">    3749</span>                 :<span class="tlaGNC">         681 :   std::size_t deferred_order = 0;</span></span>
@@ -3947,9 +3947,9 @@
 <span id="L3763"><span class="lineNum">    3763</span>                 :             :         // starting with '.') before any evaluation or output. A hidden directory is</span>
 <span id="L3764"><span class="lineNum">    3764</span>                 :             :         // pruned (its whole subtree skipped); a hidden file is skipped. Depth 0 is an</span>
 <span id="L3765"><span class="lineNum">    3765</span>                 :             :         // explicitly named search root, always entered -- so `xff .git` still descends.</span>
-<span id="L3766"><span class="lineNum">    3766</span>   [<span class="tlaGBC" title="branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3568 times"> + </span><span class="tlaGBC" title="branch 2 was taken 12 times"> + </span><span class="tlaGBC" title="branch 3 was taken 6 times"> + </span> :<span class="tlaGNC">        3586 :         if (skip_hidden &amp;&amp; visit.depth &gt; 0 &amp;&amp; !visit.name.empty() &amp;&amp; visit.name.front() == '.') {</span></span>
+<span id="L3766"><span class="lineNum">    3766</span>   [<span class="tlaGBC" title="branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3565 times"> + </span><span class="tlaGBC" title="branch 2 was taken 12 times"> + </span><span class="tlaGBC" title="branch 3 was taken 6 times"> + </span> :<span class="tlaGNC">        3583 :         if (skip_hidden &amp;&amp; visit.depth &gt; 0 &amp;&amp; !visit.name.empty() &amp;&amp; visit.name.front() == '.') {</span></span>
 <span class="lineNum">        </span> <span class="tlaGBC" title="branch 4 was taken 12 times"> + </span><span class="tlaUNC" title="branch 5 was not taken"> - </span><span class="tlaGBC" title="branch 6 was taken 4 times"> + </span><span class="tlaGBC" title="branch 7 was taken 8 times"> + </span><span class="tlaGBC" title="branch 8 was taken 4 times"> + </span> 
-<span class="lineNum">        </span>             <span class="tlaGBC" title="branch 9 was taken 3582 times"> + </span>]
+<span class="lineNum">        </span>             <span class="tlaGBC" title="branch 9 was taken 3579 times"> + </span>]
 <span id="L3767"><span class="lineNum">    3767</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           4 :           return visit.metadata.type == vfs::FileType::kDirectory ? WalkAction::kPrune : WalkAction::kContinue;</span></span>
 <span id="L3768"><span class="lineNum">    3768</span>                 :             :         }</span>
 <span id="L3769"><span class="lineNum">    3769</span>                 :             :         // VCS metadata filter: prune version-control plumbing directories (--skip-vcs; `-g` implies</span>
@@ -3959,8 +3959,8 @@
 <span id="L3773"><span class="lineNum">    3773</span>                 :             :         // `.gitignore`, ...) still show; only VCS plumbing is dropped. Depth 0 is an explicitly named</span>
 <span id="L3774"><span class="lineNum">    3774</span>                 :             :         // root, always entered, so `xff .git` still descends. `skip_vcs_names` holds the metadata</span>
 <span id="L3775"><span class="lineNum">    3775</span>                 :             :         // names (`.git`, `.hg`, ...); it is empty (this filter off) unless --skip-vcs or -g is active.</span>
-<span id="L3776"><span class="lineNum">    3776</span>   [<span class="tlaGBC" title="branch 0 was taken 160 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3422 times"> + </span><span class="tlaGBC" title="branch 2 was taken 128 times"> + </span><span class="tlaGBC" title="branch 3 was taken 32 times"> + </span> :<span class="tlaGNC">        3582 :         if (!skip_vcs_names.empty() &amp;&amp; visit.depth &gt; 0 &amp;&amp; skip_vcs_names.contains(visit.name)) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 17 times"> + </span><span class="tlaGBC" title="branch 5 was taken 111 times"> + </span><span class="tlaGBC" title="branch 6 was taken 17 times"> + </span><span class="tlaGBC" title="branch 7 was taken 3565 times"> + </span>]
+<span id="L3776"><span class="lineNum">    3776</span>   [<span class="tlaGBC" title="branch 0 was taken 160 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3419 times"> + </span><span class="tlaGBC" title="branch 2 was taken 128 times"> + </span><span class="tlaGBC" title="branch 3 was taken 32 times"> + </span> :<span class="tlaGNC">        3579 :         if (!skip_vcs_names.empty() &amp;&amp; visit.depth &gt; 0 &amp;&amp; skip_vcs_names.contains(visit.name)) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 17 times"> + </span><span class="tlaGBC" title="branch 5 was taken 111 times"> + </span><span class="tlaGBC" title="branch 6 was taken 17 times"> + </span><span class="tlaGBC" title="branch 7 was taken 3562 times"> + </span>]
 <span id="L3777"><span class="lineNum">    3777</span>         [<span class="tlaGBC" title="branch 0 was taken 17 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">          17 :           return visit.metadata.type == vfs::FileType::kDirectory ? WalkAction::kPrune : WalkAction::kContinue;</span></span>
 <span id="L3778"><span class="lineNum">    3778</span>                 :             :         }</span>
 <span id="L3779"><span class="lineNum">    3779</span>                 :             :         // Ignore filter: drop an ignored entry before any evaluation or output. A</span>
@@ -3970,8 +3970,8 @@
 <span id="L3783"><span class="lineNum">    3783</span>                 :             :         // --exclude/--include has highest precedence, then explicit --ignore-file sources</span>
 <span id="L3784"><span class="lineNum">    3784</span>                 :             :         // (rooted at the file's own dir), then the auto per-directory ignore-file stack</span>
 <span id="L3785"><span class="lineNum">    3785</span>                 :             :         // (--ignore-files / -g); each later layer decides only where the earlier ones are silent.</span>
-<span id="L3786"><span class="lineNum">    3786</span>   [<span class="tlaGBC" title="branch 0 was taken 3533 times"> + </span><span class="tlaGBC" title="branch 1 was taken 32 times"> + </span><span class="tlaGBC" title="branch 2 was taken 3518 times"> + </span><span class="tlaGBC" title="branch 3 was taken 15 times"> + </span> :<span class="tlaGNC">        3565 :         if (!ignore_patterns.empty() || rooted_ignore_files.Active() || ignore_files.Active()) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 166 times"> + </span><span class="tlaGBC" title="branch 5 was taken 3352 times"> + </span><span class="tlaGBC" title="branch 6 was taken 213 times"> + </span><span class="tlaGBC" title="branch 7 was taken 3352 times"> + </span>]
+<span id="L3786"><span class="lineNum">    3786</span>   [<span class="tlaGBC" title="branch 0 was taken 3530 times"> + </span><span class="tlaGBC" title="branch 1 was taken 32 times"> + </span><span class="tlaGBC" title="branch 2 was taken 3515 times"> + </span><span class="tlaGBC" title="branch 3 was taken 15 times"> + </span> :<span class="tlaGNC">        3562 :         if (!ignore_patterns.empty() || rooted_ignore_files.Active() || ignore_files.Active()) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 166 times"> + </span><span class="tlaGBC" title="branch 5 was taken 3349 times"> + </span><span class="tlaGBC" title="branch 6 was taken 213 times"> + </span><span class="tlaGBC" title="branch 7 was taken 3349 times"> + </span>]
 <span id="L3787"><span class="lineNum">    3787</span>                 :<span class="tlaGNC">         213 :           const bool is_dir = visit.metadata.type == vfs::FileType::kDirectory;</span></span>
 <span id="L3788"><span class="lineNum">    3788</span>                 :<span class="tlaGNC">         213 :           const std::string_view rel = RelativeTo(visit.path, visit.root);</span></span>
 <span id="L3789"><span class="lineNum">    3789</span>         [<span class="tlaGBC" title="branch 0 was taken 173 times"> + </span><span class="tlaGBC" title="branch 1 was taken 40 times"> + </span>]:<span class="tlaGNC">         213 :           if (!rel.empty()) {</span></span>
@@ -3989,14 +3989,14 @@
 <span id="L3799"><span class="lineNum">    3799</span>                 :             :             }</span>
 <span id="L3800"><span class="lineNum">    3800</span>                 :             :           }</span>
 <span id="L3801"><span class="lineNum">    3801</span>                 :             :         }</span>
-<span id="L3802"><span class="lineNum">    3802</span>                 :<span class="tlaGNC">        3518 :         Control control;</span></span>
-<span id="L3803"><span class="lineNum">    3803</span>                 :<span class="tlaGNC">        3518 :         std::vector&lt;std::string&gt; captures;           // -regex groups for this entry; consumed by gated -exec {0}..{N}</span></span>
-<span id="L3804"><span class="lineNum">    3804</span>                 :<span class="tlaGNC">        3518 :         std::map&lt;std::string, std::string&gt; outputs;  // -capture results for this entry; read by {capture.NAME}</span></span>
+<span id="L3802"><span class="lineNum">    3802</span>                 :<span class="tlaGNC">        3515 :         Control control;</span></span>
+<span id="L3803"><span class="lineNum">    3803</span>                 :<span class="tlaGNC">        3515 :         std::vector&lt;std::string&gt; captures;           // -regex groups for this entry; consumed by gated -exec {0}..{N}</span></span>
+<span id="L3804"><span class="lineNum">    3804</span>                 :<span class="tlaGNC">        3515 :         std::map&lt;std::string, std::string&gt; outputs;  // -capture results for this entry; read by {capture.NAME}</span></span>
 <span id="L3805"><span class="lineNum">    3805</span>                 :             :         // FS-native name matching: fold -name/-path case on a case-folding volume</span>
 <span id="L3806"><span class="lineNum">    3806</span>                 :             :         // (xff style, no --exact). Probe each device once, defaulting to</span>
 <span id="L3807"><span class="lineNum">    3807</span>                 :             :         // case-sensitive (byte-exact) on the miss and on any probe error.</span>
-<span id="L3808"><span class="lineNum">    3808</span>                 :<span class="tlaGNC">        3518 :         bool fold_name_case = false;</span></span>
-<span id="L3809"><span class="lineNum">    3809</span>         [<span class="tlaGBC" title="branch 0 was taken 1598 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1920 times"> + </span>]:<span class="tlaGNC">        3518 :         if (fs_native_case) {</span></span>
+<span id="L3808"><span class="lineNum">    3808</span>                 :<span class="tlaGNC">        3515 :         bool fold_name_case = false;</span></span>
+<span id="L3809"><span class="lineNum">    3809</span>         [<span class="tlaGBC" title="branch 0 was taken 1598 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1917 times"> + </span>]:<span class="tlaGNC">        3515 :         if (fs_native_case) {</span></span>
 <span id="L3810"><span class="lineNum">    3810</span>                 :<span class="tlaGNC">        1598 :           auto [it, inserted] = case_sensitive_by_dev.try_emplace(visit.metadata.dev, true);</span></span>
 <span id="L3811"><span class="lineNum">    3811</span>         [<span class="tlaGBC" title="branch 0 was taken 442 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1156 times"> + </span>]:<span class="tlaGNC">        1598 :           if (inserted) {</span></span>
 <span id="L3812"><span class="lineNum">    3812</span>                 :<span class="tlaGNC">         442 :             it-&gt;second = walk_fs.IsCaseSensitive(visit.path).value_or(true);</span></span>
@@ -4006,11 +4006,11 @@
 <span id="L3816"><span class="lineNum">    3816</span>                 :             :         // The entry's colour, from the one palette this run resolved: used by the plain listing below</span>
 <span id="L3817"><span class="lineNum">    3817</span>                 :             :         // and by -ls's name column, so the two cannot disagree about what a file looks like.</span>
 <span id="L3818"><span class="lineNum">    3818</span>                 :             :         const std::string_view entry_color =</span>
-<span id="L3819"><span class="lineNum">    3819</span>         [<span class="tlaGBC" title="branch 0 was taken 78 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3440 times"> + </span>]:<span class="tlaGNC">        3518 :             colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();</span></span>
+<span id="L3819"><span class="lineNum">    3819</span>         [<span class="tlaGBC" title="branch 0 was taken 78 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3437 times"> + </span>]:<span class="tlaGNC">        3515 :             colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();</span></span>
 <span id="L3820"><span class="lineNum">    3820</span>                 :             :         // -fuzzy / -ifuzzy leave their score here for {fuzzy}; cleared per entry so a name that runs</span>
 <span id="L3821"><span class="lineNum">    3821</span>                 :             :         // no fuzzy test renders empty rather than inheriting the previous entry's score.</span>
-<span id="L3822"><span class="lineNum">    3822</span>                 :<span class="tlaGNC">        3518 :         fuzzy_score.reset();</span></span>
-<span id="L3823"><span class="lineNum">    3823</span>                 :<span class="tlaGNC">        3518 :         EvalContext eval_context{</span></span>
+<span id="L3822"><span class="lineNum">    3822</span>                 :<span class="tlaGNC">        3515 :         fuzzy_score.reset();</span></span>
+<span id="L3823"><span class="lineNum">    3823</span>                 :<span class="tlaGNC">        3515 :         EvalContext eval_context{</span></span>
 <span id="L3824"><span class="lineNum">    3824</span>                 :             :             .visit = visit,</span>
 <span id="L3825"><span class="lineNum">    3825</span>                 :             :             .emit = emit,</span>
 <span id="L3826"><span class="lineNum">    3826</span>                 :             :             .emit_file = emit_file,</span>
@@ -4019,51 +4019,51 @@
 <span id="L3829"><span class="lineNum">    3829</span>                 :             :             .ls_size_units = human,</span>
 <span id="L3830"><span class="lineNum">    3830</span>                 :             :             // The entry's OWN filesystem, so a predicate that reads a member reads it out of the</span>
 <span id="L3831"><span class="lineNum">    3831</span>                 :             :             // container rather than looking for `a.tar!x` on disk and finding nothing.</span>
-<span id="L3832"><span class="lineNum">    3832</span>                 :<span class="tlaGNC">        3518 :             .fs = visit.fs != nullptr ? *visit.fs : walk_fs,</span></span>
+<span id="L3832"><span class="lineNum">    3832</span>                 :<span class="tlaGNC">        3515 :             .fs = visit.fs != nullptr ? *visit.fs : walk_fs,</span></span>
 <span id="L3833"><span class="lineNum">    3833</span>                 :             :             .now = now,</span>
 <span id="L3834"><span class="lineNum">    3834</span>                 :             :             .tz = tz,</span>
-<span id="L3835"><span class="lineNum">    3835</span>                 :<span class="tlaGNC">        3518 :             .time_format = time_format,</span></span>
-<span id="L3836"><span class="lineNum">    3836</span>                 :<span class="tlaGNC">        3518 :             .zone_suffix = zone_suffix,</span></span>
-<span id="L3837"><span class="lineNum">    3837</span>                 :<span class="tlaGNC">        3518 :             .block_size = block_size,</span></span>
+<span id="L3835"><span class="lineNum">    3835</span>                 :<span class="tlaGNC">        3515 :             .time_format = time_format,</span></span>
+<span id="L3836"><span class="lineNum">    3836</span>                 :<span class="tlaGNC">        3515 :             .zone_suffix = zone_suffix,</span></span>
+<span id="L3837"><span class="lineNum">    3837</span>                 :<span class="tlaGNC">        3515 :             .block_size = block_size,</span></span>
 <span id="L3838"><span class="lineNum">    3838</span>                 :             :             .fold_name_case = fold_name_case,</span>
 <span id="L3839"><span class="lineNum">    3839</span>                 :             :             .fuzzy_score = &amp;fuzzy_score,</span>
-<span id="L3840"><span class="lineNum">    3840</span>                 :<span class="tlaGNC">        3518 :             .grep_count = grep_count,</span></span>
-<span id="L3841"><span class="lineNum">    3841</span>                 :<span class="tlaGNC">        3518 :             .grep_before = grep_before,</span></span>
-<span id="L3842"><span class="lineNum">    3842</span>                 :<span class="tlaGNC">        3518 :             .grep_after = grep_after,</span></span>
-<span id="L3843"><span class="lineNum">    3843</span>                 :<span class="tlaGNC">        3518 :             .diff_algorithm = diff_algorithm,</span></span>
-<span id="L3844"><span class="lineNum">    3844</span>                 :<span class="tlaGNC">        3518 :             .diff_ignore = diff_ignore,</span></span>
-<span id="L3845"><span class="lineNum">    3845</span>                 :<span class="tlaGNC">        3518 :             .diff_ignore_matching = diff_ignore_matching,</span></span>
-<span id="L3846"><span class="lineNum">    3846</span>                 :<span class="tlaGNC">        3518 :             .diff_format = diff_format,</span></span>
-<span id="L3847"><span class="lineNum">    3847</span>                 :<span class="tlaGNC">        3518 :             .diff_context = diff_context,</span></span>
-<span id="L3848"><span class="lineNum">    3848</span>                 :<span class="tlaGNC">        3518 :             .hash_algorithm = hash_algorithm,</span></span>
-<span id="L3849"><span class="lineNum">    3849</span>                 :<span class="tlaGNC">        3518 :             .hash_encoding = hash_encoding,</span></span>
+<span id="L3840"><span class="lineNum">    3840</span>                 :<span class="tlaGNC">        3515 :             .grep_count = grep_count,</span></span>
+<span id="L3841"><span class="lineNum">    3841</span>                 :<span class="tlaGNC">        3515 :             .grep_before = grep_before,</span></span>
+<span id="L3842"><span class="lineNum">    3842</span>                 :<span class="tlaGNC">        3515 :             .grep_after = grep_after,</span></span>
+<span id="L3843"><span class="lineNum">    3843</span>                 :<span class="tlaGNC">        3515 :             .diff_algorithm = diff_algorithm,</span></span>
+<span id="L3844"><span class="lineNum">    3844</span>                 :<span class="tlaGNC">        3515 :             .diff_ignore = diff_ignore,</span></span>
+<span id="L3845"><span class="lineNum">    3845</span>                 :<span class="tlaGNC">        3515 :             .diff_ignore_matching = diff_ignore_matching,</span></span>
+<span id="L3846"><span class="lineNum">    3846</span>                 :<span class="tlaGNC">        3515 :             .diff_format = diff_format,</span></span>
+<span id="L3847"><span class="lineNum">    3847</span>                 :<span class="tlaGNC">        3515 :             .diff_context = diff_context,</span></span>
+<span id="L3848"><span class="lineNum">    3848</span>                 :<span class="tlaGNC">        3515 :             .hash_algorithm = hash_algorithm,</span></span>
+<span id="L3849"><span class="lineNum">    3849</span>                 :<span class="tlaGNC">        3515 :             .hash_encoding = hash_encoding,</span></span>
 <span id="L3850"><span class="lineNum">    3850</span>                 :             :             .control = control,</span>
-<span id="L3851"><span class="lineNum">    3851</span>                 :<span class="tlaGNC">        3518 :             .exec_fields = exec_fields,</span></span>
-<span id="L3852"><span class="lineNum">    3852</span>                 :<span class="tlaGNC">        3518 :             .captures = exec_fields ? &amp;captures : nullptr,</span></span>
+<span id="L3851"><span class="lineNum">    3851</span>                 :<span class="tlaGNC">        3515 :             .exec_fields = exec_fields,</span></span>
+<span id="L3852"><span class="lineNum">    3852</span>                 :<span class="tlaGNC">        3515 :             .captures = exec_fields ? &amp;captures : nullptr,</span></span>
 <span id="L3853"><span class="lineNum">    3853</span>                 :             :             .defines = &amp;defines,</span>
 <span id="L3854"><span class="lineNum">    3854</span>                 :             :             .outputs = &amp;outputs,</span>
 <span id="L3855"><span class="lineNum">    3855</span>                 :             :             .first_counts = &amp;first_counts,</span>
 <span id="L3856"><span class="lineNum">    3856</span>                 :             :             .collections = &amp;collections,</span>
 <span id="L3857"><span class="lineNum">    3857</span>                 :             :             .confirm = confirm,</span>
 <span id="L3858"><span class="lineNum">    3858</span>                 :             :             .exec_batches = &amp;exec_batches,</span>
-<span id="L3859"><span class="lineNum">    3859</span>                 :<span class="tlaGNC">        3518 :             .parallel_exec = options.workers &gt; 1 ? &amp;parallel_exec : nullptr,</span></span>
-<span id="L3860"><span class="lineNum">    3860</span>                 :<span class="tlaGNC">        3518 :             .extract = archive_extract ? &amp;extracted_members : nullptr,</span></span>
+<span id="L3859"><span class="lineNum">    3859</span>                 :<span class="tlaGNC">        3515 :             .parallel_exec = options.workers &gt; 1 ? &amp;parallel_exec : nullptr,</span></span>
+<span id="L3860"><span class="lineNum">    3860</span>                 :<span class="tlaGNC">        3515 :             .extract = archive_extract ? &amp;extracted_members : nullptr,</span></span>
 <span id="L3861"><span class="lineNum">    3861</span>                 :             :             .mounts = &amp;mounted_containers,</span>
-<span id="L3862"><span class="lineNum">    3862</span>                 :<span class="tlaGNC">        3518 :             .archive_deletions = archive_delete ? &amp;archive_deletions : nullptr,</span></span>
-<span id="L3863"><span class="lineNum">    3863</span>   [<span class="tlaGBC" title="branch 0 was taken 3518 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 19 times"> + </span><span class="tlaGBC" title="branch 3 was taken 3499 times"> + </span> :<span class="tlaGNC">       24626 :         };</span></span>
-<span class="lineNum">        </span> <span class="tlaGBC" title="branch 4 was taken 2031 times"> + </span><span class="tlaGBC" title="branch 5 was taken 1487 times"> + </span><span class="tlaGBC" title="branch 6 was taken 70 times"> + </span><span class="tlaGBC" title="branch 7 was taken 3448 times"> + </span><span class="tlaGBC" title="branch 8 was taken 56 times"> + </span> 
-<span class="lineNum">        </span>             <span class="tlaGBC" title="branch 9 was taken 3462 times"> + </span>]
-<span id="L3864"><span class="lineNum">    3864</span>                 :<span class="tlaGNC">        3518 :         std::map&lt;const parser::Expr*, EvaluationResult&gt; evaluation_memo;</span></span>
-<span id="L3865"><span class="lineNum">    3865</span>                 :<span class="tlaGNC">        3518 :         const std::map&lt;const parser::Expr*, bool&gt; deferred_results;</span></span>
-<span id="L3866"><span class="lineNum">    3866</span>                 :<span class="tlaGNC">        3518 :         const parser::Expr* deferred_node = nullptr;</span></span>
-<span id="L3867"><span class="lineNum">    3867</span>                 :<span class="tlaGNC">        3518 :         std::optional&lt;int&gt; deferred_score;</span></span>
-<span id="L3868"><span class="lineNum">    3868</span>                 :<span class="tlaGNC">        3518 :         eval_context.deferred_results = &amp;deferred_results;</span></span>
-<span id="L3869"><span class="lineNum">    3869</span>                 :<span class="tlaGNC">        3518 :         eval_context.evaluation_memo = &amp;evaluation_memo;</span></span>
-<span id="L3870"><span class="lineNum">    3870</span>                 :<span class="tlaGNC">        3518 :         eval_context.deferred_node = &amp;deferred_node;</span></span>
-<span id="L3871"><span class="lineNum">    3871</span>                 :<span class="tlaGNC">        3518 :         eval_context.deferred_score = &amp;deferred_score;</span></span>
+<span id="L3862"><span class="lineNum">    3862</span>                 :<span class="tlaGNC">        3515 :             .archive_deletions = archive_delete ? &amp;archive_deletions : nullptr,</span></span>
+<span id="L3863"><span class="lineNum">    3863</span>   [<span class="tlaGBC" title="branch 0 was taken 3515 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 19 times"> + </span><span class="tlaGBC" title="branch 3 was taken 3496 times"> + </span> :<span class="tlaGNC">       24605 :         };</span></span>
+<span class="lineNum">        </span> <span class="tlaGBC" title="branch 4 was taken 2031 times"> + </span><span class="tlaGBC" title="branch 5 was taken 1484 times"> + </span><span class="tlaGBC" title="branch 6 was taken 70 times"> + </span><span class="tlaGBC" title="branch 7 was taken 3445 times"> + </span><span class="tlaGBC" title="branch 8 was taken 56 times"> + </span> 
+<span class="lineNum">        </span>             <span class="tlaGBC" title="branch 9 was taken 3459 times"> + </span>]
+<span id="L3864"><span class="lineNum">    3864</span>                 :<span class="tlaGNC">        3515 :         std::map&lt;const parser::Expr*, EvaluationResult&gt; evaluation_memo;</span></span>
+<span id="L3865"><span class="lineNum">    3865</span>                 :<span class="tlaGNC">        3515 :         const std::map&lt;const parser::Expr*, bool&gt; deferred_results;</span></span>
+<span id="L3866"><span class="lineNum">    3866</span>                 :<span class="tlaGNC">        3515 :         const parser::Expr* deferred_node = nullptr;</span></span>
+<span id="L3867"><span class="lineNum">    3867</span>                 :<span class="tlaGNC">        3515 :         std::optional&lt;int&gt; deferred_score;</span></span>
+<span id="L3868"><span class="lineNum">    3868</span>                 :<span class="tlaGNC">        3515 :         eval_context.deferred_results = &amp;deferred_results;</span></span>
+<span id="L3869"><span class="lineNum">    3869</span>                 :<span class="tlaGNC">        3515 :         eval_context.evaluation_memo = &amp;evaluation_memo;</span></span>
+<span id="L3870"><span class="lineNum">    3870</span>                 :<span class="tlaGNC">        3515 :         eval_context.deferred_node = &amp;deferred_node;</span></span>
+<span id="L3871"><span class="lineNum">    3871</span>                 :<span class="tlaGNC">        3515 :         eval_context.deferred_score = &amp;deferred_score;</span></span>
 <span id="L3872"><span class="lineNum">    3872</span>                 :             :         const EvaluationResult evaluated =</span>
-<span id="L3873"><span class="lineNum">    3873</span>         [<span class="tlaGBC" title="branch 0 was taken 441 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3077 times"> + </span>]:<span class="tlaGNC">        3518 :             expression == nullptr ? EvaluationResult{.matched = true} : EvaluateDeferred(*expression, eval_context);</span></span>
-<span id="L3874"><span class="lineNum">    3874</span>         [<span class="tlaGBC" title="branch 0 was taken 89 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3429 times"> + </span>]:<span class="tlaGNC">        3518 :         if (evaluated.deferred) {</span></span>
+<span id="L3873"><span class="lineNum">    3873</span>         [<span class="tlaGBC" title="branch 0 was taken 441 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3074 times"> + </span>]:<span class="tlaGNC">        3515 :             expression == nullptr ? EvaluationResult{.matched = true} : EvaluateDeferred(*expression, eval_context);</span></span>
+<span id="L3874"><span class="lineNum">    3874</span>         [<span class="tlaGBC" title="branch 0 was taken 89 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3426 times"> + </span>]:<span class="tlaGNC">        3515 :         if (evaluated.deferred) {</span></span>
 <span id="L3875"><span class="lineNum">    3875</span>                 :<span class="tlaGNC">         445 :           deferred_candidates.push_back(</span></span>
 <span id="L3876"><span class="lineNum">    3876</span>                 :             :               {.entry = OwnVisit(visit),</span>
 <span id="L3877"><span class="lineNum">    3877</span>                 :<span class="tlaGNC">          89 :                .captures = std::move(captures),</span></span>
@@ -4074,10 +4074,10 @@
 <span id="L3882"><span class="lineNum">    3882</span>                 :<span class="tlaGNC">         178 :                .score = deferred_score.value_or(0),</span></span>
 <span id="L3883"><span class="lineNum">    3883</span>                 :<span class="tlaGNC">          89 :                .order = deferred_order++});</span></span>
 <span id="L3884"><span class="lineNum">    3884</span>                 :             :         } else {</span>
-<span id="L3885"><span class="lineNum">    3885</span>                 :<span class="tlaGNC">        3429 :           finish_entry(visit, outputs, evaluated.matched);</span></span>
+<span id="L3885"><span class="lineNum">    3885</span>                 :<span class="tlaGNC">        3426 :           finish_entry(visit, outputs, evaluated.matched);</span></span>
 <span id="L3886"><span class="lineNum">    3886</span>                 :             :         }</span>
-<span id="L3887"><span class="lineNum">    3887</span>   [<span class="tlaGBC" title="branch 0 was taken 14 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3504 times"> + </span><span class="tlaGBC" title="branch 2 was taken 10 times"> + </span><span class="tlaGBC" title="branch 3 was taken 4 times"> + </span> :<span class="tlaGNC">        3518 :         if (!control.unsupported.empty() &amp;&amp; !unsupported_reported) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 10 times"> + </span><span class="tlaGBC" title="branch 5 was taken 3508 times"> + </span>]
+<span id="L3887"><span class="lineNum">    3887</span>   [<span class="tlaGBC" title="branch 0 was taken 14 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3501 times"> + </span><span class="tlaGBC" title="branch 2 was taken 10 times"> + </span><span class="tlaGBC" title="branch 3 was taken 4 times"> + </span> :<span class="tlaGNC">        3515 :         if (!control.unsupported.empty() &amp;&amp; !unsupported_reported) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 10 times"> + </span><span class="tlaGBC" title="branch 5 was taken 3505 times"> + </span>]
 <span id="L3888"><span class="lineNum">    3888</span>                 :<span class="tlaGNC">          10 :           unsupported_reported = true;  // once per run, not per entry</span></span>
 <span id="L3889"><span class="lineNum">    3889</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">          10 :           if (skip_unsupported) {</span></span>
 <span id="L3890"><span class="lineNum">    3890</span>                 :<span class="tlaGNC">           2 :             on_error(visit.path, absl::FailedPreconditionError(absl::StrCat(control.unsupported, &quot; (skipped)&quot;)));</span></span>
@@ -4088,14 +4088,14 @@
 <span id="L3895"><span class="lineNum">    3895</span>                 :<span class="tlaGNC">           8 :             ++errors;  // impossible task -&gt; hard error (exit 2)</span></span>
 <span id="L3896"><span class="lineNum">    3896</span>                 :             :           }</span>
 <span id="L3897"><span class="lineNum">    3897</span>                 :             :         }</span>
-<span id="L3898"><span class="lineNum">    3898</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 3517 times"> + </span>]:<span class="tlaGNC">        3518 :         if (control.quit) {</span></span>
+<span id="L3898"><span class="lineNum">    3898</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 3514 times"> + </span>]:<span class="tlaGNC">        3515 :         if (control.quit) {</span></span>
 <span id="L3899"><span class="lineNum">    3899</span>                 :<span class="tlaGNC">           1 :           return WalkAction::kStop;</span></span>
 <span id="L3900"><span class="lineNum">    3900</span>                 :             :         }</span>
-<span id="L3901"><span class="lineNum">    3901</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3514 times"> + </span>]:<span class="tlaGNC">        3517 :         if (control.prune) {</span></span>
+<span id="L3901"><span class="lineNum">    3901</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3511 times"> + </span>]:<span class="tlaGNC">        3514 :         if (control.prune) {</span></span>
 <span id="L3902"><span class="lineNum">    3902</span>                 :<span class="tlaGNC">           3 :           return WalkAction::kPrune;</span></span>
 <span id="L3903"><span class="lineNum">    3903</span>                 :             :         }</span>
-<span id="L3904"><span class="lineNum">    3904</span>                 :<span class="tlaGNC">        3514 :         return WalkAction::kContinue;</span></span>
-<span id="L3905"><span class="lineNum">    3905</span>                 :<span class="tlaGNC">        3518 :       },</span></span>
+<span id="L3904"><span class="lineNum">    3904</span>                 :<span class="tlaGNC">        3511 :         return WalkAction::kContinue;</span></span>
+<span id="L3905"><span class="lineNum">    3905</span>                 :<span class="tlaGNC">        3515 :       },</span></span>
 <span id="L3906"><span class="lineNum">    3906</span>                 :<span class="tlaGNC">         681 :       [&amp;](std::string_view path, absl::Status error_status) {</span></span>
 <span id="L3907"><span class="lineNum">    3907</span>                 :<span class="tlaGNC">           3 :         ++errors;</span></span>
 <span id="L3908"><span class="lineNum">    3908</span>                 :<span class="tlaGNC">           3 :         on_error(path, error_status);</span></span>
