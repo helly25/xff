@@ -202,10 +202,14 @@ def render_report(summary: dict, target: str) -> str:
                 serialized["enforce"][metric],
             )
             for metric in ("lines", "branches")
+            if metric in serialized["minimum"]
         }
         patch_status = _status(patch, patch_policy)
         values = []
         for metric in ("lines", "branches"):
+            if metric not in patch_policy:
+                values.append(f"<td>{_percent(patch[metric])}</td>")
+                continue
             rating = coverage_policy.rating(patch[metric]["percent"], patch_policy[metric])
             values.append(f'<td class="{rating}">{_percent(patch[metric])}</td>')
         status_class = _status_class(patch_status)

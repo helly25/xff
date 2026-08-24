@@ -133,6 +133,22 @@ class CoverageIndexTest(unittest.TestCase):
         self.assertIn('<td class="status-bad">BAD: L</td>', rendered)
         self.assertEqual(2, rendered.count('<td class="medium">90.00%</td>'))
 
+    def test_patch_without_branches_renders_that_metric_as_not_applicable(self):
+        summary = _summary(95.0)
+        summary["patch"] = {
+            "lines": {"covered": 38, "total": 38, "percent": 100.0},
+            "functions": {"covered": 0, "total": 0, "percent": None},
+            "branches": {"covered": 0, "total": 0, "percent": None},
+        }
+        summary["patch_policy"] = {
+            "minimum": {"lines": 95},
+            "target": {"lines": 98},
+            "enforce": {"lines": "medium"},
+        }
+        rendered = coverage_index.render_report(summary, "pr/42")
+        self.assertIn('<td class="status-good">GOOD</td>', rendered)
+        self.assertIn('<td class="high">100.00%</td><td>n/a</td>', rendered)
+
     def test_override_reason_is_available_on_the_compact_policy_row(self):
         summary = _summary(95.0)
         summary["measurements"]["extensions / new"] = summary["measurements"]["overall"]
