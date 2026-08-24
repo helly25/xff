@@ -91,7 +91,8 @@ struct EvaluateTest : ::testing::Test {
         .now = now_,
         .tz = tz_,
         .fold_name_case = fold_name_case_,
-        .fuzzy_score = &fuzzy_score_,
+        .fuzzy_score = collect_fuzzy_score_ ? mbo::types::OptionalRef{fuzzy_score_}
+                                            : mbo::types::OptionalRef<std::optional<int>>{},
         .grep_count = grep_count_,
         .control = control_,
         .exec_fields = exec_fields_,
@@ -149,6 +150,7 @@ struct EvaluateTest : ::testing::Test {
   std::string regextype_;                       // when set (e.g. "EXACT"), Match prepends --regextype=<v> as a global
   bool grep_count_ = false;                     // when true, Match sets EvalContext::grep_count (-grep --count mode)
   bool capture_outputs_ = true;                 // when false, Match leaves the -capture output sink unwired
+  bool collect_fuzzy_score_ = true;             // when false, Match evaluates without a fuzzy-score consumer
   std::optional<int> fuzzy_score_;              // normalized score composed by the most recent Match
   std::vector<std::string> captures_;           // -regex groups captured during the most recent (gated) Match
   std::map<std::string, std::string> outputs_;  // -capture results from the most recent Match
@@ -259,6 +261,15 @@ TEST_F(EvaluateTest, FuzzyPercentThresholdGatesTheMatch) {
   EXPECT_FALSE(Match({"-fuzzy:100%", "foo"}, visit));
   EXPECT_TRUE(Match({"-fuzzy:100%", "far_out_of"}, visit));
   EXPECT_THAT(fuzzy_score_, Optional(Eq(100)));
+}
+
+TEST_F(EvaluateTest, FuzzyWithoutScoreConsumerEvaluatesCompoundExpression) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/foo", "foo", vfs::FileType::kRegular, md);
+  collect_fuzzy_score_ = false;
+
+  EXPECT_THAT(Match({"-fuzzy", "foo", "-a", "-true"}, visit), IsTrue());
+  EXPECT_THAT(fuzzy_score_, Eq(std::nullopt));
 }
 
 TEST_F(EvaluateTest, FuzzyModelsHaveConcreteThresholdSemantics) {
