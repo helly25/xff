@@ -112,6 +112,7 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
+        "@helly25_mbo//mbo/types:optional_ref_cc",
         "@xff_extras_api//:archive_backend_cc",
     ],
 )

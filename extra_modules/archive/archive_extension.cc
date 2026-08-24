@@ -39,24 +39,24 @@ void RegisterCompressionExtension(CompressionExtension extension) {
   }
 }
 
-const CompressionExtension* CompressionExtensionFor(std::string_view container) {
+mbo::types::OptionalRef<const CompressionExtension> CompressionExtensionFor(std::string_view container) {
   const std::string lower = absl::AsciiStrToLower(container);
   for (const auto& extension : Extensions()) {
     if (absl::c_any_of(extension.suffixes, [&lower](const std::string& suffix) {
           return HasSuffix(lower, absl::AsciiStrToLower(suffix));
         })) {
-      return &extension;
+      return extension;
     }
   }
-  return nullptr;
+  return std::nullopt;
 }
 
 std::optional<std::string> CompressionExtensionStem(std::string_view container) {
   const std::string_view::size_type slash = container.rfind('/');
   const std::string_view name = slash == std::string_view::npos ? container : container.substr(slash + 1);
   const std::string lower = absl::AsciiStrToLower(name);
-  const CompressionExtension* const extension = CompressionExtensionFor(name);
-  if (extension == nullptr) {
+  const auto extension = CompressionExtensionFor(name);
+  if (!extension.has_value()) {
     return std::nullopt;
   }
   std::string_view best;
@@ -113,8 +113,8 @@ absl::StatusOr<std::string> DecodeCompressionExtension(
     std::string_view container,
     std::optional<std::string_view> bytes,
     std::uint64_t max_bytes) {
-  const CompressionExtension* const extension = CompressionExtensionFor(container);
-  if (extension == nullptr) {
+  const auto extension = CompressionExtensionFor(container);
+  if (!extension.has_value()) {
     return absl::InvalidArgumentError(absl::StrCat("no compression extension owns '", container, "'"));
   }
   return extension->decoder(container, bytes, max_bytes);

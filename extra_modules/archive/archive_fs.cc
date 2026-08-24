@@ -104,7 +104,7 @@ absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::Open(std::string_view conta
     }
   }
   if (absl::IsInvalidArgument(members.status())) {
-    if (CompressionExtensionFor(container) != nullptr) {
+    if (CompressionExtensionFor(container).has_value()) {
       MBO_ASSIGN_OR_RETURN(std::string content, DecodeCompressionExtension(container, std::nullopt));
       return OpenDecodedExtension(container, std::move(content), options);
     }
@@ -189,7 +189,7 @@ absl::StatusOr<ArchiveFileSystem> ArchiveFileSystem::OpenBytesImpl(
       return phar_members.status();
     }
   }
-  if (allow_extensions && absl::IsInvalidArgument(members.status()) && CompressionExtensionFor(container) != nullptr) {
+  if (allow_extensions && absl::IsInvalidArgument(members.status()) && CompressionExtensionFor(container).has_value()) {
     MBO_ASSIGN_OR_RETURN(std::string content, DecodeCompressionExtension(container, bytes));
     return OpenDecodedExtension(container, std::move(content), options);
   }
