@@ -17,6 +17,7 @@
 #define XFF_PRESENTATION_COLOR_COLOR_H_
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -114,9 +115,9 @@ class Palette {
   [[nodiscard]] std::string_view CodeFor(std::string_view name, vfs::FileType type, std::uint32_t mode) const;
 
  private:
-  // The theme's code for a two-letter dircolors key, or null when it named none. Null and EMPTY are
-  // different answers: empty is the theme saying "leave these plain".
-  [[nodiscard]] const std::string* Themed(std::string_view key) const;
+  // The theme's code for a two-letter dircolors key, or empty optional when it named none. An
+  // engaged empty view is different: the theme explicitly says "leave these plain".
+  [[nodiscard]] std::optional<std::string_view> Themed(std::string_view key) const;
 
   // A regular file's colour, which is the only case with an order rather than a single key: the
   // executable bit (`ex`), then the extension table, then `fi`. Split out so CodeFor stays a
