@@ -11,6 +11,17 @@ Build & test: `bazel test //...` · sanitizers: `bazel test //... --config=clang
 (also `--config=tsan`, and `--config=msan` on Linux).
 Toolchain: clang-22 minimum (hermetic LLVM under `--config=clang`).
 
+## C++ API design
+
+Xff-owned C++ interfaces use no raw object pointers. Pass required observers by reference,
+ownership by value or smart pointer, and optional observers as `mbo::types::OptionalRef`; lookups
+return an optional reference rather than a nullable pointer. Prefer pure, value-returning helpers:
+return a value, `absl::StatusOr`, or a named result record instead of mutating caller-owned output
+parameters. Mutation remains valid when it is the explicit purpose of a stateful object or action.
+Exact raw-pointer spellings required by C, POSIX, or third-party ABIs stay inside narrow adapters
+and must carry the repository's explicit ABI-boundary annotation; do not broaden that exception to
+xff-owned interfaces or internal convenience pointers. `STYLE_CPP.md` is canonical.
+
 ## Bazel package policy
 
 Every `BUILD` / `BUILD.bazel` file declares

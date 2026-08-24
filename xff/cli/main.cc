@@ -572,8 +572,8 @@ int RunMain(int argc, char** argv) {
     if (name == "-Z") {
       name = "--archive-write";
     }
-    const xff::cli::GlobalFlag* const flag = xff::cli::LookupGlobal(name);
-    if (flag == nullptr || flag->extra.empty() || xff::cli::ExtraEnabled(flag->extra)) {
+    const mbo::types::OptionalRef<const xff::cli::GlobalFlag> flag = xff::cli::LookupGlobal(name);
+    if (!flag.has_value() || flag->extra.empty() || xff::cli::ExtraEnabled(flag->extra)) {
       continue;
     }
     // Explicitly turning the capability OFF needs no extra: `--archive=none` / `-z-` asks
@@ -612,13 +612,12 @@ int RunMain(int argc, char** argv) {
   // so a named config cannot authorize its own -exec/-delete. The gate uses this to keep unarmed
   // --xffrc dangerous lines inert.
   const bool xffrc_armed = xff::config::ArmedFromTrustedTier(inputs, command.globals, "--allow-exec");
-  std::vector<xff::config::Drop> drops;
-  const xff::config::ConfigInputs gated = xff::config::GateConfig(inputs, xffrc_armed, &drops);
-  const std::vector<xff::config::ResolvedFlag> resolved = xff::config::ResolveConfig(gated);
+  const xff::config::GateResult gated = xff::config::GateConfig(inputs, xffrc_armed);
+  const std::vector<xff::config::ResolvedFlag> resolved = xff::config::ResolveConfig(gated.config);
   if (absl::c_contains(command.globals, "--explain")) {
     std::cout << xff::config::ExplainSources(inputs.sources, xff::config::ActiveStyle(inputs.configs));
     std::cout << xff::config::ExplainConfig(resolved, command.globals);
-    for (const xff::config::Drop& drop : drops) {
+    for (const xff::config::Drop& drop : gated.drops) {
       std::cout << "dropped\t" << xff::config::DropMessage(drop) << "\n";
     }
     std::cout << "\n# flavor defaults per style, and the value resolved for this run:\n";
@@ -627,7 +626,7 @@ int RunMain(int argc, char** argv) {
   }
   // A disallowed config line is dropped, never fatal: warn (self-documenting) and
   // carry on with the survivors (design-config.md "Enforcement & self-documentation").
-  for (const xff::config::Drop& drop : drops) {
+  for (const xff::config::Drop& drop : gated.drops) {
     std::string_view why = " - denied by config policy";
     if (drop.reason == xff::config::DropReason::kPresetOverload) {
       why = " - a config file cannot change a preset; use a named config (--config=NAME)";

@@ -61,15 +61,20 @@ struct Drop {
 // reproducible. Applies to every layer.
 bool OverloadsPreset(const RcLine& line);
 
-// Filters the user + --xffrc .xffrc lines of `inputs` through the gate (with
-// inputs.system as the policy), returning a copy with the denied lines removed and
-// recording each in `drops` (when non-null). Every layer drops a preset-overloading
+struct GateResult {
+  ConfigInputs config;
+  std::vector<Drop> drops;
+};
+
+// Filters the user + --xffrc .xffrc lines of `inputs` through the gate (with inputs.system as the
+// policy), returning both a copy with the denied lines removed and a record of every drop. Every
+// layer drops a preset-overloading
 // line (kPresetOverload) and a system-[policy]-denied line (kSafetyPolicy). The
 // --xffrc tier additionally drops a dangerous (kSafety/kSecurity) line as
 // kUnarmedXffrc unless `xffrc_armed` is set (--allow-exec from a trusted tier; see
 // ArmedFromTrustedTier). The system [defaults] are root-authored and never gated;
 // CLI flags are not config and never gated.
-ConfigInputs GateConfig(const ConfigInputs& inputs, bool xffrc_armed, std::vector<Drop>* drops);
+GateResult GateConfig(const ConfigInputs& inputs, bool xffrc_armed);
 
 // A one-line human description of a dropped line for the stderr warning and
 // --explain, e.g. "'-exec' from the project .xffrc (sensitive)".

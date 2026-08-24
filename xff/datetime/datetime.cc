@@ -150,15 +150,13 @@ absl::Time StartOfDay(absl::Time time, absl::TimeZone tz) {
   return absl::FromCivil(absl::ToCivilDay(time, tz), tz);  // midnight of time's civil day in tz
 }
 
-bool ParseTimeZone(std::string_view spec, absl::TimeZone* out) {
+std::optional<absl::TimeZone> ParseTimeZone(std::string_view spec) {
   const std::string lowered = absl::AsciiStrToLower(spec);
   if (lowered.empty() || lowered == "local") {
-    *out = absl::LocalTimeZone();
-    return true;
+    return absl::LocalTimeZone();
   }
   if (lowered == "utc" || lowered == "z" || lowered == "zulu") {
-    *out = absl::UTCTimeZone();
-    return true;
+    return absl::UTCTimeZone();
   }
   // Fixed UTC offset: +HH, +HH:MM, or +HHMM (and the '-' forms). absl::LoadTimeZone
   // cannot parse these, so build an absl::FixedTimeZone from the parsed offset.
@@ -178,12 +176,12 @@ bool ParseTimeZone(std::string_view spec, absl::TimeZone* out) {
     int minutes = 0;
     if (absl::SimpleAtoi(hh, &hours) && absl::SimpleAtoi(mm, &minutes) && hours >= 0 && hours <= 23 && minutes >= 0
         && minutes <= 59) {
-      *out = absl::FixedTimeZone(sign * ((hours * 3'600) + (minutes * 60)));
-      return true;
+      return absl::FixedTimeZone(sign * ((hours * 3'600) + (minutes * 60)));
     }
-    return false;  // malformed offset
+    return std::nullopt;  // malformed offset
   }
-  return absl::LoadTimeZone(std::string(spec), out);  // IANA name (case-sensitive); false when unknown
+  absl::TimeZone zone;
+  return absl::LoadTimeZone(std::string(spec), &zone) ? std::optional(zone) : std::nullopt;
 }
 
 // Preset time formats; any other spec is used verbatim as an absl::FormatTime

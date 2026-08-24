@@ -63,6 +63,26 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
 
 ### Lint / CI / style adoption (open audits)
 
+- **Eliminate raw pointers from xff-owned C++ interfaces.** Audit production headers and
+  implementation-only interfaces, then replace raw owning pointers with values or smart pointers,
+  required observers with references, optional observers with `mbo::types::OptionalRef`, and
+  output parameters with return values (`absl::StatusOr` or a result record where failure and
+  multiple outputs must travel together). This is also the concrete audit for **side-effect-light
+  C++ design**: prefer pure value-returning transformations and do not mutate caller-owned state
+  through output parameters. Mutation remains appropriate when it is the named responsibility of
+  a stateful object or action (a writer, cache, filesystem operation, or expression action), and
+  must be visible in that abstraction rather than smuggled through an otherwise value-shaped
+  helper. Pointer identity used as a key must become an explicit,
+  non-owning identity abstraction rather than silently carrying ownership and nullability in the
+  type. Raw pointers remain necessary only at genuine C, POSIX, and third-party ABI boundaries
+  (including callback signatures and opaque library handles); keep those pointers inside the
+  narrow adapter that calls the ABI, convert immediately on entry/return where possible, and mark
+  every retained exception so it is reviewable rather than hidden in a repository-wide allowlist.
+  Completion includes matching rules in `STYLE_CPP.md` and the agent quick reference in
+  `AGENTS.md`, plus a tested pre-commit/CI check that rejects new xff-owned raw-pointer interfaces
+  while recognizing the explicit ABI-boundary annotations. The enforcement must scan the whole
+  repository so unchanged legacy declarations cannot evade the audit and newly added extension
+  modules receive the same treatment automatically.
 - **Audit immutable registries for avoidable allocation.** Find APIs that return owning strings or
   copied records even though they read from a container initialized once and then held constant for
   the process lifetime. Where ownership and concurrency permit, return `std::string_view`, a const

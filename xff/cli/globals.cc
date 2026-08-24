@@ -16,6 +16,7 @@
 #include "xff/cli/globals.h"
 
 #include <array>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -1387,13 +1388,13 @@ absl::Span<const GlobalFlag> Globals() {
   return kGlobals;
 }
 
-const GlobalFlag* LookupGlobal(std::string_view name) {
+mbo::types::OptionalRef<const GlobalFlag> LookupGlobal(std::string_view name) {
   for (const GlobalFlag& flag : kGlobals) {
     if (flag.name == name || (!flag.alias.empty() && flag.alias == name)) {
-      return &flag;
+      return flag;
     }
   }
-  return nullptr;
+  return std::nullopt;
 }
 
 absl::Status ValidateGlobalValue(std::string_view arg) {
@@ -1403,8 +1404,8 @@ absl::Status ValidateGlobalValue(std::string_view arg) {
   }
   const std::string_view name = arg.substr(0, equals);
   const std::string_view value = arg.substr(equals + 1);
-  const GlobalFlag* const flag = LookupGlobal(name);
-  if (flag == nullptr) {
+  const mbo::types::OptionalRef<const GlobalFlag> flag = LookupGlobal(name);
+  if (!flag.has_value()) {
     return absl::OkStatus();  // unknown flag: IsKnownGlobal reports it, with a better message
   }
   switch (flag->value_check) {
@@ -1463,15 +1464,15 @@ bool IsKnownGlobal(std::string_view arg) {
     return true;
   }
   // An exact name or alias (bare flags, and valued flags used without a value).
-  if (LookupGlobal(arg) != nullptr) {
+  if (LookupGlobal(arg).has_value()) {
     return true;
   }
   // A valued form name=VALUE / alias=VALUE: the key must resolve to a flag that
   // advertises a value (its display contains '='), so `--safe=x` stays unknown while
   // `--sort=tree` / `--define=A=B` are accepted (only the key before the first '=').
   if (const std::string_view::size_type eq = arg.find('='); eq != std::string_view::npos) {
-    const GlobalFlag* const flag = LookupGlobal(arg.substr(0, eq));
-    return flag != nullptr && absl::StrContains(flag->display, '=');
+    const mbo::types::OptionalRef<const GlobalFlag> flag = LookupGlobal(arg.substr(0, eq));
+    return flag.has_value() && absl::StrContains(flag->display, '=');
   }
   return false;
 }

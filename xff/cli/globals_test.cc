@@ -36,11 +36,11 @@ using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::IsFalse;
-using ::testing::IsNull;
+using ::testing::IsTrue;
 using ::testing::Le;
 using ::testing::Ne;
 using ::testing::Not;
-using ::testing::NotNull;
+using ::testing::Ref;
 using ::testing::SizeIs;
 
 struct GlobalsTest : ::testing::Test {};
@@ -65,8 +65,8 @@ TEST_F(GlobalsTest, HashAlgorithmValuesMatchTheHashLib) {
   // The documented --hash-algorithm value table must stay identical to xff/hash's
   // AlgorithmNames() SOT (same members, same order), so the help cannot drift from the
   // algorithms the -hash action / {hash} field actually accept.
-  const GlobalFlag* const flag = LookupGlobal("--hash-algorithm");
-  ASSERT_THAT(flag, NotNull());
+  const mbo::types::OptionalRef<const GlobalFlag> flag = LookupGlobal("--hash-algorithm");
+  ASSERT_THAT(flag.has_value(), IsTrue());
   std::vector<std::string_view> documented;
   documented.reserve(flag->values.size());
   for (const ValueDoc& value : flag->values) {
@@ -76,15 +76,15 @@ TEST_F(GlobalsTest, HashAlgorithmValuesMatchTheHashLib) {
 }
 
 TEST_F(GlobalsTest, LookupResolvesNameAndAlias) {
-  EXPECT_THAT(LookupGlobal("--sort"), NotNull());
-  EXPECT_THAT(LookupGlobal("--jobs"), Eq(LookupGlobal("-j")));        // alias resolves to the same entry
-  EXPECT_THAT(LookupGlobal("--timezone"), Eq(LookupGlobal("--tz")));  // ditto
-  EXPECT_THAT(LookupGlobal("--nonesuch"), IsNull());
+  EXPECT_THAT(LookupGlobal("--sort").has_value(), IsTrue());
+  EXPECT_THAT(LookupGlobal("--jobs").value(), Ref(LookupGlobal("-j").value()));        // same entry
+  EXPECT_THAT(LookupGlobal("--timezone").value(), Ref(LookupGlobal("--tz").value()));  // ditto
+  EXPECT_THAT(LookupGlobal("--nonesuch").has_value(), IsFalse());
 }
 
 TEST_F(GlobalsTest, ComposableExtraFlagCarriesItsExtraKeyAndIsOffInTheLeanBuild) {
-  const GlobalFlag* const archive = LookupGlobal("--archive");
-  ASSERT_THAT(archive, NotNull());
+  const mbo::types::OptionalRef<const GlobalFlag> archive = LookupGlobal("--archive");
+  ASSERT_THAT(archive.has_value(), IsTrue());
   EXPECT_THAT(archive->extra, Eq("archive"));             // the SOT link from the flag to its build extra
   EXPECT_THAT(ExtraEnabled("archive"), IsFalse());        // not compiled into the lean default binary
   EXPECT_THAT(ExtraEnabled("pcre2"), IsFalse());          // same gate as archive, same lean answer
@@ -98,7 +98,7 @@ TEST_F(GlobalsTest, ComposableExtraFlagCarriesItsExtraKeyAndIsOffInTheLeanBuild)
 
 TEST_F(GlobalsTest, EveryGlobalResolvesByItsOwnName) {
   for (const GlobalFlag& flag : Globals()) {
-    EXPECT_THAT(LookupGlobal(flag.name), Eq(&flag)) << flag.name;
+    EXPECT_THAT(LookupGlobal(flag.name).value(), Ref(flag)) << flag.name;
   }
 }
 
