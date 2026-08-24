@@ -196,6 +196,11 @@ def has_coverage(metrics: dict, names: tuple[str, ...]) -> bool:
     return any(metrics[name]["total"] for name in names)
 
 
+def present_policy(metrics: dict, policy: dict, names: tuple[str, ...]) -> dict:
+    """Restricts a policy to metrics for which this measurement has data."""
+    return {name: policy[name] for name in names if metrics[name]["total"]}
+
+
 def markdown(measured: dict, policies: dict) -> str:
     headers = ("Category", "Status", "Lines", "Covered", "Total", "Functions", "Covered", "Total", "Branches", "Covered", "Total")
     values = []
@@ -247,7 +252,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.base_ref:
         patch = counts(files, changed_lines(args.base_ref))
         patch_policy = coverage_policy.resolve(policy.get("patch", {}), effective["overall"])
-        patch_policy = {metric: patch_policy[metric] for metric in ("lines", "branches")}
+        # A patch can change executable lines without introducing any compiler-reported
+        # branches (and vice versa). Enforce only metrics that exist in the patch; absence
+        # is not zero coverage.
+        patch_policy = present_policy(patch, patch_policy, ("lines", "branches"))
         if has_coverage(patch, ("lines", "branches")):
             text += "\n### Changed coverable lines\n\n" + markdown({"patch": patch}, {"patch": patch_policy})
             patch_failures = failures({"patch": patch}, {"patch": patch_policy})

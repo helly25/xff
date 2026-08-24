@@ -24,6 +24,7 @@
 #include <grp.h>
 #include <pwd.h>
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <cstddef>
@@ -1093,8 +1094,13 @@ std::string Render(std::string_view tmpl, const RenderContext& context) {
   return Template::Compile(tmpl).Render(context);
 }
 
-std::vector<FieldDoc> FieldDocs() {
-  return {
+absl::Span<const FieldDoc> FieldDocs() {
+  static constexpr auto kFileAlias = std::to_array<std::string_view>({"file"});
+  static constexpr auto kExtensionAlias = std::to_array<std::string_view>({"extension"});
+  static constexpr auto kLanguageAlias = std::to_array<std::string_view>({"language"});
+  static constexpr auto kOwnerAlias = std::to_array<std::string_view>({"owner"});
+  static constexpr auto kPermissionAlias = std::to_array<std::string_view>({"perm"});
+  static constexpr auto kDocs = std::to_array<FieldDoc>({
       // Path & name.
       {.name = "path",
        .aliases = {},
@@ -1117,7 +1123,7 @@ std::vector<FieldDoc> FieldDocs() {
        .header = "Path & name",
        .summary = "directory containing the entry"},
       {.name = "name",
-       .aliases = {"file"},
+       .aliases = kFileAlias,
        .group = "path",
        .header = "Path & name",
        .summary = "final path component (the file name)"},
@@ -1132,7 +1138,7 @@ std::vector<FieldDoc> FieldDocs() {
        .header = "Path & name",
        .summary = "name without all extensions (foo.tar.gz -> foo)"},
       {.name = "ext",
-       .aliases = {"extension"},
+       .aliases = kExtensionAlias,
        .group = "path",
        .header = "Path & name",
        .summary = "last extension, no dot (gz)"},
@@ -1158,7 +1164,7 @@ std::vector<FieldDoc> FieldDocs() {
        .header = "Type & size",
        .summary = "entry type letter (f, d, l, ...)"},
       {.name = "lang",
-       .aliases = {"language"},
+       .aliases = kLanguageAlias,
        .group = "type",
        .header = "Type & size",
        .summary = "language by extension/filename (C++, Python, ...; empty if unknown)"},
@@ -1258,7 +1264,7 @@ std::vector<FieldDoc> FieldDocs() {
       },
       // Owner & mode.
       {.name = "user",
-       .aliases = {"owner"},
+       .aliases = kOwnerAlias,
        .group = "owner",
        .header = "Owner & mode",
        .summary = "owner user name (alias {owner}; find %u)"},
@@ -1266,7 +1272,7 @@ std::vector<FieldDoc> FieldDocs() {
       {.name = "uid", .aliases = {}, .group = "owner", .header = "Owner & mode", .summary = "owner numeric user id"},
       {.name = "gid", .aliases = {}, .group = "owner", .header = "Owner & mode", .summary = "owner numeric group id"},
       {.name = "mode",
-       .aliases = {"perm"},
+       .aliases = kPermissionAlias,
        .group = "owner",
        .header = "Owner & mode",
        .summary = "permission bits, octal"},
@@ -1301,16 +1307,17 @@ std::vector<FieldDoc> FieldDocs() {
        .group = "grep",
        .header = "Grep context",
        .summary = "1-based column of the match"},
-  };
+  });
+  return kDocs;
 }
 
-std::vector<std::string_view> FieldNames() {
-  std::vector<std::string_view> names;
-  names.reserve(kFieldTable.size());
-  for (const auto& [name, fn] : kFieldTable) {
-    names.push_back(name);
-  }
-  return names;
+absl::Span<const std::string_view> FieldNames() {
+  static constexpr auto kNames = [] {
+    std::array<std::string_view, kFieldTable.size()> names{};
+    std::ranges::transform(kFieldTable, names.begin(), [](const auto& field) { return field.first; });
+    return names;
+  }();
+  return kNames;
 }
 
 bool IsKnownField(std::string_view spec) {
@@ -1320,8 +1327,8 @@ bool IsKnownField(std::string_view spec) {
          || name.starts_with("env.") || name.starts_with("def.") || name.starts_with("capture.");
 }
 
-std::vector<std::string_view> PathComponentKeywords() {
-  return {kPathComponents.begin(), kPathComponents.end()};
+absl::Span<const std::string_view> PathComponentKeywords() {
+  return kPathComponents;
 }
 
 }  // namespace xff::fields

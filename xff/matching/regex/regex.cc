@@ -23,6 +23,7 @@
 
 #include <fnmatch.h>
 
+#include <array>
 #include <cstddef>
 #include <memory>
 #include <optional>
@@ -277,8 +278,8 @@ std::string Matcher::Rewrite(std::string_view text, std::string_view replacement
   return backend_->Rewrite(text, replacement, global);
 }
 
-std::vector<std::pair<std::string_view, std::string_view>> GrammarDocs() {
-  return {
+absl::Span<const std::pair<std::string_view, std::string_view>> GrammarDocs() {
+  static constexpr auto kDocs = std::to_array<std::pair<std::string_view, std::string_view>>({
       {"RE2",
        "the default. Google RE2 regular expressions - linear-time, no catastrophic backtracking. "
        "Full syntax: https://github.com/google/re2/wiki/Syntax ."},
@@ -305,7 +306,8 @@ std::vector<std::pair<std::string_view, std::string_view>> GrammarDocs() {
        "Perl-Compatible Regular Expressions (lookaround, backreferences, ...). A build-time extra: "
        "present only in a full build - run `xff --help=extras` to see whether THIS binary has it. Full "
        "syntax: pcre2pattern(3)."},
-  };
+  });
+  return kDocs;
 }
 
 }  // namespace xff::regex

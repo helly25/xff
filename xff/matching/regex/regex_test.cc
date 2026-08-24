@@ -265,7 +265,7 @@ TEST_F(RegexTest, GrammarDocsCoverEveryGrammarInValueOrder) {
   static constexpr std::array<Grammar, 6> kAllGrammars = {
       Grammar::kRe2, Grammar::kExact, Grammar::kFnmatch, Grammar::kGlob, Grammar::kShglob, Grammar::kPcre2,
   };
-  const std::vector<std::pair<std::string_view, std::string_view>> docs = GrammarDocs();
+  const absl::Span<const std::pair<std::string_view, std::string_view>> docs = GrammarDocs();
   EXPECT_THAT(docs, SizeIs(kAllGrammars.size()));
   std::vector<std::string_view> names;
   for (const auto& [name, description] : docs) {
@@ -273,6 +273,11 @@ TEST_F(RegexTest, GrammarDocsCoverEveryGrammarInValueOrder) {
     EXPECT_THAT(description, Not(IsEmpty()));  // every grammar carries an explanation
   }
   EXPECT_THAT(names, ElementsAre("RE2", "EXACT", "FNMATCH", "GLOB", "SHGLOB", "PCRE2"));
+}
+
+TEST_F(RegexTest, GrammarDocsHaveStableStorage) {
+  const auto docs = GrammarDocs();
+  EXPECT_THAT(GrammarDocs().data(), Eq(docs.data()));
 }
 
 TEST_F(RegexTest, EveryGrammarCompilesATrivialPattern) {

@@ -26,6 +26,7 @@
 #include <pwd.h>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -2400,8 +2401,8 @@ std::vector<std::string> LsCells(
   };
 }
 
-std::vector<LsColumn> LsColumns() {
-  return {
+absl::Span<const LsColumn> LsColumns() {
+  static constexpr auto kColumns = std::to_array<LsColumn>({
       {.align = format::Align::kRight, .min_width = 8},  // inode
       {.align = format::Align::kRight, .min_width = 5},  // 1 KiB blocks
       {.align = format::Align::kLeft, .min_width = 10},  // symbolic permissions (fixed width)
@@ -2411,7 +2412,8 @@ std::vector<LsColumn> LsColumns() {
       {.align = format::Align::kRight, .min_width = 8},  // size (bytes)
       {.align = format::Align::kLeft, .min_width = 12},  // time
       {.align = format::Align::kLeft, .min_width = 0},   // path (trailing, unpadded)
-  };
+  });
+  return kColumns;
 }
 
 namespace {
@@ -2768,8 +2770,8 @@ std::string PrintfDirectiveLetters() {
   return letters;
 }
 
-std::vector<std::pair<std::string_view, std::string_view>> PrintfDocs() {
-  return {
+absl::Span<const std::pair<std::string_view, std::string_view>> PrintfDocs() {
+  static constexpr auto kDocs = std::to_array<std::pair<std::string_view, std::string_view>>({
       {"%p", "the entry's path"},
       {"%f", "file name (basename)"},
       {"%h", "leading directories (dirname)"},
@@ -2791,7 +2793,8 @@ std::vector<std::pair<std::string_view, std::string_view>> PrintfDocs() {
       {"%{NAME:qual}",
        "xff: a field with a :qualifier -- time format, {size:h}, s/// rewrite, or path component "
        "(see --help=fields for the full qualifier list)"},
-  };
+  });
+  return kDocs;
 }
 
 std::string SizeUnitSuffixes() {
@@ -2802,8 +2805,8 @@ std::string SizeUnitSuffixes() {
   return suffixes;
 }
 
-std::vector<std::pair<std::string_view, std::string_view>> SizeUnitDocs() {
-  return {
+absl::Span<const std::pair<std::string_view, std::string_view>> SizeUnitDocs() {
+  static constexpr auto kDocs = std::to_array<std::pair<std::string_view, std::string_view>>({
       {"c", "legacy byte unit"},
       {"w", "legacy 2-byte word unit"},
       {"b / bare", "blocks (512 bytes by default; --block-size overrides)"},
@@ -2812,7 +2815,8 @@ std::vector<std::pair<std::string_view, std::string_view>> SizeUnitDocs() {
       {"kB / MB / GB / TB / PB / EB", "SI units (powers of 1000)"},
       {"KiB / MiB / GiB / TiB / PiB / EiB", "IEC units (powers of 1024)"},
       {"+N / -N", "greater than / less than N units; a bare N matches exactly"},
-  };
+  });
+  return kDocs;
 }
 
 }  // namespace xff::engine

@@ -16,12 +16,12 @@
 #ifndef XFF_ENGINE_RUN_H_
 #define XFF_ENGINE_RUN_H_
 
-#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include "absl/types/span.h"
 #include "xff/engine/evaluate.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/ast.h"
@@ -37,12 +37,14 @@ namespace xff::engine {
 // and a real run read the same source and cannot drift. FlavorFacets() is the collector
 // (a --feature capability would append its own facet here later).
 struct FlavorFacet {
+  using ValueFn = std::string (*)(const std::vector<std::string>& globals, registry::Style style);
+
   std::string_view behavior;
   std::string_view flag;
-  std::function<std::string(const std::vector<std::string>& globals, registry::Style style)> value;
+  ValueFn value;
 };
 
-std::vector<FlavorFacet> FlavorFacets();
+[[nodiscard]] absl::Span<const FlavorFacet> FlavorFacets();
 
 // Runs a parsed find command over `fs`: walks the roots in pre-order and, for
 // each entry, evaluates the expression -- firing -print/-print0 actions through

@@ -47,14 +47,14 @@ std::string ArgHint(const registry::Descriptor& descriptor);
 // help-system map: the model's Help section (usage page + `--help=help`) renders
 // HelpTopics(), so the advertised topic list cannot drift from what the CLI accepts.
 struct HelpTopic {
-  std::string_view name;                  // the topic keyword (--help=NAME)
-  std::vector<std::string_view> aliases;  // alternate spellings, or empty
-  std::string_view summary;               // one-line description
-  bool in_full = false;                   // a sub-vocabulary folded into the --help=full reference
+  std::string_view name;                       // the topic keyword (--help=NAME)
+  absl::Span<const std::string_view> aliases;  // alternate spellings, or empty
+  std::string_view summary;                    // one-line description
+  bool in_full = false;                        // folded into the --help=full reference
 };
 
 // The meta-topics of the help system (help, list, expressions, fields, styles, full, ...).
-std::vector<HelpTopic> HelpTopics();
+[[nodiscard]] absl::Span<const HelpTopic> HelpTopics();
 
 // One meta / doc flag for the usage page's Help section (-h/--help, --help=NAME,
 // --help=TOPIC, --help-full, --man, --markdown, --version). These are consumed before
@@ -65,7 +65,7 @@ struct HelpFlag {
   std::string_view summary;  // one-line description
 };
 
-std::vector<HelpFlag> HelpFlags();
+[[nodiscard]] absl::Span<const HelpFlag> HelpFlags();
 
 }  // namespace xff::cli
 

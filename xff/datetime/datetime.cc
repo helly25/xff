@@ -15,6 +15,7 @@
 
 #include "xff/datetime/datetime.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -271,17 +272,17 @@ std::string FormatTime(absl::Time time, std::string_view spec, absl::TimeZone tz
   return absl::FormatTime(pattern, time, tz);
 }
 
-std::vector<std::string_view> NamedFormatNames() {
-  std::vector<std::string_view> names;
-  names.reserve(kNamedFormats.size());
-  for (const auto& [name, pattern] : kNamedFormats) {
-    names.push_back(name);
-  }
-  return names;
+absl::Span<const std::string_view> NamedFormatNames() {
+  static constexpr auto kNames = [] {
+    std::array<std::string_view, kNamedFormats.size()> names{};
+    std::ranges::transform(kNamedFormats, names.begin(), [](const auto& format) { return format.first; });
+    return names;
+  }();
+  return kNames;
 }
 
-std::vector<std::pair<std::string_view, std::string_view>> FormatDocs() {
-  return {
+absl::Span<const std::pair<std::string_view, std::string_view>> FormatDocs() {
+  static constexpr auto kDocs = std::to_array<std::pair<std::string_view, std::string_view>>({
       {"iso, iso8601", "ISO-8601 extended (2020-09-13T12:26:40+0000)"},
       {"iso8601-basic", "ISO-8601 basic / compact (20200913T122640+0000)"},
       {"iso8601-full", "ISO-8601 with sub-second precision"},
@@ -294,7 +295,8 @@ std::vector<std::pair<std::string_view, std::string_view>> FormatDocs() {
       {"asn1, generalizedtime", "ASN.1 GeneralizedTime, local (20200913122640); =always adds +0000"},
       {"asn1z", "ASN.1 GeneralizedTime, UTC Z (20200913122640Z)"},
       {"<strftime>", "any other value is used as an strftime(3) pattern, e.g. %Y-%m-%d"},
-  };
+  });
+  return kDocs;
 }
 
 }  // namespace xff::datetime

@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
+#include "absl/types/span.h"
 #include "xff/matching/regex/backend.h"  // RegexBackend, the PCRE2 registration API, and Pcre2Available()
 
 namespace xff::regex {
@@ -100,7 +101,7 @@ class Matcher {
 // references (the RE2 wiki, pcre2pattern(3)); the core engines EXACT / FNMATCH / GLOB / SHGLOB are
 // spelled out in full here because they have no single authoritative man page (and FNMATCH delegates
 // to the platform's fnmatch(3), whose class/collation details vary by system).
-std::vector<std::pair<std::string_view, std::string_view>> GrammarDocs();
+[[nodiscard]] absl::Span<const std::pair<std::string_view, std::string_view>> GrammarDocs();
 
 }  // namespace xff::regex
 

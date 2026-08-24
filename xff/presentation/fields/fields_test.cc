@@ -642,6 +642,15 @@ TEST_F(FieldsTest, PathComponentKeywordsAreExposedForHelp) {
   EXPECT_THAT(PathComponentKeywords(), AllOf(Not(IsEmpty()), Contains("stem"), Contains("dir")));
 }
 
+TEST_F(FieldsTest, DocumentationVocabulariesHaveStableStorage) {
+  const auto docs = FieldDocs();
+  const auto names = FieldNames();
+  const auto components = PathComponentKeywords();
+  EXPECT_THAT(FieldDocs().data(), Eq(docs.data()));
+  EXPECT_THAT(FieldNames().data(), Eq(names.data()));
+  EXPECT_THAT(PathComponentKeywords().data(), Eq(components.data()));
+}
+
 TEST_F(FieldsTest, IsKnownFieldAcceptsVocabularyRejectsUnknown) {
   // Powers --columns validation: a builtin, a qualified name, a namespace, and a capture
   // index are known; a typo is not.

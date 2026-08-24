@@ -1679,5 +1679,14 @@ TEST_F(EvaluateTest, SizeUnitDocsDocumentEveryUnit) {
   }
 }
 
+TEST_F(EvaluateTest, PresentationVocabulariesHaveStableStorage) {
+  const auto columns = LsColumns();
+  const auto printf_docs = PrintfDocs();
+  const auto size_docs = SizeUnitDocs();
+  EXPECT_THAT(LsColumns().data(), Eq(columns.data()));
+  EXPECT_THAT(PrintfDocs().data(), Eq(printf_docs.data()));
+  EXPECT_THAT(SizeUnitDocs().data(), Eq(size_docs.data()));
+}
+
 }  // namespace
 }  // namespace xff::engine

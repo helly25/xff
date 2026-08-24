@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "absl/time/time.h"
+#include "absl/types/span.h"
 #include "xff/datetime/datetime.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/filesystem.h"
@@ -209,21 +210,21 @@ class Template {
 // documentation source: FieldDocs() below is asserted (fields_test) to cover exactly
 // the renderable field names, so the help topic cannot drift from the renderers.
 struct FieldDoc {
-  std::string_view name;                  // canonical placeholder name ({name})
-  std::vector<std::string_view> aliases;  // alternate names, or empty
-  std::string_view group;                 // short group key (path, type, owner, time, grep)
-  std::string_view header;                // display heading for the group (shown at its first field)
-  std::string_view summary;               // one-line description
+  std::string_view name;                       // canonical placeholder name ({name})
+  absl::Span<const std::string_view> aliases;  // alternate names, or empty
+  std::string_view group;                      // short group key (path, type, owner, time, grep)
+  std::string_view header;                     // display heading for the group (shown at its first field)
+  std::string_view summary;                    // one-line description
 };
 
 // The named {field} vocabulary, grouped for display (rows are pre-ordered by group).
 // Covers exactly the renderable field names; the dynamic namespaces ({env.NAME},
 // {def.NAME}, {capture.NAME}, {0}..{N}) and the qualifiers are prose in the renderer.
-std::vector<FieldDoc> FieldDocs();
+[[nodiscard]] absl::Span<const FieldDoc> FieldDocs();
 
 // Every renderable field name (the {field} table keys), including the empty name that
 // backs {} (find's full-path placeholder). Powers the FieldDocs() coverage test.
-std::vector<std::string_view> FieldNames();
+[[nodiscard]] absl::Span<const std::string_view> FieldNames();
 
 // Whether `spec` (a --columns entry / field name, optionally with a `:qualifier`) names a
 // renderable field: a builtin (FieldNames), a {0}..{N} capture, or an {env./def./capture.}
@@ -233,7 +234,7 @@ bool IsKnownField(std::string_view spec);
 
 // The path-component qualifier keywords ({field:KEYWORD}: dir, name, stem, ...), so
 // the help topic lists exactly the keywords the renderer accepts.
-std::vector<std::string_view> PathComponentKeywords();
+[[nodiscard]] absl::Span<const std::string_view> PathComponentKeywords();
 
 // Convenience wrapper: Compile(tmpl).Render({path, metadata, depth}) with an
 // empty root. Prefer Compile once + Render per entry on hot paths.
