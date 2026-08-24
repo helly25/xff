@@ -41,12 +41,12 @@
             <td></td>
             <td class="headerItem">Lines:</td>
             <td class="headerCovTableEntryHi">94.5&nbsp;%</td>
-            <td class="headerCovTableEntry">2343</td>
-            <td class="headerCovTableEntry">2215</td>
+            <td class="headerCovTableEntry">2342</td>
+            <td class="headerCovTableEntry">2214</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-23 20:40:36</td>
+            <td class="headerValue">2026-08-24 06:41:07</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">96.4&nbsp;%</td>
@@ -59,8 +59,8 @@
             <td></td>
             <td class="headerItem">Branches:</td>
             <td class="headerCovTableEntryHi">86.7&nbsp;%</td>
-            <td class="headerCovTableEntry">2077</td>
-            <td class="headerCovTableEntry">1801</td>
+            <td class="headerCovTableEntry">2075</td>
+            <td class="headerCovTableEntry">1799</td>
           </tr>
                   <tr><td><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -3717,7 +3717,7 @@
 <span id="L3543"><span class="lineNum">    3543</span>         [<span class="tlaGBC" title="branch 0 was taken 6129 times"> + </span><span class="tlaGBC" title="branch 1 was taken 681 times"> + </span>]:<span class="tlaGNC">        6810 :   for (const LsColumn&amp; column : LsColumns()) {</span></span>
 <span id="L3544"><span class="lineNum">    3544</span>                 :<span class="tlaGNC">        6129 :     ls_aligns.push_back(column.align);</span></span>
 <span id="L3545"><span class="lineNum">    3545</span>                 :<span class="tlaGNC">        6129 :     ls_mins.push_back(column.min_width);</span></span>
-<span id="L3546"><span class="lineNum">    3546</span>                 :<span class="tlaGNC">         681 :   }</span></span>
+<span id="L3546"><span class="lineNum">    3546</span>                 :             :   }</span>
 <span id="L3547"><span class="lineNum">    3547</span>                 :<span class="tlaGNC">         681 :   const BufferBound ls_bound = ResolveBufferBound(command.globals, 100);  // -ls default: auto=100</span></span>
 <span id="L3548"><span class="lineNum">    3548</span>                 :<span class="tlaGNC">         681 :   format::ColumnBuffer ls_buffer(std::move(ls_aligns), std::move(ls_mins), ls_bound.window, ls_bound.byte_budget);</span></span>
 <span id="L3549"><span class="lineNum">    3549</span>                 :<span class="tlaGNC">          21 :   const auto emit_ls_row = [&amp;ls_buffer, &amp;emit](std::vector&lt;std::string&gt; cells) {</span></span>
@@ -3821,10 +3821,10 @@
 <span id="L3644"><span class="lineNum">    3644</span>                 :             :   // path rather than a second, subtly different renderer.</span>
 <span id="L3645"><span class="lineNum">    3645</span>                 :             :   // NOLINTNEXTLINE(readability-function-cognitive-complexity): one extracted sink dispatch shared by walk and replay</span>
 <span id="L3646"><span class="lineNum">    3646</span>                 :<span class="tlaGNC">        3518 :   const auto finish_entry = [&amp;](const Visit&amp; visit, std::map&lt;std::string, std::string&gt;&amp; outputs, bool matched) {</span></span>
-<span id="L3647"><span class="lineNum">    3647</span>   [<span class="tlaGBC" title="branch 0 was taken 1700 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1818 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1140 times"> + </span><span class="tlaGBC" title="branch 3 was taken 560 times"> + </span>]:<span class="tlaGNC">        3518 :     if (matched &amp;&amp; any_match != nullptr) {</span></span>
-<span id="L3648"><span class="lineNum">    3648</span>                 :<span class="tlaGNC">        1140 :       *any_match = true;</span></span>
+<span id="L3647"><span class="lineNum">    3647</span>   [<span class="tlaGBC" title="branch 0 was taken 1701 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1817 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1141 times"> + </span><span class="tlaGBC" title="branch 3 was taken 560 times"> + </span>]:<span class="tlaGNC">        3518 :     if (matched &amp;&amp; any_match != nullptr) {</span></span>
+<span id="L3648"><span class="lineNum">    3648</span>                 :<span class="tlaGNC">        1141 :       *any_match = true;</span></span>
 <span id="L3649"><span class="lineNum">    3649</span>                 :             :     }</span>
-<span id="L3650"><span class="lineNum">    3650</span>   [<span class="tlaGBC" title="branch 0 was taken 1700 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1818 times"> + </span><span class="tlaGBC" title="branch 2 was taken 375 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1325 times"> + </span>]:<span class="tlaGNC">        3518 :     if (matched &amp;&amp; any_reduction) {</span></span>
+<span id="L3650"><span class="lineNum">    3650</span>   [<span class="tlaGBC" title="branch 0 was taken 1701 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1817 times"> + </span><span class="tlaGBC" title="branch 2 was taken 375 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1326 times"> + </span>]:<span class="tlaGNC">        3518 :     if (matched &amp;&amp; any_reduction) {</span></span>
 <span id="L3651"><span class="lineNum">    3651</span>         [<span class="tlaGBC" title="branch 0 was taken 62 times"> + </span><span class="tlaGBC" title="branch 1 was taken 313 times"> + </span>]:<span class="tlaGNC">         375 :       if (pack_target.has_value()) {</span></span>
 <span id="L3652"><span class="lineNum">    3652</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 61 times"> + </span>]:<span class="tlaGNC">          62 :         if (visit.metadata.source == vfs::Source::kArchiveMember) {</span></span>
 <span id="L3653"><span class="lineNum">    3653</span>                 :<span class="tlaGNC">           1 :           pack_saw_member = true;</span></span>
@@ -3875,7 +3875,7 @@
 <span id="L3695"><span class="lineNum">    3695</span>                 :<span class="tlaGNC">         257 :         FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);</span></span>
 <span id="L3696"><span class="lineNum">    3696</span>                 :<span class="tlaGNC">         257 :         FeedHistograms(histograms, histogram_cells, visit);</span></span>
 <span id="L3697"><span class="lineNum">    3697</span>                 :<span class="tlaGNC">         257 :       }</span></span>
-<span id="L3698"><span class="lineNum">    3698</span>   [<span class="tlaGBC" title="branch 0 was taken 1325 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1818 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1074 times"> + </span><span class="tlaGBC" title="branch 3 was taken 251 times"> + </span> :<span class="tlaGNC">        3518 :     } else if (matched &amp;&amp; implicit_print &amp;&amp; (!max_results-&gt;has_value() || listed_results &lt; **max_results)) {</span></span>
+<span id="L3698"><span class="lineNum">    3698</span>   [<span class="tlaGBC" title="branch 0 was taken 1326 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1817 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1074 times"> + </span><span class="tlaGBC" title="branch 3 was taken 252 times"> + </span> :<span class="tlaGNC">        3518 :     } else if (matched &amp;&amp; implicit_print &amp;&amp; (!max_results-&gt;has_value() || listed_results &lt; **max_results)) {</span></span>
 <span class="lineNum">        </span> <span class="tlaGBC" title="branch 4 was taken 35 times"> + </span><span class="tlaGBC" title="branch 5 was taken 1039 times"> + </span><span class="tlaGBC" title="branch 6 was taken 15 times"> + </span><span class="tlaGBC" title="branch 7 was taken 20 times"> + </span><span class="tlaGBC" title="branch 8 was taken 1054 times"> + </span> 
 <span class="lineNum">        </span>             <span class="tlaGBC" title="branch 9 was taken 2089 times"> + </span>]
 <span id="L3699"><span class="lineNum">    3699</span>                 :<span class="tlaGNC">        1054 :       ++listed_results;</span></span>
@@ -4635,34 +4635,36 @@
 <span id="L4434"><span class="lineNum">    4434</span>                 :<span class="tlaUNC">           0 :   return &quot;sensitive&quot;;</span></span>
 <span id="L4435"><span class="lineNum">    4435</span>                 :             : }</span>
 <span id="L4436"><span class="lineNum">    4436</span>                 :             : </span>
-<span id="L4437"><span class="lineNum">    4437</span>                 :             : }  // namespace</span>
-<span id="L4438"><span class="lineNum">    4438</span>                 :             : </span>
-<span id="L4439"><span class="lineNum">    4439</span>                 :<span class="tlaGNC">           9 : std::vector&lt;FlavorFacet&gt; FlavorFacets() {</span></span>
-<span id="L4440"><span class="lineNum">    4440</span>                 :             :   return {</span>
-<span id="L4441"><span class="lineNum">    4441</span>                 :             :       {.behavior = &quot;ignore files (.gitignore/.ignore)&quot;,</span>
-<span id="L4442"><span class="lineNum">    4442</span>                 :             :        .flag = &quot;-g / --gitignore, --no-ignore&quot;,</span>
-<span id="L4443"><span class="lineNum">    4443</span>                 :<span class="tlaGNC">          52 :        .value = [](const std::vector&lt;std::string&gt;&amp; globals,</span></span>
-<span id="L4444"><span class="lineNum">    4444</span>                 :<span class="tlaGNC">          43 :                    registry::Style style) { return GitignoreName(ResolveGitignoreMode(globals, style)); }},</span></span>
-<span id="L4445"><span class="lineNum">    4445</span>                 :             :       {.behavior = &quot;hidden dotfiles&quot;,</span>
-<span id="L4446"><span class="lineNum">    4446</span>                 :             :        .flag = &quot;--hidden / --no-hidden&quot;,</span>
-<span id="L4447"><span class="lineNum">    4447</span>                 :<span class="tlaGNC">          52 :        .value = [](const std::vector&lt;std::string&gt;&amp; globals,</span></span>
-<span id="L4448"><span class="lineNum">    4448</span>                 :<span class="tlaGNC">          43 :                    registry::Style style) { return HiddenName(ResolveSkipHidden(globals, style)); }},</span></span>
-<span id="L4449"><span class="lineNum">    4449</span>                 :             :       {.behavior = &quot;sizes&quot;,</span>
-<span id="L4450"><span class="lineNum">    4450</span>                 :             :        .flag = &quot;--human&quot;,</span>
-<span id="L4451"><span class="lineNum">    4451</span>                 :<span class="tlaGNC">          52 :        .value = [](const std::vector&lt;std::string&gt;&amp; globals,</span></span>
-<span id="L4452"><span class="lineNum">    4452</span>                 :<span class="tlaGNC">          43 :                    registry::Style style) { return HumanName(ResolveHuman(globals, style)); }},</span></span>
-<span id="L4453"><span class="lineNum">    4453</span>                 :             :       {.behavior = &quot;traversal order&quot;,</span>
-<span id="L4454"><span class="lineNum">    4454</span>                 :             :        .flag = &quot;--sort&quot;,</span>
-<span id="L4455"><span class="lineNum">    4455</span>                 :<span class="tlaGNC">          52 :        .value = [](const std::vector&lt;std::string&gt;&amp; globals,</span></span>
-<span id="L4456"><span class="lineNum">    4456</span>                 :<span class="tlaGNC">          43 :                    registry::Style style) { return SortName(ResolveSort(globals, style)); }},</span></span>
-<span id="L4457"><span class="lineNum">    4457</span>                 :             :       {.behavior = &quot;letter case&quot;,</span>
-<span id="L4458"><span class="lineNum">    4458</span>                 :             :        .flag = &quot;--case, -i, -s[+|-]&quot;,</span>
-<span id="L4459"><span class="lineNum">    4459</span>                 :<span class="tlaGNC">          52 :        .value = [](const std::vector&lt;std::string&gt;&amp; globals,</span></span>
-<span id="L4460"><span class="lineNum">    4460</span>                 :<span class="tlaGNC">          43 :                    registry::Style style) { return CaseName(parser::ResolveCaseMode(globals, style)); }},</span></span>
-<span id="L4461"><span class="lineNum">    4461</span>         [<span class="tlaGBC" title="branch 0 was taken 45 times"> + </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">          72 :   };</span></span>
-<span id="L4462"><span class="lineNum">    4462</span>                 :             : }</span>
-<span id="L4463"><span class="lineNum">    4463</span>                 :             : </span>
-<span id="L4464"><span class="lineNum">    4464</span>                 :             : }  // namespace xff::engine</span>
+<span id="L4437"><span class="lineNum">    4437</span>                 :             : constexpr auto kFlavorFacets = std::to_array&lt;FlavorFacet&gt;({</span>
+<span id="L4438"><span class="lineNum">    4438</span>                 :             :     {.behavior = &quot;ignore files (.gitignore/.ignore)&quot;,</span>
+<span id="L4439"><span class="lineNum">    4439</span>                 :             :      .flag = &quot;-g / --gitignore, --no-ignore&quot;,</span>
+<span id="L4440"><span class="lineNum">    4440</span>                 :<span class="tlaGNC">          43 :      .value = [](const std::vector&lt;std::string&gt;&amp; globals,</span></span>
+<span id="L4441"><span class="lineNum">    4441</span>                 :<span class="tlaGNC">          43 :                  registry::Style style) { return GitignoreName(ResolveGitignoreMode(globals, style)); }},</span></span>
+<span id="L4442"><span class="lineNum">    4442</span>                 :             :     {.behavior = &quot;hidden dotfiles&quot;,</span>
+<span id="L4443"><span class="lineNum">    4443</span>                 :             :      .flag = &quot;--hidden / --no-hidden&quot;,</span>
+<span id="L4444"><span class="lineNum">    4444</span>                 :<span class="tlaGNC">          43 :      .value = [](const std::vector&lt;std::string&gt;&amp; globals,</span></span>
+<span id="L4445"><span class="lineNum">    4445</span>                 :<span class="tlaGNC">          43 :                  registry::Style style) { return HiddenName(ResolveSkipHidden(globals, style)); }},</span></span>
+<span id="L4446"><span class="lineNum">    4446</span>                 :             :     {.behavior = &quot;sizes&quot;,</span>
+<span id="L4447"><span class="lineNum">    4447</span>                 :             :      .flag = &quot;--human&quot;,</span>
+<span id="L4448"><span class="lineNum">    4448</span>                 :<span class="tlaGNC">          43 :      .value = [](const std::vector&lt;std::string&gt;&amp; globals,</span></span>
+<span id="L4449"><span class="lineNum">    4449</span>                 :<span class="tlaGNC">          43 :                  registry::Style style) { return HumanName(ResolveHuman(globals, style)); }},</span></span>
+<span id="L4450"><span class="lineNum">    4450</span>                 :             :     {.behavior = &quot;traversal order&quot;,</span>
+<span id="L4451"><span class="lineNum">    4451</span>                 :             :      .flag = &quot;--sort&quot;,</span>
+<span id="L4452"><span class="lineNum">    4452</span>                 :<span class="tlaGNC">          43 :      .value = [](const std::vector&lt;std::string&gt;&amp; globals,</span></span>
+<span id="L4453"><span class="lineNum">    4453</span>                 :<span class="tlaGNC">          43 :                  registry::Style style) { return SortName(ResolveSort(globals, style)); }},</span></span>
+<span id="L4454"><span class="lineNum">    4454</span>                 :             :     {.behavior = &quot;letter case&quot;,</span>
+<span id="L4455"><span class="lineNum">    4455</span>                 :             :      .flag = &quot;--case, -i, -s[+|-]&quot;,</span>
+<span id="L4456"><span class="lineNum">    4456</span>                 :<span class="tlaGNC">          43 :      .value = [](const std::vector&lt;std::string&gt;&amp; globals,</span></span>
+<span id="L4457"><span class="lineNum">    4457</span>                 :<span class="tlaGNC">          43 :                  registry::Style style) { return CaseName(parser::ResolveCaseMode(globals, style)); }},</span></span>
+<span id="L4458"><span class="lineNum">    4458</span>                 :             : });</span>
+<span id="L4459"><span class="lineNum">    4459</span>                 :             : </span>
+<span id="L4460"><span class="lineNum">    4460</span>                 :             : }  // namespace</span>
+<span id="L4461"><span class="lineNum">    4461</span>                 :             : </span>
+<span id="L4462"><span class="lineNum">    4462</span>                 :<span class="tlaGNC">          11 : absl::Span&lt;const FlavorFacet&gt; FlavorFacets() {</span></span>
+<span id="L4463"><span class="lineNum">    4463</span>                 :<span class="tlaGNC">          11 :   return kFlavorFacets;</span></span>
+<span id="L4464"><span class="lineNum">    4464</span>                 :             : }</span>
+<span id="L4465"><span class="lineNum">    4465</span>                 :             : </span>
+<span id="L4466"><span class="lineNum">    4466</span>                 :             : }  // namespace xff::engine</span>
         </pre>
               </td>
             </tr>
