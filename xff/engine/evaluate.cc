@@ -899,7 +899,7 @@ bool EvalFuzzyOn(const parser::Expr& expr, EvalContext& ctx, std::string_view su
   if (expr.args.empty()) {
     return false;
   }
-  if (ctx.fuzzy_score == nullptr && !expr.fuzzy_threshold.has_value()
+  if (!ctx.fuzzy_score.has_value() && !expr.fuzzy_threshold.has_value()
       && expr.fuzzy_model == parser::FuzzyModel::kSequence) {
     return fuzzy::Matches(expr.args.front(), subject, fold);  // truth only: the cheap scan
   }
@@ -910,7 +910,7 @@ bool EvalFuzzyOn(const parser::Expr& expr, EvalContext& ctx, std::string_view su
     case parser::FuzzyModel::kLevenshtein: percent = fuzzy::LevenshteinPercent(expr.args.front(), subject, fold); break;
     case parser::FuzzyModel::kShingles: percent = fuzzy::ShinglePercent(expr.args.front(), subject, fold); break;
   }
-  if (ctx.fuzzy_score != nullptr) {
+  if (ctx.fuzzy_score.has_value()) {
     *ctx.fuzzy_score = percent;
   }
   return percent.has_value() && (!expr.fuzzy_threshold.has_value() || *percent >= *expr.fuzzy_threshold);
@@ -2472,10 +2472,18 @@ EvaluationResult EvaluateChild(const parser::Expr& node, EvalContext& context) {
     }
   }
   std::optional<int> score;
-  std::optional<int>* const outer = context.fuzzy_score;
-  context.fuzzy_score = outer == nullptr ? nullptr : &score;
+  mbo::types::OptionalRef<std::optional<int>> outer = context.fuzzy_score;
+  if (outer.has_value()) {
+    context.fuzzy_score.set_ref(score);
+  } else {
+    context.fuzzy_score.reset();
+  }
   EvaluationResult result = EvaluateResult(node, context);
-  context.fuzzy_score = outer;
+  if (outer.has_value()) {
+    context.fuzzy_score.set_ref(*outer);
+  } else {
+    context.fuzzy_score.reset();
+  }
   if (!result.deferred && context.evaluation_memo != nullptr) {
     context.evaluation_memo->emplace(&node, result);
   }
@@ -2535,7 +2543,7 @@ EvaluationResult EvaluateOr(const parser::Expr& expr, EvalContext& context) {
   if (!lhs.matched) {
     return EvaluateChild(*expr.rhs, context);
   }
-  if (context.fuzzy_score != nullptr && IsFuzzyOnlyExpression(*expr.rhs)) {
+  if (context.fuzzy_score.has_value() && IsFuzzyOnlyExpression(*expr.rhs)) {
     const EvaluationResult rhs = EvaluateChild(*expr.rhs, context);
     if (rhs.deferred) {
       return rhs;
@@ -2597,7 +2605,7 @@ EvaluationResult EvaluateResult(const parser::Expr& expr, EvalContext& context) 
         return EvaluateShardStatus(expr, context);
       }
       const bool matched = EvaluatePredicate(expr, context);
-      return {.matched = matched, .fuzzy = context.fuzzy_score == nullptr ? std::nullopt : *context.fuzzy_score};
+      return {.matched = matched, .fuzzy = context.fuzzy_score.has_value() ? *context.fuzzy_score : std::nullopt};
     }
     case parser::Expr::Kind::kNot: {
       const EvaluationResult value = EvaluateChild(*expr.lhs, context);
@@ -2626,7 +2634,7 @@ bool Evaluate(const parser::Expr& expr, EvalContext& context) {
 
 EvaluationResult EvaluateDeferred(const parser::Expr& expr, EvalContext& context) {
   const EvaluationResult result = EvaluateResult(expr, context);
-  if (context.fuzzy_score != nullptr) {
+  if (context.fuzzy_score.has_value()) {
     *context.fuzzy_score = result.fuzzy;
   }
   return result;

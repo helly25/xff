@@ -123,7 +123,7 @@ struct EvalContext {
   bool fold_name_case = false;
   // The normalized 0..100 fuzzy quality composed across the expression for {fuzzy}, --sort=score,
   // and -top. Null when no consumer needs it; reset by the driver per entry.
-  std::optional<int>* fuzzy_score = nullptr;
+  mbo::types::OptionalRef<std::optional<int>> fuzzy_score;
   // Result-set predicates such as -top and -shard-status are resolved after the walk. During the
   // first evaluation, an undecided predicate writes its node (and -top's composed score) here and
   // evaluation returns deferred. During replay, deferred_results supplies every earlier decision.
