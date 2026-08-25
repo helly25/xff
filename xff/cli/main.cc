@@ -669,8 +669,7 @@ int RunMain(int argc, char** argv) {
   // into the pager here and restored when `pager` goes out of scope below. Inactive under every other
   // --pager value, off a terminal, and when the expression needs the terminal itself (-ok / -exec and
   // friends) or --quiet means there is nothing to page.
-  const xff::cli::PagerStream pager(
-      pager_when, stdout_is_tty, quiet || xff::parser::TakesTerminal(command.expression.get()));
+  const xff::cli::PagerStream pager(pager_when, stdout_is_tty, quiet || xff::parser::TakesTerminal(command));
   const xff::vfs::LocalFs fs;
   bool matched = false;
   const int errors = xff::engine::RunFind(
