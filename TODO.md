@@ -230,15 +230,12 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
   `@helly25_mbo//mbo/strings:indent_cc`) when an indented literal reads better. The existing test
   tree has no remaining `EXPECT_EQ` multi-line goldens.
 
-- **Reconcile our glob->RE2 translator with `mbo::file::Glob2Re2` (#122). RESOLVED (#333):
-  deliberately keep ours, documented.** `//xff/glob:GlobToRegex` (extracted from the gitignore engine
-  in #316, reused by `--regextype=GLOB`/`SHGLOB`) overlaps `mbo::file::Glob2Re2` but the `**` semantics
-  differ on purpose: ours are gitignore's (`**/`->`(?:.*/)?`, trailing `/**`->`.*`, glued `**`->`*`),
-  mbo's are its own (`**`->`.*`, slash-enclosed `(/.+)?` / `(.+/)?` with `.+`, gated by
-  `allow_star_star`). xff walks its own VFS engine and needs only the pure pattern->RE2 step, not mbo's
-  filesystem globbing (`Glob`/`GlobSplit`/`GlobEntry`), so a migration would trade a self-contained ~130
-  line translator for a semantic-shim on a lib we otherwise do not use. The divergence + rationale now
-  live in `xff/glob/glob.h`; no migration. (mbo's FS globbing may still be worth adopting elsewhere.)
+- **Reconcile glob->RE2 translation with `mbo::file::Glob2Re2` (#122). RESOLVED by adoption.** mbo
+  PR #371 made the translator public and canonical, with explicit `GlobSyntax::kGlob` / `kShGlob`,
+  component-aware `**`, nested brace alternatives, slash-safe bracket expressions, and validation.
+  xff now delegates both `--regextype` grammars and ignore-file translation to that API; the former
+  private `//xff/glob` implementation and its semantic divergence were removed. xff still walks its
+  own VFS engine and consumes only the pure pattern-to-RE2 API, not mbo's filesystem traversal.
 
 - **C++ move/forward audit complete.** The clang-tidy hard gate enables the full `performance-*`
   and `bugprone-*` families, including the move/value checks, and the manual constructor and
@@ -947,7 +944,7 @@ remains below is the design-forked / larger work.
   letting glob-thinking users pick their grammar uniformly). (Shipped as `--regextype=GLOB`; because it
   compiles to RE2 the partial/span ops are NOT degenerate - `-grep`/`-rxc` work under GLOB.)
 - **`--regextype=SHGLOB` - shell glob with brace alternation (#129). SHIPPED.** `Grammar::kShglob` =
-  GLOB plus `{a,b,c}` -> RE2 `(?:a|b|c)` (`xff::glob::ShglobToRegex`), so `*.{cc,h}` matches either.
+  GLOB plus `{a,b,c}` alternatives (`mbo::file::GlobSyntax::kShGlob`), so `*.{cc,h}` matches either.
   A separate grammar (not a GLOB feature) because GLOB / gitignore must keep matching literal braces.
   Rules match bash: each alt is itself SHGLOB-translated (nesting, `*`/`?`/`[...]` inside), a comma-less
   `{x}` / unbalanced `{` stays literal, empty alts allowed, `\{`/`\}`/`\,` escape. Deferred: numeric /

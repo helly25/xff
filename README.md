@@ -110,7 +110,8 @@ fast, mostly platform-independent binary. The clearest divergence is regex: `-re
 default to **RE2** (linear-time, no catastrophic backtracking) and behave identically on Linux
 and macOS - where GNU find instead defaults to its Emacs dialect and BSD/macOS find to BRE.
 `-regextype` selects xff's uniform grammar set (RE2, EXACT, FNMATCH, GLOB, SHGLOB, plus PCRE2 in
-a full build), never GNU's dialect names. Otherwise strict mode is find's documented behavior,
+a full build), never GNU's dialect names. GLOB and SHGLOB are locale-independent, component-aware,
+and reject malformed bracket expressions instead of silently changing their meaning. Otherwise strict mode is find's documented behavior,
 made uniform across platforms.
 
 ---

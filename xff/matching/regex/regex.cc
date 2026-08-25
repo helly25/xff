@@ -37,9 +37,9 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "mbo/file/glob.h"
 #include "mbo/status/status_macros.h"
 #include "re2/re2.h"
-#include "xff/glob/glob.h"
 #include "xff/matching/regex/backend.h"
 
 namespace xff::regex {
@@ -232,14 +232,18 @@ absl::StatusOr<Matcher> Matcher::Compile(std::string_view pattern, bool case_ins
     case Grammar::kFnmatch:
       // A shell wildcard: fnmatch validates lazily per call, so this never fails either.
       return Matcher(std::make_unique<FnmatchBackend>(std::string(pattern), case_insensitive));
-    case Grammar::kGlob:
-      // A path-aware shell glob translated to RE2 (via xff/glob), then RE2 provides every op.
-      // GlobToRegex escapes all input, so the result is valid RE2 (the error path is unreachable).
-      return compile_re2(glob::GlobToRegex(pattern));
-    case Grammar::kShglob:
-      // GLOB plus brace alternation (`{a,b}`), likewise translated to RE2 by xff/glob and always
-      // valid (every literal is escaped, so the compile error path is unreachable here too).
-      return compile_re2(glob::ShglobToRegex(pattern));
+    case Grammar::kGlob: {
+      // A path-aware shell glob translated by mbo, then RE2 provides every operation.
+      MBO_ASSIGN_OR_RETURN(const std::string translated, mbo::file::Glob2Re2Expression(pattern));
+      return compile_re2(translated);
+    }
+    case Grammar::kShglob: {
+      // SHGLOB selects the same path semantics plus nested brace alternatives.
+      MBO_ASSIGN_OR_RETURN(
+          const std::string translated,
+          mbo::file::Glob2Re2Expression(pattern, {.syntax = mbo::file::GlobSyntax::kShGlob}));
+      return compile_re2(translated);
+    }
     case Grammar::kPcre2: {
       // PCRE2 is a build-time extra: the real backend (extra_modules/pcre2) self-registers a factory
       // in the xff_extras_api slot. MakePcre2Backend invokes it, or returns Unimplemented when no
@@ -292,16 +296,18 @@ absl::Span<const std::pair<std::string_view, std::string_view>> GrammarDocs() {
        "/-awareness); -i uses FNM_CASEFOLD. Provided by libc, so class / collation details vary by "
        "system."},
       {"GLOB",
-       "xff's own path-aware shell glob (gitignore-flavored, compiled to RE2 - NOT POSIX glob(7)): * "
-       "and ? match within one path segment (they stop at /); ** is a whole-segment cross-directory "
-       "wildcard (leading **/ = zero or more directories, trailing /** = everything below, a glued ** "
-       "degrades to *); [...] is a class with [a-z] ranges, [[:alpha:]] POSIX classes, a leading ! "
-       "negating and a leading ] literal; { } are literal. Because it compiles to RE2, -grep / -rxc "
-       "partial matching and match spans work."},
+       "xff's path-aware, locale-independent shell glob (compiled to RE2 - NOT POSIX glob(7)): * "
+       "and ? stay within one path component; a complete-component ** crosses components (middle "
+       "foo/**/bar permits zero or more, while trailing foo/** requires a descendant); embedded star "
+       "runs reduce to *. [...] supports literals, ascending ranges, leading ! negation, and RE2 ASCII "
+       "named classes, always excluding / except the compatibility spelling [/]. Malformed ranges, "
+       "descending ranges, unsupported named classes, collation/equivalence, and negative extglob are "
+       "errors. Braces are literal. Because it compiles to RE2, -grep / -rxc partial matching and match "
+       "spans work."},
       {"SHGLOB",
        "GLOB plus brace alternation: {a,b,c} matches any one alternative, so *.{cc,h} matches either. "
-       "Alternatives may nest and may be empty; each is itself SHGLOB-translated. \\{ \\} \\, and "
-       "braces inside a [...] class are literal. Everything else is exactly GLOB."},
+       "Alternatives may nest and may be empty; each is itself SHGLOB-translated. Escaped braces and "
+       "commas, and braces inside a [...] class, are literal. Everything else is exactly GLOB."},
       {"PCRE2",
        "Perl-Compatible Regular Expressions (lookaround, backreferences, ...). A build-time extra: "
        "present only in a full build - run `xff --help=extras` to see whether THIS binary has it. Full "

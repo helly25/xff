@@ -23,15 +23,14 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
-#include "xff/glob/glob.h"
+#include "mbo/file/glob.h"
 #include "xff/matching/regex/regex.h"
 
 namespace xff::ignore {
 namespace {
 
-// The glob -> RE2 translation lives in the shared //xff/glob lib (glob::GlobToRegex), used here and
-// by the --regextype=GLOB matcher. The gitignore-specific stripping (leading `!` / anchoring `/` /
-// trailing `/`) stays below; GlobToRegex receives the already-stripped body.
+// mbo supplies the shared path-glob -> RE2 translation used here and by --regextype=GLOB. The
+// gitignore-specific stripping (leading `!` / anchoring `/` / trailing `/`) stays below.
 
 // Strips trailing unescaped spaces (gitignore ignores them unless backslash-quoted).
 std::string_view RstripSpaces(std::string_view line) {
@@ -74,8 +73,11 @@ bool PatternList::Add(std::string_view pattern, bool negate) {
   }
   // FullMatch anchors both ends, so an anchored pattern is the bare translation and
   // a floating one gets an optional leading-directory prefix ("match at any depth").
-  const std::string translated = glob::GlobToRegex(body);
-  const std::string re = anchored ? translated : absl::StrCat("(?:.*/)?", translated);
+  const absl::StatusOr<std::string> translated = mbo::file::Glob2Re2Expression(body);
+  if (!translated.ok()) {
+    return false;  // best-effort: skip malformed ignore patterns, as git does
+  }
+  const std::string re = anchored ? *translated : absl::StrCat("(?:.*/)?", *translated);
   absl::StatusOr<regex::Matcher> matcher = regex::Matcher::Compile(re, /*case_insensitive=*/false);
   if (!matcher.ok()) {
     return false;  // best-effort: skip a pattern that does not compile, as git does

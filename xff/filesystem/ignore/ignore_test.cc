@@ -71,6 +71,14 @@ TEST_F(IgnoreTest, CharacterClass) {
   EXPECT_THAT(Ignored("foo[!0-9]", "foo3"), IsFalse());
 }
 
+TEST_F(IgnoreTest, MalformedCharacterClassesAreSkipped) {
+  PatternList list;
+  EXPECT_THAT(list.Add("["), IsFalse());
+  EXPECT_THAT(list.Add("[z-a]"), IsFalse());
+  EXPECT_THAT(list.Add("[[.ch.]]"), IsFalse());
+  EXPECT_THAT(list.empty(), IsTrue());
+}
+
 TEST_F(IgnoreTest, LeadingGlobstarMatchesAnyDirectory) {
   EXPECT_THAT(Ignored("**/foo", "foo"), IsTrue());
   EXPECT_THAT(Ignored("**/foo", "a/b/foo"), IsTrue());
