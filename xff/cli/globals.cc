@@ -57,7 +57,7 @@ constexpr std::array kRegextypeValues = std::to_array<ValueDoc>({
     {.value = "RE2", .meaning = "linear-time regular expressions (the default)"},
     {.value = "EXACT", .meaning = "a literal string; metacharacters are plain text"},
     {.value = "FNMATCH", .meaning = "flat shell wildcard; `*` matches any character including `/`"},
-    {.value = "GLOB", .meaning = "path-aware shell glob; `*`/`?` stop at `/`, `**` crosses directories"},
+    {.value = "GLOB", .meaning = "path-aware shell glob; wildcards and classes are component-local"},
     {.value = "SHGLOB", .meaning = "GLOB plus `{a,b}` brace alternation, so `*.{cc,h}` matches either"},
     {.value = "PCRE2", .meaning = "Perl syntax (lookaround, backreferences); a build extra"},
     // Reserved: accepted here so the resolver's "reserved and not supported yet" error is what the
@@ -636,14 +636,17 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .details = "Selects the grammar for `-regex`/`-iregex` and the content matchers `-rxc`/`-grep`. `RE2` "
                    "(the default) is linear-time regular expressions; `EXACT` is a literal string "
                    "(metacharacters are plain text); `FNMATCH` is a flat shell wildcard where `*` matches any "
-                   "character including `/`; `GLOB` is a path-aware shell glob where `*`/`?` stop at `/` and "
-                   "`**` crosses directories (gitignore semantics), with `[...]` classes; `SHGLOB` is `GLOB` "
-                   "plus `{a,b}` brace alternation, so `*.{cc,h}` matches either. `PCRE2` (Perl syntax: "
+                   "character including `/`; `GLOB` is a locale-independent path glob where `*`, `?`, and "
+                   "`[...]` stay inside one component, while a complete-component `**` crosses components; "
+                   "middle `foo/**/bar` permits zero or more components and trailing `foo/**` requires a "
+                   "descendant. Bracket expressions support ascending ranges, leading `!` negation, and RE2 "
+                   "ASCII named classes; malformed or unsupported expressions are errors. `SHGLOB` is `GLOB` "
+                   "plus nested, possibly empty `{a,b}` alternatives. `PCRE2` (Perl syntax: "
                    "lookaround, backreferences) is the one build-time extra: it is present only in a full "
                    "build, and selecting it in a lean build is a hard error, never a silent fall back to `RE2`. "
                    "`RE2`/`EXACT`/`FNMATCH`/`GLOB`/`SHGLOB` are always built in; run `xff --help=extras` to "
                    "see whether THIS binary includes `PCRE2`. See `--help=grammars` for a full description of "
-                   "each grammar (`GLOB`/`SHGLOB` are xff's own, not POSIX glob(7)).",
+                   "each grammar (`GLOB`/`SHGLOB` are not POSIX glob(7)).",
         .values = kRegextypeValues,
         .value_check = GlobalFlag::ValueCheck::kEnum,
     },

@@ -229,6 +229,33 @@ TEST_F(RegexTest, GlobDoubleStarCrossesDirectories) {
   EXPECT_FALSE(matcher.FullMatch("other/a.txt"));
 }
 
+TEST_F(RegexTest, GlobTrailingDoubleStarRequiresADescendant) {
+  ASSERT_OK_AND_ASSIGN(const Matcher matcher, Matcher::Compile("src/**", /*case_insensitive=*/false, Grammar::kGlob));
+  EXPECT_THAT(matcher.FullMatch("src/file"), IsTrue());
+  EXPECT_THAT(matcher.FullMatch("src/sub/file"), IsTrue());
+  EXPECT_THAT(matcher.FullMatch("src"), IsFalse());
+}
+
+TEST_F(RegexTest, GlobClassesNeverConsumeAPathSeparator) {
+  ASSERT_OK_AND_ASSIGN(const Matcher negated, Matcher::Compile("[!a]", /*case_insensitive=*/false, Grammar::kGlob));
+  EXPECT_THAT(negated.FullMatch("b"), IsTrue());
+  EXPECT_THAT(negated.FullMatch("/"), IsFalse());
+
+  ASSERT_OK_AND_ASSIGN(const Matcher separator, Matcher::Compile("[/]", /*case_insensitive=*/false, Grammar::kGlob));
+  EXPECT_THAT(separator.FullMatch("/"), IsTrue());
+}
+
+TEST_F(RegexTest, GlobRejectsMalformedAndUnsupportedBracketExpressions) {
+  EXPECT_THAT(
+      Matcher::Compile("[", /*case_insensitive=*/false, Grammar::kGlob), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(
+      Matcher::Compile("[z-a]", /*case_insensitive=*/false, Grammar::kGlob),
+      StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(
+      Matcher::Compile("[[.ch.]]", /*case_insensitive=*/false, Grammar::kGlob),
+      StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
 TEST_F(RegexTest, GlobDelegatesToRe2ForSpanAndPartial) {
   // Because kGlob compiles to RE2, PartialMatch is unanchored and FindFirst returns a real span
   // (unlike fnmatch's whole-text span) - so -grep's {match}/{column} work under GLOB.
@@ -238,7 +265,7 @@ TEST_F(RegexTest, GlobDelegatesToRe2ForSpanAndPartial) {
 }
 
 TEST_F(RegexTest, ShglobGrammarExpandsBraceAlternation) {
-  // kShglob is kGlob plus `{a,b}` brace alternation (translated to RE2 via xff/glob), so an
+  // kShglob is kGlob plus `{a,b}` brace alternation, so an
   // extension-of-set pattern matches any listed alternative and nothing else.
   ASSERT_OK_AND_ASSIGN(
       const Matcher matcher, Matcher::Compile("*.{cc,h}", /*case_insensitive=*/false, Grammar::kShglob));
@@ -246,6 +273,15 @@ TEST_F(RegexTest, ShglobGrammarExpandsBraceAlternation) {
   EXPECT_TRUE(matcher.FullMatch("a.h"));
   EXPECT_FALSE(matcher.FullMatch("a.hpp"));  // only the listed alternatives
   EXPECT_FALSE(matcher.FullMatch("a.o"));
+}
+
+TEST_F(RegexTest, ShglobSupportsNestedAndEmptyAlternatives) {
+  ASSERT_OK_AND_ASSIGN(
+      const Matcher matcher, Matcher::Compile("{src,{test,}}/*.cc", /*case_insensitive=*/false, Grammar::kShglob));
+  EXPECT_THAT(matcher.FullMatch("src/a.cc"), IsTrue());
+  EXPECT_THAT(matcher.FullMatch("test/a.cc"), IsTrue());
+  EXPECT_THAT(matcher.FullMatch("/a.cc"), IsTrue());
+  EXPECT_THAT(matcher.FullMatch("lib/a.cc"), IsFalse());
 }
 
 TEST_F(RegexTest, ShglobKeepsGlobPathSemantics) {

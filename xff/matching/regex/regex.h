@@ -36,7 +36,7 @@ namespace xff::regex {
 // test. kFnmatch is a flat shell wildcard (POSIX fnmatch: `*`/`?`/`[…]`, where `*` matches any
 // character including `/`), a core engine - the `-name`/`-path` matching offered as a grammar.
 // kGlob is a path-segment-aware shell glob (`*`/`?` stop at `/`, `**` crosses directories - the
-// shell / gitignore semantics), a core engine translated to RE2 (via xff/glob). kShglob is kGlob
+// shell / gitignore semantics), a core engine translated to RE2 (via mbo::file). kShglob is kGlob
 // plus brace alternation (`{a,b}` -> `(?:a|b)`, so `*.{cc,h}` works), also translated to RE2. kPcre2
 // is PCRE2 (Perl syntax: backreferences, lookaround); it is a build extra, available only when its
 // backend is linked, otherwise Compile returns an Unimplemented error (never a silent RE2 fallback).

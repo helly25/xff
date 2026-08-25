@@ -1147,7 +1147,7 @@ Document BuildReference(Audience audience) {
            {.kind = RefTarget::Kind::kManPage, .id = "pcre2pattern", .section = "3"}},
       .note = ParseInline(
           "For the `--regextype` grammars see the Regex grammars section above (`--help=grammars`). FNMATCH "
-          "is the platform's fnmatch(3) and PCRE2 is pcre2pattern(3); GLOB and SHGLOB are xff's own "
+          "is the platform's fnmatch(3) and PCRE2 is pcre2pattern(3); GLOB and SHGLOB are xff's "
           "path-aware globs (compiled to RE2), NOT POSIX glob(7) - that page is listed only as background "
           "on shell globbing. The default RE2 grammar has no man page; its syntax is at "
           "https://github.com/google/re2/wiki/Syntax ."),
