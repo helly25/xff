@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-24 22:11:53</td>
+            <td class="headerValue">2026-08-25 07:20:48</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -762,41 +762,40 @@
 <span id="L669"><span class="lineNum">     669</span>                 :             :   // into the pager here and restored when `pager` goes out of scope below. Inactive under every other</span>
 <span id="L670"><span class="lineNum">     670</span>                 :             :   // --pager value, off a terminal, and when the expression needs the terminal itself (-ok / -exec and</span>
 <span id="L671"><span class="lineNum">     671</span>                 :             :   // friends) or --quiet means there is nothing to page.</span>
-<span id="L672"><span class="lineNum">     672</span>                 :             :   const xff::cli::PagerStream pager(</span>
-<span id="L673"><span class="lineNum">     673</span>   [<span class="tlaGBC" title="branch 0 was taken 468 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span><span class="tlaGBC" title="branch 2 was taken 19 times"> + </span><span class="tlaGBC" title="branch 3 was taken 449 times"> + </span>]:<span class="tlaGNC">         946 :       pager_when, stdout_is_tty, quiet || xff::parser::TakesTerminal(command.expression.get()));</span></span>
-<span id="L674"><span class="lineNum">     674</span>                 :<span class="tlaGNC">         473 :   const xff::vfs::LocalFs fs;</span></span>
-<span id="L675"><span class="lineNum">     675</span>                 :<span class="tlaGNC">         473 :   bool matched = false;</span></span>
-<span id="L676"><span class="lineNum">     676</span>                 :<span class="tlaGNC">         946 :   const int errors = xff::engine::RunFind(</span></span>
-<span id="L677"><span class="lineNum">     677</span>                 :             :       command, fs,</span>
-<span id="L678"><span class="lineNum">     678</span>                 :<span class="tlaGNC">         473 :       [quiet](std::string_view record) {</span></span>
-<span id="L679"><span class="lineNum">     679</span>         [<span class="tlaGBC" title="branch 0 was taken 914 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">         916 :         if (!quiet) {  // --quiet suppresses output; the match is still recorded via `matched`</span></span>
-<span id="L680"><span class="lineNum">     680</span>                 :<span class="tlaGNC">         914 :           std::cout.write(record.data(), static_cast&lt;std::streamsize&gt;(record.size()));</span></span>
-<span id="L681"><span class="lineNum">     681</span>                 :             :         }</span>
-<span id="L682"><span class="lineNum">     682</span>                 :<span class="tlaGNC">         916 :       },</span></span>
-<span id="L683"><span class="lineNum">     683</span>                 :<span class="tlaGNC">         528 :       [](std::string_view path, absl::Status status) {</span></span>
-<span id="L684"><span class="lineNum">     684</span>                 :<span class="tlaGNC">          55 :         std::cerr &lt;&lt; &quot;xff: &quot; &lt;&lt; path &lt;&lt; &quot;: &quot; &lt;&lt; status.message() &lt;&lt; &quot;\n&quot;;</span></span>
-<span id="L685"><span class="lineNum">     685</span>                 :<span class="tlaGNC">          55 :       },</span></span>
-<span id="L686"><span class="lineNum">     686</span>                 :             :       style, &amp;matched);  // mode-scoped traversal defaults (modern -&gt; sorted + parallel; find -&gt; unordered)</span>
-<span id="L687"><span class="lineNum">     687</span>         [<span class="tlaGBC" title="branch 0 was taken 54 times"> + </span><span class="tlaGBC" title="branch 1 was taken 419 times"> + </span>]:<span class="tlaGNC">         473 :   if (errors != 0) {</span></span>
-<span id="L688"><span class="lineNum">     688</span>                 :<span class="tlaGNC">          54 :     return 2;  // an error outranks match status</span></span>
-<span id="L689"><span class="lineNum">     689</span>                 :             :   }</span>
-<span id="L690"><span class="lineNum">     690</span>   [<span class="tlaGBC" title="branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="branch 1 was taken 413 times"> + </span><span class="tlaGBC" title="branch 2 was taken 3 times"> + </span><span class="tlaGBC" title="branch 3 was taken 3 times"> + </span>]:<span class="tlaGNC">         419 :   return match_sensitive &amp;&amp; !matched ? 1 : 0;</span></span>
-<span id="L691"><span class="lineNum">     691</span>                 :<span class="tlaGNC">         645 : }</span></span>
-<span id="L692"><span class="lineNum">     692</span>                 :             : </span>
-<span id="L693"><span class="lineNum">     693</span>                 :             : // Entry point: run xff, then flush stdout explicitly before the process exits.</span>
-<span id="L694"><span class="lineNum">     694</span>                 :             : // xff writes results and the help / man / markdown pages to std::cout, which is</span>
-<span id="L695"><span class="lineNum">     695</span>                 :             : // fully buffered when stdout is a pipe. An abnormal exit after main -- notably</span>
-<span id="L696"><span class="lineNum">     696</span>                 :             : // LeakSanitizer's _exit under `--config=asan` on Linux, which runs before libc++</span>
-<span id="L697"><span class="lineNum">     697</span>                 :             : // would flush the stream -- otherwise truncates large output (a partial `--man` or</span>
-<span id="L698"><span class="lineNum">     698</span>                 :             : // `--help=list`). Flushing here, before returning into the C++ exit sequence,</span>
-<span id="L699"><span class="lineNum">     699</span>                 :             : // guarantees the bytes are written regardless of what the exit path does next.</span>
-<span id="L700"><span class="lineNum">     700</span>                 :             : }  // namespace</span>
-<span id="L701"><span class="lineNum">     701</span>                 :             : </span>
-<span id="L702"><span class="lineNum">     702</span>                 :<span class="tlaGNC">         645 : int main(int argc, char** argv) {</span></span>
-<span id="L703"><span class="lineNum">     703</span>                 :<span class="tlaGNC">         645 :   const int exit_code = RunMain(argc, argv);</span></span>
-<span id="L704"><span class="lineNum">     704</span>                 :<span class="tlaGNC">         645 :   std::cout.flush();</span></span>
-<span id="L705"><span class="lineNum">     705</span>                 :<span class="tlaGNC">         645 :   return exit_code;</span></span>
-<span id="L706"><span class="lineNum">     706</span>                 :             : }</span>
+<span id="L672"><span class="lineNum">     672</span>   [<span class="tlaGBC" title="branch 0 was taken 468 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span><span class="tlaGBC" title="branch 2 was taken 19 times"> + </span><span class="tlaGBC" title="branch 3 was taken 449 times"> + </span>]:<span class="tlaGNC">         946 :   const xff::cli::PagerStream pager(pager_when, stdout_is_tty, quiet || xff::parser::TakesTerminal(command));</span></span>
+<span id="L673"><span class="lineNum">     673</span>                 :<span class="tlaGNC">         473 :   const xff::vfs::LocalFs fs;</span></span>
+<span id="L674"><span class="lineNum">     674</span>                 :<span class="tlaGNC">         473 :   bool matched = false;</span></span>
+<span id="L675"><span class="lineNum">     675</span>                 :<span class="tlaGNC">         946 :   const int errors = xff::engine::RunFind(</span></span>
+<span id="L676"><span class="lineNum">     676</span>                 :             :       command, fs,</span>
+<span id="L677"><span class="lineNum">     677</span>                 :<span class="tlaGNC">         473 :       [quiet](std::string_view record) {</span></span>
+<span id="L678"><span class="lineNum">     678</span>         [<span class="tlaGBC" title="branch 0 was taken 914 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">         916 :         if (!quiet) {  // --quiet suppresses output; the match is still recorded via `matched`</span></span>
+<span id="L679"><span class="lineNum">     679</span>                 :<span class="tlaGNC">         914 :           std::cout.write(record.data(), static_cast&lt;std::streamsize&gt;(record.size()));</span></span>
+<span id="L680"><span class="lineNum">     680</span>                 :             :         }</span>
+<span id="L681"><span class="lineNum">     681</span>                 :<span class="tlaGNC">         916 :       },</span></span>
+<span id="L682"><span class="lineNum">     682</span>                 :<span class="tlaGNC">         528 :       [](std::string_view path, absl::Status status) {</span></span>
+<span id="L683"><span class="lineNum">     683</span>                 :<span class="tlaGNC">          55 :         std::cerr &lt;&lt; &quot;xff: &quot; &lt;&lt; path &lt;&lt; &quot;: &quot; &lt;&lt; status.message() &lt;&lt; &quot;\n&quot;;</span></span>
+<span id="L684"><span class="lineNum">     684</span>                 :<span class="tlaGNC">          55 :       },</span></span>
+<span id="L685"><span class="lineNum">     685</span>                 :             :       style, &amp;matched);  // mode-scoped traversal defaults (modern -&gt; sorted + parallel; find -&gt; unordered)</span>
+<span id="L686"><span class="lineNum">     686</span>         [<span class="tlaGBC" title="branch 0 was taken 54 times"> + </span><span class="tlaGBC" title="branch 1 was taken 419 times"> + </span>]:<span class="tlaGNC">         473 :   if (errors != 0) {</span></span>
+<span id="L687"><span class="lineNum">     687</span>                 :<span class="tlaGNC">          54 :     return 2;  // an error outranks match status</span></span>
+<span id="L688"><span class="lineNum">     688</span>                 :             :   }</span>
+<span id="L689"><span class="lineNum">     689</span>   [<span class="tlaGBC" title="branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="branch 1 was taken 413 times"> + </span><span class="tlaGBC" title="branch 2 was taken 3 times"> + </span><span class="tlaGBC" title="branch 3 was taken 3 times"> + </span>]:<span class="tlaGNC">         419 :   return match_sensitive &amp;&amp; !matched ? 1 : 0;</span></span>
+<span id="L690"><span class="lineNum">     690</span>                 :<span class="tlaGNC">         645 : }</span></span>
+<span id="L691"><span class="lineNum">     691</span>                 :             : </span>
+<span id="L692"><span class="lineNum">     692</span>                 :             : // Entry point: run xff, then flush stdout explicitly before the process exits.</span>
+<span id="L693"><span class="lineNum">     693</span>                 :             : // xff writes results and the help / man / markdown pages to std::cout, which is</span>
+<span id="L694"><span class="lineNum">     694</span>                 :             : // fully buffered when stdout is a pipe. An abnormal exit after main -- notably</span>
+<span id="L695"><span class="lineNum">     695</span>                 :             : // LeakSanitizer's _exit under `--config=asan` on Linux, which runs before libc++</span>
+<span id="L696"><span class="lineNum">     696</span>                 :             : // would flush the stream -- otherwise truncates large output (a partial `--man` or</span>
+<span id="L697"><span class="lineNum">     697</span>                 :             : // `--help=list`). Flushing here, before returning into the C++ exit sequence,</span>
+<span id="L698"><span class="lineNum">     698</span>                 :             : // guarantees the bytes are written regardless of what the exit path does next.</span>
+<span id="L699"><span class="lineNum">     699</span>                 :             : }  // namespace</span>
+<span id="L700"><span class="lineNum">     700</span>                 :             : </span>
+<span id="L701"><span class="lineNum">     701</span>                 :<span class="tlaGNC">         645 : int main(int argc, char** argv) {</span></span>
+<span id="L702"><span class="lineNum">     702</span>                 :<span class="tlaGNC">         645 :   const int exit_code = RunMain(argc, argv);</span></span>
+<span id="L703"><span class="lineNum">     703</span>                 :<span class="tlaGNC">         645 :   std::cout.flush();</span></span>
+<span id="L704"><span class="lineNum">     704</span>                 :<span class="tlaGNC">         645 :   return exit_code;</span></span>
+<span id="L705"><span class="lineNum">     705</span>                 :             : }</span>
         </pre>
               </td>
             </tr>
