@@ -43,14 +43,14 @@ using ::testing::UnorderedElementsAre;
 
 constexpr std::string_view kFramingSignature = "\x91\x0a\x42\x52";
 
-void AppendVarint(std::string* const output, std::uint64_t value) {
+void AppendVarint(std::string& output, std::uint64_t value) {
   while (true) {
     auto byte = static_cast<std::uint8_t>(value & 0x7fU);
     value >>= 7U;
     if (value != 0) {
       byte |= 0x80U;
     }
-    output->push_back(static_cast<char>(byte));
+    output.push_back(static_cast<char>(byte));
     if (value == 0) {
       return;
     }
@@ -67,24 +67,29 @@ std::string MakeFrame(
   std::string body;
   body.push_back(static_cast<char>(chunk_type));
   body.push_back(static_cast<char>(codec));
-  AppendVarint(&body, expected_size);
+  AppendVarint(body, expected_size);
   body.push_back(static_cast<char>(data_flags));
   body.append(payload);
 
   std::string framed(kFramingSignature);
   framed.push_back(0);
-  AppendVarint(&framed, chunk_size.value_or(body.size()));
+  AppendVarint(framed, chunk_size.value_or(body.size()));
   framed.append(body);
   return framed;
 }
 
-std::optional<std::uint64_t> ReadVarint(std::string_view bytes, std::size_t* const cursor) {
+struct DecodedVarint {
+  std::uint64_t value;
+  std::size_t next;
+};
+
+std::optional<DecodedVarint> ReadVarint(std::string_view bytes, std::size_t cursor) {
   std::uint64_t value = 0;
-  for (unsigned int index = 0; index < 9 && *cursor < bytes.size(); ++index) {
-    const auto byte = static_cast<std::uint8_t>(bytes[(*cursor)++]);
+  for (unsigned int index = 0; index < 9 && cursor < bytes.size(); ++index) {
+    const auto byte = static_cast<std::uint8_t>(bytes[cursor++]);
     value |= static_cast<std::uint64_t>(byte & 0x7fU) << (index * 7U);
     if ((byte & 0x80U) == 0) {
-      return value;
+      return DecodedVarint{.value = value, .next = cursor};
     }
   }
   return std::nullopt;
@@ -139,14 +144,16 @@ TEST_F(BrotliCodecTest, DefaultPackIsRfc9841AndRoundTripsTheTarResource) {
   ASSERT_THAT(cursor, Lt(encoded.size()));
   EXPECT_THAT(static_cast<std::uint8_t>(encoded[cursor++]), Eq(0));  // simple-container flags
   const std::size_t chunk_start = cursor;
-  const std::optional<std::uint64_t> chunk_size = ReadVarint(encoded, &cursor);
-  ASSERT_THAT(chunk_size, Optional(Ge(4)));
+  const std::optional<DecodedVarint> chunk_size = ReadVarint(encoded, cursor);
+  ASSERT_THAT(chunk_size, Optional(Field("value", &DecodedVarint::value, Ge(4))));
+  cursor = chunk_size->next;
   const std::size_t chunk_content = cursor;
-  EXPECT_THAT(chunk_size.value_or(0), Eq(encoded.size() - chunk_content));
+  EXPECT_THAT(chunk_size->value, Eq(encoded.size() - chunk_content));
   EXPECT_THAT(static_cast<std::uint8_t>(encoded[cursor++]), Eq(2));  // data chunk
   EXPECT_THAT(static_cast<std::uint8_t>(encoded[cursor++]), Eq(2));  // RFC 7932 codec
-  const std::optional<std::uint64_t> uncompressed_size = ReadVarint(encoded, &cursor);
-  ASSERT_THAT(uncompressed_size, Optional(Eq(tar.size())));
+  const std::optional<DecodedVarint> uncompressed_size = ReadVarint(encoded, cursor);
+  ASSERT_THAT(uncompressed_size, Optional(Field("value", &DecodedVarint::value, Eq(tar.size()))));
+  cursor = uncompressed_size->next;
   EXPECT_THAT(static_cast<std::uint8_t>(encoded[cursor]), Eq(0));  // resource flags
   EXPECT_THAT(chunk_start, Lt(chunk_content));
   EXPECT_THAT(
@@ -196,9 +203,13 @@ TEST_F(BrotliCodecTest, DecoderRejectsEveryUnsupportedOrMalformedRfc9841Boundary
   ASSERT_OK_AND_ASSIGN(const std::string tar, Decode(output.string(), encoded));
 
   std::size_t cursor = kFramingSignature.size() + 1;
-  ASSERT_THAT(ReadVarint(encoded, &cursor), Optional(Ge(4)));
+  const std::optional<DecodedVarint> chunk_size = ReadVarint(encoded, cursor);
+  ASSERT_THAT(chunk_size, Optional(Field("value", &DecodedVarint::value, Ge(4))));
+  cursor = chunk_size->next;
   cursor += 2;
-  ASSERT_THAT(ReadVarint(encoded, &cursor), Optional(Eq(tar.size())));
+  const std::optional<DecodedVarint> uncompressed_size = ReadVarint(encoded, cursor);
+  ASSERT_THAT(uncompressed_size, Optional(Field("value", &DecodedVarint::value, Eq(tar.size()))));
+  cursor = uncompressed_size->next;
   ++cursor;
   ASSERT_THAT(cursor, Lt(encoded.size()));
   const std::string_view payload = std::string_view(encoded).substr(cursor);
