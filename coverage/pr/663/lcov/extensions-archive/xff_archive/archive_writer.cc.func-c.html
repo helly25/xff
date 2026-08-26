@@ -40,27 +40,27 @@
             <td class="headerValue">xff production coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryLo">83.9&nbsp;%</td>
-            <td class="headerCovTableEntry">149</td>
-            <td class="headerCovTableEntry">125</td>
+            <td class="headerCovTableEntryLo">87.3&nbsp;%</td>
+            <td class="headerCovTableEntry">157</td>
+            <td class="headerCovTableEntry">137</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-26 03:39:32</td>
+            <td class="headerValue">2026-08-26 05:37:35</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryMed">90.9&nbsp;%</td>
-            <td class="headerCovTableEntry">11</td>
-            <td class="headerCovTableEntry">10</td>
+            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
+            <td class="headerCovTableEntry">13</td>
+            <td class="headerCovTableEntry">13</td>
           </tr>
           <tr>
             <td></td>
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryLo">66.3&nbsp;%</td>
-            <td class="headerCovTableEntry">98</td>
-            <td class="headerCovTableEntry">65</td>
+            <td class="headerCovTableEntryLo">71.3&nbsp;%</td>
+            <td class="headerCovTableEntry">94</td>
+            <td class="headerCovTableEntry">67</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -84,13 +84,13 @@
             <tr>
               <td class="coverFn"><a href="archive_writer.cc.gcov.html#L65">xff::archive::(anonymous namespace)::LastError(archive*)</a></td>
               
-              <td class="coverFnLo">0</td>
+              <td class="coverFnHi">1</td>
               
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L225">xff::archive::(anonymous namespace)::AllRemoved(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;, std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt; const&amp;, std::vector&lt;bool, std::allocator&lt;bool&gt; &gt; const&amp;)</a></td>
+              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L141">xff::archive::(anonymous namespace)::RemovalTracker::CheckAll(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;) const</a></td>
               
               <td class="coverFnHi">7</td>
               
@@ -98,7 +98,7 @@
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L165">xff::archive::(anonymous namespace)::MatchWriterToReader(archive*, archive*, std::filesystem::__cxx11::path const&amp;, std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;)</a></td>
+              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L126">xff::archive::(anonymous namespace)::RemovalTracker::RemovalTracker(std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt; const&amp;)</a></td>
               
               <td class="coverFnHi">7</td>
               
@@ -106,7 +106,7 @@
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L122">xff::archive::(anonymous namespace)::RewriteWithout(archive*, archive*, std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt; const&amp;, std::vector&lt;bool, std::allocator&lt;bool&gt; &gt;*)</a></td>
+              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L159">xff::archive::(anonymous namespace)::RewriteWithout(archive&amp;, archive&amp;, xff::archive::(anonymous namespace)::RemovalTracker&amp;)</a></td>
               
               <td class="coverFnHi">7</td>
               
@@ -114,9 +114,17 @@
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L196">xff::archive::(anonymous namespace)::TransferFirstMember(archive*, archive*, archive_entry*, std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt; const&amp;, std::vector&lt;bool, std::allocator&lt;bool&gt; &gt;*)</a></td>
+              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L226">xff::archive::(anonymous namespace)::TransferFirstMember(archive&amp;, archive&amp;, archive_entry&amp;, xff::archive::(anonymous namespace)::RemovalTracker&amp;)</a></td>
               
               <td class="coverFnHi">7</td>
+              
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L193">xff::archive::(anonymous namespace)::MatchWriterToReader(archive&amp;, archive&amp;, std::filesystem::__cxx11::path const&amp;, std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;)</a></td>
+              
+              <td class="coverFnHi">8</td>
               
               
               
@@ -124,13 +132,13 @@
             <tr>
               <td class="coverFn"><a href="archive_writer.cc.gcov.html#L55">xff::archive::(anonymous namespace)::WriteDeleter::operator()(archive*) const</a></td>
               
-              <td class="coverFnHi">7</td>
+              <td class="coverFnHi">8</td>
               
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L229">xff::archive::(anonymous namespace)::AllRemoved(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;, std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt; const&amp;, std::vector&lt;bool, std::allocator&lt;bool&gt; &gt; const&amp;)::{lambda(bool)#1}::operator()(bool) const</a></td>
+              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L102">xff::archive::(anonymous namespace)::CopyData(archive&amp;, archive&amp;)</a></td>
               
               <td class="coverFnHi">9</td>
               
@@ -138,7 +146,7 @@
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L102">xff::archive::(anonymous namespace)::CopyData(archive*, archive*)</a></td>
+              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L142">xff::archive::(anonymous namespace)::RemovalTracker::CheckAll(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;) const::{lambda(bool)#1}::operator()(bool) const</a></td>
               
               <td class="coverFnHi">9</td>
               
@@ -148,7 +156,7 @@
             <tr>
               <td class="coverFn"><a href="archive_writer.cc.gcov.html#L72">xff::archive::(anonymous namespace)::OpenReader(std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; const&amp;)</a></td>
               
-              <td class="coverFnHi">9</td>
+              <td class="coverFnHi">10</td>
               
               
               
@@ -156,15 +164,23 @@
             <tr>
               <td class="coverFn"><a href="archive_writer.cc.gcov.html#L47">xff::archive::(anonymous namespace)::ReadDeleter::operator()(archive*) const</a></td>
               
-              <td class="coverFnHi">9</td>
+              <td class="coverFnHi">10</td>
               
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L243">xff::archive::RemoveMembersOfFile(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;, std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt; const&amp;)</a></td>
+              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L251">xff::archive::RemoveMembersOfFile(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;, std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt; const&amp;)</a></td>
               
-              <td class="coverFnHi">10</td>
+              <td class="coverFnHi">11</td>
+              
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="archive_writer.cc.gcov.html#L129">xff::archive::(anonymous namespace)::RemovalTracker::ShouldRemove(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;)</a></td>
+              
+              <td class="coverFnHi">19</td>
               
               
               
