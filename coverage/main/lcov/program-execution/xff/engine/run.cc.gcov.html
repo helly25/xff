@@ -40,13 +40,13 @@
             <td class="headerValue">xff production coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">95.3&nbsp;%</td>
-            <td class="headerCovTableEntry">2338</td>
-            <td class="headerCovTableEntry">2227</td>
+            <td class="headerCovTableEntryHi">95.2&nbsp;%</td>
+            <td class="headerCovTableEntry">2337</td>
+            <td class="headerCovTableEntry">2225</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-26 03:08:47</td>
+            <td class="headerValue">2026-08-26 04:10:09</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">96.4&nbsp;%</td>
@@ -1413,7 +1413,7 @@
 <span id="L1303"><span class="lineNum">    1303</span>                 :<span class="tlaGNC">          89 :       .root = std::string(visit.root),</span></span>
 <span id="L1304"><span class="lineNum">    1304</span>                 :<span class="tlaGNC">          89 :       .depth = visit.depth,</span></span>
 <span id="L1305"><span class="lineNum">    1305</span>                 :<span class="tlaGNC">          89 :       .metadata = visit.metadata,</span></span>
-<span id="L1306"><span class="lineNum">    1306</span>                 :<span class="tlaGNC">          89 :       .fs = visit.fs,</span></span>
+<span id="L1306"><span class="lineNum">    1306</span>                 :             :       .fs = visit.fs,</span>
 <span id="L1307"><span class="lineNum">    1307</span>                 :<span class="tlaGNC">          89 :       .fs_owner = visit.fs_owner,</span></span>
 <span id="L1308"><span class="lineNum">    1308</span>                 :<span class="tlaGNC">         356 :   };</span></span>
 <span id="L1309"><span class="lineNum">    1309</span>                 :             : }</span>
@@ -3057,14 +3057,14 @@
 <span id="L2903"><span class="lineNum">    2903</span>                 :<span class="tlaGNC">          59 :           .link_target = link,</span></span>
 <span id="L2904"><span class="lineNum">    2904</span>                 :<span class="tlaGNC">          59 :           .metadata = visit.metadata,</span></span>
 <span id="L2905"><span class="lineNum">    2905</span>                 :<span class="tlaGNC">          59 :           .depth = visit.depth,</span></span>
-<span id="L2906"><span class="lineNum">    2906</span>                 :<span class="tlaGNC">          59 :           .fs = visit.fs != nullptr ? *visit.fs : defaults.fs,</span></span>
+<span id="L2906"><span class="lineNum">    2906</span>                 :<span class="tlaGNC">          59 :           .fs = visit.fs.has_value() ? *visit.fs : defaults.fs,</span></span>
 <span id="L2907"><span class="lineNum">    2907</span>                 :             :           .tz = defaults.tz,</span>
 <span id="L2908"><span class="lineNum">    2908</span>                 :             :           .time_format = defaults.time_format,</span>
 <span id="L2909"><span class="lineNum">    2909</span>                 :<span class="tlaGNC">          59 :           .zone_suffix = defaults.zone_suffix,</span></span>
 <span id="L2910"><span class="lineNum">    2910</span>                 :             :           .hash_algorithm = defaults.hash_algorithm,</span>
 <span id="L2911"><span class="lineNum">    2911</span>                 :             :           .hash_encoding = defaults.hash_encoding,</span>
 <span id="L2912"><span class="lineNum">    2912</span>                 :<span class="tlaGNC">          59 :           .defines = defaults.defines,</span></span>
-<span id="L2913"><span class="lineNum">    2913</span>         [<span class="tlaGBC" title="branch 0 was taken 59 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">          59 :       };</span></span>
+<span id="L2913"><span class="lineNum">    2913</span>         [<span class="tlaGBC" title="branch 0 was taken 59 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">         118 :       };</span></span>
 <span id="L2914"><span class="lineNum">    2914</span>                 :<span class="tlaGNC">          59 :       FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);</span></span>
 <span id="L2915"><span class="lineNum">    2915</span>                 :<span class="tlaGNC">          59 :       FeedHistograms(histograms, histogram_cells, visit);</span></span>
 <span id="L2916"><span class="lineNum">    2916</span>                 :<span class="tlaGNC">          59 :     }</span></span>
@@ -3841,10 +3841,10 @@
 <span id="L3665"><span class="lineNum">    3665</span>                 :             :   // path rather than a second, subtly different renderer.</span>
 <span id="L3666"><span class="lineNum">    3666</span>                 :             :   // NOLINTNEXTLINE(readability-function-cognitive-complexity): one extracted sink dispatch shared by walk and replay</span>
 <span id="L3667"><span class="lineNum">    3667</span>                 :<span class="tlaGNC">        3523 :   const auto finish_entry = [&amp;](const Visit&amp; visit, std::map&lt;std::string, std::string&gt;&amp; outputs, bool matched) {</span></span>
-<span id="L3668"><span class="lineNum">    3668</span>         [<span class="tlaGBC" title="branch 0 was taken 1711 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1812 times"> + </span>]:<span class="tlaGNC">        3523 :     if (matched) {</span></span>
-<span id="L3669"><span class="lineNum">    3669</span>                 :<span class="tlaGNC">        1711 :       any_match = true;</span></span>
+<span id="L3668"><span class="lineNum">    3668</span>         [<span class="tlaGBC" title="branch 0 was taken 1710 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1813 times"> + </span>]:<span class="tlaGNC">        3523 :     if (matched) {</span></span>
+<span id="L3669"><span class="lineNum">    3669</span>                 :<span class="tlaGNC">        1710 :       any_match = true;</span></span>
 <span id="L3670"><span class="lineNum">    3670</span>                 :             :     }</span>
-<span id="L3671"><span class="lineNum">    3671</span>   [<span class="tlaGBC" title="branch 0 was taken 1711 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1812 times"> + </span><span class="tlaGBC" title="branch 2 was taken 375 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1336 times"> + </span>]:<span class="tlaGNC">        3523 :     if (matched &amp;&amp; any_reduction) {</span></span>
+<span id="L3671"><span class="lineNum">    3671</span>   [<span class="tlaGBC" title="branch 0 was taken 1710 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1813 times"> + </span><span class="tlaGBC" title="branch 2 was taken 375 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1335 times"> + </span>]:<span class="tlaGNC">        3523 :     if (matched &amp;&amp; any_reduction) {</span></span>
 <span id="L3672"><span class="lineNum">    3672</span>         [<span class="tlaGBC" title="branch 0 was taken 62 times"> + </span><span class="tlaGBC" title="branch 1 was taken 313 times"> + </span>]:<span class="tlaGNC">         375 :       if (pack_target.has_value()) {</span></span>
 <span id="L3673"><span class="lineNum">    3673</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 61 times"> + </span>]:<span class="tlaGNC">          62 :         if (visit.metadata.source == vfs::Source::kArchiveMember) {</span></span>
 <span id="L3674"><span class="lineNum">    3674</span>                 :<span class="tlaGNC">           1 :           pack_saw_member = true;</span></span>
@@ -3883,7 +3883,7 @@
 <span id="L3704"><span class="lineNum">    3704</span>                 :<span class="tlaGNC">         257 :             .link_target = link,</span></span>
 <span id="L3705"><span class="lineNum">    3705</span>                 :<span class="tlaGNC">         257 :             .metadata = visit.metadata,</span></span>
 <span id="L3706"><span class="lineNum">    3706</span>                 :<span class="tlaGNC">         257 :             .depth = visit.depth,</span></span>
-<span id="L3707"><span class="lineNum">    3707</span>                 :<span class="tlaGNC">         257 :             .fs = visit.fs != nullptr ? *visit.fs : walk_fs,</span></span>
+<span id="L3707"><span class="lineNum">    3707</span>                 :<span class="tlaGNC">         257 :             .fs = visit.fs.has_value() ? *visit.fs : walk_fs,</span></span>
 <span id="L3708"><span class="lineNum">    3708</span>                 :             :             .tz = tz,</span>
 <span id="L3709"><span class="lineNum">    3709</span>                 :<span class="tlaGNC">         257 :             .time_format = time_format,</span></span>
 <span id="L3710"><span class="lineNum">    3710</span>                 :<span class="tlaGNC">         257 :             .zone_suffix = zone_suffix,</span></span>
@@ -3891,11 +3891,11 @@
 <span id="L3712"><span class="lineNum">    3712</span>                 :<span class="tlaGNC">         257 :             .hash_encoding = hash_encoding,</span></span>
 <span id="L3713"><span class="lineNum">    3713</span>                 :             :             .defines = defines,</span>
 <span id="L3714"><span class="lineNum">    3714</span>                 :             :             .outputs = outputs,</span>
-<span id="L3715"><span class="lineNum">    3715</span>         [<span class="tlaGBC" title="branch 0 was taken 257 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">         514 :             .fuzzy_score = fuzzy_score};</span></span>
+<span id="L3715"><span class="lineNum">    3715</span>         [<span class="tlaGBC" title="branch 0 was taken 257 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">         771 :             .fuzzy_score = fuzzy_score};</span></span>
 <span id="L3716"><span class="lineNum">    3716</span>                 :<span class="tlaGNC">         257 :         FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);</span></span>
 <span id="L3717"><span class="lineNum">    3717</span>                 :<span class="tlaGNC">         257 :         FeedHistograms(histograms, histogram_cells, visit);</span></span>
 <span id="L3718"><span class="lineNum">    3718</span>                 :<span class="tlaGNC">         257 :       }</span></span>
-<span id="L3719"><span class="lineNum">    3719</span>   [<span class="tlaGBC" title="branch 0 was taken 1336 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1812 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1082 times"> + </span><span class="tlaGBC" title="branch 3 was taken 254 times"> + </span> :<span class="tlaGNC">        3523 :     } else if (matched &amp;&amp; implicit_print &amp;&amp; (!max_results-&gt;has_value() || listed_results &lt; **max_results)) {</span></span>
+<span id="L3719"><span class="lineNum">    3719</span>   [<span class="tlaGBC" title="branch 0 was taken 1335 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1813 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1082 times"> + </span><span class="tlaGBC" title="branch 3 was taken 253 times"> + </span> :<span class="tlaGNC">        3523 :     } else if (matched &amp;&amp; implicit_print &amp;&amp; (!max_results-&gt;has_value() || listed_results &lt; **max_results)) {</span></span>
 <span class="lineNum">        </span> <span class="tlaGBC" title="branch 4 was taken 35 times"> + </span><span class="tlaGBC" title="branch 5 was taken 1047 times"> + </span><span class="tlaGBC" title="branch 6 was taken 15 times"> + </span><span class="tlaGBC" title="branch 7 was taken 20 times"> + </span><span class="tlaGBC" title="branch 8 was taken 1062 times"> + </span> 
 <span class="lineNum">        </span>             <span class="tlaGBC" title="branch 9 was taken 2086 times"> + </span>]
 <span id="L3720"><span class="lineNum">    3720</span>                 :<span class="tlaGNC">        1062 :       ++listed_results;</span></span>
@@ -3920,7 +3920,7 @@
 <span id="L3737"><span class="lineNum">    3737</span>                 :<span class="tlaGNC">          61 :             .link_target = link,</span></span>
 <span id="L3738"><span class="lineNum">    3738</span>                 :<span class="tlaGNC">          61 :             .metadata = visit.metadata,</span></span>
 <span id="L3739"><span class="lineNum">    3739</span>                 :<span class="tlaGNC">          61 :             .depth = visit.depth,</span></span>
-<span id="L3740"><span class="lineNum">    3740</span>                 :<span class="tlaGNC">          61 :             .fs = visit.fs != nullptr ? *visit.fs : walk_fs,</span></span>
+<span id="L3740"><span class="lineNum">    3740</span>                 :<span class="tlaGNC">          61 :             .fs = visit.fs.has_value() ? *visit.fs : walk_fs,</span></span>
 <span id="L3741"><span class="lineNum">    3741</span>                 :             :             .tz = tz,</span>
 <span id="L3742"><span class="lineNum">    3742</span>                 :<span class="tlaGNC">          61 :             .time_format = time_format,</span></span>
 <span id="L3743"><span class="lineNum">    3743</span>                 :<span class="tlaGNC">          61 :             .zone_suffix = zone_suffix,</span></span>
@@ -3928,7 +3928,7 @@
 <span id="L3745"><span class="lineNum">    3745</span>                 :<span class="tlaGNC">          61 :             .hash_encoding = hash_encoding,</span></span>
 <span id="L3746"><span class="lineNum">    3746</span>                 :             :             .defines = defines,</span>
 <span id="L3747"><span class="lineNum">    3747</span>                 :             :             .outputs = outputs,</span>
-<span id="L3748"><span class="lineNum">    3748</span>         [<span class="tlaGBC" title="branch 0 was taken 61 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">         122 :             .fuzzy_score = fuzzy_score};</span></span>
+<span id="L3748"><span class="lineNum">    3748</span>         [<span class="tlaGBC" title="branch 0 was taken 61 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">         183 :             .fuzzy_score = fuzzy_score};</span></span>
 <span id="L3749"><span class="lineNum">    3749</span>         [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 54 times"> + </span>]:<span class="tlaGNC">          61 :         if (!column_templates.empty()) {</span></span>
 <span id="L3750"><span class="lineNum">    3750</span>                 :<span class="tlaGNC">           7 :           std::vector&lt;std::string&gt; cells;</span></span>
 <span id="L3751"><span class="lineNum">    3751</span>                 :<span class="tlaGNC">           7 :           cells.reserve(column_templates.size());</span></span>
@@ -4042,7 +4042,7 @@
 <span id="L3853"><span class="lineNum">    3853</span>                 :             :             .ls_size_units = human,</span>
 <span id="L3854"><span class="lineNum">    3854</span>                 :             :             // The entry's OWN filesystem, so a predicate that reads a member reads it out of the</span>
 <span id="L3855"><span class="lineNum">    3855</span>                 :             :             // container rather than looking for `a.tar!x` on disk and finding nothing.</span>
-<span id="L3856"><span class="lineNum">    3856</span>                 :<span class="tlaGNC">        3523 :             .fs = visit.fs != nullptr ? *visit.fs : walk_fs,</span></span>
+<span id="L3856"><span class="lineNum">    3856</span>         [<span class="tlaGBC" title="branch 0 was taken 3523 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">        3523 :             .fs = visit.fs.has_value() ? *visit.fs : walk_fs,</span></span>
 <span id="L3857"><span class="lineNum">    3857</span>                 :             :             .now = now,</span>
 <span id="L3858"><span class="lineNum">    3858</span>                 :             :             .tz = tz,</span>
 <span id="L3859"><span class="lineNum">    3859</span>                 :<span class="tlaGNC">        3523 :             .time_format = time_format,</span></span>
@@ -4078,7 +4078,7 @@
 <span id="L3889"><span class="lineNum">    3889</span>                 :             :             .mounts = mounted_containers,</span>
 <span id="L3890"><span class="lineNum">    3890</span>         [<span class="tlaGBC" title="branch 0 was taken 56 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3467 times"> + </span>]:<span class="tlaGNC">        3523 :             .archive_deletions = archive_delete ? mbo::types::OptionalRef{archive_deletions}</span></span>
 <span id="L3891"><span class="lineNum">    3891</span>                 :             :                                                 : mbo::types::OptionalRef&lt;std::vector&lt;std::string&gt;&gt;{},</span>
-<span id="L3892"><span class="lineNum">    3892</span>   [<span class="tlaGBC" title="branch 0 was taken 3523 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 19 times"> + </span><span class="tlaGBC" title="branch 3 was taken 3504 times"> + </span>]:<span class="tlaGNC">       24661 :         };</span></span>
+<span id="L3892"><span class="lineNum">    3892</span>         [<span class="tlaGBC" title="branch 0 was taken 19 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3504 times"> + </span>]:<span class="tlaGNC">       24661 :         };</span></span>
 <span id="L3893"><span class="lineNum">    3893</span>                 :             :         const EvaluationResult evaluated =</span>
 <span id="L3894"><span class="lineNum">    3894</span>         [<span class="tlaGBC" title="branch 0 was taken 441 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3082 times"> + </span>]:<span class="tlaGNC">        3523 :             !expression.has_value() ? EvaluationResult{.matched = true} : EvaluateDeferred(*expression, eval_context);</span></span>
 <span id="L3895"><span class="lineNum">    3895</span>         [<span class="tlaGBC" title="branch 0 was taken 89 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3434 times"> + </span>]:<span class="tlaGNC">        3523 :         if (evaluated.deferred) {</span></span>
@@ -4158,7 +4158,7 @@
 <span id="L3968"><span class="lineNum">    3968</span>                 :             :           .emit_ls_row = emit_ls_row,</span>
 <span id="L3969"><span class="lineNum">    3969</span>                 :             :           .ls_color = entry_color,</span>
 <span id="L3970"><span class="lineNum">    3970</span>                 :             :           .ls_size_units = human,</span>
-<span id="L3971"><span class="lineNum">    3971</span>                 :<span class="tlaGNC">          92 :           .fs = visit.fs != nullptr ? *visit.fs : walk_fs,</span></span>
+<span id="L3971"><span class="lineNum">    3971</span>         [<span class="tlaGBC" title="branch 0 was taken 92 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">          92 :           .fs = visit.fs.has_value() ? *visit.fs : walk_fs,</span></span>
 <span id="L3972"><span class="lineNum">    3972</span>                 :             :           .now = now,</span>
 <span id="L3973"><span class="lineNum">    3973</span>                 :             :           .tz = tz,</span>
 <span id="L3974"><span class="lineNum">    3974</span>                 :<span class="tlaGNC">          92 :           .time_format = time_format,</span></span>
@@ -4194,7 +4194,7 @@
 <span id="L4004"><span class="lineNum">    4004</span>                 :             :           .mounts = mounted_containers,</span>
 <span id="L4005"><span class="lineNum">    4005</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 92 times"> + </span>]:<span class="tlaGNC">          92 :           .archive_deletions = archive_delete ? mbo::types::OptionalRef{archive_deletions}</span></span>
 <span id="L4006"><span class="lineNum">    4006</span>                 :             :                                               : mbo::types::OptionalRef&lt;std::vector&lt;std::string&gt;&gt;{},</span>
-<span id="L4007"><span class="lineNum">    4007</span>   [<span class="tlaGBC" title="branch 0 was taken 92 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaUNC" title="branch 2 was not taken"> - </span><span class="tlaGBC" title="branch 3 was taken 92 times"> + </span>]:<span class="tlaGNC">         644 :       };</span></span>
+<span id="L4007"><span class="lineNum">    4007</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 92 times"> + </span>]:<span class="tlaGNC">         644 :       };</span></span>
 <span id="L4008"><span class="lineNum">    4008</span>                 :<span class="tlaGNC">          92 :       const EvaluationResult evaluated = EvaluateDeferred(*expression, eval_context);</span></span>
 <span id="L4009"><span class="lineNum">    4009</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 89 times"> + </span>]:<span class="tlaGNC">          92 :       if (evaluated.deferred) {</span></span>
 <span id="L4010"><span class="lineNum">    4010</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">           3 :         candidate.waiting_at = evaluated.waiting_at.has_value() ? &amp;*evaluated.waiting_at : nullptr;</span></span>
@@ -4341,7 +4341,7 @@
 <span id="L4150"><span class="lineNum">    4150</span>                 :<span class="tlaGNC">           2 :           .link_target = link,</span></span>
 <span id="L4151"><span class="lineNum">    4151</span>                 :<span class="tlaGNC">           2 :           .metadata = visit.metadata,</span></span>
 <span id="L4152"><span class="lineNum">    4152</span>                 :<span class="tlaGNC">           2 :           .depth = visit.depth,</span></span>
-<span id="L4153"><span class="lineNum">    4153</span>                 :<span class="tlaGNC">           2 :           .fs = visit.fs != nullptr ? *visit.fs : walk_fs,</span></span>
+<span id="L4153"><span class="lineNum">    4153</span>                 :<span class="tlaUNC">           0 :           .fs = visit.fs.has_value() ? *visit.fs : walk_fs,</span></span>
 <span id="L4154"><span class="lineNum">    4154</span>                 :             :           .tz = tz,</span>
 <span id="L4155"><span class="lineNum">    4155</span>                 :<span class="tlaGNC">           2 :           .time_format = time_format,</span></span>
 <span id="L4156"><span class="lineNum">    4156</span>                 :<span class="tlaGNC">           2 :           .zone_suffix = zone_suffix,</span></span>

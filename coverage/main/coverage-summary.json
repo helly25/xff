@@ -3,8 +3,8 @@
   "measurements": {
     "overall": {
       "lines": {
-        "covered": 11474,
-        "total": 12028,
+        "covered": 11476,
+        "total": 12031,
         "percent": 95.39
       },
       "functions": {
@@ -13,8 +13,8 @@
         "percent": 98.05
       },
       "branches": {
-        "covered": 8209,
-        "total": 9472,
+        "covered": 8211,
+        "total": 9474,
         "percent": 86.67
       }
     },
@@ -71,9 +71,9 @@
     },
     "program / execution": {
       "lines": {
-        "covered": 4031,
-        "total": 4271,
-        "percent": 94.38
+        "covered": 4033,
+        "total": 4274,
+        "percent": 94.36
       },
       "functions": {
         "covered": 418,
@@ -81,8 +81,8 @@
         "percent": 97.66
       },
       "branches": {
-        "covered": 3192,
-        "total": 3767,
+        "covered": 3194,
+        "total": 3769,
         "percent": 84.74
       }
     },
