@@ -75,7 +75,10 @@ std::optional<std::uint64_t> ParseByteUnit(std::string_view unit) {
       {"eib", 1ULL << 60U},
   }};
   const std::string lower = absl::AsciiStrToLower(unit);
-  const auto* const found =
+  // This is an array iterator, not an optionally borrowed object. Its pointer representation is an
+  // implementation detail of the contiguous iterator.
+  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
+  const auto found =
       std::find_if(kUnits.begin(), kUnits.end(), [&lower](const Unit& entry) { return entry.first == lower; });
   return found == kUnits.end() ? std::nullopt : std::optional<std::uint64_t>(found->second);
 }
