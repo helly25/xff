@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-26 03:28:50</td>
+            <td class="headerValue">2026-08-26 04:56:14</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -114,8 +114,8 @@
 <span id="L34"><span class="lineNum">      34</span>                 :             : }</span>
 <span id="L35"><span class="lineNum">      35</span>                 :             : </span>
 <span id="L36"><span class="lineNum">      36</span>                 :             : // Borrows a mutable pointee through a read-only view.</span>
-<span id="L37"><span class="lineNum">      37</span>                 :<span class="tlaGNC">        1279 : inline mbo::types::OptionalRef&lt;const Expr&gt; AsConstOptionalExpr(const std::unique_ptr&lt;Expr&gt;&amp; expr) {</span></span>
-<span id="L38"><span class="lineNum">      38</span>         [<span class="tlaGBC" title="branch 0 was taken 1061 times"> + </span><span class="tlaGBC" title="branch 1 was taken 218 times"> + </span>]:<span class="tlaGNC">        1279 :   return expr ? mbo::types::OptionalRef&lt;const Expr&gt;{*expr} : std::nullopt;</span></span>
+<span id="L37"><span class="lineNum">      37</span>                 :<span class="tlaGNC">        1280 : inline mbo::types::OptionalRef&lt;const Expr&gt; AsConstOptionalExpr(const std::unique_ptr&lt;Expr&gt;&amp; expr) {</span></span>
+<span id="L38"><span class="lineNum">      38</span>         [<span class="tlaGBC" title="branch 0 was taken 1062 times"> + </span><span class="tlaGBC" title="branch 1 was taken 218 times"> + </span>]:<span class="tlaGNC">        1280 :   return expr ? mbo::types::OptionalRef&lt;const Expr&gt;{*expr} : std::nullopt;</span></span>
 <span id="L39"><span class="lineNum">      39</span>                 :             : }</span>
 <span id="L40"><span class="lineNum">      40</span>                 :             : </span>
 <span id="L41"><span class="lineNum">      41</span>                 :             : // Borrows an already read-only pointee.</span>

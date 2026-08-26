@@ -3,19 +3,19 @@
   "measurements": {
     "overall": {
       "lines": {
-        "covered": 11474,
-        "total": 12027,
-        "percent": 95.4
+        "covered": 11498,
+        "total": 12047,
+        "percent": 95.44
       },
       "functions": {
-        "covered": 1360,
-        "total": 1387,
-        "percent": 98.05
+        "covered": 1366,
+        "total": 1393,
+        "percent": 98.06
       },
       "branches": {
-        "covered": 8205,
-        "total": 9468,
-        "percent": 86.66
+        "covered": 8202,
+        "total": 9454,
+        "percent": 86.76
       }
     },
     "program / command line": {
@@ -71,19 +71,19 @@
     },
     "program / execution": {
       "lines": {
-        "covered": 4031,
-        "total": 4271,
-        "percent": 94.38
+        "covered": 4048,
+        "total": 4287,
+        "percent": 94.43
       },
       "functions": {
-        "covered": 418,
-        "total": 428,
-        "percent": 97.66
+        "covered": 424,
+        "total": 434,
+        "percent": 97.7
       },
       "branches": {
-        "covered": 3192,
-        "total": 3767,
-        "percent": 84.74
+        "covered": 3186,
+        "total": 3753,
+        "percent": 84.89
       }
     },
     "program / filesystem": {
@@ -122,9 +122,9 @@
     },
     "program / presentation": {
       "lines": {
-        "covered": 1231,
+        "covered": 1234,
         "total": 1263,
-        "percent": 97.47
+        "percent": 97.7
       },
       "functions": {
         "covered": 163,
@@ -132,9 +132,9 @@
         "percent": 100.0
       },
       "branches": {
-        "covered": 1004,
+        "covered": 1007,
         "total": 1106,
-        "percent": 90.78
+        "percent": 91.05
       }
     },
     "extensions / API": {
@@ -156,9 +156,9 @@
     },
     "extensions / archive": {
       "lines": {
-        "covered": 1206,
-        "total": 1320,
-        "percent": 91.36
+        "covered": 1210,
+        "total": 1324,
+        "percent": 91.39
       },
       "functions": {
         "covered": 139,
