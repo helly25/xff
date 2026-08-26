@@ -1291,7 +1291,7 @@ struct DeferredCandidate {
   std::map<std::string, std::string> outputs;
   EvaluationMemo memo;
   DeferredDecisions decisions;
-  std::optional<ExprIdentity> waiting_at;
+  ExprIdentity waiting_at;
   int score = 0;
   std::size_t order = 0;
 };
@@ -1448,34 +1448,34 @@ int ResolveDeferredRound(
     shard::Dedup shard_dedup,
     const SchemeAllowed& scheme_allowed,
     bool report_dedup_errors) {
-  std::optional<ExprIdentity> next_node;
-  std::size_t next_order = std::numeric_limits<std::size_t>::max();
+  // The caller enters only with a non-empty deferred frontier, and every candidate carries the
+  // required node at which evaluation stopped.
+  ExprIdentity next_node = candidates.front().waiting_at;
+  std::size_t next_order = node_order.at(next_node);
   for (const DeferredCandidate& candidate : candidates) {
-    const std::size_t order = node_order.at(*candidate.waiting_at);
+    const std::size_t order = node_order.at(candidate.waiting_at);
     if (order < next_order) {
       next_order = order;
-      next_node = *candidate.waiting_at;
+      next_node = candidate.waiting_at;
     }
   }
   std::vector<DeferredCandidate*> entries;
   for (DeferredCandidate& candidate : candidates) {
-    if (candidate.waiting_at == next_node) {
+    if (next_node == candidate.waiting_at) {
       entries.push_back(&candidate);
     }
   }
-  if (next_node.has_value() && next_node->get().descriptor->name == "-shard-status") {
+  if (next_node.Get().descriptor->name == "-shard-status") {
     return ResolveShardStatusRound(
-        next_node->get(), entries, shard_matcher, shard_dedup, scheme_allowed, report_dedup_errors);
+        next_node.Get(), entries, shard_matcher, shard_dedup, scheme_allowed, report_dedup_errors);
   }
   int limit = 0;
-  if (!next_node.has_value() || next_node->get().args.empty()
-      || !absl::SimpleAtoi(next_node->get().args.front(), &limit)) {
-    return 0;  // validated before the walk
-  }
+  // `-top` arity and its positive integer argument were validated before traversal.
+  static_cast<void>(absl::SimpleAtoi(next_node.Get().args.front(), &limit));
   absl::c_stable_sort(
       entries, [](const DeferredCandidate* lhs, const DeferredCandidate* rhs) { return lhs->score > rhs->score; });
   for (std::size_t index = 0; index < entries.size(); ++index) {
-    entries[index]->decisions[*next_node] = std::cmp_less(index, limit);
+    entries[index]->decisions[next_node] = std::cmp_less(index, limit);
   }
   return 0;
 }
@@ -3900,7 +3900,7 @@ RunResult RunFind(
                .outputs = std::move(outputs),
                .memo = std::move(evaluation_memo),
                .decisions = {},
-               .waiting_at = evaluated.waiting_at,
+               .waiting_at = evaluated.waiting_at.value(),
                .score = evaluated.fuzzy.value_or(0),
                .order = deferred_order++});
         } else {
@@ -4008,7 +4008,7 @@ RunResult RunFind(
       };
       const EvaluationResult evaluated = EvaluateDeferred(*expression, eval_context);
       if (evaluated.deferred) {
-        candidate.waiting_at = evaluated.waiting_at;
+        candidate.waiting_at = evaluated.waiting_at.value();
         candidate.score = evaluated.fuzzy.value_or(0);
         next_round.push_back(std::move(candidate));
       } else {
@@ -4067,7 +4067,7 @@ RunResult RunFind(
   // -execdir once per directory bucket (cwd = that dir). A nonzero exit is a
   // per-command error, as for `;`.
   for (const auto& [node, by_dir] : exec_batches) {
-    const parser::Expr& expr = node.get();
+    const parser::Expr& expr = node.Get();
     const bool execdir = expr.descriptor->name == "-execdir";
     for (const auto& [dir, items] : by_dir) {
       const bool ok = execdir ? exec::ExecuteBatchInDir(expr.args, items, dir) : exec::ExecuteBatch(expr.args, items);

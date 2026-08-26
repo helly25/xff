@@ -85,14 +85,14 @@ class ExprIdentity final {
  public:
   explicit ExprIdentity(const parser::Expr& expr) : expr_(expr) {}
 
-  [[nodiscard]] const parser::Expr& get() const { return expr_.get(); }
+  [[nodiscard]] const parser::Expr& Get() const { return expr_.get(); }
 
   friend bool operator==(ExprIdentity lhs, ExprIdentity rhs) {
-    return std::addressof(lhs.get()) == std::addressof(rhs.get());
+    return std::addressof(lhs.Get()) == std::addressof(rhs.Get());
   }
 
   friend bool operator<(ExprIdentity lhs, ExprIdentity rhs) {
-    return std::less{}(std::addressof(lhs.get()), std::addressof(rhs.get()));
+    return std::less{}(std::addressof(lhs.Get()), std::addressof(rhs.Get()));
   }
 
  private:
