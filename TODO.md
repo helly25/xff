@@ -65,11 +65,12 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
   extension headers plus implementation-only interfaces, while genuine external ABI adapters stay
   narrow and explicit.
 
-### Lint / CI / style adoption (open audits)
+### Lint / CI / style adoption (completed audits)
 
-- **Audit immutable registries for avoidable allocation.** Find APIs that return owning strings or
-  copied records even though they read from a container initialized once and then held constant for
-  the process lifetime. Where ownership and concurrency permit, return `std::string_view`, a const
+- **Audit immutable registries for avoidable allocation - COMPLETE.** Find APIs that return owning
+  strings or copied records even though they read from a container initialized once and then held
+  constant for the process lifetime. Where ownership and concurrency permit, return
+  `std::string_view`, a const
   reference, or an explicit view record instead. Each conversion must prove initialization order,
   stable element addresses, snapshot/reconfiguration lifetime, and thread safety; do not expose a
   view merely because the current caller consumes it quickly. The language vocabulary's immutable,
@@ -88,8 +89,9 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
     keys (fields, time formats, and hash algorithms) are constexpr too. Repeated documentation
     renders no longer rebuild these collections.
   - **Audit complete with intentional owners:** registration seams that deliberately accept late
-    registrations (`Databases`, notices, and license bodies), computed result collections
-    (`ResolveConfig`, parsed rc lines, collect sites, enabled extras, and extract directories), and
+    registrations (`Databases`, notices, license bodies, and archive read/pack vocabularies),
+    computed result collections (`ResolveConfig`, parsed rc lines, collect sites, enabled extras,
+    and extract directories), and
     the alphabetized topic rendering remain owning because mutation, sorting, or result lifetime is
     part of their contract.
 - **Compile-DB launcher configuration after
