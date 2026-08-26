@@ -251,6 +251,24 @@ TEST_F(BrotliCodecTest, DecoderRejectsEveryUnsupportedOrMalformedRfc9841Boundary
   EXPECT_THAT(
       Decode("oversized-size.tar.br", signature + '\0' + std::string(9, static_cast<char>(0x80))),
       StatusIs(absl::StatusCode::kDataLoss, HasSubstr("oversized RFC 9841 varint")));
+
+  std::string truncated_header = signature + '\0';
+  AppendVarint(truncated_header, 4);
+  EXPECT_THAT(
+      Decode("missing-chunk-type.tar.br", truncated_header),
+      StatusIs(absl::StatusCode::kDataLoss, HasSubstr("truncated RFC 9841 header")));
+  truncated_header.push_back(2);
+  EXPECT_THAT(
+      Decode("missing-codec.tar.br", truncated_header),
+      StatusIs(absl::StatusCode::kDataLoss, HasSubstr("truncated RFC 9841 header")));
+  truncated_header.push_back(2);
+  EXPECT_THAT(
+      Decode("missing-expected-size.tar.br", truncated_header),
+      StatusIs(absl::StatusCode::kDataLoss, HasSubstr("truncated RFC 9841 varint")));
+  AppendVarint(truncated_header, tar.size());
+  EXPECT_THAT(
+      Decode("missing-data-flags.tar.br", truncated_header),
+      StatusIs(absl::StatusCode::kDataLoss, HasSubstr("truncated RFC 9841 header")));
 }
 
 TEST_F(BrotliCodecTest, PackOptionsAreValidatedAndFailureLeavesNoOutput) {
