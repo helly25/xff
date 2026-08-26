@@ -88,15 +88,16 @@ struct RunTest : ::testing::Test {
     EXPECT_THAT(command, IsOk());
     std::vector<std::string> records;
     last_errors_ = RunFind(
-        *command, fs_,
-        [&](std::string_view record) {
-          std::string text(record);
-          if (!text.empty() && (text.back() == '\n' || text.back() == '\0')) {
-            text.pop_back();
-          }
-          records.push_back(std::move(text));
-        },
-        [](std::string_view, absl::Status) {});
+                       *command, fs_,
+                       [&](std::string_view record) {
+                         std::string text(record);
+                         if (!text.empty() && (text.back() == '\n' || text.back() == '\0')) {
+                           text.pop_back();
+                         }
+                         records.push_back(std::move(text));
+                       },
+                       [](std::string_view, absl::Status) {})
+                       .errors;
     return records;
   }
 
@@ -110,15 +111,16 @@ struct RunTest : ::testing::Test {
       return records;
     }
     last_errors_ = RunFind(
-        *command, fs_,
-        [&](std::string_view record) {
-          std::string text(record);
-          if (!text.empty() && (text.back() == '\n' || text.back() == '\0')) {
-            text.pop_back();
-          }
-          records.push_back(std::move(text));
-        },
-        [](std::string_view, absl::Status) {});
+                       *command, fs_,
+                       [&](std::string_view record) {
+                         std::string text(record);
+                         if (!text.empty() && (text.back() == '\n' || text.back() == '\0')) {
+                           text.pop_back();
+                         }
+                         records.push_back(std::move(text));
+                       },
+                       [](std::string_view, absl::Status) {})
+                       .errors;
     return records;
   }
 
@@ -539,7 +541,7 @@ TEST_F(RunTest, MissingRootCountsError) {
   const std::vector<std::string> argv = {(root_ / "absent").string(), "-print"};
   MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse(argv));
   std::vector<std::string> records;
-  const int errors = RunFind(
+  const auto [errors, any_match] = RunFind(
       command, fs_, [&](std::string_view record) { records.emplace_back(record); },
       [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, IsEmpty());
@@ -772,12 +774,46 @@ TEST_F(RunTest, DiffIgnoreRejectsUnknownToken) {
       parser::Parse({"--diff-ignore=bogus", root_.string(), "-name", "a.txt", "-diff", Path("b.md")}));
   std::vector<std::string> records;
   absl::Status reported;
-  const int errors = RunFind(
+  const auto [errors, any_match] = RunFind(
       command, fs_, [&](std::string_view record) { records.emplace_back(record); },
       [&](std::string_view, absl::Status status) { reported = status; });
   EXPECT_THAT(records, IsEmpty());
   EXPECT_THAT(errors, 2);
   EXPECT_THAT(reported, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("unknown --diff-ignore token 'bogus'")));
+}
+
+TEST_F(RunTest, InvalidValuedGlobalsAreRejectedBeforeTraversal) {
+  struct Case {
+    std::string flag;
+    std::string message;
+  };
+
+  const std::array cases{
+      Case{.flag = "--diff-algorithm=bogus", .message = "unknown diff algorithm 'bogus'"},
+      Case{.flag = "--hash-algorithm=bogus", .message = "unknown hash algorithm 'bogus'"},
+      Case{.flag = "--hash-encoding=bogus", .message = "unknown hash encoding 'bogus'"},
+      Case{.flag = "--archive-aggregate=bogus", .message = "bad --archive-aggregate value 'bogus'"},
+  };
+  for (const Case& test : cases) {
+    SCOPED_TRACE(test.flag);
+    MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({test.flag, root_.string()}));
+    absl::Status reported;
+    const RunResult result = RunFind(
+        command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status status) { reported = status; });
+    EXPECT_THAT(result.errors, 2);
+    EXPECT_THAT(result.any_match, IsFalse());
+    EXPECT_THAT(reported, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr(test.message)));
+  }
+}
+
+TEST_F(RunTest, PackWithoutAnArchiveBackendIsRejectedBeforeTraversal) {
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"--pack=" + Path("output.tar"), root_.string()}));
+  absl::Status reported;
+  const RunResult result =
+      RunFind(command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status status) { reported = status; });
+  EXPECT_THAT(result.errors, 2);
+  EXPECT_THAT(result.any_match, IsFalse());
+  EXPECT_THAT(reported, StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("without archive support")));
 }
 
 TEST_F(RunTest, DiffFormatAndContextGlobalsSetTheDefaults) {
@@ -835,7 +871,7 @@ TEST_F(RunTest, DiffFormatAndContextRejectBadValues) {
     MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse(argv));
     std::vector<std::string> records;
     absl::Status reported;
-    const int errors = RunFind(
+    const auto [errors, any_match] = RunFind(
         command, fs_, [&](std::string_view record) { records.emplace_back(record); },
         [&](std::string_view, absl::Status status) { reported = status; });
     EXPECT_THAT(records, IsEmpty());
@@ -901,7 +937,7 @@ TEST_F(RunTest, HashRejectsUnknownSpec) {
   MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({root_.string(), "-name", "a.txt", "-hash:crc32"}));
   std::vector<std::string> records;
   absl::Status reported;
-  const int errors = RunFind(
+  const auto [errors, any_match] = RunFind(
       command, fs_, [&](std::string_view record) { records.emplace_back(record); },
       [&](std::string_view, absl::Status status) { reported = status; });
   EXPECT_THAT(records, IsEmpty());
@@ -942,7 +978,8 @@ TEST_F(RunTest, DeleteDryRunPreviewsWithoutDeleting) {
 
 TEST_F(RunTest, SafeRefusesDelete) {
   MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"--safe", root_.string(), "-delete"}));
-  const int errors = RunFind(command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
+  const auto [errors, any_match] =
+      RunFind(command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
   EXPECT_THAT(errors, 2);
   EXPECT_TRUE(fs::exists(root_ / "a.txt"));  // refused: nothing deleted
 }
@@ -957,7 +994,8 @@ TEST_F(RunTest, SafeRefusesExec) {
   MBO_ASSERT_OK_AND_ASSIGN(
       const auto command,
       parser::Parse({"--safe", root_.string(), "-exec", "/bin/sh", "-c", "echo > \"{}.ran\"", ";"}));
-  const int errors = RunFind(command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
+  const auto [errors, any_match] =
+      RunFind(command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
   EXPECT_THAT(errors, 2);
   EXPECT_FALSE(fs::exists(root_ / "a.txt.ran"));  // refused: command not run
 }
@@ -969,7 +1007,7 @@ TEST_F(RunTest, UnknownTimezoneIsRefusedBeforeTraversal) {
   std::string err_path;
   absl::Status err_status;
   bool emitted = false;
-  const int errors = RunFind(
+  const auto [errors, any_match] = RunFind(
       command, fs_, [&](std::string_view) { emitted = true; },
       [&](std::string_view path, absl::Status status) {
         err_path = std::string(path);
@@ -987,7 +1025,7 @@ TEST_F(RunTest, OversizedSizeUnitIsRefusedBeforeTraversal) {
   MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({root_.string(), "-size", "+1Z"}));
   absl::Status err_status;
   bool emitted = false;
-  const int errors = RunFind(
+  const auto [errors, any_match] = RunFind(
       command, fs_, [&](std::string_view) { emitted = true; },
       [&](std::string_view, absl::Status status) { err_status = status; });
   EXPECT_THAT(errors, 2);
@@ -1021,7 +1059,7 @@ TEST_F(RunTest, InvalidBlockSizeIsRefusedBeforeTraversal) {
   MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"--block-size=0", root_.string()}));
   absl::Status err_status;
   bool emitted = false;
-  const int errors = RunFind(
+  const auto [errors, any_match] = RunFind(
       command, fs_, [&](std::string_view) { emitted = true; },
       [&](std::string_view, absl::Status status) { err_status = status; });
   EXPECT_THAT(errors, 2);
@@ -1034,7 +1072,7 @@ TEST_F(RunTest, ValidTimezoneIsAcceptedAndTheRunProceeds) {
   // change the result, just proving the flag is accepted end to end).
   MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"--timezone=UTC", root_.string(), "-name", "a.txt"}));
   std::vector<std::string> records;
-  const int errors = RunFind(
+  const auto [errors, any_match] = RunFind(
       command, fs_,
       [&](std::string_view record) {
         std::string text(record);
@@ -1112,16 +1150,14 @@ TEST_F(RunTest, FixedOffsetTimezoneAppliesToFormatting) {
 
 TEST_F(RunTest, AnyMatchIsTrueWhenExpressionMatches) {
   MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({root_.string(), "-name", "a.txt"}));
-  bool matched = false;
-  RunFind(command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {}, std::nullopt, &matched);
-  EXPECT_THAT(matched, IsTrue());
+  const RunResult result = RunFind(command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
+  EXPECT_THAT(result.any_match, IsTrue());
 }
 
 TEST_F(RunTest, AnyMatchIsFalseWhenNothingMatches) {
   MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({root_.string(), "-name", "no-such-file.zzz"}));
-  bool matched = false;
-  RunFind(command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {}, std::nullopt, &matched);
-  EXPECT_THAT(matched, IsFalse());
+  const RunResult result = RunFind(command, fs_, [](std::string_view) {}, [](std::string_view, absl::Status) {});
+  EXPECT_THAT(result.any_match, IsFalse());
 }
 
 TEST_F(RunTest, AnyMatchReflectsExpressionNotEmittedOutput) {
@@ -1131,12 +1167,11 @@ TEST_F(RunTest, AnyMatchReflectsExpressionNotEmittedOutput) {
   MBO_ASSERT_OK_AND_ASSIGN(
       const auto command, parser::Parse({"--implicit-print=no", root_.string(), "-name", "a.txt"}));
   std::vector<std::string> records;
-  bool matched = false;
-  RunFind(
+  const RunResult result = RunFind(
       command, fs_, [&](std::string_view record) { records.emplace_back(record); },
-      [](std::string_view, absl::Status) {}, std::nullopt, &matched);
+      [](std::string_view, absl::Status) {});
   EXPECT_THAT(records, IsEmpty());
-  EXPECT_THAT(matched, IsTrue());
+  EXPECT_THAT(result.any_match, IsTrue());
 }
 
 TEST_F(RunTest, TimeFormatGlobalSetsTheBareTimeFieldDefault) {
@@ -1295,7 +1330,8 @@ TEST_F(RunTest, DuplicateCaptureNameIsErrorByDefault) {
                               {root_.string(), "-capture:x", "/bin/sh", "-c", "printf a", ";", "-capture:x", "/bin/sh",
                                "-c", "printf b", ";"}));
   int errors = 0;
-  const int code = RunFind(command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
+  const auto [code, any_match] =
+      RunFind(command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
   EXPECT_THAT(code, 2);
   EXPECT_THAT(errors, 1);
 }
@@ -1325,7 +1361,8 @@ TEST_F(RunTest, UnusedCaptureIsError) {
       const auto command,
       parser::Parse({root_.string(), "-name", "a.txt", "-capture:x", "/bin/sh", "-c", "printf a", ";"}));
   int errors = 0;
-  const int code = RunFind(command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
+  const auto [code, any_match] =
+      RunFind(command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
   EXPECT_THAT(code, 2);
   EXPECT_THAT(errors, 1);
 }
@@ -1337,7 +1374,8 @@ TEST_F(RunTest, CaptureUsedByLaterExecIsNotFlagged) {
                               {"--exec-fields", root_.string(), "-name", "a.txt", "-capture:x", "/bin/sh", "-c",
                                "printf a", ";", "-exec", "/bin/sh", "-c", "test \"{capture.x}\" = a", ";"}));
   int errors = 0;
-  const int code = RunFind(command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
+  const auto [code, any_match] =
+      RunFind(command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
   EXPECT_THAT(code, 0);  // used by the -exec, so not flagged
   EXPECT_THAT(errors, 0);
 }
@@ -1638,7 +1676,7 @@ TEST_F(RunTest, BtimeOnEntryWithoutBirthtimeFailsByDefault) {
   MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"/fake", "-Btime", "1"}));
   int reports = 0;
   std::string message;
-  const int errors = RunFind(
+  const auto [errors, any_match] = RunFind(
       command, fs, [](std::string_view) {},
       [&](std::string_view, absl::Status status) {
         ++reports;
@@ -1655,7 +1693,8 @@ TEST_F(RunTest, SkipUnsupportedDowngradesImpossibleBtimeToWarnAndSkip) {
   const NoBtimeFs fs("/fake");
   MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"--skip-unsupported", "/fake", "-Btime", "1"}));
   int reports = 0;
-  const int errors = RunFind(command, fs, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++reports; });
+  const auto [errors, any_match] =
+      RunFind(command, fs, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++reports; });
   EXPECT_THAT(errors, 0);   // skipped -> not an error
   EXPECT_THAT(reports, 1);  // but warned once
 }
@@ -1712,7 +1751,7 @@ std::string RunNameOnCaseFoldVolume(std::string_view pattern, std::optional<regi
   const auto command = parser::Parse(args);
   EXPECT_THAT(command, IsOk());
   std::string out;
-  const int errors = RunFind(
+  const auto [errors, any_match] = RunFind(
       *command, fs, [&out](std::string_view record) { out += record; }, [](std::string_view, absl::Status) {}, style);
   EXPECT_THAT(errors, 0);
   return out;
