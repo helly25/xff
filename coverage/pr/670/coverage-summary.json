@@ -3,8 +3,8 @@
   "measurements": {
     "overall": {
       "lines": {
-        "covered": 11518,
-        "total": 12063,
+        "covered": 11513,
+        "total": 12058,
         "percent": 95.48
       },
       "functions": {
@@ -71,9 +71,9 @@
     },
     "program / execution": {
       "lines": {
-        "covered": 4052,
-        "total": 4291,
-        "percent": 94.43
+        "covered": 4047,
+        "total": 4286,
+        "percent": 94.42
       },
       "functions": {
         "covered": 424,
