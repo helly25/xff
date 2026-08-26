@@ -2037,19 +2037,24 @@ absl::StatusOr<ArchiveAggregate> ResolveArchiveAggregate(const std::vector<std::
   return result;
 }
 
-// The whole `--archive` family, resolved into the walk options: how far to dive, and the member-path
-// spelling a mounted container renders with (returned, because only the mounter needs it).
+// The whole `--archive` family: how far/deep to dive and how a mounted container renders member paths.
 //
 // Diving needs the archive extra, which a lean build does not link, so an EXPLICIT request there is
 // an error rather than a silent no-op - "xff cannot see into this archive" is exactly the wrong
 // impression to leave. A STYLE default (`roots` for the xff family) must never break an ordinary
 // run, so it degrades quietly to walking archives as the plain files they are.
 //
-// The returned views point into `globals`, which outlives the walk.
-absl::StatusOr<archive::MemberPathOptions> ResolveArchiveOptions(
+// The returned member-path views point into `globals`, which outlives the walk.
+struct ResolvedArchiveOptions {
+  ArchiveDive archive_dive = ArchiveDive::kNone;
+  int archive_depth = 1;
+  archive::MemberPathOptions member_paths;
+};
+
+absl::StatusOr<ResolvedArchiveOptions> ResolveArchiveOptions(
     const std::vector<std::string>& globals,
-    std::optional<registry::Style> style,
-    WalkOptions* options) {
+    std::optional<registry::Style> style) {
+  ResolvedArchiveOptions result;
   const ArchiveMode archive_mode = ResolveArchiveMode(globals, style);
   if (archive_mode != ArchiveMode::kNone && !archive::ContainerSupportAvailable()) {
     if (HasArchiveFlag(globals)) {
@@ -2059,7 +2064,7 @@ absl::StatusOr<archive::MemberPathOptions> ResolveArchiveOptions(
               "') is not built into this binary; use --archive=none / -z- to walk archives as plain files"));
     }
   } else {
-    options->archive = ArchiveDiveOf(archive_mode);
+    result.archive_dive = ArchiveDiveOf(archive_mode);
   }
   // --archive-depth=N: how many containers deep diving goes (see WalkOptions::archive_depth). A bad
   // or zero value is a usage error rather than a silent clamp - "0" most likely means "off", which
@@ -2075,9 +2080,10 @@ absl::StatusOr<archive::MemberPathOptions> ResolveArchiveOptions(
       return absl::InvalidArgumentError(
           absl::StrCat("bad --archive-depth value '", value, "': expected a whole number of 1 or more"));
     }
-    options->archive_depth = parsed;
+    result.archive_depth = parsed;
   }
-  return ReadMemberPathOptions(globals);
+  result.member_paths = ReadMemberPathOptions(globals);
+  return result;
 }
 
 // The walk's whole view of archives: hand it a container path and the filesystem that container was
@@ -3278,14 +3284,15 @@ RunResult RunFind(
       }
     }
   }
-  // The whole --archive surface, resolved into `options` in one place (see ResolveArchiveOptions).
-  const absl::StatusOr<archive::MemberPathOptions> member_paths =
-      ResolveArchiveOptions(command.globals, style, &options);
-  if (!member_paths.ok()) {
-    on_error("--archive", member_paths.status());
+  // The whole --archive surface, resolved as one value before the walk consumes it.
+  const absl::StatusOr<ResolvedArchiveOptions> archive_options = ResolveArchiveOptions(command.globals, style);
+  if (!archive_options.ok()) {
+    on_error("--archive", archive_options.status());
     return RunResult{.errors = 2};
   }
-  const archive::MemberPathOptions member_path_options = *member_paths;
+  options.archive = archive_options->archive_dive;
+  options.archive_depth = archive_options->archive_depth;
+  const archive::MemberPathOptions member_path_options = archive_options->member_paths;
   // --archive-any: offer every file to the reader instead of only those whose name looks like a
   // container. Expensive by design (every file is opened and format-bid), so it is opt-in.
   // `--archive=any` / `-z++` / `-Z++` is the top rung: dive like `all` AND drop the name gate.
