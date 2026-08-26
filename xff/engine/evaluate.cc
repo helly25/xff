@@ -942,7 +942,7 @@ bool EvalFirst(const parser::Expr& expr, EvalContext& ctx) {
   if (!absl::SimpleAtoi(expr.args.front(), &limit) || limit <= 0) {
     return false;
   }
-  int& seen = (*ctx.first_counts)[&expr];
+  int& seen = (*ctx.first_counts)[ExprIdentity{expr}];
   if (seen >= limit) {
     return false;
   }
@@ -2063,7 +2063,7 @@ bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
     // chunks). The action is true per entry. An extracted member stays extracted
     // until the run ends, because that is when its command finally runs.
     if (ctx.exec_batches.has_value()) {
-      (*ctx.exec_batches)[&expr][""].emplace_back(*target);
+      (*ctx.exec_batches)[ExprIdentity{expr}][""].emplace_back(*target);
     }
     return true;
   }
@@ -2139,7 +2139,7 @@ bool EvalExecdir(const parser::Expr& expr, EvalContext& ctx) {
     // `-execdir ... +`: queue the "./<basename>" under its directory; RunFind runs
     // the command once per directory (cwd = that dir) at end-of-walk.
     if (ctx.exec_batches.has_value()) {
-      (*ctx.exec_batches)[&expr][target.dir].push_back(target.brace);
+      (*ctx.exec_batches)[ExprIdentity{expr}][target.dir].push_back(target.brace);
     }
     return true;
   }
@@ -2469,7 +2469,7 @@ EvaluationResult EvaluateResult(const parser::Expr& expr, EvalContext& context);
 
 EvaluationResult EvaluateChild(const parser::Expr& node, EvalContext& context) {
   if (context.deferred.has_value()) {
-    if (const auto found = context.deferred->memo.find(&node); found != context.deferred->memo.end()) {
+    if (const auto found = context.deferred->memo.find(ExprIdentity{node}); found != context.deferred->memo.end()) {
       return found->second;
     }
   }
@@ -2487,14 +2487,15 @@ EvaluationResult EvaluateChild(const parser::Expr& node, EvalContext& context) {
     context.fuzzy_score.reset();
   }
   if (!result.deferred && context.deferred.has_value()) {
-    context.deferred->memo.emplace(&node, result);
+    context.deferred->memo.emplace(ExprIdentity{node}, result);
   }
   return result;
 }
 
 EvaluationResult EvaluateTop(const parser::Expr& expr, EvalContext& context) {
   if (context.deferred.has_value()) {
-    if (const auto found = context.deferred->decisions.find(&expr); found != context.deferred->decisions.end()) {
+    if (const auto found = context.deferred->decisions.find(ExprIdentity{expr});
+        found != context.deferred->decisions.end()) {
       return {
           .matched = found->second,
           .fuzzy = found->second ? context.incoming_fuzzy_score : std::nullopt,
@@ -2502,19 +2503,20 @@ EvaluationResult EvaluateTop(const parser::Expr& expr, EvalContext& context) {
     }
   }
   if (context.deferred.has_value()) {
-    return {.fuzzy = context.incoming_fuzzy_score, .deferred = true, .waiting_at = expr};
+    return {.fuzzy = context.incoming_fuzzy_score, .deferred = true, .waiting_at = ExprIdentity{expr}};
   }
   return {};
 }
 
 EvaluationResult EvaluateShardStatus(const parser::Expr& expr, EvalContext& context) {
   if (context.deferred.has_value()) {
-    if (const auto found = context.deferred->decisions.find(&expr); found != context.deferred->decisions.end()) {
+    if (const auto found = context.deferred->decisions.find(ExprIdentity{expr});
+        found != context.deferred->decisions.end()) {
       return {.matched = found->second};
     }
   }
   if (context.deferred.has_value()) {
-    return {.deferred = true, .waiting_at = expr};
+    return {.deferred = true, .waiting_at = ExprIdentity{expr}};
   }
   return {};
 }

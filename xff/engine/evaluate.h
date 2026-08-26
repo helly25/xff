@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -78,17 +79,39 @@ struct Control {
   }
 };
 
+// Stable identity of an expression node owned by the parsed expression tree.
+// The wrapper makes address identity explicit without exposing a nullable pointer.
+class ExprIdentity final {
+ public:
+  explicit ExprIdentity(const parser::Expr& expr) : expr_(expr) {}
+
+  [[nodiscard]] const parser::Expr& get() const { return expr_.get(); }
+
+  friend bool operator==(ExprIdentity lhs, ExprIdentity rhs) {
+    return std::addressof(lhs.get()) == std::addressof(rhs.get());
+  }
+
+  friend bool operator<(ExprIdentity lhs, ExprIdentity rhs) {
+    return std::less{}(std::addressof(lhs.get()), std::addressof(rhs.get()));
+  }
+
+ private:
+  std::reference_wrapper<const parser::Expr> expr_;
+};
+
 // The truth and fuzzy value of an expression evaluation. `deferred` means evaluation reached an
 // undecided result-set predicate and deliberately stopped before anything to its right.
 struct EvaluationResult {
   bool matched = false;
   std::optional<int> fuzzy;
   bool deferred = false;
-  mbo::types::OptionalRef<const parser::Expr> waiting_at;
+  std::optional<ExprIdentity> waiting_at;
 };
 
-using DeferredDecisions = std::map<const parser::Expr*, bool>;
-using EvaluationMemo = std::map<const parser::Expr*, EvaluationResult>;
+using DeferredDecisions = std::map<ExprIdentity, bool>;
+using EvaluationMemo = std::map<ExprIdentity, EvaluationResult>;
+using FirstCounts = std::map<ExprIdentity, int>;
+using ExecBatches = std::map<ExprIdentity, std::map<std::string, std::vector<std::string>>>;
 
 // Inputs shared by one deferred evaluation pass. Decisions answer result-set predicates resolved by
 // the driver; the memo prevents completed prefix nodes from running twice during replay.
@@ -187,7 +210,7 @@ struct EvalContext {
   // `-first` in different branches keep separate budgets. Owned by the driver for the whole run
   // (unlike `outputs`, which is per entry) - the count is the point. Emission is single-threaded
   // (see walk.h), so a plain map needs no synchronisation.
-  mbo::types::OptionalRef<std::map<const parser::Expr*, int>> first_counts;
+  mbo::types::OptionalRef<FirstCounts> first_counts;
   // -collect[:NAME]: where the action holds entries for a post-walk sink (--summary reads the
   // collection instead of what matched). Owned by the driver for the whole run, and it OWNS what it
   // stores, because a Visit is borrowed (see collect.h). Empty -> -collect is inert.
@@ -197,7 +220,7 @@ struct EvalContext {
   // batch flush: outer key the Expr node, inner key the directory ("" for -exec's
   // single global batch; the entry's dir for -execdir's per-directory batches).
   // Empty disables batching (the action no-ops).
-  mbo::types::OptionalRef<std::map<const parser::Expr*, std::map<std::string, std::vector<std::string>>>> exec_batches;
+  mbo::types::OptionalRef<ExecBatches> exec_batches;
   // Bounded concurrent runner for `-exec/-execdir ... ;` under -j>1: when set, the
   // serial-`;` action launches the child here (returning true on launch) instead of
   // running it synchronously. Empty -> the action runs synchronously (find's default,
