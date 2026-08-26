@@ -19,8 +19,9 @@ return an optional reference rather than a nullable pointer. Prefer pure, value-
 return a value, `absl::StatusOr`, or a named result record instead of mutating caller-owned output
 parameters. Mutation remains valid when it is the explicit purpose of a stateful object or action.
 Exact raw-pointer spellings required by C, POSIX, or third-party ABIs stay inside narrow adapters
-and must carry the repository's explicit ABI-boundary annotation; do not broaden that exception to
-xff-owned interfaces or internal convenience pointers. `STYLE_CPP.md` is canonical.
+and must carry `XFF_ABI_POINTER: <reason>` on that declaration or the immediately preceding line;
+do not broaden that exception to xff-owned interfaces or internal convenience pointers.
+`STYLE_CPP.md` is canonical.
 
 ## Bazel package policy
 

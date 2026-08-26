@@ -1342,10 +1342,12 @@ int ReportShardDuplicateErrors(const shard::ShardSet& set, std::string_view pref
 using CandidateIndexes = std::vector<std::size_t>;
 using CandidatesByName = std::map<std::string_view, CandidateIndexes>;
 
-std::map<std::string, CandidateIndexes> IndexCandidatesByDirectory(absl::Span<DeferredCandidate* const> entries) {
+using DeferredCandidateRefs = std::vector<std::reference_wrapper<DeferredCandidate>>;
+
+std::map<std::string, CandidateIndexes> IndexCandidatesByDirectory(const DeferredCandidateRefs& entries) {
   std::map<std::string, CandidateIndexes> result;
   for (std::size_t index = 0; index < entries.size(); ++index) {
-    const std::string_view path = entries[index]->entry.path;
+    const std::string_view path = entries[index].get().entry.path;
     const std::string_view::size_type slash = path.rfind('/');
     const std::string_view directory = slash == std::string_view::npos ? std::string_view() : path.substr(0, slash);
     result[std::string(directory)].push_back(index);
@@ -1360,13 +1362,13 @@ struct ShardStatusCohort {
 
 template<typename SchemeAllowed>
 ShardStatusCohort MakeShardStatusCohort(
-    absl::Span<DeferredCandidate* const> entries,
+    const DeferredCandidateRefs& entries,
     absl::Span<const std::size_t> indexes,
     const shard::Matcher& shard_matcher,
     const SchemeAllowed& scheme_allowed) {
   ShardStatusCohort cohort;
   for (const std::size_t index : indexes) {
-    const DeferredCandidate& candidate = *entries[index];
+    const DeferredCandidate& candidate = entries[index];
     if (candidate.entry.metadata.type != vfs::FileType::kRegular) {
       continue;
     }
@@ -1390,10 +1392,10 @@ ShardStatusCohort MakeShardStatusCohort(
 void SelectShardPath(
     std::string_view path,
     const parser::Expr& node,
-    absl::Span<DeferredCandidate* const> entries,
+    const DeferredCandidateRefs& entries,
     const CandidatesByName& by_name) {
   for (const std::size_t index : by_name.at(path)) {
-    entries[index]->decisions[ExprIdentity{node}] = true;
+    entries[index].get().decisions[ExprIdentity{node}] = true;
   }
 }
 
@@ -1401,7 +1403,7 @@ void ApplyShardStatus(
     const shard::ShardSet& set,
     std::string_view wanted,
     const parser::Expr& node,
-    absl::Span<DeferredCandidate* const> entries,
+    const DeferredCandidateRefs& entries,
     const CandidatesByName& by_name) {
   if (wanted == "superfluous") {
     for (const shard::SuperfluousShard& extra : set.superfluous) {
@@ -1420,13 +1422,13 @@ void ApplyShardStatus(
 template<typename SchemeAllowed>
 int ResolveShardStatusRound(
     const parser::Expr& node,
-    absl::Span<DeferredCandidate* const> entries,
+    const DeferredCandidateRefs& entries,
     const shard::Matcher& shard_matcher,
     shard::Dedup shard_dedup,
     const SchemeAllowed& scheme_allowed,
     bool report_dedup_errors) {
-  for (DeferredCandidate* candidate : entries) {
-    candidate->decisions[ExprIdentity{node}] = false;
+  for (DeferredCandidate& candidate : entries) {
+    candidate.decisions[ExprIdentity{node}] = false;
   }
   int errors = 0;
   for (const auto& [directory, indexes] : IndexCandidatesByDirectory(entries)) {
@@ -1461,10 +1463,10 @@ int ResolveDeferredRound(
       next_node = candidate.waiting_at;
     }
   }
-  std::vector<DeferredCandidate*> entries;
+  DeferredCandidateRefs entries;
   for (DeferredCandidate& candidate : candidates) {
     if (next_node == candidate.waiting_at) {
-      entries.push_back(&candidate);
+      entries.emplace_back(candidate);
     }
   }
   if (next_node.Get().descriptor->name == "-shard-status") {
@@ -1475,9 +1477,9 @@ int ResolveDeferredRound(
   // `-top` arity and its positive integer argument were validated before traversal.
   static_cast<void>(absl::SimpleAtoi(next_node.Get().args.front(), &limit));
   absl::c_stable_sort(
-      entries, [](const DeferredCandidate* lhs, const DeferredCandidate* rhs) { return lhs->score > rhs->score; });
+      entries, [](const DeferredCandidate& lhs, const DeferredCandidate& rhs) { return lhs.score > rhs.score; });
   for (std::size_t index = 0; index < entries.size(); ++index) {
-    entries[index]->decisions[next_node] = std::cmp_less(index, limit);
+    entries[index].get().decisions[next_node] = std::cmp_less(index, limit);
   }
   return 0;
 }

@@ -270,7 +270,9 @@ clang-format picks a layout per line; these habits steer it toward the readable 
   explicit identity type. Function pointers are a distinct callable type and are not object
   ownership. Raw object pointers remain only where a C, POSIX, or third-party ABI requires their
   exact spelling (callbacks, opaque handles, buffers); confine those to the narrow adapter, convert
-  on entry/return where possible, and mark each retained boundary for the repository check.
+  on entry/return where possible, and mark each retained xff-object boundary with
+  `XFF_ABI_POINTER: <reason>` on its declaration or immediately preceding line. The reason must name
+  the external ABI; the annotation is not an allowlist for internal convenience pointers.
 - **Prefer side-effect-light, value-returning helpers.** Do not mutate caller-owned state through
   pointer or reference output parameters. Return the value, an `absl::StatusOr<T>`, or a named
   result record when multiple values and diagnostics belong together. Mutation is appropriate
