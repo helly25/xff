@@ -789,10 +789,10 @@ TEST_F(RunTest, InvalidValuedGlobalsAreRejectedBeforeTraversal) {
   };
 
   const std::array cases{
-      Case{"--diff-algorithm=bogus", "unknown diff algorithm 'bogus'"},
-      Case{"--hash-algorithm=bogus", "unknown hash algorithm 'bogus'"},
-      Case{"--hash-encoding=bogus", "unknown hash encoding 'bogus'"},
-      Case{"--archive-aggregate=bogus", "bad --archive-aggregate value 'bogus'"},
+      Case{.flag = "--diff-algorithm=bogus", .message = "unknown diff algorithm 'bogus'"},
+      Case{.flag = "--hash-algorithm=bogus", .message = "unknown hash algorithm 'bogus'"},
+      Case{.flag = "--hash-encoding=bogus", .message = "unknown hash encoding 'bogus'"},
+      Case{.flag = "--archive-aggregate=bogus", .message = "bad --archive-aggregate value 'bogus'"},
   };
   for (const Case& test : cases) {
     SCOPED_TRACE(test.flag);
