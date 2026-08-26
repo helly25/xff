@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-26 07:49:15</td>
+            <td class="headerValue">2026-08-26 08:37:51</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -122,14 +122,14 @@
 <span id="L42"><span class="lineNum">      42</span>                 :             : // hide the Zip-Slip red flag).</span>
 <span id="L43"><span class="lineNum">      43</span>                 :<span class="tlaGNC">       12747 : std::string IndexKey(std::string_view stored) {</span></span>
 <span id="L44"><span class="lineNum">      44</span>                 :<span class="tlaGNC">       12747 :   std::string_view key = stored;</span></span>
-<span id="L45"><span class="lineNum">      45</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 12746 times"> + </span>]:<span class="tlaGNC">       12747 :   while (key.starts_with(&quot;./&quot;)) {</span></span>
+<span id="L45"><span class="lineNum">      45</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 12747 times"> + </span>]:<span class="tlaGNC">       12747 :   while (key.starts_with(&quot;./&quot;)) {</span></span>
 <span id="L46"><span class="lineNum">      46</span>                 :<span class="tlaUNC">           0 :     key.remove_prefix(2);</span></span>
 <span id="L47"><span class="lineNum">      47</span>                 :             :   }</span>
-<span id="L48"><span class="lineNum">      48</span>   [<span class="tlaGBC" title="branch 0 was taken 12923 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 177 times"> + </span><span class="tlaGBC" title="branch 3 was taken 12746 times"> + </span> :<span class="tlaGNC">       12923 :   while (key.size() &gt; 1 &amp;&amp; key.ends_with('/')) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 177 times"> + </span><span class="tlaGBC" title="branch 5 was taken 12746 times"> + </span>]
+<span id="L48"><span class="lineNum">      48</span>   [<span class="tlaGBC" title="branch 0 was taken 12924 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 177 times"> + </span><span class="tlaGBC" title="branch 3 was taken 12747 times"> + </span> :<span class="tlaGNC">       12924 :   while (key.size() &gt; 1 &amp;&amp; key.ends_with('/')) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 177 times"> + </span><span class="tlaGBC" title="branch 5 was taken 12747 times"> + </span>]
 <span id="L49"><span class="lineNum">      49</span>                 :<span class="tlaGNC">         177 :     key.remove_suffix(1);</span></span>
 <span id="L50"><span class="lineNum">      50</span>                 :             :   }</span>
-<span id="L51"><span class="lineNum">      51</span>                 :<span class="tlaGNC">       25493 :   return std::string(key);</span></span>
+<span id="L51"><span class="lineNum">      51</span>                 :<span class="tlaGNC">       25494 :   return std::string(key);</span></span>
 <span id="L52"><span class="lineNum">      52</span>                 :             : }</span>
 <span id="L53"><span class="lineNum">      53</span>                 :             : </span>
 <span id="L54"><span class="lineNum">      54</span>                 :<span class="tlaGNC">       13993 : std::string_view ParentOf(std::string_view key) {</span></span>
@@ -398,7 +398,7 @@
 <span id="L314"><span class="lineNum">     314</span>                 :<span class="tlaGNC">           2 :     return DirectoryMetadata();</span></span>
 <span id="L315"><span class="lineNum">     315</span>                 :             :   }</span>
 <span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">         216 :   const auto found = nodes_.find(*key);</span></span>
-<span id="L317"><span class="lineNum">     317</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 215 times"> + </span>]:<span class="tlaGNC">         215 :   if (found == nodes_.end()) {</span></span>
+<span id="L317"><span class="lineNum">     317</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 215 times"> + </span>]:<span class="tlaGNC">         216 :   if (found == nodes_.end()) {</span></span>
 <span id="L318"><span class="lineNum">     318</span>                 :<span class="tlaGNC">           1 :     return absl::NotFoundError(absl::StrCat(&quot;no such member: &quot;, *key));</span></span>
 <span id="L319"><span class="lineNum">     319</span>                 :             :   }</span>
 <span id="L320"><span class="lineNum">     320</span>                 :<span class="tlaGNC">         215 :   return found-&gt;second.metadata;</span></span>

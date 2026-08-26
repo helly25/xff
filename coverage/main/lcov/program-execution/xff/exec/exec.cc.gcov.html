@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-26 07:49:15</td>
+            <td class="headerValue">2026-08-26 08:37:51</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -126,14 +126,14 @@
 <span id="L46"><span class="lineNum">      46</span>                 :             : // Replaces every &quot;{}&quot; in `token` with `path` (find's -exec placeholder).</span>
 <span id="L47"><span class="lineNum">      47</span>                 :<span class="tlaGNC">         272 : std::string SubstitutePlaceholder(std::string_view token, std::string_view path) {</span></span>
 <span id="L48"><span class="lineNum">      48</span>                 :<span class="tlaGNC">         272 :   std::string out;</span></span>
-<span id="L49"><span class="lineNum">      49</span>         [<span class="tlaGBC" title="branch 0 was taken 3697 times"> + </span><span class="tlaGBC" title="branch 1 was taken 272 times"> + </span>]:<span class="tlaGNC">        3969 :   for (std::string_view::size_type i = 0; i &lt; token.size();) {</span></span>
-<span id="L50"><span class="lineNum">      50</span>   [<span class="tlaGBC" title="branch 0 was taken 3463 times"> + </span><span class="tlaGBC" title="branch 1 was taken 234 times"> + </span><span class="tlaGBC" title="branch 2 was taken 60 times"> + </span><span class="tlaGBC" title="branch 3 was taken 3403 times"> + </span> :<span class="tlaGNC">        3697 :     if (i + 1 &lt; token.size() &amp;&amp; token[i] == '{' &amp;&amp; token[i + 1] == '}') {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 57 times"> + </span><span class="tlaGBC" title="branch 5 was taken 3 times"> + </span><span class="tlaGBC" title="branch 6 was taken 57 times"> + </span><span class="tlaGBC" title="branch 7 was taken 3640 times"> + </span>]
+<span id="L49"><span class="lineNum">      49</span>         [<span class="tlaGBC" title="branch 0 was taken 3696 times"> + </span><span class="tlaGBC" title="branch 1 was taken 272 times"> + </span>]:<span class="tlaGNC">        3968 :   for (std::string_view::size_type i = 0; i &lt; token.size();) {</span></span>
+<span id="L50"><span class="lineNum">      50</span>   [<span class="tlaGBC" title="branch 0 was taken 3462 times"> + </span><span class="tlaGBC" title="branch 1 was taken 234 times"> + </span><span class="tlaGBC" title="branch 2 was taken 60 times"> + </span><span class="tlaGBC" title="branch 3 was taken 3402 times"> + </span> :<span class="tlaGNC">        3696 :     if (i + 1 &lt; token.size() &amp;&amp; token[i] == '{' &amp;&amp; token[i + 1] == '}') {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 57 times"> + </span><span class="tlaGBC" title="branch 5 was taken 3 times"> + </span><span class="tlaGBC" title="branch 6 was taken 57 times"> + </span><span class="tlaGBC" title="branch 7 was taken 3639 times"> + </span>]
 <span id="L51"><span class="lineNum">      51</span>                 :<span class="tlaGNC">          57 :       out.append(path);</span></span>
 <span id="L52"><span class="lineNum">      52</span>                 :<span class="tlaGNC">          57 :       i += 2;</span></span>
 <span id="L53"><span class="lineNum">      53</span>                 :             :     } else {</span>
-<span id="L54"><span class="lineNum">      54</span>                 :<span class="tlaGNC">        3640 :       out.push_back(token[i]);</span></span>
-<span id="L55"><span class="lineNum">      55</span>                 :<span class="tlaGNC">        3640 :       ++i;</span></span>
+<span id="L54"><span class="lineNum">      54</span>                 :<span class="tlaGNC">        3639 :       out.push_back(token[i]);</span></span>
+<span id="L55"><span class="lineNum">      55</span>                 :<span class="tlaGNC">        3639 :       ++i;</span></span>
 <span id="L56"><span class="lineNum">      56</span>                 :             :     }</span>
 <span id="L57"><span class="lineNum">      57</span>                 :             :   }</span>
 <span id="L58"><span class="lineNum">      58</span>                 :<span class="tlaGNC">         272 :   return out;</span></span>
