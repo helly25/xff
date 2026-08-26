@@ -76,6 +76,22 @@ repos:
         entry: \barchive_read_support_filter_all\s*\(
         files: ^extra_modules/archive/.*\.(cc|h)$
         types_or: [c, c++]
+      - id: check-raw-pointers
+        name: Xff-owned C++ interfaces use explicit object relationships
+        description: |
+          Scans every core and extension C++ source, including implementation-only interfaces.
+          Required observers use references, optional observers use OptionalRef, and ownership
+          uses values or smart pointers. Genuine ABI object pointers require a local reason.
+        language: python
+        entry: tools/check_raw_pointers.py
+        pass_filenames: false
+        files: ^(xff|xff_extras_api|extra_modules)/.*\.(cc|h)$
+      - id: check-raw-pointers-test
+        name: Test raw-pointer policy checker
+        language: python
+        entry: tools/check_raw_pointers_test.py
+        pass_filenames: false
+        files: ^tools/check_raw_pointers(_test)?\.py$
       - id: no-todos-without-context
         name: No TODOs without context
         description: |
