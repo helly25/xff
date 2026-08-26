@@ -110,32 +110,45 @@ struct DepthOptions {
   std::optional<bool> ignore_readdir_race;
 };
 
+DepthOptions ResolveDepthPredicate(const parser::Expr& expr) {
+  if (expr.descriptor->name == "-depth" || expr.descriptor->name == "-d" || expr.descriptor->name == "-delete") {
+    return {.post_order = true};  // -delete implies -depth; -d is the BSD/GNU short spelling
+  }
+  if (expr.descriptor->name == "-xdev" || expr.descriptor->name == "-mount" || expr.descriptor->name == "-x") {
+    return {.single_filesystem = true};  // -mount (GNU/BSD) and -x (BSD) are synonyms for -xdev
+  }
+  if (expr.descriptor->name == "-ignore_readdir_race") {
+    return {.ignore_readdir_race = true};
+  }
+  if (expr.descriptor->name == "-noignore_readdir_race") {
+    return {.ignore_readdir_race = false};  // last occurrence wins, as in find
+  }
+  if (expr.args.empty()) {
+    return {};
+  }
+  const std::optional<int> value = ParseNonNegInt(expr.args.front());
+  if (expr.descriptor->name == "-maxdepth") {
+    return {.max_depth = value};
+  }
+  if (expr.descriptor->name == "-mindepth") {
+    return {.min_depth = value};
+  }
+  return {};
+}
+
+DepthOptions CombineDepthOptions(DepthOptions lhs, const DepthOptions& rhs) {
+  return {
+      .min_depth = rhs.min_depth.has_value() ? rhs.min_depth : lhs.min_depth,
+      .max_depth = rhs.max_depth.has_value() ? rhs.max_depth : lhs.max_depth,
+      .post_order = lhs.post_order || rhs.post_order,
+      .single_filesystem = lhs.single_filesystem || rhs.single_filesystem,
+      .ignore_readdir_race = rhs.ignore_readdir_race.has_value() ? rhs.ignore_readdir_race : lhs.ignore_readdir_race,
+  };
+}
+
 DepthOptions ResolveDepthOptions(const parser::Expr& expr) {
   switch (expr.kind) {
-    case parser::Expr::Kind::kPredicate: {
-      if (expr.descriptor->name == "-depth" || expr.descriptor->name == "-d" || expr.descriptor->name == "-delete") {
-        return {.post_order = true};  // -delete implies -depth; -d is the BSD/GNU short spelling
-      }
-      if (expr.descriptor->name == "-xdev" || expr.descriptor->name == "-mount" || expr.descriptor->name == "-x") {
-        return {.single_filesystem = true};  // -mount (GNU/BSD) and -x (BSD) are synonyms for -xdev
-      }
-      if (expr.descriptor->name == "-ignore_readdir_race") {
-        return {.ignore_readdir_race = true};
-      }
-      if (expr.descriptor->name == "-noignore_readdir_race") {
-        return {.ignore_readdir_race = false};  // last occurrence wins, as in find
-      }
-      if (!expr.args.empty()) {
-        const std::optional<int> value = ParseNonNegInt(expr.args.front());
-        if (expr.descriptor->name == "-maxdepth") {
-          return {.max_depth = value};
-        }
-        if (expr.descriptor->name == "-mindepth") {
-          return {.min_depth = value};
-        }
-      }
-      return {};
-    }
+    case parser::Expr::Kind::kPredicate: return ResolveDepthPredicate(expr);
     case parser::Expr::Kind::kNot: return ResolveDepthOptions(*expr.lhs);
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
@@ -144,20 +157,7 @@ DepthOptions ResolveDepthOptions(const parser::Expr& expr) {
     case parser::Expr::Kind::kXor:
     case parser::Expr::Kind::kXnor:
     case parser::Expr::Kind::kComma:
-      DepthOptions lhs = ResolveDepthOptions(*expr.lhs);
-      const DepthOptions rhs = ResolveDepthOptions(*expr.rhs);
-      if (rhs.min_depth.has_value()) {
-        lhs.min_depth = rhs.min_depth;
-      }
-      if (rhs.max_depth.has_value()) {
-        lhs.max_depth = rhs.max_depth;
-      }
-      lhs.post_order = lhs.post_order || rhs.post_order;
-      lhs.single_filesystem = lhs.single_filesystem || rhs.single_filesystem;
-      if (rhs.ignore_readdir_race.has_value()) {
-        lhs.ignore_readdir_race = rhs.ignore_readdir_race;
-      }
-      return lhs;
+      return CombineDepthOptions(ResolveDepthOptions(*expr.lhs), ResolveDepthOptions(*expr.rhs));
   }
   return {};
 }
