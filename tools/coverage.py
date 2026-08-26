@@ -77,7 +77,7 @@ def parse_lcov(
         source = _source_path(name, source_root, modules) if name else None
         records.append(
             coverage_sources.normalize_record(record, source)
-            if source is not None and source.is_file()
+            if source is not None and source.is_file() and coverage_sources.is_source(source)
             else record
         )
     for raw in "end_of_record\n".join(records).splitlines():

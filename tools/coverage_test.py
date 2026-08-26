@@ -183,6 +183,24 @@ class CoverageTest(unittest.TestCase):
 
             self.assertEqual({}, files["xff_future/future.cc"].lines)
 
+    def test_parse_does_not_decode_a_binary_first_party_fixture(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixture = root / "extra_modules/archive/fixture.phar"
+            fixture.parent.mkdir(parents=True)
+            fixture.write_bytes(b"\x81binary fixture")
+            report = root / "coverage.lcov"
+            report.write_text(
+                "SF:extra_modules/archive/fixture.phar\nDA:1,0\nend_of_record\n",
+                encoding="utf-8",
+            )
+
+            files = coverage_tool.parse_lcov(
+                report, root, {"xff_archive": "extra_modules/archive"}
+            )
+
+            self.assertEqual({1: 0}, files["xff_archive/fixture.phar"].lines)
+
     def test_patch_without_coverable_code_is_not_reported(self):
         empty = {
             metric: {"covered": 0, "total": 0, "percent": None}

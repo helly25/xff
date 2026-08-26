@@ -16,6 +16,8 @@ from pathlib import Path
 
 import extras
 
+SOURCE_SUFFIXES = frozenset({".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx"})
+
 
 def declared_extras() -> dict[str, str]:
     """Returns every extra from the repository's single source of truth."""
@@ -169,6 +171,11 @@ def normalize_record(record: str, source: Path) -> str:
     return "\n".join(result) + "\n"
 
 
+def is_source(path: Path) -> bool:
+    """Returns whether source directives can occur in this UTF-8 C/C++ file."""
+    return path.suffix.lower() in SOURCE_SUFFIXES
+
+
 def _slug(group: str, name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", f"{group}-{name}".lower()).strip("-")
 
@@ -211,7 +218,7 @@ def grouped(
         if len(matches) != 1:
             raise ValueError(f"coverage source {logical!r} belongs to {len(matches)} policy categories")
         source = workspace / physical
-        normalized = normalize_record(record, source)
+        normalized = normalize_record(record, source) if is_source(source) else record
         linked = source_root.resolve() / matches[0] / logical
         linked.parent.mkdir(parents=True, exist_ok=True)
         if not linked.exists() and not linked.is_symlink():
