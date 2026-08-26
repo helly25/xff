@@ -180,6 +180,19 @@ TEST_F(ArchiveWriterTest, APlainFileIsNotAnArchive) {
   EXPECT_THAT(RemoveMembersOfFile(path, {"one.txt"}), StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
+TEST_F(ArchiveWriterTest, AnUnusableRewritePathLeavesTheArchiveIntact) {
+  const std::string path = WriteArchive(
+      {{.path = "one.txt", .content = "one\n"}, {.path = "two.txt", .content = "two\n"}}, "blocked-rewrite.tar");
+  const std::string before = Bytes(path);
+  const std::string rewrite_path = path + ".xff-rewrite";
+  ASSERT_THAT(stdfs::create_directory(rewrite_path), IsTrue());
+
+  EXPECT_THAT(
+      RemoveMembersOfFile(path, {"one.txt"}), StatusIs(absl::StatusCode::kUnavailable, HasSubstr("cannot write")));
+  EXPECT_THAT(Bytes(path), before);
+  EXPECT_THAT(MemberNames(path), UnorderedElementsAre("one.txt", "two.txt"));
+}
+
 TEST_F(ArchiveWriterTest, RemovingNothingIsNotAWrite) {
   // An empty set is not an error and must not rewrite the file: `-delete` that matched nothing
   // should leave the container's bytes (and its mtime) alone.

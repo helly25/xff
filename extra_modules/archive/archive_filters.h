@@ -28,7 +28,7 @@ using FilterRegistrar = int (*)(struct ::archive*, int);
 
 // Test seam for the failure contract: production always supplies libarchive's registrar, while a
 // unit test can reject one code without depending on a broken libarchive build.
-bool EnableNativeFiltersWith(struct ::archive* handle, FilterRegistrar registrar);
+bool EnableNativeFiltersWith(struct ::archive& handle, FilterRegistrar registrar);
 
 }  // namespace internal
 
@@ -40,7 +40,7 @@ std::span<const int> NativeFilterCodes();
 
 // Registers every NativeFilterCodes() entry. Returns false if this build cannot provide one of the
 // filters xff promises; callers must not continue with a partially configured reader.
-bool EnableNativeFilters(struct ::archive* handle);
+bool EnableNativeFilters(struct ::archive& handle);
 
 }  // namespace xff::archive
 

@@ -26,6 +26,7 @@ namespace {
 using ::testing::ElementsAre;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
+using ::testing::NotNull;
 
 int RejectLz4(struct ::archive* handle, const int code) {
   return code == ARCHIVE_FILTER_LZ4 ? ARCHIVE_FATAL : ::archive_read_support_filter_by_code(handle, code);
@@ -41,18 +42,17 @@ TEST_F(ArchiveFiltersTest, AllowlistContainsOnlyStandaloneNativeFilters) {
                                ARCHIVE_FILTER_LZIP, ARCHIVE_FILTER_LZ4, ARCHIVE_FILTER_ZSTD));
 }
 
-TEST_F(ArchiveFiltersTest, RegistrationRequiresAReaderAndEveryPromisedFilter) {
-  EXPECT_THAT(EnableNativeFilters(nullptr), IsFalse());
+TEST_F(ArchiveFiltersTest, RegistrationEnablesEveryPromisedFilter) {
   struct ::archive* const handle = ::archive_read_new();
-  ASSERT_THAT(handle != nullptr, IsTrue());
-  EXPECT_THAT(EnableNativeFilters(handle), IsTrue());
+  ASSERT_THAT(handle, NotNull());
+  EXPECT_THAT(EnableNativeFilters(*handle), IsTrue());
   EXPECT_THAT(::archive_read_free(handle), 0);
 }
 
 TEST_F(ArchiveFiltersTest, RegistrationFailsInsteadOfLeavingAPartialAllowlist) {
   struct ::archive* const handle = ::archive_read_new();
-  ASSERT_THAT(handle != nullptr, IsTrue());
-  EXPECT_THAT(internal::EnableNativeFiltersWith(handle, RejectLz4), IsFalse());
+  ASSERT_THAT(handle, NotNull());
+  EXPECT_THAT(internal::EnableNativeFiltersWith(*handle, RejectLz4), IsFalse());
   EXPECT_THAT(::archive_read_free(handle), 0);
 }
 

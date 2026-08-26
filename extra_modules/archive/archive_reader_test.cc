@@ -141,7 +141,7 @@ struct ArchiveReaderTest : ::testing::Test {
   }
 };
 
-bool RejectFilters(struct ::archive*) {
+bool RejectFilters(struct ::archive&) {
   return false;
 }
 
