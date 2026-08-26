@@ -40,15 +40,12 @@ std::span<const int> NativeFilterCodes() {
   return kNativeFilterCodes;
 }
 
-bool internal::EnableNativeFiltersWith(struct ::archive* handle, const FilterRegistrar registrar) {
-  if (handle == nullptr) {
-    return false;
-  }
+bool internal::EnableNativeFiltersWith(struct ::archive& handle, const FilterRegistrar registrar) {
   return std::ranges::all_of(
-      kNativeFilterCodes, [handle, registrar](const int code) { return registrar(handle, code) == ARCHIVE_OK; });
+      kNativeFilterCodes, [&handle, registrar](const int code) { return registrar(&handle, code) == ARCHIVE_OK; });
 }
 
-bool EnableNativeFilters(struct ::archive* handle) {
+bool EnableNativeFilters(struct ::archive& handle) {
   return internal::EnableNativeFiltersWith(handle, ::archive_read_support_filter_by_code);
 }
 

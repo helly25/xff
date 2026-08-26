@@ -106,8 +106,8 @@ struct EvaluateTest : ::testing::Test {
         .captures = exec_fields_ ? mbo::types::OptionalRef{captures_} : std::nullopt,
         .outputs = capture_outputs_ ? mbo::types::OptionalRef{outputs_}
                                     : mbo::types::OptionalRef<std::map<std::string, std::string>>{},
-        .first_counts = provide_first_counts_ ? mbo::types::OptionalRef{first_counts_}
-                                              : mbo::types::OptionalRef<std::map<const parser::Expr*, int>>{},
+        .first_counts =
+            provide_first_counts_ ? mbo::types::OptionalRef{first_counts_} : mbo::types::OptionalRef<FirstCounts>{},
         .collections =
             provide_collections_ ? mbo::types::OptionalRef{collections_} : mbo::types::OptionalRef<Collections>{},
         .confirm =
@@ -171,11 +171,25 @@ struct EvaluateTest : ::testing::Test {
   std::optional<int> fuzzy_score_;              // normalized score composed by the most recent Match
   std::vector<std::string> captures_;           // -regex groups captured during the most recent (gated) Match
   std::map<std::string, std::string> outputs_;  // -capture results from the most recent Match
-  std::map<const parser::Expr*, int> first_counts_;
+  FirstCounts first_counts_;
   Collections collections_;
-  std::map<const parser::Expr*, std::map<std::string, std::vector<std::string>>> exec_batches_;
+  ExecBatches exec_batches_;
   std::vector<std::string> content_files_;  // temp files written by WriteContentFile, removed in TearDown
 };
+
+TEST_F(EvaluateTest, ExpressionIdentityTracksNodesRatherThanTheirContents) {
+  const parser::Expr first{.kind = parser::Expr::Kind::kPredicate};
+  const parser::Expr second{.kind = parser::Expr::Kind::kPredicate};
+  const ExprIdentity first_identity{first};
+  const ExprIdentity same_identity{first};
+  const ExprIdentity second_identity{second};
+
+  EXPECT_THAT(first_identity, Eq(same_identity));
+  EXPECT_THAT(first_identity, Not(Eq(second_identity)));
+  std::map<ExprIdentity, int> values{{first_identity, 1}, {second_identity, 2}};
+  EXPECT_THAT(values, SizeIs(2));
+  EXPECT_THAT(values.at(same_identity), Eq(1));
+}
 
 TEST_F(EvaluateTest, TrueAndFalse) {
   vfs::Metadata md;
