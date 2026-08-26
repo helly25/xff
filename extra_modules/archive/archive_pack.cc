@@ -432,7 +432,7 @@ OptionalFormatSuffix FormatEntryFor(std::string_view path) {
 
 // Writes one entry's header and, for a regular file, its bytes. The size has to be known up front
 // (tar puts it in the header), so it is taken from the stat rather than from the read.
-absl::Status WriteOne(struct ::archive* writer, const PackEntry& entry) {
+absl::Status WriteOne(struct ::archive& writer, const PackEntry& entry) {
   std::error_code error;
   const stdfs::path source(entry.source);
   static const std::int64_t kFileClockToUnixEpoch = FileClockToUnixEpoch();
@@ -475,9 +475,9 @@ absl::Status WriteOne(struct ::archive* writer, const PackEntry& entry) {
     ::archive_entry_set_filetype(header.get(), AE_IFREG);
     ::archive_entry_set_size(header.get(), static_cast<::la_int64_t>(size));
   }
-  if (::archive_write_header(writer, header.get()) < ARCHIVE_WARN) {
+  if (::archive_write_header(&writer, header.get()) < ARCHIVE_WARN) {
     return absl::UnavailableError(
-        absl::StrCat("cannot write the entry '", entry.name, "': ", ::archive_error_string(writer)));
+        absl::StrCat("cannot write the entry '", entry.name, "': ", ::archive_error_string(&writer)));
   }
   if (!stdfs::is_regular_file(status)) {
     return absl::OkStatus();  // a directory or link has a header and no content
@@ -494,8 +494,8 @@ absl::Status WriteOne(struct ::archive* writer, const PackEntry& entry) {
     if (read <= 0) {
       break;
     }
-    if (::archive_write_data(writer, buffer.data(), static_cast<std::size_t>(read)) < 0) {
-      return absl::UnavailableError(absl::StrCat("cannot write '", entry.name, "': ", ::archive_error_string(writer)));
+    if (::archive_write_data(&writer, buffer.data(), static_cast<std::size_t>(read)) < 0) {
+      return absl::UnavailableError(absl::StrCat("cannot write '", entry.name, "': ", ::archive_error_string(&writer)));
     }
   }
   if (file.bad()) {
@@ -583,7 +583,7 @@ absl::Status PackFiles(std::string_view path, const std::vector<PackEntry>& entr
           absl::StrCat("cannot create '", temporary.string(), "': ", ::archive_error_string(writer.get())));
     }
     for (const PackEntry& entry : entries) {
-      if (const absl::Status status = WriteOne(writer.get(), entry); !status.ok()) {
+      if (const absl::Status status = WriteOne(*writer, entry); !status.ok()) {
         std::error_code ignored;
         stdfs::remove(temporary, ignored);
         return status;
