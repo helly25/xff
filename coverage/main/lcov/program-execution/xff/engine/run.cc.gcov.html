@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-26 07:13:29</td>
+            <td class="headerValue">2026-08-26 07:49:15</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">96.4&nbsp;%</td>
@@ -1661,12 +1661,12 @@
 <span id="L1545"><span class="lineNum">    1545</span>                 :             :       std::vector&lt;std::string&gt; filenames,</span>
 <span id="L1546"><span class="lineNum">    1546</span>                 :             :       bool gitignore_on,</span>
 <span id="L1547"><span class="lineNum">    1547</span>                 :             :       ignore::PatternList global_excludes)</span>
-<span id="L1548"><span class="lineNum">    1548</span>                 :<span class="tlaGNC">         684 :       : fs_(&amp;fs),</span></span>
+<span id="L1548"><span class="lineNum">    1548</span>                 :<span class="tlaGNC">         684 :       : fs_(fs),</span></span>
 <span id="L1549"><span class="lineNum">    1549</span>                 :<span class="tlaGNC">         684 :         filenames_(std::move(filenames)),</span></span>
 <span id="L1550"><span class="lineNum">    1550</span>                 :<span class="tlaGNC">         684 :         gitignore_on_(gitignore_on),</span></span>
 <span id="L1551"><span class="lineNum">    1551</span>                 :<span class="tlaGNC">         684 :         global_excludes_(std::move(global_excludes)) {}</span></span>
 <span id="L1552"><span class="lineNum">    1552</span>                 :             : </span>
-<span id="L1553"><span class="lineNum">    1553</span>                 :<span class="tlaGNC">        3827 :   bool Active() const { return !filenames_.empty(); }</span></span>
+<span id="L1553"><span class="lineNum">    1553</span>                 :<span class="tlaGNC">        3826 :   bool Active() const { return !filenames_.empty(); }</span></span>
 <span id="L1554"><span class="lineNum">    1554</span>                 :             : </span>
 <span id="L1555"><span class="lineNum">    1555</span>                 :<span class="tlaGNC">         135 :   ignore::Decision Decide(std::string_view path, std::string_view root, bool is_dir) {</span></span>
 <span id="L1556"><span class="lineNum">    1556</span>                 :<span class="tlaGNC">         135 :     const Scope&amp; scope = ScopeFor(root);</span></span>
@@ -1736,7 +1736,7 @@
 <span id="L1619"><span class="lineNum">    1619</span>                 :<span class="tlaGNC">          35 :     Scope scope;</span></span>
 <span id="L1620"><span class="lineNum">    1620</span>         [<span class="tlaGBC" title="branch 0 was taken 30 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">          35 :     if (gitignore_on_) {</span></span>
 <span id="L1621"><span class="lineNum">    1621</span>                 :<span class="tlaGNC">          30 :       scope.abs_root = AbsoluteDir(root);</span></span>
-<span id="L1622"><span class="lineNum">    1622</span>         [<span class="tlaGBC" title="branch 0 was taken 13 times"> + </span><span class="tlaGBC" title="branch 1 was taken 17 times"> + </span>]:<span class="tlaGNC">          30 :       if (const std::optional&lt;std::string&gt; repo_root = repo::FindRepoRoot(*fs_, scope.abs_root)) {</span></span>
+<span id="L1622"><span class="lineNum">    1622</span>         [<span class="tlaGBC" title="branch 0 was taken 13 times"> + </span><span class="tlaGBC" title="branch 1 was taken 17 times"> + </span>]:<span class="tlaGNC">          30 :       if (const std::optional&lt;std::string&gt; repo_root = repo::FindRepoRoot(fs_, scope.abs_root)) {</span></span>
 <span id="L1623"><span class="lineNum">    1623</span>                 :<span class="tlaGNC">          13 :         scope.base = *repo_root;</span></span>
 <span id="L1624"><span class="lineNum">    1624</span>                 :<span class="tlaGNC">          13 :         scope.in_repo = true;</span></span>
 <span id="L1625"><span class="lineNum">    1625</span>                 :<span class="tlaGNC">          30 :       }</span></span>
@@ -1754,7 +1754,7 @@
 <span id="L1637"><span class="lineNum">    1637</span>                 :             :     }</span>
 <span id="L1638"><span class="lineNum">    1638</span>                 :<span class="tlaGNC">          54 :     ignore::PatternList list;</span></span>
 <span id="L1639"><span class="lineNum">    1639</span>         [<span class="tlaGBC" title="branch 0 was taken 76 times"> + </span><span class="tlaGBC" title="branch 1 was taken 54 times"> + </span>]:<span class="tlaGNC">         130 :     for (const std::string&amp; name : filenames_) {</span></span>
-<span id="L1640"><span class="lineNum">    1640</span>         [<span class="tlaGBC" title="branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="branch 1 was taken 52 times"> + </span>]:<span class="tlaGNC">          76 :       if (const absl::StatusOr&lt;std::string&gt; content = fs_-&gt;ReadContent(absl::StrCat(dir, &quot;/&quot;, name)); content.ok()) {</span></span>
+<span id="L1640"><span class="lineNum">    1640</span>         [<span class="tlaGBC" title="branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="branch 1 was taken 52 times"> + </span>]:<span class="tlaGNC">          76 :       if (const absl::StatusOr&lt;std::string&gt; content = fs_.ReadContent(absl::StrCat(dir, &quot;/&quot;, name)); content.ok()) {</span></span>
 <span id="L1641"><span class="lineNum">    1641</span>                 :<span class="tlaGNC">          24 :         list.AddPatterns(*content);</span></span>
 <span id="L1642"><span class="lineNum">    1642</span>                 :<span class="tlaGNC">          76 :       }</span></span>
 <span id="L1643"><span class="lineNum">    1643</span>                 :             :     }</span>
@@ -1769,14 +1769,14 @@
 <span id="L1652"><span class="lineNum">    1652</span>                 :<span class="tlaGNC">          26 :       return it-&gt;second;</span></span>
 <span id="L1653"><span class="lineNum">    1653</span>                 :             :     }</span>
 <span id="L1654"><span class="lineNum">    1654</span>                 :<span class="tlaGNC">          11 :     ignore::PatternList list;</span></span>
-<span id="L1655"><span class="lineNum">    1655</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">          22 :     if (const absl::StatusOr&lt;std::string&gt; content = fs_-&gt;ReadContent(absl::StrCat(repo_root, &quot;/.git/info/exclude&quot;));</span></span>
+<span id="L1655"><span class="lineNum">    1655</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">          22 :     if (const absl::StatusOr&lt;std::string&gt; content = fs_.ReadContent(absl::StrCat(repo_root, &quot;/.git/info/exclude&quot;));</span></span>
 <span id="L1656"><span class="lineNum">    1656</span>                 :<span class="tlaGNC">          11 :         content.ok()) {</span></span>
 <span id="L1657"><span class="lineNum">    1657</span>                 :<span class="tlaGNC">           3 :       list.AddPatterns(*content);</span></span>
 <span id="L1658"><span class="lineNum">    1658</span>                 :<span class="tlaGNC">          11 :     }</span></span>
 <span id="L1659"><span class="lineNum">    1659</span>                 :<span class="tlaGNC">          11 :     return repo_exclude_cache_.emplace(repo_root, std::move(list)).first-&gt;second;</span></span>
 <span id="L1660"><span class="lineNum">    1660</span>                 :<span class="tlaGNC">          11 :   }</span></span>
 <span id="L1661"><span class="lineNum">    1661</span>                 :             : </span>
-<span id="L1662"><span class="lineNum">    1662</span>                 :             :   const vfs::FileSystem* fs_;</span>
+<span id="L1662"><span class="lineNum">    1662</span>                 :             :   const vfs::FileSystem&amp; fs_;</span>
 <span id="L1663"><span class="lineNum">    1663</span>                 :             :   std::vector&lt;std::string&gt; filenames_;</span>
 <span id="L1664"><span class="lineNum">    1664</span>                 :             :   bool gitignore_on_;</span>
 <span id="L1665"><span class="lineNum">    1665</span>                 :             :   ignore::PatternList global_excludes_;  // git core.excludesFile, applied below .git/info/exclude</span>
@@ -1822,7 +1822,7 @@
 <span id="L1705"><span class="lineNum">    1705</span>                 :<span class="tlaGNC">         684 :     return out;</span></span>
 <span id="L1706"><span class="lineNum">    1706</span>                 :             :   }</span>
 <span id="L1707"><span class="lineNum">    1707</span>                 :             : </span>
-<span id="L1708"><span class="lineNum">    1708</span>                 :<span class="tlaGNC">        3709 :   bool Active() const { return !sources_.empty(); }</span></span>
+<span id="L1708"><span class="lineNum">    1708</span>                 :<span class="tlaGNC">        3708 :   bool Active() const { return !sources_.empty(); }</span></span>
 <span id="L1709"><span class="lineNum">    1709</span>                 :             : </span>
 <span id="L1710"><span class="lineNum">    1710</span>                 :             :   // The decision for an entry given its absolute, normalized path. Each source whose root</span>
 <span id="L1711"><span class="lineNum">    1711</span>                 :             :   // contains the entry contributes; the last non-default decision wins (later --ignore-file</span>
@@ -3848,11 +3848,11 @@
 <span id="L3674"><span class="lineNum">    3674</span>                 :             :   // Keeping it outside the visitor is what makes replay use precisely the same listing/reduction</span>
 <span id="L3675"><span class="lineNum">    3675</span>                 :             :   // path rather than a second, subtly different renderer.</span>
 <span id="L3676"><span class="lineNum">    3676</span>                 :             :   // NOLINTNEXTLINE(readability-function-cognitive-complexity): one extracted sink dispatch shared by walk and replay</span>
-<span id="L3677"><span class="lineNum">    3677</span>                 :<span class="tlaGNC">        3528 :   const auto finish_entry = [&amp;](const Visit&amp; visit, std::map&lt;std::string, std::string&gt;&amp; outputs, bool matched) {</span></span>
-<span id="L3678"><span class="lineNum">    3678</span>         [<span class="tlaGBC" title="branch 0 was taken 1711 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1817 times"> + </span>]:<span class="tlaGNC">        3528 :     if (matched) {</span></span>
-<span id="L3679"><span class="lineNum">    3679</span>                 :<span class="tlaGNC">        1711 :       any_match = true;</span></span>
+<span id="L3677"><span class="lineNum">    3677</span>                 :<span class="tlaGNC">        3527 :   const auto finish_entry = [&amp;](const Visit&amp; visit, std::map&lt;std::string, std::string&gt;&amp; outputs, bool matched) {</span></span>
+<span id="L3678"><span class="lineNum">    3678</span>         [<span class="tlaGBC" title="branch 0 was taken 1712 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1815 times"> + </span>]:<span class="tlaGNC">        3527 :     if (matched) {</span></span>
+<span id="L3679"><span class="lineNum">    3679</span>                 :<span class="tlaGNC">        1712 :       any_match = true;</span></span>
 <span id="L3680"><span class="lineNum">    3680</span>                 :             :     }</span>
-<span id="L3681"><span class="lineNum">    3681</span>   [<span class="tlaGBC" title="branch 0 was taken 1711 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1817 times"> + </span><span class="tlaGBC" title="branch 2 was taken 375 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1336 times"> + </span>]:<span class="tlaGNC">        3528 :     if (matched &amp;&amp; any_reduction) {</span></span>
+<span id="L3681"><span class="lineNum">    3681</span>   [<span class="tlaGBC" title="branch 0 was taken 1712 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1815 times"> + </span><span class="tlaGBC" title="branch 2 was taken 375 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1337 times"> + </span>]:<span class="tlaGNC">        3527 :     if (matched &amp;&amp; any_reduction) {</span></span>
 <span id="L3682"><span class="lineNum">    3682</span>         [<span class="tlaGBC" title="branch 0 was taken 62 times"> + </span><span class="tlaGBC" title="branch 1 was taken 313 times"> + </span>]:<span class="tlaGNC">         375 :       if (pack_target.has_value()) {</span></span>
 <span id="L3683"><span class="lineNum">    3683</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 61 times"> + </span>]:<span class="tlaGNC">          62 :         if (visit.metadata.source == vfs::Source::kArchiveMember) {</span></span>
 <span id="L3684"><span class="lineNum">    3684</span>                 :<span class="tlaGNC">           1 :           pack_saw_member = true;</span></span>
@@ -3903,9 +3903,9 @@
 <span id="L3726"><span class="lineNum">    3726</span>                 :<span class="tlaGNC">         257 :         FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);</span></span>
 <span id="L3727"><span class="lineNum">    3727</span>                 :<span class="tlaGNC">         257 :         FeedHistograms(histograms, histogram_cells, visit);</span></span>
 <span id="L3728"><span class="lineNum">    3728</span>                 :<span class="tlaGNC">         257 :       }</span></span>
-<span id="L3729"><span class="lineNum">    3729</span>   [<span class="tlaGBC" title="branch 0 was taken 1336 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1817 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1082 times"> + </span><span class="tlaGBC" title="branch 3 was taken 254 times"> + </span> :<span class="tlaGNC">        3528 :     } else if (matched &amp;&amp; implicit_print &amp;&amp; (!max_results-&gt;has_value() || listed_results &lt; **max_results)) {</span></span>
+<span id="L3729"><span class="lineNum">    3729</span>   [<span class="tlaGBC" title="branch 0 was taken 1337 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1815 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1082 times"> + </span><span class="tlaGBC" title="branch 3 was taken 255 times"> + </span> :<span class="tlaGNC">        3527 :     } else if (matched &amp;&amp; implicit_print &amp;&amp; (!max_results-&gt;has_value() || listed_results &lt; **max_results)) {</span></span>
 <span class="lineNum">        </span> <span class="tlaGBC" title="branch 4 was taken 35 times"> + </span><span class="tlaGBC" title="branch 5 was taken 1047 times"> + </span><span class="tlaGBC" title="branch 6 was taken 15 times"> + </span><span class="tlaGBC" title="branch 7 was taken 20 times"> + </span><span class="tlaGBC" title="branch 8 was taken 1062 times"> + </span> 
-<span class="lineNum">        </span>             <span class="tlaGBC" title="branch 9 was taken 2091 times"> + </span>]
+<span class="lineNum">        </span>             <span class="tlaGBC" title="branch 9 was taken 2090 times"> + </span>]
 <span id="L3730"><span class="lineNum">    3730</span>                 :<span class="tlaGNC">        1062 :       ++listed_results;</span></span>
 <span id="L3731"><span class="lineNum">    3731</span>                 :             :       const std::string_view entry_color =</span>
 <span id="L3732"><span class="lineNum">    3732</span>         [<span class="tlaGBC" title="branch 0 was taken 26 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1036 times"> + </span>]:<span class="tlaGNC">        1062 :           colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();</span></span>
@@ -3955,7 +3955,7 @@
 <span id="L3774"><span class="lineNum">    3774</span>                 :<span class="tlaGNC">         999 :         emit_entry(render::Renderer(format, path_encoding).Record(visit.path, entry_color));</span></span>
 <span id="L3775"><span class="lineNum">    3775</span>                 :             :       }</span>
 <span id="L3776"><span class="lineNum">    3776</span>                 :             :     }</span>
-<span id="L3777"><span class="lineNum">    3777</span>                 :<span class="tlaGNC">        4212 :   };</span></span>
+<span id="L3777"><span class="lineNum">    3777</span>                 :<span class="tlaGNC">        4211 :   };</span></span>
 <span id="L3778"><span class="lineNum">    3778</span>                 :             : </span>
 <span id="L3779"><span class="lineNum">    3779</span>                 :<span class="tlaGNC">         684 :   std::vector&lt;DeferredCandidate&gt; deferred_candidates;</span></span>
 <span id="L3780"><span class="lineNum">    3780</span>                 :<span class="tlaGNC">         684 :   std::size_t deferred_order = 0;</span></span>
@@ -3975,9 +3975,9 @@
 <span id="L3794"><span class="lineNum">    3794</span>                 :             :         // starting with '.') before any evaluation or output. A hidden directory is</span>
 <span id="L3795"><span class="lineNum">    3795</span>                 :             :         // pruned (its whole subtree skipped); a hidden file is skipped. Depth 0 is an</span>
 <span id="L3796"><span class="lineNum">    3796</span>                 :             :         // explicitly named search root, always entered -- so `xff .git` still descends.</span>
-<span id="L3797"><span class="lineNum">    3797</span>   [<span class="tlaGBC" title="branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3578 times"> + </span><span class="tlaGBC" title="branch 2 was taken 12 times"> + </span><span class="tlaGBC" title="branch 3 was taken 6 times"> + </span> :<span class="tlaGNC">        3596 :         if (skip_hidden &amp;&amp; visit.depth &gt; 0 &amp;&amp; !visit.name.empty() &amp;&amp; visit.name.front() == '.') {</span></span>
+<span id="L3797"><span class="lineNum">    3797</span>   [<span class="tlaGBC" title="branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3577 times"> + </span><span class="tlaGBC" title="branch 2 was taken 12 times"> + </span><span class="tlaGBC" title="branch 3 was taken 6 times"> + </span> :<span class="tlaGNC">        3595 :         if (skip_hidden &amp;&amp; visit.depth &gt; 0 &amp;&amp; !visit.name.empty() &amp;&amp; visit.name.front() == '.') {</span></span>
 <span class="lineNum">        </span> <span class="tlaGBC" title="branch 4 was taken 12 times"> + </span><span class="tlaUNC" title="branch 5 was not taken"> - </span><span class="tlaGBC" title="branch 6 was taken 4 times"> + </span><span class="tlaGBC" title="branch 7 was taken 8 times"> + </span><span class="tlaGBC" title="branch 8 was taken 4 times"> + </span> 
-<span class="lineNum">        </span>             <span class="tlaGBC" title="branch 9 was taken 3592 times"> + </span>]
+<span class="lineNum">        </span>             <span class="tlaGBC" title="branch 9 was taken 3591 times"> + </span>]
 <span id="L3798"><span class="lineNum">    3798</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           4 :           return visit.metadata.type == vfs::FileType::kDirectory ? WalkAction::kPrune : WalkAction::kContinue;</span></span>
 <span id="L3799"><span class="lineNum">    3799</span>                 :             :         }</span>
 <span id="L3800"><span class="lineNum">    3800</span>                 :             :         // VCS metadata filter: prune version-control plumbing directories (--skip-vcs; `-g` implies</span>
@@ -3987,8 +3987,8 @@
 <span id="L3804"><span class="lineNum">    3804</span>                 :             :         // `.gitignore`, ...) still show; only VCS plumbing is dropped. Depth 0 is an explicitly named</span>
 <span id="L3805"><span class="lineNum">    3805</span>                 :             :         // root, always entered, so `xff .git` still descends. `skip_vcs_names` holds the metadata</span>
 <span id="L3806"><span class="lineNum">    3806</span>                 :             :         // names (`.git`, `.hg`, ...); it is empty (this filter off) unless --skip-vcs or -g is active.</span>
-<span id="L3807"><span class="lineNum">    3807</span>   [<span class="tlaGBC" title="branch 0 was taken 160 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3432 times"> + </span><span class="tlaGBC" title="branch 2 was taken 128 times"> + </span><span class="tlaGBC" title="branch 3 was taken 32 times"> + </span> :<span class="tlaGNC">        3592 :         if (!skip_vcs_names.empty() &amp;&amp; visit.depth &gt; 0 &amp;&amp; skip_vcs_names.contains(visit.name)) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 17 times"> + </span><span class="tlaGBC" title="branch 5 was taken 111 times"> + </span><span class="tlaGBC" title="branch 6 was taken 17 times"> + </span><span class="tlaGBC" title="branch 7 was taken 3575 times"> + </span>]
+<span id="L3807"><span class="lineNum">    3807</span>   [<span class="tlaGBC" title="branch 0 was taken 160 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3431 times"> + </span><span class="tlaGBC" title="branch 2 was taken 128 times"> + </span><span class="tlaGBC" title="branch 3 was taken 32 times"> + </span> :<span class="tlaGNC">        3591 :         if (!skip_vcs_names.empty() &amp;&amp; visit.depth &gt; 0 &amp;&amp; skip_vcs_names.contains(visit.name)) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 17 times"> + </span><span class="tlaGBC" title="branch 5 was taken 111 times"> + </span><span class="tlaGBC" title="branch 6 was taken 17 times"> + </span><span class="tlaGBC" title="branch 7 was taken 3574 times"> + </span>]
 <span id="L3808"><span class="lineNum">    3808</span>         [<span class="tlaGBC" title="branch 0 was taken 17 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">          17 :           return visit.metadata.type == vfs::FileType::kDirectory ? WalkAction::kPrune : WalkAction::kContinue;</span></span>
 <span id="L3809"><span class="lineNum">    3809</span>                 :             :         }</span>
 <span id="L3810"><span class="lineNum">    3810</span>                 :             :         // Ignore filter: drop an ignored entry before any evaluation or output. A</span>
@@ -3998,8 +3998,8 @@
 <span id="L3814"><span class="lineNum">    3814</span>                 :             :         // --exclude/--include has highest precedence, then explicit --ignore-file sources</span>
 <span id="L3815"><span class="lineNum">    3815</span>                 :             :         // (rooted at the file's own dir), then the auto per-directory ignore-file stack</span>
 <span id="L3816"><span class="lineNum">    3816</span>                 :             :         // (--ignore-files / -g); each later layer decides only where the earlier ones are silent.</span>
-<span id="L3817"><span class="lineNum">    3817</span>   [<span class="tlaGBC" title="branch 0 was taken 3543 times"> + </span><span class="tlaGBC" title="branch 1 was taken 32 times"> + </span><span class="tlaGBC" title="branch 2 was taken 3528 times"> + </span><span class="tlaGBC" title="branch 3 was taken 15 times"> + </span> :<span class="tlaGNC">        3575 :         if (!ignore_patterns.empty() || rooted_ignore_files.Active() || ignore_files.Active()) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 166 times"> + </span><span class="tlaGBC" title="branch 5 was taken 3362 times"> + </span><span class="tlaGBC" title="branch 6 was taken 213 times"> + </span><span class="tlaGBC" title="branch 7 was taken 3362 times"> + </span>]
+<span id="L3817"><span class="lineNum">    3817</span>   [<span class="tlaGBC" title="branch 0 was taken 3542 times"> + </span><span class="tlaGBC" title="branch 1 was taken 32 times"> + </span><span class="tlaGBC" title="branch 2 was taken 3527 times"> + </span><span class="tlaGBC" title="branch 3 was taken 15 times"> + </span> :<span class="tlaGNC">        3574 :         if (!ignore_patterns.empty() || rooted_ignore_files.Active() || ignore_files.Active()) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 166 times"> + </span><span class="tlaGBC" title="branch 5 was taken 3361 times"> + </span><span class="tlaGBC" title="branch 6 was taken 213 times"> + </span><span class="tlaGBC" title="branch 7 was taken 3361 times"> + </span>]
 <span id="L3818"><span class="lineNum">    3818</span>                 :<span class="tlaGNC">         213 :           const bool is_dir = visit.metadata.type == vfs::FileType::kDirectory;</span></span>
 <span id="L3819"><span class="lineNum">    3819</span>                 :<span class="tlaGNC">         213 :           const std::string_view rel = RelativeTo(visit.path, visit.root);</span></span>
 <span id="L3820"><span class="lineNum">    3820</span>         [<span class="tlaGBC" title="branch 0 was taken 173 times"> + </span><span class="tlaGBC" title="branch 1 was taken 40 times"> + </span>]:<span class="tlaGNC">         213 :           if (!rel.empty()) {</span></span>
@@ -4017,31 +4017,31 @@
 <span id="L3830"><span class="lineNum">    3830</span>                 :             :             }</span>
 <span id="L3831"><span class="lineNum">    3831</span>                 :             :           }</span>
 <span id="L3832"><span class="lineNum">    3832</span>                 :             :         }</span>
-<span id="L3833"><span class="lineNum">    3833</span>                 :<span class="tlaGNC">        3528 :         Control control;</span></span>
-<span id="L3834"><span class="lineNum">    3834</span>                 :<span class="tlaGNC">        3528 :         std::vector&lt;std::string&gt; captures;           // -regex groups for this entry; consumed by gated -exec {0}..{N}</span></span>
-<span id="L3835"><span class="lineNum">    3835</span>                 :<span class="tlaGNC">        3528 :         std::map&lt;std::string, std::string&gt; outputs;  // -capture results for this entry; read by {capture.NAME}</span></span>
+<span id="L3833"><span class="lineNum">    3833</span>                 :<span class="tlaGNC">        3527 :         Control control;</span></span>
+<span id="L3834"><span class="lineNum">    3834</span>                 :<span class="tlaGNC">        3527 :         std::vector&lt;std::string&gt; captures;           // -regex groups for this entry; consumed by gated -exec {0}..{N}</span></span>
+<span id="L3835"><span class="lineNum">    3835</span>                 :<span class="tlaGNC">        3527 :         std::map&lt;std::string, std::string&gt; outputs;  // -capture results for this entry; read by {capture.NAME}</span></span>
 <span id="L3836"><span class="lineNum">    3836</span>                 :             :         // FS-native name matching: fold -name/-path case on a case-folding volume</span>
 <span id="L3837"><span class="lineNum">    3837</span>                 :             :         // (xff style, no --exact). Probe each device once, defaulting to</span>
 <span id="L3838"><span class="lineNum">    3838</span>                 :             :         // case-sensitive (byte-exact) on the miss and on any probe error.</span>
-<span id="L3839"><span class="lineNum">    3839</span>                 :<span class="tlaGNC">        3528 :         bool fold_name_case = false;</span></span>
-<span id="L3840"><span class="lineNum">    3840</span>         [<span class="tlaGBC" title="branch 0 was taken 1598 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1930 times"> + </span>]:<span class="tlaGNC">        3528 :         if (fs_native_case) {</span></span>
-<span id="L3841"><span class="lineNum">    3841</span>                 :<span class="tlaGNC">        1598 :           auto [it, inserted] = case_sensitive_by_dev.try_emplace(visit.metadata.dev, true);</span></span>
-<span id="L3842"><span class="lineNum">    3842</span>         [<span class="tlaGBC" title="branch 0 was taken 442 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1156 times"> + </span>]:<span class="tlaGNC">        1598 :           if (inserted) {</span></span>
+<span id="L3839"><span class="lineNum">    3839</span>                 :<span class="tlaGNC">        3527 :         bool fold_name_case = false;</span></span>
+<span id="L3840"><span class="lineNum">    3840</span>         [<span class="tlaGBC" title="branch 0 was taken 1597 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1930 times"> + </span>]:<span class="tlaGNC">        3527 :         if (fs_native_case) {</span></span>
+<span id="L3841"><span class="lineNum">    3841</span>                 :<span class="tlaGNC">        1597 :           auto [it, inserted] = case_sensitive_by_dev.try_emplace(visit.metadata.dev, true);</span></span>
+<span id="L3842"><span class="lineNum">    3842</span>         [<span class="tlaGBC" title="branch 0 was taken 442 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1155 times"> + </span>]:<span class="tlaGNC">        1597 :           if (inserted) {</span></span>
 <span id="L3843"><span class="lineNum">    3843</span>                 :<span class="tlaGNC">         442 :             it-&gt;second = walk_fs.IsCaseSensitive(visit.path).value_or(true);</span></span>
 <span id="L3844"><span class="lineNum">    3844</span>                 :             :           }</span>
-<span id="L3845"><span class="lineNum">    3845</span>                 :<span class="tlaGNC">        1598 :           fold_name_case = !it-&gt;second;</span></span>
+<span id="L3845"><span class="lineNum">    3845</span>                 :<span class="tlaGNC">        1597 :           fold_name_case = !it-&gt;second;</span></span>
 <span id="L3846"><span class="lineNum">    3846</span>                 :             :         }</span>
 <span id="L3847"><span class="lineNum">    3847</span>                 :             :         // The entry's colour, from the one palette this run resolved: used by the plain listing below</span>
 <span id="L3848"><span class="lineNum">    3848</span>                 :             :         // and by -ls's name column, so the two cannot disagree about what a file looks like.</span>
 <span id="L3849"><span class="lineNum">    3849</span>                 :             :         const std::string_view entry_color =</span>
-<span id="L3850"><span class="lineNum">    3850</span>         [<span class="tlaGBC" title="branch 0 was taken 78 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3450 times"> + </span>]:<span class="tlaGNC">        3528 :             colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();</span></span>
+<span id="L3850"><span class="lineNum">    3850</span>         [<span class="tlaGBC" title="branch 0 was taken 78 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3449 times"> + </span>]:<span class="tlaGNC">        3527 :             colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();</span></span>
 <span id="L3851"><span class="lineNum">    3851</span>                 :             :         // -fuzzy / -ifuzzy leave their score here for {fuzzy}; cleared per entry so a name that runs</span>
 <span id="L3852"><span class="lineNum">    3852</span>                 :             :         // no fuzzy test renders empty rather than inheriting the previous entry's score.</span>
-<span id="L3853"><span class="lineNum">    3853</span>                 :<span class="tlaGNC">        3528 :         fuzzy_score.reset();</span></span>
-<span id="L3854"><span class="lineNum">    3854</span>                 :<span class="tlaGNC">        3528 :         EvaluationMemo evaluation_memo;</span></span>
-<span id="L3855"><span class="lineNum">    3855</span>                 :<span class="tlaGNC">        3528 :         const DeferredDecisions deferred_results;</span></span>
-<span id="L3856"><span class="lineNum">    3856</span>                 :<span class="tlaGNC">        3528 :         DeferredEvaluation deferred{.decisions = deferred_results, .memo = evaluation_memo};</span></span>
-<span id="L3857"><span class="lineNum">    3857</span>                 :<span class="tlaGNC">        3528 :         EvalContext eval_context{</span></span>
+<span id="L3853"><span class="lineNum">    3853</span>                 :<span class="tlaGNC">        3527 :         fuzzy_score.reset();</span></span>
+<span id="L3854"><span class="lineNum">    3854</span>                 :<span class="tlaGNC">        3527 :         EvaluationMemo evaluation_memo;</span></span>
+<span id="L3855"><span class="lineNum">    3855</span>                 :<span class="tlaGNC">        3527 :         const DeferredDecisions deferred_results;</span></span>
+<span id="L3856"><span class="lineNum">    3856</span>                 :<span class="tlaGNC">        3527 :         DeferredEvaluation deferred{.decisions = deferred_results, .memo = evaluation_memo};</span></span>
+<span id="L3857"><span class="lineNum">    3857</span>                 :<span class="tlaGNC">        3527 :         EvalContext eval_context{</span></span>
 <span id="L3858"><span class="lineNum">    3858</span>                 :             :             .visit = visit,</span>
 <span id="L3859"><span class="lineNum">    3859</span>                 :             :             .emit = emit,</span>
 <span id="L3860"><span class="lineNum">    3860</span>                 :             :             .emit_file = emit_file,</span>
@@ -4050,46 +4050,46 @@
 <span id="L3863"><span class="lineNum">    3863</span>                 :             :             .ls_size_units = human,</span>
 <span id="L3864"><span class="lineNum">    3864</span>                 :             :             // The entry's OWN filesystem, so a predicate that reads a member reads it out of the</span>
 <span id="L3865"><span class="lineNum">    3865</span>                 :             :             // container rather than looking for `a.tar!x` on disk and finding nothing.</span>
-<span id="L3866"><span class="lineNum">    3866</span>         [<span class="tlaGBC" title="branch 0 was taken 3528 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">        3528 :             .fs = visit.fs.has_value() ? *visit.fs : walk_fs,</span></span>
+<span id="L3866"><span class="lineNum">    3866</span>         [<span class="tlaGBC" title="branch 0 was taken 3527 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">        3527 :             .fs = visit.fs.has_value() ? *visit.fs : walk_fs,</span></span>
 <span id="L3867"><span class="lineNum">    3867</span>                 :             :             .now = now,</span>
 <span id="L3868"><span class="lineNum">    3868</span>                 :             :             .tz = tz,</span>
-<span id="L3869"><span class="lineNum">    3869</span>                 :<span class="tlaGNC">        3528 :             .time_format = time_format,</span></span>
-<span id="L3870"><span class="lineNum">    3870</span>                 :<span class="tlaGNC">        3528 :             .zone_suffix = zone_suffix,</span></span>
-<span id="L3871"><span class="lineNum">    3871</span>                 :<span class="tlaGNC">        3528 :             .block_size = block_size,</span></span>
+<span id="L3869"><span class="lineNum">    3869</span>                 :<span class="tlaGNC">        3527 :             .time_format = time_format,</span></span>
+<span id="L3870"><span class="lineNum">    3870</span>                 :<span class="tlaGNC">        3527 :             .zone_suffix = zone_suffix,</span></span>
+<span id="L3871"><span class="lineNum">    3871</span>                 :<span class="tlaGNC">        3527 :             .block_size = block_size,</span></span>
 <span id="L3872"><span class="lineNum">    3872</span>                 :             :             .fold_name_case = fold_name_case,</span>
 <span id="L3873"><span class="lineNum">    3873</span>                 :             :             .fuzzy_score = fuzzy_score,</span>
 <span id="L3874"><span class="lineNum">    3874</span>                 :             :             .deferred = deferred,</span>
-<span id="L3875"><span class="lineNum">    3875</span>                 :<span class="tlaGNC">        3528 :             .grep_count = grep_count,</span></span>
-<span id="L3876"><span class="lineNum">    3876</span>                 :<span class="tlaGNC">        3528 :             .grep_before = grep_before,</span></span>
-<span id="L3877"><span class="lineNum">    3877</span>                 :<span class="tlaGNC">        3528 :             .grep_after = grep_after,</span></span>
-<span id="L3878"><span class="lineNum">    3878</span>                 :<span class="tlaGNC">        3528 :             .diff_algorithm = diff_algorithm,</span></span>
-<span id="L3879"><span class="lineNum">    3879</span>                 :<span class="tlaGNC">        3528 :             .diff_ignore = diff_ignore,</span></span>
-<span id="L3880"><span class="lineNum">    3880</span>                 :<span class="tlaGNC">        3528 :             .diff_ignore_matching = diff_ignore_matching,</span></span>
-<span id="L3881"><span class="lineNum">    3881</span>                 :<span class="tlaGNC">        3528 :             .diff_format = diff_format,</span></span>
-<span id="L3882"><span class="lineNum">    3882</span>                 :<span class="tlaGNC">        3528 :             .diff_context = diff_context,</span></span>
-<span id="L3883"><span class="lineNum">    3883</span>                 :<span class="tlaGNC">        3528 :             .hash_algorithm = hash_algorithm,</span></span>
-<span id="L3884"><span class="lineNum">    3884</span>                 :<span class="tlaGNC">        3528 :             .hash_encoding = hash_encoding,</span></span>
+<span id="L3875"><span class="lineNum">    3875</span>                 :<span class="tlaGNC">        3527 :             .grep_count = grep_count,</span></span>
+<span id="L3876"><span class="lineNum">    3876</span>                 :<span class="tlaGNC">        3527 :             .grep_before = grep_before,</span></span>
+<span id="L3877"><span class="lineNum">    3877</span>                 :<span class="tlaGNC">        3527 :             .grep_after = grep_after,</span></span>
+<span id="L3878"><span class="lineNum">    3878</span>                 :<span class="tlaGNC">        3527 :             .diff_algorithm = diff_algorithm,</span></span>
+<span id="L3879"><span class="lineNum">    3879</span>                 :<span class="tlaGNC">        3527 :             .diff_ignore = diff_ignore,</span></span>
+<span id="L3880"><span class="lineNum">    3880</span>                 :<span class="tlaGNC">        3527 :             .diff_ignore_matching = diff_ignore_matching,</span></span>
+<span id="L3881"><span class="lineNum">    3881</span>                 :<span class="tlaGNC">        3527 :             .diff_format = diff_format,</span></span>
+<span id="L3882"><span class="lineNum">    3882</span>                 :<span class="tlaGNC">        3527 :             .diff_context = diff_context,</span></span>
+<span id="L3883"><span class="lineNum">    3883</span>                 :<span class="tlaGNC">        3527 :             .hash_algorithm = hash_algorithm,</span></span>
+<span id="L3884"><span class="lineNum">    3884</span>                 :<span class="tlaGNC">        3527 :             .hash_encoding = hash_encoding,</span></span>
 <span id="L3885"><span class="lineNum">    3885</span>                 :             :             .control = control,</span>
-<span id="L3886"><span class="lineNum">    3886</span>                 :<span class="tlaGNC">        3528 :             .exec_fields = exec_fields,</span></span>
+<span id="L3886"><span class="lineNum">    3886</span>                 :<span class="tlaGNC">        3527 :             .exec_fields = exec_fields,</span></span>
 <span id="L3887"><span class="lineNum">    3887</span>                 :             :             .captures =</span>
-<span id="L3888"><span class="lineNum">    3888</span>                 :<span class="tlaGNC">        3528 :                 exec_fields ? mbo::types::OptionalRef{captures} : mbo::types::OptionalRef&lt;std::vector&lt;std::string&gt;&gt;{},</span></span>
+<span id="L3888"><span class="lineNum">    3888</span>                 :<span class="tlaGNC">        3527 :                 exec_fields ? mbo::types::OptionalRef{captures} : mbo::types::OptionalRef&lt;std::vector&lt;std::string&gt;&gt;{},</span></span>
 <span id="L3889"><span class="lineNum">    3889</span>                 :             :             .defines = defines,</span>
 <span id="L3890"><span class="lineNum">    3890</span>                 :             :             .outputs = outputs,</span>
 <span id="L3891"><span class="lineNum">    3891</span>                 :             :             .first_counts = first_counts,</span>
 <span id="L3892"><span class="lineNum">    3892</span>                 :             :             .collections = collections,</span>
 <span id="L3893"><span class="lineNum">    3893</span>                 :             :             .confirm = confirm,</span>
 <span id="L3894"><span class="lineNum">    3894</span>                 :             :             .exec_batches = exec_batches,</span>
-<span id="L3895"><span class="lineNum">    3895</span>         [<span class="tlaGBC" title="branch 0 was taken 2031 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1497 times"> + </span>]:<span class="tlaGNC">        3528 :             .parallel_exec = options.workers &gt; 1 ? mbo::types::OptionalRef{parallel_exec}</span></span>
+<span id="L3895"><span class="lineNum">    3895</span>         [<span class="tlaGBC" title="branch 0 was taken 2030 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1497 times"> + </span>]:<span class="tlaGNC">        3527 :             .parallel_exec = options.workers &gt; 1 ? mbo::types::OptionalRef{parallel_exec}</span></span>
 <span id="L3896"><span class="lineNum">    3896</span>                 :             :                                                  : mbo::types::OptionalRef&lt;exec::ParallelExec&gt;{},</span>
-<span id="L3897"><span class="lineNum">    3897</span>         [<span class="tlaGBC" title="branch 0 was taken 70 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3458 times"> + </span>]:<span class="tlaGNC">        3528 :             .extract = archive_extract ? mbo::types::OptionalRef{extracted_members}</span></span>
+<span id="L3897"><span class="lineNum">    3897</span>         [<span class="tlaGBC" title="branch 0 was taken 70 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3457 times"> + </span>]:<span class="tlaGNC">        3527 :             .extract = archive_extract ? mbo::types::OptionalRef{extracted_members}</span></span>
 <span id="L3898"><span class="lineNum">    3898</span>                 :             :                                        : mbo::types::OptionalRef&lt;ExtractedMembers&gt;{},</span>
 <span id="L3899"><span class="lineNum">    3899</span>                 :             :             .mounts = mounted_containers,</span>
-<span id="L3900"><span class="lineNum">    3900</span>         [<span class="tlaGBC" title="branch 0 was taken 56 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3472 times"> + </span>]:<span class="tlaGNC">        3528 :             .archive_deletions = archive_delete ? mbo::types::OptionalRef{archive_deletions}</span></span>
+<span id="L3900"><span class="lineNum">    3900</span>         [<span class="tlaGBC" title="branch 0 was taken 56 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3471 times"> + </span>]:<span class="tlaGNC">        3527 :             .archive_deletions = archive_delete ? mbo::types::OptionalRef{archive_deletions}</span></span>
 <span id="L3901"><span class="lineNum">    3901</span>                 :             :                                                 : mbo::types::OptionalRef&lt;std::vector&lt;std::string&gt;&gt;{},</span>
-<span id="L3902"><span class="lineNum">    3902</span>         [<span class="tlaGBC" title="branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3504 times"> + </span>]:<span class="tlaGNC">       24696 :         };</span></span>
+<span id="L3902"><span class="lineNum">    3902</span>         [<span class="tlaGBC" title="branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3503 times"> + </span>]:<span class="tlaGNC">       24689 :         };</span></span>
 <span id="L3903"><span class="lineNum">    3903</span>                 :             :         const EvaluationResult evaluated =</span>
-<span id="L3904"><span class="lineNum">    3904</span>         [<span class="tlaGBC" title="branch 0 was taken 441 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3087 times"> + </span>]:<span class="tlaGNC">        3528 :             !expression.has_value() ? EvaluationResult{.matched = true} : EvaluateDeferred(*expression, eval_context);</span></span>
-<span id="L3905"><span class="lineNum">    3905</span>         [<span class="tlaGBC" title="branch 0 was taken 89 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3439 times"> + </span>]:<span class="tlaGNC">        3528 :         if (evaluated.deferred) {</span></span>
+<span id="L3904"><span class="lineNum">    3904</span>         [<span class="tlaGBC" title="branch 0 was taken 441 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3086 times"> + </span>]:<span class="tlaGNC">        3527 :             !expression.has_value() ? EvaluationResult{.matched = true} : EvaluateDeferred(*expression, eval_context);</span></span>
+<span id="L3905"><span class="lineNum">    3905</span>         [<span class="tlaGBC" title="branch 0 was taken 89 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3438 times"> + </span>]:<span class="tlaGNC">        3527 :         if (evaluated.deferred) {</span></span>
 <span id="L3906"><span class="lineNum">    3906</span>                 :<span class="tlaGNC">         445 :           deferred_candidates.push_back(</span></span>
 <span id="L3907"><span class="lineNum">    3907</span>                 :             :               {.entry = OwnVisit(visit),</span>
 <span id="L3908"><span class="lineNum">    3908</span>                 :<span class="tlaGNC">          89 :                .captures = std::move(captures),</span></span>
@@ -4100,10 +4100,10 @@
 <span id="L3913"><span class="lineNum">    3913</span>                 :<span class="tlaGNC">         178 :                .score = evaluated.fuzzy.value_or(0),</span></span>
 <span id="L3914"><span class="lineNum">    3914</span>                 :<span class="tlaGNC">          89 :                .order = deferred_order++});</span></span>
 <span id="L3915"><span class="lineNum">    3915</span>                 :             :         } else {</span>
-<span id="L3916"><span class="lineNum">    3916</span>                 :<span class="tlaGNC">        3439 :           finish_entry(visit, outputs, evaluated.matched);</span></span>
+<span id="L3916"><span class="lineNum">    3916</span>                 :<span class="tlaGNC">        3438 :           finish_entry(visit, outputs, evaluated.matched);</span></span>
 <span id="L3917"><span class="lineNum">    3917</span>                 :             :         }</span>
-<span id="L3918"><span class="lineNum">    3918</span>   [<span class="tlaGBC" title="branch 0 was taken 14 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3514 times"> + </span><span class="tlaGBC" title="branch 2 was taken 10 times"> + </span><span class="tlaGBC" title="branch 3 was taken 4 times"> + </span> :<span class="tlaGNC">        3528 :         if (!control.unsupported.empty() &amp;&amp; !unsupported_reported) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 10 times"> + </span><span class="tlaGBC" title="branch 5 was taken 3518 times"> + </span>]
+<span id="L3918"><span class="lineNum">    3918</span>   [<span class="tlaGBC" title="branch 0 was taken 14 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3513 times"> + </span><span class="tlaGBC" title="branch 2 was taken 10 times"> + </span><span class="tlaGBC" title="branch 3 was taken 4 times"> + </span> :<span class="tlaGNC">        3527 :         if (!control.unsupported.empty() &amp;&amp; !unsupported_reported) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 10 times"> + </span><span class="tlaGBC" title="branch 5 was taken 3517 times"> + </span>]
 <span id="L3919"><span class="lineNum">    3919</span>                 :<span class="tlaGNC">          10 :           unsupported_reported = true;  // once per run, not per entry</span></span>
 <span id="L3920"><span class="lineNum">    3920</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">          10 :           if (skip_unsupported) {</span></span>
 <span id="L3921"><span class="lineNum">    3921</span>                 :<span class="tlaGNC">           2 :             on_error(visit.path, absl::FailedPreconditionError(absl::StrCat(control.unsupported, &quot; (skipped)&quot;)));</span></span>
@@ -4114,14 +4114,14 @@
 <span id="L3926"><span class="lineNum">    3926</span>                 :<span class="tlaGNC">           8 :             ++errors;  // impossible task -&gt; hard error (exit 2)</span></span>
 <span id="L3927"><span class="lineNum">    3927</span>                 :             :           }</span>
 <span id="L3928"><span class="lineNum">    3928</span>                 :             :         }</span>
-<span id="L3929"><span class="lineNum">    3929</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 3527 times"> + </span>]:<span class="tlaGNC">        3528 :         if (control.quit) {</span></span>
+<span id="L3929"><span class="lineNum">    3929</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 3526 times"> + </span>]:<span class="tlaGNC">        3527 :         if (control.quit) {</span></span>
 <span id="L3930"><span class="lineNum">    3930</span>                 :<span class="tlaGNC">           1 :           return WalkAction::kStop;</span></span>
 <span id="L3931"><span class="lineNum">    3931</span>                 :             :         }</span>
-<span id="L3932"><span class="lineNum">    3932</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3524 times"> + </span>]:<span class="tlaGNC">        3527 :         if (control.prune) {</span></span>
+<span id="L3932"><span class="lineNum">    3932</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3523 times"> + </span>]:<span class="tlaGNC">        3526 :         if (control.prune) {</span></span>
 <span id="L3933"><span class="lineNum">    3933</span>                 :<span class="tlaGNC">           3 :           return WalkAction::kPrune;</span></span>
 <span id="L3934"><span class="lineNum">    3934</span>                 :             :         }</span>
-<span id="L3935"><span class="lineNum">    3935</span>                 :<span class="tlaGNC">        3524 :         return WalkAction::kContinue;</span></span>
-<span id="L3936"><span class="lineNum">    3936</span>                 :<span class="tlaGNC">        3528 :       },</span></span>
+<span id="L3935"><span class="lineNum">    3935</span>                 :<span class="tlaGNC">        3523 :         return WalkAction::kContinue;</span></span>
+<span id="L3936"><span class="lineNum">    3936</span>                 :<span class="tlaGNC">        3527 :       },</span></span>
 <span id="L3937"><span class="lineNum">    3937</span>                 :<span class="tlaGNC">         684 :       [&amp;](std::string_view path, absl::Status error_status) {</span></span>
 <span id="L3938"><span class="lineNum">    3938</span>                 :<span class="tlaGNC">           3 :         ++errors;</span></span>
 <span id="L3939"><span class="lineNum">    3939</span>                 :<span class="tlaGNC">           3 :         on_error(path, error_status);</span></span>
