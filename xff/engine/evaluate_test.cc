@@ -54,6 +54,7 @@ using ::testing::IsEmpty;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Not;
+using ::testing::NotNull;
 using ::testing::Optional;
 using ::testing::Pair;
 using ::testing::SizeIs;
@@ -77,6 +78,11 @@ struct EvaluateTest : ::testing::Test {
     if (!command.ok() || command->expression == nullptr) {
       return false;
     }
+    return MatchExpression(*command->expression, visit);
+  }
+
+  // Evaluates an already parsed expression, preserving its node identity across calls.
+  bool MatchExpression(const parser::Expr& expression, const Visit& visit) {
     const auto sink = [this](std::string_view record) { emitted_ += record; };
     captures_.clear();
     outputs_.clear();
@@ -111,7 +117,7 @@ struct EvaluateTest : ::testing::Test {
             },
         .exec_batches = provide_exec_batches_ ? mbo::types::OptionalRef{exec_batches_}
                                               : mbo::types::OptionalRef<decltype(exec_batches_)>{}};
-    return Evaluate(*command->expression, context);
+    return Evaluate(expression, context);
   }
 
   // A Visit of `type`, with `path`/`name` backed by the caller and metadata by
@@ -605,14 +611,18 @@ TEST_F(EvaluateTest, OptionalStatefulCapabilitiesAreExplicit) {
 
   EXPECT_THAT(Match({"-first", "1"}, visit), IsFalse());
   provide_first_counts_ = true;
-  EXPECT_THAT(Match({"-first", "1"}, visit), IsTrue());
-  EXPECT_THAT(Match({"-first", "1"}, visit), IsFalse());
+  MBO_ASSERT_OK_AND_ASSIGN(const auto first, parser::Parse({".", "-first", "1"}));
+  ASSERT_THAT(first.expression, NotNull());
+  EXPECT_THAT(MatchExpression(*first.expression, visit), IsTrue());
+  EXPECT_THAT(MatchExpression(*first.expression, visit), IsFalse());
 
   EXPECT_THAT(Match({"-collect"}, visit), IsTrue());
   provide_collections_ = true;
   EXPECT_THAT(Match({"-collect:kept"}, visit), IsTrue());
   EXPECT_THAT(collections_.Entries("kept"), SizeIs(1));
 
+  EXPECT_THAT(Match({"-exec", "echo", "{}", "+"}, visit), IsTrue());
+  EXPECT_THAT(Match({"-execdir", "echo", "{}", "+"}, visit), IsTrue());
   provide_exec_batches_ = true;
   EXPECT_THAT(Match({"-exec", "echo", "{}", "+"}, visit), IsTrue());
   EXPECT_THAT(exec_batches_, SizeIs(1));
