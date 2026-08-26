@@ -113,6 +113,60 @@ class CoverageSourcesTest(unittest.TestCase):
                     Path(directory),
                 )
 
+    def test_applies_exclusions_and_merges_repeated_template_records(self):
+        policy = {
+            "include": ["xff/**"],
+            "categories": {"program": {"file": {"include": ["xff/file/**"]}}},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory) / "workspace"
+            source = workspace / "xff/file/file.h"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "int excluded() {  // LCOV_EXCL_FUNC_LINE, LCOV_EXCL_LINE\n"
+                "int shared() {  // LCOV_MERGE_FUNC_LINE\n"
+                "return true;  // LCOV_MERGE_BR_LINE 2\n"
+            )
+            report = (
+                "SF:xff/file/file.h\n"
+                "FN:1,excluded\nFN:2,shared_int\nFN:2,shared_long\n"
+                "FNDA:0,excluded\nFNDA:3,shared_int\nFNDA:0,shared_long\nFNF:3\nFNH:1\n"
+                "BRDA:3,0,0,2\nBRDA:3,0,1,0\nBRDA:3,0,2,0\nBRDA:3,0,3,4\nBRF:4\nBRH:2\n"
+                "DA:1,0\nDA:2,3\nDA:3,3\nLF:3\nLH:2\nend_of_record\n"
+            )
+
+            actual = coverage_sources.grouped(
+                report, {}, policy, Path(directory) / "grouped", workspace
+            )
+
+            self.assertNotIn("excluded", actual)
+            self.assertIn("FN:2,__xff_lcov_merged_function_at_line_2", actual)
+            self.assertIn("FNDA:3,__xff_lcov_merged_function_at_line_2", actual)
+            self.assertIn("FNF:1\nFNH:1", actual)
+            self.assertIn("BRDA:3,0,0,2\nBRDA:3,0,1,4\nBRF:2\nBRH:2", actual)
+            self.assertIn("DA:2,3\nDA:3,3\nLF:2\nLH:2", actual)
+
+    def test_rejects_an_invalid_branch_merge_width(self):
+        policy = {
+            "include": ["xff/**"],
+            "categories": {"program": {"file": {"include": ["xff/file/**"]}}},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory) / "workspace"
+            source = workspace / "xff/file/file.h"
+            source.parent.mkdir(parents=True)
+            source.write_text("return true;  // LCOV_MERGE_BR_LINE 2\n")
+            with self.assertRaisesRegex(ValueError, "cannot merge 3 branch records"):
+                coverage_sources.grouped(
+                    "SF:xff/file/file.h\n"
+                    "BRDA:1,0,0,1\nBRDA:1,0,1,0\nBRDA:1,0,2,0\n"
+                    "BRF:3\nBRH:1\nend_of_record\n",
+                    {},
+                    policy,
+                    Path(directory) / "grouped",
+                    workspace,
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

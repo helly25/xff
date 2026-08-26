@@ -128,6 +128,61 @@ class CoverageTest(unittest.TestCase):
         self.assertEqual({"covered": 1, "total": 2, "percent": 50.0}, result["lines"])
         self.assertEqual({"covered": 1, "total": 2, "percent": 50.0}, result["branches"])
 
+    def test_parse_merges_repeated_template_branches_at_marked_source_lines(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "xff/a.cc"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "return lhs || rhs;  // LCOV_MERGE_BR_LINE 2: template instances\n",
+                encoding="utf-8",
+            )
+            report = root / "coverage.lcov"
+            report.write_text(
+                "SF:xff/a.cc\n"
+                "BRDA:1,0,0,2\nBRDA:1,0,1,0\n"
+                "BRDA:1,0,2,0\nBRDA:1,0,3,3\nend_of_record\n",
+                encoding="utf-8",
+            )
+
+            files = coverage_tool.parse_lcov(report, root, {})
+
+            self.assertEqual([(1, True), (1, True)], files["xff/a.cc"].branches)
+
+    def test_parse_rejects_an_invalid_template_branch_merge_width(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "xff/a.cc"
+            source.parent.mkdir(parents=True)
+            source.write_text("return value;  // LCOV_MERGE_BR_LINE 2\n", encoding="utf-8")
+            report = root / "coverage.lcov"
+            report.write_text(
+                "SF:xff/a.cc\n"
+                "BRDA:1,0,0,1\nBRDA:1,0,1,0\nBRDA:1,0,2,0\nend_of_record\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "cannot merge 3 branch records"):
+                coverage_tool.parse_lcov(report, root, {})
+
+    def test_parse_applies_directives_from_an_extension_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "extra_modules/future/future.cc"
+            source.parent.mkdir(parents=True)
+            source.write_text("return false;  // LCOV_EXCL_LINE\n", encoding="utf-8")
+            report = root / "coverage.lcov"
+            report.write_text(
+                "SF:external/xff_future+/future.cc\nDA:1,0\nend_of_record\n",
+                encoding="utf-8",
+            )
+
+            files = coverage_tool.parse_lcov(
+                report, root, {"xff_future": "extra_modules/future"}
+            )
+
+            self.assertEqual({}, files["xff_future/future.cc"].lines)
+
     def test_patch_without_coverable_code_is_not_reported(self):
         empty = {
             metric: {"covered": 0, "total": 0, "percent": None}

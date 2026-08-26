@@ -20,7 +20,7 @@ import coverage_policy
 @dataclass
 class FileCoverage:
     lines: dict[int, int] = field(default_factory=dict)
-    functions: list[int] = field(default_factory=list)
+    functions: list[tuple[int, int]] = field(default_factory=list)
     branches: list[tuple[int, bool]] = field(default_factory=list)
 
 
@@ -51,19 +51,49 @@ def _repo_path(value: str, modules: dict[str, str] | None = None) -> str | None:
     return None
 
 
-def parse_lcov(path: Path) -> dict[str, FileCoverage]:
+def _source_path(name: str, source_root: Path, modules: dict[str, str]) -> Path:
+    for module, directory in modules.items():
+        prefix = module + "/"
+        if name.startswith(prefix):
+            return source_root / directory / name.removeprefix(prefix)
+    return source_root / name
+
+
+def parse_lcov(
+    path: Path,
+    source_root: Path = Path("."),
+    modules: dict[str, str] | None = None,
+) -> dict[str, FileCoverage]:
+    modules = coverage_sources.declared_extras() if modules is None else modules
     result: dict[str, FileCoverage] = {}
     current: FileCoverage | None = None
-    for raw in path.read_text(encoding="utf-8").splitlines():
+    function_lines: dict[str, int] = {}
+    records = []
+    for record in path.read_text(encoding="utf-8").split("end_of_record\n"):
+        match = re.search(r"(?m)^SF:(.+)$", record)
+        if not match:
+            continue
+        name = _repo_path(match.group(1), modules)
+        source = _source_path(name, source_root, modules) if name else None
+        records.append(
+            coverage_sources.normalize_record(record, source)
+            if source is not None and source.is_file()
+            else record
+        )
+    for raw in "end_of_record\n".join(records).splitlines():
         if raw.startswith("SF:"):
-            name = _repo_path(raw[3:])
+            name = _repo_path(raw[3:], modules)
             current = result.setdefault(name, FileCoverage()) if name else None
+            function_lines = {}
+        elif current is not None and raw.startswith("FN:"):
+            definition = raw[3:].split(",")
+            function_lines[definition[-1]] = int(definition[0])
         elif current is not None and raw.startswith("DA:"):
             line, hits, *_ = raw[3:].split(",")
             current.lines[int(line)] = current.lines.get(int(line), 0) + int(hits)
         elif current is not None and raw.startswith("FNDA:"):
-            hits, _ = raw[5:].split(",", 1)
-            current.functions.append(int(hits))
+            hits, name = raw[5:].split(",", 1)
+            current.functions.append((function_lines.get(name, 0), int(hits)))
         elif current is not None and raw.startswith("BRDA:"):
             line, _, _, taken = raw[5:].split(",")
             current.branches.append((int(line), taken not in ("-", "0")))
@@ -96,7 +126,7 @@ def counts(files: dict[str, FileCoverage], changed: dict[str, set[int]] | None =
                 values["lines"][0] += hits > 0
         if changed is None:
             values["functions"][1] += len(data.functions)
-            values["functions"][0] += sum(hits > 0 for hits in data.functions)
+            values["functions"][0] += sum(hits > 0 for _, hits in data.functions)
         for line, taken in data.branches:
             if lines is None or line in lines:
                 values["branches"][1] += 1
