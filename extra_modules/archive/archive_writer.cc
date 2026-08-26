@@ -64,8 +64,8 @@ struct WriteDeleter {
 using ReadPtr = std::unique_ptr<struct ::archive, ReadDeleter>;
 using WritePtr = std::unique_ptr<struct ::archive, WriteDeleter>;
 
-std::string LastError(struct ::archive& handle) {
-  const char* message = ::archive_error_string(&handle);
+std::string LastError(struct ::archive* handle) {
+  const char* message = ::archive_error_string(handle);
   return message == nullptr ? std::string("unknown libarchive error") : std::string(message);
 }
 
@@ -101,19 +101,21 @@ ReadPtr OpenReader(const std::string& path) {
 // Copies one member's data across. Block-wise rather than whole-member, so rewriting a container
 // holding a huge member does not need it in memory. `archive_write_data` and not the _block variant:
 // the latter belongs to the write-to-DISK API and answers "not supported" on an archive writer.
-absl::Status CopyData(struct ::archive& reader, struct ::archive& writer) {
+absl::Status CopyData(struct ::archive& reader_ref, struct ::archive& writer_ref) {
+  struct ::archive* const reader = &reader_ref;
+  struct ::archive* const writer = &writer_ref;
   for (;;) {
     const void* block = nullptr;
     std::size_t size = 0;
     std::int64_t offset = 0;
-    const int status = ::archive_read_data_block(&reader, &block, &size, &offset);
+    const int status = ::archive_read_data_block(reader, &block, &size, &offset);
     if (status == ARCHIVE_EOF) {
       return absl::OkStatus();
     }
     if (status < ARCHIVE_WARN) {
       return absl::DataLossError(LastError(reader));
     }
-    if (::archive_write_data(&writer, block, size) < 0) {
+    if (::archive_write_data(writer, block, size) < 0) {
       return absl::UnavailableError(LastError(writer));
     }
   }
@@ -156,10 +158,12 @@ class RemovalTracker final {
   std::vector<bool> removed_;
 };
 
-absl::Status RewriteWithout(struct ::archive& reader, struct ::archive& writer, RemovalTracker& removals) {
+absl::Status RewriteWithout(struct ::archive& reader_ref, struct ::archive& writer_ref, RemovalTracker& removals) {
+  struct ::archive* const reader = &reader_ref;
+  struct ::archive* const writer = &writer_ref;
   for (;;) {
     struct ::archive_entry* entry = nullptr;
-    const int status = ::archive_read_next_header(&reader, &entry);
+    const int status = ::archive_read_next_header(reader, &entry);
     if (status == ARCHIVE_EOF) {
       return absl::OkStatus();
     }
@@ -169,14 +173,14 @@ absl::Status RewriteWithout(struct ::archive& reader, struct ::archive& writer, 
     const char* stored = ::archive_entry_pathname(entry);
     const std::string_view name = NormalizeMemberName(stored == nullptr ? std::string_view() : stored);
     if (removals.ShouldRemove(name)) {
-      ::archive_read_data_skip(&reader);
+      ::archive_read_data_skip(reader);
       continue;
     }
-    if (::archive_write_header(&writer, entry) < ARCHIVE_WARN) {
+    if (::archive_write_header(writer, entry) < ARCHIVE_WARN) {
       return absl::UnavailableError(LastError(writer));
     }
     if (::archive_entry_size(entry) > 0) {
-      const absl::Status copied = CopyData(reader, writer);
+      const absl::Status copied = CopyData(reader_ref, writer_ref);
       if (!copied.ok()) {
         return copied;
       }
@@ -189,29 +193,31 @@ absl::Status RewriteWithout(struct ::archive& reader, struct ::archive& writer, 
 // cohesive step in it that answers a different question ("can this be written back at all?"), and
 // leaving it inline put that function past the complexity the style guide allows.
 absl::Status MatchWriterToReader(
-    struct ::archive& reader,
-    struct ::archive& writer,
+    struct ::archive& reader_ref,
+    struct ::archive& writer_ref,
     const stdfs::path& temporary,
     std::string_view path) {
+  struct ::archive* const reader = &reader_ref;
+  struct ::archive* const writer = &writer_ref;
   // Reading a format does not imply writing it: libarchive reads 7-Zip, RAR, ISO and cab, and writes
   // only some of those. Refusing here (rather than producing a tar named `.7z`) is the point.
-  if (::archive_write_set_format(&writer, ::archive_format(&reader)) != ARCHIVE_OK) {
+  if (::archive_write_set_format(writer, ::archive_format(reader)) != ARCHIVE_OK) {
     return absl::UnimplementedError(
         absl::StrCat(
-            "this build cannot write the ", ::archive_format_name(&reader),
+            "this build cannot write the ", ::archive_format_name(reader),
             " format back, so a member cannot be removed from ", path));
   }
   // Filter 0 is the outermost compression the reader applied, and the innermost is always `none`.
   // Carrying it over is what keeps a `.tar.gz` gzipped rather than silently expanding it.
-  for (int i = ::archive_filter_count(&reader) - 2; i >= 0; --i) {
-    if (::archive_write_add_filter(&writer, ::archive_filter_code(&reader, i)) != ARCHIVE_OK) {
+  for (int i = ::archive_filter_count(reader) - 2; i >= 0; --i) {
+    if (::archive_write_add_filter(writer, ::archive_filter_code(reader, i)) != ARCHIVE_OK) {
       return absl::UnimplementedError(
           absl::StrCat(
-              "this build cannot write the ", ::archive_filter_name(&reader, i),
+              "this build cannot write the ", ::archive_filter_name(reader, i),
               " compression back, so a member cannot be removed from ", path));
     }
   }
-  if (::archive_write_open_filename(&writer, temporary.string().c_str()) != ARCHIVE_OK) {
+  if (::archive_write_open_filename(writer, temporary.string().c_str()) != ARCHIVE_OK) {
     return absl::UnavailableError(absl::StrCat("cannot write ", temporary.string(), ": ", LastError(writer)));
   }
   return absl::OkStatus();
@@ -220,21 +226,24 @@ absl::Status MatchWriterToReader(
 // The peeked first member: dropped when listed (marking it in `removed`), copied through otherwise.
 // Split out of RemoveMembersOfFile so the peek-then-loop shape stays readable there.
 absl::Status TransferFirstMember(
-    struct ::archive& reader,
-    struct ::archive& writer,
-    struct ::archive_entry& first,
+    struct ::archive& reader_ref,
+    struct ::archive& writer_ref,
+    struct ::archive_entry& first_ref,
     RemovalTracker& removals) {
-  const char* stored = ::archive_entry_pathname(&first);
+  struct ::archive* const reader = &reader_ref;
+  struct ::archive* const writer = &writer_ref;
+  struct ::archive_entry* const first = &first_ref;
+  const char* stored = ::archive_entry_pathname(first);
   const std::string_view name = NormalizeMemberName(stored == nullptr ? std::string_view() : stored);
   if (removals.ShouldRemove(name)) {
-    ::archive_read_data_skip(&reader);
+    ::archive_read_data_skip(reader);
     return absl::OkStatus();
   }
-  if (::archive_write_header(&writer, &first) < ARCHIVE_WARN) {
+  if (::archive_write_header(writer, first) < ARCHIVE_WARN) {
     return absl::UnavailableError(LastError(writer));
   }
-  if (::archive_entry_size(&first) > 0) {
-    return CopyData(reader, writer);
+  if (::archive_entry_size(first) > 0) {
+    return CopyData(reader_ref, writer_ref);
   }
   return absl::OkStatus();
 }
@@ -258,7 +267,7 @@ absl::Status RemoveMembersOfFile(std::string_view path, const std::vector<std::s
     return absl::NotFoundError(absl::StrCat("no such member in ", path, ": ", absl::StrJoin(members, ", ")));
   }
   if (peeked < ARCHIVE_WARN) {
-    return absl::DataLossError(LastError(*reader));
+    return absl::DataLossError(LastError(reader.get()));
   }
   const stdfs::path target(path_string);
   const stdfs::path temporary = stdfs::path(target).replace_filename(target.filename().string() + ".xff-rewrite");
@@ -279,7 +288,7 @@ absl::Status RemoveMembersOfFile(std::string_view path, const std::vector<std::s
     }
     if (status.ok() && ::archive_write_close(writer.get()) != ARCHIVE_OK) {
       // Close is where a zip writes its central directory, so a failure here is a failure to write.
-      status = absl::UnavailableError(LastError(*writer));
+      status = absl::UnavailableError(LastError(writer.get()));
     }
     if (!status.ok()) {
       std::error_code ignored;
