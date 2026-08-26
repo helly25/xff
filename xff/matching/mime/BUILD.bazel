@@ -31,6 +31,7 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/synchronization",
         "@helly25_mbo//mbo/status:status_macros_cc",
+        "@helly25_mbo//mbo/types:optional_ref_cc",
         "@nlohmann_json//:json",
         "@xff_extras_api//:mime_database_cc",
     ],

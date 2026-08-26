@@ -24,6 +24,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/synchronization/mutex.h"
 #include "mbo/status/status_macros.h"
+#include "mbo/types/optional_ref.h"
 #include "nlohmann/json.hpp"
 #include "xff/matching/mime/database.h"
 
@@ -58,7 +59,7 @@ struct Vocabulary {
 struct State {
   absl::Mutex mutex;
   std::vector<std::unique_ptr<const Vocabulary>> snapshots ABSL_GUARDED_BY(mutex);
-  const Vocabulary* active ABSL_GUARDED_BY(mutex) = nullptr;
+  mbo::types::OptionalRef<const Vocabulary> active ABSL_GUARDED_BY(mutex);
 };
 
 State& GlobalState() {
@@ -341,7 +342,7 @@ void Finalize(Vocabulary& vocabulary) {
 }
 
 void EnsureConfigured(State& state) ABSL_EXCLUSIVE_LOCKS_REQUIRED(state.mutex) {
-  if (state.active != nullptr) {
+  if (state.active.has_value()) {
     return;
   }
   auto vocabulary = std::make_unique<Vocabulary>(CoreVocabulary());
@@ -349,8 +350,8 @@ void EnsureConfigured(State& state) ABSL_EXCLUSIVE_LOCKS_REQUIRED(state.mutex) {
     CHECK_OK(LayerProcessor(*vocabulary, database.name, ConflictPolicy::kLast).Apply(database.json));
   }
   Finalize(*vocabulary);
-  state.active = vocabulary.get();
   state.snapshots.push_back(std::move(vocabulary));
+  state.active.set_ref(*state.snapshots.back());
 }
 
 }  // namespace
@@ -366,7 +367,7 @@ absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy confl
     // Registered databases are trusted, generated build inputs. Defer their
     // comparatively expensive JSON parse until a MIME predicate or field is
     // actually evaluated; user-provided layers below remain eagerly validated.
-    state.active = nullptr;
+    state.active.reset();
     return absl::OkStatus();
   }
   Vocabulary vocabulary = CoreVocabulary();
@@ -381,8 +382,8 @@ absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy confl
   State& state = GlobalState();
   const absl::MutexLock lock(&state.mutex);
   auto snapshot = std::make_unique<const Vocabulary>(std::move(vocabulary));
-  state.active = snapshot.get();
   state.snapshots.push_back(std::move(snapshot));
+  state.active.set_ref(*state.snapshots.back());
   return absl::OkStatus();
 }
 
