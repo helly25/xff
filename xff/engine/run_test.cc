@@ -782,6 +782,40 @@ TEST_F(RunTest, DiffIgnoreRejectsUnknownToken) {
   EXPECT_THAT(reported, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("unknown --diff-ignore token 'bogus'")));
 }
 
+TEST_F(RunTest, InvalidValuedGlobalsAreRejectedBeforeTraversal) {
+  struct Case {
+    std::string flag;
+    std::string message;
+  };
+
+  const std::array cases{
+      Case{"--diff-algorithm=bogus", "unknown diff algorithm 'bogus'"},
+      Case{"--hash-algorithm=bogus", "unknown hash algorithm 'bogus'"},
+      Case{"--hash-encoding=bogus", "unknown hash encoding 'bogus'"},
+      Case{"--archive-aggregate=bogus", "bad --archive-aggregate value 'bogus'"},
+  };
+  for (const Case& test : cases) {
+    SCOPED_TRACE(test.flag);
+    MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({test.flag, root_.string()}));
+    absl::Status reported;
+    const RunResult result = RunFind(
+        command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status status) { reported = status; });
+    EXPECT_THAT(result.errors, 2);
+    EXPECT_THAT(result.any_match, IsFalse());
+    EXPECT_THAT(reported, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr(test.message)));
+  }
+}
+
+TEST_F(RunTest, PackWithoutAnArchiveBackendIsRejectedBeforeTraversal) {
+  MBO_ASSERT_OK_AND_ASSIGN(const auto command, parser::Parse({"--pack=" + Path("output.tar"), root_.string()}));
+  absl::Status reported;
+  const RunResult result =
+      RunFind(command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status status) { reported = status; });
+  EXPECT_THAT(result.errors, 2);
+  EXPECT_THAT(result.any_match, IsFalse());
+  EXPECT_THAT(reported, StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("without archive support")));
+}
+
 TEST_F(RunTest, DiffFormatAndContextGlobalsSetTheDefaults) {
   // A 7-line file with a single changed line (line 4); -diff emits the whole diff as one record.
   { std::ofstream(root_ / "one.txt") << "a\nb\nc\nd\ne\nf\ng\n"; }
