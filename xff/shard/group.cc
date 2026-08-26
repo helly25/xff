@@ -83,13 +83,16 @@ ShardMember MakeMember(ShardSet& set, std::int64_t index, absl::Span<const Shard
   // the newest (ties break on the lexicographically-first name, so it stays deterministic);
   // kFirst / kError keep the lexicographically-first name. A single min/max scan, no full sort.
   const auto by_name = [](const ShardFile& lhs, const ShardFile& rhs) { return lhs.name < rhs.name; };
-  const auto* const representative =
-      dedup == Dedup::kMtime ? absl::c_max_element(
-                                   files,
-                                   [](const ShardFile& lhs, const ShardFile& rhs) {
-                                     return lhs.mtime != rhs.mtime ? lhs.mtime < rhs.mtime : lhs.name > rhs.name;
-                                   })
-                             : absl::c_min_element(files, by_name);
+  // This is a span iterator, not an optionally borrowed object. Its pointer representation is an
+  // implementation detail of the contiguous iterator.
+  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
+  const auto representative = dedup == Dedup::kMtime
+                                  ? absl::c_max_element(
+                                        files,
+                                        [](const ShardFile& lhs, const ShardFile& rhs) {
+                                          return lhs.mtime != rhs.mtime ? lhs.mtime < rhs.mtime : lhs.name > rhs.name;
+                                        })
+                                  : absl::c_min_element(files, by_name);
   ShardMember member{
       .index = index,
       .path = std::string(representative->name),

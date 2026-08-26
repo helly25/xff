@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -368,13 +369,13 @@ std::string RenderTable(
 }
 
 void Tree::Add(std::string_view path) {
-  Node* node = &root_;
+  std::reference_wrapper<Node> node = root_;
   const auto descend = [&node](std::string_view name) {
-    std::unique_ptr<Node>& child = node->children[std::string(name)];  // create-or-descend
+    std::unique_ptr<Node>& child = node.get().children[std::string(name)];  // create-or-descend
     if (child == nullptr) {
       child = std::make_unique<Node>();
     }
-    node = child.get();  // shared prefixes reuse the same node
+    node = *child;  // shared prefixes reuse the same node
   };
   if (!path.empty() && path.front() == '/') {
     descend("/");  // an absolute path roots at "/"
