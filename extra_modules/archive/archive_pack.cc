@@ -432,7 +432,8 @@ OptionalFormatSuffix FormatEntryFor(std::string_view path) {
 
 // Writes one entry's header and, for a regular file, its bytes. The size has to be known up front
 // (tar puts it in the header), so it is taken from the stat rather than from the read.
-absl::Status WriteOne(struct ::archive* writer, const PackEntry& entry) {
+absl::Status WriteOne(struct ::archive& writer_ref, const PackEntry& entry) {
+  struct ::archive* const writer = &writer_ref;
   std::error_code error;
   const stdfs::path source(entry.source);
   static const std::int64_t kFileClockToUnixEpoch = FileClockToUnixEpoch();
@@ -583,7 +584,7 @@ absl::Status PackFiles(std::string_view path, const std::vector<PackEntry>& entr
           absl::StrCat("cannot create '", temporary.string(), "': ", ::archive_error_string(writer.get())));
     }
     for (const PackEntry& entry : entries) {
-      if (const absl::Status status = WriteOne(writer.get(), entry); !status.ok()) {
+      if (const absl::Status status = WriteOne(*writer, entry); !status.ok()) {
         std::error_code ignored;
         stdfs::remove(temporary, ignored);
         return status;

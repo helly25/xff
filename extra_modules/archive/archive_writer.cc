@@ -76,7 +76,7 @@ ReadPtr OpenReader(const std::string& path) {
   if (handle == nullptr) {
     return handle;
   }
-  if (!EnableNativeFilters(handle.get())) {
+  if (!EnableNativeFilters(*handle)) {
     return nullptr;
   }
   ::archive_read_support_format_7zip(handle.get());
@@ -101,7 +101,9 @@ ReadPtr OpenReader(const std::string& path) {
 // Copies one member's data across. Block-wise rather than whole-member, so rewriting a container
 // holding a huge member does not need it in memory. `archive_write_data` and not the _block variant:
 // the latter belongs to the write-to-DISK API and answers "not supported" on an archive writer.
-absl::Status CopyData(struct ::archive* reader, struct ::archive* writer) {
+absl::Status CopyData(struct ::archive& reader_ref, struct ::archive& writer_ref) {
+  struct ::archive* const reader = &reader_ref;
+  struct ::archive* const writer = &writer_ref;
   for (;;) {
     const void* block = nullptr;
     std::size_t size = 0;
@@ -156,7 +158,9 @@ class RemovalTracker final {
   std::vector<bool> removed_;
 };
 
-absl::Status RewriteWithout(struct ::archive* reader, struct ::archive* writer, RemovalTracker& removals) {
+absl::Status RewriteWithout(struct ::archive& reader_ref, struct ::archive& writer_ref, RemovalTracker& removals) {
+  struct ::archive* const reader = &reader_ref;
+  struct ::archive* const writer = &writer_ref;
   for (;;) {
     struct ::archive_entry* entry = nullptr;
     const int status = ::archive_read_next_header(reader, &entry);
@@ -176,7 +180,7 @@ absl::Status RewriteWithout(struct ::archive* reader, struct ::archive* writer, 
       return absl::UnavailableError(LastError(writer));
     }
     if (::archive_entry_size(entry) > 0) {
-      const absl::Status copied = CopyData(reader, writer);
+      const absl::Status copied = CopyData(reader_ref, writer_ref);
       if (!copied.ok()) {
         return copied;
       }
@@ -189,10 +193,12 @@ absl::Status RewriteWithout(struct ::archive* reader, struct ::archive* writer, 
 // cohesive step in it that answers a different question ("can this be written back at all?"), and
 // leaving it inline put that function past the complexity the style guide allows.
 absl::Status MatchWriterToReader(
-    struct ::archive* reader,
-    struct ::archive* writer,
+    struct ::archive& reader_ref,
+    struct ::archive& writer_ref,
     const stdfs::path& temporary,
     std::string_view path) {
+  struct ::archive* const reader = &reader_ref;
+  struct ::archive* const writer = &writer_ref;
   // Reading a format does not imply writing it: libarchive reads 7-Zip, RAR, ISO and cab, and writes
   // only some of those. Refusing here (rather than producing a tar named `.7z`) is the point.
   if (::archive_write_set_format(writer, ::archive_format(reader)) != ARCHIVE_OK) {
@@ -220,10 +226,13 @@ absl::Status MatchWriterToReader(
 // The peeked first member: dropped when listed (marking it in `removed`), copied through otherwise.
 // Split out of RemoveMembersOfFile so the peek-then-loop shape stays readable there.
 absl::Status TransferFirstMember(
-    struct ::archive* reader,
-    struct ::archive* writer,
-    struct ::archive_entry* first,
+    struct ::archive& reader_ref,
+    struct ::archive& writer_ref,
+    struct ::archive_entry& first_ref,
     RemovalTracker& removals) {
+  struct ::archive* const reader = &reader_ref;
+  struct ::archive* const writer = &writer_ref;
+  struct ::archive_entry* const first = &first_ref;
   const char* stored = ::archive_entry_pathname(first);
   const std::string_view name = NormalizeMemberName(stored == nullptr ? std::string_view() : stored);
   if (removals.ShouldRemove(name)) {
@@ -234,7 +243,7 @@ absl::Status TransferFirstMember(
     return absl::UnavailableError(LastError(writer));
   }
   if (::archive_entry_size(first) > 0) {
-    return CopyData(reader, writer);
+    return CopyData(reader_ref, writer_ref);
   }
   return absl::OkStatus();
 }
@@ -267,12 +276,12 @@ absl::Status RemoveMembersOfFile(std::string_view path, const std::vector<std::s
     if (writer == nullptr) {
       return absl::UnavailableError("cannot create a libarchive writer");
     }
-    MBO_RETURN_IF_ERROR(MatchWriterToReader(reader.get(), writer.get(), temporary, path));
+    MBO_RETURN_IF_ERROR(MatchWriterToReader(*reader, *writer, temporary, path));
     RemovalTracker removals(members);
     // The peeked header is the first member, so handle it before the loop takes over the rest.
-    absl::Status status = TransferFirstMember(reader.get(), writer.get(), first, removals);
+    absl::Status status = TransferFirstMember(*reader, *writer, *first, removals);
     if (status.ok()) {
-      status = RewriteWithout(reader.get(), writer.get(), removals);
+      status = RewriteWithout(*reader, *writer, removals);
     }
     if (status.ok()) {
       status = removals.CheckAll(path);
