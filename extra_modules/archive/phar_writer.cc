@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <ios>
 #include <optional>
 #include <string>
@@ -134,12 +135,14 @@ absl::Status WriteWholeFile(const stdfs::path& path, std::string_view bytes) {
 
 // SELECT: which manifest entries survive the removal. A requested name that is not in the archive
 // stops the whole rewrite (NotFound naming every such member): half a deletion is worse than none.
-absl::StatusOr<std::vector<const PharMemberLayout*>> SelectSurvivors(
+using PharMemberRefs = std::vector<std::reference_wrapper<const PharMemberLayout>>;
+
+absl::StatusOr<PharMemberRefs> SelectSurvivors(
     std::string_view path,
     const PharLayout& layout,
     const std::vector<std::string>& members) {
   std::vector<bool> requested_found(members.size(), false);
-  std::vector<const PharMemberLayout*> survivors;
+  PharMemberRefs survivors;
   survivors.reserve(layout.members.size());
   for (const PharMemberLayout& member : layout.members) {
     bool drop = false;
@@ -150,7 +153,7 @@ absl::StatusOr<std::vector<const PharMemberLayout*>> SelectSurvivors(
       }
     }
     if (!drop) {
-      survivors.push_back(&member);
+      survivors.emplace_back(member);
     }
   }
   if (absl::c_all_of(requested_found, [](bool found) { return found; })) {
@@ -169,17 +172,15 @@ absl::StatusOr<std::vector<const PharMemberLayout*>> SelectSurvivors(
 // metadata) is copied whole and only its count is patched; each surviving entry and each surviving
 // member's stored bytes are copied verbatim, in the same order, which is what keeps the per-member
 // compression and CRC valid without touching a codec.
-std::string RebuildPhar(
-    const std::string& bytes,
-    const PharLayout& layout,
-    const std::vector<const PharMemberLayout*>& survivors) {
+std::string RebuildPhar(const std::string& bytes, const PharLayout& layout, const PharMemberRefs& survivors) {
   const std::size_t header_size = layout.entries_offset - layout.manifest_start;
   std::string manifest(bytes, layout.manifest_start, header_size);
   manifest.replace(0, 4, LittleEndian32(static_cast<std::uint32_t>(survivors.size())));
   std::string data;
-  for (const PharMemberLayout* member : survivors) {
-    manifest.append(bytes, member->entry_offset, member->entry_size);
-    data.append(bytes, member->data_offset, static_cast<std::size_t>(member->stored_size));
+  for (const std::reference_wrapper<const PharMemberLayout> member_ref : survivors) {
+    const PharMemberLayout& member = member_ref.get();
+    manifest.append(bytes, member.entry_offset, member.entry_size);
+    data.append(bytes, member.data_offset, static_cast<std::size_t>(member.stored_size));
   }
   std::string rebuilt(bytes, 0, layout.manifest_length_at);  // the stub, up to the manifest length
   rebuilt.append(LittleEndian32(static_cast<std::uint32_t>(manifest.size())));
@@ -243,7 +244,7 @@ absl::Status RemovePharMembersOfFile(std::string_view path, const std::vector<st
 
   // The three stages carry the layout facts between them: SELECT decides survival, REBUILD copies
   // the surviving bytes verbatim, RE-SIGN digests the result when the original was signed.
-  MBO_ASSIGN_OR_RETURN(const std::vector<const PharMemberLayout*> survivors, SelectSurvivors(path, layout, members));
+  MBO_ASSIGN_OR_RETURN(const PharMemberRefs survivors, SelectSurvivors(path, layout, members));
   std::string rebuilt = RebuildPhar(bytes, layout, survivors);
   MBO_RETURN_IF_ERROR(AppendSignature(path, bytes, layout, rebuilt));
 
