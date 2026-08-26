@@ -396,6 +396,15 @@ TEST_F(RunTest, MaxDepthLimitsDescent) {
       RunExpr({"-maxdepth", "1"}), UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub")));
 }
 
+TEST_F(RunTest, LastDepthOptionWinsAcrossTheExpressionTree) {
+  EXPECT_THAT(
+      RunExpr({"-maxdepth", "0", "-maxdepth", "1"}),
+      UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub")));
+  EXPECT_THAT(
+      RunExpr({"-mindepth", "2", "-mindepth", "1"}),
+      UnorderedElementsAre(Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
+}
+
 TEST_F(RunTest, MinDepthSkipsRoot) {
   // -mindepth 1: everything except the root operand itself.
   EXPECT_THAT(

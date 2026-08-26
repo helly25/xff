@@ -84,54 +84,59 @@ namespace xff::engine {
 namespace {
 
 // Parses a non-negative decimal integer (find depth arguments).
-bool ParseNonNegInt(std::string_view text, int* out) {
+std::optional<int> ParseNonNegInt(std::string_view text) {
   if (text.empty()) {
-    return false;
+    return std::nullopt;
   }
   int value = 0;
   for (const char digit : text) {
     if (digit < '0' || digit > '9') {
-      return false;
+      return std::nullopt;
     }
     value = (value * 10) + (digit - '0');
   }
-  *out = value;
-  return true;
+  return value;
 }
 
 // find treats -maxdepth/-mindepth/-depth/-xdev as global positional options
-// (they apply regardless of where they sit in the expression); collect them into
-// the walk limits. Last occurrence wins, as in find.
-void ScanDepthOptions(const parser::Expr& expr, WalkOptions* options) {
+// (they apply regardless of where they sit in the expression). The scan returns
+// only the fields it sees; right-hand values override left-hand values, matching
+// expression order and find's last-occurrence rule.
+struct DepthOptions {
+  std::optional<int> min_depth;
+  std::optional<int> max_depth;
+  bool post_order = false;
+  bool single_filesystem = false;
+  std::optional<bool> ignore_readdir_race;
+};
+
+DepthOptions ResolveDepthOptions(const parser::Expr& expr) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate: {
       if (expr.descriptor->name == "-depth" || expr.descriptor->name == "-d" || expr.descriptor->name == "-delete") {
-        options->post_order = true;  // -delete implies -depth; -d is the BSD/GNU short spelling
-        break;
+        return {.post_order = true};  // -delete implies -depth; -d is the BSD/GNU short spelling
       }
       if (expr.descriptor->name == "-xdev" || expr.descriptor->name == "-mount" || expr.descriptor->name == "-x") {
-        options->single_filesystem = true;  // -mount (GNU/BSD) and -x (BSD) are synonyms for -xdev
-        break;
+        return {.single_filesystem = true};  // -mount (GNU/BSD) and -x (BSD) are synonyms for -xdev
       }
       if (expr.descriptor->name == "-ignore_readdir_race") {
-        options->ignore_readdir_race = true;
-        break;
+        return {.ignore_readdir_race = true};
       }
       if (expr.descriptor->name == "-noignore_readdir_race") {
-        options->ignore_readdir_race = false;  // last occurrence wins, as in find
-        break;
+        return {.ignore_readdir_race = false};  // last occurrence wins, as in find
       }
-      int value = 0;
-      if (!expr.args.empty() && ParseNonNegInt(expr.args.front(), &value)) {
+      if (!expr.args.empty()) {
+        const std::optional<int> value = ParseNonNegInt(expr.args.front());
         if (expr.descriptor->name == "-maxdepth") {
-          options->max_depth = value;
-        } else if (expr.descriptor->name == "-mindepth") {
-          options->min_depth = value;
+          return {.max_depth = value};
+        }
+        if (expr.descriptor->name == "-mindepth") {
+          return {.min_depth = value};
         }
       }
-      break;
+      return {};
     }
-    case parser::Expr::Kind::kNot: ScanDepthOptions(*expr.lhs, options); break;
+    case parser::Expr::Kind::kNot: return ResolveDepthOptions(*expr.lhs);
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
     case parser::Expr::Kind::kNand:
@@ -139,10 +144,22 @@ void ScanDepthOptions(const parser::Expr& expr, WalkOptions* options) {
     case parser::Expr::Kind::kXor:
     case parser::Expr::Kind::kXnor:
     case parser::Expr::Kind::kComma:
-      ScanDepthOptions(*expr.lhs, options);
-      ScanDepthOptions(*expr.rhs, options);
-      break;
+      DepthOptions lhs = ResolveDepthOptions(*expr.lhs);
+      const DepthOptions rhs = ResolveDepthOptions(*expr.rhs);
+      if (rhs.min_depth.has_value()) {
+        lhs.min_depth = rhs.min_depth;
+      }
+      if (rhs.max_depth.has_value()) {
+        lhs.max_depth = rhs.max_depth;
+      }
+      lhs.post_order = lhs.post_order || rhs.post_order;
+      lhs.single_filesystem = lhs.single_filesystem || rhs.single_filesystem;
+      if (rhs.ignore_readdir_race.has_value()) {
+        lhs.ignore_readdir_race = rhs.ignore_readdir_race;
+      }
+      return lhs;
   }
+  return {};
 }
 
 // find's -H/-L/-P select symlink handling; they are leading global options and
@@ -812,9 +829,8 @@ absl::StatusOr<absl::TimeZone> ResolveTimeZone(const std::vector<std::string>& g
 }
 
 // --block-size=SIZE sets the bytes-per-block for a bare `-size N` and `-size Nb`
-// (find's historical default is 512). Last occurrence wins. Resolves to *block_size
-// (left untouched when the flag is absent) and returns Ok, or the parse error.
-absl::Status ResolveBlockSize(const std::vector<std::string>& globals, std::uint64_t* block_size) {
+// (find's historical default is 512). Last occurrence wins.
+absl::StatusOr<std::uint64_t> ResolveBlockSize(const std::vector<std::string>& globals) {
   constexpr std::string_view kPrefix = "--block-size=";
   std::optional<std::string> spec;
   for (const std::string& global : globals) {
@@ -823,11 +839,9 @@ absl::Status ResolveBlockSize(const std::vector<std::string>& globals, std::uint
     }
   }
   if (!spec.has_value()) {
-    return absl::OkStatus();
+    return 512;
   }
-  MBO_ASSIGN_OR_RETURN(const std::uint64_t bytes, ParseBlockSize(*spec));
-  *block_size = bytes;
-  return absl::OkStatus();
+  return ParseBlockSize(*spec);
 }
 
 // --regextype=RE2|EXACT|PCRE2: validates the grammar selector for the whole run. The grammar itself
@@ -935,7 +949,7 @@ class DryRunFileSystem : public vfs::FileSystem {
 
 // True if the expression contains an armed (effectful) action -- -delete or
 // -exec. --safe refuses these. (-delete additionally implies -depth, applied
-// in ScanDepthOptions.)
+// by ResolveDepthOptions.)
 bool ContainsArmedAction(const parser::Expr& expr) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate: return expr.descriptor->name == "-delete" || expr.descriptor->name == "-exec";
@@ -1073,12 +1087,16 @@ void InspectScoreDomain(const parser::Expr& expr, ScoreDomain& domain) {
 // Whether --sort=score can do what it says, checked before the walk. Both refusals are usage
 // errors rather than a silent no-op: ordering by a value nothing produced is a mistake, and a
 // format that cannot be reordered would drop the ranking without saying so.
-absl::Status ValidateScoreRanking(bool rank_by_score, const parser::Expr* expression, bool is_tree, bool buffered) {
+absl::Status ValidateScoreRanking(
+    bool rank_by_score,
+    mbo::types::OptionalRef<const parser::Expr> expression,
+    bool is_tree,
+    bool buffered) {
   if (!rank_by_score) {
     return absl::OkStatus();
   }
   const bool has_fuzzy =
-      expression != nullptr && absl::c_any_of(kScoringPrimaries, [expression](std::string_view name) {
+      expression.has_value() && absl::c_any_of(kScoringPrimaries, [expression](std::string_view name) {
         return ContainsPrimary(*expression, name);
       });
   if (!has_fuzzy) {
@@ -1166,8 +1184,8 @@ TopFlow InspectTopFlow(const parser::Expr& expr, bool incoming_score) {
   return {};
 }
 
-absl::Status ValidateTopRanking(const parser::Expr* expression) {
-  if (expression == nullptr) {
+absl::Status ValidateTopRanking(mbo::types::OptionalRef<const parser::Expr> expression) {
+  if (!expression.has_value()) {
     return absl::OkStatus();
   }
   MBO_RETURN_IF_ERROR(ValidateTopLimits(*expression));
@@ -1241,12 +1259,12 @@ absl::StatusOr<std::optional<std::size_t>> ResolveMaxResults(const std::vector<s
 // however many rules there are - a new rule is added here instead of by growing RunFind, which is
 // already at the function-size limit.
 bool ResultShapingIsValid(
-    const parser::Expr* expression,
+    mbo::types::OptionalRef<const parser::Expr> expression,
     bool rank_by_score,
     bool is_tree,
     bool buffered,
     WalkErrorFn on_error) {
-  if (expression != nullptr) {
+  if (expression.has_value()) {
     if (const absl::Status first = ValidateFirstLimits(*expression); !first.ok()) {
       on_error("-first", first);
       return false;
@@ -2844,9 +2862,11 @@ void FeedHistograms(
 // at all. --buffer bounds it the same way it bounds a column buffer: a row window or a byte budget.
 // The default is NO cap, because a number picked here would be a guess; the budget exists so that a
 // run which would exhaust memory says so instead of dying.
-Collections MakeCollections(const parser::Expr* expression, const std::vector<std::string>& globals) {
+Collections MakeCollections(
+    mbo::types::OptionalRef<const parser::Expr> expression,
+    const std::vector<std::string>& globals) {
   Collections collections;
-  if (expression == nullptr || CollectSites(*expression).empty()) {
+  if (!expression.has_value() || CollectSites(*expression).empty()) {
     return collections;
   }
   collections.SetActive(true);
@@ -2988,17 +3008,17 @@ int RunFind(
     on_error("--lang-db", status);
     return 2;
   }
-  const parser::Expr* const expression = command.expression.get();
-  const bool has_action = expression != nullptr && ContainsAction(*expression);
+  const mbo::types::OptionalRef<const parser::Expr> expression = parser::AsConstOptionalExpr(command.expression);
+  const bool has_action = expression.has_value() && ContainsAction(*expression);
   // --implicit-print=yes|no overrides find's default-print rule (otherwise !has_action).
   const bool implicit_print = ResolveImplicitPrint(command.globals).value_or(!has_action);
-  if (HasGlobal(command.globals, "--safe") && expression != nullptr && ContainsArmedAction(*expression)) {
+  if (HasGlobal(command.globals, "--safe") && expression.has_value() && ContainsArmedAction(*expression)) {
     on_error("-delete", absl::FailedPreconditionError("refused: --safe forbids destructive actions"));
     return 2;  // do not traverse
   }
   // A NAME bound twice by -capture or -collect is a usage error before the walk (see
   // ReportDuplicateBindingName for why each one fails closed).
-  if (expression != nullptr && ReportDuplicateBindingName(*expression, on_error)) {
+  if (expression.has_value() && ReportDuplicateBindingName(*expression, on_error)) {
     return 2;  // do not traverse
   }
   WalkOptions options;
@@ -3022,7 +3042,7 @@ int RunFind(
   const std::optional<std::string> tmpl = ResolveTemplate(command.globals);
   // A -capture whose {capture.NAME} is never referenced ran a subprocess for
   // nothing (use -exec for pure side effects); flag it before traversing.
-  if (expression != nullptr) {
+  if (expression.has_value()) {
     if (const std::optional<std::string> unused =
             UnusedCaptureName(*expression, tmpl, AllSummaryTemplates(command.globals));
         unused.has_value()) {
@@ -3047,7 +3067,7 @@ int RunFind(
   // silently newline-joining it. --summary handles the extraction key separately (kTemplate).
   {
     std::optional<std::string> extraction;
-    if (expression != nullptr) {
+    if (expression.has_value()) {
       extraction = FindScalarExtraction(*expression);
     }
     if (!extraction.has_value() && tmpl.has_value() && fields::Template::Compile(*tmpl).HasUnreducedExtraction()) {
@@ -3105,13 +3125,18 @@ int RunFind(
   // entry is dropped before evaluation (a matched directory is pruned, not descended);
   // --include re-includes. Empty when neither flag is present (zero overhead).
   const ignore::PatternList ignore_patterns = BuildIgnorePatterns(command.globals);
-  if (expression != nullptr) {
-    ScanDepthOptions(*expression, &options);
+  if (expression.has_value()) {
+    const DepthOptions depth = ResolveDepthOptions(*expression);
+    options.min_depth = depth.min_depth.value_or(options.min_depth);
+    options.max_depth = depth.max_depth.value_or(options.max_depth);
+    options.post_order = options.post_order || depth.post_order;
+    options.single_filesystem = options.single_filesystem || depth.single_filesystem;
+    options.ignore_readdir_race = depth.ignore_readdir_race.value_or(options.ignore_readdir_race);
   }
   // A malformed -size / -blocks value (unknown unit, an over-64-bit unit like Z/Y,
   // or a non-numeric count) is a usage error refused before the walk -- find rejects
   // bad -size at parse time too, rather than silently matching nothing.
-  if (expression != nullptr) {
+  if (expression.has_value()) {
     if (const absl::Status size_status = ValidateSizeArgs(*expression); !size_status.ok()) {
       on_error("-size/-blocks", size_status);
       return 2;  // do not traverse
@@ -3129,18 +3154,19 @@ int RunFind(
   // Capture one reference instant so every entry's age test (-mtime/-mmin) is
   // measured against the same clock. -daystart measures from today's local
   // midnight (in tz) instead of find's start time (the run's start).
-  const bool daystart = expression != nullptr && ContainsPrimary(*expression, "-daystart");
+  const bool daystart = expression.has_value() && ContainsPrimary(*expression, "-daystart");
   const absl::Time now = daystart ? datetime::StartOfDay(absl::Now(), tz) : absl::Now();
   // --time-format=NAME: default spec for a time field with no {:qualifier}.
   const std::string time_format = ResolveTimeFormat(command.globals);
   const datetime::ZoneSuffix zone_suffix = ResolveZoneSuffix(command.globals);
   // --block-size=SIZE: bytes per -size block (a bare value / the 'b' suffix); find's
   // historical default is 512. A malformed SIZE is a usage error, refused here.
-  std::uint64_t block_size = 512;
-  if (const absl::Status size_status = ResolveBlockSize(command.globals, &block_size); !size_status.ok()) {
-    on_error("--block-size", size_status);
+  const absl::StatusOr<std::uint64_t> block_size_result = ResolveBlockSize(command.globals);
+  if (!block_size_result.ok()) {
+    on_error("--block-size", block_size_result.status());
     return 2;  // do not traverse
   }
+  const std::uint64_t block_size = *block_size_result;
   // --sort=score ranks the listing by the -fuzzy score, so it needs a score to rank by and a
   // listing to reorder. Both are usage errors before the walk rather than a silent no-op: ordering
   // by a value nothing produced is a mistake, not an empty ordering.
@@ -3281,7 +3307,7 @@ int RunFind(
         absl::InvalidArgumentError(absl::StrCat("unknown hash encoding '", hash_encoding, "' (use hex or base64)")));
     return 2;
   }
-  if (expression != nullptr) {
+  if (expression.has_value()) {
     if (const absl::Status status = ValidateHashArgs(*expression); !status.ok()) {
       on_error("-hash", status);
       return 2;
@@ -3353,7 +3379,7 @@ int RunFind(
   }
   // Matcher over the custom patterns plus all built-in schemes (scheme restriction is applied per set
   // below). Make() can fail on a bad custom pattern; surface it as a usage error.
-  const bool shard_status_enabled = expression != nullptr && ContainsPrimary(*expression, "-shard-status");
+  const bool shard_status_enabled = expression.has_value() && ContainsPrimary(*expression, "-shard-status");
   std::optional<shard::Matcher> shard_matcher;
   if (shards.enabled || shard_status_enabled) {
     absl::StatusOr<shard::Matcher> matcher_or = shard::Matcher::Make({}, shard_patterns);
@@ -3460,7 +3486,7 @@ int RunFind(
   // -collect[:NAME]: the entries held back for the post-walk reduction. `collect_names` is read from
   // the AST (presence is SYNTACTIC, like find's implicit -print: a -collect in a branch that never
   // runs still switches the summary's source, and the summary is then legitimately empty).
-  Collections collections = MakeCollections(command.expression.get(), command.globals);
+  Collections collections = MakeCollections(expression, command.globals);
 
   // --dry-run: route deletions through a previewing wrapper, so -delete reports
   // what it would remove without touching the filesystem.
@@ -3746,7 +3772,7 @@ int RunFind(
   std::vector<DeferredCandidate> deferred_candidates;
   std::size_t deferred_order = 0;
   std::vector<const parser::Expr*> deferred_nodes;
-  if (expression != nullptr) {
+  if (expression.has_value()) {
     AppendDeferredNodes(*expression, deferred_nodes);
   }
   std::map<const parser::Expr*, std::size_t> deferred_node_order;
@@ -3869,7 +3895,7 @@ int RunFind(
         eval_context.deferred_node = &deferred_node;
         eval_context.deferred_score = &deferred_score;
         const EvaluationResult evaluated =
-            expression == nullptr ? EvaluationResult{.matched = true} : EvaluateDeferred(*expression, eval_context);
+            !expression.has_value() ? EvaluationResult{.matched = true} : EvaluateDeferred(*expression, eval_context);
         if (evaluated.deferred) {
           deferred_candidates.push_back(
               {.entry = OwnVisit(visit),
