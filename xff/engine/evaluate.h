@@ -102,10 +102,10 @@ class ExprIdentity final {
 // The truth and fuzzy value of an expression evaluation. `deferred` means evaluation reached an
 // undecided result-set predicate and deliberately stopped before anything to its right.
 struct EvaluationResult {
-  bool matched = false;
-  std::optional<int> fuzzy;
-  bool deferred = false;
   std::optional<ExprIdentity> waiting_at;
+  std::optional<int> fuzzy;
+  bool matched = false;
+  bool deferred = false;
 };
 
 using DeferredDecisions = std::map<ExprIdentity, bool>;

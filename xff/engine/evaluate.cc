@@ -2497,13 +2497,13 @@ EvaluationResult EvaluateTop(const parser::Expr& expr, EvalContext& context) {
     if (const auto found = context.deferred->decisions.find(ExprIdentity{expr});
         found != context.deferred->decisions.end()) {
       return {
-          .matched = found->second,
           .fuzzy = found->second ? context.incoming_fuzzy_score : std::nullopt,
+          .matched = found->second,
       };
     }
   }
   if (context.deferred.has_value()) {
-    return {.fuzzy = context.incoming_fuzzy_score, .deferred = true, .waiting_at = ExprIdentity{expr}};
+    return {.waiting_at = ExprIdentity{expr}, .fuzzy = context.incoming_fuzzy_score, .deferred = true};
   }
   return {};
 }
@@ -2516,7 +2516,7 @@ EvaluationResult EvaluateShardStatus(const parser::Expr& expr, EvalContext& cont
     }
   }
   if (context.deferred.has_value()) {
-    return {.deferred = true, .waiting_at = ExprIdentity{expr}};
+    return {.waiting_at = ExprIdentity{expr}, .deferred = true};
   }
   return {};
 }
@@ -2533,7 +2533,7 @@ EvaluationResult EvaluateAnd(const parser::Expr& expr, EvalContext& context) {
   if (rhs.deferred) {
     return rhs;
   }
-  return {.matched = rhs.matched, .fuzzy = rhs.matched ? MinScore(lhs.fuzzy, rhs.fuzzy) : std::nullopt};
+  return {.fuzzy = rhs.matched ? MinScore(lhs.fuzzy, rhs.fuzzy) : std::nullopt, .matched = rhs.matched};
 }
 
 EvaluationResult EvaluateOr(const parser::Expr& expr, EvalContext& context) {
@@ -2549,7 +2549,7 @@ EvaluationResult EvaluateOr(const parser::Expr& expr, EvalContext& context) {
     if (rhs.deferred) {
       return rhs;
     }
-    return {.matched = true, .fuzzy = rhs.matched ? MaxScore(lhs.fuzzy, rhs.fuzzy) : lhs.fuzzy};
+    return {.fuzzy = rhs.matched ? MaxScore(lhs.fuzzy, rhs.fuzzy) : lhs.fuzzy, .matched = true};
   }
   return lhs;
 }
@@ -2582,8 +2582,8 @@ EvaluationResult EvaluateXor(const parser::Expr& expr, EvalContext& context) {
     return rhs;
   }
   return {
-      .matched = lhs.matched != rhs.matched,
       .fuzzy = lhs.matched != rhs.matched ? (lhs.matched ? lhs.fuzzy : rhs.fuzzy) : std::nullopt,
+      .matched = lhs.matched != rhs.matched,
   };
 }
 
@@ -2606,7 +2606,7 @@ EvaluationResult EvaluateResult(const parser::Expr& expr, EvalContext& context) 
         return EvaluateShardStatus(expr, context);
       }
       const bool matched = EvaluatePredicate(expr, context);
-      return {.matched = matched, .fuzzy = context.fuzzy_score.has_value() ? *context.fuzzy_score : std::nullopt};
+      return {.fuzzy = context.fuzzy_score.has_value() ? *context.fuzzy_score : std::nullopt, .matched = matched};
     }
     case parser::Expr::Kind::kNot: {
       const EvaluationResult value = EvaluateChild(*expr.lhs, context);
