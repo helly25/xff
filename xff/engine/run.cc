@@ -622,15 +622,19 @@ HistValue HistMeasureValue(HistAgg agg, const HistCell& cell, unsigned precision
   return integer(cell.count);
 }
 
-// Applies one --context SPEC onto (before, after): a bare non-negative integer sets both sides,
-// else comma-separated A:N / B:N / C:N tokens set after / before / both (last value per side wins).
-// A malformed token or count is an InvalidArgument.
-absl::Status ApplyContextSpec(std::string_view spec, std::size_t& before, std::size_t& after) {
+// Parses one --context SPEC: a bare non-negative integer sets both sides, else comma-separated
+// A:N / B:N / C:N tokens set after / before / both (last value per side wins). A side absent from
+// the result was not mentioned and therefore does not override an earlier global.
+struct ContextSides {
+  std::optional<std::size_t> before;
+  std::optional<std::size_t> after;
+};
+
+absl::StatusOr<ContextSides> ParseContextSpec(std::string_view spec) {
   if (std::size_t both = 0; absl::SimpleAtoi(spec, &both)) {
-    before = both;
-    after = both;
-    return absl::OkStatus();
+    return ContextSides{.before = both, .after = both};
   }
+  ContextSides result;
   for (const std::string_view token : absl::StrSplit(spec, ',', absl::SkipEmpty())) {
     const std::size_t colon = token.find(':');
     std::size_t value = 0;
@@ -639,57 +643,55 @@ absl::Status ApplyContextSpec(std::string_view spec, std::size_t& before, std::s
     }
     const std::string_view side = token.substr(0, colon);
     if (side == "A" || side == "a") {
-      after = value;
+      result.after = value;
     } else if (side == "B" || side == "b") {
-      before = value;
+      result.before = value;
     } else if (side == "C" || side == "c") {
-      before = value;
-      after = value;
+      result.before = value;
+      result.after = value;
     } else {
       return absl::InvalidArgumentError(absl::StrCat("bad --context side '", side, "' (use A, B, or C)"));
     }
   }
-  return absl::OkStatus();
+  return result;
 }
 
 // --context=SPEC / --before-context=N / --after-context=N (grep -C/-B/-A): the lines of context
-// -grep prints before/after each match. Processed in order, last value per side wins; fills
-// (before, after) and sets `any_context` when at least one of the three flags appeared (so a
-// caller can tell a deliberate `--context=0` from "no context flag"). A malformed value is an
-// InvalidArgument (a usage error before the walk).
-absl::Status ResolveGrepContext(
-    const std::vector<std::string>& globals,
-    std::size_t& before,
-    std::size_t& after,
-    bool& any_context) {
+// -grep prints before/after each match. Processed in order, last value per side wins; `specified`
+// distinguishes a deliberate `--context=0` from no context flag. A malformed value is a usage error.
+struct GrepContext {
+  std::size_t before = 0;
+  std::size_t after = 0;
+  bool specified = false;
+};
+
+absl::StatusOr<GrepContext> ResolveGrepContext(const std::vector<std::string>& globals) {
   constexpr std::string_view kContext = "--context=";
   constexpr std::string_view kBefore = "--before-context=";
   constexpr std::string_view kAfter = "--after-context=";
-  before = 0;
-  after = 0;
-  any_context = false;
+  GrepContext result;
   for (const std::string& global : globals) {
     if (global.starts_with(kContext)) {
-      any_context = true;
-      if (const absl::Status status = ApplyContextSpec(std::string_view(global).substr(kContext.size()), before, after);
-          !status.ok()) {
-        return status;
-      }
+      result.specified = true;
+      MBO_ASSIGN_OR_RETURN(
+          const ContextSides sides, ParseContextSpec(std::string_view(global).substr(kContext.size())));
+      result.before = sides.before.value_or(result.before);
+      result.after = sides.after.value_or(result.after);
     } else if (global.starts_with(kBefore)) {
-      any_context = true;
+      result.specified = true;
       if (const std::string_view value = std::string_view(global).substr(kBefore.size());
-          !absl::SimpleAtoi(value, &before)) {
+          !absl::SimpleAtoi(value, &result.before)) {
         return absl::InvalidArgumentError(absl::StrCat("bad --before-context value '", value, "'"));
       }
     } else if (global.starts_with(kAfter)) {
-      any_context = true;
+      result.specified = true;
       if (const std::string_view value = std::string_view(global).substr(kAfter.size());
-          !absl::SimpleAtoi(value, &after)) {
+          !absl::SimpleAtoi(value, &result.after)) {
         return absl::InvalidArgumentError(absl::StrCat("bad --after-context value '", value, "'"));
       }
     }
   }
-  return absl::OkStatus();
+  return result;
 }
 
 // xff's modern output selector (leading globals, last wins, default plain):
@@ -3183,14 +3185,14 @@ RunResult RunFind(
   const bool grep_count = HasGlobal(command.globals, "--count") || HasGlobal(command.globals, "-c");
   // --context / --before-context / --after-context (grep -C/-B/-A): -grep context lines. Validated
   // here so a bad value is a usage error (exit 2) before the walk.
-  std::size_t grep_before = 0;
-  std::size_t grep_after = 0;
-  bool context_seen = false;
-  if (const absl::Status status = ResolveGrepContext(command.globals, grep_before, grep_after, context_seen);
-      !status.ok()) {
-    on_error("--context", status);
+  const absl::StatusOr<GrepContext> grep_context_result = ResolveGrepContext(command.globals);
+  if (!grep_context_result.ok()) {
+    on_error("--context", grep_context_result.status());
     return RunResult{.errors = 2};
   }
+  const GrepContext grep_context = *grep_context_result;
+  const std::size_t grep_before = grep_context.before;
+  const std::size_t grep_after = grep_context.after;
   // --diff-algorithm=naive|direct|myers: the engine -diff uses (mbo::diff). Last occurrence
   // wins; empty -> myers (the default). Validated here so a bad value is a usage error (exit 2)
   // before the walk rather than a silent fallback.
@@ -3253,7 +3255,7 @@ RunResult RunFind(
   // --context feeds diff only when before==after (a single symmetric value a diff can represent);
   // --diff-context overrides --context regardless of order; a per-action -diff:uN overrides both.
   std::size_t diff_context = 3;
-  if (context_seen && grep_before == grep_after) {
+  if (grep_context.specified && grep_before == grep_after) {
     diff_context = grep_before;
   }
   for (const std::string& global : command.globals) {
