@@ -144,7 +144,7 @@ class Walker {
       const WalkOptions& options,
       Visitor visit,
       WalkErrorFn on_error,
-      const ContainerMounter* mount_container)
+      mbo::types::OptionalRef<const ContainerMounter> mount_container)
       : fs_(fs),
         options_(options),
         visit_(visit),
@@ -156,7 +156,7 @@ class Walker {
   // Whether `stated` is a FILE this walk should try to open as a container. `kRoots` offers only the
   // paths named on the command line (depth 0), `kAll` offers every file met; `kNone` never asks.
   bool ShouldTryMount(const Stated& stated, int depth) const {
-    if (mount_container_ == nullptr || options_.archive == ArchiveDive::kNone) {
+    if (!mount_container_.has_value() || options_.archive == ArchiveDive::kNone) {
       return false;
     }
     if (container_depth_ >= options_.archive_depth) {
@@ -503,9 +503,9 @@ class Walker {
   const WalkOptions& options_;
   Visitor visit_;
   WalkErrorFn on_error_;
-  // Null when archive diving is off, and always null inside a mounted container: nesting is
+  // Empty when archive diving is off, and always empty inside a mounted container: nesting is
   // --archive-depth's business, not something to fall into by recursion.
-  const ContainerMounter* mount_container_ = nullptr;
+  mbo::types::OptionalRef<const ContainerMounter> mount_container_;
   const bool follow_children_;
   ReadPool pool_;
   bool stopped_ = false;
@@ -526,7 +526,7 @@ absl::Status Walk(
     const WalkOptions& options,
     Visitor visit,
     WalkErrorFn on_error) {
-  Walker walker(fs, options, visit, on_error, /*mount_container=*/nullptr);
+  Walker walker(fs, options, visit, on_error, /*mount_container=*/{});
   walker.WalkRoots(roots);
   return absl::OkStatus();
 }
@@ -538,7 +538,7 @@ absl::Status Walk(
     Visitor visit,
     WalkErrorFn on_error,
     ContainerMounter mount_container) {
-  Walker walker(fs, options, visit, on_error, &mount_container);
+  Walker walker(fs, options, visit, on_error, mount_container);
   walker.WalkRoots(roots);
   return absl::OkStatus();
 }
