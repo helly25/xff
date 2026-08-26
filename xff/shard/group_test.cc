@@ -135,6 +135,18 @@ TEST_F(GroupShardsTest, MtimeDedupKeepsTheNewestCopy) {
   EXPECT_THAT(sets[0].members[0].duplicates, ElementsAre("data-00000-of-00001.aaaaaaaa"));
 }
 
+TEST_F(GroupShardsTest, MtimeDedupBreaksEqualTimestampTiesByName) {
+  const std::vector<ShardFile> files = {
+      {.name = "data-00000-of-00001.bbbbbbbb", .mtime = 100},
+      {.name = "data-00000-of-00001.aaaaaaaa", .mtime = 100},
+  };
+  const std::vector<ShardSet> sets = GroupShards(files, *Matcher::Make(), Dedup::kMtime);
+  ASSERT_THAT(sets, SizeIs(1));
+  ASSERT_THAT(sets[0].members, SizeIs(1));
+  EXPECT_THAT(sets[0].members[0].path, Eq("data-00000-of-00001.aaaaaaaa"));
+  EXPECT_THAT(sets[0].members[0].duplicates, ElementsAre("data-00000-of-00001.bbbbbbbb"));
+}
+
 TEST_F(GroupShardsTest, DotNumSetIsCompleteWhenContiguous) {
   const std::vector<ShardSet> sets = Group({"backup.tar.001", "backup.tar.002", "backup.tar.003"});
   ASSERT_THAT(sets, SizeIs(1));
