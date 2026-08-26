@@ -43,8 +43,8 @@ TEST_F(RenderTest, JsonlEmitsOneObjectPerLine) {
 }
 
 TEST_F(RenderTest, JsonlEscapesQuotesBackslashAndControls) {
-  // a "b \c <tab> d  ->  a \" b \\ c \t d
-  EXPECT_THAT(Renderer(Format::kJsonl).Record("a\"b\\c\td"), "{\"path\":\"a\\\"b\\\\c\\td\"}\n");
+  // a "b \c <tab> d <carriage-return> e  ->  a \" b \\ c \t d \r e
+  EXPECT_THAT(Renderer(Format::kJsonl).Record("a\"b\\c\td\re"), "{\"path\":\"a\\\"b\\\\c\\td\\re\"}\n");
   // A raw control byte (0x01) becomes a \u escape.
   EXPECT_THAT(Renderer(Format::kJsonl).Record(std::string("x\x01y", 3)), "{\"path\":\"x\\u0001y\"}\n");
 }
@@ -57,7 +57,7 @@ TEST_F(RenderTest, PlainRawIsTheDefaultEncoding) {
 
 TEST_F(RenderTest, PlainEscapeCEscapesBackslashAndControls) {
   // --path-encoding=escape: backslash + the common control chars become C escapes.
-  EXPECT_THAT(Renderer(Format::kPlain, PathEncoding::kEscape).Record("a\nb\tc\\d"), "a\\nb\\tc\\\\d\n");
+  EXPECT_THAT(Renderer(Format::kPlain, PathEncoding::kEscape).Record("a\nb\tc\rd\\e"), "a\\nb\\tc\\rd\\\\e\n");
   // Other control / DEL bytes use \xNN (upper-case hex); printable + high UTF-8 bytes
   // pass through verbatim.
   EXPECT_THAT(Renderer(Format::kPlain, PathEncoding::kEscape).Record(std::string("x\x01y\x7f", 4)), "x\\x01y\\x7F\n");
@@ -80,7 +80,7 @@ TEST_F(RenderTest, CsvQuotesOnlyWhenNeededAndDoublesQuotes) {
 
 TEST_F(RenderTest, TsvEscapesTabNewlineAndBackslash) {
   EXPECT_THAT(Renderer(Format::kTsv).Record("a/b/c"), "a/b/c\n");  // no special char -> verbatim
-  EXPECT_THAT(Renderer(Format::kTsv).Record("a\tb\nc\\d"), "a\\tb\\nc\\\\d\n");
+  EXPECT_THAT(Renderer(Format::kTsv).Record("a\tb\nc\rd\\e"), "a\\tb\\nc\\rd\\\\e\n");
 }
 
 TEST_F(RenderTest, OnlyTabularFormatsHaveAHeader) {

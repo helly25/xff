@@ -388,46 +388,28 @@ absl::Status FrameEncodedTar(const stdfs::path& tar, const stdfs::path& raw, con
   return WriteFramed(raw, compressed, tar_size);
 }
 
-}  // namespace
-
-absl::StatusOr<std::string> Decode(
-    std::string_view path,
-    std::optional<std::string_view> bytes,
-    std::uint64_t max_bytes) {
-  std::ifstream file;
-  std::istringstream memory;
-  std::istream* input = nullptr;
-  if (bytes.has_value()) {
-    memory.str(std::string(*bytes));
-    input = &memory;
-  } else {
-    file.open(std::string(path), std::ios::binary);
-    if (!file.is_open()) {
-      return absl::NotFoundError(absl::StrCat("cannot open '", path, "'"));
-    }
-    input = &file;
-  }
+absl::StatusOr<std::string> DecodeStream(std::istream& input, std::string_view path, std::uint64_t max_bytes) {
   std::array<std::uint8_t, kFramingSignature.size()> signature{};
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast) -- byte-oriented stream/C API boundary.
-  input->read(reinterpret_cast<char*>(signature.data()), static_cast<std::streamsize>(signature.size()));
+  input.read(reinterpret_cast<char*>(signature.data()), static_cast<std::streamsize>(signature.size()));
   if (signature != kFramingSignature) {
-    input->clear();
-    input->seekg(0);
-    return DecodeRawStream(*input, path, std::nullopt, std::nullopt, max_bytes);
+    input.clear();
+    input.seekg(0);
+    return DecodeRawStream(input, path, std::nullopt, std::nullopt, max_bytes);
   }
-  MBO_ASSIGN_OR_RETURN(const std::uint8_t flags, ReadByte(*input, path));
+  MBO_ASSIGN_OR_RETURN(const std::uint8_t flags, ReadByte(input, path));
   if (flags != 0) {
     return absl::UnimplementedError(
         absl::StrCat("RFC 9841 container features beyond one resource are not supported in '", path, "'"));
   }
-  MBO_ASSIGN_OR_RETURN(const std::uint64_t chunk_size, ReadVarint(*input, path));
-  MBO_ASSIGN_OR_RETURN(const std::uint8_t chunk_type, ReadByte(*input, path));
-  MBO_ASSIGN_OR_RETURN(const std::uint8_t codec, ReadByte(*input, path));
+  MBO_ASSIGN_OR_RETURN(const std::uint64_t chunk_size, ReadVarint(input, path));
+  MBO_ASSIGN_OR_RETURN(const std::uint8_t chunk_type, ReadByte(input, path));
+  MBO_ASSIGN_OR_RETURN(const std::uint8_t codec, ReadByte(input, path));
   if (chunk_type != 2 || codec != 2) {
     return absl::UnimplementedError(absl::StrCat("RFC 9841 stream in '", path, "' is not one Brotli data resource"));
   }
-  MBO_ASSIGN_OR_RETURN(const std::uint64_t expected_size, ReadVarint(*input, path));
-  MBO_ASSIGN_OR_RETURN(const std::uint8_t data_flags, ReadByte(*input, path));
+  MBO_ASSIGN_OR_RETURN(const std::uint64_t expected_size, ReadVarint(input, path));
+  MBO_ASSIGN_OR_RETURN(const std::uint8_t data_flags, ReadByte(input, path));
   if (data_flags != 0) {
     return absl::UnimplementedError(absl::StrCat("RFC 9841 data flags are not supported in '", path, "'"));
   }
@@ -436,11 +418,28 @@ absl::StatusOr<std::string> Decode(
     return absl::DataLossError(absl::StrCat("invalid RFC 9841 chunk length in '", path, "'"));
   }
   MBO_ASSIGN_OR_RETURN(
-      std::string decoded, DecodeRawStream(*input, path, chunk_size - header_size, expected_size, max_bytes));
-  if (input->peek() != std::istream::traits_type::eof()) {
+      std::string decoded, DecodeRawStream(input, path, chunk_size - header_size, expected_size, max_bytes));
+  if (input.peek() != std::istream::traits_type::eof()) {
     return absl::DataLossError(absl::StrCat("trailing chunks or bytes in RFC 9841 stream '", path, "'"));
   }
   return decoded;
+}
+
+}  // namespace
+
+absl::StatusOr<std::string> Decode(
+    std::string_view path,
+    std::optional<std::string_view> bytes,
+    std::uint64_t max_bytes) {
+  if (bytes.has_value()) {
+    std::istringstream memory{std::string(*bytes)};
+    return DecodeStream(memory, path, max_bytes);
+  }
+  std::ifstream file(std::string(path), std::ios::binary);
+  if (!file.is_open()) {
+    return absl::NotFoundError(absl::StrCat("cannot open '", path, "'"));
+  }
+  return DecodeStream(file, path, max_bytes);
 }
 
 absl::Status PackTar(
