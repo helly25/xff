@@ -46,21 +46,21 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-26 06:27:25</td>
+            <td class="headerValue">2026-08-26 07:13:29</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
-            <td class="headerCovTableEntry">18</td>
-            <td class="headerCovTableEntry">18</td>
+            <td class="headerCovTableEntry">19</td>
+            <td class="headerCovTableEntry">19</td>
           </tr>
           <tr>
             <td></td>
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryMed">81.7&nbsp;%</td>
+            <td class="headerCovTableEntryHi">83.7&nbsp;%</td>
             <td class="headerCovTableEntry">208</td>
-            <td class="headerCovTableEntry">170</td>
+            <td class="headerCovTableEntry">174</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -190,28 +190,28 @@
 <span id="L110"><span class="lineNum">     110</span>                 :<span class="tlaGNC">          14 :   return size;</span></span>
 <span id="L111"><span class="lineNum">     111</span>                 :             : }</span>
 <span id="L112"><span class="lineNum">     112</span>                 :             : </span>
-<span id="L113"><span class="lineNum">     113</span>                 :<span class="tlaGNC">          24 : absl::StatusOr&lt;std::uint64_t&gt; ReadVarint(std::istream&amp; input, std::string_view label) {</span></span>
-<span id="L114"><span class="lineNum">     114</span>                 :<span class="tlaGNC">          24 :   std::uint64_t value = 0;</span></span>
-<span id="L115"><span class="lineNum">     115</span>         [<span class="tlaGBC" title="branch 0 was taken 43 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          44 :   for (unsigned int index = 0; index &lt; 9; ++index) {</span></span>
-<span id="L116"><span class="lineNum">     116</span>                 :<span class="tlaGNC">          43 :     const int read = input.get();</span></span>
-<span id="L117"><span class="lineNum">     117</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 42 times"> + </span>]:<span class="tlaGNC">          43 :     if (read == std::istream::traits_type::eof()) {</span></span>
-<span id="L118"><span class="lineNum">     118</span>                 :<span class="tlaGNC">           1 :       return absl::DataLossError(absl::StrCat(&quot;truncated RFC 9841 varint in '&quot;, label, &quot;'&quot;));</span></span>
+<span id="L113"><span class="lineNum">     113</span>                 :<span class="tlaGNC">          30 : absl::StatusOr&lt;std::uint64_t&gt; ReadVarint(std::istream&amp; input, std::string_view label) {</span></span>
+<span id="L114"><span class="lineNum">     114</span>                 :<span class="tlaGNC">          30 :   std::uint64_t value = 0;</span></span>
+<span id="L115"><span class="lineNum">     115</span>         [<span class="tlaGBC" title="branch 0 was taken 50 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          51 :   for (unsigned int index = 0; index &lt; 9; ++index) {</span></span>
+<span id="L116"><span class="lineNum">     116</span>                 :<span class="tlaGNC">          50 :     const int read = input.get();</span></span>
+<span id="L117"><span class="lineNum">     117</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 48 times"> + </span>]:<span class="tlaGNC">          50 :     if (read == std::istream::traits_type::eof()) {</span></span>
+<span id="L118"><span class="lineNum">     118</span>                 :<span class="tlaGNC">           2 :       return absl::DataLossError(absl::StrCat(&quot;truncated RFC 9841 varint in '&quot;, label, &quot;'&quot;));</span></span>
 <span id="L119"><span class="lineNum">     119</span>                 :             :     }</span>
-<span id="L120"><span class="lineNum">     120</span>                 :<span class="tlaGNC">          42 :     const auto byte = static_cast&lt;std::uint8_t&gt;(read);</span></span>
-<span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC">          42 :     value |= static_cast&lt;std::uint64_t&gt;(byte &amp; 0x7fU) &lt;&lt; (index * 7U);</span></span>
-<span id="L122"><span class="lineNum">     122</span>         [<span class="tlaGBC" title="branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="branch 1 was taken 20 times"> + </span>]:<span class="tlaGNC">          42 :     if ((byte &amp; 0x80U) == 0) {</span></span>
-<span id="L123"><span class="lineNum">     123</span>                 :<span class="tlaGNC">          22 :       return value;</span></span>
+<span id="L120"><span class="lineNum">     120</span>                 :<span class="tlaGNC">          48 :     const auto byte = static_cast&lt;std::uint8_t&gt;(read);</span></span>
+<span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC">          48 :     value |= static_cast&lt;std::uint64_t&gt;(byte &amp; 0x7fU) &lt;&lt; (index * 7U);</span></span>
+<span id="L122"><span class="lineNum">     122</span>         [<span class="tlaGBC" title="branch 0 was taken 27 times"> + </span><span class="tlaGBC" title="branch 1 was taken 21 times"> + </span>]:<span class="tlaGNC">          48 :     if ((byte &amp; 0x80U) == 0) {</span></span>
+<span id="L123"><span class="lineNum">     123</span>                 :<span class="tlaGNC">          27 :       return value;</span></span>
 <span id="L124"><span class="lineNum">     124</span>                 :             :     }</span>
 <span id="L125"><span class="lineNum">     125</span>                 :             :   }</span>
 <span id="L126"><span class="lineNum">     126</span>                 :<span class="tlaGNC">           1 :   return absl::DataLossError(absl::StrCat(&quot;oversized RFC 9841 varint in '&quot;, label, &quot;'&quot;));</span></span>
 <span id="L127"><span class="lineNum">     127</span>                 :             : }</span>
 <span id="L128"><span class="lineNum">     128</span>                 :             : </span>
-<span id="L129"><span class="lineNum">     129</span>                 :<span class="tlaGNC">          50 : absl::StatusOr&lt;std::uint8_t&gt; ReadByte(std::istream&amp; input, std::string_view label) {</span></span>
-<span id="L130"><span class="lineNum">     130</span>                 :<span class="tlaGNC">          50 :   const int read = input.get();</span></span>
-<span id="L131"><span class="lineNum">     131</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 49 times"> + </span>]:<span class="tlaGNC">          50 :   if (read == std::istream::traits_type::eof()) {</span></span>
-<span id="L132"><span class="lineNum">     132</span>                 :<span class="tlaGNC">           1 :     return absl::DataLossError(absl::StrCat(&quot;truncated RFC 9841 header in '&quot;, label, &quot;'&quot;));</span></span>
+<span id="L129"><span class="lineNum">     129</span>                 :<span class="tlaGNC">          62 : absl::StatusOr&lt;std::uint8_t&gt; ReadByte(std::istream&amp; input, std::string_view label) {</span></span>
+<span id="L130"><span class="lineNum">     130</span>                 :<span class="tlaGNC">          62 :   const int read = input.get();</span></span>
+<span id="L131"><span class="lineNum">     131</span>         [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 58 times"> + </span>]:<span class="tlaGNC">          62 :   if (read == std::istream::traits_type::eof()) {</span></span>
+<span id="L132"><span class="lineNum">     132</span>                 :<span class="tlaGNC">           4 :     return absl::DataLossError(absl::StrCat(&quot;truncated RFC 9841 header in '&quot;, label, &quot;'&quot;));</span></span>
 <span id="L133"><span class="lineNum">     133</span>                 :             :   }</span>
-<span id="L134"><span class="lineNum">     134</span>                 :<span class="tlaGNC">          49 :   return static_cast&lt;std::uint8_t&gt;(read);</span></span>
+<span id="L134"><span class="lineNum">     134</span>                 :<span class="tlaGNC">          58 :   return static_cast&lt;std::uint8_t&gt;(read);</span></span>
 <span id="L135"><span class="lineNum">     135</span>                 :             : }</span>
 <span id="L136"><span class="lineNum">     136</span>                 :             : </span>
 <span id="L137"><span class="lineNum">     137</span>                 :<span class="tlaGNC">          24 : absl::StatusOr&lt;int&gt; IntegerOption(</span></span>
@@ -478,87 +478,86 @@
 <span id="L388"><span class="lineNum">     388</span>                 :<span class="tlaGNC">           5 :   return WriteFramed(raw, compressed, tar_size);</span></span>
 <span id="L389"><span class="lineNum">     389</span>                 :             : }</span>
 <span id="L390"><span class="lineNum">     390</span>                 :             : </span>
-<span id="L391"><span class="lineNum">     391</span>                 :             : }  // namespace</span>
-<span id="L392"><span class="lineNum">     392</span>                 :             : </span>
-<span id="L393"><span class="lineNum">     393</span>                 :<span class="tlaGNC">          22 : absl::StatusOr&lt;std::string&gt; Decode(</span></span>
-<span id="L394"><span class="lineNum">     394</span>                 :             :     std::string_view path,</span>
-<span id="L395"><span class="lineNum">     395</span>                 :             :     std::optional&lt;std::string_view&gt; bytes,</span>
-<span id="L396"><span class="lineNum">     396</span>                 :             :     std::uint64_t max_bytes) {</span>
-<span id="L397"><span class="lineNum">     397</span>                 :<span class="tlaGNC">          22 :   std::ifstream file;</span></span>
-<span id="L398"><span class="lineNum">     398</span>                 :<span class="tlaGNC">          22 :   std::istringstream memory;</span></span>
-<span id="L399"><span class="lineNum">     399</span>                 :<span class="tlaGNC">          22 :   std::istream* input = nullptr;</span></span>
-<span id="L400"><span class="lineNum">     400</span>         [<span class="tlaGBC" title="branch 0 was taken 17 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">          22 :   if (bytes.has_value()) {</span></span>
-<span id="L401"><span class="lineNum">     401</span>                 :<span class="tlaGNC">          17 :     memory.str(std::string(*bytes));</span></span>
-<span id="L402"><span class="lineNum">     402</span>                 :<span class="tlaGNC">          17 :     input = &amp;memory;</span></span>
-<span id="L403"><span class="lineNum">     403</span>                 :             :   } else {</span>
-<span id="L404"><span class="lineNum">     404</span>                 :<span class="tlaGNC">           5 :     file.open(std::string(path), std::ios::binary);</span></span>
-<span id="L405"><span class="lineNum">     405</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           5 :     if (!file.is_open()) {</span></span>
-<span id="L406"><span class="lineNum">     406</span>                 :<span class="tlaGNC">           1 :       return absl::NotFoundError(absl::StrCat(&quot;cannot open '&quot;, path, &quot;'&quot;));</span></span>
-<span id="L407"><span class="lineNum">     407</span>                 :             :     }</span>
-<span id="L408"><span class="lineNum">     408</span>                 :<span class="tlaGNC">           4 :     input = &amp;file;</span></span>
-<span id="L409"><span class="lineNum">     409</span>                 :             :   }</span>
-<span id="L410"><span class="lineNum">     410</span>                 :<span class="tlaGNC">          21 :   std::array&lt;std::uint8_t, kFramingSignature.size()&gt; signature{};</span></span>
-<span id="L411"><span class="lineNum">     411</span>                 :             :   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast) -- byte-oriented stream/C API boundary.</span>
-<span id="L412"><span class="lineNum">     412</span>                 :<span class="tlaGNC">          42 :   input-&gt;read(reinterpret_cast&lt;char*&gt;(signature.data()), static_cast&lt;std::streamsize&gt;(signature.size()));</span></span>
-<span id="L413"><span class="lineNum">     413</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 16 times"> + </span>]:<span class="tlaGNC">          21 :   if (signature != kFramingSignature) {</span></span>
-<span id="L414"><span class="lineNum">     414</span>                 :<span class="tlaGNC">           5 :     input-&gt;clear();</span></span>
-<span id="L415"><span class="lineNum">     415</span>                 :<span class="tlaGNC">           5 :     input-&gt;seekg(0);</span></span>
-<span id="L416"><span class="lineNum">     416</span>                 :<span class="tlaGNC">           5 :     return DecodeRawStream(*input, path, std::nullopt, std::nullopt, max_bytes);</span></span>
-<span id="L417"><span class="lineNum">     417</span>                 :             :   }</span>
-<span id="L418"><span class="lineNum">     418</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 15 times"> + </span>]:<span class="tlaGNC">          16 :   MBO_ASSIGN_OR_RETURN(const std::uint8_t flags, ReadByte(*input, path));</span></span>
-<span id="L419"><span class="lineNum">     419</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          15 :   if (flags != 0) {</span></span>
-<span id="L420"><span class="lineNum">     420</span>                 :<span class="tlaGNC">           2 :     return absl::UnimplementedError(</span></span>
-<span id="L421"><span class="lineNum">     421</span>                 :<span class="tlaGNC">           3 :         absl::StrCat(&quot;RFC 9841 container features beyond one resource are not supported in '&quot;, path, &quot;'&quot;));</span></span>
-<span id="L422"><span class="lineNum">     422</span>                 :             :   }</span>
-<span id="L423"><span class="lineNum">     423</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 12 times"> + </span>]:<span class="tlaGNC">          14 :   MBO_ASSIGN_OR_RETURN(const std::uint64_t chunk_size, ReadVarint(*input, path));</span></span>
-<span id="L424"><span class="lineNum">     424</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 12 times"> + </span>]:<span class="tlaGNC">          12 :   MBO_ASSIGN_OR_RETURN(const std::uint8_t chunk_type, ReadByte(*input, path));</span></span>
-<span id="L425"><span class="lineNum">     425</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 12 times"> + </span>]:<span class="tlaGNC">          12 :   MBO_ASSIGN_OR_RETURN(const std::uint8_t codec, ReadByte(*input, path));</span></span>
-<span id="L426"><span class="lineNum">     426</span>   [<span class="tlaGBC" title="branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 10 times"> + </span>]:<span class="tlaGNC">          12 :   if (chunk_type != 2 || codec != 2) {</span></span>
-<span id="L427"><span class="lineNum">     427</span>                 :<span class="tlaGNC">           2 :     return absl::UnimplementedError(absl::StrCat(&quot;RFC 9841 stream in '&quot;, path, &quot;' is not one Brotli data resource&quot;));</span></span>
-<span id="L428"><span class="lineNum">     428</span>                 :             :   }</span>
-<span id="L429"><span class="lineNum">     429</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          10 :   MBO_ASSIGN_OR_RETURN(const std::uint64_t expected_size, ReadVarint(*input, path));</span></span>
-<span id="L430"><span class="lineNum">     430</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          10 :   MBO_ASSIGN_OR_RETURN(const std::uint8_t data_flags, ReadByte(*input, path));</span></span>
-<span id="L431"><span class="lineNum">     431</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">          10 :   if (data_flags != 0) {</span></span>
-<span id="L432"><span class="lineNum">     432</span>                 :<span class="tlaGNC">           1 :     return absl::UnimplementedError(absl::StrCat(&quot;RFC 9841 data flags are not supported in '&quot;, path, &quot;'&quot;));</span></span>
-<span id="L433"><span class="lineNum">     433</span>                 :             :   }</span>
-<span id="L434"><span class="lineNum">     434</span>                 :<span class="tlaGNC">           9 :   const std::uint64_t header_size = 1 + 1 + VarintSize(expected_size) + 1;</span></span>
-<span id="L435"><span class="lineNum">     435</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">           9 :   if (chunk_size &lt; header_size) {</span></span>
-<span id="L436"><span class="lineNum">     436</span>                 :<span class="tlaGNC">           1 :     return absl::DataLossError(absl::StrCat(&quot;invalid RFC 9841 chunk length in '&quot;, path, &quot;'&quot;));</span></span>
-<span id="L437"><span class="lineNum">     437</span>                 :             :   }</span>
-<span id="L438"><span class="lineNum">     438</span>         [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           8 :   MBO_ASSIGN_OR_RETURN(</span></span>
-<span id="L439"><span class="lineNum">     439</span>                 :             :       std::string decoded, DecodeRawStream(*input, path, chunk_size - header_size, expected_size, max_bytes));</span>
-<span id="L440"><span class="lineNum">     440</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">           4 :   if (input-&gt;peek() != std::istream::traits_type::eof()) {</span></span>
-<span id="L441"><span class="lineNum">     441</span>                 :<span class="tlaGNC">           1 :     return absl::DataLossError(absl::StrCat(&quot;trailing chunks or bytes in RFC 9841 stream '&quot;, path, &quot;'&quot;));</span></span>
-<span id="L442"><span class="lineNum">     442</span>                 :             :   }</span>
-<span id="L443"><span class="lineNum">     443</span>                 :<span class="tlaGNC">           3 :   return decoded;</span></span>
-<span id="L444"><span class="lineNum">     444</span>                 :<span class="tlaGNC">          22 : }</span></span>
-<span id="L445"><span class="lineNum">     445</span>                 :             : </span>
-<span id="L446"><span class="lineNum">     446</span>                 :<span class="tlaGNC">          14 : absl::Status PackTar(</span></span>
-<span id="L447"><span class="lineNum">     447</span>                 :             :     std::string_view path,</span>
-<span id="L448"><span class="lineNum">     448</span>                 :             :     const std::vector&lt;archive::PackFile&gt;&amp; files,</span>
-<span id="L449"><span class="lineNum">     449</span>                 :             :     const archive::PackOptions&amp; options) {</span>
-<span id="L450"><span class="lineNum">     450</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">          14 :   MBO_ASSIGN_OR_RETURN(const EncodingOptions encoding, ResolveEncodingOptions(options));</span></span>
-<span id="L451"><span class="lineNum">     451</span>                 :             : </span>
-<span id="L452"><span class="lineNum">     452</span>                 :<span class="tlaGNC">           9 :   const stdfs::path target(path);</span></span>
-<span id="L453"><span class="lineNum">     453</span>                 :<span class="tlaGNC">           9 :   const stdfs::path tar = stdfs::path(target).concat(&quot;.xff-brotli.tar&quot;);</span></span>
-<span id="L454"><span class="lineNum">     454</span>                 :<span class="tlaGNC">           9 :   const stdfs::path raw = stdfs::path(target).concat(&quot;.xff-brotli.raw&quot;);</span></span>
-<span id="L455"><span class="lineNum">     455</span>                 :<span class="tlaGNC">           9 :   const stdfs::path compressed = stdfs::path(target).concat(&quot;.xff-pack&quot;);</span></span>
-<span id="L456"><span class="lineNum">     456</span>                 :<span class="tlaGNC">           9 :   const TemporaryFiles cleanup(tar, raw, compressed);</span></span>
-<span id="L457"><span class="lineNum">     457</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span><span class="tlaGBC" title="branch 2 was taken 8 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">           9 :   MBO_RETURN_IF_ERROR(archive::PackNativeArchiveContainer(tar.string(), files, {}));</span></span>
-<span id="L458"><span class="lineNum">     458</span>   [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 7 times"> + </span> :<span class="tlaGNC">           8 :   MBO_RETURN_IF_ERROR(EncodeFile(tar, encoding.raw ? compressed : raw, encoding.quality, encoding.window_bits));</span></span>
+<span id="L391"><span class="lineNum">     391</span>                 :<span class="tlaGNC">          25 : absl::StatusOr&lt;std::string&gt; DecodeStream(std::istream&amp; input, std::string_view path, std::uint64_t max_bytes) {</span></span>
+<span id="L392"><span class="lineNum">     392</span>                 :<span class="tlaGNC">          25 :   std::array&lt;std::uint8_t, kFramingSignature.size()&gt; signature{};</span></span>
+<span id="L393"><span class="lineNum">     393</span>                 :             :   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast) -- byte-oriented stream/C API boundary.</span>
+<span id="L394"><span class="lineNum">     394</span>                 :<span class="tlaGNC">          50 :   input.read(reinterpret_cast&lt;char*&gt;(signature.data()), static_cast&lt;std::streamsize&gt;(signature.size()));</span></span>
+<span id="L395"><span class="lineNum">     395</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 20 times"> + </span>]:<span class="tlaGNC">          25 :   if (signature != kFramingSignature) {</span></span>
+<span id="L396"><span class="lineNum">     396</span>                 :<span class="tlaGNC">           5 :     input.clear();</span></span>
+<span id="L397"><span class="lineNum">     397</span>                 :<span class="tlaGNC">           5 :     input.seekg(0);</span></span>
+<span id="L398"><span class="lineNum">     398</span>                 :<span class="tlaGNC">           5 :     return DecodeRawStream(input, path, std::nullopt, std::nullopt, max_bytes);</span></span>
+<span id="L399"><span class="lineNum">     399</span>                 :             :   }</span>
+<span id="L400"><span class="lineNum">     400</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          20 :   MBO_ASSIGN_OR_RETURN(const std::uint8_t flags, ReadByte(input, path));</span></span>
+<span id="L401"><span class="lineNum">     401</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 18 times"> + </span>]:<span class="tlaGNC">          19 :   if (flags != 0) {</span></span>
+<span id="L402"><span class="lineNum">     402</span>                 :<span class="tlaGNC">           2 :     return absl::UnimplementedError(</span></span>
+<span id="L403"><span class="lineNum">     403</span>                 :<span class="tlaGNC">           3 :         absl::StrCat(&quot;RFC 9841 container features beyond one resource are not supported in '&quot;, path, &quot;'&quot;));</span></span>
+<span id="L404"><span class="lineNum">     404</span>                 :             :   }</span>
+<span id="L405"><span class="lineNum">     405</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 16 times"> + </span>]:<span class="tlaGNC">          18 :   MBO_ASSIGN_OR_RETURN(const std::uint64_t chunk_size, ReadVarint(input, path));</span></span>
+<span id="L406"><span class="lineNum">     406</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 15 times"> + </span>]:<span class="tlaGNC">          16 :   MBO_ASSIGN_OR_RETURN(const std::uint8_t chunk_type, ReadByte(input, path));</span></span>
+<span id="L407"><span class="lineNum">     407</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          15 :   MBO_ASSIGN_OR_RETURN(const std::uint8_t codec, ReadByte(input, path));</span></span>
+<span id="L408"><span class="lineNum">     408</span>   [<span class="tlaGBC" title="branch 0 was taken 13 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 12 times"> + </span>]:<span class="tlaGNC">          14 :   if (chunk_type != 2 || codec != 2) {</span></span>
+<span id="L409"><span class="lineNum">     409</span>                 :<span class="tlaGNC">           2 :     return absl::UnimplementedError(absl::StrCat(&quot;RFC 9841 stream in '&quot;, path, &quot;' is not one Brotli data resource&quot;));</span></span>
+<span id="L410"><span class="lineNum">     410</span>                 :             :   }</span>
+<span id="L411"><span class="lineNum">     411</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 11 times"> + </span>]:<span class="tlaGNC">          12 :   MBO_ASSIGN_OR_RETURN(const std::uint64_t expected_size, ReadVarint(input, path));</span></span>
+<span id="L412"><span class="lineNum">     412</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          11 :   MBO_ASSIGN_OR_RETURN(const std::uint8_t data_flags, ReadByte(input, path));</span></span>
+<span id="L413"><span class="lineNum">     413</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">          10 :   if (data_flags != 0) {</span></span>
+<span id="L414"><span class="lineNum">     414</span>                 :<span class="tlaGNC">           1 :     return absl::UnimplementedError(absl::StrCat(&quot;RFC 9841 data flags are not supported in '&quot;, path, &quot;'&quot;));</span></span>
+<span id="L415"><span class="lineNum">     415</span>                 :             :   }</span>
+<span id="L416"><span class="lineNum">     416</span>                 :<span class="tlaGNC">           9 :   const std::uint64_t header_size = 1 + 1 + VarintSize(expected_size) + 1;</span></span>
+<span id="L417"><span class="lineNum">     417</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">           9 :   if (chunk_size &lt; header_size) {</span></span>
+<span id="L418"><span class="lineNum">     418</span>                 :<span class="tlaGNC">           1 :     return absl::DataLossError(absl::StrCat(&quot;invalid RFC 9841 chunk length in '&quot;, path, &quot;'&quot;));</span></span>
+<span id="L419"><span class="lineNum">     419</span>                 :             :   }</span>
+<span id="L420"><span class="lineNum">     420</span>         [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           8 :   MBO_ASSIGN_OR_RETURN(</span></span>
+<span id="L421"><span class="lineNum">     421</span>                 :             :       std::string decoded, DecodeRawStream(input, path, chunk_size - header_size, expected_size, max_bytes));</span>
+<span id="L422"><span class="lineNum">     422</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">           4 :   if (input.peek() != std::istream::traits_type::eof()) {</span></span>
+<span id="L423"><span class="lineNum">     423</span>                 :<span class="tlaGNC">           1 :     return absl::DataLossError(absl::StrCat(&quot;trailing chunks or bytes in RFC 9841 stream '&quot;, path, &quot;'&quot;));</span></span>
+<span id="L424"><span class="lineNum">     424</span>                 :             :   }</span>
+<span id="L425"><span class="lineNum">     425</span>                 :<span class="tlaGNC">           3 :   return decoded;</span></span>
+<span id="L426"><span class="lineNum">     426</span>                 :<span class="tlaGNC">          20 : }</span></span>
+<span id="L427"><span class="lineNum">     427</span>                 :             : </span>
+<span id="L428"><span class="lineNum">     428</span>                 :             : }  // namespace</span>
+<span id="L429"><span class="lineNum">     429</span>                 :             : </span>
+<span id="L430"><span class="lineNum">     430</span>                 :<span class="tlaGNC">          26 : absl::StatusOr&lt;std::string&gt; Decode(</span></span>
+<span id="L431"><span class="lineNum">     431</span>                 :             :     std::string_view path,</span>
+<span id="L432"><span class="lineNum">     432</span>                 :             :     std::optional&lt;std::string_view&gt; bytes,</span>
+<span id="L433"><span class="lineNum">     433</span>                 :             :     std::uint64_t max_bytes) {</span>
+<span id="L434"><span class="lineNum">     434</span>         [<span class="tlaGBC" title="branch 0 was taken 21 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">          26 :   if (bytes.has_value()) {</span></span>
+<span id="L435"><span class="lineNum">     435</span>                 :<span class="tlaGNC">          21 :     std::istringstream memory{std::string(*bytes)};</span></span>
+<span id="L436"><span class="lineNum">     436</span>                 :<span class="tlaGNC">          21 :     return DecodeStream(memory, path, max_bytes);</span></span>
+<span id="L437"><span class="lineNum">     437</span>                 :<span class="tlaGNC">          21 :   }</span></span>
+<span id="L438"><span class="lineNum">     438</span>                 :<span class="tlaGNC">           5 :   std::ifstream file(std::string(path), std::ios::binary);</span></span>
+<span id="L439"><span class="lineNum">     439</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           5 :   if (!file.is_open()) {</span></span>
+<span id="L440"><span class="lineNum">     440</span>                 :<span class="tlaGNC">           1 :     return absl::NotFoundError(absl::StrCat(&quot;cannot open '&quot;, path, &quot;'&quot;));</span></span>
+<span id="L441"><span class="lineNum">     441</span>                 :             :   }</span>
+<span id="L442"><span class="lineNum">     442</span>                 :<span class="tlaGNC">           4 :   return DecodeStream(file, path, max_bytes);</span></span>
+<span id="L443"><span class="lineNum">     443</span>                 :<span class="tlaGNC">           5 : }</span></span>
+<span id="L444"><span class="lineNum">     444</span>                 :             : </span>
+<span id="L445"><span class="lineNum">     445</span>                 :<span class="tlaGNC">          14 : absl::Status PackTar(</span></span>
+<span id="L446"><span class="lineNum">     446</span>                 :             :     std::string_view path,</span>
+<span id="L447"><span class="lineNum">     447</span>                 :             :     const std::vector&lt;archive::PackFile&gt;&amp; files,</span>
+<span id="L448"><span class="lineNum">     448</span>                 :             :     const archive::PackOptions&amp; options) {</span>
+<span id="L449"><span class="lineNum">     449</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">          14 :   MBO_ASSIGN_OR_RETURN(const EncodingOptions encoding, ResolveEncodingOptions(options));</span></span>
+<span id="L450"><span class="lineNum">     450</span>                 :             : </span>
+<span id="L451"><span class="lineNum">     451</span>                 :<span class="tlaGNC">           9 :   const stdfs::path target(path);</span></span>
+<span id="L452"><span class="lineNum">     452</span>                 :<span class="tlaGNC">           9 :   const stdfs::path tar = stdfs::path(target).concat(&quot;.xff-brotli.tar&quot;);</span></span>
+<span id="L453"><span class="lineNum">     453</span>                 :<span class="tlaGNC">           9 :   const stdfs::path raw = stdfs::path(target).concat(&quot;.xff-brotli.raw&quot;);</span></span>
+<span id="L454"><span class="lineNum">     454</span>                 :<span class="tlaGNC">           9 :   const stdfs::path compressed = stdfs::path(target).concat(&quot;.xff-pack&quot;);</span></span>
+<span id="L455"><span class="lineNum">     455</span>                 :<span class="tlaGNC">           9 :   const TemporaryFiles cleanup(tar, raw, compressed);</span></span>
+<span id="L456"><span class="lineNum">     456</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span><span class="tlaGBC" title="branch 2 was taken 8 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">           9 :   MBO_RETURN_IF_ERROR(archive::PackNativeArchiveContainer(tar.string(), files, {}));</span></span>
+<span id="L457"><span class="lineNum">     457</span>   [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 7 times"> + </span> :<span class="tlaGNC">           8 :   MBO_RETURN_IF_ERROR(EncodeFile(tar, encoding.raw ? compressed : raw, encoding.quality, encoding.window_bits));</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 7 times"> + </span><span class="tlaGBC" title="branch 5 was taken 1 time"> + </span>]
-<span id="L459"><span class="lineNum">     459</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           7 :   if (!encoding.raw) {</span></span>
-<span id="L460"><span class="lineNum">     460</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span><span class="tlaGBC" title="branch 2 was taken 5 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">           5 :     MBO_RETURN_IF_ERROR(FrameEncodedTar(tar, raw, compressed));</span></span>
-<span id="L461"><span class="lineNum">     461</span>                 :             :   }</span>
-<span id="L462"><span class="lineNum">     462</span>                 :<span class="tlaGNC">           7 :   std::error_code error;</span></span>
-<span id="L463"><span class="lineNum">     463</span>                 :<span class="tlaGNC">           7 :   stdfs::rename(compressed, target, error);</span></span>
-<span id="L464"><span class="lineNum">     464</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">           7 :   if (error) {</span></span>
-<span id="L465"><span class="lineNum">     465</span>                 :<span class="tlaGNC">           1 :     return absl::UnavailableError(absl::StrCat(&quot;cannot place '&quot;, path, &quot;': &quot;, error.message()));</span></span>
-<span id="L466"><span class="lineNum">     466</span>                 :             :   }</span>
-<span id="L467"><span class="lineNum">     467</span>                 :<span class="tlaGNC">           6 :   return absl::OkStatus();</span></span>
-<span id="L468"><span class="lineNum">     468</span>                 :<span class="tlaGNC">          14 : }</span></span>
-<span id="L469"><span class="lineNum">     469</span>                 :             : </span>
-<span id="L470"><span class="lineNum">     470</span>                 :             : }  // namespace xff::brotli</span>
+<span id="L458"><span class="lineNum">     458</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           7 :   if (!encoding.raw) {</span></span>
+<span id="L459"><span class="lineNum">     459</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span><span class="tlaGBC" title="branch 2 was taken 5 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">           5 :     MBO_RETURN_IF_ERROR(FrameEncodedTar(tar, raw, compressed));</span></span>
+<span id="L460"><span class="lineNum">     460</span>                 :             :   }</span>
+<span id="L461"><span class="lineNum">     461</span>                 :<span class="tlaGNC">           7 :   std::error_code error;</span></span>
+<span id="L462"><span class="lineNum">     462</span>                 :<span class="tlaGNC">           7 :   stdfs::rename(compressed, target, error);</span></span>
+<span id="L463"><span class="lineNum">     463</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">           7 :   if (error) {</span></span>
+<span id="L464"><span class="lineNum">     464</span>                 :<span class="tlaGNC">           1 :     return absl::UnavailableError(absl::StrCat(&quot;cannot place '&quot;, path, &quot;': &quot;, error.message()));</span></span>
+<span id="L465"><span class="lineNum">     465</span>                 :             :   }</span>
+<span id="L466"><span class="lineNum">     466</span>                 :<span class="tlaGNC">           6 :   return absl::OkStatus();</span></span>
+<span id="L467"><span class="lineNum">     467</span>                 :<span class="tlaGNC">          14 : }</span></span>
+<span id="L468"><span class="lineNum">     468</span>                 :             : </span>
+<span id="L469"><span class="lineNum">     469</span>                 :             : }  // namespace xff::brotli</span>
         </pre>
               </td>
             </tr>
