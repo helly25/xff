@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-26 04:10:09</td>
+            <td class="headerValue">2026-08-26 04:58:00</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -138,9 +138,9 @@
 <span id="L58"><span class="lineNum">      58</span>                 :             :   const Vocabulary* active ABSL_GUARDED_BY(mutex) = nullptr;</span>
 <span id="L59"><span class="lineNum">      59</span>                 :             : };</span>
 <span id="L60"><span class="lineNum">      60</span>                 :             : </span>
-<span id="L61"><span class="lineNum">      61</span>                 :<span class="tlaGNC">         872 : State&amp; GlobalState() {</span></span>
-<span id="L62"><span class="lineNum">      62</span>   [<span class="tlaGBC" title="branch 0 was taken 479 times"> + </span><span class="tlaGBC" title="branch 1 was taken 393 times"> + </span><span class="tlaGBC" title="branch 2 was taken 479 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         872 :   static State state;</span></span>
-<span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">         872 :   return state;</span></span>
+<span id="L61"><span class="lineNum">      61</span>                 :<span class="tlaGNC">         873 : State&amp; GlobalState() {</span></span>
+<span id="L62"><span class="lineNum">      62</span>   [<span class="tlaGBC" title="branch 0 was taken 479 times"> + </span><span class="tlaGBC" title="branch 1 was taken 394 times"> + </span><span class="tlaGBC" title="branch 2 was taken 479 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         873 :   static State state;</span></span>
+<span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">         873 :   return state;</span></span>
 <span id="L64"><span class="lineNum">      64</span>                 :             : }</span>
 <span id="L65"><span class="lineNum">      65</span>                 :             : </span>
 <span id="L66"><span class="lineNum">      66</span>                 :<span class="tlaGNC">        1420 : std::string Lower(std::string_view value) {</span></span>
@@ -543,13 +543,13 @@
 <span id="L459"><span class="lineNum">     459</span>                 :             : </span>
 <span id="L460"><span class="lineNum">     460</span>                 :             : }  // namespace</span>
 <span id="L461"><span class="lineNum">     461</span>                 :             : </span>
-<span id="L462"><span class="lineNum">     462</span>                 :<span class="tlaGNC">         789 : absl::Status Configure(absl::Span&lt;const std::string&gt; files, ConflictPolicy conflicts) {</span></span>
-<span id="L463"><span class="lineNum">     463</span>         [<span class="tlaGBC" title="branch 0 was taken 763 times"> + </span><span class="tlaGBC" title="branch 1 was taken 26 times"> + </span>]:<span class="tlaGNC">         789 :   if (files.empty()) {</span></span>
-<span id="L464"><span class="lineNum">     464</span>                 :<span class="tlaGNC">         763 :     State&amp; state = GlobalState();</span></span>
-<span id="L465"><span class="lineNum">     465</span>                 :<span class="tlaGNC">         763 :     const absl::MutexLock lock(&amp;state.mutex);</span></span>
-<span id="L466"><span class="lineNum">     466</span>                 :<span class="tlaGNC">         763 :     state.active = nullptr;</span></span>
-<span id="L467"><span class="lineNum">     467</span>                 :<span class="tlaGNC">         763 :     return absl::OkStatus();</span></span>
-<span id="L468"><span class="lineNum">     468</span>                 :<span class="tlaGNC">         763 :   }</span></span>
+<span id="L462"><span class="lineNum">     462</span>                 :<span class="tlaGNC">         790 : absl::Status Configure(absl::Span&lt;const std::string&gt; files, ConflictPolicy conflicts) {</span></span>
+<span id="L463"><span class="lineNum">     463</span>         [<span class="tlaGBC" title="branch 0 was taken 764 times"> + </span><span class="tlaGBC" title="branch 1 was taken 26 times"> + </span>]:<span class="tlaGNC">         790 :   if (files.empty()) {</span></span>
+<span id="L464"><span class="lineNum">     464</span>                 :<span class="tlaGNC">         764 :     State&amp; state = GlobalState();</span></span>
+<span id="L465"><span class="lineNum">     465</span>                 :<span class="tlaGNC">         764 :     const absl::MutexLock lock(&amp;state.mutex);</span></span>
+<span id="L466"><span class="lineNum">     466</span>                 :<span class="tlaGNC">         764 :     state.active = nullptr;</span></span>
+<span id="L467"><span class="lineNum">     467</span>                 :<span class="tlaGNC">         764 :     return absl::OkStatus();</span></span>
+<span id="L468"><span class="lineNum">     468</span>                 :<span class="tlaGNC">         764 :   }</span></span>
 <span id="L469"><span class="lineNum">     469</span>                 :<span class="tlaGNC">          26 :   Vocabulary vocabulary = CoreVocabulary();</span></span>
 <span id="L470"><span class="lineNum">     470</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 26 times"> + </span>]:<span class="tlaGNC">          26 :   for (const Database&amp; database : Databases()) {</span></span>
 <span id="L471"><span class="lineNum">     471</span>   [<span class="tlaUNC" title="branch 0 was not executed"> # </span><span class="tlaUNC" title="branch 1 was not executed"> # </span><span class="tlaUNC" title="branch 2 was not executed"> # </span><span class="tlaUNC" title="branch 3 was not executed"> # </span>]:<span class="tlaUNC">           0 :     MBO_RETURN_IF_ERROR(LayerProcessor(vocabulary, database.name, ConflictPolicy::kLast).Apply(database.json()));</span></span>
