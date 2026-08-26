@@ -112,7 +112,13 @@ class Palette {
   static Palette FromBsdLsColors(std::string_view bsd_lscolors, bool fall_back = true);
 
   // The SGR parameter for one entry, or empty for "print it uncoloured". `mode` is the raw st_mode.
-  [[nodiscard]] std::string_view CodeFor(std::string_view name, vfs::FileType type, std::uint32_t mode) const;
+  // `language_color` is xff's optional ANSI true-colour fallback for a regular non-executable file;
+  // an explicit theme extension or `fi` colour wins, while the pure-ls scheme never consults it.
+  [[nodiscard]] std::string_view CodeFor(
+      std::string_view name,
+      vfs::FileType type,
+      std::uint32_t mode,
+      std::string_view language_color = {}) const;
 
  private:
   // The theme's code for a two-letter dircolors key, or empty optional when it named none. An
@@ -122,7 +128,8 @@ class Palette {
   // A regular file's colour, which is the only case with an order rather than a single key: the
   // executable bit (`ex`), then the extension table, then `fi`. Split out so CodeFor stays a
   // type-to-key lookup.
-  [[nodiscard]] std::string_view RegularCode(std::string_view name, std::uint32_t mode) const;
+  [[nodiscard]] std::string_view RegularCode(std::string_view name, std::uint32_t mode, std::string_view language_color)
+      const;
 
   // The two-letter dircolors type keys this honours, resolved at parse time so the lookup is a
   // single hash probe. Empty (not absent) means "$LS_COLORS says: no colour for this".

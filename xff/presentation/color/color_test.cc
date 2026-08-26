@@ -15,6 +15,8 @@
 
 #include "xff/presentation/color/color.h"
 
+#include <string_view>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "xff/vfs/entry.h"
@@ -102,6 +104,33 @@ TEST_F(ColorTest, ADefaultPaletteIsTheBuiltInScheme) {
   const Palette palette;
   EXPECT_THAT(palette.CodeFor("dir", vfs::FileType::kDirectory, 0755), CodeForType(vfs::FileType::kDirectory, 0755));
   EXPECT_THAT(palette.CodeFor("a.txt", vfs::FileType::kRegular, 0644), IsEmpty());
+}
+
+TEST_F(ColorTest, LanguageColorIsTheBuiltInRegularFileFallback) {
+  constexpr std::string_view kLanguageColor = "38;2;49;120;198";
+  const Palette builtin = PaletteFor(Scheme::kXff, "*.cc=31");
+  EXPECT_THAT(builtin.CodeFor("main.cc", vfs::FileType::kRegular, 0644, kLanguageColor), kLanguageColor);
+  EXPECT_THAT(
+      builtin.CodeFor("main.cc", vfs::FileType::kRegular, 0755, kLanguageColor),
+      CodeForType(vfs::FileType::kRegular, 0755));
+  EXPECT_THAT(
+      builtin.CodeFor("src", vfs::FileType::kDirectory, 0755, kLanguageColor),
+      CodeForType(vfs::FileType::kDirectory, 0755));
+}
+
+TEST_F(ColorTest, ThemePolicyControlsWhetherLanguageColorMayFallBack) {
+  constexpr std::string_view kLanguageColor = "38;2;49;120;198";
+  const Palette strict = PaletteFor(Scheme::kLs, "di=34");
+  EXPECT_THAT(strict.CodeFor("main.cc", vfs::FileType::kRegular, 0644, kLanguageColor), IsEmpty());
+
+  const Palette merged = PaletteFor(Scheme::kLsAndXff, "di=34");
+  EXPECT_THAT(merged.CodeFor("main.cc", vfs::FileType::kRegular, 0644, kLanguageColor), kLanguageColor);
+
+  const Palette extension = PaletteFor(Scheme::kLsAndXff, "*.cc=31");
+  EXPECT_THAT(extension.CodeFor("main.cc", vfs::FileType::kRegular, 0644, kLanguageColor), "31");
+
+  const Palette explicit_plain = PaletteFor(Scheme::kLsAndXff, "fi=");
+  EXPECT_THAT(explicit_plain.CodeFor("main.cc", vfs::FileType::kRegular, 0644, kLanguageColor), IsEmpty());
 }
 
 TEST_F(ColorTest, LsColorsOverridesTheTypeItNames) {

@@ -4,6 +4,7 @@
 #include "xff/matching/language/language.h"
 
 #include <array>
+#include <cstdint>
 #include <fstream>
 #include <map>
 #include <memory>
@@ -28,13 +29,14 @@
 #include "xff/matching/language/language_database_api.h"
 
 namespace xff::language {
-namespace {
+struct LanguageVocabulary {
+  struct TerminalColor {
+    std::array<char, 18> bytes{};  // `38;2;255;255;255`
+    std::uint8_t size = 0;
 
-using Json = nlohmann::ordered_json;
+    [[nodiscard]] std::string_view View() const { return {bytes.data(), size}; }
+  };
 
-constexpr auto kStringFields = std::to_array<std::string_view>({"type", "color", "group", "source"});
-
-struct Vocabulary {
   struct Record {
     std::string_view type;
     std::string_view color;
@@ -43,20 +45,27 @@ struct Vocabulary {
     std::vector<std::string_view> aliases;
     std::vector<std::string_view> extensions;
     std::vector<std::string_view> filenames;
+    TerminalColor terminal_color;
   };
 
   std::map<std::string, Record, std::less<>> languages;
   std::map<std::string, std::string, std::less<>> extensions;
   std::map<std::string, std::string, std::less<>> filenames;
   std::vector<LanguageInfo> views;
-  std::vector<std::unique_ptr<const Json>> layers;
+  std::vector<std::unique_ptr<const nlohmann::ordered_json>> layers;
   std::vector<std::unique_ptr<const std::string>> normalized;
 };
 
+namespace {
+
+using Json = nlohmann::ordered_json;
+
+constexpr auto kStringFields = std::to_array<std::string_view>({"type", "color", "group", "source"});
+
 struct State {
   absl::Mutex mutex;
-  std::vector<std::unique_ptr<const Vocabulary>> snapshots ABSL_GUARDED_BY(mutex);
-  mbo::types::OptionalRef<const Vocabulary> active ABSL_GUARDED_BY(mutex);
+  std::vector<std::unique_ptr<const LanguageVocabulary>> snapshots ABSL_GUARDED_BY(mutex);
+  mbo::types::OptionalRef<const LanguageVocabulary> active ABSL_GUARDED_BY(mutex);
 };
 
 State& GlobalState() {
@@ -68,20 +77,77 @@ std::string Lower(std::string_view value) {
   return absl::AsciiStrToLower(std::string(value));
 }
 
-void AddCore(Vocabulary& vocabulary, std::string_view extension, std::string_view language) {
-  Vocabulary::Record& info = vocabulary.languages[std::string(language)];
+std::optional<std::uint8_t> HexDigit(char digit) {
+  if (digit >= '0' && digit <= '9') {
+    return static_cast<std::uint8_t>(digit - '0');
+  }
+  const char folded = absl::ascii_tolower(static_cast<unsigned char>(digit));
+  if (folded >= 'a' && folded <= 'f') {
+    return static_cast<std::uint8_t>(folded - 'a' + 10);
+  }
+  return std::nullopt;
+}
+
+std::optional<std::uint8_t> HexByte(std::string_view value) {
+  if (value.size() != 2) {
+    return std::nullopt;
+  }
+  const std::optional<std::uint8_t> high = HexDigit(value.front());
+  const std::optional<std::uint8_t> low = HexDigit(value.back());
+  if (!high.has_value() || !low.has_value()) {
+    return std::nullopt;
+  }
+  return static_cast<std::uint8_t>((static_cast<unsigned>(*high) * 16U) + static_cast<unsigned>(*low));
+}
+
+void AppendDecimal(std::uint8_t value, LanguageVocabulary::TerminalColor& result) {
+  const auto append = [&](char digit) { result.bytes.at(result.size++) = digit; };
+  if (value >= 100) {
+    append(static_cast<char>('0' + (value / 100)));
+    value %= 100;
+    append(static_cast<char>('0' + (value / 10)));
+  } else if (value >= 10) {
+    append(static_cast<char>('0' + (value / 10)));
+  }
+  append(static_cast<char>('0' + (value % 10)));
+}
+
+LanguageVocabulary::TerminalColor MakeTerminalColor(std::string_view color) {
+  LanguageVocabulary::TerminalColor result;
+  if (color.size() != 7 || color.front() != '#') {
+    return result;
+  }
+  const std::optional<std::uint8_t> red = HexByte(color.substr(1, 2));
+  const std::optional<std::uint8_t> green = HexByte(color.substr(3, 2));
+  const std::optional<std::uint8_t> blue = HexByte(color.substr(5, 2));
+  if (!red.has_value() || !green.has_value() || !blue.has_value()) {
+    return result;
+  }
+  for (const char prefix : std::string_view("38;2;")) {
+    result.bytes.at(result.size++) = prefix;
+  }
+  AppendDecimal(*red, result);
+  result.bytes.at(result.size++) = ';';
+  AppendDecimal(*green, result);
+  result.bytes.at(result.size++) = ';';
+  AppendDecimal(*blue, result);
+  return result;
+}
+
+void AddCore(LanguageVocabulary& vocabulary, std::string_view extension, std::string_view language) {
+  LanguageVocabulary::Record& info = vocabulary.languages[std::string(language)];
   info.extensions.emplace_back(extension);
   vocabulary.extensions[std::string(extension)] = language;
 }
 
-void AddCoreFilename(Vocabulary& vocabulary, std::string_view filename, std::string_view language) {
-  Vocabulary::Record& info = vocabulary.languages[std::string(language)];
+void AddCoreFilename(LanguageVocabulary& vocabulary, std::string_view filename, std::string_view language) {
+  LanguageVocabulary::Record& info = vocabulary.languages[std::string(language)];
   info.filenames.emplace_back(filename);
   vocabulary.filenames[std::string(filename)] = language;
 }
 
-Vocabulary CoreVocabulary() {
-  Vocabulary vocabulary;
+LanguageVocabulary CoreVocabulary() {
+  LanguageVocabulary vocabulary;
   constexpr auto kExtensions = std::to_array<std::pair<std::string_view, std::string_view>>({
       {"asm", "Assembly"},
       {"awk", "Awk"},
@@ -216,7 +282,7 @@ absl::StatusOr<std::vector<std::string_view>> StringList(
 }
 
 absl::Status ApplyStringFields(
-    Vocabulary::Record& info,
+    LanguageVocabulary::Record& info,
     const Json& value,
     std::string_view layer,
     std::string_view name) {
@@ -255,7 +321,11 @@ absl::StatusOr<std::vector<std::string_view>> Filenames(
   return filenames;
 }
 
-absl::Status ApplyAliases(Vocabulary::Record& info, const Json& value, std::string_view layer, std::string_view name) {
+absl::Status ApplyAliases(
+    LanguageVocabulary::Record& info,
+    const Json& value,
+    std::string_view layer,
+    std::string_view name) {
   if (!value.contains("aliases")) {
     return absl::OkStatus();
   }
@@ -265,7 +335,7 @@ absl::Status ApplyAliases(Vocabulary::Record& info, const Json& value, std::stri
 
 class LayerProcessor {
  public:
-  LayerProcessor(Vocabulary& vocabulary, std::string_view layer, ConflictPolicy conflicts)
+  LayerProcessor(LanguageVocabulary& vocabulary, std::string_view layer, ConflictPolicy conflicts)
       : vocabulary_(vocabulary), layer_(layer), conflicts_(conflicts) {}
 
   absl::Status Apply(std::string_view text) {
@@ -325,7 +395,7 @@ class LayerProcessor {
     return extensions;
   }
 
-  absl::Status ApplyExtensionClaims(Vocabulary::Record& info, const Json& value, std::string_view name) {
+  absl::Status ApplyExtensionClaims(LanguageVocabulary::Record& info, const Json& value, std::string_view name) {
     if (!value.contains("extensions")) {
       return absl::OkStatus();
     }
@@ -334,7 +404,7 @@ class LayerProcessor {
     return AddClaims(extension_claims_, info.extensions, name, "extension");
   }
 
-  absl::Status ApplyFilenameClaims(Vocabulary::Record& info, const Json& value, std::string_view name) {
+  absl::Status ApplyFilenameClaims(LanguageVocabulary::Record& info, const Json& value, std::string_view name) {
     if (!value.contains("filenames")) {
       return absl::OkStatus();
     }
@@ -347,7 +417,7 @@ class LayerProcessor {
     if (name.empty() || !value.is_object()) {
       return JsonError(layer_, absl::StrCat("invalid language entry: ", name));
     }
-    Vocabulary::Record info;
+    LanguageVocabulary::Record info;
     if (const auto found = vocabulary_.languages.find(name); found != vocabulary_.languages.end()) {
       info = found->second;
     }
@@ -381,12 +451,12 @@ class LayerProcessor {
     vocabulary_.layers.push_back(std::move(root_));
   }
 
-  Vocabulary& vocabulary_;
+  LanguageVocabulary& vocabulary_;
   std::string_view layer_;
   ConflictPolicy conflicts_;
   Claims extension_claims_;
   Claims filename_claims_;
-  std::map<std::string, Vocabulary::Record, std::less<>> languages_;
+  std::map<std::string, LanguageVocabulary::Record, std::less<>> languages_;
   Replacements replaced_extensions_;
   Replacements replaced_filenames_;
   std::unique_ptr<const Json> root_;
@@ -405,10 +475,10 @@ absl::StatusOr<std::string> ReadFile(const std::string& path) {
 
 struct LookupResult {
   std::string_view name;
-  mbo::types::OptionalRef<const Vocabulary::Record> record;
+  mbo::types::OptionalRef<const LanguageVocabulary::Record> record;
 };
 
-LookupResult Lookup(const Vocabulary& vocabulary, std::string_view name) {
+LookupResult Lookup(const LanguageVocabulary& vocabulary, std::string_view name) {
   if (const auto found = vocabulary.filenames.find(name); found != vocabulary.filenames.end()) {
     return {.name = found->second, .record = vocabulary.languages.at(found->second)};
   }
@@ -425,7 +495,7 @@ LookupResult Lookup(const Vocabulary& vocabulary, std::string_view name) {
   return {};
 }
 
-LanguageInfo View(std::string_view name, const Vocabulary::Record& record) {
+LanguageInfo View(std::string_view name, const LanguageVocabulary::Record& record) {
   return {
       .name = name,
       .type = record.type,
@@ -438,9 +508,10 @@ LanguageInfo View(std::string_view name, const Vocabulary::Record& record) {
   };
 }
 
-void Finalize(Vocabulary& vocabulary) {
+void Finalize(LanguageVocabulary& vocabulary) {
   vocabulary.views.reserve(vocabulary.languages.size());
-  for (const auto& [name, record] : vocabulary.languages) {
+  for (auto& [name, record] : vocabulary.languages) {
+    record.terminal_color = MakeTerminalColor(record.color);
     vocabulary.views.push_back(View(name, record));
   }
 }
@@ -449,7 +520,7 @@ void EnsureConfigured(State& state) ABSL_EXCLUSIVE_LOCKS_REQUIRED(state.mutex) {
   if (state.active.has_value()) {
     return;
   }
-  auto vocabulary = std::make_unique<Vocabulary>(CoreVocabulary());
+  auto vocabulary = std::make_unique<LanguageVocabulary>(CoreVocabulary());
   for (const Database& database : Databases()) {
     CHECK_OK(LayerProcessor(*vocabulary, database.name, ConflictPolicy::kLast).Apply(database.json()));
   }
@@ -467,7 +538,7 @@ absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy confl
     state.active.reset();
     return absl::OkStatus();
   }
-  Vocabulary vocabulary = CoreVocabulary();
+  LanguageVocabulary vocabulary = CoreVocabulary();
   for (const Database& database : Databases()) {
     MBO_RETURN_IF_ERROR(LayerProcessor(vocabulary, database.name, ConflictPolicy::kLast).Apply(database.json()));
   }
@@ -478,32 +549,51 @@ absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy confl
   Finalize(vocabulary);
   State& state = GlobalState();
   const absl::MutexLock lock(&state.mutex);
-  auto snapshot = std::make_unique<const Vocabulary>(std::move(vocabulary));
+  auto snapshot = std::make_unique<const LanguageVocabulary>(std::move(vocabulary));
   state.snapshots.push_back(std::move(snapshot));
   state.active.set_ref(*state.snapshots.back());
   return absl::OkStatus();
 }
 
-std::optional<LanguageInfo> InfoForName(std::string_view name) {
+LanguageSnapshot ActiveSnapshot() {
   State& state = GlobalState();
   const absl::MutexLock lock(&state.mutex);
   EnsureConfigured(state);
-  const LookupResult found = Lookup(*state.active, name);
+  return LanguageSnapshot(*state.active);
+}
+
+std::optional<LanguageInfo> LanguageSnapshot::InfoForName(std::string_view name) const {
+  const LookupResult found = Lookup(vocabulary_.get(), name);
   return found.record.has_value() ? std::optional<LanguageInfo>(View(found.name, *found.record)) : std::nullopt;
 }
 
+std::string_view LanguageSnapshot::LanguageForName(std::string_view name) const {
+  return Lookup(vocabulary_.get(), name).name;
+}
+
+std::string_view LanguageSnapshot::TerminalColorForName(std::string_view name) const {
+  const LookupResult found = Lookup(vocabulary_.get(), name);
+  return found.record.has_value() ? found.record->terminal_color.View() : std::string_view();
+}
+
+absl::Span<const LanguageInfo> LanguageSnapshot::Languages() const {
+  return vocabulary_.get().views;
+}
+
+std::optional<LanguageInfo> InfoForName(std::string_view name) {
+  return ActiveSnapshot().InfoForName(name);
+}
+
 std::string_view LanguageForName(std::string_view name) {
-  State& state = GlobalState();
-  const absl::MutexLock lock(&state.mutex);
-  EnsureConfigured(state);
-  return Lookup(*state.active, name).name;
+  return ActiveSnapshot().LanguageForName(name);
+}
+
+std::string_view TerminalColorForName(std::string_view name) {
+  return ActiveSnapshot().TerminalColorForName(name);
 }
 
 absl::Span<const LanguageInfo> Languages() {
-  State& state = GlobalState();
-  const absl::MutexLock lock(&state.mutex);
-  EnsureConfigured(state);
-  return state.active->views;
+  return ActiveSnapshot().Languages();
 }
 
 }  // namespace xff::language

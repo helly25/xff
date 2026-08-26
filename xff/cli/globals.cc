@@ -116,8 +116,8 @@ constexpr std::array kColorSchemeValues = std::to_array<ValueDoc>({
                 "default; also spelled `ls+xff`, `ls-or-xff` or `default`)"},
     {.value = "ls", .meaning = "the theme alone ($LS_COLORS, else $LSCOLORS): what it omits prints plain, as in ls"},
     {.value = "merged",
-     .meaning = "the theme where it speaks, xff's colour for every key it omits, per key (also `ls-and-xff`)"},
-    {.value = "xff", .meaning = "xff's built-in type scheme, ignoring $LS_COLORS"},
+     .meaning = "the theme where it speaks, xff's type/language colour where it does not (also `ls-and-xff`)"},
+    {.value = "xff", .meaning = "xff's built-in type and language scheme, ignoring $LS_COLORS"},
     {.value = "default", .meaning = "", .hidden = true},     // spelled out in `auto`'s meaning
     {.value = "ls+xff", .meaning = "", .hidden = true},      // ditto
     {.value = "ls-or-xff", .meaning = "", .hidden = true},   // ditto
@@ -1174,10 +1174,11 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--color[=auto|always|never]",
         .group = "output",
         .header = "Output",
-        .summary = "colorize the plain listing by file type: auto (a tty), always, or never; honors NO_COLOR",
-        .details = "Colorizes the plain listing by file type. auto colorizes only when stdout is a terminal; always "
-                   "forces color even through a pipe or pager; never disables it. The NO_COLOR environment variable "
-                   "always wins.",
+        .summary = "colorize the plain listing by file type and language: auto (a tty), always, or never",
+        .details = "Colorizes the plain listing by file type and, when the active language vocabulary supplies a "
+                   "colour, programming language. auto colorizes only when stdout is a terminal and NO_COLOR is "
+                   "unset; always forces color even through a pipe or pager and deliberately overrides NO_COLOR; "
+                   "never disables it.",
         .values = kColorValues,
         .value_check = GlobalFlag::ValueCheck::kTristate,
     },
@@ -1211,7 +1212,12 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "AND xff's scheme, merged per KEY: the theme where it speaks, xff's colour for "
                    "every key it omits - for a sparse theme you want filled in. (`ls&xff` is "
                    "deliberately not accepted: an unquoted `&` backgrounds the command.) `xff` "
-                   "ignores $LS_COLORS entirely. An EMPTY value in the theme (`di=`) is it "
+                   "ignores $LS_COLORS entirely. In xff's scheme a regular non-executable file uses "
+                   "the active language vocabulary's `#RRGGBB` colour when present. A theme's "
+                   "matching extension or `fi` value wins; `ls` and a themed `auto` do not add "
+                   "language colours, while `merged` uses one only for a key the theme omitted. "
+                   "Executables and non-regular files retain their type colours. An EMPTY value in "
+                   "the theme (`di=` or `fi=`) is it "
                    "saying \"leave these plain\" and is honoured as such; a malformed entry is "
                    "skipped rather than failing the run, as in ls. Whether colour is emitted at all "
                    "is --color's business, not this flag's.",
