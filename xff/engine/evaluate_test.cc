@@ -56,6 +56,7 @@ using ::testing::IsTrue;
 using ::testing::Not;
 using ::testing::Optional;
 using ::testing::Pair;
+using ::testing::SizeIs;
 
 struct EvaluateTest : ::testing::Test {
   // Parses `. <expr...>` and evaluates the expression against `visit`, capturing
@@ -99,10 +100,17 @@ struct EvaluateTest : ::testing::Test {
         .captures = exec_fields_ ? mbo::types::OptionalRef{captures_} : std::nullopt,
         .outputs = capture_outputs_ ? mbo::types::OptionalRef{outputs_}
                                     : mbo::types::OptionalRef<std::map<std::string, std::string>>{},
-        .confirm = [this](std::string_view prompt) {
-          last_prompt_ = std::string(prompt);
-          return confirm_reply_;
-        }};
+        .first_counts = provide_first_counts_ ? mbo::types::OptionalRef{first_counts_}
+                                              : mbo::types::OptionalRef<std::map<const parser::Expr*, int>>{},
+        .collections =
+            provide_collections_ ? mbo::types::OptionalRef{collections_} : mbo::types::OptionalRef<Collections>{},
+        .confirm =
+            [this](std::string_view prompt) {
+              last_prompt_ = std::string(prompt);
+              return confirm_reply_;
+            },
+        .exec_batches = provide_exec_batches_ ? mbo::types::OptionalRef{exec_batches_}
+                                              : mbo::types::OptionalRef<decltype(exec_batches_)>{}};
     return Evaluate(*command->expression, context);
   }
 
@@ -151,10 +159,16 @@ struct EvaluateTest : ::testing::Test {
   bool grep_count_ = false;                     // when true, Match sets EvalContext::grep_count (-grep --count mode)
   bool capture_outputs_ = true;                 // when false, Match leaves the -capture output sink unwired
   bool collect_fuzzy_score_ = true;             // when false, Match evaluates without a fuzzy-score consumer
+  bool provide_first_counts_ = false;           // when true, Match wires the stateful -first counter map
+  bool provide_collections_ = false;            // when true, Match wires the -collect store
+  bool provide_exec_batches_ = false;           // when true, Match wires -exec/-execdir ... + batches
   std::optional<int> fuzzy_score_;              // normalized score composed by the most recent Match
   std::vector<std::string> captures_;           // -regex groups captured during the most recent (gated) Match
   std::map<std::string, std::string> outputs_;  // -capture results from the most recent Match
-  std::vector<std::string> content_files_;      // temp files written by WriteContentFile, removed in TearDown
+  std::map<const parser::Expr*, int> first_counts_;
+  Collections collections_;
+  std::map<const parser::Expr*, std::map<std::string, std::vector<std::string>>> exec_batches_;
+  std::vector<std::string> content_files_;  // temp files written by WriteContentFile, removed in TearDown
 };
 
 TEST_F(EvaluateTest, TrueAndFalse) {
@@ -572,6 +586,9 @@ TEST_F(EvaluateTest, PermMatchesSymbolicModes) {
   EXPECT_FALSE(Match({"-perm", "/a+x"}, visit));     // no execute bits at all
   // A malformed symbolic mode never matches.
   EXPECT_FALSE(Match({"-perm", "u?w"}, visit));
+  EXPECT_THAT(Match({"-perm", "u"}, visit), IsFalse());
+  EXPECT_THAT(Match({"-perm", "u+q"}, visit), IsFalse());
+  EXPECT_THAT(Match({"-perm", "u+w,u-w,go+r"}, visit), IsFalse());
 
   // An omitted "who" behaves as 'a' (all classes): "+r" resolves to 0444, not 0400.
   vfs::Metadata r_md;
@@ -580,6 +597,35 @@ TEST_F(EvaluateTest, PermMatchesSymbolicModes) {
   const Visit r_all{.path = "r", .name = "r", .depth = 1, .metadata = r_md};
   EXPECT_TRUE(Match({"-perm", "+r"}, r_all));    // exact: omitted who == a, so 0444
   EXPECT_FALSE(Match({"-perm", "u+r"}, r_all));  // exact: explicit u+r == 0400, file is 0444
+}
+
+TEST_F(EvaluateTest, OptionalStatefulCapabilitiesAreExplicit) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/file", "file", vfs::FileType::kRegular, md);
+
+  EXPECT_THAT(Match({"-first", "1"}, visit), IsFalse());
+  provide_first_counts_ = true;
+  EXPECT_THAT(Match({"-first", "1"}, visit), IsTrue());
+  EXPECT_THAT(Match({"-first", "1"}, visit), IsFalse());
+
+  EXPECT_THAT(Match({"-collect"}, visit), IsTrue());
+  provide_collections_ = true;
+  EXPECT_THAT(Match({"-collect:kept"}, visit), IsTrue());
+  EXPECT_THAT(collections_.Entries("kept"), SizeIs(1));
+
+  provide_exec_batches_ = true;
+  EXPECT_THAT(Match({"-exec", "echo", "{}", "+"}, visit), IsTrue());
+  EXPECT_THAT(exec_batches_, SizeIs(1));
+  exec_batches_.clear();
+  EXPECT_THAT(Match({"-execdir", "echo", "{}", "+"}, visit), IsTrue());
+  EXPECT_THAT(exec_batches_, SizeIs(1));
+}
+
+TEST_F(EvaluateTest, ResultSetPredicatesWithoutDeferredEvaluationAreFalse) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("dir/file", "file", vfs::FileType::kRegular, md);
+  EXPECT_THAT(Match({"-top", "1"}, visit), IsFalse());
+  EXPECT_THAT(Match({"-shard-status", "complete"}, visit), IsFalse());
 }
 
 TEST_F(EvaluateTest, PermSymbolicSpecialBits) {
