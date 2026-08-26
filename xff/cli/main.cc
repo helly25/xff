@@ -384,16 +384,19 @@ int RunMain(int argc, char** argv) {
   // Scanned from argv like --width, since --help short-circuits before the full parse.
   const bool help_color = xff::color::Enabled(xff::color::ResolveWhen(args), stdout_is_tty, xff::env::Has("NO_COLOR"));
   const xff::cli::HelpRenderContext help_context{.width = *help_width, .color = help_color};
-  // Resolve --pager from argv like the two above. Meta output consumes it below; after the full
-  // parse the listing path also consumes `all` / `always`.
-  const xff::cli::PagerWhen pager_when = xff::cli::ResolvePagerWhen(args);
-
   // Parse once before dispatching help/version. The parser identifies meta flags
   // only at option/expression boundaries, so `-exec echo --help ;` passes
   // `--help` to the child instead of turning the whole xff invocation into help.
   absl::StatusOr<xff::parser::Command> parsed = xff::parser::Parse(args);
   if (!parsed.ok()) {
     std::cerr << "xff: " << parsed.status().message() << "\n";
+    return 2;
+  }
+  // Resolve only the globals the parser identified at option boundaries. In particular, a token
+  // such as `--pager=always` inside an -exec argument run belongs to the child command.
+  const absl::StatusOr<xff::cli::PagerConfig> pager = xff::cli::ResolvePager(parsed->globals);
+  if (!pager.ok()) {
+    std::cerr << "xff: " << pager.status().message() << "\n";
     return 2;
   }
 
@@ -469,14 +472,14 @@ int RunMain(int argc, char** argv) {
       case Meta::kUsage: {
         xff::cli::PlainTextBackend backend(help_context);
         xff::cli::RenderDocument(xff::cli::BuildUsage(), backend);
-        xff::cli::EmitPaged(backend.Take(), pager_when, stdout_is_tty);
+        xff::cli::EmitPaged(backend.Take(), *pager, stdout_is_tty);
         return 0;
       }
       case Meta::kTopic: {
         const absl::StatusOr<std::string> help = RenderTopic(meta_topic, help_context);
         if (help.ok()) {
           const std::string tip = TopicTakesTip(meta_topic) ? HelpTip(help_context) : std::string();
-          xff::cli::EmitPaged(absl::StrCat(*help, tip), pager_when, stdout_is_tty);
+          xff::cli::EmitPaged(absl::StrCat(*help, tip), *pager, stdout_is_tty);
           return 0;
         }
         // RenderTopic's only failure is unknown-topic; point at the list instead of a bare error.
@@ -497,11 +500,11 @@ int RunMain(int argc, char** argv) {
       case Meta::kMan:
         // roff(1); on a tty the man kind formats it (mandoc) so it reads like `man xff`,
         // while a redirect stays raw roff for `mandoc` / `man -l -` / installing as xff.1.
-        xff::cli::EmitPaged(xff::cli::ManPage(), pager_when, stdout_is_tty, xff::cli::PagerKind::kMan);
+        xff::cli::EmitPaged(xff::cli::ManPage(), *pager, stdout_is_tty, xff::cli::PagerKind::kMan);
         return 0;
       case Meta::kMarkdown:
         // GitHub-renderable vocabulary reference
-        xff::cli::EmitPaged(xff::cli::MarkdownReference(), pager_when, stdout_is_tty);
+        xff::cli::EmitPaged(xff::cli::MarkdownReference(), *pager, stdout_is_tty);
         return 0;
       case Meta::kNone: break;  // unreachable; keeps the switch exhaustive
     }
@@ -665,10 +668,10 @@ int RunMain(int argc, char** argv) {
   // outranks match status (exit 2).
   const bool quiet = absl::c_contains(command.globals, "--quiet") || absl::c_contains(command.globals, "-q");
   const bool match_sensitive = quiet || absl::c_contains(command.globals, "--exit-match");
-  // --pager=all pages a terminal listing; --pager=always pages a listing even through a pipe. Both
-  // stream the whole walk through one pager rather than buffering per line. The pager steps aside
-  // when the expression needs the terminal itself (-ok / -exec and friends) or --quiet prints nothing.
-  const xff::cli::PagerStream pager(pager_when, stdout_is_tty, quiet || xff::parser::TakesTerminal(command));
+  // Auto pages a terminal listing; always and an explicit command also page through a pipe. Every
+  // mode streams the whole walk rather than buffering per line, and steps aside for terminal-using
+  // expressions (-ok / -exec and friends) or --quiet.
+  const xff::cli::PagerStream pager_stream(*pager, stdout_is_tty, quiet || xff::parser::TakesTerminal(command));
   const xff::vfs::LocalFs fs;
   const xff::engine::RunResult result = xff::engine::RunFind(
       command, fs,

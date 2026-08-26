@@ -209,10 +209,10 @@ constexpr std::array kSortValues = std::to_array<ValueDoc>({
     {.value = "name", .meaning = "", .hidden = true},  // `dir`'s meaning already names it
 });
 constexpr std::array kPagerValues = std::to_array<ValueDoc>({
-    {.value = "auto", .meaning = "page the help / man / markdown output on a terminal (the default)"},
-    {.value = "always", .meaning = "page every selected output, including the listing, even through a pipe"},
-    {.value = "all", .meaning = "`auto`, plus the file listing (on a terminal)"},
+    {.value = "auto", .meaning = "page every pageable output on a terminal (the default)"},
+    {.value = "always", .meaning = "page every pageable output, even through a pipe"},
     {.value = "never", .meaning = "never page (same as `--no-pager`)"},
+    {.value = "COMMAND", .meaning = "always page through this explicit shell command"},
 });
 constexpr std::array kZoneSuffixValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "each format's built-in default (the default)"},
@@ -1277,25 +1277,24 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--pager",
-        .display = "--pager[=auto|always|all|never]",
+        .display = "--pager[=auto|always|never|COMMAND]",
         .group = "output",
         .header = "Output",
-        .summary = "page output: auto (meta on tty), all (plus tty listings), always (everything), or never",
-        .details = "Pages the long meta output (`--help`, `--help=TOPIC`, `--man`, `--markdown`) through a "
-                   "pager. `auto` pages only when stdout is a terminal; `always` pages every selected output, "
-                   "including a file listing, even through a pipe; "
-                   "`never` (or `--no-pager`) disables it. The pager command is $XFF_PAGER, else $PAGER, else "
-                   "`less -FRX`; set either variable to empty to disable. `all` additionally pages the FILE "
-                   "LISTING: the pager is started once and the whole walk streams into it, so the first screen "
-                   "appears while the walk is still running and quitting it ends the run quietly. `all` stays "
-                   "terminal-only - use the explicit `always` when a listing must be paged through a pipe. "
-                   "Without that explicit request, forcing a pager into a pipeline would "
-                   "feed the pager's screen handling to the next command. It also steps aside for an expression "
+        .summary = "page output: auto (on a tty), always, never, or through an explicit command",
+        .details = "Pages every pageable output: long meta output (`--help`, `--help=TOPIC`, `--man`, "
+                   "`--markdown`) and the file listing, including action rows such as `-ls`. `auto` pages only "
+                   "when stdout is a terminal; `always` also pages through a pipe; `never` (or `--no-pager`) "
+                   "disables it. Automatic command selection prefers an installed `less -FRX`, then `more`, and "
+                   "only then consults `$XFF_PAGER` followed by ambient `$PAGER`. `--pager=COMMAND` always uses "
+                   "COMMAND directly, so "
+                   "`--pager=\"$PAGER\"` is the explicit way to request the process environment's choice. "
+                   "Listings stream through one pager for the whole walk, so the first screen appears while the "
+                   "walk is still running and quitting ends the run quietly. Paging steps aside for an expression "
                    "that needs the terminal itself (`-ok`, `-okdir`, `-exec`, `-execdir`, which can hand the "
                    "terminal to an editor) and for `--quiet`, which prints nothing to page; those runs are "
                    "simply unpaged.",
         .values = kPagerValues,
-        .value_check = GlobalFlag::ValueCheck::kEnum,
+        .value_check = GlobalFlag::ValueCheck::kNone,
     },
     {
         .name = "--no-pager",

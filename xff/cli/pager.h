@@ -22,40 +22,45 @@
 #include <string_view>
 #include <vector>
 
+#include "absl/status/statusor.h"
+
 namespace xff::cli {
 
-// --pager=auto|always|never|all: whether to page the long meta / doc output (--help,
-// --help=TOPIC, --man, --markdown). kAuto (the default) pages only on a terminal;
-// this mirrors --color's tri-state so the two read the same. kAll is kAuto PLUS a
-// terminal file listing; kAlways forces every selected output, including a listing,
-// through the pager even when stdout is otherwise a pipe.
-enum class PagerWhen { kAuto, kAlways, kNever, kAll };
+// --pager=auto|always|never|COMMAND: when to page every pageable output (meta documents and file
+// listings alike). Auto is terminal-gated, always and an explicit COMMAND are not, never disables.
+enum class PagerWhen { kAuto, kAlways, kNever };
+
+struct PagerConfig {
+  PagerWhen when = PagerWhen::kAuto;
+  std::string command;  // empty selects the automatic command
+};
 
 // The kind of meta output being paged, which picks the default pager. kText is the
 // already-terminal-ready surfaces (--help / --markdown / ...). kMan is --man, whose roff
 // SOURCE needs formatting first, so its default runs it through a roff formatter.
 enum class PagerKind { kText, kMan };
 
-// Resolves the --pager=WHEN globals from the raw args (scanned before the parse, like
-// --color / --width): last occurrence wins; bare --pager == =always; --no-pager ==
-// =never; an absent or unrecognised value is kAuto.
-PagerWhen ResolvePagerWhen(const std::vector<std::string>& args);
+// Resolves the pager globals from raw argv (scanned before meta dispatch, like --color / --width).
+// Last occurrence wins; bare --pager == always; any non-reserved value is an explicit command.
+// The removed `all` value is an error rather than an attempted executable.
+absl::StatusOr<PagerConfig> ResolvePager(const std::vector<std::string>& args);
 
-// The pager command line for `kind`. kText: $XFF_PAGER, else $PAGER, else the built-in
-// "less -FRX" (-F quits if it fits one screen, -R keeps our ANSI color, -X leaves short
-// output on the normal screen). kMan: $XFF_MANPAGER, else a built-in that formats the
-// roff with `mandoc` and pages it (honoring $PAGER, else less -FRX); when mandoc is
-// absent the built-in exits non-zero so EmitPaged falls back to the raw roff. An
-// environment variable that is set but empty means "no pager" and yields "".
-std::string ResolvePagerCommand(PagerKind kind = PagerKind::kText);
+// The pager command line for `kind`. kText automatically selects an installed `less -FRX`
+// (-F quits if it fits one screen, -R keeps ANSI color, -X leaves short output visible), then
+// `more`, $XFF_PAGER, $PAGER, and finally `cat`. An explicit command bypasses that selection.
+// kMan: $XFF_MANPAGER wins (and may be a pipeline); otherwise the built-in formats roff with
+// `mandoc` and feeds the result through the same text-pager selection. When mandoc is absent the
+// built-in exits non-zero so EmitPaged falls back to raw roff. An empty $XFF_MANPAGER disables
+// man paging.
+std::string ResolvePagerCommand(PagerKind kind = PagerKind::kText, std::string_view explicit_command = {});
 
-// Writes `text` to stdout, paging it when `when` + `stdout_is_tty` call for a pager
+// Writes `text` to stdout, paging it when `pager` + `stdout_is_tty` call for a pager
 // and a command is available; otherwise straight to std::cout. `kind` selects the
 // default pager (kMan formats roff, see ResolvePagerCommand). Paging runs the command
 // through `sh -c` (so a $PAGER with args or a pipeline works) with `text` on its stdin.
-// A missing TTY, an empty command, or a fork / pipe failure falls back to std::cout so
+// A missing TTY, a disabled pager, or a fork / pipe failure falls back to std::cout so
 // the output is never lost.
-void EmitPaged(std::string_view text, PagerWhen when, bool stdout_is_tty, PagerKind kind = PagerKind::kText);
+void EmitPaged(std::string_view text, const PagerConfig& pager, bool stdout_is_tty, PagerKind kind = PagerKind::kText);
 
 // Pages the FILE LISTING, which unlike the meta surfaces is produced incrementally over a
 // whole walk - so it cannot be buffered into an EmitPaged call. Instead the pager is started
@@ -63,9 +68,8 @@ void EmitPaged(std::string_view text, PagerWhen when, bool stdout_is_tty, PagerK
 // every writer (std::cout, a renderer, a child process xff spawns) lands in the pager without
 // knowing about it, and the first screen appears while the walk is still running.
 //
-// `PagerWhen::kAll` activates only on a terminal; `PagerWhen::kAlways` activates regardless of
-// whether stdout is a terminal. Every other mode, `suppressed`, or no pager command leaves the
-// object INACTIVE and stdout untouched, so the caller needs no branch of its own.
+// Auto activates only on a terminal; always and an explicit command activate regardless. Never,
+// `suppressed`, or no resolved pager command leaves stdout untouched.
 //
 // `suppressed` is the caller's veto for an expression that needs the terminal itself: -ok /
 // -okdir prompt and read a reply, and -exec / -execdir can hand the terminal to a child (an
@@ -76,7 +80,7 @@ void EmitPaged(std::string_view text, PagerWhen when, bool stdout_is_tty, PagerK
 // run quietly instead of printing an I/O error - the same contract EmitPaged has.
 class PagerStream {
  public:
-  PagerStream(PagerWhen when, bool stdout_is_tty, bool suppressed);
+  PagerStream(const PagerConfig& pager, bool stdout_is_tty, bool suppressed);
   ~PagerStream();
 
   // Neither copyable nor movable: it owns a process, a pipe and the process-wide stdout.

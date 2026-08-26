@@ -1221,28 +1221,20 @@ concrete need appears.
 - **Custom histogram bucket edges / counts** (#81): explicit numeric-range boundaries or a target
   bucket count (e.g. `--histogram-buckets=...`) in place of the automatic log / linear ranging.
   Deferred until the auto ranging proves insufficient in practice.
-- **Pager for long help / reference output** (SHIPPED #397): `--pager[=auto|always|never]` mirrors
-  `--color`'s tri-state (bare == always, `--no-pager` == never, default auto = page only on a tty); it
-  pages the long meta surfaces (`--help`, `--help=TOPIC`, `--man`, `--markdown`). The command is
-  `$XFF_PAGER` -> `$PAGER` -> built-in `less -FRX` (`-F` so short help never
-  traps, `-R` keeps the color, `-X` keeps short output on the normal screen); an empty env value
-  disables. Paging runs via `sh -c` (args / pipelines work), with a stdout fallback on any failure.
-  Rejected: a help-scoped `--help-pager` name and a `--help=paged` content topic - paging is an
-  orthogonal behavior, not a content selector.
-  - **The FILE LISTING can be paged too, SHIPPED as `--pager=all` (asked 2026-08-13).** `auto` stays
-    meta-only; `all` adds a terminal listing, while `always` explicitly pages every selected output
-    even through a pipe. It is
-    STREAMED rather than buffered: the pager is started once and this process's stdout is redirected
-    into it for the whole walk, so the first screen appears while the walk is still running and every
-    writer (the renderers, a child process) is paged without knowing about it. Three deliberate
-    edges: `all` is terminal-only so it never injects a pager into a pipeline accidentally, while
-    `always` is the deliberate escape from that safety rule; both step aside for an expression that
-    needs the terminal itself, read from the registry (`Descriptor::terminal` on `-exec` /
-    `-execdir` / `-ok` / `-okdir`) rather than a name list in the CLI, and for `--quiet`; and
-    quitting the pager early ends the run quietly (SIGPIPE ignored, the failing writes swallowed).
-    The spelling was the open part - `--pager=all` reads as "page all of it" and keeps one flag with
-    one axis, against a second `--pager-scope=meta|all` flag that would have split the axes at the
-    cost of a knob.
+- **Pager support (SHIPPED #397, finalized 2026-08-26):** one scope applies uniformly to long meta
+  output and file listings: `auto` pages every pageable surface on a terminal, bare / `always` also
+  pages through a pipe, and `never` / `--no-pager` disables it. The short-lived `all` value was
+  removed because splitting meta and listing scope made `always` surprisingly incomplete.
+  `--pager=COMMAND` is the explicit command escape hatch. Automatic command selection honors the
+  installed `less -FRX` (`-F` lets short output finish, `-R` preserves colour, `-X` leaves it on the
+  normal screen), then `more`, and consults `$XFF_PAGER` and ambient `$PAGER` only if neither known
+  pager exists. Thus harness-injected `PAGER=cat` cannot
+  silently defeat xff's normal automatic paging, while `--pager="$PAGER"` deliberately requests it.
+  Listings stream rather than buffer: one pager receives the whole walk and the first screen appears
+  immediately. Paging steps aside for `--quiet` and terminal-using expressions, read from
+  `Descriptor::terminal` (`-exec` / `-execdir` / `-ok` / `-okdir`); quitting early ends quietly via
+  the SIGPIPE guard. Rejected: a help-only flag or a separate scope flag - paging is one output
+  behavior, not a content selector.
 - **CREATING archives (raised by the user 2026-08-14; task #193): "another killer feature if done
   right."** xff already walks, matches and (with `-Z`) rewrites containers; packing the matched set
   into a NEW archive is the missing direction, and it composes with the whole expression vocabulary -
