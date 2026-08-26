@@ -832,6 +832,8 @@ absl::StatusOr<absl::TimeZone> ResolveTimeZone(const std::vector<std::string>& g
 
 // --block-size=SIZE sets the bytes-per-block for a bare `-size N` and `-size Nb`
 // (find's historical default is 512). Last occurrence wins.
+constexpr std::uint64_t kDefaultFindBlockSizeBytes = 512;
+
 absl::StatusOr<std::uint64_t> ResolveBlockSize(const std::vector<std::string>& globals) {
   constexpr std::string_view kPrefix = "--block-size=";
   std::optional<std::string> spec;
@@ -841,7 +843,7 @@ absl::StatusOr<std::uint64_t> ResolveBlockSize(const std::vector<std::string>& g
     }
   }
   if (!spec.has_value()) {
-    return 512;
+    return kDefaultFindBlockSizeBytes;
   }
   return ParseBlockSize(*spec);
 }
@@ -1299,7 +1301,7 @@ struct DeferredCandidate {
 };
 
 CollectedEntry OwnVisit(const Visit& visit) {
-  return {
+  return CollectedEntry{
       .path = std::string(visit.path),
       .name = std::string(visit.name),
       .root = std::string(visit.root),
@@ -4239,7 +4241,7 @@ RunResult RunFind(
               .defines = defines,
           });
       collect_status != 0) {
-    return {.errors = collect_status, .any_match = any_match};
+    return RunResult{.errors = collect_status, .any_match = any_match};
   }
 
   // --summary: emit one accumulated table per sink -- a row per group (the map is ordered) plus a

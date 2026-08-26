@@ -17,6 +17,9 @@
 
 #include <archive.h>
 
+#include <memory>
+#include <optional>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -26,7 +29,8 @@ namespace {
 using ::testing::ElementsAre;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
-using ::testing::NotNull;
+using ::testing::Optional;
+using ::testing::ResultOf;
 
 int RejectLz4(struct ::archive* handle, const int code) {
   return code == ARCHIVE_FILTER_LZ4 ? ARCHIVE_FATAL : ::archive_read_support_filter_by_code(handle, code);
@@ -43,17 +47,21 @@ TEST_F(ArchiveFiltersTest, AllowlistContainsOnlyStandaloneNativeFilters) {
 }
 
 TEST_F(ArchiveFiltersTest, RegistrationEnablesEveryPromisedFilter) {
-  struct ::archive* const handle = ::archive_read_new();
-  ASSERT_THAT(handle, NotNull());
-  EXPECT_THAT(EnableNativeFilters(*handle), IsTrue());
-  EXPECT_THAT(::archive_read_free(handle), 0);
+  const std::unique_ptr<struct ::archive, decltype(&::archive_read_free)> handle(
+      ::archive_read_new(), ::archive_read_free);
+  const auto enable = [](const auto& reader) -> std::optional<bool> {
+    return reader ? std::optional<bool>{EnableNativeFilters(*reader)} : std::nullopt;
+  };
+  EXPECT_THAT(handle, ResultOf("EnableNativeFilters", enable, Optional(IsTrue())));
 }
 
 TEST_F(ArchiveFiltersTest, RegistrationFailsInsteadOfLeavingAPartialAllowlist) {
-  struct ::archive* const handle = ::archive_read_new();
-  ASSERT_THAT(handle, NotNull());
-  EXPECT_THAT(internal::EnableNativeFiltersWith(*handle, RejectLz4), IsFalse());
-  EXPECT_THAT(::archive_read_free(handle), 0);
+  const std::unique_ptr<struct ::archive, decltype(&::archive_read_free)> handle(
+      ::archive_read_new(), ::archive_read_free);
+  const auto enable_without_lz4 = [](const auto& reader) -> std::optional<bool> {
+    return reader ? std::optional<bool>{internal::EnableNativeFiltersWith(*reader, RejectLz4)} : std::nullopt;
+  };
+  EXPECT_THAT(handle, ResultOf("EnableNativeFiltersWith", enable_without_lz4, Optional(IsFalse())));
 }
 
 }  // namespace
