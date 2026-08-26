@@ -1380,6 +1380,19 @@ TEST_F(RunTest, CaptureUsedByLaterExecIsNotFlagged) {
   EXPECT_THAT(errors, 0);
 }
 
+TEST_F(RunTest, CaptureUsedByNegatedExecIsNotFlagged) {
+  MBO_ASSERT_OK_AND_ASSIGN(
+      const auto command, parser::Parse(
+                              {"--exec-fields", root_.string(), "-name", "a.txt", "-capture:x", "/bin/sh", "-c",
+                               "printf a", ";", "!", "-exec", "/bin/sh", "-c", "test \"{capture.x}\" = b", ";"}));
+  int errors = 0;
+  const auto [code, any_match] =
+      RunFind(command, fs_, [](std::string_view) {}, [&](std::string_view, absl::Status) { ++errors; });
+  EXPECT_THAT(code, 0);
+  EXPECT_THAT(any_match, IsTrue());
+  EXPECT_THAT(errors, 0);
+}
+
 TEST_F(RunTest, ImplicitPrintNoSuppressesDefaultPrint) {
   // No action, so find would print -- --implicit-print=no forces it off.
   MBO_ASSERT_OK_AND_ASSIGN(
