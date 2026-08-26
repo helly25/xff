@@ -1544,7 +1544,7 @@ class IgnoreFileCache {
       std::vector<std::string> filenames,
       bool gitignore_on,
       ignore::PatternList global_excludes)
-      : fs_(&fs),
+      : fs_(fs),
         filenames_(std::move(filenames)),
         gitignore_on_(gitignore_on),
         global_excludes_(std::move(global_excludes)) {}
@@ -1618,7 +1618,7 @@ class IgnoreFileCache {
     Scope scope;
     if (gitignore_on_) {
       scope.abs_root = AbsoluteDir(root);
-      if (const std::optional<std::string> repo_root = repo::FindRepoRoot(*fs_, scope.abs_root)) {
+      if (const std::optional<std::string> repo_root = repo::FindRepoRoot(fs_, scope.abs_root)) {
         scope.base = *repo_root;
         scope.in_repo = true;
       }
@@ -1636,7 +1636,7 @@ class IgnoreFileCache {
     }
     ignore::PatternList list;
     for (const std::string& name : filenames_) {
-      if (const absl::StatusOr<std::string> content = fs_->ReadContent(absl::StrCat(dir, "/", name)); content.ok()) {
+      if (const absl::StatusOr<std::string> content = fs_.ReadContent(absl::StrCat(dir, "/", name)); content.ok()) {
         list.AddPatterns(*content);
       }
     }
@@ -1651,14 +1651,14 @@ class IgnoreFileCache {
       return it->second;
     }
     ignore::PatternList list;
-    if (const absl::StatusOr<std::string> content = fs_->ReadContent(absl::StrCat(repo_root, "/.git/info/exclude"));
+    if (const absl::StatusOr<std::string> content = fs_.ReadContent(absl::StrCat(repo_root, "/.git/info/exclude"));
         content.ok()) {
       list.AddPatterns(*content);
     }
     return repo_exclude_cache_.emplace(repo_root, std::move(list)).first->second;
   }
 
-  const vfs::FileSystem* fs_;
+  const vfs::FileSystem& fs_;
   std::vector<std::string> filenames_;
   bool gitignore_on_;
   ignore::PatternList global_excludes_;  // git core.excludesFile, applied below .git/info/exclude
