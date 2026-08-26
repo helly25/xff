@@ -33,23 +33,23 @@ namespace {
 // Appends `path` to `out` as a JSON string body (without the surrounding
 // quotes), escaping per RFC 8259: quote, backslash, and the control characters
 // U+0000..U+001F (the common ones by name, the rest as \u00XX).
-void AppendJsonEscaped(std::string_view path, std::string* out) {
+void AppendJsonEscaped(std::string_view path, std::string& out) {
   static constexpr std::string_view kHex = "0123456789abcdef";
   for (const char ch : path) {
     const auto byte = static_cast<unsigned char>(ch);
     switch (ch) {
-      case '"': out->append("\\\""); break;
-      case '\\': out->append("\\\\"); break;
-      case '\n': out->append("\\n"); break;
-      case '\r': out->append("\\r"); break;
-      case '\t': out->append("\\t"); break;
+      case '"': out.append("\\\""); break;
+      case '\\': out.append("\\\\"); break;
+      case '\n': out.append("\\n"); break;
+      case '\r': out.append("\\r"); break;
+      case '\t': out.append("\\t"); break;
       default:
         if (byte < 0x20) {
-          out->append("\\u00");
-          out->push_back(kHex[static_cast<unsigned>(byte) >> 4U]);
-          out->push_back(kHex[static_cast<unsigned>(byte) & 0x0FU]);
+          out.append("\\u00");
+          out.push_back(kHex[static_cast<unsigned>(byte) >> 4U]);
+          out.push_back(kHex[static_cast<unsigned>(byte) & 0x0FU]);
         } else {
-          out->push_back(ch);
+          out.push_back(ch);
         }
     }
   }
@@ -59,22 +59,22 @@ void AppendJsonEscaped(std::string_view path, std::string* out) {
 // newline or control byte in a filename cannot corrupt line-oriented output: `\\`,
 // `\n`, `\t`, `\r`, and any other byte < 0x20 or 0x7F (DEL) as `\xNN`. Printable
 // ASCII and high (UTF-8) bytes pass through verbatim.
-void AppendCEscaped(std::string_view path, std::string* out) {
+void AppendCEscaped(std::string_view path, std::string& out) {
   static constexpr std::string_view kHex = "0123456789ABCDEF";
   for (const char ch : path) {
     const auto byte = static_cast<unsigned char>(ch);
     switch (ch) {
-      case '\\': out->append("\\\\"); break;
-      case '\n': out->append("\\n"); break;
-      case '\t': out->append("\\t"); break;
-      case '\r': out->append("\\r"); break;
+      case '\\': out.append("\\\\"); break;
+      case '\n': out.append("\\n"); break;
+      case '\t': out.append("\\t"); break;
+      case '\r': out.append("\\r"); break;
       default:
         if (byte < 0x20 || byte == 0x7F) {
-          out->append("\\x");
-          out->push_back(kHex[static_cast<unsigned>(byte) >> 4U]);
-          out->push_back(kHex[static_cast<unsigned>(byte) & 0x0FU]);
+          out.append("\\x");
+          out.push_back(kHex[static_cast<unsigned>(byte) >> 4U]);
+          out.push_back(kHex[static_cast<unsigned>(byte) & 0x0FU]);
         } else {
-          out->push_back(ch);
+          out.push_back(ch);
         }
     }
   }
@@ -83,31 +83,31 @@ void AppendCEscaped(std::string_view path, std::string* out) {
 // Appends `field` to `out` as one RFC-4180 CSV field: quoted only when it contains a
 // comma, double-quote, CR, or LF, with each interior `"` doubled. A path never holds a
 // NUL or '/'-embedded control that would break this, so no other escaping is needed.
-void AppendCsvField(std::string_view field, std::string* out) {
+void AppendCsvField(std::string_view field, std::string& out) {
   if (field.find_first_of(",\"\r\n") == std::string_view::npos) {
-    out->append(field);
+    out.append(field);
     return;
   }
-  out->push_back('"');
+  out.push_back('"');
   for (const char ch : field) {
     if (ch == '"') {
-      out->push_back('"');  // double the interior quote
+      out.push_back('"');  // double the interior quote
     }
-    out->push_back(ch);
+    out.push_back(ch);
   }
-  out->push_back('"');
+  out.push_back('"');
 }
 
 // Appends `field` to `out` as one TSV field: a TSV field cannot hold a literal tab or
 // newline, so escape tab / newline / CR / backslash as `\t` / `\n` / `\r` / `\\`.
-void AppendTsvField(std::string_view field, std::string* out) {
+void AppendTsvField(std::string_view field, std::string& out) {
   for (const char ch : field) {
     switch (ch) {
-      case '\\': out->append("\\\\"); break;
-      case '\t': out->append("\\t"); break;
-      case '\n': out->append("\\n"); break;
-      case '\r': out->append("\\r"); break;
-      default: out->push_back(ch);
+      case '\\': out.append("\\\\"); break;
+      case '\t': out.append("\\t"); break;
+      case '\n': out.append("\\n"); break;
+      case '\r': out.append("\\r"); break;
+      default: out.push_back(ch);
     }
   }
 }
@@ -140,13 +140,13 @@ std::string Renderer::Record(std::string_view path, std::string_view color) cons
       return absl::StrCat(path, "\n");
     case Format::kCsv: {
       std::string record;
-      AppendCsvField(path, &record);
+      AppendCsvField(path, record);
       record.push_back('\n');
       return record;
     }
     case Format::kJsonl: {
       std::string record = R"({"path":")";
-      AppendJsonEscaped(path, &record);
+      AppendJsonEscaped(path, record);
       record.append("\"}\n");
       return record;
     }
@@ -158,7 +158,7 @@ std::string Renderer::Record(std::string_view path, std::string_view color) cons
     case Format::kPlain: {
       std::string body;  // the path bytes (raw or C-escaped), before color + newline
       if (encoding_ == PathEncoding::kEscape) {
-        AppendCEscaped(path, &body);
+        AppendCEscaped(path, body);
       } else {
         body = std::string(path);
       }
@@ -169,7 +169,7 @@ std::string Renderer::Record(std::string_view path, std::string_view color) cons
     }
     case Format::kTsv: {
       std::string record;
-      AppendTsvField(path, &record);
+      AppendTsvField(path, record);
       record.push_back('\n');
       return record;
     }
@@ -189,9 +189,9 @@ std::string EncodeTabularRow(Format format, const std::vector<std::string>& cell
         }
         first = false;
         if (format == Format::kTsv) {
-          AppendTsvField(cell, &out);
+          AppendTsvField(cell, out);
         } else {
-          AppendCsvField(cell, &out);
+          AppendCsvField(cell, out);
         }
       }
       out.push_back('\n');
@@ -211,13 +211,13 @@ std::string Renderer::Header() const {
   switch (format_) {
     case Format::kCsv: {
       std::string header;
-      AppendCsvField("path", &header);  // slice 1: the single default column
+      AppendCsvField("path", header);  // slice 1: the single default column
       header.push_back('\n');
       return header;
     }
     case Format::kTsv: {
       std::string header;
-      AppendTsvField("path", &header);
+      AppendTsvField("path", header);
       header.push_back('\n');
       return header;
     }
@@ -387,7 +387,7 @@ void Tree::Add(std::string_view path) {
 
 // Deliberate recursion: the tree renderer descends into each node's children by design.
 // NOLINTNEXTLINE(misc-no-recursion)
-void Tree::RenderChildren(const Node& node, std::string_view prefix, std::string* out) const {
+void Tree::RenderChildren(const Node& node, std::string_view prefix, std::string& out) const {
   // Box-drawing connectors when unicode_: tee (U+251C), elbow (U+2514), and vertical (U+2502)
   // with horizontals (U+2500), as literal UTF-8; else the ASCII forms.
   const std::string_view tee = unicode_ ? "├── " : "|-- ";
@@ -398,10 +398,10 @@ void Tree::RenderChildren(const Node& node, std::string_view prefix, std::string
   const std::size_t count = node.children.size();
   for (const auto& [name, child] : node.children) {
     const bool last = ++index == count;
-    out->append(prefix);
-    out->append(last ? elbow : tee);
-    out->append(name);
-    out->push_back('\n');
+    out.append(prefix);
+    out.append(last ? elbow : tee);
+    out.append(name);
+    out.push_back('\n');
     RenderChildren(*child, absl::StrCat(prefix, last ? kGap : vertical), out);
   }
 }
@@ -412,7 +412,7 @@ std::string Tree::Render() const {
   for (const auto& [name, child] : root_.children) {
     out.append(name);
     out.push_back('\n');
-    RenderChildren(*child, "", &out);
+    RenderChildren(*child, "", out);
   }
   return out;
 }

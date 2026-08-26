@@ -622,15 +622,19 @@ HistValue HistMeasureValue(HistAgg agg, const HistCell& cell, unsigned precision
   return integer(cell.count);
 }
 
-// Applies one --context SPEC onto (before, after): a bare non-negative integer sets both sides,
-// else comma-separated A:N / B:N / C:N tokens set after / before / both (last value per side wins).
-// A malformed token or count is an InvalidArgument.
-absl::Status ApplyContextSpec(std::string_view spec, std::size_t& before, std::size_t& after) {
+// Parses one --context SPEC: a bare non-negative integer sets both sides, else comma-separated
+// A:N / B:N / C:N tokens set after / before / both (last value per side wins). A side absent from
+// the result was not mentioned and therefore does not override an earlier global.
+struct ContextSides {
+  std::optional<std::size_t> before;
+  std::optional<std::size_t> after;
+};
+
+absl::StatusOr<ContextSides> ParseContextSpec(std::string_view spec) {
   if (std::size_t both = 0; absl::SimpleAtoi(spec, &both)) {
-    before = both;
-    after = both;
-    return absl::OkStatus();
+    return ContextSides{.before = both, .after = both};
   }
+  ContextSides result;
   for (const std::string_view token : absl::StrSplit(spec, ',', absl::SkipEmpty())) {
     const std::size_t colon = token.find(':');
     std::size_t value = 0;
@@ -639,57 +643,55 @@ absl::Status ApplyContextSpec(std::string_view spec, std::size_t& before, std::s
     }
     const std::string_view side = token.substr(0, colon);
     if (side == "A" || side == "a") {
-      after = value;
+      result.after = value;
     } else if (side == "B" || side == "b") {
-      before = value;
+      result.before = value;
     } else if (side == "C" || side == "c") {
-      before = value;
-      after = value;
+      result.before = value;
+      result.after = value;
     } else {
       return absl::InvalidArgumentError(absl::StrCat("bad --context side '", side, "' (use A, B, or C)"));
     }
   }
-  return absl::OkStatus();
+  return result;
 }
 
 // --context=SPEC / --before-context=N / --after-context=N (grep -C/-B/-A): the lines of context
-// -grep prints before/after each match. Processed in order, last value per side wins; fills
-// (before, after) and sets `any_context` when at least one of the three flags appeared (so a
-// caller can tell a deliberate `--context=0` from "no context flag"). A malformed value is an
-// InvalidArgument (a usage error before the walk).
-absl::Status ResolveGrepContext(
-    const std::vector<std::string>& globals,
-    std::size_t& before,
-    std::size_t& after,
-    bool& any_context) {
+// -grep prints before/after each match. Processed in order, last value per side wins; `specified`
+// distinguishes a deliberate `--context=0` from no context flag. A malformed value is a usage error.
+struct GrepContext {
+  std::size_t before = 0;
+  std::size_t after = 0;
+  bool specified = false;
+};
+
+absl::StatusOr<GrepContext> ResolveGrepContext(const std::vector<std::string>& globals) {
   constexpr std::string_view kContext = "--context=";
   constexpr std::string_view kBefore = "--before-context=";
   constexpr std::string_view kAfter = "--after-context=";
-  before = 0;
-  after = 0;
-  any_context = false;
+  GrepContext result;
   for (const std::string& global : globals) {
     if (global.starts_with(kContext)) {
-      any_context = true;
-      if (const absl::Status status = ApplyContextSpec(std::string_view(global).substr(kContext.size()), before, after);
-          !status.ok()) {
-        return status;
-      }
+      result.specified = true;
+      MBO_ASSIGN_OR_RETURN(
+          const ContextSides sides, ParseContextSpec(std::string_view(global).substr(kContext.size())));
+      result.before = sides.before.value_or(result.before);
+      result.after = sides.after.value_or(result.after);
     } else if (global.starts_with(kBefore)) {
-      any_context = true;
+      result.specified = true;
       if (const std::string_view value = std::string_view(global).substr(kBefore.size());
-          !absl::SimpleAtoi(value, &before)) {
+          !absl::SimpleAtoi(value, &result.before)) {
         return absl::InvalidArgumentError(absl::StrCat("bad --before-context value '", value, "'"));
       }
     } else if (global.starts_with(kAfter)) {
-      any_context = true;
+      result.specified = true;
       if (const std::string_view value = std::string_view(global).substr(kAfter.size());
-          !absl::SimpleAtoi(value, &after)) {
+          !absl::SimpleAtoi(value, &result.after)) {
         return absl::InvalidArgumentError(absl::StrCat("bad --after-context value '", value, "'"));
       }
     }
   }
-  return absl::OkStatus();
+  return result;
 }
 
 // xff's modern output selector (leading globals, last wins, default plain):
@@ -1289,9 +1291,9 @@ struct DeferredCandidate {
   CollectedEntry entry;
   std::vector<std::string> captures;
   std::map<std::string, std::string> outputs;
-  std::map<const parser::Expr*, EvaluationResult> memo;
-  std::map<const parser::Expr*, bool> decisions;
-  const parser::Expr* waiting_at = nullptr;
+  EvaluationMemo memo;
+  DeferredDecisions decisions;
+  ExprIdentity waiting_at;
   int score = 0;
   std::size_t order = 0;
 };
@@ -1308,10 +1310,10 @@ CollectedEntry OwnVisit(const Visit& visit) {
   };
 }
 
-void AppendDeferredNodes(const parser::Expr& expr, std::vector<const parser::Expr*>& nodes) {
+void AppendDeferredNodes(const parser::Expr& expr, std::vector<ExprIdentity>& nodes) {
   if (expr.kind == parser::Expr::Kind::kPredicate) {
     if (expr.descriptor->name == "-top" || expr.descriptor->name == "-shard-status") {
-      nodes.push_back(&expr);
+      nodes.emplace_back(expr);
     }
     return;
   }
@@ -1391,7 +1393,7 @@ void SelectShardPath(
     absl::Span<DeferredCandidate* const> entries,
     const CandidatesByName& by_name) {
   for (const std::size_t index : by_name.at(path)) {
-    entries[index]->decisions[&node] = true;
+    entries[index]->decisions[ExprIdentity{node}] = true;
   }
 }
 
@@ -1424,7 +1426,7 @@ int ResolveShardStatusRound(
     const SchemeAllowed& scheme_allowed,
     bool report_dedup_errors) {
   for (DeferredCandidate* candidate : entries) {
-    candidate->decisions[&node] = false;
+    candidate->decisions[ExprIdentity{node}] = false;
   }
   int errors = 0;
   for (const auto& [directory, indexes] : IndexCandidatesByDirectory(entries)) {
@@ -1443,13 +1445,15 @@ int ResolveShardStatusRound(
 template<typename SchemeAllowed>
 int ResolveDeferredRound(
     std::vector<DeferredCandidate>& candidates,
-    const std::map<const parser::Expr*, std::size_t>& node_order,
+    const std::map<ExprIdentity, std::size_t>& node_order,
     const shard::Matcher& shard_matcher,
     shard::Dedup shard_dedup,
     const SchemeAllowed& scheme_allowed,
     bool report_dedup_errors) {
-  const parser::Expr* next_node = nullptr;
-  std::size_t next_order = std::numeric_limits<std::size_t>::max();
+  // The caller enters only with a non-empty deferred frontier, and every candidate carries the
+  // required node at which evaluation stopped.
+  ExprIdentity next_node = candidates.front().waiting_at;
+  std::size_t next_order = node_order.at(next_node);
   for (const DeferredCandidate& candidate : candidates) {
     const std::size_t order = node_order.at(candidate.waiting_at);
     if (order < next_order) {
@@ -1459,18 +1463,17 @@ int ResolveDeferredRound(
   }
   std::vector<DeferredCandidate*> entries;
   for (DeferredCandidate& candidate : candidates) {
-    if (candidate.waiting_at == next_node) {
+    if (next_node == candidate.waiting_at) {
       entries.push_back(&candidate);
     }
   }
-  if (next_node != nullptr && next_node->descriptor->name == "-shard-status") {
+  if (next_node.Get().descriptor->name == "-shard-status") {
     return ResolveShardStatusRound(
-        *next_node, entries, shard_matcher, shard_dedup, scheme_allowed, report_dedup_errors);
+        next_node.Get(), entries, shard_matcher, shard_dedup, scheme_allowed, report_dedup_errors);
   }
   int limit = 0;
-  if (next_node == nullptr || next_node->args.empty() || !absl::SimpleAtoi(next_node->args.front(), &limit)) {
-    return 0;  // validated before the walk
-  }
+  // `-top` arity and its positive integer argument were validated before traversal.
+  static_cast<void>(absl::SimpleAtoi(next_node.Get().args.front(), &limit));
   absl::c_stable_sort(
       entries, [](const DeferredCandidate* lhs, const DeferredCandidate* rhs) { return lhs->score > rhs->score; });
   for (std::size_t index = 0; index < entries.size(); ++index) {
@@ -1544,7 +1547,7 @@ class IgnoreFileCache {
       std::vector<std::string> filenames,
       bool gitignore_on,
       ignore::PatternList global_excludes)
-      : fs_(&fs),
+      : fs_(fs),
         filenames_(std::move(filenames)),
         gitignore_on_(gitignore_on),
         global_excludes_(std::move(global_excludes)) {}
@@ -1618,7 +1621,7 @@ class IgnoreFileCache {
     Scope scope;
     if (gitignore_on_) {
       scope.abs_root = AbsoluteDir(root);
-      if (const std::optional<std::string> repo_root = repo::FindRepoRoot(*fs_, scope.abs_root)) {
+      if (const std::optional<std::string> repo_root = repo::FindRepoRoot(fs_, scope.abs_root)) {
         scope.base = *repo_root;
         scope.in_repo = true;
       }
@@ -1636,7 +1639,7 @@ class IgnoreFileCache {
     }
     ignore::PatternList list;
     for (const std::string& name : filenames_) {
-      if (const absl::StatusOr<std::string> content = fs_->ReadContent(absl::StrCat(dir, "/", name)); content.ok()) {
+      if (const absl::StatusOr<std::string> content = fs_.ReadContent(absl::StrCat(dir, "/", name)); content.ok()) {
         list.AddPatterns(*content);
       }
     }
@@ -1651,14 +1654,14 @@ class IgnoreFileCache {
       return it->second;
     }
     ignore::PatternList list;
-    if (const absl::StatusOr<std::string> content = fs_->ReadContent(absl::StrCat(repo_root, "/.git/info/exclude"));
+    if (const absl::StatusOr<std::string> content = fs_.ReadContent(absl::StrCat(repo_root, "/.git/info/exclude"));
         content.ok()) {
       list.AddPatterns(*content);
     }
     return repo_exclude_cache_.emplace(repo_root, std::move(list)).first->second;
   }
 
-  const vfs::FileSystem* fs_;
+  const vfs::FileSystem& fs_;
   std::vector<std::string> filenames_;
   bool gitignore_on_;
   ignore::PatternList global_excludes_;  // git core.excludesFile, applied below .git/info/exclude
@@ -2036,19 +2039,24 @@ absl::StatusOr<ArchiveAggregate> ResolveArchiveAggregate(const std::vector<std::
   return result;
 }
 
-// The whole `--archive` family, resolved into the walk options: how far to dive, and the member-path
-// spelling a mounted container renders with (returned, because only the mounter needs it).
+// The whole `--archive` family: how far/deep to dive and how a mounted container renders member paths.
 //
 // Diving needs the archive extra, which a lean build does not link, so an EXPLICIT request there is
 // an error rather than a silent no-op - "xff cannot see into this archive" is exactly the wrong
 // impression to leave. A STYLE default (`roots` for the xff family) must never break an ordinary
 // run, so it degrades quietly to walking archives as the plain files they are.
 //
-// The returned views point into `globals`, which outlives the walk.
-absl::StatusOr<archive::MemberPathOptions> ResolveArchiveOptions(
+// The returned member-path views point into `globals`, which outlives the walk.
+struct ResolvedArchiveOptions {
+  ArchiveDive archive_dive = ArchiveDive::kNone;
+  int archive_depth = 1;
+  archive::MemberPathOptions member_paths;
+};
+
+absl::StatusOr<ResolvedArchiveOptions> ResolveArchiveOptions(
     const std::vector<std::string>& globals,
-    std::optional<registry::Style> style,
-    WalkOptions* options) {
+    std::optional<registry::Style> style) {
+  ResolvedArchiveOptions result;
   const ArchiveMode archive_mode = ResolveArchiveMode(globals, style);
   if (archive_mode != ArchiveMode::kNone && !archive::ContainerSupportAvailable()) {
     if (HasArchiveFlag(globals)) {
@@ -2058,7 +2066,7 @@ absl::StatusOr<archive::MemberPathOptions> ResolveArchiveOptions(
               "') is not built into this binary; use --archive=none / -z- to walk archives as plain files"));
     }
   } else {
-    options->archive = ArchiveDiveOf(archive_mode);
+    result.archive_dive = ArchiveDiveOf(archive_mode);
   }
   // --archive-depth=N: how many containers deep diving goes (see WalkOptions::archive_depth). A bad
   // or zero value is a usage error rather than a silent clamp - "0" most likely means "off", which
@@ -2074,9 +2082,10 @@ absl::StatusOr<archive::MemberPathOptions> ResolveArchiveOptions(
       return absl::InvalidArgumentError(
           absl::StrCat("bad --archive-depth value '", value, "': expected a whole number of 1 or more"));
     }
-    options->archive_depth = parsed;
+    result.archive_depth = parsed;
   }
-  return ReadMemberPathOptions(globals);
+  result.member_paths = ReadMemberPathOptions(globals);
+  return result;
 }
 
 // The walk's whole view of archives: hand it a container path and the filesystem that container was
@@ -2305,16 +2314,16 @@ std::map<std::string, std::string> ResolveDefines(const std::vector<std::string>
   return defines;
 }
 
-// Collects the NAME of every -capture action in the expression (its args[0]).
-void CollectCaptureNames(const parser::Expr& expr, std::vector<std::string>* names) {
+// Appends the NAME of every -capture action in the expression (its args[0]).
+void AppendCaptureNames(const parser::Expr& expr, std::vector<std::string>& names) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate:
       // A node with `!` (label_override) is ALLOWED to re-bind, so it is not reported as a duplicate.
       if (expr.descriptor->name == "-capture" && !expr.args.empty() && !expr.label_override) {
-        names->push_back(expr.args.front());
+        names.push_back(expr.args.front());
       }
       break;
-    case parser::Expr::Kind::kNot: CollectCaptureNames(*expr.lhs, names); break;
+    case parser::Expr::Kind::kNot: AppendCaptureNames(*expr.lhs, names); break;
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
     case parser::Expr::Kind::kNand:
@@ -2322,16 +2331,21 @@ void CollectCaptureNames(const parser::Expr& expr, std::vector<std::string>* nam
     case parser::Expr::Kind::kXor:
     case parser::Expr::Kind::kXnor:
     case parser::Expr::Kind::kComma:
-      CollectCaptureNames(*expr.lhs, names);
-      CollectCaptureNames(*expr.rhs, names);
+      AppendCaptureNames(*expr.lhs, names);
+      AppendCaptureNames(*expr.rhs, names);
       break;
   }
 }
 
+std::vector<std::string> CollectCaptureNames(const parser::Expr& expr) {
+  std::vector<std::string> names;
+  AppendCaptureNames(expr, names);
+  return names;
+}
+
 // Returns a -capture NAME bound more than once, or nullopt when all are unique.
 std::optional<std::string> DuplicateCaptureName(const parser::Expr& expr) {
-  std::vector<std::string> names;
-  CollectCaptureNames(expr, &names);
+  std::vector<std::string> names = CollectCaptureNames(expr);
   absl::c_sort(names);
   const auto dup = absl::c_adjacent_find(names);
   return dup == names.end() ? std::nullopt : std::optional<std::string>(*dup);
@@ -2380,19 +2394,19 @@ bool ReportDuplicateBindingName(const parser::Expr& expr, WalkErrorFn on_error) 
   return false;
 }
 
-// Collects strings that may reference {capture.NAME}: the command tokens of every
+// Appends strings that may reference {capture.NAME}: the command tokens of every
 // -exec and -capture action (a later command can use an earlier capture). The
 // --template global is added by the caller.
-void CollectCaptureRefs(const parser::Expr& expr, std::vector<std::string>* refs) {
+void AppendCaptureRefs(const parser::Expr& expr, std::vector<std::string>& refs) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate:
       if (expr.descriptor->name == "-exec") {
-        refs->insert(refs->end(), expr.args.begin(), expr.args.end());
+        refs.insert(refs.end(), expr.args.begin(), expr.args.end());
       } else if (expr.descriptor->name == "-capture" && expr.args.size() > 2) {
-        refs->insert(refs->end(), expr.args.begin() + 2, expr.args.end());  // skip [NAME, REGEX]
+        refs.insert(refs.end(), expr.args.begin() + 2, expr.args.end());  // skip [NAME, REGEX]
       }
       break;
-    case parser::Expr::Kind::kNot: CollectCaptureRefs(*expr.lhs, refs); break;
+    case parser::Expr::Kind::kNot: AppendCaptureRefs(*expr.lhs, refs); break;
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
     case parser::Expr::Kind::kNand:
@@ -2400,10 +2414,16 @@ void CollectCaptureRefs(const parser::Expr& expr, std::vector<std::string>* refs
     case parser::Expr::Kind::kXor:
     case parser::Expr::Kind::kXnor:
     case parser::Expr::Kind::kComma:
-      CollectCaptureRefs(*expr.lhs, refs);
-      CollectCaptureRefs(*expr.rhs, refs);
+      AppendCaptureRefs(*expr.lhs, refs);
+      AppendCaptureRefs(*expr.rhs, refs);
       break;
   }
+}
+
+std::vector<std::string> CollectCaptureRefs(const parser::Expr& expr) {
+  std::vector<std::string> refs;
+  AppendCaptureRefs(expr, refs);
+  return refs;
 }
 
 // The first argument anywhere in `expr` that compiles to a field template carrying an UNREDUCED m//
@@ -2445,13 +2465,11 @@ std::optional<std::string> UnusedCaptureName(
     const parser::Expr& expr,
     const std::optional<std::string>& tmpl,
     std::string_view summary_key) {
-  std::vector<std::string> names;
-  CollectCaptureNames(expr, &names);
+  const std::vector<std::string> names = CollectCaptureNames(expr);
   if (names.empty()) {
     return std::nullopt;
   }
-  std::vector<std::string> refs;
-  CollectCaptureRefs(expr, &refs);
+  std::vector<std::string> refs = CollectCaptureRefs(expr);
   if (tmpl.has_value()) {
     refs.push_back(*tmpl);
   }
@@ -3183,14 +3201,14 @@ RunResult RunFind(
   const bool grep_count = HasGlobal(command.globals, "--count") || HasGlobal(command.globals, "-c");
   // --context / --before-context / --after-context (grep -C/-B/-A): -grep context lines. Validated
   // here so a bad value is a usage error (exit 2) before the walk.
-  std::size_t grep_before = 0;
-  std::size_t grep_after = 0;
-  bool context_seen = false;
-  if (const absl::Status status = ResolveGrepContext(command.globals, grep_before, grep_after, context_seen);
-      !status.ok()) {
-    on_error("--context", status);
+  const absl::StatusOr<GrepContext> grep_context_result = ResolveGrepContext(command.globals);
+  if (!grep_context_result.ok()) {
+    on_error("--context", grep_context_result.status());
     return RunResult{.errors = 2};
   }
+  const GrepContext grep_context = *grep_context_result;
+  const std::size_t grep_before = grep_context.before;
+  const std::size_t grep_after = grep_context.after;
   // --diff-algorithm=naive|direct|myers: the engine -diff uses (mbo::diff). Last occurrence
   // wins; empty -> myers (the default). Validated here so a bad value is a usage error (exit 2)
   // before the walk rather than a silent fallback.
@@ -3253,7 +3271,7 @@ RunResult RunFind(
   // --context feeds diff only when before==after (a single symmetric value a diff can represent);
   // --diff-context overrides --context regardless of order; a per-action -diff:uN overrides both.
   std::size_t diff_context = 3;
-  if (context_seen && grep_before == grep_after) {
+  if (grep_context.specified && grep_before == grep_after) {
     diff_context = grep_before;
   }
   for (const std::string& global : command.globals) {
@@ -3268,14 +3286,15 @@ RunResult RunFind(
       }
     }
   }
-  // The whole --archive surface, resolved into `options` in one place (see ResolveArchiveOptions).
-  const absl::StatusOr<archive::MemberPathOptions> member_paths =
-      ResolveArchiveOptions(command.globals, style, &options);
-  if (!member_paths.ok()) {
-    on_error("--archive", member_paths.status());
+  // The whole --archive surface, resolved as one value before the walk consumes it.
+  const absl::StatusOr<ResolvedArchiveOptions> archive_options = ResolveArchiveOptions(command.globals, style);
+  if (!archive_options.ok()) {
+    on_error("--archive", archive_options.status());
     return RunResult{.errors = 2};
   }
-  const archive::MemberPathOptions member_path_options = *member_paths;
+  options.archive = archive_options->archive_dive;
+  options.archive_depth = archive_options->archive_depth;
+  const archive::MemberPathOptions member_path_options = archive_options->member_paths;
   // --archive-any: offer every file to the reader instead of only those whose name looks like a
   // container. Expensive by design (every file is opened and format-bid), so it is opt-in.
   // `--archive=any` / `-z++` / `-Z++` is the top rung: dive like `all` AND drop the name gate.
@@ -3479,7 +3498,7 @@ RunResult RunFind(
   // Run-scoped rather than per-entry so the phases can share it; cleared before each evaluation.
   std::optional<int> fuzzy_score;
   // -first N budgets, one per instance, for the whole run (see EvalContext::first_counts).
-  std::map<const parser::Expr*, int> first_counts;
+  FirstCounts first_counts;
   // -collect[:NAME]: the entries held back for the post-walk reduction. `collect_names` is read from
   // the AST (presence is SYNTACTIC, like find's implicit -print: a -collect in a branch that never
   // runs still switches the summary's source, and the summary is then legitimately empty).
@@ -3577,7 +3596,7 @@ RunResult RunFind(
   // walk and run at the end. Outer key the Expr node; inner key the directory ("" =
   // -exec's single global batch, the entry's dir = -execdir's per-dir batches). The
   // visitor is single-threaded, so no synchronisation is needed.
-  std::map<const parser::Expr*, std::map<std::string, std::vector<std::string>>> exec_batches;
+  ExecBatches exec_batches;
 
   // -j>1: `-exec/-execdir ... ;` children run concurrently on this bounded runner,
   // capped at the same worker count as the walk (docs/design-parallel.md's single
@@ -3768,11 +3787,11 @@ RunResult RunFind(
 
   std::vector<DeferredCandidate> deferred_candidates;
   std::size_t deferred_order = 0;
-  std::vector<const parser::Expr*> deferred_nodes;
+  std::vector<ExprIdentity> deferred_nodes;
   if (expression.has_value()) {
     AppendDeferredNodes(*expression, deferred_nodes);
   }
-  std::map<const parser::Expr*, std::size_t> deferred_node_order;
+  std::map<ExprIdentity, std::size_t> deferred_node_order;
   for (std::size_t index = 0; index < deferred_nodes.size(); ++index) {
     deferred_node_order.emplace(deferred_nodes[index], index);
   }
@@ -3899,7 +3918,7 @@ RunResult RunFind(
                .outputs = std::move(outputs),
                .memo = std::move(evaluation_memo),
                .decisions = {},
-               .waiting_at = evaluated.waiting_at.has_value() ? &*evaluated.waiting_at : nullptr,
+               .waiting_at = evaluated.waiting_at.value(),
                .score = evaluated.fuzzy.value_or(0),
                .order = deferred_order++});
         } else {
@@ -4007,7 +4026,7 @@ RunResult RunFind(
       };
       const EvaluationResult evaluated = EvaluateDeferred(*expression, eval_context);
       if (evaluated.deferred) {
-        candidate.waiting_at = evaluated.waiting_at.has_value() ? &*evaluated.waiting_at : nullptr;
+        candidate.waiting_at = evaluated.waiting_at.value();
         candidate.score = evaluated.fuzzy.value_or(0);
         next_round.push_back(std::move(candidate));
       } else {
@@ -4066,12 +4085,13 @@ RunResult RunFind(
   // -execdir once per directory bucket (cwd = that dir). A nonzero exit is a
   // per-command error, as for `;`.
   for (const auto& [node, by_dir] : exec_batches) {
-    const bool execdir = node->descriptor->name == "-execdir";
+    const parser::Expr& expr = node.Get();
+    const bool execdir = expr.descriptor->name == "-execdir";
     for (const auto& [dir, items] : by_dir) {
-      const bool ok = execdir ? exec::ExecuteBatchInDir(node->args, items, dir) : exec::ExecuteBatch(node->args, items);
+      const bool ok = execdir ? exec::ExecuteBatchInDir(expr.args, items, dir) : exec::ExecuteBatch(expr.args, items);
       if (!ok) {
         ++errors;
-        on_error(node->descriptor->name, absl::UnknownError("batched command exited non-zero"));
+        on_error(expr.descriptor->name, absl::UnknownError("batched command exited non-zero"));
       }
     }
   }

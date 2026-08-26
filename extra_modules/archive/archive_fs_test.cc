@@ -99,12 +99,11 @@ std::string WriteFixtureTar() {
 }
 
 struct ArchiveFsTest : ::testing::Test {
-  // Built once for the whole suite (WriteFixtureTar touches the disk), without the raw new/delete
-  // pair the old SetUpTestSuite/TearDownTestSuite used: a function-local static does the same thing
-  // and owns itself.
+  // Built once for the whole suite (WriteFixtureTar touches the disk); the function-local static
+  // owns the path for the rest of the process without a leaked allocation.
   static const std::string& Tar() {
-    static const std::string* const tar = new std::string(WriteFixtureTar());
-    return *tar;
+    static const std::string tar = WriteFixtureTar();
+    return tar;
   }
 
   // Every test opens its own filesystem: Open() indexes eagerly, so this is cheap and keeps the
