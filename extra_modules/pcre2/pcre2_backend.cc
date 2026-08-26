@@ -115,9 +115,6 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
 
   std::optional<std::pair<std::size_t, std::size_t>> FindFirst(std::string_view text) const override {
     const MatchDataPtr data{pcre2_match_data_create(1, nullptr)};  // one pair: the whole match
-    if (data == nullptr) {
-      return std::nullopt;
-    }
     const int rc = pcre2_match(code_.get(), Sptr(text), text.size(), 0, 0, data.get(), match_context_.get());
     std::optional<std::pair<std::size_t, std::size_t>> result;
     if (rc >= 0) {
@@ -131,9 +128,6 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
 
   std::optional<std::vector<std::string>> FullMatchCaptures(std::string_view text) const override {
     const MatchDataPtr data{pcre2_match_data_create_from_pattern(code_.get(), nullptr)};
-    if (data == nullptr) {
-      return std::nullopt;
-    }
     const int rc = pcre2_match(
         code_.get(), Sptr(text), text.size(), 0, PCRE2_ANCHORED | PCRE2_ENDANCHORED, data.get(), match_context_.get());
     std::optional<std::vector<std::string>> result;
@@ -160,9 +154,6 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
     const std::uint32_t options =
         PCRE2_SUBSTITUTE_OVERFLOW_LENGTH | (global ? PCRE2_SUBSTITUTE_GLOBAL : std::uint32_t{0});
     const MatchDataPtr data{pcre2_match_data_create_from_pattern(code_.get(), nullptr)};
-    if (data == nullptr) {
-      return std::string(text);
-    }
     // The output buffer is OURS, so it is declared in PCRE2's own element type and converted to a
     // std::string once at the end, which removes the char/uchar cast the std::string form needed.
     std::vector<PCRE2_UCHAR> out(text.size() + 16);  // initial guess; grown once on overflow
@@ -189,9 +180,6 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
 
   bool Matches(std::string_view text, std::uint32_t options) const {
     const MatchDataPtr data{pcre2_match_data_create(1, nullptr)};
-    if (data == nullptr) {
-      return false;
-    }
     const int rc = pcre2_match(code_.get(), Sptr(text), text.size(), 0, options, data.get(), match_context_.get());
     return rc >= 0;
   }
@@ -236,9 +224,6 @@ absl::StatusOr<std::unique_ptr<const xff::regex::RegexBackend>> CompilePcre2(
     return absl::InvalidArgumentError(absl::StrCat("invalid PCRE2 pattern at offset ", error_offset, ": ", message));
   }
   MatchContextPtr match_context{pcre2_match_context_create(nullptr)};
-  if (match_context == nullptr) {
-    return absl::ResourceExhaustedError("cannot allocate PCRE2 match context");
-  }
   pcre2_set_match_limit(match_context.get(), kMatchLimit);
   pcre2_set_depth_limit(match_context.get(), kDepthLimit);
   std::uint32_t capture_count = 0;
