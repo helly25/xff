@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "absl/container/btree_map.h"
+#include "mbo/types/optional_ref.h"
 #include "xff/engine/walk.h"
 #include "xff/parser/ast.h"
 #include "xff/vfs/filesystem.h"
@@ -46,7 +47,7 @@ struct CollectedEntry {
   std::string root;
   int depth = 0;
   vfs::Metadata metadata;
-  const vfs::FileSystem* fs = nullptr;
+  mbo::types::OptionalRef<const vfs::FileSystem> fs;
   std::shared_ptr<const vfs::FileSystem> fs_owner;
 
   // A Visit borrowing THIS entry's storage, for handing to the same sink functions the walk feeds.
