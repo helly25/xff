@@ -35,6 +35,7 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/types/span.h"
 #include "mbo/status/status_macros.h"
+#include "mbo/types/optional_ref.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/filesystem.h"
 
@@ -143,7 +144,7 @@ class Walker {
       const WalkOptions& options,
       Visitor visit,
       WalkErrorFn on_error,
-      const ContainerMounter* mount_container)
+      mbo::types::OptionalRef<const ContainerMounter> mount_container)
       : fs_(fs),
         options_(options),
         visit_(visit),
@@ -155,7 +156,7 @@ class Walker {
   // Whether `stated` is a FILE this walk should try to open as a container. `kRoots` offers only the
   // paths named on the command line (depth 0), `kAll` offers every file met; `kNone` never asks.
   bool ShouldTryMount(const Stated& stated, int depth) const {
-    if (mount_container_ == nullptr || options_.archive == ArchiveDive::kNone) {
+    if (!mount_container_.has_value() || options_.archive == ArchiveDive::kNone) {
       return false;
     }
     if (container_depth_ >= options_.archive_depth) {
@@ -254,7 +255,7 @@ class Walker {
       const Stated stated = StatNode(root, follow);
       root_dev_ = stated.ok ? stated.metadata.dev : 0;
       current_root_ = root;
-      VisitSubtree(stated, /*depth=*/0, /*prefetched=*/nullptr);
+      VisitSubtree(stated, /*depth=*/0, /*prefetched=*/{});
     }
   }
 
@@ -319,7 +320,7 @@ class Walker {
         .depth = depth,
         .metadata = stated.metadata,
         .dived = dived,
-        .fs = &fs_,
+        .fs = fs_,
         .fs_owner = fs_owner_};
     const WalkAction action = visit_(visit);
     if (action == WalkAction::kStop) {
@@ -333,8 +334,8 @@ class Walker {
   // Visits `stated` and, if it is a descendable directory, descends into it.
   // Pre-order by default; post-order (`-depth`) descends first, then visits, and
   // `-prune` has no effect (matching find). `prefetched` is the directory's
-  // already-submitted listing read (from the parent's batch), or null to read now.
-  void VisitSubtree(const Stated& stated, int depth, std::future<Listing>* prefetched) {
+  // already-submitted listing read (from the parent's batch), or empty to read now.
+  void VisitSubtree(const Stated& stated, int depth, mbo::types::OptionalRef<std::future<Listing>> prefetched) {
     if (stopped_) {
       return;
     }
@@ -376,13 +377,13 @@ class Walker {
 
   // Reads `dir` (from its prefetched future, or now) and recurses its children,
   // guarding against filesystem loops (only possible when following symlinks).
-  void Descend(const Stated& dir, int depth, std::future<Listing>* prefetched) {
+  void Descend(const Stated& dir, int depth, mbo::types::OptionalRef<std::future<Listing>> prefetched) {
     const std::pair<std::uint64_t, std::uint64_t> id{dir.metadata.dev, dir.metadata.ino};
     if (!ancestors_.insert(id).second) {
       on_error_(dir.path, absl::FailedPreconditionError("filesystem loop detected"));
       return;
     }
-    Listing listing = prefetched != nullptr ? prefetched->get() : SubmitRead(dir.path).get();
+    Listing listing = prefetched.has_value() ? prefetched->get() : SubmitRead(dir.path).get();
     if (!listing.ok()) {
       // A directory that vanished before we could read it is the same readdir race.
       if (!(options_.ignore_readdir_race && absl::IsNotFound(listing.status()))) {
@@ -414,7 +415,9 @@ class Walker {
         if (stopped_) {
           return;
         }
-        VisitSubtree(children[i], depth, reads[i].valid() ? &reads[i] : nullptr);
+        VisitSubtree(
+            children[i], depth,
+            reads[i].valid() ? mbo::types::OptionalRef{reads[i]} : mbo::types::OptionalRef<std::future<Listing>>{});
       }
       return;
     }
@@ -436,7 +439,9 @@ class Walker {
           return;
         }
         if (IsDir(children[i])) {
-          VisitSubtree(children[i], depth, reads[i].valid() ? &reads[i] : nullptr);
+          VisitSubtree(
+              children[i], depth,
+              reads[i].valid() ? mbo::types::OptionalRef{reads[i]} : mbo::types::OptionalRef<std::future<Listing>>{});
         } else if (dived[i]) {
           // A container groups its members like a directory, so under kSubtree it belongs in the
           // subtree block rather than the flat block its own entry was emitted in.
@@ -465,7 +470,10 @@ class Walker {
         continue;
       }
       if (Descendable(children[i], depth)) {
-        Descend(children[i], depth, reads[i].valid() ? &reads[i] : nullptr);  // entry already visited above
+        Descend(
+            children[i], depth,
+            reads[i].valid() ? mbo::types::OptionalRef{reads[i]}
+                             : mbo::types::OptionalRef<std::future<Listing>>{});  // entry already visited above
       } else if (dived[i]) {
         // `--archive=all`: a container met mid-walk descends exactly where a directory would, and
         // after its own visit, so a prune on the container still skips its members.
@@ -495,9 +503,9 @@ class Walker {
   const WalkOptions& options_;
   Visitor visit_;
   WalkErrorFn on_error_;
-  // Null when archive diving is off, and always null inside a mounted container: nesting is
+  // Empty when archive diving is off, and always empty inside a mounted container: nesting is
   // --archive-depth's business, not something to fall into by recursion.
-  const ContainerMounter* mount_container_ = nullptr;
+  mbo::types::OptionalRef<const ContainerMounter> mount_container_;
   const bool follow_children_;
   ReadPool pool_;
   bool stopped_ = false;
@@ -518,7 +526,7 @@ absl::Status Walk(
     const WalkOptions& options,
     Visitor visit,
     WalkErrorFn on_error) {
-  Walker walker(fs, options, visit, on_error, /*mount_container=*/nullptr);
+  Walker walker(fs, options, visit, on_error, /*mount_container=*/{});
   walker.WalkRoots(roots);
   return absl::OkStatus();
 }
@@ -530,7 +538,7 @@ absl::Status Walk(
     Visitor visit,
     WalkErrorFn on_error,
     ContainerMounter mount_container) {
-  Walker walker(fs, options, visit, on_error, &mount_container);
+  Walker walker(fs, options, visit, on_error, mount_container);
   walker.WalkRoots(roots);
   return absl::OkStatus();
 }
