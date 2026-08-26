@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-26 02:01:27</td>
+            <td class="headerValue">2026-08-26 03:08:47</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.8&nbsp;%</td>
@@ -1404,8 +1404,8 @@
 <span id="L1276"><span class="lineNum">    1276</span>                 :             : // (naming it). A non-empty `matching` is compiled into options.ignore_matching_lines; a</span>
 <span id="L1277"><span class="lineNum">    1277</span>                 :             : // regex that does not compile is an InvalidArgument (carrying RE2's diagnostic). Shared by</span>
 <span id="L1278"><span class="lineNum">    1278</span>                 :             : // EvalDiff (per entry) and ValidateDiffIgnore (once, pre-walk, to reject a bad value early).</span>
-<span id="L1279"><span class="lineNum">    1279</span>                 :<span class="tlaGNC">         738 : absl::Status ApplyDiffIgnore(std::string_view tokens, std::string_view matching, mbo::diff::DiffOptions&amp; options) {</span></span>
-<span id="L1280"><span class="lineNum">    1280</span>         [<span class="tlaGBC" title="branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="branch 1 was taken 736 times"> + </span>]:<span class="tlaGNC">         748 :   for (const std::string_view token : absl::StrSplit(tokens, ',', absl::SkipEmpty())) {</span></span>
+<span id="L1279"><span class="lineNum">    1279</span>                 :<span class="tlaGNC">         742 : absl::Status ApplyDiffIgnore(std::string_view tokens, std::string_view matching, mbo::diff::DiffOptions&amp; options) {</span></span>
+<span id="L1280"><span class="lineNum">    1280</span>         [<span class="tlaGBC" title="branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="branch 1 was taken 740 times"> + </span>]:<span class="tlaGNC">         752 :   for (const std::string_view token : absl::StrSplit(tokens, ',', absl::SkipEmpty())) {</span></span>
 <span id="L1281"><span class="lineNum">    1281</span>                 :<span class="tlaGNC">          12 :     const auto it = kDiffIgnoreTokens.find(token);</span></span>
 <span id="L1282"><span class="lineNum">    1282</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          24 :     if (it == kDiffIgnoreTokens.end()) {</span></span>
 <span id="L1283"><span class="lineNum">    1283</span>                 :             :       return absl::InvalidArgumentError(</span>
@@ -1413,7 +1413,7 @@
 <span id="L1285"><span class="lineNum">    1285</span>                 :             :     }</span>
 <span id="L1286"><span class="lineNum">    1286</span>                 :<span class="tlaGNC">          10 :     it-&gt;second(options);</span></span>
 <span id="L1287"><span class="lineNum">    1287</span>                 :             :   }</span>
-<span id="L1288"><span class="lineNum">    1288</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 731 times"> + </span>]:<span class="tlaGNC">         736 :   if (!matching.empty()) {</span></span>
+<span id="L1288"><span class="lineNum">    1288</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 735 times"> + </span>]:<span class="tlaGNC">         740 :   if (!matching.empty()) {</span></span>
 <span id="L1289"><span class="lineNum">    1289</span>                 :             :     // log_errors(false): a bad pattern is reported via our own message (below) carrying RE2's</span>
 <span id="L1290"><span class="lineNum">    1290</span>                 :             :     // error(), so RE2 must not also LOG(ERROR) it (which, pre-InitializeLog, is noisy on stderr).</span>
 <span id="L1291"><span class="lineNum">    1291</span>                 :<span class="tlaGNC">           5 :     RE2::Options re2_options;</span></span>
@@ -1424,7 +1424,7 @@
 <span id="L1296"><span class="lineNum">    1296</span>                 :<span class="tlaGNC">           1 :           absl::StrCat(&quot;invalid --diff-ignore-matching regex: &quot;, options.ignore_matching_lines-&gt;error()));</span></span>
 <span id="L1297"><span class="lineNum">    1297</span>                 :             :     }</span>
 <span id="L1298"><span class="lineNum">    1298</span>                 :             :   }</span>
-<span id="L1299"><span class="lineNum">    1299</span>                 :<span class="tlaGNC">         735 :   return absl::OkStatus();</span></span>
+<span id="L1299"><span class="lineNum">    1299</span>                 :<span class="tlaGNC">         739 :   return absl::OkStatus();</span></span>
 <span id="L1300"><span class="lineNum">    1300</span>                 :             : }</span>
 <span id="L1301"><span class="lineNum">    1301</span>                 :             : </span>
 <span id="L1302"><span class="lineNum">    1302</span>                 :             : }  // namespace</span>
@@ -2832,10 +2832,10 @@
 <span id="L2683"><span class="lineNum">    2683</span>                 :             : // Pre-walk validation of the --diff-ignore / --diff-ignore-matching values: runs the same</span>
 <span id="L2684"><span class="lineNum">    2684</span>                 :             : // ApplyDiffIgnore the per-entry -diff uses against a throwaway DiffOptions, so the token set and</span>
 <span id="L2685"><span class="lineNum">    2685</span>                 :             : // the regex share one source of truth with the apply path. See the header for the contract.</span>
-<span id="L2686"><span class="lineNum">    2686</span>                 :<span class="tlaGNC">         711 : absl::Status ValidateDiffIgnore(std::string_view tokens, std::string_view matching) {</span></span>
-<span id="L2687"><span class="lineNum">    2687</span>                 :<span class="tlaGNC">         711 :   mbo::diff::DiffOptions options;</span></span>
-<span id="L2688"><span class="lineNum">    2688</span>                 :<span class="tlaGNC">         711 :   return ApplyDiffIgnore(tokens, matching, options);</span></span>
-<span id="L2689"><span class="lineNum">    2689</span>                 :<span class="tlaGNC">         711 : }</span></span>
+<span id="L2686"><span class="lineNum">    2686</span>                 :<span class="tlaGNC">         715 : absl::Status ValidateDiffIgnore(std::string_view tokens, std::string_view matching) {</span></span>
+<span id="L2687"><span class="lineNum">    2687</span>                 :<span class="tlaGNC">         715 :   mbo::diff::DiffOptions options;</span></span>
+<span id="L2688"><span class="lineNum">    2688</span>                 :<span class="tlaGNC">         715 :   return ApplyDiffIgnore(tokens, matching, options);</span></span>
+<span id="L2689"><span class="lineNum">    2689</span>                 :<span class="tlaGNC">         715 : }</span></span>
 <span id="L2690"><span class="lineNum">    2690</span>                 :             : </span>
 <span id="L2691"><span class="lineNum">    2691</span>                 :<span class="tlaGNC">        1344 : absl::Status ValidateSizeArgs(const parser::Expr&amp; expr) {</span></span>
 <span id="L2692"><span class="lineNum">    2692</span>         [<span class="tlaGBC" title="branch 0 was taken 987 times"> + </span><span class="tlaGBC" title="branch 1 was taken 357 times"> + </span>]:<span class="tlaGNC">        1344 :   if (expr.kind == parser::Expr::Kind::kPredicate) {</span></span>

@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-26 02:01:27</td>
+            <td class="headerValue">2026-08-26 03:08:47</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -184,14 +184,14 @@
 <span id="L104"><span class="lineNum">     104</span>                 :             : </span>
 <span id="L105"><span class="lineNum">     105</span>                 :             : }  // namespace</span>
 <span id="L106"><span class="lineNum">     106</span>                 :             : </span>
-<span id="L107"><span class="lineNum">     107</span>                 :<span class="tlaGNC">          52 : std::optional&lt;Encoding&gt; ParseEncoding(std::string_view name) {</span></span>
-<span id="L108"><span class="lineNum">     108</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 51 times"> + </span>]:<span class="tlaGNC">          52 :   if (name == &quot;hex&quot;) {</span></span>
+<span id="L107"><span class="lineNum">     107</span>                 :<span class="tlaGNC">          53 : std::optional&lt;Encoding&gt; ParseEncoding(std::string_view name) {</span></span>
+<span id="L108"><span class="lineNum">     108</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 52 times"> + </span>]:<span class="tlaGNC">          53 :   if (name == &quot;hex&quot;) {</span></span>
 <span id="L109"><span class="lineNum">     109</span>                 :<span class="tlaGNC">           1 :     return Encoding::kHex;</span></span>
 <span id="L110"><span class="lineNum">     110</span>                 :             :   }</span>
-<span id="L111"><span class="lineNum">     111</span>         [<span class="tlaGBC" title="branch 0 was taken 10 times"> + </span><span class="tlaGBC" title="branch 1 was taken 41 times"> + </span>]:<span class="tlaGNC">          51 :   if (name == &quot;base64&quot;) {</span></span>
+<span id="L111"><span class="lineNum">     111</span>         [<span class="tlaGBC" title="branch 0 was taken 10 times"> + </span><span class="tlaGBC" title="branch 1 was taken 42 times"> + </span>]:<span class="tlaGNC">          52 :   if (name == &quot;base64&quot;) {</span></span>
 <span id="L112"><span class="lineNum">     112</span>                 :<span class="tlaGNC">          10 :     return Encoding::kBase64;</span></span>
 <span id="L113"><span class="lineNum">     113</span>                 :             :   }</span>
-<span id="L114"><span class="lineNum">     114</span>                 :<span class="tlaGNC">          41 :   return std::nullopt;</span></span>
+<span id="L114"><span class="lineNum">     114</span>                 :<span class="tlaGNC">          42 :   return std::nullopt;</span></span>
 <span id="L115"><span class="lineNum">     115</span>                 :             : }</span>
 <span id="L116"><span class="lineNum">     116</span>                 :             : </span>
 <span id="L117"><span class="lineNum">     117</span>                 :<span class="tlaGNC">          49 : std::optional&lt;AlgoEncoding&gt; ParseSpec(std::string_view spec, std::string_view default_algo, Encoding default_encoding) {</span></span>
@@ -218,11 +218,11 @@
 <span id="L138"><span class="lineNum">     138</span>                 :<span class="tlaGNC">          44 :   return AlgoEncoding{.algo = algo, .encoding = encoding};</span></span>
 <span id="L139"><span class="lineNum">     139</span>                 :             : }</span>
 <span id="L140"><span class="lineNum">     140</span>                 :             : </span>
-<span id="L141"><span class="lineNum">     141</span>                 :<span class="tlaGNC">          67 : bool IsAlgorithm(std::string_view algo) {</span></span>
-<span id="L142"><span class="lineNum">     142</span>                 :<span class="tlaGNC">          67 :   return kAlgorithms.contains(algo);</span></span>
+<span id="L141"><span class="lineNum">     141</span>                 :<span class="tlaGNC">          68 : bool IsAlgorithm(std::string_view algo) {</span></span>
+<span id="L142"><span class="lineNum">     142</span>                 :<span class="tlaGNC">          68 :   return kAlgorithms.contains(algo);</span></span>
 <span id="L143"><span class="lineNum">     143</span>                 :             : }</span>
 <span id="L144"><span class="lineNum">     144</span>                 :             : </span>
-<span id="L145"><span class="lineNum">     145</span>                 :<span class="tlaGNC">           6 : absl::Span&lt;const std::string_view&gt; AlgorithmNames() {</span></span>
+<span id="L145"><span class="lineNum">     145</span>                 :<span class="tlaGNC">           7 : absl::Span&lt;const std::string_view&gt; AlgorithmNames() {</span></span>
 <span id="L146"><span class="lineNum">     146</span>                 :             :   // Built once from the (sorted) table, so the name list never drifts from kAlgorithms. The views</span>
 <span id="L147"><span class="lineNum">     147</span>                 :             :   // point into the constexpr kAlgorithms keys, which outlive everything.</span>
 <span id="L148"><span class="lineNum">     148</span>                 :             :   static constexpr auto kNames = [] {</span>
@@ -230,7 +230,7 @@
 <span id="L150"><span class="lineNum">     150</span>                 :             :     std::ranges::transform(kAlgorithms, names.begin(), [](const auto&amp; algorithm) { return algorithm.first; });</span>
 <span id="L151"><span class="lineNum">     151</span>                 :             :     return names;</span>
 <span id="L152"><span class="lineNum">     152</span>                 :             :   }();</span>
-<span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">           6 :   return kNames;</span></span>
+<span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">           7 :   return kNames;</span></span>
 <span id="L154"><span class="lineNum">     154</span>                 :             : }</span>
 <span id="L155"><span class="lineNum">     155</span>                 :             : </span>
 <span id="L156"><span class="lineNum">     156</span>                 :<span class="tlaGNC">          61 : std::optional&lt;std::string&gt; HashData(std::string_view algo, std::string_view data, Encoding encoding) {</span></span>
