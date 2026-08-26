@@ -671,8 +671,7 @@ int RunMain(int argc, char** argv) {
   // friends) or --quiet means there is nothing to page.
   const xff::cli::PagerStream pager(pager_when, stdout_is_tty, quiet || xff::parser::TakesTerminal(command));
   const xff::vfs::LocalFs fs;
-  bool matched = false;
-  const int errors = xff::engine::RunFind(
+  const xff::engine::RunResult result = xff::engine::RunFind(
       command, fs,
       [quiet](std::string_view record) {
         if (!quiet) {  // --quiet suppresses output; the match is still recorded via `matched`
@@ -682,11 +681,11 @@ int RunMain(int argc, char** argv) {
       [](std::string_view path, absl::Status status) {
         std::cerr << "xff: " << path << ": " << status.message() << "\n";
       },
-      style, &matched);  // mode-scoped traversal defaults (modern -> sorted + parallel; find -> unordered)
-  if (errors != 0) {
+      style);  // mode-scoped traversal defaults (modern -> sorted + parallel; find -> unordered)
+  if (result.errors != 0) {
     return 2;  // an error outranks match status
   }
-  return match_sensitive && !matched ? 1 : 0;
+  return match_sensitive && !result.any_match ? 1 : 0;
 }
 
 // Entry point: run xff, then flush stdout explicitly before the process exits.

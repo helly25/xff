@@ -2953,16 +2953,13 @@ int FinishCollections(
 
 // Cohesive run dispatch; the visitor and post-walk sinks intentionally share this state.
 // NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size,hicpp-function-size,google-readability-function-size)
-int RunFind(
+RunResult RunFind(
     const parser::Command& command,
     const vfs::FileSystem& fs,
     EmitFn emit,
     WalkErrorFn on_error,
-    std::optional<registry::Style> style,
-    bool* any_match) {
-  if (any_match != nullptr) {
-    *any_match = false;  // no match until an entry satisfies the expression
-  }
+    std::optional<registry::Style> style) {
+  bool any_match = false;
   std::vector<std::string> mime_vocabulary_files;
   mime::ConflictPolicy mime_conflicts = mime::ConflictPolicy::kError;
   std::vector<std::string> language_db_files;
@@ -3002,11 +2999,11 @@ int RunFind(
   }
   if (const absl::Status status = mime::Configure(mime_vocabulary_files, mime_conflicts); !status.ok()) {
     on_error("--mime-vocabulary", status);
-    return 2;
+    return RunResult{.errors = 2};
   }
   if (const absl::Status status = language::Configure(language_db_files, language_conflicts); !status.ok()) {
     on_error("--lang-db", status);
-    return 2;
+    return RunResult{.errors = 2};
   }
   const mbo::types::OptionalRef<const parser::Expr> expression = parser::AsConstOptionalExpr(command.expression);
   const bool has_action = expression.has_value() && ContainsAction(*expression);
@@ -3014,12 +3011,12 @@ int RunFind(
   const bool implicit_print = ResolveImplicitPrint(command.globals).value_or(!has_action);
   if (HasGlobal(command.globals, "--safe") && expression.has_value() && ContainsArmedAction(*expression)) {
     on_error("-delete", absl::FailedPreconditionError("refused: --safe forbids destructive actions"));
-    return 2;  // do not traverse
+    return RunResult{.errors = 2};  // do not traverse
   }
   // A NAME bound twice by -capture or -collect is a usage error before the walk (see
   // ReportDuplicateBindingName for why each one fails closed).
   if (expression.has_value() && ReportDuplicateBindingName(*expression, on_error)) {
-    return 2;  // do not traverse
+    return RunResult{.errors = 2};  // do not traverse
   }
   WalkOptions options;
   options.symlinks = ResolveSymlinkMode(command.globals);
@@ -3049,7 +3046,7 @@ int RunFind(
       on_error(
           "-capture", absl::FailedPreconditionError(
                           absl::StrCat("-capture '", *unused, "' is never referenced as {capture.", *unused, "}")));
-      return 2;  // do not traverse
+      return RunResult{.errors = 2};  // do not traverse
     }
   }
   // Precompile the --template once; rendering each match then skips re-scanning.
@@ -3087,7 +3084,7 @@ int RunFind(
                                 absl::StrCat(
                                     "an m// extraction ('", *extraction,
                                     "') is only valid as a --summary key, not in a per-entry render context")));
-      return 2;
+      return RunResult{.errors = 2};
     }
   }
   const bool buffered = format == render::Format::kAligned || format == render::Format::kMarkdown;
@@ -3099,18 +3096,18 @@ int RunFind(
                         "tabular/tree output (--format=csv/tsv/aligned/markdown/tree) and --columns format the "
                         "default listing; an action like -ls / -printf / -exec produces its own output -- drop "
                         "the action, or drop --format / --columns"));
-    return 2;
+    return RunResult{.errors = 2};
   }
   if (!columns.empty() && !tabular) {
     on_error(
         "--columns",
         absl::FailedPreconditionError("--columns needs a tabular --format (csv, tsv, aligned, or markdown)"));
-    return 2;
+    return RunResult{.errors = 2};
   }
   for (const std::string& col : columns) {
     if (col.empty() || !fields::IsKnownField(col)) {
       on_error("--columns", absl::InvalidArgumentError(absl::StrCat("unknown column '", col, "'")));
-      return 2;
+      return RunResult{.errors = 2};
     }
   }
   // Precompile one field Template per column ({col}); each match renders them into a row.
@@ -3139,7 +3136,7 @@ int RunFind(
   if (expression.has_value()) {
     if (const absl::Status size_status = ValidateSizeArgs(*expression); !size_status.ok()) {
       on_error("-size/-blocks", size_status);
-      return 2;  // do not traverse
+      return RunResult{.errors = 2};  // do not traverse
     }
   }
   // --timezone=ZONE overrides the local zone for interpreting time-string args
@@ -3148,7 +3145,7 @@ int RunFind(
   const absl::StatusOr<absl::TimeZone> tz_result = ResolveTimeZone(command.globals);
   if (!tz_result.ok()) {
     on_error("--timezone", tz_result.status());
-    return 2;  // do not traverse
+    return RunResult{.errors = 2};  // do not traverse
   }
   const absl::TimeZone tz = *tz_result;
   // Capture one reference instant so every entry's age test (-mtime/-mmin) is
@@ -3164,7 +3161,7 @@ int RunFind(
   const absl::StatusOr<std::uint64_t> block_size_result = ResolveBlockSize(command.globals);
   if (!block_size_result.ok()) {
     on_error("--block-size", block_size_result.status());
-    return 2;  // do not traverse
+    return RunResult{.errors = 2};  // do not traverse
   }
   const std::uint64_t block_size = *block_size_result;
   // --sort=score ranks the listing by the -fuzzy score, so it needs a score to rank by and a
@@ -3172,7 +3169,7 @@ int RunFind(
   // by a value nothing produced is a mistake, not an empty ordering.
   const bool rank_by_score = ResolveRankByScore(command.globals);
   if (!ResultShapingIsValid(expression, rank_by_score, is_tree, buffered, on_error)) {
-    return 2;  // do not traverse; the helper reported which rule failed
+    return RunResult{.errors = 2};  // do not traverse; the helper reported which rule failed
   }
 
   // --regextype=RE2|EXACT|PCRE2: the grammar is resolved by the parser and pre-compiled into each
@@ -3180,7 +3177,7 @@ int RunFind(
   // binary, MATCH (reserved), and unknown values are usage errors, refused before the walk.
   if (const absl::Status regextype = ValidateRegextype(command.globals); !regextype.ok()) {
     on_error("--regextype", regextype);
-    return 2;  // do not traverse
+    return RunResult{.errors = 2};  // do not traverse
   }
   // --count / -c: -grep emits a per-file matching-line count instead of the lines.
   const bool grep_count = HasGlobal(command.globals, "--count") || HasGlobal(command.globals, "-c");
@@ -3192,7 +3189,7 @@ int RunFind(
   if (const absl::Status status = ResolveGrepContext(command.globals, grep_before, grep_after, context_seen);
       !status.ok()) {
     on_error("--context", status);
-    return 2;
+    return RunResult{.errors = 2};
   }
   // --diff-algorithm=naive|direct|myers: the engine -diff uses (mbo::diff). Last occurrence
   // wins; empty -> myers (the default). Validated here so a bad value is a usage error (exit 2)
@@ -3209,7 +3206,7 @@ int RunFind(
         "--diff-algorithm",
         absl::InvalidArgumentError(
             absl::StrCat("unknown diff algorithm '", diff_algorithm, "' (use naive, direct, or myers)")));
-    return 2;
+    return RunResult{.errors = 2};
   }
   // --diff-ignore=<tokens> / --diff-ignore-matching=REGEX: -diff normalization (mbo::diff). Last
   // occurrence of each wins; empty -> exact. Validated here (shared with the apply path) so a bad
@@ -3227,7 +3224,7 @@ int RunFind(
   }
   if (const absl::Status status = ValidateDiffIgnore(diff_ignore, diff_ignore_matching); !status.ok()) {
     on_error("--diff-ignore", status);
-    return 2;
+    return RunResult{.errors = 2};
   }
   // --diff-format=u|c|n|y|unified|context|normal|side-by-side: the default -diff output format
   // (last occurrence wins; unset -> unified). A per-action -diff:STYLE letter still overrides it.
@@ -3248,7 +3245,7 @@ int RunFind(
                                absl::StrCat(
                                    "unknown diff format '", diff_format_flag,
                                    "' (use u/unified, c/context, n/normal, or y/side-by-side)")));
-      return 2;
+      return RunResult{.errors = 2};
     }
     diff_format = *parsed;
   }
@@ -3267,7 +3264,7 @@ int RunFind(
         diff_context = parsed;
       } else {
         on_error("--diff-context", absl::InvalidArgumentError(absl::StrCat("bad --diff-context value '", value, "'")));
-        return 2;
+        return RunResult{.errors = 2};
       }
     }
   }
@@ -3276,7 +3273,7 @@ int RunFind(
       ResolveArchiveOptions(command.globals, style, &options);
   if (!member_paths.ok()) {
     on_error("--archive", member_paths.status());
-    return 2;
+    return RunResult{.errors = 2};
   }
   const archive::MemberPathOptions member_path_options = *member_paths;
   // --archive-any: offer every file to the reader instead of only those whose name looks like a
@@ -3299,18 +3296,18 @@ int RunFind(
                                 absl::StrCat(
                                     "unknown hash algorithm '", hash_algorithm,
                                     "' (one of: ", absl::StrJoin(hash::AlgorithmNames(), ", "), ")")));
-    return 2;
+    return RunResult{.errors = 2};
   }
   if (!hash_encoding.empty() && !hash::ParseEncoding(hash_encoding).has_value()) {
     on_error(
         "--hash-encoding",
         absl::InvalidArgumentError(absl::StrCat("unknown hash encoding '", hash_encoding, "' (use hex or base64)")));
-    return 2;
+    return RunResult{.errors = 2};
   }
   if (expression.has_value()) {
     if (const absl::Status status = ValidateHashArgs(*expression); !status.ok()) {
       on_error("-hash", status);
-      return 2;
+      return RunResult{.errors = 2};
     }
   }
   // --summary (repeatable): reduce matches to a {count, total size} per group instead of printing
@@ -3331,7 +3328,7 @@ int RunFind(
       on_error(
           "--summary", absl::InvalidArgumentError(
                            "a --summary key template must be a plain field or exactly one m// extraction, not a mix"));
-      return 2;
+      return RunResult{.errors = 2};
     }
     summary_templates[i] = std::move(tmpl);
   }
@@ -3344,7 +3341,7 @@ int RunFind(
   absl::StatusOr<std::vector<HistogramSpec>> histograms_or = ResolveHistograms(command.globals);
   if (!histograms_or.ok()) {
     on_error("--histogram", histograms_or.status());
-    return 2;
+    return RunResult{.errors = 2};
   }
   const std::vector<HistogramSpec> histograms = *std::move(histograms_or);
   std::vector<std::map<std::string, HistCell>> histogram_cells(histograms.size());  // one per spec
@@ -3353,19 +3350,19 @@ int RunFind(
   absl::StatusOr<ShardsConfig> shards_or = ResolveShards(command.globals);
   if (!shards_or.ok()) {
     on_error("--shards", shards_or.status());
-    return 2;
+    return RunResult{.errors = 2};
   }
   const ShardsConfig shards = *std::move(shards_or);
   absl::StatusOr<ShardShow> shard_show_or = ResolveShardShow(command.globals);
   if (!shard_show_or.ok()) {
     on_error("--shards-show", shard_show_or.status());
-    return 2;
+    return RunResult{.errors = 2};
   }
   const ShardShow shard_show = *shard_show_or;
   absl::StatusOr<shard::Dedup> shard_dedup_or = ResolveShardDedup(command.globals);
   if (!shard_dedup_or.ok()) {
     on_error("--shards-dedup", shard_dedup_or.status());
-    return 2;
+    return RunResult{.errors = 2};
   }
   const shard::Dedup shard_dedup = *shard_dedup_or;
   // --shard-pattern=REGEX (repeatable): user custom schemes, tried before the built-ins. Collected
@@ -3385,7 +3382,7 @@ int RunFind(
     absl::StatusOr<shard::Matcher> matcher_or = shard::Matcher::Make({}, shard_patterns);
     if (!matcher_or.ok()) {
       on_error("--shard-pattern", matcher_or.status());
-      return 2;
+      return RunResult{.errors = 2};
     }
     shard_matcher = *std::move(matcher_or);
   } else {
@@ -3429,7 +3426,7 @@ int RunFind(
   const absl::StatusOr<std::vector<archive::PackOption>> pack_options = ReadPackOptions(command.globals);
   if (!pack_options.ok()) {
     on_error("--pack-option", pack_options.status());
-    return 2;
+    return RunResult{.errors = 2};
   }
   std::vector<archive::PackFile> pack_files;
   // The output's own identity, so the walk never packs the archive into itself. The basename is kept
@@ -3441,7 +3438,7 @@ int RunFind(
   if (pack_target.has_value()) {
     if (!archive::ContainerPackingAvailable()) {
       on_error("--pack", absl::UnimplementedError("this binary was built without archive support"));
-      return 2;
+      return RunResult{.errors = 2};
     }
     if (archive::ContainerPackFormatFor(*pack_target).empty()) {
       on_error(
@@ -3449,11 +3446,11 @@ int RunFind(
                         absl::StrCat(
                             "cannot tell the archive format from '", *pack_target, "'; expected a name ending in .",
                             absl::StrJoin(archive::ContainerPackFormats(), ", ."))));
-      return 2;
+      return RunResult{.errors = 2};
     }
     if (const absl::Status names = CheckPackOptionNames(*pack_options); !names.ok()) {
       on_error("--pack-option", names);
-      return 2;
+      return RunResult{.errors = 2};
     }
     pack_identity = PackIdentity(*pack_target);
     const std::string_view::size_type slash = pack_identity.rfind('/');
@@ -3464,7 +3461,7 @@ int RunFind(
   const absl::StatusOr<std::optional<std::size_t>> max_results = ResolveMaxResults(command.globals);
   if (!max_results.ok()) {
     on_error("--max-results", max_results.status());
-    return 2;
+    return RunResult{.errors = 2};
   }
   // --archive-aggregate: what a reduction counts when the walk dives. Only `members` needs the walk to
   // open a container before its own entry is visited (see WalkOptions::mount_before_visit), and only
@@ -3472,7 +3469,7 @@ int RunFind(
   const absl::StatusOr<ArchiveAggregate> archive_aggregate = ResolveArchiveAggregate(command.globals);
   if (!archive_aggregate.ok()) {
     on_error("--archive-aggregate", archive_aggregate.status());
-    return 2;
+    return RunResult{.errors = 2};
   }
   if (any_reduction && options.archive != ArchiveDive::kNone && *archive_aggregate == ArchiveAggregate::kMembers) {
     options.mount_before_visit = true;
@@ -3509,7 +3506,7 @@ int RunFind(
   const absl::StatusOr<absl::flat_hash_set<std::string>> skip_vcs = ResolveSkipVcs(command.globals, gitignore_on);
   if (!skip_vcs.ok()) {
     on_error("--skip-vcs", skip_vcs.status());
-    return 2;
+    return RunResult{.errors = 2};
   }
   const absl::flat_hash_set<std::string>& skip_vcs_names = *skip_vcs;
   // git's global excludes (core.excludesFile, else ~/.config/git/ignore): the lowest
@@ -3668,8 +3665,8 @@ int RunFind(
   // path rather than a second, subtly different renderer.
   // NOLINTNEXTLINE(readability-function-cognitive-complexity): one extracted sink dispatch shared by walk and replay
   const auto finish_entry = [&](const Visit& visit, std::map<std::string, std::string>& outputs, bool matched) {
-    if (matched && any_match != nullptr) {
-      *any_match = true;
+    if (matched) {
+      any_match = true;
     }
     if (matched && any_reduction) {
       if (pack_target.has_value()) {
@@ -4220,7 +4217,7 @@ int RunFind(
               .defines = defines,
           });
       collect_status != 0) {
-    return collect_status;
+    return {.errors = collect_status, .any_match = any_match};
   }
 
   // --summary: emit one accumulated table per sink -- a row per group (the map is ordered) plus a
@@ -4396,14 +4393,14 @@ int RunFind(
   // --shards-show picks each set's line (representative path / wildcard / wildcard + count), and an
   // incomplete set is annotated `(present/expected - INCOMPLETE)`; see RenderShardSet.
   if (!shards.enabled) {
-    return errors;
+    return RunResult{.errors = errors, .any_match = any_match};
   }
   // The one-line listing prints only when no --summary / --histogram is active; those aggregate the
   // sets and are the terminal output (like --summary replacing the plain listing). The sets were
   // grouped once above (shard_groups), so this just renders them per --shards-show and lists the
   // non-shard matches unchanged.
   if (!summaries.empty() || !histograms.empty()) {
-    return errors;
+    return RunResult{.errors = errors, .any_match = any_match};
   }
   for (const GroupedDir& group : shard_groups) {
     for (const shard::ShardSet& set : group.sets) {
@@ -4413,7 +4410,7 @@ int RunFind(
       emit(absl::StrCat(group.prefix, name, "\n"));
     }
   }
-  return errors;
+  return RunResult{.errors = errors, .any_match = any_match};
 }
 
 namespace {
