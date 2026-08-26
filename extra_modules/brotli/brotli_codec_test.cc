@@ -146,14 +146,14 @@ TEST_F(BrotliCodecTest, DefaultPackIsRfc9841AndRoundTripsTheTarResource) {
   const std::size_t chunk_start = cursor;
   const std::optional<DecodedVarint> chunk_size = ReadVarint(encoded, cursor);
   ASSERT_THAT(chunk_size, Optional(Field("value", &DecodedVarint::value, Ge(4))));
-  cursor = chunk_size->next;
+  cursor = chunk_size.value().next;
   const std::size_t chunk_content = cursor;
-  EXPECT_THAT(chunk_size->value, Eq(encoded.size() - chunk_content));
+  EXPECT_THAT(chunk_size.value().value, Eq(encoded.size() - chunk_content));
   EXPECT_THAT(static_cast<std::uint8_t>(encoded[cursor++]), Eq(2));  // data chunk
   EXPECT_THAT(static_cast<std::uint8_t>(encoded[cursor++]), Eq(2));  // RFC 7932 codec
   const std::optional<DecodedVarint> uncompressed_size = ReadVarint(encoded, cursor);
   ASSERT_THAT(uncompressed_size, Optional(Field("value", &DecodedVarint::value, Eq(tar.size()))));
-  cursor = uncompressed_size->next;
+  cursor = uncompressed_size.value().next;
   EXPECT_THAT(static_cast<std::uint8_t>(encoded[cursor]), Eq(0));  // resource flags
   EXPECT_THAT(chunk_start, Lt(chunk_content));
   EXPECT_THAT(
@@ -205,11 +205,11 @@ TEST_F(BrotliCodecTest, DecoderRejectsEveryUnsupportedOrMalformedRfc9841Boundary
   std::size_t cursor = kFramingSignature.size() + 1;
   const std::optional<DecodedVarint> chunk_size = ReadVarint(encoded, cursor);
   ASSERT_THAT(chunk_size, Optional(Field("value", &DecodedVarint::value, Ge(4))));
-  cursor = chunk_size->next;
+  cursor = chunk_size.value().next;
   cursor += 2;
   const std::optional<DecodedVarint> uncompressed_size = ReadVarint(encoded, cursor);
   ASSERT_THAT(uncompressed_size, Optional(Field("value", &DecodedVarint::value, Eq(tar.size()))));
-  cursor = uncompressed_size->next;
+  cursor = uncompressed_size.value().next;
   ++cursor;
   ASSERT_THAT(cursor, Lt(encoded.size()));
   const std::string_view payload = std::string_view(encoded).substr(cursor);
