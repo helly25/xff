@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-26 01:13:10</td>
+            <td class="headerValue">2026-08-26 02:01:27</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -141,32 +141,32 @@
 <span id="L60"><span class="lineNum">      60</span>                 :<span class="tlaGNC">         152 :   };</span></span>
 <span id="L61"><span class="lineNum">      61</span>                 :             : }</span>
 <span id="L62"><span class="lineNum">      62</span>                 :             : </span>
-<span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">         187 : bool Collections::Add(std::string_view name, const Visit&amp; visit) {</span></span>
-<span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">         187 :   const std::size_t entry_bytes = visit.path.size() + visit.name.size() + visit.root.size();</span></span>
-<span id="L65"><span class="lineNum">      65</span>   [<span class="tlaGBC" title="branch 0 was taken 21 times"> + </span><span class="tlaGBC" title="branch 1 was taken 166 times"> + </span><span class="tlaGBC" title="branch 2 was taken 13 times"> + </span><span class="tlaGBC" title="branch 3 was taken 8 times"> + </span> :<span class="tlaGNC">         187 :   if ((budget_.rows != 0 &amp;&amp; rows_ + 1 &gt; budget_.rows) || (budget_.bytes != 0 &amp;&amp; bytes_ + entry_bytes &gt; budget_.bytes)) {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 8 times"> + </span><span class="tlaGBC" title="branch 5 was taken 171 times"> + </span><span class="tlaGBC" title="branch 6 was taken 7 times"> + </span><span class="tlaGBC" title="branch 7 was taken 1 time"> + </span>]
+<span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">         188 : bool Collections::Add(std::string_view name, const Visit&amp; visit) {</span></span>
+<span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">         188 :   const std::size_t entry_bytes = visit.path.size() + visit.name.size() + visit.root.size();</span></span>
+<span id="L65"><span class="lineNum">      65</span>   [<span class="tlaGBC" title="branch 0 was taken 21 times"> + </span><span class="tlaGBC" title="branch 1 was taken 167 times"> + </span><span class="tlaGBC" title="branch 2 was taken 13 times"> + </span><span class="tlaGBC" title="branch 3 was taken 8 times"> + </span> :<span class="tlaGNC">         188 :   if ((budget_.rows != 0 &amp;&amp; rows_ + 1 &gt; budget_.rows) || (budget_.bytes != 0 &amp;&amp; bytes_ + entry_bytes &gt; budget_.bytes)) {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 8 times"> + </span><span class="tlaGBC" title="branch 5 was taken 172 times"> + </span><span class="tlaGBC" title="branch 6 was taken 7 times"> + </span><span class="tlaGBC" title="branch 7 was taken 1 time"> + </span>]
 <span id="L66"><span class="lineNum">      66</span>                 :<span class="tlaGNC">          15 :     overflowed_ = true;</span></span>
 <span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">          15 :     return false;</span></span>
 <span id="L68"><span class="lineNum">      68</span>                 :             :   }</span>
-<span id="L69"><span class="lineNum">      69</span>                 :<span class="tlaGNC">         172 :   rows_ += 1;</span></span>
-<span id="L70"><span class="lineNum">      70</span>                 :<span class="tlaGNC">         172 :   bytes_ += entry_bytes;</span></span>
-<span id="L71"><span class="lineNum">      71</span>                 :<span class="tlaGNC">         516 :   by_name_[std::string(name)].push_back(</span></span>
-<span id="L72"><span class="lineNum">      72</span>                 :<span class="tlaGNC">         172 :       CollectedEntry{</span></span>
-<span id="L73"><span class="lineNum">      73</span>                 :<span class="tlaGNC">         344 :           .path = std::string(visit.path),</span></span>
-<span id="L74"><span class="lineNum">      74</span>                 :<span class="tlaGNC">         344 :           .name = std::string(visit.name),</span></span>
-<span id="L75"><span class="lineNum">      75</span>                 :<span class="tlaGNC">         344 :           .root = std::string(visit.root),</span></span>
-<span id="L76"><span class="lineNum">      76</span>                 :<span class="tlaGNC">         172 :           .depth = visit.depth,</span></span>
-<span id="L77"><span class="lineNum">      77</span>                 :<span class="tlaGNC">         172 :           .metadata = visit.metadata,</span></span>
-<span id="L78"><span class="lineNum">      78</span>                 :<span class="tlaGNC">         172 :           .fs = visit.fs,</span></span>
-<span id="L79"><span class="lineNum">      79</span>                 :<span class="tlaGNC">         172 :           .fs_owner = visit.fs_owner,</span></span>
+<span id="L69"><span class="lineNum">      69</span>                 :<span class="tlaGNC">         173 :   rows_ += 1;</span></span>
+<span id="L70"><span class="lineNum">      70</span>                 :<span class="tlaGNC">         173 :   bytes_ += entry_bytes;</span></span>
+<span id="L71"><span class="lineNum">      71</span>                 :<span class="tlaGNC">         519 :   by_name_[std::string(name)].push_back(</span></span>
+<span id="L72"><span class="lineNum">      72</span>                 :<span class="tlaGNC">         173 :       CollectedEntry{</span></span>
+<span id="L73"><span class="lineNum">      73</span>                 :<span class="tlaGNC">         346 :           .path = std::string(visit.path),</span></span>
+<span id="L74"><span class="lineNum">      74</span>                 :<span class="tlaGNC">         346 :           .name = std::string(visit.name),</span></span>
+<span id="L75"><span class="lineNum">      75</span>                 :<span class="tlaGNC">         346 :           .root = std::string(visit.root),</span></span>
+<span id="L76"><span class="lineNum">      76</span>                 :<span class="tlaGNC">         173 :           .depth = visit.depth,</span></span>
+<span id="L77"><span class="lineNum">      77</span>                 :<span class="tlaGNC">         173 :           .metadata = visit.metadata,</span></span>
+<span id="L78"><span class="lineNum">      78</span>                 :<span class="tlaGNC">         173 :           .fs = visit.fs,</span></span>
+<span id="L79"><span class="lineNum">      79</span>                 :<span class="tlaGNC">         173 :           .fs_owner = visit.fs_owner,</span></span>
 <span id="L80"><span class="lineNum">      80</span>                 :             :       });</span>
-<span id="L81"><span class="lineNum">      81</span>                 :<span class="tlaGNC">         172 :   return true;</span></span>
+<span id="L81"><span class="lineNum">      81</span>                 :<span class="tlaGNC">         173 :   return true;</span></span>
 <span id="L82"><span class="lineNum">      82</span>                 :             : }</span>
 <span id="L83"><span class="lineNum">      83</span>                 :             : </span>
-<span id="L84"><span class="lineNum">      84</span>                 :<span class="tlaGNC">          15 : const std::vector&lt;CollectedEntry&gt;&amp; Collections::Entries(std::string_view name) const {</span></span>
-<span id="L85"><span class="lineNum">      85</span>   [<span class="tlaGBC" title="branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span><span class="tlaGBC" title="branch 2 was taken 11 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          15 :   static const std::vector&lt;CollectedEntry&gt; kEmpty;</span></span>
-<span id="L86"><span class="lineNum">      86</span>                 :<span class="tlaGNC">          15 :   const auto it = by_name_.find(name);</span></span>
-<span id="L87"><span class="lineNum">      87</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          15 :   return it == by_name_.end() ? kEmpty : it-&gt;second;</span></span>
+<span id="L84"><span class="lineNum">      84</span>                 :<span class="tlaGNC">          16 : const std::vector&lt;CollectedEntry&gt;&amp; Collections::Entries(std::string_view name) const {</span></span>
+<span id="L85"><span class="lineNum">      85</span>   [<span class="tlaGBC" title="branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span><span class="tlaGBC" title="branch 2 was taken 12 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          16 :   static const std::vector&lt;CollectedEntry&gt; kEmpty;</span></span>
+<span id="L86"><span class="lineNum">      86</span>                 :<span class="tlaGNC">          16 :   const auto it = by_name_.find(name);</span></span>
+<span id="L87"><span class="lineNum">      87</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 15 times"> + </span>]:<span class="tlaGNC">          16 :   return it == by_name_.end() ? kEmpty : it-&gt;second;</span></span>
 <span id="L88"><span class="lineNum">      88</span>                 :             : }</span>
 <span id="L89"><span class="lineNum">      89</span>                 :             : </span>
 <span id="L90"><span class="lineNum">      90</span>                 :<span class="tlaGNC">          13 : std::vector&lt;std::string_view&gt; Collections::Names() const {</span></span>
