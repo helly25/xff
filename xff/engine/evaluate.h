@@ -78,7 +78,24 @@ struct Control {
   }
 };
 
-struct EvaluationResult;
+// The truth and fuzzy value of an expression evaluation. `deferred` means evaluation reached an
+// undecided result-set predicate and deliberately stopped before anything to its right.
+struct EvaluationResult {
+  bool matched = false;
+  std::optional<int> fuzzy;
+  bool deferred = false;
+  mbo::types::OptionalRef<const parser::Expr> waiting_at;
+};
+
+using DeferredDecisions = std::map<const parser::Expr*, bool>;
+using EvaluationMemo = std::map<const parser::Expr*, EvaluationResult>;
+
+// Inputs shared by one deferred evaluation pass. Decisions answer result-set predicates resolved by
+// the driver; the memo prevents completed prefix nodes from running twice during replay.
+struct DeferredEvaluation {
+  const DeferredDecisions& decisions;
+  EvaluationMemo& memo;
+};
 
 // Per-evaluation environment threaded through Evaluate for one visited entry.
 // Bundles what an expression node may read -- the entry, the action sink, the
@@ -125,15 +142,10 @@ struct EvalContext {
   // and -top. Null when no consumer needs it; reset by the driver per entry.
   mbo::types::OptionalRef<std::optional<int>> fuzzy_score;
   // Result-set predicates such as -top and -shard-status are resolved after the walk. During the
-  // first evaluation, an undecided predicate writes its node (and -top's composed score) here and
-  // evaluation returns deferred. During replay, deferred_results supplies every earlier decision.
-  // evaluation_memo holds
-  // already-completed prefix nodes so actions and stateful tests to the left are never run twice.
-  // All four are null for callers that do not opt into deferred evaluation.
-  const std::map<const parser::Expr*, bool>* deferred_results = nullptr;
-  std::map<const parser::Expr*, EvaluationResult>* evaluation_memo = nullptr;
-  const parser::Expr** deferred_node = nullptr;
-  std::optional<int>* deferred_score = nullptr;
+  // first evaluation, an undecided predicate returns its frontier (and -top's composed score) in
+  // EvaluationResult. During replay this capability supplies earlier decisions and memoizes
+  // completed prefix nodes, so actions and stateful tests to the left never run twice.
+  mbo::types::OptionalRef<DeferredEvaluation> deferred;
   // The fuzzy score composed by the expression immediately to this node's left. EvaluateResult
   // maintains it while descending an AND RHS; -top consumes it as its ranking key.
   std::optional<int> incoming_fuzzy_score;
@@ -175,45 +187,36 @@ struct EvalContext {
   // `-first` in different branches keep separate budgets. Owned by the driver for the whole run
   // (unlike `outputs`, which is per entry) - the count is the point. Emission is single-threaded
   // (see walk.h), so a plain map needs no synchronisation.
-  std::map<const parser::Expr*, int>* first_counts = nullptr;
+  mbo::types::OptionalRef<std::map<const parser::Expr*, int>> first_counts;
   // -collect[:NAME]: where the action holds entries for a post-walk sink (--summary reads the
   // collection instead of what matched). Owned by the driver for the whole run, and it OWNS what it
-  // stores, because a Visit is borrowed (see collect.h). Null -> -collect is inert.
-  Collections* collections = nullptr;
+  // stores, because a Visit is borrowed (see collect.h). Empty -> -collect is inert.
+  mbo::types::OptionalRef<Collections> collections;
   std::function<bool(std::string_view)> confirm;  // -ok prompt sink: returns true to run the command; empty -> decline
   // Accumulates matched items per `-exec/-execdir ... +` node for the end-of-walk
   // batch flush: outer key the Expr node, inner key the directory ("" for -exec's
   // single global batch; the entry's dir for -execdir's per-directory batches).
-  // Null disables batching (the action no-ops).
-  std::map<const parser::Expr*, std::map<std::string, std::vector<std::string>>>* exec_batches = nullptr;
+  // Empty disables batching (the action no-ops).
+  mbo::types::OptionalRef<std::map<const parser::Expr*, std::map<std::string, std::vector<std::string>>>> exec_batches;
   // Bounded concurrent runner for `-exec/-execdir ... ;` under -j>1: when set, the
   // serial-`;` action launches the child here (returning true on launch) instead of
-  // running it synchronously. Null -> the action runs synchronously (find's default,
+  // running it synchronously. Empty -> the action runs synchronously (find's default,
   // and -j1). The `+` batch forms always go through exec_batches, never this.
-  exec::ParallelExec* parallel_exec = nullptr;
+  mbo::types::OptionalRef<exec::ParallelExec> parallel_exec;
   // --archive-extract: where an exec-family action may write an archive member so a child process can
-  // open it (see ExtractedMembers). Null - the default - keeps -exec / -execdir / -ok / -okdir a clean
+  // open it (see ExtractedMembers). Empty - the default - keeps -exec / -execdir / -ok / -okdir a clean
   // refusal on a member, because there is no path to hand the child.
-  ExtractedMembers* extract = nullptr;
+  mbo::types::OptionalRef<ExtractedMembers> extract;
 
   // --archive-mount: where an exec-family action may get a member's path from a MOUNT of its
-  // container instead of a copy. Consulted before `extract`, and null (or answering nothing when
+  // container instead of a copy. Consulted before `extract`, and empty (or answering nothing when
   // this machine cannot mount) simply leaves extraction in charge.
-  MountedContainers* mounts = nullptr;
+  mbo::types::OptionalRef<MountedContainers> mounts;
   // --archive-delete: where `-delete` records an archive MEMBER it should remove. Collected rather
   // than removed on the spot, because removing one means rewriting the whole container - which the
   // walk is reading from at that moment - so the driver applies them per container after the walk.
-  // Null - the default - keeps `-delete` a clean refusal on a member.
-  std::vector<std::string>* archive_deletions = nullptr;
-};
-
-// The truth and fuzzy value of an expression evaluation. `deferred` means evaluation reached an
-// undecided -top and deliberately stopped before anything to its right. Public so the run driver can
-// retain completed-prefix results between exact-selection passes; ordinary callers use Evaluate().
-struct EvaluationResult {
-  bool matched = false;
-  std::optional<int> fuzzy;
-  bool deferred = false;
+  // Empty - the default - keeps `-delete` a clean refusal on a member.
+  mbo::types::OptionalRef<std::vector<std::string>> archive_deletions;
 };
 
 // Evaluates a parsed find expression against one visited entry and returns its

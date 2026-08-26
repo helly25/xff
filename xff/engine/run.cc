@@ -3844,6 +3844,9 @@ int RunFind(
         // -fuzzy / -ifuzzy leave their score here for {fuzzy}; cleared per entry so a name that runs
         // no fuzzy test renders empty rather than inheriting the previous entry's score.
         fuzzy_score.reset();
+        EvaluationMemo evaluation_memo;
+        const DeferredDecisions deferred_results;
+        DeferredEvaluation deferred{.decisions = deferred_results, .memo = evaluation_memo};
         EvalContext eval_context{
             .visit = visit,
             .emit = emit,
@@ -3861,6 +3864,7 @@ int RunFind(
             .block_size = block_size,
             .fold_name_case = fold_name_case,
             .fuzzy_score = fuzzy_score,
+            .deferred = deferred,
             .grep_count = grep_count,
             .grep_before = grep_before,
             .grep_after = grep_after,
@@ -3877,23 +3881,18 @@ int RunFind(
                 exec_fields ? mbo::types::OptionalRef{captures} : mbo::types::OptionalRef<std::vector<std::string>>{},
             .defines = defines,
             .outputs = outputs,
-            .first_counts = &first_counts,
-            .collections = &collections,
+            .first_counts = first_counts,
+            .collections = collections,
             .confirm = confirm,
-            .exec_batches = &exec_batches,
-            .parallel_exec = options.workers > 1 ? &parallel_exec : nullptr,
-            .extract = archive_extract ? &extracted_members : nullptr,
-            .mounts = &mounted_containers,
-            .archive_deletions = archive_delete ? &archive_deletions : nullptr,
+            .exec_batches = exec_batches,
+            .parallel_exec = options.workers > 1 ? mbo::types::OptionalRef{parallel_exec}
+                                                 : mbo::types::OptionalRef<exec::ParallelExec>{},
+            .extract = archive_extract ? mbo::types::OptionalRef{extracted_members}
+                                       : mbo::types::OptionalRef<ExtractedMembers>{},
+            .mounts = mounted_containers,
+            .archive_deletions = archive_delete ? mbo::types::OptionalRef{archive_deletions}
+                                                : mbo::types::OptionalRef<std::vector<std::string>>{},
         };
-        std::map<const parser::Expr*, EvaluationResult> evaluation_memo;
-        const std::map<const parser::Expr*, bool> deferred_results;
-        const parser::Expr* deferred_node = nullptr;
-        std::optional<int> deferred_score;
-        eval_context.deferred_results = &deferred_results;
-        eval_context.evaluation_memo = &evaluation_memo;
-        eval_context.deferred_node = &deferred_node;
-        eval_context.deferred_score = &deferred_score;
         const EvaluationResult evaluated =
             !expression.has_value() ? EvaluationResult{.matched = true} : EvaluateDeferred(*expression, eval_context);
         if (evaluated.deferred) {
@@ -3903,8 +3902,8 @@ int RunFind(
                .outputs = std::move(outputs),
                .memo = std::move(evaluation_memo),
                .decisions = {},
-               .waiting_at = deferred_node,
-               .score = deferred_score.value_or(0),
+               .waiting_at = evaluated.waiting_at.has_value() ? &*evaluated.waiting_at : nullptr,
+               .score = evaluated.fuzzy.value_or(0),
                .order = deferred_order++});
         } else {
           finish_entry(visit, outputs, evaluated.matched);
@@ -3964,8 +3963,7 @@ int RunFind(
       const std::string_view entry_color =
           colorize ? palette.CodeFor(visit.name, visit.metadata.type, visit.metadata.mode) : std::string_view();
       fuzzy_score.reset();
-      const parser::Expr* deferred_node = nullptr;
-      std::optional<int> deferred_score;
+      DeferredEvaluation deferred{.decisions = candidate.decisions, .memo = candidate.memo};
       EvalContext eval_context{
           .visit = visit,
           .emit = emit,
@@ -3981,10 +3979,7 @@ int RunFind(
           .block_size = block_size,
           .fold_name_case = fold_name_case,
           .fuzzy_score = fuzzy_score,
-          .deferred_results = &candidate.decisions,
-          .evaluation_memo = &candidate.memo,
-          .deferred_node = &deferred_node,
-          .deferred_score = &deferred_score,
+          .deferred = deferred,
           .grep_count = grep_count,
           .grep_before = grep_before,
           .grep_after = grep_after,
@@ -4001,19 +3996,22 @@ int RunFind(
                                   : mbo::types::OptionalRef<std::vector<std::string>>{},
           .defines = defines,
           .outputs = candidate.outputs,
-          .first_counts = &first_counts,
-          .collections = &collections,
+          .first_counts = first_counts,
+          .collections = collections,
           .confirm = confirm,
-          .exec_batches = &exec_batches,
-          .parallel_exec = options.workers > 1 ? &parallel_exec : nullptr,
-          .extract = archive_extract ? &extracted_members : nullptr,
-          .mounts = &mounted_containers,
-          .archive_deletions = archive_delete ? &archive_deletions : nullptr,
+          .exec_batches = exec_batches,
+          .parallel_exec = options.workers > 1 ? mbo::types::OptionalRef{parallel_exec}
+                                               : mbo::types::OptionalRef<exec::ParallelExec>{},
+          .extract = archive_extract ? mbo::types::OptionalRef{extracted_members}
+                                     : mbo::types::OptionalRef<ExtractedMembers>{},
+          .mounts = mounted_containers,
+          .archive_deletions = archive_delete ? mbo::types::OptionalRef{archive_deletions}
+                                              : mbo::types::OptionalRef<std::vector<std::string>>{},
       };
       const EvaluationResult evaluated = EvaluateDeferred(*expression, eval_context);
       if (evaluated.deferred) {
-        candidate.waiting_at = deferred_node;
-        candidate.score = deferred_score.value_or(0);
+        candidate.waiting_at = evaluated.waiting_at.has_value() ? &*evaluated.waiting_at : nullptr;
+        candidate.score = evaluated.fuzzy.value_or(0);
         next_round.push_back(std::move(candidate));
       } else {
         finish_entry(visit, candidate.outputs, evaluated.matched);

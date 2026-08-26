@@ -520,11 +520,11 @@ bool MatchesSignedNumeric(std::string_view arg, std::int64_t value) {
 // MODE is either octal (0644, 644) or a chmod-style symbolic mode (`u+w`,
 // `go=r`, comma-separated clauses); ParseSymbolicPerm resolves the latter.
 // Resolves one chmod-style symbolic clause ("u+w", "go=r", "+x", "u+s", ...)
-// into `want`, applied from find's zero base with no umask. Returns false on a
+// to `want`, applied from find's zero base with no umask. Returns nullopt on a
 // syntax error. 'X' is treated as 'x' (find resolves -perm with no per-file
 // context, so the conditional-execute form degenerates to plain execute).
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive dispatch
-bool ApplyPermClause(std::string_view clause, std::uint32_t* want) {
+std::optional<std::uint32_t> ApplyPermClause(std::string_view clause, std::uint32_t want) {
   bool user = false;
   bool group = false;
   bool other = false;
@@ -547,11 +547,11 @@ bool ApplyPermClause(std::string_view clause, std::uint32_t* want) {
     user = group = other = true;  // an omitted "who" behaves as 'a' (find applies no umask)
   }
   if (idx >= clause.size()) {
-    return false;  // missing operator
+    return std::nullopt;  // missing operator
   }
   const char op = clause[idx++];
   if (op != '+' && op != '-' && op != '=') {
-    return false;
+    return std::nullopt;
   }
   bool read = false;
   bool write = false;
@@ -566,7 +566,7 @@ bool ApplyPermClause(std::string_view clause, std::uint32_t* want) {
       case 's': setid = true; break;
       case 't': sticky = true; break;
       case 'w': write = true; break;
-      default: return false;
+      default: return std::nullopt;
     }
   }
   std::uint32_t pattern = 0;
@@ -587,13 +587,13 @@ bool ApplyPermClause(std::string_view clause, std::uint32_t* want) {
     pattern |= 01000U;
   }
   if (op == '+') {
-    *want |= pattern;
+    want |= pattern;
   } else if (op == '-') {
-    *want &= ~pattern;
+    want &= ~pattern;
   } else {
-    *want = (*want & ~who_mask) | pattern;  // '=' clears the affected classes first
+    want = (want & ~who_mask) | pattern;  // '=' clears the affected classes first
   }
-  return true;
+  return want;
 }
 
 // Parses a full symbolic mode (comma-separated clauses) from a zero base, or
@@ -605,9 +605,11 @@ std::optional<std::uint32_t> ParseSymbolicPerm(std::string_view spec) {
   std::uint32_t want = 0;
   while (true) {
     const std::size_t comma = spec.find(',');
-    if (!ApplyPermClause(spec.substr(0, comma), &want)) {
+    const std::optional<std::uint32_t> applied = ApplyPermClause(spec.substr(0, comma), want);
+    if (!applied.has_value()) {
       return std::nullopt;
     }
+    want = *applied;
     if (comma == std::string_view::npos) {
       break;
     }
@@ -924,7 +926,7 @@ bool EvalFuzzyOn(const parser::Expr& expr, EvalContext& ctx, std::string_view su
 // always true and (being an action) suppresses the implicit -print - which is what makes
 // `-first 10 -collect --summary` a summary with no listing, with no --quiet needed.
 bool EvalCollect(const parser::Expr& expr, EvalContext& ctx) {
-  if (ctx.collections == nullptr) {
+  if (!ctx.collections.has_value()) {
     return true;  // no sink wired (an in-process caller); collecting is a no-op, not a failure
   }
   const std::string_view name = expr.args.empty() || expr.args.front().empty() ? kDefaultCollection : expr.args.front();
@@ -933,7 +935,7 @@ bool EvalCollect(const parser::Expr& expr, EvalContext& ctx) {
 }
 
 bool EvalFirst(const parser::Expr& expr, EvalContext& ctx) {
-  if (expr.args.empty() || ctx.first_counts == nullptr) {
+  if (expr.args.empty() || !ctx.first_counts.has_value()) {
     return false;
   }
   int limit = 0;
@@ -1971,13 +1973,13 @@ std::optional<std::string> ExecTargetPath(EvalContext& ctx, std::string_view act
   }
   // A mount serves the member in place, so it is preferred over copying it out; when mounting is
   // disarmed or impossible this answers nothing and extraction takes over unchanged.
-  if (ctx.mounts != nullptr) {
+  if (ctx.mounts.has_value()) {
     if (std::optional<std::string> mounted = ctx.mounts->PathFor(ctx.visit.fs_owner, ctx.visit.path);
         mounted.has_value()) {
       return mounted;
     }
   }
-  if (ctx.extract == nullptr) {
+  if (!ctx.extract.has_value()) {
     ctx.control.SetUnsupported(
         absl::StrCat(
             action,
@@ -2000,12 +2002,12 @@ std::optional<std::string> ExecTargetPath(EvalContext& ctx, std::string_view act
 // member also differs, and releasing one would be a request to delete something inside a read-only
 // mount - harmless only because Release ignores paths it never handed out.
 bool IsExtracted(const EvalContext& ctx, std::string_view path) {
-  return ctx.extract != nullptr && absl::c_contains(ctx.extract->Held(), path);
+  return ctx.extract.has_value() && absl::c_contains(ctx.extract->Held(), path);
 }
 
 bool EvalDelete(const parser::Expr&, EvalContext& ctx) {
   if (ctx.visit.metadata.source != vfs::Source::kLocalFs) {
-    if (ctx.archive_deletions == nullptr) {
+    if (!ctx.archive_deletions.has_value()) {
       ctx.control.SetUnsupported(
           "-delete cannot remove an archive member: members are read-only"
           " (use --archive-delete to rewrite the container without it)");
@@ -2060,12 +2062,12 @@ bool EvalExec(const parser::Expr& expr, EvalContext& ctx) {
     // command runs at end-of-walk (RunFind flushes each batch node in ARG_MAX
     // chunks). The action is true per entry. An extracted member stays extracted
     // until the run ends, because that is when its command finally runs.
-    if (ctx.exec_batches != nullptr) {
+    if (ctx.exec_batches.has_value()) {
       (*ctx.exec_batches)[&expr][""].emplace_back(*target);
     }
     return true;
   }
-  if (ctx.parallel_exec != nullptr) {
+  if (ctx.parallel_exec.has_value()) {
     // -j>1: launch the child on the bounded runner. find-exact substitutes {} ->
     // path inside Launch; --exec-fields renders first (no {} remains, empty target).
     // True per entry -- the exit status is collected at the end-of-walk Drain. An
@@ -2136,12 +2138,12 @@ bool EvalExecdir(const parser::Expr& expr, EvalContext& ctx) {
   if (expr.exec_batch) {
     // `-execdir ... +`: queue the "./<basename>" under its directory; RunFind runs
     // the command once per directory (cwd = that dir) at end-of-walk.
-    if (ctx.exec_batches != nullptr) {
+    if (ctx.exec_batches.has_value()) {
       (*ctx.exec_batches)[&expr][target.dir].push_back(target.brace);
     }
     return true;
   }
-  if (ctx.parallel_exec != nullptr) {
+  if (ctx.parallel_exec.has_value()) {
     // -j>1: launch in the entry's directory (cwd = target.dir). find-exact maps {}
     // -> ./basename inside Launch; --exec-fields renders first (no {} remains).
     if (ctx.exec_fields) {
@@ -2466,8 +2468,8 @@ std::optional<int> MaxScore(std::optional<int> lhs, std::optional<int> rhs) {
 EvaluationResult EvaluateResult(const parser::Expr& expr, EvalContext& context);
 
 EvaluationResult EvaluateChild(const parser::Expr& node, EvalContext& context) {
-  if (context.evaluation_memo != nullptr) {
-    if (const auto found = context.evaluation_memo->find(&node); found != context.evaluation_memo->end()) {
+  if (context.deferred.has_value()) {
+    if (const auto found = context.deferred->memo.find(&node); found != context.deferred->memo.end()) {
       return found->second;
     }
   }
@@ -2484,38 +2486,35 @@ EvaluationResult EvaluateChild(const parser::Expr& node, EvalContext& context) {
   } else {
     context.fuzzy_score.reset();
   }
-  if (!result.deferred && context.evaluation_memo != nullptr) {
-    context.evaluation_memo->emplace(&node, result);
+  if (!result.deferred && context.deferred.has_value()) {
+    context.deferred->memo.emplace(&node, result);
   }
   return result;
 }
 
 EvaluationResult EvaluateTop(const parser::Expr& expr, EvalContext& context) {
-  if (context.deferred_results != nullptr) {
-    if (const auto found = context.deferred_results->find(&expr); found != context.deferred_results->end()) {
+  if (context.deferred.has_value()) {
+    if (const auto found = context.deferred->decisions.find(&expr); found != context.deferred->decisions.end()) {
       return {
           .matched = found->second,
           .fuzzy = found->second ? context.incoming_fuzzy_score : std::nullopt,
       };
     }
   }
-  if (context.deferred_node != nullptr && context.deferred_score != nullptr) {
-    *context.deferred_node = &expr;
-    *context.deferred_score = context.incoming_fuzzy_score;
-    return {.deferred = true};
+  if (context.deferred.has_value()) {
+    return {.fuzzy = context.incoming_fuzzy_score, .deferred = true, .waiting_at = expr};
   }
   return {};
 }
 
 EvaluationResult EvaluateShardStatus(const parser::Expr& expr, EvalContext& context) {
-  if (context.deferred_results != nullptr) {
-    if (const auto found = context.deferred_results->find(&expr); found != context.deferred_results->end()) {
+  if (context.deferred.has_value()) {
+    if (const auto found = context.deferred->decisions.find(&expr); found != context.deferred->decisions.end()) {
       return {.matched = found->second};
     }
   }
-  if (context.deferred_node != nullptr) {
-    *context.deferred_node = &expr;
-    return {.deferred = true};
+  if (context.deferred.has_value()) {
+    return {.deferred = true, .waiting_at = expr};
   }
   return {};
 }
