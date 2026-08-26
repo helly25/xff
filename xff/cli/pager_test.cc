@@ -153,18 +153,21 @@ struct PagerStreamTest : ::testing::Test {
   }
 };
 
-TEST_F(PagerStreamTest, AllPagesEverythingWrittenToStdoutDuringItsLifetime) {
+TEST_F(PagerStreamTest, AllAndAlwaysPageEverythingWrittenToStdoutDuringTheirLifetime) {
   // The whole point of the streaming form: the writer does not know it is being paged, so the
   // listing needs no pager-aware code path of its own.
-  EXPECT_THAT(
-      PagedThrough(
-          PagerWhen::kAll, /*stdout_is_tty=*/true, /*suppressed=*/false, SinkPath(), [] { std::cout << "one\ntwo\n"; }),
-      Eq("one\ntwo\n"));
+  static constexpr std::array kListingModes = std::to_array({PagerWhen::kAll, PagerWhen::kAlways});
+  for (const PagerWhen when : kListingModes) {
+    const std::string sink = absl::StrCat(SinkPath(), static_cast<int>(when));
+    EXPECT_THAT(
+        PagedThrough(when, /*stdout_is_tty=*/true, /*suppressed=*/false, sink, [] { std::cout << "one\ntwo\n"; }),
+        Eq("one\ntwo\n"));
+  }
 }
 
 TEST_F(PagerStreamTest, EveryOtherWhenLeavesStdoutAlone) {
-  // auto / always / never page the META output only; the listing is untouched by all three.
-  static constexpr std::array kMetaOnly = std::to_array({PagerWhen::kAuto, PagerWhen::kAlways, PagerWhen::kNever});
+  // auto pages meta output only; never pages nothing.
+  static constexpr std::array kMetaOnly = std::to_array({PagerWhen::kAuto, PagerWhen::kNever});
   for (const PagerWhen when : kMetaOnly) {
     const std::string sink = absl::StrCat(SinkPath(), static_cast<int>(when));
     EXPECT_THAT(
@@ -181,16 +184,23 @@ TEST_F(PagerStreamTest, NoTerminalMeansNoPager) {
           PagerWhen::kAll, /*stdout_is_tty=*/false, /*suppressed=*/false, SinkPath(),
           [] { std::cout << "x" << std::flush; }),
       IsEmpty());
+  EXPECT_THAT(
+      PagedThrough(
+          PagerWhen::kAlways, /*stdout_is_tty=*/false, /*suppressed=*/false, absl::StrCat(SinkPath(), "Always"),
+          [] { std::cout << "x" << std::flush; }),
+      Eq("x"));
 }
 
 TEST_F(PagerStreamTest, SuppressedMeansNoPager) {
   // The caller's veto for -ok / -exec and --quiet: the pager must not sit between the primary and
   // the user.
-  EXPECT_THAT(
-      PagedThrough(
-          PagerWhen::kAll, /*stdout_is_tty=*/true, /*suppressed=*/true, SinkPath(),
-          [] { std::cout << "x" << std::flush; }),
-      IsEmpty());
+  static constexpr std::array kListingModes = std::to_array({PagerWhen::kAll, PagerWhen::kAlways});
+  for (const PagerWhen when : kListingModes) {
+    const std::string sink = absl::StrCat(SinkPath(), static_cast<int>(when));
+    EXPECT_THAT(
+        PagedThrough(when, /*stdout_is_tty=*/true, /*suppressed=*/true, sink, [] { std::cout << "x" << std::flush; }),
+        IsEmpty());
+  }
 }
 
 TEST_F(PagerStreamTest, AnEmptyPagerVariableDisablesPagingRatherThanLosingOutput) {

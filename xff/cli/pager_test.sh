@@ -117,6 +117,19 @@ test::pager_all_leaves_a_piped_listing_alone() {
   expect_eq "${plain}" "${all}"
 }
 
+test::pager_always_pages_ls_even_when_stdout_is_a_pipe() {
+  # `always` is the explicit escape from `all`'s terminal-only safety: the pager must receive an
+  # ordinary action listing too, including -ls rather than only the implicit path renderer.
+  local root bin plain paged
+  root="$(test_tmpdir tree)"
+  mkdir -p "${root}"
+  printf 'x\n' >"${root}/a.txt"
+  bin="$(_xff_bin)"
+  plain="$("${bin}" "${root}" -type f -ls --pager=never 2>&1)"
+  paged="$(XFF_PAGER="sed 's/^/PAGED:/'" "${bin}" "${root}" -type f -ls --pager=always 2>&1)"
+  expect_eq "PAGED:${plain}" "${paged}"
+}
+
 test::help_documents_pager() {
   # Self-documentation: the --help usage page lists --pager in the Output group.
   expect_output_contains "--pager" "$("$(_xff_bin)" --help 2>&1)"

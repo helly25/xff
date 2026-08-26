@@ -210,7 +210,7 @@ constexpr std::array kSortValues = std::to_array<ValueDoc>({
 });
 constexpr std::array kPagerValues = std::to_array<ValueDoc>({
     {.value = "auto", .meaning = "page the help / man / markdown output on a terminal (the default)"},
-    {.value = "always", .meaning = "page that meta output even through a pipe"},
+    {.value = "always", .meaning = "page every selected output, including the listing, even through a pipe"},
     {.value = "all", .meaning = "`auto`, plus the file listing (on a terminal)"},
     {.value = "never", .meaning = "never page (same as `--no-pager`)"},
 });
@@ -1280,14 +1280,16 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--pager[=auto|always|all|never]",
         .group = "output",
         .header = "Output",
-        .summary = "page output: auto (help / man / markdown on a tty), all (plus the listing), always, never",
+        .summary = "page output: auto (meta on tty), all (plus tty listings), always (everything), or never",
         .details = "Pages the long meta output (`--help`, `--help=TOPIC`, `--man`, `--markdown`) through a "
-                   "pager. `auto` pages only when stdout is a terminal; `always` pages even through a pipe; "
+                   "pager. `auto` pages only when stdout is a terminal; `always` pages every selected output, "
+                   "including a file listing, even through a pipe; "
                    "`never` (or `--no-pager`) disables it. The pager command is $XFF_PAGER, else $PAGER, else "
                    "`less -FRX`; set either variable to empty to disable. `all` additionally pages the FILE "
                    "LISTING: the pager is started once and the whole walk streams into it, so the first screen "
-                   "appears while the walk is still running and quitting it ends the run quietly. Unlike "
-                   "`always`, `all` stays terminal-only - a listing forced through a pager in a pipeline would "
+                   "appears while the walk is still running and quitting it ends the run quietly. `all` stays "
+                   "terminal-only - use the explicit `always` when a listing must be paged through a pipe. "
+                   "Without that explicit request, forcing a pager into a pipeline would "
                    "feed the pager's screen handling to the next command. It also steps aside for an expression "
                    "that needs the terminal itself (`-ok`, `-okdir`, `-exec`, `-execdir`, which can hand the "
                    "terminal to an editor) and for `--quiet`, which prints nothing to page; those runs are "
@@ -1300,7 +1302,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .display = "--no-pager",
         .group = "output",
         .header = "Output",
-        .summary = "never page the help / man / markdown output (an alias for --pager=never)",
+        .summary = "never page any output (an alias for --pager=never)",
     },
     {
         .name = "--quiet",
