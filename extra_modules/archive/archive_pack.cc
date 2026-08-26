@@ -41,6 +41,7 @@
 #include "absl/strings/str_join.h"
 #include "absl/types/span.h"
 #include "mbo/status/status_macros.h"
+#include "mbo/types/optional_ref.h"
 
 namespace xff::archive {
 namespace {
@@ -347,10 +348,14 @@ constexpr std::array kPackOptions = std::to_array<PackOptionSpec>({
     },
 });
 
-const PackOptionSpec* PackOptionSpecFor(std::string_view name) {
-  const auto* const found =
-      absl::c_find_if(kPackOptions, [name](const PackOptionSpec& spec) { return spec.name == name; });
-  return found == kPackOptions.end() ? nullptr : &*found;
+using OptionalPackOptionSpec = mbo::types::OptionalRef<const PackOptionSpec>;
+
+OptionalPackOptionSpec PackOptionSpecFor(std::string_view name) {
+  // The array search produces an iterator. Keep that abstraction even though this implementation's
+  // contiguous iterator is a pointer; spelling it as an object pointer would misstate its role.
+  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
+  const auto found = absl::c_find_if(kPackOptions, [name](const PackOptionSpec& spec) { return spec.name == name; });
+  return found == kPackOptions.end() ? OptionalPackOptionSpec{} : OptionalPackOptionSpec{*found};
 }
 
 bool AppliesTo(const PackOptionSpec& spec, std::string_view format) {
@@ -360,8 +365,8 @@ bool AppliesTo(const PackOptionSpec& spec, std::string_view format) {
 // Validates one option against the vocabulary AND the chosen format, and renders what libarchive
 // should be told. Booleans become a presence/absence spelling, which is how libarchive reads them.
 absl::StatusOr<std::string> TranslateOption(const PackSetting& option, const FormatSuffix& format) {
-  const PackOptionSpec* const spec = PackOptionSpecFor(option.name);
-  if (spec == nullptr) {
+  const OptionalPackOptionSpec spec = PackOptionSpecFor(option.name);
+  if (!spec.has_value()) {
     // Joined with a projection rather than copied into a vector first: the names are only needed to
     // build this one message.
     const std::string known_names = absl::StrJoin(
@@ -413,14 +418,16 @@ absl::StatusOr<std::string> TranslateOption(const PackSetting& option, const For
   return absl::InternalError("unhandled pack option kind");
 }
 
-const FormatSuffix* FormatEntryFor(std::string_view path) {
+using OptionalFormatSuffix = mbo::types::OptionalRef<const FormatSuffix>;
+
+OptionalFormatSuffix FormatEntryFor(std::string_view path) {
   const std::string lower = absl::AsciiStrToLower(path);
   for (const FormatSuffix& candidate : kFormats) {
     if (std::string_view(lower).ends_with(candidate.suffix)) {
-      return &candidate;
+      return OptionalFormatSuffix{candidate};
     }
   }
-  return nullptr;
+  return {};
 }
 
 // Writes one entry's header and, for a regular file, its bytes. The size has to be known up front
@@ -500,8 +507,8 @@ absl::Status WriteOne(struct ::archive* writer, const PackEntry& entry) {
 }  // namespace
 
 std::string FormatFromName(std::string_view path) {
-  const FormatSuffix* const found = FormatEntryFor(path);
-  return found == nullptr ? std::string() : std::string(found->name);
+  const OptionalFormatSuffix found = FormatEntryFor(path);
+  return found.has_value() ? std::string(found->name) : std::string();
 }
 
 std::vector<PackOptionDoc> PackOptionDocs() {
@@ -533,8 +540,8 @@ std::vector<std::string> PackFormats() {
 }
 
 absl::Status PackFiles(std::string_view path, const std::vector<PackEntry>& entries, const PackSettings& options) {
-  const FormatSuffix* const format = FormatEntryFor(path);
-  if (format == nullptr) {
+  const OptionalFormatSuffix format = FormatEntryFor(path);
+  if (!format.has_value()) {
     return absl::InvalidArgumentError(
         absl::StrCat(
             "cannot tell the archive format from '", path, "'; expected one ending in .",
