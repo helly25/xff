@@ -351,6 +351,9 @@ constexpr std::array kPackOptions = std::to_array<PackOptionSpec>({
 using OptionalPackOptionSpec = mbo::types::OptionalRef<const PackOptionSpec>;
 
 OptionalPackOptionSpec PackOptionSpecFor(std::string_view name) {
+  // The array search produces an iterator. Keep that abstraction even though this implementation's
+  // contiguous iterator is a pointer; spelling it as an object pointer would misstate its role.
+  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
   const auto found = absl::c_find_if(kPackOptions, [name](const PackOptionSpec& spec) { return spec.name == name; });
   return found == kPackOptions.end() ? OptionalPackOptionSpec{} : OptionalPackOptionSpec{*found};
 }
