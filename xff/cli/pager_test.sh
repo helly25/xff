@@ -16,8 +16,8 @@
 #
 # Binary-level test of --pager. Drives the real binary because paging reads
 # isatty(stdout): the test captures stdout into a variable (a pipe, not a tty),
-# so auto never pages. A pass-through pager (XFF_PAGER=cat) proves the piped text
-# is the same bytes as the unpaged output, and an empty pager env disables paging.
+# so auto never pages. A pass-through pager proves the piped text is the same bytes
+# as the unpaged output.
 
 set -euo pipefail
 
@@ -39,6 +39,21 @@ test::pager_never_prints_help_to_stdout() {
   expect_output_contains "eXtended File Find" "$("$(_xff_bin)" --pager=never --help 2>&1)"
 }
 
+test::removed_pager_all_is_a_usage_error() {
+  local out status=0
+  out="$("$(_xff_bin)" --pager=all --help 2>&1)" || status=$?
+  expect_eq "2" "${status}"
+  expect_output_contains "--pager=all was removed" "${out}"
+}
+
+test::failed_explicit_pager_falls_back_to_stdout() {
+  local bin paged plain
+  bin="$(_xff_bin)"
+  paged="$("${bin}" '--pager=exit 127' --help 2>&1)"
+  plain="$("${bin}" --pager=never --help 2>&1)"
+  expect_eq "${plain}" "${paged}"
+}
+
 test::pager_always_pipes_through_the_pager_verbatim() {
   # A cat pager is a pass-through: --pager=always feeds the help through it, so the
   # bytes are identical to the unpaged --pager=never output.
@@ -58,12 +73,6 @@ test::pager_auto_does_not_page_when_stdout_is_not_a_tty() {
   auto="$(XFF_PAGER='sleep 30' "${bin}" --help 2>&1)"
   plain="$("${bin}" --pager=never --help 2>&1)"
   expect_eq "${plain}" "${auto}"
-}
-
-test::empty_pager_env_disables_paging() {
-  # An explicitly-empty $XFF_PAGER means "no pager", so even --pager=always falls back
-  # to stdout (and does not hang on a would-be pager).
-  expect_output_contains "eXtended File Find" "$(XFF_PAGER='' "$(_xff_bin)" --pager=always --help 2>&1)"
 }
 
 test::no_pager_alias_is_accepted_on_a_real_search() {
@@ -104,39 +113,57 @@ test::man_pager_auto_stays_raw_off_a_tty() {
   expect_eq "${raw}" "${auto}"
 }
 
-test::pager_all_leaves_a_piped_listing_alone() {
-  # The listing value is terminal-only: captured stdout is a pipe, so --pager=all must not start a
+test::pager_auto_leaves_a_piped_listing_alone() {
+  # The automatic value is terminal-only: captured stdout is a pipe, so it must not start a
   # pager (a blocking one would deadlock this test) and the listing must arrive verbatim.
-  local root bin all plain
+  local root bin auto plain
   root="$(test_tmpdir tree)"
   mkdir -p "${root}"
   printf 'x\n' >"${root}/a.txt"
   bin="$(_xff_bin)"
-  all="$(XFF_PAGER='sleep 30' "${bin}" --pager=all "${root}" -type f 2>&1)"
+  auto="$(XFF_PAGER='sleep 30' "${bin}" --pager=auto "${root}" -type f 2>&1)"
   plain="$("${bin}" --pager=never "${root}" -type f 2>&1)"
-  expect_eq "${plain}" "${all}"
+  expect_eq "${plain}" "${auto}"
 }
 
 test::pager_always_pages_ls_even_when_stdout_is_a_pipe() {
-  # `always` is the explicit escape from `all`'s terminal-only safety: the pager must receive an
-  # ordinary action listing too, including -ls rather than only the implicit path renderer.
+  # `always` is the explicit escape from `auto`'s terminal-only safety. A fake installed `less`
+  # leaves a marker proving it ran despite captured stdout being a pipe.
+  local root pager_bin marker marker_text bin plain paged
+  root="$(test_tmpdir tree)"
+  pager_bin="$(test_tmpdir pager-bin)"
+  marker="${pager_bin}/invoked"
+  mkdir -p "${root}"
+  mkdir -p "${pager_bin}"
+  printf '%s\n' '#!/bin/sh' "printf invoked >'${marker}'" 'exec /bin/cat' >"${pager_bin}/less"
+  chmod +x "${pager_bin}/less"
+  printf 'x\n' >"${root}/a.txt"
+  bin="$(_xff_bin)"
+  plain="$("${bin}" "${root}" -type f -ls --pager=never 2>&1)"
+  paged="$(PATH="${pager_bin}:${PATH}" "${bin}" "${root}" -type f -ls --pager=always 2>&1)"
+  marker_text="$(<"${marker}")"
+  expect_eq "${plain}" "${paged}"
+  expect_eq "invoked" "${marker_text}"
+}
+
+test::explicit_pager_command_pages_ls() {
   local root bin plain paged
   root="$(test_tmpdir tree)"
   mkdir -p "${root}"
   printf 'x\n' >"${root}/a.txt"
   bin="$(_xff_bin)"
   plain="$("${bin}" "${root}" -type f -ls --pager=never 2>&1)"
-  paged="$(XFF_PAGER="sed 's/^/PAGED:/'" "${bin}" "${root}" -type f -ls --pager=always 2>&1)"
-  expect_eq "PAGED:${plain}" "${paged}"
+  paged="$("${bin}" "${root}" -type f -ls "--pager=sed 's/^/COMMAND:/'" 2>&1)"
+  expect_eq "COMMAND:${plain}" "${paged}"
 }
 
 test::help_documents_pager() {
   # Self-documentation: the --help usage page lists --pager in the Output group.
   expect_output_contains "--pager" "$("$(_xff_bin)" --help 2>&1)"
-  # And the listing value, whose help has to say what it adds and when it steps aside.
+  # And the command value, whose help has to explain automatic discovery and the escape hatch.
   local out
   out="$("$(_xff_bin)" --help=--pager 2>&1)"
-  expect_output_contains "all" "${out}"
+  expect_output_contains "COMMAND" "${out}"
   expect_output_contains "-ok" "${out}" # the primaries that suppress it
 }
 

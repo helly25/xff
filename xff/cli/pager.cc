@@ -27,6 +27,8 @@
 #include <string_view>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "xff/env/env.h"
 
 namespace xff::cli {
@@ -93,39 +95,52 @@ void WriteToStdout(std::string_view text) {
 
 }  // namespace
 
-PagerWhen ResolvePagerWhen(const std::vector<std::string>& args) {
-  PagerWhen when = PagerWhen::kAuto;
+absl::StatusOr<PagerConfig> ResolvePager(const std::vector<std::string>& args) {
+  PagerConfig pager;
   for (const std::string_view arg : args) {
     if (arg == "--no-pager" || arg == "--pager=never") {
-      when = PagerWhen::kNever;
+      pager = {.when = PagerWhen::kNever};
     } else if (arg == "--pager" || arg == "--pager=always") {
-      when = PagerWhen::kAlways;
+      pager = {.when = PagerWhen::kAlways};
     } else if (arg == "--pager=auto") {
-      when = PagerWhen::kAuto;
+      pager = {};
     } else if (arg == "--pager=all") {
-      when = PagerWhen::kAll;
+      return absl::InvalidArgumentError("--pager=all was removed; use --pager=auto or --pager=always");
+    } else if (arg.starts_with("--pager=")) {
+      const std::string_view command = arg.substr(std::string_view("--pager=").size());
+      if (command.empty()) {
+        return absl::InvalidArgumentError("--pager requires auto, always, never, or a command");
+      }
+      pager = {.when = PagerWhen::kAlways, .command = std::string(command)};
     }
   }
-  return when;
+  return pager;
 }
 
 namespace {
 
-// The text pager: $XFF_PAGER, else $PAGER, else the built-in. A variable that is set
-// (even to "") is authoritative, so an empty value means "no pager".
-std::string ResolveTextPager() {
-  if (const std::optional<std::string> xff_pager = env::Get("XFF_PAGER")) {
-    return *xff_pager;
-  }
-  if (const std::optional<std::string> pager = env::Get("PAGER")) {
-    return *pager;
-  }
-  return "less -FRX";
+// Automatic text-pager selection prefers known installed pagers with xff's flags, then consults
+// the tool-specific and generic environment commands only if neither known pager exists.
+// The shell performs command discovery in the child immediately before exec, avoiding a check/use
+// race. `cat` is the final lossless fallback, not a pager selected while less or more is available.
+std::string ResolveAutomaticTextPager() {
+  return "if command -v less >/dev/null 2>&1; then exec less -FRX; "
+         "elif command -v more >/dev/null 2>&1; then exec more; "
+         "elif [ -n \"${XFF_PAGER:-}\" ]; then exec sh -c \"$XFF_PAGER\"; "
+         "elif [ -n \"${PAGER:-}\" ]; then exec sh -c \"$PAGER\"; "
+         "else exec cat; fi";
 }
 
 }  // namespace
 
-std::string ResolvePagerCommand(PagerKind kind) {
+std::string ResolvePagerCommand(PagerKind kind, std::string_view explicit_command) {
+  if (!explicit_command.empty()) {
+    if (kind == PagerKind::kMan) {
+      return absl::StrCat(
+          "if command -v mandoc >/dev/null 2>&1; then mandoc | { ", explicit_command, "; }; else exit 127; fi");
+    }
+    return std::string(explicit_command);
+  }
   if (kind == PagerKind::kMan) {
     // $XFF_MANPAGER wins outright (empty disables), so a user can plug in any roff
     // viewer, e.g. `groff -mandoc -Tutf8 | less -R`.
@@ -133,24 +148,22 @@ std::string ResolvePagerCommand(PagerKind kind) {
       return *man_pager;
     }
     // The built-in formats the roff with mandoc (the portable roff formatter --man's own
-    // help points at) and pages it, honoring $PAGER like man does, else less -FRX. If
-    // mandoc is absent it exits 127, so EmitPaged falls back to the raw roff rather than
-    // showing an empty page. Runs via `sh -c`, so the pipeline / ${PAGER:-...} expand.
-    return "if command -v mandoc >/dev/null 2>&1; then mandoc | ${PAGER:-less -FRX}; else exit 127; fi";
+    // help points at) and sends it through the same automatic text-pager selection. If mandoc is
+    // absent it exits 127, so EmitPaged falls back to raw roff rather than showing an empty page.
+    return absl::StrCat(
+        "if command -v mandoc >/dev/null 2>&1; then mandoc | { ", ResolveAutomaticTextPager(),
+        "; }; else exit 127; fi");
   }
-  return ResolveTextPager();
+  return ResolveAutomaticTextPager();
 }
 
-void EmitPaged(std::string_view text, PagerWhen when, bool stdout_is_tty, PagerKind kind) {
-  // kAll is kAuto for the meta surfaces: it only ADDS the listing, it does not change how a
-  // help page is paged.
-  const bool page =
-      when == PagerWhen::kAlways || ((when == PagerWhen::kAuto || when == PagerWhen::kAll) && stdout_is_tty);
+void EmitPaged(std::string_view text, const PagerConfig& pager, bool stdout_is_tty, PagerKind kind) {
+  const bool page = pager.when == PagerWhen::kAlways || (pager.when == PagerWhen::kAuto && stdout_is_tty);
   if (!page) {
     WriteToStdout(text);
     return;
   }
-  const std::string command = ResolvePagerCommand(kind);
+  const std::string command = ResolvePagerCommand(kind, pager.command);
   if (command.empty() || !PipeThroughPager(text, command)) {
     WriteToStdout(text);
   }
@@ -165,16 +178,14 @@ struct ::sigaction g_previous_sigpipe;  // NOLINT(cppcoreguidelines-avoid-non-co
 
 }  // namespace
 
-PagerStream::PagerStream(PagerWhen when, bool stdout_is_tty, bool suppressed) {
-  // `all` safely adds terminal listings to `auto`; an explicit `always` really is unconditional
-  // and may page a listing through a pipe. The caller can still veto output that needs the terminal.
-  const bool page = when == PagerWhen::kAlways || (when == PagerWhen::kAll && stdout_is_tty);
+PagerStream::PagerStream(const PagerConfig& pager, bool stdout_is_tty, bool suppressed) {
+  const bool page = pager.when == PagerWhen::kAlways || (pager.when == PagerWhen::kAuto && stdout_is_tty);
   if (!page || suppressed) {
     return;
   }
-  const std::string command = ResolvePagerCommand(PagerKind::kText);
+  const std::string command = ResolvePagerCommand(PagerKind::kText, pager.command);
   if (command.empty()) {
-    return;  // $XFF_PAGER / $PAGER set to empty means "no pager", as for the meta surfaces
+    return;
   }
   std::array<int, 2> fds{};
   // macOS has no pipe2(), so no CLOEXEC here; the child closes both raw ends before exec.

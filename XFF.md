@@ -385,15 +385,15 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
   Row windows use a bare count or decimal `k`/`M`/`G`/`T` multiplier. Byte budgets require an explicit trailing `B`: `B`/`kB`/`MB`/.../`EB` are SI, while `KiB`/`MiB`/.../`EiB` are IEC. The distinct suffixes keep rows and bytes unambiguous.
 - `--width[=auto|none|COLS]` - wrap column for plain --help text: auto (terminal width, else unwrapped), none, or a count _(global, xff)_
   Wraps the flowing text of --help and --help=TOPIC (option and topic descriptions) to a column width. auto uses the terminal width when stdout is a terminal (honoring $COLUMNS), and leaves output unwrapped when it is not (a pipe or file); none (or 0) disables wrapping; a positive integer sets a fixed width. Aligned vocabulary tables and example blocks keep their own layout. Does not affect the file listing, --man, or --markdown.
-- `--pager[=auto|always|all|never]` - page output: auto (meta on tty), all (plus tty listings), always (everything), or never _(global, xff)_
+- `--pager[=auto|always|never|COMMAND]` - page output: auto (on a tty), always, never, or through an explicit command _(global, xff)_
   One of:
 
-  - `auto` - page the help / man / markdown output on a terminal (the default)
-  - `always` - page every selected output, including the listing, even through a pipe
-  - `all` - `auto`, plus the file listing (on a terminal)
+  - `auto` - page every pageable output on a terminal (the default)
+  - `always` - page every pageable output, even through a pipe
   - `never` - never page (same as `--no-pager`)
+  - `COMMAND` - always page through this explicit shell command
 
-  Pages the long meta output (`--help`, `--help=TOPIC`, `--man`, `--markdown`) through a pager. `auto` pages only when stdout is a terminal; `always` pages every selected output, including a file listing, even through a pipe; `never` (or `--no-pager`) disables it. The pager command is $XFF_PAGER, else $PAGER, else `less -FRX`; set either variable to empty to disable. `all` additionally pages the FILE LISTING: the pager is started once and the whole walk streams into it, so the first screen appears while the walk is still running and quitting it ends the run quietly. `all` stays terminal-only - use the explicit `always` when a listing must be paged through a pipe. Without that explicit request, forcing a pager into a pipeline would feed the pager's screen handling to the next command. It also steps aside for an expression that needs the terminal itself (`-ok`, `-okdir`, `-exec`, `-execdir`, which can hand the terminal to an editor) and for `--quiet`, which prints nothing to page; those runs are simply unpaged.
+  Pages every pageable output: long meta output (`--help`, `--help=TOPIC`, `--man`, `--markdown`) and the file listing, including action rows such as `-ls`. `auto` pages only when stdout is a terminal; `always` also pages through a pipe; `never` (or `--no-pager`) disables it. Automatic command selection prefers an installed `less -FRX`, then `more`, and only then consults `$XFF_PAGER` followed by ambient `$PAGER`. `--pager=COMMAND` always uses COMMAND directly, so `--pager="$PAGER"` is the explicit way to request the process environment's choice. Listings stream through one pager for the whole walk, so the first screen appears while the walk is still running and quitting ends the run quietly. Paging steps aside for an expression that needs the terminal itself (`-ok`, `-okdir`, `-exec`, `-execdir`, which can hand the terminal to an editor) and for `--quiet`, which prints nothing to page; those runs are simply unpaged.
 - `--no-pager` - never page any output (an alias for --pager=never) _(global, xff)_
 
 ### Exit code control
@@ -1010,8 +1010,8 @@ both, as machine rows
 Environment variables xff reads. An explicit command-line flag generally overrides the matching variable.
 
 - `NO_COLOR` - when set (any value), disables color like `--color=never`; `--color=always` still wins (https://no-color.org)
-- `XFF_PAGER` - the pager for the long `--help` / `--markdown` output, and for file listings under `--pager=all|always` (see `--pager`); overrides `$PAGER`; set empty to disable paging
-- `PAGER` - the pager used when `$XFF_PAGER` is unset
+- `XFF_PAGER` - the first automatic environment fallback when neither `less` nor `more` is available
+- `PAGER` - the final automatic environment fallback when no known or xff-specific pager is available
 - `XFF_MANPAGER` - the pager / formatter for `--man`; overrides the built-in `mandoc` pipeline; set empty to disable
 - `COLUMNS` - terminal width used to wrap plain `--help` text for `--width=auto` when the tty size is unknown
 - `XFF_CONFIG` - explicit path to the config file, taking precedence over the XDG / HOME search (see `--help=config`)

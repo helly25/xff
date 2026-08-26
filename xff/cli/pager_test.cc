@@ -27,44 +27,56 @@
 #include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "mbo/testing/status.h"
 #include "xff/env/env.h"
 
 namespace xff::cli {
 namespace {
 
+using ::mbo::testing::IsOkAndHolds;
+using ::mbo::testing::StatusIs;
+using ::testing::AllOf;
 using ::testing::Eq;
+using ::testing::Field;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
+using ::testing::IsFalse;
+using ::testing::IsTrue;
 
 struct PagerWhenTest : ::testing::Test {};
 
 TEST_F(PagerWhenTest, AbsentResolvesToAuto) {
-  EXPECT_THAT(ResolvePagerWhen({"xff", ".", "-type", "f"}), Eq(PagerWhen::kAuto));
+  EXPECT_THAT(ResolvePager({"xff", ".", "-type", "f"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kAuto)));
 }
 
 TEST_F(PagerWhenTest, BarePagerIsAlways) {
-  EXPECT_THAT(ResolvePagerWhen({"--pager"}), Eq(PagerWhen::kAlways));
+  EXPECT_THAT(ResolvePager({"--pager"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kAlways)));
 }
 
 TEST_F(PagerWhenTest, ExplicitValuesResolve) {
-  EXPECT_THAT(ResolvePagerWhen({"--pager=always"}), Eq(PagerWhen::kAlways));
-  EXPECT_THAT(ResolvePagerWhen({"--pager=never"}), Eq(PagerWhen::kNever));
-  EXPECT_THAT(ResolvePagerWhen({"--pager=auto"}), Eq(PagerWhen::kAuto));
-  EXPECT_THAT(ResolvePagerWhen({"--pager=all"}), Eq(PagerWhen::kAll));
+  EXPECT_THAT(ResolvePager({"--pager=always"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kAlways)));
+  EXPECT_THAT(ResolvePager({"--pager=never"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kNever)));
+  EXPECT_THAT(ResolvePager({"--pager=auto"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kAuto)));
+  EXPECT_THAT(ResolvePager({"--pager=most -s"}), IsOkAndHolds(Field(&PagerConfig::command, "most -s")));
+}
+
+TEST_F(PagerWhenTest, RemovedAllAndAnEmptyCommandAreErrors) {
+  EXPECT_THAT(ResolvePager({"--pager=all"}), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("removed")));
+  EXPECT_THAT(ResolvePager({"--pager="}), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("requires")));
 }
 
 TEST_F(PagerWhenTest, NoPagerIsNever) {
-  EXPECT_THAT(ResolvePagerWhen({"--no-pager"}), Eq(PagerWhen::kNever));
+  EXPECT_THAT(ResolvePager({"--no-pager"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kNever)));
 }
 
 TEST_F(PagerWhenTest, LastOccurrenceWins) {
-  EXPECT_THAT(ResolvePagerWhen({"--pager=always", "--pager=never"}), Eq(PagerWhen::kNever));
-  EXPECT_THAT(ResolvePagerWhen({"--no-pager", "--pager"}), Eq(PagerWhen::kAlways));
+  EXPECT_THAT(
+      ResolvePager({"--pager=always", "--pager=never"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kNever)));
+  EXPECT_THAT(ResolvePager({"--no-pager", "--pager"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kAlways)));
 }
 
-// Pager resolution reads XFF_PAGER / PAGER / XFF_MANPAGER through the xff/env cache; inject them
-// via its test seam. Start each case from a clean, fully-unset cache so real environment values
-// and prior cases do not leak in.
+// Man-pager resolution reads XFF_MANPAGER through the xff/env cache; inject it via the test seam.
+// Start each case from a clean cache so real environment values and prior cases do not leak in.
 struct PagerCommandTest : ::testing::Test {
   void SetUp() override {
     env::ClearForTesting();
@@ -77,24 +89,22 @@ struct PagerCommandTest : ::testing::Test {
 };
 
 TEST_F(PagerCommandTest, DefaultsToLessWithColorSafeFlags) {
-  EXPECT_THAT(ResolvePagerCommand(), Eq("less -FRX"));
+  EXPECT_THAT(
+      ResolvePagerCommand(),
+      AllOf(HasSubstr("less -FRX"), HasSubstr("more"), HasSubstr("$XFF_PAGER"), HasSubstr("$PAGER")));
 }
 
-TEST_F(PagerCommandTest, PagerEnvIsUsed) {
+TEST_F(PagerCommandTest, EnvironmentDoesNotPreemptAutomaticDiscovery) {
+  const std::string automatic = ResolvePagerCommand();
   env::SetForTesting("PAGER", "more");
-  EXPECT_THAT(ResolvePagerCommand(), Eq("more"));
+  env::SetForTesting("XFF_PAGER", "most");
+  EXPECT_THAT(ResolvePagerCommand(), Eq(automatic));
 }
 
-TEST_F(PagerCommandTest, XffPagerOverridesPager) {
-  env::SetForTesting("PAGER", "more");
-  env::SetForTesting("XFF_PAGER", "bat --paging=always");
-  EXPECT_THAT(ResolvePagerCommand(), Eq("bat --paging=always"));
-}
-
-TEST_F(PagerCommandTest, EmptyEnvDisablesPaging) {
-  // An explicitly-empty variable means "no pager" - it wins over the built-in default.
-  env::SetForTesting("XFF_PAGER", "");
-  EXPECT_THAT(ResolvePagerCommand(), Eq(""));
+TEST_F(PagerCommandTest, ExplicitCommandOverridesAutomaticAndXffPager) {
+  env::SetForTesting("XFF_PAGER", "most");
+  EXPECT_THAT(ResolvePagerCommand(PagerKind::kText, "bat --paging=always"), Eq("bat --paging=always"));
+  EXPECT_THAT(ResolvePagerCommand(PagerKind::kMan, "most"), AllOf(HasSubstr("mandoc"), HasSubstr("most")));
 }
 
 TEST_F(PagerCommandTest, ManDefaultFormatsWithMandoc) {
@@ -113,10 +123,10 @@ TEST_F(PagerCommandTest, EmptyManPagerEnvDisablesManPaging) {
 }
 
 TEST_F(PagerCommandTest, ManPagerIsIndependentOfTheTextPager) {
-  // $XFF_PAGER selects the text pager but must not become the man command (which needs a
-  // roff formatter); the man default stays mandoc-based.
+  // $XFF_PAGER is only a fallback for text and must not become the man command (which needs a roff
+  // formatter); the man default stays mandoc-based.
   env::SetForTesting("XFF_PAGER", "most");
-  EXPECT_THAT(ResolvePagerCommand(PagerKind::kText), Eq("most"));
+  EXPECT_THAT(ResolvePagerCommand(PagerKind::kText), HasSubstr("less -FRX"));
   EXPECT_THAT(ResolvePagerCommand(PagerKind::kMan), HasSubstr("mandoc"));
 }
 
@@ -134,14 +144,14 @@ struct PagerStreamTest : ::testing::Test {
   // stream writes nothing there (it never redirects stdout), which is exactly the distinction the
   // tests below need.
   static std::string PagedThrough(
-      PagerWhen when,
+      PagerConfig pager,
       bool stdout_is_tty,
       bool suppressed,
       const std::string& sink_path,
       const std::function<void()>& body) {
-    env::SetForTesting("XFF_PAGER", absl::StrCat("cat > ", sink_path));
+    pager.command = absl::StrCat("cat > ", sink_path);
     {
-      const PagerStream pager(when, stdout_is_tty, suppressed);
+      const PagerStream stream(pager, stdout_is_tty, suppressed);
       body();
     }  // the destructor restores stdout and waits for the pager, so the file is complete here
     std::ifstream in(sink_path);
@@ -153,72 +163,65 @@ struct PagerStreamTest : ::testing::Test {
   }
 };
 
-TEST_F(PagerStreamTest, AllAndAlwaysPageEverythingWrittenToStdoutDuringTheirLifetime) {
+TEST_F(PagerStreamTest, AutoAndAlwaysPageEverythingOnATerminal) {
   // The whole point of the streaming form: the writer does not know it is being paged, so the
   // listing needs no pager-aware code path of its own.
-  static constexpr std::array kListingModes = std::to_array({PagerWhen::kAll, PagerWhen::kAlways});
+  static constexpr std::array kListingModes = std::to_array({PagerWhen::kAuto, PagerWhen::kAlways});
   for (const PagerWhen when : kListingModes) {
     const std::string sink = absl::StrCat(SinkPath(), static_cast<int>(when));
     EXPECT_THAT(
-        PagedThrough(when, /*stdout_is_tty=*/true, /*suppressed=*/false, sink, [] { std::cout << "one\ntwo\n"; }),
+        PagedThrough(
+            {.when = when}, /*stdout_is_tty=*/true, /*suppressed=*/false, sink, [] { std::cout << "one\ntwo\n"; }),
         Eq("one\ntwo\n"));
   }
 }
 
-TEST_F(PagerStreamTest, EveryOtherWhenLeavesStdoutAlone) {
-  // auto pages meta output only; never pages nothing.
-  static constexpr std::array kMetaOnly = std::to_array({PagerWhen::kAuto, PagerWhen::kNever});
-  for (const PagerWhen when : kMetaOnly) {
-    const std::string sink = absl::StrCat(SinkPath(), static_cast<int>(when));
-    EXPECT_THAT(
-        PagedThrough(when, /*stdout_is_tty=*/true, /*suppressed=*/false, sink, [] { std::cout << "x" << std::flush; }),
-        IsEmpty());
-  }
+TEST_F(PagerStreamTest, NeverLeavesStdoutAlone) {
+  EXPECT_THAT(
+      PagedThrough(
+          {.when = PagerWhen::kNever}, /*stdout_is_tty=*/true, /*suppressed=*/false, SinkPath(),
+          [] { std::cout << "x" << std::flush; }),
+      IsEmpty());
 }
 
 TEST_F(PagerStreamTest, NoTerminalMeansNoPager) {
   // A listing forced through a pager in a pipeline would hand the pager's screen handling to the
-  // next command, so kAll is terminal-only (unlike kAlways for meta output).
+  // next command, so auto is terminal-only. Always deliberately escapes that safety rule.
   EXPECT_THAT(
       PagedThrough(
-          PagerWhen::kAll, /*stdout_is_tty=*/false, /*suppressed=*/false, SinkPath(),
+          {.when = PagerWhen::kAuto}, /*stdout_is_tty=*/false, /*suppressed=*/false, SinkPath(),
           [] { std::cout << "x" << std::flush; }),
       IsEmpty());
   EXPECT_THAT(
       PagedThrough(
-          PagerWhen::kAlways, /*stdout_is_tty=*/false, /*suppressed=*/false, absl::StrCat(SinkPath(), "Always"),
-          [] { std::cout << "x" << std::flush; }),
+          {.when = PagerWhen::kAlways}, /*stdout_is_tty=*/false, /*suppressed=*/false,
+          absl::StrCat(SinkPath(), "Always"), [] { std::cout << "x" << std::flush; }),
       Eq("x"));
 }
 
 TEST_F(PagerStreamTest, SuppressedMeansNoPager) {
   // The caller's veto for -ok / -exec and --quiet: the pager must not sit between the primary and
   // the user.
-  static constexpr std::array kListingModes = std::to_array({PagerWhen::kAll, PagerWhen::kAlways});
+  static constexpr std::array kListingModes = std::to_array({PagerWhen::kAuto, PagerWhen::kAlways});
   for (const PagerWhen when : kListingModes) {
     const std::string sink = absl::StrCat(SinkPath(), static_cast<int>(when));
     EXPECT_THAT(
-        PagedThrough(when, /*stdout_is_tty=*/true, /*suppressed=*/true, sink, [] { std::cout << "x" << std::flush; }),
+        PagedThrough(
+            {.when = when}, /*stdout_is_tty=*/true, /*suppressed=*/true, sink, [] { std::cout << "x" << std::flush; }),
         IsEmpty());
   }
 }
 
-TEST_F(PagerStreamTest, AnEmptyPagerVariableDisablesPagingRatherThanLosingOutput) {
-  // "$XFF_PAGER set to empty means no pager" is the contract EmitPaged has; the streaming form
-  // must not differ, and must leave stdout usable.
-  env::SetForTesting("XFF_PAGER", "");
-  const PagerStream pager(PagerWhen::kAll, /*stdout_is_tty=*/true, /*suppressed=*/false);
-  EXPECT_THAT(pager.Active(), false);
-}
-
 TEST_F(PagerStreamTest, FinishIsIdempotentAndRestoresStdout) {
   const std::string sink = SinkPath();
-  env::SetForTesting("XFF_PAGER", absl::StrCat("cat > ", sink));
-  PagerStream pager(PagerWhen::kAll, /*stdout_is_tty=*/true, /*suppressed=*/false);
-  EXPECT_THAT(pager.Active(), true);
+  PagerStream pager(
+      PagerConfig{.when = PagerWhen::kAuto, .command = absl::StrCat("cat > ", sink)},
+      /*stdout_is_tty=*/true,
+      /*suppressed=*/false);
+  EXPECT_THAT(pager.Active(), IsTrue());
   std::cout << "paged\n";
   pager.Finish();
-  EXPECT_THAT(pager.Active(), false);
+  EXPECT_THAT(pager.Active(), IsFalse());
   pager.Finish();  // a second call (and the destructor after it) must be harmless
   std::ifstream in(sink);
   EXPECT_THAT(std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()), Eq("paged\n"));
