@@ -2306,16 +2306,16 @@ std::map<std::string, std::string> ResolveDefines(const std::vector<std::string>
   return defines;
 }
 
-// Collects the NAME of every -capture action in the expression (its args[0]).
-void CollectCaptureNames(const parser::Expr& expr, std::vector<std::string>* names) {
+// Appends the NAME of every -capture action in the expression (its args[0]).
+void AppendCaptureNames(const parser::Expr& expr, std::vector<std::string>& names) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate:
       // A node with `!` (label_override) is ALLOWED to re-bind, so it is not reported as a duplicate.
       if (expr.descriptor->name == "-capture" && !expr.args.empty() && !expr.label_override) {
-        names->push_back(expr.args.front());
+        names.push_back(expr.args.front());
       }
       break;
-    case parser::Expr::Kind::kNot: CollectCaptureNames(*expr.lhs, names); break;
+    case parser::Expr::Kind::kNot: AppendCaptureNames(*expr.lhs, names); break;
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
     case parser::Expr::Kind::kNand:
@@ -2323,16 +2323,21 @@ void CollectCaptureNames(const parser::Expr& expr, std::vector<std::string>* nam
     case parser::Expr::Kind::kXor:
     case parser::Expr::Kind::kXnor:
     case parser::Expr::Kind::kComma:
-      CollectCaptureNames(*expr.lhs, names);
-      CollectCaptureNames(*expr.rhs, names);
+      AppendCaptureNames(*expr.lhs, names);
+      AppendCaptureNames(*expr.rhs, names);
       break;
   }
 }
 
+std::vector<std::string> CollectCaptureNames(const parser::Expr& expr) {
+  std::vector<std::string> names;
+  AppendCaptureNames(expr, names);
+  return names;
+}
+
 // Returns a -capture NAME bound more than once, or nullopt when all are unique.
 std::optional<std::string> DuplicateCaptureName(const parser::Expr& expr) {
-  std::vector<std::string> names;
-  CollectCaptureNames(expr, &names);
+  std::vector<std::string> names = CollectCaptureNames(expr);
   absl::c_sort(names);
   const auto dup = absl::c_adjacent_find(names);
   return dup == names.end() ? std::nullopt : std::optional<std::string>(*dup);
@@ -2381,19 +2386,19 @@ bool ReportDuplicateBindingName(const parser::Expr& expr, WalkErrorFn on_error) 
   return false;
 }
 
-// Collects strings that may reference {capture.NAME}: the command tokens of every
+// Appends strings that may reference {capture.NAME}: the command tokens of every
 // -exec and -capture action (a later command can use an earlier capture). The
 // --template global is added by the caller.
-void CollectCaptureRefs(const parser::Expr& expr, std::vector<std::string>* refs) {
+void AppendCaptureRefs(const parser::Expr& expr, std::vector<std::string>& refs) {
   switch (expr.kind) {
     case parser::Expr::Kind::kPredicate:
       if (expr.descriptor->name == "-exec") {
-        refs->insert(refs->end(), expr.args.begin(), expr.args.end());
+        refs.insert(refs.end(), expr.args.begin(), expr.args.end());
       } else if (expr.descriptor->name == "-capture" && expr.args.size() > 2) {
-        refs->insert(refs->end(), expr.args.begin() + 2, expr.args.end());  // skip [NAME, REGEX]
+        refs.insert(refs.end(), expr.args.begin() + 2, expr.args.end());  // skip [NAME, REGEX]
       }
       break;
-    case parser::Expr::Kind::kNot: CollectCaptureRefs(*expr.lhs, refs); break;
+    case parser::Expr::Kind::kNot: AppendCaptureRefs(*expr.lhs, refs); break;
     case parser::Expr::Kind::kAnd:
     case parser::Expr::Kind::kOr:
     case parser::Expr::Kind::kNand:
@@ -2401,10 +2406,16 @@ void CollectCaptureRefs(const parser::Expr& expr, std::vector<std::string>* refs
     case parser::Expr::Kind::kXor:
     case parser::Expr::Kind::kXnor:
     case parser::Expr::Kind::kComma:
-      CollectCaptureRefs(*expr.lhs, refs);
-      CollectCaptureRefs(*expr.rhs, refs);
+      AppendCaptureRefs(*expr.lhs, refs);
+      AppendCaptureRefs(*expr.rhs, refs);
       break;
   }
+}
+
+std::vector<std::string> CollectCaptureRefs(const parser::Expr& expr) {
+  std::vector<std::string> refs;
+  AppendCaptureRefs(expr, refs);
+  return refs;
 }
 
 // The first argument anywhere in `expr` that compiles to a field template carrying an UNREDUCED m//
@@ -2446,13 +2457,11 @@ std::optional<std::string> UnusedCaptureName(
     const parser::Expr& expr,
     const std::optional<std::string>& tmpl,
     std::string_view summary_key) {
-  std::vector<std::string> names;
-  CollectCaptureNames(expr, &names);
+  const std::vector<std::string> names = CollectCaptureNames(expr);
   if (names.empty()) {
     return std::nullopt;
   }
-  std::vector<std::string> refs;
-  CollectCaptureRefs(expr, &refs);
+  std::vector<std::string> refs = CollectCaptureRefs(expr);
   if (tmpl.has_value()) {
     refs.push_back(*tmpl);
   }
@@ -2904,7 +2913,7 @@ void FeedCollections(
           .link_target = link,
           .metadata = visit.metadata,
           .depth = visit.depth,
-          .fs = visit.fs != nullptr ? *visit.fs : defaults.fs,
+          .fs = visit.fs.has_value() ? *visit.fs : defaults.fs,
           .tz = defaults.tz,
           .time_format = defaults.time_format,
           .zone_suffix = defaults.zone_suffix,
@@ -3705,7 +3714,7 @@ RunResult RunFind(
             .link_target = link,
             .metadata = visit.metadata,
             .depth = visit.depth,
-            .fs = visit.fs != nullptr ? *visit.fs : walk_fs,
+            .fs = visit.fs.has_value() ? *visit.fs : walk_fs,
             .tz = tz,
             .time_format = time_format,
             .zone_suffix = zone_suffix,
@@ -3738,7 +3747,7 @@ RunResult RunFind(
             .link_target = link,
             .metadata = visit.metadata,
             .depth = visit.depth,
-            .fs = visit.fs != nullptr ? *visit.fs : walk_fs,
+            .fs = visit.fs.has_value() ? *visit.fs : walk_fs,
             .tz = tz,
             .time_format = time_format,
             .zone_suffix = zone_suffix,
@@ -3854,7 +3863,7 @@ RunResult RunFind(
             .ls_size_units = human,
             // The entry's OWN filesystem, so a predicate that reads a member reads it out of the
             // container rather than looking for `a.tar!x` on disk and finding nothing.
-            .fs = visit.fs != nullptr ? *visit.fs : walk_fs,
+            .fs = visit.fs.has_value() ? *visit.fs : walk_fs,
             .now = now,
             .tz = tz,
             .time_format = time_format,
@@ -3969,7 +3978,7 @@ RunResult RunFind(
           .emit_ls_row = emit_ls_row,
           .ls_color = entry_color,
           .ls_size_units = human,
-          .fs = visit.fs != nullptr ? *visit.fs : walk_fs,
+          .fs = visit.fs.has_value() ? *visit.fs : walk_fs,
           .now = now,
           .tz = tz,
           .time_format = time_format,
@@ -4152,7 +4161,7 @@ RunResult RunFind(
           .link_target = link,
           .metadata = visit.metadata,
           .depth = visit.depth,
-          .fs = visit.fs != nullptr ? *visit.fs : walk_fs,
+          .fs = visit.fs.has_value() ? *visit.fs : walk_fs,
           .tz = tz,
           .time_format = time_format,
           .zone_suffix = zone_suffix,

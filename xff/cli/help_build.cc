@@ -118,11 +118,11 @@ std::vector<std::string_view> AffectedByFlags(std::string_view name) {
 }
 
 // Appends an influence detail line ("Header: a, b, c") to `blocks` when non-empty.
-void AppendInfluence(Blocks* blocks, std::string_view header, const std::vector<std::string_view>& names) {
+void AppendInfluence(Blocks& blocks, std::string_view header, const std::vector<std::string_view>& names) {
   if (names.empty()) {
     return;
   }
-  blocks->push_back(ProseOf(absl::StrCat(header, " ", absl::StrJoin(names, ", "))));
+  blocks.push_back(ProseOf(absl::StrCat(header, " ", absl::StrJoin(names, ", "))));
 }
 
 // The heading line above a flag's value table: "GROUP is one of:" for a display that collapsed its
@@ -178,8 +178,8 @@ Content FlagEntry(const GlobalFlag& flag, bool with_details = true, Audience aud
     for (Content& block : ParseBlocks(flag.details)) {
       details.push_back(std::move(block));
     }
-    AppendInfluence(&details, "Affects:", absl::StrSplit(flag.affects, ',', absl::SkipEmpty()));
-    AppendInfluence(&details, "Affected by:", AffectedByFlags(flag.name));
+    AppendInfluence(details, "Affects:", absl::StrSplit(flag.affects, ',', absl::SkipEmpty()));
+    AppendInfluence(details, "Affected by:", AffectedByFlags(flag.name));
   }
   return Content{
       .node = Entry{
@@ -198,7 +198,7 @@ Content PrimaryEntry(const registry::Descriptor& descriptor, bool with_details =
   Blocks details;
   if (with_details) {
     details = ParseBlocks(descriptor.details);
-    AppendInfluence(&details, "Affected by:", AffectedByFlags(descriptor.name));
+    AppendInfluence(details, "Affected by:", AffectedByFlags(descriptor.name));
   }
   const std::string hint = ArgHint(descriptor);
   std::string term = absl::StrCat(descriptor.name, hint);
