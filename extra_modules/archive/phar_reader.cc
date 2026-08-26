@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
+#include <functional>
 #include <ios>
 #include <optional>
 #include <string>
@@ -415,7 +416,9 @@ Member StubMember(std::size_t size) {
 
 // Locates `member` in an already-parsed manifest, normalizing both sides so the stored spelling and
 // the caller's spelling never have to agree exactly.
-absl::StatusOr<const Entry*> FindEntry(const std::vector<Entry>& entries, std::string_view member) {
+absl::StatusOr<std::reference_wrapper<const Entry>> FindEntry(
+    const std::vector<Entry>& entries,
+    std::string_view member) {
   const std::string_view wanted = NormalizeMemberName(member);
   for (const Entry& entry : entries) {
     if (NormalizeMemberName(entry.member.path) != wanted) {
@@ -431,7 +434,7 @@ absl::StatusOr<const Entry*> FindEntry(const std::vector<Entry>& entries, std::s
       return absl::UnimplementedError(
           absl::StrCat("phar member uses an unknown compression method ", how, ": ", member));
     }
-    return &entry;
+    return std::cref(entry);
   }
   return absl::NotFoundError(absl::StrCat("no such phar member: ", member));
 }
@@ -604,13 +607,14 @@ absl::StatusOr<std::string> ReadPharMember(std::string_view bytes, std::string_v
     return std::string(bytes.substr(0, whole.manifest_length_at));
   }
   const std::vector<Entry>& entries = whole.entries;
-  MBO_ASSIGN_OR_RETURN(const Entry* const entry, FindEntry(entries, member));
-  MBO_RETURN_IF_ERROR(CheckLimit(entry->stored_size, max_bytes, member));
-  if (entry->data_offset + entry->stored_size > bytes.size()) {
+  MBO_ASSIGN_OR_RETURN(const std::reference_wrapper<const Entry> entry_ref, FindEntry(entries, member));
+  const Entry& entry = entry_ref.get();
+  MBO_RETURN_IF_ERROR(CheckLimit(entry.stored_size, max_bytes, member));
+  if (entry.data_offset + entry.stored_size > bytes.size()) {
     return absl::DataLossError(absl::StrCat("phar member data runs past the end of the container: ", member));
   }
-  const std::string_view stored = bytes.substr(entry->data_offset, entry->stored_size);
-  return Decompress(*entry, stored, member);
+  const std::string_view stored = bytes.substr(entry.data_offset, entry.stored_size);
+  return Decompress(entry, stored, member);
 }
 
 absl::StatusOr<std::string> ReadPharMemberOfFile(
@@ -624,14 +628,15 @@ absl::StatusOr<std::string> ReadPharMemberOfFile(
     return ReadFileRange(path, 0, whole.manifest_length_at);
   }
   const std::vector<Entry>& entries = whole.entries;
-  MBO_ASSIGN_OR_RETURN(const Entry* const entry, FindEntry(entries, member));
-  MBO_RETURN_IF_ERROR(CheckLimit(entry->stored_size, max_bytes, member));
+  MBO_ASSIGN_OR_RETURN(const std::reference_wrapper<const Entry> entry_ref, FindEntry(entries, member));
+  const Entry& entry = entry_ref.get();
+  MBO_RETURN_IF_ERROR(CheckLimit(entry.stored_size, max_bytes, member));
   MBO_ASSIGN_OR_RETURN(
-      const std::string content, ReadFileRange(path, entry->data_offset, static_cast<std::size_t>(entry->stored_size)));
-  if (content.size() < entry->stored_size) {
+      const std::string content, ReadFileRange(path, entry.data_offset, static_cast<std::size_t>(entry.stored_size)));
+  if (content.size() < entry.stored_size) {
     return absl::DataLossError(absl::StrCat("phar member data runs past the end of the container: ", member));
   }
-  return Decompress(*entry, content, member);
+  return Decompress(entry, content, member);
 }
 
 }  // namespace xff::archive

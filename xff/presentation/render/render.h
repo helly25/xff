@@ -165,7 +165,7 @@ class Tree {
   };
 
   // Appends `node`'s children under `prefix`, each recursing with the connector-extended prefix.
-  void RenderChildren(const Node& node, std::string_view prefix, std::string* out) const;
+  void RenderChildren(const Node& node, std::string_view prefix, std::string& out) const;
 
   bool unicode_;
   Node root_;  // the forest; root_.children are the top-level nodes (roots / first components)
