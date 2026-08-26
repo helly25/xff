@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-26 20:54:24</td>
+            <td class="headerValue">2026-08-26 21:41:31</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -1095,26 +1095,26 @@
 <span id="L982"><span class="lineNum">     982</span>                 :             : </span>
 <span id="L983"><span class="lineNum">     983</span>                 :             : }  // namespace</span>
 <span id="L984"><span class="lineNum">     984</span>                 :             : </span>
-<span id="L985"><span class="lineNum">     985</span>                 :<span class="tlaGNC">        1433 : Template Template::Compile(std::string_view tmpl) {</span></span>
-<span id="L986"><span class="lineNum">     986</span>                 :<span class="tlaGNC">        1433 :   Template compiled;</span></span>
-<span id="L987"><span class="lineNum">     987</span>                 :<span class="tlaGNC">        1433 :   std::string literal;</span></span>
-<span id="L988"><span class="lineNum">     988</span>                 :<span class="tlaGNC">        1913 :   const auto flush_literal = [&amp;] {</span></span>
-<span id="L989"><span class="lineNum">     989</span>         [<span class="tlaGBC" title="branch 0 was taken 1250 times"> + </span><span class="tlaGBC" title="branch 1 was taken 663 times"> + </span>]:<span class="tlaGNC">        1913 :     if (!literal.empty()) {</span></span>
-<span id="L990"><span class="lineNum">     990</span>                 :<span class="tlaGNC">        1250 :       compiled.segments_.push_back({.literal = std::move(literal)});</span></span>
-<span id="L991"><span class="lineNum">     991</span>                 :<span class="tlaGNC">        1250 :       literal.clear();  // restore the moved-from buffer to a known-empty state</span></span>
+<span id="L985"><span class="lineNum">     985</span>                 :<span class="tlaGNC">        1435 : Template Template::Compile(std::string_view tmpl) {</span></span>
+<span id="L986"><span class="lineNum">     986</span>                 :<span class="tlaGNC">        1435 :   Template compiled;</span></span>
+<span id="L987"><span class="lineNum">     987</span>                 :<span class="tlaGNC">        1435 :   std::string literal;</span></span>
+<span id="L988"><span class="lineNum">     988</span>                 :<span class="tlaGNC">        1915 :   const auto flush_literal = [&amp;] {</span></span>
+<span id="L989"><span class="lineNum">     989</span>         [<span class="tlaGBC" title="branch 0 was taken 1252 times"> + </span><span class="tlaGBC" title="branch 1 was taken 663 times"> + </span>]:<span class="tlaGNC">        1915 :     if (!literal.empty()) {</span></span>
+<span id="L990"><span class="lineNum">     990</span>                 :<span class="tlaGNC">        1252 :       compiled.segments_.push_back({.literal = std::move(literal)});</span></span>
+<span id="L991"><span class="lineNum">     991</span>                 :<span class="tlaGNC">        1252 :       literal.clear();  // restore the moved-from buffer to a known-empty state</span></span>
 <span id="L992"><span class="lineNum">     992</span>                 :             :     }</span>
-<span id="L993"><span class="lineNum">     993</span>                 :<span class="tlaGNC">        3346 :   };</span></span>
-<span id="L994"><span class="lineNum">     994</span>         [<span class="tlaGBC" title="branch 0 was taken 28924 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1433 times"> + </span>]:<span class="tlaGNC">       30357 :   for (std::string_view::size_type i = 0; i &lt; tmpl.size();) {</span></span>
-<span id="L995"><span class="lineNum">     995</span>                 :<span class="tlaGNC">       28924 :     const char ch = tmpl[i];</span></span>
-<span id="L996"><span class="lineNum">     996</span>   [<span class="tlaGBC" title="branch 0 was taken 486 times"> + </span><span class="tlaGBC" title="branch 1 was taken 28438 times"> + </span><span class="tlaGBC" title="branch 2 was taken 486 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">       28924 :     if (ch == '{' &amp;&amp; i + 1 &lt; tmpl.size() &amp;&amp; tmpl[i + 1] == '{') {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 2 times"> + </span><span class="tlaGBC" title="branch 5 was taken 484 times"> + </span><span class="tlaGBC" title="branch 6 was taken 2 times"> + </span><span class="tlaGBC" title="branch 7 was taken 28922 times"> + </span>]
+<span id="L993"><span class="lineNum">     993</span>                 :<span class="tlaGNC">        3350 :   };</span></span>
+<span id="L994"><span class="lineNum">     994</span>         [<span class="tlaGBC" title="branch 0 was taken 28926 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1435 times"> + </span>]:<span class="tlaGNC">       30361 :   for (std::string_view::size_type i = 0; i &lt; tmpl.size();) {</span></span>
+<span id="L995"><span class="lineNum">     995</span>                 :<span class="tlaGNC">       28926 :     const char ch = tmpl[i];</span></span>
+<span id="L996"><span class="lineNum">     996</span>   [<span class="tlaGBC" title="branch 0 was taken 486 times"> + </span><span class="tlaGBC" title="branch 1 was taken 28440 times"> + </span><span class="tlaGBC" title="branch 2 was taken 486 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">       28926 :     if (ch == '{' &amp;&amp; i + 1 &lt; tmpl.size() &amp;&amp; tmpl[i + 1] == '{') {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 2 times"> + </span><span class="tlaGBC" title="branch 5 was taken 484 times"> + </span><span class="tlaGBC" title="branch 6 was taken 2 times"> + </span><span class="tlaGBC" title="branch 7 was taken 28924 times"> + </span>]
 <span id="L997"><span class="lineNum">     997</span>                 :<span class="tlaGNC">           2 :       literal.push_back('{');</span></span>
 <span id="L998"><span class="lineNum">     998</span>                 :<span class="tlaGNC">           2 :       i += 2;</span></span>
-<span id="L999"><span class="lineNum">     999</span>   [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 28919 times"> + </span><span class="tlaGBC" title="branch 2 was taken 2 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">       28922 :     } else if (ch == '}' &amp;&amp; i + 1 &lt; tmpl.size() &amp;&amp; tmpl[i + 1] == '}') {</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 2 times"> + </span><span class="tlaUNC" title="branch 5 was not taken"> - </span><span class="tlaGBC" title="branch 6 was taken 2 times"> + </span><span class="tlaGBC" title="branch 7 was taken 28920 times"> + </span>]
+<span id="L999"><span class="lineNum">     999</span>   [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 28921 times"> + </span><span class="tlaGBC" title="branch 2 was taken 2 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">       28924 :     } else if (ch == '}' &amp;&amp; i + 1 &lt; tmpl.size() &amp;&amp; tmpl[i + 1] == '}') {</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="branch 4 was taken 2 times"> + </span><span class="tlaUNC" title="branch 5 was not taken"> - </span><span class="tlaGBC" title="branch 6 was taken 2 times"> + </span><span class="tlaGBC" title="branch 7 was taken 28922 times"> + </span>]
 <span id="L1000"><span class="lineNum">    1000</span>                 :<span class="tlaGNC">           2 :       literal.push_back('}');</span></span>
 <span id="L1001"><span class="lineNum">    1001</span>                 :<span class="tlaGNC">           2 :       i += 2;</span></span>
-<span id="L1002"><span class="lineNum">    1002</span>         [<span class="tlaGBC" title="branch 0 was taken 484 times"> + </span><span class="tlaGBC" title="branch 1 was taken 28436 times"> + </span>]:<span class="tlaGNC">       28920 :     } else if (ch == '{') {</span></span>
+<span id="L1002"><span class="lineNum">    1002</span>         [<span class="tlaGBC" title="branch 0 was taken 484 times"> + </span><span class="tlaGBC" title="branch 1 was taken 28438 times"> + </span>]:<span class="tlaGNC">       28922 :     } else if (ch == '{') {</span></span>
 <span id="L1003"><span class="lineNum">    1003</span>                 :<span class="tlaGNC">         484 :       std::string_view name;</span></span>
 <span id="L1004"><span class="lineNum">    1004</span>                 :<span class="tlaGNC">         484 :       std::string qualifier;</span></span>
 <span id="L1005"><span class="lineNum">    1005</span>                 :<span class="tlaGNC">         484 :       const std::string_view::size_type next = ParseField(tmpl, i, name, qualifier);</span></span>
@@ -1134,13 +1134,13 @@
 <span id="L1019"><span class="lineNum">    1019</span>                 :<span class="tlaGNC">         480 :       compiled.segments_.push_back({.fn = fn, .key = std::move(key), .qualifier = std::move(qualifier), .post = post});</span></span>
 <span id="L1020"><span class="lineNum">    1020</span>                 :<span class="tlaGNC">         480 :       i = next;</span></span>
 <span id="L1021"><span class="lineNum">    1021</span>         [<span class="tlaGBC" title="branch 0 was taken 480 times"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">         484 :     } else {</span></span>
-<span id="L1022"><span class="lineNum">    1022</span>                 :<span class="tlaGNC">       28436 :       literal.push_back(ch);</span></span>
-<span id="L1023"><span class="lineNum">    1023</span>                 :<span class="tlaGNC">       28436 :       ++i;</span></span>
+<span id="L1022"><span class="lineNum">    1022</span>                 :<span class="tlaGNC">       28438 :       literal.push_back(ch);</span></span>
+<span id="L1023"><span class="lineNum">    1023</span>                 :<span class="tlaGNC">       28438 :       ++i;</span></span>
 <span id="L1024"><span class="lineNum">    1024</span>                 :             :     }</span>
 <span id="L1025"><span class="lineNum">    1025</span>                 :             :   }</span>
-<span id="L1026"><span class="lineNum">    1026</span>                 :<span class="tlaGNC">        1433 :   flush_literal();</span></span>
-<span id="L1027"><span class="lineNum">    1027</span>                 :<span class="tlaGNC">        2866 :   return compiled;</span></span>
-<span id="L1028"><span class="lineNum">    1028</span>                 :<span class="tlaGNC">        1433 : }</span></span>
+<span id="L1026"><span class="lineNum">    1026</span>                 :<span class="tlaGNC">        1435 :   flush_literal();</span></span>
+<span id="L1027"><span class="lineNum">    1027</span>                 :<span class="tlaGNC">        2870 :   return compiled;</span></span>
+<span id="L1028"><span class="lineNum">    1028</span>                 :<span class="tlaGNC">        1435 : }</span></span>
 <span id="L1029"><span class="lineNum">    1029</span>                 :             : </span>
 <span id="L1030"><span class="lineNum">    1030</span>                 :<span class="tlaGNC">         429 : std::string Template::Render(const RenderContext&amp; context) const {</span></span>
 <span id="L1031"><span class="lineNum">    1031</span>                 :<span class="tlaGNC">         429 :   std::string out;</span></span>
@@ -1206,11 +1206,11 @@
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 4 times"> + </span><span class="tlaGBC" title="branch 5 was taken 1 time"> + </span>]
 <span id="L1089"><span class="lineNum">    1089</span>                 :             : }</span>
 <span id="L1090"><span class="lineNum">    1090</span>                 :             : </span>
-<span id="L1091"><span class="lineNum">    1091</span>                 :<span class="tlaGNC">        1033 : bool Template::HasUnreducedExtraction() const {</span></span>
-<span id="L1092"><span class="lineNum">    1092</span>                 :<span class="tlaGNC">        2066 :   return absl::c_any_of(segments_, [](const Segment&amp; segment) {</span></span>
-<span id="L1093"><span class="lineNum">    1093</span>   [<span class="tlaGBC" title="branch 0 was taken 131 times"> + </span><span class="tlaGBC" title="branch 1 was taken 992 times"> + </span><span class="tlaGBC" title="branch 2 was taken 9 times"> + </span><span class="tlaGBC" title="branch 3 was taken 122 times"> + </span> :<span class="tlaGNC">        1123 :     return segment.fn != nullptr &amp;&amp; segment.post == Segment::PostProcess::kExtract &amp;&amp; !HasReducer(segment.qualifier);</span></span>
+<span id="L1091"><span class="lineNum">    1091</span>                 :<span class="tlaGNC">        1035 : bool Template::HasUnreducedExtraction() const {</span></span>
+<span id="L1092"><span class="lineNum">    1092</span>                 :<span class="tlaGNC">        2070 :   return absl::c_any_of(segments_, [](const Segment&amp; segment) {</span></span>
+<span id="L1093"><span class="lineNum">    1093</span>   [<span class="tlaGBC" title="branch 0 was taken 131 times"> + </span><span class="tlaGBC" title="branch 1 was taken 994 times"> + </span><span class="tlaGBC" title="branch 2 was taken 9 times"> + </span><span class="tlaGBC" title="branch 3 was taken 122 times"> + </span> :<span class="tlaGNC">        1125 :     return segment.fn != nullptr &amp;&amp; segment.post == Segment::PostProcess::kExtract &amp;&amp; !HasReducer(segment.qualifier);</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 7 times"> + </span><span class="tlaGBC" title="branch 5 was taken 2 times"> + </span>]
-<span id="L1094"><span class="lineNum">    1094</span>                 :<span class="tlaGNC">        1033 :   });</span></span>
+<span id="L1094"><span class="lineNum">    1094</span>                 :<span class="tlaGNC">        1035 :   });</span></span>
 <span id="L1095"><span class="lineNum">    1095</span>                 :             : }</span>
 <span id="L1096"><span class="lineNum">    1096</span>                 :             : </span>
 <span id="L1097"><span class="lineNum">    1097</span>                 :<span class="tlaGNC">         110 : std::string Render(std::string_view tmpl, std::string_view path, const vfs::Metadata&amp; metadata, int depth) {</span></span>
