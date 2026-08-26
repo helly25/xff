@@ -351,8 +351,7 @@ constexpr std::array kPackOptions = std::to_array<PackOptionSpec>({
 using OptionalPackOptionSpec = mbo::types::OptionalRef<const PackOptionSpec>;
 
 OptionalPackOptionSpec PackOptionSpecFor(std::string_view name) {
-  const auto* const found =
-      absl::c_find_if(kPackOptions, [name](const PackOptionSpec& spec) { return spec.name == name; });
+  const auto found = absl::c_find_if(kPackOptions, [name](const PackOptionSpec& spec) { return spec.name == name; });
   return found == kPackOptions.end() ? OptionalPackOptionSpec{} : OptionalPackOptionSpec{*found};
 }
 
