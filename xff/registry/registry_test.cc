@@ -69,7 +69,7 @@ TEST_F(RegistryTest, SecurityRelevantPrimariesAreClassified) {
   // The exec family runs arbitrary commands (kSecurity); -delete loses data
   // (kSafety); everything else is unclassified (kNone). The config policy gate
   // (phase C) keys its safe-by-default deny off this.
-  static constexpr std::array kSecurityPrimaries = std::to_array<const char*>({
+  static constexpr std::array kSecurityPrimaries = std::to_array<std::string_view>({
       "-exec",
       "-execdir",
       "-ok",
@@ -77,7 +77,7 @@ TEST_F(RegistryTest, SecurityRelevantPrimariesAreClassified) {
       "-capture",
       "-capturedir",
   });
-  for (const char* const name : kSecurityPrimaries) {
+  for (const std::string_view name : kSecurityPrimaries) {
     EXPECT_THAT(Lookup(name), Optional(Field("safety", &Descriptor::safety, Safety::kSecurity))) << name;
   }
   EXPECT_THAT(Lookup("-delete"), Optional(Field("safety", &Descriptor::safety, Safety::kSafety)));
@@ -97,18 +97,19 @@ TEST_F(RegistryTest, CaptureFamilyDeclaresLabelRegexBinding) {
 TEST_F(RegistryTest, XffExtensionsAreStyleTagged) {
   // The xff-native primaries carry Style::kXff so the strict find style (phase D)
   // can reject them; everything inherited from find stays kFind (the default).
-  for (const char* const name :
-       {"-println", "-printfln", "-capture", "-capturedir", "-xor", "-nand", "-nor", "-xnor"}) {
+  static constexpr std::array kXffPrimaries = std::to_array<std::string_view>(
+      {"-println", "-printfln", "-capture", "-capturedir", "-xor", "-nand", "-nor", "-xnor"});
+  for (const std::string_view name : kXffPrimaries) {
     EXPECT_THAT(Lookup(name), Optional(Field("style", &Descriptor::style, Style::kXff))) << name;
   }
-  static constexpr std::array kFindStylePrimaries = std::to_array<const char*>({
+  static constexpr std::array kFindStylePrimaries = std::to_array<std::string_view>({
       "-print",
       "-printf",
       "-name",
       "-exec",
       "-delete",
   });
-  for (const char* const name : kFindStylePrimaries) {
+  for (const std::string_view name : kFindStylePrimaries) {
     EXPECT_THAT(Lookup(name), Optional(Field("style", &Descriptor::style, Style::kFind))) << name;
   }
 }
@@ -116,13 +117,13 @@ TEST_F(RegistryTest, XffExtensionsAreStyleTagged) {
 TEST_F(RegistryTest, ExtendedLogicalOperatorsAreOperators) {
   // -xor/-nand/-nor/-xnor are xff logical operators (the style tagging is asserted
   // above); confirm they are classified as operators, not tests/actions.
-  static constexpr std::array kXffOperators = std::to_array<const char*>({
+  static constexpr std::array kXffOperators = std::to_array<std::string_view>({
       "-xor",
       "-nand",
       "-nor",
       "-xnor",
   });
-  for (const char* const name : kXffOperators) {
+  for (const std::string_view name : kXffOperators) {
     EXPECT_THAT(Lookup(name), Optional(Field("kind", &Descriptor::kind, Kind::kOperator))) << name;
   }
 }
