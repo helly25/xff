@@ -221,6 +221,7 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
         "@helly25_mbo//mbo/status:status_macros_cc",
+        "@helly25_mbo//mbo/types:optional_ref_cc",
         "@libarchive//libarchive",
     ],
 )

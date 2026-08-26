@@ -16,7 +16,7 @@
 
 namespace xff::archive::internal {
 
-using FilterEnabler = bool (*)(struct ::archive*);
+using FilterEnabler = bool (*)(struct ::archive&);
 
 // Dependency-injected forms used to prove that filter registration failures become stable API
 // errors. Production entry points pass EnableNativeFilters.

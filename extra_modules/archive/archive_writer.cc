@@ -76,7 +76,7 @@ ReadPtr OpenReader(const std::string& path) {
   if (handle == nullptr) {
     return handle;
   }
-  if (!EnableNativeFilters(handle.get())) {
+  if (!EnableNativeFilters(*handle)) {
     return nullptr;
   }
   ::archive_read_support_format_7zip(handle.get());
@@ -101,7 +101,9 @@ ReadPtr OpenReader(const std::string& path) {
 // Copies one member's data across. Block-wise rather than whole-member, so rewriting a container
 // holding a huge member does not need it in memory. `archive_write_data` and not the _block variant:
 // the latter belongs to the write-to-DISK API and answers "not supported" on an archive writer.
-absl::Status CopyData(struct ::archive* reader, struct ::archive* writer) {
+absl::Status CopyData(struct ::archive& reader_ref, struct ::archive& writer_ref) {
+  struct ::archive* const reader = &reader_ref;
+  struct ::archive* const writer = &writer_ref;
   for (;;) {
     const void* block = nullptr;
     std::size_t size = 0;
@@ -121,11 +123,44 @@ absl::Status CopyData(struct ::archive* reader, struct ::archive* writer) {
 
 // The rewrite itself, into an already-created writer. Split out so the caller owns the temporary
 // file's lifetime: whatever happens here, an unfinished temporary is removed rather than renamed.
-absl::Status RewriteWithout(
-    struct ::archive* reader,
-    struct ::archive* writer,
-    const std::vector<std::string>& members,
-    std::vector<bool>* removed) {
+class RemovalTracker final {
+ public:
+  explicit RemovalTracker(const std::vector<std::string>& requested)
+      : requested_(requested), removed_(requested.size(), false) {}
+
+  bool ShouldRemove(std::string_view name) {
+    bool drop = false;
+    for (std::size_t i = 0; i < requested_.size(); ++i) {
+      if (NormalizeMemberName(requested_[i]) == name) {
+        drop = true;
+        removed_[i] = true;
+      }
+    }
+    return drop;
+  }
+
+  // NotFound names every requested member the rewrite never saw.
+  absl::Status CheckAll(std::string_view path) const {
+    if (absl::c_all_of(removed_, [](bool found) { return found; })) {
+      return absl::OkStatus();
+    }
+    std::vector<std::string> missing;
+    for (std::size_t i = 0; i < requested_.size(); ++i) {
+      if (!removed_[i]) {
+        missing.push_back(requested_[i]);
+      }
+    }
+    return absl::NotFoundError(absl::StrCat("no such member in ", path, ": ", absl::StrJoin(missing, ", ")));
+  }
+
+ private:
+  const std::vector<std::string>& requested_;
+  std::vector<bool> removed_;
+};
+
+absl::Status RewriteWithout(struct ::archive& reader_ref, struct ::archive& writer_ref, RemovalTracker& removals) {
+  struct ::archive* const reader = &reader_ref;
+  struct ::archive* const writer = &writer_ref;
   for (;;) {
     struct ::archive_entry* entry = nullptr;
     const int status = ::archive_read_next_header(reader, &entry);
@@ -137,14 +172,7 @@ absl::Status RewriteWithout(
     }
     const char* stored = ::archive_entry_pathname(entry);
     const std::string_view name = NormalizeMemberName(stored == nullptr ? std::string_view() : stored);
-    bool drop = false;
-    for (std::size_t i = 0; i < members.size(); ++i) {
-      if (NormalizeMemberName(members[i]) == name) {
-        drop = true;
-        (*removed)[i] = true;
-      }
-    }
-    if (drop) {
+    if (removals.ShouldRemove(name)) {
       ::archive_read_data_skip(reader);
       continue;
     }
@@ -152,7 +180,7 @@ absl::Status RewriteWithout(
       return absl::UnavailableError(LastError(writer));
     }
     if (::archive_entry_size(entry) > 0) {
-      const absl::Status copied = CopyData(reader, writer);
+      const absl::Status copied = CopyData(reader_ref, writer_ref);
       if (!copied.ok()) {
         return copied;
       }
@@ -165,10 +193,12 @@ absl::Status RewriteWithout(
 // cohesive step in it that answers a different question ("can this be written back at all?"), and
 // leaving it inline put that function past the complexity the style guide allows.
 absl::Status MatchWriterToReader(
-    struct ::archive* reader,
-    struct ::archive* writer,
+    struct ::archive& reader_ref,
+    struct ::archive& writer_ref,
     const stdfs::path& temporary,
     std::string_view path) {
+  struct ::archive* const reader = &reader_ref;
+  struct ::archive* const writer = &writer_ref;
   // Reading a format does not imply writing it: libarchive reads 7-Zip, RAR, ISO and cab, and writes
   // only some of those. Refusing here (rather than producing a tar named `.7z`) is the point.
   if (::archive_write_set_format(writer, ::archive_format(reader)) != ARCHIVE_OK) {
@@ -196,21 +226,16 @@ absl::Status MatchWriterToReader(
 // The peeked first member: dropped when listed (marking it in `removed`), copied through otherwise.
 // Split out of RemoveMembersOfFile so the peek-then-loop shape stays readable there.
 absl::Status TransferFirstMember(
-    struct ::archive* reader,
-    struct ::archive* writer,
-    struct ::archive_entry* first,
-    const std::vector<std::string>& members,
-    std::vector<bool>* removed) {
+    struct ::archive& reader_ref,
+    struct ::archive& writer_ref,
+    struct ::archive_entry& first_ref,
+    RemovalTracker& removals) {
+  struct ::archive* const reader = &reader_ref;
+  struct ::archive* const writer = &writer_ref;
+  struct ::archive_entry* const first = &first_ref;
   const char* stored = ::archive_entry_pathname(first);
   const std::string_view name = NormalizeMemberName(stored == nullptr ? std::string_view() : stored);
-  bool drop = false;
-  for (std::size_t i = 0; i < members.size(); ++i) {
-    if (NormalizeMemberName(members[i]) == name) {
-      drop = true;
-      (*removed)[i] = true;
-    }
-  }
-  if (drop) {
+  if (removals.ShouldRemove(name)) {
     ::archive_read_data_skip(reader);
     return absl::OkStatus();
   }
@@ -218,26 +243,9 @@ absl::Status TransferFirstMember(
     return absl::UnavailableError(LastError(writer));
   }
   if (::archive_entry_size(first) > 0) {
-    return CopyData(reader, writer);
+    return CopyData(reader_ref, writer_ref);
   }
   return absl::OkStatus();
-}
-
-// NotFound naming every requested member the rewrite never saw; OK when all were removed.
-absl::Status AllRemoved(
-    std::string_view path,
-    const std::vector<std::string>& members,
-    const std::vector<bool>& removed) {
-  if (absl::c_all_of(removed, [](bool found) { return found; })) {
-    return absl::OkStatus();
-  }
-  std::vector<std::string> missing;
-  for (std::size_t i = 0; i < members.size(); ++i) {
-    if (!removed[i]) {
-      missing.push_back(members[i]);
-    }
-  }
-  return absl::NotFoundError(absl::StrCat("no such member in ", path, ": ", absl::StrJoin(missing, ", ")));
 }
 
 }  // namespace
@@ -268,15 +276,15 @@ absl::Status RemoveMembersOfFile(std::string_view path, const std::vector<std::s
     if (writer == nullptr) {
       return absl::UnavailableError("cannot create a libarchive writer");
     }
-    MBO_RETURN_IF_ERROR(MatchWriterToReader(reader.get(), writer.get(), temporary, path));
-    std::vector<bool> removed(members.size(), false);
+    MBO_RETURN_IF_ERROR(MatchWriterToReader(*reader, *writer, temporary, path));
+    RemovalTracker removals(members);
     // The peeked header is the first member, so handle it before the loop takes over the rest.
-    absl::Status status = TransferFirstMember(reader.get(), writer.get(), first, members, &removed);
+    absl::Status status = TransferFirstMember(*reader, *writer, *first, removals);
     if (status.ok()) {
-      status = RewriteWithout(reader.get(), writer.get(), members, &removed);
+      status = RewriteWithout(*reader, *writer, removals);
     }
     if (status.ok()) {
-      status = AllRemoved(path, members, removed);
+      status = removals.CheckAll(path);
     }
     if (status.ok() && ::archive_write_close(writer.get()) != ARCHIVE_OK) {
       // Close is where a zip writes its central directory, so a failure here is a failure to write.

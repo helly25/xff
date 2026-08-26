@@ -23,6 +23,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/synchronization/mutex.h"
 #include "mbo/status/status_macros.h"
+#include "mbo/types/optional_ref.h"
 #include "nlohmann/json.hpp"
 #include "xff/matching/language/language_database_api.h"
 
@@ -55,7 +56,7 @@ struct Vocabulary {
 struct State {
   absl::Mutex mutex;
   std::vector<std::unique_ptr<const Vocabulary>> snapshots ABSL_GUARDED_BY(mutex);
-  const Vocabulary* active ABSL_GUARDED_BY(mutex) = nullptr;
+  mbo::types::OptionalRef<const Vocabulary> active ABSL_GUARDED_BY(mutex);
 };
 
 State& GlobalState() {
@@ -404,12 +405,12 @@ absl::StatusOr<std::string> ReadFile(const std::string& path) {
 
 struct LookupResult {
   std::string_view name;
-  const Vocabulary::Record* record = nullptr;
+  mbo::types::OptionalRef<const Vocabulary::Record> record;
 };
 
 LookupResult Lookup(const Vocabulary& vocabulary, std::string_view name) {
   if (const auto found = vocabulary.filenames.find(name); found != vocabulary.filenames.end()) {
-    return {.name = found->second, .record = &vocabulary.languages.at(found->second)};
+    return {.name = found->second, .record = vocabulary.languages.at(found->second)};
   }
   const std::string folded = Lower(name);
   for (std::size_t dot = folded.find('.'); dot != std::string::npos; dot = folded.find('.', dot + 1)) {
@@ -418,7 +419,7 @@ LookupResult Lookup(const Vocabulary& vocabulary, std::string_view name) {
     }
     const auto found = vocabulary.extensions.find(std::string_view(folded).substr(dot + 1));
     if (found != vocabulary.extensions.end()) {
-      return {.name = found->second, .record = &vocabulary.languages.at(found->second)};
+      return {.name = found->second, .record = vocabulary.languages.at(found->second)};
     }
   }
   return {};
@@ -445,7 +446,7 @@ void Finalize(Vocabulary& vocabulary) {
 }
 
 void EnsureConfigured(State& state) ABSL_EXCLUSIVE_LOCKS_REQUIRED(state.mutex) {
-  if (state.active != nullptr) {
+  if (state.active.has_value()) {
     return;
   }
   auto vocabulary = std::make_unique<Vocabulary>(CoreVocabulary());
@@ -453,8 +454,8 @@ void EnsureConfigured(State& state) ABSL_EXCLUSIVE_LOCKS_REQUIRED(state.mutex) {
     CHECK_OK(LayerProcessor(*vocabulary, database.name, ConflictPolicy::kLast).Apply(database.json()));
   }
   Finalize(*vocabulary);
-  state.active = vocabulary.get();
   state.snapshots.push_back(std::move(vocabulary));
+  state.active.set_ref(*state.snapshots.back());
 }
 
 }  // namespace
@@ -463,7 +464,7 @@ absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy confl
   if (files.empty()) {
     State& state = GlobalState();
     const absl::MutexLock lock(&state.mutex);
-    state.active = nullptr;
+    state.active.reset();
     return absl::OkStatus();
   }
   Vocabulary vocabulary = CoreVocabulary();
@@ -478,8 +479,8 @@ absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy confl
   State& state = GlobalState();
   const absl::MutexLock lock(&state.mutex);
   auto snapshot = std::make_unique<const Vocabulary>(std::move(vocabulary));
-  state.active = snapshot.get();
   state.snapshots.push_back(std::move(snapshot));
+  state.active.set_ref(*state.snapshots.back());
   return absl::OkStatus();
 }
 
@@ -488,7 +489,7 @@ std::optional<LanguageInfo> InfoForName(std::string_view name) {
   const absl::MutexLock lock(&state.mutex);
   EnsureConfigured(state);
   const LookupResult found = Lookup(*state.active, name);
-  return found.record == nullptr ? std::nullopt : std::optional<LanguageInfo>(View(found.name, *found.record));
+  return found.record.has_value() ? std::optional<LanguageInfo>(View(found.name, *found.record)) : std::nullopt;
 }
 
 std::string_view LanguageForName(std::string_view name) {
