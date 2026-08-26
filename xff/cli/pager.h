@@ -26,13 +26,9 @@ namespace xff::cli {
 
 // --pager=auto|always|never|all: whether to page the long meta / doc output (--help,
 // --help=TOPIC, --man, --markdown). kAuto (the default) pages only on a terminal;
-// this mirrors --color's tri-state so the two read the same. kAll is kAuto PLUS the
-// file listing, which is the one value that pages ordinary output.
-//
-// kAll stays terminal-gated on purpose (there is no "always page the listing"): a
-// listing forced through a pager in a pipeline would feed the pager's own screen
-// handling to the next command, which is never what a pipeline wants. Meta output can
-// afford kAlways because it is a document a user asked to read.
+// this mirrors --color's tri-state so the two read the same. kAll is kAuto PLUS a
+// terminal file listing; kAlways forces every selected output, including a listing,
+// through the pager even when stdout is otherwise a pipe.
 enum class PagerWhen { kAuto, kAlways, kNever, kAll };
 
 // The kind of meta output being paged, which picks the default pager. kText is the
@@ -67,9 +63,9 @@ void EmitPaged(std::string_view text, PagerWhen when, bool stdout_is_tty, PagerK
 // every writer (std::cout, a renderer, a child process xff spawns) lands in the pager without
 // knowing about it, and the first screen appears while the walk is still running.
 //
-// Constructing with anything but `PagerWhen::kAll`, without a terminal, with `suppressed`, or
-// with no pager command leaves the object INACTIVE and stdout untouched - so the constructor
-// is always safe to run and the caller needs no branch of its own.
+// `PagerWhen::kAll` activates only on a terminal; `PagerWhen::kAlways` activates regardless of
+// whether stdout is a terminal. Every other mode, `suppressed`, or no pager command leaves the
+// object INACTIVE and stdout untouched, so the caller needs no branch of its own.
 //
 // `suppressed` is the caller's veto for an expression that needs the terminal itself: -ok /
 // -okdir prompt and read a reply, and -exec / -execdir can hand the terminal to a child (an

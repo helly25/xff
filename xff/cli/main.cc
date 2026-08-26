@@ -384,8 +384,8 @@ int RunMain(int argc, char** argv) {
   // Scanned from argv like --width, since --help short-circuits before the full parse.
   const bool help_color = xff::color::Enabled(xff::color::ResolveWhen(args), stdout_is_tty, xff::env::Has("NO_COLOR"));
   const xff::cli::HelpRenderContext help_context{.width = *help_width, .color = help_color};
-  // --pager pages the long meta / doc output below (help / man / markdown) on a terminal;
-  // resolved from argv like the two above, and applied only to those surfaces.
+  // Resolve --pager from argv like the two above. Meta output consumes it below; after the full
+  // parse the listing path also consumes `all` / `always`.
   const xff::cli::PagerWhen pager_when = xff::cli::ResolvePagerWhen(args);
 
   // Parse once before dispatching help/version. The parser identifies meta flags
@@ -665,10 +665,9 @@ int RunMain(int argc, char** argv) {
   // outranks match status (exit 2).
   const bool quiet = absl::c_contains(command.globals, "--quiet") || absl::c_contains(command.globals, "-q");
   const bool match_sensitive = quiet || absl::c_contains(command.globals, "--exit-match");
-  // --pager=all pages the listing too, for the whole walk rather than per line: stdout is redirected
-  // into the pager here and restored when `pager` goes out of scope below. Inactive under every other
-  // --pager value, off a terminal, and when the expression needs the terminal itself (-ok / -exec and
-  // friends) or --quiet means there is nothing to page.
+  // --pager=all pages a terminal listing; --pager=always pages a listing even through a pipe. Both
+  // stream the whole walk through one pager rather than buffering per line. The pager steps aside
+  // when the expression needs the terminal itself (-ok / -exec and friends) or --quiet prints nothing.
   const xff::cli::PagerStream pager(pager_when, stdout_is_tty, quiet || xff::parser::TakesTerminal(command));
   const xff::vfs::LocalFs fs;
   const xff::engine::RunResult result = xff::engine::RunFind(

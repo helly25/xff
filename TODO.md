@@ -1223,19 +1223,20 @@ concrete need appears.
   Deferred until the auto ranging proves insufficient in practice.
 - **Pager for long help / reference output** (SHIPPED #397): `--pager[=auto|always|never]` mirrors
   `--color`'s tri-state (bare == always, `--no-pager` == never, default auto = page only on a tty); it
-  pages the long meta surfaces (`--help`, `--help=TOPIC`, `--man`, `--markdown`) and never the file
-  listing. The command is `$XFF_PAGER` -> `$PAGER` -> built-in `less -FRX` (`-F` so short help never
+  pages the long meta surfaces (`--help`, `--help=TOPIC`, `--man`, `--markdown`). The command is
+  `$XFF_PAGER` -> `$PAGER` -> built-in `less -FRX` (`-F` so short help never
   traps, `-R` keeps the color, `-X` keeps short output on the normal screen); an empty env value
   disables. Paging runs via `sh -c` (args / pipelines work), with a stdout fallback on any failure.
   Rejected: a help-scoped `--help-pager` name and a `--help=paged` content topic - paging is an
   orthogonal behavior, not a content selector.
   - **The FILE LISTING can be paged too, SHIPPED as `--pager=all` (asked 2026-08-13).** `auto` stays
-    meta-only; `all` adds the listing, and is the one value that touches ordinary output. It is
+    meta-only; `all` adds a terminal listing, while `always` explicitly pages every selected output
+    even through a pipe. It is
     STREAMED rather than buffered: the pager is started once and this process's stdout is redirected
     into it for the whole walk, so the first screen appears while the walk is still running and every
     writer (the renderers, a child process) is paged without knowing about it. Three deliberate
-    edges: `all` is terminal-only (there is no "always page the listing" - through a pipe the pager's
-    screen handling would become the next command's input); it steps aside for an expression that
+    edges: `all` is terminal-only so it never injects a pager into a pipeline accidentally, while
+    `always` is the deliberate escape from that safety rule; both step aside for an expression that
     needs the terminal itself, read from the registry (`Descriptor::terminal` on `-exec` /
     `-execdir` / `-ok` / `-okdir`) rather than a name list in the CLI, and for `--quiet`; and
     quitting the pager early ends the run quietly (SIGPIPE ignored, the failing writes swallowed).

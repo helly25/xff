@@ -166,9 +166,10 @@ struct ::sigaction g_previous_sigpipe;  // NOLINT(cppcoreguidelines-avoid-non-co
 }  // namespace
 
 PagerStream::PagerStream(PagerWhen when, bool stdout_is_tty, bool suppressed) {
-  // Everything that says "no pager here" is one condition: kAll is the only value that pages a
-  // listing, a pager needs a terminal to page onto, and the caller can veto outright.
-  if (when != PagerWhen::kAll || !stdout_is_tty || suppressed) {
+  // `all` safely adds terminal listings to `auto`; an explicit `always` really is unconditional
+  // and may page a listing through a pipe. The caller can still veto output that needs the terminal.
+  const bool page = when == PagerWhen::kAlways || (when == PagerWhen::kAll && stdout_is_tty);
+  if (!page || suppressed) {
     return;
   }
   const std::string command = ResolvePagerCommand(PagerKind::kText);
