@@ -82,25 +82,29 @@ std::string Re2ReplacementToPcre2(std::string_view replacement) {
   return out;
 }
 
+struct CodeDeleter {
+  void operator()(pcre2_code* code) const noexcept { pcre2_code_free(code); }
+};
+
+struct MatchContextDeleter {
+  void operator()(pcre2_match_context* context) const noexcept { pcre2_match_context_free(context); }
+};
+
+struct MatchDataDeleter {
+  void operator()(pcre2_match_data* data) const noexcept { pcre2_match_data_free(data); }
+};
+
+using CodePtr = std::unique_ptr<pcre2_code, CodeDeleter>;
+using MatchContextPtr = std::unique_ptr<pcre2_match_context, MatchContextDeleter>;
+using MatchDataPtr = std::unique_ptr<pcre2_match_data, MatchDataDeleter>;
+
 // A compiled PCRE2 pattern. The pcre2_code and match context are immutable after construction and
 // safe to share across threads; each match allocates its own match_data (PCRE2's per-match state),
 // so matching is thread-safe as the RegexBackend contract requires.
 class Pcre2Backend final : public xff::regex::RegexBackend {
  public:
-  Pcre2Backend(pcre2_code* code, pcre2_match_context* match_context, std::uint32_t capture_count)
-      : code_(code), match_context_(match_context), capture_count_(capture_count) {}
-
-  // Owns two raw PCRE2 handles it frees below, so copying would double-free and moving would need a
-  // null-out dance nothing here wants: the factory hands each instance straight to a unique_ptr.
-  Pcre2Backend(const Pcre2Backend&) = delete;
-  Pcre2Backend& operator=(const Pcre2Backend&) = delete;
-  Pcre2Backend(Pcre2Backend&&) = delete;
-  Pcre2Backend& operator=(Pcre2Backend&&) = delete;
-
-  ~Pcre2Backend() override {
-    pcre2_match_context_free(match_context_);
-    pcre2_code_free(code_);
-  }
+  Pcre2Backend(CodePtr code, MatchContextPtr match_context, std::uint32_t capture_count)
+      : code_(std::move(code)), match_context_(std::move(match_context)), capture_count_(capture_count) {}
 
   bool FullMatch(std::string_view text) const override {
     // Anchored at both ends: the pattern must match the entire subject (RE2::FullMatch semantics).
@@ -110,26 +114,31 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
   bool PartialMatch(std::string_view text) const override { return Matches(text, 0); }
 
   std::optional<std::pair<std::size_t, std::size_t>> FindFirst(std::string_view text) const override {
-    pcre2_match_data* data = pcre2_match_data_create(1, nullptr);  // one pair: the whole match
-    const int rc = pcre2_match(code_, Sptr(text), text.size(), 0, 0, data, match_context_);
+    const MatchDataPtr data{pcre2_match_data_create(1, nullptr)};  // one pair: the whole match
+    if (data == nullptr) {
+      return std::nullopt;
+    }
+    const int rc = pcre2_match(code_.get(), Sptr(text), text.size(), 0, 0, data.get(), match_context_.get());
     std::optional<std::pair<std::size_t, std::size_t>> result;
     if (rc >= 0) {
       // A span rather than the bare pointer PCRE2 hands back: the offsets are then indexed, which is
       // both checkable and what the style guide asks for instead of pointer arithmetic.
-      const absl::Span<const PCRE2_SIZE> ovector = Ovector(data, 1);
+      const absl::Span<const PCRE2_SIZE> ovector = Ovector(*data, 1);
       result = std::make_pair(static_cast<std::size_t>(ovector[0]), static_cast<std::size_t>(ovector[1] - ovector[0]));
     }
-    pcre2_match_data_free(data);
     return result;
   }
 
   std::optional<std::vector<std::string>> FullMatchCaptures(std::string_view text) const override {
-    pcre2_match_data* data = pcre2_match_data_create_from_pattern(code_, nullptr);
-    const int rc =
-        pcre2_match(code_, Sptr(text), text.size(), 0, PCRE2_ANCHORED | PCRE2_ENDANCHORED, data, match_context_);
+    const MatchDataPtr data{pcre2_match_data_create_from_pattern(code_.get(), nullptr)};
+    if (data == nullptr) {
+      return std::nullopt;
+    }
+    const int rc = pcre2_match(
+        code_.get(), Sptr(text), text.size(), 0, PCRE2_ANCHORED | PCRE2_ENDANCHORED, data.get(), match_context_.get());
     std::optional<std::vector<std::string>> result;
     if (rc >= 0) {
-      const absl::Span<const PCRE2_SIZE> ovector = Ovector(data, capture_count_ + 1);
+      const absl::Span<const PCRE2_SIZE> ovector = Ovector(*data, capture_count_ + 1);
       std::vector<std::string> captures;
       captures.reserve(capture_count_ + 1);
       for (std::size_t group = 0; group <= capture_count_; ++group) {  // [0] = whole match, [1..] = groups
@@ -143,7 +152,6 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
       }
       result = std::move(captures);
     }
-    pcre2_match_data_free(data);
     return result;
   }
 
@@ -151,18 +159,20 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
     const std::string pcre2_replacement = Re2ReplacementToPcre2(replacement);
     const std::uint32_t options =
         PCRE2_SUBSTITUTE_OVERFLOW_LENGTH | (global ? PCRE2_SUBSTITUTE_GLOBAL : std::uint32_t{0});
-    pcre2_match_data* data = pcre2_match_data_create_from_pattern(code_, nullptr);
+    const MatchDataPtr data{pcre2_match_data_create_from_pattern(code_.get(), nullptr)};
+    if (data == nullptr) {
+      return std::string(text);
+    }
     // The output buffer is OURS, so it is declared in PCRE2's own element type and converted to a
     // std::string once at the end, which removes the char/uchar cast the std::string form needed.
     std::vector<PCRE2_UCHAR> out(text.size() + 16);  // initial guess; grown once on overflow
     PCRE2_SIZE out_len = out.size();
-    int rc = Substitute(text, pcre2_replacement, options, data, out, &out_len);
+    int rc = Substitute(text, pcre2_replacement, options, *data, out, out_len);
     if (rc == PCRE2_ERROR_NOMEMORY) {
       out.resize(out_len);  // OVERFLOW_LENGTH set out_len to the required size (incl NUL)
       out_len = out.size();
-      rc = Substitute(text, pcre2_replacement, options, data, out, &out_len);
+      rc = Substitute(text, pcre2_replacement, options, *data, out, out_len);
     }
-    pcre2_match_data_free(data);
     if (rc < 0) {
       return std::string(text);  // on any error, leave the text unchanged (defensive)
     }
@@ -173,14 +183,16 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
  private:
   // PCRE2's ovector as a span of `pairs` start/end offsets, so callers index it instead of walking a
   // raw pointer. `pairs` is what the match data was created for, which is what bounds the array.
-  static absl::Span<const PCRE2_SIZE> Ovector(pcre2_match_data* data, std::size_t pairs) {
-    return absl::MakeConstSpan(pcre2_get_ovector_pointer(data), 2 * pairs);
+  static absl::Span<const PCRE2_SIZE> Ovector(pcre2_match_data& data, std::size_t pairs) {
+    return absl::MakeConstSpan(pcre2_get_ovector_pointer(&data), 2 * pairs);
   }
 
   bool Matches(std::string_view text, std::uint32_t options) const {
-    pcre2_match_data* data = pcre2_match_data_create(1, nullptr);
-    const int rc = pcre2_match(code_, Sptr(text), text.size(), 0, options, data, match_context_);
-    pcre2_match_data_free(data);
+    const MatchDataPtr data{pcre2_match_data_create(1, nullptr)};
+    if (data == nullptr) {
+      return false;
+    }
+    const int rc = pcre2_match(code_.get(), Sptr(text), text.size(), 0, options, data.get(), match_context_.get());
     return rc >= 0;
   }
 
@@ -188,16 +200,16 @@ class Pcre2Backend final : public xff::regex::RegexBackend {
       std::string_view text,
       const std::string& replacement,
       std::uint32_t options,
-      pcre2_match_data* data,
+      pcre2_match_data& data,
       std::vector<PCRE2_UCHAR>& out,
-      PCRE2_SIZE* out_len) const {
+      PCRE2_SIZE& out_len) const {
     return pcre2_substitute(
-        code_, Sptr(text), text.size(), 0, options, data, match_context_, Sptr(replacement), replacement.size(),
-        out.data(), out_len);
+        code_.get(), Sptr(text), text.size(), 0, options, &data, match_context_.get(), Sptr(replacement),
+        replacement.size(), out.data(), &out_len);
   }
 
-  pcre2_code* code_;
-  pcre2_match_context* match_context_;
+  CodePtr code_;
+  MatchContextPtr match_context_;
   std::uint32_t capture_count_;
 };
 
@@ -213,7 +225,7 @@ absl::StatusOr<std::unique_ptr<const xff::regex::RegexBackend>> CompilePcre2(
   }
   int error_code = 0;
   PCRE2_SIZE error_offset = 0;
-  pcre2_code* code = pcre2_compile(Sptr(pattern), pattern.size(), options, &error_code, &error_offset, nullptr);
+  CodePtr code{pcre2_compile(Sptr(pattern), pattern.size(), options, &error_code, &error_offset, nullptr)};
   if (code == nullptr) {
     std::array<PCRE2_UCHAR, 256> buffer{};
     const int length = pcre2_get_error_message(error_code, buffer.data(), buffer.size());
@@ -223,12 +235,15 @@ absl::StatusOr<std::unique_ptr<const xff::regex::RegexBackend>> CompilePcre2(
         length > 0 ? std::string(buffer.begin(), std::next(buffer.begin(), length)) : std::string("unknown error");
     return absl::InvalidArgumentError(absl::StrCat("invalid PCRE2 pattern at offset ", error_offset, ": ", message));
   }
-  pcre2_match_context* match_context = pcre2_match_context_create(nullptr);
-  pcre2_set_match_limit(match_context, kMatchLimit);
-  pcre2_set_depth_limit(match_context, kDepthLimit);
+  MatchContextPtr match_context{pcre2_match_context_create(nullptr)};
+  if (match_context == nullptr) {
+    return absl::ResourceExhaustedError("cannot allocate PCRE2 match context");
+  }
+  pcre2_set_match_limit(match_context.get(), kMatchLimit);
+  pcre2_set_depth_limit(match_context.get(), kDepthLimit);
   std::uint32_t capture_count = 0;
-  pcre2_pattern_info(code, PCRE2_INFO_CAPTURECOUNT, &capture_count);
-  return std::make_unique<Pcre2Backend>(code, match_context, capture_count);
+  pcre2_pattern_info(code.get(), PCRE2_INFO_CAPTURECOUNT, &capture_count);
+  return std::make_unique<Pcre2Backend>(std::move(code), std::move(match_context), capture_count);
 }
 
 // Self-registration (alwayslink keeps this TU): the factory makes the PCRE2 grammar available.
