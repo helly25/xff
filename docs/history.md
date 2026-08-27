@@ -6,6 +6,9 @@ Resolved design records and investigations moved out of the actionable backlog. 
 This preserves settled decisions, shipped implementation notes, and investigations whose context
 would otherwise be lost when the actionable backlog is simplified.
 
+The former combined roadmap and completion ledger through PR #683 is retained separately in
+[`history-roadmap.md`](history-roadmap.md).
+
 ## Resolved decisions
 
 - **FIXED (2026-08-13): an unknown VALUE on a known global was silently ignored.** `--color=bogus`,
