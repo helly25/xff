@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-27 20:52:03</td>
+            <td class="headerValue">2026-08-27 21:57:28</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -59,8 +59,8 @@
             <td></td>
             <td class="headerItem">Branches:</td>
             <td class="headerCovTableEntryLo">50.0&nbsp;%</td>
-            <td class="headerCovTableEntry">6</td>
-            <td class="headerCovTableEntry">3</td>
+            <td class="headerCovTableEntry">2</td>
+            <td class="headerCovTableEntry">1</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -111,7 +111,7 @@
 <span id="L31"><span class="lineNum">      31</span>                 :             : template&lt;typename Fn&gt;</span>
 <span id="L32"><span class="lineNum">      32</span>                 :<span class="tlaGNC">          90 : absl::Status Assign(const FuseLoader&amp; loader, std::string_view name, Fn&amp; target) {</span></span>
 <span id="L33"><span class="lineNum">      33</span>                 :<span class="tlaGNC">          90 :   void* symbol = loader.Symbol(name);</span></span>
-<span id="L34"><span class="lineNum">      34</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 90 times"> + </span>]:<span class="tlaGNC">          90 :   if (symbol == nullptr) {</span></span>
+<span id="L34"><span class="lineNum">      34</span>                 :<span class="tlaGNC">          90 :   if (symbol == nullptr) {  // LCOV_EXCL_BR_LINE: eager probing makes disappearance a fatal invariant.</span></span>
 <span id="L35"><span class="lineNum">      35</span>                 :<span class="tlaUNC">           0 :     return absl::InternalError(absl::StrCat(&quot;symbol vanished between probe and use: &quot;, name));</span></span>
 <span id="L36"><span class="lineNum">      36</span>                 :             :   }</span>
 <span id="L37"><span class="lineNum">      37</span>                 :             :   // NOLINTNEXTLINE(bugprone-casting-through-void,cppcoreguidelines-pro-type-reinterpret-cast)</span>
@@ -145,7 +145,7 @@
 <span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaGNC">           6 :   status.Update(Assign(loader, &quot;fuse_reply_open&quot;, api.reply_open));</span></span>
 <span id="L66"><span class="lineNum">      66</span>                 :<span class="tlaGNC">           6 :   status.Update(Assign(loader, &quot;fuse_reply_readlink&quot;, api.reply_readlink));</span></span>
 <span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">           6 :   status.Update(Assign(loader, &quot;fuse_req_userdata&quot;, api.req_userdata));</span></span>
-<span id="L68"><span class="lineNum">      68</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">           6 :   if (!status.ok()) {</span></span>
+<span id="L68"><span class="lineNum">      68</span>                 :<span class="tlaGNC">           6 :   if (!status.ok()) {  // LCOV_EXCL_BR_LINE: only reachable if an eagerly resolved symbol vanishes.</span></span>
 <span id="L69"><span class="lineNum">      69</span>                 :<span class="tlaUNC">           0 :     return status;</span></span>
 <span id="L70"><span class="lineNum">      70</span>                 :             :   }</span>
 <span id="L71"><span class="lineNum">      71</span>                 :<span class="tlaGNC">           6 :   return api;</span></span>

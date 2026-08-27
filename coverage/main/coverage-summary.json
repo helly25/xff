@@ -3,26 +3,26 @@
   "measurements": {
     "overall": {
       "lines": {
-        "covered": 11595,
-        "total": 12142,
-        "percent": 95.49
+        "covered": 11610,
+        "total": 12153,
+        "percent": 95.53
       },
       "functions": {
-        "covered": 1383,
-        "total": 1409,
-        "percent": 98.15
+        "covered": 1386,
+        "total": 1412,
+        "percent": 98.16
       },
       "branches": {
-        "covered": 8250,
-        "total": 9493,
-        "percent": 86.91
+        "covered": 8237,
+        "total": 9455,
+        "percent": 87.12
       }
     },
     "program / command line": {
       "lines": {
-        "covered": 1641,
+        "covered": 1640,
         "total": 1686,
-        "percent": 97.33
+        "percent": 97.27
       },
       "functions": {
         "covered": 172,
@@ -30,9 +30,9 @@
         "percent": 98.29
       },
       "branches": {
-        "covered": 952,
+        "covered": 951,
         "total": 1036,
-        "percent": 91.89
+        "percent": 91.8
       }
     },
     "program / configuration": {
@@ -88,9 +88,9 @@
     },
     "program / filesystem": {
       "lines": {
-        "covered": 472,
+        "covered": 471,
         "total": 481,
-        "percent": 98.13
+        "percent": 97.92
       },
       "functions": {
         "covered": 54,
@@ -173,19 +173,19 @@
     },
     "extensions / FUSE": {
       "lines": {
-        "covered": 438,
-        "total": 483,
-        "percent": 90.68
+        "covered": 455,
+        "total": 494,
+        "percent": 92.11
       },
       "functions": {
-        "covered": 70,
-        "total": 71,
-        "percent": 98.59
+        "covered": 73,
+        "total": 74,
+        "percent": 98.65
       },
       "branches": {
-        "covered": 203,
-        "total": 270,
-        "percent": 75.19
+        "covered": 191,
+        "total": 232,
+        "percent": 82.33
       }
     },
     "extensions / language database": {
@@ -294,7 +294,7 @@
     "extensions / FUSE": {
       "lines": 90.0,
       "functions": 90.0,
-      "branches": 75.0
+      "branches": 80.0
     },
     "extensions / language database": {
       "lines": 90.0,
@@ -436,9 +436,9 @@
       "branches": "medium"
     },
     "extensions / FUSE": {
-      "lines": "medium",
+      "lines": "high",
       "functions": "high",
-      "branches": "medium"
+      "branches": "high"
     },
     "extensions / language database": {
       "lines": "high",
@@ -457,7 +457,6 @@
     }
   },
   "reasons": {
-    "extensions / archive": "Archive format and filter error paths include third-party-library and malformed-input alternatives that are not all reachable in one GCC/Linux coverage run.",
-    "extensions / FUSE": "FUSE's dynamic-loader alternatives, fatal-signal handler, mount-failure variants, and spontaneous-session-exit path are mutually exclusive or process-disrupting in one GCC/Linux coverage run. Public filesystem behavior and deterministic lifecycle failures remain covered."
+    "extensions / archive": "Archive format and filter error paths include third-party-library and malformed-input alternatives that are not all reachable in one GCC/Linux coverage run."
   }
 }

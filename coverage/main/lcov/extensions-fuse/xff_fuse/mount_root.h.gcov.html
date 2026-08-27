@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-27 20:52:03</td>
+            <td class="headerValue">2026-08-27 21:57:28</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -131,7 +131,7 @@
 <span id="L60"><span class="lineNum">      60</span>              :   ~MountRoot();</span>
 <span id="L61"><span class="lineNum">      61</span>              : </span>
 <span id="L62"><span class="lineNum">      62</span>              :   // This run's root directory.</span>
-<span id="L63"><span class="lineNum">      63</span> <span class="tlaGNC">          12 :   [[nodiscard]] std::string_view path() const { return path_; }</span></span>
+<span id="L63"><span class="lineNum">      63</span> <span class="tlaGNC">          13 :   [[nodiscard]] std::string_view path() const { return path_; }</span></span>
 <span id="L64"><span class="lineNum">      64</span>              : </span>
 <span id="L65"><span class="lineNum">      65</span>              :   // A fresh mount-point directory for `container` under the root. The name is the container's</span>
 <span id="L66"><span class="lineNum">      66</span>              :   // basename plus a counter when two containers share one basename - readable in `mount` output and</span>
@@ -139,7 +139,7 @@
 <span id="L68"><span class="lineNum">      68</span>              :   absl::StatusOr&lt;std::string&gt; MountPointFor(std::string_view container);</span>
 <span id="L69"><span class="lineNum">      69</span>              : </span>
 <span id="L70"><span class="lineNum">      70</span>              :  private:</span>
-<span id="L71"><span class="lineNum">      71</span> <span class="tlaGNC">          13 :   MountRoot(std::string path, std::string base) : path_(std::move(path)), base_(std::move(base)) {}</span></span>
+<span id="L71"><span class="lineNum">      71</span> <span class="tlaGNC">          14 :   MountRoot(std::string path, std::string base) : path_(std::move(path)), base_(std::move(base)) {}</span></span>
 <span id="L72"><span class="lineNum">      72</span>              : </span>
 <span id="L73"><span class="lineNum">      73</span>              :   std::string path_;  // empty in a moved-from instance, which then owns nothing</span>
 <span id="L74"><span class="lineNum">      74</span>              :   std::string base_;</span>
