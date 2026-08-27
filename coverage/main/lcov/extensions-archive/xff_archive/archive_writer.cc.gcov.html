@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-27 21:57:28</td>
+            <td class="headerValue">2026-08-27 22:32:20</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -58,9 +58,9 @@
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryLo">71.3&nbsp;%</td>
-            <td class="headerCovTableEntry">94</td>
-            <td class="headerCovTableEntry">67</td>
+            <td class="headerCovTableEntryLo">76.6&nbsp;%</td>
+            <td class="headerCovTableEntry">64</td>
+            <td class="headerCovTableEntry">49</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -154,10 +154,10 @@
 <span id="L73"><span class="lineNum">      73</span>                 :             : // anything, so a text file must not present as an archive here either.</span>
 <span id="L74"><span class="lineNum">      74</span>                 :<span class="tlaGNC">          10 : ReadPtr OpenReader(const std::string&amp; path) {</span></span>
 <span id="L75"><span class="lineNum">      75</span>                 :<span class="tlaGNC">          10 :   ReadPtr handle{::archive_read_new()};</span></span>
-<span id="L76"><span class="lineNum">      76</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          10 :   if (handle == nullptr) {</span></span>
+<span id="L76"><span class="lineNum">      76</span>                 :<span class="tlaGNC">          10 :   if (handle == nullptr) {  // LCOV_EXCL_BR_LINE: libarchive allocation failure injection.</span></span>
 <span id="L77"><span class="lineNum">      77</span>                 :<span class="tlaUNC">           0 :     return handle;</span></span>
 <span id="L78"><span class="lineNum">      78</span>                 :             :   }</span>
-<span id="L79"><span class="lineNum">      79</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          10 :   if (!EnableNativeFilters(*handle)) {</span></span>
+<span id="L79"><span class="lineNum">      79</span>                 :<span class="tlaGNC">          10 :   if (!EnableNativeFilters(*handle)) {  // LCOV_EXCL_BR_LINE: compiled-in filter registration failure.</span></span>
 <span id="L80"><span class="lineNum">      80</span>                 :<span class="tlaUNC">           0 :     return nullptr;</span></span>
 <span id="L81"><span class="lineNum">      81</span>                 :             :   }</span>
 <span id="L82"><span class="lineNum">      82</span>                 :<span class="tlaGNC">          10 :   ::archive_read_support_format_7zip(handle.get());</span></span>
@@ -173,7 +173,7 @@
 <span id="L92"><span class="lineNum">      92</span>                 :<span class="tlaGNC">          10 :   ::archive_read_support_format_warc(handle.get());</span></span>
 <span id="L93"><span class="lineNum">      93</span>                 :<span class="tlaGNC">          10 :   ::archive_read_support_format_xar(handle.get());</span></span>
 <span id="L94"><span class="lineNum">      94</span>                 :<span class="tlaGNC">          10 :   ::archive_read_support_format_zip(handle.get());</span></span>
-<span id="L95"><span class="lineNum">      95</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">          10 :   if (::archive_read_open_filename(handle.get(), path.c_str(), kBlockSize) != ARCHIVE_OK) {</span></span>
+<span id="L95"><span class="lineNum">      95</span>                 :<span class="tlaGNC">          10 :   if (::archive_read_open_filename(handle.get(), path.c_str(), kBlockSize) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE</span></span>
 <span id="L96"><span class="lineNum">      96</span>                 :<span class="tlaGNC">           2 :     return nullptr;</span></span>
 <span id="L97"><span class="lineNum">      97</span>                 :             :   }</span>
 <span id="L98"><span class="lineNum">      98</span>                 :<span class="tlaGNC">           8 :   return handle;</span></span>
@@ -193,10 +193,10 @@
 <span id="L112"><span class="lineNum">     112</span>         [<span class="tlaGBC" title="branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">          18 :     if (status == ARCHIVE_EOF) {</span></span>
 <span id="L113"><span class="lineNum">     113</span>                 :<span class="tlaGNC">           9 :       return absl::OkStatus();</span></span>
 <span id="L114"><span class="lineNum">     114</span>                 :             :     }</span>
-<span id="L115"><span class="lineNum">     115</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">           9 :     if (status &lt; ARCHIVE_WARN) {</span></span>
+<span id="L115"><span class="lineNum">     115</span>                 :<span class="tlaGNC">           9 :     if (status &lt; ARCHIVE_WARN) {  // LCOV_EXCL_BR_LINE: libarchive streaming failure injection.</span></span>
 <span id="L116"><span class="lineNum">     116</span>                 :<span class="tlaUNC">           0 :       return absl::DataLossError(LastError(reader));</span></span>
 <span id="L117"><span class="lineNum">     117</span>                 :             :     }</span>
-<span id="L118"><span class="lineNum">     118</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">           9 :     if (::archive_write_data(writer, block, size) &lt; 0) {</span></span>
+<span id="L118"><span class="lineNum">     118</span>                 :<span class="tlaGNC">           9 :     if (::archive_write_data(writer, block, size) &lt; 0) {  // LCOV_EXCL_BR_LINE: libarchive write failure injection.</span></span>
 <span id="L119"><span class="lineNum">     119</span>                 :<span class="tlaUNC">           0 :       return absl::UnavailableError(LastError(writer));</span></span>
 <span id="L120"><span class="lineNum">     120</span>                 :             :     }</span>
 <span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC">           9 :   }</span></span>
@@ -248,7 +248,7 @@
 <span id="L167"><span class="lineNum">     167</span>         [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 12 times"> + </span>]:<span class="tlaGNC">          19 :     if (status == ARCHIVE_EOF) {</span></span>
 <span id="L168"><span class="lineNum">     168</span>                 :<span class="tlaGNC">           7 :       return absl::OkStatus();</span></span>
 <span id="L169"><span class="lineNum">     169</span>                 :             :     }</span>
-<span id="L170"><span class="lineNum">     170</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 12 times"> + </span>]:<span class="tlaGNC">          12 :     if (status &lt; ARCHIVE_WARN) {</span></span>
+<span id="L170"><span class="lineNum">     170</span>                 :<span class="tlaGNC">          12 :     if (status &lt; ARCHIVE_WARN) {  // LCOV_EXCL_BR_LINE: libarchive header failure injection.</span></span>
 <span id="L171"><span class="lineNum">     171</span>                 :<span class="tlaUNC">           0 :       return absl::DataLossError(LastError(reader));</span></span>
 <span id="L172"><span class="lineNum">     172</span>                 :             :     }</span>
 <span id="L173"><span class="lineNum">     173</span>                 :<span class="tlaGNC">          12 :     const char* stored = ::archive_entry_pathname(entry);</span></span>
@@ -257,7 +257,7 @@
 <span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaGNC">           2 :       ::archive_read_data_skip(reader);</span></span>
 <span id="L177"><span class="lineNum">     177</span>                 :<span class="tlaGNC">           2 :       continue;</span></span>
 <span id="L178"><span class="lineNum">     178</span>                 :             :     }</span>
-<span id="L179"><span class="lineNum">     179</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          10 :     if (::archive_write_header(writer, entry) &lt; ARCHIVE_WARN) {</span></span>
+<span id="L179"><span class="lineNum">     179</span>                 :<span class="tlaGNC">          10 :     if (::archive_write_header(writer, entry) &lt; ARCHIVE_WARN) {  // LCOV_EXCL_BR_LINE</span></span>
 <span id="L180"><span class="lineNum">     180</span>                 :<span class="tlaUNC">           0 :       return absl::UnavailableError(LastError(writer));</span></span>
 <span id="L181"><span class="lineNum">     181</span>                 :             :     }</span>
 <span id="L182"><span class="lineNum">     182</span>         [<span class="tlaGBC" title="branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">          10 :     if (::archive_entry_size(entry) &gt; 0) {</span></span>
@@ -282,7 +282,7 @@
 <span id="L201"><span class="lineNum">     201</span>                 :<span class="tlaGNC">           8 :   struct ::archive* const writer = &amp;writer_ref;</span></span>
 <span id="L202"><span class="lineNum">     202</span>                 :             :   // Reading a format does not imply writing it: libarchive reads 7-Zip, RAR, ISO and cab, and writes</span>
 <span id="L203"><span class="lineNum">     203</span>                 :             :   // only some of those. Refusing here (rather than producing a tar named `.7z`) is the point.</span>
-<span id="L204"><span class="lineNum">     204</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">           8 :   if (::archive_write_set_format(writer, ::archive_format(reader)) != ARCHIVE_OK) {</span></span>
+<span id="L204"><span class="lineNum">     204</span>                 :<span class="tlaGNC">           8 :   if (::archive_write_set_format(writer, ::archive_format(reader)) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE</span></span>
 <span id="L205"><span class="lineNum">     205</span>                 :             :     return absl::UnimplementedError(</span>
 <span id="L206"><span class="lineNum">     206</span>                 :<span class="tlaUNC">           0 :         absl::StrCat(</span></span>
 <span id="L207"><span class="lineNum">     207</span>                 :             :             &quot;this build cannot write the &quot;, ::archive_format_name(reader),</span>
@@ -291,14 +291,14 @@
 <span id="L210"><span class="lineNum">     210</span>                 :             :   // Filter 0 is the outermost compression the reader applied, and the innermost is always `none`.</span>
 <span id="L211"><span class="lineNum">     211</span>                 :             :   // Carrying it over is what keeps a `.tar.gz` gzipped rather than silently expanding it.</span>
 <span id="L212"><span class="lineNum">     212</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">           9 :   for (int i = ::archive_filter_count(reader) - 2; i &gt;= 0; --i) {</span></span>
-<span id="L213"><span class="lineNum">     213</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           1 :     if (::archive_write_add_filter(writer, ::archive_filter_code(reader, i)) != ARCHIVE_OK) {</span></span>
+<span id="L213"><span class="lineNum">     213</span>                 :<span class="tlaGNC">           1 :     if (::archive_write_add_filter(writer, ::archive_filter_code(reader, i)) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE</span></span>
 <span id="L214"><span class="lineNum">     214</span>                 :             :       return absl::UnimplementedError(</span>
 <span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaUNC">           0 :           absl::StrCat(</span></span>
 <span id="L216"><span class="lineNum">     216</span>                 :             :               &quot;this build cannot write the &quot;, ::archive_filter_name(reader, i),</span>
 <span id="L217"><span class="lineNum">     217</span>                 :<span class="tlaUNC">           0 :               &quot; compression back, so a member cannot be removed from &quot;, path));</span></span>
 <span id="L218"><span class="lineNum">     218</span>                 :             :     }</span>
 <span id="L219"><span class="lineNum">     219</span>                 :             :   }</span>
-<span id="L220"><span class="lineNum">     220</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">           8 :   if (::archive_write_open_filename(writer, temporary.string().c_str()) != ARCHIVE_OK) {</span></span>
+<span id="L220"><span class="lineNum">     220</span>                 :<span class="tlaGNC">           8 :   if (::archive_write_open_filename(writer, temporary.string().c_str()) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE</span></span>
 <span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC">           1 :     return absl::UnavailableError(absl::StrCat(&quot;cannot write &quot;, temporary.string(), &quot;: &quot;, LastError(writer)));</span></span>
 <span id="L222"><span class="lineNum">     222</span>                 :             :   }</span>
 <span id="L223"><span class="lineNum">     223</span>                 :<span class="tlaGNC">           7 :   return absl::OkStatus();</span></span>
@@ -320,7 +320,7 @@
 <span id="L239"><span class="lineNum">     239</span>                 :<span class="tlaGNC">           6 :     ::archive_read_data_skip(reader);</span></span>
 <span id="L240"><span class="lineNum">     240</span>                 :<span class="tlaGNC">           6 :     return absl::OkStatus();</span></span>
 <span id="L241"><span class="lineNum">     241</span>                 :             :   }</span>
-<span id="L242"><span class="lineNum">     242</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           1 :   if (::archive_write_header(writer, first) &lt; ARCHIVE_WARN) {</span></span>
+<span id="L242"><span class="lineNum">     242</span>                 :<span class="tlaGNC">           1 :   if (::archive_write_header(writer, first) &lt; ARCHIVE_WARN) {  // LCOV_EXCL_BR_LINE</span></span>
 <span id="L243"><span class="lineNum">     243</span>                 :<span class="tlaUNC">           0 :     return absl::UnavailableError(LastError(writer));</span></span>
 <span id="L244"><span class="lineNum">     244</span>                 :             :   }</span>
 <span id="L245"><span class="lineNum">     245</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">           1 :   if (::archive_entry_size(first) &gt; 0) {</span></span>
@@ -354,7 +354,7 @@
 <span id="L273"><span class="lineNum">     273</span>                 :<span class="tlaGNC">           8 :   const stdfs::path temporary = stdfs::path(target).replace_filename(target.filename().string() + &quot;.xff-rewrite&quot;);</span></span>
 <span id="L274"><span class="lineNum">     274</span>                 :             :   {</span>
 <span id="L275"><span class="lineNum">     275</span>                 :<span class="tlaGNC">           8 :     const WritePtr writer{::archive_write_new()};</span></span>
-<span id="L276"><span class="lineNum">     276</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">           8 :     if (writer == nullptr) {</span></span>
+<span id="L276"><span class="lineNum">     276</span>                 :<span class="tlaGNC">           8 :     if (writer == nullptr) {  // LCOV_EXCL_BR_LINE: libarchive allocation failure injection.</span></span>
 <span id="L277"><span class="lineNum">     277</span>                 :<span class="tlaUNC">           0 :       return absl::UnavailableError(&quot;cannot create a libarchive writer&quot;);</span></span>
 <span id="L278"><span class="lineNum">     278</span>                 :             :     }</span>
 <span id="L279"><span class="lineNum">     279</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span><span class="tlaGBC" title="branch 2 was taken 7 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">           8 :     MBO_RETURN_IF_ERROR(MatchWriterToReader(*reader, *writer, temporary, path));</span></span>
@@ -367,8 +367,7 @@
 <span id="L286"><span class="lineNum">     286</span>         [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">           7 :     if (status.ok()) {</span></span>
 <span id="L287"><span class="lineNum">     287</span>                 :<span class="tlaGNC">           7 :       status = removals.CheckAll(path);</span></span>
 <span id="L288"><span class="lineNum">     288</span>                 :             :     }</span>
-<span id="L289"><span class="lineNum">     289</span>   [<span class="tlaGBC" title="branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaUNC" title="branch 2 was not taken"> - </span><span class="tlaGBC" title="branch 3 was taken 6 times"> + </span> :<span class="tlaGNC">           7 :     if (status.ok() &amp;&amp; ::archive_write_close(writer.get()) != ARCHIVE_OK) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaUNC" title="branch 4 was not taken"> - </span><span class="tlaGBC" title="branch 5 was taken 7 times"> + </span>]
+<span id="L289"><span class="lineNum">     289</span>                 :<span class="tlaGNC">           7 :     if (status.ok() &amp;&amp; ::archive_write_close(writer.get()) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE</span></span>
 <span id="L290"><span class="lineNum">     290</span>                 :             :       // Close is where a zip writes its central directory, so a failure here is a failure to write.</span>
 <span id="L291"><span class="lineNum">     291</span>                 :<span class="tlaUNC">           0 :       status = absl::UnavailableError(LastError(writer.get()));</span></span>
 <span id="L292"><span class="lineNum">     292</span>                 :             :     }</span>
