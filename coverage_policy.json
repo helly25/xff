@@ -67,11 +67,7 @@
         "reason": "FUSE's dynamic-loader alternatives, fatal-signal handler, mount-failure variants, and spontaneous-session-exit path are mutually exclusive or process-disrupting in one GCC/Linux coverage run. Public filesystem behavior and deterministic lifecycle failures remain covered."
       },
       "language database": {
-        "include": ["xff_language_db/**"],
-        "minimum": { "branches": 65 },
-        "target": { "branches": 82 },
-        "enforce": { "branches": "medium" },
-        "reason": "The new embedded-database module's remaining branches are compiler-expanded fatal-invariant paths around the generated, build-time-verified payload. Brotli success, corrupt input, and decoded-size mismatch are covered directly; the high target remains the graduation boundary."
+        "include": ["xff_language_db/**"]
       },
       "PCRE2": {
         "include": ["xff_pcre2/**"],

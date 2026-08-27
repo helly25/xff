@@ -41,9 +41,9 @@ namespace {
 std::string_view Json() {
   static const std::string kJson = [] {
     const absl::StatusOr<std::string> json = Decode(data::Compressed(), data::UncompressedSize());
-    CHECK_OK(json);
+    CHECK_OK(json);  // LCOV_EXCL_BR_LINE: fatal invariant; generated payload is verified at build time.
     return *json;
-  }();
+  }();  // LCOV_EXCL_BR_LINE: compiler-generated static-local initialization branches.
   return kJson;
 }
 
