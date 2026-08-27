@@ -6,7 +6,7 @@ on:
     types: [completed]
   schedule:
     - cron: "17 3 * * *"
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 # This workflow runs trusted code from the default branch after another workflow completes. It
 # needs write access only to delete cache entries; it never checks out or executes a PR head.
