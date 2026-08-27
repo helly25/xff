@@ -20,6 +20,7 @@
 
 #include "xff/fuse/fuse_loader.h"
 
+#include <array>
 #include <string_view>
 
 #include "gmock/gmock.h"
@@ -36,6 +37,49 @@ using ::testing::NotNull;
 using ::testing::SizeIs;
 
 struct FuseLoaderTest : ::testing::Test {};
+
+TEST_F(FuseLoaderTest, ProbeReportsWhenNoCandidateCanBeOpened) {
+  constexpr std::array kCandidates = std::to_array<std::string_view>({"missing.so"});
+  constexpr std::array kSymbols = std::to_array<std::string_view>({"required"});
+  const FuseProbeResult result = ProbeFuseLibraries(
+      kCandidates, kSymbols, [](std::string_view) -> void* { return nullptr; },
+      [](void*, std::string_view) -> void* { return nullptr; });
+  EXPECT_THAT(result.handle, IsNull());
+  EXPECT_THAT(result.library, IsEmpty());
+  EXPECT_THAT(result.error, Not(IsEmpty()));
+}
+
+TEST_F(FuseLoaderTest, ProbeReportsTheMissingSymbolFromAnIncompleteCandidate) {
+  constexpr std::array kCandidates = std::to_array<std::string_view>({"incomplete.so"});
+  constexpr std::array kSymbols = std::to_array<std::string_view>({"present", "missing"});
+  int library_token = 0;
+  const FuseProbeResult result = ProbeFuseLibraries(
+      kCandidates, kSymbols, [&](std::string_view) -> void* { return &library_token; },
+      [&](void*, std::string_view symbol) {
+        return symbol == "present" ? static_cast<void*>(&library_token) : nullptr;
+      });
+  EXPECT_THAT(result.handle, IsNull());
+  EXPECT_THAT(result.library, IsEmpty());
+  EXPECT_THAT(result.error, Eq("incomplete.so is present but lacks missing; not mountable"));
+}
+
+TEST_F(FuseLoaderTest, ProbeFallsBackFromAnIncompleteCandidateToACompleteOne) {
+  constexpr std::array kCandidates = std::to_array<std::string_view>({"incomplete.so", "complete.so"});
+  constexpr std::array kSymbols = std::to_array<std::string_view>({"first", "second"});
+  int incomplete_token = 0;
+  int complete_token = 0;
+  const FuseProbeResult result = ProbeFuseLibraries(
+      kCandidates, kSymbols,
+      [&](std::string_view candidate) -> void* {
+        return candidate == "complete.so" ? static_cast<void*>(&complete_token) : &incomplete_token;
+      },
+      [&](void* handle, std::string_view symbol) -> void* {
+        return handle == &incomplete_token && symbol == "second" ? nullptr : handle;
+      });
+  EXPECT_THAT(result.handle, Eq(static_cast<void*>(&complete_token)));
+  EXPECT_THAT(result.library, Eq("complete.so"));
+  EXPECT_THAT(result.error, IsEmpty());
+}
 
 TEST_F(FuseLoaderTest, TheProbeIsStableAcrossCalls) {
   const FuseLoader& first = FuseLoader::Instance();

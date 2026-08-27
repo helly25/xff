@@ -27,6 +27,7 @@ cc_library(
     include_prefix = "xff/fuse",
     visibility = ["//visibility:public"],
     deps = [
+        "@abseil-cpp//absl/functional:function_ref",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
     ],

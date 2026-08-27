@@ -31,7 +31,7 @@ namespace {
 template<typename Fn>
 absl::Status Assign(const FuseLoader& loader, std::string_view name, Fn& target) {
   void* symbol = loader.Symbol(name);
-  if (symbol == nullptr) {
+  if (symbol == nullptr) {  // LCOV_EXCL_BR_LINE: eager probing makes disappearance a fatal invariant.
     return absl::InternalError(absl::StrCat("symbol vanished between probe and use: ", name));
   }
   // NOLINTNEXTLINE(bugprone-casting-through-void,cppcoreguidelines-pro-type-reinterpret-cast)
@@ -65,7 +65,7 @@ absl::StatusOr<FuseApi> FuseApi::Resolve() {
   status.Update(Assign(loader, "fuse_reply_open", api.reply_open));
   status.Update(Assign(loader, "fuse_reply_readlink", api.reply_readlink));
   status.Update(Assign(loader, "fuse_req_userdata", api.req_userdata));
-  if (!status.ok()) {
+  if (!status.ok()) {  // LCOV_EXCL_BR_LINE: only reachable if an eagerly resolved symbol vanishes.
     return status;
   }
   return api;
