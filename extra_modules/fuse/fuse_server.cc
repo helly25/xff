@@ -233,7 +233,9 @@ void OpGetattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* /*file_inf
   }
   const struct stat attr = StatForMetadata(*metadata, ino);
   api.reply_attr(req, &attr, kCacheSeconds);
-}
+  // GCC attributes exception-cleanup branches for the local StatusOr to the closing brace; both
+  // semantic status outcomes are covered by Getattr tests above.
+}  // LCOV_EXCL_BR_LINE
 
 void OpReaddir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct fuse_file_info* /*file_info*/) {
   const FuseApi& api = *ResolvedApi();
