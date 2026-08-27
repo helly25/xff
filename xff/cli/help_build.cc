@@ -577,9 +577,14 @@ Section ArchiveSection(bool in_full) {
   const std::vector<archive::PackOptionInfo> pack_options = archive::ContainerPackVocabulary();
   if (!pack_options.empty()) {
     creating.children.push_back(ProseOf(
-        "`--pack-option=NAME=VALUE` (repeatable, last value for a NAME wins) tunes the writer. The "
+        "`--pack-option=NAME=VALUE|@FILE.json` (repeatable, last value for a NAME wins) tunes the writer. The "
         "names are xff's own and are translated for whichever library does the writing, so an unknown "
         "one is a usage error and this list is exactly what THIS binary accepts:"));
+    creating.children.push_back(ProseOf(
+        "The `@FILE.json` form reads one JSON object. Its keys are the option names below; values may "
+        "be strings, integers, or booleans, with booleans translated to `yes` or `no`. A file is "
+        "expanded where it occurs among repeated options, so later file or inline values override "
+        "earlier ones uniformly."));
     Rows rows;
     rows.rows.reserve(pack_options.size());
     for (const archive::PackOptionInfo& option : pack_options) {

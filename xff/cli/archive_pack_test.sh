@@ -212,6 +212,90 @@ test::the_last_value_for_a_pack_option_wins() {
   expect_eq "${plain}" "${mixed}"
 }
 
+test::a_json_pack_option_file_uses_the_same_vocabulary_and_ordering() {
+  local root options mixed plain file_last expected json_zip inline_zip
+  root="$(_tree)"
+  head -c 200000 /dev/zero | tr '\0' 'a' >"${root}/src/big.txt"
+  options="${root}/options.json"
+  printf '%s\n' '{"level": 1, "timestamp": false}' >"${options}"
+  "$(_xff_bin)" "${root}/src" -name 'big.txt' --pack="${root}/mixed.tar.gz" \
+    --pack-option="@${options}" --pack-option=level=9
+  "$(_xff_bin)" "${root}/src" -name 'big.txt' --pack="${root}/plain.tar.gz" \
+    --pack-option=timestamp=no --pack-option=level=9
+  mixed="$(cksum <"${root}/mixed.tar.gz")"
+  plain="$(cksum <"${root}/plain.tar.gz")"
+  expect_eq "${plain}" "${mixed}"
+
+  # Expansion happens exactly where the @file occurs, not in a separate precedence tier.
+  printf '%s\n' '{"level": 9, "timestamp": false}' >"${options}"
+  "$(_xff_bin)" "${root}/src" -name 'big.txt' --pack="${root}/file-last.tar.gz" \
+    --pack-option=level=1 --pack-option="@${options}"
+  file_last="$(cksum <"${root}/file-last.tar.gz")"
+  expected="$(cksum <"${root}/plain.tar.gz")"
+  expect_eq "${expected}" "${file_last}"
+
+  # String values use the same backend-specific vocabulary as an inline option too.
+  printf '%s\n' '{"compression": "deflate", "zip64": false}' >"${options}"
+  "$(_xff_bin)" "${root}/src" -name 'big.txt' --pack="${root}/json.zip" --pack-option="@${options}"
+  "$(_xff_bin)" "${root}/src" -name 'big.txt' --pack="${root}/inline.zip" \
+    --pack-option=compression=deflate --pack-option=zip64=no
+  json_zip="$(cksum <"${root}/json.zip")"
+  inline_zip="$(cksum <"${root}/inline.zip")"
+  expect_eq "${inline_zip}" "${json_zip}"
+}
+
+test::a_bad_json_pack_option_file_fails_before_the_walk() {
+  local root options status out
+  root="$(_tree)"
+  options="${root}/options.json"
+  printf '%s\n' '{"level": [9]}' >"${options}"
+  status=0
+  out="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar.gz" --pack-option="@${options}" 2>&1)" || status=$?
+  expect_eq 2 "${status}"
+  expect_output_contains "value for 'level' must be a string, integer, or boolean" "${out}"
+  expect_eq "0" "$(find "${root}" -maxdepth 1 -name 'out.tar.gz' | wc -l | tr -d ' ')"
+}
+
+test::json_pack_option_file_shape_and_read_errors_are_specific() {
+  local root options status out
+  root="$(_tree)"
+  options="${root}/options.json"
+
+  printf '%s\n' '{bad json' >"${options}"
+  status=0
+  out="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar.gz" --pack-option="@${options}" 2>&1)" || status=$?
+  expect_eq 2 "${status}"
+  expect_output_contains "is not valid JSON" "${out}"
+
+  printf '%s\n' '[{"level": 9}]' >"${options}"
+  status=0
+  out="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar.gz" --pack-option="@${options}" 2>&1)" || status=$?
+  expect_eq 2 "${status}"
+  expect_output_contains "must contain one JSON object" "${out}"
+
+  status=0
+  out="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar.gz" --pack-option="@${root}/missing.json" 2>&1)" || status=$?
+  expect_eq 2 "${status}"
+  expect_output_contains "cannot read pack-option file" "${out}"
+
+  status=0
+  out="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar.gz" --pack-option=@ 2>&1)" || status=$?
+  expect_eq 2 "${status}"
+  expect_output_contains "expected a file after --pack-option=@" "${out}"
+}
+
+test::json_pack_option_names_use_the_linked_writer_vocabulary() {
+  local root options status out
+  root="$(_tree)"
+  options="${root}/options.json"
+  printf '%s\n' '{"squish": 9}' >"${options}"
+  status=0
+  out="$("$(_xff_bin)" "${root}/src" --pack="${root}/out.tar.gz" --pack-option="@${options}" 2>&1)" || status=$?
+  expect_eq 2 "${status}"
+  expect_output_contains "unknown pack option 'squish'" "${out}"
+  expect_output_contains "level" "${out}"
+}
+
 test::the_archive_help_lists_the_vocabulary_the_binary_accepts() {
   local out
   out="$("$(_xff_bin)" --help=archive --width=100)"

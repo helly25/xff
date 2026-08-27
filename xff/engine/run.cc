@@ -51,6 +51,7 @@
 #include "mbo/container/limited_map.h"
 #include "mbo/diff/diff_options.h"
 #include "mbo/status/status_macros.h"
+#include "nlohmann/json.hpp"
 #include "xff/archive/archive_backend.h"
 #include "xff/archive/member_path.h"
 #include "xff/content/line_match.h"
@@ -1929,7 +1930,41 @@ std::optional<std::string> ReadPackTarget(const std::vector<std::string>& global
   return std::nullopt;
 }
 
-// --pack-option=NAME=VALUE (repeatable) and its one-knob spelling --pack-level=N, collected in the
+using Json = ::nlohmann::ordered_json;
+
+absl::StatusOr<std::vector<archive::PackOption>> ReadPackOptionFile(std::string_view path) {
+  if (path.empty()) {
+    return absl::InvalidArgumentError("expected a file after --pack-option=@");
+  }
+  std::ifstream input{std::string(path)};
+  if (!input) {
+    return absl::NotFoundError(absl::StrCat("cannot read pack-option file '", path, "'"));
+  }
+  const Json root = Json::parse(input, nullptr, /*allow_exceptions=*/false);
+  if (root.is_discarded()) {
+    return absl::InvalidArgumentError(absl::StrCat("pack-option file '", path, "' is not valid JSON"));
+  }
+  if (!root.is_object()) {
+    return absl::InvalidArgumentError(absl::StrCat("pack-option file '", path, "' must contain one JSON object"));
+  }
+  std::vector<archive::PackOption> options;
+  options.reserve(root.size());
+  for (const auto& [name, value] : root.items()) {
+    if (value.is_string()) {
+      options.push_back({.name = name, .value = value.get<std::string>()});
+    } else if (value.is_boolean()) {
+      options.push_back({.name = name, .value = value.get<bool>() ? "yes" : "no"});
+    } else if (value.is_number_integer() || value.is_number_unsigned()) {
+      options.push_back({.name = name, .value = value.dump()});
+    } else {
+      return absl::InvalidArgumentError(
+          absl::StrCat("pack-option file '", path, "' value for '", name, "' must be a string, integer, or boolean"));
+    }
+  }
+  return options;
+}
+
+// --pack-option=NAME=VALUE or @FILE.json (repeatable) and its one-knob spelling --pack-level=N, collected in the
 // order given so the writer's "last value for a NAME wins" rule falls out of the order alone. Only
 // the SHAPE is checked here; what the names mean belongs to the backend, which owns the vocabulary.
 absl::StatusOr<std::vector<archive::PackOption>> ReadPackOptions(const std::vector<std::string>& globals) {
@@ -1945,6 +1980,13 @@ absl::StatusOr<std::vector<archive::PackOption>> ReadPackOptions(const std::vect
       continue;
     }
     const std::string_view spec = std::string_view(global).substr(kOption.size());
+    if (spec.starts_with('@')) {
+      MBO_ASSIGN_OR_RETURN(std::vector<archive::PackOption> file_options, ReadPackOptionFile(spec.substr(1)));
+      for (archive::PackOption& option : file_options) {
+        options.push_back(std::move(option));
+      }
+      continue;
+    }
     const std::string_view::size_type equals = spec.find('=');
     if (equals == std::string_view::npos || equals == 0) {
       return absl::InvalidArgumentError(
