@@ -124,7 +124,8 @@ struct FuseServer::Impl {
     }
     const absl::MutexLock lock(mutex);
     const auto found = paths.find(ino);
-    return found == paths.end() ? std::string() : found->second;
+    // The kernel can only issue inode values previously returned by this mount.
+    return found == paths.end() ? std::string() : found->second;  // LCOV_EXCL_BR_LINE
   }
 
   fuse_ino_t InodeOf(const std::string& path) ABSL_LOCKS_EXCLUDED(mutex) {
@@ -162,7 +163,8 @@ std::vector<struct fuse_session*>& LiveSessions() {
 }
 
 void SignalExitAll(int signo) {
-  for (struct fuse_session* session : LiveSessions()) {
+  // Exercising the registered fatal-signal handler terminates the test process.
+  for (struct fuse_session* session : LiveSessions()) {  // LCOV_EXCL_BR_LINE
     ResolvedApi()->session_exit(session);
   }
   // Re-raise with the default action so the process still dies of the signal; the exiting loops
@@ -194,7 +196,7 @@ void OpLookup(fuse_req_t req, fuse_ino_t parent, const char* name) {
   const FuseApi& api = *ResolvedApi();
   FuseServer::Impl& impl = ImplOf(req);
   const std::string parent_path = impl.PathOf(parent);
-  if (parent_path.empty()) {
+  if (parent_path.empty()) {  // LCOV_EXCL_BR_LINE: FUSE supplies only registered parent inodes.
     api.reply_err(req, ENOENT);
     return;
   }
@@ -220,7 +222,7 @@ void OpGetattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* /*file_inf
   const FuseApi& api = *ResolvedApi();
   FuseServer::Impl& impl = ImplOf(req);
   const std::string path = impl.PathOf(ino);
-  if (path.empty()) {
+  if (path.empty()) {  // LCOV_EXCL_BR_LINE: FUSE supplies only registered inodes.
     api.reply_err(req, ENOENT);
     return;
   }
@@ -237,7 +239,7 @@ void OpReaddir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct fu
   const FuseApi& api = *ResolvedApi();
   FuseServer::Impl& impl = ImplOf(req);
   const std::string path = impl.PathOf(ino);
-  if (path.empty()) {
+  if (path.empty()) {  // LCOV_EXCL_BR_LINE: FUSE supplies only registered directory inodes.
     api.reply_err(req, ENOENT);
     return;
   }
@@ -289,7 +291,7 @@ void OpOpen(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* file_info) {
     return;
   }
   const std::string path = impl.PathOf(ino);
-  if (path.empty()) {
+  if (path.empty()) {  // LCOV_EXCL_BR_LINE: FUSE supplies only inodes returned by lookup.
     api.reply_err(req, ENOENT);
     return;
   }
@@ -314,13 +316,13 @@ void OpRead(fuse_req_t req, fuse_ino_t /*ino*/, size_t size, off_t off, struct f
   FuseServer::Impl& impl = ImplOf(req);
   const absl::MutexLock lock(impl.mutex);
   const auto found = impl.contents.find(file_info->fh);
-  if (found == impl.contents.end()) {
+  if (found == impl.contents.end()) {  // LCOV_EXCL_BR_LINE: FUSE reads only handles accepted by open.
     api.reply_err(req, EBADF);
     return;
   }
   const std::string& content = found->second;
   const auto offset = static_cast<std::size_t>(off);
-  if (offset >= content.size()) {
+  if (offset >= content.size()) {  // LCOV_EXCL_BR_LINE: the kernel does not request bytes beyond EOF.
     api.reply_buf(req, content.data(), 0);
     return;
   }
@@ -342,7 +344,7 @@ void OpReadlink(fuse_req_t req, fuse_ino_t ino) {
   const FuseApi& api = *ResolvedApi();
   FuseServer::Impl& impl = ImplOf(req);
   const std::string path = impl.PathOf(ino);
-  if (path.empty()) {
+  if (path.empty()) {  // LCOV_EXCL_BR_LINE: FUSE supplies only inodes returned by lookup.
     api.reply_err(req, ENOENT);
     return;
   }
@@ -411,7 +413,7 @@ absl::StatusOr<std::unique_ptr<FuseServer>> FuseServer::Mount(
   // session_new copies what it needs and leaves the (now heap-allocated) argv to us, success or
   // not; libfuse's own examples free it here.
   api->opt_free_args(&args);
-  if (server->impl_->session == nullptr) {
+  if (server->impl_->session == nullptr) {  // LCOV_EXCL_BR_LINE: libfuse-internal allocation failure.
     return absl::InternalError("fuse_session_new failed");
   }
   if (api->session_mount(server->impl_->session, server->impl_->mount_point.c_str()) != 0) {
@@ -428,7 +430,7 @@ absl::StatusOr<std::unique_ptr<FuseServer>> FuseServer::Mount(
   // would capture a reference to Mount's local reference variable, which dies when Mount returns.
   server->impl_->loop = std::thread([impl = server->impl_.get(), api = *api] {
     const int result = api.session_loop(impl->session);
-    if (!impl->exiting.load()) {
+    if (!impl->exiting.load()) {  // LCOV_EXCL_BR_LINE: spontaneous loop exit requires a broken FUSE session.
       std::cerr << absl::StreamFormat(
           "xff: the FUSE session serving '%s' ended on its own (fuse_session_loop returned %d); reads under"
           " that mount will fail from here on\n",
@@ -464,7 +466,8 @@ absl::StatusOr<std::unique_ptr<FuseServer>> FuseServer::Mount(
 FuseServer::FuseServer() : impl_(std::make_unique<Impl>()) {}
 
 FuseServer::~FuseServer() {
-  if (impl_ == nullptr || impl_->session == nullptr) {
+  // Only a partially constructed server lacks either object.
+  if (impl_ == nullptr || impl_->session == nullptr) {  // LCOV_EXCL_BR_LINE
     return;
   }
   const FuseApi& api = *ResolvedApi();

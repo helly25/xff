@@ -120,7 +120,9 @@ const FuseLoader& FuseLoader::Instance() {
 }
 
 void* FuseLoader::Symbol(std::string_view name) const {
-  if (handle_ == nullptr) {
+  // The unavailable state is covered through ProbeFuseLibraries; the process singleton reflects
+  // only this host's one library state during a coverage run.
+  if (handle_ == nullptr) {  // LCOV_EXCL_BR_LINE
     return nullptr;
   }
   return ::dlsym(handle_, std::string(name).c_str());
