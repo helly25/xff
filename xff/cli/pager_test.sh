@@ -64,15 +64,15 @@ test::pager_always_pipes_through_the_pager_verbatim() {
   expect_eq "${plain}" "${paged}"
 }
 
-test::pager_auto_does_not_page_when_stdout_is_not_a_tty() {
-  # Default (auto): captured stdout is a pipe, so a would-hang pager is never run and
+test::pager_help_does_not_page_when_stdout_is_not_a_tty() {
+  # Default (help): captured stdout is a pipe, so a would-hang pager is never run and
   # the output equals --pager=never. A blocking pager (sleep) would deadlock the test
   # if auto paged here.
-  local bin auto plain
+  local bin help plain
   bin="$(_xff_bin)"
-  auto="$(XFF_PAGER='sleep 30' "${bin}" --help 2>&1)"
+  help="$(XFF_PAGER='sleep 30' "${bin}" --help 2>&1)"
   plain="$("${bin}" --pager=never --help 2>&1)"
-  expect_eq "${plain}" "${auto}"
+  expect_eq "${plain}" "${help}"
 }
 
 test::no_pager_alias_is_accepted_on_a_real_search() {
@@ -103,14 +103,14 @@ test::man_pager_always_routes_through_the_man_pager_verbatim() {
   expect_eq "${raw}" "${paged}"
 }
 
-test::man_pager_auto_stays_raw_off_a_tty() {
-  # Default (auto): captured stdout is a pipe, so --man is not paged/formatted and stays
+test::man_pager_help_stays_raw_off_a_tty() {
+  # Default (help): captured stdout is a pipe, so --man is not paged/formatted and stays
   # raw roff. A blocking man-pager (sleep) would deadlock the test if auto paged here.
-  local bin auto raw
+  local bin help raw
   bin="$(_xff_bin)"
-  auto="$(XFF_MANPAGER='sleep 30' "${bin}" --man 2>&1)"
+  help="$(XFF_MANPAGER='sleep 30' "${bin}" --man 2>&1)"
   raw="$("${bin}" --pager=never --man 2>&1)"
-  expect_eq "${raw}" "${auto}"
+  expect_eq "${raw}" "${help}"
 }
 
 test::pager_auto_leaves_a_piped_listing_alone() {

@@ -209,7 +209,8 @@ constexpr std::array kSortValues = std::to_array<ValueDoc>({
     {.value = "name", .meaning = "", .hidden = true},  // `dir`'s meaning already names it
 });
 constexpr std::array kPagerValues = std::to_array<ValueDoc>({
-    {.value = "auto", .meaning = "page every pageable output on a terminal (the default)"},
+    {.value = "help", .meaning = "page help, man, and Markdown on a terminal (the default)"},
+    {.value = "auto", .meaning = "page every pageable output on a terminal"},
     {.value = "always", .meaning = "page every pageable output, even through a pipe"},
     {.value = "never", .meaning = "never page (same as `--no-pager`)"},
     {.value = "COMMAND", .meaning = "always page through this explicit shell command"},
@@ -1277,12 +1278,13 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--pager",
-        .display = "--pager[=auto|always|never|COMMAND]",
+        .display = "--pager[=help|auto|always|never|COMMAND]",
         .group = "output",
         .header = "Output",
-        .summary = "page output: auto (on a tty), always, never, or through an explicit command",
+        .summary = "page output: help only, auto (all on a tty), always, never, or an explicit command",
         .details = "Pages every pageable output: long meta output (`--help`, `--help=TOPIC`, `--man`, "
-                   "`--markdown`) and the file listing, including action rows such as `-ls`. `auto` pages only "
+                   "`--markdown`) and the file listing, including action rows such as `-ls`. The default `help` "
+                   "pages only those meta surfaces and only on a terminal. `auto` adds every pageable listing "
                    "when stdout is a terminal; `always` also pages through a pipe; `never` (or `--no-pager`) "
                    "disables it. Automatic command selection prefers an installed `less -FRX`, then `more`, and "
                    "only then consults `$XFF_PAGER` followed by ambient `$PAGER`. `--pager=COMMAND` always uses "

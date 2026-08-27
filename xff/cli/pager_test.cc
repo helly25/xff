@@ -45,8 +45,8 @@ using ::testing::IsTrue;
 
 struct PagerWhenTest : ::testing::Test {};
 
-TEST_F(PagerWhenTest, AbsentResolvesToAuto) {
-  EXPECT_THAT(ResolvePager({"xff", ".", "-type", "f"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kAuto)));
+TEST_F(PagerWhenTest, AbsentResolvesToHelp) {
+  EXPECT_THAT(ResolvePager({"xff", ".", "-type", "f"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kHelp)));
 }
 
 TEST_F(PagerWhenTest, BarePagerIsAlways) {
@@ -54,6 +54,7 @@ TEST_F(PagerWhenTest, BarePagerIsAlways) {
 }
 
 TEST_F(PagerWhenTest, ExplicitValuesResolve) {
+  EXPECT_THAT(ResolvePager({"--pager=help"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kHelp)));
   EXPECT_THAT(ResolvePager({"--pager=always"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kAlways)));
   EXPECT_THAT(ResolvePager({"--pager=never"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kNever)));
   EXPECT_THAT(ResolvePager({"--pager=auto"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kAuto)));
@@ -73,6 +74,39 @@ TEST_F(PagerWhenTest, LastOccurrenceWins) {
   EXPECT_THAT(
       ResolvePager({"--pager=always", "--pager=never"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kNever)));
   EXPECT_THAT(ResolvePager({"--no-pager", "--pager"}), IsOkAndHolds(Field(&PagerConfig::when, PagerWhen::kAlways)));
+}
+
+struct PagerDecisionTest : ::testing::Test {};
+
+constexpr std::array kPagerOutputs = std::to_array({PagerOutput::kMeta, PagerOutput::kListing});
+
+TEST_F(PagerDecisionTest, HelpPagesOnlyMetaOutputOnATerminal) {
+  EXPECT_THAT(DecidePager({.when = PagerWhen::kHelp}, PagerOutput::kMeta, true).action, PagerAction::kPage);
+  EXPECT_THAT(DecidePager({.when = PagerWhen::kHelp}, PagerOutput::kListing, true).action, PagerAction::kDirect);
+  EXPECT_THAT(DecidePager({.when = PagerWhen::kHelp}, PagerOutput::kMeta, false).action, PagerAction::kDirect);
+}
+
+TEST_F(PagerDecisionTest, AutoPagesEveryOutputOnlyOnATerminal) {
+  for (const PagerOutput output : kPagerOutputs) {
+    EXPECT_THAT(DecidePager({.when = PagerWhen::kAuto}, output, true).action, PagerAction::kPage);
+    EXPECT_THAT(DecidePager({.when = PagerWhen::kAuto}, output, false).action, PagerAction::kDirect);
+  }
+}
+
+TEST_F(PagerDecisionTest, AlwaysPagesAndNeverDoesNot) {
+  for (const PagerOutput output : kPagerOutputs) {
+    EXPECT_THAT(DecidePager({.when = PagerWhen::kAlways}, output, false).action, PagerAction::kPage);
+    EXPECT_THAT(DecidePager({.when = PagerWhen::kNever}, output, true).action, PagerAction::kDirect);
+  }
+}
+
+TEST_F(PagerDecisionTest, SuppressionOverridesPagingAndDecisionCarriesCommand) {
+  EXPECT_THAT(
+      DecidePager({.when = PagerWhen::kAlways, .command = "most"}, PagerOutput::kListing, true, true),
+      AllOf(Field(&PagerDecision::action, PagerAction::kDirect), Field(&PagerDecision::command, IsEmpty())));
+  EXPECT_THAT(
+      DecidePager({.when = PagerWhen::kAlways, .command = "most"}, PagerOutput::kListing, false),
+      AllOf(Field(&PagerDecision::action, PagerAction::kPage), Field(&PagerDecision::command, "most")));
 }
 
 // Man-pager resolution reads XFF_MANPAGER through the xff/env cache; inject it via the test seam.
@@ -130,6 +164,19 @@ TEST_F(PagerCommandTest, ManPagerIsIndependentOfTheTextPager) {
   EXPECT_THAT(ResolvePagerCommand(PagerKind::kMan), HasSubstr("mandoc"));
 }
 
+struct PagerEmitTest : ::testing::Test {};
+
+TEST_F(PagerEmitTest, HelpPagesMetaOutputOnATerminal) {
+  const std::string sink =
+      absl::StrCat(::testing::TempDir(), "/", ::testing::UnitTest::GetInstance()->current_test_info()->name());
+  EmitPaged(
+      "help text", DecidePager(
+                       {.when = PagerWhen::kHelp, .command = absl::StrCat("cat > ", sink)}, PagerOutput::kMeta,
+                       /*stdout_is_tty=*/true));
+  std::ifstream in(sink);
+  EXPECT_THAT(std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()), Eq("help text"));
+}
+
 struct PagerStreamTest : ::testing::Test {
   void SetUp() override {
     env::ClearForTesting();
@@ -151,7 +198,7 @@ struct PagerStreamTest : ::testing::Test {
       const std::function<void()>& body) {
     pager.command = absl::StrCat("cat > ", sink_path);
     {
-      const PagerStream stream(pager, stdout_is_tty, suppressed);
+      const PagerStream stream(DecidePager(pager, PagerOutput::kListing, stdout_is_tty, suppressed));
       body();
     }  // the destructor restores stdout and waits for the pager, so the file is complete here
     std::ifstream in(sink_path);
@@ -180,6 +227,14 @@ TEST_F(PagerStreamTest, NeverLeavesStdoutAlone) {
   EXPECT_THAT(
       PagedThrough(
           {.when = PagerWhen::kNever}, /*stdout_is_tty=*/true, /*suppressed=*/false, SinkPath(),
+          [] { std::cout << "x" << std::flush; }),
+      IsEmpty());
+}
+
+TEST_F(PagerStreamTest, HelpLeavesListingsAloneEvenOnATerminal) {
+  EXPECT_THAT(
+      PagedThrough(
+          {.when = PagerWhen::kHelp}, /*stdout_is_tty=*/true, /*suppressed=*/false, SinkPath(),
           [] { std::cout << "x" << std::flush; }),
       IsEmpty());
 }
@@ -214,10 +269,9 @@ TEST_F(PagerStreamTest, SuppressedMeansNoPager) {
 
 TEST_F(PagerStreamTest, FinishIsIdempotentAndRestoresStdout) {
   const std::string sink = SinkPath();
-  PagerStream pager(
-      PagerConfig{.when = PagerWhen::kAuto, .command = absl::StrCat("cat > ", sink)},
-      /*stdout_is_tty=*/true,
-      /*suppressed=*/false);
+  PagerStream pager(DecidePager(
+      PagerConfig{.when = PagerWhen::kAuto, .command = absl::StrCat("cat > ", sink)}, PagerOutput::kListing,
+      /*stdout_is_tty=*/true));
   EXPECT_THAT(pager.Active(), IsTrue());
   std::cout << "paged\n";
   pager.Finish();

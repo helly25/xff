@@ -399,6 +399,7 @@ int RunMain(int argc, char** argv) {
     std::cerr << "xff: " << pager.status().message() << "\n";
     return 2;
   }
+  const xff::cli::PagerDecision meta_pager = xff::cli::DecidePager(*pager, xff::cli::PagerOutput::kMeta, stdout_is_tty);
 
   // Help and version are accepted anywhere globals may appear (find prints usage
   // on a bare --help wherever it lands). xff stays flag-only -- no `help` subcommand --
@@ -472,14 +473,14 @@ int RunMain(int argc, char** argv) {
       case Meta::kUsage: {
         xff::cli::PlainTextBackend backend(help_context);
         xff::cli::RenderDocument(xff::cli::BuildUsage(), backend);
-        xff::cli::EmitPaged(backend.Take(), *pager, stdout_is_tty);
+        xff::cli::EmitPaged(backend.Take(), meta_pager);
         return 0;
       }
       case Meta::kTopic: {
         const absl::StatusOr<std::string> help = RenderTopic(meta_topic, help_context);
         if (help.ok()) {
           const std::string tip = TopicTakesTip(meta_topic) ? HelpTip(help_context) : std::string();
-          xff::cli::EmitPaged(absl::StrCat(*help, tip), *pager, stdout_is_tty);
+          xff::cli::EmitPaged(absl::StrCat(*help, tip), meta_pager);
           return 0;
         }
         // RenderTopic's only failure is unknown-topic; point at the list instead of a bare error.
@@ -500,11 +501,11 @@ int RunMain(int argc, char** argv) {
       case Meta::kMan:
         // roff(1); on a tty the man kind formats it (mandoc) so it reads like `man xff`,
         // while a redirect stays raw roff for `mandoc` / `man -l -` / installing as xff.1.
-        xff::cli::EmitPaged(xff::cli::ManPage(), *pager, stdout_is_tty, xff::cli::PagerKind::kMan);
+        xff::cli::EmitPaged(xff::cli::ManPage(), meta_pager, xff::cli::PagerKind::kMan);
         return 0;
       case Meta::kMarkdown:
         // GitHub-renderable vocabulary reference
-        xff::cli::EmitPaged(xff::cli::MarkdownReference(), *pager, stdout_is_tty);
+        xff::cli::EmitPaged(xff::cli::MarkdownReference(), meta_pager);
         return 0;
       case Meta::kNone: break;  // unreachable; keeps the switch exhaustive
     }
@@ -671,7 +672,9 @@ int RunMain(int argc, char** argv) {
   // Auto pages a terminal listing; always and an explicit command also page through a pipe. Every
   // mode streams the whole walk rather than buffering per line, and steps aside for terminal-using
   // expressions (-ok / -exec and friends) or --quiet.
-  const xff::cli::PagerStream pager_stream(*pager, stdout_is_tty, quiet || xff::parser::TakesTerminal(command));
+  const xff::cli::PagerDecision listing_pager = xff::cli::DecidePager(
+      *pager, xff::cli::PagerOutput::kListing, stdout_is_tty, quiet || xff::parser::TakesTerminal(command));
+  const xff::cli::PagerStream pager_stream(listing_pager);
   const xff::vfs::LocalFs fs;
   const xff::engine::RunResult result = xff::engine::RunFind(
       command, fs,
