@@ -3,7 +3,7 @@
   "measurements": {
     "overall": {
       "lines": {
-        "covered": 11594,
+        "covered": 11595,
         "total": 12142,
         "percent": 95.49
       },
@@ -13,16 +13,16 @@
         "percent": 98.15
       },
       "branches": {
-        "covered": 8254,
-        "total": 9501,
-        "percent": 86.88
+        "covered": 8250,
+        "total": 9493,
+        "percent": 86.91
       }
     },
     "program / command line": {
       "lines": {
-        "covered": 1640,
+        "covered": 1641,
         "total": 1686,
-        "percent": 97.27
+        "percent": 97.33
       },
       "functions": {
         "covered": 172,
@@ -30,9 +30,9 @@
         "percent": 98.29
       },
       "branches": {
-        "covered": 951,
+        "covered": 952,
         "total": 1036,
-        "percent": 91.8
+        "percent": 91.89
       }
     },
     "program / configuration": {
@@ -98,9 +98,9 @@
         "percent": 98.18
       },
       "branches": {
-        "covered": 308,
+        "covered": 307,
         "total": 328,
-        "percent": 93.9
+        "percent": 93.6
       }
     },
     "program / matching": {
@@ -200,9 +200,9 @@
         "percent": 100.0
       },
       "branches": {
-        "covered": 8,
-        "total": 12,
-        "percent": 66.67
+        "covered": 4,
+        "total": 4,
+        "percent": 100.0
       }
     },
     "extensions / PCRE2": {
@@ -299,7 +299,7 @@
     "extensions / language database": {
       "lines": 90.0,
       "functions": 90.0,
-      "branches": 65.0
+      "branches": 80.0
     },
     "extensions / PCRE2": {
       "lines": 98.0,
@@ -443,7 +443,7 @@
     "extensions / language database": {
       "lines": "high",
       "functions": "high",
-      "branches": "medium"
+      "branches": "high"
     },
     "extensions / PCRE2": {
       "lines": "high",
@@ -458,7 +458,6 @@
   },
   "reasons": {
     "extensions / archive": "Archive format and filter error paths include third-party-library and malformed-input alternatives that are not all reachable in one GCC/Linux coverage run.",
-    "extensions / FUSE": "FUSE's dynamic-loader alternatives, fatal-signal handler, mount-failure variants, and spontaneous-session-exit path are mutually exclusive or process-disrupting in one GCC/Linux coverage run. Public filesystem behavior and deterministic lifecycle failures remain covered.",
-    "extensions / language database": "The new embedded-database module's remaining branches are compiler-expanded fatal-invariant paths around the generated, build-time-verified payload. Brotli success, corrupt input, and decoded-size mismatch are covered directly; the high target remains the graduation boundary."
+    "extensions / FUSE": "FUSE's dynamic-loader alternatives, fatal-signal handler, mount-failure variants, and spontaneous-session-exit path are mutually exclusive or process-disrupting in one GCC/Linux coverage run. Public filesystem behavior and deterministic lifecycle failures remain covered."
   }
 }
