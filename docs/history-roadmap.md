@@ -1267,9 +1267,10 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
     the shortcut for the one knob every compressed format has, the relationship `-Z` has to
     `--archive-write`. A raw passthrough of libarchive's own option names was rejected: they change
     between its versions and could be neither validated nor generated into the help.
-  - **Still open: a `@file.json` form** (`--pack-option=@opts.json`), which is the same vocabulary
-    read from elsewhere. Cheap now that the table exists; wants a JSON reader (see the ASAR entry,
-    blocked on one in helly25/mbo) rather than a hand-rolled parser.
+  - **`--pack-option=@FILE.json` subsequently shipped.** It reads the same xff-owned vocabulary from
+    one JSON object through the existing `nlohmann_json` dependency. String, integer, and boolean
+    values compose with inline options in command-line order, preserving the established last-value
+    rule without introducing a second parser or a separate precedence tier.
   - **Compression-filter parity and isolation.** The archive extra now exposes every useful
     standalone filter already compiled into its libarchive closure: lzip/LZMA, LZ4, and Unix
     compress join gzip, bzip2, xz, and zstd for name-gated reads and `--pack`. Single-file suffixes

@@ -46,6 +46,10 @@
 
 ## Archives
 
+- `--pack-option=@FILE.json` loads the existing writer-option vocabulary from a JSON object. String,
+  integer, and boolean values map to the same validation and backend translation as inline
+  `NAME=VALUE` options; file and inline forms compose in command-line order, so the last value for a
+  name still wins.
 - Add the removable `@xff_brotli` extra. It extends `@xff_archive` with streaming `.tar.br` / `.tbr`
   packing and traversal and raw `.br` single-file traversal, without letting libarchive absorb the
   feature accidentally. New archives use the self-identifying RFC 9841 framing format by default;

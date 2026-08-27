@@ -959,7 +959,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
     },
     {
         .name = "--pack-option",
-        .display = "--pack-option=NAME=VALUE",
+        .display = "--pack-option=NAME=VALUE|@FILE.json",
         .group = "output",
         .header = "Output",
         .summary = "tune how `--pack` writes: repeatable, last value for a NAME wins",
@@ -970,7 +970,11 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "that library changes a translation table instead of the flags you type. A name that "
                    "exists but does not apply to the chosen output format is refused too, naming the formats "
                    "it does apply to - `zip64` is a zip idea, `threads` is not a gzip one. Everything is "
-                   "checked before the walk starts, so a typo costs no traversal and writes no file.",
+                   "checked before the walk starts, so a typo costs no traversal and writes no file. "
+                   "`--pack-option=@FILE.json` reads one JSON object whose keys are option names and whose "
+                   "values are strings, integers, or booleans; booleans become `yes` or `no`. File and inline "
+                   "forms may be repeated and are expanded in command-line order, so the last value for a name "
+                   "wins across both forms.",
         .affects = "--pack",
         .topic = "archive",
         .extra = "archive",
