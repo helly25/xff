@@ -284,6 +284,17 @@ TEST_F(PharReaderTest, ATruncatedManifestIsCorruption) {
       ListPharMembers(phar.substr(0, phar.size() - 12)), StatusIs(absl::StatusCode::kDataLoss, HasSubstr("truncated")));
 }
 
+TEST_F(PharReaderTest, EveryTruncatedManifestPrefixIsRejected) {
+  const std::string phar = MakePhar({
+      {.name = "first.txt", .content = "one"},
+      {.name = "second.txt", .content = "two", .flags = 0600},
+  });
+  constexpr std::size_t kPayloadSize = 6;
+  for (std::size_t size = 0; size < phar.size() - kPayloadSize; ++size) {
+    EXPECT_THAT(ListPharMembers(std::string_view(phar).substr(0, size)), Not(IsOk())) << "prefix size " << size;
+  }
+}
+
 TEST_F(PharReaderTest, AMemberCountTheManifestCannotHoldMeansThisIsNotAPhar) {
   // The member count is a declared number, so it can lie - and a count the declared manifest LENGTH
   // could not possibly hold is the check that makes the halt token insufficient evidence on its own.
