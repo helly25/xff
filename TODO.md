@@ -1221,10 +1221,12 @@ concrete need appears.
 - **Custom histogram bucket edges / counts** (#81): explicit numeric-range boundaries or a target
   bucket count (e.g. `--histogram-buckets=...`) in place of the automatic log / linear ranging.
   Deferred until the auto ranging proves insufficient in practice.
-- **Pager support (SHIPPED #397, finalized 2026-08-26):** one scope applies uniformly to long meta
-  output and file listings: `auto` pages every pageable surface on a terminal, bare / `always` also
-  pages through a pipe, and `never` / `--no-pager` disables it. The short-lived `all` value was
-  removed because splitting meta and listing scope made `always` surprisingly incomplete.
+- **Pager support (SHIPPED #397, finalized 2026-08-27):** the conservative default / `help` pages
+  long meta output on a terminal but leaves ordinary invocations alone. Explicit `auto` pages every
+  pageable surface on a terminal, bare / `always` also pages through a pipe, and `never` /
+  `--no-pager` disables it. The short-lived `all` value was removed: `auto` is the intuitive spelling
+  for all output under terminal detection, while the separate `help` scope expresses the safer
+  general default without redefining `auto`.
   `--pager=COMMAND` is the explicit command escape hatch. Automatic command selection honors the
   installed `less -FRX` (`-F` lets short output finish, `-R` preserves colour, `-X` leaves it on the
   normal screen), then `more`, and consults `$XFF_PAGER` and ambient `$PAGER` only if neither known

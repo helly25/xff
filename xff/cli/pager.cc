@@ -102,19 +102,35 @@ absl::StatusOr<PagerConfig> ResolvePager(const std::vector<std::string>& args) {
       pager = {.when = PagerWhen::kNever};
     } else if (arg == "--pager" || arg == "--pager=always") {
       pager = {.when = PagerWhen::kAlways};
-    } else if (arg == "--pager=auto") {
+    } else if (arg == "--pager=help") {
       pager = {};
+    } else if (arg == "--pager=auto") {
+      pager = {.when = PagerWhen::kAuto};
     } else if (arg == "--pager=all") {
       return absl::InvalidArgumentError("--pager=all was removed; use --pager=auto or --pager=always");
     } else if (arg.starts_with("--pager=")) {
       const std::string_view command = arg.substr(std::string_view("--pager=").size());
       if (command.empty()) {
-        return absl::InvalidArgumentError("--pager requires auto, always, never, or a command");
+        return absl::InvalidArgumentError("--pager requires help, auto, always, never, or a command");
       }
       pager = {.when = PagerWhen::kAlways, .command = std::string(command)};
     }
   }
   return pager;
+}
+
+PagerDecision DecidePager(const PagerConfig& pager, PagerOutput output, bool stdout_is_tty, bool suppressed) {
+  if (suppressed) {
+    return {};
+  }
+  bool page = false;
+  switch (pager.when) {
+    case PagerWhen::kHelp: page = output == PagerOutput::kMeta && stdout_is_tty; break;
+    case PagerWhen::kAuto: page = stdout_is_tty; break;
+    case PagerWhen::kAlways: page = true; break;
+    case PagerWhen::kNever: page = false; break;
+  }
+  return {.action = page ? PagerAction::kPage : PagerAction::kDirect, .command = pager.command};
 }
 
 namespace {
@@ -157,13 +173,12 @@ std::string ResolvePagerCommand(PagerKind kind, std::string_view explicit_comman
   return ResolveAutomaticTextPager();
 }
 
-void EmitPaged(std::string_view text, const PagerConfig& pager, bool stdout_is_tty, PagerKind kind) {
-  const bool page = pager.when == PagerWhen::kAlways || (pager.when == PagerWhen::kAuto && stdout_is_tty);
-  if (!page) {
+void EmitPaged(std::string_view text, const PagerDecision& decision, PagerKind kind) {
+  if (decision.action == PagerAction::kDirect) {
     WriteToStdout(text);
     return;
   }
-  const std::string command = ResolvePagerCommand(kind, pager.command);
+  const std::string command = ResolvePagerCommand(kind, decision.command);
   if (command.empty() || !PipeThroughPager(text, command)) {
     WriteToStdout(text);
   }
@@ -178,12 +193,11 @@ struct ::sigaction g_previous_sigpipe;  // NOLINT(cppcoreguidelines-avoid-non-co
 
 }  // namespace
 
-PagerStream::PagerStream(const PagerConfig& pager, bool stdout_is_tty, bool suppressed) {
-  const bool page = pager.when == PagerWhen::kAlways || (pager.when == PagerWhen::kAuto && stdout_is_tty);
-  if (!page || suppressed) {
+PagerStream::PagerStream(const PagerDecision& decision) {
+  if (decision.action == PagerAction::kDirect) {
     return;
   }
-  const std::string command = ResolvePagerCommand(PagerKind::kText, pager.command);
+  const std::string command = ResolvePagerCommand(PagerKind::kText, decision.command);
   if (command.empty()) {
     return;
   }
