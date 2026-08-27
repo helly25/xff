@@ -92,6 +92,12 @@ repos:
         entry: tools/check_raw_pointers_test.py
         pass_filenames: false
         files: ^tools/check_raw_pointers(_test)?\.py$
+      - id: cache-size-test
+        name: Test GitHub Actions cache-size enforcement
+        language: python
+        entry: tools/cache_size_test.py
+        pass_filenames: false
+        files: ^(tools/cache_size(_test)?\.py|[.]github/workflows/cache_size[.]yml)$
       - id: no-todos-without-context
         name: No TODOs without context
         description: |
