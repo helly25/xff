@@ -23,15 +23,16 @@ for enforcement and presentation.
 
 Ordered by current value and readiness, not by implementation size.
 
-1. **SquashFS extra.** Implement SquashFS as a removable extra rather than growing the core or archive
+1. **JSON pack-option files.** Add repeatable `--pack-option=@FILE.json` using the same xff-owned option
+   vocabulary and validation as inline `--pack-option=NAME=VALUE`. Reuse the existing
+   `nlohmann_json` dependency already used by the MIME and language vocabulary loaders rather than
+   adding another parser.
+2. **ASAR extra.** Add Electron ASAR traversal as a removable extra. Support the directory tree,
+   string-encoded offsets and sizes, unpacked entries, and newer integrity metadata without treating
+   incidental metadata as files. Reuse the existing `nlohmann_json` dependency.
+3. **SquashFS extra.** Implement SquashFS as a removable extra rather than growing the core or archive
    module. Cover metadata block tables, fragments, the compressors already available to the archive
    dependency closure, nested traversal, member reads, documentation, notices, and coverage grouping.
-2. **ASAR extra.** Add Electron ASAR traversal once xff has a suitable JSON-reader dependency. Support
-   the directory tree, string-encoded offsets and sizes, unpacked entries, and newer integrity metadata
-   without treating incidental metadata as files.
-3. **JSON pack-option files.** Add repeatable `--pack-option=@FILE.json` using the same xff-owned option
-   vocabulary and validation as inline `--pack-option=NAME=VALUE`. Share the JSON-reader decision with
-   ASAR rather than adding a second parser.
 4. **Archive name-gate peeking.** Add a bounded partial-read VFS operation, then evaluate magic peeking
    for archive discovery without reading every candidate file in full. Keep suffix gating as the cheap
    default unless measurements justify changing it.
