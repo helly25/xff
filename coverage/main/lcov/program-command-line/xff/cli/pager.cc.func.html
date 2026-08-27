@@ -40,27 +40,27 @@
             <td class="headerValue">xff production coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryLo">84.7&nbsp;%</td>
-            <td class="headerCovTableEntry">131</td>
-            <td class="headerCovTableEntry">111</td>
+            <td class="headerCovTableEntryLo">86.5&nbsp;%</td>
+            <td class="headerCovTableEntry">141</td>
+            <td class="headerCovTableEntry">122</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-26 22:44:42</td>
+            <td class="headerValue">2026-08-27 07:13:42</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
-            <td class="headerCovTableEntry">9</td>
-            <td class="headerCovTableEntry">9</td>
+            <td class="headerCovTableEntry">10</td>
+            <td class="headerCovTableEntry">10</td>
           </tr>
           <tr>
             <td></td>
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryHi">85.4&nbsp;%</td>
-            <td class="headerCovTableEntry">82</td>
-            <td class="headerCovTableEntry">70</td>
+            <td class="headerCovTableEntryHi">86.7&nbsp;%</td>
+            <td class="headerCovTableEntry">83</td>
+            <td class="headerCovTableEntry">72</td>
           </tr>
                   <tr><td><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -84,13 +84,13 @@
             <tr>
               <td class="coverFn"><a href="pager.cc.gcov.html#L44">xff::cli::(anonymous namespace)::PipeThroughPager(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;, std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; const&amp;)</a></td>
               
-              <td class="coverFnHi">3</td>
+              <td class="coverFnHi">4</td>
               
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="pager.cc.gcov.html#L124">xff::cli::(anonymous namespace)::ResolveAutomaticTextPager()</a></td>
+              <td class="coverFn"><a href="pager.cc.gcov.html#L140">xff::cli::(anonymous namespace)::ResolveAutomaticTextPager()</a></td>
               
               <td class="coverFnHi">8</td>
               
@@ -106,33 +106,41 @@
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="pager.cc.gcov.html#L158">xff::cli::EmitPaged(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;, xff::cli::PagerConfig const&amp;, bool, xff::cli::PagerKind)</a></td>
+              <td class="coverFn"><a href="pager.cc.gcov.html#L120">xff::cli::DecidePager(xff::cli::PagerConfig const&amp;, xff::cli::PagerOutput, bool, bool)</a></td>
               
-              <td class="coverFnHi">118</td>
-              
-              
-              
-            </tr>
-            <tr>
-              <td class="coverFn"><a href="pager.cc.gcov.html#L226">xff::cli::PagerStream::Finish()</a></td>
-              
-              <td class="coverFnHi">487</td>
+              <td class="coverFnHi">1146</td>
               
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="pager.cc.gcov.html#L179">xff::cli::PagerStream::PagerStream(xff::cli::PagerConfig const&amp;, bool, bool)</a></td>
+              <td class="coverFn"><a href="pager.cc.gcov.html#L174">xff::cli::EmitPaged(std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;, xff::cli::PagerDecision const&amp;, xff::cli::PagerKind)</a></td>
               
-              <td class="coverFnHi">485</td>
+              <td class="coverFnHi">119</td>
               
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="pager.cc.gcov.html#L245">xff::cli::PagerStream::~PagerStream()</a></td>
+              <td class="coverFn"><a href="pager.cc.gcov.html#L240">xff::cli::PagerStream::Finish()</a></td>
               
-              <td class="coverFnHi">485</td>
+              <td class="coverFnHi">488</td>
+              
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="pager.cc.gcov.html#L194">xff::cli::PagerStream::PagerStream(xff::cli::PagerDecision const&amp;)</a></td>
+              
+              <td class="coverFnHi">486</td>
+              
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="pager.cc.gcov.html#L259">xff::cli::PagerStream::~PagerStream()</a></td>
+              
+              <td class="coverFnHi">486</td>
               
               
               
@@ -140,15 +148,15 @@
             <tr>
               <td class="coverFn"><a href="pager.cc.gcov.html#L96">xff::cli::ResolvePager(std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt; const&amp;)</a></td>
               
-              <td class="coverFnHi">658</td>
+              <td class="coverFnHi">659</td>
               
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="pager.cc.gcov.html#L134">xff::cli::ResolvePagerCommand[abi:cxx11](xff::cli::PagerKind, std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;)</a></td>
+              <td class="coverFn"><a href="pager.cc.gcov.html#L150">xff::cli::ResolvePagerCommand[abi:cxx11](xff::cli::PagerKind, std::basic_string_view&lt;char, std::char_traits&lt;char&gt; &gt;)</a></td>
               
-              <td class="coverFnHi">19</td>
+              <td class="coverFnHi">20</td>
               
               
               
