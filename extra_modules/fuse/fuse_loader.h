@@ -31,6 +31,7 @@
 #include <string>
 #include <string_view>
 
+#include "absl/functional/function_ref.h"
 #include "absl/types/span.h"
 
 namespace xff::fuse {
@@ -39,6 +40,20 @@ namespace xff::fuse {
 // "available" MEANS mountable: a library that is present but incomplete reports unavailable rather
 // than failing at first use mid-walk.
 [[nodiscard]] absl::Span<const std::string_view> RequiredSymbols();
+
+// Result of probing an ordered set of FUSE libraries. The callbacks keep the platform loader at
+// the boundary and make every fallback/error outcome deterministic in tests.
+struct FuseProbeResult {
+  void* handle = nullptr;
+  std::string library;
+  std::string error;
+};
+
+[[nodiscard]] FuseProbeResult ProbeFuseLibraries(
+    absl::Span<const std::string_view> candidates,
+    absl::Span<const std::string_view> symbols,
+    absl::FunctionRef<void*(std::string_view)> open_library,
+    absl::FunctionRef<void*(void*, std::string_view)> find_symbol);
 
 class FuseLoader {
  public:

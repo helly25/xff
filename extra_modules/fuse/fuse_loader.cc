@@ -67,31 +67,49 @@ absl::Span<const std::string_view> RequiredSymbols() {
   return kRequiredSymbols;
 }
 
-FuseLoader::FuseLoader() {
-  for (const std::string_view candidate : kLibraryCandidates) {
-    // dlopen wants a C string; the candidates are string literals, the copy makes that explicit.
-    void* handle = ::dlopen(std::string(candidate).c_str(), RTLD_NOW | RTLD_LOCAL);
+FuseProbeResult ProbeFuseLibraries(
+    absl::Span<const std::string_view> candidates,
+    absl::Span<const std::string_view> symbols,
+    absl::FunctionRef<void*(std::string_view)> open_library,
+    absl::FunctionRef<void*(void*, std::string_view)> find_symbol) {
+  FuseProbeResult result;
+  for (const std::string_view candidate : candidates) {
+    void* handle = open_library(candidate);
     if (handle == nullptr) {
       continue;
     }
-    for (const std::string_view symbol : kRequiredSymbols) {
-      if (::dlsym(handle, std::string(symbol).c_str()) == nullptr) {
-        error_ = absl::StrCat(candidate, " is present but lacks ", symbol, "; not mountable");
+    for (const std::string_view symbol : symbols) {
+      if (find_symbol(handle, symbol) == nullptr) {
+        result.error = absl::StrCat(candidate, " is present but lacks ", symbol, "; not mountable");
         // Keep probing: a second candidate may be a complete installation.
         handle = nullptr;
         break;
       }
     }
     if (handle != nullptr) {
-      handle_ = handle;
-      library_ = std::string(candidate);
-      error_.clear();
-      return;
+      result.handle = handle;
+      result.library = std::string(candidate);
+      result.error.clear();
+      return result;
     }
   }
-  if (error_.empty()) {
-    error_ = "no FUSE3 library on this machine (looked for libfuse3); mounting is unavailable";
+  if (result.error.empty()) {
+    result.error = "no FUSE3 library on this machine (looked for libfuse3); mounting is unavailable";
   }
+  return result;
+}
+
+FuseLoader::FuseLoader() {
+  const FuseProbeResult result = ProbeFuseLibraries(
+      kLibraryCandidates, kRequiredSymbols,
+      [](std::string_view candidate) {
+        // dlopen wants a C string; the candidates are string literals, the copy makes that explicit.
+        return ::dlopen(std::string(candidate).c_str(), RTLD_NOW | RTLD_LOCAL);
+      },
+      [](void* handle, std::string_view symbol) { return ::dlsym(handle, std::string(symbol).c_str()); });
+  handle_ = result.handle;
+  library_ = result.library;
+  error_ = result.error;
 }
 
 const FuseLoader& FuseLoader::Instance() {

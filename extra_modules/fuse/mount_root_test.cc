@@ -101,6 +101,25 @@ TEST_F(MountRootTest, CreateUsesTheXdgRuntimeDirectoryByDefault) {
   EXPECT_THAT(root.path(), HasSubstr(absl::StrCat(base_, "/xff/")));
 }
 
+TEST_F(MountRootTest, EmptyXdgRuntimeDirectoryFallsBackToTheSystemTemporaryDirectory) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  const char* const inherited = std::getenv("XDG_RUNTIME_DIR");
+  const bool had_original = inherited != nullptr;
+  const std::string original = inherited == nullptr ? "" : inherited;
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ASSERT_THAT(::setenv("XDG_RUNTIME_DIR", "", /*overwrite=*/1), 0);
+  absl::StatusOr<MountRoot> created = MountRoot::Create();
+  const int restore_result = had_original
+                                 // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                                 ? ::setenv("XDG_RUNTIME_DIR", original.c_str(), /*overwrite=*/1)
+                                 // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                                 : ::unsetenv("XDG_RUNTIME_DIR");
+  ASSERT_THAT(restore_result, 0);
+
+  MBO_ASSERT_OK_AND_ASSIGN(const MountRoot root, std::move(created));
+  EXPECT_THAT(root.path(), Not(HasSubstr(base_)));
+}
+
 TEST_F(MountRootTest, CreateReportsWhenTheSharedBaseCannotBeCreated) {
   const std::string shared_base = absl::StrCat(base_, "/xff");
   std::ofstream blocker(shared_base);
@@ -183,9 +202,11 @@ TEST_F(MountRootTest, StaleRootsFindsDeadPidsAndLeavesTheLivingAndTheForeign) {
   // non-numeric sibling is somebody else's directory and must never be considered ours.
   const std::string dead = absl::StrCat(base_, "/xff/999999999");
   const std::string foreign = absl::StrCat(base_, "/xff/not-a-pid");
+  const std::string non_positive = absl::StrCat(base_, "/xff/0");
   std::error_code error;
   stdfs::create_directories(dead, error);
   stdfs::create_directories(foreign, error);
+  stdfs::create_directories(non_positive, error);
   const std::ofstream foreign_file(absl::StrCat(base_, "/xff/123-not-a-directory"));
   EXPECT_THAT(StaleRoots(options_), UnorderedElementsAre(dead));
 }

@@ -94,6 +94,16 @@ TEST_F(FuseRegisterTest, LinkingRegistersTheMountFactory) {
 #endif
 }
 
+TEST_F(FuseRegisterTest, MountFactoryPropagatesAnInvalidFilesystem) {
+#if defined(MEMORY_SANITIZER)
+  GTEST_SKIP() << "MSan cannot model the uninstrumented system libfuse3";
+#else
+  EXPECT_THAT(
+      MountContainer(nullptr, "/container.tar"),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("cannot mount a null filesystem")));
+#endif
+}
+
 TEST_F(FuseRegisterTest, TwoLiveMountsShareTheRunRootAndExposeMemberPaths) {
 #if defined(MEMORY_SANITIZER)
   GTEST_SKIP() << "MSan cannot model the uninstrumented system libfuse3";
