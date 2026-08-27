@@ -265,6 +265,12 @@ TEST_F(ArchivePackTest, TurningTheTimestampOffMakesTwoRunsByteIdentical) {
   EXPECT_THAT(Read(first), Eq(Read(second)));
 }
 
+TEST_F(ArchivePackTest, Zip64CanBeExplicitlyEnabled) {
+  const std::string out = Output("zip64.zip");
+  EXPECT_THAT(PackFiles(out, Entries(), PackSettings{.options = {{.name = "zip64", .value = "yes"}}}), IsOk());
+  EXPECT_THAT(ListMembersOfFile(out), IsOkAndHolds(SizeIs(2)));
+}
+
 TEST_F(ArchivePackTest, ZipStoresMembersUncompressedWhenAsked) {
   // The enum option, proven by size: `store` must leave the payload alone.
   Write(root_ / "big.txt", std::string(200'000, 'a') + "\n");
@@ -308,6 +314,9 @@ TEST_F(ArchivePackTest, ALevelOutOfTheFormatsRangeIsRefusedNamingTheRange) {
   EXPECT_THAT(
       PackFiles(Output("x.tar.zst"), Entries(), PackSettings{.options = {{.name = "level", .value = "99"}}}),
       StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("accepts 1-22")));
+  EXPECT_THAT(
+      PackFiles(Output("x.tar.gz"), Entries(), PackSettings{.options = {{.name = "level", .value = "-1"}}}),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("accepts 0-9")));
 }
 
 TEST_F(ArchivePackTest, ALevelOnAnUncompressedFormatIsAnErrorNotANoOp) {

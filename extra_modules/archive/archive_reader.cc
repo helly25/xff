@@ -64,7 +64,7 @@ using ArchivePtr = std::unique_ptr<struct ::archive, ArchiveDeleter>;
 // is spelled out and mtree stays out. `raw` is out for the same reason - it accepts anything.
 ArchivePtr NewReader(const internal::FilterEnabler enable_filters = EnableNativeFilters) {
   ArchivePtr handle{::archive_read_new()};
-  if (handle == nullptr) {
+  if (handle == nullptr) {  // LCOV_EXCL_BR_LINE: libarchive allocation failure injection.
     return handle;
   }
   if (!enable_filters(*handle)) {
@@ -103,7 +103,7 @@ absl::StatusOr<std::vector<Member>> ReadMembers(struct ::archive& handle_ref) {
     if (status == ARCHIVE_EOF) {
       return members;
     }
-    if (status < ARCHIVE_WARN) {
+    if (status < ARCHIVE_WARN) {  // LCOV_EXCL_BR_LINE: libarchive header failure injection.
       // Opened as an archive but failed part way: a truncated or corrupt archive, which is a real
       // error the walk must report - distinct from "this file is not an archive at all".
       return absl::DataLossError(absl::StrCat("archive read failed: ", LastError(handle)));
@@ -160,7 +160,7 @@ absl::StatusOr<std::string> ReadPositionedEntry(
     if (read == 0) {
       return contents;  // end of this member's data
     }
-    if (read < 0) {
+    if (read < 0) {  // LCOV_EXCL_BR_LINE: libarchive streaming failure injection.
       return absl::DataLossError(absl::StrCat("reading ", label, " failed: ", LastError(handle)));
     }
     if (max_bytes != 0 && contents.size() + static_cast<std::uint64_t>(read) > max_bytes) {
@@ -232,7 +232,7 @@ absl::StatusOr<std::string> internal::ReadCompressedSingleFileWithFilterEnabler(
   // `raw` is registered on THIS reader only, never on the shared one: it bids on anything, so it may
   // only ever see a file whose name already claimed to be compressed.
   const ArchivePtr handle{::archive_read_new()};
-  if (handle == nullptr) {
+  if (handle == nullptr) {  // LCOV_EXCL_BR_LINE: libarchive allocation failure injection.
     return absl::ResourceExhaustedError("cannot allocate a libarchive reader");
   }
   if (!enable_filters(*handle)) {
@@ -240,11 +240,11 @@ absl::StatusOr<std::string> internal::ReadCompressedSingleFileWithFilterEnabler(
   }
   ::archive_read_support_format_raw(handle.get());
   const std::string path_string(path);
-  if (::archive_read_open_filename(handle.get(), path_string.c_str(), kBlockSize) != ARCHIVE_OK) {
+  if (::archive_read_open_filename(handle.get(), path_string.c_str(), kBlockSize) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE
     return absl::InvalidArgumentError(absl::StrCat("not readable: ", LastError(handle.get())));
   }
   struct ::archive_entry* entry = nullptr;
-  if (::archive_read_next_header(handle.get(), &entry) != ARCHIVE_OK) {
+  if (::archive_read_next_header(handle.get(), &entry) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE
     return absl::InvalidArgumentError(absl::StrCat("not a compressed single file: ", LastError(handle.get())));
   }
   // The confirmation the name alone cannot give: a real codec has to have been applied. A text file
@@ -269,7 +269,7 @@ absl::StatusOr<std::vector<Member>> internal::ListMembersWithFilterEnabler(
     return absl::InvalidArgumentError("not a readable archive: empty input");
   }
   const ArchivePtr handle = NewReader(enable_filters);
-  if (handle == nullptr) {
+  if (handle == nullptr) {  // LCOV_EXCL_BR_LINE: libarchive allocation failure injection.
     return absl::ResourceExhaustedError("cannot allocate a libarchive reader");
   }
   if (::archive_read_open_memory(handle.get(), bytes.data(), bytes.size()) != ARCHIVE_OK) {
@@ -284,7 +284,7 @@ absl::StatusOr<std::vector<Member>> ListMembers(std::string_view bytes) {
 
 absl::StatusOr<std::vector<Member>> ListMembersOfFile(std::string_view path) {
   const ArchivePtr handle = NewReader();
-  if (handle == nullptr) {
+  if (handle == nullptr) {  // LCOV_EXCL_BR_LINE: libarchive allocation failure injection.
     return absl::ResourceExhaustedError("cannot allocate a libarchive reader");
   }
   // 64 KiB blocks: large enough to keep syscalls down on big archives, small enough that listing a
@@ -298,7 +298,7 @@ absl::StatusOr<std::vector<Member>> ListMembersOfFile(std::string_view path) {
 
 absl::StatusOr<std::string> ReadMemberOfFile(std::string_view path, std::string_view member, std::uint64_t max_bytes) {
   const ArchivePtr handle = NewReader();
-  if (handle == nullptr) {
+  if (handle == nullptr) {  // LCOV_EXCL_BR_LINE: libarchive allocation failure injection.
     return absl::ResourceExhaustedError("cannot allocate a libarchive reader");
   }
   const std::string path_string(path);
@@ -318,7 +318,7 @@ absl::StatusOr<std::string> ReadMember(std::string_view bytes, std::string_view 
   if (handle == nullptr) {
     return absl::ResourceExhaustedError("cannot allocate a libarchive reader");
   }
-  if (::archive_read_open_memory(handle.get(), bytes.data(), bytes.size()) != ARCHIVE_OK) {
+  if (::archive_read_open_memory(handle.get(), bytes.data(), bytes.size()) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE
     return absl::InvalidArgumentError(absl::StrCat("not a readable archive: ", LastError(handle.get())));
   }
   return ReadMemberOfOpened(*handle, "<memory>", member, max_bytes);

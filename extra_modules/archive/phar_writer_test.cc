@@ -24,6 +24,8 @@
 #include "xff/archive/phar_writer.h"
 
 #include <algorithm>
+#include <array>
+#include <cstdint>
 #include <cstdlib>
 #include <fstream>
 #include <ios>
@@ -103,6 +105,21 @@ struct PharWriterTest : ::testing::Test {
     }
     return names;
   }
+
+  static std::string CopyWithSignature(std::string_view as, std::size_t digest_size, std::uint32_t type) {
+    std::string bytes = Read(Fixture("plain.phar"));
+    bytes.resize(bytes.size() - 40);  // SHA-256 digest, type word, and GBMB trailer.
+    bytes.append(digest_size, '\0');
+    for (std::size_t i = 0; i < 4; ++i) {
+      bytes.push_back(static_cast<char>((type >> (8U * i)) & 0xffU));
+    }
+    bytes.append("GBMB");
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    const char* const tmp = std::getenv("TEST_TMPDIR");
+    const std::string path = absl::StrCat(tmp != nullptr ? tmp : "/tmp", "/", as);
+    std::ofstream(path, std::ios::binary).write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    return path;
+  }
 };
 
 TEST_F(PharWriterTest, RemovingAMemberLeavesTheOtherMembersReadable) {
@@ -128,6 +145,34 @@ TEST_F(PharWriterTest, TheSignatureTrailerIsRecomputedAndStaysLast) {
   // The type word is untouched (sha256 stays sha256) while the digest itself changed.
   EXPECT_THAT(after.substr(after.size() - 8, 4), before.substr(before.size() - 8, 4));
   EXPECT_THAT(after.substr(after.size() - 40, 32), Not(before.substr(before.size() - 40, 32)));
+}
+
+TEST_F(PharWriterTest, EveryDigestSignatureCanBeRecomputed) {
+  struct SignatureSpec {
+    std::string_view name;
+    std::size_t digest_size;
+    std::uint32_t type;
+  };
+
+  constexpr std::array kSignatures = std::to_array<SignatureSpec>({
+      {.name = "md5", .digest_size = 16, .type = 1},
+      {.name = "sha1", .digest_size = 20, .type = 2},
+      {.name = "sha512", .digest_size = 64, .type = 4},
+  });
+  for (const SignatureSpec& signature : kSignatures) {
+    const std::string path =
+        CopyWithSignature(absl::StrCat(signature.name, ".phar"), signature.digest_size, signature.type);
+    EXPECT_THAT(RemovePharMembersOfFile(path, {std::string(kUtilPhp)}), IsOk()) << signature.name;
+    EXPECT_THAT(ReadPharMemberOfFile(path, kReadme), IsOkAndHolds(std::string(kReadmeContent))) << signature.name;
+  }
+}
+
+TEST_F(PharWriterTest, OpenSslSignaturesCannotBeRecomputedWithoutTheKey) {
+  constexpr std::uint32_t kOpenSslSignature = 0x10;
+  const std::string path = CopyWithSignature("openssl.phar", /*digest_size=*/16, kOpenSslSignature);
+  EXPECT_THAT(
+      RemovePharMembersOfFile(path, {std::string(kUtilPhp)}),
+      StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("openssl or unknown")));
 }
 
 TEST_F(PharWriterTest, APerMemberCompressedMemberSurvivesUntouched) {

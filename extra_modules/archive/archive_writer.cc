@@ -73,10 +73,10 @@ std::string LastError(struct ::archive* handle) {
 // anything, so a text file must not present as an archive here either.
 ReadPtr OpenReader(const std::string& path) {
   ReadPtr handle{::archive_read_new()};
-  if (handle == nullptr) {
+  if (handle == nullptr) {  // LCOV_EXCL_BR_LINE: libarchive allocation failure injection.
     return handle;
   }
-  if (!EnableNativeFilters(*handle)) {
+  if (!EnableNativeFilters(*handle)) {  // LCOV_EXCL_BR_LINE: compiled-in filter registration failure.
     return nullptr;
   }
   ::archive_read_support_format_7zip(handle.get());
@@ -92,7 +92,7 @@ ReadPtr OpenReader(const std::string& path) {
   ::archive_read_support_format_warc(handle.get());
   ::archive_read_support_format_xar(handle.get());
   ::archive_read_support_format_zip(handle.get());
-  if (::archive_read_open_filename(handle.get(), path.c_str(), kBlockSize) != ARCHIVE_OK) {
+  if (::archive_read_open_filename(handle.get(), path.c_str(), kBlockSize) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE
     return nullptr;
   }
   return handle;
@@ -112,10 +112,10 @@ absl::Status CopyData(struct ::archive& reader_ref, struct ::archive& writer_ref
     if (status == ARCHIVE_EOF) {
       return absl::OkStatus();
     }
-    if (status < ARCHIVE_WARN) {
+    if (status < ARCHIVE_WARN) {  // LCOV_EXCL_BR_LINE: libarchive streaming failure injection.
       return absl::DataLossError(LastError(reader));
     }
-    if (::archive_write_data(writer, block, size) < 0) {
+    if (::archive_write_data(writer, block, size) < 0) {  // LCOV_EXCL_BR_LINE: libarchive write failure injection.
       return absl::UnavailableError(LastError(writer));
     }
   }
@@ -167,7 +167,7 @@ absl::Status RewriteWithout(struct ::archive& reader_ref, struct ::archive& writ
     if (status == ARCHIVE_EOF) {
       return absl::OkStatus();
     }
-    if (status < ARCHIVE_WARN) {
+    if (status < ARCHIVE_WARN) {  // LCOV_EXCL_BR_LINE: libarchive header failure injection.
       return absl::DataLossError(LastError(reader));
     }
     const char* stored = ::archive_entry_pathname(entry);
@@ -176,7 +176,7 @@ absl::Status RewriteWithout(struct ::archive& reader_ref, struct ::archive& writ
       ::archive_read_data_skip(reader);
       continue;
     }
-    if (::archive_write_header(writer, entry) < ARCHIVE_WARN) {
+    if (::archive_write_header(writer, entry) < ARCHIVE_WARN) {  // LCOV_EXCL_BR_LINE
       return absl::UnavailableError(LastError(writer));
     }
     if (::archive_entry_size(entry) > 0) {
@@ -201,7 +201,7 @@ absl::Status MatchWriterToReader(
   struct ::archive* const writer = &writer_ref;
   // Reading a format does not imply writing it: libarchive reads 7-Zip, RAR, ISO and cab, and writes
   // only some of those. Refusing here (rather than producing a tar named `.7z`) is the point.
-  if (::archive_write_set_format(writer, ::archive_format(reader)) != ARCHIVE_OK) {
+  if (::archive_write_set_format(writer, ::archive_format(reader)) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE
     return absl::UnimplementedError(
         absl::StrCat(
             "this build cannot write the ", ::archive_format_name(reader),
@@ -210,14 +210,14 @@ absl::Status MatchWriterToReader(
   // Filter 0 is the outermost compression the reader applied, and the innermost is always `none`.
   // Carrying it over is what keeps a `.tar.gz` gzipped rather than silently expanding it.
   for (int i = ::archive_filter_count(reader) - 2; i >= 0; --i) {
-    if (::archive_write_add_filter(writer, ::archive_filter_code(reader, i)) != ARCHIVE_OK) {
+    if (::archive_write_add_filter(writer, ::archive_filter_code(reader, i)) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE
       return absl::UnimplementedError(
           absl::StrCat(
               "this build cannot write the ", ::archive_filter_name(reader, i),
               " compression back, so a member cannot be removed from ", path));
     }
   }
-  if (::archive_write_open_filename(writer, temporary.string().c_str()) != ARCHIVE_OK) {
+  if (::archive_write_open_filename(writer, temporary.string().c_str()) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE
     return absl::UnavailableError(absl::StrCat("cannot write ", temporary.string(), ": ", LastError(writer)));
   }
   return absl::OkStatus();
@@ -239,7 +239,7 @@ absl::Status TransferFirstMember(
     ::archive_read_data_skip(reader);
     return absl::OkStatus();
   }
-  if (::archive_write_header(writer, first) < ARCHIVE_WARN) {
+  if (::archive_write_header(writer, first) < ARCHIVE_WARN) {  // LCOV_EXCL_BR_LINE
     return absl::UnavailableError(LastError(writer));
   }
   if (::archive_entry_size(first) > 0) {
@@ -273,7 +273,7 @@ absl::Status RemoveMembersOfFile(std::string_view path, const std::vector<std::s
   const stdfs::path temporary = stdfs::path(target).replace_filename(target.filename().string() + ".xff-rewrite");
   {
     const WritePtr writer{::archive_write_new()};
-    if (writer == nullptr) {
+    if (writer == nullptr) {  // LCOV_EXCL_BR_LINE: libarchive allocation failure injection.
       return absl::UnavailableError("cannot create a libarchive writer");
     }
     MBO_RETURN_IF_ERROR(MatchWriterToReader(*reader, *writer, temporary, path));
@@ -286,7 +286,7 @@ absl::Status RemoveMembersOfFile(std::string_view path, const std::vector<std::s
     if (status.ok()) {
       status = removals.CheckAll(path);
     }
-    if (status.ok() && ::archive_write_close(writer.get()) != ARCHIVE_OK) {
+    if (status.ok() && ::archive_write_close(writer.get()) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE
       // Close is where a zip writes its central directory, so a failure here is a failure to write.
       status = absl::UnavailableError(LastError(writer.get()));
     }

@@ -54,10 +54,7 @@
         "minimum": { "lines": 97, "branches": 87 }
       },
       "archive": {
-        "include": ["xff_archive/**"],
-        "minimum": { "branches": 77 },
-        "enforce": { "lines": "medium", "branches": "medium" },
-        "reason": "Archive format and filter error paths include third-party-library and malformed-input alternatives that are not all reachable in one GCC/Linux coverage run."
+        "include": ["xff_archive/**"]
       },
       "FUSE": {
         "include": ["xff_fuse/**"]
