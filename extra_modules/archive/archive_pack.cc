@@ -442,7 +442,7 @@ absl::Status WriteOne(struct ::archive& writer_ref, const PackEntry& entry) {
     return absl::NotFoundError(absl::StrCat("cannot stat '", entry.source, "': ", error.message()));
   }
   const EntryPtr header{::archive_entry_new()};
-  if (header == nullptr) {
+  if (header == nullptr) {  // LCOV_EXCL_BR_LINE: libarchive allocation failure injection.
     return absl::UnavailableError("out of memory building an archive entry");
   }
   ::archive_entry_set_pathname(header.get(), entry.name.c_str());
@@ -476,7 +476,7 @@ absl::Status WriteOne(struct ::archive& writer_ref, const PackEntry& entry) {
     ::archive_entry_set_filetype(header.get(), AE_IFREG);
     ::archive_entry_set_size(header.get(), static_cast<::la_int64_t>(size));
   }
-  if (::archive_write_header(writer, header.get()) < ARCHIVE_WARN) {
+  if (::archive_write_header(writer, header.get()) < ARCHIVE_WARN) {  // LCOV_EXCL_BR_LINE
     return absl::UnavailableError(
         absl::StrCat("cannot write the entry '", entry.name, "': ", ::archive_error_string(writer)));
   }
@@ -495,7 +495,7 @@ absl::Status WriteOne(struct ::archive& writer_ref, const PackEntry& entry) {
     if (read <= 0) {
       break;
     }
-    if (::archive_write_data(writer, buffer.data(), static_cast<std::size_t>(read)) < 0) {
+    if (::archive_write_data(writer, buffer.data(), static_cast<std::size_t>(read)) < 0) {  // LCOV_EXCL_BR_LINE
       return absl::UnavailableError(absl::StrCat("cannot write '", entry.name, "': ", ::archive_error_string(writer)));
     }
   }
@@ -554,7 +554,7 @@ absl::Status PackFiles(std::string_view path, const std::vector<PackEntry>& entr
   const stdfs::path temporary = stdfs::path(target).concat(".xff-pack");
   {
     const WritePtr writer{::archive_write_new()};
-    if (writer == nullptr) {
+    if (writer == nullptr) {  // LCOV_EXCL_BR_LINE: libarchive allocation failure injection.
       return absl::UnavailableError("out of memory creating the archive writer");
     }
     if (::archive_write_set_format(writer.get(), format->format) != ARCHIVE_OK
@@ -572,14 +572,14 @@ absl::Status PackFiles(std::string_view path, const std::vector<PackEntry>& entr
     for (const auto& [name, value] : resolved) {
       MBO_ASSIGN_OR_RETURN(
           const std::string setting, TranslateOption(PackSetting{.name = name, .value = value}, *format));
-      if (::archive_write_set_options(writer.get(), setting.c_str()) != ARCHIVE_OK) {
+      if (::archive_write_set_options(writer.get(), setting.c_str()) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE
         return absl::InvalidArgumentError(
             absl::StrCat(
                 "this build cannot set '", name, "=", value, "' on ", format->name, ": ",
                 ::archive_error_string(writer.get())));
       }
     }
-    if (::archive_write_open_filename(writer.get(), temporary.string().c_str()) != ARCHIVE_OK) {
+    if (::archive_write_open_filename(writer.get(), temporary.string().c_str()) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE
       return absl::UnavailableError(
           absl::StrCat("cannot create '", temporary.string(), "': ", ::archive_error_string(writer.get())));
     }
