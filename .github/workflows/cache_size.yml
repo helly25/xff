@@ -1,0 +1,36 @@
+name: Enforce cache size limit
+
+on:
+  workflow_run:
+    workflows: [Test, Release]
+    types: [completed]
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+# This workflow runs trusted code from the default branch after another workflow completes. It
+# needs write access only to delete cache entries; it never checks out or executes a PR head.
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Delete oversized cache entries
+        run: |
+          set -euo pipefail
+          if ! cache_json=$(gh cache list --limit 250 --json id,key,ref,sizeInBytes 2>&1); then
+            echo "::warning title=Cache size enforcement skipped::${cache_json}"
+            exit 0
+          fi
+          oversized=$(printf '%s' "${cache_json}" | python3 tools/cache_size.py)
+          for cache_id in ${oversized}; do
+            echo "Deleting cache ${cache_id}: entry is at least 700,000,000 bytes"
+            gh cache delete "${cache_id}"
+          done
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}

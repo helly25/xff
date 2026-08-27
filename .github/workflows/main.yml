@@ -454,7 +454,9 @@ jobs:
         # when MODULE.bazel.lock / .bazelversion do, the first run saves and every later run is a
         # cache HIT - and a hit never saves, so the cache freezes at that first content and every run
         # recompiles all of xff from scratch. That is why this cell took ~34 min while helly25/mbo's
-        # equivalent ran ~6 min warm.
+        # equivalent ran ~6 min warm. The post-job cleanup retains only the newest entry: if this
+        # run saves successfully it supersedes the restored predecessor; if saving fails, that
+        # predecessor remains newest and is retained.
         uses: actions/cache/restore@v4
         with:
           path: ~/.cache/bazel-disk
@@ -492,13 +494,14 @@ jobs:
       - name: Delete the superseded disk caches
         # The per-commit key above ACCUMULATES ~0.35 GB per main commit and nothing deleted them:
         # measured 2026-08-15 they held 9.8 of the 10 GB repo budget, one LRU eviction away from
-        # eating the matrix cells' caches. Keep the two newest entries (the one just saved plus one
-        # fallback), delete the rest. Adopted from helly25/mbo's cleanup step (theirs is ref-scoped;
+        # eating the matrix cells' caches. Keep only the newest entry. A second generation is not a
+        # useful fallback: prefix restore chooses the newest match and does not retry an older cache
+        # after a restore failure. Adopted from helly25/mbo's cleanup step (theirs is ref-scoped;
         # this key is main-only so the bare prefix is the scope).
         if: always() && github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
-          stale=$(gh cache list --limit 250 --json id,key,createdAt             --jq 'map(select(.key|startswith("bazel-disk-clang-tidy-")))|sort_by(.createdAt)|.[:-2]|.[].id')
+          stale=$(gh cache list --limit 250 --json id,key,createdAt             --jq 'map(select(.key|startswith("bazel-disk-clang-tidy-")))|sort_by(.createdAt)|.[:-1]|.[].id')
           for cache_id in ${stale}; do
             echo "Deleting cache ${cache_id}"
             gh cache delete "${cache_id}" || echo "Could not delete ${cache_id}"
