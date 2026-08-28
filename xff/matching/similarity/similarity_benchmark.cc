@@ -56,11 +56,34 @@ void Args(benchmark::Benchmark* benchmark) {
   }
 }
 
-BENCHMARK_CAPTURE(BmWordShinglePercent, equal, 0)->Apply(Args);
-BENCHMARK_CAPTURE(BmWordShinglePercent, nearby, 16)->Apply(Args);
-BENCHMARK_CAPTURE(BmWordShinglePercent, disjoint, 1)->Apply(Args);
+void RegisterAll() {
+  struct Shape {
+    std::string_view name;
+    std::size_t changed_every;
+  };
+
+  static constexpr std::array kShapes = std::to_array<Shape>({
+      {.name = "equal", .changed_every = 0},
+      {.name = "nearby", .changed_every = 16},
+      {.name = "disjoint", .changed_every = 1},
+  });
+  for (const Shape& shape : kShapes) {
+    benchmark::RegisterBenchmark(
+        absl::StrCat("BmWordShinglePercent/", shape.name),
+        [changed_every = shape.changed_every](benchmark::State& state) { BmWordShinglePercent(state, changed_every); })
+        ->Apply(Args);
+  }
+}
 
 // NOLINTEND(*-magic-numbers)
 
 }  // namespace
 }  // namespace xff::similarity
+
+int main(int argc, char** argv) {
+  xff::similarity::RegisterAll();
+  benchmark::Initialize(&argc, argv);
+  benchmark::RunSpecifiedBenchmarks();
+  benchmark::Shutdown();
+  return 0;
+}

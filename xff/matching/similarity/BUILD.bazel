@@ -51,6 +51,6 @@ cc_binary(
     deps = [
         ":similarity_cc",
         "@abseil-cpp//absl/strings",
-        "@com_github_google_benchmark//:benchmark_main",
+        "@com_github_google_benchmark//:benchmark",
     ],
 )
