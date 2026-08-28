@@ -119,12 +119,17 @@ cc_test(
     ],
 )
 
-# Keeps the upstream overlay honest before xff's adapter is layered on top: all public headers must
-# remain C++-includeable and the selected codec closure must link as one library.
+# Keeps the upstream overlay honest before xff's adapter is layered on top. The private extractor
+# registry is C-only because cextras exposes C11 atomics, so a tiny C probe keeps that implementation
+# header out of the C++ test while verifying the selected codec closure links as one library.
 cc_test(
     name = "libsqsh_link_test",
     size = "small",
-    srcs = ["libsqsh_link_test.cc"],
+    srcs = [
+        "libsqsh_codec_probe.c",
+        "libsqsh_codec_probe.h",
+        "libsqsh_link_test.cc",
+    ],
     deps = [
         "@googletest//:gtest_main",
         "@libsqsh//:sqsh",

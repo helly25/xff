@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <sqsh.h>
-#include <sqsh_extract_private.h>
 
 #include <string_view>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "libsqsh_codec_probe.h"
 
 namespace xff::squashfs {
 namespace {
 
 using ::testing::HasSubstr;
-using ::testing::IsNull;
-using ::testing::NotNull;
+using ::testing::IsFalse;
+using ::testing::IsTrue;
 
 struct LibsqshLinkTest : ::testing::Test {};
 
@@ -23,12 +23,12 @@ TEST_F(LibsqshLinkTest, ExposesVersionedLibrary) {
 }
 
 TEST_F(LibsqshLinkTest, LinksEveryPermissivelyLicensedSquashfsCodecButNotLzo) {
-  EXPECT_THAT(sqsh__extractor_impl_from_id(SQSH_COMPRESSION_GZIP), NotNull());
-  EXPECT_THAT(sqsh__extractor_impl_from_id(SQSH_COMPRESSION_LZMA), NotNull());
-  EXPECT_THAT(sqsh__extractor_impl_from_id(SQSH_COMPRESSION_XZ), NotNull());
-  EXPECT_THAT(sqsh__extractor_impl_from_id(SQSH_COMPRESSION_LZ4), NotNull());
-  EXPECT_THAT(sqsh__extractor_impl_from_id(SQSH_COMPRESSION_ZSTD), NotNull());
-  EXPECT_THAT(sqsh__extractor_impl_from_id(SQSH_COMPRESSION_LZO), IsNull());
+  EXPECT_THAT(xff_libsqsh_has_extractor(SQSH_COMPRESSION_GZIP), IsTrue());
+  EXPECT_THAT(xff_libsqsh_has_extractor(SQSH_COMPRESSION_LZMA), IsTrue());
+  EXPECT_THAT(xff_libsqsh_has_extractor(SQSH_COMPRESSION_XZ), IsTrue());
+  EXPECT_THAT(xff_libsqsh_has_extractor(SQSH_COMPRESSION_LZ4), IsTrue());
+  EXPECT_THAT(xff_libsqsh_has_extractor(SQSH_COMPRESSION_ZSTD), IsTrue());
+  EXPECT_THAT(xff_libsqsh_has_extractor(SQSH_COMPRESSION_LZO), IsFalse());
 }
 
 }  // namespace
