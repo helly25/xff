@@ -9,6 +9,7 @@
 // candidates may be false positives, but only the exact WordShinglePercent verifier may emit a pair.
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -40,6 +41,11 @@ struct PairHash {
 };
 
 using PairSet = absl::flat_hash_set<Pair, PairHash>;
+
+struct Result {
+  PairSet matches;
+  std::size_t compared = 0;
+};
 
 std::vector<std::string> Words(std::string_view text) {
   std::vector<std::string> words;
@@ -94,9 +100,9 @@ std::vector<std::string> Corpus(std::size_t count, bool shared_boilerplate) {
   return documents;
 }
 
-PairSet AllPairs(const std::vector<std::string>& documents, std::size_t& compared) {
+Result AllPairs(const std::vector<std::string>& documents) {
   PairSet matches;
-  compared = 0;
+  std::size_t compared = 0;
   for (std::size_t lhs = 0; lhs < documents.size(); ++lhs) {
     for (std::size_t rhs = lhs + 1; rhs < documents.size(); ++rhs) {
       ++compared;
@@ -105,10 +111,10 @@ PairSet AllPairs(const std::vector<std::string>& documents, std::size_t& compare
       }
     }
   }
-  return matches;
+  return {.matches = std::move(matches), .compared = compared};
 }
 
-PairSet Indexed(const std::vector<std::string>& documents, std::size_t& compared) {
+Result Indexed(const std::vector<std::string>& documents) {
   absl::flat_hash_map<std::string, std::vector<std::size_t>> postings;
   std::vector<std::size_t> empty;
   for (std::size_t document = 0; document < documents.size(); ++document) {
@@ -135,18 +141,17 @@ PairSet Indexed(const std::vector<std::string>& documents, std::size_t& compared
   add_pairs(empty);  // Two empty shingle sets have exact similarity 100.
 
   PairSet matches;
-  compared = candidates.size();
+  const std::size_t compared = candidates.size();
   for (const auto& [lhs, rhs] : candidates) {
     if (WordShinglePercent(documents[lhs], documents[rhs], kShingleWidth) >= kThreshold) {
       matches.emplace(lhs, rhs);
     }
   }
-  return matches;
+  return {.matches = std::move(matches), .compared = compared};
 }
 
 void VerifyCandidateContract(const std::vector<std::string>& documents) {
-  std::size_t ignored = 0;
-  if (AllPairs(documents, ignored) != Indexed(documents, ignored)) {
+  if (AllPairs(documents).matches != Indexed(documents).matches) {
     std::abort();
   }
 }
@@ -156,9 +161,9 @@ void BmAllPairs(benchmark::State& state, bool shared_boilerplate) {
   VerifyCandidateContract(documents);
   for (auto unused : state) {
     // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
-    std::size_t compared = 0;
-    benchmark::DoNotOptimize(AllPairs(documents, compared));
-    state.counters["verified_pairs"] = static_cast<double>(compared);
+    Result result = AllPairs(documents);
+    benchmark::DoNotOptimize(result.matches);
+    state.counters["verified_pairs"] = static_cast<double>(result.compared);
   }
 }
 
@@ -167,18 +172,53 @@ void BmInvertedIndex(benchmark::State& state, bool shared_boilerplate) {
   VerifyCandidateContract(documents);
   for (auto unused : state) {
     // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
-    std::size_t compared = 0;
-    benchmark::DoNotOptimize(Indexed(documents, compared));
-    state.counters["verified_pairs"] = static_cast<double>(compared);
+    Result result = Indexed(documents);
+    benchmark::DoNotOptimize(result.matches);
+    state.counters["verified_pairs"] = static_cast<double>(result.compared);
   }
 }
 
-BENCHMARK_CAPTURE(BmAllPairs, clustered, false)->Arg(64)->Arg(256)->Arg(1'024)->Unit(benchmark::kMillisecond);
-BENCHMARK_CAPTURE(BmInvertedIndex, clustered, false)->Arg(64)->Arg(256)->Arg(1'024)->Unit(benchmark::kMillisecond);
-BENCHMARK_CAPTURE(BmAllPairs, boilerplate, true)->Arg(64)->Arg(256)->Arg(1'024)->Unit(benchmark::kMillisecond);
-BENCHMARK_CAPTURE(BmInvertedIndex, boilerplate, true)->Arg(64)->Arg(256)->Arg(1'024)->Unit(benchmark::kMillisecond);
+void RegisterAll() {
+  struct Shape {
+    std::string_view name;
+    bool shared_boilerplate;
+  };
+
+  static constexpr std::array kShapes = std::to_array<Shape>({
+      {.name = "clustered", .shared_boilerplate = false},
+      {.name = "boilerplate", .shared_boilerplate = true},
+  });
+  for (const Shape& shape : kShapes) {
+    benchmark::RegisterBenchmark(
+        absl::StrCat("BmAllPairs/", shape.name),
+        [shared_boilerplate = shape.shared_boilerplate](benchmark::State& state) {
+          BmAllPairs(state, shared_boilerplate);
+        })
+        ->Arg(64)
+        ->Arg(256)
+        ->Arg(1'024)
+        ->Unit(benchmark::kMillisecond);
+    benchmark::RegisterBenchmark(
+        absl::StrCat("BmInvertedIndex/", shape.name),
+        [shared_boilerplate = shape.shared_boilerplate](benchmark::State& state) {
+          BmInvertedIndex(state, shared_boilerplate);
+        })
+        ->Arg(64)
+        ->Arg(256)
+        ->Arg(1'024)
+        ->Unit(benchmark::kMillisecond);
+  }
+}
 
 // NOLINTEND(*-magic-numbers)
 
 }  // namespace
 }  // namespace xff::similarity
+
+int main(int argc, char** argv) {
+  xff::similarity::RegisterAll();
+  benchmark::Initialize(&argc, argv);
+  benchmark::RunSpecifiedBenchmarks();
+  benchmark::Shutdown();
+  return 0;
+}
