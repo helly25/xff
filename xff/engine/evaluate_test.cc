@@ -934,6 +934,25 @@ TEST_F(EvaluateTest, TextFlavorsEnforceTheirDocumentedLineEndings) {
   EXPECT_THAT(matches("strict_nul", std::string_view("one\0two\n", 8), "posix"), IsFalse());
 }
 
+TEST_F(EvaluateTest, TextFlavorsIgnoreOneLeadingUtf8Bom) {
+  const auto matches = [this](std::string_view tag, std::string_view content, std::string_view flavor) {
+    const std::string path = WriteContentFile(tag, content);
+    vfs::Metadata md;
+    const Visit visit = MakeVisit(path, tag, vfs::FileType::kRegular, md);
+    return Match({absl::StrCat("-text:", flavor)}, visit);
+  };
+
+  EXPECT_THAT(matches("bom_git", "\xef\xbb\xbftext", "git"), IsTrue());
+  EXPECT_THAT(matches("bom_posix", "\xef\xbb\xbftext\n", "posix"), IsTrue());
+  EXPECT_THAT(matches("bom_windows", "\xef\xbb\xbftext\r\n", "windows"), IsTrue());
+  EXPECT_THAT(matches("bom_apple", "\xef\xbb\xbftext\r", "apple"), IsTrue());
+  EXPECT_THAT(matches("bom_only_posix", "\xef\xbb\xbf", "posix"), IsTrue());
+  EXPECT_THAT(matches("bom_only_windows", "\xef\xbb\xbf", "windows"), IsTrue());
+  EXPECT_THAT(matches("bom_only_apple", "\xef\xbb\xbf", "apple"), IsTrue());
+  EXPECT_THAT(matches("two_boms", "\xef\xbb\xbf\xef\xbb\xbf", "posix"), IsFalse());
+  EXPECT_THAT(matches("utf16", std::string_view("\xff\xfe\0t\0e\0x\0t", 10), "posix"), IsFalse());
+}
+
 TEST_F(EvaluateTest, GitTextAndBinaryUseOnlyTheLeadingNulSniffWindow) {
   vfs::Metadata md;
   std::string content(8'001, 'x');

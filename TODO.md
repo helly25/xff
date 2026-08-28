@@ -40,7 +40,7 @@ for enforcement and presentation.
 - Per-summary-sink modifiers.
 - Shell-glob numeric/alphabetic brace ranges.
 - Histogram time buckets, explicit bucket edges/counts, and per-line template measures.
-- Text-flavor BOM handling and mixed-line-ending policies.
+- Text-flavor mixed-line-ending policies.
 - Post-1.0 behavior migration through `--unstable=NAME` if a concrete unstable spelling needs it;
   do not build the rejected general `--feature` registry speculatively.
 - C++ header modules after the hermetic toolchain supplies real compile/use actions.

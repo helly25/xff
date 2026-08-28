@@ -1035,13 +1035,17 @@ std::optional<bool> FileContentIsBinary(const Visit& visit, const vfs::FileSyste
   return absl::StrContains(prefix, '\0');
 }
 
-// Whether `content` satisfies the -text FLAVOR (empty flavor == git). git: no NUL in the first
-// kBinaryNulSniffBytes (the default heuristic, EOL-agnostic). The strict flavors forbid a NUL
-// ANYWHERE and pin the line ending, requiring a final terminator (or an empty file, which is
-// vacuously complete): posix = no CR, ends with LF; windows = CRLF only (no bare CR/LF), ends with
-// CRLF; apple = no LF, ends with CR. A non-empty file with no proper terminator matches only git;
-// mixed endings match only git.
+// Whether `content` satisfies the -text FLAVOR (empty flavor == git). One leading UTF-8 BOM is
+// transparent. git: no NUL in the first kBinaryNulSniffBytes (the default heuristic,
+// EOL-agnostic). The strict flavors forbid a NUL ANYWHERE and pin the line ending, requiring a final
+// terminator (or an empty file, which is vacuously complete): posix = no CR, ends with LF; windows =
+// CRLF only (no bare CR/LF), ends with CRLF; apple = no LF, ends with CR. A non-empty file with no
+// proper terminator matches only git; mixed endings match only git.
 bool TextMatchesFlavor(std::string_view content, std::string_view flavor) {
+  constexpr std::string_view kUtf8Bom = "\xef\xbb\xbf";
+  if (content.starts_with(kUtf8Bom)) {
+    content.remove_prefix(kUtf8Bom.size());
+  }
   if (flavor.empty() || flavor == "git") {
     return !absl::StrContains(content.substr(0, std::min(content.size(), content::kBinaryNulSniffBytes)), '\0');
   }
