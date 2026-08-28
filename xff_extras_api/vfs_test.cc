@@ -96,6 +96,10 @@ TEST_F(VfsSeamTest, AnExtraCanImplementTheInterfaceUsingOnlyThisModule) {
   const FileSystem& seam = fs;  // usable through the abstract interface, which is how the engine holds it
   EXPECT_THAT(seam.ReadDir("/box"), IsOkAndHolds(SizeIs(1)));
   EXPECT_THAT(seam.ReadContent("/box/member.txt"), IsOkAndHolds("content"));
+  EXPECT_THAT(seam.ReadContentRange("/box/member.txt", 2, 3), IsOkAndHolds("nte"));
+  EXPECT_THAT(seam.ReadContentRange("/box/member.txt", 7, 3), IsOkAndHolds(""));
+  EXPECT_THAT(seam.ReadContentRange("/box/member.txt", 0, 0), IsOkAndHolds(""));
+  EXPECT_THAT(seam.ReadContentRange("/missing", 0, 1), StatusIs(absl::StatusCode::kNotFound));
   EXPECT_THAT(seam.FsType("/box"), IsOkAndHolds("fake"));
   EXPECT_THAT(seam.IsCaseSensitive("/box"), IsOkAndHolds(true));
 }

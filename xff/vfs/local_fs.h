@@ -16,6 +16,8 @@
 #ifndef XFF_VFS_LOCAL_FS_H_
 #define XFF_VFS_LOCAL_FS_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -43,6 +45,8 @@ class LocalFs final : public FileSystem {
   absl::StatusOr<std::string> FsType(std::string_view path) const override;
   absl::StatusOr<bool> IsCaseSensitive(std::string_view path) const override;
   absl::StatusOr<std::string> ReadContent(std::string_view path) const override;
+  absl::StatusOr<std::string> ReadContentRange(std::string_view path, std::uint64_t offset, std::size_t length)
+      const override;
 };
 
 }  // namespace xff::vfs

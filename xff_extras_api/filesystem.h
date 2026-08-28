@@ -16,6 +16,8 @@
 #ifndef XFF_VFS_FILESYSTEM_H_
 #define XFF_VFS_FILESYSTEM_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -94,6 +96,17 @@ class FileSystem {
   // predicates Cost::kExpensive. Only meaningful for regular files; the caller is
   // expected to gate on the entry type.
   virtual absl::StatusOr<std::string> ReadContent(std::string_view path) const = 0;
+
+  // Reads at most `length` bytes of the regular file at `path`, starting at
+  // `offset`. A range extending beyond EOF is shortened; an offset at or beyond
+  // EOF and a zero length both return an empty string. This seam lets format
+  // probes avoid materializing an entire candidate when the backend can seek.
+  //
+  // The default preserves correctness for virtual backends that cannot seek
+  // within an encoded member. Backends with direct random access should
+  // override it so the underlying read is bounded as well as the result.
+  virtual absl::StatusOr<std::string> ReadContentRange(std::string_view path, std::uint64_t offset, std::size_t length)
+      const;
 };
 
 }  // namespace xff::vfs

@@ -212,11 +212,12 @@ exports_files(["language_database.bzl"])
 # The virtual-filesystem seam: the read-only FileSystem interface plus the Entry / Metadata types
 # every backend produces. It lives here rather than in the core for the same reason the others do -
 # an extra that implements a filesystem (archive diving, #83; remote later) must not depend back
-# into the core. Header-only, and its only deps are abseil status/time, so hosting it costs the
-# base module nothing. //xff/vfs re-exports it, so core code keeps including "xff/vfs/entry.h" and
+# into the core. Its only implementation is the correctness fallback for backends without efficient
+# random access. //xff/vfs re-exports it, so core code keeps including "xff/vfs/entry.h" and
 # "xff/vfs/filesystem.h" unchanged.
 cc_library(
     name = "vfs_cc",
+    srcs = ["filesystem.cc"],
     hdrs = [
         "entry.h",
         "filesystem.h",
@@ -227,6 +228,7 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
+        "@helly25_mbo//mbo/status:status_macros_cc",
     ],
 )
 

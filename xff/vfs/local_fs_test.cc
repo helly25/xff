@@ -23,6 +23,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -47,6 +48,8 @@ using ::testing::Contains;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::Gt;
+using ::testing::HasSubstr;
+using ::testing::IsEmpty;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Not;
@@ -187,6 +190,21 @@ TEST_F(LocalFsTest, ReadContentReturnsFileBytes) {
 
 TEST_F(LocalFsTest, ReadContentMissingPathErrors) {
   EXPECT_THAT(local_fs_.ReadContent(Path("nope")), StatusIs(absl::StatusCode::kNotFound));
+}
+
+TEST_F(LocalFsTest, ReadContentRangeReturnsOnlyTheRequestedBytes) {
+  EXPECT_THAT(local_fs_.ReadContentRange(Path("file.txt"), 1, 3), IsOkAndHolds("ell"));
+  EXPECT_THAT(local_fs_.ReadContentRange(Path("file.txt"), 3, 10), IsOkAndHolds("lo"));
+  EXPECT_THAT(local_fs_.ReadContentRange(Path("file.txt"), 5, 10), IsOkAndHolds(IsEmpty()));
+  EXPECT_THAT(local_fs_.ReadContentRange(Path("file.txt"), 0, 0), IsOkAndHolds(IsEmpty()));
+}
+
+TEST_F(LocalFsTest, ReadContentRangeReportsOpenAndOffsetErrors) {
+  EXPECT_THAT(local_fs_.ReadContentRange(Path("nope"), 0, 1), StatusIs(absl::StatusCode::kNotFound));
+  EXPECT_THAT(
+      local_fs_.ReadContentRange(Path("file.txt"), std::numeric_limits<std::uint64_t>::max(), 1),
+      StatusIs(absl::StatusCode::kOutOfRange, HasSubstr("not representable")));
+  EXPECT_THAT(local_fs_.ReadContentRange(Path("sub"), 0, 1), Not(IsOk()));
 }
 
 TEST_F(LocalFsTest, AccessChecksEachRequestedPermissionAndMissingPaths) {

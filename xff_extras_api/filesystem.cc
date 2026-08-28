@@ -1,0 +1,29 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-License-Identifier: Apache-2.0
+
+#include "xff/vfs/filesystem.h"
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <string_view>
+
+#include "absl/status/statusor.h"
+#include "mbo/status/status_macros.h"
+
+namespace xff::vfs {
+
+absl::StatusOr<std::string> FileSystem::ReadContentRange(
+    std::string_view path,
+    std::uint64_t offset,
+    std::size_t length) const {
+  MBO_ASSIGN_OR_RETURN(std::string content, ReadContent(path));
+  if (offset >= content.size() || length == 0) {
+    return std::string();
+  }
+  const std::size_t begin = static_cast<std::size_t>(offset);
+  return content.substr(begin, std::min(length, content.size() - begin));
+}
+
+}  // namespace xff::vfs
