@@ -3,36 +3,36 @@
   "measurements": {
     "overall": {
       "lines": {
-        "covered": 11660,
-        "total": 12185,
-        "percent": 95.69
+        "covered": 12057,
+        "total": 12594,
+        "percent": 95.74
       },
       "functions": {
-        "covered": 1392,
-        "total": 1413,
-        "percent": 98.51
+        "covered": 1441,
+        "total": 1462,
+        "percent": 98.56
       },
       "branches": {
-        "covered": 8254,
-        "total": 9427,
-        "percent": 87.56
+        "covered": 8560,
+        "total": 9771,
+        "percent": 87.61
       }
     },
     "program / command line": {
       "lines": {
-        "covered": 1641,
-        "total": 1687,
-        "percent": 97.27
+        "covered": 1649,
+        "total": 1694,
+        "percent": 97.34
       },
       "functions": {
-        "covered": 172,
-        "total": 175,
-        "percent": 98.29
+        "covered": 173,
+        "total": 176,
+        "percent": 98.3
       },
       "branches": {
-        "covered": 951,
-        "total": 1036,
-        "percent": 91.8
+        "covered": 956,
+        "total": 1040,
+        "percent": 91.92
       }
     },
     "program / configuration": {
@@ -98,9 +98,9 @@
         "percent": 98.18
       },
       "branches": {
-        "covered": 307,
+        "covered": 308,
         "total": 328,
-        "percent": 93.6
+        "percent": 93.9
       }
     },
     "program / matching": {
@@ -139,26 +139,26 @@
     },
     "extensions / API": {
       "lines": {
-        "covered": 255,
-        "total": 260,
-        "percent": 98.08
+        "covered": 301,
+        "total": 305,
+        "percent": 98.69
       },
       "functions": {
-        "covered": 68,
-        "total": 71,
-        "percent": 95.77
+        "covered": 72,
+        "total": 75,
+        "percent": 96.0
       },
       "branches": {
-        "covered": 152,
-        "total": 174,
-        "percent": 87.36
+        "covered": 191,
+        "total": 214,
+        "percent": 89.25
       }
     },
     "extensions / archive": {
       "lines": {
-        "covered": 1243,
-        "total": 1336,
-        "percent": 93.04
+        "covered": 1242,
+        "total": 1335,
+        "percent": 93.03
       },
       "functions": {
         "covered": 145,
@@ -169,6 +169,23 @@
         "covered": 675,
         "total": 822,
         "percent": 82.12
+      }
+    },
+    "extensions / ASAR": {
+      "lines": {
+        "covered": 344,
+        "total": 358,
+        "percent": 96.09
+      },
+      "functions": {
+        "covered": 44,
+        "total": 44,
+        "percent": 100.0
+      },
+      "branches": {
+        "covered": 261,
+        "total": 300,
+        "percent": 87.0
       }
     },
     "extensions / FUSE": {
@@ -291,6 +308,11 @@
       "functions": 90.0,
       "branches": 80.0
     },
+    "extensions / ASAR": {
+      "lines": 90.0,
+      "functions": 90.0,
+      "branches": 80.0
+    },
     "extensions / FUSE": {
       "lines": 90.0,
       "functions": 90.0,
@@ -363,6 +385,11 @@
       "functions": 95.0,
       "branches": 82.0
     },
+    "extensions / ASAR": {
+      "lines": 92.0,
+      "functions": 95.0,
+      "branches": 82.0
+    },
     "extensions / FUSE": {
       "lines": 92.0,
       "functions": 95.0,
@@ -431,6 +458,11 @@
       "branches": "high"
     },
     "extensions / archive": {
+      "lines": "high",
+      "functions": "high",
+      "branches": "high"
+    },
+    "extensions / ASAR": {
       "lines": "high",
       "functions": "high",
       "branches": "high"

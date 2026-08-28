@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-28 00:05:09</td>
+            <td class="headerValue">2026-08-28 00:50:36</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -595,32 +595,32 @@
 <span id="L512"><span class="lineNum">     512</span>   [<span class="tlaGBC" title="branch 0 was taken 33 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="branch 2 was taken 33 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2 times"> + </span>]:<span class="tlaGNC">         101 :   return found.has_value() ? std::string(found-&gt;name) : std::string();</span></span>
 <span id="L513"><span class="lineNum">     513</span>                 :             : }</span>
 <span id="L514"><span class="lineNum">     514</span>                 :             : </span>
-<span id="L515"><span class="lineNum">     515</span>                 :<span class="tlaGNC">         289 : std::vector&lt;PackOptionDoc&gt; PackOptionDocs() {</span></span>
-<span id="L516"><span class="lineNum">     516</span>                 :<span class="tlaGNC">         289 :   std::vector&lt;PackOptionDoc&gt; docs;</span></span>
-<span id="L517"><span class="lineNum">     517</span>                 :<span class="tlaGNC">         289 :   docs.reserve(kPackOptions.size());</span></span>
-<span id="L518"><span class="lineNum">     518</span>         [<span class="tlaGBC" title="branch 0 was taken 1445 times"> + </span><span class="tlaGBC" title="branch 1 was taken 289 times"> + </span>]:<span class="tlaGNC">        1734 :   for (const PackOptionSpec&amp; spec : kPackOptions) {</span></span>
-<span id="L519"><span class="lineNum">     519</span>                 :<span class="tlaGNC">        1445 :     std::string syntax;</span></span>
-<span id="L520"><span class="lineNum">     520</span>   [<span class="tlaGBC" title="branch 0 was taken 578 times"> + </span><span class="tlaGBC" title="branch 1 was taken 289 times"> + </span><span class="tlaGBC" title="branch 2 was taken 578 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        1445 :     switch (spec.kind) {</span></span>
-<span id="L521"><span class="lineNum">     521</span>                 :<span class="tlaGNC">         578 :       case PackValue::kBool: syntax = &quot;yes|no&quot;; break;</span></span>
-<span id="L522"><span class="lineNum">     522</span>                 :<span class="tlaGNC">         289 :       case PackValue::kEnum: syntax = absl::StrJoin(spec.values, &quot;|&quot;); break;</span></span>
-<span id="L523"><span class="lineNum">     523</span>                 :<span class="tlaGNC">         578 :       case PackValue::kInt: syntax = &quot;N&quot;; break;</span></span>
+<span id="L515"><span class="lineNum">     515</span>                 :<span class="tlaGNC">         293 : std::vector&lt;PackOptionDoc&gt; PackOptionDocs() {</span></span>
+<span id="L516"><span class="lineNum">     516</span>                 :<span class="tlaGNC">         293 :   std::vector&lt;PackOptionDoc&gt; docs;</span></span>
+<span id="L517"><span class="lineNum">     517</span>                 :<span class="tlaGNC">         293 :   docs.reserve(kPackOptions.size());</span></span>
+<span id="L518"><span class="lineNum">     518</span>         [<span class="tlaGBC" title="branch 0 was taken 1465 times"> + </span><span class="tlaGBC" title="branch 1 was taken 293 times"> + </span>]:<span class="tlaGNC">        1758 :   for (const PackOptionSpec&amp; spec : kPackOptions) {</span></span>
+<span id="L519"><span class="lineNum">     519</span>                 :<span class="tlaGNC">        1465 :     std::string syntax;</span></span>
+<span id="L520"><span class="lineNum">     520</span>   [<span class="tlaGBC" title="branch 0 was taken 586 times"> + </span><span class="tlaGBC" title="branch 1 was taken 293 times"> + </span><span class="tlaGBC" title="branch 2 was taken 586 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        1465 :     switch (spec.kind) {</span></span>
+<span id="L521"><span class="lineNum">     521</span>                 :<span class="tlaGNC">         586 :       case PackValue::kBool: syntax = &quot;yes|no&quot;; break;</span></span>
+<span id="L522"><span class="lineNum">     522</span>                 :<span class="tlaGNC">         293 :       case PackValue::kEnum: syntax = absl::StrJoin(spec.values, &quot;|&quot;); break;</span></span>
+<span id="L523"><span class="lineNum">     523</span>                 :<span class="tlaGNC">         586 :       case PackValue::kInt: syntax = &quot;N&quot;; break;</span></span>
 <span id="L524"><span class="lineNum">     524</span>                 :             :     }</span>
-<span id="L525"><span class="lineNum">     525</span>                 :<span class="tlaGNC">        2890 :     docs.push_back(</span></span>
-<span id="L526"><span class="lineNum">     526</span>                 :<span class="tlaGNC">        1445 :         {.name = std::string(spec.name),</span></span>
-<span id="L527"><span class="lineNum">     527</span>                 :<span class="tlaGNC">        1445 :          .value_syntax = std::move(syntax),</span></span>
+<span id="L525"><span class="lineNum">     525</span>                 :<span class="tlaGNC">        2930 :     docs.push_back(</span></span>
+<span id="L526"><span class="lineNum">     526</span>                 :<span class="tlaGNC">        1465 :         {.name = std::string(spec.name),</span></span>
+<span id="L527"><span class="lineNum">     527</span>                 :<span class="tlaGNC">        1465 :          .value_syntax = std::move(syntax),</span></span>
 <span id="L528"><span class="lineNum">     528</span>                 :             :          .formats = spec.formats,</span>
-<span id="L529"><span class="lineNum">     529</span>                 :<span class="tlaGNC">        2890 :          .detail = std::string(spec.detail)});</span></span>
-<span id="L530"><span class="lineNum">     530</span>                 :<span class="tlaGNC">        1445 :   }</span></span>
-<span id="L531"><span class="lineNum">     531</span>                 :<span class="tlaGNC">         289 :   return docs;</span></span>
+<span id="L529"><span class="lineNum">     529</span>                 :<span class="tlaGNC">        2930 :          .detail = std::string(spec.detail)});</span></span>
+<span id="L530"><span class="lineNum">     530</span>                 :<span class="tlaGNC">        1465 :   }</span></span>
+<span id="L531"><span class="lineNum">     531</span>                 :<span class="tlaGNC">         293 :   return docs;</span></span>
 <span id="L532"><span class="lineNum">     532</span>                 :             : }</span>
 <span id="L533"><span class="lineNum">     533</span>                 :             : </span>
-<span id="L534"><span class="lineNum">     534</span>                 :<span class="tlaGNC">         293 : std::vector&lt;std::string&gt; PackFormats() {</span></span>
-<span id="L535"><span class="lineNum">     535</span>                 :<span class="tlaGNC">         293 :   std::vector&lt;std::string&gt; names;</span></span>
-<span id="L536"><span class="lineNum">     536</span>                 :<span class="tlaGNC">         293 :   names.reserve(kFormats.size());</span></span>
-<span id="L537"><span class="lineNum">     537</span>         [<span class="tlaGBC" title="branch 0 was taken 5274 times"> + </span><span class="tlaGBC" title="branch 1 was taken 293 times"> + </span>]:<span class="tlaGNC">        5567 :   for (const FormatSuffix&amp; format : kFormats) {</span></span>
-<span id="L538"><span class="lineNum">     538</span>                 :<span class="tlaGNC">        5274 :     names.emplace_back(format.name);</span></span>
+<span id="L534"><span class="lineNum">     534</span>                 :<span class="tlaGNC">         297 : std::vector&lt;std::string&gt; PackFormats() {</span></span>
+<span id="L535"><span class="lineNum">     535</span>                 :<span class="tlaGNC">         297 :   std::vector&lt;std::string&gt; names;</span></span>
+<span id="L536"><span class="lineNum">     536</span>                 :<span class="tlaGNC">         297 :   names.reserve(kFormats.size());</span></span>
+<span id="L537"><span class="lineNum">     537</span>         [<span class="tlaGBC" title="branch 0 was taken 5346 times"> + </span><span class="tlaGBC" title="branch 1 was taken 297 times"> + </span>]:<span class="tlaGNC">        5643 :   for (const FormatSuffix&amp; format : kFormats) {</span></span>
+<span id="L538"><span class="lineNum">     538</span>                 :<span class="tlaGNC">        5346 :     names.emplace_back(format.name);</span></span>
 <span id="L539"><span class="lineNum">     539</span>                 :             :   }</span>
-<span id="L540"><span class="lineNum">     540</span>                 :<span class="tlaGNC">         293 :   return names;</span></span>
+<span id="L540"><span class="lineNum">     540</span>                 :<span class="tlaGNC">         297 :   return names;</span></span>
 <span id="L541"><span class="lineNum">     541</span>                 :             : }</span>
 <span id="L542"><span class="lineNum">     542</span>                 :             : </span>
 <span id="L543"><span class="lineNum">     543</span>                 :<span class="tlaGNC">          92 : absl::Status PackFiles(std::string_view path, const std::vector&lt;PackEntry&gt;&amp; entries, const PackSettings&amp; options) {</span></span>
