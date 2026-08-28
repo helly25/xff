@@ -519,6 +519,10 @@ Section ArchiveSection(bool in_full) {
       "metadata and never appear as synthetic files. The ASAR reader is read-only and verifies "
       "declared SHA256 whole-file and block hashes when content is read."));
   identity.children.push_back(ProseOf(
+      "A SquashFS image is another read-only virtual filesystem. The independent SquashFS extra "
+      "covers raw images, Snap packages, and the embedded filesystem in a type-2 AppImage without "
+      "mounting it; indexed metadata, links, and member contents use the ordinary expression vocabulary."));
+  identity.children.push_back(ProseOf(
       "Members are READ-ONLY by default. `-delete` and the exec family refuse one rather than "
       "silently doing nothing, because a member has no path a process can open and no way to be "
       "unlinked; `--archive-extract` runs the child over a temporary copy, and `--archive-delete` "
@@ -535,7 +539,8 @@ Section ArchiveSection(bool in_full) {
         absl::StrCat(
             "NOT built into this binary: rebuild with `--config=xff_full` or enable a reader such as `",
             ExtraBuildFlag("archive"),
-            "` or `--//xff:xff_asar`. A build with reader extras lists every readable format, its extensions, and "
+            "`, `--//xff:xff_asar`, or `--//xff:xff_squashfs`. A build with reader extras lists every readable "
+            "format, its extensions, and "
             "whether `--pack` can write it, in a table here.")));
     section.children.push_back(Content{.node = std::move(formats)});
   } else {

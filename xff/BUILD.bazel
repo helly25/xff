@@ -94,6 +94,20 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
+# --//xff:xff_squashfs -- link the standalone SquashFS reader. Like ASAR, it composes through the
+# shared container registry without pulling in libarchive merely to host the format.
+bool_flag(
+    name = "xff_squashfs",
+    build_setting_default = False,
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "xff_squashfs_enabled",
+    flag_values = {":xff_squashfs": "True"},
+    visibility = ["//visibility:public"],
+)
+
 # --//xff:xff_pcre -- link the PCRE2 regex backend (extra_modules/pcre2; #85). Default off, so only
 # `xff_full` built with the extra on links it. Without it, `--regextype=PCRE2` is a usage error (never
 # a silent RE2 fallback).
@@ -183,6 +197,15 @@ selects.config_setting_group(
 )
 
 selects.config_setting_group(
+    name = "xff_squashfs_on",
+    match_any = [
+        ":xff_squashfs_enabled",
+        ":xff_all_enabled",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+selects.config_setting_group(
     name = "xff_fuse_on",
     match_any = [
         ":xff_fuse_enabled",
@@ -248,6 +271,7 @@ selects.config_setting_group(
         ":xff_language_db_on",
         ":xff_mime_db_on",
         ":xff_pcre_on",
+        ":xff_squashfs_on",
     ],
     visibility = ["//visibility:public"],
 )

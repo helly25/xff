@@ -19,6 +19,13 @@ intent, not hard dependency. Task numbers reference the agent task list.
 
 ### Small slices in flight (task ledger)
 
+- **SquashFS reading (shipped 2026-08-28):** the removable `@xff_squashfs` extra uses BSD-licensed
+  libsqsh as an independent named container reader. Raw images, Snap packages, and prefixed AppImages
+  expose indexed metadata, links, and contents through the ordinary VFS vocabulary, including images
+  retained as members of another container. Its zlib, liblzma, LZ4, and Zstandard codec closure is
+  explicit; lzo remains disabled because its available dependency is GPL-licensed. Creation and
+  rewriting remain separate future work rather than being implied by the read support.
+
 - **#202 (shipped, PR #541)**: the FORMATS TABLE under `--help=archive` (format, read, write,
   extensions), rendered as a real `Table` node aligned in every backend (plain, markdown, roff);
   the read side registers its formats + suffixes through the seam (`RegisterContainerReadFormats`)

@@ -228,6 +228,8 @@ std::string RenderExtras() {
       "Brotli-compressed GitHub Linguist language names, suffixes, aliases, and colours");
   row("mime-db", xff::cli::ExtraEnabled("mime-db"), xff::cli::ExtraBuildFlag("mime-db"),
       "comprehensive media-type names, suffixes, and metadata from mime-db");
+  row("squashfs", xff::cli::ExtraEnabled("squashfs"), xff::cli::ExtraBuildFlag("squashfs"),
+      "read SquashFS images, Snap packages, and AppImage payloads as virtual filesystems");
   absl::flat_hash_set<std::string_view> seen;
   for (const xff::cli::GlobalFlag& flag : xff::cli::Globals()) {
     if (!flag.extra.empty() && seen.insert(flag.extra).second) {

@@ -51,6 +51,12 @@ local_path_override(
     path = "extra_modules/brotli",
 )
 
+bazel_dep(name = "xff_squashfs", version = "0.0.0")
+local_path_override(
+    module_name = "xff_squashfs",
+    path = "extra_modules/squashfs",
+)
+
 bazel_dep(name = "xff_fuse", version = "0.0.0")
 local_path_override(
     module_name = "xff_fuse",

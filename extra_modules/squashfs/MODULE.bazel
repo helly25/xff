@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-License-Identifier: Apache-2.0
+
+# libsqsh and its cextras support library are BSD-2-Clause. Its independent permissive compression
+# closure is zlib, lz4, public-domain liblzma, and zstd's BSD-3-Clause arm. This extra deliberately
+# omits GPL-licensed LZO and does not use the GPL/LGPL squashfs-tools implementation.
+module(
+    name = "xff_squashfs",
+    version = "0.0.0",
+)
+
+bazel_dep(name = "rules_cc", version = "0.2.21")
+bazel_dep(name = "abseil-cpp", version = "20250814.2")
+bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
+bazel_dep(name = "helly25_mbo", version = "0.13.0")
+bazel_dep(name = "lz4", version = "1.9.4")
+bazel_dep(name = "xz", version = "5.4.5.bcr.7")
+bazel_dep(name = "zlib", version = "1.3.1.bcr.8")
+bazel_dep(name = "zstd", version = "1.5.7.bcr.1")
+bazel_dep(name = "xff_extras_api", version = "0.0.0")
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "cextras",
+    build_file = "//:cextras.BUILD.bazel",
+    integrity = "sha256-Q/hGjYhRupk4JgGxcCF+iNkaxjppvb/feEjojIGo/YI=",
+    strip_prefix = "cextras-d063e11e5e3dd6fb1f9486f2ffa29c6b4e4a00be",
+    urls = ["https://github.com/Gottox/cextras/archive/d063e11e5e3dd6fb1f9486f2ffa29c6b4e4a00be.tar.gz"],
+)
+
+http_archive(
+    name = "libsqsh",
+    build_file = "//:libsqsh.BUILD.bazel",
+    integrity = "sha256-VRHn6phta38lOgFnwjU34yPW3qV5jdIEorfIh7bnIWY=",
+    strip_prefix = "sqsh-tools-1.5.2",
+    urls = ["https://github.com/Gottox/sqsh-tools/archive/refs/tags/v1.5.2.tar.gz"],
+)

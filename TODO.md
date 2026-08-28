@@ -23,19 +23,16 @@ for enforcement and presentation.
 
 Ordered by current value and readiness, not by implementation size.
 
-1. **SquashFS extra.** Implement SquashFS as a removable extra rather than growing the core or archive
-   module. Cover metadata block tables, fragments, the compressors already available to the archive
-   dependency closure, nested traversal, member reads, documentation, notices, and coverage grouping.
-2. **Archive name-gate peeking.** Add a bounded partial-read VFS operation, then evaluate magic peeking
+1. **Archive name-gate peeking.** Add a bounded partial-read VFS operation, then evaluate magic peeking
    for archive discovery without reading every candidate file in full. Keep suffix gating as the cheap
    default unless measurements justify changing it.
-3. **Per-format archive URI prefixes.** Extend explicit `--archive-prefix=URI` rendering for formats
+2. **Per-format archive URI prefixes.** Extend explicit `--archive-prefix=URI` rendering for formats
    such as `phar:///...` and `jar:file:///...!/`; keep the ordinary `!` path representation unique and
    pasteable.
-4. **Hash verification reduction.** Feed the per-entry `-hasheq` verdict into the thread-safe reduction
+3. **Hash verification reduction.** Feed the per-entry `-hasheq` verdict into the thread-safe reduction
    path for a single-pass verified/failed tally. A sidecar manifest reader may then populate definitions
    from `sha256sum`-style files without creating a second hash-verification mechanism.
-5. **Help-model cleanup.** Remove the remaining duplicated fields documentation between the help builder
+4. **Help-model cleanup.** Remove the remaining duplicated fields documentation between the help builder
    and renderer now that all output backends consume the generalized help model.
 
 ## Design required before implementation

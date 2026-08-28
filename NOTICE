@@ -1,4 +1,4 @@
-Build extras compiled into this binary: archive, asar, brotli, fuse, language-db, mime-db, pcre2
+Build extras compiled into this binary: archive, asar, brotli, fuse, language-db, mime-db, pcre2, squashfs
 
 xff - eXtended File Find
 Copyright 2026 M. Boerger, The helly25 authors
@@ -102,3 +102,26 @@ Provides the -regextype=pcre2 backend by linking PCRE2 and SLJIT, whose notices 
 
   SLJIT  [BSD-2-Clause]
     Copyright (c) 2009-2024 Zoltan Herczeg. All rights reserved.
+
+Build extension: SquashFS archive format (@xff_squashfs):
+
+  xff SquashFS extra (@xff_squashfs)  [Apache-2.0]
+    Copyright 2026 M. Boerger, The helly25 authors. Licensed under the Apache License, Version 2.0. Adds independent SquashFS, Snap, and AppImage container reading to xff.
+
+  LZ4 library  [BSD-2-Clause]
+    Copyright (c) 2011-2020 Yann Collet. All rights reserved.
+
+  Zstandard  [BSD-3-Clause]
+    Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
+  cextras  [BSD-2-Clause]
+    Copyright (c) 2023 Enno Boland. All rights reserved.
+
+  liblzma (XZ Utils)  [LicenseRef-Public-Domain]
+    The liblzma source in XZ Utils 5.4.5 has been put into the public domain.
+
+  libsqsh  [BSD-2-Clause]
+    Copyright (c) 2023-2024 Enno Boland. All rights reserved.
+
+  zlib  [Zlib]
+    Copyright (c) 1995-2022 Jean-loup Gailly and Mark Adler.

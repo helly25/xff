@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-License-Identifier: Apache-2.0
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:private"])
+
+cc_library(
+    name = "sqsh",
+    srcs = glob(
+        [
+            "common/src/**/*.c",
+            "libsqsh/src/**/*.c",
+        ],
+        exclude = [
+            # xff opens paths or retained byte buffers itself. Remote curl mapping is deliberately not
+            # part of the container reader, and omitting it avoids an unrelated network dependency.
+            "libsqsh/src/mapper/curl_mapper.c",
+        ],
+    ),
+    hdrs = glob([
+        "common/include/*.h",
+        "include/*.h",
+        "libsqsh/include/*.h",
+    ]),
+    defines = [
+        "CONFIG_LZ4",
+        "CONFIG_LZMA",
+        "CONFIG_ZLIB",
+        "CONFIG_ZSTD",
+    ],
+    includes = [
+        "common/include",
+        "include",
+        "libsqsh/include",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@cextras",
+        "@lz4",
+        "@xz//:lzma",
+        "@zlib",
+        "@zstd",
+    ],
+)

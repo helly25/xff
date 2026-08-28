@@ -361,8 +361,8 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "stub is readable but cannot be deleted because the format requires it. "
                    "build-time extras: the stock binary is lean and omits readers; rebuild with "
                    "`--config=xff_full`, `--//xff:xff_archive` for the broad libarchive-backed set, or "
-                   "`--//xff:xff_asar` for Electron ASAR. Asking for archive handling without any reader is "
-                   "a hard error.",
+                   "one of the independent `--//xff:xff_asar` or `--//xff:xff_squashfs` readers. Asking for "
+                   "archive handling without any reader is a hard error.",
         .values = kArchiveValues,
         .topic = "archive",
         .extra = "archive",
@@ -1519,6 +1519,11 @@ bool ExtraEnabled(std::string_view key) {
   if (key == "language-db") {
     return !language::Databases().empty();
   }
+  if (key == "squashfs") {
+    return absl::c_any_of(archive::ContainerReadFormats(), [](const archive::ReadFormatInfo& format) {
+      return format.name == "squashfs";
+    });
+  }
   if (key == "pcre2") {
     return regex::Pcre2Available();
   }
@@ -1537,6 +1542,7 @@ std::vector<std::string> EnabledExtras() {
       "language-db",
       "mime-db",
       "pcre2",
+      "squashfs",
   });
   std::vector<std::string> enabled;
   for (const std::string_view key : kKnownExtras) {
@@ -1572,6 +1578,9 @@ std::string_view ExtraBuildFlag(std::string_view key) {
   }
   if (key == "pcre2") {
     return "--//xff:xff_pcre";
+  }
+  if (key == "squashfs") {
+    return "--//xff:xff_squashfs";
   }
   return {};  // unknown extra: the caller omits the rebuild hint rather than inventing a flag
 }
