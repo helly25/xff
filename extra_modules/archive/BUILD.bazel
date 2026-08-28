@@ -14,6 +14,7 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@rules_fuzzing//fuzzing:cc_defs.bzl", "cc_fuzz_test")
 load("@xff_extras_api//:license_body.bzl", "license_body")
 
 package(default_visibility = ["//visibility:private"])
@@ -439,6 +440,26 @@ cc_test(
         "@googletest//:gtest_main",
         "@helly25_mbo//mbo/testing:status_cc",
         "@zlib",
+    ],
+)
+
+# Arbitrary containers exercise the native PHAR recognizer, manifest parser, and bounded member
+# reader. Ordinary `bazel test` replays the committed PHP-generated fixtures; continuous campaigns
+# use the same target with libFuzzer.
+cc_fuzz_test(
+    name = "phar_reader_fuzz_test",
+    size = "small",
+    srcs = ["phar_reader_fuzz_test.cc"],
+    corpus = [
+        "test_data/entrybz2.phar",
+        "test_data/entrygz.phar",
+        "test_data/plain.phar",
+        "test_data/sha256.phar",
+    ],
+    dicts = ["phar_reader_fuzz_test.dict"],
+    deps = [
+        ":phar_reader_cc",
+        "@abseil-cpp//absl/status",
     ],
 )
 
