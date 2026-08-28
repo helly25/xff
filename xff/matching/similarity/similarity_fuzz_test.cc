@@ -31,6 +31,8 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
   const std::string_view rhs = separator == std::string_view::npos ? std::string_view{} : input.substr(separator + 1);
 
   const int forward = xff::similarity::WordShinglePercent(lhs, rhs, width);
+  // Deliberately reverse the arguments: symmetry is one of the public score contracts under test.
+  // NOLINTNEXTLINE(readability-suspicious-call-argument)
   const int reverse = xff::similarity::WordShinglePercent(rhs, lhs, width);
   if (forward < 0 || forward > 100 || forward != reverse) {
     std::abort();
