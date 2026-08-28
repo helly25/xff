@@ -54,3 +54,22 @@ cc_binary(
         "@com_github_google_benchmark//:benchmark",
     ],
 )
+
+# Design spike for near-duplicate grouping: compare exhaustive exact verification with an inverted
+# shingle index that only generates candidates, then applies the same exact verifier before emitting.
+cc_binary(
+    name = "near_duplicate_benchmark",
+    testonly = True,
+    srcs = ["near_duplicate_benchmark.cc"],
+    tags = [
+        "clang-tidy",
+        "manual",
+    ],
+    deps = [
+        ":similarity_cc",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/strings",
+        "@com_github_google_benchmark//:benchmark_main",
+    ],
+)
