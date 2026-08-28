@@ -1,4 +1,4 @@
-Build extras compiled into this binary: archive, brotli, fuse, language-db, mime-db, pcre2
+Build extras compiled into this binary: archive, asar, brotli, fuse, language-db, mime-db, pcre2
 
 xff - eXtended File Find
 Copyright 2026 M. Boerger, The helly25 authors
@@ -55,6 +55,11 @@ Adds raw Brotli streams and Brotli-compressed tar archives to the archive extra.
 
   Brotli  [MIT]
     Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors.
+
+Build extension: Electron ASAR (@xff_asar):
+
+  xff Electron ASAR extra (@xff_asar)  [Apache-2.0]
+    Copyright 2026 M. Boerger, The helly25 authors. Licensed under the Apache License, Version 2.0.
 
 Build extension: FUSE (@xff_fuse):
 

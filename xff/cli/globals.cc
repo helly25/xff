@@ -359,8 +359,10 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "phars; it is an ordinary regular member for matching, fields, and statistics. If the manifest "
                    "stores that path, the stored member wins so one path never denotes two entries. The synthetic "
                    "stub is readable but cannot be deleted because the format requires it. "
-                   "build-time extra: the stock binary is lean and omits it (rebuild with --//xff:xff_archive); "
-                   "asking for archive handling without it is a hard error.",
+                   "build-time extras: the stock binary is lean and omits readers; rebuild with "
+                   "`--config=xff_full`, `--//xff:xff_archive` for the broad libarchive-backed set, or "
+                   "`--//xff:xff_asar` for Electron ASAR. Asking for archive handling without any reader is "
+                   "a hard error.",
         .values = kArchiveValues,
         .topic = "archive",
         .extra = "archive",
@@ -1501,6 +1503,10 @@ bool ExtraEnabled(std::string_view key) {
   if (key == "archive") {
     return archive::ContainerSupportAvailable();
   }
+  if (key == "asar") {
+    return absl::c_any_of(
+        archive::ContainerReadFormats(), [](const archive::ReadFormatInfo& format) { return format.name == "asar"; });
+  }
   if (key == "brotli") {
     return absl::c_linear_search(archive::ContainerPackFormats(), "tar.br");
   }
@@ -1525,6 +1531,7 @@ std::vector<std::string> EnabledExtras() {
   // topic, and the rebuild hints all read from these three rather than keeping private copies.
   static constexpr std::array kKnownExtras = std::to_array<std::string_view>({
       "archive",
+      "asar",
       "brotli",
       "fuse",
       "language-db",
@@ -1547,6 +1554,9 @@ std::string_view ExtraBuildFlag(std::string_view key) {
   // rule would print a flag that does not exist - which is worse than useless in an error message.
   if (key == "archive") {
     return "--//xff:xff_archive";
+  }
+  if (key == "asar") {
+    return "--//xff:xff_asar";
   }
   if (key == "brotli") {
     return "--//xff:xff_brotli";

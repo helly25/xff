@@ -65,6 +65,20 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
+# --//xff:xff_asar -- link the standalone Electron ASAR reader. It composes with other container
+# readers through @xff_extras_api and therefore does not pull in libarchive merely to host it.
+bool_flag(
+    name = "xff_asar",
+    build_setting_default = False,
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "xff_asar_enabled",
+    flag_values = {":xff_asar": "True"},
+    visibility = ["//visibility:public"],
+)
+
 # --//xff:xff_brotli -- add RFC 9841 / raw Brotli compression to the archive backend. This is a
 # separate removable extra because libarchive deliberately does not own Brotli; turning it on also
 # turns on the archive backend it extends.
@@ -151,6 +165,15 @@ selects.config_setting_group(
 )
 
 selects.config_setting_group(
+    name = "xff_asar_on",
+    match_any = [
+        ":xff_asar_enabled",
+        ":xff_all_enabled",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+selects.config_setting_group(
     name = "xff_brotli_on",
     match_any = [
         ":xff_brotli_enabled",
@@ -219,6 +242,7 @@ selects.config_setting_group(
     name = "full_build",
     match_any = [
         ":xff_archive_on",
+        ":xff_asar_on",
         ":xff_brotli_on",
         ":xff_fuse_on",
         ":xff_language_db_on",

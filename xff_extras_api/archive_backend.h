@@ -57,17 +57,34 @@ namespace xff::archive {
 using ContainerOpener = absl::AnyInvocable<absl::StatusOr<
     std::unique_ptr<vfs::FileSystem>>(std::string_view, std::optional<std::string_view>, MemberPathOptions) const>;
 
-// Registers the process-wide container opener. Called once, at static init, from the real backend's
-// TU - see ContainerRegistrar. A second registration replaces the first, which keeps a test able to
-// install a stub.
+// One format a reader understands, for the `--help=archive` formats table and the cheap name gate.
+// The reader still validates content; suffixes only decide which ordinary names are worth offering.
+struct ReadFormatInfo {
+  std::string name;
+  std::vector<std::string> suffixes;
+  std::string detail;
+};
+
+// Adds or replaces one independently linked container reader. Readers are kept by stable `name` and
+// tried in name order, so static-initialization order cannot decide which backend sees a container
+// first. InvalidArgument means "not my format" and falls through; every other status is the reader's
+// definitive answer. Passing an empty opener removes that name, which keeps tests able to restore the
+// process-wide registry.
+void RegisterContainerReader(std::string name, ContainerOpener opener, std::vector<ReadFormatInfo> formats);
+
+// Installs a process-wide override opener. This is the narrow test seam retained for callers that
+// need to replace the composed registry temporarily; production extras use RegisterContainerReader.
 void RegisterContainerOpener(ContainerOpener opener);
 
 // Self-registers `opener` on construction. Declare one at namespace scope in the backend's TU, in a
 // target marked `alwayslink` so the linker cannot drop it:
 //
-//   const xff::archive::ContainerRegistrar kRegisterArchive{&OpenArchiveContainer};
+//   const xff::archive::ContainerRegistrar kRegisterArchive{
+//       "archive", &OpenArchiveContainer, ReadFormats()};
 struct ContainerRegistrar {
-  explicit ContainerRegistrar(ContainerOpener opener) { RegisterContainerOpener(std::move(opener)); }
+  ContainerRegistrar(std::string name, ContainerOpener opener, std::vector<ReadFormatInfo> formats) {
+    RegisterContainerReader(std::move(name), std::move(opener), std::move(formats));
+  }
 };
 
 // Whether `name` (a basename, not a whole path) looks like a container by NAME alone: a cheap gate
@@ -193,18 +210,8 @@ struct ContainerPackerRegistrar {
   }
 };
 
-// One format the linked READER understands, for the `--help=archive` formats table. `suffixes` are
-// the dotted file endings associated with the format (a `.jar` is a zip, a `.crate` a tar.gz);
-// reading itself stays sniff-based, so a suffix here is about the NAME GATE and the docs, never a
-// parsing requirement. Registered with the opener so the table cannot exist without the reader.
-struct ReadFormatInfo {
-  std::string name;
-  std::vector<std::string> suffixes;
-  std::string detail;
-};
-
-// Registers the read-format vocabulary of the linked backend (called from the same registrar that
-// installs the opener). The table `--help=archive` renders comes from here.
+// Installs the override opener's read-format vocabulary. Production extras register their formats
+// atomically with their opener through RegisterContainerReader.
 void RegisterContainerReadFormats(std::vector<ReadFormatInfo> formats);
 
 // The read formats the linked backend declared, in its own (documentation) order. Empty when no

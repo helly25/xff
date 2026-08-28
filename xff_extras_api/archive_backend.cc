@@ -15,6 +15,7 @@
 
 #include "xff/archive/archive_backend.h"
 
+#include <algorithm>
 #include <array>
 #include <memory>
 #include <optional>
@@ -37,12 +38,52 @@
 namespace xff::archive {
 namespace {
 
-// The process-wide container opener, empty when no archive backend is linked. Set once at static init
-// by the real backend's ContainerRegistrar (full build only); a Meyers static so a registrar in
-// another translation unit can safely write it during static initialization.
+// A temporary override used by focused tests. Production extras compose in ContainerReadersSlot.
 ContainerOpener& ContainerOpenerSlot() {
   static ContainerOpener slot;
   return slot;
+}
+
+struct ContainerReader {
+  std::string name;
+  ContainerOpener opener;
+  std::vector<ReadFormatInfo> formats;
+};
+
+std::vector<ContainerReader>& ContainerReadersSlot() {
+  static std::vector<ContainerReader> slot;
+  return slot;
+}
+
+// The override opener's formats. Kept separately so tests can exercise the name gate without
+// installing a reader; production readers carry formats atomically in ContainerReader.
+std::vector<ReadFormatInfo>& ReadFormatsSlot() {
+  static std::vector<ReadFormatInfo> slot;
+  return slot;
+}
+
+absl::flat_hash_set<std::string>& GateSuffixesSlot() {
+  static absl::flat_hash_set<std::string> slot;
+  return slot;
+}
+
+std::vector<ReadFormatInfo> AllReadFormats() {
+  std::vector<ReadFormatInfo> formats = ReadFormatsSlot();
+  for (const ContainerReader& reader : ContainerReadersSlot()) {
+    formats.insert(formats.end(), reader.formats.begin(), reader.formats.end());
+  }
+  return formats;
+}
+
+void RebuildGate() {
+  absl::flat_hash_set<std::string>& gate = GateSuffixesSlot();
+  gate.clear();
+  for (const ReadFormatInfo& format : AllReadFormats()) {
+    for (const std::string& suffix : format.suffixes) {
+      const std::string::size_type dot = suffix.rfind('.');
+      gate.insert(absl::AsciiStrToLower(dot == 0 ? suffix : suffix.substr(dot)));
+    }
+  }
 }
 
 // The process-wide member remover, empty when no backend registered one - which is the answer for a
@@ -72,6 +113,23 @@ std::vector<PackOptionInfo>& ContainerPackVocabularySlot() {
 
 void RegisterContainerOpener(ContainerOpener opener) {
   ContainerOpenerSlot() = std::move(opener);
+}
+
+void RegisterContainerReader(std::string name, ContainerOpener opener, std::vector<ReadFormatInfo> formats) {
+  std::vector<ContainerReader>& readers = ContainerReadersSlot();
+  const auto found = std::ranges::find(readers, name, &ContainerReader::name);
+  if (!opener) {
+    if (found != readers.end()) {
+      readers.erase(found);
+    }
+  } else if (found == readers.end()) {
+    readers.push_back({.name = std::move(name), .opener = std::move(opener), .formats = std::move(formats)});
+  } else {
+    found->opener = std::move(opener);
+    found->formats = std::move(formats);
+  }
+  std::ranges::sort(readers, {}, &ContainerReader::name);
+  RebuildGate();
 }
 
 void RegisterContainerMemberRemover(ContainerMemberRemover remover) {
@@ -128,44 +186,17 @@ absl::Status PackContainer(std::string_view path, const std::vector<PackFile>& f
   return ContainerPackerSlot()(path, files, options);
 }
 
-namespace {
-
-// The linked reader's declared formats; empty until a backend registers. Same slot pattern as the
-// opener/packer: set once at static-init time by the registrar, read-only afterwards.
-std::vector<ReadFormatInfo>& ReadFormatsSlot() {
-  static std::vector<ReadFormatInfo> slot;
-  return slot;
-}
-
-// The dive gate DERIVED from the registered formats: the lower-cased LAST dotted component of every
-// declared suffix (a compound `.tar.gz` gates by `.gz`, which the single-file row declares anyway).
-// One source of truth: there is no second extension list to drift - the reader's declaration IS the
-// gate, and with no backend registered nothing dives (nothing could be opened either).
-absl::flat_hash_set<std::string>& GateSuffixesSlot() {
-  static absl::flat_hash_set<std::string> slot;
-  return slot;
-}
-
-}  // namespace
-
 void RegisterContainerReadFormats(std::vector<ReadFormatInfo> formats) {
   ReadFormatsSlot() = std::move(formats);
-  absl::flat_hash_set<std::string>& gate = GateSuffixesSlot();
-  gate.clear();
-  for (const ReadFormatInfo& format : ReadFormatsSlot()) {
-    for (const std::string& suffix : format.suffixes) {
-      const std::string::size_type dot = suffix.rfind('.');
-      gate.insert(absl::AsciiStrToLower(dot == 0 ? suffix : suffix.substr(dot)));
-    }
-  }
+  RebuildGate();
 }
 
 std::vector<ReadFormatInfo> ContainerReadFormats() {
-  return ReadFormatsSlot();
+  return AllReadFormats();
 }
 
 bool ContainerSupportAvailable() {
-  return static_cast<bool>(ContainerOpenerSlot());
+  return static_cast<bool>(ContainerOpenerSlot()) || !ContainerReadersSlot().empty();
 }
 
 bool LooksLikeContainerName(std::string_view name) {
@@ -184,7 +215,18 @@ absl::StatusOr<std::unique_ptr<vfs::FileSystem>> OpenContainer(std::string_view 
     // look inside it. The CLI turns this into the "not built into this binary" message.
     return absl::UnimplementedError("this binary was built without archive support");
   }
-  return ContainerOpenerSlot()(container, std::nullopt, options);
+  if (ContainerOpenerSlot()) {
+    return ContainerOpenerSlot()(container, std::nullopt, options);
+  }
+  absl::Status not_a_container = absl::InvalidArgumentError("not a readable container");
+  for (const ContainerReader& reader : ContainerReadersSlot()) {
+    absl::StatusOr<std::unique_ptr<vfs::FileSystem>> opened = reader.opener(container, std::nullopt, options);
+    if (opened.ok() || !absl::IsInvalidArgument(opened.status())) {
+      return opened;
+    }
+    not_a_container = opened.status();
+  }
+  return not_a_container;
 }
 
 absl::StatusOr<std::unique_ptr<vfs::FileSystem>> OpenContainerBytes(
@@ -194,7 +236,18 @@ absl::StatusOr<std::unique_ptr<vfs::FileSystem>> OpenContainerBytes(
   if (!ContainerSupportAvailable()) {
     return absl::UnimplementedError("this binary was built without archive support");
   }
-  return ContainerOpenerSlot()(container, bytes, options);
+  if (ContainerOpenerSlot()) {
+    return ContainerOpenerSlot()(container, bytes, options);
+  }
+  absl::Status not_a_container = absl::InvalidArgumentError("not a readable container");
+  for (const ContainerReader& reader : ContainerReadersSlot()) {
+    absl::StatusOr<std::unique_ptr<vfs::FileSystem>> opened = reader.opener(container, bytes, options);
+    if (opened.ok() || !absl::IsInvalidArgument(opened.status())) {
+      return opened;
+    }
+    not_a_container = opened.status();
+  }
+  return not_a_container;
 }
 
 }  // namespace xff::archive

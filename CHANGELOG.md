@@ -46,6 +46,11 @@
 
 ## Archives
 
+- Add the removable `@xff_asar` reader for Electron application archives. It exposes packed files,
+  external `.asar.unpacked` members, directories, and links through the ordinary archive VFS; validates
+  string offsets, bounds, and SHA-256 whole-file/block integrity metadata; and never invents metadata
+  records as files. Container readers now compose through a deterministic multi-reader registry, so
+  ASAR remains independent of libarchive and can coexist with every existing archive format.
 - `--pack-option=@FILE.json` loads the existing writer-option vocabulary from a JSON object. String,
   integer, and boolean values map to the same validation and backend translation as inline
   `NAME=VALUE` options; file and inline forms compose in command-line order, so the last value for a

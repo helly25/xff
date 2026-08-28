@@ -81,6 +81,9 @@ cc_binary(
         "//xff:xff_archive_on": ["@xff_archive//:archive_register_cc"],
         "//conditions:default": [],
     }) + select({
+        "//xff:xff_asar_on": ["@xff_asar//:asar_register_cc"],
+        "//conditions:default": [],
+    }) + select({
         "//xff:xff_brotli_on": ["@xff_brotli//:brotli_register_cc"],
         "//conditions:default": [],
     }) + select({

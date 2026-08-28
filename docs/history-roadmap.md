@@ -896,13 +896,13 @@ remains below is the design-forked / larger work.
     build. phar's stub scan is an instance of the same idea, but moving phar onto a shared mechanism
     stays a LATER question and not while phar works: phar is itself several formats (native
     stub+manifest, tar-based, zip-based), so the refactor is not a one-liner.
-  - **ASAR (Electron), BLOCKED on a JSON reader in helly25/mbo.** The one genuinely missing format
-    that is both easy and widespread: every Electron app ships `app.asar` (VS Code, Slack, Discord,
-    Teams) and that is where the JS lives, so reading inside it is a real want. Shape is phar's
-    cousin - a JSON directory tree (offsets / sizes as strings, an `unpacked` flag for files kept
-    outside, an integrity block in newer versions) then concatenated payload, no compression.
-    REQUIREMENT: a JSON reader in helly25/mbo (we have a writer, no reader). Until mbo grows one,
-    this stays unstarted rather than taking a JSON dependency here.
+  - **ASAR (Electron), SHIPPED.** The removable `@xff_asar` reader exposes Electron application
+    bundles through the ordinary container VFS without coupling ASAR to libarchive. It reads the
+    Pickle-wrapped JSON directory tree with `nlohmann_json`, packed payloads, inherited
+    `.asar.unpacked` sidecars, links, executable bits, and SHA256 whole-file and block integrity.
+    Incidental integrity records remain format metadata rather than invented files. Independently
+    linked readers now register by stable name and compose deterministically, so ASAR and the archive
+    extra coexist without static-initialization order choosing one backend.
   - **DEFERRED: squashfs.** Snap payloads, AppImage payloads, firmware images. No new codec deps
     (libarchive already links zlib / xz / zstd / lz4), but metadata block tables and fragment
     handling make it a real slice, and a snap is not somewhere people usually grep. Revisit when

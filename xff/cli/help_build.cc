@@ -456,7 +456,8 @@ Section ArchiveSection(bool in_full) {
       "With `--archive`, an archive is a directory: xff opens it and walks its members as ordinary "
       "entries, so every predicate and action applies to them unchanged - `-name`, `-type`, "
       "`-grep`, `{hash}`, `--summary`. Nothing in the expression vocabulary knows about archives. "
-      "Needs the archive extra; `--help=extras` says whether this binary has it."));
+      "Needs at least one container-reader extra; `--help=extras` says which readers this binary "
+      "has."));
 
   static constexpr std::array<DocPair, 4> kModes = {{
       {"none", "an archive is one plain file (find's behaviour, and the find-style default)"},
@@ -513,6 +514,11 @@ Section ArchiveSection(bool in_full) {
       "not invented as one. A future visibility option would control presentation of these parts; it "
       "must not create duplicate path identities."));
   identity.children.push_back(ProseOf(
+      "An Electron `.asar` bundle follows the same rule: packed files, external "
+      "`.asar.unpacked` files, directories, and links are entries, while integrity records are "
+      "metadata and never appear as synthetic files. The ASAR reader is read-only and verifies "
+      "declared SHA256 whole-file and block hashes when content is read."));
+  identity.children.push_back(ProseOf(
       "Members are READ-ONLY by default. `-delete` and the exec family refuse one rather than "
       "silently doing nothing, because a member has no path a process can open and no way to be "
       "unlinked; `--archive-extract` runs the child over a temporary copy, and `--archive-delete` "
@@ -527,8 +533,9 @@ Section ArchiveSection(bool in_full) {
     // rather than silently dropping the subsection (the rest of this topic does the same).
     formats.children.push_back(ProseOf(
         absl::StrCat(
-            "NOT built into this binary: rebuild with `", ExtraBuildFlag("archive"),
-            "`. A build with the archive extra lists every readable format, its extensions, and "
+            "NOT built into this binary: rebuild with `--config=xff_full` or enable a reader such as `",
+            ExtraBuildFlag("archive"),
+            "` or `--//xff:xff_asar`. A build with reader extras lists every readable format, its extensions, and "
             "whether `--pack` can write it, in a table here.")));
     section.children.push_back(Content{.node = std::move(formats)});
   } else {
