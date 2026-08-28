@@ -1,0 +1,3 @@
+{{literal}} {capture.value:s/foo/bar/g}
+file.txt
+foo foo

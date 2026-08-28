@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_fuzzing//fuzzing:cc_defs.bzl", "cc_fuzz_test")
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
 package(default_visibility = ["//visibility:private"])
@@ -51,5 +52,20 @@ cc_test(
         "@abseil-cpp//absl/time",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+    ],
+)
+
+# Compile and render arbitrary field templates against a deterministic context. The driver checks
+# the context-free extraction classification against the actual extraction API.
+cc_fuzz_test(
+    name = "fields_fuzz_test",
+    size = "small",
+    srcs = ["fields_fuzz_test.cc"],
+    corpus = glob(["fields_fuzz_test_corpus/**"]),
+    dicts = ["fields_fuzz_test.dict"],
+    deps = [
+        ":fields_cc",
+        "//xff/vfs:vfs_cc",
+        "@abseil-cpp//absl/time",
     ],
 )
