@@ -18,11 +18,11 @@ absl::StatusOr<std::string> FileSystem::ReadContentRange(
     std::string_view path,
     std::uint64_t offset,
     std::size_t length) const {
-  MBO_ASSIGN_OR_RETURN(std::string content, ReadContent(path));
+  MBO_ASSIGN_OR_RETURN(const std::string content, ReadContent(path));
   if (offset >= content.size() || length == 0) {
     return std::string();
   }
-  const std::size_t begin = static_cast<std::size_t>(offset);
+  const auto begin = static_cast<std::size_t>(offset);
   return content.substr(begin, std::min(length, content.size() - begin));
 }
 

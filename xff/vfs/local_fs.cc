@@ -42,6 +42,7 @@
 #include <ctime>
 #include <limits>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -356,12 +357,13 @@ absl::StatusOr<std::string> LocalFs::ReadContentRange(std::string_view path, std
   std::string content(length, '\0');
   std::size_t total = 0;
   while (total < length) {
-    const std::uint64_t max_offset = static_cast<std::uint64_t>(std::numeric_limits<off_t>::max());
+    const auto max_offset = static_cast<std::uint64_t>(std::numeric_limits<off_t>::max());
     if (total > max_offset - offset) {
       break;
     }
     const std::size_t chunk = std::min(length - total, static_cast<std::size_t>(std::numeric_limits<ssize_t>::max()));
-    const ssize_t count = ::pread(fd, content.data() + total, chunk, static_cast<off_t>(offset + total));
+    const ssize_t count =
+        ::pread(fd, std::span<char>(content).subspan(total).data(), chunk, static_cast<off_t>(offset + total));
     if (count < 0) {
       if (errno == EINTR) {  // LCOV_EXCL_BR_LINE: requires interrupting the individual pread syscall.
         continue;            // LCOV_EXCL_LINE
