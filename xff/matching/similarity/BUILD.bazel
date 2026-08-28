@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
 # SPDX-License-Identifier: Apache-2.0
 
+load("@rules_fuzzing//fuzzing:cc_defs.bzl", "cc_fuzz_test")
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
 package(default_visibility = ["//visibility:private"])
@@ -25,4 +26,14 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
+)
+
+# Exercise the exact verifier used by -similar over arbitrary byte strings and shingle widths. The
+# symmetric and identity properties are useful oracles beyond crash detection.
+cc_fuzz_test(
+    name = "similarity_fuzz_test",
+    size = "small",
+    srcs = ["similarity_fuzz_test.cc"],
+    corpus = glob(["similarity_fuzz_test_corpus/**"]),
+    deps = [":similarity_cc"],
 )

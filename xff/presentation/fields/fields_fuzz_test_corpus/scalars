@@ -1,0 +1,3 @@
+{root}:{path:name}:{size:h}:{mtime:epoch}:{fuzzy}
+sub/file.txt
+payload

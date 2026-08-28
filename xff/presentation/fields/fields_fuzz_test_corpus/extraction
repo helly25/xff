@@ -1,0 +1,5 @@
+{capture.value:m/^author (.+)$/\1/;join(, )}
+authors.txt
+author Bob
+committer X
+author Ann
