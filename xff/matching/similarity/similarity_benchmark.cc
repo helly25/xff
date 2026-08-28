@@ -38,8 +38,9 @@ void BmWordShinglePercent(benchmark::State& state, std::size_t changed_every) {
   const auto width = static_cast<std::size_t>(state.range(1));
   const std::string lhs = Document(words, 0);
   const std::string rhs = Document(words, changed_every);
+  // google-benchmark's loop value drives iteration and is deliberately not read.
+  // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
   for (auto unused : state) {
-    // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
     benchmark::DoNotOptimize(WordShinglePercent(lhs, rhs, width));
   }
   state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(words * 2));

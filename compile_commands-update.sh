@@ -112,6 +112,18 @@ echo "Building generated / virtual-include headers in --config=clang-tidy so the
 bazel build --config=clang-tidy //... >/dev/null \
   || die "'bazel build --config=clang-tidy //...' failed; cannot materialize the headers the compile DB references"
 
+# Wildcards omit manual targets, but the compile database explicitly includes every manual target
+# tagged `clang-tidy` (enforced by the pre-commit hook). Build that same list so external and generated
+# headers exist before clang-tidy consumes their commands.
+declare -a CLANG_TIDY_MANUAL_TARGETS=()
+while IFS= read -r TARGET; do
+  CLANG_TIDY_MANUAL_TARGETS+=("${TARGET}")
+done < <(sed -n 's|^ *"\(//[^"]*\)",$|\1|p' bazelmod/clang_tidy_targets.bzl)
+if [ "${#CLANG_TIDY_MANUAL_TARGETS[@]}" -gt 0 ]; then
+  bazel build --config=clang-tidy "${CLANG_TIDY_MANUAL_TARGETS[@]}" >/dev/null \
+    || die "building manual clang-tidy targets failed"
+fi
+
 # The composable extras are separate modules, so `//...` does not reach them: without this build
 # their virtual-include forests are missing exactly as the core's would be, and clang-tidy cannot
 # resolve an extra's own header. The list is DERIVED from bazelmod/extras.MODULE.bazel
