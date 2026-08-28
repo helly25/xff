@@ -1414,8 +1414,14 @@ bool EvalHash(const parser::Expr& expr, EvalContext& ctx) {
 // EXPECTED, an unreadable file, or a bad spec is FALSE (no match), so drift-selection is safe.
 // Cost::kExpensive (reads the whole file).
 bool EvalHasheq(const parser::Expr& expr, EvalContext& ctx) {
+  const auto verdict = [&](bool matched) {
+    if (ctx.hash_verification.has_value()) {
+      *ctx.hash_verification = matched;
+    }
+    return matched;
+  };
   if (expr.args.empty()) {
-    return false;
+    return verdict(false);
   }
   const std::string link = LinkTarget(ctx);  // owns the {target} text for the render below
   const std::string expected = fields::Template::Compile(expr.args.front())
@@ -1436,21 +1442,22 @@ bool EvalHasheq(const parser::Expr& expr, EvalContext& ctx) {
                                            .defines = ctx.defines,
                                            .outputs = AsConstOptionalRef(ctx.outputs)});
   if (expected.empty()) {
-    return false;  // no expected hash resolved (e.g. an unset {def.X}) -> treat as a mismatch
+    return verdict(false);  // no expected hash resolved (e.g. an unset {def.X}) -> mismatch
   }
   const std::string_view default_algo = ctx.hash_algorithm.empty() ? "sha256" : ctx.hash_algorithm;
   const hash::Encoding default_encoding = hash::ParseEncoding(ctx.hash_encoding).value_or(hash::Encoding::kHex);
   const std::optional<hash::AlgoEncoding> spec = hash::ParseSpec(expr.hash_spec, default_algo, default_encoding);
   if (!spec.has_value()) {
-    return false;  // defensively no-op; ValidateHashArgs rejects a bad spec before the walk
+    return verdict(false);  // defensively no-op; ValidateHashArgs rejects a bad spec before the walk
   }
   const std::optional<std::string> digest = DigestOfEntry(ctx, *spec);
   if (!digest.has_value()) {
-    return false;  // unreadable / non-regular file -> mismatch (selected by `! -hasheq`)
+    return verdict(false);  // unreadable / non-regular file -> mismatch (selected by `! -hasheq`)
   }
   // Hex digests fold case (sha256sum lowercases, some SRI-style tools upper-case), but base64 is
   // case-sensitive by definition (A-Z and a-z are distinct symbols), so only hex compares loosely.
-  return spec->encoding == hash::Encoding::kHex ? absl::EqualsIgnoreCase(*digest, expected) : *digest == expected;
+  return verdict(
+      spec->encoding == hash::Encoding::kHex ? absl::EqualsIgnoreCase(*digest, expected) : *digest == expected);
 }
 
 // xff -grep PATTERN: the line-output companion of -rxc. Prints each line of the

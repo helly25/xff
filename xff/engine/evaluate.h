@@ -164,6 +164,11 @@ struct EvalContext {
   // The normalized 0..100 fuzzy quality composed across the expression for {fuzzy}, --sort=score,
   // and -top. Null when no consumer needs it; reset by the driver per entry.
   mbo::types::OptionalRef<std::optional<int>> fuzzy_score;
+  // --summary=verification: the verdict produced when this entry reaches its -hasheq predicate.
+  // Null when that reduction is inactive; an empty optional means short-circuiting has not reached
+  // -hasheq, while true / false records the predicate's actual result independent of the expression's
+  // eventual truth value.
+  mbo::types::OptionalRef<std::optional<bool>> hash_verification;
   // Result-set predicates such as -top and -shard-status are resolved after the walk. During the
   // first evaluation, an undecided predicate returns its frontier (and -top's composed score) in
   // EvaluationResult. During replay this capability supplies earlier decisions and memoizes

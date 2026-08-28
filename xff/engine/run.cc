@@ -289,6 +289,7 @@ enum class SummaryMode : std::uint8_t {
   kUser,
   kGroup,
   kHash,
+  kVerification,
   kTemplate
 };
 
@@ -309,7 +310,8 @@ std::vector<SummarySpec> ResolveSummaries(const std::vector<std::string>& global
       ModePair{"--summary=group", SummaryMode::kGroup}, ModePair{"--summary=hash", SummaryMode::kHash},
       ModePair{"--summary=lang", SummaryMode::kLanguage}, ModePair{"--summary=mime", SummaryMode::kMime},
       ModePair{"--summary=overall", SummaryMode::kOverall}, ModePair{"--summary=owner", SummaryMode::kUser},
-      ModePair{"--summary=type", SummaryMode::kType}, ModePair{"--summary=user", SummaryMode::kUser});
+      ModePair{"--summary=type", SummaryMode::kType}, ModePair{"--summary=user", SummaryMode::kUser},
+      ModePair{"--summary=verification", SummaryMode::kVerification});
   constexpr std::string_view kPrefix = "--summary=";
   std::vector<SummarySpec> specs;
   for (const std::string& global : globals) {
@@ -987,6 +989,23 @@ bool ContainsPrimary(const parser::Expr& expr, std::string_view name) {
   return false;
 }
 
+// Number of occurrences of one primary in the expression. Verification summaries require exactly
+// one -hasheq because combining independent verdicts would otherwise hide which check failed.
+std::size_t CountPrimary(const parser::Expr& expr, std::string_view name) {
+  switch (expr.kind) {
+    case parser::Expr::Kind::kPredicate: return expr.descriptor->name == name ? 1 : 0;
+    case parser::Expr::Kind::kNot: return CountPrimary(*expr.lhs, name);
+    case parser::Expr::Kind::kAnd:
+    case parser::Expr::Kind::kOr:
+    case parser::Expr::Kind::kNand:
+    case parser::Expr::Kind::kNor:
+    case parser::Expr::Kind::kXor:
+    case parser::Expr::Kind::kXnor:
+    case parser::Expr::Kind::kComma: return CountPrimary(*expr.lhs, name) + CountPrimary(*expr.rhs, name);
+  }
+  std::unreachable();
+}
+
 // Every `-first N` in the expression must carry a number. An unparseable or negative N is a usage
 // error before the walk, NOT a filter that quietly admits nothing: `-first nope` is a typo, and a
 // typo that silently returns an empty result set is indistinguishable from a tree with no matches.
@@ -1296,6 +1315,7 @@ struct DeferredCandidate {
   std::map<std::string, std::string> outputs;
   EvaluationMemo memo;
   DeferredDecisions decisions;
+  std::optional<bool> hash_verification;
   ExprIdentity waiting_at;
   int score = 0;
   std::size_t order = 0;
@@ -2864,6 +2884,9 @@ void FeedSummaries(
     const fields::RenderContext& key_ctx,
     const Visit& visit) {
   for (std::size_t i = 0; i < specs.size(); ++i) {
+    if (specs[i].mode == SummaryMode::kVerification) {
+      continue;  // fed from the -hasheq verdict, not from the expression's matched result
+    }
     SummaryCells& cells = cells_per_sink[i];
     if (specs[i].mode != SummaryMode::kTemplate) {
       std::pair<std::uint64_t, std::uint64_t>& agg = cells[SummaryKey(specs[i].mode, visit)];
@@ -2885,6 +2908,28 @@ void FeedSummaries(
     for (const std::string& key : *stream) {
       cells[key].first += 1;
     }
+  }
+}
+
+// Feeds the verdict of the single -hasheq into each verification sink. This is deliberately
+// separate from FeedSummaries: a failed verification normally makes the expression false, but it
+// is precisely the result this reduction must count. No verdict means short-circuiting never
+// reached -hasheq and therefore contributes nothing.
+void FeedVerificationSummaries(
+    const std::vector<SummarySpec>& specs,
+    std::vector<SummaryCells>& cells_per_sink,
+    const Visit& visit,
+    std::optional<bool> verification) {
+  if (!verification.has_value()) {
+    return;
+  }
+  for (std::size_t i = 0; i < specs.size(); ++i) {
+    if (specs[i].mode != SummaryMode::kVerification) {
+      continue;
+    }
+    auto& aggregate = cells_per_sink[i][*verification ? "verified" : "failed"];
+    aggregate.first += 1;
+    aggregate.second += visit.metadata.size;
   }
 }
 
@@ -3388,6 +3433,17 @@ RunResult RunFind(
   // mixing an UNREDUCED extraction with other text has no single key and is a usage error refused
   // before the walk; a reduced extraction is scalar and mixes fine.
   const std::vector<SummarySpec> summaries = ResolveSummaries(command.globals);
+  const bool verification_summary =
+      absl::c_any_of(summaries, [](const SummarySpec& spec) { return spec.mode == SummaryMode::kVerification; });
+  if (verification_summary) {
+    const std::size_t checks = expression.has_value() ? CountPrimary(*expression, "-hasheq") : 0;
+    if (checks != 1) {
+      on_error(
+          "--summary=verification",
+          absl::InvalidArgumentError(absl::StrCat("requires exactly one -hasheq expression, found ", checks)));
+      return RunResult{.errors = 2};
+    }
+  }
   std::vector<std::optional<fields::Template>> summary_templates(summaries.size());  // compiled, kTemplate only
   for (std::size_t i = 0; i < summaries.size(); ++i) {
     if (summaries[i].mode != SummaryMode::kTemplate) {
@@ -3548,6 +3604,9 @@ RunResult RunFind(
   // The normalized fuzzy quality composed by the evaluator and read by {fuzzy} / --sort=score.
   // Run-scoped rather than per-entry so the phases can share it; cleared before each evaluation.
   std::optional<int> fuzzy_score;
+  // The -hasheq verdict for the entry currently being evaluated. Kept independently from matched:
+  // a failed check must still reach --summary=verification.
+  std::optional<bool> hash_verification;
   // -first N budgets, one per instance, for the whole run (see EvalContext::first_counts).
   FirstCounts first_counts;
   // -collect[:NAME]: the entries held back for the post-walk reduction. `collect_names` is read from
@@ -3734,9 +3793,17 @@ RunResult RunFind(
   // Keeping it outside the visitor is what makes replay use precisely the same listing/reduction
   // path rather than a second, subtly different renderer.
   // NOLINTNEXTLINE(readability-function-cognitive-complexity): one extracted sink dispatch shared by walk and replay
-  const auto finish_entry = [&](const Visit& visit, std::map<std::string, std::string>& outputs, bool matched) {
+  const auto finish_entry = [&](const Visit& visit, std::map<std::string, std::string>& outputs, bool matched,
+                                std::optional<bool> verification) {
     if (matched) {
       any_match = true;
+    }
+    const bool counted =
+        *archive_aggregate == ArchiveAggregate::kBoth
+        || (*archive_aggregate == ArchiveAggregate::kMembers && !visit.dived)
+        || (*archive_aggregate == ArchiveAggregate::kContainer && visit.metadata.source != vfs::Source::kArchiveMember);
+    if (counted) {
+      FeedVerificationSummaries(summaries, summary_cells, visit, verification);
     }
     if (matched && any_reduction) {
       if (pack_target.has_value()) {
@@ -3762,10 +3829,6 @@ RunResult RunFind(
              .depth = visit.depth,
              .metadata = visit.metadata});
       }
-      const bool counted = *archive_aggregate == ArchiveAggregate::kBoth
-                           || (*archive_aggregate == ArchiveAggregate::kMembers && !visit.dived)
-                           || (*archive_aggregate == ArchiveAggregate::kContainer
-                               && visit.metadata.source != vfs::Source::kArchiveMember);
       if (!shards.enabled && counted && !collections.Active()) {
         const std::string link;
         const fields::RenderContext key_ctx{
@@ -3915,6 +3978,7 @@ RunResult RunFind(
         // -fuzzy / -ifuzzy leave their score here for {fuzzy}; cleared per entry so a name that runs
         // no fuzzy test renders empty rather than inheriting the previous entry's score.
         fuzzy_score.reset();
+        hash_verification.reset();
         EvaluationMemo evaluation_memo;
         const DeferredDecisions deferred_results;
         DeferredEvaluation deferred{.decisions = deferred_results, .memo = evaluation_memo};
@@ -3935,6 +3999,8 @@ RunResult RunFind(
             .block_size = block_size,
             .fold_name_case = fold_name_case,
             .fuzzy_score = fuzzy_score,
+            .hash_verification = verification_summary ? mbo::types::OptionalRef{hash_verification}
+                                                      : mbo::types::OptionalRef<std::optional<bool>>{},
             .deferred = deferred,
             .grep_count = grep_count,
             .grep_before = grep_before,
@@ -3973,11 +4039,12 @@ RunResult RunFind(
                .outputs = std::move(outputs),
                .memo = std::move(evaluation_memo),
                .decisions = {},
+               .hash_verification = hash_verification,
                .waiting_at = evaluated.waiting_at.value(),
                .score = evaluated.fuzzy.value_or(0),
                .order = deferred_order++});
         } else {
-          finish_entry(visit, outputs, evaluated.matched);
+          finish_entry(visit, outputs, evaluated.matched, hash_verification);
         }
         if (!control.unsupported.empty() && !unsupported_reported) {
           unsupported_reported = true;  // once per run, not per entry
@@ -4052,6 +4119,8 @@ RunResult RunFind(
           .block_size = block_size,
           .fold_name_case = fold_name_case,
           .fuzzy_score = fuzzy_score,
+          .hash_verification = verification_summary ? mbo::types::OptionalRef{candidate.hash_verification}
+                                                    : mbo::types::OptionalRef<std::optional<bool>>{},
           .deferred = deferred,
           .grep_count = grep_count,
           .grep_before = grep_before,
@@ -4087,7 +4156,7 @@ RunResult RunFind(
         candidate.score = evaluated.fuzzy.value_or(0);
         next_round.push_back(std::move(candidate));
       } else {
-        finish_entry(visit, candidate.outputs, evaluated.matched);
+        finish_entry(visit, candidate.outputs, evaluated.matched, candidate.hash_verification);
       }
       if (!control.unsupported.empty() && !unsupported_reported) {
         unsupported_reported = true;
