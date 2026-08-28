@@ -37,7 +37,7 @@ for enforcement and presentation.
 ## Deferred refinements
 
 - Filesystem-name behavior: Unicode normalization and Linux per-directory case-fold detection.
-- Configuration support for `--diff-ignore*` and per-summary-sink modifiers.
+- Per-summary-sink modifiers.
 - Shell-glob numeric/alphabetic brace ranges.
 - Histogram time buckets, explicit bucket edges/counts, and per-line template measures.
 - Text-flavor BOM handling and mixed-line-ending policies.

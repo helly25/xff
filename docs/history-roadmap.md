@@ -615,8 +615,10 @@ remains below is the design-forked / larger work.
       mtime (`--- a/one.txt`), making the output reproducible; the golden tests no longer strip a
       timestamp with `sed`. (mbo `ignore_missing_final_newline` + empty-`time_format` landed in
       helly25/mbo#234.)
-    - **Still deferred:** making `--diff-ignore*` `.xffrc`-settable (the config pass). Full design in
-      the memory note (`project_xff_cmp_diff`).
+    - **Config contract SHIPPED:** both `--diff-ignore` globals may be saved in user config or an
+      explicit `--xffrc=FILE`. They use the same validation as command-line values, and the normal
+      config precedence applies: resolved config flags are prepended, so a later CLI value wins;
+      an empty CLI value explicitly disables a configured normalization or matching expression.
     - **`mbo` dependency:** built against a `git_override` pinned at the mbo `main` commit merging
       helly25/mbo#234 (0.13.0-dev: `mbo/diff` + `mbo/digest`); drop it for a plain `helly25_mbo`
       0.13.0 bump once that releases to BCR.
