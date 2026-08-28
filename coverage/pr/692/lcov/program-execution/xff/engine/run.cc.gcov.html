@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-28 07:22:44</td>
+            <td class="headerValue">2026-08-28 16:28:35</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">96.5&nbsp;%</td>
@@ -374,7 +374,7 @@
 <span id="L289"><span class="lineNum">     289</span>                 :             :   kUser,</span>
 <span id="L290"><span class="lineNum">     290</span>                 :             :   kGroup,</span>
 <span id="L291"><span class="lineNum">     291</span>                 :             :   kHash,</span>
-<span id="L292"><span class="lineNum">     292</span>                 :             :   kVerification,</span>
+<span id="L292"><span class="lineNum">     292</span>                 :             :   kHashVerification,</span>
 <span id="L293"><span class="lineNum">     293</span>                 :             :   kTemplate</span>
 <span id="L294"><span class="lineNum">     294</span>                 :             : };</span>
 <span id="L295"><span class="lineNum">     295</span>                 :             : </span>
@@ -396,7 +396,7 @@
 <span id="L311"><span class="lineNum">     311</span>                 :             :       ModePair{&quot;--summary=lang&quot;, SummaryMode::kLanguage}, ModePair{&quot;--summary=mime&quot;, SummaryMode::kMime},</span>
 <span id="L312"><span class="lineNum">     312</span>                 :             :       ModePair{&quot;--summary=overall&quot;, SummaryMode::kOverall}, ModePair{&quot;--summary=owner&quot;, SummaryMode::kUser},</span>
 <span id="L313"><span class="lineNum">     313</span>                 :             :       ModePair{&quot;--summary=type&quot;, SummaryMode::kType}, ModePair{&quot;--summary=user&quot;, SummaryMode::kUser},</span>
-<span id="L314"><span class="lineNum">     314</span>                 :             :       ModePair{&quot;--summary=verification&quot;, SummaryMode::kVerification});</span>
+<span id="L314"><span class="lineNum">     314</span>                 :             :       ModePair{&quot;--summary=hash-verification&quot;, SummaryMode::kHashVerification});</span>
 <span id="L315"><span class="lineNum">     315</span>                 :<span class="tlaGNC">         735 :   constexpr std::string_view kPrefix = &quot;--summary=&quot;;</span></span>
 <span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">         735 :   std::vector&lt;SummarySpec&gt; specs;</span></span>
 <span id="L317"><span class="lineNum">     317</span>         [<span class="tlaGBC" title="branch 0 was taken 833 times"> + </span><span class="tlaGBC" title="branch 1 was taken 735 times"> + </span>]:<span class="tlaGNC">        1568 :   for (const std::string&amp; global : globals) {</span></span>
@@ -3036,7 +3036,7 @@
 <span id="L2884"><span class="lineNum">    2884</span>                 :             :     const fields::RenderContext&amp; key_ctx,</span>
 <span id="L2885"><span class="lineNum">    2885</span>                 :             :     const Visit&amp; visit) {</span>
 <span id="L2886"><span class="lineNum">    2886</span>         [<span class="tlaGBC" title="branch 0 was taken 196 times"> + </span><span class="tlaGBC" title="branch 1 was taken 328 times"> + </span>]:<span class="tlaGNC">         524 :   for (std::size_t i = 0; i &lt; specs.size(); ++i) {</span></span>
-<span id="L2887"><span class="lineNum">    2887</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 191 times"> + </span>]:<span class="tlaGNC">         196 :     if (specs[i].mode == SummaryMode::kVerification) {</span></span>
+<span id="L2887"><span class="lineNum">    2887</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 191 times"> + </span>]:<span class="tlaGNC">         196 :     if (specs[i].mode == SummaryMode::kHashVerification) {</span></span>
 <span id="L2888"><span class="lineNum">    2888</span>                 :<span class="tlaGNC">         193 :       continue;  // fed from the -hasheq verdict, not from the expression's matched result</span></span>
 <span id="L2889"><span class="lineNum">    2889</span>                 :             :     }</span>
 <span id="L2890"><span class="lineNum">    2890</span>                 :<span class="tlaGNC">         191 :     SummaryCells&amp; cells = cells_per_sink[i];</span></span>
@@ -3076,7 +3076,7 @@
 <span id="L2924"><span class="lineNum">    2924</span>                 :<span class="tlaGNC">        3623 :     return;</span></span>
 <span id="L2925"><span class="lineNum">    2925</span>                 :             :   }</span>
 <span id="L2926"><span class="lineNum">    2926</span>         [<span class="tlaGBC" title="branch 0 was taken 14 times"> + </span><span class="tlaGBC" title="branch 1 was taken 11 times"> + </span>]:<span class="tlaGNC">          25 :   for (std::size_t i = 0; i &lt; specs.size(); ++i) {</span></span>
-<span id="L2927"><span class="lineNum">    2927</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 11 times"> + </span>]:<span class="tlaGNC">          14 :     if (specs[i].mode != SummaryMode::kVerification) {</span></span>
+<span id="L2927"><span class="lineNum">    2927</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 11 times"> + </span>]:<span class="tlaGNC">          14 :     if (specs[i].mode != SummaryMode::kHashVerification) {</span></span>
 <span id="L2928"><span class="lineNum">    2928</span>                 :<span class="tlaGNC">           3 :       continue;</span></span>
 <span id="L2929"><span class="lineNum">    2929</span>                 :             :     }</span>
 <span id="L2930"><span class="lineNum">    2930</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">          22 :     auto&amp; aggregate = cells_per_sink[i][*verification ? &quot;verified&quot; : &quot;failed&quot;];</span></span>
@@ -3600,13 +3600,13 @@
 <span id="L3433"><span class="lineNum">    3433</span>                 :             :   // mixing an UNREDUCED extraction with other text has no single key and is a usage error refused</span>
 <span id="L3434"><span class="lineNum">    3434</span>                 :             :   // before the walk; a reduced extraction is scalar and mixes fine.</span>
 <span id="L3435"><span class="lineNum">    3435</span>                 :<span class="tlaGNC">         735 :   const std::vector&lt;SummarySpec&gt; summaries = ResolveSummaries(command.globals);</span></span>
-<span id="L3436"><span class="lineNum">    3436</span>                 :             :   const bool verification_summary =</span>
-<span id="L3437"><span class="lineNum">    3437</span>                 :<span class="tlaGNC">         806 :       absl::c_any_of(summaries, [](const SummarySpec&amp; spec) { return spec.mode == SummaryMode::kVerification; });</span></span>
-<span id="L3438"><span class="lineNum">    3438</span>         [<span class="tlaGBC" title="branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="branch 1 was taken 726 times"> + </span>]:<span class="tlaGNC">         735 :   if (verification_summary) {</span></span>
+<span id="L3436"><span class="lineNum">    3436</span>                 :             :   const bool hash_verification_summary =</span>
+<span id="L3437"><span class="lineNum">    3437</span>                 :<span class="tlaGNC">         806 :       absl::c_any_of(summaries, [](const SummarySpec&amp; spec) { return spec.mode == SummaryMode::kHashVerification; });</span></span>
+<span id="L3438"><span class="lineNum">    3438</span>         [<span class="tlaGBC" title="branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="branch 1 was taken 726 times"> + </span>]:<span class="tlaGNC">         735 :   if (hash_verification_summary) {</span></span>
 <span id="L3439"><span class="lineNum">    3439</span>         [<span class="tlaGBC" title="branch 0 was taken 9 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">           9 :     const std::size_t checks = expression.has_value() ? CountPrimary(*expression, &quot;-hasheq&quot;) : 0;</span></span>
 <span id="L3440"><span class="lineNum">    3440</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">           9 :     if (checks != 1) {</span></span>
 <span id="L3441"><span class="lineNum">    3441</span>                 :<span class="tlaGNC">           2 :       on_error(</span></span>
-<span id="L3442"><span class="lineNum">    3442</span>                 :             :           &quot;--summary=verification&quot;,</span>
+<span id="L3442"><span class="lineNum">    3442</span>                 :             :           &quot;--summary=hash-verification&quot;,</span>
 <span id="L3443"><span class="lineNum">    3443</span>                 :<span class="tlaGNC">           4 :           absl::InvalidArgumentError(absl::StrCat(&quot;requires exactly one -hasheq expression, found &quot;, checks)));</span></span>
 <span id="L3444"><span class="lineNum">    3444</span>                 :<span class="tlaGNC">           2 :       return RunResult{.errors = 2};</span></span>
 <span id="L3445"><span class="lineNum">    3445</span>                 :             :     }</span>
@@ -3775,7 +3775,7 @@
 <span id="L3605"><span class="lineNum">    3605</span>                 :             :   // Run-scoped rather than per-entry so the phases can share it; cleared before each evaluation.</span>
 <span id="L3606"><span class="lineNum">    3606</span>                 :<span class="tlaGNC">         709 :   std::optional&lt;int&gt; fuzzy_score;</span></span>
 <span id="L3607"><span class="lineNum">    3607</span>                 :             :   // The -hasheq verdict for the entry currently being evaluated. Kept independently from matched:</span>
-<span id="L3608"><span class="lineNum">    3608</span>                 :             :   // a failed check must still reach --summary=verification.</span>
+<span id="L3608"><span class="lineNum">    3608</span>                 :             :   // a failed check must still reach --summary=hash-verification.</span>
 <span id="L3609"><span class="lineNum">    3609</span>                 :<span class="tlaGNC">         709 :   std::optional&lt;bool&gt; hash_verification;</span></span>
 <span id="L3610"><span class="lineNum">    3610</span>                 :             :   // -first N budgets, one per instance, for the whole run (see EvalContext::first_counts).</span>
 <span id="L3611"><span class="lineNum">    3611</span>                 :<span class="tlaGNC">         709 :   FirstCounts first_counts;</span></span>
@@ -3970,8 +3970,8 @@
 <span id="L3795"><span class="lineNum">    3795</span>                 :             :   // NOLINTNEXTLINE(readability-function-cognitive-complexity): one extracted sink dispatch shared by walk and replay</span>
 <span id="L3796"><span class="lineNum">    3796</span>                 :<span class="tlaGNC">        3643 :   const auto finish_entry = [&amp;](const Visit&amp; visit, std::map&lt;std::string, std::string&gt;&amp; outputs, bool matched,</span></span>
 <span id="L3797"><span class="lineNum">    3797</span>                 :             :                                 std::optional&lt;bool&gt; verification) {</span>
-<span id="L3798"><span class="lineNum">    3798</span>         [<span class="tlaGBC" title="branch 0 was taken 1733 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1910 times"> + </span>]:<span class="tlaGNC">        3643 :     if (matched) {</span></span>
-<span id="L3799"><span class="lineNum">    3799</span>                 :<span class="tlaGNC">        1733 :       any_match = true;</span></span>
+<span id="L3798"><span class="lineNum">    3798</span>         [<span class="tlaGBC" title="branch 0 was taken 1732 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1911 times"> + </span>]:<span class="tlaGNC">        3643 :     if (matched) {</span></span>
+<span id="L3799"><span class="lineNum">    3799</span>                 :<span class="tlaGNC">        1732 :       any_match = true;</span></span>
 <span id="L3800"><span class="lineNum">    3800</span>                 :             :     }</span>
 <span id="L3801"><span class="lineNum">    3801</span>                 :             :     const bool counted =</span>
 <span id="L3802"><span class="lineNum">    3802</span>                 :<span class="tlaGNC">        3643 :         *archive_aggregate == ArchiveAggregate::kBoth</span></span>
@@ -3981,7 +3981,7 @@
 <span id="L3805"><span class="lineNum">    3805</span>         [<span class="tlaGBC" title="branch 0 was taken 3634 times"> + </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">        3643 :     if (counted) {</span></span>
 <span id="L3806"><span class="lineNum">    3806</span>                 :<span class="tlaGNC">        3634 :       FeedVerificationSummaries(summaries, summary_cells, visit, verification);</span></span>
 <span id="L3807"><span class="lineNum">    3807</span>                 :             :     }</span>
-<span id="L3808"><span class="lineNum">    3808</span>   [<span class="tlaGBC" title="branch 0 was taken 1733 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1910 times"> + </span><span class="tlaGBC" title="branch 2 was taken 385 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1348 times"> + </span>]:<span class="tlaGNC">        3643 :     if (matched &amp;&amp; any_reduction) {</span></span>
+<span id="L3808"><span class="lineNum">    3808</span>   [<span class="tlaGBC" title="branch 0 was taken 1732 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1911 times"> + </span><span class="tlaGBC" title="branch 2 was taken 385 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1347 times"> + </span>]:<span class="tlaGNC">        3643 :     if (matched &amp;&amp; any_reduction) {</span></span>
 <span id="L3809"><span class="lineNum">    3809</span>         [<span class="tlaGBC" title="branch 0 was taken 67 times"> + </span><span class="tlaGBC" title="branch 1 was taken 318 times"> + </span>]:<span class="tlaGNC">         385 :       if (pack_target.has_value()) {</span></span>
 <span id="L3810"><span class="lineNum">    3810</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 66 times"> + </span>]:<span class="tlaGNC">          67 :         if (visit.metadata.source == vfs::Source::kArchiveMember) {</span></span>
 <span id="L3811"><span class="lineNum">    3811</span>                 :<span class="tlaGNC">           1 :           pack_saw_member = true;</span></span>
@@ -4028,7 +4028,7 @@
 <span id="L3849"><span class="lineNum">    3849</span>                 :<span class="tlaGNC">         267 :         FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);</span></span>
 <span id="L3850"><span class="lineNum">    3850</span>                 :<span class="tlaGNC">         267 :         FeedHistograms(histograms, histogram_cells, visit);</span></span>
 <span id="L3851"><span class="lineNum">    3851</span>                 :<span class="tlaGNC">         267 :       }</span></span>
-<span id="L3852"><span class="lineNum">    3852</span>   [<span class="tlaGBC" title="branch 0 was taken 1348 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1910 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1085 times"> + </span><span class="tlaGBC" title="branch 3 was taken 263 times"> + </span> :<span class="tlaGNC">        3643 :     } else if (matched &amp;&amp; implicit_print &amp;&amp; (!max_results-&gt;has_value() || listed_results &lt; **max_results)) {</span></span>
+<span id="L3852"><span class="lineNum">    3852</span>   [<span class="tlaGBC" title="branch 0 was taken 1347 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1911 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1085 times"> + </span><span class="tlaGBC" title="branch 3 was taken 262 times"> + </span> :<span class="tlaGNC">        3643 :     } else if (matched &amp;&amp; implicit_print &amp;&amp; (!max_results-&gt;has_value() || listed_results &lt; **max_results)) {</span></span>
 <span class="lineNum">        </span> <span class="tlaGBC" title="branch 4 was taken 35 times"> + </span><span class="tlaGBC" title="branch 5 was taken 1050 times"> + </span><span class="tlaGBC" title="branch 6 was taken 15 times"> + </span><span class="tlaGBC" title="branch 7 was taken 20 times"> + </span><span class="tlaGBC" title="branch 8 was taken 1065 times"> + </span> 
 <span class="lineNum">        </span>             <span class="tlaGBC" title="branch 9 was taken 2193 times"> + </span>]
 <span id="L3853"><span class="lineNum">    3853</span>                 :<span class="tlaGNC">        1065 :       ++listed_results;</span></span>
@@ -4188,8 +4188,8 @@
 <span id="L3999"><span class="lineNum">    3999</span>                 :<span class="tlaGNC">        3643 :             .block_size = block_size,</span></span>
 <span id="L4000"><span class="lineNum">    4000</span>                 :             :             .fold_name_case = fold_name_case,</span>
 <span id="L4001"><span class="lineNum">    4001</span>                 :             :             .fuzzy_score = fuzzy_score,</span>
-<span id="L4002"><span class="lineNum">    4002</span>         [<span class="tlaGBC" title="branch 0 was taken 35 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3608 times"> + </span>]:<span class="tlaGNC">        3643 :             .hash_verification = verification_summary ? mbo::types::OptionalRef{hash_verification}</span></span>
-<span id="L4003"><span class="lineNum">    4003</span>                 :             :                                                       : mbo::types::OptionalRef&lt;std::optional&lt;bool&gt;&gt;{},</span>
+<span id="L4002"><span class="lineNum">    4002</span>         [<span class="tlaGBC" title="branch 0 was taken 35 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3608 times"> + </span>]:<span class="tlaGNC">        3643 :             .hash_verification = hash_verification_summary ? mbo::types::OptionalRef{hash_verification}</span></span>
+<span id="L4003"><span class="lineNum">    4003</span>                 :             :                                                            : mbo::types::OptionalRef&lt;std::optional&lt;bool&gt;&gt;{},</span>
 <span id="L4004"><span class="lineNum">    4004</span>                 :             :             .deferred = deferred,</span>
 <span id="L4005"><span class="lineNum">    4005</span>                 :<span class="tlaGNC">        3643 :             .grep_count = grep_count,</span></span>
 <span id="L4006"><span class="lineNum">    4006</span>                 :<span class="tlaGNC">        3643 :             .grep_before = grep_before,</span></span>
@@ -4309,8 +4309,8 @@
 <span id="L4119"><span class="lineNum">    4119</span>                 :             :           .block_size = block_size,</span>
 <span id="L4120"><span class="lineNum">    4120</span>                 :             :           .fold_name_case = fold_name_case,</span>
 <span id="L4121"><span class="lineNum">    4121</span>                 :             :           .fuzzy_score = fuzzy_score,</span>
-<span id="L4122"><span class="lineNum">    4122</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 92 times"> + </span>]:<span class="tlaGNC">          94 :           .hash_verification = verification_summary ? mbo::types::OptionalRef{candidate.hash_verification}</span></span>
-<span id="L4123"><span class="lineNum">    4123</span>                 :             :                                                     : mbo::types::OptionalRef&lt;std::optional&lt;bool&gt;&gt;{},</span>
+<span id="L4122"><span class="lineNum">    4122</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 92 times"> + </span>]:<span class="tlaGNC">          94 :           .hash_verification = hash_verification_summary ? mbo::types::OptionalRef{candidate.hash_verification}</span></span>
+<span id="L4123"><span class="lineNum">    4123</span>                 :             :                                                          : mbo::types::OptionalRef&lt;std::optional&lt;bool&gt;&gt;{},</span>
 <span id="L4124"><span class="lineNum">    4124</span>                 :             :           .deferred = deferred,</span>
 <span id="L4125"><span class="lineNum">    4125</span>                 :             :           .grep_count = grep_count,</span>
 <span id="L4126"><span class="lineNum">    4126</span>                 :             :           .grep_before = grep_before,</span>
