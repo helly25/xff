@@ -126,6 +126,9 @@ TEST_F(ArchiveBackendTest, WithNoBackendThereIsNoSupportAndOpeningSaysWhy) {
   EXPECT_THAT(ContainerSupportAvailable(), IsFalse());
   EXPECT_THAT(
       OpenContainer("some.tar"), StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("without archive support")));
+  EXPECT_THAT(
+      OpenContainerBytes("inner.tar", "bytes"),
+      StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("without archive support")));
 }
 
 TEST_F(ArchiveBackendTest, TheNameGateAcceptsFormatsAndPackagesAlike) {
@@ -288,8 +291,35 @@ TEST_F(ArchiveBackendTest, IndependentReadersComposeAndFallThroughOnlyOnNotMyFor
   EXPECT_THAT(calls, ElementsAre("a", "b"));
 
   calls.clear();
+  EXPECT_THAT(OpenContainerBytes("bundle.b", "contents"), IsOk());
+  EXPECT_THAT(calls, ElementsAre("a", "b"));
+
+  calls.clear();
+  EXPECT_THAT(OpenContainer("plain"), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("not b")));
+  EXPECT_THAT(calls, ElementsAre("a", "b"));
+
+  calls.clear();
+  EXPECT_THAT(
+      OpenContainerBytes("plain", "contents"), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("not b")));
+  EXPECT_THAT(calls, ElementsAre("a", "b"));
+
+  calls.clear();
   EXPECT_THAT(OpenContainer("broken.a"), StatusIs(absl::StatusCode::kDataLoss, HasSubstr("broken a")));
   EXPECT_THAT(calls, ElementsAre("a"));
+
+  RegisterContainerReader(
+      "test-a",
+      [&calls](std::string_view, std::optional<std::string_view>, MemberPathOptions) {
+        calls.emplace_back("new-a");
+        return std::make_unique<StubFileSystem>();
+      },
+      {{.name = "new-a", .suffixes = {".new-a"}}});
+  EXPECT_THAT(
+      ContainerReadFormats(),
+      ElementsAre(Field("name", &ReadFormatInfo::name, "new-a"), Field("name", &ReadFormatInfo::name, "b")));
+  calls.clear();
+  EXPECT_THAT(OpenContainer("anything"), IsOk());
+  EXPECT_THAT(calls, ElementsAre("new-a"));
 }
 
 TEST_F(ArchiveBackendTest, WithNoBackendThereAreNoReadFormatsAndRegistrationInstallsThem) {
