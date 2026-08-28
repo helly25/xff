@@ -19,6 +19,12 @@ intent, not hard dependency. Task numbers reference the agent task list.
 
 ### Small slices in flight (task ledger)
 
+- **Field help-model cleanup (shipped 2026-08-28):** the fields module now owns structured documentation
+  for brace behavior, dynamic namespaces, qualifiers, and the extraction pipeline alongside its named
+  field vocabulary. The generic help builder only translates that model, so plain, Markdown, and roff
+  output cannot acquire backend-specific copies. The redundant exhaustive API comment was reduced to
+  focused API documentation; model tests guard completeness, non-empty rows, and stable storage.
+
 - **SquashFS reading (shipped 2026-08-28):** the removable `@xff_squashfs` extra uses BSD-licensed
   libsqsh as an independent named container reader. Raw images, Snap packages, and prefixed AppImages
   expose indexed metadata, links, and contents through the ordinary VFS vocabulary, including images

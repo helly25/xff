@@ -215,8 +215,8 @@ Content PrimaryEntry(const registry::Descriptor& descriptor, bool with_details =
       }};
 }
 
-// FIELDS: the named {field} vocabulary as grouped subsections of rows, then the brace
-// rules, dynamic namespaces, and qualifiers. Mirrors WriteFields() as model nodes.
+// FIELDS: translate the fields module's canonical vocabulary and syntax documentation
+// into backend-neutral help-model nodes.
 Section BuildFields() {
   Section section{.title = "Fields"};
   section.children.push_back(ProseOf(
@@ -252,55 +252,32 @@ Section BuildFields() {
   }
   flush();
 
+  const fields::FieldHelpDocs& help = fields::FieldSyntaxDocs();
   Subsection braces{.title = "Braces"};
-  braces.children.push_back(
-      Content{
-          .node = Bullets{
-              .items = {
-                  ParseInline("`{{` and `}}` emit literal braces"),
-                  ParseInline("`{}` is an alias for `{path}`"),
-                  ParseInline("an unknown field renders empty"),
-                  ParseInline("a malformed or unterminated `{` stays literal"),
-              }}});
+  Bullets brace_rules;
+  for (const std::string& rule : help.brace_rules) {
+    brace_rules.items.push_back(ParseInline(rule));
+  }
+  braces.children.push_back(Content{.node = std::move(brace_rules)});
   section.children.push_back(Content{.node = std::move(braces)});
 
-  static constexpr std::array<DocPair, 4> kDynamicNamespaces = {{
-      {"{0}..{N}", "-regex captures ({0} the whole match, {1}..{N} the groups)"},
-      {"{env.NAME}", "a process environment variable"},
-      {"{def.NAME}", "a --define value"},
-      {"{capture.NAME}", "a -capture command result"},
-  }};
   Subsection dynamic{.title = "Dynamic namespaces"};
-  dynamic.children.push_back(RowsOf(kDynamicNamespaces));
+  Rows dynamic_rows;
+  for (const fields::FieldHelpRow& row : help.dynamic_namespaces) {
+    dynamic_rows.rows.push_back(Row{.term = row.term, .description = ParseInline(row.description)});
+  }
+  dynamic.children.push_back(Content{.node = std::move(dynamic_rows)});
   section.children.push_back(Content{.node = std::move(dynamic)});
 
-  const std::string path_comp = absl::StrCat(
-      "path component of the value: ", absl::StrJoin(fields::PathComponentKeywords(), "|"),
-      "; any path-valued field composes, e.g. {relpath:stem}, {def.B:dir}");
-  const std::array<DocPair, 6> qualifiers = {{
-      {"{mtime:FMT}", "time format: strftime (%Y-%m-%d) or preset (iso, epoch); see --time-format / --timezone"},
-      {"{size:h}", "human-readable size"},
-      {"{name:s/RE/R/f}", "RE2 rewrite of the value (flags g=all, i=ignore-case; any delimiter)"},
-      {"{cap:m/RE/R/f}",
-       "per-line extraction: a value stream, e.g. a --summary key (m//, s///'s list-producing sibling)"},
-      {"{cap:m/RE/R/;join(SEP)}",
-       "reduce the stream to one scalar (join, SEP default newline) so m// is usable in a scalar context "
-       "(-printf / --template / -exec); reducers are function-notation, e.g. join(, )"},
-      {"{path:COMP}", path_comp},
-  }};
   Subsection quals{.title = "Qualifiers ({field:QUAL})"};
-  quals.children.push_back(RowsOf(qualifiers));
-  quals.children.push_back(ProseOf(
-      "An m// extraction is a left-to-right pipeline: s/// maps whatever is flowing (each line, then "
-      "the scalar), and a terminal reducer such as join collapses the stream to one scalar."));
-  quals.children.push_back(ExampleOf(
-      "  {cap:m/PAT/REP/;s/PAT/REP/;join(SEP);s/PAT/REP/}\n"
-      "       |________| |________| |_______| |________|\n"
-      "       extract    map each   reduce    rewrite\n"
-      "       per line   line       stream    scalar"));
-  quals.children.push_back(ProseOf(
-      "For -printf's own % directives (%p %f %s %t ...) and the `%{field}` escape that bridges them "
-      "to this vocabulary, see the Printf directives (`--help=-printf`)."));
+  Rows qualifier_rows;
+  for (const fields::FieldHelpRow& row : help.qualifiers) {
+    qualifier_rows.rows.push_back(Row{.term = row.term, .description = ParseInline(row.description)});
+  }
+  quals.children.push_back(Content{.node = std::move(qualifier_rows)});
+  quals.children.push_back(ProseOf(help.qualifier_pipeline));
+  quals.children.push_back(ExampleOf(help.qualifier_example));
+  quals.children.push_back(ProseOf(help.printf_note));
   section.children.push_back(Content{.node = std::move(quals)});
   return section;
 }

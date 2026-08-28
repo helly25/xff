@@ -87,50 +87,6 @@ struct RenderContext {
 // to one of these once, so Render is a direct call per entry, not name matching.
 using FieldFn = mbo::StringOrView (*)(std::string_view key, std::string_view qualifier, const RenderContext& context);
 
-// Renders {field} placeholder templates against a visited entry, substituting
-// values from a RenderContext (path, root, metadata, depth). `{{` and `}}` emit
-// literal braces; an unterminated or malformed `{` stays literal; an unknown
-// field renders empty. This backs the --format/--template output and (gated)
-// -exec substitution.
-//
-// Supported: {path} {root} {relpath} (path relative to the search root, find's %P)
-// {dir} {name}/{file} {stem} {core} (name minus ALL extensions: "foo") {ext}/{extension}
-// {suffix} (last, with dot: ".gz")
-// {suffixes} {target} (a symlink's target, find %l) {depth} {size} ({size:h}
-// human-readable) {type} {lang}/{language} (programming language by
-// extension/filename) {inode} {links} {dev}
-// {hash} (file digest; {hash:ALGO[/ENCODING]} picks the algorithm, default sha256,
-// and hex or base64, e.g. {hash:sha256/base64})
-// {mode}/{perm} (octal) {access} (ls -l / stat %A symbolic) {user} {group} {uid}
-// {gid}, and time fields {atime} {mtime} {ctime}
-// {btime} with an optional qualifier {field:QUAL} -- a strftime format
-// ({mtime:%Y-%m-%d}) or preset ({mtime:iso|epoch}); rendered in
-// RenderContext::tz (the local zone unless --timezone overrides it), default
-// ISO-8601. A qualifier may also be a "C-quoted string"
-// ({mtime:"{\"t\":\"%H:%M\"}"}) so it can hold a literal '}' or ':'; inside it
-// \" and \\ are escapes. A numeric placeholder {0}..{N} renders a regex capture
-// from RenderContext::captures ({0} the whole match, {1}..{N} the groups; empty
-// when unset or out of range) -- used by gated -exec after a -regex match. The
-// {env.NAME} namespace renders a process environment variable, {def.NAME} a
-// --define value, and {capture.NAME} a -capture result (each empty when unset).
-// As a qualifier, a sed-style rewrite {field:s/PAT/REPL/flags} (any delimiter;
-// flags g=all, i=ignore-case) post-processes the field's value via RE2. Several rewrites chain with
-// `;` and apply left to right ({name:s/a/b/;s/c/d/}); a command after `;` may omit the leading `s`
-// ({name:s/a/b/;/c/d/}). A
-// path-component qualifier likewise post-processes, treating the value as a path and
-// extracting a component -- {field:dir|name|basename|file|core|stem|ext|extension|
-// suffix|suffixes|path} -- so any path-valued field composes: {path:name} == {name},
-// {relpath:stem}, {def.B:dir}, {target:ext}.
-//
-// The {field:m<delim>PAT<delim>REPL<delim>flags} qualifier is the LINE-oriented, LIST-producing
-// sibling of s///: it splits the field's (multi-line) value into lines, and for each line that
-// matches PAT emits the RE2 rewrite REPL (\0 whole match, \1..\9 groups; flags g/i). Lines that do
-// not match are dropped -- so it filters as well as transforms. Unlike s/// (scalar -> scalar over
-// the whole value), m// is multi-line -> a value stream, consumed by an aggregation key
-// (AsExtraction below). In a scalar Render context it degrades to the matches newline-joined. Like
-// s///, an m// qualifier chains with `;`: the FIRST command filters+extracts each line, and the rest
-// substitute on the surviving per-line value ({capture.NAME:m/^author (.+)$/\1/;s/ /_/g}).
-//
 // Compile parses the template once into literal/field segments; the resulting
 // Template renders against many entries without re-scanning -- the hot path for
 // --template (and -exec), which render every match.
@@ -192,10 +148,31 @@ struct FieldDoc {
   std::string_view summary;                    // one-line description
 };
 
+// One row in the structured syntax reference owned by the field implementation.
+struct FieldHelpRow {
+  std::string term;
+  std::string description;
+};
+
+// Output-independent documentation for field syntax beyond the named vocabulary.
+// The help builder translates this model; it does not author field behavior itself.
+struct FieldHelpDocs {
+  std::vector<std::string> brace_rules;
+  std::vector<FieldHelpRow> dynamic_namespaces;
+  std::vector<FieldHelpRow> qualifiers;
+  std::string qualifier_pipeline;
+  std::string qualifier_example;
+  std::string printf_note;
+};
+
 // The named {field} vocabulary, grouped for display (rows are pre-ordered by group).
 // Covers exactly the renderable field names; the dynamic namespaces ({env.NAME},
 // {def.NAME}, {capture.NAME}, {0}..{N}) and the qualifiers are prose in the renderer.
 [[nodiscard]] absl::Span<const FieldDoc> FieldDocs();
+
+// The canonical brace, namespace, qualifier, and pipeline documentation. Stable for
+// the process lifetime so every output backend consumes the same field semantics.
+[[nodiscard]] const FieldHelpDocs& FieldSyntaxDocs();
 
 // Every renderable field name (the {field} table keys), including the empty name that
 // backs {} (find's full-path placeholder). Powers the FieldDocs() coverage test.

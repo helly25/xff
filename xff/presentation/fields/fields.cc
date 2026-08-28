@@ -39,6 +39,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/match.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "absl/time/time.h"
@@ -57,6 +58,10 @@ namespace {
 
 namespace stdfs = ::std::filesystem;
 using ::mbo::StringOrView;
+
+constexpr std::string_view kEnvironmentNamespace = "env.";
+constexpr std::string_view kDefinitionNamespace = "def.";
+constexpr std::string_view kCaptureNamespace = "capture.";
 
 // find's -printf %y / the {type} field letter, keyed by file type (kUnknown and any
 // unmapped value fall through to 'U'). A constexpr map, per the style's preference
@@ -665,14 +670,14 @@ std::pair<FieldFn, std::string> ResolveName(std::string_view name) {
   if (CaptureIndex(name) >= 0) {
     return {&CaptureField, std::string(name)};
   }
-  if (name.starts_with("env.")) {
-    return {&EnvField, std::string(name.substr(4))};
+  if (name.starts_with(kEnvironmentNamespace)) {
+    return {&EnvField, std::string(name.substr(kEnvironmentNamespace.size()))};
   }
-  if (name.starts_with("def.")) {
-    return {&DefField, std::string(name.substr(4))};
+  if (name.starts_with(kDefinitionNamespace)) {
+    return {&DefField, std::string(name.substr(kDefinitionNamespace.size()))};
   }
-  if (name.starts_with("capture.")) {
-    return {&OutputField, std::string(name.substr(8))};
+  if (name.starts_with(kCaptureNamespace)) {
+    return {&OutputField, std::string(name.substr(kCaptureNamespace.size()))};
   }
   return {LookupField(name), std::string()};
 }
@@ -1319,6 +1324,60 @@ absl::Span<const FieldDoc> FieldDocs() {
   return kDocs;
 }
 
+const FieldHelpDocs& FieldSyntaxDocs() {
+  static const FieldHelpDocs kDocs = [] {
+    const std::string path_components = absl::StrCat(
+        "path component of the value: ", absl::StrJoin(kPathComponents, "|"),
+        "; any path-valued field composes, e.g. {relpath:stem}, {def.B:dir}");
+    return FieldHelpDocs{
+        .brace_rules =
+            {
+                "`{{` and `}}` emit literal braces",
+                "`{}` is an alias for `{path}`",
+                "an unknown field renders empty",
+                "a malformed or unterminated `{` stays literal",
+            },
+        .dynamic_namespaces =
+            {
+                {.term = "{0}..{N}", .description = "-regex captures ({0} the whole match, {1}..{N} the groups)"},
+                {.term = absl::StrCat("{", kEnvironmentNamespace, "NAME}"),
+                 .description = "a process environment variable"},
+                {.term = absl::StrCat("{", kDefinitionNamespace, "NAME}"), .description = "a --define value"},
+                {.term = absl::StrCat("{", kCaptureNamespace, "NAME}"), .description = "a -capture command result"},
+            },
+        .qualifiers =
+            {
+                {.term = "{mtime:FMT}",
+                 .description =
+                     "time format: strftime (%Y-%m-%d) or preset (iso, epoch); see --time-format / --timezone"},
+                {.term = "{size:h}", .description = "human-readable size"},
+                {.term = "{name:s/RE/R/f}",
+                 .description = "RE2 rewrite of the value (flags g=all, i=ignore-case; any delimiter)"},
+                {.term = "{cap:m/RE/R/f}",
+                 .description =
+                     "per-line extraction: a value stream, e.g. a --summary key (m//, s///'s list-producing sibling)"},
+                {.term = "{cap:m/RE/R/;join(SEP)}",
+                 .description =
+                     "reduce the stream to one scalar (join, SEP default newline) so m// is usable in a scalar "
+                     "context (-printf / --template / -exec); reducers are function-notation, e.g. join(, )"},
+                {.term = "{path:COMP}", .description = path_components},
+            },
+        .qualifier_pipeline =
+            "An m// extraction is a left-to-right pipeline: s/// maps whatever is flowing (each line, then "
+            "the scalar), and a terminal reducer such as join collapses the stream to one scalar.",
+        .qualifier_example =
+            "  {cap:m/PAT/REP/;s/PAT/REP/;join(SEP);s/PAT/REP/}\n"
+            "       |________| |________| |_______| |________|\n"
+            "       extract    map each   reduce    rewrite\n"
+            "       per line   line       stream    scalar",
+        .printf_note =
+            "For -printf's own % directives (%p %f %s %t ...) and the `%{field}` escape that bridges them "
+            "to this vocabulary, see the Printf directives (`--help=-printf`).",
+    };
+  }();
+  return kDocs;
+}
+
 absl::Span<const std::string_view> FieldNames() {
   static constexpr auto kNames = [] {
     std::array<std::string_view, kFieldTable.size()> names{};
@@ -1332,7 +1391,8 @@ bool IsKnownField(std::string_view spec) {
   const std::string_view name = spec.substr(0, spec.find(':'));  // strip an optional :qualifier
   return LookupField(name) != &EmptyField                        // a builtin field (incl. "" -> {} path alias)
          || CaptureIndex(name) >= 0                              // a {0}..{N} regex capture
-         || name.starts_with("env.") || name.starts_with("def.") || name.starts_with("capture.");
+         || name.starts_with(kEnvironmentNamespace) || name.starts_with(kDefinitionNamespace)
+         || name.starts_with(kCaptureNamespace);
 }
 
 absl::Span<const std::string_view> PathComponentKeywords() {
