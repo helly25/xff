@@ -19,6 +19,18 @@ Every current coverage group meets the shared high boundaries. Category override
 stricter; there are no lowered onboarding overrides. The JSON policy remains the single source of truth
 for enforcement and presentation.
 
+## Active engineering priorities
+
+1. **Fuzzing.** Adopt `rules_fuzzing` with committed seed corpora, grammar dictionaries, semantic
+   invariants, and ordinary-CI regression replay. Start with the command grammar and fuzzy matching,
+   then cover templates and the xff-owned PHAR/ASAR binary parsers before adding bounded scheduled
+   continuous campaigns.
+2. **Performance evidence.** Establish reproducible traversal, parser, matching, and memory benchmarks
+   before optimizing. Keep fuzz time/resource guards separate from stable performance measurements.
+3. **Near-duplicate benchmark/design spike.** Measure exact Jaccard verification behind scalable
+   candidate generation before settling the grouping architecture, configuration, or core-versus-extra
+   boundary. False positives may reach exact verification but must never reach emitted clusters.
+
 ## Design required before implementation
 
 1. **Reassembled shard contents (shards v2).** Decide whether the logical whole replaces or accompanies
