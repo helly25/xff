@@ -34,12 +34,15 @@
 # include <sys/vfs.h>  // statfs + f_type magic (Linux reports a number, not a name)
 #endif
 
+#include <algorithm>
 #include <array>
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>
 #include <ctime>
+#include <limits>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -330,6 +333,52 @@ absl::StatusOr<std::string> LocalFs::ReadContent(std::string_view path) const {
     content.append(buffer.data(), static_cast<std::string::size_type>(count));
   }
   ::close(fd);
+  return content;
+}
+
+absl::StatusOr<std::string> LocalFs::ReadContentRange(std::string_view path, std::uint64_t offset, std::size_t length)
+    const {
+  const std::string path_str(path);
+  // O_CLOEXEC so the fd is not leaked into -exec'd children; open() is variadic by declaration.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
+  const int fd = ::open(path_str.c_str(), O_RDONLY | O_CLOEXEC);
+  if (fd < 0) {
+    return absl::ErrnoToStatus(errno, absl::StrCat("open('", path, "')"));
+  }
+  if (length == 0) {
+    ::close(fd);
+    return std::string();
+  }
+  if (offset > static_cast<std::uint64_t>(std::numeric_limits<off_t>::max())) {
+    ::close(fd);
+    return absl::OutOfRangeError(absl::StrCat("read offset is not representable for '", path, "': ", offset));
+  }
+
+  std::string content(length, '\0');
+  std::size_t total = 0;
+  while (total < length) {
+    const auto max_offset = static_cast<std::uint64_t>(std::numeric_limits<off_t>::max());
+    if (total > max_offset - offset) {
+      break;
+    }
+    const std::size_t chunk = std::min(length - total, static_cast<std::size_t>(std::numeric_limits<ssize_t>::max()));
+    const ssize_t count =
+        ::pread(fd, std::span<char>(content).subspan(total).data(), chunk, static_cast<off_t>(offset + total));
+    if (count < 0) {
+      if (errno == EINTR) {  // LCOV_EXCL_BR_LINE: requires interrupting the individual pread syscall.
+        continue;            // LCOV_EXCL_LINE
+      }
+      const int read_errno = errno;
+      ::close(fd);
+      return absl::ErrnoToStatus(read_errno, absl::StrCat("pread('", path, "')"));
+    }
+    if (count == 0) {
+      break;
+    }
+    total += static_cast<std::size_t>(count);
+  }
+  ::close(fd);
+  content.resize(total);
   return content;
 }
 

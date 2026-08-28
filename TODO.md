@@ -23,16 +23,13 @@ for enforcement and presentation.
 
 Ordered by current value and readiness, not by implementation size.
 
-1. **Archive name-gate peeking.** Add a bounded partial-read VFS operation, then evaluate magic peeking
-   for archive discovery without reading every candidate file in full. Keep suffix gating as the cheap
-   default unless measurements justify changing it.
-2. **Per-format archive URI prefixes.** Extend explicit `--archive-prefix=URI` rendering for formats
+1. **Per-format archive URI prefixes.** Extend explicit `--archive-prefix=URI` rendering for formats
    such as `phar:///...` and `jar:file:///...!/`; keep the ordinary `!` path representation unique and
    pasteable.
-3. **Hash verification reduction.** Feed the per-entry `-hasheq` verdict into the thread-safe reduction
+2. **Hash verification reduction.** Feed the per-entry `-hasheq` verdict into the thread-safe reduction
    path for a single-pass verified/failed tally. A sidecar manifest reader may then populate definitions
    from `sha256sum`-style files without creating a second hash-verification mechanism.
-4. **Help-model cleanup.** Remove the remaining duplicated fields documentation between the help builder
+3. **Help-model cleanup.** Remove the remaining duplicated fields documentation between the help builder
    and renderer now that all output backends consume the generalized help model.
 
 ## Design required before implementation

@@ -26,6 +26,17 @@ intent, not hard dependency. Task numbers reference the agent task list.
   explicit; lzo remains disabled because its available dependency is GPL-licensed. Creation and
   rewriting remain separate future work rather than being implied by the read support.
 
+- **Archive name-gate peeking (resolved 2026-08-28):** the VFS now has `ReadContentRange`, with a
+  `pread` implementation for local files so a probe can request a bounded range without changing a
+  shared file position or materializing the file. Virtual backends inherit a correctness fallback;
+  formats that expose useful random access can override it independently. Content magic does not
+  replace the cheap suffix gate: supported formats include signatures at nonzero offsets, signatures
+  too weak to identify a container alone, and formats without one universal signature. A fallback
+  probe would still open and read every suffixless source file, imposing the cost the gate exists to
+  avoid while also missing valid containers. `--archive=any` therefore remains the explicit complete
+  format-bidding mode; a future magic policy can use the bounded seam, but must be opt-in or backed by
+  measurements and a registry that states its incomplete format coverage.
+
 - **#202 (shipped, PR #541)**: the FORMATS TABLE under `--help=archive` (format, read, write,
   extensions), rendered as a real `Table` node aligned in every backend (plain, markdown, roff);
   the read side registers its formats + suffixes through the seam (`RegisterContainerReadFormats`)
