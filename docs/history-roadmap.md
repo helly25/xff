@@ -1549,3 +1549,18 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
     above for the mechanism, and for the dead end that came first.
   - **CI:** one `msan` cell (ubuntu only) mirroring `tsan` - a plain `bazel test`, hard-gated in
     `done`'s `needs` like every other cell.
+
+## Single-pass hash verification reduction (SHIPPED 2026-08-28)
+
+`--summary=verification` feeds the verdict of exactly one `-hasheq` into the same run-wide reduction
+used by the other summaries, producing `verified`, `failed`, and `total` rows with counts and byte
+totals. A failed predicate is still counted even when it makes the complete expression false; an
+entry that short-circuits before `-hasheq` has no verdict and contributes nothing. Requiring one check
+keeps each bucket unambiguous instead of silently combining unrelated algorithms or expected values.
+
+The side channel exists only when this summary is requested and survives deferred expression replay,
+while the evaluator memo keeps the hash predicate single-shot. The walk's ordered visitor remains the
+single reduction writer, so parallel traversal does not introduce shared-cell races. Empty expected
+values, unreadable entries, and invalid defensive fallbacks are failures, matching `-hasheq`'s existing
+truth semantics. A future `sha256sum` manifest reader can populate definitions for this predicate
+without adding a second verification engine or a second filesystem walk.

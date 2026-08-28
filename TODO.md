@@ -23,10 +23,7 @@ for enforcement and presentation.
 
 Ordered by current value and readiness, not by implementation size.
 
-1. **Hash verification reduction.** Feed the per-entry `-hasheq` verdict into the thread-safe reduction
-   path for a single-pass verified/failed tally. A sidecar manifest reader may then populate definitions
-   from `sha256sum`-style files without creating a second hash-verification mechanism.
-2. **Help-model cleanup.** Remove the remaining duplicated fields documentation between the help builder
+1. **Help-model cleanup.** Remove the remaining duplicated fields documentation between the help builder
    and renderer now that all output backends consume the generalized help model.
 
 ## Design required before implementation

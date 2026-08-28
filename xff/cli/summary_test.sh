@@ -112,6 +112,18 @@ test::summary_hash_groups_identical_files_into_one_bucket() {
   expect_matches '\{"group":"total","count":3,"bytes":9\}' "${out}"
 }
 
+test::summary_verification_tallies_passes_and_failures() {
+  local root out
+  root="$(_new_tree)"
+  printf 'abc' >"${root}/good"
+  printf 'xyz' >"${root}/bad"
+  out="$(_run --summary=verification --format=jsonl "${root}" -type f -hasheq \
+    ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad)"
+  expect_matches '\{"group":"failed","count":1,"bytes":3\}' "${out}"
+  expect_matches '\{"group":"verified","count":1,"bytes":3\}' "${out}"
+  expect_matches '\{"group":"total","count":2,"bytes":6\}' "${out}"
+}
+
 # A 5,872,025-byte file to exercise human size units (5.6 MiB / 5.9 MB).
 _make_big() {
   local tree
