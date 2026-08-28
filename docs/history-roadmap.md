@@ -19,6 +19,13 @@ intent, not hard dependency. Task numbers reference the agent task list.
 
 ### Small slices in flight (task ledger)
 
+- **SHGLOB brace sequences (shipped 2026-08-28):** SHGLOB now accepts signed integer and ASCII-letter
+  sequences in either direction (`{1..9}`, `{09..01}`, `{a..z}`), including nested use inside brace
+  alternatives. A leading zero preserves integer width. Expansion is bounded at 10,000 terms; the
+  optional shell increment form remains literal rather than receiving a partial interpretation. GLOB
+  continues to treat every brace literally. Translation remains in mbo's shared glob parser, with xff
+  pinning the prerequisite commit until its next release.
+
 - **Field help-model cleanup (shipped 2026-08-28):** the fields module now owns structured documentation
   for brace behavior, dynamic namespaces, qualifiers, and the extraction pipeline alongside its named
   field vocabulary. The generic help builder only translates that model, so plain, Markdown, and roff

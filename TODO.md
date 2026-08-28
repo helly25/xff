@@ -38,7 +38,6 @@ for enforcement and presentation.
 
 - Filesystem-name behavior: Unicode normalization and Linux per-directory case-fold detection.
 - Per-summary-sink modifiers.
-- Shell-glob numeric/alphabetic brace ranges.
 - Histogram time buckets, explicit bucket edges/counts, and per-line template measures.
 - Text-flavor mixed-line-ending policies.
 - Post-1.0 behavior migration through `--unstable=NAME` if a concrete unstable spelling needs it;

@@ -123,6 +123,20 @@ test::regextype_shglob_expands_brace_alternation() {
   expect_not_matches 'plain line' "${out}" # a non-matching line is not printed
 }
 
+test::regextype_shglob_expands_integer_and_letter_sequences() {
+  local root out
+  root="$(test_tmpdir tree)"
+  mkdir -p "${root}"
+  printf 'part-03.a\npart-02.b\npart-01.c\npart-3.a\npart-00.a\npart-02.d\n' >"${root}/n.txt"
+  out="$(_run --regextype=SHGLOB "${root}" -type f -grep 'part-{03..01}.{a..c}')"
+  expect_matches '/n\.txt:1:part-03\.a' "${out}"
+  expect_matches '/n\.txt:2:part-02\.b' "${out}"
+  expect_matches '/n\.txt:3:part-01\.c' "${out}"
+  expect_not_matches 'part-3\.a' "${out}"
+  expect_not_matches 'part-00\.a' "${out}"
+  expect_not_matches 'part-02\.d' "${out}"
+}
+
 test::regextype_glob_keeps_braces_literal() {
   local root out
   root="$(test_tmpdir tree)"
