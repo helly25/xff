@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-28 09:06:20</td>
+            <td class="headerValue">2026-08-28 16:43:00</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -132,11 +132,11 @@
 <span id="L52"><span class="lineNum">      52</span>                 :             : // hand-written plain help did), unlike free prose which drops it.</span>
 <span id="L53"><span class="lineNum">      53</span>                 :<span class="tlaGNC">       16582 : std::string RenderInlinesRaw(const Inlines&amp; runs) {</span></span>
 <span id="L54"><span class="lineNum">      54</span>                 :<span class="tlaGNC">       16582 :   std::string out;</span></span>
-<span id="L55"><span class="lineNum">      55</span>         [<span class="tlaGBC" title="branch 0 was taken 43146 times"> + </span><span class="tlaGBC" title="branch 1 was taken 16582 times"> + </span>]:<span class="tlaGNC">       59728 :   for (const Inline&amp; run : runs) {</span></span>
-<span id="L56"><span class="lineNum">      56</span>         [<span class="tlaGBC" title="branch 0 was taken 13403 times"> + </span><span class="tlaGBC" title="branch 1 was taken 29743 times"> + </span>]:<span class="tlaGNC">       43146 :     if (run.style == Inline::Style::kCode) {</span></span>
-<span id="L57"><span class="lineNum">      57</span>                 :<span class="tlaGNC">       13403 :       absl::StrAppend(&amp;out, &quot;`&quot;, run.text, &quot;`&quot;);</span></span>
+<span id="L55"><span class="lineNum">      55</span>         [<span class="tlaGBC" title="branch 0 was taken 43290 times"> + </span><span class="tlaGBC" title="branch 1 was taken 16582 times"> + </span>]:<span class="tlaGNC">       59872 :   for (const Inline&amp; run : runs) {</span></span>
+<span id="L56"><span class="lineNum">      56</span>         [<span class="tlaGBC" title="branch 0 was taken 13475 times"> + </span><span class="tlaGBC" title="branch 1 was taken 29815 times"> + </span>]:<span class="tlaGNC">       43290 :     if (run.style == Inline::Style::kCode) {</span></span>
+<span id="L57"><span class="lineNum">      57</span>                 :<span class="tlaGNC">       13475 :       absl::StrAppend(&amp;out, &quot;`&quot;, run.text, &quot;`&quot;);</span></span>
 <span id="L58"><span class="lineNum">      58</span>                 :             :     } else {</span>
-<span id="L59"><span class="lineNum">      59</span>                 :<span class="tlaGNC">       29743 :       absl::StrAppend(&amp;out, run.text);</span></span>
+<span id="L59"><span class="lineNum">      59</span>                 :<span class="tlaGNC">       29815 :       absl::StrAppend(&amp;out, run.text);</span></span>
 <span id="L60"><span class="lineNum">      60</span>                 :             :     }</span>
 <span id="L61"><span class="lineNum">      61</span>                 :             :   }</span>
 <span id="L62"><span class="lineNum">      62</span>                 :<span class="tlaGNC">       16582 :   return out;</span></span>
