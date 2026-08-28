@@ -144,21 +144,22 @@ TEST_F(GlobalsTest, IsKnownGlobalRejectsUnknownFlagsAndBadValuedKeys) {
   EXPECT_FALSE(IsKnownGlobal("--bogus=1"));  // unknown key with a value
 }
 
-TEST_F(GlobalsTest, EveryEnumCheckedFlagHasAValueTableToCheckAgainst) {
-  // kEnum matches against the flag's own `values` table, so an EMPTY table would reject every
-  // value while reporting an empty accepted-list - which is exactly what happened when a flag was
-  // marked kEnum before its table existed.
+TEST_F(GlobalsTest, EveryTableCheckedFlagHasAValueTableToCheckAgainst) {
+  // Both table-backed modes match named values against the flag's own `values` table, so an EMPTY
+  // table would reject every named value while reporting an empty accepted-list.
   for (const GlobalFlag& flag : Globals()) {
-    if (flag.value_check == GlobalFlag::ValueCheck::kEnum) {
+    if (flag.value_check == GlobalFlag::ValueCheck::kEnum
+        || flag.value_check == GlobalFlag::ValueCheck::kEnumOrTemplate) {
       EXPECT_THAT(flag.values, Not(IsEmpty())) << flag.name;
     }
   }
 }
 
-TEST_F(GlobalsTest, AnEnumFlagAcceptsEveryValueItDocumentsAndRejectsATypo) {
+TEST_F(GlobalsTest, ATableCheckedFlagAcceptsEveryValueItDocumentsAndRejectsATypo) {
   // The table is the SOT for the help AND the check, so what is printed is what is accepted.
   for (const GlobalFlag& flag : Globals()) {
-    if (flag.value_check != GlobalFlag::ValueCheck::kEnum) {
+    if (flag.value_check != GlobalFlag::ValueCheck::kEnum
+        && flag.value_check != GlobalFlag::ValueCheck::kEnumOrTemplate) {
       continue;
     }
     for (const ValueDoc& value : flag.values) {
@@ -170,6 +171,15 @@ TEST_F(GlobalsTest, AnEnumFlagAcceptsEveryValueItDocumentsAndRejectsATypo) {
         StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("unknown value")))
         << flag.name;
   }
+}
+
+TEST_F(GlobalsTest, SummaryHashVerificationDoesNotAliasDigestGrouping) {
+  EXPECT_THAT(ValidateGlobalValue("--summary=hash"), IsOk());
+  EXPECT_THAT(ValidateGlobalValue("--summary=hash-verification"), IsOk());
+  EXPECT_THAT(ValidateGlobalValue("--summary={ext}-{type}"), IsOk());
+  EXPECT_THAT(
+      ValidateGlobalValue("--summary=verification"),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("unknown value")));
 }
 
 TEST_F(GlobalsTest, TheSharedVocabularyFlagsTakeEverySpellingOfIt) {

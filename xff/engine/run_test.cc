@@ -1476,13 +1476,13 @@ TEST_F(RunTest, SummaryByLanguageGroupsThenTotals) {
           R"j({"group":"total","count":3,"bytes":3})j"));
 }
 
-TEST_F(RunTest, SummaryVerificationCountsPassedAndFailedChecksInOneWalk) {
+TEST_F(RunTest, SummaryHashVerificationCountsPassedAndFailedChecksInOneWalk) {
   // sha256("a"): a.txt verifies; b.md and sub/c.txt reach the same -hasheq and fail. Failed
   // predicates make the overall expression false but remain part of the verification tally.
   constexpr std::string_view kSha256A = "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb";
   EXPECT_THAT(
       RunArgvRecords(
-          {"--summary=type", "--summary=verification", "--format=jsonl", root_.string(), "-type", "f", "-hasheq",
+          {"--summary=type", "--summary=hash-verification", "--format=jsonl", root_.string(), "-type", "f", "-hasheq",
            std::string(kSha256A)}),
       ElementsAre(
           R"({"group":"file","count":1,"bytes":1})", R"({"group":"total","count":1,"bytes":1})",
@@ -1491,47 +1491,50 @@ TEST_F(RunTest, SummaryVerificationCountsPassedAndFailedChecksInOneWalk) {
   EXPECT_THAT(last_errors_, 0);
 }
 
-TEST_F(RunTest, SummaryVerificationDoesNotCountChecksSkippedByShortCircuiting) {
+TEST_F(RunTest, SummaryHashVerificationDoesNotCountChecksSkippedByShortCircuiting) {
   constexpr std::string_view kSha256A = "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb";
   EXPECT_THAT(
       RunArgvRecords(
-          {"--summary=verification", "--format=jsonl", root_.string(), "-false", "-a", "-hasheq",
+          {"--summary=hash-verification", "--format=jsonl", root_.string(), "-false", "-a", "-hasheq",
            std::string(kSha256A)}),
       ElementsAre(R"({"group":"total","count":0})"));
   EXPECT_THAT(last_errors_, 0);
 }
 
-TEST_F(RunTest, SummaryVerificationRequiresExactlyOneHashCheck) {
+TEST_F(RunTest, SummaryHashVerificationRequiresExactlyOneHashCheck) {
   constexpr std::string_view kSha256A = "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb";
-  EXPECT_THAT(RunArgvRecords({"--summary=verification", root_.string(), "-type", "f"}), IsEmpty());
+  EXPECT_THAT(RunArgvRecords({"--summary=hash-verification", root_.string(), "-type", "f"}), IsEmpty());
   EXPECT_THAT(last_errors_, 2);
   EXPECT_THAT(
       RunArgvRecords(
-          {"--summary=verification", root_.string(), "-hasheq", std::string(kSha256A), "-o", "-hasheq",
+          {"--summary=hash-verification", root_.string(), "-hasheq", std::string(kSha256A), "-o", "-hasheq",
            std::string(kSha256A)}),
       IsEmpty());
   EXPECT_THAT(last_errors_, 2);
   // Negation changes expression truth, not the number or polarity of verification checks.
   EXPECT_THAT(
       RunArgvRecords(
-          {"--summary=verification", "--format=jsonl", root_.string(), "-name", "a.txt", "!", "-hasheq", "deadbeef"}),
+          {"--summary=hash-verification", "--format=jsonl", root_.string(), "-name", "a.txt", "!", "-hasheq",
+           "deadbeef"}),
       ElementsAre(R"({"group":"failed","count":1,"bytes":1})", R"({"group":"total","count":1,"bytes":1})"));
   EXPECT_THAT(last_errors_, 0);
 }
 
-TEST_F(RunTest, SummaryVerificationClassifiesMissingExpectationsAndNonRegularEntriesAsFailed) {
+TEST_F(RunTest, SummaryHashVerificationClassifiesMissingExpectationsAndNonRegularEntriesAsFailed) {
   EXPECT_THAT(
       RunArgvRecords(
-          {"--summary=verification", "--format=jsonl", root_.string(), "-name", "a.txt", "-hasheq", "{def.MISSING}"}),
+          {"--summary=hash-verification", "--format=jsonl", root_.string(), "-name", "a.txt", "-hasheq",
+           "{def.MISSING}"}),
       ElementsAre(R"({"group":"failed","count":1,"bytes":1})", R"({"group":"total","count":1,"bytes":1})"));
   EXPECT_THAT(last_errors_, 0);
   EXPECT_THAT(
-      RunArgvRecords({"--summary=verification", "--format=jsonl", root_.string(), "-type", "d", "-hasheq", "deadbeef"}),
+      RunArgvRecords(
+          {"--summary=hash-verification", "--format=jsonl", root_.string(), "-type", "d", "-hasheq", "deadbeef"}),
       ElementsAre(HasSubstr(R"("group":"failed","count":2)"), HasSubstr(R"("group":"total","count":2)")));
   EXPECT_THAT(last_errors_, 0);
 }
 
-TEST_F(RunTest, SummaryVerificationVerdictSurvivesDeferredReplayWithoutASecondHash) {
+TEST_F(RunTest, SummaryHashVerificationVerdictSurvivesDeferredReplayWithoutASecondHash) {
   { std::ofstream(root_ / "verify-00000-of-00002") << "a"; }
   { std::ofstream(root_ / "verify-00001-of-00002") << "b"; }
   constexpr std::string_view kSha256A = "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb";
@@ -1539,7 +1542,7 @@ TEST_F(RunTest, SummaryVerificationVerdictSurvivesDeferredReplayWithoutASecondHa
   // its memoized prefix and the candidate's saved verdict, so each physical entry contributes once.
   EXPECT_THAT(
       RunArgvRecords(
-          {"--summary=verification", "--format=jsonl", root_.string(), "-name", "verify-*", "-a", "(", "-hasheq",
+          {"--summary=hash-verification", "--format=jsonl", root_.string(), "-name", "verify-*", "-a", "(", "-hasheq",
            std::string(kSha256A), ",", "-shard-status", "complete", ")"}),
       ElementsAre(
           R"({"group":"failed","count":1,"bytes":1})", R"({"group":"verified","count":1,"bytes":1})",

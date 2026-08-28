@@ -95,7 +95,7 @@ constexpr std::array kSummaryValues = std::to_array<ValueDoc>({
     {.value = "user", .meaning = "by owner"},
     {.value = "group", .meaning = "by owning group"},
     {.value = "hash", .meaning = "by file digest (dedup: identical files share a bucket; reads every file)"},
-    {.value = "verification", .meaning = "verified / failed tally from exactly one reached `-hasheq`"},
+    {.value = "hash-verification", .meaning = "verified / failed tally from exactly one reached `-hasheq`"},
     {.value = "{template}", .meaning = "by any field value, e.g. `--summary='{ext}-{type}'`"},
 });
 // The short sign ladders, each spelled out so IsKnownGlobal needs no literal list of its own. The
@@ -1017,7 +1017,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "group, file digest, or hash-verification result). The categorical keys reuse the "
                    "{mime}/{user}/{group}/{hash} field "
                    "vocabulary; --summary=hash groups identical files into one bucket (a dedup count, reading every "
-                   "file). `--summary=verification` requires exactly one `-hasheq` and counts its `verified` or "
+                   "file). `--summary=hash-verification` requires exactly one `-hasheq` and counts its `verified` or "
                    "`failed` verdict even when that verdict makes the complete expression false; an entry that "
                    "short-circuits before reaching `-hasheq` is not counted. Empty expected values and unreadable "
                    "entries are failed, matching `-hasheq` itself. A "
@@ -1030,6 +1030,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "for scripts.",
         .values = kSummaryValues,
         .topic = "stats",
+        .value_check = GlobalFlag::ValueCheck::kEnumOrTemplate,
     },
     {
         .name = "--histogram",
@@ -1455,11 +1456,18 @@ absl::Status ValidateGlobalValue(std::string_view arg) {
         return absl::OkStatus();
       }
       break;
+    case GlobalFlag::ValueCheck::kEnumOrTemplate:
+      if (value.starts_with('{')
+          || absl::c_any_of(flag->values, [value](const ValueDoc& doc) { return doc.value == value; })) {
+        return absl::OkStatus();
+      }
+      break;
   }
   // The accepted list comes from the same table the help prints (or from the shared vocabulary),
   // so the error and the documentation cannot disagree.
   std::string accepted;
-  if (flag->value_check == GlobalFlag::ValueCheck::kEnum) {
+  if (flag->value_check == GlobalFlag::ValueCheck::kEnum
+      || flag->value_check == GlobalFlag::ValueCheck::kEnumOrTemplate) {
     for (const ValueDoc& doc : flag->values) {
       if (doc.hidden) {
         continue;  // accepted, but not something to suggest
