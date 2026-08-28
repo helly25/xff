@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-28 04:55:06</td>
+            <td class="headerValue">2026-08-28 07:18:40</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.9&nbsp;%</td>
@@ -256,8 +256,8 @@
 <span id="L175"><span class="lineNum">     175</span>                 :<span class="tlaGNC">        1212 :       group.children.push_back(Content{.node = std::move(rows)});</span></span>
 <span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaGNC">        1212 :       details.push_back(Content{.node = std::move(group)});</span></span>
 <span id="L177"><span class="lineNum">     177</span>                 :<span class="tlaGNC">        1212 :     }</span></span>
-<span id="L178"><span class="lineNum">     178</span>         [<span class="tlaGBC" title="branch 0 was taken 2123 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3994 times"> + </span>]:<span class="tlaGNC">        6117 :     for (Content&amp; block : ParseBlocks(flag.details)) {</span></span>
-<span id="L179"><span class="lineNum">     179</span>                 :<span class="tlaGNC">        2123 :       details.push_back(std::move(block));</span></span>
+<span id="L178"><span class="lineNum">     178</span>         [<span class="tlaGBC" title="branch 0 was taken 2209 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3994 times"> + </span>]:<span class="tlaGNC">        6203 :     for (Content&amp; block : ParseBlocks(flag.details)) {</span></span>
+<span id="L179"><span class="lineNum">     179</span>                 :<span class="tlaGNC">        2209 :       details.push_back(std::move(block));</span></span>
 <span id="L180"><span class="lineNum">     180</span>                 :<span class="tlaGNC">        3994 :     }</span></span>
 <span id="L181"><span class="lineNum">     181</span>                 :<span class="tlaGNC">        3994 :     AppendInfluence(details, &quot;Affects:&quot;, absl::StrSplit(flag.affects, ',', absl::SkipEmpty()));</span></span>
 <span id="L182"><span class="lineNum">     182</span>                 :<span class="tlaGNC">        3994 :     AppendInfluence(details, &quot;Affected by:&quot;, AffectedByFlags(flag.name));</span></span>
