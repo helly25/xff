@@ -39,6 +39,7 @@ using ::testing::AllOf;
 using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::Eq;
+using ::testing::Field;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::IsFalse;
@@ -648,13 +649,40 @@ TEST_F(FieldsTest, PathComponentKeywordsAreExposedForHelp) {
   EXPECT_THAT(PathComponentKeywords(), AllOf(Not(IsEmpty()), Contains("stem"), Contains("dir")));
 }
 
+TEST_F(FieldsTest, StructuredHelpDocumentsEverySyntaxFamily) {
+  const FieldHelpDocs& docs = FieldSyntaxDocs();
+  EXPECT_THAT(docs.brace_rules, Not(IsEmpty()));
+  EXPECT_THAT(docs.dynamic_namespaces, Contains(Field(&FieldHelpRow::term, Eq("{env.NAME}"))));
+  EXPECT_THAT(
+      docs.qualifiers,
+      Contains(
+          AllOf(Field(&FieldHelpRow::term, Eq("{path:COMP}")), Field(&FieldHelpRow::description, HasSubstr("stem")))));
+  EXPECT_THAT(docs.qualifier_pipeline, HasSubstr("left-to-right pipeline"));
+  EXPECT_THAT(docs.qualifier_example, HasSubstr("extract"));
+  EXPECT_THAT(docs.printf_note, HasSubstr("--help=-printf"));
+}
+
+TEST_F(FieldsTest, StructuredHelpRowsHaveTermsAndDescriptions) {
+  const FieldHelpDocs& docs = FieldSyntaxDocs();
+  for (const FieldHelpRow& row : docs.dynamic_namespaces) {
+    EXPECT_THAT(row.term, Not(IsEmpty()));
+    EXPECT_THAT(row.description, Not(IsEmpty()));
+  }
+  for (const FieldHelpRow& row : docs.qualifiers) {
+    EXPECT_THAT(row.term, Not(IsEmpty()));
+    EXPECT_THAT(row.description, Not(IsEmpty()));
+  }
+}
+
 TEST_F(FieldsTest, DocumentationVocabulariesHaveStableStorage) {
   const auto docs = FieldDocs();
   const auto names = FieldNames();
   const auto components = PathComponentKeywords();
+  const FieldHelpDocs* const help = &FieldSyntaxDocs();
   EXPECT_THAT(FieldDocs().data(), Eq(docs.data()));
   EXPECT_THAT(FieldNames().data(), Eq(names.data()));
   EXPECT_THAT(PathComponentKeywords().data(), Eq(components.data()));
+  EXPECT_THAT(&FieldSyntaxDocs(), Eq(help));
 }
 
 TEST_F(FieldsTest, IsKnownFieldAcceptsVocabularyRejectsUnknown) {

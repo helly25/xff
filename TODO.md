@@ -19,13 +19,6 @@ Every current coverage group meets the shared high boundaries. Category override
 stricter; there are no lowered onboarding overrides. The JSON policy remains the single source of truth
 for enforcement and presentation.
 
-## Actionable work
-
-Ordered by current value and readiness, not by implementation size.
-
-1. **Help-model cleanup.** Remove the remaining duplicated fields documentation between the help builder
-   and renderer now that all output backends consume the generalized help model.
-
 ## Design required before implementation
 
 1. **Reassembled shard contents (shards v2).** Decide whether the logical whole replaces or accompanies
