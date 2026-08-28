@@ -109,6 +109,13 @@ TEST_F(SquashfsReaderTest, RejectsNonImagesAndTruncatedImages) {
   EXPECT_THAT(
       SquashfsFileSystem::OpenBytes("plain.appimage", "ELF without a SquashFS payload"),
       StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("cannot find")));
+  const std::string plain_appimage = ::testing::TempDir() + "/plain.appimage";
+  std::ofstream(plain_appimage, std::ios::binary) << "ELF without a SquashFS payload";
+  EXPECT_THAT(
+      SquashfsFileSystem::Open(plain_appimage), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("cannot find")));
+  EXPECT_THAT(
+      SquashfsFileSystem::Open("/definitely/not/an/appimage.appimage"),
+      StatusIs(absl::StatusCode::kNotFound, HasSubstr("cannot open AppImage")));
   EXPECT_THAT(SquashfsFileSystem::Open("/definitely/not/a/squashfs/image.sqfs"), StatusIs(absl::StatusCode::kNotFound));
 }
 
@@ -132,6 +139,7 @@ TEST_F(SquashfsReaderTest, ReadOnlyFilesystemRejectsInvalidOperationsPrecisely) 
   EXPECT_THAT(fs.ReadLink(Fixture()), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("not a SquashFS member")));
   EXPECT_THAT(
       fs.ReadDir(Fixture() + "!hello.txt"), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("not a directory")));
+  EXPECT_THAT(fs.ReadDir("somewhere-else"), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("not a path")));
   EXPECT_THAT(
       fs.Stat("somewhere-else", /*follow_symlinks=*/false),
       StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("not a path")));

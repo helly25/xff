@@ -48,6 +48,7 @@ using FilePtr = std::unique_ptr<struct SqshFile, FileCloser>;
 
 constexpr std::string_view kMagic = "hsqs";
 constexpr std::uint64_t kVirtualDeviceBit = std::uint64_t{1} << 63U;
+static_assert(sizeof(std::size_t) >= sizeof(std::uint64_t), "SquashFS member sizes require a 64-bit address space");
 
 struct MemberRecord {
   std::string path;
@@ -220,9 +221,6 @@ absl::StatusOr<std::string> ReadMember(
     return absl::FailedPreconditionError(absl::StrCat("not a regular SquashFS member: ", member));
   }
   const std::uint64_t size = sqsh_file_size(file.get());
-  if (!std::in_range<std::size_t>(size)) {
-    return absl::ResourceExhaustedError(absl::StrCat("SquashFS member exceeds read limit: ", member));
-  }
   const std::string squash_path = SquashPath(member);
   int error = 0;
   const std::unique_ptr<std::uint8_t, decltype(&std::free)> content(
