@@ -13,7 +13,7 @@
 
 namespace {
 
-constexpr std::size_t kMaxInputBytes = 16 * 1'024;
+constexpr std::size_t kMaxInputBytes = 16UZ * 1'024;
 constexpr auto kStyles = std::to_array<xff::registry::Style>({
     xff::registry::Style::kFind,
     xff::registry::Style::kXff,
