@@ -94,10 +94,12 @@ struct GlobalFlag {
   // format, a regex, a comma list they validate themselves).
   //
   // kEnum checks against this flag's own `values` table, which is therefore the SOT for both the
-  // help and the check - they cannot disagree. kBool / kTristate check against the shared
-  // vocabulary (values::ParseBool / ParseTristate), which accepts more spellings than the table
-  // documents (`yes` / `1` beside `on`), so those must NOT be checked as an enum.
-  enum class ValueCheck : std::uint8_t { kNone, kEnum, kBool, kTristate };
+  // help and the check - they cannot disagree. kEnumOrTemplate additionally accepts a value that
+  // starts with `{`; the flag's own parser validates that documented template grammar. kBool /
+  // kTristate check against the shared vocabulary (values::ParseBool / ParseTristate), which accepts
+  // more spellings than the table documents (`yes` / `1` beside `on`), so those must NOT be checked
+  // as an enum.
+  enum class ValueCheck : std::uint8_t { kNone, kEnum, kEnumOrTemplate, kBool, kTristate };
   ValueCheck value_check = ValueCheck::kNone;
   bool xff = true;  // false for a find-native option (-H/-L/-P); true for an xff extension
 };

@@ -289,7 +289,7 @@ enum class SummaryMode : std::uint8_t {
   kUser,
   kGroup,
   kHash,
-  kVerification,
+  kHashVerification,
   kTemplate
 };
 
@@ -311,7 +311,7 @@ std::vector<SummarySpec> ResolveSummaries(const std::vector<std::string>& global
       ModePair{"--summary=lang", SummaryMode::kLanguage}, ModePair{"--summary=mime", SummaryMode::kMime},
       ModePair{"--summary=overall", SummaryMode::kOverall}, ModePair{"--summary=owner", SummaryMode::kUser},
       ModePair{"--summary=type", SummaryMode::kType}, ModePair{"--summary=user", SummaryMode::kUser},
-      ModePair{"--summary=verification", SummaryMode::kVerification});
+      ModePair{"--summary=hash-verification", SummaryMode::kHashVerification});
   constexpr std::string_view kPrefix = "--summary=";
   std::vector<SummarySpec> specs;
   for (const std::string& global : globals) {
@@ -2884,7 +2884,7 @@ void FeedSummaries(
     const fields::RenderContext& key_ctx,
     const Visit& visit) {
   for (std::size_t i = 0; i < specs.size(); ++i) {
-    if (specs[i].mode == SummaryMode::kVerification) {
+    if (specs[i].mode == SummaryMode::kHashVerification) {
       continue;  // fed from the -hasheq verdict, not from the expression's matched result
     }
     SummaryCells& cells = cells_per_sink[i];
@@ -2924,7 +2924,7 @@ void FeedVerificationSummaries(
     return;
   }
   for (std::size_t i = 0; i < specs.size(); ++i) {
-    if (specs[i].mode != SummaryMode::kVerification) {
+    if (specs[i].mode != SummaryMode::kHashVerification) {
       continue;
     }
     auto& aggregate = cells_per_sink[i][*verification ? "verified" : "failed"];
@@ -3433,13 +3433,13 @@ RunResult RunFind(
   // mixing an UNREDUCED extraction with other text has no single key and is a usage error refused
   // before the walk; a reduced extraction is scalar and mixes fine.
   const std::vector<SummarySpec> summaries = ResolveSummaries(command.globals);
-  const bool verification_summary =
-      absl::c_any_of(summaries, [](const SummarySpec& spec) { return spec.mode == SummaryMode::kVerification; });
-  if (verification_summary) {
+  const bool hash_verification_summary =
+      absl::c_any_of(summaries, [](const SummarySpec& spec) { return spec.mode == SummaryMode::kHashVerification; });
+  if (hash_verification_summary) {
     const std::size_t checks = expression.has_value() ? CountPrimary(*expression, "-hasheq") : 0;
     if (checks != 1) {
       on_error(
-          "--summary=verification",
+          "--summary=hash-verification",
           absl::InvalidArgumentError(absl::StrCat("requires exactly one -hasheq expression, found ", checks)));
       return RunResult{.errors = 2};
     }
@@ -3605,7 +3605,7 @@ RunResult RunFind(
   // Run-scoped rather than per-entry so the phases can share it; cleared before each evaluation.
   std::optional<int> fuzzy_score;
   // The -hasheq verdict for the entry currently being evaluated. Kept independently from matched:
-  // a failed check must still reach --summary=verification.
+  // a failed check must still reach --summary=hash-verification.
   std::optional<bool> hash_verification;
   // -first N budgets, one per instance, for the whole run (see EvalContext::first_counts).
   FirstCounts first_counts;
@@ -3999,8 +3999,8 @@ RunResult RunFind(
             .block_size = block_size,
             .fold_name_case = fold_name_case,
             .fuzzy_score = fuzzy_score,
-            .hash_verification = verification_summary ? mbo::types::OptionalRef{hash_verification}
-                                                      : mbo::types::OptionalRef<std::optional<bool>>{},
+            .hash_verification = hash_verification_summary ? mbo::types::OptionalRef{hash_verification}
+                                                           : mbo::types::OptionalRef<std::optional<bool>>{},
             .deferred = deferred,
             .grep_count = grep_count,
             .grep_before = grep_before,
@@ -4119,8 +4119,8 @@ RunResult RunFind(
           .block_size = block_size,
           .fold_name_case = fold_name_case,
           .fuzzy_score = fuzzy_score,
-          .hash_verification = verification_summary ? mbo::types::OptionalRef{candidate.hash_verification}
-                                                    : mbo::types::OptionalRef<std::optional<bool>>{},
+          .hash_verification = hash_verification_summary ? mbo::types::OptionalRef{candidate.hash_verification}
+                                                         : mbo::types::OptionalRef<std::optional<bool>>{},
           .deferred = deferred,
           .grep_count = grep_count,
           .grep_before = grep_before,
