@@ -1003,7 +1003,7 @@ std::size_t CountPrimary(const parser::Expr& expr, std::string_view name) {
     case parser::Expr::Kind::kXnor:
     case parser::Expr::Kind::kComma: return CountPrimary(*expr.lhs, name) + CountPrimary(*expr.rhs, name);
   }
-  return 0;
+  std::unreachable();
 }
 
 // Every `-first N` in the expression must carry a number. An unparseable or negative N is a usage

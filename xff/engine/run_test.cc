@@ -1482,8 +1482,10 @@ TEST_F(RunTest, SummaryVerificationCountsPassedAndFailedChecksInOneWalk) {
   constexpr std::string_view kSha256A = "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb";
   EXPECT_THAT(
       RunArgvRecords(
-          {"--summary=verification", "--format=jsonl", root_.string(), "-type", "f", "-hasheq", std::string(kSha256A)}),
+          {"--summary=type", "--summary=verification", "--format=jsonl", root_.string(), "-type", "f", "-hasheq",
+           std::string(kSha256A)}),
       ElementsAre(
+          R"({"group":"file","count":1,"bytes":1})", R"({"group":"total","count":1,"bytes":1})",
           R"({"group":"failed","count":2,"bytes":2})", R"({"group":"verified","count":1,"bytes":1})",
           R"({"group":"total","count":3,"bytes":3})"));
   EXPECT_THAT(last_errors_, 0);
@@ -1509,6 +1511,24 @@ TEST_F(RunTest, SummaryVerificationRequiresExactlyOneHashCheck) {
            std::string(kSha256A)}),
       IsEmpty());
   EXPECT_THAT(last_errors_, 2);
+  // Negation changes expression truth, not the number or polarity of verification checks.
+  EXPECT_THAT(
+      RunArgvRecords(
+          {"--summary=verification", "--format=jsonl", root_.string(), "-name", "a.txt", "!", "-hasheq", "deadbeef"}),
+      ElementsAre(R"({"group":"failed","count":1,"bytes":1})", R"({"group":"total","count":1,"bytes":1})"));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, SummaryVerificationClassifiesMissingExpectationsAndNonRegularEntriesAsFailed) {
+  EXPECT_THAT(
+      RunArgvRecords(
+          {"--summary=verification", "--format=jsonl", root_.string(), "-name", "a.txt", "-hasheq", "{def.MISSING}"}),
+      ElementsAre(R"({"group":"failed","count":1,"bytes":1})", R"({"group":"total","count":1,"bytes":1})"));
+  EXPECT_THAT(last_errors_, 0);
+  EXPECT_THAT(
+      RunArgvRecords({"--summary=verification", "--format=jsonl", root_.string(), "-type", "d", "-hasheq", "deadbeef"}),
+      ElementsAre(HasSubstr(R"("group":"failed","count":2)"), HasSubstr(R"("group":"total","count":2)")));
+  EXPECT_THAT(last_errors_, 0);
 }
 
 TEST_F(RunTest, SummaryVerificationVerdictSurvivesDeferredReplayWithoutASecondHash) {

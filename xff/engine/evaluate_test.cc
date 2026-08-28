@@ -87,6 +87,7 @@ struct EvaluateTest : ::testing::Test {
     captures_.clear();
     outputs_.clear();
     fuzzy_score_.reset();
+    hash_verification_.reset();
     const auto file_sink = [this](std::string_view file, std::string_view record) {
       file_emitted_[std::string(file)] += record;
     };
@@ -100,6 +101,8 @@ struct EvaluateTest : ::testing::Test {
         .fold_name_case = fold_name_case_,
         .fuzzy_score = collect_fuzzy_score_ ? mbo::types::OptionalRef{fuzzy_score_}
                                             : mbo::types::OptionalRef<std::optional<int>>{},
+        .hash_verification = collect_hash_verification_ ? mbo::types::OptionalRef{hash_verification_}
+                                                        : mbo::types::OptionalRef<std::optional<bool>>{},
         .grep_count = grep_count_,
         .control = control_,
         .exec_fields = exec_fields_,
@@ -165,10 +168,12 @@ struct EvaluateTest : ::testing::Test {
   bool grep_count_ = false;                     // when true, Match sets EvalContext::grep_count (-grep --count mode)
   bool capture_outputs_ = true;                 // when false, Match leaves the -capture output sink unwired
   bool collect_fuzzy_score_ = true;             // when false, Match evaluates without a fuzzy-score consumer
+  bool collect_hash_verification_ = false;      // when true, Match records the reached -hasheq verdict
   bool provide_first_counts_ = false;           // when true, Match wires the stateful -first counter map
   bool provide_collections_ = false;            // when true, Match wires the -collect store
   bool provide_exec_batches_ = false;           // when true, Match wires -exec/-execdir ... + batches
   std::optional<int> fuzzy_score_;              // normalized score composed by the most recent Match
+  std::optional<bool> hash_verification_;       // verdict from the most recent reached -hasheq
   std::vector<std::string> captures_;           // -regex groups captured during the most recent (gated) Match
   std::map<std::string, std::string> outputs_;  // -capture results from the most recent Match
   FirstCounts first_counts_;
@@ -196,6 +201,33 @@ TEST_F(EvaluateTest, TrueAndFalse) {
   const Visit visit = MakeVisit("dir/foo", "foo", vfs::FileType::kRegular, md);
   EXPECT_TRUE(Match({"-true"}, visit));
   EXPECT_FALSE(Match({"-false"}, visit));
+}
+
+TEST_F(EvaluateTest, HashVerificationSideChannelRecordsEveryDefensiveFailure) {
+  collect_hash_verification_ = true;
+  vfs::Metadata regular_md;
+  const std::string path = WriteContentFile("hasheq_verdict", "abc");
+  const Visit regular = MakeVisit(path, "hasheq_verdict", vfs::FileType::kRegular, regular_md);
+
+  EXPECT_THAT(Match({"-hasheq", "{def.MISSING}"}, regular), IsFalse());
+  EXPECT_THAT(hash_verification_, Optional(IsFalse()));
+
+  vfs::Metadata directory_md;
+  const Visit directory = MakeVisit(".", ".", vfs::FileType::kDirectory, directory_md);
+  EXPECT_THAT(Match({"-hasheq", "deadbeef"}, directory), IsFalse());
+  EXPECT_THAT(hash_verification_, Optional(IsFalse()));
+
+  ASSERT_OK_AND_ASSIGN(auto missing_argument, parser::Parse({".", "-hasheq", "deadbeef"}));
+  ASSERT_THAT(missing_argument.expression, NotNull());
+  missing_argument.expression->args.clear();
+  EXPECT_THAT(MatchExpression(*missing_argument.expression, regular), IsFalse());
+  EXPECT_THAT(hash_verification_, Optional(IsFalse()));
+
+  ASSERT_OK_AND_ASSIGN(auto bad_spec, parser::Parse({".", "-hasheq", "deadbeef"}));
+  ASSERT_THAT(bad_spec.expression, NotNull());
+  bad_spec.expression->hash_spec = "crc32";
+  EXPECT_THAT(MatchExpression(*bad_spec.expression, regular), IsFalse());
+  EXPECT_THAT(hash_verification_, Optional(IsFalse()));
 }
 
 TEST_F(EvaluateTest, XorMatchesExactlyOneSide) {
