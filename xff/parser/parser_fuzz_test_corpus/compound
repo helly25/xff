@@ -1,0 +1,14 @@
+root-a
+--summary=ext
+root-b
+(
+-fuzzy:fzf:80%
+^src .cc$ !test
+-o
+-similar:5:80%
+reference.txt
+)
+-a
+!
+-type
+d

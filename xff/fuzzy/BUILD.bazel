@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_fuzzing//fuzzing:cc_defs.bzl", "cc_fuzz_test")
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
 package(default_visibility = ["//visibility:private"])
@@ -39,4 +40,15 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
+)
+
+# Fuzz every public matching model from the same pattern/text input. Besides crash detection, the
+# driver checks the shared score-range and subsequence truth contracts.
+cc_fuzz_test(
+    name = "fuzzy_fuzz_test",
+    size = "small",
+    srcs = ["fuzzy_fuzz_test.cc"],
+    corpus = glob(["fuzzy_fuzz_test_corpus/**"]),
+    dicts = ["fuzzy_fuzz_test.dict"],
+    deps = [":fuzzy_cc"],
 )

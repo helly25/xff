@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_fuzzing//fuzzing:cc_defs.bzl", "cc_fuzz_test")
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
 package(default_visibility = ["//visibility:private"])
@@ -50,4 +51,15 @@ cc_test(
         "@googletest//:gtest_main",
         "@helly25_mbo//mbo/testing:status_cc",
     ],
+)
+
+# Arbitrary newline-framed argv vectors exercise the complete command grammar. The committed corpus
+# is replayed by ordinary `bazel test`; the dictionary accelerates continuous libFuzzer campaigns.
+cc_fuzz_test(
+    name = "parser_fuzz_test",
+    size = "small",
+    srcs = ["parser_fuzz_test.cc"],
+    corpus = glob(["parser_fuzz_test_corpus/**"]),
+    dicts = ["parser_fuzz_test.dict"],
+    deps = [":parser_cc"],
 )

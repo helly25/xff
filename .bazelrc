@@ -106,6 +106,16 @@ common:clang --define is_clang=true
 # flags: the toolchain handles libc++ itself (see git_override in bazelmod/llvm.MODULE.bazel).
 common:clang-tidy --config=clang
 
+# --config=fuzz : continuous in-process fuzzing with clang, libFuzzer, and ASan. Ordinary
+# `bazel test` uses rules_fuzzing's replay engine instead, so every committed seed and minimized
+# regression stays in the normal test suite without turning CI into an unbounded fuzzing run.
+# Launch a bounded local campaign with, for example:
+#   bazel run -c opt --config=fuzz //xff/parser:parser_fuzz_test_run -- --clean --timeout_secs=60
+common:fuzz --config=clang
+common:fuzz --@rules_fuzzing//fuzzing:cc_engine=@rules_fuzzing//fuzzing/engines:libfuzzer
+common:fuzz --@rules_fuzzing//fuzzing:cc_engine_instrumentation=libfuzzer
+common:fuzz --@rules_fuzzing//fuzzing:cc_engine_sanitizer=asan
+
 common:symbolizer --strip=never
 common:symbolizer --run_under=//tools:run_under_symbolizer
 

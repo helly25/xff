@@ -1,0 +1,9 @@
+--sort=tree
+.
+-type
+f
+-exec
+echo
+--literal-child-argument
+{}
+;
