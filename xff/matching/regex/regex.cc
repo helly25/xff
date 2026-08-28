@@ -306,8 +306,11 @@ absl::Span<const std::pair<std::string_view, std::string_view>> GrammarDocs() {
        "spans work."},
       {"SHGLOB",
        "GLOB plus brace alternation: {a,b,c} matches any one alternative, so *.{cc,h} matches either. "
-       "Alternatives may nest and may be empty; each is itself SHGLOB-translated. Escaped braces and "
-       "commas, and braces inside a [...] class, are literal. Everything else is exactly GLOB."},
+       "Integer and ASCII-letter sequences expand in either direction (`{1..9}`, `{09..01}`, `{a..z}`); a "
+       "leading zero preserves integer width, and expansion above 10,000 terms is rejected. Alternatives "
+       "and sequences may nest; alternatives may be empty. Escaped braces and commas, braces inside a "
+       "[...] class, and comma-less braces that are not a sequence are literal. The optional shell "
+       "increment form (`{1..9..2}`) is not supported and remains literal. Everything else is exactly GLOB."},
       {"PCRE2",
        "Perl-Compatible Regular Expressions (lookaround, backreferences, ...). A build-time extra: "
        "present only in a full build - run `xff --help=extras` to see whether THIS binary has it. Full "

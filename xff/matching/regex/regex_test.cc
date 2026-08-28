@@ -284,6 +284,28 @@ TEST_F(RegexTest, ShglobSupportsNestedAndEmptyAlternatives) {
   EXPECT_THAT(matcher.FullMatch("lib/a.cc"), IsFalse());
 }
 
+TEST_F(RegexTest, ShglobSupportsBoundedIntegerAndAsciiLetterSequences) {
+  ASSERT_OK_AND_ASSIGN(
+      const Matcher matcher, Matcher::Compile("part-{03..01}.{a..c}", /*case_insensitive=*/false, Grammar::kShglob));
+  EXPECT_THAT(matcher.FullMatch("part-03.a"), IsTrue());
+  EXPECT_THAT(matcher.FullMatch("part-01.c"), IsTrue());
+  EXPECT_THAT(matcher.FullMatch("part-3.a"), IsFalse());
+  EXPECT_THAT(matcher.FullMatch("part-00.a"), IsFalse());
+  EXPECT_THAT(matcher.FullMatch("part-02.d"), IsFalse());
+
+  EXPECT_THAT(
+      Matcher::Compile("{1..10001}", /*case_insensitive=*/false, Grammar::kShglob),
+      StatusIs(absl::StatusCode::kInvalidArgument, "Brace sequence exceeds the 10000-term limit."));
+}
+
+TEST_F(RegexTest, ShglobLeavesUnsupportedIncrementSequenceLiteral) {
+  ASSERT_OK_AND_ASSIGN(
+      const Matcher matcher, Matcher::Compile("{1..5..2}", /*case_insensitive=*/false, Grammar::kShglob));
+  EXPECT_THAT(matcher.FullMatch("{1..5..2}"), IsTrue());
+  EXPECT_THAT(matcher.FullMatch("1"), IsFalse());
+  EXPECT_THAT(matcher.FullMatch("3"), IsFalse());
+}
+
 TEST_F(RegexTest, ShglobKeepsGlobPathSemantics) {
   // The GLOB behavior carries over: `*` stops at `/`, alternatives may contain `/`.
   ASSERT_OK_AND_ASSIGN(
