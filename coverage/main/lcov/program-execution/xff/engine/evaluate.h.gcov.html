@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-28 07:18:40</td>
+            <td class="headerValue">2026-08-28 08:15:03</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -154,16 +154,16 @@
 <span id="L83"><span class="lineNum">      83</span>              : // The wrapper makes address identity explicit without exposing a nullable pointer.</span>
 <span id="L84"><span class="lineNum">      84</span>              : class ExprIdentity final {</span>
 <span id="L85"><span class="lineNum">      85</span>              :  public:</span>
-<span id="L86"><span class="lineNum">      86</span> <span class="tlaGNC">        6523 :   explicit ExprIdentity(const parser::Expr&amp; expr) : expr_(expr) {}</span></span>
+<span id="L86"><span class="lineNum">      86</span> <span class="tlaGNC">        6525 :   explicit ExprIdentity(const parser::Expr&amp; expr) : expr_(expr) {}</span></span>
 <span id="L87"><span class="lineNum">      87</span>              : </span>
-<span id="L88"><span class="lineNum">      88</span> <span class="tlaGNC">       14671 :   [[nodiscard]] const parser::Expr&amp; Get() const { return expr_.get(); }</span></span>
+<span id="L88"><span class="lineNum">      88</span> <span class="tlaGNC">       14753 :   [[nodiscard]] const parser::Expr&amp; Get() const { return expr_.get(); }</span></span>
 <span id="L89"><span class="lineNum">      89</span>              : </span>
 <span id="L90"><span class="lineNum">      90</span> <span class="tlaGNC">          96 :   friend bool operator==(ExprIdentity lhs, ExprIdentity rhs) {</span></span>
 <span id="L91"><span class="lineNum">      91</span> <span class="tlaGNC">          96 :     return std::addressof(lhs.Get()) == std::addressof(rhs.Get());</span></span>
 <span id="L92"><span class="lineNum">      92</span>              :   }</span>
 <span id="L93"><span class="lineNum">      93</span>              : </span>
-<span id="L94"><span class="lineNum">      94</span> <span class="tlaGNC">        7217 :   friend bool operator&lt;(ExprIdentity lhs, ExprIdentity rhs) {</span></span>
-<span id="L95"><span class="lineNum">      95</span> <span class="tlaGNC">        7217 :     return std::less{}(std::addressof(lhs.Get()), std::addressof(rhs.Get()));</span></span>
+<span id="L94"><span class="lineNum">      94</span> <span class="tlaGNC">        7258 :   friend bool operator&lt;(ExprIdentity lhs, ExprIdentity rhs) {</span></span>
+<span id="L95"><span class="lineNum">      95</span> <span class="tlaGNC">        7258 :     return std::less{}(std::addressof(lhs.Get()), std::addressof(rhs.Get()));</span></span>
 <span id="L96"><span class="lineNum">      96</span>              :   }</span>
 <span id="L97"><span class="lineNum">      97</span>              : </span>
 <span id="L98"><span class="lineNum">      98</span>              :  private:</span>
@@ -235,7 +235,7 @@
 <span id="L164"><span class="lineNum">     164</span>              :   // The normalized 0..100 fuzzy quality composed across the expression for {fuzzy}, --sort=score,</span>
 <span id="L165"><span class="lineNum">     165</span>              :   // and -top. Null when no consumer needs it; reset by the driver per entry.</span>
 <span id="L166"><span class="lineNum">     166</span>              :   mbo::types::OptionalRef&lt;std::optional&lt;int&gt;&gt; fuzzy_score;</span>
-<span id="L167"><span class="lineNum">     167</span>              :   // --summary=verification: the verdict produced when this entry reaches its -hasheq predicate.</span>
+<span id="L167"><span class="lineNum">     167</span>              :   // --summary=hash-verification: the verdict produced when this entry reaches its -hasheq predicate.</span>
 <span id="L168"><span class="lineNum">     168</span>              :   // Null when that reduction is inactive; an empty optional means short-circuiting has not reached</span>
 <span id="L169"><span class="lineNum">     169</span>              :   // -hasheq, while true / false records the predicate's actual result independent of the expression's</span>
 <span id="L170"><span class="lineNum">     170</span>              :   // eventual truth value.</span>
