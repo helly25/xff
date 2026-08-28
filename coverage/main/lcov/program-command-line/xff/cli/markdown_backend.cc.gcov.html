@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-28 03:05:19</td>
+            <td class="headerValue">2026-08-28 03:58:05</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -143,13 +143,13 @@
 <span id="L62"><span class="lineNum">      62</span>                 :<span class="tlaUNC">           0 :   return std::string(text);</span></span>
 <span id="L63"><span class="lineNum">      63</span>                 :             : }</span>
 <span id="L64"><span class="lineNum">      64</span>                 :             : </span>
-<span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaGNC">        5122 : std::string RenderInlinesMarkdown(const Inlines&amp; runs) {</span></span>
-<span id="L66"><span class="lineNum">      66</span>                 :<span class="tlaGNC">        5122 :   std::string out;</span></span>
-<span id="L67"><span class="lineNum">      67</span>         [<span class="tlaGBC" title="branch 0 was taken 20533 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5122 times"> + </span>]:<span class="tlaGNC">       25655 :   for (const Inline&amp; run : runs) {</span></span>
-<span id="L68"><span class="lineNum">      68</span>   [<span class="tlaGBC" title="branch 0 was taken 12753 times"> + </span><span class="tlaGBC" title="branch 1 was taken 7778 times"> + </span><span class="tlaUNC" title="branch 2 was not taken"> - </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">       20533 :     switch (run.style) {</span></span>
+<span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaGNC">        5129 : std::string RenderInlinesMarkdown(const Inlines&amp; runs) {</span></span>
+<span id="L66"><span class="lineNum">      66</span>                 :<span class="tlaGNC">        5129 :   std::string out;</span></span>
+<span id="L67"><span class="lineNum">      67</span>         [<span class="tlaGBC" title="branch 0 was taken 20631 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5129 times"> + </span>]:<span class="tlaGNC">       25760 :   for (const Inline&amp; run : runs) {</span></span>
+<span id="L68"><span class="lineNum">      68</span>   [<span class="tlaGBC" title="branch 0 was taken 12802 times"> + </span><span class="tlaGBC" title="branch 1 was taken 7827 times"> + </span><span class="tlaUNC" title="branch 2 was not taken"> - </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span> :<span class="tlaGNC">       20631 :     switch (run.style) {</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 1 time"> + </span><span class="tlaUNC" title="branch 5 was not taken"> - </span>]
-<span id="L69"><span class="lineNum">      69</span>                 :<span class="tlaGNC">       12753 :       case Inline::Style::kText: absl::StrAppend(&amp;out, run.text); break;</span></span>
-<span id="L70"><span class="lineNum">      70</span>                 :<span class="tlaGNC">        7778 :       case Inline::Style::kCode: absl::StrAppend(&amp;out, &quot;`&quot;, run.text, &quot;`&quot;); break;</span></span>
+<span id="L69"><span class="lineNum">      69</span>                 :<span class="tlaGNC">       12802 :       case Inline::Style::kText: absl::StrAppend(&amp;out, run.text); break;</span></span>
+<span id="L70"><span class="lineNum">      70</span>                 :<span class="tlaGNC">        7827 :       case Inline::Style::kCode: absl::StrAppend(&amp;out, &quot;`&quot;, run.text, &quot;`&quot;); break;</span></span>
 <span id="L71"><span class="lineNum">      71</span>                 :<span class="tlaUNC">           0 :       case Inline::Style::kEmphasis: absl::StrAppend(&amp;out, &quot;_&quot;, run.text, &quot;_&quot;); break;</span></span>
 <span id="L72"><span class="lineNum">      72</span>                 :<span class="tlaGNC">           1 :       case Inline::Style::kStrong: absl::StrAppend(&amp;out, &quot;**&quot;, run.text, &quot;**&quot;); break;</span></span>
 <span id="L73"><span class="lineNum">      73</span>                 :<span class="tlaGNC">           1 :       case Inline::Style::kRef:</span></span>
@@ -157,7 +157,7 @@
 <span id="L75"><span class="lineNum">      75</span>                 :<span class="tlaGNC">           1 :         break;</span></span>
 <span id="L76"><span class="lineNum">      76</span>                 :             :     }</span>
 <span id="L77"><span class="lineNum">      77</span>                 :             :   }</span>
-<span id="L78"><span class="lineNum">      78</span>                 :<span class="tlaGNC">        5122 :   return out;</span></span>
+<span id="L78"><span class="lineNum">      78</span>                 :<span class="tlaGNC">        5129 :   return out;</span></span>
 <span id="L79"><span class="lineNum">      79</span>                 :             : }</span>
 <span id="L80"><span class="lineNum">      80</span>                 :             : </span>
 <span id="L81"><span class="lineNum">      81</span>                 :<span class="tlaGNC">           9 : void MarkdownBackend::Preamble(const Document&amp; doc) {</span></span>
@@ -216,8 +216,8 @@
 <span id="L134"><span class="lineNum">     134</span>                 :             :   // the following prose is not absorbed as a lazy continuation of the last list item.</span>
 <span id="L135"><span class="lineNum">     135</span>         [<span class="tlaGBC" title="branch 0 was taken 189 times"> + </span><span class="tlaGBC" title="branch 1 was taken 106 times"> + </span>]:<span class="tlaGNC">         295 :   const std::string prefix = in_entry_ ? &quot;  - `&quot; : &quot;- `&quot;;</span></span>
 <span id="L136"><span class="lineNum">     136</span>                 :<span class="tlaGNC">         295 :   absl::StrAppend(&amp;out_, &quot;\n&quot;);</span></span>
-<span id="L137"><span class="lineNum">     137</span>         [<span class="tlaGBC" title="branch 0 was taken 1688 times"> + </span><span class="tlaGBC" title="branch 1 was taken 295 times"> + </span>]:<span class="tlaGNC">        1983 :   for (const Row&amp; row : rows.rows) {</span></span>
-<span id="L138"><span class="lineNum">     138</span>                 :<span class="tlaGNC">        1688 :     absl::StrAppend(&amp;out_, prefix, row.term, &quot;` - &quot;, RenderInlinesMarkdown(row.description), &quot;\n&quot;);</span></span>
+<span id="L137"><span class="lineNum">     137</span>         [<span class="tlaGBC" title="branch 0 was taken 1695 times"> + </span><span class="tlaGBC" title="branch 1 was taken 295 times"> + </span>]:<span class="tlaGNC">        1990 :   for (const Row&amp; row : rows.rows) {</span></span>
+<span id="L138"><span class="lineNum">     138</span>                 :<span class="tlaGNC">        1695 :     absl::StrAppend(&amp;out_, prefix, row.term, &quot;` - &quot;, RenderInlinesMarkdown(row.description), &quot;\n&quot;);</span></span>
 <span id="L139"><span class="lineNum">     139</span>                 :             :   }</span>
 <span id="L140"><span class="lineNum">     140</span>         [<span class="tlaGBC" title="branch 0 was taken 189 times"> + </span><span class="tlaGBC" title="branch 1 was taken 106 times"> + </span>]:<span class="tlaGNC">         295 :   if (in_entry_) {</span></span>
 <span id="L141"><span class="lineNum">     141</span>                 :<span class="tlaGNC">         189 :     absl::StrAppend(&amp;out_, &quot;\n&quot;);</span></span>

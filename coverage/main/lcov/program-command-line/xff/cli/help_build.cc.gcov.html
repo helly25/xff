@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-28 03:05:19</td>
+            <td class="headerValue">2026-08-28 03:58:05</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.9&nbsp;%</td>
@@ -245,11 +245,11 @@
 <span id="L164"><span class="lineNum">     164</span>                 :<span class="tlaGNC">        1212 :       details.push_back(ProseOf(ValueHeading(flag.display)));</span></span>
 <span id="L165"><span class="lineNum">     165</span>                 :<span class="tlaGNC">        1212 :       Rows rows;</span></span>
 <span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaGNC">        1212 :       rows.rows.reserve(flag.values.size());</span></span>
-<span id="L167"><span class="lineNum">     167</span>         [<span class="tlaGBC" title="branch 0 was taken 5860 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1212 times"> + </span>]:<span class="tlaGNC">        7072 :       for (const ValueDoc&amp; value : flag.values) {</span></span>
-<span id="L168"><span class="lineNum">     168</span>         [<span class="tlaGBC" title="branch 0 was taken 572 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5288 times"> + </span>]:<span class="tlaGNC">        5860 :         if (value.hidden) {</span></span>
+<span id="L167"><span class="lineNum">     167</span>         [<span class="tlaGBC" title="branch 0 was taken 5908 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1212 times"> + </span>]:<span class="tlaGNC">        7120 :       for (const ValueDoc&amp; value : flag.values) {</span></span>
+<span id="L168"><span class="lineNum">     168</span>         [<span class="tlaGBC" title="branch 0 was taken 572 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5336 times"> + </span>]:<span class="tlaGNC">        5908 :         if (value.hidden) {</span></span>
 <span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">         572 :           continue;  // an alias or reserved name: accepted by the check, not listed here</span></span>
 <span id="L170"><span class="lineNum">     170</span>                 :             :         }</span>
-<span id="L171"><span class="lineNum">     171</span>                 :<span class="tlaGNC">       10576 :         rows.rows.push_back(Row{.term = std::string(value.value), .description = ParseInline(value.meaning)});</span></span>
+<span id="L171"><span class="lineNum">     171</span>                 :<span class="tlaGNC">       10672 :         rows.rows.push_back(Row{.term = std::string(value.value), .description = ParseInline(value.meaning)});</span></span>
 <span id="L172"><span class="lineNum">     172</span>                 :             :       }</span>
 <span id="L173"><span class="lineNum">     173</span>                 :             :       // A title-less subsection nests the value table one level deeper than its label.</span>
 <span id="L174"><span class="lineNum">     174</span>                 :<span class="tlaGNC">        1212 :       Subsection group;</span></span>
