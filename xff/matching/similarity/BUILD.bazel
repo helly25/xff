@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@rules_fuzzing//fuzzing:cc_defs.bzl", "cc_fuzz_test")
-load("//xff:cc.bzl", "cc_library", "cc_test")
+load("//xff:cc.bzl", "cc_binary", "cc_library", "cc_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -36,4 +36,21 @@ cc_fuzz_test(
     srcs = ["similarity_fuzz_test.cc"],
     corpus = glob(["similarity_fuzz_test_corpus/**"]),
     deps = [":similarity_cc"],
+)
+
+# Measures the exact verifier used by `-similar`, across input size, shingle width, and match shape.
+# Manual because benchmark timings are evidence, not a pass/fail CI gate.
+cc_binary(
+    name = "similarity_benchmark",
+    testonly = True,
+    srcs = ["similarity_benchmark.cc"],
+    tags = [
+        "clang-tidy",
+        "manual",
+    ],
+    deps = [
+        ":similarity_cc",
+        "@abseil-cpp//absl/strings",
+        "@com_github_google_benchmark//:benchmark_main",
+    ],
 )
