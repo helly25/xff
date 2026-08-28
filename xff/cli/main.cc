@@ -218,6 +218,8 @@ std::string RenderExtras() {
   };
   row("fuse", xff::cli::ExtraEnabled("fuse"), xff::cli::ExtraBuildFlag("fuse"),
       "mount containers as read-only directories via the platform's fuse3 (probed at runtime)");
+  row("asar", xff::cli::ExtraEnabled("asar"), xff::cli::ExtraBuildFlag("asar"),
+      "Electron ASAR directory trees, packed content, unpacked sidecars, links, and integrity metadata");
   row("brotli", xff::cli::ExtraEnabled("brotli"), xff::cli::ExtraBuildFlag("brotli"),
       "RFC 9841 and raw Brotli compression for the archive extra");
   row("pcre2", xff::cli::ExtraEnabled("pcre2"), xff::cli::ExtraBuildFlag("pcre2"),

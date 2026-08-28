@@ -3,6 +3,7 @@
     "xff/**",
     "xff_extras_api/**",
     "xff_archive/**",
+    "xff_asar/**",
     "xff_fuse/**",
     "xff_pcre2/**"
   ],
@@ -55,6 +56,9 @@
       },
       "archive": {
         "include": ["xff_archive/**"]
+      },
+      "ASAR": {
+        "include": ["xff_asar/**"]
       },
       "FUSE": {
         "include": ["xff_fuse/**"]

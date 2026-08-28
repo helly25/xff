@@ -259,8 +259,7 @@ std::vector<std::string> AggregatePackFormats() {
 }  // namespace
 
 void RegisterArchiveBackend() {
-  RegisterContainerOpener(&OpenArchiveContainer);
-  RegisterContainerReadFormats(ReadFormats());
+  RegisterContainerReader("archive", &OpenArchiveContainer, ReadFormats());
   RegisterContainerMemberRemover(&RemoveArchiveMembers);
   RegisterContainerPacker(&PackArchiveContainer, AggregatePackFormats(), PackVocabulary());
 }

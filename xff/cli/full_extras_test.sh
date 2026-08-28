@@ -78,6 +78,23 @@ test::xff_full_links_the_brotli_extra() {
   expect_matches "brotli +\[built into this binary\]" "${out}"
 }
 
+test::xff_full_links_and_walks_the_asar_extra() {
+  local out root archive json
+  out="$("$(_xff_full_bin)" --help=extras 2>&1)"
+  expect_matches "asar +\[built into this binary\]" "${out}"
+
+  # One canonical Chromium Pickle size, one Pickle-wrapped JSON header, then the file bytes. The
+  # fixture is spelled independently here so this is an end-to-end format test, not a round trip
+  # through an xff writer (ASAR is deliberately read-only).
+  root="$(test_tmpdir asar)"
+  archive="${root}/app.asar"
+  json='{"files":{"hello.txt":{"size":5,"offset":"0"}}}'
+  printf '\x04\x00\x00\x00\x38\x00\x00\x00\x34\x00\x00\x00\x2f\x00\x00\x00%s\x00hello' \
+    "${json}" >"${archive}"
+  out="$("$(_xff_full_bin)" --archive=roots "${archive}" -type f -content hello)"
+  expect_output_contains "app.asar!hello.txt" "${out}"
+}
+
 test::archive_mount_runs_the_action_over_a_real_container() {
   # A real container (the committed mini.tar), through the mount path. Mounting is a per-MACHINE
   # capability, so the assertion is what holds EVERYWHERE: the action runs and the child sees the
@@ -149,6 +166,7 @@ test::the_notice_lists_every_linked_extra_and_the_direct_codecs() {
   expect_output_contains 'Build extension: FUSE (@xff_fuse)' "${out}"
   expect_output_contains 'Build extension: PCRE2 (@xff_pcre2)' "${out}"
   expect_output_contains 'Build extension: Archive (@xff_archive)' "${out}"
+  expect_output_contains 'Build extension: Electron ASAR (@xff_asar)' "${out}"
   expect_output_contains 'Build extension: Brotli archive compression (@xff_brotli)' "${out}"
   expect_output_contains 'Brotli  [MIT]' "${out}"
   expect_output_contains 'zlib  [Zlib]' "${out}"

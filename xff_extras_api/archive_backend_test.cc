@@ -80,6 +80,8 @@ class StubFileSystem : public vfs::FileSystem {
 struct ArchiveBackendTest : ::testing::Test {
   void TearDown() override {
     RegisterContainerOpener(ContainerOpener());
+    RegisterContainerReader("test-a", ContainerOpener(), {});
+    RegisterContainerReader("test-b", ContainerOpener(), {});
     RegisterContainerMemberRemover(ContainerMemberRemover());
     RegisterContainerPacker(ContainerPacker(), {}, {});
   }
@@ -124,6 +126,9 @@ TEST_F(ArchiveBackendTest, WithNoBackendThereIsNoSupportAndOpeningSaysWhy) {
   EXPECT_THAT(ContainerSupportAvailable(), IsFalse());
   EXPECT_THAT(
       OpenContainer("some.tar"), StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("without archive support")));
+  EXPECT_THAT(
+      OpenContainerBytes("inner.tar", "bytes"),
+      StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("without archive support")));
 }
 
 TEST_F(ArchiveBackendTest, TheNameGateAcceptsFormatsAndPackagesAlike) {
@@ -252,6 +257,69 @@ TEST_F(ArchiveBackendTest, RegisteringAgainReplacesTheOpener) {
     return absl::StatusOr<std::unique_ptr<vfs::FileSystem>>(absl::AbortedError("second"));
   });
   EXPECT_THAT(OpenContainer("a.tar"), StatusIs(absl::StatusCode::kAborted));
+}
+
+TEST_F(ArchiveBackendTest, IndependentReadersComposeAndFallThroughOnlyOnNotMyFormat) {
+  std::vector<std::string> calls;
+  RegisterContainerReader(
+      "test-b",
+      [&calls](std::string_view container, std::optional<std::string_view>, MemberPathOptions) {
+        calls.emplace_back("b");
+        return container.ends_with(".b")
+                   ? absl::StatusOr<std::unique_ptr<vfs::FileSystem>>(std::make_unique<StubFileSystem>())
+                   : absl::StatusOr<std::unique_ptr<vfs::FileSystem>>(absl::InvalidArgumentError("not b"));
+      },
+      {{.name = "b", .suffixes = {".b"}}});
+  RegisterContainerReader(
+      "test-a",
+      [&calls](std::string_view container, std::optional<std::string_view>, MemberPathOptions) {
+        calls.emplace_back("a");
+        if (container == "broken.a") {
+          return absl::StatusOr<std::unique_ptr<vfs::FileSystem>>(absl::DataLossError("broken a"));
+        }
+        return absl::StatusOr<std::unique_ptr<vfs::FileSystem>>(absl::InvalidArgumentError("not a"));
+      },
+      {{.name = "a", .suffixes = {".a"}}});
+
+  EXPECT_THAT(ContainerSupportAvailable(), IsTrue());
+  EXPECT_THAT(
+      ContainerReadFormats(),
+      ElementsAre(Field("name", &ReadFormatInfo::name, "a"), Field("name", &ReadFormatInfo::name, "b")));
+  EXPECT_THAT(LooksLikeContainerName("bundle.a"), IsTrue());
+  EXPECT_THAT(LooksLikeContainerName("bundle.b"), IsTrue());
+  EXPECT_THAT(OpenContainer("bundle.b"), IsOk());
+  EXPECT_THAT(calls, ElementsAre("a", "b"));
+
+  calls.clear();
+  EXPECT_THAT(OpenContainerBytes("bundle.b", "contents"), IsOk());
+  EXPECT_THAT(calls, ElementsAre("a", "b"));
+
+  calls.clear();
+  EXPECT_THAT(OpenContainer("plain"), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("not b")));
+  EXPECT_THAT(calls, ElementsAre("a", "b"));
+
+  calls.clear();
+  EXPECT_THAT(
+      OpenContainerBytes("plain", "contents"), StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("not b")));
+  EXPECT_THAT(calls, ElementsAre("a", "b"));
+
+  calls.clear();
+  EXPECT_THAT(OpenContainer("broken.a"), StatusIs(absl::StatusCode::kDataLoss, HasSubstr("broken a")));
+  EXPECT_THAT(calls, ElementsAre("a"));
+
+  RegisterContainerReader(
+      "test-a",
+      [&calls](std::string_view, std::optional<std::string_view>, MemberPathOptions) {
+        calls.emplace_back("new-a");
+        return std::make_unique<StubFileSystem>();
+      },
+      {{.name = "new-a", .suffixes = {".new-a"}}});
+  EXPECT_THAT(
+      ContainerReadFormats(),
+      ElementsAre(Field("name", &ReadFormatInfo::name, "new-a"), Field("name", &ReadFormatInfo::name, "b")));
+  calls.clear();
+  EXPECT_THAT(OpenContainer("anything"), IsOk());
+  EXPECT_THAT(calls, ElementsAre("new-a"));
 }
 
 TEST_F(ArchiveBackendTest, WithNoBackendThereAreNoReadFormatsAndRegistrationInstallsThem) {

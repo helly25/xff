@@ -1,0 +1,76 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-License-Identifier: Apache-2.0
+
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
+package(default_visibility = ["//visibility:private"])
+
+cc_library(
+    name = "asar_fs_cc",
+    srcs = ["asar_fs.cc"],
+    hdrs = ["asar_fs.h"],
+    include_prefix = "xff/asar",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@helly25_mbo//mbo/digest:digest_cc",
+        "@helly25_mbo//mbo/status:status_macros_cc",
+        "@nlohmann_json//:json",
+        "@xff_extras_api//:member_path_cc",
+        "@xff_extras_api//:vfs_cc",
+    ],
+)
+
+cc_test(
+    name = "asar_fs_test",
+    size = "small",
+    srcs = ["asar_fs_test.cc"],
+    deps = [
+        ":asar_fs_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/digest:digest_cc",
+        "@helly25_mbo//mbo/testing:status_cc",
+        "@nlohmann_json//:json",
+        "@xff_extras_api//:vfs_cc",
+    ],
+)
+
+cc_library(
+    name = "asar_register_cc",
+    srcs = ["asar_register.cc"],
+    hdrs = ["asar_register.h"],
+    include_prefix = "xff/asar",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":asar_fs_cc",
+        "@abseil-cpp//absl/status:statusor",
+        "@helly25_mbo//mbo/status:status_macros_cc",
+        "@xff_extras_api//:archive_backend_cc",
+        "@xff_extras_api//:license_notice_cc",
+        "@xff_extras_api//:member_path_cc",
+        "@xff_extras_api//:vfs_cc",
+    ],
+    alwayslink = True,
+)
+
+cc_test(
+    name = "asar_register_test",
+    size = "small",
+    srcs = ["asar_register_test.cc"],
+    deps = [
+        ":asar_register_cc",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+        "@xff_extras_api//:archive_backend_cc",
+        "@xff_extras_api//:license_notice_cc",
+    ],
+)
