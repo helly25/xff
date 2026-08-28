@@ -3,36 +3,36 @@
   "measurements": {
     "overall": {
       "lines": {
-        "covered": 12057,
-        "total": 12594,
-        "percent": 95.74
+        "covered": 12299,
+        "total": 12849,
+        "percent": 95.72
       },
       "functions": {
-        "covered": 1441,
-        "total": 1462,
-        "percent": 98.56
+        "covered": 1472,
+        "total": 1493,
+        "percent": 98.59
       },
       "branches": {
-        "covered": 8560,
-        "total": 9771,
-        "percent": 87.61
+        "covered": 8697,
+        "total": 9933,
+        "percent": 87.56
       }
     },
     "program / command line": {
       "lines": {
-        "covered": 1649,
-        "total": 1694,
-        "percent": 97.34
+        "covered": 1656,
+        "total": 1702,
+        "percent": 97.3
       },
       "functions": {
-        "covered": 173,
-        "total": 176,
-        "percent": 98.3
+        "covered": 174,
+        "total": 177,
+        "percent": 98.31
       },
       "branches": {
-        "covered": 956,
-        "total": 1040,
-        "percent": 91.92
+        "covered": 959,
+        "total": 1044,
+        "percent": 91.86
       }
     },
     "program / configuration": {
@@ -98,9 +98,9 @@
         "percent": 98.18
       },
       "branches": {
-        "covered": 308,
+        "covered": 307,
         "total": 328,
-        "percent": 93.9
+        "percent": 93.6
       }
     },
     "program / matching": {
@@ -186,6 +186,23 @@
         "covered": 261,
         "total": 300,
         "percent": 87.0
+      }
+    },
+    "extensions / SquashFS": {
+      "lines": {
+        "covered": 235,
+        "total": 247,
+        "percent": 95.14
+      },
+      "functions": {
+        "covered": 30,
+        "total": 30,
+        "percent": 100.0
+      },
+      "branches": {
+        "covered": 135,
+        "total": 158,
+        "percent": 85.44
       }
     },
     "extensions / FUSE": {
@@ -313,6 +330,11 @@
       "functions": 90.0,
       "branches": 80.0
     },
+    "extensions / SquashFS": {
+      "lines": 90.0,
+      "functions": 90.0,
+      "branches": 80.0
+    },
     "extensions / FUSE": {
       "lines": 90.0,
       "functions": 90.0,
@@ -390,6 +412,11 @@
       "functions": 95.0,
       "branches": 82.0
     },
+    "extensions / SquashFS": {
+      "lines": 92.0,
+      "functions": 95.0,
+      "branches": 82.0
+    },
     "extensions / FUSE": {
       "lines": 92.0,
       "functions": 95.0,
@@ -463,6 +490,11 @@
       "branches": "high"
     },
     "extensions / ASAR": {
+      "lines": "high",
+      "functions": "high",
+      "branches": "high"
+    },
+    "extensions / SquashFS": {
       "lines": "high",
       "functions": "high",
       "branches": "high"
