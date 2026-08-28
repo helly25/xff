@@ -185,7 +185,8 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .details =
             "TRUE for a regular, readable file whose content is text. Bare `-text` (or `=git`) is the default "
             "heuristic: no NUL byte in the first 8000 bytes (git's buffer_is_binary, also grep/ripgrep), "
-            "line-ending-agnostic. The strict flavors forbid a NUL ANYWHERE and pin the line ending, "
+            "line-ending-agnostic. One leading UTF-8 BOM is transparent. The strict flavors forbid a NUL ANYWHERE "
+            "after that BOM and pin the line ending, "
             "requiring a final terminator (an empty file is vacuously complete): `=posix` = LF only, ends "
             "with a newline; `=windows` = CRLF only; `=apple` = CR only. Reads the file (expensive). A directory, "
             "symlink, device or unreadable file is not text (nor binary), so it never matches - `! -text` is "

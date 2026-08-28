@@ -1212,9 +1212,10 @@ renderers + a help_topic_test assertion. The diagram is duplicated in help.cc`Re
       the strict form. All three are xff, expensive, `--config=find` rejects them.
       - **Deferred apple/windows subtleties.** The `-text` flavor logic is sound as shipped (a strict
         flavor requires no NUL anywhere + a proper final terminator; a no-terminator or mixed-EOL file
-        matches only `git`). BOM handling (UTF-8 BOM is transparent; UTF-16's NULs already fail the
-        strict flavors and often `git`) and mixed-ending leniency are left as future refinements if a
-        real need appears - not built speculatively.
+        matches only `git`). **UTF-8 BOM handling later shipped:** one leading UTF-8 BOM is transparent
+        to every flavor; the remaining bytes still obey the selected NUL and line-ending rules. UTF-16's
+        NULs still fail the strict flavors and often `git`. Mixed-ending leniency remains deferred until
+        a concrete policy is needed.
 
 ### Help / docs rendering (post-#126)
 
