@@ -96,6 +96,7 @@ TEST_F(GlobalsTest, ComposableExtraFlagCarriesItsExtraKeyAndIsOffInTheLeanBuild)
   EXPECT_THAT(ExtraEnabled("brotli"), IsFalse());         // removable extension of the archive extra
   EXPECT_THAT(ExtraEnabled("language-db"), IsFalse());    // removable comprehensive language vocabulary
   EXPECT_THAT(ExtraEnabled("mime-db"), IsFalse());        // removable comprehensive media vocabulary
+  EXPECT_THAT(ExtraEnabled("squashfs"), IsFalse());       // removable filesystem-image reader
   EXPECT_THAT(EnabledExtras(), IsEmpty());                // the notice line's source: nothing in a lean build
   EXPECT_THAT(ExtraEnabled("nonesuch"), IsFalse());       // an unknown extra reads as off
   EXPECT_THAT(LookupGlobal("--sort")->extra, IsEmpty());  // a core flag carries no extra

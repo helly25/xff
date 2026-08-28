@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-License-Identifier: Apache-2.0
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:private"])
+
+# Only the collection, concurrency, and memory pieces used by libsqsh. The Unicode component needs
+# generated tables and is not referenced by the library, so keeping it out makes this target both
+# smaller and a faithful dependency closure rather than an approximation of the upstream tools.
+cc_library(
+    name = "cextras",
+    srcs = glob([
+        "lib/collection/*.c",
+        "lib/concurrency/*.c",
+        "lib/memory/*.c",
+    ]),
+    hdrs = glob(["include/cextras/*.h"]),
+    includes = ["include"],
+    visibility = ["//visibility:public"],
+)

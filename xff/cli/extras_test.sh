@@ -72,6 +72,8 @@ test::help_extras_lists_every_build_extra_and_availability() {
   expect_output_contains "--//xff:xff_pcre" "${out}"
   expect_matches "archive.*not built in" "${out}"
   expect_output_contains "--//xff:xff_archive" "${out}"
+  expect_matches "squashfs.*not built in" "${out}"
+  expect_output_contains "--//xff:xff_squashfs" "${out}"
 }
 
 test_runner

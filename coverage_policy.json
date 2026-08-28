@@ -60,6 +60,9 @@
       "ASAR": {
         "include": ["xff_asar/**"]
       },
+      "SquashFS": {
+        "include": ["xff_squashfs/**"]
+      },
       "FUSE": {
         "include": ["xff_fuse/**"]
       },

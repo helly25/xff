@@ -709,7 +709,7 @@ Two properties the implementation must keep, both learned the hard way while wri
 Current state: 165 first-party sources expected, 0 missing. Verified the guard FAILS (exit 1, naming
 the file) on a source that has no entry.
 
-## squashfs: bottom of the stack, read first (decided 2026-08-18)
+## squashfs: bottom of the stack, read first (decided 2026-08-18; reader shipped 2026-08-28)
 
 Build it when a concrete "search inside a snap / AppImage / firmware image" need appears, not for
 format completeness. Three parts in order: READ without lzo, then WRITE (create from a walk, then
@@ -734,15 +734,19 @@ The licensing is the load-bearing part, verified 2026-08-18:
   seeking, block caching, dedup and sparse files, xattrs, files over 4 GB. zlib / LZMA2 / LZ4 / zstd
   built in; lzo only via optional liblzo2 (GPL-2), which we simply do not enable - so lzo drops out
   by build configuration rather than by refusal logic.
-- **libsqsh (sqsh-tools)** is a library rather than a FUSE driver and may be the cleaner API; its
-  licence is NOT yet verified.
+- **libsqsh (sqsh-tools) 1.5.2 is BSD-2-Clause** and is the shipped reader. Its cextras dependency is
+  BSD-2-Clause too. xff's overlay selects the static/memory mappers and zlib, LZMA2, LZ4, and zstd
+  decoders, while deliberately omitting curl and lzo.
 - squashfs-tools-ng keeps lzo out of libsquashfs for exactly the GPL-2 reason, which independently
   confirms the constraint.
 
-Shape when built: `@xff_squashfs` as its own build-flag-gated extra, the chosen reader vendored as a
-`third_party/` local module with a BUILD overlay (the pattern libfuse already uses), fixtures, a
-NOTICE entry, `--help=archive` rows, and its own CI wildcard - a missing wildcard means the extra has
-zero coverage.
+The shipped slice is `@xff_squashfs`, gated by `--//xff:xff_squashfs` and composed by
+`--//xff:xff_all`. It registers independently through `@xff_extras_api`, so enabling it does not pull
+in libarchive. Raw images, Snaps, and AppImages become ordinary virtual member trees and use the same
+predicates, fields, content reads, nesting, and summaries as other containers. AppImage's executable
+prefix uses libsqsh's archive-offset API after a bounded scan for the `hsqs` superblock. A committed
+fixture and constructed prefixed variants cover path-backed and retained-byte inputs. Creation and
+rewrite remain later work because a correct SquashFS writer is separate, multi-pass work.
 
 ## Bashtest scratch files: use `test_tmpdir`, not hand-rolled paths
 

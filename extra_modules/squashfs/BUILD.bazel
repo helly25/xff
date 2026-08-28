@@ -1,0 +1,133 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-License-Identifier: Apache-2.0
+
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@xff_extras_api//:license_body.bzl", "license_body")
+
+package(default_visibility = ["//visibility:private"])
+
+filegroup(
+    name = "mini_sqfs",
+    srcs = ["test_data/mini.sqfs"],
+    visibility = ["//visibility:public"],
+)
+
+license_body(
+    name = "bsd_2_clause_license_cc",
+    src = "licenses/BSD-2-Clause.txt",
+    spdx = "BSD-2-Clause",
+)
+
+license_body(
+    name = "bsd_3_clause_license_cc",
+    src = "licenses/BSD-3-Clause.txt",
+    spdx = "BSD-3-Clause",
+)
+
+license_body(
+    name = "public_domain_license_cc",
+    src = "licenses/Public-Domain.txt",
+    spdx = "LicenseRef-Public-Domain",
+)
+
+license_body(
+    name = "zlib_license_cc",
+    src = "licenses/Zlib.txt",
+    spdx = "Zlib",
+)
+
+cc_library(
+    name = "squashfs_license_cc",
+    srcs = ["squashfs_license.cc"],
+    deps = [
+        ":bsd_2_clause_license_cc",
+        ":bsd_3_clause_license_cc",
+        ":public_domain_license_cc",
+        ":zlib_license_cc",
+        "@xff_extras_api//:license_notice_cc",
+    ],
+    alwayslink = True,
+)
+
+cc_test(
+    name = "squashfs_license_test",
+    size = "small",
+    srcs = ["squashfs_license_test.cc"],
+    deps = [
+        ":squashfs_license_cc",
+        "@googletest//:gtest_main",
+        "@xff_extras_api//:license_notice_cc",
+    ],
+)
+
+cc_library(
+    name = "squashfs_reader_cc",
+    srcs = ["squashfs_reader.cc"],
+    hdrs = ["squashfs_reader.h"],
+    include_prefix = "xff/squashfs",
+    deps = [
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/time",
+        "@helly25_mbo//mbo/status:status_macros_cc",
+        "@libsqsh//:sqsh",
+        "@xff_extras_api//:member_path_cc",
+        "@xff_extras_api//:vfs_cc",
+    ],
+)
+
+cc_library(
+    name = "squashfs_register_cc",
+    srcs = ["squashfs_register.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":squashfs_license_cc",
+        ":squashfs_reader_cc",
+        "@xff_extras_api//:archive_backend_cc",
+    ],
+    alwayslink = True,
+)
+
+cc_test(
+    name = "squashfs_register_test",
+    size = "small",
+    srcs = ["squashfs_register_test.cc"],
+    data = ["test_data/mini.sqfs"],
+    env = {"XFF_SQUASHFS_FIXTURE": "$(rootpath test_data/mini.sqfs)"},
+    deps = [
+        ":squashfs_register_cc",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/status:status_macros_cc",
+        "@helly25_mbo//mbo/testing:status_cc",
+        "@xff_extras_api//:archive_backend_cc",
+    ],
+)
+
+cc_test(
+    name = "squashfs_reader_test",
+    size = "small",
+    srcs = ["squashfs_reader_test.cc"],
+    data = ["test_data/mini.sqfs"],
+    env = {"XFF_SQUASHFS_FIXTURE": "$(rootpath test_data/mini.sqfs)"},
+    deps = [
+        ":squashfs_reader_cc",
+        "@googletest//:gtest_main",
+        "@helly25_mbo//mbo/testing:status_cc",
+        "@xff_extras_api//:member_path_cc",
+        "@xff_extras_api//:vfs_cc",
+    ],
+)
+
+# Keeps the upstream overlay's public library linkage honest before xff's adapter is layered on top.
+# The reader fixture separately exercises real gzip decompression; the other codec source selections
+# are explicit below rather than inferred through libsqsh's hidden implementation registry.
+cc_test(
+    name = "libsqsh_link_test",
+    size = "small",
+    srcs = ["libsqsh_link_test.cc"],
+    deps = [
+        "@googletest//:gtest_main",
+        "@libsqsh//:sqsh",
+    ],
+)

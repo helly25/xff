@@ -1,0 +1,7 @@
+liblzma is in the public domain.
+
+You can do whatever you want with the files that have been put into the public
+domain. If you find public domain legally problematic, take the previous
+sentence as a license grant.
+
+This software is provided "as is", without any warranty.

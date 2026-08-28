@@ -42,6 +42,14 @@ _mini_tar() {
   find "${TEST_SRCDIR}" -type f -name mini.tar 2>/dev/null | head -1
 }
 
+_mini_sqfs() {
+  if [[ -f "${XFF_MINI_SQFS:-}" ]]; then
+    echo "${XFF_MINI_SQFS}"
+    return
+  fi
+  find "${TEST_SRCDIR}" -type f -name mini.sqfs 2>/dev/null | head -1
+}
+
 # True when this build cannot run a mount, so the mounting cases below report why and return. MSan
 # false-positives on anything it did not instrument, and a mount runs through the dlopened SYSTEM
 # libfuse3 - so every byte libfuse writes reads back as uninitialized and the run dies inside
@@ -76,6 +84,16 @@ test::xff_full_links_the_brotli_extra() {
   local out
   out="$("$(_xff_full_bin)" --help=extras 2>&1)"
   expect_matches "brotli +\[built into this binary\]" "${out}"
+}
+
+test::xff_full_links_the_squashfs_extra() {
+  local image out
+  out="$("$(_xff_full_bin)" --help=extras 2>&1)"
+  expect_matches "squashfs +\[built into this binary\]" "${out}"
+
+  image="$(_mini_sqfs)"
+  out="$("$(_xff_full_bin)" -L --archive=roots "${image}" -type f -content 'hello from')"
+  expect_output_contains "mini.sqfs!hello.txt" "${out}"
 }
 
 test::xff_full_links_and_walks_the_asar_extra() {
