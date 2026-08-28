@@ -159,8 +159,9 @@ void VerifyCandidateContract(const std::vector<std::string>& documents) {
 void BmAllPairs(benchmark::State& state, bool shared_boilerplate) {
   const std::vector<std::string> documents = Corpus(static_cast<std::size_t>(state.range(0)), shared_boilerplate);
   VerifyCandidateContract(documents);
+  // google-benchmark's loop value drives iteration and is deliberately not read.
+  // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
   for (auto unused : state) {
-    // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
     Result result = AllPairs(documents);
     benchmark::DoNotOptimize(result.matches);
     state.counters["verified_pairs"] = static_cast<double>(result.compared);
@@ -170,8 +171,9 @@ void BmAllPairs(benchmark::State& state, bool shared_boilerplate) {
 void BmInvertedIndex(benchmark::State& state, bool shared_boilerplate) {
   const std::vector<std::string> documents = Corpus(static_cast<std::size_t>(state.range(0)), shared_boilerplate);
   VerifyCandidateContract(documents);
+  // google-benchmark's loop value drives iteration and is deliberately not read.
+  // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
   for (auto unused : state) {
-    // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
     Result result = Indexed(documents);
     benchmark::DoNotOptimize(result.matches);
     state.counters["verified_pairs"] = static_cast<double>(result.compared);
