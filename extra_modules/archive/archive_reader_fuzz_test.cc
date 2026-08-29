@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <limits>
+#include <optional>
 #include <ranges>
 #include <string_view>
 
@@ -16,36 +17,51 @@ constexpr std::size_t kMaxInputBytes = 64UZ * 1'024;
 constexpr std::size_t kMaxMembersRead = 32;
 constexpr std::uint64_t kMaxMemberBytes = 1UZ * 1'024 * 1'024;
 
+std::optional<std::uint64_t> ParseOctal(std::string_view field) {
+  std::uint64_t value = 0;
+  bool digit = false;
+  for (const char byte : field) {
+    if (byte == ' ' || byte == '\0') {
+      continue;
+    }
+    if (byte < '0' || byte > '7' || value > std::numeric_limits<std::uint64_t>::max() / 8) {
+      return std::nullopt;
+    }
+    value = (value * 8) + static_cast<std::uint64_t>(byte - '0');
+    digit = true;
+  }
+  return digit ? std::optional<std::uint64_t>{value} : std::nullopt;
+}
+
 bool LooksLikeTar(std::string_view bytes) {
   if (bytes.size() < 512 || bytes.substr(257, 5) != "ustar") {
     return false;
   }
-  const auto parse_octal = [](std::string_view field) -> std::uint64_t {
-    std::uint64_t value = 0;
-    bool digit = false;
-    for (const char byte : field) {
-      if (byte == ' ' || byte == '\0') {
-        continue;
-      }
-      if (byte < '0' || byte > '7' || value > std::numeric_limits<std::uint64_t>::max() / 8) {
-        return std::numeric_limits<std::uint64_t>::max();
-      }
-      value = (value * 8) + static_cast<std::uint64_t>(byte - '0');
-      digit = true;
+  for (std::size_t offset = 0; offset + 512 <= bytes.size(); offset += 512) {
+    const std::string_view header = bytes.substr(offset, 512);
+    if (header == std::string_view(512, '\0')) {
+      return true;
     }
-    return digit ? value : std::numeric_limits<std::uint64_t>::max();
-  };
-  const std::string_view header = bytes.substr(0, 512);
-  const std::uint64_t stored = parse_octal(header.substr(148, 8));
-  if (stored == std::numeric_limits<std::uint64_t>::max()) {
-    return false;
+    if (header.substr(257, 5) != "ustar") {
+      return false;
+    }
+    const auto stored = ParseOctal(header.substr(148, 8));
+    const auto member_size = ParseOctal(header.substr(124, 12));
+    if (!stored.has_value() || !member_size.has_value()) {
+      return false;
+    }
+    std::uint64_t computed = 0;
+    for (std::size_t index = 0; index < header.size(); ++index) {
+      computed +=
+          index >= 148 && index < 156 ? static_cast<unsigned char>(' ') : static_cast<unsigned char>(header[index]);
+    }
+    const std::uint64_t payload_blocks = (*member_size + 511) / 512;
+    if (computed != *stored || payload_blocks > (bytes.size() - offset - 512) / 512) {
+      return false;
+    }
+    offset += payload_blocks * 512;
   }
-  std::uint64_t computed = 0;
-  for (std::size_t index = 0; index < header.size(); ++index) {
-    computed +=
-        index >= 148 && index < 156 ? static_cast<unsigned char>(' ') : static_cast<unsigned char>(header[index]);
-  }
-  return computed == stored;
+  return false;
 }
 }  // namespace
 
