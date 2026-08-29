@@ -83,6 +83,12 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
+filegroup(
+    name = "mini_tar_br",
+    srcs = ["test_data/mini.tar.br"],
+    visibility = ["//visibility:public"],
+)
+
 # The breadth fixture: 1000 members whose content each name predicts. Exported for the same reason
 # as mini_tar - an end-to-end test in the CORE repo should drive the built binary over a REAL
 # container, and this one is large enough to make a walk spend real time inside it.
@@ -162,6 +168,26 @@ cc_library(
         "@xff_extras_api//:member_path_cc",
     ],
     alwayslink = True,
+)
+
+# Exercises libarchive format/filter recognition and bounded member extraction over arbitrary bytes.
+# Committed containers seed structurally different native formats; sustained campaigns mutate the
+# same target rather than maintaining a second harness.
+cc_fuzz_test(
+    name = "archive_reader_fuzz_test",
+    size = "small",
+    srcs = ["archive_reader_fuzz_test.cc"],
+    corpus = [
+        "test_data/example.deb",
+        "test_data/example.jar",
+        "test_data/example.rpm",
+        "test_data/example.whl",
+        "test_data/many.tar.gz",
+        "test_data/mini.tar",
+        "test_data/npm-example.tgz",
+        "test_data/sfx-example.zip",
+    ],
+    deps = [":archive_reader_cc"],
 )
 
 # The write half of the phar reader: rewriting a native phar without some of its members. Its own

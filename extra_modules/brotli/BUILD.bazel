@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@rules_fuzzing//fuzzing:cc_defs.bzl", "cc_fuzz_test")
 load("@xff_extras_api//:license_body.bzl", "license_body")
 
 package(default_visibility = ["//visibility:private"])
@@ -63,6 +64,19 @@ cc_library(
         "@helly25_mbo//mbo/status:status_macros_cc",
         "@xff_archive//:archive_register_cc",
         "@xff_extras_api//:archive_backend_cc",
+    ],
+)
+
+# Exercises raw and RFC 9841-framed Brotli decoding with an explicit expansion bound. The archive
+# extra's reference fixture supplies a real raw stream; arbitrary mutations reach both framing paths.
+cc_fuzz_test(
+    name = "brotli_codec_fuzz_test",
+    size = "small",
+    srcs = ["brotli_codec_fuzz_test.cc"],
+    corpus = ["@xff_archive//:mini_tar_br"],
+    deps = [
+        ":brotli_codec_cc",
+        "@abseil-cpp//absl/status",
     ],
 )
 

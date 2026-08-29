@@ -23,8 +23,8 @@ for enforcement and presentation.
 
 1. **Fuzzing.** The parser-through-evaluator, matcher, template, PHAR, and ASAR targets now have
    committed seed corpora, semantic invariants, ordinary-CI replay, and automatically discovered
-   bounded CI campaigns. Continue with archive/compression, shard, stronger matcher/template, and
-   regex targets; every new target is picked up by the campaign driver. Configuration coverage
+   bounded CI campaigns. Continue with shard, stronger matcher/template, and regex targets; every
+   new target is picked up by the campaign driver. Configuration coverage
    includes both file grammars, policy gating, precedence resolution, and arming invariants.
    Expression-evaluation harnesses must exclude safety-classified descriptors and use a mutation-
    refusing in-memory filesystem; `--safe` text alone is not an isolation boundary.
@@ -39,6 +39,10 @@ for enforcement and presentation.
 5. **Detailed coverage gaps.** Raise line and function coverage for
    `program-command-grammar/xff/registry/` and branch coverage for `program-execution/xff/exec/`
    until every range is green in the detailed LCOV report.
+6. **Libarchive malformed-input boundary.** The archive fuzz campaign must keep malformed records
+   from reaching known unsafe third-party parser paths. Revisit the pinned libarchive version and
+   format-specific validation before broadening beyond structurally valid tar inputs; report any
+   confirmed dependency defect through its private security channel when appropriate.
 
 ## Design required before implementation
 
