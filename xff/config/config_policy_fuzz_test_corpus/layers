@@ -1,0 +1,10 @@
+[defaults]
+--color = auto
+--threads = 4
+
+[policy]
+user.deny = --threads
+xffrc.deny = @destructive
+
+common: --color=never
+fuzz: --threads=2
