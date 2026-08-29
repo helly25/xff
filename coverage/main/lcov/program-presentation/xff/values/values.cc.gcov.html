@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-29 13:48:30</td>
+            <td class="headerValue">2026-08-29 14:39:00</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -141,7 +141,7 @@
 <span id="L57"><span class="lineNum">      57</span>                 :<span class="tlaGNC">           4 :   return std::nullopt;</span></span>
 <span id="L58"><span class="lineNum">      58</span>                 :<span class="tlaGNC">         203 : }</span></span>
 <span id="L59"><span class="lineNum">      59</span>                 :             : </span>
-<span id="L60"><span class="lineNum">      60</span>                 :<span class="tlaGNC">          62 : std::optional&lt;std::uint64_t&gt; ParseByteUnit(std::string_view unit) {</span></span>
+<span id="L60"><span class="lineNum">      60</span>                 :<span class="tlaGNC">          63 : std::optional&lt;std::uint64_t&gt; ParseByteUnit(std::string_view unit) {</span></span>
 <span id="L61"><span class="lineNum">      61</span>                 :             :   using Unit = std::pair&lt;std::string_view, std::uint64_t&gt;;</span>
 <span id="L62"><span class="lineNum">      62</span>                 :             :   static constexpr std::array&lt;Unit, 13&gt; kUnits = {{</span>
 <span id="L63"><span class="lineNum">      63</span>                 :             :       {&quot;b&quot;, 1},</span>
@@ -158,14 +158,14 @@
 <span id="L74"><span class="lineNum">      74</span>                 :             :       {&quot;pib&quot;, 1ULL &lt;&lt; 50U},</span>
 <span id="L75"><span class="lineNum">      75</span>                 :             :       {&quot;eib&quot;, 1ULL &lt;&lt; 60U},</span>
 <span id="L76"><span class="lineNum">      76</span>                 :             :   }};</span>
-<span id="L77"><span class="lineNum">      77</span>                 :<span class="tlaGNC">          62 :   const std::string lower = absl::AsciiStrToLower(unit);</span></span>
+<span id="L77"><span class="lineNum">      77</span>                 :<span class="tlaGNC">          63 :   const std::string lower = absl::AsciiStrToLower(unit);</span></span>
 <span id="L78"><span class="lineNum">      78</span>                 :             :   // This is an array iterator, not an optionally borrowed object. Its pointer representation is an</span>
 <span id="L79"><span class="lineNum">      79</span>                 :             :   // implementation detail of the contiguous iterator.</span>
 <span id="L80"><span class="lineNum">      80</span>                 :             :   // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)</span>
 <span id="L81"><span class="lineNum">      81</span>                 :             :   const auto found =</span>
-<span id="L82"><span class="lineNum">      82</span>                 :<span class="tlaGNC">         513 :       std::find_if(kUnits.begin(), kUnits.end(), [&amp;lower](const Unit&amp; entry) { return entry.first == lower; });</span></span>
-<span id="L83"><span class="lineNum">      83</span>         [<span class="tlaGBC" title="branch 0 was taken 10 times"> + </span><span class="tlaGBC" title="branch 1 was taken 52 times"> + </span>]:<span class="tlaGNC">          62 :   return found == kUnits.end() ? std::nullopt : std::optional&lt;std::uint64_t&gt;(found-&gt;second);</span></span>
-<span id="L84"><span class="lineNum">      84</span>                 :<span class="tlaGNC">          62 : }</span></span>
+<span id="L82"><span class="lineNum">      82</span>                 :<span class="tlaGNC">         515 :       std::find_if(kUnits.begin(), kUnits.end(), [&amp;lower](const Unit&amp; entry) { return entry.first == lower; });</span></span>
+<span id="L83"><span class="lineNum">      83</span>         [<span class="tlaGBC" title="branch 0 was taken 10 times"> + </span><span class="tlaGBC" title="branch 1 was taken 53 times"> + </span>]:<span class="tlaGNC">          63 :   return found == kUnits.end() ? std::nullopt : std::optional&lt;std::uint64_t&gt;(found-&gt;second);</span></span>
+<span id="L84"><span class="lineNum">      84</span>                 :<span class="tlaGNC">          63 : }</span></span>
 <span id="L85"><span class="lineNum">      85</span>                 :             : </span>
 <span id="L86"><span class="lineNum">      86</span>                 :<span class="tlaGNC">          29 : std::optional&lt;std::uint64_t&gt; ParseByteSize(std::string_view value) {</span></span>
 <span id="L87"><span class="lineNum">      87</span>                 :<span class="tlaGNC">          29 :   const std::size_t suffix_at = value.find_first_not_of(&quot;0123456789&quot;);</span></span>
