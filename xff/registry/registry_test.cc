@@ -18,6 +18,7 @@
 #include <array>
 #include <optional>
 
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "xff/registry/descriptor.h"
@@ -38,6 +39,11 @@ using ::testing::Ref;
 using ::testing::SizeIs;
 
 struct RegistryTest : ::testing::Test {};
+
+TEST_F(RegistryTest, DescriptorSupportsStringification) {
+  ASSERT_THAT(Lookup("-name"), Optional(_));
+  EXPECT_THAT(absl::StrCat(*Lookup("-name")), Eq("-name"));
+}
 
 TEST_F(RegistryTest, LooksUpKnownTokens) {
   const mbo::types::OptionalRef<const Descriptor> name = Lookup("-name");
