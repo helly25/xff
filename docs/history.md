@@ -9,14 +9,6 @@ would otherwise be lost when the actionable backlog is simplified.
 The former combined roadmap and completion ledger through PR #683 is retained separately in
 [`history-roadmap.md`](history-roadmap.md).
 
-## Shipped engineering infrastructure
-
-- **Bounded continuous fuzz campaigns (2026-08-29).** `tools/fuzz_targets.py` derives every campaign
-  from the repository's `cc_fuzz_test` rules, including targets owned by composable extra modules.
-  The ordinary required CI workflow runs each one for a bounded interval in addition to replaying
-  committed corpora. The driver also isolates the required Darwin libFuzzer/libc++ compatibility
-  setting to local fuzz campaigns without weakening Linux ASan.
-
 ## Resolved decisions
 
 - **FIXED (2026-08-13): an unknown VALUE on a known global was silently ignored.** `--color=bogus`,
