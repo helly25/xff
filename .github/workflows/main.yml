@@ -159,11 +159,23 @@ jobs:
     needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # PRs need prompt feedback; main gets a deeper post-merge campaign without multiplying the
+      # review matrix's latency. The driver applies this budget independently to every target.
+      FUZZ_SECONDS_PER_TARGET: ${{ github.ref == 'refs/heads/main' && 60 || 10 }}
     steps:
       - uses: actions/checkout@v6
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Run every bounded fuzz campaign
-        run: tools/fuzz_targets.py --campaign-seconds=10
+        run: |
+          set -euo pipefail
+          target_count="$(tools/fuzz_targets.py --list | wc -l)"
+          {
+            echo "### Bounded fuzz campaigns"
+            echo
+            echo "${target_count} targets, ${FUZZ_SECONDS_PER_TARGET} seconds per target"
+          } >>"${GITHUB_STEP_SUMMARY}"
+          tools/fuzz_targets.py --campaign-seconds="${FUZZ_SECONDS_PER_TARGET}"
 
   # GCC/gcov is the stable measurement toolchain. This is a production-code gate,
   # not merely another test cell: it publishes both the raw LCOV data and the
