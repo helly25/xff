@@ -25,6 +25,8 @@ for enforcement and presentation.
    corpora, semantic invariants, ordinary-CI replay, and automatically discovered bounded daily
    campaigns. Continue with parse-to-evaluate, configuration, archive/compression, shard, stronger
    matcher/template, and regex targets; every new target is picked up by the scheduled driver.
+   Expression-evaluation harnesses must exclude safety-classified descriptors and use a mutation-
+   refusing in-memory filesystem; `--safe` text alone is not an isolation boundary.
 2. **Performance evidence.** Establish reproducible traversal, parser, matching, and memory benchmarks
    before optimizing. Keep fuzz time/resource guards separate from stable performance measurements.
 3. **Near-duplicate benchmark/design spike.** Measure exact Jaccard verification behind scalable

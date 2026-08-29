@@ -143,6 +143,17 @@ Two limits, both about noise:
   colours" (the tool, not the `ls` value) all stay plain. This is why the sweep is done by hand -
   mechanical backticking gets exactly these wrong.
 
+## Fuzz-test isolation
+
+- A fuzz harness that parses or evaluates arbitrary expressions must never execute a descriptor
+  whose `registry::Descriptor::safety` is not `Safety::kNone`. Do not rely on a generated `--safe`
+  argument alone: arbitrary input can contain a later override or place it inside another primary's
+  argument run.
+- Evaluate only against an in-memory or otherwise isolated filesystem whose mutation operations
+  fail the test. Never point fuzz-generated paths at the host filesystem.
+- Leave process-execution, file-output, archive-write, mount, extraction, and confirmation sinks
+  disconnected unless that capability is the explicit subject of a separately isolated harness.
+
 ## CLI conventions
 
 - **Flag scope by dash count.** `--flag` is a whole-run global (a config / output /
