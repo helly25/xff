@@ -39,7 +39,7 @@ bool LooksLikeTar(std::string_view bytes) {
   }
   for (std::size_t offset = 0; offset + 512 <= bytes.size(); offset += 512) {
     const std::string_view header = bytes.substr(offset, 512);
-    if (header == std::string_view(512, '\0')) {
+    if (std::ranges::all_of(header, [](const char byte) { return byte == '\0'; })) {
       return true;
     }
     if (header.substr(257, 5) != "ustar") {
