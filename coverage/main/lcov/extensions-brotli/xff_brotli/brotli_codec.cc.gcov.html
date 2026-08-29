@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-29 15:27:21</td>
+            <td class="headerValue">2026-08-29 22:03:15</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -58,9 +58,9 @@
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryHi">83.7&nbsp;%</td>
+            <td class="headerCovTableEntryHi">84.1&nbsp;%</td>
             <td class="headerCovTableEntry">208</td>
-            <td class="headerCovTableEntry">174</td>
+            <td class="headerCovTableEntry">175</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -126,11 +126,11 @@
 <span id="L46"><span class="lineNum">      46</span>                 :             : constexpr std::array&lt;std::uint8_t, 4&gt; kFramingSignature = {0x91, 0x0a, 0x42, 0x52};</span>
 <span id="L47"><span class="lineNum">      47</span>                 :             : </span>
 <span id="L48"><span class="lineNum">      48</span>                 :             : struct DecoderDeleter {</span>
-<span id="L49"><span class="lineNum">      49</span>                 :<span class="tlaGNC">          13 :   void operator()(BrotliDecoderState* state) const noexcept {</span></span>
-<span id="L50"><span class="lineNum">      50</span>         [<span class="tlaGBC" title="branch 0 was taken 13 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">          13 :     if (state != nullptr) {</span></span>
-<span id="L51"><span class="lineNum">      51</span>                 :<span class="tlaGNC">          13 :       BrotliDecoderDestroyInstance(state);</span></span>
+<span id="L49"><span class="lineNum">      49</span>                 :<span class="tlaGNC">          15 :   void operator()(BrotliDecoderState* state) const noexcept {</span></span>
+<span id="L50"><span class="lineNum">      50</span>         [<span class="tlaGBC" title="branch 0 was taken 15 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">          15 :     if (state != nullptr) {</span></span>
+<span id="L51"><span class="lineNum">      51</span>                 :<span class="tlaGNC">          15 :       BrotliDecoderDestroyInstance(state);</span></span>
 <span id="L52"><span class="lineNum">      52</span>                 :             :     }</span>
-<span id="L53"><span class="lineNum">      53</span>                 :<span class="tlaGNC">          13 :   }</span></span>
+<span id="L53"><span class="lineNum">      53</span>                 :<span class="tlaGNC">          15 :   }</span></span>
 <span id="L54"><span class="lineNum">      54</span>                 :             : };</span>
 <span id="L55"><span class="lineNum">      55</span>                 :             : </span>
 <span id="L56"><span class="lineNum">      56</span>                 :             : struct EncoderDeleter {</span>
@@ -334,27 +334,27 @@
 <span id="L251"><span class="lineNum">     251</span>                 :             :   bool done = false;</span>
 <span id="L252"><span class="lineNum">     252</span>                 :             : };</span>
 <span id="L253"><span class="lineNum">     253</span>                 :             : </span>
-<span id="L254"><span class="lineNum">     254</span>                 :<span class="tlaGNC">          13 : absl::Status FillDecoderInput(</span></span>
+<span id="L254"><span class="lineNum">     254</span>                 :<span class="tlaGNC">          15 : absl::Status FillDecoderInput(</span></span>
 <span id="L255"><span class="lineNum">     255</span>                 :             :     std::istream&amp; input,</span>
 <span id="L256"><span class="lineNum">     256</span>                 :             :     std::string_view label,</span>
 <span id="L257"><span class="lineNum">     257</span>                 :             :     const std::optional&lt;std::uint64_t&gt; compressed_size,</span>
 <span id="L258"><span class="lineNum">     258</span>                 :             :     std::array&lt;std::uint8_t, kBlockSize&gt;&amp; buffer,</span>
 <span id="L259"><span class="lineNum">     259</span>                 :             :     DecoderInputState&amp; state) {</span>
-<span id="L260"><span class="lineNum">     260</span>   [<span class="tlaGBC" title="branch 0 was taken 13 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaUNC" title="branch 2 was not taken"> - </span><span class="tlaGBC" title="branch 3 was taken 13 times"> + </span>]:<span class="tlaGNC">          13 :   if (state.available != 0 || state.done) {</span></span>
+<span id="L260"><span class="lineNum">     260</span>   [<span class="tlaGBC" title="branch 0 was taken 15 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaUNC" title="branch 2 was not taken"> - </span><span class="tlaGBC" title="branch 3 was taken 15 times"> + </span>]:<span class="tlaGNC">          15 :   if (state.available != 0 || state.done) {</span></span>
 <span id="L261"><span class="lineNum">     261</span>                 :<span class="tlaUNC">           0 :     return absl::OkStatus();</span></span>
 <span id="L262"><span class="lineNum">     262</span>                 :             :   }</span>
-<span id="L263"><span class="lineNum">     263</span>                 :<span class="tlaGNC">          13 :   const std::size_t requested = compressed_size.has_value()</span></span>
-<span id="L264"><span class="lineNum">     264</span>         [<span class="tlaGBC" title="branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">          21 :                                     ? static_cast&lt;std::size_t&gt;(std::min&lt;std::uint64_t&gt;(state.remaining, buffer.size()))</span></span>
-<span id="L265"><span class="lineNum">     265</span>                 :<span class="tlaGNC">           5 :                                     : buffer.size();</span></span>
-<span id="L266"><span class="lineNum">     266</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          13 :   if (requested == 0) {</span></span>
+<span id="L263"><span class="lineNum">     263</span>                 :<span class="tlaGNC">          15 :   const std::size_t requested = compressed_size.has_value()</span></span>
+<span id="L264"><span class="lineNum">     264</span>         [<span class="tlaGBC" title="branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">          23 :                                     ? static_cast&lt;std::size_t&gt;(std::min&lt;std::uint64_t&gt;(state.remaining, buffer.size()))</span></span>
+<span id="L265"><span class="lineNum">     265</span>                 :<span class="tlaGNC">           7 :                                     : buffer.size();</span></span>
+<span id="L266"><span class="lineNum">     266</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 15 times"> + </span>]:<span class="tlaGNC">          15 :   if (requested == 0) {</span></span>
 <span id="L267"><span class="lineNum">     267</span>                 :<span class="tlaUNC">           0 :     state.done = true;</span></span>
 <span id="L268"><span class="lineNum">     268</span>                 :<span class="tlaUNC">           0 :     return absl::OkStatus();</span></span>
 <span id="L269"><span class="lineNum">     269</span>                 :             :   }</span>
 <span id="L270"><span class="lineNum">     270</span>                 :             :   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast) -- byte-oriented stream/C API boundary.</span>
-<span id="L271"><span class="lineNum">     271</span>                 :<span class="tlaGNC">          26 :   input.read(reinterpret_cast&lt;char*&gt;(buffer.data()), static_cast&lt;std::streamsize&gt;(requested));</span></span>
-<span id="L272"><span class="lineNum">     272</span>                 :<span class="tlaGNC">          13 :   state.available = static_cast&lt;std::size_t&gt;(input.gcount());</span></span>
-<span id="L273"><span class="lineNum">     273</span>                 :<span class="tlaGNC">          13 :   state.next = buffer.data();</span></span>
-<span id="L274"><span class="lineNum">     274</span>         [<span class="tlaGBC" title="branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">          13 :   if (compressed_size.has_value()) {</span></span>
+<span id="L271"><span class="lineNum">     271</span>                 :<span class="tlaGNC">          30 :   input.read(reinterpret_cast&lt;char*&gt;(buffer.data()), static_cast&lt;std::streamsize&gt;(requested));</span></span>
+<span id="L272"><span class="lineNum">     272</span>                 :<span class="tlaGNC">          15 :   state.available = static_cast&lt;std::size_t&gt;(input.gcount());</span></span>
+<span id="L273"><span class="lineNum">     273</span>                 :<span class="tlaGNC">          15 :   state.next = buffer.data();</span></span>
+<span id="L274"><span class="lineNum">     274</span>         [<span class="tlaGBC" title="branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">          15 :   if (compressed_size.has_value()) {</span></span>
 <span id="L275"><span class="lineNum">     275</span>                 :<span class="tlaGNC">           8 :     state.remaining -= state.available;</span></span>
 <span id="L276"><span class="lineNum">     276</span>   [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span><span class="tlaGBC" title="branch 2 was taken 2 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">           8 :     if (state.available &lt; requested &amp;&amp; input.eof()) {</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 2 times"> + </span><span class="tlaGBC" title="branch 5 was taken 6 times"> + </span>]
@@ -362,70 +362,70 @@
 <span id="L278"><span class="lineNum">     278</span>                 :             :     }</span>
 <span id="L279"><span class="lineNum">     279</span>                 :<span class="tlaGNC">           6 :     state.done = state.remaining == 0;</span></span>
 <span id="L280"><span class="lineNum">     280</span>                 :             :   } else {</span>
-<span id="L281"><span class="lineNum">     281</span>                 :<span class="tlaGNC">           5 :     state.done = input.eof();</span></span>
+<span id="L281"><span class="lineNum">     281</span>                 :<span class="tlaGNC">           7 :     state.done = input.eof();</span></span>
 <span id="L282"><span class="lineNum">     282</span>                 :             :   }</span>
-<span id="L283"><span class="lineNum">     283</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 11 times"> + </span>]:<span class="tlaGNC">          11 :   if (input.bad()) {</span></span>
+<span id="L283"><span class="lineNum">     283</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          13 :   if (input.bad()) {</span></span>
 <span id="L284"><span class="lineNum">     284</span>                 :<span class="tlaUNC">           0 :     return absl::DataLossError(absl::StrCat(&quot;read failed part way through '&quot;, label, &quot;'&quot;));</span></span>
 <span id="L285"><span class="lineNum">     285</span>                 :             :   }</span>
-<span id="L286"><span class="lineNum">     286</span>                 :<span class="tlaGNC">          11 :   return absl::OkStatus();</span></span>
+<span id="L286"><span class="lineNum">     286</span>                 :<span class="tlaGNC">          13 :   return absl::OkStatus();</span></span>
 <span id="L287"><span class="lineNum">     287</span>                 :             : }</span>
 <span id="L288"><span class="lineNum">     288</span>                 :             : </span>
-<span id="L289"><span class="lineNum">     289</span>                 :<span class="tlaGNC">           8 : absl::StatusOr&lt;std::string&gt; FinishDecodedStream(</span></span>
+<span id="L289"><span class="lineNum">     289</span>                 :<span class="tlaGNC">          10 : absl::StatusOr&lt;std::string&gt; FinishDecodedStream(</span></span>
 <span id="L290"><span class="lineNum">     290</span>                 :             :     std::istream&amp; input,</span>
 <span id="L291"><span class="lineNum">     291</span>                 :             :     std::string_view label,</span>
 <span id="L292"><span class="lineNum">     292</span>                 :             :     const std::optional&lt;std::uint64_t&gt; compressed_size,</span>
 <span id="L293"><span class="lineNum">     293</span>                 :             :     const std::optional&lt;std::uint64_t&gt; expected_size,</span>
 <span id="L294"><span class="lineNum">     294</span>                 :             :     const DecoderInputState&amp; state,</span>
 <span id="L295"><span class="lineNum">     295</span>                 :             :     std::string output) {</span>
-<span id="L296"><span class="lineNum">     296</span>   [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="branch 2 was taken 5 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">           7 :   const bool trailing = state.available != 0 || (compressed_size.has_value() &amp;&amp; state.remaining != 0)</span></span>
-<span id="L297"><span class="lineNum">     297</span>   [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 2 times"> + </span><span class="tlaGBC" title="branch 3 was taken 5 times"> + </span> :<span class="tlaGNC">          15 :                         || (!compressed_size.has_value() &amp;&amp; input.peek() != std::istream::traits_type::eof());</span></span>
-<span class="lineNum">        </span>          <span class="tlaUNC" title="branch 4 was not taken"> - </span><span class="tlaGBC" title="branch 5 was taken 2 times"> + </span>]
-<span id="L298"><span class="lineNum">     298</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">           8 :   if (trailing) {</span></span>
+<span id="L296"><span class="lineNum">     296</span>   [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span><span class="tlaGBC" title="branch 2 was taken 5 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">           9 :   const bool trailing = state.available != 0 || (compressed_size.has_value() &amp;&amp; state.remaining != 0)</span></span>
+<span id="L297"><span class="lineNum">     297</span>   [<span class="tlaGBC" title="branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 4 times"> + </span><span class="tlaGBC" title="branch 3 was taken 5 times"> + </span> :<span class="tlaGNC">          19 :                         || (!compressed_size.has_value() &amp;&amp; input.peek() != std::istream::traits_type::eof());</span></span>
+<span class="lineNum">        </span>          <span class="tlaUNC" title="branch 4 was not taken"> - </span><span class="tlaGBC" title="branch 5 was taken 4 times"> + </span>]
+<span id="L298"><span class="lineNum">     298</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">          10 :   if (trailing) {</span></span>
 <span id="L299"><span class="lineNum">     299</span>                 :<span class="tlaGNC">           1 :     return absl::DataLossError(absl::StrCat(&quot;trailing bytes after the Brotli stream in '&quot;, label, &quot;'&quot;));</span></span>
 <span id="L300"><span class="lineNum">     300</span>                 :             :   }</span>
-<span id="L301"><span class="lineNum">     301</span>   [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 4 times"> + </span> :<span class="tlaGNC">           7 :   if (expected_size.has_value() &amp;&amp; output.size() != expected_size.value_or(0)) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 1 time"> + </span><span class="tlaGBC" title="branch 5 was taken 6 times"> + </span>]
+<span id="L301"><span class="lineNum">     301</span>   [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 4 times"> + </span> :<span class="tlaGNC">           9 :   if (expected_size.has_value() &amp;&amp; output.size() != expected_size.value_or(0)) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 1 time"> + </span><span class="tlaGBC" title="branch 5 was taken 8 times"> + </span>]
 <span id="L302"><span class="lineNum">     302</span>                 :<span class="tlaGNC">           2 :     return absl::DataLossError(</span></span>
 <span id="L303"><span class="lineNum">     303</span>                 :<span class="tlaGNC">           2 :         absl::StrCat(</span></span>
 <span id="L304"><span class="lineNum">     304</span>                 :<span class="tlaGNC">           1 :             &quot;RFC 9841 size mismatch in '&quot;, label, &quot;': expected &quot;, expected_size.value_or(0), &quot;, decoded &quot;,</span></span>
 <span id="L305"><span class="lineNum">     305</span>                 :<span class="tlaGNC">           3 :             output.size()));</span></span>
 <span id="L306"><span class="lineNum">     306</span>                 :             :   }</span>
-<span id="L307"><span class="lineNum">     307</span>                 :<span class="tlaGNC">           6 :   return output;</span></span>
+<span id="L307"><span class="lineNum">     307</span>                 :<span class="tlaGNC">           8 :   return output;</span></span>
 <span id="L308"><span class="lineNum">     308</span>                 :             : }</span>
 <span id="L309"><span class="lineNum">     309</span>                 :             : </span>
-<span id="L310"><span class="lineNum">     310</span>                 :<span class="tlaGNC">          13 : absl::StatusOr&lt;std::string&gt; DecodeRawStream(</span></span>
+<span id="L310"><span class="lineNum">     310</span>                 :<span class="tlaGNC">          15 : absl::StatusOr&lt;std::string&gt; DecodeRawStream(</span></span>
 <span id="L311"><span class="lineNum">     311</span>                 :             :     std::istream&amp; input,</span>
 <span id="L312"><span class="lineNum">     312</span>                 :             :     std::string_view label,</span>
 <span id="L313"><span class="lineNum">     313</span>                 :             :     std::optional&lt;std::uint64_t&gt; compressed_size,</span>
 <span id="L314"><span class="lineNum">     314</span>                 :             :     std::optional&lt;std::uint64_t&gt; expected_size,</span>
 <span id="L315"><span class="lineNum">     315</span>                 :             :     std::uint64_t max_bytes) {</span>
-<span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">          13 :   const DecoderPtr decoder{BrotliDecoderCreateInstance(nullptr, nullptr, nullptr)};</span></span>
-<span id="L317"><span class="lineNum">     317</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          13 :   if (decoder == nullptr) {</span></span>
+<span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">          15 :   const DecoderPtr decoder{BrotliDecoderCreateInstance(nullptr, nullptr, nullptr)};</span></span>
+<span id="L317"><span class="lineNum">     317</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 15 times"> + </span>]:<span class="tlaGNC">          15 :   if (decoder == nullptr) {</span></span>
 <span id="L318"><span class="lineNum">     318</span>                 :<span class="tlaUNC">           0 :     return absl::ResourceExhaustedError(&quot;cannot allocate the Brotli decoder&quot;);</span></span>
 <span id="L319"><span class="lineNum">     319</span>                 :             :   }</span>
-<span id="L320"><span class="lineNum">     320</span>                 :<span class="tlaGNC">          13 :   std::array&lt;std::uint8_t, kBlockSize&gt; input_buffer{};</span></span>
-<span id="L321"><span class="lineNum">     321</span>                 :<span class="tlaGNC">          13 :   std::array&lt;std::uint8_t, kBlockSize&gt; output_buffer{};</span></span>
-<span id="L322"><span class="lineNum">     322</span>                 :<span class="tlaGNC">          13 :   std::string output;</span></span>
-<span id="L323"><span class="lineNum">     323</span>                 :<span class="tlaGNC">          13 :   DecoderInputState state{</span></span>
-<span id="L324"><span class="lineNum">     324</span>                 :<span class="tlaGNC">          13 :       .remaining = compressed_size.value_or(0),</span></span>
-<span id="L325"><span class="lineNum">     325</span>                 :<span class="tlaGNC">          13 :       .next = input_buffer.data(),</span></span>
-<span id="L326"><span class="lineNum">     326</span>                 :<span class="tlaGNC">          26 :   };</span></span>
+<span id="L320"><span class="lineNum">     320</span>                 :<span class="tlaGNC">          15 :   std::array&lt;std::uint8_t, kBlockSize&gt; input_buffer{};</span></span>
+<span id="L321"><span class="lineNum">     321</span>                 :<span class="tlaGNC">          15 :   std::array&lt;std::uint8_t, kBlockSize&gt; output_buffer{};</span></span>
+<span id="L322"><span class="lineNum">     322</span>                 :<span class="tlaGNC">          15 :   std::string output;</span></span>
+<span id="L323"><span class="lineNum">     323</span>                 :<span class="tlaGNC">          15 :   DecoderInputState state{</span></span>
+<span id="L324"><span class="lineNum">     324</span>                 :<span class="tlaGNC">          15 :       .remaining = compressed_size.value_or(0),</span></span>
+<span id="L325"><span class="lineNum">     325</span>                 :<span class="tlaGNC">          15 :       .next = input_buffer.data(),</span></span>
+<span id="L326"><span class="lineNum">     326</span>                 :<span class="tlaGNC">          30 :   };</span></span>
 <span id="L327"><span class="lineNum">     327</span>                 :             : </span>
 <span id="L328"><span class="lineNum">     328</span>                 :             :   while (true) {</span>
-<span id="L329"><span class="lineNum">     329</span>   [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 11 times"> + </span><span class="tlaGBC" title="branch 2 was taken 11 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2 times"> + </span>]:<span class="tlaGNC">          13 :     MBO_RETURN_IF_ERROR(FillDecoderInput(input, label, compressed_size, input_buffer, state));</span></span>
-<span id="L330"><span class="lineNum">     330</span>                 :<span class="tlaGNC">          11 :     std::size_t available_output = output_buffer.size();</span></span>
-<span id="L331"><span class="lineNum">     331</span>                 :<span class="tlaGNC">          11 :     std::uint8_t* next_output = output_buffer.data();</span></span>
-<span id="L332"><span class="lineNum">     332</span>                 :<span class="tlaGNC">          11 :     const BrotliDecoderResult result = BrotliDecoderDecompressStream(</span></span>
+<span id="L329"><span class="lineNum">     329</span>   [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span><span class="tlaGBC" title="branch 2 was taken 13 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2 times"> + </span>]:<span class="tlaGNC">          15 :     MBO_RETURN_IF_ERROR(FillDecoderInput(input, label, compressed_size, input_buffer, state));</span></span>
+<span id="L330"><span class="lineNum">     330</span>                 :<span class="tlaGNC">          13 :     std::size_t available_output = output_buffer.size();</span></span>
+<span id="L331"><span class="lineNum">     331</span>                 :<span class="tlaGNC">          13 :     std::uint8_t* next_output = output_buffer.data();</span></span>
+<span id="L332"><span class="lineNum">     332</span>                 :<span class="tlaGNC">          13 :     const BrotliDecoderResult result = BrotliDecoderDecompressStream(</span></span>
 <span id="L333"><span class="lineNum">     333</span>                 :             :         decoder.get(), &amp;state.available, &amp;state.next, &amp;available_output, &amp;next_output, nullptr);</span>
-<span id="L334"><span class="lineNum">     334</span>                 :<span class="tlaGNC">          11 :     const std::size_t produced = output_buffer.size() - available_output;</span></span>
-<span id="L335"><span class="lineNum">     335</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">          11 :     if (max_bytes != 0 &amp;&amp; output.size() + produced &gt; max_bytes) {</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 1 time"> + </span><span class="tlaGBC" title="branch 5 was taken 10 times"> + </span>]
+<span id="L334"><span class="lineNum">     334</span>                 :<span class="tlaGNC">          13 :     const std::size_t produced = output_buffer.size() - available_output;</span></span>
+<span id="L335"><span class="lineNum">     335</span>   [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1 time"> + </span><span class="tlaGBC" title="branch 3 was taken 2 times"> + </span> :<span class="tlaGNC">          13 :     if (max_bytes != 0 &amp;&amp; output.size() + produced &gt; max_bytes) {</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 1 time"> + </span><span class="tlaGBC" title="branch 5 was taken 12 times"> + </span>]
 <span id="L336"><span class="lineNum">     336</span>                 :<span class="tlaGNC">           1 :       return absl::ResourceExhaustedError(absl::StrCat(label, &quot; exceeds the &quot;, max_bytes, &quot; byte limit&quot;));</span></span>
 <span id="L337"><span class="lineNum">     337</span>                 :             :     }</span>
 <span id="L338"><span class="lineNum">     338</span>                 :             :     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast) -- byte-oriented stream/C API boundary.</span>
-<span id="L339"><span class="lineNum">     339</span>                 :<span class="tlaGNC">          10 :     output.append(reinterpret_cast&lt;const char*&gt;(output_buffer.data()), produced);</span></span>
-<span id="L340"><span class="lineNum">     340</span>         [<span class="tlaGBC" title="branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">          10 :     if (result == BROTLI_DECODER_RESULT_SUCCESS) {</span></span>
-<span id="L341"><span class="lineNum">     341</span>                 :<span class="tlaGNC">           8 :       return FinishDecodedStream(input, label, compressed_size, expected_size, state, std::move(output));</span></span>
+<span id="L339"><span class="lineNum">     339</span>                 :<span class="tlaGNC">          12 :     output.append(reinterpret_cast&lt;const char*&gt;(output_buffer.data()), produced);</span></span>
+<span id="L340"><span class="lineNum">     340</span>         [<span class="tlaGBC" title="branch 0 was taken 10 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">          12 :     if (result == BROTLI_DECODER_RESULT_SUCCESS) {</span></span>
+<span id="L341"><span class="lineNum">     341</span>                 :<span class="tlaGNC">          10 :       return FinishDecodedStream(input, label, compressed_size, expected_size, state, std::move(output));</span></span>
 <span id="L342"><span class="lineNum">     342</span>                 :             :     }</span>
 <span id="L343"><span class="lineNum">     343</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           2 :     if (result == BROTLI_DECODER_RESULT_ERROR) {</span></span>
 <span id="L344"><span class="lineNum">     344</span>                 :<span class="tlaGNC">           2 :       return absl::DataLossError(</span></span>
@@ -438,7 +438,7 @@
 <span id="L350"><span class="lineNum">     350</span>                 :<span class="tlaGNC">           1 :       return absl::DataLossError(absl::StrCat(&quot;truncated Brotli stream in '&quot;, label, &quot;'&quot;));</span></span>
 <span id="L351"><span class="lineNum">     351</span>                 :             :     }</span>
 <span id="L352"><span class="lineNum">     352</span>                 :<span class="tlaUNC">           0 :   }</span></span>
-<span id="L353"><span class="lineNum">     353</span>                 :<span class="tlaGNC">          13 : }</span></span>
+<span id="L353"><span class="lineNum">     353</span>                 :<span class="tlaGNC">          15 : }</span></span>
 <span id="L354"><span class="lineNum">     354</span>                 :             : </span>
 <span id="L355"><span class="lineNum">     355</span>                 :             : struct EncodingOptions {</span>
 <span id="L356"><span class="lineNum">     356</span>                 :             :   int quality;</span>
@@ -478,14 +478,14 @@
 <span id="L388"><span class="lineNum">     388</span>                 :<span class="tlaGNC">           5 :   return WriteFramed(raw, compressed, tar_size);</span></span>
 <span id="L389"><span class="lineNum">     389</span>                 :             : }</span>
 <span id="L390"><span class="lineNum">     390</span>                 :             : </span>
-<span id="L391"><span class="lineNum">     391</span>                 :<span class="tlaGNC">          25 : absl::StatusOr&lt;std::string&gt; DecodeStream(std::istream&amp; input, std::string_view path, std::uint64_t max_bytes) {</span></span>
-<span id="L392"><span class="lineNum">     392</span>                 :<span class="tlaGNC">          25 :   std::array&lt;std::uint8_t, kFramingSignature.size()&gt; signature{};</span></span>
+<span id="L391"><span class="lineNum">     391</span>                 :<span class="tlaGNC">          27 : absl::StatusOr&lt;std::string&gt; DecodeStream(std::istream&amp; input, std::string_view path, std::uint64_t max_bytes) {</span></span>
+<span id="L392"><span class="lineNum">     392</span>                 :<span class="tlaGNC">          27 :   std::array&lt;std::uint8_t, kFramingSignature.size()&gt; signature{};</span></span>
 <span id="L393"><span class="lineNum">     393</span>                 :             :   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast) -- byte-oriented stream/C API boundary.</span>
-<span id="L394"><span class="lineNum">     394</span>                 :<span class="tlaGNC">          50 :   input.read(reinterpret_cast&lt;char*&gt;(signature.data()), static_cast&lt;std::streamsize&gt;(signature.size()));</span></span>
-<span id="L395"><span class="lineNum">     395</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 20 times"> + </span>]:<span class="tlaGNC">          25 :   if (signature != kFramingSignature) {</span></span>
-<span id="L396"><span class="lineNum">     396</span>                 :<span class="tlaGNC">           5 :     input.clear();</span></span>
-<span id="L397"><span class="lineNum">     397</span>                 :<span class="tlaGNC">           5 :     input.seekg(0);</span></span>
-<span id="L398"><span class="lineNum">     398</span>                 :<span class="tlaGNC">           5 :     return DecodeRawStream(input, path, std::nullopt, std::nullopt, max_bytes);</span></span>
+<span id="L394"><span class="lineNum">     394</span>                 :<span class="tlaGNC">          54 :   input.read(reinterpret_cast&lt;char*&gt;(signature.data()), static_cast&lt;std::streamsize&gt;(signature.size()));</span></span>
+<span id="L395"><span class="lineNum">     395</span>         [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 20 times"> + </span>]:<span class="tlaGNC">          27 :   if (signature != kFramingSignature) {</span></span>
+<span id="L396"><span class="lineNum">     396</span>                 :<span class="tlaGNC">           7 :     input.clear();</span></span>
+<span id="L397"><span class="lineNum">     397</span>                 :<span class="tlaGNC">           7 :     input.seekg(0);</span></span>
+<span id="L398"><span class="lineNum">     398</span>                 :<span class="tlaGNC">           7 :     return DecodeRawStream(input, path, std::nullopt, std::nullopt, max_bytes);</span></span>
 <span id="L399"><span class="lineNum">     399</span>                 :             :   }</span>
 <span id="L400"><span class="lineNum">     400</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          20 :   MBO_ASSIGN_OR_RETURN(const std::uint8_t flags, ReadByte(input, path));</span></span>
 <span id="L401"><span class="lineNum">     401</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 18 times"> + </span>]:<span class="tlaGNC">          19 :   if (flags != 0) {</span></span>
@@ -517,14 +517,14 @@
 <span id="L427"><span class="lineNum">     427</span>                 :             : </span>
 <span id="L428"><span class="lineNum">     428</span>                 :             : }  // namespace</span>
 <span id="L429"><span class="lineNum">     429</span>                 :             : </span>
-<span id="L430"><span class="lineNum">     430</span>                 :<span class="tlaGNC">          26 : absl::StatusOr&lt;std::string&gt; Decode(</span></span>
+<span id="L430"><span class="lineNum">     430</span>                 :<span class="tlaGNC">          28 : absl::StatusOr&lt;std::string&gt; Decode(</span></span>
 <span id="L431"><span class="lineNum">     431</span>                 :             :     std::string_view path,</span>
 <span id="L432"><span class="lineNum">     432</span>                 :             :     std::optional&lt;std::string_view&gt; bytes,</span>
 <span id="L433"><span class="lineNum">     433</span>                 :             :     std::uint64_t max_bytes) {</span>
-<span id="L434"><span class="lineNum">     434</span>         [<span class="tlaGBC" title="branch 0 was taken 21 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">          26 :   if (bytes.has_value()) {</span></span>
-<span id="L435"><span class="lineNum">     435</span>                 :<span class="tlaGNC">          21 :     std::istringstream memory{std::string(*bytes)};</span></span>
-<span id="L436"><span class="lineNum">     436</span>                 :<span class="tlaGNC">          21 :     return DecodeStream(memory, path, max_bytes);</span></span>
-<span id="L437"><span class="lineNum">     437</span>                 :<span class="tlaGNC">          21 :   }</span></span>
+<span id="L434"><span class="lineNum">     434</span>         [<span class="tlaGBC" title="branch 0 was taken 23 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">          28 :   if (bytes.has_value()) {</span></span>
+<span id="L435"><span class="lineNum">     435</span>                 :<span class="tlaGNC">          23 :     std::istringstream memory{std::string(*bytes)};</span></span>
+<span id="L436"><span class="lineNum">     436</span>                 :<span class="tlaGNC">          23 :     return DecodeStream(memory, path, max_bytes);</span></span>
+<span id="L437"><span class="lineNum">     437</span>                 :<span class="tlaGNC">          23 :   }</span></span>
 <span id="L438"><span class="lineNum">     438</span>                 :<span class="tlaGNC">           5 :   std::ifstream file(std::string(path), std::ios::binary);</span></span>
 <span id="L439"><span class="lineNum">     439</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 4 times"> + </span>]:<span class="tlaGNC">           5 :   if (!file.is_open()) {</span></span>
 <span id="L440"><span class="lineNum">     440</span>                 :<span class="tlaGNC">           1 :     return absl::NotFoundError(absl::StrCat(&quot;cannot open '&quot;, path, &quot;'&quot;));</span></span>
