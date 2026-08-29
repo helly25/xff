@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-28 22:54:40</td>
+            <td class="headerValue">2026-08-29 07:59:54</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -129,11 +129,11 @@
 <span id="L49"><span class="lineNum">      49</span>                 :             : // forwards each Matcher operation to it.</span>
 <span id="L50"><span class="lineNum">      50</span>                 :             : class Re2Backend final : public RegexBackend {</span>
 <span id="L51"><span class="lineNum">      51</span>                 :             :  public:</span>
-<span id="L52"><span class="lineNum">      52</span>                 :<span class="tlaGNC">         217 :   explicit Re2Backend(std::unique_ptr&lt;RE2&gt; re) : re_(std::move(re)) {}</span></span>
+<span id="L52"><span class="lineNum">      52</span>                 :<span class="tlaGNC">         221 :   explicit Re2Backend(std::unique_ptr&lt;RE2&gt; re) : re_(std::move(re)) {}</span></span>
 <span id="L53"><span class="lineNum">      53</span>                 :             : </span>
 <span id="L54"><span class="lineNum">      54</span>                 :<span class="tlaGNC">         289 :   bool FullMatch(std::string_view text) const override { return RE2::FullMatch(text, *re_); }</span></span>
 <span id="L55"><span class="lineNum">      55</span>                 :             : </span>
-<span id="L56"><span class="lineNum">      56</span>                 :<span class="tlaGNC">         229 :   bool PartialMatch(std::string_view text) const override { return RE2::PartialMatch(text, *re_); }</span></span>
+<span id="L56"><span class="lineNum">      56</span>                 :<span class="tlaGNC">         237 :   bool PartialMatch(std::string_view text) const override { return RE2::PartialMatch(text, *re_); }</span></span>
 <span id="L57"><span class="lineNum">      57</span>                 :             : </span>
 <span id="L58"><span class="lineNum">      58</span>                 :<span class="tlaGNC">          13 :   std::optional&lt;std::pair&lt;std::size_t, std::size_t&gt;&gt; FindFirst(std::string_view text) const override {</span></span>
 <span id="L59"><span class="lineNum">      59</span>                 :<span class="tlaGNC">          13 :     std::string_view match;  // submatch[0] = the whole match; its data() points into `text`</span></span>
@@ -158,14 +158,14 @@
 <span id="L78"><span class="lineNum">      78</span>                 :<span class="tlaGNC">           6 :     return captures;</span></span>
 <span id="L79"><span class="lineNum">      79</span>                 :<span class="tlaGNC">          11 :   }</span></span>
 <span id="L80"><span class="lineNum">      80</span>                 :             : </span>
-<span id="L81"><span class="lineNum">      81</span>                 :<span class="tlaGNC">          71 :   std::string Rewrite(std::string_view text, std::string_view replacement, bool global) const override {</span></span>
-<span id="L82"><span class="lineNum">      82</span>                 :<span class="tlaGNC">          71 :     std::string out(text);</span></span>
-<span id="L83"><span class="lineNum">      83</span>         [<span class="tlaGBC" title="branch 0 was taken 17 times"> + </span><span class="tlaGBC" title="branch 1 was taken 54 times"> + </span>]:<span class="tlaGNC">          71 :     if (global) {</span></span>
-<span id="L84"><span class="lineNum">      84</span>                 :<span class="tlaGNC">          17 :       RE2::GlobalReplace(&amp;out, *re_, replacement);</span></span>
+<span id="L81"><span class="lineNum">      81</span>                 :<span class="tlaGNC">          77 :   std::string Rewrite(std::string_view text, std::string_view replacement, bool global) const override {</span></span>
+<span id="L82"><span class="lineNum">      82</span>                 :<span class="tlaGNC">          77 :     std::string out(text);</span></span>
+<span id="L83"><span class="lineNum">      83</span>         [<span class="tlaGBC" title="branch 0 was taken 19 times"> + </span><span class="tlaGBC" title="branch 1 was taken 58 times"> + </span>]:<span class="tlaGNC">          77 :     if (global) {</span></span>
+<span id="L84"><span class="lineNum">      84</span>                 :<span class="tlaGNC">          19 :       RE2::GlobalReplace(&amp;out, *re_, replacement);</span></span>
 <span id="L85"><span class="lineNum">      85</span>                 :             :     } else {</span>
-<span id="L86"><span class="lineNum">      86</span>                 :<span class="tlaGNC">          54 :       RE2::Replace(&amp;out, *re_, replacement);</span></span>
+<span id="L86"><span class="lineNum">      86</span>                 :<span class="tlaGNC">          58 :       RE2::Replace(&amp;out, *re_, replacement);</span></span>
 <span id="L87"><span class="lineNum">      87</span>                 :             :     }</span>
-<span id="L88"><span class="lineNum">      88</span>                 :<span class="tlaGNC">          71 :     return out;</span></span>
+<span id="L88"><span class="lineNum">      88</span>                 :<span class="tlaGNC">          77 :     return out;</span></span>
 <span id="L89"><span class="lineNum">      89</span>                 :             :   }</span>
 <span id="L90"><span class="lineNum">      90</span>                 :             : </span>
 <span id="L91"><span class="lineNum">      91</span>                 :             :  private:</span>
@@ -291,22 +291,22 @@
 <span id="L211"><span class="lineNum">     211</span>                 :             : </span>
 <span id="L212"><span class="lineNum">     212</span>                 :             : }  // namespace</span>
 <span id="L213"><span class="lineNum">     213</span>                 :             : </span>
-<span id="L214"><span class="lineNum">     214</span>                 :<span class="tlaGNC">         258 : absl::StatusOr&lt;Matcher&gt; Matcher::Compile(std::string_view pattern, bool case_insensitive, Grammar grammar) {</span></span>
+<span id="L214"><span class="lineNum">     214</span>                 :<span class="tlaGNC">         262 : absl::StatusOr&lt;Matcher&gt; Matcher::Compile(std::string_view pattern, bool case_insensitive, Grammar grammar) {</span></span>
 <span id="L215"><span class="lineNum">     215</span>                 :             :   // Shared RE2 compilation: kRe2 uses the pattern verbatim, kGlob its glob-to-RE2 translation. A</span>
 <span id="L216"><span class="lineNum">     216</span>                 :             :   // lambda in this member function reaches Matcher's private constructor.</span>
-<span id="L217"><span class="lineNum">     217</span>                 :<span class="tlaGNC">         220 :   const auto compile_re2 = [case_insensitive](std::string_view re_pattern) -&gt; absl::StatusOr&lt;Matcher&gt; {</span></span>
-<span id="L218"><span class="lineNum">     218</span>                 :<span class="tlaGNC">         220 :     RE2::Options options;</span></span>
-<span id="L219"><span class="lineNum">     219</span>                 :<span class="tlaGNC">         220 :     options.set_case_sensitive(!case_insensitive);</span></span>
-<span id="L220"><span class="lineNum">     220</span>                 :<span class="tlaGNC">         220 :     options.set_log_errors(false);  // surface failures via Status, not stderr</span></span>
-<span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC">         220 :     auto re = std::make_unique&lt;RE2&gt;(re_pattern, options);</span></span>
-<span id="L222"><span class="lineNum">     222</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 217 times"> + </span>]:<span class="tlaGNC">         220 :     if (!re-&gt;ok()) {</span></span>
+<span id="L217"><span class="lineNum">     217</span>                 :<span class="tlaGNC">         224 :   const auto compile_re2 = [case_insensitive](std::string_view re_pattern) -&gt; absl::StatusOr&lt;Matcher&gt; {</span></span>
+<span id="L218"><span class="lineNum">     218</span>                 :<span class="tlaGNC">         224 :     RE2::Options options;</span></span>
+<span id="L219"><span class="lineNum">     219</span>                 :<span class="tlaGNC">         224 :     options.set_case_sensitive(!case_insensitive);</span></span>
+<span id="L220"><span class="lineNum">     220</span>                 :<span class="tlaGNC">         224 :     options.set_log_errors(false);  // surface failures via Status, not stderr</span></span>
+<span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC">         224 :     auto re = std::make_unique&lt;RE2&gt;(re_pattern, options);</span></span>
+<span id="L222"><span class="lineNum">     222</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 221 times"> + </span>]:<span class="tlaGNC">         224 :     if (!re-&gt;ok()) {</span></span>
 <span id="L223"><span class="lineNum">     223</span>                 :<span class="tlaGNC">           3 :       return absl::InvalidArgumentError(absl::StrCat(&quot;invalid regular expression: &quot;, re-&gt;error()));</span></span>
 <span id="L224"><span class="lineNum">     224</span>                 :             :     }</span>
-<span id="L225"><span class="lineNum">     225</span>                 :<span class="tlaGNC">         217 :     return Matcher(std::make_unique&lt;Re2Backend&gt;(std::move(re)));</span></span>
-<span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">         220 :   };</span></span>
-<span id="L227"><span class="lineNum">     227</span>   [<span class="tlaGBC" title="branch 0 was taken 200 times"> + </span><span class="tlaGBC" title="branch 1 was taken 18 times"> + </span><span class="tlaGBC" title="branch 2 was taken 10 times"> + </span><span class="tlaGBC" title="branch 3 was taken 15 times"> + </span> :<span class="tlaGNC">         258 :   switch (grammar) {</span></span>
+<span id="L225"><span class="lineNum">     225</span>                 :<span class="tlaGNC">         221 :     return Matcher(std::make_unique&lt;Re2Backend&gt;(std::move(re)));</span></span>
+<span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">         224 :   };</span></span>
+<span id="L227"><span class="lineNum">     227</span>   [<span class="tlaGBC" title="branch 0 was taken 204 times"> + </span><span class="tlaGBC" title="branch 1 was taken 18 times"> + </span><span class="tlaGBC" title="branch 2 was taken 10 times"> + </span><span class="tlaGBC" title="branch 3 was taken 15 times"> + </span> :<span class="tlaGNC">         262 :   switch (grammar) {</span></span>
 <span class="lineNum">        </span>       <span class="tlaGBC" title="branch 4 was taken 9 times"> + </span><span class="tlaGBC" title="branch 5 was taken 5 times"> + </span><span class="tlaGBC" title="branch 6 was taken 1 time"> + </span>]
-<span id="L228"><span class="lineNum">     228</span>                 :<span class="tlaGNC">         200 :     case Grammar::kRe2: return compile_re2(pattern);</span></span>
+<span id="L228"><span class="lineNum">     228</span>                 :<span class="tlaGNC">         204 :     case Grammar::kRe2: return compile_re2(pattern);</span></span>
 <span id="L229"><span class="lineNum">     229</span>                 :<span class="tlaGNC">          18 :     case Grammar::kExact:</span></span>
 <span id="L230"><span class="lineNum">     230</span>                 :             :       // A literal match: no pattern to compile, so this never fails.</span>
 <span id="L231"><span class="lineNum">     231</span>                 :<span class="tlaGNC">          36 :       return Matcher(std::make_unique&lt;ExactBackend&gt;(std::string(pattern), case_insensitive));</span></span>
@@ -337,18 +337,18 @@
 <span id="L256"><span class="lineNum">     256</span>                 :<span class="tlaGNC">           1 :   return absl::InternalError(&quot;unknown regex grammar&quot;);  // unreachable: the enum is exhaustive</span></span>
 <span id="L257"><span class="lineNum">     257</span>                 :             : }</span>
 <span id="L258"><span class="lineNum">     258</span>                 :             : </span>
-<span id="L259"><span class="lineNum">     259</span>                 :<span class="tlaGNC">         246 : Matcher::Matcher(std::unique_ptr&lt;const RegexBackend&gt; backend) : backend_(std::move(backend)) {}</span></span>
+<span id="L259"><span class="lineNum">     259</span>                 :<span class="tlaGNC">         250 : Matcher::Matcher(std::unique_ptr&lt;const RegexBackend&gt; backend) : backend_(std::move(backend)) {}</span></span>
 <span id="L260"><span class="lineNum">     260</span>                 :             : </span>
-<span id="L261"><span class="lineNum">     261</span>                 :<span class="tlaGNC">         821 : Matcher::~Matcher() = default;</span></span>
-<span id="L262"><span class="lineNum">     262</span>                 :<span class="tlaGNC">         575 : Matcher::Matcher(Matcher&amp;&amp;) noexcept = default;</span></span>
+<span id="L261"><span class="lineNum">     261</span>                 :<span class="tlaGNC">         833 : Matcher::~Matcher() = default;</span></span>
+<span id="L262"><span class="lineNum">     262</span>                 :<span class="tlaGNC">         583 : Matcher::Matcher(Matcher&amp;&amp;) noexcept = default;</span></span>
 <span id="L263"><span class="lineNum">     263</span>                 :<span class="tlaGNC">           1 : Matcher&amp; Matcher::operator=(Matcher&amp;&amp;) noexcept = default;</span></span>
 <span id="L264"><span class="lineNum">     264</span>                 :             : </span>
 <span id="L265"><span class="lineNum">     265</span>                 :<span class="tlaGNC">         303 : bool Matcher::FullMatch(std::string_view text) const {</span></span>
 <span id="L266"><span class="lineNum">     266</span>                 :<span class="tlaGNC">         303 :   return backend_-&gt;FullMatch(text);</span></span>
 <span id="L267"><span class="lineNum">     267</span>                 :             : }</span>
 <span id="L268"><span class="lineNum">     268</span>                 :             : </span>
-<span id="L269"><span class="lineNum">     269</span>                 :<span class="tlaGNC">         250 : bool Matcher::PartialMatch(std::string_view text) const {</span></span>
-<span id="L270"><span class="lineNum">     270</span>                 :<span class="tlaGNC">         250 :   return backend_-&gt;PartialMatch(text);</span></span>
+<span id="L269"><span class="lineNum">     269</span>                 :<span class="tlaGNC">         258 : bool Matcher::PartialMatch(std::string_view text) const {</span></span>
+<span id="L270"><span class="lineNum">     270</span>                 :<span class="tlaGNC">         258 :   return backend_-&gt;PartialMatch(text);</span></span>
 <span id="L271"><span class="lineNum">     271</span>                 :             : }</span>
 <span id="L272"><span class="lineNum">     272</span>                 :             : </span>
 <span id="L273"><span class="lineNum">     273</span>                 :<span class="tlaGNC">          20 : std::optional&lt;std::pair&lt;std::size_t, std::size_t&gt;&gt; Matcher::FindFirst(std::string_view text) const {</span></span>
@@ -359,8 +359,8 @@
 <span id="L278"><span class="lineNum">     278</span>                 :<span class="tlaGNC">          15 :   return backend_-&gt;FullMatchCaptures(text);</span></span>
 <span id="L279"><span class="lineNum">     279</span>                 :             : }</span>
 <span id="L280"><span class="lineNum">     280</span>                 :             : </span>
-<span id="L281"><span class="lineNum">     281</span>                 :<span class="tlaGNC">          76 : std::string Matcher::Rewrite(std::string_view text, std::string_view replacement, bool global) const {</span></span>
-<span id="L282"><span class="lineNum">     282</span>                 :<span class="tlaGNC">          76 :   return backend_-&gt;Rewrite(text, replacement, global);</span></span>
+<span id="L281"><span class="lineNum">     281</span>                 :<span class="tlaGNC">          82 : std::string Matcher::Rewrite(std::string_view text, std::string_view replacement, bool global) const {</span></span>
+<span id="L282"><span class="lineNum">     282</span>                 :<span class="tlaGNC">          82 :   return backend_-&gt;Rewrite(text, replacement, global);</span></span>
 <span id="L283"><span class="lineNum">     283</span>                 :             : }</span>
 <span id="L284"><span class="lineNum">     284</span>                 :             : </span>
 <span id="L285"><span class="lineNum">     285</span>                 :<span class="tlaGNC">          53 : absl::Span&lt;const std::pair&lt;std::string_view, std::string_view&gt;&gt; GrammarDocs() {</span></span>
