@@ -23,8 +23,9 @@ for enforcement and presentation.
 
 1. **Fuzzing.** The parser-through-evaluator, matcher, template, PHAR, and ASAR targets now have
    committed seed corpora, semantic invariants, ordinary-CI replay, and automatically discovered
-   bounded CI campaigns. Continue with configuration, archive/compression, shard, stronger matcher/
-   template, and regex targets; every new target is picked up by the campaign driver.
+   bounded CI campaigns. Continue with archive/compression, shard, stronger matcher/template, and
+   regex targets; every new target is picked up by the campaign driver. Configuration coverage
+   includes both file grammars, policy gating, precedence resolution, and arming invariants.
    Expression-evaluation harnesses must exclude safety-classified descriptors and use a mutation-
    refusing in-memory filesystem; `--safe` text alone is not an isolation boundary.
 2. **Performance evidence.** Establish reproducible traversal, parser, matching, and memory benchmarks
@@ -32,6 +33,12 @@ for enforcement and presentation.
 3. **Near-duplicate benchmark/design spike.** Measure exact Jaccard verification behind scalable
    candidate generation before settling the grouping architecture, configuration, or core-versus-extra
    boundary. False positives may reach exact verification but must never reach emitted clusters.
+4. **Coverage overview ordering.** Keep `overall` first, then render the program categories
+   alphabetically, followed by the extension categories alphabetically. Preserve this ordering in
+   generated and published reports.
+5. **Detailed coverage gaps.** Raise line and function coverage for
+   `program-command-grammar/xff/registry/` and branch coverage for `program-execution/xff/exec/`
+   until every range is green in the detailed LCOV report.
 
 ## Design required before implementation
 

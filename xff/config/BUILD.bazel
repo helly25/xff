@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_fuzzing//fuzzing:cc_defs.bzl", "cc_fuzz_test")
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
 package(default_visibility = ["//visibility:private"])
@@ -155,5 +156,21 @@ cc_test(
         "//xff/registry:registry_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+    ],
+)
+
+# Feed arbitrary text through both config grammars and the complete policy/resolution pipeline.
+# Ordinary tests replay the corpus; the bounded CI campaign mutates it.
+cc_fuzz_test(
+    name = "config_policy_fuzz_test",
+    size = "small",
+    srcs = ["config_policy_fuzz_test.cc"],
+    corpus = glob(["config_policy_fuzz_test_corpus/**"]),
+    dicts = ["config_policy_fuzz_test.dict"],
+    deps = [
+        ":config_cc",
+        ":ini_cc",
+        ":policy_cc",
+        ":xffrc_cc",
     ],
 )
