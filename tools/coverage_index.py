@@ -94,11 +94,29 @@ def _status_class(status: str) -> str:
     return "status-bad"
 
 
+def _ordered_categories(measurements: dict[str, dict]) -> list[str]:
+    """Order overall first, then program and extension groups alphabetically."""
+    return sorted(
+        measurements,
+        key=lambda category: (
+            0
+            if category == "overall"
+            else 1
+            if category.startswith("program /")
+            else 2
+            if category.startswith("extensions /")
+            else 3,
+            category.casefold(),
+        ),
+    )
+
+
 def _full_table(summary: dict) -> str:
     rows = []
     overall = _policy(summary, "overall")
     reasons = summary.get("reasons", {})
-    for category, metrics in summary["measurements"].items():
+    for category in _ordered_categories(summary["measurements"]):
+        metrics = summary["measurements"][category]
         policy = _policy(summary, category)
         status = _status(metrics, policy)
         reason = reasons.get(category, "")
