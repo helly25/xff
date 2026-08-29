@@ -80,6 +80,39 @@ class CoverageIndexTest(unittest.TestCase):
         self.assertLess(rendered.index('colspan="3">Lines'), rendered.index('colspan="3">Branches'))
         self.assertLess(rendered.index('colspan="3">Branches'), rendered.index('colspan="3">Functions'))
 
+    def test_full_table_orders_groups_and_categories(self):
+        summary = _summary(95.0)
+        overall = summary["measurements"]["overall"]
+        for category in (
+            "extensions / zeta",
+            "extensions / alpha",
+            "program / zeta",
+            "program / alpha",
+        ):
+            summary["minimums"][category] = summary["minimums"]["overall"]
+            summary["targets"][category] = summary["targets"]["overall"]
+            summary["enforcement"][category] = summary["enforcement"]["overall"]
+        summary["measurements"].update(
+            {
+                "extensions / zeta": overall,
+                "extensions / alpha": overall,
+                "program / zeta": overall,
+                "program / alpha": overall,
+            }
+        )
+        rendered = coverage_index.render_report(summary, "pr/42")
+        order = [
+            rendered.index(name)
+            for name in (
+                "overall",
+                "program / alpha",
+                "program / zeta",
+                "extensions / alpha",
+                "extensions / zeta",
+            )
+        ]
+        self.assertEqual(order, sorted(order))
+
     def test_rate_covered_and_total_share_the_rating_background(self):
         rendered = coverage_index.render_report(_summary(95.0), "pr/42")
         self.assertIn(
