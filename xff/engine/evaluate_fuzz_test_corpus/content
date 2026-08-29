@@ -1,0 +1,10 @@
+root
+(
+-content
+sample
+-o
+-grep
+root
+)
+-a
+-hash:sha256

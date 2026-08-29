@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_fuzzing//fuzzing:cc_defs.bzl", "cc_fuzz_test")
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
 package(default_visibility = ["//visibility:private"])
@@ -206,6 +207,24 @@ cc_test(
         "@googletest//:gtest_main",
         "@helly25_mbo//mbo/testing:matchers_cc",
         "@helly25_mbo//mbo/testing:status_cc",
+    ],
+)
+
+# Parse arbitrary newline-framed argv and evaluate accepted, non-destructive expressions against a
+# read-only synthetic entry. Ordinary tests replay the corpus; the bounded CI campaign mutates it.
+cc_fuzz_test(
+    name = "evaluate_fuzz_test",
+    size = "small",
+    srcs = ["evaluate_fuzz_test.cc"],
+    corpus = glob(["evaluate_fuzz_test_corpus/**"]),
+    dicts = ["evaluate_fuzz_test.dict"],
+    deps = [
+        ":evaluate_cc",
+        "//xff/parser:parser_cc",
+        "//xff/vfs:vfs_cc",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/time",
     ],
 )
 
