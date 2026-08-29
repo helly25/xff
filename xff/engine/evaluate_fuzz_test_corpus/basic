@@ -1,0 +1,9 @@
+root
+-type
+f
+-a
+-name
+*.txt
+-a
+-size
++1B

@@ -1,0 +1,10 @@
+root
+!
+(
+-false
+-xor
+-true
+)
+,
+-printf
+%p:%s\\n
