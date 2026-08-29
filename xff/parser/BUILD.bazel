@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_fuzzing//fuzzing:cc_defs.bzl", "cc_fuzz_test")
 load("//xff:cc.bzl", "cc_library", "cc_test")
 
@@ -62,4 +63,20 @@ cc_fuzz_test(
     corpus = glob(["parser_fuzz_test_corpus/**"]),
     dicts = ["parser_fuzz_test.dict"],
     deps = [":parser_cc"],
+)
+
+# Measures command-grammar parsing across expression sizes.  This is manual evidence rather than
+# a pass/fail performance gate, so changes can be compared on the same machine and toolchain.
+cc_binary(
+    name = "parser_benchmark",
+    testonly = True,
+    srcs = ["parser_benchmark.cc"],
+    tags = [
+        "clang-tidy",
+        "manual",
+    ],
+    deps = [
+        ":parser_cc",
+        "@com_github_google_benchmark//:benchmark",
+    ],
 )
