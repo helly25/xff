@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@rules_fuzzing//fuzzing:cc_defs.bzl", "cc_fuzz_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -39,6 +40,23 @@ cc_test(
         "@helly25_mbo//mbo/digest:digest_cc",
         "@helly25_mbo//mbo/testing:status_cc",
         "@nlohmann_json//:json",
+        "@xff_extras_api//:vfs_cc",
+    ],
+)
+
+# Exercises raw ASAR bytes and JSON-header inputs. The latter are wrapped in a valid size pickle by
+# the harness, letting mutations reach the directory-record parser instead of spending every replay
+# on the outer framing.
+cc_fuzz_test(
+    name = "asar_fs_fuzz_test",
+    size = "small",
+    srcs = ["asar_fs_fuzz_test.cc"],
+    corpus = glob(["asar_fs_fuzz_test_corpus/**"]),
+    dicts = ["asar_fs_fuzz_test.dict"],
+    deps = [
+        ":asar_fs_cc",
+        "@abseil-cpp//absl/status",
+        "@xff_extras_api//:member_path_cc",
         "@xff_extras_api//:vfs_cc",
     ],
 )
