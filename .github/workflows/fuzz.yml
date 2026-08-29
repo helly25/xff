@@ -3,7 +3,7 @@ name: Fuzz
 on:
   schedule:
     - cron: "31 2 * * *"
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 concurrency:
   group: fuzz-${{ github.ref }}
