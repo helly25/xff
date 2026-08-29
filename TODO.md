@@ -37,10 +37,10 @@ for enforcement and presentation.
    physical shards for matching and actions, how incomplete and duplicate sets read, and which path and
    metadata the synthetic entry owns. The shipped v1 already covers display, statistics, completeness,
    duplicates, and `-shard-status` matching; do not infer v2 semantics from it.
-2. **Near-duplicate grouping.** Design a run-wide reduction using scalable candidate generation (likely
-   MinHash, optionally a Bloom pre-filter) followed by exact Jaccard verification. If its data or
-   dependency cost is substantial, make it an extension. False positives may trigger verification but
-   must never enter emitted clusters.
+2. **Near-duplicate grouping.** The candidate-generation spike in
+   [`docs/design-near-duplicates.md`](docs/design-near-duplicates.md) selects hashed-shingle postings
+   followed by exact Jaccard verification as the first implementation. Decide the user-visible
+   clustering rule for non-transitive matches and measure a memory-bounded production representation.
 3. **PHAR structural exposure.** A format-defined file such as `.phar/stub.php` remains file-like, with a
    stored member winning name conflicts. Decide whether a presentation option may hide such parts.
    Aliases, serialized metadata, and signatures are not files and remain unexported unless a coherent
