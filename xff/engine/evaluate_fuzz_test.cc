@@ -53,8 +53,8 @@ bool IsIsolated(const xff::parser::Expr& expr) {
 
 class ReadOnlyFuzzFs final : public xff::vfs::FileSystem {
  public:
-  ReadOnlyFuzzFs(std::string content, xff::vfs::Metadata metadata)
-      : content_(std::move(content)), metadata_(std::move(metadata)) {}
+  ReadOnlyFuzzFs(std::string content, const xff::vfs::Metadata& metadata)
+      : content_(std::move(content)), metadata_(metadata) {}
 
   absl::StatusOr<std::vector<xff::vfs::Entry>> ReadDir(std::string_view) const override {
     return std::vector<xff::vfs::Entry>{};
@@ -86,7 +86,7 @@ class ReadOnlyFuzzFs final : public xff::vfs::FileSystem {
 
 void EvaluateForType(const xff::parser::Expr& expression, std::string_view input, xff::vfs::FileType type) {
   const absl::Time now = absl::UnixEpoch() + absl::Hours(24 * 20'000);
-  xff::vfs::Metadata metadata{
+  const xff::vfs::Metadata metadata{
       .type = type,
       .size = input.size(),
       .blocks = (input.size() + 511) / 512,
@@ -101,7 +101,7 @@ void EvaluateForType(const xff::parser::Expr& expression, std::string_view input
       .ctime = now - absl::Hours(3),
       .btime = now - absl::Hours(4),
   };
-  ReadOnlyFuzzFs fs(std::string(input), metadata);
+  const ReadOnlyFuzzFs fs(std::string(input), metadata);
   const xff::engine::Visit visit{
       .path = "root/sample.txt",
       .name = "sample.txt",
