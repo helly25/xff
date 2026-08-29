@@ -3,8 +3,8 @@
   "measurements": {
     "overall": {
       "lines": {
-        "covered": 12412,
-        "total": 12957,
+        "covered": 12413,
+        "total": 12959,
         "percent": 95.79
       },
       "functions": {
@@ -13,16 +13,16 @@
         "percent": 98.6
       },
       "branches": {
-        "covered": 8782,
-        "total": 10010,
-        "percent": 87.73
+        "covered": 8787,
+        "total": 10018,
+        "percent": 87.71
       }
     },
     "program / command line": {
       "lines": {
-        "covered": 1662,
+        "covered": 1661,
         "total": 1707,
-        "percent": 97.36
+        "percent": 97.31
       },
       "functions": {
         "covered": 175,
@@ -30,9 +30,9 @@
         "percent": 98.31
       },
       "branches": {
-        "covered": 975,
+        "covered": 974,
         "total": 1059,
-        "percent": 92.07
+        "percent": 91.97
       }
     },
     "program / configuration": {
@@ -156,9 +156,9 @@
     },
     "extensions / archive": {
       "lines": {
-        "covered": 1242,
-        "total": 1335,
-        "percent": 93.03
+        "covered": 1244,
+        "total": 1337,
+        "percent": 93.04
       },
       "functions": {
         "covered": 145,
@@ -166,9 +166,9 @@
         "percent": 99.32
       },
       "branches": {
-        "covered": 675,
-        "total": 822,
-        "percent": 82.12
+        "covered": 681,
+        "total": 830,
+        "percent": 82.05
       }
     },
     "extensions / ASAR": {
