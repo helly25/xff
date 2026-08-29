@@ -117,6 +117,23 @@ jobs:
             --disk_cache=$HOME/.cache/bazel-disk --repository_cache=$HOME/.cache/bazel-repo \
             "${fuse_test_config[@]}" \
             ${{ matrix.config.flags }}
+      # Replay of committed corpora happens in `bazel test` above. Sustained mutation belongs in this
+      # same clang-ASan cell so it reuses the downloaded hermetic toolchain and compiled dependencies;
+      # a separate runner would spend far more time rebuilding than fuzzing. PRs get a meaningful
+      # bounded discovery pass, while main gets a deeper post-merge pass.
+      - name: Run bounded fuzz campaigns
+        if: matrix.os == 'ubuntu-latest' && matrix.config.name == 'clang-asan'
+        env:
+          FUZZ_SECONDS_PER_TARGET: ${{ github.ref == 'refs/heads/main' && 120 || 30 }}
+        run: |
+          set -euo pipefail
+          target_count="$(tools/fuzz_targets.py --list | wc -l)"
+          {
+            echo "### Bounded fuzz campaigns"
+            echo
+            echo "${target_count} targets, ${FUZZ_SECONDS_PER_TARGET} seconds per target"
+          } >>"${GITHUB_STEP_SUMMARY}"
+          tools/fuzz_targets.py --campaign-seconds="${FUZZ_SECONDS_PER_TARGET}"
       # Lint gates run once, on the ubuntu clang-asan cell: its --config=clang
       # build above has already fetched the hermetic clang-format, so
       # tools/clang_format.sh resolves the pinned toolchain version.
@@ -150,32 +167,6 @@ jobs:
         with:
           python-version: "3.13"
       - uses: pre-commit/action@v3.0.1
-
-  # Bounded mutation campaigns belong to the ordinary CI gate, alongside replay of every committed
-  # corpus in the test matrix. BUILD-derived discovery means a new cc_fuzz_test joins this job and
-  # the required `done` gate without another workflow edit. Do not cache the multi-gigabyte hermetic
-  # LLVM repository; the repository cache-size policy deliberately excludes it from clang jobs.
-  fuzz:
-    needs: [pre-commit, trunk]
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    env:
-      # PRs need prompt feedback; main gets a deeper post-merge campaign without multiplying the
-      # review matrix's latency. The driver applies this budget independently to every target.
-      FUZZ_SECONDS_PER_TARGET: ${{ github.ref == 'refs/heads/main' && 60 || 10 }}
-    steps:
-      - uses: actions/checkout@v6
-      - uses: bazelbuild/setup-bazelisk@v3
-      - name: Run every bounded fuzz campaign
-        run: |
-          set -euo pipefail
-          target_count="$(tools/fuzz_targets.py --list | wc -l)"
-          {
-            echo "### Bounded fuzz campaigns"
-            echo
-            echo "${target_count} targets, ${FUZZ_SECONDS_PER_TARGET} seconds per target"
-          } >>"${GITHUB_STEP_SUMMARY}"
-          tools/fuzz_targets.py --campaign-seconds="${FUZZ_SECONDS_PER_TARGET}"
 
   # GCC/gcov is the stable measurement toolchain. This is a production-code gate,
   # not merely another test cell: it publishes both the raw LCOV data and the
@@ -575,7 +566,6 @@ jobs:
         pre-commit,
         trunk,
         coverage,
-        fuzz,
         tsan,
         msan,
         minimal,
