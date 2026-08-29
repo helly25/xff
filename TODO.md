@@ -33,6 +33,9 @@ for enforcement and presentation.
 3. **Near-duplicate benchmark/design spike.** Measure exact Jaccard verification behind scalable
    candidate generation before settling the grouping architecture, configuration, or core-versus-extra
    boundary. False positives may reach exact verification but must never reach emitted clusters.
+4. **Coverage overview ordering.** Keep `overall` first, then render the program categories
+   alphabetically, followed by the extension categories alphabetically. Preserve this ordering in
+   generated and published reports.
 
 ## Design required before implementation
 
