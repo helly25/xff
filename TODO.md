@@ -36,6 +36,9 @@ for enforcement and presentation.
 4. **Coverage overview ordering.** Keep `overall` first, then render the program categories
    alphabetically, followed by the extension categories alphabetically. Preserve this ordering in
    generated and published reports.
+5. **Detailed coverage gaps.** Raise line and function coverage for
+   `program-command-grammar/xff/registry/` and branch coverage for `program-execution/xff/exec/`
+   until every range is green in the detailed LCOV report.
 
 ## Design required before implementation
 
