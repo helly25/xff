@@ -30,7 +30,7 @@ bool LooksLikeTar(std::string_view bytes) {
       if (byte < '0' || byte > '7' || value > std::numeric_limits<std::uint64_t>::max() / 8) {
         return std::numeric_limits<std::uint64_t>::max();
       }
-      value = value * 8 + static_cast<std::uint64_t>(byte - '0');
+      value = (value * 8) + static_cast<std::uint64_t>(byte - '0');
       digit = true;
     }
     return digit ? value : std::numeric_limits<std::uint64_t>::max();
