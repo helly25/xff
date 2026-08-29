@@ -151,6 +151,20 @@ jobs:
           python-version: "3.13"
       - uses: pre-commit/action@v3.0.1
 
+  # Bounded mutation campaigns belong to the ordinary CI gate, alongside replay of every committed
+  # corpus in the test matrix. BUILD-derived discovery means a new cc_fuzz_test joins this job and
+  # the required `done` gate without another workflow edit. Do not cache the multi-gigabyte hermetic
+  # LLVM repository; the repository cache-size policy deliberately excludes it from clang jobs.
+  fuzz:
+    needs: [pre-commit, trunk]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: bazelbuild/setup-bazelisk@v3
+      - name: Run every bounded fuzz campaign
+        run: tools/fuzz_targets.py --campaign-seconds=10
+
   # GCC/gcov is the stable measurement toolchain. This is a production-code gate,
   # not merely another test cell: it publishes both the raw LCOV data and the
   # policy-rendered capability/extension report, and enforces changed-line coverage.
@@ -549,6 +563,7 @@ jobs:
         pre-commit,
         trunk,
         coverage,
+        fuzz,
         tsan,
         msan,
         minimal,

@@ -22,7 +22,7 @@ for enforcement and presentation.
 ## Active engineering priorities
 
 1. **Fuzzing.** The first parser, matcher, template, PHAR, and ASAR targets now have committed seed
-   corpora, semantic invariants, ordinary-CI replay, and automatically discovered bounded daily
+   corpora, semantic invariants, ordinary-CI replay, and automatically discovered bounded CI
    campaigns. Continue with parse-to-evaluate, configuration, archive/compression, shard, stronger
    matcher/template, and regex targets; every new target is picked up by the scheduled driver.
    Expression-evaluation harnesses must exclude safety-classified descriptors and use a mutation-

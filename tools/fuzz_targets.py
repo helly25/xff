@@ -9,7 +9,7 @@
 
 The BUILD files are the single source of truth. Core targets use ordinary labels; targets in a
 composable extra are translated to that extra's module label through bazelmod/extras.MODULE.bazel.
-This keeps scheduled campaigns complete when a new cc_fuzz_test is added.
+This keeps CI campaigns complete when a new cc_fuzz_test is added.
 
 The driver controls time and toolchain setup, not a target's capabilities. Harnesses that evaluate
 arbitrary expressions must follow AGENTS.md's fuzz-test isolation rules; a command-line `--safe`
