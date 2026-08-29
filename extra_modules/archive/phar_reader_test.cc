@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <fstream>
 #include <ios>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -384,6 +385,26 @@ TEST_F(PharReaderTest, EnforcesTheByteLimit) {
   EXPECT_THAT(ReadPharMember(phar, "a.txt", /*max_bytes=*/2), StatusIs(absl::StatusCode::kResourceExhausted));
   // The limit is inclusive: content exactly at the limit is fine.
   EXPECT_THAT(ReadPharMember(phar, "a.txt", /*max_bytes=*/6), IsOkAndHolds("123456"));
+}
+
+TEST_F(PharReaderTest, EnforcesTheByteLimitBeforeAllocatingDeclaredDecompressedSize) {
+  const std::string phar = MakePhar(
+      {{.name = "z.txt",
+        .content = RawDeflate("x"),
+        .flags = std::uint32_t{0644} | kCompressedGz,
+        .uncompressed_size = std::numeric_limits<std::uint32_t>::max()}});
+  EXPECT_THAT(
+      ReadPharMember(phar, "z.txt", /*max_bytes=*/1UZ * 1'024 * 1'024),
+      StatusIs(absl::StatusCode::kResourceExhausted, HasSubstr("byte limit")));
+  const std::string path = WritePhar(
+      {{.name = "z.txt",
+        .content = RawDeflate("x"),
+        .flags = std::uint32_t{0644} | kCompressedGz,
+        .uncompressed_size = std::numeric_limits<std::uint32_t>::max()}},
+      "declared-size.phar");
+  EXPECT_THAT(
+      ReadPharMemberOfFile(path, "z.txt", /*max_bytes=*/1UZ * 1'024 * 1'024),
+      StatusIs(absl::StatusCode::kResourceExhausted, HasSubstr("byte limit")));
 }
 
 TEST_F(PharReaderTest, ReadsAMemberWhoseDataRunsPastTheContainerAsCorruption) {

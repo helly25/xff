@@ -107,7 +107,7 @@ def campaign_environment() -> dict[str, str]:
     return environment
 
 
-def run_campaigns(targets: list[str], seconds: int) -> int:
+def run_campaigns(targets: list[str], seconds: int, bazel_args: list[str]) -> int:
     """Runs each campaign for a bounded duration, stopping at the first failed correctness test."""
     environment = campaign_environment()
     for target in targets:
@@ -119,6 +119,7 @@ def run_campaigns(targets: list[str], seconds: int) -> int:
                 "opt",
                 "--config=xff_docs",
                 "--config=fuzz",
+                *bazel_args,
                 target,
                 "--",
                 "--clean",
@@ -137,6 +138,12 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--list", action="store_true", help="print every generated campaign label")
     mode.add_argument("--campaign-seconds", type=int, metavar="N", help="run every campaign for N seconds")
+    parser.add_argument("--disk-cache", metavar="PATH", help="use a dedicated Bazel disk cache")
+    parser.add_argument(
+        "--disk-cache-max-size",
+        metavar="SIZE",
+        help="bound the dedicated Bazel disk cache (for example `600M`)",
+    )
     args = parser.parse_args()
     targets = discover_targets(_REPO_ROOT)
     if args.list:
@@ -144,7 +151,19 @@ def main() -> int:
         return 0
     if args.campaign_seconds <= 0:
         parser.error("--campaign-seconds must be positive")
-    return run_campaigns(targets, args.campaign_seconds)
+    bazel_args: list[str] = []
+    if args.disk_cache:
+        bazel_args.append(f"--disk_cache={pathlib.Path(args.disk_cache).expanduser()}")
+    if args.disk_cache_max_size:
+        if not args.disk_cache:
+            parser.error("--disk-cache-max-size requires --disk-cache")
+        bazel_args.extend(
+            [
+                f"--experimental_disk_cache_gc_max_size={args.disk_cache_max_size}",
+                "--experimental_disk_cache_gc_idle_delay=5s",
+            ]
+        )
+    return run_campaigns(targets, args.campaign_seconds, bazel_args)
 
 
 if __name__ == "__main__":

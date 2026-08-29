@@ -9,6 +9,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fuzz_targets  # noqa: E402
@@ -46,8 +47,25 @@ class FuzzTargetsTest(unittest.TestCase):
                 ["//xff/parser:parser_fuzz_test_run", "@xff_arc//nested:archive_fuzz_test_run"],
             )
 
-    def test_repository_discovery_includes_every_current_fuzzer(self):
-        self.assertEqual(len(fuzz_targets.discover_targets(fuzz_targets._REPO_ROOT)), 6)
+    def test_repository_discovery_parses_the_live_build_graph(self):
+        # A lower bound catches an accidentally narrowed scan without making every newly declared
+        # fuzzer require a hand-maintained count here: BUILD files remain the source of truth.
+        self.assertGreaterEqual(len(fuzz_targets.discover_targets(fuzz_targets._REPO_ROOT)), 6)
+
+    @mock.patch("fuzz_targets.subprocess.run")
+    def test_campaign_passes_the_dedicated_cache_flags_to_bazel(self, run):
+        run.return_value.returncode = 0
+        self.assertEqual(
+            fuzz_targets.run_campaigns(
+                ["//xff/parser:parser_fuzz_test_run"],
+                30,
+                ["--disk_cache=/cache", "--experimental_disk_cache_gc_max_size=600M"],
+            ),
+            0,
+        )
+        command = run.call_args.args[0]
+        self.assertIn("--disk_cache=/cache", command)
+        self.assertIn("--experimental_disk_cache_gc_max_size=600M", command)
 
 
 if __name__ == "__main__":
