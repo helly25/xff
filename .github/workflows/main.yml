@@ -117,16 +117,6 @@ jobs:
             --disk_cache=$HOME/.cache/bazel-disk --repository_cache=$HOME/.cache/bazel-repo \
             "${fuse_test_config[@]}" \
             ${{ matrix.config.flags }}
-      # Lint gates run once, on the ubuntu clang-asan cell: its --config=clang
-      # build above has already fetched the hermetic clang-format, so
-      # tools/clang_format.sh resolves the pinned toolchain version.
-      - name: clang-format
-        if: matrix.os == 'ubuntu-latest' && matrix.config.name == 'clang-asan'
-        run: |
-          # Every first-party C++ tree, extras included: sweeping only xff/ let
-          # extra_modules/ drift, since nothing else checks it.
-          find xff extra_modules xff_extras_api -type f \( -name '*.cc' -o -name '*.h' \) -print0 \
-            | xargs -0 tools/clang_format.sh --dry-run -Werror
 
   # trunk (https://trunk.io) runs the heavier linters: buildifier, markdownlint,
   # prettier, yamllint, and the security scanners. (clang-tidy is a local-only
@@ -150,6 +140,40 @@ jobs:
         with:
           python-version: "3.13"
       - uses: pre-commit/action@v3.0.1
+
+  # Normal tests already replay every committed corpus. This parallel job does the materially
+  # different work: sustained mutation under libFuzzer instrumentation. Its action keys do not
+  # match the clang-ASan matrix, so it owns a size-bounded disk cache namespace instead of pretending
+  # those jobs share compiled outputs. The multi-gigabyte hermetic LLVM repository is not cached.
+  fuzz:
+    needs: [pre-commit, trunk]
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      FUZZ_SECONDS_PER_TARGET: ${{ github.ref == 'refs/heads/main' && 300 || 60 }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: bazelbuild/setup-bazelisk@v3
+      - name: Mount the dedicated fuzz disk cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel-disk
+          key: bazel-disk-fuzz-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
+          restore-keys: |
+            bazel-disk-fuzz-
+      - name: Run bounded fuzz campaigns
+        run: |
+          set -euo pipefail
+          target_count="$(tools/fuzz_targets.py --list | wc -l)"
+          {
+            echo "### Bounded fuzz campaigns"
+            echo
+            echo "${target_count} targets, ${FUZZ_SECONDS_PER_TARGET} seconds per target"
+          } >>"${GITHUB_STEP_SUMMARY}"
+          tools/fuzz_targets.py \
+            --campaign-seconds="${FUZZ_SECONDS_PER_TARGET}" \
+            --disk-cache="${HOME}/.cache/bazel-disk" \
+            --disk-cache-max-size=600M
 
   # GCC/gcov is the stable measurement toolchain. This is a production-code gate,
   # not merely another test cell: it publishes both the raw LCOV data and the
@@ -549,6 +573,7 @@ jobs:
         pre-commit,
         trunk,
         coverage,
+        fuzz,
         tsan,
         msan,
         minimal,

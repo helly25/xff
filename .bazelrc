@@ -109,8 +109,10 @@ common:clang-tidy --config=clang
 # --config=fuzz : continuous in-process fuzzing with clang, libFuzzer, and ASan. Ordinary
 # `bazel test` uses rules_fuzzing's replay engine instead, so every committed seed and minimized
 # regression stays in the normal test suite without turning CI into an unbounded fuzzing run.
-# Launch a bounded local campaign with, for example:
-#   bazel run -c opt --config=fuzz //xff/parser:parser_fuzz_test_run -- --clean --timeout_secs=60
+# Launch every bounded local campaign through the repository driver. It discovers targets directly
+# from BUILD files and applies the Darwin libFuzzer/libc++ runtime compatibility environment without
+# weakening ASan on Linux:
+#   tools/fuzz_targets.py --campaign-seconds=60
 common:fuzz --config=clang
 common:fuzz --@rules_fuzzing//fuzzing:cc_engine=@rules_fuzzing//fuzzing/engines:libfuzzer
 common:fuzz --@rules_fuzzing//fuzzing:cc_engine_instrumentation=libfuzzer

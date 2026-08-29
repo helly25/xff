@@ -609,6 +609,7 @@ absl::StatusOr<std::string> ReadPharMember(std::string_view bytes, std::string_v
   const std::vector<Entry>& entries = whole.entries;
   MBO_ASSIGN_OR_RETURN(const std::reference_wrapper<const Entry> entry_ref, FindEntry(entries, member));
   const Entry& entry = entry_ref.get();
+  MBO_RETURN_IF_ERROR(CheckLimit(static_cast<std::uint64_t>(entry.member.size), max_bytes, member));
   MBO_RETURN_IF_ERROR(CheckLimit(entry.stored_size, max_bytes, member));
   if (entry.data_offset + entry.stored_size > bytes.size()) {
     return absl::DataLossError(absl::StrCat("phar member data runs past the end of the container: ", member));
@@ -630,6 +631,7 @@ absl::StatusOr<std::string> ReadPharMemberOfFile(
   const std::vector<Entry>& entries = whole.entries;
   MBO_ASSIGN_OR_RETURN(const std::reference_wrapper<const Entry> entry_ref, FindEntry(entries, member));
   const Entry& entry = entry_ref.get();
+  MBO_RETURN_IF_ERROR(CheckLimit(static_cast<std::uint64_t>(entry.member.size), max_bytes, member));
   MBO_RETURN_IF_ERROR(CheckLimit(entry.stored_size, max_bytes, member));
   MBO_ASSIGN_OR_RETURN(
       const std::string content, ReadFileRange(path, entry.data_offset, static_cast<std::size_t>(entry.stored_size)));

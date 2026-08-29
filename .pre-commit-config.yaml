@@ -5,8 +5,8 @@
 # trimmed to what xff uses. Install once with `pre-commit install`; run over the
 # whole tree with `pre-commit run -a`. clang-tidy runs here too (the local-only
 # `clang-tidy` hook, via tools/clang_tidy.sh using the hermetic clang-22); the
-# broader linters live in trunk (.trunk/trunk.yaml). clang-format here is pinned to v20.1.8 to match the
-# hermetic toolchain clang-format (tools/clang_format.sh + the CI test step)
+# broader linters live in trunk (.trunk/trunk.yaml). clang-format here is pinned to v22.1.8 to match the
+# hermetic toolchain clang-format (tools/clang_format.sh)
 # byte-for-byte; keep this pin in lockstep with the LLVM toolchain version. A
 # mismatch surfaces loudly as a CI clang-format failure rather than silent
 # reformatting churn. This file owns clang-format, shell, YAML, workflow and
@@ -450,7 +450,7 @@ repos:
         stages: [manual]
 
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v20.1.8
+    rev: v22.1.8
     hooks:
       - id: clang-format
         types_or: [c, c++, cuda]
