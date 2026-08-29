@@ -15,14 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Run clang-tidy over the given C++ source files (a report-only pass: no --fix,
-# so it never rewrites the tree). clang-tidy is a LOCAL-ONLY developer aid, not a
-# CI gate: it needs a compile_commands.json (a local artifact, generated with
-# `./compile_commands-update.sh`) and a clang-tidy new
-# enough for this C++23 codebase. When either is missing - a fresh checkout, or a
-# CI runner without the compile DB - this SKIPS cleanly (exit 0) rather than
-# failing, so it never blocks a commit or forces the hermetic toolchain download
-# in CI. CI's hard gate stays the compiler -Werror in the bazel matrix.
+# Run clang-tidy as an enforcing, report-only pass over the affected compilation
+# scope. Header, generated-header, and .bzl changes are promoted to all first-party
+# translation units because they can affect sources that did not themselves change.
 #
 # clang-tidy resolution prefers the hermetic toolchains_llvm binary (so it matches
 # the compile DB's clang-22 flags and understands C++23), then a versioned system
@@ -135,14 +130,17 @@ done
 # targeted, commented NOLINT rather than a blanket exemption for the whole test tree.
 readonly TEST_DISABLED_CHECKS='-readability-function-cognitive-complexity,-misc-override-with-different-visibility,-readability-identifier-naming'
 
+PARALLELISM="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+readonly PARALLELISM
+
 declare -a SOURCES=()
 declare -a TESTS=()
-for FILE in "${@}"; do
+while IFS= read -r FILE; do
   case "${FILE}" in
     *_test.cc | *_test.cpp | *_test.cxx) TESTS+=("${FILE}") ;;
     *) SOURCES+=("${FILE}") ;;
   esac
-done
+done < <(python3 tools/clang_tidy_scope.py compile_commands.json "${@}")
 
 # Report only: --header-filter restricts diagnostics to this repo's own headers
 # (not the toolchain's force-included / system headers), -p points at the compile
@@ -150,9 +148,16 @@ done
 # must run and a finding in either has to fail, so no `exec` (which would run one).
 STATUS=0
 if [ "${#SOURCES[@]}" -gt 0 ]; then
-  "${CLANG_TIDY}" --header-filter='(^|/)xff/' "${EXTRA_ARGS[@]}" -p . "${SOURCES[@]}" || STATUS=1
+  if ! printf '%s\0' "${SOURCES[@]}" | xargs -0 -n 1 -P "${PARALLELISM}" \
+    "${CLANG_TIDY}" --header-filter='(^|/)xff/' "${EXTRA_ARGS[@]}" -p .; then
+    STATUS=1
+  fi
 fi
 if [ "${#TESTS[@]}" -gt 0 ]; then
-  "${CLANG_TIDY}" --header-filter='(^|/)xff/' --checks="${TEST_DISABLED_CHECKS}" "${EXTRA_ARGS[@]}" -p . "${TESTS[@]}" || STATUS=1
+  if ! printf '%s\0' "${TESTS[@]}" | xargs -0 -n 1 -P "${PARALLELISM}" \
+    "${CLANG_TIDY}" --header-filter='(^|/)xff/' --checks="${TEST_DISABLED_CHECKS}" \
+    "${EXTRA_ARGS[@]}" -p .; then
+    STATUS=1
+  fi
 fi
 exit "${STATUS}"
