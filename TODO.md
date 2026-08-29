@@ -28,11 +28,13 @@ for enforcement and presentation.
    includes both file grammars, policy gating, precedence resolution, and arming invariants.
    Expression-evaluation harnesses must exclude safety-classified descriptors and use a mutation-
    refusing in-memory filesystem; `--safe` text alone is not an isolation boundary.
-2. **Performance evidence.** Establish reproducible traversal, parser, matching, and memory benchmarks
-   before optimizing. Keep fuzz time/resource guards separate from stable performance measurements.
-3. **Near-duplicate benchmark/design spike.** Measure exact Jaccard verification behind scalable
-   candidate generation before settling the grouping architecture, configuration, or core-versus-extra
-   boundary. False positives may reach exact verification but must never reach emitted clusters.
+2. **Performance evidence.** Extend the existing reproducible similarity and near-duplicate benchmarks
+   with traversal, parser, and memory measurements before optimizing. Keep fuzz time/resource guards
+   separate from stable performance measurements.
+3. **Near-duplicate grouping design.** The benchmark/design spike now measures exact Jaccard
+   verification behind scalable candidate generation; settle the grouping architecture, configuration,
+   and core-versus-extra boundary before shipping a user-facing operation. False positives may reach
+   exact verification but must never reach emitted clusters.
 4. **Coverage overview ordering.** Keep `overall` first, then render the program categories
    alphabetically, followed by the extension categories alphabetically. Preserve this ordering in
    generated and published reports.
