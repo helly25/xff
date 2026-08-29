@@ -92,6 +92,15 @@ repos:
         entry: tools/check_raw_pointers_test.py
         pass_filenames: false
         files: ^tools/check_raw_pointers(_test)?\.py$
+      - id: clang-tidy-targets-match-tag
+        name: Manual clang-tidy targets are indexed
+        description: |
+          Manual targets tagged `clang-tidy` must be named explicitly in the compile-database target;
+          aquery removes them before a wildcard or tag filter can discover them.
+        language: script
+        entry: tools/check_clang_tidy_targets.sh
+        pass_filenames: false
+        files: ^(.*/BUILD\.bazel|bazelmod/clang_tidy_targets\.bzl)$
       - id: cache-size-test
         name: Test GitHub Actions cache-size enforcement
         language: python

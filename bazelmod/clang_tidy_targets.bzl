@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-License-Identifier: Apache-2.0
+
+"""Manual targets that must still be indexed for clang-tidy.
+
+An aquery wildcard excludes `manual` targets before a tag filter could find them. The `clang-tidy`
+tag states intent, this explicit list makes the targets reachable, and the pre-commit policy check
+keeps the two sets identical.
+"""
+
+CLANG_TIDY_MANUAL_TARGETS = [
+    "//xff/matching/similarity:similarity_benchmark",
+]
