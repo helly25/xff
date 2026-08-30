@@ -25,6 +25,7 @@ cc_library(
     hdrs = ["language.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
+        "//xff/vfs:local_fs_cc",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
