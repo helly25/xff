@@ -59,11 +59,13 @@ std::optional<std::uint64_t> FreeBytes(const std::string& directory) {
   return static_cast<std::uint64_t>(stats.f_bavail) * static_cast<std::uint64_t>(stats.f_frsize);
 }
 
-// Whether `directory` is a directory this process can create in.
-bool Writable(const std::string& directory) {
+// Whether `directory` is an existing directory.  We deliberately do not probe it with `access()`:
+// permissions can change between a check and the write, and the write operation reports the real
+// error to the caller.
+bool IsDirectory(const std::string& directory) {
   std::error_code error;
-  // XFF_HOST_IO: extraction verifies permissions on its explicitly selected temporary directory.
-  return stdfs::is_directory(directory, error) && ::access(directory.c_str(), W_OK | X_OK) == 0;
+  // XFF_HOST_IO: extraction inspects its explicitly selected temporary directory.
+  return stdfs::is_directory(directory, error);
 }
 
 // The member's own final component, which becomes the temporary file's name. Both separators are
@@ -99,7 +101,7 @@ std::string ChooseExtractDirectory(std::uint64_t member_size, absl::Span<const s
     return error ? std::string("/tmp") : temporary.string();
   }
   for (const std::string& candidate : candidates.subspan(0, candidates.size() - 1)) {
-    if (!Writable(candidate)) {
+    if (!IsDirectory(candidate)) {
       continue;
     }
     const std::optional<std::uint64_t> free_bytes = FreeBytes(candidate);
