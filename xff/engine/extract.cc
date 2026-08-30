@@ -117,6 +117,7 @@ ExtractedMembers::~ExtractedMembers() {
   // and a temporary file that outlives the run is not worth failing over.
   for (const std::string& path : held_) {
     std::error_code error;
+    // XFF_HOST_IO: extraction removes its explicitly selected temporary parent.
     stdfs::remove_all(stdfs::path(path).parent_path(), error);
   }
 }
@@ -128,6 +129,7 @@ absl::StatusOr<std::string> ExtractedMembers::Extract(const vfs::FileSystem& fs,
   // ChooseExtractDirectory): a small member goes to a memory-backed directory, a huge one to disk.
   const stdfs::path dir = stdfs::path(ChooseExtractDirectory(content.size(), DefaultExtractDirectories()))
                           / absl::StrCat("xff-", static_cast<std::int64_t>(::getpid()), "-", next_++);
+  // XFF_HOST_IO: extraction creates its explicitly selected temporary directory.
   if (!stdfs::create_directory(dir, error)) {
     return absl::UnavailableError(absl::StrCat("cannot create ", dir.string(), ": ", error.message()));
   }
@@ -137,6 +139,7 @@ absl::StatusOr<std::string> ExtractedMembers::Extract(const vfs::FileSystem& fs,
     std::ofstream out(path, std::ios::binary | std::ios::trunc);
     out << content;
     if (!out) {
+      // XFF_HOST_IO: extraction removes its explicitly selected temporary directory.
       stdfs::remove_all(dir, error);
       return absl::UnavailableError(absl::StrCat("cannot write the extracted member to ", path.string()));
     }
@@ -154,6 +157,7 @@ void ExtractedMembers::Release(std::string_view path) {
     return;
   }
   std::error_code error;
+  // XFF_HOST_IO: extraction removes its explicitly selected temporary parent.
   stdfs::remove_all(stdfs::path(*it).parent_path(), error);
   held_.erase(it);
 }

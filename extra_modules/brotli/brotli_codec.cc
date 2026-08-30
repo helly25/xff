@@ -71,8 +71,11 @@ class TemporaryFiles {
 
   ~TemporaryFiles() {
     std::error_code ignored;
+    // XFF_HOST_IO: Brotli adapter removes its explicitly selected temporary files.
     stdfs::remove(tar_, ignored);
+    // XFF_HOST_IO: Brotli adapter removes its explicitly selected temporary files.
     stdfs::remove(raw_, ignored);
+    // XFF_HOST_IO: Brotli adapter removes its explicitly selected temporary files.
     stdfs::remove(compressed_, ignored);
   }
 
@@ -464,6 +467,7 @@ absl::Status PackTar(
     MBO_RETURN_IF_ERROR(FrameEncodedTar(tar, raw, compressed));
   }
   std::error_code error;
+  // XFF_HOST_IO: Brotli adapter publishes its explicitly selected output file.
   stdfs::rename(compressed, target, error);
   if (error) {
     return absl::UnavailableError(absl::StrCat("cannot place '", path, "': ", error.message()));

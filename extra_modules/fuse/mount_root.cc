@@ -77,6 +77,7 @@ absl::StatusOr<MountRoot> MountRoot::Create(const MountRootOptions& options) {
   std::string base = SharedBase(options);
   std::string path = absl::StrCat(base, "/", ::getpid());
   std::error_code error;
+  // XFF_HOST_IO: FUSE adapter creates its explicitly selected runtime mount directory.
   stdfs::create_directories(path, error);
   if (error) {
     return absl::UnavailableError(absl::StrCat("cannot create the mount root ", path, ": ", error.message()));
@@ -93,6 +94,7 @@ MountRoot& MountRoot::operator=(MountRoot&& other) noexcept {
   }
   if (!path_.empty()) {
     std::error_code ignored;
+    // XFF_HOST_IO: FUSE adapter removes its explicitly selected runtime mount directory.
     stdfs::remove_all(path_, ignored);
   }
   path_ = std::exchange(other.path_, {});
@@ -106,6 +108,7 @@ MountRoot::~MountRoot() {
     return;  // moved-from
   }
   std::error_code ignored;
+  // XFF_HOST_IO: FUSE adapter removes its explicitly selected runtime mount directory.
   stdfs::remove_all(path_, ignored);  // best effort; a busy mount stays for the next stale sweep
 }
 
@@ -117,6 +120,7 @@ absl::StatusOr<std::string> MountRoot::MountPointFor(std::string_view container)
   std::string point = next_ == 0 ? absl::StrCat(path_, "/", name) : absl::StrCat(path_, "/", name, ".", next_);
   ++next_;
   std::error_code error;
+  // XFF_HOST_IO: FUSE adapter creates its explicitly selected mount point.
   stdfs::create_directory(point, error);
   if (error) {
     return absl::UnavailableError(absl::StrCat("cannot create the mount point ", point, ": ", error.message()));
@@ -150,6 +154,7 @@ std::size_t SweepStaleRoots(
         unmount(entry.path().string());
       }
     }
+    // XFF_HOST_IO: FUSE adapter removes its explicitly selected temporary root.
     stdfs::remove_all(root, error);
     if (!error) {
       ++removed;

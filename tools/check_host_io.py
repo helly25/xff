@@ -13,6 +13,9 @@ PATTERNS = (
     re.compile(r"\bstd::(?:i|o|io)fstream\b"),
     re.compile(r"\bmbo::file::Artefact::Read(?:MaxLines)?\s*\("),
     re.compile(r"\b(?:fopen|freopen|fclose|fread|fwrite)\s*\("),
+    re.compile(
+        r"\b(?:std::filesystem|stdfs)::(?:create_directory|create_directories|remove|remove_all|rename|status)\s*\("
+    ),
 )
 
 
