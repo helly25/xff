@@ -494,7 +494,8 @@ std::pair<std::string, std::string> DepthBucket(int depth) {
 // The {order-preserving map key, display label} for `visit` under `spec`, or nullopt when the bucket
 // field is unavailable (a numeric lines bucket for a non-regular or binary file). Categorical
 // buckets reuse SummaryKey; numeric buckets range-bucket a field.
-std::optional<std::pair<std::string, std::string>> HistBucketKey(const HistogramSpec& spec, const Visit& visit) {
+std::optional<std::pair<std::string, std::string>> HistBucketKey(
+    const HistogramSpec& spec, const Visit& visit, const vfs::FileSystem& fs) {
   switch (spec.bucket) {
     case HistBucket::kOverall:
     case HistBucket::kType:
@@ -518,8 +519,14 @@ std::optional<std::pair<std::string, std::string>> HistBucketKey(const Histogram
     }
     case HistBucket::kSizeRange: return MagnitudeBucket(visit.metadata.size);
     case HistBucket::kLinesRange: {
-      const std::optional<std::uint64_t> lines =
-          visit.metadata.type == vfs::FileType::kRegular ? content::FileLineCount(visit.path) : std::nullopt;
+      if (visit.metadata.type != vfs::FileType::kRegular) {
+        return std::nullopt;
+      }
+      const absl::StatusOr<std::string> content = fs.ReadContent(visit.path);
+      if (!content.ok()) {
+        return std::nullopt;
+      }
+      const std::optional<std::size_t> lines = content::ContentLineCount(*content);
       return lines.has_value() ? std::optional(MagnitudeBucket(*lines)) : std::nullopt;
     }
     case HistBucket::kDepthRange: return DepthBucket(visit.depth);
@@ -2939,10 +2946,11 @@ void FeedVerificationSummaries(
 void FeedHistograms(
     const std::vector<HistogramSpec>& specs,
     std::vector<std::map<std::string, HistCell>>& cells_per_sink,
-    const Visit& visit) {
+    const Visit& visit,
+    const vfs::FileSystem& fs) {
   for (std::size_t i = 0; i < specs.size(); ++i) {
     const HistogramSpec& spec = specs[i];
-    const std::optional<std::pair<std::string, std::string>> bucket = HistBucketKey(spec, visit);
+    const std::optional<std::pair<std::string, std::string>> bucket = HistBucketKey(spec, visit, fs);
     if (!bucket.has_value()) {
       continue;
     }
@@ -2950,7 +2958,11 @@ void FeedHistograms(
     if (spec.agg != HistAgg::kCount) {
       value = spec.metric == HistMetric::kSize ? std::optional<std::uint64_t>(visit.metadata.size)
               : visit.metadata.type == vfs::FileType::kRegular
-                  ? std::optional<std::uint64_t>(content::FileLineCount(visit.path))
+                  ? [&]() -> std::optional<std::uint64_t> {
+                      const absl::StatusOr<std::string> content = fs.ReadContent(visit.path);
+                      if (!content.ok()) return std::nullopt;
+                      return content::ContentLineCount(*content);
+                    }()
                   : std::nullopt;  // kLines: content-derived, absent for a non-regular or binary file
     }
     if (!value.has_value()) {
@@ -3021,7 +3033,7 @@ void FeedCollections(
           .defines = defaults.defines,
       };
       FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
-      FeedHistograms(histograms, histogram_cells, visit);
+      FeedHistograms(histograms, histogram_cells, visit, visit.fs.has_value() ? *visit.fs : defaults.fs);
     }
   }
 }
@@ -3847,7 +3859,7 @@ RunResult RunFind(
             .outputs = outputs,
             .fuzzy_score = fuzzy_score};
         FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
-        FeedHistograms(histograms, histogram_cells, visit);
+        FeedHistograms(histograms, histogram_cells, visit, visit.fs.has_value() ? *visit.fs : walk_fs);
       }
     } else if (matched && implicit_print && (!max_results->has_value() || listed_results < **max_results)) {
       ++listed_results;
@@ -4286,7 +4298,9 @@ RunResult RunFind(
     const auto feed_summaries = [&](const fields::RenderContext& key_ctx, const Visit& visit) {
       FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
     };
-    const auto feed_histograms = [&](const Visit& visit) { FeedHistograms(histograms, histogram_cells, visit); };
+    const auto feed_histograms = [&](const Visit& visit) {
+      FeedHistograms(histograms, histogram_cells, visit, visit.fs.has_value() ? *visit.fs : walk_fs);
+    };
     // Feed one logical unit (a set, or a non-shard file) into both sinks; `shard_count` -> {shard}.
     const auto feed_unit = [&](const Visit& visit, std::optional<std::int64_t> shard_count) {
       const std::string link;
