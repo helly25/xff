@@ -17,7 +17,7 @@ changing thresholds or adding a category override; weakened overrides require a 
 All changes will be verified by the pre-commit rules. In order to check these before committing changes install the tool:
 
 ```sh
-pre-commit install
+pre-commit install --hook-type pre-commit --hook-type pre-push
 ```
 
 Once installed the verification can be triggered for all files as follows:

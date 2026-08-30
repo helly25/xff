@@ -28,7 +28,7 @@ namespace xff::config {
 
 // Reads the file at `path`, returning its contents, or nullopt if the file is
 // missing or unreadable. Injected so discovery is testable without touching the
-// real filesystem; run.cc supplies a std::ifstream-backed reader.
+// real filesystem; the caller supplies a status-returning reader.
 using FileReader = absl::FunctionRef<std::optional<std::string>(std::string_view path)>;
 
 // Inputs to Discover: the CLI selectors plus the environment values that locate

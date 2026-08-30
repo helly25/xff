@@ -149,6 +149,7 @@ absl::StatusOr<std::string> ReadRange(
       || !std::in_range<std::streamoff>(offset)) {
     return absl::ResourceExhaustedError(absl::StrCat("ASAR member is too large to read: ", path));
   }
+  // XFF_HOST_IO: ASAR adapter reads its explicitly selected container file.
   std::ifstream input(std::string(path), std::ios::binary);
   if (!input) {
     return absl::NotFoundError(absl::StrCat("cannot read '", path, "'"));
@@ -162,6 +163,7 @@ absl::StatusOr<std::string> ReadRange(
   if (input.gcount() != static_cast<std::streamsize>(content.size())) {
     return absl::DataLossError(absl::StrCat("ASAR member content is truncated in '", path, "'"));
   }
+  // XFF_HOST_IO: inspect the adapter's host container stream for trailing bytes.
   if (require_end && input.peek() != std::ifstream::traits_type::eof()) {
     return absl::DataLossError(absl::StrCat("ASAR unpacked member is larger than its header size in '", path, "'"));
   }
@@ -378,6 +380,7 @@ AsarFileSystem::AsarFileSystem(AsarFileSystem&& other) noexcept
 }
 
 absl::StatusOr<AsarFileSystem> AsarFileSystem::Open(std::string_view container, archive::MemberPathOptions options) {
+  // XFF_HOST_IO: ASAR adapter reads its explicitly selected container file.
   std::ifstream input(std::string(container), std::ios::binary);
   if (!input) {
     return absl::NotFoundError(absl::StrCat("cannot read ASAR '", container, "'"));

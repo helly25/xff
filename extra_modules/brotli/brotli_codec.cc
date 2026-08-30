@@ -154,10 +154,12 @@ absl::StatusOr<int> IntegerOption(
 }
 
 absl::Status EncodeFile(const stdfs::path& source, const stdfs::path& destination, int quality, int window_bits) {
+  // XFF_HOST_IO: Brotli adapter reads the explicitly selected host input file.
   std::ifstream input(source, std::ios::binary);
   if (!input.is_open()) {
     return absl::NotFoundError(absl::StrCat("cannot open temporary tar '", source.string(), "'"));
   }
+  // XFF_HOST_IO: Brotli adapter writes the explicitly selected host output file.
   std::ofstream output(destination, std::ios::binary | std::ios::trunc);
   if (!output.is_open()) {
     return absl::UnavailableError(absl::StrCat("cannot create '", destination.string(), "'"));
@@ -213,10 +215,12 @@ absl::Status WriteFramed(const stdfs::path& raw, const stdfs::path& destination,
   if (error) {
     return absl::UnavailableError(absl::StrCat("cannot size '", raw.string(), "': ", error.message()));
   }
+  // XFF_HOST_IO: Brotli adapter reads the explicitly selected host input file.
   std::ifstream input(raw, std::ios::binary);
   if (!input.is_open()) {
     return absl::NotFoundError(absl::StrCat("cannot open '", raw.string(), "'"));
   }
+  // XFF_HOST_IO: Brotli adapter writes the explicitly selected host output file.
   std::ofstream output(destination, std::ios::binary | std::ios::trunc);
   if (!output.is_open()) {
     return absl::UnavailableError(absl::StrCat("cannot create '", destination.string(), "'"));
@@ -435,6 +439,7 @@ absl::StatusOr<std::string> Decode(
     std::istringstream memory{std::string(*bytes)};
     return DecodeStream(memory, path, max_bytes);
   }
+  // XFF_HOST_IO: Brotli adapter reads its explicitly selected host container.
   std::ifstream file(std::string(path), std::ios::binary);
   if (!file.is_open()) {
     return absl::NotFoundError(absl::StrCat("cannot open '", path, "'"));

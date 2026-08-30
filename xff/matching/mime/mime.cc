@@ -5,12 +5,10 @@
 
 #include <array>
 #include <filesystem>
-#include <fstream>
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -27,6 +25,7 @@
 #include "mbo/types/optional_ref.h"
 #include "nlohmann/json.hpp"
 #include "xff/matching/mime/database.h"
+#include "xff/vfs/local_fs.h"
 
 namespace xff::mime {
 namespace {
@@ -302,13 +301,12 @@ class LayerProcessor {
 };
 
 absl::StatusOr<std::string> ReadFile(const std::string& path) {
-  const std::ifstream input(path);
-  if (!input) {
+  const vfs::LocalFs fs;
+  const absl::StatusOr<std::string> content = fs.ReadContent(path);
+  if (!content.ok()) {
     return absl::NotFoundError(absl::StrCat("cannot read MIME vocabulary: ", path));
   }
-  std::ostringstream text;
-  text << input.rdbuf();
-  return std::move(text).str();
+  return *content;
 }
 
 TypeInfo View(std::string_view type, const Vocabulary::Record& record) {

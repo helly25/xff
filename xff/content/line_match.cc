@@ -23,7 +23,7 @@
 
 #include "absl/functional/function_ref.h"
 #include "absl/status/statusor.h"
-#include "mbo/file/artefact.h"
+#include "xff/vfs/local_fs.h"
 
 namespace xff::content {
 namespace {
@@ -123,11 +123,12 @@ std::optional<std::size_t> ContentLineCount(std::string_view content) {
 }
 
 std::optional<std::size_t> FileLineCount(std::string_view path) {
-  const absl::StatusOr<mbo::file::Artefact> artefact = mbo::file::Artefact::Read(path);
-  if (!artefact.ok()) {
+  const vfs::LocalFs fs;
+  const absl::StatusOr<std::string> content = fs.ReadContent(path);
+  if (!content.ok()) {
     return std::nullopt;  // unreadable / missing -> nothing to count
   }
-  return ContentLineCount(artefact->data);
+  return ContentLineCount(*content);
 }
 
 }  // namespace xff::content

@@ -80,6 +80,7 @@
 #include "xff/shard/shard.h"
 #include "xff/values/values.h"
 #include "xff/vfs/filesystem.h"
+#include "xff/vfs/local_fs.h"
 
 namespace xff::engine {
 namespace {
@@ -494,7 +495,10 @@ std::pair<std::string, std::string> DepthBucket(int depth) {
 // The {order-preserving map key, display label} for `visit` under `spec`, or nullopt when the bucket
 // field is unavailable (a numeric lines bucket for a non-regular or binary file). Categorical
 // buckets reuse SummaryKey; numeric buckets range-bucket a field.
-std::optional<std::pair<std::string, std::string>> HistBucketKey(const HistogramSpec& spec, const Visit& visit) {
+std::optional<std::pair<std::string, std::string>> HistBucketKey(
+    const HistogramSpec& spec,
+    const Visit& visit,
+    const vfs::FileSystem& fs) {
   switch (spec.bucket) {
     case HistBucket::kOverall:
     case HistBucket::kType:
@@ -518,8 +522,14 @@ std::optional<std::pair<std::string, std::string>> HistBucketKey(const Histogram
     }
     case HistBucket::kSizeRange: return MagnitudeBucket(visit.metadata.size);
     case HistBucket::kLinesRange: {
-      const std::optional<std::uint64_t> lines =
-          visit.metadata.type == vfs::FileType::kRegular ? content::FileLineCount(visit.path) : std::nullopt;
+      if (visit.metadata.type != vfs::FileType::kRegular) {
+        return std::nullopt;
+      }
+      const absl::StatusOr<std::string> content = fs.ReadContent(visit.path);
+      if (!content.ok()) {
+        return std::nullopt;
+      }
+      const std::optional<std::size_t> lines = content::ContentLineCount(*content);
       return lines.has_value() ? std::optional(MagnitudeBucket(*lines)) : std::nullopt;
     }
     case HistBucket::kDepthRange: return DepthBucket(visit.depth);
@@ -1956,11 +1966,12 @@ absl::StatusOr<std::vector<archive::PackOption>> ReadPackOptionFile(std::string_
   if (path.empty()) {
     return absl::InvalidArgumentError("expected a file after --pack-option=@");
   }
-  std::ifstream input{std::string(path)};
-  if (!input) {
+  const vfs::LocalFs fs;
+  const absl::StatusOr<std::string> content = fs.ReadContent(path);
+  if (!content.ok()) {
     return absl::NotFoundError(absl::StrCat("cannot read pack-option file '", path, "'"));
   }
-  const Json root = Json::parse(input, nullptr, /*allow_exceptions=*/false);
+  const Json root = Json::parse(*content, nullptr, /*allow_exceptions=*/false);
   if (root.is_discarded()) {
     return absl::InvalidArgumentError(absl::StrCat("pack-option file '", path, "' is not valid JSON"));
   }
@@ -2933,26 +2944,35 @@ void FeedVerificationSummaries(
   }
 }
 
+std::optional<std::uint64_t> HistogramValue(const HistogramSpec& spec, const Visit& visit, const vfs::FileSystem& fs) {
+  if (spec.agg == HistAgg::kCount) {
+    return 1;
+  }
+  if (spec.metric == HistMetric::kSize) {
+    return visit.metadata.size;
+  }
+  if (visit.metadata.type != vfs::FileType::kRegular) {
+    return std::nullopt;
+  }
+  const absl::StatusOr<std::string> content = fs.ReadContent(visit.path);
+  return content.ok() ? content::ContentLineCount(*content) : std::nullopt;
+}
+
 // Accumulates one matched unit into every --histogram sink. An entry with no value for a spec is
 // skipped rather than bucketed as zero: the bucket field may be unavailable (a lines bucket for a
 // binary file), and so may the metric.
 void FeedHistograms(
     const std::vector<HistogramSpec>& specs,
     std::vector<std::map<std::string, HistCell>>& cells_per_sink,
-    const Visit& visit) {
+    const Visit& visit,
+    const vfs::FileSystem& fs) {
   for (std::size_t i = 0; i < specs.size(); ++i) {
     const HistogramSpec& spec = specs[i];
-    const std::optional<std::pair<std::string, std::string>> bucket = HistBucketKey(spec, visit);
+    const std::optional<std::pair<std::string, std::string>> bucket = HistBucketKey(spec, visit, fs);
     if (!bucket.has_value()) {
       continue;
     }
-    std::optional<std::uint64_t> value = 1;  // kCount: each match contributes one
-    if (spec.agg != HistAgg::kCount) {
-      value = spec.metric == HistMetric::kSize ? std::optional<std::uint64_t>(visit.metadata.size)
-              : visit.metadata.type == vfs::FileType::kRegular
-                  ? std::optional<std::uint64_t>(content::FileLineCount(visit.path))
-                  : std::nullopt;  // kLines: content-derived, absent for a non-regular or binary file
-    }
+    const std::optional<std::uint64_t> value = HistogramValue(spec, visit, fs);
     if (!value.has_value()) {
       continue;
     }
@@ -3021,7 +3041,7 @@ void FeedCollections(
           .defines = defaults.defines,
       };
       FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
-      FeedHistograms(histograms, histogram_cells, visit);
+      FeedHistograms(histograms, histogram_cells, visit, *visit.fs);
     }
   }
 }
@@ -3674,11 +3694,13 @@ RunResult RunFind(
   // opened once (truncating) on first write and held open for the whole walk. The
   // visitor is single-threaded, so the sink map needs no synchronisation. Streams
   // close (flushing) when `file_sinks` goes out of scope after the walk.
+  // XFF_HOST_IO: -fprint-family actions intentionally write user-selected host output files.
   std::map<std::string, std::ofstream> file_sinks;
   const auto emit_file = [&file_sinks](std::string_view file, std::string_view record) {
     const std::string name(file);
     auto it = file_sinks.find(name);
     if (it == file_sinks.end()) {
+      // XFF_HOST_IO: open the explicit output path selected by the -fprint-family action.
       it = file_sinks.emplace(name, std::ofstream(name, std::ios::binary | std::ios::trunc)).first;
     }
     it->second.write(record.data(), static_cast<std::streamsize>(record.size()));
@@ -3847,7 +3869,7 @@ RunResult RunFind(
             .outputs = outputs,
             .fuzzy_score = fuzzy_score};
         FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
-        FeedHistograms(histograms, histogram_cells, visit);
+        FeedHistograms(histograms, histogram_cells, visit, *visit.fs);
       }
     } else if (matched && implicit_print && (!max_results->has_value() || listed_results < **max_results)) {
       ++listed_results;
@@ -4286,7 +4308,9 @@ RunResult RunFind(
     const auto feed_summaries = [&](const fields::RenderContext& key_ctx, const Visit& visit) {
       FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
     };
-    const auto feed_histograms = [&](const Visit& visit) { FeedHistograms(histograms, histogram_cells, visit); };
+    const auto feed_histograms = [&](const Visit& visit) {
+      FeedHistograms(histograms, histogram_cells, visit, *visit.fs);
+    };
     // Feed one logical unit (a set, or a non-shard file) into both sinks; `shard_count` -> {shard}.
     const auto feed_unit = [&](const Visit& visit, std::optional<std::int64_t> shard_count) {
       const std::string link;
@@ -4323,8 +4347,9 @@ RunResult RunFind(
         }
       }
       group.sets = shard::GroupShards(shard_files, *shard_matcher, shard_dedup);
-      const auto synth = [](const ShardBufFile& rec, std::string_view path, const vfs::Metadata& md) {
-        return Visit{.path = path, .name = rec.name, .root = rec.root, .depth = rec.depth, .metadata = md};
+      const auto synth = [&walk_fs](const ShardBufFile& rec, std::string_view path, const vfs::Metadata& md) {
+        return Visit{
+            .path = path, .name = rec.name, .root = rec.root, .depth = rec.depth, .metadata = md, .fs = walk_fs};
       };
       for (const shard::ShardSet& set : group.sets) {
         // --shards-dedup=error: a same-index duplicate is ambiguous, so report it and fail the run.

@@ -17,10 +17,8 @@
 
 #include <array>
 #include <cstddef>
-#include <fstream>
 #include <iostream>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -66,13 +64,12 @@ std::optional<std::string> EnvOpt(std::string_view name) {
 
 // Reads a whole file, or nullopt if it cannot be opened: the config FileReader.
 std::optional<std::string> ReadFile(std::string_view path) {
-  const std::ifstream in{std::string(path), std::ios::binary};
-  if (!in) {
+  const xff::vfs::LocalFs fs;
+  const absl::StatusOr<std::string> content = fs.ReadContent(path);
+  if (!content.ok()) {
     return std::nullopt;
   }
-  std::ostringstream buffer;
-  buffer << in.rdbuf();
-  return buffer.str();
+  return *content;
 }
 
 // The flavor feature-map: one row per style-scoped behavior, its controlling flag(s), each
