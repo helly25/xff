@@ -104,6 +104,18 @@ TEST_F(ExecTest, ExecuteArgsInDirSpawnsVerbatimInDir) {
   EXPECT_TRUE(ExecuteArgsInDir({"/bin/sh", "-c", "test '{}' = '{}'"}, "/"));
 }
 
+TEST_F(ExecTest, BatchNoOpAndFailureCases) {
+  EXPECT_THAT(ExecuteBatch({}, {}), true);
+  EXPECT_THAT(ExecuteBatch({"{}"}, {}), true);
+  EXPECT_THAT(ExecuteBatch({"{}"}, {"item"}), false);
+  EXPECT_THAT(ExecuteBatch({"/nonexistent/xff/zzz", "{}"}, {"item"}), false);
+  EXPECT_THAT(ExecuteBatchInDir({"/bin/sh", "-c", "exit 0", "{}"}, {"./item"}, "/nonexistent/xff/dir"), false);
+}
+
+TEST_F(ExecTest, CaptureOutputFailsWhenWorkingDirectoryDoesNotExist) {
+  EXPECT_THAT(CaptureOutput({"/bin/sh", "-c", "printf unreachable"}, "/nonexistent/xff/dir"), Eq(std::nullopt));
+}
+
 TEST_F(ExecTest, DirVariantsWithEmptyOrDotDirInheritCwd) {
   // An empty or "." dir means "do not chdir" -- like ExecuteArgs/Execute.
   EXPECT_TRUE(ExecuteArgsInDir({"/bin/sh", "-c", "exit 0"}, ""));
