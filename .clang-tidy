@@ -110,11 +110,11 @@ CheckOptions:
   # a longer name would not read better, so allow them alongside the existing i/it/n/os/v.
   # Other short names (t, c, i/j/k cursors) are renamed to descriptive ones instead.
   - key:             readability-identifier-length.IgnoredLoopCounterNames
-    value:           'i|it|n'
+    value:           '_|i|it|n'
   - key:             readability-identifier-length.IgnoredParameterNames
-    value:           'fs|os|r|v|w|x|y'
+    value:           '_|fs|os|r|v|w|x|y'
   - key:             readability-identifier-length.IgnoredVariableNames
-    value:           'fs|it|os|v'
+    value:           '_|fs|it|os|v'
   - key:             readability-identifier-length.MinimumParameterNameLength
     value:           '2'
   - key:             readability-identifier-length.MinimumVariableNameLength
