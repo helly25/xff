@@ -113,6 +113,7 @@ std::string_view SignatureName(std::uint32_t type) {
 }
 
 absl::StatusOr<std::string> ReadWholeFile(const std::string& path) {
+  // XFF_HOST_IO: PHAR writer consumes the explicitly selected host input file.
   std::ifstream in(path, std::ios::binary);
   if (!in) {
     return absl::UnavailableError(absl::StrCat("cannot read ", path));
@@ -125,6 +126,7 @@ absl::StatusOr<std::string> ReadWholeFile(const std::string& path) {
 }
 
 absl::Status WriteWholeFile(const stdfs::path& path, std::string_view bytes) {
+  // XFF_HOST_IO: PHAR writer creates the explicitly selected host output file.
   std::ofstream out(path, std::ios::binary | std::ios::trunc);
   out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
   if (!out) {

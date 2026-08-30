@@ -101,6 +101,7 @@ absl::StatusOr<ArchivePtr> OpenAppImageBytes(std::string_view container, std::st
 
 absl::StatusOr<ArchivePtr> OpenAppImagePath(std::string_view container, std::string& path_storage) {
   path_storage = container;
+  // XFF_HOST_IO: SquashFS adapter reads its explicitly selected host image.
   std::ifstream input(path_storage, std::ios::binary);
   if (!input) {
     return absl::NotFoundError(absl::StrCat("cannot open AppImage ", container));

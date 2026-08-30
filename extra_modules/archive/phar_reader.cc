@@ -450,6 +450,7 @@ absl::Status CheckLimit(std::uint64_t size, std::uint64_t max_bytes, std::string
 // Reads `length` bytes at `offset` from `path`. Used for both the stub-plus-manifest prefix and a
 // single member's byte range, so neither entry point ever reads a whole container.
 absl::StatusOr<std::string> ReadFileRange(std::string_view path, std::uint64_t offset, std::size_t length) {
+  // XFF_HOST_IO: PHAR adapter reads its explicitly selected host container.
   std::ifstream file(std::string(path), std::ios::binary);
   if (!file.is_open()) {
     return absl::InvalidArgumentError(absl::StrCat("cannot open ", path));

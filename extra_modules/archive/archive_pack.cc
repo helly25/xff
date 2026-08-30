@@ -485,6 +485,7 @@ absl::Status WriteOne(struct ::archive& writer_ref, const PackEntry& entry) {
   }
   // Streamed in blocks: an archive may hold files far larger than memory. A stream rather than
   // stdio because it closes itself on every path out of here, including the error returns below.
+  // XFF_HOST_IO: archive pack consumes the explicitly selected host input file.
   std::ifstream file(source, std::ios::binary);
   if (!file.is_open()) {
     return absl::NotFoundError(absl::StrCat("cannot open '", entry.source, "'"));
