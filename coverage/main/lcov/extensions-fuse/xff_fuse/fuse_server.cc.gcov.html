@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-30 17:39:42</td>
+            <td class="headerValue">2026-08-30 18:33:51</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">96.3&nbsp;%</td>
@@ -142,9 +142,9 @@
 <span id="L62"><span class="lineNum">      62</span>                 :             : // One process talks to one fuse3 library, so the API is resolved once and shared: the C callbacks</span>
 <span id="L63"><span class="lineNum">      63</span>                 :             : // have no capture slot besides userdata (which carries the per-mount state), and this is how they</span>
 <span id="L64"><span class="lineNum">      64</span>                 :             : // reach the reply functions.</span>
-<span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaGNC">         147 : const absl::StatusOr&lt;FuseApi&gt;&amp; ResolvedApi() {</span></span>
-<span id="L66"><span class="lineNum">      66</span>   [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 143 times"> + </span><span class="tlaGBC" title="branch 2 was taken 4 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         147 :   static const absl::StatusOr&lt;FuseApi&gt;&amp; api = *new absl::StatusOr&lt;FuseApi&gt;(FuseApi::Resolve());</span></span>
-<span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">         147 :   return api;</span></span>
+<span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaGNC">         145 : const absl::StatusOr&lt;FuseApi&gt;&amp; ResolvedApi() {</span></span>
+<span id="L66"><span class="lineNum">      66</span>   [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 141 times"> + </span><span class="tlaGBC" title="branch 2 was taken 4 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">         145 :   static const absl::StatusOr&lt;FuseApi&gt;&amp; api = *new absl::StatusOr&lt;FuseApi&gt;(FuseApi::Resolve());</span></span>
+<span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">         145 :   return api;</span></span>
 <span id="L68"><span class="lineNum">      68</span>                 :             : }</span>
 <span id="L69"><span class="lineNum">      69</span>                 :             : </span>
 <span id="L70"><span class="lineNum">      70</span>                 :             : // The path of `name` inside `dir`, ASKED OF THE FILESYSTEM rather than assembled here. A backend</span>
@@ -224,8 +224,8 @@
 <span id="L144"><span class="lineNum">     144</span>                 :             : </span>
 <span id="L145"><span class="lineNum">     145</span>                 :             : namespace {</span>
 <span id="L146"><span class="lineNum">     146</span>                 :             : </span>
-<span id="L147"><span class="lineNum">     147</span>                 :<span class="tlaGNC">          54 : FuseServer::Impl&amp; ImplOf(fuse_req_t req) {</span></span>
-<span id="L148"><span class="lineNum">     148</span>                 :<span class="tlaGNC">          54 :   return *static_cast&lt;FuseServer::Impl*&gt;(ResolvedApi()-&gt;req_userdata(req));</span></span>
+<span id="L147"><span class="lineNum">     147</span>                 :<span class="tlaGNC">          53 : FuseServer::Impl&amp; ImplOf(fuse_req_t req) {</span></span>
+<span id="L148"><span class="lineNum">     148</span>                 :<span class="tlaGNC">          53 :   return *static_cast&lt;FuseServer::Impl*&gt;(ResolvedApi()-&gt;req_userdata(req));</span></span>
 <span id="L149"><span class="lineNum">     149</span>                 :             : }</span>
 <span id="L150"><span class="lineNum">     150</span>                 :             : </span>
 <span id="L151"><span class="lineNum">     151</span>                 :             : // The sessions a fatal signal must ask to exit. Guarded by a mutex on the REGISTRATION side only:</span>
@@ -414,15 +414,15 @@
 <span id="L332"><span class="lineNum">     332</span>                 :<span class="tlaGNC">           5 :       req, std::next(content.data(), static_cast&lt;std::ptrdiff_t&gt;(offset)), std::min(size, content.size() - offset));</span></span>
 <span id="L333"><span class="lineNum">     333</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">           5 : }</span></span>
 <span id="L334"><span class="lineNum">     334</span>                 :             : </span>
-<span id="L335"><span class="lineNum">     335</span>                 :<span class="tlaGNC">           3 : void OpRelease(fuse_req_t req, fuse_ino_t /*ino*/, struct fuse_file_info* file_info) {</span></span>
-<span id="L336"><span class="lineNum">     336</span>                 :<span class="tlaGNC">           3 :   const FuseApi&amp; api = *ResolvedApi();</span></span>
-<span id="L337"><span class="lineNum">     337</span>                 :<span class="tlaGNC">           3 :   FuseServer::Impl&amp; impl = ImplOf(req);</span></span>
+<span id="L335"><span class="lineNum">     335</span>                 :<span class="tlaGNC">           2 : void OpRelease(fuse_req_t req, fuse_ino_t /*ino*/, struct fuse_file_info* file_info) {</span></span>
+<span id="L336"><span class="lineNum">     336</span>                 :<span class="tlaGNC">           2 :   const FuseApi&amp; api = *ResolvedApi();</span></span>
+<span id="L337"><span class="lineNum">     337</span>                 :<span class="tlaGNC">           2 :   FuseServer::Impl&amp; impl = ImplOf(req);</span></span>
 <span id="L338"><span class="lineNum">     338</span>                 :             :   {</span>
-<span id="L339"><span class="lineNum">     339</span>                 :<span class="tlaGNC">           3 :     const absl::MutexLock lock(impl.mutex);</span></span>
-<span id="L340"><span class="lineNum">     340</span>                 :<span class="tlaGNC">           3 :     impl.contents.erase(file_info-&gt;fh);</span></span>
-<span id="L341"><span class="lineNum">     341</span>                 :<span class="tlaGNC">           3 :   }</span></span>
-<span id="L342"><span class="lineNum">     342</span>                 :<span class="tlaGNC">           3 :   api.reply_err(req, 0);</span></span>
-<span id="L343"><span class="lineNum">     343</span>                 :<span class="tlaGNC">           3 : }</span></span>
+<span id="L339"><span class="lineNum">     339</span>                 :<span class="tlaGNC">           2 :     const absl::MutexLock lock(impl.mutex);</span></span>
+<span id="L340"><span class="lineNum">     340</span>                 :<span class="tlaGNC">           2 :     impl.contents.erase(file_info-&gt;fh);</span></span>
+<span id="L341"><span class="lineNum">     341</span>                 :<span class="tlaGNC">           2 :   }</span></span>
+<span id="L342"><span class="lineNum">     342</span>                 :<span class="tlaGNC">           2 :   api.reply_err(req, 0);</span></span>
+<span id="L343"><span class="lineNum">     343</span>                 :<span class="tlaGNC">           2 : }</span></span>
 <span id="L344"><span class="lineNum">     344</span>                 :             : </span>
 <span id="L345"><span class="lineNum">     345</span>                 :<span class="tlaGNC">           2 : void OpReadlink(fuse_req_t req, fuse_ino_t ino) {</span></span>
 <span id="L346"><span class="lineNum">     346</span>                 :<span class="tlaGNC">           2 :   const FuseApi&amp; api = *ResolvedApi();</span></span>
@@ -534,83 +534,84 @@
 <span id="L451"><span class="lineNum">     451</span>                 :<span class="tlaGNC">          19 :     const absl::Time deadline = absl::Now() + absl::Seconds(5);</span></span>
 <span id="L452"><span class="lineNum">     452</span>                 :<span class="tlaGNC">          19 :     bool ready = false;</span></span>
 <span id="L453"><span class="lineNum">     453</span>         [<span class="tlaGBC" title="branch 0 was taken 19 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">          19 :     while (absl::Now() &lt; deadline) {</span></span>
-<span id="L454"><span class="lineNum">     454</span>   [<span class="tlaGBC" title="branch 0 was taken 19 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 19 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">          19 :       if (::stat(server-&gt;impl_-&gt;mount_point.c_str(), &amp;probe) == 0 &amp;&amp; S_ISDIR(probe.st_mode)) {</span></span>
+<span id="L454"><span class="lineNum">     454</span>                 :             :       // XFF_HOST_IO: FUSE adapter probes its explicitly selected mount point.</span>
+<span id="L455"><span class="lineNum">     455</span>   [<span class="tlaGBC" title="branch 0 was taken 19 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 19 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">          19 :       if (::stat(server-&gt;impl_-&gt;mount_point.c_str(), &amp;probe) == 0 &amp;&amp; S_ISDIR(probe.st_mode)) {</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 19 times"> + </span><span class="tlaUNC" title="branch 5 was not taken"> - </span>]
-<span id="L455"><span class="lineNum">     455</span>                 :<span class="tlaGNC">          19 :         ready = true;</span></span>
-<span id="L456"><span class="lineNum">     456</span>                 :<span class="tlaGNC">          19 :         break;</span></span>
-<span id="L457"><span class="lineNum">     457</span>                 :             :       }</span>
-<span id="L458"><span class="lineNum">     458</span>                 :<span class="tlaUNC">           0 :       absl::SleepFor(absl::Milliseconds(2));</span></span>
-<span id="L459"><span class="lineNum">     459</span>                 :             :     }</span>
-<span id="L460"><span class="lineNum">     460</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          19 :     if (!ready) {</span></span>
-<span id="L461"><span class="lineNum">     461</span>                 :<span class="tlaUNC">           0 :       return absl::UnavailableError(</span></span>
-<span id="L462"><span class="lineNum">     462</span>                 :<span class="tlaUNC">           0 :           absl::StrCat(&quot;the FUSE mount at '&quot;, server-&gt;impl_-&gt;mount_point, &quot;' never started serving&quot;));</span></span>
-<span id="L463"><span class="lineNum">     463</span>                 :             :     }</span>
-<span id="L464"><span class="lineNum">     464</span>                 :             :   }</span>
-<span id="L465"><span class="lineNum">     465</span>                 :<span class="tlaGNC">          19 :   return server;</span></span>
-<span id="L466"><span class="lineNum">     466</span>                 :<span class="tlaGNC">          20 : }</span></span>
-<span id="L467"><span class="lineNum">     467</span>                 :             : </span>
-<span id="L468"><span class="lineNum">     468</span>                 :<span class="tlaGNC">          20 : FuseServer::FuseServer() : impl_(std::make_unique&lt;Impl&gt;()) {}</span></span>
-<span id="L469"><span class="lineNum">     469</span>                 :             : </span>
-<span id="L470"><span class="lineNum">     470</span>                 :<span class="tlaGNC">          39 : FuseServer::~FuseServer() {</span></span>
-<span id="L471"><span class="lineNum">     471</span>                 :             :   // Only a partially constructed server lacks either object.</span>
-<span id="L472"><span class="lineNum">     472</span>                 :<span class="tlaGNC">          20 :   if (impl_ == nullptr || impl_-&gt;session == nullptr) {  // LCOV_EXCL_BR_LINE</span></span>
-<span id="L473"><span class="lineNum">     473</span>                 :<span class="tlaGNC">           1 :     return;</span></span>
-<span id="L474"><span class="lineNum">     474</span>                 :             :   }</span>
-<span id="L475"><span class="lineNum">     475</span>                 :<span class="tlaGNC">          19 :   const FuseApi&amp; api = *ResolvedApi();</span></span>
-<span id="L476"><span class="lineNum">     476</span>                 :             :   {</span>
-<span id="L477"><span class="lineNum">     477</span>                 :<span class="tlaGNC">          19 :     const absl::MutexLock lock(LiveMutex());</span></span>
-<span id="L478"><span class="lineNum">     478</span>                 :<span class="tlaGNC">          19 :     std::erase(LiveSessions(), impl_-&gt;session);</span></span>
-<span id="L479"><span class="lineNum">     479</span>                 :<span class="tlaGNC">          19 :   }</span></span>
-<span id="L480"><span class="lineNum">     480</span>                 :<span class="tlaGNC">          19 :   impl_-&gt;exiting.store(true);</span></span>
-<span id="L481"><span class="lineNum">     481</span>                 :<span class="tlaGNC">          19 :   api.session_exit(impl_-&gt;session);</span></span>
-<span id="L482"><span class="lineNum">     482</span>                 :             :   // Waking the loop is the delicate part: it sits in a blocking read on the kernel channel, and</span>
-<span id="L483"><span class="lineNum">     483</span>                 :             :   // the exit flag alone is only checked between requests. Unmounting OUT OF PROCESS makes the</span>
-<span id="L484"><span class="lineNum">     484</span>                 :             :   // kernel end that read, so the loop returns on its own and every later call happens after the</span>
-<span id="L485"><span class="lineNum">     485</span>                 :             :   // join, single-threaded. Calling fuse_session_unmount here instead would close the channel fd</span>
-<span id="L486"><span class="lineNum">     486</span>                 :             :   // from this thread while the loop is still reading it - a real close/read race (ThreadSanitizer</span>
-<span id="L487"><span class="lineNum">     487</span>                 :             :   // reports exactly that), not merely a theoretical one.</span>
-<span id="L488"><span class="lineNum">     488</span>                 :<span class="tlaGNC">          19 :   Unmount(impl_-&gt;mount_point);</span></span>
-<span id="L489"><span class="lineNum">     489</span>                 :<span class="tlaGNC">          19 :   impl_-&gt;loop.join();</span></span>
-<span id="L490"><span class="lineNum">     490</span>                 :<span class="tlaGNC">          19 :   api.session_unmount(impl_-&gt;session);</span></span>
-<span id="L491"><span class="lineNum">     491</span>                 :<span class="tlaGNC">          19 :   api.session_destroy(impl_-&gt;session);</span></span>
-<span id="L492"><span class="lineNum">     492</span>         [<span class="tlaGBC" title="branch 0 was taken 19 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          20 : }</span></span>
-<span id="L493"><span class="lineNum">     493</span>                 :             : </span>
-<span id="L494"><span class="lineNum">     494</span>                 :<span class="tlaGNC">           8 : std::string_view FuseServer::MountPoint() const {</span></span>
-<span id="L495"><span class="lineNum">     495</span>                 :<span class="tlaGNC">           8 :   return impl_-&gt;mount_point;</span></span>
-<span id="L496"><span class="lineNum">     496</span>                 :             : }</span>
-<span id="L497"><span class="lineNum">     497</span>                 :             : </span>
-<span id="L498"><span class="lineNum">     498</span>                 :             : namespace {</span>
-<span id="L499"><span class="lineNum">     499</span>                 :             : </span>
-<span id="L500"><span class="lineNum">     500</span>                 :             : // Unmounts `mount_point` with the platform's helper, out of process. Best effort by design: a</span>
-<span id="L501"><span class="lineNum">     501</span>                 :             : // still-busy mount stays for the stale sweep, and an already-gone one makes the helper complain</span>
-<span id="L502"><span class="lineNum">     502</span>                 :             : // harmlessly.</span>
-<span id="L503"><span class="lineNum">     503</span>                 :<span class="tlaGNC">          20 : void Unmount(std::string_view mount_point) {</span></span>
-<span id="L504"><span class="lineNum">     504</span>                 :<span class="tlaGNC">          40 :   std::string target(mount_point);</span></span>
-<span id="L505"><span class="lineNum">     505</span>                 :             : #if defined(__linux__)</span>
-<span id="L506"><span class="lineNum">     506</span>                 :<span class="tlaGNC">          40 :   std::string arg0 = &quot;fusermount3&quot;;</span></span>
-<span id="L507"><span class="lineNum">     507</span>                 :<span class="tlaGNC">          20 :   std::string arg1 = &quot;-uz&quot;;</span></span>
-<span id="L508"><span class="lineNum">     508</span>                 :             : #else</span>
-<span id="L509"><span class="lineNum">     509</span>                 :             :   std::string arg0 = &quot;umount&quot;;</span>
-<span id="L510"><span class="lineNum">     510</span>                 :             :   std::string arg1 = &quot;-f&quot;;</span>
-<span id="L511"><span class="lineNum">     511</span>                 :             : #endif</span>
-<span id="L512"><span class="lineNum">     512</span>                 :             :   // posix_spawnp, not system(): no shell, and the argv is ours.</span>
-<span id="L513"><span class="lineNum">     513</span>                 :<span class="tlaGNC">          20 :   std::array&lt;char*, 4&gt; argv = {arg0.data(), arg1.data(), target.data(), nullptr};</span></span>
-<span id="L514"><span class="lineNum">     514</span>                 :<span class="tlaGNC">          20 :   pid_t pid = 0;</span></span>
-<span id="L515"><span class="lineNum">     515</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 20 times"> + </span>]:<span class="tlaGNC">          20 :   if (::posix_spawnp(&amp;pid, argv[0], nullptr, nullptr, argv.data(), nullptr) != 0) {</span></span>
-<span id="L516"><span class="lineNum">     516</span>                 :<span class="tlaUNC">           0 :     return;</span></span>
-<span id="L517"><span class="lineNum">     517</span>                 :             :   }</span>
-<span id="L518"><span class="lineNum">     518</span>                 :<span class="tlaGNC">          20 :   int wait_status = 0;</span></span>
-<span id="L519"><span class="lineNum">     519</span>                 :<span class="tlaGNC">          20 :   ::waitpid(pid, &amp;wait_status, 0);</span></span>
-<span id="L520"><span class="lineNum">     520</span>   [<span class="tlaGBC" title="branch 0 was taken 20 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 20 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">          20 : }</span></span>
+<span id="L456"><span class="lineNum">     456</span>                 :<span class="tlaGNC">          19 :         ready = true;</span></span>
+<span id="L457"><span class="lineNum">     457</span>                 :<span class="tlaGNC">          19 :         break;</span></span>
+<span id="L458"><span class="lineNum">     458</span>                 :             :       }</span>
+<span id="L459"><span class="lineNum">     459</span>                 :<span class="tlaUNC">           0 :       absl::SleepFor(absl::Milliseconds(2));</span></span>
+<span id="L460"><span class="lineNum">     460</span>                 :             :     }</span>
+<span id="L461"><span class="lineNum">     461</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          19 :     if (!ready) {</span></span>
+<span id="L462"><span class="lineNum">     462</span>                 :<span class="tlaUNC">           0 :       return absl::UnavailableError(</span></span>
+<span id="L463"><span class="lineNum">     463</span>                 :<span class="tlaUNC">           0 :           absl::StrCat(&quot;the FUSE mount at '&quot;, server-&gt;impl_-&gt;mount_point, &quot;' never started serving&quot;));</span></span>
+<span id="L464"><span class="lineNum">     464</span>                 :             :     }</span>
+<span id="L465"><span class="lineNum">     465</span>                 :             :   }</span>
+<span id="L466"><span class="lineNum">     466</span>                 :<span class="tlaGNC">          19 :   return server;</span></span>
+<span id="L467"><span class="lineNum">     467</span>                 :<span class="tlaGNC">          20 : }</span></span>
+<span id="L468"><span class="lineNum">     468</span>                 :             : </span>
+<span id="L469"><span class="lineNum">     469</span>                 :<span class="tlaGNC">          20 : FuseServer::FuseServer() : impl_(std::make_unique&lt;Impl&gt;()) {}</span></span>
+<span id="L470"><span class="lineNum">     470</span>                 :             : </span>
+<span id="L471"><span class="lineNum">     471</span>                 :<span class="tlaGNC">          39 : FuseServer::~FuseServer() {</span></span>
+<span id="L472"><span class="lineNum">     472</span>                 :             :   // Only a partially constructed server lacks either object.</span>
+<span id="L473"><span class="lineNum">     473</span>                 :<span class="tlaGNC">          20 :   if (impl_ == nullptr || impl_-&gt;session == nullptr) {  // LCOV_EXCL_BR_LINE</span></span>
+<span id="L474"><span class="lineNum">     474</span>                 :<span class="tlaGNC">           1 :     return;</span></span>
+<span id="L475"><span class="lineNum">     475</span>                 :             :   }</span>
+<span id="L476"><span class="lineNum">     476</span>                 :<span class="tlaGNC">          19 :   const FuseApi&amp; api = *ResolvedApi();</span></span>
+<span id="L477"><span class="lineNum">     477</span>                 :             :   {</span>
+<span id="L478"><span class="lineNum">     478</span>                 :<span class="tlaGNC">          19 :     const absl::MutexLock lock(LiveMutex());</span></span>
+<span id="L479"><span class="lineNum">     479</span>                 :<span class="tlaGNC">          19 :     std::erase(LiveSessions(), impl_-&gt;session);</span></span>
+<span id="L480"><span class="lineNum">     480</span>                 :<span class="tlaGNC">          19 :   }</span></span>
+<span id="L481"><span class="lineNum">     481</span>                 :<span class="tlaGNC">          19 :   impl_-&gt;exiting.store(true);</span></span>
+<span id="L482"><span class="lineNum">     482</span>                 :<span class="tlaGNC">          19 :   api.session_exit(impl_-&gt;session);</span></span>
+<span id="L483"><span class="lineNum">     483</span>                 :             :   // Waking the loop is the delicate part: it sits in a blocking read on the kernel channel, and</span>
+<span id="L484"><span class="lineNum">     484</span>                 :             :   // the exit flag alone is only checked between requests. Unmounting OUT OF PROCESS makes the</span>
+<span id="L485"><span class="lineNum">     485</span>                 :             :   // kernel end that read, so the loop returns on its own and every later call happens after the</span>
+<span id="L486"><span class="lineNum">     486</span>                 :             :   // join, single-threaded. Calling fuse_session_unmount here instead would close the channel fd</span>
+<span id="L487"><span class="lineNum">     487</span>                 :             :   // from this thread while the loop is still reading it - a real close/read race (ThreadSanitizer</span>
+<span id="L488"><span class="lineNum">     488</span>                 :             :   // reports exactly that), not merely a theoretical one.</span>
+<span id="L489"><span class="lineNum">     489</span>                 :<span class="tlaGNC">          19 :   Unmount(impl_-&gt;mount_point);</span></span>
+<span id="L490"><span class="lineNum">     490</span>                 :<span class="tlaGNC">          19 :   impl_-&gt;loop.join();</span></span>
+<span id="L491"><span class="lineNum">     491</span>                 :<span class="tlaGNC">          19 :   api.session_unmount(impl_-&gt;session);</span></span>
+<span id="L492"><span class="lineNum">     492</span>                 :<span class="tlaGNC">          19 :   api.session_destroy(impl_-&gt;session);</span></span>
+<span id="L493"><span class="lineNum">     493</span>         [<span class="tlaGBC" title="branch 0 was taken 19 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          20 : }</span></span>
+<span id="L494"><span class="lineNum">     494</span>                 :             : </span>
+<span id="L495"><span class="lineNum">     495</span>                 :<span class="tlaGNC">           8 : std::string_view FuseServer::MountPoint() const {</span></span>
+<span id="L496"><span class="lineNum">     496</span>                 :<span class="tlaGNC">           8 :   return impl_-&gt;mount_point;</span></span>
+<span id="L497"><span class="lineNum">     497</span>                 :             : }</span>
+<span id="L498"><span class="lineNum">     498</span>                 :             : </span>
+<span id="L499"><span class="lineNum">     499</span>                 :             : namespace {</span>
+<span id="L500"><span class="lineNum">     500</span>                 :             : </span>
+<span id="L501"><span class="lineNum">     501</span>                 :             : // Unmounts `mount_point` with the platform's helper, out of process. Best effort by design: a</span>
+<span id="L502"><span class="lineNum">     502</span>                 :             : // still-busy mount stays for the stale sweep, and an already-gone one makes the helper complain</span>
+<span id="L503"><span class="lineNum">     503</span>                 :             : // harmlessly.</span>
+<span id="L504"><span class="lineNum">     504</span>                 :<span class="tlaGNC">          20 : void Unmount(std::string_view mount_point) {</span></span>
+<span id="L505"><span class="lineNum">     505</span>                 :<span class="tlaGNC">          40 :   std::string target(mount_point);</span></span>
+<span id="L506"><span class="lineNum">     506</span>                 :             : #if defined(__linux__)</span>
+<span id="L507"><span class="lineNum">     507</span>                 :<span class="tlaGNC">          40 :   std::string arg0 = &quot;fusermount3&quot;;</span></span>
+<span id="L508"><span class="lineNum">     508</span>                 :<span class="tlaGNC">          20 :   std::string arg1 = &quot;-uz&quot;;</span></span>
+<span id="L509"><span class="lineNum">     509</span>                 :             : #else</span>
+<span id="L510"><span class="lineNum">     510</span>                 :             :   std::string arg0 = &quot;umount&quot;;</span>
+<span id="L511"><span class="lineNum">     511</span>                 :             :   std::string arg1 = &quot;-f&quot;;</span>
+<span id="L512"><span class="lineNum">     512</span>                 :             : #endif</span>
+<span id="L513"><span class="lineNum">     513</span>                 :             :   // posix_spawnp, not system(): no shell, and the argv is ours.</span>
+<span id="L514"><span class="lineNum">     514</span>                 :<span class="tlaGNC">          20 :   std::array&lt;char*, 4&gt; argv = {arg0.data(), arg1.data(), target.data(), nullptr};</span></span>
+<span id="L515"><span class="lineNum">     515</span>                 :<span class="tlaGNC">          20 :   pid_t pid = 0;</span></span>
+<span id="L516"><span class="lineNum">     516</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 20 times"> + </span>]:<span class="tlaGNC">          20 :   if (::posix_spawnp(&amp;pid, argv[0], nullptr, nullptr, argv.data(), nullptr) != 0) {</span></span>
+<span id="L517"><span class="lineNum">     517</span>                 :<span class="tlaUNC">           0 :     return;</span></span>
+<span id="L518"><span class="lineNum">     518</span>                 :             :   }</span>
+<span id="L519"><span class="lineNum">     519</span>                 :<span class="tlaGNC">          20 :   int wait_status = 0;</span></span>
+<span id="L520"><span class="lineNum">     520</span>                 :<span class="tlaGNC">          20 :   ::waitpid(pid, &amp;wait_status, 0);</span></span>
+<span id="L521"><span class="lineNum">     521</span>   [<span class="tlaGBC" title="branch 0 was taken 20 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 20 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span> :<span class="tlaGNC">          20 : }</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 20 times"> + </span><span class="tlaUNC" title="branch 5 was not taken"> - </span>]
-<span id="L521"><span class="lineNum">     521</span>                 :             : </span>
-<span id="L522"><span class="lineNum">     522</span>                 :             : }  // namespace</span>
-<span id="L523"><span class="lineNum">     523</span>                 :             : </span>
-<span id="L524"><span class="lineNum">     524</span>                 :<span class="tlaGNC">           1 : void CrashUnmount(std::string_view mount_point) {</span></span>
-<span id="L525"><span class="lineNum">     525</span>                 :<span class="tlaGNC">           1 :   Unmount(mount_point);</span></span>
-<span id="L526"><span class="lineNum">     526</span>                 :<span class="tlaGNC">           1 : }</span></span>
-<span id="L527"><span class="lineNum">     527</span>                 :             : </span>
-<span id="L528"><span class="lineNum">     528</span>                 :             : }  // namespace xff::fuse</span>
+<span id="L522"><span class="lineNum">     522</span>                 :             : </span>
+<span id="L523"><span class="lineNum">     523</span>                 :             : }  // namespace</span>
+<span id="L524"><span class="lineNum">     524</span>                 :             : </span>
+<span id="L525"><span class="lineNum">     525</span>                 :<span class="tlaGNC">           1 : void CrashUnmount(std::string_view mount_point) {</span></span>
+<span id="L526"><span class="lineNum">     526</span>                 :<span class="tlaGNC">           1 :   Unmount(mount_point);</span></span>
+<span id="L527"><span class="lineNum">     527</span>                 :<span class="tlaGNC">           1 : }</span></span>
+<span id="L528"><span class="lineNum">     528</span>                 :             : </span>
+<span id="L529"><span class="lineNum">     529</span>                 :             : }  // namespace xff::fuse</span>
         </pre>
               </td>
             </tr>
