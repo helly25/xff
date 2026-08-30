@@ -226,6 +226,22 @@ POSIX paths (and content) are byte strings, not guaranteed UTF-8; JSON/CSV/markd
 - **FSEvents (macOS) vs inotify/fanotify (Linux):** the Phase-4 index/watch abstracts behind a platform interface (deferred).
 - All platform-specific metadata (btime, normalization/case caps, watch) lives behind the VFS/platform layer; the engine stays platform-agnostic.
 
+### VFS capability and host-adapter boundaries
+
+The VFS has two deliberately different contracts. Consumers use the small capability-oriented
+`vfs::FileSystem` interface (`ReadDir`, `Stat`, `ReadLink`, content reads, access checks, and
+capability-scoped writes), with `Status`/`StatusOr` results and no descriptors or platform types.
+Write capabilities include creating temporary files, writing/replacing bytes, truncating, and
+removing entries where xff explicitly needs them. Each backend implements only the capabilities it
+can provide; unsupported operations return structured errors.
+
+The local backend keeps a separate internal host adapter for POSIX, `std::filesystem`, and platform
+metadata primitives, including file creation and mutation. That adapter is the only place where
+host handles and C APIs appear, keeping
+annotations and portability code at the immediate boundary. Archive, memory, and remote backends
+never need to expose those implementation details, and engine code cannot accidentally bypass the
+VFS by opening a host path directly.
+
 ### Exit-code model (review #9)
 
 One consistent table; the mode decides whether "no-match" is reachable:
