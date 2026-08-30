@@ -250,6 +250,7 @@ absl::Status LocalFs::WriteContent(std::string_view path, std::string_view conte
     return absl::InternalError(absl::StrCat("cannot open ", path, " for writing"));
   }
   output.write(content.data(), static_cast<std::streamsize>(content.size()));
+  output.flush();
   if (!output) {
     return absl::InternalError(absl::StrCat("cannot write ", path));
   }
