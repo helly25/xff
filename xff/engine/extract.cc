@@ -50,7 +50,7 @@ constexpr std::uint64_t kMaxFreeSpaceShareDivisor = 4;
 
 // The bytes free in `directory`, or nullopt when it cannot be queried (it does not exist, or is not
 // readable) - which is also the answer for "do not use this candidate".
-std::optional<std::uint64_t> FreeBytes(const std::string& directory) {
+std::optional<std::uint64_t> FreeBytes(std::string_view directory) {
   struct ::statvfs stats{};
   if (::statvfs(directory.c_str(), &stats) != 0) {
     return std::nullopt;

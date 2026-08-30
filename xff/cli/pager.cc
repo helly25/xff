@@ -43,7 +43,7 @@ void WriteToStdout(std::string_view text) {
 // `text` on the child's stdin. Returns false if the pager could not be started (the
 // caller then falls back to stdout); a pager that starts and then exits early is a
 // success (the user quit less), not a failure.
-[[nodiscard]] bool PipeThroughPager(std::string_view text, const std::string& command) {
+[[nodiscard]] bool PipeThroughPager(std::string_view text, std::string_view command) {
   std::array<int, 2> fds{};
   // macOS has no pipe2(), so the CLOEXEC flag is not available here; the child closes
   // both raw ends explicitly before exec, so nothing leaks.
