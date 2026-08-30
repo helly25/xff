@@ -2944,6 +2944,20 @@ void FeedVerificationSummaries(
   }
 }
 
+std::optional<std::uint64_t> HistogramValue(const HistogramSpec& spec, const Visit& visit, const vfs::FileSystem& fs) {
+  if (spec.agg == HistAgg::kCount) {
+    return 1;
+  }
+  if (spec.metric == HistMetric::kSize) {
+    return visit.metadata.size;
+  }
+  if (visit.metadata.type != vfs::FileType::kRegular) {
+    return std::nullopt;
+  }
+  const absl::StatusOr<std::string> content = fs.ReadContent(visit.path);
+  return content.ok() ? content::ContentLineCount(*content) : std::nullopt;
+}
+
 // Accumulates one matched unit into every --histogram sink. An entry with no value for a spec is
 // skipped rather than bucketed as zero: the bucket field may be unavailable (a lines bucket for a
 // binary file), and so may the metric.
@@ -2958,19 +2972,7 @@ void FeedHistograms(
     if (!bucket.has_value()) {
       continue;
     }
-    std::optional<std::uint64_t> value = 1;  // kCount: each match contributes one
-    if (spec.agg != HistAgg::kCount) {
-      value = spec.metric == HistMetric::kSize ? std::optional<std::uint64_t>(visit.metadata.size)
-                                               : visit.metadata.type == vfs::FileType::kRegular
-                  ? [&]() -> std::optional<std::uint64_t> {
-        const absl::StatusOr<std::string> content = fs.ReadContent(visit.path);
-        if (!content.ok()) {
-          return std::nullopt;
-        }
-        return content::ContentLineCount(*content);
-      }()
-          : std::nullopt;  // kLines: content-derived, absent for a non-regular or binary file
-    }
+    const std::optional<std::uint64_t> value = HistogramValue(spec, visit, fs);
     if (!value.has_value()) {
       continue;
     }
