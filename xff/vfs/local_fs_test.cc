@@ -95,6 +95,17 @@ TEST_F(LocalFsTest, ReadDirListsChildren) {
           Field(&Entry::name, Eq("file.txt")), Field(&Entry::name, Eq("sub")), Field(&Entry::name, Eq("link"))));
 }
 
+TEST_F(LocalFsTest, WriteContentReplacesFile) {
+  EXPECT_THAT(local_fs_.WriteContent(Path("file.txt"), "updated"), IsOk());
+  EXPECT_THAT(local_fs_.ReadContent(Path("file.txt")), IsOkAndHolds("updated"));
+}
+
+TEST_F(LocalFsTest, WriteContentReportsOpenFailure) {
+  EXPECT_THAT(
+      local_fs_.WriteContent(Path("missing/sub/file.txt"), "data"),
+      StatusIs(absl::StatusCode::kInternal, HasSubstr("cannot open")));
+}
+
 TEST_F(LocalFsTest, ReadDirTagsEntriesAsWritableLocal) {
   MBO_ASSERT_OK_AND_ASSIGN(const auto entries, local_fs_.ReadDir(root_.string()));
   for (const Entry& entry : entries) {

@@ -64,6 +64,9 @@ class FileSystem {
   // return an error. The object is not mutated, only the underlying source.
   virtual absl::Status Remove(std::string_view path) const = 0;
 
+  // Writes `content` to `path`, replacing any existing file. Read-only backends return an error.
+  virtual absl::Status WriteContent(std::string_view path, std::string_view content) const;
+
   // True if `path` is accessible to the current (effective) user for `mode`
   // (find's -readable/-writable/-executable). Resolves symlinks and reflects
   // the real permission check (ownership, groups, ACLs), not just mode bits.
