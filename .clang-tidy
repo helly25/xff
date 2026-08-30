@@ -112,9 +112,9 @@ CheckOptions:
   - key:             readability-identifier-length.IgnoredLoopCounterNames
     value:           '_|i|it|n'
   - key:             readability-identifier-length.IgnoredParameterNames
-    value:           'fs|os|r|v|w|x|y'
+    value:           '_|fs|os|r|v|w|x|y'
   - key:             readability-identifier-length.IgnoredVariableNames
-    value:           'fs|it|os|v'
+    value:           '_|fs|it|os|v'
   - key:             readability-identifier-length.MinimumParameterNameLength
     value:           '2'
   - key:             readability-identifier-length.MinimumVariableNameLength
