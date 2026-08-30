@@ -28,6 +28,7 @@ std::vector<std::string> MakeExpression(std::size_t predicates) {
 void ParseExpression(benchmark::State& state) {
   const std::vector<std::string> args = MakeExpression(state.range(0));
   for (auto _ : state) {
+    benchmark::DoNotOptimize(_);
     benchmark::DoNotOptimize(xff::parser::Parse(args));
   }
   state.SetItemsProcessed(state.iterations() * state.range(0));
