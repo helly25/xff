@@ -292,15 +292,19 @@ absl::Status RemoveMembersOfFile(std::string_view path, const std::vector<std::s
     }
     if (!status.ok()) {
       std::error_code ignored;
+      // XFF_HOST_IO: archive writer removes its explicitly selected temporary output.
       stdfs::remove(temporary, ignored);  // nothing half-written survives
       return status;
     }
   }
   std::error_code error;
+  // XFF_HOST_IO: archive writer inspects the explicitly selected output path metadata.
   const stdfs::perms mode = stdfs::status(target, error).permissions();
+  // XFF_HOST_IO: archive writer publishes its explicitly selected output file.
   stdfs::rename(temporary, target, error);
   if (error) {
     std::error_code ignored;
+    // XFF_HOST_IO: archive writer removes its explicitly selected temporary output.
     stdfs::remove(temporary, ignored);
     return absl::UnavailableError(absl::StrCat("cannot replace ", path, ": ", error.message()));
   }

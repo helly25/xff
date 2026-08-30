@@ -254,10 +254,13 @@ absl::Status RemovePharMembersOfFile(std::string_view path, const std::vector<st
   const stdfs::path temporary = stdfs::path(target).replace_filename(target.filename().string() + ".xff-rewrite");
   MBO_RETURN_IF_ERROR(WriteWholeFile(temporary, rebuilt));
   std::error_code error;
+  // XFF_HOST_IO: PHAR writer inspects the explicitly selected output path metadata.
   const stdfs::perms mode = stdfs::status(target, error).permissions();
+  // XFF_HOST_IO: PHAR writer publishes its explicitly selected output file.
   stdfs::rename(temporary, target, error);
   if (error) {
     std::error_code ignored;
+    // XFF_HOST_IO: PHAR writer removes its explicitly selected temporary output.
     stdfs::remove(temporary, ignored);
     return absl::UnavailableError(absl::StrCat("cannot replace ", path, ": ", error.message()));
   }

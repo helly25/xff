@@ -29,6 +29,18 @@ class CheckHostIoTest(unittest.TestCase):
             path.write_text("std::ifstream input(\"x\");\n", encoding="utf-8")
             self.assertFalse(check_host_io.check(path))
 
+    def test_rejects_unannotated_filesystem_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "sample.cc"
+            path.write_text("void f() { std::filesystem::remove(\"x\"); }\n", encoding="utf-8")
+            self.assertEqual(len(check_host_io.check(path)), 1)
+
+    def test_accepts_annotated_filesystem_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "sample.cc"
+            path.write_text("// XFF_HOST_IO: adapter\nstdfs::status(\"x\", error);\n", encoding="utf-8")
+            self.assertFalse(check_host_io.check(path))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -587,15 +587,18 @@ absl::Status PackFiles(std::string_view path, const std::vector<PackEntry>& entr
     for (const PackEntry& entry : entries) {
       if (const absl::Status status = WriteOne(*writer, entry); !status.ok()) {
         std::error_code ignored;
+        // XFF_HOST_IO: archive pack removes its explicitly selected temporary output.
         stdfs::remove(temporary, ignored);
         return status;
       }
     }
   }  // the deleter closes the writer, which is when zip writes its directory
   std::error_code error;
+  // XFF_HOST_IO: archive pack publishes its explicitly selected output file.
   stdfs::rename(temporary, target, error);
   if (error) {
     std::error_code ignored;
+    // XFF_HOST_IO: archive pack removes its explicitly selected temporary output.
     stdfs::remove(temporary, ignored);
     return absl::UnavailableError(absl::StrCat("cannot place '", path, "': ", error.message()));
   }
