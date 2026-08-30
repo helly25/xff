@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-30 20:38:32</td>
+            <td class="headerValue">2026-08-30 23:01:04</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -369,14 +369,14 @@
 <span id="L285"><span class="lineNum">     285</span>                 :             :     }</span>
 <span id="L286"><span class="lineNum">     286</span>                 :             :   }</span>
 <span id="L287"><span class="lineNum">     287</span>                 :<span class="tlaGNC">         162 :   std::vector&lt;vfs::Entry&gt; entries;</span></span>
-<span id="L288"><span class="lineNum">     288</span>         [<span class="tlaGBC" title="branch 0 was taken 2509 times"> + </span><span class="tlaGBC" title="branch 1 was taken 161 times"> + </span>]:<span class="tlaGNC">        2670 :   for (const auto&amp; [member_key, node] : nodes_) {</span></span>
+<span id="L288"><span class="lineNum">     288</span>         [<span class="tlaGBC" title="branch 0 was taken 2509 times"> + </span><span class="tlaGBC" title="branch 1 was taken 162 times"> + </span>]:<span class="tlaGNC">        2671 :   for (const auto&amp; [member_key, node] : nodes_) {</span></span>
 <span id="L289"><span class="lineNum">     289</span>         [<span class="tlaGBC" title="branch 0 was taken 2151 times"> + </span><span class="tlaGBC" title="branch 1 was taken 358 times"> + </span>]:<span class="tlaGNC">        2509 :     if (ParentOf(member_key) != *key) {</span></span>
 <span id="L290"><span class="lineNum">     290</span>                 :<span class="tlaGNC">        2151 :       continue;  // only direct children; the walk recurses for the rest</span></span>
 <span id="L291"><span class="lineNum">     291</span>                 :             :     }</span>
 <span id="L292"><span class="lineNum">     292</span>                 :<span class="tlaGNC">         358 :     entries.push_back(</span></span>
-<span id="L293"><span class="lineNum">     293</span>                 :<span class="tlaGNC">        1073 :         vfs::Entry{</span></span>
+<span id="L293"><span class="lineNum">     293</span>                 :<span class="tlaGNC">        1074 :         vfs::Entry{</span></span>
 <span id="L294"><span class="lineNum">     294</span>                 :<span class="tlaGNC">         358 :             .path = JoinMemberPath(container_, member_key, options_),</span></span>
-<span id="L295"><span class="lineNum">     295</span>                 :<span class="tlaGNC">         715 :             .name = std::string(NameOf(member_key)),</span></span>
+<span id="L295"><span class="lineNum">     295</span>                 :<span class="tlaGNC">         716 :             .name = std::string(NameOf(member_key)),</span></span>
 <span id="L296"><span class="lineNum">     296</span>                 :<span class="tlaGNC">         358 :             .type = node.metadata.type,</span></span>
 <span id="L297"><span class="lineNum">     297</span>                 :             :             // Both fields matter downstream: kArchiveMember tags the origin, and read_only is what</span>
 <span id="L298"><span class="lineNum">     298</span>                 :             :             // makes -delete and the exec family refuse rather than silently skip.</span>
@@ -384,7 +384,7 @@
 <span id="L300"><span class="lineNum">     300</span>                 :             :             .read_only = true,</span>
 <span id="L301"><span class="lineNum">     301</span>                 :             :         });</span>
 <span id="L302"><span class="lineNum">     302</span>                 :             :   }</span>
-<span id="L303"><span class="lineNum">     303</span>                 :<span class="tlaGNC">         161 :   return entries;</span></span>
+<span id="L303"><span class="lineNum">     303</span>                 :<span class="tlaGNC">         162 :   return entries;</span></span>
 <span id="L304"><span class="lineNum">     304</span>                 :<span class="tlaGNC">         165 : }</span></span>
 <span id="L305"><span class="lineNum">     305</span>                 :             : </span>
 <span id="L306"><span class="lineNum">     306</span>                 :<span class="tlaGNC">         220 : absl::StatusOr&lt;vfs::Metadata&gt; ArchiveFileSystem::Stat(std::string_view path, bool /*follow_symlinks*/) const {</span></span>
