@@ -133,6 +133,7 @@ absl::StatusOr<std::string> ExtractedMembers::Extract(const vfs::FileSystem& fs,
   }
   const stdfs::path path = dir / std::string(MemberName(member));
   {
+    // XFF_HOST_IO: extraction deliberately materializes a virtual member for an external process.
     std::ofstream out(path, std::ios::binary | std::ios::trunc);
     out << content;
     if (!out) {

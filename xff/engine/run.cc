@@ -3688,11 +3688,13 @@ RunResult RunFind(
   // opened once (truncating) on first write and held open for the whole walk. The
   // visitor is single-threaded, so the sink map needs no synchronisation. Streams
   // close (flushing) when `file_sinks` goes out of scope after the walk.
+  // XFF_HOST_IO: -fprint-family actions intentionally write user-selected host output files.
   std::map<std::string, std::ofstream> file_sinks;
   const auto emit_file = [&file_sinks](std::string_view file, std::string_view record) {
     const std::string name(file);
     auto it = file_sinks.find(name);
     if (it == file_sinks.end()) {
+      // XFF_HOST_IO: open the explicit output path selected by the -fprint-family action.
       it = file_sinks.emplace(name, std::ofstream(name, std::ios::binary | std::ios::trunc)).first;
     }
     it->second.write(record.data(), static_cast<std::streamsize>(record.size()));

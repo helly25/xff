@@ -86,6 +86,13 @@ repos:
         entry: tools/check_raw_pointers.py
         pass_filenames: false
         files: ^(xff|xff_extras_api|extra_modules)/.*\.(cc|h)$
+      - id: check-host-io
+        name: Xff production code uses approved host file I/O
+        description: Rejects unannotated host-file APIs outside the VFS and explicit adapters.
+        language: python
+        entry: tools/check_host_io.py
+        types_or: [c, c++]
+        files: ^(xff|xff_extras_api|extra_modules)/.*\.(cc|h)$
       - id: check-raw-pointers-test
         name: Test raw-pointer policy checker
         language: python
