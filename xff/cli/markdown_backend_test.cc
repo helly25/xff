@@ -68,6 +68,12 @@ TEST_F(MarkdownRefLinkTest, ManPageIsPlainNameSection) {
   EXPECT_THAT(MarkdownRefLink({.kind = RefTarget::Kind::kManPage, .id = "find", .section = "1"}, ""), Eq("find(1)"));
 }
 
+TEST_F(MarkdownRefLinkTest, ManPageKeepsExplicitLabel) {
+  EXPECT_THAT(
+      MarkdownRefLink({.kind = RefTarget::Kind::kManPage, .id = "find", .section = "1"}, "find manual"),
+      Eq("find manual"));
+}
+
 // ---- RenderInlinesMarkdown ----
 
 struct RenderInlinesMarkdownTest : ::testing::Test {};
