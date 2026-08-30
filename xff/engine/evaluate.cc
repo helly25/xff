@@ -1335,18 +1335,18 @@ bool EvalDiff(const parser::Expr& expr, EvalContext& ctx) {
   if (target.empty()) {
     return false;  // no target resolved -> treat as differing
   }
-  const absl::StatusOr<mbo::file::Artefact> lhs = mbo::file::Artefact::Read(ctx.visit.path);
-  const absl::StatusOr<mbo::file::Artefact> rhs = mbo::file::Artefact::Read(target);
-  if (!lhs.ok() || !rhs.ok()) {
+  const absl::StatusOr<std::string> lhs_data = ctx.fs.ReadContent(ctx.visit.path);
+  const absl::StatusOr<std::string> rhs_data = ctx.fs.ReadContent(target);
+  if (!lhs_data.ok() || !rhs_data.ok()) {
     return false;  // missing / unreadable -> differs
   }
   // A binary side is byte-compared, not text-diffed: equal is silent; a difference notes it on
   // stderr (like `diff`/`cmp`) and is false.
-  if (LooksBinary(lhs->data) || LooksBinary(rhs->data)) {
-    if (lhs->data == rhs->data) {
+  if (LooksBinary(*lhs_data) || LooksBinary(*rhs_data)) {
+    if (*lhs_data == *rhs_data) {
       return true;
     }
-    std::cerr << "Binary files " << lhs->name << " and " << rhs->name << " differ\n";
+    std::cerr << "Binary files " << ctx.visit.path << " and " << target << " differ\n";
     return false;
   }
   const DiffStyle style = ParseDiffStyle(expr.diff_style);
@@ -1366,7 +1366,9 @@ bool EvalDiff(const parser::Expr& expr, EvalContext& ctx) {
   // --diff-ignore / --diff-ignore-matching normalization. The values were validated before
   // the walk (ValidateDiffIgnore), so this only configures; the returned status is ignored.
   ApplyDiffIgnore(ctx.diff_ignore, ctx.diff_ignore_matching, options).IgnoreError();
-  const absl::StatusOr<std::string> diff = mbo::diff::Diff::FileDiff(*lhs, *rhs, options);
+  const absl::StatusOr<std::string> diff = mbo::diff::Diff::FileDiff(
+      mbo::file::Artefact{.data = *lhs_data, .name = std::string(ctx.visit.path)},
+      mbo::file::Artefact{.data = *rhs_data, .name = target}, options);
   if (!diff.ok()) {
     return false;  // a diff failure -> treat as differing
   }
