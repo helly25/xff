@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+"""Tests for the production host-I/O policy checker."""
+
+from __future__ import annotations
+
+import pathlib
+import tempfile
+import unittest
+
+from tools import check_host_io
+
+
+class CheckHostIoTest(unittest.TestCase):
+    def test_rejects_unannotated_stream(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "sample.cc"
+            path.write_text("void f() { std::ifstream input(\"x\"); }\n", encoding="utf-8")
+            self.assertEqual(len(check_host_io.check(path)), 1)
+
+    def test_accepts_reason_marker(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "sample.cc"
+            path.write_text("// XFF_HOST_IO: adapter\nstd::ifstream input(\"x\");\n", encoding="utf-8")
+            self.assertFalse(check_host_io.check(path))
+
+    def test_ignores_tests(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "sample_test.cc"
+            path.write_text("std::ifstream input(\"x\");\n", encoding="utf-8")
+            self.assertFalse(check_host_io.check(path))
+
+
+if __name__ == "__main__":
+    unittest.main()

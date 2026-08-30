@@ -462,6 +462,12 @@ repos:
         # local module whose external deps (e.g. pcre2.h) are absent from a lean build, so the core
         # clang-tidy gate cannot parse them. They get linted under their own build config, not here.
         stages: [manual]
+      - id: host-io-policy-test
+        name: Test host-I/O policy checker
+        language: python
+        entry: python3 -m unittest tools.check_host_io_test
+        pass_filenames: false
+        files: ^tools/check_host_io(_test)?\.py$
 
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v22.1.8
