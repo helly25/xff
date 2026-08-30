@@ -12,6 +12,7 @@ MARKER = "XFF_HOST_IO:"
 PATTERNS = (
     re.compile(r"\bstd::(?:i|o|io)fstream\b"),
     re.compile(r"\bmbo::file::Artefact::Read(?:MaxLines)?\s*\("),
+    re.compile(r"\b(?:fopen|freopen|fclose|fread|fwrite)\s*\("),
 )
 
 
