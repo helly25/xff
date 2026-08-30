@@ -753,8 +753,15 @@ TEST_F(RunTest, DiffPolarityIsTrueWhenEqual) {
     std::ofstream binary(root_ / "binary-twin.txt", std::ios::binary);
     binary << "a\0same";
   }
+  {
+    std::ofstream binary(root_ / "binary-other.txt", std::ios::binary);
+    binary << "a\0different";
+  }
   EXPECT_THAT(
       RunExpr({"-name", "binary-twin.txt", "-diff:none", Path("binary-twin.txt"), "-print"}),
+      ElementsAre(Path("binary-twin.txt")));
+  EXPECT_THAT(
+      RunExpr({"-name", "binary-twin.txt", "-diff:none", Path("binary-other.txt"), "-print"}),
       ElementsAre(Path("binary-twin.txt")));
 }
 
