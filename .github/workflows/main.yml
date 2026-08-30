@@ -466,17 +466,22 @@ jobs:
           set -euo pipefail
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
             echo "CLANG_TIDY_SCOPE=--all-files" >>"${GITHUB_ENV}"
+            git ls-files -- '*.cc' '*.cpp' '*.cxx' '*.h' '*.hh' '*.hpp' '*.hxx' '*.inc' '*.ipp' '*.h.in' '*.bzl' >.clang-tidy-inputs
             echo "Linting the whole tree (on main)."
           else
             git fetch --no-tags --quiet origin main
             WIDE_CHANGES="$(git diff --name-only origin/main...HEAD -- \
-              '*.h' '*.hh' '*.hpp' '*.hxx' '*.inc' '*.ipp' '*.h.in' '*.bzl')"
+              '*.h' '*.hh' '*.hpp' '*.hxx' '*.inc' '*.ipp' '*.h.in' '*.bzl' \
+              '.github/workflows/main.yml' '.pre-commit-config.yaml' 'tools/clang_tidy.sh' \
+              'tools/clang_tidy_compdb.py' 'tools/clang_tidy_runner.py' 'tools/clang_tidy_scope.py')"
             if [ -n "${WIDE_CHANGES}" ]; then
               echo "CLANG_TIDY_SCOPE=--all-files" >>"${GITHUB_ENV}"
+              git ls-files -- '*.cc' '*.cpp' '*.cxx' '*.h' '*.hh' '*.hpp' '*.hxx' '*.inc' '*.ipp' '*.h.in' '*.bzl' >.clang-tidy-inputs
               echo "Linting the whole tree because compilation-wide files changed:"
               echo "${WIDE_CHANGES}" | sed 's/^/  /'
             else
               echo "CLANG_TIDY_SCOPE=--from-ref origin/main --to-ref HEAD" >>"${GITHUB_ENV}"
+              git diff --name-only origin/main...HEAD -- '*.cc' '*.cpp' '*.cxx' '*.h' '*.hh' '*.hpp' '*.hxx' '*.inc' '*.ipp' '*.h.in' '*.bzl' >.clang-tidy-inputs
               echo "Linting translation units changed against origin/main:"
               git diff --name-only origin/main...HEAD -- \
                 '*.cc' '*.cpp' '*.cxx' '*.h' '*.hh' '*.hpp' '*.hxx' '*.inc' '*.ipp' '*.h.in' '*.bzl' |
@@ -563,13 +568,12 @@ jobs:
             echo "| Duplicate entries | ${DUPES} |"
             echo "| Lint scope | \`${CLANG_TIDY_SCOPE}\` |"
           } >>"${GITHUB_STEP_SUMMARY}"
-      - uses: pre-commit/action@v3.0.1
-        # Hard gate: .clang-tidy is WarningsAsErrors '*' and the tree is clang-tidy-clean, so any new
-        # finding fails this job (and thus `done`). The compile-DB build above gates too.
-        with:
-          # Only the clang-tidy hook (every other hook ran in the pre-commit job). Scope comes from
-          # the step above: changed sources on a branch, the whole tree on main.
-          extra_args: clang-tidy --hook-stage manual ${{ env.CLANG_TIDY_SCOPE }}
+      - name: Run clang-tidy with progress
+        # Invoke the script directly so parallel per-file progress streams live in CI output.
+        run: |
+          set -euo pipefail
+          mapfile -t FILES <.clang-tidy-inputs
+          tools/clang_tidy.sh "${FILES[@]}"
 
   # Single required status check: one job that gates merge on the whole matrix,
   # so branch protection needs only `done`. A yq/jq step self-checks that every

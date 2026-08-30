@@ -130,7 +130,7 @@ done
 # targeted, commented NOLINT rather than a blanket exemption for the whole test tree.
 readonly TEST_DISABLED_CHECKS='-readability-function-cognitive-complexity,-misc-override-with-different-visibility,-readability-identifier-naming'
 
-PARALLELISM="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+PARALLELISM="${CLANG_TIDY_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)}"
 readonly PARALLELISM
 
 declare -a SOURCES=()
@@ -144,20 +144,21 @@ done < <(python3 tools/clang_tidy_scope.py compile_commands.json "${@}")
 
 # Report only: --header-filter restricts diagnostics to this repo's own headers
 # (not the toolchain's force-included / system headers), -p points at the compile
-# DB. WarningsAsErrors in .clang-tidy makes any finding a non-zero exit. Both groups
-# must run and a finding in either has to fail, so no `exec` (which would run one).
+# DB. WarningsAsErrors in .clang-tidy makes any finding a non-zero exit. The Python
+# coordinator owns output serialization, progress reporting, and interruption cleanup.
+OUTPUT="$(mktemp "${TMPDIR:-/tmp}/clang_tidy_out.XXXXXX")"
+CDB_DIR="$(mktemp -d "${TMPDIR:-/tmp}/clang_tidy_cdb.XXXXXX")"
+trap 'rm -f "${OUTPUT}"; rm -rf "${CDB_DIR}"' EXIT
+python3 tools/clang_tidy_compdb.py compile_commands.json "${CDB_DIR}/compile_commands.json"
+RUNNER_ARGS=(
+  --clang-tidy "${CLANG_TIDY}"
+  --compile-database "${CDB_DIR}"
+  --jobs "${PARALLELISM}"
+  --output "${OUTPUT}"
+  "--test-disabled-checks=${TEST_DISABLED_CHECKS}"
+)
+for FILE in ${SOURCES[@]+"${SOURCES[@]}"}; do RUNNER_ARGS+=(--source "${FILE}"); done
+for FILE in ${TESTS[@]+"${TESTS[@]}"}; do RUNNER_ARGS+=(--test "${FILE}"); done
 STATUS=0
-if [ "${#SOURCES[@]}" -gt 0 ]; then
-  if ! printf '%s\0' "${SOURCES[@]}" | xargs -0 -n 1 -P "${PARALLELISM}" \
-    "${CLANG_TIDY}" --header-filter='(^|/)xff/' "${EXTRA_ARGS[@]}" -p .; then
-    STATUS=1
-  fi
-fi
-if [ "${#TESTS[@]}" -gt 0 ]; then
-  if ! printf '%s\0' "${TESTS[@]}" | xargs -0 -n 1 -P "${PARALLELISM}" \
-    "${CLANG_TIDY}" --header-filter='(^|/)xff/' --checks="${TEST_DISABLED_CHECKS}" \
-    "${EXTRA_ARGS[@]}" -p .; then
-    STATUS=1
-  fi
-fi
+python3 tools/clang_tidy_runner.py "${RUNNER_ARGS[@]}" || STATUS="${?}"
 exit "${STATUS}"

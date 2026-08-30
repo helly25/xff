@@ -436,8 +436,9 @@ repos:
           missing, so it never forces the toolchain download on a fresh checkout.
           `stages: [manual]` keeps it off the local commit hook (run it explicitly with
           `pre-commit run clang-tidy --all-files --hook-stage manual`), but the dedicated CI
-          `clang-tidy` job owns it as a HARD GATE: that job builds the compile DB and runs this
-          hook with `--hook-stage manual`, and `.clang-tidy` is `WarningsAsErrors: '*'`, so any
+          `clang-tidy` job owns it as a HARD GATE: that job builds the compile DB and invokes this
+          same script directly so per-file progress streams live, and `.clang-tidy` is
+          `WarningsAsErrors: '*'`, so any
           finding fails CI. It is not run by trunk (trunk pinned clang-tidy 16, which mis-parses
           C++23 - do not re-add it there).
         language: script
@@ -445,10 +446,10 @@ repos:
         types: [file]
         files: (\.(cc|cpp|cxx|h|hh|hpp|hxx|inc|ipp|bzl)$|\.h\.in$)
       - id: clang-tidy-scope-test
-        name: Test clang-tidy scope selection
+        name: Test clang-tidy orchestration
         language: system
-        entry: python3 -m unittest tools/clang_tidy_scope_test.py
-        files: ^tools/clang_tidy_scope(_test)?\.py$
+        entry: python3 -m unittest tools/clang_tidy_compdb_test.py tools/clang_tidy_scope_test.py tools/clang_tidy_runner_test.py
+        files: ^tools/clang_tidy_(compdb|scope|runner)(_test)?\.py$
         pass_filenames: false
         # Skip the composable build extras (extra_modules/<name>): each is a flag-gated optional
         # local module whose external deps (e.g. pcre2.h) are absent from a lean build, so the core
