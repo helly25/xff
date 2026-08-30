@@ -762,9 +762,7 @@ TEST_F(RunTest, DiffPolarityIsTrueWhenEqual) {
   EXPECT_THAT(
       RunExpr({"-name", "binary-twin.txt", "-diff:none", Path("binary-twin.txt"), "-print"}),
       ElementsAre(Path("binary-twin.txt")));
-  EXPECT_THAT(
-      RunExpr({"-name", "binary-twin.txt", "-diff:none", Path("binary-other.txt"), "-print"}),
-      IsEmpty());
+  EXPECT_THAT(RunExpr({"-name", "binary-twin.txt", "-diff:none", Path("binary-other.txt"), "-print"}), IsEmpty());
 }
 
 TEST_F(RunTest, DiffIgnoreNormalizesComparison) {
