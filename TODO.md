@@ -46,6 +46,10 @@ for enforcement and presentation.
    from reaching known unsafe third-party parser paths. Revisit the pinned libarchive version and
    format-specific validation before broadening beyond structurally valid tar inputs; report any
    confirmed dependency defect through its private security channel when appropriate.
+7. **VFS host-adapter split.** Extend the capability-oriented `vfs::FileSystem` seam for every file
+   operation xff needs, then move POSIX and standard-library file primitives behind a minimal local
+   host adapter. Consumers must not open or mutate host paths directly; retain annotations only at
+   the immediate adapter boundary.
 
 ## Design required before implementation
 
