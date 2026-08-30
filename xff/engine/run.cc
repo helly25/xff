@@ -80,6 +80,7 @@
 #include "xff/shard/shard.h"
 #include "xff/values/values.h"
 #include "xff/vfs/filesystem.h"
+#include "xff/vfs/local_fs.h"
 
 namespace xff::engine {
 namespace {
@@ -1963,11 +1964,12 @@ absl::StatusOr<std::vector<archive::PackOption>> ReadPackOptionFile(std::string_
   if (path.empty()) {
     return absl::InvalidArgumentError("expected a file after --pack-option=@");
   }
-  std::ifstream input{std::string(path)};
-  if (!input) {
+  const vfs::LocalFs fs;
+  const absl::StatusOr<std::string> content = fs.ReadContent(path);
+  if (!content.ok()) {
     return absl::NotFoundError(absl::StrCat("cannot read pack-option file '", path, "'"));
   }
-  const Json root = Json::parse(input, nullptr, /*allow_exceptions=*/false);
+  const Json root = Json::parse(*content, nullptr, /*allow_exceptions=*/false);
   if (root.is_discarded()) {
     return absl::InvalidArgumentError(absl::StrCat("pack-option file '", path, "' is not valid JSON"));
   }
