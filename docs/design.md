@@ -229,13 +229,15 @@ POSIX paths (and content) are byte strings, not guaranteed UTF-8; JSON/CSV/markd
 ### VFS capability and host-adapter boundaries
 
 The VFS has two deliberately different contracts. Consumers use the small capability-oriented
-`vfs::FileSystem` interface (`ReadDir`, `Stat`, `ReadLink`, content reads, access checks, and the
-narrow mutations xff supports), with `Status`/`StatusOr` results and no descriptors or platform
-types. Each backend implements only the capabilities it can provide; unsupported operations return
-structured errors.
+`vfs::FileSystem` interface (`ReadDir`, `Stat`, `ReadLink`, content reads, access checks, and
+capability-scoped writes), with `Status`/`StatusOr` results and no descriptors or platform types.
+Write capabilities include creating temporary files, writing/replacing bytes, truncating, and
+removing entries where xff explicitly needs them. Each backend implements only the capabilities it
+can provide; unsupported operations return structured errors.
 
 The local backend keeps a separate internal host adapter for POSIX, `std::filesystem`, and platform
-metadata primitives. That adapter is the only place where host handles and C APIs appear, keeping
+metadata primitives, including file creation and mutation. That adapter is the only place where
+host handles and C APIs appear, keeping
 annotations and portability code at the immediate boundary. Archive, memory, and remote backends
 never need to expose those implementation details, and engine code cannot accidentally bypass the
 VFS by opening a host path directly.
