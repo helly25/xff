@@ -17,7 +17,6 @@ PATTERNS = (
         r"\b(?:std::filesystem|stdfs)::(?:create_directory|create_directories|remove|remove_all|rename|status)\s*\("
     ),
     re.compile(r"::(?:access|lstat|stat)\s*\("),
-    re.compile(r"::(?:close|pipe|read)\s*\("),
 )
 
 

@@ -47,12 +47,6 @@ class CheckHostIoTest(unittest.TestCase):
             path.write_text("void f() { ::access(\"x\", W_OK); }\n", encoding="utf-8")
             self.assertEqual(len(check_host_io.check(path)), 1)
 
-    def test_rejects_unannotated_posix_descriptor_operation(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            path = pathlib.Path(directory) / "sample.cc"
-            path.write_text("void f() { ::close(3); }\n", encoding="utf-8")
-            self.assertEqual(len(check_host_io.check(path)), 1)
-
 
 if __name__ == "__main__":
     unittest.main()

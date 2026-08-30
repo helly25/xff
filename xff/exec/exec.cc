@@ -224,7 +224,6 @@ std::optional<std::string> CaptureOutput(const std::vector<std::string>& args, s
   // pipe2(O_CLOEXEC) is not available on macOS; the fds are closed explicitly around the spawn below
   // and the child inherits only the dup'd write end via posix_spawn_file_actions.
   // NOLINTNEXTLINE(android-cloexec-pipe)
-  // XFF_HOST_IO: process adapter creates an isolated child-output pipe.
   if (::pipe(pipe_fds.data()) != 0) {
     return std::nullopt;
   }
@@ -252,10 +251,8 @@ std::optional<std::string> CaptureOutput(const std::vector<std::string>& args, s
   pid_t pid = 0;
   const int spawned = ::posix_spawnp(&pid, argv[0], &actions, nullptr, argv.data(), environ);
   posix_spawn_file_actions_destroy(&actions);
-  // XFF_HOST_IO: process adapter closes its pipe endpoint.
   ::close(pipe_fds[1]);  // parent drops the write end so read() sees EOF once the child exits
   if (spawned != 0) {
-    // XFF_HOST_IO: process adapter closes its pipe endpoint.
     ::close(pipe_fds[0]);
     return std::nullopt;  // could not spawn (e.g. command not found)
   }
@@ -265,7 +262,6 @@ std::optional<std::string> CaptureOutput(const std::vector<std::string>& args, s
   std::string output;
   std::array<char, 4'096> buffer{};
   for (;;) {
-    // XFF_HOST_IO: process adapter reads child output from its isolated pipe.
     const ssize_t bytes_read = ::read(pipe_fds[0], buffer.data(), buffer.size());
     if (bytes_read > 0) {
       output.append(buffer.data(), static_cast<std::size_t>(bytes_read));
@@ -273,7 +269,6 @@ std::optional<std::string> CaptureOutput(const std::vector<std::string>& args, s
       break;  // EOF, or a non-retryable read error
     }
   }
-  // XFF_HOST_IO: process adapter closes its pipe endpoint.
   ::close(pipe_fds[0]);
   int status = 0;
   ::waitpid(pid, &status, 0);  // reap; the capture value is the stdout, not the exit code
