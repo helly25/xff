@@ -1669,6 +1669,13 @@ TEST_F(RunTest, HistogramLineRangesIgnoreDirectoriesAndBucketRegularFileLineCoun
       ElementsAre(R"({"histogram":"lines","bucket":"1-9","value":3})"));
 }
 
+TEST_F(RunTest, MissingPackOptionFileFailsBeforeTraversal) {
+  EXPECT_THAT(
+      RunArgvRecords({"--pack-option=@" + Path("absent-pack-options.json"), root_.string(), "-print"}),
+      IsEmpty());
+  EXPECT_THAT(last_errors_, Eq(2));
+}
+
 TEST_F(RunTest, HistogramBadMeasureIsAUsageError) {
   // A numeric metric with no aggregator, an unknown aggregator, and an unknown field each fail (2).
   RunArgvRecords({"--histogram=ext:lines", root_.string(), "-type", "f"});
