@@ -23,6 +23,13 @@ and must carry `XFF_ABI_POINTER: <reason>` on that declaration or the immediatel
 do not broaden that exception to xff-owned interfaces or internal convenience pointers.
 `STYLE_CPP.md` is canonical.
 
+Outside required OS or third-party interfaces and explicitly designated adapters, file I/O APIs are
+forbidden: this includes STL streams, `std::filesystem` file operations, C/POSIX stdio and file
+descriptor calls, and path-based `mbo::file`/Abseil helpers. Route reads and writes through the xff
+VFS or a value-returning `absl::Status`/`absl::StatusOr<T>` adapter. Prefer pure functions over
+side-effecting output parameters. Narrow host-I/O adapters must carry `XFF_HOST_IO: <reason>` on
+the declaration or immediately preceding line; the pre-commit policy enforces this boundary.
+
 ## Bazel package policy
 
 Every `BUILD` / `BUILD.bazel` file declares
