@@ -25,12 +25,12 @@ cc_library(
     hdrs = ["hash.h"],
     visibility = ["//xff:__subpackages__"],
     deps = [
+        "//xff/vfs:local_fs_cc",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
         "@helly25_mbo//mbo/container:limited_map_cc",
         "@helly25_mbo//mbo/digest:digest_cc",
-        "@helly25_mbo//mbo/file:artefact_cc",
     ],
 )
 

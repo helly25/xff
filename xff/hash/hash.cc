@@ -30,7 +30,7 @@
 #include "absl/types/span.h"
 #include "mbo/container/limited_map.h"
 #include "mbo/digest/digest.h"
-#include "mbo/file/artefact.h"
+#include "xff/vfs/local_fs.h"
 
 namespace xff::hash {
 namespace {
@@ -165,11 +165,12 @@ std::optional<std::string> HashFile(std::string_view algo, std::string_view path
   if (!IsAlgorithm(algo)) {
     return std::nullopt;  // reject before touching the filesystem
   }
-  const absl::StatusOr<mbo::file::Artefact> artefact = mbo::file::Artefact::Read(path);
-  if (!artefact.ok()) {
+  const vfs::LocalFs fs;
+  const absl::StatusOr<std::string> content = fs.ReadContent(path);
+  if (!content.ok()) {
     return std::nullopt;
   }
-  return HashData(algo, artefact->data, encoding);
+  return HashData(algo, *content, encoding);
 }
 
 }  // namespace xff::hash
