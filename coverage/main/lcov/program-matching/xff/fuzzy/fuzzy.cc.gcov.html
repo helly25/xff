@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-30 10:42:47</td>
+            <td class="headerValue">2026-08-30 12:19:43</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -360,17 +360,17 @@
 <span id="L265"><span class="lineNum">     265</span>                 :             :     }</span>
 <span id="L266"><span class="lineNum">     266</span>         [<span class="tlaGBC" title="branch 0 was taken 12238 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2181 times"> + </span>]:<span class="tlaGNC">       14419 :     if (!SameChar(text[at], want, fold_case)) {</span></span>
 <span id="L267"><span class="lineNum">     267</span>                 :<span class="tlaGNC">       12238 :       best[at] = kUnmatched;</span></span>
-<span id="L268"><span class="lineNum">     268</span>                 :<span class="tlaGNC">       12764 :       continue;</span></span>
+<span id="L268"><span class="lineNum">     268</span>                 :<span class="tlaGNC">       12763 :       continue;</span></span>
 <span id="L269"><span class="lineNum">     269</span>                 :             :     }</span>
 <span id="L270"><span class="lineNum">     270</span>         [<span class="tlaGBC" title="branch 0 was taken 658 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1523 times"> + </span>]:<span class="tlaGNC">        2181 :     const int here = kMatch + (IsWordStart(text, at) ? kWordStart : 0);</span></span>
-<span id="L271"><span class="lineNum">     271</span>         [<span class="tlaGBC" title="branch 0 was taken 526 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1655 times"> + </span>]:<span class="tlaGNC">        2181 :     if (first) {</span></span>
+<span id="L271"><span class="lineNum">     271</span>         [<span class="tlaGBC" title="branch 0 was taken 525 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1656 times"> + </span>]:<span class="tlaGNC">        2181 :     if (first) {</span></span>
 <span id="L272"><span class="lineNum">     272</span>                 :             :       // The first character may start anywhere, but the later it starts the worse it scores.</span>
-<span id="L273"><span class="lineNum">     273</span>                 :<span class="tlaGNC">         526 :       best[at] = here - (kGap * static_cast&lt;int&gt;(at));</span></span>
-<span id="L274"><span class="lineNum">     274</span>                 :<span class="tlaGNC">         526 :       continue;</span></span>
+<span id="L273"><span class="lineNum">     273</span>                 :<span class="tlaGNC">         525 :       best[at] = here - (kGap * static_cast&lt;int&gt;(at));</span></span>
+<span id="L274"><span class="lineNum">     274</span>                 :<span class="tlaGNC">         525 :       continue;</span></span>
 <span id="L275"><span class="lineNum">     275</span>                 :             :     }</span>
-<span id="L276"><span class="lineNum">     276</span>   [<span class="tlaGBC" title="branch 0 was taken 1559 times"> + </span><span class="tlaGBC" title="branch 1 was taken 96 times"> + </span><span class="tlaGBC" title="branch 2 was taken 893 times"> + </span><span class="tlaGBC" title="branch 3 was taken 666 times"> + </span>]:<span class="tlaGNC">        1655 :     const int consecutive = at &gt; 0 &amp;&amp; previous[at - 1] != kUnmatched ? previous[at - 1] + kConsecutive : kUnmatched;</span></span>
-<span id="L277"><span class="lineNum">     277</span>                 :<span class="tlaGNC">        1655 :     const int from = std::max(reachable, consecutive);</span></span>
-<span id="L278"><span class="lineNum">     278</span>         [<span class="tlaGBC" title="branch 0 was taken 1184 times"> + </span><span class="tlaGBC" title="branch 1 was taken 471 times"> + </span>]:<span class="tlaGNC">        1655 :     best[at] = from == kUnmatched ? kUnmatched : from + here;</span></span>
+<span id="L276"><span class="lineNum">     276</span>   [<span class="tlaGBC" title="branch 0 was taken 1560 times"> + </span><span class="tlaGBC" title="branch 1 was taken 96 times"> + </span><span class="tlaGBC" title="branch 2 was taken 893 times"> + </span><span class="tlaGBC" title="branch 3 was taken 667 times"> + </span>]:<span class="tlaGNC">        1656 :     const int consecutive = at &gt; 0 &amp;&amp; previous[at - 1] != kUnmatched ? previous[at - 1] + kConsecutive : kUnmatched;</span></span>
+<span id="L277"><span class="lineNum">     277</span>                 :<span class="tlaGNC">        1656 :     const int from = std::max(reachable, consecutive);</span></span>
+<span id="L278"><span class="lineNum">     278</span>         [<span class="tlaGBC" title="branch 0 was taken 1184 times"> + </span><span class="tlaGBC" title="branch 1 was taken 472 times"> + </span>]:<span class="tlaGNC">        1656 :     best[at] = from == kUnmatched ? kUnmatched : from + here;</span></span>
 <span id="L279"><span class="lineNum">     279</span>                 :             :   }</span>
 <span id="L280"><span class="lineNum">     280</span>                 :<span class="tlaGNC">        1509 : }</span></span>
 <span id="L281"><span class="lineNum">     281</span>                 :             : </span>
