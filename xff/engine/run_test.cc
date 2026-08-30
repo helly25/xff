@@ -751,18 +751,18 @@ TEST_F(RunTest, DiffPolarityIsTrueWhenEqual) {
   // Binary inputs use byte equality rather than text diffing.
   {
     std::ofstream binary(root_ / "binary-twin.txt", std::ios::binary);
-    binary << "a\0same";
+    binary.write("a\0same", 6);
   }
   {
     std::ofstream binary(root_ / "binary-other.txt", std::ios::binary);
-    binary << "a\0different";
+    binary.write("a\0different", 11);
   }
   EXPECT_THAT(
       RunExpr({"-name", "binary-twin.txt", "-diff:none", Path("binary-twin.txt"), "-print"}),
       ElementsAre(Path("binary-twin.txt")));
   EXPECT_THAT(
       RunExpr({"-name", "binary-twin.txt", "-diff:none", Path("binary-other.txt"), "-print"}),
-      ElementsAre(Path("binary-twin.txt")));
+      IsEmpty());
 }
 
 TEST_F(RunTest, DiffIgnoreNormalizesComparison) {
