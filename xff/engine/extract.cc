@@ -62,6 +62,7 @@ std::optional<std::uint64_t> FreeBytes(const std::string& directory) {
 // Whether `directory` is a directory this process can create in.
 bool Writable(const std::string& directory) {
   std::error_code error;
+  // XFF_HOST_IO: extraction verifies permissions on its explicitly selected temporary directory.
   return stdfs::is_directory(directory, error) && ::access(directory.c_str(), W_OK | X_OK) == 0;
 }
 

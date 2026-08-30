@@ -451,6 +451,7 @@ absl::StatusOr<std::unique_ptr<FuseServer>> FuseServer::Mount(
     const absl::Time deadline = absl::Now() + absl::Seconds(5);
     bool ready = false;
     while (absl::Now() < deadline) {
+      // XFF_HOST_IO: FUSE adapter probes its explicitly selected mount point.
       if (::stat(server->impl_->mount_point.c_str(), &probe) == 0 && S_ISDIR(probe.st_mode)) {
         ready = true;
         break;
